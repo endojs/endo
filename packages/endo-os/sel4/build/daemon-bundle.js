@@ -307,31 +307,6 @@ var EndoDaemon = (() => {
   );
   var harden_default = harden2;
 
-  // ../common/object-map.js
-  var typedEntries = (
-    /** @type {TypedEntries} */
-    Object.entries
-  );
-  var fromTypedEntries = (
-    /** @type {FromTypedEntries} */
-    Object.fromEntries
-  );
-  var typedMap = (
-    /** @type {TypedMap} */
-    Function.prototype.call.bind(Array.prototype.map)
-  );
-  var objectMap = (original, mapFn) => {
-    const oldEntries = typedEntries(original);
-    const mapEntry = ([k, v]) => [k, mapFn(v, k)];
-    const newEntries = typedMap(oldEntries, mapEntry);
-    const newObj = fromTypedEntries(newEntries);
-    return (
-      /** @type {any} */
-      harden_default(newObj)
-    );
-  };
-  harden_default(objectMap);
-
   // ../env-options/src/env-options.js
   var localThis = globalThis;
   var { Object: Object3, Reflect: Reflect3, Array: Array3, String: String3, JSON: JSON3, Error: Error2 } = localThis;
@@ -403,70 +378,6 @@ var EndoDaemon = (() => {
     environmentOptionsListHas
   } = makeEnvironmentCaptor(localThis, true);
 
-  // ../errors/index.js
-  var { defineProperty: defineProperty2 } = Object;
-  var globalAssert = globalThis.assert;
-  if (globalAssert === void 0) {
-    throw Error(
-      `Cannot initialize @endo/errors, missing globalThis.assert, import 'ses' before '@endo/errors'`
-    );
-  }
-  var missing = [
-    "typeof",
-    "fail",
-    "equal",
-    "string",
-    "note",
-    "details",
-    "Fail",
-    "quote",
-    // As of 2025-07, the Agoric chain's bootstrap vat runs with a version of SES
-    // that predates addition of the 'bare' and 'makeError' methods, so we must
-    // tolerate their absence and fall back to other behavior in that environment
-    // (see below).
-    // 'bare',
-    // 'makeError',
-    "makeAssert"
-  ].filter((name) => globalAssert[name] === void 0);
-  if (globalAssert.makeError === void 0 && globalAssert.error === void 0) {
-    missing.push("makeError");
-  }
-  if (missing.length > 0) {
-    throw Error(
-      `Cannot initialize @endo/errors, missing globalThis.assert methods ${missing.join(
-        ", "
-      )}`
-    );
-  }
-  var {
-    bare: globalBare,
-    details,
-    error: globalError,
-    Fail: Fail2,
-    makeAssert: _omittedMakeAssert,
-    makeError: globalMakeError,
-    note,
-    quote,
-    ...assertions
-  } = globalAssert;
-  var assert3 = (value, optDetails, errContructor, options) => globalAssert(value, optDetails, errContructor, options);
-  Object.assign(assert3, assertions);
-  var bare = globalBare || quote;
-  var makeError = globalMakeError || globalError;
-  var b = bare;
-  var X = details;
-  var q2 = quote;
-  var annotateError = note;
-  var hideAndHardenFunction = (func) => {
-    typeof func === "function" || Fail2`${func} must be a function`;
-    const { name } = func;
-    defineProperty2(func, "name", {
-      // Use `String` in case `name` is a symbol.
-      value: `__HIDE_${String(name)}`
-    });
-    return harden_default(func);
-  };
-
   // ../eventual-send/src/track-turns.js
   var hiddenPriorError;
   var hiddenCurrentTurn = 0;
@@ -484,7 +395,7 @@ var EndoDaemon = (() => {
       console.log("REJECTED at top of event loop", reason);
     }
   };
-  var wrapFunction = (func, sendingError, X4) => (...args) => {
+  var wrapFunction = (func, sendingError, X5) => (...args) => {
     hiddenPriorError = sendingError;
     hiddenCurrentTurn += 1;
     hiddenCurrentEvent = 0;
@@ -496,7 +407,7 @@ var EndoDaemon = (() => {
         if (err instanceof Error) {
           globalThis.assert.note(
             err,
-            X4`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`
+            X5`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`
           );
         }
         if (VERBOSE) {
@@ -504,7 +415,7 @@ var EndoDaemon = (() => {
         }
         throw err;
       }
-      const detailsNote = X4`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
+      const detailsNote = X5`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
       Promise.resolve(result).catch(addRejectionNote(detailsNote));
       return result;
     } finally {
@@ -515,22 +426,22 @@ var EndoDaemon = (() => {
     if (!ENABLED || typeof globalThis === "undefined" || !globalThis.assert) {
       return funcs;
     }
-    const { details: X4, note: annotateError2 } = globalThis.assert;
+    const { details: X5, note: annotateError3 } = globalThis.assert;
     hiddenCurrentEvent += 1;
     const sendingError = Error(
       `Event: ${hiddenCurrentTurn}.${hiddenCurrentEvent}`
     );
     if (hiddenPriorError !== void 0) {
-      annotateError2(sendingError, X4`Caused by: ${hiddenPriorError}`);
+      annotateError3(sendingError, X5`Caused by: ${hiddenPriorError}`);
     }
     return (
       /** @type {T} */
-      funcs.map((func) => func && wrapFunction(func, sendingError, X4))
+      funcs.map((func) => func && wrapFunction(func, sendingError, X5))
     );
   };
 
   // ../eventual-send/src/message-breakpoints.js
-  var { quote: q3, Fail: Fail3 } = assert;
+  var { quote: q2, Fail: Fail2 } = assert;
   var { hasOwn: hasOwn2, freeze: freeze3, entries } = Object;
   var isJSONRecord = (val) => typeof val === "object" && val !== null && !Array.isArray(val);
   var simplifyTag = (tag) => {
@@ -550,15 +461,15 @@ var EndoDaemon = (() => {
     const getBreakpoints = () => breakpoints;
     freeze3(getBreakpoints);
     const setBreakpoints = (newBreakpoints = breakpoints) => {
-      isJSONRecord(newBreakpoints) || Fail3`Expected ${q3(optionName)} option to be a JSON breakpoints record`;
+      isJSONRecord(newBreakpoints) || Fail2`Expected ${q2(optionName)} option to be a JSON breakpoints record`;
       const newBreakpointsTable = { __proto__: null };
       for (const [tag, methodBPs] of entries(newBreakpoints)) {
-        tag === simplifyTag(tag) || Fail3`Just use simple tag ${q3(simplifyTag(tag))} rather than ${q3(tag)}`;
-        isJSONRecord(methodBPs) || Fail3`Expected ${q3(optionName)} option's ${q3(
+        tag === simplifyTag(tag) || Fail2`Just use simple tag ${q2(simplifyTag(tag))} rather than ${q2(tag)}`;
+        isJSONRecord(methodBPs) || Fail2`Expected ${q2(optionName)} option's ${q2(
           tag
         )} to be a JSON methods breakpoints record`;
         for (const [methodName, count] of entries(methodBPs)) {
-          count === "*" || typeof count === "number" && Number.isSafeInteger(count) && count >= 0 || Fail3`Expected ${q3(optionName)} option's ${q3(tag)}.${q3(
+          count === "*" || typeof count === "number" && Number.isSafeInteger(count) && count >= 0 || Fail2`Expected ${q2(optionName)} option's ${q2(tag)}.${q2(
             methodName
           )} to be "*" or a non-negative integer`;
           const classBPs = hasOwn2(newBreakpointsTable, methodName) ? newBreakpointsTable[methodName] : newBreakpointsTable[methodName] = {
@@ -610,9 +521,575 @@ var EndoDaemon = (() => {
   };
   freeze3(makeMessageBreakpointTester);
 
+  // ../eventual-send/src/local.js
+  var { details: X, quote: q3, Fail: Fail3 } = assert;
+  var { getOwnPropertyDescriptors: getOwnPropertyDescriptors2, getPrototypeOf: getPrototypeOf2, freeze: freeze4 } = Object;
+  var { apply: apply3, ownKeys: ownKeys2 } = Reflect;
+  var ntypeof = (specimen) => specimen === null ? "null" : typeof specimen;
+  var onDelivery = makeMessageBreakpointTester("ENDO_DELIVERY_BREAKPOINTS");
+  var isPrimitive2 = (val) => !val || typeof val !== "object" && typeof val !== "function";
+  var compareStringified = (a, b2) => {
+    if (typeof a === typeof b2) {
+      const left = String(a);
+      const right = String(b2);
+      return left < right ? -1 : left > right ? 1 : 0;
+    }
+    if (typeof a === "symbol") {
+      assert(typeof b2 === "string");
+      return -1;
+    }
+    assert(typeof a === "string");
+    assert(typeof b2 === "symbol");
+    return 1;
+  };
+  var getMethodNames = (val) => {
+    let layer = val;
+    const names = /* @__PURE__ */ new Set();
+    while (layer !== null && layer !== Object.prototype) {
+      const descs = getOwnPropertyDescriptors2(layer);
+      for (const name of ownKeys2(descs)) {
+        if (typeof val[name] === "function") {
+          names.add(name);
+        }
+      }
+      if (isPrimitive2(val)) {
+        break;
+      }
+      layer = getPrototypeOf2(layer);
+    }
+    return harden_default([...names].sort(compareStringified));
+  };
+  freeze4(getMethodNames);
+  var localApplyFunction = (recipient, args) => {
+    typeof recipient === "function" || assert.fail(
+      X`Cannot invoke target as a function; typeof target is ${q3(
+        ntypeof(recipient)
+      )}`,
+      TypeError
+    );
+    if (onDelivery && onDelivery.shouldBreakpoint(recipient, void 0)) {
+      debugger;
+    }
+    const result = apply3(recipient, void 0, args);
+    return result;
+  };
+  var localApplyMethod = (recipient, methodName, args) => {
+    if (methodName === void 0 || methodName === null) {
+      return localApplyFunction(recipient, args);
+    }
+    if (recipient === void 0 || recipient === null) {
+      assert.fail(
+        X`Cannot deliver ${q3(methodName)} to target; typeof target is ${q3(
+          ntypeof(recipient)
+        )}`,
+        TypeError
+      );
+    }
+    const fn = recipient[methodName];
+    if (fn === void 0) {
+      assert.fail(
+        X`target has no method ${q3(methodName)}, has ${q3(
+          getMethodNames(recipient)
+        )}`,
+        TypeError
+      );
+    }
+    const ftype = ntypeof(fn);
+    typeof fn === "function" || Fail3`invoked method ${q3(methodName)} is not a function; it is a ${q3(
+      ftype
+    )}`;
+    if (onDelivery && onDelivery.shouldBreakpoint(recipient, methodName)) {
+      debugger;
+    }
+    const result = apply3(fn, recipient, args);
+    return result;
+  };
+  var localGet = (t, key) => t[key];
+
+  // ../eventual-send/src/postponed.js
+  var makePostponedHandler = (HandledPromise2) => {
+    let donePostponing;
+    const interlockP = new Promise((resolve) => {
+      donePostponing = () => resolve(void 0);
+    });
+    const makePostponedOperation = (postponedOperation) => {
+      return function postpone(x, ...args) {
+        return new HandledPromise2((resolve, reject) => {
+          interlockP.then((_) => {
+            resolve(HandledPromise2[postponedOperation](x, ...args));
+          }).catch(reject);
+        });
+      };
+    };
+    const postponedHandler = {
+      get: makePostponedOperation("get"),
+      getSendOnly: makePostponedOperation("getSendOnly"),
+      applyFunction: makePostponedOperation("applyFunction"),
+      applyFunctionSendOnly: makePostponedOperation("applyFunctionSendOnly"),
+      applyMethod: makePostponedOperation("applyMethod"),
+      applyMethodSendOnly: makePostponedOperation("applyMethodSendOnly")
+    };
+    assert(donePostponing);
+    return [postponedHandler, donePostponing];
+  };
+
+  // ../eventual-send/src/handled-promise.js
+  var { Fail: Fail4, details: X2, quote: q4, note: annotateError } = assert;
+  var {
+    create,
+    freeze: freeze5,
+    getOwnPropertyDescriptor: getOwnPropertyDescriptor2,
+    getOwnPropertyDescriptors: getOwnPropertyDescriptors3,
+    defineProperties,
+    getPrototypeOf: getPrototypeOf3,
+    setPrototypeOf,
+    isFrozen,
+    is: objectIs
+  } = Object;
+  var { apply: apply4, construct, ownKeys: ownKeys3 } = Reflect;
+  var SEND_ONLY_RE = /^(.*)SendOnly$/;
+  var coerceToObjectProperty = (specimen) => {
+    if (typeof specimen === "symbol") {
+      return specimen;
+    }
+    return String(specimen);
+  };
+  var makeHandledPromise = () => {
+    const presenceToHandler = /* @__PURE__ */ new WeakMap();
+    const presenceToPromise = /* @__PURE__ */ new WeakMap();
+    const promiseToPendingHandler = /* @__PURE__ */ new WeakMap();
+    const promiseToPresence = /* @__PURE__ */ new WeakMap();
+    const forwardedPromiseToPromise = /* @__PURE__ */ new WeakMap();
+    const shorten = (target) => {
+      let p = target;
+      while (forwardedPromiseToPromise.has(p)) {
+        p = forwardedPromiseToPromise.get(p);
+      }
+      const presence = promiseToPresence.get(p);
+      if (presence) {
+        while (!objectIs(target, p)) {
+          const parent = forwardedPromiseToPromise.get(target);
+          forwardedPromiseToPromise.delete(target);
+          promiseToPendingHandler.delete(target);
+          promiseToPresence.set(target, presence);
+          target = parent;
+        }
+      } else {
+        while (!objectIs(target, p)) {
+          const parent = forwardedPromiseToPromise.get(target);
+          forwardedPromiseToPromise.set(target, p);
+          promiseToPendingHandler.delete(target);
+          target = parent;
+        }
+      }
+      return target;
+    };
+    let forwardingHandler;
+    let handle;
+    const dispatchToHandler = (handlerName, handler, operation, o, opArgs, returnedP) => {
+      let actualOp = operation;
+      const matchSendOnly = SEND_ONLY_RE.exec(actualOp);
+      const makeResult = (result) => matchSendOnly ? void 0 : result;
+      if (matchSendOnly) {
+        returnedP = void 0;
+      }
+      if (matchSendOnly && typeof handler[actualOp] !== "function") {
+        actualOp = /** @type {'get' | 'applyMethod' | 'applyFunction'} */
+        matchSendOnly[1];
+      }
+      const hfn = handler[actualOp];
+      if (typeof hfn === "function") {
+        const result = apply4(hfn, handler, [o, ...opArgs, returnedP]);
+        return makeResult(result);
+      }
+      if (actualOp === "applyMethod") {
+        const [prop, args] = opArgs;
+        const getResultP = handle(
+          o,
+          "get",
+          // The argument to 'get' is a string or symbol.
+          [coerceToObjectProperty(prop)],
+          void 0
+        );
+        return makeResult(handle(getResultP, "applyFunction", [args], returnedP));
+      }
+      if (actualOp === "applyFunction") {
+        const amfn = handler.applyMethod;
+        if (typeof amfn === "function") {
+          const [args] = opArgs;
+          const result = apply4(amfn, handler, [o, void 0, [args], returnedP]);
+          return makeResult(result);
+        }
+      }
+      throw assert.fail(
+        X2`${q4(handlerName)} is defined but has no methods needed for ${q4(
+          operation
+        )} (has ${q4(getMethodNames(handler))})`,
+        TypeError
+      );
+    };
+    let HandledPromise2;
+    function baseHandledPromise(executor, pendingHandler = void 0) {
+      new.target || Fail4`must be invoked with "new"`;
+      let handledResolve;
+      let handledReject;
+      let resolved = false;
+      let resolvedTarget = null;
+      let handledP;
+      let continueForwarding = () => {
+      };
+      const assertNotYetForwarded = () => {
+        !forwardedPromiseToPromise.has(handledP) || assert.fail(X2`internal: already forwarded`, TypeError);
+      };
+      const superExecutor = (superResolve, superReject) => {
+        handledResolve = (value) => {
+          if (resolved) {
+            return;
+          }
+          assertNotYetForwarded();
+          value = shorten(value);
+          let targetP;
+          if (promiseToPendingHandler.has(value) || promiseToPresence.has(value)) {
+            targetP = value;
+          } else {
+            promiseToPendingHandler.delete(handledP);
+            targetP = presenceToPromise.get(value);
+          }
+          if (targetP && !objectIs(targetP, handledP)) {
+            forwardedPromiseToPromise.set(handledP, targetP);
+          } else {
+            forwardedPromiseToPromise.delete(handledP);
+          }
+          shorten(handledP);
+          superResolve(value);
+          resolved = true;
+          resolvedTarget = value;
+          continueForwarding();
+        };
+        handledReject = (reason) => {
+          if (resolved) {
+            return;
+          }
+          harden_default(reason);
+          assertNotYetForwarded();
+          promiseToPendingHandler.delete(handledP);
+          resolved = true;
+          superReject(reason);
+          continueForwarding();
+        };
+      };
+      handledP = harden_default(construct(Promise, [superExecutor], new.target));
+      if (!pendingHandler) {
+        [pendingHandler, continueForwarding] = makePostponedHandler(HandledPromise2);
+      }
+      const validateHandler = (h) => {
+        Object(h) === h || assert.fail(X2`Handler ${h} cannot be a primitive`, TypeError);
+      };
+      validateHandler(pendingHandler);
+      promiseToPendingHandler.set(handledP, pendingHandler);
+      const rejectHandled = (reason) => {
+        if (resolved) {
+          return;
+        }
+        assertNotYetForwarded();
+        handledReject(reason);
+      };
+      const resolveWithPresence = (presenceHandler = pendingHandler, options = {}) => {
+        if (resolved) {
+          return resolvedTarget;
+        }
+        assertNotYetForwarded();
+        try {
+          validateHandler(presenceHandler);
+          const { proxy: proxyOpts } = options;
+          let presence;
+          if (proxyOpts) {
+            const {
+              handler: proxyHandler,
+              // The proxy target can be frozen but should not be hardened
+              // so it remains trapping.
+              // See https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+              target: proxyTarget,
+              revokerCallback
+            } = proxyOpts;
+            if (revokerCallback) {
+              const { proxy, revoke } = Proxy.revocable(
+                proxyTarget,
+                proxyHandler
+              );
+              presence = proxy;
+              revokerCallback(revoke);
+            } else {
+              presence = new Proxy(proxyTarget, proxyHandler);
+            }
+          } else {
+            presence = create(null);
+          }
+          resolvedTarget = presence;
+          presenceToPromise.set(resolvedTarget, handledP);
+          promiseToPresence.set(handledP, resolvedTarget);
+          presenceToHandler.set(resolvedTarget, presenceHandler);
+          handledResolve(resolvedTarget);
+          return resolvedTarget;
+        } catch (e) {
+          annotateError(e, X2`during resolveWithPresence`);
+          handledReject(e);
+          throw e;
+        }
+      };
+      const resolveHandled = (target) => {
+        if (resolved) {
+          return;
+        }
+        assertNotYetForwarded();
+        try {
+          handledResolve(target);
+        } catch (e) {
+          handledReject(e);
+        }
+      };
+      executor(resolveHandled, rejectHandled, resolveWithPresence);
+      return handledP;
+    }
+    const isSafePromise2 = (p) => {
+      return isFrozen(p) && getPrototypeOf3(p) === Promise.prototype && Promise.resolve(p) === p && getOwnPropertyDescriptor2(p, "then") === void 0 && getOwnPropertyDescriptor2(p, "constructor") === void 0;
+    };
+    const staticMethods = {
+      get(target, prop) {
+        prop = coerceToObjectProperty(prop);
+        return handle(target, "get", [prop]);
+      },
+      getSendOnly(target, prop) {
+        prop = coerceToObjectProperty(prop);
+        handle(target, "getSendOnly", [prop]).catch(() => {
+        });
+      },
+      applyFunction(target, args) {
+        args = [...args];
+        return handle(target, "applyFunction", [args]);
+      },
+      applyFunctionSendOnly(target, args) {
+        args = [...args];
+        handle(target, "applyFunctionSendOnly", [args]).catch(() => {
+        });
+      },
+      applyMethod(target, prop, args) {
+        prop = coerceToObjectProperty(prop);
+        args = [...args];
+        return handle(target, "applyMethod", [prop, args]);
+      },
+      applyMethodSendOnly(target, prop, args) {
+        prop = coerceToObjectProperty(prop);
+        args = [...args];
+        handle(target, "applyMethodSendOnly", [prop, args]).catch(() => {
+        });
+      },
+      resolve(value) {
+        let resolvedPromise = presenceToPromise.get(
+          /** @type {any} */
+          value
+        );
+        if (!resolvedPromise) {
+          resolvedPromise = Promise.resolve(value);
+        }
+        harden_default(resolvedPromise);
+        if (isSafePromise2(resolvedPromise)) {
+          return resolvedPromise;
+        }
+        const executeThen = (resolve, reject) => resolvedPromise.then(resolve, reject);
+        return harden_default(
+          Promise.resolve().then(() => new HandledPromise2(executeThen))
+        );
+      }
+    };
+    const makeForwarder = (operation, localImpl) => {
+      return (o, ...args) => {
+        const presenceHandler = presenceToHandler.get(o);
+        if (!presenceHandler) {
+          return localImpl(o, ...args);
+        }
+        return dispatchToHandler(
+          "presenceHandler",
+          presenceHandler,
+          operation,
+          o,
+          args
+        );
+      };
+    };
+    forwardingHandler = {
+      get: makeForwarder("get", localGet),
+      getSendOnly: makeForwarder("getSendOnly", localGet),
+      applyFunction: makeForwarder("applyFunction", localApplyFunction),
+      applyFunctionSendOnly: makeForwarder(
+        "applyFunctionSendOnly",
+        localApplyFunction
+      ),
+      applyMethod: makeForwarder("applyMethod", localApplyMethod),
+      applyMethodSendOnly: makeForwarder("applyMethodSendOnly", localApplyMethod)
+    };
+    handle = (...handleArgs) => {
+      harden_default(handleArgs);
+      const [_p, operation, opArgs, ...dispatchArgs] = handleArgs;
+      let [p] = handleArgs;
+      const doDispatch = (handlerName, handler, o) => dispatchToHandler(
+        handlerName,
+        handler,
+        operation,
+        o,
+        opArgs,
+        ...dispatchArgs.length === 0 ? [returnedP] : dispatchArgs
+      );
+      const [trackedDoDispatch] = trackTurns([doDispatch]);
+      const returnedP = new HandledPromise2((resolve, reject) => {
+        let raceIsOver = false;
+        const win = (handlerName, handler, o) => {
+          if (raceIsOver) {
+            return;
+          }
+          try {
+            resolve(harden_default(trackedDoDispatch(handlerName, handler, o)));
+          } catch (reason) {
+            reject(harden_default(reason));
+          }
+          raceIsOver = true;
+        };
+        const lose = (reason) => {
+          if (raceIsOver) {
+            return;
+          }
+          reject(harden_default(reason));
+          raceIsOver = true;
+        };
+        staticMethods.resolve(p).then((o) => win("forwardingHandler", forwardingHandler, o)).catch(lose);
+        staticMethods.resolve().then(() => {
+          p = shorten(p);
+          const pendingHandler = promiseToPendingHandler.get(p);
+          if (pendingHandler) {
+            win("pendingHandler", pendingHandler, p);
+          } else if (!p || typeof p.then !== "function") {
+            win("forwardingHandler", forwardingHandler, p);
+          } else if (promiseToPresence.has(p)) {
+            const o = promiseToPresence.get(p);
+            win("forwardingHandler", forwardingHandler, o);
+          }
+        }).catch(lose);
+      });
+      return harden_default(returnedP);
+    };
+    baseHandledPromise.prototype = Promise.prototype;
+    setPrototypeOf(baseHandledPromise, Promise);
+    defineProperties(
+      baseHandledPromise,
+      getOwnPropertyDescriptors3(staticMethods)
+    );
+    HandledPromise2 = baseHandledPromise;
+    freeze5(HandledPromise2);
+    for (const key of ownKeys3(HandledPromise2)) {
+      if (key !== "prototype") {
+        freeze5(HandledPromise2[key]);
+      }
+    }
+    return HandledPromise2;
+  };
+
+  // ../eventual-send/shim.js
+  if (typeof globalThis.HandledPromise === "undefined") {
+    globalThis.HandledPromise = makeHandledPromise();
+  }
+
+  // ../common/object-map.js
+  var typedEntries = (
+    /** @type {TypedEntries} */
+    Object.entries
+  );
+  var fromTypedEntries = (
+    /** @type {FromTypedEntries} */
+    Object.fromEntries
+  );
+  var typedMap = (
+    /** @type {TypedMap} */
+    Function.prototype.call.bind(Array.prototype.map)
+  );
+  var objectMap = (original, mapFn) => {
+    const oldEntries = typedEntries(original);
+    const mapEntry = ([k, v]) => [k, mapFn(v, k)];
+    const newEntries = typedMap(oldEntries, mapEntry);
+    const newObj = fromTypedEntries(newEntries);
+    return (
+      /** @type {any} */
+      harden_default(newObj)
+    );
+  };
+  harden_default(objectMap);
+
+  // ../errors/index.js
+  var { defineProperty: defineProperty2 } = Object;
+  var globalAssert = globalThis.assert;
+  if (globalAssert === void 0) {
+    throw Error(
+      `Cannot initialize @endo/errors, missing globalThis.assert, import 'ses' before '@endo/errors'`
+    );
+  }
+  var missing = [
+    "typeof",
+    "fail",
+    "equal",
+    "string",
+    "note",
+    "details",
+    "Fail",
+    "quote",
+    // As of 2025-07, the Agoric chain's bootstrap vat runs with a version of SES
+    // that predates addition of the 'bare' and 'makeError' methods, so we must
+    // tolerate their absence and fall back to other behavior in that environment
+    // (see below).
+    // 'bare',
+    // 'makeError',
+    "makeAssert"
+  ].filter((name) => globalAssert[name] === void 0);
+  if (globalAssert.makeError === void 0 && globalAssert.error === void 0) {
+    missing.push("makeError");
+  }
+  if (missing.length > 0) {
+    throw Error(
+      `Cannot initialize @endo/errors, missing globalThis.assert methods ${missing.join(
+        ", "
+      )}`
+    );
+  }
+  var {
+    bare: globalBare,
+    details,
+    error: globalError,
+    Fail: Fail5,
+    makeAssert: _omittedMakeAssert,
+    makeError: globalMakeError,
+    note,
+    quote,
+    ...assertions
+  } = globalAssert;
+  var assert3 = (value, optDetails, errContructor, options) => globalAssert(value, optDetails, errContructor, options);
+  Object.assign(assert3, assertions);
+  var bare = globalBare || quote;
+  var makeError = globalMakeError || globalError;
+  var b = bare;
+  var X3 = details;
+  var q5 = quote;
+  var annotateError2 = note;
+  var hideAndHardenFunction = (func) => {
+    typeof func === "function" || Fail5`${func} must be a function`;
+    const { name } = func;
+    defineProperty2(func, "name", {
+      // Use `String` in case `name` is a symbol.
+      value: `__HIDE_${String(name)}`
+    });
+    return harden_default(func);
+  };
+
   // ../eventual-send/src/E.js
-  var { details: X2, quote: q4, Fail: Fail4, error: makeError2 } = assert;
-  var { assign, freeze: freeze4 } = Object;
+  var { details: X4, quote: q6, Fail: Fail6, error: makeError2 } = assert;
+  var { assign, freeze: freeze6 } = Object;
   var onSend = makeMessageBreakpointTester("ENDO_SEND_BREAKPOINTS");
   var baseFreezableProxyHandler = {
     set(_target, _prop, _value) {
@@ -642,7 +1119,7 @@ var EndoDaemon = (() => {
             if (this !== receiver) {
               return HandledPromise2.reject(
                 makeError2(
-                  X2`Unexpected receiver for "${q4(propertyKey)}" method of E(${q4(
+                  X4`Unexpected receiver for "${q6(propertyKey)}" method of E(${q6(
                     recipient
                   )})`
                 )
@@ -678,9 +1155,9 @@ var EndoDaemon = (() => {
           // is not constructable, it also avoids the `function` syntax.
           /** @type {(...args: any[]) => undefined} */
           [propertyKey](...args) {
-            this === receiver || Fail4`Unexpected receiver for "${q4(
+            this === receiver || Fail6`Unexpected receiver for "${q6(
               propertyKey
-            )}" method of E.sendOnly(${q4(recipient)})`;
+            )}" method of E.sendOnly(${q6(recipient)})`;
             if (onSend && onSend.shouldBreakpoint(recipient, propertyKey)) {
               debugger;
             }
@@ -707,9 +1184,9 @@ var EndoDaemon = (() => {
     has: (_target, _prop) => true,
     get: (_target, prop) => HandledPromise2.get(x, prop)
   });
-  var funcTarget = freeze4(() => {
+  var funcTarget = freeze6(() => {
   });
-  var objTarget = freeze4({ __proto__: null });
+  var objTarget = freeze6({ __proto__: null });
   var makeE = (HandledPromise2) => {
     return harden_default(
       assign(
@@ -794,59 +1271,20 @@ var EndoDaemon = (() => {
   var hp = HandledPromise;
   var E = E_default(hp);
 
-  // ../eventual-send/src/local.js
-  var { details: X3, quote: q5, Fail: Fail5 } = assert;
-  var { getOwnPropertyDescriptors: getOwnPropertyDescriptors2, getPrototypeOf: getPrototypeOf2, freeze: freeze5 } = Object;
-  var { apply: apply3, ownKeys: ownKeys2 } = Reflect;
-  var onDelivery = makeMessageBreakpointTester("ENDO_DELIVERY_BREAKPOINTS");
-  var isPrimitive2 = (val) => !val || typeof val !== "object" && typeof val !== "function";
-  var compareStringified = (a, b2) => {
-    if (typeof a === typeof b2) {
-      const left = String(a);
-      const right = String(b2);
-      return left < right ? -1 : left > right ? 1 : 0;
-    }
-    if (typeof a === "symbol") {
-      assert(typeof b2 === "string");
-      return -1;
-    }
-    assert(typeof a === "string");
-    assert(typeof b2 === "symbol");
-    return 1;
-  };
-  var getMethodNames = (val) => {
-    let layer = val;
-    const names = /* @__PURE__ */ new Set();
-    while (layer !== null && layer !== Object.prototype) {
-      const descs = getOwnPropertyDescriptors2(layer);
-      for (const name of ownKeys2(descs)) {
-        if (typeof val[name] === "function") {
-          names.add(name);
-        }
-      }
-      if (isPrimitive2(val)) {
-        break;
-      }
-      layer = getPrototypeOf2(layer);
-    }
-    return harden_default([...names].sort(compareStringified));
-  };
-  freeze5(getMethodNames);
-
   // ../pass-style/src/passStyle-helpers.js
   var { isArray } = Array;
   var { prototype: functionPrototype2 } = Function;
   var {
-    getOwnPropertyDescriptor: getOwnPropertyDescriptor2,
-    getPrototypeOf: getPrototypeOf3,
+    getOwnPropertyDescriptor: getOwnPropertyDescriptor3,
+    getPrototypeOf: getPrototypeOf4,
     hasOwn: hasOwn3,
-    isFrozen,
+    isFrozen: isFrozen2,
     prototype: objectPrototype2
   } = Object;
-  var { apply: apply4 } = Reflect;
+  var { apply: apply5 } = Reflect;
   var { toStringTag: toStringTagSymbol2 } = Symbol;
-  var typedArrayPrototype2 = getPrototypeOf3(Uint8Array.prototype);
-  var typedArrayToStringTagDesc = getOwnPropertyDescriptor2(
+  var typedArrayPrototype2 = getPrototypeOf4(Uint8Array.prototype);
+  var typedArrayToStringTagDesc = getOwnPropertyDescriptor3(
     typedArrayPrototype2,
     toStringTagSymbol2
   );
@@ -868,7 +1306,7 @@ var EndoDaemon = (() => {
   );
   hideAndHardenFunction(isObject);
   var isTypedArray2 = (object) => {
-    const tag = apply4(getTypedArrayToStringTag2, object, []);
+    const tag = apply5(getTypedArrayToStringTag2, object, []);
     return tag !== void 0;
   };
   hideAndHardenFunction(isTypedArray2);
@@ -881,9 +1319,9 @@ var EndoDaemon = (() => {
   var confirmOwnDataDescriptor = (candidate, propName, shouldBeEnumerable, reject) => {
     const desc = (
       /** @type {PropertyDescriptor} */
-      getOwnPropertyDescriptor2(candidate, propName)
+      getOwnPropertyDescriptor3(candidate, propName)
     );
-    return (desc !== void 0 || reject && reject`${q2(propName)} property expected: ${candidate}`) && (hasOwn3(desc, "value") || reject && reject`${q2(propName)} must not be an accessor property: ${candidate}`) && (shouldBeEnumerable ? desc.enumerable || reject && reject`${q2(propName)} must be an enumerable property: ${candidate}` : !desc.enumerable || reject && reject`${q2(propName)} must not be an enumerable property: ${candidate}`) ? desc : (
+    return (desc !== void 0 || reject && reject`${q5(propName)} property expected: ${candidate}`) && (hasOwn3(desc, "value") || reject && reject`${q5(propName)} must not be an accessor property: ${candidate}`) && (shouldBeEnumerable ? desc.enumerable || reject && reject`${q5(propName)} must be an enumerable property: ${candidate}` : !desc.enumerable || reject && reject`${q5(propName)} must not be an enumerable property: ${candidate}`) ? desc : (
       /** @type {PropertyDescriptor} */
       /** @type {unknown} */
       void 0
@@ -893,12 +1331,12 @@ var EndoDaemon = (() => {
   var getTag = (tagRecord) => tagRecord[Symbol.toStringTag];
   harden_default(getTag);
   var confirmPassStyle = (obj, passStyle, expectedPassStyle, reject) => {
-    return passStyle === expectedPassStyle || reject && reject`Expected ${q2(expectedPassStyle)}, not ${q2(passStyle)}: ${obj}`;
+    return passStyle === expectedPassStyle || reject && reject`Expected ${q5(expectedPassStyle)}, not ${q5(passStyle)}: ${obj}`;
   };
   harden_default(confirmPassStyle);
   var makeConfirmTagRecord = (confirmProto) => {
     const confirmTagRecord2 = (tagRecord, expectedPassStyle, reject) => {
-      return (!isPrimitive3(tagRecord) || reject && reject`A non-object cannot be a tagRecord: ${tagRecord}`) && (isFrozen(tagRecord) || reject && reject`A tagRecord must be frozen: ${tagRecord}`) && (!isArray(tagRecord) || reject && reject`An array cannot be a tagRecord: ${tagRecord}`) && confirmPassStyle(
+      return (!isPrimitive3(tagRecord) || reject && reject`A non-object cannot be a tagRecord: ${tagRecord}`) && (isFrozen2(tagRecord) || reject && reject`A tagRecord must be frozen: ${tagRecord}`) && (!isArray(tagRecord) || reject && reject`An array cannot be a tagRecord: ${tagRecord}`) && confirmPassStyle(
         tagRecord,
         confirmOwnDataDescriptor(tagRecord, PASS_STYLE, false, reject)?.value,
         expectedPassStyle,
@@ -908,7 +1346,7 @@ var EndoDaemon = (() => {
         Symbol.toStringTag,
         false,
         reject
-      )?.value === "string" || reject && reject`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`) && confirmProto(tagRecord, getPrototypeOf3(tagRecord), reject);
+      )?.value === "string" || reject && reject`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`) && confirmProto(tagRecord, getPrototypeOf4(tagRecord), reject);
     };
     return harden_default(confirmTagRecord2);
   };
@@ -917,7 +1355,7 @@ var EndoDaemon = (() => {
   );
   harden_default(confirmTagRecord);
   var confirmFunctionTagRecord = makeConfirmTagRecord(
-    (val, proto, reject) => proto === functionPrototype2 || proto !== null && getPrototypeOf3(proto) === functionPrototype2 || reject && reject`For functions, a tagRecord must inherit from Function.prototype: ${val}`
+    (val, proto, reject) => proto === functionPrototype2 || proto !== null && getPrototypeOf4(proto) === functionPrototype2 || reject && reject`For functions, a tagRecord must inherit from Function.prototype: ${val}`
   );
   harden_default(confirmFunctionTagRecord);
 
@@ -931,33 +1369,33 @@ var EndoDaemon = (() => {
   harden_default(canBeMethodName);
   var getRemotableMethodNames = (behaviorMethods) => getMethodNames(behaviorMethods);
   harden_default(getRemotableMethodNames);
-  var { ownKeys: ownKeys3 } = Reflect;
+  var { ownKeys: ownKeys4 } = Reflect;
   var { isArray: isArray2 } = Array;
   var {
-    getPrototypeOf: getPrototypeOf4,
-    isFrozen: isFrozen2,
+    getPrototypeOf: getPrototypeOf5,
+    isFrozen: isFrozen3,
     prototype: objectPrototype3,
-    getOwnPropertyDescriptors: getOwnPropertyDescriptors3,
+    getOwnPropertyDescriptors: getOwnPropertyDescriptors4,
     hasOwn: hasOwn4
   } = Object;
   var confirmIface = (iface, reject) => {
     return (
       // TODO other possible ifaces, once we have third party veracity
-      (typeof iface === "string" || reject && reject`For now, interface ${iface} must be a string; unimplemented`) && (iface === "Remotable" || iface.startsWith("Alleged: ") || iface.startsWith("DebugName: ") || reject && reject`For now, iface ${q2(
+      (typeof iface === "string" || reject && reject`For now, interface ${iface} must be a string; unimplemented`) && (iface === "Remotable" || iface.startsWith("Alleged: ") || iface.startsWith("DebugName: ") || reject && reject`For now, iface ${q5(
         iface
       )} must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented`)
     );
   };
-  var assertIface = (iface) => confirmIface(iface, Fail2);
+  var assertIface = (iface) => confirmIface(iface, Fail5);
   hideAndHardenFunction(assertIface);
   var confirmRemotableProtoOf = (original, reject) => {
-    !isPrimitive3(original) || Fail2`Remotables must be objects or functions: ${original}`;
-    const proto = getPrototypeOf4(original);
+    !isPrimitive3(original) || Fail5`Remotables must be objects or functions: ${original}`;
+    const proto = getPrototypeOf5(original);
     if (proto === objectPrototype3 || proto === null || proto === Function.prototype) {
-      return reject && reject`Remotables must be explicitly declared: ${q2(original)}`;
+      return reject && reject`Remotables must be explicitly declared: ${q5(original)}`;
     }
     if (typeof original === "object") {
-      const protoProto = getPrototypeOf4(proto);
+      const protoProto = getPrototypeOf5(proto);
       if (protoProto !== objectPrototype3 && protoProto !== null) {
         return confirmRemotable(proto, reject);
       }
@@ -988,15 +1426,15 @@ var EndoDaemon = (() => {
         tagKey
       ]: { value: iface },
       ...restDescs
-    } = getOwnPropertyDescriptors3(proto);
-    return (ownKeys3(restDescs).length === 0 || reject && reject`Unexpected properties on Remotable Proto ${ownKeys3(restDescs)}`) && confirmIface(iface, reject);
+    } = getOwnPropertyDescriptors4(proto);
+    return (ownKeys4(restDescs).length === 0 || reject && reject`Unexpected properties on Remotable Proto ${ownKeys4(restDescs)}`) && confirmIface(iface, reject);
   };
   var confirmedRemotables = /* @__PURE__ */ new WeakSet();
   var confirmRemotable = (val, reject) => {
     if (confirmedRemotables.has(val)) {
       return true;
     }
-    if (!isFrozen2(val)) {
+    if (!isFrozen3(val)) {
       return reject && reject`cannot serialize non-frozen objects like ${val}`;
     }
     if (!RemotableHelper.confirmCanBeValid(val, reject)) {
@@ -1022,19 +1460,19 @@ var EndoDaemon = (() => {
       if (!validType) {
         return false;
       }
-      const descs = getOwnPropertyDescriptors3(candidate);
+      const descs = getOwnPropertyDescriptors4(candidate);
       if (typeof candidate === "object") {
-        return ownKeys3(descs).every((key) => {
+        return ownKeys4(descs).every((key) => {
           return (
             // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
             (hasOwn4(descs[
               /** @type {string} */
               key
-            ], "value") || reject && reject`cannot serialize Remotables with accessors like ${q2(
+            ], "value") || reject && reject`cannot serialize Remotables with accessors like ${q5(
               String(key)
-            )} in ${candidate}`) && (key === Symbol.toStringTag && confirmIface(candidate[key], reject) || (canBeMethod(candidate[key]) || reject && reject`cannot serialize Remotables with non-methods like ${q2(
+            )} in ${candidate}`) && (key === Symbol.toStringTag && confirmIface(candidate[key], reject) || (canBeMethod(candidate[key]) || reject && reject`cannot serialize Remotables with non-methods like ${q5(
               String(key)
-            )} in ${candidate}`) && (key !== PASS_STYLE || reject && reject`A pass-by-remote cannot shadow ${q2(PASS_STYLE)}`))
+            )} in ${candidate}`) && (key !== PASS_STYLE || reject && reject`A pass-by-remote cannot shadow ${q5(PASS_STYLE)}`))
           );
         });
       } else if (typeof candidate === "function") {
@@ -1045,60 +1483,60 @@ var EndoDaemon = (() => {
           [Symbol.toStringTag]: toStringTagDesc,
           ...restDescs
         } = descs;
-        const restKeys = ownKeys3(restDescs);
+        const restKeys = ownKeys4(restDescs);
         return (nameDesc && typeof nameDesc.value === "string" || reject && reject`Far function name must be a string, in ${candidate}`) && (lengthDesc && typeof lengthDesc.value === "number" || reject && reject`Far function length must be a number, in ${candidate}`) && (toStringTagDesc === void 0 || (typeof toStringTagDesc.value === "string" || reject && reject`Far function @@toStringTag must be a string, in ${candidate}`) && confirmIface(toStringTagDesc.value, reject)) && (restKeys.length === 0 || reject && reject`Far functions unexpected properties besides .name and .length ${restKeys}`);
       }
       return reject && reject`unrecognized typeof ${candidate}`;
     },
-    assertRestValid: (candidate) => confirmRemotable(candidate, Fail2),
+    assertRestValid: (candidate) => confirmRemotable(candidate, Fail5),
     every: (_passable, _fn) => true
   });
 
   // ../pass-style/src/make-far.js
   var { prototype: functionPrototype3 } = Function;
   var {
-    getPrototypeOf: getPrototypeOf5,
-    setPrototypeOf,
-    create,
-    isFrozen: isFrozen3,
+    getPrototypeOf: getPrototypeOf6,
+    setPrototypeOf: setPrototypeOf2,
+    create: create2,
+    isFrozen: isFrozen4,
     prototype: objectPrototype4
   } = Object;
   var makeRemotableProto = (remotable, iface) => {
-    let oldProto = getPrototypeOf5(remotable);
+    let oldProto = getPrototypeOf6(remotable);
     if (typeof remotable === "object") {
       if (oldProto === null) {
         oldProto = objectPrototype4;
       }
-      oldProto === objectPrototype4 || Fail2`For now, remotables cannot inherit from anything unusual, in ${remotable}`;
+      oldProto === objectPrototype4 || Fail5`For now, remotables cannot inherit from anything unusual, in ${remotable}`;
     } else if (typeof remotable === "function") {
-      oldProto !== null || Fail2`Original function must not inherit from null: ${remotable}`;
-      oldProto === functionPrototype3 || getPrototypeOf5(oldProto) === functionPrototype3 || Fail2`Far functions must originally inherit from Function.prototype, in ${remotable}`;
+      oldProto !== null || Fail5`Original function must not inherit from null: ${remotable}`;
+      oldProto === functionPrototype3 || getPrototypeOf6(oldProto) === functionPrototype3 || Fail5`Far functions must originally inherit from Function.prototype, in ${remotable}`;
     } else {
-      Fail2`unrecognized typeof ${remotable}`;
+      Fail5`unrecognized typeof ${remotable}`;
     }
     return harden_default(
-      create(oldProto, {
+      create2(oldProto, {
         [PASS_STYLE]: { value: "remotable" },
         [Symbol.toStringTag]: { value: iface }
       })
     );
   };
-  var assertCanBeRemotable = (candidate) => RemotableHelper.confirmCanBeValid(candidate, Fail2);
+  var assertCanBeRemotable = (candidate) => RemotableHelper.confirmCanBeValid(candidate, Fail5);
   var Remotable = (iface = "Remotable", props = void 0, remotable = (
     /** @type {T} */
     {}
   )) => {
     assertIface(iface);
     assert(iface);
-    props === void 0 || Fail2`Remotable props not yet implemented ${props}`;
+    props === void 0 || Fail5`Remotable props not yet implemented ${props}`;
     assertCanBeRemotable(remotable);
-    !(PASS_STYLE in remotable) || Fail2`Remotable ${remotable} is already marked as a ${q2(
+    !(PASS_STYLE in remotable) || Fail5`Remotable ${remotable} is already marked as a ${q5(
       remotable[PASS_STYLE]
     )}`;
-    isFrozen3(remotable) === isFrozen3({}) || Fail2`Remotable ${remotable} is already frozen`;
+    isFrozen4(remotable) === isFrozen4({}) || Fail5`Remotable ${remotable} is already frozen`;
     const remotableProto = makeRemotableProto(remotable, iface);
     const mutateHardenAndCheck = (target) => {
-      setPrototypeOf(target, remotableProto);
+      setPrototypeOf2(target, remotableProto);
       harden_default(target);
       assertCanBeRemotable(target);
     };
@@ -1181,13 +1619,13 @@ var EndoDaemon = (() => {
   harden_default(filterIterable);
 
   // ../harden/is-noop.js
-  var { getOwnPropertyDescriptor: getOwnPropertyDescriptor3 } = Object;
+  var { getOwnPropertyDescriptor: getOwnPropertyDescriptor4 } = Object;
   var memo = /* @__PURE__ */ new WeakMap();
   var hardenIsNoop = (harden3) => {
     let isNoop = memo.get(harden3);
     if (isNoop !== void 0) return isNoop;
     const subject = harden3({ __proto__: null, x: 0 });
-    const desc = getOwnPropertyDescriptor3(subject, "x");
+    const desc = getOwnPropertyDescriptor4(subject, "x");
     isNoop = desc?.writable === true;
     memo.set(harden3, isNoop);
     return isNoop;
@@ -1197,14 +1635,14 @@ var EndoDaemon = (() => {
   // ../pass-style/src/error.js
   var {
     defineProperty: defineProperty3,
-    getPrototypeOf: getPrototypeOf6,
-    getOwnPropertyDescriptors: getOwnPropertyDescriptors4,
-    getOwnPropertyDescriptor: getOwnPropertyDescriptor4,
+    getPrototypeOf: getPrototypeOf7,
+    getOwnPropertyDescriptors: getOwnPropertyDescriptors5,
+    getOwnPropertyDescriptor: getOwnPropertyDescriptor5,
     hasOwn: hasOwn5,
     entries: entries2,
-    freeze: freeze6
+    freeze: freeze7
   } = Object;
-  var { apply: apply5 } = Reflect;
+  var { apply: apply6 } = Reflect;
   var makeTypeError2 = () => {
     try {
       null.null;
@@ -1217,8 +1655,8 @@ var EndoDaemon = (() => {
     if (!is_noop_default(harden_default)) {
       return void 0;
     }
-    const typeErrorStackDesc2 = getOwnPropertyDescriptor4(makeTypeError2(), "stack");
-    const errorStackDesc2 = getOwnPropertyDescriptor4(Error("obligatory"), "stack");
+    const typeErrorStackDesc2 = getOwnPropertyDescriptor5(makeTypeError2(), "stack");
+    const errorStackDesc2 = getOwnPropertyDescriptor5(Error("obligatory"), "stack");
     if (typeErrorStackDesc2 === void 0 || typeErrorStackDesc2.get === void 0) {
       return void 0;
     }
@@ -1227,15 +1665,15 @@ var EndoDaemon = (() => {
         "Unexpected Error own stack accessor functions (PASS_STYLE_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR)"
       );
     }
-    const feralStackGetter2 = freeze6(errorStackDesc2.get);
+    const feralStackGetter2 = freeze7(errorStackDesc2.get);
     const repairError2 = (error) => {
-      const stackDesc = getOwnPropertyDescriptor4(error, "stack");
+      const stackDesc = getOwnPropertyDescriptor5(error, "stack");
       if (stackDesc && stackDesc.get === feralStackGetter2 && stackDesc.configurable) {
         defineProperty3(error, "stack", {
           // NOTE: Calls getter during harden, which seems dangerous.
           // But we're only calling the problematic getter whose
           // hazards we think we understand.
-          value: apply5(feralStackGetter2, error, [])
+          value: apply6(feralStackGetter2, error, [])
         });
       }
     };
@@ -1275,12 +1713,12 @@ var EndoDaemon = (() => {
   hideAndHardenFunction(isErrorLike);
   var confirmRecursivelyPassableErrorPropertyDesc = (propName, desc, passStyleOfRecur, reject) => {
     if (desc.enumerable) {
-      return reject && reject`Passable Error ${q2(
+      return reject && reject`Passable Error ${q5(
         propName
       )} own property must not be enumerable: ${desc}`;
     }
     if (!hasOwn5(desc, "value")) {
-      return reject && reject`Passable Error ${q2(
+      return reject && reject`Passable Error ${q5(
         propName
       )} own property must be a data property: ${desc}`;
     }
@@ -1288,7 +1726,7 @@ var EndoDaemon = (() => {
     switch (propName) {
       case "message":
       case "stack": {
-        return typeof value === "string" || reject && reject`Passable Error ${q2(
+        return typeof value === "string" || reject && reject`Passable Error ${q5(
           propName
         )} own property must be a string: ${value}`;
       }
@@ -1297,7 +1735,7 @@ var EndoDaemon = (() => {
       }
       case "errors": {
         if (!Array.isArray(value) || passStyleOfRecur(value) !== "copyArray") {
-          return reject && reject`Passable Error ${q2(
+          return reject && reject`Passable Error ${q5(
             propName
           )} own property must be a copyArray: ${value}`;
         }
@@ -1312,14 +1750,14 @@ var EndoDaemon = (() => {
         break;
       }
     }
-    return reject && reject`Passable Error has extra unpassed property ${q2(propName)}`;
+    return reject && reject`Passable Error has extra unpassed property ${q5(propName)}`;
   };
   harden_default(confirmRecursivelyPassableErrorPropertyDesc);
   var confirmRecursivelyPassableError = (candidate, passStyleOfRecur, reject) => {
     if (!confirmErrorLike(candidate, reject)) {
       return false;
     }
-    const proto = getPrototypeOf6(candidate);
+    const proto = getPrototypeOf7(candidate);
     const { name } = proto;
     const errConstructor = getErrorConstructor(name);
     if (errConstructor === void 0 || errConstructor.prototype !== proto) {
@@ -1328,7 +1766,7 @@ var EndoDaemon = (() => {
     if (repairError !== void 0) {
       repairError(candidate);
     }
-    const descs = getOwnPropertyDescriptors4(candidate);
+    const descs = getOwnPropertyDescriptors5(candidate);
     if (!("message" in descs)) {
       return reject && reject`Passable Error must have an own "message" string property: ${candidate}`;
     }
@@ -1345,16 +1783,16 @@ var EndoDaemon = (() => {
   var ErrorHelper = harden_default({
     styleName: "error",
     confirmCanBeValid: confirmErrorLike,
-    assertRestValid: (candidate, passStyleOfRecur) => confirmRecursivelyPassableError(candidate, passStyleOfRecur, Fail2)
+    assertRestValid: (candidate, passStyleOfRecur) => confirmRecursivelyPassableError(candidate, passStyleOfRecur, Fail5)
   });
 
   // ../pass-style/src/symbol.js
-  var { ownKeys: ownKeys4 } = Reflect;
+  var { ownKeys: ownKeys5 } = Reflect;
   var wellKnownSymbolNames = new Map(
-    ownKeys4(Symbol).filter(
+    ownKeys5(Symbol).filter(
       (name) => typeof name === "string" && typeof Symbol[name] === "symbol"
     ).filter((name) => {
-      !name.startsWith("@@") || Fail2`Did not expect Symbol to have a symbol-valued property name starting with "@@" ${q2(
+      !name.startsWith("@@") || Fail5`Did not expect Symbol to have a symbol-valued property name starting with "@@" ${q5(
         name
       )}`;
       return true;
@@ -1362,7 +1800,7 @@ var EndoDaemon = (() => {
   );
   var isPassableSymbol = (sym) => typeof sym === "symbol" && (typeof Symbol.keyFor(sym) === "string" || wellKnownSymbolNames.has(sym));
   harden_default(isPassableSymbol);
-  var assertPassableSymbol = (sym) => isPassableSymbol(sym) || Fail2`Only registered symbols or well-known symbols are passable: ${q2(sym)}`;
+  var assertPassableSymbol = (sym) => isPassableSymbol(sym) || Fail5`Only registered symbols or well-known symbols are passable: ${q5(sym)}`;
   hideAndHardenFunction(assertPassableSymbol);
   var nameForPassableSymbol = (sym) => {
     const name = Symbol.keyFor(sym);
@@ -1378,7 +1816,7 @@ var EndoDaemon = (() => {
   var AtAtPrefixPattern = /^@@(.*)$/;
   harden_default(AtAtPrefixPattern);
   var passableSymbolForName = (name) => {
-    typeof name === "string" || Fail2`${q2(name)} must be a string, not ${q2(typeof name)}`;
+    typeof name === "string" || Fail5`${q5(name)} must be a string, not ${q5(typeof name)}`;
     const match = AtAtPrefixPattern.exec(name);
     if (match) {
       const suffix = match[1];
@@ -1389,7 +1827,7 @@ var EndoDaemon = (() => {
         if (typeof sym === "symbol") {
           return sym;
         }
-        Fail2`Reserved for well known symbol ${q2(suffix)}: ${q2(name)}`;
+        Fail5`Reserved for well known symbol ${q5(suffix)}: ${q5(name)}`;
       }
     }
     return Symbol.for(name);
@@ -1415,14 +1853,14 @@ var EndoDaemon = (() => {
   };
   hideAndHardenFunction(isWellFormedString);
   var assertWellFormedString = (str) => {
-    isWellFormedString(str) || Fail2`Expected well-formed unicode string: ${str}`;
+    isWellFormedString(str) || Fail5`Expected well-formed unicode string: ${str}`;
   };
   hideAndHardenFunction(assertWellFormedString);
   var ONLY_WELL_FORMED_STRINGS_PASSABLE = getEnvironmentOption("ONLY_WELL_FORMED_STRINGS_PASSABLE", "disabled", [
     "enabled"
   ]) === "enabled";
   var assertPassableString = (str) => {
-    typeof str === "string" || Fail2`Expected string ${str}`;
+    typeof str === "string" || Fail5`Expected string ${str}`;
     !ONLY_WELL_FORMED_STRINGS_PASSABLE || assertWellFormedString(str);
   };
   hideAndHardenFunction(assertPassableString);
@@ -1557,30 +1995,30 @@ var EndoDaemon = (() => {
   harden_default(racePromises);
 
   // ../pass-style/src/copyArray.js
-  var { getPrototypeOf: getPrototypeOf7 } = Object;
-  var { ownKeys: ownKeys5 } = Reflect;
+  var { getPrototypeOf: getPrototypeOf8 } = Object;
+  var { ownKeys: ownKeys6 } = Reflect;
   var { isArray: isArray3, prototype: arrayPrototype2 } = Array;
   var CopyArrayHelper = harden_default({
     styleName: "copyArray",
     confirmCanBeValid: (candidate, reject) => isArray3(candidate) || reject && reject`Array expected: ${candidate}`,
     assertRestValid: (candidate, passStyleOfRecur) => {
-      getPrototypeOf7(candidate) === arrayPrototype2 || assert.fail(X`Malformed array: ${candidate}`, TypeError);
+      getPrototypeOf8(candidate) === arrayPrototype2 || assert.fail(X3`Malformed array: ${candidate}`, TypeError);
       const len = (
         /** @type {number} */
-        confirmOwnDataDescriptor(candidate, "length", false, Fail2).value
+        confirmOwnDataDescriptor(candidate, "length", false, Fail5).value
       );
       for (let i = 0; i < len; i += 1) {
         passStyleOfRecur(
-          confirmOwnDataDescriptor(candidate, i, true, Fail2).value
+          confirmOwnDataDescriptor(candidate, i, true, Fail5).value
         );
       }
-      ownKeys5(candidate).length === len + 1 || assert.fail(X`Arrays must not have non-indexes: ${candidate}`, TypeError);
+      ownKeys6(candidate).length === len + 1 || assert.fail(X3`Arrays must not have non-indexes: ${candidate}`, TypeError);
     }
   });
 
   // ../pass-style/src/byteArray.js
-  var { getPrototypeOf: getPrototypeOf8, getOwnPropertyDescriptor: getOwnPropertyDescriptor5 } = Object;
-  var { ownKeys: ownKeys6, apply: apply6 } = Reflect;
+  var { getPrototypeOf: getPrototypeOf9, getOwnPropertyDescriptor: getOwnPropertyDescriptor6 } = Object;
+  var { ownKeys: ownKeys7, apply: apply7 } = Reflect;
   var adaptImmutableArrayBuffer = () => {
     const anArrayBuffer = new ArrayBuffer(0);
     if (anArrayBuffer.sliceToImmutable === void 0) {
@@ -1590,11 +2028,11 @@ var EndoDaemon = (() => {
       };
     }
     const anImmutableArrayBuffer = anArrayBuffer.sliceToImmutable();
-    const immutableArrayBufferPrototype2 = getPrototypeOf8(anImmutableArrayBuffer);
+    const immutableArrayBufferPrototype2 = getPrototypeOf9(anImmutableArrayBuffer);
     const immutableGetter2 = (
       /** @type {(this: ArrayBuffer) => boolean} */
       // @ts-expect-error We know the desciptor is there.
-      getOwnPropertyDescriptor5(immutableArrayBufferPrototype2, "immutable").get
+      getOwnPropertyDescriptor6(immutableArrayBufferPrototype2, "immutable").get
     );
     return { immutableArrayBufferPrototype: immutableArrayBufferPrototype2, immutableGetter: immutableGetter2 };
   };
@@ -1603,20 +2041,20 @@ var EndoDaemon = (() => {
     styleName: "byteArray",
     confirmCanBeValid: (candidate, reject) => candidate instanceof ArrayBuffer && candidate.immutable || reject && reject`Immutable ArrayBuffer expected: ${candidate}`,
     assertRestValid: (candidate, _passStyleOfRecur) => {
-      getPrototypeOf8(candidate) === immutableArrayBufferPrototype || assert.fail(X`Malformed ByteArray ${candidate}`, TypeError);
-      apply6(immutableGetter, candidate, []) || Fail2`Must be an immutable ArrayBuffer: ${candidate}`;
-      ownKeys6(candidate).length === 0 || assert.fail(
-        X`ByteArrays must not have own properties: ${candidate}`,
+      getPrototypeOf9(candidate) === immutableArrayBufferPrototype || assert.fail(X3`Malformed ByteArray ${candidate}`, TypeError);
+      apply7(immutableGetter, candidate, []) || Fail5`Must be an immutable ArrayBuffer: ${candidate}`;
+      ownKeys7(candidate).length === 0 || assert.fail(
+        X3`ByteArrays must not have own properties: ${candidate}`,
         TypeError
       );
     }
   });
 
   // ../pass-style/src/copyRecord.js
-  var { ownKeys: ownKeys7 } = Reflect;
-  var { getPrototypeOf: getPrototypeOf9, prototype: objectPrototype5 } = Object;
+  var { ownKeys: ownKeys8 } = Reflect;
+  var { getPrototypeOf: getPrototypeOf10, prototype: objectPrototype5 } = Object;
   var confirmObjectPrototype = (candidate, reject) => {
-    return getPrototypeOf9(candidate) === objectPrototype5 || reject && reject`Records must inherit from Object.prototype: ${candidate}`;
+    return getPrototypeOf10(candidate) === objectPrototype5 || reject && reject`Records must inherit from Object.prototype: ${candidate}`;
   };
   var confirmPropertyCanBeValid = (candidate, key, value, reject) => {
     return (typeof key === "string" || reject && reject`Records can only have string-named properties: ${candidate}`) && (!canBeMethod(value) || reject && // TODO: Update message now that there is no such thing as "implicit Remotable".
@@ -1627,26 +2065,26 @@ var EndoDaemon = (() => {
     confirmCanBeValid: (candidate, reject) => {
       return confirmObjectPrototype(candidate, reject) && // Reject any candidate with a symbol-keyed property or method-like property
       // (such input is potentially a Remotable).
-      ownKeys7(candidate).every(
+      ownKeys8(candidate).every(
         (key) => confirmPropertyCanBeValid(candidate, key, candidate[key], reject)
       );
     },
     assertRestValid: (candidate, passStyleOfRecur) => {
-      for (const name of ownKeys7(candidate)) {
-        const { value } = confirmOwnDataDescriptor(candidate, name, true, Fail2);
+      for (const name of ownKeys8(candidate)) {
+        const { value } = confirmOwnDataDescriptor(candidate, name, true, Fail5);
         passStyleOfRecur(value);
       }
     }
   });
 
   // ../pass-style/src/tagged.js
-  var { ownKeys: ownKeys8 } = Reflect;
-  var { getOwnPropertyDescriptors: getOwnPropertyDescriptors5 } = Object;
+  var { ownKeys: ownKeys9 } = Reflect;
+  var { getOwnPropertyDescriptors: getOwnPropertyDescriptors6 } = Object;
   var TaggedHelper = harden_default({
     styleName: "tagged",
     confirmCanBeValid: (candidate, reject) => confirmPassStyle(candidate, candidate[PASS_STYLE], "tagged", reject),
     assertRestValid: (candidate, passStyleOfRecur) => {
-      confirmTagRecord(candidate, "tagged", Fail2);
+      confirmTagRecord(candidate, "tagged", Fail5);
       const passStyleKey = (
         /** @type {unknown} */
         PASS_STYLE
@@ -1668,20 +2106,20 @@ var EndoDaemon = (() => {
         payload: _payloadDesc,
         // value checked by recursive walk at the end
         ...restDescs
-      } = getOwnPropertyDescriptors5(candidate);
-      ownKeys8(restDescs).length === 0 || Fail2`Unexpected properties on tagged record ${ownKeys8(restDescs)}`;
+      } = getOwnPropertyDescriptors6(candidate);
+      ownKeys9(restDescs).length === 0 || Fail5`Unexpected properties on tagged record ${ownKeys9(restDescs)}`;
       passStyleOfRecur(
-        confirmOwnDataDescriptor(candidate, "payload", true, Fail2).value
+        confirmOwnDataDescriptor(candidate, "payload", true, Fail5).value
       );
     }
   });
 
   // ../pass-style/src/safe-promise.js
-  var { isFrozen: isFrozen4, getPrototypeOf: getPrototypeOf10, getOwnPropertyDescriptor: getOwnPropertyDescriptor6, hasOwn: hasOwn6 } = Object;
-  var { ownKeys: ownKeys9 } = Reflect;
+  var { isFrozen: isFrozen5, getPrototypeOf: getPrototypeOf11, getOwnPropertyDescriptor: getOwnPropertyDescriptor7, hasOwn: hasOwn6 } = Object;
+  var { ownKeys: ownKeys10 } = Reflect;
   var { toStringTag } = Symbol;
   var confirmPromiseOwnKeys = (pr, reject) => {
-    const keys = ownKeys9(pr);
+    const keys = ownKeys10(pr);
     if (keys.length === 0) {
       return true;
     }
@@ -1689,20 +2127,20 @@ var EndoDaemon = (() => {
       (key) => typeof key !== "symbol" || !hasOwn6(Promise.prototype, key)
     );
     if (unknownKeys.length !== 0) {
-      return reject && reject`${pr} - Must not have any own properties: ${q2(unknownKeys)}`;
+      return reject && reject`${pr} - Must not have any own properties: ${q5(unknownKeys)}`;
     }
     const checkSafeOwnKey = (key) => {
       if (key === toStringTag) {
-        const tagDesc = getOwnPropertyDescriptor6(pr, toStringTag);
+        const tagDesc = getOwnPropertyDescriptor7(pr, toStringTag);
         assert(tagDesc !== void 0);
-        return (hasOwn6(tagDesc, "value") || reject && reject`Own @@toStringTag must be a data property, not an accessor: ${q2(tagDesc)}`) && (typeof tagDesc.value === "string" || reject && reject`Own @@toStringTag value must be a string: ${q2(tagDesc.value)}`) && (!tagDesc.enumerable || reject && reject`Own @@toStringTag must not be enumerable: ${q2(tagDesc)}`);
+        return (hasOwn6(tagDesc, "value") || reject && reject`Own @@toStringTag must be a data property, not an accessor: ${q5(tagDesc)}`) && (typeof tagDesc.value === "string" || reject && reject`Own @@toStringTag value must be a string: ${q5(tagDesc.value)}`) && (!tagDesc.enumerable || reject && reject`Own @@toStringTag must not be enumerable: ${q5(tagDesc)}`);
       }
       const val = pr[key];
       if (val === void 0 || typeof val === "number") {
         return true;
       }
-      if (typeof val === "object" && val !== null && isFrozen4(val) && getPrototypeOf10(val) === Object.prototype) {
-        const subKeys = ownKeys9(val);
+      if (typeof val === "object" && val !== null && isFrozen5(val) && getPrototypeOf11(val) === Object.prototype) {
+        const subKeys = ownKeys10(val);
         if (subKeys.length === 0) {
           return true;
         }
@@ -1710,15 +2148,15 @@ var EndoDaemon = (() => {
           return true;
         }
       }
-      return reject && reject`Unexpected Node async_hooks additions to promise: ${pr}.${q2(
+      return reject && reject`Unexpected Node async_hooks additions to promise: ${pr}.${q5(
         String(key)
       )} is ${val}`;
     };
     return keys.every(checkSafeOwnKey);
   };
   var confirmSafePromise = (pr, reject) => {
-    return (isFrozen4(pr) || reject && reject`${pr} - Must be frozen`) && (isPromise(pr) || reject && reject`${pr} - Must be a promise`) && (getPrototypeOf10(pr) === Promise.prototype || reject && reject`${pr} - Must inherit from Promise.prototype: ${q2(
-      getPrototypeOf10(pr)
+    return (isFrozen5(pr) || reject && reject`${pr} - Must be frozen`) && (isPromise(pr) || reject && reject`${pr} - Must be a promise`) && (getPrototypeOf11(pr) === Promise.prototype || reject && reject`${pr} - Must inherit from Promise.prototype: ${q5(
+      getPrototypeOf11(pr)
     )}`) && confirmPromiseOwnKeys(
       /** @type {Promise} */
       pr,
@@ -1728,12 +2166,12 @@ var EndoDaemon = (() => {
   harden_default(confirmSafePromise);
   var isSafePromise = (pr) => confirmSafePromise(pr, false);
   hideAndHardenFunction(isSafePromise);
-  var assertSafePromise = (pr) => confirmSafePromise(pr, Fail2);
+  var assertSafePromise = (pr) => confirmSafePromise(pr, Fail5);
   hideAndHardenFunction(assertSafePromise);
 
   // ../pass-style/src/passStyleOf.js
-  var { ownKeys: ownKeys10 } = Reflect;
-  var { isFrozen: isFrozen5, getOwnPropertyDescriptors: getOwnPropertyDescriptors6, values } = Object;
+  var { ownKeys: ownKeys11 } = Reflect;
+  var { isFrozen: isFrozen6, getOwnPropertyDescriptors: getOwnPropertyDescriptors7, values } = Object;
   var makeHelperTable = (passStyleHelpers) => {
     const HelperTable = {
       __proto__: null,
@@ -1746,12 +2184,12 @@ var EndoDaemon = (() => {
     };
     for (const helper of passStyleHelpers) {
       const { styleName } = helper;
-      styleName in HelperTable || Fail2`Unrecognized helper: ${q2(styleName)}`;
-      HelperTable[styleName] === void 0 || Fail2`conflicting helpers for ${q2(styleName)}`;
+      styleName in HelperTable || Fail5`Unrecognized helper: ${q5(styleName)}`;
+      HelperTable[styleName] === void 0 || Fail5`conflicting helpers for ${q5(styleName)}`;
       HelperTable[styleName] = helper;
     }
-    for (const styleName of ownKeys10(HelperTable)) {
-      HelperTable[styleName] !== void 0 || Fail2`missing helper for ${q2(styleName)}`;
+    for (const styleName of ownKeys11(HelperTable)) {
+      HelperTable[styleName] !== void 0 || Fail5`missing helper for ${q5(styleName)}`;
     }
     return (
       /** @type {HelpersRecord} */
@@ -1760,7 +2198,7 @@ var EndoDaemon = (() => {
     );
   };
   var assertValid = (helper, candidate, passStyleOfRecur) => {
-    helper.confirmCanBeValid(candidate, Fail2);
+    helper.confirmCanBeValid(candidate, Fail5);
     helper.assertRestValid(candidate, passStyleOfRecur);
   };
   var makePassStyleOf = (passStyleHelpers) => {
@@ -1776,7 +2214,7 @@ var EndoDaemon = (() => {
           if (innerStyle) {
             return innerStyle;
           }
-          !inProgress.has(inner) || Fail2`Pass-by-copy data cannot be cyclic ${inner}`;
+          !inProgress.has(inner) || Fail5`Pass-by-copy data cannot be cyclic ${inner}`;
           inProgress.add(inner);
         }
         const passStyle = passStyleOfInternal(inner);
@@ -1807,23 +2245,23 @@ var EndoDaemon = (() => {
             if (inner === null) {
               return "null";
             }
-            if (!isFrozen5(inner)) {
+            if (!isFrozen6(inner)) {
               assert.fail(
                 // TypedArrays get special treatment in harden()
                 // and a corresponding special error message here.
-                isTypedArray2(inner) ? X`Cannot pass mutable typed arrays like ${inner}.` : X`Cannot pass non-frozen objects like ${inner}. Use harden()`
+                isTypedArray2(inner) ? X3`Cannot pass mutable typed arrays like ${inner}.` : X3`Cannot pass non-frozen objects like ${inner}. Use harden()`
               );
             }
             if (isPromise(inner)) {
               assertSafePromise(inner);
               return "promise";
             }
-            typeof inner.then !== "function" || Fail2`Cannot pass non-promise thenables`;
+            typeof inner.then !== "function" || Fail5`Cannot pass non-promise thenables`;
             const passStyleTag = inner[PASS_STYLE];
             if (passStyleTag !== void 0) {
               assert.typeof(passStyleTag, "string");
               const helper = HelperTable[passStyleTag];
-              helper !== void 0 || Fail2`Unrecognized PassStyle: ${q2(passStyleTag)}`;
+              helper !== void 0 || Fail5`Unrecognized PassStyle: ${q5(passStyleTag)}`;
               assertValid(helper, inner, passStyleOfRecur);
               return (
                 /** @type {PassStyle} */
@@ -1840,13 +2278,13 @@ var EndoDaemon = (() => {
             return "remotable";
           }
           case "function": {
-            isFrozen5(inner) || Fail2`Cannot pass non-frozen objects like ${inner}. Use harden()`;
-            typeof inner.then !== "function" || Fail2`Cannot pass non-promise thenables`;
+            isFrozen6(inner) || Fail5`Cannot pass non-frozen objects like ${inner}. Use harden()`;
+            typeof inner.then !== "function" || Fail5`Cannot pass non-promise thenables`;
             assertValid(remotableHelper, inner, passStyleOfRecur);
             return "remotable";
           }
           default: {
-            throw assert.fail(X`Unrecognized typeof ${q2(typestr)}`, TypeError);
+            throw assert.fail(X3`Unrecognized typeof ${q5(typestr)}`, TypeError);
           }
         }
       };
@@ -1882,7 +2320,7 @@ var EndoDaemon = (() => {
       return err;
     }
     const { name, message } = err;
-    const { cause: causeDesc, errors: errorsDesc } = getOwnPropertyDescriptors6(err);
+    const { cause: causeDesc, errors: errorsDesc } = getOwnPropertyDescriptors7(err);
     let cause;
     let errors;
     if (causeDesc && isPassableErrorPropertyDesc("cause", causeDesc)) {
@@ -1898,8 +2336,8 @@ var EndoDaemon = (() => {
       errors
     });
     harden_default(newError);
-    annotateError(newError, X`copied from error ${err}`);
-    passStyleOf(newError) === "error" || Fail2`Expected ${newError} to be a passable error`;
+    annotateError2(newError, X3`copied from error ${err}`);
+    passStyleOf(newError) === "error" || Fail5`Expected ${newError} to be a passable error`;
     return newError;
   };
   harden_default(toPassableError);
@@ -1923,7 +2361,7 @@ var EndoDaemon = (() => {
             specimen
           );
           for (const element of elements) {
-            element === toThrowable(element) || Fail2`nested toThrowable coercion not yet supported ${element}`;
+            element === toThrowable(element) || Fail5`nested toThrowable coercion not yet supported ${element}`;
           }
           break;
         }
@@ -1933,7 +2371,7 @@ var EndoDaemon = (() => {
             specimen
           );
           for (const val of values(rec)) {
-            val === toThrowable(val) || Fail2`nested toThrowable coercion not yet supported ${val}`;
+            val === toThrowable(val) || Fail5`nested toThrowable coercion not yet supported ${val}`;
           }
           break;
         }
@@ -1943,7 +2381,7 @@ var EndoDaemon = (() => {
             specimen
           );
           const { payload } = tg;
-          payload === toThrowable(payload) || Fail2`nested toThrowable coercion not yet supported ${payload}`;
+          payload === toThrowable(payload) || Fail5`nested toThrowable coercion not yet supported ${payload}`;
           break;
         }
         case "error": {
@@ -1951,11 +2389,11 @@ var EndoDaemon = (() => {
             /** @type {Error} */
             specimen
           );
-          er === toThrowable(er) || Fail2`nested toThrowable coercion not yet supported ${er}`;
+          er === toThrowable(er) || Fail5`nested toThrowable coercion not yet supported ${er}`;
           break;
         }
         default: {
-          throw Fail2`A ${q2(passStyle)} is not throwable: ${specimen}`;
+          throw Fail5`A ${q5(passStyle)} is not throwable: ${specimen}`;
         }
       }
     }
@@ -1967,12 +2405,12 @@ var EndoDaemon = (() => {
   harden_default(toThrowable);
 
   // ../pass-style/src/makeTagged.js
-  var { create: create2, prototype: objectPrototype6 } = Object;
+  var { create: create3, prototype: objectPrototype6 } = Object;
   var makeTagged = (tag, payload) => {
-    typeof tag === "string" || Fail2`The tag of a tagged record must be a string: ${tag}`;
+    typeof tag === "string" || Fail5`The tag of a tagged record must be a string: ${tag}`;
     assertPassable(harden_default(payload));
     return harden_default(
-      create2(objectPrototype6, {
+      create3(objectPrototype6, {
         [PASS_STYLE]: { value: "tagged" },
         [Symbol.toStringTag]: { value: tag },
         payload: { value: payload, enumerable: true }
@@ -1992,28 +2430,28 @@ var EndoDaemon = (() => {
   hideAndHardenFunction(isRemotable);
   var assertCopyArray = (arr, optNameOfArray = "Alleged array") => {
     const passStyle = passStyleOf(arr);
-    passStyle === "copyArray" || Fail2`${q2(optNameOfArray)} ${arr} must be a pass-by-copy array, not ${q2(
+    passStyle === "copyArray" || Fail5`${q5(optNameOfArray)} ${arr} must be a pass-by-copy array, not ${q5(
       passStyle
     )}`;
   };
   hideAndHardenFunction(assertCopyArray);
   var assertByteArray = (arr, optNameOfArray = "Alleged byteArray") => {
     const passStyle = passStyleOf(arr);
-    passStyle === "byteArray" || Fail2`${q2(
+    passStyle === "byteArray" || Fail5`${q5(
       optNameOfArray
-    )} ${arr} must be a pass-by-copy binary data, not ${q2(passStyle)}`;
+    )} ${arr} must be a pass-by-copy binary data, not ${q5(passStyle)}`;
   };
   hideAndHardenFunction(assertByteArray);
   var assertRecord = (record, optNameOfRecord = "Alleged record") => {
     const passStyle = passStyleOf(record);
-    passStyle === "copyRecord" || Fail2`${q2(optNameOfRecord)} ${record} must be a pass-by-copy record, not ${q2(
+    passStyle === "copyRecord" || Fail5`${q5(optNameOfRecord)} ${record} must be a pass-by-copy record, not ${q5(
       passStyle
     )}`;
   };
   hideAndHardenFunction(assertRecord);
   var assertRemotable = (remotable, optNameOfRemotable = "Alleged remotable") => {
     const passStyle = passStyleOf(remotable);
-    passStyle === "remotable" || Fail2`${q2(optNameOfRemotable)} ${remotable} must be a remotable, not ${q2(
+    passStyle === "remotable" || Fail5`${q5(optNameOfRemotable)} ${remotable} must be a remotable, not ${q5(
       passStyle
     )}`;
   };
@@ -2023,7 +2461,7 @@ var EndoDaemon = (() => {
     try {
       passStyle = passStyleOf(val);
     } catch (err) {
-      return reject && reject`Not even Passable: ${q2(err)}: ${val}`;
+      return reject && reject`Not even Passable: ${q5(err)}: ${val}`;
     }
     switch (passStyle) {
       case "undefined":
@@ -2037,19 +2475,19 @@ var EndoDaemon = (() => {
         return true;
       }
       default: {
-        return reject && reject`A ${q2(passStyle)} cannot be an atom: ${val}`;
+        return reject && reject`A ${q5(passStyle)} cannot be an atom: ${val}`;
       }
     }
   };
   var isAtom = (val) => confirmAtom(val, false);
   hideAndHardenFunction(isAtom);
   var assertAtom = (val) => {
-    confirmAtom(val, Fail2);
+    confirmAtom(val, Fail5);
   };
   hideAndHardenFunction(assertAtom);
 
   // ../pass-style/src/deeplyFulfilled.js
-  var { ownKeys: ownKeys11 } = Reflect;
+  var { ownKeys: ownKeys12 } = Reflect;
   var { fromEntries } = Object;
   var deeplyFulfilled = async (val) => {
     if (isAtom(val)) {
@@ -2070,7 +2508,7 @@ var EndoDaemon = (() => {
         );
         const names = (
           /** @type {string[]} */
-          ownKeys11(rec)
+          ownKeys12(rec)
         );
         const valPs = names.map((name) => deeplyFulfilled(rec[name]));
         return E.when(
@@ -2128,30 +2566,30 @@ var EndoDaemon = (() => {
         return E.when(prom, (nonp) => deeplyFulfilled(nonp));
       }
       default: {
-        throw assert.fail(X`Unexpected passStyle ${q2(passStyle)}`, TypeError);
+        throw assert.fail(X3`Unexpected passStyle ${q5(passStyle)}`, TypeError);
       }
     }
   };
   harden_default(deeplyFulfilled);
 
   // ../marshal/src/encodeToCapData.js
-  var { ownKeys: ownKeys12 } = Reflect;
+  var { ownKeys: ownKeys13 } = Reflect;
   var { isArray: isArray4 } = Array;
   var {
-    getOwnPropertyDescriptors: getOwnPropertyDescriptors7,
-    defineProperties,
+    getOwnPropertyDescriptors: getOwnPropertyDescriptors8,
+    defineProperties: defineProperties2,
     is,
     entries: entries3,
     fromEntries: fromEntries2,
-    freeze: freeze7,
+    freeze: freeze8,
     hasOwn: hasOwn7
   } = Object;
   var QCLASS = "@qclass";
   var hasQClass = (encoded) => hasOwn7(encoded, QCLASS);
   var qclassMatches = (encoded, qclass) => !isPrimitive3(encoded) && !isArray4(encoded) && hasQClass(encoded) && encoded[QCLASS] === qclass;
-  var dontEncodeRemotableToCapData = (rem) => Fail2`remotable unexpected: ${rem}`;
-  var dontEncodePromiseToCapData = (prom) => Fail2`promise unexpected: ${prom}`;
-  var dontEncodeErrorToCapData = (err) => Fail2`error object unexpected: ${err}`;
+  var dontEncodeRemotableToCapData = (rem) => Fail5`remotable unexpected: ${rem}`;
+  var dontEncodePromiseToCapData = (prom) => Fail5`promise unexpected: ${prom}`;
+  var dontEncodeErrorToCapData = (err) => Fail5`error object unexpected: ${err}`;
   var makeEncodeToCapData = (encodeOptions = {}) => {
     const {
       encodeRemotableToCapData = dontEncodeRemotableToCapData,
@@ -2203,12 +2641,12 @@ var EndoDaemon = (() => {
               [QCLASS]: "hilbert",
               original: encodeToCapDataRecur(qclassValue)
             };
-            if (ownKeys12(rest).length >= 1) {
-              result.rest = encodeToCapDataRecur(freeze7(rest));
+            if (ownKeys13(rest).length >= 1) {
+              result.rest = encodeToCapDataRecur(freeze8(rest));
             }
             return result;
           }
-          const names = ownKeys12(passable).sort();
+          const names = ownKeys13(passable).sort();
           return fromEntries2(
             names.map((name) => [name, encodeToCapDataRecur(passable[name])])
           );
@@ -2217,7 +2655,7 @@ var EndoDaemon = (() => {
           return passable.map(encodeToCapDataRecur);
         }
         case "byteArray": {
-          throw Fail2`marsal of byteArray not yet implemented: ${passable}`;
+          throw Fail5`marsal of byteArray not yet implemented: ${passable}`;
         }
         case "tagged": {
           return {
@@ -2234,16 +2672,16 @@ var EndoDaemon = (() => {
           if (qclassMatches(encoded, "slot")) {
             return encoded;
           }
-          throw Fail2`internal: Remotable encoding must be an object with ${q2(
+          throw Fail5`internal: Remotable encoding must be an object with ${q5(
             QCLASS
-          )} ${q2("slot")}: ${encoded}`;
+          )} ${q5("slot")}: ${encoded}`;
         }
         case "promise": {
           const encoded = encodePromiseToCapData(passable, encodeToCapDataRecur);
           if (qclassMatches(encoded, "slot")) {
             return encoded;
           }
-          throw Fail2`internal: Promise encoding must be an object with ${q2(
+          throw Fail5`internal: Promise encoding must be an object with ${q5(
             QCLASS,
             "slot"
           )}: ${encoded}`;
@@ -2253,14 +2691,14 @@ var EndoDaemon = (() => {
           if (qclassMatches(encoded, "error")) {
             return encoded;
           }
-          throw Fail2`internal: Error encoding must be an object with ${q2(
+          throw Fail5`internal: Error encoding must be an object with ${q5(
             QCLASS,
             "error"
           )}: ${encoded}`;
         }
         default: {
           throw assert.fail(
-            X`internal: Unrecognized passStyle ${q2(passStyle)}`,
+            X3`internal: Unrecognized passStyle ${q5(passStyle)}`,
             TypeError
           );
         }
@@ -2275,17 +2713,17 @@ var EndoDaemon = (() => {
     return harden_default(encodeToCapData);
   };
   harden_default(makeEncodeToCapData);
-  var dontDecodeRemotableOrPromiseFromCapData = (slotEncoding) => Fail2`remotable or promise unexpected: ${slotEncoding}`;
-  var dontDecodeErrorFromCapData = (errorEncoding) => Fail2`error unexpected: ${errorEncoding}`;
+  var dontDecodeRemotableOrPromiseFromCapData = (slotEncoding) => Fail5`remotable or promise unexpected: ${slotEncoding}`;
+  var dontDecodeErrorFromCapData = (errorEncoding) => Fail5`error unexpected: ${errorEncoding}`;
   var makeDecodeFromCapData = (decodeOptions = {}) => {
     const {
       decodeRemotableFromCapData = dontDecodeRemotableOrPromiseFromCapData,
       decodePromiseFromCapData = dontDecodeRemotableOrPromiseFromCapData,
       decodeErrorFromCapData = dontDecodeErrorFromCapData
     } = decodeOptions;
-    decodeRemotableFromCapData === decodePromiseFromCapData || Fail2`An implementation restriction for now: If either decodeRemotableFromCapData or decodePromiseFromCapData is provided, both must be provided and they must be the same: ${q2(
+    decodeRemotableFromCapData === decodePromiseFromCapData || Fail5`An implementation restriction for now: If either decodeRemotableFromCapData or decodePromiseFromCapData is provided, both must be provided and they must be the same: ${q5(
       decodeRemotableFromCapData
-    )} vs ${q2(decodePromiseFromCapData)}`;
+    )} vs ${q5(decodePromiseFromCapData)}`;
     const decodeFromCapData = (jsonEncoded) => {
       if (isPrimitive3(jsonEncoded)) {
         return jsonEncoded;
@@ -2294,7 +2732,7 @@ var EndoDaemon = (() => {
         return jsonEncoded.map((encodedVal) => decodeFromCapData(encodedVal));
       } else if (hasQClass(jsonEncoded)) {
         const qclass = jsonEncoded[QCLASS];
-        typeof qclass === "string" || Fail2`invalid ${q2(QCLASS)} typeof ${q2(typeof qclass)}`;
+        typeof qclass === "string" || Fail5`invalid ${q5(QCLASS)} typeof ${q5(typeof qclass)}`;
         switch (qclass) {
           // Encoding of primitives not handled by JSON
           case "undefined": {
@@ -2311,7 +2749,7 @@ var EndoDaemon = (() => {
           }
           case "bigint": {
             const { digits } = jsonEncoded;
-            typeof digits === "string" || Fail2`invalid digits typeof ${q2(typeof digits)}`;
+            typeof digits === "string" || Fail5`invalid digits typeof ${q5(typeof digits)}`;
             return BigInt(digits);
           }
           case "@@asyncIterator": {
@@ -2340,32 +2778,32 @@ var EndoDaemon = (() => {
             if (passStyleOf(decoded) === "error") {
               return decoded;
             }
-            throw Fail2`internal: decodeErrorFromCapData option must return an error: ${decoded}`;
+            throw Fail5`internal: decodeErrorFromCapData option must return an error: ${decoded}`;
           }
           case "hilbert": {
             const { original, rest } = jsonEncoded;
-            hasOwn7(jsonEncoded, "original") || Fail2`Invalid Hilbert Hotel encoding ${jsonEncoded}`;
+            hasOwn7(jsonEncoded, "original") || Fail5`Invalid Hilbert Hotel encoding ${jsonEncoded}`;
             const result = { [QCLASS]: decodeFromCapData(original) };
             if (hasOwn7(jsonEncoded, "rest")) {
-              const isNonEmptyObject = typeof rest === "object" && rest !== null && ownKeys12(rest).length >= 1;
+              const isNonEmptyObject = typeof rest === "object" && rest !== null && ownKeys13(rest).length >= 1;
               if (!isNonEmptyObject) {
-                throw Fail2`Rest encoding must be a non-empty object: ${rest}`;
+                throw Fail5`Rest encoding must be a non-empty object: ${rest}`;
               }
               const restObj = decodeFromCapData(rest);
-              !hasOwn7(restObj, QCLASS) || Fail2`Rest must not contain its own definition of ${q2(QCLASS)}`;
-              defineProperties(result, getOwnPropertyDescriptors7(restObj));
+              !hasOwn7(restObj, QCLASS) || Fail5`Rest must not contain its own definition of ${q5(QCLASS)}`;
+              defineProperties2(result, getOwnPropertyDescriptors8(restObj));
             }
             return result;
           }
           // @ts-expect-error This is the error case we're testing for
           case "ibid": {
-            throw Fail2`The capData protocol no longer supports ${q2(QCLASS)} ${q2(
+            throw Fail5`The capData protocol no longer supports ${q5(QCLASS)} ${q5(
               qclass
             )}`;
           }
           default: {
             throw assert.fail(
-              X`unrecognized ${q2(QCLASS)} ${q2(qclass)}`,
+              X3`unrecognized ${q5(QCLASS)} ${q5(qclass)}`,
               TypeError
             );
           }
@@ -2373,7 +2811,7 @@ var EndoDaemon = (() => {
       } else {
         assert(typeof jsonEncoded === "object" && jsonEncoded !== null);
         const decodeEntry = ([name, encodedVal]) => {
-          typeof name === "string" || Fail2`Property ${q2(name)} of ${jsonEncoded} must be a string`;
+          typeof name === "string" || Fail5`Property ${q5(name)} of ${jsonEncoded} must be a string`;
           return [name, decodeFromCapData(encodedVal)];
         };
         const decodedEntries = entries3(jsonEncoded).map(decodeEntry);
@@ -2386,7 +2824,7 @@ var EndoDaemon = (() => {
   // ../nat/src/index.js
   var ZERO_N = BigInt(0);
   var ONE_N = BigInt(1);
-  var { freeze: freeze8 } = Object;
+  var { freeze: freeze9 } = Object;
   var isNat = (allegedNum) => {
     if (typeof allegedNum === "bigint") {
       return allegedNum >= 0;
@@ -2396,7 +2834,7 @@ var EndoDaemon = (() => {
     }
     return Number.isSafeInteger(allegedNum) && allegedNum >= 0;
   };
-  freeze8(isNat);
+  freeze9(isNat);
   var Nat = (allegedNum) => {
     if (typeof allegedNum === "bigint") {
       if (allegedNum < ZERO_N) {
@@ -2417,10 +2855,10 @@ var EndoDaemon = (() => {
       `${allegedNum} is a ${typeof allegedNum} but must be a bigint or a number`
     );
   };
-  freeze8(Nat);
+  freeze9(Nat);
 
   // ../marshal/src/encodeToSmallcaps.js
-  var { ownKeys: ownKeys13 } = Reflect;
+  var { ownKeys: ownKeys14 } = Reflect;
   var { isArray: isArray5 } = Array;
   var { is: is2, entries: entries4, fromEntries: fromEntries3, hasOwn: hasOwn8 } = Object;
   var BANG = "!".charCodeAt(0);
@@ -2432,9 +2870,9 @@ var EndoDaemon = (() => {
     const code = encodedStr.charCodeAt(0);
     return BANG <= code && code <= DASH;
   };
-  var dontEncodeRemotableToSmallcaps = (rem) => Fail2`remotable unexpected: ${rem}`;
-  var dontEncodePromiseToSmallcaps = (prom) => Fail2`promise unexpected: ${prom}`;
-  var dontEncodeErrorToSmallcaps = (err) => Fail2`error object unexpected: ${q2(err)}`;
+  var dontEncodeRemotableToSmallcaps = (rem) => Fail5`remotable unexpected: ${rem}`;
+  var dontEncodePromiseToSmallcaps = (prom) => Fail5`promise unexpected: ${prom}`;
+  var dontEncodeErrorToSmallcaps = (err) => Fail5`error object unexpected: ${q5(err)}`;
   var makeEncodeToSmallcaps = (encodeOptions = {}) => {
     const {
       encodeRemotableToSmallcaps = dontEncodeRemotableToSmallcaps,
@@ -2442,11 +2880,11 @@ var EndoDaemon = (() => {
       encodeErrorToSmallcaps = dontEncodeErrorToSmallcaps
     } = encodeOptions;
     const assertEncodedError = (encoding) => {
-      typeof encoding === "object" && hasOwn8(encoding, "#error") || Fail2`internal: Error encoding must have "#error" property: ${q2(
+      typeof encoding === "object" && hasOwn8(encoding, "#error") || Fail5`internal: Error encoding must have "#error" property: ${q5(
         encoding
       )}`;
       const message = encoding["#error"];
-      typeof message === "string" && (!startsSpecial(message) || message.charAt(0) === "!") || Fail2`internal: Error encoding must have string message: ${q2(message)}`;
+      typeof message === "string" && (!startsSpecial(message) || message.charAt(0) === "!") || Fail5`internal: Error encoding must have string message: ${q5(message)}`;
     };
     const encodeToSmallcapsRecur = (passable) => {
       const passStyle = passStyleOf(passable);
@@ -2490,7 +2928,7 @@ var EndoDaemon = (() => {
           return `%${name}`;
         }
         case "copyRecord": {
-          const names = ownKeys13(passable).sort();
+          const names = ownKeys14(passable).sort();
           return fromEntries3(
             names.map((name) => [
               encodeToSmallcapsRecur(name),
@@ -2502,7 +2940,7 @@ var EndoDaemon = (() => {
           return passable.map(encodeToSmallcapsRecur);
         }
         case "byteArray": {
-          throw Fail2`marsal of byteArray not yet implemented: ${passable}`;
+          throw Fail5`marsal of byteArray not yet implemented: ${passable}`;
         }
         case "tagged": {
           return {
@@ -2518,7 +2956,7 @@ var EndoDaemon = (() => {
           if (typeof result === "string" && result.charAt(0) === "$") {
             return result;
           }
-          throw Fail2`internal: Remotable encoding must start with "$": ${result}`;
+          throw Fail5`internal: Remotable encoding must start with "$": ${result}`;
         }
         case "promise": {
           const result = encodePromiseToSmallcaps(
@@ -2528,7 +2966,7 @@ var EndoDaemon = (() => {
           if (typeof result === "string" && result.charAt(0) === "&") {
             return result;
           }
-          throw Fail2`internal: Promise encoding must start with "&": ${result}`;
+          throw Fail5`internal: Promise encoding must start with "&": ${result}`;
         }
         case "error": {
           const result = encodeErrorToSmallcaps(passable, encodeToSmallcapsRecur);
@@ -2537,7 +2975,7 @@ var EndoDaemon = (() => {
         }
         default: {
           throw assert.fail(
-            X`internal: Unrecognized passStyle ${q2(passStyle)}`,
+            X3`internal: Unrecognized passStyle ${q5(passStyle)}`,
             TypeError
           );
         }
@@ -2556,9 +2994,9 @@ var EndoDaemon = (() => {
     return harden_default(encodeToSmallcaps);
   };
   harden_default(makeEncodeToSmallcaps);
-  var dontDecodeRemotableFromSmallcaps = (encoding) => Fail2`remotable unexpected: ${encoding}`;
-  var dontDecodePromiseFromSmallcaps = (encoding) => Fail2`promise unexpected: ${encoding}`;
-  var dontDecodeErrorFromSmallcaps = (encoding) => Fail2`error unexpected: ${q2(encoding)}`;
+  var dontDecodeRemotableFromSmallcaps = (encoding) => Fail5`remotable unexpected: ${encoding}`;
+  var dontDecodePromiseFromSmallcaps = (encoding) => Fail5`promise unexpected: ${encoding}`;
+  var dontDecodeErrorFromSmallcaps = (encoding) => Fail5`error unexpected: ${q5(encoding)}`;
   var makeDecodeFromSmallcaps = (decodeOptions = {}) => {
     const {
       decodeRemotableFromSmallcaps = dontDecodeRemotableFromSmallcaps,
@@ -2599,7 +3037,7 @@ var EndoDaemon = (() => {
                 }
                 default: {
                   throw assert.fail(
-                    X`unknown constant "${q2(encoding)}"`,
+                    X3`unknown constant "${q5(encoding)}"`,
                     TypeError
                   );
                 }
@@ -2615,7 +3053,7 @@ var EndoDaemon = (() => {
                 decodeFromSmallcaps
               );
               if (passStyleOf(result) !== "remotable") {
-                Fail2`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`;
+                Fail5`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`;
               }
               return result;
             }
@@ -2625,12 +3063,12 @@ var EndoDaemon = (() => {
                 decodeFromSmallcaps
               );
               if (passStyleOf(result) !== "promise") {
-                Fail2`internal: decodePromiseFromSmallcaps option must return a promise: ${result}`;
+                Fail5`internal: decodePromiseFromSmallcaps option must return a promise: ${result}`;
               }
               return result;
             }
             default: {
-              throw Fail2`Special char ${q2(
+              throw Fail5`Special char ${q5(
                 c
               )} reserved for future use: ${encoding}`;
             }
@@ -2645,8 +3083,8 @@ var EndoDaemon = (() => {
           }
           if (hasOwn8(encoding, "#tag")) {
             const { "#tag": tag, payload, ...rest } = encoding;
-            typeof tag === "string" || Fail2`Value of "#tag", the tag, must be a string: ${encoding}`;
-            ownKeys13(rest).length === 0 || Fail2`#tag record unexpected properties: ${q2(ownKeys13(rest))}`;
+            typeof tag === "string" || Fail5`Value of "#tag", the tag, must be a string: ${encoding}`;
+            ownKeys14(rest).length === 0 || Fail5`#tag record unexpected properties: ${q5(ownKeys14(rest))}`;
             return makeTagged(
               decodeFromSmallcaps(tag),
               decodeFromSmallcaps(payload)
@@ -2657,16 +3095,16 @@ var EndoDaemon = (() => {
               encoding,
               decodeFromSmallcaps
             );
-            passStyleOf(result) === "error" || Fail2`internal: decodeErrorFromSmallcaps option must return an error: ${result}`;
+            passStyleOf(result) === "error" || Fail5`internal: decodeErrorFromSmallcaps option must return an error: ${result}`;
             return result;
           }
           const decodeEntry = ([encodedName, encodedVal]) => {
-            typeof encodedName === "string" || Fail2`Property name ${q2(
+            typeof encodedName === "string" || Fail5`Property name ${q5(
               encodedName
             )} of ${encoding} must be a string`;
-            encodedName.charAt(0) !== "#" || Fail2`Unrecognized record type ${q2(encodedName)}: ${encoding}`;
+            encodedName.charAt(0) !== "#" || Fail5`Unrecognized record type ${q5(encodedName)}: ${encoding}`;
             const name = decodeFromSmallcaps(encodedName);
-            typeof name === "string" || Fail2`Decoded property name ${name} from ${encoding} must be a string`;
+            typeof name === "string" || Fail5`Decoded property name ${name} from ${encoding} must be a string`;
             return [name, decodeFromSmallcaps(encodedVal)];
           };
           const decodedEntries = entries4(encoding).map(decodeEntry);
@@ -2674,7 +3112,7 @@ var EndoDaemon = (() => {
         }
         default: {
           throw assert.fail(
-            X`internal: unrecognized JSON typeof ${q2(
+            X3`internal: unrecognized JSON typeof ${q5(
               typeof encoding
             )}: ${encoding}`,
             TypeError
@@ -2686,9 +3124,9 @@ var EndoDaemon = (() => {
   };
 
   // ../marshal/src/marshal.js
-  var { defineProperties: defineProperties2, hasOwn: hasOwn9 } = Object;
+  var { defineProperties: defineProperties3, hasOwn: hasOwn9 } = Object;
   var { isArray: isArray6 } = Array;
-  var { ownKeys: ownKeys14 } = Reflect;
+  var { ownKeys: ownKeys15 } = Reflect;
   var defaultValToSlotFn = (x) => x;
   var defaultSlotToValFn = (x, _) => x;
   var makeMarshal = (convertValToSlot = defaultValToSlotFn, convertSlotToVal = defaultSlotToValFn, {
@@ -2705,7 +3143,7 @@ var EndoDaemon = (() => {
     serializeBodyFormat = "capdata"
   } = {}) => {
     assert.typeof(marshalName, "string");
-    errorTagging === "on" || errorTagging === "off" || Fail2`The errorTagging option can only be "on" or "off" ${errorTagging}`;
+    errorTagging === "on" || errorTagging === "off" || Fail5`The errorTagging option can only be "on" or "off" ${errorTagging}`;
     const nextErrorId = () => {
       errorIdNum += 1;
       return `error:${marshalName}#${errorIdNum}`;
@@ -2733,7 +3171,7 @@ var EndoDaemon = (() => {
         if (errorTagging === "on") {
           const errorId = encodeRecur(nextErrorId());
           assert.typeof(errorId, "string");
-          annotateError(err, X`Sent as ${errorId}`);
+          annotateError2(err, X3`Sent as ${errorId}`);
           marshalSaveError(err);
           return harden_default({ errorId, message, name });
         } else {
@@ -2795,14 +3233,14 @@ var EndoDaemon = (() => {
           slots
         });
       } else {
-        throw Fail2`Unrecognized serializeBodyFormat: ${q2(serializeBodyFormat)}`;
+        throw Fail5`Unrecognized serializeBodyFormat: ${q5(serializeBodyFormat)}`;
       }
     };
     const makeFullRevive = (slots) => {
       const valMap = /* @__PURE__ */ new Map();
       const decodeSlotCommon = (slotData) => {
         const { iface = void 0, index, ...rest } = slotData;
-        ownKeys14(rest).length === 0 || Fail2`unexpected encoded slot properties ${q2(ownKeys14(rest))}`;
+        ownKeys15(rest).length === 0 || Fail5`unexpected encoded slot properties ${q5(ownKeys15(rest))}`;
         const extant = valMap.get(index);
         if (extant) {
           return extant;
@@ -2828,10 +3266,10 @@ var EndoDaemon = (() => {
           errorId && decodeRecur(errorId)
         );
         if (typeof dName !== "string") {
-          throw Fail2`invalid error name typeof ${q2(typeof dName)}`;
+          throw Fail5`invalid error name typeof ${q5(typeof dName)}`;
         }
         if (typeof dMessage !== "string") {
-          throw Fail2`invalid error message typeof ${q2(typeof dMessage)}`;
+          throw Fail5`invalid error message typeof ${q5(typeof dMessage)}`;
         }
         const errConstructor = getErrorConstructor(dName) || Error;
         const errorName = dErrorId === void 0 ? `Remote${errConstructor.name}` : `Remote${errConstructor.name}(${dErrorId})`;
@@ -2852,7 +3290,7 @@ var EndoDaemon = (() => {
           enumerable: false,
           configurable: false
         }));
-        defineProperties2(rawError, descs);
+        defineProperties3(rawError, descs);
         harden_default(rawError);
         return toPassableError(rawError);
       };
@@ -2882,7 +3320,7 @@ var EndoDaemon = (() => {
       const decodePromiseFromSmallcaps = makeDecodeSlotFromSmallcaps("&");
       const decodeErrorFromSmallcaps = (encoding, decodeRecur) => {
         const { "#error": message, ...restErrData } = encoding;
-        !hasOwn9(restErrData, "message") || Fail2`unexpected encoded error property ${q2("message")}`;
+        !hasOwn9(restErrData, "message") || Fail5`unexpected encoded error property ${q5("message")}`;
         return decodeErrorCommon({ message, ...restErrData }, decodeRecur);
       };
       const reviveFromSmallcaps = makeDecodeFromSmallcaps({
@@ -2896,8 +3334,8 @@ var EndoDaemon = (() => {
     };
     const fromCapData = (data) => {
       const { body, slots } = data;
-      typeof body === "string" || Fail2`unserialize() given non-capdata (.body is ${body}, not string)`;
-      isArray6(data.slots) || Fail2`unserialize() given non-capdata (.slots are not Array)`;
+      typeof body === "string" || Fail5`unserialize() given non-capdata (.body is ${body}, not string)`;
+      isArray6(data.slots) || Fail5`unserialize() given non-capdata (.slots are not Array)`;
       const { reviveFromCapData, reviveFromSmallcaps } = makeFullRevive(slots);
       let result;
       if (body.charAt(0) === "#") {
@@ -2926,18 +3364,18 @@ var EndoDaemon = (() => {
   };
 
   // ../marshal/src/marshal-stringify.js
-  var { freeze: freeze9 } = Object;
-  var doNotConvertValToSlot = (val) => Fail2`Marshal's stringify rejects presences and promises ${val}`;
-  var doNotConvertSlotToVal = (slot, _iface) => Fail2`Marshal's parse must not encode any slots ${slot}`;
+  var { freeze: freeze10 } = Object;
+  var doNotConvertValToSlot = (val) => Fail5`Marshal's stringify rejects presences and promises ${val}`;
+  var doNotConvertSlotToVal = (slot, _iface) => Fail5`Marshal's parse must not encode any slots ${slot}`;
   var badArrayHandler = harden_default({
     get: (_target, name, _receiver) => {
       if (name === "length") {
         return 0;
       }
-      throw Fail2`Marshal's parse must not encode any slot positions ${name}`;
+      throw Fail5`Marshal's parse must not encode any slot positions ${name}`;
     }
   });
-  var arrayTarget = freeze9(
+  var arrayTarget = freeze10(
     /** @type {any[]} */
     []
   );
@@ -2957,7 +3395,7 @@ var EndoDaemon = (() => {
     // `freeze` but not `harden` since the `badArray` proxy and its target
     // must remain trapping.
     // See https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
-    freeze9({
+    freeze10({
       body: str,
       slots: badArray
     })
@@ -2965,7 +3403,7 @@ var EndoDaemon = (() => {
   harden_default(parse);
 
   // ../marshal/src/marshal-justin.js
-  var { ownKeys: ownKeys15 } = Reflect;
+  var { ownKeys: ownKeys16 } = Reflect;
   var { isArray: isArray7 } = Array;
   var { stringify: quote2 } = JSON;
   var makeYesIndenter = () => {
@@ -3045,7 +3483,7 @@ var EndoDaemon = (() => {
       assert(rawTree !== null);
       if (QCLASS in rawTree) {
         const qclass = rawTree[QCLASS];
-        typeof qclass === "string" || Fail2`invalid qclass typeof ${q2(typeof qclass)}`;
+        typeof qclass === "string" || Fail5`invalid qclass typeof ${q5(typeof qclass)}`;
         assert(!isArray7(rawTree));
         switch (rawTree["@qclass"]) {
           case "undefined":
@@ -3056,7 +3494,7 @@ var EndoDaemon = (() => {
           }
           case "bigint": {
             const { digits } = rawTree;
-            typeof digits === "string" || Fail2`invalid digits typeof ${q2(typeof digits)}`;
+            typeof digits === "string" || Fail5`invalid digits typeof ${q5(typeof digits)}`;
             return;
           }
           case "@@asyncIterator": {
@@ -3086,24 +3524,24 @@ var EndoDaemon = (() => {
           }
           case "hilbert": {
             const { original, rest } = rawTree;
-            "original" in rawTree || Fail2`Invalid Hilbert Hotel encoding ${rawTree}`;
+            "original" in rawTree || Fail5`Invalid Hilbert Hotel encoding ${rawTree}`;
             prepare(original);
             if ("rest" in rawTree) {
               if (typeof rest !== "object") {
-                throw Fail2`Rest ${rest} encoding must be an object`;
+                throw Fail5`Rest ${rest} encoding must be an object`;
               }
               if (rest === null) {
-                throw Fail2`Rest ${rest} encoding must not be null`;
+                throw Fail5`Rest ${rest} encoding must not be null`;
               }
               if (isArray7(rest)) {
-                throw Fail2`Rest ${rest} encoding must not be an array`;
+                throw Fail5`Rest ${rest} encoding must not be an array`;
               }
               if (QCLASS in rest) {
-                throw Fail2`Rest encoding ${rest} must not contain ${q2(QCLASS)}`;
+                throw Fail5`Rest encoding ${rest} must not contain ${q5(QCLASS)}`;
               }
-              const names = ownKeys15(rest);
+              const names = ownKeys16(rest);
               for (const name of names) {
-                typeof name === "string" || Fail2`Property name ${name} of ${rawTree} must be a string`;
+                typeof name === "string" || Fail5`Property name ${name} of ${rawTree} must be a string`;
                 prepare(rest[name]);
               }
             }
@@ -3112,14 +3550,14 @@ var EndoDaemon = (() => {
           case "error": {
             const { name, message } = rawTree;
             if (typeof name !== "string") {
-              throw Fail2`invalid error name typeof ${q2(typeof name)}`;
+              throw Fail5`invalid error name typeof ${q5(typeof name)}`;
             }
-            getErrorConstructor(name) !== void 0 || Fail2`Must be the name of an Error constructor ${name}`;
-            typeof message === "string" || Fail2`invalid error message typeof ${q2(typeof message)}`;
+            getErrorConstructor(name) !== void 0 || Fail5`Must be the name of an Error constructor ${name}`;
+            typeof message === "string" || Fail5`invalid error message typeof ${q5(typeof message)}`;
             return;
           }
           default: {
-            assert.fail(X`unrecognized ${q2(QCLASS)} ${q2(qclass)}`, TypeError);
+            assert.fail(X3`unrecognized ${q5(QCLASS)} ${q5(qclass)}`, TypeError);
           }
         }
       } else if (isArray7(rawTree)) {
@@ -3128,10 +3566,10 @@ var EndoDaemon = (() => {
           prepare(rawTree[i]);
         }
       } else {
-        const names = ownKeys15(rawTree);
+        const names = ownKeys16(rawTree);
         for (const name of names) {
           if (typeof name !== "string") {
-            throw Fail2`Property name ${name} of ${rawTree} must be a string`;
+            throw Fail5`Property name ${name} of ${rawTree} must be a string`;
           }
           prepare(rawTree[name]);
         }
@@ -3229,10 +3667,10 @@ var EndoDaemon = (() => {
             if ("rest" in rawTree) {
               assert.typeof(rest, "object");
               assert(rest !== null);
-              const names = ownKeys15(rest);
+              const names = ownKeys16(rest);
               for (const name of names) {
                 if (typeof name !== "string") {
-                  throw Fail2`Property name ${q2(
+                  throw Fail5`Property name ${q5(
                     name
                   )} of ${rest} must be a string`;
                 }
@@ -3248,14 +3686,14 @@ var EndoDaemon = (() => {
               cause = void 0,
               errors = void 0
             } = rawTree;
-            cause === void 0 || Fail2`error cause not yet implemented in marshal-justin`;
-            name !== `AggregateError` || Fail2`AggregateError not yet implemented in marshal-justin`;
-            errors === void 0 || Fail2`error errors not yet implemented in marshal-justin`;
+            cause === void 0 || Fail5`error cause not yet implemented in marshal-justin`;
+            name !== `AggregateError` || Fail5`AggregateError not yet implemented in marshal-justin`;
+            errors === void 0 || Fail5`error errors not yet implemented in marshal-justin`;
             return out.next(`${name}(${quote2(message)})`);
           }
           default: {
             throw assert.fail(
-              X`unrecognized ${q2(QCLASS)} ${q2(qclass)}`,
+              X3`unrecognized ${q5(QCLASS)} ${q5(qclass)}`,
               TypeError
             );
           }
@@ -3276,7 +3714,7 @@ var EndoDaemon = (() => {
       } else {
         const names = (
           /** @type {string[]} */
-          ownKeys15(rawTree)
+          ownKeys16(rawTree)
         );
         if (names.length === 0) {
           return out.next("{}");
@@ -3309,7 +3747,7 @@ var EndoDaemon = (() => {
   // ../marshal/src/encodePassable.js
   var { isArray: isArray8 } = Array;
   var { fromEntries: fromEntries4, is: is3 } = Object;
-  var { ownKeys: ownKeys16 } = Reflect;
+  var { ownKeys: ownKeys17 } = Reflect;
   var rC0 = /[\x00-\x1F]/;
   var getSuffix = (str, index) => index === 0 ? str : str.substring(index);
   var recordNames = (record) => (
@@ -3320,7 +3758,7 @@ var EndoDaemon = (() => {
     // XS performance, so we reverse sort using `.sort().reverse()`.
     harden_default(
       /** @type {string[]} */
-      ownKeys16(record).sort().reverse()
+      ownKeys17(record).sort().reverse()
     )
   );
   harden_default(recordNames);
@@ -3354,7 +3792,7 @@ var EndoDaemon = (() => {
     return `f${zeroPad(bits.toString(16), 16)}`;
   };
   var decodeBinary64 = (encoded, skip = 0) => {
-    encoded.charAt(skip) === "f" || Fail2`Encoded number expected: ${encoded}`;
+    encoded.charAt(skip) === "f" || Fail5`Encoded number expected: ${encoded}`;
     let bits = BigInt(`0x${getSuffix(encoded, skip + 1)}`);
     if (encoded.charAt(skip + 1) < "8") {
       bits ^= 0xffffffffffffffffn;
@@ -3363,7 +3801,7 @@ var EndoDaemon = (() => {
     }
     asBits[0] = bits;
     const result = asNumber[0];
-    !is3(result, -0) || Fail2`Unexpected negative zero: ${getSuffix(encoded, skip)}`;
+    !is3(result, -0) || Fail5`Unexpected negative zero: ${getSuffix(encoded, skip)}`;
     return result;
   };
   var encodeBigInt = (n) => {
@@ -3387,21 +3825,21 @@ var EndoDaemon = (() => {
   var rBigIntPayload = /([0-9]+)(:([0-9]+$|)|)/s;
   var decodeBigInt = (encoded) => {
     const typePrefix = encoded.charAt(0);
-    typePrefix === "p" || typePrefix === "n" || Fail2`Encoded bigint expected: ${encoded}`;
+    typePrefix === "p" || typePrefix === "n" || Fail5`Encoded bigint expected: ${encoded}`;
     const {
       index: lDigits,
       1: snDigits,
       2: tail,
       3: digits
-    } = encoded.match(rBigIntPayload) || Fail2`Digit count expected: ${encoded}`;
-    snDigits.length === lDigits || Fail2`Unary-prefixed decimal digit count expected: ${encoded}`;
+    } = encoded.match(rBigIntPayload) || Fail5`Digit count expected: ${encoded}`;
+    snDigits.length === lDigits || Fail5`Unary-prefixed decimal digit count expected: ${encoded}`;
     let nDigits = parseInt(snDigits, 10);
     if (typePrefix === "n") {
       nDigits = 10 ** /** @type {number} */
       lDigits - nDigits;
     }
-    tail.charAt(0) === ":" || Fail2`Separator expected: ${encoded}`;
-    digits.length === nDigits || Fail2`Fixed-length digit sequence expected: ${encoded}`;
+    tail.charAt(0) === ":" || Fail5`Separator expected: ${encoded}`;
+    digits.length === nDigits || Fail5`Fixed-length digit sequence expected: ${encoded}`;
     let n = BigInt(digits);
     if (typePrefix === "n") {
       n = -(10n ** BigInt(nDigits) - n);
@@ -3437,7 +3875,7 @@ var EndoDaemon = (() => {
             /** @type {string} */
             suffix
           );
-          prefix === "!" && suffix !== void 0 && ch >= "!" && ch <= "@" || Fail2`invalid string escape: ${q2(esc)}`;
+          prefix === "!" && suffix !== void 0 && ch >= "!" && ch <= "@" || Fail5`invalid string escape: ${q5(esc)}`;
           return String.fromCharCode(ch.charCodeAt(0) - 33);
         }
       }
@@ -3465,7 +3903,7 @@ var EndoDaemon = (() => {
       );
       if (index <= skip) {
         if (index === skip) {
-          ch === "^" || Fail2`Encoded array expected: ${getSuffix(encoded, skip)}`;
+          ch === "^" || Fail5`Encoded array expected: ${getSuffix(encoded, skip)}`;
         }
       } else if (ch === "^") {
         depth += 1;
@@ -3473,7 +3911,7 @@ var EndoDaemon = (() => {
         if (index === nextIndex) {
           depth -= 1;
           depth >= 0 || // prettier-ignore
-          Fail2`unexpected array element terminator: ${encoded.slice(skip, index + 2)}`;
+          Fail5`unexpected array element terminator: ${encoded.slice(skip, index + 2)}`;
         }
         if (depth === 0) {
           elements.push(
@@ -3484,8 +3922,8 @@ var EndoDaemon = (() => {
       }
       nextIndex = index + 1;
     }
-    depth === 0 || Fail2`unterminated array: ${getSuffix(encoded, skip)}`;
-    nextIndex === encoded.length || Fail2`unterminated array element: ${getSuffix(
+    depth === 0 || Fail5`unterminated array: ${getSuffix(encoded, skip)}`;
+    nextIndex === encoded.length || Fail5`unterminated array element: ${getSuffix(
       encoded,
       currentElementStart
     )}`;
@@ -3514,10 +3952,10 @@ var EndoDaemon = (() => {
       if (stillToSkip > 0) {
         stillToSkip -= 1;
         if (stillToSkip === 0) {
-          c === "[" || Fail2`Encoded array expected: ${getSuffix(encoded, skip)}`;
+          c === "[" || Fail5`Encoded array expected: ${getSuffix(encoded, skip)}`;
         }
       } else if (inEscape) {
-        c === "\0" || c === "" || Fail2`Unexpected character after u0001 escape: ${c}`;
+        c === "\0" || c === "" || Fail5`Unexpected character after u0001 escape: ${c}`;
         elemChars.push(c);
       } else if (c === "\0") {
         const encodedElement = elemChars.join("");
@@ -3532,12 +3970,12 @@ var EndoDaemon = (() => {
       }
       inEscape = false;
     }
-    !inEscape || Fail2`unexpected end of encoding ${getSuffix(encoded, skip)}`;
-    elemChars.length === 0 || Fail2`encoding terminated early: ${getSuffix(encoded, skip)}`;
+    !inEscape || Fail5`unexpected end of encoding ${getSuffix(encoded, skip)}`;
+    elemChars.length === 0 || Fail5`encoding terminated early: ${getSuffix(encoded, skip)}`;
     return harden_default(elements);
   };
   var encodeByteArray = (byteArray, _encodePassable) => {
-    Fail2`encodePassable(byteArray) not yet implemented: ${byteArray}`;
+    Fail5`encodePassable(byteArray) not yet implemented: ${byteArray}`;
     return "";
   };
   var encodeRecord = (record, encodeArray, encodePassable) => {
@@ -3548,9 +3986,9 @@ var EndoDaemon = (() => {
   var decodeRecord = (encoded, decodeArray, decodePassable, skip = 0) => {
     assert(encoded.charAt(skip) === "(");
     const unzippedEntries = decodeArray(encoded, decodePassable, skip + 1);
-    unzippedEntries.length === 2 || Fail2`expected keys,values pair: ${getSuffix(encoded, skip)}`;
+    unzippedEntries.length === 2 || Fail5`expected keys,values pair: ${getSuffix(encoded, skip)}`;
     const [keys, vals] = unzippedEntries;
-    passStyleOf(keys) === "copyArray" && passStyleOf(vals) === "copyArray" && keys.length === vals.length && keys.every((key) => typeof key === "string") || Fail2`not a valid record encoding: ${getSuffix(encoded, skip)}`;
+    passStyleOf(keys) === "copyArray" && passStyleOf(vals) === "copyArray" && keys.length === vals.length && keys.every((key) => typeof key === "string") || Fail5`not a valid record encoding: ${getSuffix(encoded, skip)}`;
     const mapEntries = keys.map((key, i) => [key, vals[i]]);
     const record = harden_default(fromEntries4(mapEntries));
     assertRecord(record, "decoded record");
@@ -3560,15 +3998,15 @@ var EndoDaemon = (() => {
   var decodeTagged = (encoded, decodeArray, decodePassable, skip = 0) => {
     assert(encoded.charAt(skip) === ":");
     const taggedPayload = decodeArray(encoded, decodePassable, skip + 1);
-    taggedPayload.length === 2 || Fail2`expected tag,payload pair: ${getSuffix(encoded, skip)}`;
+    taggedPayload.length === 2 || Fail5`expected tag,payload pair: ${getSuffix(encoded, skip)}`;
     const [tag, payload] = taggedPayload;
-    passStyleOf(tag) === "string" || Fail2`not a valid tagged encoding: ${getSuffix(encoded, skip)}`;
+    passStyleOf(tag) === "string" || Fail5`not a valid tagged encoding: ${getSuffix(encoded, skip)}`;
     return makeTagged(tag, payload);
   };
   var makeEncodeRemotable = (unsafeEncodeRemotable, verifyEncoding) => {
     const encodeRemotable = (r, innerEncode) => {
       const encoding = unsafeEncodeRemotable(r, innerEncode);
-      typeof encoding === "string" && encoding.charAt(0) === "r" || Fail2`Remotable encoding must start with "r": ${encoding}`;
+      typeof encoding === "string" && encoding.charAt(0) === "r" || Fail5`Remotable encoding must start with "r": ${encoding}`;
       verifyEncoding(encoding, "Remotable");
       return encoding;
     };
@@ -3577,7 +4015,7 @@ var EndoDaemon = (() => {
   var makeEncodePromise = (unsafeEncodePromise, verifyEncoding) => {
     const encodePromise = (p, innerEncode) => {
       const encoding = unsafeEncodePromise(p, innerEncode);
-      typeof encoding === "string" && encoding.charAt(0) === "?" || Fail2`Promise encoding must start with "?": ${encoding}`;
+      typeof encoding === "string" && encoding.charAt(0) === "?" || Fail5`Promise encoding must start with "?": ${encoding}`;
       verifyEncoding(encoding, "Promise");
       return encoding;
     };
@@ -3586,7 +4024,7 @@ var EndoDaemon = (() => {
   var makeEncodeError = (unsafeEncodeError, verifyEncoding) => {
     const encodeError = (err, innerEncode) => {
       const encoding = unsafeEncodeError(err, innerEncode);
-      typeof encoding === "string" && encoding.charAt(0) === "!" || Fail2`Error encoding must start with "!": ${encoding}`;
+      typeof encoding === "string" && encoding.charAt(0) === "!" || Fail5`Error encoding must start with "!": ${encoding}`;
       verifyEncoding(encoding, "Error");
       return encoding;
     };
@@ -3657,7 +4095,7 @@ var EndoDaemon = (() => {
           return encodeTagged(passable, encodeArray, innerEncode);
         }
         default: {
-          throw Fail2`a ${q2(passStyle)} cannot be used as a collection passable`;
+          throw Fail5`a ${q5(passStyle)} cannot be used as a collection passable`;
         }
       }
     };
@@ -3695,7 +4133,7 @@ var EndoDaemon = (() => {
           } else if (substring === "false") {
             return false;
           }
-          throw Fail2`expected encoded boolean to be "btrue" or "bfalse": ${substring}`;
+          throw Fail5`expected encoded boolean to be "btrue" or "bfalse": ${substring}`;
         }
         case "n":
         case "p": {
@@ -3725,7 +4163,7 @@ var EndoDaemon = (() => {
           return decodeTagged(encoded, decodeArray, innerDecode, skip);
         }
         default: {
-          throw Fail2`invalid database key: ${getSuffix(encoded, skip)}`;
+          throw Fail5`invalid database key: ${getSuffix(encoded, skip)}`;
         }
       }
     };
@@ -3733,13 +4171,13 @@ var EndoDaemon = (() => {
   };
   var makePassableKit = (options = {}) => {
     const {
-      encodeRemotable = (r, _) => Fail2`remotable unexpected: ${r}`,
-      encodePromise = (p, _) => Fail2`promise unexpected: ${p}`,
-      encodeError = (err, _) => Fail2`error unexpected: ${err}`,
+      encodeRemotable = (r, _) => Fail5`remotable unexpected: ${r}`,
+      encodePromise = (p, _) => Fail5`promise unexpected: ${p}`,
+      encodeError = (err, _) => Fail5`error unexpected: ${err}`,
       format = "legacyOrdered",
-      decodeRemotable = (encoding, _) => Fail2`remotable unexpected: ${encoding}`,
-      decodePromise = (encoding, _) => Fail2`promise unexpected: ${encoding}`,
-      decodeError = (encoding, _) => Fail2`error unexpected: ${encoding}`
+      decodeRemotable = (encoding, _) => Fail5`remotable unexpected: ${encoding}`,
+      decodePromise = (encoding, _) => Fail5`promise unexpected: ${encoding}`,
+      decodeError = (encoding, _) => Fail5`error unexpected: ${encoding}`
     } = options;
     let encodePassable;
     const encodeOptions = { encodeRemotable, encodePromise, encodeError, format };
@@ -3750,11 +4188,11 @@ var EndoDaemon = (() => {
         liberalDecoders
       );
       const verifyEncoding = (encoding, label) => {
-        !encoding.match(rC0) || Fail2`${b(
+        !encoding.match(rC0) || Fail5`${b(
           label
         )} encoding must not contain a C0 control character: ${encoding}`;
         const decoded = decodeCompactArray(`^v ${encoding} v `, liberalDecode);
-        isArray8(decoded) && decoded.length === 3 && decoded[0] === null && decoded[2] === null || Fail2`${b(label)} encoding must be embeddable: ${encoding}`;
+        isArray8(decoded) && decoded.length === 3 && decoded[0] === null && decoded[2] === null || Fail5`${b(label)} encoding must be embeddable: ${encoding}`;
       };
       const encodeCompact = makeInnerEncode(
         encodeCompactStringSuffix,
@@ -3769,7 +4207,7 @@ var EndoDaemon = (() => {
         encodeOptions
       );
     } else {
-      throw Fail2`Unrecognized format: ${q2(format)}`;
+      throw Fail5`Unrecognized format: ${q5(format)}`;
     }
     const decodeOptions = { decodeRemotable, decodePromise, decodeError };
     const decodeCompact = makeInnerDecode(
@@ -3827,7 +4265,7 @@ var EndoDaemon = (() => {
 
   // ../marshal/src/rankOrder.js
   var { isNaN: NumberIsNaN } = Number;
-  var { entries: entries5, fromEntries: fromEntries5, setPrototypeOf: setPrototypeOf2, is: is4 } = Object;
+  var { entries: entries5, fromEntries: fromEntries5, setPrototypeOf: setPrototypeOf3, is: is4 } = Object;
   var ENDO_RANK_STRINGS = getEnvironmentOption("ENDO_RANK_STRINGS", "utf16-code-unit-order", [
     "unicode-code-point-order",
     "error-if-order-choice-matters"
@@ -3879,7 +4317,7 @@ var EndoDaemon = (() => {
       entries5(passStylePrefixes).sort(([_leftStyle, leftPrefixes], [_rightStyle, rightPrefixes]) => {
         return trivialComparator(leftPrefixes, rightPrefixes);
       }).map(([passStyle, prefixes], index) => {
-        prefixes === prefixes.split("").sort().join("") || Fail2`unsorted prefixes for passStyle ${q2(passStyle)}: ${q2(prefixes)}`;
+        prefixes === prefixes.split("").sort().join("") || Fail5`unsorted prefixes for passStyle ${q5(passStyle)}: ${q5(prefixes)}`;
         const cover = [
           prefixes.charAt(0),
           String.fromCharCode(prefixes.charCodeAt(prefixes.length - 1) + 1)
@@ -3888,7 +4326,7 @@ var EndoDaemon = (() => {
       })
     )
   );
-  setPrototypeOf2(passStyleRanks, null);
+  setPrototypeOf3(passStyleRanks, null);
   harden_default(passStyleRanks);
   var getPassStyleCover = (passStyle) => passStyleRanks[passStyle].cover;
   harden_default(getPassStyleCover);
@@ -3932,11 +4370,11 @@ var EndoDaemon = (() => {
             case "error-if-order-choice-matters": {
               const result1 = trivialComparator(left, right);
               const result2 = compareByCodePoints(left, right);
-              result1 === result2 || Fail2`Comparisons differed: ${left} vs ${right}, ${q2(result1)} vs ${q2(result2)}`;
+              result1 === result2 || Fail5`Comparisons differed: ${left} vs ${right}, ${q5(result1)} vs ${q5(result2)}`;
               return result1;
             }
             default: {
-              throw Fail2`Unexpected ENDO_RANK_STRINGS ${q2(ENDO_RANK_STRINGS)}`;
+              throw Fail5`Unexpected ENDO_RANK_STRINGS ${q5(ENDO_RANK_STRINGS)}`;
             }
           }
         }
@@ -4001,7 +4439,7 @@ var EndoDaemon = (() => {
           return comparator(left.payload, right.payload);
         }
         default: {
-          throw Fail2`Unrecognized passStyle: ${q2(leftStyle)}`;
+          throw Fail5`Unrecognized passStyle: ${q5(leftStyle)}`;
         }
       }
     };
@@ -4040,7 +4478,7 @@ var EndoDaemon = (() => {
   harden_default(isRankSorted);
   var assertRankSorted = (sorted, compare) => isRankSorted(sorted, compare) || // TODO assert on bug could lead to infinite recursion. Fix.
   // eslint-disable-next-line no-use-before-define
-  Fail2`Must be rank sorted: ${sorted} vs ${sortByRank(sorted, compare)}`;
+  Fail5`Must be rank sorted: ${sorted} vs ${sortByRank(sorted, compare)}`;
   harden_default(assertRankSorted);
   var sortByRank = (passables, compare) => {
     let unsorted;
@@ -4169,7 +4607,7 @@ var EndoDaemon = (() => {
     return true;
   };
   var assertNoDuplicates = (elements, fullCompare = void 0) => {
-    confirmNoDuplicates(elements, fullCompare, Fail2);
+    confirmNoDuplicates(elements, fullCompare, Fail5);
   };
   var confirmElements = (elements, reject) => {
     if (passStyleOf(elements) !== "copyArray") {
@@ -4182,7 +4620,7 @@ var EndoDaemon = (() => {
   };
   harden_default(confirmElements);
   var assertElements = (elements) => {
-    confirmElements(elements, Fail2);
+    confirmElements(elements, Fail5);
   };
   hideAndHardenFunction(assertElements);
   var coerceToElements = (elementsList) => {
@@ -4209,7 +4647,7 @@ var EndoDaemon = (() => {
     return true;
   };
   var assertNoDuplicateKeys = (bagEntries, fullCompare = void 0) => {
-    confirmNoDuplicateKeys(bagEntries, fullCompare, Fail2);
+    confirmNoDuplicateKeys(bagEntries, fullCompare, Fail5);
   };
   var confirmBagEntries = (bagEntries, reject) => {
     if (passStyleOf(bagEntries) !== "copyArray") {
@@ -4230,7 +4668,7 @@ var EndoDaemon = (() => {
   };
   harden_default(confirmBagEntries);
   var assertBagEntries = (bagEntries) => {
-    confirmBagEntries(bagEntries, Fail2);
+    confirmBagEntries(bagEntries, Fail5);
   };
   hideAndHardenFunction(assertBagEntries);
   var coerceToBagEntries = (bagEntriesList) => {
@@ -4243,7 +4681,7 @@ var EndoDaemon = (() => {
   harden_default(makeBagOfEntries);
 
   // ../patterns/src/keys/checkKey.js
-  var { ownKeys: ownKeys17 } = Reflect;
+  var { ownKeys: ownKeys18 } = Reflect;
   var confirmScalarKey = (val, reject) => {
     if (isAtom(val)) {
       return true;
@@ -4252,12 +4690,12 @@ var EndoDaemon = (() => {
     if (passStyle === "remotable") {
       return true;
     }
-    return reject && reject`A ${q2(passStyle)} cannot be a scalar key: ${val}`;
+    return reject && reject`A ${q5(passStyle)} cannot be a scalar key: ${val}`;
   };
   var isScalarKey = (val) => confirmScalarKey(val, false);
   hideAndHardenFunction(isScalarKey);
   var assertScalarKey = (val) => {
-    confirmScalarKey(val, Fail2);
+    confirmScalarKey(val, Fail5);
   };
   hideAndHardenFunction(assertScalarKey);
   var keyMemo = /* @__PURE__ */ new WeakSet();
@@ -4278,7 +4716,7 @@ var EndoDaemon = (() => {
   var isKey = (val) => confirmKey(val, false);
   hideAndHardenFunction(isKey);
   var assertKey = (val) => {
-    confirmKey(val, Fail2);
+    confirmKey(val, Fail5);
   };
   hideAndHardenFunction(assertKey);
   var copySetMemo = /* @__PURE__ */ new WeakSet();
@@ -4296,7 +4734,7 @@ var EndoDaemon = (() => {
   var isCopySet = (s) => confirmCopySet(s, false);
   hideAndHardenFunction(isCopySet);
   var assertCopySet = (s) => {
-    confirmCopySet(s, Fail2);
+    confirmCopySet(s, Fail5);
   };
   hideAndHardenFunction(assertCopySet);
   var getCopySetKeys = (s) => {
@@ -4327,7 +4765,7 @@ var EndoDaemon = (() => {
   var isCopyBag = (b2) => confirmCopyBag(b2, false);
   hideAndHardenFunction(isCopyBag);
   var assertCopyBag = (b2) => {
-    confirmCopyBag(b2, Fail2);
+    confirmCopyBag(b2, Fail5);
   };
   hideAndHardenFunction(assertCopyBag);
   var getCopyBagEntries = (b2) => {
@@ -4372,7 +4810,7 @@ var EndoDaemon = (() => {
       return reject && reject`A copyMap's payload must be a record: ${m}`;
     }
     const { keys, values: values4, ...rest } = payload;
-    const result = (ownKeys17(rest).length === 0 || reject && reject`A copyMap's payload must only have .keys and .values: ${m}`) && confirmElements(keys, reject) && confirmKey(keys, reject) && (passStyleOf(values4) === "copyArray" || reject && reject`A copyMap's .values must be a copyArray: ${m}`) && (keys.length === values4.length || reject && reject`A copyMap must have the same number of keys and values: ${m}`);
+    const result = (ownKeys18(rest).length === 0 || reject && reject`A copyMap's payload must only have .keys and .values: ${m}`) && confirmElements(keys, reject) && confirmKey(keys, reject) && (passStyleOf(values4) === "copyArray" || reject && reject`A copyMap's .values must be a copyArray: ${m}`) && (keys.length === values4.length || reject && reject`A copyMap must have the same number of keys and values: ${m}`);
     if (result) {
       copyMapMemo.add(m);
     }
@@ -4382,7 +4820,7 @@ var EndoDaemon = (() => {
   var isCopyMap = (m) => confirmCopyMap(m, false);
   hideAndHardenFunction(isCopyMap);
   var assertCopyMap = (m) => {
-    confirmCopyMap(m, Fail2);
+    confirmCopyMap(m, Fail5);
   };
   hideAndHardenFunction(assertCopyMap);
   var getCopyMapKeys = (m) => {
@@ -4479,16 +4917,16 @@ var EndoDaemon = (() => {
             everyCopyMapValue(val, checkIt);
           }
           default: {
-            return reject && reject`A passable tagged ${q2(tag)} is not a key: ${val}`;
+            return reject && reject`A passable tagged ${q5(tag)} is not a key: ${val}`;
           }
         }
       }
       case "error":
       case "promise": {
-        return reject && reject`A ${q2(passStyle)} cannot be a key`;
+        return reject && reject`A ${q5(passStyle)} cannot be a key`;
       }
       default: {
-        throw Fail2`unexpected passStyle ${q2(passStyle)}: ${val}`;
+        throw Fail5`unexpected passStyle ${q5(passStyle)}: ${val}`;
       }
     }
   };
@@ -4549,7 +4987,7 @@ var EndoDaemon = (() => {
         for (let k = 1; k < sortedTies.length; k += 1) {
           const [key0] = sortedTies[k - 1];
           const [key1] = sortedTies[k];
-          Math.sign(fullCompare(key0, key1)) || Fail2`Duplicate entry key: ${key0}`;
+          Math.sign(fullCompare(key0, key1)) || Fail5`Duplicate entry key: ${key0}`;
         }
         sameRankIterator = makeArrayIterator(sortedTies);
         return sameRankIterator.next();
@@ -4572,14 +5010,14 @@ var EndoDaemon = (() => {
     let yValue;
     const nonEntry = [void 0, void 0];
     const nextX = () => {
-      !xDone || Fail2`Internal: nextX must not be called once done`;
+      !xDone || Fail5`Internal: nextX must not be called once done`;
       const result = xValue;
       ({ done: xDone, value: [xKey, xValue] = nonEntry } = x.next());
       return result;
     };
     nextX();
     const nextY = () => {
-      !yDone || Fail2`Internal: nextY must not be called once done`;
+      !yDone || Fail5`Internal: nextY must not be called once done`;
       const result = yValue;
       ({ done: yDone, value: [yKey, yValue] = nonEntry } = y.next());
       return result;
@@ -4604,7 +5042,7 @@ var EndoDaemon = (() => {
         } else if (comp > 0) {
           value = [yKey, absentValue, nextY()];
         } else {
-          throw Fail2`Unexpected key comparison ${q2(comp)} for ${xKey} vs ${yKey}`;
+          throw Fail5`Unexpected key comparison ${q5(comp)} for ${xKey} vs ${yKey}`;
         }
       }
       return harden_default({ done, value });
@@ -4630,7 +5068,7 @@ var EndoDaemon = (() => {
         leftIsBigger = true;
       } else {
         Number.isNaN(comp) || // prettier-ignore
-        Fail2`Unexpected value comparison ${q2(comp)} for ${leftValue} vs ${rightValue}`;
+        Fail5`Unexpected value comparison ${q5(comp)} for ${leftValue} vs ${rightValue}`;
         return NaN;
       }
       if (leftIsBigger && rightIsBigger) {
@@ -4661,7 +5099,7 @@ var EndoDaemon = (() => {
     ABSENT,
     (leftValue, rightValue) => {
       if (leftValue === ABSENT && rightValue === ABSENT) {
-        throw Fail2`Internal: Unexpected absent entry pair`;
+        throw Fail5`Internal: Unexpected absent entry pair`;
       } else if (leftValue === ABSENT) {
         return -1;
       } else if (rightValue === ABSENT) {
@@ -4758,15 +5196,15 @@ var EndoDaemon = (() => {
             return bagCompare(left, right);
           }
           case "copyMap": {
-            throw Fail2`Map comparison not yet implemented: ${left} vs ${right}`;
+            throw Fail5`Map comparison not yet implemented: ${left} vs ${right}`;
           }
           default: {
-            throw Fail2`unexpected tag ${q2(leftTag)}: ${left}`;
+            throw Fail5`unexpected tag ${q5(leftTag)}: ${left}`;
           }
         }
       }
       default: {
-        throw Fail2`unexpected passStyle ${q2(leftStyle)}: ${left}`;
+        throw Fail5`unexpected passStyle ${q5(leftStyle)}: ${left}`;
       }
     }
   };
@@ -4834,13 +5272,13 @@ var EndoDaemon = (() => {
         let yDone;
         const xi = xs[Symbol.iterator]();
         const nextX = () => {
-          !xDone || Fail2`Internal: nextX should not be called once done`;
+          !xDone || Fail5`Internal: nextX should not be called once done`;
           ({ done: xDone, value: x } = xi.next());
         };
         nextX();
         const yi = ys[Symbol.iterator]();
         const nextY = () => {
-          !yDone || Fail2`Internal: nextY should not be called once done`;
+          !yDone || Fail5`Internal: nextY should not be called once done`;
           ({ done: yDone, value: y } = yi.next());
         };
         nextY();
@@ -4867,7 +5305,7 @@ var EndoDaemon = (() => {
                 value = [x, 1n, 0n];
                 nextX();
               } else {
-                comp > 0 || Fail2`Internal: Unexpected comp ${q2(comp)}`;
+                comp > 0 || Fail5`Internal: Unexpected comp ${q5(comp)}`;
                 value = [y, 0n, 1n];
                 nextY();
               }
@@ -4914,7 +5352,7 @@ var EndoDaemon = (() => {
     } else if (loneY) {
       return -1;
     } else {
-      !loneX && !loneY || Fail2`Internal: Unexpected lone pair ${q2([loneX, loneY])}`;
+      !loneX && !loneY || Fail5`Internal: Unexpected lone pair ${q5([loneX, loneY])}`;
       return 0;
     }
   };
@@ -4924,7 +5362,7 @@ var EndoDaemon = (() => {
       if (xc >= 0n) {
         result.push(m);
       } else {
-        yc >= 0n || Fail2`Internal: Unexpected count ${q2(yc)}`;
+        yc >= 0n || Fail5`Internal: Unexpected count ${q5(yc)}`;
         result.push(m);
       }
     }
@@ -4933,11 +5371,11 @@ var EndoDaemon = (() => {
   var iterDisjointUnion = (xyi) => {
     const result = [];
     for (const [m, xc, yc] of xyi) {
-      xc === 0n || yc === 0n || Fail2`Sets must not have common elements: ${m}`;
+      xc === 0n || yc === 0n || Fail5`Sets must not have common elements: ${m}`;
       if (xc >= 1n) {
         result.push(m);
       } else {
-        yc >= 1n || Fail2`Internal: Unexpected count ${q2(yc)}`;
+        yc >= 1n || Fail5`Internal: Unexpected count ${q5(yc)}`;
         result.push(m);
       }
     }
@@ -4955,7 +5393,7 @@ var EndoDaemon = (() => {
   var iterDisjointSubtract = (xyi) => {
     const result = [];
     for (const [m, xc, yc] of xyi) {
-      xc >= 1n || Fail2`right element ${m} was not in left`;
+      xc >= 1n || Fail5`right element ${m} was not in left`;
       if (yc === 0n) {
         result.push(m);
       }
@@ -5033,7 +5471,7 @@ var EndoDaemon = (() => {
         let yDone;
         const xi = xs[Symbol.iterator]();
         const nextX = () => {
-          !xDone || Fail2`Internal: nextX should not be called once done`;
+          !xDone || Fail5`Internal: nextX should not be called once done`;
           ({
             done: xDone,
             value: [x, xc]
@@ -5042,7 +5480,7 @@ var EndoDaemon = (() => {
         nextX();
         const yi = ys[Symbol.iterator]();
         const nextY = () => {
-          !yDone || Fail2`Internal: nextY should not be called once done`;
+          !yDone || Fail5`Internal: nextY should not be called once done`;
           ({
             done: yDone,
             value: [y, yc]
@@ -5072,7 +5510,7 @@ var EndoDaemon = (() => {
                 value = [x, xc, 0n];
                 nextX();
               } else {
-                comp > 0 || Fail2`Internal: Unexpected comp ${q2(comp)}`;
+                comp > 0 || Fail5`Internal: Unexpected comp ${q5(comp)}`;
                 value = [y, 0n, yc];
                 nextY();
               }
@@ -5119,7 +5557,7 @@ var EndoDaemon = (() => {
     const result = [];
     for (const [m, xc, yc] of xyi) {
       const mc = xc - yc;
-      mc >= 0n || Fail2`right element ${m} was not in left`;
+      mc >= 0n || Fail5`right element ${m} was not in left`;
       if (mc >= 1n) {
         result.push([m, mc]);
       }
@@ -5150,7 +5588,7 @@ var EndoDaemon = (() => {
       errConstructor,
       options
     );
-    annotateError(outerErr, X`Caused by ${innerErr}`);
+    annotateError2(outerErr, X3`Caused by ${innerErr}`);
     throw outerErr;
   };
   hideAndHardenFunction(throwLabeled);
@@ -5176,21 +5614,21 @@ var EndoDaemon = (() => {
 
   // ../common/from-unique-entries.js
   var { fromEntries: fromEntries6 } = Object;
-  var { ownKeys: ownKeys18 } = Reflect;
+  var { ownKeys: ownKeys19 } = Reflect;
   var fromUniqueEntries = (allEntries) => {
     const entriesArray = [...allEntries];
     const result = harden_default(fromEntries6(entriesArray));
-    if (ownKeys18(result).length === entriesArray.length) {
+    if (ownKeys19(result).length === entriesArray.length) {
       return result;
     }
     const names = /* @__PURE__ */ new Set();
     for (const [name, _] of entriesArray) {
       if (names.has(name)) {
-        Fail2`collision on property name ${q2(name)}: ${entriesArray}`;
+        Fail5`collision on property name ${q5(name)}: ${entriesArray}`;
       }
       names.add(name);
     }
-    throw Fail2`internal: failed to create object from unique entries`;
+    throw Fail5`internal: failed to create object from unique entries`;
   };
   harden_default(fromUniqueEntries);
 
@@ -5203,7 +5641,7 @@ var EndoDaemon = (() => {
 
   // ../patterns/src/patterns/patternMatchers.js
   var { entries: entries6, values: values2, hasOwn: hasOwn10 } = Object;
-  var { ownKeys: ownKeys19 } = Reflect;
+  var { ownKeys: ownKeys20 } = Reflect;
   var patternMemo = /* @__PURE__ */ new WeakSet();
   var MM;
   var defaultLimits = harden_default({
@@ -5225,11 +5663,11 @@ var EndoDaemon = (() => {
   var confirmIsWellFormedWithLimit = (payload, mainPayloadShape, prefix, reject) => {
     assert(Array.isArray(mainPayloadShape));
     if (!Array.isArray(payload)) {
-      return reject && reject`${q2(prefix)} payload must be an array: ${payload}`;
+      return reject && reject`${q5(prefix)} payload must be an array: ${payload}`;
     }
     const mainLength = mainPayloadShape.length;
     if (!(payload.length === mainLength || payload.length === mainLength + 1)) {
-      return reject && reject`${q2(prefix)} payload unexpected size: ${payload}`;
+      return reject && reject`${q5(prefix)} payload unexpected size: ${payload}`;
     }
     const limits = payload[mainLength];
     payload = harden_default(payload.slice(0, mainLength));
@@ -5239,8 +5677,8 @@ var EndoDaemon = (() => {
     if (limits === void 0) {
       return true;
     }
-    return (passStyleOf(limits) === "copyRecord" || reject && reject`Limits must be a record: ${q2(limits)}`) && entries6(limits).every(
-      ([key, value]) => passStyleOf(value) === "number" || reject && reject`Value of limit ${q2(key)} but be a number: ${q2(value)}`
+    return (passStyleOf(limits) === "copyRecord" || reject && reject`Limits must be a record: ${q5(limits)}`) && entries6(limits).every(
+      ([key, value]) => passStyleOf(value) === "number" || reject && reject`Value of limit ${q5(key)} but be a number: ${q5(value)}`
     );
   };
   var confirmDecimalDigitsLimit = (specimen, decimalDigitsLimit, reject) => {
@@ -5284,7 +5722,7 @@ var EndoDaemon = (() => {
           return confirmCopyMap(tagged, reject);
         }
         default: {
-          return reject && reject`cannot check unrecognized tag ${q2(tag)}: ${tagged}`;
+          return reject && reject`cannot check unrecognized tag ${q5(tag)}: ${tagged}`;
         }
       }
     };
@@ -5301,7 +5739,7 @@ var EndoDaemon = (() => {
         tagMemo.set(specimen, tag);
         return tag;
       }
-      reject && reject`cannot check unrecognized tag ${q2(tag)}`;
+      reject && reject`cannot check unrecognized tag ${q5(tag)}`;
       return void 0;
     };
     harden_default(confirmKindOf);
@@ -5360,19 +5798,19 @@ var EndoDaemon = (() => {
         }
         case "error":
         case "promise": {
-          return reject && reject`A ${q2(kind)} cannot be a pattern`;
+          return reject && reject`A ${q5(kind)} cannot be a pattern`;
         }
         default: {
           if (maybeMatchHelper(kind) !== void 0) {
             return true;
           }
-          return reject && reject`A passable of kind ${q2(kind)} is not a pattern: ${patt}`;
+          return reject && reject`A passable of kind ${q5(kind)} is not a pattern: ${patt}`;
         }
       }
     };
     const isPattern2 = (patt) => confirmPattern(patt, false);
     const assertPattern2 = (patt) => {
-      confirmPattern(patt, Fail2);
+      confirmPattern(patt, Fail5);
     };
     const confirmMatches2 = (specimen, pattern, reject) => (
       // eslint-disable-next-line no-use-before-define
@@ -5380,7 +5818,7 @@ var EndoDaemon = (() => {
     );
     hideAndHardenFunction(confirmMatches2);
     const confirmMatchesInternal = (specimen, patt, reject) => {
-      const patternKind = confirmKindOf(patt, Fail2);
+      const patternKind = confirmKindOf(patt, Fail5);
       const specimenKind = kindOf2(specimen);
       switch (patternKind) {
         case void 0: {
@@ -5440,11 +5878,11 @@ var EndoDaemon = (() => {
           const pattNames = recordNames(patt);
           const missing2 = listDifference(pattNames, specimenNames);
           if (missing2.length >= 1) {
-            return reject && reject`${specimen} - Must have missing properties ${q2(missing2)}`;
+            return reject && reject`${specimen} - Must have missing properties ${q5(missing2)}`;
           }
           const unexpected = listDifference(specimenNames, pattNames);
           if (unexpected.length >= 1) {
-            return reject && reject`${specimen} - Must not have unexpected properties: ${q2(
+            return reject && reject`${specimen} - Must not have unexpected properties: ${q5(
               unexpected
             )}`;
           }
@@ -5494,7 +5932,7 @@ var EndoDaemon = (() => {
           if (matchHelper) {
             return matchHelper.confirmMatches(specimen, patt.payload, reject);
           }
-          throw Fail2`internal: should have recognized ${q2(patternKind)} `;
+          throw Fail5`internal: should have recognized ${q5(patternKind)} `;
         }
       }
     };
@@ -5509,12 +5947,12 @@ var EndoDaemon = (() => {
       } catch (er) {
         innerError = er;
       }
-      confirmNestedMatches(specimen, patt, label, Fail2);
+      confirmNestedMatches(specimen, patt, label, Fail5);
       const outerError = makeError(
-        X`internal: ${label}: inconsistent pattern match: ${qp(patt)}`
+        X3`internal: ${label}: inconsistent pattern match: ${qp(patt)}`
       );
       if (innerError !== void 0) {
-        annotateError(outerError, X`caused by ${innerError}`);
+        annotateError2(outerError, X3`caused by ${innerError}`);
       }
       throw outerError;
     };
@@ -5653,7 +6091,7 @@ var EndoDaemon = (() => {
     const matchTaggedHelper = Far("match:tagged helper", {
       confirmMatches: (specimen, [tagPatt, payloadPatt], reject) => {
         if (passStyleOf(specimen) !== "tagged") {
-          return reject && reject`Expected tagged object, not ${q2(
+          return reject && reject`Expected tagged object, not ${q5(
             passStyleOf(specimen)
           )}: ${specimen}`;
         }
@@ -5725,9 +6163,9 @@ var EndoDaemon = (() => {
         }
         const symbolName = nameForPassableSymbol(specimen);
         if (typeof symbolName !== "string") {
-          throw Fail2`internal: Passable symbol ${specimen} must have a passable name`;
+          throw Fail5`internal: Passable symbol ${specimen} must have a passable name`;
         }
-        return symbolName.length <= symbolNameLengthLimit || reject && reject`Symbol name ${q2(
+        return symbolName.length <= symbolNameLengthLimit || reject && reject`Symbol name ${q5(
           symbolName
         )} must not be bigger than ${symbolNameLengthLimit}`;
       },
@@ -5755,7 +6193,7 @@ var EndoDaemon = (() => {
         ) : (
           // Tag must be quoted because it is potentially attacker-controlled
           // (unlike `kindOf`, this does not reject unrecognized tags).
-          q2(getTag(specimen))
+          q5(getTag(specimen))
         );
         return reject && reject`${specimen} - Must be a remotable ${b(label)}, not ${kindDetails}`;
       },
@@ -5806,11 +6244,11 @@ var EndoDaemon = (() => {
     const matchRecordOfHelper = Far("match:recordOf helper", {
       confirmMatches: (specimen, [keyPatt, valuePatt, limits = void 0], reject) => {
         const { numPropertiesLimit, propertyNameLengthLimit } = limit(limits);
-        return confirmKind(specimen, "copyRecord", reject) && (ownKeys19(specimen).length <= numPropertiesLimit || reject && reject`Must not have more than ${q2(
+        return confirmKind(specimen, "copyRecord", reject) && (ownKeys20(specimen).length <= numPropertiesLimit || reject && reject`Must not have more than ${q5(
           numPropertiesLimit
         )} properties: ${specimen}`) && entries6(specimen).every(
           ([key, value]) => (key.length <= propertyNameLengthLimit || reject && applyLabelingError(
-            () => reject`Property name must not be longer than ${q2(
+            () => reject`Property name must not be longer than ${q5(
               propertyNameLengthLimit
             )}`,
             [],
@@ -5863,7 +6301,7 @@ var EndoDaemon = (() => {
       confirmMatches: (specimen, [keyPatt, limits = void 0], reject) => {
         const { numSetElementsLimit } = limit(limits);
         return (confirmKind(specimen, "copySet", reject) && /** @type {Array} */
-        specimen.payload.length < numSetElementsLimit || reject && reject`Set must not have more than ${q2(numSetElementsLimit)} elements: ${specimen.payload.length}`) && confirmArrayEveryMatchPattern(
+        specimen.payload.length < numSetElementsLimit || reject && reject`Set must not have more than ${q5(numSetElementsLimit)} elements: ${specimen.payload.length}`) && confirmArrayEveryMatchPattern(
           specimen.payload,
           keyPatt,
           "set elements",
@@ -5882,7 +6320,7 @@ var EndoDaemon = (() => {
       confirmMatches: (specimen, [keyPatt, countPatt, limits = void 0], reject) => {
         const { numUniqueBagElementsLimit, decimalDigitsLimit } = limit(limits);
         return (confirmKind(specimen, "copyBag", reject) && /** @type {Array} */
-        specimen.payload.length <= numUniqueBagElementsLimit || reject && reject`Bag must not have more than ${q2(
+        specimen.payload.length <= numUniqueBagElementsLimit || reject && reject`Bag must not have more than ${q5(
           numUniqueBagElementsLimit
         )} unique elements: ${specimen}`) && specimen.payload.every(
           ([key, count], i) => confirmNestedMatches(key, keyPatt, `bag keys[${i}]`, reject) && applyLabelingError(
@@ -5916,7 +6354,7 @@ var EndoDaemon = (() => {
           outResults.push(element);
         }
       }
-      return inCount >= bound || reject && reject`Has only ${q2(inCount)} matches, but needs ${q2(bound)}`;
+      return inCount >= bound || reject && reject`Has only ${q5(inCount)} matches, but needs ${q5(bound)}`;
     };
     const pairsHasSplit = (pairs, elementPatt, bound, reject, inResults = void 0, outResults = void 0) => {
       let inCount = 0n;
@@ -5936,7 +6374,7 @@ var EndoDaemon = (() => {
           outResults.push([element, num]);
         }
       }
-      return inCount >= bound || reject && reject`Has only ${q2(inCount)} matches, but needs ${q2(bound)}`;
+      return inCount >= bound || reject && reject`Has only ${q5(inCount)} matches, but needs ${q5(bound)}`;
     };
     const containerHasSplit2 = (specimen, elementPatt, bound, reject, needInResults = false, needOutResults = false) => {
       const inResults = needInResults ? [] : void 0;
@@ -5982,7 +6420,7 @@ var EndoDaemon = (() => {
           ]);
         }
         default: {
-          return reject && reject`unexpected ${q2(kind)}`;
+          return reject && reject`unexpected ${q5(kind)}`;
         }
       }
     };
@@ -6016,7 +6454,7 @@ var EndoDaemon = (() => {
       confirmMatches: (specimen, [keyPatt, valuePatt, limits = void 0], reject) => {
         const { numMapEntriesLimit } = limit(limits);
         return confirmKind(specimen, "copyMap", reject) && // eslint-disable-next-line @endo/restrict-comparison-operands
-        (specimen.payload.keys.length <= numMapEntriesLimit || reject && reject`CopyMap must have no more than ${q2(
+        (specimen.payload.keys.length <= numMapEntriesLimit || reject && reject`CopyMap must have no more than ${q5(
           numMapEntriesLimit
         )} entries: ${specimen}`) && confirmArrayEveryMatchPattern(
           specimen.payload.keys,
@@ -6061,7 +6499,7 @@ var EndoDaemon = (() => {
           optionalSpecimen.length
         );
         let argNum = 0;
-        return (requiredSpecimen.length === requiredPatt.length || reject && reject`Expected at least ${q2(
+        return (requiredSpecimen.length === requiredPatt.length || reject && reject`Expected at least ${q5(
           requiredPatt.length
         )} arguments: ${specimen}`) && requiredPatt.every(
           (p, i) => confirmNestedMatches(
@@ -6092,7 +6530,7 @@ var EndoDaemon = (() => {
             return true;
           }
         }
-        return reject && reject`Must be an array of a requiredPatt array, an optional optionalPatt array, and an optional restPatt: ${q2(
+        return reject && reject`Must be an array of a requiredPatt array, an optional optionalPatt array, and an optional restPatt: ${q5(
           splitArray
         )}`;
       },
@@ -6130,7 +6568,7 @@ var EndoDaemon = (() => {
         const { requiredSpecimen, optionalSpecimen, restSpecimen } = splitRecordParts(specimen, requiredPatt, optionalPatt);
         const partialNames = (
           /** @type {string[]} */
-          ownKeys19(optionalSpecimen)
+          ownKeys20(optionalSpecimen)
         );
         const partialPatt = adaptRecordPattern(optionalPatt, partialNames);
         return confirmMatches2(requiredSpecimen, requiredPatt, reject) && partialNames.every(
@@ -6153,7 +6591,7 @@ var EndoDaemon = (() => {
             return true;
           }
         }
-        return reject && reject`Must be an array of a requiredPatt record, an optional optionalPatt record, and an optional restPatt: ${q2(
+        return reject && reject`Must be an array of a requiredPatt record, an optional optionalPatt record, and an optional restPatt: ${q5(
           splitArray
         )}`;
       },
@@ -6417,12 +6855,12 @@ var EndoDaemon = (() => {
   hideAndHardenFunction(assertMethodGuard);
   var makeMethodGuardMaker = (callKind, argGuards, optionalArgGuards = void 0, restArgGuard = void 0) => harden_default({
     optional: (...optArgGuards) => {
-      optionalArgGuards === void 0 || Fail2`Can only have one set of optional guards`;
-      restArgGuard === void 0 || Fail2`optional arg guards must come before rest arg`;
+      optionalArgGuards === void 0 || Fail5`Can only have one set of optional guards`;
+      restArgGuard === void 0 || Fail5`optional arg guards must come before rest arg`;
       return makeMethodGuardMaker(callKind, argGuards, optArgGuards);
     },
     rest: (rArgGuard) => {
-      restArgGuard === void 0 || Fail2`Can only have one rest arg`;
+      restArgGuard === void 0 || Fail5`Can only have one rest arg`;
       return makeMethodGuardMaker(
         callKind,
         argGuards,
@@ -6462,7 +6900,7 @@ var EndoDaemon = (() => {
     const { sloppy = false, defaultGuards = sloppy ? "passable" : void 0 } = options;
     const stringMethodGuards = {};
     const symbolMethodGuardsEntries = [];
-    for (const key of ownKeys19(methodGuards)) {
+    for (const key of ownKeys20(methodGuards)) {
       const value = methodGuards[
         /** @type {string} */
         key
@@ -6646,8 +7084,8 @@ var EndoDaemon = (() => {
   var GET_INTERFACE_GUARD = "__getInterfaceGuard__";
 
   // ../exo/src/exo-tools.js
-  var { apply: apply7, ownKeys: ownKeys20 } = Reflect;
-  var { defineProperties: defineProperties3, fromEntries: fromEntries7, hasOwn: hasOwn11 } = Object;
+  var { apply: apply8, ownKeys: ownKeys21 } = Reflect;
+  var { defineProperties: defineProperties4, fromEntries: fromEntries7, hasOwn: hasOwn11 } = Object;
   var RawMethodGuard = M.call().rest(M.raw()).returns(M.raw());
   var REDACTED_RAW_ARG = "<redacted raw arg>";
   var PassableMethodGuard = M.call().rest(M.any()).returns(M.any());
@@ -6677,7 +7115,7 @@ var EndoDaemon = (() => {
     if (hasRestArgGuard) {
       return syncArgs;
     }
-    syncArgs.length <= declaredLen || Fail2`${q2(label)} accepts at most ${q2(declaredLen)} arguments, not ${q2(
+    syncArgs.length <= declaredLen || Fail5`${q5(label)} accepts at most ${q5(declaredLen)} arguments, not ${q5(
       syncArgs.length
     )}: ${syncArgs}`;
     return syncArgs;
@@ -6730,7 +7168,7 @@ var EndoDaemon = (() => {
         try {
           const context = getContext(this);
           const realArgs = defendSyncArgs(syncArgs, matchConfig, label);
-          const result = apply7(behaviorMethod, context, realArgs);
+          const result = apply8(behaviorMethod, context, realArgs);
           if (!isRawReturn) {
             mustMatch(harden_default(result), returnGuard, `${label}: result`);
           }
@@ -6748,7 +7186,7 @@ var EndoDaemon = (() => {
       optionalArgGuards = [],
       restArgGuard
     } = methodGuardPayload;
-    !isAwaitArgGuard(restArgGuard) || Fail2`Rest args may not be awaited: ${restArgGuard}`;
+    !isAwaitArgGuard(restArgGuard) || Fail5`Rest args may not be awaited: ${restArgGuard}`;
     const rawArgGuards = [...argGuards, ...optionalArgGuards];
     const awaitIndexes = [];
     for (let i = 0; i < rawArgGuards.length; i += 1) {
@@ -6793,7 +7231,7 @@ var EndoDaemon = (() => {
             }
             const context = getContext(this);
             const realArgs = defendSyncArgs(syncArgs, matchConfig, label);
-            return apply7(behaviorMethod, context, realArgs);
+            return apply8(behaviorMethod, context, realArgs);
           }
         );
         return E.when(resultP, (fulfillment) => {
@@ -6836,10 +7274,10 @@ var EndoDaemon = (() => {
     assert.typeof(behaviorMethod, "function");
     const getContext = (representative) => {
       representative || // separate line to ease breakpointing
-      Fail2`Method ${methodTag} called without 'this' object`;
+      Fail5`Method ${methodTag} called without 'this' object`;
       const context = contextProvider(representative);
       if (context === void 0) {
-        throw Fail2`${q2(
+        throw Fail5`${q5(
           methodTag
         )} may only be applied to a valid instance: ${representative}`;
       }
@@ -6851,7 +7289,7 @@ var EndoDaemon = (() => {
       methodGuard,
       methodTag
     );
-    defineProperties3(method, {
+    defineProperties4(method, {
       name: { value: methodTag },
       length: { value: behaviorMethod.length }
     });
@@ -6886,12 +7324,12 @@ var EndoDaemon = (() => {
       });
       defaultGuards = dg;
       {
-        const methodGuardNames = ownKeys20(methodGuards);
+        const methodGuardNames = ownKeys21(methodGuards);
         const unimplemented = listDifference(methodGuardNames, methodNames);
-        unimplemented.length === 0 || Fail2`methods ${q2(unimplemented)} not implemented by ${q2(tag)}`;
+        unimplemented.length === 0 || Fail5`methods ${q5(unimplemented)} not implemented by ${q5(tag)}`;
         if (defaultGuards === void 0) {
           const unguarded = listDifference(methodNames, methodGuardNames);
-          unguarded.length === 0 || Fail2`methods ${q2(unguarded)} not guarded by ${q2(interfaceName)}`;
+          unguarded.length === 0 || Fail5`methods ${q5(unguarded)} not guarded by ${q5(interfaceName)}`;
         }
       }
     }
@@ -6923,12 +7361,12 @@ var EndoDaemon = (() => {
             break;
           }
           default: {
-            throw Fail2`Unrecognized defaultGuards ${q2(defaultGuards)}`;
+            throw Fail5`Unrecognized defaultGuards ${q5(defaultGuards)}`;
           }
         }
       }
       prototype[prop] = bindMethod(
-        `In ${q2(prop)} method of (${tag})`,
+        `In ${q5(prop)} method of (${tag})`,
         contextProvider,
         behaviorMethod,
         methodGuard
@@ -6941,7 +7379,7 @@ var EndoDaemon = (() => {
         }
       }[GET_INTERFACE_GUARD];
       prototype[GET_INTERFACE_GUARD] = bindMethod(
-        `In ${q2(GET_INTERFACE_GUARD)} method of (${tag})`,
+        `In ${q5(GET_INTERFACE_GUARD)} method of (${tag})`,
         contextProvider,
         getInterfaceGuardMethod,
         PassableMethodGuard
@@ -6955,20 +7393,20 @@ var EndoDaemon = (() => {
   };
   harden_default(defendPrototype);
   var defendPrototypeKit = (tag, contextProviderKit, behaviorMethodsKit, thisfulMethods = false, interfaceGuardKit = void 0) => {
-    const facetNames = ownKeys20(behaviorMethodsKit).sort();
-    facetNames.length > 1 || Fail2`A multi-facet object must have multiple facets`;
+    const facetNames = ownKeys21(behaviorMethodsKit).sort();
+    facetNames.length > 1 || Fail5`A multi-facet object must have multiple facets`;
     if (interfaceGuardKit) {
-      const interfaceNames = ownKeys20(interfaceGuardKit);
+      const interfaceNames = ownKeys21(interfaceGuardKit);
       const extraInterfaceNames = listDifference(facetNames, interfaceNames);
-      extraInterfaceNames.length === 0 || Fail2`Interfaces ${q2(extraInterfaceNames)} not implemented by ${q2(tag)}`;
+      extraInterfaceNames.length === 0 || Fail5`Interfaces ${q5(extraInterfaceNames)} not implemented by ${q5(tag)}`;
       const extraFacetNames2 = listDifference(interfaceNames, facetNames);
-      extraFacetNames2.length === 0 || Fail2`Facets ${q2(extraFacetNames2)} of ${q2(tag)} not guarded by interfaces`;
+      extraFacetNames2.length === 0 || Fail5`Facets ${q5(extraFacetNames2)} of ${q5(tag)} not guarded by interfaces`;
     }
-    const contextMapNames = ownKeys20(contextProviderKit);
+    const contextMapNames = ownKeys21(contextProviderKit);
     const extraContextNames = listDifference(facetNames, contextMapNames);
-    extraContextNames.length === 0 || Fail2`Contexts ${q2(extraContextNames)} not implemented by ${q2(tag)}`;
+    extraContextNames.length === 0 || Fail5`Contexts ${q5(extraContextNames)} not implemented by ${q5(tag)}`;
     const extraFacetNames = listDifference(contextMapNames, facetNames);
-    extraFacetNames.length === 0 || Fail2`Facets ${q2(extraFacetNames)} of ${q2(tag)} missing contexts`;
+    extraFacetNames.length === 0 || Fail5`Facets ${q5(extraFacetNames)} of ${q5(tag)} missing contexts`;
     const protoKit = objectMap(
       behaviorMethodsKit,
       (behaviorMethods, facetName) => defendPrototype(
@@ -6983,10 +7421,10 @@ var EndoDaemon = (() => {
   };
 
   // ../exo/src/exo-makers.js
-  var { create: create3, seal, freeze: freeze10, defineProperty: defineProperty4, values: values3 } = Object;
+  var { create: create4, seal, freeze: freeze11, defineProperty: defineProperty4, values: values3 } = Object;
   var LABEL_INSTANCES = environmentOptionsListHas("DEBUG", "label-instances");
   var makeSelf = (proto, instanceCount) => {
-    const self = create3(proto);
+    const self = create4(proto);
     if (LABEL_INSTANCES) {
       defineProperty4(self, Symbol.toStringTag, {
         value: `${proto[Symbol.toStringTag]}#${instanceCount}`,
@@ -7006,7 +7444,7 @@ var EndoDaemon = (() => {
       receiveAmplifier = void 0,
       receiveInstanceTester = void 0
     } = options;
-    receiveAmplifier === void 0 || Fail2`Only facets of an exo class kit can be amplified ${q2(tag)}`;
+    receiveAmplifier === void 0 || Fail5`Only facets of an exo class kit can be amplified ${q5(tag)}`;
     const contextMap = /* @__PURE__ */ new WeakMap();
     const proto = defendPrototype(
       tag,
@@ -7023,7 +7461,7 @@ var EndoDaemon = (() => {
       const state = seal(init(...args));
       instanceCount += 1;
       const self = makeSelf(proto, instanceCount);
-      const context = freeze10({ state, self });
+      const context = freeze11({ state, self });
       contextMap.set(self, context);
       if (finish) {
         finish(context);
@@ -7032,9 +7470,9 @@ var EndoDaemon = (() => {
     };
     if (receiveInstanceTester) {
       const isInstance = (exo, facetName = void 0) => {
-        facetName === void 0 || Fail2`facetName can only be used with an exo class kit: ${q2(
+        facetName === void 0 || Fail5`facetName can only be used with an exo class kit: ${q5(
           tag
-        )} has no facet ${q2(facetName)}`;
+        )} has no facet ${q5(facetName)}`;
         return contextMap.has(exo);
       };
       harden_default(isInstance);
@@ -7073,7 +7511,7 @@ var EndoDaemon = (() => {
         return self;
       });
       context.facets = facets;
-      freeze10(context);
+      freeze11(context);
       if (finish) {
         finish(context);
       }
@@ -7090,7 +7528,7 @@ var EndoDaemon = (() => {
             return facets;
           }
         }
-        throw Fail2`Must be a facet of ${q2(tag)}: ${exoFacet}`;
+        throw Fail5`Must be a facet of ${q5(tag)}: ${exoFacet}`;
       };
       harden_default(amplify);
       receiveAmplifier(amplify);
@@ -7104,7 +7542,7 @@ var EndoDaemon = (() => {
         }
         assert.typeof(facetName, "string");
         const contextMap = contextMapKit[facetName];
-        contextMap !== void 0 || Fail2`exo class kit ${q2(tag)} has no facet named ${q2(facetName)}`;
+        contextMap !== void 0 || Fail5`exo class kit ${q5(tag)} has no facet named ${q5(facetName)}`;
         return contextMap.has(exoFacet);
       };
       harden_default(isInstance);
@@ -7320,7 +7758,7 @@ var EndoDaemon = (() => {
   harden_default(makeSnapshotStore);
 
   // ../base64/src/common.js
-  var { freeze: freeze11 } = Object;
+  var { freeze: freeze12 } = Object;
   var padding = "=";
   var alphabet64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   var monodu64 = {};
@@ -7328,7 +7766,7 @@ var EndoDaemon = (() => {
     const c = alphabet64[i];
     monodu64[c] = i;
   }
-  freeze11(monodu64);
+  freeze12(monodu64);
 
   // ../base64/src/encode.js
   var jsEncodeBase64 = (data) => {
@@ -7409,7 +7847,7 @@ var EndoDaemon = (() => {
   var decodeBase64 = globalThis.Base64 !== void 0 ? adaptDecoder(globalThis.Base64.decode) : jsDecodeBase64;
 
   // ../stream/index.js
-  var freeze12 = (
+  var freeze13 = (
     /** @type {<T>(v: T | Readonly<T>) => T} */
     Object.freeze
   );
@@ -7418,7 +7856,7 @@ var EndoDaemon = (() => {
     return {
       put(value) {
         const { resolve, promise } = makePromiseKit();
-        tailResolve(freeze12({ value, promise }));
+        tailResolve(freeze13({ value, promise }));
         tailResolve = resolve;
       },
       get() {
@@ -7435,14 +7873,14 @@ var EndoDaemon = (() => {
        * @param {TWrite} value
        */
       next(value) {
-        data.put(freeze12({ value, done: false }));
+        data.put(freeze13({ value, done: false }));
         return acks.get();
       },
       /**
        * @param {TWriteReturn} value
        */
       return(value) {
-        data.put(freeze12({ value, done: true }));
+        data.put(freeze13({ value, done: true }));
         return acks.get();
       },
       /**
@@ -8262,24 +8700,24 @@ var EndoDaemon = (() => {
   var isValidNumber = (allegedNumber) => typeof allegedNumber === "string" && numberPattern.test(allegedNumber);
   var assertValidNumber = (allegedNumber) => {
     if (!isValidNumber(allegedNumber)) {
-      throw makeError(`Invalid number ${q2(allegedNumber)}`);
+      throw makeError(`Invalid number ${q5(allegedNumber)}`);
     }
   };
   var assertFormulaNumber = (allegedFormulaNumber) => {
     if (!isValidNumber(allegedFormulaNumber)) {
-      throw makeError(`Invalid formula number ${q2(allegedFormulaNumber)}`);
+      throw makeError(`Invalid formula number ${q5(allegedFormulaNumber)}`);
     }
   };
   var assertNodeNumber = (allegedNodeNumber) => {
     if (!isValidNumber(allegedNodeNumber)) {
-      throw makeError(`Invalid node number ${q2(allegedNodeNumber)}`);
+      throw makeError(`Invalid node number ${q5(allegedNodeNumber)}`);
     }
   };
   var assertValidId = (id, petName) => {
     if (typeof id !== "string" || !idPattern.test(id)) {
-      let message = `Invalid formula identifier ${q2(id)}`;
+      let message = `Invalid formula identifier ${q5(id)}`;
       if (petName !== void 0) {
-        message += ` for pet name ${q2(petName)}`;
+        message += ` for pet name ${q5(petName)}`;
       }
       throw new Error(message);
     }
@@ -8287,12 +8725,12 @@ var EndoDaemon = (() => {
   var parseId = (id) => {
     const match = idPattern.exec(id);
     if (match === null) {
-      throw makeError(`Invalid formula identifier ${q2(id)}`);
+      throw makeError(`Invalid formula identifier ${q5(id)}`);
     }
     const { groups } = match;
     if (groups === void 0) {
       throw makeError(
-        `Programmer invariant failure: expected match groups, formula identifier was ${q2(
+        `Programmer invariant failure: expected match groups, formula identifier was ${q5(
           id
         )}`
       );
@@ -8358,7 +8796,7 @@ var EndoDaemon = (() => {
   var isValidFormulaType = (allegedType) => formulaTypes.has(allegedType);
   var assertValidFormulaType = (allegedType) => {
     if (!isValidFormulaType(allegedType)) {
-      assert.Fail`Unrecognized formula type ${q2(allegedType)}`;
+      assert.Fail`Unrecognized formula type ${q5(allegedType)}`;
     }
   };
 
@@ -8370,11 +8808,11 @@ var EndoDaemon = (() => {
   var isValidLocatorType = (allegedType) => isValidFormulaType(allegedType) || allegedType === "remote";
   var assertValidLocatorType = (allegedType) => {
     if (!isValidLocatorType(allegedType)) {
-      throw makeError(`Unrecognized locator type ${q2(allegedType)}`);
+      throw makeError(`Unrecognized locator type ${q5(allegedType)}`);
     }
   };
   var parseLocator = (allegedLocator) => {
-    const errorPrefix = `Invalid locator ${q2(allegedLocator)}:`;
+    const errorPrefix = `Invalid locator ${q5(allegedLocator)}:`;
     if (!URL.canParse(allegedLocator)) {
       throw makeError(`${errorPrefix} Invalid URL.`);
     }
@@ -8466,12 +8904,12 @@ var EndoDaemon = (() => {
   var isName = (name) => isPetName(name) || isSpecialName(name);
   var assertPetName = (petName) => {
     if (typeof petName !== "string" || !isPetName(petName)) {
-      throw new Error(`Invalid pet name ${q2(petName)}`);
+      throw new Error(`Invalid pet name ${q5(petName)}`);
     }
   };
   var assertName = (name) => {
     if (typeof name !== "string" || !isName(name)) {
-      throw new Error(`Invalid name ${q2(name)}`);
+      throw new Error(`Invalid name ${q5(name)}`);
     }
   };
   var assertNames = (names) => {
@@ -8704,7 +9142,7 @@ var EndoDaemon = (() => {
         const [headName, ...tailNames] = namePath;
         const id = petStore.identifyLocal(headName);
         if (id === void 0) {
-          throw new TypeError(`Unknown pet name: ${q2(headName)}`);
+          throw new TypeError(`Unknown pet name: ${q5(headName)}`);
         }
         const value = provide(
           /** @type {FormulaIdentifier} */
@@ -8908,7 +9346,7 @@ var EndoDaemon = (() => {
         }
         const id = await identify(...fromPath);
         if (id === void 0) {
-          throw new Error(`Unknown name: ${q2(fromPath)}`);
+          throw new Error(`Unknown name: ${q5(fromPath)}`);
         }
         await storeIdentifier(toPath, id);
         await remove(...fromPath);
@@ -8923,7 +9361,7 @@ var EndoDaemon = (() => {
         const { hub: fromHub, name: fromName } = await lookupTailNameHub(fromNamePath);
         const id = await E(fromHub).identify(fromName);
         if (id === void 0) {
-          throw new Error(`Unknown name: ${q2(fromPath)}`);
+          throw new Error(`Unknown name: ${q5(fromPath)}`);
         }
         await storeIdentifier(toPath, id);
       };
@@ -8945,7 +9383,7 @@ var EndoDaemon = (() => {
       const storeLocator = async (petNamePath, locator) => {
         if (!locator.startsWith("endo://")) {
           throw new Error(
-            `storeLocator requires an endo:// locator, got ${q2(locator)}`
+            `storeLocator requires an endo:// locator, got ${q5(locator)}`
           );
         }
         const { id } = internalizeLocator(locator, isLocalKey);
@@ -9086,7 +9524,7 @@ var EndoDaemon = (() => {
   };
 
   // src/pubsub.js
-  var freeze13 = (
+  var freeze14 = (
     /** @type {<T>(v: T | Readonly<T>) => T} */
     Object.freeze
   );
@@ -9106,7 +9544,7 @@ var EndoDaemon = (() => {
        */
       put: (value) => {
         const { resolve, promise } = makePromiseKit();
-        tailResolve(freeze13({ value, promise }));
+        tailResolve(freeze14({ value, promise }));
         tailResolve = resolve;
         tailPromise = promise;
       }
@@ -9170,7 +9608,7 @@ var EndoDaemon = (() => {
       return;
     }
     if (!messageNumberNamePattern.test(name)) {
-      throw new Error(`Invalid mailbox store name ${q2(name)}`);
+      throw new Error(`Invalid mailbox store name ${q5(name)}`);
     }
   };
   var parseMessageNumberName = (name) => {
@@ -9210,10 +9648,10 @@ var EndoDaemon = (() => {
     const seen = /* @__PURE__ */ new Set();
     for (const edgeName of edgeNames) {
       if (MESSAGE_SPECIAL_NAMES.has(edgeName)) {
-        throw new Error(`Message name ${q2(edgeName)} is reserved`);
+        throw new Error(`Message name ${q5(edgeName)} is reserved`);
       }
       if (seen.has(edgeName)) {
-        throw new Error(`Message name ${q2(edgeName)} is duplicated`);
+        throw new Error(`Message name ${q5(edgeName)} is duplicated`);
       }
       seen.add(edgeName);
     }
@@ -9481,9 +9919,9 @@ var EndoDaemon = (() => {
           assertUniqueEdgeNames(envelope.names);
           if (envelope.names.length !== envelope.ids.length) {
             throw new Error(
-              `Message must have one formula identifier (${q2(
+              `Message must have one formula identifier (${q5(
                 envelope.ids.length
-              )}) for every edge name (${q2(envelope.names.length)})`
+              )}) for every edge name (${q5(envelope.names.length)})`
             );
           }
           if (envelope.strings.length < envelope.names.length) {
@@ -9602,9 +10040,9 @@ var EndoDaemon = (() => {
           assertUniqueEdgeNames(formula.names);
           if (formula.names.length !== formula.ids.length) {
             throw new Error(
-              `Message must have one formula identifier (${q2(
+              `Message must have one formula identifier (${q5(
                 formula.ids.length
-              )}) for every edge name (${q2(formula.names.length)})`
+              )}) for every edge name (${q5(formula.names.length)})`
             );
           }
           return harden_default({
@@ -9782,7 +10220,7 @@ var EndoDaemon = (() => {
             const formula = await getFormulaForId(messageId);
             if (formula.type !== "message") {
               throw new Error(
-                `Mailbox entry ${q2(
+                `Mailbox entry ${q5(
                   String(messageNumber)
                 )} is not a message formula`
               );
@@ -9806,7 +10244,7 @@ var EndoDaemon = (() => {
       const mustParseBigint = (messageNumber, label) => {
         const normalized = coerceMessageNumber(messageNumber);
         if (normalized === void 0) {
-          throw new Error(`Invalid ${label} number ${q2(messageNumber)}`);
+          throw new Error(`Invalid ${label} number ${q5(messageNumber)}`);
         }
         return normalized;
       };
@@ -9861,12 +10299,12 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "request");
         const message = messages.get(normalizedMessageNumber);
         if (message === void 0) {
-          throw new Error(`Invalid request, ${q2(messageNumber)}`);
+          throw new Error(`Invalid request, ${q5(messageNumber)}`);
         }
         const id = await E(directory).identify(...resolutionPath);
         if (id === void 0) {
           throw new TypeError(
-            `No formula exists for the pet name ${q2(resolutionNameOrPath)}`
+            `No formula exists for the pet name ${q5(resolutionNameOrPath)}`
           );
         }
         const req = (
@@ -9883,11 +10321,11 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "request");
         const message = messages.get(normalizedMessageNumber);
         if (message === void 0) {
-          throw new Error(`No such message with number ${q2(messageNumber)}`);
+          throw new Error(`No such message with number ${q5(messageNumber)}`);
         }
         if (message.type === "definition") {
           throw new Error(
-            `Cannot reject message ${q2(messageNumber)} (type ${q2(message.type)})`
+            `Cannot reject message ${q5(messageNumber)} (type ${q5(message.type)})`
           );
         }
         const rejection = harden_default(Promise.reject(harden_default(new Error(reason))));
@@ -9907,7 +10345,7 @@ var EndoDaemon = (() => {
         assertUniqueEdgeNames(edgeNames);
         const toId = await E(directory).identify(...toPath);
         if (toId === void 0) {
-          throw new Error(`Unknown recipient ${q2(toNameOrPath)}`);
+          throw new Error(`Unknown recipient ${q5(toNameOrPath)}`);
         }
         const messageId = (
           /** @type {import('./types.js').FormulaNumber} */
@@ -9919,9 +10357,9 @@ var EndoDaemon = (() => {
         );
         if (petNamesOrPaths.length !== edgeNames.length) {
           throw new Error(
-            `Message must have one edge name (${q2(
+            `Message must have one edge name (${q5(
               edgeNames.length
-            )}) for every pet name (${q2(petNamesOrPaths.length)})`
+            )}) for every pet name (${q5(petNamesOrPaths.length)})`
           );
         }
         if (strings.length < petNamesOrPaths.length) {
@@ -9934,7 +10372,7 @@ var EndoDaemon = (() => {
             const petPath = namePathFrom(petNameOrPath);
             const id = await E(directory).identify(...petPath);
             if (id === void 0) {
-              throw new Error(`Unknown pet name ${q2(petNameOrPath)}`);
+              throw new Error(`Unknown pet name ${q5(petNameOrPath)}`);
             }
             assertValidId(id);
             return (
@@ -9978,10 +10416,10 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "message");
         const parent = messages.get(normalizedMessageNumber);
         if (parent === void 0) {
-          throw new Error(`No such message with number ${q2(messageNumber)}`);
+          throw new Error(`No such message with number ${q5(messageNumber)}`);
         }
         if (typeof parent.messageId !== "string") {
-          throw new Error(`Message ${q2(messageNumber)} has no messageId`);
+          throw new Error(`Message ${q5(messageNumber)} has no messageId`);
         }
         const otherId = parent.from === selfId ? parent.to : parent.from;
         const messageId = (
@@ -9994,9 +10432,9 @@ var EndoDaemon = (() => {
         );
         if (petNamesOrPaths.length !== edgeNames.length) {
           throw new Error(
-            `Message must have one edge name (${q2(
+            `Message must have one edge name (${q5(
               edgeNames.length
-            )}) for every pet name (${q2(petNamesOrPaths.length)})`
+            )}) for every pet name (${q5(petNamesOrPaths.length)})`
           );
         }
         if (strings.length < petNamesOrPaths.length) {
@@ -10009,7 +10447,7 @@ var EndoDaemon = (() => {
             const petPath = namePathFrom(petNameOrPath);
             const id = await E(directory).identify(...petPath);
             if (id === void 0) {
-              throw new Error(`Unknown pet name ${q2(petNameOrPath)}`);
+              throw new Error(`Unknown pet name ${q5(petNameOrPath)}`);
             }
             assertValidId(id);
             return (
@@ -10061,12 +10499,12 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "message");
         const message = messages.get(normalizedMessageNumber);
         if (message === void 0) {
-          throw new Error(`No such message with number ${q2(messageNumber)}`);
+          throw new Error(`No such message with number ${q5(messageNumber)}`);
         }
         if (message.type === "value") {
           if (edgeName !== "value") {
             throw new Error(
-              `Value messages only have a "value" edge, not ${q2(edgeName)}`
+              `Value messages only have a "value" edge, not ${q5(edgeName)}`
             );
           }
           const id2 = (
@@ -10079,21 +10517,21 @@ var EndoDaemon = (() => {
         }
         if (message.type !== "package") {
           throw new Error(
-            `Message must be a package or value ${q2(messageNumber)}`
+            `Message must be a package or value ${q5(messageNumber)}`
           );
         }
         const index = message.names.lastIndexOf(edgeName);
         if (index === -1) {
           throw new Error(
-            `No reference named ${q2(edgeName)} in message ${q2(messageNumber)}`
+            `No reference named ${q5(edgeName)} in message ${q5(messageNumber)}`
           );
         }
         const id = message.ids[index];
         if (id === void 0) {
           throw new Error(
-            `panic: message must contain a formula for every name, including the name ${q2(
+            `panic: message must contain a formula for every name, including the name ${q5(
               edgeName
-            )} at ${q2(index)}`
+            )} at ${q5(index)}`
           );
         }
         context.thisDiesIfThatDies(id);
@@ -10225,11 +10663,11 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "message");
         const message = messages.get(normalizedMessageNumber);
         if (message === void 0) {
-          throw new Error(`No such message with number ${q2(messageNumber)}`);
+          throw new Error(`No such message with number ${q5(messageNumber)}`);
         }
         if (message.type !== "eval-request") {
           throw new Error(
-            `Message ${q2(messageNumber)} is not an eval-request (is ${q2(message.type)})`
+            `Message ${q5(messageNumber)} is not an eval-request (is ${q5(message.type)})`
           );
         }
         const evalReq = (
@@ -10291,11 +10729,11 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "message");
         const message = messages.get(normalizedMessageNumber);
         if (message === void 0) {
-          throw new Error(`No such message with number ${q2(messageNumber)}`);
+          throw new Error(`No such message with number ${q5(messageNumber)}`);
         }
         if (message.type !== "definition") {
           throw new Error(
-            `Message ${q2(messageNumber)} is not a definition (is ${q2(message.type)})`
+            `Message ${q5(messageNumber)} is not a definition (is ${q5(message.type)})`
           );
         }
         const defReq = (
@@ -10313,11 +10751,11 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "message");
         const message = messages.get(normalizedMessageNumber);
         if (message === void 0) {
-          throw new Error(`No such message with number ${q2(messageNumber)}`);
+          throw new Error(`No such message with number ${q5(messageNumber)}`);
         }
         if (message.type !== "form") {
           throw new Error(
-            `Message ${q2(messageNumber)} is not a form (is ${q2(message.type)})`
+            `Message ${q5(messageNumber)} is not a form (is ${q5(message.type)})`
           );
         }
         const formMsg = (
@@ -10339,10 +10777,10 @@ var EndoDaemon = (() => {
         } = getForm(messageNumber);
         for (const { name, pattern } of fields) {
           if (!(name in values4)) {
-            throw new Error(`Missing value for field ${q2(name)}`);
+            throw new Error(`Missing value for field ${q5(name)}`);
           }
           const effectivePattern = pattern !== void 0 ? pattern : M.string();
-          mustMatch(values4[name], effectivePattern, `field ${q2(name)}`);
+          mustMatch(values4[name], effectivePattern, `field ${q5(name)}`);
         }
         const marshalTasks = makeDeferredTasks();
         const { id: marshalledId } = await formulateMarshalValue(
@@ -10386,16 +10824,16 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "message");
         const parent = messages.get(normalizedMessageNumber);
         if (parent === void 0) {
-          throw new Error(`No such message with number ${q2(messageNumber)}`);
+          throw new Error(`No such message with number ${q5(messageNumber)}`);
         }
         if (typeof parent.messageId !== "string") {
-          throw new Error(`Message ${q2(messageNumber)} has no messageId`);
+          throw new Error(`Message ${q5(messageNumber)} has no messageId`);
         }
         const otherId = parent.from === selfId ? parent.to : parent.from;
         const petPath = namePathFrom(petNameOrPath);
         const valueId = await E(directory).identify(...petPath);
         if (valueId === void 0) {
-          throw new Error(`Unknown pet name ${q2(petNameOrPath)}`);
+          throw new Error(`Unknown pet name ${q5(petNameOrPath)}`);
         }
         assertValidId(valueId);
         const messageId = (
@@ -10429,10 +10867,10 @@ var EndoDaemon = (() => {
         const normalizedMessageNumber = mustParseBigint(messageNumber, "message");
         const parent = messages.get(normalizedMessageNumber);
         if (parent === void 0) {
-          throw new Error(`No such message with number ${q2(messageNumber)}`);
+          throw new Error(`No such message with number ${q5(messageNumber)}`);
         }
         if (typeof parent.messageId !== "string") {
-          throw new Error(`Message ${q2(messageNumber)} has no messageId`);
+          throw new Error(`Message ${q5(messageNumber)} has no messageId`);
         }
         assertValidId(valueId);
         const messageId = (
@@ -10502,7 +10940,7 @@ var EndoDaemon = (() => {
       }
       if (!isPetName(petName)) {
         throw new Error(
-          `Invalid pet name ${q2(petName)} and not one of ${Object.keys(
+          `Invalid pet name ${q5(petName)} and not one of ${Object.keys(
             specialNames
           ).join(", ")}`
         );
@@ -10513,7 +10951,7 @@ var EndoDaemon = (() => {
       assertName(petName);
       const id = identifyLocal(petName);
       if (id === void 0) {
-        throw new Error(`Formula does not exist for pet name ${q2(petName)}`);
+        throw new Error(`Formula does not exist for pet name ${q5(petName)}`);
       }
       return parseId(id);
     };
@@ -10739,7 +11177,7 @@ var EndoDaemon = (() => {
         }
         for (const codeName of codeNames) {
           if (typeof codeName !== "string") {
-            throw new Error(`Invalid endowment name: ${q2(codeName)}`);
+            throw new Error(`Invalid endowment name: ${q5(codeName)}`);
           }
         }
         if (resultName !== void 0) {
@@ -10756,7 +11194,7 @@ var EndoDaemon = (() => {
           if (petNamePath.length === 1) {
             const id2 = specialStore.identifyLocal(petNamePath[0]);
             if (id2 === void 0) {
-              throw new Error(`Unknown pet name ${q2(petNamePath[0])}`);
+              throw new Error(`Unknown pet name ${q5(petNamePath[0])}`);
             }
             return (
               /** @type {FormulaIdentifier} */
@@ -11057,12 +11495,12 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       const checkEntryValidity = (entry) => {
         if (!entry.valid) {
           throw new Error(
-            `Channel member ${q2(entry.invitedAs)} has been disabled`
+            `Channel member ${q5(entry.invitedAs)} has been disabled`
           );
         }
         if (entry.temporaryBanUntil > 0 && Date.now() < entry.temporaryBanUntil) {
           throw new Error(
-            `Channel member ${q2(entry.invitedAs)} is temporarily banned`
+            `Channel member ${q5(entry.invitedAs)} is temporarily banned`
           );
         }
       };
@@ -11135,7 +11573,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
             if (now < stateObj.lockEndTime) {
               const remaining = Math.ceil((stateObj.lockEndTime - now) / 1e3);
               throw new Error(
-                `Rate limit lockout for ${q2(entry.invitedAs)} (${remaining}s remaining)`
+                `Rate limit lockout for ${q5(entry.invitedAs)} (${remaining}s remaining)`
               );
             }
             stateObj.heat = config.postLockoutPct;
@@ -11174,7 +11612,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
               })
             );
             throw new Error(
-              `Rate limit lockout for ${q2(entry.invitedAs)} (${remaining}s remaining)`
+              `Rate limit lockout for ${q5(entry.invitedAs)} (${remaining}s remaining)`
             );
           }
         };
@@ -11371,7 +11809,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
             checkAccess();
             if (localInvitations.has(subMemberName)) {
               throw new Error(
-                `An invitation named ${q2(subMemberName)} already exists from this member`
+                `An invitation named ${q5(subMemberName)} already exists from this member`
               );
             }
             const subPedigree = [...entry.pedigree, entry.proposedName];
@@ -11455,7 +11893,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
             const rec = localInvitations.get(invitedAs);
             if (!rec) {
               throw new Error(
-                `No invitation named ${q2(invitedAs)} found from this member`
+                `No invitation named ${q5(invitedAs)} found from this member`
               );
             }
             return rec.attenuator;
@@ -11599,7 +12037,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         createInvitation: async (memberProposedName) => {
           if (adminInvitations.has(memberProposedName)) {
             throw new Error(
-              `An invitation named ${q2(memberProposedName)} already exists from this member`
+              `An invitation named ${q5(memberProposedName)} already exists from this member`
             );
           }
           const pedigree = [proposedName];
@@ -11700,7 +12138,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
           const rec = adminInvitations.get(invitedAs);
           if (!rec) {
             throw new Error(
-              `No invitation named ${q2(invitedAs)} found from this member`
+              `No invitation named ${q5(invitedAs)} found from this member`
             );
           }
           return rec.attenuator;
@@ -11942,7 +12380,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         }
         for (const codeName of codeNames) {
           if (typeof codeName !== "string") {
-            throw new Error(`Invalid endowment name: ${q2(codeName)}`);
+            throw new Error(`Invalid endowment name: ${q5(codeName)}`);
           }
         }
         if (resultName !== void 0) {
@@ -11959,7 +12397,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
           if (petNamePath.length === 1) {
             const id2 = petStore.identifyLocal(petNamePath[0]);
             if (id2 === void 0) {
-              throw new Error(`Unknown pet name ${q2(petNamePath[0])}`);
+              throw new Error(`Unknown pet name ${q5(petNamePath[0])}`);
             }
             return (
               /** @type {FormulaIdentifier} */
@@ -12053,7 +12491,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
           bundleName
         );
         if (bundleId === void 0) {
-          throw new TypeError(`Unknown pet name for bundle: ${q2(bundleName)}`);
+          throw new TypeError(`Unknown pet name for bundle: ${q5(bundleName)}`);
         }
         const { tasks, workerId, powersId, env, workerTrustedShims } = prepareMakeCaplet(
           /** @type {Name | undefined} */
@@ -12295,7 +12733,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         const namePath = namePathFrom(petNameOrPath);
         const id = await E(directory).identify(...namePath);
         if (id === void 0) {
-          throw new TypeError(`Unknown pet name: ${q2(petNameOrPath)}`);
+          throw new TypeError(`Unknown pet name: ${q5(petNameOrPath)}`);
         }
         return cancelValue(
           /** @type {FormulaIdentifier} */
@@ -12430,7 +12868,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
               const id = await E(guestAgent).identify(petNamePath[0]);
               if (id === void 0) {
                 throw new Error(
-                  `Unknown pet name ${q2(petNamePath[0])} in guest namespace`
+                  `Unknown pet name ${q5(petNamePath[0])} in guest namespace`
                 );
               }
               return (
@@ -12462,7 +12900,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         const slotKeys = Object.keys(slots);
         for (const key of slotKeys) {
           if (!(key in bindings)) {
-            throw new Error(`Missing binding for slot ${q2(key)}`);
+            throw new Error(`Missing binding for slot ${q5(key)}`);
           }
         }
         const guestAgentId = await getAgentIdForHandleId(
@@ -12476,7 +12914,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
           if (petNamePath.length === 1) {
             const id = petStore.identifyLocal(petNamePath[0]);
             if (id === void 0) {
-              throw new Error(`Unknown pet name ${q2(petNamePath[0])}`);
+              throw new Error(`Unknown pet name ${q5(petNamePath[0])}`);
             }
             return (
               /** @type {FormulaIdentifier} */
@@ -13052,7 +13490,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
   };
 
   // ../captp/src/trap.js
-  var { freeze: freeze14 } = Object;
+  var { freeze: freeze15 } = Object;
   var nearTrapImpl = harden_default({
     applyFunction(target, args) {
       return target(...args);
@@ -13064,9 +13502,9 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       return target[prop];
     }
   });
-  var funcTarget2 = freeze14(() => {
+  var funcTarget2 = freeze15(() => {
   });
-  var objTarget2 = freeze14({ __proto__: null });
+  var objTarget2 = freeze15({ __proto__: null });
 
   // ../captp/src/finalize.js
   var { WeakRef, FinalizationRegistry } = globalThis;
@@ -13184,7 +13622,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       } else if (slot[0] === "p") {
         val = promise;
       } else {
-        Fail2`Unknown slot type ${slot}`;
+        Fail5`Unknown slot type ${slot}`;
       }
       return { val, settler };
     };
@@ -13316,7 +13754,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
               break;
             }
             const reason = new Error(
-              `Formula ${q2(formula.type)} became unreachable by any pet name path and was collected`
+              `Formula ${q5(formula.type)} became unreachable by any pet name path and was collected`
             );
             const close = retainerClose.get(retainerId);
             if (close) {
@@ -13392,14 +13830,14 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
   // src/mount.js
   var assertValidSegment = (segment) => {
     if (typeof segment !== "string") {
-      throw new Error(`Path segment must be a string, got ${q2(typeof segment)}`);
+      throw new Error(`Path segment must be a string, got ${q5(typeof segment)}`);
     }
     if (segment === "") {
       throw new Error("Path segment must not be empty");
     }
     if (segment.includes("/") || segment.includes("\\") || segment.includes("\0")) {
       throw new Error(
-        `Path segment must not contain '/', '\\', or '\\0': ${q2(segment)}`
+        `Path segment must not contain '/', '\\', or '\\0': ${q5(segment)}`
       );
     }
   };
@@ -13429,12 +13867,12 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       resolved = await filePowers.realPath(candidatePath);
     } catch {
       throw new Error(
-        `Path does not exist and cannot be verified: ${q2(candidatePath)}`
+        `Path does not exist and cannot be verified: ${q5(candidatePath)}`
       );
     }
     const rootResolved = await filePowers.realPath(confinementRoot);
     if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
-      throw new Error(`Path escapes mount root: ${q2(candidatePath)}`);
+      throw new Error(`Path escapes mount root: ${q5(candidatePath)}`);
     }
   };
   harden(assertConfined);
@@ -13445,7 +13883,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       try {
         const resolved = await filePowers.realPath(check);
         if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
-          throw new Error(`Path escapes mount root: ${q2(candidatePath)}`);
+          throw new Error(`Path escapes mount root: ${q5(candidatePath)}`);
         }
         return;
       } catch (e) {
@@ -13454,7 +13892,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         }
         const parent = filePowers.joinPath(check, "..");
         if (parent === check) {
-          throw new Error(`Path escapes mount root: ${q2(candidatePath)}`);
+          throw new Error(`Path escapes mount root: ${q5(candidatePath)}`);
         }
         check = parent;
       }
@@ -14382,7 +14820,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         if (!isLocalId(requestedId)) {
           const { node } = parseId(requestedId);
           throw new Error(
-            `Gateway can only provide local values. Got request for node ${q2(
+            `Gateway can only provide local values. Got request for node ${q5(
               node
             )}`
           );
@@ -14559,7 +14997,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
     const mustGetIdForRef = (ref) => {
       const id = idForRef.get(ref);
       if (id === void 0) {
-        throw makeError(X`No corresponding formula for ${ref}`);
+        throw makeError(X3`No corresponding formula for ${ref}`);
       }
       return id;
     };
@@ -14567,9 +15005,9 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       const ref = refForId.get(id);
       if (ref === void 0) {
         if (formulaForId.get(id) !== void 0) {
-          throw makeError(X`Formula has not produced a ref ${id}`);
+          throw makeError(X3`Formula has not produced a ref ${id}`);
         }
-        throw makeError(X`Unknown identifier ${id}`);
+        throw makeError(X3`Unknown identifier ${id}`);
       }
       return ref;
     };
@@ -14589,7 +15027,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
           return { status: "rejected", reason: data.reason };
         }
       }
-      throw new Error(`Invalid promise status record ${q2(record)}`);
+      throw new Error(`Invalid promise status record ${q5(record)}`);
     };
     const formatRejectionReason = (reason) => {
       if (reason instanceof Error) {
@@ -14697,7 +15135,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
               const id = await idOrPromise;
               if (typeof id !== "string") {
                 throw new TypeError(
-                  `Promise resolution must be a formula identifier (${q2(id)})`
+                  `Promise resolution must be a formula identifier (${q5(id)})`
                 );
               }
               assertValidId(id);
@@ -14728,7 +15166,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         if (tailNames.length === 0) {
           const id = identifyMessage(headName);
           if (id === void 0) {
-            throw new TypeError(`Unknown message number: ${q2(headName)}`);
+            throw new TypeError(`Unknown message number: ${q5(headName)}`);
           }
           return provide(
             /** @type {FormulaIdentifier} */
@@ -14966,7 +15404,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       const orderedNames = [];
       const registerName = (name, id, value) => {
         if (idByName.has(name) || valueByName.has(name)) {
-          throw new Error(`Duplicate message name ${q2(name)}`);
+          throw new Error(`Duplicate message name ${q5(name)}`);
         }
         if (id !== void 0) {
           idByName.set(name, id);
@@ -14998,9 +15436,9 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         }
         if (names.length !== ids.length) {
           throw new Error(
-            `Message must have one formula identifier (${q2(
+            `Message must have one formula identifier (${q5(
               ids.length
-            )}) for every edge name (${q2(names.length)})`
+            )}) for every edge name (${q5(names.length)})`
           );
         }
         registerName(MESSAGE_STRINGS_NAME, void 0, harden_default(strings));
@@ -15040,7 +15478,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         registerName(MESSAGE_PROMISE_NAME, promiseId, void 0);
         registerName(MESSAGE_RESOLVER_NAME, resolverId, void 0);
       } else {
-        throw new Error(`Unknown message type ${q2(messageType)}`);
+        throw new Error(`Unknown message type ${q5(messageType)}`);
       }
       const lookup = (petNameOrPath) => {
         const namePath = namePathFrom(petNameOrPath);
@@ -15078,7 +15516,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
           if (valueByName.has(headName)) {
             return Promise.resolve(valueByName.get(headName));
           }
-          throw new TypeError(`Unknown message name: ${q2(headName)}`);
+          throw new TypeError(`Unknown message name: ${q5(headName)}`);
         }
         return tailNames.reduce(
           (directory, petName) => E(directory).lookup(petName),
@@ -15290,11 +15728,11 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       mount: async ({ path: mountPath, readOnly }) => {
         const pathExists = await filePowers.exists(mountPath);
         if (!pathExists) {
-          throw new Error(`Mount path does not exist: ${q2(mountPath)}`);
+          throw new Error(`Mount path does not exist: ${q5(mountPath)}`);
         }
         const isDir = await filePowers.isDirectory(mountPath);
         if (!isDir) {
-          throw new Error(`Mount path is not a directory: ${q2(mountPath)}`);
+          throw new Error(`Mount path is not a directory: ${q5(mountPath)}`);
         }
         return makeMount({ rootPath: mountPath, readOnly, filePowers });
       },
@@ -15865,7 +16303,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
         }
         return value;
       } else {
-        throw new TypeError(`Invalid formula: ${q2(formula)}`);
+        throw new TypeError(`Invalid formula: ${q5(formula)}`);
       }
     };
     const evaluateFormulaForId = async (id, context) => {
@@ -15943,7 +16381,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       );
       const peerId = knownPeers.identifyLocal(nodeNumber);
       if (peerId === void 0) {
-        throw new Error(`No peer found for node identifier ${q2(nodeNumber)}.`);
+        throw new Error(`No peer found for node identifier ${q5(nodeNumber)}.`);
       }
       parseId(peerId);
       return (
@@ -17030,7 +17468,7 @@ Call join(proposedName) to accept the invitation and get a channel handle.`,
       const handle = await provide(handleId, "handle");
       const agentId = agentIdForHandle.get(handle);
       if (agentId === void 0) {
-        throw makeError(X`No agent found for handle ${q2(handleId)}`);
+        throw makeError(X3`No agent found for handle ${q5(handleId)}`);
       }
       return agentId;
     };
