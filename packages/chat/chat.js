@@ -235,7 +235,7 @@ const renderProfileBar = ($profileBar, profilePath, onNavigate) => {
 
 /**
  * @typedef {object} ConversationState
- * @property {string} petName
+ * @property {string | string[]} petName
  * @property {string} id - FormulaIdentifier of the conversation partner
  */
 
@@ -330,7 +330,10 @@ const bodyComponent = (
   // Set up conversation header
   if (activeConversation) {
     $conversationHeader.classList.add('visible');
-    $conversationName.textContent = `@${activeConversation.petName}`;
+    const displayPetName = Array.isArray(activeConversation.petName)
+      ? activeConversation.petName.join('/')
+      : activeConversation.petName;
+    $conversationName.textContent = `@${displayPetName}`;
     $conversationBack.onclick = () => onConversationChange(null);
     $chatMessage.dataset.placeholder = 'Type a message...';
   } else {

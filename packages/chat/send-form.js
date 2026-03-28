@@ -54,7 +54,7 @@ import { createHeatBar } from './heat-bar.js';
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value
  * @param {() => boolean} [options.shouldHandleEnter] - Optional callback to check if Enter should be handled
  * @param {(state: SendFormState) => void} [options.onStateChange] - Called when input state changes
- * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
+ * @param {() => string | string[] | null} [options.getConversationPetName] - Returns active conversation pet name or path
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
  * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with @-mentions instead of silent send

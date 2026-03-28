@@ -12,7 +12,7 @@ import { makeRefIterator } from './ref-iterator.js';
 /**
  * @typedef {object} InventoryOptions
  * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} showValue
- * @property {((petName: string, formulaId: string) => void)} [onSelectConversation]
+ * @property {((petName: string | string[], formulaId: string) => void)} [onSelectConversation]
  * @property {string | null} [activeConversationPetName]
  * @property {boolean} [channelMode] - If true, show "Channels" header and channel-specific UI
  * @property {(channelPetName: string) => void} [onSelectChannel] - Called when a channel is selected
@@ -765,13 +765,21 @@ export const inventoryComponent = async (
             $disclosure.title = 'Collapse';
             $children.classList.add('expanded');
 
+            const wrappedOnSelectConversation = onSelectConversation
+              ? (/** @type {string | string[]} */ leafName, /** @type {string} */ locator) => {
+                  const leafPath =
+                    typeof leafName === 'string' ? [leafName] : leafName;
+                  onSelectConversation([...itemPath, ...leafPath], locator);
+                }
+              : undefined;
+
             inventoryComponent(
               $children,
               null,
               nestedPowers,
               {
                 showValue,
-                onSelectConversation,
+                onSelectConversation: wrappedOnSelectConversation,
                 activeConversationPetName,
                 channelMode,
                 onSelectChannel,
