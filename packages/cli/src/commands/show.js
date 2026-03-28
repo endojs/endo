@@ -41,7 +41,7 @@ const formatValue = value => {
 export const show = async ({ name, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     const namePath = parsePetNamePath(name);
-    let pet = await E(agent).lookup(...namePath);
+    let pet = await E(agent).lookup(namePath);
     if (typeof pet === 'string') {
       pet = pet.trim();
     }

@@ -102,7 +102,7 @@ export const run = async ({
           }
 
           const bundleNamePath = parsePetNamePath(bundleName);
-          const readableP = E(agent).lookup(...bundleNamePath);
+          const readableP = E(agent).lookup(bundleNamePath);
           const bundleText = await E(readableP).text();
           bundle = JSON.parse(bundleText);
         } else {
