@@ -63,10 +63,10 @@ simulate: $(BUILD_DIR)/endo-os.img
 	qemu-system-aarch64 \
 		-machine virt,virtualization=on \
 		-cpu cortex-a53 \
-		-m 512M \
+		-m size=2G \
 		-nographic \
 		-serial mon:stdio \
-		-device loader,file=$<,addr=0x70000000
+		-device loader,file=$<,addr=0x70000000,cpu-num=0
 
 clean:
 	rm -rf $(BUILD_DIR)

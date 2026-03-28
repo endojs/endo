@@ -37,7 +37,7 @@ echo ""
 exec qemu-system-aarch64 \
   -machine virt,virtualization=on \
   -cpu cortex-a53 \
-  -m 512M \
+  -m size=2G \
   -nographic \
   -serial mon:stdio \
-  -device loader,file="${IMAGE}",addr=0x70000000
+  -device loader,file="${IMAGE}",addr=0x70000000,cpu-num=0
