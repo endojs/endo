@@ -886,10 +886,36 @@
   // BOOT
   // ============================================================
 
+  // === Try to boot the real daemon ===
+
+  var daemonBootstrapped = false;
+  if (typeof EndoDaemon !== 'undefined' && EndoDaemon.makeDaemon) {
+    print('endo-os: Daemon bundle loaded (' +
+      Math.round(JSON.stringify(EndoDaemon).length / 1024) + ' KB)');
+
+    if (typeof __daemonicPowers !== 'undefined') {
+      print('endo-os: Initializing daemon with in-memory powers...');
+      try {
+        // makeDaemon is async — we can't await in QuickJS without
+        // an event loop, so we just note it's available.
+        // Full integration requires async support.
+        print('endo-os: makeDaemon() available — async boot pending');
+        ps().set('makeDaemon', EndoDaemon.makeDaemon);
+        ps().set('daemonPowers', __daemonicPowers);
+        daemonBootstrapped = true;
+      } catch (e) {
+        print('endo-os: Daemon init error: ' + e.message);
+      }
+    }
+  }
+
   print('========================================');
   print(' Endo OS');
   print(' Capability-native operating system');
   print(' seL4 (formally verified) + QuickJS');
+  if (daemonBootstrapped) {
+    print(' Daemon: loaded (makeDaemon available)');
+  }
   print('========================================');
   print('');
   print('Type ? for help, or just type JavaScript.');

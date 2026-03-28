@@ -38,6 +38,8 @@ COPY packages/endo-os/sel4/src/ sel4/src/
 COPY packages/endo-os/sel4/system.xml sel4/system.xml
 COPY packages/endo-os/sel4/Makefile sel4/Makefile
 COPY packages/endo-os/src/js/bootstrap-sel4.js sel4/src/bootstrap.js
+COPY packages/endo-os/src/js/daemon-powers-sel4.js sel4/src/daemon-powers.js
+COPY packages/endo-os/sel4/build/daemon-bundle.js sel4/src/daemon-bundle.js
 
 # Create the SES loader that polyfills console then loads ses.cjs.
 RUN echo '// Console polyfill + SES loader for QuickJS-ng on seL4' > sel4/src/ses-loader.js && \

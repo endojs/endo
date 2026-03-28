@@ -56,12 +56,26 @@ trap "rm -rf ${TMPCTX}" EXIT
 
 # Copy what Docker needs (can't use symlinks with Docker).
 echo "--- Preparing build context ---"
-cp -r "${QUICKJS_DIR}" "${TMPCTX}/quickjs"
+# Use the ses-lockdown branch (stable, SES works).
+# native-compartment branch has WIP code that may not compile.
+(cd "${QUICKJS_DIR}" && git archive ses-lockdown) | tar x -C "${TMPCTX}/quickjs" 2>/dev/null || \
+  cp -r "${QUICKJS_DIR}" "${TMPCTX}/quickjs"
 mkdir -p "${TMPCTX}/packages/ses/dist"
 cp "${SES_BUNDLE}" "${TMPCTX}/packages/ses/dist/ses.cjs"
 mkdir -p "${TMPCTX}/packages/endo-os"
 cp -r "${SEL4_DIR}" "${TMPCTX}/packages/endo-os/sel4"
 cp -r "${ENDO_OS_DIR}/src" "${TMPCTX}/packages/endo-os/src"
+
+# Check for daemon bundle.
+DAEMON_BUNDLE="${SCRIPT_DIR}/daemon-bundle.js"
+if [ ! -f "${DAEMON_BUNDLE}" ]; then
+  echo "WARNING: daemon-bundle.js not found."
+  echo "Build it: cd ../endo/packages/daemon && node bundle-for-sel4.mjs"
+  echo "Then copy to: ${DAEMON_BUNDLE}"
+  echo "Continuing without daemon bundle..."
+  # Create an empty stub so the build doesn't fail.
+  echo "// Daemon bundle not available" > "${TMPCTX}/packages/endo-os/sel4/build/daemon-bundle.js"
+fi
 
 echo "--- Building Docker image ---"
 docker build \

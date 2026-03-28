@@ -16,8 +16,8 @@
 /* Set by the Microkit system description (setvar_vaddr). */
 extern uintptr_t js_heap_vaddr;
 
-/* Heap size: 16 MB (must match system.xml memory_region size). */
-#define HEAP_SIZE (16 * 1024 * 1024)
+/* Heap size: 32 MB (must match system.xml memory_region size). */
+#define HEAP_SIZE (32 * 1024 * 1024)
 
 /* Block header for the free-list allocator. */
 typedef struct block_header {

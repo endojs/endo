@@ -31,7 +31,7 @@
         <irq irq="33" id="0" />
     </protection_domain>
 
-    <memory_region name="js_heap" size="0x1000000" />
+    <memory_region name="js_heap" size="0x2000000" />
 
     <!-- PL011 UART MMIO region (4 KB page at physical 0x09000000). -->
     <memory_region name="uart" size="0x1000" phys_addr="0x9000000" />

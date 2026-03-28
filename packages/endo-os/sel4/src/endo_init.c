@@ -16,9 +16,13 @@
 uintptr_t js_heap_vaddr;
 uintptr_t uart_base_vaddr;
 
-/* Embedded JS sources. */
+/* Embedded JS sources (loaded in order). */
 extern const char js_ses_lockdown[];
 extern const int js_ses_lockdown_len;
+extern const char js_daemon_bundle[];
+extern const int js_daemon_bundle_len;
+extern const char js_daemon_powers[];
+extern const int js_daemon_powers_len;
 extern const char js_bootstrap[];
 extern const int js_bootstrap_len;
 
@@ -109,7 +113,7 @@ void init(void) {
         uart_puts("FATAL: JS_NewRuntime failed\n");
         return;
     }
-    JS_SetMemoryLimit(js_rt, 14 * 1024 * 1024);
+    JS_SetMemoryLimit(js_rt, 30 * 1024 * 1024);
 
     js_ctx = JS_NewContext(js_rt);
     if (!js_ctx) {
@@ -125,11 +129,20 @@ void init(void) {
         JS_NewCFunction(js_ctx, js_readline, "readline", 1));
     JS_FreeValue(js_ctx, global);
 
-    /* Load SES lockdown. */
+    /* 1. Load SES lockdown (freezes all intrinsics). */
     eval_source(js_ctx, js_ses_lockdown, js_ses_lockdown_len,
                 "ses-lockdown.js");
 
-    /* Load and run the Endo shell. */
+    /* 2. Load daemon bundle (defines EndoDaemon global). */
+    uart_puts("endo-init: Loading daemon bundle\n");
+    eval_source(js_ctx, js_daemon_bundle, js_daemon_bundle_len,
+                "daemon-bundle.js");
+
+    /* 3. Load in-memory DaemonicPowers. */
+    eval_source(js_ctx, js_daemon_powers, js_daemon_powers_len,
+                "daemon-powers.js");
+
+    /* 4. Load and run the Endo shell (enters REPL). */
     eval_source(js_ctx, js_bootstrap, js_bootstrap_len,
                 "endo-shell.js");
 
