@@ -15,6 +15,8 @@ uintptr_t js_heap_vaddr;
 uintptr_t uart_base_vaddr;
 
 /* Embedded JS/bytecode sources. */
+extern const char js_ses_shim[];
+extern const int js_ses_shim_len;
 extern const char js_daemon_powers[];
 extern const int js_daemon_powers_len;
 extern const char js_bootstrap[];
@@ -131,6 +133,9 @@ void init(void) {
     } else {
         uart_puts("endo-init: Intrinsics frozen in <1ms\n");
     }
+
+    /* Load SES shim (provides harden/Compartment if not native). */
+    eval_source(js_ctx, js_ses_shim, js_ses_shim_len, "ses-shim.js");
 
     /* Load daemon bundle (bytecode if available, else JS text). */
     if (&qjsc_daemon_bundle != NULL && &qjsc_daemon_bundle_size != NULL

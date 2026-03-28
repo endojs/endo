@@ -40,8 +40,9 @@ QJS_OBJS := $(BUILD_DIR)/quickjs.o \
             $(BUILD_DIR)/libunicode.o \
             $(BUILD_DIR)/dtoa.o
 
-# Embedded sources (daemon bytecode + JS text).
-JS_OBJS := $(BUILD_DIR)/daemon_bytecode.o \
+# Embedded sources.
+JS_OBJS := $(BUILD_DIR)/js_ses_shim.o \
+           $(BUILD_DIR)/daemon_bytecode.o \
            $(BUILD_DIR)/js_daemon_powers.o \
            $(BUILD_DIR)/js_bootstrap.o
 
@@ -80,6 +81,16 @@ $(BUILD_DIR)/libunicode.o: $(QUICKJS_SRC)/libunicode.c
 
 $(BUILD_DIR)/dtoa.o: $(QUICKJS_SRC)/dtoa.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+# --- SES shim (fallback harden/Compartment) ---
+$(BUILD_DIR)/js_ses_shim.o: src/ses-shim.js
+	@mkdir -p $(BUILD_DIR)
+	@echo "const char js_ses_shim[] = {" > $(BUILD_DIR)/js_ses_shim.c
+	xxd -i < $< >> $(BUILD_DIR)/js_ses_shim.c
+	@echo ", 0x00 };" >> $(BUILD_DIR)/js_ses_shim.c
+	@echo "const int js_ses_shim_len = sizeof(js_ses_shim) - 1;" \
+		>> $(BUILD_DIR)/js_ses_shim.c
+	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_ses_shim.c
 
 # --- Daemon bytecode (pre-compiled by qjsc) ---
 $(BUILD_DIR)/daemon_bytecode.o: src/daemon-bytecode.c

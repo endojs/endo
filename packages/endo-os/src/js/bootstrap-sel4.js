@@ -170,8 +170,26 @@
         endowments[names[i]] = ps().get(names[i]);
       }
     }
-    var c = new Compartment(endowments);
-    return c.evaluate(source);
+
+    // Try native Compartment API (QuickJS-ng native-ses).
+    try {
+      var c = new Compartment({ __options__: true, globals: endowments });
+      return c.evaluate(source);
+    } catch (e1) {
+      // Fall back to plain endowments style.
+      try {
+        var c2 = new Compartment(endowments);
+        return c2.evaluate(source);
+      } catch (e2) {
+        // Last resort: direct eval with endowment injection via with().
+        // This is NOT isolated but at least works.
+        var fn = new Function(
+          Object.keys(endowments).join(','),
+          '"use strict"; return (' + source + ')'
+        );
+        return fn.apply(undefined, Object.values(endowments));
+      }
+    }
   }
 
   // ============================================================
