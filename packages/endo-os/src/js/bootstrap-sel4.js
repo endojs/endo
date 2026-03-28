@@ -123,12 +123,14 @@
   // BUILT-IN CAPABILITIES
   // ============================================================
 
-  ps().set('counter', harden({
-    _n: 0,
-    increment: function() { return ++this._n; },
-    read: function() { return this._n; },
-    help: function() { return 'Counter: increment(), read()'; },
-  }));
+  ps().set('counter', (function() {
+    var n = 0;
+    return harden({
+      increment: function() { return ++n; },
+      read: function() { return n; },
+      help: function() { return 'Counter: increment(), read()'; },
+    });
+  })());
 
   ps().set('greeter', harden({
     greet: function(name) { return 'Hello, ' + name + '!'; },
