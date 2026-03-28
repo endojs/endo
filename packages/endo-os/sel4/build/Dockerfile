@@ -48,8 +48,11 @@ COPY packages/endo-os/sel4/build/daemon-bundle.js /build/daemon-bundle.js
 # Compile JS → bytecode C array.
 # -c generates a .c file with the bytecode as a uint8_t array.
 # -m compiles as a module (needed for IIFE with exports).
+# qjsc -e generates a standalone C file with main() + bytecode.
+# We just need the bytecode, so use -e and extract.
+# -m treats input as module (for ESM exports).
 RUN cd /opt/quickjs && \
-    ./qjsc -c -o /build/daemon-bytecode.c /build/daemon-bundle.js 2>&1 && \
+    ./qjsc -e -m -o /build/daemon-bytecode.c /build/daemon-bundle.js 2>&1 && \
     echo "Daemon bytecode compiled" && \
     wc -c /build/daemon-bytecode.c || \
     (echo "qjsc compilation failed — will fall back to JS text" && \
