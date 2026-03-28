@@ -2541,13 +2541,58 @@ const makeDaemonCore = async (
     message: (formula, context) => makeMessageHub(formula, context),
     promise: ({ store: storeId }, context) => makePromise(storeId, context),
     resolver: ({ store: storeId }, context) => makeResolver(storeId, context),
-    'synced-pet-store': async (formula, _context, _id, formulaNumber) => {
+    'synced-pet-store': async (formula, context, _id, formulaNumber) => {
       await null;
-      return petStorePowers.makeIdentifiedSyncedPetStore(
+      const store = await petStorePowers.makeIdentifiedSyncedPetStore(
         formulaNumber,
         localNodeNumber,
         formula.role,
       );
+
+      const placeholderNumber = '0'.repeat(64);
+      if (formula.remoteStoreNumber !== placeholderNumber) {
+        const peerFormula =
+          /** @type {PeerFormula} */ (await getFormulaForId(formula.peer));
+        const remoteStoreId = formatId({
+          number: /** @type {FormulaNumber} */ (formula.remoteStoreNumber),
+          node: /** @type {NodeNumber} */ (peerFormula.node),
+        });
+
+        const runSyncLoop = async () => {
+          let interval = 5000;
+          const maxInterval = 60000;
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            try {
+              const remoteStore =
+                /** @type {import('./types.js').SyncedPetStore} */
+                (await provide(remoteStoreId));
+              const localState = store.getState();
+              const localClock = store.getLocalClock();
+              const remoteState = await E(remoteStore).getState();
+              const remoteClock = await E(remoteStore).getLocalClock();
+              await store.mergeRemoteState(remoteState, remoteClock);
+              await E(remoteStore).mergeRemoteState(localState, localClock);
+              await store.acknowledgeRemoteClock(remoteClock);
+              await E(remoteStore).acknowledgeRemoteClock(localClock);
+              await store.pruneTombstones();
+              await E(remoteStore).pruneTombstones();
+              interval = 5000;
+            } catch {
+              interval = Math.min(interval * 2, maxInterval);
+            }
+            try {
+              await delay(interval, context.cancelled);
+            } catch {
+              break;
+            }
+          }
+        };
+
+        runSyncLoop();
+      }
+
+      return store;
     },
     'known-peers-store': async (_formula, _context, _id, formulaNumber) => {
       await null;
