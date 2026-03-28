@@ -68,7 +68,7 @@ static JSValue js_readline(JSContext *ctx, JSValueConst this_val,
 static int eval_source(JSContext *ctx, const char *source, int len,
                        const char *filename) {
     JSValue val = JS_Eval(ctx, source, len, filename,
-                          JS_EVAL_TYPE_GLOBAL);
+                          JS_EVAL_TYPE_GLOBAL | JS_EVAL_FLAG_STRICT);
     if (JS_IsException(val)) {
         JSValue exc = JS_GetException(ctx);
         const char *msg = JS_ToCString(ctx, exc);

@@ -533,6 +533,69 @@ int gettimeofday(struct timeval *tv, void *tz) {
     return 0;
 }
 
+/* ---- pthreads stubs (QuickJS-ng uses these for atomics/workers) ---- */
+/* seL4 is single-threaded per PD, so these are no-ops. */
+
+typedef int pthread_mutex_t;
+typedef int pthread_cond_t;
+typedef int pthread_condattr_t;
+typedef int pthread_once_t;
+
+int pthread_mutex_init(pthread_mutex_t *m, const void *a) { (void)m; (void)a; return 0; }
+int pthread_mutex_destroy(pthread_mutex_t *m) { (void)m; return 0; }
+int pthread_mutex_lock(pthread_mutex_t *m) { (void)m; return 0; }
+int pthread_mutex_unlock(pthread_mutex_t *m) { (void)m; return 0; }
+int pthread_cond_init(pthread_cond_t *c, const pthread_condattr_t *a) { (void)c; (void)a; return 0; }
+int pthread_cond_destroy(pthread_cond_t *c) { (void)c; return 0; }
+int pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m) { (void)c; (void)m; return 0; }
+int pthread_cond_timedwait(pthread_cond_t *c, pthread_mutex_t *m, const void *t) { (void)c; (void)m; (void)t; return 0; }
+int pthread_cond_signal(pthread_cond_t *c) { (void)c; return 0; }
+int pthread_cond_broadcast(pthread_cond_t *c) { (void)c; return 0; }
+int pthread_condattr_init(pthread_condattr_t *a) { (void)a; return 0; }
+int pthread_condattr_destroy(pthread_condattr_t *a) { (void)a; return 0; }
+int pthread_condattr_setclock(pthread_condattr_t *a, int c) { (void)a; (void)c; return 0; }
+int pthread_once(pthread_once_t *o, void (*f)(void)) {
+    if (*o == 0) { *o = 1; f(); }
+    return 0;
+}
+
+/* ---- clock_gettime ---- */
+struct timespec { long tv_sec; long tv_nsec; };
+int clock_gettime(int clk_id, struct timespec *tp) {
+    (void)clk_id;
+    if (tp) { tp->tv_sec = 0; tp->tv_nsec = 0; }
+    return 0;
+}
+
+/* ---- misc math/stdlib QuickJS-ng needs ---- */
+double scalbn(double x, int n) { return ldexp(x, n); }
+double copysign(double x, double y) { return (y < 0) ? -fabs(x) : fabs(x); }
+double modf(double x, double *iptr) {
+    double i = trunc(x);
+    if (iptr) *iptr = i;
+    return x - i;
+}
+int abs(int x) { return x < 0 ? -x : x; }
+unsigned long __getauxval(unsigned long type) { (void)type; return 0; }
+
+/* malloc_usable_size — QuickJS-ng uses for memory tracking. */
+size_t malloc_usable_size(void *ptr) {
+    if (!ptr) return 0;
+    /* Our allocator stores size in the block header before the pointer. */
+    typedef struct { size_t size; void *next; int free; } hdr_t;
+    hdr_t *hdr = (hdr_t *)((uint8_t *)ptr - sizeof(hdr_t));
+    return hdr->size;
+}
+
+/* vfprintf for debug trace output. */
+int vfprintf(void *stream, const char *fmt, va_list ap) {
+    (void)stream;
+    char buf[512];
+    int n = vsnprintf(buf, sizeof(buf), fmt, ap);
+    microkit_dbg_puts(buf);
+    return n;
+}
+
 /* QuickJS uses setjmp/longjmp for exceptions. */
 typedef long jmp_buf[32];
 int setjmp(jmp_buf env) { (void)env; return 0; }

@@ -1,4 +1,4 @@
-# Endo OS — seL4 Microkit Build (Phase 0b: with QuickJS)
+# Endo OS — seL4 Microkit Build (QuickJS-ng + Real SES)
 
 MICROKIT_SDK    ?= /opt/microkit-sdk
 MICROKIT_BOARD  ?= qemu_virt_aarch64
@@ -11,21 +11,19 @@ BOARD_DIR     := $(MICROKIT_SDK)/board/$(MICROKIT_BOARD)/$(MICROKIT_CONFIG)
 
 CC := aarch64-linux-gnu-gcc
 LD := aarch64-linux-gnu-ld
-OBJCOPY := aarch64-linux-gnu-objcopy
+
+GCC_LIB_DIR := $(shell dirname $(shell aarch64-linux-gnu-gcc -print-libgcc-file-name 2>/dev/null || echo /usr/lib/gcc-cross/aarch64-linux-gnu/13/libgcc.a))
 
 CFLAGS := -mcpu=cortex-a53 -mstrict-align -nostdlib -ffreestanding \
           -g3 -O2 -Wall -Wno-unused-function -Wno-unused-variable \
-          -Wno-implicit-function-declaration \
+          -Wno-implicit-function-declaration -Wno-sign-compare \
+          -Wno-missing-field-initializers -Wno-format \
           -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
           -I$(BOARD_DIR)/include \
           -Isrc \
           -I$(QUICKJS_SRC) \
           -DCONFIG_VERSION=\"endo-os\" \
-          -DEMSCRIPTEN \
-          -D_GNU_SOURCE \
-          -DNO_CONFIG_H
-
-GCC_LIB_DIR := $(shell dirname $(shell aarch64-linux-gnu-gcc -print-libgcc-file-name 2>/dev/null || echo /usr/lib/gcc-cross/aarch64-linux-gnu/13/libgcc.a))
+          -D_GNU_SOURCE
 
 LDFLAGS := -L$(BOARD_DIR)/lib -L$(GCC_LIB_DIR)
 LIBS := -lmicrokit -Tmicrokit.ld -lgcc
@@ -36,15 +34,14 @@ PD_OBJS := $(BUILD_DIR)/endo_init.o \
            $(BUILD_DIR)/heap.o \
            $(BUILD_DIR)/libc_stubs.o
 
-# QuickJS core (no quickjs-libc.c — that's the OS interaction layer).
+# QuickJS-ng core files.
 QJS_OBJS := $(BUILD_DIR)/quickjs.o \
             $(BUILD_DIR)/libregexp.o \
             $(BUILD_DIR)/libunicode.o \
-            $(BUILD_DIR)/cutils.o \
-            $(BUILD_DIR)/libbf.o
+            $(BUILD_DIR)/dtoa.o
 
-# Embedded JS sources as C arrays.
-JS_OBJS := $(BUILD_DIR)/js_ses_lockdown.o \
+# Embedded JS sources.
+JS_OBJS := $(BUILD_DIR)/js_ses_loader.o \
            $(BUILD_DIR)/js_bootstrap.o
 
 ALL_OBJS := $(PD_OBJS) $(QJS_OBJS) $(JS_OBJS)
@@ -67,11 +64,9 @@ $(BUILD_DIR)/heap.o: src/heap.c
 $(BUILD_DIR)/libc_stubs.o: src/libc_stubs.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# --- QuickJS core ---
+# --- QuickJS-ng core ---
 $(BUILD_DIR)/quickjs.o: $(QUICKJS_SRC)/quickjs.c
-	$(CC) $(CFLAGS) -Wno-sign-compare -Wno-missing-field-initializers \
-		-Wno-type-limits -Wno-array-bounds -Wno-format \
-		-c -o $@ $<
+	$(CC) $(CFLAGS) -Wno-type-limits -Wno-array-bounds -c -o $@ $<
 
 $(BUILD_DIR)/libregexp.o: $(QUICKJS_SRC)/libregexp.c
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -79,21 +74,18 @@ $(BUILD_DIR)/libregexp.o: $(QUICKJS_SRC)/libregexp.c
 $(BUILD_DIR)/libunicode.o: $(QUICKJS_SRC)/libunicode.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(BUILD_DIR)/cutils.o: $(QUICKJS_SRC)/cutils.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-$(BUILD_DIR)/libbf.o: $(QUICKJS_SRC)/libbf.c
+$(BUILD_DIR)/dtoa.o: $(QUICKJS_SRC)/dtoa.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # --- Embed JS as C arrays ---
-$(BUILD_DIR)/js_ses_lockdown.o: src/ses-lockdown.js
+$(BUILD_DIR)/js_ses_loader.o: src/ses-loader.js
 	@mkdir -p $(BUILD_DIR)
-	@echo "const char js_ses_lockdown[] = {" > $(BUILD_DIR)/js_ses_lockdown.c
-	xxd -i < $< >> $(BUILD_DIR)/js_ses_lockdown.c
-	@echo ", 0x00 };" >> $(BUILD_DIR)/js_ses_lockdown.c
+	@echo "const char js_ses_lockdown[] = {" > $(BUILD_DIR)/js_ses_loader.c
+	xxd -i < $< >> $(BUILD_DIR)/js_ses_loader.c
+	@echo ", 0x00 };" >> $(BUILD_DIR)/js_ses_loader.c
 	@echo "const int js_ses_lockdown_len = sizeof(js_ses_lockdown) - 1;" \
-		>> $(BUILD_DIR)/js_ses_lockdown.c
-	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_ses_lockdown.c
+		>> $(BUILD_DIR)/js_ses_loader.c
+	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_ses_loader.c
 
 $(BUILD_DIR)/js_bootstrap.o: src/bootstrap.js
 	@mkdir -p $(BUILD_DIR)
@@ -118,7 +110,7 @@ $(BUILD_DIR)/endo-os.img: $(BUILD_DIR)/endo-init.elf system.xml
 		-o $@ \
 		-r $(BUILD_DIR)/report.txt
 	@echo ""
-	@echo "=== seL4 + QuickJS image built ==="
+	@echo "=== seL4 + QuickJS-ng + SES image built ==="
 	@ls -lh $@
 
 simulate: $(BUILD_DIR)/endo-os.img
