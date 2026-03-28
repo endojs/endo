@@ -17,7 +17,7 @@
 #   initramfs.cpio.gz — Boot image containing endo-init + JS
 #   endo-init         — The PID 1 binary (for inspection)
 
-FROM rust:1.82-bookworm AS rust-builder
+FROM rust:1.86-bookworm AS rust-builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 

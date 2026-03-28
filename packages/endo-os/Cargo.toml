@@ -2,6 +2,7 @@
 name = "endo-os"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.85"
 description = "Capability-native OS built around the Endo pet daemon"
 license = "Apache-2.0"
 
