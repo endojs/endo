@@ -2,51 +2,37 @@
 <!--
   Endo OS: seL4 Microkit System Description
 
-  Phase 0a: A single protection domain running QuickJS with
-  SES lockdown.  This is the simplest possible Endo OS — one
-  PD that proves capabilities work on a verified kernel.
-
-  Later phases add separate PDs for each device driver,
-  connected via channels (shared memory + notifications).
+  Single PD running the Endo capability shell (QuickJS).
+  UART mapped for interactive serial I/O.
 -->
 <system>
-    <!-- The Endo daemon PD: runs QuickJS + SES + bootstrap.
-         This is PID 1 equivalent — the root of all capabilities. -->
     <protection_domain
         name="endo_init"
         priority="254"
         stack_size="0x100000">
-        <!-- 1 MB stack for QuickJS heap + evaluation -->
         <program_image path="endo-init.elf" />
 
-        <!-- QuickJS heap: 16 MB of memory for JS objects.
-             Mapped read-write into the PD's address space. -->
+        <!-- JS heap: 16 MB for QuickJS objects. -->
         <map
             mr="js_heap"
             vaddr="0x10000000"
             perms="rw"
             setvar_vaddr="js_heap_vaddr" />
+
+        <!-- PL011 UART: memory-mapped I/O for serial console.
+             QEMU virt platform UART0 is at physical 0x09000000. -->
+        <map
+            mr="uart"
+            vaddr="0x20000000"
+            perms="rw"
+            setvar_vaddr="uart_base_vaddr" />
+
+        <!-- UART interrupt (SPI 1 = GIC IRQ 33 on QEMU virt). -->
+        <irq irq="33" id="0" />
     </protection_domain>
 
-    <!-- Memory region for the QuickJS heap.
-         In later phases, each guest/worker gets its own
-         memory region — capability-mediated by seL4. -->
     <memory_region name="js_heap" size="0x1000000" />
 
-    <!--
-    Phase 1+: Device driver PDs will be added here, e.g.:
-
-    <protection_domain name="virtio_blk" priority="200">
-        <program_image path="virtio-blk.elf" />
-    </protection_domain>
-
-    <channel>
-        <end pd="endo_init" id="1" />
-        <end pd="virtio_blk" id="0" />
-    </channel>
-
-    The channel gives endo_init a notification capability to
-    talk to the block driver.  This IS the disk capability —
-    mediated by the verified kernel.
-    -->
+    <!-- PL011 UART MMIO region (4 KB page at physical 0x09000000). -->
+    <memory_region name="uart" size="0x1000" phys_addr="0x9000000" />
 </system>

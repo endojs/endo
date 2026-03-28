@@ -32,6 +32,7 @@ LIBS := -lmicrokit -Tmicrokit.ld -lgcc
 
 # Our PD sources.
 PD_OBJS := $(BUILD_DIR)/endo_init.o \
+           $(BUILD_DIR)/uart.o \
            $(BUILD_DIR)/heap.o \
            $(BUILD_DIR)/libc_stubs.o
 
@@ -55,6 +56,9 @@ all: $(BUILD_DIR)/endo-os.img
 # --- Our PD ---
 $(BUILD_DIR)/endo_init.o: src/endo_init.c
 	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(BUILD_DIR)/uart.o: src/uart.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BUILD_DIR)/heap.o: src/heap.c
