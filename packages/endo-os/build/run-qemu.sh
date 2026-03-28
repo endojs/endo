@@ -47,15 +47,23 @@ fi
 STORE_IMG="${BUILD_DIR}/store.img"
 
 # Check prerequisites.
-if [ ! -f "${KERNEL}" ]; then
-  echo "ERROR: Kernel not found at ${KERNEL}"
-  echo "Run ./build/build-kernel.sh first."
-  exit 1
-fi
-
-if [ ! -f "${INITRAMFS}" ]; then
-  echo "ERROR: initramfs not found at ${INITRAMFS}"
-  echo "Run ./build/build-initramfs.sh first."
+if [ ! -f "${KERNEL}" ] || [ ! -f "${INITRAMFS}" ]; then
+  echo "ERROR: Build artifacts not found."
+  echo ""
+  if [ "$DOCKER_MODE" = true ]; then
+    echo "Run the Docker build first:"
+    echo "  ./build/build-docker.sh"
+    echo ""
+    echo "Then: ./build/run-qemu.sh --docker"
+  else
+    echo "On macOS, use the Docker build:"
+    echo "  ./build/build-docker.sh"
+    echo "  ./build/run-qemu.sh --docker"
+    echo ""
+    echo "On Linux, use the native build:"
+    echo "  ./build/build-all.sh"
+    echo "  ./build/run-qemu.sh"
+  fi
   exit 1
 fi
 

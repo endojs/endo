@@ -15,6 +15,18 @@
 
 set -euo pipefail
 
+# The Linux kernel can only be built on Linux.
+if [ "$(uname -s)" != "Linux" ]; then
+  echo "ERROR: Linux kernel must be built on Linux."
+  echo ""
+  echo "On macOS, use the Docker build instead:"
+  echo "  ./build/build-docker.sh"
+  echo ""
+  echo "This builds the kernel, endo-init, and initramfs inside Docker."
+  echo "Then boot with: ./build/run-qemu.sh --docker"
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENDO_OS_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="${ENDO_OS_DIR}/build"

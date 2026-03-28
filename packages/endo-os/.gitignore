@@ -1,0 +1,14 @@
+# Build artifacts (produced by Docker or native builds)
+/build/_kernel_src/
+/build/_kernel_out/
+/build/_initramfs/
+/build/_v8_src/
+/build/out/
+/build/store.img
+/build/endo-init
+/build/initramfs.cpio.gz
+/build/*.o
+/build/*_embed.c
+
+# Rust build output
+/target/

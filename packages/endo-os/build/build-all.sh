@@ -12,6 +12,16 @@
 
 set -euo pipefail
 
+if [ "$(uname -s)" != "Linux" ]; then
+  echo "ERROR: Native build requires Linux (kernel + static linking)."
+  echo ""
+  echo "On macOS, use the Docker build instead:"
+  echo "  ./build/build-docker.sh"
+  echo ""
+  echo "Then boot with: ./build/run-qemu.sh --docker"
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENDO_OS_DIR="$(dirname "$SCRIPT_DIR")"
 
