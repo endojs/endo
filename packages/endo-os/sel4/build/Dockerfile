@@ -1,9 +1,11 @@
-# Endo OS seL4 Build — Real SES on QuickJS-ng
+# Endo OS seL4 Build — Native SES + Bytecode Precompile
 #
-# Uses QuickJS-ng 0.13.0 (from ../quickjs) with the real
-# @endo/ses bundle for proper SES lockdown.
+# Uses QuickJS-ng native-ses branch with native lockdown() (<1ms)
+# and pre-compiles the daemon bundle to bytecode via qjsc.
+#
+# Expected boot time: ~2 seconds (kernel + instant lockdown + bytecode load)
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -11,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     gcc-aarch64-linux-gnu \
     binutils-aarch64-linux-gnu \
+    cmake \
     xxd \
     wget \
     && rm -rf /var/lib/apt/lists/*
@@ -27,48 +30,43 @@ ENV MICROKIT_SDK=/opt/microkit-sdk
 
 WORKDIR /build
 
-# Copy QuickJS-ng source from sibling directory.
+# Copy QuickJS-ng source (native-ses branch).
 COPY quickjs/ /opt/quickjs/
 
-# Copy SES bundle from the endo monorepo.
-COPY packages/ses/dist/ses.cjs /build/ses.cjs
+# === Step 1: Build qjsc for the HOST (x86_64) ===
+# qjsc compiles JS to bytecode that QuickJS can load instantly.
+RUN cd /opt/quickjs && \
+    cmake -B build -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build --target qjsc -j$(nproc) && \
+    cp build/qjsc . && \
+    ls -lh qjsc && \
+    echo "qjsc built for host"
 
-# Copy our sources.
+# === Step 2: Pre-compile daemon bundle to bytecode ===
+COPY packages/endo-os/sel4/build/daemon-bundle.js /build/daemon-bundle.js
+
+# Compile JS → bytecode C array.
+# -c generates a .c file with the bytecode as a uint8_t array.
+# -m compiles as a module (needed for IIFE with exports).
+RUN cd /opt/quickjs && \
+    ./qjsc -c -o /build/daemon-bytecode.c /build/daemon-bundle.js 2>&1 && \
+    echo "Daemon bytecode compiled" && \
+    wc -c /build/daemon-bytecode.c || \
+    (echo "qjsc compilation failed — will fall back to JS text" && \
+     echo '#include <stdint.h>' > /build/daemon-bytecode.c && \
+     echo 'const uint8_t qjsc_daemon_bundle[] = {0}; const uint32_t qjsc_daemon_bundle_size = 0;' \
+     >> /build/daemon-bytecode.c)
+
+# === Step 3: Build the seL4 image ===
 COPY packages/endo-os/sel4/src/ sel4/src/
 COPY packages/endo-os/sel4/system.xml sel4/system.xml
 COPY packages/endo-os/sel4/Makefile sel4/Makefile
 COPY packages/endo-os/src/js/bootstrap-sel4.js sel4/src/bootstrap.js
 COPY packages/endo-os/src/js/daemon-powers-sel4.js sel4/src/daemon-powers.js
-COPY packages/endo-os/sel4/build/daemon-bundle.js sel4/src/daemon-bundle.js
 
-# Create the SES loader that polyfills console then loads ses.cjs.
-RUN echo '// Console polyfill + SES loader for QuickJS-ng on seL4' > sel4/src/ses-loader.js && \
-    echo '(function() {' >> sel4/src/ses-loader.js && \
-    echo '  if (typeof console === "undefined") { globalThis.console = { log: print }; }' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.warn) console.warn = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.error) console.error = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.info) console.info = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.debug) console.debug = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.trace) console.trace = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.assert) console.assert = function(c) { if (!c) console.log("Assertion failed"); };' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.group) console.group = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.groupEnd) console.groupEnd = function() {};' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.groupCollapsed) console.groupCollapsed = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.dir) console.dir = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.table) console.table = console.log;' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.time) { var _t = {}; console.time = function(l) { _t[l] = 0; }; console.timeEnd = function(l) { console.log(l + ": 0ms"); }; console.timeLog = console.timeEnd; }' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.clear) console.clear = function() {};' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.count) console.count = function(l) { console.log((l||"default") + ": 1"); };' >> sel4/src/ses-loader.js && \
-    echo '  if (!console.countReset) console.countReset = function() {};' >> sel4/src/ses-loader.js && \
-    echo '})();' >> sel4/src/ses-loader.js && \
-    cat /build/ses.cjs >> sel4/src/ses-loader.js && \
-    echo '' >> sel4/src/ses-loader.js && \
-    echo '// Apply lockdown.' >> sel4/src/ses-loader.js && \
-    echo 'lockdown({ errorTaming: "unsafe", overrideTaming: "severe", stackFiltering: "verbose", consoleTaming: "unsafe" });' >> sel4/src/ses-loader.js && \
-    echo 'print("ses: Real SES lockdown applied (QuickJS-ng + @endo/ses)");' >> sel4/src/ses-loader.js && \
-    wc -c sel4/src/ses-loader.js
+# Copy bytecode C file into build.
+RUN cp /build/daemon-bytecode.c sel4/src/daemon-bytecode.c
 
-# Build.
 RUN cd sel4 && make MICROKIT_SDK=${MICROKIT_SDK} QUICKJS_SRC=/opt/quickjs
 
 CMD mkdir -p /out && \

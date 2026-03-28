@@ -1,21 +1,20 @@
 #!/bin/bash
-# Build Endo OS for seL4 with real SES on QuickJS-ng.
+# Build Endo OS for seL4 with native lockdown + bytecode precompile.
 #
-# Docker context is the repo root (../../..) so we can pull in:
-#   - ../quickjs/ (QuickJS-ng 0.13.0 with SES fix)
-#   - packages/ses/dist/ses.cjs (real SES bundle)
-#   - packages/endo-os/sel4/ (our PD source)
+# Uses QuickJS-ng native-ses branch:
+#   - Native lockdown() freezes intrinsics in <1ms
+#   - Native harden() deep-freezes objects
+#   - Native Compartment with isolated JSContext
+#   - qjsc compiles daemon bundle to bytecode
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SEL4_DIR="$(dirname "$SCRIPT_DIR")"
 ENDO_OS_DIR="$(dirname "$SEL4_DIR")"
-
-# The endo-os git worktree root.
 REPO_ROOT="$(cd "$ENDO_OS_DIR/../.." && pwd)"
 
-echo "=== Endo OS: seL4 + QuickJS-ng + Real SES ==="
+echo "=== Endo OS: seL4 + Native Lockdown + Bytecode ==="
 echo ""
 
 if ! command -v docker &> /dev/null; then
@@ -23,58 +22,39 @@ if ! command -v docker &> /dev/null; then
   exit 1
 fi
 
-# quickjs is a sibling directory of the endo-os worktree.
 QUICKJS_DIR="$(cd "${REPO_ROOT}/.." && pwd)/quickjs"
 if [ ! -f "${QUICKJS_DIR}/quickjs.c" ]; then
   echo "ERROR: QuickJS-ng not found at ${QUICKJS_DIR}"
-  echo "Expected ../quickjs relative to the endo-os worktree."
-  exit 1
-fi
-
-# SES bundle lives in the main endo repo (sibling worktree or ../endo).
-SES_BUNDLE="${REPO_ROOT}/packages/ses/dist/ses.cjs"
-if [ ! -f "${SES_BUNDLE}" ]; then
-  # Try the main endo repo as a sibling directory.
-  SES_BUNDLE="$(cd "${REPO_ROOT}/.." && pwd)/endo/packages/ses/dist/ses.cjs"
-fi
-if [ ! -f "${SES_BUNDLE}" ]; then
-  echo "ERROR: SES bundle not found at ${SES_BUNDLE}"
-  echo "Run 'cd packages/ses && yarn build' in the main endo repo."
   exit 1
 fi
 
 mkdir -p "${SCRIPT_DIR}/out"
 
-echo "QuickJS-ng: ${QUICKJS_DIR}"
-echo "SES bundle: ${SES_BUNDLE} ($(du -h "${SES_BUNDLE}" | cut -f1))"
+echo "QuickJS-ng: ${QUICKJS_DIR} (native-ses branch)"
 echo ""
 
-# We need a Docker context that includes both ../quickjs and our packages.
-# Create a temporary context with symlinks.
 TMPCTX=$(mktemp -d)
 trap "rm -rf ${TMPCTX}" EXIT
 
-# Copy what Docker needs (can't use symlinks with Docker).
 echo "--- Preparing build context ---"
-# Use the ses-lockdown branch (stable, SES works).
-# native-compartment branch has WIP code that may not compile.
-(cd "${QUICKJS_DIR}" && git archive ses-lockdown) | tar x -C "${TMPCTX}/quickjs" 2>/dev/null || \
+
+# QuickJS-ng native-ses branch.
+mkdir -p "${TMPCTX}/quickjs"
+(cd "${QUICKJS_DIR}" && git archive native-ses) | tar x -C "${TMPCTX}/quickjs" 2>/dev/null || \
   cp -r "${QUICKJS_DIR}" "${TMPCTX}/quickjs"
-mkdir -p "${TMPCTX}/packages/ses/dist"
-cp "${SES_BUNDLE}" "${TMPCTX}/packages/ses/dist/ses.cjs"
+
+# Our sources.
 mkdir -p "${TMPCTX}/packages/endo-os"
 cp -r "${SEL4_DIR}" "${TMPCTX}/packages/endo-os/sel4"
 cp -r "${ENDO_OS_DIR}/src" "${TMPCTX}/packages/endo-os/src"
 
-# Check for daemon bundle.
+# Daemon bundle (pre-built by esbuild).
 DAEMON_BUNDLE="${SCRIPT_DIR}/daemon-bundle.js"
 if [ ! -f "${DAEMON_BUNDLE}" ]; then
   echo "WARNING: daemon-bundle.js not found."
-  echo "Build it: cd ../endo/packages/daemon && node bundle-for-sel4.mjs"
-  echo "Then copy to: ${DAEMON_BUNDLE}"
+  echo "Build it: cd ../endo/packages/daemon && esbuild sel4-entry.js --bundle ..."
   echo "Continuing without daemon bundle..."
-  # Create an empty stub so the build doesn't fail.
-  echo "// Daemon bundle not available" > "${TMPCTX}/packages/endo-os/sel4/build/daemon-bundle.js"
+  echo "// No daemon bundle" > "${TMPCTX}/packages/endo-os/sel4/build/daemon-bundle.js"
 fi
 
 echo "--- Building Docker image ---"

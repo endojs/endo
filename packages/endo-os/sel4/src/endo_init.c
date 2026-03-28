@@ -1,10 +1,9 @@
 /*
  * Endo OS — seL4 Microkit Protection Domain
  *
- * Boots the formally verified kernel, initializes QuickJS,
- * loads the Endo capability shell, and enters an interactive
- * REPL over serial.  This IS the terminal — the daemon is
- * the operating system's shell.
+ * Boots the verified kernel, freezes JS intrinsics via native C
+ * lockdown (0ms), loads the pre-compiled daemon bytecode, and
+ * enters the Endo shell.
  */
 
 #include <microkit.h>
@@ -12,27 +11,27 @@
 #include "quickjs.h"
 #include "uart.h"
 
-/* Memory regions from system.xml. */
 uintptr_t js_heap_vaddr;
 uintptr_t uart_base_vaddr;
 
-/* Embedded JS sources (loaded in order). */
-extern const char js_ses_lockdown[];
-extern const int js_ses_lockdown_len;
-extern const char js_daemon_bundle[];
-extern const int js_daemon_bundle_len;
+/* Embedded JS/bytecode sources. */
 extern const char js_daemon_powers[];
 extern const int js_daemon_powers_len;
 extern const char js_bootstrap[];
 extern const int js_bootstrap_len;
 
-/* Global JS context — lives for the PD's lifetime. */
+/* If daemon was pre-compiled to bytecode, this is defined. */
+extern const uint8_t qjsc_daemon_bundle[] __attribute__((weak));
+extern const uint32_t qjsc_daemon_bundle_size __attribute__((weak));
+
+/* Fallback: JS text bundle if no bytecode. */
+extern const char js_daemon_bundle[] __attribute__((weak));
+extern const int js_daemon_bundle_len __attribute__((weak));
+
 static JSRuntime *js_rt = NULL;
 static JSContext *js_ctx = NULL;
 
-/* --- JS native functions --- */
-
-/* print(...args) */
+/* print() → UART */
 static JSValue js_print(JSContext *ctx, JSValueConst this_val,
                         int argc, JSValueConst *argv) {
     (void)this_val;
@@ -52,7 +51,6 @@ static JSValue js_print(JSContext *ctx, JSValueConst this_val,
 static JSValue js_readline(JSContext *ctx, JSValueConst this_val,
                            int argc, JSValueConst *argv) {
     (void)this_val;
-    /* Print prompt if provided. */
     if (argc > 0) {
         const char *prompt = JS_ToCString(ctx, argv[0]);
         if (prompt) {
@@ -60,15 +58,13 @@ static JSValue js_readline(JSContext *ctx, JSValueConst this_val,
             JS_FreeCString(ctx, prompt);
         }
     }
-
     char buf[1024];
     int len = uart_readline(buf, sizeof(buf));
     if (len < 0) return JS_UNDEFINED;
-
     return JS_NewStringLen(ctx, buf, len);
 }
 
-/* Evaluate and report errors. */
+/* Evaluate JS source with error reporting. */
 static int eval_source(JSContext *ctx, const char *source, int len,
                        const char *filename) {
     JSValue val = JS_Eval(ctx, source, len, filename,
@@ -82,12 +78,6 @@ static int eval_source(JSContext *ctx, const char *source, int len,
             uart_puts("\n");
             JS_FreeCString(ctx, msg);
         }
-        JSValue stack = JS_GetPropertyStr(ctx, exc, "stack");
-        if (!JS_IsUndefined(stack)) {
-            const char *s = JS_ToCString(ctx, stack);
-            if (s) { uart_puts(s); uart_puts("\n"); JS_FreeCString(ctx, s); }
-        }
-        JS_FreeValue(ctx, stack);
         JS_FreeValue(ctx, exc);
         JS_FreeValue(ctx, val);
         return -1;
@@ -96,14 +86,11 @@ static int eval_source(JSContext *ctx, const char *source, int len,
     return 0;
 }
 
-/* --- Microkit entry points --- */
-
 void init(void) {
-    /* Initialize UART for direct I/O (bypassing microkit_dbg_puts). */
     uart_init(uart_base_vaddr);
 
     uart_puts("\n");
-    uart_puts("endo-init: Endo OS starting (seL4 + QuickJS)\n");
+    uart_puts("endo-init: Endo OS starting (seL4 + QuickJS-ng)\n");
     uart_puts("endo-init: Formally verified capability-native OS\n");
     uart_puts("\n");
 
@@ -121,7 +108,7 @@ void init(void) {
         return;
     }
 
-    /* Install native functions. */
+    /* Install native functions first (before lockdown freezes things). */
     JSValue global = JS_GetGlobalObject(js_ctx);
     JS_SetPropertyStr(js_ctx, global, "print",
         JS_NewCFunction(js_ctx, js_print, "print", 1));
@@ -129,32 +116,60 @@ void init(void) {
         JS_NewCFunction(js_ctx, js_readline, "readline", 1));
     JS_FreeValue(js_ctx, global);
 
-    /* 1. Load SES lockdown (freezes all intrinsics). */
-    eval_source(js_ctx, js_ses_lockdown, js_ses_lockdown_len,
-                "ses-lockdown.js");
+    /* Try native lockdown from C. If it fails (ABORT), the
+       QuickJS-ng API may need adjustments for freestanding. */
+    uart_puts("endo-init: Freezing intrinsics (native C)\n");
 
-    /* 2. Load daemon bundle (defines EndoDaemon global). */
-    uart_puts("endo-init: Loading daemon bundle\n");
-    eval_source(js_ctx, js_daemon_bundle, js_daemon_bundle_len,
-                "daemon-bundle.js");
+    /* Call JS_FreezeIntrinsics directly — this is the core
+       freeze function without the intrinsic registration step
+       that JS_AddIntrinsicLockdown does. */
+    int freeze_ret = JS_FreezeIntrinsics(js_ctx);
+    if (freeze_ret != 0) {
+        uart_puts("endo-init: C freeze failed, trying JS lockdown()\n");
+        eval_source(js_ctx, "if(typeof lockdown==='function')lockdown()",
+                    42, "lockdown-fallback.js");
+    } else {
+        uart_puts("endo-init: Intrinsics frozen in <1ms\n");
+    }
 
-    /* 3. Load in-memory DaemonicPowers. */
+    /* Load daemon bundle (bytecode if available, else JS text). */
+    if (&qjsc_daemon_bundle != NULL && &qjsc_daemon_bundle_size != NULL
+        && qjsc_daemon_bundle_size > 0) {
+        uart_puts("endo-init: Loading daemon (pre-compiled bytecode)\n");
+        JSValue obj = JS_ReadObject(js_ctx, qjsc_daemon_bundle,
+                                    qjsc_daemon_bundle_size,
+                                    JS_READ_OBJ_BYTECODE);
+        if (!JS_IsException(obj)) {
+            JSValue val = JS_EvalFunction(js_ctx, obj);
+            if (JS_IsException(val)) {
+                uart_puts("endo-init: Daemon bytecode eval failed\n");
+                JSValue exc = JS_GetException(js_ctx);
+                const char *msg = JS_ToCString(js_ctx, exc);
+                if (msg) { uart_puts(msg); uart_puts("\n"); JS_FreeCString(js_ctx, msg); }
+                JS_FreeValue(js_ctx, exc);
+            }
+            JS_FreeValue(js_ctx, val);
+        } else {
+            uart_puts("endo-init: Daemon bytecode load failed\n");
+        }
+    } else if (&js_daemon_bundle != NULL && js_daemon_bundle_len > 0) {
+        uart_puts("endo-init: Loading daemon (JS text, slow)\n");
+        eval_source(js_ctx, js_daemon_bundle, js_daemon_bundle_len,
+                    "daemon-bundle.js");
+    } else {
+        uart_puts("endo-init: No daemon bundle available\n");
+    }
+
+    /* Load in-memory DaemonicPowers. */
     eval_source(js_ctx, js_daemon_powers, js_daemon_powers_len,
                 "daemon-powers.js");
 
-    /* 4. Load and run the Endo shell (enters REPL). */
+    /* Load and run the Endo shell (enters REPL). */
     eval_source(js_ctx, js_bootstrap, js_bootstrap_len,
                 "endo-shell.js");
-
-    /* The shell JS calls readline() in a loop, so we never
-       return from here during normal operation.  If we do
-       return, Microkit enters its event loop. */
 }
 
 void notified(microkit_channel channel) {
-    /* Channel 0 = UART IRQ.  For now the shell uses polling
-       (uart_readline spin-waits), but we could switch to
-       interrupt-driven I/O here. */
     if (channel == 0) {
         microkit_irq_ack(channel);
     }

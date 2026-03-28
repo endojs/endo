@@ -460,9 +460,13 @@ struct tm *localtime_r(const time_t *t, struct tm *result) {
 /* ---- Misc stubs ---- */
 
 void abort(void) {
-    microkit_dbg_puts("ABORT\n");
-    for (;;) {}  /* Hang — we're PID 1 */
+    /* Print a traceable message before hanging. */
+    microkit_dbg_puts("!!! ABORT called !!!\n");
+    microkit_dbg_puts("(check if heap ran out of memory)\n");
+    for (;;) {}
 }
+
+/* __assert_fail is provided by libmicrokit.a — no stub needed. */
 
 void exit(int status) {
     (void)status;

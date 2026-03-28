@@ -40,9 +40,8 @@ QJS_OBJS := $(BUILD_DIR)/quickjs.o \
             $(BUILD_DIR)/libunicode.o \
             $(BUILD_DIR)/dtoa.o
 
-# Embedded JS sources (loaded in order).
-JS_OBJS := $(BUILD_DIR)/js_ses_loader.o \
-           $(BUILD_DIR)/js_daemon_bundle.o \
+# Embedded sources (daemon bytecode + JS text).
+JS_OBJS := $(BUILD_DIR)/daemon_bytecode.o \
            $(BUILD_DIR)/js_daemon_powers.o \
            $(BUILD_DIR)/js_bootstrap.o
 
@@ -66,6 +65,9 @@ $(BUILD_DIR)/heap.o: src/heap.c
 $(BUILD_DIR)/libc_stubs.o: src/libc_stubs.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+$(BUILD_DIR)/assert_stub.o: src/assert_stub.c
+	$(CC) -mcpu=cortex-a53 -ffreestanding -nostdlib -O2 -c -o $@ $<
+
 # --- QuickJS-ng core ---
 $(BUILD_DIR)/quickjs.o: $(QUICKJS_SRC)/quickjs.c
 	$(CC) $(CFLAGS) -Wno-type-limits -Wno-array-bounds -c -o $@ $<
@@ -79,25 +81,12 @@ $(BUILD_DIR)/libunicode.o: $(QUICKJS_SRC)/libunicode.c
 $(BUILD_DIR)/dtoa.o: $(QUICKJS_SRC)/dtoa.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+# --- Daemon bytecode (pre-compiled by qjsc) ---
+$(BUILD_DIR)/daemon_bytecode.o: src/daemon-bytecode.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
 # --- Embed JS as C arrays ---
-$(BUILD_DIR)/js_ses_loader.o: src/ses-loader.js
-	@mkdir -p $(BUILD_DIR)
-	@echo "const char js_ses_lockdown[] = {" > $(BUILD_DIR)/js_ses_loader.c
-	xxd -i < $< >> $(BUILD_DIR)/js_ses_loader.c
-	@echo ", 0x00 };" >> $(BUILD_DIR)/js_ses_loader.c
-	@echo "const int js_ses_lockdown_len = sizeof(js_ses_lockdown) - 1;" \
-		>> $(BUILD_DIR)/js_ses_loader.c
-	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_ses_loader.c
-
-$(BUILD_DIR)/js_daemon_bundle.o: src/daemon-bundle.js
-	@mkdir -p $(BUILD_DIR)
-	@echo "const char js_daemon_bundle[] = {" > $(BUILD_DIR)/js_daemon_bundle.c
-	xxd -i < $< >> $(BUILD_DIR)/js_daemon_bundle.c
-	@echo ", 0x00 };" >> $(BUILD_DIR)/js_daemon_bundle.c
-	@echo "const int js_daemon_bundle_len = sizeof(js_daemon_bundle) - 1;" \
-		>> $(BUILD_DIR)/js_daemon_bundle.c
-	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_daemon_bundle.c
-
 $(BUILD_DIR)/js_daemon_powers.o: src/daemon-powers.js
 	@mkdir -p $(BUILD_DIR)
 	@echo "const char js_daemon_powers[] = {" > $(BUILD_DIR)/js_daemon_powers.c
