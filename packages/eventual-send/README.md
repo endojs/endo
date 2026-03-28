@@ -330,3 +330,7 @@ which provides native language support for eventual send operations.
   Miller's thesis on eventual send
 - [@endo/captp](../captp/README.md) - Cap'n Proto RPC implementation for network
   transport
+
+## License
+
+[Apache-2.0](./LICENSE)
