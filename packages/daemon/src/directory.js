@@ -18,11 +18,12 @@ import { directoryHelp, makeHelp } from './help-text.js';
 
 import { DirectoryInterface } from './interfaces.js';
 
-/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, ReadableBlobDeferredTaskParams } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
 
 /**
  * @param {object} args
  * @param {DaemonCore['provide']} args.provide
+ * @param {(storeId: FormulaIdentifier) => Promise<StoreController>} args.provideStoreController
  * @param {DaemonCore['getIdForRef']} args.getIdForRef
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
  * @param {DaemonCore['formulateDirectory']} args.formulateDirectory
@@ -32,6 +33,7 @@ import { DirectoryInterface } from './interfaces.js';
  */
 export const makeDirectoryMaker = ({
   provide,
+  provideStoreController,
   getIdForRef,
   getTypeForId,
   formulateDirectory,
@@ -41,7 +43,7 @@ export const makeDirectoryMaker = ({
 }) => {
   /** @type {MakeDirectoryNode} */
   const makeDirectoryNode = (
-    petStore,
+    controller,
     agentNodeNumber,
     isLocalKey,
     getNetworkAddresses,
@@ -51,7 +53,7 @@ export const makeDirectoryMaker = ({
       const namePath = namePathFrom(petNamePath);
       const [headName, ...tailNames] = namePath;
 
-      const id = petStore.identifyLocal(headName);
+      const id = controller.identifyLocal(headName);
       if (id === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
       }
@@ -67,7 +69,7 @@ export const makeDirectoryMaker = ({
       const namePath = namePathFrom(petNamePath);
       const [headName, ...tailNames] = namePath;
 
-      const id = petStore.identifyLocal(headName);
+      const id = controller.identifyLocal(headName);
       if (id === undefined) {
         return undefined;
       }
@@ -85,7 +87,7 @@ export const makeDirectoryMaker = ({
       if (id === undefined) {
         return harden([]);
       }
-      return petStore.reverseIdentify(id);
+      return controller.reverseIdentify(id);
     };
 
     /**
@@ -109,7 +111,7 @@ export const makeDirectoryMaker = ({
       assertNames(petNamePath);
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
-        return petStore.has(petName);
+        return controller.has(petName);
       }
       const { hub, name } = await lookupTailNameHub(
         /** @type {NamePath} */ (petNamePath),
@@ -122,7 +124,7 @@ export const makeDirectoryMaker = ({
       assertNames(petNamePath);
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
-        return petStore.identifyLocal(petName);
+        return controller.identifyLocal(petName);
       }
       const { hub, name } = await lookupTailNameHub(
         /** @type {NamePath} */ (petNamePath),
@@ -153,7 +155,7 @@ export const makeDirectoryMaker = ({
     /** @type {EndoDirectory['reverseLocate']} */
     const reverseLocate = async locator => {
       const { id } = internalizeLocator(locator, isLocalKey);
-      return petStore.reverseIdentify(id);
+      return controller.reverseIdentify(id);
     };
 
     /** @type {EndoDirectory['followLocatorNameChanges']} */
@@ -161,7 +163,7 @@ export const makeDirectoryMaker = ({
       locator,
     ) {
       const { id } = internalizeLocator(locator, isLocalKey);
-      for await (const idNameChange of petStore.followIdNameChanges(id)) {
+      for await (const idNameChange of controller.followIdNameChanges(id)) {
         /** @type {any} */
         const locatorNameChange = {
           ...idNameChange,
@@ -178,7 +180,7 @@ export const makeDirectoryMaker = ({
     const list = async (...petNamePath) => {
       assertNames(petNamePath);
       if (petNamePath.length === 0) {
-        return petStore.list();
+        return controller.list();
       }
       const hub = /** @type {NameHub} */ (await lookup(petNamePath));
       return E(hub).list();
@@ -204,7 +206,7 @@ export const makeDirectoryMaker = ({
     const listLocators = async (...petNamePath) => {
       assertNames(petNamePath);
       if (petNamePath.length === 0) {
-        const names = await petStore.list();
+        const names = await controller.list();
         /** @type {Record<string, string>} */
         const record = {};
         await Promise.all(
@@ -227,7 +229,7 @@ export const makeDirectoryMaker = ({
     ) {
       assertNames(petNamePath);
       if (petNamePath.length === 0) {
-        yield* petStore.followNameChanges();
+        yield* controller.followNameChanges();
         return;
       }
       const hub = /** @type {NameHub} */ (await lookup(petNamePath));
@@ -239,7 +241,7 @@ export const makeDirectoryMaker = ({
       const { prefixPath, petName } = assertPetNamePath(petNamePath);
       await null;
       if (prefixPath.length === 0) {
-        await petStore.remove(petName);
+        await controller.remove(petName);
         return;
       }
       const hub = /** @type {NameHub} */ (await lookup(prefixPath));
@@ -261,7 +263,7 @@ export const makeDirectoryMaker = ({
         );
         if (samePrefix) {
           if (fromPrefixPath.length === 0) {
-            await petStore.rename(fromPetName, toPetName);
+            await controller.rename(fromPetName, toPetName);
           } else {
             const hub = /** @type {NameHub} */ (await lookup(fromPrefixPath));
             await E(hub).move([fromPetName], [toPetName]);
@@ -306,7 +308,7 @@ export const makeDirectoryMaker = ({
       );
       await null;
       if (prefixPath.length === 0) {
-        await petStore.storeIdentifier(petName, id);
+        await controller.storeIdentifier(petName, id);
         return;
       }
       const hub = /** @type {NameHub} */ (await lookup(prefixPath));
@@ -430,7 +432,7 @@ export const makeDirectoryMaker = ({
   }) => {
     // TODO thread context
 
-    const petStore = await provide(petStoreId, 'pet-store');
+    const petStore = await provideStoreController(petStoreId);
     const noNetworkAddresses = async () => [];
     const directory = makeDirectoryNode(
       petStore,

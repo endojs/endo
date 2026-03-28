@@ -54,7 +54,7 @@ const normalizeHostOrGuestOptions = opts => ({
 /**
  * @param {object} args
  * @param {DaemonCore['provide']} args.provide
- * @param {DaemonCore['provideController']} args.provideController
+ * @param {DaemonCore['provideStoreController']} args.provideStoreController
  * @param {DaemonCore['cancelValue']} args.cancelValue
  * @param {DaemonCore['formulateWorker']} args.formulateWorker
  * @param {DaemonCore['formulateHost']} args.formulateHost
@@ -69,6 +69,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
+ * @param {DaemonCore['formulateDirectoryForStore']} args.formulateDirectoryForStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
  * @param {DaemonCore['formulateTimer']} args.formulateTimer
@@ -87,7 +88,7 @@ const normalizeHostOrGuestOptions = opts => ({
  */
 export const makeHostMaker = ({
   provide,
-  provideController,
+  provideStoreController,
   cancelValue,
   formulateWorker,
   formulateHost,
@@ -102,6 +103,7 @@ export const makeHostMaker = ({
   formulateScratchMount,
   formulateInvitation,
   formulateSyncedPetStore,
+  formulateDirectoryForStore,
   getPeerIdForNodeIdentifier,
   formulateChannel,
   formulateTimer,
@@ -164,8 +166,8 @@ export const makeHostMaker = ({
       context.thisDiesIfThatDies(mailHubId);
     }
 
-    const basePetStore = await provide(storeId, 'pet-store');
-    const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
+    const baseController = await provideStoreController(storeId);
+    const mailboxController = await provideStoreController(mailboxStoreId);
     /** @type {Record<string, FormulaIdentifier>} */
     const specialNames = {
       ...platformNames,
@@ -183,7 +185,7 @@ export const makeHostMaker = ({
     if (mailHubId !== undefined) {
       specialNames['@mail'] = mailHubId;
     }
-    const specialStore = makePetSitter(basePetStore, specialNames);
+    const specialStore = makePetSitter(baseController, specialNames);
 
     const getNetworkAddresses = () =>
       getAllNetworkAddresses(networksDirectoryId);
@@ -196,7 +198,7 @@ export const makeHostMaker = ({
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,
-      mailboxStore,
+      mailboxStore: mailboxController,
       directory,
       selfId: handleId,
       context,
@@ -819,8 +821,13 @@ export const makeHostMaker = ({
         peerId, // store dependency
       );
 
-      // Write the synced store into the guest's pet store under guestName.
-      await petStore.storeIdentifier(guestName, syncedStoreId);
+      // Wrap the synced store in a directory so it acts as a NameHub
+      // when resolved via multi-segment paths like "guestName.petName".
+      const { id: syncedDirectoryId } =
+        await formulateDirectoryForStore(syncedStoreId);
+
+      // Write the directory into the host's pet store under guestName.
+      await petStore.storeIdentifier(guestName, syncedDirectoryId);
     };
 
     /** @type {EndoHost['cancel']} */

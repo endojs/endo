@@ -786,8 +786,55 @@ export interface EndoDirectory extends NameHub {
   writeText(petNamePath: string | string[], content: string): Promise<void>;
 }
 
+export type GcHooks = {
+  onPetStoreWrite: (
+    storeId: FormulaIdentifier,
+    id: FormulaIdentifier,
+  ) => void;
+  onPetStoreRemove: (
+    storeId: FormulaIdentifier,
+    id: FormulaIdentifier,
+  ) => void;
+  isLocalId: (id: string) => boolean;
+  withFormulaGraphLock: (asyncFn?: () => Promise<any>) => Promise<any>;
+};
+
+export type StoreConverters = {
+  idFromLocator: (locator: string) => string;
+  formatLocator: (id: string, formulaType: string) => string;
+  getTypeForId: (id: FormulaIdentifier) => Promise<string>;
+  internalizeLocator: (
+    locator: string,
+    isLocalKey: (node: string) => boolean,
+  ) => { id: FormulaIdentifier; formulaType: string; addresses: string[] };
+  isLocalKey: (node: string) => boolean;
+};
+
+export interface StoreController {
+  has(petName: Name): boolean;
+  identifyLocal(petName: Name): string | undefined;
+  list(): Array<Name>;
+  reverseIdentify(id: string): Array<Name>;
+
+  storeIdentifier(petName: PetName, id: string): Promise<void>;
+  storeLocator(petName: PetName, locator: string): Promise<void>;
+  remove(petName: PetName): Promise<void>;
+  rename(fromPetName: PetName, toPetName: PetName): Promise<void>;
+
+  followNameChanges(): AsyncGenerator<
+    PetStoreNameChange,
+    undefined,
+    undefined
+  >;
+  followIdNameChanges(
+    id: string,
+  ): AsyncGenerator<PetStoreIdNameChange, undefined, undefined>;
+
+  seedGcEdges(): Promise<void>;
+}
+
 export type MakeDirectoryNode = (
-  petStore: PetStore,
+  controller: StoreController,
   agentNodeNumber: NodeNumber,
   isLocalKey: (node: string) => boolean,
   getNetworkAddresses: () => Promise<string[]>,
@@ -795,8 +842,8 @@ export type MakeDirectoryNode = (
 
 export interface Mail {
   handle: () => Handle;
-  // Partial inheritance from PetStore:
-  petStore: PetStore;
+  // Partial inheritance from StoreController:
+  petStore: StoreController;
   // Mail operations:
   listMessages(): Promise<Array<StampedMessage>>;
   followMessages(): AsyncGenerator<StampedMessage, undefined, undefined>;
@@ -882,8 +929,8 @@ export interface Mail {
 export type MakeMailbox = (args: {
   selfId: FormulaIdentifier;
   agentNodeNumber: NodeNumber;
-  petStore: PetStore;
-  mailboxStore: PetStore;
+  petStore: StoreController;
+  mailboxStore: StoreController;
   directory: EndoDirectory;
   context: Context;
 }) => Promise<Mail>;
@@ -892,7 +939,7 @@ export type RequestFn = (
   what: string,
   responseName: string,
   guestId: string,
-  guestPetStore: PetStore,
+  guestPetStore: StoreController,
 ) => Promise<unknown>;
 
 export interface EndoReadable {
@@ -1501,6 +1548,10 @@ export interface DaemonCore {
 
   formulateDirectory: () => FormulateResult<EndoDirectory>;
 
+  formulateDirectoryForStore: (
+    storeId: FormulaIdentifier,
+  ) => FormulateResult<EndoDirectory>;
+
   formulateSyncedPetStore: (
     peerId: FormulaIdentifier,
     role: 'grantor' | 'grantee',
@@ -1672,7 +1723,7 @@ export interface DaemonCore {
 
   provide: Provide;
 
-  provideController: (id: FormulaIdentifier) => Controller;
+  provideStoreController: (id: FormulaIdentifier) => Promise<StoreController>;
 
   provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
 

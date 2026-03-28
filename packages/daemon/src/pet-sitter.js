@@ -5,20 +5,20 @@ import { q } from '@endo/errors';
 import { isPetName, assertName } from './pet-name.js';
 import { parseId } from './formula-identifier.js';
 
-/** @import { PetStore, IdRecord, PetStoreIdNameChange, Name, SpecialName } from './types.js' */
+/** @import { StoreController, IdRecord, PetStoreIdNameChange, Name, SpecialName } from './types.js' */
 
 /**
- * @param {PetStore} petStore
+ * @param {StoreController} controller
  * @param {Record<string,string>} specialNames
- * @returns {PetStore}
+ * @returns {StoreController}
  */
-export const makePetSitter = (petStore, specialNames) => {
-  /** @type {PetStore['has']} */
+export const makePetSitter = (controller, specialNames) => {
+  /** @type {StoreController['has']} */
   const has = petName => {
-    return Object.hasOwn(specialNames, petName) || petStore.has(petName);
+    return Object.hasOwn(specialNames, petName) || controller.has(petName);
   };
 
-  /** @type {PetStore['identifyLocal']} */
+  /** @type {StoreController['identifyLocal']} */
   const identifyLocal = petName => {
     if (Object.hasOwn(specialNames, petName)) {
       return specialNames[petName];
@@ -30,7 +30,7 @@ export const makePetSitter = (petStore, specialNames) => {
         ).join(', ')}`,
       );
     }
-    return petStore.identifyLocal(petName);
+    return controller.identifyLocal(petName);
   };
 
   /**
@@ -46,15 +46,15 @@ export const makePetSitter = (petStore, specialNames) => {
     return parseId(id);
   };
 
-  /** @type {PetStore['list']} */
+  /** @type {StoreController['list']} */
   const list = () => {
     const specialKeys =
       /** @type {SpecialName[]} */
       (Object.keys(specialNames).sort());
-    return harden([...specialKeys, ...petStore.list()]);
+    return harden([...specialKeys, ...controller.list()]);
   };
 
-  /** @type {PetStore['followNameChanges']} */
+  /** @type {StoreController['followNameChanges']} */
   const followNameChanges = async function* currentAndSubsequentNames() {
     const specialKeys =
       /** @type {SpecialName[]} */
@@ -66,12 +66,12 @@ export const makePetSitter = (petStore, specialNames) => {
         value: idRecord,
       });
     }
-    yield* petStore.followNameChanges();
+    yield* controller.followNameChanges();
   };
 
-  /** @type {PetStore['followIdNameChanges']} */
+  /** @type {StoreController['followIdNameChanges']} */
   const followIdNameChanges = async function* currentAndSubsequentIds(id) {
-    const subscription = petStore.followIdNameChanges(id);
+    const subscription = controller.followIdNameChanges(id);
 
     const idSpecialNames = Object.entries(specialNames)
       .filter(([_, specialId]) => specialId === id)
@@ -96,9 +96,9 @@ export const makePetSitter = (petStore, specialNames) => {
     yield* subscription;
   };
 
-  /** @type {PetStore['reverseIdentify']} */
+  /** @type {StoreController['reverseIdentify']} */
   const reverseIdentify = id => {
-    const names = Array.from(petStore.reverseIdentify(id));
+    const names = Array.from(controller.reverseIdentify(id));
     for (const [specialName, specialId] of Object.entries(specialNames)) {
       if (specialId === id) {
         names.push(/** @type {SpecialName} */ (specialName));
@@ -107,7 +107,8 @@ export const makePetSitter = (petStore, specialNames) => {
     return harden(names);
   };
 
-  const { storeIdentifier, remove, rename } = petStore;
+  const { storeIdentifier, storeLocator, remove, rename, seedGcEdges } =
+    controller;
 
   const petSitter = {
     has,
@@ -117,8 +118,10 @@ export const makePetSitter = (petStore, specialNames) => {
     followIdNameChanges,
     followNameChanges,
     storeIdentifier,
+    storeLocator,
     remove,
     rename,
+    seedGcEdges,
   };
 
   return petSitter;

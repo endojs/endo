@@ -6,6 +6,7 @@
 /** @import { FilePowers, PetName, SyncedEntry, SyncedPetStoreState, SyncedPetStoreMetadata, SyncedPetStorePowers, SyncedPetStore } from './types.js' */
 
 import harden from '@endo/harden';
+import { Far } from '@endo/far';
 import { q } from '@endo/errors';
 
 import { makeChangeTopic } from './pubsub.js';
@@ -360,7 +361,7 @@ export const makeSyncedPetStore = async ({
     yield* subscription;
   };
 
-  return harden({
+  return Far('SyncedPetStore', {
     storeLocator,
     remove,
     has,

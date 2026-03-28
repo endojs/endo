@@ -14,7 +14,7 @@ import {
 } from './interfaces.js';
 import { makeHelp } from './help-text.js';
 
-/** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, Provide } from './types.js' */
+/** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, Provide, StoreController } from './types.js' */
 
 /**
  * @type {Record<string, string>}
@@ -71,7 +71,19 @@ harden(channelInvitationHelp);
  * @param {(value: import('@endo/pass-style').Passable) => Promise<FormulaIdentifier>} args.persistValue
  * @param {() => Promise<string>} args.randomHex256
  */
-export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
+/**
+ * @param {object} args
+ * @param {Provide} args.provide
+ * @param {(storeId: FormulaIdentifier) => Promise<StoreController>} args.provideStoreController
+ * @param {(value: import('@endo/pass-style').Passable) => Promise<FormulaIdentifier>} args.persistValue
+ * @param {() => Promise<string>} args.randomHex256
+ */
+export const makeChannelMaker = ({
+  provide,
+  provideStoreController,
+  persistValue,
+  randomHex256,
+}) => {
   /**
    * @param {FormulaIdentifier} channelId
    * @param {FormulaIdentifier} handleId
@@ -94,8 +106,8 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
     context.thisDiesIfThatDies(messageStoreId);
     context.thisDiesIfThatDies(memberStoreId);
 
-    const messageStore = await provide(messageStoreId, 'pet-store');
-    const memberStore = await provide(memberStoreId, 'pet-store');
+    const messageStore = await provideStoreController(messageStoreId);
+    const memberStore = await provideStoreController(memberStoreId);
 
     /** @type {ChannelMessage[]} */
     const messages = [];
