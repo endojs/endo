@@ -5483,6 +5483,24 @@ button.btn-spinner::after {
   gap: 8px;
 }
 
+.attenuator-copy-link-btn {
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.attenuator-copy-link-btn:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
 .attenuator-ban-btn {
   padding: 4px 10px;
   border: 1px solid var(--danger);

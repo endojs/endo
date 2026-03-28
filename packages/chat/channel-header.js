@@ -153,7 +153,9 @@ export const createChannelHeader = ({
 
       // Ask how to deliver the invitation
       if (powers && channelPetName) {
-        // Show delivery options
+        // Show delivery options modal.
+        // NOTE: render() must NOT be called while the modal is open —
+        // it replaces $container.innerHTML, which would destroy the modal.
         const $modal = document.createElement('div');
         $modal.className = 'invite-delivery-modal';
         $modal.innerHTML = `
@@ -179,18 +181,37 @@ export const createChannelHeader = ({
           $modal.querySelector('.invite-delivery-close')
         );
 
-        const closeModal = () => $modal.remove();
+        const closeModal = () => {
+          $modal.remove();
+          render();
+        };
 
         $closeBtn.addEventListener('click', closeModal);
 
         $linkBtn.addEventListener('click', async () => {
-          closeModal();
+          $modal.remove();
           try {
-            const rawLocator = await E(
-              /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
-                powers
-              ),
-            ).locateForSharing(channelPetName);
+            let rawLocator;
+            try {
+              rawLocator = await E(
+                /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
+                  powers
+                ),
+              ).locateForSharing(channelPetName);
+            } catch {
+              rawLocator = await E(
+                /** @type {{ locate: (...args: string[]) => Promise<string> }} */ (
+                  powers
+                ),
+              ).locate(channelPetName);
+            }
+            if (!rawLocator || !String(rawLocator).startsWith('endo://')) {
+              window.alert(
+                'Could not generate a shareable link. The daemon may not have network addresses configured.',
+              );
+              render();
+              return;
+            }
             const locator =
               viewMode && viewMode !== 'chat'
                 ? `${rawLocator}&view=${viewMode}`
@@ -204,6 +225,7 @@ export const createChannelHeader = ({
               `Invitation created for "${inviteeName}". Share the channel locator directly.`,
             );
           }
+          render();
         });
 
         $contactBtn.addEventListener('click', async () => {
@@ -242,6 +264,8 @@ export const createChannelHeader = ({
             );
           }
         });
+        // Return early — render() is deferred until the modal closes.
+        return;
       }
     } catch (err) {
       window.alert(
@@ -371,6 +395,10 @@ export const createChannelHeader = ({
           </details>
 
           <div class="heat-sim-container"></div>
+
+          <div class="attenuator-field">
+            <button type="button" class="attenuator-copy-link-btn">Copy Invite Link</button>
+          </div>
 
           <div class="attenuator-field">
             <span>Emergency ban</span>
@@ -542,6 +570,47 @@ export const createChannelHeader = ({
         } catch (err) {
           window.alert(
             `Failed to apply ban: ${/** @type {Error} */ (err).message}`,
+          );
+        }
+      });
+    }
+
+    const $copyLinkBtn = $container.querySelector('.attenuator-copy-link-btn');
+    if ($copyLinkBtn && powers && channelPetName) {
+      $copyLinkBtn.addEventListener('click', async () => {
+        try {
+          // Try locateForSharing (host), fall back to locate (guest/directory)
+          let rawLocator;
+          try {
+            rawLocator = await E(
+              /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
+                powers
+              ),
+            ).locateForSharing(channelPetName);
+          } catch {
+            rawLocator = await E(
+              /** @type {{ locate: (...args: string[]) => Promise<string> }} */ (
+                powers
+              ),
+            ).locate(channelPetName);
+          }
+          if (!rawLocator || !String(rawLocator).startsWith('endo://')) {
+            window.alert(
+              'Could not generate a shareable link. The daemon may not have network addresses configured.',
+            );
+            return;
+          }
+          const locator =
+            viewMode && viewMode !== 'chat'
+              ? `${rawLocator}&view=${viewMode}`
+              : rawLocator;
+          window.prompt(
+            'Share this invite link:',
+            /** @type {string} */ (locator),
+          );
+        } catch (err) {
+          window.alert(
+            `Failed to generate link: ${/** @type {Error} */ (err).message}`,
           );
         }
       });

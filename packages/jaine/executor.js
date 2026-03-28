@@ -77,6 +77,19 @@ SES environment restrictions:
 - Use harden() on any objects you create before passing them around.
 - BigInt literals use the n suffix: 42n, not BigInt(42).
 
+CHANNEL CONTEXT:
+When handling channel messages, the exec tool gives you a \`member\` handle
+(your channel identity), NOT raw powers. Use member for all channel ops:
+  await E(member).post(["text"], [], [], "replyTo");
+  await E(member).listMessages();
+  const [inv, att] = await E(member).createInvitation("sub-bot");
+Do NOT look up channels by name and call join() — that bypasses your
+identity. Everything you create should go through your member handle so
+the pedigree chain shows you as the creator.
+
+If you need a capability you don't have, use the requestPermission tool
+to ask the host.
+
 You have access to your own source code and the broader Endo project via
 readFile and listDir. Use these to understand your environment when needed.`;
 
@@ -147,29 +160,203 @@ const processToolCalls = async (toolCalls, toolMap) => {
 harden(processToolCalls);
 
 /**
+ * @typedef {object} ChannelContext
+ * @property {object} member - Jaine's member handle for this channel
+ * @property {string} channelName - petname of the channel
+ */
+
+/**
+ * Create a channel-scoped exec tool that exposes the member handle
+ * instead of raw powers. The LLM can post, read, and create
+ * sub-invitations through the member handle, maintaining proper
+ * pedigree chains (admin -> jaine -> sub-member).
+ *
+ * @param {object} member - Jaine's channel member handle
+ * @returns {object}
+ */
+const makeChannelExecTool = member => {
+  /** @type {import('@endo/fae/src/tool-makers.js').ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'exec',
+      description:
+        'Execute JavaScript code scoped to this channel.\n\n' +
+        'Available globals:\n' +
+        '- member: your channel member handle (post, listMessages, createInvitation, getMembers)\n' +
+        '- E: eventual send — use E(ref).method() for all remote calls\n' +
+        '- harden: freeze objects for safe passing\n' +
+        '- console: for logging\n\n' +
+        'You are scoped to this channel. Use member to interact:\n' +
+        '```\n' +
+        'const msgs = await E(member).listMessages();\n' +
+        'await E(member).post(["Hello!"], [], [], "42");\n' +
+        'const [invitation, attenuator] = await E(member).createInvitation("bot-helper");\n' +
+        'return "done";\n' +
+        '```\n' +
+        'Do NOT join channels or create new members directly. Use createInvitation() ' +
+        'on your member handle so sub-members appear under your identity.',
+      parameters: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description:
+              'JavaScript code to execute. Runs as an async function body. ' +
+              'Use E(member).method() for channel operations. Return a result.',
+          },
+        },
+        required: ['code'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const { code } = /** @type {{ code: string }} */ (args);
+      if (!code) {
+        throw new Error('code is required');
+      }
+      const wrappedSource = `(async (member, E, harden, console) => {\n${code}\n})`;
+      const c = new Compartment({
+        __options__: true,
+        globals: { BigInt },
+      });
+      const fn = c.evaluate(wrappedSource);
+      const result = await fn(member, E, harden, console);
+      if (result === undefined) {
+        return 'done (no return value)';
+      }
+      try {
+        return JSON.stringify(result, null, 2);
+      } catch {
+        return String(result);
+      }
+    },
+    help() {
+      return 'Execute JavaScript scoped to the current channel member handle.';
+    },
+  });
+};
+harden(makeChannelExecTool);
+
+/**
+ * Create a tool that lets Jaine request permissions from the host
+ * by sending a form.
+ *
+ * @param {object} powers - agent guest powers
+ * @returns {object}
+ */
+const makeRequestPermissionTool = powers => {
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'requestPermission',
+      description:
+        'Request a capability or permission from the host by sending a form. ' +
+        'The host will see the request in their inbox and can approve or deny it. ' +
+        'Use this when you need access to something you do not currently have.',
+      parameters: {
+        type: 'object',
+        properties: {
+          description: {
+            type: 'string',
+            description:
+              'Human-readable description of what you need and why.',
+          },
+          fields: {
+            type: 'array',
+            description:
+              'Form fields for the host to fill in. Each field has name, label, and optional default.',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                label: { type: 'string' },
+                default: { type: 'string' },
+              },
+              required: ['name', 'label'],
+            },
+          },
+        },
+        required: ['description'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const { description, fields = [] } =
+        /** @type {{ description: string, fields?: Array<{ name: string, label: string, default?: string }> }} */ (
+          args
+        );
+      if (!description) {
+        throw new Error('description is required');
+      }
+      const formFields = fields.length > 0
+        ? fields.map(f => harden({
+            name: f.name,
+            label: f.label,
+            default: f.default || '',
+          }))
+        : [harden({ name: 'approved', label: 'Approve this request?', default: 'yes' })];
+
+      await E(powers).form(
+        '@host',
+        `Jaine permission request: ${description}`,
+        harden(formFields),
+      );
+      return `Permission request sent to host: "${description}". Waiting for approval.`;
+    },
+    help() {
+      return 'Request a capability or permission from the host via a form.';
+    },
+  });
+};
+harden(makeRequestPermissionTool);
+
+/**
  * Create an executor that performs capability operations given an intent.
  *
  * The executor has its own LLM context with the full tool set. It never
  * posts to channels directly — it returns results to the composer.
  *
+ * When a channelContext is provided, the exec tool is scoped to the
+ * channel member handle instead of raw powers. This ensures proper
+ * pedigree chains (admin -> jaine -> sub-members) and prevents the
+ * LLM from accessing unrelated channels.
+ *
  * @param {object} powers - agent guest powers
  * @param {{ chat: (messages: object[], tools: object[]) => Promise<{ message: object }> }} provider
+ * @param {ChannelContext} [channelContext] - if present, scopes exec to this channel
  * @returns {{ execute: (intent: string) => Promise<ExecutorOutcome> }}
  */
-export const makeExecutor = (powers, provider) => {
+export const makeExecutor = (powers, provider, channelContext) => {
   // Build the full tool set
   /** @type {Map<string, object>} */
   const allTools = new Map();
   allTools.set('list', makeListPetnamesTool(powers));
   allTools.set('lookup', makeLookupTool(powers));
   allTools.set('adopt', makeAdoptTool(powers));
-  allTools.set('exec', makeExecTool(powers));
+  // Use channel-scoped exec when in a channel context
+  if (channelContext) {
+    allTools.set('exec', makeChannelExecTool(channelContext.member));
+  } else {
+    allTools.set('exec', makeExecTool(powers));
+  }
   allTools.set('readChannel', makeReadChannelTool(powers));
   allTools.set('send', makeSendTool(powers));
   allTools.set('reply', makeReplyTool(powers));
   allTools.set('dismiss', makeDismissTool(powers));
   allTools.set('readFile', makeReadFileTool(projectRoot));
   allTools.set('listDir', makeListDirTool(projectRoot));
+  allTools.set('requestPermission', makeRequestPermissionTool(powers));
 
   // Timer tool
   const timerTool = harden({

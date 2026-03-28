@@ -192,8 +192,34 @@ export const spawnWorkerLoop = async (
 
   // Create the three layers — router uses fast provider if available
   const router = await makeRouter(powers, fastProvider || provider);
-  const executor = makeExecutor(powers, provider);
-  const composer = makeComposer(provider, intent => executor.execute(intent));
+  // Default executor for inbox messages (full powers)
+  const inboxExecutor = makeExecutor(powers, provider);
+  const inboxComposer = makeComposer(provider, intent =>
+    inboxExecutor.execute(intent),
+  );
+
+  /**
+   * Create a channel-scoped composer+executor pair for a specific member.
+   * The exec tool is scoped to the member handle, maintaining proper
+   * pedigree chains and preventing cross-channel access.
+   *
+   * @param {object} member - Jaine's channel member handle
+   * @param {string} channelName - petname of the channel
+   * @returns {{ composer: { compose: Function }, executor: { execute: Function } }}
+   */
+  const makeChannelLayers = (member, channelName) => {
+    const channelExecutor = makeExecutor(powers, provider, {
+      member,
+      channelName,
+    });
+    const channelComposer = makeComposer(provider, intent =>
+      channelExecutor.execute(intent),
+    );
+    return { composer: channelComposer, executor: channelExecutor };
+  };
+
+  /** @type {Map<string, { composer: { compose: Function }, executor: { execute: Function } }>} */
+  const channelLayers = new Map();
 
   // --- Channel watching ---
 
@@ -327,10 +353,19 @@ export const spawnWorkerLoop = async (
             }
           }
 
-          // Compose and post response
+          // Compose and post response using channel-scoped layers
           if (decision.shouldEngage) {
             try {
-              await handleChannelResponse(composer, member, msg);
+              if (!channelLayers.has(channelId)) {
+                channelLayers.set(
+                  channelId,
+                  makeChannelLayers(member, channelName),
+                );
+              }
+              const layers = /** @type {{ composer: { compose: Function } }} */ (
+                channelLayers.get(channelId)
+              );
+              await handleChannelResponse(layers.composer, member, msg);
             } catch (err) {
               console.error(
                 `[jaine][watch] Response error in ${channelName}:`,
@@ -475,21 +510,41 @@ export const spawnWorkerLoop = async (
         // Mark the channel message so the watcher doesn't re-process it
         mentionHandledMessages.add(decision.mentionInfo.replyTo);
         // ---- Channel mention flow: Router → Composer → Executor ----
+        // handleMention joins the channel and returns the member handle.
+        // We use a two-pass approach: first join to get the member, then
+        // create channel-scoped layers for the composer/executor.
         const mentionResult = await handleMention(
           powers,
-          composer,
+          null, // composer supplied after we get the member handle
           decision.textContent,
           decision.mentionInfo,
           number,
           msgNum,
         );
 
-        // Start watching this channel if not already
+        // Start watching this channel if not already, and compose
+        // the response using channel-scoped layers
         if (mentionResult) {
           try {
             const channelId = await E(powers).identify(
               mentionResult.channelName,
             );
+            if (!channelLayers.has(channelId)) {
+              channelLayers.set(
+                channelId,
+                makeChannelLayers(
+                  mentionResult.member,
+                  mentionResult.channelName,
+                ),
+              );
+            }
+
+            // Now compose the response with channel-scoped executor
+            const layers = /** @type {{ composer: { compose: Function } }} */ (
+              channelLayers.get(channelId)
+            );
+            await mentionResult.compose(layers.composer);
+
             if (!watchedChannels.has(channelId)) {
               watchedChannels.set(channelId, true);
               const selfMemberId = await resolveSelfMemberId(
@@ -516,10 +571,10 @@ export const spawnWorkerLoop = async (
           }
         }
       } else {
-        // ---- General inbox flow: direct to Executor ----
+        // ---- General inbox flow: direct to Executor (full powers) ----
         await handleInbox(
           powers,
-          executor,
+          inboxExecutor,
           provider,
           decision.textContent,
           number,
@@ -551,20 +606,30 @@ harden(spawnWorkerLoop);
 // ---------------------------------------------------------------------------
 
 /**
- * Handle a channel mention: post placeholder, pre-fetch context, compose,
- * and edit the placeholder with the final response.
+ * @typedef {object} MentionResult
+ * @property {object} member - channel member handle
+ * @property {string} channelName - petname for the channel
+ * @property {(scopedComposer: { compose: Function }) => Promise<void>} compose
+ *   - call with a channel-scoped composer to complete the response
+ */
+
+/**
+ * Handle a channel mention: join channel, post placeholder, pre-fetch
+ * context. Returns a result with a `compose` callback that the caller
+ * invokes with a channel-scoped composer (ensuring the exec tool is
+ * scoped to Jaine's member handle, not raw powers).
  *
  * @param {object} powers
- * @param {{ compose: Function }} composer
+ * @param {null} _composer - unused, kept for call-site compat
  * @param {string} textContent
  * @param {{ edge: string, join: string, replyTo: string }} mentionInfo
  * @param {bigint | number} messageNumber - inbox message number
  * @param {bigint} msgNum
- * @returns {Promise<{ member: object, channelName: string } | null>}
+ * @returns {Promise<MentionResult | null>}
  */
 const handleMention = async (
   powers,
-  composer,
+  _composer,
   textContent,
   mentionInfo,
   messageNumber,
@@ -583,6 +648,7 @@ const handleMention = async (
   }
 
   // Join the channel and get a member handle
+  /** @type {object} */
   let member;
   try {
     const ch = await E(powers).lookup(chRefName);
@@ -675,27 +741,33 @@ const handleMention = async (
     );
   }
 
-  // Compose the response
-  await updatePlaceholder('Composing response...');
-  const result = await composer.compose(
-    threadContext,
-    textContent,
-    updatePlaceholder,
-    recentHistory,
-  );
-
-  // Final edit with the response
-  if (result.responseText) {
-    await updatePlaceholder(result.responseText);
-    console.log(
-      `[jaine] Response posted (${result.responseText.length} chars)`,
+  /**
+   * Complete the response using a channel-scoped composer.
+   * Called by the main loop after channel layers are created.
+   *
+   * @param {{ compose: Function }} scopedComposer
+   */
+  const compose = async scopedComposer => {
+    await updatePlaceholder('Composing response...');
+    const result = await scopedComposer.compose(
+      threadContext,
+      textContent,
+      updatePlaceholder,
+      recentHistory,
     );
-  } else {
-    await updatePlaceholder('(No response generated)');
-    console.log('[jaine] Composer returned empty response');
-  }
 
-  return harden({ member, channelName: chRefName });
+    if (result.responseText) {
+      await updatePlaceholder(result.responseText);
+      console.log(
+        `[jaine] Response posted (${result.responseText.length} chars)`,
+      );
+    } else {
+      await updatePlaceholder('(No response generated)');
+      console.log('[jaine] Composer returned empty response');
+    }
+  };
+
+  return harden({ member, channelName: chRefName, compose });
 };
 harden(handleMention);
 
@@ -871,13 +943,13 @@ export const make = (guestPowers, _context) => {
       // Write provider + agent refs into driver namespace
       const driverPowers = await E(hostAgent).lookup(driverProfileName);
       const providerId = await E(powers).identify('llm-provider');
-      await E(driverPowers).write('llm-provider', providerId);
+      await E(driverPowers).storeIdentifier('llm-provider', providerId);
 
       // Propagate fast provider if configured
       try {
         const fastProviderId = await E(powers).identify('llm-provider-fast');
         if (fastProviderId) {
-          await E(driverPowers).write('llm-provider-fast', fastProviderId);
+          await E(driverPowers).storeIdentifier('llm-provider-fast', fastProviderId);
         }
       } catch {
         // No fast provider configured — that's fine.
@@ -885,7 +957,7 @@ export const make = (guestPowers, _context) => {
 
       const agentLocator = await E(hostAgent).locate(agentName);
       const agentId = await E(hostAgent).identify(agentName);
-      await E(driverPowers).write('agent', agentId);
+      await E(driverPowers).storeIdentifier('agent', agentId);
 
       // Launch driver
       /** @type {Record<string, string>} */
@@ -911,7 +983,7 @@ export const make = (guestPowers, _context) => {
       if (pin) {
         const driverId = await E(hostAgent).identify(driverResultName);
         try {
-          await E(hostAgent).write(['@pins', driverResultName], driverId);
+          await E(hostAgent).storeIdentifier(['@pins', driverResultName], driverId);
         } catch {
           console.log(
             `[jaine-factory] Could not pin ${driverResultName}`,

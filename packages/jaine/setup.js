@@ -197,11 +197,11 @@ export const main = async agent => {
 
   // Write provider references into the factory's namespace
   const factoryPowers = await E(agent).lookup(agentName);
-  await E(factoryPowers).write('llm-provider', providerId);
+  await E(factoryPowers).storeIdentifier('llm-provider', providerId);
 
   if (hasFastConfig) {
     const fastProviderId = await resolveProvider(agent, fastProviderName);
-    await E(factoryPowers).write('llm-provider-fast', fastProviderId);
+    await E(factoryPowers).storeIdentifier('llm-provider-fast', fastProviderId);
     console.log(`[jaine] Fast provider "${fastProviderName}" configured.`);
   }
 

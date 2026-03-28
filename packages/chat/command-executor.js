@@ -354,12 +354,27 @@ export const createCommandExecutor = ({
         case 'locate': {
           const { petName } = params;
           const pathParts = String(petName).split('/');
-          const locator = await E(powers).locate(
+          let locator = await E(powers).locate(
             .../** @type {[string, ...string[]]} */ (pathParts),
           );
           if (locator === undefined) {
             throw new Error(`No value found for "${petName}"`);
           }
+
+          // Invitations have their own locate() that includes the
+          // required 'from' parameter for acceptance.  The generic
+          // directory locate() omits it, producing a broken link.
+          if (String(locator).includes('type=invitation')) {
+            try {
+              const ref = await E(powers).lookup(
+                .../** @type {[string, ...string[]]} */ (pathParts),
+              );
+              locator = await E(ref).locate();
+            } catch {
+              // Fall back to the generic locator
+            }
+          }
+
           showValue(locator, undefined, undefined, undefined);
           return { success: true, value: locator };
         }
