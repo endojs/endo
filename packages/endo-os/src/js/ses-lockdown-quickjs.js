@@ -24,7 +24,21 @@
     }
   }
   Compartment.prototype.evaluate = function evaluate(source) {
-    return (0, eval)(source);
+    // Inject endowments as function parameters so the evaluated
+    // code can reference them by name.
+    var names = Object.keys(this.globalThis);
+    var values = [];
+    for (var i = 0; i < names.length; i++) {
+      values.push(this.globalThis[names[i]]);
+    }
+    // Try as expression first (returns value), fall back to statements.
+    try {
+      var fn = Function.apply(null, names.concat(['"use strict"; return (' + source + ')']));
+      return fn.apply(undefined, values);
+    } catch (e) {
+      var fn2 = Function.apply(null, names.concat(['"use strict";' + source]));
+      return fn2.apply(undefined, values);
+    }
   };
 
   globalThis.harden = harden;
