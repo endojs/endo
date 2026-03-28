@@ -48,14 +48,28 @@ COPY packages/endo-os/sel4/build/daemon-bundle.js /build/daemon-bundle.js
 # Compile JS → bytecode C array.
 # -c generates a .c file with the bytecode as a uint8_t array.
 # -m compiles as a module (needed for IIFE with exports).
-# qjsc -e generates a standalone C file with main() + bytecode.
-# We just need the bytecode, so use -e and extract.
-# -m treats input as module (for ESM exports).
+# Post-process: stub import, strip export block, assign global.
+# The export block is the last 3 lines: "export {\n  makeDaemon\n};"
+RUN LINES=$(wc -l < /build/daemon-bundle.js) && \
+    KEEP=$((LINES - 3)) && \
+    sed 's/^import fs from "fs";/var fs = {};/' /build/daemon-bundle.js | \
+    head -${KEEP} > /build/daemon-bundle-qjsc.js && \
+    echo 'globalThis.EndoDaemon = { makeDaemon };' >> /build/daemon-bundle-qjsc.js && \
+    echo "Post-processed bundle: $(wc -l < /build/daemon-bundle-qjsc.js) lines"
+
+# Compile to bytecode with qjsc.
+# Compile to bytecode. qjsc -e generates a C file with main() + bytecode.
+# We post-process to rename variables and strip the main().
+# Compile to bytecode with qjsc, then extract just the data arrays.
 RUN cd /opt/quickjs && \
-    ./qjsc -e -m -o /build/daemon-bytecode.c /build/daemon-bundle.js 2>&1 && \
-    echo "Daemon bytecode compiled" && \
-    wc -c /build/daemon-bytecode.c || \
-    (echo "qjsc compilation failed — will fall back to JS text" && \
+    ./qjsc -e -o /tmp/qjsc-raw.c /build/daemon-bundle-qjsc.js > /tmp/qjsc.log 2>&1 && \
+    (echo '#include <stdint.h>' && \
+     echo '' && \
+     sed -n '/^const uint32_t\|^const uint8_t/,/^static JSContext\|^int main/{ /^static JSContext\|^int main/d; p; }' /tmp/qjsc-raw.c | \
+     sed 's/qjsc_daemon_bundle_qjsc/qjsc_daemon_bundle/g') > /build/daemon-bytecode.c && \
+    echo "Extracted bytecode: $(wc -c < /build/daemon-bytecode.c) bytes" && \
+    echo "Daemon bytecode compiled" || \
+    (echo "=== qjsc failed ===" && cat /tmp/qjsc.log && \
      echo '#include <stdint.h>' > /build/daemon-bytecode.c && \
      echo 'const uint8_t qjsc_daemon_bundle[] = {0}; const uint32_t qjsc_daemon_bundle_size = 0;' \
      >> /build/daemon-bytecode.c)
