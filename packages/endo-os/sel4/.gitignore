@@ -1,0 +1,7 @@
+/build/out/
+/build/cargo/
+/build/*.elf
+/build/*.img
+/build/*.a
+/build/report.txt
+/target/
