@@ -1046,6 +1046,7 @@ const makeDaemonCore = async (
     getTypeForId,
     internalizeLocator,
     isLocalKey,
+    localNodeNumber,
   });
 
   /** @type {Map<FormulaIdentifier, import('./types.js').StoreController>} */

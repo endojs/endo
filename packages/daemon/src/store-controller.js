@@ -2,7 +2,8 @@
 
 import harden from '@endo/harden';
 
-import { parseId } from './formula-identifier.js';
+import { formatId, parseId } from './formula-identifier.js';
+import { LOCAL_NODE } from './locator.js';
 
 /** @import { FormulaIdentifier, GcHooks, Name, PetName, PetStore, StoreController, StoreConverters, SyncedPetStore } from './types.js' */
 
@@ -220,7 +221,13 @@ export const makeSyncedStoreController = (
     const formulaType = await converters.getTypeForId(
       /** @type {FormulaIdentifier} */ (id),
     );
-    const locator = converters.formatLocator(id, formulaType);
+    // Externalize LOCAL_NODE to the real node number so that
+    // locators in the synced store are unambiguous across daemons.
+    const { number, node } = parseId(/** @type {FormulaIdentifier} */ (id));
+    const externalNode =
+      node === LOCAL_NODE ? converters.localNodeNumber : node;
+    const externalId = formatId({ number, node: externalNode });
+    const locator = converters.formatLocator(externalId, formulaType);
     await syncedStore.storeLocator(petName, locator);
     await withFormulaGraphLock(async () => {
       onPetStoreWrite(storeId, /** @type {FormulaIdentifier} */ (id));

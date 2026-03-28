@@ -808,6 +808,7 @@ export type StoreConverters = {
     isLocalKey: (node: string) => boolean,
   ) => { id: FormulaIdentifier; formulaType: string; addresses: string[] };
   isLocalKey: (node: string) => boolean;
+  localNodeNumber: NodeNumber;
 };
 
 export interface StoreController {
