@@ -15,8 +15,7 @@
     <protection_domain
         name="endo_init"
         priority="254"
-        stack_size="0x100000"
-        pp="true">
+        stack_size="0x100000">
         <!-- 1 MB stack for QuickJS heap + evaluation -->
         <program_image path="endo-init.elf" />
 
