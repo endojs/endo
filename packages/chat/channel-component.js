@@ -38,7 +38,7 @@ import { createReactSystem } from './react-utils.js';
  * @param {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} options.showValue
  * @param {string} [options.personaId] - Unique identifier for the current persona/space, used to scope the address book in localStorage
  * @param {string} [options.ownMemberId] - The current user's memberId, used to highlight own messages
- * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply] - Called when user clicks reply on a message
+ * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string, replyType?: string, fullText?: string }) => void} [options.onReply] - Called when user clicks reply or edit on a message
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen] - Called when a thread view is opened
  * @param {() => void} [options.onThreadClose] - Called when the thread view is closed
  * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork heritage chain to new channel
@@ -590,6 +590,25 @@ export const channelComponent = async (
           },
         });
       }
+      // Edit: set up the send form to edit this message (own messages only)
+      if (isOwn && onReply) {
+        const editKey = String(message.number);
+        const editContent = message.strings.join('');
+        menuItems.push({
+          label: 'Edit',
+          icon: '\u270E',
+          handler: () => {
+            onReply({
+              number: message.number,
+              memberId: message.memberId,
+              authorName: authorProposedName,
+              preview: editContent.substring(0, 60),
+              replyType: 'edit',
+              fullText: editContent,
+            });
+          },
+        });
+      }
       // Delete: post a deletion reply to this message
       {
         const delKey = String(message.number);
@@ -901,6 +920,106 @@ export const channelComponent = async (
           reactSystem.renderReactsOnElement(rootKey, targetEntry.$element);
         }
       }
+      continue; // eslint-disable-line no-continue
+    }
+
+    // Edit: replace the target message's body content in place.
+    // Walk up the replyTo chain to find the original message (handles
+    // edits-of-edits), then apply the latest content.
+    if (typedMessage.replyType === 'edit' && typedMessage.replyTo) {
+      // Find the original (non-edit) message by walking replyTo
+      let originalKey = typedMessage.replyTo;
+      let walked = messageIndex.get(originalKey);
+      while (walked && walked.message.replyType === 'edit' && walked.message.replyTo) {
+        originalKey = walked.message.replyTo;
+        walked = messageIndex.get(originalKey);
+      }
+      const targetEntry = walked || messageIndex.get(typedMessage.replyTo);
+
+      if (targetEntry) {
+        // Update the stored message content to the edited version
+        targetEntry.message.strings = typedMessage.strings;
+        targetEntry.message.names = typedMessage.names;
+        targetEntry.message.ids = typedMessage.ids;
+
+        // Re-render the body in the existing element
+        const $targetBody = targetEntry.$element.querySelector('.message-body');
+        if ($targetBody) {
+          $targetBody.innerHTML = '';
+          const editNames =
+            /** @type {any} */ (typedMessage).names ||
+            /** @type {any} */ (typedMessage).edgeNames ||
+            [];
+          if (typedMessage.strings && typedMessage.strings.length > 0) {
+            const textWithPlaceholders = prepareTextWithPlaceholders(
+              typedMessage.strings,
+            );
+            const { fragment, insertionPoints } =
+              renderMarkdown(textWithPlaceholders);
+            $targetBody.appendChild(fragment);
+            for (
+              let idx = 0;
+              idx < Math.min(insertionPoints.length, editNames.length);
+              idx += 1
+            ) {
+              const edgeName = editNames[idx];
+              const $slot = insertionPoints[idx];
+              const $token = document.createElement('span');
+              $token.className = 'token';
+              $token.tabIndex = 0;
+              $token.setAttribute('role', 'button');
+              $token.title = 'Open value';
+              $token.textContent = `@${edgeName}`;
+              const capturedIdx = idx;
+              $token.addEventListener('click', () => {
+                if (typedMessage.ids && typedMessage.ids[capturedIdx]) {
+                  showValue(undefined, typedMessage.ids[capturedIdx], [edgeName]);
+                }
+              });
+              $slot.replaceWith($token);
+            }
+          }
+        }
+
+        // Resolve editor name and update/create the "(edited by X)" tag
+        const editorName = nameMap.get(typedMessage.memberId) || '';
+        // eslint-disable-next-line no-inner-declarations
+        const updateEditTag = async () => {
+          let displayName = editorName;
+          if (!displayName) {
+            const editorInfo = await getMemberInfo(typedMessage.memberId);
+            displayName = editorInfo
+              ? editorInfo.proposedName
+              : typedMessage.memberId;
+          }
+          const existing = targetEntry.$element.querySelector('.message-edited-tag');
+          if (existing) {
+            existing.textContent = `Edited by ${displayName}`;
+          } else {
+            const $edited = document.createElement('span');
+            $edited.className = 'message-edited-tag';
+            $edited.textContent = `Edited by ${displayName}`;
+            // Click navigates to the thread containing the edit
+            $edited.addEventListener('click', () => {
+              const rootKey = findThreadRoot(originalKey);
+              threadStack.length = 0;
+              threadStack.push(rootKey);
+              showThreadView(rootKey); // eslint-disable-line no-use-before-define
+            });
+            const $body = targetEntry.$element.querySelector('.message-body');
+            if ($body) {
+              $body.after($edited);
+            }
+          }
+        };
+        updateEditTag().catch(() => {});
+      }
+      // Index the edit but don't render it as a separate message
+      const $placeholder = document.createElement('div');
+      messageIndex.set(msgKey, {
+        message: typedMessage,
+        $element: $placeholder,
+      });
       continue; // eslint-disable-line no-continue
     }
 

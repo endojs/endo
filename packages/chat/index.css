@@ -6419,6 +6419,18 @@ button.btn-spinner::after {
   vertical-align: middle;
 }
 
+.message-edited-tag {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+.message-edited-tag:hover {
+  color: var(--accent-primary);
+  text-decoration: underline;
+}
+
 /* Reply count badge on messages that have replies */
 .reply-count {
   display: inline-flex;

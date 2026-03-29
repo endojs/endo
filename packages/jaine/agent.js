@@ -42,10 +42,13 @@ reply() is for private inbox responses. exec() is for code execution.`;
 const buildThreadContext = async (member, replyToNum) => {
   const allMessages = /** @type {any[]} */ (await E(member).listMessages());
 
+  // Collapse edits so the thread shows final content only
+  const { collapsed, editedSet } = collapseEdits(allMessages);
+
   /** @type {Map<string, any>} */
   const msgMap = new Map();
-  for (const msg of allMessages) {
-    msgMap.set(String(msg.number), msg);
+  for (const [key, msg] of collapsed) {
+    msgMap.set(key, msg);
   }
 
   // Build member name map
@@ -73,13 +76,13 @@ const buildThreadContext = async (member, replyToNum) => {
   }
 
   // Also include direct children of the target message (siblings of agent reply)
-  for (const msg of allMessages) {
+  for (const [key, msg] of collapsed) {
     if (
       String(msg.replyTo) === replyToNum &&
-      !visited.has(String(msg.number))
+      !visited.has(key)
     ) {
       threadMessages.push(msg);
-      visited.add(String(msg.number));
+      visited.add(key);
     }
   }
 
@@ -88,8 +91,9 @@ const buildThreadContext = async (member, replyToNum) => {
     const author = memberNames.get(msg.memberId) || msg.memberId;
     const text = Array.isArray(msg.strings) ? msg.strings.join('') : '';
     const replyTag = msg.replyTo ? ` (reply to #${msg.replyTo})` : '';
+    const editTag = editedSet.has(String(msg.number)) ? ' (edited)' : '';
     const preview = text.length > 300 ? `${text.slice(0, 300)}...` : text;
-    return `[#${msg.number}] ${author}${replyTag}: ${preview}`;
+    return `[#${msg.number}] ${author}${replyTag}: ${preview}${editTag}`;
   });
 
   return lines.join('\n');
@@ -99,7 +103,46 @@ harden(buildThreadContext);
 const DEFAULT_RECENT_HISTORY_COUNT = 50;
 
 /**
+ * Collapse edit messages into their targets, returning a map of
+ * message number → final content (with edit flag). Skips operational
+ * messages (deletions, moves, reacts) entirely.
+ *
+ * @param {any[]} messages
+ * @returns {{ collapsed: Map<string, any>, editedSet: Set<string> }}
+ */
+const collapseEdits = messages => {
+  /** @type {Map<string, any>} */
+  const collapsed = new Map();
+  /** @type {Set<string>} */
+  const editedSet = new Set();
+
+  for (const msg of messages) {
+    const key = String(msg.number);
+    const rt = msg.replyType;
+    // Skip operational messages
+    if (rt === 'deletion' || rt === 'move' || rt === 'react' || rt === 'redact-react') {
+      continue; // eslint-disable-line no-continue
+    }
+    if (rt === 'edit' && msg.replyTo) {
+      // Apply edit to target — replace content, mark as edited
+      const targetKey = String(msg.replyTo);
+      const target = collapsed.get(targetKey);
+      if (target) {
+        target.strings = msg.strings;
+        editedSet.add(targetKey);
+      }
+    } else {
+      collapsed.set(key, { ...msg });
+    }
+  }
+  return { collapsed, editedSet };
+};
+harden(collapseEdits);
+
+/**
  * Build a formatted transcript of the most recent channel messages.
+ * Edits are collapsed into their target messages. Operational messages
+ * (deletions, moves, reacts) are omitted.
  *
  * @param {object} member - channel member handle
  * @param {number} [count] - number of recent messages to include
@@ -119,13 +162,15 @@ const buildRecentHistory = async (member, count = DEFAULT_RECENT_HISTORY_COUNT) 
     // not available
   }
 
-  const shown = allMessages.slice(-count);
-  const lines = shown.map(msg => {
+  const { collapsed, editedSet } = collapseEdits(allMessages);
+  const entries = [...collapsed.values()].slice(-count);
+  const lines = entries.map(msg => {
     const author = memberNames.get(msg.memberId) || msg.memberId;
     const text = Array.isArray(msg.strings) ? msg.strings.join('') : '';
     const replyTag = msg.replyTo ? ` (reply to #${msg.replyTo})` : '';
+    const editTag = editedSet.has(String(msg.number)) ? ' (edited)' : '';
     const preview = text.length > 300 ? `${text.slice(0, 300)}...` : text;
-    return `[#${msg.number}] ${author}${replyTag}: ${preview}`;
+    return `[#${msg.number}] ${author}${replyTag}: ${preview}${editTag}`;
   });
 
   return lines.join('\n');

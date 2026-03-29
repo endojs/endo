@@ -704,6 +704,13 @@ const bodyComponent = (
                     info.authorName,
                     info.preview,
                   );
+                  if (info.replyType === 'edit') {
+                    chatBarAPI.setReplyType('edit');
+                    if (info.fullText) {
+                      chatBarAPI.setText(info.fullText);
+                      chatBarAPI.focus();
+                    }
+                  }
                 }
               },
               onThreadOpen: info => {
@@ -978,6 +985,13 @@ const bodyComponent = (
                     info.authorName,
                     info.preview,
                   );
+                  if (info.replyType === 'edit') {
+                    chatBarAPI.setReplyType('edit');
+                    if (info.fullText) {
+                      chatBarAPI.setText(info.fullText);
+                      chatBarAPI.focus();
+                    }
+                  }
                 }
               },
               onThreadOpen: info => {
