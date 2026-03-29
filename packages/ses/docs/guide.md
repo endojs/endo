@@ -348,6 +348,8 @@ global object.
 In a web browser, an iframe is a realm.
 In Node.js, a Node process is a realm.
 
+> Here is an easy to read document on [what is a realm in JavaScript](https://weizmangal.com/2022/10/28/what-is-a-realm-in-js/)
+
 For historical reasons, the ECMAScript specification requires primordials
 be mutable (`Array.prototype.push = yourFunction` is valid ECMAScript but not
 recommended). By using the Agoric SES shim and calling `lockdown()`, you can turn the
