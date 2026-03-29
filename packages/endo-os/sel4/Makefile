@@ -1,7 +1,7 @@
-# Endo OS — seL4 Microkit Build (QuickJS-ng + Real SES)
+# Endo OS — seL4 Microkit Build (x86_64)
 
 MICROKIT_SDK    ?= /opt/microkit-sdk
-MICROKIT_BOARD  ?= qemu_virt_aarch64
+MICROKIT_BOARD  ?= x86_64_generic
 MICROKIT_CONFIG ?= debug
 QUICKJS_SRC     ?= /opt/quickjs
 BUILD_DIR       := build
@@ -9,12 +9,12 @@ BUILD_DIR       := build
 MICROKIT_TOOL := $(MICROKIT_SDK)/bin/microkit
 BOARD_DIR     := $(MICROKIT_SDK)/board/$(MICROKIT_BOARD)/$(MICROKIT_CONFIG)
 
-CC := aarch64-linux-gnu-gcc
-LD := aarch64-linux-gnu-ld
+CC := x86_64-linux-gnu-gcc
+LD := x86_64-linux-gnu-ld
 
-GCC_LIB_DIR := $(shell dirname $(shell aarch64-linux-gnu-gcc -print-libgcc-file-name 2>/dev/null || echo /usr/lib/gcc-cross/aarch64-linux-gnu/13/libgcc.a))
+GCC_LIB_DIR := $(shell dirname $(shell x86_64-linux-gnu-gcc -print-libgcc-file-name 2>/dev/null || echo /usr/lib/gcc-cross/x86_64-linux-gnu/13/libgcc.a))
 
-CFLAGS := -mcpu=cortex-a53 -mstrict-align -nostdlib -ffreestanding \
+CFLAGS := -m64 -nostdlib -ffreestanding \
           -g3 -O2 -Wall -Wno-unused-function -Wno-unused-variable \
           -Wno-implicit-function-declaration -Wno-sign-compare \
           -Wno-missing-field-initializers -Wno-format \
@@ -28,19 +28,19 @@ CFLAGS := -mcpu=cortex-a53 -mstrict-align -nostdlib -ffreestanding \
 LDFLAGS := -L$(BOARD_DIR)/lib -L$(GCC_LIB_DIR)
 LIBS := -lmicrokit -Tmicrokit.ld -lgcc
 
-# Our PD sources.
+# PD sources.
 PD_OBJS := $(BUILD_DIR)/endo_init.o \
            $(BUILD_DIR)/uart.o \
            $(BUILD_DIR)/heap.o \
            $(BUILD_DIR)/libc_stubs.o
 
-# QuickJS-ng core files.
+# QuickJS-ng core.
 QJS_OBJS := $(BUILD_DIR)/quickjs.o \
             $(BUILD_DIR)/libregexp.o \
             $(BUILD_DIR)/libunicode.o \
             $(BUILD_DIR)/dtoa.o
 
-# Embedded sources (loaded in order).
+# Embedded JS/bytecode.
 JS_OBJS := $(BUILD_DIR)/js_ses_shim.o \
            $(BUILD_DIR)/js_eventual_send.o \
            $(BUILD_DIR)/daemon_bytecode.o \
@@ -53,7 +53,6 @@ ALL_OBJS := $(PD_OBJS) $(QJS_OBJS) $(JS_OBJS)
 
 all: $(BUILD_DIR)/endo-os.img
 
-# --- Our PD ---
 $(BUILD_DIR)/endo_init.o: src/endo_init.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -67,10 +66,6 @@ $(BUILD_DIR)/heap.o: src/heap.c
 $(BUILD_DIR)/libc_stubs.o: src/libc_stubs.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(BUILD_DIR)/assert_stub.o: src/assert_stub.c
-	$(CC) -mcpu=cortex-a53 -ffreestanding -nostdlib -O2 -c -o $@ $<
-
-# --- QuickJS-ng core ---
 $(BUILD_DIR)/quickjs.o: $(QUICKJS_SRC)/quickjs.c
 	$(CC) $(CFLAGS) -Wno-type-limits -Wno-array-bounds -c -o $@ $<
 
@@ -83,58 +78,45 @@ $(BUILD_DIR)/libunicode.o: $(QUICKJS_SRC)/libunicode.c
 $(BUILD_DIR)/dtoa.o: $(QUICKJS_SRC)/dtoa.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# --- SES shim (fallback harden/Compartment) ---
+# --- SES shim ---
 $(BUILD_DIR)/js_ses_shim.o: src/ses-shim.js
 	@mkdir -p $(BUILD_DIR)
 	@echo "const char js_ses_shim[] = {" > $(BUILD_DIR)/js_ses_shim.c
 	xxd -i < $< >> $(BUILD_DIR)/js_ses_shim.c
 	@echo ", 0x00 };" >> $(BUILD_DIR)/js_ses_shim.c
-	@echo "const int js_ses_shim_len = sizeof(js_ses_shim) - 1;" \
-		>> $(BUILD_DIR)/js_ses_shim.c
+	@echo "const int js_ses_shim_len = sizeof(js_ses_shim) - 1;" >> $(BUILD_DIR)/js_ses_shim.c
 	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_ses_shim.c
 
-# --- Daemon JS text fallback (if bytecode fails) ---
-$(BUILD_DIR)/js_daemon_text.o: src/daemon-bundle-text.js
-	@mkdir -p $(BUILD_DIR)
-	@echo "const char js_daemon_bundle[] = {" > $(BUILD_DIR)/js_daemon_text.c
-	xxd -i < $< >> $(BUILD_DIR)/js_daemon_text.c
-	@echo ", 0x00 };" >> $(BUILD_DIR)/js_daemon_text.c
-	@echo "const int js_daemon_bundle_len = sizeof(js_daemon_bundle) - 1;" \
-		>> $(BUILD_DIR)/js_daemon_text.c
-	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_daemon_text.c
-
-# --- Eventual-send shim (provides HandledPromise + E) ---
+# --- Eventual-send ---
 $(BUILD_DIR)/js_eventual_send.o: src/eventual-send.js
 	@mkdir -p $(BUILD_DIR)
 	@echo "const char js_eventual_send[] = {" > $(BUILD_DIR)/js_eventual_send.c
 	xxd -i < $< >> $(BUILD_DIR)/js_eventual_send.c
 	@echo ", 0x00 };" >> $(BUILD_DIR)/js_eventual_send.c
-	@echo "const int js_eventual_send_len = sizeof(js_eventual_send) - 1;" \
-		>> $(BUILD_DIR)/js_eventual_send.c
+	@echo "const int js_eventual_send_len = sizeof(js_eventual_send) - 1;" >> $(BUILD_DIR)/js_eventual_send.c
 	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_eventual_send.c
 
-# --- Daemon bytecode (pre-compiled by qjsc) ---
+# --- Daemon bytecode ---
 $(BUILD_DIR)/daemon_bytecode.o: src/daemon-bytecode.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# --- Embed JS as C arrays ---
+# --- Daemon powers ---
 $(BUILD_DIR)/js_daemon_powers.o: src/daemon-powers.js
 	@mkdir -p $(BUILD_DIR)
 	@echo "const char js_daemon_powers[] = {" > $(BUILD_DIR)/js_daemon_powers.c
 	xxd -i < $< >> $(BUILD_DIR)/js_daemon_powers.c
 	@echo ", 0x00 };" >> $(BUILD_DIR)/js_daemon_powers.c
-	@echo "const int js_daemon_powers_len = sizeof(js_daemon_powers) - 1;" \
-		>> $(BUILD_DIR)/js_daemon_powers.c
+	@echo "const int js_daemon_powers_len = sizeof(js_daemon_powers) - 1;" >> $(BUILD_DIR)/js_daemon_powers.c
 	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_daemon_powers.c
 
+# --- Bootstrap shell ---
 $(BUILD_DIR)/js_bootstrap.o: src/bootstrap.js
 	@mkdir -p $(BUILD_DIR)
 	@echo "const char js_bootstrap[] = {" > $(BUILD_DIR)/js_bootstrap.c
 	xxd -i < $< >> $(BUILD_DIR)/js_bootstrap.c
 	@echo ", 0x00 };" >> $(BUILD_DIR)/js_bootstrap.c
-	@echo "const int js_bootstrap_len = sizeof(js_bootstrap) - 1;" \
-		>> $(BUILD_DIR)/js_bootstrap.c
+	@echo "const int js_bootstrap_len = sizeof(js_bootstrap) - 1;" >> $(BUILD_DIR)/js_bootstrap.c
 	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_bootstrap.c
 
 # --- Link ---
@@ -151,17 +133,17 @@ $(BUILD_DIR)/endo-os.img: $(BUILD_DIR)/endo-init.elf system.xml
 		-o $@ \
 		-r $(BUILD_DIR)/report.txt
 	@echo ""
-	@echo "=== seL4 + QuickJS-ng + SES image built ==="
+	@echo "=== seL4 x86_64 image built ==="
 	@ls -lh $@
 
 simulate: $(BUILD_DIR)/endo-os.img
-	qemu-system-aarch64 \
-		-machine virt,virtualization=on \
-		-cpu cortex-a53 \
-		-m size=2G \
+	qemu-system-x86_64 \
+		-cpu qemu64,+fsgsbase,+pdpe1gb,+xsaveopt,+xsave \
+		-m 1G \
 		-nographic \
 		-serial mon:stdio \
-		-device loader,file=$<,addr=0x70000000,cpu-num=0
+		-kernel $(BOARD_DIR)/bin/sel4_32.elf \
+		-initrd $<
 
 clean:
 	rm -rf $(BUILD_DIR)

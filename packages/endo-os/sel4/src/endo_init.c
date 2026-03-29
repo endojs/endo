@@ -11,7 +11,9 @@
 #include "uart.h"
 
 uintptr_t js_heap_vaddr;
+#if !defined(__x86_64__) && !defined(__i386__)
 uintptr_t uart_base_vaddr;
+#endif
 
 /* Embedded sources. */
 extern const char js_ses_shim[];
@@ -116,7 +118,11 @@ static int eval_source(JSContext *ctx, const char *source, int len,
 }
 
 void init(void) {
+#if defined(__x86_64__) || defined(__i386__)
+    uart_init(0);  /* x86 uses I/O ports, no MMIO base needed. */
+#else
     uart_init(uart_base_vaddr);
+#endif
 
     uart_puts("\nendo-init: Endo OS starting (seL4 + QuickJS-ng)\n");
     uart_puts("endo-init: Formally verified capability-native OS\n\n");

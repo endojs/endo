@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Endo OS: seL4 Microkit System Description
-
-  Single PD running the Endo capability shell (QuickJS).
-  UART mapped for interactive serial I/O.
+  Endo OS: seL4 Microkit System Description (x86_64)
 -->
 <system>
     <protection_domain
@@ -12,27 +9,13 @@
         stack_size="0x100000">
         <program_image path="endo-init.elf" />
 
-        <!-- JS heap: 16 MB for QuickJS objects. -->
+        <!-- JS heap: 32 MB for QuickJS + daemon. -->
         <map
             mr="js_heap"
             vaddr="0x10000000"
             perms="rw"
             setvar_vaddr="js_heap_vaddr" />
-
-        <!-- PL011 UART: memory-mapped I/O for serial console.
-             QEMU virt platform UART0 is at physical 0x09000000. -->
-        <map
-            mr="uart"
-            vaddr="0x20000000"
-            perms="rw"
-            setvar_vaddr="uart_base_vaddr" />
-
-        <!-- UART interrupt (SPI 1 = GIC IRQ 33 on QEMU virt). -->
-        <irq irq="33" id="0" />
     </protection_domain>
 
     <memory_region name="js_heap" size="0x2000000" />
-
-    <!-- PL011 UART MMIO region (4 KB page at physical 0x09000000). -->
-    <memory_region name="uart" size="0x1000" phys_addr="0x9000000" />
 </system>

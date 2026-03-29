@@ -10,19 +10,20 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     build-essential \
-    gcc-aarch64-linux-gnu \
-    binutils-aarch64-linux-gnu \
+    gcc-x86-64-linux-gnu \
+    binutils-x86-64-linux-gnu \
     cmake \
     xxd \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-ENV MICROKIT_SDK_VERSION=2.0.1
+ENV MICROKIT_SDK_VERSION=2.1.0
 RUN wget -q "https://github.com/seL4/microkit/releases/download/${MICROKIT_SDK_VERSION}/microkit-sdk-${MICROKIT_SDK_VERSION}-linux-x86-64.tar.gz" \
     -O /tmp/microkit-sdk.tar.gz && \
     tar xf /tmp/microkit-sdk.tar.gz -C /opt && \
     rm /tmp/microkit-sdk.tar.gz && \
-    ln -sf /opt/microkit-sdk-${MICROKIT_SDK_VERSION} /opt/microkit-sdk
+    ls /opt/ && \
+    ln -sf $(ls -d /opt/microkit-sdk-*) /opt/microkit-sdk
 
 ENV MICROKIT_SDK=/opt/microkit-sdk
 
@@ -70,4 +71,5 @@ RUN cd sel4 && make MICROKIT_SDK=${MICROKIT_SDK} QUICKJS_SRC=/opt/quickjs
 CMD mkdir -p /out && \
     cp -v /build/sel4/build/endo-os.img /out/ && \
     cp -v /build/sel4/build/report.txt /out/ 2>/dev/null || true && \
+    cp -v ${MICROKIT_SDK}/board/x86_64_generic/debug/elf/sel4_32.elf /out/ && \
     ls -lh /out/

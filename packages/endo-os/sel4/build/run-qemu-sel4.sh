@@ -1,43 +1,35 @@
 #!/bin/bash
-# Boot Endo OS (seL4) in QEMU.
-#
-# Runs the seL4 Microkit image on an emulated AArch64 virt platform.
-# Output goes to serial console.  Ctrl-A X to exit.
-#
-# Usage:
-#   ./sel4/build/run-qemu-sel4.sh
+# Boot Endo OS (seL4 x86_64) in QEMU.
+# Ctrl-A X to exit.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 IMAGE="${SCRIPT_DIR}/out/endo-os.img"
+KERNEL="${SCRIPT_DIR}/out/sel4_32.elf"
 
 if [ ! -f "${IMAGE}" ]; then
-  echo "ERROR: seL4 image not found at ${IMAGE}"
-  echo ""
-  echo "Build first:"
-  echo "  ./sel4/build/build-sel4.sh"
+  echo "ERROR: seL4 image not found. Run ./sel4/build/build-sel4.sh"
   exit 1
 fi
 
-if ! command -v qemu-system-aarch64 &> /dev/null; then
-  echo "ERROR: qemu-system-aarch64 not found."
-  echo "Install with: brew install qemu"
+if [ ! -f "${KERNEL}" ]; then
+  echo "ERROR: seL4 kernel not found at ${KERNEL}"
+  echo "The build should extract it from the Microkit SDK."
   exit 1
 fi
 
-echo "=== Endo OS: Booting on seL4 (QEMU AArch64) ==="
-echo "    Image:  ${IMAGE}"
+echo "=== Endo OS: Booting on seL4 (x86_64) ==="
 echo "    Kernel: seL4 (formally verified)"
-echo "    Engine: QuickJS (no JIT)"
+echo "    Engine: QuickJS-ng (native lockdown)"
 echo ""
 echo "    Press Ctrl-A X to exit QEMU"
 echo ""
 
-exec qemu-system-aarch64 \
-  -machine virt,virtualization=on \
-  -cpu cortex-a53 \
-  -m size=2G \
+exec qemu-system-x86_64 \
+  -cpu qemu64,+fsgsbase,+pdpe1gb,+xsaveopt,+xsave \
+  -m 1G \
   -nographic \
   -serial mon:stdio \
-  -device loader,file="${IMAGE}",addr=0x70000000,cpu-num=0
+  -kernel "${KERNEL}" \
+  -initrd "${IMAGE}"
