@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Endo OS: seL4 Microkit System Description (x86_64)
--->
 <system>
     <protection_domain
         name="endo_init"
@@ -9,13 +6,15 @@
         stack_size="0x100000">
         <program_image path="endo-init.elf" />
 
-        <!-- JS heap: 32 MB for QuickJS + daemon. -->
-        <map
-            mr="js_heap"
-            vaddr="0x10000000"
-            perms="rw"
-            setvar_vaddr="js_heap_vaddr" />
+        <map mr="js_heap" vaddr="0x10000000" perms="rw"
+             setvar_vaddr="js_heap_vaddr" />
+
+        <map mr="uart" vaddr="0x20000000" perms="rw"
+             setvar_vaddr="uart_base_vaddr" />
+
+        <irq irq="33" id="0" />
     </protection_domain>
 
     <memory_region name="js_heap" size="0x2000000" />
+    <memory_region name="uart" size="0x1000" phys_addr="0x9000000" />
 </system>

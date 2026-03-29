@@ -24,11 +24,10 @@ echo "    Host:   ${ARCH}"
 if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
   # Apple Silicon or ARM64 Linux — use AArch64 QEMU with HVF/KVM.
   QEMU=qemu-system-aarch64
+  # HVF doesn't work with seL4 (assertion failure in hvf_handle_exception).
+  # TCG on host is still faster than QEMU-in-Docker.
   ACCEL=""
-  if [ "$(uname -s)" = "Darwin" ]; then
-    ACCEL="-accel hvf"
-    echo "    Accel:  HVF (native ARM64)"
-  elif [ -e /dev/kvm ]; then
+  if [ -e /dev/kvm ]; then
     ACCEL="-accel kvm"
     echo "    Accel:  KVM (native ARM64)"
   else
