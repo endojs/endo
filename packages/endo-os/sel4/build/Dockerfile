@@ -10,8 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     build-essential \
-    gcc-x86-64-linux-gnu \
-    binutils-x86-64-linux-gnu \
+    gcc-aarch64-linux-gnu \
+    binutils-aarch64-linux-gnu \
     cmake \
     xxd \
     wget \
@@ -71,5 +71,5 @@ RUN cd sel4 && make MICROKIT_SDK=${MICROKIT_SDK} QUICKJS_SRC=/opt/quickjs
 CMD mkdir -p /out && \
     cp -v /build/sel4/build/endo-os.img /out/ && \
     cp -v /build/sel4/build/report.txt /out/ 2>/dev/null || true && \
-    cp -v ${MICROKIT_SDK}/board/x86_64_generic/debug/elf/sel4_32.elf /out/ && \
+    # AArch64 doesn't need a separate kernel ELF — it's in the image.
     ls -lh /out/

@@ -1,7 +1,7 @@
 # Endo OS — seL4 Microkit Build (x86_64)
 
 MICROKIT_SDK    ?= /opt/microkit-sdk
-MICROKIT_BOARD  ?= x86_64_generic
+MICROKIT_BOARD  ?= qemu_virt_aarch64
 MICROKIT_CONFIG ?= debug
 QUICKJS_SRC     ?= /opt/quickjs
 BUILD_DIR       := build
@@ -9,12 +9,12 @@ BUILD_DIR       := build
 MICROKIT_TOOL := $(MICROKIT_SDK)/bin/microkit
 BOARD_DIR     := $(MICROKIT_SDK)/board/$(MICROKIT_BOARD)/$(MICROKIT_CONFIG)
 
-CC := x86_64-linux-gnu-gcc
-LD := x86_64-linux-gnu-ld
+CC := aarch64-linux-gnu-gcc
+LD := aarch64-linux-gnu-ld
 
-GCC_LIB_DIR := $(shell dirname $(shell x86_64-linux-gnu-gcc -print-libgcc-file-name 2>/dev/null || echo /usr/lib/gcc-cross/x86_64-linux-gnu/13/libgcc.a))
+GCC_LIB_DIR := $(shell dirname $(shell aarch64-linux-gnu-gcc -print-libgcc-file-name 2>/dev/null || echo /usr/lib/gcc-cross/aarch64-linux-gnu/13/libgcc.a))
 
-CFLAGS := -m64 -nostdlib -ffreestanding \
+CFLAGS := -mcpu=cortex-a53 -mstrict-align -nostdlib -ffreestanding \
           -g3 -O2 -Wall -Wno-unused-function -Wno-unused-variable \
           -Wno-implicit-function-declaration -Wno-sign-compare \
           -Wno-missing-field-initializers -Wno-format \
