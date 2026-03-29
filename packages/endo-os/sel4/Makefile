@@ -40,11 +40,8 @@ QJS_OBJS := $(BUILD_DIR)/quickjs.o \
             $(BUILD_DIR)/libunicode.o \
             $(BUILD_DIR)/dtoa.o
 
-# Embedded JS/bytecode.
+# Embedded JS (SES shim + shell).
 JS_OBJS := $(BUILD_DIR)/js_ses_shim.o \
-           $(BUILD_DIR)/js_eventual_send.o \
-           $(BUILD_DIR)/daemon_bytecode.o \
-           $(BUILD_DIR)/js_daemon_powers.o \
            $(BUILD_DIR)/js_bootstrap.o
 
 ALL_OBJS := $(PD_OBJS) $(QJS_OBJS) $(JS_OBJS)

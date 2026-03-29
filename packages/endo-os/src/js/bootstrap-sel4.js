@@ -904,66 +904,14 @@
   // BOOT
   // ============================================================
 
-  // === Boot the real daemon ===
-
-  var daemonBootstrapped = false;
-  var endoBootstrap = null;
-
-  if (typeof EndoDaemon !== 'undefined' && EndoDaemon.makeDaemon &&
-      typeof __daemonicPowers !== 'undefined') {
-    print('endo-os: Booting daemon...');
-
-    try {
-      var cancelError = null;
-      var cancelFn = function(err) { cancelError = err; };
-      var cancelledPromise = new Promise(function() {}); // never resolves
-
-      var daemonResult = EndoDaemon.makeDaemon(
-        __daemonicPowers,
-        'endo-os',      // daemonLabel
-        cancelFn,        // cancel
-        cancelledPromise, // cancelled
-        {},              // specials
-        { gcEnabled: false },
-      );
-
-      // makeDaemon returns a Promise. Drain jobs to resolve it.
-      drainJobs();
-
-      // Check if the promise resolved.
-      daemonResult.then(function(result) {
-        endoBootstrap = result.endoBootstrap;
-        print('endo-os: Daemon booted! endoBootstrap available.');
-        daemonBootstrapped = true;
-      }).catch(function(err) {
-        print('endo-os: Daemon boot failed: ' + (err.message || err));
-      });
-
-      // Drain again for the .then() callbacks.
-      drainJobs();
-
-      if (endoBootstrap) {
-        ps().set('endoBootstrap', endoBootstrap);
-        ps().set('E', typeof E !== 'undefined' ? E : function(x) { return x; });
-      }
-    } catch (e) {
-      print('endo-os: Daemon error: ' + e.message);
-    }
-  } else {
-    if (typeof EndoDaemon === 'undefined') {
-      print('endo-os: No daemon bundle loaded');
-    }
-  }
+  // The shell IS the daemon — in-memory pet names, eval,
+  // messaging, agents.  No separate daemon bundle needed.
 
   print('========================================');
   print(' Endo OS');
   print(' Capability-native operating system');
   print(' seL4 (formally verified) + QuickJS');
-  if (daemonBootstrapped) {
-    print(' Daemon: RUNNING (endoBootstrap available)');
-  } else if (typeof EndoDaemon !== 'undefined') {
-    print(' Daemon: loaded but not yet booted');
-  }
+  print(' Daemon: in-memory (pet names + eval + messaging)');
   print('========================================');
   print('');
   print('Type ? for help, or just type JavaScript.');
