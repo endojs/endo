@@ -146,26 +146,47 @@ void init(void) {
     eval_source(js_ctx, js_eventual_send, js_eventual_send_len,
                 "eventual-send.js");
 
-    /* Load daemon — JS text (bytecode disabled due to format issue). */
-    {
-        extern const char js_daemon_bundle[] __attribute__((weak));
-        extern const int js_daemon_bundle_len __attribute__((weak));
-        if (&js_daemon_bundle != NULL && js_daemon_bundle_len > 0) {
-            uart_puts("endo-init: Loading daemon JS...\n");
-            eval_source(js_ctx, js_daemon_bundle, js_daemon_bundle_len,
-                        "daemon-bundle.js");
-
-            /* Check result. */
-            eval_source(js_ctx,
-                "print('endo-init: EndoDaemon = ' + typeof EndoDaemon);"
-                "if(typeof EndoDaemon !== 'undefined' && EndoDaemon.makeDaemon) {"
-                "  print('endo-init: makeDaemon = ' + typeof EndoDaemon.makeDaemon);"
-                "}"
-                "print('endo-init: HandledPromise = ' + typeof HandledPromise);",
-                300, "check-daemon.js");
+    /* Load daemon bytecode (compiled by qjsc -b from IIFE bundle). */
+    if (&qjsc_daemon_bundle != NULL && qjsc_daemon_bundle_size > 0) {
+        uart_puts("endo-init: Loading daemon bytecode\n");
+        JSValue obj = JS_ReadObject(js_ctx, qjsc_daemon_bundle,
+                                    qjsc_daemon_bundle_size,
+                                    JS_READ_OBJ_BYTECODE);
+        if (JS_IsException(obj)) {
+            JSValue exc = JS_GetException(js_ctx);
+            const char *msg = JS_ToCString(js_ctx, exc);
+            if (msg) {
+                uart_puts("Bytecode read error: ");
+                uart_puts(msg); uart_puts("\n");
+                JS_FreeCString(js_ctx, msg);
+            }
+            JS_FreeValue(js_ctx, exc);
         } else {
-            uart_puts("endo-init: No daemon bundle\n");
+            JSValue val = JS_EvalFunction(js_ctx, obj);
+            if (JS_IsException(val)) {
+                JSValue exc = JS_GetException(js_ctx);
+                const char *msg = JS_ToCString(js_ctx, exc);
+                if (msg) {
+                    uart_puts("Daemon eval error: ");
+                    uart_puts(msg); uart_puts("\n");
+                    JS_FreeCString(js_ctx, msg);
+                }
+                JS_FreeValue(js_ctx, exc);
+            }
+            JS_FreeValue(js_ctx, val);
         }
+
+        /* Drain jobs + check. */
+        JSContext *ctx2;
+        while (JS_IsJobPending(js_rt))
+            JS_ExecutePendingJob(js_rt, &ctx2);
+
+        eval_source(js_ctx,
+            "print('endo-init: EndoDaemon = ' + typeof EndoDaemon);"
+            "print('endo-init: HandledPromise = ' + typeof HandledPromise);",
+            150, "check.js");
+    } else {
+        uart_puts("endo-init: No daemon bundle\n");
     }
 
     /* NOW freeze intrinsics — after all initialization code ran. */

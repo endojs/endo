@@ -43,7 +43,7 @@ QJS_OBJS := $(BUILD_DIR)/quickjs.o \
 # Embedded sources (loaded in order).
 JS_OBJS := $(BUILD_DIR)/js_ses_shim.o \
            $(BUILD_DIR)/js_eventual_send.o \
-           $(BUILD_DIR)/js_daemon_text.o \
+           $(BUILD_DIR)/daemon_bytecode.o \
            $(BUILD_DIR)/js_daemon_powers.o \
            $(BUILD_DIR)/js_bootstrap.o
 
