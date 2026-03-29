@@ -222,7 +222,7 @@ export const valueComponent = (
 
     if (id) {
       try {
-        const petNames = await E(powers).reverseLocate(id);
+        const petNames = await E(powers).reverseIdentify(id);
         uniquePetNames = Array.from(new Set(petNames));
         for (const petName of uniquePetNames) {
           const $token = document.createElement('span');

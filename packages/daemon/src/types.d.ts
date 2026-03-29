@@ -533,7 +533,10 @@ export type StampedMessage = EnvelopedMessage & {
 };
 
 export interface Invitation {
-  accept(guestHandleLocator: string): Promise<void>;
+  accept(
+    guestHandleLocator: string,
+    hostNameFromGuest?: string,
+  ): Promise<{ syncedStoreNumber: FormulaNumber }>;
   locate(): Promise<string>;
 }
 

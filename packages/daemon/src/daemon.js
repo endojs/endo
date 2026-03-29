@@ -665,7 +665,8 @@ const makeDaemonCore = async (
       return formula;
     }
 
-    formula = await persistencePowers.readFormula(parseId(id).number);
+    const { number: fNum } = parseId(id);
+    formula = await persistencePowers.readFormula(fNum);
     await withFormulaGraphLock(async () => {
       formulaForId.set(id, formula);
       formulaGraph.onFormulaAdded(id, formula);
@@ -2327,7 +2328,7 @@ const makeDaemonCore = async (
       agentIdForHandle.set(handle, id);
       return agent;
     },
-    handle: async ({ agent: agentId }) => {
+    handle: async ({ agent: agentId }, _context, id) => {
       const agent = await provide(agentId, 'agent');
       const handle = agent.handle();
       agentIdForHandle.set(handle, agentId);
@@ -2606,15 +2607,16 @@ const makeDaemonCore = async (
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
       makePetStoreInspector(petStoreId),
-    directory: ({ petStore: petStoreId }, context) =>
+    directory: ({ petStore: petStoreId }, context) => {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
-      makeIdentifiedDirectory({
+      return makeIdentifiedDirectory({
         petStoreId,
         context,
         agentNodeNumber: localNodeNumber,
         isLocalKey,
-      }),
+      });
+    },
     peer: (
       { networks: networksId, node: nodeId, addresses: addressesId },
       context,
@@ -4168,8 +4170,11 @@ const makeDaemonCore = async (
 
     /**
      * @param {string} guestHandleLocator
+     * @param {string} [hostNameFromGuest] - The name the accepting side
+     *   chose for the host.  Stored in the synced pet store so the guest
+     *   can reach the host's handle after sync.
      */
-    const accept = async guestHandleLocator => {
+    const accept = async (guestHandleLocator, hostNameFromGuest) => {
       const url = new URL(guestHandleLocator);
       const guestHandleNumber = url.searchParams.get('id');
       const addresses = url.searchParams.getAll('at');
@@ -4198,7 +4203,6 @@ const makeDaemonCore = async (
       // and such that overwriting the invitation also revokes the invitation.
       await withFormulaGraphLock();
       const controller = provideController(id);
-      console.log('Cancelled:');
       await controller.context.cancel(new Error('Invitation accepted'));
 
       // Create a synced-pet-store (grantor role) for this peer relationship.
@@ -4222,6 +4226,26 @@ const makeDaemonCore = async (
         /** @type {PetName} */ (guestName),
         guestHandleLocatorStr,
       );
+
+      // Store the host's own handle so the guest can reach the host
+      // after syncing.  The name comes from the guest's `accept` call
+      // (what the guest chose to call the host).
+      if (hostNameFromGuest) {
+        const { node: hostNodeNumber } = await hostAgent.getPeerInfo();
+        const { number: hostHandleNumber } = parseId(hostHandleId);
+        const hostHandleExternalId = formatId({
+          number: hostHandleNumber,
+          node: /** @type {NodeNumber} */ (hostNodeNumber),
+        });
+        const hostHandleLocatorStr = formatLocator(
+          hostHandleExternalId,
+          'handle',
+        );
+        await E(syncedStoreValue).storeLocator(
+          /** @type {PetName} */ (hostNameFromGuest),
+          hostHandleLocatorStr,
+        );
+      }
 
       // Wrap the synced store in a directory so it acts as a NameHub
       // (providing storeIdentifier, identify, etc.) when resolved via

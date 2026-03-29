@@ -5,6 +5,29 @@
 
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
+
+/**
+ * Compare two locator URLs by identity (node + id), ignoring address
+ * hints (`at` params) that vary between `locate()` and message fields.
+ *
+ * @param {string | null | undefined} a
+ * @param {string | null | undefined} b
+ * @returns {boolean}
+ */
+const locatorsMatch = (a, b) => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  try {
+    const ua = new URL(a);
+    const ub = new URL(b);
+    return (
+      ua.hostname === ub.hostname &&
+      ua.searchParams.get('id') === ub.searchParams.get('id')
+    );
+  } catch {
+    return false;
+  }
+};
 import { playChime } from './chime.js';
 import {
   prepareTextWithPlaceholders,
@@ -66,11 +89,11 @@ export const inboxComponent = async (
 
     const { number, from: fromId, to: toId, date, dismissed } = message;
 
-    const isSent = fromId === selfLocator;
+    const isSent = locatorsMatch(fromId, selfLocator);
 
     if (conversationId) {
       const otherPartyId = isSent ? toId : fromId;
-      if (otherPartyId !== conversationId) {
+      if (!locatorsMatch(otherPartyId, conversationId)) {
         // Self-to-self messages (e.g. endow result delivery) belong to a
         // conversation when their replyTo references a message already in
         // this conversation thread.
@@ -79,8 +102,8 @@ export const inboxComponent = async (
             ? /** @type {string} */ (message.replyTo)
             : undefined;
         const isSelfReplyInThread =
-          fromId === selfLocator &&
-          toId === selfLocator &&
+          locatorsMatch(fromId, selfLocator) &&
+          locatorsMatch(toId, selfLocator) &&
           replyTo &&
           $parent.querySelector(
             `.message-envelope[data-message-id="${CSS.escape(replyTo)}"]`,
@@ -91,10 +114,13 @@ export const inboxComponent = async (
           // (handles peer/remote/guest formula indirection)
           // eslint-disable-next-line no-await-in-loop
           const names = await E(powers).reverseLocate(otherPartyId);
+          const leafName = Array.isArray(conversationPetName)
+            ? conversationPetName[conversationPetName.length - 1]
+            : conversationPetName;
           matchesByPetName =
             Array.isArray(names) &&
             names.includes(
-              /** @type {import('@endo/daemon').Name} */ (conversationPetName),
+              /** @type {import('@endo/daemon').Name} */ (leafName),
             );
         }
         if (!isSelfReplyInThread && !matchesByPetName) {

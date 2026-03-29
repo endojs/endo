@@ -460,7 +460,7 @@ export const AttenuatorInterface = M.interface('EndoChannelAttenuator', {
 harden(AttenuatorInterface);
 
 export const InvitationInterface = M.interface('EndoInvitation', {
-  accept: M.call(IdShape).returns(M.promise()),
+  accept: M.call(IdShape).optional(M.string()).returns(M.promise()),
   locate: M.call().returns(M.promise()),
 });
 

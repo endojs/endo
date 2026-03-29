@@ -8,7 +8,12 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { mustMatch, M } from '@endo/patterns';
 import { makeChangeTopic } from './pubsub.js';
-import { assertFormulaNumber, assertValidId } from './formula-identifier.js';
+import {
+  assertFormulaNumber,
+  assertValidId,
+  parseId,
+  formatId,
+} from './formula-identifier.js';
 import {
   assertName,
   assertNames,
@@ -135,13 +140,19 @@ export const makeMailboxMaker = ({
   /**
     @type {MakeMailbox} */
   const makeMailbox = async ({
-    selfId,
+    selfId: localSelfId,
     agentNodeNumber,
     petStore,
     mailboxStore,
     directory,
     context,
   }) => {
+    const { number: selfNumber } = parseId(localSelfId);
+    const selfId = formatId({
+      number: selfNumber,
+      node: /** @type {import('./types.js').NodeNumber} */ (agentNodeNumber),
+    });
+
     /** @param {import('./types.js').FormulaIdentifier} id */
     const externalizeForMessage = async id => {
       const formulaType = await getTypeForId(id);

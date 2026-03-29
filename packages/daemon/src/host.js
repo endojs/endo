@@ -802,7 +802,10 @@ export const makeHostMaker = ({
       const handleLocator = handleUrl.href;
 
       const invitation = await provide(invitationId, 'invitation');
-      const acceptResult = await E(invitation).accept(handleLocator);
+      const acceptResult = await E(invitation).accept(
+        handleLocator,
+        guestName,
+      );
 
       // The host's accept handler returns the synced store number.
       const { syncedStoreNumber } =
