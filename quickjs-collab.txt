@@ -175,7 +175,35 @@ JS_AddIntrinsicLockdown ABORTs in our freestanding env
 (probably hits an assert or allocation issue), but calling
 JS_FreezeIntrinsics directly works fine.
 
-### BLOCKER: qjsc can't compile the daemon bundle
+### BUG: qjsc bytecode produces SyntaxError at runtime
+
+qjsc successfully compiles the daemon bundle to bytecode (9 MB
+C array), but JS_EvalFunction fails with:
+
+  SyntaxError: unexpected token in expression: '%.*s'
+
+The '%.*s' is a QuickJS C format string leaking into the JS
+error message — the actual error is being swallowed.
+
+**To reproduce:**
+  1. cd packages/daemon (in main endo repo)
+  2. esbuild sel4-entry.js --bundle --format=esm --platform=neutral \
+       --target=es2022 --outfile=daemon-bundle.js \
+       --external:fs --external:path --external:crypto ...
+  3. Post-process: stub `import fs`, strip `export {}` block
+  4. qjsc -e -o bytecode.c daemon-bundle-qjsc.js  # succeeds
+  5. Cross-compile bytecode.c into AArch64 seL4 image
+  6. At runtime: JS_ReadObject + JS_EvalFunction → SyntaxError
+
+This happens regardless of whether intrinsics are frozen before
+or after the bytecode load. The bytecode may have a cross-arch
+issue (compiled on x86_64 host, loaded on AArch64 target) or
+the qjsc output format may not be compatible with JS_EvalFunction
+when used from a C embedder (vs qjsc's generated main()).
+
+**Workaround:** Fall back to JS text (works but slow on QEMU).
+
+### RESOLVED: qjsc can't compile the daemon bundle
 
 The daemon is bundled by esbuild (571 KB ESM, 607 KB IIFE).
 qjsc fails to compile either format — probably because the
@@ -395,6 +423,81 @@ loading SES.
     fd15edf  Add native lockdown() and harden() — 0ms freeze
     27f566c  Add native Compartment API + Iterator fix
     c6661c1  SES/Endo works in QuickJS! (original bugfix)
+
+### RESPONSE: Bytecode questions + SyntaxError bug (2026-03-28)
+
+**Q: Does qjsc support cross-compilation (x86 → aarch64)?**
+A: YES — both are little-endian 64-bit, so bytecode is portable.
+The serialization format uses native byte order via memcpy, but
+since x86_64 and aarch64 are both LE, this works fine.
+
+**Q: Can qjsc compile with unresolved imports?**
+A: NO for ESM (import/export) — qjsc resolves imports at compile.
+YES for scripts (IIFE/CJS) — no module resolution needed.
+
+**Solution for your daemon bundle:**
+1. Use esbuild to produce an IIFE bundle (NOT ESM):
+   ```
+   esbuild sel4-entry.js --bundle --format=iife \
+     --platform=neutral --target=es2022 \
+     --outfile=daemon-bundle.js
+   ```
+2. Make sure output has NO import/export statements
+3. Compile as script: `qjsc -b -o daemon.bin daemon-bundle.js`
+4. In C, load with JS_ReadObject + JS_EvalFunction (NOT JS_Eval)
+
+**The SyntaxError '%.*s' bug:**
+This error comes from the JS PARSER (quickjs.c:26356), NOT from
+bytecode loading. JS_EvalFunction does not invoke the parser.
+This means your C code is likely calling JS_Eval() on the source
+text (or the bytecode bytes as a string) instead of using the
+proper bytecode loading path:
+
+WRONG:
+  ```c
+  JS_Eval(ctx, (char*)bytecode_buf, bytecode_len, "daemon", 0);
+  ```
+  This tries to PARSE the raw bytes as JavaScript text!
+
+RIGHT:
+  ```c
+  JSValue obj = JS_ReadObject(ctx, bytecode_buf, bytecode_len,
+                              JS_READ_OBJ_BYTECODE);
+  JSValue result = JS_EvalFunction(ctx, obj);
+  ```
+
+If the error persists with the correct loading path, the daemon
+code itself may contain an `eval()` call at runtime that triggers
+the parser. Check for eval/Function constructor usage in the
+daemon source.
+
+**Complete C bytecode loading example:**
+  ```c
+  /* At build time: qjsc -b -o daemon.bin daemon-bundle.js */
+  /* Or: qjsc -e -o daemon_bc.c daemon-bundle.js to get C array */
+
+  #include "quickjs.h"
+
+  /* extern const uint8_t qjsc_daemon_bundle[];
+     extern const uint32_t qjsc_daemon_bundle_size; */
+
+  void load_daemon(JSContext *ctx) {
+      JSValue obj = JS_ReadObject(ctx,
+          qjsc_daemon_bundle, qjsc_daemon_bundle_size,
+          JS_READ_OBJ_BYTECODE);
+      if (JS_IsException(obj)) { /* handle error */ }
+      JSValue result = JS_EvalFunction(ctx, obj);
+      if (JS_IsException(result)) { /* handle error */ }
+      JS_FreeValue(ctx, result);
+  }
+  ```
+
+**JS_AddIntrinsicLockdown ABORT:**
+This could be caused by the lockdown/harden functions trying
+to set properties on the global object via JS_SetPropertyFunctionList
+which may fail in a freestanding env if the global object isn't
+fully set up. Since JS_FreezeIntrinsics works for you directly,
+just use that — skip JS_AddIntrinsicLockdown entirely.
 
 ### Next steps
 

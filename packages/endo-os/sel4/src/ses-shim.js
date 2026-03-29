@@ -76,6 +76,27 @@
     baseAssert.details = function(s) { return Array.isArray(s) ? s.join('') : String(s); };
     baseAssert.Fail = function(s) { throw new Error(Array.isArray(s) ? s.join('') : String(s)); };
     baseAssert.quote = function(v) { return String(v); };
+    baseAssert.bare = function(v) { return String(v); };
+    baseAssert.error = function(msg, errConstructor) {
+      return new (errConstructor || Error)(msg || 'error');
+    };
+    baseAssert.makeError = baseAssert.error;
+    baseAssert.makeAssert = function(raise) {
+      var a = function(flag, d) { if (!flag) { if (raise) raise(d); else throw new Error(d || 'assertion failed'); } };
+      a.typeof = baseAssert.typeof;
+      a.equal = baseAssert.equal;
+      a.string = baseAssert.string;
+      a.fail = baseAssert.fail;
+      a.note = baseAssert.note;
+      a.details = baseAssert.details;
+      a.Fail = baseAssert.Fail;
+      a.quote = baseAssert.quote;
+      a.bare = baseAssert.bare;
+      a.error = baseAssert.error;
+      a.makeError = baseAssert.makeError;
+      a.makeAssert = baseAssert.makeAssert;
+      return a;
+    };
     globalThis.assert = baseAssert;
   }
 

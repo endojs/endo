@@ -82,8 +82,9 @@ COPY packages/endo-os/sel4/Makefile sel4/Makefile
 COPY packages/endo-os/src/js/bootstrap-sel4.js sel4/src/bootstrap.js
 COPY packages/endo-os/src/js/daemon-powers-sel4.js sel4/src/daemon-powers.js
 
-# Copy bytecode C file into build.
-RUN cp /build/daemon-bytecode.c sel4/src/daemon-bytecode.c
+# Copy bytecode + JS text fallback into build.
+RUN cp /build/daemon-bytecode.c sel4/src/daemon-bytecode.c && \
+    cp /build/daemon-bundle-qjsc.js sel4/src/daemon-bundle-text.js
 
 RUN cd sel4 && make MICROKIT_SDK=${MICROKIT_SDK} QUICKJS_SRC=/opt/quickjs
 

@@ -43,7 +43,7 @@ QJS_OBJS := $(BUILD_DIR)/quickjs.o \
 # Embedded sources (loaded in order).
 JS_OBJS := $(BUILD_DIR)/js_ses_shim.o \
            $(BUILD_DIR)/js_eventual_send.o \
-           $(BUILD_DIR)/daemon_bytecode.o \
+           $(BUILD_DIR)/js_daemon_text.o \
            $(BUILD_DIR)/js_daemon_powers.o \
            $(BUILD_DIR)/js_bootstrap.o
 
@@ -92,6 +92,16 @@ $(BUILD_DIR)/js_ses_shim.o: src/ses-shim.js
 	@echo "const int js_ses_shim_len = sizeof(js_ses_shim) - 1;" \
 		>> $(BUILD_DIR)/js_ses_shim.c
 	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_ses_shim.c
+
+# --- Daemon JS text fallback (if bytecode fails) ---
+$(BUILD_DIR)/js_daemon_text.o: src/daemon-bundle-text.js
+	@mkdir -p $(BUILD_DIR)
+	@echo "const char js_daemon_bundle[] = {" > $(BUILD_DIR)/js_daemon_text.c
+	xxd -i < $< >> $(BUILD_DIR)/js_daemon_text.c
+	@echo ", 0x00 };" >> $(BUILD_DIR)/js_daemon_text.c
+	@echo "const int js_daemon_bundle_len = sizeof(js_daemon_bundle) - 1;" \
+		>> $(BUILD_DIR)/js_daemon_text.c
+	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_daemon_text.c
 
 # --- Eventual-send shim (provides HandledPromise + E) ---
 $(BUILD_DIR)/js_eventual_send.o: src/eventual-send.js
