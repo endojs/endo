@@ -142,6 +142,16 @@ export type PackageConnectionsHook = (params: {
 }) => void;
 
 /**
+ * Hook executed during preloading when a compartment designated to be preloaded
+ * is already loaded.
+ */
+export type RedundantPreloadHook = (params: {
+  canonicalName: CanonicalName;
+  entry: string;
+  log: LogFn;
+}) => void;
+
+/**
  * Set of options available in the context of code execution.
  *
  * May be used only as an intersection with other options types.
@@ -291,7 +301,13 @@ export interface PreloadOption {
    *
    * If an array of strings is provided, the entry is assumed to be `.`.
    */
-  _preload?: Array<string> | Array<{ compartment: string; entry: string }>;
+  _preload?: Array<string | { compartment: string; entry: string }>;
+
+  /**
+   * Hook executed during preloading when a compartment designated to be preloaded
+   * has already been loaded (via entry Compartment).
+   */
+  _redundantPreloadHook?: RedundantPreloadHook | undefined;
 }
 
 export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
