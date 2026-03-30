@@ -5,17 +5,17 @@
   "type": "module",
   "main": "src/no-shim.js",
   "scripts": {
-    "test": "ava",
-    "test:c8": "c8 ${C8_OPTIONS:-} ava",
+    "test": "ava --config test/_ava.config.mjs",
+    "test:c8": "c8 ${C8_OPTIONS:-} ava --config test/_ava.config.mjs",
     "test:xs": "exit 0",
     "build": "exit 0",
     "clean": "git clean -fX -e node_modules/",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "yarn clean",
+    "prepack": "yarn run -T prepack-package",
+    "postpack": "yarn run -T postpack-package",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
-    "lint:eslint": "eslint '**/*.js'"
+    "lint:eslint": "eslint ."
   },
   "exports": {
     "./package.json": "./package.json",
@@ -69,12 +69,6 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
   },
   "typeCoverage": {
     "atLeast": 77.81

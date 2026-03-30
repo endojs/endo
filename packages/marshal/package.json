@@ -27,7 +27,7 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
-    "lint:eslint": "eslint '**/*.js'"
+    "lint:eslint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -88,16 +88,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "ava": {
-    "require": [
-      "@endo/ses-ava/prepare-endo-config.js"
-    ],
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
-  },
   "sesAvaConfigs": {
+    "default": "test/_ava.config.mjs",
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
     "endo": "../../ava-endo-shims-only.config.mjs"
