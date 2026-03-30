@@ -104,7 +104,7 @@ const getBuffer = immuAB => {
   throw TypeError('Not an emulated Immutable ArrayBuffer');
 };
 
-// Omits `constructor` so `Array.prototype.constructor` is inherited.
+// Omits `constructor` so `ArrayBuffer.prototype.constructor` is inherited.
 const ImmutableArrayBufferInternalPrototype = {
   __proto__: arrayBufferPrototype,
   get byteLength() {
@@ -222,7 +222,7 @@ if (optArrayBufferTransfer) {
    * Transfer the contents to a new Immutable ArrayBuffer
    *
    * @param {ArrayBuffer} buffer The original buffer.
-   * @param {number} [newLength] The start index.
+   * @param {number} [newLength]
    * @returns {ArrayBuffer}
    */
   transferBufferToImmutable = (buffer, newLength = undefined) => {
@@ -233,7 +233,6 @@ if (optArrayBufferTransfer) {
     } else {
       buffer = optArrayBufferTransfer(buffer);
       const oldLength = buffer.byteLength;
-      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (newLength <= oldLength) {
         buffer = arrayBufferSlice(buffer, 0, newLength);
       } else {
