@@ -772,6 +772,7 @@ export interface NameHub {
   ): AsyncGenerator<LocatorNameChange, undefined, undefined>;
   list(...petNamePath: string[]): Promise<Array<Name>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
+  listLocators(...petNamePath: string[]): Promise<Record<string, string>>;
   followNameChanges(
     ...petNamePath: string[]
   ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
