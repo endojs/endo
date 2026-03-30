@@ -1,5 +1,37 @@
 # @endo/patterns
 
+## 1.9.0
+
+### Minor Changes
+
+- [#3067](https://github.com/endojs/endo/pull/3067) [`8195a5a`](https://github.com/endojs/endo/commit/8195a5aa8dd99d147b34e40ce8fa7328ce596e87) Thanks [@gibson042](https://github.com/gibson042)! - - Updates `containerHasSplit` to consider copyArray elements in forward order,
+  better aligning with intuition.
+
+- [#3133](https://github.com/endojs/endo/pull/3133) [`9111b4e`](https://github.com/endojs/endo/commit/9111b4e657d07e2f138a9192238849828c2b52aa) Thanks [@turadg](https://github.com/turadg)! - feat: infer TypeScript types from pattern guards
+  - `TypeFromPattern<P>` — infer static types from any pattern matcher
+  - `TypeFromMethodGuard<G>` — infer function signatures from `M.call()` / `M.callWhen()` guards
+  - `TypeFromInterfaceGuard<G>` — infer method records from interface guard definitions
+  - `M.remotable<typeof Guard>()` — facet-isolated return types in exo kits
+  - `M.infer<typeof pattern>` — namespace shorthand analogous to `z.infer`
+  - `matches` and `mustMatch` now narrow the specimen type via type predicates
+  - `makeExo`, `defineExoClass`, and `defineExoClassKit` enforce method signatures against guards at compile time
+
+  These are compile-time type changes only; there are no runtime behavioral changes.
+  Existing TypeScript consumers may see new type errors where method signatures diverge from their guards.
+
+- [#3133](https://github.com/endojs/endo/pull/3133) [`df84eea`](https://github.com/endojs/endo/commit/df84eeaa25af0b9c2c5b98c27ac95e4cb39f0001) Thanks [@turadg](https://github.com/turadg)! - Add optional `label` parameter to `M.promise()`, aligning its signature
+  with `M.remotable(label?)`. When a label is provided, runtime error
+  messages include it for diagnostics (e.g., "Must be a promise Foo, not
+  remotable").
+
+### Patch Changes
+
+- [#3127](https://github.com/endojs/endo/pull/3127) [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd) Thanks [@turadg](https://github.com/turadg)! - Remove stale runtime dependencies from package manifests.
+
+- Updated dependencies [[`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd)]:
+  - @endo/marshal@1.9.1
+  - @endo/pass-style@1.7.1
+
 ## 1.8.0
 
 ### Minor Changes

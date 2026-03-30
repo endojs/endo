@@ -1,5 +1,11 @@
 # @endo/memoize
 
+## 1.2.1
+
+### Patch Changes
+
+- [#3107](https://github.com/endojs/endo/pull/3107) [`05cdb5f`](https://github.com/endojs/endo/commit/05cdb5f550aa3e5057bffdbbf761fae80fd76e9a) Thanks [@erights](https://github.com/erights)! - `@endo/memoize` no longer depends on `ses`, just `@endo/harden`
+
 ## 1.2.0
 
 ### Minor Changes
