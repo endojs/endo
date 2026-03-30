@@ -1,0 +1,35 @@
+# Redox Cookbook recipe for Endo OS
+#
+# Builds QuickJS-ng + the Endo shell as a single binary that
+# boots as the init process (or runs as a user program).
+
+[source]
+# QuickJS-ng source is included in the build context.
+# The Endo shell JS is embedded at compile time.
+
+[build]
+template = "custom"
+
+# Cross-compile QuickJS-ng for Redox using the Redox GCC toolchain.
+script = """
+cd "${COOKBOOK_RECIPE}/source/quickjs"
+
+# Build QuickJS as a static library.
+${CC} -O2 -D_GNU_SOURCE -DCONFIG_VERSION=\"endo-os\" \
+    -c -o quickjs.o quickjs.c
+${CC} -O2 -D_GNU_SOURCE -c -o libregexp.o libregexp.c
+${CC} -O2 -D_GNU_SOURCE -c -o libunicode.o libunicode.c
+${CC} -O2 -D_GNU_SOURCE -c -o dtoa.o dtoa.c
+${AR} rcs libquickjs.a quickjs.o libregexp.o libunicode.o dtoa.o
+
+# Build endo-init.
+cd "${COOKBOOK_RECIPE}/source"
+${CC} -O2 -D_GNU_SOURCE -DCONFIG_VERSION=\"endo-os\" \
+    -I quickjs \
+    -o endo-init endo-init.c \
+    quickjs/libquickjs.a \
+    -lm -lpthread
+
+mkdir -p "${COOKBOOK_STAGE}/bin"
+cp endo-init "${COOKBOOK_STAGE}/bin/endo-init"
+"""
