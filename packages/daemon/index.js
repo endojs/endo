@@ -289,7 +289,6 @@ const runEngo = async (detached, config) => {
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
   const logPath = path.join(config.statePath, 'endo.log');
-  const output = fs.openSync(logPath, 'a');
 
   const endoGoDaemonPath = url.fileURLToPath(
     new URL('src/daemon-go.js', import.meta.url),
@@ -303,10 +302,19 @@ const runEngo = async (detached, config) => {
     PATH: process.env.PATH || '',
   };
 
+  const stdio = (/** @returns {popen.StdioOptions} */() => {
+    if (detached) {
+      const output = fs.openSync(logPath, 'a');
+      return ['ignore', output, output];
+    } else {
+      return ['inherit', 'inherit', 'inherit'];
+    }
+  })();
+
   const child = popen.spawn(endoBin, ['daemon'], {
     detached,
     env,
-    stdio: detached ? ['ignore', output, output] : 'inherit',
+    stdio,
   });
   await waitForSpawn(child);
 
@@ -353,7 +361,7 @@ const runEndo = async (detached, config) => {
     ...Object.fromEntries(filterEnv()),
   };
 
-  const stdio = /** @returns {popen.StdioOptions} */ (() => {
+  const stdio = (/** @returns {popen.StdioOptions} */() => {
     if (detached) {
       const output = fs.openSync(logPath, 'a');
       return ['ignore', output, output, 'ipc'];
@@ -526,10 +534,6 @@ const runningWorker = ({
 
     get runDir() {
       return workerRunDir;
-    },
-
-    get pidPath() {
-      return pidPath;
     },
 
     get pidPath() {

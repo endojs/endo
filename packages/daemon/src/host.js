@@ -698,11 +698,6 @@ export const makeHostMaker = ({
     };
 
     /**
-     * Create a new channel and store it under the given pet name.
-     * @param {PetName} petName - Pet name to store the channel under.
-     * @param {string} channelProposedName - Display name for the channel creator.
-     */
-    /**
      * Create a timer that fires at a specified interval.
      *
      * @param {PetName} petName - Pet name to store the timer under
@@ -722,6 +717,11 @@ export const makeHostMaker = ({
       return value;
     };
 
+    /**
+     * Create a new channel and store it under the given pet name.
+     * @param {PetName} petName - Pet name to store the channel under.
+     * @param {string} channelProposedName - Display name for the channel creator.
+     */
     const makeChannelCmd = async (petName, channelProposedName) => {
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
