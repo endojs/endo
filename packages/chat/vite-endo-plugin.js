@@ -7,7 +7,9 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 
+import { systemCapture } from '@endo/platform/proc';
 import { whereEndoState } from '@endo/where';
+import { time } from 'console';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -64,34 +66,8 @@ const loadDotenv = () => {
  *
  * @param {string[]} args
  * @param {number} timeoutMs
- * @returns {Promise<{ code: number | null, stderr: string }>}
  */
-const runEndoCli = (args, timeoutMs = 15000) =>
-  new Promise((resolve, reject) => {
-    const child = spawn('node', [endoCliPath, ...args], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: repoRoot,
-    });
-
-    let stderr = '';
-    child.stderr.on('data', data => {
-      stderr += data.toString();
-    });
-
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error(`Timeout running endo ${args.join(' ')}`));
-    }, timeoutMs);
-
-    child.on('close', code => {
-      clearTimeout(timer);
-      resolve({ code, stderr });
-    });
-    child.on('error', error => {
-      clearTimeout(timer);
-      reject(error);
-    });
-  });
+const runEndoCli = (args, timeoutMs = 1_500) => systemCapture(endoCliPath, args, timeoutMs);
 
 // Set to 0 to disable thrashing when developing daemon
 const DAEMON_POLL_INTERVAL_MS = 5_000;
@@ -107,7 +83,7 @@ const DAEMON_START_MAX_WAIT = 90_000;
  */
 const pingDaemon = async () => {
   try {
-    const { code } = await runEndoCli(['ping'], 10000);
+    const { code } = await runEndoCli(['ping'], 10_000);
     return code === 0;
   } catch {
     return false;

@@ -1495,6 +1495,7 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/where": "workspace:^"

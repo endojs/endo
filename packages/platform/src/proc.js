@@ -7,6 +7,99 @@ import path from 'path';
 
 /** @import { ChildProcess } from 'child_process' */
 
+import { spawn } from 'child_process';
+
+/**
+ * @template T
+ * @param {ChildProcess} child
+ * @param {Promise<T>} p
+ * @param {number} [t]
+ */
+const withChildTimeout = async (child, p, t) => {
+  if (!t) {
+    return p;
+  }
+  /** @type {NodeJS.Timeout|null} */
+  let timer = null;
+  /** @type {Promise<never>} */
+  const timedOut = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      timer = null;
+      child.kill();
+      reject(new Error(`Timeout running endo ${child.spawnargs.join(' ')}`));
+    }, t);
+  });
+  try {
+    return await Promise.race([timedOut, p])
+  } catch (e) {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    throw e;
+  }
+};
+
+/**
+ * Run a system command,
+ * wait for exit,
+ * resolve with exit code,
+ * or reject with spawn error.
+ *
+ * @param {string} prog - the binary ; may be a java-script, if so the current
+ * node binary is used instead, and prog becomes first arg
+ * @param {Array<string>} args
+ * @param {number} [timeoutMs]
+ * @returns {Promise<number>}
+ */
+export const system = async (prog, args, timeoutMs) => {
+  let exe = prog;
+  if (prog.endsWith('.js')) {
+    args.unshift(prog);
+    exe = process.execPath; // Use the current Node.js executable path
+  }
+  const child = spawn(exe, args, {
+    stdio: 'inherit',
+    detached: false,
+  });
+  return await withChildTimeout(child, waitForExit(child), timeoutMs);
+};
+harden(system);
+
+/**
+ * Run a system command,
+ * wait for exit,
+ * resolve with exit code,
+ * or reject with spawn error.
+ *
+ * @param {string} prog - the binary ; may be a java-script, if so the current
+ * node binary is used instead, and prog becomes first arg
+ * @param {Array<string>} args
+ * @param {number} [timeoutMs]
+ * @returns {Promise<{code: number, stdout: string, stderr: string}>}
+ */
+export const systemCapture = async (prog, args, timeoutMs) => {
+  let exe = prog;
+  if (prog.endsWith('.js')) {
+    args.unshift(prog);
+    exe = process.execPath; // Use the current Node.js executable path
+  }
+  const child = spawn(exe, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: false,
+  });
+  let stdout = '';
+  child.stdout.on('data', data => {
+    stdout += data.toString();
+  });
+  let stderr = '';
+  child.stderr.on('data', data => {
+    stderr += data.toString();
+  });
+  const code = await withChildTimeout(child, waitForExit(child), timeoutMs);
+  return { code, stdout, stderr };
+};
+harden(system);
+
 /**
  * Check whether an executable exists on PATH and return its full path,
  * or `null` if not found.
