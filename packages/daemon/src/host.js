@@ -708,7 +708,7 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<{ timerId: import('./types.js').FormulaIdentifier }>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.write(petName, identifiers.timerId));
+      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.timerId));
       const { value } = await formulateTimer(
         Number(intervalMs),
         label || petName,
