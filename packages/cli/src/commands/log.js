@@ -316,9 +316,22 @@ export const log = async ({ follow, ping, all }) =>
         }
       })().catch(cancelFollower);
 
-      const child = spawn('tail', follow ? ['-f', logPath] : [logPath], {
-        stdio: ['inherit', 'inherit', 'inherit'],
-      });
+      const child = await (async () => {
+        if (await hasProgram('journalctl')) {
+          // When the daemon runs under systemd, logs go to the journal
+          // rather than to the endo.log file.
+          const unitName = `endo-daemon`;
+          return spawn('journalctl', follow
+            ? [`--user-unit=${unitName}`, '--no-pager', '-f']
+            : [`--user-unit=${unitName}`, '--no-pager'], {
+            stdio: ['inherit', 'inherit', 'inherit'],
+          });
+        } else {
+          return spawn('tail', follow ? ['-f', logPath] : [logPath], {
+            stdio: ['inherit', 'inherit', 'inherit'],
+          });
+        }
+      })();
       await waitForExitOrCancel(child, followCancelled);
 
       if (follow) {
