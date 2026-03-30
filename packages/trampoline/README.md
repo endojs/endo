@@ -1,4 +1,4 @@
-# @endo/trampoline
+# `@endo/trampoline`
 
 > Multicolor trampolining using generators
 
@@ -90,12 +90,12 @@ The usual sort of thing:
 npm install @endo/trampoline
 ```
 
-## License
-
-Apache-2.0
-
 ## Disclaimer
 
 By using this library, you agree to indemnify and hold harmless the authors of `@endo/trampoline` from any and all losses, liabilities and risk of bodily injury _including but not limited to_ broken bones, sprains, bruises or other hematomas, fibromas, teratomas, mesotheliomas, cooties, bubonic plague, psychic trauma or warts due to the inherent danger of trampolining.
 
 [trampolining]: https://raganwald.com/2013/03/28/trampolines-in-javascript.html
+
+## License
+
+[Apache-2.0](./LICENSE)

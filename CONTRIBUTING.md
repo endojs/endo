@@ -76,6 +76,17 @@ guides in the `docs/` directory, and package-specific documentation.
 should use long lines (paragraphs joined without manual wrapping), as GitHub
 uses a different Markdown flavor for those contexts.
 
+## Coding Style
+
+Prefer unabbreviated names for variables, parameters, and functions.
+For example, use `options` instead of `opts`, `error` instead of `err`,
+and `index` instead of `idx`.
+
+Exceptions include:
+* Conventional loop counters like `i`, `j`, `k`
+* Well-established abbreviations in APIs we mirror or implement
+* Cases where the abbreviated form is the canonical name (e.g., `stdin`, `args`)
+
 ## Rebuilding `ses`
 
 Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.

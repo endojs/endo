@@ -73,3 +73,7 @@ Since the `ImmutableArrayBufferInternal` class is only an artifact of the ponyfi
 At https://github.com/concordancejs/concordance/blob/791d2a89b40eb13f2c889ac270dd8be190cf8073/lib/describe.js#L36 Node's concordance, in order to render diagnostic output for an object, sniffs the result of `toString()`. If the result seems to indicate that the object is an ArrayBuffer, then concordance assumes it can do things with the object (`Buffer.from`) that can only be done on genuine ArrayBuffers. To avoid this, the ponyfill and shim ensures that the sniff will not match `'ArrayBuffer'`.
 
 Ava also uses Node's concordance for its diagnostic output, which is how we discovered the problem.
+
+## License
+
+[Apache-2.0](./LICENSE)
