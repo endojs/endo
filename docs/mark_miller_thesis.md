@@ -1,87 +1,60 @@
+# Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control
 
+by Mark Samuel Miller
 
---- Page 001 ---
-
-
-Robust Composition:
-Towards a Unified Approach to Access Control and Concurrency Control
-by
-Mark Samuel Miller
 A dissertation submitted to Johns Hopkins University in conformity with the
 requirements for the degree of Doctor of Philosophy.
-Baltimore, Maryland
-May, 2006
+
+Baltimore, Maryland May, 2006
+
 Copyright (©) 2006, Mark Samuel Miller. All rights reserved.
-Permission is hereby granted to make and distribute verbatim copies of this document
-without royalty or fee. Permission is granted to quote excerpts from this documented
-provided the original source is properly cited.
 
+Permission is hereby granted to make and distribute verbatim copies of this
+document without royalty or fee.
 
---- Page 002 ---
+Permission is granted to quote excerpts from this documented provided the
+original source is properly cited.
 
+> Transcribed from <http://erights.org/talks/thesis/index.html>
+> via Tesseratc PDF OCR 
+> with some liberties taken in de-paginating and reformatting
+> in particular, the figures have not transcribe well and need another pass
 
-ii
+## Abstract
 
-
---- Page 003 ---
-
-
-Abstract
-
-‘When separately written programs are composed so that they may cooperate, they
-may instead destructively interfere in unanticipated ways. These hazards limit the
-scale and functionality of the software systems we can successfully compose. This
-dissertation presents a framework for enabling those interactions between components
-needed for the cooperation we intend, while minimizing the hazards of destructive
-interference.
+When separately written programs are composed so that they may cooperate, they
+may instead destructively interfere in unanticipated ways. These hazards limit
+the scale and functionality of the software systems we can successfully
+compose. This dissertation presents a framework for enabling those interactions
+between components needed for the cooperation we intend, while minimizing the
+hazards of destructive interference.
 
 Great progress on the composition problem has been made within the object
-paradigm, chiefly in the context of sequential, single-machine programming among
-benign components. We show how to extend this success to support robust composi-
-tion of concurrent and potentially malicious components distributed over potentially
-malicious machines. We present E, a distributed, persistent, secure programming
-language, and CapDesk, a virus-safe desktop built in E, as embodiments of the tech-
-niques we explain.
+paradigm, chiefly in the context of sequential, single-machine programming
+among benign components. We show how to extend this success to support robust
+composition of concurrent and potentially malicious components distributed over
+potentially malicious machines. We present E, a distributed, persistent, secure
+programming language, and CapDesk, a virus-safe desktop built in E, as
+embodiments of the techniques we explain.
 
-Advisor: Jonathan S. Shapiro, Ph.D.
-Readers: Scott Smith, Ph.D., Yair Amir, Ph.D.
-iii
-
-
---- Page 004 ---
+**Advisor**: Jonathan S. Shapiro, Ph.D.
+**Readers**: Scott Smith, Ph.D., Yair Amir, Ph.D.
 
 
-iv
+This dissertation is dedicated to the number "3469" and the letter "E".
 
+## Acknowledgements
 
---- Page 005 ---
-
-
-This dissertation is dedicated to the number “3469” and the letter “E”.
-v
-
-
---- Page 006 ---
-
-
-vi
-
-
---- Page 007 ---
-
-
-Acknowledgements
-
-Jonathan Shapiro, my advisor, for encouraging me to continue this work in an aca-
-demic setting, and for providing insight, encouragement, and support way beyond the
-call of any duty.
+Jonathan Shapiro, my advisor, for encouraging me to continue this work in an
+academic setting, and for providing insight, encouragement, and support way
+beyond the call of any duty.
 
 Terry Stanley, for her patient support, encouragement, and enthusiam for this
 project.
 
-My parents, Ann and Bernard Miller. Knowing the naches they would feel,
-helped motivate me to complete this dissertation (“Naches” is approximately “re-
-flected pride”).
+My parents, Ann and Bernard Miller. Knowing the naches they would feel, helped
+motivate me to complete this dissertation ("Naches" is approximately "reflected
+pride").
 
 Hewlett-Packard Laboratories for supporting portions of this research, and Alan
 Karp for helping to arrange this.
@@ -90,498 +63,318 @@ Combex and Henry Boreen for investing in these ideas. I still hope to see this
 investment pay off.
 
 The Defense Advanced Research Projects Agency for sponsoring the security re-
-view of E, CapDesk, and the DarpaBrowser [WT02].
+view of E, CapDesk, and the DarpaBrowser (WT02).
 
-Lauren Williams for rescue from crisis. I don’t know what would have happened
+Lauren Williams for rescue from crisis. I don't know what would have happened
 without your help.
 
-The software systems explained in this dissertation are the results of collaborative
-efforts starting at Electric Communities, Inc. and continuing with the e-lang online
-community. Since the contributors are many and changing, they are accurately docu-
-mented only by navigation from erights.org| Here, I'd like to single out and express
-my gratitude specifically to E’s most creative and prolific user, Marc Stiegler. He is
-the creator and primary developer of the systems documented in Part CapDesk,
-Polaris, and the DarpaBrowser. Without his contributions, the value of E would have
-remained inaccessibly abstract.
+The software systems explained in this dissertation are the results of
+collaborative efforts starting at Electric Communities, Inc. and continuing
+with the e-lang online community. Since the contributors are many and changing,
+they are accurately documented only by navigation from erights.org| Here, I'd
+like to single out and express my gratitude specifically to E's most creative
+and prolific user, Marc Stiegler. He is the creator and primary developer of
+the systems documented in Part CapDesk, Polaris, and the DarpaBrowser. Without
+his contributions, the value of E would have remained inaccessibly abstract.
 
-This dissertation borrows liberally from several of my previous papers
-. ‘Without further attribution, I'd like to especially
-thank my co-authors on these papers: Bill Frantz, Chip Morningstar, Jonathan
-Shapiro, E. Dean Tribble, Bill Tulloh, and Ka-Ping Yee. I cannot hope to enumerate
-all their contributions to the ideas presented here.
+This dissertation borrows liberally from several of my previous papers (MMF00,
+MYS03, MS03, MTS04, MTS05). further attribution, I'd like to especially thank
+my co-authors on these papers: Bill Frantz, Chip Morningstar, Jonathan Shapiro,
+E. Dean Tribble, Bill Tulloh, and Ka-Ping Yee. I cannot hope to enumerate all
+their contributions to the ideas presented here.
 
-I’d also like to thank again all those who contributed to these prior papers: Yair
-Amir, Paul Baclace, Darius Bacon, Howie Baetjer, Hans Boehm, Dan Bornstein, Per
-Brand, Marc “Lucky Green” Briceno, Michael Butler, Tyler Close, John Corbett, M.
-Scott Doerrie, Jed Donnelley, K. Eric Drexler, Ian Grigg, Norm Hardy, Chris Hibbert,
-Jack High, Tad Hogg, David Hopwood, Jim Hopwood, Ted Kachler, Ken Kahn, Piotr
+I'd also like to thank again all those who contributed to these prior papers:
+Yair Amir, Paul Baclace, Darius Bacon, Howie Baetjer, Hans Boehm, Dan
+Bornstein, Per Brand, Marc "Lucky Green" Briceno, Michael Butler, Tyler Close,
+John Corbett, M. Scott Doerrie, Jed Donnelley, K. Eric Drexler, Ian Grigg, Norm
+Hardy, Chris Hibbert, Jack High, Tad Hogg, David Hopwood, Jim Hopwood, Ted
+Kachler, Ken Kahn, Piotr Kaminski, Alan Karp, Terence Kelly, Lorens Kockum,
+Matej Kosik, Kevin Lacobie, Charles Landau, Jon Leonard, Mark Lillibridge,
+Brian Marick, Patrick McGeer, Eric Messick, Greg Nelson, Eric Northup,
+Constantine Plotnikov, Jonathan Rees, Kevin Reid, Matthew Roller, Vijay
+Saraswat, Christian Scheideler, Scott Smith, Michael Sperber, Fred Spiessens,
+Swaroop Sridhar, Terry Stanley, Marc Stiegler, Nick Szabo, Kazunori Ueda, David
+Wagner, Bryce "Zooko" Wilcox-O'Hearn, Steve Witham, and the e-lang and cap-talk
+communities.
 
-vii
+- Thanks to Ka-Ping Yee and David Hopwood for a wide variety of assistance.
+  - They reviewed numerous drafts, contributed extensive and deep technical
+    feedback, clarifying rephrasings, crisp illustrations, and moral support.
+  - Ka-Ping Yee contributed Figures 14.2, 14.3, 16.1, and 17.1  with input from
+    the e-lang community.
+- Thanks to Terry Stanley for suggesting the listener pattern and
+  purchase-order examples.
+- Thanks to Marc Stiegler for the membrane example shown in Figure 9.3.
+- Thanks to Darius Bacon for the promise pipelining example shown in Figure
+  16.1.
+- Thanks to Mark Seaborn for suggesting that the when-catch expression evaluate
+  to a promise for its handler's result, as explained in Section 18.1.
+- Thanks to the Internet Assigned Numbers Authority, for choosing the perfect
+  port number for Pluribus on their own.
+- Thanks to Norm Hardy for bringing to my attention the relationship between
+  knowledge and authority in computational systems.
 
+For helpful suggestions regarding the dissertation itself, I thank Yair Amir,
+Tyler Close, M. Scott Doerrie, K. Eric Drexler, Bill Frantz, Norm Hardy, Chris
+Hibbert, Ken Kahn, Alan Karp, Patrick McGeer, Chip Morningstar, Eric Northup,
+Jonathan Shapiro, Matthew Roller, Scott Smith, Mark Smotherman, Swaroop
+Sridhar, Terry Stanley, Marc Stiegler, E. Dean Tribble, Bill Tulloh, and Lauren
+Williams.
 
---- Page 008 ---
-
-
-Kaminski, Alan Karp, Terence Kelly, Lorens Kockum, Matej Kosik, Kevin Lacobie,
-Charles Landau, Jon Leonard, Mark Lillibridge, Brian Marick, Patrick McGeer, Eric
-Messick, Greg Nelson, Eric Northup, Constantine Plotnikov, Jonathan Rees, Kevin
-Reid, Matthew Roller, Vijay Saraswat, Christian Scheideler, Scott Smith, Michael
-Sperber, Fred Spiessens, Swaroop Sridhar, Terry Stanley, Marc Stiegler, Nick Szabo,
-Kazunori Ueda, David Wagner, Bryce “Zooko” Wilcox-O’Hearn, Steve Witham, and
-the e-lang and cap-talk communities.
-
-Thanks to Ka-Ping Yee and David Hopwood for a wide variety of assistance. They
-reviewed numerous drafts, contributed extensive and deep technical feedback, clar-
-ifying rephrasings, crisp illustrations, and moral support. Ka-Ping Yee contributed
-Figures (1.2 (p. [107), 143 (p. [108), 16.1) (p. T18), and [T7.1) (p. 121) with input from
-the e-lang community. Thanks to Terry Stanley for suggesting the listener pattern
-and purchase-order examples. Thanks to Marc Stiegler for the membrane example
-shown in Figure (p-71). Thanks to Darius Bacon for the promise pipelining ex-
-ample shown in Figure([16.1/(p.[118). Thanks to Mark Seaborn for suggesting that the
-when-catch expression evaluate to a promise for its handler’s result, as explained in
-Section Thanks to the Internet Assigned Numbers Authority, for choosing the
-perfect port number for Pluribus on their own. Thanks to Norm Hardy for bringing
-to my attention the relationship between knowledge and authority in computational
-systems.
-
-For helpful suggestions regarding the dissertation itself, I thank Yair Amir, Tyler
-Close, M. Scott Doerrie, K. Eric Drexler, Bill Frantz, Norm Hardy, Chris Hibbert,
-Ken Kahn, Alan Karp, Patrick McGeer, Chip Morningstar, Eric Northup, Jonathan
-Shapiro, Matthew Roller, Scott Smith, Mark Smotherman, Swaroop Sridhar, Terry
-Stanley, Marc Stiegler, E. Dean Tribble, Bill Tulloh, and Lauren Williams.
-
-T am eternally grateful to the board of Electric Communities for open sourcing E
-when their business plans changed.
+I am eternally grateful to the board of Electric Communities for open sourcing
+E when their business plans changed.
 
 Thanks to Kevin Reid and E. Dean Tribble for keeping the E development process
 alive and well while I spent time on this dissertation.
 
-viii
+## Chapter 1
+
+### Introduction
+
+When separately written programs are composed so that they may cooperate, they
+may instead destructively interfere in unanticipated ways. These hazards limit
+the scale and functionality of the software systems we can successfully
+compose. This dissertation presents a framework — a computational model and a
+set of design rules — for enabling those interactions between components needed
+for the cooperation we intend, while minimizing the hazards of destructive
+interference.
+
+Most of the progress to date on the composition problem has been made in the
+context of sequential, single-machine programming among benign components.
+Within this limited context, object programming supports composition well. This
+dissertation explains and builds on this success, showing how to extend the
+object paradigm to support robust composition of concurrent and potentially
+malicious components distributed over potentially malicious machines. We
+present E, a distributed, persistent, secure programming language, and CapDesk,
+a virus-safe desktop built in E, as embodiments of the techniques we explain.
+
+As Alan Kay has suggested (Kay98), our explanation of the power of object
+programming will focus not on the objects themselves, but on the reference
+graph that connects them. In the object model of computation, an object can
+affect the world outside itself only by sending messages to objects it holds
+references to.[l] The references that an object may come to hold thereby limit
+what effects it may cause. Our extensions to the object paradigm leverage this
+observation. References become the sole conveyers of (overt) inter-object
+causality, yielding the object-capability model of access control (Chapter 9),
+able to support certain patterns of composition among potentially malicious
+objects. We extend the reference graph cryptographically between potentially
+mutually malicious machines, yielding a distributed cryptographic capability
+system (Chapter 7).
+
+[1]:
+> To explain call-return control flow purely in terms of sending messages, we
+> often speak as if all programs are transformed to continuation-passing style
+> before execution. This explains a call as a send carrying a (normally hidden)
+> extra continuation argument reifying the "rest of the computation" to happen
+> after this call returns. This corresponds approximately to the implementation
+> concept of pushing a return address on the stack. The callee's returning is
+> explained as sending the returned value to this continuation. This is
+> discussed further in Section 18.2
+>
+> Those familiar with ML or Algol68 may find our use of the term "reference"
+> confusing. By "reference" we mean "object reference" or "protected pointer",
+> i.e., the arrows that one draws when diagramming a data structure to show
+> which objects "point at" which other objects. Our "references" have nothing
+> to do with enabling mutability.
+
+A particularly vexing set of problems in distributed systems are the issues of
+partial failure (spontaneous disconnection and crashes). The most novel
+contribution of this dissertation is the definition of a state transition
+semantics for distributed references that supports deferred communication,
+failure notification, and reconnection while preserving useful limits on causal
+transmission. We define a set of reference states, i.e., states that a
+reference may be in, and a set of associated transition rules, where the causal
+transmission properties provided by a reference depend on its state (Chapter
+17). The resulting access-control and concurrency-control discipline helps us
+cope with the following pressing problems:
+
+* Excessive authority which invites abuse (such as viruses and spyware),
+
+* Inconsistency caused by interleaving (concurrency),
+
+* Deadlock (though other forms of lost progress hazards remain),
+
+* Inter-machine latency, and
+
+* Partial failure (disconnects and crashes).
+
+Some prior means of addressing these problems are similar to those presented in
+this dissertation. However, these prior solutions have not been composed
+successfully into a framework for simultaneously addressing these problems. Our
+comparative success at realizing an integrated solution is due to two
+observations:
+
+1. Both access control and concurrency control are about enabling the causality
+   needed for the inter-object cooperation we intend, while seeking to prevent
+   those interactions which might cause destructive interference. In access
+   control, we seek to distribute those access rights needed for the job at
+   hand, while limiting the distribution of access rights that would enable
+   mischief. In concurrency control, we seek to enable those interleavings
+   needed for continued progress, while preventing those interleavings that
+   would cause inconsistency.
+
+2. References are already the natural means for enabling inter-object
+   causality, so a natural and powerful means of limiting inter-object
+   causality is to restrict the causal transmission properties provided by
+   references.
+
+We show how the consistent application of these principles, simultaneously, at
+multiple scales of composition, results in a multiplicative reduction in
+overall systemic vulnerability to plan interference.
+
+### 1.1 Organization of this Dissertation
+
+- **Part I** explains the Software Composition Problem
+  - How object programming already helps address it under local, sequential,
+    and benign conditions.
+  - We introduce those compositional forms of component robustness needed to
+    extend the object paradigm beyond these limits.
+  - We introduce a subset of the E language, and a simplified form of Pluribus,
+    E's distributed object protocol.
+  - The rest of the dissertation uses E examples to illustrate how to achieve
+    some of these forms of robustness.
+
+- **Part II Access Control** explores the consequences of limiting inter-object
+  (overt) causal- ity to occur solely by means of messages sent on references.
+  - By explaining the role of access abstractions, we demonstrate that the
+    resulting access control model is more expressive than much of the prior
+    literature would suggest.
+  - In this part, we extend our attention to potentially malicious components,
+    though still in a sequential and local context.
+
+- **Part III Concurrency Control** extends our ambitions to distributed
+  systems.
+  - Separate machines proceed concurrently, interact across barriers of large
+    latencies and partial failure, and encounter each other's misbehavior.
+  - Each of these successive problems motivates a further elaboration of our
+    reference states and transition rules, until we have the complete picture,
+    shown in Figure 17.1.
+
+The above parts provide a micro analysis of compositional robustness, in which
+small code examples illustrate the interaction of individual objects,
+references, and messages.
+By themselves they demonstrate only increased robustness "in the small."
+
+- **Part IV Emergent Robustness** takes us on a macro tour through CapDesk, a
+  proof of concept system built in E.
+  - It explains how the potential damage caused by bugs or malice are often
+    kept from propagating along the reference graph.
+  - By examining patterns of susceptibility to plan interference across
+    different scales of composition, we come to understand the degree of
+    robustness practically achievable "in the large", as well as the remaining
+    limits to this robustness.
+
+- **Part V** discusses Related Work, including how these reference-state rules
+  bridge the gap between the network-as-metaphor view of the early Smalltalk
+  and the network-transparency ambitions of Actors.
+  - In addition, many chapters end with notes on related work specific to that
+    chapter.
+
+## Chapter 2
+
+### Approach and Contributions
 
-
---- Page 009 ---
-
-
-Contents
-Abstract iii
-vt
-xv
-it
-1
-1.1 Organization of this Dissertation . . . .. ... ... ... .. ... ..... 2
-2 Approach and Contributions 5
-2.1 nattenuated Composition| . . .. ... ... ... o 0 oL 5
-2.2 Attenuating Authority| . . . . . .. ... ... 6
-2.3 Distributed Access Controll . . . . ... ... ... .. L 6
-2.4 Distributed Concurrency Control . . . . . . ... ............... 1T
-2.5 Promise Pipelining| . . . ... ... ... o 9
-2.6 Delivering Messages in E-ORDER| . . . . .. ................. 9
-2.7 Emergent Robustness, . ... ... ....................... 10
-I The Software Composition Problem 13
-3 agile Composition 15
-3.1 Excess Authority: The Gateway to Abuse . . . . ... ............ 16
-3.2 How Much Authority is Adequate? . . . .. ... ............... 17
-3.3 ared-State Concurrency is Difficult/. . . ... ... ........ ... .. 18
-3.4 y a Unified Approach? . . .. ....... ... .............. 19
-3.5 Notes on Relate ork on Designation|. . . .. ... ... .......... 20
-23
-4.1 sing Objects to Organize Assumptions| . . . . ... ... ... ....... 23
-4.1.1 Decomposition| . . .. ... ... ... ... ... ... ... ... 23
-4.1.2 Encapsulation. . . . ... ... ... o o Lo oo L. 24
-4.1.4 Jomposition| . ... ... oL L oo o oo .. 2D
-
-ix
-
-
---- Page 010 ---
-
-
-29
-39
-49
-55
-57
-[8.2 Notes on Related Workl . . .. ......................... 61
-63
-9.3 Selective Revocation: Redell’s Caretaker Pattern| . . . ... ......... 68
-X
-
-
---- Page 011 ---
-
-
-75
-81
-
-[11.5 The Limits of Decentralized Access Controll . . ... ............. 8
-o
-03
-o7
-105
-113
-17
-
-xi
-
-
---- Page 012 ---
-
-
-123
-129
-137
-145
-147
-149
-[21.6 Notes on Related Work| . . ... ........................ 156
-159
-163
-165
-xii
-
-
---- Page 013 ---
-
-
-[23.7 From Original- Eto B[ . . ... ......................... 167
-169
-173
-177
-
-264 SCOLL! . . . . oo i e 1T
-
-[26.6 Emilyl ... ... ... 180
-183
-
-[27.2 Future Workl . . . .. ... 184
-
-[27.3 Continuing Bfforfs| . . . ... .......................... 18
-187
-207
-
-xiii
-
-
---- Page 014 ---
-
-
-xiv
-
-
---- Page 015 ---
-
-
-.
-List of Tables
-8.1 Bounds on Access Rights . . ... ....................... 60
-9.1 Capability / OS / Object corresponding concepts . . . . ... ........ 64
-21.1 Security as Extreme Modularity. . . . ... ... ... ............ 156
-XV
-
-
---- Page 016 ---
-
-
-xvi
-
-
---- Page 017 ---
-
-
-. .
-List of Figures
-2.1 Unattenuated Composition| . .. .. ... ... ........ ... ... 5
-2.2 Attenuating Authority . . . ... ... oo 6
-2.3 Distributed Access Controll . . . . ... ... ... ... ... ... 7
-2.4 Distributed Concurrency Control . . . . ... .. ......... ... ... 8
-2.5 Promise Pipelining| . . . ... ... ... o 9
-2.6 Delivering Messages in E-ORD . (1]
-2.7 Emergent Robustness| . . ... ........ ... .............. 11
-3.2 Functionality vs. Security? . .. .. ... .. ... ....... ... .... 17
-3.3 Progress vs. Consistency? . . .......................... 19
-4.1 Composition Creates New Relationships| . . . ... ........... ... 25
-5.1 A Cooperatively Correct Counter in Java| . . ... ... ........... 31
-5.2 A Defensively Consistent Counter in Java . . . ... ............. 33
-6.1 Lexically Nested Function Definition| . . . . ... ... ... ......... 40
-6.2 Objectsas Closures. . . . .. .......................... 4l
-6.3 Expansion to Kernel-E/. . . . ... ... ... ..., .. ... ... 42
-6.5 Two Counting Facets Sharinga Slot| . . . . ... ............ ... 43
-6.6 Soft Type Checking| . . .. .......... ... .............. 45
-7.1 Distributed Introduction' . . . .. ... ... ... ... ......... ... 50
-8.1 Access Diagrams Depict Protection State| . . ... ........... ... 58
-8.2  Authority is the Ability to Cause Effects|. . . ... ... ... ........ 59
-9.1 Introduction by Message Passing . . ... ... ................ 67
-9.2 Redell’s Caretaker Pattern/. . . . ... ..................... 69
-9.3 embranes Form Compartments . . ... ... ................ 71
-10.1 Closed Creation is Adequate|. . . . ... .................... 76
-10.2 Open Creation is Adequate| . . . .. ...................... 76
-11.1 Factory-based Confinement . . . .. ... ...... .. ... ......... 8
-11.2 Cassie Checks Confinement/ . . . . ... ... ... .. ... ......... 84
-11.3 Unplanned Composition of Access Policies . . . ... ... .......... 85
-xvii
-
-
---- Page 018 ---
-
-
-13.1 e Sequential Listener Pattern in Java) . . . ... ..... ... ... ... 98
-13.2 Anatomy of a Nested Publication Bug| . . . .. ... ............. 99
-13.3 read-safety is Surprisingly Hard| . . . .. .. ... ............. 101
-13.4 A First Attempt at Deadlock Avoidance . . . . ... .. ... ... ..... 102
-14.1 e Sequential Listener Patternin E/. . . .. ........ ... ... ... 105
-14.2 A Vat’s Thread Services a Stack and a Queue . . . . . ... ... ...... 107
-14.3 An Eventually-Sent Message is Queued in its Target’s Vat . . . . . ... .. 108
-15.1 Reify Distinctions in Authority as Distinct Objects|. . . . .. ... ... .. 114
-16.1 Promise Pipelining . . . ... ... ... ... ................. 118
-16.2 Datalock'. . . . .. ... ... ... ... ... L o 119
-17.1 Reference States and Transitions . . . . ... ... .............. 124
-18.1 Eventual Conjunction| . . . .. ... ...................... 130
-18.2 Using Eventual Control Flow| . . . ... .................... 130
-18.3 e Default Joiner| . . . ... ... ....... ... . ... ... ... ... 131
-[19.1 Forksin E-ORDER] . . . ... ...... ... ... .. ... .. .. 138
-19.2 Eventual Equality as Join| . . ... ....................... 140
-21.1 Attack Surface Area Measures Risk/. . . ... ... ... ........ ... 150
-21.2 Barb’s Situation’ . . . ... .. ... ... .. ... ... ........... 151
-21.3 Doug’s Situation| . . . . . ... ......................... 153
-21.4 Level 4: Object-granularity POLA| . . ... ... ............... 155
-xviii
-
-
---- Page 019 ---
-
-
-Chapter 1
-
-Introduction
-
-When separately written programs are composed so that they may cooperate, they may in-
-stead destructively interfere in unanticipated ways. These hazards limit the scale and func-
-tionality of the software systems we can successfully compose. This dissertation presents
-a framework—a computational model and a set of design rules—for enabling those inter-
-actions between components needed for the cooperation we intend, while minimizing the
-hazards of destructive interference.
-
-Most of the progress to date on the composition problem has been made in the context
-of sequential, single-machine programming among benign components. Within this limited
-context, object programming supports composition well. This dissertation explains and
-builds on this success, showing how to extend the object paradigm to support robust com-
-position of concurrent and potentially malicious components distributed over potentially
-malicious machines. We present E, a distributed, persistent, secure programming language,
-and CapDesk, a virus-safe desktop built in E, as embodiments of the techniques we explain.
-
-As Alan Kay has suggested [Kay98], our explanation of the power of object programming
-will focus not on the objects themselves, but on the reference graph that connects them. In
-the object model of computation, an object can affect the world outside itself only by sending
-messages to objects it holds references to/ll The references that an object may come to hold
-thereby limit what effects it may cause. Our extensions to the object paradigm leverage
-this observation. References become the sole conveyers of (overt) inter-object causality,
-yielding the object-capability model of access control (Chapter 9), able to support certain
-patterns of composition among potentially malicious objects. We extend the reference graph
-cryptographically between potentially mutually malicious machines, yielding a distributed
-cryptographic capability system (Chapter (7).
-
-A particularly vexing set of problems in distributed systems are the issues of partial
-failure (spontaneous disconnection and crashes). The most novel contribution of this dis-
-
-1T explain call-return control flow purely in terms of sending messages, we often speak as if all programs
-are transformed to continuation-passing style before execution. This explains a call as a send carrying a
-(normally hidden) extra continuation argument reifying the “rest of the computation” to happen after this
-call returns. This corresponds approximately to the implementation concept of pushing a return address on
-the stack. The callee’s returning is explained as sending the returned value to this continuation. This is
-discussed further in Section [18.2]
-
-Those familiar with ML or Algol68 may find our use of the term “reference” confusing. By “reference” we
-mean “object reference” or “protected pointer,” i.e., the arrows that one draws when diagramming a data
-structure to show which objects “point at” which other objects. Our “references” have nothing to do with
-enabling mutability.
-
-1
-
-
---- Page 020 ---
-
-
-sertation is the definition of a state transition semantics for distributed references that
-supports deferred communication, failure notification, and reconnection while preserving
-useful limits on causal transmission. We define a set of reference states, i.e., states that
-a reference may be in, and a set of associated transition rules, where the causal transmis-
-sion properties provided by a reference depend on its state (Chapter [17). The resulting
-access-control and concurrency-control discipline helps us cope with the following pressing
-problems:
-
-e Excessive authority which invites abuse (such as viruses and spyware),
-
-o Inconsistency caused by interleaving (concurrency),
-
-e Deadlock (though other forms of lost progress hazards remain),
-
-e Inter-machine latency, and
-
-o Partial failure (disconnects and crashes).
-
-Some prior means of addressing these problems are similar to those presented in this
-dissertation. However, these prior solutions have not been composed successfully into a
-framework for simultaneously addressing these problems. Our comparative success at real-
-izing an integrated solution is due to two observations:
-
-1. Both access control and concurrency control are about enabling the causality needed
-for the inter-object cooperation we intend, while seeking to prevent those interactions
-which might cause destructive interference. In access control, we seek to distribute
-those access rights needed for the job at hand, while limiting the distribution of access
-rights that would enable mischief. In concurrency control, we seek to enable those
-interleavings needed for continued progress, while preventing those interleavings that
-would cause inconsistency.
-
-2. References are already the natural means for enabling inter-object causality, so a
-natural and powerful means of limiting inter-object causality is to restrict the causal
-transmission properties provided by references.
-
-‘We show how the consistent application of these principles, simultaneously, at multiple
-scales of composition, results in a multiplicative reduction in overall systemic vulnerability
-to plan interference.
-
-1.1 Organization of this Dissertation
-
-Part I explains the Software Composition Problem, and how object programming already
-helps address it under local, sequential, and benign conditions. We introduce those com-
-positional forms of component robustness needed to extend the object paradigm beyond
-these limits. We introduce a subset of the E language, and a simplified form of Pluribus,
-E’s distributed object protocol. The rest of the dissertation uses E examples to illustrate
-how to achieve some of these forms of robustness.
-
-Part/II} Access Control, explores the consequences of limiting inter-object (overt) causal-
-ity to occur solely by means of messages sent on references. By explaining the role of access
-
-2
-
-
---- Page 021 ---
-
-
-abstractions, we demonstrate that the resulting access control model is more expressive
-than much of the prior literature would suggest. In this part, we extend our attention to
-potentially malicious components, though still in a sequential and local context.
-
-Part I, Concurrency Control, extends our ambitions to distributed systems. Separate
-machines proceed concurrently, interact across barriers of large latencies and partial failure,
-and encounter each other’s misbehavior. Each of these successive problems motivates a
-further elaboration of our reference states and transition rules, until we have the complete
-picture, shown in Figure [17.1] (p. [124).
-
-The above parts provide a micro analysis of compositional robustness, in which small
-code examples illustrate the interaction of individual objects, references, and messages. By
-themselves they demonstrate only increased robustness “in the small.”
-
-Part IVl Emergent Robustness, takes us on a macro tour through CapDesk, a proof
-of concept system built in E. It explains how the potential damage caused by bugs or
-malice are often kept from propagating along the reference graph. By examining patterns
-of susceptibility to plan interference across different scales of composition, we come to
-understand the degree of robustness practically achievable “in the large,” as well as the
-remaining limits to this robustness.
-
-Part [V|discusses Related Work, including how these reference-state rules bridge the gap
-between the network-as-metaphor view of the early Smalltalk and the network-transparency
-ambitions of Actors. In addition, many chapters end with notes on related work specific to
-that chapter.
-
-3
-
-
---- Page 022 ---
-
-
-4
-
-
---- Page 023 ---
-
-
-Chapter 2
-. .
-
-Approach and Contributions
 This chapter provides a preview of topics developed in the rest of the dissertation, with
 forward references to chapters where each is explained. At the end of those chapters are
 summaries of related work. Further related work appears in Part [Vl
-2.1 Unattenuated Composition
 
+### 2.1 Unattenuated Composition
+
+```Figure 2.1 Unattenuated Composition
 Alice says: bob . foo (carol)
-Figure 2.1: Unattenuated Composition.
 
-In an object system (Figure|2.1), when object Alice says bob.foo(carol), she invokes
-object Bob, passing as argument a reference to object Carol. By passing this reference,
-Alice composes Bob with Carol, so that their interaction will serve some purpose of Alice’s.
-The argument reference enables Bob to interact with Carol.
+    +-------+    ,---------.    +-------+                                                               
+    |       |---| foo( · ) |--->|       |
+    | Alice |    `----+----'    |  Bob  |                                                               
+    |       |---.     |         |       |                                                               
+    +-------+    \    |         +-------+                                                               
+                  \   |                                                                                  
+                +-------+                                                                                
+                |       |
+                | Carol |
+                |       |
+                +-------+                                                                                
 
-By restricting inter-object causality to flow only by messages sent on references, Bob’s
-authority is limited according to the references he comes to hold. If Bob cannot interact
-with Carol unless he holds a reference to Carol, then the reference graph from the pro-
-gramming language literature is the access graph from the access control literature. When
-references can only be transmitted and acquired by the rules of the object programming
-model, this results in the object-capability model of secure computation. This model has
-been represented by concrete designs for over forty years, but previous attempts to state
-the model abstractly have left out crucial elements. A contribution of Chapter (9 is to
-present a single model, abstract enough to describe both prior object-capability languages
-and operating systems, and concrete enough to describe authority-manipulating behavior.
+```
 
-Alice’s purpose requires Bob and Carol to interact in certain ways. Even within the
-object-capability restrictions, this reference provides Bob unattenuated authority to access
+In an object system (Figure 2.1), when object Alice says `bob.foo(carol)`, she
+invokes object Bob, passing as argument a reference to object Carol. By passing
+this reference, Alice composes Bob with Carol, so that their interaction will
+serve some purpose of Alice's. The argument reference enables Bob to interact
+with Carol.
 
-5
-5
+By restricting inter-object causality to flow only by messages sent on
+references, Bob's authority is limited according to the references he comes to
+hold. If Bob cannot interact with Carol unless he holds a reference to Carol,
+then the reference graph from the programming language literature is the access
+graph from the access control literature. When references can only be
+transmitted and acquired by the rules of the object programming model, this
+results in the object-capability model of secure computation. This model has
+been represented by concrete designs for over forty years, but previous
+attempts to state the model abstractly have left out crucial elements. A
+contribution of Chapter 9 is to present a single model, abstract enough to
+describe both prior object-capability languages and operating systems, and
+concrete enough to describe authority-manipulating behavior.
 
+Alice's purpose requires Bob and Carol to interact in certain ways. Even within
+the object-capability restrictions, this reference provides Bob unattenuated
+authority to access Carol: It gives Bob a perpetual and unconditional ability
+to invoke Carol's public operations. This may allow interactions well beyond
+those that serve Alice's purposes, including interactions harmful to Alice's
+interests. If Alice could enable just those interactions needed for her
+purposes, then, if things go awry, the damage that follows might be usefully
+isolated and limited.
 
---- Page 024 ---
-
-
-Carol: It gives Bob a perpetual and unconditional ability to invoke Carol’s public opera-
-tions. This may allow interactions well beyond those that serve Alice’s purposes, including
-interactions harmful to Alice’s interests. If Alice could enable just those interactions needed
-for her purposes, then, if things go awry, the damage that follows might be usefully isolated
-and limited.
-
-This dissertation explores several mechanisms by which the authority Alice provides
-to Bob may be attenuated. Some of these mechanisms simply restate established practice
-of object-capability access control. A contribution of Chapter [3 and Part [III is to view
-concurrency control issues in terms of attenuating authority as well, and to provide a unified
-architecture for attenuating authority, in which both access control and concurrency control
+This dissertation explores several mechanisms by which the authority Alice
+provides to Bob may be attenuated. Some of these mechanisms simply restate
+established practice of object-capability access control. A contribution of
+Chapter 3 and Part III is to view concurrency control issues in terms of
+attenuating authority as well, and to provide a unified architecture for
+attenuating authority, in which both access control and concurrency control
 concerns may be addressed together.
 
-2.2 Attenuating Authority
-Alice says: def [c2, c2Gate] := makeCaretaker (carol)
-bob. foo (c2)
+### Attenuating Authority
+
+```Figure 2.2 Attenuating Authority
+Alice says:
+  def [c2, c2Gate] := makeCaretaker(carol)
+  bob.foo(c2)
 @ caretaker
 @
-Figure 2.2: Attenuating Authority.
+```
 
-In practice, programmers control access partially by manipulating the access graph, and
-partially by writing programs whose behavior attenuates the authority that flows through
-them. In Figure Alice attenuates Bob’s authority to Carol by interposing an access
-abstraction. In this case, the access abstraction consists of objects which forward some
-messages from Bob to Carol, where Alice controls this message-forwarding behavior. The
-access abstractions presented in Part Il are idealizations drawn from existing prior systems.
-We are unaware of previous systematic presentations on the topic of access abstraction
-mechanisms and patterns.
+In practice, programmers control access partially by manipulating the access
+graph, and partially by writing programs whose behavior attenuates the
+authority that flows through them. In Figure 2.2 Alice attenuates Bob's
+authority to Carol by interposing an access abstraction. In this case, the
+access abstraction consists of objects which forward some messages from Bob to
+Carol, where Alice controls this message-forwarding behavior. The access
+abstractions presented in Part II are idealizations drawn from existing prior
+systems. We are unaware of previous systematic presentations on the topic of
+access abstraction mechanisms and patterns.
 
-The prior access control literature does not provide a satisfying account of how the
-behavior of such unprivileged programs contributes to the expression of access control policy.
-A contribution of Chapter [8 is to distinguish between “permission” and “authority,” to
-develop a taxonomy of computable bounds on eventual permission and authority, and to
-explain why “partially behavioral bounds on eventual authority”—the “BA” of Table 8.1
-(p.[60)——is needed to reason about many simple access abstractions.
+The prior access control literature does not provide a satisfying account of
+how the behavior of such unprivileged programs contributes to the expression of
+access control policy. A contribution of Chapter 8 is to distinguish between
+"permission" and "authority", to develop a taxonomy of computable bounds on
+eventual permission and authority, and to explain why "partially behavioral
+bounds on eventual authority" — the "BA" of Table 8.1 — is needed to reason
+about many simple access abstractions.
 
-2.3 Distributed Access Control
+---
+> transcription review fence: nothing below has been read by human eye
+---
 
-E objects are aggregated into persistent process-like units called vats (Figure2.3). Inter-vat
+### 2.3 Distributed Access Control
 
-messages are conveyed by E’s cryptographic distributed capability protocol, Pluribus, which
-6
+E objects are aggregated into persistent process-like units called vats (Figure
+2.3). Inter-vat messages are conveyed by E's cryptographic distributed
+capability protocol, Pluribus, which ensures that distributed object references
+are unforgeable and unspoofable.
 
-
---- Page 025 ---
-
-
-Alice says: bob <~ foo (carol)
+```Figure 2.3: Distributed Access Control.
+Alice says:
+  bob <- foo (carol)
 (7 o e (o N
 @ q
 l AtiD,
@@ -591,9 +384,7 @@ S Z ~
 "
 o
 e /
-Figure 2.3: Distributed Access Control.
-ensures that distributed object references are unforgeable and unspoofable.
-
+```
 Chapter 7 presents a simplified form of Pluribus. None of the access control properties
 provided by Pluribus are novel. Protocols like Pluribus transparently extend the reference
 graph across machines, while cryptographically enforcing some of the properties of the
@@ -7803,7 +7594,7 @@ which can be found at
 
 . .
 
-Bibliography
+## Bibliography
 
 [AB87] Malcolm P. Atkinson and Peter Buneman. Types and Persistence in Database
 Programming Languages. ACM Computing Surveys, 19(2):105-190, 1987.
