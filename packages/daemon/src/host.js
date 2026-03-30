@@ -450,7 +450,7 @@ export const makeHostMaker = ({
 
       const { workerId, workerLabel } = prepareWorkerFormulation(workerName, tasks.push);
 
-      const powersId = petStore.identifyLocal(/** @type {Name} */ (powersName));
+      const powersId = /** @type {FormulaIdentifier | undefined} */ (petStore.identifyLocal(/** @type {Name} */ (powersName)));
       if (powersId === undefined) {
         assertPetName(powersName);
         const powersPetName = powersName;
