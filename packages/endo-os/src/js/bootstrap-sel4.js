@@ -120,6 +120,115 @@
   function ps() { return currentAgent.petStore; }
 
   // ============================================================
+  // DIRECTORY CAPABILITY CONSTRUCTOR
+  // ============================================================
+
+  function makeDirectoryCap(rootPath, name) {
+    // Resolve a relative path safely within the root.
+    function resolve(rel) {
+      // Prevent path traversal.
+      var parts = (rel || '').split('/').filter(function(p) {
+        return p && p !== '.' && p !== '..';
+      });
+      return rootPath + '/' + parts.join('/');
+    }
+
+    return harden({
+      read: function(path) {
+        return typeof __readFile !== 'undefined' ? __readFile(resolve(path)) : undefined;
+      },
+      write: function(path, text) {
+        return typeof __writeFile !== 'undefined' ? __writeFile(resolve(path), text) : false;
+      },
+      list: function(path) {
+        if (typeof __listDir === 'undefined') return [];
+        var entries = __listDir(resolve(path || ''));
+        return entries || [];
+      },
+      stat: function(path) {
+        return typeof __statFile !== 'undefined' ? __statFile(resolve(path)) : undefined;
+      },
+      mkdir: function(path) {
+        return typeof __mkdir !== 'undefined' ? __mkdir(resolve(path)) : false;
+      },
+      remove: function(path) {
+        return typeof __removeFile !== 'undefined' ? __removeFile(resolve(path)) : false;
+      },
+      path: function() { return rootPath; },
+      help: function() {
+        return 'Directory(' + (name || rootPath) + '): read(p), write(p,t), list([p]), stat(p), mkdir(p), remove(p)';
+      },
+    });
+  }
+
+  // ============================================================
+  // NETWORK CAPABILITY CONSTRUCTOR
+  // ============================================================
+
+  function makeNetworkCap() {
+    return harden({
+      listen: function(port) {
+        if (typeof __netListen === 'undefined') throw new Error('No network');
+        var fd = __netListen(port || 0);
+        return harden({
+          accept: function() {
+            var cfd = __netAccept(fd);
+            return makeConnectionCap(cfd);
+          },
+          close: function() { __netClose(fd); },
+          help: function() { return 'Listener: accept(), close()'; },
+        });
+      },
+      connect: function(host, port) {
+        if (typeof __netConnect === 'undefined') throw new Error('No network');
+        var fd = __netConnect(host, port);
+        return makeConnectionCap(fd);
+      },
+      help: function() {
+        return 'Network: listen(port), connect(host, port)';
+      },
+    });
+  }
+
+  function makeConnectionCap(fd) {
+    return harden({
+      recv: function(max) {
+        return __netRecv(fd, max || 4096);
+      },
+      send: function(data) {
+        return __netSend(fd, data);
+      },
+      close: function() {
+        __netClose(fd);
+      },
+      help: function() {
+        return 'Connection: recv([max]), send(data), close()';
+      },
+    });
+  }
+
+  // ============================================================
+  // AUTO-CREATE CAPABILITIES FROM CLI/ENV CONFIG
+  // ============================================================
+
+  if (typeof __config !== 'undefined') {
+    // Mount directories from --mount name=/path or ENDO_MOUNT_name=/path.
+    var mountNames = Object.keys(__config.mounts || {});
+    for (var i = 0; i < mountNames.length; i++) {
+      var mname = mountNames[i];
+      var mpath = __config.mounts[mname];
+      ps().set(mname, makeDirectoryCap(mpath, mname));
+      print('endo-os: Mounted ' + mname + ' → ' + mpath);
+    }
+
+    // Create network capability if port specified.
+    if (__config.port > 0) {
+      ps().set('network', makeNetworkCap());
+      print('endo-os: Network capability available');
+    }
+  }
+
+  // ============================================================
   // BUILT-IN CAPABILITIES
   // ============================================================
 
