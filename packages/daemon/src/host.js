@@ -608,6 +608,7 @@ export const makeHostMaker = ({
       let host = getNamedAgent(petName, 'host');
       await null;
       if (host === undefined) {
+        const hostLabel = agentName ? `host:${agentName}` : petName ? `host:${petName}` : 'host';
         const { value, id } =
           // Behold, recursion:
           await formulateHost(
@@ -620,6 +621,7 @@ export const makeHostMaker = ({
             ),
             undefined,
             handleId,
+            hostLabel,
           );
         host = { value: Promise.resolve(value), id };
       }
@@ -660,6 +662,7 @@ export const makeHostMaker = ({
       let guest = getNamedAgent(handleName, 'guest');
       await null;
       if (guest === undefined) {
+        const guestLabel = agentName ? `guest:${agentName}` : handleName ? `guest:${handleName}` : 'guest';
         const { value, id } =
           // Behold, recursion:
           await formulateGuest(
@@ -669,6 +672,7 @@ export const makeHostMaker = ({
               handleName,
               /** @type {PetName | undefined} */ (agentName),
             ),
+            guestLabel,
           );
         guest = { value: Promise.resolve(value), id };
       }

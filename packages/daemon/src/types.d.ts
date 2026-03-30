@@ -1484,6 +1484,7 @@ type FormulateHostDependenciesParams = {
   pinsDirectoryId: FormulaIdentifier;
   specifiedWorkerId?: FormulaIdentifier;
   hostHandleId?: FormulaIdentifier;
+  workerLabel?: string;
 };
 
 type FormulateNumberedHostParams = {
@@ -1613,6 +1614,7 @@ export interface DaemonCore {
     hostId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
+    workerLabel?: string,
   ) => FormulateResult<EndoGuest>;
 
   /**
@@ -1623,6 +1625,7 @@ export interface DaemonCore {
   formulateGuestDependencies: (
     hostAgentId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
+    workerLabel?: string,
   ) => Promise<Readonly<FormulateNumberedGuestParams>>;
 
   formulateChannel: (
@@ -1645,6 +1648,7 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier | undefined,
     hostHandleId?: FormulaIdentifier,
+    workerLabel?: string,
   ) => FormulateResult<EndoHost>;
 
   /**

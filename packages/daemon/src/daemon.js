@@ -3341,7 +3341,7 @@ const makeDaemonCore = async (
    * @type {DaemonCore['formulateHostDependencies']}
    */
   const formulateHostDependencies = async specifiedIdentifiers => {
-    const { specifiedWorkerId, ...remainingSpecifiedIdentifiers } =
+    const { specifiedWorkerId, workerLabel, ...remainingSpecifiedIdentifiers } =
       specifiedIdentifiers;
 
     // Pin each dependency formula to protect it from collection until the
@@ -3406,7 +3406,7 @@ const makeDaemonCore = async (
         )
       ).id,
     );
-    const workerId = pin(await provideWorkerId(specifiedWorkerId, undefined, 'host'));
+    const workerId = pin(await provideWorkerId(specifiedWorkerId, undefined, workerLabel ?? 'host'));
     /* eslint-enable no-use-before-define */
 
     return harden({
@@ -3456,6 +3456,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     hostHandleId,
+    workerLabel,
   ) => {
     return withFormulaGraphLock(async () => {
       const identifiers = await formulateHostDependencies({
@@ -3464,6 +3465,7 @@ const makeDaemonCore = async (
         pinsDirectoryId,
         specifiedWorkerId,
         hostHandleId,
+        workerLabel,
       });
 
       await deferredTasks.execute({
@@ -3480,7 +3482,7 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateGuestDependencies']} */
-  const formulateGuestDependencies = async (hostAgentId, hostHandleId) => {
+  const formulateGuestDependencies = async (hostAgentId, hostHandleId, workerLabel) => {
     // Pin each dependency formula to protect it from collection until the
     // parent guest formula links them via formulaDeps.
     /** @type {FormulaIdentifier[]} */
@@ -3534,7 +3536,7 @@ const makeDaemonCore = async (
         await formulateNumberedWorker(
           /** @type {FormulaNumber} */ (await randomHex256()),
           undefined,
-          'guest',
+          workerLabel ?? 'guest',
         )
       ).id,
     );
@@ -3579,11 +3581,12 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateGuest']} */
-  const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks) => {
+  const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks, workerLabel) => {
     return withFormulaGraphLock(async () => {
       const identifiers = await formulateGuestDependencies(
         hostAgentId,
         hostHandleId,
+        workerLabel,
       );
 
       await deferredTasks.execute({
