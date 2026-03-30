@@ -35,6 +35,7 @@
       "types": "./src/fs-node/types.d.ts",
       "default": "./src/fs-node/index.js"
     },
+    "./proc": "./src/proc.js",
     "./exo-fs": "./src/exo-fs.js",
     "./package.json": "./package.json"
   },

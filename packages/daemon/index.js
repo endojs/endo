@@ -10,6 +10,13 @@ import os from 'os';
 
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
+
+import {
+  waitForExit,
+  waitForMessage,
+  waitForSpawn,
+} from '@endo/platform/proc';
+
 import {
   whereEndoState,
   whereEndoEphemeralState,
@@ -204,62 +211,6 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
     });
   }
   throw Error(`File ${filePath} not found within ${timeoutMs}ms`);
-};
-
-/**
- * @param {popen.ChildProcess} proc
- * @returns {Promise<popen.ChildProcess>} proc
- */
-const waitForSpawn = async proc => {
-  return new Promise((resolve, reject) => {
-    proc.on('error', err => {
-      const [exe] = proc.spawnargs;
-      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
-    });
-    proc.on('spawn', () => resolve(proc));
-  });
-};
-
-/**
- * @param {popen.ChildProcess} proc
- * @returns {Promise<number>} proc exit code
- */
-const waitForExit = async proc => {
-  return new Promise((resolve, reject) => {
-    proc.on('error', err => {
-      const [exe] = proc.spawnargs;
-      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
-    });
-    proc.on('exit', code => resolve(code || 0));
-  });
-};
-
-/**
- * @param {popen.ChildProcess} child
- * @returns {Promise<popen.Serializable>} message
- */
-const waitForMessage = child => {
-  let done = false;
-  return new Promise((resolve, reject) => {
-    child.on('error', (/** @type {Error} */ cause) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
-      }
-    });
-    child.on('exit', (/** @type {number?} */ code) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Process ${child.spawnargs} exited ${code}`));
-      }
-    });
-    child.on('message', message => {
-      if (!done) {
-        done = true;
-        resolve(message);
-      }
-    });
-  });
 };
 
 /**
