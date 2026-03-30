@@ -137,15 +137,6 @@ const ensureEndoRunning = async () => {
 };
 
 /**
- * Get the gateway address from ENDO_ADDR (default 127.0.0.1:8920).
- *
- * @returns {string}
- */
-const getGatewayAddress = () => {
-  return process.env.ENDO_ADDR || '127.0.0.1:8920';
-};
-
-/**
  * Read the AGENT formula identifier from the daemon's state directory.
  *
  * @returns {Promise<string>}
@@ -176,8 +167,7 @@ const getAgentId = async () => {
  * @returns {import('vite').Plugin}
  */
 export const makeEndoPlugin = () => {
-  /** @type {string | undefined} */
-  let gatewayAddress;
+  const gatewayAddress = process.env.ENDO_ADDR || '127.0.0.1:8920';
   /** @type {string | undefined} */
   let agentId;
   let daemonHealthy = false;
@@ -254,7 +244,6 @@ export const makeEndoPlugin = () => {
 
         await ensureEndoRunning();
 
-        gatewayAddress = getGatewayAddress();
         agentId = await getAgentId();
         daemonHealthy = true;
 
@@ -291,7 +280,7 @@ export const makeEndoPlugin = () => {
           const freshAgentId = await getAgentId();
           agentId = freshAgentId;
           const fragment = new URLSearchParams({
-            gateway: gatewayAddress || '',
+            gateway: gatewayAddress,
             agent: freshAgentId,
           });
           res.writeHead(302, { Location: `/#${fragment}` });
