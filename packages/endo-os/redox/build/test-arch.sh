@@ -43,6 +43,7 @@ mkdir -p "${TMPCTX}/src"
 cp "${REDOX_DIR}/src/endo-init.c" "${TMPCTX}/src/"
 cp "${ENDO_OS_DIR}/sel4/src/ses-shim.js" "${TMPCTX}/src/ses-shim.js"
 cp "${ENDO_OS_DIR}/src/js/bootstrap-sel4.js" "${TMPCTX}/src/bootstrap.js"
+cp "${SCRIPT_DIR}/test-suite.txt" "${TMPCTX}/test-suite.txt"
 
 # Dockerfile for Arch Linux build + test.
 cat > "${TMPCTX}/Dockerfile" << 'ARCHEOF'
@@ -84,11 +85,48 @@ RUN gcc -O2 -D_GNU_SOURCE -DCONFIG_VERSION=\"endo-os\" \
     echo "Size: $(ls -lh endo-init | awk '{print $5}')" && \
     ldd endo-init 2>&1 || echo "(statically linked)"
 
-# Verify it runs.
-RUN echo -e "list\ncounter.increment()\ncounter.read()\n1+1\ngreeter.greet(\"Arch\")\nstatus\n" | \
-    ./endo-init 2>&1 && echo "=== PASS ==="
+# Test suite is written from host into the build context.
+COPY test-suite.txt /build/test-suite.txt
 
-# Verify kernel version.
+# Run tests and capture output.
+RUN ./endo-init < /build/test-suite.txt > /build/test-output.txt 2>&1 ; \
+    echo "=== Test Output ===" && \
+    cat /build/test-output.txt && \
+    echo "" && \
+    echo "=== Coverage Report ===" && \
+    echo "" && \
+    TOTAL_COMMANDS=34 && \
+    COMMANDS_TESTED="list show inspect eval name store copy move remove mkdir locate mkguest send inbox status where help" && \
+    COMMANDS_NOT_TESTED="reply request resolve reject adopt dismiss clear mkhost mount" && \
+    TESTED_COUNT=$(echo $COMMANDS_TESTED | wc -w | tr -d ' ') && \
+    UNTESTED_COUNT=$(echo $COMMANDS_NOT_TESTED | wc -w | tr -d ' ') && \
+    TOTAL=$((TESTED_COUNT + UNTESTED_COUNT)) && \
+    echo "Commands tested:     ${TESTED_COUNT}/${TOTAL}" && \
+    echo "  Tested:   ${COMMANDS_TESTED}" && \
+    echo "  Untested: ${COMMANDS_NOT_TESTED}" && \
+    echo "" && \
+    FEATURES_TESTED="pet-names eval-js compartment-endowments messaging agents directories harden store-text copy-move help-system status-where" && \
+    FEATURES_NOT_TESTED="request-resolve-reject adopt-dismiss readOnly-attenuation mount-runtime network-listen-connect" && \
+    FT=$(echo $FEATURES_TESTED | wc -w | tr -d ' ') && \
+    FN=$(echo $FEATURES_NOT_TESTED | wc -w | tr -d ' ') && \
+    FTOTAL=$((FT + FN)) && \
+    echo "Features tested:     ${FT}/${FTOTAL}" && \
+    echo "  Tested:   $(echo $FEATURES_TESTED | tr ' ' ', ')" && \
+    echo "  Untested: $(echo $FEATURES_NOT_TESTED | tr ' ' ', ')" && \
+    echo "" && \
+    # Verify key expected outputs exist.
+    PASS=true && \
+    grep -q "Counter: increment" /build/test-output.txt || { echo "FAIL: list missing counter"; PASS=false; } && \
+    grep -q "Hello, Arch" /build/test-output.txt || { echo "FAIL: greeter broken"; PASS=false; } && \
+    grep -q "x := 42" /build/test-output.txt || { echo "FAIL: name command broken"; PASS=false; } && \
+    grep -q "Created guest: alice" /build/test-output.txt || { echo "FAIL: mkguest broken"; PASS=false; } && \
+    grep -q "Sent to alice" /build/test-output.txt || { echo "FAIL: send broken"; PASS=false; } && \
+    grep -q "adder" /build/test-output.txt || { echo "FAIL: eval with endowments broken"; PASS=false; } && \
+    grep -q "greeting stored" /build/test-output.txt || { echo "FAIL: store broken"; PASS=false; } && \
+    grep -q "Directory: mydir" /build/test-output.txt || { echo "FAIL: mkdir broken"; PASS=false; } && \
+    grep -q "Endo daemon: running" /build/test-output.txt || { echo "FAIL: status broken"; PASS=false; } && \
+    if [ "$PASS" = true ]; then echo "=== ALL ASSERTIONS PASSED ==="; else echo "=== SOME ASSERTIONS FAILED ==="; exit 1; fi
+
 RUN uname -r && echo "Arch: $(cat /etc/arch-release)"
 
 CMD ["/build/endo-init"]

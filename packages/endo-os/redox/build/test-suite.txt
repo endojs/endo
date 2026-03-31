@@ -1,0 +1,37 @@
+list
+show counter
+inspect counter
+counter.increment()
+counter.read()
+1+1
+2 ** 10
+greeter.greet("Arch")
+name x 42
+eval x + 8
+name adder harden({add: function(a,b){return a+b}, help: function(){return "add(a,b)"}})
+eval adder.add(20, 22)
+show adder
+inspect adder
+store --text "hello" -n greeting
+show greeting
+copy greeting greeting2
+move greeting2 greeting3
+list
+remove greeting3
+list
+mkdir mydir
+list
+locate counter
+mkguest alice
+mkguest bob
+send alice Hey check this out @counter
+send bob Hello @greeter
+inbox
+list
+status
+where
+help
+help eval
+help send
+help mkguest
+?
