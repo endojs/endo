@@ -22,7 +22,7 @@
 
 // SES harden polyfill — must come before any @endo imports.
 // Imported as a side-effect module so it runs before ES module graph evaluation.
-import './dev-harden-polyfill.js';
+import '@endo/init/debug.js';
 
 import { createInterface } from 'readline';
 import { makePiAgent, runAgentRound, DEFAULT_MODEL_STRING } from '@endo/genie';

@@ -1,5 +1,5 @@
 // @ts-check
-import '../setup.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { parseSelector } from '../../src/dom-parser/selector.js';
