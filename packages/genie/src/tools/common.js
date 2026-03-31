@@ -51,7 +51,22 @@
 
 import { M, mustMatch, getMethodGuardPayload } from '@endo/patterns';
 
-/** @import { Tool, ToolSpec } from './types.js' */
+/** @import { InterfaceGuard, MethodGuard } from '@endo/patterns' */
+
+/**
+ * @typedef {object} ToolSpec
+ * @prop {() => Iterable<string>} help
+ * @prop {() => string} [desc]
+ * @prop {MethodGuard} schema
+ */
+
+/**
+ * @typedef {object} Tool
+ * @prop {() => string} help
+ * @prop {() => string} [desc]
+ * @prop {InterfaceGuard} schema
+ * @prop {(args: any) => Promise<any>} execute
+ */
 
 /**
  * Create a hardened `Tool` from a name and specification.

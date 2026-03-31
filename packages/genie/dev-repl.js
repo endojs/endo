@@ -29,7 +29,7 @@ import { makePiAgent, runAgentRound, DEFAULT_MODEL_STRING } from '@endo/genie';
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
-/** @import { Tool } from './src/tools/types.js' */
+/** @import { Tool } from './src/tools/common.js' */
 import { bash, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
 import { makeMemoryTools } from './src/tools/memory.js';
