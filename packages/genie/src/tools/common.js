@@ -115,25 +115,33 @@ export const makeTool = (name, { execute, ...spec }) => {
       execute: schema,
     }),
     async execute(args) {
-      try {
-        mustMatch(harden([args]), paramsPattern, `${name} args`);
-      } catch { }
+      let didUnJSON = false;
+      do {
+        try {
+          mustMatch(harden([args]), paramsPattern, `${name} args`);
+          break;
+        } catch (err) {
+          if (typeof args === 'object') {
 
-      // try to fixup by parsing nested JSON values
-      if (typeof args === 'object') {
-        args = Object.fromEntries(Object
-          .entries(/** @type {Record<string, any>} */(args))
-          .map(([key, val]) => {
-            if (typeof val === 'string') {
-              try {
-                val = JSON.parse(val);
-              } catch { }
+            // try to fixup by parsing nested JSON values
+            if (!didUnJSON) {
+              didUnJSON = true;
+              for (const [key, val] of Object.entries(/** @type {Record<string, any>} */(args))) {
+                if (typeof val === 'string') {
+                  try {
+                    args = { ...args, ...{ [key]: JSON.parse(val) } };
+                  } catch { continue }
+                }
+              }
+              continue;
             }
-            return [key, val]
-          }));
-      }
 
-      mustMatch(harden([args]), paramsPattern, `${name} args`);
+          }
+
+          // fallthrough: no fixup, final throw to caller
+          throw err;
+        }
+      } while (true);
 
       return execute(args);
     },
