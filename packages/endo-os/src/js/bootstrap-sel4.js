@@ -120,75 +120,120 @@
   function ps() { return currentAgent.petStore; }
 
   // ============================================================
-  // DIRECTORY CAPABILITY CONSTRUCTOR
+  // FILESYSTEM CAPABILITY — OCAP STYLE
+  //
+  // Every entry is a capability object:
+  //   - A File has .read(), .write(text), .stat(), .remove()
+  //   - A Directory has .list(), .get(name), .mkdir(name),
+  //     .makeFile(name, text), .remove()
+  //   - .list() returns an array of child capabilities
+  //   - You explore by navigating objects, not passing paths
+  //
+  // Sharing a directory = passing a reference. The recipient
+  // can explore children but cannot escape the root — there
+  // are no ".." references, and no path strings to manipulate.
   // ============================================================
 
-  function makeDirectoryCap(rootPath, name) {
-    // Resolve a relative path safely within the root.
-    function resolve(rel) {
-      // Prevent path traversal.
-      var parts = (rel || '').split('/').filter(function(p) {
-        return p && p !== '.' && p !== '..';
-      });
-      return rootPath + '/' + parts.join('/');
+  function makeFileCap(fullPath, fileName) {
+    return harden({
+      read: function() {
+        return typeof __readFile !== 'undefined' ? __readFile(fullPath) : undefined;
+      },
+      write: function(text) {
+        return typeof __writeFile !== 'undefined' ? __writeFile(fullPath, text) : false;
+      },
+      stat: function() {
+        return typeof __statFile !== 'undefined' ? __statFile(fullPath) : undefined;
+      },
+      remove: function() {
+        return typeof __removeFile !== 'undefined' ? __removeFile(fullPath) : false;
+      },
+      name: function() { return fileName; },
+      help: function() {
+        return 'File(' + fileName + '): read(), write(text), stat(), remove()';
+      },
+      toString: function() { return '[File ' + fileName + ']'; },
+    });
+  }
+
+  function makeDirCap(rootPath, dirName) {
+    // Prevent path traversal.
+    function safeName(n) {
+      if (!n || n === '.' || n === '..' || n.indexOf('/') >= 0) {
+        throw new Error('Invalid name: ' + n);
+      }
+      return n;
     }
 
     return harden({
-      read: function(path) {
-        return typeof __readFile !== 'undefined' ? __readFile(resolve(path)) : undefined;
-      },
-      write: function(path, text) {
-        return typeof __writeFile !== 'undefined' ? __writeFile(resolve(path), text) : false;
-      },
-      list: function(path) {
+      // list() → array of capability objects (files and subdirs).
+      list: function() {
         if (typeof __listDir === 'undefined') return [];
-        var entries = __listDir(resolve(path || ''));
-        return entries || [];
+        var entries = __listDir(rootPath) || [];
+        var result = [];
+        for (var i = 0; i < entries.length; i++) {
+          var e = entries[i];
+          var childPath = rootPath + '/' + e.name;
+          if (e.isDir) {
+            result.push(makeDirCap(childPath, e.name));
+          } else {
+            result.push(makeFileCap(childPath, e.name));
+          }
+        }
+        return result;
       },
-      stat: function(path) {
-        return typeof __statFile !== 'undefined' ? __statFile(resolve(path)) : undefined;
+
+      // get(name) → capability for a specific child.
+      get: function(childName) {
+        safeName(childName);
+        var childPath = rootPath + '/' + childName;
+        var info = typeof __statFile !== 'undefined' ? __statFile(childPath) : undefined;
+        if (!info) return undefined;
+        if (info.isDir) return makeDirCap(childPath, childName);
+        return makeFileCap(childPath, childName);
       },
-      mkdir: function(path) {
-        return typeof __mkdir !== 'undefined' ? __mkdir(resolve(path)) : false;
+
+      // mkdir(name) → new directory capability.
+      mkdir: function(childName) {
+        safeName(childName);
+        var childPath = rootPath + '/' + childName;
+        if (typeof __mkdir !== 'undefined') __mkdir(childPath);
+        return makeDirCap(childPath, childName);
       },
-      remove: function(path) {
-        return typeof __removeFile !== 'undefined' ? __removeFile(resolve(path)) : false;
+
+      // makeFile(name, text) → new file capability.
+      makeFile: function(childName, text) {
+        safeName(childName);
+        var childPath = rootPath + '/' + childName;
+        if (typeof __writeFile !== 'undefined') __writeFile(childPath, text || '');
+        return makeFileCap(childPath, childName);
       },
-      path: function() { return rootPath; },
+
+      // stat() → {size, isDir, isFile}
+      stat: function() {
+        return typeof __statFile !== 'undefined' ? __statFile(rootPath) : undefined;
+      },
+
+      // remove() → boolean (removes directory)
+      remove: function() {
+        return typeof __removeFile !== 'undefined' ? __removeFile(rootPath) : false;
+      },
+
+      name: function() { return dirName; },
       help: function() {
-        return 'Directory(' + (name || rootPath) + '): read(p), write(p,t), list([p]), stat(p), mkdir(p), remove(p)';
+        return 'Dir(' + dirName + '): list(), get(name), mkdir(name), makeFile(name, text), stat(), remove()';
       },
+      toString: function() { return '[Dir ' + dirName + ']'; },
     });
   }
 
   // ============================================================
-  // NETWORK CAPABILITY CONSTRUCTOR
+  // NETWORK CAPABILITY — OCAP STYLE
+  //
+  // Network is a capability you receive, not a global.
+  // Listeners produce Connection capabilities.
+  // Connections are bidirectional stream capabilities.
   // ============================================================
-
-  function makeNetworkCap() {
-    return harden({
-      listen: function(port) {
-        if (typeof __netListen === 'undefined') throw new Error('No network');
-        var fd = __netListen(port || 0);
-        return harden({
-          accept: function() {
-            var cfd = __netAccept(fd);
-            return makeConnectionCap(cfd);
-          },
-          close: function() { __netClose(fd); },
-          help: function() { return 'Listener: accept(), close()'; },
-        });
-      },
-      connect: function(host, port) {
-        if (typeof __netConnect === 'undefined') throw new Error('No network');
-        var fd = __netConnect(host, port);
-        return makeConnectionCap(fd);
-      },
-      help: function() {
-        return 'Network: listen(port), connect(host, port)';
-      },
-    });
-  }
 
   function makeConnectionCap(fd) {
     return harden({
@@ -204,6 +249,40 @@
       help: function() {
         return 'Connection: recv([max]), send(data), close()';
       },
+      toString: function() { return '[Connection]'; },
+    });
+  }
+
+  function makeListenerCap(fd) {
+    return harden({
+      accept: function() {
+        var cfd = __netAccept(fd);
+        return makeConnectionCap(cfd);
+      },
+      close: function() {
+        __netClose(fd);
+      },
+      help: function() { return 'Listener: accept(), close()'; },
+      toString: function() { return '[Listener]'; },
+    });
+  }
+
+  function makeNetworkCap() {
+    return harden({
+      listen: function(port) {
+        if (typeof __netListen === 'undefined') throw new Error('No network');
+        var fd = __netListen(port || 0);
+        return makeListenerCap(fd);
+      },
+      connect: function(host, port) {
+        if (typeof __netConnect === 'undefined') throw new Error('No network');
+        var fd = __netConnect(host, port);
+        return makeConnectionCap(fd);
+      },
+      help: function() {
+        return 'Network: listen(port), connect(host, port)';
+      },
+      toString: function() { return '[Network]'; },
     });
   }
 
@@ -217,7 +296,7 @@
     for (var i = 0; i < mountNames.length; i++) {
       var mname = mountNames[i];
       var mpath = __config.mounts[mname];
-      ps().set(mname, makeDirectoryCap(mpath, mname));
+      ps().set(mname, makeDirCap(mpath, mname));
       print('endo-os: Mounted ' + mname + ' → ' + mpath);
     }
 
