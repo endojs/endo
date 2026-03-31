@@ -1013,14 +1013,18 @@ export const channelComponent = async (
           }
         };
         updateEditTag().catch(() => {});
+
+        // Index the edit but don't render it as a separate message
+        const $placeholder = document.createElement('div');
+        messageIndex.set(msgKey, {
+          message: typedMessage,
+          $element: $placeholder,
+        });
+        continue; // eslint-disable-line no-continue
       }
-      // Index the edit but don't render it as a separate message
-      const $placeholder = document.createElement('div');
-      messageIndex.set(msgKey, {
-        message: typedMessage,
-        $element: $placeholder,
-      });
-      continue; // eslint-disable-line no-continue
+      // Target not found — fall through to render as a normal message
+      // so the content isn't silently dropped (e.g. placeholder not yet
+      // indexed when the edit arrives).
     }
 
     // eslint-disable-next-line no-await-in-loop
