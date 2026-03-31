@@ -5,10 +5,12 @@
  *
  * Provides get, set, and search tools for memory files.
  * All accessed paths must resolve under the configured root directory.
+ *
+ * File I/O is delegated to a {@link VFS} backend so that the tool
+ * logic is decoupled from Node-specific APIs.  By default,
+ * {@link makeNodeVFS} is used, but callers may supply any conforming
+ * implementation.
  */
-
-import fs from 'fs/promises';
-import { createReadStream } from 'fs';
 
 import {
   basename,
@@ -20,7 +22,11 @@ import {
 
 import { E } from '@endo/far';
 import { M } from '@endo/patterns';
+
 import { makeTool } from './common.js';
+import { makeNodeVFS } from './vfs-node.js';
+
+/** @import { VFS } from './vfs.js' */
 
 /**
  * @typedef {object} SearchResult
@@ -59,14 +65,15 @@ harden(SearchBackendI);
  * complete lines (without trailing newline characters).  A final partial
  * line (one not terminated by '\n') is yielded as well.
  *
- * @param {AsyncIterable<string>} chunks - An async iterable of string chunks
- *   (e.g. a Node readable stream with `encoding: 'utf-8'`).
+ * @param {AsyncIterable<Uint8Array>} chunks - An async iterable of
+ *   byte chunks (e.g. from a VFS read stream).
  * @yields {string} Individual lines from the stream.
  */
 async function* streamLines(chunks) {
+  const decoder = new TextDecoder();
   let tail = '';
   for await (const chunk of chunks) {
-    const text = tail + chunk;
+    const text = tail + decoder.decode(chunk, { stream: true });
     const parts = text.split('\n');
     // The last element is either '' (if chunk ended with \n) or a partial
     // line that must be carried over.
@@ -75,68 +82,11 @@ async function* streamLines(chunks) {
       yield line;
     }
   }
+  // Flush the decoder.
+  tail += decoder.decode();
   // Yield the final partial line if present.
   if (tail.length > 0) {
     yield tail;
-  }
-}
-
-/**
- * Search a single file for lines matching `query` (case-insensitive).
- * Reads the file as a stream to avoid buffering the entire contents.
- *
- * @param {string} filePath - Absolute path to search.
- * @param {string} query    - Case-insensitive substring to match.
- * @returns {AsyncGenerator<SearchResult>}
- */
-async function* searchInFile(filePath, query) {
-  const queryLower = query.toLowerCase();
-  try {
-    const stream = createReadStream(filePath, { encoding: 'utf-8' });
-    let lineNum = 0;
-    for await (const line of streamLines(stream)) {
-      lineNum += 1;
-      if (line.toLowerCase().includes(queryLower)) {
-        yield {
-          file: basename(filePath),
-          line: lineNum,
-          content: line.trim(),
-        };
-      }
-    }
-  } catch {
-  }
-}
-
-/**
- * @param {string[]} searchPaths - Absolute paths to search.
- * @param {string} query         - Case-insensitive substring to match.
- */
-async function* searchInFiles(searchPaths, query) {
-  for await (const searchPath of findMemoryPaths(...searchPaths)) {
-    yield* searchInFile(searchPath, query);
-  }
-}
-
-/**
- * @param {Array<string>} searchPaths
- */
-async function* findMemoryPaths(...searchPaths) {
-  for (const searchPath of searchPaths) {
-    try {
-      const stats = await fs.stat(searchPath);
-      if (stats.isFile()) {
-        yield searchPath;
-      } else if (stats.isDirectory()) {
-        const files = await fs.readdir(searchPath);
-        for (const file of files) {
-          if (file.endsWith('.md')) {
-            yield join(searchPath, file);
-          }
-        }
-      }
-    } catch {
-    }
   }
 }
 
@@ -151,19 +101,80 @@ async function* findMemoryPaths(...searchPaths) {
  *   When provided, `memorySearch` delegates to `E(searchBackend).search()`
  *   and `memorySet` calls `E(searchBackend).index()` to keep the index
  *   in sync.  When omitted, the built-in substring search is used.
+ * @param {VFS} [options.vfs] - Virtual filesystem backend.  Defaults to
+ *   a Node.js `fs`-backed implementation.
  */
 const makeMemoryTools = (options = {}) => {
   const {
     root = process.cwd(),
+    vfs = makeNodeVFS(),
   } = options;
   const resolvedRoot = resolve(root);
+
+  /**
+   * Search a single file for lines matching `query` (case-insensitive).
+   * Reads the file as a stream to avoid buffering the entire contents.
+   *
+   * @param {string} filePath - Absolute path to search.
+   * @param {string} query    - Case-insensitive substring to match.
+   * @returns {AsyncGenerator<SearchResult>}
+   */
+  async function* searchInFile(filePath, query) {
+    const queryLower = query.toLowerCase();
+    try {
+      const stream = vfs.createReadStream(filePath);
+      let lineNum = 0;
+      for await (const line of streamLines(stream)) {
+        lineNum += 1;
+        if (line.toLowerCase().includes(queryLower)) {
+          yield {
+            file: basename(filePath),
+            line: lineNum,
+            content: line.trim(),
+          };
+        }
+      }
+    } catch {
+    }
+  }
+
+  /**
+   * @param {string[]} searchPaths - Absolute paths to search.
+   * @param {string} query         - Case-insensitive substring to match.
+   */
+  async function* searchInFiles(searchPaths, query) {
+    for await (const searchPath of findMemoryPaths(...searchPaths)) {
+      yield* searchInFile(searchPath, query);
+    }
+  }
+
+  /**
+   * @param {Array<string>} searchPaths
+   */
+  async function* findMemoryPaths(...searchPaths) {
+    for (const searchPath of searchPaths) {
+      try {
+        const info = await vfs.stat(searchPath);
+        if (info.type === 'file') {
+          yield searchPath;
+        } else if (info.type === 'directory') {
+          for await (const entry of vfs.readdir(searchPath)) {
+            if (entry.name.endsWith('.md')) {
+              yield join(searchPath, entry.name);
+            }
+          }
+        }
+      } catch {
+      }
+    }
+  }
 
   // Default to the built-in substring backend when none is provided.
   const {
     searchBackend = makeSubstringBackend([
       join(resolvedRoot, 'MEMORY.md'),
       join(resolvedRoot, 'memory'),
-    ]),
+    ], searchInFiles),
   } = options;
 
   /**
@@ -229,7 +240,7 @@ const makeMemoryTools = (options = {}) => {
       const collected = [];
 
       try {
-        const stream = createReadStream(fullPath, { encoding: 'utf-8' });
+        const stream = vfs.createReadStream(fullPath);
         const fromIndex = from - 1; // Convert to 0-based index
         const toIndex = lines !== undefined ? fromIndex + lines : Infinity;
 
@@ -308,11 +319,18 @@ const makeMemoryTools = (options = {}) => {
       const dir = dirname(fullPath);
 
       try {
-        await fs.mkdir(dir, { recursive: true });
+        await vfs.mkdir(dir, { recursive: true });
         if (append) {
-          await fs.appendFile(fullPath, content, 'utf-8');
+          // VFS has no appendFile — read existing content and concatenate.
+          let existing = '';
+          try {
+            existing = await vfs.readFile(fullPath);
+          } catch {
+            // File may not exist yet; start from empty.
+          }
+          await vfs.writeFile(fullPath, existing + content);
         } else {
-          await fs.writeFile(fullPath, content, 'utf-8');
+          await vfs.writeFile(fullPath, content);
         }
       } catch (err) {
         throw new Error(`Failed to write memory file: ${err.message}`,);
@@ -320,14 +338,14 @@ const makeMemoryTools = (options = {}) => {
 
       // Keep the search index in sync.
       const fullContent = append
-        ? await fs.readFile(fullPath, 'utf-8')
+        ? await vfs.readFile(fullPath)
         : content;
       await E(searchBackend).index(path, fullContent);
 
       return {
         success: true,
         path,
-        bytesWritten: Buffer.byteLength(content, 'utf-8'),
+        bytesWritten: new TextEncoder().encode(content).byteLength,
       };
     },
   });
@@ -388,9 +406,13 @@ harden(makeMemoryTools);
  *
  * @param {string[]} paths - Absolute paths (files or directories) to
  *   search within.
+ * @param {(paths: string[], query: string) =>
+ *   AsyncGenerator<SearchResult>} searcher - The search implementation
+ *   to delegate to (typically `searchInFiles` from the enclosing
+ *   `makeMemoryTools` closure).
  * @returns {SearchBackend}
  */
-const makeSubstringBackend = (paths) => {
+const makeSubstringBackend = (paths, searcher) => {
   return harden({
     /**
      * @param {string} query
@@ -402,7 +424,7 @@ const makeSubstringBackend = (paths) => {
       const { limit = Infinity } = opts;
       /** @type {Array<SearchResult>} */
       const results = [];
-      for await (const result of searchInFiles(paths, query)) {
+      for await (const result of searcher(paths, query)) {
         results.push(result);
         if (results.length >= limit) {
           break;
