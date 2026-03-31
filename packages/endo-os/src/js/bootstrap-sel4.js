@@ -577,6 +577,32 @@
     } catch (e) { print(e.message); }
   }
 
+  // --- mount (create a directory capability from a filesystem path) ---
+  function cmdMount(args) {
+    if (args.length < 2) {
+      print('Usage: mount <name> <path>');
+      print('  Creates a directory capability from a host filesystem path.');
+      print('  Example: mount project /mnt/host/Documents/my-project');
+      return;
+    }
+    var mname = args[0];
+    var mpath = args[1];
+    // Verify the path exists.
+    if (typeof __statFile !== 'undefined') {
+      var info = __statFile(mpath);
+      if (!info) {
+        print('Path not found: ' + mpath);
+        return;
+      }
+      if (!info.isDir) {
+        print('Not a directory: ' + mpath);
+        return;
+      }
+    }
+    ps().set(mname, makeDirCap(mpath, mname));
+    print('Mounted: ' + mname + ' → ' + mpath);
+  }
+
   // --- mkdir ---
   function cmdMkdir(args) {
     if (args.length === 0) { print('Usage: mkdir <name>'); return; }
@@ -950,6 +976,7 @@
     print('  copy <from> <to>            Duplicate');
     print('  mkdir <name>                Make a directory');
     print('  inspect <name>              Show methods');
+    print('  mount <name> <path>         Mount a host directory');
     print('');
     print('Storage:');
     print('  store --text <t> -n <name>  Store text');
@@ -1052,6 +1079,7 @@
       case 'move':    cmdMove(args); break;
       case 'copy':    cmdCopy(args); break;
       case 'mkdir':   cmdMkdir(args); break;
+      case 'mount':   cmdMount(args); break;
       case 'cancel':  cmdCancel(args); break;
       case 'locate':  cmdLocate(args); break;
       case 'inspect': cmdInspect(args); break;
