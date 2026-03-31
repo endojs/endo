@@ -1,3 +1,6 @@
 [workspace]
-members = ["rust/ocapn_noise"]
+members = [
+  "packages/endo-os/",
+  "rust/ocapn_noise"
+]
 resolver = "2"
