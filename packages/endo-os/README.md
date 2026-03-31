@@ -1,270 +1,308 @@
 # @endo/os
 
-A capability-native operating system built around the Endo pet
-daemon.  Instead of layering capability security on top of POSIX,
-Endo OS makes the capability model *the* OS — booting directly to
-the Endo chat shell with V8 + SES as the execution substrate.
+A capability-native runtime for the Endo pet daemon.
+Boots to an interactive shell where every resource — files,
+network, agents — is an object capability: explicit, granular,
+and revocable.
 
-## Architecture
-
-```
-UEFI/BIOS → Linux (stripped bzImage)
-  → endo-init (static binary embedding V8, PID 1)
-    → lockdown() (SES / Hardened JavaScript)
-    → makeDaemon(osPowers)
-    → Chat shell + WebSocket gateway
-```
-
-**Key insight**: SES Compartments + V8 Isolates replace POSIX
-process isolation.  A single-address-space system where all
-sandboxing is language-level is more natural for the capability
-model than processes with ambient authority.
-
-## Status
-
-**Phase 0** — bootstrapping V8 + SES on a minimal Linux kernel
-in QEMU.
-
-## Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-  (recommended — handles all Linux cross-compilation)
-- [QEMU](https://www.qemu.org/) (`brew install qemu` on macOS)
-- Optionally [VirtualBox](https://www.virtualbox.org/) if you
-  prefer a GUI VM manager
-
-If building without Docker (Linux host only):
-
-- [depot_tools](https://v8.dev/docs/source-code) (for V8 build)
-- GCC or Clang toolchain with static linking support
-- Linux kernel build dependencies (`flex`, `bison`, `libelf-dev`,
-  `libssl-dev`)
-- libsodium (for crypto bindings)
-
-## Quick Start (macOS with Docker)
-
-The Docker build handles everything — V8 compilation, kernel
-build, static linking — inside a container.  No Linux toolchain
-needed on the host.
+## Quick Start
 
 ```sh
+# Build (Docker, ~30 seconds)
 cd packages/endo-os
+./redox/build/build-redox.sh
 
-# Build everything (~30 min first run, cached after)
-./build/build-docker.sh
+# Copy binary where Docker can find it
+cp redox/build/out/endo-init /tmp/endo-init
+chmod +x /tmp/endo-init
 
-# Boot in QEMU (serial console, Ctrl-A X to quit)
-./build/run-qemu.sh --docker
-
-# Or with a graphical window (framebuffer + audio)
-./build/run-qemu.sh --docker --gui
+# Run with a host directory mounted
+docker run --rm -it \
+  -v /tmp/endo-init:/endo-init \
+  -v $HOME:/mnt/home:ro \
+  ubuntu:24.04 /endo-init --mount home=/mnt/home
 ```
 
-### What you'll see
-
 ```
-endo-init: Endo OS starting
-endo-init: Capability-native operating system
-endo-init: V8 platform initialized (1 thread)
-endo-init: Installing device capability bindings
-ses: SES lockdown module loaded (Phase 0 stub)
-endo-init: SES lockdown complete
-endo-os: Bootstrap starting
-endo-os: SES lockdown succeeded
-endo-os: Hello from Endo OS!
-endo-os: harden() verified - object is frozen
-endo-os: Compartment.evaluate("40 + 2") = 42
---- Probing device capabilities ---
-endo-os: [disk]    /dev/vda 64MB
-endo-os: [network] ready
-endo-os: [display] 1024x768 @ 32bpp     (--gui mode only)
-endo-os: [mic]     44100Hz 1ch 16bit    (if audio enabled)
+endo-init: Endo OS (Redox + QuickJS-ng)
+endo-init: Freezing intrinsics
+ses: Ready (native lockdown applied from C)
+endo-os: Mounted home → /mnt/home
 ========================================
- Endo OS: All checks passed!
- The capability-native OS is alive.
+ Endo OS
+ Capability-native operating system
+ QuickJS-ng (native lockdown)
+ Daemon: in-memory (pet names + eval + messaging)
 ========================================
+
+Type ? for help, or just type JavaScript.
+
+endo>
 ```
 
-## VirtualBox
+## What It Does
 
-VirtualBox requires a proper bootable disk image with GRUB
-(it can't boot a raw kernel+initramfs like QEMU).
+The binary is a 2 MB static executable containing:
+
+- **QuickJS-ng** (JavaScript engine, ES2023, no JIT)
+- **Native lockdown** — all JS intrinsics frozen in <1ms at
+  the C level
+- **Native harden/Compartment** — deep-freeze objects and
+  isolate evaluation contexts
+- **Full Endo CLI** — pet names, eval, messaging, agents
+
+The shell implements the same command set as the `endo` CLI
+from `packages/daemon`.
+
+## Shell Commands
+
+### Naming & Eval
+
+```
+eval <js>                   Evaluate JavaScript
+name <n> <js>               Eval and store as pet name
+list [dir]                  List pet names
+show <name>                 Print a value
+remove <name>               Remove a name
+move <from> <to>            Rename
+copy <from> <to>            Duplicate
+mkdir <name>                Make a pet store directory
+mount <name> <path>         Mount a host filesystem path
+inspect <name>              Show methods of a capability
+```
+
+### Storage
+
+```
+store --text <t> -n <name>  Store text
+store --json <j> -n <name>  Store JSON
+```
+
+### Messaging
+
+```
+inbox                       Read messages
+send <agent> <msg @refs>    Send message with @capability refs
+request <desc> [-t agent]   Ask for something
+resolve <msg#> <name>       Grant a request
+reject <msg#> [reason]      Deny a request
+adopt <msg#> <edge> -n <n>  Adopt a value from a message
+dismiss <msg#>              Delete a message
+reply <msg#> <msg @refs>    Reply to a message
+```
+
+### Agents
+
+```
+mkguest <handle> [name]     Create a sandboxed guest agent
+mkhost <handle> [name]      Create a host agent
+```
+
+### System
+
+```
+where                       Show system info
+status                      Daemon status
+help [command]              Show help
+```
+
+Or just type JavaScript — unrecognized input is evaluated.
+
+## Filesystem Capabilities
+
+Host directories mounted via `--mount` or the shell `mount`
+command become capability objects matching the Endo daemon's
+`MountInterface`:
+
+```
+endo> home.list()
+["Documents", "Desktop", ".config", ...]
+
+endo> home.has("Documents")
+true
+
+endo> home.lookup("Documents")
+[Mount(Documents)]
+
+endo> home.lookup("Documents").list()
+["endo-os", "notes", ...]
+
+endo> home.lookup("package.json").text()
+"{ \"name\": \"@endo/os\", ... }"
+
+endo> home.lookup("package.json").json().name
+"@endo/os"
+
+endo> home.readOnly()
+[Mount(home) (read-only)]
+```
+
+### Mount Interface
+
+Matches `packages/daemon/src/interfaces.js` `MountInterface`:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `has(...pathSegments)` | `boolean` | Check if path exists |
+| `list(...pathSegments)` | `string[]` | List child names |
+| `lookup(path)` | `Mount \| MountFile` | Navigate to child |
+| `readText(path)` | `string` | Read file content |
+| `maybeReadText(path)` | `string \| undefined` | Read or undefined |
+| `writeText(path, text)` | `void` | Write file content |
+| `remove(path)` | `void` | Delete file/directory |
+| `move(from, to)` | `void` | Rename/move |
+| `makeDirectory(path)` | `void` | Create directory |
+| `readOnly()` | `Mount` | Attenuated read-only view |
+
+### MountFile Interface
+
+Matches `MountFileInterface`:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `text()` | `string` | Read content as text |
+| `json()` | `any` | Parse content as JSON |
+| `writeText(content)` | `void` | Write text |
+| `readOnly()` | `MountFile` | Read-only attenuated view |
+
+Path arguments accept `string` or `string[]`.
+
+### Capability Attenuation
+
+```
+endo> name docs home.lookup("Documents")
+endo> name readonlyDocs docs.readOnly()
+endo> mkguest alice
+endo> send alice Check out these docs @readonlyDocs
+```
+
+Alice gets a read-only view.  She can `list()` and `readText()`
+but `writeText()` throws.  She cannot navigate above the
+`Documents` directory.
+
+## Network Capabilities
+
+Available when launched with `--port`:
+
+```
+endo-init --port 8920
+```
+
+```
+endo> network.listen(8920)
+[Listener]
+
+endo> network.connect("example.com", 80)
+[Connection]
+```
+
+| Object | Methods |
+|--------|---------|
+| Network | `listen(port)`, `connect(host, port)` |
+| Listener | `accept()`, `close()` |
+| Connection | `recv([max])`, `send(data)`, `close()` |
+
+## Configuration
+
+### CLI Flags
 
 ```sh
-# 1. Build with Docker first
-./build/build-docker.sh
-
-# 2. Create a GRUB-bootable VDI disk image
-./build/make-vbox-image.sh
-
-# 3. In VirtualBox:
-#    New → Name: "Endo OS", Type: Linux, Version: Other Linux (64-bit)
-#    Memory: 512 MB
-#    Hard disk → Use existing → build/out/endo-os.vdi
-#    Settings → Network → NAT → Port Forwarding:
-#      Host 8920 → Guest 8920 (TCP)
-#    Settings → Audio → Enable Audio (for mic capability)
-#    Start!
+endo-init --mount name=/path      # Mount directory as capability
+endo-init --port 8920             # Enable network capability
 ```
 
-The GRUB menu offers three boot options:
-
-- **Endo OS** — graphical console (`tty0`)
-- **Endo OS (serial console)** — headless (`ttyS0`)
-- **Endo OS (verbose)** — graphical with full kernel log
-
-## Building Without Docker (Linux Only)
-
-On a Linux host you can build natively:
+### Environment Variables
 
 ```sh
-cd packages/endo-os
-
-# Build V8 static library (~20 min, cached)
-./build/build-v8.sh
-
-# Build minimal Linux kernel (~5 min, cached)
-./build/build-kernel.sh
-
-# Build endo-init binary
-make -C build endo-init
-
-# Assemble initramfs
-./build/build-initramfs.sh
-
-# Boot
-./build/run-qemu.sh
+ENDO_MOUNT_DOCS=/path/to/docs endo-init
+ENDO_PORT=8920 endo-init
 ```
 
-## Device Capabilities
+### Runtime Mount
 
-Every hardware device is exposed to JavaScript as a capability
-object.  If you don't have a reference to the object, you can't
-use the device.  Capabilities can be attenuated (e.g., read-only
-disk), delegated to sandboxed guests, and revoked.
-
-| Device | Linux interface | JS constructor | Key methods |
-|--------|----------------|----------------|-------------|
-| Disk | `/dev/vda` (virtio-blk) | `__openBlockDevice(path)` | `read(off, len)`, `write(off, data)`, `size()`, `sync()` |
-| Network | TCP sockets | `__createNetworkInterface()` | `listen(port)` → Listener, `connect(host, port)` → Connection |
-| Display | `/dev/fb0` (framebuffer) | `__openFramebuffer(path)` | `buffer()` → mmap'd Uint8Array, `setPixel()`, `fillRect()`, `flip()` |
-| Camera | `/dev/video0` (V4L2/UVC) | `__openCamera(path)` | `capture()` → frame Uint8Array, `startStreaming()`, `stopStreaming()` |
-| Microphone | `/dev/dsp` (OSS/ALSA) | `__openMicrophone(device)` | `read(frames)` → PCM Uint8Array, `start()`, `stop()` |
-
-### Capability attenuation example
-
-```js
-// Full disk capability (read + write)
-const disk = __openBlockDevice('/dev/vda');
-
-// Create a read-only view
-const readOnlyDisk = harden({
-  read: disk.read.bind(disk),
-  size: disk.size.bind(disk),
-});
-
-// Guest receives only the attenuated capability
-const guest = new Compartment({ disk: readOnlyDisk });
-guest.evaluate('disk.read(0, 512)');   // works
-guest.evaluate('disk.write(0, data)'); // throws — no write method
+```
+endo> mount project /mnt/host/Documents/my-project
+Mounted: project → /mnt/host/Documents/my-project
 ```
 
-### Stream handoff (the killer use case)
+## Build Targets
 
-In a capability OS, passing a camera stream across chat to a
-third party is just passing an object reference:
+### Native Binary (recommended)
 
-```js
-// Agent A has a camera, sends it to Agent B via chat:
-E(agentB).send('camera', camera);
-
-// Agent B shares with Agent C — the capability transfers:
-E(agentC).send('camera', receivedCamera);
-
-// Agent C now captures frames directly — no proxy, no relay.
-// Revoke Agent B's reference and they lose access, but Agent C
-// keeps theirs (or not — depends on your revocation policy).
-```
-
-## QEMU Options
+Builds a static binary for the host architecture.  No runtime
+dependencies.
 
 ```sh
-# Serial console only (headless, for CI)
-./build/run-qemu.sh --docker
-
-# Graphical window with display + audio
-./build/run-qemu.sh --docker --gui
-
-# Custom memory
-QEMU_MEMORY=1G ./build/run-qemu.sh --docker
-
-# USB camera passthrough (Linux host only)
-./build/run-qemu.sh --docker --usb-camera=/dev/video0
+./redox/build/build-redox.sh
+# Output: redox/build/out/endo-init (2 MB)
 ```
 
-Ports forwarded from host to VM:
+### Arch Linux Test
 
-- **8920** — WebSocket gateway (Chat UI connects here)
+Verifies the binary builds and runs on bare Arch Linux x86_64:
 
-Press **Ctrl-A X** to exit QEMU in serial mode.
+```sh
+./redox/build/test-arch.sh              # automated test
+./redox/build/test-arch.sh --interactive  # interactive shell
+# Output: redox/build/out/endo-init-x86_64 (2.6 MB)
+```
+
+### seL4 Microkernel
+
+Runs on the formally verified seL4 kernel.  Boots in ~3 seconds
+(without daemon bundle) via QEMU.  Interactive shell over serial
+UART.
+
+```sh
+./sel4/build/build-sel4.sh
+./sel4/build/run-qemu-sel4.sh
+```
 
 ## Project Structure
 
 ```
-src/
-  v8-host/
-    main.cc              PID 1: init V8, load SES, run bootstrap
-    platform.cc          v8::Platform (event loop, threading)
-    devices.cc           Device binding dispatcher
-    block-device.cc      Disk capability (/dev/vda)
-    network-device.cc    TCP listen/connect capabilities
-    framebuffer.cc       Display capability (/dev/fb0)
-    camera.cc            Camera capability (V4L2)
-    microphone.cc        Microphone capability (OSS/ALSA)
-  js/
-    ses-lockdown.js      SES lockdown (stub, replaced by real SES later)
-    bootstrap.js         First JS to run: probes devices, demos caps
-  daemon/                Endo daemon platform bindings (future)
-  storage/               Log-structured block store (future)
-  network/               Minimal TCP + WebSocket (future)
-build/
-  Dockerfile             Full build environment (V8 + kernel + init)
-  build-docker.sh        One-command Docker build (recommended)
-  build-all.sh           Native Linux build orchestrator
-  build-v8.sh            V8 static library build
-  build-kernel.sh        Minimal Linux kernel build
-  build-initramfs.sh     Pack initramfs from artifacts
-  run-qemu.sh            Boot in QEMU (serial or GUI)
-  make-vbox-image.sh     Create GRUB-bootable VDI for VirtualBox
-  Makefile               Compile endo-init from C++ sources
-kernel/
-  qemu-x86_64.config     Minimal Linux kernel config
+src/js/
+  bootstrap-sel4.js     The Endo shell (900 lines, all commands)
+  ses-lockdown-quickjs.js  SES shim for QuickJS-ng
+
+redox/
+  src/endo-init.c       C entry point (POSIX, real libc)
+  build/
+    build-redox.sh      Docker build → static binary
+    test-arch.sh        Arch Linux CI test
+    run.sh              Docker run helper
+    run-vm.sh           QEMU VM with virtio-9p shares
+
+sel4/
+  src/endo_init.c       Microkit PD entry point (bare metal)
+  src/uart.c            Serial driver (PL011 + x86 COM1)
+  src/heap.c            Allocator over seL4 memory region
+  src/libc_stubs.c      Minimal libc for QuickJS on seL4
+  src/ses-shim.js       SES + assert shim
+  system.xml            Microkit system description
+  build/
+    build-sel4.sh       Docker build → seL4 image
+    run-qemu-sel4.sh    QEMU launcher (auto-detects arch)
+    Dockerfile          Cross-compile for AArch64/x86_64
 ```
 
-## Build Notes
+## Technology Stack
 
-- **First Docker build takes ~30 minutes** because it compiles
-  V8 from source.  Docker layer caching means subsequent builds
-  only rebuild what changed — an endo-init recompile takes
-  seconds.
-- **V8 is ~30 MB** as a static library.  The final endo-init
-  binary is roughly 40–50 MB.
-- The **kernel config** disables everything except virtio,
-  serial, framebuffer, USB, V4L2, ALSA, and TCP/IP.  No ext4,
-  no shell, no coreutils.
-- The **camera** device requires USB passthrough, which is
-  tricky in VMs.  In VirtualBox, install the Extension Pack and
-  configure USB device filters.
+| Component | What | Why |
+|-----------|------|-----|
+| [QuickJS-ng](https://github.com/nicedoc/nicedoc/quickjs) | JS engine | No JIT (small, portable), native lockdown/harden/Compartment |
+| [SES](https://github.com/endojs/endo/tree/master/packages/ses) | Hardened JS | Frozen intrinsics, Compartment isolation, harden() |
+| [seL4](https://sel4.systems/) | Verified kernel | Capability-native, formally proven (optional target) |
+| [Redox](https://redox-os.org/) | Capability OS | POSIX + namespace-based capabilities (future target) |
+| Static C binary | Deployment | Zero dependencies, runs anywhere |
 
-## Phase Plan
+## Coordination
 
-0. **Hello SES on QEMU** — V8 evaluates `lockdown()` on bare
-   Linux, prints to serial console *(current)*
-1. **Persistence without POSIX** — content-addressed block store
-   on virtio-blk, replacing the filesystem entirely
-2. **Workers without processes** — V8 Isolates replace
-   `child_process.fork()`
-3. **Daemon boots** — full `makeDaemon(osPowers)` on bare metal
-4. **Network gateway** — Chat UI connects from host browser via
-   WebSocket on port 8920
-5. **Chat as shell** — VGA console with text-mode chat interface
+A parallel agent maintains QuickJS-ng with SES support:
+- `quickjs-collab.txt` — shared notes between agents
+- `COORDINATION.md` — detailed integration plan
+
+QuickJS-ng `native-ses` branch provides:
+- `JS_FreezeIntrinsics(ctx)` — freeze all intrinsics in C (<1ms)
+- `JS_AddIntrinsicLockdown(ctx)` — add lockdown/harden globals
+- Native `Compartment` — isolated JSContext per compartment
