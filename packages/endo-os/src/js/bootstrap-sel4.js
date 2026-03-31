@@ -120,112 +120,203 @@
   function ps() { return currentAgent.petStore; }
 
   // ============================================================
-  // FILESYSTEM CAPABILITY — OCAP STYLE
+  // FILESYSTEM CAPABILITIES — MATCHES DAEMON INTERFACES
   //
-  // Every entry is a capability object:
-  //   - A File has .read(), .write(text), .stat(), .remove()
-  //   - A Directory has .list(), .get(name), .mkdir(name),
-  //     .makeFile(name, text), .remove()
-  //   - .list() returns an array of child capabilities
-  //   - You explore by navigating objects, not passing paths
+  // MountInterface (EndoMount) — mounted directory:
+  //   has(...pathSegments)        → Promise<boolean>
+  //   list(...pathSegments)       → Promise<string[]>
+  //   lookup(path)                → Promise<Mount | MountFile>
+  //   readText(path)              → Promise<string>
+  //   maybeReadText(path)         → Promise<string | undefined>
+  //   writeText(path, content)    → Promise<void>
+  //   remove(path)                → Promise<void>
+  //   move(from, to)              → Promise<void>
+  //   makeDirectory(path)         → Promise<void>
+  //   readOnly()                  → Mount
+  //   help()                      → string
   //
-  // Sharing a directory = passing a reference. The recipient
-  // can explore children but cannot escape the root — there
-  // are no ".." references, and no path strings to manipulate.
+  // MountFileInterface (EndoMountFile) — file from lookup():
+  //   text()                      → Promise<string>
+  //   json()                      → Promise<any>
+  //   writeText(content)          → Promise<void>
+  //   readOnly()                  → MountFile
+  //   help()                      → string
+  //
+  // Path argument: string | string[] (single segment or array)
   // ============================================================
 
-  function makeFileCap(fullPath, fileName) {
-    return harden({
-      read: function() {
-        return typeof __readFile !== 'undefined' ? __readFile(fullPath) : undefined;
-      },
-      write: function(text) {
-        return typeof __writeFile !== 'undefined' ? __writeFile(fullPath, text) : false;
-      },
-      stat: function() {
-        return typeof __statFile !== 'undefined' ? __statFile(fullPath) : undefined;
-      },
-      remove: function() {
-        return typeof __removeFile !== 'undefined' ? __removeFile(fullPath) : false;
-      },
-      name: function() { return fileName; },
-      help: function() {
-        return 'File(' + fileName + '): read(), write(text), stat(), remove()';
-      },
-      toString: function() { return '[File ' + fileName + ']'; },
-    });
+  // Resolve path argument (string or string[]) to segments array.
+  function toSegments(pathArg) {
+    if (Array.isArray(pathArg)) return pathArg;
+    if (typeof pathArg === 'string') return pathArg.split('/').filter(Boolean);
+    return [];
   }
 
-  function makeDirCap(rootPath, dirName) {
-    // Prevent path traversal.
-    function safeName(n) {
-      if (!n || n === '.' || n === '..' || n.indexOf('/') >= 0) {
-        throw new Error('Invalid name: ' + n);
+  // Validate path segments — no traversal, no special chars.
+  function assertConfined(segments) {
+    for (var i = 0; i < segments.length; i++) {
+      var s = segments[i];
+      if (!s || s === '..' || s.indexOf('/') >= 0 ||
+          s.indexOf('\\') >= 0 || s.indexOf('\0') >= 0) {
+        throw new Error('Invalid path segment: ' + JSON.stringify(s));
       }
-      return n;
     }
+  }
 
+  // Join root + segments into an absolute path.
+  function joinPath(root, segments) {
+    assertConfined(segments);
+    var result = root;
+    for (var i = 0; i < segments.length; i++) {
+      if (segments[i] !== '.') result = result + '/' + segments[i];
+    }
+    return result;
+  }
+
+  // MountFile — matches daemon's MountFileInterface.
+  function makeMountFile(fullPath, isReadOnly) {
     return harden({
-      // list() → array of capability objects (files and subdirs).
-      list: function() {
-        if (typeof __listDir === 'undefined') return [];
-        var entries = __listDir(rootPath) || [];
-        var result = [];
-        for (var i = 0; i < entries.length; i++) {
-          var e = entries[i];
-          var childPath = rootPath + '/' + e.name;
-          if (e.isDir) {
-            result.push(makeDirCap(childPath, e.name));
-          } else {
-            result.push(makeFileCap(childPath, e.name));
-          }
-        }
-        return result;
+      text: function() {
+        var content = __readFile(fullPath);
+        return content !== undefined ? content : '';
       },
-
-      // get(name) → capability for a specific child.
-      get: function(childName) {
-        safeName(childName);
-        var childPath = rootPath + '/' + childName;
-        var info = typeof __statFile !== 'undefined' ? __statFile(childPath) : undefined;
-        if (!info) return undefined;
-        if (info.isDir) return makeDirCap(childPath, childName);
-        return makeFileCap(childPath, childName);
+      json: function() {
+        var content = __readFile(fullPath);
+        if (content === undefined) throw new Error('File not found');
+        return JSON.parse(content);
       },
-
-      // mkdir(name) → new directory capability.
-      mkdir: function(childName) {
-        safeName(childName);
-        var childPath = rootPath + '/' + childName;
-        if (typeof __mkdir !== 'undefined') __mkdir(childPath);
-        return makeDirCap(childPath, childName);
+      writeText: function(content) {
+        if (isReadOnly) throw new Error('Read-only');
+        __writeFile(fullPath, content);
       },
-
-      // makeFile(name, text) → new file capability.
-      makeFile: function(childName, text) {
-        safeName(childName);
-        var childPath = rootPath + '/' + childName;
-        if (typeof __writeFile !== 'undefined') __writeFile(childPath, text || '');
-        return makeFileCap(childPath, childName);
+      readOnly: function() {
+        if (isReadOnly) return this;
+        return makeMountFile(fullPath, true);
       },
-
-      // stat() → {size, isDir, isFile}
-      stat: function() {
-        return typeof __statFile !== 'undefined' ? __statFile(rootPath) : undefined;
-      },
-
-      // remove() → boolean (removes directory)
-      remove: function() {
-        return typeof __removeFile !== 'undefined' ? __removeFile(rootPath) : false;
-      },
-
-      name: function() { return dirName; },
       help: function() {
-        return 'Dir(' + dirName + '): list(), get(name), mkdir(name), makeFile(name, text), stat(), remove()';
+        var rw = isReadOnly ? ' (read-only)' : '';
+        return 'MountFile' + rw + ': text(), json(), writeText(content), readOnly()';
       },
-      toString: function() { return '[Dir ' + dirName + ']'; },
+      toString: function() { return '[MountFile]'; },
     });
   }
+
+  // Mount — matches daemon's MountInterface.
+  function makeMount(rootPath, mountName, isReadOnly) {
+    return harden({
+      // has(...pathSegments) → boolean
+      has: function() {
+        var segments = [];
+        for (var i = 0; i < arguments.length; i++) {
+          var s = toSegments(arguments[i]);
+          for (var j = 0; j < s.length; j++) segments.push(s[j]);
+        }
+        var full = joinPath(rootPath, segments);
+        var info = __statFile(full);
+        return info !== undefined;
+      },
+
+      // list(...pathSegments) → string[] (names of children)
+      list: function() {
+        var segments = [];
+        for (var i = 0; i < arguments.length; i++) {
+          var s = toSegments(arguments[i]);
+          for (var j = 0; j < s.length; j++) segments.push(s[j]);
+        }
+        var full = joinPath(rootPath, segments);
+        var entries = __listDir(full);
+        if (!entries) return [];
+        return entries.map(function(e) { return e.name; });
+      },
+
+      // lookup(path) → Mount (for dirs) or MountFile (for files)
+      lookup: function(pathArg) {
+        var segments = toSegments(pathArg);
+        var full = joinPath(rootPath, segments);
+        var info = __statFile(full);
+        if (!info) throw new Error('Not found: ' + segments.join('/'));
+        if (info.isDir) {
+          return makeMount(full, segments[segments.length - 1] || mountName, isReadOnly);
+        }
+        return makeMountFile(full, isReadOnly);
+      },
+
+      // readText(path) → string
+      readText: function(pathArg) {
+        var segments = toSegments(pathArg);
+        var full = joinPath(rootPath, segments);
+        var content = __readFile(full);
+        if (content === undefined) throw new Error('Not found: ' + segments.join('/'));
+        return content;
+      },
+
+      // maybeReadText(path) → string | undefined
+      maybeReadText: function(pathArg) {
+        var segments = toSegments(pathArg);
+        var full = joinPath(rootPath, segments);
+        return __readFile(full);
+      },
+
+      // writeText(path, content) → void
+      writeText: function(pathArg, content) {
+        if (isReadOnly) throw new Error('Read-only');
+        var segments = toSegments(pathArg);
+        var full = joinPath(rootPath, segments);
+        __writeFile(full, content);
+      },
+
+      // remove(path) → void
+      remove: function(pathArg) {
+        if (isReadOnly) throw new Error('Read-only');
+        var segments = toSegments(pathArg);
+        var full = joinPath(rootPath, segments);
+        __removeFile(full);
+      },
+
+      // move(from, to) → void
+      move: function(fromArg, toArg) {
+        if (isReadOnly) throw new Error('Read-only');
+        // Implemented as read + write + delete (no native rename across dirs).
+        var fromSegs = toSegments(fromArg);
+        var toSegs = toSegments(toArg);
+        var fromFull = joinPath(rootPath, fromSegs);
+        var toFull = joinPath(rootPath, toSegs);
+        var content = __readFile(fromFull);
+        if (content === undefined) throw new Error('Not found: ' + fromSegs.join('/'));
+        __writeFile(toFull, content);
+        __removeFile(fromFull);
+      },
+
+      // makeDirectory(path) → void
+      makeDirectory: function(pathArg) {
+        if (isReadOnly) throw new Error('Read-only');
+        var segments = toSegments(pathArg);
+        var full = joinPath(rootPath, segments);
+        __mkdir(full);
+      },
+
+      // readOnly() → Mount (read-only attenuated view)
+      readOnly: function() {
+        if (isReadOnly) return this;
+        return makeMount(rootPath, mountName, true);
+      },
+
+      help: function() {
+        var rw = isReadOnly ? ' (read-only)' : '';
+        return 'Mount(' + mountName + ')' + rw +
+          ': has(), list(), lookup(path), readText(path), writeText(path, text), ' +
+          'remove(path), move(from, to), makeDirectory(path), readOnly()';
+      },
+      toString: function() {
+        return '[Mount ' + mountName + (isReadOnly ? ' ro' : '') + ']';
+      },
+    });
+  }
+
+  // Convenience: makeDirCap is now makeMount.
+  var makeDirCap = function(rootPath, name) {
+    return makeMount(rootPath, name, false);
+  };
 
   // ============================================================
   // NETWORK CAPABILITY — OCAP STYLE
