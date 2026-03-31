@@ -6,15 +6,20 @@
  * Provides read, write, edit, remove, and stat file tools with path-root
  * enforcement.
  * All accessed paths must resolve under the configured root directory.
+ *
+ * File I/O is delegated to a {@link VFS} backend so that the tool
+ * logic is decoupled from Node-specific APIs.  By default,
+ * {@link makeNodeVFS} is used, but callers may supply any conforming
+ * implementation.
  */
 
-import { createReadStream } from 'fs';
-import fs from 'fs/promises';
 import { resolve, dirname, relative, basename } from 'path';
 import { M } from '@endo/patterns';
-/** @import { ReadStreamOptions } from 'fs' */
 
 import { makeTool } from './common.js';
+import { makeNodeVFS } from './vfs-node.js';
+
+/** @import { VFS } from './vfs.js' */
 
 /** @type {number} */
 const DEFAULT_MAX_READ_BYTES = 100 * 1024 * 1024; // 100 MiB
@@ -25,6 +30,8 @@ const DEFAULT_MAX_READ_BYTES = 100 * 1024 * 1024; // 100 MiB
  *   under. Defaults to `process.cwd()`.
  * @property {number} [maxReadBytes] - Maximum number of bytes a single
  *   readFile call may return.  Defaults to 100 MiB.
+ * @property {VFS} [vfs] - Virtual filesystem backend.  Defaults to
+ *   a Node.js `fs`-backed implementation.
  */
 
 /**
@@ -50,6 +57,15 @@ const safePath = (userPath, root) => {
 };
 
 /**
+ * Compute the byte length of a UTF-8 string without relying on
+ * Node's `Buffer`.
+ *
+ * @param {string} str
+ * @returns {number}
+ */
+const utf8ByteLength = (str) => new TextEncoder().encode(str).byteLength;
+
+/**
  * Create file-system tools (readFile, writeFile, editFile) that enforce a
  * common path-root traversal limit.
  *
@@ -59,6 +75,7 @@ const makeFileTools = (options = {}) => {
   const {
     root = process.cwd(),
     maxReadBytes = DEFAULT_MAX_READ_BYTES,
+    vfs = makeNodeVFS(),
   } = options;
   const resolvedRoot = resolve(root);
 
@@ -114,7 +131,7 @@ const makeFileTools = (options = {}) => {
       try {
         // Check file size up-front so we can enforce the platform limit
         // and validate the offset without reading the whole file.
-        const { size: fileSize } = await fs.stat(fullPath);
+        const { size: fileSize } = await vfs.stat(fullPath);
         if (offset >= fileSize && fileSize > 0) {
           throw new Error('Offset exceeds file size');
         }
@@ -122,21 +139,35 @@ const makeFileTools = (options = {}) => {
         // Determine how many bytes we will actually read.
         const bytesToRead = Math.min(limit, fileSize - offset);
 
-        // Stream only the requested byte range.
-        /** @type {ReadStreamOptions} */
-        const streamOpts = {
-          encoding: 'utf-8',
+        // Stream only the requested byte range via the VFS.
+        const stream = vfs.createReadStream(fullPath, {
           start: offset,
-          end: offset + bytesToRead - 1, // fs.createReadStream `end` is inclusive
-        };
-        const stream = createReadStream(fullPath, streamOpts);
+          end: offset + bytesToRead - 1, // `end` is inclusive
+        });
 
-        /** @type {string[]} */
+        /** @type {Uint8Array[]} */
         const chunks = [];
+        let totalBytes = 0;
         for await (const chunk of stream) {
-          chunks.push(/** @type {string} */ (chunk));
+          chunks.push(chunk);
+          totalBytes += chunk.byteLength;
         }
-        const content = chunks.join('');
+
+        // Decode the collected bytes to a UTF-8 string.
+        const decoder = new TextDecoder();
+        const content = chunks.length === 1
+          ? decoder.decode(chunks[0])
+          : decoder.decode(
+              (() => {
+                const merged = new Uint8Array(totalBytes);
+                let pos = 0;
+                for (const c of chunks) {
+                  merged.set(c, pos);
+                  pos += c.byteLength;
+                }
+                return merged;
+              })(),
+            );
 
         return {
           success: true,
@@ -144,7 +175,7 @@ const makeFileTools = (options = {}) => {
           offset,
           limit,
           content,
-          bytesRead: Buffer.byteLength(content, 'utf-8'),
+          bytesRead: totalBytes,
         };
       } catch (err) {
         if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') {
@@ -189,16 +220,18 @@ const makeFileTools = (options = {}) => {
 
       try {
         const dir = dirname(fullPath);
-        await fs.mkdir(dir, { recursive: true });
-        await fs.writeFile(fullPath, content, 'utf-8');
+        await vfs.mkdir(dir, { recursive: true });
+        await vfs.writeFile(fullPath, content);
 
         return {
           success: true,
           path,
-          bytesWritten: Buffer.byteLength(content, 'utf-8'),
+          bytesWritten: utf8ByteLength(content),
         };
       } catch (err) {
-        throw new Error(`Failed to write file: ${err.message}`,);
+        throw new Error(
+          `Failed to write file: ${/** @type {Error} */ (err).message}`,
+        );
       }
     },
   });
@@ -250,7 +283,7 @@ const makeFileTools = (options = {}) => {
       const fullPath = safePath(path, resolvedRoot);
 
       try {
-        const before = await fs.readFile(fullPath, 'utf-8');
+        const before = await vfs.readFile(fullPath);
 
         let updated;
         if (replace_all) {
@@ -266,7 +299,7 @@ const makeFileTools = (options = {}) => {
             before.substring(index + old_string.length);
         }
 
-        await fs.writeFile(fullPath, updated, 'utf-8');
+        await vfs.writeFile(fullPath, updated);
 
         const replaced = updated !== before;
         const count = updated.split(new_string).length - 1;
@@ -278,7 +311,9 @@ const makeFileTools = (options = {}) => {
           count,
         };
       } catch (err) {
-        throw new Error(`Failed to edit file: ${err.message}`,);
+        throw new Error(
+          `Failed to edit file: ${/** @type {Error} */ (err).message}`,
+        );
       }
     },
   });
@@ -314,7 +349,7 @@ const makeFileTools = (options = {}) => {
       const fullPath = safePath(path, resolvedRoot);
 
       try {
-        await fs.unlink(fullPath);
+        await vfs.unlink(fullPath);
         return { success: true, path };
       } catch (err) {
         if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') {
@@ -365,26 +400,14 @@ const makeFileTools = (options = {}) => {
       const fullPath = safePath(path, resolvedRoot);
 
       try {
-        const stats = await fs.stat(fullPath);
-
-        /** @type {string} */
-        let type;
-        if (stats.isFile()) {
-          type = 'file';
-        } else if (stats.isDirectory()) {
-          type = 'directory';
-        } else if (stats.isSymbolicLink()) {
-          type = 'symlink';
-        } else {
-          type = 'other';
-        }
+        const info = await vfs.stat(fullPath);
 
         return {
           success: true,
           path,
-          type,
-          size: stats.size,
-          modified: stats.mtime.toISOString(),
+          type: info.type,
+          size: info.size,
+          modified: info.mtime,
         };
       } catch (err) {
         if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') {
@@ -448,11 +471,6 @@ const makeFileTools = (options = {}) => {
       const fullPath = safePath(path, resolvedRoot);
 
       try {
-        const dirents = await fs.readdir(fullPath, {
-          withFileTypes: true,
-          recursive,
-        });
-
         /** @type {RegExp | undefined} */
         let re;
         if (globPattern) {
@@ -469,34 +487,20 @@ const makeFileTools = (options = {}) => {
         /** @type {Array<{name: string, type: string, size: number}>} */
         const entries = [];
 
-        for (const dirent of dirents) {
-          const entryName = dirent.parentPath && dirent.parentPath !== fullPath
-            ? relative(fullPath, resolve(dirent.parentPath, dirent.name))
-            : dirent.name;
-
-          if (re && !re.test(basename(entryName)) && !re.test(entryName)) {
+        for await (const entry of vfs.readdir(fullPath, { recursive })) {
+          if (
+            re &&
+            !re.test(basename(entry.name)) &&
+            !re.test(entry.name)
+          ) {
             continue;
           }
 
-          const entryType = dirent.isDirectory()
-            ? 'directory'
-            : dirent.isFile()
-              ? 'file'
-              : dirent.isSymbolicLink()
-                ? 'symlink'
-                : 'other';
-
-          let size = 0;
-          if (dirent.isFile()) {
-            try {
-              const st = await fs.stat(resolve(dirent.parentPath || fullPath, dirent.name));
-              size = st.size;
-            } catch (_e) {
-              // If stat fails, leave size as 0.
-            }
-          }
-
-          entries.push({ name: entryName, type: entryType, size });
+          entries.push({
+            name: entry.name,
+            type: entry.type,
+            size: entry.size,
+          });
         }
 
         return { success: true, path, entries };
@@ -551,10 +555,7 @@ const makeFileTools = (options = {}) => {
       const fullPath = safePath(path, resolvedRoot);
 
       try {
-        const result = await fs.mkdir(fullPath, { recursive: rec });
-        // fs.mkdir returns the first directory created, or undefined if
-        // the directory already existed (when recursive is true).
-        const created = result !== undefined;
+        const created = await vfs.mkdir(fullPath, { recursive: rec });
         return { success: true, path, created };
       } catch (err) {
         if (/** @type {NodeJS.ErrnoException} */ (err).code === 'EEXIST') {
@@ -609,9 +610,9 @@ const makeFileTools = (options = {}) => {
 
       try {
         if (rec) {
-          await fs.rm(fullPath, { recursive: true, force: false });
+          await vfs.rm(fullPath, { recursive: true });
         } else {
-          await fs.rmdir(fullPath);
+          await vfs.rmdir(fullPath);
         }
         return { success: true, path };
       } catch (err) {
