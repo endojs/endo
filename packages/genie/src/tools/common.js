@@ -121,7 +121,17 @@ export const makeTool = (name, { execute, ...spec }) => {
           mustMatch(harden([args]), paramsPattern, `${name} args`);
           break;
         } catch (err) {
+          const message = `${err?.message}`;
           if (typeof args === 'object') {
+
+            const null2undef = /args:.* ([^ ]+?)\?: null.*/.exec(message);
+            if (null2undef !== null) {
+              const key = null2undef[1];
+              if (Object.hasOwn(args, key) && args[key] === null) {
+                args = { ...args, ...{ [key]: undefined } };
+                continue;
+              }
+            }
 
             // try to fixup by parsing nested JSON values
             if (!didUnJSON) {
