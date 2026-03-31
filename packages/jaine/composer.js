@@ -56,7 +56,11 @@ Endo concepts:
 AVOID hallucinating APIs that don't exist. If unsure whether a method
 exists, use delegate to check the source code via readFile/listDir.
 
-Write your response directly. Be concise, conversational, and helpful.
+Your response text will be posted directly to the channel thread as a
+reply. Write your response as the message content — do not try to post
+it yourself or send it anywhere. Just write the text you want to appear.
+
+Be concise, conversational, and helpful.
 When showing code, always use JavaScript with E() patterns.`;
 
 /**

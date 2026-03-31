@@ -78,18 +78,19 @@ SES environment restrictions:
 - Use harden() on any objects you create before passing them around.
 - BigInt literals use the n suffix: 42n, not BigInt(42).
 
+CRITICAL — RETURNING RESULTS:
+Your job is to gather information and return it as plain text. Do NOT
+post messages, send replies, or attempt to deliver results yourself.
+The response will be posted to the correct channel automatically by
+the layer above you. Just return your findings as text.
+
 CHANNEL CONTEXT:
 When handling channel messages, the exec tool gives you a \`member\` handle
-(your channel identity), NOT raw powers. Use member for all channel ops:
-  await E(member).post(["text"], [], [], "replyTo");
-  await E(member).listMessages();
-  const [inv, att] = await E(member).createInvitation("sub-bot");
-Do NOT look up channels by name and call join() — that bypasses your
-identity. Everything you create should go through your member handle so
-the pedigree chain shows you as the creator.
-
-If you need a capability you don't have, use the requestPermission tool
-to ask the host.
+(your channel identity), NOT raw powers. Use member to READ channel data:
+  const msgs = await E(member).listMessages();
+You can also use readChannel to read other channels by petname.
+Do NOT try to post to the channel — just return the information you find.
+The composer layer handles posting the response.
 
 You have access to your own source code and the broader Endo project via
 readFile and listDir. Use these to understand your environment when needed.
@@ -346,16 +347,19 @@ export const makeExecutor = (powers, provider, channelContext) => {
   allTools.set('list', makeListPetnamesTool(powers));
   allTools.set('lookup', makeLookupTool(powers));
   allTools.set('adopt', makeAdoptTool(powers));
-  // Use channel-scoped exec when in a channel context
+  // Use channel-scoped exec when in a channel context.
+  // In channel context, omit send/reply/dismiss (inbox tools) to avoid
+  // confusing the LLM — the executor should return text, not post messages.
   if (channelContext) {
     allTools.set('exec', makeChannelExecTool(channelContext.member));
+    allTools.set('readChannel', makeReadChannelTool(powers));
   } else {
     allTools.set('exec', makeExecTool(powers));
+    allTools.set('readChannel', makeReadChannelTool(powers));
+    allTools.set('send', makeSendTool(powers));
+    allTools.set('reply', makeReplyTool(powers));
+    allTools.set('dismiss', makeDismissTool(powers));
   }
-  allTools.set('readChannel', makeReadChannelTool(powers));
-  allTools.set('send', makeSendTool(powers));
-  allTools.set('reply', makeReplyTool(powers));
-  allTools.set('dismiss', makeDismissTool(powers));
   allTools.set('readFile', makeReadFileTool(projectRoot));
   allTools.set('listDir', makeListDirTool(projectRoot));
   allTools.set('requestPermission', makeRequestPermissionTool(powers));

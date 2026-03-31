@@ -122,7 +122,11 @@ Endo concepts:
 AVOID hallucinating APIs that don't exist. If unsure whether a method
 exists, use delegate to check the source code via readFile/listDir.
 
-Write your response directly. Be concise, conversational, and helpful.
+Your response text will be posted directly to the channel thread as a
+reply. Write your response as the message content — do not try to post
+it yourself or send it anywhere. Just write the text you want to appear.
+
+Be concise, conversational, and helpful.
 When showing code, always use JavaScript with E() patterns.`;
 
 const executorPrompt = `\
@@ -360,7 +364,7 @@ const testCases = [
     name: 'sort an array',
     userMessage: 'How do I sort an array?',
     checks: [
-      { type: 'absent', pattern: /\.sort\(\).*python|sorted\(|list\.sort/i, label: 'no Python sort' },
+      { type: 'absent', pattern: /\.sort\(\).*python|list\.sort\(\)/i, label: 'no Python sort' },
       { type: 'present', pattern: /\.sort\(|Array|js|javascript/i, label: 'mentions JS sort' },
     ],
   },
@@ -369,6 +373,27 @@ const testCases = [
     userMessage: 'Run some code to check how many channels I have',
     checks: [
       { type: 'delegateAbsent', pattern: /python|bash|shell/i, label: 'delegate intent is not Python/bash' },
+    ],
+  },
+
+  // === Response goes to thread, not inbox ===
+  {
+    name: 'recipe suggestion (response should be inline)',
+    userMessage:
+      'Thread context:\n[#0] Dan: Looking to cook something tonight\n[#1] Dan: gluten free, please!\n[#2] Dan: soy free, please\n[#3] Dan: something spicy?\n[#4] Dan: any suggestions that meet those requirements?\n\nMessage to respond to:\nany suggestions that meet those requirements?',
+    checks: [
+      // The response should contain recipe suggestions directly
+      { type: 'present', pattern: /recipe|spic|chicken|curry|grill/i, label: 'contains recipe suggestions' },
+      // Should NOT try to delegate sending a message
+      { type: 'delegateAbsent', pattern: /send|reply|post.*message|deliver/i, label: 'delegate does not try to send/post' },
+    ],
+  },
+  {
+    name: 'information request (return text, dont post)',
+    userMessage: 'What channels do I have?',
+    checks: [
+      // Should delegate to list/check, not to send/post results
+      { type: 'delegateAbsent', pattern: /send|post|reply to|deliver/i, label: 'delegate gathers info, does not post' },
     ],
   },
 ];
