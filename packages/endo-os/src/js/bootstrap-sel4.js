@@ -871,18 +871,18 @@
   // ============================================================
 
   function cmdWhere() {
-    print('Platform:  seL4 (formally verified microkernel)');
+    print('Engine:    QuickJS-ng (native lockdown)');
     print('Engine:    QuickJS (ES2023, no JIT)');
     print('Agent:     ' + currentAgent.name + ' (' + currentAgent.kind + ')');
     print('Pet names: ' + ps().list().length);
     print('Messages:  ' + currentAgent.messages.length);
     print('Agents:    ' + Object.keys(agents).join(', '));
-    print('JS heap:   16 MB (seL4 capability-mediated)');
+    print('Intrinsics: frozen (native C lockdown)');
   }
 
   function cmdStatus() {
     print('Endo daemon: running');
-    print('Kernel:      seL4 (formally verified)');
+    print('Status:      running');
     print('Uptime:      since boot');
     print('Agent:       ' + currentAgent.name);
     print('Pet names:   ' + ps().list().length);
@@ -938,7 +938,7 @@
     }
 
     print('Endo OS — Capability-native operating system');
-    print('seL4 (formally verified) + QuickJS');
+    print('QuickJS-ng (native lockdown)');
     print('');
     print('Naming:');
     print('  eval <js>                   Evaluate JavaScript');
@@ -1098,7 +1098,7 @@
   print('========================================');
   print(' Endo OS');
   print(' Capability-native operating system');
-  print(' seL4 (formally verified) + QuickJS');
+  print(' QuickJS-ng (native lockdown)');
   print(' Daemon: in-memory (pet names + eval + messaging)');
   print('========================================');
   print('');
