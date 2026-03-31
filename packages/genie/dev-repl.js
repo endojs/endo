@@ -348,21 +348,39 @@ async function* readPrompts() {
     prompt: `${BOLD}${GREEN}you>${RESET} `,
   });
 
+  let closed = false;
+  rl.once('close', () => {
+    closed = true;
+  });
+
   /** @returns {Promise<string|null>} */
   const nextPrompt = () => new Promise(resolve => {
+    if (closed) {
+      resolve(null);
+      return;
+    }
+
     rl.prompt();
 
-    rl.once('line', async line => {
+    /** @param {string} line */
+    const onLine = line => {
+      rl.removeListener('close', onClose);
       const prompt = line.trim();
       if (!prompt) {
-        return nextPrompt();
+        resolve(nextPrompt());
+        return;
       }
       resolve(prompt);
-    });
+    };
 
-    rl.on('close', () => {
+    const onClose = () => {
+      rl.removeListener('line', onLine);
+      closed = true;
       resolve(null);
-    });
+    };
+
+    rl.once('line', onLine);
+    rl.once('close', onClose);
   });
 
   for (; ;) {
