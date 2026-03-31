@@ -1,5 +1,6 @@
 /* Validates a compartment map against its schema. */
 
+import { Fail, q, b } from '@endo/errors';
 import {
   assertPackagePolicy,
   ATTENUATORS_COMPARTMENT,
@@ -31,16 +32,11 @@ import {
  *   DigestedCompartmentDescriptor} from './types.js'
  */
 
-// TODO convert to the new `||` assert style.
-// Deferred because this file pervasively uses simple template strings rather than
-// template strings tagged with `assert.details` (aka `X`), and uses
-// this definition of `q` rather than `assert.quote`
-const q = JSON.stringify;
 const { keys, entries } = Object;
 const { isArray } = Array;
 
 /** @type {(a: string, b: string) => number} */
-// eslint-disable-next-line no-nested-ternary
+// eslint-disable-next-line no-nested-ternary, no-shadow
 export const stringCompare = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
 
 /**
@@ -83,12 +79,8 @@ function* enumerate(iterable) {
  * @returns {asserts value is string}
  */
 const assertString = (value, pathOrMessage, url) => {
-  const keypath = pathOrMessage;
-  assert.typeof(
-    value,
-    'string',
-    `${keypath} in ${q(url)} must be a string; got ${q(value)}`,
-  );
+  typeof value === 'string' ||
+    Fail`${b(pathOrMessage)} in ${q(url)} must be a string; got ${q(value)}`;
 };
 
 /**
@@ -97,7 +89,7 @@ const assertString = (value, pathOrMessage, url) => {
  * @param {unknown} allegedLabel
  * @param {string} keypath
  * @param {string} url
- * @returns {asserts alleged is string}
+ * @returns {asserts allegedLabel is string}
  */
 const assertLabel = (allegedLabel, keypath, url) => {
   assertString(allegedLabel, keypath, url);
@@ -107,12 +99,10 @@ const assertLabel = (allegedLabel, keypath, url) => {
   if (allegedLabel === ENTRY_COMPARTMENT) {
     return;
   }
-  assert(
-    /^(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*(?:>(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*)*$/.test(
-      allegedLabel,
-    ),
-    `${keypath} must be a canonical name in ${q(url)}; got ${q(allegedLabel)}`,
-  );
+  /^(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*(?:>(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*)*$/.test(
+    allegedLabel,
+  ) ||
+    Fail`${b(keypath)} must be a canonical name in ${q(url)}; got ${q(allegedLabel)}`;
 };
 
 /**
@@ -123,12 +113,10 @@ const assertLabel = (allegedLabel, keypath, url) => {
  */
 const assertPlainObject = (allegedObject, keypath, url) => {
   const object = Object(allegedObject);
-  assert(
-    object === allegedObject &&
-      !isArray(object) &&
-      !(typeof object === 'function'),
-    `${keypath} must be an object; got ${q(allegedObject)} of type ${q(typeof allegedObject)} in ${q(url)}`,
-  );
+  (object === allegedObject &&
+    !isArray(object) &&
+    !(typeof object === 'function')) ||
+    Fail`${b(keypath)} must be an object; got ${q(allegedObject)} of type ${q(typeof allegedObject)} in ${q(url)}`;
 };
 
 /**
@@ -139,11 +127,8 @@ const assertPlainObject = (allegedObject, keypath, url) => {
  * @returns {asserts value is boolean}
  */
 const assertBoolean = (value, keypath, url) => {
-  assert.typeof(
-    value,
-    'boolean',
-    `${keypath} in ${q(url)} must be a boolean; got ${q(value)}`,
-  );
+  typeof value === 'boolean' ||
+    Fail`${b(keypath)} in ${q(url)} must be a boolean; got ${q(value)}`;
 };
 
 /**
@@ -151,7 +136,7 @@ const assertBoolean = (value, keypath, url) => {
  * @param {string} message
  */
 const assertEmptyObject = (object, message) => {
-  assert(keys(object).length === 0, message);
+  keys(object).length === 0 || Fail`${b(message)}`;
 };
 
 /**
@@ -161,10 +146,9 @@ const assertEmptyObject = (object, message) => {
  */
 const assertConditions = (conditions, url) => {
   if (conditions === undefined) return;
-  assert(
-    isArray(conditions),
-    `conditions must be an array; got ${conditions} in ${q(url)}`,
-  );
+  if (!isArray(conditions)) {
+    throw Fail`conditions must be an array; got ${b(String(conditions))} in ${q(url)}`;
+  }
   for (const [index, value] of enumerate(conditions)) {
     assertString(value, `conditions[${index}]`, url);
   }
