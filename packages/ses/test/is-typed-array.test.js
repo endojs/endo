@@ -17,6 +17,10 @@ test('isTypedArray positive cases', t => {
   t.assert(isTypedArray(new Uint16Array()));
   t.assert(isTypedArray(new Int32Array()));
   t.assert(isTypedArray(new Uint32Array()));
+  if (typeof Float16Array !== 'undefined') {
+    // https://github.com/tc39/proposal-float16array
+    t.assert(isTypedArray(new Float16Array()));
+  }
   t.assert(isTypedArray(new Float32Array()));
   t.assert(isTypedArray(new Float64Array()));
   t.assert(isTypedArray(new BigInt64Array()));
