@@ -147,4 +147,3 @@ export const applySignalInboundPolicy = (config, message) => {
   });
 };
 harden(applySignalInboundPolicy);
-

@@ -4,8 +4,8 @@
 import { makeExo } from '@endo/exo';
 import { E } from '@endo/eventual-send';
 
-import { FaeToolInterface } from '../src/fae-tool-interface.js';
 import { makeSignalBridge } from '../src/signal-bridge.js';
+import { DaemonSignalToolInterface } from '../src/tool-interface.js';
 
 /**
  * Signal bridge caplet.
@@ -42,7 +42,7 @@ export const make = async powers => {
     initialConfig,
   });
 
-  return makeExo('SignalBridgeTool', FaeToolInterface, {
+  return makeExo('SignalBridgeTool', DaemonSignalToolInterface, {
     schema() {
       return harden({
         type: 'function',

@@ -1096,6 +1096,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/daemon-signal@workspace:packages/daemon-signal":
+  version: 0.0.0-use.local
+  resolution: "@endo/daemon-signal@workspace:packages/daemon-signal"
+  dependencies:
+    "@endo/cli": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/daemon@workspace:^, @endo/daemon@workspace:packages/daemon":
   version: 0.0.0-use.local
   resolution: "@endo/daemon@workspace:packages/daemon"

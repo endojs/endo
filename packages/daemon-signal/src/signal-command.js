@@ -1,6 +1,23 @@
 // @ts-check
 
-/** @import { SignalInput } from './signal-types.js' */
+/**
+ * @typedef {{
+ *   type: 'empty',
+ * }} SignalInputEmpty
+ *
+ * @typedef {{
+ *   type: 'message',
+ *   text: string,
+ * }} SignalInputMessage
+ *
+ * @typedef {{
+ *   type: 'command',
+ *   name: string,
+ *   args: string,
+ * }} SignalInputCommand
+ *
+ * @typedef {SignalInputEmpty | SignalInputMessage | SignalInputCommand} SignalInput
+ */
 
 const petNameTokenPattern = /@([a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*)/giu;
 
@@ -56,8 +73,6 @@ harden(parsePetNamePathArg);
  */
 
 /**
- * Sanitize a petname path into an edge-name-safe token.
- *
  * @param {string} petName
  * @returns {string}
  */
@@ -118,4 +133,3 @@ export const parseSignalReferences = text => {
   return harden({ strings, edgeNames, petNames });
 };
 harden(parseSignalReferences);
-

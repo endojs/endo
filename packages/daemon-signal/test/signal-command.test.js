@@ -1,4 +1,5 @@
 // @ts-check
+
 import '@endo/init/debug.js';
 
 import test from 'ava';
@@ -42,4 +43,3 @@ test('parseSignalReferences extracts @petname tokens', t => {
     petNames: ['alice', 'tools/math'],
   });
 });
-

@@ -148,6 +148,7 @@ export const makeSignalBridge = options => {
    * @returns {Promise<import('@endo/eventual-send').ERef<object> | undefined>}
    */
   const lookupAgent = async agentName => {
+    await null;
     try {
       const has = await E(host).has(agentName);
       if (!has) {
@@ -202,6 +203,7 @@ export const makeSignalBridge = options => {
       if (path.length === 0) {
         return 'Usage: /enter <handle-petname>';
       }
+      await null;
       const id = await E(agent).identify(...path);
       if (!id) {
         return `No inventory entry found for "${path.join('/')}".`;

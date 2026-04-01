@@ -22,6 +22,16 @@
  */
 
 /**
+ * @typedef {object} SignalBridgeConfig
+ * @property {string} signalAccount
+ * @property {Record<string, string>} sourceToAgent
+ */
+
+/**
+ * @typedef {{ allow: false, reason: string } | { allow: true, addressed: SignalAddressedMessage }} SignalIngressDecision
+ */
+
+/**
  * @typedef {object} SignalInventoryEntry
  * @property {string} name
  * @property {string | undefined} id

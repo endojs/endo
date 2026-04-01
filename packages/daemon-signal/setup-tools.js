@@ -1,6 +1,6 @@
 // @ts-check
 /* global process */
-// endo run --UNCONFINED setup-signal-tools.js --powers @agent
+// endo run --UNCONFINED setup-tools.js --powers @agent
 //
 // Creates Signal integration objects in host inventory:
 // - signal-cli transport object backed by signal-cli
@@ -50,7 +50,7 @@ export const main = async agent => {
       SIGNAL_CLI_BIN: signalCliBin,
     }),
   });
-  console.log('[setup-signal-tools] Created signal-cli-transport');
+  console.log('[setup-tools] Created signal-cli-transport');
 
   await E(agent).makeUnconfined('@main', signalBridgeUrl, {
     resultName: 'signal-bridge-tool',
@@ -60,7 +60,7 @@ export const main = async agent => {
       SIGNAL_GROUP_PREFIX: groupPrefix,
     }),
   });
-  console.log('[setup-signal-tools] Created signal-bridge-tool');
+  console.log('[setup-tools] Created signal-bridge-tool');
 
   if (groupPrefix || Object.keys(senderMap).length > 0) {
     const bridgeTool = await E(agent).lookup('signal-bridge-tool');
@@ -71,9 +71,7 @@ export const main = async agent => {
         agentForSender: senderMap,
       }),
     });
-    console.log(
-      `[setup-signal-tools] Applied bridge config: ${configureResult}`,
-    );
+    console.log(`[setup-tools] Applied bridge config: ${configureResult}`);
   }
 
   await E(agent).storeValue(
@@ -85,6 +83,6 @@ export const main = async agent => {
     }),
     'signal-bridge-config',
   );
-  console.log('[setup-signal-tools] Stored signal-bridge-config');
+  console.log('[setup-tools] Stored signal-bridge-config');
 };
 harden(main);
