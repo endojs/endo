@@ -157,6 +157,49 @@ yarn setup-fs-tools
 FAE_CWD=/path/to/project yarn setup-fs-tools
 ```
 
+Create Signal bridge tools (signal-cli transport + signal-bridge tool).
+Set the account phone number used by signal-cli:
+
+```bash
+SIGNAL_ACCOUNT=+15551234567 yarn setup-signal-tools
+# Optional:
+# SIGNAL_CLI_BIN=/usr/local/bin/signal-cli
+# SIGNAL_GROUP_PREFIX='@your-signal-handle'
+```
+
+This creates:
+- `signal-cli-tool` — transport wrapper around signal-cli receive/send.
+- `signal-bridge-tool` — command parser and Endo routing bridge.
+
+Configure sender-to-agent mappings at runtime via the bridge tool's
+`configure` action, for example:
+
+```json
+{
+  "groupMentionPrefix": "@your-signal-handle",
+  "agentForSender": {
+    "+15550000001": "fae",
+    "uuid:11111111-2222-3333-4444-555555555555": "fae"
+  }
+}
+```
+
+Inbound policy:
+- Ignore messages from senders without a configured daemon agent.
+- In group chats, ignore messages that do not start with the configured
+  Signal account mention prefix.
+- Accept slash commands:
+  - `/help`
+  - `/enter <handle-petname>`
+  - `/exit`
+  - `/who`
+  - `/inventory [path]`
+  - `/show <path>`
+  - `/send <text>`
+
+Once `/enter` is set, plain text (or `/send`) forwards to that handle.
+`@petname` tokens in outgoing text are converted into Endo references.
+
 Send a tool to an agent via the chat UI:
 
 ```
