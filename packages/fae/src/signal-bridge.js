@@ -125,7 +125,7 @@ const renderInventoryListing = async (agent, pathPrefix) => {
  * @param {string} text
  */
 const sendSignalReply = async (transport, envelope, text) => {
-  if (typeof envelope.groupId === 'string' && envelope.groupId.length > 0) {
+  if (typeof envelope.groupId === 'string' && envelope.groupId !== '') {
     await E(transport).sendGroup(envelope.groupId, text);
     return;
   }

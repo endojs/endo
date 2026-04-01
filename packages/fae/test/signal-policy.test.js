@@ -1,5 +1,7 @@
 // @ts-check
 
+import '@endo/init/debug.js';
+
 import test from 'ava';
 
 import {
@@ -16,11 +18,11 @@ test('stripLeadingGroupMention removes prefix and punctuation', t => {
 
 test('policy rejects sender without configured agent', t => {
   const decision = applySignalInboundPolicy(
-    harden({ groupMentionPrefix: '@endo-bot', agentForSender: {} }),
-    harden({
+    { groupMentionPrefix: '@endo-bot', agentForSender: {} },
+    {
       source: '+10000000000',
       text: 'hello',
-    }),
+    },
   );
   t.false(decision.accepted);
   if (!decision.accepted) {
@@ -30,14 +32,14 @@ test('policy rejects sender without configured agent', t => {
 
 test('policy accepts direct sender with configured agent', t => {
   const decision = applySignalInboundPolicy(
-    harden({
+    {
       groupMentionPrefix: '@endo-bot',
       agentForSender: { '+10000000000': 'fae-agent' },
-    }),
-    harden({
+    },
+    {
       source: '+10000000000',
       text: 'hello there',
-    }),
+    },
   );
   t.true(decision.accepted);
   if (decision.accepted) {
@@ -48,27 +50,27 @@ test('policy accepts direct sender with configured agent', t => {
 });
 
 test('policy enforces group leading mention', t => {
-  const config = harden({
+  const config = {
     groupMentionPrefix: '@endo-bot',
     agentForSender: { '+10000000000': 'fae-agent' },
-  });
+  };
   const missingMention = applySignalInboundPolicy(
     config,
-    harden({
+    {
       source: '+10000000000',
       groupId: 'group-1',
       text: 'hello in group',
-    }),
+    },
   );
   t.false(missingMention.accepted);
 
   const withMention = applySignalInboundPolicy(
     config,
-    harden({
+    {
       source: '+10000000000',
       groupId: 'group-1',
       text: '@endo-bot: hello in group',
-    }),
+    },
   );
   t.true(withMention.accepted);
   if (withMention.accepted) {

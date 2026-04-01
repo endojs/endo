@@ -21,9 +21,14 @@ const SignalCliInterface = M.interface('SignalCliTransport', {
  *
  * Optional env:
  * - SIGNAL_CLI_BIN: signal-cli binary path (default: "signal-cli")
+ *
+ * @param {unknown} _powers
+ * @param {unknown} _context
+ * @param {{ env?: Record<string, string | undefined> }} [options]
  */
 // eslint-disable-next-line no-underscore-dangle
-export const make = (_powers, _context, { env = {} } = {}) => {
+export const make = (_powers, _context, options = {}) => {
+  const { env = {} } = options;
   const envRecord = /** @type {Record<string, string | undefined>} */ (env);
   const account = envRecord.SIGNAL_ACCOUNT || process.env.SIGNAL_ACCOUNT;
   const signalCliBin =

@@ -11,8 +11,11 @@ import { makeSignalBridge } from '../src/signal-bridge.js';
  * Signal bridge caplet.
  * Composes host powers + signal-cli transport so messages can control an
  * Endo daemon agent over Signal.
+ *
+ * @param {import('@endo/eventual-send').ERef<object>} powers
  */
 export const make = async powers => {
+  await null;
   const account = process.env.SIGNAL_ACCOUNT;
   if (!account) {
     throw new Error('SIGNAL_ACCOUNT environment variable is required');
