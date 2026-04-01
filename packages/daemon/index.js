@@ -15,8 +15,6 @@ import {
   waitForExit,
   waitForMessage,
   waitForSpawn,
-  whichProg,
-  system,
 } from '@endo/platform/proc';
 
 import {
@@ -259,7 +257,6 @@ const runEngo = async (detached, config) => {
     /** @type {unknown} */
     (
       (() => {
-        // TODO tee log file and stdout ... or teach `endo log` to just use journalctl on systemd
         if (detached) {
           const output = fs.openSync(logPath, 'a');
           return ['ignore', output, output];
@@ -324,7 +321,6 @@ const runEndo = async (detached, config) => {
     /** @type {unknown} */
     (
       (() => {
-        // TODO tee log file and stdout ... or teach `endo log` to just use journalctl on systemd
         if (detached) {
           const output = fs.openSync(logPath, 'a');
           return ['ignore', output, output, 'ipc'];
@@ -375,20 +371,6 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
   if (verbose > 0) {
     console.log('verbosity:', verbose);
     console.log('config:', config);
-  }
-
-  if (await whichProg('systemctl')) {
-    const statusCode = await system('systemctl', ['--user', 'status', '--no-pager', 'endo-daemon']);
-
-    if (
-      // 0 => ok
-      statusCode !== 0 &&
-      // 4 => `Unit endo-daemon.service could not be found.`
-      statusCode !== 4
-    ) {
-      console.log('wat', statusCode); // XXX
-      return;
-    }
   }
 
   const pidPath = path.join(config.ephemeralStatePath, 'endo.pid');
@@ -470,58 +452,6 @@ export const start = async (
   }
 
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
-
-  const cliPath = url.fileURLToPath(new URL('../cli/bin/endo.cjs', import.meta.url));
-  const selfExe = [
-    process.execPath,
-    cliPath, 'run-daemon',
-  ];
-
-  // TODO detect Windows, do crimes
-
-  // TODO detect MacOS, do crimes
-
-  if (await whichProg('systemd-run')) {
-    const unitName = 'endo-daemon';
-
-    // TODO check for and prefer to use any defined user unit
-
-    // TODO failing that, initialize a persistent unit in $XDG_CONFIG_HOME/systemd/user/endo-daemon.service
-
-    const env = {
-      ...Object.fromEntries(filterEnv()),
-      ...configToEnv(config),
-    };
-
-    // start in a transient user background service
-    const launchCmd = [
-      'systemd-run',
-      '--user',
-      '--slice=background.slice',
-      `--unit=${unitName}`,
-      '--service-type=simple',
-      '--collect',
-      ...Object.entries(env).map(([name, value]) => `--setenv=${name}=${value}`),
-      '--',
-      ...selfExe,
-    ];
-
-    if (dryRun) {
-      console.log(`would run ${launchCmd}`);
-    } else {
-      const statusCode = await system(launchCmd[0], launchCmd.slice(1));
-      if (
-        // 0 => ok
-        statusCode !== 0 &&
-        // 1 => 'Failed to start transient service unit: Unit endo-daemon.service was already loaded or has a fragment file.'
-        statusCode !== 1
-      ) {
-        console.log('wat', statusCode); // XXX
-      }
-      process.exit(statusCode);
-    }
-    return;
-  }
 
   if (dryRun) {
     console.log(
@@ -794,25 +724,9 @@ export const clean = async (config = defaultConfig) => {
  * @param {Config} config
  */
 export const stop = async (config = defaultConfig) => {
-  await terminate(config).catch(() => { });
-
-  if (await whichProg('systemctl')) {
-    const statusCode = await system('systemctl', ['--user', 'stop', 'endo-daemon']);
-
-    if (
-      // 0 => ok ; stopped
-      statusCode !== 0 &&
-      // 5 => `Failed to stop endo-daemon.service: Unit endo-daemon.service not loaded.`
-      statusCode !== 5
-    ) {
-      console.log('wat', statusCode); // XXX
-    }
-
-  } else {
-    await killDaemonProcess(config);
-    await killWorkersByPidFiles(config);
-  }
-
+  await terminate(config).catch(() => {});
+  await killDaemonProcess(config);
+  await killWorkersByPidFiles(config);
   await clean(config);
 };
 
