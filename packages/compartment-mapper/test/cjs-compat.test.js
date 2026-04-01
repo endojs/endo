@@ -9,6 +9,7 @@ import { scaffold } from './scaffold.js';
 
 /**
  * @import {FixtureAssertionFn} from './test.types.js';
+ * @import {ThirdPartyStaticModuleInterface} from 'ses'
  */
 
 const fixture = new URL(
@@ -19,9 +20,13 @@ const fixtureDirname = new URL(
   'fixtures-cjs-compat/node_modules/app/dirname.js',
   import.meta.url,
 ).toString();
+const fixtureDynamicImport = new URL(
+  'fixtures-cjs-compat/node_modules/dynamic-import/index.js',
+  import.meta.url,
+).toString();
 
 const q = JSON.stringify;
-
+const { freeze } = Object;
 /**
  * @type {FixtureAssertionFn<{requireResolvePaths: string[]}>}
  */
@@ -116,4 +121,31 @@ scaffold(
     }
   },
   3,
+);
+
+scaffold(
+  'fixtures-cjs-compat-dynamic-import',
+  test,
+  fixtureDynamicImport,
+  async (t, { namespace }) => {
+    // @ts-expect-error - untyped
+    const { namespace: dynamicNamespace } = await namespace.dynamicImport('a');
+    t.is(dynamicNamespace.foo, 'foo');
+  },
+  1,
+  {
+    knownArchiveFailure: true,
+    additionalOptions: {
+      importHook: async () => {
+        /** @type {ThirdPartyStaticModuleInterface} */
+        return freeze({
+          imports: [],
+          exports: ['foo'],
+          execute: moduleExports => {
+            moduleExports.foo = 'foo';
+          },
+        });
+      },
+    },
+  },
 );
