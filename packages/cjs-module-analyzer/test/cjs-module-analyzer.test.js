@@ -841,6 +841,36 @@ test('dynamic import method', t => {
   t.assert(analyzeCommonJS(source));
 });
 
+test('dynamic import()', t => {
+  const input = `
+    import('a').then(m => m.default);
+  `;
+  const { imports, source } = analyzeCommonJS(input);
+  t.deepEqual(imports, ['a']);
+  t.assert(source.includes("$h_import('a')"));
+  t.regex(source, /\$h_import\('a'\)/);
+});
+
+test('dynamic import() nested in function', t => {
+  const input = `
+    module.exports.load = async () => {
+      return import("dep");
+    };
+  `;
+  const { imports, source } = analyzeCommonJS(input);
+  t.deepEqual(imports, ['dep']);
+  t.assert(source.includes('$h_import("dep")'));
+});
+
+test('$h_import in source throws', t => {
+  const input = `
+    const $h_import = require('foo');
+  `;
+  t.throws(() => analyzeCommonJS(input), {
+    message: /reserved identifier "\$h_import"/,
+  });
+});
+
 test('Comments', t => {
   const source = `/*
   VERSION
