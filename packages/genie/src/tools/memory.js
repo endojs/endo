@@ -91,12 +91,35 @@ async function* streamLines(chunks) {
 }
 
 /**
+ * Resolve `userPath` against `root` and assert the result stays under `root`.
+ *
+ * @param {string} root - The path supplied by the caller.
+ * @param {string} userPath - The path supplied by the caller.
+ * @returns {string} The resolved absolute path.
+ */
+const safePath = (root, userPath) => {
+  if (userPath.includes('\0')) {
+    throw new Error('Invalid path: null bytes not allowed');
+  }
+  const resolved = resolve(root, userPath);
+  const rel = relative(root, resolved);
+  // If the relative path starts with ".." or is absolute, it escapes the root.
+  if (rel.startsWith('..') || resolve(rel) === rel) {
+    throw new Error(
+      `Invalid path: must resolve under root (${root})`,
+    );
+  }
+  return resolved;
+};
+
+/**
  * Create memory tools (memoryGet, memorySet, memorySearch) that enforce a
  * common path-root traversal limit.
  *
  * @param {object} [options]
  * @param {string} [options.root] - Root directory that all paths must resolve
  *   under. Defaults to `process.cwd()`.
+ * @param {string[]} [options.watchPaths] - memory file paths to index and watch
  * @param {SearchBackend} [options.searchBackend] - Pluggable search backend.
  *   When provided, `memorySearch` delegates to `E(searchBackend).search()`
  *   and `memorySet` calls `E(searchBackend).index()` to keep the index
@@ -107,9 +130,16 @@ async function* streamLines(chunks) {
 const makeMemoryTools = (options = {}) => {
   const {
     root = process.cwd(),
+    watchPaths = ['MEMORY.md', 'memory'],
     vfs = makeNodeVFS(),
   } = options;
+
   const resolvedRoot = resolve(root);
+
+  // TODO move searchInFile and searchInFiles into makeSubstringBackend
+  // - keep a list of indexed paths inside the substring backend
+  // - just use that list of files, don't walk a VFS tree
+  // - pass the VFS int into makeSubstringBackend so that it can read files during search
 
   /**
    * Search a single file for lines matching `query` (case-insensitive).
@@ -170,33 +200,19 @@ const makeMemoryTools = (options = {}) => {
   }
 
   // Default to the built-in substring backend when none is provided.
+  const initPaths = watchPaths.map(p => safePath(resolvedRoot, p));
   const {
-    searchBackend = makeSubstringBackend([
-      join(resolvedRoot, 'MEMORY.md'),
-      join(resolvedRoot, 'memory'),
-    ], searchInFiles),
+    searchBackend = makeSubstringBackend(initPaths, searchInFiles),
   } = options;
 
-  /**
-   * Resolve `userPath` against `resolvedRoot` and assert the result stays under `resolvedRoot`.
-   *
-   * @param {string} userPath - The path supplied by the caller.
-   * @returns {string} The resolved absolute path.
-   */
-  const safePath = (userPath) => {
-    if (userPath.includes('\0')) {
-      throw new Error('Invalid path: null bytes not allowed');
-    }
-    const resolved = resolve(resolvedRoot, userPath);
-    const rel = relative(resolvedRoot, resolved);
-    // If the relative path starts with ".." or is absolute, it escapes the root.
-    if (rel.startsWith('..') || resolve(rel) === rel) {
-      throw new Error(
-        `Invalid path: must resolve under root (${resolvedRoot})`,
-      );
-    }
-    return resolved;
-  };
+  // TODO initialize the search index:
+  // 1. traverse all files in initPaths build a list of existent paths
+  // 2. index each path
+  // 3. when done compare all existent paths to any prior indexed ones already in the backend
+  //   - and remove all unseen prior paths from the index
+  //   - TODO will need to add a new method to the index for to get all indexed paths
+  // 4. provide an `indexing` promise and block search query below until it's done
+  // 5. share an `indexingQueue` between this routine, memorySet below, and a future fs change watcher
 
   const memoryGet = makeTool('memoryGet', {
     help: function*() {
@@ -236,7 +252,7 @@ const makeMemoryTools = (options = {}) => {
      * @returns {Promise<{success: boolean, path: string, content: string, from?: number, lines?: number}>}
      */
     async execute({ path, from = 1, lines }) {
-      const fullPath = safePath(path);
+      const fullPath = safePath(resolvedRoot, path);
       const collected = [];
 
       try {
@@ -315,7 +331,7 @@ const makeMemoryTools = (options = {}) => {
      * @returns {Promise<{success: boolean, path: string, bytesWritten: number}>}
      */
     async execute({ path, content, append = false }) {
-      const fullPath = safePath(path);
+      const fullPath = safePath(resolvedRoot, path);
       const dir = dirname(fullPath);
 
       try {
@@ -440,17 +456,17 @@ const makeSubstringBackend = (paths, searcher) => {
      * @param {string} _filename
      * @param {string} _content
      */
-    async index(_filename, _content) {},
+    async index(_filename, _content) { },
 
     /**
      * No-op — nothing to remove from a live-file scanner.
      *
      * @param {string} _filename
      */
-    async remove(_filename) {},
+    async remove(_filename) { },
 
     /** No-op — no persistent index to sync. */
-    async sync() {},
+    async sync() { },
   });
 };
 harden(makeSubstringBackend);
