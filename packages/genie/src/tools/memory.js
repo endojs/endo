@@ -136,73 +136,10 @@ const makeMemoryTools = (options = {}) => {
 
   const resolvedRoot = resolve(root);
 
-  // TODO move searchInFile and searchInFiles into makeSubstringBackend
-  // - keep a list of indexed paths inside the substring backend
-  // - just use that list of files, don't walk a VFS tree
-  // - pass the VFS int into makeSubstringBackend so that it can read files during search
-
-  /**
-   * Search a single file for lines matching `query` (case-insensitive).
-   * Reads the file as a stream to avoid buffering the entire contents.
-   *
-   * @param {string} filePath - Absolute path to search.
-   * @param {string} query    - Case-insensitive substring to match.
-   * @returns {AsyncGenerator<SearchResult>}
-   */
-  async function* searchInFile(filePath, query) {
-    const queryLower = query.toLowerCase();
-    try {
-      const stream = vfs.createReadStream(filePath);
-      let lineNum = 0;
-      for await (const line of streamLines(stream)) {
-        lineNum += 1;
-        if (line.toLowerCase().includes(queryLower)) {
-          yield {
-            file: basename(filePath),
-            line: lineNum,
-            content: line.trim(),
-          };
-        }
-      }
-    } catch {
-    }
-  }
-
-  /**
-   * @param {string[]} searchPaths - Absolute paths to search.
-   * @param {string} query         - Case-insensitive substring to match.
-   */
-  async function* searchInFiles(searchPaths, query) {
-    for await (const searchPath of findMemoryPaths(...searchPaths)) {
-      yield* searchInFile(searchPath, query);
-    }
-  }
-
-  /**
-   * @param {Array<string>} searchPaths
-   */
-  async function* findMemoryPaths(...searchPaths) {
-    for (const searchPath of searchPaths) {
-      try {
-        const info = await vfs.stat(searchPath);
-        if (info.type === 'file') {
-          yield searchPath;
-        } else if (info.type === 'directory') {
-          for await (const entry of vfs.readdir(searchPath)) {
-            if (entry.name.endsWith('.md')) {
-              yield join(searchPath, entry.name);
-            }
-          }
-        }
-      } catch {
-      }
-    }
-  }
-
   // Default to the built-in substring backend when none is provided.
   const initPaths = watchPaths.map(p => safePath(resolvedRoot, p));
   const {
-    searchBackend = makeSubstringBackend(initPaths, searchInFiles),
+    searchBackend = makeSubstringBackend(initPaths, vfs),
   } = options;
 
   // TODO initialize the search index:
@@ -412,23 +349,77 @@ const makeMemoryTools = (options = {}) => {
 harden(makeMemoryTools);
 
 /**
- * Wrap the built-in `searchInFiles` logic as a `SearchBackend`.
+ * In-process substring-matching `SearchBackend`.
  *
- * This is a zero-dependency, in-process backend that preserves the
- * original substring-matching behaviour.  Pass it as `searchBackend`
- * to `makeMemoryTools` when you want the default search but still
- * want to go through the `SearchBackend` interface (e.g. for testing
- * or uniform dispatch).
+ * File-path discovery and streaming I/O are fully encapsulated: the
+ * backend owns a list of indexed paths and reads files through the
+ * supplied {@link VFS} during each search.  Callers interact only
+ * through the `SearchBackend` interface.
  *
- * @param {string[]} paths - Absolute paths (files or directories) to
- *   search within.
- * @param {(paths: string[], query: string) =>
- *   AsyncGenerator<SearchResult>} searcher - The search implementation
- *   to delegate to (typically `searchInFiles` from the enclosing
- *   `makeMemoryTools` closure).
+ * @param {string[]} initPaths - Absolute paths (files or directories)
+ *   to seed the index with.
+ * @param {VFS} vfs - Virtual filesystem used to read files during
+ *   search.
  * @returns {SearchBackend}
  */
-const makeSubstringBackend = (paths, searcher) => {
+const makeSubstringBackend = (initPaths, vfs) => {
+  /** @type {Set<string>} */
+  const indexedPaths = new Set(initPaths);
+
+  /**
+   * Resolve a set of root paths into individual file paths by
+   * expanding directories into their `.md` entries.
+   *
+   * @param {Iterable<string>} roots
+   * @yields {string} Absolute file paths.
+   */
+  async function* expandPaths(roots) {
+    for (const searchPath of roots) {
+      try {
+        const info = await vfs.stat(searchPath);
+        if (info.type === 'file') {
+          yield searchPath;
+        } else if (info.type === 'directory') {
+          for await (const entry of vfs.readdir(searchPath)) {
+            if (entry.name.endsWith('.md')) {
+              yield join(searchPath, entry.name);
+            }
+          }
+        }
+      } catch {
+        // Path does not exist (yet); skip silently.
+      }
+    }
+  }
+
+  /**
+   * Search a single file for lines matching `query`
+   * (case-insensitive).  Reads the file as a stream to avoid
+   * buffering the entire contents.
+   *
+   * @param {string} filePath - Absolute path to search.
+   * @param {string} queryLower - Lower-cased query string.
+   * @yields {SearchResult}
+   */
+  async function* searchInFile(filePath, queryLower) {
+    try {
+      const stream = vfs.createReadStream(filePath);
+      let lineNum = 0;
+      for await (const line of streamLines(stream)) {
+        lineNum += 1;
+        if (line.toLowerCase().includes(queryLower)) {
+          yield {
+            file: basename(filePath),
+            line: lineNum,
+            content: line.trim(),
+          };
+        }
+      }
+    } catch {
+      // File unreadable or missing; skip silently.
+    }
+  }
+
   return harden({
     /**
      * @param {string} query
@@ -438,32 +429,41 @@ const makeSubstringBackend = (paths, searcher) => {
      */
     async search(query, opts = {}) {
       const { limit = Infinity } = opts;
+      const queryLower = query.toLowerCase();
       /** @type {Array<SearchResult>} */
       const results = [];
-      for await (const result of searcher(paths, query)) {
-        results.push(result);
-        if (results.length >= limit) {
-          break;
+      for await (const filePath of expandPaths(indexedPaths)) {
+        for await (const result of searchInFile(filePath, queryLower)) {
+          results.push(result);
+          if (results.length >= limit) {
+            return results;
+          }
         }
       }
       return results;
     },
 
     /**
-     * No-op — the substring backend searches files directly on each
-     * query, so there is no separate index to maintain.
+     * Record `filename` in the set of indexed paths.
      *
-     * @param {string} _filename
+     * The substring backend reads files on each query, so we only
+     * need to track *which* paths to search — no content is stored.
+     *
+     * @param {string} filename
      * @param {string} _content
      */
-    async index(_filename, _content) { },
+    async index(filename, _content) {
+      indexedPaths.add(filename);
+    },
 
     /**
-     * No-op — nothing to remove from a live-file scanner.
+     * Remove `filename` from the set of indexed paths.
      *
-     * @param {string} _filename
+     * @param {string} filename
      */
-    async remove(_filename) { },
+    async remove(filename) {
+      indexedPaths.delete(filename);
+    },
 
     /** No-op — no persistent index to sync. */
     async sync() { },
