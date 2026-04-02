@@ -39,9 +39,9 @@ high-volume conversation history into dense, prioritised notes.
 
 ### Two-block context layout
 
-| Block | Content | Lifecycle |
-|-------|---------|-----------|
-| 1. Observations | Compressed, prioritised facts | Grows via observer; shrinks via reflector |
+| Block           | Content                          | Lifecycle                                 |
+|-----------------|----------------------------------|-------------------------------------------|
+| 1. Observations | Compressed, prioritised facts    | Grows via observer; shrinks via reflector |
 | 2. Raw messages | Uncompressed recent conversation | Appended until threshold; then compressed |
 
 ### Processing agents
@@ -79,13 +79,13 @@ Priority levels: 🔴 critical, 🟡 contextual, 🟢 informational.
 
 ### Five memory tiers (intertwine implementation)
 
-| Tier | File | Retention | Purpose |
-|------|------|-----------|---------|
-| Raw transcripts | session files | session-only | Source material |
-| Auto-memory | mirrors source | hourly scan | External facts (e.g. Claude Code memory) |
-| Observations | `observations.md` | 7-day rolling | Recent detailed notes |
-| Reflections | `reflections.md` | indefinite | Long-term consolidated memory |
-| Startup profiles | `profile.md` + `active.md` | derived | Compact context injected at session start |
+| Tier             | File                       | Retention     | Purpose                                   |
+|------------------|----------------------------|---------------|-------------------------------------------|
+| Raw transcripts  | session files              | session-only  | Source material                           |
+| Auto-memory      | mirrors source             | hourly scan   | External facts (e.g. Claude Code memory)  |
+| Observations     | `observations.md`          | 7-day rolling | Recent detailed notes                     |
+| Reflections      | `reflections.md`           | indefinite    | Long-term consolidated memory             |
+| Startup profiles | `profile.md` + `active.md` | derived       | Compact context injected at session start |
 
 ### Search
 
@@ -110,29 +110,29 @@ Sources:
 
 ### Organising principle
 
-| Dimension | PARA | OM |
-|-----------|------|----|
-| **Primary axis** | Actionability (what am I doing with this?) | Temporality (when was this observed?) |
-| **Top-level structure** | 4 fixed categories: Projects, Areas, Resources, Archives | 2–5 temporal tiers: raw → observations → reflections → profile |
-| **Entity model** | Entity-centric: each project/area/resource is a named directory with summary + atomic facts | Event-centric: observations are date-grouped entries, not entity-grouped |
-| **Lifecycle** | Explicit transitions: Project → Archive when done | Implicit decay: observations age out after 7 days; reflections are indefinite |
+| Dimension               | PARA                                                                                        | OM                                                                            |
+|-------------------------|---------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| **Primary axis**        | Actionability (what am I doing with this?)                                                  | Temporality (when was this observed?)                                         |
+| **Top-level structure** | 4 fixed categories: Projects, Areas, Resources, Archives                                    | 2–5 temporal tiers: raw → observations → reflections → profile                |
+| **Entity model**        | Entity-centric: each project/area/resource is a named directory with summary + atomic facts | Event-centric: observations are date-grouped entries, not entity-grouped      |
+| **Lifecycle**           | Explicit transitions: Project → Archive when done                                           | Implicit decay: observations age out after 7 days; reflections are indefinite |
 
 ### Storage format
 
-| | PARA (Paperclip) | OM |
-|-|-------------------|----|
-| **Facts** | `items.yaml` with structured schema (id, category, status, superseded_by, related_entities, access_count) | Markdown lines with emoji priority + timestamp |
-| **Summaries** | `summary.md` per entity | `profile.md` + `active.md` (global, not per-entity) |
-| **Daily logs** | `memory/YYYY-MM-DD.md` | Raw transcripts → compressed into `observations.md` |
-| **Schema rigidity** | High (YAML with typed fields) | Low (free-form markdown with conventions) |
+|                     | PARA (Paperclip)                                                                                          | OM                                                  |
+|---------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
+| **Facts**           | `items.yaml` with structured schema (id, category, status, superseded_by, related_entities, access_count) | Markdown lines with emoji priority + timestamp      |
+| **Summaries**       | `summary.md` per entity                                                                                   | `profile.md` + `active.md` (global, not per-entity) |
+| **Daily logs**      | `memory/YYYY-MM-DD.md`                                                                                    | Raw transcripts → compressed into `observations.md` |
+| **Schema rigidity** | High (YAML with typed fields)                                                                             | Low (free-form markdown with conventions)           |
 
 ### Context window strategy
 
-| | PARA | OM |
-|-|------|----|
-| **Injection** | Selectively load relevant project/area summaries | Load full observation + reflection blocks |
-| **Retrieval** | Query-time: search FTS index, load matching entities | Compression-time: everything already in context |
-| **Cache friendliness** | Variable (depends on which entities are loaded) | High (stable two-block layout) |
+|                        | PARA                                                 | OM                                              |
+|------------------------|------------------------------------------------------|-------------------------------------------------|
+| **Injection**          | Selectively load relevant project/area summaries     | Load full observation + reflection blocks       |
+| **Retrieval**          | Query-time: search FTS index, load matching entities | Compression-time: everything already in context |
+| **Cache friendliness** | Variable (depends on which entities are loaded)      | High (stable two-block layout)                  |
 
 ### Strengths and weaknesses
 
@@ -184,10 +184,8 @@ A hybrid system can use OM's temporal compression for the
 ### 3a. Current genie memory (baseline)
 
 Genie already has:
-- `MEMORY.md` — long-term curated knowledge (≈ OM's `profile.md`
-  + `reflections.md`).
-- `memory/YYYY-MM-DD.md` — daily session logs (≈ OM's raw
-  transcripts).
+- `MEMORY.md` — long-term curated knowledge (≈ OM's `profile.md` + `reflections.md`).
+- `memory/YYYY-MM-DD.md` — daily session logs (≈ OM's raw transcripts).
 - `memory/topic.md` — topic-specific notes (proto-entity, but flat).
 - `memory-fts.db` — FTS5 full-text index.
 - Heartbeat runner + interval scheduler for periodic tasks.
@@ -267,7 +265,7 @@ memory/
   YYYY-MM-DD.md            # daily session logs (existing)
 
   # PARA knowledge layer
-  life/
+  world/
     projects/<slug>/
       summary.md            # hot facts, current status
       items.yaml            # atomic facts with schema
@@ -287,31 +285,35 @@ memory/
 
 ### 3e. Key design decisions
 
-**Observation format**: adopt OM's emoji-priority + timestamp
-convention for `observations.md`.
-It is lightweight, LLM-native, and easy to parse.
+**Observation format**:
+- adopt OM's emoji-priority + timestamp convention for `observations.md`.
+- It is lightweight, LLM-native, and easy to parse.
 
-**Entity fact schema**: adopt Paperclip's structured YAML for
-`items.yaml` in the PARA layer.
-The structured format enables programmatic queries (e.g., "all
-active facts about project X") that free-form markdown cannot
-support.
+**Entity fact schema**:
+- adopt Paperclip's structured YAML for `items.yaml` in the PARA layer.
+- The structured format enables programmatic queries (e.g., "all active facts
+  about project X") that free-form markdown cannot support.
 
-**Observer trigger**: token-count-based, as in OM.
-Genie already tracks token usage; hook the observer to fire when
-unobserved message tokens exceed a configurable threshold
-(default: 30k for genie's smaller context budgets).
+**Observer trigger**:
+- token-count-based, as in OM, but with an idle timer that triggers
+  opportunistic observations during conversational pauses.
+- Genie already tracks token usage; hook the observer to fire when unobserved
+  message tokens exceed a configurable threshold (default: 30k for genie's
+  smaller context budgets).
 
-**Reflector schedule**: daily via heartbeat runner (already exists).
-Add a `reflect` task to `HEARTBEAT.md` that consolidates
-observations and promotes facts to PARA entities.
+**Reflector schedule**:
+- daily via heartbeat runner (already exists).
+- Add a `reflect` task to `HEARTBEAT.md` that consolidates observations and
+  promotes facts to PARA entities.
+- Eventually ehen we add a rigid cron system, the reflector task would be
+  better placed there for higher reliability.
 
 **Synthesis (OM → PARA bridge)**: LLM-driven.
-The reflector prompt should include instructions to:
-- Identify entities mentioned 3+ times in recent observations.
-- Create or update PARA entity files for those entities.
-- Move completed projects to archives.
-This is the key integration point between the two systems.
+- The reflector prompt should include instructions to:
+  - Identify entities mentioned 3+ times in recent observations.
+  - Create or update PARA entity files for those entities.
+  - Move completed projects to archives.
+- This is the key integration point between the two systems.
 
 **Context injection strategy**:
 - Always inject: `profile.md` + `observations.md` (OM layer).
@@ -319,56 +321,58 @@ This is the key integration point between the two systems.
   selected by relevance to the current conversation topic.
 - Never auto-inject: archived entities, cold resources.
 
-**Prompt cache optimisation**: follow OM's two-block layout.
-Place observations block first (stable prefix), then raw messages
-(appended).
-PARA entity summaries go between the system prompt and the
-observation block (semi-stable; changes only when project set
-changes).
-
-**harden() compliance**: all memory data structures loaded into
-agent context must be hardened per Endo conventions.
-The memory tools should return `harden({...})` objects.
+**Prompt cache optimisation**:
+- follow OM's two-block layout.
+- Place observations block first (stable prefix), then raw messages (appended).
+- PARA entity summaries go between the system prompt and the observation block
+  (semi-stable; changes only when project set changes).
 
 ### 3f. Implementation priorities
 
 1. **OM session layer first** — lower complexity, immediate value.
-   Add observer/reflector to genie's heartbeat system.
-   Store observations.md + reflections.md + profile.md.
+  - Add observer/reflector to genie's heartbeat system.
+  - Store observations.md + reflections.md + profile.md.
 
 2. **PARA knowledge graph second** — build on top of working OM.
-   Add entity CRUD tools, `life/` directory structure, synthesis
-   step in reflector.
+  - Add entity `world/` directory structure, synthesis step in reflector; don't
+    need any special tools, since file tool should suffice.
 
 3. **Search expansion** — extend FTS5 to index all new files.
+  - clarification: are we already using BM25 with FTS5? or are those different things?
 
-4. **Context injection** — update system prompt builder to load
-   the hybrid context.
+4. **Context injection** — update system prompt builder
+  - to load the hybrid context
+  - system prompt module integration should be as agnostic as possible to
+    memory module specifics
 
-5. **Decay + lifecycle** — access tracking, hot/warm/cold tiers,
-   automatic archival.
+5. **Decay + lifecycle** —
+  - access tracking: last usage time, count, etc
+  - hot/warm/cold tiers
+  - automatic archival
 
 ### 3g. Open questions (carried forward + new)
 
-- **Token budget allocation**: how to split the context window
-  between OM observations and PARA entity summaries?
-  Tentative: 60% observations, 40% entity summaries, adjustable.
-- **Observer model**: should genie use itself (the main LLM) for
-  observation/reflection, or a smaller/cheaper model?
-  OM implementations use separate models (e.g., Gemini Flash for
-  observation).
-  Genie could use a lighter model to reduce cost.
-- **Cross-agent sharing**: OM is session-scoped; PARA entities are
-  potentially shared.
-  The PARA layer is the natural sharing boundary.
-  Same options as PARA research: daemon-level formulas (Option A)
-  vs. shared directory (Option B).
-- **Observation vs. daily log**: should `observations.md` replace
-  `memory/YYYY-MM-DD.md`, or coexist?
-  Recommendation: coexist.
-  Daily logs are the raw write-ahead log; observations are the
-  compressed derivative.
+- **Token budget allocation**:
+  - how to split the context window between OM observations and PARA entity summaries?
+  - Tentative: 60% observations, 40% entity summaries, adjustable.
+- **Observer model**:
+  - should genie use itself (the main LLM) for observation/reflection, or a
+    smaller/cheaper model?
+  - OM implementations use separate models (e.g., Gemini Flash for
+    observation).
+  - Genie could use a lighter model to reduce cost.
+- **Cross-agent sharing**:
+  - OM is session-scoped; PARA entities are potentially shared.
+  - The PARA layer is the natural sharing boundary.
+  - Use a shared directory, in workspace ( real files ) for now, but eventually
+    move into endo pet name space
+- **Observation vs. daily log**:
+  - `observations.md` replace `memory/YYYY-MM-DD.md` should coexist
+  - Daily logs are the raw write-ahead log
+  - Observations are the compressed derivative.
 - **YAML vs JSON for items**: OM uses markdown; PARA uses YAML.
-  Recommendation: use YAML for PARA items (richer schema, human-
-  friendly) and markdown for OM observations (LLM-native).
-  Add `js-yaml` as a dependency only in genie's package.
+  - for genie's entity knowledge files (the PARA connection) use Markdown files
+    with YAML frontmatter
+  - this will allow arbitrary elaborative content after the front matter
+  - while supporting structured schematized data up front
+  - we'll need a library like `js-yaml` as a dependency only in genie's package.
