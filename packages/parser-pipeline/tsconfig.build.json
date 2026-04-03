@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "./tsconfig.json",
+    "../../tsconfig-build-options.json"
+  ],
+  "exclude": [
+    "test/"
+  ],
+  "compilerOptions": {
+    "stripInternal": true
+  }
+}
