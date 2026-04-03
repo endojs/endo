@@ -57,6 +57,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/helper-validator-identifier@npm:^7.28.5":
+  version: 7.28.5
+  resolution: "@babel/helper-validator-identifier@npm:7.28.5"
+  checksum: 10c0/42aaebed91f739a41f3d80b72752d1f95fd7c72394e8e4bd7cdd88817e0774d80a432451bcba17c2c642c257c483bf1d409dd4548883429ea9493a3bc4ab0847
+  languageName: node
+  linkType: hard
+
 "@babel/parser@npm:^7.27.2, @babel/parser@npm:^7.28.3, @babel/parser@npm:^7.7.0, @babel/parser@npm:~7.28.3":
   version: 7.28.3
   resolution: "@babel/parser@npm:7.28.3"
@@ -98,6 +105,16 @@ __metadata:
     "@babel/types": "npm:^7.28.2"
     debug: "npm:^4.3.1"
   checksum: 10c0/26e95b29a46925b7b41255e03185b7e65b2c4987e14bbee7bbf95867fb19c69181f301bbe1c7b201d4fe0cce6aa0cbea0282dad74b3a0fef3d9058f6c76fdcb3
+  languageName: node
+  linkType: hard
+
+"@babel/types@npm:^7.0.0":
+  version: 7.29.0
+  resolution: "@babel/types@npm:7.29.0"
+  dependencies:
+    "@babel/helper-string-parser": "npm:^7.27.1"
+    "@babel/helper-validator-identifier": "npm:^7.28.5"
+  checksum: 10c0/23cc3466e83bcbfab8b9bd0edaafdb5d4efdb88b82b3be6728bbade5ba2f0996f84f63b1c5f7a8c0d67efded28300898a5f930b171bb40b311bca2029c4e9b4f
   languageName: node
   linkType: hard
 
@@ -996,6 +1013,27 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/parser-pipeline@workspace:packages/parser-pipeline":
+  version: 0.0.0-use.local
+  resolution: "@endo/parser-pipeline@workspace:packages/parser-pipeline"
+  dependencies:
+    "@babel/generator": "npm:^7.28.3"
+    "@babel/parser": "npm:~7.28.3"
+    "@babel/traverse": "npm:~7.28.3"
+    "@endo/compartment-mapper": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@types/babel__generator": "npm:~7.27.0"
+    "@types/babel__traverse": "npm:~7.28.0"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -2535,6 +2573,24 @@ __metadata:
   dependencies:
     tslib: "npm:^2.4.0"
   checksum: 10c0/f9fde5c554455019f33af6c8215f1a1435028803dc2a2825b077d812bed4209a1a64444a4ca0ce2ea7e1175c8d88e2f9173a36a33c199e8a5c671aa31de8242d
+  languageName: node
+  linkType: hard
+
+"@types/babel__generator@npm:~7.27.0":
+  version: 7.27.0
+  resolution: "@types/babel__generator@npm:7.27.0"
+  dependencies:
+    "@babel/types": "npm:^7.0.0"
+  checksum: 10c0/9f9e959a8792df208a9d048092fda7e1858bddc95c6314857a8211a99e20e6830bdeb572e3587ae8be5429e37f2a96fcf222a9f53ad232f5537764c9e13a2bbd
+  languageName: node
+  linkType: hard
+
+"@types/babel__traverse@npm:~7.28.0":
+  version: 7.28.0
+  resolution: "@types/babel__traverse@npm:7.28.0"
+  dependencies:
+    "@babel/types": "npm:^7.28.2"
+  checksum: 10c0/b52d7d4e8fc6a9018fe7361c4062c1c190f5778cf2466817cb9ed19d69fbbb54f9a85ffedeb748ed8062d2cf7d4cc088ee739848f47c57740de1c48cbf0d0994
   languageName: node
   linkType: hard
 
