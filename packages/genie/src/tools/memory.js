@@ -43,6 +43,7 @@ import { makeNodeVFS } from './vfs-node.js';
  *   Promise<void>} index
  * @property {(filename: string) =>
  *   Promise<void>} remove
+ * @property {() => AsyncIterable<string>} indexedPaths
  * @property {() => Promise<void>} [sync]
  */
 
@@ -56,6 +57,7 @@ const SearchBackendI = M.interface('SearchBackend', {
   ).returns(M.arrayOf(M.record())),
   index: M.callWhen(M.string(), M.string()).returns(M.undefined()),
   remove: M.callWhen(M.string()).returns(M.undefined()),
+  indexedPaths: M.call().returns(M.any()),
   sync: M.callWhen().returns(M.undefined()),
 });
 harden(SearchBackendI);
@@ -91,12 +93,62 @@ async function* streamLines(chunks) {
 }
 
 /**
+ * Resolve `userPath` against `root` and assert the result stays under `root`.
+ *
+ * @param {string} root - The path supplied by the caller.
+ * @param {string} userPath - The path supplied by the caller.
+ * @returns {string} The resolved absolute path.
+ */
+const safePath = (root, userPath) => {
+  if (userPath.includes('\0')) {
+    throw new Error('Invalid path: null bytes not allowed');
+  }
+  const resolved = resolve(root, userPath);
+  const rel = relative(root, resolved);
+  // If the relative path starts with ".." or is absolute, it escapes the root.
+  if (rel.startsWith('..') || resolve(rel) === rel) {
+    throw new Error(
+      `Invalid path: must resolve under root (${root})`,
+    );
+  }
+  return resolved;
+};
+
+/**
+ * Resolve a set of root paths into individual file paths by
+ * expanding directories into their `.md` entries.
+ *
+ * @param {Iterable<string>} roots
+ * @param {VFS} vfs
+ * @yields {string} Absolute file paths.
+ */
+async function* expandPaths(roots, vfs) {
+  for (const searchPath of roots) {
+    try {
+      const info = await vfs.stat(searchPath);
+      if (info.type === 'file') {
+        yield searchPath;
+      } else if (info.type === 'directory') {
+        for await (const entry of vfs.readdir(searchPath)) {
+          if (entry.name.endsWith('.md')) {
+            yield join(searchPath, entry.name);
+          }
+        }
+      }
+    } catch {
+      // Path does not exist (yet); skip silently.
+    }
+  }
+}
+
+/**
  * Create memory tools (memoryGet, memorySet, memorySearch) that enforce a
  * common path-root traversal limit.
  *
  * @param {object} [options]
  * @param {string} [options.root] - Root directory that all paths must resolve
  *   under. Defaults to `process.cwd()`.
+ * @param {string[]} [options.watchPaths] - memory file paths to index and watch
  * @param {SearchBackend} [options.searchBackend] - Pluggable search backend.
  *   When provided, `memorySearch` delegates to `E(searchBackend).search()`
  *   and `memorySet` calls `E(searchBackend).index()` to keep the index
@@ -107,96 +159,118 @@ async function* streamLines(chunks) {
 const makeMemoryTools = (options = {}) => {
   const {
     root = process.cwd(),
+    watchPaths = ['MEMORY.md', 'memory'],
     vfs = makeNodeVFS(),
+    searchBackend = makeSubstringBackend(vfs, resolve(root)),
   } = options;
+
   const resolvedRoot = resolve(root);
 
+  // -- Index queue and worker --------------------------------------------------
+  // The index queue holds absolute file paths awaiting (re-)indexing.
+  // The worker drains the queue one entry at a time and feeds content
+  // to the search backend.  `indexing` resolves once the queue is
+  // fully drained (including zombie-path culling after the initial
+  // seed pass).
+
+  /** @type {string[]} */
+  const indexQueue = [];
+
+  /** @type {Promise<void> | null} */
+  let indexing = null;
+
+  /** @type {((value: void) => void) | null} */
+  let resolveIndexing = null;
+
   /**
-   * Search a single file for lines matching `query` (case-insensitive).
-   * Reads the file as a stream to avoid buffering the entire contents.
+   * Process the index queue one entry at a time, feeding each file's
+   * content to the search backend.  Returns the set of paths that
+   * were successfully indexed (used for zombie culling).
    *
-   * @param {string} filePath - Absolute path to search.
-   * @param {string} query    - Case-insensitive substring to match.
-   * @returns {AsyncGenerator<SearchResult>}
+   * @param {Set<string>} priorPaths - Previously indexed paths to
+   *   prune from as live paths are encountered.
+   * @returns {Promise<void>}
    */
-  async function* searchInFile(filePath, query) {
-    const queryLower = query.toLowerCase();
-    try {
-      const stream = vfs.createReadStream(filePath);
-      let lineNum = 0;
-      for await (const line of streamLines(stream)) {
-        lineNum += 1;
-        if (line.toLowerCase().includes(queryLower)) {
-          yield {
-            file: basename(filePath),
-            line: lineNum,
-            content: line.trim(),
-          };
-        }
-      }
-    } catch {
-    }
-  }
-
-  /**
-   * @param {string[]} searchPaths - Absolute paths to search.
-   * @param {string} query         - Case-insensitive substring to match.
-   */
-  async function* searchInFiles(searchPaths, query) {
-    for await (const searchPath of findMemoryPaths(...searchPaths)) {
-      yield* searchInFile(searchPath, query);
-    }
-  }
-
-  /**
-   * @param {Array<string>} searchPaths
-   */
-  async function* findMemoryPaths(...searchPaths) {
-    for (const searchPath of searchPaths) {
+  const drainQueue = async (priorPaths) => {
+    while (indexQueue.length > 0) {
+      const filePath = /** @type {string} */ (indexQueue.shift());
       try {
-        const info = await vfs.stat(searchPath);
-        if (info.type === 'file') {
-          yield searchPath;
-        } else if (info.type === 'directory') {
-          for await (const entry of vfs.readdir(searchPath)) {
-            if (entry.name.endsWith('.md')) {
-              yield join(searchPath, entry.name);
-            }
-          }
-        }
+        const content = await vfs.readFile(filePath);
+        // Derive the relative path for backend storage.
+        const relPath = relative(resolvedRoot, filePath);
+        await E(searchBackend).index(relPath, content);
+        priorPaths.delete(relPath);
       } catch {
+        // File may have been removed between enqueue and index; skip.
       }
     }
-  }
-
-  // Default to the built-in substring backend when none is provided.
-  const {
-    searchBackend = makeSubstringBackend([
-      join(resolvedRoot, 'MEMORY.md'),
-      join(resolvedRoot, 'memory'),
-    ], searchInFiles),
-  } = options;
+  };
 
   /**
-   * Resolve `userPath` against `resolvedRoot` and assert the result stays under `resolvedRoot`.
+   * Ensure the index worker is running.  If it is already active the
+   * existing `indexing` promise is returned; otherwise a new worker
+   * cycle is started.
    *
-   * @param {string} userPath - The path supplied by the caller.
-   * @returns {string} The resolved absolute path.
+   * @param {Set<string>} [priorPaths] - When provided (initial seed),
+   *   zombie paths remaining in this set are removed from the backend
+   *   after the queue is drained.
+   * @returns {Promise<void>}
    */
-  const safePath = (userPath) => {
-    if (userPath.includes('\0')) {
-      throw new Error('Invalid path: null bytes not allowed');
+  const ensureWorker = (priorPaths = new Set()) => {
+    if (indexing) {
+      return indexing;
     }
-    const resolved = resolve(resolvedRoot, userPath);
-    const rel = relative(resolvedRoot, resolved);
-    // If the relative path starts with ".." or is absolute, it escapes the root.
-    if (rel.startsWith('..') || resolve(rel) === rel) {
-      throw new Error(
-        `Invalid path: must resolve under root (${resolvedRoot})`,
-      );
-    }
-    return resolved;
+    indexing = new Promise(res => {
+      resolveIndexing = res;
+    });
+    const run = async () => {
+      await drainQueue(priorPaths);
+      // Cull zombie paths — entries the backend knew about that no
+      // longer exist on disk.
+      for (const zombie of priorPaths) {
+        await E(searchBackend).remove(zombie);
+      }
+      const done = resolveIndexing;
+      indexing = null;
+      resolveIndexing = null;
+      if (done) {
+        done(undefined);
+      }
+    };
+    void run();
+    return /** @type {Promise<void>} */ (indexing);
   };
+
+  // -- Initialization: seed the index from watchPaths -------------------------
+  const initPaths = watchPaths.map(p => safePath(resolvedRoot, p));
+
+  /**
+   * Collect all prior indexed paths from the backend and discover all
+   * live files under the configured watch roots, then kick off the
+   * index worker.
+   */
+  const seedIndex = async () => {
+    // Collect prior indexed paths from the backend (may be empty on
+    // first run).
+    /** @type {Set<string>} */
+    const priorPaths = new Set();
+    const priorIter = await E(searchBackend).indexedPaths();
+    for await (const p of priorIter) {
+      priorPaths.add(p);
+    }
+
+    // Discover live files and enqueue them.
+    for await (const filePath of expandPaths(initPaths, vfs)) {
+      indexQueue.push(filePath);
+    }
+
+    // Start (or join) the worker — priorPaths will be pruned as live
+    // files are indexed, and any remaining entries are zombies.
+    await ensureWorker(priorPaths);
+  };
+
+  // Fire-and-forget; memorySearch will await `indexing` if needed.
+  const seeding = seedIndex();
 
   const memoryGet = makeTool('memoryGet', {
     help: function*() {
@@ -236,7 +310,7 @@ const makeMemoryTools = (options = {}) => {
      * @returns {Promise<{success: boolean, path: string, content: string, from?: number, lines?: number}>}
      */
     async execute({ path, from = 1, lines }) {
-      const fullPath = safePath(path);
+      const fullPath = safePath(resolvedRoot, path);
       const collected = [];
 
       try {
@@ -315,7 +389,7 @@ const makeMemoryTools = (options = {}) => {
      * @returns {Promise<{success: boolean, path: string, bytesWritten: number}>}
      */
     async execute({ path, content, append = false }) {
-      const fullPath = safePath(path);
+      const fullPath = safePath(resolvedRoot, path);
       const dir = dirname(fullPath);
 
       try {
@@ -336,11 +410,9 @@ const makeMemoryTools = (options = {}) => {
         throw new Error(`Failed to write memory file: ${err.message}`,);
       }
 
-      // Keep the search index in sync.
-      const fullContent = append
-        ? await vfs.readFile(fullPath)
-        : content;
-      await E(searchBackend).index(path, fullContent);
+      // Keep the search index in sync via the index queue.
+      indexQueue.push(fullPath);
+      ensureWorker();
 
       return {
         success: true,
@@ -370,7 +442,7 @@ const makeMemoryTools = (options = {}) => {
     schema: M.call(
       M.splitRecord(
         { query: M.string() },
-        { limit: M.number() },
+        { limit: M.number(), waitForIndex: M.boolean() },
       ),
     ).returns({
       success: M.boolean(),
@@ -383,9 +455,21 @@ const makeMemoryTools = (options = {}) => {
      * @param {object} opts
      * @param {string} opts.query
      * @param {number} [opts.limit]
+     * @param {boolean} [opts.waitForIndex] - When `true` (the default),
+     *   waits for any pending index operations to complete before
+     *   executing the search.  Set to `false` to search immediately
+     *   against whatever state the index is in.
      * @returns {Promise<{success: boolean, query: string, limit: number, results: Array<{file: string, line: number, content: string}>}>}
      */
-    async execute({ query, limit = 5 }) {
+    async execute({ query, limit = 5, waitForIndex = true }) {
+      if (waitForIndex) {
+        // Wait for the initial seed pass to finish, then for any
+        // in-flight index worker cycle.
+        await seeding;
+        if (indexing) {
+          await indexing;
+        }
+      }
       const results = await E(searchBackend).search(query, { limit });
       return { success: true, query, limit, results };
     },
@@ -396,23 +480,56 @@ const makeMemoryTools = (options = {}) => {
 harden(makeMemoryTools);
 
 /**
- * Wrap the built-in `searchInFiles` logic as a `SearchBackend`.
+ * In-process substring-matching `SearchBackend`.
  *
- * This is a zero-dependency, in-process backend that preserves the
- * original substring-matching behaviour.  Pass it as `searchBackend`
- * to `makeMemoryTools` when you want the default search but still
- * want to go through the `SearchBackend` interface (e.g. for testing
- * or uniform dispatch).
+ * File-path discovery and streaming I/O are fully encapsulated: the
+ * backend owns a list of indexed paths and reads files through the
+ * supplied {@link VFS} during each search.  Callers interact only
+ * through the `SearchBackend` interface.
  *
- * @param {string[]} paths - Absolute paths (files or directories) to
- *   search within.
- * @param {(paths: string[], query: string) =>
- *   AsyncGenerator<SearchResult>} searcher - The search implementation
- *   to delegate to (typically `searchInFiles` from the enclosing
- *   `makeMemoryTools` closure).
+ * Indexed filenames are stored as relative paths (as provided by the
+ * caller), but resolved against `root` when reading file contents
+ * during search.
+ *
+ * @param {VFS} vfs - Virtual filesystem used to read files during
+ *   search.
+ * @param {string} root - Absolute path used to resolve relative
+ *   filenames when reading during search.
  * @returns {SearchBackend}
  */
-const makeSubstringBackend = (paths, searcher) => {
+const makeSubstringBackend = (vfs, root) => {
+  /**
+   * Search a single file for lines matching `query`
+   * (case-insensitive).  Reads the file as a stream to avoid
+   * buffering the entire contents.
+   *
+   * @param {string} relPath - Relative path (as stored in the index).
+   * @param {string} absPath - Absolute path to read.
+   * @param {string} queryLower - Lower-cased query string.
+   * @yields {SearchResult}
+   */
+  async function* searchInFile(relPath, absPath, queryLower) {
+    try {
+      const stream = vfs.createReadStream(absPath);
+      let lineNum = 0;
+      for await (const line of streamLines(stream)) {
+        lineNum += 1;
+        if (line.toLowerCase().includes(queryLower)) {
+          yield {
+            file: basename(relPath),
+            line: lineNum,
+            content: line.trim(),
+          };
+        }
+      }
+    } catch {
+      // File unreadable or missing; skip silently.
+    }
+  }
+
+  /** @type {Set<string>} */
+  const paths = new Set();
+
   return harden({
     /**
      * @param {string} query
@@ -422,32 +539,54 @@ const makeSubstringBackend = (paths, searcher) => {
      */
     async search(query, opts = {}) {
       const { limit = Infinity } = opts;
+      const queryLower = query.toLowerCase();
       /** @type {Array<SearchResult>} */
       const results = [];
-      for await (const result of searcher(paths, query)) {
-        results.push(result);
-        if (results.length >= limit) {
-          break;
+      for (const relPath of paths) {
+        const absPath = resolve(root, relPath);
+        for await (const result of searchInFile(relPath, absPath, queryLower)) {
+          results.push(result);
+          if (results.length >= limit) {
+            return results;
+          }
         }
       }
       return results;
     },
 
     /**
-     * No-op — the substring backend searches files directly on each
-     * query, so there is no separate index to maintain.
+     * Record `filename` in the set of indexed paths.
      *
-     * @param {string} _filename
+     * The substring backend reads files on each query, so we only
+     * need to track *which* paths to search — no content is stored.
+     *
+     * @param {string} filename
      * @param {string} _content
      */
-    async index(_filename, _content) {},
+    async index(filename, _content) {
+      paths.add(filename);
+    },
 
     /**
-     * No-op — nothing to remove from a live-file scanner.
+     * Remove `filename` from the set of indexed paths.
      *
-     * @param {string} _filename
+     * @param {string} filename
      */
-    async remove(_filename) {},
+    async remove(filename) {
+      paths.delete(filename);
+    },
+
+    /**
+     * Yield all currently indexed path strings.
+     *
+     * @returns {AsyncIterable<string>}
+     */
+    // eslint-disable-next-line require-yield
+    async *indexedPaths() {
+      for (const p of paths) {
+        yield p;
+      }
+    },
 
     /** No-op — no persistent index to sync. */
     async sync() {},

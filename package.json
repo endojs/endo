@@ -84,13 +84,17 @@
   "dependenciesMeta": {
     "@ipshipyard/node-datachannel": {
       "built": true
+    },
+    "better-sqlite3": {
+      "built": true
     }
   },
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
       "lerna>nx": false,
-      "@ipshipyard/node-datachannel": true
+      "@ipshipyard/node-datachannel": true,
+      "better-sqlite3": true
     }
   }
 }

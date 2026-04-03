@@ -40,7 +40,8 @@
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@mariozechner/pi-agent-core": "^0.60.0",
-    "@mariozechner/pi-ai": "^0.60.0"
+    "@mariozechner/pi-ai": "^0.60.0",
+    "better-sqlite3": "^11.0.0"
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
