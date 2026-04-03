@@ -1368,6 +1368,10 @@ export const makeMailboxMaker = ({
         messageId: formMessageId,
         guestHandleId,
       } = getForm(messageNumber);
+      const defaults = Object.fromEntries(fields.map( ({ name, default: dflt }) => [ name, dflt ]));
+
+      // Apply any defaults
+      values = { ...defaults, ...values };
 
       // Validate that values cover every field and match patterns.
       for (const { name, pattern } of fields) {
