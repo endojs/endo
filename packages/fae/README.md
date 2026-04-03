@@ -157,6 +157,9 @@ yarn setup-fs-tools
 FAE_CWD=/path/to/project yarn setup-fs-tools
 ```
 
+Signal integration now lives in `@endo/daemon-signal`.
+See `packages/daemon-signal/README.md` for setup and usage.
+
 Send a tool to an agent via the chat UI:
 
 ```

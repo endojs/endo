@@ -1,0 +1,53 @@
+{
+  "name": "@endo/daemon-signal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Signal bridge tooling for controlling Endo daemon agents",
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./bridge.js": "./bridge.js",
+    "./transport.js": "./transport.js",
+    "./setup-tools.js": "./setup-tools.js",
+    "./src/signal-bridge.js": "./src/signal-bridge.js",
+    "./src/signal-cli.js": "./src/signal-cli.js",
+    "./src/signal-command.js": "./src/signal-command.js",
+    "./src/signal-policy.js": "./src/signal-policy.js",
+    "./src/tool-interface.js": "./src/tool-interface.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "setup-tools": "endo run --UNCONFINED setup-tools.js --powers @agent",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'",
+    "test": "ava"
+  },
+  "dependencies": {
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/patterns": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/cli": "workspace:^",
+    "@endo/init": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}
