@@ -13,7 +13,7 @@ module.exports = {
   extends: ['plugin:@endo/internal'],
   rules: {
     'no-restricted-globals': [
-      'error',
+      'error', // TODO why is this here?
       'AggregateError',
       'Array',
       'ArrayBuffer',
@@ -27,6 +27,8 @@ module.exports = {
       'Date',
       'Error',
       'EvalError',
+      // https://github.com/tc39/proposal-float16array
+      'Float16Array',
       'Float32Array',
       'Float64Array',
       'Function',
