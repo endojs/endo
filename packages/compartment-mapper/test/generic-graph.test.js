@@ -150,7 +150,7 @@ test('makeShortestPath() - returns a function which throws if destination node m
   graph.addNode('app');
   const shortestPath = makeShortestPath(graph);
   t.throws(() => shortestPath('app', 'pippo'), {
-    message: /Target "pippo" is not in the graph/,
+    message: /No path found from "app" to "pippo"/,
   });
 });
 
