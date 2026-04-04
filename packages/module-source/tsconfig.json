@@ -4,9 +4,13 @@
     "*.js",
     "*.ts",
     "scripts",
-    "src",
+    "src/**/*.js",
+    "src/**/*.ts",
     "src-xs",
     // to omit test/fixtures/
     "test/*.*"
+  ],
+  "exclude": [
+    "**/*.d.ts"
   ]
 }
