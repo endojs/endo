@@ -89,6 +89,7 @@ export const generate = (ast, options) => {
     {
       sourceFileName: sourceUrl,
       sourceMaps: Boolean(sourceUrl),
+      // @ts-expect-error - what is this, even
       inputSourceMap,
       retainLines: true,
       ...(source === undefined ? {} : { experimental_preserveFormat: true }),
