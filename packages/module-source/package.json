@@ -51,6 +51,8 @@
   },
   "devDependencies": {
     "@endo/ses-ava": "workspace:^",
+    "@types/babel__generator": "~7.27.0",
+    "@types/babel__traverse": "~7.28.0",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
     "benchmark": "^2.1.4",

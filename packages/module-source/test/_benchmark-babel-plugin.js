@@ -3,6 +3,7 @@ import fs from 'fs';
 import url from 'url';
 import { makeTransformSource } from '../src/transform-source.js';
 import makeModulePlugins from '../src/babel-plugin.js';
+import { createSourceOptions } from '../src/source-options.js';
 
 const suite = new Benchmark.Suite();
 
@@ -23,21 +24,10 @@ const cases = [
 ];
 
 const transformSource = makeTransformSource(makeModulePlugins);
-const freshOptions = () => ({
-  sourceType: 'module',
-  fixedExportMap: Object.create(null),
-  imports: Object.create(null),
-  exportAlls: [],
-  liveExportMap: Object.create(null),
-  hoistedDecls: [],
-  importSources: Object.create(null),
-  importDecls: [],
-  importMeta: { present: false },
-});
 
 cases.map(testCase =>
   suite.add(testCase.name, () => {
-    transformSource(testCase.fixture, freshOptions());
+    transformSource(testCase.fixture, createSourceOptions());
   }),
 );
 
