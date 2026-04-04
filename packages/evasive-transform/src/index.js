@@ -123,3 +123,5 @@ export function evadeCensorSync(source, options) {
 export async function evadeCensor(source, options) {
   return evadeCensorSync(source, options);
 }
+
+export { createEvasiveTransformPass } from './transform-pass.js';
