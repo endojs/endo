@@ -1,5 +1,5 @@
-import { globalThis } from './commons.js';
-import { assert } from './error/assert.js';
+import { globalThis } from '@endo/error-console-internal/commons.js';
+import { assert } from '@endo/error-console-internal';
 
 /**
  * @import {Reporter, GroupReporter} from './reporting-types.js'

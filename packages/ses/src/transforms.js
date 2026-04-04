@@ -9,7 +9,7 @@ import {
   stringSlice,
   stringSplit,
   freeze,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 import { getSourceURL } from './get-source-url.js';
 
 /**

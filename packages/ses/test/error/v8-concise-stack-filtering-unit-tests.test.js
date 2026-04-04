@@ -2,7 +2,7 @@ import test from 'ava';
 import {
   filterFileName as ff,
   shortenCallSiteString as scs,
-} from '../../src/error/tame-v8-error-constructor.js';
+} from '@endo/error-console-internal';
 
 test('filter file name unit test', t => {
   t.truthy(ff(undefined), 'Keep frames with no fileName.');

@@ -2,7 +2,7 @@ import {
   getPrototypeOf,
   getOwnPropertyDescriptor,
   ownKeys,
-} from '../src/commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 function getValue(obj, name) {
   const desc = getOwnPropertyDescriptor(obj, name);

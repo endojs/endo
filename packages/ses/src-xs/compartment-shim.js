@@ -9,7 +9,11 @@
 
 /// <reference types="ses"/>
 
-import { defineProperty, globalThis, weakmapGet } from '../src/commons.js';
+import {
+  defineProperty,
+  globalThis,
+  weakmapGet,
+} from '@endo/error-console-internal/commons.js';
 import {
   NativeStartCompartment,
   nativeCompartmentPrototype,

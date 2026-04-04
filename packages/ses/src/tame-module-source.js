@@ -4,7 +4,7 @@ import {
   globalThis,
   objectPrototype,
   setPrototypeOf,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 export const tameModuleSource = () => {
   const newIntrinsics = {};
