@@ -23,41 +23,6 @@ export type ModuleSourceRecord = Readonly<
 >;
 
 /**
- * A bulging bucket of options for `transformSource`.
- */
-export interface TransformSourceParams
-  extends GeneratorOptions,
-    SourceMapHookDetails {
-  sourceType: ParserOptions['sourceType'];
-  fixedExportMap: Record<string, any>;
-  imports: Record<string, any>;
-  exportAlls: string[];
-  reexportMap: Record<string, any>;
-  liveExportMap: Record<string, any>;
-  hoistedDecls: Array<[string, boolean, string | undefined]>;
-  importSources: Record<string, any>;
-  importDecls: string[];
-  dynamicImport: { present: boolean };
-  importMeta: { present: boolean };
-  sourceMapHook?: SourceMapHook;
-
-  /**
-   * This is either a string or a SourceMapV3 object, but it's used with an
-   * undocumented option (`inputSourceMap` of `@babel/generator`), so might not
-   * do anything at all.
-   */
-  sourceMap?: unknown;
-}
-
-/**
- * @todo The `types` parameter seems like a relic from when we were passing
- * Babel implementations around.
- */
-export type PluginFactory = (params: { types: typeof babelTypes }) => {
-  visitor: Visitor;
-};
-
-/**
  * Details for a {@link SourceMapHook}.
  *
  * **Do not confuse with `SourceMapHookDetails` type from `@endo/compartment-mapper`.**
@@ -94,11 +59,98 @@ export type SourceMapHook = (
 ) => void;
 
 /**
- * Options for the `ModuleSource` constructor.
+ * A bulging bucket of options for `transformSource`.
+ */
+export interface TransformSourceParams
+  extends GeneratorOptions,
+    SourceMapHookDetails {
+  sourceType: ParserOptions['sourceType'];
+  fixedExportMap: Record<string, any>;
+  imports: Record<string, any>;
+  exportAlls: string[];
+  reexportMap: Record<string, any>;
+  liveExportMap: Record<string, any>;
+  hoistedDecls: Array<[string, boolean, string | undefined]>;
+  importSources: Record<string, any>;
+  importDecls: string[];
+  dynamicImport: { present: boolean };
+  importMeta: { present: boolean };
+  sourceMapHook?: SourceMapHook;
+
+  /**
+   * This is either a string or a SourceMapV3 object, but it's used with an
+   * undocumented option (`inputSourceMap` of `@babel/generator`), so might not
+   * do anything at all.
+   */
+  sourceMap?: unknown;
+}
+
+/**
+ * @todo The `types` parameter seems like a relic from when we were passing
+ * Babel implementations around.
+ */
+export type PluginFactory = (params: { types: typeof babelTypes }) => {
+  visitor: Visitor;
+};
+
+/**
+ * Options for the `ModuleSource` and `CjsModuleSource` constructors.
  */
 export interface ModuleSourceOptions {
   sourceUrl?: string;
   sourceMap?: string;
   sourceMapUrl?: string;
   sourceMapHook?: SourceMapHook;
+}
+
+/**
+ * Mutable state bag for the CJS Babel plugin, populated during analysis and
+ * transform passes.
+ */
+export interface CjsTransformSourceParams {
+  sourceType: 'commonjs';
+  requires: string[];
+  exports: Set<string>;
+  reexports: Set<string>;
+  imports: string[];
+  unsafeGetters: Set<string>;
+  dynamicImport: { present: boolean };
+  starExportMap: Record<string, string>;
+  sourceUrl?: string;
+  sourceMapUrl?: string;
+  sourceMap?: unknown;
+  sourceMapHook?: SourceMapHook;
+  allowHidden?: boolean;
+}
+
+/**
+ * The frozen record produced by {@link CjsModuleSource} or the CJS
+ * `buildRecord` function.
+ *
+ * This is NOT a `PrecompiledModuleSource`. It contains the analysis data plus
+ * a pre-built CJS functor source string.
+ */
+
+export interface CjsModuleSourceRecord {
+  /** Combined specifiers: `require()` + dynamic `import()` (deduped). */
+  readonly imports: string[];
+
+  /** Export names (always includes `'default'`). */
+  readonly exports: string[];
+
+  /** Specifiers that are wholesale reexported. */
+  readonly reexports: string[];
+
+  /**
+   * The CJS function expression wrapping the transformed source.
+   *
+   * @example
+   * ```
+   * (function (require, exports, module, __filename, __dirname, $h_import) { 'use strict'; ... })
+   * ```
+   */
+  readonly cjsFunctor: string;
+
+  /** Whether any `import()` calls were found. */
+  readonly __needsImport__: boolean;
 }

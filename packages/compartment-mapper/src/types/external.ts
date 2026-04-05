@@ -12,6 +12,7 @@ import type {
   ThirdPartyStaticModuleInterface,
   Transform,
 } from 'ses';
+import type { SourceMapObject } from '@endo/module-source';
 import type {
   ATTENUATORS_COMPARTMENT,
   ENTRY_COMPARTMENT,
@@ -30,7 +31,6 @@ import type { PackageDescriptor } from './node-modules.js';
 import type { SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
 import type { LiteralUnion } from './typescript.js';
-import type { SourceMapObject } from '@endo/module-source';
 
 export type { CanonicalName, PackageDescriptor };
 

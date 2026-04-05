@@ -74,7 +74,7 @@ the hook returns a promise, it will be dropped and rejections will go uncaught.
 If the hook must do async work, these should be queued up as a job that the
 caller can later await.
 
-## XS Specific Variant
+## XS-Specific Variant
 
 With the `xs` condition, `@endo/module-source` will not entrain Babel and will
 just adapt the native `ModuleSource` to the older interface presented by this
@@ -82,6 +82,12 @@ package.
 That is, the XS native `bindings` will be translated to `imports`, `exports`,
 and `reexports` getters.
 This form of `ModuleSource` ignores all options.
+
+## CommonJS-Specific Variant
+
+A similar interface to the ES-module-specific `ModuleSource` is provided for CommonJS modules, using the `CjsModuleSource` constructor. This constructor accepts the same options as `ModuleSource`.
+
+It produces a `CjsModuleSourceRecord` object, which contains the analysis data plus a pre-built functor source string.
 
 ## Bug Disclosure
 
