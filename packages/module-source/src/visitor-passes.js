@@ -1,18 +1,25 @@
 /**
- * Provides {@link createModuleSourcePasses}, which creates paired analyzer and
+ * Provides {@link createModuleSourcePasses} and
+ * {@link createCjsModuleSourcePasses}, which create paired analyzer and
  * transform visitor passes for use with `@endo/parser-pipeline`.
  *
  * @module
  */
 
 /**
- * @import {ModuleSourcePassesResult} from './types/visitor-passes.js'
- * @import {ModuleSourceRecord} from './types/module-source.js'
+ * @import {ModuleSourcePassesResult, CjsModuleSourcePassesResult} from './types/visitor-passes.js'
+ * @import {ModuleSourceRecord, CjsModuleSourceRecord} from './types/module-source.js'
  */
 
 import makeModulePlugins from './babel-plugin.js';
-import { createSourceOptions, visitorFromPlugin } from './source-options.js';
+import makeCjsModulePlugins from './cjs-babel-plugin.js';
+import {
+  createSourceOptions,
+  createCjsSourceOptions,
+  visitorFromPlugin,
+} from './source-options.js';
 import { buildFunctorSource, buildModuleRecord } from './functor.js';
+import { buildCjsFunctorSource, buildCjsModuleRecord } from './cjs-functor.js';
 
 /**
  * Creates paired analyzer and transform visitor passes for module-source
@@ -78,6 +85,67 @@ export const createModuleSourcePasses = (options = {}) => {
       sourceUrl,
     );
     return buildModuleRecord(sourceOptions, functorSource);
+  };
+
+  return { analyzerPass, transformPass, buildRecord };
+};
+
+/**
+ * Creates paired analyzer and transform visitor passes for CJS module-source
+ * analysis, plus a `buildRecord` function that constructs the final CJS module
+ * record from generated code.
+ *
+ * Must be called once per module to get fresh state. The returned analyzer and
+ * transform passes share internal state and must be used in order: analyzer
+ * first, then transform.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.allowHidden] - Allow hidden identifier usage.
+ * @returns {CjsModuleSourcePassesResult}
+ */
+export const createCjsModuleSourcePasses = (options = {}) => {
+  const { allowHidden = false } = options;
+
+  const sourceOptions = createCjsSourceOptions({ allowHidden });
+
+  const { analyzePlugin, transformPlugin } =
+    makeCjsModulePlugins(sourceOptions);
+
+  const analyzerPass = {
+    visitor: visitorFromPlugin(analyzePlugin),
+    getResults() {
+      return {
+        requires: [...sourceOptions.requires],
+        exports: [...sourceOptions.exports].filter(
+          name => !sourceOptions.unsafeGetters.has(name),
+        ),
+        reexports: [...sourceOptions.reexports],
+        imports: [...sourceOptions.imports],
+        needsImport: sourceOptions.dynamicImport.present,
+      };
+    },
+  };
+
+  const transformPass = {
+    visitor: visitorFromPlugin(transformPlugin),
+  };
+
+  /**
+   * Constructs a `CjsModuleSourceRecord` from the generated code and the
+   * analysis state accumulated during the analyzer and transform passes.
+   *
+   * @param {string} scriptSource - The code produced by `@babel/generator`
+   *   after all transform passes.
+   * @param {string} [sourceUrl] - The source URL for the module.
+   * @returns {CjsModuleSourceRecord}
+   */
+  const buildRecord = (scriptSource, sourceUrl) => {
+    const functorSource = buildCjsFunctorSource(
+      scriptSource,
+      sourceOptions,
+      sourceUrl,
+    );
+    return buildCjsModuleRecord(sourceOptions, functorSource);
   };
 
   return { analyzerPass, transformPass, buildRecord };
