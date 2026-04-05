@@ -1,0 +1,79 @@
+{
+  "author": "Endo contributors",
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.28.3",
+    "@babel/parser": "~7.28.3",
+    "@babel/traverse": "~7.28.3",
+    "@endo/compartment-mapper": "workspace:^",
+    "ses": "workspace:^"
+  },
+  "description": "Composable AST pipeline for JavaScript module analysis and transformation",
+  "devDependencies": {
+    "@endo/lockdown": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "@types/babel__generator": "~7.27.0",
+    "@types/babel__traverse": "~7.28.0",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "tsd": "catalog:dev",
+    "typescript": "~5.9.2"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "exports": {
+    ".": "./index.js",
+    "./worker-runner.js": "./src/worker-runner.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ],
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/module-analyzer#readme",
+  "keywords": [],
+  "license": "Apache-2.0",
+  "main": "./index.js",
+  "name": "@endo/parser-pipeline",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "directory": "packages/module-analyzer",
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "postpack": "git clean -fX -e node_modules/",
+    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:xs": "exit 0"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}
