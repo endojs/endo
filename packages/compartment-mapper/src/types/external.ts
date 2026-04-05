@@ -30,6 +30,7 @@ import type { PackageDescriptor } from './node-modules.js';
 import type { SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
 import type { LiteralUnion } from './typescript.js';
+import type { SourceMapObject } from '@endo/module-source';
 
 export type { CanonicalName, PackageDescriptor };
 
@@ -650,6 +651,15 @@ export type SourceMapHookDetails = {
   sha512: string;
 };
 
+/**
+ * Source map hook as received by {@link ParseFn}.
+ *
+ * The import hook wraps the public {@link SourceMapHook} into this shape; it
+ * receives the raw source map object from the code generator, not a JSON
+ * string.
+ */
+export type ParseSourceMapHook = (sourceMapObject: SourceMapObject) => void;
+
 export type ModuleTransforms = Record<string, ModuleTransform>;
 
 export type SyncModuleTransforms = Record<string, SyncModuleTransform>;
@@ -742,7 +752,7 @@ type ParseArguments = [
   packageLocation: string,
   options?: Partial<{
     sourceMap: string;
-    sourceMapHook: SourceMapHook;
+    sourceMapHook: ParseSourceMapHook;
     sourceMapUrl: string;
     readPowers: ReadFn | ReadPowers;
     compartmentDescriptor: CompartmentDescriptor;

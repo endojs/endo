@@ -193,16 +193,10 @@ export function createComposedParser(
       );
 
     if (transformedSourceMap !== null && sourceMapHook) {
-      // The import hook wraps this into a one-arg callback that captures the
-      // raw source map object and ignores the details. The real
-      // SourceMapHookDetails (compartment, module, location, sha512) are added
-      // by the import hook after parse() returns.
-      sourceMapHook(JSON.stringify(transformedSourceMap), {
-        compartment: '',
-        module: specifier,
-        location,
-        sha512: '',
-      });
+      // ParseSourceMapHook receives the raw source map object. The import
+      // hook wraps the public SourceMapHook into this shape and handles
+      // stringification + SourceMapHookDetails itself.
+      sourceMapHook(transformedSourceMap);
     }
 
     const analyzerResults = analyzerPasses.map(pass => pass.getResults());

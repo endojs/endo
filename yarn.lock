@@ -926,6 +926,8 @@ __metadata:
     "@babel/traverse": "npm:~7.28.3"
     "@babel/types": "npm:~7.28.2"
     "@endo/ses-ava": "workspace:^"
+    "@types/babel__generator": "npm:~7.27.0"
+    "@types/babel__traverse": "npm:~7.28.0"
     ava: "catalog:dev"
     babel-eslint: "npm:^10.1.0"
     benchmark: "npm:^2.1.4"

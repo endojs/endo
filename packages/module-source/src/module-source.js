@@ -2,7 +2,9 @@
 
 import { makeModuleAnalyzer } from './transform-analyze.js';
 
-const { keys, values } = Object;
+/**
+ * @import {ModuleSourceOptions} from './types/module-source.js'
+ */
 
 // Disable readonly markings.
 const freeze = /** @type {<T>(v: T) => T} */ (Object.freeze);
@@ -33,28 +35,6 @@ const freeze = /** @type {<T>(v: T) => T} */ (Object.freeze);
 
 const analyzeModule = makeModuleAnalyzer();
 
-/**
- * @typedef {object} SourceMapHookDetails
- * @property {string} compartment
- * @property {string} module
- * @property {string} location
- * @property {string} sha512
- */
-
-/**
- * @callback SourceMapHook
- * @param {string} sourceMap
- * @param {SourceMapHookDetails} details
- */
-
-/**
- * @typedef {object} Options
- * @property {string} [sourceUrl]
- * @property {string} [sourceMap]
- * @property {string} [sourceMapUrl]
- * @property {SourceMapHook} [sourceMapHook]
- */
-
 // XXX implements import('ses').PrecompiledModuleSource but adding
 // `@implements` errors that this isn't a class and `@returns` errors that
 // there's no value returned.
@@ -64,7 +44,7 @@ const analyzeModule = makeModuleAnalyzer();
  *
  * @class
  * @param {string} source
- * @param {string | Options} [opts]
+ * @param {string | ModuleSourceOptions} [opts]
  */
 export function ModuleSource(source, opts = {}) {
   if (new.target === undefined) {
@@ -75,45 +55,18 @@ export function ModuleSource(source, opts = {}) {
   if (typeof opts === 'string') {
     opts = { sourceUrl: opts };
   }
-  const {
-    imports,
-    functorSource,
-    liveExportMap,
-    reexportMap,
-    fixedExportMap,
-    exportAlls,
-    needsImport,
-    needsImportMeta,
-  } = analyzeModule(source, opts);
-  this.imports = freeze([...keys(imports)]);
-  this.exports = freeze(
-    [
-      ...keys(liveExportMap),
-      ...keys(fixedExportMap),
-      ...values(reexportMap)
-        .flat()
-        .map(([_, exportName]) => exportName),
-    ].sort(),
-  );
-  this.reexports = freeze([...exportAlls].sort());
-  this.__syncModuleProgram__ = functorSource;
-  for (const entry of values(liveExportMap)) {
-    freeze(entry);
-  }
-  for (const entry of values(fixedExportMap)) {
-    freeze(entry);
-  }
-  for (const reexports of values(reexportMap)) {
-    for (const pair of reexports) {
-      freeze(pair);
-    }
-    freeze(reexports);
-  }
-  this.__liveExportMap__ = freeze(liveExportMap);
-  this.__reexportMap__ = freeze(reexportMap);
-  this.__fixedExportMap__ = freeze(fixedExportMap);
-  this.__needsImport__ = needsImport;
-  this.__needsImportMeta__ = needsImportMeta;
+  // analyzeModule now returns a frozen PrecompiledModuleSource-shaped record
+  // via buildModuleRecord(), so we copy its properties directly.
+  const record = analyzeModule(source, opts);
+  this.imports = record.imports;
+  this.exports = record.exports;
+  this.reexports = record.reexports;
+  this.__syncModuleProgram__ = record.__syncModuleProgram__;
+  this.__liveExportMap__ = record.__liveExportMap__;
+  this.__reexportMap__ = record.__reexportMap__;
+  this.__fixedExportMap__ = record.__fixedExportMap__;
+  this.__needsImport__ = record.__needsImport__;
+  this.__needsImportMeta__ = record.__needsImportMeta__;
   freeze(this);
 }
 
