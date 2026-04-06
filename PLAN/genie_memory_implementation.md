@@ -56,15 +56,15 @@ reality.
 
 See individual TODO files for details:
 
-- [ ] `TODO/63_genie_search_index_init.md` — Implement search index
+- [x] `TODO/63_genie_search_index_init.md` — Implement search index
   initialization in `makeMemoryTools` (the TODO at memory.js:145):
   traverse `watchPaths`, index each file, prune stale entries,
   expose an `indexing` promise.
-- [ ] `TODO/64_genie_token_estimation.md` — Add a token estimation
+- [x] `TODO/64_genie_token_estimation.md` — Add a token estimation
   utility (`estimateTokens(text)`, chars ÷ 4).
   Needed for the observer trigger threshold and later for context
   budget management.
-- [ ] `TODO/65_genie_expose_message_token_count.md` — Expose message
+- [x] `TODO/65_genie_expose_message_token_count.md` — Expose message
   history length/token count from the PiAgent wrapper so the
   observer trigger can read it.
   Depends on TODO/64.
@@ -76,45 +76,24 @@ Lowest complexity, highest immediate value.
 
 ### Tasks
 
-- [ ] Add `observations.md`, `reflections.md`, `profile.md` to `memory/`.
-- [ ] Implement observer module:
-  - **Separate PiAgent instance** — created via `makePiAgent()` with:
-    - a focused system prompt (observation extraction only)
-    - a minimal tool set: only `memoryGet` and `memorySet`
-    - potentially a different (faster/cheaper) model
-  - `makePiAgent()` already supports all of these via its options;
-    no factory changes are needed, just different arguments.
-  - Trigger on unobserved token threshold (default 30k).
-  - Also trigger on idle timer during conversational pauses.
-  - Read new messages + existing observations.
-  - Extract facts, decisions, preferences, current task.
-  - Append new observations with emoji priority + timestamp.
-  - Advance high-water mark for observed messages.
-  - **Concurrency:** observer runs in the background while the main
-    agent continues serving chat.
-    This is safe because observer only writes to `observations.md`
-    (via `memorySet`) and the main agent does not read it
-    mid-conversation — it is injected at prompt assembly time.
-- [ ] Implement reflector module:
-  - **Separate PiAgent instance** — same pattern as observer, but:
-    - broader tool set (may include `memorySearch` for entity lookup)
-    - potentially a *more capable* model than the chat model
-      (reasoning model recommended — see model notes below)
-  - Add `reflect` task to `HEARTBEAT.md`.
-  - Merge related observations, remove stale 🟢 entries > 7 days.
-  - Promote durable facts to `reflections.md`.
-  - Regenerate `profile.md` when identity facts change.
-- [ ] Rebuild FTS5 index after each observe/reflect cycle.
-  - **Resolution:** the `SearchBackend.index()` method already exists
-    and `memorySet` calls it on every write.
-    So if observer/reflector use `memorySet`, the index stays in sync
-    automatically.
-    Add a `SearchBackend.sync()` call at the end of each cycle as a
-    safety net (FTS5 backend already implements `sync()` as a no-op,
-    but a future backend may need it).
-- [ ] Start with main model for observer/reflector; benchmark cost.
-  - Provide options for alternate `observerModel` and
-    `reflectorModel` (note: was misspelled as "refelectorModel").
+See individual TODO files for details:
+
+- [ ] `TODO/66_genie_memory_session_files.md` — Add `observations.md`,
+  `reflections.md`, `profile.md` to `memory/`.
+- [ ] `TODO/67_genie_observer_module.md` — Implement observer module:
+  separate PiAgent instance with focused system prompt, minimal
+  tool set (`memoryGet`, `memorySet`), token threshold trigger
+  (default 30k), idle timer trigger, background concurrency.
+- [ ] `TODO/68_genie_reflector_module.md` — Implement reflector module:
+  separate PiAgent instance with broader tool set, daily heartbeat
+  trigger, observation consolidation, entity extraction bridging,
+  `profile.md` regeneration.
+- [ ] `TODO/69_genie_fts5_sync_after_cycles.md` — Add
+  `SearchBackend.sync()` call at end of each observe/reflect cycle
+  as a safety net (index already stays in sync via `memorySet`).
+- [ ] `TODO/70_genie_observer_reflector_model_options.md` — Provide
+  configurable `observerModel` and `reflectorModel` options.
+  Start with main model; benchmark cost.
 
 See `PLAN/genie_memory_session_layer.md` for observer/reflector details.
 
