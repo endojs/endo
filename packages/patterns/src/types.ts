@@ -826,8 +826,8 @@ export type MethodGuardPayload<
 > = {
   callKind: CK;
   argGuards: Args;
-  optionalArgGuards?: OptArgs;
-  restArgGuard?: RestGuard;
+  optionalArgGuards?: OptArgs | undefined;
+  restArgGuard?: RestGuard | undefined;
   returnGuard: RetGuard;
 };
 
