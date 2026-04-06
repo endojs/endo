@@ -27,10 +27,15 @@ import '@endo/init/debug.js';
 
 import { createInterface } from 'readline';
 // eslint-disable-next-line import/no-unresolved
-import { makePiAgent, runAgentRound, DEFAULT_MODEL_STRING } from '@endo/genie';
+import {
+  makePiAgent,
+  runAgentRound,
+  DEFAULT_MODEL_STRING,
+} from '@endo/genie';
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
+/** @import {ChatEvent} from './src/agent/index.js' */
 /** @import { Tool } from './src/tools/common.js' */
 import { bash, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
@@ -38,7 +43,7 @@ import { makeMemoryTools } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
-import { initWorkspace } from './src/workspace/init.js';
+import { initWorkspace, isWorkspace } from './src/workspace/init.js';
 
 /**
  * @param {never} nope
@@ -105,35 +110,31 @@ function hasFlag(args, longFlag, shortFlag) {
 // ---------------------------------------------------------------------------
 
 /**
- * Run a single prompt through the agent, yielding output chunks as strings.
- * The caller is responsible for writing yielded chunks to the desired output.
+ * Render a stream of ChatEvent objects into ANSI-formatted output chunks.
  *
- * Mutates `messages` as a side-effect, appending the user prompt
- * and the assistant's final reply.
+ * Pure rendering: takes an async iterable of events and yields display
+ * strings.  Returns the assistant's final text reply (empty string when
+ * no assistant message was received).
  *
- * @param {PiAgent} piAgent
- * @param {string} prompt
+ * @param {AsyncIterable<ChatEvent>} events
  * @param {object} [options]
- * @param {Array<{ role: string, content: string }>} [options.messages]
  * @param {boolean} [options.verbose]
  * @param {boolean} [options.echoUser]
  * @returns {AsyncGenerator<string, string>} Yields output chunks; returns
  *   the assistant's final text reply (empty string on error).
  */
-async function* runPrompt(
-  piAgent,
-  prompt,
-  { messages = [], verbose = false, echoUser = false } = {},
+async function* runAgentEvents(
+  events,
+  { verbose = false, echoUser = false } = {},
 ) {
   let assistantText = '';
   let streamStarted = false;
   let thinkingStarted = false;
 
-  for await (const event of runAgentRound(piAgent, prompt)) {
+  for await (const event of events) {
     switch (event.type) {
       case 'UserMessage': {
         const { content } = event;
-        messages.push({ role: 'user', content });
         if (echoUser) {
           yield `${BOLD}${GREEN}you>${RESET} ${content}\n`;
         }
@@ -264,6 +265,52 @@ async function* runPrompt(
   if (streamStarted) {
     yield `${RESET}\n`;
   }
+
+  return assistantText;
+}
+
+/**
+ * Run a single prompt through the agent, yielding output chunks as strings.
+ * The caller is responsible for writing yielded chunks to the desired output.
+ *
+ * Mutates `messages` as a side-effect, appending the user prompt
+ * and the assistant's final reply.
+ *
+ * @param {PiAgent} piAgent
+ * @param {string} prompt
+ * @param {object} [options]
+ * @param {Array<{ role: string, content: string }>} [options.messages]
+ * @param {boolean} [options.verbose]
+ * @param {boolean} [options.echoUser]
+ * @returns {AsyncGenerator<string, string>} Yields output chunks; returns
+ *   the assistant's final text reply (empty string on error).
+ */
+async function* runPrompt(
+  piAgent,
+  prompt,
+  { messages = [], verbose = false, echoUser = false } = {},
+) {
+  const events = runAgentRound(piAgent, prompt);
+
+  /**
+   * Tap the event stream to collect messages as a side-effect.
+   *
+   * @param {AsyncIterable<ChatEvent>} source
+   */
+  async function* collectMessages(source) {
+    for await (const event of source) {
+      if (event.type === 'UserMessage') {
+        const { content } = event;
+        messages.push({ role: 'user', content });
+      }
+      yield event;
+    }
+  }
+
+  const assistantText = yield* runAgentEvents(collectMessages(events), {
+    verbose,
+    echoUser,
+  });
 
   if (assistantText) {
     messages.push({ role: 'assistant', content: assistantText });
@@ -400,16 +447,30 @@ async function* runMain(args) {
   const modelArg = getFlag(args, '--model', '-m');
   const noTools = hasFlag(args, '--no-tools');
   const verbose = hasFlag(args, '--verbose', '-v');
-  const workspaceArg = getFlag(args, '--workspace', '-w') || process.cwd();
   const searchArg = getFlag(args, '--search', '-s') || 'substring';
 
+  // Stabilise workspaceArg => workspaceDir,
+  // but reject implicit uninitialized cwd.
+  let workspaceArg = getFlag(args, '--workspace', '-w');
+  if (!workspaceArg) {
+    workspaceArg = process.cwd();
+    if (! await isWorkspace(workspaceArg)) {
+      yield `! Implicit workspace from cwd:${workspaceArg} is not a genie workspace`;
+      yield `! Pass \`--workspace "${workspaceArg}"\` if this was intentional`;
+      return;
+    }
+  }
+  const workspaceDir = workspaceArg;
+
   // Seed the workspace from the shipped template on first run.
-  await initWorkspace(workspaceArg);
+  if (await initWorkspace(workspaceDir)) {
+    yield `Initialized genie workspace in ${workspaceDir}`;
+  }
 
   /** @type {import('./src/tools/memory.js').SearchBackend | undefined} */
   let searchBackend;
   if (searchArg === 'fts5') {
-    searchBackend = makeFTS5Backend({ dbDir: workspaceArg });
+    searchBackend = makeFTS5Backend({ dbDir: workspaceDir });
   } else if (searchArg === 'substring') {
     searchBackend = undefined; // uses default substring backend
   } else {
@@ -418,9 +479,12 @@ async function* runMain(args) {
     );
   }
 
-  const fileTools = makeFileTools({ root: workspaceArg });
-  const memoryTools = makeMemoryTools({
-    root: workspaceArg,
+  const fileTools = makeFileTools({ root: workspaceDir });
+  const {
+    indexing: memoryIndexing,
+    ...memoryTools
+  } = makeMemoryTools({
+    root: workspaceDir,
     searchBackend,
   });
 
@@ -461,7 +525,7 @@ async function* runMain(args) {
   const piAgent = await makePiAgent({
     hostname: 'dev-repl',
     currentTime: new Date().toISOString(),
-    workspaceDir: workspaceArg,
+    workspaceDir,
     model: modelArg,
 
     /**
@@ -496,11 +560,16 @@ async function* runMain(args) {
     const modelName = modelArg || `default (${DEFAULT_MODEL_STRING})`;
     const toolNames = Object.keys(tools);
     yield `${DIM}Model:     ${modelName}${RESET}\n`;
-    yield `${DIM}Workspace: ${workspaceArg}${RESET}\n`;
+    yield `${DIM}Workspace: ${workspaceDir}${RESET}\n`;
     yield `${DIM}Search:    ${searchArg}${RESET}\n`;
     const toolSummary =
       toolNames.length < 1 ? '-- No Tools --' : toolNames.join(', ');
     yield `${DIM}Tools:     ${toolSummary}${RESET}\n`;
+  }
+
+  async function* settle() {
+    yield `${DIM}Waiting for memory index to settle...${RESET}\n`;
+    await memoryIndexing;
   }
 
   /** @type {Array<{ role: string, content: string }>} */
@@ -512,14 +581,22 @@ async function* runMain(args) {
     if (verbose) {
       yield* describe();
     }
+    yield* settle();
     yield* runPrompt(piAgent, command, { messages, verbose, echoUser: true });
   } else {
-    yield `${BOLD}${CYAN}╔══════════════════════════════════════╗${RESET}\n`;
-    yield `${BOLD}${CYAN}║       Genie Dev REPL  v0.0.1         ║${RESET}\n`;
-    yield `${BOLD}${CYAN}╚══════════════════════════════════════╝${RESET}\n`;
+    const title = `Genie Dev REPL  v0.0.1`; // TODO lol version whence?
+    const bannerMinWidth = 40;
+    const ruleWidth = Math.max(title.length + 2, bannerMinWidth - 2);
+    const rule = '═'.repeat(ruleWidth);
+    const titlePad = (ruleWidth - title.length)/2;
+    const head = `${' '.repeat(Math.floor(titlePad))}${title}${' '.repeat(Math.ceil(titlePad))}`;
+    yield `${BOLD}${CYAN}╔${rule}╗${RESET}\n`;
+    yield `${BOLD}${CYAN}║${head}║${RESET}\n`;
+    yield `${BOLD}${CYAN}╚${rule}╝${RESET}\n`;
     yield '\n';
     yield* describe();
     yield '\n';
+    yield* settle();
     yield `${DIM}Type your message and press Enter. Use Ctrl-C or type ".exit" to quit.${RESET}\n`;
     yield '\n';
     yield* runAgent({

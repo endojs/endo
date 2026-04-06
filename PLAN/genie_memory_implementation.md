@@ -54,18 +54,20 @@ reality.
 
 ### Tasks
 
-- [ ] Implement search index initialization in `makeMemoryTools`
-  (the TODO at memory.js:145): traverse `watchPaths`, index each
-  file, prune stale entries, expose an `indexing` promise.
-- [ ] Add a token estimation utility.
-  Start with a simple `estimateTokens(text)` function (chars ÷ 4).
-  This is needed for the observer trigger threshold and later for
-  context budget management.
-- [ ] Expose message history length/token count from the PiAgent
-  wrapper so the observer trigger can read it.
-  Options: (a) wrap PiAgent and track cumulative token count on
-  each `prompt()` return, or (b) read `piAgent.state.messages`
-  directly and estimate.
+See individual TODO files for details:
+
+- [ ] `TODO/63_genie_search_index_init.md` — Implement search index
+  initialization in `makeMemoryTools` (the TODO at memory.js:145):
+  traverse `watchPaths`, index each file, prune stale entries,
+  expose an `indexing` promise.
+- [ ] `TODO/64_genie_token_estimation.md` — Add a token estimation
+  utility (`estimateTokens(text)`, chars ÷ 4).
+  Needed for the observer trigger threshold and later for context
+  budget management.
+- [ ] `TODO/65_genie_expose_message_token_count.md` — Expose message
+  history length/token count from the PiAgent wrapper so the
+  observer trigger can read it.
+  Depends on TODO/64.
 
 ## Phase 1 — Session layer (OM)
 
