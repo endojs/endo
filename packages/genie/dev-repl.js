@@ -32,8 +32,11 @@ import {
   isHeartbeatOk,
   makePiAgent,
   runAgentRound,
+  makeObserver,
   DEFAULT_MODEL_STRING,
 } from '@endo/genie';
+/** @import { Observer } from './src/observer/index.js' */
+
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
@@ -362,6 +365,7 @@ async function* runPrompt(
  * @param {string} options.workspaceDir - Workspace directory path.
  * @param {Array<{ role: string, content: string }>} [options.messages]
  * @param {AsyncIterable<string>} options.prompts - Async iterable of user prompts for REPL mode. Ignored in one-shot (command) mode.
+ * @param {Observer} [options.observer] - Observer instance for .observe command.
  * @returns {AsyncGenerator<string>}
  */
 async function* runAgent({
@@ -371,6 +375,7 @@ async function* runAgent({
   workspaceDir,
   prompts,
   messages = [],
+  observer,
 }) {
   for await (const prompt of prompts) {
     if (prompt === '.exit' || prompt === '.quit') {
@@ -384,6 +389,7 @@ async function* runAgent({
       yield `${DIM}  .tools     — list available tools${RESET}\n`;
       yield `${DIM}  .help      — show this help${RESET}\n`;
       yield `${DIM}  .heartbeat — run a heartbeat cycle${RESET}\n`;
+      yield `${DIM}  .observe   — run an observation cycle${RESET}\n`;
 
     } else if (prompt === '.clear') {
       messages.length = 0;
@@ -417,6 +423,31 @@ async function* runAgent({
         }
       } catch (err) {
         yield `${RED}Heartbeat failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+      }
+
+    else if (prompt === '.observe') {
+      // ─── Dot command .observe ────────────────────────
+      if (!observer) {
+        yield `${RED}Observer not available (memory tools required).${RESET}\n`;
+      } else if (observer.isRunning()) {
+        yield `${YELLOW}Observation is already in progress.${RESET}\n`;
+      } else {
+        yield `${DIM}Running observation cycle...${RESET}\n`;
+        try {
+          observer.check(piAgent);
+          // If check didn't trigger (below threshold), force via onIdle.
+          if (!observer.isRunning()) {
+            observer.onIdle(piAgent);
+          }
+          // Wait briefly for the fire-and-forget observation to start.
+          if (observer.isRunning()) {
+            yield `${GREEN}✓ Observation triggered (running in background).${RESET}\n`;
+          } else {
+            yield `${DIM}No unobserved messages to process.${RESET}\n`;
+          }
+        } catch (err) {
+          yield `${RED}Observation failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+        }
       }
 
     } else if (prompt.startsWith('.')) {
@@ -618,6 +649,19 @@ async function* runMain(args) {
     },
   });
 
+  // ── Observer (memory sub-agent) ──────────────────────
+  // Created only when memory tools are available (i.e. --no-tools is not set).
+  /** @type {import('./src/observer/index.js').Observer | undefined} */
+  let observer;
+  if (!noTools) {
+    observer = makeObserver({
+      memoryGet: memoryTools.memoryGet,
+      memorySet: memoryTools.memorySet,
+      searchBackend,
+      workspaceDir: workspaceArg,
+    });
+  }
+
   function* describe() {
     const modelName = modelArg || `default (${DEFAULT_MODEL_STRING})`;
     const toolNames = Object.keys(tools);
@@ -668,6 +712,7 @@ async function* runMain(args) {
       workspaceDir,
       prompts: readPrompts(),
       messages,
+      observer,
     });
   }
 }

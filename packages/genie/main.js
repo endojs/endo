@@ -36,7 +36,11 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 
 // eslint-disable-next-line import/no-unresolved
-import { makePiAgent, runAgentRound } from '@endo/genie';
+import {
+  makeObserver,
+  makePiAgent,
+  runAgentRound,
+} from '@endo/genie';
 
 import {
   HeartbeatStatus,
@@ -184,6 +188,8 @@ export const make = (guestPowers, _context) => {
     return harden({
       listTools,
       execTool,
+      memoryTools,
+      searchBackend,
     });
   };
 
@@ -195,6 +201,9 @@ export const make = (guestPowers, _context) => {
    * @property {string} [agentDirectory]
    * @property {string} [heartbeatPeriod]
    * @property {string} [heartbeatTimeout]
+   * @property {string} [observerModel] - Model string for the observer
+   *   agent.  Defaults to the main chat model.  A fast,
+   *   non-reasoning model is recommended.
    */
 
   /**
@@ -576,6 +585,7 @@ export const make = (guestPowers, _context) => {
    * @param {string} opts.agentName - Display name for logging
    * @param {string} opts.workspaceDir - Agent workspace directory
    * @param {Promise<any>} opts.cancelledP - Resolves when the agent is cancelled
+   * @param {object} [opts.observer] - Observer instance from makeObserver
    */
   const runAgentLoop = async ({
     agentPowers,
@@ -583,6 +593,7 @@ export const make = (guestPowers, _context) => {
     agentName,
     workspaceDir,
     cancelledP,
+    observer,
   }) => {
     const selfId = await E(agentPowers).locate('@self');
     const messageIterator = makeRefIterator(E(agentPowers).followMessages());
@@ -634,8 +645,8 @@ export const make = (guestPowers, _context) => {
       if (message.from === selfId) continue;
 
       if (message.type === 'package') {
-        const { strings: [head = ''] } = message;
-
+        const { strings: [first = ''] } = message;
+        const head = first.trim().toLowerCase();
         if (head.startsWith('/heartbeat')) {
           // ─── Heartbeat messages ──────────────────────────────────────
 
@@ -664,9 +675,36 @@ export const make = (guestPowers, _context) => {
             );
           }
 
+        } else if (head.startsWith('/observe')) {
+          // ─── Slash commands (/observe) ────────────────────
+          for await (const mess of (async function*() {
+            if (!observer) {
+              yield 'Observer not available.';
+            } else if (observer.isRunning()) {
+              yield 'Observation is already in progress.';
+            } else {
+              observer.check(piAgent);
+              if (observer.isRunning()) {
+                yield 'Observation cycle triggered.';
+              } else {
+                observer.onIdle(piAgent);
+                yield 'No unobserved messages to process.';
+              }
+            }
+          })()) {
+            await E(agentPowers).reply(message.number, [mess], [], []);
+          }
+
         } else {
           // ─── Normal user messages ────────────────────────────────────
           console.log(`[genie:${agentName}] New message #${message.number} (type: ${message.type})`);
+
+          // Reset the observer idle timer on each inbound message so
+          // opportunistic observation only fires after a quiet period.
+          if (observer) {
+            observer.resetIdleTimer();
+          }
+
           try {
             await processMessage(agentPowers, piAgent, message);
           } catch (err) {
@@ -679,6 +717,15 @@ export const make = (guestPowers, _context) => {
         }
       } else {
         console.warn(`[genie:${agentName}] Unhandled message #${message.number} (type: ${message.type})`);
+        continue;
+      }
+
+      // After processing, let the observer check whether unobserved
+      // tokens have exceeded the threshold and schedule an idle
+      // observation for when the conversation goes quiet.
+      if (observer) {
+        observer.check(piAgent);
+        observer.scheduleIdle(piAgent);
       }
 
       // Dismiss the message after processing.
@@ -767,6 +814,8 @@ export const make = (guestPowers, _context) => {
     const {
       listTools,
       execTool,
+      memoryTools,
+      searchBackend,
     } = buildTools(workspaceDir);
 
     const piAgent = await makePiAgent({
@@ -778,6 +827,21 @@ export const make = (guestPowers, _context) => {
       execTool,
     });
 
+    // ── Memory sub-agents: Observer ────────────────────
+    const observerModel = config.observerModel || config.model || undefined;
+
+    const observer = makeObserver({
+      model: observerModel,
+      memoryGet: memoryTools.memoryGet,
+      memorySet: memoryTools.memorySet,
+      searchBackend,
+      workspaceDir,
+    });
+
+    console.log(
+      `[genie:${agentName}] Memory sub-agents: observer=${observerModel || '(default)'}`,
+    );
+
     // Start the message loop (fire-and-forget).
     const agentLoopP = runAgentLoop({
       agentPowers: agentGuest,
@@ -785,6 +849,7 @@ export const make = (guestPowers, _context) => {
       agentName,
       workspaceDir,
       cancelledP,
+      observer,
     });
 
     // If the agent loop crashes, trigger cancellation so dependent
@@ -911,6 +976,11 @@ export const make = (guestPowers, _context) => {
           name: 'heartbeatTimeout',
           label: 'Heartbeat timeout (ms, default: period/2)',
           example: '900000',
+        },
+        {
+          name: 'observerModel',
+          label: 'Observer model (default: same as chat model)',
+          example: 'ollama/llama3.2',
         },
       ]),
     );
