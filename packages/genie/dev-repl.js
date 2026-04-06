@@ -33,9 +33,11 @@ import {
   makePiAgent,
   runAgentRound,
   makeObserver,
+  makeReflector,
   DEFAULT_MODEL_STRING,
 } from '@endo/genie';
 /** @import { Observer } from './src/observer/index.js' */
+/** @import { Reflector } from './src/reflector/index.js' */
 
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
@@ -366,6 +368,7 @@ async function* runPrompt(
  * @param {Array<{ role: string, content: string }>} [options.messages]
  * @param {AsyncIterable<string>} options.prompts - Async iterable of user prompts for REPL mode. Ignored in one-shot (command) mode.
  * @param {Observer} [options.observer] - Observer instance for .observe command.
+ * @param {Reflector} [options.reflector] - Reflector instance for .reflect command.
  * @returns {AsyncGenerator<string>}
  */
 async function* runAgent({
@@ -376,6 +379,7 @@ async function* runAgent({
   prompts,
   messages = [],
   observer,
+  reflector,
 }) {
   for await (const prompt of prompts) {
     if (prompt === '.exit' || prompt === '.quit') {
@@ -390,6 +394,7 @@ async function* runAgent({
       yield `${DIM}  .help      — show this help${RESET}\n`;
       yield `${DIM}  .heartbeat — run a heartbeat cycle${RESET}\n`;
       yield `${DIM}  .observe   — run an observation cycle${RESET}\n`;
+      yield `${DIM}  .reflect   — run a reflection cycle${RESET}\n`;
 
     } else if (prompt === '.clear') {
       messages.length = 0;
@@ -449,6 +454,23 @@ async function* runAgent({
           yield `${RED}Observation failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
         }
       }
+
+    } else if (prompt === '.reflect') {
+      // ─── Dot command .reflect ────────────────────────
+      if (!reflector) {
+        yield `${RED}Reflector not available (memory tools required).${RESET}\n`;
+      } else if (reflector.isRunning()) {
+        yield `${YELLOW}Reflection is already in progress.${RESET}\n`;
+      } else {
+        yield `${DIM}Running reflection cycle...${RESET}\n`;
+        try {
+          await reflector.run();
+          yield `${GREEN}✓ Reflection cycle complete.${RESET}\n`;
+        } catch (err) {
+          yield `${RED}Reflection failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+        }
+      }
+
 
     } else if (prompt.startsWith('.')) {
       // ─── Unknown dot command ────────────────────────
@@ -649,14 +671,23 @@ async function* runMain(args) {
     },
   });
 
-  // ── Observer (memory sub-agent) ──────────────────────
+  // ── Observer / Reflector (memory sub-agents) ──────────────────────
   // Created only when memory tools are available (i.e. --no-tools is not set).
   /** @type {import('./src/observer/index.js').Observer | undefined} */
   let observer;
+  /** @type {import('./src/reflector/index.js').Reflector | undefined} */
+  let reflector;
   if (!noTools) {
     observer = makeObserver({
       memoryGet: memoryTools.memoryGet,
       memorySet: memoryTools.memorySet,
+      searchBackend,
+      workspaceDir: workspaceArg,
+    });
+    reflector = makeReflector({
+      memoryGet: memoryTools.memoryGet,
+      memorySet: memoryTools.memorySet,
+      memorySearch: memoryTools.memorySearch,
       searchBackend,
       workspaceDir: workspaceArg,
     });
@@ -713,6 +744,7 @@ async function* runMain(args) {
       prompts: readPrompts(),
       messages,
       observer,
+      reflector,
     });
   }
 }

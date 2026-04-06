@@ -39,6 +39,7 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 import {
   makeObserver,
   makePiAgent,
+  makeReflector,
   runAgentRound,
 } from '@endo/genie';
 
@@ -204,6 +205,9 @@ export const make = (guestPowers, _context) => {
    * @property {string} [observerModel] - Model string for the observer
    *   agent.  Defaults to the main chat model.  A fast,
    *   non-reasoning model is recommended.
+   * @prop {string} [reflectorModel] - Model string for the reflector
+   *   agent.  Defaults to the main chat model.  A reasoning-capable
+   *   model is recommended.
    */
 
   /**
@@ -586,14 +590,15 @@ export const make = (guestPowers, _context) => {
    * @param {string} opts.workspaceDir - Agent workspace directory
    * @param {Promise<any>} opts.cancelledP - Resolves when the agent is cancelled
    * @param {object} [opts.observer] - Observer instance from makeObserver
+   * @param {object} [opts.reflector] - Reflector instance from makeReflector
    */
-  const runAgentLoop = async ({
     agentPowers,
     piAgent,
     agentName,
     workspaceDir,
     cancelledP,
     observer,
+    reflector,
   }) => {
     const selfId = await E(agentPowers).locate('@self');
     const messageIterator = makeRefIterator(E(agentPowers).followMessages());
@@ -675,8 +680,26 @@ export const make = (guestPowers, _context) => {
             );
           }
 
+          // After heartbeat processing, check whether the reflector
+          // should consolidate observations into long-term knowledge.
+          if (reflector) {
+            try {
+              const triggered = await reflector.checkAndRun();
+              if (triggered) {
+                console.log(
+                  `[genie:${agentName}] Reflector triggered during heartbeat`,
+                );
+              }
+            } catch (err) {
+              console.error(
+                `[genie:${agentName}] Reflector error:`,
+                /** @type {Error} */(err).message || String(err),
+              );
+            }
+          }
+
         } else if (head.startsWith('/observe')) {
-          // ─── Slash commands (/observe) ────────────────────
+          // ─── Slash command (/observe) ────────────────────
           for await (const mess of (async function*() {
             if (!observer) {
               yield 'Observer not available.';
@@ -689,6 +712,26 @@ export const make = (guestPowers, _context) => {
               } else {
                 observer.onIdle(piAgent);
                 yield 'No unobserved messages to process.';
+              }
+            }
+          })()) {
+            await E(agentPowers).reply(message.number, [mess], [], []);
+          }
+
+        } else if (head.startsWith('/reflect')) {
+          // ─── Slash command (/reflect) ────────────────────
+          for await (const mess of (async function*() {
+            if (!reflector) {
+              yield 'Reflector not available.';
+            } else if (reflector.isRunning()) {
+              yield 'Reflection is already in progress.';
+            } else {
+              yield 'Running reflection cycle...';
+              try {
+                await reflector.run();
+                yield 'Reflection cycle complete.';
+              } catch (err) {
+                yield `Reflection failed: ${err?.message || String(err)}`;
               }
             }
           })()) {
@@ -827,8 +870,9 @@ export const make = (guestPowers, _context) => {
       execTool,
     });
 
-    // ── Memory sub-agents: Observer ────────────────────
+    // ── Memory sub-agents: Observer & Reflector ────────────────────
     const observerModel = config.observerModel || config.model || undefined;
+    const reflectorModel = config.reflectorModel || config.model || undefined;
 
     const observer = makeObserver({
       model: observerModel,
@@ -838,8 +882,17 @@ export const make = (guestPowers, _context) => {
       workspaceDir,
     });
 
+    const reflector = makeReflector({
+      model: reflectorModel,
+      memoryGet: memoryTools.memoryGet,
+      memorySet: memoryTools.memorySet,
+      memorySearch: memoryTools.memorySearch,
+      searchBackend,
+      workspaceDir,
+    });
+
     console.log(
-      `[genie:${agentName}] Memory sub-agents: observer=${observerModel || '(default)'}`,
+      `[genie:${agentName}] Memory sub-agents: observer=${observerModel || '(default)'}, reflector=${reflectorModel || '(default)'}`,
     );
 
     // Start the message loop (fire-and-forget).
@@ -850,6 +903,7 @@ export const make = (guestPowers, _context) => {
       workspaceDir,
       cancelledP,
       observer,
+      reflector, // TODO decouple more?
     });
 
     // If the agent loop crashes, trigger cancellation so dependent
@@ -981,6 +1035,11 @@ export const make = (guestPowers, _context) => {
           name: 'observerModel',
           label: 'Observer model (default: same as chat model)',
           example: 'ollama/llama3.2',
+        },
+        {
+          name: 'reflectorModel',
+          label: 'Reflector model (default: same as chat model)',
+          example: 'anthropic/claude-sonnet',
         },
       ]),
     );
