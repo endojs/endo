@@ -884,7 +884,7 @@ type FormulateHostDependenciesParams = {
   endoId: FormulaIdentifier;
   networksDirectoryId: FormulaIdentifier;
   pinsDirectoryId: FormulaIdentifier;
-  specifiedWorkerId?: FormulaIdentifier;
+  specifiedWorkerId?: FormulaIdentifier | undefined;
 };
 
 type FormulateNumberedHostParams = {

@@ -154,7 +154,7 @@ export const makeHostMaker = ({
       }
       return {
         introducedNames,
-        agentName,
+        ...(agentName !== undefined && { agentName }),
       };
     };
 

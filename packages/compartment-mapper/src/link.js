@@ -29,7 +29,7 @@
  *   FileCompartmentMapDescriptor,
  *   FileCompartmentDescriptor,
  *   FileModuleConfiguration,
- *   MakeModuleMapHookOptions,
+ *   MapNodeModulesHookOptions,
  * } from './types.js'
  */
 

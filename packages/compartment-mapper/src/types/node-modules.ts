@@ -29,7 +29,7 @@ export type CommonDependencyDescriptorsOptions = {
   /**
    * Dependencies added to _all_ packages
    */
-  commonDependencyDescriptors?: CommonDependencyDescriptors;
+  commonDependencyDescriptors?: CommonDependencyDescriptors | undefined;
 };
 
 /**
@@ -58,11 +58,11 @@ export type GraphPackagesOptions = LogOptions &
  * Options for `gatherDependency()`
  */
 export type GatherDependencyOptions = {
-  childLogicalPath?: string[];
+  childLogicalPath?: string[] | undefined;
   /**
    * If `true` the dependency is optional
    */
-  optional?: boolean;
+  optional?: boolean | undefined;
 } & LogOptions &
   PackageDependenciesHookOption &
   PolicyOption &

@@ -157,22 +157,22 @@ export type RedundantPreloadHook = (params: {
  * May be used only as an intersection with other options types.
  */
 export type ExecuteOptions = Partial<{
-  globals: object;
-  transforms: Array<Transform>;
-  __shimTransforms__: Array<Transform>;
-  attenuations: Record<string, object>;
-  Compartment: typeof Compartment;
-  __native__: boolean;
+  globals: object | undefined;
+  transforms: Array<Transform> | undefined;
+  __shimTransforms__: Array<Transform> | undefined;
+  attenuations: Record<string, object> | undefined;
+  Compartment: typeof Compartment | undefined;
+  __native__: boolean | undefined;
 }> &
   ModulesOption &
   ExitModuleImportHookOption;
 
 export type ParseArchiveOptions = Partial<{
-  expectedSha512: string;
-  computeSha512: HashFn;
-  computeSourceLocation: ComputeSourceLocationHook;
-  computeSourceMapLocation: ComputeSourceMapLocationHook;
-  __native__: boolean;
+  expectedSha512: string | undefined;
+  computeSha512: HashFn | undefined;
+  computeSourceLocation: ComputeSourceLocationHook | undefined;
+  computeSourceMapLocation: ComputeSourceMapLocationHook | undefined;
+  __native__: boolean | undefined;
 }> &
   ModulesOption &
   CompartmentOption &
@@ -188,7 +188,7 @@ export interface LogOptions {
   /**
    * A logger (for logging)
    */
-  log?: LogFn;
+  log?: LogFn | undefined;
 }
 
 /**
@@ -201,7 +201,7 @@ export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
   /** @deprecated renamed `conditions` to be consistent with Node.js */
-  tags: Set<string>;
+  tags: Set<string> | undefined;
   /**
    * Conditions for package `"imports"` and `"exports"`.
    *
@@ -213,7 +213,7 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
    * `devDependencies`, use the {@link MapNodeModulesOptions.dev dev} flag
    * instead.
    */
-  conditions: Set<string>;
+  conditions: Set<string> | undefined;
   /**
    * If `true`, include packages from `devDependencies` in the resulting {@link CompartmentMapDescriptor}.
    *
@@ -221,41 +221,41 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
    * {@link MapNodeModulesOptions.conditions condition}, but this behavior may
    * be deprecated in a future version.
    */
-  dev: boolean;
+  dev: boolean | undefined;
   /**
    * Indicates that the node_modules tree should fail to map if it does not
    * strictly reach every expected package.
    * By default, unreachable packages are simply omitted from the map,
    * which defers some errors to when modules load.
    */
-  strict: boolean;
+  strict: boolean | undefined;
   /** Dependencies to make reachable from any package */
-  commonDependencies: Record<string, string>;
+  commonDependencies: Record<string, string> | undefined;
   /** Maps extensions to languages for all packages, like `txt` to `text` */
-  languageForExtension: LanguageForExtension;
+  languageForExtension: LanguageForExtension | undefined;
   /** Maps additional extensions to languages for all type=module packages */
-  moduleLanguageForExtension: LanguageForExtension;
+  moduleLanguageForExtension: LanguageForExtension | undefined;
   /** Maps additional extensions to languages for all type=commonjs packages (default) */
-  commonjsLanguageForExtension: LanguageForExtension;
+  commonjsLanguageForExtension: LanguageForExtension | undefined;
   /** Maps extensions to languages for packages not under node_modules */
-  workspaceLanguageForExtension: LanguageForExtension;
+  workspaceLanguageForExtension: LanguageForExtension | undefined;
   /**
    * Maps additional extensions to languages for all type=module packages that
    * are not under node_modules
    */
-  workspaceModuleLanguageForExtension: LanguageForExtension;
+  workspaceModuleLanguageForExtension: LanguageForExtension | undefined;
   /**
    * Maps additional extensions to languages for all type=commonjs packages
    * (default)
    */
-  workspaceCommonjsLanguageForExtension: LanguageForExtension;
+  workspaceCommonjsLanguageForExtension: LanguageForExtension | undefined;
   /**
    * Accounts for languages not present as values in any of the extension to
    * language mappings.
    * For higher level functions like `importLocation`, these are inferred
    * from the `parserForLanguage` option.
    */
-  languages: Array<Language>;
+  languages: Array<Language> | undefined;
 }>;
 
 /**
@@ -335,20 +335,20 @@ export type BundleOptions = ArchiveOptions & {
    * Specifying `cjs` makes `require` available for modules outside the bundle
    * (exits to the import graph).
    */
-  format?: 'cjs';
+  format?: 'cjs' | undefined;
   /**
    * Evaluates individual module functors in-place so stack traces represent
    * original source locations better.
    * The resulting script cannot be used on a web page with a no-unsafe-eval
    * Content Security Policy.
    */
-  useEvaluate?: boolean;
+  useEvaluate?: boolean | undefined;
   /**
    * A prefix for the sourceURL comment in each module format that supports
    * sourceURL comments.
    * Requires `useEvaluate` for effect.
    */
-  sourceUrlPrefix?: string;
+  sourceUrlPrefix?: string | undefined;
 };
 
 export type SyncArchiveOptions = Omit<
@@ -406,7 +406,7 @@ export type ComputeSha512Option = {
   /**
    * For computing integrity hashes for module descriptors based on captured sources.
    */
-  computeSha512?: HashFn;
+  computeSha512?: HashFn | undefined;
 };
 
 export type SearchSuffixesOption = {
@@ -418,15 +418,15 @@ export type SearchSuffixesOption = {
    * bundler, and does not attempt to vary the behavior of resolution depending
    * on the language of the importing module.
    */
-  searchSuffixes?: string[];
+  searchSuffixes?: string[] | undefined;
 };
 
 export type SourceMapHookOption = {
-  sourceMapHook?: SourceMapHook;
+  sourceMapHook?: SourceMapHook | undefined;
 };
 
 export type ModulesOption = {
-  modules?: Record<string, any>;
+  modules?: Record<string, any> | undefined;
 };
 
 export type ExitModuleImportHookOption = {
@@ -434,7 +434,7 @@ export type ExitModuleImportHookOption = {
    * For obtaining module descriptors for modules that must be provided
    * by the eventual runtime execution environment, asynchronously.
    */
-  importHook?: ExitModuleImportHook;
+  importHook?: ExitModuleImportHook | undefined;
 };
 
 export type ExitModuleImportNowHookOption = {
@@ -442,23 +442,23 @@ export type ExitModuleImportNowHookOption = {
    * For obtaining module descriptors for modules that must be provided
    * by the eventual runtime execution environment, synchronusly.
    */
-  importNowHook?: ExitModuleImportNowHook;
+  importNowHook?: ExitModuleImportNowHook | undefined;
 };
 
 export type ParserForLanguageOption = {
-  parserForLanguage?: ParserForLanguage;
+  parserForLanguage?: ParserForLanguage | undefined;
 };
 
 export type CompartmentOption = {
-  Compartment?: typeof Compartment;
+  Compartment?: typeof Compartment | undefined;
 };
 
 export type ModuleTransformsOption = {
-  moduleTransforms?: ModuleTransforms;
+  moduleTransforms?: ModuleTransforms | undefined;
 };
 
 export type SyncModuleTransformsOption = {
-  syncModuleTransforms?: SyncModuleTransforms;
+  syncModuleTransforms?: SyncModuleTransforms | undefined;
 };
 
 export type ArchiveOnlyOption = {
@@ -486,22 +486,22 @@ export type ArchiveOnlyOption = {
    * This option does not generally surface to users, but is set by the scenario,
    * off for `importLocation`, on for `makeArchive` and `makeScript`.
    */
-  archiveOnly?: boolean;
+  archiveOnly?: boolean | undefined;
 };
 
 export type PolicyOption = {
-  policy?: SomePolicy;
+  policy?: SomePolicy | undefined;
 };
 
 export type LanguageForExtensionOption = {
-  languageForExtension?: LanguageForExtension;
+  languageForExtension?: LanguageForExtension | undefined;
 };
 
 // ////////////////////////////////////////////////////////////////////////////////
 // Common option groups:
 
 export type SyncOrAsyncArchiveOptions = Partial<{
-  captureSourceLocation: CaptureSourceLocationHook;
+  captureSourceLocation: CaptureSourceLocationHook | undefined;
 }> &
   ParserForLanguageOption &
   CompartmentOption &
@@ -668,14 +668,14 @@ type ModuleTransformArguments = [
   moduleLocation: string,
   packageLocation: string,
   params: {
-    sourceMap?: string;
+    sourceMap?: string | undefined;
   },
 ];
 
 type ModuleTransformResult = {
   bytes: Uint8Array;
   parser: Language;
-  sourceMap?: string;
+  sourceMap?: string | undefined;
 };
 
 export type ExitModuleImportHook = (
@@ -734,11 +734,11 @@ type ParseArguments = [
   moduleLocation: string,
   packageLocation: string,
   options?: Partial<{
-    sourceMap: string;
-    sourceMapHook: SourceMapHook;
-    sourceMapUrl: string;
-    readPowers: ReadFn | ReadPowers;
-    compartmentDescriptor: CompartmentDescriptor;
+    sourceMap: string | undefined;
+    sourceMapHook: SourceMapHook | undefined;
+    sourceMapUrl: string | undefined;
+    readPowers: ReadFn | ReadPowers | undefined;
+    compartmentDescriptor: CompartmentDescriptor | undefined;
   }> &
     ArchiveOnlyOption,
 ];
@@ -750,7 +750,7 @@ export type ParseResult = {
   bytes: Uint8Array;
   parser: Language;
   record: FinalStaticModuleType;
-  sourceMap?: string;
+  sourceMap?: string | undefined;
 };
 
 export type AsyncParseFn = (...args: ParseArguments) => Promise<ParseResult>;
