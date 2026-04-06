@@ -21,7 +21,9 @@ import {
   toStringTagSymbol,
 } from '../commons.js';
 
-/** @import {Stringable} from '../../types.js' */
+/**
+ * @import {Stringable} from '../types.js';
+ */
 
 /**
  * Joins English terms with commas and an optional conjunction.
@@ -51,7 +53,7 @@ export const enJoin = (terms, conjunction) => {
  * @param {string} str The noun to prepend
  * @returns {string} The noun prepended with a/an
  */
-const an = str => {
+export const an = str => {
   str = `${str}`;
   if (str.length >= 1 && stringIncludes('aeiouAEIOU', str[0])) {
     return `an ${str}`;
@@ -59,7 +61,6 @@ const an = str => {
   return `a ${str}`;
 };
 freeze(an);
-export { an };
 
 /**
  * Like `JSON.stringify` but does not blow up if given a cycle or a bigint.
@@ -88,7 +89,7 @@ export { an };
  * @param {(string|number)=} spaces
  * @returns {string}
  */
-const bestEffortStringify = (payload, spaces = undefined) => {
+export const bestEffortStringify = (payload, spaces = undefined) => {
   const seenSet = new Set();
   const replacer = (_, val) => {
     switch (typeof val) {
@@ -192,4 +193,3 @@ const bestEffortStringify = (payload, spaces = undefined) => {
   }
 };
 freeze(bestEffortStringify);
-export { bestEffortStringify };

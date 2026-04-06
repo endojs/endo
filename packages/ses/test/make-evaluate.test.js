@@ -1,5 +1,5 @@
 import test from 'ava';
-import { apply, freeze } from '../src/commons.js';
+import { apply, freeze } from '@endo/error-console-internal/commons.js';
 import { makeEvaluate } from '../src/make-evaluate.js';
 import { strictScopeTerminator } from '../src/strict-scope-terminator.js';
 import { makeEvalScopeKit } from '../src/eval-scope.js';

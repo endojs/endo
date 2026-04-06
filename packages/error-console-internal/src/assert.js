@@ -48,7 +48,7 @@ import './internal-types.js';
 import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 /**
- * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, DeprecatedAssertionUtilities, Stringable, DetailsToken, MakeAssert} from '../../types.js';
+ * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, DeprecatedAssertionUtilities, Stringable, DetailsToken, MakeAssert} from '../types.js';
  * @import {LogArgs, NoteCallback, LoggedErrorHandler} from './internal-types.js';
  */
 
@@ -199,7 +199,6 @@ const unredactedDetails = (template, ...args) => {
   return redactedDetails(template, ...args);
 };
 freeze(unredactedDetails);
-export { unredactedDetails };
 
 const leadingSpacePattern = sealRegexp(/^ /);
 const trailingSpacePattern = sealRegexp(/ $/);
@@ -302,7 +301,7 @@ const tagError = (err, optErrorName = err.name) => {
  *
  * @param {Error} error
  */
-export const sanitizeError = error => {
+const sanitizeError = error => {
   const descs = getOwnPropertyDescriptors(error);
   const {
     name: _nameDesc,
@@ -453,7 +452,7 @@ const defaultGetStackString = error => {
 };
 
 /** @type {LoggedErrorHandler} */
-const loggedErrorHandler = {
+export const loggedErrorHandler = {
   getStackString: globalThis.getStackString || defaultGetStackString,
   tagError: error => tagError(error),
   resetErrorTagNum: () => {
@@ -479,7 +478,6 @@ const loggedErrorHandler = {
   },
 };
 freeze(loggedErrorHandler);
-export { loggedErrorHandler };
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -590,8 +588,7 @@ export const makeAssert = (optRaise = undefined, unredacted = false) => {
 freeze(makeAssert);
 
 /** @type {Assert} */
-const assert = makeAssert();
-export { assert };
+export const assert = makeAssert();
 
 // Internal, to obviate polymorphic dispatch, but may become rigorously
 // consistent with @endo/error:

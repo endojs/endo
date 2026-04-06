@@ -1,9 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import { arrayPush, arrayForEach } from './commons.js';
-
-/** @import {GenericErrorConstructor} from '../types.js' */
+import { arrayForEach } from '@endo/error-console-internal/commons.js';
 
 /**
  * Exports {@code permits}, a recursively defined
@@ -211,29 +209,6 @@ export const uniqueGlobalPropertyNames = {
   // According to current agreements, eventually the Realm constructor too.
   // 'Realm',
 };
-
-// All the "subclasses" of Error. These are collectively represented in the
-// ECMAScript spec by the meta variable NativeError.
-/** @type {GenericErrorConstructor[]} */
-const NativeErrors = [
-  EvalError,
-  RangeError,
-  ReferenceError,
-  SyntaxError,
-  TypeError,
-  URIError,
-  // https://github.com/endojs/endo/issues/550
-  // Commented out to accommodate platforms prior to AggregateError.
-  // Instead, conditional push below.
-  // AggregateError,
-];
-
-if (typeof AggregateError !== 'undefined') {
-  // Conditional, to accommodate platforms prior to AggregateError
-  arrayPush(NativeErrors, AggregateError);
-}
-
-export { NativeErrors };
 
 /**
  * <p>Each JSON record enumerates the disposition of the properties on

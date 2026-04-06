@@ -70,7 +70,7 @@ export const checkBundle = async (
     assert.typeof(
       endoZipBase64Sha512,
       'string',
-      X`checkBundle cannot bundle without the property 'endoZipBase64Sha512', which must be a string, got ${typeof endoZipBase64Sha512}`,
+      X`checkBundle cannot bundle without the property 'endoZipBase64Sha512', which must be a string, got ${q(typeof endoZipBase64Sha512)}`,
     );
     const bytes = decodeBase64(endoZipBase64);
     const { sha512: parsedSha512 } = await parseArchive(bytes, bundleName, {

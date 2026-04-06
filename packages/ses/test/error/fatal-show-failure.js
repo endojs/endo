@@ -3,8 +3,8 @@
 // file. Rather, its purpose is just to run it to see what a `fatal.assert`
 // failure looks like.
 
+import { fatal } from '@endo/error-console-internal';
 import '../../index.js';
-import { fatal } from '../../src/error/fatal-assert.js';
 
 lockdown();
 

@@ -14,7 +14,6 @@
 import harden from '@endo/harden';
 
 const { defineProperty } = Object;
-
 const globalAssert = globalThis.assert;
 
 if (globalAssert === undefined) {
