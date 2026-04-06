@@ -5,6 +5,7 @@
 export {
   makePiAgent,
   runAgentRound,
+  getMessageTokenCount,
   DEFAULT_MODEL_STRING,
   makeToolCallStart,
   makeToolCallEnd,
@@ -15,3 +16,5 @@ export {
 } from './agent/index.js';
 
 export { default as buildSystemPrompt } from './system/index.js';
+
+export { estimateTokens } from './utils/index.js';

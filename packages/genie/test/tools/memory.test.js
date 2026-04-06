@@ -13,7 +13,7 @@ import { makeMemoryVFS } from '../../src/tools/vfs-memory.js';
  * @returns {Promise<ReturnType<typeof makeMemoryTools> & { vfs: ReturnType<typeof makeMemoryVFS> }>}
  */
 const setup = async (root = '/workspace') => {
-  const vfs = makeMemoryVFS();
+  const vfs = makeMemoryVFS(root);
   await vfs.mkdir(root, { recursive: true });
   const tools = makeMemoryTools({ root, vfs });
   return { ...tools, vfs };
@@ -273,4 +273,55 @@ test('null bytes in path are rejected', async t => {
   );
   t.truthy(err);
   t.true(/** @type {Error} */ (err).message.includes('null bytes'));
+});
+
+// ---------------------------------------------------------------------------
+// Startup indexing — pre-existing files
+// ---------------------------------------------------------------------------
+
+test('pre-existing MEMORY.md is indexed on startup', async (t) => {
+  const root = '/workspace';
+  const vfs = makeMemoryVFS(root);
+  await vfs.mkdir(root, { recursive: true });
+  await vfs.writeFile(`${root}/MEMORY.md`, 'startup note about cats\n');
+
+  const { memorySearch, indexing } = makeMemoryTools({ root, vfs });
+  await indexing;
+
+  const result = await memorySearch.execute({
+    query: 'cats',
+    waitForIndex: false,
+  });
+  t.true(result.success);
+  t.is(result.results.length, 1);
+  t.is(result.results[0].content, 'startup note about cats');
+});
+
+test('pre-existing files in memory/ dir are indexed on startup', async (t) => {
+  const root = '/workspace';
+  const vfs = makeMemoryVFS(root);
+  await vfs.mkdir(`${root}/memory`, { recursive: true });
+  await vfs.writeFile(`${root}/memory/notes.md`, 'important decision\n');
+  await vfs.writeFile(`${root}/memory/prefs.md`, 'theme: dark\n');
+
+  const { memorySearch, indexing } = makeMemoryTools({ root, vfs });
+  await indexing;
+
+  const result = await memorySearch.execute({
+    query: 'decision',
+    waitForIndex: false,
+  });
+  t.true(result.success);
+  t.is(result.results.length, 1);
+  t.is(result.results[0].file, 'notes.md');
+});
+
+test('indexing promise resolves even with no pre-existing files', async (t) => {
+  const root = '/workspace';
+  const vfs = makeMemoryVFS(root);
+  await vfs.mkdir(root, { recursive: true });
+
+  const { indexing } = makeMemoryTools({ root, vfs });
+  await indexing;
+  t.pass();
 });
