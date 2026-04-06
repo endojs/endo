@@ -1,6 +1,6 @@
 import {
   FERAL_FUNCTION,
-  FERAL_FLOAT32_ARRAY,
+  FERAL_FLOAT64_ARRAY,
   Map,
   Set,
   String,
@@ -72,7 +72,7 @@ export const getAnonymousIntrinsics = () => {
 
   // 22.2.1 The %TypedArray% Intrinsic Object
 
-  const TypedArray = getPrototypeOf(FERAL_FLOAT32_ARRAY);
+  const TypedArray = getPrototypeOf(FERAL_FLOAT64_ARRAY);
 
   // 23.1.5.2 The %MapIteratorPrototype% Object
 

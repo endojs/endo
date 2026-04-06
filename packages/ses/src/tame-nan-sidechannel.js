@@ -1,6 +1,6 @@
 import { Object, DataView, Reflect, Number } from './commons.js';
 
-const { is, defineProperties, getOwnPropertyDescriptors } = Object;
+const { is, defineProperty, entries } = Object;
 const { apply } = Reflect;
 
 const { prototype: dataViewPrototype } = DataView;
@@ -93,5 +93,11 @@ const methods = {
  * it themselves before calling these
  */
 export const tameNaNSideChannel = () => {
-  defineProperties(dataViewPrototype, getOwnPropertyDescriptors(methods));
+  for (const [name, method] of entries(methods)) {
+    defineProperty(dataViewPrototype, name, {
+      // Since we're redefining properties that already exist, by omitting the
+      // other descriptor attributes here, they are unchanged.
+      value: method,
+    });
+  }
 };

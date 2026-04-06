@@ -27,9 +27,7 @@ export const {
   Date,
   FinalizationRegistry,
   // Renamed to FERAL_* because it enables the NaN side-channel
-  Float32Array: FERAL_FLOAT32_ARRAY,
   Float64Array: FERAL_FLOAT64_ARRAY,
-  BigUint64Array,
   DataView,
   JSON,
   Map,
