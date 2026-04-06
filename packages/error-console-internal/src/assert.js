@@ -192,7 +192,7 @@ freeze(redactedDetails);
  *
  * @type {AssertionUtilities['details']}
  */
-export const unredactedDetails = (template, ...args) => {
+const unredactedDetails = (template, ...args) => {
   args = arrayMap(args, arg =>
     weakmapHas(declassifiers, arg) ? arg : quote(arg),
   );
@@ -301,7 +301,7 @@ const tagError = (err, optErrorName = err.name) => {
  *
  * @param {Error} error
  */
-export const sanitizeError = error => {
+const sanitizeError = error => {
   const descs = getOwnPropertyDescriptors(error);
   const {
     name: _nameDesc,

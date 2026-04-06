@@ -1,6 +1,4 @@
 export {
-  unredactedDetails,
-  sanitizeError,
   loggedErrorHandler,
   makeAssert,
   assert,
