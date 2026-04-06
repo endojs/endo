@@ -36,6 +36,13 @@ export {
   serializeMessages,
 } from './observer/index.js';
 
+export {
+  makeReflector,
+  REFLECTOR_SYSTEM_PROMPT,
+  DEFAULT_REFLECTION_THRESHOLD,
+  estimateFileTokens,
+} from './reflector/index.js';
+
 export { default as buildSystemPrompt } from './system/index.js';
 
 export { estimateTokens } from './utils/index.js';

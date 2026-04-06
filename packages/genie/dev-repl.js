@@ -41,10 +41,12 @@ import {
   makePiAgent,
   runAgentRound,
   makeObserver,
+  makeReflector,
   DEFAULT_MODEL_STRING,
 } from '@endo/genie';
 
 /** @import { Observer } from './src/observer/index.js' */
+/** @import { Reflector } from './src/reflector/index.js' */
 
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
@@ -620,8 +622,8 @@ async function* runAgent({
       yield `${DIM}  .help                     — show this help${RESET}\n`;
       yield `${DIM}  .heartbeat                — run a heartbeat cycle${RESET}\n`;
       yield `${DIM}  .observe                  — run an observation cycle${RESET}\n`;
+      yield `${DIM}  .reflect                  — run a reflection cycle${RESET}\n`;
       yield `${DIM}  .background on|off|status — toggle automatic sub-agent event printing${RESET}\n`;
-
     } else if (prompt === '.clear') {
       // TODO eject
       messages.length = 0;
@@ -875,14 +877,23 @@ async function* runMain(args) {
     execTool,
   });
 
-  // ── Observer (memory sub-agent) ──────────────────────
+  // ── Observer / Reflector (memory sub-agents) ──────────────────────
   // Created only when memory tools are available (i.e. --no-tools is not set).
   /** @type {Observer | undefined} */
   let observer;
+  /** @type {Reflector | undefined} */
+  let reflector;
   if (!noTools) {
     observer = makeObserver({
       memoryGet: memoryTools.memoryGet,
       memorySet: memoryTools.memorySet,
+      searchBackend,
+      workspaceDir: workspaceArg,
+    });
+    reflector = makeReflector({
+      memoryGet: memoryTools.memoryGet,
+      memorySet: memoryTools.memorySet,
+      memorySearch: memoryTools.memorySearch,
       searchBackend,
       workspaceDir: workspaceArg,
     });
@@ -956,6 +967,7 @@ async function* runMain(args) {
       quiet: quietBackground,
     });
     if (observer) backgroundPrinter.subscribe(observer, 'observer');
+    if (reflector) backgroundPrinter.subscribe(reflector, 'reflector');
 
     yield* runAgent({
       piAgent,
@@ -1041,6 +1053,30 @@ async function* runMain(args) {
               } finally {
                 if (backgroundPrinter) backgroundPrinter.unmute('observer');
               }
+            }
+          }
+        },
+
+        reflect: async function*() {
+          if (!reflector) {
+            yield `${RED}Reflector not available (memory tools required).${RESET}\n`;
+          } else if (reflector.isRunning()) {
+            yield `${YELLOW}Reflection is already in progress.${RESET}\n`;
+          } else {
+            // `reflect()` only returns `undefined` when `running` is true,
+            // and the `isRunning()` guard above already covers that case.
+            const events = /** @type {AsyncIterable<ChatEvent>} */ (
+              await reflector.reflect()
+            );
+            if (backgroundPrinter) backgroundPrinter.mute('reflector');
+            yield `${DIM}Running reflection cycle...${RESET}\n`;
+            try {
+              yield* runAgentEvents(events, { verbose, label: 'reflector' });
+              yield `${GREEN}✓ Reflection cycle complete.${RESET}\n`;
+            } catch (err) {
+              yield `${RED}Reflection failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+            } finally {
+              if (backgroundPrinter) backgroundPrinter.unmute('reflector');
             }
           }
         },
