@@ -13,6 +13,7 @@ module.exports = {
   extends: ['plugin:@endo/internal'],
   rules: {
     'no-restricted-globals': [
+      'error', // severity, not global name
       'AggregateError',
       'Array',
       'ArrayBuffer',
