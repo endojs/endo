@@ -20,7 +20,7 @@ const { parse: parseBabel } = babelParser;
  * Options for {@link parseAst}.
  *
  * @typedef ParseAstOptions
- * @property {SourceType} [sourceType]
+ * @property {SourceType | undefined} [sourceType]
  * @internal
  */
 
@@ -39,6 +39,6 @@ export function parseAst(source, opts = {}) {
     tokens: true,
     createParenthesizedExpressions: true,
     allowReturnOutsideFunction: opts.sourceType === 'script',
-    ...opts,
+    ...(opts.sourceType !== undefined && { sourceType: opts.sourceType }),
   });
 }

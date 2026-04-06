@@ -178,7 +178,7 @@ const translateCompartmentMap = (
             modules[name] = {
               location,
               parser,
-              sha512,
+              ...(sha512 !== undefined && { sha512 }),
               __createdBy: 'digest',
             };
           } else if (isExitModuleSource(source)) {

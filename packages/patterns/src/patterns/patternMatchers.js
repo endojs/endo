@@ -2327,8 +2327,8 @@ const makeMethodGuardMaker = (
         const result = makeTagged('guard:methodGuard', {
           callKind,
           argGuards,
-          optionalArgGuards,
-          restArgGuard,
+          ...(optionalArgGuards !== undefined && { optionalArgGuards }),
+          ...(restArgGuard !== undefined && { restArgGuard }),
           returnGuard,
         });
         assertMethodGuard(result);

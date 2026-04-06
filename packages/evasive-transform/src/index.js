@@ -16,13 +16,13 @@ import { generate } from './generate.js';
  * Options for {@link evadeCensorSync}
  *
  * @typedef EvadeCensorOptions
- * @property {string} [sourceMap] - Original source map in JSON string or object form
- * @property {string} [sourceUrl] - URL or filepath of the original source in `code`
- * @property {boolean} [elideComments] - Empties the comments but preserves interior newlines.
- * @property {import('./parse-ast.js').SourceType} [sourceType] - Module source type
- * @property {boolean} [onlyComments] - if true, will limit transformation to
+ * @property {string | undefined} [sourceMap] - Original source map in JSON string or object form
+ * @property {string | undefined} [sourceUrl] - URL or filepath of the original source in `code`
+ * @property {boolean | undefined} [elideComments] - Empties the comments but preserves interior newlines.
+ * @property {import('./parse-ast.js').SourceType | undefined} [sourceType] - Module source type
+ * @property {boolean | undefined} [onlyComments] - if true, will limit transformation to
 comment contents, preserving code positions within each line
- * @property {boolean} [useLocationUnmap] - deprecated, vestigial
+ * @property {boolean | undefined} [useLocationUnmap] - deprecated, vestigial
  * @public
  */
 
@@ -79,7 +79,11 @@ export function evadeCensorSync(source, options) {
   transformAst(ast, { elideComments, onlyComments });
 
   if (sourceUrl) {
-    return generate(ast, { source, sourceUrl, sourceMap });
+    return generate(ast, {
+      source,
+      sourceUrl,
+      ...(sourceMap !== undefined && { sourceMap }),
+    });
   }
   return generate(ast, { source });
 }

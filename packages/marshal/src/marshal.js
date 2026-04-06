@@ -354,7 +354,7 @@ export const makeMarshal = (
         const index = Number(stringEncoding.slice(1, i < 0 ? undefined : i));
         // i < 0 means there was no iface included.
         const iface = i < 0 ? undefined : stringEncoding.slice(i + 1);
-        return decodeSlotCommon({ iface, index });
+        return decodeSlotCommon({ ...(iface !== undefined && { iface }), index });
       };
     };
     const decodeRemotableFromSmallcaps = makeDecodeSlotFromSmallcaps('$');
