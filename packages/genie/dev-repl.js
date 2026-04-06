@@ -40,8 +40,12 @@ import {
   HeartbeatStatus,
   makePiAgent,
   runAgentRound,
+  makeObserver,
   DEFAULT_MODEL_STRING,
 } from '@endo/genie';
+
+/** @import { Observer } from './src/observer/index.js' */
+
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
@@ -371,12 +375,15 @@ function hasFlag(args, longFlag, shortFlag) {
  * @param {object} [options]
  * @param {boolean} [options.verbose]
  * @param {boolean} [options.echoUser]
+ * @param {string} [options.label] - Label prefix for the assistant's
+ *   final Message line (default `'genie'`).  Use e.g. `'observer'` to
+ *   distinguish sub-agent output in the REPL.
  * @returns {AsyncGenerator<string, string>} Yields output chunks; returns
  *   the assistant's final text reply (empty string on error).
  */
 async function* runAgentEvents(
   events,
-  { verbose = false, echoUser = false } = {},
+  { verbose = false, echoUser = false, label = 'genie' } = {},
 ) {
   let assistantText = '';
   let streamStarted = false;
@@ -479,7 +486,7 @@ async function* runAgentEvents(
           }
 
           yield '\n';
-          yield `${BOLD}${CYAN}genie>${RESET} ${event.content}\n`;
+          yield `${BOLD}${CYAN}${label}>${RESET} ${event.content}\n`;
           yield '\n';
         } else if (event.role === 'assistant_delta') {
           if (thinkingStarted) {
@@ -612,6 +619,7 @@ async function* runAgent({
       yield `${DIM}  .tools                    — list available tools${RESET}\n`;
       yield `${DIM}  .help                     — show this help${RESET}\n`;
       yield `${DIM}  .heartbeat                — run a heartbeat cycle${RESET}\n`;
+      yield `${DIM}  .observe                  — run an observation cycle${RESET}\n`;
       yield `${DIM}  .background on|off|status — toggle automatic sub-agent event printing${RESET}\n`;
 
     } else if (prompt === '.clear') {
@@ -629,7 +637,6 @@ async function* runAgent({
           yield `${DIM}  • ${name}${RESET}\n`;
         }
       }
-
     } else if (prompt.startsWith('.')) {
       const [head, ...tail] = prompt.slice(1).split(/\s+/);
       if (head in specials) {
@@ -868,6 +875,19 @@ async function* runMain(args) {
     execTool,
   });
 
+  // ── Observer (memory sub-agent) ──────────────────────
+  // Created only when memory tools are available (i.e. --no-tools is not set).
+  /** @type {Observer | undefined} */
+  let observer;
+  if (!noTools) {
+    observer = makeObserver({
+      memoryGet: memoryTools.memoryGet,
+      memorySet: memoryTools.memorySet,
+      searchBackend,
+      workspaceDir: workspaceArg,
+    });
+  }
+
   function* describe() {
     const modelName = modelArg || `default (${DEFAULT_MODEL_STRING})`;
     const toolNames = Object.keys(tools);
@@ -935,6 +955,7 @@ async function* runMain(args) {
       rl,
       quiet: quietBackground,
     });
+    if (observer) backgroundPrinter.subscribe(observer, 'observer');
 
     yield* runAgent({
       piAgent,
@@ -997,6 +1018,30 @@ async function* runMain(args) {
             yield `${DIM}background event printing: off.${RESET}\n`;
           } else {
             yield `${RED}usage: .background on|off|status${RESET}\n`;
+          }
+        },
+
+        observe: async function*() {
+          if (!observer) {
+            yield `${RED}Observer not available (memory tools required).${RESET}\n`;
+          } else if (observer.isRunning()) {
+            yield `${YELLOW}Observation is already in progress.${RESET}\n`;
+          } else {
+            const events = await observer.observe(piAgent);
+            if (!events) {
+              yield `${DIM}No unobserved messages to process.${RESET}\n`;
+            } else {
+              if (backgroundPrinter) backgroundPrinter.mute('observer');
+              yield `${DIM}Running observation cycle...${RESET}\n`;
+              try {
+                yield* runAgentEvents(events, { verbose, label: 'observer' });
+                yield `${GREEN}✓ Observation complete.${RESET}\n`;
+              } catch (err) {
+                yield `${RED}Observation failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+              } finally {
+                if (backgroundPrinter) backgroundPrinter.unmute('observer');
+              }
+            }
           }
         },
 

@@ -27,6 +27,15 @@ export {
 
 export { makeIntervalScheduler } from './interval/index.js';
 
+export {
+  makeObserver,
+  OBSERVER_SYSTEM_PROMPT,
+  DEFAULT_TOKEN_THRESHOLD,
+  DEFAULT_IDLE_DELAY_MS,
+  estimateUnobservedTokens,
+  serializeMessages,
+} from './observer/index.js';
+
 export { default as buildSystemPrompt } from './system/index.js';
 
 export { estimateTokens } from './utils/index.js';
