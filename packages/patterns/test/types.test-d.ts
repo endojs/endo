@@ -168,10 +168,9 @@ const passable: Passable = null as any;
 }
 
 // M.remotable('label') used in M.call() → method param is `any`, not `unknown`.
-// Regression: previously, `TFLeafMap` short-circuited the dispatch with
+// Regression: previously, the unparameterized M.remotable() default was
 // `RemotableObject | RemotableBrand<any, any>`, which propagated as `unknown`
-// when intersected through method-guard inference (because `any | unknown`
-// collapses to `unknown` in TypeScript).
+// when intersected through method-guard inference.
 {
   const SeatShape = M.remotable('Seat');
   const guard = M.call(SeatShape).returns(M.any());
@@ -179,6 +178,35 @@ const passable: Passable = null as any;
   // The first parameter should be `any`, not `unknown`
   type Param0 = Parameters<Fn>[0];
   expectType<any>(null as unknown as Param0);
+}
+
+// Same regression: stored as a const, used via typeof
+{
+  const VoterHandle = M.remotable();
+  const guard = M.call(VoterHandle).returns(M.any());
+  type Fn = TypeFromMethodGuard<typeof guard>;
+  type Param0 = Parameters<Fn>[0];
+  expectType<any>(null as unknown as Param0);
+}
+
+// `.rest(M.arrayOf(X))` → rest type is `X[]`, not `X[][]`.
+// Regression: TFRestArgs always wrapped its result with `[]`, which
+// double-wrapped array patterns. `.rest(P)` matches the rest portion
+// of the args array (as a single array) against P, so when P already
+// infers to an array type, the rest type IS that array.
+{
+  const PathShape = M.arrayOf(M.string());
+  const guard = M.call().rest(PathShape).returns(M.any());
+  type Fn = TypeFromMethodGuard<typeof guard>;
+  // (...args: string[]) — not (...args: string[][])
+  expectType<(...args: string[]) => any>(null as unknown as Fn);
+}
+
+// Non-array rest pattern still wraps: `.rest(M.string())` → `string[]`
+{
+  const guard = M.call().rest(M.string()).returns(M.any());
+  type Fn = TypeFromMethodGuard<typeof guard>;
+  expectType<(...args: string[]) => any>(null as unknown as Fn);
 }
 
 // M.byteArray() → ArrayBuffer (via kind)
