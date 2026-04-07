@@ -275,8 +275,16 @@ type TypeFromReturnGuard<G> = G extends {
 
 /**
  * Infer rest-args type from a rest guard.
- * - RawGuard → `any[]`
- * - A specific pattern guard → `TypeFromPattern<G>[]`
+ *
+ * `.rest(P)` matches the rest portion of the args array (as a single array)
+ * against pattern P. Two cases:
+ *
+ * - If P infers to an array type (e.g. `M.arrayOf(M.string())` →
+ *   `string[]`), the rest type IS that array — don't wrap.
+ * - If P infers to a non-array (e.g. `M.any()` → `Passable`), each
+ *   individual rest arg must match P, so the rest type is `P[]`.
+ *
+ * - RawGuard → `any[]` (no checking)
  *
  * When `.rest()` is not called, `restArgGuard` defaults to `SyncValueGuard`
  * (= `RawGuard | Pattern`).  We detect this via `[Pattern] extends [G]` —
@@ -288,7 +296,9 @@ type TFRestArgs<G> = [G] extends [{ [Symbol.toStringTag]: 'guard:rawGuard' }]
   ? any[]
   : [Pattern] extends [G]
     ? [] // wide default (SyncValueGuard) → no .rest() was called
-    : TypeFromPattern<G>[];
+    : TypeFromPattern<G> extends readonly any[]
+      ? TypeFromPattern<G>
+      : TypeFromPattern<G>[];
 
 /** Build the full args tuple: required + optional + rest (if any). */
 type TFBuildArgs<
