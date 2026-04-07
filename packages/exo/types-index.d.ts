@@ -54,7 +54,7 @@ import type {
 // expectation for new code.
 export declare function makeExo<
   G extends InterfaceGuard,
-  M extends TypeFromInterfaceGuard<G> & Methods,
+  M extends TypeFromInterfaceGuard<G>,
 >(
   tag: string,
   interfaceGuard: G,
@@ -79,7 +79,7 @@ export declare function makeExo<M extends Methods>(
 export declare function defineExoClass<
   G extends InterfaceGuard,
   I extends (...args: readonly any[]) => any,
-  M extends TypeFromInterfaceGuard<G> & Methods,
+  M extends TypeFromInterfaceGuard<G>,
 >(
   tag: string,
   interfaceGuard: G,
