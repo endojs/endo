@@ -253,7 +253,7 @@ type TFRemotable<Payload> =
         { [K in keyof MG]: TypeFromMethodGuard<MG[K]> } & RemotableObject &
           RemotableBrand<{}, any>
       >
-    : Payload;
+    : any;
 
 // ===== Method and Interface Guard inference =====
 

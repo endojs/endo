@@ -899,11 +899,13 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 
 // ===== M.remotable with InterfaceGuard type parameter =====
 
-// Default M.remotable() → broad remotable union (unchanged)
+// Default M.remotable() → `any` (matching M.promise() default).
+// See the test near the top of the file for the rationale; this duplicate
+// site is preserved as a regression boundary.
 {
   const p = M.remotable();
   type T = TypeFromPattern<typeof p>;
-  expectType<RemotableObject | RemotableBrand<any, any>>(null as unknown as T);
+  expectType<any>(null as unknown as T);
 }
 
 // M.remotable<typeof Guard>() → facet-isolated remotable type
