@@ -116,7 +116,7 @@ export declare function defineExoClassKit<
   GK extends Record<FacetName, InterfaceGuard>,
   I extends (...args: readonly any[]) => any,
   F extends {
-    [K in keyof GK]: TypeFromInterfaceGuard<GK[K]> & Methods;
+    [K in keyof GK]: TypeFromInterfaceGuard<GK[K]>;
   },
 >(
   tag: string,

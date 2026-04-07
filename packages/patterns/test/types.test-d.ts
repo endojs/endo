@@ -156,11 +156,29 @@ const passable: Passable = null as any;
   expectType<Passable>(null as unknown as T);
 }
 
-// M.remotable() → RemotableObject | RemotableBrand<any, any>
+// M.remotable() → any (compatible with any concrete remotable interface)
+// See TFRemotable in type-from-pattern.ts: when unparameterized, the
+// inferred type is `any` so it's assignable to any concrete remotable
+// typedef. Without this, downstream consumers like Agoric SDK's
+// chainStorage StorageNode would need explicit casts at every use site.
 {
   const p = M.remotable();
   type T = TypeFromPattern<typeof p>;
-  expectType<RemotableObject | RemotableBrand<any, any>>(null as unknown as T);
+  expectType<any>(null as unknown as T);
+}
+
+// M.remotable('label') used in M.call() → method param is `any`, not `unknown`.
+// Regression: previously, `TFLeafMap` short-circuited the dispatch with
+// `RemotableObject | RemotableBrand<any, any>`, which propagated as `unknown`
+// when intersected through method-guard inference (because `any | unknown`
+// collapses to `unknown` in TypeScript).
+{
+  const SeatShape = M.remotable('Seat');
+  const guard = M.call(SeatShape).returns(M.any());
+  type Fn = TypeFromMethodGuard<typeof guard>;
+  // The first parameter should be `any`, not `unknown`
+  type Param0 = Parameters<Fn>[0];
+  expectType<any>(null as unknown as Param0);
 }
 
 // M.byteArray() → ArrayBuffer (via kind)
@@ -916,4 +934,71 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
       description?: string | undefined;
     };
   }>(null as unknown as T);
+}
+
+// ===== Real-world interface: ChainStorageNode-like pattern =====
+// Tests a complex M.interface with callWhen, splitRecord with optional fields,
+// bare .returns(), and M.remotable self-reference.
+{
+  const ChainStorageNodeI = M.interface('StorageNode', {
+    setValue: M.callWhen(M.string()).returns(),
+    getPath: M.call().returns(M.string()),
+    getStoreKey: M.callWhen().returns(
+      M.splitRecord(
+        {
+          storeName: M.string(),
+          storeSubkey: M.string(),
+          dataPrefixBytes: M.string(),
+        },
+        { noDataValue: M.string() },
+      ),
+    ),
+    makeChildNode: M.call(M.string())
+      .optional(M.splitRecord({}, { sequence: M.boolean() }, {}))
+      .returns(M.remotable('StorageNode')),
+  });
+
+  type Methods = TypeFromInterfaceGuard<typeof ChainStorageNodeI>;
+
+  // setValue: async method, bare .returns() defaults to MatcherOf<'kind', 'undefined'>
+  // so the return type is Promise<undefined> — NOT void, NOT null
+  expectType<Promise<undefined>>(
+    null as unknown as ReturnType<Methods['setValue']>,
+  );
+
+  // getPath: sync, returns string
+  expectType<string>(null as unknown as ReturnType<Methods['getPath']>);
+
+  // getStoreKey: async, returns splitRecord with required + optional fields
+  expectType<
+    Promise<{
+      storeName: string;
+      storeSubkey: string;
+      dataPrefixBytes: string;
+      noDataValue?: string | undefined;
+    }>
+  >(null as unknown as ReturnType<Methods['getStoreKey']>);
+
+  // makeChildNode: sync, returns broad remotable
+  expectType<RemotableObject | RemotableBrand<any, any>>(
+    null as unknown as ReturnType<Methods['makeChildNode']>,
+  );
+
+  // makeChildNode: first arg is string
+  expectAssignable<(name: string, ...rest: any[]) => any>(
+    null as unknown as Methods['makeChildNode'],
+  );
+}
+
+// ===== Bare .returns() defaults to undefined, not void or null =====
+{
+  // Sync
+  const mg1 = M.call().returns();
+  type Fn1 = TypeFromMethodGuard<typeof mg1>;
+  expectType<undefined>(null as unknown as ReturnType<Fn1>);
+
+  // Async (callWhen)
+  const mg2 = M.callWhen().returns();
+  type Fn2 = TypeFromMethodGuard<typeof mg2>;
+  expectType<Promise<undefined>>(null as unknown as ReturnType<Fn2>);
 }

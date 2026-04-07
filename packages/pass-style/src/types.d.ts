@@ -201,8 +201,10 @@ export type PassableCap =
 
 /**
  * A Passable sequence of Passable values.
+ * Uses `readonly` because all passables are hardened (immutable at runtime).
+ * This also allows readonly tuples to be assignable to CopyArray.
  */
-export type CopyArray<T extends Passable = any> = Array<T>;
+export type CopyArray<T extends Passable = any> = readonly T[];
 
 /**
  * A hardened immutable ArrayBuffer.

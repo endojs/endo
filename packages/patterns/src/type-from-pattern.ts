@@ -220,8 +220,15 @@ type TFOptionalTuple<T extends readonly any[]> = T extends readonly [
  * carries the InterfaceGuard type.  We resolve it to the interface's
  * methods with remotable branding, giving facet-isolated return types.
  *
- * When unparameterized (`M.remotable()`), Payload defaults to
- * `RemotableObject | RemotableBrand<any, any>` which passes through as-is.
+ * When unparameterized (`M.remotable()`), Payload defaults to `any`
+ * so the inferred type is compatible with any concrete remotable interface.
+ *
+ * A tighter default like `Record<PropertyKey, (...args: any[]) => any>`
+ * would better express the remotable invariant (methods only, no data
+ * properties), but TypeScript index signatures don't satisfy specific
+ * named properties, so downstream consumers would need to add
+ * `RemotableBrand<{}, T>` annotations at every use site.  We use `any`
+ * for now, matching `M.promise()`, to keep adoption incremental.
  */
 type TFRemotable<Payload> =
   Payload extends InterfaceGuard<infer MG>
@@ -229,7 +236,7 @@ type TFRemotable<Payload> =
         { [K in keyof MG]: TypeFromMethodGuard<MG[K]> } & RemotableObject &
           RemotableBrand<{}, any>
       >
-    : Payload;
+    : any;
 
 // ===== Method and Interface Guard inference =====
 
