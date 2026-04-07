@@ -39,6 +39,7 @@ import { makeMemoryTools } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
+import { initWorkspace } from './src/workspace/init.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
 /** @import { EndoGuest, EndoHost } from '@endo/daemon' */
@@ -379,6 +380,16 @@ export const make = (guestPowers, _context) => {
     }
 
     const workspaceDir = config.workspace || process.cwd();
+
+    // Seed the workspace from the shipped template on first spawn.
+    // Existing files are never overwritten.
+    const didInit = await initWorkspace(workspaceDir);
+    if (didInit) {
+      console.log(
+        `[genie:${agentName}] Workspace initialised from template: ${workspaceDir}`,
+      );
+    }
+
     const { listTools, execTool } = buildTools(workspaceDir);
 
     const piAgent = await makePiAgent({

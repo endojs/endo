@@ -38,6 +38,7 @@ import { makeMemoryTools } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
+import { initWorkspace } from './src/workspace/init.js';
 
 /**
  * @param {never} nope
@@ -401,6 +402,9 @@ async function* runMain(args) {
   const verbose = hasFlag(args, '--verbose', '-v');
   const workspaceArg = getFlag(args, '--workspace', '-w') || process.cwd();
   const searchArg = getFlag(args, '--search', '-s') || 'substring';
+
+  // Seed the workspace from the shipped template on first run.
+  await initWorkspace(workspaceArg);
 
   /** @type {import('./src/tools/memory.js').SearchBackend | undefined} */
   let searchBackend;
