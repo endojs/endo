@@ -19,6 +19,7 @@ import type {
   CopyMap,
   InterfaceGuard,
   MethodGuard,
+  CastedPattern,
 } from './types.js';
 
 /**
@@ -38,6 +39,23 @@ type Simplify<T> = { [K in keyof T]: T[K] } & {};
  * ```
  */
 export type TypeFromPattern<P> =
+  // {@link CastedPattern} carries an unchecked static type assertion via a
+  // phantom property. When the phantom is set to a specific type, return
+  // it directly, bypassing structural inference. The `unknown extends
+  // Asserted` check distinguishes a real cast (`Asserted` is concrete)
+  // from an unset phantom (`Asserted` widens to `unknown`).
+  P extends CastedPattern<infer Asserted>
+    ? unknown extends Asserted
+      ? TFStructuralPattern<P>
+      : Asserted
+    : TFStructuralPattern<P>;
+
+/**
+ * Structural pattern inference (the original three-branch dispatch).
+ * Pulled out so {@link TypeFromPattern} can fall through to it when
+ * a {@link CastedPattern}'s phantom is unset.
+ */
+type TFStructuralPattern<P> =
   P extends CopyTagged<`match:${infer K}`, infer Payload>
     ? TFDispatch<K, Payload>
     : P extends readonly [infer H, ...infer T]
@@ -160,8 +178,11 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
                     : K extends 'bagOf'
                       ? CopyBag<TypeFromPattern<Payload> & Key>
                       : K extends 'tagged'
-                        ? Payload extends readonly [infer TP, any]
-                          ? CopyTagged<TypeFromPattern<TP> & string, Passable>
+                        ? Payload extends readonly [infer TP, infer PP]
+                          ? CopyTagged<
+                              TypeFromPattern<TP> & string,
+                              TypeFromPattern<PP> & Passable
+                            >
                           : CopyTagged
                         : K extends 'remotable'
                           ? TFRemotable<Payload>
@@ -216,19 +237,15 @@ type TFOptionalTuple<T extends readonly any[]> = T extends readonly [
 /**
  * Resolve a remotable matcher's payload.
  *
- * When `M.remotable<typeof SomeInterfaceGuard>()` is used, the Payload
- * carries the InterfaceGuard type.  We resolve it to the interface's
- * methods with remotable branding, giving facet-isolated return types.
- *
- * When unparameterized (`M.remotable()`), Payload defaults to `any`
- * so the inferred type is compatible with any concrete remotable interface.
- *
- * A tighter default like `Record<PropertyKey, (...args: any[]) => any>`
- * would better express the remotable invariant (methods only, no data
- * properties), but TypeScript index signatures don't satisfy specific
- * named properties, so downstream consumers would need to add
- * `RemotableBrand<{}, T>` annotations at every use site.  We use `any`
- * for now, matching `M.promise()`, to keep adoption incremental.
+ * - `M.remotable<typeof SomeInterfaceGuard>()`: the Payload carries the
+ *   InterfaceGuard type. We resolve to the interface's methods with
+ *   remotable branding, giving facet-isolated return types.
+ * - `M.remotable<SomeTypedef>()` (or via a TypedPattern cast): the
+ *   Payload is a concrete remotable type like `Brand`. Return it
+ *   directly so guards using these shapes preserve the actual type.
+ * - Unparameterized (`M.remotable()`): Payload defaults to `any` so
+ *   the inferred type is compatible with any concrete remotable
+ *   interface, matching `M.promise()`.
  */
 type TFRemotable<Payload> =
   Payload extends InterfaceGuard<infer MG>
@@ -236,7 +253,7 @@ type TFRemotable<Payload> =
         { [K in keyof MG]: TypeFromMethodGuard<MG[K]> } & RemotableObject &
           RemotableBrand<{}, any>
       >
-    : any;
+    : Payload;
 
 // ===== Method and Interface Guard inference =====
 

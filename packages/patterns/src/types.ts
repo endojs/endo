@@ -131,6 +131,48 @@ export type GetRankCover = (
  */
 export type Pattern = Exclude<Passable, Error | Promise<any>>;
 
+// CAVEAT: We use a string constant rather than a `unique symbol` here to
+// avoid declaration-emit issues that have appeared in downstream packages
+// when re-exporting types whose private symbols are referenced. The runtime
+// has no value at this key — it is purely a type-system phantom.
+declare const castedType: 'Symbol(castedType)';
+
+/**
+ * A pattern carrying an unchecked static type assertion. The runtime
+ * pattern still validates the structural shape it always did; the
+ * `T` parameter is a developer claim that values matched by this
+ * pattern inhabit `T` — typically narrower than what the structural
+ * shape can recover (e.g., a discriminated union, a branded type, or
+ * a template literal).
+ *
+ * Like a TypeScript `as` cast, `CastedPattern<T>` is trusted by the
+ * type system but unverifiable at runtime. If the pattern matches a
+ * value that doesn't actually satisfy `T`, downstream code may
+ * misbehave with no runtime error.
+ *
+ * `TypeFromPattern<CastedPattern<T>>` resolves to `T`, bypassing the
+ * normal structural inference.
+ *
+ * @example
+ *   // structural pattern with a discriminated-union static claim
+ *   const AmountShape = harden({
+ *     brand: BrandShape,
+ *     value: AmountValueShape,
+ *   });
+ *   // The structural inference would yield the cross-product
+ *   // `{ brand: Brand, value: NatValue | SetValue | ... }`. The cast
+ *   // unifies brand and value through the discriminated union.
+ *   export const AmountPattern =
+ *     ({brand: BrandShape, value: AmountValueShape});
+ */
+export type CastedPattern<T> = Pattern & { [castedType]?: T };
+
+/**
+ * Extract the cast type from a {@link CastedPattern}.
+ */
+export type CastedType<P extends CastedPattern<any>> =
+  P extends CastedPattern<infer T> ? T : never;
+
 /**
  * A Passable collection of Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by {@link keyEQ}.

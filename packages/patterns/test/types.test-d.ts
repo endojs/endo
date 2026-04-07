@@ -18,6 +18,7 @@ import type {
   CopySet,
   CopyBag,
   CopyMap,
+  CastedPattern,
 } from '../index.js';
 import type {
   TypeFromPattern,
@@ -207,6 +208,52 @@ const passable: Passable = null as any;
   const guard = M.call().rest(M.string()).returns(M.any());
   type Fn = TypeFromMethodGuard<typeof guard>;
   expectType<(...args: string[]) => any>(null as unknown as Fn);
+}
+
+// =============================================================================
+// CastedPattern
+// =============================================================================
+// CastedPattern<T> is an unchecked static type assertion. The runtime
+// pattern still validates the structural shape; the T parameter is a
+// developer claim that may be narrower (or broader) than the structural
+// inference would yield.
+
+// Setting the cast: TypeFromPattern returns the asserted type
+{
+  type Branded = `agoric1${string}`;
+  type Casted = CastedPattern<Branded>;
+  expectType<Branded>(null as unknown as TypeFromPattern<Casted>);
+}
+
+// Discriminated union case (the motivating example): a structural record
+// pattern's natural inference is the cross-product, but a CastedPattern
+// can claim the discriminated-union form.
+{
+  type Coin =
+    | { kind: 'gold'; weight: number }
+    | { kind: 'silver'; purity: number };
+  type CoinShape = CastedPattern<Coin>;
+  type Inferred = TypeFromPattern<CoinShape>;
+  expectType<Coin>(null as unknown as Inferred);
+}
+
+// CastedPattern is structurally a Pattern — accepts existing pattern values
+{
+  const innerShape = M.string();
+  // A pattern value can be cast to CastedPattern<T> at the type level
+  const casted = innerShape as unknown as CastedPattern<'agoric1xyz'>;
+  type T = TypeFromPattern<typeof casted>;
+  expectType<'agoric1xyz'>(null as unknown as T);
+}
+
+// Patterns WITHOUT the phantom fall through to structural inference
+// (the unset phantom resolves to `unknown`, which the conditional skips).
+// This verifies the unset case doesn't accidentally hijack normal patterns.
+{
+  const stringP = M.string();
+  type T = TypeFromPattern<typeof stringP>;
+  // Should be the leaf-table result for 'string', not `unknown`
+  expectAssignable<string>(null as unknown as T);
 }
 
 // M.byteArray() → ArrayBuffer (via kind)
@@ -1007,10 +1054,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     }>
   >(null as unknown as ReturnType<Methods['getStoreKey']>);
 
-  // makeChildNode: sync, returns broad remotable
-  expectType<RemotableObject | RemotableBrand<any, any>>(
-    null as unknown as ReturnType<Methods['makeChildNode']>,
-  );
+  // makeChildNode: sync, returns broad remotable. Unparameterized
+  // M.remotable() resolves to `any` (matching M.promise() default)
+  // so the inferred return is compatible with any concrete remotable
+  // typedef.
+  expectType<any>(null as unknown as ReturnType<Methods['makeChildNode']>);
 
   // makeChildNode: first arg is string
   expectAssignable<(name: string, ...rest: any[]) => any>(
