@@ -376,7 +376,7 @@ export type PatternMatchers = {
    * // TypeFromMethodGuard of getPublic → () => { getData: () => string } & RemotableObject
    * ```
    */
-  remotable: <T extends Passable = RemotableObject | RemotableBrand<any, any>>(
+  remotable: <T extends Passable = any>(
     label?: string,
   ) => MatcherOf<'remotable', T>;
 
