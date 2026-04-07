@@ -1,5 +1,5 @@
 ---
-'ses': minor
+'ses': major
 '@endo/marshal': patch
 ---
 
