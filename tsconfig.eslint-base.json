@@ -5,7 +5,6 @@
     "module": "NodeNext",
     "checkJs": true,
     "noEmit": true,
-    "downlevelIteration": true,
     "strictNullChecks": true,
     "verbatimModuleSyntax": true,
     "moduleResolution": "NodeNext",
