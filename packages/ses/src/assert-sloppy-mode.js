@@ -1,6 +1,7 @@
 import { TypeError } from './commons.js';
 
-/** getThis returns globalThis in sloppy mode or undefined in strict mode. */
+/** @this {unknown} */
+// getThis returns globalThis in sloppy mode or undefined in strict mode.
 function getThis() {
   return this;
 }

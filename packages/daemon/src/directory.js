@@ -41,11 +41,15 @@ export const makeDirectoryMaker = ({
       if (id === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
       }
-      const value = provide(/** @type {FormulaIdentifier} */ (id), 'hub');
-      return tailNames.reduce(
-        (directory, petName) => E(directory).lookup(petName),
-        value,
+      const value = /** @type {Promise<NameHub>} */ (
+        provide(/** @type {FormulaIdentifier} */ (id), 'hub')
       );
+      /** @type {any} */
+      let directory = value;
+      for (const petName of tailNames) {
+        directory = E(directory).lookup(petName);
+      }
+      return /** @type {Promise<unknown>} */ (directory);
     };
 
     /** @type {EndoDirectory['reverseLookup']} */

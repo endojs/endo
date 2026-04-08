@@ -33,7 +33,6 @@ export function makeSectionTest(execa, testRoutine) {
         matchExpecation(expectation.stdout ?? '', result.stdout, errMsg);
         matchExpecation(expectation.stderr ?? /.*/, result.stderr, errMsg);
       }
-      return true;
     };
     await testRoutine(execa, testCommand);
   };
