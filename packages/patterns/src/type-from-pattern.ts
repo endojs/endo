@@ -107,7 +107,19 @@ type TFLeafMap<Payload> = {
 /** Maps PassStyle / Kind strings to their TypeScript value types. */
 type TFKindMap = {
   boolean: boolean;
-  undefined: undefined;
+  // `void` rather than `undefined` so that impls declared with
+  // `method(): void` satisfy guards like `M.call(...).returns()` or
+  // `.returns(M.undefined())`.  At runtime `M.undefined()` only checks
+  // that the returned value *is* `undefined`, which a void-returning
+  // impl satisfies trivially (JS returns `undefined` when no value is
+  // produced).  TypeScript's distinction between `void` and `undefined`
+  // is that a `void`-returning function may actually return any value
+  // (callers must ignore it), while an `undefined`-returning function
+  // must return literally `undefined`.  At a parameter/return position
+  // in a guarded method signature, `void` is the honest type — it lets
+  // the impl declare whatever return is ergonomic (`void`, `undefined`,
+  // or omitted) without the guard rejecting it.
+  undefined: void;
   null: null;
   error: Error;
   number: number;
@@ -195,15 +207,31 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
                           ? TFRemotable<Payload>
                           : Passable;
 
-/** Union of inferred types from a tuple of patterns. */
+/**
+ * Union of inferred types from a tuple or array of patterns.
+ *
+ * The tuple branch `[H, ...R]` handles `M.or(a, b, c)` where TS can
+ * preserve the positional element types.  The array fallback handles
+ * `M.or(...Object.values(Enum))` where the spread produces a
+ * homogeneous `E[]` and tuple destructuring is impossible — returning
+ * `TypeFromPattern<E>` is the honest union, not `never`.
+ */
 type TFOr<T extends readonly any[]> = T extends readonly [infer H, ...infer R]
   ? TypeFromPattern<H> | TFOr<R>
-  : never;
+  : T extends readonly (infer E)[]
+    ? [E] extends [never]
+      ? never
+      : TypeFromPattern<E>
+    : never;
 
-/** Intersection of inferred types from a tuple of patterns. */
+/** Intersection of inferred types from a tuple or array of patterns. */
 type TFAnd<T extends readonly any[]> = T extends readonly [infer H, ...infer R]
   ? TypeFromPattern<H> & TFAnd<R>
-  : unknown;
+  : T extends readonly (infer E)[]
+    ? [E] extends [never]
+      ? unknown
+      : TypeFromPattern<E>
+    : unknown;
 
 /** Infer a split record: required fields + optional fields + rest (index signature). */
 type TFSplitRecord<Req, Opt, Rest = never> = Simplify<

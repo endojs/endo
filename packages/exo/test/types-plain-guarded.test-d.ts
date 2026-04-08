@@ -120,7 +120,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   );
   const counter = makeCounter(0n);
   expectAssignable<Passable>(counter);
-  expectType<() => undefined>(counter.increment);
+  expectType<() => void>(counter.increment);
   expectType<() => bigint>(counter.read);
 }
 
@@ -168,11 +168,12 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 // not enforce method types against the guard.  See the "TS limitation"
 // comment in the defineExoClassKit section below.
 
-// .returns() with no args: TypeFromMethodGuard produces () => undefined
+// .returns() with no args: TypeFromMethodGuard produces () => void
+// (See TFKindMap['undefined'] = void comment in type-from-pattern.ts.)
 {
   const mg = M.call().returns();
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<() => undefined>(null as unknown as Fn);
+  expectType<() => void>(null as unknown as Fn);
 }
 
 // .returns() with no args defaults to undefined return type
