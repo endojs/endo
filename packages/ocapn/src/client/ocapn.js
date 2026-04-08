@@ -670,7 +670,7 @@ const makeBootstrapObject = (
  * @typedef {object} Ocapn
  * @property {((reason?: Error) => void)} abort
  * @property {((data: Uint8Array) => void)} dispatchMessageData
- * @property {() => object} getRemoteBootstrap
+ * @property {() => any} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.

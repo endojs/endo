@@ -186,7 +186,12 @@ const table = [
     name: 'tagged with reference (local object)',
     makeValue: testKit => makeTagged('myTag', testKit.makeLocalObject(100n)),
     makeExpectedValue: testKit =>
-      makeTagged('myTag', testKit.referenceKit.provideRemoteObjectValue(100n)),
+      makeTagged(
+        'myTag',
+        /** @type {any} */ (
+          testKit.referenceKit.provideRemoteObjectValue(100n)
+        ),
+      ),
   },
   {
     name: 'tagged with reference (local promise)',
@@ -205,7 +210,9 @@ const table = [
     makeExpectedValue: testKit =>
       makeTagged(
         'listTag',
-        harden([testKit.referenceKit.provideRemoteObjectValue(102n), 'hello']),
+        /** @type {any} */ (
+          harden([testKit.referenceKit.provideRemoteObjectValue(102n), 'hello'])
+        ),
       ),
   },
   {
