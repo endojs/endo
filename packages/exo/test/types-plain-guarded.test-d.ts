@@ -214,7 +214,19 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 
 // ===== defineExoClassKit (with InterfaceGuardKit) =====
 
-// Guard constrains each facet independently
+// Guard is provided but `F` is not narrowed by the guard contextually.
+// `defineExoClassKit`'s `F` constraint is intentionally wide
+// (`Record<FacetName, Methods>`) so that the impl's TS/JSDoc types are
+// preserved through to the returned kit type.  Guard-driven param
+// contextual narrowing inside method bodies (e.g. `setData(val)` getting
+// `val: string` from the guard) is intentionally NOT applied for kits —
+// it would silently coerce the impl's types and break downstream subtype
+// matching for consumers like
+// `LiquidityPoolKit['repayer']['repay']`.
+//
+// To get param types in a kit method, annotate them explicitly via JSDoc
+// or TS — see the `setData(val: string)` form below.  Guard conformance
+// is still verified at runtime by the guard machinery.
 {
   const PublicI = M.interface('Public', {
     getData: M.call().returns(M.string()),
@@ -234,7 +246,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
         },
       },
       admin: {
-        setData(val) {
+        setData(val: string) {
           expectType<string>(val);
           this.state.data = val;
         },
@@ -243,7 +255,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   );
   const kit = makeKit('hello');
   expectType<() => string>(kit.public.getData);
-  expectType<(val: string) => undefined>(kit.admin.setData);
+  expectType<(val: string) => void>(kit.admin.setData);
 }
 
 // TS limitation: defineExoClassKit has a fallback overload that accepts
