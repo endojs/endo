@@ -9,31 +9,49 @@
  * @module
  */
 
+import { pathCompare } from '@endo/path-compare';
+
 /**
- * @import {TraversalContext} from './types/generic-graph.js';
+ * @import {GenericGraphNode, TraversalContext} from './types/generic-graph.js';
  */
 
 const { quote: q } = assert;
 
 /**
+ * Returns `true` if the cost of path `a` is less than the cost of path `b`.
+ *
+ * @template {GenericGraphNode} [T=string]
+ * @param {T[]} [pathA]
+ * @param {T[]} [pathB]
+ * @returns {boolean}
+ */
+const isLowerCost = (pathA, pathB) =>
+  pathCompare(pathA?.map(String), pathB?.map(String)) < 0;
+
+/**
  * Remove the node with the minimum weight from the priority queue.
  *
  * Performs linear search.
- * @template [T=string]
+ *
+ * @template {GenericGraphNode} [T=string]
  * @param {TraversalContext<T>} tracks
  * @returns {T|undefined}
  */
-const extractMin = ({ distances, queue }) => {
-  let min = Infinity;
+const extractMin = ({ paths, queue }) => {
+  /** @type {T[]|undefined} */
+  let minPath;
 
   /** @type {T|undefined} */
   let minNode;
 
   queue.forEach(node => {
-    const nodeWeight = distances.get(node) ?? Infinity;
+    const path = paths.get(node);
+    if (!path) {
+      return;
+    }
 
-    if (nodeWeight < min) {
-      min = nodeWeight;
+    if (!minPath || isLowerCost(path, minPath)) {
+      minPath = path;
       minNode = node;
     }
   });
@@ -48,32 +66,23 @@ const extractMin = ({ distances, queue }) => {
 };
 
 /**
- * Update context with the new distance to the target node if the distance
- * through the source node is shorter than the current distance.
+ * Update context to include the current lowest-cost path to a target node
+ * reachable by a single edge from a source node.
  *
- * @template [T=string]
- * @param {GenericGraph<T>} graph
- * @param {TraversalContext<NoInfer<T>>} context
+ * @template {GenericGraphNode} [T=string]
+ * @param {TraversalContext<T>} context
  * @param {NoInfer<T>} source
  * @param {NoInfer<T>} target
  */
-const relax = (graph, { distances, predecessors }, source, target) => {
-  const number = graph.getEdgeWeight(source, target);
+const relax = ({ paths, predecessors }, source, target) => {
+  const pathSource = paths.get(source);
+  assert(pathSource, `Missing path to source ${q(source)}`);
 
-  const distanceSource = distances.get(source);
-  const distanceTarget = distances.get(target);
+  const pathTarget = paths.get(target);
+  const newPath = [...pathSource, target];
 
-  assert(
-    distanceSource !== undefined,
-    `Missing distance for source ${q(source)}`,
-  );
-  assert(
-    distanceTarget !== undefined,
-    `Missing distance for target ${q(target)} target`,
-  );
-
-  if (distanceTarget > distanceSource + number) {
-    distances.set(target, distanceSource + number);
+  if (!pathTarget || isLowerCost(newPath, pathTarget)) {
+    paths.set(target, newPath);
     predecessors.set(target, source);
   }
 };
@@ -82,7 +91,7 @@ const relax = (graph, { distances, predecessors }, source, target) => {
  * Assembles the shortest path by traversing the
  * predecessor subgraph from destination to source.
  *
- * @template [T=string]
+ * @template {GenericGraphNode} [T=string]
  * @param {TraversalContext<NoInfer<T>>} context Traversal context object
  * @param {NoInfer<T>} source Source node
  * @param {NoInfer<T>} target Destination node
@@ -107,7 +116,11 @@ const getPath = ({ predecessors }, source, target) => {
     node = currentNode;
   }
 
-  assert.equal(node, source, `No path found from ${q(source)} to ${q(target)}`);
+  assert.equal(
+    node,
+    source,
+    `No path found from ${q(String(source))} to ${q(String(target))}`,
+  );
 
   nodeList.push(node);
 
@@ -120,11 +133,10 @@ const getPath = ({ predecessors }, source, target) => {
 };
 
 /**
- * @template [T=string] The type of nodes in the graph
+ * A generic graph implementation.
  *
- * A generic graph implementation with edge weights.
- *
- * Edge weights are assumed to be non-negative numbers (including `Infinity`)
+ * @template {GenericGraphNode} [T=string] The type of nodes in the graph. If
+ * `T` is not a string, relative paths will be compared by coercion to strings.
  */
 export class GenericGraph {
   /**
@@ -138,15 +150,9 @@ export class GenericGraph {
   #edges;
 
   /**
-   * @type {Map<T, Map<T, number>>}
-   */
-  #edgeWeights;
-
-  /**
    * Initializes internal data structures.
    */
   constructor() {
-    this.#edgeWeights = new Map();
     this.#edges = new Map();
     this.#nodes = new Set();
   }
@@ -200,42 +206,6 @@ export class GenericGraph {
   }
 
   /**
-   * Sets the weight of the given edge between `source` and `target`.
-   *
-   * @param {T} source Source node
-   * @param {T} target Target node
-   * @param {number} weight New edge weight
-   * @returns {this}
-   */
-  setEdgeWeight(source, target, weight) {
-    if (!this.#edgeWeights.has(source)) {
-      this.#edgeWeights.set(source, new Map());
-    }
-    const weights = /** @type {Map<T, number>} */ (
-      this.#edgeWeights.get(source)
-    );
-    weights.set(target, weight);
-    return this;
-  }
-
-  /**
-   * Gets the weight of the given edge between `source` and `target`.
-   *
-   * @param {T} source Source node
-   * @param {T} target Target node
-   * @returns {number} Edge weight from source to target
-   */
-  getEdgeWeight(source, target) {
-    const weight = this.#edgeWeights.get(source)?.get(target);
-    if (weight === undefined) {
-      throw new ReferenceError(
-        `Edge weight from ${q(source)} to ${q(target)} is not set`,
-      );
-    }
-    return weight;
-  }
-
-  /**
    * Adds an edge from the `source` node to `target` node.
    *
    * This method will create the `source` and `target` node(s) if they do not
@@ -245,17 +215,15 @@ export class GenericGraph {
    *
    * @param {T} source Source node
    * @param {T} target Target node
-   * @param {number} weight Edge weight from source to target
    * @returns {this} This graph instance
    */
-  addEdge(source, target, weight) {
+  addEdge(source, target) {
     this.addNode(source);
     this.addNode(target);
     const adjacentNodes = this.adjacent(source);
     assert(adjacentNodes, `Source ${q(source)} should have adjacent nodes`);
 
     adjacentNodes.add(target);
-    this.setEdgeWeight(source, target, weight);
     return this;
   }
 
@@ -288,7 +256,7 @@ export class GenericGraph {
  *
  * Computes shortest paths from `source` to **all** reachable nodes.
  *
- * @template [T=string] The type of nodes in the graph
+ * @template {GenericGraphNode} [T=string] The type of nodes in the graph
  * @param {GenericGraph<T>} graph
  * @param {T} source
  * @returns {TraversalContext<T>}
@@ -297,22 +265,18 @@ const dijkstra = (graph, source) => {
   const { nodes } = graph;
   /** @type {TraversalContext<T>} */
   const context = {
-    distances: new Map([...nodes].map(node => [node, Infinity])),
+    paths: new Map(),
     predecessors: new Map(),
     queue: nodes,
   };
-  const { queue, distances } = context;
-
-  assert(
-    distances.get(source) === Infinity,
-    `Source ${q(source)} is not in the graph`,
-  );
-
-  distances.set(source, 0);
+  const { queue, paths } = context;
 
   for (const node of nodes) {
     queue.add(node);
   }
+
+  assert(queue.has(source), `Source ${q(source)} is not in the graph`);
+  paths.set(source, []);
 
   while (queue.size !== 0) {
     const node = extractMin(context);
@@ -322,7 +286,7 @@ const dijkstra = (graph, source) => {
     const adjacent = graph.adjacent(node);
     if (adjacent) {
       for (const edge of adjacent) {
-        relax(graph, context, node, edge);
+        relax(context, node, edge);
       }
     }
   }
@@ -338,7 +302,7 @@ const dijkstra = (graph, source) => {
  * caches the traversal context by source, so the first call for a given source
  * pays O(V²) and every subsequent call with the same source is O(path length).
  *
- * @template [T=string]
+ * @template {GenericGraphNode} [T=string]
  * @param {GenericGraph<T>} graph Graph to use
  */
 export const makeShortestPath = graph => {

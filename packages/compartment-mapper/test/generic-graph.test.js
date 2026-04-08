@@ -8,22 +8,7 @@ import { projectFixtureToGenericGraph } from './project-fixture.js';
  * @import {ProjectFixture} from './test.types.js'
  */
 
-/**
- * This is a copy of `calculatePackageWeight` in `node-modules.js`.
- *
- * The value here is used as the edge weight in the graph; note that the weight
- * is a function of the _destination_ node only.
- *
- * @param {string} packageName
- * @returns {number}
- */
-const calculatePackageWeight = packageName => {
-  let totalCodeValue = packageName.length * 65536; // each character contributes 65536
-  for (let i = 0; i < packageName.length; i += 1) {
-    totalCodeValue += packageName.charCodeAt(i);
-  }
-  return totalCodeValue;
-};
+const { entries } = Object;
 
 /**
  * Creates a graph from a tree with the following structure:
@@ -53,18 +38,15 @@ const fixture = {
 };
 
 test('GenericGraph - basic node/edge operations', t => {
-  t.plan(10);
+  t.plan(8);
   const graph = new GenericGraph();
   t.false(graph.nodes.has('app'));
   graph.addNode('app');
   t.true(graph.nodes.has('app'));
   t.is(graph.adjacent('app')?.size, 0);
-  graph.addEdge('app', 'pippo', 3);
+  graph.addEdge('app', 'pippo');
   t.true(graph.nodes.has('pippo'));
   t.true(graph.hasEdge('app', 'pippo'));
-  t.is(graph.getEdgeWeight('app', 'pippo'), 3);
-  graph.setEdgeWeight('app', 'pippo', 5);
-  t.is(graph.getEdgeWeight('app', 'pippo'), 5);
   graph.removeEdge('app', 'pippo');
   t.false(graph.hasEdge('app', 'pippo'));
   graph.removeNode('app');
@@ -77,18 +59,9 @@ test('GenericGraph.adjacent() - returns undefined for missing node', t => {
   t.is(graph.adjacent('nope'), undefined);
 });
 
-test('GenericGraph.getEdgeWeight() - throws for missing edge', t => {
-  const graph = new GenericGraph();
-  graph.addNode('app');
-  graph.addNode('pippo');
-  t.throws(() => graph.getEdgeWeight('app', 'pippo'), {
-    instanceOf: ReferenceError,
-  });
-});
-
 test('makeShortestPath() - finds correct path', t => {
   t.plan(8);
-  const graph = projectFixtureToGenericGraph(fixture, calculatePackageWeight);
+  const graph = projectFixtureToGenericGraph(fixture);
   const shortestPath = makeShortestPath(graph);
   // app to pippo (direct)
   t.deepEqual(shortestPath('app', 'pippo'), ['app', 'pippo']);
@@ -126,6 +99,55 @@ test('makeShortestPath() - finds correct path', t => {
   ]);
 });
 
+test('makeShortestPath() - finds correct path when GenericGraphNode is an object', t => {
+  t.plan(3);
+
+  const graph = /** @type {GenericGraph<{ toString: () => string }>} */ (
+    new GenericGraph()
+  );
+
+  /**
+   * Store of node references by name
+   * @type {Map<string, { toString: () => string }>}
+   */
+  const nodes = new Map();
+
+  // this terrible thing builds a GenericGraph using the fixture data, but fudges the node types
+  // so they are objects. purely for asserting object-based nodes work
+  for (const [node, children] of entries(fixture.graph)) {
+    const nodeNode = nodes.get(node) ?? { toString: () => node };
+    nodes.set(node, nodeNode);
+    graph.addNode(nodeNode);
+    for (const child of children) {
+      const childNode = nodes.get(child) ?? {
+        toString: () => child,
+      };
+      nodes.set(child, childNode);
+      graph.addEdge(nodeNode, childNode);
+    }
+  }
+  const shortestPath = makeShortestPath(graph);
+  // app to pippo (direct)
+  // @ts-expect-error - nodes.get returns undefined if the node is not found
+  t.deepEqual(shortestPath(nodes.get('app'), nodes.get('pippo')), [
+    nodes.get('app'),
+    nodes.get('pippo'),
+  ]);
+  // app to paperino (direct)
+  // @ts-expect-error - nodes.get returns undefined if the node is not found
+  t.deepEqual(shortestPath(nodes.get('app'), nodes.get('paperino')), [
+    nodes.get('app'),
+    nodes.get('paperino'),
+  ]);
+  // app to topolino (via paperino)
+  // @ts-expect-error - nodes.get returns undefined if the node is not found
+  t.deepEqual(shortestPath(nodes.get('app'), nodes.get('topolino')), [
+    nodes.get('app'),
+    nodes.get('paperino'),
+    nodes.get('topolino'),
+  ]);
+});
+
 test('makeShortestPath() - returns a function which throws if no path exists', t => {
   const graph = new GenericGraph();
   graph.addNode('app');
@@ -159,7 +181,7 @@ test('makeShortestPath() - returns a function which throws if path has less than
   graph.addNode('app');
   graph.addNode('pippo');
   // Add edge from pippo to app, but not from app to pippo
-  graph.addEdge('pippo', 'app', 1);
+  graph.addEdge('pippo', 'app');
   const shortestPath = makeShortestPath(graph);
   // There is no path from app to pippo, so this will throw for 'No path found'
   t.throws(() => shortestPath('app', 'pippo'), {
