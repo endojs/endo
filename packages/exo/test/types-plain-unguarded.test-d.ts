@@ -168,3 +168,75 @@ import type { GuardedKit } from '../src/types.js';
   expectAssignable<RemotableObject>(null as unknown as GK['alice']);
   expectAssignable<RemotableObject>(null as unknown as GK['bob']);
 }
+
+// ===== Regression: F-collapse on undefined guard kit =====
+//
+// The shape `{ helper: {}, public: {...} }` (mixing an empty facet with a
+// populated one, plus a non-trivial init state) used to collapse `F` to its
+// constraint default `Record<FacetName, Methods>` because the per-facet
+// `F[K] & ThisType<...>` intersection prevented TS from back-inferring `F`.
+// The kit's facet names disappeared entirely, breaking direct property
+// access at the call site.  Reported in agoric-sdk packages/orchestration
+// (progress.js) and packages/portfolio-contract (portfolio.exo.ts).
+{
+  const makeProgressTrackerKit = defineExoClassKit(
+    'ProgressTrackerKit',
+    undefined,
+    () => ({
+      currentValue: 0,
+      done: false,
+    }),
+    {
+      helper: {},
+      public: {
+        getCurrentValue() {
+          // `this.state` should be the init return type, not `any` / `unknown`.
+          expectType<number>(this.state.currentValue);
+          expectType<boolean>(this.state.done);
+          return this.state.currentValue;
+        },
+        markDone() {
+          this.state.done = true;
+        },
+      },
+    },
+  );
+  const kit = makeProgressTrackerKit();
+
+  // Direct access by facet name must work — this is what regressed.
+  expectType<() => number>(kit.public.getCurrentValue);
+  expectType<() => void>(kit.public.markDone);
+
+  // The empty facet still exists at runtime and at the type level.
+  expectAssignable<RemotableObject>(kit.helper);
+
+  // The pattern that broke in the wild:
+  //   const makeProgressTracker = () => makeProgressTrackerKit().public;
+  // — selecting a facet from a fresh kit instance.
+  const makeOnlyPublic = () => makeProgressTrackerKit().public;
+  expectType<() => number>(makeOnlyPublic().getCurrentValue);
+}
+
+// Regression: facet method that references another facet via `this.facets`
+// must see the *concrete* facet shape, not `Record<FacetName, Methods>`.
+{
+  defineExoClassKit(
+    'CrossRefKit',
+    undefined,
+    () => ({ count: 0 }),
+    {
+      reader: {
+        read() {
+          return this.state.count;
+        },
+      },
+      writer: {
+        bump() {
+          // Should be able to call reader.read() with its concrete signature.
+          const current: number = this.facets.reader.read();
+          this.state.count = current + 1;
+        },
+      },
+    },
+  );
+}
