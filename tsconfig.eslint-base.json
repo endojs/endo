@@ -4,6 +4,7 @@
     "target": "esnext",
     "module": "NodeNext",
     "checkJs": true,
+    "incremental": true,
     "noEmit": true,
     "strictNullChecks": true,
     "verbatimModuleSyntax": true,
