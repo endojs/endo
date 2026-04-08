@@ -23,7 +23,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
     const hooks = [];
 
     /**
-     * @param {Error} reason
+     * @param {Error} [reason]
      * @param {string} [prefix]
      */
     const cancel = (reason, prefix = '*') => {

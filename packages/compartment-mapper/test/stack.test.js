@@ -26,13 +26,15 @@ test('archive stack trace source', async t => {
   try {
     await app.import();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
 
   t.assert(error);
-  t.log(error.stack);
+  const thrownArchive = /** @type {Error} */ (error);
+  const archiveStack = `${thrownArchive.stack}`;
+  t.log(archiveStack);
   t.assert(
-    error.stack.includes(
+    archiveStack.includes(
       '.../compartment-mapper/test/fixtures-stack/index.js:3:',
     ),
   );
@@ -46,13 +48,15 @@ test('disk stack trace source', async t => {
   try {
     await importLocation(readPowers, fixtureLocation);
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
 
   t.assert(error);
-  t.log(error.stack);
+  const thrownDisk = /** @type {Error} */ (error);
+  const diskStack = `${thrownDisk.stack}`;
+  t.log(diskStack);
   t.assert(
-    error.stack.includes(
+    diskStack.includes(
       '/packages/compartment-mapper/test/fixtures-stack/index.js:3:',
     ),
   );

@@ -181,9 +181,10 @@ const makeExtensionParser = (
           },
         ));
       } catch (err) {
+        const error = /** @type {Error} */ (err);
         throw Error(
-          `Error transforming ${q(language)} source in ${q(location)}: ${err.message}`,
-          { cause: err },
+          `Error transforming ${q(language)} source in ${q(location)}: ${error.message}`,
+          { cause: error },
         );
       }
     }

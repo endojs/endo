@@ -189,6 +189,7 @@ export const makeBundlingKit = (
     };
   }
 
+  /** @type {import('../../compartment-mapper/src/types.js').ParserImplementation} */
   const mtsParser = {
     parse(
       sourceBytes,
@@ -212,6 +213,7 @@ export const makeBundlingKit = (
     synchronous: false,
   };
 
+  /** @type {import('../../compartment-mapper/src/types.js').ParserImplementation} */
   const ctsParser = {
     parse(
       sourceBytes,

@@ -154,7 +154,7 @@ test('remote control establishes new connection when reconnecting after disconne
     () => makeFakeGateway(),
     cancelBob1,
     bob1Cancelled,
-    disposeBob1,
+    () => disposeBob1(undefined),
   );
   cancelBob1(new Error('Disconnect'));
   await t.throwsAsync(() => bob1Cancelled);

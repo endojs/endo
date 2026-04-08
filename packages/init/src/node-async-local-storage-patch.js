@@ -8,8 +8,11 @@ const { apply: ReflectApply } = Reflect;
 /** @type {WeakMap<AsyncLocalStorageInternal, WeakMap>} */
 const resourceStoreMaps = new WeakMap();
 
-/** @type {(key: AsyncLocalStorageInternal) => WeakMap} */
-const getStoreMap = resourceStoreMaps.get.bind(resourceStoreMaps);
+/**
+ * @param {AsyncLocalStorageInternal} key
+ * @returns {WeakMap}
+ */
+const getStoreMap = key => /** @type {WeakMap} */ (resourceStoreMaps.get(key));
 
 /**
  * @typedef {object} AsyncLocalStorageInternal

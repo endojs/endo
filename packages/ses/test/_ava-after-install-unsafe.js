@@ -23,6 +23,6 @@ test('ava-after-unsafe-lockdown basic test works', t => {
     boom();
   } catch (e) {
     // eslint-disable-next-line no-unused-vars
-    const frames = e.stack;
+    const frames = /** @type {Error} */ (e).stack;
   }
 });

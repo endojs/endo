@@ -335,9 +335,9 @@ export const makeCompartmentConstructor = (
   { parentCompartment = undefined, enforceNew = false } = {},
 ) => {
   /**
-   *
-   * @param {CompartmentOptionsArgs|LegacyCompartmentOptionsArgs} args
+   * @param {...CompartmentOptionsArgs|LegacyCompartmentOptionsArgs} args
    */
+  /** @this {Compartment} */
   function Compartment(...args) {
     if (enforceNew && new.target === undefined) {
       throw TypeError(
@@ -359,7 +359,9 @@ export const makeCompartmentConstructor = (
       importMetaHook,
       __noNamespaceBox__: noNamespaceBox = false,
       noAggregateLoadErrors = false,
-    } = compartmentOptions(...args);
+    } = compartmentOptions(
+      .../** @type {Parameters<typeof compartmentOptions>} */ (args),
+    );
     const globalTransforms = arrayFlatMap(
       [transforms, __shimTransforms__],
       identity,
@@ -376,7 +378,7 @@ export const makeCompartmentConstructor = (
 
     const globalObject = {};
 
-    const compartment = this;
+    const compartment = /** @type {Compartment} */ (this);
 
     setGlobalObjectSymbolUnscopables(globalObject);
 
@@ -397,7 +399,7 @@ export const makeCompartmentConstructor = (
       intrinsics,
       newGlobalPropertyNames: sharedGlobalPropertyNames,
       makeCompartmentConstructor: targetMakeCompartmentConstructor,
-      parentCompartment: this,
+      parentCompartment: compartment,
       markVirtualizedNativeFunction,
     });
 
@@ -449,7 +451,7 @@ export const makeCompartmentConstructor = (
       return exportsProxy;
     };
 
-    weakmapSet(privateFields, this, {
+    weakmapSet(privateFields, compartment, {
       name: `${name}`,
       globalTransforms,
       globalObject,

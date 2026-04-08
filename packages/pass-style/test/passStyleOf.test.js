@@ -482,16 +482,17 @@ test('remotables - safety from the gibson042 attack', t => {
 });
 
 test('Unexpected stack on errors', t => {
-  let err;
+  /** @type {Error} */
+  let err = Error('expected throw');
   try {
     // @ts-expect-error purposeful type violation for testing
     null.error;
   } catch (e) {
-    err = e;
+    err = /** @type {Error} */ (e);
   }
 
   const carrierStack = {};
-  err.stack = carrierStack;
+  err.stack = /** @type {any} */ (carrierStack);
   harden(err);
 
   // Fake harden does not maintain this invariant, but when passStyleOf senses

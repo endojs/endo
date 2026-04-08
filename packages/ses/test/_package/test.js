@@ -1,6 +1,6 @@
 // node -r esm test.js
 
-import 'ses';
+import '../../index.js';
 
 lockdown();
 console.log(Compartment);

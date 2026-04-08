@@ -10,14 +10,17 @@ test('performs operations in expected order (sync functions)', async t => {
   const results = [];
 
   await Promise.all([
-    serialJobs.enqueue(() => {
+    serialJobs.enqueue(async () => {
       results.push(1);
+      return undefined;
     }),
-    serialJobs.enqueue(() => {
+    serialJobs.enqueue(async () => {
       results.push(2);
+      return undefined;
     }),
-    serialJobs.enqueue(() => {
+    serialJobs.enqueue(async () => {
       results.push(3);
+      return undefined;
     }),
   ]);
 
