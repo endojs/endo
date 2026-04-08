@@ -656,7 +656,7 @@ export type DefaultGuardType = undefined | 'passable' | 'raw';
  * Overload for strictly-typed interface guards (no sloppy mode).
  */
 export type MakeInterfaceGuardStrict = <
-  M extends Record<PropertyKey, MethodGuard>,
+  M extends Record<PropertyKey, MethodGuard<any, any, any, any, any>>,
 >(
   interfaceName: string,
   methodGuards: M,
@@ -687,9 +687,20 @@ export type MakeInterfaceGuardSloppy = (
 
 /**
  * General overload for interface guards.
+ *
+ * The constraint uses `MethodGuard<any, any, any, any, any>` (all type
+ * parameters set to `any`) rather than the bare `MethodGuard` (which
+ * defaults its parameters to their constraint, e.g. `RetGuard extends
+ * SyncValueGuard = SyncValueGuard`).  Without this, TS contextually types
+ * inline expressions like `M.call().returns(M.promise())` against
+ * `SyncValueGuard`, which causes `MatcherOf<'promise', any>`'s `Payload`
+ * type parameter to drift from `any` to a non-canonical unknown form
+ * (`void | RawGuardPayload | null`) — breaking downstream
+ * `TypeFromPattern` inference whose `unknown extends Payload` check
+ * doesn't recognize that form as `unknown`.
  */
 export type MakeInterfaceGuardGeneral = <
-  M extends Record<PropertyKey, MethodGuard>,
+  M extends Record<PropertyKey, MethodGuard<any, any, any, any, any>>,
 >(
   interfaceName: string,
   methodGuards: M,
@@ -772,7 +783,10 @@ export type Method = (...args: any[]) => any;
  * Payload for an interface guard definition.
  */
 export type InterfaceGuardPayload<
-  T extends Record<PropertyKey, MethodGuard> = Record<PropertyKey, MethodGuard>,
+  T extends Record<
+    PropertyKey,
+    MethodGuard<any, any, any, any, any>
+  > = Record<PropertyKey, MethodGuard<any, any, any, any, any>>,
 > = {
   interfaceName: string;
   methodGuards: Omit<T, symbol> &
@@ -818,7 +832,10 @@ export type InterfaceGuardPayload<
  * ```
  */
 export type InterfaceGuard<
-  T extends Record<PropertyKey, MethodGuard> = Record<PropertyKey, MethodGuard>,
+  T extends Record<
+    PropertyKey,
+    MethodGuard<any, any, any, any, any>
+  > = Record<PropertyKey, MethodGuard<any, any, any, any, any>>,
 > = CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>;
 
 /**
