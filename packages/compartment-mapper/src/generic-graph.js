@@ -284,34 +284,28 @@ export class GenericGraph {
 }
 
 /**
- * Dijkstra's algorithm for shortest paths in a graph.
+ * Dijkstra's single-source shortest path algorithm.
+ *
+ * Computes shortest paths from `source` to **all** reachable nodes.
+ *
  * @template [T=string] The type of nodes in the graph
  * @param {GenericGraph<T>} graph
  * @param {T} source
- * @param {T} target
  * @returns {TraversalContext<T>}
  */
-const dijkstra = (graph, source, target) => {
+const dijkstra = (graph, source) => {
   const { nodes } = graph;
   /** @type {TraversalContext<T>} */
   const context = {
-    distances: new Map(),
+    distances: new Map([...nodes].map(node => [node, Infinity])),
     predecessors: new Map(),
-    queue: new Set(),
+    queue: nodes,
   };
   const { queue, distances } = context;
-
-  for (const node of nodes) {
-    distances.set(node, Infinity);
-  }
 
   assert(
     distances.get(source) === Infinity,
     `Source ${q(source)} is not in the graph`,
-  );
-  assert(
-    distances.get(target) === Infinity,
-    `Target ${q(target)} is not in the graph`,
   );
 
   distances.set(source, 0);
@@ -336,20 +330,32 @@ const dijkstra = (graph, source, target) => {
 };
 
 /**
- * Returns a function which uses Dijkstra's shortest path algorithm to compute
- * the shortest path from `source` to `destination` in the given `graph`.
+ * Returns a function which computes the shortest path from `source` to
+ * `target` in the given `graph`.
+ *
+ * Dijkstra's algorithm is a _single-source_ shortest path algorithm: one run
+ * produces shortest paths to every reachable node. The returned function
+ * caches the traversal context by source, so the first call for a given source
+ * pays O(V²) and every subsequent call with the same source is O(path length).
  *
  * @template [T=string]
  * @param {GenericGraph<T>} graph Graph to use
  */
 export const makeShortestPath = graph => {
+  /** @type {Map<T, TraversalContext<T>>} */
+  const contextCache = new Map();
+
   /**
    * @param {NoInfer<T>} source Source node
    * @param {NoInfer<T>} target Target node
    * @returns {[T, T, ...T[]]} Nodes from `source` to `target` inclusive (minimum of two nodes)
    */
   const shortestPath = (source, target) => {
-    const context = dijkstra(graph, source, target);
+    let context = contextCache.get(source);
+    if (!context) {
+      context = dijkstra(graph, source);
+      contextCache.set(source, context);
+    }
     return getPath(context, source, target);
   };
   return shortestPath;
