@@ -1519,9 +1519,11 @@ test('local answer promise on B is not rejected on connection close', async t =>
 
     // Debug: Check B's slots
     const ocapnTableB = getOcapnDebug(ocapnB).ocapnTable;
-    const slotOnB = ocapnTableB.getSlotForValue(capturedLocalAnswerPromise);
+    const slotOnB = ocapnTableB.getSlotForValue(
+      /** @type {any} */ (capturedLocalAnswerPromise),
+    );
     const answerPosition = ocapnTableB.getLocalAnswerToPosition(
-      capturedLocalAnswerPromise,
+      /** @type {any} */ (capturedLocalAnswerPromise),
     );
     console.log('B: slot for capturedLocalAnswerPromise:', slotOnB);
     console.log('B: getLocalAnswerToPosition result:', answerPosition);
@@ -1668,7 +1670,7 @@ test('E() sends op:deliver with answer tracking', async t => {
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(message);
+          sentMessages.push(/** @type {{type: string}} */ (message));
         }
       },
     );
@@ -1733,7 +1735,7 @@ test('E.sendOnly() sends op:deliver-only without answer tracking', async t => {
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(message);
+          sentMessages.push(/** @type {{type: string}} */ (message));
         }
       },
     );
@@ -1804,7 +1806,7 @@ test('E.sendOnly() on function call sends op:deliver-only', async t => {
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(message);
+          sentMessages.push(/** @type {{type: string}} */ (message));
         }
       },
     );
@@ -1878,7 +1880,7 @@ test('resolver callbacks use op:deliver-only', async t => {
     const unsubscribe = getOcapnDebug(ocapnB).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          messagesSentByB.push(message);
+          messagesSentByB.push(/** @type {{type: string}} */ (message));
         }
       },
     );
