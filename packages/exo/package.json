@@ -57,7 +57,7 @@
     "eslint-plugin-import": "^2.31.0",
     "prettier": "^3.5.3",
     "ses": "workspace:^",
-    "typescript": "~5.9.2"
+    "typescript": "catalog:dev"
   },
   "files": [
     "./*.d.ts",
