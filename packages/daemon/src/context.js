@@ -22,10 +22,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
     /** @type {Array<() => void>} */
     const hooks = [];
 
-    /**
-     * @param {Error} [reason]
-     * @param {string} [prefix]
-     */
+    /** @type {Context['cancel']} */
     const cancel = (reason, prefix = '*') => {
       if (done) return disposed;
       done = true;
