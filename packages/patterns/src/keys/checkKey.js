@@ -54,9 +54,7 @@ hideAndHardenFunction(assertScalarKey);
 
 // ////////////////////////////// Keys /////////////////////////////////////////
 
-// @ts-expect-error Key does not satisfy WeakKey
-/** @type {WeakSet<Key>} */
-// @ts-expect-error Key does not satisfy WeakKey
+/** @type {WeakSet<object>} */
 const keyMemo = new WeakSet();
 
 /**
@@ -68,8 +66,7 @@ export const confirmKey = (val, reject) => {
   if (isAtom(val)) {
     return true;
   }
-  // @ts-expect-error narrowed
-  if (keyMemo.has(val)) {
+  if (typeof val === 'object' && val !== null && keyMemo.has(val)) {
     return true;
   }
   // eslint-disable-next-line no-use-before-define
@@ -77,8 +74,9 @@ export const confirmKey = (val, reject) => {
   if (result) {
     // Don't cache the undefined cases, so that if it is tried again
     // with `Fail` it'll throw a diagnostic again
-    // @ts-expect-error narrowed
-    keyMemo.add(val);
+    if (typeof val === 'object' && val !== null) {
+      keyMemo.add(val);
+    }
   }
   // Note that we must not memoize a negative judgement, so that if it is tried
   // again with `Fail`, it will still produce a useful diagnostic.

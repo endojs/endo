@@ -43,10 +43,12 @@ export default function tameErrorConstructor(
 
   const makeErrorConstructor = (_ = {}) => {
     // eslint-disable-next-line no-shadow
+    /** @this {ErrorConstructor} */
+    /** @param {...any} rest */
     const ResultError = function Error(...rest) {
       let error;
       if (new.target === undefined) {
-        error = apply(FERAL_ERROR, this, rest);
+        error = apply(FERAL_ERROR, undefined, rest);
       } else {
         error = construct(FERAL_ERROR, rest, new.target);
       }
