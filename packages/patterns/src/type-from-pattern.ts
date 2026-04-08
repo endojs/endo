@@ -241,7 +241,17 @@ type TFSplitRecord<Req, Opt, Rest = never> = Simplify<
     (Opt extends CopyRecord<any>
       ? { [K in keyof Opt]?: TypeFromPattern<Opt[K]> }
       : {}) &
-    ([Rest] extends [never] ? {} : { [key: string]: TypeFromPattern<Rest> })
+    // When the rest arg is the empty-record pattern `{}`
+    // (i.e. "refuse unsupported options"), don't emit an index
+    // signature — `[key: string]: {}` disallows `undefined` values
+    // for known keys (since `{}` excludes `undefined`) and pollutes
+    // every consumer with a wildcard that breaks excess-property
+    // checking.  Treat empty-rest the same as no rest.
+    ([Rest] extends [never]
+      ? {}
+      : [keyof Rest] extends [never]
+        ? {}
+        : { [key: string]: TypeFromPattern<Rest> })
 >;
 
 /** Infer a split array: required tuple + optional trailing elements + rest. */
