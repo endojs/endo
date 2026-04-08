@@ -399,10 +399,10 @@ export default makeE;
 /**
  * @template T
  * @typedef {(
- *   T extends Callable
- *     ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>>
- *     : 0 extends (1 & T)
- *       ? never
+ *   0 extends (1 & T)                              // if T is any
+ *     ? any                                        // propagate any cleanly
+ *     : T extends Callable
+ *       ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>>
  *       : ESendOnlyMethods<Required<T>>
  * )} ESendOnlyCallableOrMethods
  */
@@ -410,10 +410,10 @@ export default makeE;
 /**
  * @template T
  * @typedef {(
- *   T extends Callable
- *     ? ECallable<T> & EMethods<Required<T>>
- *     : 0 extends (1 & T)
- *       ? never
+ *   0 extends (1 & T)                              // if T is any
+ *     ? any                                        // propagate any cleanly (avoid distributive expansion that displays Pick<any,string>)
+ *     : T extends Callable
+ *       ? ECallable<T> & EMethods<Required<T>>
  *       : EMethods<Required<T>>
  * )} ECallableOrMethods
  */
@@ -439,9 +439,11 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends Callable
- *     ? (...args: Parameters<T>) => ReturnType<T>                     // a root callable, no methods
- *     : Pick<T, FilteredKeys<T, Callable>>          // any callable methods
+ *   0 extends (1 & T)                              // if T is any
+ *     ? any                                        // propagate any (avoid Pick<any, string> distributive collapse)
+ *     : T extends Callable
+ *       ? (...args: Parameters<T>) => ReturnType<T>  // a root callable, no methods
+ *       : Pick<T, FilteredKeys<T, Callable>>         // any callable methods
  * )} PickCallable
  */
 
@@ -450,11 +452,13 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends RemotableBrand<infer L, infer R>   // if a given T is some remote interface R
- *     ? PickCallable<R>                          // then return the callable properties of R
- *     : T extends PromiseLike<infer U>           // otherwise, if T is a promise
- *       ? RemoteFunctions<U>                     // recurse on the resolved value of T
- *       : T                                      // otherwise, return T
+ *   0 extends (1 & T)                            // if T is any
+ *     ? any                                      // propagate any (avoid distributive collapse to Pick<any,string>)
+ *     : T extends RemotableBrand<infer L, infer R>   // if a given T is some remote interface R
+ *       ? PickCallable<R>                        // then return the callable properties of R
+ *       : T extends PromiseLike<infer U>         // otherwise, if T is a promise
+ *         ? RemoteFunctions<U>                   // recurse on the resolved value of T
+ *         : T                                    // otherwise, return T
  * )} RemoteFunctions
  */
 
