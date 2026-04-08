@@ -265,8 +265,10 @@ type TFRemotable<Payload> =
  */
 type TypeFromArgGuard<G> = G extends { [Symbol.toStringTag]: 'guard:rawGuard' }
   ? any
-  : G extends { payload: { argGuard: infer P } }
-    ? TypeFromPattern<P>
+  : G extends { [Symbol.toStringTag]: 'guard:awaitArgGuard' }
+    ? G extends { payload: { argGuard: infer P } }
+      ? TypeFromPattern<P>
+      : any
     : TypeFromPattern<G>;
 
 /** Map a tuple of arg guards to a tuple of inferred types. */
