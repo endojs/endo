@@ -120,12 +120,23 @@ export declare function defineExoClass<
 // (`Record<FacetName, Methods>`) — losing facet names and method signatures.
 // The outer form preserves inference while still propagating `this` typing
 // into contained facet methods at any nesting depth.
+//
+// The `F` constraint is intentionally wide (`Record<FacetName, Methods>`)
+// rather than `{ [K in keyof GK]: TypeFromInterfaceGuard<GK[K]> }`.  The
+// narrow form would cause TypeScript to apply contextual typing from the
+// guard-derived shape *into* the impl method signatures inside `methodsKit`
+// — overwriting the JSDoc/TS types the implementation author wrote with
+// the guard-derived ones (e.g. `(args_0: Passable, args_1: Passable) => any`
+// instead of `(sourceTransfer: TransferPart, amounts: AmountKWR) => void`).
+// Consumers of the returned kit (`LiquidityPoolKit['repayer']`) would then
+// see the guard-derived shape, breaking subtype matching against mocks and
+// other impls.  The trade-off: we lose the compile-time check that the
+// impl conforms to the guard signature.  Runtime conformance is still
+// enforced by the guard machinery.
 export declare function defineExoClassKit<
   GK extends Record<FacetName, InterfaceGuard>,
   I extends (...args: readonly any[]) => any,
-  F extends {
-    [K in keyof GK]: TypeFromInterfaceGuard<GK[K]>;
-  },
+  F extends Record<FacetName, Methods>,
 >(
   tag: string,
   interfaceGuardKit: GK,
