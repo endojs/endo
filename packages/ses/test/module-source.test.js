@@ -4,6 +4,11 @@ import test from 'ava';
 import '../index.js';
 import '@endo/module-source/shim.js';
 
+const ModuleSource =
+  /** @type {typeof import('@endo/module-source').ModuleSource} */ (
+    /** @type {any} */ (globalThis).ModuleSource
+  );
+
 lockdown();
 
 test('module source property/prototype graph and hardening', t => {
