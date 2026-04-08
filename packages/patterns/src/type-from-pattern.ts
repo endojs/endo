@@ -121,7 +121,14 @@ type TFKindMap = {
   copyBag: CopyBag;
   copyMap: CopyMap;
   remotable: RemotableObject | RemotableBrand<any, any>;
-  promise: Promise<any>;
+  // PromiseLike (not Promise) so that thenable values like ERef and the
+  // result of `await` blocks satisfy the constraint.  At runtime
+  // `M.promise()` checks `passStyleOf === 'promise'`, which is duck-typed
+  // for any thenable, so the more permissive PromiseLike is the honest
+  // type.  Using Promise<any> here would reject perfectly valid impls
+  // that return ERef<X> or PromiseLike<X> from a method whose guard
+  // declares `.returns(M.promise())`.
+  promise: PromiseLike<any>;
 };
 
 /**
@@ -139,7 +146,7 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
     ? TFKindMap[Payload]
     : Passable
   : K extends 'promise'
-    ? Promise<unknown extends Payload ? any : Payload>
+    ? PromiseLike<unknown extends Payload ? any : Payload>
     : K extends 'or'
       ? Payload extends readonly any[]
         ? TFOr<Payload>
@@ -219,20 +226,22 @@ type TFSplitArray<Req, Opt, Rest = never> = Req extends readonly any[]
   : any[];
 
 /**
- * Map a tuple to elements that may be undefined (approximates optional).
+ * Map a tuple of patterns to a tuple of inferred types whose elements are
+ * truly optional (`[X?, Y?]`), not just `T | undefined`.
  *
- * TS limitation: We cannot produce `[X?, Y?]` from a recursive conditional
- * type — `Partial<Tuple>` only works on concrete tuples.  For splitArray
- * optional elements we use `T | undefined` instead, meaning the array
- * must still be the full length.  If TS gains support for producing truly
- * optional tuple elements from conditional types, this should be revised.
+ * Uses a homomorphic mapped type with the `?` modifier
+ * (`{ [K in keyof T]?: ... }`).  Despite an earlier comment claiming this
+ * was impossible, TypeScript *does* support producing optional tuple elements
+ * from a homomorphic mapped type — the `?` modifier on the mapping projects
+ * to truly-optional positions when the source `T` is a tuple type.
+ *
+ * The `& {}` removes the `length` and `Array.prototype` keys that the
+ * mapped type would otherwise keep, leaving a clean tuple shape that
+ * matches consumer typedefs declared with `[X?, Y?]` syntax.
  */
-type TFOptionalTuple<T extends readonly any[]> = T extends readonly [
-  infer H,
-  ...infer R,
-]
-  ? [TypeFromPattern<H> | undefined, ...TFOptionalTuple<R>]
-  : [];
+type TFOptionalTuple<T extends readonly any[]> = {
+  [K in keyof T]?: TypeFromPattern<T[K]>;
+};
 
 /**
  * Resolve a remotable matcher's payload.
