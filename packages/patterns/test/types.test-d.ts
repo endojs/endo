@@ -144,11 +144,13 @@ const passable: Passable = null as any;
   expectType<Error>(null as unknown as T);
 }
 
-// M.promise() → Promise<any>
+// M.promise() → PromiseLike<any>
+// Uses PromiseLike (not Promise) because at runtime `M.promise()` checks
+// `passStyleOf === 'promise'` which is duck-typed for any thenable.
 {
   const p = M.promise();
   type T = TypeFromPattern<typeof p>;
-  expectType<Promise<any>>(null as unknown as T);
+  expectType<PromiseLike<any>>(null as unknown as T);
 }
 
 // M.any() → Passable
@@ -325,11 +327,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<string | undefined>(null as unknown as T);
 }
 
-// M.eref() → T | Promise<any>
+// M.eref() → T | PromiseLike<any>
 {
   const p = M.eref(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | Promise<any>>(null as unknown as T);
+  expectType<string | PromiseLike<any>>(null as unknown as T);
 }
 
 // ===== 5. Containers: arrayOf, recordOf, mapOf =====
@@ -387,17 +389,14 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<[string, bigint]>(null as unknown as T);
 }
 
-// Required + optional
-// TS limitation: optional splitArray elements are approximated as `T | undefined`
-// rather than truly optional `T?` tuple elements, because TS cannot produce
-// optional tuple elements from recursive conditional types. The array must
-// still be the full length. If TS gains `[X?]` in conditional types, revise.
+// Required + optional: produces truly optional tuple elements `[X?, Y?]`
+// (not just `T | undefined`).  The optional positions in `splitArray`'s
+// second argument become positions you can omit from the call site,
+// matching consumer typedefs like `TransferPart = [a?, b?, c?, d?]`.
 {
   const p = M.splitArray([M.string()], [M.nat(), M.boolean()]);
   type T = TypeFromPattern<typeof p>;
-  expectType<[string, bigint | undefined, boolean | undefined]>(
-    null as unknown as T,
-  );
+  expectType<[string, bigint?, boolean?]>(null as unknown as T);
 }
 
 // ===== 8. Hint parameters (type narrowing) =====
@@ -424,12 +423,12 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<Brand>(null as unknown as T);
 }
 
-// M.promise<Payment>() → Promise<Payment>
+// M.promise<Payment>() → PromiseLike<Payment>
 {
   type Payment = RemotableObject;
   const p = M.promise<Payment>();
   type T = TypeFromPattern<typeof p>;
-  expectType<Promise<Payment>>(null as unknown as T);
+  expectType<PromiseLike<Payment>>(null as unknown as T);
 }
 
 // ===== M.infer ergonomics (like z.infer) =====
@@ -842,11 +841,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 
 // ===== M.eref and M.opt =====
 
-// eref infers T | Promise<any>
+// eref infers T | PromiseLike<any>
 {
   const p = M.eref(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | Promise<any>>(null as unknown as T);
+  expectType<string | PromiseLike<any>>(null as unknown as T);
 }
 
 // opt infers T | undefined
