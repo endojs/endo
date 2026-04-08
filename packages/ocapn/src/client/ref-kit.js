@@ -137,6 +137,7 @@ export const makeReferenceKit = (
   };
 
   const makePromiseResolverPair = () => {
+    /** @type {{ promise: Promise<unknown>, settler: Settler<unknown> }} */
     const { promise, settler } = makeRemoteKit(() => promise);
     return { promise, settler };
   };
@@ -195,6 +196,7 @@ export const makeReferenceKit = (
    * @returns {object}
    */
   const makeRemoteObject = (position, label) => {
+    /** @type {object} */
     let remoteObject;
     const { settler } = makeRemoteKit(() => remoteObject);
     remoteObject = Remotable(
@@ -408,7 +410,9 @@ export const makeReferenceKit = (
     },
     getLocalAnswerValue: position => {
       const slot = makeSlot('a', true, position);
-      const value = ocapnTable.getValueForSlot(slot);
+      const value = /** @type {Promise<unknown> | undefined} */ (
+        ocapnTable.getValueForSlot(slot)
+      );
       if (value === undefined) {
         throw new Error(
           `OCapN: No local answer found for position: ${position}`,
