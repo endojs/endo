@@ -68,7 +68,7 @@ test('transcoding stream terminated with cause', async (/** @type {import('ava')
         t.fail();
       }
     } catch (error) {
-      t.is(error.message, 'Exit early');
+      t.is(/** @type {Error} */ (error).message, 'Exit early');
     }
   };
 

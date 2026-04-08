@@ -1,6 +1,6 @@
-/** @import {Execa} from 'execa' */
-/** @import {t} from 'ava' */
-/** @import {TestRoutine} from './types' */
+/** @import {ExecaMethod} from 'execa' */
+/** @import {ExecutionContext} from 'ava' */
+/** @import {TestCommand, TestRoutine} from './_types.js' */
 
 /**
  * Transforms a testRoutine into an ava test.
@@ -12,9 +12,9 @@
  * when run under a vscode JavaScript Debug Terminal
  * @see https://github.com/endojs/endo/issues/2702
  *
- * @param {Execa} execa - the command execution environment
+ * @param {ExecaMethod} execa - the command execution environment
  * @param {TestRoutine} testRoutine - the test logic implementation
- * @returns {(t: t) => Promise<void>}
+ * @returns {(t: ExecutionContext) => Promise<void>}
  */
 export function makeSectionTest(execa, testRoutine) {
   return async t => {
@@ -25,6 +25,7 @@ export function makeSectionTest(execa, testRoutine) {
         errMsg,
       );
     };
+    /** @type {TestCommand} */
     const testCommand = async (command, expectation) => {
       const result = await command;
       if (expectation !== undefined) {
@@ -32,6 +33,7 @@ export function makeSectionTest(execa, testRoutine) {
         matchExpecation(expectation.stdout ?? '', result.stdout, errMsg);
         matchExpecation(expectation.stderr ?? /.*/, result.stderr, errMsg);
       }
+      return true;
     };
     await testRoutine(execa, testCommand);
   };

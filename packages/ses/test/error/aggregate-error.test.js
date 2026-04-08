@@ -40,8 +40,9 @@ testIfAggregateError('Promise.any aggregate error', async t => {
   try {
     await Promise.any([Promise.reject(e2), Promise.reject(u3)]);
   } catch (a4) {
-    t.false('cause' in a4);
-    t.deepEqual(getOwnPropertyDescriptor(a4, 'errors'), {
+    const error = /** @type {AggregateError} */ (a4);
+    t.false('cause' in error);
+    t.deepEqual(getOwnPropertyDescriptor(error, 'errors'), {
       value: [e2, u3],
       writable: true,
       enumerable: false,

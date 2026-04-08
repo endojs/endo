@@ -39,7 +39,7 @@ test('assertValidLocator - valid', t => {
 });
 
 test('assertValidLocator - invalid', t => {
-  [
+  /** @type {Array<[unknown, RegExp]>} */ ([
     ['foobar', /Invalid URL.$/u],
     ['', /Invalid URL.$/u],
     [null, /Invalid URL.$/u],
@@ -52,8 +52,10 @@ test('assertValidLocator - invalid', t => {
     [`${makeLocator()}&foo=bar`, /Invalid search params.$/u],
     [makeLocator({ param1: 'id=foobar' }), /Invalid id.$/u],
     [makeLocator({ param2: 'type=foobar' }), /Invalid type.$/u],
-  ].forEach(([locator, reason]) => {
-    t.throws(() => assertValidLocator(locator), { message: reason });
+  ]).forEach(([locator, reason]) => {
+    t.throws(() => assertValidLocator(/** @type {any} */ (locator)), {
+      message: reason,
+    });
   });
 });
 
@@ -67,7 +69,10 @@ test('parseLocator', t => {
 
 test('formatLocator', t => {
   t.is(
-    formatLocator(formatId({ number: validId, node: validNode }), validType),
+    formatLocator(
+      formatId(/** @type {any} */ ({ number: validId, node: validNode })),
+      validType,
+    ),
     makeLocator(),
   );
 });
@@ -75,6 +80,6 @@ test('formatLocator', t => {
 test('idFromLocator', t => {
   t.is(
     idFromLocator(makeLocator()),
-    formatId({ number: validId, node: validNode }),
+    formatId(/** @type {any} */ ({ number: validId, node: validNode })),
   );
 });

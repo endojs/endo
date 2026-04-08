@@ -109,11 +109,14 @@ test('makeScript with useEvaluate preserves error stack trace line numbers', asy
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundle/main.js'));
-  t.false(error.stack.includes('file:/.*main.js'));
+  t.assert(error);
+  const thrown1 = /** @type {Error} */ (error);
+  const errorStack1 = `${thrown1.stack}`;
+  t.assert(errorStack1.includes(':4:'));
+  t.assert(errorStack1.includes('bundle/main.js'));
+  t.false(errorStack1.includes('file:/.*main.js'));
 });
 
 test('makeScript with useEvaluate and sourceUrlPrefix preserves source URLs in stack traces', async t => {
@@ -138,12 +141,15 @@ test('makeScript with useEvaluate and sourceUrlPrefix preserves source URLs in s
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.log(error.stack);
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
-  t.assert(!error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const thrown2 = /** @type {Error} */ (error);
+  const errorStack2 = `${thrown2.stack}`;
+  t.log(errorStack2);
+  t.assert(errorStack2.includes(':4:'));
+  t.assert(errorStack2.includes('bundled-sources/.../bundle/main.js'));
+  t.assert(!errorStack2.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor works', async t => {
@@ -184,11 +190,14 @@ test('makeFunctor with useEvaluate preserves error for compiled sourceUrlPrefix 
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
-  t.false(error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const thrown3 = /** @type {Error} */ (error);
+  const errorStack3 = `${thrown3.stack}`;
+  t.assert(errorStack3.includes(':4:'));
+  t.assert(errorStack3.includes('bundled-sources/.../bundle/main.js'));
+  t.false(errorStack3.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate preserves error for sourceUrlPrefix runtime option', async t => {
@@ -217,11 +226,14 @@ test('makeFunctor with useEvaluate preserves error for sourceUrlPrefix runtime o
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
-  t.false(error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const thrown4 = /** @type {Error} */ (error);
+  const errorStack4 = `${thrown4.stack}`;
+  t.assert(errorStack4.includes(':4:'));
+  t.assert(errorStack4.includes('bundled-sources/.../bundle/main.js'));
+  t.false(errorStack4.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate works', async t => {
@@ -292,11 +304,14 @@ test('makeFunctor with useEvaluate preserves error stack trace line numbers', as
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundle/main.js'));
-  t.false(error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const thrown5 = /** @type {Error} */ (error);
+  const errorStack5 = `${thrown5.stack}`;
+  t.assert(errorStack5.includes(':4:'));
+  t.assert(errorStack5.includes('bundle/main.js'));
+  t.false(errorStack5.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate and evaluate runtime option preserves stack trace line numbers', async t => {
@@ -322,11 +337,14 @@ test('makeFunctor with useEvaluate and evaluate runtime option preserves stack t
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundle/main.js'));
-  t.false(error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const thrown6 = /** @type {Error} */ (error);
+  const errorStack6 = `${thrown6.stack}`;
+  t.assert(errorStack6.includes(':4:'));
+  t.assert(errorStack6.includes('bundle/main.js'));
+  t.false(errorStack6.includes('file:/.*bundle/main.js'));
 });
 
 // This is failing because it requires support for missing dependencies.

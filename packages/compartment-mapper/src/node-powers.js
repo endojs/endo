@@ -207,13 +207,11 @@ export const makeReadNowPowers = ({
     try {
       return fs.readFileSync(filePath);
     } catch (error) {
-      if (
-        'code' in error &&
-        (error.code === 'ENOENT' || error.code === 'EISDIR')
-      ) {
+      const err = /** @type {NodeJS.ErrnoException} */ (error);
+      if (err.code === 'ENOENT' || err.code === 'EISDIR') {
         return undefined;
       }
-      throw error;
+      throw err;
     }
   };
 
@@ -247,7 +245,7 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
     try {
       return await fs.promises.writeFile(fileURLToPath(location), data);
     } catch (error) {
-      throw Error(error.message);
+      throw Error(/** @type {Error} */ (error).message);
     }
   };
 

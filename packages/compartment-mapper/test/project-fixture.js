@@ -87,7 +87,7 @@ export const dumpProjectFixture = (
  *
  * @template [Context=unknown]
  * @param {{log: LogFn}|ExecutionContext<Context>} logger
- * @returns {RestParameters<typeof dumpProjectFixture>}
+ * @returns {(...args: RestParameters<typeof dumpProjectFixture>) => void}
  */
 export const makeDumpProjectFixture = logger =>
   dumpProjectFixture.bind(null, logger);

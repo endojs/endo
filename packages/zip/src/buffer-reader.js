@@ -15,8 +15,12 @@ const q = JSON.stringify;
 /** @type {WeakMap<BufferReader, BufferReaderState>} */
 const privateFields = new WeakMap();
 
-/** @type {(bufferReader: BufferReader) => BufferReaderState} */
-const privateFieldsGet = privateFields.get.bind(privateFields);
+/**
+ * @param {BufferReader} bufferReader
+ * @returns {BufferReaderState}
+ */
+const privateFieldsGet = bufferReader =>
+  /** @type {BufferReaderState} */ (privateFields.get(bufferReader));
 
 export class BufferReader {
   /**

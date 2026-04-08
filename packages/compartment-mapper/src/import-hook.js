@@ -731,7 +731,7 @@ export const makeImportHookMaker = (
             .join(', ')}) in package ${packageLocation}`,
         );
       } catch (error) {
-        return deferError(moduleSpecifier, error);
+        return deferError(moduleSpecifier, /** @type {Error} */ (error));
       }
     };
     return importHook;
@@ -936,7 +936,7 @@ export function makeImportNowHookMaker(
         // at this point, we haven't found the module by guessing, so we'll try the importer-of-last-resort
         return importExitModuleOrFail(moduleSpecifier, compartmentDescriptor);
       } catch (err) {
-        return deferError(moduleSpecifier, err);
+        return deferError(moduleSpecifier, /** @type {Error} */ (err));
       }
     };
     return importNowHook;
