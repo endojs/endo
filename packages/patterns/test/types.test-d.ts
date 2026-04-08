@@ -122,11 +122,14 @@ const passable: Passable = null as any;
   expectType<symbol>(null as unknown as T);
 }
 
-// M.undefined() → undefined
+// M.undefined() → void
+// Uses `void` rather than `undefined` so that impls declared with a
+// `void` return can satisfy guards ending in `.returns(M.undefined())`.
+// See the TFKindMap['undefined'] comment in type-from-pattern.ts.
 {
   const p = M.undefined();
   type T = TypeFromPattern<typeof p>;
-  expectType<undefined>(null as unknown as T);
+  expectType<void>(null as unknown as T);
 }
 
 // M.null() → null (literal pattern, not a matcher)
@@ -318,11 +321,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<string & bigint>(null as unknown as T);
 }
 
-// M.opt() → T | undefined
+// M.opt() → T | void (void rather than undefined; see TFKindMap comment)
 {
   const p = M.opt(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | undefined>(null as unknown as T);
+  expectType<string | void>(null as unknown as T);
 }
 
 // M.eref() → T | PromiseLike<any>
@@ -846,11 +849,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<string | PromiseLike<any>>(null as unknown as T);
 }
 
-// opt infers T | undefined
+// opt infers T | void
 {
   const p = M.opt(M.nat());
   type T = TypeFromPattern<typeof p>;
-  expectType<bigint | undefined>(null as unknown as T);
+  expectType<bigint | void>(null as unknown as T);
 }
 
 // ===== matches type guard (narrows in if-blocks) =====
@@ -1067,15 +1070,23 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   );
 }
 
-// ===== Bare .returns() defaults to undefined, not void or null =====
+// ===== Bare .returns() defaults to void (from MatcherOf<'kind','undefined'>) =====
+// We use `void` rather than `undefined` so that impls declared with
+// `method(): void` satisfy guards ending in bare `.returns()` or
+// `.returns(M.undefined())`.  TypeScript rejects
+// `() => void` assignment to `() => undefined` because a void-returning
+// function may return any value (callers ignore it), while an
+// undefined-returning function must literally return `undefined`.
+// At runtime the guard only checks the value *is* `undefined`, which
+// both void- and undefined-returning impls satisfy in practice.
 {
   // Sync
   const mg1 = M.call().returns();
   type Fn1 = TypeFromMethodGuard<typeof mg1>;
-  expectType<undefined>(null as unknown as ReturnType<Fn1>);
+  expectType<void>(null as unknown as ReturnType<Fn1>);
 
   // Async (callWhen)
   const mg2 = M.callWhen().returns();
   type Fn2 = TypeFromMethodGuard<typeof mg2>;
-  expectType<Promise<undefined>>(null as unknown as ReturnType<Fn2>);
+  expectType<Promise<void>>(null as unknown as ReturnType<Fn2>);
 }
