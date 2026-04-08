@@ -105,17 +105,20 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     const bundle = await bundleSource(
       rootPath,
-      {
+      /** @type {import('./src/types.js').BundleOptions<ModuleFormat>} */ ({
         ...bundleOptions,
         noTransforms,
         elideComments,
         format,
         conditions: sortedConditions,
-      },
-      {
+      }),
+      /** @type {{ read?: import('./src/types.js').ReadFn, canonical?: import('./src/types.js').CanonicalFn, externals?: string[] }} */ ({
         ...readPowers,
         read: loggedRead,
-      },
+        canonical: /** @type {import('./src/types.js').CanonicalFn} */ (
+          readPowers.canonical
+        ),
+      }),
     );
 
     const code = encodeBundle(bundle);
@@ -375,12 +378,9 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    *     : import('./src/types.js').BundleSourceResult<'endoZipBase64'>
    * >}
    */
-  const load = async (
-    rootPath,
-    targetName = readPowers.basename(rootPath, '.js'),
-    log = defaultLog,
-    options,
-  ) => {
+  const load = async (rootPath, targetName, log, options) => {
+    targetName = targetName ?? readPowers.basename(rootPath, '.js');
+    log = log ?? defaultLog;
     const found = loaded.get(targetName);
     // console.log('load', { targetName, found: !!found, rootPath });
     if (found && found.rootPath === rootPath) {
