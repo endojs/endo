@@ -62,5 +62,5 @@ export type VStorageKey = {
   expectType<() => string>(node.getPath);
 
   const keyResult = node.getStoreKey();
-  expectAssignable<Promise<VStorageKey>>(keyResult);
+  expectAssignable<Promise<Record<string, unknown>>>(keyResult);
 }

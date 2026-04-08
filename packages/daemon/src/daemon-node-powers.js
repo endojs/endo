@@ -428,7 +428,7 @@ export const makeDaemonicPersistencePowers = (
         return JSON.parse(formulaText);
       } catch (error) {
         throw new TypeError(
-          `Corrupt description for reference in file ${formulaPath}: ${error.message}`,
+          `Corrupt description for reference in file ${formulaPath}: ${/** @type {Error} */ (error).message}`,
         );
       }
     })();

@@ -3,7 +3,7 @@
 // Obsolete: node no longer supports `-r esm`; kept as reference only.
 // See packages/ses/test/package.test.js where the `resm` case is commented out.
 
-import 'ses';
+import '../../index.js';
 
 lockdown();
 console.log(Compartment);

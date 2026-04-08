@@ -4,15 +4,13 @@ import harden from '@endo/harden';
 import { M, mustMatch } from '../src/patterns/patternMatchers.js';
 
 test('mismatch to see stack', t => {
-  let err;
-  try {
-    mustMatch(
-      harden({ arr: ['foo', ['bar', 'BAR'], ['qux', 'quux']] }),
-      harden({ arr: ['foo', ['bar', 'BAR'], [M.string(), 'qux']] }),
-    );
-  } catch (er) {
-    err = er;
-  }
+  const err = t.throws(
+    () =>
+      mustMatch(
+        harden({ arr: ['foo', ['bar', 'BAR'], ['qux', 'quux']] }),
+        harden({ arr: ['foo', ['bar', 'BAR'], [M.string(), 'qux']] }),
+      ),
+    { name: 'Error' },
+  );
   t.log('err', err);
-  t.is(err.name, 'Error');
 });

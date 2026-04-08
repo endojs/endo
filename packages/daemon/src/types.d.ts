@@ -422,13 +422,13 @@ export interface Context {
    * @param id - The formula identifier of the value whose
    * cancellation should cause this value to be cancelled.
    */
-  thisDiesIfThatDies: (id: string) => void;
+  thisDiesIfThatDies: (id: FormulaIdentifier) => void;
 
   /**
    * @param id - The formula identifier of the value that should
    * be cancelled if this value is cancelled.
    */
-  thatDiesIfThisDies: (id: string) => void;
+  thatDiesIfThisDies: (id: FormulaIdentifier) => void;
 
   /**
    * @param hook - A hook to run when the value is cancelled.
@@ -707,9 +707,9 @@ export interface EndoHost extends EndoAgent {
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
 
-export type EndoInspector<Record = string> = {
-  lookup: (petNameOrPath: Record | NameOrPath) => Promise<unknown>;
-  list: () => Record[];
+export type EndoInspector<RecordT = string> = {
+  lookup(petNameOrPath: RecordT | NameOrPath): Promise<unknown>;
+  list(): RecordT[];
 };
 
 export type KnownEndoInspectors = {
@@ -1189,30 +1189,30 @@ export type BidirectionalMultimap<K, V> = {
 
 export interface RemoteControl {
   accept(
-    remoteGateway: Promise<EndoGateway>,
+    remoteGateway: ERef<EndoGateway>,
     cancel: (error: Error) => void | Promise<void>,
     cancelled: Promise<never>,
     dispose?: () => void,
   ): void;
   connect(
-    getRemoteGateway: () => Promise<EndoGateway>,
+    getRemoteGateway: () => ERef<EndoGateway>,
     cancel: (error: Error) => void | Promise<void>,
     cancelled: Promise<never>,
     dispose?: () => void,
-  ): Promise<EndoGateway>;
+  ): ERef<EndoGateway>;
 }
 
 export interface RemoteControlState {
   accept(
-    remoteGateway: Promise<EndoGateway>,
+    remoteGateway: ERef<EndoGateway>,
     cancel: (error: Error) => void | Promise<void>,
     cancelled: Promise<never>,
     dispose: () => void,
   ): RemoteControlState;
   connect(
-    getRemoteGateway: () => Promise<EndoGateway>,
+    getRemoteGateway: () => ERef<EndoGateway>,
     cancel: (error: Error) => void | Promise<void>,
     cancelled: Promise<never>,
     dispose: () => void,
-  ): { state: RemoteControlState; remoteGateway: Promise<EndoGateway> };
+  ): { state: RemoteControlState; remoteGateway: ERef<EndoGateway> };
 }

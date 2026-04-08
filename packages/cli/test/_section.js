@@ -1,6 +1,6 @@
 /** @import {ExecaMethod} from 'execa' */
 /** @import {ExecutionContext} from 'ava' */
-/** @import {TestRoutine} from './_types.js' */
+/** @import {TestCommand, TestRoutine} from './_types.js' */
 
 /**
  * Transforms a testRoutine into an ava test.
@@ -25,6 +25,7 @@ export function makeSectionTest(execa, testRoutine) {
         errMsg,
       );
     };
+    /** @type {TestCommand} */
     const testCommand = async (command, expectation) => {
       const result = await command;
       if (expectation !== undefined) {
@@ -32,6 +33,7 @@ export function makeSectionTest(execa, testRoutine) {
         matchExpecation(expectation.stdout ?? '', result.stdout, errMsg);
         matchExpecation(expectation.stderr ?? /.*/, result.stderr, errMsg);
       }
+      return true;
     };
     await testRoutine(execa, testCommand);
   };
