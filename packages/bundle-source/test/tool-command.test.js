@@ -17,7 +17,7 @@ const shellOut = () =>
     const child = spawn(
       'node',
       [
-        'bin/bundle-source',
+        'bin/bundle-source.cjs',
         '--cache-json',
         'bundles',
         'demo/circular/a.js',
@@ -54,7 +54,7 @@ const shellOutInvalidFormat = () =>
     const errorChunks = [];
     const child = spawn(
       'node',
-      ['bin/bundle-source', '--format', 'unsupported', 'demo/meaning.js'],
+      ['bin/bundle-source.cjs', '--format', 'unsupported', 'demo/meaning.js'],
       {
         cwd,
         env,

@@ -16,7 +16,7 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "bin": {
-    "endo": "./bin/endo"
+    "endo": "./bin/endo.cjs"
   },
   "type": "module",
   "exports": {},
