@@ -12,7 +12,7 @@ dependencies using Yarn, and arrange for the Endo command to be available as
 ```
 > git clone https://github.com/endojs/endo.git
 > yarn
-> alias endo=$PWD/packages/cli/bin/endo
+> alias endo=$PWD/packages/cli/bin/endo.cjs
 ```
 
 # A counter example

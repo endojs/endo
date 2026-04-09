@@ -561,7 +561,7 @@ __metadata:
     open: "npm:^9.1.0"
     typescript: "npm:~5.9.2"
   bin:
-    endo: ./bin/endo
+    endo: ./bin/endo.cjs
   languageName: unknown
   linkType: soft
 
@@ -1095,7 +1095,7 @@ __metadata:
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   bin:
-    ses-ava: bin/ses-ava
+    ses-ava: bin/ses-ava.cjs
   languageName: unknown
   linkType: soft
 
