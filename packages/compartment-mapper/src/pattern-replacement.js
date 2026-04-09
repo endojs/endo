@@ -43,12 +43,40 @@ export const assertMatchingWildcardCount = (pattern, replacement) => {
 
 /**
  * @typedef {object} ResolvedPattern
+ * @property {string} pattern - The original pattern key
  * @property {string} prefix - The part of the pattern before `*`
  * @property {string} suffix - The part of the pattern after `*`
  * @property {string | null} replacementPrefix - The part of the replacement before `*`, or null for exclusions
  * @property {string | null} replacementSuffix - The part of the replacement after `*`, or null for exclusions
  * @property {string} [compartment] - Optional compartment for cross-compartment patterns
  */
+
+/**
+ * Compare two pattern keys using Node.js's PATTERN_KEY_COMPARE ordering.
+ * This prefers the longest prefix before `*`, then the longest full key.
+ * For example, `./foo/*.js` outranks `./foo/*`.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+const patternKeyCompare = (a, b) => {
+  const aBaseLength = a.indexOf('*') + 1;
+  const bBaseLength = b.indexOf('*') + 1;
+  if (aBaseLength > bBaseLength) {
+    return -1;
+  }
+  if (bBaseLength > aBaseLength) {
+    return 1;
+  }
+  if (a.length > b.length) {
+    return -1;
+  }
+  if (b.length > a.length) {
+    return 1;
+  }
+  return 0;
+};
 
 /**
  * Creates a multi-pattern replacer for Node.js-style subpath patterns.
@@ -112,6 +140,7 @@ export const makeMultiSubpathReplacer = mapping => {
         const prefix = pattern.slice(0, wildcardIndex);
         const suffix = pattern.slice(wildcardIndex + 1);
         wildcardEntries.push({
+          pattern,
           prefix,
           suffix,
           replacementPrefix: null,
@@ -141,6 +170,7 @@ export const makeMultiSubpathReplacer = mapping => {
       const replacementPrefix = replacement.slice(0, replacementWildcardIndex);
       const replacementSuffix = replacement.slice(replacementWildcardIndex + 1);
       wildcardEntries.push({
+        pattern,
         prefix,
         suffix,
         replacementPrefix,
@@ -150,9 +180,9 @@ export const makeMultiSubpathReplacer = mapping => {
     }
   }
 
-  // Sort wildcard entries by prefix length descending for specificity.
-  // Node.js selects the pattern with the longest matching prefix.
-  wildcardEntries.sort((a, b) => b.prefix.length - a.prefix.length);
+  // Match Node.js PATTERN_KEY_COMPARE semantics for subpath pattern
+  // precedence: longest prefix before `*`, then longest full pattern key.
+  wildcardEntries.sort((a, b) => patternKeyCompare(a.pattern, b.pattern));
 
   return specifier => {
     // Exact entries take precedence
