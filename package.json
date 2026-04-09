@@ -31,7 +31,6 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsdoc": "^50.6.1",
     "lerna": "^8.1.8",
-    "nano-spawn": "^2.0.0",
     "prettier": "^3.5.3",
     "ses": "workspace:^",
     "source-map": "^0.7.4",
@@ -58,16 +57,14 @@
     "lint:fix": "yarn lint:eslint -- --fix",
     "lint:workspaces:fix": "yarn workspaces foreach --all run lint-fix",
     "lint:prettier": "prettier --check .github packages",
-    "release:npm": "lerna publish from-package",
+    "release:npm": "scripts/release-npm.mjs",
+    "pack:all": "scripts/pack-all.mjs",
     "test": "yarn workspaces foreach --all --exclude @endo/skel run test",
     "test:c8": "yarn workspaces foreach --all run test:c8",
     "test:xs": "yarn workspaces foreach --all run test:xs",
     "test262": "yarn workspaces foreach --all run test262",
     "build": "yarn workspaces foreach --all run build",
-    "build-ts": "tsc --build tsconfig.build.json",
-    "build-ts-to-js": "scripts/packing/build-ts-to-js.mjs",
-    "prepack-package": "scripts/packing/prepack-package.mjs",
-    "postpack-package": "scripts/packing/postpack-package.mjs"
+    "build-ts": "tsc --build tsconfig.build.json"
   },
   "dependencies": {
     "conventional-changelog-conventionalcommits": "^4.6.0"

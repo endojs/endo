@@ -81,8 +81,8 @@ api-docs
 # ts build cache
 *.tsbuildinfo
 
-# packing artifacts
-.pack-rewrite-files.txt
+# pack-all output
+/dist/
 
 # ignore all declarations and mappings, but allow the "*.types.d{m,c,t}s"
 # convention below to make it easier to track new declaration files as needed

@@ -10,8 +10,6 @@
     "test:xs": "exit 0",
     "build": "exit 0",
     "clean": "git clean -fX -e node_modules/",
-    "prepack": "yarn run -T prepack-package",
-    "postpack": "yarn run -T postpack-package",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
