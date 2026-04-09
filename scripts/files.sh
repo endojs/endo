@@ -6,7 +6,7 @@
 set -ueo pipefail
 TAR=$(command -v gtar || command -v tar)
 while read -r PKG; do
-  (cd "$PKG"; yarn pack 1>&2)
+  (cd "$PKG"; npm pack 1>&2)
   # shellcheck disable=SC2097,SC2098,SC2016
   PKG="$PKG" "$TAR" xf "$PKG/package.tgz" --to-command='echo "$PKG/${TAR_FILENAME#package/}"'
 done < <(npm query '.workspace:not([private])' | jq -r '.[].location') |
