@@ -226,3 +226,19 @@ export const evadeDecrementGreater = p => {
     };
   }
 };
+
+/**
+ * @param {import('@babel/traverse').NodePath} p
+ */
+export const evadeClassMethod = p => {
+  const { node } = p;
+  // find class definitions with a method named import and turn it into `['import']()` syntax in class definition
+  if (
+    p.isClassMethod() &&
+    node.key.type === 'Identifier' &&
+    node.key.name === 'import'
+  ) {
+    node.computed = true;
+    node.key = { type: 'StringLiteral', value: 'import' };
+  }
+};
