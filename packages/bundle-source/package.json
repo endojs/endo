@@ -15,11 +15,11 @@
     "build": "exit 0",
     "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
     "postpack": "git clean -fX -e node_modules/",
-    "test": "ava",
+    "test": "ava --config test/_ava.config.mjs",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "yarn lint:types && yarn lint:eslint",
-    "lint:eslint": "eslint '**/*.js'",
+    "lint:eslint": "eslint .",
     "lint:types": "tsc"
   },
   "dependencies": {
@@ -67,11 +67,6 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "publishConfig": {
     "access": "public"
-  },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ]
   },
   "eslintConfig": {
     "extends": [

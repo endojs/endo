@@ -470,7 +470,7 @@ export const makeCopyMap = entries => {
   // organized by those keys. Also, among values associated with
   // keys in the same equivalence class, those are rank sorted.
   // TODO This
-  // could solve the copyMap cover issue explained in patternMatchers.js.
+  // could solve the copyMap cover issue explained in patternMatchers.ts.
   // But only if we include this criteria in our validation of copyMaps,
   // which we currently do not.
   const sortedEntries = sortByRank(entries, compareAntiRank);

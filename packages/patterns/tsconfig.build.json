@@ -3,10 +3,8 @@
     "./tsconfig.json",
     "../../tsconfig-build-options.json"
   ],
-  "compilerOptions": {
-    "allowJs": true
-  },
   "exclude": [
+    "src/exports.*",
     "test/"
   ]
 }

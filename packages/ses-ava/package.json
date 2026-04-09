@@ -19,7 +19,7 @@
   },
   "type": "module",
   "main": "./index.js",
-  "bin": "bin/ses-ava",
+  "bin": "bin/ses-ava.cjs",
   "exports": {
     ".": "./index.js",
     "./test.js": {
@@ -40,7 +40,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava && bin/ses-ava --only env --only raw"
+    "test": "ava && bin/ses-ava.cjs --only env --only raw"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",

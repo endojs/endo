@@ -5,9 +5,15 @@
 # PATH.
 set -ueo pipefail
 TAR=$(command -v gtar || command -v tar)
-while read -r PKG; do
-  (cd "$PKG"; yarn pack 1>&2)
-  # shellcheck disable=SC2097,SC2098,SC2016
-  PKG="$PKG" "$TAR" xf "$PKG/package.tgz" --to-command='echo "$PKG/${TAR_FILENAME#package/}"'
-done < <(npm query '.workspace:not([private])' | jq -r '.[].location') |
-sort
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DIST="$REPO_ROOT/dist"
+
+# Build every workspace's tarball into dist/ via pack-all (which uses
+# ts-node-pack for .ts packages and yarn pack for the rest).
+yarn pack:all 1>&2
+
+for TGZ in "$DIST"/*.tgz; do
+  PKG_NAME="$(basename "$TGZ" .tgz)"
+  # shellcheck disable=SC2016
+  PKG="$PKG_NAME" "$TAR" xf "$TGZ" --to-command='echo "$PKG/${TAR_FILENAME#package/}"'
+done | sort

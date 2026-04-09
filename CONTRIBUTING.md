@@ -35,7 +35,7 @@ Many issues can be anticipated locally by running:
 - `yarn format` for Prettier code formatting
 - `yarn docs`, because Typedoc has a holistic view of TypeScript definitions
   that lint in individual packages may not catch.
-- `yarn workspaces foreach --all --topological exec yarn pack`: Uncovers
+- `yarn workspaces foreach --all --topological exec npm pack`: Uncovers
   issues with type definition generation that only occur during a release.
 - `yarn lerna run --reject-cycles --concurrency 1 prepack`: Prepack (without
   cleanup per package) to ensure that type resolution in dependent packages

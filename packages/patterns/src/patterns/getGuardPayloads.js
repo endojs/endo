@@ -14,7 +14,7 @@ import {
   assertAwaitArgGuard,
   matches,
   mustMatch,
-} from './patternMatchers.js';
+} from './patternMatchers.ts';
 import { getCopyMapKeys, makeCopyMap } from '../keys/checkKey.js';
 
 /**
