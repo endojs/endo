@@ -59,6 +59,7 @@
     "lint:prettier": "prettier --check .github packages",
     "release:npm": "scripts/release-npm.mjs",
     "pack:all": "scripts/pack-all.mjs",
+    "smoketest:publish": "scripts/smoketest-publishing.sh",
     "test": "yarn workspaces foreach --all --exclude @endo/skel run test",
     "test:c8": "yarn workspaces foreach --all run test:c8",
     "test:xs": "yarn workspaces foreach --all run test:xs",
