@@ -10,6 +10,7 @@ import test from 'ava';
 import {
   assertMain,
   assertConditionalDefault,
+  assertPrecedence,
 } from './_subpath-patterns-assertions.js';
 
 const fixtureBase = new URL(
@@ -90,4 +91,12 @@ test('globstar patterns are not resolved by Node.js', async t => {
       code: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
     },
   );
+});
+
+test('Node prefers the longer full pattern key on equal prefix length', async t => {
+  // This exercises Node's pattern key ordering with overlapping keys:
+  // "./tie/*" and "./tie/*.js". Node resolves "patterns-lib/tie/bar.js"
+  // through "./tie/*.js", not the broader "./tie/*" entry.
+  const ns = await import(new URL('precedence-import.js', fixtureBase).href);
+  assertPrecedence(t, ns);
 });

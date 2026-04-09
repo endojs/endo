@@ -112,6 +112,17 @@ test('longer prefix wins (specificity)', t => {
   });
 });
 
+test('Node-style tie-break prefers longer full pattern key', t => {
+  const replace = makeMultiSubpathReplacer([
+    ['./foo/*', './src/foo/*.js'],
+    ['./foo/*.js', './src/*.js'],
+  ]);
+  t.deepEqual(replace('./foo/bar.js'), {
+    result: './src/bar.js',
+    compartment: undefined,
+  });
+});
+
 test('wildcard count mismatch throws', t => {
   t.throws(() => makeMultiSubpathReplacer({ './*': './a' }), {
     message: /wildcard count mismatch/i,

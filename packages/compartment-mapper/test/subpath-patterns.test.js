@@ -19,6 +19,7 @@ import {
   assertMain,
   assertConditionalBlue,
   assertConditionalDefault,
+  assertPrecedence,
 } from './_subpath-patterns-assertions.js';
 
 const fixture = new URL(
@@ -111,4 +112,13 @@ test('null-target pattern excludes matching specifier', async t => {
   await t.throwsAsync(() => importLocation(readPowers, nullTargetFixture), {
     message: /excluded by null target pattern/,
   });
+});
+
+test('pattern tie-break matches Node precedence rules', async t => {
+  const precedenceFixture = new URL(
+    'fixtures-subpath-patterns/node_modules/app/precedence-import.js',
+    import.meta.url,
+  ).toString();
+  const { namespace } = await importLocation(readPowers, precedenceFixture);
+  assertPrecedence(t, namespace);
 });

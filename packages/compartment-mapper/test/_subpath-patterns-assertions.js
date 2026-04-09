@@ -26,6 +26,10 @@ export const expectedConditionalDefault = {
   widget: 'default-widget',
 };
 
+export const expectedPrecedence = {
+  tieBreak: 'suffix-specific',
+};
+
 /**
  * @param {ExecutionContext} t
  * @param {object} namespace
@@ -48,4 +52,12 @@ export const assertConditionalBlue = (t, namespace) => {
  */
 export const assertConditionalDefault = (t, namespace) => {
   t.like(namespace, expectedConditionalDefault);
+};
+
+/**
+ * @param {ExecutionContext} t
+ * @param {object} namespace
+ */
+export const assertPrecedence = (t, namespace) => {
+  t.like(namespace, expectedPrecedence);
 };
