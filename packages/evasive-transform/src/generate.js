@@ -18,12 +18,16 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
 );
 
 /**
+ * @typedef {NonNullable<import('@babel/generator').GeneratorOptions['inputSourceMap']>} SourceMapOption
+ */
+
+/**
  * Options for {@link generateCode} with source map
  *
  * @typedef GenerateAstOptionsWithSourceMap
  * @property {string} [source]
  * @property {string} sourceUrl - If present, we will generate a source map
- * @property {string} [sourceMap] - If present, the generated source map will be a transform over the given source map.
+ * @property {SourceMapOption | undefined} [sourceMap] - If present, the generated source map will be a transform over the given source map.
  * @internal
  */
 

@@ -274,7 +274,7 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
   return {
     compartmentMapBytes: archiveCompartmentMapBytes,
     sources: archiveSources,
-    sha512: archiveSha512,
+    ...(archiveSha512 !== undefined && { sha512: archiveSha512 }),
   };
 };
 
@@ -300,7 +300,7 @@ export const makeAndHashArchiveFromMap = async (
   await addSourcesToArchive(archive, sources);
   const bytes = await archive.snapshot();
 
-  return { bytes, sha512 };
+  return { bytes, ...(sha512 !== undefined && { sha512 }) };
 };
 
 /**

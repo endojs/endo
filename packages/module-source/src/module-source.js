@@ -49,10 +49,10 @@ const analyzeModule = makeModuleAnalyzer();
 
 /**
  * @typedef {object} Options
- * @property {string} [sourceUrl]
- * @property {string} [sourceMap]
- * @property {string} [sourceMapUrl]
- * @property {SourceMapHook} [sourceMapHook]
+ * @property {string | undefined} [sourceUrl]
+ * @property {string | undefined} [sourceMap]
+ * @property {string | undefined} [sourceMapUrl]
+ * @property {SourceMapHook | undefined} [sourceMapHook]
  */
 
 // XXX implements import('ses').PrecompiledModuleSource but adding
