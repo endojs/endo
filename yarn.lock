@@ -10516,7 +10516,7 @@ __metadata:
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
     source-map: "npm:^0.7.4"
-    ts-node-pack: "npm:^0.3.1"
+    ts-node-pack: "npm:^0.3.2"
     tsd: "npm:^0.31.2"
     type-coverage: "npm:^2.29.1"
     typedoc: "npm:^0.28.19"
@@ -11719,15 +11719,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-node-pack@npm:^0.3.1":
-  version: 0.3.1
-  resolution: "ts-node-pack@npm:0.3.1"
+"ts-node-pack@npm:^0.3.2":
+  version: 0.3.2
+  resolution: "ts-node-pack@npm:0.3.2"
   dependencies:
     amaro: "npm:^0.3.2"
     npm-packlist: "npm:^10.0.4"
   bin:
     ts-node-pack: src/cli.js
-  checksum: 10c0/0219aec6910db037059230666a46be5633f02e3463934168085a1c1a7cc36ee761af21c9efd50efdedee1a4d3a8b03a21795b1fd3a5df22e1ffb8bd426acabd9
+  checksum: 10c0/b2b565881cb8ec05f73160943f14e787049ee68e04091f59dac4ccbc3bd100b5a5197e67a4b56fc1515890e62105d8264c68285cecb810deb25b9bf22c433e3f
   languageName: node
   linkType: hard
 
