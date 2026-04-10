@@ -940,6 +940,7 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/inventory-graph": "workspace:^"
     "@endo/lockdown": "workspace:^"
+    "@endo/markmdown": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
@@ -1475,7 +1476,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/markmdown@workspace:packages/markmdown":
+"@endo/markmdown@workspace:^, @endo/markmdown@workspace:packages/markmdown":
   version: 0.0.0-use.local
   resolution: "@endo/markmdown@workspace:packages/markmdown"
   dependencies:
