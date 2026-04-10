@@ -81,9 +81,7 @@ export const inboxComponent = async (
         const endScrollTop = /** @type {number} */ (
           $parent.scrollHeight - $parent.clientHeight
         );
-        resolve(
-          endScrollTop - scrollTop < 80,
-        );
+        resolve(endScrollTop - scrollTop < 80);
       }),
     );
 

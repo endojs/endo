@@ -6,7 +6,7 @@ import { E } from '@endo/far';
 
 import { makeRefReader } from './ref-reader.js';
 
-/** @import { TreeWriter } from './types.js' */
+/** @import { TreeWriter, SnapshotTree } from './types.js' */
 
 /**
  * Recursively walk a ReadableTree (local or remote) and materialize
@@ -25,9 +25,10 @@ export const checkoutTree = async (tree, writer, options = {}) => {
    */
   const walk = async (node, pathSegments) => {
     await writer.makeDirectory(pathSegments);
-    const names = await E(node).list();
+    const names = await E(/** @type {SnapshotTree} */ (node)).list();
     for (const name of names) {
-      const child = await E(node).lookup(name);
+      /** @type {any} */
+      const child = await E(/** @type {SnapshotTree} */ (node)).lookup(name);
       const childPath = [...pathSegments, name];
       // Use __getMethodNames__ to detect the node type without calling
       // a method that may not exist (which causes CapTP error logging).
@@ -39,7 +40,7 @@ export const checkoutTree = async (tree, writer, options = {}) => {
       } else {
         // It's a readable-blob. Stream its content through the writer.
         const readerRef = E(child).streamBase64();
-        const readable = makeRefReader(readerRef);
+        const readable = makeRefReader(/** @type {any} */ (readerRef));
         await writer.writeBlob(childPath, readable);
         if (onFile) onFile();
       }

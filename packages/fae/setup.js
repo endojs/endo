@@ -19,7 +19,9 @@ const llmProviderFactorySpecifier = new URL(
  */
 export const main = async agent => {
   if (await E(agent).has('llm-provider-factory')) {
-    console.log('Fae LLM provider factory already provisioned — skipping setup.');
+    console.log(
+      'Fae LLM provider factory already provisioned — skipping setup.',
+    );
     return;
   }
 

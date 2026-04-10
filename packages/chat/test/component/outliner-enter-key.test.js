@@ -135,8 +135,7 @@ const makeMessage = (number, text, opts = {}) => ({
 const mockCursorPosition = ($text, position) => {
   const textContent = $text.textContent || '';
   const textNode = $text.childNodes[0] || $text;
-  const offset =
-    position === 'end' ? textContent.length : 0;
+  const offset = position === 'end' ? textContent.length : 0;
 
   const origGetSelection = window.getSelection;
 
@@ -264,7 +263,7 @@ const setup = async () => {
    *
    * @param {unknown[]} msgs
    */
-  const pushAll = async (msgs) => {
+  const pushAll = async msgs => {
     for (const msg of msgs) {
       pushMessage(msg);
       // Small tick to allow for-await-of to consume each message
@@ -334,7 +333,7 @@ test.serial(
     const $draftInMsg2 = directChild($msg2Children, 'outliner-draft');
     t.truthy(
       $draftInMsg2,
-      'draft should be inside message 2\'s children (as a reply to it)',
+      "draft should be inside message 2's children (as a reply to it)",
     );
 
     // The draft should be at depth 2 (one deeper than message 2)

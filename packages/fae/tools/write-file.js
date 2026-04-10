@@ -12,7 +12,9 @@ import { makeWriteFileTool } from '../src/tool-makers.js';
  */
 // eslint-disable-next-line no-underscore-dangle
 export const make = (_powers, _context, { env = {} }) => {
-  const cwd = env.FAE_CWD || process.cwd();
+  const cwd =
+    /** @type {Record<string, string | undefined>} */ (env).FAE_CWD ||
+    process.cwd();
   const impl = makeWriteFileTool(cwd);
   return makeExo('WriteFileTool', FaeToolInterface, {
     schema: () => impl.schema(),

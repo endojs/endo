@@ -191,7 +191,7 @@ export const parseHelpdown = text => {
 /**
  * Read a helpdown Markdown file and yield [name, HelpText] entries.
  *
- * @param {string | URL} path - File path or URL to the Markdown file
+ * @param {URL} path - URL to the Markdown file
  * @returns {AsyncIterable<[string, HelpText]>}
  */
 export const loadHelpTextFile = path => {
@@ -205,9 +205,7 @@ export const loadHelpTextFile = path => {
         /** @returns {Promise<IteratorResult<[string, HelpText]>>} */
         next: async () => {
           if (entries === undefined) {
-            const filePath =
-              path instanceof URL ? path : new URL(path, import.meta.url);
-            const text = await fs.promises.readFile(filePath, 'utf-8');
+            const text = await fs.promises.readFile(path, 'utf-8');
             entries = parseHelpdown(text);
           }
           if (index < entries.length) {
@@ -225,13 +223,11 @@ export const loadHelpTextFile = path => {
 /**
  * Synchronously read and parse a helpdown Markdown file.
  *
- * @param {string | URL} path - File path or URL to the Markdown file
+ * @param {URL} path - URL to the Markdown file
  * @returns {Map<string, HelpText>}
  */
 export const readHelpTextFileSync = path => {
-  const filePath =
-    path instanceof URL ? path : new URL(path, import.meta.url);
-  const text = fs.readFileSync(filePath, 'utf-8');
+  const text = fs.readFileSync(path, 'utf-8');
   const entries = parseHelpdown(text);
   return new Map(entries);
 };

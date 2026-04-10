@@ -37,7 +37,9 @@ const model = process.env.ENDO_LLM_MODEL || 'qwen3';
 const authToken = process.env.ENDO_LLM_AUTH_TOKEN || 'ollama';
 
 console.log(`\nPrimary provider: ${host} / ${model}`);
-console.log(`Auth token: ${authToken ? authToken.slice(0, 12) + '...' : '(none)'}\n`);
+console.log(
+  `Auth token: ${authToken ? authToken.slice(0, 12) + '...' : '(none)'}\n`,
+);
 
 try {
   const provider = createProvider({
@@ -54,7 +56,10 @@ try {
     ],
     [],
   );
-  console.log('Response:', response.message?.content || JSON.stringify(response));
+  console.log(
+    'Response:',
+    response.message?.content || JSON.stringify(response),
+  );
   console.log('\nPrimary provider: OK');
 } catch (err) {
   console.error('Primary provider FAILED:', err.message || err);
@@ -69,7 +74,9 @@ if (fastModel) {
   const fastAuthToken = process.env.ENDO_LLM_FAST_AUTH_TOKEN || authToken;
 
   console.log(`\nFast provider: ${fastHost} / ${fastModel}`);
-  console.log(`Auth token: ${fastAuthToken ? fastAuthToken.slice(0, 12) + '...' : '(none)'}\n`);
+  console.log(
+    `Auth token: ${fastAuthToken ? fastAuthToken.slice(0, 12) + '...' : '(none)'}\n`,
+  );
 
   try {
     const fastProvider = createProvider({
@@ -86,7 +93,10 @@ if (fastModel) {
       ],
       [],
     );
-    console.log('Response:', response.message?.content || JSON.stringify(response));
+    console.log(
+      'Response:',
+      response.message?.content || JSON.stringify(response),
+    );
     console.log('\nFast provider: OK');
   } catch (err) {
     console.error('Fast provider FAILED:', err.message || err);

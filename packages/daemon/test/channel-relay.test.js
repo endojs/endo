@@ -296,11 +296,16 @@ test.serial(
 
       const remoteChannel = await E(hostB).lookup('wrong-name-channel');
 
-      // join() with a name that doesn't match any invitation should fail
+      // The fallback claims the first unclaimed invitation regardless of
+      // the proposed name, so this succeeds.
+      const handle = await E(remoteChannel).join('WrongName');
+      t.truthy(handle, 'join should succeed via fallback');
+
+      // Now that all invitations are claimed, a second join should fail.
       await t.throwsAsync(
-        () => E(remoteChannel).join('WrongName'),
-        { message: /No invitation named/ },
-        'join with wrong name should fail',
+        () => E(remoteChannel).join('AnotherName'),
+        { message: /No unclaimed invitation/ },
+        'join with no remaining invitations should fail',
       );
     } finally {
       await relay.teardown();

@@ -6,10 +6,7 @@ import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
 import { createChannelState } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
-import {
-  isVisibleReplyType,
-  computeNodeContent,
-} from './edit-queue.js';
+import { isVisibleReplyType, computeNodeContent } from './edit-queue.js';
 import { relativeTime, dateFormatter } from './time-formatters.js';
 import {
   prepareTextWithPlaceholders,
@@ -194,30 +191,32 @@ export const microblogComponent = async (
       $author.textContent = memberId;
     }
 
-    getMemberInfo(memberId).then(info => {
-      if (!info) return;
-      const current = nameMap.get(memberId);
-      if (!current) {
-        $author.textContent = `\u201C${info.proposedName}\u201D`;
-      }
-      $author.dataset.proposedName = info.proposedName;
-      $author.addEventListener('click', e => {
-        e.stopPropagation();
-        profilePopup.show({
-          proposedName: info.proposedName,
-          pedigree: info.pedigree,
-          pedigreeMemberIds: info.pedigreeMemberIds,
-          nameMap,
-          yourName: nameMap.get(memberId),
-          onAssignName: name => {
-            nameMap.set(memberId, name);
-            saveNameMap();
-            updateAuthorChips(memberId);
-          },
-          anchorElement: $author,
+    getMemberInfo(memberId)
+      .then(info => {
+        if (!info) return;
+        const current = nameMap.get(memberId);
+        if (!current) {
+          $author.textContent = `\u201C${info.proposedName}\u201D`;
+        }
+        $author.dataset.proposedName = info.proposedName;
+        $author.addEventListener('click', e => {
+          e.stopPropagation();
+          profilePopup.show({
+            proposedName: info.proposedName,
+            pedigree: info.pedigree,
+            pedigreeMemberIds: info.pedigreeMemberIds,
+            nameMap,
+            yourName: nameMap.get(memberId),
+            onAssignName: name => {
+              nameMap.set(memberId, name);
+              saveNameMap();
+              updateAuthorChips(memberId);
+            },
+            anchorElement: $author,
+          });
         });
-      });
-    }).catch(() => {});
+      })
+      .catch(() => {});
 
     return $author;
   };
@@ -250,9 +249,19 @@ export const microblogComponent = async (
   const renderHeader = async (key, message) => {
     $header.innerHTML = '';
 
-    const effective = computeNodeContent(key, messageIndex, replyChildren, blockedMemberIds);
+    const effective = computeNodeContent(
+      key,
+      messageIndex,
+      replyChildren,
+      blockedMemberIds,
+    );
     const effectiveMsg = effective
-      ? { ...message, strings: effective.strings, names: effective.names, ids: effective.ids }
+      ? {
+          ...message,
+          strings: effective.strings,
+          names: effective.names,
+          ids: effective.ids,
+        }
       : message;
 
     // Author display name (large)
@@ -445,12 +454,12 @@ export const microblogComponent = async (
     $commentHead.appendChild($cTime);
 
     $comment.appendChild($commentHead);
-    $comment.appendChild(
-      renderBody(/** @type {ChannelMessage} */ (childMsg)),
-    );
+    $comment.appendChild(renderBody(/** @type {ChannelMessage} */ (childMsg)));
 
     // Interaction bar (same as top-level posts)
-    $comment.appendChild(createActionBar(childKey, childData.message, rootPostKey));
+    $comment.appendChild(
+      createActionBar(childKey, childData.message, rootPostKey),
+    );
 
     // React pills
     {
@@ -499,9 +508,19 @@ export const microblogComponent = async (
     $post.className = 'microblog-post';
     $post.dataset.key = key;
 
-    const effective = computeNodeContent(key, messageIndex, replyChildren, blockedMemberIds);
+    const effective = computeNodeContent(
+      key,
+      messageIndex,
+      replyChildren,
+      blockedMemberIds,
+    );
     const effectiveMsg = effective
-      ? { ...message, strings: effective.strings, names: effective.names, ids: effective.ids }
+      ? {
+          ...message,
+          strings: effective.strings,
+          names: effective.names,
+          ids: effective.ids,
+        }
       : message;
 
     // Post header: author + timestamp
@@ -578,7 +597,12 @@ export const microblogComponent = async (
       const { message } = data;
       if (message.replyTo) continue;
       if (!isVisibleReplyType(message.replyType)) continue;
-      const effective = computeNodeContent(key, messageIndex, replyChildren, blockedMemberIds);
+      const effective = computeNodeContent(
+        key,
+        messageIndex,
+        replyChildren,
+        blockedMemberIds,
+      );
       if (effective && effective.deleted) continue;
       roots.push(key);
     }

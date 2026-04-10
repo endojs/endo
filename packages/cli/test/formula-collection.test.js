@@ -17,6 +17,10 @@ const endoEnv = {
   XDG_RUNTIME_DIR: path.join(testRoot, 'run'),
   XDG_CACHE_HOME: path.join(testRoot, 'cache'),
   ENDO_SOCK: path.join(os.tmpdir(), `endo-collection-${process.pid}.sock`),
+  // Enable GC so that removing the last pet name triggers collection.
+  ENDO_GC: '1',
+  // Bind to an OS-assigned port to avoid conflicts with a running daemon.
+  ENDO_ADDR: '127.0.0.1:0',
 };
 
 for (const [key, value] of Object.entries(endoEnv)) {

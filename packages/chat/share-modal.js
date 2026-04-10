@@ -99,7 +99,12 @@ export const createShareModal = $container => {
    * @param {ShareTarget} target - Target space
    * @param {string} targetChannelPetName - Specific channel pet name within the target space
    */
-  const executeShare = async (shareName, policy, target, targetChannelPetName) => {
+  const executeShare = async (
+    shareName,
+    policy,
+    target,
+    targetChannelPetName,
+  ) => {
     if (!currentOpts) return;
     const { heritageChain, powers, rootPowers } = currentOpts;
 
@@ -124,13 +129,7 @@ export const createShareModal = $container => {
       const msg = heritageChain[i];
       const replyTo = i > 0 ? String(i - 1) : undefined;
       // eslint-disable-next-line no-await-in-loop
-      await E(newChannelRef).post(
-        msg.strings,
-        msg.names,
-        [],
-        replyTo,
-        msg.ids,
-      );
+      await E(newChannelRef).post(msg.strings, msg.names, [], replyTo, msg.ids);
     }
 
     // 3. Post a reference message in the target channel
@@ -484,7 +483,10 @@ export const createShareModal = $container => {
       const deeperNames = navPath
         .slice(1)
         .map(seg => seg.petName)
-        .filter(/** @param {string | undefined} n @returns {n is string} */ n => n !== undefined);
+        .filter(
+          /** @param {string | undefined} n @returns {n is string} */ n =>
+            n !== undefined,
+        );
 
       // Resolve powers for the full path in one call
       const fullPath = [...currentProfilePath, ...deeperNames];
@@ -492,10 +494,7 @@ export const createShareModal = $container => {
       /** @type {unknown} */
       let currentPowers;
       try {
-        currentPowers = await resolvePersonaPowers(
-          opts.rootPowers,
-          fullPath,
-        );
+        currentPowers = await resolvePersonaPowers(opts.rootPowers, fullPath);
       } catch {
         $loading.textContent = 'Unable to access this location';
         return;
@@ -542,9 +541,11 @@ export const createShareModal = $container => {
         // Click name area: select this item as the share target
         $item.addEventListener('click', e => {
           // If chevron was clicked, drill in instead
-          if (/** @type {HTMLElement} */ (e.target).closest(
-            '.share-nav-item-chevron',
-          )) {
+          if (
+            /** @type {HTMLElement} */ (e.target).closest(
+              '.share-nav-item-chevron',
+            )
+          ) {
             return;
           }
           // Deselect previous
@@ -622,17 +623,17 @@ export const createShareModal = $container => {
       const deeperPetNames = navPath
         .slice(1)
         .map(seg => seg.petName)
-        .filter(/** @param {string | undefined} n @returns {n is string} */ n => n !== undefined);
+        .filter(
+          /** @param {string | undefined} n @returns {n is string} */ n =>
+            n !== undefined,
+        );
 
       /** @type {ShareTarget} */
       const target = {
         id: selectedTargetId || firstSegment.label,
         name: firstSegment.label,
         icon: '',
-        profilePath: [
-          ...firstSegment.profilePath,
-          ...deeperPetNames,
-        ],
+        profilePath: [...firstSegment.profilePath, ...deeperPetNames],
       };
 
       $submit.disabled = true;

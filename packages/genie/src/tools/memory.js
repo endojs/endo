@@ -12,13 +12,7 @@
  * implementation.
  */
 
-import {
-  basename,
-  dirname,
-  join,
-  relative,
-  resolve,
-} from 'path';
+import { basename, dirname, join, relative, resolve } from 'path';
 
 import { E } from '@endo/far';
 import { M } from '@endo/patterns';
@@ -105,10 +99,7 @@ async function* streamLines(chunks) {
  *   a Node.js `fs`-backed implementation.
  */
 const makeMemoryTools = (options = {}) => {
-  const {
-    root = process.cwd(),
-    vfs = makeNodeVFS(),
-  } = options;
+  const { root = process.cwd(), vfs = makeNodeVFS() } = options;
   const resolvedRoot = resolve(root);
 
   /**
@@ -134,8 +125,7 @@ const makeMemoryTools = (options = {}) => {
           };
         }
       }
-    } catch {
-    }
+    } catch {}
   }
 
   /**
@@ -164,17 +154,16 @@ const makeMemoryTools = (options = {}) => {
             }
           }
         }
-      } catch {
-      }
+      } catch {}
     }
   }
 
   // Default to the built-in substring backend when none is provided.
   const {
-    searchBackend = makeSubstringBackend([
-      join(resolvedRoot, 'MEMORY.md'),
-      join(resolvedRoot, 'memory'),
-    ], searchInFiles),
+    searchBackend = makeSubstringBackend(
+      [join(resolvedRoot, 'MEMORY.md'), join(resolvedRoot, 'memory')],
+      searchInFiles,
+    ),
   } = options;
 
   /**
@@ -183,7 +172,7 @@ const makeMemoryTools = (options = {}) => {
    * @param {string} userPath - The path supplied by the caller.
    * @returns {string} The resolved absolute path.
    */
-  const safePath = (userPath) => {
+  const safePath = userPath => {
     if (userPath.includes('\0')) {
       throw new Error('Invalid path: null bytes not allowed');
     }
@@ -199,7 +188,7 @@ const makeMemoryTools = (options = {}) => {
   };
 
   const memoryGet = makeTool('memoryGet', {
-    help: function*() {
+    help: function* () {
       yield 'Reads specific lines from a memory file (MEMORY.md or memory/*.md).';
       yield '';
       yield 'Use after memorySearch to read the relevant lines it found.';
@@ -259,7 +248,7 @@ const makeMemoryTools = (options = {}) => {
         }
 
         if (fromIndex >= totalLines) {
-          throw new Error(`Invalid range: from=${from}, total=${totalLines}`,);
+          throw new Error(`Invalid range: from=${from}, total=${totalLines}`);
         }
       } catch (err) {
         if (err?.code === 'ENOENT') {
@@ -279,7 +268,7 @@ const makeMemoryTools = (options = {}) => {
   });
 
   const memorySet = makeTool('memorySet', {
-    help: function*() {
+    help: function* () {
       yield 'Saves content to a memory file (MEMORY.md or memory/*.md).';
       yield '';
       yield 'Use to persist notes, preferences, and decisions across sessions.';
@@ -333,13 +322,11 @@ const makeMemoryTools = (options = {}) => {
           await vfs.writeFile(fullPath, content);
         }
       } catch (err) {
-        throw new Error(`Failed to write memory file: ${err.message}`,);
+        throw new Error(`Failed to write memory file: ${err.message}`);
       }
 
       // Keep the search index in sync.
-      const fullContent = append
-        ? await vfs.readFile(fullPath)
-        : content;
+      const fullContent = append ? await vfs.readFile(fullPath) : content;
       await E(searchBackend).index(path, fullContent);
 
       return {
@@ -351,7 +338,7 @@ const makeMemoryTools = (options = {}) => {
   });
 
   const memorySearch = makeTool('memorySearch', {
-    help: function*() {
+    help: function* () {
       yield 'Searches memory files (MEMORY.md and memory/*.md) for matching text.';
       yield '';
       yield 'Use to recall past notes, preferences, or decisions.';
@@ -368,10 +355,7 @@ const makeMemoryTools = (options = {}) => {
     },
 
     schema: M.call(
-      M.splitRecord(
-        { query: M.string() },
-        { limit: M.number() },
-      ),
+      M.splitRecord({ query: M.string() }, { limit: M.number() }),
     ).returns({
       success: M.boolean(),
       query: M.string(),

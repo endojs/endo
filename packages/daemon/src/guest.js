@@ -21,6 +21,7 @@ import { guestHelp, makeHelp } from './help-text.js';
 /**
  * @param {object} args
  * @param {Provide} args.provide
+ * @param {DaemonCore['provideStoreController']} args.provideStoreController
  * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
@@ -299,6 +300,9 @@ export const makeGuestMaker = ({
 
     /** @type {EndoGuest['storeBlob']} */
     const storeBlob = async (readerRef, petName) => {
+      if (petName === undefined) {
+        throw new TypeError('storeBlob requires a pet name');
+      }
       const { namePath } = assertPetNamePath(namePathFrom(petName));
 
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */

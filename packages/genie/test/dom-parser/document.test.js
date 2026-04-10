@@ -13,9 +13,7 @@ test('basic structure', t => {
 });
 
 test('textContent aggregation', t => {
-  const doc = buildDocument(
-    '<div><span>hello</span> <span>world</span></div>',
-  );
+  const doc = buildDocument('<div><span>hello</span> <span>world</span></div>');
   const div = doc.querySelector('div');
   t.truthy(div);
   t.is(div?.textContent, 'hello world');
@@ -47,18 +45,14 @@ test('href property shortcut', t => {
 });
 
 test('id and className properties', t => {
-  const doc = buildDocument(
-    '<div id="main" class="container wide"></div>',
-  );
+  const doc = buildDocument('<div id="main" class="container wide"></div>');
   const div = doc.querySelector('div');
   t.is(div?.id, 'main');
   t.is(div?.className, 'container wide');
 });
 
 test('getElementsByTagName', t => {
-  const doc = buildDocument(
-    '<div><p>A</p><p>B</p><span>C</span></div>',
-  );
+  const doc = buildDocument('<div><p>A</p><p>B</p><span>C</span></div>');
   const ps = doc.getElementsByTagName('p');
   t.is(ps.length, 2);
 });

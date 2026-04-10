@@ -30,7 +30,7 @@ const withChildTimeout = async (child, p, t) => {
     }, t);
   });
   try {
-    return await Promise.race([timedOut, p])
+    return await Promise.race([timedOut, p]);
   } catch (e) {
     if (timer) {
       clearTimeout(timer);
@@ -215,18 +215,24 @@ harden(waitForSpawn);
 export const waitForMessage = child => {
   let done = false;
   return new Promise((resolve, reject) => {
-    child.on('error', /** @param {Error} cause */ cause => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
-      }
-    });
-    child.on('exit', /** @param {number?} code */ code => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Process ${child.spawnargs} exited ${code}`));
-      }
-    });
+    child.on(
+      'error',
+      /** @param {Error} cause */ cause => {
+        if (!done) {
+          done = true;
+          reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
+        }
+      },
+    );
+    child.on(
+      'exit',
+      /** @param {number?} code */ code => {
+        if (!done) {
+          done = true;
+          reject(new Error(`Process ${child.spawnargs} exited ${code}`));
+        }
+      },
+    );
     child.on('message', message => {
       if (!done) {
         done = true;

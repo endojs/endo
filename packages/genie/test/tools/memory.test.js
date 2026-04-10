@@ -23,7 +23,7 @@ const setup = async (root = '/workspace') => {
 // memorySet — basic writes
 // ---------------------------------------------------------------------------
 
-test('memorySet creates a new file', async (t) => {
+test('memorySet creates a new file', async t => {
   const { memorySet, vfs } = await setup();
   const result = await memorySet.execute({
     path: 'MEMORY.md',
@@ -37,7 +37,7 @@ test('memorySet creates a new file', async (t) => {
   t.is(stored, '# Memory\n');
 });
 
-test('memorySet overwrites an existing file', async (t) => {
+test('memorySet overwrites an existing file', async t => {
   const { memorySet, vfs } = await setup();
   await memorySet.execute({ path: 'MEMORY.md', content: 'first' });
   await memorySet.execute({ path: 'MEMORY.md', content: 'second' });
@@ -46,7 +46,7 @@ test('memorySet overwrites an existing file', async (t) => {
   t.is(stored, 'second');
 });
 
-test('memorySet appends to an existing file', async (t) => {
+test('memorySet appends to an existing file', async t => {
   const { memorySet, vfs } = await setup();
   await memorySet.execute({ path: 'MEMORY.md', content: 'line1\n' });
   const result = await memorySet.execute({
@@ -61,7 +61,7 @@ test('memorySet appends to an existing file', async (t) => {
   t.is(stored, 'line1\nline2\n');
 });
 
-test('memorySet append to non-existent file creates it', async (t) => {
+test('memorySet append to non-existent file creates it', async t => {
   const { memorySet, vfs } = await setup();
   const result = await memorySet.execute({
     path: 'MEMORY.md',
@@ -74,7 +74,7 @@ test('memorySet append to non-existent file creates it', async (t) => {
   t.is(stored, 'fresh\n');
 });
 
-test('memorySet creates intermediate directories', async (t) => {
+test('memorySet creates intermediate directories', async t => {
   const { memorySet, vfs } = await setup();
   const result = await memorySet.execute({
     path: 'memory/notes.md',
@@ -90,7 +90,7 @@ test('memorySet creates intermediate directories', async (t) => {
 // memoryGet — reading files
 // ---------------------------------------------------------------------------
 
-test('memoryGet reads entire file', async (t) => {
+test('memoryGet reads entire file', async t => {
   const { memorySet, memoryGet } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -105,7 +105,7 @@ test('memoryGet reads entire file', async (t) => {
   t.is(result.content, 'line1\nline2\nline3');
 });
 
-test('memoryGet reads a specific line range', async (t) => {
+test('memoryGet reads a specific line range', async t => {
   const { memorySet, memoryGet } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -121,7 +121,7 @@ test('memoryGet reads a specific line range', async (t) => {
   t.is(result.content, 'b\nc');
 });
 
-test('memoryGet from defaults to 1', async (t) => {
+test('memoryGet from defaults to 1', async t => {
   const { memorySet, memoryGet } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -135,18 +135,14 @@ test('memoryGet from defaults to 1', async (t) => {
   t.is(result.content, 'first');
 });
 
-test('memoryGet throws for missing file', async (t) => {
+test('memoryGet throws for missing file', async t => {
   const { memoryGet } = await setup();
-  const err = await t.throwsAsync(() =>
-    memoryGet.execute({ path: 'nope.md' }),
-  );
+  const err = await t.throwsAsync(() => memoryGet.execute({ path: 'nope.md' }));
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('File not found'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('File not found'));
 });
 
-test('memoryGet throws for out-of-range from', async (t) => {
+test('memoryGet throws for out-of-range from', async t => {
   const { memorySet, memoryGet } = await setup();
   await memorySet.execute({ path: 'MEMORY.md', content: 'only one line' });
 
@@ -154,16 +150,14 @@ test('memoryGet throws for out-of-range from', async (t) => {
     memoryGet.execute({ path: 'MEMORY.md', from: 999 }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('Invalid range'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('Invalid range'));
 });
 
 // ---------------------------------------------------------------------------
 // memorySearch — substring backend
 // ---------------------------------------------------------------------------
 
-test('memorySearch finds matching lines in MEMORY.md', async (t) => {
+test('memorySearch finds matching lines in MEMORY.md', async t => {
   const { memorySet, memorySearch } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -178,7 +172,7 @@ test('memorySearch finds matching lines in MEMORY.md', async (t) => {
   t.is(result.results[1].content, 'theme: solarized');
 });
 
-test('memorySearch is case-insensitive', async (t) => {
+test('memorySearch is case-insensitive', async t => {
   const { memorySet, memorySearch } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -190,7 +184,7 @@ test('memorySearch is case-insensitive', async (t) => {
   t.is(result.results.length, 3);
 });
 
-test('memorySearch respects limit', async (t) => {
+test('memorySearch respects limit', async t => {
   const { memorySet, memorySearch } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -202,7 +196,7 @@ test('memorySearch respects limit', async (t) => {
   t.is(result.limit, 2);
 });
 
-test('memorySearch returns empty results for no match', async (t) => {
+test('memorySearch returns empty results for no match', async t => {
   const { memorySet, memorySearch } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -214,7 +208,7 @@ test('memorySearch returns empty results for no match', async (t) => {
   t.is(result.results.length, 0);
 });
 
-test('memorySearch finds matches in memory/ directory', async (t) => {
+test('memorySearch finds matches in memory/ directory', async t => {
   const { memorySet, memorySearch } = await setup();
   await memorySet.execute({
     path: 'memory/notes.md',
@@ -228,7 +222,7 @@ test('memorySearch finds matches in memory/ directory', async (t) => {
   t.is(result.results[0].content, 'Remember to refactor');
 });
 
-test('memorySearch searches across multiple files', async (t) => {
+test('memorySearch searches across multiple files', async t => {
   const { memorySet, memorySearch } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -244,7 +238,7 @@ test('memorySearch searches across multiple files', async (t) => {
   t.is(result.results.length, 2);
 });
 
-test('memorySearch includes correct line numbers', async (t) => {
+test('memorySearch includes correct line numbers', async t => {
   const { memorySet, memorySearch } = await setup();
   await memorySet.execute({
     path: 'MEMORY.md',
@@ -261,7 +255,7 @@ test('memorySearch includes correct line numbers', async (t) => {
 // Path safety
 // ---------------------------------------------------------------------------
 
-test('path traversal is rejected', async (t) => {
+test('path traversal is rejected', async t => {
   const { memoryGet } = await setup();
   const err = await t.throwsAsync(() =>
     memoryGet.execute({ path: '../../../etc/passwd' }),
@@ -272,13 +266,11 @@ test('path traversal is rejected', async (t) => {
   );
 });
 
-test('null bytes in path are rejected', async (t) => {
+test('null bytes in path are rejected', async t => {
   const { memoryGet } = await setup();
   const err = await t.throwsAsync(() =>
     memoryGet.execute({ path: 'foo\0bar' }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('null bytes'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('null bytes'));
 });

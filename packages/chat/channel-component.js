@@ -48,7 +48,16 @@ export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork, onShare },
+  {
+    showValue,
+    personaId,
+    ownMemberId,
+    onReply,
+    onThreadOpen,
+    onThreadClose,
+    onFork,
+    onShare,
+  },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 

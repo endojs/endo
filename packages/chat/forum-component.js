@@ -43,7 +43,16 @@ export const forumComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork, onShare },
+  {
+    showValue,
+    personaId,
+    ownMemberId,
+    onReply,
+    onThreadOpen,
+    onThreadClose,
+    onFork,
+    onShare,
+  },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -264,12 +273,7 @@ export const forumComponent = async (
 
     // Skip effectively deleted nodes
     if (
-      isEffectivelyDeleted(
-        key,
-        messageIndex,
-        replyChildren,
-        blockedMemberIds,
-      )
+      isEffectivelyDeleted(key, messageIndex, replyChildren, blockedMemberIds)
     ) {
       return [];
     }
@@ -320,12 +324,7 @@ export const forumComponent = async (
   const buildSubtreeDOM = async (entries, frag) => {
     // Compute effective content for each entry
     const effectiveContents = entries.map(e =>
-      computeNodeContent(
-        e.key,
-        messageIndex,
-        replyChildren,
-        blockedMemberIds,
-      ),
+      computeNodeContent(e.key, messageIndex, replyChildren, blockedMemberIds),
     );
 
     // Build all message elements in parallel.

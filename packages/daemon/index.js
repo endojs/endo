@@ -11,11 +11,7 @@ import os from 'os';
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 
-import {
-  waitForExit,
-  waitForMessage,
-  waitForSpawn,
-} from '@endo/platform/proc';
+import { waitForExit, waitForMessage, waitForSpawn } from '@endo/platform/proc';
 
 import {
   whereEndoState,
@@ -253,14 +249,19 @@ const runEngo = async (detached, config) => {
     PATH: process.env.PATH || '',
   };
 
-  const stdio = (/** @returns {popen.StdioOptions} */() => {
-    if (detached) {
-      const output = fs.openSync(logPath, 'a');
-      return ['ignore', output, output];
-    } else {
-      return ['inherit', 'inherit', 'inherit'];
-    }
-  })();
+  const stdio = /** @type {popen.StdioOptions} */ (
+    /** @type {unknown} */
+    (
+      (() => {
+        if (detached) {
+          const output = fs.openSync(logPath, 'a');
+          return ['ignore', output, output];
+        } else {
+          return ['inherit', 'inherit', 'inherit'];
+        }
+      })()
+    )
+  );
 
   const child = popen.spawn(endoBin, ['daemon'], {
     detached,
@@ -312,14 +313,19 @@ const runEndo = async (detached, config) => {
     ...Object.fromEntries(filterEnv()),
   };
 
-  const stdio = (/** @returns {popen.StdioOptions} */() => {
-    if (detached) {
-      const output = fs.openSync(logPath, 'a');
-      return ['ignore', output, output, 'ipc'];
-    } else {
-      return ['inherit', 'inherit', 'inherit', 'ipc'];
-    }
-  })();
+  const stdio = /** @type {popen.StdioOptions} */ (
+    /** @type {unknown} */
+    (
+      (() => {
+        if (detached) {
+          const output = fs.openSync(logPath, 'a');
+          return ['ignore', output, output, 'ipc'];
+        } else {
+          return ['inherit', 'inherit', 'inherit', 'ipc'];
+        }
+      })()
+    )
+  );
 
   const child = popen.spawn(process.execPath, [daemonPath, ...daemonArgs], {
     detached,
@@ -432,9 +438,7 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
  */
 export const start = async (
   config = defaultConfig,
-  {
-    dryRun = false,
-  } = {},
+  { dryRun = false } = {},
 ) => {
   if (dryRun) {
     console.log(`would clean(${config})`);
@@ -446,7 +450,9 @@ export const start = async (
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
 
   if (dryRun) {
-    console.log(`would directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`);
+    console.log(
+      `would directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`,
+    );
     return;
   }
 
@@ -474,9 +480,7 @@ const runningWorker = ({
 
   const metaPath = path.join(workerStateDir, 'worker.meta.json');
   const metaText = fs.promises.readFile(metaPath, 'utf-8');
-  const metaData = metaText
-    .then(text => JSON.parse(text))
-    .catch(() => null);
+  const metaData = metaText.then(text => JSON.parse(text)).catch(() => null);
 
   return {
     get id() {

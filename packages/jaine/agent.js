@@ -105,7 +105,10 @@ const DEFAULT_RECENT_HISTORY_COUNT = 50;
  * @param {number} [count] - number of recent messages to include
  * @returns {Promise<string>}
  */
-const buildRecentHistory = async (member, count = DEFAULT_RECENT_HISTORY_COUNT) => {
+const buildRecentHistory = async (
+  member,
+  count = DEFAULT_RECENT_HISTORY_COUNT,
+) => {
   const allMessages = /** @type {any[]} */ (await E(member).listMessages());
 
   /** @type {Map<string, string>} */
@@ -277,9 +280,7 @@ export const spawnWorkerLoop = async (
 
       try {
         await refreshMemberNames();
-        const messages = /** @type {any[]} */ (
-          await E(member).listMessages()
-        );
+        const messages = /** @type {any[]} */ (await E(member).listMessages());
 
         const newMessages = messages.filter(
           msg => BigInt(msg.number) > lastSeen,
@@ -297,26 +298,17 @@ export const spawnWorkerLoop = async (
           // Skip messages already handled by the inbox mention flow
           if (mentionHandledMessages.has(String(msg.number))) continue;
 
-          const authorName =
-            memberNames.get(msg.memberId) || msg.memberId;
+          const authorName = memberNames.get(msg.memberId) || msg.memberId;
 
           // Build recent context for routing (last 10 messages)
           const msgIdx = messages.indexOf(msg);
-          const contextMsgs = messages.slice(
-            Math.max(0, msgIdx - 10),
-            msgIdx,
-          );
+          const contextMsgs = messages.slice(Math.max(0, msgIdx - 10), msgIdx);
           const recentContext = contextMsgs
             .map(cm => {
-              const name =
-                memberNames.get(cm.memberId) || cm.memberId;
-              const text = Array.isArray(cm.strings)
-                ? cm.strings.join('')
-                : '';
+              const name = memberNames.get(cm.memberId) || cm.memberId;
+              const text = Array.isArray(cm.strings) ? cm.strings.join('') : '';
               const preview =
-                text.length > 200
-                  ? `${text.slice(0, 200)}...`
-                  : text;
+                text.length > 200 ? `${text.slice(0, 200)}...` : text;
               return `${name}: ${preview}`;
             })
             .join('\n');
@@ -362,9 +354,10 @@ export const spawnWorkerLoop = async (
                   makeChannelLayers(member, channelName),
                 );
               }
-              const layers = /** @type {{ composer: { compose: Function } }} */ (
-                channelLayers.get(channelId)
-              );
+              const layers =
+                /** @type {{ composer: { compose: Function } }} */ (
+                  channelLayers.get(channelId)
+                );
               await handleChannelResponse(layers.composer, member, msg);
             } catch (err) {
               console.error(
@@ -404,10 +397,7 @@ export const spawnWorkerLoop = async (
     try {
       const members = /** @type {any[]} */ (await E(member).getMembers());
       for (const mbr of members) {
-        if (
-          mbr.invitedAs === joinName ||
-          mbr.proposedName === joinName
-        ) {
+        if (mbr.invitedAs === joinName || mbr.proposedName === joinName) {
           return String(mbr.memberId);
         }
       }
@@ -446,9 +436,7 @@ export const spawnWorkerLoop = async (
     }
 
     if (watchedChannels.size > 0) {
-      console.log(
-        `[jaine] Reconnected to ${watchedChannels.size} channel(s)`,
-      );
+      console.log(`[jaine] Reconnected to ${watchedChannels.size} channel(s)`);
     }
   } catch (scanErr) {
     console.error(
@@ -564,9 +552,7 @@ export const spawnWorkerLoop = async (
           } catch (watchErr) {
             console.error(
               '[jaine] Failed to start channel watcher:',
-              watchErr instanceof Error
-                ? watchErr.message
-                : String(watchErr),
+              watchErr instanceof Error ? watchErr.message : String(watchErr),
             );
           }
         }
@@ -672,12 +658,7 @@ const handleMention = async (
   /** @type {string | undefined} */
   let placeholderKey;
   try {
-    await E(member).post(
-      ['Thinking...'],
-      [],
-      [],
-      mentionInfo.replyTo,
-    );
+    await E(member).post(['Thinking...'], [], [], mentionInfo.replyTo);
     // Find the placeholder's message number from the end of the message list
     const msgs = /** @type {any[]} */ (await E(member).listMessages());
     if (msgs.length > 0) {
@@ -701,14 +682,7 @@ const handleMention = async (
   const updatePlaceholder = async text => {
     if (placeholderKey === undefined) return;
     try {
-      await E(member).post(
-        [text],
-        [],
-        [],
-        placeholderKey,
-        [],
-        'edit',
-      );
+      await E(member).post([text], [], [], placeholderKey, [], 'edit');
     } catch {
       // Best-effort status update
     }
@@ -949,7 +923,10 @@ export const make = (guestPowers, _context) => {
       try {
         const fastProviderId = await E(powers).identify('llm-provider-fast');
         if (fastProviderId) {
-          await E(driverPowers).storeIdentifier('llm-provider-fast', fastProviderId);
+          await E(driverPowers).storeIdentifier(
+            'llm-provider-fast',
+            fastProviderId,
+          );
         }
       } catch {
         // No fast provider configured — that's fine.
@@ -983,11 +960,12 @@ export const make = (guestPowers, _context) => {
       if (pin) {
         const driverId = await E(hostAgent).identify(driverResultName);
         try {
-          await E(hostAgent).storeIdentifier(['@pins', driverResultName], driverId);
-        } catch {
-          console.log(
-            `[jaine-factory] Could not pin ${driverResultName}`,
+          await E(hostAgent).storeIdentifier(
+            ['@pins', driverResultName],
+            driverId,
           );
+        } catch {
+          console.log(`[jaine-factory] Could not pin ${driverResultName}`);
         }
       }
 

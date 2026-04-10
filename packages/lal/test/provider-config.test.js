@@ -35,8 +35,5 @@ test('resolveModelForHost upgrades legacy qwen3 placeholder for Gemini', t => {
 });
 
 test('resolveModelForHost preserves explicit non-default OpenAI-compatible models', t => {
-  t.is(
-    resolveModelForHost('https://api.openai.com/v1', 'gpt-4o'),
-    'gpt-4o',
-  );
+  t.is(resolveModelForHost('https://api.openai.com/v1', 'gpt-4o'), 'gpt-4o');
 });

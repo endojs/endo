@@ -580,7 +580,10 @@ const bodyComponent = (
                     ? microblogComponent
                     : channelComponent;
             // Set view-mode attributes for special modes
-            if (activeSpaceInfo.viewMode === 'outliner' || activeSpaceInfo.viewMode === 'microblog') {
+            if (
+              activeSpaceInfo.viewMode === 'outliner' ||
+              activeSpaceInfo.viewMode === 'microblog'
+            ) {
               $messages.dataset.viewMode = activeSpaceInfo.viewMode;
               $chatBar.dataset.viewMode = activeSpaceInfo.viewMode;
             } else {
@@ -687,9 +690,11 @@ const bodyComponent = (
               activeSpaceInfo.bookmarks = updated;
               spacesGutterAPI
                 .updateSpace(spaceId, { bookmarks: updated })
-                .catch(/** @param {Error} err */ err => {
-                  console.warn('Failed to save bookmark:', err);
-                });
+                .catch(
+                  /** @param {Error} err */ err => {
+                    console.warn('Failed to save bookmark:', err);
+                  },
+                );
             };
 
             channelViewFn($messages, $anchor, currentChannelRef, {
@@ -723,9 +728,7 @@ const bodyComponent = (
               chatBarAPI: () => chatBarAPI,
               onFork: handleFork,
               onShare: handleShare,
-              onMentionNotify: isChannelMode
-                ? handleMentionNotify
-                : undefined,
+              onMentionNotify,
               onBookmark: isChannelMode ? handleBookmark : undefined,
             }).catch(window.reportError);
           })
@@ -783,9 +786,11 @@ const bodyComponent = (
         if (spaceId && spaceId !== 'home') {
           spacesGutterAPI
             .updateSpace(spaceId, { lastChannelPetName: channelPetName })
-            .catch(/** @param {Error} err */ err => {
-              console.warn('Failed to persist last channel:', err);
-            });
+            .catch(
+              /** @param {Error} err */ err => {
+                console.warn('Failed to persist last channel:', err);
+              },
+            );
         }
 
         // Update header
@@ -849,7 +854,10 @@ const bodyComponent = (
             }
 
             // Set view-mode attributes for special modes
-            if (activeSpaceInfo.viewMode === 'outliner' || activeSpaceInfo.viewMode === 'microblog') {
+            if (
+              activeSpaceInfo.viewMode === 'outliner' ||
+              activeSpaceInfo.viewMode === 'microblog'
+            ) {
               $messages.dataset.viewMode = activeSpaceInfo.viewMode;
               $chatBar.dataset.viewMode = activeSpaceInfo.viewMode;
             } else {
@@ -961,9 +969,11 @@ const bodyComponent = (
               activeSpaceInfo.bookmarks = updated;
               spacesGutterAPI
                 .updateSpace(spaceId, { bookmarks: updated })
-                .catch(/** @param {Error} err */ err => {
-                  console.warn('Failed to save bookmark:', err);
-                });
+                .catch(
+                  /** @param {Error} err */ err => {
+                    console.warn('Failed to save bookmark:', err);
+                  },
+                );
             };
 
             switchViewFn($messages, $anchor, currentChannelRef, {
@@ -997,9 +1007,7 @@ const bodyComponent = (
               chatBarAPI: () => chatBarAPI,
               onFork: handleSwitchFork,
               onShare: handleSwitchShare,
-              onMentionNotify: isChannelMode
-                ? handleMentionNotify
-                : undefined,
+              onMentionNotify,
               onBookmark: isChannelMode ? handleSwitchBookmark : undefined,
             }).catch(window.reportError);
           })
@@ -1068,15 +1076,15 @@ const bodyComponent = (
                 if (spaceId && spaceId !== 'home') {
                   spacesGutterAPI
                     .updateSpace(spaceId, { channelOrder: order })
-                    .catch(/** @param {Error} err */ err => {
-                      console.warn('Failed to persist channel order:', err);
-                    });
+                    .catch(
+                      /** @param {Error} err */ err => {
+                        console.warn('Failed to persist channel order:', err);
+                      },
+                    );
                 }
               }
             : undefined,
-          bookmarks: isChannelMode
-            ? activeSpaceInfo.bookmarks
-            : undefined,
+          bookmarks: isChannelMode ? activeSpaceInfo.bookmarks : undefined,
           onSelectBookmark: isChannelMode
             ? (channelPetName, threadKey) => {
                 switchChannel(channelPetName);
@@ -1100,16 +1108,17 @@ const bodyComponent = (
                 const updated = existing.filter(
                   b =>
                     !(
-                      b.key === bm.key &&
-                      b.channelPetName === bm.channelPetName
+                      b.key === bm.key && b.channelPetName === bm.channelPetName
                     ),
                 );
                 activeSpaceInfo.bookmarks = updated;
                 spacesGutterAPI
                   .updateSpace(spaceId, { bookmarks: updated })
-                  .catch(/** @param {Error} err */ err => {
-                    console.warn('Failed to remove bookmark:', err);
-                  });
+                  .catch(
+                    /** @param {Error} err */ err => {
+                      console.warn('Failed to remove bookmark:', err);
+                    },
+                  );
               }
             : undefined,
           viewMode: isChannelMode
@@ -1122,9 +1131,11 @@ const bodyComponent = (
                 if (spaceId && spaceId !== 'home') {
                   spacesGutterAPI
                     .updateSpace(spaceId, { viewMode: mode })
-                    .catch(/** @param {Error} err */ err => {
-                      console.warn('Failed to persist view mode:', err);
-                    });
+                    .catch(
+                      /** @param {Error} err */ err => {
+                        console.warn('Failed to persist view mode:', err);
+                      },
+                    );
                 }
                 // Re-render with new view mode
                 switchChannel(activeSpaceInfo.channelPetName || '');
@@ -1166,8 +1177,7 @@ const bodyComponent = (
                 rawMessages
               );
             const withValues = messages.filter(
-              m =>
-                m.type === 'package' && m.names && m.names.length > 0,
+              m => m.type === 'package' && m.names && m.names.length > 0,
             );
             $inboxBody.innerHTML = '';
             if (withValues.length === 0 && messages.length === 0) {
@@ -1296,9 +1306,7 @@ const bodyComponent = (
         $inboxHeader.addEventListener('click', () => {
           inboxExpanded = !inboxExpanded;
           $inboxBody.style.display = inboxExpanded ? '' : 'none';
-          const $toggle = $inboxHeader.querySelector(
-            '.sidebar-inbox-toggle',
-          );
+          const $toggle = $inboxHeader.querySelector('.sidebar-inbox-toggle');
           if ($toggle) {
             $toggle.textContent = inboxExpanded ? '\u25BC' : '\u25B6';
           }
@@ -1379,10 +1387,7 @@ const bodyComponent = (
             ? memberIdToRef.get(entry.memberId)
             : undefined;
 
-          if (
-            authorRef &&
-            !embeddedAuthors.has(authorRef.edgeName)
-          ) {
+          if (authorRef && !embeddedAuthors.has(authorRef.edgeName)) {
             // First appearance — embed the author as a reference.
             // Suffix "(author)" in the preceding text so agents
             // know this is attribution, not an actionable ref.
@@ -1394,9 +1399,7 @@ const bodyComponent = (
           } else {
             // Repeat author or no resolvable author — plain text
             const authorLabel =
-              (authorRef && authorRef.edgeName) ||
-              entry.memberId ||
-              '?';
+              (authorRef && authorRef.edgeName) || entry.memberId || '?';
             strings[strings.length - 1] +=
               `${separator}${indent}${authorLabel}: ${preview}`;
           }
@@ -1452,15 +1455,11 @@ const bodyComponent = (
         // recipient sees a readable author name.
         try {
           const ownMid = await E(
-            /** @type {{ getMemberId: () => string }} */ (
-              channelRef
-            ),
+            /** @type {{ getMemberId: () => string }} */ (channelRef),
           ).getMemberId();
           if (ownMid) {
             const ownName = await E(
-              /** @type {{ getProposedName: () => string }} */ (
-                channelRef
-              ),
+              /** @type {{ getProposedName: () => string }} */ (channelRef),
             ).getProposedName();
             // Sanitize proposedName to a valid edge name
             const safeName = ownName
@@ -1524,11 +1523,7 @@ const bodyComponent = (
           (channelMessages.length > 0
             ? String(channelMessages[channelMessages.length - 1].number)
             : undefined);
-        const recap = buildThreadRecap(
-          channelMessages,
-          fromKey,
-          memberIdToRef,
-        );
+        const recap = buildThreadRecap(channelMessages, fromKey, memberIdToRef);
 
         // The agent replies to the mention message (as a child).
         const replyToNum = fromKey || '0';
@@ -1571,21 +1566,14 @@ const bodyComponent = (
             sendStrings.push(recap.strings[ri + 1] || '');
           }
           sendStrings[sendStrings.length - 1] += instructions;
-        } else if (
-          recap.strings.length > 0 &&
-          recap.strings[0]
-        ) {
+        } else if (recap.strings.length > 0 && recap.strings[0]) {
           // Recap text but no embedded refs
-          sendStrings.push(
-            `:\n\n${recap.strings[0]}${instructions}`,
-          );
+          sendStrings.push(`:\n\n${recap.strings[0]}${instructions}`);
         } else {
           sendStrings.push(instructions);
         }
 
-        await E(
-          /** @type {ERef<EndoHost>} */ (resolvedPowers),
-        ).send(
+        await E(/** @type {ERef<EndoHost>} */ (resolvedPowers)).send(
           petName,
           sendStrings,
           sendEdgeNames,
@@ -1645,75 +1633,74 @@ const bodyComponent = (
       /**
        * Handle @-mention notifications after a channel post.
        * Auto-sends for already-invited members; prompts for new ones.
-       * @param {{ petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }} info
+       * Only defined in channel mode.
+       * @type {((info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => Promise<void>) | undefined}
        */
-      const handleMentionNotify = async info => {
-        if (
-          !activeSpaceInfo ||
-          activeSpaceInfo.mode !== 'channel' ||
-          !activeSpaceInfo.channelPetName
-        ) {
-          return;
-        }
-        const { channelPetName } = activeSpaceInfo;
+      const onMentionNotify =
+        isChannelMode && activeSpaceInfo.channelPetName
+          ? async info => {
+              const { channelPetName } = activeSpaceInfo;
 
-        // For each mentioned pet name, validate and notify
-        for (const petName of info.petNames) {
-          // Check if the pet name resolves to something
-          let isValid = false;
-          try {
-            const id = await E(
-              /** @type {ERef<EndoHost>} */ (resolvedPowers),
-            ).identify(petName);
-            isValid = Boolean(id);
-          } catch {
-            // Not a valid pet name
-          }
-          if (!isValid) {
-            // eslint-disable-next-line no-continue
-            continue;
-          }
+              // For each mentioned pet name, validate and notify
+              for (const petName of info.petNames) {
+                // Check if the pet name resolves to something
+                let isValid = false;
+                try {
+                  const id = await E(
+                    /** @type {ERef<EndoHost>} */ (resolvedPowers),
+                  ).identify(petName);
+                  isValid = Boolean(id);
+                } catch {
+                  // Not a valid pet name
+                }
+                if (!isValid) {
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
 
-          // Check if an invitation already exists for this name
-          let alreadyInvited = false;
-          try {
-            const channelRef = currentChannelRef;
-            if (channelRef) {
-              const members = /** @type {Array<{ invitedAs: string }>} */ (
-                await E(channelRef).getMembers()
-              );
-              alreadyInvited = members.some(
-                m => m.invitedAs === petName,
-              );
+                // Check if an invitation already exists for this name
+                let alreadyInvited = false;
+                try {
+                  const channelRef = currentChannelRef;
+                  if (channelRef) {
+                    const members =
+                      /** @type {Array<{ invitedAs: string }>} */ (
+                        await E(channelRef).getMembers()
+                      );
+                    alreadyInvited = members.some(m => m.invitedAs === petName);
+                  }
+                } catch {
+                  // getMembers not available
+                }
+
+                if (alreadyInvited) {
+                  // Already a member — auto-send notification silently
+                  const $toast = document.createElement('div');
+                  $toast.className = 'mention-notify-prompt';
+                  $toast.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notified <strong>@${petName}</strong></span>`;
+                  $mentionNotifyArea.appendChild($toast);
+                  setTimeout(() => $toast.remove(), 3000);
+
+                  sendMentionNotification(
+                    petName,
+                    channelPetName,
+                    true,
+                    info.replyTo,
+                  ).catch(err => {
+                    console.error(
+                      'Auto-notify failed, falling back to invite prompt:',
+                      err,
+                    );
+                    $toast.remove();
+                    // Fall back to the invite flow so the user can retry
+                    showInvitePrompt(petName, channelPetName, info.replyTo);
+                  });
+                } else {
+                  showInvitePrompt(petName, channelPetName, info.replyTo);
+                }
+              }
             }
-          } catch {
-            // getMembers not available
-          }
-
-          if (alreadyInvited) {
-            // Already a member — auto-send notification silently
-            const $toast = document.createElement('div');
-            $toast.className = 'mention-notify-prompt';
-            $toast.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notified <strong>@${petName}</strong></span>`;
-            $mentionNotifyArea.appendChild($toast);
-            setTimeout(() => $toast.remove(), 3000);
-
-            sendMentionNotification(
-              petName,
-              channelPetName,
-              true,
-              info.replyTo,
-            ).catch(err => {
-              console.error('Auto-notify failed, falling back to invite prompt:', err);
-              $toast.remove();
-              // Fall back to the invite flow so the user can retry
-              showInvitePrompt(petName, channelPetName, info.replyTo);
-            });
-          } else {
-            showInvitePrompt(petName, channelPetName, info.replyTo);
-          }
-        }
-      };
+          : undefined;
 
       const chatBarAPI = chatBarComponent(
         $parent,
@@ -1727,7 +1714,7 @@ const bodyComponent = (
           exitConversation: () => onConversationChange(null),
           navigateToConversation,
           getChannelRef: () => currentChannelRef,
-          onMentionNotify: isChannelMode ? handleMentionNotify : undefined,
+          onMentionNotify,
         },
       );
       chatBarRef = chatBarAPI;

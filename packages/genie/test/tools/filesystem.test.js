@@ -22,7 +22,7 @@ const setup = async (root = '/workspace') => {
 // writeFile
 // ---------------------------------------------------------------------------
 
-test('writeFile creates a new file', async (t) => {
+test('writeFile creates a new file', async t => {
   const tools = await setup();
   const result = await tools.writeFile.execute({
     path: 'hello.txt',
@@ -33,7 +33,7 @@ test('writeFile creates a new file', async (t) => {
   t.is(result.bytesWritten, 13);
 });
 
-test('writeFile overwrites an existing file', async (t) => {
+test('writeFile overwrites an existing file', async t => {
   const tools = await setup();
   await tools.writeFile.execute({ path: 'f.txt', content: 'first' });
   const result = await tools.writeFile.execute({
@@ -47,7 +47,7 @@ test('writeFile overwrites an existing file', async (t) => {
   t.is(read.content, 'second');
 });
 
-test('writeFile creates intermediate directories', async (t) => {
+test('writeFile creates intermediate directories', async t => {
   const tools = await setup();
   const result = await tools.writeFile.execute({
     path: 'a/b/c.txt',
@@ -63,7 +63,7 @@ test('writeFile creates intermediate directories', async (t) => {
 // readFile
 // ---------------------------------------------------------------------------
 
-test('readFile reads file content', async (t) => {
+test('readFile reads file content', async t => {
   const tools = await setup();
   await tools.writeFile.execute({ path: 'data.txt', content: 'abc123' });
 
@@ -73,18 +73,16 @@ test('readFile reads file content', async (t) => {
   t.is(result.bytesRead, 6);
 });
 
-test('readFile throws for missing file', async (t) => {
+test('readFile throws for missing file', async t => {
   const tools = await setup();
   const err = await t.throwsAsync(() =>
     tools.readFile.execute({ path: 'nope.txt' }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('File not found'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('File not found'));
 });
 
-test('readFile supports offset and limit', async (t) => {
+test('readFile supports offset and limit', async t => {
   const tools = await setup();
   await tools.writeFile.execute({
     path: 'range.txt',
@@ -104,7 +102,7 @@ test('readFile supports offset and limit', async (t) => {
 // editFile
 // ---------------------------------------------------------------------------
 
-test('editFile replaces first occurrence', async (t) => {
+test('editFile replaces first occurrence', async t => {
   const tools = await setup();
   await tools.writeFile.execute({
     path: 'edit.txt',
@@ -123,7 +121,7 @@ test('editFile replaces first occurrence', async (t) => {
   t.is(read.content, 'qux bar foo baz');
 });
 
-test('editFile replaces all occurrences with replace_all', async (t) => {
+test('editFile replaces all occurrences with replace_all', async t => {
   const tools = await setup();
   await tools.writeFile.execute({
     path: 'edit-all.txt',
@@ -142,7 +140,7 @@ test('editFile replaces all occurrences with replace_all', async (t) => {
   t.is(read.content, 'ccc bbb ccc');
 });
 
-test('editFile throws when old_string not found', async (t) => {
+test('editFile throws when old_string not found', async t => {
   const tools = await setup();
   await tools.writeFile.execute({
     path: 'no-match.txt',
@@ -157,16 +155,14 @@ test('editFile throws when old_string not found', async (t) => {
     }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('old_string not found'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('old_string not found'));
 });
 
 // ---------------------------------------------------------------------------
 // stat
 // ---------------------------------------------------------------------------
 
-test('stat returns file metadata', async (t) => {
+test('stat returns file metadata', async t => {
   const tools = await setup();
   await tools.writeFile.execute({ path: 'info.txt', content: 'data' });
 
@@ -177,7 +173,7 @@ test('stat returns file metadata', async (t) => {
   t.truthy(result.modified);
 });
 
-test('stat returns directory metadata', async (t) => {
+test('stat returns directory metadata', async t => {
   const tools = await setup();
   await tools.makeDirectory.execute({ path: 'mydir' });
 
@@ -186,22 +182,18 @@ test('stat returns directory metadata', async (t) => {
   t.is(result.type, 'directory');
 });
 
-test('stat throws for missing path', async (t) => {
+test('stat throws for missing path', async t => {
   const tools = await setup();
-  const err = await t.throwsAsync(() =>
-    tools.stat.execute({ path: 'ghost' }),
-  );
+  const err = await t.throwsAsync(() => tools.stat.execute({ path: 'ghost' }));
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('Path not found'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('Path not found'));
 });
 
 // ---------------------------------------------------------------------------
 // removeFile
 // ---------------------------------------------------------------------------
 
-test('removeFile deletes a file', async (t) => {
+test('removeFile deletes a file', async t => {
   const tools = await setup();
   await tools.writeFile.execute({ path: 'rm-me.txt', content: 'bye' });
 
@@ -214,22 +206,20 @@ test('removeFile deletes a file', async (t) => {
   t.truthy(err);
 });
 
-test('removeFile throws for missing file', async (t) => {
+test('removeFile throws for missing file', async t => {
   const tools = await setup();
   const err = await t.throwsAsync(() =>
     tools.removeFile.execute({ path: 'no-such.txt' }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('File not found'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('File not found'));
 });
 
 // ---------------------------------------------------------------------------
 // listDirectory
 // ---------------------------------------------------------------------------
 
-test('listDirectory lists directory entries', async (t) => {
+test('listDirectory lists directory entries', async t => {
   const tools = await setup();
   await tools.writeFile.execute({ path: 'a.txt', content: 'a' });
   await tools.writeFile.execute({ path: 'b.txt', content: 'bb' });
@@ -239,11 +229,11 @@ test('listDirectory lists directory entries', async (t) => {
   t.true(result.success);
   t.is(result.entries.length, 3);
 
-  const names = result.entries.map((e) => e.name).sort();
+  const names = result.entries.map(e => e.name).sort();
   t.deepEqual(names, ['a.txt', 'b.txt', 'sub']);
 });
 
-test('listDirectory supports glob filtering', async (t) => {
+test('listDirectory supports glob filtering', async t => {
   const tools = await setup();
   await tools.writeFile.execute({ path: 'app.js', content: 'js' });
   await tools.writeFile.execute({ path: 'style.css', content: 'css' });
@@ -254,26 +244,24 @@ test('listDirectory supports glob filtering', async (t) => {
     glob: '*.js',
   });
   t.is(result.entries.length, 2);
-  const names = result.entries.map((e) => e.name).sort();
+  const names = result.entries.map(e => e.name).sort();
   t.deepEqual(names, ['app.js', 'util.js']);
 });
 
-test('listDirectory throws for missing directory', async (t) => {
+test('listDirectory throws for missing directory', async t => {
   const tools = await setup();
   const err = await t.throwsAsync(() =>
     tools.listDirectory.execute({ path: 'nope' }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('Directory not found'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('Directory not found'));
 });
 
 // ---------------------------------------------------------------------------
 // makeDirectory
 // ---------------------------------------------------------------------------
 
-test('makeDirectory creates a directory', async (t) => {
+test('makeDirectory creates a directory', async t => {
   const tools = await setup();
   const result = await tools.makeDirectory.execute({ path: 'newdir' });
   t.true(result.success);
@@ -283,7 +271,7 @@ test('makeDirectory creates a directory', async (t) => {
   t.is(st.type, 'directory');
 });
 
-test('makeDirectory recursive creates nested dirs', async (t) => {
+test('makeDirectory recursive creates nested dirs', async t => {
   const tools = await setup();
   const result = await tools.makeDirectory.execute({
     path: 'x/y/z',
@@ -300,7 +288,7 @@ test('makeDirectory recursive creates nested dirs', async (t) => {
 // removeDirectory
 // ---------------------------------------------------------------------------
 
-test('removeDirectory removes an empty directory', async (t) => {
+test('removeDirectory removes an empty directory', async t => {
   const tools = await setup();
   await tools.makeDirectory.execute({ path: 'emptydir' });
   const result = await tools.removeDirectory.execute({ path: 'emptydir' });
@@ -312,7 +300,7 @@ test('removeDirectory removes an empty directory', async (t) => {
   t.truthy(err);
 });
 
-test('removeDirectory throws for non-empty dir without recursive', async (t) => {
+test('removeDirectory throws for non-empty dir without recursive', async t => {
   const tools = await setup();
   await tools.writeFile.execute({ path: 'dir/file.txt', content: 'x' });
 
@@ -320,12 +308,10 @@ test('removeDirectory throws for non-empty dir without recursive', async (t) => 
     tools.removeDirectory.execute({ path: 'dir' }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('not empty'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('not empty'));
 });
 
-test('removeDirectory recursive removes non-empty dir', async (t) => {
+test('removeDirectory recursive removes non-empty dir', async t => {
   const tools = await setup();
   await tools.writeFile.execute({ path: 'dir/file.txt', content: 'x' });
 
@@ -340,7 +326,7 @@ test('removeDirectory recursive removes non-empty dir', async (t) => {
 // Path safety
 // ---------------------------------------------------------------------------
 
-test('path traversal is rejected', async (t) => {
+test('path traversal is rejected', async t => {
   const tools = await setup();
   const err = await t.throwsAsync(() =>
     tools.readFile.execute({ path: '../../../etc/passwd' }),
@@ -351,13 +337,11 @@ test('path traversal is rejected', async (t) => {
   );
 });
 
-test('null bytes in path are rejected', async (t) => {
+test('null bytes in path are rejected', async t => {
   const tools = await setup();
   const err = await t.throwsAsync(() =>
     tools.readFile.execute({ path: 'foo\0bar' }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('null bytes'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('null bytes'));
 });

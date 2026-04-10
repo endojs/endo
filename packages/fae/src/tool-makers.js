@@ -1068,8 +1068,7 @@ export const makeReadChannelTool = powers => {
           },
           count: {
             type: 'integer',
-            description:
-              'Number of recent messages to return (default: 20).',
+            description: 'Number of recent messages to return (default: 20).',
           },
         },
         required: ['channelName'],
@@ -1102,14 +1101,9 @@ export const makeReadChannelTool = powers => {
         // not available
       }
       try {
-        const members = /** @type {any[]} */ (
-          await E(channel).getMembers()
-        );
+        const members = /** @type {any[]} */ (await E(channel).getMembers());
         for (const m of members) {
-          memberNames.set(
-            m.memberId,
-            m.proposedName || m.invitedAs,
-          );
+          memberNames.set(m.memberId, m.proposedName || m.invitedAs);
         }
       } catch {
         // not available
@@ -1119,14 +1113,9 @@ export const makeReadChannelTool = powers => {
       const lines = [];
       for (const msg of shown) {
         const author = memberNames.get(msg.memberId) || msg.memberId;
-        const text = Array.isArray(msg.strings)
-          ? msg.strings.join('')
-          : '';
-        const replyTo = msg.replyTo
-          ? ` (reply to #${msg.replyTo})`
-          : '';
-        const preview =
-          text.length > 300 ? `${text.slice(0, 300)}...` : text;
+        const text = Array.isArray(msg.strings) ? msg.strings.join('') : '';
+        const replyTo = msg.replyTo ? ` (reply to #${msg.replyTo})` : '';
+        const preview = text.length > 300 ? `${text.slice(0, 300)}...` : text;
         lines.push(`[#${msg.number}] ${author}${replyTo}: ${preview}`);
       }
       return lines.join('\n');

@@ -206,7 +206,6 @@ export const chatBarComponent = (
         blobViewer = createBlobViewer({
           $container: $blobViewerContainer,
           $backdrop: $blobViewerBackdrop,
-          E,
           powers,
           onClose: () => {
             sendForm.focus();
@@ -511,7 +510,10 @@ export const chatBarComponent = (
     // immediately so the modal receives focus.
     const isEval = commandName === 'js' || commandName === 'eval';
     const opensModal =
-      isEval || commandName === 'view' || commandName === 'edit' || commandName === 'cat';
+      isEval ||
+      commandName === 'view' ||
+      commandName === 'edit' ||
+      commandName === 'cat';
     if (opensModal) {
       exitCommandMode({ skipFocus: true }); // eslint-disable-line no-use-before-define
     } else {

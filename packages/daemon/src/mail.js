@@ -22,7 +22,7 @@ import {
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { makeSerialJobs } from './serial-jobs.js';
-import { externalizeId } from './locator.js';
+import { externalizeId, LOCAL_NODE } from './locator.js';
 
 import {
   EnvelopeInterface,
@@ -124,6 +124,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @param args.getTypeForId
+ * @param {(node: string) => boolean} args.isLocalKey
  * @returns {MakeMailbox}
  */
 export const makeMailboxMaker = ({
@@ -133,6 +134,7 @@ export const makeMailboxMaker = ({
   formulateMessage,
   getFormulaForId,
   getTypeForId,
+  isLocalKey,
   randomHex256,
   pinTransient = () => {},
   unpinTransient = () => {},
@@ -645,7 +647,7 @@ export const makeMailboxMaker = ({
       }
 
       if (formula.messageType === 'value') {
-        if (formula.valueId === undefined) {
+        if (formula.valueId === undefined || formula.replyTo === undefined) {
           throw new Error('Value message formula is incomplete');
         }
         return harden({
@@ -846,7 +848,6 @@ export const makeMailboxMaker = ({
      * @param {EnvelopedMessage} message
      */
     const post = async (recipient, message) => {
-      /** @param {object} allegedRecipient */
       const envelope = makeEnvelope();
       outbox.set(envelope, message);
       await E(recipient).receive(envelope, selfId);
@@ -875,7 +876,13 @@ export const makeMailboxMaker = ({
       const resolver = /** @type {ERef<Responder>} */ (
         provide(req.resolverId, 'resolver')
       );
-      E.sendOnly(resolver).resolveWithId(id);
+      // Externalize the ID so that a remote resolver (on a different
+      // daemon) can correctly internalize it.  For same-daemon
+      // resolvers the locator is internalized back to LOCAL_NODE.
+      const externalizedId = await externalizeForMessage(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      await E(resolver).resolveWithId(externalizedId);
     };
 
     /** @type {Mail['reject']} */
@@ -1180,7 +1187,45 @@ export const makeMailboxMaker = ({
       if (senderId !== message.from) {
         throw new Error('Mail fraud: alleged sender does not recognize parcel');
       }
-      await deliver(message);
+      // For remote senders, translate LOCAL_NODE in sender-owned IDs
+      // to the sender's actual node number.  LOCAL_NODE is only
+      // meaningful within a single daemon; once a message crosses a
+      // boundary, it must be externalized.
+      // For local senders (same daemon) LOCAL_NODE correctly refers
+      // to local formulas and is left as-is.
+      const { node: senderNode } = parseId(senderId);
+      const isRemoteSender =
+        senderNode !== LOCAL_NODE && !isLocalKey(senderNode);
+      if (isRemoteSender) {
+        const externalize = id => {
+          const { number, node } = parseId(id);
+          if (node === LOCAL_NODE) {
+            return formatId({
+              number,
+              node: /** @type {import('./types.js').NodeNumber} */ (senderNode),
+            });
+          }
+          return id;
+        };
+        const m = /** @type {any} */ (message);
+        const patched = { ...m };
+        patched.from = externalize(m.from);
+        if (m.ids) {
+          patched.ids = m.ids.map(externalize);
+        }
+        if (m.promiseId) {
+          patched.promiseId = externalize(m.promiseId);
+        }
+        if (m.resolverId) {
+          patched.resolverId = externalize(m.resolverId);
+        }
+        if (m.valueId) {
+          patched.valueId = externalize(m.valueId);
+        }
+        await deliver(harden(patched));
+      } else {
+        await deliver(message);
+      }
     };
 
     /** @type {Mail['requestEvaluation']} */
@@ -1368,18 +1413,24 @@ export const makeMailboxMaker = ({
         messageId: formMessageId,
         guestHandleId,
       } = getForm(messageNumber);
-      const defaults = Object.fromEntries(fields.map( ({ name, default: dflt }) => [ name, dflt ]));
+      const defaults = Object.fromEntries(
+        fields.map(({ name, default: defaultValue }) => [name, defaultValue]),
+      );
 
       // Apply any defaults
       values = { ...defaults, ...values };
 
       // Validate that values cover every field and match patterns.
       for (const { name, pattern } of fields) {
-        if (!(name in values)) {
+        if (values[name] === undefined) {
           throw new Error(`Missing value for field ${q(name)}`);
         }
         const effectivePattern = pattern !== undefined ? pattern : M.string();
-        mustMatch(values[name], effectivePattern, `field ${q(name)}`);
+        mustMatch(
+          values[name],
+          /** @type {import('@endo/patterns').Pattern} */ (effectivePattern),
+          `field ${q(name)}`,
+        );
       }
 
       // Marshal the values record.

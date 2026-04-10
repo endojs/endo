@@ -123,7 +123,6 @@ export const makeTool = (name, { execute, ...spec }) => {
         } catch (err) {
           const message = `${err?.message}`;
           if (typeof args === 'object') {
-
             const null2undef = /args:.* ([^ ]+?)\?: null.*/.exec(message);
             if (null2undef !== null) {
               const key = null2undef[1];
@@ -136,16 +135,19 @@ export const makeTool = (name, { execute, ...spec }) => {
             // try to fixup by parsing nested JSON values
             if (!didUnJSON) {
               didUnJSON = true;
-              for (const [key, val] of Object.entries(/** @type {Record<string, any>} */(args))) {
+              for (const [key, val] of Object.entries(
+                /** @type {Record<string, any>} */ (args),
+              )) {
                 if (typeof val === 'string') {
                   try {
                     args = { ...args, ...{ [key]: JSON.parse(val) } };
-                  } catch { continue }
+                  } catch {
+                    continue;
+                  }
                 }
               }
               continue;
             }
-
           }
 
           // fallthrough: no fixup, final throw to caller

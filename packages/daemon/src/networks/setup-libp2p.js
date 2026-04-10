@@ -3,13 +3,15 @@
 
 import { E } from '@endo/eventual-send';
 
+/** @import { ERef } from '@endo/eventual-send' */
+
 const libp2pSpecifier = new URL('libp2p.js', import.meta.url).href;
 
 /**
  * Install the libp2p network module into the daemon and register it
  * under NETS/libp2p so the daemon discovers it as an active transport.
  *
- * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @param {ERef<object>} powers
  */
 export const main = async powers => {
   await E(powers).makeUnconfined(undefined, libp2pSpecifier, {

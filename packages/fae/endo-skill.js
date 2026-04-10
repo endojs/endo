@@ -50,7 +50,6 @@ const makeRefIterator = iteratorRef => {
   return iterator;
 };
 
-
 /** Resolve the daemon socket path (same logic as @endo/where). */
 const getEndoSockPath = () => {
   if (process.env.ENDO_SOCK) return process.env.ENDO_SOCK;
@@ -66,7 +65,11 @@ const getEndoSockPath = () => {
   if (process.env.XDG_RUNTIME_DIR) {
     return path.join(process.env.XDG_RUNTIME_DIR, 'endo', 'captp0.sock');
   }
-  return path.join(os.tmpdir(), `endo-${os.userInfo().username}`, 'captp0.sock');
+  return path.join(
+    os.tmpdir(),
+    `endo-${os.userInfo().username}`,
+    'captp0.sock',
+  );
 };
 
 const SOCK_PATH = getEndoSockPath();
@@ -313,9 +316,7 @@ const commands = {
       flagIndices.add(asIdx);
       flagIndices.add(asIdx + 1);
     }
-    const text = textParts
-      .filter((_, i) => !flagIndices.has(i))
-      .join(' ');
+    const text = textParts.filter((_, i) => !flagIndices.has(i)).join(' ');
     if (!channelName || !text) {
       console.error(
         'Usage: channel-post <name> <text> [--reply-to <n>] [--as <member>]',
@@ -330,7 +331,9 @@ const commands = {
       await E(channel).post([text], [], [], replyTo);
     }
     const asLabel = asMember ? ` as ${asMember}` : '';
-    console.log(`Posted to ${channelName}${asLabel}${replyTo ? ` (reply to ${replyTo})` : ''}: ${text}`);
+    console.log(
+      `Posted to ${channelName}${asLabel}${replyTo ? ` (reply to ${replyTo})` : ''}: ${text}`,
+    );
   },
 
   async 'channel-move'(host, args) {
@@ -368,9 +371,7 @@ const commands = {
       process.exit(1);
     }
     const agentPowers = await E(host).lookup(agentName);
-    const messages = /** @type {any[]} */ (
-      await E(agentPowers).listMessages()
-    );
+    const messages = /** @type {any[]} */ (await E(agentPowers).listMessages());
     const count = countStr ? parseInt(countStr, 10) : messages.length;
     const shown = messages.slice(-count);
     if (shown.length === 0) {
@@ -426,8 +427,7 @@ const commands = {
       seen += 1;
       if (seen <= existingCount) continue;
 
-      const author =
-        (memberNames.get(msg.memberId)) || msg.memberId || '?';
+      const author = memberNames.get(msg.memberId) || msg.memberId || '?';
       // Skip messages from the filtered member
       if (skipFrom && author === skipFrom) continue;
 
@@ -452,7 +452,6 @@ const commands = {
       console.log(formatMessage(msg));
     }
   },
-
 
   async help() {
     console.log(`Endo Daemon Skill — Claude Code interface

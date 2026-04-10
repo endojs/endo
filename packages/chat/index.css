@@ -1607,7 +1607,8 @@ body.resizing * {
   white-space: nowrap;
 }
 
-.blob-viewer-md-toggle[data-active='preview'] .md-toggle-seg[data-seg='preview'],
+.blob-viewer-md-toggle[data-active='preview']
+  .md-toggle-seg[data-seg='preview'],
 .blob-viewer-md-toggle[data-active='source'] .md-toggle-seg[data-seg='source'] {
   color: var(--text-primary);
 }
@@ -1616,8 +1617,10 @@ body.resizing * {
   color: var(--text-secondary);
 }
 
-.blob-viewer-md-toggle[data-active='preview'] .md-toggle-seg[data-seg='preview']:hover,
-.blob-viewer-md-toggle[data-active='source'] .md-toggle-seg[data-seg='source']:hover {
+.blob-viewer-md-toggle[data-active='preview']
+  .md-toggle-seg[data-seg='preview']:hover,
+.blob-viewer-md-toggle[data-active='source']
+  .md-toggle-seg[data-seg='source']:hover {
   color: var(--text-primary);
 }
 
@@ -1701,10 +1704,18 @@ body.resizing * {
   line-height: 1.3;
 }
 
-.md-rendered h1 { font-size: 1.6em; }
-.md-rendered h2 { font-size: 1.35em; }
-.md-rendered h3 { font-size: 1.15em; }
-.md-rendered h4 { font-size: 1em; }
+.md-rendered h1 {
+  font-size: 1.6em;
+}
+.md-rendered h2 {
+  font-size: 1.35em;
+}
+.md-rendered h3 {
+  font-size: 1.15em;
+}
+.md-rendered h4 {
+  font-size: 1em;
+}
 
 .md-rendered h1:first-child,
 .md-rendered h2:first-child,
@@ -4155,7 +4166,7 @@ button.btn-spinner::after {
   background: rgba(108, 140, 255, 0.08);
 }
 
-.share-policy-option input[type="checkbox"] {
+.share-policy-option input[type='checkbox'] {
   accent-color: var(--accent-primary);
   margin: 0;
 }
@@ -4533,7 +4544,7 @@ button.btn-spinner::after {
   font-size: 13px;
   color: var(--text-muted);
   padding: 6px 8px;
-  background: var(--bg-secondary, rgba(128,128,128,0.1));
+  background: var(--bg-secondary, rgba(128, 128, 128, 0.1));
   border-radius: var(--radius-sm);
 }
 
@@ -6987,11 +6998,21 @@ button.btn-spinner::after {
   padding-left: 8px;
 }
 
-.outliner-node[data-depth="1"] { border-left-color: #6c8cff; }
-.outliner-node[data-depth="2"] { border-left-color: #e06cff; }
-.outliner-node[data-depth="3"] { border-left-color: #ff6c8c; }
-.outliner-node[data-depth="4"] { border-left-color: #6cffb5; }
-.outliner-node[data-depth="5"] { border-left-color: #ffc86c; }
+.outliner-node[data-depth='1'] {
+  border-left-color: #6c8cff;
+}
+.outliner-node[data-depth='2'] {
+  border-left-color: #e06cff;
+}
+.outliner-node[data-depth='3'] {
+  border-left-color: #ff6c8c;
+}
+.outliner-node[data-depth='4'] {
+  border-left-color: #6cffb5;
+}
+.outliner-node[data-depth='5'] {
+  border-left-color: #ffc86c;
+}
 
 /* Row layout: bullet + badges + text */
 .outliner-node-row {
@@ -7080,7 +7101,7 @@ button.btn-spinner::after {
   box-shadow: inset 0 0 0 1px var(--border-color);
 }
 
-.outliner-text[contenteditable="false"] {
+.outliner-text[contenteditable='false'] {
   opacity: 0.6;
 }
 
@@ -7213,8 +7234,8 @@ button.btn-spinner::after {
 }
 
 /* Outliner mode: flow content from top instead of bottom */
-#messages[data-view-mode="outliner"],
-#messages[data-view-mode="microblog"] {
+#messages[data-view-mode='outliner'],
+#messages[data-view-mode='microblog'] {
   padding-top: 20px;
 }
 
@@ -7271,7 +7292,10 @@ button.btn-spinner::after {
 }
 
 /* Title node: first root in outliner gets subtle emphasis */
-.outliner-view > .outliner-node:first-child > .outliner-node-row > .outliner-text {
+.outliner-view
+  > .outliner-node:first-child
+  > .outliner-node-row
+  > .outliner-text {
   font-size: 1.15em;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -7479,7 +7503,11 @@ button.btn-spinner::after {
   opacity: 0.5;
   pointer-events: none;
   z-index: 1;
-  transition: top 0.2s ease, left 0.2s ease, opacity 0.2s ease, gap 0.2s ease;
+  transition:
+    top 0.2s ease,
+    left 0.2s ease,
+    opacity 0.2s ease,
+    gap 0.2s ease;
 }
 
 .react-sub > * {
@@ -7496,7 +7524,11 @@ button.btn-spinner::after {
   opacity: 1;
   pointer-events: auto;
   z-index: 1;
-  transition: top 0.2s ease, left 0.2s ease, opacity 0.2s ease, gap 0.2s ease;
+  transition:
+    top 0.2s ease,
+    left 0.2s ease,
+    opacity 0.2s ease,
+    gap 0.2s ease;
 }
 
 .react-pill-wrapper:hover > .react-sub > * {
@@ -7506,21 +7538,66 @@ button.btn-spinner::after {
 
 /* ~6Hz wiggle (9 cycles over 1.5s) with exponential decay, 18deg start */
 @keyframes react-spring-pop {
-  0%     { max-width: 0;    transform: rotate(0deg); }
-  3%     { max-width: 50px; transform: rotate(0deg); }
-  5.6%   { max-width: 50px; transform: rotate(18deg); }
-  11.1%  { max-width: 50px; transform: rotate(-14deg); }
-  16.7%  { max-width: 50px; transform: rotate(10.5deg); }
-  22.2%  { max-width: 50px; transform: rotate(-7.5deg); }
-  27.8%  { max-width: 50px; transform: rotate(5deg); }
-  33.3%  { max-width: 50px; transform: rotate(-3.2deg); }
-  38.9%  { max-width: 50px; transform: rotate(1.9deg); }
-  44.4%  { max-width: 50px; transform: rotate(-1deg); }
-  50%    { max-width: 50px; transform: rotate(0.5deg); }
-  55.6%  { max-width: 50px; transform: rotate(-0.2deg); }
-  61.1%  { max-width: 50px; transform: rotate(0.08deg); }
-  66.7%  { max-width: 50px; transform: rotate(0deg); }
-  100%   { max-width: 50px; transform: rotate(0deg); }
+  0% {
+    max-width: 0;
+    transform: rotate(0deg);
+  }
+  3% {
+    max-width: 50px;
+    transform: rotate(0deg);
+  }
+  5.6% {
+    max-width: 50px;
+    transform: rotate(18deg);
+  }
+  11.1% {
+    max-width: 50px;
+    transform: rotate(-14deg);
+  }
+  16.7% {
+    max-width: 50px;
+    transform: rotate(10.5deg);
+  }
+  22.2% {
+    max-width: 50px;
+    transform: rotate(-7.5deg);
+  }
+  27.8% {
+    max-width: 50px;
+    transform: rotate(5deg);
+  }
+  33.3% {
+    max-width: 50px;
+    transform: rotate(-3.2deg);
+  }
+  38.9% {
+    max-width: 50px;
+    transform: rotate(1.9deg);
+  }
+  44.4% {
+    max-width: 50px;
+    transform: rotate(-1deg);
+  }
+  50% {
+    max-width: 50px;
+    transform: rotate(0.5deg);
+  }
+  55.6% {
+    max-width: 50px;
+    transform: rotate(-0.2deg);
+  }
+  61.1% {
+    max-width: 50px;
+    transform: rotate(0.08deg);
+  }
+  66.7% {
+    max-width: 50px;
+    transform: rotate(0deg);
+  }
+  100% {
+    max-width: 50px;
+    transform: rotate(0deg);
+  }
 }
 
 /* Quick react picker popup */
@@ -7614,18 +7691,20 @@ button.btn-spinner::after {
   border-radius: var(--radius-sm);
 }
 
-.outliner-node.outliner-selected > .outliner-node-row .outliner-text:not(:focus) {
+.outliner-node.outliner-selected
+  > .outliner-node-row
+  .outliner-text:not(:focus) {
   background: transparent;
 }
 
 /* Drag handle cursor on bullet */
-.outliner-bullet[draggable="true"],
-.outliner-collapse-handle[draggable="true"] {
+.outliner-bullet[draggable='true'],
+.outliner-collapse-handle[draggable='true'] {
   cursor: grab;
 }
 
-.outliner-bullet[draggable="true"]:active,
-.outliner-collapse-handle[draggable="true"]:active {
+.outliner-bullet[draggable='true']:active,
+.outliner-collapse-handle[draggable='true']:active {
   cursor: grabbing;
 }
 
@@ -7765,7 +7844,9 @@ button.btn-spinner::after {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 13px;
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .microblog-action-btn:hover {

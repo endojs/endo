@@ -67,7 +67,8 @@ const loadDotenv = () => {
  * @param {string[]} args
  * @param {number} timeoutMs
  */
-const runEndoCli = (args, timeoutMs = 1_500) => systemCapture(endoCliPath, args, timeoutMs);
+const runEndoCli = (args, timeoutMs = 1_500) =>
+  systemCapture(endoCliPath, args, timeoutMs);
 
 // Set to 0 to disable thrashing when developing daemon
 const DAEMON_POLL_INTERVAL_MS = 5_000;
@@ -179,7 +180,7 @@ const makeEndoChecker = () => {
       failStarts = 0;
     } else {
       console.error('[Endo Plugin] Failed to start endo daemon');
-      for (const line of stderr.split("\n")) {
+      for (const line of stderr.split('\n')) {
         console.error(`[Endo Plugin]   ${line}`);
       }
       failStarts++;
@@ -192,13 +193,14 @@ const makeEndoChecker = () => {
     if (DAEMON_POLL_INTERVAL_MS) {
       // when start fails, backoff on retrying start up to how long we're
       // willing to wait for start to even succeed
-      const nextCheck = DAEMON_POLL_INTERVAL_MS * Math.min(
-        DAEMON_START_MAX_WAIT,
-        Math.pow(2, failStarts)
-      );
+      const nextCheck =
+        DAEMON_POLL_INTERVAL_MS *
+        Math.min(DAEMON_START_MAX_WAIT, Math.pow(2, failStarts));
 
       if (!daemonHealthy) {
-        console.error(`[Endo Plugin] Daemon Unhealthy ; next check in ${nextCheck}`);
+        console.error(
+          `[Endo Plugin] Daemon Unhealthy ; next check in ${nextCheck}`,
+        );
       }
 
       setTimeout(checkAndRestart, nextCheck);
@@ -264,7 +266,9 @@ export const makeEndoPlugin = () => {
         await endoChecker.ensure();
 
         console.log(`[Endo Plugin] Gateway at ${gatewayAddress}`);
-        console.log(`[Endo Plugin] Agent: ${endoChecker.agentId.slice(0, 16)}...`);
+        console.log(
+          `[Endo Plugin] Agent: ${endoChecker.agentId.slice(0, 16)}...`,
+        );
       } catch (error) {
         console.error(`[Endo Plugin] Failed to start:`, error);
         throw error;

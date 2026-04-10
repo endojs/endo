@@ -511,9 +511,7 @@ export const inventoryComponent = async (
             $menuBtn.addEventListener('click', menuE => {
               menuE.stopPropagation();
               // Remove any existing sidebar menus
-              const $existing = document.querySelector(
-                '.channel-sidebar-menu',
-              );
+              const $existing = document.querySelector('.channel-sidebar-menu');
               if ($existing) $existing.remove();
 
               const $menu = document.createElement('div');
@@ -560,10 +558,9 @@ export const inventoryComponent = async (
           if (channelOrder) {
             const orderIdx = channelOrder.indexOf(name);
             if (orderIdx >= 0) {
-              const existingItems =
-                /** @type {NodeListOf<HTMLElement>} */ (
-                  $list.querySelectorAll('.channel-item[data-name]')
-                );
+              const existingItems = /** @type {NodeListOf<HTMLElement>} */ (
+                $list.querySelectorAll('.channel-item[data-name]')
+              );
               let reinserted = false;
               for (const item of existingItems) {
                 if (item === $wrapper) continue;
@@ -766,7 +763,10 @@ export const inventoryComponent = async (
             $children.classList.add('expanded');
 
             const wrappedOnSelectConversation = onSelectConversation
-              ? (/** @type {string | string[]} */ leafName, /** @type {string} */ locator) => {
+              ? (
+                  /** @type {string | string[]} */ leafName,
+                  /** @type {string} */ locator,
+                ) => {
                   const leafPath =
                     typeof leafName === 'string' ? [leafName] : leafName;
                   onSelectConversation([...itemPath, ...leafPath], locator);

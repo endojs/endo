@@ -116,21 +116,25 @@ const prepareHost = async t => {
 // Test lifecycle
 // ---------------------------------------------------------------------------
 
-test.beforeEach(t => {
+test.beforeEach((/** @type {import('ava').ExecutionContext<any[]>} */ t) => {
   t.context = [];
 });
 
-test.afterEach.always(async t => {
-  delete process.env.ENDO_ADDR;
-  await Promise.allSettled(
-    t.context.flatMap(
-      (/** @type {{ cancel: Function, cancelled: Promise<void>, config: any }} */ ctx) => {
-        ctx.cancel(Error('teardown'));
-        return [ctx.cancelled, stop(ctx.config)];
-      },
-    ),
-  );
-});
+test.afterEach.always(
+  async (/** @type {import('ava').ExecutionContext<any[]>} */ t) => {
+    delete process.env.ENDO_ADDR;
+    await Promise.allSettled(
+      t.context.flatMap(
+        (
+          /** @type {{ cancel: Function, cancelled: Promise<void>, config: any }} */ ctx,
+        ) => {
+          ctx.cancel(Error('teardown'));
+          return [ctx.cancelled, stop(ctx.config)];
+        },
+      ),
+    );
+  },
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -140,7 +144,7 @@ test.afterEach.always(async t => {
  * Wait for a channel to receive a message matching a predicate,
  * timing out after `ms` milliseconds.
  *
- * @param {unknown} channelRef
+ * @param {any} channelRef
  * @param {(msg: any) => boolean} predicate
  * @param {number} ms
  * @returns {Promise<any>}
@@ -195,6 +199,7 @@ test.serial('agent replies to channel mention (not inbox)', async t => {
   // 1. Create a channel
   t.log('Creating channel...');
   await E(host).makeChannel('test-channel', 'TestAdmin');
+  /** @type {any} */
   const channel = await E(host).lookup('test-channel');
   const adminMemberId = await E(channel).getMemberId();
   t.truthy(adminMemberId, 'admin has a memberId');
@@ -222,9 +227,13 @@ test.serial('agent replies to channel mention (not inbox)', async t => {
   });
 
   // Write provider ref into factory's namespace
+  /** @type {any} */
   const factoryPowers = await E(host).lookup(factoryAgentName);
   const providerId = await E(host).identify('llm-provider');
-  await E(factoryPowers).write('llm-provider', providerId);
+  await E(factoryPowers).write(
+    'llm-provider',
+    /** @type {string} */ (providerId),
+  );
 
   // Launch factory caplet
   await E(host).makeUnconfined('@main', faeFactorySpecifier, {
@@ -232,6 +241,7 @@ test.serial('agent replies to channel mention (not inbox)', async t => {
     resultName: 'fae-factory',
   });
 
+  /** @type {any} */
   const factory = await E(host).lookup('fae-factory');
   t.truthy(factory, 'fae factory exists');
 

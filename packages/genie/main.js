@@ -124,7 +124,7 @@ export const make = (guestPowers, _context) => {
 
     return harden({
       listTools,
-      execTool
+      execTool,
     });
   };
 
@@ -189,12 +189,7 @@ export const make = (guestPowers, _context) => {
             ) {
               if (!sentThinking) {
                 sentThinking = true;
-                await E(agentPowers).reply(
-                  number,
-                  ['Thinking...'],
-                  [],
-                  [],
-                );
+                await E(agentPowers).reply(number, ['Thinking...'], [], []);
               }
               break;
             }
@@ -205,12 +200,7 @@ export const make = (guestPowers, _context) => {
               event.role === 'assistant' &&
               event.content
             ) {
-              await E(agentPowers).reply(
-                number,
-                [event.content],
-                [],
-                [],
-              );
+              await E(agentPowers).reply(number, [event.content], [], []);
             }
             break;
           }
@@ -237,7 +227,8 @@ export const make = (guestPowers, _context) => {
           }
 
           case 'ToolCallEnd': {
-            const status = 'error' in event && event.error ? 'failed' : 'completed';
+            const status =
+              'error' in event && event.error ? 'failed' : 'completed';
             console.log(`[genie] Tool ${event.toolName} ${status}`);
             break;
           }
@@ -262,10 +253,7 @@ export const make = (guestPowers, _context) => {
       }
     } catch (err) {
       const errorMessage = /** @type {Error} */ (err).message || String(err);
-      console.error(
-        `[genie] Unhandled error during chat round:`,
-        errorMessage,
-      );
+      console.error(`[genie] Unhandled error during chat round:`, errorMessage);
       await E(agentPowers).reply(
         number,
         [`Genie error: ${errorMessage}`],
@@ -288,9 +276,7 @@ export const make = (guestPowers, _context) => {
    */
   const runAgentLoop = async (agentPowers, piAgent, agentName) => {
     const selfId = await E(agentPowers).locate('@self');
-    const messageIterator = makeRefIterator(
-      E(agentPowers).followMessages(),
-    );
+    const messageIterator = makeRefIterator(E(agentPowers).followMessages());
 
     while (true) {
       const { value: message, done } = await messageIterator.next();
@@ -311,8 +297,7 @@ export const make = (guestPowers, _context) => {
       try {
         await processMessage(agentPowers, piAgent, msg);
       } catch (err) {
-        const errorMessage =
-          /** @type {Error} */ (err).message || String(err);
+        const errorMessage = /** @type {Error} */ (err).message || String(err);
         console.error(
           `[genie:${agentName}] Failed to process message #${msg.number}:`,
           errorMessage,
@@ -529,10 +514,10 @@ export const make = (guestPowers, _context) => {
       if (msg.replyTo !== formMessageId) continue;
 
       try {
-        const config = /** @type {AgentConfig} */ (await E(powers).lookupById(msg.valueId));
-        const {
-          name: agentName = 'main-genie',
-        } = config
+        const config = /** @type {AgentConfig} */ (
+          await E(powers).lookupById(msg.valueId)
+        );
+        const { name: agentName = 'main-genie' } = config;
 
         console.log(
           `[genie] Configuration received: name=${agentName}, model=${config.model}, workspace=${config.workspace}`,

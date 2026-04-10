@@ -14,7 +14,18 @@ import {
 } from './interfaces.js';
 import { makeHelp } from './help-text.js';
 
-/** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, Provide, StoreController } from './types.js' */
+/** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, PetName, Provide, StoreController, Topic } from './types.js' */
+
+/**
+ * Minimal async iterator interface matching the AsyncIteratorInterface
+ * exo guard (next takes 0 arguments).
+ *
+ * @template T
+ * @typedef {object} IterRef
+ * @property {() => Promise<IteratorResult<T>>} next
+ * @property {(value: any) => Promise<IteratorResult<T>>} return
+ * @property {(error: any) => Promise<IteratorResult<T>>} throw
+ */
 
 /**
  * @type {Record<string, string>}
@@ -122,7 +133,7 @@ export const makeChannelMaker = ({
     for (const name of existingNames) {
       const id = messageStore.identifyLocal(name);
       if (id !== undefined) {
-        const value = await provide(id);
+        const value = await provide(/** @type {FormulaIdentifier} */ (id));
         if (value && typeof value === 'object') {
           const raw = /** @type {any} */ (value);
           // Migrate old-format messages: rename edgeNames->names, add type/messageId
@@ -226,7 +237,10 @@ export const makeChannelMaker = ({
         temporaryBanUntil: entry.temporaryBanUntil,
       });
       const formulaId = await persistValue(persistable);
-      await memberStore.storeIdentifier(`member-${entry.memberId}`, formulaId);
+      await memberStore.storeIdentifier(
+        /** @type {PetName} */ (`member-${entry.memberId}`),
+        formulaId,
+      );
     };
 
     /**
@@ -271,23 +285,27 @@ export const makeChannelMaker = ({
 
       const messageId = /** @type {FormulaNumber} */ (await randomHex256());
 
-      /** @type {ChannelMessage} */
-      const message = harden({
-        type: 'package',
-        messageId,
-        number: messageNumber,
-        date: new Date().toISOString(),
-        memberId,
-        strings,
-        names,
-        ids,
-        replyTo,
-        replyType,
-      });
+      const message = /** @type {ChannelMessage} */ (
+        harden({
+          type: /** @type {'package'} */ ('package'),
+          messageId,
+          number: messageNumber,
+          date: new Date().toISOString(),
+          memberId,
+          strings,
+          names,
+          ids,
+          ...(replyTo !== undefined ? { replyTo } : {}),
+          ...(replyType !== undefined ? { replyType } : {}),
+        })
+      );
 
       // Persist message to store for rehydration on restart
       const formulaId = await persistValue(message);
-      await messageStore.storeIdentifier(`msg-${String(messageNumber)}`, formulaId);
+      await messageStore.storeIdentifier(
+        /** @type {PetName} */ (`msg-${String(messageNumber)}`),
+        formulaId,
+      );
 
       messages.push(message);
       messagesTopic.publisher.next(message);
@@ -332,7 +350,9 @@ export const makeChannelMaker = ({
         yield* messages;
         yield* messagesTopic.subscribe();
       })();
-      const rawIterRef = makeIteratorRef(iterator);
+      const rawIterRef = /** @type {IterRef<ChannelMessage>} */ (
+        /** @type {unknown} */ (makeIteratorRef(iterator))
+      );
       return makeExo('GatedAsyncIterator', AsyncIteratorInterface, {
         async next() {
           checkAccess();
@@ -641,7 +661,9 @@ export const makeChannelMaker = ({
         }
       })();
 
-      const rawIterRef = makeIteratorRef(iterator);
+      const rawIterRef = /** @type {IterRef<unknown>} */ (
+        /** @type {unknown} */ (makeIteratorRef(iterator))
+      );
       return makeExo('GatedHeatEventIterator', AsyncIteratorInterface, {
         async next() {
           checkAccess();
@@ -726,12 +748,26 @@ export const makeChannelMaker = ({
 
       return makeExo('EndoChannelMember', ChannelMemberInterface, {
         help: makeHelp(channelMemberHelp),
-        post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds, replyType) => {
+        post: async (
+          strings,
+          names,
+          petNamesOrPaths,
+          replyTo,
+          resolvedIds,
+          replyType,
+        ) => {
           checkAccess();
           const now = Date.now();
           checkPostRate(now);
           const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-          await postInternal(entry.memberId, strings, names, ids, replyTo, replyType);
+          await postInternal(
+            entry.memberId,
+            strings,
+            names,
+            ids,
+            replyTo,
+            replyType,
+          );
         },
         setProposedName: async newName => {
           checkAccess();
@@ -892,7 +928,7 @@ export const makeChannelMaker = ({
       if (storeName.startsWith('member-')) {
         const id = memberStore.identifyLocal(storeName);
         if (id !== undefined) {
-          const value = await provide(id);
+          const value = await provide(/** @type {FormulaIdentifier} */ (id));
           if (value && typeof value === 'object') {
             const data = /** @type {any} */ (value);
             // Migration: convert old rateLimitPerSecond to heatConfig
@@ -986,152 +1022,170 @@ export const makeChannelMaker = ({
       }
     }
 
-    /** @type {EndoChannel} */
-    const channelExo = makeExo('EndoChannel', ChannelInterface, {
-      help: makeHelp(channelHelp),
-      post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds, replyType) => {
-        const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-        await postInternal(adminMemberId, strings, names, ids, replyTo, replyType);
-      },
-      followMessages: async () => {
-        const iterator = (async function* channelMessages() {
-          yield* messages;
-          yield* messagesTopic.subscribe();
-        })();
-        return makeIteratorRef(iterator);
-      },
-      listMessages: async () => harden([...messages]),
-      createInvitation: async memberProposedName => {
-        // Enforce unique invitation names per inviter (admin)
-        if (adminInvitations.has(memberProposedName)) {
-          throw new Error(
-            `An invitation named ${q(memberProposedName)} already exists from this member`,
-          );
-        }
-        const pedigree = [proposedName];
-        const memberId = allocateMemberId();
-        const newEntry = {
-          proposedName: memberProposedName,
-          invitedAs: memberProposedName,
-          memberId,
-          inviterMemberId: adminMemberId,
-          pedigree,
-          valid: true,
-          joined: false,
-          heatConfig: /** @type {HeatConfig | null} */ (null),
-          temporaryBanUntil: 0,
-        };
-        memberEntries.set(memberId, newEntry);
-        const attenuator = makeAttenuator(newEntry);
-        const invitation = makeInvitation(
-          newEntry,
-          adminCheckAccess,
-          adminCheckPostRate,
-        );
-        const rec = { invitation, attenuator, entry: newEntry };
-        adminInvitations.set(memberProposedName, rec);
-        const regKey = `${adminMemberId}:${memberProposedName}`;
-        invitationRegistry.set(regKey, rec);
+    const channelExo = /** @type {EndoChannel} */ (
+      /** @type {unknown} */
+      (
+        makeExo('EndoChannel', ChannelInterface, {
+          help: makeHelp(channelHelp),
+          post: async (
+            strings,
+            names,
+            petNamesOrPaths,
+            replyTo,
+            resolvedIds,
+            replyType,
+          ) => {
+            const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
+            await postInternal(
+              adminMemberId,
+              strings,
+              names,
+              ids,
+              replyTo,
+              replyType,
+            );
+          },
+          followMessages: async () => {
+            const iterator = (async function* channelMessages() {
+              yield* messages;
+              yield* messagesTopic.subscribe();
+            })();
+            return makeIteratorRef(iterator);
+          },
+          listMessages: async () => harden([...messages]),
+          createInvitation: async memberProposedName => {
+            // Enforce unique invitation names per inviter (admin)
+            if (adminInvitations.has(memberProposedName)) {
+              throw new Error(
+                `An invitation named ${q(memberProposedName)} already exists from this member`,
+              );
+            }
+            const pedigree = [proposedName];
+            const memberId = allocateMemberId();
+            const newEntry = {
+              proposedName: memberProposedName,
+              invitedAs: memberProposedName,
+              memberId,
+              inviterMemberId: adminMemberId,
+              pedigree,
+              valid: true,
+              joined: false,
+              heatConfig: /** @type {HeatConfig | null} */ (null),
+              temporaryBanUntil: 0,
+            };
+            memberEntries.set(memberId, newEntry);
+            const attenuator = makeAttenuator(newEntry);
+            const invitation = makeInvitation(
+              newEntry,
+              adminCheckAccess,
+              adminCheckPostRate,
+            );
+            const rec = { invitation, attenuator, entry: newEntry };
+            adminInvitations.set(memberProposedName, rec);
+            const regKey = `${adminMemberId}:${memberProposedName}`;
+            invitationRegistry.set(regKey, rec);
 
-        // Register handle info for this member so its children can chain
-        /** @type {Map<string, { invitation: object, attenuator: object, entry: MemberEntry }>} */
-        const childInvitations = new Map();
+            // Register handle info for this member so its children can chain
+            /** @type {Map<string, { invitation: object, attenuator: object, entry: MemberEntry }>} */
+            const childInvitations = new Map();
 
-        const checkAccess = () => {
-          checkEntryValidity(newEntry);
-        };
-        const checkPostRate = makeHeatCheckPostRate(
-          newEntry,
-          adminCheckPostRate,
-        );
-        memberHandleInfo.set(memberId, {
-          checkAccess,
-          checkPostRate,
-          invitations: childInvitations,
-        });
+            const checkAccess = () => {
+              checkEntryValidity(newEntry);
+            };
+            const checkPostRate = makeHeatCheckPostRate(
+              newEntry,
+              adminCheckPostRate,
+            );
+            memberHandleInfo.set(memberId, {
+              checkAccess,
+              checkPostRate,
+              invitations: childInvitations,
+            });
 
-        await persistMemberEntry(newEntry);
-        return harden([invitation, attenuator]);
-      },
-      join: async memberProposedName => {
-        // Try exact name match first (invitedAs matches proposed name)
-        const adminKey = `${adminMemberId}:${memberProposedName}`;
-        const adminRec = invitationRegistry.get(adminKey);
-        if (adminRec) {
-          return adminRec.invitation.join(memberProposedName);
-        }
-        for (const [, rec] of invitationRegistry) {
-          if (rec.entry.invitedAs === memberProposedName) {
-            return rec.invitation.join(memberProposedName);
-          }
-        }
-        // Fallback: claim the first unclaimed invitation.
-        // The inviter's name for the invitation is just bookkeeping —
-        // the joiner chooses their own display name.
-        for (const [, rec] of invitationRegistry) {
-          if (!rec.entry.joined) {
-            return rec.invitation.join(memberProposedName);
-          }
-        }
-        throw new Error(
-          `No unclaimed invitation exists — ask the channel admin to create one`,
-        );
-      },
-      getMembers: async () => {
-        const result = [];
-        for (const [, rec] of adminInvitations) {
-          result.push(
-            harden({
-              proposedName: rec.entry.proposedName,
-              invitedAs: rec.entry.invitedAs,
-              memberId: rec.entry.memberId,
-              pedigree: [...rec.entry.pedigree],
-              active: rec.entry.valid,
-            }),
-          );
-        }
-        return harden(result);
-      },
-      getProposedName: () => proposedName,
-      getMemberId: () => adminMemberId,
-      getMember: async targetMemberId => {
-        const targetEntry = memberEntries.get(targetMemberId);
-        if (!targetEntry) {
-          return undefined;
-        }
-        const pedigreeMemberIds = buildPedigreeMemberIds(targetEntry);
-        return harden({
-          proposedName: targetEntry.proposedName,
-          invitedAs: targetEntry.invitedAs,
-          memberId: targetEntry.memberId,
-          pedigree: [...targetEntry.pedigree],
-          pedigreeMemberIds,
-        });
-      },
-      getAttenuator: async invitedAs => {
-        const rec = adminInvitations.get(invitedAs);
-        if (!rec) {
-          throw new Error(
-            `No invitation named ${q(invitedAs)} found from this member`,
-          );
-        }
-        return rec.attenuator;
-      },
-      getHeatConfig: async () => {
-        // Admin has no heat config (unrestricted)
-        return null;
-      },
-      getHopInfo: async () => {
-        // Admin has no ancestor chain — return empty
-        return harden({ policies: harden([]), states: harden([]) });
-      },
-      followHeatEvents: async () => {
-        // Admin gets an empty iterator (no hops to monitor)
-        // eslint-disable-next-line no-empty-function, require-yield
-        const iterator = (async function* emptyHeatEvents() {})();
-        return makeIteratorRef(iterator);
-      },
-    });
+            await persistMemberEntry(newEntry);
+            return harden([invitation, attenuator]);
+          },
+          join: async memberProposedName => {
+            // Try exact name match first (invitedAs matches proposed name)
+            const adminKey = `${adminMemberId}:${memberProposedName}`;
+            const adminRec = invitationRegistry.get(adminKey);
+            if (adminRec) {
+              return adminRec.invitation.join(memberProposedName);
+            }
+            for (const [, rec] of invitationRegistry) {
+              if (rec.entry.invitedAs === memberProposedName) {
+                return rec.invitation.join(memberProposedName);
+              }
+            }
+            // Fallback: claim the first unclaimed invitation.
+            // The inviter's name for the invitation is just bookkeeping —
+            // the joiner chooses their own display name.
+            for (const [, rec] of invitationRegistry) {
+              if (!rec.entry.joined) {
+                return rec.invitation.join(memberProposedName);
+              }
+            }
+            throw new Error(
+              `No unclaimed invitation exists — ask the channel admin to create one`,
+            );
+          },
+          getMembers: async () => {
+            const result = [];
+            for (const [, rec] of adminInvitations) {
+              result.push(
+                harden({
+                  proposedName: rec.entry.proposedName,
+                  invitedAs: rec.entry.invitedAs,
+                  memberId: rec.entry.memberId,
+                  pedigree: [...rec.entry.pedigree],
+                  active: rec.entry.valid,
+                }),
+              );
+            }
+            return harden(result);
+          },
+          getProposedName: () => proposedName,
+          getMemberId: () => adminMemberId,
+          getMember: async targetMemberId => {
+            const targetEntry = memberEntries.get(targetMemberId);
+            if (!targetEntry) {
+              return undefined;
+            }
+            const pedigreeMemberIds = buildPedigreeMemberIds(targetEntry);
+            return harden({
+              proposedName: targetEntry.proposedName,
+              invitedAs: targetEntry.invitedAs,
+              memberId: targetEntry.memberId,
+              pedigree: [...targetEntry.pedigree],
+              pedigreeMemberIds,
+            });
+          },
+          getAttenuator: async invitedAs => {
+            const rec = adminInvitations.get(invitedAs);
+            if (!rec) {
+              throw new Error(
+                `No invitation named ${q(invitedAs)} found from this member`,
+              );
+            }
+            return rec.attenuator;
+          },
+          getHeatConfig: async () => {
+            // Admin has no heat config (unrestricted)
+            return null;
+          },
+          getHopInfo: async () => {
+            // Admin has no ancestor chain — return empty
+            return harden({ policies: harden([]), states: harden([]) });
+          },
+          followHeatEvents: async () => {
+            // Admin gets an empty iterator (no hops to monitor)
+            // eslint-disable-next-line no-empty-function, require-yield
+            const iterator = (async function* emptyHeatEvents() {})();
+            return makeIteratorRef(iterator);
+          },
+        })
+      )
+    );
 
     return channelExo;
   };

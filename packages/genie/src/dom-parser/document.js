@@ -24,11 +24,7 @@ class DomClassList {
   /** @param {string} classAttr */
   constructor(classAttr) {
     this.#classes = new Set(
-      classAttr
-        ? classAttr
-            .split(/\s+/)
-            .filter(c => c.length > 0)
-        : [],
+      classAttr ? classAttr.split(/\s+/).filter(c => c.length > 0) : [],
     );
   }
 

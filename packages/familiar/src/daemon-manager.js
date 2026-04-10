@@ -147,8 +147,7 @@ const startDaemon = async () => {
         ...(resourcePaths.webPageBundlePath
           ? { ENDO_WEB_PAGE_BUNDLE_PATH: resourcePaths.webPageBundlePath }
           : {}),
-        ...(resourcePaths.endoLalSetupPath ||
-        resourcePaths.endoFaeSetupPath
+        ...(resourcePaths.endoLalSetupPath || resourcePaths.endoFaeSetupPath
           ? {
               ENDO_EXTRA: [
                 resourcePaths.endoLalSetupPath

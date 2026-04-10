@@ -23,7 +23,7 @@ test('extracts JSON tool call from <tool_call> tags', t => {
   const content =
     'Some text <tool_call>{"name":"reply","arguments":{"messageNumber":21,"strings":["Hi"]}}</tool_call> more text';
   const result = extractToolCallsFromContent(content);
-  t.truthy(result.toolCalls);
+  if (!result.toolCalls) return t.fail('expected toolCalls');
   t.is(result.toolCalls.length, 1);
   t.is(result.toolCalls[0].function.name, 'reply');
   t.is(result.toolCalls[0].type, 'function');
@@ -37,7 +37,7 @@ test('extracts <function=name><parameter=key>value format', t => {
 <parameter> <function>
 </tool_call>`;
   const result = extractToolCallsFromContent(content);
-  t.truthy(result.toolCalls);
+  if (!result.toolCalls) return t.fail('expected toolCalls');
   t.is(result.toolCalls.length, 1);
   t.is(result.toolCalls[0].function.name, 'reply');
   const args = JSON.parse(
@@ -55,7 +55,7 @@ test('extracts tool call from inside <think> block', t => {
 <function>
 </tool_call>`;
   const result = extractToolCallsFromContent(content);
-  t.truthy(result.toolCalls);
+  if (!result.toolCalls) return t.fail('expected toolCalls');
   t.is(result.toolCalls.length, 1);
   t.is(result.toolCalls[0].function.name, 'adopt');
   const args = JSON.parse(
@@ -72,7 +72,7 @@ test('tool calls include type: function field', t => {
   const content =
     '<tool_call>{"name":"exec","arguments":{"code":"return 1"}}</tool_call>';
   const result = extractToolCallsFromContent(content);
-  t.truthy(result.toolCalls);
+  if (!result.toolCalls) return t.fail('expected toolCalls');
   t.is(result.toolCalls[0].type, 'function');
 });
 
@@ -80,7 +80,7 @@ test('bare <function=name> outside tool_call tags', t => {
   const content =
     'some text <function=reply><parameter=messageNumber>5</parameter></function>';
   const result = extractToolCallsFromContent(content);
-  t.truthy(result.toolCalls);
+  if (!result.toolCalls) return t.fail('expected toolCalls');
   t.is(result.toolCalls[0].function.name, 'reply');
   const args = JSON.parse(
     /** @type {string} */ (result.toolCalls[0].function.arguments),
@@ -89,8 +89,7 @@ test('bare <function=name> outside tool_call tags', t => {
 });
 
 test('strips unclosed <think> blocks from cleaned content', t => {
-  const content =
-    'Hello! <think>This is reasoning that never closes';
+  const content = 'Hello! <think>This is reasoning that never closes';
   const result = extractToolCallsFromContent(content);
   t.is(result.toolCalls, undefined);
   t.is(result.cleanedContent, 'Hello!');
@@ -176,9 +175,7 @@ test('caps long content with hard truncation', t => {
   // When kept lines are joined with \n (not \n\n), paragraph split
   // won't find breaks. The 500-char hard cap catches it.
   const longContent =
-    'First paragraph.\n\n' +
-    'x'.repeat(600) +
-    '\n\nFinal reply.';
+    'First paragraph.\n\n' + 'x'.repeat(600) + '\n\nFinal reply.';
 
   const filtered = filterReasoning(longContent);
   t.true(

@@ -12,7 +12,7 @@ import { M } from '@endo/patterns';
 import { makeTool } from './common.js';
 
 export const webFetch = makeTool('webFetch', {
-  help: function*() {
+  help: function* () {
     yield 'Downloads content from a web URL. For web searches, use webSearch instead.';
     yield '';
     yield '**Parameters:**';
@@ -59,7 +59,7 @@ export const webFetch = makeTool('webFetch', {
         url,
         status: response.status,
         content,
-        contentType: response.headers.get('content-type'),
+        contentType: response.headers.get('content-type') || '',
       };
     } catch (err) {
       if (/** @type {Error} */ (err).name === 'AbortError') {

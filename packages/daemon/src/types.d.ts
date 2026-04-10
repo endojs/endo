@@ -314,7 +314,7 @@ type MessageFormula = {
     | 'eval-request'
     | 'definition'
     | 'form'
-    | 'value'
+    | 'value';
   messageId: FormulaNumber;
   replyTo?: FormulaNumber;
   from: FormulaIdentifier;
@@ -404,6 +404,12 @@ export type InvitationDeferredTaskParams = {
   invitationId: FormulaIdentifier;
 };
 
+export type TimerFormula = {
+  type: 'timer';
+  intervalMs: number;
+  label: string;
+};
+
 export type Formula =
   | ChannelFormula
   | EndoFormula
@@ -434,7 +440,8 @@ export type Formula =
   | PeerFormula
   | KeypairFormula
   | SyncedPetStoreFormula
-  | InvitationFormula;
+  | InvitationFormula
+  | TimerFormula;
 
 export type Builtins = {
   NONE: FormulaIdentifier;
@@ -445,7 +452,7 @@ export type Builtins = {
 export type Special = (builtins: Builtins) => Formula;
 
 export type Specials = {
-  [specialName: string]: Special
+  [specialName: string]: Special;
 };
 
 export interface Responder {
@@ -729,7 +736,7 @@ export interface SyncedPetStore {
   mergeRemoteState(
     remoteState: Record<string, SyncedEntry>,
     remoteClock: number,
-  ): Promise<Set<string>>;
+  ): Promise<string[]>;
   /** Record that the remote peer has acknowledged up to the given clock. */
   acknowledgeRemoteClock(ackedClock: number): Promise<void>;
   /** Prune tombstones that both sides have acknowledged. Returns pruned keys. */
@@ -795,14 +802,8 @@ export interface EndoDirectory extends NameHub {
 }
 
 export type GcHooks = {
-  onPetStoreWrite: (
-    storeId: FormulaIdentifier,
-    id: FormulaIdentifier,
-  ) => void;
-  onPetStoreRemove: (
-    storeId: FormulaIdentifier,
-    id: FormulaIdentifier,
-  ) => void;
+  onPetStoreWrite: (storeId: FormulaIdentifier, id: FormulaIdentifier) => void;
+  onPetStoreRemove: (storeId: FormulaIdentifier, id: FormulaIdentifier) => void;
   isLocalId: (id: string) => boolean;
   withFormulaGraphLock: (asyncFn?: () => Promise<any>) => Promise<any>;
 };
@@ -830,11 +831,7 @@ export interface StoreController {
   remove(petName: PetName): Promise<void>;
   rename(fromPetName: PetName, toPetName: PetName): Promise<void>;
 
-  followNameChanges(): AsyncGenerator<
-    PetStoreNameChange,
-    undefined,
-    undefined
-  >;
+  followNameChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   followIdNameChanges(
     id: string,
   ): AsyncGenerator<PetStoreIdNameChange, undefined, undefined>;
@@ -1078,6 +1075,13 @@ export interface EndoHost extends EndoAgent {
     value: T,
     petName: string | string[],
   ): Promise<void>;
+  storeTree(remoteTree: unknown, petName: string | string[]): Promise<unknown>;
+  provideMount(
+    path: string,
+    petName: string | string[],
+    opts?: { readOnly?: boolean },
+  ): Promise<unknown>;
+  provideScratchMount(petName: string | string[]): Promise<unknown>;
   provideGuest(
     petName?: string,
     opts?: MakeHostOrGuestOptions,
@@ -1114,6 +1118,11 @@ export interface EndoHost extends EndoAgent {
   listKnownPeers(): Promise<PeerInfo[]>;
   followPeerChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
+  makeTimer(
+    petName: string,
+    intervalMs: number,
+    label?: string,
+  ): Promise<unknown>;
   /** Locate a formula with connection hints for sharing with remote peers. */
   locateForSharing(...petNamePath: string[]): Promise<string | undefined>;
   /** Adopt a value from a locator that includes connection hints. */
@@ -1123,6 +1132,11 @@ export interface EndoHost extends EndoAgent {
   ): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
+  getSyncedStore(petName: string): Promise<SyncedPetStore>;
+  registerSyncedStore(
+    petName: string,
+    storeId: FormulaIdentifier,
+  ): Promise<void>;
   approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
   endow(
     messageNumber: bigint,
@@ -1277,7 +1291,7 @@ export type KnownEndoInspectors = {
   'make-bundle': EndoInspector<'bundle' | 'powers' | 'worker'>;
   guest: EndoInspector<'bundle' | 'powers'>;
   // This is an "empty" inspector, in that there is nothing to `lookup()` or `list()`.
-  [formulaType: string]: EndoInspector<string>;
+  [formulaType: string]: EndoInspector<any>;
 };
 
 export type EndoBootstrap = {
@@ -1437,6 +1451,12 @@ export type DaemonicControlPowers = {
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
   }>;
+  /**
+   * Only present in the Go supervisor (engo) variant.
+   * Starts reading envelopes from fd 4 after the init envelope has
+   * been consumed.
+   */
+  startEnvelopeReader?: () => void;
 };
 
 export type DaemonicPowers = {
@@ -1476,6 +1496,7 @@ type FormulateNumberedGuestParams = {
   mailboxStoreId: FormulaIdentifier;
   mailHubId: FormulaIdentifier;
   workerId: FormulaIdentifier;
+  networksDirectoryId: FormulaIdentifier;
   pinned: FormulaIdentifier[];
 };
 
@@ -1616,17 +1637,22 @@ export interface DaemonCore {
     hostHandleId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     workerLabel?: string,
+    existingStoreId?: FormulaIdentifier,
   ) => FormulateResult<EndoGuest>;
 
   /**
    * Helper for callers of {@link formulateNumberedGuest}.
    * @param hostId - The formula identifier of the host to formulate a guest for.
+   * @param existingStoreId - If provided, use this store as the guest's
+   *   backing pet store instead of creating a fresh one.  Used by the
+   *   invite/accept flow to back a guest with a synced pet store.
    * @returns The formula identifiers for the guest formulation's dependencies.
    */
   formulateGuestDependencies: (
     hostAgentId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
     workerLabel?: string,
+    existingStoreId?: FormulaIdentifier,
   ) => Promise<Readonly<FormulateNumberedGuestParams>>;
 
   formulateChannel: (
@@ -1757,6 +1783,7 @@ export interface DaemonCore {
       label: string;
     }>;
   }>;
+  provideController: (id: FormulaIdentifier) => Controller;
 }
 
 export interface DaemonCoreExternal {

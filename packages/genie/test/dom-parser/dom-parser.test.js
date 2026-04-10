@@ -56,10 +56,7 @@ test('works with DuckDuckGo-like HTML', t => {
 test('handles malformed HTML gracefully', t => {
   const parser = new DOMParser();
   // Missing closing tags.
-  const doc = parser.parseFromString(
-    '<div><p>unclosed<p>another',
-    'text/html',
-  );
+  const doc = parser.parseFromString('<div><p>unclosed<p>another', 'text/html');
   const ps = doc.querySelectorAll('p');
   t.is(ps.length, 2);
 });

@@ -72,8 +72,7 @@ const rejectPatterns = entries => {
   const policy = args => {
     for (const entry of entries) {
       const pattern = entry instanceof RegExp ? entry : entry.pattern;
-      const reason =
-        entry instanceof RegExp ? undefined : entry.reason;
+      const reason = entry instanceof RegExp ? undefined : entry.reason;
       if (args.some(arg => pattern.test(arg))) {
         const message = reason
           ? `Command contains a forbidden pattern: ${reason}`
@@ -151,9 +150,7 @@ const enforcePath = root => {
       const resolved = resolve(resolvedRoot, token);
       const rel = relative(resolvedRoot, resolved);
       if (rel.startsWith('..') || resolve(rel) === rel) {
-        throw new Error(
-          `Path escapes root (${resolvedRoot}): ${token}`,
-        );
+        throw new Error(`Path escapes root (${resolvedRoot}): ${token}`);
       }
     }
   };
@@ -227,7 +224,7 @@ const makeCommandTool = ({
   /**
    * @param {string} prog
    */
-  const whichProgram = async (prog) => {
+  const whichProgram = async prog => {
     const isWin = process.platform === 'win32';
     const pathDirs = searchPath.split(isWin ? ';' : ':');
     for (const dir of pathDirs) {
@@ -270,7 +267,7 @@ const makeCommandTool = ({
   }
 
   return makeTool(name, {
-    help: function*() {
+    help: function* () {
       if (description) {
         yield description;
       } else if (hasProgram) {
@@ -440,4 +437,11 @@ const bash = makeCommandTool({
 });
 harden(bash);
 
-export { makeCommandTool, bash, exec, rejectPatterns, rejectFlags, enforcePath };
+export {
+  makeCommandTool,
+  bash,
+  exec,
+  rejectPatterns,
+  rejectFlags,
+  enforcePath,
+};

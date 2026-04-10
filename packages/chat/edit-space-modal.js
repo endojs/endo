@@ -70,7 +70,9 @@ export const createEditSpaceModal = ({
       </div>
       <form class="add-space-form">
         ${
-          editingSpace && editingSpace.profilePath && editingSpace.profilePath.length > 0
+          editingSpace &&
+          editingSpace.profilePath &&
+          editingSpace.profilePath.length > 0
             ? `<div class="add-space-field">
           <label>Persona</label>
           <div class="edit-space-persona">${editingSpace.profilePath.join(' \u203A ')}</div>
@@ -249,7 +251,12 @@ export const createEditSpaceModal = ({
     for (const $option of $viewModeOptions) {
       $option.addEventListener('click', () => {
         const vm = $option.getAttribute('data-view-mode');
-        if (vm === 'chat' || vm === 'forum' || vm === 'outliner' || vm === 'microblog') {
+        if (
+          vm === 'chat' ||
+          vm === 'forum' ||
+          vm === 'outliner' ||
+          vm === 'microblog'
+        ) {
           viewMode = vm;
           for (const $opt of $viewModeOptions) {
             $opt.classList.toggle(

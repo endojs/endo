@@ -50,12 +50,15 @@ export const makeLocalStoreController = (storeId, petStore, gcHooks) => {
 
   /** @type {StoreController['storeIdentifier']} */
   const storeIdentifier = async (petName, id) => {
-    assert(isLocalId(id), `Local store received non-local id: ${id}`);
     const previousId = petStore.identifyLocal(petName);
     await petStore.storeIdentifier(petName, id);
-    await withFormulaGraphLock(async () => {
-      onPetStoreWrite(storeId, /** @type {FormulaIdentifier} */ (id));
-    });
+    // Only register local IDs in the formula graph for GC tracking;
+    // non-local IDs (from remote nodes) are stored but not GC-managed.
+    if (isLocalId(id)) {
+      await withFormulaGraphLock(async () => {
+        onPetStoreWrite(storeId, /** @type {FormulaIdentifier} */ (id));
+      });
+    }
     if (previousId && previousId !== id) {
       await removeEdgeIfUnreferenced(
         /** @type {FormulaIdentifier} */ (previousId),
@@ -88,10 +91,7 @@ export const makeLocalStoreController = (storeId, petStore, gcHooks) => {
     await petStore.rename(fromPetName, toPetName);
     if (fromId && isLocalId(fromId)) {
       await withFormulaGraphLock(async () => {
-        onPetStoreWrite(
-          storeId,
-          /** @type {FormulaIdentifier} */ (fromId),
-        );
+        onPetStoreWrite(storeId, /** @type {FormulaIdentifier} */ (fromId));
       });
     }
     if (overwrittenId && overwrittenId !== fromId) {

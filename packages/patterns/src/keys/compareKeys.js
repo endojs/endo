@@ -26,11 +26,11 @@ import { makeCompareCollection } from './keycollection-operators.js';
  * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
  */
 export const setCompare = makeCompareCollection(
-  /** @type {<K extends Key>(s: CopySet<K>) => Array<[K, 1]>} */ (
+  /** @type {(s: CopySet<Key>) => Array<[Key, 1]>} */ (
     s => harden(getCopySetKeys(s).map(key => [key, 1]))
   ),
   0,
-  compareNumerics,
+  /** @type {KeyCompare} */ (compareNumerics),
 );
 harden(setCompare);
 
@@ -43,9 +43,11 @@ harden(setCompare);
  * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
  */
 export const bagCompare = makeCompareCollection(
-  getCopyBagEntries,
+  /** @type {(b: import('../types.js').CopyBag<Key>) => Array<[Key, bigint]>} */ (
+    getCopyBagEntries
+  ),
   0n,
-  compareNumerics,
+  /** @type {KeyCompare} */ (compareNumerics),
 );
 harden(bagCompare);
 
@@ -71,7 +73,9 @@ const ABSENT = Symbol('absent');
  */
 // eslint-disable-next-line no-underscore-dangle
 const _mapCompare = makeCompareCollection(
-  getCopyMapEntryArray,
+  /** @type {(m: import('../types.js').CopyMap<Key, import('@endo/pass-style').Passable>) => Array<[Key, import('@endo/pass-style').Passable]>} */ (
+    getCopyMapEntryArray
+  ),
   ABSENT,
   (leftValue, rightValue) => {
     if (leftValue === ABSENT && rightValue === ABSENT) {

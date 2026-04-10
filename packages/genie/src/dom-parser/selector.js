@@ -117,7 +117,16 @@ const parseSimpleSelector = (sel, i) => {
       // Skip whitespace.
       while (i < len && isCssWs(sel[i])) i += 1;
       let nameStart = i;
-      while (i < len && sel[i] !== '=' && sel[i] !== ']' && sel[i] !== '~' && sel[i] !== '|' && sel[i] !== '^' && sel[i] !== '$' && sel[i] !== '*') {
+      while (
+        i < len &&
+        sel[i] !== '=' &&
+        sel[i] !== ']' &&
+        sel[i] !== '~' &&
+        sel[i] !== '|' &&
+        sel[i] !== '^' &&
+        sel[i] !== '$' &&
+        sel[i] !== '*'
+      ) {
         i += 1;
       }
       const name = sel.slice(nameStart, i).trim().toLowerCase();

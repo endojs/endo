@@ -44,9 +44,9 @@ const extractErrorMessage = (responseBody, statusCode) => {
       ? responseBody[0]
       : responseBody;
   if (body && typeof body === 'object') {
-    const error = /** @type {{ error?: { message?: string, status?: string } }} */ (
-      body
-    ).error;
+    const error =
+      /** @type {{ error?: { message?: string, status?: string } }} */ (body)
+        .error;
     if (error?.message) {
       return error.status
         ? `${error.message} (${error.status})`
@@ -131,7 +131,9 @@ export const makeGeminiProvider = ({
           `[LAL] Truncated to last ${maxMessages} messages (was ${messages.length})`,
         );
       }
-      console.log(`[LAL] Calling Gemini at ${url.origin}${url.pathname} with model: ${model}`);
+      console.log(
+        `[LAL] Calling Gemini at ${url.origin}${url.pathname} with model: ${model}`,
+      );
       let response;
       try {
         response = await postJson(url, apiKey, {
