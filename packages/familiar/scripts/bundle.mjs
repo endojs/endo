@@ -107,5 +107,4 @@ await build({
   external: [...shared.external, 'electron'],
 });
 
-
 console.log('Bundles created in packages/familiar/bundles/');

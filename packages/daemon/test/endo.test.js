@@ -3005,7 +3005,6 @@ test('request with pet name path for response storage', async t => {
   t.is(result, 'here you go');
 });
 
-
 // Tests for environment variable injection
 
 test('makeUnconfined passes env to caplet make function', async t => {

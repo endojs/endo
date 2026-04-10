@@ -233,7 +233,8 @@ export const COMMANDS = {
   define: {
     name: 'define',
     label: 'Define',
-    description: 'Propose code with named capability slots for the host to endow',
+    description:
+      'Propose code with named capability slots for the host to endow',
     category: 'messaging',
     mode: 'inline',
     context: 'inbox',

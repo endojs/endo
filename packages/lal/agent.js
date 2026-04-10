@@ -557,8 +557,7 @@ Use send() only for initiating brand new conversations.`,
               { type: 'string' },
               { type: 'array', items: { type: 'string' } },
             ],
-            description:
-              'The pet name or path of the capability to write to.',
+            description: 'The pet name or path of the capability to write to.',
           },
           fileName: {
             type: 'string',

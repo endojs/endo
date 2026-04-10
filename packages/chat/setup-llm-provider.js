@@ -28,9 +28,7 @@ export const main = async agent => {
   const selfLocator = await E(agent).locate('@self');
   const messages = makeRefIterator(E(agent).followMessages());
 
-  console.log(
-    'Scanning inbox for form from llm-provider-factory-handle...',
-  );
+  console.log('Scanning inbox for form from llm-provider-factory-handle...');
 
   for await (const message of messages) {
     if (message.type !== 'form' || message.from === selfLocator) {

@@ -133,11 +133,7 @@ export const parseBlocks = text => {
     // Table: detect header row followed by separator row
     if (!handled && i + 1 < lines.length) {
       const nextLine = lines[i + 1];
-      if (
-        line.includes('|') &&
-        nextLine &&
-        TABLE_SEP_RE.test(nextLine)
-      ) {
+      if (line.includes('|') && nextLine && TABLE_SEP_RE.test(nextLine)) {
         const headerCells = splitTableRow(line);
         const sepCells = splitTableRow(nextLine);
         const alignments = sepCells.map(parseAlignment);
@@ -187,10 +183,7 @@ export const parseBlocks = text => {
             bqLines.push(m[1]);
           } else if (lines[i].trim() === '') {
             // Check if next line continues blockquote
-            if (
-              i + 1 < lines.length &&
-              /^>\s?/.test(lines[i + 1])
-            ) {
+            if (i + 1 < lines.length && /^>\s?/.test(lines[i + 1])) {
               bqLines.push('');
             } else {
               break;

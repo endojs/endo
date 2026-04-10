@@ -294,8 +294,10 @@ export const inboxComponent = async (
 
       // Prepare text with placeholders for markdown rendering
       const textWithPlaceholders = prepareTextWithPlaceholders(strings);
-      const { fragment, insertionPoints, highlight } =
-        renderMarkdown(textWithPlaceholders, { colorize });
+      const { fragment, insertionPoints, highlight } = renderMarkdown(
+        textWithPlaceholders,
+        { colorize },
+      );
 
       // Inject sender chip into the first paragraph or heading
       // But NOT into code fence wrappers or lists - prepend a new paragraph instead

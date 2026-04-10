@@ -98,8 +98,7 @@ const renderDetail = cmd => {
   const aliases = cmd.aliases
     ? cmd.aliases.map(a => `/${escapeHtml(a)}`).join(', ')
     : 'none';
-  const categoryLabel =
-    CATEGORY_LABELS[cmd.category] || cmd.category;
+  const categoryLabel = CATEGORY_LABELS[cmd.category] || cmd.category;
 
   let html = `
     <div class="help-detail">

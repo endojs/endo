@@ -96,9 +96,7 @@ const makeDaemonManager = logger => {
           return;
         }
         reject(
-          new Error(
-            `endo ${args.join(' ')} failed (code ${code}): ${stderr}`,
-          ),
+          new Error(`endo ${args.join(' ')} failed (code ${code}): ${stderr}`),
         );
       });
 
@@ -209,10 +207,7 @@ const makeDaemonManager = logger => {
                   ? msg.gatewayAddress
                   : undefined,
             });
-          } else if (
-            msg.type === 'error' &&
-            typeof msg.message === 'string'
-          ) {
+          } else if (msg.type === 'error' && typeof msg.message === 'string') {
             reject(new Error(msg.message));
           }
         }

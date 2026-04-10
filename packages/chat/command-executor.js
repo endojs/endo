@@ -253,7 +253,12 @@ export const createCommandExecutor = ({
         }
 
         case 'endow': {
-          const { messageNumber, bindings: bindingPairs = [], resultName, workerName = '@main' } = params;
+          const {
+            messageNumber,
+            bindings: bindingPairs = [],
+            resultName,
+            workerName = '@main',
+          } = params;
           /** @type {Record<string, string>} */
           const bindings = {};
           for (const pair of /** @type {Array<{codeName: string, petName: string}>} */ (

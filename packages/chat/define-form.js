@@ -219,9 +219,7 @@ export const createDefineForm = async ({ $container, onSubmit, onClose }) => {
     for (const $el of $inputs) {
       /** @type {HTMLInputElement} */ ($el).disabled = disabled;
     }
-    const $removeBtns = $slotsList.querySelectorAll(
-      '.eval-remove-endowment',
-    );
+    const $removeBtns = $slotsList.querySelectorAll('.eval-remove-endowment');
     for (const $el of $removeBtns) {
       /** @type {HTMLButtonElement} */ ($el).disabled = disabled;
     }

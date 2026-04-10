@@ -244,9 +244,7 @@ export const createEndowModal = ({
       $slotsContainer.appendChild($row);
 
       slotInputs.set(codeName, $input);
-      autocompletes.push(
-        petNamePathAutocomplete($input, $menu, { E, powers }),
-      );
+      autocompletes.push(petNamePathAutocomplete($input, $menu, { E, powers }));
     }
 
     // Focus first slot input

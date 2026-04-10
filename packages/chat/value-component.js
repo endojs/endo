@@ -234,9 +234,7 @@ const renderBlobContent = async ($container, text, language) => {
         const html = await colorize(text, language);
         // Replace only the line text spans with highlighted content
         // by re-rendering with highlighted lines
-        const highlightedLines = html
-          .replace(/<br\/?>/g, '\n')
-          .split('\n');
+        const highlightedLines = html.replace(/<br\/?>/g, '\n').split('\n');
         const $lineTexts = $code.querySelectorAll('.value-blob-linetext');
         for (let i = 0; i < $lineTexts.length; i += 1) {
           if (highlightedLines[i] !== undefined) {

@@ -508,12 +508,7 @@ export type ValueMessage = MessageBase & {
   valueId: FormulaIdentifier;
 };
 
-export type Message =
-  | Request
-  | Package
-  | DefineRequest
-  | Form
-  | ValueMessage;
+export type Message = Request | Package | DefineRequest | Form | ValueMessage;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;

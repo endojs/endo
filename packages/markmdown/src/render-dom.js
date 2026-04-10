@@ -127,8 +127,7 @@ export const renderBlocks = (blocks, options) => {
         if (block.language) {
           $code.className = `language-${block.language}`;
         }
-        const content =
-          typeof block.content === 'string' ? block.content : '';
+        const content = typeof block.content === 'string' ? block.content : '';
         if (highlightCode && block.language) {
           $code.appendChild(highlightCode(content, block.language, doc));
         } else {
@@ -175,9 +174,7 @@ export const renderBlocks = (blocks, options) => {
             if (align) {
               $th.setAttribute('style', `text-align: ${align}`);
             }
-            $th.appendChild(
-              renderInlineTokens(block.headerRow[c], doc),
-            );
+            $th.appendChild(renderInlineTokens(block.headerRow[c], doc));
             $tr.appendChild($th);
           }
           $thead.appendChild($tr);

@@ -167,7 +167,7 @@ function reconnectInElectronMode() {
     if (
       attempts > MAX_ATTEMPTS_BEFORE_RESTART &&
       /** @type {any} */ (window).familiar &&
-      typeof /** @type {any} */ (window).familiar.restartDaemon === 'function'
+      typeof (/** @type {any} */ (window).familiar.restartDaemon) === 'function'
     ) {
       setReconnectStatus('Restarting daemon…');
       try {

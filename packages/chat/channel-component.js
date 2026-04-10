@@ -503,8 +503,10 @@ export const channelComponent = async (
 
     if (message.strings && message.strings.length > 0) {
       const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
-      const { fragment, insertionPoints, highlight } =
-        renderMarkdown(textWithPlaceholders, { colorize });
+      const { fragment, insertionPoints, highlight } = renderMarkdown(
+        textWithPlaceholders,
+        { colorize },
+      );
       $body.appendChild(fragment);
 
       // Asynchronously apply Monaco syntax highlighting to code fences
