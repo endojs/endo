@@ -1906,6 +1906,7 @@ __metadata:
     "@mariozechner/pi-agent-core": "npm:^0.60.0"
     "@mariozechner/pi-ai": "npm:^0.60.0"
     ava: "npm:^7.0.0"
+    better-sqlite3: "npm:^11.0.0"
     eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -7328,6 +7329,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"better-sqlite3@npm:^11.0.0":
+  version: 11.10.0
+  resolution: "better-sqlite3@npm:11.10.0"
+  dependencies:
+    bindings: "npm:^1.5.0"
+    node-gyp: "npm:latest"
+    prebuild-install: "npm:^7.1.1"
+  checksum: 10c0/1fffbf9e5fc9d24847a3ecf09491bceab1c294b46ba41df1c449dc20b6f5c5d9d94ff24becd0b1632ee282bd21278b7fea53a5a6215bb99209ded0ae05eda3b0
+  languageName: node
+  linkType: hard
+
 "bignumber.js@npm:^9.0.0":
   version: 9.3.1
   resolution: "bignumber.js@npm:9.3.1"
@@ -7354,7 +7366,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bindings@npm:^1.4.0":
+"bindings@npm:^1.4.0, bindings@npm:^1.5.0":
   version: 1.5.0
   resolution: "bindings@npm:1.5.0"
   dependencies:
@@ -15820,7 +15832,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prebuild-install@npm:^7.1.3":
+"prebuild-install@npm:^7.1.1, prebuild-install@npm:^7.1.3":
   version: 7.1.3
   resolution: "prebuild-install@npm:7.1.3"
   dependencies:
@@ -16889,6 +16901,8 @@ __metadata:
     zx: "npm:^8.1.8"
   dependenciesMeta:
     "@ipshipyard/node-datachannel":
+      built: true
+    better-sqlite3:
       built: true
   languageName: unknown
   linkType: soft
