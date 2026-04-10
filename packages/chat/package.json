@@ -53,6 +53,7 @@
     "@endo/inventory-graph": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/where": "workspace:^",
     "@endo/whylip": "workspace:^",

@@ -316,17 +316,19 @@ export const makeHostMaker = ({
       tasks.push(identifiers =>
         E(directory).storeIdentifier(namePath, identifiers.workerId),
       );
-      const { value } = await formulateWorker(tasks);
+      const workerLabel = namePath[namePath.length - 1];
+      const { value } = await formulateWorker(tasks, undefined, workerLabel);
       return value;
     };
 
     /**
      * @param {Name | undefined} workerName
      * @param {DeferredTasks<WorkerDeferredTaskParams>['push']} deferTask
+     * @returns {{ workerId: FormulaIdentifier | undefined, workerLabel: string | undefined }}
      */
     const prepareWorkerFormulation = (workerName, deferTask) => {
       if (workerName === undefined) {
-        return undefined;
+        return { workerId: undefined, workerLabel: undefined };
       }
       const workerId = /** @type {FormulaIdentifier | undefined} */ (
         petStore.identifyLocal(workerName)
@@ -337,9 +339,9 @@ export const makeHostMaker = ({
         deferTask(identifiers => {
           return petStore.storeIdentifier(petName, identifiers.workerId);
         });
-        return undefined;
+        return { workerId: undefined, workerLabel: petName };
       }
-      return workerId;
+      return { workerId, workerLabel: /** @type {string} */ (workerName) };
     };
 
     /**
@@ -379,7 +381,8 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(workerName, tasks.push);
+      const workerLabel = explicitLabel ?? (resultName !== undefined ? `eval:${resultName}` : 'eval');
 
       /** @type {(FormulaIdentifier | NamePath)[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(petNameOrPath => {
@@ -410,6 +413,7 @@ export const makeHostMaker = ({
         tasks,
         workerId,
         resultName === undefined ? pinTransient : undefined,
+        workerLabel,
       );
       if (resultName === undefined) {
         // Ephemeral eval: the formula was pinned inside formulateEval
@@ -444,9 +448,9 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId, workerLabel } = prepareWorkerFormulation(workerName, tasks.push);
 
-      const powersId = petStore.identifyLocal(/** @type {Name} */ (powersName));
+      const powersId = /** @type {FormulaIdentifier | undefined} */ (petStore.identifyLocal(/** @type {Name} */ (powersName)));
       if (powersId === undefined) {
         assertPetName(powersName);
         const powersPetName = powersName;
@@ -464,6 +468,7 @@ export const makeHostMaker = ({
       return {
         tasks,
         workerId,
+        workerLabel,
         powersId,
         env,
         workerTrustedShims,
@@ -472,11 +477,12 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
-      const { tasks, workerId, powersId, env, workerTrustedShims } =
+      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
         prepareMakeCaplet(
           /** @type {Name | undefined} */ (workerName),
           options,
         );
+      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `unconfined:${specifier}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -489,6 +495,7 @@ export const makeHostMaker = ({
         powersId,
         env,
         workerTrustedShims,
+        workerLabel,
       );
       return value;
     };
@@ -500,11 +507,12 @@ export const makeHostMaker = ({
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerId, powersId, env, workerTrustedShims } =
+      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
         prepareMakeCaplet(
           /** @type {Name | undefined} */ (workerName),
           options,
         );
+      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `bundle:${bundleName}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -517,6 +525,7 @@ export const makeHostMaker = ({
         powersId,
         env,
         workerTrustedShims,
+        workerLabel,
       );
       return value;
     };
@@ -599,6 +608,7 @@ export const makeHostMaker = ({
       let host = getNamedAgent(petName, 'host');
       await null;
       if (host === undefined) {
+        const hostLabel = agentName ? `host:${agentName}` : petName ? `host:${petName}` : 'host';
         const { value, id } =
           // Behold, recursion:
           await formulateHost(
@@ -611,6 +621,7 @@ export const makeHostMaker = ({
             ),
             undefined,
             handleId,
+            hostLabel,
           );
         host = { value: Promise.resolve(value), id };
       }
@@ -651,6 +662,7 @@ export const makeHostMaker = ({
       let guest = getNamedAgent(handleName, 'guest');
       await null;
       if (guest === undefined) {
+        const guestLabel = agentName ? `guest:${agentName}` : handleName ? `guest:${handleName}` : 'guest';
         const { value, id } =
           // Behold, recursion:
           await formulateGuest(
@@ -660,6 +672,7 @@ export const makeHostMaker = ({
               handleName,
               /** @type {PetName | undefined} */ (agentName),
             ),
+            guestLabel,
           );
         guest = { value: Promise.resolve(value), id };
       }
@@ -689,11 +702,6 @@ export const makeHostMaker = ({
     };
 
     /**
-     * Create a new channel and store it under the given pet name.
-     * @param {PetName} petName - Pet name to store the channel under.
-     * @param {string} channelProposedName - Display name for the channel creator.
-     */
-    /**
      * Create a timer that fires at a specified interval.
      *
      * @param {PetName} petName - Pet name to store the timer under
@@ -704,7 +712,7 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<{ timerId: import('./types.js').FormulaIdentifier }>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.write(petName, identifiers.timerId));
+      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.timerId));
       const { value } = await formulateTimer(
         Number(intervalMs),
         label || petName,
@@ -713,6 +721,11 @@ export const makeHostMaker = ({
       return value;
     };
 
+    /**
+     * Create a new channel and store it under the given pet name.
+     * @param {PetName} petName - Pet name to store the channel under.
+     * @param {string} channelProposedName - Display name for the channel creator.
+     */
     const makeChannelCmd = async (petName, channelProposedName) => {
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
@@ -1010,7 +1023,7 @@ export const makeHostMaker = ({
 
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId } = prepareWorkerFormulation(workerName, tasks.push);
 
       const { id: evalId } = await formulateEval(
         guestAgentId,
@@ -1061,7 +1074,7 @@ export const makeHostMaker = ({
 
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId } = prepareWorkerFormulation(workerName, tasks.push);
 
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
