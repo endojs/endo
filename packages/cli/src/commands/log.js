@@ -1,3 +1,4 @@
+// @ts-check
 /* global process, setTimeout, clearTimeout, setInterval, clearInterval, Buffer */
 /* eslint-disable no-await-in-loop */
 
@@ -7,6 +8,7 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeEndoClient } from '@endo/daemon';
+import { hasProgram, waitForExitOrCancel } from '@endo/platform/proc';
 import { whereEndoState, whereEndoSock } from '@endo/where';
 import { E } from '@endo/far';
 import { withInterrupt } from '../context.js';
@@ -229,9 +231,9 @@ const printAllLogs = async statePath => {
     }),
   );
 
-  const sortedFiles = filesWithStats
-    .filter(Boolean)
-    .sort((a, b) => a.mtime - b.mtime);
+  const sortedFiles = /** @type {Array<{ logPath: string, mtime: Date }>} */ (
+    filesWithStats.filter(Boolean)
+  ).sort((a, b) => a.mtime.getTime() - b.mtime.getTime());
 
   for (const { logPath } of sortedFiles) {
     const displayName = getLogDisplayName(logPath, statePath);
@@ -285,7 +287,9 @@ export const log = async ({ follow, ping, all }) =>
     do {
       // Scope cancellation and propagate.
       const { promise: followCancelled, reject: cancelFollower } =
-        makePromiseKit();
+        /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
+          makePromiseKit()
+        );
       cancelled.catch(cancelFollower);
 
       (async () => {
@@ -312,17 +316,10 @@ export const log = async ({ follow, ping, all }) =>
         }
       })().catch(cancelFollower);
 
-      await new Promise((resolve, reject) => {
-        const args = follow ? ['-f'] : [];
-        const child = spawn('tail', [...args, logPath], {
-          stdio: ['inherit', 'inherit', 'inherit'],
-        });
-        child.on('error', reject);
-        child.on('exit', resolve);
-        followCancelled.catch(() => {
-          child.kill();
-        });
+      const child = spawn('tail', follow ? ['-f', logPath] : [logPath], {
+        stdio: ['inherit', 'inherit', 'inherit'],
       });
+      await waitForExitOrCancel(child, followCancelled);
 
       if (follow) {
         await delay(logCheckIntervalMs, cancelled);

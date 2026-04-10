@@ -117,7 +117,12 @@ document.addEventListener('endo-theme-change', () => {
  */
 export const createMonacoEditor = async (
   $container,
-  { onChange, initialValue = '', darkMode: _darkMode = false, language = 'javascript' },
+  {
+    onChange,
+    initialValue = '',
+    darkMode: _darkMode = false,
+    language = 'javascript',
+  },
 ) => {
   // Create a div for the editor to mount into
   const $editorDiv = document.createElement('div');

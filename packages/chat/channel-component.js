@@ -12,6 +12,8 @@ import {
 import { colorize } from './monaco-wrapper.js';
 import { timeFormatter, relativeTime } from './time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
+import { createMessageMenu } from './channel-utils.js';
+import { createReactSystem } from './react-utils.js';
 
 /**
  * @typedef {object} ChannelMessage
@@ -24,6 +26,7 @@ import { createProfilePopup } from './profile-popup.js';
  * @property {string[]} names
  * @property {string[]} ids
  * @property {string} [replyTo]
+ * @property {string} [replyType]
  */
 
 /**
@@ -39,12 +42,23 @@ import { createProfilePopup } from './profile-popup.js';
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply] - Called when user clicks reply on a message
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen] - Called when a thread view is opened
  * @param {() => void} [options.onThreadClose] - Called when the thread view is closed
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork heritage chain to new channel
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
  */
 export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose },
+  {
+    showValue,
+    personaId,
+    ownMemberId,
+    onReply,
+    onThreadOpen,
+    onThreadClose,
+    onFork,
+    onShare,
+  },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -171,6 +185,14 @@ export const channelComponent = async (
       return undefined;
     }
   };
+
+  // Shared react system
+  const reactSystem = createReactSystem({
+    channel,
+    ownMemberId,
+    nameMap,
+    getMemberInfo,
+  });
 
   const scrollToBottom = () => {
     if (isNearBottom) {
@@ -360,9 +382,11 @@ export const channelComponent = async (
           : parentMsg.memberId;
         const parentPreview = parentMsg.strings.join('').substring(0, 60);
 
+        const isEdit = message.replyType === 'edit';
+
         const $icon = document.createElement('span');
         $icon.className = 'reply-indicator-icon';
-        $icon.textContent = '\u21A9';
+        $icon.textContent = isEdit ? '\u270E' : '\u21A9';
         $replyBar.appendChild($icon);
 
         const $author = document.createElement('span');
@@ -374,6 +398,10 @@ export const channelComponent = async (
         $preview.className = 'reply-indicator-preview';
         $preview.textContent = parentPreview;
         $replyBar.appendChild($preview);
+
+        if (isEdit) {
+          $replyBar.classList.add('reply-indicator-edit');
+        }
 
         $replyBar.addEventListener('click', () => {
           const rootKey = findThreadRoot(message.replyTo);
@@ -510,26 +538,105 @@ export const channelComponent = async (
     $msg.appendChild($body);
 
     // Hover action buttons
-    if (onReply) {
+    {
       const $actions = document.createElement('div');
       $actions.className = 'message-actions';
 
-      const $replyBtn = document.createElement('button');
-      $replyBtn.className = 'message-action-btn';
-      $replyBtn.title = 'Reply';
-      $replyBtn.textContent = '\u21A9';
-      $replyBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const preview = message.strings.join('').substring(0, 60);
-        onReply({
-          number: message.number,
-          memberId: message.memberId,
-          authorName: authorProposedName,
-          preview,
+      if (onReply) {
+        const $replyBtn = document.createElement('button');
+        $replyBtn.className = 'message-action-btn';
+        $replyBtn.title = 'Reply';
+        $replyBtn.textContent = '\u21A9';
+        $replyBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          const preview = message.strings.join('').substring(0, 60);
+          onReply({
+            number: message.number,
+            memberId: message.memberId,
+            authorName: authorProposedName,
+            preview,
+          });
         });
-      });
-      $actions.appendChild($replyBtn);
-      $msg.appendChild($actions);
+        $actions.appendChild($replyBtn);
+      }
+
+      // Three-dot menu
+      /** @type {Array<{label: string, icon: string, handler: () => void}>} */
+      const menuItems = [];
+      if (onFork) {
+        const key = String(message.number);
+        menuItems.push({
+          label: 'Fork to Channel',
+          icon: '\u2442',
+          handler: () => {
+            const chain = [];
+            let current = key;
+            while (current) {
+              const entry = messageIndex.get(current);
+              if (!entry) break;
+              chain.unshift(entry.message);
+              current = entry.message.replyTo;
+            }
+            const preview =
+              message.strings.join('').substring(0, 40) || 'Forked note';
+            onFork(chain, preview).catch(window.reportError);
+          },
+        });
+      }
+      if (onShare) {
+        const shareKey = String(message.number);
+        menuItems.push({
+          label: 'Share\u2026',
+          icon: '\u21D7',
+          handler: () => {
+            const chain = [];
+            let cur = shareKey;
+            while (cur) {
+              const ent = messageIndex.get(cur);
+              if (!ent) break;
+              chain.unshift(ent.message);
+              cur = ent.message.replyTo;
+            }
+            const preview =
+              message.strings.join('').substring(0, 60) || 'Shared message';
+            onShare(chain, preview);
+          },
+        });
+      }
+      // Delete: post a deletion reply to this message
+      {
+        const delKey = String(message.number);
+        menuItems.push({
+          label: 'Delete',
+          icon: '\u2717',
+          handler: () => {
+            E(channel)
+              .post([''], [], [], delKey, [], 'deletion')
+              .catch(window.reportError);
+          },
+        });
+      }
+      // React button
+      $actions.appendChild(
+        reactSystem.createReactButton(String(message.number)),
+      );
+
+      if (menuItems.length > 0) {
+        $actions.appendChild(createMessageMenu(menuItems));
+      }
+
+      if ($actions.childNodes.length > 0) {
+        $msg.appendChild($actions);
+      }
+    }
+
+    // Mark edit-type messages with a visual label
+    if (message.replyType === 'edit') {
+      $wrapper.classList.add('message-edit');
+      const $editBadge = document.createElement('span');
+      $editBadge.className = 'message-edit-badge';
+      $editBadge.textContent = 'Edit';
+      $msg.insertBefore($editBadge, $body);
     }
 
     $wrapper.appendChild($msg);
@@ -707,7 +814,10 @@ export const channelComponent = async (
 
   // Expose a control API on the parent element so chat.js can
   // programmatically close the thread (e.g. from #conversation-back).
-  /** @type {{ closeThread: () => boolean }} */
+  let disposed = false;
+  /** @type {AsyncIterableIterator<unknown> | null} */
+  let activeIterator = null;
+  /** @type {{ closeThread: () => boolean, dispose: () => void }} */
   const channelAPI = harden({
     closeThread: () => {
       if ($parent.classList.contains('thread-active')) {
@@ -715,6 +825,12 @@ export const channelComponent = async (
         return true;
       }
       return false;
+    },
+    dispose: () => {
+      disposed = true;
+      if (activeIterator) {
+        activeIterator.return();
+      }
     },
   });
   /** @type {any} */ ($parent).channelAPI = channelAPI;
@@ -756,6 +872,7 @@ export const channelComponent = async (
     throw err;
   }
   const messageIterator = makeRefIterator(messagesRef);
+  activeIterator = messageIterator;
 
   // Schedule a hard scroll-to-bottom shortly after messages start arriving.
   // The existing message backlog arrives rapidly via the iterator; this
@@ -767,7 +884,40 @@ export const channelComponent = async (
   }, 150);
 
   for await (const message of messageIterator) {
+    if (disposed) break;
     const typedMessage = /** @type {ChannelMessage} */ (message);
+    const msgKey = String(typedMessage.number);
+
+    // Skip operational messages (move/deletion) — they have no
+    // conversational content. Index them but don't render or count.
+    if (
+      typedMessage.replyType === 'move' ||
+      typedMessage.replyType === 'deletion'
+    ) {
+      const $placeholder = document.createElement('div');
+      messageIndex.set(msgKey, {
+        message: typedMessage,
+        $element: $placeholder,
+      });
+      continue; // eslint-disable-line no-continue
+    }
+
+    // React / redact-react: track and update the target message's pills.
+    if (
+      typedMessage.replyType === 'react' ||
+      typedMessage.replyType === 'redact-react'
+    ) {
+      const rootKey = reactSystem.processReactMessage(typedMessage, msgKey);
+      if (rootKey) {
+        const targetEntry = messageIndex.get(rootKey);
+        if (targetEntry) {
+          reactSystem.renderReactsOnElement(rootKey, targetEntry.$element);
+        }
+      }
+      continue; // eslint-disable-line no-continue
+    }
+
+    // eslint-disable-next-line no-await-in-loop
     const $msg = await createMessageElement(typedMessage);
     if ($end) {
       $parent.insertBefore($msg, $end);
@@ -776,7 +926,6 @@ export const channelComponent = async (
     }
 
     // Register in thread index (store the inner .message element, not the wrapper)
-    const msgKey = String(typedMessage.number);
     const $innerMsg = /** @type {HTMLElement} */ (
       $msg.querySelector('.message') || $msg
     );

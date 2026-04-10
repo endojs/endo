@@ -28,16 +28,17 @@
  * @param {typeof import('@endo/far').E} options.E - Eventual send function
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
  * @param {ERef<EndoHost>} options.powers - Powers object for following name changes
+ * @param {string[]} [options.externalPetNames] - Pre-managed pet names array (skips followNameChanges subscription)
  * @returns {TokenAutocompleteAPI}
  */
 export const tokenAutocompleteComponent = (
   $input,
   $menu,
-  { E, makeRefIterator, powers },
+  { E, makeRefIterator, powers, externalPetNames },
 ) => {
   /** @type {string[]} */
   // eslint-disable-next-line prefer-const
-  let petNames = [];
+  let petNames = externalPetNames || [];
   /** @type {string[]} */
   let filteredNames = [];
   let selectedIndex = 0;
@@ -50,6 +51,9 @@ export const tokenAutocompleteComponent = (
   let pendingToken = null;
   /** @type {(() => void) | undefined} */
   let doUpdateFilter;
+  // When true, mouseenter on menu items is suppressed to avoid resetting
+  // the keyboard-driven selectedIndex during DOM rebuilds.
+  let keyboardNav = false;
 
   // Path drilling state: when the user presses / in the menu, we lock in
   // the selected name as a path prefix and fetch sub-directory names.
@@ -58,25 +62,29 @@ export const tokenAutocompleteComponent = (
   /** @type {string[] | null} */
   let directoryNames = null;
 
-  // Subscribe to inventory changes
-  (async () => {
-    for await (const change of makeRefIterator(E(powers).followNameChanges())) {
-      if ('add' in /** @type {object} */ (change)) {
-        petNames.push(/** @type {{ add: string }} */ (change).add);
-        petNames.sort();
-      } else if ('remove' in /** @type {object} */ (change)) {
-        const idx = petNames.indexOf(
-          /** @type {{ remove: string }} */ (change).remove,
-        );
-        if (idx !== -1) {
-          petNames.splice(idx, 1);
+  // Subscribe to inventory changes (skip if external names are provided)
+  if (!externalPetNames) {
+    (async () => {
+      for await (const change of makeRefIterator(
+        E(powers).followNameChanges(),
+      )) {
+        if ('add' in /** @type {object} */ (change)) {
+          petNames.push(/** @type {{ add: string }} */ (change).add);
+          petNames.sort();
+        } else if ('remove' in /** @type {object} */ (change)) {
+          const idx = petNames.indexOf(
+            /** @type {{ remove: string }} */ (change).remove,
+          );
+          if (idx !== -1) {
+            petNames.splice(idx, 1);
+          }
+        }
+        if (isMenuVisible && doUpdateFilter) {
+          doUpdateFilter();
         }
       }
-      if (isMenuVisible && doUpdateFilter) {
-        doUpdateFilter();
-      }
-    }
-  })().catch(window.reportError);
+    })().catch(window.reportError);
+  }
 
   const showMenu = () => {
     isMenuVisible = true;
@@ -171,6 +179,7 @@ export const tokenAutocompleteComponent = (
         }
 
         $item.addEventListener('mouseenter', () => {
+          if (keyboardNav) return;
           selectedIndex = index;
           renderMenu(filterText);
         });
@@ -189,7 +198,18 @@ export const tokenAutocompleteComponent = (
     $hint.innerHTML =
       '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd>/<kbd>Enter</kbd> select · <kbd>/</kbd> drill down · <kbd>:</kbd> add label · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
+
+    // Scroll the selected item into view
+    const $selected = $menu.querySelector('.token-menu-item.selected');
+    if ($selected) {
+      $selected.scrollIntoView({ block: 'nearest' });
+    }
   };
+
+  // Clear keyboard navigation flag on actual mouse movement
+  $menu.addEventListener('mousemove', () => {
+    keyboardNav = false;
+  });
 
   /**
    * Create a token element.
@@ -576,33 +596,50 @@ export const tokenAutocompleteComponent = (
 
     if (isMenuVisible) {
       // Check if trigger is still valid
-      if (node !== triggerNode || !triggerNode) {
+      if (
+        node !== triggerNode ||
+        !triggerNode ||
+        range.startOffset <= triggerOffset ||
+        (triggerNode.textContent || '')[triggerOffset] !== '@'
+      ) {
         hideMenu();
+        // Fall through to @ detection below — the user may have
+        // typed @ immediately after the old trigger became invalid.
+      } else {
+        updateFilter();
         return;
       }
+    }
 
-      const text = triggerNode.textContent || '';
-      const cursorPos = range.startOffset;
-
-      if (cursorPos <= triggerOffset || text[triggerOffset] !== '@') {
-        hideMenu();
-        return;
+    {
+      // Check if @ was typed. The cursor may be in a text node or
+      // at an element boundary (common after token insert/delete),
+      // so resolve to the actual text node first.
+      let textNode = node;
+      let cursorPos = range.startOffset;
+      if (textNode.nodeType !== Node.TEXT_NODE) {
+        // Cursor is at an element offset — find the adjacent text node
+        const child =
+          cursorPos > 0
+            ? textNode.childNodes[cursorPos - 1]
+            : textNode.childNodes[0];
+        if (child && child.nodeType === Node.TEXT_NODE) {
+          textNode = child;
+          cursorPos = (textNode.textContent || '').length;
+        }
       }
-
-      updateFilter();
-    } else if (node.nodeType === Node.TEXT_NODE) {
-      // Check if @ was typed
-      const text = node.textContent || '';
-      const cursorPos = range.startOffset;
-      if (cursorPos > 0 && text[cursorPos - 1] === '@') {
-        // Check it's not preceded by alphanumeric
-        if (cursorPos === 1 || !/[a-zA-Z0-9]/.test(text[cursorPos - 2])) {
-          triggerNode = /** @type {Text} */ (node);
-          triggerOffset = cursorPos - 1;
-          filteredNames = [...petNames];
-          selectedIndex = 0;
-          showMenu();
-          renderMenu('');
+      if (textNode.nodeType === Node.TEXT_NODE) {
+        const text = textNode.textContent || '';
+        if (cursorPos > 0 && text[cursorPos - 1] === '@') {
+          // Check it's not preceded by alphanumeric
+          if (cursorPos === 1 || !/[a-zA-Z0-9]/.test(text[cursorPos - 2])) {
+            triggerNode = /** @type {Text} */ (textNode);
+            triggerOffset = cursorPos - 1;
+            filteredNames = [...petNames];
+            selectedIndex = 0;
+            showMenu();
+            renderMenu('');
+          }
         }
       }
     }
@@ -662,6 +699,7 @@ export const tokenAutocompleteComponent = (
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           selectedIndex = (selectedIndex + 1) % filteredNames.length;
           updateFilter();
@@ -670,6 +708,7 @@ export const tokenAutocompleteComponent = (
 
       case 'ArrowUp':
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           selectedIndex =
             (selectedIndex - 1 + filteredNames.length) % filteredNames.length;
@@ -679,6 +718,7 @@ export const tokenAutocompleteComponent = (
 
       case 'Home':
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           selectedIndex = 0;
           updateFilter();
@@ -687,6 +727,7 @@ export const tokenAutocompleteComponent = (
 
       case 'End':
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           selectedIndex = filteredNames.length - 1;
           updateFilter();
@@ -695,6 +736,7 @@ export const tokenAutocompleteComponent = (
 
       case 'PageDown': {
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           const first = /** @type {HTMLElement | null} */ (
             $menu.querySelector('.token-menu-item')
@@ -716,6 +758,7 @@ export const tokenAutocompleteComponent = (
 
       case 'PageUp': {
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           const first = /** @type {HTMLElement | null} */ (
             $menu.querySelector('.token-menu-item')

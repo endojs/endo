@@ -773,14 +773,9 @@ export const main = async rawArgs => {
   program
     .command('start')
     .description('start the endo daemon as a background service')
-    .option(
-      '--dry-run',
-      'log what would be don, rather than doing it',
-    )
+    .option('--dry-run', 'log what would be don, rather than doing it')
     .action(async cmd => {
-      const {
-        dryRun,
-      } = cmd.opts();
+      const { dryRun } = cmd.opts();
       const { start } = await import('@endo/daemon');
       await start(undefined, {
         dryRun,

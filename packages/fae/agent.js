@@ -24,6 +24,8 @@ import {
   makeReplyTool,
   makeListMessagesTool,
   makeDismissTool,
+  makeExecTool,
+  makeReadChannelTool,
 } from './src/tool-makers.js';
 import { extractToolCallsFromContent } from './src/extract-tool-calls.js';
 
@@ -43,14 +45,26 @@ const FaeFactoryInterface = M.interface('FaeFactory', {
 });
 
 const guestSystemPrompt = `\
-You are Fae, an autonomous LLM agent running inside the Endo daemon as a guest \
-caplet. You communicate with other agents and the HOST via messages.
+You are Fae, an autonomous agent inside the Endo daemon.
 
-Your tools are dynamic capabilities. Built-in tools for directory management and \
-mail are always available, and new tools can appear at any time — for example, \
-when you adopt a tool capability from an incoming mail message using \`adoptTool\`.
+## Rules
+1. When a message contains code to run, use exec() to run it. Copy the code \
+from the message — do not rewrite or add to it.
+2. Channel notifications include ready-to-use exec code. Run it with ONLY \
+your conversational reply as the post content. Never post internal \
+reasoning, steps, logs, or recaps to a channel.
+3. reply() sends a PRIVATE inbox message. It does NOT post to channels.
+4. References labeled "(author)" are attributions — do not adopt them.
+5. Keep channel posts concise and conversational — one or two sentences.
 
-## Communication
+## Tools
+- **exec** — Run JavaScript with powers, E, harden. Use for multi-step tasks.
+- **reply** — Private inbox reply to sender by message number.
+- **adopt** — Store a message reference under a pet name.
+- **list/lookup/store/remove** — Manage your pet name directory.
+- **send** — Send unsolicited inbox message to a named agent.
+- **adoptTool** — Install a FaeTool capability from a message.
+- **dismiss** — Dismiss a handled message.
 
 You receive messages from other agents and the @host. Use these tools to interact:
 
@@ -143,13 +157,26 @@ export const spawnWorkerLoop = async (
 
   /**
    * Find or create the root node that carries the system prompt.
+   * If the system prompt has changed since the last root was created,
+   * start a fresh conversation tree so old messages with stale
+   * instructions don't confuse the LLM.
    *
    * @returns {Promise<string>} rootNodeId
    */
   const getOrCreateRoot = async () => {
     const roots = await tree.getRoots();
     if (roots.length > 0) {
-      return roots[0].id;
+      const existingRoot = await tree.getNode(roots[0].id);
+      if (existingRoot) {
+        const rootMsg = existingRoot.messages[0];
+        if (rootMsg && rootMsg.content === effectivePrompt) {
+          return roots[0].id;
+        }
+        // System prompt changed — start fresh
+        console.log(
+          '[fae] System prompt changed, creating fresh conversation tree',
+        );
+      }
     }
     const root = await tree.addNode(null, [
       { role: 'system', content: effectivePrompt },
@@ -187,6 +214,8 @@ export const spawnWorkerLoop = async (
   );
   localTools.set('listMessages', makeListMessagesTool(powers));
   localTools.set('dismiss', makeDismissTool(powers));
+  localTools.set('exec', makeExecTool(powers));
+  localTools.set('readChannel', makeReadChannelTool(powers));
 
   /**
    * Process tool calls from the LLM response.
@@ -211,10 +240,18 @@ export const spawnWorkerLoop = async (
           typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
         args = decodeSmallcaps(jsonString);
       } catch {
-        args = {};
+        // Smallcaps decoding failed — try plain JSON parse
+        try {
+          const jsonString =
+            typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
+          args = JSON.parse(jsonString);
+        } catch {
+          args = {};
+        }
       }
 
       console.log(`[tool] ${name}(${passableAsJustin(harden(args), false)})`);
+      replyTracker.anyToolCalled = true;
 
       let result;
       try {

@@ -113,10 +113,11 @@ export const createAddSpaceModal = ({
   let channelPetName = '';
   /** @type {string} */
   let channelProposedName = '';
-  /** @type {'chat' | 'forum'} */
+  /** @type {'chat' | 'forum' | 'outliner'} */
   let channelViewMode = 'chat';
   /** @type {'new' | 'existing'} */
-  let channelPersonaMode = 'new';
+  let channelPersonaMode = 'existing';
+  let channelIntroducedNames = '';
   /** @type {PetNamePathsAutocompleteAPI | null} */
   let channelPathAutocomplete = null;
   /** @type {string} */
@@ -383,8 +384,30 @@ export const createAddSpaceModal = ({
               <span class="view-mode-label">Forum</span>
               <span class="view-mode-desc">Threaded tree view with active subtrees at bottom</span>
             </button>
+            <button type="button" class="view-mode-option ${channelViewMode === 'outliner' ? 'selected' : ''}" data-view-mode="outliner">
+              <span class="view-mode-label">Outliner</span>
+              <span class="view-mode-desc">Collaborative document with edit history</span>
+            </button>
+            <button type="button" class="view-mode-option ${channelViewMode === 'microblog' ? 'selected' : ''}" data-view-mode="microblog">
+              <span class="view-mode-label">Microblog</span>
+              <span class="view-mode-desc">Reverse-chronological feed with profile header</span>
+            </button>
           </div>
         </div>
+
+        ${
+          channelPersonaMode === 'new'
+            ? `
+          <div class="add-space-field">
+            <label for="channel-introduced-names">Share from Inventory</label>
+            <input type="text" id="channel-introduced-names"
+                   placeholder="e.g., my-tool, my-data"
+                   value="${channelIntroducedNames}" autocomplete="off" />
+            <div class="field-hint">Comma-separated pet names to copy into this persona's namespace</div>
+          </div>
+        `
+            : ''
+        }
 
         ${error ? `<div class="add-space-error">${error}</div>` : ''}
 
@@ -854,7 +877,7 @@ export const createAddSpaceModal = ({
           mode = 'new-channel';
           selectedIcon = '📡';
           useLetterIcon = false;
-          channelPersonaMode = 'new';
+          channelPersonaMode = 'existing';
           error = null;
           render();
         } else if (selectedMode === 'connect-channel') {
@@ -966,12 +989,27 @@ export const createAddSpaceModal = ({
       });
     }
 
+    // Introduced names input
+    const $introducedNamesInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#channel-introduced-names')
+    );
+    if ($introducedNamesInput) {
+      $introducedNamesInput.addEventListener('input', () => {
+        channelIntroducedNames = $introducedNamesInput.value;
+      });
+    }
+
     // View mode selector
     const $viewModeOptions = $container.querySelectorAll('.view-mode-option');
     for (const $option of $viewModeOptions) {
       $option.addEventListener('click', () => {
         const vm = $option.getAttribute('data-view-mode');
-        if (vm === 'chat' || vm === 'forum') {
+        if (
+          vm === 'chat' ||
+          vm === 'forum' ||
+          vm === 'outliner' ||
+          vm === 'microblog'
+        ) {
           channelViewMode = vm;
           // Update selection visually
           for (const $opt of $viewModeOptions) {
@@ -1288,11 +1326,39 @@ export const createAddSpaceModal = ({
     try {
       // 1. Create persona (host) — same pattern as New Profile
       const newAgentName = `persona-for-${spaceName}`;
+
+      // Parse introduced names: comma-separated pet names to copy
+      // from parent namespace into the child persona's namespace.
+      /** @type {Record<string, string>} */
+      const introducedNames = Object.create(null);
+      if (channelIntroducedNames.trim()) {
+        const entries = channelIntroducedNames
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+        for (const entry of entries) {
+          // Support "parentName:childName" or just "name" (same in both)
+          const colonIdx = entry.indexOf(':');
+          if (colonIdx > 0) {
+            const parentName = entry.slice(0, colonIdx).trim();
+            const childName = entry.slice(colonIdx + 1).trim();
+            if (parentName && childName) {
+              introducedNames[parentName] = childName;
+            }
+          } else {
+            introducedNames[entry] = entry;
+          }
+        }
+      }
+
       await E(
-        /** @type {{ provideHost: (name: string, opts: { agentName: string }) => Promise<void> }} */ (
+        /** @type {{ provideHost: (name: string, opts: { agentName: string, introducedNames?: Record<string, string> }) => Promise<void> }} */ (
           powers
         ),
-      ).provideHost(spaceName, { agentName: newAgentName });
+      ).provideHost(spaceName, {
+        agentName: newAgentName,
+        ...(Object.keys(introducedNames).length > 0 ? { introducedNames } : {}),
+      });
 
       // 2. Get the persona's powers
       const personaPowers = await E(
@@ -1441,6 +1507,13 @@ export const createAddSpaceModal = ({
         ).storeLocator('general', formulaId);
 
         // 4. Create space config
+        // Use the view mode from the locator if provided, else default chat.
+        const recommendedView = locatorUrl.searchParams.get('view');
+        /** @type {'chat' | 'forum' | 'outliner' | undefined} */
+        const connectViewMode =
+          recommendedView === 'forum' || recommendedView === 'outliner'
+            ? recommendedView
+            : undefined;
         await onSubmit({
           name: spaceName,
           icon: selectedIcon,
@@ -1448,6 +1521,7 @@ export const createAddSpaceModal = ({
           layout: 'channel',
           channelPetName: 'general',
           proposedName: displayName,
+          viewMode: connectViewMode,
         });
 
         hide();
@@ -1780,7 +1854,7 @@ export const createAddSpaceModal = ({
     agentNameManuallyEdited = false;
     channelPetName = '';
     channelProposedName = '';
-    channelPersonaMode = 'new';
+    channelPersonaMode = 'existing';
     connectLocator = '';
     connectSpaceName = '';
     connectProposedName = '';

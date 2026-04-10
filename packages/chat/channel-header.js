@@ -33,6 +33,8 @@ import { deriveConstants, formatDuration } from './heat-engine.js';
  * @param {unknown} options.channel - Channel or ChannelMember reference
  * @param {unknown} options.powers - Host powers for locator generation
  * @param {string} [options.channelPetName] - Pet name of the channel
+ * @param {'chat' | 'forum' | 'outliner' | 'microblog'} [options.viewMode] - Current view mode
+ * @param {(mode: 'chat' | 'forum' | 'outliner' | 'microblog') => void} [options.onViewModeChange] - Callback when view mode changes
  * @returns {ChannelHeaderAPI}
  */
 export const createChannelHeader = ({
@@ -40,6 +42,8 @@ export const createChannelHeader = ({
   channel,
   powers,
   channelPetName,
+  viewMode = 'chat',
+  onViewModeChange,
 }) => {
   let menuVisible = false;
   let manageMembersVisible = false;
@@ -56,6 +60,22 @@ export const createChannelHeader = ({
 
   const renderMenu = () => `
     <div class="channel-menu">
+      <div class="channel-menu-section">
+        <div class="channel-menu-label">View as</div>
+        <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'chat' ? 'active' : ''}" data-action="view-chat">
+          Chat
+        </button>
+        <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'forum' ? 'active' : ''}" data-action="view-forum">
+          Forum
+        </button>
+        <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'outliner' ? 'active' : ''}" data-action="view-outliner">
+          Outliner
+        </button>
+        <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'microblog' ? 'active' : ''}" data-action="view-microblog">
+          Microblog
+        </button>
+      </div>
+      <div class="channel-menu-divider"></div>
       <button type="button" class="channel-menu-item" data-action="invite">
         Create Invitation
       </button>
@@ -92,6 +112,21 @@ export const createChannelHeader = ({
           } else {
             render();
           }
+        } else if (
+          action === 'view-chat' ||
+          action === 'view-forum' ||
+          action === 'view-outliner' ||
+          action === 'view-microblog'
+        ) {
+          const newMode =
+            /** @type {'chat' | 'forum' | 'outliner' | 'microblog'} */ (
+              action.replace('view-', '')
+            );
+          if (newMode !== viewMode && onViewModeChange) {
+            viewMode = newMode;
+            onViewModeChange(newMode);
+          }
+          render();
         }
       });
     }
@@ -117,24 +152,121 @@ export const createChannelHeader = ({
     try {
       await E(channel).createInvitation(inviteeName);
 
-      // Generate a locator with connection hints for sharing
+      // Ask how to deliver the invitation
       if (powers && channelPetName) {
-        try {
-          const locator = await E(
-            /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
-              powers
-            ),
-          ).locateForSharing(channelPetName);
-          window.prompt(
-            'Share this locator with the invitee (includes connection hints):',
-            /** @type {string} */ (locator),
+        // Show delivery options modal.
+        // NOTE: render() must NOT be called while the modal is open —
+        // it replaces $container.innerHTML, which would destroy the modal.
+        const $modal = document.createElement('div');
+        $modal.className = 'invite-delivery-modal';
+        $modal.innerHTML = `
+          <div class="invite-delivery-content">
+            <h3>Invitation created for \u201C${inviteeName}\u201D</h3>
+            <p>How would you like to share it?</p>
+            <div class="invite-delivery-actions">
+              <button type="button" class="invite-delivery-btn" data-action="link">Copy Link</button>
+              <button type="button" class="invite-delivery-btn" data-action="contact">Send to Contact</button>
+            </div>
+            <button type="button" class="invite-delivery-close">&times;</button>
+          </div>
+        `;
+        $container.appendChild($modal);
+
+        const $linkBtn = /** @type {HTMLButtonElement} */ (
+          $modal.querySelector('[data-action="link"]')
+        );
+        const $contactBtn = /** @type {HTMLButtonElement} */ (
+          $modal.querySelector('[data-action="contact"]')
+        );
+        const $closeBtn = /** @type {HTMLButtonElement} */ (
+          $modal.querySelector('.invite-delivery-close')
+        );
+
+        const closeModal = () => {
+          $modal.remove();
+          render();
+        };
+
+        $closeBtn.addEventListener('click', closeModal);
+
+        $linkBtn.addEventListener('click', async () => {
+          $modal.remove();
+          try {
+            let rawLocator;
+            try {
+              rawLocator = await E(
+                /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
+                  powers
+                ),
+              ).locateForSharing(channelPetName);
+            } catch {
+              rawLocator = await E(
+                /** @type {{ locate: (...args: string[]) => Promise<string> }} */ (
+                  powers
+                ),
+              ).locate(channelPetName);
+            }
+            if (!rawLocator || !String(rawLocator).startsWith('endo://')) {
+              window.alert(
+                'Could not generate a shareable link. The daemon may not have network addresses configured.',
+              );
+              render();
+              return;
+            }
+            const locator =
+              viewMode && viewMode !== 'chat'
+                ? `${rawLocator}&view=${viewMode}`
+                : rawLocator;
+            window.prompt(
+              'Share this locator with the invitee:',
+              /** @type {string} */ (locator),
+            );
+          } catch {
+            window.alert(
+              `Invitation created for "${inviteeName}". Share the channel locator directly.`,
+            );
+          }
+          render();
+        });
+
+        $contactBtn.addEventListener('click', async () => {
+          const contactName = window.prompt(
+            'Pet name of the contact to send invitation to:',
           );
-        } catch {
-          // Locator generation optional
-          window.alert(
-            `Invitation created for "${inviteeName}". Share the channel locator directly.`,
-          );
-        }
+          if (!contactName) {
+            closeModal();
+            return;
+          }
+          $contactBtn.disabled = true;
+          $contactBtn.textContent = 'Sending\u2026';
+          try {
+            // Send channel reference to the contact's inbox
+            const edgeName = channelPetName;
+            await E(
+              /** @type {{ send: (to: string, strings: string[], edgeNames: string[], petNames: string[]) => Promise<void> }} */ (
+                powers
+              ),
+            ).send(
+              contactName,
+              [
+                `You\u2019ve been invited to join `,
+                `. Join the channel to participate.`,
+              ],
+              [edgeName],
+              [channelPetName],
+            );
+            closeModal();
+            window.alert(`Invitation sent to @${contactName}.`);
+          } catch (err) {
+            $contactBtn.disabled = false;
+            $contactBtn.textContent = 'Send to Contact';
+            window.alert(
+              `Failed to send: ${/** @type {Error} */ (err).message}`,
+            );
+          }
+        });
+        // Return early — render() is deferred until the modal closes.
+        return;
       }
     } catch (err) {
       window.alert(
@@ -264,6 +396,10 @@ export const createChannelHeader = ({
           </details>
 
           <div class="heat-sim-container"></div>
+
+          <div class="attenuator-field">
+            <button type="button" class="attenuator-copy-link-btn">Copy Invite Link</button>
+          </div>
 
           <div class="attenuator-field">
             <span>Emergency ban</span>
@@ -435,6 +571,47 @@ export const createChannelHeader = ({
         } catch (err) {
           window.alert(
             `Failed to apply ban: ${/** @type {Error} */ (err).message}`,
+          );
+        }
+      });
+    }
+
+    const $copyLinkBtn = $container.querySelector('.attenuator-copy-link-btn');
+    if ($copyLinkBtn && powers && channelPetName) {
+      $copyLinkBtn.addEventListener('click', async () => {
+        try {
+          // Try locateForSharing (host), fall back to locate (guest/directory)
+          let rawLocator;
+          try {
+            rawLocator = await E(
+              /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
+                powers
+              ),
+            ).locateForSharing(channelPetName);
+          } catch {
+            rawLocator = await E(
+              /** @type {{ locate: (...args: string[]) => Promise<string> }} */ (
+                powers
+              ),
+            ).locate(channelPetName);
+          }
+          if (!rawLocator || !String(rawLocator).startsWith('endo://')) {
+            window.alert(
+              'Could not generate a shareable link. The daemon may not have network addresses configured.',
+            );
+            return;
+          }
+          const locator =
+            viewMode && viewMode !== 'chat'
+              ? `${rawLocator}&view=${viewMode}`
+              : rawLocator;
+          window.prompt(
+            'Share this invite link:',
+            /** @type {string} */ (locator),
+          );
+        } catch (err) {
+          window.alert(
+            `Failed to generate link: ${/** @type {Error} */ (err).message}`,
           );
         }
       });

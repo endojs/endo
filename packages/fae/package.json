@@ -19,6 +19,9 @@
     ".": "./agent.js",
     "./llm-provider-factory.js": "./llm-provider-factory.js",
     "./src/fae-tool-interface.js": "./src/fae-tool-interface.js",
+    "./src/tool-makers.js": "./src/tool-makers.js",
+    "./src/tools.js": "./src/tools.js",
+    "./src/extract-tool-calls.js": "./src/extract-tool-calls.js",
     "./package.json": "./package.json"
   },
   "scripts": {

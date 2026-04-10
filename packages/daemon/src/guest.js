@@ -21,6 +21,7 @@ import { guestHelp, makeHelp } from './help-text.js';
 /**
  * @param {object} args
  * @param {Provide} args.provide
+ * @param {DaemonCore['provideStoreController']} args.provideStoreController
  * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
@@ -35,6 +36,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  */
 export const makeGuestMaker = ({
   provide,
+  provideStoreController,
   formulateEval,
   formulateReadableBlob,
   formulateMarshalValue,
@@ -85,8 +87,8 @@ export const makeGuestMaker = ({
     context.thisDiesIfThatDies(mainWorkerId);
     context.thisDiesIfThatDies(networksDirectoryId);
 
-    const basePetStore = await provide(petStoreId, 'pet-store');
-    const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
+    const baseController = await provideStoreController(petStoreId);
+    const mailboxController = await provideStoreController(mailboxStoreId);
     const specialNames = {
       '@agent': guestId,
       '@self': handleId,
@@ -97,7 +99,7 @@ export const makeGuestMaker = ({
       specialNames['@mail'] = mailHubId;
     }
     specialNames['@nets'] = networksDirectoryId;
-    const specialStore = makePetSitter(basePetStore, specialNames);
+    const specialStore = makePetSitter(baseController, specialNames);
 
     const getNetworkAddresses = () =>
       getAllNetworkAddresses(networksDirectoryId);
@@ -110,7 +112,7 @@ export const makeGuestMaker = ({
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,
-      mailboxStore,
+      mailboxStore: mailboxController,
       directory,
       selfId: handleId,
       context,
@@ -287,6 +289,9 @@ export const makeGuestMaker = ({
 
     /** @type {EndoGuest['storeBlob']} */
     const storeBlob = async (readerRef, petName) => {
+      if (petName === undefined) {
+        throw new TypeError('storeBlob requires a pet name');
+      }
       const { namePath } = assertPetNamePath(namePathFrom(petName));
 
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */

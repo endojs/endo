@@ -6,11 +6,30 @@
 /** @import { FilePowers, PetName, SyncedEntry, SyncedPetStoreState, SyncedPetStoreMetadata, SyncedPetStorePowers, SyncedPetStore } from './types.js' */
 
 import harden from '@endo/harden';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { q } from '@endo/errors';
 
 import { makeChangeTopic } from './pubsub.js';
 import { assertPetName } from './pet-name.js';
 import { makeSerialJobs } from './serial-jobs.js';
+import { makeIteratorRef } from './reader-ref.js';
+
+export const SyncedPetStoreInterface = M.interface('SyncedPetStore', {
+  storeLocator: M.call(M.string(), M.string()).returns(M.promise()),
+  remove: M.call(M.string()).returns(M.promise()),
+  has: M.call(M.string()).returns(M.boolean()),
+  lookup: M.call(M.string()).returns(M.or(M.string(), M.undefined())),
+  list: M.call().returns(M.array()),
+  getState: M.call().returns(M.record()),
+  getLocalClock: M.call().returns(M.number()),
+  getRemoteAckedClock: M.call().returns(M.number()),
+  mergeRemoteState: M.call(M.record(), M.number()).returns(M.promise()), // resolves to string[]
+  acknowledgeRemoteClock: M.call(M.number()).returns(M.promise()),
+  pruneTombstones: M.call().returns(M.promise()),
+  followChanges: M.call().returns(M.remotable()),
+});
+harden(SyncedPetStoreInterface);
 
 /**
  * Compare two synced entries using the CRDT merge rules:
@@ -323,7 +342,7 @@ export const makeSyncedPetStore = async ({
       const entry = /** @type {SyncedEntry} */ (state.get(key));
       changeTopic.publisher.next(harden({ key, entry }));
     }
-    return changed;
+    return harden([...changed]);
   };
 
   /** @type {SyncedPetStore['acknowledgeRemoteClock']} */
@@ -350,29 +369,35 @@ export const makeSyncedPetStore = async ({
     return harden(pruned);
   };
 
-  /** @type {SyncedPetStore['followChanges']} */
-  const followChanges = async function* syncedChanges() {
-    const subscription = changeTopic.subscribe();
-    // Yield current state first.
-    for (const [key, entry] of state) {
-      yield harden({ key, entry });
-    }
-    yield* subscription;
+  const followChanges = () => {
+    const iterator = (async function* syncedChanges() {
+      const subscription = changeTopic.subscribe();
+      // Yield current state first.
+      for (const [key, entry] of state) {
+        yield harden({ key, entry });
+      }
+      yield* subscription;
+    })();
+    return makeIteratorRef(iterator);
   };
 
-  return harden({
-    storeLocator,
-    remove,
-    has,
-    lookup,
-    list,
-    getState,
-    getLocalClock,
-    getRemoteAckedClock,
-    mergeRemoteState,
-    acknowledgeRemoteClock,
-    pruneTombstones,
-    followChanges,
-  });
+  return /** @type {SyncedPetStore} */ (
+    /** @type {unknown} */ (
+      makeExo('SyncedPetStore', SyncedPetStoreInterface, {
+        storeLocator,
+        remove,
+        has,
+        lookup,
+        list,
+        getState,
+        getLocalClock,
+        getRemoteAckedClock,
+        mergeRemoteState,
+        acknowledgeRemoteClock,
+        pruneTombstones,
+        followChanges,
+      })
+    )
+  );
 };
 harden(makeSyncedPetStore);

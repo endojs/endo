@@ -36,7 +36,14 @@ export const discoverTools = async (host, localTools) => {
   /** @type {Map<string, FaeTool | object>} */
   const toolMap = new Map(localTools);
 
-  const maybeToolNames = await E(host).list('tools');
+  /** @type {unknown} */
+  let maybeToolNames;
+  try {
+    maybeToolNames = await E(host).list('tools');
+  } catch {
+    // No tools/ directory in this agent's namespace — that's fine
+    maybeToolNames = [];
+  }
   const names = (Array.isArray(maybeToolNames) ? maybeToolNames : []).filter(
     /** @returns {x is string} */ x => typeof x === 'string',
   );

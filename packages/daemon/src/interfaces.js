@@ -54,8 +54,12 @@ const EvaluateMethodGuard = M.call(
 
 export const WorkerInterface = M.interface('EndoWorker', {});
 
+export const PeerGatewayInterface = M.interface('ResilientPeerGateway', {
+  provide: M.callWhen(M.string()).returns(M.any()),
+});
+
 export const ResponderInterface = M.interface('EndoResponder', {
-  resolveWithId: M.call(M.or(IdShape, M.promise())).returns(),
+  resolveWithId: M.callWhen(M.or(IdShape, M.promise())).returns(),
 });
 
 export const NameHubInterface = M.interface('EndoNameHub', {
@@ -337,6 +341,10 @@ export const HostInterface = M.interface('EndoHost', {
     .returns(M.promise()),
   // Create a channel
   makeChannel: M.call(NameShape, M.string()).returns(M.promise()),
+  // Create a timer
+  makeTimer: M.call(NameShape, M.number())
+    .optional(M.string())
+    .returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
   // Get the greeter
@@ -361,6 +369,10 @@ export const HostInterface = M.interface('EndoHost', {
   invite: M.call(NameShape).returns(M.promise()),
   // Accept an invitation
   accept: M.call(LocatorShape, NameShape).returns(M.promise()),
+  // Get the synced store for a peer
+  getSyncedStore: M.call(NameShape).returns(M.promise()),
+  // Register a synced store (called internally by daemon accept)
+  registerSyncedStore: M.call(NameShape, IdShape).returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,
@@ -395,7 +407,11 @@ export const HostInterface = M.interface('EndoHost', {
 export const ChannelInterface = M.interface('EndoChannel', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
-    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape))
+    .optional(
+      M.or(M.string(), M.undefined()),
+      M.arrayOf(IdShape),
+      M.or(M.string(), M.undefined()),
+    )
     .returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
   listMessages: M.call().returns(M.promise()),
@@ -415,7 +431,11 @@ export const ChannelInterface = M.interface('EndoChannel', {
 export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
-    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape))
+    .optional(
+      M.or(M.string(), M.undefined()),
+      M.arrayOf(IdShape),
+      M.or(M.string(), M.undefined()),
+    )
     .returns(M.promise()),
   setProposedName: M.call(M.string()).returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
@@ -446,7 +466,7 @@ export const AttenuatorInterface = M.interface('EndoChannelAttenuator', {
 harden(AttenuatorInterface);
 
 export const InvitationInterface = M.interface('EndoInvitation', {
-  accept: M.call(IdShape).returns(M.promise()),
+  accept: M.call(IdShape).optional(M.string()).returns(M.promise()),
   locate: M.call().returns(M.promise()),
 });
 

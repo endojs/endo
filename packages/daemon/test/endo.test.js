@@ -999,7 +999,9 @@ test('guest facet receives a message for host', async t => {
   const guestLocatorFromGuest = await E(guest).locate('@self');
   const hostLocatorFromGuest = await E(guest).locate('@host');
 
-  // Host should have received messages (externalized with host's key).
+  // The guest externalized 'from' with its own key, so the host inbox
+  // sees the guest's self-locator.  The 'to' was the host's self-ID
+  // (LOCAL_NODE) and gets externalized with the host's key.
   const hostInbox = await E(host).listMessages();
   t.deepEqual(
     hostInbox.map(({ type, from, to }) => ({
@@ -1008,8 +1010,8 @@ test('guest facet receives a message for host', async t => {
       to,
     })),
     [
-      { type: 'request', from: guestLocatorFromHost, to: hostLocatorFromHost },
-      { type: 'package', from: guestLocatorFromHost, to: hostLocatorFromHost },
+      { type: 'request', from: guestLocatorFromGuest, to: hostLocatorFromHost },
+      { type: 'package', from: guestLocatorFromGuest, to: hostLocatorFromHost },
     ],
   );
 
@@ -1136,9 +1138,9 @@ test('rehydrated requests can be resolved after restart', async t => {
   E.sendOnly(guest).request('@host', 'need a number');
 
   const { value: guestMessage } = await E(guestMessages).next();
-  const { promiseId: promiseIdP } = E.get(guestMessage);
-  const promiseId = await promiseIdP;
-  await E(host).storeIdentifier(['pending'], promiseId);
+  const { promiseId: promiseLocatorP } = E.get(guestMessage);
+  const promiseLocator = await promiseLocatorP;
+  await E(host).storeLocator(['pending'], promiseLocator);
 
   await restart(config);
 
@@ -1148,6 +1150,8 @@ test('rehydrated requests can be resolved after restart', async t => {
   t.truthy(requestMessage);
   await E(hostAfter).resolve(requestMessage.number, 'ten');
 
+  // The promise formula resolves to a formula identifier.
+  // Verify the resolution by checking the identifier matches 'ten'.
   const resolvedId = await E(hostAfter).lookup(['pending']);
   const tenId = await E(hostAfter).identify('ten');
   t.is(resolvedId, tenId);
@@ -2468,8 +2472,9 @@ test('hello from afar', async t => {
   const hostA = await prepareHostWithTestNetwork(t);
   const hostB = await prepareHostWithTestNetwork(t);
 
-  // Introduce B to A
+  // Introduce peers in both directions
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
   // Induce B to connect to A
   await E(hostA).evaluate('@main', '42', [], [], ['ft']);
@@ -2645,11 +2650,15 @@ test('invite, accept, and send mail', async t => {
   await E(hostA).send('bob', ['Hello'], ['salutations'], ['salutations']);
 
   const messages = await E(hostB).listMessages();
+  const packageMsg = messages.find(
+    m => m.type === 'package' && m.strings && m.strings[0] === 'Hello',
+  );
+  t.truthy(packageMsg, 'B should have received the package message');
   const {
     strings: [hi],
     names: [salutationsName],
     ids: [salutationsLocator],
-  } = messages.find(({ number }) => number === 1n);
+  } = packageMsg;
   t.is(hi, 'Hello');
   t.is(salutationsName, 'salutations');
   // The locators share the same id but may differ in type (the sender
@@ -2755,8 +2764,11 @@ test('adopt from remote message', async t => {
   const msg = messages.find(
     m => m.type === 'package' && m.strings && m.strings[0] === 'Take this',
   );
-  t.truthy(msg);
-  t.is(msg.ids[0], expectedId);
+  t.truthy(msg, 'B should have received the package message');
+  // The externalized locator and the raw ID share the same formula number.
+  const actualParsed = parseLocator(msg.ids[0]);
+  const expectedParsed = parseId(expectedId);
+  t.is(actualParsed.number, expectedParsed.number);
 
   await E(hostB).adopt(msg.number, 'shared', ['my-shared']);
 
@@ -3179,12 +3191,7 @@ test('guest evaluate ephemeral (no resultName)', async t => {
   await E(guest).adopt(pkg.number, 'x', ['seven']);
 
   // Ephemeral eval — no result name, value returned directly
-  const result = await E(guest).evaluate(
-    undefined,
-    'x + 3',
-    ['x'],
-    ['seven'],
-  );
+  const result = await E(guest).evaluate(undefined, 'x + 3', ['x'], ['seven']);
 
   t.is(result, 10);
 });

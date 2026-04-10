@@ -33,6 +33,9 @@ import { createHeatBar } from './heat-bar.js';
  * @property {() => boolean} isSubmitting - Check if a send is in progress
  * @property {(number: string, authorName: string, preview: string) => void} setReplyTo - Set reply context
  * @property {() => void} clearReplyTo - Clear reply context
+ * @property {(type: string | undefined) => void} setReplyType - Set reply type for next send
+ * @property {() => string | undefined} getReplyType - Get current reply type
+ * @property {(text: string) => void} setText - Set the input text content
  * @property {() => void} dispose - Tear down polling, engines, and heat bar
  */
 
@@ -51,9 +54,10 @@ import { createHeatBar } from './heat-bar.js';
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value
  * @param {() => boolean} [options.shouldHandleEnter] - Optional callback to check if Enter should be handled
  * @param {(state: SendFormState) => void} [options.onStateChange] - Called when input state changes
- * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
+ * @param {() => string | string[] | null} [options.getConversationPetName] - Returns active conversation pet name or path
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
+ * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with @-mentions instead of silent send
  * @returns {SendFormAPI}
  */
 export const sendFormComponent = ({
@@ -71,6 +75,7 @@ export const sendFormComponent = ({
   getConversationPetName,
   navigateToConversation,
   getChannelRef,
+  onMentionNotify,
 }) => {
   const clearError = () => {
     $error.textContent = '';
@@ -91,6 +96,10 @@ export const sendFormComponent = ({
   let heatEngineInitialized = false;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let pollTimeoutId = null;
+
+  // --- Reply type (for outliner edit/deletion/etc) ---
+  /** @type {string | undefined} */
+  let pendingReplyType;
 
   // --- Reply context ---
   /** @type {ReplyContext | null} */
@@ -117,6 +126,32 @@ export const sendFormComponent = ({
   }
 
   /**
+   * Reply type definitions for the picker menu.
+   * @type {Array<{ type: string | undefined, icon: string, label: string, verb: string }>}
+   */
+  const REPLY_TYPES = [
+    { type: undefined, icon: '\u21A9', label: 'Reply', verb: 'Replying to' },
+    { type: 'edit', icon: '\u270E', label: 'Edit', verb: 'Editing' },
+    { type: 'pro', icon: '\u2714', label: 'Pro', verb: 'Pro for' },
+    { type: 'con', icon: '\u2718', label: 'Con', verb: 'Con for' },
+    {
+      type: 'evidence',
+      icon: '\uD83D\uDCC4',
+      label: 'Evidence',
+      verb: 'Evidence for',
+    },
+  ];
+
+  /**
+   * Get the reply type entry for the current pendingReplyType.
+   * @returns {{ type: string | undefined, icon: string, label: string, verb: string }}
+   */
+  const getCurrentReplyTypeEntry = () => {
+    const entry = REPLY_TYPES.find(rt => rt.type === pendingReplyType);
+    return entry || REPLY_TYPES[0];
+  };
+
+  /**
    * Render the reply context bar UI.
    */
   const renderReplyContextBar = () => {
@@ -127,9 +162,50 @@ export const sendFormComponent = ({
     $replyContextBar.style.display = '';
     $replyContextBar.innerHTML = '';
 
+    const rtEntry = getCurrentReplyTypeEntry();
+
+    // Reply type picker button
+    const $typePicker = document.createElement('button');
+    $typePicker.className = 'reply-type-picker';
+    $typePicker.title = 'Change reply type';
+    $typePicker.textContent = rtEntry.icon;
+    $typePicker.addEventListener('click', e => {
+      e.stopPropagation();
+      const $existing = $replyContextBar.querySelector('.reply-type-menu');
+      if ($existing) {
+        $existing.remove();
+        return;
+      }
+      const $menu = document.createElement('div');
+      $menu.className = 'reply-type-menu';
+      const dismissMenu = () => {
+        $menu.remove();
+        document.removeEventListener('click', dismissMenu);
+      };
+      for (const rt of REPLY_TYPES) {
+        const $item = document.createElement('button');
+        $item.className = 'reply-type-menu-item';
+        if (rt.type === pendingReplyType) {
+          $item.classList.add('active');
+        }
+        $item.innerHTML = `<span class="reply-type-menu-icon">${rt.icon}</span> ${rt.label}`;
+        $item.addEventListener('click', ev => {
+          ev.stopPropagation();
+          pendingReplyType = rt.type;
+          dismissMenu();
+          renderReplyContextBar();
+        });
+        $menu.appendChild($item);
+      }
+      $replyContextBar.appendChild($menu);
+      // Close menu on outside click (next tick so this click doesn't trigger it)
+      setTimeout(() => document.addEventListener('click', dismissMenu), 0);
+    });
+    $replyContextBar.appendChild($typePicker);
+
     const $label = document.createElement('span');
     $label.className = 'reply-context-label';
-    $label.textContent = `Replying to ${replyContext.authorName}`;
+    $label.textContent = `${rtEntry.verb} ${replyContext.authorName}`;
     $replyContextBar.appendChild($label);
 
     const $preview = document.createElement('span');
@@ -143,6 +219,7 @@ export const sendFormComponent = ({
     $close.textContent = '\u00D7';
     $close.addEventListener('click', () => {
       replyContext = defaultReplyContext;
+      pendingReplyType = undefined;
       renderReplyContextBar();
     });
     $replyContextBar.appendChild($close);
@@ -344,23 +421,42 @@ export const sendFormComponent = ({
 
       const replyTo = replyContext ? replyContext.number : undefined;
 
+      const sendReplyType = pendingReplyType;
       resolveIds
         .then(ids =>
-          E(channelRef).post(messageStrings, edgeNames, petNames, replyTo, ids),
+          sendReplyType !== undefined
+            ? E(channelRef).post(
+                messageStrings,
+                edgeNames,
+                petNames,
+                replyTo,
+                ids,
+                sendReplyType,
+              )
+            : E(channelRef).post(
+                messageStrings,
+                edgeNames,
+                petNames,
+                replyTo,
+                ids,
+              ),
         )
         .then(
           () => {
-            // Send inbox notifications to @-mentioned members
-            for (const petName of petNames) {
-              E(powers)
-                .send(petName, messageStrings, edgeNames, petNames)
-                .catch(() => {
-                  // Silently ignore — non-person values can't receive messages
-                });
+            // Notify caller about @-mentions for invitation prompts
+            if (petNames.length > 0 && onMentionNotify) {
+              onMentionNotify({
+                petNames,
+                edgeNames,
+                messageStrings,
+                replyTo,
+              });
             }
 
             tokenComponent.clear();
             clearError();
+            // Reset reply type after send
+            pendingReplyType = undefined;
             // Reset reply context: fall back to thread default if set
             replyContext = defaultReplyContext;
             renderReplyContextBar();
@@ -588,6 +684,24 @@ export const sendFormComponent = ({
       defaultReplyContext = null;
       replyContext = null;
       renderReplyContextBar();
+    },
+    setReplyType: (/** @type {string | undefined} */ type) => {
+      pendingReplyType = type;
+      renderReplyContextBar();
+    },
+    getReplyType: () => pendingReplyType,
+    setText: (/** @type {string} */ text) => {
+      tokenComponent.clear();
+      $input.textContent = text;
+      // Place cursor at end
+      const sel = window.getSelection();
+      if (sel) {
+        const range = document.createRange();
+        range.selectNodeContents($input);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
     },
     dispose: () => {
       if (pollTimeoutId !== null) {

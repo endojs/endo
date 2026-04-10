@@ -955,3 +955,177 @@ export const makeAdoptTool = host => {
   });
 };
 harden(makeAdoptTool);
+
+/**
+ * Create a general-purpose exec tool that lets the agent run arbitrary
+ * JavaScript with access to its own guest powers and E (eventual send).
+ * Code runs in a Compartment with powers, E, harden, and console as
+ * endowments, so the agent can adopt, join channels, post, and compose
+ * multi-step operations in a single tool call.
+ *
+ * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @returns {FaeTool}
+ */
+export const makeExecTool = powers => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'exec',
+      description:
+        'Execute JavaScript code with access to your guest powers. ' +
+        'The code runs as an async function body (top-level await works). ' +
+        'Return a value to get it as the tool result.\n\n' +
+        'Available globals:\n' +
+        '- powers: your guest interface (adopt, reply, send, lookup, list, followMessages, etc.)\n' +
+        '- E: eventual send — use E(ref).method() for all remote calls\n' +
+        '- harden: freeze objects for safe passing\n' +
+        '- console: for logging\n\n' +
+        'Example — adopt a channel, join it, and post a reply:\n' +
+        '```\n' +
+        'await E(powers).adopt(13n, "danzone", "my-channel");\n' +
+        'const channel = await E(powers).lookup("my-channel");\n' +
+        'const member = await E(channel).join("fae");\n' +
+        'await E(member).post(["Hello from fae!"], [], []);\n' +
+        'return "Posted to channel";\n' +
+        '```',
+      parameters: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description:
+              'JavaScript code to execute. Runs as an async function body. ' +
+              'Use E(powers).method() for guest operations. Return a result.',
+          },
+        },
+        required: ['code'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const { code } = /** @type {{ code: string }} */ (args);
+      if (!code) {
+        throw new Error('code is required');
+      }
+      // Wrap in an async IIFE so top-level await works
+      const wrappedSource = `(async (powers, E, harden, console) => {\n${code}\n})`;
+      const c = new Compartment({
+        __options__: true,
+        globals: { BigInt },
+      });
+      const fn = c.evaluate(wrappedSource);
+      const result = await fn(powers, E, harden, console);
+      if (result === undefined) {
+        return 'done (no return value)';
+      }
+      try {
+        return JSON.stringify(result, null, 2);
+      } catch {
+        return String(result);
+      }
+    },
+    help() {
+      return (
+        'Execute JavaScript code with access to guest powers, E, and harden. ' +
+        'Use for multi-step operations like adopting values, joining channels, ' +
+        'and posting messages in a single call.'
+      );
+    },
+  });
+};
+harden(makeExecTool);
+
+/**
+ * Create a readChannel tool that returns a formatted transcript of
+ * channel messages with IDs, authors, and thread structure.
+ *
+ * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @returns {FaeTool}
+ */
+export const makeReadChannelTool = powers => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'readChannel',
+      description:
+        'Read messages from a channel. Returns a transcript with ' +
+        'message IDs, authors, thread structure, and content. ' +
+        'Use the message ID in the replyTo parameter of post() to ' +
+        'reply to a specific message thread.',
+      parameters: {
+        type: 'object',
+        properties: {
+          channelName: {
+            type: 'string',
+            description: 'Pet name of the channel to read.',
+          },
+          count: {
+            type: 'integer',
+            description: 'Number of recent messages to return (default: 20).',
+          },
+        },
+        required: ['channelName'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const { channelName, count = 20 } =
+        /** @type {{ channelName: string, count?: number }} */ (args);
+      if (!channelName) {
+        throw new Error('channelName is required');
+      }
+      const channel = await E(powers).lookup(channelName);
+      const rawMessages = await E(channel).listMessages();
+      const messages = /** @type {any[]} */ (rawMessages);
+
+      // Build member name lookup
+      /** @type {Map<string, string>} */
+      const memberNames = new Map();
+      try {
+        const adminId = await E(channel).getMemberId();
+        const adminName = await E(channel).getProposedName();
+        memberNames.set(adminId, adminName);
+      } catch {
+        // not available
+      }
+      try {
+        const members = /** @type {any[]} */ (await E(channel).getMembers());
+        for (const m of members) {
+          memberNames.set(m.memberId, m.proposedName || m.invitedAs);
+        }
+      } catch {
+        // not available
+      }
+
+      const shown = messages.slice(-count);
+      const lines = [];
+      for (const msg of shown) {
+        const author = memberNames.get(msg.memberId) || msg.memberId;
+        const text = Array.isArray(msg.strings) ? msg.strings.join('') : '';
+        const replyTo = msg.replyTo ? ` (reply to #${msg.replyTo})` : '';
+        const preview = text.length > 300 ? `${text.slice(0, 300)}...` : text;
+        lines.push(`[#${msg.number}] ${author}${replyTo}: ${preview}`);
+      }
+      return lines.join('\n');
+    },
+    help() {
+      return (
+        'Read channel messages with IDs, authors, and thread info. ' +
+        'Use message IDs to reply to specific threads.'
+      );
+    },
+  });
+};
+harden(makeReadChannelTool);

@@ -35,6 +35,7 @@ import { kbd, modKey } from './platform-keys.js';
  * @param {() => void} [options.exitConversation] - Exit the current conversation view
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
+ * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with @-mentions
  */
 export const chatBarComponent = (
   $parent,
@@ -48,6 +49,7 @@ export const chatBarComponent = (
     exitConversation,
     navigateToConversation,
     getChannelRef,
+    onMentionNotify,
   },
 ) => {
   const $chatBar = /** @type {HTMLElement} */ (
@@ -214,6 +216,7 @@ export const chatBarComponent = (
     getConversationPetName,
     navigateToConversation,
     getChannelRef,
+    onMentionNotify,
   });
 
   // Initialize command executor
@@ -230,7 +233,6 @@ export const chatBarComponent = (
         blobViewer = createBlobViewer({
           $container: $blobViewerContainer,
           $backdrop: $blobViewerBackdrop,
-          E,
           powers,
           onClose: () => {
             sendForm.focus();
@@ -427,7 +429,7 @@ export const chatBarComponent = (
    */
   const renderCommandPopover = () => {
     const categories = getCategories();
-    const context = getCommandContext();
+    const context = getCommandContext(); // eslint-disable-line no-use-before-define
     let html = '<div class="command-popover-header">Commands</div>';
 
     for (const category of categories) {
@@ -549,7 +551,10 @@ export const chatBarComponent = (
     // immediately so the modal receives focus.
     const isEval = commandName === 'js' || commandName === 'eval';
     const opensModal =
-      isEval || commandName === 'view' || commandName === 'edit' || commandName === 'cat';
+      isEval ||
+      commandName === 'view' ||
+      commandName === 'edit' ||
+      commandName === 'cat';
     if (opensModal) {
       exitCommandMode({ skipFocus: true }); // eslint-disable-line no-use-before-define
     } else {
@@ -590,6 +595,7 @@ export const chatBarComponent = (
     E,
     powers,
     makeRefIterator,
+    getContext: () => getCommandContext(), // eslint-disable-line no-use-before-define
     onSubmit: async (commandName, data) => {
       if (commandSubmitting) return;
       await executeWithSpinner(commandName, data);
@@ -1699,6 +1705,10 @@ export const chatBarComponent = (
     clearReplyTo: sendForm.clearReplyTo,
     setDefaultReplyTo: sendForm.setDefaultReplyTo,
     clearDefaultReplyTo: sendForm.clearDefaultReplyTo,
+    setReplyType: sendForm.setReplyType,
+    getReplyType: sendForm.getReplyType,
+    setText: sendForm.setText,
+    focus: sendForm.focus,
     dispose: sendForm.dispose,
   };
 };

@@ -135,7 +135,7 @@ test.serial(
 
     // After acceptance, Alice should have a synced-pet-store under 'bob'.
     // The synced-pet-store is a formula value with write/remove/list/etc.
-    const aliceSyncedStore = await E(hostA).lookup('bob');
+    const aliceSyncedStore = await E(hostA).getSyncedStore('bob');
     t.truthy(aliceSyncedStore, 'Alice should have a synced store under "bob"');
 
     // The synced store should have a 'list' method.
@@ -149,10 +149,50 @@ test.serial(
     );
 
     // Bob should have a synced-pet-store under 'alice'.
-    const bobSyncedStore = await E(hostB).lookup('alice');
+    const bobSyncedStore = await E(hostB).getSyncedStore('alice');
     t.truthy(bobSyncedStore, 'Bob should have a synced store under "alice"');
     const bobNames = await E(bobSyncedStore).list();
     t.true(Array.isArray(bobNames), 'Bob synced store should be listable');
+  },
+);
+
+test.serial(
+  'synced stores converge automatically via push-based sync',
+  async t => {
+    const { host: hostA } = await prepareHostWithTestNetwork(t);
+    const { host: hostB } = await prepareHostWithTestNetwork(t);
+
+    // Introduce daemons.
+    const invitation = await E(hostA).invite('bob');
+    const invitationLocator = await E(invitation).locate();
+    await E(hostB).accept(invitationLocator, 'alice');
+
+    // Get the synced stores.
+    const aliceStore = await E(hostA).getSyncedStore('bob');
+    const bobStore = await E(hostB).getSyncedStore('alice');
+
+    // Alice (grantor) writes a new capability into the synced store.
+    await E(hostA).storeValue('auto-sync-val', 'auto-sync');
+    const autoSyncLocator = await E(hostA).locate('auto-sync');
+    await E(aliceStore).storeLocator('auto-sync', autoSyncLocator);
+
+    // Wait for the push-based sync to propagate the change.
+    // The sync subscriptions run in the background; poll briefly
+    // for the change to arrive rather than calling manual sync.
+    const deadline = Date.now() + 15_000;
+    let found = false;
+    while (Date.now() < deadline) {
+      found = await E(bobStore).has('auto-sync');
+      if (found) break;
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    t.true(found, 'Bob should see auto-synced entry without manual sync');
+
+    // Verify the locators match.
+    const aliceLocator = await E(aliceStore).lookup('auto-sync');
+    const bobLocator = await E(bobStore).lookup('auto-sync');
+    t.is(aliceLocator, bobLocator, 'Both stores should agree on the locator');
   },
 );
 
@@ -166,8 +206,8 @@ test.serial('synced stores converge via manual sync', async t => {
   await E(hostB).accept(invitationLocator, 'alice');
 
   // Get the synced stores.
-  const aliceStore = await E(hostA).lookup('bob');
-  const bobStore = await E(hostB).lookup('alice');
+  const aliceStore = await E(hostA).getSyncedStore('bob');
+  const bobStore = await E(hostB).getSyncedStore('alice');
 
   // Alice (grantor) writes a new capability into the synced store.
   await E(hostA).storeValue('shared-secret', 'secret');
@@ -220,8 +260,8 @@ test.serial(
     const invitationLocator = await E(invitation).locate();
     await E(hostB).accept(invitationLocator, 'alice');
 
-    const aliceStore = await E(hostA).lookup('bob');
-    const bobStore = await E(hostB).lookup('alice');
+    const aliceStore = await E(hostA).getSyncedStore('bob');
+    const bobStore = await E(hostB).getSyncedStore('alice');
 
     // Alice writes a capability.
     await E(hostA).storeValue('revocable-thing', 'revocable');
@@ -275,8 +315,8 @@ test.serial('grantee can disclaim (remove) and it propagates', async t => {
   const invitationLocator = await E(invitation).locate();
   await E(hostB).accept(invitationLocator, 'alice');
 
-  const aliceStore = await E(hostA).lookup('bob');
-  const bobStore = await E(hostB).lookup('alice');
+  const aliceStore = await E(hostA).getSyncedStore('bob');
+  const bobStore = await E(hostB).getSyncedStore('alice');
 
   // Alice writes a capability.
   await E(hostA).storeValue('optional-thing', 'optional');
@@ -322,8 +362,8 @@ test.serial('synced stores converge after offline changes', async t => {
   const invitationLocator = await E(invitation).locate();
   await E(hostB).accept(invitationLocator, 'alice');
 
-  const aliceStore = await E(hostA).lookup('bob');
-  const bobStore = await E(hostB).lookup('alice');
+  const aliceStore = await E(hostA).getSyncedStore('bob');
+  const bobStore = await E(hostB).getSyncedStore('alice');
 
   // Alice writes a capability and syncs.
   await E(hostA).storeValue('pre-restart-val', 'pre-restart');
@@ -372,11 +412,12 @@ test.serial('synced stores converge after offline changes', async t => {
   });
   await E(hostA2).move(['test-network-2'], ['@nets', 'tcp']);
 
-  // After restart, the synced store should still exist with persisted state.
-  const aliceStore2 = await E(hostA2).lookup('bob');
+  // After restart, the synced store should still be accessible via
+  // getSyncedStore because the mapping is persisted in the @pins directory.
+  const aliceStore2 = await E(hostA2).getSyncedStore('bob');
   t.truthy(aliceStore2, 'Alice synced store should survive restart');
 
-  // The pre-restart entry should be present.
+  // The pre-restart entry should be present (CRDT state is persisted on disk).
   const preRestartNames = await E(aliceStore2).list();
   t.true(
     preRestartNames.includes('pre-restart'),

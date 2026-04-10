@@ -325,14 +325,14 @@ const decodeLegacyStringSuffix = encoded => encoded;
  * format, each terminated by a space (which is part of the escaped range in
  * "compactOrdered" encoded strings).
  *
- * @param {Passable[]} array
+ * @param {unknown[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
 const encodeCompactArray = (array, encodePassable) => {
   const chars = ['^'];
   for (const element of array) {
-    const enc = encodePassable(element);
+    const enc = encodePassable(/** @type {Passable} */ (element));
     chars.push(enc, ' ');
   }
   return chars.join('');
@@ -400,14 +400,14 @@ const decodeCompactArray = (encoded, decodePassable, skip = 0) => {
  * This necessitated an undesirable amount of iteration and expansion; see
  * https://github.com/endojs/endo/pull/1260#discussion_r960369826
  *
- * @param {Passable[]} array
+ * @param {unknown[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
 const encodeLegacyArray = (array, encodePassable) => {
   const chars = ['['];
   for (const element of array) {
-    const enc = encodePassable(element);
+    const enc = encodePassable(/** @type {Passable} */ (element));
     for (const c of enc) {
       if (c === '\u0000' || c === '\u0001') {
         chars.push('\u0001');

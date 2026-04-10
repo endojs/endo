@@ -10,6 +10,9 @@ import os from 'os';
 
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
+
+import { waitForExit, waitForMessage, waitForSpawn } from '@endo/platform/proc';
+
 import {
   whereEndoState,
   whereEndoEphemeralState,
@@ -207,62 +210,6 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
 };
 
 /**
- * @param {popen.ChildProcess} proc
- * @returns {Promise<popen.ChildProcess>} proc
- */
-const waitForSpawn = async proc => {
-  return new Promise((resolve, reject) => {
-    proc.on('error', err => {
-      const [exe] = proc.spawnargs;
-      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
-    });
-    proc.on('spawn', () => resolve(proc));
-  });
-};
-
-/**
- * @param {popen.ChildProcess} proc
- * @returns {Promise<number>} proc exit code
- */
-const waitForExit = async proc => {
-  return new Promise((resolve, reject) => {
-    proc.on('error', err => {
-      const [exe] = proc.spawnargs;
-      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
-    });
-    proc.on('exit', code => resolve(code || 0));
-  });
-};
-
-/**
- * @param {popen.ChildProcess} child
- * @returns {Promise<popen.Serializable>} message
- */
-const waitForMessage = child => {
-  let done = false;
-  return new Promise((resolve, reject) => {
-    child.on('error', (/** @type {Error} */ cause) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
-      }
-    });
-    child.on('exit', (/** @type {number?} */ code) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Process ${child.spawnargs} exited ${code}`));
-      }
-    });
-    child.on('message', message => {
-      if (!done) {
-        done = true;
-        resolve(message);
-      }
-    });
-  });
-};
-
-/**
  * @param {string[]} _args
  */
 export const main = async _args => {
@@ -289,7 +236,6 @@ const runEngo = async (detached, config) => {
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
   const logPath = path.join(config.statePath, 'endo.log');
-  const output = fs.openSync(logPath, 'a');
 
   const endoGoDaemonPath = url.fileURLToPath(
     new URL('src/daemon-go.js', import.meta.url),
@@ -303,10 +249,24 @@ const runEngo = async (detached, config) => {
     PATH: process.env.PATH || '',
   };
 
+  const stdio = /** @type {popen.StdioOptions} */ (
+    /** @type {unknown} */
+    (
+      (() => {
+        if (detached) {
+          const output = fs.openSync(logPath, 'a');
+          return ['ignore', output, output];
+        } else {
+          return ['inherit', 'inherit', 'inherit'];
+        }
+      })()
+    )
+  );
+
   const child = popen.spawn(endoBin, ['daemon'], {
     detached,
     env,
-    stdio: detached ? ['ignore', output, output] : 'inherit',
+    stdio,
   });
   await waitForSpawn(child);
 
@@ -353,14 +313,19 @@ const runEndo = async (detached, config) => {
     ...Object.fromEntries(filterEnv()),
   };
 
-  const stdio = /** @returns {popen.StdioOptions} */ (() => {
-    if (detached) {
-      const output = fs.openSync(logPath, 'a');
-      return ['ignore', output, output, 'ipc'];
-    } else {
-      return ['inherit', 'inherit', 'inherit', 'ipc'];
-    }
-  })();
+  const stdio = /** @type {popen.StdioOptions} */ (
+    /** @type {unknown} */
+    (
+      (() => {
+        if (detached) {
+          const output = fs.openSync(logPath, 'a');
+          return ['ignore', output, output, 'ipc'];
+        } else {
+          return ['inherit', 'inherit', 'inherit', 'ipc'];
+        }
+      })()
+    )
+  );
 
   const child = popen.spawn(process.execPath, [daemonPath, ...daemonArgs], {
     detached,
@@ -459,7 +424,8 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
     for await (const worker of runningWorkers(config)) {
       const workerPid = await worker.pid;
       if (workerPid !== null) {
-        console.log(`* id:${worker.id} pid:${workerPid}`);
+        const label = await worker.label();
+        console.log(`* id:${worker.id} name:${label} pid:${workerPid}`);
       }
     }
   }
@@ -472,9 +438,7 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
  */
 export const start = async (
   config = defaultConfig,
-  {
-    dryRun = false,
-  } = {},
+  { dryRun = false } = {},
 ) => {
   if (dryRun) {
     console.log(`would clean(${config})`);
@@ -486,7 +450,9 @@ export const start = async (
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
 
   if (dryRun) {
-    console.log(`would directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`);
+    console.log(
+      `would directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`,
+    );
     return;
   }
 
@@ -502,13 +468,20 @@ export const start = async (
  * @param {Config} options.config
  * @param {string} options.workerId
  * @param {string} [options.workerRunDir]
+ * @param {string} [options.workerStateDir]
  */
 const runningWorker = ({
   config,
   workerId,
   workerRunDir = path.join(config.ephemeralStatePath, 'worker', workerId),
+  workerStateDir = path.join(config.statePath, 'worker', workerId),
 }) => {
   const pidPath = path.join(workerRunDir, 'worker.pid');
+
+  const metaPath = path.join(workerStateDir, 'worker.meta.json');
+  const metaText = fs.promises.readFile(metaPath, 'utf-8');
+  const metaData = metaText.then(text => JSON.parse(text)).catch(() => null);
+
   return {
     get id() {
       return workerId;
@@ -520,6 +493,9 @@ const runningWorker = ({
 
     get pidPath() {
       return pidPath;
+    },
+    get logPath() {
+      return path.join(workerStateDir, 'worker.log');
     },
 
     pid: (async () => {
@@ -534,6 +510,15 @@ const runningWorker = ({
       }
       return null;
     })(),
+
+    async label() {
+      // TODO use M?
+      const meta = await metaData;
+      if (typeof meta !== 'object') return '';
+      if (!('label' in meta)) return '';
+      const { label } = meta;
+      return `${label}`;
+    },
   };
 };
 

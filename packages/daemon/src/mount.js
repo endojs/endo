@@ -4,10 +4,12 @@
 /** @import { FilePowers } from './types.js' */
 
 import { decodeBase64 } from '@endo/base64';
-import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
+import { makeExo } from '@endo/exo';
+
+import { mountHelp, mountFileHelp, makeHelp } from './help-text.js';
 import { MountInterface, MountFileInterface } from './interfaces.js';
+import { makeIteratorRef } from './reader-ref.js';
 
 /**
  * Validate a single path segment.
@@ -179,14 +181,10 @@ const makeMountExo = ctx => {
   const resolve = segments =>
     resolveSegments(currentDir, confinementRoot, segments, filePowers);
 
+  const help = makeHelp(mountHelp);
+
   return makeExo('EndoMount', MountInterface, {
-    help() {
-      const methods = Object.entries(mountHelp)
-        .filter(([k]) => k !== '')
-        .map(([, v]) => v)
-        .join('\n\n');
-      return `${description}\n\n${mountHelp['']}\n\n${methods}`;
-    },
+    help,
 
     async has(...pathSegments) {
       await null;
@@ -328,30 +326,10 @@ const makeMountFileExo = (filePath, readOnly, filePowers, confinementRoot) => {
     }
   };
 
+  const help = makeHelp(mountFileHelp);
+
   return makeExo('EndoMountFile', MountFileInterface, {
-    help() {
-      return [
-        'MountFile — A file within a mounted directory.',
-        '',
-        'text() -> Promise<string>',
-        'Read the file content as a UTF-8 string.',
-        '',
-        'streamBase64() -> AsyncIterator<string>',
-        'Stream the file content as base64 chunks.',
-        '',
-        'json() -> Promise<any>',
-        'Read and parse the file as JSON.',
-        '',
-        'writeText(content: string) -> Promise<void>',
-        'Write a string to the file. Throws if read-only.',
-        '',
-        'writeBytes(readableRef) -> Promise<void>',
-        'Write bytes from an async iterator. Throws if read-only.',
-        '',
-        'readOnly() -> EndoMountFile',
-        'Returns a read-only view of this file.',
-      ].join('\n');
-    },
+    help,
 
     async text() {
       await null;
@@ -399,80 +377,6 @@ const makeMountFileExo = (filePath, readOnly, filePowers, confinementRoot) => {
   });
 };
 harden(makeMountFileExo);
-
-/** @type {import('./help-text.js').HelpText} */
-export const mountHelp = {
-  '': `\
-EndoMount — Live mutable access to a filesystem directory.
-
-All paths are confined to the mount root. Symlinks that escape
-the root are invisible. Use readOnly() for an attenuated view.`,
-
-  help: `\
-help() -> string
-Get documentation for this interface.`,
-
-  has: `\
-has(...pathSegments: string[]) -> Promise<boolean>
-Check if a path exists within the mount.
-Each argument is one path segment: has("dir", "file.txt").`,
-
-  list: `\
-list(...pathSegments: string[]) -> Promise<string[]>
-List directory entries at the given path.
-Each argument is one path segment: list("subdir").
-Call with no arguments to list the root.
-Entries with symlinks escaping the mount root are excluded.`,
-
-  lookup: `\
-lookup(path) -> Promise<EndoMount | EndoMountFile>
-Resolve a path within the mount.
-path: string | string[] — Name or path segments.
-Returns EndoMount for directories, EndoMountFile for files.`,
-
-  readText: `\
-readText(path) -> Promise<string>
-Read a file as UTF-8 text.
-path: string | string[] — Name or path segments.
-Throws if the file does not exist.`,
-
-  maybeReadText: `\
-maybeReadText(path) -> Promise<string | undefined>
-Read a file as UTF-8 text, returning undefined if missing.
-path: string | string[] — Name or path segments.`,
-
-  writeText: `\
-writeText(path, content) -> Promise<void>
-Write UTF-8 text to a file at the given path.
-path: string | string[] — Name or path segments.
-content: string — Text content to write.
-Creates parent directories as needed. Throws if read-only.`,
-
-  remove: `\
-remove(path) -> Promise<void>
-Remove a file or empty directory.
-path: string | string[] — Name or path segments.`,
-
-  move: `\
-move(from, to) -> Promise<void>
-Rename an entry within the mount.
-from: string | string[] — Source name or path segments.
-to: string | string[] — Destination name or path segments.`,
-
-  makeDirectory: `\
-makeDirectory(path) -> Promise<void>
-Create a directory (and missing parents).
-path: string | string[] — Name or path segments.`,
-
-  readOnly: `\
-readOnly() -> EndoMount
-Returns a read-only view of this mount.`,
-
-  snapshot: `\
-snapshot() -> Promise<SnapshotTree>
-Capture current state as an immutable readable-tree. (Not yet implemented.)`,
-};
-harden(mountHelp);
 
 /**
  * Create a mount exo backed by a filesystem directory.

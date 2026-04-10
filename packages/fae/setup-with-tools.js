@@ -1,7 +1,7 @@
 // @ts-check
 /* global process */
 // endo run --UNCONFINED setup-with-tools.js \
-//   --powers @agent \
+//   --powers AGENT \
 //   -E PROVIDER_NAME=$PROVIDER_NAME \
 //   -E FACTORY_NAME=$FACTORY_NAME
 //

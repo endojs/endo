@@ -299,8 +299,8 @@ test('synced store: merge remote state', async t => {
       },
       5,
     );
-    t.true(changed.has('remote-name'));
-    t.true(changed.has('local-name'));
+    t.true(changed.includes('remote-name'));
+    t.true(changed.includes('local-name'));
     t.is(store.lookup('remote-name'), 'loc-remote');
     t.is(store.lookup('local-name'), 'loc-override');
     // Local clock advanced to at least remote clock.

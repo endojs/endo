@@ -7,7 +7,9 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 
+import { systemCapture } from '@endo/platform/proc';
 import { whereEndoState } from '@endo/where';
+import { time } from 'console';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,49 +27,52 @@ const wsRelayUrl = pathToFileURL(
   path.join(repoRoot, 'packages/daemon/src/networks/ws-relay.js'),
 ).href;
 
-// Bootstrap specifier for AI agent setup script
+// Bootstrap specifiers for AI agent setup scripts
 const lalSetupUrl = pathToFileURL(
   path.join(repoRoot, 'packages/lal/setup.js'),
+).href;
+const jaineSetupUrl = pathToFileURL(
+  path.join(repoRoot, 'packages/jaine/setup.js'),
 ).href;
 
 // Path to the endo CLI in this repo
 const endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
+
+// Load .env from repo root for ENDO_LLM_* vars (provider config).
+// Does not override vars already set in the shell environment.
+const loadDotenv = () => {
+  const envPath = path.join(repoRoot, '.env');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    for (const line of envContent.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const value = trimmed.slice(eqIdx + 1).trim();
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  }
+};
 
 /**
  * Run a short-lived CLI command and resolve/reject based on exit code.
  *
  * @param {string[]} args
  * @param {number} timeoutMs
- * @returns {Promise<{ code: number | null, stderr: string }>}
  */
-const runEndoCli = (args, timeoutMs = 15000) =>
-  new Promise((resolve, reject) => {
-    const child = spawn('node', [endoCliPath, ...args], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: repoRoot,
-    });
+const runEndoCli = (args, timeoutMs = 1_500) =>
+  systemCapture(endoCliPath, args, timeoutMs);
 
-    let stderr = '';
-    child.stderr.on('data', data => {
-      stderr += data.toString();
-    });
+// Set to 0 to disable thrashing when developing daemon
+const DAEMON_POLL_INTERVAL_MS = 5_000;
 
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error(`Timeout running endo ${args.join(' ')}`));
-    }, timeoutMs);
-
-    child.on('close', code => {
-      clearTimeout(timer);
-      resolve({ code, stderr });
-    });
-    child.on('error', error => {
-      clearTimeout(timer);
-      reject(error);
-    });
-  });
-
-const DAEMON_POLL_INTERVAL_MS = 5000;
+// The daemon may need to reincarnate network modules (libp2p DHT bootstrapping
+// can take ~30s), so allow up to 90s.
+const DAEMON_START_MAX_WAIT = 90_000;
 
 /**
  * Ping the daemon and return whether it responded.
@@ -76,47 +81,11 @@ const DAEMON_POLL_INTERVAL_MS = 5000;
  */
 const pingDaemon = async () => {
   try {
-    const { code } = await runEndoCli(['ping'], 10000);
+    const { code } = await runEndoCli(['ping'], 10_000);
     return code === 0;
   } catch {
     return false;
   }
-};
-
-/**
- * Ensure the system Endo daemon is running using this repo's CLI.
- * Pings first to avoid needlessly restarting an already-running daemon.
- *
- * @returns {Promise<void>}
- */
-const ensureEndoRunning = async () => {
-  console.log('[Endo Plugin] Ensuring Endo daemon is running...');
-
-  if (await pingDaemon()) {
-    console.log('[Endo Plugin] Endo daemon is already running');
-    return;
-  }
-
-  console.log('[Endo Plugin] Starting Endo daemon...');
-  try {
-    // The daemon may need to reincarnate network modules (libp2p DHT
-    // bootstrapping can take ~30s), so allow up to 90s.
-    await runEndoCli(['start'], 90000);
-    console.log('[Endo Plugin] Endo daemon started');
-  } catch (err) {
-    throw new Error(
-      `Failed to start Endo daemon: ${/** @type {Error} */ (err).message}`,
-    );
-  }
-};
-
-/**
- * Get the gateway address from ENDO_ADDR (default 127.0.0.1:8920).
- *
- * @returns {string}
- */
-const getGatewayAddress = () => {
-  return process.env.ENDO_ADDR || '127.0.0.1:8920';
 };
 
 /**
@@ -135,6 +104,118 @@ const getAgentId = async () => {
 };
 
 /**
+ * Daemon health checker and auto-restarter
+ */
+const makeEndoChecker = () => {
+  /** @type {string | undefined} */
+  let agentId;
+  let daemonHealthy = false;
+  /** True while an checkAndRestart() call is in flight. */
+  let startingDaemon = false;
+
+  // how many time have we tried, and failed to start the daemon; first one's free
+  let failStarts = -1;
+
+  /**
+   * Check daemon liveness and attempt a restart if it's down.
+   * Called on a recurring interval after the initial startup.
+   */
+  const checkAndRestart = async () => {
+    if (startingDaemon) return;
+    if (await pingDaemon()) {
+      if (!daemonHealthy) {
+        // Daemon just came back (or was restarted externally).
+        try {
+          agentId = await getAgentId();
+          console.log(
+            `[Endo Plugin] Daemon recovered, agent: ${(agentId || '<NOT_RUNNING>').slice(0, 16)}...`,
+          );
+        } catch {
+          // root file not yet available; will retry next tick.
+          return;
+        }
+      }
+      daemonHealthy = true;
+      return;
+    }
+
+    daemonHealthy = false;
+    startingDaemon = true;
+    await check();
+    startingDaemon = false;
+
+    if (daemonHealthy) {
+      console.log(
+        `[Endo Plugin] Daemon restarted, agent: ${(agentId || '<NOT_RUNNING>').slice(0, 16)}...`,
+      );
+    }
+  };
+
+  /**
+   * Ensure the system Endo daemon is running using this repo's CLI.
+   * Pings first to avoid needlessly restarting an already-running daemon.
+   *
+   * @returns {Promise<void>}
+   */
+  const ensureEndoRunning = async () => {
+    console.log('[Endo Plugin] Ensuring Endo daemon is running...');
+
+    if (await pingDaemon()) {
+      console.log('[Endo Plugin] Endo daemon is already running');
+      return;
+    }
+
+    agentId = undefined;
+    daemonHealthy = false;
+
+    console.log('[Endo Plugin] Starting Endo daemon...');
+    const { code, stderr } = await runEndoCli(['start'], DAEMON_START_MAX_WAIT);
+    if (code === 0) {
+      console.log('[Endo Plugin] Endo daemon started');
+      agentId = await getAgentId();
+      daemonHealthy = true;
+      failStarts = 0;
+    } else {
+      console.error('[Endo Plugin] Failed to start endo daemon');
+      for (const line of stderr.split('\n')) {
+        console.error(`[Endo Plugin]   ${line}`);
+      }
+      failStarts++;
+    }
+  };
+
+  // Monitor daemon liveness and attempt restarts.
+  const check = async () => {
+    await ensureEndoRunning();
+    if (DAEMON_POLL_INTERVAL_MS) {
+      // when start fails, backoff on retrying start up to how long we're
+      // willing to wait for start to even succeed
+      const nextCheck =
+        DAEMON_POLL_INTERVAL_MS *
+        Math.min(DAEMON_START_MAX_WAIT, Math.pow(2, failStarts));
+
+      if (!daemonHealthy) {
+        console.error(
+          `[Endo Plugin] Daemon Unhealthy ; next check in ${nextCheck}`,
+        );
+      }
+
+      setTimeout(checkAndRestart, nextCheck);
+    }
+  };
+
+  return {
+    get healthy() {
+      return daemonHealthy;
+    },
+    get agentId() {
+      return agentId || '<NOT_RUNNING>';
+    },
+    ensure: check,
+  };
+};
+
+/**
  * Create a Vite plugin that connects to the system Endo daemon's
  * built-in gateway.
  *
@@ -150,55 +231,8 @@ const getAgentId = async () => {
  * @returns {import('vite').Plugin}
  */
 export const makeEndoPlugin = () => {
-  /** @type {string | undefined} */
-  let gatewayAddress;
-  /** @type {string | undefined} */
-  let agentId;
-  let daemonHealthy = false;
-  /** True while an ensureEndoRunning() call is in flight. */
-  let startingDaemon = false;
-
-  /**
-   * Check daemon liveness and attempt a restart if it's down.
-   * Called on a recurring interval after the initial startup.
-   */
-  const checkAndRestart = async () => {
-    if (startingDaemon) return;
-    if (await pingDaemon()) {
-      if (!daemonHealthy) {
-        // Daemon just came back (or was restarted externally).
-        try {
-          agentId = await getAgentId();
-          console.log(
-            `[Endo Plugin] Daemon recovered, agent: ${agentId.slice(0, 16)}...`,
-          );
-        } catch {
-          // root file not yet available; will retry next tick.
-          return;
-        }
-      }
-      daemonHealthy = true;
-      return;
-    }
-
-    daemonHealthy = false;
-    startingDaemon = true;
-    try {
-      await ensureEndoRunning();
-      agentId = await getAgentId();
-      daemonHealthy = true;
-      console.log(
-        `[Endo Plugin] Daemon restarted, agent: ${agentId.slice(0, 16)}...`,
-      );
-    } catch (err) {
-      console.error(
-        `[Endo Plugin] Daemon restart failed:`,
-        /** @type {Error} */ (err).message,
-      );
-    } finally {
-      startingDaemon = false;
-    }
-  };
+  const endoChecker = makeEndoChecker();
+  const gatewayAddress = process.env.ENDO_ADDR || '127.0.0.1:8920';
 
   return {
     name: 'vite-endo-plugin',
@@ -218,31 +252,29 @@ export const makeEndoPlugin = () => {
 
     async configureServer(server) {
       try {
-        // Set ENDO_EXTRA so the daemon auto-provisions lal on startup.
+        loadDotenv();
+        console.log('[Endo Plugin] Loaded .env from repo root');
+
+        // Set ENDO_EXTRA so the daemon auto-provisions lal/jaine on startup.
         if (!process.env.ENDO_EXTRA) {
-          process.env.ENDO_EXTRA = lalSetupUrl;
+          process.env.ENDO_EXTRA = `${lalSetupUrl},${jaineSetupUrl}`;
         }
 
-        await ensureEndoRunning();
-
-        gatewayAddress = getGatewayAddress();
-        agentId = await getAgentId();
-        daemonHealthy = true;
+        await endoChecker.ensure();
 
         console.log(`[Endo Plugin] Gateway at ${gatewayAddress}`);
-        console.log(`[Endo Plugin] Agent: ${agentId.slice(0, 16)}...`);
+        console.log(
+          `[Endo Plugin] Agent: ${endoChecker.agentId.slice(0, 16)}...`,
+        );
       } catch (error) {
         console.error(`[Endo Plugin] Failed to start:`, error);
         throw error;
       }
 
-      // Monitor daemon liveness and attempt restarts.
-      setInterval(checkAndRestart, DAEMON_POLL_INTERVAL_MS);
-
       // Returns 200 only when the daemon is confirmed reachable.
       // The client polls this after a disconnect before navigating to /dev.
       server.middlewares.use('/health', (_req, res) => {
-        if (daemonHealthy) {
+        if (endoChecker.healthy) {
           res.setHeader('Content-Type', 'text/plain');
           res.end('ok');
         } else {
@@ -260,9 +292,8 @@ export const makeEndoPlugin = () => {
       server.middlewares.use('/dev', async (_req, res) => {
         try {
           const freshAgentId = await getAgentId();
-          agentId = freshAgentId;
           const fragment = new URLSearchParams({
-            gateway: gatewayAddress || '',
+            gateway: gatewayAddress,
             agent: freshAgentId,
           });
           res.writeHead(302, { Location: `/#${fragment}` });
@@ -276,7 +307,7 @@ export const makeEndoPlugin = () => {
 
     api: {
       getGatewayAddress: () => gatewayAddress,
-      getAgentId: () => agentId,
+      getAgentId: () => endoChecker.agentId,
     },
   };
 };

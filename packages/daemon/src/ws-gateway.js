@@ -10,6 +10,9 @@ import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe, mapWriter, mapReader } from '@endo/stream';
 
+/** @import { FarRef } from '@endo/eventual-send' */
+/** @import { EndoBootstrap } from './types.js' */
+
 import {
   makeMessageCapTP,
   messageToBytes,
@@ -66,7 +69,7 @@ harden(makeRateLimiter);
  * browser clients) to reach the daemon via CapTP.
  *
  * @param {object} opts
- * @param {import('./types.js').EndoBootstrap} opts.endoBootstrap
+ * @param {FarRef<EndoBootstrap> | EndoBootstrap} opts.endoBootstrap
  * @param {string} opts.host
  * @param {number} opts.port
  * @param {Promise<never>} opts.cancelled
@@ -97,11 +100,7 @@ export const startWsGateway = ({ endoBootstrap, host, port, cancelled }) => {
   wss.on('connection', (socket, req) => {
     const remoteAddress = req.socket.remoteAddress || '';
 
-    const {
-      promise: closed,
-      resolve: close,
-      reject: abort,
-    } = makePromiseKit();
+    const { promise: closed, resolve: close, reject: abort } = makePromiseKit();
 
     closed.finally(() => socket.close());
 
@@ -184,10 +183,7 @@ export const startWsGateway = ({ endoBootstrap, host, port, cancelled }) => {
       `[Gateway] Connection ${connectionNumber} from ${remoteAddress}`,
     );
 
-    const connectionClosed = Promise.race([
-      closed.then(() => {}),
-      capTpClosed,
-    ]);
+    const connectionClosed = Promise.race([closed.then(() => {}), capTpClosed]);
     connectionClosedPromises.add(connectionClosed);
     connectionClosed.finally(() => {
       connectionClosedPromises.delete(connectionClosed);
@@ -196,8 +192,11 @@ export const startWsGateway = ({ endoBootstrap, host, port, cancelled }) => {
   });
 
   /** @type {import('@endo/promise-kit').PromiseKit<string>} */
-  const { promise: started, resolve: resolveStarted, reject: rejectStarted } =
-    makePromiseKit();
+  const {
+    promise: started,
+    resolve: resolveStarted,
+    reject: rejectStarted,
+  } = makePromiseKit();
 
   server.on('error', rejectStarted);
   server.listen(port, host, () => {

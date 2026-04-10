@@ -33,6 +33,23 @@ import { makeEndoClient } from '@endo/daemon';
 import os from 'os';
 import path from 'path';
 
+/**
+ * Wrap a remote async iterator reference for local consumption via CapTP.
+ *
+ * @param {any} iteratorRef
+ * @returns {AsyncIterableIterator<any>}
+ */
+const makeRefIterator = iteratorRef => {
+  const iterator = {
+    next: async (/** @type {any[]} */ ...args) => E(iteratorRef).next(...args),
+    return: async (/** @type {any[]} */ ...args) =>
+      E(iteratorRef).return(...args),
+    throw: async (/** @type {any} */ error) => E(iteratorRef).throw(error),
+    [Symbol.asyncIterator]: () => iterator,
+  };
+  return iterator;
+};
+
 /** Resolve the daemon socket path (same logic as @endo/where). */
 const getEndoSockPath = () => {
   if (process.env.ENDO_SOCK) return process.env.ENDO_SOCK;
@@ -48,7 +65,11 @@ const getEndoSockPath = () => {
   if (process.env.XDG_RUNTIME_DIR) {
     return path.join(process.env.XDG_RUNTIME_DIR, 'endo', 'captp0.sock');
   }
-  return path.join(os.tmpdir(), `endo-${os.userInfo().username}`, 'captp0.sock');
+  return path.join(
+    os.tmpdir(),
+    `endo-${os.userInfo().username}`,
+    'captp0.sock',
+  );
 };
 
 const SOCK_PATH = getEndoSockPath();
@@ -280,23 +301,56 @@ const commands = {
   async 'channel-post'(host, args) {
     const [channelName, ...textParts] = args;
     const replyToIdx = textParts.indexOf('--reply-to');
+    const asIdx = textParts.indexOf('--as');
     let replyTo;
-    let text;
+    let asMember;
+    // Extract --reply-to and --as flags from text parts
+    const flagIndices = new Set();
     if (replyToIdx >= 0) {
       replyTo = textParts[replyToIdx + 1];
-      text = textParts.slice(0, replyToIdx).join(' ');
-    } else {
-      text = textParts.join(' ');
+      flagIndices.add(replyToIdx);
+      flagIndices.add(replyToIdx + 1);
     }
+    if (asIdx >= 0) {
+      asMember = textParts[asIdx + 1];
+      flagIndices.add(asIdx);
+      flagIndices.add(asIdx + 1);
+    }
+    const text = textParts.filter((_, i) => !flagIndices.has(i)).join(' ');
     if (!channelName || !text) {
       console.error(
-        'Usage: channel-post <name> <text> [--reply-to <msgNumber>]',
+        'Usage: channel-post <name> <text> [--reply-to <n>] [--as <member>]',
       );
       process.exit(1);
     }
     const channel = await E(host).lookup(channelName);
-    await E(channel).post([text], [], [], replyTo);
-    console.log(`Posted to ${channelName}${replyTo ? ` (reply to ${replyTo})` : ''}: ${text}`);
+    if (asMember) {
+      const memberHandle = await E(channel).join(asMember);
+      await E(memberHandle).post([text], [], [], replyTo);
+    } else {
+      await E(channel).post([text], [], [], replyTo);
+    }
+    const asLabel = asMember ? ` as ${asMember}` : '';
+    console.log(
+      `Posted to ${channelName}${asLabel}${replyTo ? ` (reply to ${replyTo})` : ''}: ${text}`,
+    );
+  },
+
+  async 'channel-move'(host, args) {
+    const [channelName, msgNumber, newParent, sortOrder] = args;
+    if (!channelName || !msgNumber || !newParent) {
+      console.error(
+        'Usage: channel-move <channel> <msgNumber> <newParentNumber> [sortOrder]',
+      );
+      process.exit(1);
+    }
+    const channel = await E(host).lookup(channelName);
+    const order = sortOrder || '1';
+    const moveStrings = [order, newParent];
+    await E(channel).post(moveStrings, [], [], msgNumber, [], 'move');
+    console.log(
+      `Moved #${msgNumber} under #${newParent} in ${channelName} (order: ${order})`,
+    );
   },
 
   async 'agent-send'(host, args) {
@@ -317,9 +371,7 @@ const commands = {
       process.exit(1);
     }
     const agentPowers = await E(host).lookup(agentName);
-    const messages = /** @type {any[]} */ (
-      await E(agentPowers).listMessages()
-    );
+    const messages = /** @type {any[]} */ (await E(agentPowers).listMessages());
     const count = countStr ? parseInt(countStr, 10) : messages.length;
     const shown = messages.slice(-count);
     if (shown.length === 0) {
@@ -327,6 +379,76 @@ const commands = {
       return;
     }
     for (const msg of shown) {
+      console.log(formatMessage(msg));
+    }
+  },
+
+  async 'channel-watch'(host, args) {
+    const [channelName, ...filterParts] = args;
+    if (!channelName) {
+      console.error('Usage: channel-watch <name> [--skip-from <member>]');
+      process.exit(1);
+    }
+    const skipFromIdx = filterParts.indexOf('--skip-from');
+    const skipFrom = skipFromIdx >= 0 ? filterParts[skipFromIdx + 1] : null;
+
+    const channel = await E(host).lookup(channelName);
+
+    // Build member name lookup
+    /** @type {Map<string, string>} */
+    const memberNames = new Map();
+    try {
+      const members = /** @type {any[]} */ (await E(channel).getMembers());
+      for (const m of members) {
+        memberNames.set(m.memberId, m.proposedName || m.invitedAs);
+      }
+    } catch {
+      // getMembers not available
+    }
+    try {
+      const adminId = await E(channel).getMemberId();
+      const adminName = await E(channel).getProposedName();
+      memberNames.set(adminId, adminName);
+    } catch {
+      // not available
+    }
+
+    // Get existing message count to skip
+    const existing = /** @type {any[]} */ (await E(channel).listMessages());
+    const existingCount = existing.length;
+    console.error(
+      `[watch] Watching ${channelName} (${existingCount} existing, streaming new)`,
+    );
+
+    let seen = 0;
+    const iterRef = await E(channel).followMessages();
+    const iter = makeRefIterator(iterRef);
+    for await (const msg of iter) {
+      seen += 1;
+      if (seen <= existingCount) continue;
+
+      const author = memberNames.get(msg.memberId) || msg.memberId || '?';
+      // Skip messages from the filtered member
+      if (skipFrom && author === skipFrom) continue;
+
+      // Output the new message
+      console.log(formatChannelMessage(msg, memberNames));
+    }
+  },
+
+  async 'inbox-watch'(host, _args) {
+    const existing = /** @type {any[]} */ (await E(host).listMessages());
+    const existingCount = existing.length;
+    console.error(
+      `[watch] Watching HOST inbox (${existingCount} existing, streaming new)`,
+    );
+
+    let seen = 0;
+    const iterRef = await E(host).followMessages();
+    const iter = makeRefIterator(iterRef);
+    for await (const msg of iter) {
+      seen += 1;
+      if (seen <= existingCount) continue;
       console.log(formatMessage(msg));
     }
   },
@@ -342,7 +464,10 @@ Commands:
   lookup <name> [agent]            Inspect a value by pet name
   channel-messages <name> [count]  List messages in a channel (last N)
   channel-members <name>           List channel members
-  channel-post <name> <text> [--reply-to <n>]  Post to a channel
+  channel-post <name> <text> [--reply-to <n>] [--as <member>]
+  channel-move <name> <msg> <newParent> [sortOrder]
+  channel-watch <name> [--skip-from <member>]  Stream new messages
+  inbox-watch                      Stream new HOST inbox messages
   agent-send <agent> <text>        Send message to an agent's inbox
   agent-inbox <profile> [count]    List an agent's inbox messages
   help                             Show this help`);
@@ -367,13 +492,16 @@ const main = async () => {
     process.exit(1);
   }
 
+  const isWatch = command === 'channel-watch' || command === 'inbox-watch';
   const { host, cancel } = await connect();
   try {
     await commands[command](host, args);
   } finally {
-    cancel(Error('done'));
-    // Give CapTP a moment to flush
-    setTimeout(() => process.exit(0), 200);
+    if (!isWatch) {
+      cancel(Error('done'));
+      // Give CapTP a moment to flush
+      setTimeout(() => process.exit(0), 200);
+    }
   }
 };
 

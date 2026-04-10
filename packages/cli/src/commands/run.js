@@ -56,7 +56,11 @@ export const run = async ({
       let powersP;
       if (powersName === '@none') {
         powersP = E(bootstrap).leastAuthority();
-      } else if (powersName === '@agent') {
+      } else if (
+        powersName === '@host' ||
+        powersName === '@agent' ||
+        powersName === 'AGENT'
+      ) {
         powersP = agent;
       } else if (powersName === '@endo') {
         powersP = bootstrap;
@@ -98,7 +102,7 @@ export const run = async ({
           }
 
           const bundleNamePath = parsePetNamePath(bundleName);
-          const readableP = E(agent).lookup(...bundleNamePath);
+          const readableP = E(agent).lookup(bundleNamePath);
           const bundleText = await E(readableP).text();
           bundle = JSON.parse(bundleText);
         } else {

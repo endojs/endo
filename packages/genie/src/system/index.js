@@ -124,13 +124,15 @@ export default function* buildSystemPrompt(options = {}) {
 function* breakBetween(brk, ...sections) {
   let some = false;
   for (const section of sections) {
-    const lines = section[Symbol.iterator]();
-    const first = lines.next();
+    const iter = /** @type {IterableIterator<string>} */ (
+      section[Symbol.iterator]()
+    );
+    const first = iter.next();
     if (!first.done) {
       if (some) yield brk;
       else some = true;
       yield first.value;
-      for (const line of lines) yield line;
+      for (const line of iter) yield line;
     }
   }
 }
@@ -215,8 +217,10 @@ function* tools(toolList) {
   yield* demarcatedSection(2, 'Tools', [
     'Available tools:',
     ...toolList.map(({ name, summary }) => `- ${name}: ${summary}`),
-    '',
-    '## Tool Call Style',
+  ]);
+
+  yield '';
+  yield* demarcatedSection(2, 'Tool Call Style', [
     'Default: do not narrate routine, low-risk tool calls (just call the tool).',
     'Narrate only when it helps: multi-step work, complex problems, sensitive actions ' +
       '(e.g., deletions), or when the user explicitly asks.',

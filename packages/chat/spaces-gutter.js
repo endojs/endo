@@ -29,8 +29,11 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
  * @property {string} [proposedName] - display name for the channel creator
  * @property {string} [whylipSystemPrompt] - optional system prompt override (for whylip mode)
- * @property {'chat' | 'forum'} [viewMode] - channel view mode (default: 'chat')
+ * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - channel view mode (default: 'chat')
  * @property {boolean} [ownedPersona] - whether the space owns the persona (for cleanup on delete)
+ * @property {string} [lastChannelPetName] - last viewed channel in this space (restored on re-entry)
+ * @property {string[]} [channelOrder] - persisted channel display order in sidebar
+ * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
  */
 
 /**
@@ -39,7 +42,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {(id: string) => void} selectSpace - Activate a space
  * @property {() => SpaceConfig[]} getSpaces - Get current space list
  * @property {(config: Omit<SpaceConfig, 'id'>) => Promise<string>} addSpace - Add a new space
- * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>) => Promise<void>} updateSpace - Update a space
+ * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode' | 'lastChannelPetName' | 'channelOrder' | 'bookmarks'>>) => Promise<void>} updateSpace - Update a space
  * @property {(id: string) => Promise<void>} removeSpace - Remove a space
  * @property {() => string} getActiveSpaceId - Get currently active space ID
  */
@@ -85,7 +88,7 @@ harden(pathsEqual);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' }) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' | 'outliner' }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -361,10 +364,12 @@ export const createSpacesGutter = ({
     render();
     onNavigate(space.profilePath, {
       mode: space.mode,
-      channelPetName: space.channelPetName,
+      channelPetName: space.lastChannelPetName || space.channelPetName,
       proposedName: space.proposedName,
       whylipSystemPrompt: space.whylipSystemPrompt,
       viewMode: space.viewMode,
+      channelOrder: space.channelOrder,
+      bookmarks: space.bookmarks,
     });
   };
 
@@ -693,12 +698,37 @@ export const createSpacesGutter = ({
     }
     if (
       typeof obj.viewMode === 'string' &&
-      (obj.viewMode === 'chat' || obj.viewMode === 'forum')
+      (obj.viewMode === 'chat' ||
+        obj.viewMode === 'forum' ||
+        obj.viewMode === 'outliner' ||
+        obj.viewMode === 'microblog')
     ) {
       result.viewMode = obj.viewMode;
     }
     if (typeof obj.ownedPersona === 'boolean') {
       result.ownedPersona = obj.ownedPersona;
+    }
+    if (typeof obj.lastChannelPetName === 'string') {
+      result.lastChannelPetName = obj.lastChannelPetName;
+    }
+    if (
+      Array.isArray(obj.channelOrder) &&
+      obj.channelOrder.every(n => typeof n === 'string')
+    ) {
+      result.channelOrder = obj.channelOrder;
+    }
+    if (
+      Array.isArray(obj.bookmarks) &&
+      obj.bookmarks.every(
+        b =>
+          typeof b === 'object' &&
+          b !== null &&
+          typeof b.key === 'string' &&
+          typeof b.channelPetName === 'string' &&
+          typeof b.label === 'string',
+      )
+    ) {
+      result.bookmarks = obj.bookmarks;
     }
     return /** @type {SpaceConfig} */ (harden(result));
   };
