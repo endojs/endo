@@ -18,7 +18,7 @@ Endo daemon. All communication happens through the daemon's message-passing
 │                     Endo Daemon                     │
 │                                                     │
 │  ┌──────────┐     mail      ┌────────────────────┐  │
-│  │   HOST   │◀─────────────▶│    Lal Agent       │  │
+│  │  @host   │◀─────────────▶│    Lal Agent       │  │
 │  │ (human)  │               │  (guest caplet)    │  │
 │  └─────┬────┘               └────────┬───────────┘  │
 │        │                             │              │
@@ -81,16 +81,16 @@ following inside the Endo daemon.
 The caplet entry point follows the Endo convention. On load:
 
 1. Initialize the LLM provider (`createProvider(env)`)
-2. Announce readiness to HOST
-3. Identify SELF and start the message-following loop
+2. Announce readiness to `@host`
+3. Locate `@self` and start the message-following loop
 
 ```
 make()
   │
   ├─ createProvider(env)              # LLM provider from env vars
   ├─ Initialize transcript with system prompt
-  ├─ E(powers).send('HOST', [...])    # "Lal agent ready."
-  ├─ E(powers).identify('SELF')      # Get own formula ID
+  ├─ E(powers).send('@host', [...])   # greeting with call to action
+  ├─ E(powers).locate('@self')        # Get own locator
   └─ runAgent()                       # Enter message-following loop
 ```
 
@@ -268,7 +268,7 @@ Lal uses a large, static system prompt defined inline in `agent.js`:
 ├──────────────────────────────────────┤
 │ 8. Quasi-Markdown Formatting         │  *bold*, /italic/, _underline_
 ├──────────────────────────────────────┤
-│ 9. Special Petnames                  │  SELF, HOST, AGENT
+│ 9. Special Petnames                  │  @self, @host, @agent, @main
 ├──────────────────────────────────────┤
 │ 10. Response Protocol                │  Tool-calls only, no prose
 ├──────────────────────────────────────┤
@@ -416,7 +416,7 @@ E(agent).provideGuest('lal', { introducedNames: {}, agentName: 'profile-for-lal'
     │
     ├─ E(guest).storeValue(config, 'lal-config')   # Persist config
     │
-    └─ E(agent).makeUnconfined('MAIN', 'agent.js', {
+    └─ E(agent).makeUnconfined('@main', 'agent.js', {
          powersName: 'profile-for-lal',
          resultName: 'controller-for-lal',
          env: { LAL_HOST, LAL_AUTH_TOKEN, LAL_MODEL }
@@ -480,7 +480,7 @@ A complete request lifecycle:
       resultName: "increment-result")
    d. E(powers).evaluate(...) → code executes, result returned
    e. chat(transcript) → LLM calls lookup("increment-result")
-   f. chat(transcript) → LLM calls send("HOST", ["The counter is now 42"], [], [])
+   f. chat(transcript) → LLM calls send("@host", ["The counter is now 42"], [], [])
    g. chat(transcript) → LLM calls dismiss("+5")
    h. chat(transcript) → LLM returns no tool calls
    i. Loop exits
