@@ -238,14 +238,19 @@ export const makeMailboxMaker = ({
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex256()
       );
-      return harden({
+      const { promiseId, resolverId } = await formulatePromise(pinTransient);
+      const resolutionIdP = provide(promiseId);
+      const definition = harden({
         type: /** @type {const} */ ('definition'),
         from: fromId,
         to: toId,
         messageId,
         source,
         slots,
+        promiseId,
+        resolverId,
       });
+      return harden({ definition, response: resolutionIdP });
     };
 
     /**
@@ -309,6 +314,8 @@ export const makeMailboxMaker = ({
           ...envelopeRecord,
           source: envelope.source,
           slots: envelope.slots,
+          promiseId: /** @type {FormulaIdentifier} */ (envelope.promiseId),
+          resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
 
@@ -1092,14 +1099,19 @@ export const makeMailboxMaker = ({
         /** @type {FormulaIdentifier} */ (hostHandleId),
       );
 
-      const req = await makeDefineRequest(
+      const { definition: req } = await makeDefineRequest(
         source,
         slots,
         selfId,
         /** @type {FormulaIdentifier} */ (hostHandleId),
       );
 
-      await post(hostHandle, req);
+      try {
+        await post(hostHandle, req);
+      } finally {
+        unpinTransient(req.promiseId);
+        unpinTransient(req.resolverId);
+      }
     };
 
     /** @type {Mail['form']} */

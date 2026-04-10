@@ -445,6 +445,9 @@ export const inventoryComponent = async (
         if (!locator) {
           $remove.disabled = true;
           $remove.title = 'Cannot remove (immutable)';
+          // Still allow clicking the name to inspect the value
+          $name.classList.add('selectable');
+          $name.onclick = inspectItem;
           return;
         }
         const url = new URL(/** @type {string} */ (locator));
@@ -487,6 +490,10 @@ export const inventoryComponent = async (
             ) {
               $wrapper.classList.add('active-conversation');
             }
+          } else {
+            // Non-conversable: clicking the name opens the Show Value modal
+            $name.classList.add('selectable');
+            $name.onclick = inspectItem;
           }
         }
       })

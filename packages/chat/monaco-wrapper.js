@@ -70,6 +70,26 @@ export const detectTheme = () => {
 };
 harden(detectTheme);
 
+// Set the initial global theme so that colorize() calls before any
+// editor is created produce colors matching the current scheme.
+// Monaco's colorize() output uses CSS classes (mtk1, mtk3, etc.)
+// whose color rules are defined in a <style> tag managed by the
+// theme service.  Calling setTheme() updates those rules, so
+// already-rendered code blocks automatically reflect the new colors.
+monaco.editor.setTheme(detectTheme());
+
+// Keep the global theme in sync when the scheme changes, even if
+// no editor instance exists.  (Editors register their own listeners
+// in createMonacoEditor; these cover the colorize-only case.)
+window
+  .matchMedia('(prefers-color-scheme: dark)')
+  .addEventListener('change', () => {
+    monaco.editor.setTheme(detectTheme());
+  });
+document.addEventListener('endo-theme-change', () => {
+  monaco.editor.setTheme(detectTheme());
+});
+
 /**
  * @typedef {object} MonacoEditorAPI
  * @property {() => string} getValue - Get the editor content
@@ -219,6 +239,11 @@ harden(createMonacoEditor);
 
 /**
  * Syntax-highlight text without creating a full editor instance.
+ *
+ * The returned HTML uses CSS classes (mtk1, mtk3, …) whose colors
+ * are defined by Monaco's theme service.  The module-level listeners
+ * keep the theme in sync, so already-rendered code blocks update
+ * automatically when the user switches light/dark.
  *
  * @param {string} text
  * @param {string} language - Monaco language identifier

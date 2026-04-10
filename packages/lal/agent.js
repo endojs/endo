@@ -739,6 +739,29 @@ or both. When giving the user instructions or guidance:
 - Prefer the user's apparent interface when you can infer it; if
   uncertain, show both.
 
+## Writing Programs
+
+When the user asks you to write, create, propose, or build a program,
+**always use the \`define()\` tool**. Do not use \`evaluate()\` — the user
+expects to review the code and choose which capabilities to bind.
+
+- Each endowment the code needs becomes a named slot in the \`slots\`
+  parameter with a descriptive label.
+- The code receives endowments as lexical bindings (variable names
+  matching the slot keys).
+- The *completion value* (last expression) is the result. Make sure
+  the final expression evaluates to whatever the program should produce.
+- Top-level \`await\` is not supported. For a single async call, the
+  promise itself is the completion value. For multiple async steps,
+  wrap in an async IIFE: \`(async () => { ... })()\`.
+
+Example — propose a program that reads a file from a directory:
+\`\`\`
+define("E(dir).readText('config.json')", {
+  "dir": {"label": "Directory containing config.json"}
+})
+\`\`\`
+
 ## Primer
 
 You have a \`primer\` directory in your inventory with detailed documentation.
@@ -1262,15 +1285,22 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
     for (const toolCall of toolCalls) {
       const { name, arguments: argsRaw } = toolCall.function;
 
-      // Decode SmallCaps arguments ("+7" -> 7n, "#undefined" -> undefined)
+      // Decode SmallCaps arguments ("+7" -> 7n, "#undefined" -> undefined).
+      // Falls back to plain JSON.parse if SmallCaps decoding fails, since
+      // some tool arguments (e.g. define's nested slots objects) are plain
+      // JSON that SmallCaps cannot decode.
       /** @type {ToolCallArgs} */
       let args;
+      const jsonString =
+        typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
       try {
-        const jsonString =
-          typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
         args = /** @type {ToolCallArgs} */ (decodeSmallcaps(jsonString));
       } catch {
-        args = {};
+        try {
+          args = /** @type {ToolCallArgs} */ (JSON.parse(jsonString));
+        } catch {
+          args = {};
+        }
       }
 
       console.log(`[tool] ${name}(${passableAsJustin(harden(args), false)})`);
@@ -1426,8 +1456,23 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
    * @returns {Promise<void>}
    */
   const runAgent = async () => {
-    // Announce ourselves
-    await E(powers).send('@host', ['Lal agent ready.'], [], []);
+    // Announce ourselves with a call to action.
+    // The host sees this from whatever pet name they gave us.
+    await E(powers).send(
+      '@host',
+      [
+        "Hello! I'm ready to help.\n\n" +
+          'Send me a message to get started — in Chat, type ' +
+          '`@` followed by my name and your request.\n\n' +
+          'A few things to try:\n' +
+          '- Ask me what I can do\n' +
+          '- Ask me to list your inventory\n' +
+          '- Ask me to help write a program\n\n' +
+          'Type `/help` to see all available Chat commands.',
+      ],
+      [],
+      [],
+    );
 
     /** @type {string | undefined} */
     const selfLocator = await E(powers).locate('@self');
