@@ -16,12 +16,15 @@ interfaces, and how-to guides for common tasks.
 
 ## User Interface Reference
 
-Your user may be working from the terminal (Endo CLI) or the
-web UI (Endo Chat / Familiar). When giving instructions, frame
-them for both interfaces when practical.
+Most users work in Endo Chat (the web UI inside Familiar).
+When giving instructions, **default to Chat commands** (`/ls`,
+`/view`, `/edit`, `@recipient message`). Only mention the CLI
+when it provides something Chat cannot — primarily `endo run`
+for running program files and `endo checkin`/`endo checkout`
+for snapshotting filesystem subtrees.
 
-- `cli-reference.md` — Endo CLI commands (`endo ls`, `endo send`, etc.)
-- `chat-reference.md` — Chat slash commands (`/ls`, `/send`, etc.)
+- `chat-reference.md` — Chat slash commands (`/ls`, `/view`, `/edit`, etc.)
+- `cli-reference.md` — Endo CLI commands (for operations not available in Chat)
 
 ## How-To Guides
 

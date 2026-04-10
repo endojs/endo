@@ -22,17 +22,29 @@ List a subdirectory:
 /ls my-directory
 ```
 
-View the contents of a blob, file, or JSON value inline:
+## Viewing and Editing Values
+
+View the contents of a blob, file, or JSON value inline in
+the chat window:
 ```
 /view my-config
 ```
 
-Edit a value in place (Chat only):
+Open an inline editor to modify a value in place:
 ```
 /edit my-config
 ```
 
-CLI equivalents: `endo ls`, `endo cat <name>`.
+These work for any text content — configuration files, JSON
+blobs, source code, notes. `/view` is read-only; `/edit`
+lets you change and save. Both are Chat-only features with
+no direct CLI equivalent.
+
+You can also browse mounted directories this way:
+```
+/view project-dir/README.md
+/edit project-dir/src/config.json
+```
 
 ## Mounting a Filesystem Directory
 
@@ -43,7 +55,8 @@ real directory on disk:
 /mount /path/to/project -n project-dir
 ```
 
-Now `project-dir` is a live capability. You can browse it:
+Now `project-dir` is a live capability. Browse and edit its
+contents with `/ls`, `/view`, and `/edit`:
 ```
 /ls project-dir
 /view project-dir/README.md
@@ -60,14 +73,11 @@ For a daemon-managed scratch directory:
 /mktmp -n scratch
 ```
 
-CLI equivalents: `endo mount /path -n name`,
-`endo mktmp -n name`.
-
 ## Checking In and Out (Immutable Snapshots)
 
 Check in a local directory as an immutable readable tree.
-This is a CLI operation — there is no Chat equivalent for
-check-in because it accesses the local filesystem:
+This is a CLI-only operation — it accesses the local
+filesystem directly:
 
 ```
 endo checkin ./my-docs -n docs
@@ -78,7 +88,11 @@ Check it back out later:
 endo checkout docs ./restored-docs
 ```
 
-Chat equivalents for checkout only: `/co docs ./restored-docs`
+Once checked in, you can browse the snapshot in Chat:
+```
+/ls docs
+/view docs/README.md
+```
 
 ## Renaming and Organizing
 
@@ -117,5 +131,3 @@ machines. The other party adopts it:
 ```
 /adopt-locator <locator> -n their-name
 ```
-
-CLI equivalent: `endo locate my-value`.

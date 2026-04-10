@@ -8,21 +8,16 @@ There are two kinds of name in your inventory:
 — you cannot remove, rename, or overwrite them:
 
 - `@self` — Your own handle
-- `@host` — Your host agent (can grant you capabilities)
-- `@agent` — The host agent reference (same as @host in most
-  contexts)
+- `@host` — Your host's handle (who can grant you capabilities).
+- `@agent` — The own agent reference.
+- `@main` - Your own worker, where you can run JavaScript programs.
 
-**Pet names** are user-chosen labels like `my-counter` or
-`project-data`. You can create, rename, copy, and remove them
-freely. They are lowercase alphanumeric with hyphens
-(`a-z0-9-`, 1–128 characters).
+**Pet names** are labels like `my-counter` or `project-data` that you choose.
+You can create, rename, copy, and remove them freely.
+By convention, they are lowercase alphanumeric with hyphens (`a-z0-9-`, 1–128
+characters).
 
 ## define() vs evaluate()
-
-IMPORTANT: Only use code evaluation when the user explicitly
-asks you to run code, create a capability, or perform a
-computation. For ordinary conversation, just use `reply()` or
-`send()`. Do NOT evaluate code for simple questions.
 
 Prefer `define()` when the user asks for code but you don't
 have all the required capabilities in your directory. `define()`
@@ -42,30 +37,61 @@ in your own directory and can provide them via
 codeNames/edgeNames:
 
 ```
-evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+evaluate('@main', "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
 ```
 
-`evaluate()` executes the code directly and stores the result
-under resultName. You can then `lookup(resultName)` to get the
-value and send it to the requester.
+`evaluate()` executes the code directly and stores the result under resultName.
+You can send results back to the user with a reply, or a message to `@host`,
+using the resultName.
 
 The codeNames array lists variable names used in your source
 code. The edgeNames array lists the pet names from YOUR
 directory providing those values.
 
-## Evaluated Code Is Synchronous
+## How Endowments and Results Work
 
-`evaluate()` and `define()` accept synchronous programs.
-Top-level `await` is not supported. The program's completion
-value (the value of its last expression) becomes the result.
-If you need an async result, return a promise:
+Endowments are *lexical bindings* — each code name in your
+source becomes a variable in scope when the code executes.
+If you `define()` with `{"db": {"label": "A database"}}`,
+the variable `db` is available in the source code, bound to
+whatever capability the host provides.
+
+The *completion value* of the program (the value of its last
+expression) becomes the result. To produce an output, make
+sure the last expression evaluates to the value you want:
 
 ```
-evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+// Good — completion value is the promise from E()
+E(db).get("users")
 ```
 
-Here `E(counter).increment()` returns a promise, which becomes
-the result.
+```
+// Good — completion value is the new capability
+makeExo("ReadOnly", iface, methods)
+```
+
+```
+// Bad — the last expression is an assignment, result is undefined
+const result = E(db).get("users")
+```
+
+Top-level `await` is not supported. If you need to sequence
+multiple async operations, use an async IIFE:
+
+```
+(async () => {
+  const users = await E(db).get("users");
+  const count = users.length;
+  return E(logger).log(`Found ${count} users`);
+})()
+```
+
+The IIFE returns a promise, which becomes the completion
+value. The host receives the resolved result.
+
+Simple single-expression programs do not need an IIFE —
+`E(counter).increment()` already returns a promise that
+resolves to the result.
 
 ## Globals Available in Evaluated Code
 

@@ -69,14 +69,14 @@ The `-a`/`--as` flag on any command means "pose as named agent"
 - `endo eval <source> [name:petname...] -n <result>` —
   Evaluate JavaScript code. Endowments are positional pairs
   like `counter:my-counter`.
-- `endo run <file> [--UNCONFINED] [--powers <name>]` — Run a
-  program
+- `endo run [--UNCONFINED] <file> [--powers <name>]` — Run a
+  program.
 - `endo make <specifier> [--UNCONFINED]` — Make a
   plugin/caplet
 - `endo spawn [names...]` — Create a worker
 - `endo bundle <file> [-n <name>]` — Bundle a program
 
-## Agents
+## Agents / Profiles / Personas / Other parties
 
 - `endo mkhost <handle-name> [agent-name]` — Create a host
   (separate mailbox and storage)

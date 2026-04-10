@@ -7,20 +7,14 @@ evaluate (you provide the capabilities) and define/endow
 
 ## Quick Evaluation
 
-Chat:
 ```
 /js E(counter).increment()
 ```
 
-Chat's `/js` opens an inline form for endowments — you bind
-variable names in the code to capabilities in your inventory.
-
-CLI:
-```
-endo eval 'E(counter).increment()' counter:my-counter -n result
-```
-
-Endowments are positional pairs: `varname:petname`.
+Chat's `/js` opens an inline form. Type `@` to add
+endowments — you bind variable names in the code to
+capabilities in your inventory. Press Enter to evaluate,
+or Cmd+Enter to expand to a full editor.
 
 ## The Define/Endow Pattern
 
@@ -40,9 +34,10 @@ the message card shows an inline form with a slot for each
 named parameter. Fill in the pet name for each slot (e.g.,
 bind `db` to `my-database`) and click Submit.
 
-CLI:
+You can also use the `/endow` command to open a full modal
+for reviewing the code and filling in bindings:
 ```
-endo endow <msgnum> db=my-database -n users
+/endow 5
 ```
 
 The code runs in a sandbox with your chosen endowments.
@@ -52,9 +47,17 @@ This pattern is central to attenuation — the agent proposes
 a transformation, you provide the powerful input, and the
 output is a less-powerful capability you can share safely.
 
-## Running a Program File
+## Viewing Code Before Endowing
 
-CLI only — program files run from the terminal:
+When you receive a definition message, you can review the
+proposed code before providing any capabilities. Use `/view`
+on the definition or `/endow` to open the full modal, which
+shows the source alongside the binding form.
+
+## Running a Program File (CLI Only)
+
+Program files run from the terminal — there is no Chat
+equivalent:
 ```
 endo run ./my-script.js --powers @agent
 ```
@@ -72,8 +75,6 @@ Workers are isolated execution contexts:
 /spawn -n my-worker
 ```
 
-CLI: `endo spawn my-worker`
-
 ## What's Available in Evaluated Code
 
 - `E(target)` — Eventual-send for remote method calls
@@ -81,9 +82,24 @@ CLI: `endo spawn my-worker`
 - `makeExo(tag, interface, methods)` — Create capability objects
 - `harden(obj)` — Freeze an object for safe sharing
 
-Code is synchronous — no top-level `await`. If you need an
-async result, return a promise (the last expression's value
-becomes the result).
+Endowments are lexical bindings — each code name becomes a
+variable in scope. The *completion value* (the last expression)
+becomes the result, so make sure the final expression
+evaluates to whatever you want to produce.
+
+Top-level `await` is not supported. For single async calls,
+the promise itself is the completion value:
+```
+E(counter).increment()
+```
+
+For multiple async steps, use an async IIFE:
+```
+(async () => {
+  const val = await E(counter).getValue();
+  return E(logger).log(`Current: ${val}`);
+})()
+```
 
 ## Building Capabilities: A Graduated Guide
 
@@ -104,7 +120,7 @@ Evaluate code that transforms an existing capability:
 })
 ```
 
-Name the result `-n greeter` and share it with others.
+Name the result and share it with others.
 
 ### 3. Wrapping for attenuation
 

@@ -8,12 +8,36 @@ interact with them through pet names in your inventory.
 
 Before using an unfamiliar capability, inspect it:
 
-As an agent: use `inspect("my-capability")`
-Chat: `/show my-capability`
-CLI: `endo show my-capability`
+```
+/show my-capability
+```
 
 Inspection reveals the capability's methods and, if it
 supports `help()`, a description of what it does.
+
+As an agent, use `inspect("my-capability")` for the same
+information.
+
+## Viewing and Editing Content
+
+Use `/view` to read the contents of a blob, file, or stored
+value inline in the chat window:
+
+```
+/view my-config
+/view project-dir/src/index.js
+```
+
+Use `/edit` to open an inline editor and modify the value in
+place:
+
+```
+/edit my-config
+/edit project-dir/package.json
+```
+
+These are powerful Chat features — you can browse and modify
+any text content without leaving the conversation.
 
 ## Giving a Capability to an Agent
 
@@ -41,8 +65,6 @@ Ask your host or another agent:
 ```
 
 Your host sees the request and can grant it with `/resolve`.
-
-CLI: `endo request "I need the database" -t @host`
 
 ## Attenuation: Creating Less-Powerful Capabilities
 
@@ -76,11 +98,6 @@ result, which you can then share:
 @untrusted-agent Here is @read-only-view for you.
 ```
 
-CLI equivalent:
-```
-endo endow <msgnum> dir=project-dir -n read-only-view
-```
-
 ## Sharing Capabilities Across Networks
 
 Generate a shareable locator:
@@ -98,24 +115,23 @@ protocols.
 
 ## Reading from a Readable Tree
 
-A readable tree is an immutable directory snapshot (e.g.,
-from `endo checkin`):
+A readable tree is an immutable directory snapshot. Browse
+and view its contents in Chat:
 
 ```
 /ls my-tree
 /view my-tree/README.md
 ```
 
-CLI: `endo ls my-tree`, `endo cat my-tree/README.md`
-
-To check out to disk (CLI only):
+To check out the tree to disk, use the CLI:
 ```
 endo checkout my-tree ./local-dir
 ```
 
 ## Writing to a Mounted Directory
 
-A mount is a live filesystem directory:
+A mount is a live filesystem directory. Browse, view, and
+edit its contents directly in Chat:
 
 ```
 /ls my-mount

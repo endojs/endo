@@ -6,7 +6,7 @@ values.
 
 ## Sending Messages
 
-In Chat, type the recipient's name followed by the message:
+Type the recipient's name followed by the message:
 
 ```
 @alice Hello, how are you?
@@ -21,15 +21,11 @@ To include a capability in the message, embed its pet name:
 
 The recipient can adopt the embedded capability.
 
-CLI: `endo send @lal "Here is @project-dir for you."`
-
 ## Replying to a Message
 
 ```
 /reply 5 Thanks for the update!
 ```
-
-CLI: `endo reply 5 "Thanks for the update!"`
 
 ## Managing Conversation Context
 
@@ -65,8 +61,6 @@ them before use:
 This takes the value the sender labeled "counter" from message
 #3 and stores it as "my-counter" in your inventory.
 
-CLI: `endo adopt 3 counter -n my-counter`
-
 ## Requesting a Capability
 
 Ask another agent for something:
@@ -77,8 +71,6 @@ Ask another agent for something:
 
 The recipient can grant or deny the request.
 
-CLI: `endo request "I need the database" -t @host`
-
 ## Granting and Denying Requests
 
 ```
@@ -86,17 +78,20 @@ CLI: `endo request "I need the database" -t @host`
 /reject 7
 ```
 
-CLI: `endo resolve 7 my-database`, `endo reject 7`.
-
 ## Sending Forms
 
 Forms collect structured input from another party:
 
 ```
-/form @recipient Configuration
+/form @recipient
 ```
 
-Chat opens a form builder. The recipient fills in fields and
-submits.
+Chat opens a form builder where you define the fields. The
+recipient fills in and submits.
 
-CLI: `endo form @recipient "Configuration" name:Name host:Host`
+## CLI Notes
+
+Most messaging operations are available in Chat. The CLI
+equivalents (`endo send`, `endo reply`, `endo adopt`, etc.)
+are useful for scripting and automation but are not needed
+for interactive use.
