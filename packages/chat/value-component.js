@@ -180,9 +180,6 @@ const renderBlobContent = async ($container, text, language) => {
       $line.appendChild($num);
       $line.appendChild($text);
       $code.appendChild($line);
-      if (i < lines.length - 1) {
-        $code.appendChild(document.createTextNode('\n'));
-      }
     }
 
     $container.appendChild($preview);
@@ -220,9 +217,6 @@ const renderBlobContent = async ($container, text, language) => {
       $line.appendChild($num);
       $line.appendChild($text);
       $code.appendChild($line);
-      if (i < lines.length - 1) {
-        $code.appendChild(document.createTextNode('\n'));
-      }
     }
 
     $pre.appendChild($code);

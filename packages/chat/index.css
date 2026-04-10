@@ -3129,7 +3129,9 @@ button.btn-spinner::after {
 
 .value-blob-md-preview {
   padding: 16px;
-  font-family: var(--font-sans);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-primary);
