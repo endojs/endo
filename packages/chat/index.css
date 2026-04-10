@@ -586,9 +586,14 @@ body.resizing * {
   cursor: pointer;
 }
 
-/* Only conversable items get a hover highlight on the name */
-.pet-item-wrapper.conversable > .pet-item-row .pet-name:hover {
+/* Clickable pet names (conversable or inspectable) get a hover highlight */
+.pet-item-wrapper.conversable > .pet-item-row .pet-name:hover,
+.pet-name.selectable:hover {
   background: var(--bg-active);
+}
+
+.pet-name.selectable {
+  cursor: pointer;
 }
 
 /* Disclosure triangle for expandable items */
@@ -3009,6 +3014,10 @@ button.btn-spinner::after {
 }
 
 .help-command {
+  display: flex;
+  align-items: baseline;
+  padding: 8px 14px;
+  gap: 10px;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -3118,6 +3127,129 @@ button.btn-spinner::after {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 4px;
+}
+
+.help-back {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.help-back:hover {
+  color: var(--text-primary);
+}
+
+.help-tip {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.help-tip code {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.help-not-found {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: var(--bg-error, var(--bg-secondary));
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-error, var(--accent-error));
+}
+
+.help-not-found code {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.help-detail {
+  padding: 4px 0;
+}
+
+.help-detail-name {
+  margin: 0 0 8px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.help-detail-desc {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.help-detail-meta {
+  margin-bottom: 16px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.help-detail-meta td {
+  padding: 4px 12px 4px 0;
+  color: var(--text-secondary);
+}
+
+.help-meta-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.help-detail-section {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.help-detail-fields {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.help-detail-fields th {
+  text-align: left;
+  padding: 6px 12px 6px 0;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.help-detail-fields td {
+  padding: 6px 12px 6px 0;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.help-detail-fields code {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  color: var(--accent-primary);
+}
+
+.help-field-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.help-detail-no-params {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 /* Value Modal Header */

@@ -538,6 +538,13 @@ export const chatBarComponent = (
       return;
     }
 
+    if (commandName === 'help') {
+      const name = data.commandName ? String(data.commandName) : undefined;
+      exitCommandMode(); // eslint-disable-line no-use-before-define
+      helpModal.show(name);
+      return;
+    }
+
     // For commands that open their own modal, reset command line
     // immediately so the modal receives focus.
     const isEval = commandName === 'js' || commandName === 'eval';
@@ -1398,11 +1405,6 @@ export const chatBarComponent = (
       case 'immediate':
         // Reset mode since we're leaving selecting state
         mode = 'send';
-        // Special handling for help command
-        if (commandName === 'help') {
-          helpModal.show();
-          break;
-        }
         // Special handling for exit command
         if (commandName === 'exit') {
           if (canExitProfile) {

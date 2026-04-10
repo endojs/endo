@@ -885,8 +885,17 @@ export const COMMANDS = {
     label: 'Help',
     description: 'Show command reference',
     category: 'system',
-    mode: 'immediate',
-    fields: [],
+    mode: 'inline',
+    fields: [
+      {
+        name: 'commandName',
+        label: 'Command',
+        type: 'text',
+        required: false,
+        placeholder: 'command name (optional)',
+      },
+    ],
+    submitLabel: 'Show',
   },
 };
 
