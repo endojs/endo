@@ -44,12 +44,15 @@ const assertPowersName = name => {
  * @param {MakeHostOrGuestOptions | undefined} opts
  * @returns {{ introducedNames: Record<Name, PetName>, agentName?: PetName }}
  */
-const normalizeHostOrGuestOptions = opts => ({
-  introducedNames: /** @type {Record<Name, PetName>} */ (
-    opts?.introducedNames ?? Object.create(null)
-  ),
-  agentName: /** @type {PetName | undefined} */ (opts?.agentName),
-});
+const normalizeHostOrGuestOptions = opts => {
+  const agentName = /** @type {PetName | undefined} */ (opts?.agentName);
+  return {
+    introducedNames: /** @type {Record<Name, PetName>} */ (
+      opts?.introducedNames ?? Object.create(null)
+    ),
+    ...(agentName !== undefined && { agentName }),
+  };
+};
 
 /**
  * @param {object} args

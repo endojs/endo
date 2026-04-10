@@ -17,6 +17,15 @@ module.exports = {
     URL: 'readonly',
     URLSearchParams: 'readonly',
 
+    // These have been moved out of the list below because they open
+    // the NaN side channel on some platforms, and so are not considered
+    // powerless.
+    //
+    // https://github.com/tc39/proposal-float16array
+    Float16Array: 'readonly',
+    Float32Array: 'readonly',
+    Float64Array: 'readonly',
+
     // Allow what SES makes powerless, copied from its whitelist
     // *** Constructor Properties of the Global Object
     Array: 'readonly',
@@ -27,8 +36,6 @@ module.exports = {
     Boolean: 'readonly',
     DataView: 'readonly',
     EvalError: 'readonly',
-    Float32Array: 'readonly',
-    Float64Array: 'readonly',
     Int8Array: 'readonly',
     Int16Array: 'readonly',
     Int32Array: 'readonly',

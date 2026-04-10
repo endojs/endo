@@ -13,6 +13,11 @@ permissions:
   contents: read
   actions: write
 
+# Cancel in-progress runs for the same branch when a new run is started
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # This file has necessary redundancies since of github actions aren't supporting:
 # - the definition of macros, which could be called from each job.
 # - reporting the status of steps in the PR (only jobs and workflows are reported).
@@ -63,7 +68,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 20.x, 22.x, 24.x]
         platform: [ubuntu-latest, macos-15]
         # windows-latest exhibited flakey tests that are not yet worth the
         # trouble to investigate, and blocked us from upgrading yarn from 1 to
@@ -149,7 +154,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18.x, 20.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -185,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18.x, 20.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -289,7 +294,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18.x, 20.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:

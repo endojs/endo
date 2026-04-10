@@ -27,9 +27,9 @@ const { ownKeys } = Reflect;
  *
  * @template {Record<PropertyKey, any>} O
  * @param {O} original
- * @param {(
- *   desc: TypedPropertyDescriptor<O[keyof O]>,
- *   key: keyof O
+ * @param {<K extends keyof O>(
+ *   desc: TypedPropertyDescriptor<O[K]>,
+ *   key: K
  * ) => (PropertyDescriptor | undefined)} metaMapFn
  * @param {any} [proto]
  * @returns {any}
@@ -41,11 +41,17 @@ export const objectMetaMap = (
 ) => {
   const descs = getOwnPropertyDescriptors(original);
   const keys = ownKeys(original);
+  /**
+   * Preserve the per-key descriptor type when calling `metaMapFn`.
+   *
+   * @template {keyof O} K
+   * @param {K} key
+   * @returns {[K, PropertyDescriptor | undefined]}
+   */
+  const mapDesc = key => [key, metaMapFn(descs[key], key)];
 
   const descEntries = /** @type {[PropertyKey,PropertyDescriptor][]} */ (
-    keys
-      .map(key => [key, metaMapFn(descs[key], key)])
-      .filter(([_key, optDesc]) => optDesc !== undefined)
+    keys.map(mapDesc).filter(([_key, optDesc]) => optDesc !== undefined)
   );
   return harden(create(proto, fromEntries(descEntries)));
 };

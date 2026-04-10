@@ -3,6 +3,7 @@
     "compilerOptions": {
         "allowSyntheticDefaultImports": true,
         "skipLibCheck": true,
+        "exactOptionalPropertyTypes": true,
     },
     "exclude": [
         "api-docs",

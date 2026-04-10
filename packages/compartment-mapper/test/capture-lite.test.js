@@ -16,10 +16,11 @@ import { ENTRY_COMPARTMENT } from '../src/policy-format.js';
 
 const { keys } = Object;
 
+const readPowers = makeReadPowers({ fs, url });
+
 test('captureFromMap() - should resolve with a CaptureResult', async t => {
   t.plan(5);
 
-  const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-0/node_modules/bundle/main.js',
     import.meta.url,
@@ -66,8 +67,90 @@ test('captureFromMap() - should resolve with a CaptureResult', async t => {
   );
 });
 
+test('captureFromMap() - should call _redundantPreloadHook for already-loaded compartments', async t => {
+  t.plan(2);
+  const moduleLocation = `${new URL(
+    'fixtures-0/node_modules/bundle/main.js',
+    import.meta.url,
+  )}`;
+
+  const nodeCompartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  /** @type {{ canonicalName: string, entry: string }[]} */
+  const hookCalls = [];
+
+  await captureFromMap(readPowers, nodeCompartmentMap, {
+    _preload: ['bundle-dep'],
+    _redundantPreloadHook: ({ canonicalName, entry }) => {
+      hookCalls.push({ canonicalName, entry });
+    },
+    parserForLanguage: defaultParserForLanguage,
+  });
+
+  t.is(
+    hookCalls.length,
+    1,
+    '_redundantPreloadHook should have been called once',
+  );
+  t.deepEqual(
+    hookCalls[0],
+    { canonicalName: 'bundle-dep', entry: '.' },
+    'hook should have been called with the correct parameters',
+  );
+});
+
+test('captureFromMap() - should only call _redundantPreloadHook for the entry already loaded', async t => {
+  t.plan(3);
+  const moduleLocation = `${new URL(
+    'fixtures-digest/node_modules/app2/index.js',
+    import.meta.url,
+  )}`;
+
+  const nodeCompartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  const fjordCompartment = Object.values(nodeCompartmentMap.compartments).find(
+    c => c.name === 'fjord',
+  );
+  if (!fjordCompartment) {
+    t.fail('Expected "fjord" compartment to be present in nodeCompartmentMap');
+    return;
+  }
+
+  /** @type {{ canonicalName: string, entry: string }[]} */
+  const hookCalls = [];
+
+  const { captureCompartmentMap } = await captureFromMap(
+    readPowers,
+    nodeCompartmentMap,
+    {
+      _preload: [
+        'fjord',
+        { compartment: 'fjord', entry: './some-other-entry.js' },
+      ],
+      _redundantPreloadHook: ({ canonicalName, entry }) => {
+        hookCalls.push({ canonicalName, entry });
+      },
+      parserForLanguage: defaultParserForLanguage,
+    },
+  );
+
+  t.true(
+    'fjord' in captureCompartmentMap.compartments,
+    '"fjord" should be retained in captureCompartmentMap',
+  );
+  t.is(
+    hookCalls.length,
+    1,
+    '_redundantPreloadHook should have been called exactly once',
+  );
+  t.deepEqual(
+    hookCalls[0],
+    { canonicalName: 'fjord', entry: '.' },
+    'hook should have fired for the default entry which was already loaded',
+  );
+});
+
 test('captureFromMap() - should preload with canonical name', async t => {
-  const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-digest/node_modules/app/index.js',
     import.meta.url,
@@ -83,11 +166,17 @@ test('captureFromMap() - should preload with canonical name', async t => {
     return;
   }
 
+  /** @type {{ canonicalName: string, entry: string }[]} */
+  const hookCalls = [];
+
   const { captureCompartmentMap } = await captureFromMap(
     readPowers,
     nodeCompartmentMap,
     {
       _preload: [fjordCompartment.location],
+      _redundantPreloadHook: ({ canonicalName, entry }) => {
+        hookCalls.push({ canonicalName, entry });
+      },
       parserForLanguage: defaultParserForLanguage,
     },
   );
@@ -96,10 +185,14 @@ test('captureFromMap() - should preload with canonical name', async t => {
     'fjord' in captureCompartmentMap.compartments,
     '"fjord" should be retained in captureCompartmentMap',
   );
+  t.is(
+    hookCalls.length,
+    0,
+    '_redundantPreloadHook should not have been called for a non-redundant preload',
+  );
 });
 
 test('captureFromMap() - should discard unretained CompartmentDescriptors', async t => {
-  const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-digest/node_modules/app/index.js',
     import.meta.url,
@@ -141,7 +234,6 @@ test('captureFromMap() - should discard unretained CompartmentDescriptors', asyn
 });
 
 test('captureFromMap() - should preload custom entry', async t => {
-  const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-digest/node_modules/app/index.js',
     import.meta.url,
@@ -183,7 +275,6 @@ test('captureFromMap() - should preload custom entry', async t => {
 });
 
 test('captureFromMap() - should round-trip sources based on parsers', async t => {
-  const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-0/node_modules/bundle/main.js',
     import.meta.url,

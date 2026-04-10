@@ -11,6 +11,11 @@ permissions:
   contents: read
   actions: write
 
+# Cancel in-progress runs for the same branch when a new run is started
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   browser-tests:
     timeout-minutes: 30

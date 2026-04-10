@@ -40,7 +40,6 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/harden": "workspace:^",
-    "@endo/immutable-arraybuffer": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {

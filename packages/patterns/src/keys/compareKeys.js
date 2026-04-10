@@ -16,7 +16,8 @@ import {
 } from './checkKey.js';
 import { makeCompareCollection } from './keycollection-operators.js';
 
-/** @import {CopySet, Key, KeyCompare} from '../types.js' */
+/** @import {CopyBag, CopyMap, CopySet, Key, KeyCollection, KeyCompare} from '../types.js' */
+/** @import {Passable} from '@endo/pass-style' */
 
 /**
  * CopySet X is smaller than CopySet Y iff all of these conditions hold:
@@ -26,8 +27,14 @@ import { makeCompareCollection } from './keycollection-operators.js';
  * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
  */
 export const setCompare = makeCompareCollection(
-  /** @type {(s: CopySet<Key>) => Array<[Key, 1]>} */ (
-    s => harden(getCopySetKeys(s).map(key => [key, 1]))
+  /** @type {(collection: KeyCollection) => Array<[Key, 1]>} */ (
+    collection =>
+      harden(
+        getCopySetKeys(/** @type {CopySet} */ (collection)).map(key => [
+          key,
+          1,
+        ]),
+      )
   ),
   0,
   /** @type {KeyCompare} */ (compareNumerics),
@@ -43,8 +50,8 @@ harden(setCompare);
  * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
  */
 export const bagCompare = makeCompareCollection(
-  /** @type {(b: import('../types.js').CopyBag<Key>) => Array<[Key, bigint]>} */ (
-    getCopyBagEntries
+  /** @type {(collection: KeyCollection) => Array<[Key, bigint]>} */ (
+    collection => getCopyBagEntries(/** @type {CopyBag} */ (collection))
   ),
   0n,
   /** @type {KeyCompare} */ (compareNumerics),
@@ -73,8 +80,9 @@ const ABSENT = Symbol('absent');
  */
 // eslint-disable-next-line no-underscore-dangle
 const _mapCompare = makeCompareCollection(
-  /** @type {(m: import('../types.js').CopyMap<Key, import('@endo/pass-style').Passable>) => Array<[Key, import('@endo/pass-style').Passable]>} */ (
-    getCopyMapEntryArray
+  /** @type {(collection: KeyCollection) => Array<[Key, Passable]>} */ (
+    collection =>
+      getCopyMapEntryArray(/** @type {CopyMap<Key, Passable>} */ (collection))
   ),
   ABSENT,
   (leftValue, rightValue) => {
@@ -86,7 +94,10 @@ const _mapCompare = makeCompareCollection(
       return 1;
     } else {
       // eslint-disable-next-line no-use-before-define
-      return compareKeys(leftValue, rightValue);
+      return compareKeys(
+        /** @type {Key} */ (leftValue),
+        /** @type {Key} */ (rightValue),
+      );
     }
   },
 );

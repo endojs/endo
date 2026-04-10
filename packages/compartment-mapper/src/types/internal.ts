@@ -41,6 +41,7 @@ import type {
   Sources,
   SyncModuleTransforms,
   CompartmentsRenameFn,
+  RedundantPreloadHook,
 } from './external.js';
 import type { PackageDescriptor } from './node-modules.js';
 import type { DeferredAttenuatorsProvider } from './policy.js';
@@ -52,13 +53,13 @@ import type {
 } from './powers.js';
 
 export type LinkOptions = {
-  resolve?: ResolveHook;
+  resolve?: ResolveHook | undefined;
   makeImportHook: ImportHookMaker;
-  makeImportNowHook?: ImportNowHookMaker;
-  parserForLanguage?: ParserForLanguage;
-  moduleTransforms?: ModuleTransforms;
-  syncModuleTransforms?: SyncModuleTransforms;
-  __native__?: boolean;
+  makeImportNowHook?: ImportNowHookMaker | undefined;
+  parserForLanguage?: ParserForLanguage | undefined;
+  moduleTransforms?: ModuleTransforms | undefined;
+  syncModuleTransforms?: SyncModuleTransforms | undefined;
+  __native__?: boolean | undefined;
 } & ArchiveOnlyOption &
   ExecuteOptions &
   LogOptions;
@@ -234,12 +235,12 @@ export type MakeMapParsersOptions = {
    * If non-empty, synchronous import (specifically dynamic `require` in
    * CommonJS or `compartment.importNow`) are unsupported.
    */
-  moduleTransforms?: ModuleTransforms;
+  moduleTransforms?: ModuleTransforms | undefined;
   /**
    * Sync module transforms.
    * Always supported.
    */
-  syncModuleTransforms?: SyncModuleTransforms;
+  syncModuleTransforms?: SyncModuleTransforms | undefined;
 };
 
 /**

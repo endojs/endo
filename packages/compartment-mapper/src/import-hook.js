@@ -486,7 +486,7 @@ function* chooseModuleDescriptor(
         parser,
         bytes: transformedBytes,
         record: concreteRecord,
-        sha512,
+        ...(sha512 !== undefined && { sha512 }),
       };
 
       packageSources[candidateSpecifier] = localModuleSource;

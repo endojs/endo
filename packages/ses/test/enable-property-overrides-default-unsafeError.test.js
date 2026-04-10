@@ -10,11 +10,11 @@ lockdown({
 
 test('property overrides default with unsafe errorTaming', t => {
   overrideTester(t, 'Error', Error(), [
+    'name',
+    'stack',
     'constructor',
     'message',
-    'name',
     'toString',
-    'stack',
   ]);
   overrideTester(t, 'TypeError', TypeError(), [
     'constructor',

@@ -35,7 +35,6 @@ import {
  *  MaybeReadFn,
  *  MaybeReadNowFn,
  *  MaybeReadPowers,
- *  PackageDescriptor,
  *  PackagePolicy,
  *  ReadFn} from '../src/types.js'
  * @import {ExecutionContext} from 'ava'
@@ -447,27 +446,17 @@ export const dumpCompartmentMap = (logger, compartmentMap) => {
 };
 
 /**
- * Default weight function for {@link projectFixtureToGenericGraph}.
- * @param {string} node
- * @returns {number}
- */
-const defaultWeightFn = node => node.length;
-
-/**
+ * Creates a {@link GenericGraph} from a {@link ProjectFixture}.
  *
  * @param {ProjectFixture} fixture
- * @param {(node: string) => number} [weightFn]
- * @returns {GenericGraph<string>}
+ * @returns {GenericGraph}
  */
-export const projectFixtureToGenericGraph = (
-  fixture,
-  weightFn = defaultWeightFn,
-) => {
-  const graph = /** @type {GenericGraph<string>} */ (new GenericGraph());
+export const projectFixtureToGenericGraph = fixture => {
+  const graph = new GenericGraph();
   for (const [node, children] of entries(fixture.graph)) {
     graph.addNode(node);
     for (const child of children) {
-      graph.addEdge(node, child, weightFn(child));
+      graph.addEdge(node, child);
     }
   }
   return graph;
