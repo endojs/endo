@@ -55,9 +55,7 @@ const makeFTS5Backend = (options = {}) => {
     `INSERT INTO memory_fts (filename, line_number, content)
      VALUES (?, ?, ?)`,
   );
-  const deleteStmt = db.prepare(
-    `DELETE FROM memory_fts WHERE filename = ?`,
-  );
+  const deleteStmt = db.prepare(`DELETE FROM memory_fts WHERE filename = ?`);
   const distinctFilesStmt = db.prepare(
     `SELECT DISTINCT filename FROM memory_fts`,
   );
@@ -127,9 +125,10 @@ const makeFTS5Backend = (options = {}) => {
               .join(' ');
 
       try {
-        const rows = /** @type {Array<{filename: string, line_number: number, content: string}>} */ (
-          searchStmt.all(matchExpr, limit)
-        );
+        const rows =
+          /** @type {Array<{filename: string, line_number: number, content: string}>} */ (
+            searchStmt.all(matchExpr, limit)
+          );
 
         return rows.map(row => ({
           file: row.filename,
@@ -141,9 +140,10 @@ const makeFTS5Backend = (options = {}) => {
         // the entire query as a phrase search.
         try {
           const escaped = `"${trimmed.replace(/\x22/g, '""')}"`;
-          const rows = /** @type {Array<{filename: string, line_number: number, content: string}>} */ (
-            searchStmt.all(escaped, limit)
-          );
+          const rows =
+            /** @type {Array<{filename: string, line_number: number, content: string}>} */ (
+              searchStmt.all(escaped, limit)
+            );
           return rows.map(row => ({
             file: row.filename,
             line: row.line_number,

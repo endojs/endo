@@ -101,9 +101,7 @@ const safePath = (root, userPath) => {
   const rel = relative(root, resolved);
   // If the relative path starts with ".." or is absolute, it escapes the root.
   if (rel.startsWith('..') || resolve(rel) === rel) {
-    throw new Error(
-      `Invalid path: must resolve under root (${root})`,
-    );
+    throw new Error(`Invalid path: must resolve under root (${root})`);
   }
   return resolved;
 };
@@ -185,7 +183,7 @@ const makeMemoryTools = (options = {}) => {
    *   prune from as live paths are encountered.
    * @returns {Promise<void>}
    */
-  const drainQueue = async (priorPaths) => {
+  const drainQueue = async priorPaths => {
     while (indexQueue.length > 0) {
       const filePath = /** @type {string} */ (indexQueue.shift());
       try {

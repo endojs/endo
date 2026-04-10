@@ -407,7 +407,9 @@ async function* runMain(args) {
   } else if (searchArg === 'substring') {
     searchBackend = undefined; // uses default substring backend
   } else {
-    throw new Error(`Unknown search backend: ${searchArg} (expected "substring" or "fts5")`);
+    throw new Error(
+      `Unknown search backend: ${searchArg} (expected "substring" or "fts5")`,
+    );
   }
 
   const fileTools = makeFileTools({ root: workspaceArg });
