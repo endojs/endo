@@ -6,6 +6,9 @@
 import { E } from '@endo/far';
 import { passStyleOf } from '@endo/pass-style';
 import { render, inferType, toClipboardText } from './value-render.js';
+import { inferLanguage } from './language-detect.js';
+import { isMarkdown, renderMarkdownToHtml } from './markdown-preview.js';
+import { colorize } from './monaco-wrapper.js';
 
 /**
  * @param {HTMLElement} $container
@@ -92,6 +95,159 @@ const buildCopyButton = ($container, value) => {
   });
 
   $container.appendChild($button);
+};
+
+/**
+ * Derive a filename from a pet name path for language inference.
+ * Uses the last segment of the path.
+ *
+ * @param {string[] | undefined} petNamePath
+ * @returns {string | undefined}
+ */
+const filenameFromPath = petNamePath => {
+  if (!petNamePath || petNamePath.length === 0) return undefined;
+  return petNamePath[petNamePath.length - 1];
+};
+
+/**
+ * Check if a remotable value has a `text` method, indicating it is
+ * a ReadableBlob, SnapshotBlob, EndoBlob, or similar.
+ *
+ * @param {unknown} value
+ * @returns {Promise<boolean>}
+ */
+const isBlobLike = async value => {
+  try {
+    const methods = await E(value).__getMethodNames__();
+    return Array.isArray(methods) && methods.includes('text');
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Render blob text content into a container with appropriate
+ * visualization based on the file extension.
+ *
+ * - Markdown files get a rendered preview with source toggle.
+ * - All other text files get syntax-highlighted preformatted text
+ *   with line numbers.
+ *
+ * @param {HTMLElement} $container
+ * @param {string} text
+ * @param {string} language - Monaco language identifier
+ */
+const renderBlobContent = async ($container, text, language) => {
+  $container.innerHTML = '';
+
+  if (isMarkdown(language)) {
+    // Markdown: rendered preview with toggle to source
+    const $toolbar = document.createElement('div');
+    $toolbar.className = 'value-blob-toolbar';
+
+    const $previewBtn = document.createElement('button');
+    $previewBtn.className = 'value-blob-toggle active';
+    $previewBtn.textContent = 'Preview';
+
+    const $sourceBtn = document.createElement('button');
+    $sourceBtn.className = 'value-blob-toggle';
+    $sourceBtn.textContent = 'Source';
+
+    $toolbar.appendChild($previewBtn);
+    $toolbar.appendChild($sourceBtn);
+    $container.appendChild($toolbar);
+
+    const $preview = document.createElement('div');
+    $preview.className = 'value-blob-md-preview';
+    $preview.innerHTML = await renderMarkdownToHtml(text);
+
+    const $source = document.createElement('pre');
+    $source.className = 'value-blob-source';
+    $source.style.display = 'none';
+    const $code = document.createElement('code');
+    $source.appendChild($code);
+
+    // Build line-numbered source
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i += 1) {
+      const $line = document.createElement('span');
+      $line.className = 'value-blob-line';
+      const $num = document.createElement('span');
+      $num.className = 'value-blob-linenum';
+      $num.textContent = String(i + 1);
+      const $text = document.createElement('span');
+      $text.textContent = lines[i];
+      $line.appendChild($num);
+      $line.appendChild($text);
+      $code.appendChild($line);
+      if (i < lines.length - 1) {
+        $code.appendChild(document.createTextNode('\n'));
+      }
+    }
+
+    $container.appendChild($preview);
+    $container.appendChild($source);
+
+    $previewBtn.addEventListener('click', () => {
+      $preview.style.display = '';
+      $source.style.display = 'none';
+      $previewBtn.classList.add('active');
+      $sourceBtn.classList.remove('active');
+    });
+
+    $sourceBtn.addEventListener('click', () => {
+      $preview.style.display = 'none';
+      $source.style.display = '';
+      $sourceBtn.classList.add('active');
+      $previewBtn.classList.remove('active');
+    });
+  } else {
+    // Text/code: syntax-highlighted with line numbers
+    const $pre = document.createElement('pre');
+    $pre.className = 'value-blob-source';
+    const $code = document.createElement('code');
+
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i += 1) {
+      const $line = document.createElement('span');
+      $line.className = 'value-blob-line';
+      const $num = document.createElement('span');
+      $num.className = 'value-blob-linenum';
+      $num.textContent = String(i + 1);
+      const $text = document.createElement('span');
+      $text.className = 'value-blob-linetext';
+      $text.textContent = lines[i];
+      $line.appendChild($num);
+      $line.appendChild($text);
+      $code.appendChild($line);
+      if (i < lines.length - 1) {
+        $code.appendChild(document.createTextNode('\n'));
+      }
+    }
+
+    $pre.appendChild($code);
+    $container.appendChild($pre);
+
+    // Apply syntax highlighting if not plaintext
+    if (language !== 'plaintext') {
+      try {
+        const html = await colorize(text, language);
+        // Replace only the line text spans with highlighted content
+        // by re-rendering with highlighted lines
+        const highlightedLines = html
+          .replace(/<br\/?>/g, '\n')
+          .split('\n');
+        const $lineTexts = $code.querySelectorAll('.value-blob-linetext');
+        for (let i = 0; i < $lineTexts.length; i += 1) {
+          if (highlightedLines[i] !== undefined) {
+            $lineTexts[i].innerHTML = highlightedLines[i];
+          }
+        }
+      } catch {
+        // Keep plain text on colorize failure
+      }
+    }
+  }
 };
 
 /**
@@ -206,6 +362,36 @@ export const valueComponent = (
     $type.value = inferredType;
 
     updateEnterProfileVisibility();
+
+    // For blob-like remotables, try to render the content inline.
+    // This runs asynchronously — the default remotable view shows
+    // while the text is fetched.
+    if (inferredType === 'readable' || inferredType === 'remotable') {
+      const filename = filenameFromPath(petNamePath);
+      if (filename) {
+        const language = inferLanguage(filename);
+        isBlobLike(value).then(isBlob => {
+          if (!isBlob) return;
+          // Value confirmed as blob — fetch text and render
+          E(value)
+            .text()
+            .then(
+              text => {
+                // Only update if we're still showing the same value
+                if (currentValue !== value) return;
+                const $blobContent = document.createElement('div');
+                $blobContent.className = 'value-blob-content';
+                $value.innerHTML = '';
+                $value.appendChild($blobContent);
+                renderBlobContent($blobContent, text, language);
+              },
+              () => {
+                // text() failed — keep the default remotable view
+              },
+            );
+        });
+      }
+    }
 
     $title.innerHTML = '';
 

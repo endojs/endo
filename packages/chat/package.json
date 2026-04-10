@@ -46,7 +46,6 @@
   },
   "dependencies": {
     "@endo/captp": "workspace:^",
-    "@endo/markmdown": "workspace:^",
     "@endo/chat-network-view": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/eventual-send": "workspace:^",
@@ -54,6 +53,7 @@
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/inventory-graph": "workspace:^",
+    "@endo/markmdown": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^",
