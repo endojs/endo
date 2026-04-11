@@ -30,6 +30,7 @@
     "./ref-reader.js": "./ref-reader.js",
     "./reader-ref.js": "./reader-ref.js",
     "./pet-name.js": "./src/pet-name.js",
+    "./src/interfaces.js": "./src/interfaces.js",
     "./package.json": "./package.json"
   },
   "scripts": {
