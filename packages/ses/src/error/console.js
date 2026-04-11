@@ -22,6 +22,8 @@ import {
   stringSplit,
   weaksetAdd,
   weaksetHas,
+  stringIndexOf,
+  stringSlice,
 } from '../commons.js';
 
 /**
@@ -76,7 +78,7 @@ const defineName = (name, fn) => defineProperty(fn, 'name', { value: name });
  * This is the same as the log severity of these on other
  * platform console implementations when they all agree.
  *
- * @type {readonly [ConsoleProps, LogSeverity | undefined][]}
+ * @type {readonly [ConsoleProps, LogSeverity][]}
  */
 export const consoleLevelMethods = freeze([
   ['debug', 'debug'], // (fmt?, ...args) verbose level on Chrome
@@ -92,24 +94,34 @@ export const consoleLevelMethods = freeze([
 ]);
 
 /**
+ * We special case `console.assert` because it contains `fmt?, ...args` just
+ * like the `consoleLevelMethods`, but not in the same place.
+ * We special case `console.timeLog` because it contains the same kind of
+ * `...args`, but with no format string.
+ *
+ * @type {readonly [ConsoleProps, LogSeverity][]}
+ */
+export const consoleSpecialMethods = freeze([
+  ['assert', 'error'], // (value, fmt?, ...args)
+  ['timeLog', 'log'], // (label?, ...args) no fmt string
+]);
+
+/**
  * Those console methods other than those already enumerated by
- * `consoleLevelMethods`.
+ * `consoleLevelMethods` and `consoleSpecialMethods`.
  *
  * Each is paired with what we consider to be their log severity level.
  * This is the same as the log severity of these on other
  * platform console implementations when they all agree.
  *
- * @type {readonly [ConsoleProps, LogSeverity | undefined][]}
+ * @type {readonly [ConsoleProps, LogSeverity][]}
  */
 export const consoleOtherMethods = freeze([
-  ['assert', 'error'], // (value, fmt?, ...args)
-  ['timeLog', 'log'], // (label?, ...args) no fmt string
-
   // Insensitive to whether any argument is an error. All arguments can pass
   // thru to baseConsole as is.
-  ['clear', undefined], // ()
+  ['clear', 'info'], // (), level is not well defined
   ['count', 'info'], // (label?)
-  ['countReset', undefined], // (label?)
+  ['countReset', 'info'], // (label?), level is not well defined
   ['dir', 'log'], // (item, options?)
   ['groupEnd', 'log'], // ()
   // In theory tabular data may be or contain an error. However, we currently
@@ -119,14 +131,15 @@ export const consoleOtherMethods = freeze([
   ['timeEnd', 'info'], // (label?)
 
   // Node Inspector only, MDN, and TypeScript, but not whatwg
-  ['profile', undefined], // (label?)
-  ['profileEnd', undefined], // (label?)
-  ['timeStamp', undefined], // (label?)
+  ['profile', 'info'], // (label?)
+  ['profileEnd', 'info'], // (label?)
+  ['timeStamp', 'info'], // (label?)
 ]);
 
-/** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
+/** @type {readonly [ConsoleProps, LogSeverity][]} */
 const consoleMethodPermits = freeze([
   ...consoleLevelMethods,
+  ...consoleSpecialMethods,
   ...consoleOtherMethods,
 ]);
 
@@ -156,6 +169,111 @@ const consoleMethodPermits = freeze([
  *   // A variety of other symbols also seen on Node
  * ]);
  */
+
+/**
+ * If `formatData` consists of `[fmt, ...args]` and `fmt` is a string
+ * containing a `%c` specifier that acts as an `%c` specifier
+ * according to https://console.spec.whatwg.org/#formatting-specifiers
+ * then omit it and its corresponding argument. For the rest of the `fmt`
+ * string and its corresponding arguments, return them as a replacement
+ * `formatData` to be fed to the underlying console log functions.
+ *
+ * The test takes into account the number of remaining `args`.
+ * A `%c` beyond `args` does not act as a specifier.
+ * The additional issue not mentioned at
+ * https://console.spec.whatwg.org/#formatting-specifiers
+ * is that `%%` is an escaped `%`, so the `%c` found within,
+ * for example, `%%c` does not act as a specifier.
+ * Instead, it gets rendered as `%c` without consuming an argument.
+ *
+ * Note terminology differences from the spec-internal `Logger` function
+ * at https://console.spec.whatwg.org/#formatting-specifiers .
+ *
+ * | `Logger` terminology | `sanitizeFormatData` terminology |
+ * | ---------------------|----------------------------------|
+ * | `args`               | `formatData`                     |
+ * | `first`              | `fmt`                            |
+ * | `rest`               | `args`                           |
+ *
+ * Exported only for testing.
+ *
+ * @param {any[]} formatData
+ * @returns {any[]}
+ */
+export const sanitizeFormatData = ([...formatData]) => {
+  freeze(formatData);
+  if (formatData.length <= 1) {
+    return formatData;
+  }
+  const [fmt, ...args] = formatData;
+  if (typeof fmt !== 'string' || !stringIncludes(fmt, '%')) {
+    return formatData;
+  }
+
+  let startPos = 0;
+  let argI = 0;
+  let newFmt = '';
+  const newArgs = [];
+  for (
+    let percentPos = stringIndexOf(fmt, '%');
+    // Notice the `- 1` below, which leaves room for one more character after
+    // the `'%'`.
+    percentPos >= startPos && percentPos < fmt.length - 1 && argI < args.length;
+    percentPos = stringIndexOf(fmt, '%', startPos)
+  ) {
+    // The four cases in the following switch are purposely partially
+    // redundant. But the total code is small and our attempts at more
+    // reuse made the code less clear. Clarity sometimes wins over DRY.
+    const char = fmt[percentPos + 1];
+    switch (char) {
+      case 's':
+      case 'd':
+      case 'i':
+      case 'f':
+      case 'o':
+      case 'O': {
+        // transfer segment + % + char
+        newFmt += stringSlice(fmt, startPos, percentPos + 2);
+        startPos = percentPos + 2;
+        // transfer 1 arg
+        arrayPush(newArgs, args[argI]);
+        argI += 1;
+        break;
+      }
+      case 'c': {
+        // transfer segment. Consume %c
+        newFmt += stringSlice(fmt, startPos, percentPos);
+        startPos = percentPos + 2;
+        // consume 1 arg
+        argI += 1;
+        break;
+      }
+      case '%': {
+        // transfer segment + % + char. Ignore args
+        newFmt += stringSlice(fmt, startPos, percentPos + 2);
+        startPos = percentPos + 2;
+        break;
+      }
+      default: {
+        // transfer segment + %% + char. Ignore args
+        // So that %<unspecified> is treated as unknown even if
+        // implemented by the local platform, such as %j on Node.
+        newFmt += stringSlice(fmt, startPos, percentPos);
+        newFmt += `%%${char}`;
+        startPos = percentPos + 2;
+        break;
+      }
+    }
+  }
+  if (startPos < fmt.length) {
+    newFmt += stringSlice(fmt, startPos, fmt.length);
+  }
+  for (; argI < args.length; argI += 1) {
+    arrayPush(newArgs, args[argI]);
+  }
+  return /** @type {any[]} */ (freeze([newFmt, ...newArgs]));
+};
+freeze(sanitizeFormatData);
 
 // //////////////////////////// Logging Console ////////////////////////////////
 
@@ -398,32 +516,53 @@ export const makeCausalConsole = (feralConsole, loggedErrorHandler) => {
     logSubErrors(severity, subErrors, errorTag);
   };
 
-  const levelMethods = arrayMap(consoleLevelMethods, ([level, _]) => {
+  const levelMethods = arrayMap(consoleLevelMethods, ([name, level]) => {
     /**
      * @param {...any} logArgs
      */
-    const levelMethod = defineName(level, (...logArgs) => {
+    const levelMethod = defineName(name, (...logArgs) => {
       const subErrors = [];
-      const argTags = extractErrorArgs(logArgs, subErrors);
-      if (baseConsole[level]) {
-        // eslint-disable-next-line @endo/no-polymorphic-call
-        baseConsole[level](...argTags);
-      }
-      // @ts-expect-error ConsoleProp vs LogSeverity mismatch
+      const argTags = extractErrorArgs(sanitizeFormatData(logArgs), subErrors);
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      baseConsole[name](...argTags);
       logSubErrors(level, subErrors);
     });
-    return [level, freeze(levelMethod)];
+    return [name, freeze(levelMethod)];
   });
-  const otherMethodNames = arrayFilter(
-    consoleOtherMethods,
-    ([name, _]) => name in baseConsole,
-  );
-  const otherMethods = arrayMap(otherMethodNames, ([name, _]) => {
+
+  const assertMethod = defineName('assert', (...assertArgs) => {
+    if (assertArgs.length <= 1) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      baseConsole.assert(...assertArgs);
+    } else {
+      const [cond, ...logArgs] = assertArgs;
+      const subErrors = [];
+      const argTags = extractErrorArgs(sanitizeFormatData(logArgs), subErrors);
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      baseConsole.assert(cond, ...argTags);
+      logSubErrors('error', subErrors);
+    }
+  });
+
+  const timeLogMethod = defineName('timeLog', (...timeLogArgs) => {
+    if (timeLogArgs.length <= 1) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      baseConsole.timeLog(...timeLogArgs);
+    } else {
+      const [label, ...logArgs] = timeLogArgs;
+      const subErrors = [];
+      const argTags = extractErrorArgs(sanitizeFormatData(logArgs), subErrors);
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      baseConsole.timeLog(label, ...argTags);
+      logSubErrors('log', subErrors);
+    }
+  });
+
+  const otherMethods = arrayMap(consoleOtherMethods, ([name, _level]) => {
     /**
      * @param {...any} args
      */
     const otherMethod = defineName(name, (...args) => {
-      // @ts-ignore
       // eslint-disable-next-line @endo/no-polymorphic-call
       baseConsole[name](...args);
       return undefined;
@@ -431,7 +570,17 @@ export const makeCausalConsole = (feralConsole, loggedErrorHandler) => {
     return [name, freeze(otherMethod)];
   });
 
-  const causalConsole = fromEntries([...levelMethods, ...otherMethods]);
+  const methodEntries = arrayFilter(
+    [
+      ...levelMethods,
+      ['assert', assertMethod],
+      ['timeLog', timeLogMethod],
+      ...otherMethods,
+    ],
+    ([name, _]) => name in baseConsole,
+  );
+
+  const causalConsole = fromEntries(methodEntries);
   return /** @type {VirtualConsole} */ (freeze(causalConsole));
 };
 freeze(makeCausalConsole);
