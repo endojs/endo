@@ -12,8 +12,9 @@ test('assertMatchingWildcardCount - passes for matching counts', t => {
 });
 
 test('assertMatchingWildcardCount - throws for mismatched counts', t => {
-  const error = t.throws(() => assertMatchingWildcardCount('./*', './a'));
-  t.regex(error.message, /wildcard count mismatch/i);
+  t.throws(() => assertMatchingWildcardCount('./*', './a'), {
+    message: /wildcard count mismatch.*\bhas 1\b.*\bhas 0\b/i,
+  });
 });
 
 // makeMultiSubpathReplacer tests
@@ -126,15 +127,6 @@ test('Node-style tie-break prefers longer full pattern key', t => {
 test('wildcard count mismatch throws', t => {
   t.throws(() => makeMultiSubpathReplacer({ './*': './a' }), {
     message: /wildcard count mismatch/i,
-  });
-});
-
-test('globstar throws', t => {
-  t.throws(() => makeMultiSubpathReplacer({ './**': './lib' }), {
-    message: /globstar/i,
-  });
-  t.throws(() => makeMultiSubpathReplacer({ './*': './**' }), {
-    message: /globstar/i,
   });
 });
 

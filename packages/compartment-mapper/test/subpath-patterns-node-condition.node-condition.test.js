@@ -11,7 +11,7 @@ import test from 'ava';
 import { assertConditionalBlue } from './_subpath-patterns-assertions.js';
 
 const fixtureBase = new URL(
-  'fixtures-subpath-patterns/node_modules/app/',
+  'fixtures-package-imports-exports/node_modules/app/',
   import.meta.url,
 );
 

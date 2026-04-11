@@ -19,11 +19,6 @@ const { entries } = Object;
 const { isArray } = Array;
 
 /**
- * Greedy magic globstar; unsupported
- */
-const GLOBSTAR = '**';
-
-/**
  * Validates that the pattern and replacement have the same number of wildcards.
  * Node.js restricts subpath patterns to exactly one `*` on each side.
  *
@@ -125,12 +120,6 @@ export const makeMultiSubpathReplacer = mapping => {
   }
 
   for (const [pattern, replacement, compartment] of normalizedEntries) {
-    if (pattern.includes(GLOBSTAR)) {
-      throw new TypeError(
-        `Globstar (**) patterns are not supported in pattern: "${pattern}"`,
-      );
-    }
-
     // Null targets are exclusions (Node.js semantics).
     if (replacement === null) {
       const wildcardIndex = pattern.indexOf('*');
@@ -152,11 +141,6 @@ export const makeMultiSubpathReplacer = mapping => {
       continue;
     }
 
-    if (replacement.includes(GLOBSTAR)) {
-      throw new TypeError(
-        `Globstar (**) patterns are not supported in replacement: "${replacement}"`,
-      );
-    }
     assertMatchingWildcardCount(pattern, replacement);
 
     const wildcardIndex = pattern.indexOf('*');

@@ -21,6 +21,8 @@ import { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
  * A mapping of conditions to their resolved exports.
  * Each condition key (e.g., "import", "require", "node", "default")
  * maps to an {@link Exports} value.
+ *
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/850b33c4dd292e0ff8cff039ee167d69be324fce/source/package-json.d.ts#L227-L248 | type-fest ExportConditions}
  */
 export type ExportConditions = {
   // eslint-disable-next-line no-use-before-define
@@ -36,6 +38,8 @@ export type ExportConditions = {
  * - `string` is a direct path.
  * - `Array` is a fallback list (first match wins).
  * - `ExportConditions` is a mapping of conditions to nested `Exports`.
+ *
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/850b33c4dd292e0ff8cff039ee167d69be324fce/source/package-json.d.ts#L227-L248 | type-fest Exports}
  */
 export type Exports =
   | null
@@ -46,6 +50,8 @@ export type Exports =
 /**
  * The `imports` field of `package.json`.
  * Keys must start with `#`.
+ *
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/850b33c4dd292e0ff8cff039ee167d69be324fce/source/package-json.d.ts#L227-L248 | type-fest Imports}
  */
 export type Imports = {
   [key: `#${string}`]: Exports;

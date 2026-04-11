@@ -15,9 +15,9 @@
  * @import {PatternDescriptor} from './types/pattern-replacement.js'
  */
 
-import { join, relativize } from './node-module-specifier.js';
+import { relativize } from './node-module-specifier.js';
 
-const { entries, fromEntries, assign } = Object;
+const { entries, fromEntries } = Object;
 const { isArray } = Array;
 
 /**
@@ -101,11 +101,7 @@ function* interpretExports(name, exports, conditions, types) {
       // eslint-disable-next-line no-continue
       continue; // or no-op
     } else if (key.startsWith('./') || key === '.') {
-      if (name === '.') {
-        yield* interpretExports(key, value, conditions, types);
-      } else {
-        yield* interpretExports(join(name, key), value, conditions, types);
-      }
+      yield* interpretExports(key, value, conditions, types);
     } else if (conditions.has(key)) {
       if (types && key === 'import' && typeof value === 'string') {
         // In this one case, the key "import" has carried a hint that the
@@ -136,7 +132,7 @@ function* interpretExports(name, exports, conditions, types) {
  * @returns {Generator<[string, string | null]>}
  */
 function* interpretImports(_name, imports, conditions, log) {
-  if (Object(imports) !== imports) {
+  if (Object(imports) !== imports || Array.isArray(imports)) {
     throw Error(
       `Cannot interpret package.json imports property, must be object, got ${imports}`,
     );
@@ -166,6 +162,8 @@ function* interpretImports(_name, imports, conditions, log) {
           break;
         }
       }
+    } else {
+      log(`Ignoring unsupported imports value for "${key}": ${typeof value}`);
     }
   }
 }
@@ -232,59 +230,6 @@ export const inferExports = (descriptor, conditions, types) =>
   fromEntries(inferExportsEntries(descriptor, conditions, types));
 
 /**
- *
- * @param {PackageDescriptor} descriptor
- * @param {Node['externalAliases']} externalAliases
- * @param {Node['internalAliases']} internalAliases
- * @param {Set<string>} conditions
- * @param {Record<string, string>} types
- */
-export const inferExportsAndAliases = (
-  descriptor,
-  externalAliases,
-  internalAliases,
-  conditions,
-  types,
-) => {
-  const { name, type, main, module, exports, browser } = descriptor;
-
-  // collect externalAliases from exports and main/module
-  assign(
-    externalAliases,
-    fromEntries(inferExportsEntries(descriptor, conditions, types)),
-  );
-
-  // expose default module as package root
-  // may be overwritten by browser field
-  // see https://github.com/endojs/endo/issues/1363
-  if (module === undefined && exports === undefined) {
-    const defaultModule = main !== undefined ? relativize(main) : './index.js';
-    externalAliases['.'] = defaultModule;
-    // in commonjs, expose package root as default module
-    if (type !== 'module') {
-      internalAliases['.'] = defaultModule;
-    }
-  }
-
-  // if present, allow "browser" field to populate moduleMap
-  if (conditions.has('browser') && browser !== undefined) {
-    for (const [specifier, target] of interpretBrowserField(
-      name,
-      browser,
-      main,
-    )) {
-      const specifierIsRelative =
-        specifier.startsWith('./') || specifier === '.';
-      // only relative entries in browser field affect external aliases
-      if (specifierIsRelative) {
-        externalAliases[specifier] = target;
-      }
-      internalAliases[specifier] = target;
-    }
-  }
-};
-
-/**
  * Determines if a key or value contains a wildcard pattern.
  *
  * @param {string} key
@@ -292,7 +237,7 @@ export const inferExportsAndAliases = (
  * @returns {boolean}
  */
 const hasWildcard = (key, value) =>
-  key.includes('*') || (value !== null && value.includes('*'));
+  key.includes('*') || (value?.includes('*') ?? false);
 
 /**
  * Returns the number of `*` characters in a string.
@@ -312,10 +257,6 @@ const countWildcards = str => (str.match(/\*/g) || []).length;
  * @returns {boolean}
  */
 const validateWildcardPattern = (key, value, log) => {
-  if (key.includes('**') || value.includes('**')) {
-    log(`Ignoring globstar pattern "${key}": "${value}"`);
-    return false;
-  }
   const keyCount = countWildcards(key);
   const valueCount = countWildcards(value);
   if (keyCount > 1 || valueCount > 1) {
@@ -333,8 +274,7 @@ const validateWildcardPattern = (key, value, log) => {
 
 /**
  * Infers exports, internal aliases, and wildcard patterns from a package descriptor.
- * This extends `inferExportsAndAliases` by also extracting wildcard patterns
- * from the `exports` and `imports` fields.
+ * Extracts wildcard patterns from the `exports` and `imports` fields.
  *
  * @param {PackageDescriptor} descriptor
  * @param {Node['externalAliases']} externalAliases

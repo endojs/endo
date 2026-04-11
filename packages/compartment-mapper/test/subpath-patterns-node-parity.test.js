@@ -11,10 +11,11 @@ import {
   assertMain,
   assertConditionalDefault,
   assertPrecedence,
+  assertImportsEdgeCasesDefault,
 } from './_subpath-patterns-assertions.js';
 
 const fixtureBase = new URL(
-  'fixtures-subpath-patterns/node_modules/app/',
+  'fixtures-package-imports-exports/node_modules/app/',
   import.meta.url,
 );
 
@@ -29,7 +30,7 @@ test('null-target patterns are excluded by Node.js', async t => {
     () =>
       import(
         new URL(
-          'fixtures-subpath-patterns/node_modules/app/null-target-import.js',
+          'fixtures-package-imports-exports/node_modules/app/null-target-import.js',
           import.meta.url,
         ).href
       ),
@@ -51,7 +52,7 @@ test('multi-star patterns are not resolved by Node.js', async t => {
   // This test will fail if Node.js begins to support multi-star patterns,
   // signaling that we should revisit our implementation.
   const fixtureDir = new URL(
-    'fixtures-subpath-patterns/node_modules/',
+    'fixtures-package-imports-exports/node_modules/',
     import.meta.url,
   );
   // The main export (no wildcards) should still work.
@@ -69,13 +70,66 @@ test('multi-star patterns are not resolved by Node.js', async t => {
   );
 });
 
+test('imports edge cases - node parity', async t => {
+  // Non-wildcard alias (#helper) and conditional import (#cond under default
+  // conditions) resolve correctly under Node.js.
+  const ns = await import(
+    new URL(
+      'fixtures-package-imports-exports/node_modules/imports-edge-cases-app/main.js',
+      import.meta.url,
+    ).href
+  );
+  assertImportsEdgeCasesDefault(t, ns);
+});
+
+test('array imports field is silently ignored by Node.js', async t => {
+  // Node.js silently ignores an invalid array `imports` field and resolves
+  // the package via `exports` instead. The compartment-mapper is stricter
+  // and throws. This test documents the Node.js behavior.
+  const ns = await import(
+    new URL(
+      'fixtures-package-imports-exports/node_modules/array-imports-app/main.js',
+      import.meta.url,
+    ).href
+  );
+  t.is(ns.value, 'should not reach here');
+});
+
+test('exports edge cases - node parity', async t => {
+  const ns = await import(
+    new URL(
+      'fixtures-package-imports-exports/node_modules/exports-edge-cases-app/main.js',
+      import.meta.url,
+    ).href
+  );
+  t.is(ns.main, 'exports-edge-cases-main');
+  t.is(ns.nested, 'nested-esm');
+});
+
+test('non-object exports field is rejected by Node.js', async t => {
+  // Node.js ignores the invalid numeric exports field and falls back to
+  // looking for index.js, which does not exist.
+  await t.throwsAsync(
+    () =>
+      import(
+        new URL(
+          'fixtures-package-imports-exports/node_modules/bad-exports-app/main.js',
+          import.meta.url,
+        ).href
+      ),
+    {
+      code: 'ERR_MODULE_NOT_FOUND',
+    },
+  );
+});
+
 test('globstar patterns are not resolved by Node.js', async t => {
   // Node.js does not support globstar (**) in subpath patterns.
   // Entries with ** are silently ignored (never match).
   // This test will fail if Node.js begins to support globstar patterns,
   // signaling that we should revisit our implementation.
   const fixtureDir = new URL(
-    'fixtures-subpath-patterns/node_modules/',
+    'fixtures-package-imports-exports/node_modules/',
     import.meta.url,
   );
   // The main export (no wildcards) should still work.

@@ -225,7 +225,7 @@ matching, specificity ordering, `#`-imports patterns, null-target
 exclusion, globstar rejection, wildcard count mismatch, and various
 input formats (tuples, `PatternDescriptor` array, record object).
 
-### Fixture: `fixtures-subpath-patterns`
+### Fixture: `fixtures-package-imports-exports`
 
 Primary fixture for cross-package subpath patterns.
 

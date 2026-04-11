@@ -111,7 +111,7 @@ export interface PackageCompartmentDescriptor
    * `*` matches any substring including `/` (Node.js semantics).
    * Stripped during digest/archiving - expanded patterns become concrete module entries.
    */
-  patterns?: PatternDescriptor[];
+  patterns?: Array<PatternDescriptor>;
 
   sourceDirname: string;
 }
@@ -166,7 +166,6 @@ export interface DigestedCompartmentDescriptor
   path: never;
   retained: never;
   scopes: never;
-  patterns: never;
   parsers: never;
   types: never;
   __createdBy: never;

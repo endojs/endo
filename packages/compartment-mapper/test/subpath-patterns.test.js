@@ -20,10 +20,11 @@ import {
   assertConditionalBlue,
   assertConditionalDefault,
   assertPrecedence,
+  assertImportsEdgeCasesDev,
 } from './_subpath-patterns-assertions.js';
 
 const fixture = new URL(
-  'fixtures-subpath-patterns/node_modules/app/main.js',
+  'fixtures-package-imports-exports/node_modules/app/main.js',
   import.meta.url,
 ).toString();
 
@@ -69,7 +70,7 @@ test('patterns are stripped from archived compartment-map.json', async t => {
 
 test('conditional pattern resolves under user-specified condition', async t => {
   const conditionalFixture = new URL(
-    'fixtures-subpath-patterns/node_modules/app/conditional-import.js',
+    'fixtures-package-imports-exports/node_modules/app/conditional-import.js',
     import.meta.url,
   ).toString();
   const { namespace } = await importLocation(readPowers, conditionalFixture, {
@@ -80,7 +81,7 @@ test('conditional pattern resolves under user-specified condition', async t => {
 
 test('conditional pattern falls back to default without user condition', async t => {
   const conditionalFixture = new URL(
-    'fixtures-subpath-patterns/node_modules/app/conditional-import.js',
+    'fixtures-package-imports-exports/node_modules/app/conditional-import.js',
     import.meta.url,
   ).toString();
   const { namespace } = await importLocation(readPowers, conditionalFixture);
@@ -104,9 +105,101 @@ test('policy rejects pattern-matched imports when package is not permitted', asy
   await t.throwsAsync(() => importLocation(readPowers, fixture, { policy }));
 });
 
+test('array imports field in package.json causes an exception', async t => {
+  const arrayImportsFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/array-imports-app/main.js',
+    import.meta.url,
+  ).toString();
+  await t.throwsAsync(() => importLocation(readPowers, arrayImportsFixture), {
+    message: /Cannot interpret package.json imports property, must be object/,
+  });
+});
+
+test('imports edge cases: non-wildcard alias, conditional, null, invalid key, bad value, mismatched wildcard', async t => {
+  const edgeCasesFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/imports-edge-cases-app/main.js',
+    import.meta.url,
+  ).toString();
+  const { namespace } = await importLocation(readPowers, edgeCasesFixture, {
+    conditions: new Set(['development']),
+  });
+  assertImportsEdgeCasesDev(t, namespace);
+  // The following are exercised by graph construction but do not produce runtime exports:
+  // - "invalid-key" (no # prefix): logged and skipped
+  // - "#excluded": null (non-wildcard null target): skipped
+  // - "#secret/*.js": null (wildcard null target): stored as pattern
+  // - "#bad-value": 42 (unsupported value): logged and skipped
+  // - "#mismatched/*" / "./mismatched-export/*": mismatched wildcard count
+});
+
+test('browser field and commonjs default module', async t => {
+  const browserCjsFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/browser-cjs-app/main.js',
+    import.meta.url,
+  ).toString();
+  // With the 'browser' condition, the browser field remaps ./src/main.js to
+  // ./src/browser-main.js, exercising lines 420-433 in inferExportsAliasesAndPatterns.
+  // The package has no exports/module fields and type != 'module', exercising
+  // the commonjs default module path (lines 414-415).
+  const { namespace } = await importLocation(readPowers, browserCjsFixture, {
+    conditions: new Set(['browser']),
+  });
+  t.is(namespace.env, 'browser');
+});
+
+test('browser field as string remaps main export', async t => {
+  const browserStringFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/browser-string-app/main.js',
+    import.meta.url,
+  ).toString();
+  const { namespace } = await importLocation(readPowers, browserStringFixture, {
+    conditions: new Set(['browser']),
+  });
+  t.is(namespace.env, 'browser-string');
+});
+
+test('exports edge cases: ./ key skipped, nested subpath with name != "."', async t => {
+  const exportsEdgeCasesFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/exports-edge-cases-app/main.js',
+    import.meta.url,
+  ).toString();
+  const { namespace } = await importLocation(
+    readPowers,
+    exportsEdgeCasesFixture,
+  );
+  t.is(namespace.main, 'exports-edge-cases-main');
+  t.is(namespace.nested, 'nested-esm');
+});
+
+test('non-object exports field causes an exception', async t => {
+  const badExportsFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/bad-exports-app/main.js',
+    import.meta.url,
+  ).toString();
+  await t.throwsAsync(() => importLocation(readPowers, badExportsFixture), {
+    message: /Cannot interpret package.json exports property/,
+  });
+});
+
+test('non-string non-object browser field causes an exception', async t => {
+  const badBrowserFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/bad-browser-app/main.js',
+    import.meta.url,
+  ).toString();
+  await t.throwsAsync(
+    () =>
+      importLocation(readPowers, badBrowserFixture, {
+        conditions: new Set(['browser']),
+      }),
+    {
+      message: /Cannot interpret package.json browser property/,
+    },
+  );
+});
+
 test('null-target pattern excludes matching specifier', async t => {
   const nullTargetFixture = new URL(
-    'fixtures-subpath-patterns/node_modules/app/null-target-import.js',
+    'fixtures-package-imports-exports/node_modules/app/null-target-import.js',
     import.meta.url,
   ).toString();
   await t.throwsAsync(() => importLocation(readPowers, nullTargetFixture), {
@@ -116,7 +209,7 @@ test('null-target pattern excludes matching specifier', async t => {
 
 test('pattern tie-break matches Node precedence rules', async t => {
   const precedenceFixture = new URL(
-    'fixtures-subpath-patterns/node_modules/app/precedence-import.js',
+    'fixtures-package-imports-exports/node_modules/app/precedence-import.js',
     import.meta.url,
   ).toString();
   const { namespace } = await importLocation(readPowers, precedenceFixture);

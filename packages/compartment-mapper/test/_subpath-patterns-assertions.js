@@ -30,6 +30,16 @@ export const expectedPrecedence = {
   tieBreak: 'suffix-specific',
 };
 
+export const expectedImportsEdgeCasesDefault = {
+  helper: 'helper',
+  cond: 'cond-default',
+};
+
+export const expectedImportsEdgeCasesDev = {
+  helper: 'helper',
+  cond: 'cond-dev',
+};
+
 /**
  * @param {ExecutionContext} t
  * @param {object} namespace
@@ -60,4 +70,20 @@ export const assertConditionalDefault = (t, namespace) => {
  */
 export const assertPrecedence = (t, namespace) => {
   t.like(namespace, expectedPrecedence);
+};
+
+/**
+ * @param {ExecutionContext} t
+ * @param {object} namespace
+ */
+export const assertImportsEdgeCasesDefault = (t, namespace) => {
+  t.like(namespace, expectedImportsEdgeCasesDefault);
+};
+
+/**
+ * @param {ExecutionContext} t
+ * @param {object} namespace
+ */
+export const assertImportsEdgeCasesDev = (t, namespace) => {
+  t.like(namespace, expectedImportsEdgeCasesDev);
 };

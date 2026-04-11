@@ -120,7 +120,7 @@ const makeModuleMapHook = (
   );
   /** @type {SubpathReplacer | null} */
   const matchPattern =
-    patterns && Array.isArray(patterns) && patterns.length > 0
+    patterns && patterns.length > 0
       ? makeMultiSubpathReplacer(patterns)
       : null;
 
@@ -208,13 +208,13 @@ const makeModuleMapHook = (
         // Policy enforcement for pattern-matched modules
         enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
           exit: false,
-          errorHint: `Pattern matched: ${q(moduleSpecifier)} -> ${q(resolvedPath)}`,
+          errorHint: `Pattern matched in ${q(compartmentName)}: ${q(moduleSpecifier)} -> ${q(resolvedPath)}`,
         });
 
         const targetCompartment = compartments[targetCompartmentName];
         if (targetCompartment === undefined) {
           throw Error(
-            `Cannot import from missing compartment ${q(targetCompartmentName)}`,
+            `Cannot import module specifier ${q(moduleSpecifier)} from missing compartment ${q(targetCompartmentName)}`,
           );
         }
         return {
