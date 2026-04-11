@@ -32,7 +32,7 @@ import {
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { DaemonCore, DeferredTasks, DefineRequest, Envelope, EnvelopedMessage, EvalRequest, FormulaIdentifier, FormulaNumber, Form, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic, ValueMessage } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, DefineRequest, Envelope, EnvelopedMessage, FormulaIdentifier, FormulaNumber, Form, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic, ValueMessage } from './types.js' */
 
 /** @type {PetName} */
 const NEXT_MESSAGE_NUMBER_NAME = /** @type {PetName} */ ('next-number');
@@ -327,8 +327,6 @@ export const makeMailboxMaker = ({
           ...envelopeRecord,
           source: envelope.source,
           slots: envelope.slots,
-          promiseId: /** @type {FormulaIdentifier} */ (envelope.promiseId),
-          resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
 
@@ -481,7 +479,7 @@ export const makeMailboxMaker = ({
           resolverId: formula.resolverId,
           settled,
           messageId: formula.messageId,
-          replyTo: formula.replyTo,
+          ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -514,7 +512,7 @@ export const makeMailboxMaker = ({
           names: formula.names,
           ids: formula.ids,
           messageId: formula.messageId,
-          replyTo: formula.replyTo,
+          ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -533,7 +531,7 @@ export const makeMailboxMaker = ({
           source: formula.source,
           slots: formula.slots,
           messageId: formula.messageId,
-          replyTo: formula.replyTo,
+          ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -552,7 +550,7 @@ export const makeMailboxMaker = ({
           description: formula.description,
           fields: formula.fields,
           messageId: formula.messageId,
-          replyTo: formula.replyTo,
+          ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
