@@ -18,7 +18,8 @@ lib-cov
 coverage
 
 # LLM tools
-.claude/*.local.*
+.claude/*
+!.claude/skills/
 
 # Platform metadata
 .DS_Store

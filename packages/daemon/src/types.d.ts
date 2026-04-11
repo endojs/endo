@@ -404,6 +404,24 @@ export type InvitationDeferredTaskParams = {
   invitationId: FormulaIdentifier;
 };
 
+export type SharedRefFormula = {
+  type: 'shared-ref';
+  /** The formula whose value is wrapped by the dot-membrane proxy. */
+  target: FormulaIdentifier;
+  /** Pet-store formula holding the single 'revoked-reason' entry. */
+  stateStore: FormulaIdentifier;
+  /** Namespace of the share ('opaque', 'channel-ref', etc.). */
+  kind: string;
+  /** Human-readable label. */
+  label: string;
+};
+
+export type SharedRefControllerFormula = {
+  type: 'shared-ref-controller';
+  /** The sibling shared-ref formula this controller revokes. */
+  sharedRef: FormulaIdentifier;
+};
+
 export type Formula =
   | ChannelFormula
   | EndoFormula
@@ -434,7 +452,9 @@ export type Formula =
   | PeerFormula
   | KeypairFormula
   | SyncedPetStoreFormula
-  | InvitationFormula;
+  | InvitationFormula
+  | SharedRefFormula
+  | SharedRefControllerFormula;
 
 export type Builtins = {
   NONE: FormulaIdentifier;
@@ -1224,7 +1244,15 @@ export interface HopInfo {
   states: HopState[];
 }
 
-export interface EndoChannelAttenuator {
+export interface SharedRefController {
+  help(topic?: string): string;
+  revoke(reason?: string): Promise<void>;
+  isLive(): boolean;
+  getLabel(): string;
+  getKind(): string;
+}
+
+export interface EndoChannelAttenuator extends SharedRefController {
   setInvitationValidity(valid: boolean): Promise<void>;
   setHeatConfig(config: HeatConfig): Promise<void>;
   getHeatConfig(): Promise<HeatConfig | null>;

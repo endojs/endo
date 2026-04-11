@@ -2,6 +2,8 @@
 
 import { M } from '@endo/patterns';
 
+import { SharedRefBaseMethodGuards } from './shared-ref-kit.js';
+
 // #region Patterns
 
 // Names: pet names are lowercase (a-z start, then a-z0-9-), special names are uppercase
@@ -465,6 +467,7 @@ export const ChannelInvitationInterface = M.interface('EndoChannelInvitation', {
 harden(ChannelInvitationInterface);
 
 export const AttenuatorInterface = M.interface('EndoChannelAttenuator', {
+  ...SharedRefBaseMethodGuards,
   setInvitationValidity: M.call(M.boolean()).returns(M.promise()),
   setHeatConfig: M.call(M.record()).returns(M.promise()),
   getHeatConfig: M.call().returns(M.promise()),
