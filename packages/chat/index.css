@@ -4985,6 +4985,60 @@ button.btn-spinner::after {
 #channel-header-actions {
   position: relative;
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Proposed-name confirmation banner.  Shown inside the channel header
+ * while the invitee has not yet confirmed their display name — lets
+ * them accept the inviter's suggestion or type their own. */
+.channel-name-proposal-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-hover, rgba(255, 240, 200, 0.4));
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 520px;
+}
+
+.channel-name-proposal-label {
+  white-space: nowrap;
+}
+
+.channel-name-proposal-input {
+  padding: 2px 6px;
+  min-width: 80px;
+  max-width: 140px;
+  font-family: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.channel-name-proposal-preview {
+  font-style: italic;
+  color: var(--text-primary);
+}
+
+.channel-name-proposal-confirm {
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--accent-primary, #4a7);
+  color: var(--bg-primary, white);
+  cursor: pointer;
+}
+
+.channel-name-proposal-confirm:hover {
+  filter: brightness(1.08);
 }
 
 .channel-menu-btn {

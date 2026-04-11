@@ -67,6 +67,7 @@ const SLASH_COMMANDS = harden([
  * @param {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} options.showValue
  * @param {string} [options.personaId]
  * @param {string} [options.ownMemberId]
+ * @param {boolean} [options.ownNameProposed] - Whether the current user's own display name is still a proposal awaiting confirmation
  * @param {unknown} [options.powers] - Powers object for token autocomplete
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply]
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen]
@@ -84,6 +85,7 @@ export const outlinerComponent = async (
     showValue,
     personaId,
     ownMemberId,
+    ownNameProposed,
     powers,
     onReply,
     onThreadOpen,
@@ -125,6 +127,7 @@ export const outlinerComponent = async (
   const state = await createChannelState(channel, {
     personaId,
     ownMemberId,
+    ownNameProposed,
     $parent,
   });
 
@@ -1429,7 +1432,8 @@ export const outlinerComponent = async (
     $author.className = 'outliner-author';
     $author.dataset.memberId = memberId;
     const assignedName = nameMap.get(memberId);
-    if (assignedName) {
+    const isOwnProposed = ownNameProposed && memberId === ownMemberId;
+    if (assignedName && !isOwnProposed) {
       $author.textContent = assignedName;
       $author.classList.add('named');
     } else {
@@ -1441,7 +1445,11 @@ export const outlinerComponent = async (
     getMemberInfo(memberId).then(info => {
       if (!info) return;
       const currentAssigned = nameMap.get(memberId);
-      if (!currentAssigned) {
+      if (isOwnProposed) {
+        // Own user's name is still a proposal — render in straight
+        // scare quotes.
+        $author.textContent = `"${info.proposedName}"`;
+      } else if (!currentAssigned) {
         $author.textContent = `\u201C${info.proposedName}\u201D`;
       }
       $author.dataset.proposedName = info.proposedName;
@@ -1475,18 +1483,23 @@ export const outlinerComponent = async (
    */
   const updateOutlinerAuthorChips = memberId => {
     const assignedName = nameMap.get(memberId);
+    const isOwnProposed = ownNameProposed && memberId === ownMemberId;
     const authors = $outlinerView.querySelectorAll(
       `.outliner-author[data-member-id="${memberId}"]`,
     );
     for (const $el of authors) {
-      if (assignedName) {
+      if (assignedName && !isOwnProposed) {
         $el.textContent = assignedName;
         $el.classList.add('named');
       } else {
         const proposed = /** @type {HTMLElement} */ ($el).dataset.proposedName;
-        $el.textContent = proposed
-          ? `\u201C${proposed}\u201D`
-          : `Member ${memberId}`;
+        if (isOwnProposed) {
+          $el.textContent = proposed ? `"${proposed}"` : `Member ${memberId}`;
+        } else {
+          $el.textContent = proposed
+            ? `\u201C${proposed}\u201D`
+            : `Member ${memberId}`;
+        }
         $el.classList.remove('named');
       }
     }

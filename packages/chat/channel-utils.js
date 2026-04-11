@@ -141,7 +141,7 @@ const createMessageMenu = items => {
  * @returns {Promise<ChannelState>}
  */
 export const createChannelState = async (channel, opts) => {
-  const { personaId, ownMemberId, $parent } = opts;
+  const { personaId, ownMemberId, $parent, ownNameProposed = false } = opts;
 
   // Profile popup for author clicks
   let $popupContainer = document.getElementById('channel-profile-popup');
@@ -188,8 +188,15 @@ export const createChannelState = async (channel, opts) => {
     }
   };
 
-  // Auto-assign the current user's own proposed name
-  if (ownMemberId !== undefined && !nameMap.has(ownMemberId)) {
+  // Auto-assign the current user's own proposed name — but only once
+  // the name has been confirmed.  While `ownNameProposed` is true the
+  // invitee has not yet confirmed the inviter's suggestion, so we
+  // keep the own chip in scare-quote form.
+  if (
+    ownMemberId !== undefined &&
+    !nameMap.has(ownMemberId) &&
+    !ownNameProposed
+  ) {
     try {
       const ownInfo = await E(channel).getMember(ownMemberId);
       if (ownInfo && ownInfo.proposedName) {
@@ -202,18 +209,27 @@ export const createChannelState = async (channel, opts) => {
   }
 
   /**
+   * Update author chips for the given memberId.  Own chips render in
+   * straight `"` scare quotes while the user's name is still a
+   * proposal, and in curly quotes for any member whose name has not
+   * been locally assigned.
+   *
    * @param {string} memberId
    */
   const updateAuthorChips = memberId => {
     const assignedName = nameMap.get(memberId);
+    const isOwnProposed = ownNameProposed && memberId === ownMemberId;
     const chips = $parent.querySelectorAll(
       `.channel-author[data-member-id="${CSS.escape(memberId)}"]`,
     );
     for (const chip of chips) {
       const proposedName = chip.dataset.proposedName || '';
-      if (assignedName) {
+      if (assignedName && !isOwnProposed) {
         chip.textContent = assignedName;
         chip.classList.add('named');
+      } else if (isOwnProposed) {
+        chip.textContent = `"${proposedName}"`;
+        chip.classList.remove('named');
       } else {
         chip.textContent = `\u201C${proposedName}\u201D`;
         chip.classList.remove('named');
@@ -424,9 +440,16 @@ export const createChannelState = async (channel, opts) => {
 
     const memberKey = message.memberId;
     const assignedName = nameMap.get(memberKey);
-    if (assignedName) {
+    const isOwnProposedChip =
+      ownNameProposed && memberKey === ownMemberId;
+    if (assignedName && !isOwnProposedChip) {
       $author.textContent = assignedName;
       $author.classList.add('named');
+    } else if (isOwnProposedChip) {
+      // Own user's name is still a proposal — render in straight-quote
+      // scare quotes so it is visually distinct from other members'
+      // unassigned (curly-quoted) names.
+      $author.textContent = `"${authorProposedName}"`;
     } else {
       $author.textContent = `\u201C${authorProposedName}\u201D`;
     }

@@ -498,6 +498,7 @@ const bodyComponent = (
           onProfileChange(profilePath, {
             mode: 'channel',
             proposedName: activeSpaceInfo.proposedName,
+            nameProposed: activeSpaceInfo.nameProposed,
           });
         };
         $chatMessage.dataset.placeholder = 'Type a message...';
@@ -564,6 +565,25 @@ const bodyComponent = (
               powers: resolvedPowers,
               channelPetName: activeSpaceInfo.channelPetName,
               viewMode: activeSpaceInfo.viewMode,
+              proposedName: activeSpaceInfo.proposedName,
+              nameProposed: activeSpaceInfo.nameProposed,
+              onConfirmName: async newName => {
+                activeSpaceInfo.proposedName = newName;
+                activeSpaceInfo.nameProposed = false;
+                const spaceId = spacesGutterAPI.getActiveSpaceId();
+                if (spaceId && spaceId !== 'home') {
+                  try {
+                    await spacesGutterAPI.updateSpace(spaceId, {
+                      nameProposed: false,
+                    });
+                  } catch (err) {
+                    console.warn('Failed to persist confirmed name:', err);
+                  }
+                }
+                // Re-open the channel so message chips rebuild with the
+                // confirmed name (no more scare quotes on own posts).
+                switchChannel(activeSpaceInfo.channelPetName);
+              },
               onViewModeChange: newMode => {
                 activeSpaceInfo.viewMode = newMode;
                 setViewModePreference(
@@ -720,6 +740,7 @@ const bodyComponent = (
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
               ownMemberId,
+              ownNameProposed: activeSpaceInfo.nameProposed === true,
               powers: resolvedPowers,
               onReply: info => {
                 if (chatBarAPI) {
@@ -873,6 +894,23 @@ const bodyComponent = (
               powers: resolvedPowers,
               channelPetName,
               viewMode: activeSpaceInfo.viewMode,
+              proposedName: activeSpaceInfo.proposedName,
+              nameProposed: activeSpaceInfo.nameProposed,
+              onConfirmName: async newName => {
+                activeSpaceInfo.proposedName = newName;
+                activeSpaceInfo.nameProposed = false;
+                const spaceId = spacesGutterAPI.getActiveSpaceId();
+                if (spaceId && spaceId !== 'home') {
+                  try {
+                    await spacesGutterAPI.updateSpace(spaceId, {
+                      nameProposed: false,
+                    });
+                  } catch (err) {
+                    console.warn('Failed to persist confirmed name:', err);
+                  }
+                }
+                switchChannel(activeSpaceInfo.channelPetName);
+              },
               onViewModeChange: newMode => {
                 activeSpaceInfo.viewMode = newMode;
                 setViewModePreference(
@@ -1020,6 +1058,7 @@ const bodyComponent = (
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
               ownMemberId: switchOwnMemberId,
+              ownNameProposed: activeSpaceInfo.nameProposed === true,
               powers: resolvedPowers,
               onReply: info => {
                 if (chatBarAPI) {
@@ -1813,6 +1852,7 @@ const bodyComponent = (
  * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} mode
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
+ * @property {boolean} [nameProposed] - true while `proposedName` is still a proposal awaiting the user's confirmation; the UI renders the name in straight-quote scare quotes everywhere it appears until this flips to false
  * @property {string} [whylipSystemPrompt]
  * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - runtime-only view mode for the current channel; resolved on open from the client-side preference or invitation hint and never persisted in the daemon space config
  * @property {string[]} [channelOrder] - persisted channel display order
