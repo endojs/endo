@@ -23,7 +23,9 @@ const htmlDir = path.join(fixturesDir, 'html');
  */
 const renderToHTML = markdown => {
   const window = new Window();
-  const doc = /** @type {Document} */ (/** @type {unknown} */ (window.document));
+  const doc = /** @type {Document} */ (
+    /** @type {unknown} */ (window.document)
+  );
   const blocks = parseBlocks(markdown);
   const fragment = renderBlocks(blocks, { document: doc });
   // Serialize fragment to HTML via a wrapper div
