@@ -406,6 +406,12 @@ export const HostInterface = M.interface('EndoHost', {
   getFormulaGraph: M.call().returns(M.promise()),
 });
 
+const ViewModeHintShape = M.or('chat', 'forum', 'outliner', 'microblog');
+const InvitationOptionsShape = M.splitRecord(
+  {},
+  { suggestedViewMode: ViewModeHintShape },
+);
+
 export const ChannelInterface = M.interface('EndoChannel', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
@@ -413,8 +419,11 @@ export const ChannelInterface = M.interface('EndoChannel', {
     .returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
   listMessages: M.call().returns(M.promise()),
-  createInvitation: M.call(M.string()).returns(M.promise()),
+  createInvitation: M.call(M.string())
+    .optional(InvitationOptionsShape)
+    .returns(M.promise()),
   join: M.call(M.string()).returns(M.promise()),
+  getSuggestedViewMode: M.call().returns(M.or(ViewModeHintShape, M.undefined())),
 
   getMembers: M.call().returns(M.promise()),
   getProposedName: M.call().returns(M.string()),
@@ -432,9 +441,12 @@ export const ChannelMemberInterface = M.interface('EndoChannelMember', {
     .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape), M.or(M.string(), M.undefined()))
     .returns(M.promise()),
   setProposedName: M.call(M.string()).returns(M.promise()),
+  getSuggestedViewMode: M.call().returns(M.or(ViewModeHintShape, M.undefined())),
   followMessages: M.call().returns(M.promise()),
   listMessages: M.call().returns(M.promise()),
-  createInvitation: M.call(M.string()).returns(M.promise()),
+  createInvitation: M.call(M.string())
+    .optional(InvitationOptionsShape)
+    .returns(M.promise()),
   getMembers: M.call().returns(M.promise()),
   getProposedName: M.call().returns(M.string()),
   getMemberId: M.call().returns(M.string()),
@@ -447,6 +459,7 @@ export const ChannelMemberInterface = M.interface('EndoChannelMember', {
 
 export const ChannelInvitationInterface = M.interface('EndoChannelInvitation', {
   help: M.call().optional(M.string()).returns(M.string()),
+  getSuggestedViewMode: M.call().returns(M.or(ViewModeHintShape, M.undefined())),
   join: M.call(M.string()).returns(M.promise()),
 });
 harden(ChannelInvitationInterface);

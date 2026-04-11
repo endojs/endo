@@ -55,7 +55,7 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
  * @property {string} [whylipSystemPrompt] - System prompt override for Whylip mode
- * @property {'chat' | 'forum'} [viewMode] - Channel view mode (default: 'chat')
+ * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - Initial channel view mode preference (default: 'chat'); stored client-side, not in daemon config
  * @property {boolean} [ownedPersona] - Whether the space owns the persona (for cleanup)
  */
 
@@ -113,7 +113,7 @@ export const createAddSpaceModal = ({
   let channelPetName = '';
   /** @type {string} */
   let channelProposedName = '';
-  /** @type {'chat' | 'forum' | 'outliner'} */
+  /** @type {'chat' | 'forum' | 'outliner' | 'microblog'} */
   let channelViewMode = 'chat';
   /** @type {'new' | 'existing'} */
   let channelPersonaMode = 'existing';
@@ -1506,9 +1506,12 @@ export const createAddSpaceModal = ({
         // 4. Create space config
         // Use the view mode from the locator if provided, else default chat.
         const recommendedView = locatorUrl.searchParams.get('view');
-        /** @type {'chat' | 'forum' | 'outliner' | undefined} */
+        /** @type {'chat' | 'forum' | 'outliner' | 'microblog' | undefined} */
         const connectViewMode =
-          recommendedView === 'forum' || recommendedView === 'outliner'
+          recommendedView === 'chat' ||
+          recommendedView === 'forum' ||
+          recommendedView === 'outliner' ||
+          recommendedView === 'microblog'
             ? recommendedView
             : undefined;
         await onSubmit({

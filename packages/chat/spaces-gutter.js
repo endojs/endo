@@ -10,6 +10,10 @@ import { E } from '@endo/far';
 import { createAddSpaceModal } from './add-space-modal.js';
 import { createEditSpaceModal } from './edit-space-modal.js';
 import { makeRefIterator } from './ref-iterator.js';
+import {
+  clearViewModePreferences,
+  setViewModePreference,
+} from './view-mode-preference.js';
 
 /** @type {ReadonlySet<string>} */
 const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
@@ -29,7 +33,6 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
  * @property {string} [proposedName] - display name for the channel creator
  * @property {string} [whylipSystemPrompt] - optional system prompt override (for whylip mode)
- * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - channel view mode (default: 'chat')
  * @property {boolean} [ownedPersona] - whether the space owns the persona (for cleanup on delete)
  * @property {string} [lastChannelPetName] - last viewed channel in this space (restored on re-entry)
  * @property {string[]} [channelOrder] - persisted channel display order in sidebar
@@ -42,7 +45,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {(id: string) => void} selectSpace - Activate a space
  * @property {() => SpaceConfig[]} getSpaces - Get current space list
  * @property {(config: Omit<SpaceConfig, 'id'>) => Promise<string>} addSpace - Add a new space
- * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode' | 'lastChannelPetName' | 'channelOrder' | 'bookmarks'>>) => Promise<void>} updateSpace - Update a space
+ * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'lastChannelPetName' | 'channelOrder' | 'bookmarks'>>) => Promise<void>} updateSpace - Update a space
  * @property {(id: string) => Promise<void>} removeSpace - Remove a space
  * @property {() => string} getActiveSpaceId - Get currently active space ID
  */
@@ -88,7 +91,7 @@ harden(pathsEqual);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' | 'outliner' }) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, channelOrder?: string[], bookmarks?: Array<{key: string, channelPetName: string, label: string}> }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -224,8 +227,8 @@ export const createSpacesGutter = ({
       // "channel-names:<personaId>:<channelName>" where personaId is
       // profilePath.join('/').  Without this cleanup, recreating a space
       // with the same name would inherit the old persona's nicknames.
+      const personaId = config.profilePath.join('/');
       try {
-        const personaId = config.profilePath.join('/');
         const prefix = `channel-names:${personaId}:`;
         const keysToRemove = [];
         for (let i = 0; i < window.localStorage.length; i += 1) {
@@ -240,6 +243,10 @@ export const createSpacesGutter = ({
       } catch {
         // localStorage not available
       }
+
+      // Clear view mode preferences for all channels under this persona
+      // so that a recreated space starts fresh.
+      clearViewModePreferences(personaId);
 
       // Remove the handle so provideHost creates a new agent next time.
       try {
@@ -272,7 +279,7 @@ export const createSpacesGutter = ({
    * Update an existing space's configuration.
    *
    * @param {string} id
-   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>} updates
+   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'lastChannelPetName' | 'channelOrder' | 'bookmarks'>>} updates
    * @returns {Promise<void>}
    */
   const updateSpace = async (id, updates) => {
@@ -367,7 +374,6 @@ export const createSpacesGutter = ({
       channelPetName: space.lastChannelPetName || space.channelPetName,
       proposedName: space.proposedName,
       whylipSystemPrompt: space.whylipSystemPrompt,
-      viewMode: space.viewMode,
       channelOrder: space.channelOrder,
       bookmarks: space.bookmarks,
     });
@@ -581,13 +587,17 @@ export const createSpacesGutter = ({
       if (data.whylipSystemPrompt) {
         spaceConfig.whylipSystemPrompt = data.whylipSystemPrompt;
       }
-      if (data.viewMode) {
-        spaceConfig.viewMode = data.viewMode;
-      }
       if (typeof data.ownedPersona === 'boolean') {
         spaceConfig.ownedPersona = data.ownedPersona;
       }
       await addSpace(spaceConfig);
+      // View mode is a per-viewer client-side preference, not part of
+      // the daemon-persisted space config. Seed it now so that the
+      // space opens with the chosen (or invitation-suggested) view.
+      if (data.viewMode && data.channelPetName) {
+        const personaId = data.profilePath.join('/');
+        setViewModePreference(personaId, data.channelPetName, data.viewMode);
+      }
     },
     onClose: () => {
       // Modal closed
@@ -612,15 +622,12 @@ export const createSpacesGutter = ({
   const editSpaceModal = createEditSpaceModal({
     $container: $modalContainer,
     onSubmit: async (id, data) => {
-      /** @type {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>} */
+      /** @type {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme'>>} */
       const updates = {
         name: data.name,
         icon: data.icon,
         scheme: data.scheme || 'auto',
       };
-      if (data.viewMode) {
-        updates.viewMode = data.viewMode;
-      }
       await updateSpace(id, updates);
     },
     onClose: () => {
@@ -695,12 +702,6 @@ export const createSpacesGutter = ({
     }
     if (typeof obj.whylipSystemPrompt === 'string') {
       result.whylipSystemPrompt = obj.whylipSystemPrompt;
-    }
-    if (
-      typeof obj.viewMode === 'string' &&
-      (obj.viewMode === 'chat' || obj.viewMode === 'forum' || obj.viewMode === 'outliner' || obj.viewMode === 'microblog')
-    ) {
-      result.viewMode = obj.viewMode;
     }
     if (typeof obj.ownedPersona === 'boolean') {
       result.ownedPersona = obj.ownedPersona;
