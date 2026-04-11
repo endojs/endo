@@ -4,7 +4,7 @@
  * Tests for the FTS5 search backend.
  */
 
-import './setup.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { makeFTS5Backend } from '../src/tools/fts5-backend.js';
