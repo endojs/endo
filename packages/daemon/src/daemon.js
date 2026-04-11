@@ -5,7 +5,7 @@
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
 import { E, Far } from '@endo/far';
-import { makeMarshal } from '@endo/marshal';
+import { makeDotMembraneKit, makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import {
@@ -20,6 +20,10 @@ import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeChannelMaker } from './channel.js';
 import { makeHostMaker } from './host.js';
+import {
+  makeSharedRefBaseMethods,
+  SharedRefControllerInterface,
+} from './shared-ref-kit.js';
 import { makeRemoteControlProvider } from './remote-control.js';
 import {
   assertName,
@@ -565,6 +569,13 @@ const makeDaemonCore = async (
           ['hostAgent', formula.hostAgent],
           ['hostHandle', formula.hostHandle],
         ];
+      case 'shared-ref':
+        return [
+          ['target', formula.target],
+          ['stateStore', formula.stateStore],
+        ];
+      case 'shared-ref-controller':
+        return [['sharedRef', formula.sharedRef]];
       default:
         return [];
     }
@@ -698,6 +709,16 @@ const makeDaemonCore = async (
 
   /** @type {Map<FormulaIdentifier, object>} */
   const refForId = new Map();
+
+  /**
+   * Per-daemon coordination for shared-ref formulas. Populated when a
+   * shared-ref formula is provided, consumed when its sibling
+   * shared-ref-controller formula is provided, so the controller can
+   * call into the live membrane's revoke function.
+   *
+   * @type {Map<FormulaIdentifier, { isLive: () => boolean, revoke: (reason?: string) => Promise<void>, kind: string, label: string }>}
+   */
+  const sharedRefStateByFormulaId = new Map();
 
   /** @type {WeakMultimap<Record<string | symbol, unknown>, FormulaIdentifier>['get']} */
   const getIdForRef = ref => idForRef.get(ref);
@@ -2785,6 +2806,82 @@ const makeDaemonCore = async (
         context,
       );
     },
+    'shared-ref': async (formula, context, id) => {
+      const { target: targetId, stateStore: stateStoreId, kind, label } =
+        formula;
+      context.thisDiesIfThatDies(targetId);
+      context.thisDiesIfThatDies(stateStoreId);
+
+      const target = await provide(targetId);
+      // eslint-disable-next-line no-use-before-define
+      const stateStoreCtl = await provideStoreController(stateStoreId);
+
+      // Read persisted revocation state, if any.
+      let initialRevokedReason = '';
+      if (stateStoreCtl.has('revoked-reason')) {
+        const reasonFormulaId =
+          stateStoreCtl.identifyLocal('revoked-reason');
+        if (reasonFormulaId !== undefined) {
+          initialRevokedReason = /** @type {string} */ (
+            await provide(reasonFormulaId)
+          );
+        }
+      }
+
+      const { proxy, revoke: membraneRevoke } = makeDotMembraneKit(target);
+
+      let live = !initialRevokedReason;
+      if (initialRevokedReason) {
+        membraneRevoke(initialRevokedReason);
+      }
+
+      const revoke = async reason => {
+        if (!live) return;
+        live = false;
+        const finalReason = reason || 'revoked';
+        // eslint-disable-next-line no-use-before-define
+        const reasonId = await persistValue(finalReason);
+        await stateStoreCtl.storeIdentifier('revoked-reason', reasonId);
+        membraneRevoke(finalReason);
+      };
+
+      sharedRefStateByFormulaId.set(id, {
+        isLive: () => live,
+        revoke,
+        kind,
+        label,
+      });
+      context.onCancel(() => {
+        sharedRefStateByFormulaId.delete(id);
+      });
+
+      return proxy;
+    },
+    'shared-ref-controller': async (formula, context) => {
+      const { sharedRef: sharedRefId } = formula;
+      context.thisDiesIfThatDies(sharedRefId);
+
+      // Force the sibling shared-ref formula to be provided so its
+      // entry in sharedRefStateByFormulaId is populated.
+      await provide(sharedRefId);
+      const state = sharedRefStateByFormulaId.get(sharedRefId);
+      if (!state) {
+        throw new Error(
+          `shared-ref state missing for ${q(sharedRefId)} — the shared-ref formula may have been cancelled`,
+        );
+      }
+
+      return makeExo(
+        'SharedRefController',
+        SharedRefControllerInterface,
+        makeSharedRefBaseMethods({
+          kind: state.kind,
+          label: state.label,
+          isLive: state.isLive,
+          revoke: state.revoke,
+        }),
+      );
+    },
   };
 
   /**
@@ -3176,6 +3273,61 @@ const makeDaemonCore = async (
         return formulate(channelNumber, formula);
       })
     );
+  };
+
+  /**
+   * Formulate a revocable `shared-ref` over a target formula, along
+   * with a sibling `shared-ref-controller` formula. The caller keeps
+   * the controller id (to revoke later) and hands the shared-ref id
+   * to recipients.
+   *
+   * @param {FormulaIdentifier} targetId
+   * @param {string} kind
+   * @param {string} label
+   * @returns {Promise<{ sharedRefId: FormulaIdentifier, controllerId: FormulaIdentifier }>}
+   */
+  const formulateSharedRef = async (targetId, kind, label) => {
+    return withFormulaGraphLock(async () => {
+      const stateStoreNumber = /** @type {FormulaNumber} */ (
+        await randomHex256()
+      );
+      await formulateNumberedPetStore(stateStoreNumber);
+      const stateStoreId = formatId({
+        number: stateStoreNumber,
+        node: LOCAL_NODE,
+      });
+
+      const sharedRefNumber = /** @type {FormulaNumber} */ (
+        await randomHex256()
+      );
+      /** @type {import('./types.js').SharedRefFormula} */
+      const sharedRefFormula = {
+        type: 'shared-ref',
+        target: targetId,
+        stateStore: stateStoreId,
+        kind,
+        label,
+      };
+      const { id: sharedRefId } = await formulate(
+        sharedRefNumber,
+        sharedRefFormula,
+      );
+
+      const controllerNumber = /** @type {FormulaNumber} */ (
+        await randomHex256()
+      );
+      /** @type {import('./types.js').SharedRefControllerFormula} */
+      const controllerFormula = {
+        type: 'shared-ref-controller',
+        sharedRef: sharedRefId,
+      };
+      const { id: controllerId } = await formulate(
+        controllerNumber,
+        controllerFormula,
+      );
+
+      return { sharedRefId, controllerId };
+    });
   };
 
   /**
@@ -4696,6 +4848,7 @@ const makeDaemonCore = async (
     getTypeForId,
     getFormulaForId,
     formulateChannel,
+    formulateSharedRef,
     formulateTimer,
     makeMailbox,
     makeDirectoryNode,

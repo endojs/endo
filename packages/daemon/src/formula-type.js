@@ -32,6 +32,8 @@ const formulaTypes = new Set([
   'readable-tree',
   'resolver',
   'scratch-mount',
+  'shared-ref',
+  'shared-ref-controller',
   'synced-pet-store',
   'timer',
   'worker',

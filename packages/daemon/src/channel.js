@@ -13,6 +13,7 @@ import {
   ChannelMemberInterface,
 } from './interfaces.js';
 import { makeHelp } from './help-text.js';
+import { makeSharedRefBaseMethods } from './shared-ref-kit.js';
 
 /** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, PetName, Provide, StoreController, Topic } from './types.js' */
 
@@ -192,7 +193,8 @@ export const makeChannelMaker = ({
      * @property {string} memberId - Stable identifier for this member
      * @property {string} inviterMemberId - memberId of the member who created this invitation
      * @property {string[]} pedigree - Invitation chain
-     * @property {boolean} valid - true = active, false = disabled
+     * @property {boolean} valid - true = active, false = reversibly disabled (setInvitationValidity)
+     * @property {string} revokedReason - non-empty string = terminally revoked; empty = not revoked
      * @property {boolean} joined - true = invitation has been claimed via join()
      * @property {HeatConfig | null} heatConfig - Heat-based rate limiting config, null = unrestricted
      * @property {number} temporaryBanUntil - epoch ms, 0 = no ban
@@ -257,6 +259,7 @@ export const makeChannelMaker = ({
         inviterMemberId: entry.inviterMemberId,
         pedigree: [...entry.pedigree],
         valid: entry.valid,
+        revokedReason: entry.revokedReason,
         joined: entry.joined,
         heatConfig: entry.heatConfig,
         temporaryBanUntil: entry.temporaryBanUntil,
@@ -352,6 +355,11 @@ export const makeChannelMaker = ({
      * @param {MemberEntry} entry
      */
     const checkEntryValidity = entry => {
+      if (entry.revokedReason) {
+        throw new Error(
+          `Channel member ${q(entry.invitedAs)} revoked: ${entry.revokedReason}`,
+        );
+      }
       if (!entry.valid) {
         throw new Error(
           `Channel member ${q(entry.invitedAs)} has been disabled`,
@@ -396,12 +404,32 @@ export const makeChannelMaker = ({
     };
 
     /**
-     * Create an attenuator exo for a member entry.
+     * Create an attenuator exo for a member entry. The attenuator
+     * exposes the standard SharedRef controller surface (help, revoke,
+     * isLive, getLabel, getKind) plus channel-specific moderation
+     * controls (setInvitationValidity, setHeatConfig, temporaryBan).
+     *
+     * `revoke` is terminal — once called it persists `revokedReason`
+     * and the invitation can never be reactivated. `setInvitationValidity`
+     * is a reversible pause, distinct from revoke.
+     *
      * @param {MemberEntry} entry
      * @returns {object}
      */
     const makeAttenuator = entry => {
+      const revoke = async reason => {
+        if (entry.revokedReason) return;
+        entry.revokedReason = reason || 'revoked';
+        await persistMemberEntry(entry);
+      };
+      const isLive = () => !entry.revokedReason;
       return makeExo('EndoChannelAttenuator', AttenuatorInterface, {
+        ...makeSharedRefBaseMethods({
+          kind: 'channel-invitation',
+          label: entry.invitedAs,
+          isLive,
+          revoke,
+        }),
         setInvitationValidity: async valid => {
           entry.valid = valid;
           await persistMemberEntry(entry);
@@ -825,6 +853,7 @@ export const makeChannelMaker = ({
             inviterMemberId: entry.memberId,
             pedigree: subPedigree,
             valid: true,
+            revokedReason: '',
             joined: false,
             heatConfig: /** @type {HeatConfig | null} */ (null),
             temporaryBanUntil: 0,
@@ -929,6 +958,7 @@ export const makeChannelMaker = ({
       inviterMemberId: '',
       pedigree: /** @type {string[]} */ ([]),
       valid: true,
+      revokedReason: '',
       joined: true,
       heatConfig: /** @type {HeatConfig | null} */ (null),
       temporaryBanUntil: 0,
@@ -983,6 +1013,7 @@ export const makeChannelMaker = ({
               inviterMemberId: data.inviterMemberId,
               pedigree: [...data.pedigree],
               valid: data.valid,
+              revokedReason: data.revokedReason || '',
               // Default to true for backward compat: old entries without
               // this field were likely already claimed.
               joined: data.joined !== undefined ? data.joined : true,
@@ -1089,6 +1120,7 @@ export const makeChannelMaker = ({
           inviterMemberId: adminMemberId,
           pedigree,
           valid: true,
+          revokedReason: '',
           joined: false,
           heatConfig: /** @type {HeatConfig | null} */ (null),
           temporaryBanUntil: 0,

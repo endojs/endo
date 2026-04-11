@@ -1,6 +1,7 @@
 export { QCLASS } from './src/encodeToCapData.js';
 export { makeMarshal } from './src/marshal.js';
 export { stringify, parse } from './src/marshal-stringify.js';
+export { makeDotMembraneKit } from './src/dot-membrane.js';
 
 export { decodeToJustin, passableAsJustin, qp } from './src/marshal-justin.js';
 
