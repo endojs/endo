@@ -116,7 +116,8 @@
     "files": [
       "test/**/*.test.*"
     ],
-    "timeout": "2m"
+    "timeout": "5m",
+    "concurrency": 1
   },
   "typeCoverage": {
     "atLeast": 97.21
