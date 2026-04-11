@@ -11,31 +11,41 @@ import { DaemonSignalToolInterface } from '../src/tool-interface.js';
  * Signal bridge caplet.
  * Composes host powers + signal-cli transport so messages can control an
  * Endo daemon agent over Signal.
+ * Looks up 'signal-cli-transport' from the host inventory via powers.
  *
  * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @param {unknown} _context
+ * @param {{ env?: Record<string, string | undefined> }} [options]
  */
-export const make = async powers => {
+// eslint-disable-next-line no-underscore-dangle
+export const make = async (powers, _context, options = {}) => {
   await null;
-  const account = process.env.SIGNAL_ACCOUNT;
-  if (!account) {
-    throw new Error('SIGNAL_ACCOUNT environment variable is required');
+  const { env = {} } = options;
+  const envRecord = /** @type {Record<string, string | undefined>} */ (env);
+  const groupMentionPrefix =
+    envRecord.SIGNAL_GROUP_PREFIX || process.env.SIGNAL_GROUP_PREFIX || '';
+
+  /** @type {Record<string, string>} */
+  let agentForSender = {};
+  const agentMapJson =
+    envRecord.SIGNAL_AGENT_MAP_JSON || process.env.SIGNAL_AGENT_MAP_JSON || '';
+  if (agentMapJson) {
+    try {
+      const parsed = JSON.parse(agentMapJson);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        agentForSender = /** @type {Record<string, string>} */ (parsed);
+      }
+    } catch {
+      // ignore malformed JSON
+    }
   }
-  const signalCliBin = process.env.SIGNAL_CLI_BIN || 'signal-cli';
+
   const initialConfig = {
-    groupMentionPrefix: process.env.SIGNAL_GROUP_PREFIX || '',
-    agentForSender: {},
+    groupMentionPrefix,
+    agentForSender,
   };
-  const transport = await E(powers).makeUnconfined(
-    '@main',
-    new URL('signal-cli.js', import.meta.url).href,
-    {
-      resultName: `signal-cli-for-${account.replace(/[^a-z0-9-]/giu, '-')}`,
-      env: harden({
-        SIGNAL_ACCOUNT: account,
-        SIGNAL_CLI_BIN: signalCliBin,
-      }),
-    },
-  );
+
+  const transport = await E(powers).lookup('signal-cli-transport');
   const bridge = makeSignalBridge({
     host: powers,
     transport,

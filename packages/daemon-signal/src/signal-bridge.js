@@ -113,8 +113,7 @@ const renderInventoryListing = async (agent, pathPrefix) => {
     // eslint-disable-next-line no-await-in-loop
     const entry = await describeInventoryPath(agent, fullPath);
     const formula = entry.formulaType || 'unknown';
-    const idPart = entry.id ? ` id=${entry.id}` : '';
-    lines.push(`- ${fullPath.join('/')} type=${formula}${idPart}`);
+    lines.push(`- ${fullPath.join('/')} type=${formula}`);
   }
   return lines.join('\n');
 };
@@ -191,7 +190,7 @@ export const makeSignalBridge = options => {
         '/enter <handle-petname>',
         '/exit',
         '/who',
-        '/inventory [path]',
+        '/list [path]',
         '/show <path>',
         '/send <text>',
         'Plain text sends to the active /enter conversation.',
@@ -227,7 +226,7 @@ export const makeSignalBridge = options => {
       }
       return `Active conversation: @${state.peerPetName} id=${state.peerId}`;
     }
-    if (command.name === 'inventory' || command.name === 'list') {
+    if (command.name === 'list') {
       const path = command.args ? parsePetNamePathArg(command.args) : [];
       return renderInventoryListing(agent, path);
     }

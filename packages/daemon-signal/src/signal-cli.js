@@ -1,17 +1,8 @@
 // @ts-check
 
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 
 /** @import { SignalInboundMessage } from './signal-types.js' */
-
-const parseJsonLine = line => {
-  try {
-    return JSON.parse(line);
-  } catch {
-    return undefined;
-  }
-};
 
 /**
  * @param {unknown} event
@@ -86,6 +77,10 @@ harden(parseSignalCliEvent);
  */
 
 /**
+ * Persistent signal-cli jsonRpc transport.
+ * Runs one signal-cli process for the lifetime of the transport; receives
+ * arrive as JSON-RPC notifications, sends are JSON-RPC method calls.
+ *
  * @param {SignalCliOptions} options
  */
 export const makeSignalCli = options => {
@@ -94,42 +89,162 @@ export const makeSignalCli = options => {
   if (!account) {
     throw new Error('signal account is required');
   }
-  const execFileAsync = promisify(
-    /** @type {typeof import('child_process').execFile} */ (execFile),
-  );
 
-  /**
-   * @param {number} [timeoutSeconds]
-   */
-  const receive = async (timeoutSeconds = 1) => {
-    const args = [
-      '-a',
-      account,
-      'receive',
-      '--json',
-      '--timeout',
-      String(timeoutSeconds),
-    ];
-    const { stdout } = await execFileAsync(signalCliBin, args, {
-      maxBuffer: 2 * 1024 * 1024,
-    });
-    const lines = stdout
-      .split('\n')
-      .map(line => line.trim())
-      .filter(Boolean);
-    /** @type {SignalInboundMessage[]} */
-    const messages = [];
-    for (const line of lines) {
-      const event = parseJsonLine(line);
-      if (!event) {
-        // eslint-disable-next-line no-continue
-        continue;
+  /** @type {import('child_process').ChildProcess | null} */
+  let proc = null;
+  let lineBuffer = '';
+  let nextId = 1;
+  /** @type {Map<number, { resolve: (v: unknown) => void, reject: (e: Error) => void }>} */
+  const pending = new Map();
+  /** @type {SignalInboundMessage[]} */
+  const messageQueue = [];
+  /** @type {Array<(msg: SignalInboundMessage | null) => void>} */
+  const waiters = [];
+
+  const handleLine = (/** @type {string} */ line) => {
+    if (!line.trim()) return;
+    let msg;
+    try {
+      msg = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (msg && typeof msg === 'object' && msg.id !== undefined) {
+      const entry = pending.get(msg.id);
+      if (entry) {
+        pending.delete(msg.id);
+        if (msg.error) {
+          entry.reject(
+            new Error(
+              (msg.error && msg.error.message) || 'JSON-RPC error',
+            ),
+          );
+        } else {
+          entry.resolve(msg.result);
+        }
       }
-      const parsed = parseSignalCliEvent(event);
+    } else if (msg && msg.method === 'receive') {
+      const parsed = parseSignalCliEvent(msg.params);
       if (parsed) {
-        messages.push(parsed);
+        if (waiters.length > 0) {
+          const waiter = waiters.shift();
+          if (waiter) waiter(parsed);
+        } else {
+          messageQueue.push(parsed);
+        }
       }
     }
+  };
+
+  const ensureStarted = () => {
+    if (proc) return;
+    proc = spawn(
+      signalCliBin,
+      [
+        '-a',
+        account,
+        '-o',
+        'json',
+        'jsonRpc',
+        '--receive-mode',
+        'on-start',
+        '--ignore-stories',
+        '--ignore-avatars',
+      ],
+      { stdio: ['pipe', 'pipe', 'inherit'] },
+    );
+    lineBuffer = '';
+
+    if (proc.stdout) {
+      proc.stdout.setEncoding('utf8');
+      proc.stdout.on('data', (/** @type {string} */ chunk) => {
+        lineBuffer += chunk;
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() || '';
+        for (const line of lines) {
+          handleLine(line);
+        }
+      });
+    }
+
+    proc.on('exit', () => {
+      proc = null;
+      for (const entry of pending.values()) {
+        entry.reject(new Error('signal-cli process exited'));
+      }
+      pending.clear();
+      for (const waiter of waiters.splice(0)) {
+        waiter(null);
+      }
+    });
+  };
+
+  /**
+   * @param {string} method
+   * @param {object} params
+   * @returns {Promise<unknown>}
+   */
+  const call = (method, params) => {
+    ensureStarted();
+    const id = nextId;
+    nextId += 1;
+    return new Promise((resolve, reject) => {
+      pending.set(id, { resolve, reject });
+      const req = `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`;
+      if (proc && proc.stdin) {
+        proc.stdin.write(req);
+      } else {
+        pending.delete(id);
+        reject(new Error('signal-cli stdin not available'));
+      }
+    });
+  };
+
+  /**
+   * Wait for up to timeoutSeconds for incoming messages.
+   * Returns immediately if messages are already queued.
+   *
+   * @param {number} [timeoutSeconds]
+   * @returns {Promise<readonly SignalInboundMessage[]>}
+   */
+  const receive = async (timeoutSeconds = 10) => {
+    ensureStarted();
+    /** @type {SignalInboundMessage[]} */
+    const messages = [];
+
+    // Drain any already-queued messages first.
+    while (messageQueue.length > 0) {
+      messages.push(/** @type {SignalInboundMessage} */ (messageQueue.shift()));
+    }
+    if (messages.length > 0) {
+      return harden(messages);
+    }
+
+    // Wait for a message or timeout.
+    const msg = await new Promise(resolve => {
+      /** @param {SignalInboundMessage | null} m */
+      const waiterFn = m => {
+        clearTimeout(timer);
+        resolve(m);
+      };
+      const timer = setTimeout(() => {
+        const idx = waiters.indexOf(waiterFn);
+        if (idx >= 0) waiters.splice(idx, 1);
+        resolve(null);
+      }, timeoutSeconds * 1000);
+      waiters.push(waiterFn);
+    });
+
+    if (msg !== null) {
+      messages.push(msg);
+      // Drain any more that arrived while we were processing.
+      while (messageQueue.length > 0) {
+        messages.push(
+          /** @type {SignalInboundMessage} */ (messageQueue.shift()),
+        );
+      }
+    }
+
     return harden(messages);
   };
 
@@ -138,10 +253,7 @@ export const makeSignalCli = options => {
    * @param {string} text
    */
   const sendDirect = async (recipient, text) => {
-    const args = ['-a', account, 'send', '-m', text, recipient];
-    await execFileAsync(signalCliBin, args, {
-      maxBuffer: 1024 * 1024,
-    });
+    await call('send', { recipient: [recipient], message: text });
   };
 
   /**
@@ -149,11 +261,11 @@ export const makeSignalCli = options => {
    * @param {string} text
    */
   const sendGroup = async (groupId, text) => {
-    const args = ['-a', account, 'send', '-m', text, '-g', groupId];
-    await execFileAsync(signalCliBin, args, {
-      maxBuffer: 1024 * 1024,
-    });
+    await call('send', { groupId, message: text });
   };
+
+  // Start the jsonRpc process eagerly so the first receive is fast.
+  ensureStarted();
 
   return harden({
     receive,
@@ -161,7 +273,7 @@ export const makeSignalCli = options => {
     sendGroup,
     help() {
       return (
-        'Signal CLI transport wrapper. ' +
+        'Signal CLI jsonRpc transport (persistent process). ' +
         'Methods: receive(timeoutSeconds), sendDirect(recipient, text), ' +
         'sendGroup(groupId, text).'
       );
@@ -169,4 +281,3 @@ export const makeSignalCli = options => {
   });
 };
 harden(makeSignalCli);
-

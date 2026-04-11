@@ -22,7 +22,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "setup-tools": "endo run --UNCONFINED setup-tools.js --powers @agent",
+    "setup-tools": "endo run --UNCONFINED setup-tools.js --powers HOST",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'",

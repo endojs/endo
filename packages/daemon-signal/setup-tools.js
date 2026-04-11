@@ -43,7 +43,7 @@ export const main = async agent => {
   const signalBridgeUrl = new URL('tools/signal-bridge.js', import.meta.url)
     .href;
 
-  await E(agent).makeUnconfined('@main', signalCliUrl, {
+  await E(agent).makeUnconfined('MAIN', signalCliUrl, {
     resultName: 'signal-cli-transport',
     env: harden({
       SIGNAL_ACCOUNT: signalAccount,
@@ -52,12 +52,12 @@ export const main = async agent => {
   });
   console.log('[setup-tools] Created signal-cli-transport');
 
-  await E(agent).makeUnconfined('@main', signalBridgeUrl, {
+  await E(agent).makeUnconfined('MAIN', signalBridgeUrl, {
     resultName: 'signal-bridge-tool',
+    powersName: 'AGENT',
     env: harden({
-      SIGNAL_ACCOUNT: signalAccount,
-      SIGNAL_CLI_BIN: signalCliBin,
       SIGNAL_GROUP_PREFIX: groupPrefix,
+      SIGNAL_AGENT_MAP_JSON: JSON.stringify(senderMap),
     }),
   });
   console.log('[setup-tools] Created signal-bridge-tool');
