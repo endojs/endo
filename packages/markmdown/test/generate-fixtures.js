@@ -18,11 +18,11 @@ const htmlDir = path.join(__dirname, 'fixtures', 'html');
  */
 const renderToHTML = markdown => {
   const window = new Window();
-  const doc = window.document;
+  const doc = /** @type {Document} */ (/** @type {unknown} */ (window.document));
   const blocks = parseBlocks(markdown);
   const fragment = renderBlocks(blocks, { document: doc });
   const wrapper = doc.createElement('div');
-  wrapper.appendChild(fragment);
+  wrapper.appendChild(/** @type {Node} */ (/** @type {unknown} */ (fragment)));
   return wrapper.innerHTML;
 };
 

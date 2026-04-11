@@ -143,11 +143,11 @@ export const parseBlocks = text => {
 
         i += 2; // Skip header and separator
 
-        /** @type {Token[][]} */
+        /** @type {Token[][][]} */
         const bodyRows = [];
         while (i < lines.length && lines[i].includes('|')) {
           const rowCells = splitTableRow(lines[i]);
-          /** @type {Token[]} */
+          /** @type {Token[][]} */
           const row = [];
           for (let c = 0; c < colCount; c += 1) {
             if (c < rowCells.length) {
@@ -156,7 +156,6 @@ export const parseBlocks = text => {
               row.push([]);
             }
           }
-          // @ts-expect-error — row is Token[][] element
           bodyRows.push(row);
           i += 1;
         }
@@ -165,7 +164,6 @@ export const parseBlocks = text => {
           type: 'table',
           headerRow,
           alignments,
-          // @ts-expect-error — bodyRows is Token[][][]
           bodyRows,
         });
         handled = true;

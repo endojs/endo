@@ -170,10 +170,10 @@ const tokenize = text => {
       // _ intraword restriction
       if (ch === '_') {
         if (leftFlanking && rightFlanking) {
-          canOpen =
-            beforeClass === 'punctuation' || beforeClass === 'whitespace';
-          canClose =
-            afterClass === 'punctuation' || afterClass === 'whitespace';
+          // Within leftFlanking && rightFlanking, neither class can be
+          // 'whitespace', so checking 'punctuation' is sufficient.
+          canOpen = beforeClass === 'punctuation';
+          canClose = afterClass === 'punctuation';
         }
       }
 
