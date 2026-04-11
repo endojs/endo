@@ -1405,18 +1405,28 @@ export const createAddSpaceModal = ({
   };
 
   /**
-   * Parse an endo locator URL into a formula identifier string.
-   * @param {string} locator - e.g., "endo://node/?id=num&type=channel"
-   * @returns {string} formula identifier, e.g., "num:node"
+   * Normalize an invitation locator to a plain `endo://` URL that
+   * `storeLocator` will accept. The inviter may append a `view=` query
+   * param as a client-side display hint, which the daemon's locator
+   * parser rejects (it only allows `id`, `type`, and `at`). We strip
+   * that param here so the daemon sees a valid locator; the caller
+   * reads `view=` separately from the original URL when needed.
+   *
+   * @param {string} locator - e.g., "endo://node/?id=num&type=channel&view=forum"
+   * @returns {string} A clean `endo://` locator suitable for `storeLocator`.
    */
-  const formulaIdFromLocator = locator => {
+  const cleanEndoLocator = locator => {
     const url = new URL(locator);
-    const node = url.host;
-    const number = url.searchParams.get('id');
-    if (!node || !number) {
+    if (!url.host || !url.searchParams.has('id')) {
       throw new Error('Invalid locator: missing node or id');
     }
-    return `${number}:${node}`;
+    // Drop any non-daemon query params (e.g., the UI-only `view` hint).
+    for (const key of [...url.searchParams.keys()]) {
+      if (key !== 'id' && key !== 'type' && key !== 'at') {
+        url.searchParams.delete(key);
+      }
+    }
+    return url.toString();
   };
 
   /**
@@ -1437,9 +1447,9 @@ export const createAddSpaceModal = ({
     }
 
     /** @type {string} */
-    let formulaId;
+    let cleanLocator;
     try {
-      formulaId = formulaIdFromLocator(locator);
+      cleanLocator = cleanEndoLocator(locator);
     } catch {
       error = 'Invalid locator URL format';
       render();
@@ -1499,12 +1509,14 @@ export const createAddSpaceModal = ({
           ),
         ).lookup(personaAgentName);
 
-        // 3. Write the channel formula ID into the persona's pet store
+        // 3. Write the channel locator into the persona's pet store.
+        //    `storeLocator` requires a full `endo://` URL; passing a raw
+        //    `number:node` formula id is rejected by the daemon.
         await E(
-          /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
+          /** @type {{ storeLocator: (name: string | string[], locator: string) => Promise<void> }} */ (
             personaPowers
           ),
-        ).storeLocator('general', formulaId);
+        ).storeLocator('general', cleanLocator);
 
         // 4. Create space config
         // Use the view mode from the locator if provided, else default chat.
@@ -1581,12 +1593,13 @@ export const createAddSpaceModal = ({
           ).lookup(segment);
         }
 
-        // Write the channel formula ID into the persona's pet store
+        // Write the channel locator into the persona's pet store.
+        // `storeLocator` requires a full `endo://` URL.
         await E(
-          /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
+          /** @type {{ storeLocator: (name: string | string[], locator: string) => Promise<void> }} */ (
             personaPowers
           ),
-        ).storeLocator('general', formulaId);
+        ).storeLocator('general', cleanLocator);
 
         // No new space needed — the existing space already renders the channel
         hide();
