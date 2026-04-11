@@ -326,17 +326,17 @@ export const createAddSpaceModal = ({
       </div>
       <form class="add-space-form">
         <div class="add-space-field">
-          <label>Persona</label>
+          <label>Agent</label>
           <div class="connect-persona-choices">
             <label class="connect-persona-option">
               <input type="radio" name="channel-persona-mode" value="new"
                      ${channelPersonaMode === 'new' ? 'checked' : ''} />
-              <span>Create new persona</span>
+              <span>Create new Agent</span>
             </label>
             <label class="connect-persona-option">
               <input type="radio" name="channel-persona-mode" value="existing"
                      ${channelPersonaMode === 'existing' ? 'checked' : ''} />
-              <span>Use existing profile</span>
+              <span>Use existing Agent</span>
             </label>
           </div>
         </div>
@@ -345,7 +345,7 @@ export const createAddSpaceModal = ({
           channelPersonaMode === 'existing'
             ? `
           <div class="add-space-field">
-            <label>Profile Path</label>
+            <label>Agent Path</label>
             <div class="petname-path-selector">
               <div id="channel-profile-path-input" class="profile-path-input-container"></div>
               <div id="channel-profile-path-menu" class="token-menu"></div>
@@ -403,7 +403,7 @@ export const createAddSpaceModal = ({
             <input type="text" id="channel-introduced-names"
                    placeholder="e.g., my-tool, my-data"
                    value="${channelIntroducedNames}" autocomplete="off" />
-            <div class="field-hint">Comma-separated pet names to copy into this persona's namespace</div>
+            <div class="field-hint">Comma-separated pet names to copy into this Agent's namespace</div>
           </div>
         `
             : ''
@@ -459,19 +459,19 @@ export const createAddSpaceModal = ({
         </div>
 
         <div class="add-space-field">
-          <label>Persona</label>
+          <label>Agent</label>
           <div class="connect-persona-choices">
             <label class="connect-persona-option">
               <input type="radio" name="connect-persona-mode" value="new"
                      ${connectPersonaMode === 'new' ? 'checked' : ''} />
-              <span>Create new persona</span>
+              <span>Create new Agent</span>
             </label>
             ${
               existingSpaces.length > 0
                 ? `<label class="connect-persona-option">
                 <input type="radio" name="connect-persona-mode" value="existing"
                        ${connectPersonaMode === 'existing' ? 'checked' : ''} />
-                <span>Use existing persona</span>
+                <span>Use existing Agent</span>
               </label>`
                 : ''
             }
@@ -498,7 +498,7 @@ export const createAddSpaceModal = ({
         `
             : `
           <div class="add-space-field">
-            <label>Choose a persona</label>
+            <label>Choose an Agent</label>
             <div class="connect-existing-list">
               ${existingSpacesHtml || '<div class="field-hint">No existing channel spaces found</div>'}
             </div>
@@ -1246,7 +1246,7 @@ export const createAddSpaceModal = ({
 
       const paths = channelPathAutocomplete.getValue();
       if (paths.length === 0) {
-        error = 'Please select a profile path';
+        error = 'Please select an Agent path';
         render();
         return;
       }
@@ -1254,7 +1254,7 @@ export const createAddSpaceModal = ({
       const pathString = paths[0];
       const selectedPath = pathString.split('/').filter(Boolean);
       if (selectedPath.length === 0) {
-        error = 'Please select a valid profile path';
+        error = 'Please select a valid Agent path';
         render();
         return;
       }
@@ -1549,7 +1549,7 @@ export const createAddSpaceModal = ({
     } else {
       // Existing persona mode
       if (!connectExistingSpaceId) {
-        error = 'Please select an existing persona';
+        error = 'Please select an existing Agent';
         render();
         return;
       }
