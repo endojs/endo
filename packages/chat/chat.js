@@ -19,6 +19,10 @@ import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
 import { createShareModal } from './share-modal.js';
 import { microblogComponent } from './microblog-component.js';
+import {
+  resolveViewMode,
+  setViewModePreference,
+} from './view-mode-preference.js';
 
 const template = `
 <div id="spaces-gutter"></div>
@@ -501,7 +505,6 @@ const bodyComponent = (
           onProfileChange(profilePath, {
             mode: 'channel',
             proposedName: activeSpaceInfo.proposedName,
-            viewMode: activeSpaceInfo.viewMode,
           });
         };
         $chatMessage.dataset.placeholder = 'Type a message...';
@@ -536,6 +539,26 @@ const bodyComponent = (
               currentChannelRef = channelRef;
             }
 
+            // Resolve the effective view mode once the channel ref exists:
+            // client-side preference wins, then any invitation hint from the
+            // inviter, then the 'chat' default.
+            /** @type {'chat' | 'forum' | 'outliner' | 'microblog' | undefined} */
+            let suggestedViewMode;
+            try {
+              suggestedViewMode = await E(
+                /** @type {{ getSuggestedViewMode: () => 'chat' | 'forum' | 'outliner' | 'microblog' | undefined }} */ (
+                  currentChannelRef
+                ),
+              ).getSuggestedViewMode();
+            } catch {
+              // Older daemon without getSuggestedViewMode — ignore.
+            }
+            activeSpaceInfo.viewMode = resolveViewMode({
+              personaId: profilePath.join('/'),
+              channelPetName: activeSpaceInfo.channelPetName || '',
+              suggestedViewMode,
+            });
+
             // Connected — remove the connecting indicator.
             $connectingStatus.remove();
 
@@ -547,13 +570,14 @@ const bodyComponent = (
               channel: currentChannelRef,
               powers: resolvedPowers,
               channelPetName: activeSpaceInfo.channelPetName,
-              viewMode: activeSpaceInfo.viewMode || 'chat',
+              viewMode: activeSpaceInfo.viewMode,
               onViewModeChange: newMode => {
                 activeSpaceInfo.viewMode = newMode;
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                spacesGutterAPI
-                  .updateSpace(spaceId, { viewMode: newMode })
-                  .catch(window.reportError);
+                setViewModePreference(
+                  profilePath.join('/'),
+                  activeSpaceInfo.channelPetName || '',
+                  newMode,
+                );
                 switchChannel(activeSpaceInfo.channelPetName);
               },
             });
@@ -826,6 +850,24 @@ const bodyComponent = (
               currentChannelRef = channelRef;
             }
 
+            // Resolve view mode for this channel under this persona.
+            /** @type {'chat' | 'forum' | 'outliner' | 'microblog' | undefined} */
+            let switchSuggestedViewMode;
+            try {
+              switchSuggestedViewMode = await E(
+                /** @type {{ getSuggestedViewMode: () => 'chat' | 'forum' | 'outliner' | 'microblog' | undefined }} */ (
+                  currentChannelRef
+                ),
+              ).getSuggestedViewMode();
+            } catch {
+              // Older daemon — ignore.
+            }
+            activeSpaceInfo.viewMode = resolveViewMode({
+              personaId: profilePath.join('/'),
+              channelPetName,
+              suggestedViewMode: switchSuggestedViewMode,
+            });
+
             // Connected — remove the connecting indicator.
             $switchStatus.remove();
 
@@ -835,14 +877,14 @@ const bodyComponent = (
               channel: currentChannelRef,
               powers: resolvedPowers,
               channelPetName,
-              viewMode: activeSpaceInfo.viewMode || 'chat',
+              viewMode: activeSpaceInfo.viewMode,
               onViewModeChange: newMode => {
                 activeSpaceInfo.viewMode = newMode;
-                // eslint-disable-next-line no-shadow
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                spacesGutterAPI
-                  .updateSpace(spaceId, { viewMode: newMode })
-                  .catch(window.reportError);
+                setViewModePreference(
+                  profilePath.join('/'),
+                  channelPetName,
+                  newMode,
+                );
                 switchChannel(activeSpaceInfo.channelPetName);
               },
             });
@@ -1136,15 +1178,12 @@ const bodyComponent = (
           onViewModeChange: isChannelMode
             ? mode => {
                 activeSpaceInfo.viewMode = mode;
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                if (spaceId && spaceId !== 'home') {
-                  spacesGutterAPI
-                    .updateSpace(spaceId, { viewMode: mode })
-                    .catch(
-                      /** @param {Error} err */ err => {
-                        console.warn('Failed to persist view mode:', err);
-                      },
-                    );
+                if (activeSpaceInfo.channelPetName) {
+                  setViewModePreference(
+                    profilePath.join('/'),
+                    activeSpaceInfo.channelPetName,
+                    mode,
+                  );
                 }
                 // Re-render with new view mode
                 switchChannel(activeSpaceInfo.channelPetName || '');
@@ -1286,7 +1325,6 @@ const bodyComponent = (
                       mode: 'channel',
                       channelPetName: localName,
                       proposedName: displayName,
-                      viewMode: 'chat',
                     });
                     window.alert(
                       `Joined channel as \u201C${displayName}\u201D. Check the spaces gutter.`,
@@ -1438,13 +1476,16 @@ const bodyComponent = (
         if (!channelRef) throw new Error('No channel connection');
 
         if (!alreadyInvited) {
-          // Create a new invitation
+          // Create a new invitation with a view-mode hint so the recipient
+          // opens the channel in the same view the inviter is using.
           const displayName =
             window.prompt(
               `Display name for ${petName} in this channel:`,
               petName,
             ) || petName;
-          await E(channelRef).createInvitation(displayName);
+          await E(channelRef).createInvitation(displayName, {
+            suggestedViewMode: activeSpaceInfo && activeSpaceInfo.viewMode,
+          });
         }
 
         // Build thread recap from the channel's messages
@@ -1753,7 +1794,7 @@ const bodyComponent = (
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
- * @property {'chat' | 'forum' | 'outliner'} [viewMode] - channel view mode (default: 'chat')
+ * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - runtime-only view mode for the current channel; resolved on open from the client-side preference or invitation hint and never persisted in the daemon space config
  * @property {string[]} [channelOrder] - persisted channel display order
  * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
  */

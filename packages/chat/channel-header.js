@@ -150,7 +150,12 @@ export const createChannelHeader = ({
     if (!inviteeName) return;
 
     try {
-      await E(channel).createInvitation(inviteeName);
+      // Pass the current view mode as an invitation hint. Recipients that
+      // have no stored preference for this channel will open it in the
+      // inviter's recommended view on first join.
+      await E(channel).createInvitation(inviteeName, {
+        suggestedViewMode: viewMode,
+      });
 
       // Ask how to deliver the invitation
       if (powers && channelPetName) {

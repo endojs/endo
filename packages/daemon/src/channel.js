@@ -182,6 +182,10 @@ export const makeChannelMaker = ({
      */
 
     /**
+     * @typedef {'chat' | 'forum' | 'outliner' | 'microblog'} ViewModeHint
+     */
+
+    /**
      * @typedef {object} MemberEntry
      * @property {string} proposedName - Current display name (may be changed by the member)
      * @property {string} invitedAs - Original name given by the inviter (bookkeeping only)
@@ -192,9 +196,30 @@ export const makeChannelMaker = ({
      * @property {boolean} joined - true = invitation has been claimed via join()
      * @property {HeatConfig | null} heatConfig - Heat-based rate limiting config, null = unrestricted
      * @property {number} temporaryBanUntil - epoch ms, 0 = no ban
+     * @property {ViewModeHint} [suggestedViewMode] - Optional view mode the inviter recommends when opening this channel for the first time
      */
 
     const HEAT_LOCKOUT_THRESHOLD = 90;
+
+    /**
+     * Validate that a value is a recognised view-mode hint.
+     * Returns undefined for anything else so callers can treat the
+     * field as optional without leaking garbage into persistence.
+     *
+     * @param {unknown} value
+     * @returns {ViewModeHint | undefined}
+     */
+    const normalizeViewModeHint = value => {
+      if (
+        value === 'chat' ||
+        value === 'forum' ||
+        value === 'outliner' ||
+        value === 'microblog'
+      ) {
+        return value;
+      }
+      return undefined;
+    };
 
     /**
      * Shared heat state per member. Maps memberId to live heat state,
@@ -235,6 +260,7 @@ export const makeChannelMaker = ({
         joined: entry.joined,
         heatConfig: entry.heatConfig,
         temporaryBanUntil: entry.temporaryBanUntil,
+        suggestedViewMode: entry.suggestedViewMode,
       });
       const formulaId = await persistValue(persistable);
       await memberStore.storeIdentifier(
@@ -698,6 +724,7 @@ export const makeChannelMaker = ({
         ChannelInvitationInterface,
         {
           help: makeHelp(channelInvitationHelp),
+          getSuggestedViewMode: () => entry.suggestedViewMode,
           join: async memberProposedName => {
             // Idempotent
             if (joinedHandle) {
@@ -773,6 +800,7 @@ export const makeChannelMaker = ({
           checkAccess();
           entry.proposedName = newName;
         },
+        getSuggestedViewMode: () => entry.suggestedViewMode,
         followMessages: async () => {
           return makeGatedFollowMessages(checkAccess);
         },
@@ -780,7 +808,7 @@ export const makeChannelMaker = ({
           checkAccess();
           return harden([...messages]);
         },
-        createInvitation: async subMemberName => {
+        createInvitation: async (subMemberName, options) => {
           checkAccess();
           // Enforce unique invitation names per inviter
           if (localInvitations.has(subMemberName)) {
@@ -800,6 +828,9 @@ export const makeChannelMaker = ({
             joined: false,
             heatConfig: /** @type {HeatConfig | null} */ (null),
             temporaryBanUntil: 0,
+            suggestedViewMode: normalizeViewModeHint(
+              options && options.suggestedViewMode,
+            ),
           };
           memberEntries.set(subMemberId, subEntry);
           const attenuator = makeAttenuator(subEntry);
@@ -957,6 +988,7 @@ export const makeChannelMaker = ({
               joined: data.joined !== undefined ? data.joined : true,
               heatConfig,
               temporaryBanUntil: data.temporaryBanUntil,
+              suggestedViewMode: normalizeViewModeHint(data.suggestedViewMode),
             });
             const num = Number(data.memberId);
             if (num >= nextMemberIdNum) {
@@ -1022,68 +1054,59 @@ export const makeChannelMaker = ({
       }
     }
 
-    const channelExo = /** @type {EndoChannel} */ (
-      /** @type {unknown} */
-      (
-        makeExo('EndoChannel', ChannelInterface, {
-          help: makeHelp(channelHelp),
-          post: async (
-            strings,
-            names,
-            petNamesOrPaths,
-            replyTo,
-            resolvedIds,
-            replyType,
-          ) => {
-            const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-            await postInternal(
-              adminMemberId,
-              strings,
-              names,
-              ids,
-              replyTo,
-              replyType,
-            );
-          },
-          followMessages: async () => {
-            const iterator = (async function* channelMessages() {
-              yield* messages;
-              yield* messagesTopic.subscribe();
-            })();
-            return makeIteratorRef(iterator);
-          },
-          listMessages: async () => harden([...messages]),
-          createInvitation: async memberProposedName => {
-            // Enforce unique invitation names per inviter (admin)
-            if (adminInvitations.has(memberProposedName)) {
-              throw new Error(
-                `An invitation named ${q(memberProposedName)} already exists from this member`,
-              );
-            }
-            const pedigree = [proposedName];
-            const memberId = allocateMemberId();
-            const newEntry = {
-              proposedName: memberProposedName,
-              invitedAs: memberProposedName,
-              memberId,
-              inviterMemberId: adminMemberId,
-              pedigree,
-              valid: true,
-              joined: false,
-              heatConfig: /** @type {HeatConfig | null} */ (null),
-              temporaryBanUntil: 0,
-            };
-            memberEntries.set(memberId, newEntry);
-            const attenuator = makeAttenuator(newEntry);
-            const invitation = makeInvitation(
-              newEntry,
-              adminCheckAccess,
-              adminCheckPostRate,
-            );
-            const rec = { invitation, attenuator, entry: newEntry };
-            adminInvitations.set(memberProposedName, rec);
-            const regKey = `${adminMemberId}:${memberProposedName}`;
-            invitationRegistry.set(regKey, rec);
+    /** @type {EndoChannel} */
+    const channelExo = makeExo('EndoChannel', ChannelInterface, {
+      help: makeHelp(channelHelp),
+      post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds, replyType) => {
+        const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
+        await postInternal(adminMemberId, strings, names, ids, replyTo, replyType);
+      },
+      // The admin created the channel, so there is no invitation hint;
+      // returning undefined lets the client use its stored preference
+      // or the default view mode.
+      getSuggestedViewMode: () => undefined,
+      followMessages: async () => {
+        const iterator = (async function* channelMessages() {
+          yield* messages;
+          yield* messagesTopic.subscribe();
+        })();
+        return makeIteratorRef(iterator);
+      },
+      listMessages: async () => harden([...messages]),
+      createInvitation: async (memberProposedName, options) => {
+        // Enforce unique invitation names per inviter (admin)
+        if (adminInvitations.has(memberProposedName)) {
+          throw new Error(
+            `An invitation named ${q(memberProposedName)} already exists from this member`,
+          );
+        }
+        const pedigree = [proposedName];
+        const memberId = allocateMemberId();
+        const newEntry = {
+          proposedName: memberProposedName,
+          invitedAs: memberProposedName,
+          memberId,
+          inviterMemberId: adminMemberId,
+          pedigree,
+          valid: true,
+          joined: false,
+          heatConfig: /** @type {HeatConfig | null} */ (null),
+          temporaryBanUntil: 0,
+          suggestedViewMode: normalizeViewModeHint(
+            options && options.suggestedViewMode,
+          ),
+        };
+        memberEntries.set(memberId, newEntry);
+        const attenuator = makeAttenuator(newEntry);
+        const invitation = makeInvitation(
+          newEntry,
+          adminCheckAccess,
+          adminCheckPostRate,
+        );
+        const rec = { invitation, attenuator, entry: newEntry };
+        adminInvitations.set(memberProposedName, rec);
+        const regKey = `${adminMemberId}:${memberProposedName}`;
+        invitationRegistry.set(regKey, rec);
 
             // Register handle info for this member so its children can chain
             /** @type {Map<string, { invitation: object, attenuator: object, entry: MemberEntry }>} */
