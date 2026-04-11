@@ -4,7 +4,7 @@ import harden from '@endo/harden';
 
 /**
  * @typedef {object} ProfilePopupAPI
- * @property {(options: { proposedName: string, pedigree: string[], pedigreeMemberIds?: string[], nameMap?: Map<string, string>, yourName?: string, onAssignName?: (name: string) => void, anchorElement: HTMLElement }) => void} show
+ * @property {(options: { proposedName: string, memberId?: string, pedigree: string[], pedigreeMemberIds?: string[], nameMap?: Map<string, string>, yourName?: string, onAssignName?: (name: string) => void, anchorElement: HTMLElement }) => void} show
  * @property {() => void} hide
  */
 
@@ -26,6 +26,7 @@ export const createProfilePopup = $container => {
   /**
    * @param {object} options
    * @param {string} options.proposedName
+   * @param {string} [options.memberId] - Clicked member's own ID, for nameMap lookup
    * @param {string[]} options.pedigree
    * @param {string[]} [options.pedigreeMemberIds] - Member IDs corresponding to pedigree entries
    * @param {Map<string, string>} [options.nameMap] - Local address book mapping memberId to assigned name
@@ -35,6 +36,7 @@ export const createProfilePopup = $container => {
    */
   const show = ({
     proposedName,
+    memberId: clickedMemberId,
     pedigree,
     pedigreeMemberIds,
     nameMap,
@@ -45,6 +47,13 @@ export const createProfilePopup = $container => {
     void anchorElement; // reserved for future anchor-relative positioning
     visible = true;
 
+    // The viewer's locally-assigned name for the clicked member, if any.
+    // Prefer explicit yourName, else look up via the clicked memberId.
+    const clickedAssigned =
+      yourName ||
+      (clickedMemberId && nameMap && nameMap.get(clickedMemberId)) ||
+      '';
+
     /**
      * Resolve a pedigree entry to its display name.
      * Prefers the viewer's assigned name from the address book;
@@ -54,13 +63,20 @@ export const createProfilePopup = $container => {
      * @returns {string} HTML for the pedigree entry
      */
     const renderPedigreeName = (name, index) => {
-      const memberId = pedigreeMemberIds && pedigreeMemberIds[index];
-      const assigned = memberId && nameMap && nameMap.get(memberId);
+      const entryMemberId = pedigreeMemberIds && pedigreeMemberIds[index];
+      const assigned =
+        entryMemberId && nameMap && nameMap.get(entryMemberId);
       if (assigned) {
         return `<span class="pedigree-name named" title="Proposed: \u201C${name}\u201D">${assigned}</span>`;
       }
       return `<span class="pedigree-name">\u201C${name}\u201D</span>`;
     };
+
+    // The clicked member's own entry at the end of the chain — same
+    // lookup rule: local assigned name wins over the proposed name.
+    const selfHtml = clickedAssigned
+      ? `<span class="pedigree-name pedigree-self named" title="Proposed: \u201C${proposedName}\u201D">${clickedAssigned}</span>`
+      : `<span class="pedigree-name pedigree-self">\u201C${proposedName}\u201D</span>`;
 
     const pedigreeHtml =
       pedigree.length > 0
@@ -68,14 +84,18 @@ export const createProfilePopup = $container => {
             .map(renderPedigreeName)
             .join(
               ' <span class="pedigree-arrow">\u2192</span> ',
-            )} <span class="pedigree-arrow">\u2192</span> <span class="pedigree-name pedigree-self">\u201C${proposedName}\u201D</span>`
+            )} <span class="pedigree-arrow">\u2192</span> ${selfHtml}`
         : '<span class="pedigree-creator">Channel Creator</span>';
+
+    const headerHtml = clickedAssigned
+      ? `<span class="profile-proposed-name named" title="Proposed: \u201C${proposedName}\u201D">${clickedAssigned}</span>`
+      : `<span class="profile-proposed-name">\u201C${proposedName}\u201D</span>`;
 
     $container.innerHTML = `
       <div class="profile-popup-backdrop"></div>
       <div class="profile-popup">
         <div class="profile-popup-header">
-          <span class="profile-proposed-name">\u201C${proposedName}\u201D</span>
+          ${headerHtml}
           <button type="button" class="profile-popup-close" title="Close">&times;</button>
         </div>
         <div class="profile-popup-body">

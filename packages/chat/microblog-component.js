@@ -216,6 +216,7 @@ export const microblogComponent = async (
         e.stopPropagation();
         profilePopup.show({
           proposedName: info.proposedName,
+          memberId,
           pedigree: info.pedigree,
           pedigreeMemberIds: info.pedigreeMemberIds,
           nameMap,

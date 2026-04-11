@@ -490,6 +490,7 @@ export const channelComponent = async (
       e.stopPropagation();
       profilePopup.show({
         proposedName: authorProposedName,
+        memberId: memberKey,
         pedigree,
         pedigreeMemberIds,
         nameMap,

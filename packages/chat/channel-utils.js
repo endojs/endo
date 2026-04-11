@@ -468,6 +468,7 @@ export const createChannelState = async (channel, opts) => {
       e.stopPropagation();
       profilePopup.show({
         proposedName: authorProposedName,
+        memberId: memberKey,
         pedigree,
         pedigreeMemberIds,
         nameMap,
