@@ -29,6 +29,7 @@ import {
  * @param {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} options.showValue
  * @param {string} [options.personaId]
  * @param {string} [options.ownMemberId]
+ * @param {boolean} [options.ownNameProposed] - Whether the current user's own display name is still a proposal awaiting confirmation
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply]
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen]
  * @param {() => void} [options.onThreadClose]
@@ -44,6 +45,7 @@ export const microblogComponent = async (
     showValue,
     personaId,
     ownMemberId,
+    ownNameProposed,
     onReply,
     onThreadOpen,
     onThreadClose,
@@ -56,6 +58,7 @@ export const microblogComponent = async (
   const state = await createChannelState(channel, {
     personaId,
     ownMemberId,
+    ownNameProposed,
     $parent,
   });
 
@@ -121,10 +124,15 @@ export const microblogComponent = async (
    */
   // eslint-disable-next-line no-unused-vars
   const getDisplayName = async memberId => {
+    const isOwnProposed = ownNameProposed && memberId === ownMemberId;
     const assigned = nameMap.get(memberId);
-    if (assigned) return assigned;
+    if (assigned && !isOwnProposed) return assigned;
     const info = await getMemberInfo(memberId);
-    return info ? `\u201C${info.proposedName}\u201D` : memberId;
+    if (!info) return memberId;
+    if (isOwnProposed) {
+      return `"${info.proposedName}"`;
+    }
+    return `\u201C${info.proposedName}\u201D`;
   };
 
   /**
@@ -184,37 +192,38 @@ export const microblogComponent = async (
     $author.className = 'channel-author microblog-author';
     $author.dataset.memberId = memberId;
 
+    const isOwnProposed = ownNameProposed && memberId === ownMemberId;
     const assigned = nameMap.get(memberId);
-    if (assigned) {
+    if (assigned && !isOwnProposed) {
       $author.textContent = assigned;
       $author.classList.add('named');
     } else {
       $author.textContent = memberId;
     }
 
-    getMemberInfo(memberId)
-      .then(info => {
-        if (!info) return;
-        const current = nameMap.get(memberId);
-        if (!current) {
-          $author.textContent = `\u201C${info.proposedName}\u201D`;
-        }
-        $author.dataset.proposedName = info.proposedName;
-        $author.addEventListener('click', e => {
-          e.stopPropagation();
-          profilePopup.show({
-            proposedName: info.proposedName,
-            pedigree: info.pedigree,
-            pedigreeMemberIds: info.pedigreeMemberIds,
-            nameMap,
-            yourName: nameMap.get(memberId),
-            onAssignName: name => {
-              nameMap.set(memberId, name);
-              saveNameMap();
-              updateAuthorChips(memberId);
-            },
-            anchorElement: $author,
-          });
+    getMemberInfo(memberId).then(info => {
+      if (!info) return;
+      const current = nameMap.get(memberId);
+      if (isOwnProposed) {
+        $author.textContent = `"${info.proposedName}"`;
+      } else if (!current) {
+        $author.textContent = `\u201C${info.proposedName}\u201D`;
+      }
+      $author.dataset.proposedName = info.proposedName;
+      $author.addEventListener('click', e => {
+        e.stopPropagation();
+        profilePopup.show({
+          proposedName: info.proposedName,
+          pedigree: info.pedigree,
+          pedigreeMemberIds: info.pedigreeMemberIds,
+          nameMap,
+          yourName: nameMap.get(memberId),
+          onAssignName: name => {
+            nameMap.set(memberId, name);
+            saveNameMap();
+            updateAuthorChips(memberId);
+          },
+          anchorElement: $author,
         });
       })
       .catch(() => {});

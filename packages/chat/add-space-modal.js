@@ -10,6 +10,10 @@ import harden from '@endo/harden';
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
+import {
+  extractSuggestedNameFromLocator,
+  formatDisplayName,
+} from './display-name.js';
 import { ALL_ICONS, letterIcon, renderIconSelector } from './icon-selector.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createSchemePicker } from './scheme-picker.js';
@@ -54,6 +58,7 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {ColorScheme} [scheme] - Color scheme preference
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
+ * @property {boolean} [nameProposed] - Whether `proposedName` is still a proposal awaiting the user's confirmation (invitees default to true until they confirm)
  * @property {string} [whylipSystemPrompt] - System prompt override for Whylip mode
  * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - Initial channel view mode preference (default: 'chat'); stored client-side, not in daemon config
  * @property {boolean} [ownedPersona] - Whether the space owns the persona (for cleanup)
@@ -126,6 +131,21 @@ export const createAddSpaceModal = ({
   let connectSpaceName = '';
   /** @type {string} */
   let connectProposedName = '';
+  /**
+   * The most recent inviter-suggested display name extracted from the
+   * pasted invitation locator (via `?name=...`). Used purely as a hint
+   * to pre-populate the display-name field; the invitee is free to
+   * override it before confirming.
+   * @type {string}
+   */
+  let connectSuggestedName = '';
+  /**
+   * Tracks whether the user has manually edited the display-name input.
+   * Once true, pasting a new locator will not overwrite their typed
+   * value with a fresh suggestion.
+   * @type {boolean}
+   */
+  let connectProposedNameEdited = false;
   /** @type {'new' | 'existing'} */
   let connectPersonaMode = 'new';
   /** @type {string | null} */
@@ -493,7 +513,13 @@ export const createAddSpaceModal = ({
             <label for="connect-proposed-name">Your Display Name</label>
             <input type="text" id="connect-proposed-name" placeholder="e.g., Alice"
                    value="${connectProposedName}" autocomplete="off" />
-            <div class="field-hint">How others will see you in this channel</div>
+            <div class="field-hint">
+              ${
+                connectSuggestedName
+                  ? `Inviter suggested ${formatDisplayName(connectSuggestedName, { proposed: true })}. You can accept this or type your own — your name will appear in quotes until you confirm it.`
+                  : 'How others will see you in this channel. Your name will appear in quotes until you confirm it.'
+              }
+            </div>
           </div>
         `
             : `
@@ -1074,6 +1100,25 @@ export const createAddSpaceModal = ({
     if ($connectLocatorInput) {
       $connectLocatorInput.addEventListener('input', () => {
         connectLocator = $connectLocatorInput.value;
+        // Extract an inviter-suggested name from the locator and, if the
+        // user hasn't yet typed their own display name, pre-populate the
+        // field with the suggestion so they can accept or edit it.
+        const suggestion = extractSuggestedNameFromLocator(connectLocator);
+        if (suggestion !== undefined) {
+          if (suggestion !== connectSuggestedName) {
+            connectSuggestedName = suggestion;
+            if (!connectProposedNameEdited) {
+              connectProposedName = suggestion;
+              render();
+            } else {
+              // Still re-render to update the hint text.
+              render();
+            }
+          }
+        } else if (connectSuggestedName) {
+          connectSuggestedName = '';
+          render();
+        }
       });
     }
     if ($connectSpaceNameInput) {
@@ -1084,6 +1129,7 @@ export const createAddSpaceModal = ({
     if ($connectProposedNameInput) {
       $connectProposedNameInput.addEventListener('input', () => {
         connectProposedName = $connectProposedNameInput.value;
+        connectProposedNameEdited = true;
       });
     }
     for (const $radio of $personaModeRadios) {
@@ -1536,6 +1582,10 @@ export const createAddSpaceModal = ({
           layout: 'channel',
           channelPetName: 'general',
           proposedName: displayName,
+          // Invited users' names are proposals until confirmed — the UI
+          // should render them in scare quotes everywhere until the user
+          // confirms (or re-edits and then confirms).
+          nameProposed: true,
           viewMode: connectViewMode,
         });
 
@@ -1874,6 +1924,8 @@ export const createAddSpaceModal = ({
     connectLocator = '';
     connectSpaceName = '';
     connectProposedName = '';
+    connectSuggestedName = '';
+    connectProposedNameEdited = false;
     connectPersonaMode = 'new';
     connectExistingSpaceId = null;
     whylipName = '';
