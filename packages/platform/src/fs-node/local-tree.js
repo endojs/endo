@@ -35,7 +35,7 @@ export const makeLocalTree = (dirPath, options = {}) => {
       );
     }
 
-    return makeExo('LocalTree', ReadableTreeInterface, {
+    return makeExo('LocalTree', ReadableTreeInterface, /** @type {any} */ ({
       /**
        * @param {...string} names
        * @returns {Promise<boolean>}
@@ -97,7 +97,7 @@ export const makeLocalTree = (dirPath, options = {}) => {
         }
         return current;
       },
-    });
+    }));
   };
 
   return makeTree(dirPath, 0);
