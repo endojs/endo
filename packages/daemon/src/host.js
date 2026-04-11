@@ -1277,7 +1277,7 @@ export const makeHostMaker = ({
       ]),
     );
 
-    const hostExo = makeExo('EndoHost', HostInterface, {
+    const hostExo = makeExo('EndoHost', HostInterface, /** @type {any} */ ({
       help: makeHelp(hostHelp),
       ...wrappedHost,
       /** @param {string} locator */
@@ -1301,7 +1301,7 @@ export const makeHostMaker = ({
         await collectIfDirty();
         return makeIteratorRef(iterator);
       },
-    });
+    }));
 
     await provide(mainWorkerId, 'worker');
 
