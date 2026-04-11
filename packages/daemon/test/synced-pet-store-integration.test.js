@@ -227,12 +227,10 @@ test.serial('synced stores converge via manual sync', async t => {
   const secretLocator = await E(hostA).locate('secret');
   await E(aliceStore).storeLocator('shared-secret', secretLocator);
 
-  // Before sync, Bob's grantee store does not have the new entry.
-  const bobNamesBefore = await E(bobStore).list();
-  t.false(
-    bobNamesBefore.includes('shared-secret'),
-    'Bob should not see the entry before sync',
-  );
+  // Note: we do not assert Bob cannot see the entry before manual
+  // sync, because the push-based follower may already have
+  // delivered it.  This test only verifies that manual sync is a
+  // valid (redundant) way to bring the stores into agreement.
 
   // Perform manual sync: exchange state between the two stores.
   const aliceState = await E(aliceStore).getState();
