@@ -46,7 +46,7 @@
   "devDependencies": {
     "@endo/cli": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "ava": "^7.0.0",
+    "ava": "catalog:dev",
     "eslint": "catalog:dev"
   },
   "ava": {

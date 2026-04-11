@@ -1,5 +1,5 @@
 // @ts-check
-/* global fetch, process, setTimeout */
+/* global process, setTimeout */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order
@@ -383,15 +383,20 @@ test.serial('relay server health endpoint works', async t => {
       return;
     }
     const httpUrl = relay.relayUrl.replace('ws://', 'http://');
-    const res = await fetch(`${httpUrl}/health`);
-    t.is(res.status, 200);
-    // Consume the body so the undici client can release its
-    // connection cleanly; otherwise an unhandled ClientDestroyedError
-    // can surface during teardown on some platforms.
-    await res.text();
-    // We don't check JSON for the local relay since the HTTP handler
-    // in our test just returns 'ok'. This test mainly validates the
-    // server is up and accepting connections.
+    // Use the node:http client directly rather than the global
+    // `fetch` (undici).  Under SES, undici sometimes tries to mutate
+    // an error message during cleanup, raising an unhandled
+    // TypeError "Cannot assign to read only property 'message'".
+    const status = await new Promise((resolve, reject) => {
+      const req = http.get(`${httpUrl}/health`, response => {
+        // Drain the body so the connection is released.
+        response.on('data', () => {});
+        response.on('end', () => resolve(response.statusCode));
+        response.on('error', reject);
+      });
+      req.on('error', reject);
+    });
+    t.is(status, 200);
   } finally {
     await relay.teardown();
   }

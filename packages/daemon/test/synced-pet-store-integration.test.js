@@ -37,15 +37,27 @@ const makeConfig = (...root) => {
 
 let configPathId = 0;
 
+// macOS limits unix socket paths to 104 characters.  Compute the
+// maximum length we can give the per-test config subdirectory so that
+// `<dirname>/tmp/<configDir>/endo.sock` stays within that limit.
+const MAX_UNIX_SOCKET_PATH = 90;
+const SOCKET_PATH_OVERHEAD =
+  path.join(dirname, 'tmp').length + 1 + 'endo.sock'.length + 8;
+const MAX_CONFIG_DIR_LENGTH = Math.max(
+  8,
+  MAX_UNIX_SOCKET_PATH - SOCKET_PATH_OVERHEAD,
+);
+
 /**
  * @param {string} testTitle
  * @param {number} configNumber
  */
 const getConfigDirectoryName = (testTitle, configNumber) => {
-  const basePath = testTitle
-    .replace(/\s/giu, '-')
-    .replace(/[^\w-]/giu, '')
-    .slice(0, 40);
+  const defaultPath = testTitle.replace(/\s/giu, '-').replace(/[^\w-]/giu, '');
+  const basePath =
+    defaultPath.length <= MAX_CONFIG_DIR_LENGTH
+      ? defaultPath
+      : defaultPath.slice(0, MAX_CONFIG_DIR_LENGTH);
   const testId = String(configPathId).padStart(4, '0');
   const configId = String(configNumber).padStart(2, '0');
   configPathId += 1;
