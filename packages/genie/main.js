@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-continue, no-await-in-loop */
 
 /**
  * Genie main module — integrates the genie agent (src/agent) into the
@@ -28,6 +30,7 @@ import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
+// eslint-disable-next-line import/no-unresolved
 import { makePiAgent, runAgentRound } from '@endo/genie';
 
 import { bash } from './src/tools/command.js';
@@ -133,10 +136,11 @@ export const make = (guestPowers, _context) => {
 
   /**
    * @typedef {object} AgentConfig
-   * @prop {string} model
-   * @prop {string} workspace
-   * @prop {string} [name]
-   * @prop {string} [agentDirectory]
+   * @property {string} model
+   * @property {string} workspace
+   * @property {string} [name]
+   * @property {string} [agentDirectory]
+   * @property
    */
 
   /**
@@ -442,7 +446,8 @@ export const make = (guestPowers, _context) => {
     if (!(await E(parentPowers).has(agentDirName))) {
       return [];
     }
-    return /** @type {string[]} */ (await E(parentPowers).list(agentDirName));
+    const result = await E(parentPowers).list(agentDirName);
+    return /** @type {string[]} */ (result);
   };
   harden(listChildAgents);
 

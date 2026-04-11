@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 /**
  * Unit tests for the reasoning filter and tool call extraction
@@ -115,13 +116,11 @@ test('no tool calls returns undefined', t => {
  */
 const filterReasoning = content => {
   // Strip residual HTML-like tags
-  let cleaned = content.replace(/<\/?think>/g, '').trim();
+  const cleaned = content.replace(/<\/?think>/g, '').trim();
 
   const lines = cleaned.split('\n');
-  /* eslint-disable prettier/prettier */
   const reasoningRe =
     /^([-•*] (Adopt|Look|Join|Post|Sen[dt]|Return|Perform|Call)|Thus|So |But |However|The (user|instruction|message|content|question|adopt|edge|tool|error)|We (need|should|have|can|could|attempt|perform)|Given |In (previous|earlier|the|that|this)|For (consistency|message|each|the|safety)|Now |Maybe |Possibly|Perhaps|Actually|Let('s|)|Looking|They |That (suggests|means|likely|seems)|This (suggests|means|is)|I('m| think| need| will| should| see|'ve (adopted|joined|posted))|Not sure|After adopt|Proceed|Since |Wait|Hmm|OK |Ok |The (phrase|question|safe)|Step |Recap|All steps|```)/;
-  /* eslint-enable prettier/prettier */
   /** @type {string[]} */
   const kept = [];
   for (const line of lines) {
@@ -174,8 +173,7 @@ Let's proceed with the reply.`;
 test('caps long content with hard truncation', t => {
   // When kept lines are joined with \n (not \n\n), paragraph split
   // won't find breaks. The 500-char hard cap catches it.
-  const longContent =
-    'First paragraph.\n\n' + 'x'.repeat(600) + '\n\nFinal reply.';
+  const longContent = `First paragraph.\n\n${'x'.repeat(600)}\n\nFinal reply.`;
 
   const filtered = filterReasoning(longContent);
   t.true(

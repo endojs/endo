@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+/* global process */
+/* eslint-disable no-continue */
 // Quick test of the LLM provider using the same config Jaine uses.
 // Run from repo root: node packages/jaine/test-llm.js
 //
@@ -38,7 +40,7 @@ const authToken = process.env.ENDO_LLM_AUTH_TOKEN || 'ollama';
 
 console.log(`\nPrimary provider: ${host} / ${model}`);
 console.log(
-  `Auth token: ${authToken ? authToken.slice(0, 12) + '...' : '(none)'}\n`,
+  `Auth token: ${authToken ? `${authToken.slice(0, 12)}...` : '(none)'}\n`,
 );
 
 try {
@@ -75,7 +77,7 @@ if (fastModel) {
 
   console.log(`\nFast provider: ${fastHost} / ${fastModel}`);
   console.log(
-    `Auth token: ${fastAuthToken ? fastAuthToken.slice(0, 12) + '...' : '(none)'}\n`,
+    `Auth token: ${fastAuthToken ? `${fastAuthToken.slice(0, 12)}...` : '(none)'}\n`,
   );
 
   try {

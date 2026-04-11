@@ -1,5 +1,6 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout, clearTimeout */
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 import fs from 'fs';
@@ -61,7 +62,7 @@ export const system = async (prog, args, timeoutMs) => {
     stdio: 'inherit',
     detached: false,
   });
-  return await withChildTimeout(child, waitForExit(child), timeoutMs);
+  return withChildTimeout(child, waitForExit(child), timeoutMs);
 };
 harden(system);
 
@@ -127,6 +128,7 @@ export const whichProg = async prog => {
       return candidate;
     }
     // On Unix-like systems, check the executable bits.
+    // eslint-disable-next-line no-bitwise
     if ((stats.mode & 0o111) !== 0) {
       return candidate;
     }

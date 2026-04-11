@@ -1,15 +1,14 @@
 // @ts-check
 /* global process */
+/* eslint-disable no-continue */
 
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
-import { spawn } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import { systemCapture } from '@endo/platform/proc';
 import { whereEndoState } from '@endo/where';
-import { time } from 'console';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -180,7 +179,7 @@ const makeEndoChecker = () => {
       for (const line of stderr.split('\n')) {
         console.error(`[Endo Plugin]   ${line}`);
       }
-      failStarts++;
+      failStarts += 1;
     }
   };
 
@@ -192,7 +191,7 @@ const makeEndoChecker = () => {
       // willing to wait for start to even succeed
       const nextCheck =
         DAEMON_POLL_INTERVAL_MS *
-        Math.min(DAEMON_START_MAX_WAIT, Math.pow(2, failStarts));
+        Math.min(DAEMON_START_MAX_WAIT, 2 ** failStarts);
 
       if (!daemonHealthy) {
         console.error(

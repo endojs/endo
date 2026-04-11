@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 
@@ -911,7 +912,12 @@ export const inventoryComponent = async (
           ),
         ]
           .map(el => el.dataset.name)
-          .filter(/** @returns {n is string} */ n => typeof n === 'string');
+          .filter(
+            /**
+             * @param n
+             * @returns {n is string}
+             */ n => typeof n === 'string',
+          );
         onChannelReorder(orderedNames);
       }
     });

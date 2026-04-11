@@ -1,5 +1,5 @@
 // @ts-check
-/* global document, requestAnimationFrame, setTimeout, clearTimeout, window */
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
@@ -119,6 +119,7 @@ export const microblogComponent = async (
    * @param {string} memberId
    * @returns {Promise<string>}
    */
+  // eslint-disable-next-line no-unused-vars
   const getDisplayName = async memberId => {
     const assigned = nameMap.get(memberId);
     if (assigned) return assigned;
@@ -738,7 +739,7 @@ export const microblogComponent = async (
   const messagesIterator = makeRefIterator(messagesRef);
 
   /** @type {boolean} */
-  let disposed = false;
+  const disposed = false;
 
   const consumeMessages = async () => {
     for await (const message of messagesIterator) {

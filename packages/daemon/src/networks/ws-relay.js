@@ -180,10 +180,13 @@ export const make = async (
       channelId,
     );
 
-    channels.set(channelId, {
-      sink: /** @type {any} */ (sink),
-      resolveClosed,
-    });
+    channels.set(
+      channelId,
+      /** @type {any} */ ({
+        sink,
+        resolveClosed,
+      }),
+    );
 
     const { closed: capTpClosed, close: closeCapTp } = makeNetstringCapTP(
       'Endo',
@@ -433,10 +436,13 @@ export const make = async (
       channelId,
     );
 
-    channels.set(channelId, {
-      sink: /** @type {any} */ (sink),
-      resolveClosed,
-    });
+    channels.set(
+      channelId,
+      /** @type {any} */ ({
+        sink,
+        resolveClosed,
+      }),
+    );
 
     const {
       promise: opened,

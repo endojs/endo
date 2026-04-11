@@ -129,6 +129,7 @@ export const makeComposer = (provider, executorFn) => {
       }
 
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (toolCalls.length > 0) {
         conversation.push(responseMessage);
 

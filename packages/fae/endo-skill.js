@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
-/* global process */
+/* global process, setTimeout */
+/* eslint-disable no-continue, @endo/restrict-comparison-operands */
 
 /**
  * Endo daemon CLI skill for Claude Code.
@@ -106,7 +107,7 @@ const formatMessage = msg => {
   if (msg.type === 'package' && Array.isArray(msg.strings)) {
     const text = [];
     const names = Array.isArray(msg.names) ? msg.names : [];
-    for (let i = 0; i < msg.strings.length; i++) {
+    for (let i = 0; i < msg.strings.length; i += 1) {
       text.push(msg.strings[i]);
       if (i < names.length) text.push(`@${names[i]}`);
     }
@@ -159,7 +160,7 @@ const commands = {
     }
   },
 
-  async 'read-message'(host, args) {
+  'read-message': async function (host, args) {
     const num = args[0];
     if (!num) {
       console.error('Usage: read-message <number>');
@@ -216,6 +217,7 @@ const commands = {
     const value = await E(target).lookup(name);
     // Try to get method names for introspection
     try {
+      // eslint-disable-next-line no-underscore-dangle
       const methods = await E(value).__getMethodNames__();
       console.log(`${name} methods: ${methods.join(', ')}`);
     } catch {
@@ -227,7 +229,7 @@ const commands = {
     }
   },
 
-  async 'channel-messages'(host, args) {
+  'channel-messages': async function (host, args) {
     const [channelName, countStr] = args;
     if (!channelName) {
       console.error('Usage: channel-messages <name> [count]');
@@ -267,7 +269,7 @@ const commands = {
     }
   },
 
-  async 'channel-members'(host, args) {
+  'channel-members': async function (host, args) {
     const [channelName] = args;
     if (!channelName) {
       console.error('Usage: channel-members <name>');
@@ -298,7 +300,7 @@ const commands = {
     }
   },
 
-  async 'channel-post'(host, args) {
+  'channel-post': async function (host, args) {
     const [channelName, ...textParts] = args;
     const replyToIdx = textParts.indexOf('--reply-to');
     const asIdx = textParts.indexOf('--as');
@@ -336,7 +338,7 @@ const commands = {
     );
   },
 
-  async 'channel-move'(host, args) {
+  'channel-move': async function (host, args) {
     const [channelName, msgNumber, newParent, sortOrder] = args;
     if (!channelName || !msgNumber || !newParent) {
       console.error(
@@ -353,7 +355,7 @@ const commands = {
     );
   },
 
-  async 'agent-send'(host, args) {
+  'agent-send': async function (host, args) {
     const [agentName, ...textParts] = args;
     const text = textParts.join(' ');
     if (!agentName || !text) {
@@ -364,7 +366,7 @@ const commands = {
     console.log(`Sent to ${agentName}: ${text}`);
   },
 
-  async 'agent-inbox'(host, args) {
+  'agent-inbox': async function (host, args) {
     const [agentName, countStr] = args;
     if (!agentName) {
       console.error('Usage: agent-inbox <agent-profile-name> [count]');
@@ -383,7 +385,7 @@ const commands = {
     }
   },
 
-  async 'channel-watch'(host, args) {
+  'channel-watch': async function (host, args) {
     const [channelName, ...filterParts] = args;
     if (!channelName) {
       console.error('Usage: channel-watch <name> [--skip-from <member>]');
@@ -436,7 +438,7 @@ const commands = {
     }
   },
 
-  async 'inbox-watch'(host, _args) {
+  'inbox-watch': async function (host, _args) {
     const existing = /** @type {any[]} */ (await E(host).listMessages());
     const existingCount = existing.length;
     console.error(

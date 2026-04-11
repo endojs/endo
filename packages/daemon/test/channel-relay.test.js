@@ -5,9 +5,6 @@
 // eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
-// Enable CapTP tracing for relay debugging.
-process.env.ENDO_CAPTP_TRACE = '1';
-
 import test from 'ava';
 import url from 'url';
 import path from 'path';
@@ -16,6 +13,9 @@ import { WebSocketServer } from 'ws';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, purge, makeEndoClient } from '../index.js';
+
+// Enable CapTP tracing for relay debugging.
+process.env.ENDO_CAPTP_TRACE = '1';
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 

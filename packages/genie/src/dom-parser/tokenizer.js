@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 /**
  * HTML Tokenizer
@@ -118,7 +119,7 @@ const parseAttributes = attrStr => {
     if (i >= len) break;
 
     // Read attribute name.
-    let nameStart = i;
+    const nameStart = i;
     while (
       i < len &&
       !isWhitespace(attrStr[i]) &&

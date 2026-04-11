@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 /** @import { Token } from './types.js' */
 
@@ -232,13 +233,11 @@ const processDelimiters = nodes => {
       let useCount;
       if (delimChar === '~') {
         useCount = Math.min(opener.count, closer.count, 2);
-      } else {
+      } else if (opener.count >= 2 && closer.count >= 2) {
         // Prefer to consume 2 for strong if both have >= 2
-        if (opener.count >= 2 && closer.count >= 2) {
-          useCount = 2;
-        } else {
-          useCount = 1;
-        }
+        useCount = 2;
+      } else {
+        useCount = 1;
       }
 
       // Reduce counts

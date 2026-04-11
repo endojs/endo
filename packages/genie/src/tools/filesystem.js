@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-continue, camelcase */
 
 /**
  * Filesystem Tools Module
@@ -78,7 +80,7 @@ const makeFileTools = (options = {}) => {
   const resolvedRoot = resolve(root);
 
   const readFile = makeTool('readFile', {
-    help: function* () {
+    *help() {
       yield 'Reads the text content of a single FILE. Cannot read directories.';
       yield '';
       yield 'IMPORTANT: This tool only works on files, NOT directories.';
@@ -188,7 +190,7 @@ const makeFileTools = (options = {}) => {
   });
 
   const writeFile = makeTool('writeFile', {
-    help: function* () {
+    *help() {
       yield 'Creates or completely overwrites a file with new content.';
       yield '';
       yield 'Use writeFile to create new files or fully replace file content.';
@@ -240,7 +242,7 @@ const makeFileTools = (options = {}) => {
   // -- editFile --------------------------------------------------------------
 
   const editFile = makeTool('editFile', {
-    help: function* () {
+    *help() {
       yield 'Replaces a specific string in an existing file with a new string.';
       yield '';
       yield 'Use editFile when you need to change part of a file.';
@@ -321,7 +323,7 @@ const makeFileTools = (options = {}) => {
   // -- removeFile ------------------------------------------------------------
 
   const removeFile = makeTool('removeFile', {
-    help: function* () {
+    *help() {
       yield 'Deletes a single file. Cannot remove directories.';
       yield '';
       yield 'To remove a directory, use removeDirectory instead.';
@@ -365,7 +367,7 @@ const makeFileTools = (options = {}) => {
   // -- stat -----------------------------------------------------------------
 
   const stat = makeTool('stat', {
-    help: function* () {
+    *help() {
       yield 'Checks if a path exists and returns its type (file or directory) and size.';
       yield '';
       yield 'Use stat to find out whether a path is a file or a directory before';
@@ -423,7 +425,7 @@ const makeFileTools = (options = {}) => {
   // -- listDirectory --------------------------------------------------------
 
   const listDirectory = makeTool('listDirectory', {
-    help: function* () {
+    *help() {
       yield 'Lists the files and subdirectories inside a directory.';
       yield '';
       yield 'Use this tool to explore what is inside a folder.';
@@ -515,7 +517,7 @@ const makeFileTools = (options = {}) => {
   // -- makeDirectory --------------------------------------------------------
 
   const makeDirectory = makeTool('makeDirectory', {
-    help: function* () {
+    *help() {
       yield 'Creates a new directory (folder).';
       yield '';
       yield '**Parameters:**';
@@ -562,7 +564,7 @@ const makeFileTools = (options = {}) => {
   // -- removeDirectory ------------------------------------------------------
 
   const removeDirectory = makeTool('removeDirectory', {
-    help: function* () {
+    *help() {
       yield 'Deletes a directory (folder). To delete a single file, use removeFile.';
       yield '';
       yield '**Parameters:**';

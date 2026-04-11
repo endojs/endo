@@ -1,5 +1,6 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout */
+/* eslint-disable no-await-in-loop */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order

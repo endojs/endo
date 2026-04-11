@@ -1,5 +1,6 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout */
+/* eslint-disable no-await-in-loop */
 
 /**
  * Integration test: agent receives a channel mention notification and
@@ -267,6 +268,7 @@ test.serial('agent replies to channel mention (not inbox)', async t => {
 
   // 7. Send fae a notification (simulating chat UI's handleMentionNotify)
   t.log('Sending mention notification to fae...');
+  // eslint-disable-next-line no-unused-vars
   const faePetName = `fae-agent-for-fae`;
   // The fae agent's profile is accessible via faeProfileName
   // We need to find the pet name the host uses for fae
@@ -302,8 +304,10 @@ test.serial('agent replies to channel mention (not inbox)', async t => {
 
   // 9. Verify the response is clean — no reasoning leaked
   const responseText = (agentMessage.strings || []).join('');
+  // eslint-disable-next-line @endo/restrict-comparison-operands
   t.true(responseText.length > 0, 'response is not empty');
   t.true(
+    // eslint-disable-next-line @endo/restrict-comparison-operands
     responseText.length < 1000,
     `response should be concise, got ${responseText.length} chars`,
   );

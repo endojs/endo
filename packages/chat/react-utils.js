@@ -1,5 +1,5 @@
 // @ts-check
-/* global document, requestAnimationFrame */
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';

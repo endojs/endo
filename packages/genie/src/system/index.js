@@ -11,7 +11,7 @@
 /**
  * Build the full system prompt for the agent
  *
- * @param {Object} options - Configuration options
+ * @param {object} options - Configuration options
  * @param {string} [options.hostname] - Hostname (optional)
  * @param {string} [options.currentTime] - Current time string (optional)
  * @param {string} [options.workspaceDir] - Workspace directory path

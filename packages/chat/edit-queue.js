@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 

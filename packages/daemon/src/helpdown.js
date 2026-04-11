@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 /**
  * A minimal CommonMark-aware scanner for extracting help documentation

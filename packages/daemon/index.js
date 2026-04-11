@@ -608,9 +608,9 @@ const defaultEndProcPolicy = harden([
  * @param {object} options
  * @param {number} [options.waitBefore] - convenience for an initial wait before following process end steps;
  *                                        equivalent to passing `steps: [ { wait: NNN }, ...defaultEndProcPolicy ]`
- * @param {EndProcPolicy} [options.steps=defaultEndProcPolicy] - sequence of signals and wait-for-exit timeouts to follow
+ * @param {EndProcPolicy} [options.steps] - sequence of signals and wait-for-exit timeouts to follow
  * @param {number} [options.pollInterval] - how long to sleep between wait-for-exit checks (within per-step timeout)
- * @param {boolean} [options.verbose=true] - whether to log signals sent
+ * @param {boolean} [options.verbose] - whether to log signals sent
  */
 export async function politeEndProcess(
   pid,

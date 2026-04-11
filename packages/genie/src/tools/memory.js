@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-await-in-loop */
 
 /**
  * Memory Tools Module
@@ -265,7 +267,7 @@ const makeMemoryTools = (options = {}) => {
   const seeding = seedIndex();
 
   const memoryGet = makeTool('memoryGet', {
-    help: function* () {
+    *help() {
       yield 'Reads specific lines from a memory file (MEMORY.md or memory/*.md).';
       yield '';
       yield 'Use after memorySearch to read the relevant lines it found.';
@@ -345,7 +347,7 @@ const makeMemoryTools = (options = {}) => {
   });
 
   const memorySet = makeTool('memorySet', {
-    help: function* () {
+    *help() {
       yield 'Saves content to a memory file (MEMORY.md or memory/*.md).';
       yield '';
       yield 'Use to persist notes, preferences, and decisions across sessions.';
@@ -415,7 +417,7 @@ const makeMemoryTools = (options = {}) => {
   });
 
   const memorySearch = makeTool('memorySearch', {
-    help: function* () {
+    *help() {
       yield 'Searches memory files (MEMORY.md and memory/*.md) for matching text.';
       yield '';
       yield 'Use to recall past notes, preferences, or decisions.';
@@ -581,6 +583,7 @@ const makeSubstringBackend = (vfs, root) => {
     },
 
     /** No-op — no persistent index to sync. */
+    // eslint-disable-next-line no-empty-function
     async sync() {},
   });
 };

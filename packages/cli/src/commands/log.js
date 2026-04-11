@@ -8,7 +8,7 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeEndoClient } from '@endo/daemon';
-import { hasProgram, waitForExitOrCancel } from '@endo/platform/proc';
+import { waitForExitOrCancel } from '@endo/platform/proc';
 import { whereEndoState, whereEndoSock } from '@endo/where';
 import { E } from '@endo/far';
 import { withInterrupt } from '../context.js';

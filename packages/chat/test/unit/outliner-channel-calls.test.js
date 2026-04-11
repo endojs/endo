@@ -13,7 +13,6 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import {
-  M,
   matches,
   getInterfaceGuardPayload,
   getMethodGuardPayload,
@@ -21,7 +20,7 @@ import {
 import {
   ChannelInterface,
   ChannelMemberInterface,
-} from '../../../daemon/src/interfaces.js';
+} from '@endo/daemon/src/interfaces.js';
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 

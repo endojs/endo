@@ -1,15 +1,9 @@
 {
   "extends": "../../tsconfig.eslint-base.json",
-  "files": [
-    "index.js",
-    "shim.js"
-  ],
   "include": [
     "*.js",
     "*.ts",
-    "scripts",
     "src",
-    "src-xs",
-    "test/*.*"
+    "test"
   ]
 }

@@ -1,4 +1,5 @@
 // @ts-check
+/* global Buffer */
 /**
  * Gemini OpenAI-compatible provider.
  *

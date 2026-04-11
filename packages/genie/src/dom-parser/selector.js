@@ -63,7 +63,7 @@ const parseSimpleSelector = (sel, i) => {
     sel[i] !== '[' &&
     sel[i] !== '*'
   ) {
-    let start = i;
+    const start = i;
     while (
       i < len &&
       sel[i] !== '.' &&
@@ -84,7 +84,7 @@ const parseSimpleSelector = (sel, i) => {
   while (i < len) {
     if (sel[i] === '.') {
       i += 1;
-      let start = i;
+      const start = i;
       while (
         i < len &&
         sel[i] !== '.' &&
@@ -99,7 +99,7 @@ const parseSimpleSelector = (sel, i) => {
       simple.classes.push(sel.slice(start, i));
     } else if (sel[i] === '#') {
       i += 1;
-      let start = i;
+      const start = i;
       while (
         i < len &&
         sel[i] !== '.' &&
@@ -116,7 +116,7 @@ const parseSimpleSelector = (sel, i) => {
       i += 1;
       // Skip whitespace.
       while (i < len && isCssWs(sel[i])) i += 1;
-      let nameStart = i;
+      const nameStart = i;
       while (
         i < len &&
         sel[i] !== '=' &&
@@ -141,7 +141,7 @@ const parseSimpleSelector = (sel, i) => {
           op = '=';
           i += 1;
         } else if (i + 1 < len && sel[i + 1] === '=') {
-          op = sel[i] + '=';
+          op = `${sel[i]}=`;
           i += 2;
         } else {
           op = '=';
@@ -153,12 +153,12 @@ const parseSimpleSelector = (sel, i) => {
         if (i < len && (sel[i] === '"' || sel[i] === "'")) {
           const q = sel[i];
           i += 1;
-          let vs = i;
+          const vs = i;
           while (i < len && sel[i] !== q) i += 1;
           value = sel.slice(vs, i);
           if (i < len) i += 1;
         } else {
-          let vs = i;
+          const vs = i;
           while (i < len && sel[i] !== ']' && !isCssWs(sel[i])) i += 1;
           value = sel.slice(vs, i);
         }

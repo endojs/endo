@@ -1,5 +1,4 @@
 // @ts-check
-/* global document */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */

@@ -1,4 +1,5 @@
 // @ts-check
+/* global fetch */
 
 /**
  * webFetch Tool
@@ -12,7 +13,7 @@ import { M } from '@endo/patterns';
 import { makeTool } from './common.js';
 
 export const webFetch = makeTool('webFetch', {
-  help: function* () {
+  *help() {
     yield 'Downloads content from a web URL. For web searches, use webSearch instead.';
     yield '';
     yield '**Parameters:**';

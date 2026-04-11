@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 /** @import { Block, Token } from './types.js' */
 

@@ -1115,6 +1115,7 @@ export const makeReadChannelTool = powers => {
         const author = memberNames.get(msg.memberId) || msg.memberId;
         const text = Array.isArray(msg.strings) ? msg.strings.join('') : '';
         const replyTo = msg.replyTo ? ` (reply to #${msg.replyTo})` : '';
+        // eslint-disable-next-line @endo/restrict-comparison-operands
         const preview = text.length > 300 ? `${text.slice(0, 300)}...` : text;
         lines.push(`[#${msg.number}] ${author}${replyTo}: ${preview}`);
       }

@@ -994,6 +994,7 @@ test('guest facet receives a message for host', async t => {
   t.is(ten, 10);
 
   // Each agent externalizes locators with its own keypair key.
+  // eslint-disable-next-line no-unused-vars
   const guestLocatorFromHost = await E(host).locate('guest');
   const hostLocatorFromHost = await E(host).locate('@self');
   const guestLocatorFromGuest = await E(guest).locate('@self');

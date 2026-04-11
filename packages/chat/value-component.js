@@ -118,6 +118,7 @@ const filenameFromPath = petNamePath => {
  */
 const isBlobLike = async value => {
   try {
+    // eslint-disable-next-line no-underscore-dangle
     const methods = await E(value).__getMethodNames__();
     return Array.isArray(methods) && methods.includes('text');
   } catch {

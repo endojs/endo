@@ -12,7 +12,6 @@ import {
   assertPetName,
   assertPetNamePath,
   assertName,
-  assertNames,
   assertNamePath,
   namePathFrom,
 } from './pet-name.js';

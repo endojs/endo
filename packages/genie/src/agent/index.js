@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-continue, no-await-in-loop */
 /**
  * Genie Agent - Core agentic LLM calling harness
  *
@@ -18,7 +20,7 @@
 import { Agent as PiAgent } from '@mariozechner/pi-agent-core';
 import { getModel, getProviders } from '@mariozechner/pi-ai';
 
-import { default as buildSystemPrompt } from '../system/index.js';
+import buildSystemPrompt from '../system/index.js';
 
 /**
  * @param {never} nope
@@ -146,7 +148,7 @@ export function makeToolCallStart(toolName, args) {
  *
  * @param {string} toolName - Name of the tool that was called
  * @param {any} result - Result of the tool call
- * @param {Error|null} [error=null] - Error if tool failed, null otherwise
+ * @param {Error|null} [error] - Error if tool failed, null otherwise
  * @returns {ToolCallEnd}
  */
 export function makeToolCallEnd(toolName, result, error = null) {
@@ -232,9 +234,11 @@ harden(makeThinking);
 harden(makeUserMessage);
 harden(makeError);
 
-/** @typedef {object} ToolSpec
- * @prop {string} name
- * @prop {string} summary
+/**
+ * @typedef {object} ToolSpec
+ * @property {string} name
+ * @property {string} summary
+ * @property
  */
 
 /**
@@ -255,7 +259,7 @@ export const DEFAULT_MODEL_STRING = `${DEFAULT_PROVIDER}/${DEFAULT_MODEL_ID}`;
  * @returns {provider is KnownProvider}
  */
 function isKnownProvider(provider) {
-  return getProviders().some(p => p == provider);
+  return getProviders().some(p => p === provider);
 }
 
 /** @param {any} val */
@@ -606,6 +610,8 @@ export async function* runAgentRound(piAgent, prompt) {
                   yield makeUserMessage(userContent);
                 }
               }
+              break;
+            default:
               break;
           }
         }

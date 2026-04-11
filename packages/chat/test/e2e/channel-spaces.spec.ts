@@ -17,6 +17,7 @@ const suffix = Date.now().toString(36);
 
 /**
  * Wait for the app to fully initialize (spaces gutter and inventory visible).
+ * @param page
  */
 async function waitForApp(page: Page) {
   await page.waitForSelector('#spaces-gutter', { timeout: 30_000 });
@@ -25,6 +26,7 @@ async function waitForApp(page: Page) {
 
 /**
  * Click the "+" button in the spaces gutter to open the Add Space modal.
+ * @param page
  */
 async function openAddSpaceModal(page: Page) {
   await page.locator('.add-space-button').click();
@@ -106,6 +108,8 @@ async function connectToChannel(
 
 /**
  * Navigate to a space by clicking its icon in the gutter.
+ * @param page
+ * @param index
  */
 async function selectSpace(page: Page, index: number) {
   // Space items include home (index 0), then user spaces
@@ -116,6 +120,7 @@ async function selectSpace(page: Page, index: number) {
 
 /**
  * Get the current inventory/channels header text.
+ * @param page
  */
 async function getInventoryHeaderText(page: Page): Promise<string> {
   return page.locator('.inventory-title').innerText();
@@ -123,6 +128,7 @@ async function getInventoryHeaderText(page: Page): Promise<string> {
 
 /**
  * Get all visible pet names in the inventory list.
+ * @param page
  */
 async function getVisiblePetNames(page: Page): Promise<string[]> {
   // Wait for at least one item to appear
@@ -133,6 +139,8 @@ async function getVisiblePetNames(page: Page): Promise<string[]> {
 
 /**
  * Post a message in the current channel.
+ * @param page
+ * @param text
  */
 async function postMessage(page: Page, text: string) {
   const input = page.locator('#chat-message');
@@ -145,6 +153,7 @@ async function postMessage(page: Page, text: string) {
 
 /**
  * Get all visible message texts in the message area.
+ * @param page
  */
 async function getMessageTexts(page: Page): Promise<string[]> {
   const bodies = await page.locator('.message-body').allInnerTexts();
@@ -153,6 +162,7 @@ async function getMessageTexts(page: Page): Promise<string[]> {
 
 /**
  * Get all visible message author names.
+ * @param page
  */
 async function getMessageAuthors(page: Page): Promise<string[]> {
   const authors = await page.locator('.channel-author').allInnerTexts();
@@ -279,7 +289,7 @@ test.describe('Channel Space Isolation', () => {
     // The localStorage key for the address book should include persona identity
     const storageKeys = await page.evaluate(() => {
       const keys: string[] = [];
-      for (let i = 0; i < window.localStorage.length; i++) {
+      for (let i = 0; i < window.localStorage.length; i += 1) {
         const key = window.localStorage.key(i);
         if (key && key.startsWith('channel-names:')) {
           keys.push(key);
@@ -314,7 +324,7 @@ test.describe('Channel Space Isolation', () => {
     const personaId = `persona-for-${spaceName}`;
     const keysBefore = await page.evaluate(pid => {
       const keys: string[] = [];
-      for (let i = 0; i < window.localStorage.length; i++) {
+      for (let i = 0; i < window.localStorage.length; i += 1) {
         const key = window.localStorage.key(i);
         if (key && key.startsWith(`channel-names:${pid}:`)) {
           keys.push(key);
@@ -357,7 +367,7 @@ test.describe('Channel Space Isolation', () => {
     // After deletion, the address book entries for this persona should be cleared
     const keysAfter = await page.evaluate(pid => {
       const keys: string[] = [];
-      for (let i = 0; i < window.localStorage.length; i++) {
+      for (let i = 0; i < window.localStorage.length; i += 1) {
         const key = window.localStorage.key(i);
         if (key && key.startsWith(`channel-names:${pid}:`)) {
           keys.push(key);
@@ -384,7 +394,7 @@ test.describe('Channel Space Isolation', () => {
     const disclosureButtons = page.locator('.pet-disclosure');
     const count = await disclosureButtons.count();
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < count; i += 1) {
       const disclosure = disclosureButtons.nth(i);
       const isHidden = await disclosure.evaluate(
         el =>

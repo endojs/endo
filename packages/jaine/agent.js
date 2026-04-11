@@ -1,6 +1,8 @@
 // @ts-nocheck — E() generics don't work well with JSDoc types for remote objects
+/* global setTimeout */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-continue */
+/* eslint-disable @endo/restrict-comparison-operands */
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -22,6 +24,7 @@ const JaineFactoryInterface = M.interface('JaineFactory', {
 });
 
 /** System prompt for general inbox messages handled by the executor. */
+// eslint-disable-next-line no-unused-vars
 const inboxSystemPrompt = `\
 You are Jaine, a stateless channel agent. Each message is independent.
 Use the available tools to accomplish whatever is requested.
@@ -197,6 +200,7 @@ export const spawnWorkerLoop = async (
   const router = await makeRouter(powers, fastProvider || provider);
   // Default executor for inbox messages (full powers)
   const inboxExecutor = makeExecutor(powers, provider);
+  // eslint-disable-next-line no-unused-vars
   const inboxComposer = makeComposer(provider, intent =>
     inboxExecutor.execute(intent),
   );
@@ -932,6 +936,7 @@ export const make = (guestPowers, _context) => {
         // No fast provider configured — that's fine.
       }
 
+      // eslint-disable-next-line no-unused-vars
       const agentLocator = await E(hostAgent).locate(agentName);
       const agentId = await E(hostAgent).identify(agentName);
       await E(driverPowers).storeIdentifier('agent', agentId);

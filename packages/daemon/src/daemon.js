@@ -278,7 +278,7 @@ const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
  * @param {Promise<never>} args.gracePeriodElapsed - A promise that resolves/cancels when the grace period expires.
  * @param {NodeNumber} args.localNodeNumber - The local node number for this daemon.
  * @param {(bytes: Uint8Array) => Uint8Array} args.signBytes - Sign bytes with the daemon's root Ed25519 key.
- * @param {boolean} [args.gcEnabled=true] - Enable garbage collection of worker daemons.
+ * @param {boolean} [args.gcEnabled] - Enable garbage collection of worker daemons.
  *
  * @example
  * ```js
@@ -1841,7 +1841,9 @@ const makeDaemonCore = async (
       ids,
       source,
       slots,
+      // eslint-disable-next-line no-unused-vars
       codeNames,
+      // eslint-disable-next-line no-unused-vars
       petNamePaths,
     } = formula;
 
@@ -4873,7 +4875,7 @@ const makeDaemonCore = async (
  * @param {number} args.gracePeriodMs - Grace period in milliseconds for shutdown.
  * @param {Promise<never>} args.gracePeriodElapsed - Promise that resolves on grace period end.
  * @param {Specials} args.specials - Special formula generators.
- * @param {boolean} [args.gcEnabled=true] - Enable garbage collection.
+ * @param {boolean} [args.gcEnabled] - Enable garbage collection.
  * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
  *         An object containing the endo bootstrap and CapTP connection registrar.
  *
@@ -4945,7 +4947,7 @@ const provideEndoBootstrap = async (
  * @param {Promise<never>} cancelled - A promise that rejects when cancelled.
  * @param {Specials} [specials] - Special formula generators
  * @param {object} [options]
- * @param {boolean} [options.gcEnabled=true] - Enable garbage collection of worker daemons.
+ * @param {boolean} [options.gcEnabled] - Enable garbage collection of worker daemons.
  *
  * @example
  * ```js

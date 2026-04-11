@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, Node, requestAnimationFrame, setTimeout, clearTimeout, window */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
@@ -90,6 +89,7 @@ const SLASH_COMMANDS = harden([
  * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork a message's heritage into a new channel
  * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
  * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after posting a message with @-mentions
+ * @param options.onBookmark
  */
 export const outlinerComponent = async (
   $parent,
@@ -2450,6 +2450,7 @@ export const outlinerComponent = async (
    * Create a new draft node and insert it into the DOM.
    * @param {string | undefined} parentKey
    * @param {string | undefined} afterKey
+   * @param beforeKey
    * @returns {string} draftId
    */
   const createDraft = (parentKey, afterKey, beforeKey) => {

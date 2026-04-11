@@ -457,6 +457,7 @@ export const makeExecutor = (powers, provider, channelContext) => {
       }
 
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (toolCalls.length > 0) {
         // Detect repetitive tool calls (model stuck in a loop)
         const toolSig = toolCalls

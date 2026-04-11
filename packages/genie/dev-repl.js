@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
+/* global process */
 /* eslint-disable no-await-in-loop */
 
 /**
@@ -25,6 +26,7 @@
 import '@endo/init/debug.js';
 
 import { createInterface } from 'readline';
+// eslint-disable-next-line import/no-unresolved
 import { makePiAgent, runAgentRound, DEFAULT_MODEL_STRING } from '@endo/genie';
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
@@ -32,7 +34,7 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Tool } from './src/tools/common.js' */
 import { bash, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
-import { makeMemoryTools, makeSubstringBackend } from './src/tools/memory.js';
+import { makeMemoryTools } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
@@ -426,6 +428,7 @@ async function* runMain(args) {
       'Runs git version control commands (status, log, diff, commit, etc.).',
     allowPath: true,
     policies: [
+      // eslint-disable-next-line no-shadow
       args => {
         const first = args.filter(arg => !arg.startsWith('-'))[0];
         return !(

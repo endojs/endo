@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable max-classes-per-file, class-methods-use-this */
 
 /**
  * Lightweight DOM Document and Element classes.

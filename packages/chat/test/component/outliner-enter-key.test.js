@@ -1,4 +1,6 @@
 // @ts-nocheck - Component test with happy-dom
+/* global globalThis */
+/* eslint-disable no-await-in-loop */
 
 import 'ses';
 import '@endo/eventual-send/shim.js';

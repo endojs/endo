@@ -1018,6 +1018,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         return E(powers).has(...petNamePath);
       }
       case 'list': {
+        // eslint-disable-next-line no-shadow
         const { name } = args;
         if (name !== undefined) {
           const capability = await E(powers).lookup(name);
@@ -1195,6 +1196,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
           );
         }
         try {
+          // eslint-disable-next-line no-underscore-dangle
           const methods = await E(capability).__getMethodNames__();
           parts.push(`\nMethods: ${methods.join(', ')}`);
         } catch {
@@ -1381,14 +1383,18 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         await putNode(leafNode);
         // After processing tools, loop again (notifications will be picked up
         // at the top of the next iteration by processNotifications).
+        // eslint-disable-next-line no-undef, @endo/restrict-comparison-operands
       } else if (notificationQueue.length > 0) {
         // No tool calls, but there are notifications to process — loop again.
+        // eslint-disable-next-line no-undef, @endo/restrict-comparison-operands
       } else if (pendingProposals.size > 0) {
         // Check if we have pending proposals - wait for them to settle
         console.log(
+          // eslint-disable-next-line no-undef
           `[lal] Waiting for ${pendingProposals.size} pending proposal(s) to settle...`,
         );
         // Wait for any pending proposal to settle
+        // eslint-disable-next-line no-undef
         const pendingPromises = [...pendingProposals.values()].map(p =>
           p.promise.then(
             () => {},
@@ -1414,6 +1420,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   /**
    * Build the user-role message content for an inbound message.
    * @param {InboxMessage & {type?: string}} message
+   * @param _message
    * @returns {string}
    */
   const formatInboundMessage = _message => {

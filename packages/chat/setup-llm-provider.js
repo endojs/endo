@@ -1,5 +1,6 @@
 // @ts-check
 /* global process */
+/* eslint-disable no-continue */
 // endo run --UNCONFINED setup-llm-provider.js --powers @agent
 // Defaults to local Ollama. Override with env vars:
 //   ENDO_LLM_HOST=https://api.anthropic.com

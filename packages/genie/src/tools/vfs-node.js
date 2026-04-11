@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 /**
  * Node.js VFS Implementation

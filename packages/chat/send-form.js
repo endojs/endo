@@ -176,6 +176,7 @@ export const sendFormComponent = ({
         $existing.remove();
         return;
       }
+      // eslint-disable-next-line no-shadow
       const $menu = document.createElement('div');
       $menu.className = 'reply-type-menu';
       const dismissMenu = () => {

@@ -1,4 +1,6 @@
 // @ts-check
+/* global process, setTimeout, clearTimeout */
+/* eslint-disable no-continue, no-await-in-loop */
 
 /**
  * Command Tools Module
@@ -232,6 +234,7 @@ const makeCommandTool = ({
       const candidate = join(dir, prog);
       try {
         const stats = await fs.promises.stat(candidate);
+        // eslint-disable-next-line no-bitwise
         if (isWin ? stats.isFile() : (stats.mode & 0o111) !== 0) {
           return candidate;
         }
@@ -267,7 +270,7 @@ const makeCommandTool = ({
   }
 
   return makeTool(name, {
-    help: function* () {
+    *help() {
       if (description) {
         yield description;
       } else if (hasProgram) {
@@ -336,6 +339,7 @@ const makeCommandTool = ({
 
       try {
         /** @type {Promise<{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}>} */
+        // eslint-disable-next-line no-shadow
         const result = new Promise((resolve, reject) => {
           const child = spawn(exe, spawnArgs, {
             ...(allowPath ? { cwd } : {}),

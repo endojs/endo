@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -837,6 +838,7 @@ const bodyComponent = (
               viewMode: activeSpaceInfo.viewMode || 'chat',
               onViewModeChange: newMode => {
                 activeSpaceInfo.viewMode = newMode;
+                // eslint-disable-next-line no-shadow
                 const spaceId = spacesGutterAPI.getActiveSpaceId();
                 spacesGutterAPI
                   .updateSpace(spaceId, { viewMode: newMode })
@@ -953,6 +955,7 @@ const bodyComponent = (
              * @param {string} preview
              */
             const handleSwitchBookmark = (threadKey, preview) => {
+              // eslint-disable-next-line no-shadow
               const spaceId = spacesGutterAPI.getActiveSpaceId();
               if (!spaceId || spaceId === 'home') return;
               const chName = activeSpaceInfo.channelPetName;
@@ -1272,6 +1275,7 @@ const bodyComponent = (
                     await E(channelRef).join(displayName);
 
                     // Create a space config for this channel
+                    // eslint-disable-next-line no-unused-vars
                     const spaceId = String(Date.now());
                     const spaceIcon = '\uD83D\uDCE8'; // 📨
                     const spaceName = localName;
@@ -1381,7 +1385,7 @@ const bodyComponent = (
         /** @type {Set<string>} */
         const embeddedAuthors = new Set();
 
-        for (let i = 0; i < chain.length; i++) {
+        for (let i = 0; i < chain.length; i += 1) {
           const entry = chain[i];
           const indent = '  '.repeat(i);
           const preview =
@@ -1560,7 +1564,7 @@ const bodyComponent = (
           //   strings[0] ref[0] strings[1] ref[1] ... strings[n]
           sendStrings.push(`:\n\n${recap.strings[0]}`);
           const usedEdgeNames = new Set([edgeName]);
-          for (let ri = 0; ri < recap.edgeNames.length; ri++) {
+          for (let ri = 0; ri < recap.edgeNames.length; ri += 1) {
             // Ensure edge name uniqueness across the message
             let recapEdge = recap.edgeNames[ri];
             if (usedEdgeNames.has(recapEdge)) {

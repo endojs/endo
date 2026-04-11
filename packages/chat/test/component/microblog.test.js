@@ -1,4 +1,5 @@
 // @ts-nocheck - Component test with happy-dom
+/* global globalThis */
 
 import 'ses';
 import '@endo/eventual-send/shim.js';
