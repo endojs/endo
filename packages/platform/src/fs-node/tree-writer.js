@@ -14,7 +14,7 @@ import { TreeWriterInterface } from '../fs/interfaces.js';
  * @param {string} dirPath - Root directory to write into.
  */
 export const makeTreeWriter = dirPath => {
-  return makeExo('TreeWriter', TreeWriterInterface, {
+  return makeExo('TreeWriter', TreeWriterInterface, /** @type {any} */ ({
     /**
      * @param {string[]} pathSegments
      * @param {AsyncIterable<Uint8Array>} readable
@@ -38,6 +38,6 @@ export const makeTreeWriter = dirPath => {
         recursive: true,
       });
     },
-  });
+  }));
 };
 harden(makeTreeWriter);

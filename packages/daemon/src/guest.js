@@ -391,7 +391,7 @@ export const makeGuestMaker = ({
       ]),
     );
 
-    return makeExo('EndoGuest', GuestInterface, {
+    return makeExo('EndoGuest', GuestInterface, /** @type {any} */ ({
       help: makeHelp(guestHelp),
       ...wrappedGuest,
       /** @param {string} locator */
@@ -410,7 +410,7 @@ export const makeGuestMaker = ({
         await collectIfDirty();
         return makeIteratorRef(iterator);
       },
-    });
+    }));
   };
 
   return makeGuest;

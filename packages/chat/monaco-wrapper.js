@@ -3,51 +3,82 @@
 /* global globalThis */
 
 import harden from '@endo/harden';
-import * as monaco from 'monaco-editor';
 
-// Configure Monaco environment - disable workers to avoid complexity
-globalThis.MonacoEnvironment = {
-  // @ts-expect-error Monaco allows null to disable workers
-  getWorker: () => null,
+// monaco-editor is a browser-only package whose ESM entry point is
+// not resolvable by Node directly (it has no `main`/`exports`, and
+// its internal imports rely on bundler resolution).  We dynamically
+// import it so this module can be loaded in Node for component tests
+// that never exercise the Monaco-dependent code paths.
+/** @type {typeof import('monaco-editor') | undefined} */
+let monacoModule;
+
+/** @returns {Promise<typeof import('monaco-editor')>} */
+const loadMonaco = async () => {
+  if (monacoModule !== undefined) return monacoModule;
+  monacoModule = /** @type {typeof import('monaco-editor')} */ (
+    await import('monaco-editor')
+  );
+  const monaco = monacoModule;
+
+  // Configure Monaco environment - disable workers to avoid complexity
+  globalThis.MonacoEnvironment = {
+    // @ts-expect-error Monaco allows null to disable workers
+    getWorker: () => null,
+  };
+
+  // Disable diagnostics to avoid worker issues
+  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: true,
+    noSyntaxValidation: true,
+  });
+
+  // Define custom themes
+  monaco.editor.defineTheme('endo-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [],
+    colors: {
+      'editorLineNumber.foreground': '#57606a',
+      'editorLineNumber.activeForeground': '#24292f',
+      'editorGutter.background': '#e1e5e9',
+      'editor.background': '#ffffff',
+      'editor.lineHighlightBackground': '#f8fafc',
+    },
+  });
+
+  monaco.editor.defineTheme('endo-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: 'f87171' },
+      { token: 'string', foreground: 'fb923c' },
+      { token: 'comment', foreground: '6b7078' },
+      { token: 'number', foreground: '60a5fa' },
+    ],
+    colors: {
+      'editorLineNumber.foreground': '#6b7078',
+      'editorLineNumber.activeForeground': '#e1e3e6',
+      'editorGutter.background': '#18191c',
+      'editor.background': '#141517',
+      'editor.lineHighlightBackground': '#1a1b1e',
+    },
+  });
+
+  // Set the initial global theme
+  monaco.editor.setTheme(detectTheme());
+
+  // Keep the global theme in sync when the scheme changes
+  window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => {
+      monaco.editor.setTheme(detectTheme());
+    });
+  document.addEventListener('endo-theme-change', () => {
+    monaco.editor.setTheme(detectTheme());
+  });
+
+  return monaco;
 };
-
-// Disable diagnostics to avoid worker issues
-monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-  noSemanticValidation: true,
-  noSyntaxValidation: true,
-});
-
-// Define custom themes
-monaco.editor.defineTheme('endo-light', {
-  base: 'vs',
-  inherit: true,
-  rules: [],
-  colors: {
-    'editorLineNumber.foreground': '#57606a',
-    'editorLineNumber.activeForeground': '#24292f',
-    'editorGutter.background': '#e1e5e9',
-    'editor.background': '#ffffff',
-    'editor.lineHighlightBackground': '#f8fafc',
-  },
-});
-
-monaco.editor.defineTheme('endo-dark', {
-  base: 'vs-dark',
-  inherit: true,
-  rules: [
-    { token: 'keyword', foreground: 'f87171' },
-    { token: 'string', foreground: 'fb923c' },
-    { token: 'comment', foreground: '6b7078' },
-    { token: 'number', foreground: '60a5fa' },
-  ],
-  colors: {
-    'editorLineNumber.foreground': '#6b7078',
-    'editorLineNumber.activeForeground': '#e1e3e6',
-    'editorGutter.background': '#18191c',
-    'editor.background': '#141517',
-    'editor.lineHighlightBackground': '#1a1b1e',
-  },
-});
 
 /**
  * Detect the active color scheme from the document.
@@ -69,26 +100,6 @@ export const detectTheme = () => {
   return 'endo-light';
 };
 harden(detectTheme);
-
-// Set the initial global theme so that colorize() calls before any
-// editor is created produce colors matching the current scheme.
-// Monaco's colorize() output uses CSS classes (mtk1, mtk3, etc.)
-// whose color rules are defined in a <style> tag managed by the
-// theme service.  Calling setTheme() updates those rules, so
-// already-rendered code blocks automatically reflect the new colors.
-monaco.editor.setTheme(detectTheme());
-
-// Keep the global theme in sync when the scheme changes, even if
-// no editor instance exists.  (Editors register their own listeners
-// in createMonacoEditor; these cover the colorize-only case.)
-window
-  .matchMedia('(prefers-color-scheme: dark)')
-  .addEventListener('change', () => {
-    monaco.editor.setTheme(detectTheme());
-  });
-document.addEventListener('endo-theme-change', () => {
-  monaco.editor.setTheme(detectTheme());
-});
 
 /**
  * @typedef {object} MonacoEditorAPI
@@ -124,6 +135,7 @@ export const createMonacoEditor = async (
     language = 'javascript',
   },
 ) => {
+  const monaco = await loadMonaco();
   // Create a div for the editor to mount into
   const $editorDiv = document.createElement('div');
   $editorDiv.className = 'monaco-editor-mount';
@@ -254,6 +266,8 @@ harden(createMonacoEditor);
  * @param {string} language - Monaco language identifier
  * @returns {Promise<string>} HTML string with colorized tokens
  */
-export const colorize = async (text, language) =>
-  monaco.editor.colorize(text, language, { tabSize: 2 });
+export const colorize = async (text, language) => {
+  const monaco = await loadMonaco();
+  return monaco.editor.colorize(text, language, { tabSize: 2 });
+};
 harden(colorize);

@@ -28,13 +28,13 @@ export const makeSnapshotStore = contentStore => {
       makeExo(
         `SnapshotBlob ${sha256.slice(0, 8)}...`,
         SnapshotBlobInterface,
-        snapshotBlobMethods(snapshotStore, sha256),
+        /** @type {any} */ (snapshotBlobMethods(snapshotStore, sha256)),
       ),
     loadTree: sha256 =>
       makeExo(
         `SnapshotTree ${sha256.slice(0, 8)}...`,
         SnapshotTreeInterface,
-        snapshotTreeMethods(snapshotStore, sha256),
+        /** @type {any} */ (snapshotTreeMethods(snapshotStore, sha256)),
       ),
   });
   return snapshotStore;
