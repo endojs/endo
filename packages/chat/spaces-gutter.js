@@ -32,6 +32,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {ColorScheme} [scheme] - color scheme preference (default: 'auto')
  * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
  * @property {string} [proposedName] - display name for the channel creator
+ * @property {boolean} [nameProposed] - true while `proposedName` is still a proposal (e.g. the invitee has not confirmed the inviter's suggestion); rendered in straight-quote scare quotes in the UI until confirmed
  * @property {string} [whylipSystemPrompt] - optional system prompt override (for whylip mode)
  * @property {boolean} [ownedPersona] - whether the space owns the persona (for cleanup on delete)
  * @property {string} [lastChannelPetName] - last viewed channel in this space (restored on re-entry)
@@ -45,7 +46,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {(id: string) => void} selectSpace - Activate a space
  * @property {() => SpaceConfig[]} getSpaces - Get current space list
  * @property {(config: Omit<SpaceConfig, 'id'>) => Promise<string>} addSpace - Add a new space
- * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'lastChannelPetName' | 'channelOrder' | 'bookmarks'>>) => Promise<void>} updateSpace - Update a space
+ * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'lastChannelPetName' | 'channelOrder' | 'bookmarks' | 'nameProposed'>>) => Promise<void>} updateSpace - Update a space
  * @property {(id: string) => Promise<void>} removeSpace - Remove a space
  * @property {() => string} getActiveSpaceId - Get currently active space ID
  */
@@ -91,7 +92,7 @@ harden(pathsEqual);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, channelOrder?: string[], bookmarks?: Array<{key: string, channelPetName: string, label: string}> }) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, nameProposed?: boolean, whylipSystemPrompt?: string, channelOrder?: string[], bookmarks?: Array<{key: string, channelPetName: string, label: string}> }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -279,7 +280,7 @@ export const createSpacesGutter = ({
    * Update an existing space's configuration.
    *
    * @param {string} id
-   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'lastChannelPetName' | 'channelOrder' | 'bookmarks'>>} updates
+   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'lastChannelPetName' | 'channelOrder' | 'bookmarks' | 'nameProposed'>>} updates
    * @returns {Promise<void>}
    */
   const updateSpace = async (id, updates) => {
@@ -373,6 +374,7 @@ export const createSpacesGutter = ({
       mode: space.mode,
       channelPetName: space.lastChannelPetName || space.channelPetName,
       proposedName: space.proposedName,
+      nameProposed: space.nameProposed,
       whylipSystemPrompt: space.whylipSystemPrompt,
       channelOrder: space.channelOrder,
       bookmarks: space.bookmarks,
@@ -584,6 +586,9 @@ export const createSpacesGutter = ({
       if (data.proposedName) {
         spaceConfig.proposedName = data.proposedName;
       }
+      if (data.nameProposed === true) {
+        spaceConfig.nameProposed = true;
+      }
       if (data.whylipSystemPrompt) {
         spaceConfig.whylipSystemPrompt = data.whylipSystemPrompt;
       }
@@ -699,6 +704,9 @@ export const createSpacesGutter = ({
     }
     if (typeof obj.proposedName === 'string') {
       result.proposedName = obj.proposedName;
+    }
+    if (typeof obj.nameProposed === 'boolean') {
+      result.nameProposed = obj.nameProposed;
     }
     if (typeof obj.whylipSystemPrompt === 'string') {
       result.whylipSystemPrompt = obj.whylipSystemPrompt;

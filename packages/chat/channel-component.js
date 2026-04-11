@@ -38,6 +38,7 @@ import { createReactSystem } from './react-utils.js';
  * @param {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} options.showValue
  * @param {string} [options.personaId] - Unique identifier for the current persona/space, used to scope the address book in localStorage
  * @param {string} [options.ownMemberId] - The current user's memberId, used to highlight own messages
+ * @param {boolean} [options.ownNameProposed] - Whether the current user's own display name is still a proposal awaiting confirmation; when true, the own author chip renders in straight-quote scare quotes and is not auto-assigned in the local address book
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string, replyType?: string, fullText?: string }) => void} [options.onReply] - Called when user clicks reply or edit on a message
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen] - Called when a thread view is opened
  * @param {() => void} [options.onThreadClose] - Called when the thread view is closed
@@ -48,7 +49,7 @@ export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork, onShare },
+  { showValue, personaId, ownMemberId, ownNameProposed, onReply, onThreadOpen, onThreadClose, onFork, onShare },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -121,8 +122,16 @@ export const channelComponent = async (
   // auto-assigning the inviter's chosen invitation name.
 
   // Auto-assign the current user's own proposed name so they never see
-  // themselves in scare quotes.
-  if (ownMemberId !== undefined && !nameMap.has(ownMemberId)) {
+  // themselves in scare quotes — but ONLY when the name has been
+  // confirmed.  While `ownNameProposed` is true the invitee is still
+  // deciding whether to accept the inviter's suggested name, so we
+  // deliberately leave the own chip in scare-quote form until they
+  // confirm from the channel header.
+  if (
+    ownMemberId !== undefined &&
+    !nameMap.has(ownMemberId) &&
+    !ownNameProposed
+  ) {
     try {
       const ownInfo = await E(channel).getMember(ownMemberId);
       if (ownInfo && ownInfo.proposedName) {
@@ -136,18 +145,25 @@ export const channelComponent = async (
 
   /**
    * Update all author chips in the DOM for a given memberId.
+   * Own chips, while the user's name is still a proposal, render
+   * in straight `"` double-quote scare quotes so the user can see
+   * at a glance that the name has not been confirmed.
    * @param {string} memberId
    */
   const updateAuthorChips = memberId => {
     const assignedName = nameMap.get(memberId);
+    const isOwnProposed = ownNameProposed && memberId === ownMemberId;
     const chips = $parent.querySelectorAll(
       `.channel-author[data-member-id="${CSS.escape(memberId)}"]`,
     );
     for (const chip of chips) {
       const proposedName = chip.dataset.proposedName || '';
-      if (assignedName) {
+      if (assignedName && !isOwnProposed) {
         chip.textContent = assignedName;
         chip.classList.add('named');
+      } else if (isOwnProposed) {
+        chip.textContent = `"${proposedName}"`;
+        chip.classList.remove('named');
       } else {
         chip.textContent = `\u201C${proposedName}\u201D`;
         chip.classList.remove('named');
@@ -446,9 +462,16 @@ export const channelComponent = async (
 
     const memberKey = message.memberId;
     const assignedName = nameMap.get(memberKey);
-    if (assignedName) {
+    const isOwnProposedChip =
+      ownNameProposed && memberKey === ownMemberId;
+    if (assignedName && !isOwnProposedChip) {
       $author.textContent = assignedName;
       $author.classList.add('named');
+    } else if (isOwnProposedChip) {
+      // Own user's name is still a proposal — render in straight-quote
+      // scare quotes so it is visually distinct from other members'
+      // unassigned (curly-quoted) names.
+      $author.textContent = `"${authorProposedName}"`;
     } else {
       $author.textContent = `\u201C${authorProposedName}\u201D`;
     }

@@ -33,6 +33,7 @@ import {
  * @param {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} options.showValue
  * @param {string} [options.personaId]
  * @param {string} [options.ownMemberId]
+ * @param {boolean} [options.ownNameProposed] - Whether the current user's own display name is still a proposal awaiting confirmation
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply]
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen]
  * @param {() => void} [options.onThreadClose]
@@ -43,7 +44,7 @@ export const forumComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork, onShare },
+  { showValue, personaId, ownMemberId, ownNameProposed, onReply, onThreadOpen, onThreadClose, onFork, onShare },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -74,6 +75,7 @@ export const forumComponent = async (
   const state = await createChannelState(channel, {
     personaId,
     ownMemberId,
+    ownNameProposed,
     $parent,
   });
 

@@ -6,6 +6,7 @@ import harden from '@endo/harden';
 
 import { E } from '@endo/far';
 
+import { formatDisplayName } from './display-name.js';
 import { createHeatSimulation } from './heat-simulation.js';
 import { deriveConstants, formatDuration } from './heat-engine.js';
 
@@ -35,6 +36,9 @@ import { deriveConstants, formatDuration } from './heat-engine.js';
  * @param {string} [options.channelPetName] - Pet name of the channel
  * @param {'chat' | 'forum' | 'outliner' | 'microblog'} [options.viewMode] - Current view mode
  * @param {(mode: 'chat' | 'forum' | 'outliner' | 'microblog') => void} [options.onViewModeChange] - Callback when view mode changes
+ * @param {string} [options.proposedName] - The current user's display name in this channel (may be a proposal)
+ * @param {boolean} [options.nameProposed] - True while `proposedName` is still awaiting confirmation from the user; when true the header shows a confirm banner and all UI renders the name in scare quotes
+ * @param {(confirmedName: string) => void | Promise<void>} [options.onConfirmName] - Called when the user confirms their proposed name; the argument is the final name (possibly edited from the proposal)
  * @returns {ChannelHeaderAPI}
  */
 export const createChannelHeader = ({
@@ -44,14 +48,57 @@ export const createChannelHeader = ({
   channelPetName,
   viewMode = 'chat',
   onViewModeChange,
+  proposedName,
+  nameProposed = false,
+  onConfirmName,
 }) => {
+  /**
+   * Local mirror of whether the name is still a proposal.  Flipped to
+   * false by the confirm banner so the header re-renders without the
+   * banner immediately, without waiting for a full re-mount.
+   */
+  let headerNameProposed = nameProposed;
+  /**
+   * Local mirror of the current proposed/confirmed name, so the user
+   * can edit it inline from the banner before confirming.
+   */
+  let headerProposedName = proposedName || '';
   let menuVisible = false;
   let manageMembersVisible = false;
   /** @type {string | null} */
   let attenuatorModalMember = null;
 
+  /**
+   * Minimal HTML attribute escape for the proposal banner input.
+   * Names are user-supplied and may contain characters that would
+   * break out of the value attribute.
+   * @param {string} s
+   */
+  const escapeAttr = s =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  const renderProposedNameBanner = () => {
+    if (!headerNameProposed) return '';
+    const quoted = formatDisplayName(headerProposedName || '', {
+      proposed: true,
+    });
+    return `
+      <div class="channel-name-proposal-banner" role="status">
+        <span class="channel-name-proposal-label">Your name in this channel is proposed as</span>
+        <input type="text" class="channel-name-proposal-input" value="${escapeAttr(headerProposedName)}" />
+        <span class="channel-name-proposal-preview">${escapeAttr(quoted)}</span>
+        <button type="button" class="channel-name-proposal-confirm">Confirm name</button>
+      </div>
+    `;
+  };
+
   const render = () => {
     $container.innerHTML = `
+      ${renderProposedNameBanner()}
       <button type="button" class="channel-menu-btn" title="Channel actions">\u22EE</button>
       ${menuVisible ? renderMenu() : ''}
     `;
@@ -86,6 +133,74 @@ export const createChannelHeader = ({
   `;
 
   const attachListeners = () => {
+    // Proposed-name confirm banner handlers — only present while the
+    // invitee has not yet confirmed their display name.
+    const $proposalInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('.channel-name-proposal-input')
+    );
+    if ($proposalInput) {
+      $proposalInput.addEventListener('input', () => {
+        headerProposedName = $proposalInput.value;
+        const $preview = $container.querySelector(
+          '.channel-name-proposal-preview',
+        );
+        if ($preview) {
+          $preview.textContent = formatDisplayName(headerProposedName, {
+            proposed: true,
+          });
+        }
+      });
+      $proposalInput.addEventListener('keydown', e => {
+        const keyEvent = /** @type {KeyboardEvent} */ (e);
+        if (keyEvent.key === 'Enter') {
+          keyEvent.preventDefault();
+          const $confirmBtn = $container.querySelector(
+            '.channel-name-proposal-confirm',
+          );
+          if ($confirmBtn instanceof HTMLButtonElement) {
+            $confirmBtn.click();
+          }
+        }
+      });
+    }
+    const $proposalConfirm = $container.querySelector(
+      '.channel-name-proposal-confirm',
+    );
+    if ($proposalConfirm) {
+      $proposalConfirm.addEventListener('click', async () => {
+        const finalName = (headerProposedName || '').trim();
+        if (!finalName) return;
+        headerNameProposed = false;
+        headerProposedName = finalName;
+        // If the user edited the proposal, push the new name to the
+        // daemon so other members see it too.  setProposedName is only
+        // available on member handles (joiners), not on the raw
+        // channel (admin) — gracefully ignore failures.
+        try {
+          const typedMember =
+            /** @type {{ setProposedName?: (name: string) => Promise<void> }} */ (
+              channel
+            );
+          if (typedMember && typeof typedMember.setProposedName === 'function') {
+            await E(typedMember).setProposedName(finalName);
+          }
+        } catch (err) {
+          console.warn(
+            '[ChannelHeader] setProposedName failed (non-fatal):',
+            err,
+          );
+        }
+        if (onConfirmName) {
+          try {
+            await onConfirmName(finalName);
+          } catch (err) {
+            console.warn('[ChannelHeader] onConfirmName failed:', err);
+          }
+        }
+        render();
+      });
+    }
+
     const $menuBtn = $container.querySelector('.channel-menu-btn');
     if ($menuBtn) {
       $menuBtn.addEventListener('click', e => {
@@ -217,13 +332,20 @@ export const createChannelHeader = ({
               render();
               return;
             }
-            const locator =
-              viewMode && viewMode !== 'chat'
-                ? `${rawLocator}&view=${viewMode}`
-                : rawLocator;
+            let locator = /** @type {string} */ (rawLocator);
+            if (viewMode && viewMode !== 'chat') {
+              locator = `${locator}&view=${viewMode}`;
+            }
+            // Carry the inviter-suggested display name as an optional
+            // `name` query param.  The invitee's join flow pre-populates
+            // their display-name field with this value, but treats it
+            // as a proposal they can accept or edit before confirming.
+            if (inviteeName) {
+              locator = `${locator}&name=${encodeURIComponent(inviteeName)}`;
+            }
             window.prompt(
               'Share this locator with the invitee:',
-              /** @type {string} */ (locator),
+              locator,
             );
           } catch {
             window.alert(
@@ -605,13 +727,20 @@ export const createChannelHeader = ({
             );
             return;
           }
-          const locator =
-            viewMode && viewMode !== 'chat'
-              ? `${rawLocator}&view=${viewMode}`
-              : rawLocator;
+          let locator = /** @type {string} */ (rawLocator);
+          if (viewMode && viewMode !== 'chat') {
+            locator = `${locator}&view=${viewMode}`;
+          }
+          // Include the inviter-suggested name so the invitee's join
+          // flow can pre-populate the field as a proposal.
+          if (attenuatorModalMember) {
+            locator = `${locator}&name=${encodeURIComponent(
+              attenuatorModalMember,
+            )}`;
+          }
           window.prompt(
             'Share this invite link:',
-            /** @type {string} */ (locator),
+            locator,
           );
         } catch (err) {
           window.alert(
@@ -679,9 +808,6 @@ export const createChannelHeader = ({
       });
     }
   };
-
-  // Suppress unused variable warning
-  void attenuatorModalMember;
 
   render();
 
