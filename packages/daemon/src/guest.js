@@ -391,26 +391,30 @@ export const makeGuestMaker = ({
       ]),
     );
 
-    return makeExo('EndoGuest', GuestInterface, /** @type {any} */ ({
-      help: makeHelp(guestHelp),
-      ...wrappedGuest,
-      /** @param {string} locator */
-      followLocatorNameChanges: async locator => {
-        const iterator = guest.followLocatorNameChanges(locator);
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followMessages: async () => {
-        const iterator = guest.followMessages();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followNameChanges: async () => {
-        const iterator = guest.followNameChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-    }));
+    return makeExo(
+      'EndoGuest',
+      GuestInterface,
+      /** @type {any} */ ({
+        help: makeHelp(guestHelp),
+        ...wrappedGuest,
+        /** @param {string} locator */
+        followLocatorNameChanges: async locator => {
+          const iterator = guest.followLocatorNameChanges(locator);
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followMessages: async () => {
+          const iterator = guest.followMessages();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followNameChanges: async () => {
+          const iterator = guest.followNameChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+      }),
+    );
   };
 
   return makeGuest;

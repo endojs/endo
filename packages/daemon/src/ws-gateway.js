@@ -148,7 +148,7 @@ export const startWsGateway = ({ endoBootstrap, host, port, cancelled }) => {
     const clientBootstrap = makeExo(
       'GatewayBootstrap',
       GatewayBootstrapInterface,
-      {
+      /** @type {any} */ ({
         /** @param {string} token */
         async fetch(token) {
           const addr = remoteAddress;
@@ -163,7 +163,7 @@ export const startWsGateway = ({ endoBootstrap, host, port, cancelled }) => {
             throw e;
           }
         },
-      },
+      }),
     );
 
     const { value: connectionNumber } = connectionNumbers.next();

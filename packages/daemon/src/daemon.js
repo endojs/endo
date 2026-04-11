@@ -126,26 +126,30 @@ const delay = async (ms, cancelled) => {
  * @returns {EndoInspector} The inspector for the given formula.
  */
 const makeInspector = (type, number, record) =>
-  makeExo(`Inspector (${type} ${number})`, InspectorInterface, {
-    lookup: async petNameOrPath => {
-      /** @type {string} */
-      let petName;
-      if (Array.isArray(petNameOrPath)) {
-        if (petNameOrPath.length !== 1) {
-          throw Error('Inspector.lookup(path) requires path length of 1');
+  makeExo(
+    `Inspector (${type} ${number})`,
+    InspectorInterface,
+    /** @type {any} */ ({
+      lookup: async petNameOrPath => {
+        /** @type {string} */
+        let petName;
+        if (Array.isArray(petNameOrPath)) {
+          if (petNameOrPath.length !== 1) {
+            throw Error('Inspector.lookup(path) requires path length of 1');
+          }
+          petName = petNameOrPath[0];
+        } else {
+          petName = petNameOrPath;
         }
-        petName = petNameOrPath[0];
-      } else {
-        petName = petNameOrPath;
-      }
-      assertName(petName);
-      if (!Object.hasOwn(record, petName)) {
-        return undefined;
-      }
-      return record[petName];
-    },
-    list: () => Object.keys(record),
-  });
+        assertName(petName);
+        if (!Object.hasOwn(record, petName)) {
+          return undefined;
+        }
+        return record[petName];
+      },
+      list: () => Object.keys(record),
+    }),
+  );
 
 /**
  * @param {Context} context - The context to make far.
@@ -1230,21 +1234,25 @@ const makeDaemonCore = async (
     makeExo(
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
-      {
+      /** @type {any} */ ({
         sha256: () => sha256,
         ...contentStore.fetch(sha256),
         help: makeHelp(blobHelp),
-      },
+      }),
     );
 
   /**
    * @param {string} sha256
    */
   const makeReadableTree = sha256 =>
-    makeExo('ReadableTree', ReadableTreeInterface, {
-      ...snapshotTreeMethods(contentStore, sha256),
-      help: makeHelp(readableTreeHelp),
-    });
+    makeExo(
+      'ReadableTree',
+      ReadableTreeInterface,
+      /** @type {any} */ ({
+        ...snapshotTreeMethods(contentStore, sha256),
+        help: makeHelp(readableTreeHelp),
+      }),
+    );
 
   /**
    * @param {FormulaIdentifier} workerId
@@ -1776,32 +1784,36 @@ const makeDaemonCore = async (
 
     mailHub = /** @type {NameHub} */ (
       /** @type {unknown} */ (
-        makeExo('MailHub', DirectoryInterface, {
-          help: makeHelp(directoryHelp),
-          has,
-          identify,
-          locate,
-          reverseLocate,
-          followLocatorNameChanges: locator =>
-            makeIteratorRef(followLocatorNameChanges(locator)),
-          list,
-          listIdentifiers,
-          listLocators,
-          followNameChanges: (...petNamePath) =>
-            makeIteratorRef(followNameChanges(...petNamePath)),
-          lookup,
-          maybeLookup,
-          reverseLookup,
-          storeIdentifier: disallowedMutation,
-          storeLocator: disallowedMutation,
-          remove: disallowedMutation,
-          move: disallowedMutation,
-          copy: disallowedMutation,
-          makeDirectory: disallowedMutation,
-          readText: notSupported,
-          maybeReadText: notSupported,
-          writeText: disallowedMutation,
-        })
+        makeExo(
+          'MailHub',
+          DirectoryInterface,
+          /** @type {any} */ ({
+            help: makeHelp(directoryHelp),
+            has,
+            identify,
+            locate,
+            reverseLocate,
+            followLocatorNameChanges: locator =>
+              makeIteratorRef(followLocatorNameChanges(locator)),
+            list,
+            listIdentifiers,
+            listLocators,
+            followNameChanges: (...petNamePath) =>
+              makeIteratorRef(followNameChanges(...petNamePath)),
+            lookup,
+            maybeLookup,
+            reverseLookup,
+            storeIdentifier: disallowedMutation,
+            storeLocator: disallowedMutation,
+            remove: disallowedMutation,
+            move: disallowedMutation,
+            copy: disallowedMutation,
+            makeDirectory: disallowedMutation,
+            readText: notSupported,
+            maybeReadText: notSupported,
+            writeText: disallowedMutation,
+          }),
+        )
       )
     );
 
@@ -2151,32 +2163,36 @@ const makeDaemonCore = async (
 
     messageHub = /** @type {NameHub} */ (
       /** @type {unknown} */ (
-        makeExo('MessageHub', DirectoryInterface, {
-          help: makeHelp(directoryHelp),
-          has,
-          identify,
-          locate,
-          reverseLocate,
-          followLocatorNameChanges: locator =>
-            makeIteratorRef(followLocatorNameChanges(locator)),
-          list,
-          listIdentifiers,
-          listLocators,
-          followNameChanges: (...petNamePath) =>
-            makeIteratorRef(followNameChanges(...petNamePath)),
-          lookup,
-          maybeLookup,
-          reverseLookup,
-          storeIdentifier: disallowedMutation,
-          storeLocator: disallowedMutation,
-          remove: disallowedMutation,
-          move: disallowedMutation,
-          copy: disallowedMutation,
-          makeDirectory: disallowedMutation,
-          readText: notSupported,
-          maybeReadText: notSupported,
-          writeText: disallowedMutation,
-        })
+        makeExo(
+          'MessageHub',
+          DirectoryInterface,
+          /** @type {any} */ ({
+            help: makeHelp(directoryHelp),
+            has,
+            identify,
+            locate,
+            reverseLocate,
+            followLocatorNameChanges: locator =>
+              makeIteratorRef(followLocatorNameChanges(locator)),
+            list,
+            listIdentifiers,
+            listLocators,
+            followNameChanges: (...petNamePath) =>
+              makeIteratorRef(followNameChanges(...petNamePath)),
+            lookup,
+            maybeLookup,
+            reverseLookup,
+            storeIdentifier: disallowedMutation,
+            storeLocator: disallowedMutation,
+            remove: disallowedMutation,
+            move: disallowedMutation,
+            copy: disallowedMutation,
+            makeDirectory: disallowedMutation,
+            readText: notSupported,
+            maybeReadText: notSupported,
+            writeText: disallowedMutation,
+          }),
+        )
       )
     );
 
@@ -2381,7 +2397,9 @@ const makeDaemonCore = async (
             pinIds.map(id => provide(/** @type {FormulaIdentifier} */ (id))),
           );
         },
-        addPeerInfo: async peerInfo => {
+        addPeerInfo: async (
+          /** @type {import('./types.js').PeerInfo} */ peerInfo,
+        ) => {
           const knownPeers = /** @type {KnownPeersStore} */ (
             /** @type {unknown} */ (await provideStoreController(peersId))
           );
@@ -4361,27 +4379,31 @@ const makeDaemonCore = async (
     // `provide` calls will go through whatever connection the
     // remote-control currently holds.
     const currentGatewayP = resilientDial();
-    return makeExo('ResilientPeerGateway', PeerGatewayInterface, {
-      /** @param {string} requestedId */
-      provide: async requestedId => {
-        // Try with the current gateway; on failure, re-dial and try
-        // once more.  This handles the case where the initial dial
-        // succeeded but the connection was later abandoned.
-        try {
-          const gateway = await currentGatewayP;
-          return await E(gateway).provide(requestedId);
-        } catch (error) {
-          if (!isAbandonError(error)) {
-            throw error;
+    return makeExo(
+      'ResilientPeerGateway',
+      PeerGatewayInterface,
+      /** @type {any} */ ({
+        /** @param {string} requestedId */
+        provide: async requestedId => {
+          // Try with the current gateway; on failure, re-dial and try
+          // once more.  This handles the case where the initial dial
+          // succeeded but the connection was later abandoned.
+          try {
+            const gateway = await currentGatewayP;
+            return await E(gateway).provide(requestedId);
+          } catch (error) {
+            if (!isAbandonError(error)) {
+              throw error;
+            }
+            console.log(
+              `Endo daemon peer ${nodeId.slice(0, 8)}: provide failed with ${error.message}, re-dialing`,
+            );
+            const gateway = await resilientDial();
+            return E(gateway).provide(requestedId);
           }
-          console.log(
-            `Endo daemon peer ${nodeId.slice(0, 8)}: provide failed with ${error.message}, re-dialing`,
-          );
-          const gateway = await resilientDial();
-          return E(gateway).provide(requestedId);
-        }
-      },
-    });
+        },
+      }),
+    );
   };
 
   /**

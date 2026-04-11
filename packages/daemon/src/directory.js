@@ -459,31 +459,35 @@ export const makeDirectoryMaker = ({
       makeDirectory,
     } = directory;
 
-    return makeExo('EndoDirectory', DirectoryInterface, {
-      help,
-      has,
-      identify,
-      locate,
-      reverseLocate,
-      followLocatorNameChanges: locator =>
-        makeIteratorRef(directory.followLocatorNameChanges(locator)),
-      list,
-      listIdentifiers,
-      listLocators,
-      followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
-      lookup,
-      maybeLookup: directory.maybeLookup,
-      reverseLookup,
-      storeIdentifier: directory.storeIdentifier,
-      storeLocator: directory.storeLocator,
-      remove,
-      move,
-      copy,
-      makeDirectory,
-      readText: directory.readText,
-      maybeReadText: directory.maybeReadText,
-      writeText: directory.writeText,
-    });
+    return makeExo(
+      'EndoDirectory',
+      DirectoryInterface,
+      /** @type {any} */ ({
+        help,
+        has,
+        identify,
+        locate,
+        reverseLocate,
+        followLocatorNameChanges: locator =>
+          makeIteratorRef(directory.followLocatorNameChanges(locator)),
+        list,
+        listIdentifiers,
+        listLocators,
+        followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
+        lookup,
+        maybeLookup: directory.maybeLookup,
+        reverseLookup,
+        storeIdentifier: directory.storeIdentifier,
+        storeLocator: directory.storeLocator,
+        remove,
+        move,
+        copy,
+        makeDirectory,
+        readText: directory.readText,
+        maybeReadText: directory.maybeReadText,
+        writeText: directory.writeText,
+      }),
+    );
   };
 
   return { makeIdentifiedDirectory, makeDirectoryNode };

@@ -1277,31 +1277,35 @@ export const makeHostMaker = ({
       ]),
     );
 
-    const hostExo = makeExo('EndoHost', HostInterface, /** @type {any} */ ({
-      help: makeHelp(hostHelp),
-      ...wrappedHost,
-      /** @param {string} locator */
-      followLocatorNameChanges: async locator => {
-        const iterator = host.followLocatorNameChanges(locator);
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followMessages: async () => {
-        const iterator = host.followMessages();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followNameChanges: async () => {
-        const iterator = host.followNameChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followPeerChanges: async () => {
-        const iterator = await host.followPeerChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-    }));
+    const hostExo = makeExo(
+      'EndoHost',
+      HostInterface,
+      /** @type {any} */ ({
+        help: makeHelp(hostHelp),
+        ...wrappedHost,
+        /** @param {string} locator */
+        followLocatorNameChanges: async locator => {
+          const iterator = host.followLocatorNameChanges(locator);
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followMessages: async () => {
+          const iterator = host.followMessages();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followNameChanges: async () => {
+          const iterator = host.followNameChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followPeerChanges: async () => {
+          const iterator = await host.followPeerChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+      }),
+    );
 
     await provide(mainWorkerId, 'worker');
 
