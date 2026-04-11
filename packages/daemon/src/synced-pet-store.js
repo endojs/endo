@@ -84,15 +84,22 @@ export const mergeState = (local, remote) => {
 harden(mergeState);
 
 /**
- * Generate a short random hex string for temporary file names.
+ * Module-level counter used by `randomTmpSuffix` to guarantee
+ * uniqueness across overlapping calls within a single process.
+ */
+let tmpSuffixCounter = 0;
+
+/**
+ * Generate a short suffix for temporary file names that need only be
+ * unique within this process, not unpredictable.  Uses a process-wide
+ * counter combined with the current high-resolution time so that the
+ * module works on Node 18 (which lacks a global `crypto`).
  *
  * @returns {string}
  */
 const randomTmpSuffix = () => {
-  const bytes = new Uint8Array(8);
-  // eslint-disable-next-line no-undef
-  crypto.getRandomValues(bytes);
-  return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+  tmpSuffixCounter += 1;
+  return `${Date.now().toString(16)}-${tmpSuffixCounter.toString(16)}`;
 };
 
 /**

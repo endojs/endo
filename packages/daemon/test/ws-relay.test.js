@@ -385,6 +385,10 @@ test.serial('relay server health endpoint works', async t => {
     const httpUrl = relay.relayUrl.replace('ws://', 'http://');
     const res = await fetch(`${httpUrl}/health`);
     t.is(res.status, 200);
+    // Consume the body so the undici client can release its
+    // connection cleanly; otherwise an unhandled ClientDestroyedError
+    // can surface during teardown on some platforms.
+    await res.text();
     // We don't check JSON for the local relay since the HTTP handler
     // in our test just returns 'ok'. This test mainly validates the
     // server is up and accepting connections.

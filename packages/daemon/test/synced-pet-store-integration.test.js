@@ -392,6 +392,13 @@ test.serial('synced stores converge after offline changes', async t => {
   cancelA(Error('simulate-partition'));
   await stop(configA);
 
+  // On some platforms (notably macOS) the kernel takes a moment to
+  // release the unix socket file even after `stop()` returns.  Wait
+  // briefly so that the next `start()` does not race against an
+  // EADDRINUSE.
+  // eslint-disable-next-line no-promise-executor-return
+  await new Promise(resolve => setTimeout(resolve, 500));
+
   // Restart daemon A.
   const { reject: cancelA2, promise: cancelledA2 } = makePromiseKit();
   t.context.push({ cancel: cancelA2, cancelled: cancelledA2, config: configA });
