@@ -1477,6 +1477,7 @@ export const outlinerComponent = async (
         e.stopPropagation();
         profilePopup.show({
           proposedName: info.proposedName,
+          memberId,
           pedigree: info.pedigree,
           pedigreeMemberIds: info.pedigreeMemberIds,
           nameMap,
@@ -1539,6 +1540,7 @@ export const outlinerComponent = async (
       if (info.invitedAs === tokenName) {
         profilePopup.show({
           proposedName: info.proposedName,
+          memberId: info.memberId,
           pedigree: info.pedigree,
           pedigreeMemberIds: info.pedigreeMemberIds,
           nameMap,
