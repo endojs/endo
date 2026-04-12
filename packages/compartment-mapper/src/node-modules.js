@@ -387,37 +387,6 @@ const inferParsers = (descriptor, location, languageOptions) => {
 };
 
 /**
- * This returns the "weight" of a package name, which is used when determining
- * the shortest path.
- *
- * It is an analogue of the `pathCompare` function.
- *
- * The weight is calculated as follows:
- *
- * 1. The {@link String.length length} of the package name contributes a fixed
- *    value of `0x10000` per character. This is because the `pathCompare`
- *    algorithm first compares strings by length and only evaluates code unit
- *    values if the lengths of two strings are equal. `0x10000` is one (1)
- *    greater than the maximum value that {@link String.charCodeAt charCodeAt}
- *    can return (`0xFFFF`), which guarantees longer strings will have higher
- *    weights.
- * 2. Each character in the package name contributes its UTF-16 code unit value
- *    (`0x0` thru `0xFFFF`) to the total. This is the same operation used when
- *    comparing two strings using comparison operators.
- * 3. The total weight is the sum of 1. and 2.
- *
- * @param {string} packageName - Name of package to calculate weight for.
- * @returns {number} Numeric weight
- */
-const calculatePackageWeight = packageName => {
-  let totalCodeValue = packageName.length * 65536; // each character contributes 65536
-  for (let i = 0; i < packageName.length; i += 1) {
-    totalCodeValue += packageName.charCodeAt(i);
-  }
-  return totalCodeValue;
-};
-
-/**
  * `graphPackage` and {@link gatherDependency} are mutually recursive functions that
  * gather the metadata for a package and its transitive dependencies.
  * The keys of the graph are the locations of the package descriptors.
@@ -703,11 +672,7 @@ const gatherDependency = async (
 
   dependencyLocations[name] = dependency.packageLocation;
 
-  logicalPathGraph.addEdge(
-    packageLocation,
-    dependency.packageLocation,
-    calculatePackageWeight(name),
-  );
+  logicalPathGraph.addEdge(packageLocation, dependency.packageLocation);
 
   await graphPackage(
     name,

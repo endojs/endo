@@ -20,7 +20,7 @@ const { parse: parseBabel } = babelParser;
  * Options for {@link parseAst}.
  *
  * @typedef ParseAstOptions
- * @property {SourceType} [sourceType]
+ * @property {SourceType | undefined} [sourceType]
  * @internal
  */
 
@@ -29,16 +29,15 @@ const { parse: parseBabel } = babelParser;
  * Adapter for parsing an AST.
  *
  * @param {string} source - Source code
- * @param {ParseAstOptions} [opts] - Options for underlying parser
+ * @param {ParseAstOptions} [opts] - Options forwarded by this adapter
  * @returns {any}
  * @internal
  */
 export function parseAst(source, opts = {}) {
-  // Might not want to pass `opts` verbatim, but also might not matter!
   return parseBabel(source, {
     tokens: true,
     createParenthesizedExpressions: true,
     allowReturnOutsideFunction: opts.sourceType === 'script',
-    ...opts,
+    ...(opts.sourceType !== undefined && { sourceType: opts.sourceType }),
   });
 }

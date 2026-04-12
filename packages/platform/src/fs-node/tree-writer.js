@@ -14,30 +14,34 @@ import { TreeWriterInterface } from '../fs/interfaces.js';
  * @param {string} dirPath - Root directory to write into.
  */
 export const makeTreeWriter = dirPath => {
-  return makeExo('TreeWriter', TreeWriterInterface, {
-    /**
-     * @param {string[]} pathSegments
-     * @param {AsyncIterable<Uint8Array>} readable
-     */
-    writeBlob: async (pathSegments, readable) => {
-      const filePath = path.join(dirPath, ...pathSegments);
-      const parentDir = path.dirname(filePath);
-      await fs.promises.mkdir(parentDir, { recursive: true });
-      const chunks = [];
-      for await (const chunk of readable) {
-        chunks.push(chunk);
-      }
-      const buffer = Buffer.concat(chunks);
-      await fs.promises.writeFile(filePath, buffer);
-    },
-    /**
-     * @param {string[]} pathSegments
-     */
-    makeDirectory: async pathSegments => {
-      await fs.promises.mkdir(path.join(dirPath, ...pathSegments), {
-        recursive: true,
-      });
-    },
-  });
+  return makeExo(
+    'TreeWriter',
+    TreeWriterInterface,
+    /** @type {any} */ ({
+      /**
+       * @param {string[]} pathSegments
+       * @param {AsyncIterable<Uint8Array>} readable
+       */
+      writeBlob: async (pathSegments, readable) => {
+        const filePath = path.join(dirPath, ...pathSegments);
+        const parentDir = path.dirname(filePath);
+        await fs.promises.mkdir(parentDir, { recursive: true });
+        const chunks = [];
+        for await (const chunk of readable) {
+          chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+        await fs.promises.writeFile(filePath, buffer);
+      },
+      /**
+       * @param {string[]} pathSegments
+       */
+      makeDirectory: async pathSegments => {
+        await fs.promises.mkdir(path.join(dirPath, ...pathSegments), {
+          recursive: true,
+        });
+      },
+    }),
+  );
 };
 harden(makeTreeWriter);

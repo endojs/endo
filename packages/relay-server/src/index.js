@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 // @ts-check
+/* global process */
 import http from 'node:http';
 import { WebSocketServer } from 'ws';
 import { makeRelay } from './relay.js';
 
 const parseArgs = argv => {
   const args = { port: 8943, domain: 'localhost' };
+  // eslint-disable-next-line @endo/restrict-comparison-operands
   for (let i = 2; i < argv.length; i += 1) {
     if (argv[i] === '--port' && argv[i + 1]) {
       args.port = parseInt(argv[i + 1], 10);

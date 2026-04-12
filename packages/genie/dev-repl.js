@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
+/* global process */
 /* eslint-disable no-await-in-loop */
 
 /**
@@ -25,6 +26,7 @@
 import '@endo/init/debug.js';
 
 import { createInterface } from 'readline';
+// eslint-disable-next-line import/no-unresolved
 import { makePiAgent, runAgentRound, DEFAULT_MODEL_STRING } from '@endo/genie';
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
@@ -32,7 +34,7 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Tool } from './src/tools/common.js' */
 import { bash, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
-import { makeMemoryTools, makeSubstringBackend } from './src/tools/memory.js';
+import { makeMemoryTools } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
@@ -41,7 +43,7 @@ import { webSearch } from './src/tools/web-search.js';
  * @param {never} nope
  * @param {string} wat
  */
-function inconeivable(nope, wat) {
+function inconceivable(nope, wat) {
   throw new Error(`inconceivable ${wat}: ${nope}`);
 }
 
@@ -92,7 +94,9 @@ function getFlag(args, longFlag, shortFlag) {
  * @returns {boolean}
  */
 function hasFlag(args, longFlag, shortFlag) {
-  return args.includes(longFlag) || (shortFlag ? args.includes(shortFlag) : false);
+  return (
+    args.includes(longFlag) || (shortFlag ? args.includes(shortFlag) : false)
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -115,11 +119,11 @@ function hasFlag(args, longFlag, shortFlag) {
  * @returns {AsyncGenerator<string, string>} Yields output chunks; returns
  *   the assistant's final text reply (empty string on error).
  */
-async function* runPrompt(piAgent, prompt, {
-  messages = [],
-  verbose = false,
-  echoUser = false,
-} = {}) {
+async function* runPrompt(
+  piAgent,
+  prompt,
+  { messages = [], verbose = false, echoUser = false } = {},
+) {
   let assistantText = '';
   let streamStarted = false;
   let thinkingStarted = false;
@@ -164,7 +168,8 @@ async function* runPrompt(piAgent, prompt, {
             const { result } = event;
             if (result) {
               try {
-                const s = typeof result === 'string' ? result : JSON.stringify(result);
+                const s =
+                  typeof result === 'string' ? result : JSON.stringify(result);
                 preview = ` ${DIM}${s.length > 200 ? `${s.slice(0, 200)}...` : s}${RESET}`;
               } catch (err) {
                 preview = ` ${RED}Failed to format result: ${err.message} (type: ${typeof event.result}) ${RESET}`;
@@ -247,7 +252,7 @@ async function* runPrompt(piAgent, prompt, {
       }
 
       default: {
-        inconeivable(event, 'agent chat event');
+        inconceivable(event, 'agent chat event');
       }
     }
   }
@@ -286,33 +291,21 @@ async function* runPrompt(piAgent, prompt, {
  * @param {AsyncIterable<string>} options.prompts - Async iterable of user prompts for REPL mode. Ignored in one-shot (command) mode.
  * @returns {AsyncGenerator<string>}
  */
-async function* runAgent({
-  piAgent,
-  tools,
-  verbose,
-  prompts,
-  messages = [],
-}) {
+async function* runAgent({ piAgent, tools, verbose, prompts, messages = [] }) {
   for await (const prompt of prompts) {
     if (prompt === '.exit' || prompt === '.quit') {
       yield `${DIM}Goodbye.${RESET}\n`;
       break;
-    }
-
-    else if (prompt === '.help') {
+    } else if (prompt === '.help') {
       yield `${DIM}Commands:${RESET}\n`;
       yield `${DIM}  .exit   — quit the REPL${RESET}\n`;
       yield `${DIM}  .clear  — clear conversation history${RESET}\n`;
       yield `${DIM}  .tools  — list available tools${RESET}\n`;
       yield `${DIM}  .help   — show this help${RESET}\n`;
-    }
-
-    else if (prompt === '.clear') {
+    } else if (prompt === '.clear') {
       messages.length = 0;
       yield `${DIM}Conversation history cleared.${RESET}\n`;
-    }
-
-    else if (prompt === '.tools') {
+    } else if (prompt === '.tools') {
       const toolNames = Object.keys(tools);
       if (!toolNames.length) {
         yield `${DIM}-- No Tools --${RESET}\n`;
@@ -321,9 +314,7 @@ async function* runAgent({
           yield `${DIM}  • ${name}${RESET}\n`;
         }
       }
-    }
-
-    else {
+    } else {
       try {
         yield* runPrompt(piAgent, prompt, { messages, verbose });
       } catch (err) {
@@ -355,36 +346,37 @@ async function* readPrompts() {
   });
 
   /** @returns {Promise<string|null>} */
-  const nextPrompt = () => new Promise(resolve => {
-    if (closed) {
-      resolve(null);
-      return;
-    }
-
-    rl.prompt();
-
-    /** @param {string} line */
-    const onLine = line => {
-      rl.removeListener('close', onClose);
-      const prompt = line.trim();
-      if (!prompt) {
-        resolve(nextPrompt());
+  const nextPrompt = () =>
+    new Promise(resolve => {
+      if (closed) {
+        resolve(null);
         return;
       }
-      resolve(prompt);
-    };
 
-    const onClose = () => {
-      rl.removeListener('line', onLine);
-      closed = true;
-      resolve(null);
-    };
+      rl.prompt();
 
-    rl.once('line', onLine);
-    rl.once('close', onClose);
-  });
+      /** @param {string} line */
+      const onLine = line => {
+        rl.removeListener('close', onClose);
+        const prompt = line.trim();
+        if (!prompt) {
+          resolve(nextPrompt());
+          return;
+        }
+        resolve(prompt);
+      };
 
-  for (; ;) {
+      const onClose = () => {
+        rl.removeListener('line', onLine);
+        closed = true;
+        resolve(null);
+      };
+
+      rl.once('line', onLine);
+      rl.once('close', onClose);
+    });
+
+  for (;;) {
     const prompt = await nextPrompt();
     if (prompt === null) {
       break;
@@ -395,7 +387,6 @@ async function* readPrompts() {
     yield prompt;
     rl.resume();
   }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -404,7 +395,6 @@ async function* readPrompts() {
 
 /** @param {string[]} args */
 async function* runMain(args) {
-
   const command = getFlag(args, '--command', '-c');
   const modelArg = getFlag(args, '--model', '-m');
   const noTools = hasFlag(args, '--no-tools');
@@ -419,7 +409,9 @@ async function* runMain(args) {
   } else if (searchArg === 'substring') {
     searchBackend = undefined; // uses default substring backend
   } else {
-    throw new Error(`Unknown search backend: ${searchArg} (expected "substring" or "fts5")`);
+    throw new Error(
+      `Unknown search backend: ${searchArg} (expected "substring" or "fts5")`,
+    );
   }
 
   const fileTools = makeFileTools({ root: workspaceArg });
@@ -436,13 +428,14 @@ async function* runMain(args) {
       'Runs git version control commands (status, log, diff, commit, etc.).',
     allowPath: true,
     policies: [
+      // eslint-disable-next-line no-shadow
       args => {
         const first = args.filter(arg => !arg.startsWith('-'))[0];
         return !(
           // ban network touching commands ; TODO moar
-          first && ['push', 'pull', 'fetch'].includes(first)
+          (first && ['push', 'pull', 'fetch'].includes(first))
         );
-      }
+      },
     ],
   });
 
@@ -452,13 +445,13 @@ async function* runMain(args) {
   const tools = noTools
     ? {}
     : {
-      bash,
-      git,
-      ...fileTools,
-      ...memoryTools,
-      webFetch,
-      webSearch,
-    };
+        bash,
+        git,
+        ...fileTools,
+        ...memoryTools,
+        webFetch,
+        webSearch,
+      };
 
   // Create the PiAgent once, reused across all chat rounds.
   const piAgent = await makePiAgent({
@@ -501,7 +494,8 @@ async function* runMain(args) {
     yield `${DIM}Model:     ${modelName}${RESET}\n`;
     yield `${DIM}Workspace: ${workspaceArg}${RESET}\n`;
     yield `${DIM}Search:    ${searchArg}${RESET}\n`;
-    const toolSummary = toolNames.length < 1 ? '-- No Tools --' : toolNames.join(', ');
+    const toolSummary =
+      toolNames.length < 1 ? '-- No Tools --' : toolNames.join(', ');
     yield `${DIM}Tools:     ${toolSummary}${RESET}\n`;
   }
 
@@ -547,5 +541,5 @@ process.exit(
     process.stdout.write(`${RED}Main Error: ${err.message}${RESET}`);
     console.error(err);
     return 1;
-  })
+  }),
 );

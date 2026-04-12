@@ -3,7 +3,7 @@
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 
-/** @import { SnapshotStore } from './types.js' */
+/** @import { SnapshotStore, SnapshotTree } from './types.js' */
 
 /**
  * Returns the methods of a SnapshotTree as a plain spreadable object.
@@ -60,7 +60,7 @@ export const snapshotTreeMethods = (store, sha256) => {
         return true;
       }
       const child = resolveChild(entry[1], entry[2]);
-      return E(child).has(...tail);
+      return E(/** @type {SnapshotTree} */ (child)).has(...tail);
     },
     /**
      * @param {...string} petNamePath
@@ -76,7 +76,7 @@ export const snapshotTreeMethods = (store, sha256) => {
         throw new TypeError(`Unknown name: ${JSON.stringify(head)}`);
       }
       const child = resolveChild(entry[1], entry[2]);
-      return E(child).list(...tail);
+      return E(/** @type {SnapshotTree} */ (child)).list(...tail);
     },
     /**
      * @param {string | string[]} petNamePath

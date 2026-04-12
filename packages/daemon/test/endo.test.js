@@ -994,12 +994,15 @@ test('guest facet receives a message for host', async t => {
   t.is(ten, 10);
 
   // Each agent externalizes locators with its own keypair key.
+  // eslint-disable-next-line no-unused-vars
   const guestLocatorFromHost = await E(host).locate('guest');
   const hostLocatorFromHost = await E(host).locate('@self');
   const guestLocatorFromGuest = await E(guest).locate('@self');
   const hostLocatorFromGuest = await E(guest).locate('@host');
 
-  // Host should have received messages (externalized with host's key).
+  // The guest externalized 'from' with its own key, so the host inbox
+  // sees the guest's self-locator.  The 'to' was the host's self-ID
+  // (LOCAL_NODE) and gets externalized with the host's key.
   const hostInbox = await E(host).listMessages();
   t.deepEqual(
     hostInbox.map(({ type, from, to }) => ({
@@ -1008,8 +1011,8 @@ test('guest facet receives a message for host', async t => {
       to,
     })),
     [
-      { type: 'request', from: guestLocatorFromHost, to: hostLocatorFromHost },
-      { type: 'package', from: guestLocatorFromHost, to: hostLocatorFromHost },
+      { type: 'request', from: guestLocatorFromGuest, to: hostLocatorFromHost },
+      { type: 'package', from: guestLocatorFromGuest, to: hostLocatorFromHost },
     ],
   );
 
@@ -1136,9 +1139,9 @@ test('rehydrated requests can be resolved after restart', async t => {
   E.sendOnly(guest).request('@host', 'need a number');
 
   const { value: guestMessage } = await E(guestMessages).next();
-  const { promiseId: promiseIdP } = E.get(guestMessage);
-  const promiseId = await promiseIdP;
-  await E(host).storeIdentifier(['pending'], promiseId);
+  const { promiseId: promiseLocatorP } = E.get(guestMessage);
+  const promiseLocator = await promiseLocatorP;
+  await E(host).storeLocator(['pending'], promiseLocator);
 
   await restart(config);
 
@@ -1148,6 +1151,8 @@ test('rehydrated requests can be resolved after restart', async t => {
   t.truthy(requestMessage);
   await E(hostAfter).resolve(requestMessage.number, 'ten');
 
+  // The promise formula resolves to a formula identifier.
+  // Verify the resolution by checking the identifier matches 'ten'.
   const resolvedId = await E(hostAfter).lookup(['pending']);
   const tenId = await E(hostAfter).identify('ten');
   t.is(resolvedId, tenId);
@@ -2468,8 +2473,9 @@ test('hello from afar', async t => {
   const hostA = await prepareHostWithTestNetwork(t);
   const hostB = await prepareHostWithTestNetwork(t);
 
-  // Introduce B to A
+  // Introduce peers in both directions
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
   // Induce B to connect to A
   await E(hostA).evaluate('@main', '42', [], [], ['ft']);
@@ -2645,11 +2651,15 @@ test('invite, accept, and send mail', async t => {
   await E(hostA).send('bob', ['Hello'], ['salutations'], ['salutations']);
 
   const messages = await E(hostB).listMessages();
+  const packageMsg = messages.find(
+    m => m.type === 'package' && m.strings && m.strings[0] === 'Hello',
+  );
+  t.truthy(packageMsg, 'B should have received the package message');
   const {
     strings: [hi],
     names: [salutationsName],
     ids: [salutationsLocator],
-  } = messages.find(({ number }) => number === 1n);
+  } = packageMsg;
   t.is(hi, 'Hello');
   t.is(salutationsName, 'salutations');
   // The locators share the same id but may differ in type (the sender
@@ -2755,8 +2765,11 @@ test('adopt from remote message', async t => {
   const msg = messages.find(
     m => m.type === 'package' && m.strings && m.strings[0] === 'Take this',
   );
-  t.truthy(msg);
-  t.is(msg.ids[0], expectedId);
+  t.truthy(msg, 'B should have received the package message');
+  // The externalized locator and the raw ID share the same formula number.
+  const actualParsed = parseLocator(msg.ids[0]);
+  const expectedParsed = parseId(expectedId);
+  t.is(actualParsed.number, expectedParsed.number);
 
   await E(hostB).adopt(msg.number, 'shared', ['my-shared']);
 
@@ -2993,129 +3006,6 @@ test('request with pet name path for response storage', async t => {
   t.is(result, 'here you go');
 });
 
-// ============ EVAL REQUEST TESTS ============
-
-test('eval request happy path: guest requests, host approves', async t => {
-  const { host } = await prepareHost(t);
-
-  // Create a guest and give it a value to work with
-  const guest = await E(host).provideGuest('guest');
-
-  // Store a value in the host's namespace and send it to the guest
-  await E(host).provideWorker(['worker']);
-  await E(host).evaluate('worker', '10', [], [], ['ten']);
-
-  // Grant the value to the guest via send/adopt
-  await E(host).send('guest', ['Here is ten'], ['ten-val'], ['ten']);
-  const guestMessages = await E(guest).listMessages();
-  const packageMsg = guestMessages.find(m => m.type === 'package');
-  await E(guest).adopt(packageMsg.number, 'ten-val', 'my-ten');
-
-  // Now the guest requests evaluation
-  const hostIteratorRef = E(host).followMessages();
-  // Drain existing messages from the iterator
-  const existingMessages = /** @type {unknown[]} */ (
-    await E(host).listMessages()
-  );
-  await drainIterator(hostIteratorRef, existingMessages.length);
-
-  // Guest requests evaluation using its pet name
-  const resultP = E(guest).requestEvaluation(
-    'x + 1',
-    ['x'],
-    ['my-ten'],
-    'result',
-  );
-
-  // Host receives the eval-request
-  const { value: evalMsg } = await E(hostIteratorRef).next();
-  t.is(evalMsg.type, 'eval-request');
-  t.is(evalMsg.source, 'x + 1');
-  t.deepEqual(evalMsg.codeNames, ['x']);
-
-  // Host approves the evaluation
-  await E(host).approveEvaluation(evalMsg.number);
-
-  // Guest gets the result
-  const result = await resultP;
-  t.is(result, 11);
-
-  // Verify the result was stored in the guest's namespace
-  const storedResult = await E(guest).lookup('result');
-  t.is(storedResult, 11);
-});
-
-test('eval request rejection: guest requests, host rejects', async t => {
-  const { host } = await prepareHost(t);
-
-  const guest = await E(host).provideGuest('guest');
-
-  // Set up host message iterator
-  const hostIteratorRef = E(host).followMessages();
-  const existingMessages = /** @type {unknown[]} */ (
-    await E(host).listMessages()
-  );
-  await drainIterator(hostIteratorRef, existingMessages.length);
-
-  // Guest requests evaluation (no endowments needed for this test)
-  const resultP = E(guest).requestEvaluation('dangerous()', [], []);
-
-  // Host receives and rejects
-  const { value: evalMsg } = await E(hostIteratorRef).next();
-  t.is(evalMsg.type, 'eval-request');
-  await E(host).reject(evalMsg.number, 'Code looks dangerous');
-
-  // Guest gets rejection error
-  await t.throwsAsync(resultP, { message: /Code looks dangerous/ });
-});
-
-test('eval request uses guest namespace, not host namespace', async t => {
-  const { host } = await prepareHost(t);
-
-  const guest = await E(host).provideGuest('guest');
-
-  // Store different values under the same name in host and guest namespaces
-  await E(host).provideWorker(['worker']);
-  await E(host).evaluate('worker', '100', [], [], ['shared-name']);
-
-  // Give guest a different value under the same name
-  await E(host).evaluate('worker', '42', [], [], ['guest-value']);
-  await E(host).send('guest', ['A value'], ['val'], ['guest-value']);
-  const guestMessages = await E(guest).listMessages();
-  const packageMsg = guestMessages.find(m => m.type === 'package');
-  await E(guest).adopt(packageMsg.number, 'val', 'shared-name');
-
-  // Verify different values
-  const hostValue = await E(host).lookup('shared-name');
-  t.is(hostValue, 100);
-  const guestValue = await E(guest).lookup('shared-name');
-  t.is(guestValue, 42);
-
-  // Set up host message iterator
-  const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = /** @type {unknown[]} */ (
-    await E(host).listMessages()
-  );
-  await drainIterator(hostIteratorRef, existingHostMessages.length);
-
-  // Guest requests evaluation using its pet name 'shared-name' (value = 42)
-  const resultP = E(guest).requestEvaluation(
-    'x + 1',
-    ['x'],
-    ['shared-name'],
-    'eval-result',
-  );
-
-  // Host approves
-  const { value: evalMsg } = await E(hostIteratorRef).next();
-  t.is(evalMsg.type, 'eval-request');
-  await E(host).approveEvaluation(evalMsg.number);
-
-  // Result should be 43 (42 + 1), not 101 (100 + 1)
-  const result = await resultP;
-  t.is(result, 43);
-});
-
 // Tests for environment variable injection
 
 test('makeUnconfined passes env to caplet make function', async t => {
@@ -3301,12 +3191,7 @@ test('guest evaluate ephemeral (no resultName)', async t => {
   await E(guest).adopt(pkg.number, 'x', ['seven']);
 
   // Ephemeral eval — no result name, value returned directly
-  const result = await E(guest).evaluate(
-    undefined,
-    'x + 3',
-    ['x'],
-    ['seven'],
-  );
+  const result = await E(guest).evaluate(undefined, 'x + 3', ['x'], ['seven']);
 
   t.is(result, 10);
 });

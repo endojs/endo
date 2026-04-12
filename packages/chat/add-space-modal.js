@@ -1004,7 +1004,12 @@ export const createAddSpaceModal = ({
     for (const $option of $viewModeOptions) {
       $option.addEventListener('click', () => {
         const vm = $option.getAttribute('data-view-mode');
-        if (vm === 'chat' || vm === 'forum' || vm === 'outliner' || vm === 'microblog') {
+        if (
+          vm === 'chat' ||
+          vm === 'forum' ||
+          vm === 'outliner' ||
+          vm === 'microblog'
+        ) {
           channelViewMode = vm;
           // Update selection visually
           for (const $opt of $viewModeOptions) {
@@ -1352,9 +1357,7 @@ export const createAddSpaceModal = ({
         ),
       ).provideHost(spaceName, {
         agentName: newAgentName,
-        ...(Object.keys(introducedNames).length > 0
-          ? { introducedNames }
-          : {}),
+        ...(Object.keys(introducedNames).length > 0 ? { introducedNames } : {}),
       });
 
       // 2. Get the persona's powers

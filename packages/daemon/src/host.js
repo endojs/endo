@@ -12,7 +12,6 @@ import {
   assertPetName,
   assertPetNamePath,
   assertName,
-  assertNames,
   assertNamePath,
   namePathFrom,
 } from './pet-name.js';
@@ -22,7 +21,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { addressesFromLocator } from './locator.js';
+import { addressesFromLocator, formatLocator } from './locator.js';
 import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
@@ -44,12 +43,15 @@ const assertPowersName = name => {
  * @param {MakeHostOrGuestOptions | undefined} opts
  * @returns {{ introducedNames: Record<Name, PetName>, agentName?: PetName }}
  */
-const normalizeHostOrGuestOptions = opts => ({
-  introducedNames: /** @type {Record<Name, PetName>} */ (
-    opts?.introducedNames ?? Object.create(null)
-  ),
-  agentName: /** @type {PetName | undefined} */ (opts?.agentName),
-});
+const normalizeHostOrGuestOptions = opts => {
+  const agentName = /** @type {PetName | undefined} */ (opts?.agentName);
+  return {
+    introducedNames: /** @type {Record<Name, PetName>} */ (
+      opts?.introducedNames ?? Object.create(null)
+    ),
+    ...(agentName !== undefined && { agentName }),
+  };
+};
 
 /**
  * @param {object} args
@@ -168,6 +170,7 @@ export const makeHostMaker = ({
 
     const baseController = await provideStoreController(storeId);
     const mailboxController = await provideStoreController(mailboxStoreId);
+
     /** @type {Record<string, FormulaIdentifier>} */
     const specialNames = {
       ...platformNames,
@@ -381,8 +384,13 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(workerName, tasks.push);
-      const workerLabel = explicitLabel ?? (resultName !== undefined ? `eval:${resultName}` : 'eval');
+      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(
+        workerName,
+        tasks.push,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (resultName !== undefined ? `eval:${resultName}` : 'eval');
 
       /** @type {(FormulaIdentifier | NamePath)[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(petNameOrPath => {
@@ -448,9 +456,14 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel } = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId, workerLabel } = prepareWorkerFormulation(
+        workerName,
+        tasks.push,
+      );
 
-      const powersId = /** @type {FormulaIdentifier | undefined} */ (petStore.identifyLocal(/** @type {Name} */ (powersName)));
+      const powersId = /** @type {FormulaIdentifier | undefined} */ (
+        petStore.identifyLocal(/** @type {Name} */ (powersName))
+      );
       if (powersId === undefined) {
         assertPetName(powersName);
         const powersPetName = powersName;
@@ -461,7 +474,10 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          E(directory).storeIdentifier(namePathFrom(resultName), identifiers.capletId),
+          E(directory).storeIdentifier(
+            namePathFrom(resultName),
+            identifiers.capletId,
+          ),
         );
       }
 
@@ -477,12 +493,22 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
-      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(
-          /** @type {Name | undefined} */ (workerName),
-          options,
-        );
-      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `unconfined:${specifier}`);
+      const {
+        tasks,
+        workerId,
+        workerLabel: explicitLabel,
+        powersId,
+        env,
+        workerTrustedShims,
+      } = prepareMakeCaplet(
+        /** @type {Name | undefined} */ (workerName),
+        options,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (options?.resultName !== undefined
+          ? `${options.resultName}`
+          : `unconfined:${specifier}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -507,12 +533,22 @@ export const makeHostMaker = ({
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(
-          /** @type {Name | undefined} */ (workerName),
-          options,
-        );
-      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `bundle:${bundleName}`);
+      const {
+        tasks,
+        workerId,
+        workerLabel: explicitLabel,
+        powersId,
+        env,
+        workerTrustedShims,
+      } = prepareMakeCaplet(
+        /** @type {Name | undefined} */ (workerName),
+        options,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (options?.resultName !== undefined
+          ? `${options.resultName}`
+          : `bundle:${bundleName}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -608,7 +644,11 @@ export const makeHostMaker = ({
       let host = getNamedAgent(petName, 'host');
       await null;
       if (host === undefined) {
-        const hostLabel = agentName ? `host:${agentName}` : petName ? `host:${petName}` : 'host';
+        const hostLabel = agentName
+          ? `host:${agentName}`
+          : petName
+            ? `host:${petName}`
+            : 'host';
         const { value, id } =
           // Behold, recursion:
           await formulateHost(
@@ -662,7 +702,11 @@ export const makeHostMaker = ({
       let guest = getNamedAgent(handleName, 'guest');
       await null;
       if (guest === undefined) {
-        const guestLabel = agentName ? `guest:${agentName}` : handleName ? `guest:${handleName}` : 'guest';
+        const guestLabel = agentName
+          ? `guest:${agentName}`
+          : handleName
+            ? `guest:${handleName}`
+            : 'guest';
         const { value, id } =
           // Behold, recursion:
           await formulateGuest(
@@ -712,7 +756,9 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<{ timerId: import('./types.js').FormulaIdentifier }>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.timerId));
+      tasks.push(identifiers =>
+        petStore.storeIdentifier(petName, identifiers.timerId),
+      );
       const { value } = await formulateTimer(
         Number(intervalMs),
         label || petName,
@@ -730,7 +776,9 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.channelId));
+      tasks.push(identifiers =>
+        petStore.storeIdentifier(petName, identifiers.channelId),
+      );
       const { value } = await formulateChannel(
         hostId,
         handleId,
@@ -815,10 +863,7 @@ export const makeHostMaker = ({
       const handleLocator = handleUrl.href;
 
       const invitation = await provide(invitationId, 'invitation');
-      const acceptResult = await E(invitation).accept(
-        handleLocator,
-        guestName,
-      );
+      const acceptResult = await E(invitation).accept(handleLocator, guestName);
 
       // The host's accept handler returns the synced store number.
       const { syncedStoreNumber } =
@@ -837,13 +882,67 @@ export const makeHostMaker = ({
         peerId, // store dependency
       );
 
-      // Wrap the synced store in a directory so it acts as a NameHub
-      // when resolved via multi-segment paths like "guestName.petName".
-      const { id: syncedDirectoryId } =
-        await formulateDirectoryForStore(syncedStoreId);
+      // Create a local guest backed by the synced store.
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
+      const guestTasks = makeDeferredTasks();
+      const { id: localGuestId } = await formulateGuest(
+        hostId,
+        handleId,
+        guestTasks,
+        `guest:${guestName}`,
+        syncedStoreId,
+      );
 
-      // Write the directory into the host's pet store under guestName.
-      await petStore.storeIdentifier(guestName, syncedDirectoryId);
+      // Look up the local guest's handle from its formula so we can
+      // name it.  Incarnating the handle transitively incarnates the
+      // guest and its synced pet store, starting synchronisation.
+      const localGuestFormula =
+        /** @type {import('./types.js').GuestFormula} */ (
+          await getFormulaForId(localGuestId)
+        );
+      await E(directory).storeIdentifier(
+        ['@pins', `guest-${guestName}`],
+        localGuestFormula.handle,
+      );
+
+      // Store the remote handle under guestName for mail delivery.
+      const remoteHandleId = formatId({
+        number: /** @type {import('./types.js').FormulaNumber} */ (
+          remoteHandleNumber
+        ),
+        node: /** @type {import('./types.js').NodeNumber} */ (nodeNumber),
+      });
+      const remoteHandleLocator = formatLocator(remoteHandleId, 'handle');
+      await E(directory).storeLocator([guestName], remoteHandleLocator);
+    };
+
+    /** @type {EndoHost['registerSyncedStore']} */
+    const registerSyncedStore = async (_petName, _syncedStoreId) => {
+      // No-op: the synced store is now discovered via the formula
+      // graph (guest handle → guest → petStore).  Retained for
+      // interface compatibility.
+    };
+
+    /** @type {EndoHost['getSyncedStore']} */
+    const getSyncedStore = async petName => {
+      // Traverse the formula graph:
+      // @pins/guest-<name> → local guest handle
+      //   → handle formula.agent → guest formula
+      //     → guest formula.petStore → synced store
+      const localHandleId = await E(directory).identify(
+        '@pins',
+        `guest-${petName}`,
+      );
+      if (localHandleId === undefined) {
+        throw new Error(`No synced store for ${q(petName)}`);
+      }
+      const handleFormula = /** @type {import('./types.js').HandleFormula} */ (
+        await getFormulaForId(/** @type {FormulaIdentifier} */ (localHandleId))
+      );
+      const guestFormula = /** @type {import('./types.js').GuestFormula} */ (
+        await getFormulaForId(handleFormula.agent)
+      );
+      return provide(guestFormula.petStore, 'synced-pet-store');
     };
 
     /** @type {EndoHost['cancel']} */
@@ -988,54 +1087,6 @@ export const makeHostMaker = ({
      * @returns {Promise<unknown>} The value.
      */
     const lookupById = async id => provide(id);
-
-    /** @type {EndoHost['approveEvaluation']} */
-    const approveEvaluation = async (messageNumber, workerName) => {
-      if (workerName !== undefined) {
-        assertName(workerName);
-      }
-      const { source, codeNames, petNamePaths, resolverId, guestHandleId } =
-        mailbox.getEvalRequest(messageNumber);
-
-      assertNames(codeNames);
-
-      const guestAgentId = await getAgentIdForHandleId(
-        /** @type {FormulaIdentifier} */ (guestHandleId),
-      );
-      const guestAgent = await provide(guestAgentId, 'agent');
-
-      // Resolve endowments from the guest's namespace
-      /** @type {(FormulaIdentifier | NamePath)[]} */
-      const endowmentFormulaIdsOrPaths = await Promise.all(
-        petNamePaths.map(async petNamePath => {
-          if (petNamePath.length === 1) {
-            const id = await E(guestAgent).identify(petNamePath[0]);
-            if (id === undefined) {
-              throw new Error(
-                `Unknown pet name ${q(petNamePath[0])} in guest namespace`,
-              );
-            }
-            return /** @type {FormulaIdentifier} */ (id);
-          }
-          return petNamePath;
-        }),
-      );
-
-      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-      const { workerId } = prepareWorkerFormulation(workerName, tasks.push);
-
-      const { id: evalId } = await formulateEval(
-        guestAgentId,
-        source,
-        codeNames,
-        endowmentFormulaIdsOrPaths,
-        tasks,
-        workerId,
-      );
-      const resolver = await provide(resolverId, 'resolver');
-      E.sendOnly(resolver).resolveWithId(evalId);
-    };
 
     /** @type {EndoHost['endow']} */
     const endow = async (messageNumber, bindings, workerName, resultName) => {
@@ -1185,7 +1236,8 @@ export const makeHostMaker = ({
       makeTimer: makeTimerCmd,
       invite,
       accept,
-      approveEvaluation,
+      getSyncedStore,
+      registerSyncedStore,
       endow,
       submit,
       sendValue,
@@ -1213,7 +1265,6 @@ export const makeHostMaker = ({
     const unwrappedMethods = new Set([
       'handle',
       'reverseIdentify',
-      'approveEvaluation',
       'endow',
       'submit',
       'sendValue',
@@ -1225,31 +1276,35 @@ export const makeHostMaker = ({
       ]),
     );
 
-    const hostExo = makeExo('EndoHost', HostInterface, {
-      help: makeHelp(hostHelp),
-      ...wrappedHost,
-      /** @param {string} locator */
-      followLocatorNameChanges: async locator => {
-        const iterator = host.followLocatorNameChanges(locator);
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followMessages: async () => {
-        const iterator = host.followMessages();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followNameChanges: async () => {
-        const iterator = host.followNameChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followPeerChanges: async () => {
-        const iterator = await host.followPeerChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-    });
+    const hostExo = makeExo(
+      'EndoHost',
+      HostInterface,
+      /** @type {any} */ ({
+        help: makeHelp(hostHelp),
+        ...wrappedHost,
+        /** @param {string} locator */
+        followLocatorNameChanges: async locator => {
+          const iterator = host.followLocatorNameChanges(locator);
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followMessages: async () => {
+          const iterator = host.followMessages();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followNameChanges: async () => {
+          const iterator = host.followNameChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followPeerChanges: async () => {
+          const iterator = await host.followPeerChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+      }),
+    );
 
     await provide(mainWorkerId, 'worker');
 

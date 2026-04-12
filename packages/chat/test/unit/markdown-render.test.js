@@ -8,10 +8,9 @@ import {
   renderMarkdown,
   renderPlainText,
   prepareTextWithPlaceholders,
-  highlightCode,
 } from '../../markdown-render.js';
 
-const { document: testDocument, cleanup: cleanupDOM } = createDOM();
+const { cleanup: cleanupDOM } = createDOM();
 
 // ============ prepareTextWithPlaceholders tests ============
 
@@ -74,18 +73,18 @@ test('renderPlainText preserves inline code', t => {
   t.is(codeEl?.className, 'inline-code');
 });
 
-test('renderPlainText handles bold', t => {
-  const result = renderPlainText('This is *bold* text');
-  const strong = result.fragment.querySelector('strong');
-  t.truthy(strong);
-  t.is(strong?.textContent, 'bold');
-});
-
-test('renderPlainText handles italic', t => {
-  const result = renderPlainText('This is /italic/ text');
+test('renderPlainText handles emphasis (CommonMark)', t => {
+  const result = renderPlainText('This is *italic* text');
   const em = result.fragment.querySelector('em');
   t.truthy(em);
   t.is(em?.textContent, 'italic');
+});
+
+test('renderPlainText handles strong (CommonMark)', t => {
+  const result = renderPlainText('This is **bold** text');
+  const strong = result.fragment.querySelector('strong');
+  t.truthy(strong);
+  t.is(strong?.textContent, 'bold');
 });
 
 test('renderPlainText handles strikethrough', t => {
@@ -93,13 +92,6 @@ test('renderPlainText handles strikethrough', t => {
   const s = result.fragment.querySelector('s');
   t.truthy(s);
   t.is(s?.textContent, 'struck');
-});
-
-test('renderPlainText handles underline', t => {
-  const result = renderPlainText('This is _underlined_ text');
-  const u = result.fragment.querySelector('u');
-  t.truthy(u);
-  t.is(u?.textContent, 'underlined');
 });
 
 test('renderPlainText handles newlines', t => {
@@ -179,10 +171,45 @@ test('renderMarkdown handles ordered list', t => {
   t.is(items?.length, 3);
 });
 
+test('renderMarkdown handles tables', t => {
+  const result = renderMarkdown('| A | B |\n|---|---|\n| 1 | 2 |');
+  const table = result.fragment.querySelector('table');
+  t.truthy(table);
+  t.true(table?.className.includes('md-table'));
+  const th = table?.querySelectorAll('th');
+  t.is(th?.length, 2);
+  const td = table?.querySelectorAll('td');
+  t.is(td?.length, 2);
+});
+
+test('renderMarkdown handles blockquotes', t => {
+  const result = renderMarkdown('> Quoted text');
+  const bq = result.fragment.querySelector('blockquote');
+  t.truthy(bq);
+  t.true(bq?.className.includes('md-blockquote'));
+});
+
+test('renderMarkdown handles horizontal rules', t => {
+  const result = renderMarkdown('Above\n\n---\n\nBelow');
+  const hr = result.fragment.querySelector('hr');
+  t.truthy(hr);
+  t.true(hr?.className.includes('md-rule'));
+});
+
+test('renderMarkdown handles links', t => {
+  const result = renderMarkdown('[click](https://example.com)');
+  const link = result.fragment.querySelector('a');
+  t.truthy(link);
+  t.is(link?.getAttribute('href'), 'https://example.com');
+  t.is(link?.getAttribute('target'), '_blank');
+  t.is(link?.getAttribute('rel'), 'noopener noreferrer');
+  t.is(link?.textContent, 'click');
+});
+
 test('renderMarkdown handles mixed content', t => {
   const markdown = `# Title
 
-This is a paragraph with *bold* and /italic/.
+This is a paragraph with **bold** and *italic*.
 
 - List item 1
 - List item 2
@@ -205,7 +232,7 @@ test('renderMarkdown handles placeholders in text', t => {
 });
 
 test('renderMarkdown handles inline formatting in headings', t => {
-  const result = renderMarkdown('# *Bold* heading');
+  const result = renderMarkdown('# **Bold** heading');
   const h1 = result.fragment.querySelector('h1');
   const strong = h1?.querySelector('strong');
   t.truthy(strong);
@@ -213,80 +240,12 @@ test('renderMarkdown handles inline formatting in headings', t => {
 });
 
 test('renderMarkdown handles inline formatting in list items', t => {
-  const result = renderMarkdown('- *Bold* item\n- /Italic/ item');
+  const result = renderMarkdown('- **Bold** item\n- *Italic* item');
   const items = result.fragment.querySelectorAll('li');
   const strong = items[0]?.querySelector('strong');
   const em = items[1]?.querySelector('em');
   t.truthy(strong);
   t.truthy(em);
-});
-
-// ============ highlightCode tests ============
-
-test('highlightCode returns fragment', t => {
-  const result = highlightCode('const x = 1;', 'js');
-  t.truthy(result);
-  t.true(result instanceof testDocument.createDocumentFragment().constructor);
-});
-
-test('highlightCode highlights keywords for JS', t => {
-  const result = highlightCode('const x = 1;', 'js');
-  const keyword = result.querySelector('.code-keyword');
-  t.truthy(keyword);
-  t.is(keyword?.textContent, 'const');
-});
-
-test('highlightCode highlights strings for JS', t => {
-  const result = highlightCode('const s = "hello";', 'js');
-  const str = result.querySelector('.code-string');
-  t.truthy(str);
-  t.is(str?.textContent, '"hello"');
-});
-
-test('highlightCode highlights numbers for JS', t => {
-  const result = highlightCode('const n = 42;', 'js');
-  const num = result.querySelector('.code-number');
-  t.truthy(num);
-  t.is(num?.textContent, '42');
-});
-
-test('highlightCode highlights comments for JS', t => {
-  const result = highlightCode('// comment\nconst x = 1;', 'js');
-  const comment = result.querySelector('.code-comment');
-  t.truthy(comment);
-  t.is(comment?.textContent, '// comment');
-});
-
-test('highlightCode works for typescript', t => {
-  const result = highlightCode('const x: number = 1;', 'typescript');
-  const keyword = result.querySelector('.code-keyword');
-  t.truthy(keyword);
-});
-
-test('highlightCode does not highlight unknown languages', t => {
-  const result = highlightCode('some code', 'unknown');
-  const highlighted = result.querySelector('[class^="code-"]');
-  t.falsy(highlighted);
-  t.is(result.textContent, 'some code');
-});
-
-test('highlightCode preserves code with no language', t => {
-  const result = highlightCode('plain text', '');
-  t.is(result.textContent, 'plain text');
-});
-
-test('highlightCode handles multiple keywords', t => {
-  const result = highlightCode('if (true) { return false; }', 'js');
-  const keywords = result.querySelectorAll('.code-keyword');
-  t.true(keywords.length >= 3); // if, true, return, false
-});
-
-test('highlightCode handles template strings', t => {
-  // eslint-disable-next-line no-template-curly-in-string
-  const code = `const s = \`hello ${'${name}'}\`;`;
-  const result = highlightCode(code, 'js');
-  const str = result.querySelector('.code-string');
-  t.truthy(str);
 });
 
 test.after(() => {

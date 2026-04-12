@@ -50,7 +50,7 @@ export const encodeStringToImmutableArrayBuffer = string => {
  */
 export const decodeImmutableArrayBufferToString = buffer => {
   // Immutable ArrayBuffers need to be sliced for TextDecoder to work
-  return textDecoder.decode(buffer.slice());
+  return textDecoder.decode(/** @type {ArrayBuffer} */ (buffer.slice()));
 };
 
 /**

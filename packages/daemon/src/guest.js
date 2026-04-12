@@ -21,6 +21,7 @@ import { guestHelp, makeHelp } from './help-text.js';
 /**
  * @param {object} args
  * @param {Provide} args.provide
+ * @param {DaemonCore['provideStoreController']} args.provideStoreController
  * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
@@ -162,22 +163,11 @@ export const makeGuestMaker = ({
       request,
       send,
       deliver,
-      requestEvaluation: mailboxRequestEvaluation,
       define: mailboxDefine,
       form: mailboxForm,
       submit: mailboxSubmit,
       sendValue: mailboxSendValue,
     } = mailbox;
-
-    /** @type {EndoGuest['requestEvaluation']} */
-    const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
-      mailboxRequestEvaluation(
-        '@host',
-        source,
-        codeNames,
-        petNamePaths,
-        resultName,
-      );
 
     /**
      * @param {Name | undefined} workerName
@@ -299,6 +289,9 @@ export const makeGuestMaker = ({
 
     /** @type {EndoGuest['storeBlob']} */
     const storeBlob = async (readerRef, petName) => {
+      if (petName === undefined) {
+        throw new TypeError('storeBlob requires a pet name');
+      }
       const { namePath } = assertPetNamePath(namePathFrom(petName));
 
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
@@ -364,8 +357,7 @@ export const makeGuestMaker = ({
       send,
       deliver,
       evaluate,
-      // Eval/Define/Form
-      requestEvaluation,
+      // Define/Form
       define,
       form,
       storeBlob,
@@ -399,26 +391,30 @@ export const makeGuestMaker = ({
       ]),
     );
 
-    return makeExo('EndoGuest', GuestInterface, {
-      help: makeHelp(guestHelp),
-      ...wrappedGuest,
-      /** @param {string} locator */
-      followLocatorNameChanges: async locator => {
-        const iterator = guest.followLocatorNameChanges(locator);
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followMessages: async () => {
-        const iterator = guest.followMessages();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followNameChanges: async () => {
-        const iterator = guest.followNameChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-    });
+    return makeExo(
+      'EndoGuest',
+      GuestInterface,
+      /** @type {any} */ ({
+        help: makeHelp(guestHelp),
+        ...wrappedGuest,
+        /** @param {string} locator */
+        followLocatorNameChanges: async locator => {
+          const iterator = guest.followLocatorNameChanges(locator);
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followMessages: async () => {
+          const iterator = guest.followMessages();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followNameChanges: async () => {
+          const iterator = guest.followNameChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+      }),
+    );
   };
 
   return makeGuest;

@@ -12,11 +12,15 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { M, matches, getInterfaceGuardPayload, getMethodGuardPayload } from '@endo/patterns';
+import {
+  matches,
+  getInterfaceGuardPayload,
+  getMethodGuardPayload,
+} from '@endo/patterns';
 import {
   ChannelInterface,
   ChannelMemberInterface,
-} from '../../../daemon/src/interfaces.js';
+} from '@endo/daemon/src/interfaces.js';
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -54,8 +58,10 @@ const getMethodArgInfo = (iface, methodName) => {
  * @returns {{ ok: boolean, error?: string }}
  */
 const validateArgs = (iface, methodName, args) => {
-  const { argGuards, optionalArgGuards, minArgs, maxArgs } =
-    getMethodArgInfo(iface, methodName);
+  const { argGuards, optionalArgGuards, minArgs, maxArgs } = getMethodArgInfo(
+    iface,
+    methodName,
+  );
 
   if (args.length < minArgs) {
     return {
@@ -97,14 +103,22 @@ const assertCallValid = (t, methodName, args, callSite) => {
     ['ChannelMemberInterface', ChannelMemberInterface],
   ]) {
     const result = validateArgs(iface, methodName, args);
-    t.true(result.ok, `${callSite} → ${label}.${methodName}: ${result.error || 'ok'}`);
+    t.true(
+      result.ok,
+      `${callSite} → ${label}.${methodName}: ${result.error || 'ok'}`,
+    );
   }
 };
 
 // ─── Tests: outliner-component.js ──────────────────────────────────────
 
 test('outliner: followMessages() — no args', t => {
-  assertCallValid(t, 'followMessages', [], 'outliner-component.js: followMessages()');
+  assertCallValid(
+    t,
+    'followMessages',
+    [],
+    'outliner-component.js: followMessages()',
+  );
 });
 
 test('outliner: post() deletion — 6 args with replyType', t => {
@@ -124,7 +138,13 @@ test('send-form: post() standard message — 5 args, no replyType', t => {
   assertCallValid(
     t,
     'post',
-    [['Hello world'], ['attachment'], ['my-file'], undefined, ['formula-id-abc']],
+    [
+      ['Hello world'],
+      ['attachment'],
+      ['my-file'],
+      undefined,
+      ['formula-id-abc'],
+    ],
     'send-form.js: standard channel post',
   );
 });
@@ -189,7 +209,12 @@ test('send-form: getHopInfo() — no args', t => {
 });
 
 test('send-form: followHeatEvents() — no args', t => {
-  assertCallValid(t, 'followHeatEvents', [], 'send-form.js: followHeatEvents()');
+  assertCallValid(
+    t,
+    'followHeatEvents',
+    [],
+    'send-form.js: followHeatEvents()',
+  );
 });
 
 test('send-form: getHeatConfig() — no args', t => {
@@ -199,7 +224,12 @@ test('send-form: getHeatConfig() — no args', t => {
 // ─── Tests: channel-utils.js ───────────────────────────────────────────
 
 test('channel-utils: getProposedName() — no args', t => {
-  assertCallValid(t, 'getProposedName', [], 'channel-utils.js: getProposedName()');
+  assertCallValid(
+    t,
+    'getProposedName',
+    [],
+    'channel-utils.js: getProposedName()',
+  );
 });
 
 test('channel-utils: getMember(memberId) — 1 string arg', t => {

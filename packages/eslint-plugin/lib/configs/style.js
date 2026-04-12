@@ -63,6 +63,7 @@ module.exports = {
       rules: {
         'import/no-unresolved': 'off',
         'no-unused-vars': 'off',
+        'jsdoc/require-param-type': 'off',
       },
     },
   ],

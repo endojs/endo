@@ -510,7 +510,7 @@ const memoizedLoadWithErrorAnnotation = (
 /**
  * If `aggregateErrors` is `false`, the `errors` property of the fulfilled object
  * will always be empty.
- * @param {{errors?: Error[], noAggregateErrors?: boolean}} [options]
+ * @param {{errors?: Error[], noAggregateErrors?: boolean | undefined}} [options]
  */
 const asyncJobQueue = ({ errors = [], noAggregateErrors = false } = {}) => {
   /** @type {Set<Promise<undefined>>} */
@@ -552,7 +552,7 @@ const asyncJobQueue = ({ errors = [], noAggregateErrors = false } = {}) => {
 /**
  * If `aggregateErrors` is `false`, the `errors` property of the returned object
  * will always be empty.
- * @param {{errors?: Error[], noAggregateErrors?: boolean}} [options]
+ * @param {{errors?: Error[], noAggregateErrors?: boolean | undefined}} [options]
  */
 const syncJobQueue = ({ errors = [], noAggregateErrors = false } = {}) => {
   let current = [];
@@ -625,7 +625,7 @@ const preferAsync = (asyncImpl, _syncImpl) => asyncImpl;
  * @param {WeakMap<object, object>} moduleAliases
  * @param {Compartment} compartment
  * @param {string} moduleSpecifier - The module specifier to load.
- * @param {{ noAggregateErrors?: boolean}} options
+ * @param {{ noAggregateErrors?: boolean | undefined}} options
  */
 export const load = async (
   compartmentPrivateFields,
@@ -676,7 +676,7 @@ export const load = async (
  * @param {WeakMap<object, object>} moduleAliases
  * @param {Compartment} compartment
  * @param {string} moduleSpecifier - The module specifier to load.
- * @param {{ noAggregateErrors?: boolean}} options
+ * @param {{ noAggregateErrors?: boolean | undefined}} options
  */
 
 export const loadNow = (

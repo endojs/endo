@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* eslint-disable max-classes-per-file */
 /* eslint-disable class-methods-use-this */
 import test from '@endo/ses-ava/test.js';
@@ -18,7 +17,11 @@ const DoublerI = M.interface('Doubler', {
   double: M.call(M.lte(10)).returns(M.number()),
 });
 
-const doubler = makeExo('doubler', DoublerI, DoublerBehaviorClass.prototype);
+const doubler = makeExo(
+  'doubler',
+  DoublerI,
+  Object.create(DoublerBehaviorClass.prototype),
+);
 
 test('exo doubler using js classes', t => {
   t.is(passStyleOf(doubler), 'remotable');
@@ -37,6 +40,10 @@ test('exo doubler using js classes', t => {
 
 // Based on FarSubclass2 in test-far-class-instances.js
 class DoubleAdderBehaviorClass extends DoublerBehaviorClass {
+  /**
+   * @param {number} x
+   * @this {import('../src/types.js').ClassContext<{ y: number }, { double: (x: number) => number }>}
+   */
   doubleAddSelfCall(x) {
     const {
       state: { y },
@@ -45,6 +52,10 @@ class DoubleAdderBehaviorClass extends DoublerBehaviorClass {
     return self.double(x) + y;
   }
 
+  /**
+   * @param {number} x
+   * @this {import('../src/types.js').ClassContext<{ y: number }, { double: (x: number) => number }>}
+   */
   doubleAddSuperCall(x) {
     const {
       state: { y },
@@ -63,7 +74,7 @@ const makeDoubleAdder = defineExoClass(
   'doubleAdderClass',
   DoubleAdderI,
   y => ({ y }),
-  DoubleAdderBehaviorClass.prototype,
+  Object.create(DoubleAdderBehaviorClass.prototype),
 );
 
 test('exo inheritance self vs super call', t => {

@@ -1,10 +1,17 @@
 // @ts-check
 
 /**
+ * @typedef {object} ToolCall
+ * @property {string} [id]
+ * @property {string} [type]
+ * @property {{ name: string, arguments: string|object }} function
+ */
+
+/**
  * @typedef {object} ChatMessage
  * @property {'system'|'user'|'assistant'|'tool'} role
  * @property {string} [content]
- * @property {Array<{ id?: string, function: { name: string, arguments: string|object }}>} [tool_calls]
+ * @property {ToolCall[]} [tool_calls]
  * @property {string} [tool_call_id]
  */
 
@@ -139,8 +146,7 @@ export const extractToolCallsFromContent = content => {
 
   // Second pass: look for <function=name> blocks NOT inside <tool_call>
   // tags (some models emit these bare).
-  const bareFnRe =
-    /<function=([^>]+)>([\s\S]*?)(?:<\/function>|$)/g;
+  const bareFnRe = /<function=([^>]+)>([\s\S]*?)(?:<\/function>|$)/g;
   // Only scan content outside of <tool_call> blocks
   const contentWithoutToolCalls = content.replace(toolCallRe, '');
   for (const fm of contentWithoutToolCalls.matchAll(bareFnRe)) {

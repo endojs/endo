@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 /**
  * Tool Construction Utilities
@@ -55,17 +56,19 @@ import { M, mustMatch, getMethodGuardPayload } from '@endo/patterns';
 
 /**
  * @typedef {object} ToolSpec
- * @prop {() => Iterable<string>} help
- * @prop {() => string} [desc]
- * @prop {MethodGuard} schema
+ * @property {() => Iterable<string>} help
+ * @property {() => string} [desc]
+ * @property {MethodGuard} schema
+ * @property
  */
 
 /**
  * @typedef {object} Tool
- * @prop {() => string} help
- * @prop {() => string} [desc]
- * @prop {InterfaceGuard} schema
- * @prop {(args: any) => Promise<any>} execute
+ * @property {() => string} help
+ * @property {() => string} [desc]
+ * @property {InterfaceGuard} schema
+ * @property {(args: any) => Promise<any>} execute
+ * @property
  */
 
 /**
@@ -83,10 +86,8 @@ export const makeTool = (name, { execute, ...spec }) => {
   const {
     help,
     desc = () => {
-      for (const part of help()) {
-        return part.split('\n')[0];
-      }
-      return '';
+      const [first] = help();
+      return first ? first.split('\n')[0] : '';
     },
     schema,
   } = spec;
@@ -123,7 +124,6 @@ export const makeTool = (name, { execute, ...spec }) => {
         } catch (err) {
           const message = `${err?.message}`;
           if (typeof args === 'object') {
-
             const null2undef = /args:.* ([^ ]+?)\?: null.*/.exec(message);
             if (null2undef !== null) {
               const key = null2undef[1];
@@ -136,16 +136,19 @@ export const makeTool = (name, { execute, ...spec }) => {
             // try to fixup by parsing nested JSON values
             if (!didUnJSON) {
               didUnJSON = true;
-              for (const [key, val] of Object.entries(/** @type {Record<string, any>} */(args))) {
+              for (const [key, val] of Object.entries(
+                /** @type {Record<string, any>} */ (args),
+              )) {
                 if (typeof val === 'string') {
                   try {
                     args = { ...args, ...{ [key]: JSON.parse(val) } };
-                  } catch { continue }
+                  } catch {
+                    continue;
+                  }
                 }
               }
               continue;
             }
-
           }
 
           // fallthrough: no fixup, final throw to caller

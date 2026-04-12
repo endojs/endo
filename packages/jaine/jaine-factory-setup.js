@@ -1,4 +1,6 @@
 // @ts-check
+/* global process, setTimeout */
+/* eslint-disable no-await-in-loop */
 // endo run --UNCONFINED jaine-factory-setup.js --powers @agent \
 //   -E PROVIDER_NAME=default -E FACTORY_NAME=jaine-factory
 

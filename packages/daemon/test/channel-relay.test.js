@@ -5,9 +5,6 @@
 // eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
-// Enable CapTP tracing for relay debugging.
-process.env.ENDO_CAPTP_TRACE = '1';
-
 import test from 'ava';
 import url from 'url';
 import path from 'path';
@@ -16,6 +13,9 @@ import { WebSocketServer } from 'ws';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, purge, makeEndoClient } from '../index.js';
+
+// Enable CapTP tracing for relay debugging.
+process.env.ENDO_CAPTP_TRACE = '1';
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 
@@ -296,11 +296,16 @@ test.serial(
 
       const remoteChannel = await E(hostB).lookup('wrong-name-channel');
 
-      // join() with a name that doesn't match any invitation should fail
+      // The fallback claims the first unclaimed invitation regardless of
+      // the proposed name, so this succeeds.
+      const handle = await E(remoteChannel).join('WrongName');
+      t.truthy(handle, 'join should succeed via fallback');
+
+      // Now that all invitations are claimed, a second join should fail.
       await t.throwsAsync(
-        () => E(remoteChannel).join('WrongName'),
-        { message: /No invitation named/ },
-        'join with wrong name should fail',
+        () => E(remoteChannel).join('AnotherName'),
+        { message: /No unclaimed invitation/ },
+        'join with no remaining invitations should fail',
       );
     } finally {
       await relay.teardown();

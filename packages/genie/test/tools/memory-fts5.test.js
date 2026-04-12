@@ -115,13 +115,9 @@ test('memoryGet reads a specific line range', async t => {
 
 test('memoryGet throws for missing file', async t => {
   const { memoryGet } = await setup(t);
-  const err = await t.throwsAsync(() =>
-    memoryGet.execute({ path: 'nope.md' }),
-  );
+  const err = await t.throwsAsync(() => memoryGet.execute({ path: 'nope.md' }));
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('File not found'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('File not found'));
 });
 
 // ---------------------------------------------------------------------------
@@ -356,7 +352,5 @@ test('null bytes in path are rejected', async t => {
     memoryGet.execute({ path: 'foo\0bar' }),
   );
   t.truthy(err);
-  t.true(
-    /** @type {Error} */ (err).message.includes('null bytes'),
-  );
+  t.true(/** @type {Error} */ (err).message.includes('null bytes'));
 });

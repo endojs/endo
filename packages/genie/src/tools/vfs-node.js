@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 /**
  * Node.js VFS Implementation
@@ -32,7 +33,7 @@ import { resolve, relative } from 'path';
  * @param {import('fs').Stats | import('fs').Dirent} entry
  * @returns {'file' | 'directory' | 'symlink' | 'other'}
  */
-const entryType = (entry) => {
+const entryType = entry => {
   if (entry.isFile()) return 'file';
   if (entry.isDirectory()) return 'directory';
   if (entry.isSymbolicLink()) return 'symlink';
@@ -47,7 +48,7 @@ harden(entryType);
  */
 const makeNodeVFS = () => {
   /** @type {VFS['stat']} */
-  const stat = async (path) => {
+  const stat = async path => {
     const stats = await fs.stat(path);
     return harden({
       size: stats.size,
@@ -57,7 +58,7 @@ const makeNodeVFS = () => {
   };
 
   /** @type {VFS['readFile']} */
-  const readFile = async (path) => {
+  const readFile = async path => {
     return fs.readFile(path, 'utf-8');
   };
 
@@ -89,12 +90,12 @@ const makeNodeVFS = () => {
   };
 
   /** @type {VFS['unlink']} */
-  const unlink = async (path) => {
+  const unlink = async path => {
     await fs.unlink(path);
   };
 
   /** @type {VFS['rmdir']} */
-  const rmdir = async (path) => {
+  const rmdir = async path => {
     await fs.rmdir(path);
   };
 

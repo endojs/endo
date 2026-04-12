@@ -118,9 +118,10 @@ export const createChannelHeader = ({
           action === 'view-outliner' ||
           action === 'view-microblog'
         ) {
-          const newMode = /** @type {'chat' | 'forum' | 'outliner' | 'microblog'} */ (
-            action.replace('view-', '')
-          );
+          const newMode =
+            /** @type {'chat' | 'forum' | 'outliner' | 'microblog'} */ (
+              action.replace('view-', '')
+            );
           if (newMode !== viewMode && onViewModeChange) {
             viewMode = newMode;
             onViewModeChange(newMode);

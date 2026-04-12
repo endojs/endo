@@ -21,14 +21,14 @@ import type { SomeObject } from './typescript.js';
 export type ReadPowers<T extends string = any> = {
   canonical: CanonicalFn<T>;
   read: ReadFn;
-  maybeRead?: MaybeReadFn;
-  readNow?: ReadNowFn;
-  maybeReadNow?: MaybeReadNowFn;
-  computeSha512?: HashFn;
-  fileURLToPath?: FileURLToPathFn;
-  pathToFileURL?: PathToFileURLFn;
-  requireResolve?: RequireResolveFn;
-  isAbsolute?: IsAbsoluteFn;
+  maybeRead?: MaybeReadFn | undefined;
+  readNow?: ReadNowFn | undefined;
+  maybeReadNow?: MaybeReadNowFn | undefined;
+  computeSha512?: HashFn | undefined;
+  fileURLToPath?: FileURLToPathFn | undefined;
+  pathToFileURL?: PathToFileURLFn | undefined;
+  requireResolve?: RequireResolveFn | undefined;
+  isAbsolute?: IsAbsoluteFn | undefined;
 };
 
 /**
@@ -53,8 +53,9 @@ export type MaybeReadPowers<T extends string = any> = ReadPowers<T> & {
 export type ReadNowPowers<T extends string = any> = Omit<
   ReadPowers<T>,
   ReadNowPowersProp
-> &
-  Required<Pick<ReadPowers<T>, ReadNowPowersProp>>;
+> & {
+  [P in ReadNowPowersProp]-?: NonNullable<ReadPowers<T>[P]>;
+};
 
 /**
  * These properties are necessary for dynamic require support

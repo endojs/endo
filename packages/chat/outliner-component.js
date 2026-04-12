@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, Node, requestAnimationFrame, setTimeout, clearTimeout, window */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
@@ -46,9 +45,24 @@ const REPLY_TYPE_BADGES = harden({
  * @type {ReadonlyArray<{ command: string, label: string, replyType: string, description: string }>}
  */
 const SLASH_COMMANDS = harden([
-  { command: 'pro', label: 'Pro', replyType: 'pro', description: 'Supporting argument' },
-  { command: 'con', label: 'Con', replyType: 'con', description: 'Opposing argument' },
-  { command: 'evidence', label: 'Evidence', replyType: 'evidence', description: 'Supporting evidence' },
+  {
+    command: 'pro',
+    label: 'Pro',
+    replyType: 'pro',
+    description: 'Supporting argument',
+  },
+  {
+    command: 'con',
+    label: 'Con',
+    replyType: 'con',
+    description: 'Opposing argument',
+  },
+  {
+    command: 'evidence',
+    label: 'Evidence',
+    replyType: 'evidence',
+    description: 'Supporting evidence',
+  },
 ]);
 
 /**
@@ -75,6 +89,7 @@ const SLASH_COMMANDS = harden([
  * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork a message's heritage into a new channel
  * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
  * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after posting a message with @-mentions
+ * @param options.onBookmark
  */
 export const outlinerComponent = async (
   $parent,
@@ -382,10 +397,7 @@ export const outlinerComponent = async (
     }
     const range = document.createRange();
     range.selectNodeContents($text);
-    range.setEnd(
-      /** @type {Node} */ (sel.anchorNode),
-      sel.anchorOffset,
-    );
+    range.setEnd(/** @type {Node} */ (sel.anchorNode), sel.anchorOffset);
     const position = range.toString().length;
     const textLength = ($text.textContent || '').length;
     return {
@@ -579,9 +591,7 @@ export const outlinerComponent = async (
 
       const msg = chain[i];
       const msgKey = String(msg.number);
-      const preview =
-        msg.strings.join('').slice(0, 30) ||
-        `#${msgKey}`;
+      const preview = msg.strings.join('').slice(0, 30) || `#${msgKey}`;
 
       if (i < chain.length - 1) {
         // Ancestor — clickable
@@ -655,7 +665,9 @@ export const outlinerComponent = async (
     /** @type {string[]} */
     const keys = [];
     for (const $t of allText) {
-      const $node = /** @type {HTMLElement | null} */ ($t.closest('.outliner-node'));
+      const $node = /** @type {HTMLElement | null} */ (
+        $t.closest('.outliner-node')
+      );
       if ($node) {
         const key = $node.dataset.key;
         if (key && !key.startsWith('draft-')) {
@@ -879,9 +891,7 @@ export const outlinerComponent = async (
       if (dist < bestDist) {
         bestDist = dist;
         const nextParent =
-          i + 1 < rows.length
-            ? getEffectiveParent(rows[i + 1].key)
-            : undefined; // Below all rows → root level
+          i + 1 < rows.length ? getEffectiveParent(rows[i + 1].key) : undefined; // Below all rows → root level
         bestGap = {
           parentKey: nextParent,
           afterKey: rows[i].key,
@@ -968,7 +978,7 @@ export const outlinerComponent = async (
 
     // Get siblings under the target parent, excluding the dragged keys
     const siblings = getSortedVisibleChildren(newParentKey).filter(
-      k => !(/** @type {string[]} */ (draggedKeys)).includes(k),
+      k => !(/** @type {string[]} */ (draggedKeys).includes(k)),
     );
 
     // For "onto" drops, insert at the end of the target's children.
@@ -994,8 +1004,7 @@ export const outlinerComponent = async (
     if (insertIdx > 0) {
       beforeOrder = getEffectiveSortOrder(siblings[insertIdx - 1]);
     } else if (siblings.length > 0) {
-      beforeOrder =
-        getEffectiveSortOrder(siblings[0]) - draggedKeys.length - 1;
+      beforeOrder = getEffectiveSortOrder(siblings[0]) - draggedKeys.length - 1;
     } else {
       beforeOrder = 0;
     }
@@ -1042,9 +1051,11 @@ export const outlinerComponent = async (
 
         E(channel)
           .post(moveStrings, [], [], String(entry.message.number), [], 'move')
-          .catch(/** @param {Error} err */ err => {
-            console.error('Failed to post move:', err);
-          });
+          .catch(
+            /** @param {Error} err */ err => {
+              console.error('Failed to post move:', err);
+            },
+          );
       }
     }
 
@@ -1120,20 +1131,24 @@ export const outlinerComponent = async (
           'edit',
         );
         if (parsed.petNames.length > 0 && onMentionNotify) {
-          postP.then(() =>
-            onMentionNotify({
-              petNames: parsed.petNames,
-              edgeNames: parsed.edgeNames,
-              messageStrings: parsed.strings,
-              replyTo: String(entry.message.number),
-            }),
-          ).catch(() => {});
+          postP
+            .then(() =>
+              onMentionNotify({
+                petNames: parsed.petNames,
+                edgeNames: parsed.edgeNames,
+                messageStrings: parsed.strings,
+                replyTo: String(entry.message.number),
+              }),
+            )
+            .catch(() => {});
         }
         return postP;
       })
-      .catch(/** @param {Error} err */ err => {
-        console.error('Failed to post edit:', err);
-      });
+      .catch(
+        /** @param {Error} err */ err => {
+          console.error('Failed to post edit:', err);
+        },
+      );
   };
 
   // ---- Draft handling ----
@@ -1193,20 +1208,24 @@ export const outlinerComponent = async (
           draft.replyType,
         );
         if (parsed.petNames.length > 0 && onMentionNotify) {
-          postP.then(() =>
-            onMentionNotify({
-              petNames: parsed.petNames,
-              edgeNames: parsed.edgeNames,
-              messageStrings: parsed.strings,
-              replyTo: draft.parentKey,
-            }),
-          ).catch(() => {});
+          postP
+            .then(() =>
+              onMentionNotify({
+                petNames: parsed.petNames,
+                edgeNames: parsed.edgeNames,
+                messageStrings: parsed.strings,
+                replyTo: draft.parentKey,
+              }),
+            )
+            .catch(() => {});
         }
         return postP;
       })
-      .catch(/** @param {Error} err */ err => {
-        console.error('Failed to post draft:', err);
-      });
+      .catch(
+        /** @param {Error} err */ err => {
+          console.error('Failed to post draft:', err);
+        },
+      );
 
     // Mark pending — keep visible until real message arrives
     if (els) {
@@ -1496,13 +1515,10 @@ export const outlinerComponent = async (
   // Clicking a .chat-token shows the profile popup if the name
   // matches a channel member, otherwise falls through to showValue.
   $outlinerView.addEventListener('click', e => {
-    const $token = /** @type {HTMLElement} */ (e.target).closest(
-      '.chat-token',
-    );
+    const $token = /** @type {HTMLElement} */ (e.target).closest('.chat-token');
     if (!$token) return;
     e.stopPropagation();
-    const tokenName =
-      /** @type {HTMLElement} */ ($token).dataset.petName || '';
+    const tokenName = /** @type {HTMLElement} */ ($token).dataset.petName || '';
     if (!tokenName) return;
 
     // Search memberCache for a member whose invitedAs matches
@@ -1529,9 +1545,7 @@ export const outlinerComponent = async (
     // Not a recognized member — show value if possible
     if (powers) {
       E(/** @type {ERef<EndoHost>} */ (powers))
-        .lookup(
-          .../** @type {[string, ...string[]]} */ (tokenName.split('/')),
-        )
+        .lookup(.../** @type {[string, ...string[]]} */ (tokenName.split('/')))
         .then(ref => {
           showValue(ref, undefined, tokenName.split('/'));
         })
@@ -1878,17 +1892,12 @@ export const outlinerComponent = async (
           const entry = messageIndex.get(key);
           if (entry) {
             E(channel)
-              .post(
-                [''],
-                [],
-                [],
-                String(entry.message.number),
-                [],
-                'deletion',
-              )
-              .catch(/** @param {Error} err */ err => {
-                console.error('Failed to delete:', err);
-              });
+              .post([''], [], [], String(entry.message.number), [], 'deletion')
+              .catch(
+                /** @param {Error} err */ err => {
+                  console.error('Failed to delete:', err);
+                },
+              );
           }
           if (idx > 0) {
             focusTextNode(allNodes[idx - 1], true);
@@ -1947,9 +1956,11 @@ export const outlinerComponent = async (
               [],
               'move',
             )
-            .catch(/** @param {Error} err */ err => {
-              console.error('Failed to post move:', err);
-            });
+            .catch(
+              /** @param {Error} err */ err => {
+                console.error('Failed to post move:', err);
+              },
+            );
         }
 
         // Expand previous sibling if collapsed
@@ -2005,8 +2016,7 @@ export const outlinerComponent = async (
         // Post move message with reparenting
         const entry = messageIndex.get(key);
         if (entry) {
-          const newParentStr =
-            grandparent === undefined ? '' : grandparent;
+          const newParentStr = grandparent === undefined ? '' : grandparent;
           E(channel)
             .post(
               [String(newOrder), newParentStr],
@@ -2016,9 +2026,11 @@ export const outlinerComponent = async (
               [],
               'move',
             )
-            .catch(/** @param {Error} err */ err => {
-              console.error('Failed to post move:', err);
-            });
+            .catch(
+              /** @param {Error} err */ err => {
+                console.error('Failed to post move:', err);
+              },
+            );
         }
 
         // Move DOM node
@@ -2133,11 +2145,7 @@ export const outlinerComponent = async (
         if (text) {
           const { atStart } = getCursorPosition($text);
           if (atStart) {
-            const newDraftId = createDraft(
-              draft.parentKey,
-              undefined,
-              draftId,
-            );
+            const newDraftId = createDraft(draft.parentKey, undefined, draftId);
             const newEls = draftEls.get(newDraftId);
             if (newEls) {
               requestAnimationFrame(() => focusTextNode(newEls.$text));
@@ -2212,9 +2220,7 @@ export const outlinerComponent = async (
         if (!els) return;
         els.$node.remove();
 
-        const newDepth = grandparentKey
-          ? getNodeDepth(grandparentKey) + 1
-          : 0;
+        const newDepth = grandparentKey ? getNodeDepth(grandparentKey) + 1 : 0;
         els.$node.dataset.depth = String(newDepth);
 
         const newContainer = getChildrenContainer(grandparentKey);
@@ -2321,17 +2327,18 @@ export const outlinerComponent = async (
         $replyBtn.textContent = '\u21A9';
         $replyBtn.addEventListener('click', e => {
           e.stopPropagation();
-          const preview =
-            effective.strings.join('').slice(0, 60);
-          getMemberInfo(message.memberId).then(info => {
-            const authorName = info ? info.proposedName : message.memberId;
-            onReply({
-              number: message.number,
-              memberId: message.memberId,
-              authorName,
-              preview,
-            });
-          }).catch(() => {});
+          const preview = effective.strings.join('').slice(0, 60);
+          getMemberInfo(message.memberId)
+            .then(info => {
+              const authorName = info ? info.proposedName : message.memberId;
+              onReply({
+                number: message.number,
+                memberId: message.memberId,
+                authorName,
+                preview,
+              });
+            })
+            .catch(() => {});
         });
         $row.appendChild($replyBtn);
       }
@@ -2443,13 +2450,20 @@ export const outlinerComponent = async (
    * Create a new draft node and insert it into the DOM.
    * @param {string | undefined} parentKey
    * @param {string | undefined} afterKey
+   * @param beforeKey
    * @returns {string} draftId
    */
   const createDraft = (parentKey, afterKey, beforeKey) => {
     draftCounter += 1;
     const draftId = `draft-${draftCounter}`;
     /** @type {DraftNode} */
-    const draft = { draftId, text: '', parentKey, afterKey, replyType: undefined };
+    const draft = {
+      draftId,
+      text: '',
+      parentKey,
+      afterKey,
+      replyType: undefined,
+    };
     drafts.set(draftId, draft);
 
     const depth = parentKey ? getNodeDepth(parentKey) + 1 : 0;
@@ -2525,8 +2539,7 @@ export const outlinerComponent = async (
     if (!effective || effective.deleted) return null;
 
     const visibleChildren = getSortedVisibleChildren(key, effectiveContents);
-    const isCollapsed =
-      collapsedNodes.has(key) && visibleChildren.length > 0;
+    const isCollapsed = collapsedNodes.has(key) && visibleChildren.length > 0;
 
     const els = createCommittedNode(
       key,
@@ -2662,9 +2675,7 @@ export const outlinerComponent = async (
           collapsedNodes.delete(parentKey);
           const parentEls = nodeEls.get(parentKey);
           if (parentEls) {
-            parentEls.$children.classList.remove(
-              'outliner-children-collapsed',
-            );
+            parentEls.$children.classList.remove('outliner-children-collapsed');
           }
         }
         updateBullet(parentKey);
@@ -2759,9 +2770,7 @@ export const outlinerComponent = async (
   });
 
   $outlinerView.addEventListener('dragleave', e => {
-    if (
-      !$outlinerView.contains(/** @type {Node | null} */ (e.relatedTarget))
-    ) {
+    if (!$outlinerView.contains(/** @type {Node | null} */ (e.relatedTarget))) {
       hideDropIndicator();
     }
   });

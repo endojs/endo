@@ -18,7 +18,7 @@ import { directoryHelp, makeHelp } from './help-text.js';
 
 import { DirectoryInterface } from './interfaces.js';
 
-/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, NodeNumber, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
 
 /**
  * @param {object} args
@@ -348,10 +348,10 @@ export const makeDirectoryMaker = ({
       assertNamePath(namePath);
       if (namePath.length < 2) {
         const blob = await lookup(namePath);
-        return E(blob).text();
+        return E(/** @type {any} */ (blob)).text();
       }
       const { hub, name } = await lookupTailNameHub(namePath);
-      return E(hub).readText(name);
+      return E(/** @type {any} */ (hub)).readText(name);
     };
 
     /** @type {EndoDirectory['maybeReadText']} */
@@ -359,14 +359,14 @@ export const makeDirectoryMaker = ({
       const namePath = namePathFrom(petNameOrPath);
       assertNamePath(namePath);
       if (namePath.length < 2) {
-        const blob = maybeLookup(namePath);
-        if (blob === undefined) {
+        const blob = await maybeLookup(namePath);
+        if (blob === undefined || blob === null) {
           return undefined;
         }
-        return E(blob).text();
+        return E(/** @type {any} */ (blob)).text();
       }
       const { hub, name } = await lookupTailNameHub(namePath);
-      return E(hub).maybeReadText(name);
+      return E(/** @type {any} */ (hub)).maybeReadText(name);
     };
 
     /** @type {EndoDirectory['writeText']} */
@@ -383,11 +383,11 @@ export const makeDirectoryMaker = ({
         tasks.push(identifiers =>
           storeIdentifier(namePath, identifiers.readableBlobId),
         );
-        await formulateReadableBlob(readerRef, tasks);
+        await formulateReadableBlob(/** @type {any} */ (readerRef), tasks);
         return;
       }
       const { hub, name } = await lookupTailNameHub(namePath);
-      await E(hub).writeText(name, content);
+      await E(/** @type {any} */ (hub)).writeText(name, content);
     };
 
     /** @type {EndoDirectory} */
@@ -421,7 +421,7 @@ export const makeDirectoryMaker = ({
    * @param {object} args
    * @param {FormulaIdentifier} args.petStoreId
    * @param {Context} args.context
-   * @param {string} args.agentNodeNumber
+   * @param {NodeNumber} args.agentNodeNumber
    * @param {(node: string) => boolean} args.isLocalKey
    */
   const makeIdentifiedDirectory = async ({
@@ -459,31 +459,35 @@ export const makeDirectoryMaker = ({
       makeDirectory,
     } = directory;
 
-    return makeExo('EndoDirectory', DirectoryInterface, {
-      help,
-      has,
-      identify,
-      locate,
-      reverseLocate,
-      followLocatorNameChanges: locator =>
-        makeIteratorRef(directory.followLocatorNameChanges(locator)),
-      list,
-      listIdentifiers,
-      listLocators,
-      followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
-      lookup,
-      maybeLookup: directory.maybeLookup,
-      reverseLookup,
-      storeIdentifier: directory.storeIdentifier,
-      storeLocator: directory.storeLocator,
-      remove,
-      move,
-      copy,
-      makeDirectory,
-      readText: directory.readText,
-      maybeReadText: directory.maybeReadText,
-      writeText: directory.writeText,
-    });
+    return makeExo(
+      'EndoDirectory',
+      DirectoryInterface,
+      /** @type {any} */ ({
+        help,
+        has,
+        identify,
+        locate,
+        reverseLocate,
+        followLocatorNameChanges: locator =>
+          makeIteratorRef(directory.followLocatorNameChanges(locator)),
+        list,
+        listIdentifiers,
+        listLocators,
+        followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
+        lookup,
+        maybeLookup: directory.maybeLookup,
+        reverseLookup,
+        storeIdentifier: directory.storeIdentifier,
+        storeLocator: directory.storeLocator,
+        remove,
+        move,
+        copy,
+        makeDirectory,
+        readText: directory.readText,
+        maybeReadText: directory.maybeReadText,
+        writeText: directory.writeText,
+      }),
+    );
   };
 
   return { makeIdentifiedDirectory, makeDirectoryNode };

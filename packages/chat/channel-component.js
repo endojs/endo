@@ -9,6 +9,7 @@ import {
   prepareTextWithPlaceholders,
   renderMarkdown,
 } from './markdown-render.js';
+import { colorize } from './monaco-wrapper.js';
 import { timeFormatter, relativeTime } from './time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 import { createMessageMenu } from './channel-utils.js';
@@ -48,7 +49,16 @@ export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork, onShare },
+  {
+    showValue,
+    personaId,
+    ownMemberId,
+    onReply,
+    onThreadOpen,
+    onThreadClose,
+    onFork,
+    onShare,
+  },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -259,7 +269,10 @@ export const channelComponent = async (
     /** @type {string[]} */
     const continuePoints = [];
 
-    /** @param {string} key @param {number} depth */
+    /**
+     * @param {string} key @param {number} depth
+     * @param depth
+     */
     const walk = (key, depth) => {
       const data = messageIndex.get(key);
       if (!data) return;
@@ -493,9 +506,14 @@ export const channelComponent = async (
 
     if (message.strings && message.strings.length > 0) {
       const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
-      const { fragment, insertionPoints } =
-        renderMarkdown(textWithPlaceholders);
+      const { fragment, insertionPoints, highlight } = renderMarkdown(
+        textWithPlaceholders,
+        { colorize },
+      );
       $body.appendChild(fragment);
+
+      // Asynchronously apply Monaco syntax highlighting to code fences
+      highlight();
 
       // Create token chips for names
       for (

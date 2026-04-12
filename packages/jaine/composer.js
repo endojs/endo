@@ -78,7 +78,12 @@ export const makeComposer = (provider, executorFn) => {
    * @param {string} [recentHistory] - recent channel messages for broader context
    * @returns {Promise<ComposerResult>}
    */
-  const compose = async (threadContext, userMessage, onStatus, recentHistory) => {
+  const compose = async (
+    threadContext,
+    userMessage,
+    onStatus,
+    recentHistory,
+  ) => {
     const contextParts = [];
     if (recentHistory) {
       contextParts.push(`Recent channel history:\n${recentHistory}`);
@@ -86,9 +91,8 @@ export const makeComposer = (provider, executorFn) => {
     if (threadContext) {
       contextParts.push(`Thread context:\n${threadContext}`);
     }
-    const contextBlock = contextParts.length > 0
-      ? `${contextParts.join('\n\n')}\n\n`
-      : '';
+    const contextBlock =
+      contextParts.length > 0 ? `${contextParts.join('\n\n')}\n\n` : '';
 
     /** @type {object[]} */
     const conversation = [
@@ -125,20 +129,18 @@ export const makeComposer = (provider, executorFn) => {
       }
 
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (toolCalls.length > 0) {
         conversation.push(responseMessage);
 
         for (const toolCall of toolCalls) {
-          const { arguments: argsRaw } = /** @type {any} */ (toolCall)
-            .function;
+          const { arguments: argsRaw } = /** @type {any} */ (toolCall).function;
 
           /** @type {Record<string, unknown>} */
           let args;
           try {
             const jsonString =
-              typeof argsRaw === 'string'
-                ? argsRaw
-                : JSON.stringify(argsRaw);
+              typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
             args = JSON.parse(jsonString);
           } catch {
             args = {};
@@ -192,9 +194,7 @@ export const makeComposer = (provider, executorFn) => {
       } else {
         // Final text response
         const responseText = rm.content || '';
-        console.log(
-          `[jaine][composer] final: ${responseText.slice(0, 200)}`,
-        );
+        console.log(`[jaine][composer] final: ${responseText.slice(0, 200)}`);
         return harden({ responseText, statusUpdates });
       }
     }

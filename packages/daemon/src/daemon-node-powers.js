@@ -455,7 +455,7 @@ export const makeDaemonicPersistencePowers = (
     const { statePath } = config;
     const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha256');
 
-    /** @type {import('@endo/platform/fs/lite').ContentStore} */
+    /** @type {import('@endo/platform/fs/lite/types').ContentStore} */
     const rawStore = harden({
       /**
        * @param {AsyncIterable<Uint8Array>} readable

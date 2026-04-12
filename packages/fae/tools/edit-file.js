@@ -9,10 +9,16 @@ import { makeEditFileTool } from '../src/tool-makers.js';
 /**
  * FaeTool caplet: edit files (string replace) under a root directory.
  * Root is set at creation time via env.FAE_CWD (default: process.cwd()).
+ * @param _powers
+ * @param _context
+ * @param root0
+ * @param root0.env
  */
 // eslint-disable-next-line no-underscore-dangle
 export const make = (_powers, _context, { env = {} }) => {
-  const cwd = env.FAE_CWD || process.cwd();
+  const cwd =
+    /** @type {Record<string, string | undefined>} */ (env).FAE_CWD ||
+    process.cwd();
   const impl = makeEditFileTool(cwd);
   return makeExo('EditFileTool', FaeToolInterface, {
     schema: () => impl.schema(),

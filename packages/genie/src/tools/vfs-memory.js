@@ -45,7 +45,7 @@
  * @param {string} path
  * @returns {NodeJS.ErrnoException}
  */
-const enoent = (path) => {
+const enoent = path => {
   const err = /** @type {NodeJS.ErrnoException} */ (
     new Error(`ENOENT: no such file or directory, '${path}'`)
   );
@@ -59,7 +59,7 @@ const enoent = (path) => {
  * @param {string} path
  * @returns {NodeJS.ErrnoException}
  */
-const enotdir = (path) => {
+const enotdir = path => {
   const err = /** @type {NodeJS.ErrnoException} */ (
     new Error(`ENOTDIR: not a directory, '${path}'`)
   );
@@ -73,7 +73,7 @@ const enotdir = (path) => {
  * @param {string} path
  * @returns {NodeJS.ErrnoException}
  */
-const eexist = (path) => {
+const eexist = path => {
   const err = /** @type {NodeJS.ErrnoException} */ (
     new Error(`EEXIST: file already exists, '${path}'`)
   );
@@ -87,7 +87,7 @@ const eexist = (path) => {
  * @param {string} path
  * @returns {NodeJS.ErrnoException}
  */
-const enotempty = (path) => {
+const enotempty = path => {
   const err = /** @type {NodeJS.ErrnoException} */ (
     new Error(`ENOTEMPTY: directory not empty, '${path}'`)
   );
@@ -101,7 +101,7 @@ const enotempty = (path) => {
  * @param {string} path
  * @returns {NodeJS.ErrnoException}
  */
-const eisdir = (path) => {
+const eisdir = path => {
   const err = /** @type {NodeJS.ErrnoException} */ (
     new Error(`EISDIR: illegal operation on a directory, '${path}'`)
   );
@@ -115,7 +115,7 @@ const eisdir = (path) => {
  * @param {string} p
  * @returns {string[]}
  */
-const segments = (p) => {
+const segments = p => {
   // Normalise: strip trailing slash, collapse runs of slashes.
   const normalised = p.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
   if (normalised === '/') return [];
@@ -139,7 +139,7 @@ const makeMemoryVFS = () => {
    * @param {string} path
    * @returns {MemFile | MemDir | undefined}
    */
-  const lookup = (path) => {
+  const lookup = path => {
     const parts = segments(path);
     /** @type {MemFile | MemDir} */
     let node = root;
@@ -159,7 +159,7 @@ const makeMemoryVFS = () => {
    * @param {string} path
    * @returns {{ parent: MemDir, name: string }}
    */
-  const parentOf = (path) => {
+  const parentOf = path => {
     const parts = segments(path);
     if (parts.length === 0) {
       throw new Error('Cannot get parent of root');
@@ -180,7 +180,7 @@ const makeMemoryVFS = () => {
   // ---- VFS methods --------------------------------------------------------
 
   /** @type {VFS['stat']} */
-  const stat = async (path) => {
+  const stat = async path => {
     const node = lookup(path);
     if (!node) throw enoent(path);
     /** @type {number} */
@@ -192,7 +192,7 @@ const makeMemoryVFS = () => {
   };
 
   /** @type {VFS['readFile']} */
-  const readFile = async (path) => {
+  const readFile = async path => {
     const node = lookup(path);
     if (!node) throw enoent(path);
     if (node.type === 'directory') throw eisdir(path);
@@ -278,7 +278,7 @@ const makeMemoryVFS = () => {
   };
 
   /** @type {VFS['unlink']} */
-  const unlink = async (path) => {
+  const unlink = async path => {
     const { parent, name } = parentOf(path);
     const node = parent.children.get(name);
     if (!node) throw enoent(path);
@@ -287,7 +287,7 @@ const makeMemoryVFS = () => {
   };
 
   /** @type {VFS['rmdir']} */
-  const rmdir = async (path) => {
+  const rmdir = async path => {
     const { parent, name } = parentOf(path);
     const node = parent.children.get(name);
     if (!node) throw enoent(path);
@@ -322,9 +322,7 @@ const makeMemoryVFS = () => {
          */
         async function* collect(dir, prefix) {
           for (const [childName, child] of dir.children) {
-            const entryName = prefix
-              ? `${prefix}/${childName}`
-              : childName;
+            const entryName = prefix ? `${prefix}/${childName}` : childName;
             const size =
               child.type === 'file'
                 ? new TextEncoder().encode(child.content).byteLength

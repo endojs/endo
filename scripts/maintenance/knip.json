@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreWorkspaces": [".", "golang/cosmos"],
+  "workspaces": {
+    "packages/*": {
+      // Broad to allow for deep imports
+      "entry": [
+        "*.js",
+        "*.cjs",
+        "*.mjs",
+        "*.ts",
+        "*.cts",
+        "*.mts",
+        "bin/*",
+        "src/**/*.{js,cjs,mjs,ts,cts,mts}",
+        "demo/**/*.{js,cjs,mjs,ts,cts,mts}"
+      ],
+      "project": [
+        "**/*.{js,cjs,mjs,ts,cts,mts}",
+        "!dist/**",
+        "!coverage/**",
+        "!build/**",
+        "!bundles/**",
+        "!test/snapshots/**"
+      ]
+    },
+    "packages/eslint-plugin": {
+      "ignoreDependencies": [
+        "@eslint-community/eslint-utils",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/utils",
+        "tsutils",
+        "typescript-eslint"
+      ]
+    }
+  }
+}

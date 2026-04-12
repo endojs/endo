@@ -42,7 +42,12 @@ export const makeGrantDetails = (
   if (type === 'handoff' && swissNum) {
     throw Error('Handoff must not have a swiss num');
   }
-  return harden({ location, slot, type, swissNum });
+  return harden({
+    location,
+    slot,
+    type,
+    ...(swissNum !== undefined && { swissNum }),
+  });
 };
 
 /**

@@ -632,10 +632,7 @@ export const tokenAutocompleteComponent = (
         const text = textNode.textContent || '';
         if (cursorPos > 0 && text[cursorPos - 1] === '@') {
           // Check it's not preceded by alphanumeric
-          if (
-            cursorPos === 1 ||
-            !/[a-zA-Z0-9]/.test(text[cursorPos - 2])
-          ) {
+          if (cursorPos === 1 || !/[a-zA-Z0-9]/.test(text[cursorPos - 2])) {
             triggerNode = /** @type {Text} */ (textNode);
             triggerOffset = cursorPos - 1;
             filteredNames = [...petNames];

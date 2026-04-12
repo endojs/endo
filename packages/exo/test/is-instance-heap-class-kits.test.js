@@ -1,4 +1,3 @@
-// @ts-nocheck
 // modeled on test-heap-classes.js
 
 import test from '@endo/ses-ava/test.js';
@@ -17,7 +16,9 @@ const DownCounterI = M.interface('DownCounter', {
 
 test('test isInstance defineExoClass', t => {
   /** @type {(specimen: any, prop?: string) => boolean} */
-  let isInstance;
+  let isInstance = () => {
+    throw new Error('isInstance not set');
+  };
   const makeUpCounter = defineExoClass(
     'UpCounter',
     UpCounterI,
@@ -53,7 +54,9 @@ test('test isInstance defineExoClass', t => {
 
 test('test isInstance defineExoClassKit', t => {
   /** @type {(specimen: any, prop?: string) => boolean} */
-  let isInstance;
+  let isInstance = () => {
+    throw new Error('isInstance not set');
+  };
   const makeCounterKit = defineExoClassKit(
     'Counter',
     { up: UpCounterI, down: DownCounterI },

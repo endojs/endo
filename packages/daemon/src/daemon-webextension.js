@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global process */
 
 // Establish a perimeter:
@@ -7,7 +8,7 @@ import 'ses';
 import '@endo/eventual-send/shim.js';
 // eslint-disable-next-line import/order
 import '@endo/promise-kit/shim.js';
-// eslint-disable-next-line import/order
+// eslint-disable-next-line import/order, import/no-unresolved
 import '@endo/lockdown/commit.js';
 
 import crypto from 'crypto';

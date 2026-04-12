@@ -11,7 +11,7 @@
 /**
  * Build the full system prompt for the agent
  *
- * @param {Object} options - Configuration options
+ * @param {object} options - Configuration options
  * @param {string} [options.hostname] - Hostname (optional)
  * @param {string} [options.currentTime] - Current time string (optional)
  * @param {string} [options.workspaceDir] - Workspace directory path
@@ -124,13 +124,15 @@ export default function* buildSystemPrompt(options = {}) {
 function* breakBetween(brk, ...sections) {
   let some = false;
   for (const section of sections) {
-    const lines = section[Symbol.iterator]();
-    const first = lines.next();
+    const iter = /** @type {IterableIterator<string>} */ (
+      section[Symbol.iterator]()
+    );
+    const first = iter.next();
     if (!first.done) {
       if (some) yield brk;
       else some = true;
       yield first.value;
-      for (const line of lines) yield line;
+      for (const line of iter) yield line;
     }
   }
 }

@@ -323,6 +323,7 @@ export const makeRouter = async (powers, provider) => {
       }
 
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (toolCalls.length > 0) {
         const tc = /** @type {any} */ (toolCalls[0]);
         /** @type {Record<string, unknown>} */

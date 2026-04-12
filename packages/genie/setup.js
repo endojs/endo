@@ -1,5 +1,6 @@
 // @ts-check
 /* global process */
+/* eslint-disable no-continue */
 // endo run --UNCONFINED setup.js --powers @agent
 //   -E GENIE_MODEL=ollama/llama3.2
 //   -E GENIE_WORKSPACE=/path/to/workspace

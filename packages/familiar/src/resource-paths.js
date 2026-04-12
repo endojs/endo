@@ -29,19 +29,10 @@ let chatDistPath;
 let endoDaemonPath;
 
 /** @type {string} */
-let endoWorkerPath;
-
-/** @type {string} */
 let workerSubprocessPath;
 
 /** @type {string} */
-let webPageBundlePath;
-
-/** @type {string} */
 let endoLalSetupPath;
-
-/** @type {string} */
-let endoFaeSetupPath;
 
 if (isPackaged) {
   const appRoot = path.join(
@@ -52,30 +43,20 @@ if (isPackaged) {
   endoCliPath = path.join(appRoot, 'bundles', 'endo-cli.cjs');
   chatDistPath = path.join(appRoot, 'dist', 'chat', 'index.html');
   endoDaemonPath = path.join(appRoot, 'bundles', 'endo-daemon.cjs');
-  endoWorkerPath = path.join(appRoot, 'bundles', 'endo-worker.cjs');
   workerSubprocessPath = path.join(appRoot, 'bundles', 'worker-node.cjs');
-  webPageBundlePath = path.join(appRoot, 'bundles', 'web-page-bundle.js');
   endoLalSetupPath = path.join(appRoot, 'bundles', 'endo-lal-setup.cjs');
-  endoFaeSetupPath = path.join(appRoot, 'bundles', 'endo-fae-setup.cjs');
 } else {
   const repoRoot = path.resolve(dirname, '../../..');
   nodePath = 'node';
   endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
   chatDistPath = path.join(repoRoot, 'packages/chat/dist/index.html');
   endoDaemonPath = path.join(repoRoot, 'packages/daemon/src/daemon-node.js');
-  endoWorkerPath = path.join(
-    repoRoot,
-    'packages/daemon/src/web-server-node.js',
-  );
   workerSubprocessPath = path.join(
     repoRoot,
     'packages/daemon/src/worker-node.js',
   );
-  // In dev mode, web-page.js is bundled at runtime by the compartment mapper.
-  webPageBundlePath = '';
   // In dev mode, agents are installed via CLI/ENDO_EXTRA.
   endoLalSetupPath = '';
-  endoFaeSetupPath = '';
 }
 
 const resourcePaths = {
@@ -83,11 +64,8 @@ const resourcePaths = {
   endoCliPath,
   chatDistPath,
   endoDaemonPath,
-  endoWorkerPath,
   workerSubprocessPath,
-  webPageBundlePath,
   endoLalSetupPath,
-  endoFaeSetupPath,
 };
 if (typeof globalThis.harden === 'function') {
   globalThis.harden(resourcePaths);

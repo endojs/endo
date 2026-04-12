@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-21*
+*Last updated: 2026-03-27*
 
 ## Summary
 
@@ -13,7 +13,7 @@
 | [chat-invariants](chat-invariants.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-per-space-color-scheme](chat-per-space-color-scheme.md) | 2026-02-26 | 2026-02-26 | **Complete** |
 | [chat-focus-message](chat-focus-message.md) | 2026-03-04 | 2026-03-04 | Active |
-| [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-03 | Proposed |
+| [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-27 | Proposed |
 | [chat-pending-commands](chat-pending-commands.md) | 2026-03-11 | 2026-03-11 | Not Started |
 | [chat-rename-dismiss-to-clear](chat-rename-dismiss-to-clear.md) | 2026-03-03 | 2026-03-03 | Proposed |
 | [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-03-21 | Not Started |

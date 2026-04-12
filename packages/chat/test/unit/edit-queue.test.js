@@ -70,7 +70,12 @@ const noBlocks = new Set();
 test('1. Node with no edits returns original content', t => {
   const msgs = [makeMsg(0, 'alice', ['Hello world'])];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Hello world']);
   t.is(result.authorMemberId, 'alice');
   t.is(result.editedByMemberId, undefined);
@@ -84,7 +89,12 @@ test('2. Node with only reply-type children returns original content', t => {
     makeMsg(2, 'carol', ['I agree'], { replyTo: '0', replyType: 'reply' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Hello']);
   t.is(result.editQueue.length, 0);
 });
@@ -97,7 +107,12 @@ test('3. Single edit replaces node content', t => {
     makeMsg(1, 'bob', ['Edited text'], { replyTo: '0', replyType: 'edit' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Edited text']);
   t.is(result.editedByMemberId, 'bob');
 });
@@ -108,7 +123,12 @@ test('4. Edit preserves original authorMemberId', t => {
     makeMsg(1, 'bob', ['Edited'], { replyTo: '0', replyType: 'edit' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.is(result.authorMemberId, 'alice');
   t.is(result.editedByMemberId, 'bob');
 });
@@ -123,7 +143,12 @@ test('5. Latest edit wins among multiple edits', t => {
     makeMsg(3, 'dave', ['Third edit'], { replyTo: '0', replyType: 'edit' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Third edit']);
   t.is(result.editedByMemberId, 'dave');
 });
@@ -135,7 +160,12 @@ test('6. Edit queue contains all edits chronologically', t => {
     makeMsg(2, 'carol', ['Edit 2'], { replyTo: '0', replyType: 'edit' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.is(result.editQueue.length, 2);
   t.is(result.editQueue[0].memberId, 'bob');
   t.is(result.editQueue[1].memberId, 'carol');
@@ -149,7 +179,12 @@ test('7. editorMemberIds lists unique editors chronologically', t => {
     makeMsg(3, 'bob', ['Edit 3'], { replyTo: '0', replyType: 'edit' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.editorMemberIds, ['bob', 'carol']);
 });
 
@@ -162,7 +197,12 @@ test('8. Deleted edit falls back to original content', t => {
     makeMsg(2, 'alice', [''], { replyTo: '1', replyType: 'deletion' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Original']);
   t.is(result.editedByMemberId, undefined);
 });
@@ -175,7 +215,12 @@ test('9. Deleted edit falls back to previous undeleted edit', t => {
     makeMsg(3, 'alice', [''], { replyTo: '2', replyType: 'deletion' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Good edit']);
   t.is(result.editedByMemberId, 'bob');
 });
@@ -187,7 +232,12 @@ test('10. Deletion of a non-edit reply does not affect node content', t => {
     makeMsg(2, 'alice', [''], { replyTo: '1', replyType: 'deletion' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Original']);
   t.is(result.editQueue.length, 0);
 });
@@ -202,7 +252,12 @@ test('11. Deleting a deletion restores the edit', t => {
     makeMsg(3, 'bob', [''], { replyTo: '2', replyType: 'deletion' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Edited']);
   t.is(result.editedByMemberId, 'bob');
 });
@@ -216,7 +271,12 @@ test('12. Triple deletion chain alternates: deleted -> restored -> deleted', t =
     makeMsg(4, 'alice', [''], { replyTo: '3', replyType: 'deletion' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   // Deletion chain: edit(1) <- del(2) <- del(3) <- del(4)
   // del(4) is alive => del(3) is deleted => del(2) is alive => edit(1) is deleted
   t.deepEqual(result.strings, ['Original']);
@@ -259,12 +319,22 @@ test('15. Blocking a deletion author restores the targeted edit', t => {
   const { messagesByKey, replyChildren } = buildMaps(msgs);
 
   // Without blocking: edit is deleted
-  const resultUnblocked = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const resultUnblocked = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(resultUnblocked.strings, ['Original']);
 
   // With blocking eve: edit is restored
   const blocked = new Set(['eve']);
-  const resultBlocked = computeNodeContent('0', messagesByKey, replyChildren, blocked);
+  const resultBlocked = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    blocked,
+  );
   t.deepEqual(resultBlocked.strings, ['Edited']);
 });
 
@@ -288,10 +358,18 @@ test('16. Blocking cascades through deletion chains', t => {
 test('17. Edit targeting nonexistent message — no crash', t => {
   const msgs = [
     makeMsg(0, 'alice', ['Original']),
-    makeMsg(1, 'bob', ['Edit for ghost'], { replyTo: '999', replyType: 'edit' }),
+    makeMsg(1, 'bob', ['Edit for ghost'], {
+      replyTo: '999',
+      replyType: 'edit',
+    }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('999', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '999',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['']);
   t.is(result.authorMemberId, '');
 });
@@ -302,7 +380,12 @@ test('18. Deletion targeting nonexistent message — no crash', t => {
     makeMsg(1, 'bob', [''], { replyTo: '999', replyType: 'deletion' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Original']);
 });
 
@@ -312,7 +395,12 @@ test('19. Self-edit updates editorMemberIds correctly', t => {
     makeMsg(1, 'alice', ['Self-edit'], { replyTo: '0', replyType: 'edit' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.deepEqual(result.strings, ['Self-edit']);
   t.is(result.authorMemberId, 'alice');
   t.is(result.editedByMemberId, 'alice');
@@ -325,8 +413,18 @@ test('20. Empty block list same as no blocks', t => {
     makeMsg(1, 'bob', ['Edited'], { replyTo: '0', replyType: 'edit' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const result1 = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
-  const result2 = computeNodeContent('0', messagesByKey, replyChildren, new Set());
+  const result1 = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
+  const result2 = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    new Set(),
+  );
   t.deepEqual(result1.strings, result2.strings);
   t.is(result1.editedByMemberId, result2.editedByMemberId);
 });
@@ -340,7 +438,11 @@ test('21. computeAllNodeContents covers all visible nodes', t => {
     makeMsg(4, 'eve', ['Edit'], { replyTo: '0', replyType: 'edit' }),
   ];
   const { messagesByKey, replyChildren } = buildMaps(msgs);
-  const results = computeAllNodeContents(messagesByKey, replyChildren, noBlocks);
+  const results = computeAllNodeContents(
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   // Visible: 0 (root), 1 (root), 2 (reply), 3 (pro)
   // Not visible: 4 (edit)
   t.is(results.size, 4);
@@ -383,7 +485,12 @@ test('23. Cycle in deletion chain does not infinite loop', t => {
   }
 
   // This should not hang — the visited set prevents infinite recursion
-  const deleted = isEffectivelyDeleted('1', messagesByKey, replyChildren, noBlocks);
+  const deleted = isEffectivelyDeleted(
+    '1',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   t.is(typeof deleted, 'boolean');
 });
 
@@ -400,7 +507,12 @@ test('24. Node with 100 edits computes in reasonable time', t => {
   const { messagesByKey, replyChildren } = buildMaps(msgs);
 
   const start = Date.now();
-  const result = computeNodeContent('0', messagesByKey, replyChildren, noBlocks);
+  const result = computeNodeContent(
+    '0',
+    messagesByKey,
+    replyChildren,
+    noBlocks,
+  );
   const elapsed = Date.now() - start;
 
   t.deepEqual(result.strings, ['Edit 100']);

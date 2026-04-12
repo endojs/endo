@@ -134,7 +134,12 @@ export const sendFormComponent = ({
     { type: 'edit', icon: '\u270E', label: 'Edit', verb: 'Editing' },
     { type: 'pro', icon: '\u2714', label: 'Pro', verb: 'Pro for' },
     { type: 'con', icon: '\u2718', label: 'Con', verb: 'Con for' },
-    { type: 'evidence', icon: '\uD83D\uDCC4', label: 'Evidence', verb: 'Evidence for' },
+    {
+      type: 'evidence',
+      icon: '\uD83D\uDCC4',
+      label: 'Evidence',
+      verb: 'Evidence for',
+    },
   ];
 
   /**
@@ -171,6 +176,7 @@ export const sendFormComponent = ({
         $existing.remove();
         return;
       }
+      // eslint-disable-next-line no-shadow
       const $menu = document.createElement('div');
       $menu.className = 'reply-type-menu';
       const dismissMenu = () => {
@@ -420,8 +426,21 @@ export const sendFormComponent = ({
       resolveIds
         .then(ids =>
           sendReplyType !== undefined
-            ? E(channelRef).post(messageStrings, edgeNames, petNames, replyTo, ids, sendReplyType)
-            : E(channelRef).post(messageStrings, edgeNames, petNames, replyTo, ids),
+            ? E(channelRef).post(
+                messageStrings,
+                edgeNames,
+                petNames,
+                replyTo,
+                ids,
+                sendReplyType,
+              )
+            : E(channelRef).post(
+                messageStrings,
+                edgeNames,
+                petNames,
+                replyTo,
+                ids,
+              ),
         )
         .then(
           () => {

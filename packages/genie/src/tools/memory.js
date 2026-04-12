@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-await-in-loop */
 
 /**
  * Memory Tools Module
@@ -12,13 +14,7 @@
  * implementation.
  */
 
-import {
-  basename,
-  dirname,
-  join,
-  relative,
-  resolve,
-} from 'path';
+import { basename, dirname, join, relative, resolve } from 'path';
 
 import { E } from '@endo/far';
 import { M } from '@endo/patterns';
@@ -107,9 +103,7 @@ const safePath = (root, userPath) => {
   const rel = relative(root, resolved);
   // If the relative path starts with ".." or is absolute, it escapes the root.
   if (rel.startsWith('..') || resolve(rel) === rel) {
-    throw new Error(
-      `Invalid path: must resolve under root (${root})`,
-    );
+    throw new Error(`Invalid path: must resolve under root (${root})`);
   }
   return resolved;
 };
@@ -191,7 +185,7 @@ const makeMemoryTools = (options = {}) => {
    *   prune from as live paths are encountered.
    * @returns {Promise<void>}
    */
-  const drainQueue = async (priorPaths) => {
+  const drainQueue = async priorPaths => {
     while (indexQueue.length > 0) {
       const filePath = /** @type {string} */ (indexQueue.shift());
       try {
@@ -273,7 +267,7 @@ const makeMemoryTools = (options = {}) => {
   const seeding = seedIndex();
 
   const memoryGet = makeTool('memoryGet', {
-    help: function*() {
+    *help() {
       yield 'Reads specific lines from a memory file (MEMORY.md or memory/*.md).';
       yield '';
       yield 'Use after memorySearch to read the relevant lines it found.';
@@ -333,7 +327,7 @@ const makeMemoryTools = (options = {}) => {
         }
 
         if (fromIndex >= totalLines) {
-          throw new Error(`Invalid range: from=${from}, total=${totalLines}`,);
+          throw new Error(`Invalid range: from=${from}, total=${totalLines}`);
         }
       } catch (err) {
         if (err?.code === 'ENOENT') {
@@ -353,7 +347,7 @@ const makeMemoryTools = (options = {}) => {
   });
 
   const memorySet = makeTool('memorySet', {
-    help: function*() {
+    *help() {
       yield 'Saves content to a memory file (MEMORY.md or memory/*.md).';
       yield '';
       yield 'Use to persist notes, preferences, and decisions across sessions.';
@@ -407,7 +401,7 @@ const makeMemoryTools = (options = {}) => {
           await vfs.writeFile(fullPath, content);
         }
       } catch (err) {
-        throw new Error(`Failed to write memory file: ${err.message}`,);
+        throw new Error(`Failed to write memory file: ${err.message}`);
       }
 
       // Keep the search index in sync via the index queue.
@@ -423,7 +417,7 @@ const makeMemoryTools = (options = {}) => {
   });
 
   const memorySearch = makeTool('memorySearch', {
-    help: function*() {
+    *help() {
       yield 'Searches memory files (MEMORY.md and memory/*.md) for matching text.';
       yield '';
       yield 'Use to recall past notes, preferences, or decisions.';
@@ -589,6 +583,7 @@ const makeSubstringBackend = (vfs, root) => {
     },
 
     /** No-op — no persistent index to sync. */
+    // eslint-disable-next-line no-empty-function
     async sync() {},
   });
 };

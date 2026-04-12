@@ -76,6 +76,10 @@ test('harden typed arrays', t => {
     Uint8Array,
     Uint8ClampedArray,
   ];
+  if (typeof Float16Array !== 'undefined') {
+    // https://github.com/tc39/proposal-float16array
+    typedArrayConstructors.push(Float16Array);
+  }
 
   for (const TypedArray of typedArrayConstructors) {
     const h = makeHardener({ traversePrototypes: false });

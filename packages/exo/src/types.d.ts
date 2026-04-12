@@ -1,6 +1,11 @@
 import type { RemotableBrand } from '@endo/eventual-send';
 import type { RemotableObject, RemotableMethodName } from '@endo/pass-style';
-import type { InterfaceGuard, MethodGuard, Pattern } from '@endo/patterns';
+import type {
+  InterfaceGuard,
+  MethodGuard,
+  Pattern,
+  TypeFromMethodGuard,
+} from '@endo/patterns';
 import type { GetInterfaceGuard } from './get-interface.js';
 
 export type MatchConfig = {
@@ -12,10 +17,39 @@ export type MatchConfig = {
 };
 export type FacetName = string;
 export type Methods = Record<RemotableMethodName, CallableFunction>;
+/**
+ * The `this` context for methods of a single-facet exo (makeExo, defineExoClass).
+ *
+ * - `this.state` — the sealed object returned by `init()`. For
+ *   `defineExoClass`, `S` is `ReturnType<init>` (typically a plain
+ *   object like `{ count: number }`). For `makeExo` (which has no
+ *   `init`), `S` is `{}` — an empty object with no accessible state.
+ * - `this.self` — the exo instance itself (the object whose methods you're
+ *   implementing). Useful for passing "yourself" to other code.
+ *
+ * **Not available on kits.** Multi-facet exos use {@link KitContext} instead,
+ * which provides `this.facets` (the record of all facet instances in the
+ * cohort) rather than `this.self`.
+ */
 export type ClassContext<S = any, M extends Methods = any> = {
   state: S;
   self: M;
 };
+
+/**
+ * The `this` context for methods of a multi-facet exo kit (defineExoClassKit).
+ *
+ * - `this.state` — the sealed object returned by `init()`.
+ *   `S` is `ReturnType<init>`, typically a plain object.
+ * - `this.facets` — the record of all facet instances in this cohort,
+ *   keyed by facet name.  Use `this.facets.myFacet` to access sibling
+ *   facets.
+ *
+ * **No `this.self` on kits.** A kit method belongs to one facet, and
+ * there is no single "self" — instead, each facet is a separate remotable
+ * object.  Use `this.facets.foo` to get the specific facet you need.
+ * For single-facet exos, see {@link ClassContext} which provides `this.self`.
+ */
 export type KitContext<S = any, F extends Record<string, Methods> = any> = {
   state: S;
   facets: F;
@@ -114,10 +148,93 @@ export type FarClassOptions<C, F = any> = {
 export type Farable<M extends Methods> = M &
   RemotableBrand<{}, M> &
   RemotableObject;
-export type Guarded<M extends Methods> = Farable<M & GetInterfaceGuard<M>>;
-export type GuardedKit<F extends Record<string, Methods>> = {
-  [K in keyof F]: Guarded<F[K]>;
+/**
+ * Strip index-signature keys from a type, keeping only concrete known keys.
+ * This prevents `Record<PropertyKey, CallableFunction>` (from the `Methods`
+ * constraint) from leaking an index signature into `Guarded<M>`, which would
+ * make any property access (e.g. `exo.nonExistentMethod`) silently resolve
+ * to `CallableFunction` instead of being a type error.
+ *
+ * Special cases:
+ * - When `T` is `any`, pass through unchanged (avoids collapsing to `{}`).
+ * - When `T` has only index-signature keys and no concrete keys (e.g. bare
+ *   `Methods` from untyped JS), pass through unchanged so that property
+ *   access still works.
+ * - When `T` has concrete keys mixed with an index signature (e.g.
+ *   `{ incr: ... } & Methods`), strip the index signature and keep only
+ *   the concrete keys.
+ */
+type StripIndexCore<T> = {
+  [K in keyof T as string extends K
+    ? never
+    : number extends K
+      ? never
+      : symbol extends K
+        ? never
+        : K]: T[K];
 };
+type StripIndexSignature<T> = 0 extends 1 & T
+  ? T // T is any
+  : keyof StripIndexCore<T> extends never
+    ? T // no concrete keys (e.g. bare Methods) — keep as-is
+    : StripIndexCore<T>;
+/**
+ * The second type parameter `G` embeds the specific InterfaceGuard type
+ * into the `__getInterfaceGuard__` method's return type.  This enables
+ * {@link GuardedMethods} to extract guard-inferred method signatures
+ * from a Guarded exo object.  When no guard is provided (unguarded
+ * overloads), `G` defaults to a generic InterfaceGuard keyed by M.
+ */
+export type Guarded<
+  M extends Methods,
+  G extends InterfaceGuard = InterfaceGuard<{
+    [K in keyof M]: MethodGuard;
+  }>,
+> = StripIndexSignature<M> & {
+  __getInterfaceGuard__?: () => G | undefined;
+} & RemotableBrand<{}, M> &
+  RemotableObject;
+export type GuardedKit<
+  F extends Record<string, Methods>,
+  GK extends Record<string, InterfaceGuard> = {
+    [K in keyof F]: InterfaceGuard<{ [M in keyof F[K]]: MethodGuard }>;
+  },
+> = {
+  [K in keyof F as string extends K ? never : K]: Guarded<
+    F[K],
+    K extends keyof GK ? GK[K] : InterfaceGuard
+  >;
+};
+
+/**
+ * Extract guard-inferred method types from a Guarded exo object.
+ *
+ * By default, `Guarded<M>` uses the implementation's types (preserving
+ * parameter names).  `GuardedMethods` re-derives the method signatures
+ * from the exo's embedded InterfaceGuard (via `__getInterfaceGuard__`),
+ * giving callers the guard's type contract — including `.optional()`
+ * parameters that the implementation may declare as required.
+ *
+ * Note: parameter names are NOT preserved — TypeScript has no mechanism
+ * to programmatically copy parameter names between function types.
+ * The types are correct but displayed as `args_0`, `args_1`, etc.
+ *
+ * @example
+ * ```ts
+ * const counter = makeExo('Counter', CounterI, { incr(n) { ... } });
+ * type CM = GuardedMethods<typeof counter>;
+ * // { incr: (args_0?: bigint) => bigint }  — optional from guard
+ * ```
+ */
+export type GuardedMethods<E> = E extends {
+  __getInterfaceGuard__?: () => InterfaceGuard<infer MG> | undefined;
+}
+  ? {
+      [K in keyof MG as K extends keyof E ? K : never]: TypeFromMethodGuard<
+        MG[K]
+      >;
+    }
+  : never;
 
 /**
  * Rearrange the Exo types to make a cast of the methods (M) and init function (I) to a specific type.

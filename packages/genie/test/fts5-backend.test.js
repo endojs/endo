@@ -4,7 +4,7 @@
  * Tests for the FTS5 search backend.
  */
 
-import './setup.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { makeFTS5Backend } from '../src/tools/fts5-backend.js';
@@ -27,7 +27,10 @@ const createBackend = t => {
 
 test('indexes a document and finds it by keyword', async t => {
   const backend = createBackend(t);
-  await backend.index('notes.md', 'The quick brown fox jumps over the lazy dog');
+  await backend.index(
+    'notes.md',
+    'The quick brown fox jumps over the lazy dog',
+  );
 
   const results = await backend.search('fox');
   t.is(results.length, 1);
@@ -62,10 +65,7 @@ test('Porter stemming matches inflected forms', async t => {
 
 test('results are ranked by BM25 relevance', async t => {
   const backend = createBackend(t);
-  await backend.index(
-    'a.md',
-    'apple banana cherry\norange grape melon',
-  );
+  await backend.index('a.md', 'apple banana cherry\norange grape melon');
   await backend.index('b.md', 'apple apple apple');
 
   const results = await backend.search('apple');

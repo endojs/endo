@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-continue, camelcase */
 
 /**
  * Filesystem Tools Module
@@ -49,9 +51,7 @@ const safePath = (userPath, root) => {
   const rel = relative(root, resolved);
   // If the relative path starts with ".." or is absolute, it escapes the root.
   if (rel.startsWith('..') || resolve(rel) === rel) {
-    throw new Error(
-      `Invalid path: must resolve under root (${root})`,
-    );
+    throw new Error(`Invalid path: must resolve under root (${root})`);
   }
   return resolved;
 };
@@ -63,7 +63,7 @@ const safePath = (userPath, root) => {
  * @param {string} str
  * @returns {number}
  */
-const utf8ByteLength = (str) => new TextEncoder().encode(str).byteLength;
+const utf8ByteLength = str => new TextEncoder().encode(str).byteLength;
 
 /**
  * Create file-system tools (readFile, writeFile, editFile) that enforce a
@@ -80,21 +80,21 @@ const makeFileTools = (options = {}) => {
   const resolvedRoot = resolve(root);
 
   const readFile = makeTool('readFile', {
-    help: function*() {
-      yield 'Reads the text content of a single FILE. Cannot read directories.'
-      yield ''
-      yield 'IMPORTANT: This tool only works on files, NOT directories.'
-      yield 'To see what is inside a directory, use listDirectory instead.'
-      yield ''
-      yield '**Parameters:**'
-      yield '- `path`: Path to a file (required). Must be a file, not a directory.'
-      yield '- `offset`: Starting byte offset (optional)'
-      yield '- `limit`: Maximum bytes to read (optional)'
-      yield ''
-      yield '**Example:**'
-      yield '```'
-      yield 'readFile({ path: "README.md" })'
-      yield '```'
+    *help() {
+      yield 'Reads the text content of a single FILE. Cannot read directories.';
+      yield '';
+      yield 'IMPORTANT: This tool only works on files, NOT directories.';
+      yield 'To see what is inside a directory, use listDirectory instead.';
+      yield '';
+      yield '**Parameters:**';
+      yield '- `path`: Path to a file (required). Must be a file, not a directory.';
+      yield '- `offset`: Starting byte offset (optional)';
+      yield '- `limit`: Maximum bytes to read (optional)';
+      yield '';
+      yield '**Example:**';
+      yield '```';
+      yield 'readFile({ path: "README.md" })';
+      yield '```';
     },
 
     schema: M.call(
@@ -123,7 +123,9 @@ const makeFileTools = (options = {}) => {
      */
     async execute({ path, offset = 0, limit = maxReadBytes }) {
       if (limit > maxReadBytes) {
-        throw new Error(`Limit exceeds platform max read limit of ${maxReadBytes} bytes`);
+        throw new Error(
+          `Limit exceeds platform max read limit of ${maxReadBytes} bytes`,
+        );
       }
 
       const fullPath = safePath(path, resolvedRoot);
@@ -155,19 +157,20 @@ const makeFileTools = (options = {}) => {
 
         // Decode the collected bytes to a UTF-8 string.
         const decoder = new TextDecoder();
-        const content = chunks.length === 1
-          ? decoder.decode(chunks[0])
-          : decoder.decode(
-              (() => {
-                const merged = new Uint8Array(totalBytes);
-                let pos = 0;
-                for (const c of chunks) {
-                  merged.set(c, pos);
-                  pos += c.byteLength;
-                }
-                return merged;
-              })(),
-            );
+        const content =
+          chunks.length === 1
+            ? decoder.decode(chunks[0])
+            : decoder.decode(
+                (() => {
+                  const merged = new Uint8Array(totalBytes);
+                  let pos = 0;
+                  for (const c of chunks) {
+                    merged.set(c, pos);
+                    pos += c.byteLength;
+                  }
+                  return merged;
+                })(),
+              );
 
         return {
           success: true,
@@ -187,20 +190,20 @@ const makeFileTools = (options = {}) => {
   });
 
   const writeFile = makeTool('writeFile', {
-    help: function*() {
-      yield 'Creates or completely overwrites a file with new content.'
-      yield ''
-      yield 'Use writeFile to create new files or fully replace file content.'
-      yield 'To change only part of an existing file, use editFile instead.'
-      yield ''
-      yield '**Parameters:**'
-      yield '- `path`: Path to file (required)'
-      yield '- `content`: Full content to write (required)'
-      yield ''
-      yield '**Example:**'
-      yield '```'
-      yield 'writeFile({ path: "test.txt", content: "Hello World" })'
-      yield '```'
+    *help() {
+      yield 'Creates or completely overwrites a file with new content.';
+      yield '';
+      yield 'Use writeFile to create new files or fully replace file content.';
+      yield 'To change only part of an existing file, use editFile instead.';
+      yield '';
+      yield '**Parameters:**';
+      yield '- `path`: Path to file (required)';
+      yield '- `content`: Full content to write (required)';
+      yield '';
+      yield '**Example:**';
+      yield '```';
+      yield 'writeFile({ path: "test.txt", content: "Hello World" })';
+      yield '```';
     },
 
     schema: M.call({ path: M.string(), content: M.string() }).returns({
@@ -239,24 +242,23 @@ const makeFileTools = (options = {}) => {
   // -- editFile --------------------------------------------------------------
 
   const editFile = makeTool('editFile', {
-
-    help: function*() {
-      yield 'Replaces a specific string in an existing file with a new string.'
-      yield ''
-      yield 'Use editFile when you need to change part of a file.'
-      yield 'Read the file first with readFile to find the exact text to replace.'
-      yield 'To create a new file or fully rewrite one, use writeFile instead.'
-      yield ''
-      yield '**Parameters:**'
-      yield '- `path`: Path to file (required)'
-      yield '- `old_string`: Exact string to find and replace (required)'
-      yield '- `new_string`: Replacement string (required)'
-      yield '- `replace_all`: Replace all occurrences (optional, default: false)'
-      yield ''
-      yield '**Example:**'
-      yield '```'
-      yield 'editFile({ path: "README.md", old_string: "old text", new_string: "new text" })'
-      yield '```'
+    *help() {
+      yield 'Replaces a specific string in an existing file with a new string.';
+      yield '';
+      yield 'Use editFile when you need to change part of a file.';
+      yield 'Read the file first with readFile to find the exact text to replace.';
+      yield 'To create a new file or fully rewrite one, use writeFile instead.';
+      yield '';
+      yield '**Parameters:**';
+      yield '- `path`: Path to file (required)';
+      yield '- `old_string`: Exact string to find and replace (required)';
+      yield '- `new_string`: Replacement string (required)';
+      yield '- `replace_all`: Replace all occurrences (optional, default: false)';
+      yield '';
+      yield '**Example:**';
+      yield '```';
+      yield 'editFile({ path: "README.md", old_string: "old text", new_string: "new text" })';
+      yield '```';
     },
 
     schema: M.call(
@@ -321,7 +323,7 @@ const makeFileTools = (options = {}) => {
   // -- removeFile ------------------------------------------------------------
 
   const removeFile = makeTool('removeFile', {
-    help: function*() {
+    *help() {
       yield 'Deletes a single file. Cannot remove directories.';
       yield '';
       yield 'To remove a directory, use removeDirectory instead.';
@@ -365,7 +367,7 @@ const makeFileTools = (options = {}) => {
   // -- stat -----------------------------------------------------------------
 
   const stat = makeTool('stat', {
-    help: function*() {
+    *help() {
       yield 'Checks if a path exists and returns its type (file or directory) and size.';
       yield '';
       yield 'Use stat to find out whether a path is a file or a directory before';
@@ -423,7 +425,7 @@ const makeFileTools = (options = {}) => {
   // -- listDirectory --------------------------------------------------------
 
   const listDirectory = makeTool('listDirectory', {
-    help: function*() {
+    *help() {
       yield 'Lists the files and subdirectories inside a directory.';
       yield '';
       yield 'Use this tool to explore what is inside a folder.';
@@ -454,9 +456,7 @@ const makeFileTools = (options = {}) => {
       success: M.boolean(),
       path: M.string(),
       entries: M.arrayOf(
-        M.splitRecord(
-          { name: M.string(), type: M.string(), size: M.number() },
-        ),
+        M.splitRecord({ name: M.string(), type: M.string(), size: M.number() }),
       ),
     }),
 
@@ -488,11 +488,7 @@ const makeFileTools = (options = {}) => {
         const entries = [];
 
         for await (const entry of vfs.readdir(fullPath, { recursive })) {
-          if (
-            re &&
-            !re.test(basename(entry.name)) &&
-            !re.test(entry.name)
-          ) {
+          if (re && !re.test(basename(entry.name)) && !re.test(entry.name)) {
             continue;
           }
 
@@ -521,7 +517,7 @@ const makeFileTools = (options = {}) => {
   // -- makeDirectory --------------------------------------------------------
 
   const makeDirectory = makeTool('makeDirectory', {
-    help: function*() {
+    *help() {
       yield 'Creates a new directory (folder).';
       yield '';
       yield '**Parameters:**';
@@ -535,10 +531,7 @@ const makeFileTools = (options = {}) => {
     },
 
     schema: M.call(
-      M.splitRecord(
-        { path: M.string() },
-        { recursive: M.boolean() },
-      ),
+      M.splitRecord({ path: M.string() }, { recursive: M.boolean() }),
     ).returns({
       success: M.boolean(),
       path: M.string(),
@@ -571,7 +564,7 @@ const makeFileTools = (options = {}) => {
   // -- removeDirectory ------------------------------------------------------
 
   const removeDirectory = makeTool('removeDirectory', {
-    help: function*() {
+    *help() {
       yield 'Deletes a directory (folder). To delete a single file, use removeFile.';
       yield '';
       yield '**Parameters:**';
@@ -585,10 +578,7 @@ const makeFileTools = (options = {}) => {
     },
 
     schema: M.call(
-      M.splitRecord(
-        { path: M.string() },
-        { recursive: M.boolean() },
-      ),
+      M.splitRecord({ path: M.string() }, { recursive: M.boolean() }),
     ).returns({
       success: M.boolean(),
       path: M.string(),
