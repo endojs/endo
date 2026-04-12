@@ -1,20 +1,23 @@
 // @ts-check
-/* eslint-disable no-void */
+/* global Buffer, process */
 
 import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { q } from '@endo/errors';
+import { makeSnapshotStore } from '@endo/platform/fs/lite';
+
 import { makeNetstringCapTP } from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
+import { toHex, fromHex } from './hex.js';
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
-/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
+/** @import { CapTpConnectionRegistrar, Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
 
 const textEncoder = new TextEncoder();
 
@@ -76,13 +79,10 @@ export const makeSocketPowers = ({ net }) => {
     );
 
   /** @type {SocketPowers['connectPort']} */
-  const connectPort = ({ port, host }) =>
+  const connectPort = ({ port, host, cancelled }) =>
     new Promise((resolve, reject) => {
-      const conn = net.connect(port, host, err => {
-        if (err) {
-          reject(err);
-          return;
-        }
+      const conn = net.connect(port, host);
+      conn.on('connect', () => {
         const reader = makeNodeReader(conn);
         const writer = makeNodeWriter(conn);
         const closed = new Promise(close => conn.on('close', close));
@@ -91,6 +91,11 @@ export const makeSocketPowers = ({ net }) => {
           writer,
           closed,
         });
+      });
+      conn.on('error', reject);
+      cancelled.catch(error => {
+        conn.destroy();
+        reject(error);
       });
     });
 
@@ -139,6 +144,7 @@ export const makeNetworkPowers = ({ net }) => {
    * @param {string} sockPath
    * @param {Promise<never>} cancelled
    * @param {(error: Error) => void} exitWithError
+   * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @returns {{ started: Promise<void>, stopped: Promise<void> }}
    */
   const makePrivatePathService = (
@@ -146,12 +152,14 @@ export const makeNetworkPowers = ({ net }) => {
     sockPath,
     cancelled,
     exitWithError,
+    capTpConnectionRegistrar = undefined,
   ) => {
     const privatePathService = servePrivatePath(sockPath, endoBootstrap, {
       servePath,
       connectionNumbers,
       cancelled,
       exitWithError,
+      capTpConnectionRegistrar,
     });
     return privatePathService;
   };
@@ -234,7 +242,8 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
    */
   const removePath = async path => {
     await writeJobs.enqueue(async () => {
-      return fs.promises.rm(path);
+      // Use force: true to make removal idempotent (no error if already removed)
+      return fs.promises.rm(path, { force: true });
     });
   };
 
@@ -245,6 +254,29 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
   };
 
   const joinPath = (...components) => fspath.join(...components);
+
+  /** @param {string} path */
+  const realPath = async path => fs.promises.realpath(path);
+
+  /** @param {string} path */
+  const isDirectory = async path => {
+    try {
+      const stat = await fs.promises.stat(path);
+      return stat.isDirectory();
+    } catch {
+      return false;
+    }
+  };
+
+  /** @param {string} path */
+  const exists = async path => {
+    try {
+      await fs.promises.access(path);
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   return harden({
     makeFileReader,
@@ -257,6 +289,9 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     joinPath,
     removePath,
     renamePath,
+    realPath,
+    isDirectory,
+    exists,
   });
 };
 
@@ -265,8 +300,8 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
  * @returns {CryptoPowers}
  */
 export const makeCryptoPowers = crypto => {
-  const makeSha512 = () => {
-    const digester = crypto.createHash('sha512');
+  const makeSha256 = () => {
+    const digester = crypto.createHash('sha256');
     return harden({
       update: chunk => digester.update(chunk),
       updateText: chunk => digester.update(textEncoder.encode(chunk)),
@@ -274,9 +309,9 @@ export const makeCryptoPowers = crypto => {
     });
   };
 
-  const randomHex512 = () =>
+  const randomHex256 = () =>
     new Promise((resolve, reject) =>
-      crypto.randomBytes(64, (err, bytes) => {
+      crypto.randomBytes(32, (err, bytes) => {
         if (err) {
           reject(err);
         } else {
@@ -285,9 +320,71 @@ export const makeCryptoPowers = crypto => {
       }),
     );
 
+  // PKCS8 DER prefix for wrapping a raw 32-byte Ed25519 private key seed.
+  const ED25519_PKCS8_PREFIX = Buffer.from(
+    '302e020100300506032b657004220420',
+    'hex',
+  );
+
+  /**
+   * Sign a message with a raw 32-byte Ed25519 private key.
+   *
+   * @param {Uint8Array} privateKey - 32-byte raw Ed25519 private key seed
+   * @param {Uint8Array} message - message bytes to sign
+   * @returns {Uint8Array} 64-byte Ed25519 signature
+   */
+  const ed25519Sign = (privateKey, message) => {
+    const derKey = Buffer.concat([ED25519_PKCS8_PREFIX, privateKey]);
+    const keyObject = crypto.createPrivateKey({
+      key: derKey,
+      format: 'der',
+      type: 'pkcs8',
+    });
+    const sig = crypto.sign(null, message, keyObject);
+    return new Uint8Array(sig);
+  };
+
+  const generateEd25519Keypair = () =>
+    new Promise((resolve, reject) =>
+      crypto.generateKeyPair(
+        'ed25519',
+        /** @type {import('crypto').ED25519KeyPairKeyObjectOptions} */ ({}),
+        (err, publicKeyObject, privateKeyObject) => {
+          if (err) {
+            reject(err);
+          } else {
+            const publicDer = publicKeyObject.export({
+              type: 'spki',
+              format: 'der',
+            });
+            const privateDer = privateKeyObject.export({
+              type: 'pkcs8',
+              format: 'der',
+            });
+            // Extract raw 32-byte keys from DER encoding.
+            // Ed25519 SPKI DER has a 12-byte prefix before the 32-byte key.
+            // Ed25519 PKCS8 DER has a 16-byte prefix before the 32-byte seed.
+            const rawPublicKey = publicDer.subarray(publicDer.length - 32);
+            const rawPrivateKey = privateDer.subarray(privateDer.length - 32);
+            const publicKey = new Uint8Array(rawPublicKey);
+            const privateKey = new Uint8Array(rawPrivateKey);
+            resolve(
+              harden({
+                publicKey,
+                privateKey,
+                sign: message => ed25519Sign(privateKey, message),
+              }),
+            );
+          }
+        },
+      ),
+    );
+
   return harden({
-    makeSha512,
-    randomHex512,
+    makeSha256,
+    randomHex256,
+    generateEd25519Keypair,
+    ed25519Sign,
   });
 };
 
@@ -316,7 +413,7 @@ export const makeDaemonicPersistencePowers = (
     const existingNonce = await filePowers.maybeReadFileText(noncePath);
     if (existingNonce === undefined) {
       const rootNonce = /** @type {FormulaNumber} */ (
-        await cryptoPowers.randomHex512()
+        await cryptoPowers.randomHex256()
       );
       await filePowers.writeFileText(noncePath, `${rootNonce}\n`);
       return { rootNonce, isNewlyCreated: true };
@@ -326,45 +423,75 @@ export const makeDaemonicPersistencePowers = (
     }
   };
 
-  const makeContentSha512Store = () => {
-    const { statePath } = config;
-    const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha512');
+  /** @type {DaemonicPersistencePowers['provideRootKeypair']} */
+  const provideRootKeypair = async () => {
+    const keypairPath = filePowers.joinPath(config.statePath, 'keypair');
+    const existingKeypair = await filePowers.maybeReadFileText(keypairPath);
+    if (existingKeypair === undefined) {
+      const keypair = await cryptoPowers.generateEd25519Keypair();
+      const publicHex = toHex(keypair.publicKey);
+      const privateHex = toHex(keypair.privateKey);
+      await filePowers.writeFileText(
+        keypairPath,
+        `${publicHex}\n${privateHex}\n`,
+      );
+      return { keypair, isNewlyCreated: true };
+    } else {
+      const lines = existingKeypair.trim().split('\n');
+      const publicKey = fromHex(lines[0]);
+      const privateKey = fromHex(lines[1]);
+      return {
+        keypair: harden({
+          publicKey,
+          privateKey,
+          sign: message => cryptoPowers.ed25519Sign(privateKey, message),
+        }),
+        isNewlyCreated: false,
+      };
+    }
+  };
 
-    return harden({
+  const makeContentStore = () => {
+    const { statePath } = config;
+    const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha256');
+
+    /** @type {import('@endo/platform/fs/lite/types').ContentStore} */
+    const rawStore = harden({
       /**
        * @param {AsyncIterable<Uint8Array>} readable
        * @returns {Promise<string>}
        */
       async store(readable) {
-        const digester = cryptoPowers.makeSha512();
-        const storageId512 = await cryptoPowers.randomHex512();
+        const digester = cryptoPowers.makeSha256();
+        const storageId256 = await cryptoPowers.randomHex256();
         const temporaryStoragePath = filePowers.joinPath(
           storageDirectoryPath,
-          storageId512,
+          storageId256,
         );
 
         // Stream to temporary file and calculate hash.
         await filePowers.makePath(storageDirectoryPath);
         const fileWriter = filePowers.makeFileWriter(temporaryStoragePath);
+        // eslint-disable-next-line no-await-in-loop
         for await (const chunk of readable) {
           digester.update(chunk);
+          // eslint-disable-next-line no-await-in-loop
           await fileWriter.next(chunk);
         }
         await fileWriter.return(undefined);
 
         // Calculate hash.
-        const sha512 = digester.digestHex();
+        const sha256 = digester.digestHex();
         // Finish with an atomic rename.
-        const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
         await filePowers.renamePath(temporaryStoragePath, storagePath);
-        return sha512;
+        return sha256;
       },
       /**
-       * @param {string} sha512
-       * @returns {EndoReadable}
+       * @param {string} sha256
        */
-      fetch(sha512) {
-        const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
+      fetch(sha256) {
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
         const streamBase64 = () => {
           const reader = filePowers.makeFileReader(storagePath);
           return makeReaderRef(reader);
@@ -376,14 +503,24 @@ export const makeDaemonicPersistencePowers = (
           const jsonSrc = await text();
           return JSON.parse(jsonSrc);
         };
-        return harden({
-          sha512: () => sha512,
-          streamBase64,
-          text,
-          json,
-        });
+        return harden({ streamBase64, text, json });
+      },
+      /**
+       * @param {string} sha256
+       * @returns {Promise<boolean>}
+       */
+      async has(sha256) {
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
+        try {
+          await filePowers.readFileText(storagePath);
+          return true;
+        } catch (_e) {
+          return false;
+        }
       },
     });
+
+    return makeSnapshotStore(rawStore);
   };
 
   /**
@@ -432,12 +569,60 @@ export const makeDaemonicPersistencePowers = (
     await filePowers.writeFileText(file, `${q(formula)}\n`);
   };
 
+  /** @type {DaemonicPersistencePowers['deleteFormula']} */
+  const deleteFormula = async formulaNumber => {
+    const { file } = makeFormulaPath(formulaNumber);
+    await filePowers.removePath(file);
+  };
+
+  /** @type {DaemonicPersistencePowers['listFormulas']} */
+  const listFormulas = async () => {
+    const formulasPath = filePowers.joinPath(config.statePath, 'formulas');
+    const heads = await filePowers.readDirectory(formulasPath).catch(error => {
+      if (error.message.startsWith('ENOENT: ')) {
+        return [];
+      }
+      throw error;
+    });
+    /** @type {import('./types.js').FormulaNumber[]} */
+    const numbers = [];
+    await Promise.all(
+      heads.map(async head => {
+        const headPath = filePowers.joinPath(formulasPath, head);
+        const files = await filePowers.readDirectory(headPath).catch(error => {
+          if (
+            error.message.startsWith('ENOTDIR: ') ||
+            error.message.startsWith('ENOENT: ')
+          ) {
+            return [];
+          }
+          throw error;
+        });
+        for (const file of files) {
+          if (file.endsWith('.json')) {
+            const tail = file.slice(0, -'.json'.length);
+            numbers.push(
+              /** @type {import('./types.js').FormulaNumber} */ (
+                `${head}${tail}`
+              ),
+            );
+          }
+        }
+      }),
+    );
+    return numbers;
+  };
+
   return harden({
+    statePath: config.statePath,
     initializePersistence,
     provideRootNonce,
-    makeContentSha512Store,
+    provideRootKeypair,
+    makeContentStore,
     readFormula,
     writeFormula,
+    deleteFormula,
+    listFormulas,
   });
 };
 
@@ -455,16 +640,32 @@ export const makeDaemonicControlPowers = (
   fs,
   popen,
 ) => {
-  const endoWorkerPath = fileURLToPath(
-    new URL('worker-node.js', import.meta.url),
+  const endoWorkerPath =
+    process.env.ENDO_WORKER_SUBPROCESS_PATH ||
+    fileURLToPath(new URL('worker-node.js', import.meta.url));
+
+  const endoWorkerWithShimsPath = fileURLToPath(
+    new URL('worker-node-with-shims.js', import.meta.url),
   );
 
   /**
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
-   * @param {Promise<never>} cancelled
+   * @param {Promise<never>} cancelled - rejects to initiate shutdown (SIGTERM)
+   * @param {Promise<never>} forceCancelled - rejects to force shutdown (SIGKILL)
+   * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
+   * @param {string[]} [trustedShims]
+   * @param {string} [label]
    */
-  const makeWorker = async (workerId, daemonWorkerFacet, cancelled) => {
+  const makeWorker = async (
+    workerId,
+    daemonWorkerFacet,
+    cancelled,
+    forceCancelled,
+    capTpConnectionRegistrar = undefined,
+    trustedShims = undefined,
+    label = '<untitled>',
+  ) => {
     const { statePath, ephemeralStatePath } = config;
 
     const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
@@ -482,8 +683,12 @@ export const makeDaemonicControlPowers = (
     const logPath = filePowers.joinPath(workerStatePath, 'worker.log');
     const pidPath = filePowers.joinPath(workerEphemeralStatePath, 'worker.pid');
 
+    const useShims = trustedShims && trustedShims.length > 0;
+    const workerPath = useShims ? endoWorkerWithShimsPath : endoWorkerPath;
+    const workerArgs = useShims ? [JSON.stringify(trustedShims)] : [];
+
     const log = fs.openSync(logPath, 'a');
-    const child = popen.fork(endoWorkerPath, [], {
+    const child = popen.fork(workerPath, workerArgs, {
       stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
       // @ts-ignore Stale Node.js type definition.
       windowsHide: true,
@@ -511,8 +716,21 @@ export const makeDaemonicControlPowers = (
 
     await filePowers.writeFileText(pidPath, `${child.pid}\n`);
 
-    cancelled.catch(async () => {
+    const metaPath = filePowers.joinPath(workerStatePath, 'worker.meta.json');
+    const meta = JSON.stringify({
+      createdAt: new Date().toISOString(),
+      label,
+    });
+    await filePowers.writeFileText(metaPath, `${meta}\n`);
+
+    workerClosed.then(() => filePowers.removePath(pidPath).catch(() => {}));
+
+    cancelled.catch(() => {
       child.kill();
+    });
+
+    forceCancelled.catch(() => {
+      child.kill('SIGKILL');
     });
 
     console.log(
@@ -525,6 +743,8 @@ export const makeDaemonicControlPowers = (
       reader,
       cancelled,
       daemonWorkerFacet,
+      undefined,
+      capTpConnectionRegistrar,
     );
 
     capTpClosed.finally(() => {
@@ -585,5 +805,6 @@ export const makeDaemonicPowers = ({
     petStore: petStorePowers,
     persistence: daemonicPersistencePowers,
     control: daemonicControlPowers,
+    filePowers,
   });
 };

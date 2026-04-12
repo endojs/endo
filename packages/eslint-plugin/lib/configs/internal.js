@@ -46,8 +46,9 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   rules: {
-    // Work around https://github.com/import-js/eslint-plugin-import/issues/1810
-    'import/no-unresolved': ['error', { ignore: ['ava'] }],
+    'no-void': 'off',
+    'no-use-before-define': 'off',
+    'no-nested-ternary': 'off',
     '@typescript-eslint/naming-convention': [
       'error',
       {

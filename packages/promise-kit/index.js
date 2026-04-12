@@ -44,6 +44,8 @@ harden(makePromiseKit);
  * @returns {Promise<Awaited<T[number]>>} A new Promise.
  */
 export function racePromises(values) {
-  return harden(memoRace.call(BestPipelinablePromise, values));
+  return /** @type {Promise<Awaited<T[number]>>} */ (
+    harden(memoRace.call(BestPipelinablePromise, values))
+  );
 }
 harden(racePromises);

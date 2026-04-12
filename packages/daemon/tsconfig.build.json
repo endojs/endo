@@ -4,7 +4,8 @@
     "../../tsconfig-build-options.json"
   ],
   "compilerOptions": {
-    "allowJs": true
+    "allowJs": true,
+    "skipLibCheck": true
   },
   "exclude": [
     "test/"

@@ -1,0 +1,43 @@
+{
+  "name": "@endo/jaine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stateless channel-mention agent — each mention starts a fresh LLM context",
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./agent.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "setup": "endo run --UNCONFINED setup.js --powers @agent",
+    "create-provider": "./provider-setup.sh",
+    "setup-factory": "endo run --UNCONFINED jaine-factory-setup.js --powers @agent -E PROVIDER_NAME=${PROVIDER_NAME:-default} -E FACTORY_NAME=${FACTORY_NAME:-jaine-factory}",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/daemon": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/fae": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/lal": "workspace:^",
+    "@endo/marshal": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/promise-kit": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/cli": "workspace:^",
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}

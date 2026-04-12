@@ -1,0 +1,49 @@
+{
+  "name": "@endo/inventory-graph",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Force-directed inventory graph visualizer for Endo formula dependencies",
+  "keywords": [
+    "endo",
+    "inventory",
+    "graph",
+    "formula",
+    "visualization"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/inventory-graph"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^"
+  },
+  "devDependencies": {
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "env": {
+      "browser": true
+    }
+  }
+}

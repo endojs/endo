@@ -30,6 +30,7 @@ export const run = async ({
   importPath,
   powersName,
   agentNames,
+  env = {},
 }) => {
   if (
     filePath === undefined &&
@@ -46,12 +47,22 @@ export const run = async ({
     { os, process },
     async ({ bootstrap, agent }) => {
       await null;
+
+      // Inject environment variables into process.env for ephemeral runs
+      for (const [key, value] of Object.entries(env)) {
+        process.env[key] = value;
+      }
+
       let powersP;
-      if (powersName === 'NONE') {
+      if (powersName === '@none') {
         powersP = E(bootstrap).leastAuthority();
-      } else if (powersName === 'HOST') {
+      } else if (
+        powersName === '@host' ||
+        powersName === '@agent' ||
+        powersName === 'AGENT'
+      ) {
         powersP = agent;
-      } else if (powersName === 'ENDO') {
+      } else if (powersName === '@endo') {
         powersP = bootstrap;
       } else {
         powersP = E(agent).provideGuest(powersName);
@@ -91,7 +102,7 @@ export const run = async ({
           }
 
           const bundleNamePath = parsePetNamePath(bundleName);
-          const readableP = E(agent).lookup(...bundleNamePath);
+          const readableP = E(agent).lookup(bundleNamePath);
           const bundleText = await E(readableP).text();
           bundle = JSON.parse(bundleText);
         } else {

@@ -37,7 +37,7 @@ export const setCompare = makeCompareCollection(
       )
   ),
   0,
-  compareNumerics,
+  /** @type {KeyCompare} */ (compareNumerics),
 );
 harden(setCompare);
 
@@ -54,7 +54,7 @@ export const bagCompare = makeCompareCollection(
     collection => getCopyBagEntries(/** @type {CopyBag} */ (collection))
   ),
   0n,
-  compareNumerics,
+  /** @type {KeyCompare} */ (compareNumerics),
 );
 harden(bagCompare);
 

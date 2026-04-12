@@ -11,6 +11,9 @@ import url from 'url';
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
 
+import { isTerminalError } from './doe-normaal.js';
+import installGroupedHelp from './grouped-help.js';
+
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
@@ -38,6 +41,18 @@ const parseOptionAsMapping = (optionValueString, obj) => {
   return obj;
 };
 
+const parseEnvOption = (optionValueString, obj) => {
+  // arguments are provided as "KEY=VALUE"
+  const eqIndex = optionValueString.indexOf('=');
+  if (eqIndex === -1) {
+    throw `Environment variable must be in KEY=VALUE format, got: ${optionValueString}`;
+  }
+  const key = optionValueString.slice(0, eqIndex);
+  const value = optionValueString.slice(eqIndex + 1);
+  obj[key] = value;
+  return obj;
+};
+
 export const main = async rawArgs => {
   const program = new Command();
 
@@ -50,69 +65,6 @@ export const main = async rawArgs => {
   program.name('endo').version(packageDescriptor.version);
 
   program
-    .command('install [filePath]')
-    .description('installs a web page (weblet)')
-    .option(...commonOptions.as)
-    .option(
-      '-l,--listen,--port <number>',
-      'Port assignment (required)',
-      (arg, previous) => {
-        if (previous !== undefined) {
-          throw `-l,--listen,--port can only be specified once`;
-        }
-        const port = parseInt(arg, 10);
-        if (Number.isNaN(port) || (port & ~0xffff) !== 0) {
-          throw `-l,--listen,--port flag must be a valid port number, got ${JSON.stringify(
-            arg,
-          )}`;
-        }
-        return port;
-      },
-    )
-    .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
-    .option(
-      '-p,--powers <endowment>',
-      'Endowment to give the weblet (a name, NONE, SELF, or ENDO)',
-    )
-    .option(...commonOptions.requiredName)
-    .option('-o,--open', 'Open the new web page immediately (weblet)')
-    .action(async (programPath, cmd) => {
-      const {
-        name: webletName,
-        bundle: bundleName,
-        powers: powersName = 'NONE',
-        listen: requestedPort,
-        as: agentNames,
-        open: doOpen,
-      } = cmd.opts();
-      if (requestedPort === undefined) {
-        throw 'The -l, --listen, or --port <number> flag is required';
-      }
-      const { install } = await import('./commands/install.js');
-      return install({
-        doOpen,
-        webletName,
-        requestedPort,
-        programPath,
-        bundleName,
-        powersName,
-        agentNames,
-      });
-    });
-
-  program
-    .command('open <name>')
-    .description('opens a web page (weblet)')
-    .option(...commonOptions.as)
-    .action(async (webletName, cmd) => {
-      const { as: agentNames } = cmd.opts();
-      const { open } = await import('./commands/open.js');
-      return open({
-        webletName,
-        agentNames,
-      });
-    });
-  program
     .command('run [<file>] [<args>...]')
     .description('runs a program (runlet)')
     .option(...commonOptions.as)
@@ -123,14 +75,21 @@ export const main = async rawArgs => {
     )
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
+      'Endowment to give the worklet (a name, @none, @agent, or @endo)',
+    )
+    .option(
+      '-E,--env <key=value>',
+      'Environment variable to inject (can be used multiple times)',
+      parseEnvOption,
+      {},
     )
     .action(async (filePath, args, cmd) => {
       const {
         as: agentNames,
         bundle: bundleName,
         UNCONFINED: importPath,
-        powers: powersName = 'NONE',
+        powers: powersName = '@none',
+        env = {},
       } = cmd.opts();
       const { run } = await import('./commands/run.js');
       return run({
@@ -140,6 +99,7 @@ export const main = async rawArgs => {
         importPath,
         powersName,
         agentNames,
+        env,
       });
     });
 
@@ -156,6 +116,12 @@ export const main = async rawArgs => {
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
     )
+    .option(
+      '-E,--env <key=value>',
+      'Environment variable to inject (can be used multiple times)',
+      parseEnvOption,
+      {},
+    )
     .action(async (filePath, cmd) => {
       const {
         UNCONFINED: importPath,
@@ -163,7 +129,8 @@ export const main = async rawArgs => {
         bundle: bundleName,
         worker: workerName = undefined,
         as: agentNames,
-        powers: powersName = 'NONE',
+        powers: powersName = '@none',
+        env = {},
       } = cmd.opts();
       const { makeCommand } = await import('./commands/make.js');
       return makeCommand({
@@ -174,6 +141,7 @@ export const main = async rawArgs => {
         workerName,
         agentNames,
         powersName,
+        env,
       });
     });
 
@@ -201,7 +169,7 @@ export const main = async rawArgs => {
       const {
         name: resultName,
         as: agentNames,
-        to: toName = 'HOST',
+        to: toName = '@host',
       } = cmd.opts();
       const { request } = await import('./commands/request.js');
       return request({ toName, description, resultName, agentNames });
@@ -236,6 +204,106 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('define <source>')
+    .description(
+      'propose code with named capability slots for the host to endow',
+    )
+    .option(...commonOptions.as)
+    .option(
+      '-s,--slot <slot>',
+      'Slot definition as codeName:label (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (source, cmd) => {
+      const { as: agentNames, slot: slotArgs } = cmd.opts();
+      const { defineCommand } = await import('./commands/define.js');
+      return defineCommand({ source, slotArgs, agentNames });
+    });
+
+  program
+    .command('endow <message-number>')
+    .description('bind capabilities to a definition and evaluate')
+    .option(...commonOptions.as)
+    .option(
+      '-b,--bind <binding>',
+      'Binding as codeName:petName (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .option('-w,--worker <name>', 'Worker to use for evaluation')
+    .option(...commonOptions.name)
+    .action(async (messageNumberText, cmd) => {
+      const {
+        as: agentNames,
+        bind: bindArgs,
+        worker: workerName,
+        name: resultName,
+      } = cmd.opts();
+      const { endowCommand } = await import('./commands/endow.js');
+      return endowCommand({
+        messageNumberText,
+        bindArgs,
+        workerName,
+        resultName,
+        agentNames,
+      });
+    });
+
+  program
+    .command('form <recipient> <description>')
+    .description('send a structured form')
+    .option(...commonOptions.as)
+    .option(
+      '-f,--field <field>',
+      'Field definition as fieldName:label (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (toName, description, cmd) => {
+      const { as: agentNames, field: fieldArgs } = cmd.opts();
+      const { formCommand } = await import('./commands/form.js');
+      return formCommand({
+        toName,
+        description,
+        fieldArgs,
+        agentNames,
+      });
+    });
+
+  program
+    .command('submit <message-number>')
+    .description('submit values for a form')
+    .option(...commonOptions.as)
+    .option(
+      '-f,--field <field>',
+      'Value as fieldName:value (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (messageNumberText, cmd) => {
+      const { as: agentNames, field: fieldArgs } = cmd.opts();
+      const { submitCommand } = await import('./commands/submit.js');
+      return submitCommand({
+        messageNumberText,
+        fieldArgs,
+        agentNames,
+      });
+    });
+
+  program
     .command('send <agent> <message-with-embedded-references>')
     .description('send a message with @named-values @for-you:from-me')
     .option(...commonOptions.as)
@@ -243,6 +311,26 @@ export const main = async rawArgs => {
       const { as: agentNames } = cmd.opts();
       const { send } = await import('./commands/send.js');
       return send({ message, agentName, agentNames });
+    });
+
+  program
+    .command('reply <message-number> <message-with-embedded-references>')
+    .description('reply to a message with @named-values @for-you:from-me')
+    .option(...commonOptions.as)
+    .action(async (messageNumberText, message, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { reply } = await import('./commands/reply.js');
+      return reply({ messageNumberText, message, agentNames });
+    });
+
+  program
+    .command('send-value <message-number> <pet-name>')
+    .description('reply to a message with a retained value from the pet store')
+    .option(...commonOptions.as)
+    .action(async (messageNumberText, petName, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { sendValueCommand } = await import('./commands/send-value.js');
+      return sendValueCommand({ messageNumberText, petName, agentNames });
     });
 
   program
@@ -270,6 +358,18 @@ export const main = async rawArgs => {
       const { dismissCommand } = await import('./commands/dismiss.js');
       return dismissCommand({
         messageNumberText,
+        agentNames,
+      });
+    });
+
+  program
+    .command('clear')
+    .description('dismiss all messages')
+    .option(...commonOptions.as)
+    .action(async cmd => {
+      const { as: agentNames } = cmd.opts();
+      const { dismissAllCommand } = await import('./commands/dismiss-all.js');
+      return dismissAllCommand({
         agentNames,
       });
     });
@@ -331,6 +431,16 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('locate <name>')
+    .description('prints the locator for a named value')
+    .option(...commonOptions.as)
+    .action(async (name, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { locate } = await import('./commands/locate.js');
+      return locate({ name, agentNames });
+    });
+
+  program
     .command('follow <name>')
     .option(...commonOptions.as)
     .description('subscribe to a stream of values')
@@ -389,6 +499,65 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('checkin <path>')
+    .alias('ci')
+    .description('checks in a local directory as a readable tree')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .action(async (sourcePath, cmd) => {
+      const { name, as: agentNames } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for checkin');
+      }
+      const { checkin } = await import('./commands/checkin.js');
+      return checkin({ sourcePath, name, agentNames });
+    });
+
+  program
+    .command('checkout <name> <path>')
+    .alias('co')
+    .description('checks out a readable tree to a local directory')
+    .option(...commonOptions.as)
+    .action(async (treeName, destPath, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { checkout } = await import('./commands/checkout.js');
+      return checkout({ treeName, destPath, agentNames });
+    });
+
+  program
+    .command('mount <path>')
+    .description('mounts an external filesystem directory')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .option('--read-only', 'mount as read-only')
+    .action(async (sourcePath, cmd) => {
+      const { name, as: agentNames, readOnly } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for mount');
+      }
+      const { mount: mountCmd } = await import('./commands/mount.js');
+      return mountCmd({ sourcePath, name, agentNames, readOnly });
+    });
+
+  program
+    .command('mktmp')
+    .description(
+      'creates a portable scratch space in the daemon state directory ' +
+        '(migrates with state, unlike mount; materializes on disk, unlike mkdir)',
+    )
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .option('--read-only', 'mount as read-only')
+    .action(async cmd => {
+      const { name, as: agentNames, readOnly } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for mktmp');
+      }
+      const { mktmp } = await import('./commands/mktmp.js');
+      return mktmp({ name, agentNames, readOnly });
+    });
+
+  program
     .command('eval <source> [names...]')
     .description('creates a value')
     .option(...commonOptions.as)
@@ -400,7 +569,7 @@ export const main = async rawArgs => {
     .action(async (source, names, cmd) => {
       const {
         name: resultName,
-        worker: workerName = 'MAIN',
+        worker: workerName = '@main',
         as: agentNames,
       } = cmd.opts();
       const { evalCommand } = await import('./commands/eval.js');
@@ -523,7 +692,30 @@ export const main = async rawArgs => {
 
   const where = program
     .command('where')
-    .description('prints paths for state, logs, caches, socket, pids');
+    .option('-j,--json', 'Output as JOSN rather than simple text')
+    .description(
+      'prints paths for state, logs, caches, socket, pids\n' +
+        'specify just one part, or none to get them all',
+    )
+    .action(async cmd => {
+      const { json: asJSON = false } = cmd.opts();
+      const { cachePath, ephemeralStatePath, logPath, sockPath, statePath } =
+        await import('./config.js');
+      const stuff = {
+        state: statePath,
+        run: ephemeralStatePath,
+        socket: sockPath,
+        log: logPath,
+        cache: cachePath,
+      };
+      if (asJSON) {
+        process.stdout.write(`${JSON.stringify(stuff)}\n`);
+      } else {
+        for (const [key, val] of Object.entries(stuff)) {
+          process.stdout.write(`${key}: ${val}\n`);
+        }
+      }
+    });
 
   where
     .command('state')
@@ -566,11 +758,44 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('status')
+    .description('query and print status of the endo daemon')
+    .option('-v, --verbose [level]', 'verbosity levle o status interrogation')
+    .action(async cmd => {
+      const opts = cmd.opts();
+      const verbose = Number(opts.verbose);
+      const { status } = await import('@endo/daemon');
+      await status(undefined, {
+        verbose: Number.isNaN(verbose) ? 0 : verbose,
+      });
+    });
+
+  program
     .command('start')
-    .description('start the endo daemon')
-    .action(async _cmd => {
+    .description('start the endo daemon as a background service')
+    .option('--dry-run', 'log what would be don, rather than doing it')
+    .action(async cmd => {
+      const { dryRun } = cmd.opts();
       const { start } = await import('@endo/daemon');
-      await start();
+      await start(undefined, {
+        dryRun,
+      });
+    });
+
+  program
+    .command('run-daemon')
+    .description('runs the endo daemon directly, no forking around')
+    .option(
+      '--feral-errors',
+      'disable SES error taming (readable error traces)',
+    )
+    .action(async cmd => {
+      const { feralErrors } = cmd.opts();
+      if (feralErrors) {
+        process.env.LOCKDOWN_ERROR_TAMING = 'unsafe';
+      }
+      const { main: daemonMain } = await import('@endo/daemon');
+      await daemonMain();
     });
 
   program
@@ -584,9 +809,14 @@ export const main = async rawArgs => {
   program
     .command('restart')
     .description('stop and start the daemon')
-    .action(async _cmd => {
+    .option(
+      '--feral-errors',
+      'disable SES error taming (readable error traces)',
+    )
+    .action(async cmd => {
+      const { feralErrors } = cmd.opts();
       const { restart } = await import('@endo/daemon');
-      await restart();
+      await restart(undefined, { feralErrors });
     });
 
   program
@@ -620,15 +850,16 @@ export const main = async rawArgs => {
   program
     .command('log')
     .option('-f, --follow', 'follow the tail of the log')
+    .option('-a, --all', 'include all logs (daemon and workers)')
     .option(
       '-p,--ping <interval>',
       'milliseconds between daemon restart checks',
     )
     .description('writes out the daemon log, optionally following updates')
     .action(async cmd => {
-      const { follow, ping } = cmd.opts();
+      const { follow, ping, all } = cmd.opts();
       const { log: logCommand } = await import('./commands/log.js');
-      await logCommand({ follow, ping });
+      await logCommand({ follow, ping, all });
     });
 
   program
@@ -639,6 +870,82 @@ export const main = async rawArgs => {
       await ping();
     });
 
+  // Group commands by topic in the help screen.
+  installGroupedHelp(
+    program,
+
+    {
+      title: 'Daemon',
+      commands: [
+        'start',
+        'stop',
+        'restart',
+        'run-daemon',
+        'status',
+        'clean',
+        'purge',
+        'log',
+        'ping',
+      ],
+    },
+
+    {
+      title: 'Storage',
+      commands: [
+        'list',
+        'show',
+        'cat',
+        'follow',
+        'store',
+        'checkin',
+        'checkout',
+        'mount',
+        'mktmp',
+        'locate',
+        'remove',
+        'move',
+        'copy',
+        'mkdir',
+        'cancel',
+      ],
+    },
+
+    {
+      title: 'Execution',
+      commands: ['run', 'make', 'eval', 'spawn', 'bundle', 'install', 'open'],
+    },
+
+    {
+      title: 'Messaging',
+      commands: [
+        'inbox',
+        'send',
+        'reply',
+        'send-value',
+        'dismiss',
+        'clear',
+        'request',
+        'resolve',
+        'reject',
+        'adopt',
+        'define',
+        'endow',
+        'form',
+        'submit',
+      ],
+    },
+
+    {
+      title: 'Agents',
+      commands: ['mkhost', 'mkguest', 'invite', 'accept'],
+    },
+
+    {
+      title: 'Configuration',
+      commands: ['where'],
+    },
+  );
+
   // Throw an error instead of exiting directly.
   program.exitOverride();
 
@@ -648,7 +955,13 @@ export const main = async rawArgs => {
     if (e && e.name === 'CommanderError') {
       return e.exitCode;
     }
-    throw e;
+
+    if (isTerminalError(e)) {
+      // TODO some terminal errors may warrant particular exit code
+      return 1;
+    } else {
+      throw e;
+    }
   }
   return 0;
 };

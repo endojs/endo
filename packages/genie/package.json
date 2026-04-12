@@ -1,0 +1,63 @@
+{
+  "name": "@endo/genie",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Claw-like AI Agent framework for Endo",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/genie"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "setup": "endo run --UNCONFINED setup.js --powers @agent GENIE_HOME=$GENIE_HOME",
+    "test": "ava",
+    "test:integration": "bash test/integration.sh -E GENIE_MODEL=ollama/llama3.2 -E GENIE_TEST=test/scenarios/workspace-tool.sh",
+    "repl": "node dev-repl.js",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/daemon": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/marshal": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@mariozechner/pi-agent-core": "^0.60.0",
+    "@mariozechner/pi-ai": "^0.60.0",
+    "better-sqlite3": "^11.0.0"
+  },
+  "devDependencies": {
+    "@endo/cli": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}

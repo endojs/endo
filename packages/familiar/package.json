@@ -1,0 +1,92 @@
+{
+  "name": "@endo/familiar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "🐈‍⬛ Endo Familiar - Electron desktop shell for Endo Chat",
+  "keywords": [
+    "endo",
+    "familiar",
+    "electron",
+    "desktop"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/familiar#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/familiar"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./bundles/electron-main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron electron-main.js --dev",
+    "build:app": "node scripts/build.mjs --app-only",
+    "build:package": "node scripts/build.mjs",
+    "step:bundle": "node scripts/bundle.mjs",
+    "step:download-node": "node scripts/download-node.mjs",
+    "step:prepare": "node scripts/prepare-package.mjs",
+    "step:package": "node scripts/package-app.mjs",
+    "step:make": "node scripts/make-distributables.mjs",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint --ignore-pattern out '**/*.js'",
+    "lint:types": "tsc",
+    "generate-icons": "./scripts/generate-icons.sh"
+  },
+  "dependencies": {
+    "@endo/where": "workspace:^",
+    "electron": "^40.8.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "^19.0.5",
+    "@endo/compartment-mapper": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@lavamoat/allow-scripts": "^3.4.1",
+    "appdmg": "^0.6.6",
+    "electron": "^40.8.0",
+    "electron-installer-dmg": "^5.0.1",
+    "esbuild": "^0.24.0",
+    "eslint": "catalog:dev",
+    "typescript": "~5.9.2"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "rules": {
+      "no-restricted-globals": "off"
+    },
+    "overrides": [
+      {
+        "files": [
+          "preload.js"
+        ],
+        "parserOptions": {
+          "sourceType": "script"
+        },
+        "env": {
+          "commonjs": true
+        }
+      },
+      {
+        "files": [
+          "scripts/*.mjs"
+        ],
+        "rules": {
+          "@endo/harden-exports": "off"
+        }
+      }
+    ]
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "electron": true,
+      "esbuild": true
+    }
+  }
+}

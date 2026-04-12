@@ -5,8 +5,24 @@ import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
 import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
 import { makeBidirectionalMultimap } from './multimap.js';
+import { makeSyncedPetStore } from './synced-pet-store.js';
 
-/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
+/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetName, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers, SyncedPetStore } from './types.js' */
+
+/**
+ * @param {string} formulaNumber
+ * @param {string} formulaType
+ * @param {FilePowers} filePowers
+ * @param {Config} config
+ */
+const makePetStorePath = (formulaNumber, formulaType, filePowers, config) => {
+  if (!isValidNumber(formulaNumber)) {
+    throw new Error(`Invalid formula number for pet store ${q(formulaNumber)}`);
+  }
+  const prefix = formulaNumber.slice(0, 2);
+  const suffix = formulaNumber.slice(2);
+  return filePowers.joinPath(config.statePath, formulaType, prefix, suffix);
+};
 
 /**
  * @param {FilePowers} filePowers
@@ -47,6 +63,7 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {Name} petName - The new name.
      */
     const publishNameAddition = (id, petName) => {
+      assertValidName(petName);
       const idRecord = parseId(id);
       nameChangesTopic.publisher.next({
         add: petName,
@@ -63,9 +80,8 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {Name} petName - The removed name.
      */
     const publishNameRemoval = (id, petName) => {
-      nameChangesTopic.publisher.next({
-        remove: petName,
-      });
+      assertValidName(petName);
+      nameChangesTopic.publisher.next({ remove: petName });
       if (id !== undefined) {
         publishIdChangeToSubscribers(id, {
           remove: parseId(id),
@@ -106,8 +122,8 @@ export const makePetStoreMaker = (filePowers, config) => {
       return idsToPetNames.getKey(petName);
     };
 
-    /** @type {PetStore['write']} */
-    const write = async (petName, formulaIdentifier) => {
+    /** @type {PetStore['storeIdentifier']} */
+    const storeIdentifier = async (petName, formulaIdentifier) => {
       assertValidName(petName);
       assertValidId(formulaIdentifier);
 
@@ -133,7 +149,11 @@ export const makePetStoreMaker = (filePowers, config) => {
     };
 
     /** @type {PetStore['list']} */
-    const list = () => harden(idsToPetNames.getAll().sort());
+    const list = () => {
+      // All names in the pet store have been validated before storage
+      const names = /** @type {PetName[]} */ (idsToPetNames.getAll().sort());
+      return harden(names);
+    };
 
     /** @type {PetStore['followNameChanges']} */
     const followNameChanges = async function* currentAndSubsequentNames() {
@@ -230,7 +250,38 @@ export const makePetStoreMaker = (filePowers, config) => {
       if (formulaPetNames === undefined) {
         return harden([]);
       }
-      return harden([...formulaPetNames]);
+      // All names in the pet store have been validated before storage
+      const names = /** @type {PetName[]} */ ([...formulaPetNames]);
+      return harden(names);
+    };
+
+    /**
+     * Normalize all stored formula identifiers using the given function.
+     * If the normalizer returns a different ID, the on-disk and in-memory
+     * mappings are rewritten.
+     * @param {(id: string) => string} normalizeId
+     */
+    const repairIds = async normalizeId => {
+      const allNames = idsToPetNames.getAll();
+      await Promise.all(
+        allNames.map(async petName => {
+          const oldId = idsToPetNames.getKey(petName);
+          if (oldId === undefined) {
+            return;
+          }
+          const newId = normalizeId(oldId);
+          if (newId !== oldId) {
+            idsToPetNames.delete(oldId, petName);
+            idsToPetNames.add(newId, petName);
+            const petNamePath = filePowers.joinPath(
+              petNameDirectoryPath,
+              petName,
+            );
+            const petNameText = `${newId}\n`;
+            await filePowers.writeFileText(petNamePath, petNameText);
+          }
+        }),
+      );
     };
 
     const petStore = {
@@ -240,9 +291,10 @@ export const makePetStoreMaker = (filePowers, config) => {
       list,
       followIdNameChanges,
       followNameChanges,
-      write,
+      storeIdentifier,
       remove,
       rename,
+      repairIds,
     };
 
     return petStore;
@@ -256,23 +308,94 @@ export const makePetStoreMaker = (filePowers, config) => {
     formulaType,
     assertValidName,
   ) => {
-    if (!isValidNumber(formulaNumber)) {
-      throw new Error(
-        `Invalid formula number for pet store ${q(formulaNumber)}`,
-      );
-    }
-    const prefix = formulaNumber.slice(0, 2);
-    const suffix = formulaNumber.slice(2);
-    const petNameDirectoryPath = filePowers.joinPath(
-      config.statePath,
+    const petNameDirectoryPath = makePetStorePath(
+      formulaNumber,
       formulaType,
-      prefix,
-      suffix,
+      filePowers,
+      config,
     );
     return makePetStoreAtPath(petNameDirectoryPath, assertValidName);
   };
 
+  /** @type {PetStorePowers['deletePetStore']} */
+  const deletePetStore = async (formulaNumber, formulaType) => {
+    const directory = makePetStorePath(
+      formulaNumber,
+      formulaType,
+      filePowers,
+      config,
+    );
+    const entries = await filePowers.readDirectory(directory).catch(error => {
+      if (error.message.startsWith('ENOENT: ')) {
+        return [];
+      }
+      throw error;
+    });
+    await Promise.all(
+      entries.map(async entry => {
+        const entryPath = filePowers.joinPath(directory, entry);
+        await filePowers.removePath(entryPath).catch(() => {});
+      }),
+    );
+    await filePowers.removePath(directory).catch(() => {});
+  };
+
+  /**
+   * @param {string} formulaNumber
+   * @param {string} localNodeId
+   * @param {'grantor' | 'grantee'} role
+   * @returns {Promise<SyncedPetStore>}
+   */
+  const makeIdentifiedSyncedPetStore = (formulaNumber, localNodeId, role) => {
+    const storePath = makePetStorePath(
+      formulaNumber,
+      'synced-pet-store',
+      filePowers,
+      config,
+    );
+    return makeSyncedPetStore({
+      storePath,
+      filePowers,
+      localNodeId,
+      role,
+    });
+  };
+
+  /**
+   * @param {string} formulaNumber
+   */
+  const deleteSyncedPetStore = async formulaNumber => {
+    const directory = makePetStorePath(
+      formulaNumber,
+      'synced-pet-store',
+      filePowers,
+      config,
+    );
+    // Recursively remove the synced store directory (names/ subdir + clock.json).
+    const removeDir = async (/** @type {string} */ dir) => {
+      const entries = await filePowers.readDirectory(dir).catch(error => {
+        if (error.message.startsWith('ENOENT: ')) {
+          return [];
+        }
+        throw error;
+      });
+      await Promise.all(
+        entries.map(async entry => {
+          const entryPath = filePowers.joinPath(dir, entry);
+          // Try as directory first, fall back to file.
+          await removeDir(entryPath).catch(() => {});
+          await filePowers.removePath(entryPath).catch(() => {});
+        }),
+      );
+      await filePowers.removePath(dir).catch(() => {});
+    };
+    await removeDir(directory);
+  };
+
   return {
     makeIdentifiedPetStore,
+    deletePetStore,
+    makeIdentifiedSyncedPetStore,
+    deleteSyncedPetStore,
   };
 };

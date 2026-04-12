@@ -28,6 +28,7 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-jessie": "^0.0.6",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-exports": "^1.0.0-beta.5",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsdoc": "^50.6.1",
     "lerna": "^8.1.8",
@@ -80,10 +81,20 @@
   "eslintConfig": {
     "root": true
   },
+  "dependenciesMeta": {
+    "@ipshipyard/node-datachannel": {
+      "built": true
+    },
+    "better-sqlite3": {
+      "built": true
+    }
+  },
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "lerna>nx": false
+      "lerna>nx": false,
+      "@ipshipyard/node-datachannel": true,
+      "better-sqlite3": true
     }
   }
 }

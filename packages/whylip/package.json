@@ -1,0 +1,51 @@
+{
+  "name": "@endo/whylip",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Whylip — an interactive illustrated primer powered by Fae agents",
+  "keywords": [
+    "endo",
+    "whylip",
+    "primer",
+    "fae",
+    "interactive"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/whylip"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.{js,jsx}'"
+  },
+  "dependencies": {
+    "@endo/conversation-tree": "workspace:^",
+    "@endo/far": "workspace:^",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "env": {
+      "browser": true
+    }
+  }
+}
