@@ -4,6 +4,7 @@ import harden from '@endo/harden';
 
 import { formatId, parseId } from './formula-identifier.js';
 import { LOCAL_NODE } from './locator.js';
+import { isPetName } from './pet-name.js';
 
 /** @import { FormulaIdentifier, GcHooks, Name, PetName, PetStore, StoreController, StoreConverters, SyncedPetStore } from './types.js' */
 
@@ -198,6 +199,9 @@ export const makeSyncedStoreController = (
     const names = [];
     const state = syncedStore.getState();
     for (const [key, entry] of Object.entries(state)) {
+      if (!isPetName(key)) {
+        continue;
+      }
       if (entry.locator !== null) {
         try {
           const { id: entryId } = converters.internalizeLocator(
@@ -318,6 +322,9 @@ export const makeSyncedStoreController = (
   /** @type {StoreController['followNameChanges']} */
   const followNameChanges = async function* syncedFollowNameChanges() {
     for await (const { key, entry } of syncedStore.followChanges()) {
+      if (!isPetName(key)) {
+        continue;
+      }
       if (entry.locator !== null) {
         const entryId = safeIdFromLocator(entry.locator);
         if (entryId !== undefined) {
@@ -349,6 +356,9 @@ export const makeSyncedStoreController = (
     });
     // Then deltas.
     for await (const { key, entry } of syncedStore.followChanges()) {
+      if (!isPetName(key)) {
+        continue;
+      }
       const entryId =
         entry.locator !== null ? safeIdFromLocator(entry.locator) : undefined;
       let normalizedEntryId;
@@ -376,16 +386,16 @@ export const makeSyncedStoreController = (
   /** @type {StoreController['seedGcEdges']} */
   const seedGcEdges = async () => {
     await null;
-    const names = syncedStore.list();
     /** @type {FormulaIdentifier[]} */
     const ids = [];
-    for (const name of names) {
-      const locator = syncedStore.lookup(name);
-      if (locator !== undefined) {
-        const id = safeIdFromLocator(locator);
-        if (id !== undefined) {
-          ids.push(id);
-        }
+    const state = syncedStore.getState();
+    for (const entry of Object.values(state)) {
+      if (entry.locator === null) {
+        continue;
+      }
+      const id = safeIdFromLocator(entry.locator);
+      if (id !== undefined) {
+        ids.push(id);
       }
     }
     if (ids.length > 0) {

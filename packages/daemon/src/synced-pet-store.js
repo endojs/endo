@@ -11,7 +11,7 @@ import { M } from '@endo/patterns';
 import { q } from '@endo/errors';
 
 import { makeChangeTopic } from './pubsub.js';
-import { assertPetName } from './pet-name.js';
+import { assertName, isPetName } from './pet-name.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeIteratorRef } from './reader-ref.js';
 
@@ -231,8 +231,9 @@ export const makeSyncedPetStore = async ({
 
   /** @type {SyncedPetStore['storeLocator']} */
   const storeLocator = async (petName, locator) => {
-    assertPetName(petName);
-    if (role === 'grantee') {
+    assertName(petName);
+    const isInternalEntry = !isPetName(petName);
+    if (role === 'grantee' && !isInternalEntry) {
       throw new Error('Grantee cannot write new entries');
     }
     meta.localClock += 1;
@@ -250,7 +251,7 @@ export const makeSyncedPetStore = async ({
 
   /** @type {SyncedPetStore['remove']} */
   const remove = async petName => {
-    assertPetName(petName);
+    assertName(petName);
     if (!state.has(petName)) {
       throw new Error(`No entry for pet name ${q(petName)}`);
     }
@@ -292,7 +293,7 @@ export const makeSyncedPetStore = async ({
     /** @type {PetName[]} */
     const names = [];
     for (const [key, entry] of state) {
-      if (entry.locator !== null) {
+      if (entry.locator !== null && isPetName(key)) {
         names.push(/** @type {PetName} */ (key));
       }
     }

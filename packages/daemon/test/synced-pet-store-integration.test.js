@@ -154,18 +154,14 @@ test.serial(
     // The synced store should have a 'list' method.
     const aliceNames = await E(aliceSyncedStore).list();
     t.true(Array.isArray(aliceNames), 'Alice synced store should be listable');
-    // Alice's grantor store wrote the guest handle under "bob" pet name
-    // during acceptance.
-    t.true(
-      aliceNames.length !== 0,
-      'Alice store should have at least one entry',
-    );
+    // Peer bootstrap entries are hidden from the user-facing list.
+    t.deepEqual(aliceNames, []);
 
     // Bob should have a synced-pet-store under 'alice'.
     const bobSyncedStore = await E(hostB).getSyncedStore('alice');
     t.truthy(bobSyncedStore, 'Bob should have a synced store under "alice"');
     const bobNames = await E(bobSyncedStore).list();
-    t.true(Array.isArray(bobNames), 'Bob synced store should be listable');
+    t.deepEqual(bobNames, []);
   },
 );
 
@@ -208,6 +204,7 @@ test.serial(
     t.is(aliceLocator, bobLocator, 'Both stores should agree on the locator');
   },
 );
+
 
 test.serial('synced stores converge via manual sync', async t => {
   const { host: hostA } = await prepareHostWithTestNetwork(t);
@@ -460,3 +457,61 @@ test.serial('synced stores converge after offline changes', async t => {
     'Bob should have post-restart entry after sync with restarted daemon',
   );
 });
+
+test.serial(
+  'sending to peer records hidden export retention entries',
+  async t => {
+    const { host: hostA } = await prepareHostWithTestNetwork(t);
+    const { host: hostB } = await prepareHostWithTestNetwork(t);
+
+    const invitation = await E(hostA).invite('bob');
+    const invitationLocator = await E(invitation).locate();
+    await E(hostB).accept(invitationLocator, 'alice');
+
+    const aliceStore = await E(hostA).getSyncedStore('bob');
+    const bobStore = await E(hostB).getSyncedStore('alice');
+
+    await E(hostA).storeValue('tracked-export-value', 'tracked-export-value');
+    await E(hostA).send(
+      'bob',
+      ['tracked @value'],
+      ['value'],
+      ['tracked-export-value'],
+    );
+
+    const deadline = Date.now() + 15_000;
+    /** @type {[string, import('../src/types.js').SyncedEntry] | undefined} */
+    let retained;
+    while (Date.now() < deadline) {
+      const state = await E(aliceStore).getState();
+      retained = Object.entries(state).find(
+        ([name, entry]) => name.startsWith('@export-') && entry.locator !== null,
+      );
+      if (retained !== undefined) {
+        break;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    t.truthy(retained, 'Alice should track exports in hidden synced-store rows');
+    const [hiddenName, hiddenEntry] = /** @type {[string, any]} */ (retained);
+    const listedNames = await E(aliceStore).list();
+    t.false(
+      listedNames.includes(hiddenName),
+      'Hidden export entries must not appear in list()',
+    );
+
+    let mirrored = false;
+    while (Date.now() < deadline) {
+      const state = await E(bobStore).getState();
+      if (state[hiddenName]?.locator === hiddenEntry.locator) {
+        mirrored = true;
+        break;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    t.true(mirrored, 'Hidden export entries should synchronize to the peer');
+  },
+);

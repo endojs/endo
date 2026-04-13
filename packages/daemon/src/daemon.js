@@ -4484,10 +4484,13 @@ const makeDaemonCore = async (
           peerId, // store dependency (peer keeps alive)
         );
 
-      // Write the guest handle locator into the synced store.
+      // Write the guest handle locator into a hidden synced-store entry.
+      // Hidden entries use special-name keys and are filtered from ordinary
+      // user-facing listing operations.
+      const peerHandleEntry = /** @type {PetName} */ ('@peer-handle');
       const guestHandleLocatorStr = formatLocator(guestHandleId, 'remote');
       await E(syncedStoreValue).storeLocator(
-        /** @type {PetName} */ (guestName),
+        peerHandleEntry,
         guestHandleLocatorStr,
       );
 
@@ -4505,10 +4508,8 @@ const makeDaemonCore = async (
           hostHandleExternalId,
           'handle',
         );
-        await E(syncedStoreValue).storeLocator(
-          /** @type {PetName} */ (hostNameFromGuest),
-          hostHandleLocatorStr,
-        );
+        const selfHandleEntry = /** @type {PetName} */ ('@self-handle');
+        await E(syncedStoreValue).storeLocator(selfHandleEntry, hostHandleLocatorStr);
       }
 
       // Create a local guest backed by the synced store.

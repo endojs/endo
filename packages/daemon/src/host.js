@@ -13,6 +13,7 @@ import {
   assertPetNamePath,
   assertName,
   assertNamePath,
+  isPetName,
   namePathFrom,
 } from './pet-name.js';
 import {
@@ -21,7 +22,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { addressesFromLocator, formatLocator } from './locator.js';
+import { addressesFromLocator, formatLocator, LOCAL_NODE } from './locator.js';
 import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
@@ -198,6 +199,55 @@ export const makeHostMaker = ({
       isLocalKey,
       getNetworkAddresses,
     );
+    let exportRetentionCounter = 0;
+    const makeExportRetentionName = () => {
+      exportRetentionCounter += 1;
+      return `@export-${exportRetentionCounter.toString(16)}`;
+    };
+
+    /**
+     * Track formulas sent to a remote peer in that peer's hidden synced table.
+     * These entries retain formulas even if the exporter never names them
+     * in their own local pet store.
+     *
+     * @param {FormulaIdentifier} recipientId
+     * @param {FormulaIdentifier[]} ids
+     */
+    const trackSentIdentifiers = async (recipientId, ids) => {
+      const { node: recipientNode } = parseId(recipientId);
+      if (recipientNode === LOCAL_NODE || isLocalKey(recipientNode)) {
+        return;
+      }
+
+      const peerNames = specialStore
+        .reverseIdentify(recipientId)
+        .filter(name => isPetName(name));
+
+      for (const peerName of peerNames) {
+        let syncedStore;
+        try {
+          syncedStore = await getSyncedStore(peerName);
+        } catch {
+          continue;
+        }
+        for (const id of ids) {
+          const { node } = parseId(id);
+          if (node !== LOCAL_NODE && !isLocalKey(node)) {
+            continue;
+          }
+          const formulaType = await getTypeForId(id);
+          const { number } = parseId(id);
+          const externalizedId = formatId({
+            number,
+            node: agentNodeNumber,
+          });
+          const locator = formatLocator(externalizedId, formulaType);
+          await E(syncedStore).storeLocator(makeExportRetentionName(), locator);
+        }
+        return;
+      }
+    };
+
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,
@@ -205,6 +255,7 @@ export const makeHostMaker = ({
       directory,
       selfId: handleId,
       context,
+      trackSentIdentifiers,
     });
     const { petStore, handle } = mailbox;
     const getEndoBootstrap = async () => provide(endoId, 'endo');

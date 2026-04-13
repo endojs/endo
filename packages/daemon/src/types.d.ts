@@ -699,15 +699,18 @@ export type SyncedPetStoreChange = {
 };
 
 export interface SyncedPetStore {
-  /** Store a name->locator entry (grantor only). */
-  storeLocator(petName: PetName, locator: string): Promise<void>;
+  /**
+   * Store a name->locator entry.
+   * Grantees may only write special-name internal entries.
+   */
+  storeLocator(petName: Name, locator: string): Promise<void>;
   /** Delete a name (tombstone). Either party can delete. */
-  remove(petName: PetName): Promise<void>;
+  remove(petName: Name): Promise<void>;
   /** Check if a non-tombstoned entry exists for the name. */
   has(petName: string): boolean;
   /** Look up the locator for a name, or undefined if absent/tombstoned. */
   lookup(petName: string): string | undefined;
-  /** List all non-tombstoned pet names, sorted. */
+  /** List all non-tombstoned regular pet names, sorted. */
   list(): PetName[];
   /** Return a serializable snapshot of the full CRDT state (including tombstones). */
   getState(): Record<string, SyncedEntry>;
@@ -908,6 +911,13 @@ export type MakeMailbox = (args: {
   mailboxStore: StoreController;
   directory: EndoDirectory;
   context: Context;
+  /**
+   * Optional hook for host mailboxes to retain formulas sent to remote peers.
+   */
+  trackSentIdentifiers?: (
+    recipientId: FormulaIdentifier,
+    ids: FormulaIdentifier[],
+  ) => Promise<void>;
 }) => Promise<Mail>;
 
 export type RequestFn = (

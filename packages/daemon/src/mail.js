@@ -148,6 +148,7 @@ export const makeMailboxMaker = ({
     mailboxStore,
     directory,
     context,
+    trackSentIdentifiers = async (_recipientId, _ids) => {},
   }) => {
     const { number: selfNumber } = parseId(localSelfId);
     const selfId = formatId({
@@ -862,6 +863,7 @@ export const makeMailboxMaker = ({
           return /** @type {FormulaIdentifier} */ (id);
         }),
       );
+      await trackSentIdentifiers(/** @type {FormulaIdentifier} */ (toId), ids);
 
       /** @type {import('./types.js').FormulaNumber | undefined} */
       let replyTo;
@@ -939,6 +941,10 @@ export const makeMailboxMaker = ({
           assertValidId(id);
           return /** @type {FormulaIdentifier} */ (id);
         }),
+      );
+      await trackSentIdentifiers(
+        /** @type {FormulaIdentifier} */ (otherId),
+        ids,
       );
 
       const message = harden({
@@ -1314,6 +1320,10 @@ export const makeMailboxMaker = ({
         throw new Error(`Unknown pet name ${q(petNameOrPath)}`);
       }
       assertValidId(valueId);
+      await trackSentIdentifiers(
+        /** @type {FormulaIdentifier} */ (otherId),
+        [/** @type {FormulaIdentifier} */ (valueId)],
+      );
 
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex256()

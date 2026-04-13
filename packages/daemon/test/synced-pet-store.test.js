@@ -189,6 +189,24 @@ test('synced store: grantee cannot write', async t => {
   }
 });
 
+test('synced store: grantee can write hidden internal entries', async t => {
+  const dir = await makeTmpDir('grantee-internal-write');
+  try {
+    const store = await makeSyncedPetStore({
+      storePath: dir,
+      filePowers,
+      localNodeId: 'node-bob',
+      role: 'grantee',
+    });
+    await store.storeLocator('@export-1', 'endo://node-alice/handle:xyz');
+    t.is(store.lookup('@export-1'), 'endo://node-alice/handle:xyz');
+    // Hidden entries do not appear in user-facing list().
+    t.deepEqual(store.list(), []);
+  } finally {
+    await removeTmpDir(dir);
+  }
+});
+
 test('synced store: remove creates tombstone', async t => {
   const dir = await makeTmpDir('remove');
   try {
@@ -529,6 +547,24 @@ test('synced store: overwrite updates entry', async t => {
     await store.storeLocator('name', 'loc-new');
     t.is(store.lookup('name'), 'loc-new');
     t.is(store.getLocalClock(), 2);
+  } finally {
+    await removeTmpDir(dir);
+  }
+});
+
+test('synced store: internal entries are hidden from list', async t => {
+  const dir = await makeTmpDir('hidden-list');
+  try {
+    const store = await makeSyncedPetStore({
+      storePath: dir,
+      filePowers,
+      localNodeId: 'node-alice',
+      role: 'grantor',
+    });
+    await store.storeLocator('@export-1', 'loc-hidden');
+    await store.storeLocator('visible', 'loc-visible');
+    t.deepEqual(store.list(), ['visible']);
+    t.is(store.lookup('@export-1'), 'loc-hidden');
   } finally {
     await removeTmpDir(dir);
   }
