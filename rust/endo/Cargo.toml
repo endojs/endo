@@ -1,0 +1,14 @@
+[package]
+name = "endo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libc = "0.2"
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "signal", "process", "io-util", "net", "time"] }
+xsnap = { path = "xsnap" }
+
+[[bin]]
+name = "endor"
+path = "src/bin/endor.rs"

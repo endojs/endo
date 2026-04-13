@@ -31,6 +31,9 @@ bower_components
 
 # Rust
 target
+rust/endo/xsnap/src/ses_boot.js
+rust/endo/xsnap/src/worker_bootstrap.js
+rust/endo/xsnap/src/daemon_bootstrap.js
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
