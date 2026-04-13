@@ -516,7 +516,12 @@ const makeDaemonCore = async (
           ['bundle', formula.bundle],
         ];
       case 'peer':
-        return [['networks', formula.networks]];
+        return [
+          ['networks', formula.networks],
+          ...(formula.syncedStore === undefined
+            ? []
+            : [['syncedStore', formula.syncedStore]]),
+        ];
       case 'handle':
         return [['agent', formula.agent]];
       case 'mail-hub':
@@ -2951,6 +2956,28 @@ const makeDaemonCore = async (
     return /** @type {FormulaIdentifier} */ (peerId);
   };
 
+  /** @type {DaemonCore['setPeerSyncedStore']} */
+  const setPeerSyncedStore = async (peerId, syncedStoreId) => {
+    const peerFormula = await getFormulaForId(peerId);
+    if (peerFormula.type !== 'peer') {
+      throw makeError(X`Formula ${q(peerId)} is not a peer`);
+    }
+    if (peerFormula.syncedStore === syncedStoreId) {
+      return;
+    }
+    /** @type {PeerFormula} */
+    const updatedFormula = harden({
+      ...peerFormula,
+      syncedStore: syncedStoreId,
+    });
+    const { number: peerNumber } = parseId(peerId);
+    await persistencePowers.writeFormula(peerNumber, updatedFormula);
+    await withFormulaGraphLock(async () => {
+      formulaForId.set(peerId, updatedFormula);
+      formulaGraph.onFormulaAdded(peerId, updatedFormula);
+    });
+  };
+
   /** @type {DaemonCore['cancelValue']} */
   const cancelValue = async (id, reason) => {
     // Wait for any in-flight graph operation (formulation, collection)
@@ -4483,6 +4510,7 @@ const makeDaemonCore = async (
           /** @type {FormulaNumber} */ ('0'.repeat(64)),
           peerId, // store dependency (peer keeps alive)
         );
+      await setPeerSyncedStore(peerId, syncedStoreId);
 
       // Write the guest handle locator into a hidden synced-store entry.
       // Hidden entries use special-name keys and are filtered from ordinary
@@ -4515,22 +4543,12 @@ const makeDaemonCore = async (
       // Create a local guest backed by the synced store.
       /** @type {DeferredTasks<AgentDeferredTaskParams>} */
       const guestTasks = makeDeferredTasks();
-      const { id: localGuestId } = await formulateGuest(
+      await formulateGuest(
         hostAgentId,
         hostHandleId,
         guestTasks,
         `guest:${guestName}`,
         syncedStoreId,
-      );
-
-      // Name the local guest handle inside @pins so that incarnating
-      // it transitively incarnates the guest and its synced pet store.
-      const localGuestFormula = /** @type {GuestFormula} */ (
-        await getFormulaForId(localGuestId)
-      );
-      await E(hostAgent).storeIdentifier(
-        /** @type {NamePath} */ (['@pins', `guest-${guestName}`]),
-        localGuestFormula.handle,
       );
 
       // Store the remote guest handle under guestName for mail delivery.
@@ -4691,6 +4709,7 @@ const makeDaemonCore = async (
     formulateScratchMount,
     formulateInvitation,
     formulateSyncedPetStore,
+    setPeerSyncedStore,
     formulateDirectoryForStore,
     getPeerIdForNodeIdentifier,
     getAllNetworkAddresses,
@@ -4814,6 +4833,9 @@ const makeDaemonCore = async (
           harden({
             NODE: formula.node,
             ADDRESSES: formula.addresses,
+            ...(formula.syncedStore === undefined
+              ? {}
+              : { SYNCED_STORE: formula.syncedStore }),
           }),
         );
       }

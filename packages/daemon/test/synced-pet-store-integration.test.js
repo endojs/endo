@@ -428,7 +428,7 @@ test.serial('synced stores converge after offline changes', async t => {
   await E(hostA2).move(['test-network-2'], ['@nets', 'tcp']);
 
   // After restart, the synced store should still be accessible via
-  // getSyncedStore because the mapping is persisted in the @pins directory.
+  // getSyncedStore because the peer formula stores the synced-store ID.
   const aliceStore2 = await E(hostA2).getSyncedStore('bob');
   t.truthy(aliceStore2, 'Alice synced store should survive restart');
 

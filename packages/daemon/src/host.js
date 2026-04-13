@@ -72,6 +72,7 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
+ * @param {DaemonCore['setPeerSyncedStore']} args.setPeerSyncedStore
  * @param {DaemonCore['formulateDirectoryForStore']} args.formulateDirectoryForStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
@@ -106,6 +107,7 @@ export const makeHostMaker = ({
   formulateScratchMount,
   formulateInvitation,
   formulateSyncedPetStore,
+  setPeerSyncedStore,
   formulateDirectoryForStore,
   getPeerIdForNodeIdentifier,
   formulateChannel,
@@ -932,28 +934,17 @@ export const makeHostMaker = ({
         /** @type {import('./types.js').FormulaNumber} */ (syncedStoreNumber),
         peerId, // store dependency
       );
+      await setPeerSyncedStore(peerId, syncedStoreId);
 
       // Create a local guest backed by the synced store.
       /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
       const guestTasks = makeDeferredTasks();
-      const { id: localGuestId } = await formulateGuest(
+      await formulateGuest(
         hostId,
         handleId,
         guestTasks,
         `guest:${guestName}`,
         syncedStoreId,
-      );
-
-      // Look up the local guest's handle from its formula so we can
-      // name it.  Incarnating the handle transitively incarnates the
-      // guest and its synced pet store, starting synchronisation.
-      const localGuestFormula =
-        /** @type {import('./types.js').GuestFormula} */ (
-          await getFormulaForId(localGuestId)
-        );
-      await E(directory).storeIdentifier(
-        ['@pins', `guest-${guestName}`],
-        localGuestFormula.handle,
       );
 
       // Store the remote handle under guestName for mail delivery.
@@ -969,31 +960,30 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['registerSyncedStore']} */
     const registerSyncedStore = async (_petName, _syncedStoreId) => {
-      // No-op: the synced store is now discovered via the formula
-      // graph (guest handle → guest → petStore).  Retained for
-      // interface compatibility.
+      // No-op: synced stores are attached to peer formulas.
+      // Retained for interface compatibility.
     };
 
     /** @type {EndoHost['getSyncedStore']} */
     const getSyncedStore = async petName => {
-      // Traverse the formula graph:
-      // @pins/guest-<name> → local guest handle
-      //   → handle formula.agent → guest formula
-      //     → guest formula.petStore → synced store
-      const localHandleId = await E(directory).identify(
-        '@pins',
-        `guest-${petName}`,
-      );
-      if (localHandleId === undefined) {
+      const remoteHandleId = await E(directory).identify(petName);
+      if (remoteHandleId === undefined) {
         throw new Error(`No synced store for ${q(petName)}`);
       }
-      const handleFormula = /** @type {import('./types.js').HandleFormula} */ (
-        await getFormulaForId(/** @type {FormulaIdentifier} */ (localHandleId))
+      const { node: remoteNode } = parseId(
+        /** @type {FormulaIdentifier} */ (remoteHandleId),
       );
-      const guestFormula = /** @type {import('./types.js').GuestFormula} */ (
-        await getFormulaForId(handleFormula.agent)
+      if (remoteNode === LOCAL_NODE || isLocalKey(remoteNode)) {
+        throw new Error(`No synced store for non-peer ${q(petName)}`);
+      }
+      const peerId = await getPeerIdForNodeIdentifier(
+        /** @type {NodeNumber} */ (remoteNode),
       );
-      return provide(guestFormula.petStore, 'synced-pet-store');
+      const peerFormula = await getFormulaForId(peerId);
+      if (peerFormula.type !== 'peer' || peerFormula.syncedStore === undefined) {
+        throw new Error(`No synced store for ${q(petName)}`);
+      }
+      return provide(peerFormula.syncedStore, 'synced-pet-store');
     };
 
     /** @type {EndoHost['cancel']} */

@@ -282,6 +282,7 @@ type PeerFormula = {
   networks: FormulaIdentifier;
   node: NodeNumber;
   addresses: Array<string>;
+  syncedStore?: FormulaIdentifier;
 };
 
 type HandleFormula = {
@@ -1567,6 +1568,11 @@ export interface DaemonCore {
   getPeerIdForNodeIdentifier: (
     nodeNumber: NodeNumber,
   ) => Promise<FormulaIdentifier>;
+
+  setPeerSyncedStore: (
+    peerId: FormulaIdentifier,
+    syncedStoreId: FormulaIdentifier,
+  ) => Promise<void>;
 
   formulateEndo: (
     specifiedFormulaNumber?: FormulaNumber,
