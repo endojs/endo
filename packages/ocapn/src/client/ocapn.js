@@ -1068,6 +1068,8 @@ export const makeOcapn = ({
     exportHook,
     onSlotCollected: slotCollectedHook,
     enableImportCollection,
+    peerLocation,
+    sessionId,
   });
 
   /** @type {MakeHandoff} */

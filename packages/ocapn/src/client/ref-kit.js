@@ -122,9 +122,14 @@ export const makeReferenceKit = (
     let slot = ocapnTable.getSlotForValue(value);
     if (slot === undefined) {
       // If there is no slot for this value, its our own export.
-      const position = nextExportPosition;
-      nextExportPosition += ONE_N;
       const type = value instanceof Promise ? 'p' : 'o';
+      let position = nextExportPosition;
+      slot = makeSlot(type, true, position);
+      while (ocapnTable.getValueForSlot(slot) !== undefined) {
+        position += ONE_N;
+        slot = makeSlot(type, true, position);
+      }
+      nextExportPosition = position + ONE_N;
       slot = makeSlot(type, true, position);
       ocapnTable.registerSlot(slot, value);
     }
