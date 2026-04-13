@@ -10,7 +10,13 @@ export const makeLoopbackNetwork = gateway => {
     'Loopback Network',
     /** @type {import('../types.js').EndoNetwork} */ ({
       addresses: () => [],
-      supports: address => new URL(address).protocol === 'loop:',
+      supports: addressOrProtocol => {
+        try {
+          return new URL(addressOrProtocol).protocol === 'loop:';
+        } catch {
+          return addressOrProtocol === 'loop:' || addressOrProtocol === 'loop';
+        }
+      },
       connect: address => {
         if (address !== 'loop:') {
           throw new Error(
