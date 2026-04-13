@@ -201,10 +201,20 @@ export const makeHostMaker = ({
       isLocalKey,
       getNetworkAddresses,
     );
-    let exportRetentionCounter = 0;
-    const makeExportRetentionName = () => {
-      exportRetentionCounter += 1;
-      return `@export-${exportRetentionCounter.toString(16)}`;
+    /**
+     * Derive an objective, deterministic hidden export-table key.
+     * Use the externalized identifier (node:number) so the key is
+     * stable across process restarts and independent of local formula
+     * identifier normalization.
+     *
+     * @param {FormulaIdentifier} externalizedId
+     * @returns {Name}
+     */
+    const makeExportRetentionNameForId = externalizedId => {
+      const { node, number } = parseId(externalizedId);
+      return /** @type {Name} */ (
+        `@export-${node.slice(0, 16)}-${number.slice(0, 16)}`
+      );
     };
 
     /**
@@ -245,7 +255,7 @@ export const makeHostMaker = ({
           });
           const locator = formatLocator(externalizedId, formulaType);
           await E(syncedStore).storeLocator(
-            /** @type {Name} */ (makeExportRetentionName()),
+            makeExportRetentionNameForId(id),
             locator,
           );
         }
