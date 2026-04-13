@@ -2287,10 +2287,6 @@ const makeDaemonCore = async (
       { worker: workerId, powers: powersId, bundle: bundleId, env = {}, cancelWithWorker },
       context,
     ) => makeBundle(workerId, powersId, bundleId, env, context, cancelWithWorker),
-    'make-archive': (
-      { worker: workerId, powers: powersId, archive: archiveId, env = {} },
-      context,
-    ) => makeArchiveCaplet(workerId, powersId, archiveId, env, context),
     host: async (formula, context, id) => {
       const {
         hostHandle: hostHandleId,
