@@ -61,3 +61,18 @@ export const provideFromBaggage = (baggage, key, makeValue) => {
   }
   return value;
 };
+
+/**
+ * Baggage helper for map-like durable tables.
+ *
+ * In durable deployments this is where storage can reject unsupported values
+ * (for example, non-durable remotables) by throwing from `set`.
+ *
+ * @template T
+ * @param {Baggage} baggage
+ * @param {string} key
+ * @returns {Map<string, T>}
+ */
+export const provideMapStoreFromBaggage = (baggage, key) => {
+  return provideFromBaggage(baggage, key, () => new Map());
+};

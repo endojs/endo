@@ -83,8 +83,8 @@ That implies we should make `@endo/ocapn` core run against a **baggage-like abst
 4. **Durable mode is explicit composition**  
    A new package assembles durable adapters and policies; core package remains usable standalone.
 
-5. **Boundary enforcement at export/import seam**  
-   Durable mode enforces that only copy data + durable remotables cross the boundary.
+5. **Durability enforced by baggage/store semantics**  
+   Durable mode should rely on durable baggage/store behavior: attempts to persist non-durable values fail naturally (for example plain `Far` references).
 
 6. **Resume-aware transport abstraction**  
    Logical session continuity is separate from socket continuity.
@@ -99,7 +99,6 @@ That implies we should make `@endo/ocapn` core run against a **baggage-like abst
 - sturdyref store factory
 - baggage adapter for persistent key-value state
 - session persistence/resume policy
-- passability/durability boundary validator
 - optional resumable netlayer protocol adapter
 - remotable constructor hooks (so durable mode can replace selected `Far(...)` helpers with `makeExo`/durable exo constructors)
 
@@ -109,8 +108,8 @@ Responsibilities:
 
 - construct an OCapN client using live-slots baggage-backed stores
 - provide durable implementations of required factories
-- provide durable policy defaults:
-  - durable object boundary validator
+- provide durable composition defaults:
+  - baggage/store durability enforcement
   - resume-aware netlayer adapter
 - avoid duplicate protocol logic by delegating to core `@endo/ocapn`.
 
@@ -158,17 +157,15 @@ Replace direct `Map` assumptions with a store interface:
 Ephemeral mode can use current `Map + WeakMap` behavior.
 Durable mode can bind swissnum metadata and object references in baggage.
 
-### D. Boundary policy seam (durability gate)
+### D. Durability gate via baggage/store semantics
 
-Add a pluggable boundary validator invoked before export and after import decode:
+Instead of a protocol-level boundary policy hook, durable mode should rely on its storage layer:
 
-- default policy: current behavior (remotables allowed)
-- durable policy:
-  - allow copydata
-  - allow durable remotables only
-  - reject ephemeral remotables/promises that cannot survive restart semantics
+- when runtime state is persisted into durable baggage-backed tables, non-durable values fail at storage time
+- this naturally enforces durable-only crossings for persisted state
+- ephemeral mode keeps in-memory permissive behavior
 
-This is where replacing selected `Far` usage with `makeExo`/durable-exo constructions (provided by higher-level package) can be enforced.
+This still pairs with replacing selected `Far` usage with `makeExo`/durable-exo constructions in durable compositions.
 
 ### E. Session resume seam
 
@@ -239,7 +236,7 @@ Durable mode should persist at least:
 | Sturdyref table | in-memory baggage-backed table + weak metadata | durable baggage-backed table (+ durable metadata strategy) |
 | Session continuity | connection lifetime | logical session across reconnect |
 | Netlayer | existing contract | resume-aware adapter |
-| Boundary object policy | current permissive remotables | durable-only remotables + copydata |
+| Durability gate | in-memory permissive storage | durable baggage rejects non-durable values |
 
 ## Compatibility expectations
 
@@ -251,7 +248,7 @@ Durable mode should persist at least:
 
 1. What exact fields should `op:resume-session` carry (resume token, epoch, transcript binding) for replay resistance?
 2. How are unresolved answer promises treated across restart (abort vs resumable replay)?
-3. Which exact durable-object predicate should be enforced at boundary (source of truth)?
+3. Which baggage/store rejection behavior should be considered canonical for durable-only enforcement?
 4. Are gifts/handoff tables required to persist across restart for correctness, or can they be invalidated?
 5. Should sturdyref token internals remain weakly held in-memory for ergonomics while canonical data is baggage-backed?
 
@@ -261,4 +258,4 @@ Durable mode should persist at least:
 - Hook-enabled core OCapN refactor
 - Durable table and sturdyref adapters backed by baggage
 - Resume-aware netlayer adapter and protocol tests
-- Boundary policy tests proving non-durable remotables are rejected in durable mode
+- Durability-storage tests proving non-durable remotables are rejected in durable mode

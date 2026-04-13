@@ -19,7 +19,6 @@ import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
 import { writeOcapnHandshakeMessage } from '../src/codecs/operations.js';
 import { makeSlot } from '../src/captp/pairwise.js';
 import { makeInMemoryBaggage } from '../src/client/baggage.js';
-import { makeBoundaryPolicy } from '../src/client/boundary-policy.js';
 
 test('test slow send', async t => {
   const testObjectTable = new Map();
@@ -317,43 +316,61 @@ test('clients sharing in-memory baggage share sturdyref table state', async t =>
   }
 });
 
-test('boundary policy can reject exports', async t => {
-  const testObjectTable = new Map();
-  const { establishSession, shutdownBoth } = await makeTestClientPair({
-    makeDefaultSwissnumTable: () => testObjectTable,
-    clientAOptions: {
-      boundaryPolicy: makeBoundaryPolicy({
-        assertCanExport: value => {
-          if (typeof value === 'object' && value !== null) {
-            throw Error('export blocked for objects');
-          }
-        },
-      }),
+test('baggage-backed swissnum table can reject non-durable refs', async t => {
+  const makeRejectingSwissnumTable = () => {
+    /** @type {Map<string, any>} */
+    const entries = new Map();
+    return harden({
+      has: key => entries.has(key),
+      get: key => entries.get(key),
+      set: (key, value) => {
+        if (value && typeof value === 'object') {
+          throw Error('non-durable object rejected by baggage table');
+        }
+        entries.set(key, value);
+      },
+    });
+  };
+
+  const rejectingBaggage = harden({
+    has: _key => false,
+    get: _key => undefined,
+    init: (key, value) => {
+      if (key === 'ocapn:swissnumTable') {
+        return;
+      }
+      if (key === 'ocapn:giftTable') {
+        return;
+      }
+      throw Error(`Unexpected baggage key: ${key}`);
+    },
+    set: (_key, _value) => {},
+  });
+
+  const { client: clientA } = await makeTestClient({
+    debugLabel: 'durability-A',
+    clientOptions: {
+      baggage: rejectingBaggage,
+      swissnumTable: makeRejectingSwissnumTable(),
     },
   });
 
   try {
-    const {
-      sessionA: { ocapn: ocapnA },
-    } = await establishSession();
-    const objectToExport = Far('blocked-object', {
-      ping: () => 'pong',
-    });
-    const error = t.throws(
+    const err = t.throws(
       () => {
-        // Force local export slot assignment through the reference kit.
-        ocapnA.referenceKit.provideLocalObjectPosition(objectToExport);
+        clientA.registerSturdyRef(
+          'non-durable',
+          Far('ephemeral-far', { ping: () => 'pong' }),
+        );
       },
-      {
-        instanceOf: Error,
-      },
-      'Boundary policy should reject object exports',
+      { instanceOf: Error },
+      'registerSturdyRef should fail when baggage-backed table rejects objects',
     );
-    if (error) {
-      t.is(error.message, 'export blocked for objects');
+    if (err) {
+      t.is(err.message, 'non-durable object rejected by baggage table');
     }
   } finally {
-    shutdownBoth();
+    clientA.shutdown();
   }
 });
 

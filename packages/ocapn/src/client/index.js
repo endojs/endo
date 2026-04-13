@@ -17,7 +17,6 @@ import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
 import { handleHandshakeMessageData, sendHandshake } from './handshake.js';
 import { makeOcapn } from './ocapn.js';
-import { makeAllowAllBoundaryPolicy } from './boundary-policy.js';
 import { makeInMemoryBaggage, provideFromBaggage } from './baggage.js';
 
 /**
@@ -180,7 +179,6 @@ const makeSessionManager = () => {
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.tryResumeSession] - If true, emit op:resume-session instead of op:start-session for outgoing handshakes.
  * @param {(options: object) => import('../captp/ocapn-tables.js').OcapnTable} [options.makeOcapnTableFactory]
- * @param {import('./boundary-policy.js').BoundaryPolicy} [options.boundaryPolicy]
  * @param {(details: SessionAuthDetails) => void} [options.authenticateSession]
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
@@ -195,7 +193,6 @@ export const makeClient = ({
   captpVersion = '1.0',
   tryResumeSession = false,
   makeOcapnTableFactory = makeDefaultOcapnTable,
-  boundaryPolicy = makeAllowAllBoundaryPolicy(),
   authenticateSession = () => {},
   enableImportCollection = true,
   debugMode = false,
@@ -337,7 +334,6 @@ export const makeClient = ({
       giftTable: resolvedGiftTable,
       sturdyRefTracker,
       makeOcapnTable: makeOcapnTableFactory,
-      boundaryPolicy,
       ourIdLabel: debugLabel,
       enableImportCollection,
       debugMode,

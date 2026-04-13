@@ -12,7 +12,6 @@
  * @import { SturdyRefTracker } from './sturdyrefs.js'
  * @import { Connection, InternalSession, LocationId, Logger, SessionId, SwissNum } from './types.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
- * @import { BoundaryPolicy } from './boundary-policy.js'
  */
 
 import harden from '@endo/harden';
@@ -45,7 +44,6 @@ import { makeOcapnTable as makeDefaultOcapnTable } from '../captp/ocapn-tables.j
 import { makeSlot, parseSlot } from '../captp/pairwise.js';
 import { makeReferenceKit } from './ref-kit.js';
 import { makeGrantDetails } from './grant-tracker.js';
-import { makeAllowAllBoundaryPolicy } from './boundary-policy.js';
 
 /**
  * @typedef {any} LocalResolver
@@ -495,7 +493,6 @@ const makeCodecKit = referenceKit => {
  * @param {ReferenceKit} referenceKit
  * @param {Map<string, any>} giftTable
  * @param {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
- * @param {BoundaryPolicy} boundaryPolicy
  * @returns {any}
  */
 const makeBootstrapObject = (
@@ -506,7 +503,6 @@ const makeBootstrapObject = (
   referenceKit,
   giftTable,
   getPeerPublicKeyForSessionId,
-  boundaryPolicy,
 ) => {
   // The "usedGiftHandoffs" is one per session.
   const usedGiftHandoffs = new Set();
@@ -534,9 +530,6 @@ const makeBootstrapObject = (
       if (passStyle !== 'remotable') {
         throw Error(`${label}: Bootstrap deposit-gift: Gift must be remotable`);
       }
-      boundaryPolicy.assertCanExport(gift, {
-        direction: 'export',
-      });
       const { isLocal } = referenceKit.getInfoForVal(gift);
       if (!isLocal) {
         throw Error(`${label}: Bootstrap deposit-gift: Gift must be local`);
@@ -697,7 +690,6 @@ const makeBootstrapObject = (
  * @param {Map<string, any>} options.giftTable
  * @param {SturdyRefTracker} options.sturdyRefTracker
  * @param {(options: object) => OcapnTable} [options.makeOcapnTable]
- * @param {BoundaryPolicy} [options.boundaryPolicy]
  * @param {string} [options.ourIdLabel]
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
@@ -716,7 +708,6 @@ export const makeOcapn = ({
   giftTable,
   sturdyRefTracker,
   makeOcapnTable = makeDefaultOcapnTable,
-  boundaryPolicy = makeAllowAllBoundaryPolicy(),
   ourIdLabel = 'OCapN',
   enableImportCollection = true,
   debugMode = false,
@@ -1183,7 +1174,6 @@ export const makeOcapn = ({
     ocapnTable,
     grantTracker,
     sturdyRefTracker,
-    boundaryPolicy,
     makeRemoteKit,
     makeHandoff,
     sendHandoff,
@@ -1243,7 +1233,6 @@ export const makeOcapn = ({
     referenceKit,
     giftTable,
     getPeerPublicKeyForSessionId,
-    boundaryPolicy,
   );
   ocapnTable.registerSlot(localBootstrapSlot, bootstrapObj);
 

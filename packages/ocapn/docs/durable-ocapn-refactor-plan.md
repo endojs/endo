@@ -11,7 +11,7 @@ Each step should preserve green tests and keep ephemeral behavior working throug
 
 - First introduce **abstraction seams** in `@endo/ocapn` with no behavior change.
 - Then add **parallel durable adapters** in a new package.
-- Finally wire resume behavior and durable boundary validation behind explicit composition.
+- Finally wire resume behavior and baggage-backed durability constraints behind explicit composition.
 
 Because this repository does not include a reusable live-slots baggage implementation, the first implementation phase introduces an in-memory baggage abstraction in core and makes durable baggage pluggable.
 
@@ -78,18 +78,18 @@ Because this repository does not include a reusable live-slots baggage implement
 
 ---
 
-### 5) Add boundary-policy hook for import/export validation
+### 5) Rely on baggage-backed durability constraints (no explicit boundary policy)
 
 **Commit type:** `refactor(ocapn): ...`  
 **Change set:**
 
-- Add `boundaryPolicy` hook with default permissive behavior equivalent to today.
-- Invoke before export registration and on imported values where appropriate.
+- Remove explicit boundary-policy hook work from core.
+- Rely on durable baggage/table semantics to reject non-durable values when persistence is attempted.
 
 **Tests:**
 
-- Existing behavior unchanged under default policy.
-- New tests showing policy can reject a value and causes deterministic protocol error path.
+- Existing behavior unchanged in in-memory mode.
+- New tests showing baggage-backed persistence rejects unsupported values (e.g., plain `Far` in durable-style stores).
 
 ---
 
@@ -179,21 +179,19 @@ Because this repository does not include a reusable live-slots baggage implement
 
 ---
 
-### 11) Add durable boundary policy implementation
+### 11) Add durable baggage/store enforcement tests
 
 **Commit type:** `feat(ocapn-durable-client): ...`  
 **Change set:**
 
-- Enforce durable mode passability rules:
-  - allow copydata
-  - allow durable remotables only
-  - reject ephemeral remotables crossing boundary
-- Wire policy into durable package composition.
+- Ensure durable baggage/store adapters enforce persistence constraints:
+  - copydata persists
+  - unsupported non-durable values fail at storage boundaries
 
 **Tests:**
 
-- Positive tests for durable-capable objects.
-- Negative tests for plain `Far` exports where durability metadata is absent.
+- Positive tests for durable-capable persisted values.
+- Negative tests for plain `Far` values where durable persistence is required.
 
 ---
 
@@ -259,8 +257,8 @@ Because this repository does not include a reusable live-slots baggage implement
 - **Risk:** resume semantics conflict with existing crossed-hello logic  
   **Mitigation:** isolate resume negotiation behind handshake extension hooks with strict fallback.
 
-- **Risk:** durable-only boundary checks break existing tests unexpectedly  
-  **Mitigation:** keep default permissive policy in core package; enforce strict policy only in durable package.
+- **Risk:** durable persistence constraints surface failures later than protocol boundary  
+  **Mitigation:** add targeted tests around baggage/store insertion points and explicit error messages.
 
 - **Risk:** accidental protocol divergence between modes  
   **Mitigation:** shared protocol core + adapter pattern, no duplicated message handlers.
