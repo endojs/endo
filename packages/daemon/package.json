@@ -44,7 +44,11 @@
     "lint:types": "tsc",
     "test": "ava --serial",
     "test:clean": "rm -rf tmp && yarn test",
-    "test:engo": "ENDO_BIN=../../go/engo/engo ava --serial"
+    "test:go": "ENDO_BIN=../../go/endo/endo-daemon-go ava",
+    "test:rust": "ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ava",
+    "test:rust-node-workers": "ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ENDO_NODE_WORKER_BIN='node src/bus-worker-node-raw.js' ava",
+    "test:rust-node-manager": "ENDO_MANAGER_NODE=1 ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ENDO_NODE_WORKER_BIN='node src/bus-worker-node-raw.js' ava",
+    "test:supervisors": "yarn test:go && yarn test:rust"
   },
   "dependencies": {
     "@chainsafe/libp2p-noise": "^16.1.3",
