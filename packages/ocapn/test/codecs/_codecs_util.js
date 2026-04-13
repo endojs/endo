@@ -19,6 +19,7 @@ import {
   makeGrantDetails,
 } from '../../src/client/grant-tracker.js';
 import { makeReferenceKit } from '../../src/client/ref-kit.js';
+import { makeAllowAllBoundaryPolicy } from '../../src/client/boundary-policy.js';
 
 import { makeSturdyRefTracker } from '../../src/client/sturdyrefs.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
@@ -222,6 +223,7 @@ export const makeCodecTestKit = (
     ocapnTable,
     grantTracker,
     sturdyRefTracker,
+    makeAllowAllBoundaryPolicy(),
     makeRemoteKit,
     makeHandoff,
     sendHandoff,

@@ -13,6 +13,7 @@ import harden from '@endo/harden';
  * @import { GrantTracker, GrantDetails, HandoffGiveDetails } from './grant-tracker.js'
  * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
  * @import { MakeRemoteKit, SendHandoff } from './ocapn.js'
+ * @import { BoundaryPolicy } from './boundary-policy.js'
  */
 
 /** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
@@ -102,6 +103,7 @@ export const slotTypeToName = type => {
  * @param {OcapnTable} ocapnTable
  * @param {GrantTracker} grantTracker
  * @param {SturdyRefTracker} sturdyRefTracker
+ * @param {BoundaryPolicy} boundaryPolicy
  * @param {MakeRemoteKit} makeRemoteKit
  * @param {MakeHandoff} makeHandoff
  * @param {SendHandoff} sendHandoff
@@ -113,6 +115,7 @@ export const makeReferenceKit = (
   ocapnTable,
   grantTracker,
   sturdyRefTracker,
+  boundaryPolicy,
   makeRemoteKit,
   makeHandoff,
   sendHandoff,
@@ -121,6 +124,9 @@ export const makeReferenceKit = (
   const provideSlotForValue = value => {
     let slot = ocapnTable.getSlotForValue(value);
     if (slot === undefined) {
+      boundaryPolicy.assertCanExport(value, {
+        direction: 'export',
+      });
       // If there is no slot for this value, its our own export.
       const position = nextExportPosition;
       nextExportPosition += ONE_N;
@@ -238,6 +244,10 @@ export const makeReferenceKit = (
       let value = ocapnTable.getValueForSlot(slot);
       if (value === undefined) {
         value = makeRemoteObject(position, `Remote Object ${position}`);
+        boundaryPolicy.assertCanImport(value, {
+          direction: 'import',
+          slot,
+        });
         ocapnTable.registerSlot(slot, value);
       }
       // Record that we're receiving this reference in the current message
@@ -250,6 +260,10 @@ export const makeReferenceKit = (
       if (value === undefined) {
         const { promise, settler } = makeRemotePromise(position);
         value = promise;
+        boundaryPolicy.assertCanImport(value, {
+          direction: 'import',
+          slot,
+        });
         ocapnTable.registerSettler(slot, settler);
         ocapnTable.registerSlot(slot, promise);
       }
@@ -277,6 +291,10 @@ export const makeReferenceKit = (
       let value = ocapnTable.getValueForSlot(slot);
       if (value === undefined) {
         value = makeRemoteResolver(position);
+        boundaryPolicy.assertCanImport(value, {
+          direction: 'import',
+          slot,
+        });
         ocapnTable.registerSlot(slot, value);
       }
       // Record that we're receiving this reference in the current message
@@ -288,6 +306,10 @@ export const makeReferenceKit = (
       let value = ocapnTable.getValueForSlot(slot);
       if (value === undefined) {
         value = makeRemoteBootstrap();
+        boundaryPolicy.assertCanImport(value, {
+          direction: 'import',
+          slot,
+        });
         ocapnTable.registerSlot(slot, value);
       }
       return value;

@@ -112,6 +112,19 @@
  */
 
 /**
+ * @typedef {object} SessionAuthDetails
+ * @property {Connection} connection
+ * @property {SessionId} sessionId
+ * @property {boolean} isResume
+ * @property {OcapnLocation} peerLocation
+ * @property {OcapnPublicKey} peerPublicKey
+ * @property {SelfIdentity} selfIdentity
+ * @property {any} message
+ * @property {ArrayBufferLike} [resumeSessionId]
+ * @property {Record<string, any>} [resumeAuthPayload]
+ */
+
+/**
  * Socket operations provided by netlayer for a connection.
  * @typedef {object} SocketOperations
  * @property {(bytes: Uint8Array) => void} write - Write bytes to the socket

@@ -13,6 +13,7 @@ import {
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
 } from '../syrup/codec.js';
+import { AnyCodec as SyrupAnyCodec } from '../syrup/js-representation.js';
 import { makeOcapnRecordCodecFromDefinition } from './util.js';
 import {
   NonNegativeIntegerCodec,
@@ -41,6 +42,19 @@ const OpStartSessionCodec = makeOcapnRecordCodecFromDefinition(
   },
 );
 
+const OpResumeSessionCodec = makeOcapnRecordCodecFromDefinition(
+  'OpResumeSession',
+  'op:resume-session',
+  {
+    captpVersion: 'string',
+    sessionPublicKey: OcapnPublicKeyCodec,
+    location: OcapnPeerCodec,
+    locationSignature: OcapnSignatureCodec,
+    resumeSessionId: 'bytestring',
+    resumeAuthPayload: SyrupAnyCodec,
+  },
+);
+
 const OpAbortCodec = makeOcapnRecordCodecFromDefinition('OpAbort', 'op:abort', {
   reason: 'string',
 });
@@ -66,6 +80,7 @@ export const OcapnPreSessionOperationsCodecs = makeRecordUnionCodec(
   'OcapnPreSessionOperations',
   {
     OpStartSession: OpStartSessionCodec,
+    OpResumeSession: OpResumeSessionCodec,
     OpAbort: OpAbortCodec,
   },
 );
@@ -208,6 +223,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
 
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
+    OpResumeSessionCodec,
     OpDeliverOnlyCodec,
     OpDeliverCodec,
     OpGetCodec,

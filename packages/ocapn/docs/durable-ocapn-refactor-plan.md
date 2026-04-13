@@ -13,6 +13,8 @@ Each step should preserve green tests and keep ephemeral behavior working throug
 - Then add **parallel durable adapters** in a new package.
 - Finally wire resume behavior and durable boundary validation behind explicit composition.
 
+Because this repository does not include a reusable live-slots baggage implementation, the first implementation phase introduces an in-memory baggage abstraction in core and makes durable baggage pluggable.
+
 ## Step-by-step plan
 
 ### 1) Add architecture docs and ADR scaffolding
@@ -27,16 +29,16 @@ Each step should preserve green tests and keep ephemeral behavior working throug
 
 ---
 
-### 2) Introduce explicit `ClientStorageKit` interface (no behavior change)
+### 2) Introduce explicit baggage abstraction + `ClientStorageKit` (no behavior change)
 
 **Commit type:** `refactor(ocapn): ...`  
 **Change set:**
 
-- Define type/interface for storage dependencies currently implicit in:
+- Define type/interface for baggage-like storage dependencies currently implicit in:
   - `swissnumTable`
   - `giftTable`
   - in-memory slot table internals
-- Keep existing defaults by adapting current `Map` usage into this interface.
+- Add in-repo in-memory baggage implementation and adapt current `Map` usage into this interface.
 
 **Tests:**
 
@@ -60,11 +62,12 @@ Each step should preserve green tests and keep ephemeral behavior working throug
 
 ---
 
-### 4) Split session identity from connection identity
+### 4) Stabilize local identity and split session identity from connection identity
 
 **Commit type:** `refactor(ocapn): ...`  
 **Change set:**
 
+- Ensure local peer identity is stable for a client instance (not per connection).
 - Add internal `LogicalSession` concept in session manager.
 - Keep existing external API unchanged (`provideSession`, `abort`).
 - Continue current behavior (logical session ends when connection ends), but with internal shape now ready for resume.
@@ -105,16 +108,17 @@ Each step should preserve green tests and keep ephemeral behavior working throug
 
 ---
 
-### 7) Introduce resumable-handshake extension points (disabled by default)
+### 7) Introduce `op:resume-session` handshake and auth extension points
 
 **Commit type:** `refactor(ocapn): ...`  
 **Change set:**
 
-- Extend handshake/session manager with optional resume metadata hooks:
-  - provide resume token
-  - verify resume token
-  - map connection to existing logical session
-- Default hook implementation is no-op and preserves current start-session behavior.
+- Add new pre-session handshake operation: `op:resume-session`.
+- Keep `op:start-session` for first-time session establishment.
+- Attach outbound auth/resume metadata on `op:resume-session`.
+- Verify inbound auth/resume metadata before allowing resume.
+- Map connection to existing logical session once authenticated.
+- Default hook implementation remains no-op and preserves current start-session behavior.
 
 **Tests:**
 
@@ -133,7 +137,7 @@ Each step should preserve green tests and keep ephemeral behavior working throug
   - `README.md`
   - `src/index.js`
   - type/test/lint scaffolding
-- Export a client constructor that composes `@endo/ocapn` with placeholders for durable adapters.
+- Export a client constructor that composes `@endo/ocapn` with placeholders for durable baggage adapters.
 
 **Tests:**
 

@@ -18,6 +18,8 @@ import { encodeSwissnum } from '../src/client/util.js';
 import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
 import { writeOcapnHandshakeMessage } from '../src/codecs/operations.js';
 import { makeSlot } from '../src/captp/pairwise.js';
+import { makeInMemoryBaggage } from '../src/client/baggage.js';
+import { makeBoundaryPolicy } from '../src/client/boundary-policy.js';
 
 test('test slow send', async t => {
   const testObjectTable = new Map();
@@ -191,6 +193,170 @@ test('client aborts on start-session with wrong version', async t => {
   }
 });
 
+test('client aborts on failed authenticateSession hook', async t => {
+  const authFailureMessage = 'session auth failed in test';
+  const { clientKitA, clientKitB, shutdownBoth } = await makeTestClientPair({
+    clientAOptions: {
+      authenticateSession: () => {
+        throw Error(authFailureMessage);
+      },
+    },
+  });
+
+  try {
+    const sessionPromise = clientKitA.client.provideSession(clientKitB.location);
+    const error = await t.throwsAsync(
+      async () => sessionPromise,
+      {
+        instanceOf: Error,
+      },
+    );
+    t.truthy(error);
+    if (error) {
+      t.regex(
+        error.message,
+        /Connection closed during handshake|Session ended/,
+        'error should indicate failed handshake/session',
+      );
+    }
+
+    t.is(
+      clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId),
+      undefined,
+      'A should not have an active session after auth failure',
+    );
+    t.is(
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
+      undefined,
+      'B should not have an active session after auth failure',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('client aborts when authenticateSession hook rejects handshake', async t => {
+  const { clientKitA, clientKitB, establishSession, shutdownBoth } =
+    await makeTestClientPair({
+      clientAOptions: {
+        authenticateSession: () => {
+          throw Error('reject all sessions');
+        },
+      },
+    });
+
+  try {
+    const error = await t.throwsAsync(
+      async () => {
+        await clientKitA.client.provideSession(clientKitB.location);
+      },
+      { instanceOf: Error },
+      'Session establishment should fail when authentication hook rejects',
+    );
+    t.truthy(error);
+    t.regex(
+      error.message,
+      /Connection closed during handshake|Session ended/,
+      'Error should indicate handshake/session failure',
+    );
+
+    t.is(
+      clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId),
+      undefined,
+      'A should not have an active session for B',
+    );
+    t.is(
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
+      undefined,
+      'B should not have an active session for A',
+    );
+
+    const secondAttemptError = await t.throwsAsync(
+      async () => {
+        await establishSession();
+      },
+      { instanceOf: Error },
+      'Subsequent attempts should continue to fail while auth rejects',
+    );
+    t.truthy(secondAttemptError);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('clients sharing in-memory baggage share sturdyref table state', async t => {
+  const sharedBaggage = makeInMemoryBaggage();
+  const sharedSwissnum = encodeSwissnum('shared-object');
+  const sharedObject = Far('Shared', {
+    getValue: () => 123,
+  });
+
+  const { client: clientA, location: locationA } = await makeTestClient({
+    debugLabel: 'shared-A',
+    clientOptions: {
+      baggage: sharedBaggage,
+    },
+  });
+  const { client: clientB } = await makeTestClient({
+    debugLabel: 'shared-B',
+    clientOptions: {
+      baggage: sharedBaggage,
+    },
+  });
+
+  try {
+    clientA.registerSturdyRef('shared-object', sharedObject);
+
+    const sturdyRef = clientB.makeSturdyRef(locationA, sharedSwissnum);
+    const resolved = await clientB.enlivenSturdyRef(sturdyRef);
+    const value = await E(resolved).getValue();
+    t.is(value, 123);
+  } finally {
+    clientA.shutdown();
+    clientB.shutdown();
+  }
+});
+
+test('boundary policy can reject exports', async t => {
+  const testObjectTable = new Map();
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: {
+      boundaryPolicy: makeBoundaryPolicy({
+        assertCanExport: value => {
+          if (typeof value === 'object' && value !== null) {
+            throw Error('export blocked for objects');
+          }
+        },
+      }),
+    },
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const objectToExport = Far('blocked-object', {
+      ping: () => 'pong',
+    });
+    const error = t.throws(
+      () => {
+        // Force local export slot assignment through the reference kit.
+        ocapnA.referenceKit.provideLocalObjectPosition(objectToExport);
+      },
+      {
+        instanceOf: Error,
+      },
+      'Boundary policy should reject object exports',
+    );
+    if (error) {
+      t.is(error.message, 'export blocked for objects');
+    }
+  } finally {
+    shutdownBoth();
+  }
+});
+
 test('client aborts on unparseable message BEFORE establishing session', async t => {
   const { clientKitA, clientKitB, establishSession, shutdownBoth } =
     await makeTestClientPair();
@@ -324,8 +490,8 @@ test('provideSession throws and cleans up pending session on handshake abort', a
 
   try {
     // Attempt to establish session from A to B
-    // A will send op:start-session with version 1.0
-    // B will accept it and send back op:start-session with version "BAD"
+    // A will send op:resume-session with version 1.0
+    // B will accept it and send back op:resume-session with version "BAD"
     // A will reject B's version and send op:abort
     const sessionPromise = clientKitA.client.provideSession(
       clientKitB.location,

@@ -60,21 +60,33 @@ without forking OCapN logic or feature-flag branches inside protocol flow code.
   - no built-in resume token or reconnect semantics.
 - `packages/ocapn/src/client/handshake.js` supports start-session + crossed-hello handling, but not logical-session resume.
 
+### Live-slots / baggage availability in this repository
+
+Repository research did **not** find a reusable live-slots baggage implementation in Endo itself (no `provideDurableMapStore`, `makeScalarBigMapStore`, or `prepareExo*` implementation in this tree).  
+Those APIs are from higher-layer systems (for example `@agoric/vat-data`), not from `@endo/ocapn`.
+
+That implies we should make `@endo/ocapn` core run against a **baggage-like abstraction** with an in-memory implementation in this repo, and let durable deployments supply real durable baggage.
+
 ## Architectural principles
 
-1. **Separate protocol engine from storage policy**  
-   OCapN message semantics stay in `@endo/ocapn`; slot/sturdyref/session persistence moves behind injected factories.
+1. **Baggage-first storage abstraction in core**  
+   OCapN core code should use storage/table/session abstractions that can be backed by either:
+   - in-memory dummy baggage (in-repo default)
+   - durable live-slots baggage (provided by durable integrations)
 
-2. **No protocol forks by mode**  
+2. **Separate protocol engine from storage policy**  
+   OCapN message semantics stay in `@endo/ocapn`; slot/sturdyref/session persistence and durability constraints move behind injected factories.
+
+3. **No protocol forks by mode**  
    Durable and ephemeral clients share the same core state machine and operation handlers.
 
-3. **Durable mode is explicit composition**  
+4. **Durable mode is explicit composition**  
    A new package assembles durable adapters and policies; core package remains usable standalone.
 
-4. **Boundary enforcement at export/import seam**  
+5. **Boundary enforcement at export/import seam**  
    Durable mode enforces that only copy data + durable remotables cross the boundary.
 
-5. **Resume-aware transport abstraction**  
+6. **Resume-aware transport abstraction**  
    Logical session continuity is separate from socket continuity.
 
 ## Proposed package split
@@ -85,9 +97,11 @@ without forking OCapN logic or feature-flag branches inside protocol flow code.
 
 - import/export table factory (per session, and on reconnect)
 - sturdyref store factory
+- baggage adapter for persistent key-value state
 - session persistence/resume policy
 - passability/durability boundary validator
 - optional resumable netlayer protocol adapter
+- remotable constructor hooks (so durable mode can replace selected `Far(...)` helpers with `makeExo`/durable exo constructors)
 
 ### 2) New package: `@endo/ocapn-durable-client` (name tentative)
 
@@ -102,7 +116,20 @@ Responsibilities:
 
 ## Proposed extension seams
 
-### A. Table factory seam
+### A. Baggage seam (new core default)
+
+Introduce a minimal baggage interface used by core storage providers:
+
+- `has(key)`
+- `get(key)`
+- `init(key, value)` (or equivalent provide-once primitive)
+- optional `set(key, value)` for mutable table references
+
+Core should ship an in-memory baggage implementation for default operation.
+
+Durable integrations pass a durable baggage implementation with equivalent semantics.
+
+### B. Table factory seam
 
 Introduce an abstract session table provider (names illustrative):
 
@@ -120,7 +147,7 @@ Introduce an abstract session table provider (names illustrative):
 
 Core OCapN should depend only on the table interface currently consumed in `client/ocapn.js` / `client/ref-kit.js`.
 
-### B. Sturdyref store seam
+### C. Sturdyref store seam
 
 Replace direct `Map` assumptions with a store interface:
 
@@ -131,7 +158,7 @@ Replace direct `Map` assumptions with a store interface:
 Ephemeral mode can use current `Map + WeakMap` behavior.
 Durable mode can bind swissnum metadata and object references in baggage.
 
-### C. Boundary policy seam (durability gate)
+### D. Boundary policy seam (durability gate)
 
 Add a pluggable boundary validator invoked before export and after import decode:
 
@@ -143,7 +170,7 @@ Add a pluggable boundary validator invoked before export and after import decode
 
 This is where replacing selected `Far` usage with `makeExo`/durable-exo constructions (provided by higher-level package) can be enforced.
 
-### D. Session resume seam
+### E. Session resume seam
 
 Introduce logical session identity separated from connection object identity.
 
@@ -156,7 +183,20 @@ Need stable records for:
 
 Reconnect flow should create a new `Connection` but attach it to prior logical session state when authenticated.
 
-### E. Netlayer resume adapter seam
+### F. Dedicated resume handshake operation
+
+Use a distinct pre-session handshake operation:
+
+- `op:start-session` for fresh sessions
+- `op:resume-session` for resume attempts
+
+Resume requirements:
+
+- resumed session must cryptographically bind to prior logical session identity
+- session resume attempts must fail closed without valid auth material
+- resume auth must be validated before adopting prior logical session state
+
+### G. Netlayer resume adapter seam
 
 Extend netlayer composition with optional resume-aware behavior:
 
@@ -195,8 +235,8 @@ Durable mode should persist at least:
 
 | Capability | Ephemeral mode (`@endo/ocapn`) | Durable mode (`@endo/ocapn-durable-client`) |
 |---|---|---|
-| Import/export tables | in-memory map/weakmap | baggage-backed |
-| Sturdyref table | in-memory map + weak metadata | baggage-backed |
+| Import/export tables | in-memory baggage-backed tables | durable baggage-backed tables |
+| Sturdyref table | in-memory baggage-backed table + weak metadata | durable baggage-backed table (+ durable metadata strategy) |
 | Session continuity | connection lifetime | logical session across reconnect |
 | Netlayer | existing contract | resume-aware adapter |
 | Boundary object policy | current permissive remotables | durable-only remotables + copydata |
@@ -209,7 +249,7 @@ Durable mode should persist at least:
 
 ## Open design questions
 
-1. Should session resume be represented as new OCapN handshake operations, netlayer-private metadata, or both?
+1. What exact fields should `op:resume-session` carry (resume token, epoch, transcript binding) for replay resistance?
 2. How are unresolved answer promises treated across restart (abort vs resumable replay)?
 3. Which exact durable-object predicate should be enforced at boundary (source of truth)?
 4. Are gifts/handoff tables required to persist across restart for correctness, or can they be invalidated?
