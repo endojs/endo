@@ -244,7 +244,10 @@ export const makeHostMaker = ({
             node: agentNodeNumber,
           });
           const locator = formatLocator(externalizedId, formulaType);
-          await E(syncedStore).storeLocator(makeExportRetentionName(), locator);
+          await E(syncedStore).storeLocator(
+            /** @type {Name} */ (makeExportRetentionName()),
+            locator,
+          );
         }
         return;
       }

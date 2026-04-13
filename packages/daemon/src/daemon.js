@@ -516,12 +516,12 @@ const makeDaemonCore = async (
           ['bundle', formula.bundle],
         ];
       case 'peer':
-        return [
+        return /** @type {Array<[string, FormulaIdentifier]>} */ ([
           ['networks', formula.networks],
           ...(formula.syncedStore === undefined
             ? []
             : [['syncedStore', formula.syncedStore]]),
-        ];
+        ]);
       case 'handle':
         return [['agent', formula.agent]];
       case 'mail-hub':
