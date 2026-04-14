@@ -653,11 +653,19 @@ export type PatternMatchers = {
 export type DefaultGuardType = undefined | 'passable' | 'raw';
 
 /**
+ * `MethodGuard` with every type parameter set to `any`, bypassing the
+ * parameter defaults (e.g. `RetGuard extends SyncValueGuard = SyncValueGuard`).
+ * See {@link MakeInterfaceGuardGeneral} for why the defaults are wrong here.
+ */
+export type AnyMethodGuard = MethodGuard<any, any, any, any, any>;
+
+/** Record of method guards keyed by method name. */
+export type AnyMethodGuards = Record<PropertyKey, AnyMethodGuard>;
+
+/**
  * Overload for strictly-typed interface guards (no sloppy mode).
  */
-export type MakeInterfaceGuardStrict = <
-  M extends Record<PropertyKey, MethodGuard<any, any, any, any, any>>,
->(
+export type MakeInterfaceGuardStrict = <M extends AnyMethodGuards>(
   interfaceName: string,
   methodGuards: M,
   options: {
@@ -688,20 +696,17 @@ export type MakeInterfaceGuardSloppy = (
 /**
  * General overload for interface guards.
  *
- * The constraint uses `MethodGuard<any, any, any, any, any>` (all type
- * parameters set to `any`) rather than the bare `MethodGuard` (which
- * defaults its parameters to their constraint, e.g. `RetGuard extends
- * SyncValueGuard = SyncValueGuard`).  Without this, TS contextually types
- * inline expressions like `M.call().returns(M.promise())` against
- * `SyncValueGuard`, which causes `MatcherOf<'promise', any>`'s `Payload`
- * type parameter to drift from `any` to a non-canonical unknown form
- * (`void | RawGuardPayload | null`) — breaking downstream
- * `TypeFromPattern` inference whose `unknown extends Payload` check
- * doesn't recognize that form as `unknown`.
+ * The constraint uses {@link AnyMethodGuard} (all type parameters set to
+ * `any`) rather than the bare `MethodGuard` (which defaults its parameters
+ * to their constraint, e.g. `RetGuard extends SyncValueGuard =
+ * SyncValueGuard`).  Without this, TS contextually types inline expressions
+ * like `M.call().returns(M.promise())` against `SyncValueGuard`, which
+ * causes `MatcherOf<'promise', any>`'s `Payload` type parameter to drift
+ * from `any` to a non-canonical unknown form (`void | RawGuardPayload |
+ * null`) — breaking downstream `TypeFromPattern` inference whose `unknown
+ * extends Payload` check doesn't recognize that form as `unknown`.
  */
-export type MakeInterfaceGuardGeneral = <
-  M extends Record<PropertyKey, MethodGuard<any, any, any, any, any>>,
->(
+export type MakeInterfaceGuardGeneral = <M extends AnyMethodGuards>(
   interfaceName: string,
   methodGuards: M,
   options?: {
@@ -782,25 +787,21 @@ export type Method = (...args: any[]) => any;
 /**
  * Payload for an interface guard definition.
  */
-export type InterfaceGuardPayload<
-  T extends Record<PropertyKey, MethodGuard<any, any, any, any, any>> = Record<
-    PropertyKey,
-    MethodGuard<any, any, any, any, any>
-  >,
-> = {
-  interfaceName: string;
-  methodGuards: Omit<T, symbol> &
-    Partial<{ [K in Extract<keyof T, symbol>]: never }>;
-  symbolMethodGuards?: CopyMap<
-    Extract<keyof T, symbol>,
-    T[Extract<keyof T, symbol>]
-  >;
-  defaultGuards?: DefaultGuardType;
-  /**
-   * @deprecated Use `defaultGuards` instead.
-   */
-  sloppy?: boolean;
-};
+export type InterfaceGuardPayload<T extends AnyMethodGuards = AnyMethodGuards> =
+  {
+    interfaceName: string;
+    methodGuards: Omit<T, symbol> &
+      Partial<{ [K in Extract<keyof T, symbol>]: never }>;
+    symbolMethodGuards?: CopyMap<
+      Extract<keyof T, symbol>,
+      T[Extract<keyof T, symbol>]
+    >;
+    defaultGuards?: DefaultGuardType;
+    /**
+     * @deprecated Use `defaultGuards` instead.
+     */
+    sloppy?: boolean;
+  };
 
 /**
  * Characterize dynamic behavior such as method argument/response signatures and promise awaiting.
@@ -831,12 +832,8 @@ export type InterfaceGuardPayload<
  * await stringP; // => "42"
  * ```
  */
-export type InterfaceGuard<
-  T extends Record<PropertyKey, MethodGuard<any, any, any, any, any>> = Record<
-    PropertyKey,
-    MethodGuard<any, any, any, any, any>
-  >,
-> = CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>;
+export type InterfaceGuard<T extends AnyMethodGuards = AnyMethodGuards> =
+  CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>;
 
 /**
  * A method name and parameter/return signature like:
