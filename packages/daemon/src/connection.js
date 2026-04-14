@@ -60,6 +60,7 @@ export const makeMessageCapTP = (
     try {
       return writer.next(message);
     } catch (sendError) {
+      console.error(`CapTP ${name} send error:`, sendError.message);
       return Promise.reject(sendError);
     }
   };
@@ -157,7 +158,6 @@ export const makeMessageCapTP = (
 /** @param {any} message */
 export const messageToBytes = message => {
   const text = JSON.stringify(message);
-  // console.log('->', text);
   const bytes = textEncoder.encode(text);
   return bytes;
 };

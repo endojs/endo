@@ -438,13 +438,21 @@ export const makeDaemonicPersistencePowers = (
       return { keypair, isNewlyCreated: true };
     } else {
       const lines = existingKeypair.trim().split('\n');
-      const publicKey = fromHex(lines[0]);
-      const privateKey = fromHex(lines[1]);
+      const pubHex = lines[0];
+      const privHex = lines[1];
+      // Use getters to avoid storing Uint8Array directly on the
+      // hardened object — in XS, Uint8Array indexed elements are
+      // non-configurable so harden/freeze fails.
       return {
         keypair: harden({
-          publicKey,
-          privateKey,
-          sign: message => cryptoPowers.ed25519Sign(privateKey, message),
+          get publicKey() {
+            return fromHex(pubHex);
+          },
+          get privateKey() {
+            return fromHex(privHex);
+          },
+          sign: message =>
+            cryptoPowers.ed25519Sign(fromHex(privHex), message),
         }),
         isNewlyCreated: false,
       };

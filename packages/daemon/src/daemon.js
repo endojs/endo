@@ -3769,12 +3769,14 @@ const makeDaemonCore = async (
     kind = undefined,
   ) => {
     await null;
+    console.log(`provideWorkerId: kind=${kind} defaultWorkerKind=${defaultWorkerKind} specifiedWorkerId=${typeof specifiedWorkerId === 'string' ? specifiedWorkerId.slice(0, 12) : specifiedWorkerId}`);
     if (typeof specifiedWorkerId === 'string') {
       if (kind === 'node' && defaultWorkerKind !== 'node') {
         // Default workers are XS/locked (bus daemon under Rust
         // supervisor).  Create a separate Node.js worker.  The original
         // XS worker stays alive (it may have running evals).
         const existingFormula = formulaForId.get(specifiedWorkerId);
+        console.log(`provideWorkerId: existingFormula=${existingFormula ? JSON.stringify(existingFormula).slice(0, 80) : 'NOT FOUND'}`);
         if (
           existingFormula &&
           existingFormula.type === 'worker' &&
