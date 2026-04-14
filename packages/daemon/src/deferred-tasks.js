@@ -12,7 +12,9 @@ export const makeDeferredTasks = () => {
 
   return {
     execute: async param => {
-      await Promise.all(tasks.map(task => task(param)));
+      await Promise.all(
+        tasks.map(task => task(/** @type {Readonly<T>} */ (param))),
+      );
     },
     push: task => {
       tasks.push(task);

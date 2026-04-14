@@ -864,7 +864,7 @@ export type DeferredTask<T extends Record<string, string | string[]>> = (
  * parallel.
  */
 export type DeferredTasks<T extends Record<string, string | string[]>> = {
-  execute(identifiers: Readonly<T>): Promise<void>;
+  execute(identifiers?: Readonly<T>): Promise<void>;
   push(value: DeferredTask<T>): void;
 };
 
