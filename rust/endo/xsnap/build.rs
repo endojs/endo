@@ -3,7 +3,50 @@ use std::path::PathBuf;
 
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let moddable_dir = manifest_dir.join("../../../c/moddable");
+    let xs_sources = moddable_dir.join("xs/sources");
+
+    // If the Moddable XS C sources are present, compile them.
+    // Otherwise fall back to a pre-built libxs.a if one exists in
+    // the prebuilt/ directory (checked in for environments that lack
+    // the full SDK).
+    if xs_sources.join("xsAll.c").exists() {
+        compile_xs(&manifest_dir, &moddable_dir);
+    } else {
+        let prebuilt = manifest_dir.join("prebuilt/libxs.a");
+        if prebuilt.exists() {
+            let dest = out_dir.join("libxs.a");
+            std::fs::copy(&prebuilt, &dest).expect("copy prebuilt libxs.a");
+            println!(
+                "cargo:rustc-link-search=native={}",
+                out_dir.display()
+            );
+            println!("cargo:rustc-link-lib=static=xs");
+            eprintln!(
+                "cargo:warning=Using prebuilt libxs.a (Moddable XS sources not found)"
+            );
+        } else {
+            panic!(
+                "Moddable XS sources not found at {} and no prebuilt \
+                 libxs.a at {}. Either install the Moddable SDK or \
+                 place a prebuilt library in xsnap/prebuilt/.",
+                xs_sources.display(),
+                prebuilt.display()
+            );
+        }
+    }
+
+    println!("cargo:rerun-if-changed=xsnap-platform.h");
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=prebuilt/libxs.a");
+    // Link math and pthread
+    println!("cargo:rustc-link-lib=m");
+    println!("cargo:rustc-link-lib=pthread");
+    println!("cargo:rustc-link-lib=dl");
+}
+
+fn compile_xs(manifest_dir: &PathBuf, moddable_dir: &PathBuf) {
     let xs_sources = moddable_dir.join("xs/sources");
     let xs_includes = moddable_dir.join("xs/includes");
     let xs_platforms = moddable_dir.join("xs/platforms");
@@ -62,7 +105,7 @@ fn main() {
         .include(&xs_sources)
         .include(&xs_includes)
         .include(&xs_platforms)
-        .include(&manifest_dir)
+        .include(manifest_dir)
         // Use our platform header instead of the GLib-dependent lin_xs.h
         .define(
             "XSPLATFORM",
@@ -114,11 +157,4 @@ fn main() {
     build.file(manifest_dir.join("xsnap-platform.c"));
 
     build.compile("xs");
-
-    println!("cargo:rerun-if-changed=xsnap-platform.h");
-    println!("cargo:rerun-if-changed=build.rs");
-    // Link math and pthread
-    println!("cargo:rustc-link-lib=m");
-    println!("cargo:rustc-link-lib=pthread");
-    println!("cargo:rustc-link-lib=dl");
 }
