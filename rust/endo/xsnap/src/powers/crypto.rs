@@ -139,6 +139,22 @@ pub unsafe extern "C" fn host_sha256_update(the: *mut XsMachine) {
     }
 }
 
+/// `sha256UpdateBytes(handle, uint8Array) -> undefined`
+///
+/// Feeds binary data (Uint8Array) into an incremental SHA-256 hasher.
+/// This bypasses the slow TextDecoder path used by `sha256Update`.
+pub unsafe extern "C" fn host_sha256_update_bytes(the: *mut XsMachine) {
+    let handle_slot = (*the).frame.sub(2);
+    let handle = fxToInteger(the, handle_slot) as u32;
+    let data_slot = (*the).frame.sub(3);
+    if let Some(buf) = crate::worker_io::read_typed_array_bytes(the, data_slot) {
+        let mut map = get_hasher_map();
+        if let Some(hasher) = map.as_mut().unwrap().get_mut(&handle) {
+            hasher.update(&buf);
+        }
+    }
+}
+
 /// `sha256Finish(handle) -> string`
 ///
 /// Finalizes the incremental SHA-256 hasher and returns the hex digest.
@@ -167,5 +183,6 @@ pub unsafe fn register(machine: &crate::Machine) {
     machine.define_function("ed25519Sign", host_ed25519_sign, 2);
     machine.define_function("sha256Init", host_sha256_init, 0);
     machine.define_function("sha256Update", host_sha256_update, 2);
+    machine.define_function("sha256UpdateBytes", host_sha256_update_bytes, 2);
     machine.define_function("sha256Finish", host_sha256_finish, 1);
 }

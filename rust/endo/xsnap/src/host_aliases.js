@@ -45,6 +45,7 @@
     hostSha256: 'sha256',
     hostSha256Init: 'sha256Init',
     hostSha256Update: 'sha256Update',
+    hostSha256UpdateBytes: 'sha256UpdateBytes',
     hostSha256Finish: 'sha256Finish',
     hostRandomHex256: 'randomHex256',
     hostEd25519Keygen: 'ed25519Keygen',
