@@ -17,7 +17,6 @@
         "**/demo",
         "**/dist",
         "**/docs",
-        "**/test"
     ],
     "include": [
         "./**/*.ts",
