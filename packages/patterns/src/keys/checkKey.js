@@ -56,7 +56,6 @@ hideAndHardenFunction(assertScalarKey);
 
 // @ts-expect-error Key does not satisfy WeakKey
 /** @type {WeakSet<Key>} */
-// @ts-expect-error Key does not satisfy WeakKey
 const keyMemo = new WeakSet();
 
 /**
