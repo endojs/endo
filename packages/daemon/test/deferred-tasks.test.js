@@ -14,7 +14,7 @@ test('execute', async t => {
     results.push(3);
   });
 
-  await tasks.execute();
+  await tasks.execute({});
 
   t.deepEqual(results.sort(), [1, 2, 3]);
 });

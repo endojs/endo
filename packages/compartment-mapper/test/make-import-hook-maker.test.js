@@ -111,7 +111,7 @@ const moduleSourceHookTest = async (
  * Computes title for macro
  *
  * @param {string} providedTitle
- * @param {{loaderFn: Function}} options
+ * @param {{loaderFn: Function, argsFn: (readPowers: MaybeReadPowers, entrypoint: string, options: object) => any, callImport: boolean}} options
  * @returns {string}
  */
 moduleSourceHookTest.title = (providedTitle, { loaderFn }) =>
