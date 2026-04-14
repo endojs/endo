@@ -187,8 +187,9 @@ export const makeMaybeReadProjectFixture = (fixture, options = {}) => {
         scheduler.wait(
           Math.floor(Math.random() * (MAX_DELAY - MIN_DELAY + 1)) + MIN_DELAY,
         );
-    } else if ('delay' in options) {
-      wait = () => scheduler.wait(options.delay);
+    } else if (options.delay !== undefined) {
+      const { delay } = options;
+      wait = () => scheduler.wait(delay);
     } else {
       wait = async () => {};
     }
