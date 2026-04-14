@@ -4,11 +4,14 @@
     "target": "esnext",
     "module": "NodeNext",
     "checkJs": true,
+    "incremental": true,
     "noEmit": true,
-    "downlevelIteration": true,
+    "strict": false,
     "strictNullChecks": true,
     "verbatimModuleSyntax": true,
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "noImplicitAny": false,
+    "types": ["node"],
   },
   "include": [],
   "exclude": [
