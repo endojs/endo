@@ -41,6 +41,17 @@
     hostJoinPath: 'joinPath',
     hostRealPath: 'realPath',
 
+    // powers/sqlite.rs
+    hostSqliteOpen: 'sqliteOpen',
+    hostSqliteClose: 'sqliteClose',
+    hostSqliteExec: 'sqliteExec',
+    hostSqlitePrepare: 'sqlitePrepare',
+    hostSqliteStmtRun: 'sqliteStmtRun',
+    hostSqliteStmtGet: 'sqliteStmtGet',
+    hostSqliteStmtAll: 'sqliteStmtAll',
+    hostSqliteStmtColumns: 'sqliteStmtColumns',
+    hostSqliteStmtFinalize: 'sqliteStmtFinalize',
+
     // powers/crypto.rs
     hostSha256: 'sha256',
     hostSha256Init: 'sha256Init',

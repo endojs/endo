@@ -1882,6 +1882,39 @@ export interface RemoteControl {
   getStateName(): string;
 }
 
+// ---------------------------------------------------------------------------
+// SQLite
+// ---------------------------------------------------------------------------
+
+export type SqliteValue = null | bigint | number | string | Uint8Array;
+
+export type SqliteParams = SqliteValue[] | [Record<string, SqliteValue>];
+
+export interface StatementSync {
+  run(
+    ...params: SqliteParams
+  ): { changes: bigint; lastInsertRowid: bigint };
+  get(
+    ...params: SqliteParams
+  ): Record<string, SqliteValue> | undefined;
+  all(
+    ...params: SqliteParams
+  ): Array<Record<string, SqliteValue>>;
+  columns(): Array<{ name: string; type: string | null }>;
+  finalize(): void;
+}
+
+export interface DatabaseSync {
+  close(): void;
+  exec(sql: string): void;
+  prepare(sql: string): StatementSync;
+  readonly open: boolean;
+}
+
+export interface SqlitePowers {
+  openDatabase(path: string): DatabaseSync;
+}
+
 export interface RemoteControlState {
   accept(
     remoteGateway: Promise<EndoGateway>,

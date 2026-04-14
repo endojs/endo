@@ -337,6 +337,7 @@ impl Machine {
             powers::crypto::register(self);
             powers::modules::register(self);
             powers::process::register(self);
+            powers::sqlite::register(self);
         }
     }
 
@@ -2055,5 +2056,394 @@ mod tests {
             }
             other => panic!("typeof __shouldTerminate: {:?}", other.map(|v| js_value_debug(&v))),
         }
+    }
+
+    // --- Phase 5: SQLite Tests ---
+
+    #[test]
+    fn sqlite_open_close() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        // Open in-memory db — returns a number handle
+        match machine.eval("sqliteOpen(':memory:')").unwrap() {
+            JsValue::Integer(n) => assert!(n > 0, "handle should be positive"),
+            other => panic!("expected integer handle, got {:?}", js_value_debug(&other)),
+        }
+
+        // Close it
+        machine.eval("sqliteClose(sqliteOpen(':memory:'))").unwrap();
+    }
+
+    #[test]
+    fn sqlite_exec_create_table() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        // exec should return undefined on success
+        match machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)')")
+            .unwrap()
+        {
+            JsValue::Undefined => {}
+            other => panic!("expected undefined, got {:?}", js_value_debug(&other)),
+        }
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_exec_error() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        // Invalid SQL should return an error string
+        match machine
+            .eval("sqliteExec(db, 'NOT VALID SQL')")
+            .unwrap()
+        {
+            JsValue::String(s) => assert!(
+                s.starts_with("Error: "),
+                "expected error string, got {}",
+                s,
+            ),
+            other => panic!("expected error string, got {:?}", js_value_debug(&other)),
+        }
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_prepare_and_run() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)')")
+            .unwrap();
+
+        // Prepare and run an INSERT
+        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t (id, name) VALUES (?, ?)')").unwrap();
+        match machine.eval("sqliteStmtRun(ins, '[1, \"alice\"]')").unwrap() {
+            JsValue::String(s) => {
+                assert!(s.contains("\"changes\":\"1\""), "expected changes=1, got {}", s);
+            }
+            other => panic!("expected JSON result, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(ins)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_get_returns_row_with_bigint_tags() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER, val REAL, name TEXT)')")
+            .unwrap();
+        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?, ?)')").unwrap();
+        machine.eval("sqliteStmtRun(ins, '[42, 3.14, \"hello\"]')").unwrap();
+        machine.eval("sqliteStmtFinalize(ins)").unwrap();
+
+        // Query the row back
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
+            JsValue::String(s) => {
+                // INTEGER 42 should be tagged as $bigint
+                assert!(
+                    s.contains("\"$bigint\":\"42\""),
+                    "expected $bigint tag for integer, got {}",
+                    s,
+                );
+                // REAL 3.14 should be a plain number
+                assert!(
+                    s.contains("3.14"),
+                    "expected plain number for real, got {}",
+                    s,
+                );
+                // TEXT should be a plain string
+                assert!(
+                    s.contains("\"hello\""),
+                    "expected string for text, got {}",
+                    s,
+                );
+            }
+            other => panic!("expected JSON row, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_get_returns_null_for_no_rows() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER)')")
+            .unwrap();
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
+            JsValue::String(s) => assert_eq!(s, "null"),
+            other => panic!("expected 'null' string, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_all_returns_array() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER, name TEXT)')")
+            .unwrap();
+        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?)')").unwrap();
+        machine.eval("sqliteStmtRun(ins, '[1, \"alice\"]')").unwrap();
+        machine.eval("sqliteStmtRun(ins, '[2, \"bob\"]')").unwrap();
+        machine.eval("sqliteStmtFinalize(ins)").unwrap();
+
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t ORDER BY id')").unwrap();
+        match machine.eval("sqliteStmtAll(sel, 'null')").unwrap() {
+            JsValue::String(s) => {
+                let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
+                let arr = parsed.as_array().unwrap();
+                assert_eq!(arr.len(), 2, "expected 2 rows, got {}", arr.len());
+                // First row: id=1 as $bigint, name="alice"
+                assert_eq!(arr[0]["id"]["$bigint"], "1");
+                assert_eq!(arr[0]["name"], "alice");
+                // Second row: id=2 as $bigint, name="bob"
+                assert_eq!(arr[1]["id"]["$bigint"], "2");
+                assert_eq!(arr[1]["name"], "bob");
+            }
+            other => panic!("expected JSON array, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_blob_round_trip() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE blobs (data BLOB)')")
+            .unwrap();
+
+        // Insert a blob via $bytes tag (base64 of [0xDE, 0xAD, 0xBE, 0xEF])
+        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO blobs VALUES (?)')").unwrap();
+        machine
+            .eval("sqliteStmtRun(ins, '[{\"$bytes\": \"3q2+7w==\"}]')")
+            .unwrap();
+        machine.eval("sqliteStmtFinalize(ins)").unwrap();
+
+        // Read it back
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT data FROM blobs')").unwrap();
+        match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
+            JsValue::String(s) => {
+                let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
+                assert_eq!(
+                    parsed["data"]["$bytes"], "3q2+7w==",
+                    "expected base64 blob, got {}",
+                    s,
+                );
+            }
+            other => panic!("expected JSON row, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_bigint_param_round_trip() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE big (val INTEGER)')")
+            .unwrap();
+
+        // Insert a large integer via $bigint tag
+        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO big VALUES (?)')").unwrap();
+        machine
+            .eval("sqliteStmtRun(ins, '[{\"$bigint\": \"9007199254740993\"}]')")
+            .unwrap();
+        machine.eval("sqliteStmtFinalize(ins)").unwrap();
+
+        // Read it back — should come back as $bigint
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT val FROM big')").unwrap();
+        match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
+            JsValue::String(s) => {
+                let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
+                assert_eq!(
+                    parsed["val"]["$bigint"], "9007199254740993",
+                    "expected large bigint, got {}",
+                    s,
+                );
+            }
+            other => panic!("expected JSON row, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_null_values() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (a INTEGER, b TEXT)')")
+            .unwrap();
+        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?)')").unwrap();
+        machine.eval("sqliteStmtRun(ins, '[null, null]')").unwrap();
+        machine.eval("sqliteStmtFinalize(ins)").unwrap();
+
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
+            JsValue::String(s) => {
+                let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
+                assert!(parsed["a"].is_null(), "expected null for a, got {}", s);
+                assert!(parsed["b"].is_null(), "expected null for b, got {}", s);
+            }
+            other => panic!("expected JSON row, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_named_params() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER, name TEXT)')")
+            .unwrap();
+        machine.eval(
+            "var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (:id, :name)')",
+        ).unwrap();
+        machine
+            .eval("sqliteStmtRun(ins, '{\":id\": {\"$bigint\": \"1\"}, \":name\": \"alice\"}')")
+            .unwrap();
+        machine.eval("sqliteStmtFinalize(ins)").unwrap();
+
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
+            JsValue::String(s) => {
+                let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
+                assert_eq!(parsed["id"]["$bigint"], "1");
+                assert_eq!(parsed["name"], "alice");
+            }
+            other => panic!("expected JSON row, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_columns() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER, name TEXT, score REAL)')")
+            .unwrap();
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT id, name, score FROM t')").unwrap();
+        match machine.eval("sqliteStmtColumns(sel)").unwrap() {
+            JsValue::String(s) => {
+                let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
+                let arr = parsed.as_array().unwrap();
+                assert_eq!(arr.len(), 3);
+                assert_eq!(arr[0]["name"], "id");
+                assert_eq!(arr[1]["name"], "name");
+                assert_eq!(arr[2]["name"], "score");
+            }
+            other => panic!("expected JSON array, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    #[test]
+    fn sqlite_close_cleans_up_statements() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER)')")
+            .unwrap();
+        machine.eval("var s1 = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        machine.eval("var s2 = sqlitePrepare(db, 'INSERT INTO t VALUES (?)')").unwrap();
+
+        // Close db — should clean up both statements
+        machine.eval("sqliteClose(db)").unwrap();
+
+        // Using the statement handles should now produce errors
+        match machine.eval("sqliteStmtGet(s1, 'null')").unwrap() {
+            JsValue::String(s) => assert!(
+                s.starts_with("Error: "),
+                "expected error after close, got {}",
+                s,
+            ),
+            other => panic!("expected error string, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn sqlite_transaction() {
+        let mut powers = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers);
+
+        machine.eval("var db = sqliteOpen(':memory:')").unwrap();
+        machine
+            .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER)')")
+            .unwrap();
+
+        // Begin transaction, insert, rollback
+        machine.eval("sqliteExec(db, 'BEGIN')").unwrap();
+        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?)')").unwrap();
+        machine.eval("sqliteStmtRun(ins, '[{\"$bigint\": \"1\"}]')").unwrap();
+        machine.eval("sqliteExec(db, 'ROLLBACK')").unwrap();
+
+        // Should have no rows
+        machine.eval("var sel = sqlitePrepare(db, 'SELECT COUNT(*) as cnt FROM t')").unwrap();
+        match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
+            JsValue::String(s) => {
+                let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
+                assert_eq!(
+                    parsed["cnt"]["$bigint"], "0",
+                    "expected 0 rows after rollback, got {}",
+                    s,
+                );
+            }
+            other => panic!("expected JSON row, got {:?}", js_value_debug(&other)),
+        }
+
+        machine.eval("sqliteStmtFinalize(ins)").unwrap();
+        machine.eval("sqliteStmtFinalize(sel)").unwrap();
+        machine.eval("sqliteClose(db)").unwrap();
     }
 }

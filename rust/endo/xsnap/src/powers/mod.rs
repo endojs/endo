@@ -9,6 +9,7 @@ pub mod crypto;
 pub mod fs;
 pub mod modules;
 pub mod process;
+pub mod sqlite;
 
 use cap_std::fs::Dir;
 use std::collections::HashMap;
