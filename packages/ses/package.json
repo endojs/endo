@@ -113,7 +113,7 @@
     "hermes-engine-cli": "^0.12.0",
     "terser": "^5.16.6",
     "tsd": "catalog:dev",
-    "typescript": "~5.9.2"
+    "typescript": "catalog:dev"
   },
   "files": [
     "./*.d.ts",

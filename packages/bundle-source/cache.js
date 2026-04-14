@@ -105,17 +105,20 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     const bundle = await bundleSource(
       rootPath,
-      {
+      /** @type {import('./src/types.js').BundleOptions<ModuleFormat>} */ ({
         ...bundleOptions,
         noTransforms,
         elideComments,
         format,
         conditions: sortedConditions,
-      },
-      {
+      }),
+      /** @type {{ read?: import('./src/types.js').ReadFn, canonical?: import('./src/types.js').CanonicalFn, externals?: string[] }} */ ({
         ...readPowers,
         read: loggedRead,
-      },
+        canonical: /** @type {import('./src/types.js').CanonicalFn} */ (
+          readPowers.canonical
+        ),
+      }),
     );
 
     const code = encodeBundle(bundle);
@@ -362,18 +365,22 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * Load a bundle by target name, validating existing cache entries or creating
    * them on demand. Results are memoized per `targetName`.
    *
+   * @template {BundleCacheOperationOptions | undefined} [Opts=undefined]
    * @param {string} rootPath
    * @param {string} [targetName]
    * @param {Logger} [log]
-   * @param {BundleCacheOperationOptions} [options]
-   * @returns {Promise<unknown>}
+   * @param {Opts} [options]
+   * @returns {Promise<
+   *   Opts extends { format: infer F }
+   *     ? F extends ModuleFormat
+   *       ? import('./src/types.js').BundleSourceResult<F>
+   *       : import('./src/types.js').BundleSourceResult<'endoZipBase64'>
+   *     : import('./src/types.js').BundleSourceResult<'endoZipBase64'>
+   * >}
    */
-  const load = async (
-    rootPath,
-    targetName = readPowers.basename(rootPath, '.js'),
-    log = defaultLog,
-    options = {},
-  ) => {
+  const load = async (rootPath, targetName, log, options) => {
+    targetName = targetName ?? readPowers.basename(rootPath, '.js');
+    log = log ?? defaultLog;
     const found = loaded.get(targetName);
     // console.log('load', { targetName, found: !!found, rootPath });
     if (found && found.rootPath === rootPath) {

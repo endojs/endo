@@ -6,10 +6,10 @@ import {
   makeWeakMultimap,
 } from '../src/multimap.js';
 
-[
+/** @type {Array<[() => ReturnType<typeof makeMultimap>, string]>} */ ([
   [makeMultimap, 'multimap'],
   [makeWeakMultimap, 'weak multimap'],
-].forEach(([multimapConstructor, mapName]) => {
+]).forEach(([multimapConstructor, mapName]) => {
   test(`${mapName}: add`, t => {
     const multimap = multimapConstructor();
     const key = {};

@@ -51,7 +51,7 @@ test('stream terminated with cause', async (/** @type {import('ava').Assertions}
         t.fail();
       }
     } catch (error) {
-      t.is(error.message, 'Exit early');
+      t.is(/** @type {Error} */ (error).message, 'Exit early');
     }
   };
 

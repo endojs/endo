@@ -70,7 +70,8 @@ test('panic last resort', t => {
     panic(Error('testing panic using last resort'));
   } catch (err) {
     catchHappened = true;
-    t.true(Object.hasOwn(err, PanicEndowmentSymbol));
+    const thrown = /** @type {object} */ (err);
+    t.true(Object.hasOwn(thrown, PanicEndowmentSymbol));
     t.is(err, lastResortError);
   }
   t.true(catchHappened);

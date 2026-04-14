@@ -386,7 +386,7 @@ const makeTypeError = () => {
     null.null;
     throw TypeError('obligatory'); // To convince the type flow inferrence.
   } catch (error) {
-    return error;
+    return /** @type {TypeError} */ (error);
   }
 };
 
@@ -459,9 +459,10 @@ const getAsyncGeneratorFunctionInstance = () => {
       'return (async function* AsyncGeneratorFunctionInstance() {})',
     )();
   } catch (error) {
+    const err = /** @type {Error} */ (error);
     // Note: `Error.prototype.jsEngine` is only set by React Native runtime, not Hermes:
     // https://github.com/facebook/react-native/blob/main/packages/react-native/ReactCommon/hermes/executor/HermesExecutorFactory.cpp#L224-L230
-    if (error.name === 'SyntaxError') {
+    if (err.name === 'SyntaxError') {
       // Swallows Hermes error `async generators are unsupported` at runtime.
       // Note: `console` is not a JS built-in, so Hermes engine throws:
       // Uncaught ReferenceError: Property 'console' doesn't exist
@@ -469,11 +470,11 @@ const getAsyncGeneratorFunctionInstance = () => {
       // However React Native provides a `console` implementation when setting up error handling:
       // https://github.com/facebook/react-native/blob/main/packages/react-native/Libraries/Core/InitializeCore.js
       return undefined;
-    } else if (error.name === 'EvalError') {
+    } else if (err.name === 'EvalError') {
       // eslint-disable-next-line no-empty-function
       return async function* AsyncGeneratorFunctionInstance() {};
     } else {
-      throw error;
+      throw err;
     }
   }
 };

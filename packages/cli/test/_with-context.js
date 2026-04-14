@@ -1,4 +1,4 @@
-/** @import {Context, TestRoutine} from '../types' */
+/** @import {Context, TestRoutine} from './_types.js' */
 /**
  * Creates a wrapper which wraps a test routine with an execa-curried setup and teardown routine.
  *

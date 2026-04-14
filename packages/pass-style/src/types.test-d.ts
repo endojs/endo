@@ -59,4 +59,4 @@ expectPassable(Promise.resolve(remotable));
 expectPassable({ a: Promise.resolve(remotable) });
 expectPassable({ a: Promise.resolve(fn) });
 
-expectAssignable<Checker>((cond: boolean, details: string) => cond);
+expectAssignable<Checker>((cond: boolean, details?: unknown) => cond);

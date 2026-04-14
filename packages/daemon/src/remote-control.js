@@ -19,9 +19,9 @@ export const makeRemoteControlProvider = localNodeId => {
     // We do not have a pending outbound connection attempt.
     /**
      * @type {(
-     *   remoteGateway: Promise<EndoGateway>,
+     *   remoteGateway: import('@endo/eventual-send').ERef<EndoGateway>,
      *   cancel: (error: Error) => void | Promise<void>,
-     *   cancelled: Promise<never>,
+     *   cancelled: Promise<unknown>,
      * ) => RemoteControlState}
      */
     const accepted = (remoteGateway, cancelCurrent, currentCancelled) => {
@@ -73,9 +73,9 @@ export const makeRemoteControlProvider = localNodeId => {
     // We have an active outbound connection.
     /**
      * @type {(
-     *   remoteGateway: Promise<EndoGateway>,
+     *   remoteGateway: import('@endo/eventual-send').ERef<EndoGateway>,
      *   cancel: (error: Error) => void,
-     *   cancelled: Promise<never>,
+     *   cancelled: Promise<unknown>,
      * ) => RemoteControlState}
      */
     const connected =
@@ -249,9 +249,9 @@ export const makeRemoteControlProvider = localNodeId => {
     state = start();
 
     /**
-     * @param {Promise<EndoGateway>} proposedRemoteGateway
+     * @param {import('@endo/eventual-send').ERef<EndoGateway>} proposedRemoteGateway
      * @param {(error: Error) => void} cancelConnection
-     * @param {Promise<never>} connectionCancelled
+     * @param {Promise<unknown>} connectionCancelled
      * @param {() => void} connectionDispose
      */
     const accept = (
@@ -268,9 +268,9 @@ export const makeRemoteControlProvider = localNodeId => {
       );
     };
     /**
-     * @param {() => Promise<EndoGateway>} getRemoteGateway
+     * @param {() => import('@endo/eventual-send').ERef<EndoGateway>} getRemoteGateway
      * @param {(error: Error) => void} cancelIncarnation
-     * @param {Promise<never>} incarnationCancelled
+     * @param {Promise<unknown>} incarnationCancelled
      * @param {() => void} disposeIncarnation
      */
     const connect = (

@@ -791,9 +791,11 @@ test('dynamic require of ancestor disallowed by policy fails at require time', a
     });
     t.fail('importLocation should have rejected');
   } catch (err) {
-    t.regex(err.message, /Could not require pantsFolder "jorts-folder"/);
+    const error = /** @type {Error & { cause?: Error }} */ (err);
+    const cause = error.cause || Error('missing cause');
+    t.regex(error.message, /Could not require pantsFolder "jorts-folder"/);
     t.regex(
-      err.cause.message,
+      cause.message,
       new RegExp(
         `Importing "jorts-folder" in resource "jorts-folder" in "pantspack>pantspack-folder-runner" was not allowed by "packages" policy: ${JSON.stringify(policy.resources['pantspack>pantspack-folder-runner'].packages)}`,
       ),
