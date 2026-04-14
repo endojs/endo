@@ -497,22 +497,22 @@ fn eval_wrapped(machine: &Machine, code: &str, label: &str) -> bool {
 
 /// Deliver a raw envelope to the JS `handleCommand` function.
 ///
-/// We hex-encode the bytes and reconstruct a Uint8Array inside JS,
-/// because the XS native Compartment API we use here takes source
-/// strings rather than values.
+/// Pass raw envelope bytes to JS `handleCommand(Uint8Array)`.
+///
+/// We store the bytes in a thread-local and retrieve them via the
+/// `getPendingEnvelope()` host function, which returns an ArrayBuffer
+/// directly — no hex encoding. This is O(n) instead of the previous
+/// O(n²) hex-parse approach, which is critical for large envelopes
+/// (e.g. 1 MB CapTP payloads from storeBlob).
 fn dispatch_envelope(machine: &Machine, data: &[u8]) {
-    let hex = hex::encode(data);
-    let code = format!(
-        "try {{ \
-            var __hex = '{}'; \
-            var __bytes = new Uint8Array(__hex.length / 2); \
-            for (var __i = 0; __i < __hex.length; __i += 2) \
-                __bytes[__i / 2] = parseInt(__hex.substr(__i, 2), 16); \
+    worker_io::set_pending_envelope(data.to_vec());
+    machine.eval(
+        "try { \
+            var __buf = getPendingEnvelope(); \
+            var __bytes = new Uint8Array(__buf); \
             handleCommand(__bytes); \
-        }} catch(e) {{ trace('handleCommand error: ' + e.message) }}",
-        hex
+         } catch(e) { trace('handleCommand error: ' + e.message) }",
     );
-    machine.eval(&code);
 }
 
 /// Bootstrap an XS machine with polyfills and SES lockdown.
@@ -612,9 +612,44 @@ pub fn run_xs_program(
         .eval(HOST_ALIASES)
         .expect("host aliases evaluation failed");
 
+    // Install native TextEncoder/TextDecoder replacements before SES
+    // lockdown so that the bundled `new TextEncoder()` picks up the
+    // fast native implementation instead of XS's built-in which is
+    // extremely slow for large strings (>100KB).
+    machine.eval(
+        "(function() { \
+            var OrigEncoder = globalThis.TextEncoder; \
+            var OrigDecoder = globalThis.TextDecoder; \
+            function NativeTextEncoder() {} \
+            NativeTextEncoder.prototype.encode = function(s) { \
+                return new Uint8Array(hostEncodeUtf8(s)); \
+            }; \
+            globalThis.TextEncoder = NativeTextEncoder; \
+            function NativeTextDecoder() {} \
+            NativeTextDecoder.prototype.decode = function(buf) { \
+                if (buf instanceof ArrayBuffer) { \
+                    return hostDecodeUtf8(new Uint8Array(buf)); \
+                } \
+                return hostDecodeUtf8(buf); \
+            }; \
+            globalThis.TextDecoder = NativeTextDecoder; \
+        })();",
+    );
+
     // 3. Bootstrap: polyfills → SES boot → role-specific program
     bootstrap_ses(&machine, label);
     eprintln!("{label}: SES bootstrapped");
+
+    // 4. Install globalThis.Base64 so that @endo/base64 picks up the
+    //    native Rust-backed codec instead of the pure-JS fallback
+    //    (which is orders of magnitude too slow on XS for large data).
+    machine.eval(
+        "globalThis.Base64 = harden({ \
+            decode(s) { return new Uint8Array(hostBase64Decode(s)); }, \
+            encode(b) { return hostBase64Encode(b); }, \
+        });",
+    );
+    eprintln!("{label}: Base64 native binding installed");
 
     match program {
         XsProgram::Bundle(src) => {
@@ -662,23 +697,59 @@ pub fn run_xs_program(
 
     if supervised {
         eprintln!("{label}: entering main loop");
-        loop {
+        'outer: loop {
+            // Block until the next envelope arrives.
             let frame = worker_io::with_transport(|t| t.recv_raw_envelope());
             match frame {
                 Ok(Some(data)) => {
                     dispatch_envelope(&machine, &data);
-                    machine.quiesce();
-                    if let Some(JsValue::Boolean(true)) =
-                        machine.eval("__shouldTerminate()")
-                    {
-                        break;
-                    }
                 }
                 Ok(None) => break,
                 Err(e) => {
                     eprintln!("{label}: recv error: {e}");
                     break;
                 }
+            }
+
+            // Reactive pump: interleave promise-job processing with
+            // non-blocking envelope dispatch so that CapTP round-trips
+            // that occur during quiescence (e.g. storeBlob iterating a
+            // remote reader) can complete without deadlocking.
+            let mut pump_iter = 0u32;
+            loop {
+                unsafe { fxRunPromiseJobs(machine.raw) };
+
+                // Drain any envelopes that arrived while JS was running.
+                loop {
+                    match worker_io::with_transport(|t| t.try_recv_raw_envelope()) {
+                        Ok(Some(data)) => {
+                            dispatch_envelope(&machine, &data);
+                        }
+                        Ok(None) => break,
+                        Err(e) => {
+                            eprintln!("{label}: try_recv error: {e}");
+                            break 'outer;
+                        }
+                    }
+                }
+
+                let pending = unsafe { ffi::fxHasPendingJobs() };
+                if pending == 0 {
+                    break;
+                }
+
+                pump_iter += 1;
+
+                // Jobs are pending but no envelopes available yet.
+                // Briefly yield to let the bridge tasks deliver
+                // responses, then try again.
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+
+            if let Some(JsValue::Boolean(true)) =
+                machine.eval("__shouldTerminate()")
+            {
+                break;
             }
         }
     } else {

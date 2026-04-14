@@ -55,6 +55,12 @@ pub trait WorkerTransport: Send {
     /// Returns `Ok(None)` on clean EOF.
     fn recv_raw_envelope(&mut self) -> io::Result<Option<Vec<u8>>>;
 
+    /// Non-blocking variant of `recv_raw_envelope`.  Returns
+    /// `Ok(None)` when no envelope is immediately available (or on
+    /// EOF).  Used by the reactive main loop to drain pending
+    /// inbound envelopes between promise-job runs.
+    fn try_recv_raw_envelope(&mut self) -> io::Result<Option<Vec<u8>>>;
+
     /// Write one raw CBOR byte-string frame.
     fn send_raw_frame(&mut self, data: &[u8]) -> io::Result<()>;
 
@@ -129,6 +135,13 @@ impl WorkerTransport for PipeTransport {
 
     fn recv_raw_envelope(&mut self) -> io::Result<Option<Vec<u8>>> {
         envelope::read_frame(&mut self.reader)
+    }
+
+    fn try_recv_raw_envelope(&mut self) -> io::Result<Option<Vec<u8>>> {
+        // Pipe workers do not currently need non-blocking recv.
+        // If a child-process worker encounters the same quiesce
+        // deadlock, this must be replaced with poll(2)/non-blocking I/O.
+        Ok(None)
     }
 
     fn send_raw_frame(&mut self, data: &[u8]) -> io::Result<()> {
@@ -240,6 +253,14 @@ impl WorkerTransport for ChannelTransport {
         self.recv_frame_blocking()
     }
 
+    fn try_recv_raw_envelope(&mut self) -> io::Result<Option<Vec<u8>>> {
+        match self.inbound.try_recv() {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(std_mpsc::TryRecvError::Empty) => Ok(None),
+            Err(std_mpsc::TryRecvError::Disconnected) => Ok(None),
+        }
+    }
+
     fn send_raw_frame(&mut self, data: &[u8]) -> io::Result<()> {
         self.outbound
             .send(data.to_vec())
@@ -287,6 +308,19 @@ impl WorkerTransport for ChannelTransport {
 
 thread_local! {
     static ACTIVE_TRANSPORT: RefCell<Option<Box<dyn WorkerTransport>>> = RefCell::new(None);
+    static PENDING_ENVELOPE: RefCell<Option<Vec<u8>>> = RefCell::new(None);
+}
+
+/// Store envelope bytes in the thread-local for retrieval by `host_get_pending_envelope`.
+pub fn set_pending_envelope(data: Vec<u8>) {
+    PENDING_ENVELOPE.with(|cell| {
+        *cell.borrow_mut() = Some(data);
+    });
+}
+
+/// Take the pending envelope bytes (used by `host_get_pending_envelope`).
+fn take_pending_envelope() -> Option<Vec<u8>> {
+    PENDING_ENVELOPE.with(|cell| cell.borrow_mut().take())
 }
 
 /// Install the given transport into the calling thread's slot.
@@ -457,6 +491,112 @@ pub unsafe extern "C" fn host_trace(the: *mut XsMachine) {
     eprintln!("endor: [trace] {}", msg);
 }
 
+/// `getPendingEnvelope() -> ArrayBuffer | undefined`
+///
+/// Returns the pending envelope bytes (set by `set_pending_envelope`)
+/// as an ArrayBuffer, or undefined if none is pending.
+/// Used by `dispatch_envelope` to pass binary data to JS without
+/// hex-encoding (which is O(n²) for large payloads).
+pub unsafe extern "C" fn host_get_pending_envelope(the: *mut XsMachine) {
+    if let Some(mut data) = take_pending_envelope() {
+        fxArrayBuffer(
+            the,
+            &mut (*the).scratch,
+            data.as_mut_ptr() as *mut std::ffi::c_void,
+            data.len() as i32,
+            data.len() as i32,
+        );
+        *(*the).frame.add(1) = (*the).scratch;
+    }
+    // If no pending envelope, result stays undefined.
+}
+
+/// `hostBase64Decode(string) -> ArrayBuffer`
+///
+/// Decode a base64-encoded string and return the raw bytes as an
+/// ArrayBuffer. This provides the native `Base64.decode` that
+/// `@endo/base64` checks for, avoiding the pure-JS fallback which is
+/// orders of magnitude too slow in XS for large inputs.
+pub unsafe extern "C" fn host_base64_decode(the: *mut XsMachine) {
+    let input = arg_str(the, 0);
+    // Use the base64 standard engine with padding.
+    use base64::Engine as _;
+    match base64::engine::general_purpose::STANDARD.decode(input) {
+        Ok(mut data) => {
+            fxArrayBuffer(
+                the,
+                &mut (*the).scratch,
+                data.as_mut_ptr() as *mut std::ffi::c_void,
+                data.len() as i32,
+                data.len() as i32,
+            );
+            *(*the).frame.add(1) = (*the).scratch;
+        }
+        Err(e) => {
+            let msg = format!("Error: invalid base64: {}", e);
+            set_result_string(the, &msg);
+        }
+    }
+}
+
+/// `hostBase64Encode(uint8Array) -> string`
+///
+/// Encode raw bytes as a base64 string. Paired with `hostBase64Decode`.
+pub unsafe extern "C" fn host_base64_encode(the: *mut XsMachine) {
+    let slot = (*the).frame.sub(2);
+    if let Some(buf) = read_typed_array_bytes(the, slot) {
+        use base64::Engine as _;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&buf);
+        let c_str = std::ffi::CString::new(encoded).unwrap_or_default();
+        fxString(the, &mut (*the).scratch, c_str.as_ptr());
+        *(*the).frame.add(1) = (*the).scratch;
+    }
+}
+
+/// `hostDecodeUtf8(uint8Array) -> string`
+///
+/// Decode a Uint8Array as UTF-8 and return it as a JavaScript string.
+/// This bypasses XS's TextDecoder which is extremely slow for large
+/// buffers (>100KB), causing the daemon to hang on large CapTP
+/// payloads like bundled source code in storeBlob.
+pub unsafe extern "C" fn host_decode_utf8(the: *mut XsMachine) {
+    let slot = (*the).frame.sub(2);
+    if let Some(buf) = read_typed_array_bytes(the, slot) {
+        match std::str::from_utf8(&buf) {
+            Ok(s) => {
+                let c_str = std::ffi::CString::new(s).unwrap_or_default();
+                fxString(the, &mut (*the).scratch, c_str.as_ptr());
+                *(*the).frame.add(1) = (*the).scratch;
+            }
+            Err(e) => {
+                let msg = format!("Error: invalid UTF-8: {}", e);
+                set_result_string(the, &msg);
+            }
+        }
+    }
+}
+
+/// `hostEncodeUtf8(string) -> ArrayBuffer`
+///
+/// Encode a JavaScript string as UTF-8 and return the raw bytes as an
+/// ArrayBuffer. This bypasses XS's TextEncoder which is extremely slow
+/// for large strings (>100KB), causing the daemon to hang when
+/// serializing large CapTP payloads like bundled source code.
+pub unsafe extern "C" fn host_encode_utf8(the: *mut XsMachine) {
+    let s = arg_str(the, 0);
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut data = bytes.to_vec();
+    fxArrayBuffer(
+        the,
+        &mut (*the).scratch,
+        data.as_mut_ptr() as *mut std::ffi::c_void,
+        len as i32,
+        len as i32,
+    );
+    *(*the).frame.add(1) = (*the).scratch;
+}
+
 /// Register worker I/O host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {
     machine.define_function("recvFrame", host_recv_frame, 0);
@@ -466,6 +606,11 @@ pub unsafe fn register(machine: &crate::Machine) {
     machine.define_function("sendRawFrame", host_send_raw_frame, 1);
     machine.define_function("importArchive", host_import_archive, 1);
     machine.define_function("trace", host_trace, 1);
+    machine.define_function("getPendingEnvelope", host_get_pending_envelope, 0);
+    machine.define_function("hostDecodeUtf8", host_decode_utf8, 1);
+    machine.define_function("hostEncodeUtf8", host_encode_utf8, 1);
+    machine.define_function("hostBase64Decode", host_base64_decode, 1);
+    machine.define_function("hostBase64Encode", host_base64_encode, 1);
 }
 
 #[cfg(test)]
