@@ -4,6 +4,7 @@
         "./tsconfig-build-options.json"
     ],
     "compilerOptions": {
+        "rootDir": "./packages",
         "outDir": "./dist"
     },
 }
