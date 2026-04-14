@@ -183,6 +183,7 @@ pub fn spawn_inproc_xs_peer(
                 Ok(bytes) => match codec::decode_envelope(&bytes) {
                     Ok(env) => {
                         let to = env.handle;
+                        // Outbound: machine → supervisor routing.
                         sup_outbound.deliver(Message {
                             from: handle,
                             to,
