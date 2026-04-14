@@ -58,6 +58,7 @@ export const table = [
     value: {
       type: 'op:resume-session',
       sessionId: examplePubKeyQBytes,
+      resumeSessionCount: 3n,
       sessionIdSignature: {
         type: 'sig-val',
         scheme: 'eddsa',

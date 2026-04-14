@@ -78,7 +78,7 @@ const handleActiveSessionMessageData = (
  */
 /**
  * @param {object} [options]
- * @param {(session: InternalSession) => void} [options.onSessionResolved]
+ * @param {(session: InternalSession, resolutionOptions?: { isResume?: boolean, resumeSessionCount?: bigint }) => void} [options.onSessionResolved]
  * @returns {SessionManager}
  */
 const makeSessionManager = (options = {}) => {
@@ -115,7 +115,7 @@ const makeSessionManager = (options = {}) => {
       }
       return pendingSession.promise;
     },
-    resolveSession: (locationId, connection, session) => {
+    resolveSession: (locationId, connection, session, resolutionOptions = {}) => {
       if (activeSessions.has(locationId)) {
         throw Error(
           `Unable to resolve session for ${locationId}. Active session already exists.`,
@@ -129,7 +129,7 @@ const makeSessionManager = (options = {}) => {
         pendingSession.resolve(session);
         pendingSessions.delete(locationId);
       }
-      onSessionResolved(session);
+      onSessionResolved(session, resolutionOptions);
     },
     endSession: session => {
       const locationId = locationToLocationId(session.peer.location);
@@ -252,25 +252,37 @@ export const makeClient = (options = {}) => {
     if (!sessionRecord) {
       return undefined;
     }
-    const { peerLocation, peerLocationSig, peerPublicKeyDescriptor } =
-      sessionRecord;
+    const {
+      peerLocation,
+      peerLocationSig,
+      peerPublicKeyDescriptor,
+      resumeSessionCount,
+    } = sessionRecord;
     return {
       peerLocation,
       peerLocationSig,
       peerPublicKey: publicKeyDescriptorToPublicKey(peerPublicKeyDescriptor),
+      resumeSessionCount:
+        typeof resumeSessionCount === 'bigint' ? resumeSessionCount : 0n,
     };
   };
 
   const sessionManager = makeSessionManager({
-    onSessionResolved: session => {
+    onSessionResolved: (session, resolutionOptions = {}) => {
       const locationId = locationToLocationId(session.peer.location);
       const sessionIdHex = toHex(session.id);
+      const { isResume = false, resumeSessionCount } = resolutionOptions;
+      const nextResumeSessionCount =
+        isResume && typeof resumeSessionCount === 'bigint'
+          ? resumeSessionCount + 1n
+          : 0n;
       resumeSessionsByLocationId.set(locationId, sessionIdHex);
       resumeSessionsById.set(sessionIdHex, {
         sessionId: session.id,
         peerLocation: session.peer.location,
         peerLocationSig: session.peer.locationSignature,
         peerPublicKeyDescriptor: session.peer.publicKey.descriptor,
+        resumeSessionCount: nextResumeSessionCount,
       });
     },
   });
@@ -317,9 +329,14 @@ export const makeClient = (options = {}) => {
     const resumeSessionRecord =
       resumeSessionIdHex && resumeSessionsById.get(resumeSessionIdHex);
     if (resumeSessionRecord) {
+      const resumeSessionCount =
+        typeof resumeSessionRecord.resumeSessionCount === 'bigint'
+          ? resumeSessionRecord.resumeSessionCount
+          : 0n;
       sendHandshake(connection, selfIdentity, captpVersion, {
         opType: 'op:resume-session',
         resumeSessionId: resumeSessionRecord.sessionId,
+        resumeSessionCount,
       });
     } else {
       sendHandshake(connection, selfIdentity, captpVersion);

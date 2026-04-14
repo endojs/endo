@@ -46,6 +46,7 @@ const OpResumeSessionCodec = makeOcapnRecordCodecFromDefinition(
   'op:resume-session',
   {
     sessionId: 'bytestring',
+    resumeSessionCount: NonNegativeIntegerCodec,
     sessionIdSignature: OcapnSignatureCodec,
   },
 );

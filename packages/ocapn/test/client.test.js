@@ -17,6 +17,7 @@ import {
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
 import { writeOcapnHandshakeMessage } from '../src/codecs/operations.js';
+import { sendHandshake } from '../src/client/handshake.js';
 import { makeSlot } from '../src/captp/pairwise.js';
 import { makeInMemoryBaggage } from '../src/client/baggage.js';
 import { makeClient } from '../src/client/index.js';
@@ -163,6 +164,89 @@ test('tryResumeSession requires explicitly provided baggage', t => {
       error.message,
       'tryResumeSession requires an explicitly provided baggage instance',
     );
+  }
+});
+
+test('resume-session rejects replayed resume count', async t => {
+  const baggageA = makeInMemoryBaggage();
+  const baggageB = makeInMemoryBaggage();
+  const { clientKitA, clientKitB, establishSession, shutdownBoth } =
+    await makeTestClientPair({
+      clientAOptions: {
+        baggage: baggageA,
+        tryResumeSession: true,
+      },
+      clientBOptions: {
+        baggage: baggageB,
+      },
+    });
+
+  try {
+    const {
+      sessionA: firstSessionA,
+      sessionB: firstSessionB,
+    } = await establishSession();
+    const resumeSessionsByLocationIdB = baggageB.get(
+      'ocapn:resumeSessionsByLocationId',
+    );
+    const resumeSessionsByIdB = baggageB.get('ocapn:resumeSessionsById');
+    const sessionIdHex = resumeSessionsByLocationIdB.get(clientKitA.locationId);
+    const firstRecord = resumeSessionsByIdB.get(sessionIdHex);
+    t.is(
+      firstRecord.resumeSessionCount,
+      0n,
+      'first established session should initialize resume count to zero',
+    );
+
+    firstSessionA.connection.end();
+    await waitUntilTrue(() => {
+      return (
+        !clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId) &&
+        !clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId)
+      );
+    });
+
+    const { sessionA: resumedSessionA, sessionB: resumedSessionB } =
+      await establishSession();
+    const resumedRecord = resumeSessionsByIdB.get(sessionIdHex);
+    t.is(
+      resumedRecord.resumeSessionCount,
+      1n,
+      'successful resume should increment stored resume count',
+    );
+
+    resumedSessionA.connection.end();
+    await waitUntilTrue(() => {
+      return (
+        !clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId) &&
+        !clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId)
+      );
+    });
+
+    const { connection: replayConnection } =
+      // eslint-disable-next-line no-underscore-dangle
+      clientKitA.netlayer._debug.establishConnection(clientKitB.location);
+    sendHandshake(replayConnection, resumedSessionA.self, clientKitA.debug.captpVersion, {
+      opType: 'op:resume-session',
+      resumeSessionId: resumedSessionA.id,
+      resumeSessionCount: 0n,
+    });
+
+    await waitUntilTrue(() => replayConnection.isDestroyed);
+    t.true(
+      replayConnection.isDestroyed,
+      'replayed resume-session handshake should be rejected',
+    );
+    t.is(
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
+      undefined,
+      'replayed resume should not establish an active session on the receiver',
+    );
+
+    firstSessionB.connection.end();
+    resumedSessionB.connection.end();
+  } finally {
+    shutdownBoth();
   }
 });
 

@@ -12,6 +12,8 @@ The durable model assumes values persisted in baggage are durable references
 root baggage
 ├── ocapn:swissnumTable
 ├── ocapn:giftTable
+├── ocapn:resumeSessionsByLocationId
+├── ocapn:resumeSessionsById
 └── ocapn-durable:tables
 ```
 
@@ -64,6 +66,45 @@ DurableTableState
 
 ---
 
+## `ocapn:resumeSessionsByLocationId`
+
+`Map<LocationId, SessionIdHex>`
+
+- **key**: peer location id (`locationToLocationId(peerLocation)`)
+- **value**: latest resumable session id hex string
+
+This map allows the client to locate resume metadata from a destination location.
+
+---
+
+## `ocapn:resumeSessionsById`
+
+`Map<SessionIdHex, SessionRecord>`
+
+- **key**: session id as hex (`toHex(sessionId)`)
+- **value**: durable session resume record
+
+`SessionRecord`:
+
+```text
+SessionRecord
+├── sessionId: SessionId (bytestring)
+├── peerLocation: OcapnLocation
+├── peerLocationSig: OcapnSignature
+├── peerPublicKeyDescriptor: OcapnPublicKeyDescriptor
+└── resumeCount: bigint (non-negative, replay-protection counter)
+```
+
+Replay-protection rules:
+
+1. `resumeCount` starts at `0n` when a session is first recorded.
+2. Resume handshake signs `(sessionId, resumeCount)` together.
+3. Resume is accepted only when the incoming `resumeCount` matches stored value.
+4. On successful resume, stored `resumeCount` is incremented and persisted.
+5. Replays with old signed payloads fail because the expected counter has advanced.
+
+---
+
 ## Required continuity invariants
 
 For restart-safe import/export behavior:
@@ -79,14 +120,5 @@ For restart-safe import/export behavior:
 
 ## Future schema extensions
 
-Recommended additional durable keys:
-
-```text
-root baggage
-└── ocapn-durable:sessions
-    ├── byId: Map<SessionIdHex, SessionRecord>
-    └── byPeerLocation: Map<LocationId, SessionIdHex>
-```
-
-These support explicit `op:resume-session` lookup, authentication material, and
-session metadata continuity.
+The core keys above are sufficient for explicit `op:resume-session` lookup,
+authentication material continuity, and replay-resistant session resumption.
