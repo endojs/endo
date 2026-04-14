@@ -47,8 +47,6 @@
 
   const cells = [
     {
-    },
-    {
       ZERO_N: cell("ZERO_N"),
       ONE_N: cell("ONE_N"),
       isNat: cell("isNat"),
@@ -530,6 +528,9 @@
       getNamedMethodGuards: cell("getNamedMethodGuards"),
     },
     {
+      matches: cell("matches"),
+      mustMatch: cell("mustMatch"),
+      M: cell("M"),
     },
     {
       isKey: cell("isKey"),
@@ -575,12 +576,9 @@
       bagUnion: cell("bagUnion"),
       bagIntersection: cell("bagIntersection"),
       bagDisjointSubtract: cell("bagDisjointSubtract"),
-      M: cell("M"),
       getRankCover: cell("getRankCover"),
       isPattern: cell("isPattern"),
       assertPattern: cell("assertPattern"),
-      matches: cell("matches"),
-      mustMatch: cell("mustMatch"),
       isAwaitArgGuard: cell("isAwaitArgGuard"),
       assertAwaitArgGuard: cell("assertAwaitArgGuard"),
       isRawGuard: cell("isRawGuard"),
@@ -611,8 +609,14 @@
       makeExo: cell("makeExo"),
     },
     {
+      makeExo: cell("makeExo"),
+      defineExoClass: cell("defineExoClass"),
+      defineExoClassKit: cell("defineExoClassKit"),
     },
     {
+    },
+    {
+      initEmpty: cell("initEmpty"),
       GET_INTERFACE_GUARD: cell("GET_INTERFACE_GUARD"),
     },
     {
@@ -710,6 +714,7 @@
     },
     {
       WorkerInterface: cell("WorkerInterface"),
+      PeerGatewayInterface: cell("PeerGatewayInterface"),
       ResponderInterface: cell("ResponderInterface"),
       NameHubInterface: cell("NameHubInterface"),
       EnvelopeInterface: cell("EnvelopeInterface"),
@@ -717,7 +722,6 @@
       HandleInterface: cell("HandleInterface"),
       AsyncIteratorInterface: cell("AsyncIteratorInterface"),
       DirectoryInterface: cell("DirectoryInterface"),
-      SyncedDirectoryInterface: cell("SyncedDirectoryInterface"),
       GuestInterface: cell("GuestInterface"),
       HostInterface: cell("HostInterface"),
       ChannelInterface: cell("ChannelInterface"),
@@ -783,7 +787,7 @@
       makeDeferredTasks: cell("makeDeferredTasks"),
     },
     {
-      helpTextData: cell("helpTextData"),
+      helpTextEntries: cell("helpTextEntries"),
     },
     {
       directoryHelp: cell("directoryHelp"),
@@ -863,6 +867,7 @@
       makeDaemonicPersistencePowers: cell("makeDaemonicPersistencePowers"),
     },
     {
+      SyncedPetStoreInterface: cell("SyncedPetStoreInterface"),
       mergeEntry: cell("mergeEntry"),
       mergeState: cell("mergeState"),
       makeSyncedPetStore: cell("makeSyncedPetStore"),
@@ -899,21 +904,6 @@
       writeFrameToStream: cell("writeFrameToStream"),
     },
     {
-      textEncoder: cell("textEncoder"),
-      textDecoder: cell("textDecoder"),
-      silentReject: cell("silentReject"),
-      markShouldTerminate: cell("markShouldTerminate"),
-      installShouldTerminate: cell("installShouldTerminate"),
-    },
-    {
-      makeXsNode: cell("makeXsNode"),
-      installShouldTerminate: cell("installShouldTerminate"),
-      markShouldTerminate: cell("markShouldTerminate"),
-      silentReject: cell("silentReject"),
-      textDecoder: cell("textDecoder"),
-      textEncoder: cell("textEncoder"),
-    },
-    {
       makeXsFilePowers: cell("makeXsFilePowers"),
       makeXsCryptoPowers: cell("makeXsCryptoPowers"),
     },
@@ -921,35 +911,39 @@
     },
   ];
 
-  defineProperties(cells[6], getOwnPropertyDescriptors(cells[5]));
+  defineProperties(cells[5], getOwnPropertyDescriptors(cells[4]));
 
-  defineProperties(cells[9], {"getMethodNames": { value: cells[8]["getMethodNames"] },"makeMessageBreakpointTester": { value: cells[7]["makeMessageBreakpointTester"] } });
-  defineProperties(cells[23], getOwnPropertyDescriptors(cells[21]));
-  defineProperties(cells[23], getOwnPropertyDescriptors(cells[22]));
-  defineProperties(cells[35], getOwnPropertyDescriptors(cells[34]));
-  defineProperties(cells[38], getOwnPropertyDescriptors(cells[36]));
-  defineProperties(cells[38], getOwnPropertyDescriptors(cells[37]));
+  defineProperties(cells[8], {"getMethodNames": { value: cells[7]["getMethodNames"] },"makeMessageBreakpointTester": { value: cells[6]["makeMessageBreakpointTester"] } });
+  defineProperties(cells[22], getOwnPropertyDescriptors(cells[20]));
+  defineProperties(cells[22], getOwnPropertyDescriptors(cells[21]));
+  defineProperties(cells[34], getOwnPropertyDescriptors(cells[33]));
+  defineProperties(cells[37], getOwnPropertyDescriptors(cells[35]));
+  defineProperties(cells[37], getOwnPropertyDescriptors(cells[36]));
 
-  defineProperties(cells[38], {"mapIterable": { value: cells[14]["mapIterable"] },"filterIterable": { value: cells[14]["filterIterable"] },"PASS_STYLE": { value: cells[11]["PASS_STYLE"] },"isObject": { value: cells[11]["isObject"] },"isPrimitive": { value: cells[11]["isPrimitive"] },"assertChecker": { value: cells[11]["assertChecker"] },"getTag": { value: cells[11]["getTag"] },"hasOwnPropertyOf": { value: cells[11]["hasOwnPropertyOf"] },"getErrorConstructor": { value: cells[16]["getErrorConstructor"] },"isErrorLike": { value: cells[16]["isErrorLike"] },"getInterfaceOf": { value: cells[12]["getInterfaceOf"] },"getRemotableMethodNames": { value: cells[12]["getRemotableMethodNames"] },"assertPassableSymbol": { value: cells[17]["assertPassableSymbol"] },"isPassableSymbol": { value: cells[17]["isPassableSymbol"] },"nameForPassableSymbol": { value: cells[17]["nameForPassableSymbol"] },"passableSymbolForName": { value: cells[17]["passableSymbolForName"] },"unpassableSymbolForName": { value: cells[17]["unpassableSymbolForName"] },"isWellFormedString": { value: cells[18]["isWellFormedString"] },"assertWellFormedString": { value: cells[18]["assertWellFormedString"] },"assertPassableString": { value: cells[18]["assertPassableString"] },"passStyleOf": { value: cells[29]["passStyleOf"] },"isPassable": { value: cells[29]["isPassable"] },"assertPassable": { value: cells[29]["assertPassable"] },"toPassableError": { value: cells[29]["toPassableError"] },"toThrowable": { value: cells[29]["toThrowable"] },"makeTagged": { value: cells[30]["makeTagged"] },"Remotable": { value: cells[13]["Remotable"] },"Far": { value: cells[13]["Far"] },"ToFarFunction": { value: cells[13]["ToFarFunction"] },"GET_METHOD_NAMES": { value: cells[13]["GET_METHOD_NAMES"] },"assertRecord": { value: cells[31]["assertRecord"] },"assertCopyArray": { value: cells[31]["assertCopyArray"] },"assertRemotable": { value: cells[31]["assertRemotable"] },"isRemotable": { value: cells[31]["isRemotable"] },"isRecord": { value: cells[31]["isRecord"] },"isCopyArray": { value: cells[31]["isCopyArray"] },"isAtom": { value: cells[31]["isAtom"] },"assertAtom": { value: cells[31]["assertAtom"] } });
-  defineProperties(cells[48], getOwnPropertyDescriptors(cells[47]));
-  defineProperties(cells[48], getOwnPropertyDescriptors(cells[38]));
+  defineProperties(cells[37], {"mapIterable": { value: cells[13]["mapIterable"] },"filterIterable": { value: cells[13]["filterIterable"] },"PASS_STYLE": { value: cells[10]["PASS_STYLE"] },"isObject": { value: cells[10]["isObject"] },"isPrimitive": { value: cells[10]["isPrimitive"] },"assertChecker": { value: cells[10]["assertChecker"] },"getTag": { value: cells[10]["getTag"] },"hasOwnPropertyOf": { value: cells[10]["hasOwnPropertyOf"] },"getErrorConstructor": { value: cells[15]["getErrorConstructor"] },"isErrorLike": { value: cells[15]["isErrorLike"] },"getInterfaceOf": { value: cells[11]["getInterfaceOf"] },"getRemotableMethodNames": { value: cells[11]["getRemotableMethodNames"] },"assertPassableSymbol": { value: cells[16]["assertPassableSymbol"] },"isPassableSymbol": { value: cells[16]["isPassableSymbol"] },"nameForPassableSymbol": { value: cells[16]["nameForPassableSymbol"] },"passableSymbolForName": { value: cells[16]["passableSymbolForName"] },"unpassableSymbolForName": { value: cells[16]["unpassableSymbolForName"] },"isWellFormedString": { value: cells[17]["isWellFormedString"] },"assertWellFormedString": { value: cells[17]["assertWellFormedString"] },"assertPassableString": { value: cells[17]["assertPassableString"] },"passStyleOf": { value: cells[28]["passStyleOf"] },"isPassable": { value: cells[28]["isPassable"] },"assertPassable": { value: cells[28]["assertPassable"] },"toPassableError": { value: cells[28]["toPassableError"] },"toThrowable": { value: cells[28]["toThrowable"] },"makeTagged": { value: cells[29]["makeTagged"] },"Remotable": { value: cells[12]["Remotable"] },"Far": { value: cells[12]["Far"] },"ToFarFunction": { value: cells[12]["ToFarFunction"] },"GET_METHOD_NAMES": { value: cells[12]["GET_METHOD_NAMES"] },"assertRecord": { value: cells[30]["assertRecord"] },"assertCopyArray": { value: cells[30]["assertCopyArray"] },"assertRemotable": { value: cells[30]["assertRemotable"] },"isRemotable": { value: cells[30]["isRemotable"] },"isRecord": { value: cells[30]["isRecord"] },"isCopyArray": { value: cells[30]["isCopyArray"] },"isAtom": { value: cells[30]["isAtom"] },"assertAtom": { value: cells[30]["assertAtom"] } });
+  defineProperties(cells[47], getOwnPropertyDescriptors(cells[46]));
+  defineProperties(cells[47], getOwnPropertyDescriptors(cells[37]));
 
-  defineProperties(cells[48], {"QCLASS": { value: cells[39]["QCLASS"] },"makeMarshal": { value: cells[42]["makeMarshal"] },"stringify": { value: cells[43]["stringify"] },"parse": { value: cells[43]["parse"] },"decodeToJustin": { value: cells[44]["decodeToJustin"] },"passableAsJustin": { value: cells[44]["passableAsJustin"] },"qp": { value: cells[44]["qp"] },"makePassableKit": { value: cells[45]["makePassableKit"] },"makeEncodePassable": { value: cells[45]["makeEncodePassable"] },"makeDecodePassable": { value: cells[45]["makeDecodePassable"] },"isEncodedRemotable": { value: cells[45]["isEncodedRemotable"] },"zeroPad": { value: cells[45]["zeroPad"] },"recordNames": { value: cells[45]["recordNames"] },"recordValues": { value: cells[45]["recordValues"] },"compareNumerics": { value: cells[46]["compareNumerics"] },"compareByCodePoints": { value: cells[46]["compareByCodePoints"] },"assertRankSorted": { value: cells[46]["assertRankSorted"] },"compareRank": { value: cells[46]["compareRank"] },"isRankSorted": { value: cells[46]["isRankSorted"] },"sortByRank": { value: cells[46]["sortByRank"] },"compareAntiRank": { value: cells[46]["compareAntiRank"] },"makeFullOrderComparatorKit": { value: cells[46]["makeFullOrderComparatorKit"] },"getPassStyleCover": { value: cells[46]["getPassStyleCover"] },"intersectRankCovers": { value: cells[46]["intersectRankCovers"] },"unionRankCovers": { value: cells[46]["unionRankCovers"] },"deeplyFulfilled": { value: cells[38]["deeplyFulfilled"] } });
-  defineProperties(cells[54], getOwnPropertyDescriptors(cells[53]));
-  defineProperties(cells[54], getOwnPropertyDescriptors(cells[51]));
-  defineProperties(cells[54], getOwnPropertyDescriptors(cells[48]));
+  defineProperties(cells[47], {"QCLASS": { value: cells[38]["QCLASS"] },"makeMarshal": { value: cells[41]["makeMarshal"] },"stringify": { value: cells[42]["stringify"] },"parse": { value: cells[42]["parse"] },"decodeToJustin": { value: cells[43]["decodeToJustin"] },"passableAsJustin": { value: cells[43]["passableAsJustin"] },"qp": { value: cells[43]["qp"] },"makePassableKit": { value: cells[44]["makePassableKit"] },"makeEncodePassable": { value: cells[44]["makeEncodePassable"] },"makeDecodePassable": { value: cells[44]["makeDecodePassable"] },"isEncodedRemotable": { value: cells[44]["isEncodedRemotable"] },"zeroPad": { value: cells[44]["zeroPad"] },"recordNames": { value: cells[44]["recordNames"] },"recordValues": { value: cells[44]["recordValues"] },"compareNumerics": { value: cells[45]["compareNumerics"] },"compareByCodePoints": { value: cells[45]["compareByCodePoints"] },"assertRankSorted": { value: cells[45]["assertRankSorted"] },"compareRank": { value: cells[45]["compareRank"] },"isRankSorted": { value: cells[45]["isRankSorted"] },"sortByRank": { value: cells[45]["sortByRank"] },"compareAntiRank": { value: cells[45]["compareAntiRank"] },"makeFullOrderComparatorKit": { value: cells[45]["makeFullOrderComparatorKit"] },"getPassStyleCover": { value: cells[45]["getPassStyleCover"] },"intersectRankCovers": { value: cells[45]["intersectRankCovers"] },"unionRankCovers": { value: cells[45]["unionRankCovers"] },"deeplyFulfilled": { value: cells[37]["deeplyFulfilled"] } });
+  defineProperties(cells[53], getOwnPropertyDescriptors(cells[52]));
+  defineProperties(cells[53], getOwnPropertyDescriptors(cells[50]));
+  defineProperties(cells[53], getOwnPropertyDescriptors(cells[47]));
 
-  defineProperties(cells[54], {"Nat": { value: cells[1]["Nat"] },"makeLoopback": { value: cells[52]["makeLoopback"] } });
-  defineProperties(cells[56], getOwnPropertyDescriptors(cells[55]));
+  defineProperties(cells[53], {"Nat": { value: cells[0]["Nat"] },"makeLoopback": { value: cells[51]["makeLoopback"] } });
+  defineProperties(cells[55], getOwnPropertyDescriptors(cells[54]));
 
-  defineProperties(cells[56], {"E": { value: cells[35]["E"] },"Far": { value: cells[38]["Far"] },"getInterfaceOf": { value: cells[38]["getInterfaceOf"] },"passStyleOf": { value: cells[38]["passStyleOf"] } });
-  defineProperties(cells[74], getOwnPropertyDescriptors(cells[73]));
+  defineProperties(cells[55], {"E": { value: cells[34]["E"] },"Far": { value: cells[37]["Far"] },"getInterfaceOf": { value: cells[37]["getInterfaceOf"] },"passStyleOf": { value: cells[37]["passStyleOf"] } });
 
-  defineProperties(cells[74], {"isKey": { value: cells[60]["isKey"] },"assertKey": { value: cells[60]["assertKey"] },"assertScalarKey": { value: cells[60]["assertScalarKey"] },"isCopySet": { value: cells[60]["isCopySet"] },"assertCopySet": { value: cells[60]["assertCopySet"] },"makeCopySet": { value: cells[60]["makeCopySet"] },"getCopySetKeys": { value: cells[60]["getCopySetKeys"] },"isCopyBag": { value: cells[60]["isCopyBag"] },"assertCopyBag": { value: cells[60]["assertCopyBag"] },"makeCopyBag": { value: cells[60]["makeCopyBag"] },"makeCopyBagFromElements": { value: cells[60]["makeCopyBagFromElements"] },"getCopyBagEntries": { value: cells[60]["getCopyBagEntries"] },"isCopyMap": { value: cells[60]["isCopyMap"] },"assertCopyMap": { value: cells[60]["assertCopyMap"] },"makeCopyMap": { value: cells[60]["makeCopyMap"] },"getCopyMapEntries": { value: cells[60]["getCopyMapEntries"] },"coerceToElements": { value: cells[58]["coerceToElements"] },"coerceToBagEntries": { value: cells[59]["coerceToBagEntries"] },"bagCompare": { value: cells[64]["bagCompare"] },"setCompare": { value: cells[64]["setCompare"] },"compareKeys": { value: cells[64]["compareKeys"] },"keyLT": { value: cells[64]["keyLT"] },"keyLTE": { value: cells[64]["keyLTE"] },"keyEQ": { value: cells[64]["keyEQ"] },"keyGTE": { value: cells[64]["keyGTE"] },"keyGT": { value: cells[64]["keyGT"] },"elementsIsSuperset": { value: cells[65]["elementsIsSuperset"] },"elementsIsDisjoint": { value: cells[65]["elementsIsDisjoint"] },"elementsCompare": { value: cells[65]["elementsCompare"] },"elementsUnion": { value: cells[65]["elementsUnion"] },"elementsDisjointUnion": { value: cells[65]["elementsDisjointUnion"] },"elementsIntersection": { value: cells[65]["elementsIntersection"] },"elementsDisjointSubtract": { value: cells[65]["elementsDisjointSubtract"] },"setIsSuperset": { value: cells[65]["setIsSuperset"] },"setIsDisjoint": { value: cells[65]["setIsDisjoint"] },"setUnion": { value: cells[65]["setUnion"] },"setDisjointUnion": { value: cells[65]["setDisjointUnion"] },"setIntersection": { value: cells[65]["setIntersection"] },"setDisjointSubtract": { value: cells[65]["setDisjointSubtract"] },"bagIsSuperbag": { value: cells[66]["bagIsSuperbag"] },"bagUnion": { value: cells[66]["bagUnion"] },"bagIntersection": { value: cells[66]["bagIntersection"] },"bagDisjointSubtract": { value: cells[66]["bagDisjointSubtract"] },"M": { value: cells[71]["M"] },"getRankCover": { value: cells[71]["getRankCover"] },"isPattern": { value: cells[71]["isPattern"] },"assertPattern": { value: cells[71]["assertPattern"] },"matches": { value: cells[71]["matches"] },"mustMatch": { value: cells[71]["mustMatch"] },"isAwaitArgGuard": { value: cells[71]["isAwaitArgGuard"] },"assertAwaitArgGuard": { value: cells[71]["assertAwaitArgGuard"] },"isRawGuard": { value: cells[71]["isRawGuard"] },"assertRawGuard": { value: cells[71]["assertRawGuard"] },"assertMethodGuard": { value: cells[71]["assertMethodGuard"] },"assertInterfaceGuard": { value: cells[71]["assertInterfaceGuard"] },"kindOf": { value: cells[71]["kindOf"] },"containerHasSplit": { value: cells[71]["containerHasSplit"] },"getAwaitArgGuardPayload": { value: cells[72]["getAwaitArgGuardPayload"] },"getMethodGuardPayload": { value: cells[72]["getMethodGuardPayload"] },"getInterfaceGuardPayload": { value: cells[72]["getInterfaceGuardPayload"] },"getInterfaceMethodKeys": { value: cells[72]["getInterfaceMethodKeys"] },"getNamedMethodGuards": { value: cells[72]["getNamedMethodGuards"] },"listDifference": { value: cells[70]["listDifference"] },"objectMap": { value: cells[40]["objectMap"] } });
-  defineProperties(cells[79], getOwnPropertyDescriptors(cells[77]));
+  defineProperties(cells[72], {"matches": { value: cells[70]["matches"] },"mustMatch": { value: cells[70]["mustMatch"] },"M": { value: cells[70]["M"] } });
+  defineProperties(cells[73], getOwnPropertyDescriptors(cells[72]));
+
+  defineProperties(cells[73], {"isKey": { value: cells[59]["isKey"] },"assertKey": { value: cells[59]["assertKey"] },"assertScalarKey": { value: cells[59]["assertScalarKey"] },"isCopySet": { value: cells[59]["isCopySet"] },"assertCopySet": { value: cells[59]["assertCopySet"] },"makeCopySet": { value: cells[59]["makeCopySet"] },"getCopySetKeys": { value: cells[59]["getCopySetKeys"] },"isCopyBag": { value: cells[59]["isCopyBag"] },"assertCopyBag": { value: cells[59]["assertCopyBag"] },"makeCopyBag": { value: cells[59]["makeCopyBag"] },"makeCopyBagFromElements": { value: cells[59]["makeCopyBagFromElements"] },"getCopyBagEntries": { value: cells[59]["getCopyBagEntries"] },"isCopyMap": { value: cells[59]["isCopyMap"] },"assertCopyMap": { value: cells[59]["assertCopyMap"] },"makeCopyMap": { value: cells[59]["makeCopyMap"] },"getCopyMapEntries": { value: cells[59]["getCopyMapEntries"] },"coerceToElements": { value: cells[57]["coerceToElements"] },"coerceToBagEntries": { value: cells[58]["coerceToBagEntries"] },"bagCompare": { value: cells[63]["bagCompare"] },"setCompare": { value: cells[63]["setCompare"] },"compareKeys": { value: cells[63]["compareKeys"] },"keyLT": { value: cells[63]["keyLT"] },"keyLTE": { value: cells[63]["keyLTE"] },"keyEQ": { value: cells[63]["keyEQ"] },"keyGTE": { value: cells[63]["keyGTE"] },"keyGT": { value: cells[63]["keyGT"] },"elementsIsSuperset": { value: cells[64]["elementsIsSuperset"] },"elementsIsDisjoint": { value: cells[64]["elementsIsDisjoint"] },"elementsCompare": { value: cells[64]["elementsCompare"] },"elementsUnion": { value: cells[64]["elementsUnion"] },"elementsDisjointUnion": { value: cells[64]["elementsDisjointUnion"] },"elementsIntersection": { value: cells[64]["elementsIntersection"] },"elementsDisjointSubtract": { value: cells[64]["elementsDisjointSubtract"] },"setIsSuperset": { value: cells[64]["setIsSuperset"] },"setIsDisjoint": { value: cells[64]["setIsDisjoint"] },"setUnion": { value: cells[64]["setUnion"] },"setDisjointUnion": { value: cells[64]["setDisjointUnion"] },"setIntersection": { value: cells[64]["setIntersection"] },"setDisjointSubtract": { value: cells[64]["setDisjointSubtract"] },"bagIsSuperbag": { value: cells[65]["bagIsSuperbag"] },"bagUnion": { value: cells[65]["bagUnion"] },"bagIntersection": { value: cells[65]["bagIntersection"] },"bagDisjointSubtract": { value: cells[65]["bagDisjointSubtract"] },"getRankCover": { value: cells[70]["getRankCover"] },"isPattern": { value: cells[70]["isPattern"] },"assertPattern": { value: cells[70]["assertPattern"] },"isAwaitArgGuard": { value: cells[70]["isAwaitArgGuard"] },"assertAwaitArgGuard": { value: cells[70]["assertAwaitArgGuard"] },"isRawGuard": { value: cells[70]["isRawGuard"] },"assertRawGuard": { value: cells[70]["assertRawGuard"] },"assertMethodGuard": { value: cells[70]["assertMethodGuard"] },"assertInterfaceGuard": { value: cells[70]["assertInterfaceGuard"] },"kindOf": { value: cells[70]["kindOf"] },"containerHasSplit": { value: cells[70]["containerHasSplit"] },"getAwaitArgGuardPayload": { value: cells[71]["getAwaitArgGuardPayload"] },"getMethodGuardPayload": { value: cells[71]["getMethodGuardPayload"] },"getInterfaceGuardPayload": { value: cells[71]["getInterfaceGuardPayload"] },"getInterfaceMethodKeys": { value: cells[71]["getInterfaceMethodKeys"] },"getNamedMethodGuards": { value: cells[71]["getNamedMethodGuards"] },"listDifference": { value: cells[69]["listDifference"] },"objectMap": { value: cells[39]["objectMap"] } });
+
+  defineProperties(cells[77], {"makeExo": { value: cells[76]["makeExo"] },"defineExoClass": { value: cells[76]["defineExoClass"] },"defineExoClassKit": { value: cells[76]["defineExoClassKit"] } });
   defineProperties(cells[79], getOwnPropertyDescriptors(cells[78]));
+  defineProperties(cells[79], getOwnPropertyDescriptors(cells[77]));
 
-  defineProperties(cells[79], {"GET_INTERFACE_GUARD": { value: cells[75]["GET_INTERFACE_GUARD"] } });
+  defineProperties(cells[79], {"initEmpty": { value: cells[76]["initEmpty"] },"GET_INTERFACE_GUARD": { value: cells[74]["GET_INTERFACE_GUARD"] } });
 
   defineProperties(cells[87], {"encodeBase64": { value: cells[85]["encodeBase64"] } });
 
@@ -995,6 +989,10 @@ function observeImports(map, importName, importIndex) {
     liveVar: {
     },
     onceVar: {
+      ZERO_N: cells[0].ZERO_N.set,
+      ONE_N: cells[0].ONE_N.set,
+      isNat: cells[0].isNat.set,
+      Nat: cells[0].Nat.set,
     },
     importMeta: {},
   });
@@ -1005,10 +1003,7 @@ function observeImports(map, importName, importIndex) {
     liveVar: {
     },
     onceVar: {
-      ZERO_N: cells[1].ZERO_N.set,
-      ONE_N: cells[1].ONE_N.set,
-      isNat: cells[1].isNat.set,
-      Nat: cells[1].Nat.set,
+      makeHardener: cells[1].makeHardener.set,
     },
     importMeta: {},
   });
@@ -1019,534 +1014,545 @@ function observeImports(map, importName, importIndex) {
     liveVar: {
     },
     onceVar: {
-      makeHardener: cells[2].makeHardener.set,
+      makeHardenerSelector: cells[2].makeHardenerSelector.set,
     },
     importMeta: {},
   });
   functors[3]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "./make-hardener.js", 1);
+      observeImports(map, "./make-selector.js", 2);
     },
     liveVar: {
     },
     onceVar: {
-      makeHardenerSelector: cells[3].makeHardenerSelector.set,
+      default: cells[3].default.set,
     },
     importMeta: {},
   });
   functors[4]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./make-hardener.js", 2);
-      observeImports(map, "./make-selector.js", 3);
     },
     liveVar: {
     },
     onceVar: {
-      default: cells[4].default.set,
+      makeEnvironmentCaptor: cells[4].makeEnvironmentCaptor.set,
+      getEnvironmentOption: cells[4].getEnvironmentOption.set,
+      getEnvironmentOptionsList: cells[4].getEnvironmentOptionsList.set,
+      environmentOptionsListHas: cells[4].environmentOptionsListHas.set,
     },
     importMeta: {},
   });
   functors[5]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "./src/env-options.js", 4);
     },
     liveVar: {
     },
     onceVar: {
-      makeEnvironmentCaptor: cells[5].makeEnvironmentCaptor.set,
-      getEnvironmentOption: cells[5].getEnvironmentOption.set,
-      getEnvironmentOptionsList: cells[5].getEnvironmentOptionsList.set,
-      environmentOptionsListHas: cells[5].environmentOptionsListHas.set,
     },
     importMeta: {},
   });
   functors[6]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./src/env-options.js", 5);
+      observeImports(map, "@endo/env-options", 5);
     },
     liveVar: {
     },
     onceVar: {
+      makeMessageBreakpointTester: cells[6].makeMessageBreakpointTester.set,
     },
     importMeta: {},
   });
   functors[7]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/env-options", 6);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "./message-breakpoints.js", 6);
     },
     liveVar: {
     },
     onceVar: {
-      makeMessageBreakpointTester: cells[7].makeMessageBreakpointTester.set,
+      getMethodNames: cells[7].getMethodNames.set,
+      localApplyFunction: cells[7].localApplyFunction.set,
+      localApplyMethod: cells[7].localApplyMethod.set,
+      localGet: cells[7].localGet.set,
     },
     importMeta: {},
   });
   functors[8]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "./message-breakpoints.js", 7);
+      observeImports(map, "./src/local.js", 7);
+      observeImports(map, "./src/message-breakpoints.js", 6);
     },
     liveVar: {
     },
     onceVar: {
-      getMethodNames: cells[8].getMethodNames.set,
-      localApplyFunction: cells[8].localApplyFunction.set,
-      localApplyMethod: cells[8].localApplyMethod.set,
-      localGet: cells[8].localGet.set,
     },
     importMeta: {},
   });
   functors[9]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./src/local.js", 8);
-      observeImports(map, "./src/message-breakpoints.js", 7);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
+      details: cells[9].details.set,
+      Fail: cells[9].Fail.set,
+      note: cells[9].note.set,
+      quote: cells[9].quote.set,
+      assert: cells[9].assert.set,
+      bare: cells[9].bare.set,
+      makeError: cells[9].makeError.set,
+      b: cells[9].b.set,
+      X: cells[9].X.set,
+      q: cells[9].q.set,
+      annotateError: cells[9].annotateError.set,
+      redacted: cells[9].redacted.set,
+      throwRedacted: cells[9].throwRedacted.set,
+      hideAndHardenFunction: cells[9].hideAndHardenFunction.set,
     },
     importMeta: {},
   });
   functors[10]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      details: cells[10].details.set,
-      Fail: cells[10].Fail.set,
-      note: cells[10].note.set,
-      quote: cells[10].quote.set,
-      assert: cells[10].assert.set,
-      bare: cells[10].bare.set,
-      makeError: cells[10].makeError.set,
-      b: cells[10].b.set,
-      X: cells[10].X.set,
-      q: cells[10].q.set,
-      annotateError: cells[10].annotateError.set,
-      redacted: cells[10].redacted.set,
-      throwRedacted: cells[10].throwRedacted.set,
-      hideAndHardenFunction: cells[10].hideAndHardenFunction.set,
+      hasOwnPropertyOf: cells[10].hasOwnPropertyOf.set,
+      isPrimitive: cells[10].isPrimitive.set,
+      isObject: cells[10].isObject.set,
+      isTypedArray: cells[10].isTypedArray.set,
+      PASS_STYLE: cells[10].PASS_STYLE.set,
+      assertChecker: cells[10].assertChecker.set,
+      confirmOwnDataDescriptor: cells[10].confirmOwnDataDescriptor.set,
+      getTag: cells[10].getTag.set,
+      confirmPassStyle: cells[10].confirmPassStyle.set,
+      confirmTagRecord: cells[10].confirmTagRecord.set,
+      confirmFunctionTagRecord: cells[10].confirmFunctionTagRecord.set,
     },
     importMeta: {},
   });
   functors[11]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/eventual-send/utils.js", 8);
+      observeImports(map, "./passStyle-helpers.js", 10);
     },
     liveVar: {
     },
     onceVar: {
-      hasOwnPropertyOf: cells[11].hasOwnPropertyOf.set,
-      isPrimitive: cells[11].isPrimitive.set,
-      isObject: cells[11].isObject.set,
-      isTypedArray: cells[11].isTypedArray.set,
-      PASS_STYLE: cells[11].PASS_STYLE.set,
-      assertChecker: cells[11].assertChecker.set,
-      confirmOwnDataDescriptor: cells[11].confirmOwnDataDescriptor.set,
-      getTag: cells[11].getTag.set,
-      confirmPassStyle: cells[11].confirmPassStyle.set,
-      confirmTagRecord: cells[11].confirmTagRecord.set,
-      confirmFunctionTagRecord: cells[11].confirmFunctionTagRecord.set,
+      canBeMethod: cells[11].canBeMethod.set,
+      getRemotableMethodNames: cells[11].getRemotableMethodNames.set,
+      assertIface: cells[11].assertIface.set,
+      getInterfaceOf: cells[11].getInterfaceOf.set,
+      RemotableHelper: cells[11].RemotableHelper.set,
     },
     importMeta: {},
   });
   functors[12]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/eventual-send/utils.js", 9);
-      observeImports(map, "./passStyle-helpers.js", 11);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/eventual-send/utils.js", 8);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./passStyle-helpers.js", 10);
+      observeImports(map, "./remotable.js", 11);
     },
     liveVar: {
     },
     onceVar: {
-      canBeMethod: cells[12].canBeMethod.set,
-      getRemotableMethodNames: cells[12].getRemotableMethodNames.set,
-      assertIface: cells[12].assertIface.set,
-      getInterfaceOf: cells[12].getInterfaceOf.set,
-      RemotableHelper: cells[12].RemotableHelper.set,
+      Remotable: cells[12].Remotable.set,
+      GET_METHOD_NAMES: cells[12].GET_METHOD_NAMES.set,
+      Far: cells[12].Far.set,
+      ToFarFunction: cells[12].ToFarFunction.set,
     },
     importMeta: {},
   });
   functors[13]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/eventual-send/utils.js", 9);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./passStyle-helpers.js", 11);
-      observeImports(map, "./remotable.js", 12);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "./make-far.js", 12);
     },
     liveVar: {
     },
     onceVar: {
-      Remotable: cells[13].Remotable.set,
-      GET_METHOD_NAMES: cells[13].GET_METHOD_NAMES.set,
-      Far: cells[13].Far.set,
-      ToFarFunction: cells[13].ToFarFunction.set,
+      mapIterable: cells[13].mapIterable.set,
+      filterIterable: cells[13].filterIterable.set,
     },
     importMeta: {},
   });
   functors[14]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "./make-far.js", 13);
     },
     liveVar: {
     },
     onceVar: {
-      mapIterable: cells[14].mapIterable.set,
-      filterIterable: cells[14].filterIterable.set,
+      default: cells[14].default.set,
     },
     importMeta: {},
   });
   functors[15]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/harden/is-noop.js", 14);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      default: cells[15].default.set,
+      makeRepairError: cells[15].makeRepairError.set,
+      repairError: cells[15].repairError.set,
+      getErrorConstructor: cells[15].getErrorConstructor.set,
+      isErrorLike: cells[15].isErrorLike.set,
+      confirmRecursivelyPassableErrorPropertyDesc: cells[15].confirmRecursivelyPassableErrorPropertyDesc.set,
+      confirmRecursivelyPassableError: cells[15].confirmRecursivelyPassableError.set,
+      ErrorHelper: cells[15].ErrorHelper.set,
     },
     importMeta: {},
   });
   functors[16]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/harden/is-noop.js", 15);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      makeRepairError: cells[16].makeRepairError.set,
-      repairError: cells[16].repairError.set,
-      getErrorConstructor: cells[16].getErrorConstructor.set,
-      isErrorLike: cells[16].isErrorLike.set,
-      confirmRecursivelyPassableErrorPropertyDesc: cells[16].confirmRecursivelyPassableErrorPropertyDesc.set,
-      confirmRecursivelyPassableError: cells[16].confirmRecursivelyPassableError.set,
-      ErrorHelper: cells[16].ErrorHelper.set,
+      isPassableSymbol: cells[16].isPassableSymbol.set,
+      assertPassableSymbol: cells[16].assertPassableSymbol.set,
+      nameForPassableSymbol: cells[16].nameForPassableSymbol.set,
+      passableSymbolForName: cells[16].passableSymbolForName.set,
+      unpassableSymbolForName: cells[16].unpassableSymbolForName.set,
     },
     importMeta: {},
   });
   functors[17]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/env-options", 5);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      isPassableSymbol: cells[17].isPassableSymbol.set,
-      assertPassableSymbol: cells[17].assertPassableSymbol.set,
-      nameForPassableSymbol: cells[17].nameForPassableSymbol.set,
-      passableSymbolForName: cells[17].passableSymbolForName.set,
-      unpassableSymbolForName: cells[17].unpassableSymbolForName.set,
+      isWellFormedString: cells[17].isWellFormedString.set,
+      assertWellFormedString: cells[17].assertWellFormedString.set,
+      assertPassableString: cells[17].assertPassableString.set,
     },
     importMeta: {},
   });
   functors[18]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/env-options", 6);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
-      isWellFormedString: cells[18].isWellFormedString.set,
-      assertWellFormedString: cells[18].assertWellFormedString.set,
-      assertPassableString: cells[18].assertPassableString.set,
+      makeReleasingExecutorKit: cells[18].makeReleasingExecutorKit.set,
     },
     importMeta: {},
   });
   functors[19]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
-      makeReleasingExecutorKit: cells[19].makeReleasingExecutorKit.set,
+      race: cells[19].memoRace.set,
     },
     importMeta: {},
   });
   functors[20]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
-      race: cells[20].memoRace.set,
+      isPromise: cells[20].isPromise.set,
     },
     importMeta: {},
   });
   functors[21]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
     },
     liveVar: {
     },
     onceVar: {
-      isPromise: cells[21].isPromise.set,
     },
     importMeta: {},
   });
   functors[22]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "./src/promise-executor-kit.js", 18);
+      observeImports(map, "./src/memo-race.js", 19);
+      observeImports(map, "./src/is-promise.js", 20);
+      observeImports(map, "./src/types.js", 21);
     },
     liveVar: {
     },
     onceVar: {
+      makePromiseKit: cells[22].makePromiseKit.set,
+      racePromises: cells[22].racePromises.set,
     },
     importMeta: {},
   });
   functors[23]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "./src/promise-executor-kit.js", 19);
-      observeImports(map, "./src/memo-race.js", 20);
-      observeImports(map, "./src/is-promise.js", 21);
-      observeImports(map, "./src/types.js", 22);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./passStyle-helpers.js", 10);
     },
     liveVar: {
     },
     onceVar: {
-      makePromiseKit: cells[23].makePromiseKit.set,
-      racePromises: cells[23].racePromises.set,
+      CopyArrayHelper: cells[23].CopyArrayHelper.set,
     },
     importMeta: {},
   });
   functors[24]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./passStyle-helpers.js", 11);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      CopyArrayHelper: cells[24].CopyArrayHelper.set,
+      ByteArrayHelper: cells[24].ByteArrayHelper.set,
     },
     importMeta: {},
   });
   functors[25]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./passStyle-helpers.js", 10);
+      observeImports(map, "./remotable.js", 11);
     },
     liveVar: {
     },
     onceVar: {
-      ByteArrayHelper: cells[25].ByteArrayHelper.set,
+      CopyRecordHelper: cells[25].CopyRecordHelper.set,
     },
     importMeta: {},
   });
   functors[26]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./passStyle-helpers.js", 11);
-      observeImports(map, "./remotable.js", 12);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./passStyle-helpers.js", 10);
     },
     liveVar: {
     },
     onceVar: {
-      CopyRecordHelper: cells[26].CopyRecordHelper.set,
+      TaggedHelper: cells[26].TaggedHelper.set,
     },
     importMeta: {},
   });
   functors[27]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./passStyle-helpers.js", 11);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      TaggedHelper: cells[27].TaggedHelper.set,
+      isSafePromise: cells[27].isSafePromise.set,
+      assertSafePromise: cells[27].assertSafePromise.set,
     },
     importMeta: {},
   });
   functors[28]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./passStyle-helpers.js", 10);
+      observeImports(map, "./copyArray.js", 23);
+      observeImports(map, "./byteArray.js", 24);
+      observeImports(map, "./copyRecord.js", 25);
+      observeImports(map, "./tagged.js", 26);
+      observeImports(map, "./error.js", 15);
+      observeImports(map, "./remotable.js", 11);
+      observeImports(map, "./symbol.js", 16);
+      observeImports(map, "./safe-promise.js", 27);
+      observeImports(map, "./string.js", 17);
     },
     liveVar: {
     },
     onceVar: {
-      isSafePromise: cells[28].isSafePromise.set,
-      assertSafePromise: cells[28].assertSafePromise.set,
+      PassStyleOfEndowmentSymbol: cells[28].PassStyleOfEndowmentSymbol.set,
+      passStyleOf: cells[28].passStyleOf.set,
+      assertPassable: cells[28].assertPassable.set,
+      isPassable: cells[28].isPassable.set,
+      toPassableError: cells[28].toPassableError.set,
+      toThrowable: cells[28].toThrowable.set,
     },
     importMeta: {},
   });
   functors[29]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./passStyle-helpers.js", 11);
-      observeImports(map, "./copyArray.js", 24);
-      observeImports(map, "./byteArray.js", 25);
-      observeImports(map, "./copyRecord.js", 26);
-      observeImports(map, "./tagged.js", 27);
-      observeImports(map, "./error.js", 16);
-      observeImports(map, "./remotable.js", 12);
-      observeImports(map, "./symbol.js", 17);
-      observeImports(map, "./safe-promise.js", 28);
-      observeImports(map, "./string.js", 18);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./passStyle-helpers.js", 10);
+      observeImports(map, "./passStyleOf.js", 28);
     },
     liveVar: {
     },
     onceVar: {
-      PassStyleOfEndowmentSymbol: cells[29].PassStyleOfEndowmentSymbol.set,
-      passStyleOf: cells[29].passStyleOf.set,
-      assertPassable: cells[29].assertPassable.set,
-      isPassable: cells[29].isPassable.set,
-      toPassableError: cells[29].toPassableError.set,
-      toThrowable: cells[29].toThrowable.set,
+      makeTagged: cells[29].makeTagged.set,
     },
     importMeta: {},
   });
   functors[30]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./passStyle-helpers.js", 11);
-      observeImports(map, "./passStyleOf.js", 29);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./passStyleOf.js", 28);
     },
     liveVar: {
     },
     onceVar: {
-      makeTagged: cells[30].makeTagged.set,
+      isCopyArray: cells[30].isCopyArray.set,
+      isByteArray: cells[30].isByteArray.set,
+      isRecord: cells[30].isRecord.set,
+      isRemotable: cells[30].isRemotable.set,
+      assertCopyArray: cells[30].assertCopyArray.set,
+      assertByteArray: cells[30].assertByteArray.set,
+      assertRecord: cells[30].assertRecord.set,
+      assertRemotable: cells[30].assertRemotable.set,
+      isAtom: cells[30].isAtom.set,
+      assertAtom: cells[30].assertAtom.set,
     },
     importMeta: {},
   });
   functors[31]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./passStyleOf.js", 29);
+      observeImports(map, "@endo/env-options", 5);
     },
     liveVar: {
     },
     onceVar: {
-      isCopyArray: cells[31].isCopyArray.set,
-      isByteArray: cells[31].isByteArray.set,
-      isRecord: cells[31].isRecord.set,
-      isRemotable: cells[31].isRemotable.set,
-      assertCopyArray: cells[31].assertCopyArray.set,
-      assertByteArray: cells[31].assertByteArray.set,
-      assertRecord: cells[31].assertRecord.set,
-      assertRemotable: cells[31].assertRemotable.set,
-      isAtom: cells[31].isAtom.set,
-      assertAtom: cells[31].assertAtom.set,
+      trackTurns: cells[31].trackTurns.set,
     },
     importMeta: {},
   });
   functors[32]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/env-options", 6);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "./track-turns.js", 31);
+      observeImports(map, "./message-breakpoints.js", 6);
     },
     liveVar: {
     },
     onceVar: {
-      trackTurns: cells[32].trackTurns.set,
+      default: cells[32].default.set,
     },
     importMeta: {},
   });
   functors[33]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "./track-turns.js", 32);
-      observeImports(map, "./message-breakpoints.js", 7);
     },
     liveVar: {
     },
     onceVar: {
-      default: cells[33].default.set,
     },
     importMeta: {},
   });
   functors[34]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "./E.js", 32);
+      observeImports(map, "./exports.js", 33);
     },
     liveVar: {
     },
     onceVar: {
+      hp: cells[34].HandledPromise.set,
+      E: cells[34].E.set,
     },
     importMeta: {},
   });
   functors[35]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./E.js", 33);
-      observeImports(map, "./exports.js", 34);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/eventual-send", 34);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "./passStyle-helpers.js", 10);
+      observeImports(map, "./passStyleOf.js", 28);
+      observeImports(map, "./makeTagged.js", 29);
+      observeImports(map, "./typeGuards.js", 30);
     },
     liveVar: {
     },
     onceVar: {
-      hp: cells[35].HandledPromise.set,
-      E: cells[35].E.set,
+      deeplyFulfilled: cells[35].deeplyFulfilled.set,
     },
     importMeta: {},
   });
   functors[36]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/eventual-send", 35);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "./passStyle-helpers.js", 11);
-      observeImports(map, "./passStyleOf.js", 29);
-      observeImports(map, "./makeTagged.js", 30);
-      observeImports(map, "./typeGuards.js", 31);
     },
     liveVar: {
     },
     onceVar: {
-      deeplyFulfilled: cells[36].deeplyFulfilled.set,
     },
     importMeta: {},
   });
   functors[37]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "./src/iter-helpers.js", 13);
+      observeImports(map, "./src/passStyle-helpers.js", 10);
+      observeImports(map, "./src/error.js", 15);
+      observeImports(map, "./src/remotable.js", 11);
+      observeImports(map, "./src/symbol.js", 16);
+      observeImports(map, "./src/string.js", 17);
+      observeImports(map, "./src/passStyleOf.js", 28);
+      observeImports(map, "./src/makeTagged.js", 29);
+      observeImports(map, "./src/make-far.js", 12);
+      observeImports(map, "./src/typeGuards.js", 30);
+      observeImports(map, "./src/deeplyFulfilled.js", 35);
+      observeImports(map, "./src/types.js", 36);
     },
     liveVar: {
     },
@@ -1557,180 +1563,176 @@ function observeImports(map, importName, importIndex) {
   functors[38]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./src/iter-helpers.js", 14);
-      observeImports(map, "./src/passStyle-helpers.js", 11);
-      observeImports(map, "./src/error.js", 16);
-      observeImports(map, "./src/remotable.js", 12);
-      observeImports(map, "./src/symbol.js", 17);
-      observeImports(map, "./src/string.js", 18);
-      observeImports(map, "./src/passStyleOf.js", 29);
-      observeImports(map, "./src/makeTagged.js", 30);
-      observeImports(map, "./src/make-far.js", 13);
-      observeImports(map, "./src/typeGuards.js", 31);
-      observeImports(map, "./src/deeplyFulfilled.js", 36);
-      observeImports(map, "./src/types.js", 37);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/pass-style", 37);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
+      QCLASS: cells[38].QCLASS.set,
+      makeEncodeToCapData: cells[38].makeEncodeToCapData.set,
+      makeDecodeFromCapData: cells[38].makeDecodeFromCapData.set,
     },
     importMeta: {},
   });
   functors[39]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/pass-style", 38);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
-      QCLASS: cells[39].QCLASS.set,
-      makeEncodeToCapData: cells[39].makeEncodeToCapData.set,
-      makeDecodeFromCapData: cells[39].makeDecodeFromCapData.set,
+      typedEntries: cells[39].typedEntries.set,
+      fromTypedEntries: cells[39].fromTypedEntries.set,
+      typedMap: cells[39].typedMap.set,
+      objectMap: cells[39].objectMap.set,
     },
     importMeta: {},
   });
   functors[40]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/nat", 0);
+      observeImports(map, "@endo/pass-style", 37);
     },
     liveVar: {
     },
     onceVar: {
-      typedEntries: cells[40].typedEntries.set,
-      fromTypedEntries: cells[40].fromTypedEntries.set,
-      typedMap: cells[40].typedMap.set,
-      objectMap: cells[40].objectMap.set,
+      makeEncodeToSmallcaps: cells[40].makeEncodeToSmallcaps.set,
+      makeDecodeFromSmallcaps: cells[40].makeDecodeFromSmallcaps.set,
     },
     importMeta: {},
   });
   functors[41]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/nat", 1);
-      observeImports(map, "@endo/pass-style", 38);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/nat", 0);
+      observeImports(map, "@endo/pass-style", 37);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/common/object-map.js", 39);
+      observeImports(map, "./encodeToCapData.js", 38);
+      observeImports(map, "./encodeToSmallcaps.js", 40);
     },
     liveVar: {
     },
     onceVar: {
-      makeEncodeToSmallcaps: cells[41].makeEncodeToSmallcaps.set,
-      makeDecodeFromSmallcaps: cells[41].makeDecodeFromSmallcaps.set,
+      makeMarshal: cells[41].makeMarshal.set,
     },
     importMeta: {},
   });
   functors[42]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/nat", 1);
-      observeImports(map, "@endo/pass-style", 38);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/common/object-map.js", 40);
-      observeImports(map, "./encodeToCapData.js", 39);
-      observeImports(map, "./encodeToSmallcaps.js", 41);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./marshal.js", 41);
     },
     liveVar: {
     },
     onceVar: {
-      makeMarshal: cells[42].makeMarshal.set,
+      stringify: cells[42].stringify.set,
+      parse: cells[42].parse.set,
     },
     importMeta: {},
   });
   functors[43]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./marshal.js", 42);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/nat", 0);
+      observeImports(map, "@endo/pass-style", 37);
+      observeImports(map, "./encodeToCapData.js", 38);
+      observeImports(map, "./marshal.js", 41);
     },
     liveVar: {
     },
     onceVar: {
-      stringify: cells[43].stringify.set,
-      parse: cells[43].parse.set,
+      decodeToJustin: cells[43].decodeToJustin.set,
+      passableAsJustin: cells[43].passableAsJustin.set,
+      qp: cells[43].qp.set,
     },
     importMeta: {},
   });
   functors[44]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/nat", 1);
-      observeImports(map, "@endo/pass-style", 38);
-      observeImports(map, "./encodeToCapData.js", 39);
-      observeImports(map, "./marshal.js", 42);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/nat", 0);
+      observeImports(map, "@endo/pass-style", 37);
     },
     liveVar: {
     },
     onceVar: {
-      decodeToJustin: cells[44].decodeToJustin.set,
-      passableAsJustin: cells[44].passableAsJustin.set,
-      qp: cells[44].qp.set,
+      recordNames: cells[44].recordNames.set,
+      recordValues: cells[44].recordValues.set,
+      zeroPad: cells[44].zeroPad.set,
+      makePassableKit: cells[44].makePassableKit.set,
+      makeEncodePassable: cells[44].makeEncodePassable.set,
+      makeDecodePassable: cells[44].makeDecodePassable.set,
+      isEncodedRemotable: cells[44].isEncodedRemotable.set,
+      passStylePrefixes: cells[44].passStylePrefixes.set,
     },
     importMeta: {},
   });
   functors[45]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/nat", 1);
-      observeImports(map, "@endo/pass-style", 38);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/env-options", 5);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/pass-style", 37);
+      observeImports(map, "./encodePassable.js", 44);
     },
     liveVar: {
     },
     onceVar: {
-      recordNames: cells[45].recordNames.set,
-      recordValues: cells[45].recordValues.set,
-      zeroPad: cells[45].zeroPad.set,
-      makePassableKit: cells[45].makePassableKit.set,
-      makeEncodePassable: cells[45].makeEncodePassable.set,
-      makeDecodePassable: cells[45].makeDecodePassable.set,
-      isEncodedRemotable: cells[45].isEncodedRemotable.set,
-      passStylePrefixes: cells[45].passStylePrefixes.set,
+      compareByCodePoints: cells[45].compareByCodePoints.set,
+      compareNumerics: cells[45].compareNumerics.set,
+      getPassStyleCover: cells[45].getPassStyleCover.set,
+      makeComparatorKit: cells[45].makeComparatorKit.set,
+      comparatorMirrorImage: cells[45].comparatorMirrorImage.set,
+      compareRank: cells[45].compareRank.set,
+      compareAntiRank: cells[45].compareAntiRank.set,
+      isRankSorted: cells[45].isRankSorted.set,
+      assertRankSorted: cells[45].assertRankSorted.set,
+      sortByRank: cells[45].sortByRank.set,
+      getIndexCover: cells[45].getIndexCover.set,
+      FullRankCover: cells[45].FullRankCover.set,
+      coveredEntries: cells[45].coveredEntries.set,
+      unionRankCovers: cells[45].unionRankCovers.set,
+      intersectRankCovers: cells[45].intersectRankCovers.set,
+      makeFullOrderComparatorKit: cells[45].makeFullOrderComparatorKit.set,
     },
     importMeta: {},
   });
   functors[46]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/env-options", 6);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/pass-style", 38);
-      observeImports(map, "./encodePassable.js", 45);
     },
     liveVar: {
     },
     onceVar: {
-      compareByCodePoints: cells[46].compareByCodePoints.set,
-      compareNumerics: cells[46].compareNumerics.set,
-      getPassStyleCover: cells[46].getPassStyleCover.set,
-      makeComparatorKit: cells[46].makeComparatorKit.set,
-      comparatorMirrorImage: cells[46].comparatorMirrorImage.set,
-      compareRank: cells[46].compareRank.set,
-      compareAntiRank: cells[46].compareAntiRank.set,
-      isRankSorted: cells[46].isRankSorted.set,
-      assertRankSorted: cells[46].assertRankSorted.set,
-      sortByRank: cells[46].sortByRank.set,
-      getIndexCover: cells[46].getIndexCover.set,
-      FullRankCover: cells[46].FullRankCover.set,
-      coveredEntries: cells[46].coveredEntries.set,
-      unionRankCovers: cells[46].unionRankCovers.set,
-      intersectRankCovers: cells[46].intersectRankCovers.set,
-      makeFullOrderComparatorKit: cells[46].makeFullOrderComparatorKit.set,
     },
     importMeta: {},
   });
   functors[47]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "./src/encodeToCapData.js", 38);
+      observeImports(map, "./src/marshal.js", 41);
+      observeImports(map, "./src/marshal-stringify.js", 42);
+      observeImports(map, "./src/marshal-justin.js", 43);
+      observeImports(map, "./src/encodePassable.js", 44);
+      observeImports(map, "./src/rankOrder.js", 45);
+      observeImports(map, "./src/types.js", 46);
+      observeImports(map, "@endo/pass-style", 37);
     },
     liveVar: {
     },
@@ -1741,108 +1743,100 @@ function observeImports(map, importName, importIndex) {
   functors[48]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./src/encodeToCapData.js", 39);
-      observeImports(map, "./src/marshal.js", 42);
-      observeImports(map, "./src/marshal-stringify.js", 43);
-      observeImports(map, "./src/marshal-justin.js", 44);
-      observeImports(map, "./src/encodePassable.js", 45);
-      observeImports(map, "./src/rankOrder.js", 46);
-      observeImports(map, "./src/types.js", 47);
-      observeImports(map, "@endo/pass-style", 38);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
+      nearTrapImpl: cells[48].nearTrapImpl.set,
+      makeTrap: cells[48].makeTrap.set,
     },
     importMeta: {},
   });
   functors[49]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/pass-style", 37);
     },
     liveVar: {
     },
     onceVar: {
-      nearTrapImpl: cells[49].nearTrapImpl.set,
-      makeTrap: cells[49].makeTrap.set,
+      makeFinalizingMap: cells[49].makeFinalizingMap.set,
     },
     importMeta: {},
   });
   functors[50]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/pass-style", 38);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "@endo/eventual-send", 34);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./trap.js", 48);
+      observeImports(map, "./finalize.js", 49);
     },
     liveVar: {
-    },
+        E: cells[50].E.set,
+  },
     onceVar: {
-      makeFinalizingMap: cells[50].makeFinalizingMap.set,
+      makeDefaultCapTPImportExportTables: cells[50].makeDefaultCapTPImportExportTables.set,
+      makeCapTP: cells[50].makeCapTP.set,
     },
     importMeta: {},
   });
   functors[51]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "@endo/eventual-send", 35);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./trap.js", 49);
-      observeImports(map, "./finalize.js", 50);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "./captp.js", 50);
+      observeImports(map, "./trap.js", 48);
+      observeImports(map, "./finalize.js", 49);
     },
     liveVar: {
         E: cells[51].E.set,
   },
     onceVar: {
-      makeDefaultCapTPImportExportTables: cells[51].makeDefaultCapTPImportExportTables.set,
-      makeCapTP: cells[51].makeCapTP.set,
+      makeLoopback: cells[51].makeLoopback.set,
     },
     importMeta: {},
   });
   functors[52]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "./captp.js", 51);
-      observeImports(map, "./trap.js", 49);
-      observeImports(map, "./finalize.js", 50);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
-        E: cells[52].E.set,
-  },
+    },
     onceVar: {
-      makeLoopback: cells[52].makeLoopback.set,
+      MIN_DATA_BUFFER_LENGTH: cells[52].MIN_DATA_BUFFER_LENGTH.set,
+      TRANSFER_OVERHEAD_LENGTH: cells[52].TRANSFER_OVERHEAD_LENGTH.set,
+      MIN_TRANSFER_BUFFER_LENGTH: cells[52].MIN_TRANSFER_BUFFER_LENGTH.set,
+      makeAtomicsTrapHost: cells[52].makeAtomicsTrapHost.set,
+      makeAtomicsTrapGuest: cells[52].makeAtomicsTrapGuest.set,
     },
     importMeta: {},
   });
   functors[53]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/nat", 0);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "./captp.js", 50);
+      observeImports(map, "./loopback.js", 51);
+      observeImports(map, "./atomics.js", 52);
     },
     liveVar: {
     },
     onceVar: {
-      MIN_DATA_BUFFER_LENGTH: cells[53].MIN_DATA_BUFFER_LENGTH.set,
-      TRANSFER_OVERHEAD_LENGTH: cells[53].TRANSFER_OVERHEAD_LENGTH.set,
-      MIN_TRANSFER_BUFFER_LENGTH: cells[53].MIN_TRANSFER_BUFFER_LENGTH.set,
-      makeAtomicsTrapHost: cells[53].makeAtomicsTrapHost.set,
-      makeAtomicsTrapGuest: cells[53].makeAtomicsTrapGuest.set,
     },
     importMeta: {},
   });
   functors[54]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/nat", 1);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "./captp.js", 51);
-      observeImports(map, "./loopback.js", 52);
-      observeImports(map, "./atomics.js", 53);
     },
     liveVar: {
     },
@@ -1853,6 +1847,9 @@ function observeImports(map, importName, importIndex) {
   functors[55]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "@endo/eventual-send", 34);
+      observeImports(map, "@endo/pass-style", 37);
+      observeImports(map, "./exports.js", 54);
     },
     liveVar: {
     },
@@ -1863,349 +1860,358 @@ function observeImports(map, importName, importIndex) {
   functors[56]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/eventual-send", 35);
-      observeImports(map, "@endo/pass-style", 38);
-      observeImports(map, "./exports.js", 55);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/eventual-send", 34);
+      observeImports(map, "@endo/promise-kit", 22);
     },
     liveVar: {
     },
     onceVar: {
+      makeQueue: cells[56].makeQueue.set,
+      makeStream: cells[56].makeStream.set,
+      makePipe: cells[56].makePipe.set,
+      pump: cells[56].pump.set,
+      prime: cells[56].prime.set,
+      mapReader: cells[56].mapReader.set,
+      mapWriter: cells[56].mapWriter.set,
     },
     importMeta: {},
   });
   functors[57]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/eventual-send", 35);
-      observeImports(map, "@endo/promise-kit", 23);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/marshal", 47);
     },
     liveVar: {
     },
     onceVar: {
-      makeQueue: cells[57].makeQueue.set,
-      makeStream: cells[57].makeStream.set,
-      makePipe: cells[57].makePipe.set,
-      pump: cells[57].pump.set,
-      prime: cells[57].prime.set,
-      mapReader: cells[57].mapReader.set,
-      mapWriter: cells[57].mapWriter.set,
+      assertNoDuplicates: cells[57].assertNoDuplicates.set,
+      confirmElements: cells[57].confirmElements.set,
+      assertElements: cells[57].assertElements.set,
+      coerceToElements: cells[57].coerceToElements.set,
+      makeSetOfElements: cells[57].makeSetOfElements.set,
     },
     importMeta: {},
   });
   functors[58]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/marshal", 48);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/marshal", 47);
     },
     liveVar: {
     },
     onceVar: {
-      assertNoDuplicates: cells[58].assertNoDuplicates.set,
-      confirmElements: cells[58].confirmElements.set,
-      assertElements: cells[58].assertElements.set,
-      coerceToElements: cells[58].coerceToElements.set,
-      makeSetOfElements: cells[58].makeSetOfElements.set,
+      assertNoDuplicateKeys: cells[58].assertNoDuplicateKeys.set,
+      confirmBagEntries: cells[58].confirmBagEntries.set,
+      assertBagEntries: cells[58].assertBagEntries.set,
+      coerceToBagEntries: cells[58].coerceToBagEntries.set,
+      makeBagOfEntries: cells[58].makeBagOfEntries.set,
     },
     importMeta: {},
   });
   functors[59]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/marshal", 48);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/pass-style", 37);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "./copySet.js", 57);
+      observeImports(map, "./copyBag.js", 58);
     },
     liveVar: {
     },
     onceVar: {
-      assertNoDuplicateKeys: cells[59].assertNoDuplicateKeys.set,
-      confirmBagEntries: cells[59].confirmBagEntries.set,
-      assertBagEntries: cells[59].assertBagEntries.set,
-      coerceToBagEntries: cells[59].coerceToBagEntries.set,
-      makeBagOfEntries: cells[59].makeBagOfEntries.set,
+      confirmScalarKey: cells[59].confirmScalarKey.set,
+      isScalarKey: cells[59].isScalarKey.set,
+      assertScalarKey: cells[59].assertScalarKey.set,
+      confirmKey: cells[59].confirmKey.set,
+      isKey: cells[59].isKey.set,
+      assertKey: cells[59].assertKey.set,
+      confirmCopySet: cells[59].confirmCopySet.set,
+      isCopySet: cells[59].isCopySet.set,
+      assertCopySet: cells[59].assertCopySet.set,
+      getCopySetKeys: cells[59].getCopySetKeys.set,
+      everyCopySetKey: cells[59].everyCopySetKey.set,
+      makeCopySet: cells[59].makeCopySet.set,
+      confirmCopyBag: cells[59].confirmCopyBag.set,
+      isCopyBag: cells[59].isCopyBag.set,
+      assertCopyBag: cells[59].assertCopyBag.set,
+      getCopyBagEntries: cells[59].getCopyBagEntries.set,
+      everyCopyBagEntry: cells[59].everyCopyBagEntry.set,
+      makeCopyBag: cells[59].makeCopyBag.set,
+      makeCopyBagFromElements: cells[59].makeCopyBagFromElements.set,
+      confirmCopyMap: cells[59].confirmCopyMap.set,
+      isCopyMap: cells[59].isCopyMap.set,
+      assertCopyMap: cells[59].assertCopyMap.set,
+      getCopyMapKeys: cells[59].getCopyMapKeys.set,
+      getCopyMapValues: cells[59].getCopyMapValues.set,
+      getCopyMapEntryArray: cells[59].getCopyMapEntryArray.set,
+      getCopyMapEntries: cells[59].getCopyMapEntries.set,
+      everyCopyMapKey: cells[59].everyCopyMapKey.set,
+      everyCopyMapValue: cells[59].everyCopyMapValue.set,
+      copyMapKeySet: cells[59].copyMapKeySet.set,
+      makeCopyMap: cells[59].makeCopyMap.set,
     },
     importMeta: {},
   });
   functors[60]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/pass-style", 38);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "./copySet.js", 58);
-      observeImports(map, "./copyBag.js", 59);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
-      confirmScalarKey: cells[60].confirmScalarKey.set,
-      isScalarKey: cells[60].isScalarKey.set,
-      assertScalarKey: cells[60].assertScalarKey.set,
-      confirmKey: cells[60].confirmKey.set,
-      isKey: cells[60].isKey.set,
-      assertKey: cells[60].assertKey.set,
-      confirmCopySet: cells[60].confirmCopySet.set,
-      isCopySet: cells[60].isCopySet.set,
-      assertCopySet: cells[60].assertCopySet.set,
-      getCopySetKeys: cells[60].getCopySetKeys.set,
-      everyCopySetKey: cells[60].everyCopySetKey.set,
-      makeCopySet: cells[60].makeCopySet.set,
-      confirmCopyBag: cells[60].confirmCopyBag.set,
-      isCopyBag: cells[60].isCopyBag.set,
-      assertCopyBag: cells[60].assertCopyBag.set,
-      getCopyBagEntries: cells[60].getCopyBagEntries.set,
-      everyCopyBagEntry: cells[60].everyCopyBagEntry.set,
-      makeCopyBag: cells[60].makeCopyBag.set,
-      makeCopyBagFromElements: cells[60].makeCopyBagFromElements.set,
-      confirmCopyMap: cells[60].confirmCopyMap.set,
-      isCopyMap: cells[60].isCopyMap.set,
-      assertCopyMap: cells[60].assertCopyMap.set,
-      getCopyMapKeys: cells[60].getCopyMapKeys.set,
-      getCopyMapValues: cells[60].getCopyMapValues.set,
-      getCopyMapEntryArray: cells[60].getCopyMapEntryArray.set,
-      getCopyMapEntries: cells[60].getCopyMapEntries.set,
-      everyCopyMapKey: cells[60].everyCopyMapKey.set,
-      everyCopyMapValue: cells[60].everyCopyMapValue.set,
-      copyMapKeySet: cells[60].copyMapKeySet.set,
-      makeCopyMap: cells[60].makeCopyMap.set,
+      makeIterator: cells[60].makeIterator.set,
     },
     importMeta: {},
   });
   functors[61]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "./make-iterator.js", 60);
     },
     liveVar: {
     },
     onceVar: {
-      makeIterator: cells[61].makeIterator.set,
+      makeArrayIterator: cells[61].makeArrayIterator.set,
     },
     importMeta: {},
   });
   functors[62]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "./make-iterator.js", 61);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "@endo/common/make-iterator.js", 60);
+      observeImports(map, "@endo/common/make-array-iterator.js", 61);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      makeArrayIterator: cells[62].makeArrayIterator.set,
+      generateCollectionPairEntries: cells[62].generateCollectionPairEntries.set,
+      makeCompareCollection: cells[62].makeCompareCollection.set,
     },
     importMeta: {},
   });
   functors[63]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "@endo/common/make-iterator.js", 61);
-      observeImports(map, "@endo/common/make-array-iterator.js", 62);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./checkKey.js", 59);
+      observeImports(map, "./keycollection-operators.js", 62);
     },
     liveVar: {
     },
     onceVar: {
-      generateCollectionPairEntries: cells[63].generateCollectionPairEntries.set,
-      makeCompareCollection: cells[63].makeCompareCollection.set,
+      setCompare: cells[63].setCompare.set,
+      bagCompare: cells[63].bagCompare.set,
+      compareKeys: cells[63].compareKeys.set,
+      keyLT: cells[63].keyLT.set,
+      keyLTE: cells[63].keyLTE.set,
+      keyEQ: cells[63].keyEQ.set,
+      keyGTE: cells[63].keyGTE.set,
+      keyGT: cells[63].keyGT.set,
     },
     importMeta: {},
   });
   functors[64]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./checkKey.js", 60);
-      observeImports(map, "./keycollection-operators.js", 63);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./copySet.js", 57);
     },
     liveVar: {
     },
     onceVar: {
-      setCompare: cells[64].setCompare.set,
-      bagCompare: cells[64].bagCompare.set,
-      compareKeys: cells[64].compareKeys.set,
-      keyLT: cells[64].keyLT.set,
-      keyLTE: cells[64].keyLTE.set,
-      keyEQ: cells[64].keyEQ.set,
-      keyGTE: cells[64].keyGTE.set,
-      keyGT: cells[64].keyGT.set,
+      elementsIsSuperset: cells[64].elementsIsSuperset.set,
+      elementsIsDisjoint: cells[64].elementsIsDisjoint.set,
+      elementsCompare: cells[64].elementsCompare.set,
+      elementsUnion: cells[64].elementsUnion.set,
+      elementsDisjointUnion: cells[64].elementsDisjointUnion.set,
+      elementsIntersection: cells[64].elementsIntersection.set,
+      elementsDisjointSubtract: cells[64].elementsDisjointSubtract.set,
+      setIsSuperset: cells[64].setIsSuperset.set,
+      setIsDisjoint: cells[64].setIsDisjoint.set,
+      setUnion: cells[64].setUnion.set,
+      setDisjointUnion: cells[64].setDisjointUnion.set,
+      setIntersection: cells[64].setIntersection.set,
+      setDisjointSubtract: cells[64].setDisjointSubtract.set,
     },
     importMeta: {},
   });
   functors[65]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./copySet.js", 58);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./copyBag.js", 58);
     },
     liveVar: {
     },
     onceVar: {
-      elementsIsSuperset: cells[65].elementsIsSuperset.set,
-      elementsIsDisjoint: cells[65].elementsIsDisjoint.set,
-      elementsCompare: cells[65].elementsCompare.set,
-      elementsUnion: cells[65].elementsUnion.set,
-      elementsDisjointUnion: cells[65].elementsDisjointUnion.set,
-      elementsIntersection: cells[65].elementsIntersection.set,
-      elementsDisjointSubtract: cells[65].elementsDisjointSubtract.set,
-      setIsSuperset: cells[65].setIsSuperset.set,
-      setIsDisjoint: cells[65].setIsDisjoint.set,
-      setUnion: cells[65].setUnion.set,
-      setDisjointUnion: cells[65].setDisjointUnion.set,
-      setIntersection: cells[65].setIntersection.set,
-      setDisjointSubtract: cells[65].setDisjointSubtract.set,
+      bagIsSuperbag: cells[65].bagIsSuperbag.set,
+      bagIsDisjoint: cells[65].bagIsDisjoint.set,
+      bagUnion: cells[65].bagUnion.set,
+      bagIntersection: cells[65].bagIntersection.set,
+      bagDisjointSubtract: cells[65].bagDisjointSubtract.set,
     },
     importMeta: {},
   });
   functors[66]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./copyBag.js", 59);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      bagIsSuperbag: cells[66].bagIsSuperbag.set,
-      bagIsDisjoint: cells[66].bagIsDisjoint.set,
-      bagUnion: cells[66].bagUnion.set,
-      bagIntersection: cells[66].bagIntersection.set,
-      bagDisjointSubtract: cells[66].bagDisjointSubtract.set,
+      throwLabeled: cells[66].throwLabeled.set,
     },
     importMeta: {},
   });
   functors[67]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/eventual-send", 34);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "./throw-labeled.js", 66);
     },
     liveVar: {
     },
     onceVar: {
-      throwLabeled: cells[67].throwLabeled.set,
+      applyLabelingError: cells[67].applyLabelingError.set,
     },
     importMeta: {},
   });
   functors[68]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/eventual-send", 35);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "./throw-labeled.js", 67);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
     onceVar: {
-      applyLabelingError: cells[68].applyLabelingError.set,
+      fromUniqueEntries: cells[68].fromUniqueEntries.set,
     },
     importMeta: {},
   });
   functors[69]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
-      fromUniqueEntries: cells[69].fromUniqueEntries.set,
+      listDifference: cells[69].listDifference.set,
     },
     importMeta: {},
   });
   functors[70]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/common/apply-labeling-error.js", 67);
+      observeImports(map, "@endo/common/from-unique-entries.js", 68);
+      observeImports(map, "@endo/common/list-difference.js", 69);
+      observeImports(map, "@endo/pass-style", 37);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "../keys/compareKeys.js", 63);
+      observeImports(map, "../keys/checkKey.js", 59);
+      observeImports(map, "../keys/keycollection-operators.js", 62);
     },
     liveVar: {
     },
     onceVar: {
-      listDifference: cells[70].listDifference.set,
+      defaultLimits: cells[70].defaultLimits.set,
+      confirmMatches: cells[70].confirmMatches.set,
+      confirmLabeledMatches: cells[70].confirmLabeledMatches.set,
+      matches: cells[70].matches.set,
+      mustMatch: cells[70].mustMatch.set,
+      assertPattern: cells[70].assertPattern.set,
+      isPattern: cells[70].isPattern.set,
+      getRankCover: cells[70].getRankCover.set,
+      M: cells[70].M.set,
+      kindOf: cells[70].kindOf.set,
+      containerHasSplit: cells[70].containerHasSplit.set,
+      AwaitArgGuardShape: cells[70].AwaitArgGuardShape.set,
+      isAwaitArgGuard: cells[70].isAwaitArgGuard.set,
+      assertAwaitArgGuard: cells[70].assertAwaitArgGuard.set,
+      RawGuardShape: cells[70].RawGuardShape.set,
+      isRawGuard: cells[70].isRawGuard.set,
+      assertRawGuard: cells[70].assertRawGuard.set,
+      SyncValueGuardShape: cells[70].SyncValueGuardShape.set,
+      SyncValueGuardListShape: cells[70].SyncValueGuardListShape.set,
+      ArgGuardListShape: cells[70].ArgGuardListShape.set,
+      MethodGuardPayloadShape: cells[70].MethodGuardPayloadShape.set,
+      MethodGuardShape: cells[70].MethodGuardShape.set,
+      assertMethodGuard: cells[70].assertMethodGuard.set,
+      InterfaceGuardPayloadShape: cells[70].InterfaceGuardPayloadShape.set,
+      InterfaceGuardShape: cells[70].InterfaceGuardShape.set,
+      assertInterfaceGuard: cells[70].assertInterfaceGuard.set,
     },
     importMeta: {},
   });
   functors[71]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/common/apply-labeling-error.js", 68);
-      observeImports(map, "@endo/common/from-unique-entries.js", 69);
-      observeImports(map, "@endo/common/list-difference.js", 70);
-      observeImports(map, "@endo/pass-style", 38);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "../keys/compareKeys.js", 64);
-      observeImports(map, "../keys/checkKey.js", 60);
-      observeImports(map, "../keys/keycollection-operators.js", 63);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/common/object-map.js", 39);
+      observeImports(map, "./patternMatchers.js", 70);
+      observeImports(map, "../keys/checkKey.js", 59);
     },
     liveVar: {
     },
     onceVar: {
-      defaultLimits: cells[71].defaultLimits.set,
-      confirmMatches: cells[71].confirmMatches.set,
-      confirmLabeledMatches: cells[71].confirmLabeledMatches.set,
-      matches: cells[71].matches.set,
-      mustMatch: cells[71].mustMatch.set,
-      assertPattern: cells[71].assertPattern.set,
-      isPattern: cells[71].isPattern.set,
-      getRankCover: cells[71].getRankCover.set,
-      M: cells[71].M.set,
-      kindOf: cells[71].kindOf.set,
-      containerHasSplit: cells[71].containerHasSplit.set,
-      AwaitArgGuardShape: cells[71].AwaitArgGuardShape.set,
-      isAwaitArgGuard: cells[71].isAwaitArgGuard.set,
-      assertAwaitArgGuard: cells[71].assertAwaitArgGuard.set,
-      RawGuardShape: cells[71].RawGuardShape.set,
-      isRawGuard: cells[71].isRawGuard.set,
-      assertRawGuard: cells[71].assertRawGuard.set,
-      SyncValueGuardShape: cells[71].SyncValueGuardShape.set,
-      SyncValueGuardListShape: cells[71].SyncValueGuardListShape.set,
-      ArgGuardListShape: cells[71].ArgGuardListShape.set,
-      MethodGuardPayloadShape: cells[71].MethodGuardPayloadShape.set,
-      MethodGuardShape: cells[71].MethodGuardShape.set,
-      assertMethodGuard: cells[71].assertMethodGuard.set,
-      InterfaceGuardPayloadShape: cells[71].InterfaceGuardPayloadShape.set,
-      InterfaceGuardShape: cells[71].InterfaceGuardShape.set,
-      assertInterfaceGuard: cells[71].assertInterfaceGuard.set,
+      getAwaitArgGuardPayload: cells[71].getAwaitArgGuardPayload.set,
+      getMethodGuardPayload: cells[71].getMethodGuardPayload.set,
+      getInterfaceGuardPayload: cells[71].getInterfaceGuardPayload.set,
+      getInterfaceMethodKeys: cells[71].getInterfaceMethodKeys.set,
+      getNamedMethodGuards: cells[71].getNamedMethodGuards.set,
     },
     importMeta: {},
   });
   functors[72]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/common/object-map.js", 40);
-      observeImports(map, "./patternMatchers.js", 71);
-      observeImports(map, "../keys/checkKey.js", 60);
+      observeImports(map, "./src/patterns/patternMatchers.js", 70);
     },
     liveVar: {
     },
     onceVar: {
-      getAwaitArgGuardPayload: cells[72].getAwaitArgGuardPayload.set,
-      getMethodGuardPayload: cells[72].getMethodGuardPayload.set,
-      getInterfaceGuardPayload: cells[72].getInterfaceGuardPayload.set,
-      getInterfaceMethodKeys: cells[72].getInterfaceMethodKeys.set,
-      getNamedMethodGuards: cells[72].getNamedMethodGuards.set,
     },
     importMeta: {},
   });
   functors[73]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "./src/keys/checkKey.js", 59);
+      observeImports(map, "./src/keys/copySet.js", 57);
+      observeImports(map, "./src/keys/copyBag.js", 58);
+      observeImports(map, "./src/keys/compareKeys.js", 63);
+      observeImports(map, "./src/keys/merge-set-operators.js", 64);
+      observeImports(map, "./src/keys/merge-bag-operators.js", 65);
+      observeImports(map, "./src/patterns/patternMatchers.js", 70);
+      observeImports(map, "./src/patterns/getGuardPayloads.js", 71);
+      observeImports(map, "./types-index.js", 72);
+      observeImports(map, "@endo/common/list-difference.js", 69);
+      observeImports(map, "@endo/common/object-map.js", 39);
     },
     liveVar: {
     },
@@ -2216,71 +2222,61 @@ function observeImports(map, importName, importIndex) {
   functors[74]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./src/keys/checkKey.js", 60);
-      observeImports(map, "./src/keys/copySet.js", 58);
-      observeImports(map, "./src/keys/copyBag.js", 59);
-      observeImports(map, "./src/keys/compareKeys.js", 64);
-      observeImports(map, "./src/keys/merge-set-operators.js", 65);
-      observeImports(map, "./src/keys/merge-bag-operators.js", 66);
-      observeImports(map, "./src/patterns/patternMatchers.js", 71);
-      observeImports(map, "./src/patterns/getGuardPayloads.js", 72);
-      observeImports(map, "./types-index.js", 73);
-      observeImports(map, "@endo/common/list-difference.js", 70);
-      observeImports(map, "@endo/common/object-map.js", 40);
     },
     liveVar: {
     },
     onceVar: {
+      GET_INTERFACE_GUARD: cells[74].GET_INTERFACE_GUARD.set,
     },
     importMeta: {},
   });
   functors[75]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/eventual-send", 34);
+      observeImports(map, "@endo/pass-style", 37);
+      observeImports(map, "@endo/patterns", 73);
+      observeImports(map, "@endo/common/list-difference.js", 69);
+      observeImports(map, "@endo/common/object-map.js", 39);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./get-interface.js", 74);
     },
     liveVar: {
     },
     onceVar: {
-      GET_INTERFACE_GUARD: cells[75].GET_INTERFACE_GUARD.set,
+      defendPrototype: cells[75].defendPrototype.set,
+      defendPrototypeKit: cells[75].defendPrototypeKit.set,
     },
     importMeta: {},
   });
   functors[76]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/eventual-send", 35);
-      observeImports(map, "@endo/pass-style", 38);
-      observeImports(map, "@endo/patterns", 74);
-      observeImports(map, "@endo/common/list-difference.js", 70);
-      observeImports(map, "@endo/common/object-map.js", 40);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./get-interface.js", 75);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/common/object-map.js", 39);
+      observeImports(map, "@endo/env-options", 5);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "./exo-tools.js", 75);
     },
     liveVar: {
     },
     onceVar: {
-      defendPrototype: cells[76].defendPrototype.set,
-      defendPrototypeKit: cells[76].defendPrototypeKit.set,
+      initEmpty: cells[76].initEmpty.set,
+      defineExoClass: cells[76].defineExoClass.set,
+      defineExoClassKit: cells[76].defineExoClassKit.set,
+      makeExo: cells[76].makeExo.set,
     },
     importMeta: {},
   });
   functors[77]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/common/object-map.js", 40);
-      observeImports(map, "@endo/env-options", 6);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "./exo-tools.js", 76);
+      observeImports(map, "./src/exo-makers.js", 76);
     },
     liveVar: {
     },
     onceVar: {
-      initEmpty: cells[77].initEmpty.set,
-      defineExoClass: cells[77].defineExoClass.set,
-      defineExoClassKit: cells[77].defineExoClassKit.set,
-      makeExo: cells[77].makeExo.set,
     },
     importMeta: {},
   });
@@ -2297,9 +2293,10 @@ function observeImports(map, importName, importIndex) {
   functors[79]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./src/exo-makers.js", 77);
+      observeImports(map, "./src/exo-makers.js", 76);
+      observeImports(map, "./types-index.js", 77);
       observeImports(map, "./src/types.js", 78);
-      observeImports(map, "./src/get-interface.js", 75);
+      observeImports(map, "./src/get-interface.js", 74);
     },
     liveVar: {
     },
@@ -2310,7 +2307,7 @@ function observeImports(map, importName, importIndex) {
   functors[80]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/patterns", 74);
+      observeImports(map, "@endo/patterns", 73);
     },
     liveVar: {
     },
@@ -2331,7 +2328,7 @@ function observeImports(map, importName, importIndex) {
   functors[81]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
@@ -2343,8 +2340,8 @@ function observeImports(map, importName, importIndex) {
   functors[82]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/far", 55);
     },
     liveVar: {
     },
@@ -2356,7 +2353,7 @@ function observeImports(map, importName, importIndex) {
   functors[83]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
       observeImports(map, "@endo/exo", 79);
       observeImports(map, "./interfaces.js", 80);
       observeImports(map, "./snapshot-blob.js", 81);
@@ -2471,10 +2468,10 @@ function observeImports(map, importName, importIndex) {
   functors[92]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
       observeImports(map, "@endo/base64", 91);
-      observeImports(map, "@endo/stream", 57);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/stream", 56);
+      observeImports(map, "@endo/far", 55);
     },
     liveVar: {
     },
@@ -2487,8 +2484,8 @@ function observeImports(map, importName, importIndex) {
   functors[93]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/far", 55);
       observeImports(map, "./ref-reader.js", 92);
     },
     liveVar: {
@@ -2501,8 +2498,8 @@ function observeImports(map, importName, importIndex) {
   functors[94]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/far", 55);
       observeImports(map, "./ref-reader.js", 92);
     },
     liveVar: {
@@ -2515,9 +2512,9 @@ function observeImports(map, importName, importIndex) {
   functors[95]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
       observeImports(map, "@endo/base64", 91);
-      observeImports(map, "@endo/stream", 57);
+      observeImports(map, "@endo/stream", 56);
       observeImports(map, "@endo/exo", 79);
       observeImports(map, "./interfaces.js", 80);
     },
@@ -2551,10 +2548,10 @@ function observeImports(map, importName, importIndex) {
   functors[97]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
       observeImports(map, "@endo/base64", 91);
-      observeImports(map, "@endo/stream", 57);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/stream", 56);
+      observeImports(map, "@endo/far", 55);
     },
     liveVar: {
     },
@@ -2567,12 +2564,13 @@ function observeImports(map, importName, importIndex) {
   functors[98]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/patterns", 74);
+      observeImports(map, "@endo/patterns", 73);
     },
     liveVar: {
     },
     onceVar: {
       WorkerInterface: cells[98].WorkerInterface.set,
+      PeerGatewayInterface: cells[98].PeerGatewayInterface.set,
       ResponderInterface: cells[98].ResponderInterface.set,
       NameHubInterface: cells[98].NameHubInterface.set,
       EnvelopeInterface: cells[98].EnvelopeInterface.set,
@@ -2580,7 +2578,6 @@ function observeImports(map, importName, importIndex) {
       HandleInterface: cells[98].HandleInterface.set,
       AsyncIteratorInterface: cells[98].AsyncIteratorInterface.set,
       DirectoryInterface: cells[98].DirectoryInterface.set,
-      SyncedDirectoryInterface: cells[98].SyncedDirectoryInterface.set,
       GuestInterface: cells[98].GuestInterface.set,
       HostInterface: cells[98].HostInterface.set,
       ChannelInterface: cells[98].ChannelInterface.set,
@@ -2603,9 +2600,9 @@ function observeImports(map, importName, importIndex) {
   functors[99]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
       observeImports(map, "@endo/base64", 91);
-      observeImports(map, "@endo/stream", 57);
+      observeImports(map, "@endo/stream", 56);
       observeImports(map, "@endo/exo", 79);
       observeImports(map, "./interfaces.js", 98);
     },
@@ -2621,7 +2618,7 @@ function observeImports(map, importName, importIndex) {
   functors[100]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
@@ -2639,7 +2636,7 @@ function observeImports(map, importName, importIndex) {
   functors[101]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
@@ -2652,7 +2649,7 @@ function observeImports(map, importName, importIndex) {
   functors[102]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "./formula-identifier.js", 100);
       observeImports(map, "./formula-type.js", 101);
     },
@@ -2674,7 +2671,7 @@ function observeImports(map, importName, importIndex) {
   functors[103]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
@@ -2709,11 +2706,12 @@ function observeImports(map, importName, importIndex) {
   functors[105]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
     onceVar: {
-      helpTextData: cells[105].helpTextData.set,
+      helpTextEntries: cells[105].helpTextEntries.set,
     },
     importMeta: {},
   });
@@ -2741,11 +2739,11 @@ function observeImports(map, importName, importIndex) {
   functors[107]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
       observeImports(map, "@endo/base64", 91);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/far", 55);
       observeImports(map, "@endo/exo", 79);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "./reader-ref.js", 99);
       observeImports(map, "./locator.js", 102);
       observeImports(map, "./pet-name.js", 103);
@@ -2763,9 +2761,9 @@ function observeImports(map, importName, importIndex) {
   functors[108]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "@endo/stream", 57);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "@endo/stream", 56);
     },
     liveVar: {
     },
@@ -2780,7 +2778,7 @@ function observeImports(map, importName, importIndex) {
   functors[109]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/stream", 57);
+      observeImports(map, "@endo/stream", 56);
     },
     liveVar: {
     },
@@ -2792,12 +2790,12 @@ function observeImports(map, importName, importIndex) {
   functors[110]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/eventual-send", 35);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/eventual-send", 34);
       observeImports(map, "@endo/exo", 79);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "@endo/errors", 10);
-      observeImports(map, "@endo/patterns", 74);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "@endo/errors", 9);
+      observeImports(map, "@endo/patterns", 73);
       observeImports(map, "./pubsub.js", 108);
       observeImports(map, "./formula-identifier.js", 100);
       observeImports(map, "./pet-name.js", 103);
@@ -2817,8 +2815,8 @@ function observeImports(map, importName, importIndex) {
   functors[111]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "./pet-name.js", 103);
       observeImports(map, "./formula-identifier.js", 100);
     },
@@ -2832,9 +2830,9 @@ function observeImports(map, importName, importIndex) {
   functors[112]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/far", 55);
       observeImports(map, "@endo/exo", 79);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "./reader-ref.js", 99);
       observeImports(map, "./pet-sitter.js", 111);
       observeImports(map, "./pet-name.js", 103);
@@ -2853,7 +2851,7 @@ function observeImports(map, importName, importIndex) {
     imports(entries) {
       const map = new Map(entries);
       observeImports(map, "@endo/exo", 79);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "./reader-ref.js", 99);
       observeImports(map, "./pubsub.js", 108);
       observeImports(map, "./interfaces.js", 98);
@@ -2881,9 +2879,9 @@ function observeImports(map, importName, importIndex) {
   functors[115]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/far", 55);
       observeImports(map, "@endo/exo", 79);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "./reader-ref.js", 99);
       observeImports(map, "./pet-name.js", 103);
       observeImports(map, "./formula-identifier.js", 100);
@@ -2915,8 +2913,8 @@ function observeImports(map, importName, importIndex) {
   functors[117]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/promise-kit", 23);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/promise-kit", 22);
     },
     liveVar: {
     },
@@ -2939,8 +2937,8 @@ function observeImports(map, importName, importIndex) {
   functors[119]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/captp", 54);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/captp", 53);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
@@ -2952,7 +2950,7 @@ function observeImports(map, importName, importIndex) {
   functors[120]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
       observeImports(map, "./formula-identifier.js", 100);
       observeImports(map, "./locator.js", 102);
     },
@@ -2967,7 +2965,7 @@ function observeImports(map, importName, importIndex) {
   functors[121]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
     },
     liveVar: {
     },
@@ -2981,7 +2979,7 @@ function observeImports(map, importName, importIndex) {
   functors[122]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/far", 56);
+      observeImports(map, "@endo/far", 55);
     },
     liveVar: {
     },
@@ -2993,8 +2991,7 @@ function observeImports(map, importName, importIndex) {
   functors[123]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/base64", 91);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "@endo/exo", 79);
       observeImports(map, "./help-text.js", 106);
       observeImports(map, "./interfaces.js", 98);
@@ -3010,12 +3007,12 @@ function observeImports(map, importName, importIndex) {
   functors[124]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
       observeImports(map, "@endo/exo", 79);
-      observeImports(map, "@endo/far", 56);
-      observeImports(map, "@endo/marshal", 48);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/far", 55);
+      observeImports(map, "@endo/marshal", 47);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "@endo/platform/fs/lite", 96);
       observeImports(map, "./ref-reader.js", 97);
       observeImports(map, "./reader-ref.js", 99);
@@ -3052,8 +3049,8 @@ function observeImports(map, importName, importIndex) {
   functors[125]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "@endo/platform/fs/lite", 96);
       observeImports(map, "./reader-ref.js", 99);
       observeImports(map, "./hex.js", 114);
@@ -3068,16 +3065,19 @@ function observeImports(map, importName, importIndex) {
   functors[126]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/far", 56);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/exo", 79);
+      observeImports(map, "@endo/patterns", 73);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "./pubsub.js", 108);
       observeImports(map, "./pet-name.js", 103);
       observeImports(map, "./serial-jobs.js", 109);
+      observeImports(map, "./reader-ref.js", 99);
     },
     liveVar: {
     },
     onceVar: {
+      SyncedPetStoreInterface: cells[126].SyncedPetStoreInterface.set,
       mergeEntry: cells[126].mergeEntry.set,
       mergeState: cells[126].mergeState.set,
       makeSyncedPetStore: cells[126].makeSyncedPetStore.set,
@@ -3087,8 +3087,8 @@ function observeImports(map, importName, importIndex) {
   functors[127]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/errors", 10);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/errors", 9);
       observeImports(map, "./pubsub.js", 108);
       observeImports(map, "./formula-identifier.js", 100);
       observeImports(map, "./multimap.js", 121);
@@ -3104,7 +3104,7 @@ function observeImports(map, importName, importIndex) {
   functors[128]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
+      observeImports(map, "@endo/harden", 3);
     },
     liveVar: {
     },
@@ -3117,8 +3117,8 @@ function observeImports(map, importName, importIndex) {
   functors[129]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/harden", 4);
-      observeImports(map, "@endo/promise-kit", 23);
+      observeImports(map, "@endo/harden", 3);
+      observeImports(map, "@endo/promise-kit", 22);
     },
     liveVar: {
     },
@@ -3143,9 +3143,9 @@ function observeImports(map, importName, importIndex) {
   functors[131]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/captp", 54);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "@endo/stream", 57);
+      observeImports(map, "@endo/captp", 53);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "@endo/stream", 56);
       observeImports(map, "@endo/netstring", 130);
     },
     liveVar: {
@@ -3181,58 +3181,24 @@ function observeImports(map, importName, importIndex) {
     liveVar: {
     },
     onceVar: {
-      textEncoder: cells[133].textEncoder.set,
-      textDecoder: cells[133].textDecoder.set,
-      silentReject: cells[133].silentReject.set,
-      markShouldTerminate: cells[133].markShouldTerminate.set,
-      installShouldTerminate: cells[133].installShouldTerminate.set,
+      makeXsFilePowers: cells[133].makeXsFilePowers.set,
+      makeXsCryptoPowers: cells[133].makeXsCryptoPowers.set,
     },
     importMeta: {},
   });
   functors[134]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "./envelope.js", 132);
-      observeImports(map, "./bus-xs-common.js", 133);
-    },
-    liveVar: {
-        installShouldTerminate: cells[134].installShouldTerminate.set,
-      markShouldTerminate: cells[134].markShouldTerminate.set,
-      silentReject: cells[134].silentReject.set,
-      textDecoder: cells[134].textDecoder.set,
-      textEncoder: cells[134].textEncoder.set,
-  },
-    onceVar: {
-      makeXsNode: cells[134].makeXsNode.set,
-    },
-    importMeta: {},
-  });
-  functors[135]({
-    imports(entries) {
-      const map = new Map(entries);
-    },
-    liveVar: {
-    },
-    onceVar: {
-      makeXsFilePowers: cells[135].makeXsFilePowers.set,
-      makeXsCryptoPowers: cells[135].makeXsCryptoPowers.set,
-    },
-    importMeta: {},
-  });
-  functors[136]({
-    imports(entries) {
-      const map = new Map(entries);
-      observeImports(map, "./bus-xs-daemon-polyfills.js", 0);
-      observeImports(map, "@endo/captp", 54);
-      observeImports(map, "@endo/far", 56);
-      observeImports(map, "@endo/promise-kit", 23);
-      observeImports(map, "@endo/stream", 57);
+      observeImports(map, "@endo/captp", 53);
+      observeImports(map, "@endo/far", 55);
+      observeImports(map, "@endo/promise-kit", 22);
+      observeImports(map, "@endo/stream", 56);
       observeImports(map, "./daemon.js", 124);
       observeImports(map, "./daemon-persistence-powers.js", 125);
       observeImports(map, "./pet-store.js", 127);
       observeImports(map, "./connection.js", 131);
-      observeImports(map, "./bus-xs-core.js", 134);
-      observeImports(map, "./bus-daemon-rust-xs-powers.js", 135);
+      observeImports(map, "./envelope.js", 132);
+      observeImports(map, "./bus-daemon-rust-xs-powers.js", 133);
     },
     liveVar: {
     },
@@ -3243,198 +3209,7 @@ function observeImports(map, importName, importIndex) {
 
   return cells[cells.length - 1]['*'].get();
 })([
-// === 0. daemon ./src/bus-xs-daemon-polyfills.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);// @ts-check
-/* global globalThis, hostTrace */
-
-/**
- * Polyfills that the daemon needs inside XS but the worker does not.
- *
- * `daemon.js` and its transitive dependencies use `console`,
- * `setTimeout`/`clearTimeout`, and `URL` — none of which XS provides
- * natively.  This module installs minimal shims on first evaluation
- * and is a no-op on subsequent re-evaluations.
- *
- * The worker bundle intentionally does not import this module so that
- * its footprint stays small.
- */
-
-// ---------------------------------------------------------------------------
-// console polyfill — routes through hostTrace (stderr via Rust)
-// ---------------------------------------------------------------------------
-
-if (typeof globalThis.console === 'undefined') {
-  const makeLogFn =
-    /** @param {string} prefix */
-    prefix =>
-    (/** @type {unknown[]} */ ...args) => {
-      const parts = args.map(a => {
-        if (typeof a === 'string') return a;
-        try {
-          return JSON.stringify(a);
-        } catch {
-          return String(a);
-        }
-      });
-      hostTrace(`${prefix}${parts.join(' ')}`);
-    };
-  globalThis.console = /** @type {any} */ ({
-    log: makeLogFn(''),
-    warn: makeLogFn('[warn] '),
-    error: makeLogFn('[error] '),
-    info: makeLogFn('[info] '),
-    debug: makeLogFn('[debug] '),
-    trace: makeLogFn('[trace] '),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// setTimeout/clearTimeout polyfill — fires callbacks on the microtask
-// queue because XS has no real event loop
-// ---------------------------------------------------------------------------
-
-if (typeof globalThis.setTimeout === 'undefined') {
-  let nextTimerId = 1;
-  /** @type {Set<number>} */
-  const activeTimers = new Set();
-
-  globalThis.setTimeout = /** @type {any} */ (
-    (/** @type {Function} */ fn, /** @type {number} */ _ms) => {
-      const id = nextTimerId;
-      nextTimerId += 1;
-      activeTimers.add(id);
-      void Promise.resolve().then(() => {
-        if (activeTimers.has(id)) {
-          activeTimers.delete(id);
-          fn();
-        }
-      });
-      return id;
-    }
-  );
-
-  globalThis.clearTimeout = /** @type {any} */ (
-    (/** @type {number} */ id) => {
-      activeTimers.delete(id);
-    }
-  );
-}
-
-// ---------------------------------------------------------------------------
-// URL polyfill — sufficient for endo:// locators
-// ---------------------------------------------------------------------------
-
-if (typeof globalThis.URL === 'undefined') {
-  /**
-   * @param {string} input
-   * @this {any}
-   */
-  const URLPolyfill = function URL(input) {
-    const protocolEnd = input.indexOf('://');
-    if (protocolEnd === -1) throw new Error(`Invalid URL: ${input}`);
-    this.protocol = `${input.slice(0, protocolEnd)}:`;
-    const rest = input.slice(protocolEnd + 3);
-    const pathStart = rest.indexOf('/');
-    const queryStart = rest.indexOf('?');
-
-    if (pathStart === -1 && queryStart === -1) {
-      this.host = rest;
-      this.hostname = rest;
-      this.pathname = '/';
-    } else if (queryStart !== -1 && (pathStart === -1 || queryStart < pathStart)) {
-      this.host = rest.slice(0, queryStart);
-      this.hostname = this.host;
-      this.pathname = '/';
-    } else {
-      this.host = rest.slice(0, pathStart);
-      this.hostname = this.host;
-      const pathEnd = queryStart !== -1 ? queryStart : rest.length;
-      this.pathname = rest.slice(pathStart, pathEnd);
-    }
-
-    /** @type {Array<[string, string]>} */
-    const params = [];
-    const qIdx = input.indexOf('?');
-    if (qIdx !== -1) {
-      const qs = input.slice(qIdx + 1);
-      for (const pair of qs.split('&')) {
-        if (!pair) continue;
-        const eqIdx = pair.indexOf('=');
-        if (eqIdx === -1) {
-          params.push([decodeURIComponent(pair), '']);
-        } else {
-          params.push([
-            decodeURIComponent(pair.slice(0, eqIdx)),
-            decodeURIComponent(pair.slice(eqIdx + 1)),
-          ]);
-        }
-      }
-    }
-
-    this.searchParams = {
-      /** @param {string} key @param {string} value */
-      set(key, value) {
-        let i = params.length;
-        while (i--) {
-          if (params[i][0] === key) params.splice(i, 1);
-        }
-        params.push([key, value]);
-      },
-      /** @param {string} key @param {string} value */
-      append(key, value) {
-        params.push([key, value]);
-      },
-      /** @param {string} key @returns {string | null} */
-      get(key) {
-        for (const [k, v] of params) {
-          if (k === key) return v;
-        }
-        return null;
-      },
-      /** @param {string} key @returns {string[]} */
-      getAll(key) {
-        return params.filter(([k]) => k === key).map(([, v]) => v);
-      },
-      /** @param {string} key @returns {boolean} */
-      has(key) {
-        return params.some(([k]) => k === key);
-      },
-      *keys() {
-        for (const [k] of params) yield k;
-      },
-      /** @returns {string} */
-      toString() {
-        return params
-          .map(
-            ([k, v]) =>
-              `${encodeURIComponent(k)}=${encodeURIComponent(v)}`,
-          )
-          .join('&');
-      },
-    };
-
-    this.toString = () => {
-      const qs = this.searchParams.toString();
-      const base = `${this.protocol}//${this.host}${this.pathname}`;
-      return qs ? `${base}?${qs}` : base;
-    };
-  };
-
-  URLPolyfill.canParse = (/** @type {string} */ input) => {
-    try {
-      // eslint-disable-next-line no-new
-      new (/** @type {any} */ (URLPolyfill))(input);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  globalThis.URL = /** @type {any} */ (URLPolyfill);
-}
-})()
-,
-// === 1. nat ./src/index.js ===
+// === 0. nat ./src/index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);// Copyright (C) 2011 Google Inc.
 // Copyright (C) 2018 Agoric
 //
@@ -3556,7 +3331,7 @@ freeze(isNat);
 freeze(Nat);
 })()
 ,
-// === 2. harden ./make-hardener.js ===
+// === 1. harden ./make-hardener.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);// Adapted from SES/Caja - Copyright (C) 2011 Google Inc.
 // Copyright (C) 2018 Agoric
 
@@ -4030,7 +3805,7 @@ const freezeTypedArray = array => {
 };$h͏_once.makeHardener(makeHardener);
 })()
 ,
-// === 3. harden ./make-selector.js ===
+// === 2. harden ./make-selector.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);/* This module provides the mechanism used by both the "unsafe" and "shallow"
  * (default) implementations of "@endo/harden" for racing to install an
  * implementation of harden at globalThis.harden and
@@ -4102,7 +3877,7 @@ const symbolForHarden = Symbol.for('harden');
 };$h͏_once.makeHardenerSelector(makeHardenerSelector);
 })()
 ,
-// === 4. harden ./index.js ===
+// === 3. harden ./index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let makeHardener,makeHardenerSelector;$h͏_imports([["./make-hardener.js", [["makeHardener",[$h͏_a => (makeHardener = $h͏_a)]]]],["./make-selector.js", [["makeHardenerSelector",[$h͏_a => (makeHardenerSelector = $h͏_a)]]]]]);
 
 
@@ -4122,7 +3897,7 @@ const harden = makeHardenerSelector(() =>
 const{default:$c͏_default}={default:harden};$h͏_once.default($c͏_default);
 })()
 ,
-// === 5. env-options ./src/env-options.js ===
+// === 4. env-options ./src/env-options.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);/* global globalThis */
 // @ts-check
 
@@ -4274,11 +4049,11 @@ freeze(makeEnvironmentCaptor);
 } = makeEnvironmentCaptor(localThis, true);$h͏_once.getEnvironmentOption(getEnvironmentOption);$h͏_once.getEnvironmentOptionsList(getEnvironmentOptionsList);$h͏_once.environmentOptionsListHas(environmentOptionsListHas);
 })()
 ,
-// === 6. env-options ./index.js ===
+// === 5. env-options ./index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["./src/env-options.js", []]]);
 })()
 ,
-// === 7. eventual-send ./src/message-breakpoints.js ===
+// === 6. eventual-send ./src/message-breakpoints.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let getEnvironmentOption;$h͏_imports([["@endo/env-options", [["getEnvironmentOption",[$h͏_a => (getEnvironmentOption = $h͏_a)]]]]]);
 
 const { quote: q, Fail } = assert;
@@ -4460,7 +4235,7 @@ const simplifyTag = tag => {
 freeze(makeMessageBreakpointTester);
 })()
 ,
-// === 8. eventual-send ./src/local.js ===
+// === 7. eventual-send ./src/local.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,makeMessageBreakpointTester;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["./message-breakpoints.js", [["makeMessageBreakpointTester",[$h͏_a => (makeMessageBreakpointTester = $h͏_a)]]]]]);
 
 
@@ -4602,11 +4377,11 @@ $h͏_once.getMethodNames(getMethodNames);freeze(getMethodNames);
        const localGet = (t, key) => t[key];$h͏_once.localGet(localGet);
 })()
 ,
-// === 9. eventual-send ./utils.js ===
+// === 8. eventual-send ./utils.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["./src/local.js", []],["./src/message-breakpoints.js", []]]);
 })()
 ,
-// === 10. errors ./index.js ===
+// === 9. errors ./index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);
 
 
@@ -4741,7 +4516,7 @@ $h͏_once.q(q);const annotateError=note;$h͏_once.annotateError(annotateError);
 };$h͏_once.hideAndHardenFunction(hideAndHardenFunction);
 })()
 ,
-// === 11. pass-style ./src/passStyle-helpers.js ===
+// === 10. pass-style ./src/passStyle-helpers.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,q,hideAndHardenFunction;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]]]);
 
 
@@ -4940,7 +4715,7 @@ harden(confirmTagRecord);
 harden(confirmFunctionTagRecord);
 })()
 ,
-// === 12. pass-style ./src/remotable.js ===
+// === 11. pass-style ./src/remotable.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,q,hideAndHardenFunction,getMethodNames,PASS_STYLE,confirmTagRecord,confirmFunctionTagRecord,isPrimitive,getTag;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]],["@endo/eventual-send/utils.js", [["getMethodNames",[$h͏_a => (getMethodNames = $h͏_a)]]]],["./passStyle-helpers.js", [["PASS_STYLE",[$h͏_a => (PASS_STYLE = $h͏_a)]],["confirmTagRecord",[$h͏_a => (confirmTagRecord = $h͏_a)]],["confirmFunctionTagRecord",[$h͏_a => (confirmFunctionTagRecord = $h͏_a)]],["isPrimitive",[$h͏_a => (isPrimitive = $h͏_a)]],["getTag",[$h͏_a => (getTag = $h͏_a)]]]]]);
 
 
@@ -5248,7 +5023,7 @@ harden(getInterfaceOf);
 });$h͏_once.RemotableHelper(RemotableHelper);
 })()
 ,
-// === 13. pass-style ./src/make-far.js ===
+// === 12. pass-style ./src/make-far.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,getMethodNames,q,Fail,PASS_STYLE,assertIface,getInterfaceOf,RemotableHelper;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/eventual-send/utils.js", [["getMethodNames",[$h͏_a => (getMethodNames = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./passStyle-helpers.js", [["PASS_STYLE",[$h͏_a => (PASS_STYLE = $h͏_a)]]]],["./remotable.js", [["assertIface",[$h͏_a => (assertIface = $h͏_a)]],["getInterfaceOf",[$h͏_a => (getInterfaceOf = $h͏_a)]],["RemotableHelper",[$h͏_a => (RemotableHelper = $h͏_a)]]]]]);
 
 
@@ -5472,7 +5247,7 @@ harden(Far);
 harden(ToFarFunction);
 })()
 ,
-// === 14. pass-style ./src/iter-helpers.js ===
+// === 13. pass-style ./src/iter-helpers.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Far;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["./make-far.js", [["Far",[$h͏_a => (Far = $h͏_a)]]]]]);
 
 
@@ -5496,7 +5271,7 @@ harden(ToFarFunction);
         next: () => {
           const { value: baseValue, done } = baseIterator.next();
           const value = done ? baseValue : func(baseValue);
-          return harden({ value, done });
+          return harden({ value, done: !!done });
         },
       });
     },
@@ -5535,7 +5310,7 @@ harden(mapIterable);
 harden(filterIterable);
 })()
 ,
-// === 15. harden ./is-noop.js ===
+// === 14. harden ./is-noop.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);const { getOwnPropertyDescriptor } = Object;
 
 const memo = new WeakMap();
@@ -5560,7 +5335,7 @@ const hardenIsNoop = harden => {
 const{default:$c͏_default}={default:hardenIsNoop};$h͏_once.default($c͏_default);
 })()
 ,
-// === 16. pass-style ./src/error.js ===
+// === 15. pass-style ./src/error.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,hardenIsNoop,Fail,q,hideAndHardenFunction;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/harden/is-noop.js", [["default",[$h͏_a => (hardenIsNoop = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]]]);
 
 
@@ -5925,7 +5700,7 @@ harden(confirmRecursivelyPassableError);
 });$h͏_once.ErrorHelper(ErrorHelper);
 })()
 ,
-// === 17. pass-style ./src/symbol.js ===
+// === 16. pass-style ./src/symbol.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,q,hideAndHardenFunction;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]]]);
 
 
@@ -6051,7 +5826,7 @@ harden(passableSymbolForName);
        const unpassableSymbolForName = name => Symbol(name);$h͏_once.unpassableSymbolForName(unpassableSymbolForName);
 })()
 ,
-// === 18. pass-style ./src/string.js ===
+// === 17. pass-style ./src/string.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let getEnvironmentOption,Fail,hideAndHardenFunction;$h͏_imports([["@endo/env-options", [["getEnvironmentOption",[$h͏_a => (getEnvironmentOption = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]]]);
 
 
@@ -6137,7 +5912,7 @@ const ONLY_WELL_FORMED_STRINGS_PASSABLE =
 hideAndHardenFunction(assertPassableString);
 })()
 ,
-// === 19. promise-kit ./src/promise-executor-kit.js ===
+// === 18. promise-kit ./src/promise-executor-kit.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);
 
 
@@ -6195,7 +5970,7 @@ hideAndHardenFunction(assertPassableString);
 harden(makeReleasingExecutorKit);
 })()
 ,
-// === 20. promise-kit ./src/memo-race.js ===
+// === 19. promise-kit ./src/memo-race.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);
 
 
@@ -6366,7 +6141,7 @@ const { race } = {
 };$h͏_once.race(race);
 })()
 ,
-// === 21. promise-kit ./src/is-promise.js ===
+// === 20. promise-kit ./src/is-promise.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);Object.defineProperty(isPromise,'name',{value:"isPromise"});$h͏_once.isPromise(isPromise);
 
 /**
@@ -6381,11 +6156,11 @@ const { race } = {
 harden(isPromise);
 })()
 ,
-// === 22. promise-kit ./src/types.js ===
+// === 21. promise-kit ./src/types.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);
 })()
 ,
-// === 23. promise-kit ./index.js ===
+// === 22. promise-kit ./index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,makeReleasingExecutorKit,memoRace;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["./src/promise-executor-kit.js", [["makeReleasingExecutorKit",[$h͏_a => (makeReleasingExecutorKit = $h͏_a)]]]],["./src/memo-race.js", [["memoRace",[$h͏_a => (memoRace = $h͏_a)]]]],["./src/is-promise.js", []],["./src/types.js", []]]);Object.defineProperty(makePromiseKit,'name',{value:"makePromiseKit"});$h͏_once.makePromiseKit(makePromiseKit);Object.defineProperty(racePromises,'name',{value:"racePromises"});$h͏_once.racePromises(racePromises);
 
 
@@ -6432,12 +6207,14 @@ harden(makePromiseKit);
  * @returns {Promise<Awaited<T[number]>>} A new Promise.
  */
        function racePromises(values) {
-  return harden(memoRace.call(BestPipelinablePromise, values));
+  return /** @type {Promise<Awaited<T[number]>>} */ (
+    harden(memoRace.call(BestPipelinablePromise, values))
+  );
 }
 harden(racePromises);
 })()
 ,
-// === 24. pass-style ./src/copyArray.js ===
+// === 23. pass-style ./src/copyArray.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,X,confirmOwnDataDescriptor;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["X",[$h͏_a => (X = $h͏_a)]]]],["./passStyle-helpers.js", [["confirmOwnDataDescriptor",[$h͏_a => (confirmOwnDataDescriptor = $h͏_a)]]]]]);
 
 
@@ -6478,7 +6255,7 @@ const { isArray, prototype: arrayPrototype } = Array;
 });$h͏_once.CopyArrayHelper(CopyArrayHelper);
 })()
 ,
-// === 25. pass-style ./src/byteArray.js ===
+// === 24. pass-style ./src/byteArray.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,X,Fail;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]]]);
 
 
@@ -6549,7 +6326,7 @@ const { immutableArrayBufferPrototype, immutableGetter } =
 });$h͏_once.ByteArrayHelper(ByteArrayHelper);
 })()
 ,
-// === 26. pass-style ./src/copyRecord.js ===
+// === 25. pass-style ./src/copyRecord.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,confirmOwnDataDescriptor,canBeMethod;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./passStyle-helpers.js", [["confirmOwnDataDescriptor",[$h͏_a => (confirmOwnDataDescriptor = $h͏_a)]]]],["./remotable.js", [["canBeMethod",[$h͏_a => (canBeMethod = $h͏_a)]]]]]);
 
 
@@ -6622,7 +6399,7 @@ const confirmPropertyCanBeValid = (candidate, key, value, reject) => {
 });$h͏_once.CopyRecordHelper(CopyRecordHelper);
 })()
 ,
-// === 27. pass-style ./src/tagged.js ===
+// === 26. pass-style ./src/tagged.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,confirmTagRecord,PASS_STYLE,confirmOwnDataDescriptor,confirmPassStyle;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./passStyle-helpers.js", [["confirmTagRecord",[$h͏_a => (confirmTagRecord = $h͏_a)]],["PASS_STYLE",[$h͏_a => (PASS_STYLE = $h͏_a)]],["confirmOwnDataDescriptor",[$h͏_a => (confirmOwnDataDescriptor = $h͏_a)]],["confirmPassStyle",[$h͏_a => (confirmPassStyle = $h͏_a)]]]]]);
 
 
@@ -6674,7 +6451,7 @@ const { getOwnPropertyDescriptors } = Object;
 });$h͏_once.TaggedHelper(TaggedHelper);
 })()
 ,
-// === 28. pass-style ./src/safe-promise.js ===
+// === 27. pass-style ./src/safe-promise.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,isPromise,Fail,q,hideAndHardenFunction;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/promise-kit", [["isPromise",[$h͏_a => (isPromise = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]]]);
 
 
@@ -6835,7 +6612,7 @@ hideAndHardenFunction(isSafePromise);
 hideAndHardenFunction(assertSafePromise);
 })()
 ,
-// === 29. pass-style ./src/passStyleOf.js ===
+// === 28. pass-style ./src/passStyleOf.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,isPromise,X,Fail,q,annotateError,makeError,hideAndHardenFunction,isPrimitive,isTypedArray,PASS_STYLE,CopyArrayHelper,ByteArrayHelper,CopyRecordHelper,TaggedHelper,ErrorHelper,confirmRecursivelyPassableError,confirmRecursivelyPassableErrorPropertyDesc,getErrorConstructor,isErrorLike,RemotableHelper,assertPassableSymbol,assertSafePromise,assertPassableString;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/promise-kit", [["isPromise",[$h͏_a => (isPromise = $h͏_a)]]]],["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["annotateError",[$h͏_a => (annotateError = $h͏_a)]],["makeError",[$h͏_a => (makeError = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]],["./passStyle-helpers.js", [["isPrimitive",[$h͏_a => (isPrimitive = $h͏_a)]],["isTypedArray",[$h͏_a => (isTypedArray = $h͏_a)]],["PASS_STYLE",[$h͏_a => (PASS_STYLE = $h͏_a)]]]],["./copyArray.js", [["CopyArrayHelper",[$h͏_a => (CopyArrayHelper = $h͏_a)]]]],["./byteArray.js", [["ByteArrayHelper",[$h͏_a => (ByteArrayHelper = $h͏_a)]]]],["./copyRecord.js", [["CopyRecordHelper",[$h͏_a => (CopyRecordHelper = $h͏_a)]]]],["./tagged.js", [["TaggedHelper",[$h͏_a => (TaggedHelper = $h͏_a)]]]],["./error.js", [["ErrorHelper",[$h͏_a => (ErrorHelper = $h͏_a)]],["confirmRecursivelyPassableError",[$h͏_a => (confirmRecursivelyPassableError = $h͏_a)]],["confirmRecursivelyPassableErrorPropertyDesc",[$h͏_a => (confirmRecursivelyPassableErrorPropertyDesc = $h͏_a)]],["getErrorConstructor",[$h͏_a => (getErrorConstructor = $h͏_a)]],["isErrorLike",[$h͏_a => (isErrorLike = $h͏_a)]]]],["./remotable.js", [["RemotableHelper",[$h͏_a => (RemotableHelper = $h͏_a)]]]],["./symbol.js", [["assertPassableSymbol",[$h͏_a => (assertPassableSymbol = $h͏_a)]]]],["./safe-promise.js", [["assertSafePromise",[$h͏_a => (assertSafePromise = $h͏_a)]]]],["./string.js", [["assertPassableString",[$h͏_a => (assertPassableString = $h͏_a)]]]]]);
 
 
@@ -7243,7 +7020,7 @@ harden(toPassableError);
 harden(toThrowable);
 })()
 ,
-// === 30. pass-style ./src/makeTagged.js ===
+// === 29. pass-style ./src/makeTagged.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,PASS_STYLE,assertPassable;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./passStyle-helpers.js", [["PASS_STYLE",[$h͏_a => (PASS_STYLE = $h͏_a)]]]],["./passStyleOf.js", [["assertPassable",[$h͏_a => (assertPassable = $h͏_a)]]]]]);
 
 
@@ -7277,7 +7054,7 @@ const { create, prototype: objectPrototype } = Object;
 harden(makeTagged);
 })()
 ,
-// === 31. pass-style ./src/typeGuards.js ===
+// === 30. pass-style ./src/typeGuards.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let Fail,q,hideAndHardenFunction,passStyleOf;$h͏_imports([["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]],["./passStyleOf.js", [["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]]]]]);
 
 
@@ -7433,7 +7210,7 @@ hideAndHardenFunction(isAtom);
 hideAndHardenFunction(assertAtom);
 })()
 ,
-// === 32. eventual-send ./src/track-turns.js ===
+// === 31. eventual-send ./src/track-turns.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let getEnvironmentOption,environmentOptionsListHas;$h͏_imports([["@endo/env-options", [["getEnvironmentOption",[$h͏_a => (getEnvironmentOption = $h͏_a)]],["environmentOptionsListHas",[$h͏_a => (environmentOptionsListHas = $h͏_a)]]]]]);
 
 
@@ -7553,7 +7330,7 @@ const wrapFunction =
  */$h͏_once.trackTurns(trackTurns);
 })()
 ,
-// === 33. eventual-send ./src/E.js ===
+// === 32. eventual-send ./src/E.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,trackTurns,makeMessageBreakpointTester;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["./track-turns.js", [["trackTurns",[$h͏_a => (trackTurns = $h͏_a)]]]],["./message-breakpoints.js", [["makeMessageBreakpointTester",[$h͏_a => (makeMessageBreakpointTester = $h͏_a)]]]]]);
 
 
@@ -8053,11 +7830,11 @@ const{default:$c͏_default}={default:makeE};
  */$h͏_once.default($c͏_default);
 })()
 ,
-// === 34. eventual-send ./src/exports.js ===
+// === 33. eventual-send ./src/exports.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);
 })()
 ,
-// === 35. eventual-send ./src/no-shim.js ===
+// === 34. eventual-send ./src/no-shim.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let makeE;$h͏_imports([["./E.js", [["default",[$h͏_a => (makeE = $h͏_a)]]]],["./exports.js", []]]);
 
 // XXX module exports for HandledPromise fail if these aren't in scope
@@ -8079,7 +7856,7 @@ const hp = HandledPromise;
        const E = makeE(hp);$h͏_once.E(E);
 })()
 ,
-// === 36. pass-style ./src/deeplyFulfilled.js ===
+// === 35. pass-style ./src/deeplyFulfilled.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,X,q,E,isPromise,getTag,passStyleOf,makeTagged,isAtom;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]]]],["@endo/eventual-send", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/promise-kit", [["isPromise",[$h͏_a => (isPromise = $h͏_a)]]]],["./passStyle-helpers.js", [["getTag",[$h͏_a => (getTag = $h͏_a)]]]],["./passStyleOf.js", [["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]]]],["./makeTagged.js", [["makeTagged",[$h͏_a => (makeTagged = $h͏_a)]]]],["./typeGuards.js", [["isAtom",[$h͏_a => (isAtom = $h͏_a)]]]]]);
 
 
@@ -8235,15 +8012,15 @@ const { fromEntries } = Object;
 harden(deeplyFulfilled);
 })()
 ,
-// === 37. pass-style ./src/types.js ===
+// === 36. pass-style ./src/types.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);
 })()
 ,
-// === 38. pass-style ./index.js ===
+// === 37. pass-style ./index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["./src/iter-helpers.js", []],["./src/passStyle-helpers.js", []],["./src/error.js", []],["./src/remotable.js", []],["./src/symbol.js", []],["./src/string.js", []],["./src/passStyleOf.js", []],["./src/makeTagged.js", []],["./src/make-far.js", []],["./src/typeGuards.js", []],["./src/deeplyFulfilled.js", []],["./src/types.js", []]]);
 })()
 ,
-// === 39. marshal ./src/encodeToCapData.js ===
+// === 38. marshal ./src/encodeToCapData.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,passStyleOf,isErrorLike,makeTagged,isPrimitive,getTag,assertPassableSymbol,nameForPassableSymbol,passableSymbolForName,X,Fail,q;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/pass-style", [["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["isErrorLike",[$h͏_a => (isErrorLike = $h͏_a)]],["makeTagged",[$h͏_a => (makeTagged = $h͏_a)]],["isPrimitive",[$h͏_a => (isPrimitive = $h͏_a)]],["getTag",[$h͏_a => (getTag = $h͏_a)]],["assertPassableSymbol",[$h͏_a => (assertPassableSymbol = $h͏_a)]],["nameForPassableSymbol",[$h͏_a => (nameForPassableSymbol = $h͏_a)]],["passableSymbolForName",[$h͏_a => (passableSymbolForName = $h͏_a)]]]],["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]]]]]);
 
 
@@ -8689,7 +8466,7 @@ const dontDecodeErrorFromCapData = errorEncoding =>
 };$h͏_once.makeDecodeFromCapData(makeDecodeFromCapData);
 })()
 ,
-// === 40. common ./object-map.js ===
+// === 39. common ./object-map.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);
 
 /**
@@ -8770,7 +8547,7 @@ const dontDecodeErrorFromCapData = errorEncoding =>
 harden(objectMap);
 })()
 ,
-// === 41. marshal ./src/encodeToSmallcaps.js ===
+// === 40. marshal ./src/encodeToSmallcaps.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,X,Fail,q,ZERO_N,passStyleOf,isErrorLike,makeTagged,getTag,assertPassableSymbol,nameForPassableSymbol,passableSymbolForName;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]]]],["@endo/nat", [["ZERO_N",[$h͏_a => (ZERO_N = $h͏_a)]]]],["@endo/pass-style", [["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["isErrorLike",[$h͏_a => (isErrorLike = $h͏_a)]],["makeTagged",[$h͏_a => (makeTagged = $h͏_a)]],["getTag",[$h͏_a => (getTag = $h͏_a)]],["assertPassableSymbol",[$h͏_a => (assertPassableSymbol = $h͏_a)]],["nameForPassableSymbol",[$h͏_a => (nameForPassableSymbol = $h͏_a)]],["passableSymbolForName",[$h͏_a => (passableSymbolForName = $h͏_a)]]]]]);
 
 
@@ -9247,7 +9024,7 @@ const dontDecodeErrorFromSmallcaps = encoding =>
 };$h͏_once.makeDecodeFromSmallcaps(makeDecodeFromSmallcaps);
 })()
 ,
-// === 42. marshal ./src/marshal.js ===
+// === 41. marshal ./src/marshal.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Nat,assertPassable,getInterfaceOf,getErrorConstructor,toPassableError,X,Fail,q,makeError,annotateError,objectMap,QCLASS,makeEncodeToCapData,makeDecodeFromCapData,makeDecodeFromSmallcaps,makeEncodeToSmallcaps;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/nat", [["Nat",[$h͏_a => (Nat = $h͏_a)]]]],["@endo/pass-style", [["assertPassable",[$h͏_a => (assertPassable = $h͏_a)]],["getInterfaceOf",[$h͏_a => (getInterfaceOf = $h͏_a)]],["getErrorConstructor",[$h͏_a => (getErrorConstructor = $h͏_a)]],["toPassableError",[$h͏_a => (toPassableError = $h͏_a)]]]],["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["makeError",[$h͏_a => (makeError = $h͏_a)]],["annotateError",[$h͏_a => (annotateError = $h͏_a)]]]],["@endo/common/object-map.js", [["objectMap",[$h͏_a => (objectMap = $h͏_a)]]]],["./encodeToCapData.js", [["QCLASS",[$h͏_a => (QCLASS = $h͏_a)]],["makeEncodeToCapData",[$h͏_a => (makeEncodeToCapData = $h͏_a)]],["makeDecodeFromCapData",[$h͏_a => (makeDecodeFromCapData = $h͏_a)]]]],["./encodeToSmallcaps.js", [["makeDecodeFromSmallcaps",[$h͏_a => (makeDecodeFromSmallcaps = $h͏_a)]],["makeEncodeToSmallcaps",[$h͏_a => (makeEncodeToSmallcaps = $h͏_a)]]]]]);
 
 
@@ -9604,7 +9381,10 @@ const defaultSlotToValFn = (x, _) => x;
         const index = Number(stringEncoding.slice(1, i < 0 ? undefined : i));
         // i < 0 means there was no iface included.
         const iface = i < 0 ? undefined : stringEncoding.slice(i + 1);
-        return decodeSlotCommon({ iface, index });
+        return decodeSlotCommon({
+          ...(iface !== undefined && { iface }),
+          index,
+        });
       };
     };
     const decodeRemotableFromSmallcaps = makeDecodeSlotFromSmallcaps('$');
@@ -9668,7 +9448,7 @@ const defaultSlotToValFn = (x, _) => x;
 };$h͏_once.makeMarshal(makeMarshal);
 })()
 ,
-// === 43. marshal ./src/marshal-stringify.js ===
+// === 42. marshal ./src/marshal-stringify.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,makeMarshal;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./marshal.js", [["makeMarshal",[$h͏_a => (makeMarshal = $h͏_a)]]]]]);
 
 
@@ -9738,7 +9518,7 @@ const parse = str =>
 harden(parse);
 })()
 ,
-// === 44. marshal ./src/marshal-justin.js ===
+// === 43. marshal ./src/marshal-justin.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,q,X,Fail,Nat,getErrorConstructor,isPrimitive,nameForPassableSymbol,passableSymbolForName,QCLASS,makeMarshal;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["@endo/nat", [["Nat",[$h͏_a => (Nat = $h͏_a)]]]],["@endo/pass-style", [["getErrorConstructor",[$h͏_a => (getErrorConstructor = $h͏_a)]],["isPrimitive",[$h͏_a => (isPrimitive = $h͏_a)]],["nameForPassableSymbol",[$h͏_a => (nameForPassableSymbol = $h͏_a)]],["passableSymbolForName",[$h͏_a => (passableSymbolForName = $h͏_a)]]]],["./encodeToCapData.js", [["QCLASS",[$h͏_a => (QCLASS = $h͏_a)]]]],["./marshal.js", [["makeMarshal",[$h͏_a => (makeMarshal = $h͏_a)]]]]]);
 
 
@@ -10251,7 +10031,7 @@ harden(passableAsJustin);
 harden(qp);
 })()
 ,
-// === 45. marshal ./src/encodePassable.js ===
+// === 44. marshal ./src/encodePassable.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,b,q,Fail,ZERO_N,getTag,makeTagged,passStyleOf,assertRecord,isErrorLike,nameForPassableSymbol,passableSymbolForName;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["b",[$h͏_a => (b = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["@endo/nat", [["ZERO_N",[$h͏_a => (ZERO_N = $h͏_a)]]]],["@endo/pass-style", [["getTag",[$h͏_a => (getTag = $h͏_a)]],["makeTagged",[$h͏_a => (makeTagged = $h͏_a)]],["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["assertRecord",[$h͏_a => (assertRecord = $h͏_a)]],["isErrorLike",[$h͏_a => (isErrorLike = $h͏_a)]],["nameForPassableSymbol",[$h͏_a => (nameForPassableSymbol = $h͏_a)]],["passableSymbolForName",[$h͏_a => (passableSymbolForName = $h͏_a)]]]]]);
 
 
@@ -10345,8 +10125,8 @@ harden(zeroPad);
 // because we put the value in one side and then immediately take it out the
 // other; there is no actual state retained in the classic sense and thus no
 // re-entrancy issue.
-const asNumber = new Float64Array(1);
-const asBits = new BigUint64Array(asNumber.buffer);
+const { buffer: hiddenBuffer } = new BigUint64Array(1);
+const bufferView = new DataView(hiddenBuffer);
 
 // JavaScript numbers are encoded by outputting the base-16
 // representation of the binary value of the underlying IEEE floating point
@@ -10358,23 +10138,32 @@ const asBits = new BigUint64Array(asNumber.buffer);
 // encoding whose lexicographic sort order is the same as the numeric sort order
 // of the corresponding numbers.
 
-// TODO Choose the same canonical NaN encoding that cosmWasm and ewasm chose.
-const CanonicalNaNBits = 'fff8000000000000';
+// Because @endo/marshal does not depend on `ses`, it certainly cannot depend
+// on `lockdown()` being called. But the DataView methods are only tamed
+// to canonicalize NaNs by lockdown. Therefore we need to do our own
+// NaN canonicalization here.
+
+// See https://webidl.spec.whatwg.org/#js-unrestricted-double which implies
+// that this is the canonical NaN for web standards.
+// Casual googling stongly suggests that this is also the cosmWasm
+// canonical NaN. But I have not yet found an authoritative page stating this.
+const canonicalNaN = 0x7ff8000000000000n;
 
 /**
- * @param {number} n
+ * @param {number} f
  * @returns {string}
  */
-const encodeBinary64 = n => {
+const encodeBinary64 = f => {
   // Normalize -0 to 0 and NaN to a canonical encoding
-  if (is(n, -0)) {
-    n = 0;
-  } else if (is(n, NaN)) {
-    return `f${CanonicalNaNBits}`;
+  if (is(f, -0)) {
+    f = 0;
   }
-  asNumber[0] = n;
-  let bits = asBits[0];
-  if (n < 0) {
+  bufferView.setFloat64(0, f);
+  let bits = bufferView.getBigUint64(0);
+  if (is(f, NaN)) {
+    bits = canonicalNaN;
+  }
+  if (f < 0) {
     bits ^= 0xffffffffffffffffn;
   } else {
     bits ^= 0x8000000000000000n;
@@ -10395,8 +10184,8 @@ const decodeBinary64 = (encoded, skip = 0) => {
   } else {
     bits ^= 0x8000000000000000n;
   }
-  asBits[0] = bits;
-  const result = asNumber[0];
+  bufferView.setBigUint64(0, bits);
+  const result = bufferView.getFloat64(0);
   !is(result, -0) ||
     Fail`Unexpected negative zero: ${getSuffix(encoded, skip)}`;
   return result;
@@ -10579,14 +10368,14 @@ const decodeLegacyStringSuffix = encoded => encoded;
  * format, each terminated by a space (which is part of the escaped range in
  * "compactOrdered" encoded strings).
  *
- * @param {Passable[]} array
+ * @param {unknown[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
 const encodeCompactArray = (array, encodePassable) => {
   const chars = ['^'];
   for (const element of array) {
-    const enc = encodePassable(element);
+    const enc = encodePassable(/** @type {Passable} */ (element));
     chars.push(enc, ' ');
   }
   return chars.join('');
@@ -10654,14 +10443,14 @@ const decodeCompactArray = (encoded, decodePassable, skip = 0) => {
  * This necessitated an undesirable amount of iteration and expansion; see
  * https://github.com/endojs/endo/pull/1260#discussion_r960369826
  *
- * @param {Passable[]} array
+ * @param {unknown[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
 const encodeLegacyArray = (array, encodePassable) => {
   const chars = ['['];
   for (const element of array) {
-    const enc = encodePassable(element);
+    const enc = encodePassable(/** @type {Passable} */ (element));
     for (const c of enc) {
       if (c === '\u0000' || c === '\u0001') {
         chars.push('\u0001');
@@ -10822,7 +10611,7 @@ const makeEncodeError = (unsafeEncodeError, verifyEncoding) => {
 
 /**
  * @param {(str: string) => string} encodeStringSuffix
- * @param {(arr: unknown[], encodeRecur: (p: Passable) => string) => string} encodeArray
+ * @param {(arr: Passable[], encodeRecur: (p: Passable) => string) => string} encodeArray
  * @param {Required<EncodeOptions> & {verifyEncoding?: (encoded: string, label: string) => void}} options
  * @returns {(p: Passable) => string}
  */
@@ -11156,7 +10945,7 @@ Object.setPrototypeOf(passStylePrefixes, null);
 harden(passStylePrefixes);
 })()
 ,
-// === 46. marshal ./src/rankOrder.js ===
+// === 45. marshal ./src/rankOrder.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,getenv,Fail,q,getTag,passStyleOf,nameForPassableSymbol,passStylePrefixes,recordNames,recordValues;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/env-options", [["getEnvironmentOption",[$h͏_a => (getenv = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]]]],["@endo/pass-style", [["getTag",[$h͏_a => (getTag = $h͏_a)]],["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["nameForPassableSymbol",[$h͏_a => (nameForPassableSymbol = $h͏_a)]]]],["./encodePassable.js", [["passStylePrefixes",[$h͏_a => (passStylePrefixes = $h͏_a)]],["recordNames",[$h͏_a => (recordNames = $h͏_a)]],["recordValues",[$h͏_a => (recordValues = $h͏_a)]]]]]);
 
 
@@ -11767,15 +11556,15 @@ harden(intersectRankCovers);
 harden(makeFullOrderComparatorKit);
 })()
 ,
-// === 47. marshal ./src/types.js ===
+// === 46. marshal ./src/types.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);
 })()
 ,
-// === 48. marshal ./index.js ===
+// === 47. marshal ./index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["./src/encodeToCapData.js", []],["./src/marshal.js", []],["./src/marshal-stringify.js", []],["./src/marshal-justin.js", []],["./src/encodePassable.js", []],["./src/rankOrder.js", []],["./src/types.js", []],["@endo/pass-style", []]]);
 })()
 ,
-// === 49. captp ./src/trap.js ===
+// === 48. captp ./src/trap.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);
 
 
@@ -11883,7 +11672,7 @@ const objTarget = freeze({ __proto__: null });
 };$h͏_once.makeTrap(makeTrap);
 })()
 ,
-// === 50. captp ./src/finalize.js ===
+// === 49. captp ./src/finalize.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let Far,isPrimitive;$h͏_imports([["@endo/pass-style", [["Far",[$h͏_a => (Far = $h͏_a)]],["isPrimitive",[$h͏_a => (isPrimitive = $h͏_a)]]]]]);
 
 
@@ -12027,7 +11816,7 @@ const { WeakRef, FinalizationRegistry } = globalThis;
 };$h͏_once.makeFinalizingMap(makeFinalizingMap);
 })()
 ,
-// === 51. captp ./src/captp.js ===
+// === 50. captp ./src/captp.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Remotable,Far,makeMarshal,QCLASS,E,HandledPromise,isPromise,makePromiseKit,X,Fail,annotateError,makeTrap,makeFinalizingMap;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/marshal", [["Remotable",[$h͏_a => (Remotable = $h͏_a)]],["Far",[$h͏_a => (Far = $h͏_a)]],["makeMarshal",[$h͏_a => (makeMarshal = $h͏_a)]],["QCLASS",[$h͏_a => (QCLASS = $h͏_a)]]]],["@endo/eventual-send", [["E",[$h͏_a => (E = $h͏_a),$h͏_live["E"]]],["HandledPromise",[$h͏_a => (HandledPromise = $h͏_a)]]]],["@endo/promise-kit", [["isPromise",[$h͏_a => (isPromise = $h͏_a)]],["makePromiseKit",[$h͏_a => (makePromiseKit = $h͏_a)]]]],["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]],["annotateError",[$h͏_a => (annotateError = $h͏_a)]]]],["./trap.js", [["makeTrap",[$h͏_a => (makeTrap = $h͏_a)]]]],["./finalize.js", [["makeFinalizingMap",[$h͏_a => (makeFinalizingMap = $h͏_a)]]]]]);
 
 
@@ -13038,7 +12827,7 @@ const reverseSlot = slot => {
 };$h͏_once.makeCapTP(makeCapTP);
 })()
 ,
-// === 52. captp ./src/loopback.js ===
+// === 51. captp ./src/loopback.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Far,E,makeCapTP,nearTrapImpl,makeFinalizingMap;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/marshal", [["Far",[$h͏_a => (Far = $h͏_a)]]]],["./captp.js", [["E",[$h͏_a => (E = $h͏_a),$h͏_live["E"]]],["makeCapTP",[$h͏_a => (makeCapTP = $h͏_a)]]]],["./trap.js", [["nearTrapImpl",[$h͏_a => (nearTrapImpl = $h͏_a)]]]],["./finalize.js", [["makeFinalizingMap",[$h͏_a => (makeFinalizingMap = $h͏_a)]]]]]);
 
 
@@ -13158,7 +12947,7 @@ const reverseSlot = slot => {
 };$h͏_once.makeLoopback(makeLoopback);
 })()
 ,
-// === 53. captp ./src/atomics.js ===
+// === 52. captp ./src/atomics.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,X,Fail;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]]]);
 
 
@@ -13331,19 +13120,19 @@ const splitTransferBuffer = transferBuffer => {
 };$h͏_once.makeAtomicsTrapGuest(makeAtomicsTrapGuest);
 })()
 ,
-// === 54. captp ./src/index.js ===
+// === 53. captp ./src/index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["@endo/nat", []],["@endo/marshal", []],["./captp.js", []],["./loopback.js", []],["./atomics.js", []]]);
 })()
 ,
-// === 55. far ./src/exports.js ===
+// === 54. far ./src/exports.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);
 })()
 ,
-// === 56. far ./src/index.js ===
+// === 55. far ./src/index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["@endo/eventual-send", []],["@endo/pass-style", []],["./exports.js", []]]);
 })()
 ,
-// === 57. stream ./index.js ===
+// === 56. stream ./index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,E,makePromiseKit;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/eventual-send", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/promise-kit", [["makePromiseKit",[$h͏_a => (makePromiseKit = $h͏_a)]]]]]);
 
 
@@ -13593,7 +13382,7 @@ harden(mapReader);
 harden(mapWriter);
 })()
 ,
-// === 58. patterns ./src/keys/copySet.js ===
+// === 57. patterns ./src/keys/copySet.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,hideAndHardenFunction,makeTagged,passStyleOf,compareAntiRank,isRankSorted,makeFullOrderComparatorKit,sortByRank;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]],["@endo/marshal", [["makeTagged",[$h͏_a => (makeTagged = $h͏_a)]],["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["compareAntiRank",[$h͏_a => (compareAntiRank = $h͏_a)]],["isRankSorted",[$h͏_a => (isRankSorted = $h͏_a)]],["makeFullOrderComparatorKit",[$h͏_a => (makeFullOrderComparatorKit = $h͏_a)]],["sortByRank",[$h͏_a => (sortByRank = $h͏_a)]]]]]);
 
 
@@ -13705,7 +13494,7 @@ harden(coerceToElements);
 harden(makeSetOfElements);
 })()
 ,
-// === 59. patterns ./src/keys/copyBag.js ===
+// === 58. patterns ./src/keys/copyBag.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,hideAndHardenFunction,makeTagged,passStyleOf,compareAntiRank,isRankSorted,makeFullOrderComparatorKit,sortByRank;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]],["@endo/marshal", [["makeTagged",[$h͏_a => (makeTagged = $h͏_a)]],["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["compareAntiRank",[$h͏_a => (compareAntiRank = $h͏_a)]],["isRankSorted",[$h͏_a => (isRankSorted = $h͏_a)]],["makeFullOrderComparatorKit",[$h͏_a => (makeFullOrderComparatorKit = $h͏_a)]],["sortByRank",[$h͏_a => (sortByRank = $h͏_a)]]]]]);
 
 
@@ -13844,7 +13633,7 @@ harden(coerceToBagEntries);
 harden(makeBagOfEntries);
 })()
 ,
-// === 60. patterns ./src/keys/checkKey.js ===
+// === 59. patterns ./src/keys/checkKey.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Fail,q,hideAndHardenFunction,Far,getTag,makeTagged,passStyleOf,isAtom,compareAntiRank,makeFullOrderComparatorKit,sortByRank,confirmElements,makeSetOfElements,confirmBagEntries,makeBagOfEntries;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]],["@endo/pass-style", [["Far",[$h͏_a => (Far = $h͏_a)]],["getTag",[$h͏_a => (getTag = $h͏_a)]],["makeTagged",[$h͏_a => (makeTagged = $h͏_a)]],["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["isAtom",[$h͏_a => (isAtom = $h͏_a)]]]],["@endo/marshal", [["compareAntiRank",[$h͏_a => (compareAntiRank = $h͏_a)]],["makeFullOrderComparatorKit",[$h͏_a => (makeFullOrderComparatorKit = $h͏_a)]],["sortByRank",[$h͏_a => (sortByRank = $h͏_a)]]]],["./copySet.js", [["confirmElements",[$h͏_a => (confirmElements = $h͏_a)]],["makeSetOfElements",[$h͏_a => (makeSetOfElements = $h͏_a)]]]],["./copyBag.js", [["confirmBagEntries",[$h͏_a => (confirmBagEntries = $h͏_a)]],["makeBagOfEntries",[$h͏_a => (makeBagOfEntries = $h͏_a)]]]]]);
 
 
@@ -14393,7 +14182,7 @@ const confirmKeyInternal = (val, reject) => {
 };
 })()
 ,
-// === 61. common ./make-iterator.js ===
+// === 60. common ./make-iterator.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);
 
 /**
@@ -14413,7 +14202,7 @@ const confirmKeyInternal = (val, reject) => {
 harden(makeIterator);
 })()
 ,
-// === 62. common ./make-array-iterator.js ===
+// === 61. common ./make-array-iterator.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,makeIterator;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["./make-iterator.js", [["makeIterator",[$h͏_a => (makeIterator = $h͏_a)]]]]]);
 
 
@@ -14442,7 +14231,7 @@ harden(makeIterator);
 harden(makeArrayIterator);
 })()
 ,
-// === 63. patterns ./src/keys/keycollection-operators.js ===
+// === 62. patterns ./src/keys/keycollection-operators.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,assertRankSorted,compareAntiRank,makeFullOrderComparatorKit,sortByRank,makeIterator,makeArrayIterator,q,Fail;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/marshal", [["assertRankSorted",[$h͏_a => (assertRankSorted = $h͏_a)]],["compareAntiRank",[$h͏_a => (compareAntiRank = $h͏_a)]],["makeFullOrderComparatorKit",[$h͏_a => (makeFullOrderComparatorKit = $h͏_a)]],["sortByRank",[$h͏_a => (sortByRank = $h͏_a)]]]],["@endo/common/make-iterator.js", [["makeIterator",[$h͏_a => (makeIterator = $h͏_a)]]]],["@endo/common/make-array-iterator.js", [["makeArrayIterator",[$h͏_a => (makeArrayIterator = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]]]);
 
 
@@ -14628,7 +14417,7 @@ harden(generateCollectionPairEntries);
  * @template [V=unknown]
  * @param {(collection: C) => Array<[Key, V]>} getEntries
  * @param {V} absentValue
- * @param {KeyCompare} compareValues
+ * @param {PartialCompare<V>} compareValues
  * @returns {(left: C, right: C) => KeyComparison}
  */
        const makeCompareCollection = (getEntries, absentValue, compareValues) =>
@@ -14668,7 +14457,7 @@ harden(generateCollectionPairEntries);
 harden(makeCompareCollection);
 })()
 ,
-// === 64. patterns ./src/keys/compareKeys.js ===
+// === 63. patterns ./src/keys/compareKeys.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,passStyleOf,getTag,compareNumerics,compareRank,recordNames,recordValues,q,Fail,assertKey,getCopyBagEntries,getCopyMapEntryArray,getCopySetKeys,makeCompareCollection;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/marshal", [["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["getTag",[$h͏_a => (getTag = $h͏_a)]],["compareNumerics",[$h͏_a => (compareNumerics = $h͏_a)]],["compareRank",[$h͏_a => (compareRank = $h͏_a)]],["recordNames",[$h͏_a => (recordNames = $h͏_a)]],["recordValues",[$h͏_a => (recordValues = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./checkKey.js", [["assertKey",[$h͏_a => (assertKey = $h͏_a)]],["getCopyBagEntries",[$h͏_a => (getCopyBagEntries = $h͏_a)]],["getCopyMapEntryArray",[$h͏_a => (getCopyMapEntryArray = $h͏_a)]],["getCopySetKeys",[$h͏_a => (getCopySetKeys = $h͏_a)]]]],["./keycollection-operators.js", [["makeCompareCollection",[$h͏_a => (makeCompareCollection = $h͏_a)]]]]]);
 
 
@@ -14687,7 +14476,8 @@ harden(makeCompareCollection);
 
 
 
-/** @import {CopySet, Key, KeyCompare} from '../types.js' */
+/** @import {CopyBag, CopyMap, CopySet, Key, KeyCollection, KeyCompare} from '../types.js' */
+/** @import {Passable} from '@endo/pass-style' */
 
 /**
  * CopySet X is smaller than CopySet Y iff all of these conditions hold:
@@ -14697,11 +14487,17 @@ harden(makeCompareCollection);
  * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
  */
        const setCompare = makeCompareCollection(
-  /** @type {<K extends Key>(s: CopySet<K>) => Array<[K, 1]>} */ (
-    s => harden(getCopySetKeys(s).map(key => [key, 1]))
+  /** @type {(collection: KeyCollection) => Array<[Key, 1]>} */ (
+    collection =>
+      harden(
+        getCopySetKeys(/** @type {CopySet} */ (collection)).map(key => [
+          key,
+          1,
+        ]),
+      )
   ),
   0,
-  compareNumerics,
+  /** @type {KeyCompare} */ (compareNumerics),
 );$h͏_once.setCompare(setCompare);
 harden(setCompare);
 
@@ -14714,9 +14510,11 @@ harden(setCompare);
  * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
  */
        const bagCompare = makeCompareCollection(
-  getCopyBagEntries,
+  /** @type {(collection: KeyCollection) => Array<[Key, bigint]>} */ (
+    collection => getCopyBagEntries(/** @type {CopyBag} */ (collection))
+  ),
   0n,
-  compareNumerics,
+  /** @type {KeyCompare} */ (compareNumerics),
 );$h͏_once.bagCompare(bagCompare);
 harden(bagCompare);
 
@@ -14742,7 +14540,10 @@ const ABSENT = Symbol('absent');
  */
 // eslint-disable-next-line no-underscore-dangle
 const _mapCompare = makeCompareCollection(
-  getCopyMapEntryArray,
+  /** @type {(collection: KeyCollection) => Array<[Key, Passable]>} */ (
+    collection =>
+      getCopyMapEntryArray(/** @type {CopyMap<Key, Passable>} */ (collection))
+  ),
   ABSENT,
   (leftValue, rightValue) => {
     if (leftValue === ABSENT && rightValue === ABSENT) {
@@ -14753,7 +14554,10 @@ const _mapCompare = makeCompareCollection(
       return 1;
     } else {
       // eslint-disable-next-line no-use-before-define
-      return compareKeys(leftValue, rightValue);
+      return compareKeys(
+        /** @type {Key} */ (leftValue),
+        /** @type {Key} */ (rightValue),
+      );
     }
   },
 );
@@ -14920,7 +14724,7 @@ harden(keyGTE);
 harden(keyGT);
 })()
 ,
-// === 65. patterns ./src/keys/merge-set-operators.js ===
+// === 64. patterns ./src/keys/merge-set-operators.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,assertRankSorted,compareAntiRank,makeFullOrderComparatorKit,sortByRank,q,Fail,assertNoDuplicates,makeSetOfElements;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/marshal", [["assertRankSorted",[$h͏_a => (assertRankSorted = $h͏_a)]],["compareAntiRank",[$h͏_a => (compareAntiRank = $h͏_a)]],["makeFullOrderComparatorKit",[$h͏_a => (makeFullOrderComparatorKit = $h͏_a)]],["sortByRank",[$h͏_a => (sortByRank = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./copySet.js", [["assertNoDuplicates",[$h͏_a => (assertNoDuplicates = $h͏_a)]],["makeSetOfElements",[$h͏_a => (makeSetOfElements = $h͏_a)]]]]]);
 
 
@@ -15250,7 +15054,7 @@ const setify = elementsOp => (xset, yset) =>
        const setDisjointSubtract = setify(elementsDisjointSubtract);$h͏_once.setDisjointSubtract(setDisjointSubtract);
 })()
 ,
-// === 66. patterns ./src/keys/merge-bag-operators.js ===
+// === 65. patterns ./src/keys/merge-bag-operators.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,assertRankSorted,compareAntiRank,makeFullOrderComparatorKit,sortByRank,q,Fail,assertNoDuplicateKeys,makeBagOfEntries;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/marshal", [["assertRankSorted",[$h͏_a => (assertRankSorted = $h͏_a)]],["compareAntiRank",[$h͏_a => (compareAntiRank = $h͏_a)]],["makeFullOrderComparatorKit",[$h͏_a => (makeFullOrderComparatorKit = $h͏_a)]],["sortByRank",[$h͏_a => (sortByRank = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./copyBag.js", [["assertNoDuplicateKeys",[$h͏_a => (assertNoDuplicateKeys = $h͏_a)]],["makeBagOfEntries",[$h͏_a => (makeBagOfEntries = $h͏_a)]]]]]);
 
 
@@ -15544,7 +15348,7 @@ const bagify = bagEntriesOp => (xbag, ybag) =>
        const bagDisjointSubtract = bagify(bagEntriesDisjointSubtract);$h͏_once.bagDisjointSubtract(bagDisjointSubtract);
 })()
 ,
-// === 67. common ./throw-labeled.js ===
+// === 66. common ./throw-labeled.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let X,makeError,annotateError,hideAndHardenFunction;$h͏_imports([["@endo/errors", [["X",[$h͏_a => (X = $h͏_a)]],["makeError",[$h͏_a => (makeError = $h͏_a)]],["annotateError",[$h͏_a => (annotateError = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]]]);
 
 
@@ -15583,7 +15387,7 @@ const bagify = bagEntriesOp => (xbag, ybag) =>
 hideAndHardenFunction(throwLabeled);
 })()
 ,
-// === 68. common ./apply-labeling-error.js ===
+// === 67. common ./apply-labeling-error.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let hideAndHardenFunction,E,isPromise,throwLabeled;$h͏_imports([["@endo/errors", [["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]],["@endo/eventual-send", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/promise-kit", [["isPromise",[$h͏_a => (isPromise = $h͏_a)]]]],["./throw-labeled.js", [["throwLabeled",[$h͏_a => (throwLabeled = $h͏_a)]]]]]);
 
 
@@ -15647,7 +15451,7 @@ hideAndHardenFunction(throwLabeled);
 hideAndHardenFunction(applyLabelingError);
 })()
 ,
-// === 69. common ./from-unique-entries.js ===
+// === 68. common ./from-unique-entries.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,q,Fail;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]]]);
 
 
@@ -15681,7 +15485,7 @@ const { ownKeys } = Reflect;
 harden(fromUniqueEntries);
 })()
 ,
-// === 70. common ./list-difference.js ===
+// === 69. common ./list-difference.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);
 
 /**
@@ -15705,9 +15509,8 @@ harden(fromUniqueEntries);
 harden(listDifference);
 })()
 ,
-// === 71. patterns ./src/patterns/patternMatchers.js ===
+// === 70. patterns ./src/patterns/patternMatchers.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,q,b,X,Fail,makeError,annotateError,hideAndHardenFunction,applyLabelingError,fromUniqueEntries,listDifference,Far,getTag,makeTagged,passStyleOf,nameForPassableSymbol,compareRank,getPassStyleCover,intersectRankCovers,unionRankCovers,recordNames,recordValues,qp,keyEQ,keyGT,keyGTE,keyLT,keyLTE,assertKey,confirmKey,isKey,confirmScalarKey,confirmCopySet,confirmCopyMap,copyMapKeySet,confirmCopyBag,getCopyMapEntryArray,makeCopyMap,makeCopySet,makeCopyBag,generateCollectionPairEntries;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["b",[$h͏_a => (b = $h͏_a)]],["X",[$h͏_a => (X = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]],["makeError",[$h͏_a => (makeError = $h͏_a)]],["annotateError",[$h͏_a => (annotateError = $h͏_a)]],["hideAndHardenFunction",[$h͏_a => (hideAndHardenFunction = $h͏_a)]]]],["@endo/common/apply-labeling-error.js", [["applyLabelingError",[$h͏_a => (applyLabelingError = $h͏_a)]]]],["@endo/common/from-unique-entries.js", [["fromUniqueEntries",[$h͏_a => (fromUniqueEntries = $h͏_a)]]]],["@endo/common/list-difference.js", [["listDifference",[$h͏_a => (listDifference = $h͏_a)]]]],["@endo/pass-style", [["Far",[$h͏_a => (Far = $h͏_a)]],["getTag",[$h͏_a => (getTag = $h͏_a)]],["makeTagged",[$h͏_a => (makeTagged = $h͏_a)]],["passStyleOf",[$h͏_a => (passStyleOf = $h͏_a)]],["nameForPassableSymbol",[$h͏_a => (nameForPassableSymbol = $h͏_a)]]]],["@endo/marshal", [["compareRank",[$h͏_a => (compareRank = $h͏_a)]],["getPassStyleCover",[$h͏_a => (getPassStyleCover = $h͏_a)]],["intersectRankCovers",[$h͏_a => (intersectRankCovers = $h͏_a)]],["unionRankCovers",[$h͏_a => (unionRankCovers = $h͏_a)]],["recordNames",[$h͏_a => (recordNames = $h͏_a)]],["recordValues",[$h͏_a => (recordValues = $h͏_a)]],["qp",[$h͏_a => (qp = $h͏_a)]]]],["../keys/compareKeys.js", [["keyEQ",[$h͏_a => (keyEQ = $h͏_a)]],["keyGT",[$h͏_a => (keyGT = $h͏_a)]],["keyGTE",[$h͏_a => (keyGTE = $h͏_a)]],["keyLT",[$h͏_a => (keyLT = $h͏_a)]],["keyLTE",[$h͏_a => (keyLTE = $h͏_a)]]]],["../keys/checkKey.js", [["assertKey",[$h͏_a => (assertKey = $h͏_a)]],["confirmKey",[$h͏_a => (confirmKey = $h͏_a)]],["isKey",[$h͏_a => (isKey = $h͏_a)]],["confirmScalarKey",[$h͏_a => (confirmScalarKey = $h͏_a)]],["confirmCopySet",[$h͏_a => (confirmCopySet = $h͏_a)]],["confirmCopyMap",[$h͏_a => (confirmCopyMap = $h͏_a)]],["copyMapKeySet",[$h͏_a => (copyMapKeySet = $h͏_a)]],["confirmCopyBag",[$h͏_a => (confirmCopyBag = $h͏_a)]],["getCopyMapEntryArray",[$h͏_a => (getCopyMapEntryArray = $h͏_a)]],["makeCopyMap",[$h͏_a => (makeCopyMap = $h͏_a)]],["makeCopySet",[$h͏_a => (makeCopySet = $h͏_a)]],["makeCopyBag",[$h͏_a => (makeCopyBag = $h͏_a)]]]],["../keys/keycollection-operators.js", [["generateCollectionPairEntries",[$h͏_a => (generateCollectionPairEntries = $h͏_a)]]]]]);
-
 
 
 
@@ -15766,7 +15569,7 @@ harden(listDifference);
 const { entries, values, hasOwn } = Object;
 const { ownKeys } = Reflect;
 
-/** @type {WeakSet<Pattern>} */
+/** @type {WeakSet<Pattern & object>} */
 const patternMemo = new WeakSet();
 
 // /////////////////////// Match Helpers Helpers /////////////////////////////
@@ -15874,10 +15677,10 @@ const confirmDecimalDigitsLimit = (specimen, decimalDigitsLimit, reject) => {
 const makePatternKit = () => {
   /**
    * If this is a recognized match tag, return the MatchHelper.
-   * Otherwise result undefined.
+   * Otherwise return undefined.
    *
    * @param {string} tag
-   * @returns {MatchHelper | undefined}
+   * @returns {MatchHelper<any> | undefined}
    */
   const maybeMatchHelper = tag =>
     // eslint-disable-next-line no-use-before-define
@@ -15912,7 +15715,7 @@ const makePatternKit = () => {
    * Checks only recognized tags, and only if the tagged
    * passes the invariants associated with that recognition.
    *
-   * @param {Passable} tagged
+   * @param {CopyTagged<any, any>} tagged
    * @param {Kind} tag
    * @param {Rejector} reject
    * @returns {boolean}
@@ -15966,9 +15769,9 @@ const makePatternKit = () => {
     // as a tagged record, which is defined at the marshal level of abstraction,
     // since `passStyleOf` checks those invariants.
     if (tagMemo.has(specimen)) {
-      return tagMemo.get(specimen);
+      return /** @type {Kind} */ (tagMemo.get(specimen));
     }
-    const tag = getTag(specimen);
+    const tag = /** @type {Kind} */ (getTag(specimen));
     if (confirmTagged(specimen, tag, reject)) {
       tagMemo.set(specimen, tag);
       return tag;
@@ -15998,7 +15801,11 @@ const makePatternKit = () => {
     // check null and undefined as Keys
     if (singletonKinds.has(kind)) {
       // eslint-disable-next-line no-use-before-define
-      return confirmAsKeyPatt(specimen, singletonKinds.get(kind), reject);
+      return confirmAsKeyPatt(
+        specimen,
+        /** @type {Key} */ (singletonKinds.get(kind)),
+        reject,
+      );
     }
 
     const realKind = confirmKindOf(specimen, reject);
@@ -16007,7 +15814,10 @@ const makePatternKit = () => {
     }
     // `kind` and `realKind` can be embedded without quotes
     // because they are drawn from the enumerated collection of known Kinds.
-    return reject && reject`${b(realKind)} ${specimen} - Must be a ${b(kind)}`;
+    return (
+      reject &&
+      reject`${b(realKind ?? 'unknown')} ${specimen} - Must be a ${b(kind)}`
+    );
   };
 
   /**
@@ -16058,13 +15868,13 @@ const makePatternKit = () => {
       // is only concerned with non-key patterns.
       return true;
     }
-    if (patternMemo.has(patt)) {
+    if (patternMemo.has(/** @type {any} */ (patt))) {
       return true;
     }
     // eslint-disable-next-line no-use-before-define
     const result = confirmPatternInternal(patt, reject);
     if (result) {
-      patternMemo.add(patt);
+      patternMemo.add(/** @type {any} */ (patt));
     }
     return result;
   };
@@ -16089,18 +15899,24 @@ const makePatternKit = () => {
       case 'copyRecord': {
         // A copyRecord is a pattern iff all its children are
         // patterns
-        return values(patt).every(checkIt);
+        return values(/** @type {CopyRecord<Passable>} */ (patt)).every(
+          checkIt,
+        );
       }
       case 'copyArray': {
         // A copyArray is a pattern iff all its children are
         // patterns
-        return patt.every(checkIt);
+        return /** @type {CopyArray<Passable>} */ (patt).every(checkIt);
       }
       case 'copyMap': {
         // A copyMap's keys are keys and therefore already known to be
         // patterns.
         // A copyMap is a pattern if its values are patterns.
-        return confirmPattern(patt.values, reject);
+        return confirmPattern(
+          /** @type {CopyTagged<string, {keys: any[], values: any[]}>} */ (patt)
+            .payload.values,
+          reject,
+        );
       }
       case 'error':
       case 'promise': {
@@ -16178,13 +15994,13 @@ const makePatternKit = () => {
       case 'copyBag':
       case 'remotable': {
         // These kinds are necessarily keys
-        return confirmAsKeyPatt(specimen, patt, reject);
+        return confirmAsKeyPatt(specimen, /** @type {Key} */ (patt), reject);
       }
       case 'copyArray': {
         if (isKey(patt)) {
           // Takes care of patterns which are keys, so the rest of this
           // logic can assume patterns that are not keys.
-          return confirmAsKeyPatt(specimen, patt, reject);
+          return confirmAsKeyPatt(specimen, /** @type {Key} */ (patt), reject);
         }
         if (specimenKind !== 'copyArray') {
           return (
@@ -16194,7 +16010,8 @@ const makePatternKit = () => {
             )}`
           );
         }
-        const { length } = patt;
+        const pattArray = /** @type {CopyArray<Pattern>} */ (patt);
+        const { length } = pattArray;
         if (specimen.length !== length) {
           return (
             reject &&
@@ -16203,7 +16020,7 @@ const makePatternKit = () => {
             )}`
           );
         }
-        return patt.every((p, i) =>
+        return pattArray.every((p, i) =>
           // eslint-disable-next-line no-use-before-define
           confirmNestedMatches(specimen[i], p, i, reject),
         );
@@ -16222,13 +16039,14 @@ const makePatternKit = () => {
             )}`
           );
         }
+        const pattRecord = /** @type {CopyRecord<Pattern>} */ (patt);
         // TODO Detect and accumulate difference in one pass.
         // Rather than using two calls to `listDifference` to detect and
         // report if and how these lists differ, since they are already
         // in sorted order, we should instead use an algorithm like
         // `iterDisjointUnion` from merge-sort-operators.js
         const specimenNames = recordNames(specimen);
-        const pattNames = recordNames(patt);
+        const pattNames = recordNames(pattRecord);
         const missing = listDifference(pattNames, specimenNames);
         if (missing.length >= 1) {
           return (
@@ -16246,7 +16064,7 @@ const makePatternKit = () => {
           );
         }
         const specimenValues = recordValues(specimen, specimenNames);
-        const pattValues = recordValues(patt, pattNames);
+        const pattValues = recordValues(pattRecord, pattNames);
         return pattNames.every((label, i) =>
           // eslint-disable-next-line no-use-before-define
           confirmNestedMatches(specimenValues[i], pattValues[i], label, reject),
@@ -16266,8 +16084,10 @@ const makePatternKit = () => {
             )}`
           );
         }
+        const pattMap =
+          /** @type {import('../types.js').CopyMap<Key, Pattern>} */ (patt);
         // Compare keys as copySets
-        const pattKeySet = copyMapKeySet(patt);
+        const pattKeySet = copyMapKeySet(pattMap);
         const specimenKeySet = copyMapKeySet(specimen);
         if (!confirmMatches(specimenKeySet, pattKeySet, reject)) {
           return false;
@@ -16278,7 +16098,7 @@ const makePatternKit = () => {
         const pattValues = [];
         const specimenValues = [];
         const entryPairs = generateCollectionPairEntries(
-          patt,
+          pattMap,
           specimen,
           getCopyMapEntryArray,
           undefined,
@@ -16296,7 +16116,11 @@ const makePatternKit = () => {
       default: {
         const matchHelper = maybeMatchHelper(patternKind);
         if (matchHelper) {
-          return matchHelper.confirmMatches(specimen, patt.payload, reject);
+          return matchHelper.confirmMatches(
+            specimen,
+            /** @type {CopyTagged<string, Passable>} */ (patt).payload,
+            reject,
+          );
         }
         throw Fail`internal: should have recognized ${q(patternKind)} `;
       }
@@ -16306,7 +16130,7 @@ const makePatternKit = () => {
   /**
    * @param {any} specimen
    * @param {Pattern} pattern
-   * @param {string} prefix
+   * @param {string|number|undefined} prefix
    * @param {Rejector} reject
    * @returns {boolean}
    */
@@ -16338,7 +16162,12 @@ const makePatternKit = () => {
       innerError = er;
     }
     // should only throw
-    confirmNestedMatches(specimen, patt, label, Fail);
+    confirmNestedMatches(
+      specimen,
+      patt,
+      /** @type {string | number | undefined} */ (label),
+      Fail,
+    );
     const outerError = makeError(
       X`internal: ${label}: inconsistent pattern match: ${qp(patt)}`,
     );
@@ -16388,12 +16217,15 @@ const makePatternKit = () => {
         break;
       }
       case 'tagged': {
-        const tag = getTag(patt);
+        const tag = getTag(/** @type {CopyTagged<string, Passable>} */ (patt));
         const matchHelper = maybeMatchHelper(tag);
         if (matchHelper) {
           // Buried here is the important case, where we process
           // the various patternNodes
-          return matchHelper.getRankCover(patt.payload, encodePassable);
+          return matchHelper.getRankCover(
+            /** @type {CopyTagged<string, Passable>} */ (patt).payload,
+            encodePassable,
+          );
         }
         switch (tag) {
           case 'copySet': {
@@ -16479,7 +16311,7 @@ const makePatternKit = () => {
 
   // /////////////////////// Match Helpers /////////////////////////////////////
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<undefined>} */
   const matchAnyHelper = Far('match:any helper', {
     confirmMatches: (_specimen, _matcherPayload, _reject) => true,
 
@@ -16491,7 +16323,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['', '{'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<CopyArray<Pattern>>} */
   const matchAndHelper = Far('match:and helper', {
     confirmMatches: (specimen, patts, reject) => {
       return patts.every(patt => confirmMatches(specimen, patt, reject));
@@ -16503,18 +16335,20 @@ const makePatternKit = () => {
         (passStyleOf(allegedPatts) === 'copyArray' ||
           (reject &&
             reject`Needs array of sub-patterns: ${qp(allegedPatts)}`)) &&
-        allegedPatts.every(checkIt)
+        /** @type {CopyArray<Passable>} */ (allegedPatts).every(checkIt)
       );
     },
 
     getRankCover: (patts, encodePassable) =>
       intersectRankCovers(
         compareRank,
-        patts.map(p => getRankCover(p, encodePassable)),
+        /** @type {CopyArray<Passable>} */ (patts).map(p =>
+          getRankCover(p, encodePassable),
+        ),
       ),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<CopyArray<Pattern>>} */
   const matchOrHelper = Far('match:or helper', {
     confirmMatches: (specimen, patts, reject) => {
       const { length } = patts;
@@ -16547,11 +16381,13 @@ const makePatternKit = () => {
     getRankCover: (patts, encodePassable) =>
       unionRankCovers(
         compareRank,
-        patts.map(p => getRankCover(p, encodePassable)),
+        /** @type {CopyArray<Passable>} */ (patts).map(p =>
+          getRankCover(p, encodePassable),
+        ),
       ),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Pattern>} */
   const matchNotHelper = Far('match:not helper', {
     confirmMatches: (specimen, patt, reject) => {
       if (matches(specimen, patt)) {
@@ -16568,7 +16404,7 @@ const makePatternKit = () => {
     getRankCover: (_patt, _encodePassable) => ['', '{'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<undefined>} */
   const matchScalarHelper = Far('match:scalar helper', {
     confirmMatches: (specimen, _matcherPayload, reject) =>
       confirmScalarKey(specimen, reject),
@@ -16578,7 +16414,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<undefined>} */
   const matchKeyHelper = Far('match:key helper', {
     confirmMatches: (specimen, _matcherPayload, reject) =>
       confirmKey(specimen, reject),
@@ -16588,7 +16424,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<undefined>} */
   const matchPatternHelper = Far('match:pattern helper', {
     confirmMatches: (specimen, _matcherPayload, reject) =>
       confirmPattern(specimen, reject),
@@ -16598,9 +16434,10 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<string>} */
   const matchKindHelper = Far('match:kind helper', {
-    confirmMatches: confirmKind,
+    confirmMatches: (specimen, kind, reject) =>
+      confirmKind(specimen, /** @type {Kind} */ (kind), reject),
 
     confirmIsWellFormed: (allegedKeyKind, reject) =>
       typeof allegedKeyKind === 'string' ||
@@ -16608,6 +16445,7 @@ const makePatternKit = () => {
         reject`match:kind: payload: ${allegedKeyKind} - A kind name must be a string`),
 
     getRankCover: (kind, _encodePassable) => {
+      /** @type {import('@endo/pass-style').PassStyle} */
       let style;
       switch (kind) {
         case 'copySet':
@@ -16616,7 +16454,7 @@ const makePatternKit = () => {
           break;
         }
         default: {
-          style = kind;
+          style = /** @type {import('@endo/pass-style').PassStyle} */ (kind);
           break;
         }
       }
@@ -16624,7 +16462,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Pattern]>} */
   const matchTaggedHelper = Far('match:tagged helper', {
     confirmMatches: (specimen, [tagPatt, payloadPatt], reject) => {
       if (passStyleOf(specimen) !== 'tagged') {
@@ -16636,8 +16474,18 @@ const makePatternKit = () => {
         );
       }
       return (
-        confirmNestedMatches(getTag(specimen), tagPatt, 'tag', reject) &&
-        confirmNestedMatches(specimen.payload, payloadPatt, 'payload', reject)
+        confirmNestedMatches(
+          getTag(/** @type {CopyTagged<string, Passable>} */ (specimen)),
+          tagPatt,
+          'tag',
+          reject,
+        ) &&
+        confirmNestedMatches(
+          /** @type {CopyTagged<string, Passable>} */ (specimen).payload,
+          payloadPatt,
+          'payload',
+          reject,
+        )
       );
     },
 
@@ -16652,7 +16500,7 @@ const makePatternKit = () => {
     getRankCover: (_kind, _encodePassable) => getPassStyleCover('tagged'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchBigintHelper = Far('match:bigint helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { decimalDigitsLimit } = limit(limits);
@@ -16674,7 +16522,7 @@ const makePatternKit = () => {
       getPassStyleCover('bigint'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchNatHelper = Far('match:nat helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { decimalDigitsLimit } = limit(limits);
@@ -16700,7 +16548,7 @@ const makePatternKit = () => {
       getPassStyleCover('bigint'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchStringHelper = Far('match:string helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { stringLengthLimit } = limit(limits);
@@ -16725,14 +16573,16 @@ const makePatternKit = () => {
       getPassStyleCover('string'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchSymbolHelper = Far('match:symbol helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { symbolNameLengthLimit } = limit(limits);
       if (!confirmKind(specimen, 'symbol', reject)) {
         return false;
       }
-      const symbolName = nameForPassableSymbol(specimen);
+      const symbolName = nameForPassableSymbol(
+        /** @type {symbol} */ (specimen),
+      );
 
       if (typeof symbolName !== 'string') {
         throw Fail`internal: Passable symbol ${specimen} must have a passable name`;
@@ -16758,7 +16608,7 @@ const makePatternKit = () => {
       getPassStyleCover('symbol'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<{label: string}>} */
   const matchRemotableHelper = Far('match:remotable helper', {
     confirmMatches: (specimen, remotableDesc, reject) => {
       if (isKind(specimen, 'remotable')) {
@@ -16775,7 +16625,7 @@ const makePatternKit = () => {
             b(passStyle)
           : // Tag must be quoted because it is potentially attacker-controlled
             // (unlike `kindOf`, this does not reject unrecognized tags).
-            q(getTag(specimen));
+            q(getTag(/** @type {CopyTagged<string, Passable>} */ (specimen)));
       return (
         reject &&
         reject`${specimen} - Must be a remotable ${b(label)}, not ${kindDetails}`
@@ -16794,7 +16644,40 @@ const makePatternKit = () => {
       getPassStyleCover('remotable'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<{label: string}>} */
+  const matchPromiseHelper = Far('match:promise helper', {
+    confirmMatches: (specimen, promiseDesc, reject) => {
+      if (isKind(specimen, 'promise')) {
+        return true;
+      }
+      if (!reject) {
+        return false;
+      }
+      const { label } = promiseDesc;
+      const passStyle = passStyleOf(specimen);
+      const kindDetails =
+        passStyle !== 'tagged'
+          ? b(passStyle)
+          : q(getTag(/** @type {CopyTagged<string, Passable>} */ (specimen)));
+      return (
+        reject &&
+        reject`${specimen} - Must be a promise ${b(label)}, not ${kindDetails}`
+      );
+    },
+
+    confirmIsWellFormed: (allegedPromiseDesc, reject) =>
+      confirmNestedMatches(
+        allegedPromiseDesc,
+        harden({ label: MM.string() }),
+        'match:promise payload',
+        reject,
+      ),
+
+    getRankCover: (_promiseDesc, _encodePassable) =>
+      getPassStyleCover('promise'),
+  });
+
+  /** @type {MatchHelper<Key>} */
   const matchLTEHelper = Far('match:lte helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
       keyLTE(specimen, rightOperand) ||
@@ -16808,7 +16691,7 @@ const makePatternKit = () => {
       // to be `let`
       // eslint-disable-next-line prefer-const
       let [leftBound, rightBound] = getPassStyleCover(passStyle);
-      const newRightBound = `${encodePassable(rightOperand)}~`;
+      const newRightBound = `${encodePassable(/** @type {Key} */ (rightOperand))}~`;
       if (newRightBound !== undefined) {
         rightBound = newRightBound;
       }
@@ -16816,7 +16699,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Key>} */
   const matchLTHelper = Far('match:lt helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
       keyLT(specimen, rightOperand) ||
@@ -16827,7 +16710,7 @@ const makePatternKit = () => {
     getRankCover: matchLTEHelper.getRankCover,
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Key>} */
   const matchGTEHelper = Far('match:gte helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
       keyGTE(specimen, rightOperand) ||
@@ -16841,7 +16724,7 @@ const makePatternKit = () => {
       // to be `let`
       // eslint-disable-next-line prefer-const
       let [leftBound, rightBound] = getPassStyleCover(passStyle);
-      const newLeftBound = encodePassable(rightOperand);
+      const newLeftBound = encodePassable(/** @type {Key} */ (rightOperand));
       if (newLeftBound !== undefined) {
         leftBound = newLeftBound;
       }
@@ -16849,7 +16732,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Key>} */
   const matchGTHelper = Far('match:gt helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
       keyGT(specimen, rightOperand) ||
@@ -16860,7 +16743,7 @@ const makePatternKit = () => {
     getRankCover: matchGTEHelper.getRankCover,
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Pattern, Limits?]>} */
   const matchRecordOfHelper = Far('match:recordOf helper', {
     confirmMatches: (
       specimen,
@@ -16870,12 +16753,13 @@ const makePatternKit = () => {
       const { numPropertiesLimit, propertyNameLengthLimit } = limit(limits);
       return (
         confirmKind(specimen, 'copyRecord', reject) &&
-        (ownKeys(specimen).length <= numPropertiesLimit ||
+        (ownKeys(/** @type {object} */ (specimen)).length <=
+          numPropertiesLimit ||
           (reject &&
             reject`Must not have more than ${q(
               numPropertiesLimit,
             )} properties: ${specimen}`)) &&
-        entries(specimen).every(
+        entries(/** @type {object} */ (specimen)).every(
           ([key, value]) =>
             (key.length <= propertyNameLengthLimit ||
               (reject &&
@@ -16908,7 +16792,7 @@ const makePatternKit = () => {
     getRankCover: _entryPatt => getPassStyleCover('copyRecord'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Limits?]>} */
   const matchArrayOfHelper = Far('match:arrayOf helper', {
     confirmMatches: (specimen, [subPatt, limits = undefined], reject) => {
       const { arrayLengthLimit } = limit(limits);
@@ -16916,8 +16800,8 @@ const makePatternKit = () => {
       return (
         confirmKind(specimen, 'copyArray', reject) &&
         (/** @type {Array} */ (specimen).length <= arrayLengthLimit ||
-          reject && reject`Array length ${specimen.length} must be <= limit ${arrayLengthLimit}`) &&
-        confirmArrayEveryMatchPattern(specimen, subPatt, '', reject)
+          reject && reject`Array length ${/** @type {any} */ (specimen).length} must be <= limit ${arrayLengthLimit}`) &&
+        confirmArrayEveryMatchPattern(/** @type {any} */ (specimen), subPatt, '', reject)
       );
     },
 
@@ -16932,7 +16816,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('copyArray'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchByteArrayHelper = Far('match:byteArray helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { byteLengthLimit } = limit(limits);
@@ -16956,20 +16840,22 @@ const makePatternKit = () => {
       getPassStyleCover('byteArray'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Limits?]>} */
   const matchSetOfHelper = Far('match:setOf helper', {
     confirmMatches: (specimen, [keyPatt, limits = undefined], reject) => {
       const { numSetElementsLimit } = limit(limits);
+      const specimenSet = /** @type {import('../types.js').CopySet} */ (
+        specimen
+      );
       return (
         ((confirmKind(specimen, 'copySet', reject) &&
-          /** @type {Array} */ (specimen.payload).length <
-            numSetElementsLimit) ||
+          specimenSet.payload.length < numSetElementsLimit) ||
           (reject &&
             reject`Set must not have more than ${q(numSetElementsLimit)} elements: ${
-              specimen.payload.length
+              specimenSet.payload.length
             }`)) &&
         confirmArrayEveryMatchPattern(
-          specimen.payload,
+          specimenSet.payload,
           keyPatt,
           'set elements',
           reject,
@@ -16988,7 +16874,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('tagged'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Pattern, Limits?]>} */
   const matchBagOfHelper = Far('match:bagOf helper', {
     confirmMatches: (
       specimen,
@@ -16996,15 +16882,17 @@ const makePatternKit = () => {
       reject,
     ) => {
       const { numUniqueBagElementsLimit, decimalDigitsLimit } = limit(limits);
+      const specimenBag = /** @type {import('../types.js').CopyBag} */ (
+        specimen
+      );
       return (
         ((confirmKind(specimen, 'copyBag', reject) &&
-          /** @type {Array} */ (specimen.payload).length <=
-            numUniqueBagElementsLimit) ||
+          specimenBag.payload.length <= numUniqueBagElementsLimit) ||
           (reject &&
             reject`Bag must not have more than ${q(
               numUniqueBagElementsLimit,
             )} unique elements: ${specimen}`)) &&
-        specimen.payload.every(
+        specimenBag.payload.every(
           ([key, count], i) =>
             confirmNestedMatches(key, keyPatt, `bag keys[${i}]`, reject) &&
             applyLabelingError(
@@ -17130,7 +17018,7 @@ const makePatternKit = () => {
    * throwing an error).
    *
    * @typedef {CopyArray | CopySet | CopyBag} Container
-   * @param {Container} specimen
+   * @param {Passable} specimen
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
@@ -17155,7 +17043,7 @@ const makePatternKit = () => {
       case 'copyArray': {
         return (
           confirmElementsHasSplit(
-            specimen,
+            /** @type {CopyArray<Passable>} */ (specimen),
             elementPatt,
             bound,
             reject,
@@ -17168,7 +17056,7 @@ const makePatternKit = () => {
       case 'copySet': {
         return (
           confirmElementsHasSplit(
-            specimen.payload,
+            /** @type {import('../types.js').CopySet} */ (specimen).payload,
             elementPatt,
             bound,
             reject,
@@ -17185,7 +17073,7 @@ const makePatternKit = () => {
       case 'copyBag': {
         return (
           pairsHasSplit(
-            specimen.payload,
+            /** @type {import('../types.js').CopyBag} */ (specimen).payload,
             elementPatt,
             bound,
             reject,
@@ -17204,30 +17092,24 @@ const makePatternKit = () => {
     }
   };
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, bigint, Limits?]>} */
   const matchContainerHasHelper = Far('M.containerHas helper', {
-    /**
-     * @param {CopyArray | CopySet | CopyBag} specimen
-     * @param {[Pattern, bigint, Limits?]} payload
-     * @param {Rejector} reject
-     */
     confirmMatches: (
       specimen,
       [elementPatt, bound, limits = undefined],
       reject,
     ) => {
-      const kind = confirmKindOf(specimen, reject);
+      confirmKindOf(specimen, reject);
       const { decimalDigitsLimit } = limit(limits);
-      if (
-        !applyLabelingError(
-          confirmDecimalDigitsLimit,
-          [bound, decimalDigitsLimit, reject],
-          `${kind} matches`,
-        )
-      ) {
+      if (!confirmDecimalDigitsLimit(bound, decimalDigitsLimit, reject)) {
         return false;
       }
-      return !!containerHasSplit(specimen, elementPatt, bound, reject);
+      return !!containerHasSplit(
+        /** @type {Container} */ (specimen),
+        elementPatt,
+        bound,
+        reject,
+      );
     },
 
     confirmIsWellFormed: (payload, reject) =>
@@ -17241,7 +17123,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('tagged'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Pattern, Limits?]>} */
   const matchMapOfHelper = Far('match:mapOf helper', {
     confirmMatches: (
       specimen,
@@ -17249,22 +17131,25 @@ const makePatternKit = () => {
       reject,
     ) => {
       const { numMapEntriesLimit } = limit(limits);
+      const specimenMap = /** @type {import('../types.js').CopyMap} */ (
+        specimen
+      );
       return (
         confirmKind(specimen, 'copyMap', reject) &&
         // eslint-disable-next-line @endo/restrict-comparison-operands
-        (specimen.payload.keys.length <= numMapEntriesLimit ||
+        (specimenMap.payload.keys.length <= numMapEntriesLimit ||
           (reject &&
             reject`CopyMap must have no more than ${q(
               numMapEntriesLimit,
             )} entries: ${specimen}`)) &&
         confirmArrayEveryMatchPattern(
-          specimen.payload.keys,
+          specimenMap.payload.keys,
           keyPatt,
           'map keys',
           reject,
         ) &&
         confirmArrayEveryMatchPattern(
-          specimen.payload.values,
+          specimenMap.payload.values,
           valuePatt,
           'map values',
           reject,
@@ -17317,7 +17202,7 @@ const makePatternKit = () => {
   const adaptArrayPattern = (optionalPatt, length) =>
     harden(optionalPatt.slice(0, length).map(patt => MM.opt(patt)));
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern[], (Pattern[] | undefined)?, (Pattern | undefined)?]>} */
   const matchSplitArrayHelper = Far('match:splitArray helper', {
     confirmMatches: (
       specimen,
@@ -17328,7 +17213,11 @@ const makePatternKit = () => {
         return false;
       }
       const { requiredSpecimen, optionalSpecimen, restSpecimen } =
-        splitArrayParts(specimen, requiredPatt, optionalPatt);
+        splitArrayParts(
+          /** @type {Passable[]} */ (specimen),
+          requiredPatt,
+          optionalPatt,
+        );
       const partialPatt = adaptArrayPattern(
         optionalPatt,
         optionalSpecimen.length,
@@ -17363,16 +17252,22 @@ const makePatternKit = () => {
     },
 
     /**
-     * @param {Array} splitArray
+     * @param {Passable} splitArray
      * @param {Rejector} reject
      */
     confirmIsWellFormed: (splitArray, reject) => {
-      if (
-        passStyleOf(splitArray) === 'copyArray' &&
-        (splitArray.length >= 1 || splitArray.length <= 3)
-      ) {
+      if (passStyleOf(splitArray) === 'copyArray') {
+        const typedSplitArray = /** @type {CopyArray<Passable>} */ (splitArray);
+        if (!(typedSplitArray.length >= 1 && typedSplitArray.length <= 3)) {
+          return (
+            reject &&
+            reject`Must be an array of a requiredPatt array, an optional optionalPatt array, and an optional restPatt: ${q(
+              splitArray,
+            )}`
+          );
+        }
         const [requiredPatt, optionalPatt = undefined, restPatt = undefined] =
-          splitArray;
+          typedSplitArray;
         if (
           isPattern(requiredPatt) &&
           passStyleOf(requiredPatt) === 'copyArray' &&
@@ -17445,7 +17340,7 @@ const makePatternKit = () => {
   const adaptRecordPattern = (optionalPatt, names) =>
     fromUniqueEntries(names.map(name => [name, MM.opt(optionalPatt[name])]));
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[CopyRecord<Pattern>, (CopyRecord<Pattern> | undefined)?, (Pattern | undefined)?]>} */
   const matchSplitRecordHelper = Far('match:splitRecord helper', {
     confirmMatches: (
       specimen,
@@ -17456,7 +17351,11 @@ const makePatternKit = () => {
         return false;
       }
       const { requiredSpecimen, optionalSpecimen, restSpecimen } =
-        splitRecordParts(specimen, requiredPatt, optionalPatt);
+        splitRecordParts(
+          /** @type {CopyRecord<Passable>} */ (specimen),
+          requiredPatt,
+          optionalPatt,
+        );
 
       const partialNames = /** @type {string[]} */ (ownKeys(optionalSpecimen));
       const partialPatt = adaptRecordPattern(optionalPatt, partialNames);
@@ -17475,16 +17374,22 @@ const makePatternKit = () => {
     },
 
     /**
-     * @param {Array} splitArray
+     * @param {Passable} splitArray
      * @param {Rejector} reject
      */
     confirmIsWellFormed: (splitArray, reject) => {
-      if (
-        passStyleOf(splitArray) === 'copyArray' &&
-        (splitArray.length >= 1 || splitArray.length <= 3)
-      ) {
+      if (passStyleOf(splitArray) === 'copyArray') {
+        const typedSplitArray = /** @type {CopyArray<Passable>} */ (splitArray);
+        if (!(typedSplitArray.length >= 1 && typedSplitArray.length <= 3)) {
+          return (
+            reject &&
+            reject`Must be an array of a requiredPatt record, an optional optionalPatt record, and an optional restPatt: ${q(
+              splitArray,
+            )}`
+          );
+        }
         const [requiredPatt, optionalPatt = undefined, restPatt = undefined] =
-          splitArray;
+          typedSplitArray;
         if (
           isPattern(requiredPatt) &&
           passStyleOf(requiredPatt) === 'copyRecord' &&
@@ -17511,7 +17416,7 @@ const makePatternKit = () => {
     ]) => getPassStyleCover(passStyleOf(requiredPatt)),
   });
 
-  /** @type {Record<string, MatchHelper>} */
+  /** @type {Record<string, MatchHelper<any>>} */
   const HelpersByMatchTag = harden({
     'match:any': matchAnyHelper,
     'match:and': matchAndHelper,
@@ -17528,6 +17433,7 @@ const makePatternKit = () => {
     'match:string': matchStringHelper,
     'match:symbol': matchSymbolHelper,
     'match:remotable': matchRemotableHelper,
+    'match:promise': matchPromiseHelper,
 
     'match:lt': matchLTHelper,
     'match:lte': matchLTEHelper,
@@ -17594,6 +17500,11 @@ const makePatternKit = () => {
       ? RemotableShape
       : makeMatcher('match:remotable', harden({ label }));
 
+  const makePromiseMatcher = (label = undefined) =>
+    label === undefined
+      ? PromiseShape
+      : makeMatcher('match:promise', harden({ label }));
+
   /**
    * @template T
    * @param {T} empty
@@ -17620,136 +17531,145 @@ const makePatternKit = () => {
   // //////////////////
 
   /** @type {MatcherNamespace} */
-  const M = harden({
-    any: () => AnyShape,
-    and: (...patts) => makeMatcher('match:and', patts),
-    or: (...patts) => makeMatcher('match:or', patts),
-    not: subPatt => makeMatcher('match:not', subPatt),
+  const M = /** @type {any} */ (
+    harden({
+      any: () => AnyShape,
+      and: (...patts) => makeMatcher('match:and', patts),
+      or: (...patts) => makeMatcher('match:or', patts),
+      not: subPatt => makeMatcher('match:not', subPatt),
 
-    scalar: () => ScalarShape,
-    key: () => KeyShape,
-    pattern: () => PatternShape,
-    kind: makeKindMatcher,
-    tagged: (tagPatt = M.string(), payloadPatt = M.any()) =>
-      makeMatcher('match:tagged', harden([tagPatt, payloadPatt])),
-    boolean: () => BooleanShape,
-    number: () => NumberShape,
-    bigint: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:bigint', [limits]) : BigIntShape,
-    nat: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:nat', [limits]) : NatShape,
-    string: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:string', [limits]) : StringShape,
-    symbol: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:symbol', [limits]) : SymbolShape,
-    record: (limits = undefined) =>
-      limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
-    // struct: A pattern that matches CopyRecords with a fixed quantity of
-    // entries where the values match patterns for corresponding keys is merely
-    // a hardened object with patterns in the places of values for
-    // corresponding keys.
-    // For example, a pattern that matches CopyRecords that have a string value
-    // for the key 'x' and a number for the key 'y' is:
-    // harden({ x: M.string(), y: M.number() }).
-    array: (limits = undefined) =>
-      limits ? M.arrayOf(M.any(), limits) : ArrayShape,
-    // tuple: A pattern that matches CopyArrays with a fixed quantity of values
-    // that match a heterogeneous array of patterns is merely a hardened array
-    // of the respective patterns.
-    // For example, a pattern that matches CopyArrays of length 2 that have a
-    // string at index 0 and a number at index 1 is:
-    // harden([ M.string(), M.number() ]).
-    byteArray: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:byteArray', [limits]) : ByteArrayShape,
-    set: (limits = undefined) => (limits ? M.setOf(M.any(), limits) : SetShape),
-    bag: (limits = undefined) =>
-      limits ? M.bagOf(M.any(), M.any(), limits) : BagShape,
-    map: (limits = undefined) =>
-      limits ? M.mapOf(M.any(), M.any(), limits) : MapShape,
-    // heterogeneous map: A pattern that matches CopyMaps with a fixed quantity
-    // of entries where the value for each key matches a corresponding pattern
-    // is merely a (hardened) CopyMap with patterns instead of values for the
-    // corresponding keys.
-    // For example, a pattern that matches CopyMaps where the value for the key
-    // 'x' is a number and the value for the key 'y' is a string is:
-    // makeCopyMap([['x', M.number()], ['y', M.string()]]).
-    remotable: makeRemotableMatcher,
-    error: () => ErrorShape,
-    promise: () => PromiseShape,
-    undefined: () => UndefinedShape,
-    null: () => null,
+      scalar: () => ScalarShape,
+      key: () => KeyShape,
+      pattern: () => PatternShape,
+      kind: makeKindMatcher,
+      tagged: (tagPatt = M.string(), payloadPatt = M.any()) =>
+        makeMatcher('match:tagged', harden([tagPatt, payloadPatt])),
+      boolean: () => BooleanShape,
+      number: () => NumberShape,
+      bigint: (limits = undefined) =>
+        limits ? makeLimitsMatcher('match:bigint', [limits]) : BigIntShape,
+      nat: (limits = undefined) =>
+        limits ? makeLimitsMatcher('match:nat', [limits]) : NatShape,
+      string: (limits = undefined) =>
+        limits ? makeLimitsMatcher('match:string', [limits]) : StringShape,
+      symbol: (limits = undefined) =>
+        limits ? makeLimitsMatcher('match:symbol', [limits]) : SymbolShape,
+      record: (limits = undefined) =>
+        limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
+      // struct: A pattern that matches CopyRecords with a fixed quantity of
+      // entries where the values match patterns for corresponding keys is merely
+      // a hardened object with patterns in the places of values for
+      // corresponding keys.
+      // For example, a pattern that matches CopyRecords that have a string value
+      // for the key 'x' and a number for the key 'y' is:
+      // harden({ x: M.string(), y: M.number() }).
+      array: (limits = undefined) =>
+        limits ? M.arrayOf(M.any(), limits) : ArrayShape,
+      // tuple: A pattern that matches CopyArrays with a fixed quantity of values
+      // that match a heterogeneous array of patterns is merely a hardened array
+      // of the respective patterns.
+      // For example, a pattern that matches CopyArrays of length 2 that have a
+      // string at index 0 and a number at index 1 is:
+      // harden([ M.string(), M.number() ]).
+      byteArray: (limits = undefined) =>
+        limits
+          ? makeLimitsMatcher('match:byteArray', [limits])
+          : ByteArrayShape,
+      set: (limits = undefined) =>
+        limits ? M.setOf(M.any(), limits) : SetShape,
+      bag: (limits = undefined) =>
+        limits ? M.bagOf(M.any(), M.any(), limits) : BagShape,
+      map: (limits = undefined) =>
+        limits ? M.mapOf(M.any(), M.any(), limits) : MapShape,
+      // heterogeneous map: A pattern that matches CopyMaps with a fixed quantity
+      // of entries where the value for each key matches a corresponding pattern
+      // is merely a (hardened) CopyMap with patterns instead of values for the
+      // corresponding keys.
+      // For example, a pattern that matches CopyMaps where the value for the key
+      // 'x' is a number and the value for the key 'y' is a string is:
+      // makeCopyMap([['x', M.number()], ['y', M.string()]]).
+      remotable: makeRemotableMatcher,
+      error: () => ErrorShape,
+      promise: makePromiseMatcher,
+      undefined: () => UndefinedShape,
+      null: () => null,
 
-    lt: rightOperand => makeMatcher('match:lt', rightOperand),
-    lte: rightOperand => makeMatcher('match:lte', rightOperand),
-    eq: key => {
-      assertKey(key);
-      return key === undefined ? M.undefined() : key;
-    },
-    neq: key => M.not(M.eq(key)),
-    gte: rightOperand => makeMatcher('match:gte', rightOperand),
-    gt: rightOperand => makeMatcher('match:gt', rightOperand),
+      lt: rightOperand => makeMatcher('match:lt', rightOperand),
+      lte: rightOperand => makeMatcher('match:lte', rightOperand),
+      eq: key => {
+        assertKey(key);
+        return key === undefined ? M.undefined() : key;
+      },
+      neq: key => M.not(M.eq(key)),
+      gte: rightOperand => makeMatcher('match:gte', rightOperand),
+      gt: rightOperand => makeMatcher('match:gt', rightOperand),
 
-    recordOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:recordOf', [keyPatt, valuePatt, limits]),
-    arrayOf: (subPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:arrayOf', [subPatt, limits]),
-    setOf: (keyPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:setOf', [keyPatt, limits]),
-    bagOf: (keyPatt = M.any(), countPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:bagOf', [keyPatt, countPatt, limits]),
-    containerHas: (elementPatt = M.any(), countPatt = 1n, limits = undefined) =>
-      makeLimitsMatcher('match:containerHas', [elementPatt, countPatt, limits]),
-    mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
-    splitArray: (base, optional = undefined, rest = undefined) =>
-      makeMatcher(
-        'match:splitArray',
-        makeSplitPayload([], base, optional, rest),
-      ),
-    splitRecord: (base, optional = undefined, rest = undefined) =>
-      makeMatcher(
-        'match:splitRecord',
-        makeSplitPayload({}, base, optional, rest),
-      ),
-    split: (base, rest = undefined) => {
-      if (passStyleOf(harden(base)) === 'copyArray') {
-        // TODO at-ts-expect-error works locally but not from @endo/exo
-        // @ts-expect-error We know it should be an array
-        return M.splitArray(base, rest && [], rest);
-      } else {
-        return M.splitRecord(base, rest && {}, rest);
-      }
-    },
-    partial: (base, rest = undefined) => {
-      if (passStyleOf(harden(base)) === 'copyArray') {
-        // TODO at-ts-expect-error works locally but not from @endo/exo
-        // @ts-expect-error We know it should be an array
-        return M.splitArray([], base, rest);
-      } else {
-        return M.splitRecord({}, base, rest);
-      }
-    },
+      recordOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:recordOf', [keyPatt, valuePatt, limits]),
+      arrayOf: (subPatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:arrayOf', [subPatt, limits]),
+      setOf: (keyPatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:setOf', [keyPatt, limits]),
+      bagOf: (keyPatt = M.any(), countPatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:bagOf', [keyPatt, countPatt, limits]),
+      containerHas: (
+        elementPatt = M.any(),
+        countPatt = 1n,
+        limits = undefined,
+      ) =>
+        makeLimitsMatcher('match:containerHas', [
+          elementPatt,
+          countPatt,
+          limits,
+        ]),
+      mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
+      splitArray: (base, optional = undefined, rest = undefined) =>
+        makeMatcher(
+          'match:splitArray',
+          makeSplitPayload([], base, optional, rest),
+        ),
+      splitRecord: (base, optional = undefined, rest = undefined) =>
+        makeMatcher(
+          'match:splitRecord',
+          makeSplitPayload({}, base, optional, rest),
+        ),
+      split: (base, rest = undefined) => {
+        if (passStyleOf(harden(base)) === 'copyArray') {
+          return M.splitArray(/** @type {any} */ (base), rest && [], rest);
+        } else {
+          return M.splitRecord(base, rest && {}, rest);
+        }
+      },
+      partial: (base, rest = undefined) => {
+        if (passStyleOf(harden(base)) === 'copyArray') {
+          return M.splitArray([], /** @type {any} */ (base), rest);
+        } else {
+          return M.splitRecord({}, base, rest);
+        }
+      },
 
-    eref: t => M.or(t, M.promise()),
-    opt: t => M.or(M.undefined(), t),
+      eref: t => M.or(t, M.promise()),
+      opt: t => M.or(M.undefined(), t),
 
-    interface: (interfaceName, methodGuards, options) =>
-      // eslint-disable-next-line no-use-before-define
-      makeInterfaceGuard(interfaceName, methodGuards, options),
-    call: (...argPatterns) =>
-      // eslint-disable-next-line no-use-before-define
-      makeMethodGuardMaker('sync', argPatterns),
-    callWhen: (...argGuards) =>
-      // eslint-disable-next-line no-use-before-define
-      makeMethodGuardMaker('async', argGuards),
+      interface: (interfaceName, methodGuards, options) =>
+        // eslint-disable-next-line no-use-before-define
+        makeInterfaceGuard(interfaceName, methodGuards, options),
+      call: (...argPatterns) =>
+        // eslint-disable-next-line no-use-before-define
+        makeMethodGuardMaker('sync', argPatterns),
+      callWhen: (...argGuards) =>
+        // eslint-disable-next-line no-use-before-define
+        makeMethodGuardMaker('async', argGuards),
 
-    await: argPattern =>
-      // eslint-disable-next-line no-use-before-define
-      makeAwaitArgGuard(argPattern),
-    raw: () =>
-      // eslint-disable-next-line no-use-before-define
-      makeRawGuard(),
-  });
+      await: argPattern =>
+        // eslint-disable-next-line no-use-before-define
+        makeAwaitArgGuard(argPattern),
+      raw: () =>
+        // eslint-disable-next-line no-use-before-define
+        makeRawGuard(),
+    })
+  );
 
   return harden({
     confirmMatches,
@@ -17896,36 +17816,38 @@ const makeMethodGuardMaker = (
   optionalArgGuards = undefined,
   restArgGuard = undefined,
 ) =>
-  harden({
-    optional: (...optArgGuards) => {
-      optionalArgGuards === undefined ||
-        Fail`Can only have one set of optional guards`;
-      restArgGuard === undefined ||
-        Fail`optional arg guards must come before rest arg`;
-      return makeMethodGuardMaker(callKind, argGuards, optArgGuards);
-    },
-    rest: rArgGuard => {
-      restArgGuard === undefined || Fail`Can only have one rest arg`;
-      return makeMethodGuardMaker(
-        callKind,
-        argGuards,
-        optionalArgGuards,
-        rArgGuard,
-      );
-    },
-    returns: (returnGuard = M.undefined()) => {
-      /** @type {MethodGuard} */
-      const result = makeTagged('guard:methodGuard', {
-        callKind,
-        argGuards,
-        optionalArgGuards,
-        restArgGuard,
-        returnGuard,
-      });
-      assertMethodGuard(result);
-      return result;
-    },
-  });
+  /** @type {MethodGuardMaker} */ (
+    harden({
+      optional: (...optArgGuards) => {
+        optionalArgGuards === undefined ||
+          Fail`Can only have one set of optional guards`;
+        restArgGuard === undefined ||
+          Fail`optional arg guards must come before rest arg`;
+        return makeMethodGuardMaker(callKind, argGuards, optArgGuards);
+      },
+      rest: rArgGuard => {
+        restArgGuard === undefined || Fail`Can only have one rest arg`;
+        return makeMethodGuardMaker(
+          callKind,
+          argGuards,
+          optionalArgGuards,
+          rArgGuard,
+        );
+      },
+      returns: (returnGuard = /** @type {any} */ (M.undefined())) => {
+        /** @type {MethodGuard} */
+        const result = makeTagged('guard:methodGuard', {
+          callKind,
+          argGuards,
+          optionalArgGuards,
+          restArgGuard,
+          returnGuard,
+        });
+        assertMethodGuard(result);
+        return result;
+      },
+    })
+  );
 
        const InterfaceGuardPayloadShape = M.splitRecord(
   {
@@ -17996,7 +17918,7 @@ const GuardPayloadShapes = harden({
 });
 })()
 ,
-// === 72. patterns ./src/patterns/getGuardPayloads.js ===
+// === 71. patterns ./src/patterns/getGuardPayloads.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,objectMap,ArgGuardListShape,AwaitArgGuardShape,InterfaceGuardPayloadShape,InterfaceGuardShape,M,MethodGuardPayloadShape,MethodGuardShape,RawGuardShape,SyncValueGuardListShape,SyncValueGuardShape,assertAwaitArgGuard,matches,mustMatch,getCopyMapKeys,makeCopyMap;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/common/object-map.js", [["objectMap",[$h͏_a => (objectMap = $h͏_a)]]]],["./patternMatchers.js", [["ArgGuardListShape",[$h͏_a => (ArgGuardListShape = $h͏_a)]],["AwaitArgGuardShape",[$h͏_a => (AwaitArgGuardShape = $h͏_a)]],["InterfaceGuardPayloadShape",[$h͏_a => (InterfaceGuardPayloadShape = $h͏_a)]],["InterfaceGuardShape",[$h͏_a => (InterfaceGuardShape = $h͏_a)]],["M",[$h͏_a => (M = $h͏_a)]],["MethodGuardPayloadShape",[$h͏_a => (MethodGuardPayloadShape = $h͏_a)]],["MethodGuardShape",[$h͏_a => (MethodGuardShape = $h͏_a)]],["RawGuardShape",[$h͏_a => (RawGuardShape = $h͏_a)]],["SyncValueGuardListShape",[$h͏_a => (SyncValueGuardListShape = $h͏_a)]],["SyncValueGuardShape",[$h͏_a => (SyncValueGuardShape = $h͏_a)]],["assertAwaitArgGuard",[$h͏_a => (assertAwaitArgGuard = $h͏_a)]],["matches",[$h͏_a => (matches = $h͏_a)]],["mustMatch",[$h͏_a => (mustMatch = $h͏_a)]]]],["../keys/checkKey.js", [["getCopyMapKeys",[$h͏_a => (getCopyMapKeys = $h͏_a)]],["makeCopyMap",[$h͏_a => (makeCopyMap = $h͏_a)]]]]]);
 
 
@@ -18068,10 +17990,9 @@ const LegacyAwaitArgGuardShape = harden({
  */
        const getAwaitArgGuardPayload = awaitArgGuard => {
   if (matches(awaitArgGuard, LegacyAwaitArgGuardShape)) {
-    // @ts-expect-error Legacy adaptor can be ill typed
-    const { klass: _, ...payload } = awaitArgGuard;
-    // @ts-expect-error Legacy adaptor can be ill typed
-    return payload;
+    const legacy = /** @type {any} */ (awaitArgGuard);
+    const { klass: _, ...payload } = legacy;
+    return /** @type {AwaitArgGuardPayload} */ (payload);
   }
   assertAwaitArgGuard(awaitArgGuard);
   return awaitArgGuard.payload;
@@ -18134,7 +18055,7 @@ const LegacyMethodGuardShape = M.or(
 
 const adaptLegacyArgGuard = argGuard =>
   matches(argGuard, LegacyAwaitArgGuardShape)
-    ? M.await(getAwaitArgGuardPayload(argGuard).argGuard)
+    ? M.await(getAwaitArgGuardPayload(/** @type {any} */ (argGuard)).argGuard)
     : argGuard;
 
 /**
@@ -18155,22 +18076,9 @@ const adaptLegacyArgGuard = argGuard =>
     return methodGuard.payload;
   }
   mustMatch(methodGuard, LegacyMethodGuardShape, 'legacyMethodGuard');
-  const {
-    // @ts-expect-error Legacy adaptor can be ill typed
-    klass: _,
-    // @ts-expect-error Legacy adaptor can be ill typed
-    callKind,
-    // @ts-expect-error Legacy adaptor can be ill typed
-    returnGuard,
-    // @ts-expect-error Legacy adaptor can be ill typed
-    restArgGuard,
-  } = methodGuard;
-  let {
-    // @ts-expect-error Legacy adaptor can be ill typed
-    argGuards,
-    // @ts-expect-error Legacy adaptor can be ill typed
-    optionalArgGuards,
-  } = methodGuard;
+  const legacy = /** @type {any} */ (methodGuard);
+  const { klass: _, callKind, returnGuard, restArgGuard } = legacy;
+  let { argGuards, optionalArgGuards } = legacy;
   if (callKind === 'async') {
     argGuards = argGuards.map(adaptLegacyArgGuard);
     optionalArgGuards =
@@ -18219,9 +18127,11 @@ const adaptMethodGuard = methodGuard => {
       optionalArgGuards = [],
       restArgGuard = M.any(),
       returnGuard,
-    } = getMethodGuardPayload(methodGuard);
-    const mCall = callKind === 'sync' ? M.call : M.callWhen;
-    return mCall(...argGuards)
+    } = getMethodGuardPayload(/** @type {any} */ (methodGuard));
+    const makeGuard = /** @type {(...args: any[]) => any} */ (
+      callKind === 'sync' ? M.call : M.callWhen
+    );
+    return makeGuard(...argGuards)
       .optional(...optionalArgGuards)
       .rest(restArgGuard)
       .returns(returnGuard);
@@ -18248,9 +18158,9 @@ const adaptMethodGuard = methodGuard => {
     return interfaceGuard.payload;
   }
   mustMatch(interfaceGuard, LegacyInterfaceGuardShape, 'legacyInterfaceGuard');
-  // @ts-expect-error Legacy adaptor can be ill typed
+  const legacy = /** @type {any} */ (interfaceGuard);
   // eslint-disable-next-line prefer-const
-  let { klass: _, interfaceName, methodGuards, ...rest } = interfaceGuard;
+  let { klass: _, interfaceName, methodGuards, ...rest } = legacy;
   methodGuards = objectMap(methodGuards, adaptMethodGuard);
   const payload = harden({
     interfaceName,
@@ -18311,15 +18221,36 @@ harden(getInterfaceMethodKeys);
 harden(getNamedMethodGuards);
 })()
 ,
-// === 73. patterns ./types-index.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);
+// === 72. patterns ./types-index.js ===
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let _m,_mm;$h͏_imports([["./src/patterns/patternMatchers.js", [["matches",[$h͏_a => (_m = $h͏_a)]],["mustMatch",[$h͏_a => (_mm = $h͏_a)]]]]]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/** @type {(specimen: unknown, patt: import('./src/types.js').Pattern) => boolean} */
+const _matchesCompat = _m;
+/** @type {(specimen: unknown, patt: import('./src/types.js').Pattern, label?: string | number) => void} */
+const _mustMatchCompat = _mm;
+// eslint-disable-next-line no-void
+(void _matchesCompat, _mustMatchCompat);
 })()
 ,
-// === 74. patterns ./index.js ===
+// === 73. patterns ./index.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["./src/keys/checkKey.js", []],["./src/keys/copySet.js", []],["./src/keys/copyBag.js", []],["./src/keys/compareKeys.js", []],["./src/keys/merge-set-operators.js", []],["./src/keys/merge-bag-operators.js", []],["./src/patterns/patternMatchers.js", []],["./src/patterns/getGuardPayloads.js", []],["./types-index.js", []],["@endo/common/list-difference.js", []],["@endo/common/object-map.js", []]]);
 })()
 ,
-// === 75. exo ./src/get-interface.js ===
+// === 74. exo ./src/get-interface.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);// @ts-check
 
 /**
@@ -18350,7 +18281,7 @@ harden(getNamedMethodGuards);
  */$h͏_once.GET_INTERFACE_GUARD(GET_INTERFACE_GUARD);
 })()
 ,
-// === 76. exo ./src/exo-tools.js ===
+// === 75. exo ./src/exo-tools.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,E,getRemotableMethodNames,toThrowable,Far,mustMatch,M,isAwaitArgGuard,isRawGuard,getAwaitArgGuardPayload,getMethodGuardPayload,getInterfaceGuardPayload,getCopyMapEntries,listDifference,objectMap,q,Fail,GET_INTERFACE_GUARD;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/eventual-send", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/pass-style", [["getRemotableMethodNames",[$h͏_a => (getRemotableMethodNames = $h͏_a)]],["toThrowable",[$h͏_a => (toThrowable = $h͏_a)]],["Far",[$h͏_a => (Far = $h͏_a)]]]],["@endo/patterns", [["mustMatch",[$h͏_a => (mustMatch = $h͏_a)]],["M",[$h͏_a => (M = $h͏_a)]],["isAwaitArgGuard",[$h͏_a => (isAwaitArgGuard = $h͏_a)]],["isRawGuard",[$h͏_a => (isRawGuard = $h͏_a)]],["getAwaitArgGuardPayload",[$h͏_a => (getAwaitArgGuardPayload = $h͏_a)]],["getMethodGuardPayload",[$h͏_a => (getMethodGuardPayload = $h͏_a)]],["getInterfaceGuardPayload",[$h͏_a => (getInterfaceGuardPayload = $h͏_a)]],["getCopyMapEntries",[$h͏_a => (getCopyMapEntries = $h͏_a)]]]],["@endo/common/list-difference.js", [["listDifference",[$h͏_a => (listDifference = $h͏_a)]]]],["@endo/common/object-map.js", [["objectMap",[$h͏_a => (objectMap = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]],["Fail",[$h͏_a => (Fail = $h͏_a)]]]],["./get-interface.js", [["GET_INTERFACE_GUARD",[$h͏_a => (GET_INTERFACE_GUARD = $h͏_a)]]]]]);
 
 
@@ -18866,7 +18797,7 @@ harden(defendPrototype);
 };$h͏_once.defendPrototypeKit(defendPrototypeKit);
 })()
 ,
-// === 77. exo ./src/exo-makers.js ===
+// === 76. exo ./src/exo-makers.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,objectMap,environmentOptionsListHas,Fail,q,defendPrototype,defendPrototypeKit;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/common/object-map.js", [["objectMap",[$h͏_a => (objectMap = $h͏_a)]]]],["@endo/env-options", [["environmentOptionsListHas",[$h͏_a => (environmentOptionsListHas = $h͏_a)]]]],["@endo/errors", [["Fail",[$h͏_a => (Fail = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]]]],["./exo-tools.js", [["defendPrototype",[$h͏_a => (defendPrototype = $h͏_a)]],["defendPrototypeKit",[$h͏_a => (defendPrototypeKit = $h͏_a)]]]]]);
 
 
@@ -19111,12 +19042,16 @@ harden(defineExoClassKit);
 harden(makeExo);
 })()
 ,
+// === 77. exo ./types-index.js ===
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["./src/exo-makers.js", []]]);
+})()
+,
 // === 78. exo ./src/types.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);
 })()
 ,
 // === 79. exo ./index.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["./src/exo-makers.js", []],["./src/types.js", []],["./src/get-interface.js", []]]);
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([["./src/exo-makers.js", []],["./types-index.js", []],["./src/types.js", []],["./src/get-interface.js", []]]);
 })()
 ,
 // === 80. platform ./src/fs/interfaces.js ===
@@ -19245,7 +19180,7 @@ harden(snapshotBlobMethods);
 
 
 
-/** @import { SnapshotStore } from './types.js' */
+/** @import { SnapshotStore, SnapshotTree } from './types.js' */
 
 /**
  * Returns the methods of a SnapshotTree as a plain spreadable object.
@@ -19302,7 +19237,7 @@ harden(snapshotBlobMethods);
         return true;
       }
       const child = resolveChild(entry[1], entry[2]);
-      return E(child).has(...tail);
+      return E(/** @type {SnapshotTree} */ (child)).has(...tail);
     },
     /**
      * @param {...string} petNamePath
@@ -19318,7 +19253,7 @@ harden(snapshotBlobMethods);
         throw new TypeError(`Unknown name: ${JSON.stringify(head)}`);
       }
       const child = resolveChild(entry[1], entry[2]);
-      return E(child).list(...tail);
+      return E(/** @type {SnapshotTree} */ (child)).list(...tail);
     },
     /**
      * @param {string | string[]} petNamePath
@@ -19377,13 +19312,13 @@ harden(snapshotTreeMethods);
       makeExo(
         `SnapshotBlob ${sha256.slice(0, 8)}...`,
         SnapshotBlobInterface,
-        snapshotBlobMethods(snapshotStore, sha256),
+        /** @type {any} */ (snapshotBlobMethods(snapshotStore, sha256)),
       ),
     loadTree: sha256 =>
       makeExo(
         `SnapshotTree ${sha256.slice(0, 8)}...`,
         SnapshotTreeInterface,
-        snapshotTreeMethods(snapshotStore, sha256),
+        /** @type {any} */ (snapshotTreeMethods(snapshotStore, sha256)),
       ),
   });
   return snapshotStore;
@@ -19685,6 +19620,8 @@ const MAX_CHECKIN_DEPTH = 64;
        const checkinTree = async (remoteTree, store, options = {}) => {
   const { maxDepth = MAX_CHECKIN_DEPTH } = options;
 
+  /** @import { SnapshotBlob, SnapshotTree } from './types.js' */
+
   /**
    * @param {unknown} remoteNode
    * @param {boolean} isTree
@@ -19698,18 +19635,25 @@ const MAX_CHECKIN_DEPTH = 64;
 
     if (!isTree) {
       // It's a blob — stream its content into the content store.
-      const readerRef = E(remoteNode).streamBase64();
-      const sha256 = await store.store(makeRefReader(readerRef));
+      const readerRef = E(
+        /** @type {SnapshotBlob} */ (remoteNode),
+      ).streamBase64();
+      const sha256 = await store.store(
+        makeRefReader(/** @type {any} */ (readerRef)),
+      );
       return { type: 'blob', sha256 };
     }
 
     // It's a tree — enumerate children and recurse.
-    const names = await E(remoteNode).list();
+    const names = await E(/** @type {SnapshotTree} */ (remoteNode)).list();
     /** @type {Array<[string, string, string]>} */
     const treeEntries = [];
 
     for (const name of names) {
-      const child = await E(remoteNode).lookup(name);
+      /** @type {any} */
+      const child = await E(/** @type {SnapshotTree} */ (remoteNode)).lookup(
+        name,
+      );
       // Use __getMethodNames__ (available on Exos and conforming Far objects)
       // to detect the node type without calling a method that may not exist,
       // which would cause CapTP to log a noisy error.
@@ -19747,7 +19691,7 @@ harden(checkinTree);
 
 
 
-/** @import { TreeWriter } from './types.js' */
+/** @import { TreeWriter, SnapshotTree } from './types.js' */
 
 /**
  * Recursively walk a ReadableTree (local or remote) and materialize
@@ -19766,9 +19710,10 @@ harden(checkinTree);
    */
   const walk = async (node, pathSegments) => {
     await writer.makeDirectory(pathSegments);
-    const names = await E(node).list();
+    const names = await E(/** @type {SnapshotTree} */ (node)).list();
     for (const name of names) {
-      const child = await E(node).lookup(name);
+      /** @type {any} */
+      const child = await E(/** @type {SnapshotTree} */ (node)).lookup(name);
       const childPath = [...pathSegments, name];
       // Use __getMethodNames__ to detect the node type without calling
       // a method that may not exist (which causes CapTP error logging).
@@ -19780,7 +19725,7 @@ harden(checkinTree);
       } else {
         // It's a readable-blob. Stream its content through the writer.
         const readerRef = E(child).streamBase64();
-        const readable = makeRefReader(readerRef);
+        const readable = makeRefReader(/** @type {any} */ (readerRef));
         await writer.writeBlob(childPath, readable);
         if (onFile) onFile();
       }
@@ -19970,8 +19915,12 @@ const EvaluateMethodGuard = M.call(
 
        const WorkerInterface = M.interface('EndoWorker', {});$h͏_once.WorkerInterface(WorkerInterface);
 
+       const PeerGatewayInterface = M.interface('ResilientPeerGateway', {
+  provide: M.callWhen(M.string()).returns(M.any()),
+});$h͏_once.PeerGatewayInterface(PeerGatewayInterface);
+
        const ResponderInterface = M.interface('EndoResponder', {
-  resolveWithId: M.call(M.or(IdShape, M.promise())).returns(),
+  resolveWithId: M.callWhen(M.or(IdShape, M.promise())).returns(),
 });$h͏_once.ResponderInterface(ResponderInterface);
 
        const NameHubInterface = M.interface('EndoNameHub', {
@@ -20061,39 +20010,6 @@ $h͏_once.DismisserInterface(DismisserInterface);const HandleInterface=M.interfa
   writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
 });$h͏_once.DirectoryInterface(DirectoryInterface);
 
-       const SyncedDirectoryInterface = M.interface('EndoSyncedDirectory', {
-  // All standard directory methods
-  help: M.call().optional(M.string()).returns(M.string()),
-  has: M.call().rest(NamePathShape).returns(M.promise()),
-  identify: M.call().rest(NamePathShape).returns(M.promise()),
-  locate: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
-  list: M.call().rest(NamePathShape).returns(M.promise()),
-  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
-  followNameChanges: M.call().returns(M.remotable()),
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
-  reverseLookup: M.call(M.any()).returns(M.promise()),
-  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  remove: M.call().rest(NamePathShape).returns(M.promise()),
-  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  readText: M.call(NameOrPathShape).returns(M.promise()),
-  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
-  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
-  // CRDT sync methods
-  getState: M.call().returns(M.any()),
-  getLocalClock: M.call().returns(M.any()),
-  getRemoteAckedClock: M.call().returns(M.any()),
-  mergeRemoteState: M.call(M.any(), M.number()).returns(M.promise()),
-  acknowledgeRemoteClock: M.call(M.number()).returns(M.promise()),
-  pruneTombstones: M.call().returns(M.promise()),
-});$h͏_once.SyncedDirectoryInterface(SyncedDirectoryInterface);
-
        const GuestInterface = M.interface('EndoGuest', {
   // Self-documentation
   help: M.call().optional(M.string()).returns(M.string()),
@@ -20161,14 +20077,6 @@ $h͏_once.DismisserInterface(DismisserInterface);const HandleInterface=M.interfa
     EdgeNamesShape,
     NamesOrPathsShape,
   ).returns(M.promise()),
-  // Request sandboxed evaluation (guest -> host)
-  requestEvaluation: M.call(
-    M.string(), // source
-    M.arrayOf(M.string()), // codeNames
-    NamesOrPathsShape  // petNamePaths
-  )
-    .optional(NameOrPathShape) // resultName
-    .returns(M.promise()),
   // Define code with named slots
   define: M.call(
     M.string(), // source
@@ -20282,8 +20190,6 @@ $h͏_once.DismisserInterface(DismisserInterface);const HandleInterface=M.interfa
   provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NameOrPathShape).returns(M.promise()),
-  // Provide an unlocked Node.js worker
-  makeNodeWorker: M.call(NameOrPathShape).returns(M.promise()),
   // Evaluate code directly in a worker
   evaluate: EvaluateMethodGuard,
   // Make an unconfined caplet
@@ -20294,14 +20200,12 @@ $h͏_once.DismisserInterface(DismisserInterface);const HandleInterface=M.interfa
   makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
-  // Make an archive caplet
-  makeArchive: M.call(M.or(NameShape, M.undefined()), NameShape)
-    .optional(MakeCapletOptionsShape)
-    .returns(M.promise()),
   // Create a channel
   makeChannel: M.call(NameShape, M.string()).returns(M.promise()),
   // Create a timer
-  makeTimer: M.call(NameShape, M.number()).optional(M.string()).returns(M.promise()),
+  makeTimer: M.call(NameShape, M.number())
+    .optional(M.string())
+    .returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
   // Get the greeter
@@ -20326,10 +20230,10 @@ $h͏_once.DismisserInterface(DismisserInterface);const HandleInterface=M.interfa
   invite: M.call(NameShape).returns(M.promise()),
   // Accept an invitation
   accept: M.call(LocatorShape, NameShape).returns(M.promise()),
-  // Approve a sandboxed evaluation request
-  approveEvaluation: M.call(MessageNumberShape)
-    .optional(M.or(NameShape, M.undefined()))
-    .returns(M.promise()),
+  // Get the synced store for a peer
+  getSyncedStore: M.call(NameShape).returns(M.promise()),
+  // Register a synced store (called internally by daemon accept)
+  registerSyncedStore: M.call(NameShape, IdShape).returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,
@@ -20364,7 +20268,11 @@ $h͏_once.DismisserInterface(DismisserInterface);const HandleInterface=M.interfa
        const ChannelInterface = M.interface('EndoChannel', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
-    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape), M.or(M.string(), M.undefined()))
+    .optional(
+      M.or(M.string(), M.undefined()),
+      M.arrayOf(IdShape),
+      M.or(M.string(), M.undefined()),
+    )
     .returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
   listMessages: M.call().returns(M.promise()),
@@ -20384,7 +20292,11 @@ $h͏_once.DismisserInterface(DismisserInterface);const HandleInterface=M.interfa
        const ChannelMemberInterface = M.interface('EndoChannelMember', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
-    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape), M.or(M.string(), M.undefined()))
+    .optional(
+      M.or(M.string(), M.undefined()),
+      M.arrayOf(IdShape),
+      M.or(M.string(), M.undefined()),
+    )
     .returns(M.promise()),
   setProposedName: M.call(M.string()).returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
@@ -20498,10 +20410,6 @@ const PathArgShape = M.or(M.string(), PathSegmentsShape);
     // These methods receive promises that get resolved inside the worker
     // Args: (readableP, powersP, contextP, env)
     makeBundle: M.call(M.any(), M.any(), M.any(), EnvShape).returns(
-      M.promise(),
-    ),
-    // Args: (readableP, powersP, contextP, env)
-    makeArchive: M.call(M.any(), M.any(), M.any(), EnvShape).returns(
       M.promise(),
     ),
     // Args: (specifier, powersP, contextP, env)
@@ -20686,10 +20594,11 @@ const idPattern = /^(?<number>[0-9a-f]{64}):(?<node>[0-9a-f]{64})$/;
   const { number, node } = groups;
   const formulaNumber = /** @type {FormulaNumber} */ (number);
   const nodeNumber = /** @type {NodeNumber} */ (node);
+  const formulaId = /** @type {FormulaIdentifier} */ (id);
   return {
     number: formulaNumber,
     node: nodeNumber,
-    id,
+    id: formulaId,
   };
 };
 
@@ -20724,7 +20633,6 @@ const formulaTypes = new Set([
   'least-authority',
   'lookup',
   'loopback-network',
-  'make-archive',
   'mail-hub',
   'mailbox-store',
   'make-bundle',
@@ -21134,13 +21042,14 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
 })()
 ,
 // === 105. daemon ./src/help-text-data.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);// @ts-check
-// @generated from help.md — do not edit manually.
-// Regenerate: node packages/daemon/scripts/generate-help-text.mjs
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]]]);
 
-/** @type {Record<string, Record<string, string>>} */
-       const helpTextData = /** @type {const} */ ({
-  "EndoDirectory": {
+
+
+
+/** @type {Array<[string, Record<string, string>]>} */
+       const helpTextEntries = harden([
+  ["EndoDirectory", {
     "": "EndoDirectory - A naming hub for managing pet names and references.\n\nA directory maps pet names to formula identifiers (internal references).\nPet names are strings like \"my-worker\", \"counter\", or \"index.html\".\nSpecial names are @-prefixed like \"@self\", \"@host\", or \"@agent\".\n\nUse lookup() to get a value by name, list() to see available names,\nand storeIdentifier() or storeLocator() to store new references.",
     "help": "help(methodName?) -> string\nGet documentation for this interface or a specific method.\n- help() returns an overview of the interface\n- help(\"lookup\") returns documentation for the lookup method",
     "has": "has(...petNamePath) -> Promise<boolean>\nCheck if a pet name exists in this directory.\n- has(\"counter\") checks if \"counter\" exists\n- has(\"subdir\", \"value\") checks if \"value\" exists in subdirectory \"subdir\"",
@@ -21161,9 +21070,9 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
     "makeDirectory": "makeDirectory(petNamePath) -> Promise<EndoDirectory>\nCreate a new subdirectory at the given path.\nReturns the new directory object.",
     "readText": "readText(petNameOrPath) -> Promise<string>\nRead text content by pet name or path.\nFor a single name, reads the blob's text content.\nFor a multi-segment path, reads through the mount.\nExample: readText([\"my-blob\"])\nExample: readText([\"my-mount\", \"config.json\"])",
     "maybeReadText": "maybeReadText(petNameOrPath) -> Promise<string | undefined>\nRead text content, returning undefined if not found.\nSame as readText but returns undefined instead of throwing.",
-    "writeText": "writeText(petNameOrPath, content) -> Promise<void>\nWrite text content by pet name or path.\nFor a single name, creates a ReadableBlob and binds the name.\nFor a multi-segment path, writes through the mount.\nExample: writeText([\"my-blob\"], \"hello\")\nExample: writeText([\"my-mount\", \"output.txt\"], \"hello\")"
-  },
-  "Mail Operations": {
+    "writeText": "writeText(petNameOrPath, content) -> Promise<void>\nWrite text content by pet name or path.\nFor a single name, creates a ReadableBlob and binds the name.\nFor a multi-segment path, writes through the mount.\nExample: writeText([\"my-blob\"], \"hello\")\nExample: writeText([\"my-mount\", \"output.txt\"], \"hello\")",
+  }],
+  ["Mail Operations", {
     "": "Mail Operations - Send and receive messages between agents.\n\nMessages can be requests (asking for a capability) or packages (sending values).\nEach message has a number, sender, recipient, and content.\n\nUse followMessages() to receive messages, send() to send packages,\nand request() to ask for capabilities.",
     "handle": "handle() -> Handle\nGet this agent's mailbox handle.\nThe handle is used internally for receiving messages.",
     "listMessages": "listMessages() -> Promise<Message[]>\nList all messages in the inbox.\nEach message has: number, date, from, to, type, and content.",
@@ -21177,14 +21086,13 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
     "send": "send(recipientName, strings, edgeNames, petNames) -> Promise<void>\nSend a package message with values to another agent.\n- strings: Text fragments that form the message\n- edgeNames: Labels for the values being sent\n- petNames: Names of values to include\n\nExample: send(\"@host\", [\"Here is \", \" for you\"], [\"gift\"], [\"my-counter\"])\n  Sends: \"Here is @gift for you\" where @gift refers to \"my-counter\"",
     "storeValue": "storeValue(value, petNameOrPath) -> Promise<void>\nStore a passable value in the agent's directory.\nValues must be passable (numbers, strings, arrays, records, etc.).",
     "sendValue": "sendValue(messageNumber, petNameOrPath) -> Promise<void>\nReply to any message with a retained value from your pet store.\n\n- messageNumber: The inbox message number to reply to\n- petNameOrPath: Pet name (or path) of the value to send\n\nExample: sendValue(0, \"my-counter\")",
-    "deliver": "deliver(message) -> void\nInternal method to deliver a message to this mailbox.\nTypically not called directly by users."
-  },
-  "EndoGuest": {
+    "deliver": "deliver(message) -> void\nInternal method to deliver a message to this mailbox.\nTypically not called directly by users.",
+  }],
+  ["EndoGuest", {
     "": "EndoGuest - A confined agent with directory and mail capabilities.\n\nA guest can:\n- Manage pet names for values (directory operations)\n- Send and receive messages (mail operations)\n- Request capabilities from its host\n\nSpecial names available:\n- @self: This guest's own handle\n- @host: The host that created this guest\n- @agent: This guest's formula identifier\n\nUse help(\"methodName\") for details on specific methods.",
     "help": "help(methodName?) -> string\nGet documentation for this interface or a specific method.\n- help() returns an overview of the guest capabilities\n- help(\"request\") returns documentation for the request method\n- help(\"send\") returns documentation for send method",
     "reverseIdentify": "reverseIdentify(formulaId) -> string[]\nFind all pet names that refer to a given formula identifier.\nSynchronous version of reverse lookup by identifier.",
-    "requestEvaluation": "requestEvaluation(source, codeNames, petNamePaths, resultName?) -> Promise<any>\nRequest sandboxed evaluation of JavaScript code.\nThe request is sent to @host for review and approval.\n- source: JavaScript code to evaluate\n- codeNames: Names visible in the code (e.g., [\"x\", \"y\"])\n- petNamePaths: Pet names providing values for those names (e.g., [\"my-x\", \"my-y\"])\n- resultName: Optional name to store the result\n\nThe host will see the source code and endowment mappings and can approve or reject.\nOn approval, the code runs in a sandboxed Compartment with only the guest's own endowments.\n\nExample: requestEvaluation(\"x + 1\", [\"x\"], [\"my-counter\"], \"result\")",
-    "define": "define(source, slots) -> Promise<any>\nPropose code with named capability slots for the host to endow.\nUnlike requestEvaluation, the guest does NOT specify which capabilities to bind.\nThe host sees the code and slot descriptions, then decides which capabilities\nto provide for each slot using the endow() command.\n\n- source: JavaScript code to evaluate\n- slots: Record of slot descriptions, e.g. { counter: { label: \"A counter to increment\" } }\n\nThe host reviews the code and slots, then calls endow() to bind capabilities\nand trigger evaluation. This separates code proposal from capability binding.\n\nExample: define(\"E(counter).incr()\", { counter: { label: \"A counter capability\" } })",
+    "define": "define(source, slots) -> Promise<any>\nPropose code with named capability slots for the host to endow.\nThe guest specifies code and named slots with descriptions.\nThe host sees the code and slot descriptions, then decides which capabilities\nto provide for each slot using the endow() command.\n\n- source: JavaScript code to evaluate\n- slots: Record of slot descriptions, e.g. { counter: { label: \"A counter to increment\" } }\n\nThe host reviews the code and slots, then calls endow() to bind capabilities\nand trigger evaluation. This separates code proposal from capability binding.\n\nExample: define(\"E(counter).incr()\", { counter: { label: \"A counter capability\" } })",
     "form": "form(recipientName, description, fields) -> Promise<void>\nSend a structured form to another agent.\nThe form appears in the recipient's inbox. They can submit values using submit().\n\n- recipientName: Pet name of the recipient (e.g., \"@host\")\n- description: Human-readable description of the form\n- fields: Array of field definitions, e.g. [{ name: \"email\", label: \"Your email\" }]\n\nExample: form(\"@host\", \"Configure settings\", [{ name: \"name\", label: \"Your name\" }])",
     "storeBlob": "storeBlob(readerRef, petName?) -> Promise<EndoReadable>\nStore binary data as a blob with a pet name.\n- readerRef: An async iterator yielding base64-encoded strings\n- petName: Name to store the blob under\nReturns a readable blob reference.",
     "storeValue": "storeValue(value, petNameOrPath) -> Promise<void>\nStore a passable value (number, string, array, record, etc.) in your directory.\n- storeValue(42, \"answer\") stores the number 42 as \"answer\"\n- storeValue({x: 1, y: 2}, \"point\") stores a record as \"point\"\n- storeValue([\"a\", \"b\"], [\"subdir\", \"items\"]) stores in a subdirectory\nValues must be passable (no functions or non-transferable objects).",
@@ -21192,9 +21100,9 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
     "sendValue": "sendValue(messageNumber, petNameOrPath) -> Promise<void>\nReply to any message with a retained value from your pet store.\n\n- messageNumber: The inbox message number to reply to\n- petNameOrPath: Pet name (or path) of the value to send\n\nExample: sendValue(0, \"my-counter\")",
     "readText": "readText(petNameOrPath) -> Promise<string>\nRead text content by pet name or path.\nFor a single name, reads the blob's text content.\nFor a multi-segment path, reads through the mount.\nExample: readText([\"my-blob\"])\nExample: readText([\"my-mount\", \"config.json\"])",
     "maybeReadText": "maybeReadText(petNameOrPath) -> Promise<string | undefined>\nRead text content, returning undefined if not found.\nSame as readText but returns undefined instead of throwing.",
-    "writeText": "writeText(petNameOrPath, content) -> Promise<void>\nWrite text content by pet name or path.\nFor a single name, creates a ReadableBlob and binds the name.\nFor a multi-segment path, writes through the mount.\nExample: writeText([\"my-blob\"], \"hello\")\nExample: writeText([\"my-mount\", \"output.txt\"], \"hello\")"
-  },
-  "EndoHost": {
+    "writeText": "writeText(petNameOrPath, content) -> Promise<void>\nWrite text content by pet name or path.\nFor a single name, creates a ReadableBlob and binds the name.\nFor a multi-segment path, writes through the mount.\nExample: writeText([\"my-blob\"], \"hello\")\nExample: writeText([\"my-mount\", \"output.txt\"], \"hello\")",
+  }],
+  ["EndoHost", {
     "": "EndoHost - A privileged agent with full Endo capabilities.\n\nA host has all guest capabilities plus:\n- Create workers for running code\n- Evaluate JavaScript code\n- Create confined guests\n- Store blobs and values\n- Make unconfined or bundled caplets\n- Manage network peers\n\nUse help(\"methodName\") for details on specific methods.",
     "help": "help(methodName?) -> string\nGet documentation for this interface or a specific method.\n- help() returns an overview of the host capabilities\n- help(\"evaluate\") returns documentation for code evaluation",
     "storeBlob": "storeBlob(readerRef, petName) -> Promise<EndoReadable>\nStore binary data as a blob with a pet name.\n- readerRef: An async iterator yielding base64-encoded strings\n- petName: Name to store the blob under\nReturns a readable blob reference.",
@@ -21214,7 +21122,6 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
     "adoptFromLocator": "adoptFromLocator(locator, petNameOrPath) -> Promise<void>\nAdopt a value from a locator that includes connection hints.\nParses the locator to extract peer info, establishes a connection if needed,\nand writes the formula ID into the local pet store.\nExample: adoptFromLocator(\"endo://node...?id=...&type=channel&at=...\", \"remote-channel\")",
     "invite": "invite(guestName) -> Promise<Invitation>\nCreate an invitation for a guest to connect.",
     "accept": "accept(invitationId, guestHandleId, guestName) -> Promise<void>\nAccept an invitation, creating a connection.",
-    "approveEvaluation": "approveEvaluation(messageNumber, workerName?) -> Promise<void>\nApprove a sandboxed evaluation request from a guest.\n- messageNumber: The eval-request message number\n- workerName: Optional worker to use for evaluation\n\nThe eval-request contains source code and endowment mappings proposed by a guest.\nOn approval, the code is evaluated in a sandboxed Compartment with only the\nguest's own endowments (not the host's), ensuring namespace isolation.\n\nUse reject(messageNumber, reason) to decline an eval request.",
     "endow": "endow(messageNumber, bindings, workerName?, resultName?) -> Promise<void>\nBind capabilities to a guest's code definition and evaluate it.\nThis is the host-side counterpart to the guest's define() method.\n\n- messageNumber: The definition message number\n- bindings: Record mapping slot names to pet names, e.g. { counter: \"my-counter\" }\n- workerName: Optional worker to use for evaluation\n- resultName: Optional pet name to store the result\n\nThe host decides which capabilities to provide for each slot.\nThe code proposed by the guest runs with these host-chosen bindings.\n\nExample: endow(0, { counter: \"my-counter\" })",
     "form": "form(recipientName, description, fields) -> Promise<void>\nSend a structured form to another agent.\nThe form appears in the recipient's inbox. They can submit values using submit().\n\n- recipientName: Pet name or path of the recipient\n- description: Human-readable description of what the form is for\n- fields: Array of field definitions, e.g. [{ name: \"email\", label: \"Your email\" }]\n\nExample: form(\"@host\", \"Configure settings\", [{ name: \"name\", label: \"Name\" }, { name: \"email\", label: \"Email\" }])",
     "submit": "submit(messageNumber, values) -> Promise<void>\nSubmit values for a form message. Each call creates a new value message\nin reply to the form, allowing multiple submissions.\n\n- messageNumber: The form message number\n- values: Record mapping field names to values, e.g. { name: \"Alice\" }\n\nEach value must match the pattern specified by the form field (if any).\nFields without explicit patterns default to M.string().\n\nExample: submit(0, { name: \"Alice\", age: 30 })",
@@ -21222,17 +21129,17 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
     "getFormulaGraph": "getFormulaGraph() -> Promise<{ nodes, edges }>\nReturns a snapshot of the formula dependency graph reachable from\nthis agent's pet store.\n\n- nodes: Array of { id, type } for each formula\n- edges: Array of { sourceId, targetId, label } for each dependency\n\nUsed by the Chat inventory graph space to visualize formula relationships.",
     "readText": "readText(petNameOrPath) -> Promise<string>\nRead text content by pet name or path.\nFor a single name, reads the blob's text content.\nFor a multi-segment path, reads through the mount.\nExample: readText([\"my-blob\"])\nExample: readText([\"my-mount\", \"config.json\"])",
     "maybeReadText": "maybeReadText(petNameOrPath) -> Promise<string | undefined>\nRead text content, returning undefined if not found.\nSame as readText but returns undefined instead of throwing.",
-    "writeText": "writeText(petNameOrPath, content) -> Promise<void>\nWrite text content by pet name or path.\nFor a single name, creates a ReadableBlob and binds the name.\nFor a multi-segment path, writes through the mount.\nExample: writeText([\"my-blob\"], \"hello\")\nExample: writeText([\"my-mount\", \"output.txt\"], \"hello\")"
-  },
-  "EndoReadable": {
+    "writeText": "writeText(petNameOrPath, content) -> Promise<void>\nWrite text content by pet name or path.\nFor a single name, creates a ReadableBlob and binds the name.\nFor a multi-segment path, writes through the mount.\nExample: writeText([\"my-blob\"], \"hello\")\nExample: writeText([\"my-mount\", \"output.txt\"], \"hello\")",
+  }],
+  ["EndoReadable", {
     "": "EndoReadable - A readable blob of binary data.\n\nBlobs store binary content with a content-addressed hash.\nUse text() to read as a string, json() to parse as JSON,\nor streamBase64() for streaming access.",
     "help": "help(methodName?) -> string\nGet documentation for this interface or a specific method.",
     "sha256": "sha256() -> string\nGet the SHA-256 hash of the blob content.\nThis is the content address used for storage.",
     "streamBase64": "streamBase64() -> AsyncIterator<string>\nStream the blob content as base64-encoded chunks.\nUse for large files to avoid loading everything into memory.",
     "text": "text() -> Promise<string>\nRead the entire blob as a UTF-8 string.",
-    "json": "json() -> Promise<any>\nRead and parse the blob as JSON."
-  },
-  "Endo Bootstrap": {
+    "json": "json() -> Promise<any>\nRead and parse the blob as JSON.",
+  }],
+  ["Endo Bootstrap", {
     "": "Endo Bootstrap - The root interface for the Endo daemon.\n\nThis is the entry point for connecting to Endo.\nUse host() to get your host agent with full capabilities,\nor leastAuthority() for a minimal confined agent.",
     "help": "help(methodName?) -> string\nGet documentation for this interface or a specific method.",
     "ping": "ping() -> Promise<string>\nCheck if the daemon is responsive. Returns \"pong\".",
@@ -21244,16 +21151,16 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
     "nodeId": "nodeId() -> string\nGet this node's unique identifier.\nUsed for peer-to-peer communication.",
     "reviveNetworks": "reviveNetworks() -> Promise<void>\nRestore network connections from persisted state.",
     "revivePins": "revivePins() -> Promise<void>\nRestore pinned values from persisted state.",
-    "addPeerInfo": "addPeerInfo(peerInfo) -> Promise<void>\nAdd information about a remote peer.\npeerInfo: { node: string, addresses: string[] }"
-  },
-  "ReadableTree": {
+    "addPeerInfo": "addPeerInfo(peerInfo) -> Promise<void>\nAdd information about a remote peer.\npeerInfo: { node: string, addresses: string[] }",
+  }],
+  ["ReadableTree", {
     "": "ReadableTree - A read-only tree of files and subdirectories.\n\nAn immutable directory: entries cannot be added, removed, or modified.\nlookup() returns EndoReadable values for files and nested ReadableTree\nvalues for subdirectories.",
     "help": "help(methodName?) -> string\nGet documentation for this interface or a specific method.",
     "has": "has(...names) -> Promise<boolean>\nCheck if an entry exists at the given path.\nnames: string[] - Path segments.\nExample: has(\"index.html\") → true\nExample: has(\"assets\", \"style.css\") → true",
     "list": "list(...names) -> Promise<string[]>\nList entry names at the given path (or root).\nnames: string[] - Path segments (optional, defaults to root).\nExample: list() → [\"index.html\", \"app.js\", \"assets\"]\nExample: list(\"assets\") → [\"style.css\", \"logo.png\"]",
-    "lookup": "lookup(nameOrPath) -> Promise<EndoReadable | ReadableTree>\nGet the value at a name or path.\nnameOrPath: string | string[] - Name or path segments.\nReturns EndoReadable for files, ReadableTree for subdirectories.\nExample: lookup(\"index.html\") → EndoReadable\nExample: lookup([\"assets\", \"style.css\"]) → EndoReadable"
-  },
-  "EndoMount": {
+    "lookup": "lookup(nameOrPath) -> Promise<EndoReadable | ReadableTree>\nGet the value at a name or path.\nnameOrPath: string | string[] - Name or path segments.\nReturns EndoReadable for files, ReadableTree for subdirectories.\nExample: lookup(\"index.html\") → EndoReadable\nExample: lookup([\"assets\", \"style.css\"]) → EndoReadable",
+  }],
+  ["EndoMount", {
     "": "EndoMount - Live mutable access to a filesystem directory.\n\nAll paths are confined to the mount root. Symlinks that escape\nthe root are invisible. Use readOnly() for an attenuated view.",
     "help": "help(methodName?) -> string\nGet documentation for this interface or a specific method.",
     "has": "has(...pathSegments) -> Promise<boolean>\nCheck if a path exists within the mount.\nEach argument is one path segment: has(\"dir\", \"file.txt\").",
@@ -21266,9 +21173,9 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
     "move": "move(from, to) -> Promise<void>\nRename an entry within the mount.\nfrom: string | string[] — Source name or path segments.\nto: string | string[] — Destination name or path segments.",
     "makeDirectory": "makeDirectory(path) -> Promise<void>\nCreate a directory (and missing parents).\npath: string | string[] — Name or path segments.",
     "readOnly": "readOnly() -> EndoMount\nReturns a read-only view of this mount.",
-    "snapshot": "snapshot() -> Promise<SnapshotTree>\nCapture current state as an immutable readable-tree.\n(Not yet implemented.)"
-  },
-  "EndoMountFile": {
+    "snapshot": "snapshot() -> Promise<SnapshotTree>\nCapture current state as an immutable readable-tree.\n(Not yet implemented.)",
+  }],
+  ["EndoMountFile", {
     "": "EndoMountFile - A file within a mounted directory.",
     "help": "help(methodName?) -> string\nGet documentation for this interface or a specific method.",
     "text": "text() -> Promise<string>\nRead the file content as a UTF-8 string.",
@@ -21276,14 +21183,13 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
     "json": "json() -> Promise<any>\nRead and parse the file as JSON.",
     "writeText": "writeText(content) -> Promise<void>\nWrite a string to the file. Throws if read-only.",
     "writeBytes": "writeBytes(readableRef) -> Promise<void>\nWrite bytes from an async iterator. Throws if read-only.",
-    "readOnly": "readOnly() -> EndoMountFile\nReturns a read-only view of this file."
-  }
-});$h͏_once.helpTextData(helpTextData);
+    "readOnly": "readOnly() -> EndoMountFile\nReturns a read-only view of this file.",
+  }],
+]);$h͏_once.helpTextEntries(helpTextEntries);
 })()
 ,
 // === 106. daemon ./src/help-text.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let helpTextData;$h͏_imports([["./help-text-data.js", [["helpTextData",[$h͏_a => (helpTextData = $h͏_a)]]]]]);
-
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let helpTextEntries;$h͏_imports([["./help-text-data.js", [["helpTextEntries",[$h͏_a => (helpTextEntries = $h͏_a)]]]]]);
 
 
 
@@ -21300,32 +21206,34 @@ const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
  * @typedef {Record<string, string>} HelpText
  */
 
+const helpMap = new Map(helpTextEntries);
+
 /** @type {HelpText} */
-       const directoryHelp = helpTextData['EndoDirectory'] || {};
+       const directoryHelp = helpMap.get('EndoDirectory') || {};
 
 /** @type {HelpText} */$h͏_once.directoryHelp(directoryHelp);
-       const mailHelp = helpTextData['Mail Operations'] || {};
+       const mailHelp = helpMap.get('Mail Operations') || {};
 
 /** @type {HelpText} */$h͏_once.mailHelp(mailHelp);
-       const guestHelp = helpTextData['EndoGuest'] || {};
+       const guestHelp = helpMap.get('EndoGuest') || {};
 
 /** @type {HelpText} */$h͏_once.guestHelp(guestHelp);
-       const hostHelp = helpTextData['EndoHost'] || {};
+       const hostHelp = helpMap.get('EndoHost') || {};
 
 /** @type {HelpText} */$h͏_once.hostHelp(hostHelp);
-       const blobHelp = helpTextData['EndoReadable'] || {};
+       const blobHelp = helpMap.get('EndoReadable') || {};
 
 /** @type {HelpText} */$h͏_once.blobHelp(blobHelp);
-       const endoHelp = helpTextData['Endo Bootstrap'] || {};
+       const endoHelp = helpMap.get('Endo Bootstrap') || {};
 
 /** @type {HelpText} */$h͏_once.endoHelp(endoHelp);
-       const readableTreeHelp = helpTextData['ReadableTree'] || {};
+       const readableTreeHelp = helpMap.get('ReadableTree') || {};
 
 /** @type {HelpText} */$h͏_once.readableTreeHelp(readableTreeHelp);
-       const mountHelp = helpTextData['EndoMount'] || {};
+       const mountHelp = helpMap.get('EndoMount') || {};
 
 /** @type {HelpText} */$h͏_once.mountHelp(mountHelp);
-       const mountFileHelp = helpTextData['EndoMountFile'] || {};
+       const mountFileHelp = helpMap.get('EndoMountFile') || {};
 
 /**
  * Create a help function that looks up documentation.
@@ -21369,7 +21277,7 @@ harden(makeHelp);
 })()
 ,
 // === 107. daemon ./src/directory.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,encodeBase64,E,makeExo,q,makeIteratorRef,externalizeId,internalizeLocator,assertNamePath,assertNames,assertPetNamePath,namePathFrom,makeDeferredTasks,directoryHelp,makeHelp,DirectoryInterface,SyncedDirectoryInterface;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/base64", [["encodeBase64",[$h͏_a => (encodeBase64 = $h͏_a)]]]],["@endo/far", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]],["./locator.js", [["externalizeId",[$h͏_a => (externalizeId = $h͏_a)]],["internalizeLocator",[$h͏_a => (internalizeLocator = $h͏_a)]]]],["./pet-name.js", [["assertNamePath",[$h͏_a => (assertNamePath = $h͏_a)]],["assertNames",[$h͏_a => (assertNames = $h͏_a)]],["assertPetNamePath",[$h͏_a => (assertPetNamePath = $h͏_a)]],["namePathFrom",[$h͏_a => (namePathFrom = $h͏_a)]]]],["./deferred-tasks.js", [["makeDeferredTasks",[$h͏_a => (makeDeferredTasks = $h͏_a)]]]],["./help-text.js", [["directoryHelp",[$h͏_a => (directoryHelp = $h͏_a)]],["makeHelp",[$h͏_a => (makeHelp = $h͏_a)]]]],["./interfaces.js", [["DirectoryInterface",[$h͏_a => (DirectoryInterface = $h͏_a)]],["SyncedDirectoryInterface",[$h͏_a => (SyncedDirectoryInterface = $h͏_a)]]]]]);
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,encodeBase64,E,makeExo,q,makeIteratorRef,externalizeId,internalizeLocator,assertNamePath,assertNames,assertPetNamePath,namePathFrom,makeDeferredTasks,directoryHelp,makeHelp,DirectoryInterface;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/base64", [["encodeBase64",[$h͏_a => (encodeBase64 = $h͏_a)]]]],["@endo/far", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]],["./locator.js", [["externalizeId",[$h͏_a => (externalizeId = $h͏_a)]],["internalizeLocator",[$h͏_a => (internalizeLocator = $h͏_a)]]]],["./pet-name.js", [["assertNamePath",[$h͏_a => (assertNamePath = $h͏_a)]],["assertNames",[$h͏_a => (assertNames = $h͏_a)]],["assertPetNamePath",[$h͏_a => (assertPetNamePath = $h͏_a)]],["namePathFrom",[$h͏_a => (namePathFrom = $h͏_a)]]]],["./deferred-tasks.js", [["makeDeferredTasks",[$h͏_a => (makeDeferredTasks = $h͏_a)]]]],["./help-text.js", [["directoryHelp",[$h͏_a => (directoryHelp = $h͏_a)]],["makeHelp",[$h͏_a => (makeHelp = $h͏_a)]]]],["./interfaces.js", [["DirectoryInterface",[$h͏_a => (DirectoryInterface = $h͏_a)]]]]]);
 
 
 
@@ -21389,7 +21297,7 @@ harden(makeHelp);
 
 
 
-/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, NodeNumber, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
 
 /**
  * @param {object} args
@@ -21697,21 +21605,6 @@ harden(makeHelp);
           `storeLocator requires an endo:// locator, got ${q(locator)}`,
         );
       }
-      const { prefixPath, petName } = assertPetNamePath(
-        namePathFrom(petNamePath),
-      );
-      await null;
-      if (prefixPath.length === 0) {
-        try {
-          // Synced stores accept locators directly, preserving the
-          // original node number.  Fall through to the
-          // internalize-then-storeIdentifier path for local stores.
-          await controller.storeLocator(petName, locator);
-          return;
-        } catch {
-          // Local store controllers throw — fall through.
-        }
-      }
       const { id } = internalizeLocator(locator, isLocalKey);
       await storeIdentifier(petNamePath, id);
     };
@@ -21734,10 +21627,10 @@ harden(makeHelp);
       assertNamePath(namePath);
       if (namePath.length < 2) {
         const blob = await lookup(namePath);
-        return E(blob).text();
+        return E(/** @type {any} */ (blob)).text();
       }
       const { hub, name } = await lookupTailNameHub(namePath);
-      return E(hub).readText(name);
+      return E(/** @type {any} */ (hub)).readText(name);
     };
 
     /** @type {EndoDirectory['maybeReadText']} */
@@ -21745,14 +21638,14 @@ harden(makeHelp);
       const namePath = namePathFrom(petNameOrPath);
       assertNamePath(namePath);
       if (namePath.length < 2) {
-        const blob = maybeLookup(namePath);
-        if (blob === undefined) {
+        const blob = await maybeLookup(namePath);
+        if (blob === undefined || blob === null) {
           return undefined;
         }
-        return E(blob).text();
+        return E(/** @type {any} */ (blob)).text();
       }
       const { hub, name } = await lookupTailNameHub(namePath);
-      return E(hub).maybeReadText(name);
+      return E(/** @type {any} */ (hub)).maybeReadText(name);
     };
 
     /** @type {EndoDirectory['writeText']} */
@@ -21769,11 +21662,11 @@ harden(makeHelp);
         tasks.push(identifiers =>
           storeIdentifier(namePath, identifiers.readableBlobId),
         );
-        await formulateReadableBlob(readerRef, tasks);
+        await formulateReadableBlob(/** @type {any} */ (readerRef), tasks);
         return;
       }
       const { hub, name } = await lookupTailNameHub(namePath);
-      await E(hub).writeText(name, content);
+      await E(/** @type {any} */ (hub)).writeText(name, content);
     };
 
     /** @type {EndoDirectory} */
@@ -21807,7 +21700,7 @@ harden(makeHelp);
    * @param {object} args
    * @param {FormulaIdentifier} args.petStoreId
    * @param {Context} args.context
-   * @param {string} args.agentNodeNumber
+   * @param {NodeNumber} args.agentNodeNumber
    * @param {(node: string) => boolean} args.isLocalKey
    */
   const makeIdentifiedDirectory = async ({
@@ -21845,55 +21738,35 @@ harden(makeHelp);
       makeDirectory,
     } = directory;
 
-    const baseMethods = {
-      help,
-      has,
-      identify,
-      locate,
-      reverseLocate,
-      followLocatorNameChanges: locator =>
-        makeIteratorRef(directory.followLocatorNameChanges(locator)),
-      list,
-      listIdentifiers,
-      listLocators,
-      followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
-      lookup,
-      maybeLookup: directory.maybeLookup,
-      reverseLookup,
-      storeIdentifier: directory.storeIdentifier,
-      storeLocator: directory.storeLocator,
-      remove,
-      move,
-      copy,
-      makeDirectory,
-      readText: directory.readText,
-      maybeReadText: directory.maybeReadText,
-      writeText: directory.writeText,
-    };
-
-    // If the store controller exposes CRDT sync methods (synced pet store),
-    // include them in the directory exo so they are accessible via CapTP.
-    if (petStore.getState) {
-      return makeExo('EndoSyncedDirectory', SyncedDirectoryInterface, {
-        ...baseMethods,
-        getState: () => petStore.getState(),
-        getLocalClock: () => petStore.getLocalClock(),
-        getRemoteAckedClock: () => petStore.getRemoteAckedClock(),
-        mergeRemoteState: async (remoteState, remoteClock) => {
-          const changed = await petStore.mergeRemoteState(
-            remoteState,
-            remoteClock,
-          );
-          // Convert Set to Array for CapTP marshalling.
-          return harden([...changed]);
-        },
-        acknowledgeRemoteClock: ackedClock =>
-          petStore.acknowledgeRemoteClock(ackedClock),
-        pruneTombstones: () => petStore.pruneTombstones(),
-      });
-    }
-
-    return makeExo('EndoDirectory', DirectoryInterface, baseMethods);
+    return makeExo(
+      'EndoDirectory',
+      DirectoryInterface,
+      /** @type {any} */ ({
+        help,
+        has,
+        identify,
+        locate,
+        reverseLocate,
+        followLocatorNameChanges: locator =>
+          makeIteratorRef(directory.followLocatorNameChanges(locator)),
+        list,
+        listIdentifiers,
+        listLocators,
+        followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
+        lookup,
+        maybeLookup: directory.maybeLookup,
+        reverseLookup,
+        storeIdentifier: directory.storeIdentifier,
+        storeLocator: directory.storeLocator,
+        remove,
+        move,
+        copy,
+        makeDirectory,
+        readText: directory.readText,
+        maybeReadText: directory.maybeReadText,
+        writeText: directory.writeText,
+      }),
+    );
   };
 
   return { makeIdentifiedDirectory, makeDirectoryNode };
@@ -22015,7 +21888,7 @@ harden(makeChangeTopic);
 })()
 ,
 // === 110. daemon ./src/mail.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,E,makeExo,makePromiseKit,q,mustMatch,M,makeChangeTopic,assertFormulaNumber,assertValidId,parseId,formatId,assertName,assertNames,assertPetNamePath,namePathFrom,makeDeferredTasks,makeSerialJobs,externalizeId,EnvelopeInterface,DismisserInterface,HandleInterface;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/eventual-send", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/promise-kit", [["makePromiseKit",[$h͏_a => (makePromiseKit = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]]]],["@endo/patterns", [["mustMatch",[$h͏_a => (mustMatch = $h͏_a)]],["M",[$h͏_a => (M = $h͏_a)]]]],["./pubsub.js", [["makeChangeTopic",[$h͏_a => (makeChangeTopic = $h͏_a)]]]],["./formula-identifier.js", [["assertFormulaNumber",[$h͏_a => (assertFormulaNumber = $h͏_a)]],["assertValidId",[$h͏_a => (assertValidId = $h͏_a)]],["parseId",[$h͏_a => (parseId = $h͏_a)]],["formatId",[$h͏_a => (formatId = $h͏_a)]]]],["./pet-name.js", [["assertName",[$h͏_a => (assertName = $h͏_a)]],["assertNames",[$h͏_a => (assertNames = $h͏_a)]],["assertPetNamePath",[$h͏_a => (assertPetNamePath = $h͏_a)]],["namePathFrom",[$h͏_a => (namePathFrom = $h͏_a)]]]],["./deferred-tasks.js", [["makeDeferredTasks",[$h͏_a => (makeDeferredTasks = $h͏_a)]]]],["./serial-jobs.js", [["makeSerialJobs",[$h͏_a => (makeSerialJobs = $h͏_a)]]]],["./locator.js", [["externalizeId",[$h͏_a => (externalizeId = $h͏_a)]]]],["./interfaces.js", [["EnvelopeInterface",[$h͏_a => (EnvelopeInterface = $h͏_a)]],["DismisserInterface",[$h͏_a => (DismisserInterface = $h͏_a)]],["HandleInterface",[$h͏_a => (HandleInterface = $h͏_a)]]]]]);
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,E,makeExo,makePromiseKit,q,mustMatch,M,makeChangeTopic,assertFormulaNumber,assertValidId,parseId,formatId,assertName,assertNames,assertPetNamePath,namePathFrom,makeDeferredTasks,makeSerialJobs,externalizeId,LOCAL_NODE,EnvelopeInterface,DismisserInterface,HandleInterface;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/eventual-send", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/promise-kit", [["makePromiseKit",[$h͏_a => (makePromiseKit = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]]]],["@endo/patterns", [["mustMatch",[$h͏_a => (mustMatch = $h͏_a)]],["M",[$h͏_a => (M = $h͏_a)]]]],["./pubsub.js", [["makeChangeTopic",[$h͏_a => (makeChangeTopic = $h͏_a)]]]],["./formula-identifier.js", [["assertFormulaNumber",[$h͏_a => (assertFormulaNumber = $h͏_a)]],["assertValidId",[$h͏_a => (assertValidId = $h͏_a)]],["parseId",[$h͏_a => (parseId = $h͏_a)]],["formatId",[$h͏_a => (formatId = $h͏_a)]]]],["./pet-name.js", [["assertName",[$h͏_a => (assertName = $h͏_a)]],["assertNames",[$h͏_a => (assertNames = $h͏_a)]],["assertPetNamePath",[$h͏_a => (assertPetNamePath = $h͏_a)]],["namePathFrom",[$h͏_a => (namePathFrom = $h͏_a)]]]],["./deferred-tasks.js", [["makeDeferredTasks",[$h͏_a => (makeDeferredTasks = $h͏_a)]]]],["./serial-jobs.js", [["makeSerialJobs",[$h͏_a => (makeSerialJobs = $h͏_a)]]]],["./locator.js", [["externalizeId",[$h͏_a => (externalizeId = $h͏_a)]],["LOCAL_NODE",[$h͏_a => (LOCAL_NODE = $h͏_a)]]]],["./interfaces.js", [["EnvelopeInterface",[$h͏_a => (EnvelopeInterface = $h͏_a)]],["DismisserInterface",[$h͏_a => (DismisserInterface = $h͏_a)]],["HandleInterface",[$h͏_a => (HandleInterface = $h͏_a)]]]]]);
 
 
 
@@ -22049,7 +21922,7 @@ harden(makeChangeTopic);
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { DaemonCore, DeferredTasks, DefineRequest, Envelope, EnvelopedMessage, EvalRequest, FormulaIdentifier, FormulaNumber, Form, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic, ValueMessage } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, DefineRequest, Envelope, EnvelopedMessage, FormulaIdentifier, FormulaNumber, Form, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic, ValueMessage } from './types.js' */
 
 /** @type {PetName} */
 const NEXT_MESSAGE_NUMBER_NAME = /** @type {PetName} */ ('next-number');
@@ -22141,6 +22014,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @param args.getTypeForId
+ * @param {(node: string) => boolean} args.isLocalKey
  * @returns {MakeMailbox}
  */
        const makeMailboxMaker = ({
@@ -22150,6 +22024,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
   formulateMessage,
   getFormulaForId,
   getTypeForId,
+  isLocalKey,
   randomHex256,
   pinTransient = () => {},
   unpinTransient = () => {},
@@ -22164,7 +22039,11 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
     directory,
     context,
   }) => {
-    const selfId = localSelfId;
+    const { number: selfNumber } = parseId(localSelfId);
+    const selfId = formatId({
+      number: selfNumber,
+      node: /** @type {import('./types.js').NodeNumber} */ (agentNodeNumber),
+    });
 
     /** @param {import('./types.js').FormulaIdentifier} id */
     const externalizeForMessage = async id => {
@@ -22183,9 +22062,8 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
         return harden({ ...base, ids: locators });
       }
       if (message.promiseId) {
-        // promiseId is kept as a raw formula identifier (not externalized)
-        // because clients pass it back to storeIdentifier.
-        return harden({ ...base, promiseId: message.promiseId });
+        const promiseLocator = await externalizeForMessage(message.promiseId);
+        return harden({ ...base, promiseId: promiseLocator });
       }
       return harden(base);
     };
@@ -22253,37 +22131,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
      * @param {FormulaIdentifier} fromId
      * @param {FormulaIdentifier} toId
      */
-    const makeEvalRequest = async (
-      source,
-      codeNames,
-      petNamePaths,
-      fromId,
-      toId,
-    ) => {
-      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex256()
-      );
-      const { promiseId, resolverId } = await formulatePromise(pinTransient);
-      const resolutionIdP = provide(promiseId);
-      const settled = resolutionIdP.then(
-        () => /** @type {const} */ ('fulfilled'),
-        () => /** @type {const} */ ('rejected'),
-      );
-      const request = harden({
-        type: /** @type {const} */ ('eval-request'),
-        from: fromId,
-        to: toId,
-        messageId,
-        source,
-        codeNames,
-        petNamePaths,
-        promiseId,
-        resolverId,
-        settled,
-      });
-      return harden({ request, response: resolutionIdP });
-    };
-
     /**
      * @param {string} source
      * @param {Record<string, { label: string, pattern?: unknown }>} slots
@@ -22294,14 +22141,19 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex256()
       );
-      return harden({
+      const { promiseId, resolverId } = await formulatePromise(pinTransient);
+      const resolutionIdP = provide(promiseId);
+      const definition = harden({
         type: /** @type {const} */ ('definition'),
         from: fromId,
         to: toId,
         messageId,
         source,
         slots,
+        promiseId,
+        resolverId,
       });
+      return harden({ definition, response: resolutionIdP });
     };
 
     /**
@@ -22356,18 +22208,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
           strings: envelope.strings,
           names: envelope.names,
           ids: /** @type {FormulaIdentifier[]} */ (envelope.ids),
-        });
-      }
-
-      if (type === 'eval-request') {
-        return harden({
-          type: 'message',
-          ...envelopeRecord,
-          source: envelope.source,
-          codeNames: envelope.codeNames,
-          petNamePaths: envelope.petNamePaths,
-          promiseId: /** @type {FormulaIdentifier} */ (envelope.promiseId),
-          resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
 
@@ -22436,23 +22276,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
         if (envelope.strings.length < envelope.names.length) {
           throw new Error(
             `Message must have one string before every value delivered`,
-          );
-        }
-        return;
-      }
-      if (envelope.type === 'eval-request') {
-        if (typeof envelope.source !== 'string') {
-          throw new Error('Invalid eval-request source');
-        }
-        if (!Array.isArray(envelope.codeNames)) {
-          throw new Error('Invalid eval-request codeNames');
-        }
-        if (!Array.isArray(envelope.petNamePaths)) {
-          throw new Error('Invalid eval-request petNamePaths');
-        }
-        if (envelope.codeNames.length !== envelope.petNamePaths.length) {
-          throw new Error(
-            `Eval request must have one pet name path for each code name`,
           );
         }
         return;
@@ -22546,7 +22369,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
           resolverId: formula.resolverId,
           settled,
           messageId: formula.messageId,
-          replyTo: formula.replyTo,
+          ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -22579,40 +22402,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
           names: formula.names,
           ids: formula.ids,
           messageId: formula.messageId,
-          replyTo: formula.replyTo,
-          number: messageNumber,
-          date: formula.date,
-          dismissed: dismissal.promise,
-          dismisser,
-        });
-      }
-
-      if (formula.messageType === 'eval-request') {
-        if (
-          formula.source === undefined ||
-          formula.promiseId === undefined ||
-          formula.resolverId === undefined
-        ) {
-          throw new Error('Eval-request message formula is incomplete');
-        }
-        const resolutionIdP = provide(formula.promiseId);
-        /** @type {Promise<'fulfilled' | 'rejected'>} */
-        const settled = resolutionIdP.then(
-          () => /** @type {const} */ ('fulfilled'),
-          () => /** @type {const} */ ('rejected'),
-        );
-        return harden({
-          type: formula.messageType,
-          from: formula.from,
-          to: formula.to,
-          source: formula.source,
-          codeNames: /** @type {string[]} */ (formula.codeNames),
-          petNamePaths: /** @type {NamePath[]} */ (formula.petNamePaths),
-          promiseId: formula.promiseId,
-          resolverId: formula.resolverId,
-          settled,
-          messageId: formula.messageId,
-          replyTo: formula.replyTo,
+          ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -22631,7 +22421,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
           source: formula.source,
           slots: formula.slots,
           messageId: formula.messageId,
-          replyTo: formula.replyTo,
+          ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -22650,7 +22440,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
           description: formula.description,
           fields: formula.fields,
           messageId: formula.messageId,
-          replyTo: formula.replyTo,
+          ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -22659,7 +22449,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       }
 
       if (formula.messageType === 'value') {
-        if (formula.valueId === undefined) {
+        if (formula.valueId === undefined || formula.replyTo === undefined) {
           throw new Error('Value message formula is incomplete');
         }
         return harden({
@@ -22860,7 +22650,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
      * @param {EnvelopedMessage} message
      */
     const post = async (recipient, message) => {
-      /** @param {object} allegedRecipient */
       const envelope = makeEnvelope();
       outbox.set(envelope, message);
       await E(recipient).receive(envelope, selfId);
@@ -22889,7 +22678,13 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       const resolver = /** @type {ERef<Responder>} */ (
         provide(req.resolverId, 'resolver')
       );
-      E.sendOnly(resolver).resolveWithId(id);
+      // Externalize the ID so that a remote resolver (on a different
+      // daemon) can correctly internalize it.  For same-daemon
+      // resolvers the locator is internalized back to LOCAL_NODE.
+      const externalizedId = await externalizeForMessage(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      await E(resolver).resolveWithId(externalizedId);
     };
 
     /** @type {Mail['reject']} */
@@ -22899,29 +22694,18 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
       }
-      if (
-        message.type === 'definition' ||
-        message.type === 'eval-proposal-proposer'
-      ) {
+      if (message.type === 'definition') {
         throw new Error(
           `Cannot reject message ${q(messageNumber)} (type ${q(message.type)})`,
         );
       }
       const rejection = harden(Promise.reject(harden(new Error(reason))));
-      if (message.type === 'eval-proposal-reviewer') {
-        // Eval-proposal reviewer messages hold a live responder reference
-        // rather than a persisted resolverId.
-        const proposal =
-          /** @type {import('./types.js').EvalProposalReviewer} */ (message);
-        E.sendOnly(proposal.responder).resolveWithId(rejection);
-      } else {
-        // request / eval-request messages use a persisted resolver formula.
-        const req = /** @type {Request} */ (message);
-        const resolver = /** @type {ERef<Responder>} */ (
-          provide(req.resolverId, 'resolver')
-        );
-        E.sendOnly(resolver).resolveWithId(rejection);
-      }
+      // request messages use a persisted resolver formula.
+      const req = /** @type {Request} */ (message);
+      const resolver = /** @type {ERef<Responder>} */ (
+        provide(req.resolverId, 'resolver')
+      );
+      E.sendOnly(resolver).resolveWithId(rejection);
     };
 
     /** @type {Mail['send']} */
@@ -23205,94 +22989,45 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       if (senderId !== message.from) {
         throw new Error('Mail fraud: alleged sender does not recognize parcel');
       }
-      await deliver(message);
-    };
-
-    /** @type {Mail['requestEvaluation']} */
-    const requestEvaluation = async (
-      toNameOrPath,
-      source,
-      codeNames,
-      petNamesOrPaths,
-      responseName,
-    ) => {
-      const toPath = namePathFrom(toNameOrPath);
-      await null;
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
-        const responseId = await E(directory).identify(...responseNamePath);
-        if (responseId !== undefined) {
-          context.thisDiesIfThatDies(responseId);
-          return provide(/** @type {FormulaIdentifier} */ (responseId));
+      // For remote senders, translate LOCAL_NODE in sender-owned IDs
+      // to the sender's actual node number.  LOCAL_NODE is only
+      // meaningful within a single daemon; once a message crosses a
+      // boundary, it must be externalized.
+      // For local senders (same daemon) LOCAL_NODE correctly refers
+      // to local formulas and is left as-is.
+      const { node: senderNode } = parseId(senderId);
+      const isRemoteSender =
+        senderNode !== LOCAL_NODE && !isLocalKey(senderNode);
+      if (isRemoteSender) {
+        const externalize = id => {
+          const { number, node } = parseId(id);
+          if (node === LOCAL_NODE) {
+            return formatId({
+              number,
+              node: /** @type {import('./types.js').NodeNumber} */ (senderNode),
+            });
+          }
+          return id;
+        };
+        const m = /** @type {any} */ (message);
+        const patched = { ...m };
+        patched.from = externalize(m.from);
+        if (m.ids) {
+          patched.ids = m.ids.map(externalize);
         }
+        if (m.promiseId) {
+          patched.promiseId = externalize(m.promiseId);
+        }
+        if (m.resolverId) {
+          patched.resolverId = externalize(m.resolverId);
+        }
+        if (m.valueId) {
+          patched.valueId = externalize(m.valueId);
+        }
+        await deliver(harden(patched));
+      } else {
+        await deliver(message);
       }
-
-      /** @type {NamePath[]} */
-      const normalizedPaths = petNamesOrPaths.map(namePathFrom);
-      if (codeNames.length !== normalizedPaths.length) {
-        throw new Error(
-          `Eval request must have one pet name path for each code name`,
-        );
-      }
-
-      const toId = await E(directory).identify(...toPath);
-      if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toPath.join('/')}`);
-      }
-      const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
-
-      const { request: req, response: resolutionIdP } = await makeEvalRequest(
-        source,
-        codeNames,
-        normalizedPaths,
-        selfId,
-        /** @type {FormulaIdentifier} */ (toId),
-      );
-
-      await post(to, req);
-
-      const resolutionId = /** @type {FormulaIdentifier} */ (
-        await resolutionIdP
-      );
-      // Unpin after resolution to prevent collection during async wait.
-      unpinTransient(req.promiseId);
-      unpinTransient(req.resolverId);
-
-      assertValidId(resolutionId);
-      context.thisDiesIfThatDies(resolutionId);
-      const responseP = provide(resolutionId);
-
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
-        await E(directory).storeIdentifier(responseNamePath, resolutionId);
-      }
-
-      return responseP;
-    };
-
-    /** @type {Mail['getEvalRequest']} */
-    const getEvalRequest = messageNumber => {
-      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
-      const message = messages.get(normalizedMessageNumber);
-      if (message === undefined) {
-        throw new Error(`No such message with number ${q(messageNumber)}`);
-      }
-      if (message.type !== 'eval-request') {
-        throw new Error(
-          `Message ${q(messageNumber)} is not an eval-request (is ${q(message.type)})`,
-        );
-      }
-      const evalReq =
-        /** @type {EvalRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
-          message
-        );
-      return harden({
-        source: evalReq.source,
-        codeNames: evalReq.codeNames,
-        petNamePaths: evalReq.petNamePaths,
-        resolverId: evalReq.resolverId,
-        guestHandleId: evalReq.from,
-      });
     };
 
     /** @type {Mail['define']} */
@@ -23308,14 +23043,19 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
         /** @type {FormulaIdentifier} */ (hostHandleId),
       );
 
-      const req = await makeDefineRequest(
+      const { definition: req } = await makeDefineRequest(
         source,
         slots,
         selfId,
         /** @type {FormulaIdentifier} */ (hostHandleId),
       );
 
-      await post(hostHandle, req);
+      try {
+        await post(hostHandle, req);
+      } finally {
+        unpinTransient(req.promiseId);
+        unpinTransient(req.resolverId);
+      }
     };
 
     /** @type {Mail['form']} */
@@ -23393,18 +23133,24 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
         messageId: formMessageId,
         guestHandleId,
       } = getForm(messageNumber);
-      const defaults = Object.fromEntries(fields.map( ({ name, default: dflt }) => [ name, dflt ]));
+      const defaults = Object.fromEntries(
+        fields.map(({ name, default: defaultValue }) => [name, defaultValue]),
+      );
 
       // Apply any defaults
       values = { ...defaults, ...values };
 
       // Validate that values cover every field and match patterns.
       for (const { name, pattern } of fields) {
-        if (!(name in values) || values[name] === undefined) {
+        if (values[name] === undefined) {
           throw new Error(`Missing value for field ${q(name)}`);
         }
         const effectivePattern = pattern !== undefined ? pattern : M.string();
-        mustMatch(values[name], effectivePattern, `field ${q(name)}`);
+        mustMatch(
+          values[name],
+          /** @type {import('@endo/patterns').Pattern} */ (effectivePattern),
+          `field ${q(name)}`,
+        );
       }
 
       // Marshal the values record.
@@ -23536,8 +23282,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       dismiss,
       dismissAll,
       adopt,
-      requestEvaluation,
-      getEvalRequest,
       define,
       form,
       getDefineRequest,
@@ -23707,6 +23451,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
 /**
  * @param {object} args
  * @param {Provide} args.provide
+ * @param {DaemonCore['provideStoreController']} args.provideStoreController
  * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
@@ -23745,7 +23490,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
    * @param {FormulaIdentifier} mailboxStoreId
    * @param {FormulaIdentifier | undefined} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
-   * @param {FormulaIdentifier} nodeWorkerId
    * @param {FormulaIdentifier} networksDirectoryId
    * @param {Context} context
    */
@@ -23760,7 +23504,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
     mailboxStoreId,
     mailHubId,
     mainWorkerId,
-    nodeWorkerId,
     networksDirectoryId,
     context,
   ) => {
@@ -23772,7 +23515,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       context.thisDiesIfThatDies(mailHubId);
     }
     context.thisDiesIfThatDies(mainWorkerId);
-    context.thisDiesIfThatDies(nodeWorkerId);
     context.thisDiesIfThatDies(networksDirectoryId);
 
     const baseController = await provideStoreController(petStoreId);
@@ -23782,8 +23524,6 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       '@self': handleId,
       '@host': hostHandleId,
       '@keypair': keypairId,
-      '@main': mainWorkerId,
-      '@node': nodeWorkerId,
     };
     if (mailHubId !== undefined) {
       specialNames['@mail'] = mailHubId;
@@ -23853,22 +23593,11 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       request,
       send,
       deliver,
-      requestEvaluation: mailboxRequestEvaluation,
       define: mailboxDefine,
       form: mailboxForm,
       submit: mailboxSubmit,
       sendValue: mailboxSendValue,
     } = mailbox;
-
-    /** @type {EndoGuest['requestEvaluation']} */
-    const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
-      mailboxRequestEvaluation(
-        '@host',
-        source,
-        codeNames,
-        petNamePaths,
-        resultName,
-      );
 
     /**
      * @param {Name | undefined} workerName
@@ -23990,6 +23719,9 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
 
     /** @type {EndoGuest['storeBlob']} */
     const storeBlob = async (readerRef, petName) => {
+      if (petName === undefined) {
+        throw new TypeError('storeBlob requires a pet name');
+      }
       const { namePath } = assertPetNamePath(namePathFrom(petName));
 
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
@@ -24055,8 +23787,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       send,
       deliver,
       evaluate,
-      // Eval/Define/Form
-      requestEvaluation,
+      // Define/Form
       define,
       form,
       storeBlob,
@@ -24090,26 +23821,30 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
       ]),
     );
 
-    return makeExo('EndoGuest', GuestInterface, {
-      help: makeHelp(guestHelp),
-      ...wrappedGuest,
-      /** @param {string} locator */
-      followLocatorNameChanges: async locator => {
-        const iterator = guest.followLocatorNameChanges(locator);
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followMessages: async () => {
-        const iterator = guest.followMessages();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followNameChanges: async () => {
-        const iterator = guest.followNameChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-    });
+    return makeExo(
+      'EndoGuest',
+      GuestInterface,
+      /** @type {any} */ ({
+        help: makeHelp(guestHelp),
+        ...wrappedGuest,
+        /** @param {string} locator */
+        followLocatorNameChanges: async locator => {
+          const iterator = guest.followLocatorNameChanges(locator);
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followMessages: async () => {
+          const iterator = guest.followMessages();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followNameChanges: async () => {
+          const iterator = guest.followNameChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+      }),
+    );
   };
 
   return makeGuest;
@@ -24133,7 +23868,18 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
 
 
 
-/** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, Provide, StoreController } from './types.js' */
+/** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, PetName, Provide, StoreController, Topic } from './types.js' */
+
+/**
+ * Minimal async iterator interface matching the AsyncIteratorInterface
+ * exo guard (next takes 0 arguments).
+ *
+ * @template T
+ * @typedef {object} IterRef
+ * @property {() => Promise<IteratorResult<T>>} next
+ * @property {(value: any) => Promise<IteratorResult<T>>} return
+ * @property {(error: any) => Promise<IteratorResult<T>>} throw
+ */
 
 /**
  * @type {Record<string, string>}
@@ -24241,7 +23987,7 @@ harden(channelInvitationHelp);
     for (const name of existingNames) {
       const id = messageStore.identifyLocal(name);
       if (id !== undefined) {
-        const value = await provide(id);
+        const value = await provide(/** @type {FormulaIdentifier} */ (id));
         if (value && typeof value === 'object') {
           const raw = /** @type {any} */ (value);
           // Migrate old-format messages: rename edgeNames->names, add type/messageId
@@ -24345,7 +24091,10 @@ harden(channelInvitationHelp);
         temporaryBanUntil: entry.temporaryBanUntil,
       });
       const formulaId = await persistValue(persistable);
-      await memberStore.storeIdentifier(`member-${entry.memberId}`, formulaId);
+      await memberStore.storeIdentifier(
+        /** @type {PetName} */ (`member-${entry.memberId}`),
+        formulaId,
+      );
     };
 
     /**
@@ -24390,23 +24139,27 @@ harden(channelInvitationHelp);
 
       const messageId = /** @type {FormulaNumber} */ (await randomHex256());
 
-      /** @type {ChannelMessage} */
-      const message = harden({
-        type: 'package',
-        messageId,
-        number: messageNumber,
-        date: new Date().toISOString(),
-        memberId,
-        strings,
-        names,
-        ids,
-        replyTo,
-        replyType,
-      });
+      const message = /** @type {ChannelMessage} */ (
+        harden({
+          type: /** @type {'package'} */ ('package'),
+          messageId,
+          number: messageNumber,
+          date: new Date().toISOString(),
+          memberId,
+          strings,
+          names,
+          ids,
+          ...(replyTo !== undefined ? { replyTo } : {}),
+          ...(replyType !== undefined ? { replyType } : {}),
+        })
+      );
 
       // Persist message to store for rehydration on restart
       const formulaId = await persistValue(message);
-      await messageStore.storeIdentifier(`msg-${String(messageNumber)}`, formulaId);
+      await messageStore.storeIdentifier(
+        /** @type {PetName} */ (`msg-${String(messageNumber)}`),
+        formulaId,
+      );
 
       messages.push(message);
       messagesTopic.publisher.next(message);
@@ -24451,7 +24204,9 @@ harden(channelInvitationHelp);
         yield* messages;
         yield* messagesTopic.subscribe();
       })();
-      const rawIterRef = makeIteratorRef(iterator);
+      const rawIterRef = /** @type {IterRef<ChannelMessage>} */ (
+        /** @type {unknown} */ (makeIteratorRef(iterator))
+      );
       return makeExo('GatedAsyncIterator', AsyncIteratorInterface, {
         async next() {
           checkAccess();
@@ -24760,7 +24515,9 @@ harden(channelInvitationHelp);
         }
       })();
 
-      const rawIterRef = makeIteratorRef(iterator);
+      const rawIterRef = /** @type {IterRef<unknown>} */ (
+        /** @type {unknown} */ (makeIteratorRef(iterator))
+      );
       return makeExo('GatedHeatEventIterator', AsyncIteratorInterface, {
         async next() {
           checkAccess();
@@ -24845,12 +24602,26 @@ harden(channelInvitationHelp);
 
       return makeExo('EndoChannelMember', ChannelMemberInterface, {
         help: makeHelp(channelMemberHelp),
-        post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds, replyType) => {
+        post: async (
+          strings,
+          names,
+          petNamesOrPaths,
+          replyTo,
+          resolvedIds,
+          replyType,
+        ) => {
           checkAccess();
           const now = Date.now();
           checkPostRate(now);
           const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-          await postInternal(entry.memberId, strings, names, ids, replyTo, replyType);
+          await postInternal(
+            entry.memberId,
+            strings,
+            names,
+            ids,
+            replyTo,
+            replyType,
+          );
         },
         setProposedName: async newName => {
           checkAccess();
@@ -25011,7 +24782,7 @@ harden(channelInvitationHelp);
       if (storeName.startsWith('member-')) {
         const id = memberStore.identifyLocal(storeName);
         if (id !== undefined) {
-          const value = await provide(id);
+          const value = await provide(/** @type {FormulaIdentifier} */ (id));
           if (value && typeof value === 'object') {
             const data = /** @type {any} */ (value);
             // Migration: convert old rateLimitPerSecond to heatConfig
@@ -25105,152 +24876,170 @@ harden(channelInvitationHelp);
       }
     }
 
-    /** @type {EndoChannel} */
-    const channelExo = makeExo('EndoChannel', ChannelInterface, {
-      help: makeHelp(channelHelp),
-      post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds, replyType) => {
-        const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-        await postInternal(adminMemberId, strings, names, ids, replyTo, replyType);
-      },
-      followMessages: async () => {
-        const iterator = (async function* channelMessages() {
-          yield* messages;
-          yield* messagesTopic.subscribe();
-        })();
-        return makeIteratorRef(iterator);
-      },
-      listMessages: async () => harden([...messages]),
-      createInvitation: async memberProposedName => {
-        // Enforce unique invitation names per inviter (admin)
-        if (adminInvitations.has(memberProposedName)) {
-          throw new Error(
-            `An invitation named ${q(memberProposedName)} already exists from this member`,
-          );
-        }
-        const pedigree = [proposedName];
-        const memberId = allocateMemberId();
-        const newEntry = {
-          proposedName: memberProposedName,
-          invitedAs: memberProposedName,
-          memberId,
-          inviterMemberId: adminMemberId,
-          pedigree,
-          valid: true,
-          joined: false,
-          heatConfig: /** @type {HeatConfig | null} */ (null),
-          temporaryBanUntil: 0,
-        };
-        memberEntries.set(memberId, newEntry);
-        const attenuator = makeAttenuator(newEntry);
-        const invitation = makeInvitation(
-          newEntry,
-          adminCheckAccess,
-          adminCheckPostRate,
-        );
-        const rec = { invitation, attenuator, entry: newEntry };
-        adminInvitations.set(memberProposedName, rec);
-        const regKey = `${adminMemberId}:${memberProposedName}`;
-        invitationRegistry.set(regKey, rec);
+    const channelExo = /** @type {EndoChannel} */ (
+      /** @type {unknown} */
+      (
+        makeExo('EndoChannel', ChannelInterface, {
+          help: makeHelp(channelHelp),
+          post: async (
+            strings,
+            names,
+            petNamesOrPaths,
+            replyTo,
+            resolvedIds,
+            replyType,
+          ) => {
+            const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
+            await postInternal(
+              adminMemberId,
+              strings,
+              names,
+              ids,
+              replyTo,
+              replyType,
+            );
+          },
+          followMessages: async () => {
+            const iterator = (async function* channelMessages() {
+              yield* messages;
+              yield* messagesTopic.subscribe();
+            })();
+            return makeIteratorRef(iterator);
+          },
+          listMessages: async () => harden([...messages]),
+          createInvitation: async memberProposedName => {
+            // Enforce unique invitation names per inviter (admin)
+            if (adminInvitations.has(memberProposedName)) {
+              throw new Error(
+                `An invitation named ${q(memberProposedName)} already exists from this member`,
+              );
+            }
+            const pedigree = [proposedName];
+            const memberId = allocateMemberId();
+            const newEntry = {
+              proposedName: memberProposedName,
+              invitedAs: memberProposedName,
+              memberId,
+              inviterMemberId: adminMemberId,
+              pedigree,
+              valid: true,
+              joined: false,
+              heatConfig: /** @type {HeatConfig | null} */ (null),
+              temporaryBanUntil: 0,
+            };
+            memberEntries.set(memberId, newEntry);
+            const attenuator = makeAttenuator(newEntry);
+            const invitation = makeInvitation(
+              newEntry,
+              adminCheckAccess,
+              adminCheckPostRate,
+            );
+            const rec = { invitation, attenuator, entry: newEntry };
+            adminInvitations.set(memberProposedName, rec);
+            const regKey = `${adminMemberId}:${memberProposedName}`;
+            invitationRegistry.set(regKey, rec);
 
-        // Register handle info for this member so its children can chain
-        /** @type {Map<string, { invitation: object, attenuator: object, entry: MemberEntry }>} */
-        const childInvitations = new Map();
+            // Register handle info for this member so its children can chain
+            /** @type {Map<string, { invitation: object, attenuator: object, entry: MemberEntry }>} */
+            const childInvitations = new Map();
 
-        const checkAccess = () => {
-          checkEntryValidity(newEntry);
-        };
-        const checkPostRate = makeHeatCheckPostRate(
-          newEntry,
-          adminCheckPostRate,
-        );
-        memberHandleInfo.set(memberId, {
-          checkAccess,
-          checkPostRate,
-          invitations: childInvitations,
-        });
+            const checkAccess = () => {
+              checkEntryValidity(newEntry);
+            };
+            const checkPostRate = makeHeatCheckPostRate(
+              newEntry,
+              adminCheckPostRate,
+            );
+            memberHandleInfo.set(memberId, {
+              checkAccess,
+              checkPostRate,
+              invitations: childInvitations,
+            });
 
-        await persistMemberEntry(newEntry);
-        return harden([invitation, attenuator]);
-      },
-      join: async memberProposedName => {
-        // Try exact name match first (invitedAs matches proposed name)
-        const adminKey = `${adminMemberId}:${memberProposedName}`;
-        const adminRec = invitationRegistry.get(adminKey);
-        if (adminRec) {
-          return adminRec.invitation.join(memberProposedName);
-        }
-        for (const [, rec] of invitationRegistry) {
-          if (rec.entry.invitedAs === memberProposedName) {
-            return rec.invitation.join(memberProposedName);
-          }
-        }
-        // Fallback: claim the first unclaimed invitation.
-        // The inviter's name for the invitation is just bookkeeping —
-        // the joiner chooses their own display name.
-        for (const [, rec] of invitationRegistry) {
-          if (!rec.entry.joined) {
-            return rec.invitation.join(memberProposedName);
-          }
-        }
-        throw new Error(
-          `No unclaimed invitation exists — ask the channel admin to create one`,
-        );
-      },
-      getMembers: async () => {
-        const result = [];
-        for (const [, rec] of adminInvitations) {
-          result.push(
-            harden({
-              proposedName: rec.entry.proposedName,
-              invitedAs: rec.entry.invitedAs,
-              memberId: rec.entry.memberId,
-              pedigree: [...rec.entry.pedigree],
-              active: rec.entry.valid,
-            }),
-          );
-        }
-        return harden(result);
-      },
-      getProposedName: () => proposedName,
-      getMemberId: () => adminMemberId,
-      getMember: async targetMemberId => {
-        const targetEntry = memberEntries.get(targetMemberId);
-        if (!targetEntry) {
-          return undefined;
-        }
-        const pedigreeMemberIds = buildPedigreeMemberIds(targetEntry);
-        return harden({
-          proposedName: targetEntry.proposedName,
-          invitedAs: targetEntry.invitedAs,
-          memberId: targetEntry.memberId,
-          pedigree: [...targetEntry.pedigree],
-          pedigreeMemberIds,
-        });
-      },
-      getAttenuator: async invitedAs => {
-        const rec = adminInvitations.get(invitedAs);
-        if (!rec) {
-          throw new Error(
-            `No invitation named ${q(invitedAs)} found from this member`,
-          );
-        }
-        return rec.attenuator;
-      },
-      getHeatConfig: async () => {
-        // Admin has no heat config (unrestricted)
-        return null;
-      },
-      getHopInfo: async () => {
-        // Admin has no ancestor chain — return empty
-        return harden({ policies: harden([]), states: harden([]) });
-      },
-      followHeatEvents: async () => {
-        // Admin gets an empty iterator (no hops to monitor)
-        // eslint-disable-next-line no-empty-function, require-yield
-        const iterator = (async function* emptyHeatEvents() {})();
-        return makeIteratorRef(iterator);
-      },
-    });
+            await persistMemberEntry(newEntry);
+            return harden([invitation, attenuator]);
+          },
+          join: async memberProposedName => {
+            // Try exact name match first (invitedAs matches proposed name)
+            const adminKey = `${adminMemberId}:${memberProposedName}`;
+            const adminRec = invitationRegistry.get(adminKey);
+            if (adminRec) {
+              return adminRec.invitation.join(memberProposedName);
+            }
+            for (const [, rec] of invitationRegistry) {
+              if (rec.entry.invitedAs === memberProposedName) {
+                return rec.invitation.join(memberProposedName);
+              }
+            }
+            // Fallback: claim the first unclaimed invitation.
+            // The inviter's name for the invitation is just bookkeeping —
+            // the joiner chooses their own display name.
+            for (const [, rec] of invitationRegistry) {
+              if (!rec.entry.joined) {
+                return rec.invitation.join(memberProposedName);
+              }
+            }
+            throw new Error(
+              `No unclaimed invitation exists — ask the channel admin to create one`,
+            );
+          },
+          getMembers: async () => {
+            const result = [];
+            for (const [, rec] of adminInvitations) {
+              result.push(
+                harden({
+                  proposedName: rec.entry.proposedName,
+                  invitedAs: rec.entry.invitedAs,
+                  memberId: rec.entry.memberId,
+                  pedigree: [...rec.entry.pedigree],
+                  active: rec.entry.valid,
+                }),
+              );
+            }
+            return harden(result);
+          },
+          getProposedName: () => proposedName,
+          getMemberId: () => adminMemberId,
+          getMember: async targetMemberId => {
+            const targetEntry = memberEntries.get(targetMemberId);
+            if (!targetEntry) {
+              return undefined;
+            }
+            const pedigreeMemberIds = buildPedigreeMemberIds(targetEntry);
+            return harden({
+              proposedName: targetEntry.proposedName,
+              invitedAs: targetEntry.invitedAs,
+              memberId: targetEntry.memberId,
+              pedigree: [...targetEntry.pedigree],
+              pedigreeMemberIds,
+            });
+          },
+          getAttenuator: async invitedAs => {
+            const rec = adminInvitations.get(invitedAs);
+            if (!rec) {
+              throw new Error(
+                `No invitation named ${q(invitedAs)} found from this member`,
+              );
+            }
+            return rec.attenuator;
+          },
+          getHeatConfig: async () => {
+            // Admin has no heat config (unrestricted)
+            return null;
+          },
+          getHopInfo: async () => {
+            // Admin has no ancestor chain — return empty
+            return harden({ policies: harden([]), states: harden([]) });
+          },
+          followHeatEvents: async () => {
+            // Admin gets an empty iterator (no hops to monitor)
+            // eslint-disable-next-line no-empty-function, require-yield
+            const iterator = (async function* emptyHeatEvents() {})();
+            return makeIteratorRef(iterator);
+          },
+        })
+      )
+    );
 
     return channelExo;
   };
@@ -25303,8 +25092,7 @@ harden(fromHex);
 })()
 ,
 // === 115. daemon ./src/host.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let E,makeExo,makeError,q,makeIteratorRef,assertPetName,assertPetNamePath,assertName,assertNames,assertNamePath,namePathFrom,assertFormulaNumber,assertNodeNumber,parseId,formatId,addressesFromLocator,toHex,fromHex,makePetSitter,makeDeferredTasks,HostInterface,hostHelp,makeHelp;$h͏_imports([["@endo/far", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/errors", [["makeError",[$h͏_a => (makeError = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]],["./pet-name.js", [["assertPetName",[$h͏_a => (assertPetName = $h͏_a)]],["assertPetNamePath",[$h͏_a => (assertPetNamePath = $h͏_a)]],["assertName",[$h͏_a => (assertName = $h͏_a)]],["assertNames",[$h͏_a => (assertNames = $h͏_a)]],["assertNamePath",[$h͏_a => (assertNamePath = $h͏_a)]],["namePathFrom",[$h͏_a => (namePathFrom = $h͏_a)]]]],["./formula-identifier.js", [["assertFormulaNumber",[$h͏_a => (assertFormulaNumber = $h͏_a)]],["assertNodeNumber",[$h͏_a => (assertNodeNumber = $h͏_a)]],["parseId",[$h͏_a => (parseId = $h͏_a)]],["formatId",[$h͏_a => (formatId = $h͏_a)]]]],["./locator.js", [["addressesFromLocator",[$h͏_a => (addressesFromLocator = $h͏_a)]]]],["./hex.js", [["toHex",[$h͏_a => (toHex = $h͏_a)]],["fromHex",[$h͏_a => (fromHex = $h͏_a)]]]],["./pet-sitter.js", [["makePetSitter",[$h͏_a => (makePetSitter = $h͏_a)]]]],["./deferred-tasks.js", [["makeDeferredTasks",[$h͏_a => (makeDeferredTasks = $h͏_a)]]]],["./interfaces.js", [["HostInterface",[$h͏_a => (HostInterface = $h͏_a)]]]],["./help-text.js", [["hostHelp",[$h͏_a => (hostHelp = $h͏_a)]],["makeHelp",[$h͏_a => (makeHelp = $h͏_a)]]]]]);
-
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let E,makeExo,makeError,q,makeIteratorRef,assertPetName,assertPetNamePath,assertName,assertNamePath,namePathFrom,assertFormulaNumber,assertNodeNumber,parseId,formatId,addressesFromLocator,formatLocator,toHex,fromHex,makePetSitter,makeDeferredTasks,HostInterface,hostHelp,makeHelp;$h͏_imports([["@endo/far", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/errors", [["makeError",[$h͏_a => (makeError = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]],["./pet-name.js", [["assertPetName",[$h͏_a => (assertPetName = $h͏_a)]],["assertPetNamePath",[$h͏_a => (assertPetNamePath = $h͏_a)]],["assertName",[$h͏_a => (assertName = $h͏_a)]],["assertNamePath",[$h͏_a => (assertNamePath = $h͏_a)]],["namePathFrom",[$h͏_a => (namePathFrom = $h͏_a)]]]],["./formula-identifier.js", [["assertFormulaNumber",[$h͏_a => (assertFormulaNumber = $h͏_a)]],["assertNodeNumber",[$h͏_a => (assertNodeNumber = $h͏_a)]],["parseId",[$h͏_a => (parseId = $h͏_a)]],["formatId",[$h͏_a => (formatId = $h͏_a)]]]],["./locator.js", [["addressesFromLocator",[$h͏_a => (addressesFromLocator = $h͏_a)]],["formatLocator",[$h͏_a => (formatLocator = $h͏_a)]]]],["./hex.js", [["toHex",[$h͏_a => (toHex = $h͏_a)]],["fromHex",[$h͏_a => (fromHex = $h͏_a)]]]],["./pet-sitter.js", [["makePetSitter",[$h͏_a => (makePetSitter = $h͏_a)]]]],["./deferred-tasks.js", [["makeDeferredTasks",[$h͏_a => (makeDeferredTasks = $h͏_a)]]]],["./interfaces.js", [["HostInterface",[$h͏_a => (HostInterface = $h͏_a)]]]],["./help-text.js", [["hostHelp",[$h͏_a => (hostHelp = $h͏_a)]],["makeHelp",[$h͏_a => (makeHelp = $h͏_a)]]]]]);
 
 
 
@@ -25349,12 +25137,15 @@ const assertPowersName = name => {
  * @param {MakeHostOrGuestOptions | undefined} opts
  * @returns {{ introducedNames: Record<Name, PetName>, agentName?: PetName }}
  */
-const normalizeHostOrGuestOptions = opts => ({
-  introducedNames: /** @type {Record<Name, PetName>} */ (
-    opts?.introducedNames ?? Object.create(null)
-  ),
-  agentName: /** @type {PetName | undefined} */ (opts?.agentName),
-});
+const normalizeHostOrGuestOptions = opts => {
+  const agentName = /** @type {PetName | undefined} */ (opts?.agentName);
+  return {
+    introducedNames: /** @type {Record<Name, PetName>} */ (
+      opts?.introducedNames ?? Object.create(null)
+    ),
+    ...(agentName !== undefined && { agentName }),
+  };
+};
 
 /**
  * @param {object} args
@@ -25368,7 +25159,6 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateUnconfined']} args.formulateUnconfined
  * @param {DaemonCore['formulateBundle']} args.formulateBundle
- * @param {DaemonCore['formulateArchive']} args.formulateArchive
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['checkinTree']} args.checkinTree
  * @param {DaemonCore['formulateMount']} args.formulateMount
@@ -25403,7 +25193,6 @@ const normalizeHostOrGuestOptions = opts => ({
   formulateEval,
   formulateUnconfined,
   formulateBundle,
-  formulateArchive,
   formulateReadableBlob,
   checkinTree,
   formulateMount,
@@ -25440,7 +25229,6 @@ const normalizeHostOrGuestOptions = opts => ({
    * @param {FormulaIdentifier | undefined} mailHubId
    * @param {FormulaIdentifier} inspectorId
    * @param {FormulaIdentifier} mainWorkerId
-   * @param {FormulaIdentifier} nodeWorkerId
    * @param {FormulaIdentifier} endoId
    * @param {FormulaIdentifier} networksDirectoryId
    * @param {FormulaIdentifier} pinsDirectoryId
@@ -25460,7 +25248,6 @@ const normalizeHostOrGuestOptions = opts => ({
     mailHubId,
     inspectorId,
     mainWorkerId,
-    nodeWorkerId,
     endoId,
     networksDirectoryId,
     pinsDirectoryId,
@@ -25470,7 +25257,6 @@ const normalizeHostOrGuestOptions = opts => ({
   ) => {
     context.thisDiesIfThatDies(storeId);
     context.thisDiesIfThatDies(mainWorkerId);
-    context.thisDiesIfThatDies(nodeWorkerId);
     context.thisDiesIfThatDies(mailboxStoreId);
     if (mailHubId !== undefined) {
       context.thisDiesIfThatDies(mailHubId);
@@ -25478,6 +25264,7 @@ const normalizeHostOrGuestOptions = opts => ({
 
     const baseController = await provideStoreController(storeId);
     const mailboxController = await provideStoreController(mailboxStoreId);
+
     /** @type {Record<string, FormulaIdentifier>} */
     const specialNames = {
       ...platformNames,
@@ -25486,7 +25273,6 @@ const normalizeHostOrGuestOptions = opts => ({
       '@host': hostHandleId ?? handleId,
       '@keypair': keypairId,
       '@main': mainWorkerId,
-      '@node': nodeWorkerId,
       '@endo': endoId,
       '@nets': networksDirectoryId,
       '@pins': pinsDirectoryId,
@@ -25628,37 +25414,7 @@ const normalizeHostOrGuestOptions = opts => ({
         E(directory).storeIdentifier(namePath, identifiers.workerId),
       );
       const workerLabel = namePath[namePath.length - 1];
-      const { value } = await formulateWorker(tasks, { label: workerLabel });
-      return value;
-    };
-
-    /**
-     * Formulate an unlocked Node.js worker (no SES lockdown).
-     * Unlike `provideWorker`, the resulting worker is always a real
-     * Node.js process regardless of supervisor, so it can load
-     * Node-only dependencies (crypto, net, libp2p, etc.).
-     *
-     * @param {NameOrPath} workerNamePath
-     */
-    const makeNodeWorker = async workerNamePath => {
-      const namePath = namePathFrom(workerNamePath);
-      assertNamePath(namePath);
-      const workerId = await E(directory).identify(...namePath);
-
-      if (workerId !== undefined) {
-        return provide(/** @type {FormulaIdentifier} */ (workerId), 'worker');
-      }
-
-      /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-      tasks.push(identifiers =>
-        E(directory).storeIdentifier(namePath, identifiers.workerId),
-      );
-      const workerLabel = namePath[namePath.length - 1];
-      const { value } = await formulateWorker(tasks, {
-        kind: 'node',
-        label: workerLabel,
-      });
+      const { value } = await formulateWorker(tasks, undefined, workerLabel);
       return value;
     };
 
@@ -25722,8 +25478,13 @@ const normalizeHostOrGuestOptions = opts => ({
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(workerName, tasks.push);
-      const workerLabel = explicitLabel ?? (resultName !== undefined ? `eval:${resultName}` : 'eval');
+      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(
+        workerName,
+        tasks.push,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (resultName !== undefined ? `eval:${resultName}` : 'eval');
 
       /** @type {(FormulaIdentifier | NamePath)[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(petNameOrPath => {
@@ -25789,9 +25550,14 @@ const normalizeHostOrGuestOptions = opts => ({
       /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel } = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId, workerLabel } = prepareWorkerFormulation(
+        workerName,
+        tasks.push,
+      );
 
-      const powersId = /** @type {FormulaIdentifier | undefined} */ (petStore.identifyLocal(/** @type {Name} */ (powersName)));
+      const powersId = /** @type {FormulaIdentifier | undefined} */ (
+        petStore.identifyLocal(/** @type {Name} */ (powersName))
+      );
       if (powersId === undefined) {
         assertPetName(powersName);
         const powersPetName = powersName;
@@ -25802,7 +25568,10 @@ const normalizeHostOrGuestOptions = opts => ({
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          E(directory).storeIdentifier(namePathFrom(resultName), identifiers.capletId),
+          E(directory).storeIdentifier(
+            namePathFrom(resultName),
+            identifiers.capletId,
+          ),
         );
       }
 
@@ -25818,12 +25587,22 @@ const normalizeHostOrGuestOptions = opts => ({
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
-      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(
-          /** @type {Name | undefined} */ (workerName),
-          options,
-        );
-      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `unconfined:${specifier}`);
+      const {
+        tasks,
+        workerId,
+        workerLabel: explicitLabel,
+        powersId,
+        env,
+        workerTrustedShims,
+      } = prepareMakeCaplet(
+        /** @type {Name | undefined} */ (workerName),
+        options,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (options?.resultName !== undefined
+          ? `${options.resultName}`
+          : `unconfined:${specifier}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -25848,12 +25627,22 @@ const normalizeHostOrGuestOptions = opts => ({
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(
-          /** @type {Name | undefined} */ (workerName),
-          options,
-        );
-      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `bundle:${bundleName}`);
+      const {
+        tasks,
+        workerId,
+        workerLabel: explicitLabel,
+        powersId,
+        env,
+        workerTrustedShims,
+      } = prepareMakeCaplet(
+        /** @type {Name | undefined} */ (workerName),
+        options,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (options?.resultName !== undefined
+          ? `${options.resultName}`
+          : `bundle:${bundleName}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -25867,38 +25656,6 @@ const normalizeHostOrGuestOptions = opts => ({
         env,
         workerTrustedShims,
         workerLabel,
-      );
-      return value;
-    };
-
-    /** @type {EndoHost['makeArchive']} */
-    const makeArchive = async (workerName, archiveName, options) => {
-      const archiveId = petStore.identifyLocal(
-        /** @type {Name} */ (archiveName),
-      );
-      if (archiveId === undefined) {
-        throw new TypeError(
-          `Unknown pet name for archive: ${q(archiveName)}`,
-        );
-      }
-
-      const { tasks, workerId, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(
-          /** @type {Name | undefined} */ (workerName),
-          options,
-        );
-
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const { value } = await formulateArchive(
-        hostId,
-        handleId,
-        /** @type {FormulaIdentifier} */ (archiveId),
-        tasks,
-        workerId,
-        powersId,
-        env,
-        workerTrustedShims,
       );
       return value;
     };
@@ -25981,7 +25738,11 @@ const normalizeHostOrGuestOptions = opts => ({
       let host = getNamedAgent(petName, 'host');
       await null;
       if (host === undefined) {
-        const hostLabel = agentName ? `host:${agentName}` : petName ? `host:${petName}` : 'host';
+        const hostLabel = agentName
+          ? `host:${agentName}`
+          : petName
+            ? `host:${petName}`
+            : 'host';
         const { value, id } =
           // Behold, recursion:
           await formulateHost(
@@ -26035,7 +25796,11 @@ const normalizeHostOrGuestOptions = opts => ({
       let guest = getNamedAgent(handleName, 'guest');
       await null;
       if (guest === undefined) {
-        const guestLabel = agentName ? `guest:${agentName}` : handleName ? `guest:${handleName}` : 'guest';
+        const guestLabel = agentName
+          ? `guest:${agentName}`
+          : handleName
+            ? `guest:${handleName}`
+            : 'guest';
         const { value, id } =
           // Behold, recursion:
           await formulateGuest(
@@ -26085,7 +25850,9 @@ const normalizeHostOrGuestOptions = opts => ({
       assertPetName(petName);
       /** @type {DeferredTasks<{ timerId: import('./types.js').FormulaIdentifier }>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.timerId));
+      tasks.push(identifiers =>
+        petStore.storeIdentifier(petName, identifiers.timerId),
+      );
       const { value } = await formulateTimer(
         Number(intervalMs),
         label || petName,
@@ -26103,7 +25870,9 @@ const normalizeHostOrGuestOptions = opts => ({
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.channelId));
+      tasks.push(identifiers =>
+        petStore.storeIdentifier(petName, identifiers.channelId),
+      );
       const { value } = await formulateChannel(
         hostId,
         handleId,
@@ -26188,10 +25957,7 @@ const normalizeHostOrGuestOptions = opts => ({
       const handleLocator = handleUrl.href;
 
       const invitation = await provide(invitationId, 'invitation');
-      const acceptResult = await E(invitation).accept(
-        handleLocator,
-        guestName,
-      );
+      const acceptResult = await E(invitation).accept(handleLocator, guestName);
 
       // The host's accept handler returns the synced store number.
       const { syncedStoreNumber } =
@@ -26210,13 +25976,67 @@ const normalizeHostOrGuestOptions = opts => ({
         peerId  // store dependency
       );
 
-      // Wrap the synced store in a directory so it acts as a NameHub
-      // when resolved via multi-segment paths like "guestName.petName".
-      const { id: syncedDirectoryId } =
-        await formulateDirectoryForStore(syncedStoreId);
+      // Create a local guest backed by the synced store.
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
+      const guestTasks = makeDeferredTasks();
+      const { id: localGuestId } = await formulateGuest(
+        hostId,
+        handleId,
+        guestTasks,
+        `guest:${guestName}`,
+        syncedStoreId,
+      );
 
-      // Write the directory into the host's pet store under guestName.
-      await petStore.storeIdentifier(guestName, syncedDirectoryId);
+      // Look up the local guest's handle from its formula so we can
+      // name it.  Incarnating the handle transitively incarnates the
+      // guest and its synced pet store, starting synchronisation.
+      const localGuestFormula =
+        /** @type {import('./types.js').GuestFormula} */ (
+          await getFormulaForId(localGuestId)
+        );
+      await E(directory).storeIdentifier(
+        ['@pins', `guest-${guestName}`],
+        localGuestFormula.handle,
+      );
+
+      // Store the remote handle under guestName for mail delivery.
+      const remoteHandleId = formatId({
+        number: /** @type {import('./types.js').FormulaNumber} */ (
+          remoteHandleNumber
+        ),
+        node: /** @type {import('./types.js').NodeNumber} */ (nodeNumber),
+      });
+      const remoteHandleLocator = formatLocator(remoteHandleId, 'handle');
+      await E(directory).storeLocator([guestName], remoteHandleLocator);
+    };
+
+    /** @type {EndoHost['registerSyncedStore']} */
+    const registerSyncedStore = async (_petName, _syncedStoreId) => {
+      // No-op: the synced store is now discovered via the formula
+      // graph (guest handle → guest → petStore).  Retained for
+      // interface compatibility.
+    };
+
+    /** @type {EndoHost['getSyncedStore']} */
+    const getSyncedStore = async petName => {
+      // Traverse the formula graph:
+      // @pins/guest-<name> → local guest handle
+      //   → handle formula.agent → guest formula
+      //     → guest formula.petStore → synced store
+      const localHandleId = await E(directory).identify(
+        '@pins',
+        `guest-${petName}`,
+      );
+      if (localHandleId === undefined) {
+        throw new Error(`No synced store for ${q(petName)}`);
+      }
+      const handleFormula = /** @type {import('./types.js').HandleFormula} */ (
+        await getFormulaForId(/** @type {FormulaIdentifier} */ (localHandleId))
+      );
+      const guestFormula = /** @type {import('./types.js').GuestFormula} */ (
+        await getFormulaForId(handleFormula.agent)
+      );
+      return provide(guestFormula.petStore, 'synced-pet-store');
     };
 
     /** @type {EndoHost['cancel']} */
@@ -26299,7 +26119,13 @@ const normalizeHostOrGuestOptions = opts => ({
       if (!formulaNumber) {
         throw makeError('Locator must have an "id" parameter');
       }
-      await E(directory).storeLocator(namePath, locator);
+      const id = formatId({
+        number: /** @type {import('./types.js').FormulaNumber} */ (
+          formulaNumber
+        ),
+        node: /** @type {NodeNumber} */ (nodeNumber),
+      });
+      await E(directory).storeIdentifier(namePath, id);
     };
 
     const { reverseIdentify } = specialStore;
@@ -26355,54 +26181,6 @@ const normalizeHostOrGuestOptions = opts => ({
      * @returns {Promise<unknown>} The value.
      */
     const lookupById = async id => provide(id);
-
-    /** @type {EndoHost['approveEvaluation']} */
-    const approveEvaluation = async (messageNumber, workerName) => {
-      if (workerName !== undefined) {
-        assertName(workerName);
-      }
-      const { source, codeNames, petNamePaths, resolverId, guestHandleId } =
-        mailbox.getEvalRequest(messageNumber);
-
-      assertNames(codeNames);
-
-      const guestAgentId = await getAgentIdForHandleId(
-        /** @type {FormulaIdentifier} */ (guestHandleId),
-      );
-      const guestAgent = await provide(guestAgentId, 'agent');
-
-      // Resolve endowments from the guest's namespace
-      /** @type {(FormulaIdentifier | NamePath)[]} */
-      const endowmentFormulaIdsOrPaths = await Promise.all(
-        petNamePaths.map(async petNamePath => {
-          if (petNamePath.length === 1) {
-            const id = await E(guestAgent).identify(petNamePath[0]);
-            if (id === undefined) {
-              throw new Error(
-                `Unknown pet name ${q(petNamePath[0])} in guest namespace`,
-              );
-            }
-            return /** @type {FormulaIdentifier} */ (id);
-          }
-          return petNamePath;
-        }),
-      );
-
-      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-      const { workerId } = prepareWorkerFormulation(workerName, tasks.push);
-
-      const { id: evalId } = await formulateEval(
-        guestAgentId,
-        source,
-        codeNames,
-        endowmentFormulaIdsOrPaths,
-        tasks,
-        workerId,
-      );
-      const resolver = await provide(resolverId, 'resolver');
-      E.sendOnly(resolver).resolveWithId(evalId);
-    };
 
     /** @type {EndoHost['endow']} */
     const endow = async (messageNumber, bindings, workerName, resultName) => {
@@ -26534,11 +26312,9 @@ const normalizeHostOrGuestOptions = opts => ({
       provideGuest,
       provideHost,
       provideWorker,
-      makeNodeWorker,
       evaluate,
       makeUnconfined,
       makeBundle,
-      makeArchive,
       cancel,
       gateway,
       greeter,
@@ -26554,7 +26330,8 @@ const normalizeHostOrGuestOptions = opts => ({
       makeTimer: makeTimerCmd,
       invite,
       accept,
-      approveEvaluation,
+      getSyncedStore,
+      registerSyncedStore,
       endow,
       submit,
       sendValue,
@@ -26582,7 +26359,6 @@ const normalizeHostOrGuestOptions = opts => ({
     const unwrappedMethods = new Set([
       'handle',
       'reverseIdentify',
-      'approveEvaluation',
       'endow',
       'submit',
       'sendValue',
@@ -26594,31 +26370,35 @@ const normalizeHostOrGuestOptions = opts => ({
       ]),
     );
 
-    const hostExo = makeExo('EndoHost', HostInterface, {
-      help: makeHelp(hostHelp),
-      ...wrappedHost,
-      /** @param {string} locator */
-      followLocatorNameChanges: async locator => {
-        const iterator = host.followLocatorNameChanges(locator);
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followMessages: async () => {
-        const iterator = host.followMessages();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followNameChanges: async () => {
-        const iterator = host.followNameChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followPeerChanges: async () => {
-        const iterator = await host.followPeerChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-    });
+    const hostExo = makeExo(
+      'EndoHost',
+      HostInterface,
+      /** @type {any} */ ({
+        help: makeHelp(hostHelp),
+        ...wrappedHost,
+        /** @param {string} locator */
+        followLocatorNameChanges: async locator => {
+          const iterator = host.followLocatorNameChanges(locator);
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followMessages: async () => {
+          const iterator = host.followMessages();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followNameChanges: async () => {
+          const iterator = host.followNameChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+        followPeerChanges: async () => {
+          const iterator = await host.followPeerChanges();
+          await collectIfDirty();
+          return makeIteratorRef(iterator);
+        },
+      }),
+    );
 
     await provide(mainWorkerId, 'worker');
 
@@ -27044,7 +26824,7 @@ const short = id => id.slice(0, 8);
      * Triggers cancellation of this context and all registered dependents.
      *
      * @param {Error} reason - The error or reason for cancellation.
-     * @param {string} [prefix='*'] - A prefix for console logging, useful for indentation.
+     * @param {string} [prefix] - A prefix for console logging, useful for indentation.
      */
     const cancel = (reason, prefix = '*') => {
       if (done) return disposed;
@@ -27516,11 +27296,11 @@ const short = id => id.slice(0, 8);
           // reference; only workers that actively endow or retain the
           // collected formula should be affected.
           if (
-            formula.cancelWithWorker &&
-            /** @type {string} */ (formula.cancelWithWorker)
-              .startsWith(`${workerId}:`)
+            /** @type {any} */ (formula).cancelWithWorker &&
+            /** @type {string} */ (
+              /** @type {any} */ (formula).cancelWithWorker
+            ).startsWith(`${workerId}:`)
           ) {
-            // eslint-disable-next-line no-continue
             continue;
           }
           const reason = new Error(
@@ -27600,9 +27380,13 @@ const short = id => id.slice(0, 8);
   const storeIdentifier = async (petName, id) => {
     const previousId = petStore.identifyLocal(petName);
     await petStore.storeIdentifier(petName, id);
-    await withFormulaGraphLock(async () => {
-      onPetStoreWrite(storeId, /** @type {FormulaIdentifier} */ (id));
-    });
+    // Only register local IDs in the formula graph for GC tracking;
+    // non-local IDs (from remote nodes) are stored but not GC-managed.
+    if (isLocalId(id)) {
+      await withFormulaGraphLock(async () => {
+        onPetStoreWrite(storeId, /** @type {FormulaIdentifier} */ (id));
+      });
+    }
     if (previousId && previousId !== id) {
       await removeEdgeIfUnreferenced(
         /** @type {FormulaIdentifier} */ (previousId),
@@ -27635,10 +27419,7 @@ const short = id => id.slice(0, 8);
     await petStore.rename(fromPetName, toPetName);
     if (fromId && isLocalId(fromId)) {
       await withFormulaGraphLock(async () => {
-        onPetStoreWrite(
-          storeId,
-          /** @type {FormulaIdentifier} */ (fromId),
-        );
+        onPetStoreWrite(storeId, /** @type {FormulaIdentifier} */ (fromId));
       });
     }
     if (overwrittenId && overwrittenId !== fromId) {
@@ -27956,15 +27737,6 @@ harden(makeLocalStoreController);
     followNameChanges,
     followIdNameChanges,
     seedGcEdges,
-    // CRDT sync methods (pass-through to underlying synced store).
-    getState: () => syncedStore.getState(),
-    getLocalClock: () => syncedStore.getLocalClock(),
-    getRemoteAckedClock: () => syncedStore.getRemoteAckedClock(),
-    mergeRemoteState: (remoteState, remoteClock) =>
-      syncedStore.mergeRemoteState(remoteState, remoteClock),
-    acknowledgeRemoteClock: ackedClock =>
-      syncedStore.acknowledgeRemoteClock(ackedClock),
-    pruneTombstones: () => syncedStore.pruneTombstones(),
   });
 
   return controller;
@@ -28120,10 +27892,7 @@ const internalMakeMultimap = mapConstructor => {
 })()
 ,
 // === 123. daemon ./src/mount.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let decodeBase64,q,makeExo,mountHelp,mountFileHelp,makeHelp,MountInterface,MountFileInterface,makeIteratorRef;$h͏_imports([["@endo/base64", [["decodeBase64",[$h͏_a => (decodeBase64 = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["./help-text.js", [["mountHelp",[$h͏_a => (mountHelp = $h͏_a)]],["mountFileHelp",[$h͏_a => (mountFileHelp = $h͏_a)]],["makeHelp",[$h͏_a => (makeHelp = $h͏_a)]]]],["./interfaces.js", [["MountInterface",[$h͏_a => (MountInterface = $h͏_a)]],["MountFileInterface",[$h͏_a => (MountFileInterface = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]]]);
-
-
-
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let q,makeExo,mountHelp,mountFileHelp,makeHelp,MountInterface,MountFileInterface,makeIteratorRef;$h͏_imports([["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["./help-text.js", [["mountHelp",[$h͏_a => (mountHelp = $h͏_a)]],["mountFileHelp",[$h͏_a => (mountFileHelp = $h͏_a)]],["makeHelp",[$h͏_a => (makeHelp = $h͏_a)]]]],["./interfaces.js", [["MountInterface",[$h͏_a => (MountInterface = $h͏_a)]],["MountFileInterface",[$h͏_a => (MountFileInterface = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]]]);
 
 
 
@@ -28528,7 +28297,8 @@ harden(makeMount);
 })()
 ,
 // === 124. daemon ./src/daemon.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,makeExo,E,Far,makeMarshal,makePromiseKit,makeError,q,X,platformCheckinTree,snapshotTreeMethods,makeRefReader,makeIteratorRef,makeDirectoryMaker,makeDeferredTasks,assertMailboxStoreName,makeMailboxMaker,makeGuestMaker,makeChannelMaker,makeHostMaker,makeRemoteControlProvider,assertName,assertNamePath,assertNames,assertPetName,namePathFrom,formatLocator,idFromLocator,internalizeLocator,externalizeId,LOCAL_NODE,makeContextMaker,assertValidId,assertValidNumber,assertFormulaNumber,assertNodeNumber,parseId,formatId,makeFormulaGraph,makeResidenceTracker,toHex,fromHex,makeSerialJobs,makeLocalStoreController,makeSyncedStoreController,makeWeakMultimap,makeLoopbackNetwork,assertValidFormulaType,blobHelp,directoryHelp,endoHelp,guestHelp,makeHelp,readableTreeHelp,makeMount,DaemonFacetForWorkerInterface,GuestInterface,InspectorHubInterface,InspectorInterface,InvitationInterface,ResponderInterface,WorkerInterface,DirectoryInterface,BlobInterface,ReadableTreeInterface,EndoInterface;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/far", [["E",[$h͏_a => (E = $h͏_a)]],["Far",[$h͏_a => (Far = $h͏_a)]]]],["@endo/marshal", [["makeMarshal",[$h͏_a => (makeMarshal = $h͏_a)]]]],["@endo/promise-kit", [["makePromiseKit",[$h͏_a => (makePromiseKit = $h͏_a)]]]],["@endo/errors", [["makeError",[$h͏_a => (makeError = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["X",[$h͏_a => (X = $h͏_a)]]]],["@endo/platform/fs/lite", [["checkinTree",[$h͏_a => (platformCheckinTree = $h͏_a)]],["snapshotTreeMethods",[$h͏_a => (snapshotTreeMethods = $h͏_a)]]]],["./ref-reader.js", [["makeRefReader",[$h͏_a => (makeRefReader = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]],["./directory.js", [["makeDirectoryMaker",[$h͏_a => (makeDirectoryMaker = $h͏_a)]]]],["./deferred-tasks.js", [["makeDeferredTasks",[$h͏_a => (makeDeferredTasks = $h͏_a)]]]],["./mail.js", [["assertMailboxStoreName",[$h͏_a => (assertMailboxStoreName = $h͏_a)]],["makeMailboxMaker",[$h͏_a => (makeMailboxMaker = $h͏_a)]]]],["./guest.js", [["makeGuestMaker",[$h͏_a => (makeGuestMaker = $h͏_a)]]]],["./channel.js", [["makeChannelMaker",[$h͏_a => (makeChannelMaker = $h͏_a)]]]],["./host.js", [["makeHostMaker",[$h͏_a => (makeHostMaker = $h͏_a)]]]],["./remote-control.js", [["makeRemoteControlProvider",[$h͏_a => (makeRemoteControlProvider = $h͏_a)]]]],["./pet-name.js", [["assertName",[$h͏_a => (assertName = $h͏_a)]],["assertNamePath",[$h͏_a => (assertNamePath = $h͏_a)]],["assertNames",[$h͏_a => (assertNames = $h͏_a)]],["assertPetName",[$h͏_a => (assertPetName = $h͏_a)]],["namePathFrom",[$h͏_a => (namePathFrom = $h͏_a)]]]],["./locator.js", [["formatLocator",[$h͏_a => (formatLocator = $h͏_a)]],["idFromLocator",[$h͏_a => (idFromLocator = $h͏_a)]],["internalizeLocator",[$h͏_a => (internalizeLocator = $h͏_a)]],["externalizeId",[$h͏_a => (externalizeId = $h͏_a)]],["LOCAL_NODE",[$h͏_a => (LOCAL_NODE = $h͏_a)]]]],["./context.js", [["makeContextMaker",[$h͏_a => (makeContextMaker = $h͏_a)]]]],["./formula-identifier.js", [["assertValidId",[$h͏_a => (assertValidId = $h͏_a)]],["assertValidNumber",[$h͏_a => (assertValidNumber = $h͏_a)]],["assertFormulaNumber",[$h͏_a => (assertFormulaNumber = $h͏_a)]],["assertNodeNumber",[$h͏_a => (assertNodeNumber = $h͏_a)]],["parseId",[$h͏_a => (parseId = $h͏_a)]],["formatId",[$h͏_a => (formatId = $h͏_a)]]]],["./graph.js", [["makeFormulaGraph",[$h͏_a => (makeFormulaGraph = $h͏_a)]]]],["./residence.js", [["makeResidenceTracker",[$h͏_a => (makeResidenceTracker = $h͏_a)]]]],["./hex.js", [["toHex",[$h͏_a => (toHex = $h͏_a)]],["fromHex",[$h͏_a => (fromHex = $h͏_a)]]]],["./serial-jobs.js", [["makeSerialJobs",[$h͏_a => (makeSerialJobs = $h͏_a)]]]],["./store-controller.js", [["makeLocalStoreController",[$h͏_a => (makeLocalStoreController = $h͏_a)]],["makeSyncedStoreController",[$h͏_a => (makeSyncedStoreController = $h͏_a)]]]],["./multimap.js", [["makeWeakMultimap",[$h͏_a => (makeWeakMultimap = $h͏_a)]]]],["./networks/loopback.js", [["makeLoopbackNetwork",[$h͏_a => (makeLoopbackNetwork = $h͏_a)]]]],["./formula-type.js", [["assertValidFormulaType",[$h͏_a => (assertValidFormulaType = $h͏_a)]]]],["./help-text.js", [["blobHelp",[$h͏_a => (blobHelp = $h͏_a)]],["directoryHelp",[$h͏_a => (directoryHelp = $h͏_a)]],["endoHelp",[$h͏_a => (endoHelp = $h͏_a)]],["guestHelp",[$h͏_a => (guestHelp = $h͏_a)]],["makeHelp",[$h͏_a => (makeHelp = $h͏_a)]],["readableTreeHelp",[$h͏_a => (readableTreeHelp = $h͏_a)]]]],["./mount.js", [["makeMount",[$h͏_a => (makeMount = $h͏_a)]]]],["./interfaces.js", [["DaemonFacetForWorkerInterface",[$h͏_a => (DaemonFacetForWorkerInterface = $h͏_a)]],["GuestInterface",[$h͏_a => (GuestInterface = $h͏_a)]],["InspectorHubInterface",[$h͏_a => (InspectorHubInterface = $h͏_a)]],["InspectorInterface",[$h͏_a => (InspectorInterface = $h͏_a)]],["InvitationInterface",[$h͏_a => (InvitationInterface = $h͏_a)]],["ResponderInterface",[$h͏_a => (ResponderInterface = $h͏_a)]],["WorkerInterface",[$h͏_a => (WorkerInterface = $h͏_a)]],["DirectoryInterface",[$h͏_a => (DirectoryInterface = $h͏_a)]],["BlobInterface",[$h͏_a => (BlobInterface = $h͏_a)]],["ReadableTreeInterface",[$h͏_a => (ReadableTreeInterface = $h͏_a)]],["EndoInterface",[$h͏_a => (EndoInterface = $h͏_a)]]]]]);
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,makeExo,E,Far,makeMarshal,makePromiseKit,makeError,q,X,platformCheckinTree,snapshotTreeMethods,makeRefReader,makeIteratorRef,makeDirectoryMaker,makeDeferredTasks,assertMailboxStoreName,makeMailboxMaker,makeGuestMaker,makeChannelMaker,makeHostMaker,makeRemoteControlProvider,assertName,assertNamePath,assertNames,assertPetName,namePathFrom,formatLocator,idFromLocator,internalizeLocator,externalizeId,LOCAL_NODE,makeContextMaker,assertValidId,assertValidNumber,assertFormulaNumber,assertNodeNumber,parseId,formatId,makeFormulaGraph,makeResidenceTracker,toHex,fromHex,makeSerialJobs,makeLocalStoreController,makeSyncedStoreController,makeWeakMultimap,makeLoopbackNetwork,assertValidFormulaType,blobHelp,directoryHelp,endoHelp,guestHelp,makeHelp,readableTreeHelp,makeMount,DaemonFacetForWorkerInterface,GuestInterface,InspectorHubInterface,InspectorInterface,InvitationInterface,PeerGatewayInterface,ResponderInterface,WorkerInterface,DirectoryInterface,BlobInterface,ReadableTreeInterface,EndoInterface;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/far", [["E",[$h͏_a => (E = $h͏_a)]],["Far",[$h͏_a => (Far = $h͏_a)]]]],["@endo/marshal", [["makeMarshal",[$h͏_a => (makeMarshal = $h͏_a)]]]],["@endo/promise-kit", [["makePromiseKit",[$h͏_a => (makePromiseKit = $h͏_a)]]]],["@endo/errors", [["makeError",[$h͏_a => (makeError = $h͏_a)]],["q",[$h͏_a => (q = $h͏_a)]],["X",[$h͏_a => (X = $h͏_a)]]]],["@endo/platform/fs/lite", [["checkinTree",[$h͏_a => (platformCheckinTree = $h͏_a)]],["snapshotTreeMethods",[$h͏_a => (snapshotTreeMethods = $h͏_a)]]]],["./ref-reader.js", [["makeRefReader",[$h͏_a => (makeRefReader = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]],["./directory.js", [["makeDirectoryMaker",[$h͏_a => (makeDirectoryMaker = $h͏_a)]]]],["./deferred-tasks.js", [["makeDeferredTasks",[$h͏_a => (makeDeferredTasks = $h͏_a)]]]],["./mail.js", [["assertMailboxStoreName",[$h͏_a => (assertMailboxStoreName = $h͏_a)]],["makeMailboxMaker",[$h͏_a => (makeMailboxMaker = $h͏_a)]]]],["./guest.js", [["makeGuestMaker",[$h͏_a => (makeGuestMaker = $h͏_a)]]]],["./channel.js", [["makeChannelMaker",[$h͏_a => (makeChannelMaker = $h͏_a)]]]],["./host.js", [["makeHostMaker",[$h͏_a => (makeHostMaker = $h͏_a)]]]],["./remote-control.js", [["makeRemoteControlProvider",[$h͏_a => (makeRemoteControlProvider = $h͏_a)]]]],["./pet-name.js", [["assertName",[$h͏_a => (assertName = $h͏_a)]],["assertNamePath",[$h͏_a => (assertNamePath = $h͏_a)]],["assertNames",[$h͏_a => (assertNames = $h͏_a)]],["assertPetName",[$h͏_a => (assertPetName = $h͏_a)]],["namePathFrom",[$h͏_a => (namePathFrom = $h͏_a)]]]],["./locator.js", [["formatLocator",[$h͏_a => (formatLocator = $h͏_a)]],["idFromLocator",[$h͏_a => (idFromLocator = $h͏_a)]],["internalizeLocator",[$h͏_a => (internalizeLocator = $h͏_a)]],["externalizeId",[$h͏_a => (externalizeId = $h͏_a)]],["LOCAL_NODE",[$h͏_a => (LOCAL_NODE = $h͏_a)]]]],["./context.js", [["makeContextMaker",[$h͏_a => (makeContextMaker = $h͏_a)]]]],["./formula-identifier.js", [["assertValidId",[$h͏_a => (assertValidId = $h͏_a)]],["assertValidNumber",[$h͏_a => (assertValidNumber = $h͏_a)]],["assertFormulaNumber",[$h͏_a => (assertFormulaNumber = $h͏_a)]],["assertNodeNumber",[$h͏_a => (assertNodeNumber = $h͏_a)]],["parseId",[$h͏_a => (parseId = $h͏_a)]],["formatId",[$h͏_a => (formatId = $h͏_a)]]]],["./graph.js", [["makeFormulaGraph",[$h͏_a => (makeFormulaGraph = $h͏_a)]]]],["./residence.js", [["makeResidenceTracker",[$h͏_a => (makeResidenceTracker = $h͏_a)]]]],["./hex.js", [["toHex",[$h͏_a => (toHex = $h͏_a)]],["fromHex",[$h͏_a => (fromHex = $h͏_a)]]]],["./serial-jobs.js", [["makeSerialJobs",[$h͏_a => (makeSerialJobs = $h͏_a)]]]],["./store-controller.js", [["makeLocalStoreController",[$h͏_a => (makeLocalStoreController = $h͏_a)]],["makeSyncedStoreController",[$h͏_a => (makeSyncedStoreController = $h͏_a)]]]],["./multimap.js", [["makeWeakMultimap",[$h͏_a => (makeWeakMultimap = $h͏_a)]]]],["./networks/loopback.js", [["makeLoopbackNetwork",[$h͏_a => (makeLoopbackNetwork = $h͏_a)]]]],["./formula-type.js", [["assertValidFormulaType",[$h͏_a => (assertValidFormulaType = $h͏_a)]]]],["./help-text.js", [["blobHelp",[$h͏_a => (blobHelp = $h͏_a)]],["directoryHelp",[$h͏_a => (directoryHelp = $h͏_a)]],["endoHelp",[$h͏_a => (endoHelp = $h͏_a)]],["guestHelp",[$h͏_a => (guestHelp = $h͏_a)]],["makeHelp",[$h͏_a => (makeHelp = $h͏_a)]],["readableTreeHelp",[$h͏_a => (readableTreeHelp = $h͏_a)]]]],["./mount.js", [["makeMount",[$h͏_a => (makeMount = $h͏_a)]]]],["./interfaces.js", [["DaemonFacetForWorkerInterface",[$h͏_a => (DaemonFacetForWorkerInterface = $h͏_a)]],["GuestInterface",[$h͏_a => (GuestInterface = $h͏_a)]],["InspectorHubInterface",[$h͏_a => (InspectorHubInterface = $h͏_a)]],["InspectorInterface",[$h͏_a => (InspectorInterface = $h͏_a)]],["InvitationInterface",[$h͏_a => (InvitationInterface = $h͏_a)]],["PeerGatewayInterface",[$h͏_a => (PeerGatewayInterface = $h͏_a)]],["ResponderInterface",[$h͏_a => (ResponderInterface = $h͏_a)]],["WorkerInterface",[$h͏_a => (WorkerInterface = $h͏_a)]],["DirectoryInterface",[$h͏_a => (DirectoryInterface = $h͏_a)]],["BlobInterface",[$h͏_a => (BlobInterface = $h͏_a)]],["ReadableTreeInterface",[$h͏_a => (ReadableTreeInterface = $h͏_a)]],["EndoInterface",[$h͏_a => (EndoInterface = $h͏_a)]]]]]);
+
 
 
 
@@ -28613,7 +28383,7 @@ harden(makeMount);
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
+/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
 /**
  * Creates a delayed promise that can be cancelled.
@@ -28655,26 +28425,30 @@ const delay = async (ms, cancelled) => {
  * @returns {EndoInspector} The inspector for the given formula.
  */
 const makeInspector = (type, number, record) =>
-  makeExo(`Inspector (${type} ${number})`, InspectorInterface, {
-    lookup: async petNameOrPath => {
-      /** @type {string} */
-      let petName;
-      if (Array.isArray(petNameOrPath)) {
-        if (petNameOrPath.length !== 1) {
-          throw Error('Inspector.lookup(path) requires path length of 1');
+  makeExo(
+    `Inspector (${type} ${number})`,
+    InspectorInterface,
+    /** @type {any} */ ({
+      lookup: async petNameOrPath => {
+        /** @type {string} */
+        let petName;
+        if (Array.isArray(petNameOrPath)) {
+          if (petNameOrPath.length !== 1) {
+            throw Error('Inspector.lookup(path) requires path length of 1');
+          }
+          petName = petNameOrPath[0];
+        } else {
+          petName = petNameOrPath;
         }
-        petName = petNameOrPath[0];
-      } else {
-        petName = petNameOrPath;
-      }
-      assertName(petName);
-      if (!Object.hasOwn(record, petName)) {
-        return undefined;
-      }
-      return record[petName];
-    },
-    list: () => Object.keys(record),
-  });
+        assertName(petName);
+        if (!Object.hasOwn(record, petName)) {
+          return undefined;
+        }
+        return record[petName];
+      },
+      list: () => Object.keys(record),
+    }),
+  );
 
 /**
  * @param {Context} context - The context to make far.
@@ -28803,7 +28577,7 @@ const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
  * @param {Promise<never>} args.gracePeriodElapsed - A promise that resolves/cancels when the grace period expires.
  * @param {NodeNumber} args.localNodeNumber - The local node number for this daemon.
  * @param {(bytes: Uint8Array) => Uint8Array} args.signBytes - Sign bytes with the daemon's root Ed25519 key.
- * @param {boolean} [args.gcEnabled=true] - Enable garbage collection of worker daemons.
+ * @param {boolean} [args.gcEnabled] - Enable garbage collection of worker daemons.
  *
  * @example
  * ```js
@@ -28827,6 +28601,7 @@ const makeDaemonCore = async (
     localNodeNumber,
     signBytes,
     gcEnabled = true,
+    defaultWorkerKind = 'node',
   },
 ) => {
   const {
@@ -28837,11 +28612,6 @@ const makeDaemonCore = async (
     filePowers,
   } = powers;
   const { randomHex256, generateEd25519Keypair, ed25519Sign } = cryptoPowers;
-
-  // Whether a Node.js worker binary is configured for kind='node'
-  // routing.  When absent, all workers run on XS (the default).
-  const hasNodeWorkerBin = Boolean(hostGetEnv('ENDO_NODE_WORKER_BIN'));
-
   const contentStore = persistencePowers.makeContentStore();
   /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
   const workerDaemonFacets = new WeakMap();
@@ -28902,27 +28672,15 @@ const makeDaemonCore = async (
   const { id: knownPeersId } = await preformulate('peers', {
     type: 'known-peers-store',
   });
-  // Promise kit resolved by the endo formula evaluator so that
-  // ensureKnownPeer (called from the hello handler) can await
-  // the networksId without mutable shared state.
-  const {
-    promise: endoNetworksIdP,
-    resolve: resolveEndoNetworksId,
-  } = makePromiseKit();
   const { id: leastAuthorityId } = await preformulate('least-authority', {
     type: 'least-authority',
   });
   const { id: mainWorkerId } = await preformulate('main', { type: 'worker' });
-  const { id: nodeWorkerId } = await preformulate('node', {
-    type: 'worker',
-    kind: 'node',
-  });
 
   /** @type {Builtins} */
   const builtins = {
     NONE: leastAuthorityId,
     MAIN: mainWorkerId,
-    NODE: nodeWorkerId,
     ENDO: endoFormulaId,
   };
 
@@ -29063,12 +28821,6 @@ const makeDaemonCore = async (
             ? [['cancelWithWorker', formula.cancelWithWorker]]
             : []),
         ];
-      case 'make-archive':
-        return [
-          ['worker', formula.worker],
-          ['powers', formula.powers],
-          ['archive', formula.archive],
-        ];
       case 'peer':
         return [['networks', formula.networks]];
       case 'handle':
@@ -29171,7 +28923,6 @@ const makeDaemonCore = async (
   formulaGraph.addRoot(knownPeersId);
   formulaGraph.addRoot(leastAuthorityId);
   formulaGraph.addRoot(mainWorkerId);
-  formulaGraph.addRoot(nodeWorkerId);
   formulaGraph.addRoot(endoFormulaId);
   for (const id of Object.values(platformNames)) {
     formulaGraph.addRoot(/** @type {FormulaIdentifier} */ (id));
@@ -29214,7 +28965,7 @@ const makeDaemonCore = async (
 
   // The following are functions that manage that state.
 
-  /** @param {FormulaIdentifier} id */
+  /** @param {FormulaIdentifier} inputId */
   const getFormulaForId = async inputId => {
     const id = normalizeId(inputId);
     // No synchronous preamble.
@@ -29234,7 +28985,7 @@ const makeDaemonCore = async (
     return formula;
   };
 
-  /** @param {FormulaIdentifier} id */
+  /** @param {FormulaIdentifier} inputId */
   const getTypeForId = async inputId => {
     const id = normalizeId(inputId);
     if (parseId(id).node !== LOCAL_NODE) {
@@ -29691,35 +29442,6 @@ const makeDaemonCore = async (
     },
   });
 
-  /**
-   * Registers an inbound peer in knownPeers if not already present.
-   * Called from the hello handler when an unknown daemon connects.
-   * Creates a peer formula with an empty address list — the peer
-   * already has an active connection so addresses are not needed
-   * for the current session.
-   *
-   * @param {string} remoteNodeId
-   */
-  const ensureKnownPeer = async remoteNodeId => {
-    const knownPeers = /** @type {KnownPeersStore} */ (
-      /** @type {unknown} */ (await provideStoreController(knownPeersId))
-    );
-    if (knownPeers.has(remoteNodeId)) {
-      return; // Already registered.
-    }
-    const networksId = await endoNetworksIdP;
-    console.log(
-      `ensureKnownPeer: auto-registering inbound peer ${remoteNodeId.slice(0, 16)}`,
-    );
-    // eslint-disable-next-line no-use-before-define
-    const { id: peerId } = await formulatePeer(
-      networksId,
-      remoteNodeId,
-      harden([]),
-    );
-    await knownPeers.storeIdentifier(remoteNodeId, peerId);
-  };
-
   /** @type {EndoGreeter} */
   const localGreeter = Far('Greeter', {
     /**
@@ -29742,13 +29464,6 @@ const makeDaemonCore = async (
       /** @param {Error} error */
       const wrappedCancel = error => E(cancelConnection)(error);
       remoteControl.accept(remoteGateway, wrappedCancel, connectionCancelled);
-      // Register the inbound peer so that subsequent provide() calls
-      // for formulas on the remote node can find its peer formula.
-      await ensureKnownPeer(remoteNodeId).catch(err => {
-        console.log(
-          `Endo daemon: failed to register inbound peer ${remoteNodeId.slice(0, 8)}: ${err.message}`,
-        );
-      });
       return localGateway;
     },
   });
@@ -29849,21 +29564,25 @@ const makeDaemonCore = async (
     makeExo(
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
-      {
+      /** @type {any} */ ({
         sha256: () => sha256,
         ...contentStore.fetch(sha256),
         help: makeHelp(blobHelp),
-      },
+      }),
     );
 
   /**
    * @param {string} sha256
    */
   const makeReadableTree = sha256 =>
-    makeExo('ReadableTree', ReadableTreeInterface, {
-      ...snapshotTreeMethods(contentStore, sha256),
-      help: makeHelp(readableTreeHelp),
-    });
+    makeExo(
+      'ReadableTree',
+      ReadableTreeInterface,
+      /** @type {any} */ ({
+        ...snapshotTreeMethods(contentStore, sha256),
+        help: makeHelp(readableTreeHelp),
+      }),
+    );
 
   /**
    * @param {FormulaIdentifier} workerId
@@ -29976,43 +29695,6 @@ const makeDaemonCore = async (
     const powersP = provide(/** @type {FormulaIdentifier} */ (powersId));
     return E(/** @type {any} */ (workerDaemonFacet)).makeBundle(
       readableBundleP,
-      // TODO fix type
-      /** @type {any} */ (powersP),
-      /** @type {any} */ (makeFarContext(context)),
-      env,
-    );
-  };
-
-  /**
-   * @param {string} workerId
-   * @param {string} powersId
-   * @param {string} archiveId
-   * @param {Record<string, string> | undefined} env
-   * @param {Context} context
-   */
-  const makeArchiveCaplet = async (
-    workerId,
-    powersId,
-    archiveId,
-    env,
-    context,
-  ) => {
-    context.thisDiesIfThatDies(workerId);
-    context.thisDiesIfThatDies(powersId);
-
-    const worker = await provide(
-      /** @type {FormulaIdentifier} */ (workerId),
-      'worker',
-    );
-    const workerDaemonFacet = workerDaemonFacets.get(worker);
-    assert(workerDaemonFacet, 'Cannot make caplet with non-worker');
-    const readableArchiveP = provide(
-      /** @type {FormulaIdentifier} */ (archiveId),
-      'readable-blob',
-    );
-    const powersP = provide(/** @type {FormulaIdentifier} */ (powersId));
-    return E(/** @type {any} */ (workerDaemonFacet)).makeArchive(
-      readableArchiveP,
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
@@ -30185,20 +29867,25 @@ const makeDaemonCore = async (
     };
 
     return makeExo('EndoResolver', ResponderInterface, {
-      resolveWithId: idOrPromise => {
-        // Enqueue but do not return the promise — the ResponderInterface
-        // guard expects resolveWithId to return undefined.
-        resolverJobs.enqueue(async () => {
+      resolveWithId: async idOrPromise => {
+        await resolverJobs.enqueue(async () => {
           await null;
           if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
             return;
           }
           try {
-            const id = await idOrPromise;
+            let id = await idOrPromise;
             if (typeof id !== 'string') {
               throw new TypeError(
                 `Promise resolution must be a formula identifier (${q(id)})`,
               );
+            }
+            // Accept either a raw formula ID or an endo:// locator.
+            // A locator carries the sender's actual node number so we
+            // don't misinterpret LOCAL_NODE across daemon boundaries.
+            if (id.startsWith('endo://')) {
+              const internalized = internalizeLocator(id, isLocalKey);
+              id = internalized.id;
             }
             assertValidId(id);
             // Write the resolved formula ID as a direct pet store entry so
@@ -30270,10 +29957,7 @@ const makeDaemonCore = async (
       if (id === undefined) {
         return undefined;
       }
-      const value = provide(
-        /** @type {FormulaIdentifier} */ (id),
-        'message',
-      );
+      const value = provide(/** @type {FormulaIdentifier} */ (id), 'message');
       return tailNames.reduce(
         (directory, petName) => E(directory).lookup(petName),
         value,
@@ -30435,32 +30119,40 @@ const makeDaemonCore = async (
       throw new Error('Text I/O is not supported on mailbox directories');
     };
 
-    mailHub = makeExo('MailHub', DirectoryInterface, {
-      help: makeHelp(directoryHelp),
-      has,
-      identify,
-      locate,
-      reverseLocate,
-      followLocatorNameChanges: locator =>
-        makeIteratorRef(followLocatorNameChanges(locator)),
-      list,
-      listIdentifiers,
-      listLocators,
-      followNameChanges: (...petNamePath) =>
-        makeIteratorRef(followNameChanges(...petNamePath)),
-      lookup,
-      maybeLookup,
-      reverseLookup,
-      storeIdentifier: disallowedMutation,
-      storeLocator: disallowedMutation,
-      remove: disallowedMutation,
-      move: disallowedMutation,
-      copy: disallowedMutation,
-      makeDirectory: disallowedMutation,
-      readText: notSupported,
-      maybeReadText: notSupported,
-      writeText: disallowedMutation,
-    });
+    mailHub = /** @type {NameHub} */ (
+      /** @type {unknown} */ (
+        makeExo(
+          'MailHub',
+          DirectoryInterface,
+          /** @type {any} */ ({
+            help: makeHelp(directoryHelp),
+            has,
+            identify,
+            locate,
+            reverseLocate,
+            followLocatorNameChanges: locator =>
+              makeIteratorRef(followLocatorNameChanges(locator)),
+            list,
+            listIdentifiers,
+            listLocators,
+            followNameChanges: (...petNamePath) =>
+              makeIteratorRef(followNameChanges(...petNamePath)),
+            lookup,
+            maybeLookup,
+            reverseLookup,
+            storeIdentifier: disallowedMutation,
+            storeLocator: disallowedMutation,
+            remove: disallowedMutation,
+            move: disallowedMutation,
+            copy: disallowedMutation,
+            makeDirectory: disallowedMutation,
+            readText: notSupported,
+            maybeReadText: notSupported,
+            writeText: disallowedMutation,
+          }),
+        )
+      )
+    );
 
     return mailHub;
   };
@@ -30486,7 +30178,9 @@ const makeDaemonCore = async (
       ids,
       source,
       slots,
+      // eslint-disable-next-line no-unused-vars
       codeNames,
+      // eslint-disable-next-line no-unused-vars
       petNamePaths,
     } = formula;
 
@@ -30592,40 +30286,6 @@ const makeDaemonCore = async (
       registerName('@slots', undefined, slots);
       registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
       registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
-    } else if (messageType === 'eval-request') {
-      if (
-        typeof source !== 'string' ||
-        promiseId === undefined ||
-        resolverId === undefined
-      ) {
-        throw new Error('Eval-request message formula is incomplete');
-      }
-      registerName('@source', undefined, source);
-      if (codeNames !== undefined) {
-        registerName('@codeNames', undefined, harden(codeNames));
-      }
-      if (petNamePaths !== undefined) {
-        registerName('@petNamePaths', undefined, harden(petNamePaths));
-      }
-      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
-      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
-    } else if (
-      messageType === 'eval-proposal-reviewer' ||
-      messageType === 'eval-proposal-proposer'
-    ) {
-      if (typeof source !== 'string') {
-        throw new Error('Eval-proposal message formula is incomplete');
-      }
-      registerName('@source', undefined, source);
-      if (codeNames !== undefined) {
-        registerName('@codeNames', undefined, harden(codeNames));
-      }
-      if (petNamePaths !== undefined) {
-        registerName('@petNamePaths', undefined, harden(petNamePaths));
-      }
-      if (ids !== undefined) {
-        registerName('@ids', undefined, harden(ids));
-      }
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }
@@ -30840,32 +30500,40 @@ const makeDaemonCore = async (
       throw new Error('Text I/O is not supported on message directories');
     };
 
-    messageHub = makeExo('MessageHub', DirectoryInterface, {
-      help: makeHelp(directoryHelp),
-      has,
-      identify,
-      locate,
-      reverseLocate,
-      followLocatorNameChanges: locator =>
-        makeIteratorRef(followLocatorNameChanges(locator)),
-      list,
-      listIdentifiers,
-      listLocators,
-      followNameChanges: (...petNamePath) =>
-        makeIteratorRef(followNameChanges(...petNamePath)),
-      lookup,
-      maybeLookup,
-      reverseLookup,
-      storeIdentifier: disallowedMutation,
-      storeLocator: disallowedMutation,
-      remove: disallowedMutation,
-      move: disallowedMutation,
-      copy: disallowedMutation,
-      makeDirectory: disallowedMutation,
-      readText: notSupported,
-      maybeReadText: notSupported,
-      writeText: disallowedMutation,
-    });
+    messageHub = /** @type {NameHub} */ (
+      /** @type {unknown} */ (
+        makeExo(
+          'MessageHub',
+          DirectoryInterface,
+          /** @type {any} */ ({
+            help: makeHelp(directoryHelp),
+            has,
+            identify,
+            locate,
+            reverseLocate,
+            followLocatorNameChanges: locator =>
+              makeIteratorRef(followLocatorNameChanges(locator)),
+            list,
+            listIdentifiers,
+            listLocators,
+            followNameChanges: (...petNamePath) =>
+              makeIteratorRef(followNameChanges(...petNamePath)),
+            lookup,
+            maybeLookup,
+            reverseLookup,
+            storeIdentifier: disallowedMutation,
+            storeLocator: disallowedMutation,
+            remove: disallowedMutation,
+            move: disallowedMutation,
+            copy: disallowedMutation,
+            makeDirectory: disallowedMutation,
+            readText: notSupported,
+            maybeReadText: notSupported,
+            writeText: disallowedMutation,
+          }),
+        )
+      )
+    );
 
     return messageHub;
   };
@@ -30909,13 +30577,7 @@ const makeDaemonCore = async (
         context,
       ),
     worker: (formula, context, _id, formulaNumber) =>
-      makeIdentifiedWorker(
-        formulaNumber,
-        context,
-        formula.kind,
-        formula.trustedShims,
-        formula.label,
-      ),
+      makeIdentifiedWorker(formulaNumber, context, formula.kind, formula.trustedShims, formula.label),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier, env = {}, cancelWithWorker },
       context,
@@ -30924,10 +30586,6 @@ const makeDaemonCore = async (
       { worker: workerId, powers: powersId, bundle: bundleId, env = {}, cancelWithWorker },
       context,
     ) => makeBundle(workerId, powersId, bundleId, env, context, cancelWithWorker),
-    'make-archive': (
-      { worker: workerId, powers: powersId, archive: archiveId, env = {} },
-      context,
-    ) => makeArchiveCaplet(workerId, powersId, archiveId, env, context),
     host: async (formula, context, id) => {
       const {
         hostHandle: hostHandleId,
@@ -30946,7 +30604,10 @@ const makeDaemonCore = async (
       if (mailHubId === undefined) {
         throw new Error('Host formula missing mail hub');
       }
-      const keypairFormula = await getFormulaForId(keypairId);
+      const keypairFormula =
+        /** @type {import('./types.js').KeypairFormula} */ (
+          await getFormulaForId(keypairId)
+        );
       const agentNodeNumber = /** @type {NodeNumber} */ (
         keypairFormula.publicKey
       );
@@ -30970,7 +30631,6 @@ const makeDaemonCore = async (
         mailHubId,
         inspectorId,
         workerId,
-        nodeWorkerId,
         endoId,
         networksId,
         pinsId,
@@ -30998,7 +30658,10 @@ const makeDaemonCore = async (
       if (mailHubId === undefined) {
         throw new Error('Guest formula missing mail hub');
       }
-      const keypairFormula = await getFormulaForId(keypairId);
+      const keypairFormula =
+        /** @type {import('./types.js').KeypairFormula} */ (
+          await getFormulaForId(keypairId)
+        );
       const agentNodeNumber = /** @type {NodeNumber} */ (
         keypairFormula.publicKey
       );
@@ -31016,7 +30679,6 @@ const makeDaemonCore = async (
         mailboxStoreId,
         mailHubId,
         workerId,
-        nodeWorkerId,
         networksDirectoryId,
         context,
       );
@@ -31036,9 +30698,6 @@ const makeDaemonCore = async (
       pins: pinsId,
       peers: peersId,
     }) => {
-      // Resolve the promise kit so that ensureKnownPeer can await
-      // the networksId without mutable shared state.
-      resolveEndoNetworksId(networksId);
       const help = makeHelp(endoHelp);
       /** @type {FarRef<EndoBootstrap>} */
       const endoBootstrap = makeExo('Endo', EndoInterface, {
@@ -31072,7 +30731,9 @@ const makeDaemonCore = async (
             pinIds.map(id => provide(/** @type {FormulaIdentifier} */ (id))),
           );
         },
-        addPeerInfo: async peerInfo => {
+        addPeerInfo: async (
+          /** @type {import('./types.js').PeerInfo} */ peerInfo,
+        ) => {
           const knownPeers = /** @type {KnownPeersStore} */ (
             /** @type {unknown} */ (await provideStoreController(peersId))
           );
@@ -31184,7 +30845,6 @@ const makeDaemonCore = async (
             listIdentifiers: disallowedFn,
             listLocators: disallowedFn,
             followNameChanges: disallowedFn,
-            followLocatorNameChanges: disallowedFn,
             lookup: disallowedFn,
             maybeLookup: disallowedSyncFn,
             lookupById: disallowedFn,
@@ -31209,7 +30869,6 @@ const makeDaemonCore = async (
             reply: disallowedFn,
             request: disallowedFn,
             send: disallowedFn,
-            requestEvaluation: disallowedFn,
             evaluate: disallowedFn,
             define: disallowedFn,
             form: disallowedFn,
@@ -31252,33 +30911,78 @@ const makeDaemonCore = async (
 
       const placeholderNumber = '0'.repeat(64);
       if (formula.remoteStoreNumber !== placeholderNumber) {
-        const peerFormula =
-          /** @type {PeerFormula} */ (await getFormulaForId(formula.peer));
+        const peerFormula = /** @type {PeerFormula} */ (
+          await getFormulaForId(formula.peer)
+        );
         const remoteStoreId = formatId({
           number: /** @type {FormulaNumber} */ (formula.remoteStoreNumber),
           node: /** @type {NodeNumber} */ (peerFormula.node),
         });
 
-        const runSyncLoop = async () => {
-          let interval = 5000;
+        /**
+         * Subscribe to a remote store's change stream and merge each
+         * delta into the local store.  Runs until the formula context
+         * is cancelled or the remote iterator ends.
+         */
+        const subscribeToRemote = async () => {
+          const remoteStore =
+            /** @type {import('./types.js').SyncedPetStore} */
+            (await provide(remoteStoreId));
+          const iter = await E(remoteStore).followChanges();
+          for (;;) {
+            const { value, done } = await E(iter).next();
+            if (done) break;
+            const { key, entry } = value;
+            await store.mergeRemoteState(
+              harden({ [key]: entry }),
+              entry.timestamp,
+            );
+          }
+        };
+
+        /**
+         * Subscribe to local changes and push each delta to the
+         * remote store.  Also handles clock acknowledgement and
+         * tombstone pruning after each push.
+         */
+        const pushToRemote = async () => {
+          const remoteStore =
+            /** @type {import('./types.js').SyncedPetStore} */
+            (await provide(remoteStoreId));
+          const iter = store.followChanges();
+          for (;;) {
+            const { value, done } = await E(iter).next();
+            if (done) break;
+            const { key, entry } = value;
+            await E(remoteStore).mergeRemoteState(
+              harden({ [key]: entry }),
+              entry.timestamp,
+            );
+            // Exchange clock acknowledgements after each push so
+            // both sides can prune tombstones incrementally.
+            const localClock = store.getLocalClock();
+            const remoteClock = await E(remoteStore).getLocalClock();
+            await store.acknowledgeRemoteClock(remoteClock);
+            await E(remoteStore).acknowledgeRemoteClock(localClock);
+          }
+        };
+
+        /**
+         * Run a sync task, restarting with backoff on transient
+         * failures until the formula context is cancelled.
+         *
+         * @param {() => Promise<void>} task
+         */
+        const resilient = async task => {
+          let interval = 1000;
           const maxInterval = 60000;
           // eslint-disable-next-line no-constant-condition
           while (true) {
             try {
-              const remoteStore =
-                /** @type {import('./types.js').SyncedPetStore} */
-                (await provide(remoteStoreId));
-              const localState = store.getState();
-              const localClock = store.getLocalClock();
-              const remoteState = await E(remoteStore).getState();
-              const remoteClock = await E(remoteStore).getLocalClock();
-              await store.mergeRemoteState(remoteState, remoteClock);
-              await E(remoteStore).mergeRemoteState(localState, localClock);
-              await store.acknowledgeRemoteClock(remoteClock);
-              await E(remoteStore).acknowledgeRemoteClock(localClock);
-              await store.pruneTombstones();
-              await E(remoteStore).pruneTombstones();
-              interval = 5000;
+              await task();
+              // Stream ended cleanly; restart to pick up a new
+              // connection after the peer reconnects.
+              interval = 1000;
             } catch {
               interval = Math.min(interval * 2, maxInterval);
             }
@@ -31290,7 +30994,9 @@ const makeDaemonCore = async (
           }
         };
 
-        runSyncLoop();
+        // Both directions run concurrently and independently.
+        resilient(subscribeToRemote);
+        resilient(pushToRemote);
       }
 
       return store;
@@ -31422,7 +31128,7 @@ const makeDaemonCore = async (
   const evaluateFormula = async (id, formulaNumber, formula, context) => {
     await null;
     if (Object.hasOwn(makers, formula.type)) {
-      const make = makers[formula.type];
+      const make = /** @type {any} */ (makers)[formula.type];
       const value = await /** @type {unknown} */ (
         make(formula, context, id, formulaNumber)
       );
@@ -31457,6 +31163,32 @@ const makeDaemonCore = async (
     assertValidFormulaType(formula.type);
 
     return evaluateFormula(id, formulaNumber, formula, context);
+  };
+
+  /** @type {DaemonCore['formulate']} */
+  /**
+   * Persist a formula to disk and register it in the graph, but do NOT
+   * evaluate it eagerly.  Callers can later call `provide(id)` to
+   * trigger evaluation on demand.  Useful for formulas that should
+   * come to life only when first used (e.g., peer connections).
+   *
+   * @param {FormulaNumber} formulaNumber
+   * @param {Formula} formula
+   * @returns {Promise<FormulaIdentifier>}
+   */
+  const formulateLazy = async (formulaNumber, formula) => {
+    const id = formatId({
+      number: formulaNumber,
+      node: LOCAL_NODE,
+    });
+    await persistencePowers.writeFormula(formulaNumber, formula);
+    await withFormulaGraphLock(async () => {
+      if (formulaForId.has(id)) return;
+      formulaForId.set(id, formula);
+      formulaGraph.onFormulaAdded(id, formula);
+    });
+    logLifecycle(id, 'FORMULATE_LAZY');
+    return id;
   };
 
   /** @type {DaemonCore['formulate']} */
@@ -31785,9 +31517,7 @@ const makeDaemonCore = async (
    */
   const formulateTimer = async (intervalMs, label, deferredTasks) => {
     return withFormulaGraphLock(async () => {
-      const timerNumber = /** @type {FormulaNumber} */ (
-        await randomHex256()
-      );
+      const timerNumber = /** @type {FormulaNumber} */ (await randomHex256());
       const timerId = formatId({
         number: timerNumber,
         node: LOCAL_NODE,
@@ -31795,8 +31525,9 @@ const makeDaemonCore = async (
 
       await deferredTasks.execute({ timerId });
 
+      /** @type {TimerFormula} */
       const formula = harden({
-        type: 'timer',
+        type: /** @type {const} */ ('timer'),
         intervalMs,
         label,
       });
@@ -31974,19 +31705,19 @@ const makeDaemonCore = async (
    * The returned promise is resolved after the formula is persisted.
    *
    * @param {FormulaNumber} formulaNumber - The worker formula number.
-   * @param {{ kind?: 'locked' | 'node', trustedShims?: string[], label?: string }} [options]
+   * @param {string[]} [trustedShims] - Module specifiers imported before lockdown.
+   * @param {string} [label] - Human-readable label for status reporting.
    * @returns {ReturnType<DaemonCore['formulateWorker']>}
    */
-  const formulateNumberedWorker = (formulaNumber, options = {}) => {
-    const { kind, trustedShims, label = '<untitled>' } = options;
+  const formulateNumberedWorker = (formulaNumber, { trustedShims, label = '<untitled>', kind } = {}) => {
     /** @type {WorkerFormula} */
     const formula = {
       type: 'worker',
-      ...(kind && kind !== 'locked' ? { kind } : undefined),
       label,
       ...(trustedShims && trustedShims.length > 0
         ? { trustedShims }
         : undefined),
+      ...(kind ? { kind } : undefined),
     };
 
     return /** @type {FormulateResult<EndoWorker>} */ (
@@ -31997,7 +31728,11 @@ const makeDaemonCore = async (
   /**
    * @type {DaemonCore['formulateWorker']}
    */
-  const formulateWorker = async (deferredTasks, options = {}) => {
+  const formulateWorker = async (
+    deferredTasks,
+    trustedShims = undefined,
+    label = undefined,
+  ) => {
     return withFormulaGraphLock(async () => {
       const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
 
@@ -32008,7 +31743,7 @@ const makeDaemonCore = async (
         }),
       });
 
-      return formulateNumberedWorker(formulaNumber, options);
+      return formulateNumberedWorker(formulaNumber, { trustedShims, label });
     });
   };
 
@@ -32104,7 +31839,13 @@ const makeDaemonCore = async (
         )
       ).id,
     );
-    const workerId = pin(await provideWorkerId(specifiedWorkerId, undefined, workerLabel ?? 'host'));
+    const workerId = pin(
+      await provideWorkerId(
+        specifiedWorkerId,
+        undefined,
+        workerLabel ?? 'host',
+      ),
+    );
     /* eslint-enable no-use-before-define */
 
     return harden({
@@ -32180,7 +31921,12 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateGuestDependencies']} */
-  const formulateGuestDependencies = async (hostAgentId, hostHandleId, workerLabel) => {
+  const formulateGuestDependencies = async (
+    hostAgentId,
+    hostHandleId,
+    workerLabel,
+    existingStoreId,
+  ) => {
     // Pin each dependency formula to protect it from collection until the
     // parent guest formula links them via formulaDeps.
     /** @type {FormulaIdentifier[]} */
@@ -32222,12 +31968,15 @@ const makeDaemonCore = async (
     );
     const { keypairId } = await formulateKeypair();
     pin(keypairId);
+    // Use an existing store (e.g. a synced pet store) if provided,
+    // otherwise create a fresh local pet store.
     const storeId = pin(
-      (
-        await formulateNumberedPetStore(
-          /** @type {FormulaNumber} */ (await randomHex256()),
-        )
-      ).id,
+      existingStoreId ??
+        (
+          await formulateNumberedPetStore(
+            /** @type {FormulaNumber} */ (await randomHex256()),
+          )
+        ).id,
     );
     const workerId = pin(
       (
@@ -32278,12 +32027,19 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateGuest']} */
-  const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks, workerLabel) => {
+  const formulateGuest = async (
+    hostAgentId,
+    hostHandleId,
+    deferredTasks,
+    workerLabel,
+    existingStoreId,
+  ) => {
     return withFormulaGraphLock(async () => {
       const identifiers = await formulateGuestDependencies(
         hostAgentId,
         hostHandleId,
         workerLabel,
+        existingStoreId,
       );
 
       await deferredTasks.execute({
@@ -32303,6 +32059,7 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} [specifiedWorkerId]
    * @param {string[]} [trustedShims]
    * @param {string} [label]
+   * @param {'locked' | 'node'} [kind]
    */
   const provideWorkerId = async (
     specifiedWorkerId,
@@ -32311,13 +32068,14 @@ const makeDaemonCore = async (
     kind = undefined,
   ) => {
     await null;
+    console.log(`provideWorkerId: kind=${kind} defaultWorkerKind=${defaultWorkerKind} specifiedWorkerId=${typeof specifiedWorkerId === 'string' ? specifiedWorkerId.slice(0, 12) : specifiedWorkerId}`);
     if (typeof specifiedWorkerId === 'string') {
-      if (kind === 'node') {
-        // The caller needs a Node.js worker (e.g. for unconfined/bundle
-        // formulas).  If the specified worker is a default (XS/locked)
-        // worker, create a separate Node.js worker.  The original XS
-        // worker stays alive (it may have running evals).
+      if (kind === 'node' && defaultWorkerKind !== 'node') {
+        // Default workers are XS/locked (bus daemon under Rust
+        // supervisor).  Create a separate Node.js worker.  The original
+        // XS worker stays alive (it may have running evals).
         const existingFormula = formulaForId.get(specifiedWorkerId);
+        console.log(`provideWorkerId: existingFormula=${existingFormula ? JSON.stringify(existingFormula).slice(0, 80) : 'NOT FOUND'}`);
         if (
           existingFormula &&
           existingFormula.type === 'worker' &&
@@ -32476,7 +32234,11 @@ const makeDaemonCore = async (
         }
 
         const identifiers = harden({
-          workerId: await provideWorkerId(specifiedWorkerId, undefined, workerLabel),
+          workerId: await provideWorkerId(
+            specifiedWorkerId,
+            undefined,
+            workerLabel,
+          ),
           endowmentIds: await Promise.all(
             endowmentIdsOrPaths.map(async formulaIdOrPath => {
               if (typeof formulaIdOrPath === 'string') {
@@ -32572,6 +32334,7 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} [specifiedPowersId]
    * @param {string[]} [trustedShims]
    * @param {string} [workerLabel]
+   * @param {'locked' | 'node'} [workerKind]
    */
   const formulateCapletDependencies = async (
     hostAgentId,
@@ -32693,40 +32456,6 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {DaemonCore['formulateArchive']} */
-  const formulateArchive = async (
-    hostAgentId,
-    hostHandleId,
-    archiveId,
-    deferredTasks,
-    specifiedWorkerId,
-    specifiedPowersId,
-    env = {},
-    trustedShims = undefined,
-  ) => {
-    return withFormulaGraphLock(async () => {
-      const { powersId, capletFormulaNumber, workerId } =
-        await formulateCapletDependencies(
-          hostAgentId,
-          hostHandleId,
-          deferredTasks,
-          specifiedWorkerId,
-          specifiedPowersId,
-          trustedShims,
-        );
-
-      /** @type {MakeArchiveFormula} */
-      const formula = {
-        type: 'make-archive',
-        worker: workerId,
-        powers: powersId,
-        archive: archiveId,
-        env,
-      };
-      return formulate(capletFormulaNumber, formula);
-    });
-  };
-
   /**
    * @param {FormulaNumber} formulaNumber
    * @param {FormulaIdentifier} petStoreId
@@ -32754,8 +32483,20 @@ const makeDaemonCore = async (
       node: nodeNumber,
       addresses,
     };
+    // Persist the peer formula lazily — the dial should only happen
+    // when some formula actually needs to reach the peer, not when the
+    // peer info is registered.  This avoids crossed-hellos races where
+    // both sides dial each other simultaneously upon symmetric
+    // `addPeerInfo` calls.
+    const id = await formulateLazy(formulaNumber, formula);
     return /** @type {FormulateResult<EndoPeer>} */ (
-      formulate(formulaNumber, formula)
+      /** @type {unknown} */ (
+        harden({
+          id,
+          // Value is only populated when someone calls provide(id).
+          value: /** @type {any} */ (undefined),
+        })
+      )
     );
   };
 
@@ -32782,7 +32523,10 @@ const makeDaemonCore = async (
       loopbackType,
       localNodeNumber,
     );
-    await E(value).storeLocator(/** @type {NamePath} */ (['loop']), loopbackLocator);
+    await E(value).storeLocator(
+      /** @type {NamePath} */ (['loop']),
+      loopbackLocator,
+    );
     return { id, value };
   };
 
@@ -32875,64 +32619,158 @@ const makeDaemonCore = async (
       `Endo daemon dialing peer node ${nodeId.slice(0, 8)} at ${JSON.stringify(addresses)}`,
     );
     const remoteControl = provideRemoteControl(nodeId);
-    return remoteControl.connect(
-      async () => {
-        // TODO race networks that support protocol for connection
-        // TODO retry, exponential back-off, with full jitter
-        const networks = await getAllNetworks(networksDirectoryId);
-        console.log(
-          `Endo daemon makePeer ${nodeId.slice(0, 8)}: evaluating ${addresses.length} address(es) across ${networks.length} network service(s)`,
-        );
-        // Connect on first supported address.
-        let addressIndex = 0;
-        for (const address of addresses) {
-          addressIndex += 1;
-          const { protocol } = new URL(address);
+    // The state machine may abandon our outbound dial attempt (e.g.,
+    // due to crossed-hellos accept bias).  That cancellation must not
+    // cancel the peer formula itself — the peer keeps working with the
+    // replacement (accepted) connection.  Use a local PromiseKit for
+    // the dial attempt's cancellation, distinct from context.cancel.
+    const dialAttempt = () => {
+      const { promise: dialCancelled, reject: cancelDial } =
+        /** @type {PromiseKit<never>} */ (makePromiseKit());
+      context.cancelled.catch(cancelDial);
+      return remoteControl.connect(
+        getRemoteGatewayViaNetwork,
+        cancelDial,
+        dialCancelled,
+        () => {
           console.log(
-            `Endo daemon makePeer ${nodeId.slice(0, 8)}: address ${addressIndex}/${addresses.length} protocol=${protocol} value=${address}`,
+            `Endo daemon peer node ${nodeId.slice(0, 8)} connection disposed`,
           );
-          let networkIndex = 0;
-          for (const network of networks) {
-            networkIndex += 1;
-            // eslint-disable-next-line no-await-in-loop
-            const supported = await E(network).supports(protocol);
+          dropLiveValue(context.id);
+        },
+      );
+    };
+    /** @returns {Promise<EndoGateway>} */
+    const getRemoteGatewayViaNetwork = async () => {
+      // TODO race networks that support protocol for connection
+      // TODO retry, exponential back-off, with full jitter
+      const networks = await getAllNetworks(networksDirectoryId);
+      console.log(
+        `Endo daemon makePeer ${nodeId.slice(0, 8)}: evaluating ${addresses.length} address(es) across ${networks.length} network service(s)`,
+      );
+      // Connect on first supported address.
+      let addressIndex = 0;
+      for (const address of addresses) {
+        addressIndex += 1;
+        const { protocol } = new URL(address);
+        console.log(
+          `Endo daemon makePeer ${nodeId.slice(0, 8)}: address ${addressIndex}/${addresses.length} protocol=${protocol} value=${address}`,
+        );
+        let networkIndex = 0;
+        for (const network of networks) {
+          networkIndex += 1;
+          // eslint-disable-next-line no-await-in-loop
+          const supported = await E(network).supports(protocol);
+          console.log(
+            `Endo daemon makePeer ${nodeId.slice(0, 8)}: network ${networkIndex}/${networks.length} supports(${protocol}) -> ${supported}`,
+          );
+          if (supported) {
+            const attemptStartedAt = Date.now();
             console.log(
-              `Endo daemon makePeer ${nodeId.slice(0, 8)}: network ${networkIndex}/${networks.length} supports(${protocol}) -> ${supported}`,
+              `Endo daemon makePeer ${nodeId.slice(0, 8)}: dialing with network ${networkIndex}/${networks.length}`,
             );
-            if (supported) {
-              const attemptStartedAt = Date.now();
-              console.log(
-                `Endo daemon makePeer ${nodeId.slice(0, 8)}: dialing with network ${networkIndex}/${networks.length}`,
+            // Create a derived context for this specific dial
+            // attempt.  The network worker uses this context to
+            // observe cancellation (tearing down TCP if the peer
+            // dies) and to report connection loss (by cancelling
+            // this context).  Connection loss must NOT cancel the
+            // peer formula itself — crossed-hellos accept bias
+            // routinely abandons dials while the peer stays alive.
+            const { promise: attemptCancelled, reject: cancelAttempt } =
+              /** @type {PromiseKit<never>} */ (makePromiseKit());
+            // Swallow the rejection to avoid unhandled rejection
+            // warnings; the promise is intentionally a signal.
+            attemptCancelled.catch(() => {});
+            // Die with the peer: if the peer context is cancelled,
+            // also cancel this dial attempt.
+            context.cancelled.catch(cancelAttempt);
+            const attemptContext = Far('Context', {
+              id: () => context.id,
+              cancel: cancelAttempt,
+              whenCancelled: () => attemptCancelled,
+              whenDisposed: () => attemptCancelled,
+              addDisposalHook: _hook => {},
+            });
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const remoteGateway = await E(network).connect(
+                address,
+                /** @type {any} */ (attemptContext),
               );
-              try {
-                // eslint-disable-next-line no-await-in-loop
-                const remoteGateway = await E(network).connect(
-                  address,
-                  makeFarContext(context),
-                );
-                console.log(
-                  `Endo daemon makePeer ${nodeId.slice(0, 8)}: dial succeeded in ${Date.now() - attemptStartedAt}ms`,
-                );
-                return remoteGateway;
-              } catch (error) {
-                console.log(
-                  `Endo daemon makePeer ${nodeId.slice(0, 8)}: dial failed in ${Date.now() - attemptStartedAt}ms: ${/** @type {Error} */ (error).message}`,
-                );
-                throw error;
-              }
+              console.log(
+                `Endo daemon makePeer ${nodeId.slice(0, 8)}: dial succeeded in ${Date.now() - attemptStartedAt}ms`,
+              );
+              return remoteGateway;
+            } catch (error) {
+              console.log(
+                `Endo daemon makePeer ${nodeId.slice(0, 8)}: dial failed in ${Date.now() - attemptStartedAt}ms: ${/** @type {Error} */ (error).message}`,
+              );
+              throw error;
             }
           }
         }
-        throw new Error('Cannot connect to peer: no supported addresses');
-      },
-      context.cancel,
-      context.cancelled,
-      () => {
-        console.log(
-          `Endo daemon peer node ${nodeId.slice(0, 8)} connection disposed`,
-        );
-        dropLiveValue(context.id);
-      },
+      }
+      throw new Error('Cannot connect to peer: no supported addresses');
+    };
+
+    // If crossed-hellos accept bias abandons our dial, retry once.
+    // The state machine should now be in `accepted` state, and the
+    // retry will return the already-accepted gateway without dialing.
+    const isAbandonError = err =>
+      err &&
+      typeof err.message === 'string' &&
+      (err.message.includes('Connection abandoned') ||
+        err.message.includes(
+          'Cannot call write after a stream was destroyed',
+        ) ||
+        err.message.includes('Connection stream ended'));
+
+    /** @returns {Promise<EndoGateway>} */
+    const resilientDial = async () => {
+      try {
+        return await dialAttempt();
+      } catch (error) {
+        if (isAbandonError(error)) {
+          console.log(
+            `Endo daemon makePeer ${nodeId.slice(0, 8)}: retrying after abandoned dial`,
+          );
+          return dialAttempt();
+        }
+        throw error;
+      }
+    };
+
+    // Return a facade gateway whose `provide` method consults the
+    // current state of the remote-control on each call.  If the
+    // current connection is lost mid-flight (e.g., due to crossed
+    // hellos accept bias switching to a different TCP), subsequent
+    // `provide` calls will go through whatever connection the
+    // remote-control currently holds.
+    const currentGatewayP = resilientDial();
+    return makeExo(
+      'ResilientPeerGateway',
+      PeerGatewayInterface,
+      /** @type {any} */ ({
+        /** @param {string} requestedId */
+        provide: async requestedId => {
+          // Try with the current gateway; on failure, re-dial and try
+          // once more.  This handles the case where the initial dial
+          // succeeded but the connection was later abandoned.
+          try {
+            const gateway = await currentGatewayP;
+            return await E(gateway).provide(requestedId);
+          } catch (error) {
+            if (!isAbandonError(error)) {
+              throw error;
+            }
+            console.log(
+              `Endo daemon peer ${nodeId.slice(0, 8)}: provide failed with ${error.message}, re-dialing`,
+            );
+            const gateway = await resilientDial();
+            return E(gateway).provide(requestedId);
+          }
+        },
+      }),
     );
   };
 
@@ -33039,19 +32877,37 @@ const makeDaemonCore = async (
         );
       }
 
-      // Wrap the synced store in a directory so it acts as a NameHub
-      // (providing storeIdentifier, identify, etc.) when resolved via
-      // multi-segment paths like "guestName.petName".
-      const { id: syncedDirectoryId } =
-        await formulateDirectoryForStore(syncedStoreId);
-
-      // Write the directory into the host's pet store under guestName.
-      await E(hostAgent).storeIdentifier(
-        /** @type {NamePath} */ ([guestName]),
-        syncedDirectoryId,
+      // Create a local guest backed by the synced store.
+      /** @type {DeferredTasks<AgentDeferredTaskParams>} */
+      const guestTasks = makeDeferredTasks();
+      const { id: localGuestId } = await formulateGuest(
+        hostAgentId,
+        hostHandleId,
+        guestTasks,
+        `guest:${guestName}`,
+        syncedStoreId,
       );
 
-      // Return the synced store number so the guest can create its paired replica.
+      // Name the local guest handle inside @pins so that incarnating
+      // it transitively incarnates the guest and its synced pet store.
+      const localGuestFormula = /** @type {GuestFormula} */ (
+        await getFormulaForId(localGuestId)
+      );
+      await E(hostAgent).storeIdentifier(
+        /** @type {NamePath} */ (['@pins', `guest-${guestName}`]),
+        localGuestFormula.handle,
+      );
+
+      // Store the remote guest handle under guestName for mail delivery.
+      // Use storeLocator so the directory properly internalizes the
+      // remote formula identifier for peer resolution.
+      await E(hostAgent).storeLocator(
+        /** @type {NamePath} */ ([guestName]),
+        guestHandleLocatorStr,
+      );
+
+      // Return the synced store number so the guest can create its
+      // paired replica.
       const { number: syncedStoreNumber } = parseId(syncedStoreId);
       return harden({ syncedStoreNumber });
     };
@@ -33083,6 +32939,7 @@ const makeDaemonCore = async (
     formulateMessage,
     getFormulaForId,
     getTypeForId,
+    isLocalKey,
     randomHex256,
     pinTransient,
     unpinTransient,
@@ -33193,7 +33050,6 @@ const makeDaemonCore = async (
     formulateEval,
     formulateUnconfined,
     formulateBundle,
-    formulateArchive,
     formulateReadableBlob,
     checkinTree,
     formulateMount,
@@ -33258,14 +33114,7 @@ const makeDaemonCore = async (
       const { number: formulaNumber } = parseId(id);
       const formula = await getFormulaForId(id);
       if (
-        ![
-          'eval',
-          'lookup',
-          'make-unconfined',
-          'make-bundle',
-          'make-archive',
-          'guest',
-        ].includes(
+        !['eval', 'lookup', 'make-unconfined', 'make-bundle', 'guest'].includes(
           formula.type,
         )
       ) {
@@ -33309,16 +33158,6 @@ const makeDaemonCore = async (
           formulaNumber,
           harden({
             bundle: provide(formula.bundle, 'readable-blob'),
-            powers: provide(formula.powers),
-            worker: provide(formula.worker, 'worker'),
-          }),
-        );
-      } else if (formula.type === 'make-archive') {
-        return makeInspector(
-          formula.type,
-          formulaNumber,
-          harden({
-            archive: provide(formula.archive, 'readable-blob'),
             powers: provide(formula.powers),
             worker: provide(formula.worker, 'worker'),
           }),
@@ -33402,7 +33241,7 @@ const makeDaemonCore = async (
  * @param {number} args.gracePeriodMs - Grace period in milliseconds for shutdown.
  * @param {Promise<never>} args.gracePeriodElapsed - Promise that resolves on grace period end.
  * @param {Specials} args.specials - Special formula generators.
- * @param {boolean} [args.gcEnabled=true] - Enable garbage collection.
+ * @param {boolean} [args.gcEnabled] - Enable garbage collection.
  * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
  *         An object containing the endo bootstrap and CapTP connection registrar.
  *
@@ -33419,7 +33258,7 @@ const makeDaemonCore = async (
  */
 const provideEndoBootstrap = async (
   powers,
-  { cancel, gracePeriodMs, gracePeriodElapsed, specials, gcEnabled },
+  { cancel, gracePeriodMs, gracePeriodElapsed, specials, gcEnabled, defaultWorkerKind },
 ) => {
   const { persistence: persistencePowers } = powers;
   const { rootNonce: endoFormulaNumber, isNewlyCreated } =
@@ -33436,6 +33275,7 @@ const provideEndoBootstrap = async (
     localNodeNumber,
     signBytes: rootKeypair.sign,
     gcEnabled,
+    defaultWorkerKind,
   });
   const { capTpConnectionRegistrar } = daemonCore;
   const isInitialized = !isNewlyCreated;
@@ -33474,7 +33314,7 @@ const provideEndoBootstrap = async (
  * @param {Promise<never>} cancelled - A promise that rejects when cancelled.
  * @param {Specials} [specials] - Special formula generators
  * @param {object} [options]
- * @param {boolean} [options.gcEnabled=true] - Enable garbage collection of worker daemons.
+ * @param {boolean} [options.gcEnabled] - Enable garbage collection of worker daemons.
  *
  * @example
  * ```js
@@ -33495,7 +33335,7 @@ const provideEndoBootstrap = async (
   specials = {},
   options = {},
 ) => {
-  const { gcEnabled } = options;
+  const { gcEnabled, defaultWorkerKind } = options;
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {PromiseKit<never>} */ (makePromiseKit());
 
@@ -33518,6 +33358,7 @@ const provideEndoBootstrap = async (
       gracePeriodElapsed,
       specials,
       gcEnabled,
+      defaultWorkerKind,
     });
 
   await Promise.allSettled([
@@ -33599,18 +33440,21 @@ const provideEndoBootstrap = async (
       return { keypair, isNewlyCreated: true };
     } else {
       const lines = existingKeypair.trim().split('\n');
-      const publicHex = lines[0];
-      const privateHex = lines[1];
+      const pubHex = lines[0];
+      const privHex = lines[1];
+      // Use getters to avoid storing Uint8Array directly on the
+      // hardened object — in XS, Uint8Array indexed elements are
+      // non-configurable so harden/freeze fails.
       return {
         keypair: harden({
           get publicKey() {
-            return fromHex(publicHex);
+            return fromHex(pubHex);
           },
           get privateKey() {
-            return fromHex(privateHex);
+            return fromHex(privHex);
           },
           sign: message =>
-            cryptoPowers.ed25519Sign(fromHex(privateHex), message),
+            cryptoPowers.ed25519Sign(fromHex(privHex), message),
         }),
         isNewlyCreated: false,
       };
@@ -33621,7 +33465,7 @@ const provideEndoBootstrap = async (
     const { statePath } = config;
     const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha256');
 
-    /** @type {import('@endo/platform/fs/lite').ContentStore} */
+    /** @type {import('@endo/platform/fs/lite/types').ContentStore} */
     const rawStore = harden({
       /**
        * @param {AsyncIterable<Uint8Array>} readable
@@ -33755,17 +33599,15 @@ const provideEndoBootstrap = async (
     await Promise.all(
       heads.map(async head => {
         const headPath = filePowers.joinPath(formulasPath, head);
-        const files = await filePowers
-          .readDirectory(headPath)
-          .catch(dirError => {
-            if (
-              dirError.message.startsWith('ENOTDIR: ') ||
-              dirError.message.startsWith('ENOENT: ')
-            ) {
-              return [];
-            }
-            throw dirError;
-          });
+        const files = await filePowers.readDirectory(headPath).catch(error => {
+          if (
+            error.message.startsWith('ENOTDIR: ') ||
+            error.message.startsWith('ENOENT: ')
+          ) {
+            return [];
+          }
+          throw error;
+        });
         for (const file of files) {
           if (file.endsWith('.json')) {
             const tail = file.slice(0, -'.json'.length);
@@ -33797,7 +33639,7 @@ harden(makeDaemonicPersistencePowers);
 })()
 ,
 // === 126. daemon ./src/synced-pet-store.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,Far,q,makeChangeTopic,assertPetName,makeSerialJobs;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/far", [["Far",[$h͏_a => (Far = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]]]],["./pubsub.js", [["makeChangeTopic",[$h͏_a => (makeChangeTopic = $h͏_a)]]]],["./pet-name.js", [["assertPetName",[$h͏_a => (assertPetName = $h͏_a)]]]],["./serial-jobs.js", [["makeSerialJobs",[$h͏_a => (makeSerialJobs = $h͏_a)]]]]]);
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let harden,makeExo,M,q,makeChangeTopic,assertPetName,makeSerialJobs,makeIteratorRef;$h͏_imports([["@endo/harden", [["default",[$h͏_a => (harden = $h͏_a)]]]],["@endo/exo", [["makeExo",[$h͏_a => (makeExo = $h͏_a)]]]],["@endo/patterns", [["M",[$h͏_a => (M = $h͏_a)]]]],["@endo/errors", [["q",[$h͏_a => (q = $h͏_a)]]]],["./pubsub.js", [["makeChangeTopic",[$h͏_a => (makeChangeTopic = $h͏_a)]]]],["./pet-name.js", [["assertPetName",[$h͏_a => (assertPetName = $h͏_a)]]]],["./serial-jobs.js", [["makeSerialJobs",[$h͏_a => (makeSerialJobs = $h͏_a)]]]],["./reader-ref.js", [["makeIteratorRef",[$h͏_a => (makeIteratorRef = $h͏_a)]]]]]);
 
 
 
@@ -33811,6 +33653,24 @@ harden(makeDaemonicPersistencePowers);
 
 
 
+
+
+
+       const SyncedPetStoreInterface = M.interface('SyncedPetStore', {
+  storeLocator: M.call(M.string(), M.string()).returns(M.promise()),
+  remove: M.call(M.string()).returns(M.promise()),
+  has: M.call(M.string()).returns(M.boolean()),
+  lookup: M.call(M.string()).returns(M.or(M.string(), M.undefined())),
+  list: M.call().returns(M.array()),
+  getState: M.call().returns(M.record()),
+  getLocalClock: M.call().returns(M.number()),
+  getRemoteAckedClock: M.call().returns(M.number()),
+  mergeRemoteState: M.call(M.record(), M.number()).returns(M.promise()), // resolves to string[]
+  acknowledgeRemoteClock: M.call(M.number()).returns(M.promise()),
+  pruneTombstones: M.call().returns(M.promise()),
+  followChanges: M.call().returns(M.remotable()),
+});$h͏_once.SyncedPetStoreInterface(SyncedPetStoreInterface);
+harden(SyncedPetStoreInterface);
 
 /**
  * Compare two synced entries using the CRDT merge rules:
@@ -33865,15 +33725,22 @@ harden(mergeEntry);
 harden(mergeState);
 
 /**
- * Generate a short random hex string for temporary file names.
+ * Module-level counter used by `randomTmpSuffix` to guarantee
+ * uniqueness across overlapping calls within a single process.
+ */
+let tmpSuffixCounter = 0;
+
+/**
+ * Generate a short suffix for temporary file names that need only be
+ * unique within this process, not unpredictable.  Uses a process-wide
+ * counter combined with the current high-resolution time so that the
+ * module works on Node 18 (which lacks a global `crypto`).
  *
  * @returns {string}
  */
 const randomTmpSuffix = () => {
-  const bytes = new Uint8Array(8);
-  // eslint-disable-next-line no-undef
-  crypto.getRandomValues(bytes);
-  return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+  tmpSuffixCounter += 1;
+  return `${Date.now().toString(16)}-${tmpSuffixCounter.toString(16)}`;
 };
 
 /**
@@ -34123,7 +33990,7 @@ const cleanTmpFiles = async (filePowers, directory) => {
       const entry = /** @type {SyncedEntry} */ (state.get(key));
       changeTopic.publisher.next(harden({ key, entry }));
     }
-    return changed;
+    return harden([...changed]);
   };
 
   /** @type {SyncedPetStore['acknowledgeRemoteClock']} */
@@ -34150,30 +34017,36 @@ const cleanTmpFiles = async (filePowers, directory) => {
     return harden(pruned);
   };
 
-  /** @type {SyncedPetStore['followChanges']} */
-  const followChanges = async function* syncedChanges() {
-    const subscription = changeTopic.subscribe();
-    // Yield current state first.
-    for (const [key, entry] of state) {
-      yield harden({ key, entry });
-    }
-    yield* subscription;
+  const followChanges = () => {
+    const iterator = (async function* syncedChanges() {
+      const subscription = changeTopic.subscribe();
+      // Yield current state first.
+      for (const [key, entry] of state) {
+        yield harden({ key, entry });
+      }
+      yield* subscription;
+    })();
+    return makeIteratorRef(iterator);
   };
 
-  return Far('SyncedPetStore', {
-    storeLocator,
-    remove,
-    has,
-    lookup,
-    list,
-    getState,
-    getLocalClock,
-    getRemoteAckedClock,
-    mergeRemoteState,
-    acknowledgeRemoteClock,
-    pruneTombstones,
-    followChanges,
-  });
+  return /** @type {SyncedPetStore} */ (
+    /** @type {unknown} */ (
+      makeExo('SyncedPetStore', SyncedPetStoreInterface, {
+        storeLocator,
+        remove,
+        has,
+        lookup,
+        list,
+        getState,
+        getLocalClock,
+        getRemoteAckedClock,
+        mergeRemoteState,
+        acknowledgeRemoteClock,
+        pruneTombstones,
+        followChanges,
+      })
+    )
+  );
 };$h͏_once.makeSyncedPetStore(makeSyncedPetStore);
 harden(makeSyncedPetStore);
 })()
@@ -34915,6 +34788,7 @@ const registerCapTpConnection = (registrar, name, close, closed) => {
     try {
       return writer.next(message);
     } catch (sendError) {
+      console.error(`CapTP ${name} send error:`, sendError.message);
       return Promise.reject(sendError);
     }
   };
@@ -35012,7 +34886,6 @@ const registerCapTpConnection = (registrar, name, close, closed) => {
 /** @param {any} message */$h͏_once.makeMessageCapTP(makeMessageCapTP);
        const messageToBytes = message => {
   const text = JSON.stringify(message);
-  // console.log('->', text);
   const bytes = textEncoder.encode(text);
   return bytes;
 };
@@ -35324,9 +35197,9 @@ harden(decodeFrame);
   const verb = cborReadText(cursor);
   const payload = cborReadBytes(cursor);
   const nonce = n === 4 ? cborReadInt(cursor) : 0;
-  // Note: not hardened because payload is a Uint8Array, and
-  // typed arrays cannot be frozen in XS (non-configurable indexed
-  // properties). The envelope is a transient parsing result.
+  // Do not harden the envelope: the payload field is a Uint8Array
+  // whose indexed elements are non-configurable in XS, so
+  // Object.freeze (harden) fails.
   return { handle, verb, payload, nonce };
 };$h͏_once.decodeEnvelope(decodeEnvelope);
 harden(decodeEnvelope);
@@ -35454,238 +35327,13 @@ harden(readFrameFromStream);
 harden(writeFrameToStream);
 })()
 ,
-// === 133. daemon ./src/bus-xs-common.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);// @ts-check
-/* global globalThis */
-
-/**
- * Shared primitives used by both XS bus bootstraps
- * (bus-worker-xs.js and bus-daemon-rust-xs.js).
- *
- * Intentionally tiny: only the bits that were duplicated verbatim in
- * both bootstraps.  The actual wire plumbing lives in bus-xs-core.js.
- */
-
-       const textEncoder = new TextEncoder();$h͏_once.textEncoder(textEncoder);
-harden(textEncoder);
-
-       const textDecoder = new TextDecoder();$h͏_once.textDecoder(textDecoder);
-harden(textDecoder);
-
-/**
- * No-op rejection handler.  XS console.error may crash when formatting
- * certain error objects, so we swallow CapTP-internal rejections
- * silently.
- *
- * @param {unknown} _err
- */
-       const silentReject = _err => {};$h͏_once.silentReject(silentReject);
-harden(silentReject);
-
-/**
- * Shared termination state for the XS main loop.  The Rust main loop
- * polls `globalThis.__shouldTerminate()` after each command; when it
- * returns true, Rust breaks out of its loop and the process exits.
- */
-const terminationState = { shouldTerminate: false };
-
-       const markShouldTerminate = () => {
-  terminationState.shouldTerminate = true;
-};$h͏_once.markShouldTerminate(markShouldTerminate);
-harden(markShouldTerminate);
-
-/**
- * Install `globalThis.__shouldTerminate` so the Rust main loop can
- * poll it.  Safe to call more than once; subsequent calls are no-ops.
- */
-       const installShouldTerminate = () => {
-  if (globalThis.__shouldTerminate === undefined) {
-    globalThis.__shouldTerminate = harden(
-      () => terminationState.shouldTerminate,
-    );
-  }
-};$h͏_once.installShouldTerminate(installShouldTerminate);
-harden(installShouldTerminate);
-})()
-,
-// === 134. daemon ./src/bus-xs-core.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let encodeEnvelope,decodeEnvelope,installShouldTerminate,markShouldTerminate,silentReject,textDecoder,textEncoder;$h͏_imports([["./envelope.js", [["encodeEnvelope",[$h͏_a => (encodeEnvelope = $h͏_a)]],["decodeEnvelope",[$h͏_a => (decodeEnvelope = $h͏_a)]]]],["./bus-xs-common.js", [["installShouldTerminate",[$h͏_a => (installShouldTerminate = $h͏_a),$h͏_live["installShouldTerminate"]]],["markShouldTerminate",[$h͏_a => (markShouldTerminate = $h͏_a),$h͏_live["markShouldTerminate"]]],["silentReject",[$h͏_a => (silentReject = $h͏_a),$h͏_live["silentReject"]]],["textDecoder",[$h͏_a => (textDecoder = $h͏_a),$h͏_live["textDecoder"]]],["textEncoder",[$h͏_a => (textEncoder = $h͏_a),$h͏_live["textEncoder"]]]]]]);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const EMPTY_PAYLOAD = new Uint8Array(0);
-
-/**
- * @typedef {import('./envelope.js').Envelope} Envelope
- */
-
-/**
- * @typedef {(payload: Uint8Array) => void} PayloadHandler
- */
-
-/**
- * @typedef {object} XsNode
- * @property {(handle: number, verb: string, payload?: Uint8Array, nonce?: number) => void} sendEnvelope
- * @property {(handle: number, onPayload: PayloadHandler) => void} registerSession
- * @property {(handle: number) => void} closeSession
- * @property {(handle: number) => boolean} hasSession
- */
-
-/**
- * Create the shared XS node plumbing and install
- * `globalThis.handleCommand`.
- *
- * @param {object} [options]
- * @param {(env: Envelope) => void} [options.onControl]
- *   Called for any envelope whose verb is not `deliver`, and for
- *   `deliver` envelopes whose handle has no registered session.
- * @returns {XsNode}
- */
-       const makeXsNode = ({ onControl } = {}) => {
-  installShouldTerminate();
-
-  /** @type {Map<number, PayloadHandler>} */
-  const sessions = new Map();
-
-  /**
-   * @param {number} handle
-   * @param {string} verb
-   * @param {Uint8Array} [payload]
-   * @param {number} [nonce]
-   */
-  const sendEnvelope = (handle, verb, payload, nonce) => {
-    const data = encodeEnvelope({
-      handle,
-      verb,
-      payload: payload || EMPTY_PAYLOAD,
-      nonce: nonce || 0,
-    });
-    hostSendRawFrame(data);
-  };
-
-  /**
-   * @param {number} handle
-   * @param {PayloadHandler} onPayload
-   */
-  const registerSession = (handle, onPayload) => {
-    sessions.set(handle, onPayload);
-  };
-
-  /** @param {number} handle */
-  const closeSession = handle => {
-    sessions.delete(handle);
-  };
-
-  /** @param {number} handle */
-  const hasSession = handle => sessions.has(handle);
-
-  /**
-   * Called by the Rust main loop for every inbound envelope.
-   *
-   * @param {Uint8Array} bytes - raw CBOR envelope bytes
-   */
-  globalThis.handleCommand = harden(bytes => {
-    let env;
-    try {
-      env = decodeEnvelope(bytes);
-    } catch (e) {
-      hostTrace(
-        `xs-core: failed to decode envelope: ${/** @type {Error} */ (e).message}`,
-      );
-      return;
-    }
-
-    if (env.verb === 'deliver') {
-      const onPayload = sessions.get(env.handle);
-      if (onPayload) {
-        try {
-          onPayload(env.payload);
-        } catch (e) {
-          hostTrace(
-            `xs-core: session ${env.handle} dispatch error: ${/** @type {Error} */ (e).message}`,
-          );
-        }
-        return;
-      }
-    }
-
-    if (onControl) {
-      try {
-        onControl(env);
-      } catch (e) {
-        hostTrace(
-          `xs-core: onControl error for verb ${env.verb}: ${/** @type {Error} */ (e).message}`,
-        );
-      }
-      return;
-    }
-
-    if (env.verb !== 'deliver') {
-      hostTrace(`xs-core: unhandled verb=${env.verb} handle=${env.handle}`);
-    } else {
-      hostTrace(`xs-core: deliver for unknown handle=${env.handle}`);
-    }
-  });
-
-  return harden({
-    sendEnvelope,
-    registerSession,
-    closeSession,
-    hasSession,
-  });
-};$h͏_once.makeXsNode(makeXsNode);
-harden(makeXsNode);
-})()
-,
-// === 135. daemon ./src/bus-daemon-rust-xs-powers.js ===
+// === 133. daemon ./src/bus-daemon-rust-xs-powers.js ===
 ({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);// @ts-check
 /* global hostReadFile, hostWriteFile, hostReadDir, hostMkdir, hostRemove,
    hostRename, hostExists, hostIsDir, hostReadLink, hostSha256, hostSha256Init,
-   hostSha256Update, hostSha256Finish, hostRandomHex256, hostEd25519Keygen,
-   hostEd25519Sign, hostGetPid, hostGetEnv, hostJoinPath, hostRealPath,
-   harden */
+   hostSha256Update, hostSha256UpdateBytes, hostSha256Finish, hostRandomHex256,
+   hostEd25519Keygen, hostEd25519Sign, hostGetPid, hostGetEnv, hostJoinPath,
+   hostRealPath, openWriter, write, closeWriter, harden */
 
 /**
  * XS daemon powers — factory functions that create FilePowers and
@@ -35894,29 +35542,18 @@ const fromHex = hex => {
    * @returns {import('@endo/stream').Writer<Uint8Array>}
    */
   const makeFileWriter = path => {
-    /** @type {Uint8Array[]} */
-    const chunks = [];
+    const handle = openWriter(DIR_TOKEN, toRelative(path));
     return harden({
       async next(/** @type {Uint8Array} */ chunk) {
-        chunks.push(chunk);
+        write(handle, chunk);
         return harden({ done: false, value: undefined });
       },
       async return(_value) {
-        // Concatenate all chunks and write atomically.
-        const totalLen = chunks.reduce((n, c) => n + c.length, 0);
-        const combined = new Uint8Array(totalLen);
-        let offset = 0;
-        for (const c of chunks) {
-          combined.set(c, offset);
-          offset += c.length;
-        }
-        // Write as string — for text content this works.
-        // For binary content we'd need a hostWriteFileBytes.
-        const text = new TextDecoder().decode(combined);
-        await writeFileText(path, text);
+        closeWriter(handle);
         return harden({ done: true, value: undefined });
       },
       async throw(_error) {
+        closeWriter(handle);
         return harden({ done: true, value: undefined });
       },
       [Symbol.asyncIterator]() {
@@ -35955,9 +35592,7 @@ harden(makeXsFilePowers);
     return harden({
       /** @param {Uint8Array} chunk */
       update: chunk => {
-        // Convert bytes to string for the host function.
-        const text = new TextDecoder().decode(chunk);
-        hostSha256Update(handle, text);
+        hostSha256UpdateBytes(handle, chunk);
       },
       /** @param {string} chunk */
       updateText: chunk => {
@@ -36013,16 +35648,8 @@ harden(makeXsFilePowers);
 harden(makeXsCryptoPowers);
 })()
 ,
-// === 136. daemon ./src/bus-daemon-rust-xs.js ===
-({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let makeCapTP,E,makePromiseKit,mapWriter,mapReader,makePipe,makeDaemon,makeDaemonicPersistencePowers,makePetStoreMaker,makeMessageCapTP,messageToBytes,bytesToMessage,makeXsNode,silentReject,textDecoder,textEncoder,makeXsFilePowers,makeXsCryptoPowers;$h͏_imports([["./bus-xs-daemon-polyfills.js", []],["@endo/captp", [["makeCapTP",[$h͏_a => (makeCapTP = $h͏_a)]]]],["@endo/far", [["E",[$h͏_a => (E = $h͏_a)]]]],["@endo/promise-kit", [["makePromiseKit",[$h͏_a => (makePromiseKit = $h͏_a)]]]],["@endo/stream", [["mapWriter",[$h͏_a => (mapWriter = $h͏_a)]],["mapReader",[$h͏_a => (mapReader = $h͏_a)]],["makePipe",[$h͏_a => (makePipe = $h͏_a)]]]],["./daemon.js", [["makeDaemon",[$h͏_a => (makeDaemon = $h͏_a)]]]],["./daemon-persistence-powers.js", [["makeDaemonicPersistencePowers",[$h͏_a => (makeDaemonicPersistencePowers = $h͏_a)]]]],["./pet-store.js", [["makePetStoreMaker",[$h͏_a => (makePetStoreMaker = $h͏_a)]]]],["./connection.js", [["makeMessageCapTP",[$h͏_a => (makeMessageCapTP = $h͏_a)]],["messageToBytes",[$h͏_a => (messageToBytes = $h͏_a)]],["bytesToMessage",[$h͏_a => (bytesToMessage = $h͏_a)]]]],["./bus-xs-core.js", [["makeXsNode",[$h͏_a => (makeXsNode = $h͏_a)]],["silentReject",[$h͏_a => (silentReject = $h͏_a)]],["textDecoder",[$h͏_a => (textDecoder = $h͏_a)]],["textEncoder",[$h͏_a => (textEncoder = $h͏_a)]]]],["./bus-daemon-rust-xs-powers.js", [["makeXsFilePowers",[$h͏_a => (makeXsFilePowers = $h͏_a)]],["makeXsCryptoPowers",[$h͏_a => (makeXsCryptoPowers = $h͏_a)]]]]]);
-
-
-
-
-
-
-
-
+// === 134. daemon ./src/bus-daemon-rust-xs.js ===
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';let makeCapTP,E,Far,makePromiseKit,mapWriter,mapReader,makePipe,makeDaemon,makeDaemonicPersistencePowers,makePetStoreMaker,makeMessageCapTP,messageToBytes,bytesToMessage,encodeEnvelope,decodeEnvelope,makeXsFilePowers,makeXsCryptoPowers;$h͏_imports([["@endo/captp", [["makeCapTP",[$h͏_a => (makeCapTP = $h͏_a)]]]],["@endo/far", [["E",[$h͏_a => (E = $h͏_a)]],["Far",[$h͏_a => (Far = $h͏_a)]]]],["@endo/promise-kit", [["makePromiseKit",[$h͏_a => (makePromiseKit = $h͏_a)]]]],["@endo/stream", [["mapWriter",[$h͏_a => (mapWriter = $h͏_a)]],["mapReader",[$h͏_a => (mapReader = $h͏_a)]],["makePipe",[$h͏_a => (makePipe = $h͏_a)]]]],["./daemon.js", [["makeDaemon",[$h͏_a => (makeDaemon = $h͏_a)]]]],["./daemon-persistence-powers.js", [["makeDaemonicPersistencePowers",[$h͏_a => (makeDaemonicPersistencePowers = $h͏_a)]]]],["./pet-store.js", [["makePetStoreMaker",[$h͏_a => (makePetStoreMaker = $h͏_a)]]]],["./connection.js", [["makeMessageCapTP",[$h͏_a => (makeMessageCapTP = $h͏_a)]],["messageToBytes",[$h͏_a => (messageToBytes = $h͏_a)]],["bytesToMessage",[$h͏_a => (bytesToMessage = $h͏_a)]]]],["./envelope.js", [["encodeEnvelope",[$h͏_a => (encodeEnvelope = $h͏_a)]],["decodeEnvelope",[$h͏_a => (decodeEnvelope = $h͏_a)]]]],["./bus-daemon-rust-xs-powers.js", [["makeXsFilePowers",[$h͏_a => (makeXsFilePowers = $h͏_a)]],["makeXsCryptoPowers",[$h͏_a => (makeXsCryptoPowers = $h͏_a)]]]]]);
 
 
 
@@ -36070,11 +35697,195 @@ harden(makeXsCryptoPowers);
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { Envelope } from './envelope.js' */
 /** @import { CapTpConnectionRegistrar, Config, DaemonWorkerFacet, WorkerDaemonFacet } from './types.js' */
 
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
 // ---------------------------------------------------------------------------
-// Configuration from environment
+// Console polyfill for XS (daemon.js uses console.log/error extensively)
+// ---------------------------------------------------------------------------
+
+if (typeof globalThis.console === 'undefined') {
+  const makeLogFn =
+    prefix =>
+    (...args) => {
+      const parts = args.map(a => {
+        if (typeof a === 'string') return a;
+        try {
+          return JSON.stringify(a);
+        } catch {
+          return String(a);
+        }
+      });
+      hostTrace(`${prefix}${parts.join(' ')}`);
+    };
+  globalThis.console = {
+    log: makeLogFn(''),
+    warn: makeLogFn('[warn] '),
+    error: makeLogFn('[error] '),
+    info: makeLogFn('[info] '),
+    debug: makeLogFn('[debug] '),
+    trace: makeLogFn('[trace] '),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// setTimeout/clearTimeout polyfill for XS
+// ---------------------------------------------------------------------------
+// daemon.js uses setTimeout in delay() for grace period.
+// In XS there is no timer API.  We provide a minimal shim that
+// fires the callback synchronously (zero delay) since the XS
+// daemon has no real event loop to defer to.
+
+if (typeof globalThis.setTimeout === 'undefined') {
+  let nextTimerId = 1;
+  /** @type {Set<number>} */
+  const activeTimers = new Set();
+
+  globalThis.setTimeout = (/** @type {Function} */ fn, /** @type {number} */ _ms) => {
+    const id = nextTimerId;
+    nextTimerId += 1;
+    activeTimers.add(id);
+    // Execute immediately — XS has no event loop.
+    // Use Promise.resolve to defer to microtask queue.
+    void Promise.resolve().then(() => {
+      if (activeTimers.has(id)) {
+        activeTimers.delete(id);
+        fn();
+      }
+    });
+    return id;
+  };
+
+  globalThis.clearTimeout = (/** @type {number} */ id) => {
+    activeTimers.delete(id);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// URL polyfill for XS (daemon uses URL for endo:// locators)
+// ---------------------------------------------------------------------------
+
+if (typeof globalThis.URL === 'undefined') {
+  /**
+   * Minimal URL implementation sufficient for endo:// locators.
+   * Only supports protocols of the form "scheme://host/path?query".
+   *
+   * @param {string} input
+   */
+  const URLPolyfill = function URL(input) {
+    const protocolEnd = input.indexOf('://');
+    if (protocolEnd === -1) throw new Error(`Invalid URL: ${input}`);
+    this.protocol = `${input.slice(0, protocolEnd)}:`;
+    const rest = input.slice(protocolEnd + 3);
+    const pathStart = rest.indexOf('/');
+    const queryStart = rest.indexOf('?');
+
+    if (pathStart === -1 && queryStart === -1) {
+      this.host = rest;
+      this.hostname = rest;
+      this.pathname = '/';
+    } else if (queryStart !== -1 && (pathStart === -1 || queryStart < pathStart)) {
+      this.host = rest.slice(0, queryStart);
+      this.hostname = this.host;
+      this.pathname = '/';
+    } else {
+      this.host = rest.slice(0, pathStart);
+      this.hostname = this.host;
+      const pathEnd = queryStart !== -1 ? queryStart : rest.length;
+      this.pathname = rest.slice(pathStart, pathEnd);
+    }
+
+    /** @type {Array<[string, string]>} */
+    const params = [];
+    const qIdx = input.indexOf('?');
+    if (qIdx !== -1) {
+      const qs = input.slice(qIdx + 1);
+      for (const pair of qs.split('&')) {
+        if (!pair) continue;
+        const eqIdx = pair.indexOf('=');
+        if (eqIdx === -1) {
+          params.push([decodeURIComponent(pair), '']);
+        } else {
+          params.push([
+            decodeURIComponent(pair.slice(0, eqIdx)),
+            decodeURIComponent(pair.slice(eqIdx + 1)),
+          ]);
+        }
+      }
+    }
+
+    this.searchParams = {
+      /** @param {string} key @param {string} value */
+      set(key, value) {
+        // Remove existing entries for this key, then add.
+        let i = params.length;
+        while (i--) {
+          if (params[i][0] === key) params.splice(i, 1);
+        }
+        params.push([key, value]);
+      },
+      /** @param {string} key @param {string} value */
+      append(key, value) {
+        params.push([key, value]);
+      },
+      /** @param {string} key @returns {string | null} */
+      get(key) {
+        for (const [k, v] of params) {
+          if (k === key) return v;
+        }
+        return null;
+      },
+      /** @param {string} key @returns {string[]} */
+      getAll(key) {
+        return params.filter(([k]) => k === key).map(([, v]) => v);
+      },
+      /** @param {string} key @returns {boolean} */
+      has(key) {
+        return params.some(([k]) => k === key);
+      },
+      *keys() {
+        for (const [k] of params) yield k;
+      },
+      /** @returns {string} */
+      toString() {
+        return params
+          .map(
+            ([k, v]) =>
+              `${encodeURIComponent(k)}=${encodeURIComponent(v)}`,
+          )
+          .join('&');
+      },
+    };
+
+    this.toString = () => {
+      const qs = this.searchParams.toString();
+      const base = `${this.protocol}//${this.hostname}${this.pathname}`;
+      return qs ? `${base}?${qs}` : base;
+    };
+
+    Object.defineProperty(this, 'href', {
+      get: () => this.toString(),
+      enumerable: true,
+      configurable: true,
+    });
+  };
+
+  URLPolyfill.canParse = (/** @type {string} */ input) => {
+    try {
+      new URLPolyfill(input);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  globalThis.URL = /** @type {any} */ (URLPolyfill);
+}
+
+// ---------------------------------------------------------------------------
+// Configuration from environment / command args
 // ---------------------------------------------------------------------------
 
 const pid = hostGetPid();
@@ -36106,86 +35917,39 @@ const daemonicPersistencePowers = makeDaemonicPersistencePowers(
 );
 
 // ---------------------------------------------------------------------------
-// Shared XS node — envelope I/O, session registry, control routing
+// Envelope I/O via issueCommand
 // ---------------------------------------------------------------------------
 
 /**
- * @param {Envelope} env
+ * Send an envelope to the supervisor.
+ *
+ * Uses hostSendRawFrame which writes raw bytes as a CBOR frame,
+ * without wrapping in a "deliver" envelope (unlike issueCommand
+ * which is designed for workers that only send deliver messages).
+ *
+ * @param {number} handle
+ * @param {string} verb
+ * @param {Uint8Array} [payload]
+ * @param {number} [nonce]
  */
-const onControl = env => {
-  // Worker spawn responses.
-  if (env.verb === 'spawned' && env.nonce > 0) {
-    const pending = pendingSpawns.get(env.nonce);
-    if (pending) {
-      pendingSpawns.delete(env.nonce);
-      pending.resolve(env);
-    }
-    return;
-  }
-
-  if (env.verb === 'error' && env.nonce > 0) {
-    const pending = pendingSpawns.get(env.nonce);
-    if (pending) {
-      pendingSpawns.delete(env.nonce);
-      pending.resolve(env);
-    }
-    return;
-  }
-
-  // Worker exit notification.
-  if (env.verb === 'exited') {
-    const handle = env.handle;
-    const resolve = workerExitResolvers.get(handle);
-    if (resolve) {
-      workerExitResolvers.delete(handle);
-      resolve(undefined);
-    }
-    const entry = workerWriters.get(handle);
-    if (entry) {
-      void entry.writer.return(undefined);
-    }
-    node.closeSession(handle);
-    return;
-  }
-
-  // Client connection (bridged by supervisor socket listener).
-  if (env.verb === 'connect') {
-    setupClientSession(env.handle);
-    return;
-  }
-
-  // Client disconnection.
-  if (env.verb === 'disconnect') {
-    const session = clientSessions.get(env.handle);
-    if (session) {
-      session.abort();
-      clientSessions.delete(env.handle);
-    }
-    node.closeSession(env.handle);
-    return;
-  }
-
-  // Socket listener acknowledgement.
-  if (env.verb === 'listening') {
-    hostTrace('daemon-xs: supervisor reports socket listening');
-    return;
-  }
-
-  hostTrace(
-    `daemon-xs: unhandled envelope verb=${env.verb} handle=${env.handle}`,
-  );
+const sendEnvelope = (handle, verb, payload, nonce) => {
+  const data = encodeEnvelope({
+    handle,
+    verb,
+    payload: payload || new Uint8Array(0),
+    nonce: nonce || 0,
+  });
+  hostSendRawFrame(data);
 };
 
-const node = makeXsNode({ onControl });
-
 // ---------------------------------------------------------------------------
-// Spawn/worker bookkeeping
+// Worker spawn support (bus control powers)
 // ---------------------------------------------------------------------------
 
 const endoWorkerBin = hostGetEnv('ENDO_WORKER_BIN') || '';
 const endoNodeWorkerBin = hostGetEnv('ENDO_NODE_WORKER_BIN') || '';
 
-/** @type {Map<number, { resolve: (env: Envelope) => void }>} */
+/** @type {Map<number, { resolve: (env: import('./envelope.js').Envelope) => void }>} */
 const pendingSpawns = new Map();
 
 /** @type {Map<number, { writer: import('@endo/stream').Writer<Uint8Array> }>} */
@@ -36194,12 +35958,13 @@ const workerWriters = new Map();
 /** @type {Map<number, (value: undefined) => void>} */
 const workerExitResolvers = new Map();
 
+// Client CapTP sessions (connections bridged by supervisor).
 /** @type {Map<number, { dispatch: (msg: Record<string, unknown>) => void, abort: () => void }>} */
 const clientSessions = new Map();
 
 let nextNonce = 1;
 
-// Minimal CBOR helpers for spawn payloads.
+// Minimal CBOR helpers for spawn payloads (same as bus-daemon-node-powers.js)
 const CBOR_UINT = 0;
 const CBOR_TEXT = 3;
 const CBOR_ARRAY = 4;
@@ -36295,7 +36060,7 @@ const makeWorker = async (
   capTpConnectionRegistrar = undefined,
   _trustedShims = undefined,
   _label = undefined,
-  kind = 'locked',
+  kind = undefined,
 ) => {
   await Promise.all([
     filePowers.makePath(filePowers.joinPath(statePath, 'worker', workerId)),
@@ -36304,15 +36069,16 @@ const makeWorker = async (
     ),
   ]);
 
-  // For kind === 'node', spawn an unlocked Node.js bus worker via
-  // ENDO_NODE_WORKER_BIN (e.g. "node src/bus-worker-node-raw.js").
-  // Otherwise spawn the default worker via ENDO_WORKER_BIN (which may
-  // be a native binary such as "endo-rust-xs worker").
-  const workerBinStr =
-    kind === 'node'
-      ? endoNodeWorkerBin || 'node src/bus-worker-node-raw.js'
-      : endoWorkerBin || 'node';
-  const workerParts = workerBinStr.split(/\s+/);
+  // For kind === 'node', use ENDO_NODE_WORKER_BIN so that unconfined
+  // and bundle caplets run in a Node.js process. Otherwise use
+  // ENDO_WORKER_BIN (the XS worker binary).
+  hostTrace(`makeWorker: kind=${kind} nodeWorkerBin=${endoNodeWorkerBin} workerBin=${endoWorkerBin}`);
+  let workerParts;
+  if (kind === 'node' && endoNodeWorkerBin) {
+    workerParts = endoNodeWorkerBin.split(/\s+/).filter(Boolean);
+  } else {
+    workerParts = (endoWorkerBin || 'node').split(/\s+/);
+  }
   const command = workerParts[0];
   const args = workerParts.slice(1);
 
@@ -36320,13 +36086,13 @@ const makeWorker = async (
   nextNonce += 1;
 
   const { promise: spawnResponse, resolve: resolveSpawn } =
-    /** @type {import('@endo/promise-kit').PromiseKit<Envelope>} */ (
+    /** @type {import('@endo/promise-kit').PromiseKit<import('./envelope.js').Envelope>} */ (
       makePromiseKit()
     );
   pendingSpawns.set(nonce, { resolve: resolveSpawn });
 
   const payloadBuf = encodeSpawnPayload(command, args);
-  node.sendEnvelope(0, 'spawn', payloadBuf, nonce);
+  sendEnvelope(0, 'spawn', payloadBuf, nonce);
 
   hostTrace(`Endo worker spawn requested for ${workerId} (nonce=${nonce})`);
 
@@ -36345,16 +36111,11 @@ const makeWorker = async (
 
   workerWriters.set(workerHandle, { writer: captpWriteTo });
 
-  // Register the session so inbound deliver envelopes for this
-  // handle are piped into the reader side.
-  node.registerSession(workerHandle, payload => {
-    void captpWriteTo.next(payload);
-  });
-
   /** @type {import('@endo/stream').Writer<Uint8Array>} */
   const envelopeBytesWriter = harden({
     async next(/** @type {Uint8Array} */ chunk) {
-      node.sendEnvelope(workerHandle, 'deliver', chunk);
+      hostTrace(`daemon-xs: SEND to worker handle=${workerHandle} bytes=${chunk.length}`);
+      sendEnvelope(workerHandle, 'deliver', chunk);
       return harden({ done: false, value: undefined });
     },
     async return(/** @type {undefined} */ _value) {
@@ -36388,7 +36149,6 @@ const makeWorker = async (
 
   capTpClosed.finally(() => {
     workerWriters.delete(workerHandle);
-    node.closeSession(workerHandle);
     hostTrace(
       `Endo worker connection closed for handle=${workerHandle} id=${workerId}`,
     );
@@ -36423,55 +36183,10 @@ const powers = harden({
 const { promise: cancelled, reject: cancel } =
   /** @type {PromiseKit<never>} */ (makePromiseKit());
 
+let shouldTerminate = false;
+
 /** @type {import('./daemon.js').DaemonResult | null} */
 let daemonResult = null;
-
-/**
- * Set up a CapTP session for a new client connection.
- *
- * @param {number} connectionHandle
- */
-const setupClientSession = connectionHandle => {
-  const bootstrap = globalThis.__endoBootstrap;
-  if (!bootstrap) {
-    hostTrace(
-      `daemon-xs: client connect before daemon ready (handle=${connectionHandle})`,
-    );
-    return;
-  }
-
-  /**
-   * @param {Record<string, unknown>} message
-   */
-  const send = message => {
-    const json = JSON.stringify(message);
-    node.sendEnvelope(connectionHandle, 'deliver', textEncoder.encode(json));
-  };
-
-  const { dispatch, abort } = makeCapTP(
-    `Client ${connectionHandle}`,
-    send,
-    bootstrap,
-    { onReject: silentReject },
-  );
-
-  clientSessions.set(connectionHandle, { dispatch, abort });
-  node.registerSession(connectionHandle, payload => {
-    const json = textDecoder.decode(payload);
-    let message;
-    try {
-      message = JSON.parse(json);
-    } catch {
-      return;
-    }
-    try {
-      dispatch(message);
-    } catch {
-      // Swallow — handled by onReject.
-    }
-  });
-  hostTrace(`daemon-xs: client session created handle=${connectionHandle}`);
-};
 
 const main = async () => {
   const daemonLabel = `daemon[xs] on PID ${pid}`;
@@ -36482,9 +36197,14 @@ const main = async () => {
 
   await daemonicPersistencePowers.initializePersistence();
 
-  const result = await makeDaemon(powers, daemonLabel, cancel, cancelled);
+  const gcEnabled = hostGetEnv('ENDO_GC') === '1';
+  const result = await makeDaemon(powers, daemonLabel, cancel, cancelled, {}, {
+    defaultWorkerKind: 'locked',
+    gcEnabled,
+  });
   daemonResult = result;
-  const { endoBootstrap, cancelGracePeriod } = result;
+  const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
+    result;
 
   // Persist root formula identifier.
   const host = await E(endoBootstrap).host();
@@ -36492,36 +36212,191 @@ const main = async () => {
   const agentIdPath = filePowers.joinPath(statePath, 'root');
   await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
-  // Stash bootstrap + lifecycle handles where setupClientSession can
-  // find them (they are referenced before main resolves).
+  // Store registrar for client connection setup.
+  globalThis.__capTpRegistrar = capTpConnectionRegistrar;
   globalThis.__endoBootstrap = endoBootstrap;
   globalThis.__cancelGracePeriod = cancelGracePeriod;
 
   // Request supervisor to listen on Unix socket.
   const listenPayload = textEncoder.encode(JSON.stringify({ path: sockPath }));
-  node.sendEnvelope(0, 'listen', listenPayload, 0);
+  sendEnvelope(0, 'listen', listenPayload, 0);
 
   // Update endo.pid with our PID.
   const pidPath = filePowers.joinPath(ephemeralStatePath, 'endo.pid');
   await filePowers.writeFileText(pidPath, `${pid}\n`);
 
   // Signal readiness to supervisor.
-  node.sendEnvelope(0, 'ready');
+  sendEnvelope(0, 'ready');
   hostTrace('Endo daemon (xs) ready, signaled supervisor');
 
   // Set flag for Rust main loop to detect init completion.
   globalThis.__daemonReady = true;
 };
 
-// Quiet unused-variable complaints: daemonResult is retained for the
-// lifetime of the process to keep the daemon core reachable.
-void daemonResult;
+// ---------------------------------------------------------------------------
+// Inbound envelope handler — called by Rust main loop
+// ---------------------------------------------------------------------------
+
+/**
+ * Silent error handler for CapTP.
+ *
+ * @param {unknown} _err
+ */
+const silentReject = _err => {};
+
+/**
+ * Set up a CapTP session for a new client connection.
+ *
+ * @param {number} connectionHandle
+ */
+const setupClientSession = connectionHandle => {
+  const bootstrap = globalThis.__endoBootstrap;
+  const registrar = globalThis.__capTpRegistrar;
+  if (!bootstrap) {
+    hostTrace(`daemon-xs: client connect before daemon ready (handle=${connectionHandle})`);
+    return;
+  }
+
+  /**
+   * @param {Record<string, unknown>} message
+   */
+  const send = message => {
+    const json = JSON.stringify(message);
+    const bytes = textEncoder.encode(json);
+    hostTrace(`daemon-xs: client SEND handle=${connectionHandle} type=${message.type || '?'}`);
+    sendEnvelope(connectionHandle, 'deliver', bytes);
+  };
+
+  const { dispatch, abort } = makeCapTP(
+    `Client ${connectionHandle}`,
+    send,
+    bootstrap,
+    { onReject: silentReject },
+  );
+
+  clientSessions.set(connectionHandle, { dispatch, abort });
+  hostTrace(`daemon-xs: client session created handle=${connectionHandle}`);
+};
+
+/**
+ * Handle inbound envelopes from the supervisor.
+ * Called by the Rust main loop for each envelope received on fd 4.
+ *
+ * @param {Uint8Array} bytes - raw envelope bytes (CBOR)
+ */
+globalThis.handleCommand = harden(bytes => {
+  const data = bytes;
+  const env = decodeEnvelope(data);
+
+  // Worker spawn responses.
+  if (env.verb === 'spawned' && env.nonce > 0) {
+    const pending = pendingSpawns.get(env.nonce);
+    if (pending) {
+      pendingSpawns.delete(env.nonce);
+      pending.resolve(env);
+    }
+    return;
+  }
+
+  if (env.verb === 'error' && env.nonce > 0) {
+    const pending = pendingSpawns.get(env.nonce);
+    if (pending) {
+      pendingSpawns.delete(env.nonce);
+      pending.resolve(
+        /** @type {import('./envelope.js').Envelope} */ ({
+          handle: env.handle,
+          verb: 'error',
+          payload: env.payload,
+          nonce: env.nonce,
+        }),
+      );
+    }
+    return;
+  }
+
+  // Worker CapTP messages.
+  if (env.verb === 'deliver') {
+    const handle = env.handle;
+
+    // Check if this is from a worker.
+    const workerEntry = workerWriters.get(handle);
+    if (workerEntry) {
+      hostTrace(`daemon-xs: RECV from worker handle=${handle} bytes=${env.payload.length}`);
+      void workerEntry.writer.next(env.payload);
+      return;
+    }
+
+    // Check if this is from a client connection.
+    const clientEntry = clientSessions.get(handle);
+    if (clientEntry) {
+      // Use hostDecodeUtf8 for large payloads — XS's TextDecoder is
+      // extremely slow for buffers over ~100KB, causing the daemon to
+      // hang on large CapTP round-trips (e.g. storeBlob with bundled
+      // source code).
+      const json = env.payload.length > 8192
+        ? hostDecodeUtf8(env.payload)
+        : textDecoder.decode(env.payload);
+      const message = JSON.parse(json);
+      hostTrace(`daemon-xs: client deliver handle=${handle} type=${message.type || '?'} method=${message.method || '?'}`);
+      try {
+        clientEntry.dispatch(message);
+      } catch (_e) {
+        // Swallow — handled by onReject.
+      }
+      return;
+    }
+
+    hostTrace(`daemon-xs: deliver from unknown handle=${handle}`);
+    return;
+  }
+
+  // Worker exit notification.
+  if (env.verb === 'exited') {
+    const handle = env.handle;
+    const resolve = workerExitResolvers.get(handle);
+    if (resolve) {
+      workerExitResolvers.delete(handle);
+      resolve(undefined);
+    }
+    const entry = workerWriters.get(handle);
+    if (entry) {
+      void entry.writer.return(undefined);
+    }
+    return;
+  }
+
+  // Client connection (bridged by supervisor socket listener).
+  if (env.verb === 'connect') {
+    setupClientSession(env.handle);
+    return;
+  }
+
+  // Client disconnection.
+  if (env.verb === 'disconnect') {
+    const session = clientSessions.get(env.handle);
+    if (session) {
+      session.abort();
+      clientSessions.delete(env.handle);
+    }
+    return;
+  }
+
+  // Socket listener acknowledgement.
+  if (env.verb === 'listening') {
+    hostTrace('daemon-xs: supervisor reports socket listening');
+    return;
+  }
+
+  hostTrace(`daemon-xs: unhandled envelope verb=${env.verb} handle=${env.handle}`);
+});
+
+/** Expose terminate flag for Rust to check. */
+globalThis.__shouldTerminate = harden(() => shouldTerminate);
 
 // Kick off initialization.
 void main().catch(error => {
-  hostTrace(
-    `daemon-xs: startup error: ${error.message}\n${error.stack || 'no stack'}`,
-  );
+  hostTrace(`daemon-xs: startup error: ${error.message}\n${error.stack || 'no stack'}`);
+  shouldTerminate = true;
 });
 })()
 ,
