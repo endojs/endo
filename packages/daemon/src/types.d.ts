@@ -1083,7 +1083,7 @@ export interface DaemonCoreExternal {
 }
 
 export type SerialJobs = {
-  enqueue: <T>(asyncFn?: () => Promise<T>) => Promise<T>;
+  enqueue: <T>(fn?: () => T | Promise<T>) => Promise<T>;
 };
 
 export type Multimap<K, V> = {

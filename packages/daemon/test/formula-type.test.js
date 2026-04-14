@@ -6,16 +6,18 @@ import {
 } from '../src/formula-type.js';
 
 test('isValidFormulaType', t => {
-  [
+  /** @type {Array<[any, boolean]>} */
+  const cases = [
     ['eval', true],
     ['make-unconfined', true],
     ['', false],
     [null, false],
     [undefined, false],
     [{}, false],
-  ].forEach(([value, expected]) => {
+  ];
+  for (const [value, expected] of cases) {
     t.is(isValidFormulaType(value), expected);
-  });
+  }
 });
 
 test('assertValidFormulaType - valid', t => {

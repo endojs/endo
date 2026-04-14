@@ -2,9 +2,16 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makePromiseKit as _makePromiseKit } from '@endo/promise-kit';
 import { makeRemoteControlProvider } from '../src/remote-control.js';
 
+/** @import { PromiseKit } from '@endo/promise-kit' */
+
+// The RemoteControl cancellation promises only reject and never fulfill.
+/** @type {<T = never>() => PromiseKit<T>} */
+const makePromiseKit = _makePromiseKit;
+
+/** @returns {any} */
 const makeFakeGateway = () =>
   makeExo(
     'FakeGateway',
