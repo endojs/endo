@@ -11,7 +11,13 @@ import {
   makeTcpNetLayer,
   parseSlot,
 } from '@endo/ocapn';
-import { makeDurableClient, makeInMemoryDurableBaggage } from '../index.js';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import {
+  makeDurableClient,
+  makeFsDurableBaggage,
+} from '../index.js';
 import { netListenAllowed } from './_net-permission.js';
 
 const test = netListenAllowed ? testBase : testBase.skip;
@@ -103,7 +109,11 @@ const makeClientKit = async ({ makeClientFn, clientOptions, netlayerOptions }) =
 };
 
 test('durable client preserves export/import slot positions across restart', async t => {
-  const durableBaggage = makeInMemoryDurableBaggage();
+  const tmpDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'ocapn-durable-baggage-test-'),
+  );
+  const baggagePath = path.join(tmpDir, 'baggage.json');
+  const durableBaggage = makeFsDurableBaggage({ filePath: baggagePath });
   const durableSwissOne = encodeSwissnum('durable-one');
   const durableSwissTwo = encodeSwissnum('durable-two');
   const stablePort = await getFreePort();
@@ -181,11 +191,14 @@ test('durable client preserves export/import slot positions across restart', asy
 
     clientKitA1.shutdown();
 
+    const durableBaggageAfterRestart = makeFsDurableBaggage({
+      filePath: baggagePath,
+    });
     const clientKitA2 = await makeClientKit({
       makeClientFn: makeDurableClient,
       clientOptions: {
         debugLabel: 'durable-peer-a',
-        baggage: durableBaggage,
+        baggage: durableBaggageAfterRestart,
       },
       netlayerOptions: {
         specifiedDesignator: 'durable-peer-a',
@@ -245,5 +258,22 @@ test('durable client preserves export/import slot positions across restart', asy
     }
   } finally {
     clientKitB.shutdown();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('durable client requires explicit baggage when tryResumeSession enabled', t => {
+  const error = t.throws(
+    () => {
+      makeDurableClient({ tryResumeSession: true });
+    },
+    { instanceOf: Error },
+  );
+  t.truthy(error);
+  if (error) {
+    t.is(
+      error.message,
+      'makeDurableClient requires explicit baggage when tryResumeSession is enabled',
+    );
   }
 });

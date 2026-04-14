@@ -117,7 +117,20 @@ export const makeReferenceKit = (
   makeHandoff,
   sendHandoff,
 ) => {
+  /**
+   * @type {OcapnTable & {
+   *   getNextExportPosition?: () => bigint | undefined,
+   *   setNextExportPosition?: (position: bigint) => void,
+   * }}
+   */
+  const tableWithState = ocapnTable;
   let nextExportPosition = ONE_N;
+  if (typeof tableWithState.getNextExportPosition === 'function') {
+    const persistedNext = tableWithState.getNextExportPosition();
+    if (typeof persistedNext === 'bigint' && persistedNext >= ONE_N) {
+      nextExportPosition = persistedNext;
+    }
+  }
   const provideSlotForValue = value => {
     let slot = ocapnTable.getSlotForValue(value);
     if (slot === undefined) {
@@ -130,6 +143,9 @@ export const makeReferenceKit = (
         slot = makeSlot(type, true, position);
       }
       nextExportPosition = position + ONE_N;
+      if (typeof tableWithState.setNextExportPosition === 'function') {
+        tableWithState.setNextExportPosition(nextExportPosition);
+      }
       slot = makeSlot(type, true, position);
       ocapnTable.registerSlot(slot, value);
     }

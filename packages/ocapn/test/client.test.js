@@ -19,6 +19,7 @@ import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
 import { writeOcapnHandshakeMessage } from '../src/codecs/operations.js';
 import { makeSlot } from '../src/captp/pairwise.js';
 import { makeInMemoryBaggage } from '../src/client/baggage.js';
+import { makeClient } from '../src/client/index.js';
 
 test('test slow send', async t => {
   const testObjectTable = new Map();
@@ -143,6 +144,26 @@ test('refuses to connect to self', async t => {
   t.truthy(error, 'Error was thrown');
 
   client.shutdown();
+});
+
+test('tryResumeSession requires explicitly provided baggage', t => {
+  const error = t.throws(
+    () => {
+      makeClient({
+        tryResumeSession: true,
+      });
+    },
+    {
+      instanceOf: Error,
+    },
+  );
+  t.truthy(error);
+  if (error) {
+    t.is(
+      error.message,
+      'tryResumeSession requires an explicitly provided baggage instance',
+    );
+  }
 });
 
 test('client aborts on start-session with wrong version', async t => {
@@ -342,6 +363,12 @@ test('baggage-backed swissnum table can reject non-durable refs', async t => {
       if (key === 'ocapn:giftTable') {
         return;
       }
+      if (key === 'ocapn:resumeSessionsByLocationId') {
+        return;
+      }
+      if (key === 'ocapn:resumeSessionsById') {
+        return;
+      }
       throw Error(`Unexpected baggage key: ${key}`);
     },
     set: (_key, _value) => {},
@@ -507,8 +534,8 @@ test('provideSession throws and cleans up pending session on handshake abort', a
 
   try {
     // Attempt to establish session from A to B
-    // A will send op:resume-session with version 1.0
-    // B will accept it and send back op:resume-session with version "BAD"
+    // A will send op:start-session with version 1.0
+    // B will accept it and send back op:start-session with version "BAD"
     // A will reject B's version and send op:abort
     const sessionPromise = clientKitA.client.provideSession(
       clientKitB.location,

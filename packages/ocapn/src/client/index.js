@@ -10,7 +10,11 @@
 import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { writeOcapnHandshakeMessage } from '../codecs/operations.js';
-import { makeOcapnKeyPair, signLocation } from '../cryptography.js';
+import {
+  makeOcapnKeyPair,
+  signLocation,
+  publicKeyDescriptorToPublicKey,
+} from '../cryptography.js';
 import { makeOcapnTable as makeDefaultOcapnTable } from '../captp/ocapn-tables.js';
 import { makeGrantTracker } from './grant-tracker.js';
 import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';
@@ -72,7 +76,13 @@ const handleActiveSessionMessageData = (
 /**
  * @returns {SessionManager}
  */
-const makeSessionManager = () => {
+/**
+ * @param {object} [options]
+ * @param {(session: InternalSession) => void} [options.onSessionResolved]
+ * @returns {SessionManager}
+ */
+const makeSessionManager = (options = {}) => {
+  const { onSessionResolved = _session => {} } = options;
   /** @type {Map<LocationId, InternalSession>} */
   const activeSessions = new Map();
   /** @type {Map<LocationId, PendingSession>} */
@@ -119,6 +129,7 @@ const makeSessionManager = () => {
         pendingSession.resolve(session);
         pendingSessions.delete(locationId);
       }
+      onSessionResolved(session);
     },
     endSession: session => {
       const locationId = locationToLocationId(session.peer.location);
@@ -184,19 +195,29 @@ const makeSessionManager = () => {
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
  * @returns {Client}
  */
-export const makeClient = ({
-  debugLabel = 'ocapn',
-  verbose = false,
-  baggage = makeInMemoryBaggage(),
-  swissnumTable,
-  giftTable,
-  captpVersion = '1.0',
-  tryResumeSession = false,
-  makeOcapnTableFactory = makeDefaultOcapnTable,
-  authenticateSession = () => {},
-  enableImportCollection = true,
-  debugMode = false,
-} = {}) => {
+export const makeClient = (options = {}) => {
+  const hasExplicitBaggage = Object.prototype.hasOwnProperty.call(
+    options,
+    'baggage',
+  );
+  const {
+    debugLabel = 'ocapn',
+    verbose = false,
+    baggage = makeInMemoryBaggage(),
+    swissnumTable,
+    giftTable,
+    captpVersion = '1.0',
+    tryResumeSession = false,
+    makeOcapnTableFactory = makeDefaultOcapnTable,
+    authenticateSession = () => {},
+    enableImportCollection = true,
+    debugMode = false,
+  } = options;
+  if (tryResumeSession && !hasExplicitBaggage) {
+    throw Error(
+      'tryResumeSession requires an explicitly provided baggage instance',
+    );
+  }
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
 
@@ -215,7 +236,44 @@ export const makeClient = ({
   const resolvedGiftTable =
     giftTable || provideFromBaggage(baggage, 'ocapn:giftTable', () => new Map());
 
-  const sessionManager = makeSessionManager();
+  const resumeSessionsByLocationId = provideFromBaggage(
+    baggage,
+    'ocapn:resumeSessionsByLocationId',
+    () => new Map(),
+  );
+  const resumeSessionsById = provideFromBaggage(
+    baggage,
+    'ocapn:resumeSessionsById',
+    () => new Map(),
+  );
+  const lookupResumeSession = sessionId => {
+    const sessionIdHex = toHex(sessionId);
+    const sessionRecord = resumeSessionsById.get(sessionIdHex);
+    if (!sessionRecord) {
+      return undefined;
+    }
+    const { peerLocation, peerLocationSig, peerPublicKeyDescriptor } =
+      sessionRecord;
+    return {
+      peerLocation,
+      peerLocationSig,
+      peerPublicKey: publicKeyDescriptorToPublicKey(peerPublicKeyDescriptor),
+    };
+  };
+
+  const sessionManager = makeSessionManager({
+    onSessionResolved: session => {
+      const locationId = locationToLocationId(session.peer.location);
+      const sessionIdHex = toHex(session.id);
+      resumeSessionsByLocationId.set(locationId, sessionIdHex);
+      resumeSessionsById.set(sessionIdHex, {
+        sessionId: session.id,
+        peerLocation: session.peer.location,
+        peerLocationSig: session.peer.locationSignature,
+        peerPublicKeyDescriptor: session.peer.publicKey.descriptor,
+      });
+    },
+  });
 
   /** @type {WeakMap<Connection, SelfIdentity>} */
   const connectionSelfIdentityMap = new WeakMap();
@@ -253,14 +311,19 @@ export const makeClient = ({
     }
     const connection = netlayer.connect(location);
     const selfIdentity = getSelfIdentityForConnection(connection);
-    // Send handshake for outgoing connections
-    sendHandshake(
-      connection,
-      selfIdentity,
-      captpVersion,
-      {},
-      tryResumeSession ? 'op:resume-session' : 'op:start-session',
-    );
+    // Send handshake for outgoing connections.
+    const resumeSessionIdHex =
+      tryResumeSession && resumeSessionsByLocationId.get(destinationLocationId);
+    const resumeSessionRecord =
+      resumeSessionIdHex && resumeSessionsById.get(resumeSessionIdHex);
+    if (resumeSessionRecord) {
+      sendHandshake(connection, selfIdentity, captpVersion, {
+        opType: 'op:resume-session',
+        resumeSessionId: resumeSessionRecord.sessionId,
+      });
+    } else {
+      sendHandshake(connection, selfIdentity, captpVersion);
+    }
     const pendingSession = sessionManager.makePendingSession(
       destinationLocationId,
       connection,
@@ -367,6 +430,7 @@ export const makeClient = ({
         captpVersion,
         prepareOcapn,
         authenticateSession,
+        lookupResumeSession,
       );
     }
   };

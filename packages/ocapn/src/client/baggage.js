@@ -59,6 +59,9 @@ export const provideFromBaggage = (baggage, key, makeValue) => {
   } else {
     throw Error('Baggage must support either init or set');
   }
+  if (baggage.has(key)) {
+    return baggage.get(key);
+  }
   return value;
 };
 

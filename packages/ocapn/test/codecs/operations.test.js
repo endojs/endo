@@ -57,28 +57,13 @@ export const table = [
     name: 'op:resume-session',
     value: {
       type: 'op:resume-session',
-      captpVersion: 'captp-v1',
-      sessionPublicKey: {
-        type: 'public-key',
-        scheme: 'ecc',
-        curve: 'Ed25519',
-        flags: 'eddsa',
-        q: examplePubKeyQBytes,
-      },
-      location: {
-        type: 'ocapn-peer',
-        designator: '1234',
-        transport: 'tcp',
-        hints: { host: '127.0.0.1', port: '54822' },
-      },
-      locationSignature: {
+      sessionId: examplePubKeyQBytes,
+      sessionIdSignature: {
         type: 'sig-val',
         scheme: 'eddsa',
         r: exampleSigParamBytes,
         s: exampleSigParamBytes,
       },
-      resumeSessionId: examplePubKeyQBytes,
-      resumeAuthPayload: { token: 'resume-token' },
     },
   },
   {

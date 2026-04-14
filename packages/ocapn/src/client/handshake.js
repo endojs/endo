@@ -27,29 +27,38 @@ import { locationToLocationId } from './util.js';
  * @param {Connection} connection
  * @param {SelfIdentity} selfIdentity
  * @param {string} captpVersion
- * @param {Record<string, any>} [resumeAuthPayload]
- * @param {'op:start-session' | 'op:resume-session'} [opType]
+ * @param {object} [options]
+ * @param {'op:start-session' | 'op:resume-session'} [options.opType]
+ * @param {SessionId} [options.resumeSessionId]
  */
 export const sendHandshake = (
   connection,
   selfIdentity,
   captpVersion,
-  resumeAuthPayload = {},
-  opType = 'op:start-session',
+  options = {},
 ) => {
   const { keyPair, location, locationSignature } = selfIdentity;
-  const opStartSession = {
-    type: opType,
-    captpVersion,
-    sessionPublicKey: keyPair.publicKey.descriptor,
-    location,
-    locationSignature,
-  };
-  if (opType === 'op:resume-session') {
-    opStartSession.resumeSessionId = keyPair.publicKey.id;
-    opStartSession.resumeAuthPayload = resumeAuthPayload;
+  const { opType = 'op:start-session', resumeSessionId } = options;
+  if (opType === 'op:resume-session' && resumeSessionId === undefined) {
+    throw Error('resumeSessionId is required for op:resume-session');
   }
-  const bytes = writeOcapnHandshakeMessage(opStartSession);
+  const message =
+    opType === 'op:resume-session'
+      ? {
+          type: 'op:resume-session',
+          sessionId: /** @type {SessionId} */ (resumeSessionId),
+          sessionIdSignature: keyPair.sign(
+            /** @type {SessionId} */ (resumeSessionId),
+          ),
+        }
+      : {
+          type: 'op:start-session',
+          captpVersion,
+          sessionPublicKey: keyPair.publicKey.descriptor,
+          location,
+          locationSignature,
+        };
+  const bytes = writeOcapnHandshakeMessage(message);
   connection.write(bytes);
 };
 
@@ -139,6 +148,7 @@ const makeSession = ({
  * @param {string} captpVersion
  * @param {(connection: Connection, sessionId: SessionId, peerLocation: OcapnLocation) => Ocapn} prepareOcapn
  * @param {(details: SessionAuthDetails) => void} [authenticateSession]
+ * @param {(sessionId: SessionId) => { peerLocation: OcapnLocation, peerPublicKey: OcapnPublicKey, peerLocationSig: OcapnSignature } | undefined} [lookupResumeSession]
  */
 const handleSessionHandshakeMessage = (
   logger,
@@ -150,18 +160,16 @@ const handleSessionHandshakeMessage = (
   captpVersion,
   prepareOcapn,
   authenticateSession = () => {},
+  lookupResumeSession = () => undefined,
 ) => {
   logger.info(`handling handshake message of type ${message.type}`);
   switch (message.type) {
-    case 'op:start-session':
-    case 'op:resume-session': {
+    case 'op:start-session': {
       const {
         captpVersion: messageCaptpVersion,
         sessionPublicKey,
         location: peerLocation,
         locationSignature: peerLocationSig,
-        resumeSessionId,
-        resumeAuthPayload,
       } = message;
       // Handle invalid version
       if (messageCaptpVersion !== captpVersion) {
@@ -217,26 +225,14 @@ const handleSessionHandshakeMessage = (
         }
       }
 
-      const isResumeHandshake = message.type === 'op:resume-session';
-
       // Send our hello if we haven't already
       if (connection.isOutgoing) {
         // We've already sent our hello, so our session data is already set
       } else {
         // We've received a hello, so we need to send our own.
-        logger.info(
-          isResumeHandshake
-            ? 'Server sending op:resume-session'
-            : 'Server sending op:start-session',
-        );
+        logger.info('Server sending op:start-session');
         const selfIdentity = getSelfIdentityForConnection(connection);
-        sendHandshake(
-          connection,
-          selfIdentity,
-          captpVersion,
-          isResumeHandshake ? {} : undefined,
-          isResumeHandshake ? 'op:resume-session' : 'op:start-session',
-        );
+        sendHandshake(connection, selfIdentity, captpVersion);
       }
 
       // Create session
@@ -249,20 +245,14 @@ const handleSessionHandshakeMessage = (
         authenticateSession({
           connection,
           sessionId,
-          isResume: isResumeHandshake,
+          isResume: false,
           peerLocation,
           peerPublicKey,
           selfIdentity,
-          message: {
-            ...message,
-            resumeSessionId,
-            resumeAuthPayload,
-          },
+          message,
         });
       } catch (cause) {
-        logger.info(
-          `Abort during ${isResumeHandshake ? 'resume-session' : 'start-session'} authentication failure`,
-        );
+        logger.info('Abort during start-session authentication failure');
         sendAbortAndClose(connection, 'invalid-session-auth');
         sessionManager.deleteConnection(connection);
         return;
@@ -281,6 +271,102 @@ const handleSessionHandshakeMessage = (
       logger.info(`session established for ${locationId}`);
       sessionManager.resolveSession(locationId, connection, session);
 
+      break;
+    }
+
+    case 'op:resume-session': {
+      const { sessionId, sessionIdSignature } = message;
+      const resumeDetails = lookupResumeSession(sessionId);
+      if (!resumeDetails) {
+        logger.info('Abort during resume-session with unknown session id');
+        sendAbortAndClose(connection, 'unknown-session');
+        sessionManager.deleteConnection(connection);
+        return;
+      }
+      const { peerLocation, peerPublicKey, peerLocationSig } = resumeDetails;
+      try {
+        peerPublicKey.assertSignatureValid(sessionId, sessionIdSignature);
+      } catch {
+        logger.info('Abort during resume-session with invalid session signature');
+        sendAbortAndClose(connection, 'invalid-session-signature');
+        sessionManager.deleteConnection(connection);
+        return;
+      }
+      const locationId = locationToLocationId(peerLocation);
+      if (sessionManager.getActiveSession(locationId)) {
+        throw Error(`Active session already exists for ${locationId}`);
+      }
+
+      const outgoingConnection =
+        sessionManager.getOutgoingConnection(locationId);
+      if (
+        outgoingConnection !== undefined &&
+        outgoingConnection !== connection
+      ) {
+        const incommingConnection = connection;
+        const { connectionToClose } = compareSessionKeysForCrossedHellos(
+          outgoingConnection,
+          incommingConnection,
+          peerPublicKey,
+          getSelfIdentityForConnection,
+        );
+        sendAbortAndClose(connectionToClose, 'Crossed hellos mitigated');
+        sessionManager.deleteConnection(connectionToClose);
+        if (incommingConnection === connectionToClose) {
+          return;
+        }
+      }
+
+      const selfIdentity = getSelfIdentityForConnection(connection);
+      const expectedSessionId = makeSessionId(
+        selfIdentity.keyPair.publicKey.id,
+        peerPublicKey.id,
+      );
+      if (compareImmutableArrayBuffers(sessionId, expectedSessionId) !== 0) {
+        logger.info('Abort during resume-session with mismatched session id');
+        sendAbortAndClose(connection, 'invalid-session-id');
+        sessionManager.deleteConnection(connection);
+        return;
+      }
+
+      if (!connection.isOutgoing) {
+        logger.info('Server sending op:resume-session');
+        sendHandshake(connection, selfIdentity, captpVersion, {
+          opType: 'op:resume-session',
+          resumeSessionId: sessionId,
+        });
+      }
+
+      try {
+        authenticateSession({
+          connection,
+          sessionId,
+          isResume: true,
+          peerLocation,
+          peerPublicKey,
+          selfIdentity,
+          message,
+          sessionIdSignature,
+        });
+      } catch {
+        logger.info('Abort during resume-session authentication failure');
+        sendAbortAndClose(connection, 'invalid-session-auth');
+        sessionManager.deleteConnection(connection);
+        return;
+      }
+
+      const ocapn = prepareOcapn(connection, sessionId, peerLocation);
+      const session = makeSession({
+        id: sessionId,
+        selfIdentity,
+        peerLocation,
+        peerPublicKey,
+        peerLocationSig,
+        ocapn,
+        connection,
+      });
+      logger.info(`session resumed for ${locationId}`);
+      sessionManager.resolveSession(locationId, connection, session);
       break;
     }
 
@@ -307,6 +393,7 @@ const handleSessionHandshakeMessage = (
  * @param {string} captpVersion
  * @param {(connection: Connection, sessionId: SessionId, peerLocation: OcapnLocation) => Ocapn} prepareOcapn
  * @param {(details: SessionAuthDetails) => void} [authenticateSession]
+ * @param {(sessionId: SessionId) => { peerLocation: OcapnLocation, peerPublicKey: OcapnPublicKey, peerLocationSig: OcapnSignature } | undefined} [lookupResumeSession]
  */
 export const handleHandshakeMessageData = (
   logger,
@@ -318,6 +405,7 @@ export const handleHandshakeMessageData = (
   captpVersion,
   prepareOcapn,
   authenticateSession = () => {},
+  lookupResumeSession = () => undefined,
 ) => {
   try {
     const syrupReader = makeSyrupReader(data);
@@ -348,6 +436,7 @@ export const handleHandshakeMessageData = (
           captpVersion,
           prepareOcapn,
           authenticateSession,
+          lookupResumeSession,
         );
       } else {
         logger.info(

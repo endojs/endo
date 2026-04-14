@@ -13,7 +13,6 @@ import {
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
 } from '../syrup/codec.js';
-import { AnyCodec as SyrupAnyCodec } from '../syrup/js-representation.js';
 import { makeOcapnRecordCodecFromDefinition } from './util.js';
 import {
   NonNegativeIntegerCodec,
@@ -46,12 +45,8 @@ const OpResumeSessionCodec = makeOcapnRecordCodecFromDefinition(
   'OpResumeSession',
   'op:resume-session',
   {
-    captpVersion: 'string',
-    sessionPublicKey: OcapnPublicKeyCodec,
-    location: OcapnPeerCodec,
-    locationSignature: OcapnSignatureCodec,
-    resumeSessionId: 'bytestring',
-    resumeAuthPayload: SyrupAnyCodec,
+    sessionId: 'bytestring',
+    sessionIdSignature: OcapnSignatureCodec,
   },
 );
 

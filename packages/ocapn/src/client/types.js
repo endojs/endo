@@ -121,7 +121,7 @@
  * @property {SelfIdentity} selfIdentity
  * @property {any} message
  * @property {ArrayBufferLike} [resumeSessionId]
- * @property {Record<string, any>} [resumeAuthPayload]
+ * @property {OcapnSignature} [sessionIdSignature]
  */
 
 /**
