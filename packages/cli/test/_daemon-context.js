@@ -1,4 +1,4 @@
-/** @import { Context } from './types' */
+/** @import { Context } from './_types.js' */
 
 /**
  * Provides test setup and teardown hooks that purge the local endo

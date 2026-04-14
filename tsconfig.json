@@ -2,7 +2,6 @@
     "extends": "./tsconfig.eslint-base.json",
     "compilerOptions": {
         "allowSyntheticDefaultImports": true,
-        "exactOptionalPropertyTypes": true,
     },
     "exclude": [
         "api-docs",
@@ -18,7 +17,6 @@
         "**/demo",
         "**/dist",
         "**/docs",
-        "**/test"
     ],
     "include": [
         "./**/*.ts",

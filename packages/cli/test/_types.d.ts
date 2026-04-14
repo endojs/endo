@@ -1,13 +1,13 @@
 import type { ExecaMethod } from 'execa';
 
-export type Expectation = {
+type Expectation = {
   stdout: RegExp | string | undefined;
   stderr?: RegExp | string | undefined;
 };
-export type TestCommand = (
+type TestCommand = (
   command: ReturnType<ExecaMethod>,
-  expectation: Expectation,
-) => Promise<true>;
+  expectation?: Expectation,
+) => Promise<void>;
 export type TestRoutine = (
   execa: ExecaMethod,
   testCommnd: TestCommand,
