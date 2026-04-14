@@ -20,7 +20,7 @@
     "@lavamoat/allow-scripts": "^3.3.5",
     "@lavamoat/preinstall-always-fail": "^2.1.1",
     "@octokit/core": "^3.4.0",
-    "@types/node": "^20.17.24",
+    "@types/node": "^20.19.39",
     "@typescript-eslint/eslint-plugin": "8.39.1",
     "@typescript-eslint/parser": "8.39.1",
     "ava": "^6.4.1",
