@@ -42,6 +42,8 @@ import type {
   SyncModuleTransforms,
   CompartmentsRenameFn,
   RedundantPreloadHook,
+  ModuleTransform,
+  SyncModuleTransform,
 } from './external.js';
 import type { PackageDescriptor } from './node-modules.js';
 import type { DeferredAttenuatorsProvider } from './policy.js';
@@ -182,7 +184,7 @@ type SyncChooseModuleDescriptorOperators = {
 /**
  * Operators for `chooseModuleDescriptor` representing asynchronous operation.
  */
-export type AsyncChooseModuleDescriptorOperators = {
+type AsyncChooseModuleDescriptorOperators = {
   /**
    * A function that reads a file, resolving with its binary contents _or_
    * `undefined` if the file is not found
@@ -331,3 +333,13 @@ export type DigestCompartmentMapOptions<
 };
 
 export type CaptureCompartmentMapOptions = DigestCompartmentMapOptions;
+
+/**
+ * Per-call configuration passed into {@link getParserGenerator}.
+ */
+export type ParserGeneratorConfig = {
+  languageForExtension: LanguageForExtension;
+  languageForModuleSpecifier: LanguageForModuleSpecifier;
+  parserForLanguage: ParserForLanguage;
+  transforms: Record<string, ModuleTransform | SyncModuleTransform>;
+};
