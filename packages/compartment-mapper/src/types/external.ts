@@ -12,6 +12,12 @@ import type {
   ThirdPartyStaticModuleInterface,
   Transform,
 } from 'ses';
+import type { SourceMapObject } from '@endo/module-source';
+import type {
+  ATTENUATORS_COMPARTMENT,
+  ENTRY_COMPARTMENT,
+} from '../policy-format.js';
+import type { CanonicalName } from './canonical-name.js';
 import type {
   CompartmentDescriptor,
   CompartmentMapDescriptor,
@@ -21,18 +27,12 @@ import type {
   PackageCompartmentDescriptorName,
   PackageCompartmentDescriptors,
 } from './compartment-map-schema.js';
+import type { PackageDescriptor } from './node-modules.js';
 import type { SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
-import type { CanonicalName } from './canonical-name.js';
-import type { PackageDescriptor } from './node-modules.js';
-import type {
-  ATTENUATORS_COMPARTMENT,
-  ENTRY_COMPARTMENT,
-} from '../policy-format.js';
 import type { LiteralUnion } from './typescript.js';
 
-export type { CanonicalName };
-export type { PackageDescriptor };
+export type { CanonicalName, PackageDescriptor };
 
 /**
  * Hook executed for each canonical name mentioned in policy but not found in the
@@ -651,6 +651,15 @@ export type SourceMapHookDetails = {
   sha512: string;
 };
 
+/**
+ * Source map hook as received by {@link ParseFn}.
+ *
+ * The import hook wraps the public {@link SourceMapHook} into this shape; it
+ * receives the raw source map object from the code generator, not a JSON
+ * string.
+ */
+export type ParseSourceMapHook = (sourceMapObject: SourceMapObject) => void;
+
 export type ModuleTransforms = Record<string, ModuleTransform>;
 
 export type SyncModuleTransforms = Record<string, SyncModuleTransform>;
@@ -718,29 +727,45 @@ export type ComputeSourceMapLocationHook = (
   details: ComputeSourceMapLocationDetails,
 ) => string;
 
-export type ParserImplementation = {
+interface BaseParserImplementation {
   /**
    * Whether a heuristic is used by parser to detect imports.
    * CommonJS uses a lexer to heuristically discover static require calls.
    */
   heuristicImports: boolean;
-  parse: ParseFn;
-  synchronous: boolean;
-};
+}
 
-type ParseArguments = [
+export interface ParserImplementation extends BaseParserImplementation {
+  parse: ParseFn;
+  synchronous: true;
+}
+
+export interface AsyncParserImplementation extends BaseParserImplementation {
+  parse: AsyncParseFn;
+  synchronous: false;
+}
+
+/**
+ * Options bag for a {@link ParseFn} or {@link AsyncParseFn}.
+ */
+export type ParseOptions = Partial<{
+  sourceMap: string | undefined;
+  sourceMapHook: ParseSourceMapHook | undefined;
+  sourceMapUrl: string | undefined;
+  readPowers: ReadFn | ReadPowers | undefined;
+  compartmentDescriptor: CompartmentDescriptor | undefined;
+}> &
+  ArchiveOnlyOption;
+
+/**
+ * Arguments for a {@link ParseFn} or {@link AsyncParseFn}.
+ */
+export type ParseArguments = [
   bytes: Uint8Array,
   specifier: string,
   moduleLocation: string,
   packageLocation: string,
-  options?: Partial<{
-    sourceMap: string | undefined;
-    sourceMapHook: SourceMapHook | undefined;
-    sourceMapUrl: string | undefined;
-    readPowers: ReadFn | ReadPowers | undefined;
-    compartmentDescriptor: CompartmentDescriptor | undefined;
-  }> &
-    ArchiveOnlyOption,
+  options?: ParseOptions,
 ];
 
 /**
@@ -753,17 +778,48 @@ export type ParseResult = {
   sourceMap?: string | undefined;
 };
 
-export type AsyncParseFn = (...args: ParseArguments) => Promise<ParseResult>;
-
+/**
+ * A synchronous module parsing function.
+ *
+ * @todo This and all parser-related types (including {@link ParseResult} should
+ * be moved into a separate package. `@endo/parser-pipeline` needs these types,
+ * and a package needing the types in `@endo/parser-pipeline` would then pull in
+ * `@endo/compartment-mapper` as a transitive dep and all _its_ transitive deps.
+ * Because {@link ParseResult} contains {@link FinalStaticModuleType} from
+ * `ses`, those types would want to be moved out of `ses` with it.
+ */
 export type ParseFn = { isSyncParser?: true } & ((
   ...args: ParseArguments
 ) => ParseResult);
 
 /**
- * Mapping of `Language` to {@link ParserImplementation
- * ParserImplementations}
+ * An asynchronous module parsing function.
  */
-export type ParserForLanguage = Record<Language | string, ParserImplementation>;
+export type AsyncParseFn = { isSyncParser?: false } & ((
+  ...args: ParseArguments
+) => Promise<ParseResult>);
+
+/**
+ * Mapping of `Language` to synchronous {@link ParserImplementation}s only.
+ *
+ * Used when all parsers are known to be synchronous.
+ */
+export type SyncParserForLanguage = Record<
+  Language | string,
+  ParserImplementation
+>;
+
+/**
+ * Mapping of `Language` to {@link ParserImplementation
+ * ParserImplementations} or {@link AsyncParserImplementation}s.
+ *
+ * When any entry has `synchronous: false`, the pipeline uses the async
+ * trampoline.
+ */
+export type ParserForLanguage = Record<
+  Language | string,
+  ParserImplementation | AsyncParserImplementation
+>;
 
 /**
  * Generic logging function accepted by various functions.

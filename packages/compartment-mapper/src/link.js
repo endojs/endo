@@ -390,8 +390,7 @@ export const link = (
     /** @type {ShouldDeferError} */
     const shouldDeferError = language => {
       if (language && has(parserForLanguage, language)) {
-        return /** @type {ParserImplementation} */ (parserForLanguage[language])
-          .heuristicImports;
+        return parserForLanguage[language].heuristicImports;
       } else {
         // If language is undefined or there's no parser, the error we could consider deferring is surely related to
         // that. Nothing to throw here.
