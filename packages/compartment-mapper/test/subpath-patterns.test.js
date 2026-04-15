@@ -207,6 +207,31 @@ test('null-target pattern excludes matching specifier', async t => {
   });
 });
 
+test('absolute path in subpath pattern replacement is rejected', async t => {
+  const absolutePatternFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/absolute-pattern-app/main.js',
+    import.meta.url,
+  ).toString();
+  await t.throwsAsync(
+    () => importLocation(readPowers, absolutePatternFixture),
+    {
+      message: /Cannot find file for internal module/,
+    },
+  );
+});
+
+test('module field selects ESM entry point', async t => {
+  const moduleFieldFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/module-field-app/main.js',
+    import.meta.url,
+  ).toString();
+  // The "module" field (without "exports") yields the ESM entry when the
+  // "import" condition is active, which is always the case in the
+  // compartment-mapper.
+  const { namespace } = await importLocation(readPowers, moduleFieldFixture);
+  t.is(namespace.entry, 'esm');
+});
+
 test('pattern tie-break matches Node precedence rules', async t => {
   const precedenceFixture = new URL(
     'fixtures-package-imports-exports/node_modules/app/precedence-import.js',

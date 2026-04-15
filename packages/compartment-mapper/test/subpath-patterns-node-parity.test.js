@@ -147,6 +147,24 @@ test('globstar patterns are not resolved by Node.js', async t => {
   );
 });
 
+test('absolute path in subpath pattern is rejected by Node.js', async t => {
+  // A package whose exports map "./smuggle/*.js" to "/etc/*.js" should not
+  // allow importing absolute paths. Node.js rejects this because the
+  // resolved target does not start with "./".
+  await t.throwsAsync(
+    () =>
+      import(
+        new URL(
+          'fixtures-package-imports-exports/node_modules/absolute-pattern-app/main.js',
+          import.meta.url,
+        ).href
+      ),
+    {
+      code: 'ERR_INVALID_PACKAGE_TARGET',
+    },
+  );
+});
+
 test('Node prefers the longer full pattern key on equal prefix length', async t => {
   // This exercises Node's pattern key ordering with overlapping keys:
   // "./tie/*" and "./tie/*.js". Node resolves "patterns-lib/tie/bar.js"
