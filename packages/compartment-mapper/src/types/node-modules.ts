@@ -13,8 +13,49 @@ import type {
   LogOptions,
   PackageDependenciesHook,
 } from './external.js';
+import type { PatternDescriptor } from './pattern-replacement.js';
 import type { LiteralUnion } from './typescript.js';
 import { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
+
+/**
+ * A mapping of conditions to their resolved exports.
+ * Each condition key (e.g., "import", "require", "node", "default")
+ * maps to an {@link Exports} value.
+ *
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/850b33c4dd292e0ff8cff039ee167d69be324fce/source/package-json.d.ts#L227-L248 | type-fest ExportConditions}
+ */
+export type ExportConditions = {
+  // eslint-disable-next-line no-use-before-define
+  [condition: string]: Exports;
+};
+
+/**
+ * Entry points of a module, optionally with conditions and subpath exports.
+ * Follows the recursive structure defined by Node.js for `package.json`
+ * `exports` and `imports` fields.
+ *
+ * - `null` excludes a subpath (null target).
+ * - `string` is a direct path.
+ * - `Array` is a fallback list (first match wins).
+ * - `ExportConditions` is a mapping of conditions to nested `Exports`.
+ *
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/850b33c4dd292e0ff8cff039ee167d69be324fce/source/package-json.d.ts#L227-L248 | type-fest Exports}
+ */
+export type Exports =
+  | null
+  | string
+  | Array<string | ExportConditions>
+  | ExportConditions;
+
+/**
+ * The `imports` field of `package.json`.
+ * Keys must start with `#`.
+ *
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/850b33c4dd292e0ff8cff039ee167d69be324fce/source/package-json.d.ts#L227-L248 | type-fest Imports}
+ */
+export type Imports = {
+  [key: `#${string}`]: Exports;
+};
 
 export type CommonDependencyDescriptors = Record<
   string,
@@ -79,10 +120,8 @@ export interface PackageDescriptor {
    */
   name: string;
   version?: string;
-  /**
-   * TODO: Update with proper type when this field is handled.
-   */
-  exports?: unknown;
+  exports?: Exports;
+  imports?: Imports;
   type?: 'module' | 'commonjs';
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -120,6 +159,11 @@ export interface Node {
   explicitExports: boolean;
   internalAliases: Record<string, string>;
   externalAliases: Record<string, string>;
+  /**
+   * Wildcard patterns extracted from the `exports` and `imports` fields.
+   * `*` matches exactly one path segment (Node.js semantics).
+   */
+  patterns: PatternDescriptor[];
   /**
    * The name of the original package's parent directory, for reconstructing
    * a sourceURL that is likely to converge with the original location in an IDE.

@@ -30,6 +30,7 @@
  *   FileCompartmentDescriptor,
  *   FileModuleConfiguration,
  * } from './types.js'
+ * @import {SubpathReplacer} from './types/pattern-replacement.js'
  */
 
 import { makeMapParsers } from './map-parser.js';
@@ -44,6 +45,7 @@ import {
   isCompartmentModuleConfiguration,
   isExitModuleConfiguration,
 } from './guards.js';
+import { makeMultiSubpathReplacer } from './pattern-replacement.js';
 
 const { assign, create, entries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
@@ -100,7 +102,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  *
  * @param {FileCompartmentDescriptor|PackageCompartmentDescriptor} compartmentDescriptor
  * @param {Record<string, Compartment>} compartments
- * @param {string} compartmentName
+ * @param {FileUrlString} compartmentName
  * @param {Record<string, FileModuleConfiguration|CompartmentModuleConfiguration>} moduleDescriptors
  * @param {Record<string, ScopeDescriptor<FileUrlString>>} scopeDescriptors
  * @returns {ModuleMapHook | undefined}
@@ -112,6 +114,14 @@ const makeModuleMapHook = (
   moduleDescriptors,
   scopeDescriptors,
 ) => {
+  // Build pattern matcher once per compartment if patterns exist.
+  const { patterns } = /** @type {Partial<PackageCompartmentDescriptor>} */ (
+    compartmentDescriptor
+  );
+  /** @type {SubpathReplacer | null} */
+  const matchPattern =
+    patterns && patterns.length > 0 ? makeMultiSubpathReplacer(patterns) : null;
+
   /**
    * @type {ModuleMapHook}
    */
@@ -158,6 +168,55 @@ const makeModuleMapHook = (
             namespace: foreignModuleSpecifier,
           };
         }
+      }
+    }
+
+    // Check patterns for wildcard matches (before scopes).
+    // Patterns may resolve within the same compartment (internal patterns)
+    // or to a foreign compartment (dependency export patterns).
+    if (matchPattern) {
+      const match = matchPattern(moduleSpecifier);
+      if (match !== null) {
+        const { result: resolvedPath, compartment: foreignCompartmentName } =
+          match;
+
+        // Null result means the specifier is explicitly excluded.
+        if (resolvedPath === null) {
+          throw Error(
+            `Cannot find module ${q(moduleSpecifier)} — excluded by null target pattern in ${q(compartmentName)}`,
+          );
+        }
+        const targetCompartmentName =
+          /** @type {FileUrlString} */
+          (foreignCompartmentName || compartmentName);
+
+        // Write back to moduleDescriptors for caching, archival, and
+        // policy enforcement. The write-back must precede the policy
+        // check because enforcePolicyByModule verifies the specifier
+        // exists in compartmentDescriptor.modules (the same object).
+        moduleDescriptors[moduleSpecifier] = {
+          retained: true,
+          compartment: targetCompartmentName,
+          module: resolvedPath,
+          __createdBy: 'link-pattern',
+        };
+
+        // Policy enforcement for pattern-matched modules
+        enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
+          exit: false,
+          errorHint: `Pattern matched in compartment ${q(compartmentName)}: module specifier ${q(moduleSpecifier)} mapped to ${q(resolvedPath)}`,
+        });
+
+        const targetCompartment = compartments[targetCompartmentName];
+        if (targetCompartment === undefined) {
+          throw Error(
+            `Cannot import module specifier ${q(moduleSpecifier)} from missing compartment ${q(targetCompartmentName)}`,
+          );
+        }
+        return {
+          compartment: targetCompartment,
+          namespace: resolvedPath,
+        };
       }
     }
 
@@ -298,7 +357,7 @@ export const link = (
   });
 
   const compartmentDescriptorEntries =
-    /** @type {[string, PackageCompartmentDescriptor|FileCompartmentDescriptor][]} */ (
+    /** @type {[FileUrlString, PackageCompartmentDescriptor|FileCompartmentDescriptor][]} */ (
       entries(compartmentDescriptors)
     );
   for (const [
