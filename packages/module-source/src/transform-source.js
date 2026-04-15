@@ -1,18 +1,27 @@
-// @ts-nocheck XXX Babel types
 import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
-import * as babelTypes from '@babel/types';
+
+import { visitorFromPlugin } from './source-options.js';
+
+/**
+ * @import {PluginFactory, TransformSourceParams} from './types/module-source.js'
+ */
 
 const parseBabel = babelParser.default
   ? babelParser.default.parse
   : babelParser.parse || babelParser;
 
-const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
-
 const traverseBabel = babelTraverse.default || babelTraverse;
 const generateBabel = babelGenerate.default || babelGenerate;
 
+/**
+ * Creates a transform source function.
+ *
+ * @param {(options: TransformSourceParams) => {analyzePlugin: PluginFactory, transformPlugin: PluginFactory}} makeModulePlugins
+ * @param {null} [babel]
+ * @returns {(source: string, options: TransformSourceParams) => string}
+ */
 export const makeTransformSource = (makeModulePlugins, babel = null) => {
   if (babel !== null) {
     throw Error(
@@ -20,11 +29,18 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
     );
   }
 
-  const transformSource = (source, sourceOptions = {}) => {
-    const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
+  /**
+   * Transforms the source code into a form that can be evaluated.
+   *
+   * @param {string} source
+   * @param {TransformSourceParams} options
+   * @returns {string}
+   */
+  const transformSource = (source, options) => {
+    const { analyzePlugin, transformPlugin } = makeModulePlugins(options);
 
     const { sourceUrl, sourceMapUrl, sourceType, sourceMap, sourceMapHook } =
-      sourceOptions;
+      options;
 
     const ast = parseBabel(source, {
       sourceType,
@@ -35,14 +51,13 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
     traverseBabel(ast, visitorFromPlugin(analyzePlugin));
     traverseBabel(ast, visitorFromPlugin(transformPlugin));
 
-    const sourceMaps = sourceOptions.sourceMapHook !== undefined;
-
     const { code: transformedSource, map: transformedSourceMap } =
       generateBabel(
         ast,
         {
           sourceFileName: sourceMapUrl,
-          sourceMaps,
+          sourceMaps: !!sourceMapHook,
+          // @ts-expect-error undocumented option
           inputSourceMap: sourceMap,
           experimental_preserveFormat: true,
           preserveFormat: true,
@@ -52,7 +67,7 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
         source,
       );
 
-    if (sourceMaps) {
+    if (sourceMapHook && transformedSourceMap) {
       sourceMapHook(transformedSourceMap, {
         sourceUrl,
         sourceMapUrl,
