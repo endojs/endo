@@ -19,6 +19,7 @@ import type {
 } from '../policy-format.js';
 import type { CanonicalName } from './canonical-name.js';
 import type {
+  SomeCompartmentDescriptor,
   CompartmentDescriptor,
   CompartmentMapDescriptor,
   DigestedCompartmentMapDescriptor,
@@ -735,37 +736,51 @@ interface BaseParserImplementation {
   heuristicImports: boolean;
 }
 
-export interface ParserImplementation extends BaseParserImplementation {
-  parse: ParseFn;
+export interface ParserImplementation<
+  TCompartmentDescriptor extends
+    SomeCompartmentDescriptor = SomeCompartmentDescriptor,
+> extends BaseParserImplementation {
+  parse: ParseFn<TCompartmentDescriptor>;
   synchronous: true;
 }
 
-export interface AsyncParserImplementation extends BaseParserImplementation {
-  parse: AsyncParseFn;
+export interface AsyncParserImplementation<
+  TCompartmentDescriptor extends
+    SomeCompartmentDescriptor = SomeCompartmentDescriptor,
+> extends BaseParserImplementation {
+  parse: AsyncParseFn<TCompartmentDescriptor>;
   synchronous: false;
 }
 
 /**
  * Options bag for a {@link ParseFn} or {@link AsyncParseFn}.
+ *
+ * @template TCompartmentDescriptor The compartment descriptor to use for the parse
  */
-export type ParseOptions = Partial<{
+export type ParseOptions<
+  TCompartmentDescriptor extends
+    SomeCompartmentDescriptor = SomeCompartmentDescriptor,
+> = Partial<{
   sourceMap: string | undefined;
   sourceMapHook: ParseSourceMapHook | undefined;
   sourceMapUrl: string | undefined;
   readPowers: ReadFn | ReadPowers | undefined;
-  compartmentDescriptor: CompartmentDescriptor | undefined;
+  compartmentDescriptor: TCompartmentDescriptor | undefined;
 }> &
   ArchiveOnlyOption;
 
 /**
  * Arguments for a {@link ParseFn} or {@link AsyncParseFn}.
  */
-export type ParseArguments = [
+export type ParseArguments<
+  TCompartmentDescriptor extends
+    SomeCompartmentDescriptor = SomeCompartmentDescriptor,
+> = [
   bytes: Uint8Array,
   specifier: string,
   moduleLocation: string,
   packageLocation: string,
-  options?: ParseOptions,
+  options?: ParseOptions<TCompartmentDescriptor>,
 ];
 
 /**
@@ -788,17 +803,17 @@ export type ParseResult = {
  * Because {@link ParseResult} contains {@link FinalStaticModuleType} from
  * `ses`, those types would want to be moved out of `ses` with it.
  */
-export type ParseFn = { isSyncParser?: true } & ((
-  ...args: ParseArguments
-) => ParseResult);
+export interface ParseFn<
+  TCompartmentDescriptor extends
+    SomeCompartmentDescriptor = SomeCompartmentDescriptor,
+> {
+  isSyncParser?: true;
+  (...args: ParseArguments<TCompartmentDescriptor>): ParseResult;
+}
 
 /**
  * An asynchronous module parsing function.
  */
-export type AsyncParseFn = { isSyncParser?: false } & ((
-  ...args: ParseArguments
-) => Promise<ParseResult>);
-
 /**
  * Mapping of `Language` to synchronous {@link ParserImplementation}s only.
  *
@@ -808,6 +823,13 @@ export type SyncParserForLanguage = Record<
   Language | string,
   ParserImplementation
 >;
+export interface AsyncParseFn<
+  TCompartmentDescriptor extends
+    SomeCompartmentDescriptor = SomeCompartmentDescriptor,
+> {
+  isSyncParser?: false;
+  (...args: ParseArguments<TCompartmentDescriptor>): Promise<ParseResult>;
+}
 
 /**
  * Mapping of `Language` to {@link ParserImplementation

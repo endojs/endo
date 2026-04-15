@@ -1,3 +1,4 @@
+export type * from './types/visitor-passes.ts';
 export type {
   SourceMapObject,
   SourceMapHook,
