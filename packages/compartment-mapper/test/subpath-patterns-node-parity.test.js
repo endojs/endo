@@ -107,8 +107,9 @@ test('exports edge cases - node parity', async t => {
 });
 
 test('non-object exports field is rejected by Node.js', async t => {
-  // Node.js ignores the invalid numeric exports field and falls back to
-  // looking for index.js, which does not exist.
+  // Node.js rejects the invalid numeric exports field. The error code varies
+  // by version: ERR_PACKAGE_PATH_NOT_EXPORTED on 18/20, ERR_MODULE_NOT_FOUND
+  // on 22+. We just verify it throws.
   await t.throwsAsync(
     () =>
       import(
@@ -117,9 +118,6 @@ test('non-object exports field is rejected by Node.js', async t => {
           import.meta.url,
         ).href
       ),
-    {
-      code: 'ERR_MODULE_NOT_FOUND',
-    },
   );
 });
 
