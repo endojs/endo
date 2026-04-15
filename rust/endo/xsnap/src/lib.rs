@@ -510,6 +510,51 @@ fn eval_wrapped(machine: &Machine, code: &str, label: &str) -> bool {
     }
 }
 
+/// Check if a raw CBOR envelope has verb `"debug"` and, if so,
+/// return the payload.  Otherwise return `None` and the caller
+/// should dispatch the envelope to JS as usual.
+///
+/// This is a fast path that avoids decoding the full envelope
+/// when the verb is not `"debug"`.
+fn try_extract_debug_payload(data: &[u8]) -> Option<Vec<u8>> {
+    match envelope::decode_envelope(data) {
+        Ok(env) if env.verb == "debug" => Some(env.payload),
+        _ => None,
+    }
+}
+
+/// Flush any pending debug outbound data as a `"debug"` envelope
+/// on the bus transport.  The handle is 0 (daemon/supervisor).
+fn flush_debug_outbound() {
+    if let Some(data) = powers::debug::debug_drain_outbound() {
+        let env = envelope::Envelope {
+            handle: 0,
+            verb: "debug".to_string(),
+            payload: data,
+            nonce: 0,
+        };
+        let encoded = envelope::encode_envelope(&env);
+        let _ = worker_io::with_transport(|t| t.send_raw_frame(&encoded));
+    }
+}
+
+/// Handle an incoming envelope: if it's a debug envelope, route it
+/// to the XS debugger; otherwise dispatch to JS.
+///
+/// Returns `true` if the envelope was handled as debug traffic.
+fn handle_envelope(machine: &Machine, data: &[u8]) -> bool {
+    if powers::debug::debug_is_active() {
+        if let Some(payload) = try_extract_debug_payload(data) {
+            powers::debug::debug_push_inbound(&payload);
+            machine.run_debugger();
+            flush_debug_outbound();
+            return true;
+        }
+    }
+    dispatch_envelope(machine, data);
+    false
+}
+
 /// Deliver a raw envelope to the JS `handleCommand` function.
 ///
 /// Pass raw envelope bytes to JS `handleCommand(Uint8Array)`.
@@ -717,7 +762,7 @@ pub fn run_xs_program(
             let frame = worker_io::with_transport(|t| t.recv_raw_envelope());
             match frame {
                 Ok(Some(data)) => {
-                    dispatch_envelope(&machine, &data);
+                    handle_envelope(&machine, &data);
                 }
                 Ok(None) => break,
                 Err(e) => {
@@ -730,7 +775,7 @@ pub fn run_xs_program(
             // non-blocking envelope dispatch so that CapTP round-trips
             // that occur during quiescence (e.g. storeBlob iterating a
             // remote reader) can complete without deadlocking.
-            let mut pump_iter = 0u32;
+            let mut _pump_iter = 0u32;
             loop {
                 unsafe { fxRunPromiseJobs(machine.raw) };
 
@@ -738,7 +783,7 @@ pub fn run_xs_program(
                 loop {
                     match worker_io::with_transport(|t| t.try_recv_raw_envelope()) {
                         Ok(Some(data)) => {
-                            dispatch_envelope(&machine, &data);
+                            handle_envelope(&machine, &data);
                         }
                         Ok(None) => break,
                         Err(e) => {
@@ -748,12 +793,16 @@ pub fn run_xs_program(
                     }
                 }
 
+                // Flush any debug output generated during this pump
+                // cycle (breakpoint hits, step responses, etc.).
+                flush_debug_outbound();
+
                 let pending = unsafe { ffi::fxHasPendingJobs() };
                 if pending == 0 {
                     break;
                 }
 
-                pump_iter += 1;
+                _pump_iter += 1;
 
                 // Jobs are pending but no envelopes available yet.
                 // Briefly yield to let the bridge tasks deliver

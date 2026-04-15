@@ -597,6 +597,20 @@ pub unsafe extern "C" fn host_encode_utf8(the: *mut XsMachine) {
     *(*the).frame.add(1) = (*the).scratch;
 }
 
+/// `debugPoll() -> undefined`
+///
+/// Run the XS debugger command loop once, flushing any pending
+/// debug output to the bus.  Called from JS bootstrap to drain
+/// initial debug commands (e.g. set-all-breakpoints) that arrive
+/// before the first eval.
+///
+/// When mxDebug is not compiled in, `run_debugger()` is a no-op.
+pub unsafe extern "C" fn host_debug_poll(the: *mut XsMachine) {
+    let machine = std::mem::ManuallyDrop::new(crate::Machine { raw: the });
+    machine.run_debugger();
+    crate::flush_debug_outbound();
+}
+
 /// Register worker I/O host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {
     machine.define_function("recvFrame", host_recv_frame, 0);
@@ -611,6 +625,7 @@ pub unsafe fn register(machine: &crate::Machine) {
     machine.define_function("hostEncodeUtf8", host_encode_utf8, 1);
     machine.define_function("hostBase64Decode", host_base64_decode, 1);
     machine.define_function("hostBase64Encode", host_base64_encode, 1);
+    machine.define_function("debugPoll", host_debug_poll, 0);
 }
 
 #[cfg(test)]
