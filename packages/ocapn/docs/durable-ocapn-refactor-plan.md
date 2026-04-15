@@ -1,0 +1,272 @@
+# Durable OCapN Refactor Plan (Incremental, Commit-Sized)
+
+## Scope
+
+This plan breaks the durable-session effort into small, individually committable refactors.
+
+It intentionally avoids implementation details that require one large migration.  
+Each step should preserve green tests and keep ephemeral behavior working throughout.
+
+## Guiding strategy
+
+- First introduce **abstraction seams** in `@endo/ocapn` with no behavior change.
+- Then add **parallel durable adapters** in a new package.
+- Finally wire resume behavior and baggage-backed durability constraints behind explicit composition.
+
+Because this repository does not include a reusable live-slots baggage implementation, the first implementation phase introduces an in-memory baggage abstraction in core and makes durable baggage pluggable.
+
+## Step-by-step plan
+
+### 1) Add architecture docs and ADR scaffolding
+
+**Commit type:** `docs(ocapn): ...`  
+**Change set:**
+
+- Add architecture + staged refactor docs (this document and companion architecture doc).
+- Add a short ADR index section in `packages/ocapn/README.md` (optional) linking to new docs.
+
+**Why first:** aligns contributors before any API churn.
+
+---
+
+### 2) Introduce explicit baggage abstraction + `ClientStorageKit` (no behavior change)
+
+**Commit type:** `refactor(ocapn): ...`  
+**Change set:**
+
+- Define type/interface for baggage-like storage dependencies currently implicit in:
+  - `swissnumTable`
+  - `giftTable`
+  - in-memory slot table internals
+- Add in-repo in-memory baggage implementation and adapt current `Map` usage into this interface.
+
+**Tests:**
+
+- No semantic changes; existing client/session tests should pass unchanged.
+
+---
+
+### 3) Extract OCapN table creation into factory hook
+
+**Commit type:** `refactor(ocapn): ...`  
+**Change set:**
+
+- Replace direct `makeOcapnTable(...)` call in `client/ocapn.js` with injected factory.
+- Add default factory that returns current table implementation.
+- Ensure factory is used both at first session creation and reconnect path (even if reconnect still creates a fresh logical session for now).
+
+**Tests:**
+
+- Existing table/gc/pipeline tests.
+- New unit test: custom table factory is invoked.
+
+---
+
+### 4) Stabilize local identity and split session identity from connection identity
+
+**Commit type:** `refactor(ocapn): ...`  
+**Change set:**
+
+- Ensure local peer identity is stable for a client instance (not per connection).
+- Add internal `LogicalSession` concept in session manager.
+- Keep existing external API unchanged (`provideSession`, `abort`).
+- Continue current behavior (logical session ends when connection ends), but with internal shape now ready for resume.
+
+**Tests:**
+
+- Existing handshake and reconnect-after-abort tests unchanged.
+
+---
+
+### 5) Rely on baggage-backed durability constraints (no explicit boundary policy)
+
+**Commit type:** `refactor(ocapn): ...`  
+**Change set:**
+
+- Remove explicit boundary-policy hook work from core.
+- Rely on durable baggage/table semantics to reject non-durable values when persistence is attempted.
+
+**Tests:**
+
+- Existing behavior unchanged in in-memory mode.
+- New tests showing baggage-backed persistence rejects unsupported values (e.g., plain `Far` in durable-style stores).
+
+---
+
+### 6) Replace internal protocol-visible helper objects with injectable constructors
+
+**Commit type:** `refactor(ocapn): ...`  
+**Change set:**
+
+- Extract constructors for bootstrap/resolver helper remotables currently using `Far`.
+- Default constructor still uses current behavior.
+- Durable mode can later swap in durable-exo-compatible constructors.
+
+**Tests:**
+
+- Pipeline and resolver tests must still pass.
+
+---
+
+### 7) Introduce `op:resume-session` handshake and auth extension points
+
+**Commit type:** `refactor(ocapn): ...`  
+**Change set:**
+
+- Add new pre-session handshake operation: `op:resume-session`.
+- Keep `op:start-session` for first-time session establishment.
+- Attach outbound auth/resume metadata on `op:resume-session`.
+- Verify inbound auth/resume metadata before allowing resume.
+- Map connection to existing logical session once authenticated.
+- Default hook implementation remains no-op and preserves current start-session behavior.
+
+**Tests:**
+
+- Existing handshake tests.
+- New tests for hook invocation order and fallback path.
+
+---
+
+### 8) Create new package scaffold `@endo/ocapn-durable-client`
+
+**Commit type:** `feat(ocapn-durable-client): ...`  
+**Change set:**
+
+- Add workspace package skeleton:
+  - `package.json`
+  - `README.md`
+  - `src/index.js`
+  - type/test/lint scaffolding
+- Export a client constructor that composes `@endo/ocapn` with placeholders for durable baggage adapters.
+
+**Tests:**
+
+- Package smoke test that constructor can be imported and instantiated in no-op mode.
+
+---
+
+### 9) Implement baggage-backed sturdyref store adapter
+
+**Commit type:** `feat(ocapn-durable-client): ...`  
+**Change set:**
+
+- Add sturdyref store implementation using live-slots baggage-backed maps/stores.
+- Adapt core sturdyref APIs to consume abstract store interface added earlier.
+
+**Tests:**
+
+- Port sturdyref tests to run against both:
+  - in-memory adapter
+  - baggage adapter (or deterministic mock of baggage interface if needed).
+
+---
+
+### 10) Implement baggage-backed import/export table adapter
+
+**Commit type:** `feat(ocapn-durable-client): ...`  
+**Change set:**
+
+- Implement durable `OcapnTable` backend preserving interface expected by `referenceKit` and codecs.
+- Keep GC/refcount semantics explicit and deterministic in durable mode (no reliance on host finalization timing).
+
+**Tests:**
+
+- Dual-mode table conformance tests:
+  - slot registration
+  - refcount commit/abort
+  - settler lifecycle
+  - drop behavior.
+
+---
+
+### 11) Add durable baggage/store enforcement tests
+
+**Commit type:** `feat(ocapn-durable-client): ...`  
+**Change set:**
+
+- Ensure durable baggage/store adapters enforce persistence constraints:
+  - copydata persists
+  - unsupported non-durable values fail at storage boundaries
+
+**Tests:**
+
+- Positive tests for durable-capable persisted values.
+- Negative tests for plain `Far` values where durable persistence is required.
+
+---
+
+### 12) Add resume-aware netlayer adapter
+
+**Commit type:** `feat(ocapn-durable-client): ...`  
+**Change set:**
+
+- Implement adapter that layers resume metadata over existing netlayer contract.
+- Supports reconnect attaching to existing logical session when policy approves.
+
+**Tests:**
+
+- Simulated disconnect/restart/reconnect integration tests.
+- Validate session continuity expectations for slot and sturdyref tables.
+
+---
+
+### 13) Integrate durable package end-to-end with restart test harness
+
+**Commit type:** `test(ocapn-durable-client): ...`  
+**Change set:**
+
+- Add integration tests demonstrating:
+  - process/vat restart
+  - resumed session (or session rebind) without losing durable tables
+  - sturdyref table continuity
+  - expected handling of in-flight ephemeral answers.
+
+**Tests:**
+
+- New restart harness tests become required for durable package CI.
+
+---
+
+### 14) Cleanup and API stabilization
+
+**Commit type:** `refactor(ocapn): ...` and `chore(...)`  
+**Change set:**
+
+- Remove temporary compatibility shims introduced during migration.
+- Finalize naming for hook interfaces and durable package entrypoints.
+- Update documentation and API snapshots.
+
+**Tests:**
+
+- Full package lint/test pass across modified workspaces.
+
+## Cross-cutting test matrix to maintain each step
+
+1. Existing `@endo/ocapn` tests (handshake, session, gc, pipeline, handoffs, sturdyrefs)
+2. New conformance tests for pluggable table/store interfaces
+3. Dual-mode integration tests:
+   - ephemeral baseline
+   - durable composition
+4. Restart-focused tests for durable package
+
+## Risks and mitigations
+
+- **Risk:** table interface too narrow for durable backend  
+  **Mitigation:** add conformance tests before durable backend implementation.
+
+- **Risk:** resume semantics conflict with existing crossed-hello logic  
+  **Mitigation:** isolate resume negotiation behind handshake extension hooks with strict fallback.
+
+- **Risk:** durable persistence constraints surface failures later than protocol boundary  
+  **Mitigation:** add targeted tests around baggage/store insertion points and explicit error messages.
+
+- **Risk:** accidental protocol divergence between modes  
+  **Mitigation:** shared protocol core + adapter pattern, no duplicated message handlers.
+
+## Suggested commit granularity
+
+- Keep commits small enough to review independently:
+  - one new seam/hook + tests
+  - one new adapter + tests
+  - one resume behavior increment + tests
+- Avoid combining core seam introduction and durable adapter implementation in the same commit.

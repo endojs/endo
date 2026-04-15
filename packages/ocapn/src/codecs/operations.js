@@ -41,6 +41,16 @@ const OpStartSessionCodec = makeOcapnRecordCodecFromDefinition(
   },
 );
 
+const OpResumeSessionCodec = makeOcapnRecordCodecFromDefinition(
+  'OpResumeSession',
+  'op:resume-session',
+  {
+    sessionId: 'bytestring',
+    resumeSessionCount: NonNegativeIntegerCodec,
+    sessionIdSignature: OcapnSignatureCodec,
+  },
+);
+
 const OpAbortCodec = makeOcapnRecordCodecFromDefinition('OpAbort', 'op:abort', {
   reason: 'string',
 });
@@ -66,6 +76,7 @@ export const OcapnPreSessionOperationsCodecs = makeRecordUnionCodec(
   'OcapnPreSessionOperations',
   {
     OpStartSession: OpStartSessionCodec,
+    OpResumeSession: OpResumeSessionCodec,
     OpAbort: OpAbortCodec,
   },
 );
@@ -208,6 +219,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
 
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
+    OpResumeSessionCodec,
     OpDeliverOnlyCodec,
     OpDeliverCodec,
     OpGetCodec,

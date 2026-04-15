@@ -17,7 +17,10 @@ import {
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
 import { writeOcapnHandshakeMessage } from '../src/codecs/operations.js';
+import { sendHandshake } from '../src/client/handshake.js';
 import { makeSlot } from '../src/captp/pairwise.js';
+import { makeInMemoryBaggage } from '../src/client/baggage.js';
+import { makeClient } from '../src/client/index.js';
 
 test('test slow send', async t => {
   const testObjectTable = new Map();
@@ -144,6 +147,109 @@ test('refuses to connect to self', async t => {
   client.shutdown();
 });
 
+test('tryResumeSession requires explicitly provided baggage', t => {
+  const error = t.throws(
+    () => {
+      makeClient({
+        tryResumeSession: true,
+      });
+    },
+    {
+      instanceOf: Error,
+    },
+  );
+  t.truthy(error);
+  if (error) {
+    t.is(
+      error.message,
+      'tryResumeSession requires an explicitly provided baggage instance',
+    );
+  }
+});
+
+test('resume-session rejects replayed resume count', async t => {
+  const baggageA = makeInMemoryBaggage();
+  const baggageB = makeInMemoryBaggage();
+  const { clientKitA, clientKitB, establishSession, shutdownBoth } =
+    await makeTestClientPair({
+      clientAOptions: {
+        baggage: baggageA,
+        tryResumeSession: true,
+      },
+      clientBOptions: {
+        baggage: baggageB,
+      },
+    });
+
+  try {
+    const {
+      sessionA: firstSessionA,
+      sessionB: firstSessionB,
+    } = await establishSession();
+    const resumeSessionsByLocationIdB = baggageB.get(
+      'ocapn:resumeSessionsByLocationId',
+    );
+    const resumeSessionsByIdB = baggageB.get('ocapn:resumeSessionsById');
+    const sessionIdHex = resumeSessionsByLocationIdB.get(clientKitA.locationId);
+    const firstRecord = resumeSessionsByIdB.get(sessionIdHex);
+    t.is(
+      firstRecord.resumeSessionCount,
+      0n,
+      'first established session should initialize resume count to zero',
+    );
+
+    firstSessionA.connection.end();
+    await waitUntilTrue(() => {
+      return (
+        !clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId) &&
+        !clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId)
+      );
+    });
+
+    const { sessionA: resumedSessionA, sessionB: resumedSessionB } =
+      await establishSession();
+    const resumedRecord = resumeSessionsByIdB.get(sessionIdHex);
+    t.is(
+      resumedRecord.resumeSessionCount,
+      1n,
+      'successful resume should increment stored resume count',
+    );
+
+    resumedSessionA.connection.end();
+    await waitUntilTrue(() => {
+      return (
+        !clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId) &&
+        !clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId)
+      );
+    });
+
+    const { connection: replayConnection } =
+      // eslint-disable-next-line no-underscore-dangle
+      clientKitA.netlayer._debug.establishConnection(clientKitB.location);
+    sendHandshake(replayConnection, resumedSessionA.self, clientKitA.debug.captpVersion, {
+      opType: 'op:resume-session',
+      resumeSessionId: resumedSessionA.id,
+      resumeSessionCount: 0n,
+    });
+
+    await waitUntilTrue(() => replayConnection.isDestroyed);
+    t.true(
+      replayConnection.isDestroyed,
+      'replayed resume-session handshake should be rejected',
+    );
+    t.is(
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
+      undefined,
+      'replayed resume should not establish an active session on the receiver',
+    );
+
+    firstSessionB.connection.end();
+    resumedSessionB.connection.end();
+  } finally {
+    shutdownBoth();
+  }
+});
+
 test('client aborts on start-session with wrong version', async t => {
   const { clientKitA, clientKitB, establishSession, shutdownBoth } =
     await makeTestClientPair();
@@ -188,6 +294,194 @@ test('client aborts on start-session with wrong version', async t => {
   } finally {
     firstConnection.end();
     shutdownBoth();
+  }
+});
+
+test('client aborts on failed authenticateSession hook', async t => {
+  const authFailureMessage = 'session auth failed in test';
+  const { clientKitA, clientKitB, shutdownBoth } = await makeTestClientPair({
+    clientAOptions: {
+      authenticateSession: () => {
+        throw Error(authFailureMessage);
+      },
+    },
+  });
+
+  try {
+    const sessionPromise = clientKitA.client.provideSession(clientKitB.location);
+    const error = await t.throwsAsync(
+      async () => sessionPromise,
+      {
+        instanceOf: Error,
+      },
+    );
+    t.truthy(error);
+    if (error) {
+      t.regex(
+        error.message,
+        /Connection closed during handshake|Session ended/,
+        'error should indicate failed handshake/session',
+      );
+    }
+
+    t.is(
+      clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId),
+      undefined,
+      'A should not have an active session after auth failure',
+    );
+    t.is(
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
+      undefined,
+      'B should not have an active session after auth failure',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('client aborts when authenticateSession hook rejects handshake', async t => {
+  const { clientKitA, clientKitB, establishSession, shutdownBoth } =
+    await makeTestClientPair({
+      clientAOptions: {
+        authenticateSession: () => {
+          throw Error('reject all sessions');
+        },
+      },
+    });
+
+  try {
+    const error = await t.throwsAsync(
+      async () => {
+        await clientKitA.client.provideSession(clientKitB.location);
+      },
+      { instanceOf: Error },
+      'Session establishment should fail when authentication hook rejects',
+    );
+    t.truthy(error);
+    t.regex(
+      error.message,
+      /Connection closed during handshake|Session ended/,
+      'Error should indicate handshake/session failure',
+    );
+
+    t.is(
+      clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId),
+      undefined,
+      'A should not have an active session for B',
+    );
+    t.is(
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
+      undefined,
+      'B should not have an active session for A',
+    );
+
+    const secondAttemptError = await t.throwsAsync(
+      async () => {
+        await establishSession();
+      },
+      { instanceOf: Error },
+      'Subsequent attempts should continue to fail while auth rejects',
+    );
+    t.truthy(secondAttemptError);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('clients sharing in-memory baggage share sturdyref table state', async t => {
+  const sharedBaggage = makeInMemoryBaggage();
+  const sharedSwissnum = encodeSwissnum('shared-object');
+  const sharedObject = Far('Shared', {
+    getValue: () => 123,
+  });
+
+  const { client: clientA, location: locationA } = await makeTestClient({
+    debugLabel: 'shared-A',
+    clientOptions: {
+      baggage: sharedBaggage,
+    },
+  });
+  const { client: clientB } = await makeTestClient({
+    debugLabel: 'shared-B',
+    clientOptions: {
+      baggage: sharedBaggage,
+    },
+  });
+
+  try {
+    clientA.registerSturdyRef('shared-object', sharedObject);
+
+    const sturdyRef = clientB.makeSturdyRef(locationA, sharedSwissnum);
+    const resolved = await clientB.enlivenSturdyRef(sturdyRef);
+    const value = await E(resolved).getValue();
+    t.is(value, 123);
+  } finally {
+    clientA.shutdown();
+    clientB.shutdown();
+  }
+});
+
+test('baggage-backed swissnum table can reject non-durable refs', async t => {
+  const makeRejectingSwissnumTable = () => {
+    /** @type {Map<string, any>} */
+    const entries = new Map();
+    return harden({
+      has: key => entries.has(key),
+      get: key => entries.get(key),
+      set: (key, value) => {
+        if (value && typeof value === 'object') {
+          throw Error('non-durable object rejected by baggage table');
+        }
+        entries.set(key, value);
+      },
+    });
+  };
+
+  const rejectingBaggage = harden({
+    has: _key => false,
+    get: _key => undefined,
+    init: (key, value) => {
+      if (key === 'ocapn:swissnumTable') {
+        return;
+      }
+      if (key === 'ocapn:giftTable') {
+        return;
+      }
+      if (key === 'ocapn:resumeSessionsByLocationId') {
+        return;
+      }
+      if (key === 'ocapn:resumeSessionsById') {
+        return;
+      }
+      throw Error(`Unexpected baggage key: ${key}`);
+    },
+    set: (_key, _value) => {},
+  });
+
+  const { client: clientA } = await makeTestClient({
+    debugLabel: 'durability-A',
+    clientOptions: {
+      baggage: rejectingBaggage,
+      swissnumTable: makeRejectingSwissnumTable(),
+    },
+  });
+
+  try {
+    const err = t.throws(
+      () => {
+        clientA.registerSturdyRef(
+          'non-durable',
+          Far('ephemeral-far', { ping: () => 'pong' }),
+        );
+      },
+      { instanceOf: Error },
+      'registerSturdyRef should fail when baggage-backed table rejects objects',
+    );
+    if (err) {
+      t.is(err.message, 'non-durable object rejected by baggage table');
+    }
+  } finally {
+    clientA.shutdown();
   }
 });
 

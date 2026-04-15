@@ -173,6 +173,7 @@ export const waitUntilTrue = async (fn, timeoutMs = 1000, delayMs = 20) => {
  * @param {boolean} [options.verbose]
  * @param {object} [options.clientOptions]
  * @param {number} [options.writeLatencyMs] - Optional artificial latency for writes (ms)
+ * @param {(handlers: import('../src/client/types.js').NetlayerHandlers, logger: import('../src/client/types.js').Logger) => TcpTestOnlyNetLayer | Promise<TcpTestOnlyNetLayer>} [options.makeNetlayer]
  * @returns {Promise<ClientKit>}
  */
 export const makeTestClient = async ({
@@ -181,6 +182,7 @@ export const makeTestClient = async ({
   verbose,
   clientOptions,
   writeLatencyMs,
+  makeNetlayer,
 }) => {
   const client = makeClient({
     debugLabel,
@@ -197,14 +199,17 @@ export const makeTestClient = async ({
   // eslint-disable-next-line no-underscore-dangle
   const { _debug: debug } = client;
   // Register netlayer with client
-  const netlayer = await client.registerNetlayer((handlers, logger) =>
-    makeTcpNetLayer({
+  const netlayer = await client.registerNetlayer((handlers, logger) => {
+    if (makeNetlayer) {
+      return makeNetlayer(handlers, logger);
+    }
+    return makeTcpNetLayer({
       handlers,
       logger,
       specifiedDesignator: debugLabel,
       writeLatencyMs,
-    }),
-  );
+    });
+  });
   const { location } = netlayer;
   const locationId = locationToLocationId(location);
   return { client, debug, netlayer, location, locationId };

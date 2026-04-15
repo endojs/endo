@@ -4,18 +4,24 @@
  * @import { OcapnLocation } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { SturdyRef } from './sturdyrefs.js'
- * @import { Client, Connection, InternalSession, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionManager, SocketOperations, SwissNum } from './types.js'
+ * @import { Client, Connection, InternalSession, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionAuthDetails, SessionManager, SocketOperations, SwissNum } from './types.js'
  */
 
 import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { writeOcapnHandshakeMessage } from '../codecs/operations.js';
-import { makeOcapnKeyPair, signLocation } from '../cryptography.js';
+import {
+  makeOcapnKeyPair,
+  signLocation,
+  publicKeyDescriptorToPublicKey,
+} from '../cryptography.js';
+import { makeOcapnTable as makeDefaultOcapnTable } from '../captp/ocapn-tables.js';
 import { makeGrantTracker } from './grant-tracker.js';
 import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
 import { handleHandshakeMessageData, sendHandshake } from './handshake.js';
 import { makeOcapn } from './ocapn.js';
+import { makeInMemoryBaggage, provideFromBaggage } from './baggage.js';
 
 /**
  * @param {OcapnLocation} myLocation
@@ -70,7 +76,13 @@ const handleActiveSessionMessageData = (
 /**
  * @returns {SessionManager}
  */
-const makeSessionManager = () => {
+/**
+ * @param {object} [options]
+ * @param {(session: InternalSession, resolutionOptions?: { isResume?: boolean, resumeSessionCount?: bigint }) => void} [options.onSessionResolved]
+ * @returns {SessionManager}
+ */
+const makeSessionManager = (options = {}) => {
+  const { onSessionResolved = _session => {} } = options;
   /** @type {Map<LocationId, InternalSession>} */
   const activeSessions = new Map();
   /** @type {Map<LocationId, PendingSession>} */
@@ -103,7 +115,7 @@ const makeSessionManager = () => {
       }
       return pendingSession.promise;
     },
-    resolveSession: (locationId, connection, session) => {
+    resolveSession: (locationId, connection, session, resolutionOptions = {}) => {
       if (activeSessions.has(locationId)) {
         throw Error(
           `Unable to resolve session for ${locationId}. Active session already exists.`,
@@ -117,6 +129,7 @@ const makeSessionManager = () => {
         pendingSession.resolve(session);
         pendingSessions.delete(locationId);
       }
+      onSessionResolved(session, resolutionOptions);
     },
     endSession: session => {
       const locationId = locationToLocationId(session.peer.location);
@@ -171,22 +184,40 @@ const makeSessionManager = () => {
  * @param {object} [options]
  * @param {string} [options.debugLabel]
  * @param {boolean} [options.verbose]
+ * @param {import('./baggage.js').Baggage} [options.baggage]
  * @param {Map<string, any>} [options.swissnumTable]
  * @param {Map<string, any>} [options.giftTable]
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
+ * @param {boolean} [options.tryResumeSession] - If true, emit op:resume-session instead of op:start-session for outgoing handshakes.
+ * @param {(options: object) => import('../captp/ocapn-tables.js').OcapnTable} [options.makeOcapnTableFactory]
+ * @param {(details: SessionAuthDetails) => void} [options.authenticateSession]
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
  * @returns {Client}
  */
-export const makeClient = ({
-  debugLabel = 'ocapn',
-  verbose = false,
-  swissnumTable = new Map(),
-  giftTable = new Map(),
-  captpVersion = '1.0',
-  enableImportCollection = true,
-  debugMode = false,
-} = {}) => {
+export const makeClient = (options = {}) => {
+  const hasExplicitBaggage = Object.prototype.hasOwnProperty.call(
+    options,
+    'baggage',
+  );
+  const {
+    debugLabel = 'ocapn',
+    verbose = false,
+    baggage = makeInMemoryBaggage(),
+    swissnumTable,
+    giftTable,
+    captpVersion = '1.0',
+    tryResumeSession = false,
+    makeOcapnTableFactory = makeDefaultOcapnTable,
+    authenticateSession = () => {},
+    enableImportCollection = true,
+    debugMode = false,
+  } = options;
+  if (tryResumeSession && !hasExplicitBaggage) {
+    throw Error(
+      'tryResumeSession requires an explicitly provided baggage instance',
+    );
+  }
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
 
@@ -199,10 +230,67 @@ export const makeClient = ({
       verbose && console.info(`${debugLabel} [${Date.now()}]:`, ...args),
   });
 
-  const sessionManager = makeSessionManager();
+  const resolvedSwissnumTable =
+    swissnumTable ||
+    provideFromBaggage(baggage, 'ocapn:swissnumTable', () => new Map());
+  const resolvedGiftTable =
+    giftTable || provideFromBaggage(baggage, 'ocapn:giftTable', () => new Map());
+
+  const resumeSessionsByLocationId = provideFromBaggage(
+    baggage,
+    'ocapn:resumeSessionsByLocationId',
+    () => new Map(),
+  );
+  const resumeSessionsById = provideFromBaggage(
+    baggage,
+    'ocapn:resumeSessionsById',
+    () => new Map(),
+  );
+  const lookupResumeSession = sessionId => {
+    const sessionIdHex = toHex(sessionId);
+    const sessionRecord = resumeSessionsById.get(sessionIdHex);
+    if (!sessionRecord) {
+      return undefined;
+    }
+    const {
+      peerLocation,
+      peerLocationSig,
+      peerPublicKeyDescriptor,
+      resumeSessionCount,
+    } = sessionRecord;
+    return {
+      peerLocation,
+      peerLocationSig,
+      peerPublicKey: publicKeyDescriptorToPublicKey(peerPublicKeyDescriptor),
+      resumeSessionCount:
+        typeof resumeSessionCount === 'bigint' ? resumeSessionCount : 0n,
+    };
+  };
+
+  const sessionManager = makeSessionManager({
+    onSessionResolved: (session, resolutionOptions = {}) => {
+      const locationId = locationToLocationId(session.peer.location);
+      const sessionIdHex = toHex(session.id);
+      const { isResume = false, resumeSessionCount } = resolutionOptions;
+      const nextResumeSessionCount =
+        isResume && typeof resumeSessionCount === 'bigint'
+          ? resumeSessionCount + 1n
+          : 0n;
+      resumeSessionsByLocationId.set(locationId, sessionIdHex);
+      resumeSessionsById.set(sessionIdHex, {
+        sessionId: session.id,
+        peerLocation: session.peer.location,
+        peerLocationSig: session.peer.locationSignature,
+        peerPublicKeyDescriptor: session.peer.publicKey.descriptor,
+        resumeSessionCount: nextResumeSessionCount,
+      });
+    },
+  });
 
   /** @type {WeakMap<Connection, SelfIdentity>} */
   const connectionSelfIdentityMap = new WeakMap();
+  /** @type {WeakMap<NetLayer, SelfIdentity>} */
+  const netlayerToSelfIdentity = new WeakMap();
 
   /**
    * Get the self identity for a connection.
@@ -235,8 +323,24 @@ export const makeClient = ({
     }
     const connection = netlayer.connect(location);
     const selfIdentity = getSelfIdentityForConnection(connection);
-    // Send handshake for outgoing connections
-    sendHandshake(connection, selfIdentity, captpVersion);
+    // Send handshake for outgoing connections.
+    const resumeSessionIdHex =
+      tryResumeSession && resumeSessionsByLocationId.get(destinationLocationId);
+    const resumeSessionRecord =
+      resumeSessionIdHex && resumeSessionsById.get(resumeSessionIdHex);
+    if (resumeSessionRecord) {
+      const resumeSessionCount =
+        typeof resumeSessionRecord.resumeSessionCount === 'bigint'
+          ? resumeSessionRecord.resumeSessionCount
+          : 0n;
+      sendHandshake(connection, selfIdentity, captpVersion, {
+        opType: 'op:resume-session',
+        resumeSessionId: resumeSessionRecord.sessionId,
+        resumeSessionCount,
+      });
+    } else {
+      sendHandshake(connection, selfIdentity, captpVersion);
+    }
     const pendingSession = sessionManager.makePendingSession(
       destinationLocationId,
       connection,
@@ -245,7 +349,7 @@ export const makeClient = ({
   };
 
   const grantTracker = makeGrantTracker();
-  const sturdyRefTracker = makeSturdyRefTracker(swissnumTable);
+  const sturdyRefTracker = makeSturdyRefTracker(resolvedSwissnumTable);
   /**
    * Check if a location matches one of our own netlayers (self-location)
    * @param {OcapnLocation} location
@@ -290,15 +394,15 @@ export const makeClient = ({
   };
 
   const prepareOcapn = (connection, sessionId, peerLocation) => {
-    return makeOcapn(
+    return makeOcapn({
       logger,
       connection,
       sessionId,
       peerLocation,
-      provideInternalSession,
-      sessionManager.getActiveSession,
-      sessionManager.getPeerPublicKeyForSessionId,
-      () => {
+      provideSession: provideInternalSession,
+      getActiveSession: sessionManager.getActiveSession,
+      getPeerPublicKeyForSessionId: sessionManager.getPeerPublicKeyForSessionId,
+      endSession: () => {
         const activeSession = sessionManager.getActiveSession(
           locationToLocationId(peerLocation),
         );
@@ -307,12 +411,13 @@ export const makeClient = ({
         }
       },
       grantTracker,
-      giftTable,
+      giftTable: resolvedGiftTable,
       sturdyRefTracker,
-      debugLabel,
+      makeOcapnTable: makeOcapnTableFactory,
+      ourIdLabel: debugLabel,
       enableImportCollection,
       debugMode,
-    );
+    });
   };
 
   /**
@@ -341,6 +446,8 @@ export const makeClient = ({
         data,
         captpVersion,
         prepareOcapn,
+        authenticateSession,
+        lookupResumeSession,
       );
     }
   };
@@ -375,7 +482,11 @@ export const makeClient = ({
    */
   const makeConnection = (netlayer, isOutgoing, socket) => {
     let isDestroyed = false;
-    const selfIdentity = makeSelfIdentity(netlayer.location);
+    let selfIdentity = netlayerToSelfIdentity.get(netlayer);
+    if (!selfIdentity) {
+      selfIdentity = makeSelfIdentity(netlayer.location);
+      netlayerToSelfIdentity.set(netlayer, selfIdentity);
+    }
 
     /** @type {Connection} */
     const connection = harden({
@@ -456,7 +567,7 @@ export const makeClient = ({
         sturdyRef,
         provideInternalSession,
         isSelfLocation,
-        swissnumTable,
+        resolvedSwissnumTable,
       );
     },
     /**

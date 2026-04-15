@@ -97,7 +97,7 @@
  * @property {(location: LocationId) => Promise<InternalSession> | undefined} getPendingSessionPromise
  * @property {(connection: Connection) => InternalSession | undefined} getSessionForConnection
  * @property {(location: LocationId, connection: Connection) => PendingSession} makePendingSession
- * @property {(location: LocationId, connection: Connection, session: InternalSession) => void} resolveSession
+ * @property {(location: LocationId, connection: Connection, session: InternalSession, options?: { isResume?: boolean, resumeSessionCount?: bigint }) => void} resolveSession
  * @property {(connection: Connection) => void} deleteConnection
  * When a connection is no longer relevant to establishing a session.
  * Does not close the connection. Does not close or delete the session.
@@ -109,6 +109,19 @@
  * Finds and rejects any pending session associated with the given connection.
  * Returns true if a pending session was found and rejected, false otherwise.
  * @property {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ */
+
+/**
+ * @typedef {object} SessionAuthDetails
+ * @property {Connection} connection
+ * @property {SessionId} sessionId
+ * @property {boolean} isResume
+ * @property {OcapnLocation} peerLocation
+ * @property {OcapnPublicKey} peerPublicKey
+ * @property {SelfIdentity} selfIdentity
+ * @property {any} message
+ * @property {OcapnSignature} [sessionIdSignature]
+ * @property {bigint} [resumeSessionCount]
  */
 
 /**

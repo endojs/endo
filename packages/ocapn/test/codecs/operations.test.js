@@ -54,6 +54,20 @@ export const table = [
     },
   },
   {
+    name: 'op:resume-session',
+    value: {
+      type: 'op:resume-session',
+      sessionId: examplePubKeyQBytes,
+      resumeSessionCount: 3n,
+      sessionIdSignature: {
+        type: 'sig-val',
+        scheme: 'eddsa',
+        r: exampleSigParamBytes,
+        s: exampleSigParamBytes,
+      },
+    },
+  },
+  {
     // <op:deliver-only <desc:export 1> ['fulfill <desc:import-object 2>]>
     name: 'op:deliver-only fulfill',
     makeValue: testKit => ({

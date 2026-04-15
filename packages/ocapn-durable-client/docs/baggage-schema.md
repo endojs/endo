@@ -1,0 +1,124 @@
+# Durable OCapN Baggage Schema
+
+This document defines the baggage hierarchy used by `@endo/ocapn-durable-client`.
+
+The durable model assumes values persisted in baggage are durable references
+(for example durable Exo instances) or copy data. In particular, entries under
+`localSlots` are expected to be durable values, not ephemeral `Far` objects.
+
+## Top-level baggage keys
+
+```text
+root baggage
+├── ocapn:swissnumTable
+├── ocapn:giftTable
+├── ocapn:resumeSessionsByLocationId
+├── ocapn:resumeSessionsById
+└── ocapn-durable:tables
+```
+
+---
+
+## `ocapn:swissnumTable`
+
+`Map<string, DurableValue>`
+
+- **key**: swissnum string (`decodeSwissnum(...)` result)
+- **value**: durable target value for sturdyref resolution
+
+Examples:
+
+- `swissnum -> durable Exo reference`
+- `swissnum -> copyRecord`
+
+---
+
+## `ocapn:giftTable`
+
+`Map<string, any>`
+
+- **key**: composed gift key (for example `${sessionIdHex}:${giftIdHex}`)
+- **value**: deposited gift/pending gift state
+
+Note: current core behavior still uses in-memory-like semantics for pending
+gift resolution. Durable hardening of pending gift lifecycle is a follow-on.
+
+---
+
+## `ocapn-durable:tables`
+
+`Map<LocationId, DurableTableState>`
+
+- **key**: peer location id (`locationToLocationId(peerLocation)`)
+- **value**: state bundle for that peer's import/export table continuity
+
+`DurableTableState`:
+
+```text
+DurableTableState
+├── localSlots: Map<Slot, DurableValue>
+└── nextExportPosition: bigint (required for full continuity)
+```
+
+- `localSlots` stores persisted local exports (`o+N`, `p+N`, excluding bootstrap slot 0)
+- `nextExportPosition` must track the next allocatable local export position
+  so slot assignment remains monotonic across restarts
+
+---
+
+## `ocapn:resumeSessionsByLocationId`
+
+`Map<LocationId, SessionIdHex>`
+
+- **key**: peer location id (`locationToLocationId(peerLocation)`)
+- **value**: latest resumable session id hex string
+
+This map allows the client to locate resume metadata from a destination location.
+
+---
+
+## `ocapn:resumeSessionsById`
+
+`Map<SessionIdHex, SessionRecord>`
+
+- **key**: session id as hex (`toHex(sessionId)`)
+- **value**: durable session resume record
+
+`SessionRecord`:
+
+```text
+SessionRecord
+├── sessionId: SessionId (bytestring)
+├── peerLocation: OcapnLocation
+├── peerLocationSig: OcapnSignature
+├── peerPublicKeyDescriptor: OcapnPublicKeyDescriptor
+└── resumeCount: bigint (non-negative, replay-protection counter)
+```
+
+Replay-protection rules:
+
+1. `resumeCount` starts at `0n` when a session is first recorded.
+2. Resume handshake signs `(sessionId, resumeCount)` together.
+3. Resume is accepted only when the incoming `resumeCount` matches stored value.
+4. On successful resume, stored `resumeCount` is incremented and persisted.
+5. Replays with old signed payloads fail because the expected counter has advanced.
+
+---
+
+## Required continuity invariants
+
+For restart-safe import/export behavior:
+
+1. If a local export slot exists in `localSlots`, rehydration must re-register it
+   before normal message processing.
+2. `nextExportPosition` must be restored from baggage so new exports do not reuse
+   prior slot positions.
+3. Dropping a local export to refcount 0 must remove it from `localSlots`.
+4. Persisted values in `localSlots` must be durable-capable values.
+
+---
+
+## Future schema extensions
+
+The core keys above are sufficient for explicit `op:resume-session` lookup,
+authentication material continuity, and replay-resistant session resumption.
