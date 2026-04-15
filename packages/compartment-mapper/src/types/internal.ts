@@ -182,7 +182,7 @@ type SyncChooseModuleDescriptorOperators = {
 /**
  * Operators for `chooseModuleDescriptor` representing asynchronous operation.
  */
-export type AsyncChooseModuleDescriptorOperators = {
+type AsyncChooseModuleDescriptorOperators = {
   /**
    * A function that reads a file, resolving with its binary contents _or_
    * `undefined` if the file is not found
