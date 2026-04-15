@@ -75,6 +75,16 @@ test('Remotable/getInterfaceOf', t => {
 const GOOD_PASS_STYLE = PASS_STYLE;
 const BAD_PASS_STYLE = Symbol('passStyle');
 
+/**
+ * @param {object} [options]
+ * @param {symbol | string} [options.styleSymbol]
+ * @param {string} [options.styleString]
+ * @param {boolean} [options.styleEnumerable]
+ * @param {symbol | string} [options.tagSymbol]
+ * @param {string} [options.tagString]
+ * @param {boolean} [options.tagEnumerable]
+ * @param {Record<PropertyKey, PropertyDescriptor>} [options.extras]
+ */
 const testRecord = ({
   styleSymbol = GOOD_PASS_STYLE,
   styleString = 'remotable',
