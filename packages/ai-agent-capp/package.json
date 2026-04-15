@@ -1,0 +1,42 @@
+{
+  "name": "@endo/ai-agent-capp",
+  "version": "1.0.0",
+  "description": "AI Agent capp (worklet plugin) for Endo",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "exit 0",
+    "lint": "eslint '**/*.{js,jsx}'",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'"
+  },
+  "dependencies": {
+    "@endo/captp": "^1.0.0",
+    "@endo/eventual-send": "^1.0.0",
+    "@endo/init": "^1.0.0",
+    "@endo/marshal": "^1.0.0",
+    "@endo/pass-style": "^1.0.0",
+    "@endo/promise-kit": "^1.0.0",
+    "@endo/stream": "^1.0.0"
+  },
+  "devDependencies": {
+    "@endo/eslint-config": "^2.0.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-jsdoc": "^48.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.0.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "@endo/eslint-config"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  }
+}
