@@ -1915,6 +1915,57 @@ export interface SqlitePowers {
   openDatabase(path: string): DatabaseSync;
 }
 
+// ---------------------------------------------------------------------------
+// Debugger
+// ---------------------------------------------------------------------------
+
+export interface BreakEvent {
+  readonly path: string;
+  readonly line: number;
+  readonly message: string;
+}
+
+export interface Frame {
+  readonly name: string;
+  readonly value: string;
+  readonly path: string;
+  readonly line: number;
+}
+
+export interface Property {
+  readonly name: string;
+  readonly value: string;
+  readonly flags: string;
+  readonly children?: Property[];
+}
+
+export interface DebugSession {
+  feedXml(bytes: Uint8Array): void;
+  go(): void;
+  step(): Promise<BreakEvent>;
+  stepIn(): Promise<BreakEvent>;
+  stepOut(): Promise<BreakEvent>;
+  abort(): void;
+  setBreakpoint(path: string, line: number): void;
+  clearBreakpoint(path: string, line: number): void;
+  clearAllBreakpoints(): void;
+  getFrames(): Promise<Frame[]>;
+  getLocals(): Promise<Property[]>;
+  getGlobals(): Promise<Property[]>;
+  selectFrame(id: string): Promise<Property[]>;
+  toggleProperty(id: string): Promise<Property[]>;
+  evaluate(source: string): Promise<string>;
+  startProfiling(): void;
+  stopProfiling(): void;
+  setExceptionBreakMode(mode: 'none' | 'all' | 'uncaught'): void;
+  onBreak(listener: (event: BreakEvent) => void): () => void;
+  isBroken(): boolean;
+  getTitle(): string | undefined;
+  getTag(): string | undefined;
+  getLastBreak(): BreakEvent | null;
+  help(): string;
+}
+
 export interface RemoteControlState {
   accept(
     remoteGateway: Promise<EndoGateway>,
