@@ -102,7 +102,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  *
  * @param {FileCompartmentDescriptor|PackageCompartmentDescriptor} compartmentDescriptor
  * @param {Record<string, Compartment>} compartments
- * @param {string} compartmentName
+ * @param {FileUrlString} compartmentName
  * @param {Record<string, FileModuleConfiguration|CompartmentModuleConfiguration>} moduleDescriptors
  * @param {Record<string, ScopeDescriptor<FileUrlString>>} scopeDescriptors
  * @returns {ModuleMapHook | undefined}
@@ -189,7 +189,7 @@ const makeModuleMapHook = (
           );
         }
         const targetCompartmentName =
-          /** @type {typeof compartmentName} */
+          /** @type {FileUrlString} */
           (foreignCompartmentName || compartmentName);
 
         // Write back to moduleDescriptors for caching, archival, and
@@ -198,9 +198,7 @@ const makeModuleMapHook = (
         // exists in compartmentDescriptor.modules (the same object).
         moduleDescriptors[moduleSpecifier] = {
           retained: true,
-          compartment:
-            /** @type {FileUrlString} */
-            (targetCompartmentName),
+          compartment: targetCompartmentName,
           module: resolvedPath,
           __createdBy: 'link-pattern',
         };
@@ -208,7 +206,7 @@ const makeModuleMapHook = (
         // Policy enforcement for pattern-matched modules
         enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
           exit: false,
-          errorHint: `Pattern matched in ${q(compartmentName)}: ${q(moduleSpecifier)} -> ${q(resolvedPath)}`,
+          errorHint: `Pattern matched in compartment ${q(compartmentName)}: module specifier ${q(moduleSpecifier)} mapped to ${q(resolvedPath)}`,
         });
 
         const targetCompartment = compartments[targetCompartmentName];
@@ -361,7 +359,7 @@ export const link = (
   });
 
   const compartmentDescriptorEntries =
-    /** @type {[string, PackageCompartmentDescriptor|FileCompartmentDescriptor][]} */ (
+    /** @type {[FileUrlString, PackageCompartmentDescriptor|FileCompartmentDescriptor][]} */ (
       entries(compartmentDescriptors)
     );
   for (const [

@@ -31,6 +31,25 @@ export type SubpathMapping =
   | Record<string, string>;
 
 /**
+ * Internal representation of a parsed pattern entry, split into
+ * prefix/suffix for efficient matching.
+ */
+export interface ResolvedPattern {
+  /** The original pattern key */
+  pattern: string;
+  /** The part of the pattern before `*` */
+  prefix: string;
+  /** The part of the pattern after `*` */
+  suffix: string;
+  /** The part of the replacement before `*`, or null for exclusions */
+  replacementPrefix: string | null;
+  /** The part of the replacement after `*`, or null for exclusions */
+  replacementSuffix: string | null;
+  /** Optional compartment for cross-compartment patterns */
+  compartment?: string;
+}
+
+/**
  * A pattern descriptor for wildcard-based module resolution.
  * The `from` pattern is matched against module specifiers,
  * and `to` is the replacement pattern.

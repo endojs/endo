@@ -12,6 +12,7 @@
  *   SubpathReplacerResult,
  *   SubpathMapping,
  *   PatternDescriptor,
+ *   ResolvedPattern,
  * } from './types/pattern-replacement.js'
  */
 
@@ -35,16 +36,6 @@ export const assertMatchingWildcardCount = (pattern, replacement) => {
     );
   }
 };
-
-/**
- * @typedef {object} ResolvedPattern
- * @property {string} pattern - The original pattern key
- * @property {string} prefix - The part of the pattern before `*`
- * @property {string} suffix - The part of the pattern after `*`
- * @property {string | null} replacementPrefix - The part of the replacement before `*`, or null for exclusions
- * @property {string | null} replacementSuffix - The part of the replacement after `*`, or null for exclusions
- * @property {string} [compartment] - Optional compartment for cross-compartment patterns
- */
 
 /**
  * Compare two pattern keys using Node.js's PATTERN_KEY_COMPARE ordering.
@@ -74,6 +65,52 @@ const patternKeyCompare = (a, b) => {
 };
 
 /**
+ * Classifies a pattern/replacement pair as exact or wildcard and adds it
+ * to the appropriate collection.
+ *
+ * @param {string} pattern
+ * @param {string | null} replacement
+ * @param {string | undefined} compartment
+ * @param {Map<string, { replacement: string | null, compartment?: string }>} exactEntries
+ * @param {ResolvedPattern[]} wildcardEntries
+ */
+const classifyPatternEntry = (
+  pattern,
+  replacement,
+  compartment,
+  exactEntries,
+  wildcardEntries,
+) => {
+  if (replacement !== null) {
+    assertMatchingWildcardCount(pattern, replacement);
+  }
+
+  const wildcardIndex = pattern.indexOf('*');
+  if (wildcardIndex === -1) {
+    exactEntries.set(pattern, { replacement, compartment });
+    return;
+  }
+
+  const prefix = pattern.slice(0, wildcardIndex);
+  const suffix = pattern.slice(wildcardIndex + 1);
+  let replacementPrefix = null;
+  let replacementSuffix = null;
+  if (replacement !== null) {
+    const replacementWildcardIndex = replacement.indexOf('*');
+    replacementPrefix = replacement.slice(0, replacementWildcardIndex);
+    replacementSuffix = replacement.slice(replacementWildcardIndex + 1);
+  }
+  wildcardEntries.push({
+    pattern,
+    prefix,
+    suffix,
+    replacementPrefix,
+    replacementSuffix,
+    compartment,
+  });
+};
+
+/**
  * Creates a multi-pattern replacer for Node.js-style subpath patterns.
  *
  * Patterns are matched by specificity: the pattern with the longest matching
@@ -95,73 +132,34 @@ export const makeMultiSubpathReplacer = mapping => {
   /** @type {Array<[string, string | null, string | undefined]>} */
   let normalizedEntries;
   if (isArray(mapping)) {
-    normalizedEntries = mapping.map(
-      /**
-       * @param {PatternDescriptor | [string, string]} entry
-       * @returns {[string, string | null, string | undefined]}
-       */
-      entry => {
+    normalizedEntries = /** @type {typeof normalizedEntries} */ (
+      mapping.map(entry => {
         if (isArray(entry)) {
           // [pattern, replacement] tuple
           return [entry[0], entry[1], undefined];
         }
         // PatternDescriptor { from, to, compartment? }
         return [entry.from, entry.to, entry.compartment];
-      },
+      })
     );
   } else {
-    normalizedEntries = entries(mapping).map(
-      /**
-       * @param {[string, string]} entry
-       * @returns {[string, string | null, string | undefined]}
-       */
-      ([pattern, replacement]) => [pattern, replacement, undefined],
+    normalizedEntries = /** @type {typeof normalizedEntries} */ (
+      entries(mapping).map(([pattern, replacement]) => [
+        pattern,
+        replacement,
+        undefined,
+      ])
     );
   }
 
   for (const [pattern, replacement, compartment] of normalizedEntries) {
-    // Null targets are exclusions (Node.js semantics).
-    if (replacement === null) {
-      const wildcardIndex = pattern.indexOf('*');
-      if (wildcardIndex === -1) {
-        exactEntries.set(pattern, { replacement: null, compartment });
-      } else {
-        const prefix = pattern.slice(0, wildcardIndex);
-        const suffix = pattern.slice(wildcardIndex + 1);
-        wildcardEntries.push({
-          pattern,
-          prefix,
-          suffix,
-          replacementPrefix: null,
-          replacementSuffix: null,
-          compartment,
-        });
-      }
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    assertMatchingWildcardCount(pattern, replacement);
-
-    const wildcardIndex = pattern.indexOf('*');
-    if (wildcardIndex === -1) {
-      // Exact entry, no wildcard
-      exactEntries.set(pattern, { replacement, compartment });
-    } else {
-      const prefix = pattern.slice(0, wildcardIndex);
-      const suffix = pattern.slice(wildcardIndex + 1);
-      const replacementWildcardIndex = replacement.indexOf('*');
-      const replacementPrefix = replacement.slice(0, replacementWildcardIndex);
-      const replacementSuffix = replacement.slice(replacementWildcardIndex + 1);
-      wildcardEntries.push({
-        pattern,
-        prefix,
-        suffix,
-        replacementPrefix,
-        replacementSuffix,
-        compartment,
-      });
-    }
+    classifyPatternEntry(
+      pattern,
+      replacement,
+      compartment,
+      exactEntries,
+      wildcardEntries,
+    );
   }
 
   // Match Node.js PATTERN_KEY_COMPARE semantics for subpath pattern
