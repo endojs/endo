@@ -1,0 +1,19 @@
+{
+  "name": "@endo/familiar-chat-demo",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "build": "exit 0",
+    "start": "node src/index.js",
+    "test": "exit 0",
+    "lint": "exit 0"
+  },
+  "dependencies": {
+    "@endo/familiar": "workspace:*"
+  },
+  "devDependencies": {
+    "@endo/eslint-config": "workspace:*"
+  }
+}
