@@ -54,7 +54,7 @@ import type {
 // expectation for new code.
 export declare function makeExo<
   G extends InterfaceGuard,
-  M extends TypeFromInterfaceGuard<G> & Methods,
+  M extends TypeFromInterfaceGuard<G>,
 >(
   tag: string,
   interfaceGuard: G,
@@ -79,7 +79,7 @@ export declare function makeExo<M extends Methods>(
 export declare function defineExoClass<
   G extends InterfaceGuard,
   I extends (...args: readonly any[]) => any,
-  M extends TypeFromInterfaceGuard<G> & Methods,
+  M extends TypeFromInterfaceGuard<G>,
 >(
   tag: string,
   interfaceGuard: G,
@@ -112,23 +112,40 @@ export declare function defineExoClass<
  * When the guard kit carries typed InterfaceGuards, each facet's methods
  * are constrained to match the corresponding guard's inferred signatures.
  */
+// The methodsKit parameter uses an outer-level `F & ThisType<...>` rather
+// than a per-facet intersection `{ [K in keyof F]: F[K] & ThisType<...> }`.
+// The per-facet form prevents TS from back-inferring `F[K]` from the
+// argument because TS cannot cleanly subtract `ThisType<...>` from the
+// intersection, and `F` degrades to its constraint default
+// (`Record<FacetName, Methods>`) — losing facet names and method signatures.
+// The outer form preserves inference while still propagating `this` typing
+// into contained facet methods at any nesting depth.
+//
+// The `F` constraint is intentionally wide (`Record<FacetName, Methods>`)
+// rather than `{ [K in keyof GK]: TypeFromInterfaceGuard<GK[K]> }`.  The
+// narrow form would cause TypeScript to apply contextual typing from the
+// guard-derived shape *into* the impl method signatures inside `methodsKit`
+// — overwriting the JSDoc/TS types the implementation author wrote with
+// the guard-derived ones (e.g. `(args_0: Passable, args_1: Passable) => any`
+// instead of `(sourceTransfer: TransferPart, amounts: AmountKWR) => void`).
+// Consumers of the returned kit (`LiquidityPoolKit['repayer']`) would then
+// see the guard-derived shape, breaking subtype matching against mocks and
+// other impls.  The trade-off: we lose the compile-time check that the
+// impl conforms to the guard signature.  Runtime conformance is still
+// enforced by the guard machinery.
 export declare function defineExoClassKit<
   GK extends Record<FacetName, InterfaceGuard>,
   I extends (...args: readonly any[]) => any,
-  F extends {
-    [K in keyof GK]: TypeFromInterfaceGuard<GK[K]> & Methods;
-  },
+  F extends Record<FacetName, Methods>,
 >(
   tag: string,
   interfaceGuardKit: GK,
   init: I,
-  methodsKit: {
-    [K in keyof F]: F[K] &
-      ThisType<{
-        facets: GuardedKit<F, GK>;
-        state: ReturnType<I>;
-      }>;
-  },
+  methodsKit: F &
+    ThisType<{
+      facets: NoInfer<GuardedKit<F, GK>>;
+      state: ReturnType<I>;
+    }>,
   options?: FarClassOptions<
     KitContext<ReturnType<I>, GuardedKit<F, GK>>,
     GuardedKit<F, GK>
@@ -136,7 +153,10 @@ export declare function defineExoClassKit<
 ): (...args: Parameters<I>) => GuardedKit<F, GK>;
 
 // Passing `undefined` is runtime-equivalent to passing a guard kit where every
-// facet uses `{ defaultGuards: 'passable' }` — no guard enforcement.
+// facet uses `{ defaultGuards: 'passable' }` — no guard enforcement.  With no
+// guard to drive method shape inference, `F` latches onto the `methodsKit`
+// literal so facet names and method signatures are preserved from the
+// implementation.
 export declare function defineExoClassKit<
   I extends (...args: readonly any[]) => any,
   F extends Record<FacetName, Methods>,
@@ -144,13 +164,11 @@ export declare function defineExoClassKit<
   tag: string,
   interfaceGuardKit: Record<FacetName, InterfaceGuard> | undefined,
   init: I,
-  methodsKit: {
-    [K in keyof F]: F[K] &
-      ThisType<{
-        facets: GuardedKit<F>;
-        state: ReturnType<I>;
-      }>;
-  },
+  methodsKit: F &
+    ThisType<{
+      facets: NoInfer<GuardedKit<F>>;
+      state: ReturnType<I>;
+    }>,
   options?: FarClassOptions<
     KitContext<ReturnType<I>, GuardedKit<F>>,
     GuardedKit<F>

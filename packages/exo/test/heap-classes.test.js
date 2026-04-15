@@ -320,7 +320,6 @@ test('raw guards', t => {
   t.is(Object.isFrozen({}), Object.isFrozen(greeter2.passthrough({})));
 
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})));
-  // @ts-expect-error impl has 4 required params; guard makes last 2 optional at runtime
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {})));
 
   t.throws(
@@ -333,7 +332,6 @@ test('raw guards', t => {
     'passable behavior not allowed',
   );
   t.notThrows(
-    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous({}, makeBehavior(), {}),
     'raw behavior allowed',
   );

@@ -9,6 +9,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 export const makeContextMaker = ({ controllerForId, provideController }) => {
   /**
    * @param {FormulaIdentifier} id
+   * @returns {Context}
    */
   const makeContext = id => {
     let done = false;
@@ -22,10 +23,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
     /** @type {Array<() => void>} */
     const hooks = [];
 
-    /**
-     * @param {Error} reason
-     * @param {string} [prefix]
-     */
+    /** @type {Context['cancel']} */
     const cancel = (reason, prefix = '*') => {
       if (done) return disposed;
       done = true;
@@ -70,7 +68,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
       hooks.push(hook);
     };
 
-    return {
+    return /** @type {Context} */ ({
       id,
       cancel,
       cancelled,
@@ -78,7 +76,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
       thatDiesIfThisDies,
       thisDiesIfThatDies,
       onCancel,
-    };
+    });
   };
 
   return makeContext;

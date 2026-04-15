@@ -180,10 +180,25 @@ type StripIndexSignature<T> = 0 extends 1 & T
     : StripIndexCore<T>;
 /**
  * The second type parameter `G` embeds the specific InterfaceGuard type
- * into the `__getInterfaceGuard__` method's return type.  This enables
- * {@link GuardedMethods} to extract guard-inferred method signatures
- * from a Guarded exo object.  When no guard is provided (unguarded
- * overloads), `G` defaults to a generic InterfaceGuard keyed by M.
+ * for use by {@link GuardedMethods} when extracting guard-inferred method
+ * signatures.
+ *
+ * `G` is carried in two slots:
+ * 1. `__getInterfaceGuard__?: () => InterfaceGuard | undefined` — the
+ *    runtime accessor, typed with the *wide* `InterfaceGuard` return so
+ *    it stays compatible across different specific `G`s.  A function
+ *    return is invariant under assignment, so embedding the specific `G`
+ *    here would make `Guarded<M, G1>` and `Guarded<M, G2>` mutually
+ *    incompatible even when `M` is structurally identical.
+ * 2. `__interfaceGuard__?(g?: G): void` — a phantom *method* (not a
+ *    field) carrying the specific `G` at the type level.  Method
+ *    shorthand syntax gives `g`'s type bivariant treatment under
+ *    assignment, so `Guarded<M, G1>` and `Guarded<M, G2>` are
+ *    structurally compatible even when their `G`s differ.  Optional, so
+ *    no runtime cost.  `GuardedMethods<E>` reads from this phantom.
+ *
+ * When no guard is provided (unguarded overloads), `G` defaults to a
+ * generic InterfaceGuard keyed by `M`.
  */
 export type Guarded<
   M extends Methods,
@@ -191,7 +206,8 @@ export type Guarded<
     [K in keyof M]: MethodGuard;
   }>,
 > = StripIndexSignature<M> & {
-  __getInterfaceGuard__?: () => G | undefined;
+  __getInterfaceGuard__?: () => InterfaceGuard | undefined;
+  __interfaceGuard__?(g?: G): void;
 } & RemotableBrand<{}, M> &
   RemotableObject;
 export type GuardedKit<
@@ -227,7 +243,7 @@ export type GuardedKit<
  * ```
  */
 export type GuardedMethods<E> = E extends {
-  __getInterfaceGuard__?: () => InterfaceGuard<infer MG> | undefined;
+  __interfaceGuard__?(g?: InterfaceGuard<infer MG>): void;
 }
   ? {
       [K in keyof MG as K extends keyof E ? K : never]: TypeFromMethodGuard<

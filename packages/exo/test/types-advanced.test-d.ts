@@ -21,7 +21,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 {
   const mg = M.call().rest(M.any()).returns();
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(...rest: Passable[]) => undefined>(null as unknown as Fn);
+  expectType<(...rest: Passable[]) => void>(null as unknown as Fn);
 }
 
 // .rest(M.raw()) appends ...rest: any[]
@@ -211,8 +211,8 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   );
 
   const counter = makeCounter(0n);
-  // increment observable return is Promise<undefined>
-  expectType<(n: bigint) => Promise<undefined>>(counter.increment);
+  // increment observable return is Promise<void>
+  expectType<(n: bigint) => Promise<void>>(counter.increment);
   // read is synchronous as declared
   expectType<() => bigint>(counter.read);
 }
