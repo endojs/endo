@@ -320,11 +320,7 @@ export const inferExportsAliasesAndPatterns = (
 
   // Process imports field (package self-referencing).
   if (imports !== undefined) {
-    for (const [key, value] of interpretImports(
-      imports,
-      conditions,
-      log,
-    )) {
+    for (const [key, value] of interpretImports(imports, conditions, log)) {
       if (value === null) {
         if (key.includes('*')) {
           patterns.push({ from: key, to: null });

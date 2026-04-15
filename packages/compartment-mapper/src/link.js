@@ -120,9 +120,7 @@ const makeModuleMapHook = (
   );
   /** @type {SubpathReplacer | null} */
   const matchPattern =
-    patterns && patterns.length > 0
-      ? makeMultiSubpathReplacer(patterns)
-      : null;
+    patterns && patterns.length > 0 ? makeMultiSubpathReplacer(patterns) : null;
 
   /**
    * @type {ModuleMapHook}
