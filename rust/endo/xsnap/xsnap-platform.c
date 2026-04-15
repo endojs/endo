@@ -133,6 +133,74 @@ void fxSetTimer(txMachine* the, txNumber interval, txBoolean repeat)
 	*mxResult = the->scratch;
 }
 
+/* ---- Debug hooks ---- */
+
+/*
+ * fxRunDebugger: always defined (declared in xsnap.h without
+ * #ifdef mxDebug guard). When mxDebug is off, it's a no-op.
+ */
+void fxRunDebugger(txMachine* the)
+{
+#ifdef mxDebug
+	fxDebugCommand(the);
+#endif
+}
+
+#ifdef mxDebug
+
+/*
+ * Rust-side debug I/O functions (defined in powers/debug.rs).
+ * These use thread-local buffers so each worker thread has
+ * independent debug state.
+ */
+extern void rust_debug_connect(void);
+extern void rust_debug_disconnect(void);
+extern int rust_debug_is_connected(void);
+extern int rust_debug_is_readable(void);
+extern int rust_debug_recv(char* buffer, int capacity);
+extern void rust_debug_send(const char* data, int length);
+
+void fxConnect(txMachine* the)
+{
+	/* XS calls this during machine creation.
+	   The Rust side must have called debug_enable() on this thread
+	   before machine creation for the connection to activate. */
+	rust_debug_connect();
+}
+
+void fxDisconnect(txMachine* the)
+{
+	rust_debug_disconnect();
+}
+
+txBoolean fxIsConnected(txMachine* the)
+{
+	return rust_debug_is_connected();
+}
+
+txBoolean fxIsReadable(txMachine* the)
+{
+	return rust_debug_is_readable();
+}
+
+void fxReceive(txMachine* the)
+{
+	int n = rust_debug_recv(
+		the->debugBuffer, sizeof(the->debugBuffer) - 1);
+	if (n < 0)
+		the->debugOffset = 0;
+	else
+		the->debugOffset = n;
+	the->debugBuffer[the->debugOffset] = 0;
+}
+
+void fxSend(txMachine* the, txBoolean more)
+{
+	rust_debug_send(the->echoBuffer, the->echoOffset);
+}
+
+#endif /* mxDebug */
+
 /* ---- Run loop ---- */
 
 void fxRunLoop(txMachine* the)

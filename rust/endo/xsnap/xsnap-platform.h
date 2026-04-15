@@ -45,7 +45,14 @@
 #define mxUseDefaultQueuePromiseJobs 0
 #define mxUseDefaultSharedChunks 1
 #define mxUseDefaultAbort 1
+
+#ifdef mxDebug
+/* We provide our own fxConnect/fxDisconnect/fxReceive/fxSend/etc.
+   that route debug traffic through Rust callbacks. */
+#define mxUseDefaultDebug 0
+#else
 #define mxUseDefaultDebug 1
+#endif
 
 #define mxMachinePlatform \
 	int promiseJobs; \

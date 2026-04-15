@@ -17,6 +17,9 @@ serde_json = "1"
 base64 = "0.22"
 rusqlite = { version = "0.31", features = ["bundled"] }
 
+[features]
+debug = []
+
 [build-dependencies]
 cc = "1"
 

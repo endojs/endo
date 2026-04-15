@@ -26,6 +26,10 @@ fn main() {
             eprintln!(
                 "cargo:warning=Using prebuilt libxs.a (Moddable XS sources not found)"
             );
+            // The prebuilt may not include symbols we added to
+            // xsnap-platform.c after it was built.  Compile a
+            // minimal supplement that provides any missing symbols.
+            compile_platform_supplement(&out_dir);
         } else {
             panic!(
                 "Moddable XS sources not found at {} and no prebuilt \
@@ -140,7 +144,17 @@ fn compile_xs(manifest_dir: &PathBuf, moddable_dir: &PathBuf) {
         // offset pairs. Makes indexing into large strings
         // (charAt, indexOf, slice) O(log n) amortized instead of
         // O(n) per access. Length 4 matches the xst reference.
-        .define("mxStringInfoCacheLength", Some("4"))
+        .define("mxStringInfoCacheLength", Some("4"));
+
+    // When the "debug" cargo feature is enabled, activate the XS
+    // debug subsystem (stepping, breakpoints, variable inspection)
+    // and the instrumentation counters.
+    if cfg!(feature = "debug") {
+        build.define("mxDebug", Some("1"));
+        build.define("mxInstrument", Some("1"));
+    }
+
+    build
         .flag("-fno-common")
         .flag("-Wno-misleading-indentation")
         .flag("-Wno-implicit-fallthrough")
@@ -157,4 +171,34 @@ fn compile_xs(manifest_dir: &PathBuf, moddable_dir: &PathBuf) {
     build.file(manifest_dir.join("xsnap-platform.c"));
 
     build.compile("xs");
+}
+
+/// Compile a minimal C file that provides symbols missing from the
+/// prebuilt libxs.a (e.g. fxRunDebugger, which the prebuilt may
+/// not include).  This file does NOT #include xsAll.h — it only
+/// uses opaque pointer types.
+fn compile_platform_supplement(out_dir: &PathBuf) {
+    let src = out_dir.join("xsnap-platform-supplement.c");
+    std::fs::write(
+        &src,
+        r#"
+/* Supplement for prebuilt libxs.a — provides symbols that the
+   prebuilt may lack.  Uses weak symbols so that if the prebuilt
+   already provides them, its definitions win. */
+
+typedef struct sxMachine txMachine;
+
+/* fxRunDebugger: no-op without mxDebug.  The prebuilt libxs.a
+   was compiled without mxDebug so fxDebugCommand is absent. */
+void __attribute__((weak)) fxRunDebugger(txMachine* the) {
+    (void)the;
+}
+"#,
+    )
+    .expect("write platform supplement");
+
+    cc::Build::new()
+        .file(&src)
+        .opt_level(2)
+        .compile("xs_supplement");
 }

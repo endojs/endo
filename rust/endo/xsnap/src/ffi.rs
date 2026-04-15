@@ -251,6 +251,9 @@ extern "C" {
     pub fn fxEndJob(the: *mut XsMachine);
     pub fn fxCheckUnhandledRejections(the: *mut XsMachine, at_exit: i32);
 
+    // Debugger
+    pub fn fxRunDebugger(the: *mut XsMachine);
+
     // Metering
     pub fn fxBeginMetering(
         the: *mut XsMachine,

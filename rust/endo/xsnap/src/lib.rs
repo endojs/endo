@@ -351,6 +351,20 @@ impl Machine {
         }
     }
 
+    /// Run one round of the XS debugger command loop.
+    ///
+    /// Calls `fxRunDebugger(the)`, which internally calls
+    /// `fxDebugCommand(the)` when `mxDebug` is enabled.  This
+    /// triggers `fxReceive` → reads from the inbound debug buffer,
+    /// processes any debug commands, and `fxSend` → writes responses
+    /// to the outbound debug buffer.
+    ///
+    /// When `mxDebug` is not enabled (default build), this is a
+    /// no-op.
+    pub fn run_debugger(&self) {
+        unsafe { ffi::fxRunDebugger(self.raw) };
+    }
+
     /// Load and execute an archive (endoZipBase64 or raw zip).
     ///
     /// Parses the compartment map, registers all module sources,
@@ -2445,5 +2459,79 @@ mod tests {
         machine.eval("sqliteStmtFinalize(ins)").unwrap();
         machine.eval("sqliteStmtFinalize(sel)").unwrap();
         machine.eval("sqliteClose(db)").unwrap();
+    }
+
+    // --- Phase 6: Debug Tests ---
+
+    /// Verify that enabling debug mode and creating a machine
+    /// produces `<login>` XML in the outbound debug buffer.
+    ///
+    /// This requires both the `debug` cargo feature AND building
+    /// from XS C sources (not the prebuilt libxs.a).  When either
+    /// condition is false, `fxConnect` never calls
+    /// `rust_debug_connect()`, so `debug_is_active()` stays false
+    /// and we skip the XML assertion.
+    #[test]
+    fn debug_login_on_connect() {
+        use powers::debug;
+
+        // Enable debug on this thread before machine creation.
+        debug::debug_enable();
+
+        let mut powers_store = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers_store);
+
+        // If mxDebug was compiled into libxs.a, fxConnect called
+        // rust_debug_connect() and debug_is_active() is now true.
+        if debug::debug_is_active() {
+            // Drain whatever XS sent during initialization.
+            machine.run_debugger();
+
+            if let Some(data) = debug::debug_drain_outbound() {
+                let xml = String::from_utf8_lossy(&data);
+                eprintln!("debug outbound ({} bytes): {}", data.len(), &xml[..std::cmp::min(xml.len(), 500)]);
+                assert!(
+                    xml.contains("<login"),
+                    "expected <login> element in debug output, got: {}",
+                    &xml[..std::cmp::min(xml.len(), 200)]
+                );
+            } else {
+                panic!("expected debug output after machine creation, got nothing");
+            }
+        } else {
+            // Either debug feature is off, or using prebuilt
+            // libxs.a without mxDebug.
+            eprintln!(
+                "debug not active (feature={}, prebuilt?) — skipping login check",
+                cfg!(feature = "debug")
+            );
+        }
+
+        debug::debug_reset();
+    }
+
+    /// Verify that sending a `<go/>` command via the inbound buffer
+    /// doesn't crash the machine.  When debug is not compiled in,
+    /// this is just a no-op smoke test.
+    #[test]
+    fn debug_send_go_command() {
+        use powers::debug;
+
+        debug::debug_enable();
+
+        let mut powers_store = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers_store);
+
+        // Push a go command into the inbound buffer.
+        debug::debug_push_inbound(b"\xEF\xBB\xBF<go/>\n");
+
+        // Run the debugger — this should consume the command.
+        machine.run_debugger();
+
+        // Drain any output (we don't assert on content, just
+        // verify no crash).
+        let _ = debug::debug_drain_outbound();
+
+        debug::debug_reset();
     }
 }

@@ -6,6 +6,7 @@
 //! through the machine's context pointer.
 
 pub mod crypto;
+pub mod debug;
 pub mod fs;
 pub mod modules;
 pub mod process;
