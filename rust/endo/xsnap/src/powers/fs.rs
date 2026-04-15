@@ -21,9 +21,8 @@
 
 use crate::ffi::*;
 use crate::powers::HostPowers;
-use crate::worker_io::read_typed_array_bytes;
+use crate::worker_io::{arg_str, read_typed_array_bytes, set_result_string};
 use std::collections::HashMap;
-use std::ffi::CStr;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
@@ -34,16 +33,6 @@ use std::sync::Mutex;
 /// Machine context must have been set to a valid `*mut HostPowers`.
 unsafe fn get_powers(the: *mut XsMachine) -> &'static HostPowers {
     &*((*the).context as *const HostPowers)
-}
-
-/// Helper: read a string argument from the XS stack frame.
-///
-/// # Safety
-/// `the` must be valid, index must be in range.
-unsafe fn arg_str(the: *mut XsMachine, index: usize) -> &'static str {
-    let slot = (*the).frame.sub(2 + index);
-    let ptr = fxToString(the, slot);
-    CStr::from_ptr(ptr).to_str().unwrap_or("")
 }
 
 /// Helper: read a raw byte slice argument from the XS stack frame.
@@ -69,13 +58,6 @@ unsafe fn arg_bytes(the: *mut XsMachine, index: usize) -> &'static [u8] {
         len += 1;
     }
     std::slice::from_raw_parts(ptr, len)
-}
-
-/// Helper: set xsResult to a string.
-unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
-    let c_str = std::ffi::CString::new(s).unwrap();
-    fxString(the, &mut (*the).scratch, c_str.as_ptr());
-    *(*the).frame.add(1) = (*the).scratch;
 }
 
 /// Helper: set xsResult to a string from raw bytes. The bytes must not
@@ -139,7 +121,7 @@ fn get_dir_map() -> std::sync::MutexGuard<'static, Option<HashMap<u32, cap_std::
 /// Returns `None` if the slot is a numeric handle (a previously-opened
 /// directory that has no associated string token). Used by ambient
 /// root-token fallbacks that operate via `std::fs` on absolute paths.
-unsafe fn arg_dir_token(the: *mut XsMachine, slot_index: usize) -> Option<&'static str> {
+unsafe fn arg_dir_token(the: *mut XsMachine, slot_index: usize) -> Option<String> {
     let slot = (*the).frame.sub(2 + slot_index);
     let ty = fxTypeOf(the, slot);
     if ty == XS_INTEGER_TYPE || ty == XS_NUMBER_TYPE {
@@ -187,7 +169,7 @@ unsafe fn resolve_dir(
     } else {
         let token = arg_str(the, slot_index);
         let powers = get_powers(the);
-        match powers.get_dir(token) {
+        match powers.get_dir(&token) {
             Some(dir) => dir
                 .try_clone()
                 .map_err(|e| format!("Error: {}", e)),
@@ -344,8 +326,8 @@ pub unsafe extern "C" fn host_close_writer(the: *mut XsMachine) {
 pub unsafe extern "C" fn host_read_file_text(the: *mut XsMachine) {
     let path = arg_str(the, 1);
 
-    if arg_dir_token(the, 0) == Some("root") {
-        match std::fs::read(root_to_abs(path)) {
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        match std::fs::read(root_to_abs(&path)) {
             Ok(contents) => set_result_bytes(the, &contents),
             Err(e) => set_result_string(the, &format!("Error: {}", e)),
         }
@@ -376,8 +358,8 @@ pub unsafe extern "C" fn host_write_file_text(the: *mut XsMachine) {
     // Read the file contents as raw bytes (may be non-UTF-8 CESU-8).
     let data = arg_bytes(the, 2);
 
-    if arg_dir_token(the, 0) == Some("root") {
-        let abs = root_to_abs(path);
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        let abs = root_to_abs(&path);
         if let Err(e) = std::fs::write(&abs, data) {
             set_result_string(the, &format!("Error: {}", e));
         }
@@ -414,8 +396,8 @@ pub unsafe extern "C" fn host_read_dir(the: *mut XsMachine) {
         )
     };
 
-    if arg_dir_token(the, 0) == Some("root") {
-        match std::fs::read_dir(root_to_abs(path)) {
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        match std::fs::read_dir(root_to_abs(&path)) {
             Ok(entries) => {
                 let names: Vec<String> = entries
                     .filter_map(|e| e.ok())
@@ -463,8 +445,8 @@ pub unsafe extern "C" fn host_read_dir(the: *mut XsMachine) {
 pub unsafe extern "C" fn host_mkdir(the: *mut XsMachine) {
     let path = arg_str(the, 1);
 
-    if arg_dir_token(the, 0) == Some("root") {
-        if let Err(e) = std::fs::create_dir_all(root_to_abs(path)) {
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        if let Err(e) = std::fs::create_dir_all(root_to_abs(&path)) {
             set_result_string(the, &format!("Error: {}", e));
         }
         return;
@@ -487,8 +469,8 @@ pub unsafe extern "C" fn host_mkdir(the: *mut XsMachine) {
 pub unsafe extern "C" fn host_remove(the: *mut XsMachine) {
     let path = arg_str(the, 1);
 
-    if arg_dir_token(the, 0) == Some("root") {
-        let abs = root_to_abs(path);
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        let abs = root_to_abs(&path);
         let result = match std::fs::symlink_metadata(&abs) {
             Ok(meta) if meta.is_dir() => std::fs::remove_dir(&abs),
             _ => std::fs::remove_file(&abs),
@@ -517,8 +499,8 @@ pub unsafe extern "C" fn host_rename(the: *mut XsMachine) {
     let from = arg_str(the, 1);
     let to = arg_str(the, 2);
 
-    if arg_dir_token(the, 0) == Some("root") {
-        if let Err(e) = std::fs::rename(root_to_abs(from), root_to_abs(to)) {
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        if let Err(e) = std::fs::rename(root_to_abs(&from), root_to_abs(&to)) {
             set_result_string(the, &format!("Error: {}", e));
         }
         return;
@@ -538,8 +520,8 @@ pub unsafe extern "C" fn host_rename(the: *mut XsMachine) {
 pub unsafe extern "C" fn host_exists(the: *mut XsMachine) {
     let path = arg_str(the, 1);
 
-    if arg_dir_token(the, 0) == Some("root") {
-        let exists = std::fs::symlink_metadata(root_to_abs(path)).is_ok();
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        let exists = std::fs::symlink_metadata(root_to_abs(&path)).is_ok();
         set_result_bool(the, exists);
         return;
     }
@@ -555,10 +537,10 @@ pub unsafe extern "C" fn host_exists(the: *mut XsMachine) {
 pub unsafe extern "C" fn host_is_dir(the: *mut XsMachine) {
     let path = arg_str(the, 1);
 
-    if arg_dir_token(the, 0) == Some("root") {
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
         // Follow symlinks — a symlink pointing at a directory should
         // report true, matching Node's `fs.statSync().isDirectory()`.
-        let is_dir = std::fs::metadata(root_to_abs(path))
+        let is_dir = std::fs::metadata(root_to_abs(&path))
             .map(|m| m.is_dir())
             .unwrap_or(false);
         set_result_bool(the, is_dir);
@@ -579,8 +561,8 @@ pub unsafe extern "C" fn host_is_dir(the: *mut XsMachine) {
 pub unsafe extern "C" fn host_read_link(the: *mut XsMachine) {
     let path = arg_str(the, 1);
 
-    if arg_dir_token(the, 0) == Some("root") {
-        if let Ok(target) = std::fs::read_link(root_to_abs(path)) {
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        if let Ok(target) = std::fs::read_link(root_to_abs(&path)) {
             set_result_string(the, &target.to_string_lossy());
         }
         return;
@@ -606,10 +588,10 @@ pub unsafe extern "C" fn host_read_link(the: *mut XsMachine) {
 pub unsafe extern "C" fn host_open_dir(the: *mut XsMachine) {
     let path = arg_str(the, 1);
 
-    if arg_dir_token(the, 0) == Some("root") {
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
         // Open ambiently so symlinks are followed.
         match cap_std::fs::Dir::open_ambient_dir(
-            root_to_abs(path),
+            root_to_abs(&path),
             cap_std::ambient_authority(),
         ) {
             Ok(sub) => {

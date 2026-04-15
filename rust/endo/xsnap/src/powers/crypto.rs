@@ -9,11 +9,11 @@
 //!   ed25519Sign(privateKeyHex, messageHex) -> string (signature hex)
 
 use crate::ffi::*;
+use crate::worker_io::{arg_str, set_result_string};
 use ed25519_dalek::{Signer, SigningKey};
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::ffi::CStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 
@@ -27,20 +27,6 @@ fn get_hasher_map() -> std::sync::MutexGuard<'static, Option<HashMap<u32, Sha256
         *guard = Some(HashMap::new());
     }
     guard
-}
-
-/// Helper: read a string argument from the XS stack frame.
-unsafe fn arg_str(the: *mut XsMachine, index: usize) -> &'static str {
-    let slot = (*the).frame.sub(2 + index);
-    let ptr = fxToString(the, slot);
-    CStr::from_ptr(ptr).to_str().unwrap_or("")
-}
-
-/// Helper: set xsResult to a string.
-unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
-    let c_str = std::ffi::CString::new(s).unwrap();
-    fxString(the, &mut (*the).scratch, c_str.as_ptr());
-    *(*the).frame.add(1) = (*the).scratch;
 }
 
 /// `sha256(data) -> string`

@@ -333,6 +333,13 @@ pub fn install_transport(transport: Box<dyn WorkerTransport>) {
     });
 }
 
+/// Remove the transport from this thread's slot.
+pub fn clear_transport() {
+    ACTIVE_TRANSPORT.with(|cell| {
+        *cell.borrow_mut() = None;
+    });
+}
+
 /// Access the currently installed transport on this thread.
 pub fn with_transport<F, R>(f: F) -> R
 where
@@ -351,18 +358,45 @@ where
 // XS host functions
 // ---------------------------------------------------------------------------
 
-/// Helper: read a string argument from the XS stack frame.
-unsafe fn arg_str(the: *mut XsMachine, index: usize) -> &'static str {
+/// Read a string argument from the XS stack frame.
+///
+/// XS stores strings in CESU-8.  This function decodes surrogate
+/// pairs into proper UTF-8 so that Rust string operations work
+/// correctly on supplementary characters (emoji, etc.).
+///
+/// # Safety
+/// Caller must ensure `the` is a valid XS machine pointer and
+/// `index` is within the argument count.
+pub(crate) unsafe fn arg_str(the: *mut XsMachine, index: usize) -> String {
     let slot = (*the).frame.sub(2 + index);
     let ptr = fxToString(the, slot);
-    CStr::from_ptr(ptr).to_str().unwrap_or("")
+    xs_string_to_utf8(ptr)
 }
 
-/// Helper: set xsResult to a string.
-unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
-    let c_str = std::ffi::CString::new(s).unwrap();
+/// Set xsResult to a string.
+///
+/// Encodes the UTF-8 input as CESU-8 before passing to XS so that
+/// supplementary characters round-trip correctly.
+///
+/// # Safety
+/// Caller must ensure `the` is a valid XS machine pointer.
+pub(crate) unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
+    let cesu = crate::cesu8::encode(s);
+    let c_str = std::ffi::CString::new(cesu).unwrap_or_default();
     fxString(the, &mut (*the).scratch, c_str.as_ptr());
     *(*the).frame.add(1) = (*the).scratch;
+}
+
+/// Convert an XS C string (CESU-8) to a Rust UTF-8 `String`.
+///
+/// # Safety
+/// `ptr` must be a valid null-terminated C string from XS.
+pub(crate) unsafe fn xs_string_to_utf8(ptr: *const std::os::raw::c_char) -> String {
+    if ptr.is_null() {
+        return String::new();
+    }
+    let bytes = CStr::from_ptr(ptr).to_bytes();
+    crate::cesu8::decode_lossy(bytes)
 }
 
 /// `recvFrame() -> string | undefined`
@@ -564,9 +598,9 @@ pub unsafe extern "C" fn host_decode_utf8(the: *mut XsMachine) {
     if let Some(buf) = read_typed_array_bytes(the, slot) {
         match std::str::from_utf8(&buf) {
             Ok(s) => {
-                let c_str = std::ffi::CString::new(s).unwrap_or_default();
-                fxString(the, &mut (*the).scratch, c_str.as_ptr());
-                *(*the).frame.add(1) = (*the).scratch;
+                // The input is valid UTF-8.  XS expects CESU-8, so
+                // re-encode supplementary characters as surrogate pairs.
+                set_result_string(the, s);
             }
             Err(e) => {
                 let msg = format!("Error: invalid UTF-8: {}", e);

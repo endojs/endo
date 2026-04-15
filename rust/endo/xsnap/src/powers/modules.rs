@@ -10,25 +10,11 @@
 
 use crate::ffi::*;
 use crate::powers::HostPowers;
-use std::ffi::CStr;
+use crate::worker_io::{arg_str, set_result_string};
 
 /// Helper: get HostPowers from the machine context.
 unsafe fn get_powers(the: *mut XsMachine) -> &'static HostPowers {
     &*((*the).context as *const HostPowers)
-}
-
-/// Helper: read a string argument from the XS stack frame.
-unsafe fn arg_str(the: *mut XsMachine, index: usize) -> &'static str {
-    let slot = (*the).frame.sub(2 + index);
-    let ptr = fxToString(the, slot);
-    CStr::from_ptr(ptr).to_str().unwrap_or("")
-}
-
-/// Helper: set xsResult to a string.
-unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
-    let c_str = std::ffi::CString::new(s).unwrap();
-    fxString(the, &mut (*the).scratch, c_str.as_ptr());
-    *(*the).frame.add(1) = (*the).scratch;
 }
 
 /// `loadModuleSource(specifier) -> string | undefined`
@@ -39,7 +25,7 @@ pub unsafe extern "C" fn host_load_module_source(the: *mut XsMachine) {
     let powers = get_powers(the);
     let specifier = arg_str(the, 0);
 
-    match powers.get_module(specifier) {
+    match powers.get_module(&specifier) {
         Some(source) => set_result_string(the, source),
         None => {
             // Leave xsResult as undefined (default)
@@ -57,7 +43,7 @@ pub unsafe extern "C" fn host_resolve_module(the: *mut XsMachine) {
     let specifier = arg_str(the, 0);
     let referrer = arg_str(the, 1);
 
-    let resolved = resolve_specifier(specifier, referrer);
+    let resolved = resolve_specifier(&specifier, &referrer);
     set_result_string(the, &resolved);
 }
 

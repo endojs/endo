@@ -5,13 +5,14 @@
 //! and registering host functions.
 
 pub mod archive;
+pub mod cesu8;
 pub mod envelope;
 pub mod ffi;
 pub mod powers;
 pub mod worker_io;
 
 use ffi::*;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
 use std::ptr;
 
@@ -306,9 +307,7 @@ unsafe fn slot_to_value(
             if s.is_null() {
                 JsValue::Undefined
             } else {
-                JsValue::String(
-                    CStr::from_ptr(s).to_string_lossy().into_owned(),
-                )
+                JsValue::String(worker_io::xs_string_to_utf8(s))
             }
         }
         // For references and other types, coerce to string
@@ -317,9 +316,7 @@ unsafe fn slot_to_value(
             if s.is_null() {
                 JsValue::Undefined
             } else {
-                JsValue::String(
-                    CStr::from_ptr(s).to_string_lossy().into_owned(),
-                )
+                JsValue::String(worker_io::xs_string_to_utf8(s))
             }
         }
     }
@@ -510,19 +507,6 @@ fn eval_wrapped(machine: &Machine, code: &str, label: &str) -> bool {
     }
 }
 
-/// Check if a raw CBOR envelope has verb `"debug"` and, if so,
-/// return the payload.  Otherwise return `None` and the caller
-/// should dispatch the envelope to JS as usual.
-///
-/// This is a fast path that avoids decoding the full envelope
-/// when the verb is not `"debug"`.
-fn try_extract_debug_payload(data: &[u8]) -> Option<Vec<u8>> {
-    match envelope::decode_envelope(data) {
-        Ok(env) if env.verb == "debug" => Some(env.payload),
-        _ => None,
-    }
-}
-
 /// Flush any pending debug outbound data as a `"debug"` envelope
 /// on the bus transport.  The handle is 0 (daemon/supervisor).
 fn flush_debug_outbound() {
@@ -538,17 +522,45 @@ fn flush_debug_outbound() {
     }
 }
 
-/// Handle an incoming envelope: if it's a debug envelope, route it
-/// to the XS debugger; otherwise dispatch to JS.
+/// Send an envelope back to the daemon/supervisor (handle 0).
+fn send_control_response(verb: &str, nonce: i64) {
+    let env = envelope::Envelope {
+        handle: 0,
+        verb: verb.to_string(),
+        payload: Vec::new(),
+        nonce,
+    };
+    let encoded = envelope::encode_envelope(&env);
+    let _ = worker_io::with_transport(|t| t.send_raw_frame(&encoded));
+}
+
+/// Handle an incoming envelope: intercept debug-related verbs
+/// (`debug-attach`, `debug-detach`, `debug`) and route them to
+/// the XS debugger; otherwise dispatch to JS.
 ///
 /// Returns `true` if the envelope was handled as debug traffic.
 fn handle_envelope(machine: &Machine, data: &[u8]) -> bool {
-    if powers::debug::debug_is_active() {
-        if let Some(payload) = try_extract_debug_payload(data) {
-            powers::debug::debug_push_inbound(&payload);
-            machine.run_debugger();
-            flush_debug_outbound();
-            return true;
+    if let Ok(env) = envelope::decode_envelope(data) {
+        match env.verb.as_str() {
+            "debug-attach" => {
+                powers::debug::debug_enable();
+                machine.run_debugger();
+                flush_debug_outbound();
+                send_control_response("debug-attached", env.nonce);
+                return true;
+            }
+            "debug-detach" => {
+                powers::debug::debug_reset();
+                send_control_response("debug-detached", env.nonce);
+                return true;
+            }
+            "debug" if powers::debug::debug_is_active() => {
+                powers::debug::debug_push_inbound(&env.payload);
+                machine.run_debugger();
+                flush_debug_outbound();
+                return true;
+            }
+            _ => {}
         }
     }
     dispatch_envelope(machine, data);
@@ -881,6 +893,9 @@ pub fn run_xs_archive(archive_path: &std::path::Path) -> Result<(), XsnapError> 
 }
 
 #[cfg(test)]
+mod debug_protocol_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::worker_io::WorkerTransport;
@@ -1027,7 +1042,7 @@ mod tests {
         // Host function that returns the length of a string
         unsafe extern "C" fn strlen(the: *mut XsMachine) {
             let s = fxToString(the, (*the).frame.sub(2));
-            let len = CStr::from_ptr(s).to_bytes().len() as i32;
+            let len = std::ffi::CStr::from_ptr(s).to_bytes().len() as i32;
             fxInteger(the, &mut (*the).scratch, len);
             *(*the).frame.add(1) = (*the).scratch;
         }
@@ -2582,5 +2597,94 @@ mod tests {
         let _ = debug::debug_drain_outbound();
 
         debug::debug_reset();
+    }
+
+    #[test]
+    fn debug_attach_via_envelope() {
+        use powers::debug;
+
+        // Start with debug NOT enabled.
+        debug::debug_reset();
+        assert!(!debug::debug_is_active(), "debug should be inactive initially");
+
+        let mut powers_store = powers::HostPowers::new();
+        let machine = new_machine_with_powers(&mut powers_store);
+
+        // Create a debug-attach envelope.
+        let attach_env = envelope::Envelope {
+            handle: 1,
+            verb: "debug-attach".to_string(),
+            payload: Vec::new(),
+            nonce: 42,
+        };
+        let attach_bytes = envelope::encode_envelope(&attach_env);
+
+        // Set up a mock transport to capture outbound envelopes.
+        let sent = std::sync::Arc::new(std::sync::Mutex::new(Vec::<Vec<u8>>::new()));
+        let sent_clone = std::sync::Arc::clone(&sent);
+        let transport = MockTransport { sent: sent_clone };
+        worker_io::install_transport(Box::new(transport));
+
+        // Process the debug-attach envelope.
+        let handled = handle_envelope(&machine, &attach_bytes);
+        assert!(handled, "debug-attach should be handled");
+
+        // Check that debug is now active (only if mxDebug is in
+        // the binary).
+        if debug::debug_is_active() {
+            // Should have sent outbound envelopes: debug output
+            // (login XML) and debug-attached ack.
+            let frames = sent.lock().unwrap();
+            assert!(
+                frames.len() >= 1,
+                "expected at least 1 outbound frame, got {}",
+                frames.len()
+            );
+
+            // Find the debug-attached ack.
+            let mut found_ack = false;
+            for frame in frames.iter() {
+                if let Ok(env) = envelope::decode_envelope(frame) {
+                    if env.verb == "debug-attached" {
+                        assert_eq!(env.nonce, 42, "ack nonce should match");
+                        found_ack = true;
+                    }
+                }
+            }
+            assert!(found_ack, "expected debug-attached ack");
+        }
+
+        debug::debug_reset();
+        worker_io::clear_transport();
+    }
+
+    /// Mock transport that captures sent frames.
+    struct MockTransport {
+        sent: std::sync::Arc<std::sync::Mutex<Vec<Vec<u8>>>>,
+    }
+
+    impl WorkerTransport for MockTransport {
+        fn init_handshake(&mut self) -> Result<envelope::Handle, std::io::Error> {
+            Ok(0)
+        }
+        fn recv_raw_envelope(&mut self) -> Result<Option<Vec<u8>>, std::io::Error> {
+            Ok(None)
+        }
+        fn try_recv_raw_envelope(&mut self) -> Result<Option<Vec<u8>>, std::io::Error> {
+            Ok(None)
+        }
+        fn send_raw_frame(&mut self, data: &[u8]) -> Result<(), std::io::Error> {
+            self.sent.lock().unwrap().push(data.to_vec());
+            Ok(())
+        }
+        fn send_frame(&mut self, _payload: &[u8]) -> Result<(), std::io::Error> {
+            Ok(())
+        }
+        fn recv_frame(&mut self) -> Result<Option<Vec<u8>>, std::io::Error> {
+            Ok(None)
+        }
+        fn daemon_handle(&self) -> envelope::Handle {
+            0
+        }
     }
 }

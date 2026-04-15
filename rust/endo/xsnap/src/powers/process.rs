@@ -8,21 +8,7 @@
 
 use crate::ffi::*;
 use crate::powers::HostPowers;
-use std::ffi::CStr;
-
-/// Helper: read a string argument from the XS stack frame.
-unsafe fn arg_str(the: *mut XsMachine, index: usize) -> &'static str {
-    let slot = (*the).frame.sub(2 + index);
-    let ptr = fxToString(the, slot);
-    CStr::from_ptr(ptr).to_str().unwrap_or("")
-}
-
-/// Helper: set xsResult to a string.
-unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
-    let c_str = std::ffi::CString::new(s).unwrap();
-    fxString(the, &mut (*the).scratch, c_str.as_ptr());
-    *(*the).frame.add(1) = (*the).scratch;
-}
+use crate::worker_io::{arg_str, set_result_string};
 
 /// `getPid() -> number`
 ///
@@ -60,7 +46,7 @@ pub unsafe extern "C" fn host_join_path(the: *mut XsMachine) {
     let mut parts: Vec<String> = Vec::new();
     for i in 0..count {
         let part = arg_str(the, i);
-        parts.push(part.to_string());
+        parts.push(part);
     }
     let joined = parts.join("/");
     // Normalize: resolve "." and ".." components.
@@ -121,8 +107,8 @@ pub unsafe extern "C" fn host_real_path(the: *mut XsMachine) {
         return;
     }
 
-    match powers.get_dir(dir_token) {
-        Some(dir) => match dir.canonicalize(path) {
+    match powers.get_dir(&dir_token) {
+        Some(dir) => match dir.canonicalize(&path) {
             Ok(canonical) => set_result_string(the, &canonical.to_string_lossy()),
             Err(e) => set_result_string(the, &format!("Error: {}", e)),
         },

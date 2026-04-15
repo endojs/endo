@@ -22,12 +22,12 @@
 //!   BLOB    → {$bytes: b}  → Uint8Array (base64 in JSON)
 
 use crate::ffi::*;
+use crate::worker_io::{arg_str, set_result_string};
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use rusqlite::{types::Value as SqlValue, Connection};
 use serde_json::{json, Map, Value as JsonValue};
 use std::collections::HashMap;
-use std::ffi::CStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 
@@ -60,22 +60,6 @@ fn get_stmt_map() -> std::sync::MutexGuard<'static, Option<HashMap<u32, Prepared
         *guard = Some(HashMap::new());
     }
     guard
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-unsafe fn arg_str(the: *mut XsMachine, index: usize) -> &'static str {
-    let slot = (*the).frame.sub(2 + index);
-    let ptr = fxToString(the, slot);
-    CStr::from_ptr(ptr).to_str().unwrap_or("")
-}
-
-unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
-    let c_str = std::ffi::CString::new(s).unwrap();
-    fxString(the, &mut (*the).scratch, c_str.as_ptr());
-    *(*the).frame.add(1) = (*the).scratch;
 }
 
 /// Convert a JSON parameter value to a rusqlite `Value`.
@@ -334,7 +318,7 @@ pub unsafe extern "C" fn host_sqlite_exec(the: *mut XsMachine) {
     let map = get_db_map();
     match map.as_ref().unwrap().get(&handle) {
         Some(conn) => {
-            if let Err(e) = conn.execute_batch(sql) {
+            if let Err(e) = conn.execute_batch(&sql) {
                 set_result_string(the, &format!("Error: {}", e));
             }
         }
@@ -368,7 +352,7 @@ pub unsafe extern "C" fn host_sqlite_prepare(the: *mut XsMachine) {
         stmt_handle,
         PreparedStmt {
             db_handle,
-            sql: sql.to_string(),
+            sql,
         },
     );
     fxInteger(the, &mut (*the).scratch, stmt_handle as i32);
@@ -396,7 +380,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_run(the: *mut XsMachine) {
         }
     };
 
-    let params = match parse_params(params_json) {
+    let params = match parse_params(&params_json) {
         Ok(p) => p,
         Err(e) => {
             set_result_string(the, &e);
@@ -445,7 +429,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_get(the: *mut XsMachine) {
         }
     };
 
-    let params = match parse_params(params_json) {
+    let params = match parse_params(&params_json) {
         Ok(p) => p,
         Err(e) => {
             set_result_string(the, &e);
@@ -492,7 +476,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_all(the: *mut XsMachine) {
         }
     };
 
-    let params = match parse_params(params_json) {
+    let params = match parse_params(&params_json) {
         Ok(p) => p,
         Err(e) => {
             set_result_string(the, &e);
