@@ -1419,6 +1419,16 @@ export type DaemonicControlPowers = {
    * been consumed.
    */
   startEnvelopeReader?: () => void;
+  /**
+   * Attach a debugger to a running worker (Rust supervisor only).
+   * Returns a Debugger exo that wraps the xsbug debug session
+   * and is remotable over CapTP.
+   */
+  attachDebugger?: (workerHandle: number) => Promise<Debugger>;
+  /**
+   * Detach a debugger from a running worker (Rust supervisor only).
+   */
+  detachDebugger?: (workerHandle: number) => void;
 };
 
 export type DaemonicPowers = {
@@ -1964,6 +1974,34 @@ export interface DebugSession {
   getTag(): string | undefined;
   getLastBreak(): BreakEvent | null;
   help(): string;
+}
+
+/**
+ * Remotable debugger exo — a CapTP-safe wrapper around DebugSession.
+ * Methods match DebugSession but omit `feedXml` and `onBreak`
+ * (which are not serialisable over CapTP).
+ */
+export interface Debugger {
+  help(): string;
+  go(): void;
+  step(): Promise<BreakEvent>;
+  stepIn(): Promise<BreakEvent>;
+  stepOut(): Promise<BreakEvent>;
+  abort(): void;
+  setBreakpoint(path: string, line: number): void;
+  clearBreakpoint(path: string, line: number): void;
+  clearAllBreakpoints(): void;
+  getFrames(): Promise<Frame[]>;
+  getLocals(): Promise<Property[]>;
+  getGlobals(): Promise<Property[]>;
+  selectFrame(id: string): Promise<Property[]>;
+  toggleProperty(id: string): Promise<Property[]>;
+  evaluate(source: string): Promise<string>;
+  setExceptionBreakMode(mode: 'none' | 'all' | 'uncaught'): void;
+  isBroken(): boolean;
+  getTitle(): string | undefined;
+  getTag(): string | undefined;
+  getLastBreak(): BreakEvent | null;
 }
 
 export interface RemoteControlState {

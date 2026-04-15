@@ -43,6 +43,8 @@ import {
   decodeEnvelope,
 } from './envelope.js';
 import { makeXsFilePowers, makeXsCryptoPowers } from './bus-daemon-rust-xs-powers.js';
+import { makeDebugSession } from './debug-session.js';
+import { makeDebugger } from './debugger.js';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ERef } from '@endo/eventual-send' */
@@ -311,6 +313,14 @@ const workerExitResolvers = new Map();
 /** @type {Map<number, { dispatch: (msg: Record<string, unknown>) => void, abort: () => void }>} */
 const clientSessions = new Map();
 
+// Debug sessions per worker handle.
+/** @type {Map<number, import('./types.js').DebugSession>} */
+const debugSessions = new Map();
+
+// Pending debug-attach promises, keyed by nonce.
+/** @type {Map<number, { resolve: (debugger: import('./types.js').Debugger) => void, reject: (reason: Error) => void, workerHandle: number }>} */
+const pendingDebugAttach = new Map();
+
 let nextNonce = 1;
 
 // Minimal CBOR helpers for spawn payloads (same as bus-daemon-node-powers.js)
@@ -511,7 +521,53 @@ const makeWorker = async (
   return { workerTerminated, workerDaemonFacet };
 };
 
-const controlPowers = harden({ makeWorker });
+/**
+ * Attach a debugger to a running worker.
+ * Sends a `debug-attach` envelope and waits for the worker to
+ * acknowledge. Returns a Debugger exo remotable over CapTP.
+ *
+ * @param {number} workerHandle
+ * @returns {Promise<import('./types.js').Debugger>}
+ */
+const attachDebugger = workerHandle => {
+  if (debugSessions.has(workerHandle)) {
+    const session = /** @type {import('./types.js').DebugSession} */ (
+      debugSessions.get(workerHandle)
+    );
+    return Promise.resolve(makeDebugger(session));
+  }
+  const nonce = nextNonce;
+  nextNonce += 1;
+  const { promise, resolve, reject } =
+    /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').Debugger>} */ (
+      makePromiseKit()
+    );
+  pendingDebugAttach.set(nonce, { resolve, reject, workerHandle });
+  sendEnvelope(workerHandle, 'debug-attach', undefined, nonce);
+  hostTrace(`daemon-xs: debug-attach sent handle=${workerHandle} nonce=${nonce}`);
+  return promise;
+};
+harden(attachDebugger);
+
+/**
+ * Detach a debugger from a running worker.
+ *
+ * @param {number} workerHandle
+ */
+const detachDebugger = workerHandle => {
+  const session = debugSessions.get(workerHandle);
+  if (!session) {
+    return;
+  }
+  debugSessions.delete(workerHandle);
+  const nonce = nextNonce;
+  nextNonce += 1;
+  sendEnvelope(workerHandle, 'debug-detach', undefined, nonce);
+  hostTrace(`daemon-xs: debug-detach sent handle=${workerHandle}`);
+};
+harden(detachDebugger);
+
+const controlPowers = harden({ makeWorker, attachDebugger, detachDebugger });
 
 // ---------------------------------------------------------------------------
 // Assemble DaemonicPowers
@@ -699,9 +755,47 @@ globalThis.handleCommand = harden(bytes => {
     return;
   }
 
+  // Debug traffic from a worker.
+  if (env.verb === 'debug') {
+    const session = debugSessions.get(env.handle);
+    if (session) {
+      session.feedXml(env.payload);
+    } else {
+      hostTrace(`daemon-xs: debug from unknown handle=${env.handle}`);
+    }
+    return;
+  }
+
+  // Debug attach acknowledgement.
+  if (env.verb === 'debug-attached' && env.nonce > 0) {
+    const pending = pendingDebugAttach.get(env.nonce);
+    if (pending) {
+      pendingDebugAttach.delete(env.nonce);
+      const { workerHandle } = pending;
+
+      /** @param {Uint8Array} xmlBytes */
+      const sendToWorker = xmlBytes => {
+        sendEnvelope(workerHandle, 'debug', xmlBytes);
+      };
+      const session = makeDebugSession(sendToWorker);
+      debugSessions.set(workerHandle, session);
+      const dbg = makeDebugger(session);
+      hostTrace(`daemon-xs: debug-attached handle=${workerHandle}`);
+      pending.resolve(dbg);
+    }
+    return;
+  }
+
+  // Debug detach acknowledgement.
+  if (env.verb === 'debug-detached') {
+    hostTrace(`daemon-xs: debug-detached handle=${env.handle}`);
+    return;
+  }
+
   // Worker exit notification.
   if (env.verb === 'exited') {
     const handle = env.handle;
+    debugSessions.delete(handle);
     const resolve = workerExitResolvers.get(handle);
     if (resolve) {
       workerExitResolvers.delete(handle);
