@@ -24,9 +24,13 @@
   "exports": {
     ".": {
       "xs": "./src-xs/index.js",
+      "types": "./index.d.ts",
       "default": "./index.js"
     },
-    "./shim.js": "./shim.js",
+    "./shim.js": {
+      "types": "./src/shim.types.d.ts",
+      "default": "./shim.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -51,6 +55,8 @@
   },
   "devDependencies": {
     "@endo/ses-ava": "workspace:^",
+    "@types/babel__generator": "~7.27.0",
+    "@types/babel__traverse": "~7.28.0",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
     "benchmark": "^2.1.4",
@@ -84,8 +90,23 @@
             "^@endo/module-source(?:/.*)?$"
           ]
         }
+      ],
+      "jsdoc/check-tag-names": [
+        "error",
+        {
+          "definedTags": [
+            "privateRemarks"
+          ]
+        }
       ]
     },
+    "overrides": [{
+      "files": "**/*.ts",
+      "rules": {
+        "vars-on-top": "off",
+        "no-var": "off"
+      }
+    }],
     "ignorePatterns": [
       "test/fixtures/"
     ]
