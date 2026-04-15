@@ -1,5 +1,13 @@
 # @endo/test262-runner
 
+## 0.1.50
+
+### Patch Changes
+
+- Updated dependencies [[`154102b`](https://github.com/endojs/endo/commit/154102b47491f8fc587c891cfe69d206bd7833d2), [`2b674ca`](https://github.com/endojs/endo/commit/2b674cad4149909b3063acb706eba70a1c8ab901), [`b4820dc`](https://github.com/endojs/endo/commit/b4820dc946821dd87f78ee856cd5e9292b55f83c), [`acbacba`](https://github.com/endojs/endo/commit/acbacba5364f4f9ba85a962bef773c4170845b77), [`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e), [`cdb6eae`](https://github.com/endojs/endo/commit/cdb6eaed646c698a8a6d8d85f562fe63c31308cb), [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd), [`6ad084a`](https://github.com/endojs/endo/commit/6ad084a6900b8b6cca5580977502d79389f3b209), [`1cd1246`](https://github.com/endojs/endo/commit/1cd12469b6874bb181238c2d2e41ce9bc6e8bb9f), [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59)]:
+  - @endo/compartment-mapper@2.1.0
+  - ses@2.0.0
+
 ## 0.1.49
 
 ### Patch Changes

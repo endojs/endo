@@ -1,5 +1,13 @@
 # @endo/errors
 
+## 1.3.1
+
+### Patch Changes
+
+- Updated dependencies [[`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e), [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59)]:
+  - ses@2.0.0
+  - @endo/harden@1.1.0
+
 ## 1.3.0
 
 ### Minor Changes

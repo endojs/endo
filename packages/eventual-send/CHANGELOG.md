@@ -1,5 +1,20 @@
 # @endo/eventual-send
 
+## 1.5.0
+
+### Minor Changes
+
+- [#3172](https://github.com/endojs/endo/pull/3172) [`f65b000`](https://github.com/endojs/endo/commit/f65b0002324d38210d11000cff741c5c8dc83b60) Thanks [@turadg](https://github.com/turadg)! - Improve `E()` type inference and publicly export method-projection helpers.
+  - `RemoteFunctions`, `PickCallable`, and `ECallableOrMethods` now short-circuit on `any`, preventing `E(anyValue)` from collapsing to an unusable type.
+  - `EMethods`, `EGetters`, and related helpers are now part of the public type surface, so downstream packages can name the projected shapes `E()` produces.
+
+  Compile-time type changes only; no runtime behavior changes.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @endo/harden@1.1.0
+
 ## 1.4.0
 
 ### Minor Changes

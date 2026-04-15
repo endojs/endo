@@ -1,6 +1,6 @@
 {
   "name": "@endo/lp32",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "32 bit unsigned host byte order length prefix message streams as async iterators",
   "keywords": [
     "stream",

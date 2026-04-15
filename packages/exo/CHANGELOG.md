@@ -1,5 +1,49 @@
 # @endo/exo
 
+## 1.7.0
+
+### Minor Changes
+
+- [#3172](https://github.com/endojs/endo/pull/3172) [`88bc2b9`](https://github.com/endojs/endo/commit/88bc2b915d95326a3e911a9f8bf4571d948c44d8) Thanks [@turadg](https://github.com/turadg)! - Improve TypeScript inference for patterns, exo, and pass-style. These are compile-time type changes only; no runtime behavior changes.
+  - **pass-style**: `CopyArray<T>` is now `readonly T[]` so readonly tuples (e.g. `readonly ['ibc']`) satisfy `Passable`. Backward-compatible because `T[]` still extends `readonly T[]`.
+  - **patterns**: `M.remotable()` defaults to `any` (matching `M.promise()`), so unparameterized remotables are assignable to concrete remotable typedefs. The parameterized form `M.remotable<typeof SomeInterfaceGuard>()` still yields precise inference.
+  - **patterns**: `TFRemotable` returns `any` (not `Payload`) for non-`InterfaceGuard` arguments.
+  - **patterns**: `TFOr` handles array-of-patterns and falls back through `TFAnd`; `M.undefined()` maps to `void`.
+  - **patterns**: `TFOptionalTuple` emits truly optional elements; `M.promise()` maps to `PromiseLike`.
+  - **patterns**: `TFSplitRecord` handles the empty-rest case correctly.
+  - **patterns**: `TFRestArgs` unwraps array patterns.
+  - **patterns**: `TypeFromArgGuard` discriminates by `toStringTag`, not structural shape.
+  - **patterns**: `MatcherOf` payload is preserved through `InterfaceGuard`.
+  - **patterns**: new `CastedPattern<T>` for unchecked type assertions in pattern position.
+  - **exo**: `defineExoClass`, `defineExoClassKit`, and `makeExo` no longer intersect facet constraints with `& Methods`. The previous constraint collapsed specific facet keys into the `string | number | symbol` index signature, making `FilteredKeys` return `never` and erasing facet method inference (`Pick<X, never> = {}`).
+  - **exo**: `Guarded<M, G>` is now structurally compatible across `G`, and the kit `F` constraint is widened.
+  - **exo**: `defineExoClassKit` preserves facet inference when no guard is supplied.
+
+  TypeScript consumers that were working around the previous inference gaps with casts may be able to remove those casts. Downstream code that depended on the narrower `CopyArray<T> = T[]` or the previous `M.remotable()` default may need minor adjustments.
+
+- [#3133](https://github.com/endojs/endo/pull/3133) [`9111b4e`](https://github.com/endojs/endo/commit/9111b4e657d07e2f138a9192238849828c2b52aa) Thanks [@turadg](https://github.com/turadg)! - feat: infer TypeScript types from pattern guards
+  - `TypeFromPattern<P>` — infer static types from any pattern matcher
+  - `TypeFromMethodGuard<G>` — infer function signatures from `M.call()` / `M.callWhen()` guards
+  - `TypeFromInterfaceGuard<G>` — infer method records from interface guard definitions
+  - `M.remotable<typeof Guard>()` — facet-isolated return types in exo kits
+  - `M.infer<typeof pattern>` — namespace shorthand analogous to `z.infer`
+  - `matches` and `mustMatch` now narrow the specimen type via type predicates
+  - `makeExo`, `defineExoClass`, and `defineExoClassKit` enforce method signatures against guards at compile time
+
+  These are compile-time type changes only; there are no runtime behavioral changes.
+  Existing TypeScript consumers may see new type errors where method signatures diverge from their guards.
+
+### Patch Changes
+
+- Updated dependencies [[`8195a5a`](https://github.com/endojs/endo/commit/8195a5aa8dd99d147b34e40ce8fa7328ce596e87), [`98c89b7`](https://github.com/endojs/endo/commit/98c89b79a22c2a038e90ac1d81abdf6127f70e10), [`f65b000`](https://github.com/endojs/endo/commit/f65b0002324d38210d11000cff741c5c8dc83b60), [`88bc2b9`](https://github.com/endojs/endo/commit/88bc2b915d95326a3e911a9f8bf4571d948c44d8), [`9111b4e`](https://github.com/endojs/endo/commit/9111b4e657d07e2f138a9192238849828c2b52aa), [`43165e5`](https://github.com/endojs/endo/commit/43165e584cfd6437c7f8edb8872ff81ed4415ed6), [`df84eea`](https://github.com/endojs/endo/commit/df84eeaa25af0b9c2c5b98c27ac95e4cb39f0001), [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd)]:
+  - @endo/patterns@1.9.0
+  - @endo/common@1.4.0
+  - @endo/eventual-send@1.5.0
+  - @endo/pass-style@1.8.0
+  - @endo/errors@1.3.1
+  - @endo/far@1.1.14
+  - @endo/harden@1.1.0
+
 ## 1.6.0
 
 ### Minor Changes
