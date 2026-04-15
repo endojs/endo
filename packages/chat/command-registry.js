@@ -795,6 +795,23 @@ export const COMMANDS = {
     ],
     submitLabel: 'Spawn',
   },
+  debug: {
+    name: 'debug',
+    label: 'Debug Worker',
+    description: 'Open the debugger for a worker',
+    category: 'workers',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'workerName',
+        label: 'Worker',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'worker-name',
+      },
+    ],
+    submitLabel: 'Debug',
+  },
 
   // ============ HOSTS/GUESTS ============
   mkhost: {

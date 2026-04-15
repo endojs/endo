@@ -8715,3 +8715,464 @@ button.btn-spinner::after {
     calc(2ex + 2px) 50%,
     6ex top;
 }
+
+/* Debugger Panel */
+
+#debugger-panel-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+#debugger-panel-container {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 95%;
+  max-width: 1100px;
+  height: 85vh;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.debugger-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.debugger-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.debugger-title-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.debugger-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.debugger-tag {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.debugger-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.debugger-status-paused {
+  background: #fff3bf;
+  color: #e67700;
+}
+
+.debugger-status-running {
+  background: #d3f9d8;
+  color: var(--success);
+}
+
+.debugger-status-error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.debugger-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.debugger-close:hover {
+  color: var(--text-primary);
+}
+
+.debugger-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-primary);
+}
+
+.debugger-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.debugger-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.debugger-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.debugger-btn-danger {
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.debugger-btn-danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+}
+
+.debugger-toolbar-spacer {
+  flex: 1;
+}
+
+.debugger-exception-mode {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.debugger-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.debugger-sidebar {
+  width: 280px;
+  min-width: 200px;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.debugger-frames-section,
+.debugger-locals-section {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.debugger-frames-section {
+  max-height: 40%;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.debugger-locals-section {
+  flex: 1;
+  min-height: 0;
+}
+
+.debugger-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.debugger-section-title button {
+  font-size: 10px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.debugger-section-title button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.debugger-frames-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.debugger-frame-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.debugger-frame-item:hover {
+  background: var(--bg-hover);
+}
+
+.debugger-frame-active {
+  background: var(--accent-light);
+}
+
+.debugger-frame-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+.debugger-frame-loc {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debugger-locals-tree {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px 0;
+}
+
+.debugger-prop-row {
+  display: flex;
+  align-items: baseline;
+  padding: 2px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.debugger-prop-disc {
+  width: 14px;
+  flex-shrink: 0;
+  text-align: center;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.debugger-prop-disc-empty {
+  cursor: default;
+}
+
+.debugger-prop-name {
+  color: #8250df;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.debugger-prop-sep {
+  color: var(--text-muted);
+  margin: 0 1px;
+}
+
+.debugger-prop-value {
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.debugger-prop-children {
+  /* toggled via JS */
+}
+
+.debugger-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.debugger-break-section {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.debugger-break-info {
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.debugger-breakpoints-section {
+  border-bottom: 1px solid var(--border-light);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.debugger-bp-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.debugger-bp-loc {
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.debugger-bp-del {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.debugger-bp-del:hover {
+  color: var(--danger);
+}
+
+.debugger-add-breakpoint {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.debugger-add-breakpoint input {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.debugger-bp-path {
+  flex: 1;
+  min-width: 0;
+}
+
+.debugger-bp-line {
+  width: 60px;
+}
+
+.debugger-add-breakpoint button {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.debugger-add-breakpoint button:hover {
+  background: var(--bg-hover);
+}
+
+.debugger-console-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.debugger-console-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--bg-secondary);
+}
+
+.debugger-console-input-line {
+  color: var(--accent-primary);
+}
+
+.debugger-console-result {
+  color: var(--text-primary);
+}
+
+.debugger-console-error {
+  color: var(--danger);
+}
+
+.debugger-console-input-row {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.debugger-console-input {
+  flex: 1;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.debugger-console-eval {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.debugger-console-eval:hover {
+  background: var(--bg-hover);
+}
+
+.debugger-empty {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
