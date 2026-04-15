@@ -4,7 +4,16 @@ import { expectAssignable, expectType, expectNotType } from 'tsd';
 import { Far } from './make-far.js';
 import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
-import type { Checker, CopyTagged, Passable, PassStyle } from './types.js';
+import type {
+  Checker,
+  CopyArrayInterface,
+  CopyRecordInterface,
+  CopyTagged,
+  CopyTaggedInterface,
+  Passable,
+  PassableCap,
+  PassStyle,
+} from './types.js';
 import { PASS_STYLE } from './passStyle-helpers.js';
 import { passableSymbolForName } from './symbol.js';
 
@@ -26,6 +35,15 @@ expectType<'promise'>(passStyleOf(Promise.resolve()));
 expectType<'error'>(passStyleOf(new Error()));
 expectType<'tagged'>(passStyleOf(copyTagged));
 expectType<'copyArray'>(passStyleOf([]));
+// readonly / `as const` arrays classify as copyArray
+expectType<'copyArray'>(passStyleOf([1, 2, 3] as const));
+const roArr: readonly number[] = [1, 2, 3];
+expectType<'copyArray'>(passStyleOf(roArr));
+
+// The three container interfaces are exported and usable as types.
+expectAssignable<CopyArrayInterface<PassableCap, Error>>([1, 'two', null]);
+expectAssignable<CopyRecordInterface<PassableCap, Error>>({ a: 1, b: 'two' });
+expectAssignable<CopyTaggedInterface<PassableCap, Error>>(copyTagged);
 expectType<'copyRecord'>(passStyleOf({}));
 // though the object is specifying a PASS_STYLE, it doesn't match the case for extracting it
 expectType<'copyRecord'>(passStyleOf({ [PASS_STYLE]: 'arbitrary' } as const));
