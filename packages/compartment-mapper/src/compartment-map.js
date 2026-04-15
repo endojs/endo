@@ -182,9 +182,7 @@ const getModuleConfigurationSpecificProperties = allegedModule => {
     ...other
   } = allegedModule;
   return /** @type {Omit<T, keyof BaseModuleConfiguration>} */ (
-    Object.fromEntries(
-      entries(other).filter(([key]) => !key.startsWith('_')),
-    )
+    Object.fromEntries(entries(other).filter(([key]) => !key.startsWith('_')))
   );
 };
 

@@ -7,8 +7,8 @@ import * as url from 'url';
 import * as crypto from 'crypto';
 import harden from '@endo/harden';
 import bundleSource from '@endo/bundle-source';
-import { ZipWriter } from '@endo/zip';
-import { encodeBase64 } from '@endo/base64';
+import { ZipReader, ZipWriter } from '@endo/zip';
+import { decodeBase64, encodeBase64 } from '@endo/base64';
 import { checkBundle } from '../lite.js';
 import {
   checkBundleBytes,
@@ -116,6 +116,19 @@ test('bundle and hash bogus package', async t => {
   await t.throwsAsync(checkBundle(bundle, computeSha512, 'fixture/main.js'), {
     message: `checkBundle cannot determine hash of bundle with unrecognized moduleFormat "bogus"`,
   });
+});
+
+test('freshly bundled source passes check', async t => {
+  const bundle = await bundleSource(fixture, 'endoZipBase64');
+  // Verify that underscore-prefixed internal properties like __createdBy
+  // do not appear in the serialized compartment map.
+  const bytes = decodeBase64(bundle.endoZipBase64);
+  const { files } = new ZipReader(bytes);
+  const compartmentMapBytes = files.get('compartment-map.json').content;
+  const compartmentMapText = new TextDecoder().decode(compartmentMapBytes);
+  t.notRegex(compartmentMapText, /__createdBy/);
+  // The bundle must also pass checkBundle validation.
+  await checkBundle(bundle, computeSha512, 'fixture/main.js');
 });
 
 test('empty bundle is invalid', async t => {
