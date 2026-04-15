@@ -177,12 +177,15 @@ const assertConditions = (conditions, url) => {
  */
 const getModuleConfigurationSpecificProperties = allegedModule => {
   const {
-    __createdBy: _createdBy,
     retained: _retained,
     deferredError: _deferredError,
     ...other
   } = allegedModule;
-  return other;
+  return /** @type {Omit<T, keyof BaseModuleConfiguration>} */ (
+    Object.fromEntries(
+      entries(other).filter(([key]) => !key.startsWith('_')),
+    )
+  );
 };
 
 /**
