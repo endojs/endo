@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-04-14 |
-| **Updated** | 2026-04-16 |
+| **Updated** | 2026-04-15 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -715,6 +715,7 @@ flushes the outbound debug buffer.
 | `packages/daemon/src/debug-session.js` | xsbug XML SAX parser and structured API |
 | `packages/daemon/src/debugger.js` | Debugger exo (CapTP-remotable debug controller) |
 | `packages/daemon/test/debugger-captp.test.js` | 16 CapTP debugger integration tests |
+| `packages/chat/debugger-panel.js` | Chat debugger panel UI component |
 
 ### Modified files
 
@@ -735,6 +736,11 @@ flushes the outbound debug buffer.
 | `packages/daemon/src/bus-xs-core.js` | Add `sendDebug(payload)` helper |
 | `packages/daemon/src/daemon.js` | Debugger formula type; `attachDebugger()` method |
 | `packages/daemon/src/types.d.ts` | Add Debugger, DebugSession, BreakEvent, Frame, Property types |
+| `packages/chat/chat.js` | Add debugger panel backdrop and container divs |
+| `packages/chat/chat-bar-component.js` | Import debugger panel, wire `openDebugger` callback |
+| `packages/chat/command-registry.js` | Add `/debug` command definition |
+| `packages/chat/command-executor.js` | Add `openDebugger` callback and `debug` case handler |
+| `packages/chat/index.css` | Add ~460 lines of debugger panel styles |
 
 ## Implementation phases
 
@@ -809,15 +815,29 @@ flushes the outbound debug buffer.
    stepping, frame/local/global inspection, eval, exception
    break mode, nested property trees, full lifecycle.
 
-### Phase 6: UI
+### Phase 6: Chat debugger panel (done — UI shell)
 
-1. Build a weblet debug panel (source view, frames, locals,
-   controls).
-2. Integrate profiling output (Chrome DevTools format).
-3. The debugger is accessed via the gateway — no separate CLI
-   command.
-   Chat, Familiar, or any CapTP peer with authority can call
-   `E(daemon).attachDebugger(workerName)`.
+1. Created `packages/chat/debugger-panel.js` — modal overlay
+   with toolbar (Go/Step/StepIn/StepOut/Abort, exception mode
+   selector), split body (call stack sidebar + variable tree |
+   break location + breakpoint management + eval console).
+2. Property tree renderer with expandable disclosure triangles
+   for nested object properties.
+3. Added `/debug <worker-name>` command to command registry and
+   executor — calls `E(powers).attachDebugger(...workerPath)`.
+4. Wired panel into `chat.js` template and
+   `chat-bar-component.js` (lazy-initialized on first use).
+5. Added ~460 lines of debugger panel CSS.
+6. Keyboard shortcuts: F8 (go), F10 (step over), F11 (step in),
+   Shift+F11 (step out), Esc (close).
+
+**Remaining:**
+- The host does not yet expose `attachDebugger` over CapTP —
+  the `/debug` command will produce a CapTP method-not-found
+  error until that is wired.
+- `followBreaks` async iterator for live break notification.
+- Source view with breakpoint gutters.
+- Profiling output (Chrome DevTools `.cpuprofile` format).
 
 ## Design decisions
 
