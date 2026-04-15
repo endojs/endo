@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-04-14 |
-| **Updated** | 2026-04-15 |
+| **Updated** | 2026-04-16 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -26,15 +26,21 @@ The Rust build compiles `xsDebug.c` but does **not** define
 
 This design enables XS debugging in Endo by:
 
-1. Activating `mxDebug` in the Rust build (conditionally, behind a
-   cargo feature flag).
+1. Activating `mxDebug` in the Rust build.
+   In dev/self-hosted environments, `mxDebug` is always defined so
+   that every worker carries the debug machinery.
+   Debug is **dormant** by default — the debug hooks are no-ops
+   until explicitly activated per-worker.
 2. Replacing XS's socket/pipe debug transport with Rust host
    functions that route debug traffic through the existing worker
    bus envelope protocol.
-3. Exposing the debugger as an Endo capability (`Debugger` exo) so
+3. Providing hot-attach: the daemon can activate debugging on any
+   running worker by sending a `"debug-attach"` envelope, with no
+   restart required.
+4. Exposing the debugger as an Endo capability (`Debugger` exo) so
    that one worker (or the daemon itself) can debug another worker
    over CapTP.
-4. Providing a web-facing API so that Chat or Familiar can drive
+5. Providing a web-facing API so that Chat or Familiar can drive
    the debugger from a UI.
 
 ### Use cases
@@ -121,6 +127,28 @@ to process one round of debug I/O.
 - The `XsMachine` FFI struct does not expose `debugBuffer`,
   `echoBuffer`, or `connection` fields to Rust.
 
+### Design principle: always compiled, dormant by default
+
+In dev/self-hosted environments, `mxDebug` and `mxInstrument`
+are always defined at compile time.
+This means every worker binary carries the XS debug subsystem.
+However, the debug hooks (`fxConnect`, `fxIsConnected`, etc.)
+start as no-ops — `debug_enable()` is never called until a
+`"debug-attach"` envelope arrives for a specific worker.
+
+This avoids the need for two separate binaries (debug vs
+release) and allows any running worker to become debuggable
+on demand.
+The cost is a modest increase in binary size and a negligible
+per-instruction branch (the `mxDebug` bookkeeping checks
+`fxIsConnected`, which returns false when dormant).
+
+A cargo feature `debug` gates the compile-time flag for
+environments where binary size matters (e.g., production
+deployments).
+When the feature is off, `mxDebug` is not defined and debug
+code is compiled out entirely.
+
 ## Architecture
 
 ### Option A: XML pass-through (recommended)
@@ -174,8 +202,9 @@ Fork `xsDebug.c` to emit JSON instead of XML.
 
 #### Compile-time changes
 
-Add a cargo feature `debug` that defines `mxDebug` and
-`mxInstrument` when building XS:
+A cargo feature `debug` defines `mxDebug` and `mxInstrument`
+when building XS.
+In dev/self-hosted builds this feature is always enabled:
 
 ```toml
 # rust/endo/xsnap/Cargo.toml
@@ -191,9 +220,12 @@ if cfg!(feature = "debug") {
 }
 ```
 
-When the `debug` feature is off (default), everything compiles
-exactly as today.
-When on, XS activates its full debug subsystem.
+When the `debug` feature is off, `mxDebug` is not defined and
+all debug code is compiled out (for production/size-constrained
+deployments).
+When on (the expected default for development), XS activates
+its full debug subsystem but the hooks remain dormant until
+`debug_enable()` is called for a specific worker.
 
 #### Platform function implementations
 
@@ -531,10 +563,11 @@ for await (const event of breaks) {
 }
 ```
 
-The daemon creates a `Debugger` exo when a worker is spawned
-with debug mode enabled.
+The daemon creates a `Debugger` exo when `attachDebugger` is
+called for a worker.
 It is stored as a formula and given a pet name in the host's
 namespace (e.g., `@debug:worker-42`).
+When the debugger is detached, the formula is revoked.
 
 ### Layer 5: Gateway and UI integration
 
@@ -544,11 +577,12 @@ The Debugger exo is a normal CapTP capability.
 Chat or Familiar can receive it via the same mechanisms as any
 other capability:
 
-1. The user names the debug capability:
-   `endo name my-debug @debug:worker-42`
-2. A Chat agent can receive it via `E(powers).lookup('my-debug')`.
-3. Familiar can render a debug panel backed by `E(ref).getFrames()`
-   etc.
+1. The user attaches a debugger:
+   `const dbg = await E(daemon).attachDebugger('my-worker')`
+2. A Chat agent can receive the debugger reference via
+   `E(powers).lookup('@debug:my-worker')`.
+3. Familiar can render a debug panel backed by
+   `E(dbg).getFrames()` etc.
 
 #### Web debugger panel
 
@@ -563,38 +597,49 @@ The weblet communicates with the daemon via the gateway
 WebSocket.
 Each UI action is a single `E(debugger).method()` call.
 
-### Layer 6: Debug-mode worker spawning
+### Layer 6: Hot-attach debugging
 
-Workers are not debuggable by default.
-A new spawn option enables debug mode:
+All workers compiled with `mxDebug` carry the debug subsystem
+but start with debugging dormant.
+The daemon activates debugging on a specific worker by sending
+a `"debug-attach"` envelope:
 
 ```js
-// In the daemon's worker spawning code:
-const worker = await provideWorker(formula, {
-  debug: true,  // Enable xsbug protocol for this worker
-});
+// In the daemon, when a user requests debugging a worker:
+const debugger = await attachDebugger(workerHandle);
 ```
 
-When `debug: true`:
-1. The Rust supervisor sets up the debug callback hooks before
-   creating the XS machine.
-2. The daemon creates a `Debugger` exo and formula for the worker.
-3. The worker's event loop includes debug I/O polling.
+The attach flow:
 
-When `debug: false` (default):
-1. No debug callbacks are installed.
-2. No `fxRunDebugger` calls in the event loop.
-3. Zero overhead — identical to today's behavior.
+1. The daemon sends a `"debug-attach"` envelope to the worker's
+   supervisor handle.
+2. The Rust supervisor calls `debug_enable()` for the worker's
+   thread, activating the debug hooks.
+3. XS calls `fxConnect` on the next `fxRunDebugger` cycle,
+   which now returns true from `fxIsConnected`.
+4. XS emits a `<login>` response with the machine name and tag.
+5. The daemon receives the login, creates a `Debugger` exo and
+   formula for the worker, and returns the debugger capability.
 
-A CLI command enables debug mode:
+Detaching:
 
+1. The daemon sends a `"debug-detach"` envelope (or the
+   Debugger exo is dropped/revoked).
+2. The Rust supervisor calls `debug_reset()`, returning the
+   hooks to dormant no-ops.
+3. XS calls `fxDisconnect` and resumes normal execution.
+
+There is no `endo debug` CLI command.
+The primary entry point is the daemon's `attachDebugger` method,
+callable from any CapTP peer — the gateway, Chat, Familiar, or
+another worker with sufficient authority.
+
+```js
+// From Chat or a controlling worker:
+const debugRef = await E(daemon).attachDebugger('my-worker');
+await E(debugRef).setBreakpoint('main.js', 42);
+await E(debugRef).go();
 ```
-endo debug <worker-pet-name>
-```
-
-This could either restart the worker in debug mode or (if the
-worker is already running with debug compiled in) attach a
-debugger to it dynamically.
 
 ## Envelope protocol changes
 
@@ -610,18 +655,34 @@ debugger to it dynamically.
 Same routing as `"deliver"` — the supervisor passes it through
 with handle rewriting.
 
-### New verb: `debug-attach` (optional, Phase 2)
+### New verb: `debug-attach`
 
-For dynamic attach to already-running workers:
+Activates dormant debug hooks on a running worker:
 
 | Field | Value |
 |-------|-------|
-| handle | 0 (to supervisor control) |
+| handle | Worker handle |
 | verb | `"debug-attach"` |
-| payload | CBOR `{workerHandle: H}` |
+| payload | Empty (or CBOR options) |
 | nonce | request nonce |
 
-Response: `"debug-attached"` or `"error"`.
+The Rust supervisor calls `debug_enable()` for the worker
+thread, then responds with a `"debug-attached"` envelope.
+Once attached, the worker starts participating in the `"debug"`
+verb exchange.
+
+### New verb: `debug-detach`
+
+Deactivates debug hooks and returns the worker to dormant state:
+
+| Field | Value |
+|-------|-------|
+| handle | Worker handle |
+| verb | `"debug-detach"` |
+| payload | Empty |
+| nonce | request nonce |
+
+Response: `"debug-detached"`.
 
 ## Host function changes
 
@@ -649,8 +710,11 @@ flushes the outbound debug buffer.
 | File | Purpose |
 |------|---------|
 | `rust/endo/xsnap/src/powers/debug.rs` | Debug I/O buffers, C callbacks, host functions |
+| `rust/endo/xsnap/src/cesu8.rs` | CESU-8 ↔ UTF-8 codec for XS string round-tripping |
+| `rust/endo/xsnap/src/debug_protocol_tests.rs` | 11 Rust-level debug protocol integration tests |
 | `packages/daemon/src/debug-session.js` | xsbug XML SAX parser and structured API |
 | `packages/daemon/src/debugger.js` | Debugger exo (CapTP-remotable debug controller) |
+| `packages/daemon/test/debugger-captp.test.js` | 16 CapTP debugger integration tests |
 
 ### Modified files
 
@@ -665,78 +729,107 @@ flushes the outbound debug buffer.
 | `rust/endo/xsnap/src/ffi.rs` | Add `fxRunDebugger`, `fxSetDebugCallbacks`, `fxDescribeInstrumentation`, `fxSampleInstrumentation` FFI declarations |
 | `rust/endo/xsnap/src/worker_io.rs` | Add debug envelope handling in message pump |
 | `rust/endo/xsnap/src/host_aliases.js` | Add `debugPoll` alias |
-| `rust/endo/src/inproc.rs` | Route `"debug"` verb same as `"deliver"` |
-| `rust/endo/src/proc.rs` | Route `"debug"` verb same as `"deliver"` |
-| `packages/daemon/src/bus-daemon-rust-xs.js` | Handle `"debug"` envelopes; create DebugSession per worker |
+| `rust/endo/src/inproc.rs` | Route `"debug"` / `"debug-attach"` / `"debug-detach"` verbs |
+| `rust/endo/src/proc.rs` | Route `"debug"` / `"debug-attach"` / `"debug-detach"` verbs |
+| `packages/daemon/src/bus-daemon-rust-xs.js` | Handle `"debug"` envelopes; create DebugSession per worker; `attachDebugger` |
 | `packages/daemon/src/bus-xs-core.js` | Add `sendDebug(payload)` helper |
-| `packages/daemon/src/daemon.js` | Debugger formula type; `provideDebugger()` |
+| `packages/daemon/src/daemon.js` | Debugger formula type; `attachDebugger()` method |
 | `packages/daemon/src/types.d.ts` | Add Debugger, DebugSession, BreakEvent, Frame, Property types |
 
 ## Implementation phases
 
-### Phase 1: Compile-time debug support
+### Phase 1: Compile-time debug support (done)
 
 1. Add `debug` cargo feature to `Cargo.toml`.
 2. Update `build.rs` to define `mxDebug` and `mxInstrument`
    conditionally.
-3. Replace `mxUseDefaultDebug` in `xsnap-platform.h` with `0`.
+3. Replace `mxUseDefaultDebug` in `xsnap-platform.h` with `0`
+   when `mxDebug` is defined.
 4. Implement `fxConnect`/`fxDisconnect`/`fxIsConnected`/
    `fxIsReadable`/`fxReceive`/`fxSend` in `xsnap-platform.c`
-   using the Rust callback pattern.
-5. Add `fxSetDebugCallbacks` export.
-6. Add FFI declarations to `ffi.rs`.
-7. Create `powers/debug.rs` with buffer management and callback
+   calling extern Rust functions.
+5. Add `fxRunDebugger` FFI declaration to `ffi.rs`.
+6. Create `powers/debug.rs` with thread-local `DebugState`,
+   buffer management, and `#[no_mangle] extern "C"` callback
    implementations.
-8. Add `Machine::run_debugger()` method.
+7. Add `Machine::run_debugger()` method.
+8. Add weak-symbol platform supplement for prebuilt libxs.a
+   compatibility.
 9. **Test**: Build with `cargo build --features debug`.
-   Create a machine, install debug callbacks, call
-   `run_debugger()` — verify `<login>` XML appears in the
-   outbound buffer.
+   Create a machine, call `run_debugger()` — verify `<login>`
+   XML appears in the outbound buffer.
 
-### Phase 2: Bus protocol integration
+### Phase 2: Bus protocol integration (done)
 
-1. Add `"debug"` verb routing in `proc.rs` and `inproc.rs` (same
-   as `"deliver"` pass-through).
-2. Update worker event loop to poll debug I/O and handle `"debug"`
-   envelopes.
+1. Verify `"debug"` verb passes through `proc.rs` and
+   `inproc.rs` (existing envelope routing handles it).
+2. Update worker event loop to intercept `"debug"` envelopes
+   and route to debug buffers.
 3. Add `debugPoll` host function and alias.
-4. **Test**: Spawn a debug-enabled worker, send
-   `<set-breakpoint path="test" line="1"/>` via the bus, verify
-   the worker processes it without crashing.
+4. Add `flush_debug_outbound()` and `handle_envelope()` helpers
+   in `lib.rs`.
+5. **Test**: Send debug commands via the bus, verify the worker
+   processes them and returns responses.
 
-### Phase 3: DebugSession JS client
+### Phase 3: DebugSession JS client (done)
 
-1. Write `debug-session.js` with SAX parser and structured API.
-2. Add `"debug"` envelope handler in `bus-daemon-rust-xs.js`.
+1. Write `debug-session.js` with hand-written SAX parser
+   (Jessie-compatible) and structured API.
+2. Add `DebugSession`, `BreakEvent`, `Frame`, `Property` types
+   to `types.d.ts`.
 3. **Test**: Unit test the SAX parser against captured xsbug XML.
-   Integration test: spawn debug worker, set breakpoint, eval
-   code, verify break event arrives.
 
-### Phase 4: Debugger exo and formula
+### Phase 4: Hot-attach and daemon integration (done)
 
-1. Write `debugger.js` with `makeExo` and `M.interface`.
-2. Add `debugger` formula type to `daemon.js`.
-3. Add `followBreaks` async iterator.
-4. Wire `debug: true` option into worker provisioning.
-5. **Test**: Provision a debug worker, look up its debugger
-   capability, call `step()` / `getFrames()` over CapTP.
+1. Add `"debug-attach"` and `"debug-detach"` envelope handling
+   in the Rust supervisor (`handle_envelope` in `lib.rs`).
+2. Add `"debug"`, `"debug-attached"`, `"debug-detached"` envelope
+   handlers in `bus-daemon-rust-xs.js` to route responses to the
+   appropriate `DebugSession`.
+3. Implement `attachDebugger(workerHandle)` and
+   `detachDebugger(workerHandle)` in the daemon bus.
+4. Add `send_control_response` helper for `"debug-attached"` /
+   `"debug-detached"` acknowledgement envelopes.
+5. Add CESU-8 codec (`cesu8.rs`) and unify all XS string
+   conversions (`arg_str`, `set_result_string`, `xs_string_to_utf8`,
+   `host_decode_utf8`) to use it.
+6. **Test**: 11 Rust debug protocol tests (breakpoints, stepping,
+   stack/variable/heap inspection, eval, detach).
+   All tests verified passing (skip on prebuilt libxs.a).
 
-### Phase 5: CLI and UI
+### Phase 5: Debugger exo and CapTP integration (done)
 
-1. Add `endo debug <name>` CLI command.
-2. Build a weblet debug panel (source view, frames, locals,
+1. Write `debugger.js` with `makeExo` and `M.interface`
+   (`DebuggerInterface`).
+2. `attachDebugger` returns a Debugger exo (remotable over CapTP)
+   instead of a raw DebugSession.
+3. Add `Debugger` interface type to `types.d.ts`.
+4. **Test**: 16 CapTP integration tests exercising the Debugger
+   exo over a `makeLoopback` CapTP channel — breakpoints,
+   stepping, frame/local/global inspection, eval, exception
+   break mode, nested property trees, full lifecycle.
+
+### Phase 6: UI
+
+1. Build a weblet debug panel (source view, frames, locals,
    controls).
-3. Integrate profiling output (Chrome DevTools format).
+2. Integrate profiling output (Chrome DevTools format).
+3. The debugger is accessed via the gateway — no separate CLI
+   command.
+   Chat, Familiar, or any CapTP peer with authority can call
+   `E(daemon).attachDebugger(workerName)`.
 
 ## Design decisions
 
-1. **Cargo feature flag, not runtime toggle.**
-   `mxDebug` is a compile-time flag in XS.
-   We cannot enable it at runtime without recompiling.
-   The `debug` cargo feature keeps the default binary lean
-   (no debug overhead) while allowing debug builds.
-   A future enhancement could ship both binaries and select at
-   spawn time.
+1. **Always compiled, dormant by default.**
+   In dev/self-hosted environments, `mxDebug` is always defined
+   so every worker carries the debug subsystem.
+   Debug is dormant — the hooks are no-ops until
+   `"debug-attach"` activates a specific worker.
+   This eliminates the need for two binaries and allows any
+   running worker to become debuggable on demand.
+   A cargo feature `debug` can gate `mxDebug` for production
+   deployments where binary size matters.
 
 2. **XML pass-through, not translation.**
    The xsbug protocol is stable, well-tested, and complete.
@@ -777,15 +870,13 @@ flushes the outbound debug buffer.
 
 ## Known limitations
 
-- **Debug builds are larger and slower.**
+- **Dev builds are slightly larger.**
   `mxDebug` adds bookkeeping to every bytecode instruction.
-  Debug workers should only be used when actively debugging.
-
-- **No hot-attach to running workers.**
-  Phase 1 requires the worker to be spawned with debug mode.
-  Dynamic attach (Phase 2's `debug-attach` verb) requires the
-  worker to already have been compiled with `mxDebug`.
-  This means the entire `endor` binary must be the debug variant.
+  When dormant (not attached), the overhead is a single
+  `fxIsConnected` check per debug point (returns false
+  immediately), which is negligible.
+  When active, the debug subsystem adds measurable overhead
+  — but that is expected during interactive debugging.
 
 - **SAX parser in SES.**
   The `DebugSession` SAX parser runs inside a locked-down SES
@@ -801,6 +892,12 @@ flushes the outbound debug buffer.
   returning to the caller.
   For very long profiles, streaming would be better but is
   deferred.
+
+- **Production deployments.**
+  Production builds should disable the `debug` cargo feature
+  to compile out `mxDebug` entirely, removing the binary size
+  and branch overhead.
+  Hot-attach is not available on production builds.
 
 ## Augmentation: Break on Uncaught Exceptions Only
 
