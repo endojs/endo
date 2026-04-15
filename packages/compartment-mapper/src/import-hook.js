@@ -9,7 +9,15 @@
  *
  * @module
  */
-
+import { asyncTrampoline, syncTrampoline } from '@endo/trampoline';
+import { resolve } from './node-module-specifier.js';
+import {
+  attenuateModuleHook,
+  enforcePolicyByModule,
+  enforcePackagePolicyByCanonicalName,
+} from './policy.js';
+import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
+import { unpackReadPowers } from './powers.js';
 /**
  * @import {
  *   ImportHook,
@@ -43,18 +51,19 @@
  *   CanonicalName,
  *   LocalModuleSource,
  *   ModuleSourceHook,
+ *   ParseFn,
+ *   AsyncParseFn,
  * } from './types.js'
  */
 
-import { asyncTrampoline, syncTrampoline } from '@endo/trampoline';
-import { resolve } from './node-module-specifier.js';
-import {
-  attenuateModuleHook,
-  enforcePolicyByModule,
-  enforcePackagePolicyByCanonicalName,
-} from './policy.js';
-import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
-import { unpackReadPowers } from './powers.js';
+/**
+ * Type guard that narrows a `ParseFn | AsyncParseFn` to `ParseFn` by checking
+ * for the `isSyncParser` flag.
+ *
+ * @param {ParseFn | AsyncParseFn} parse
+ * @returns {parse is ParseFn}
+ */
+const isSyncParseFn = parse => 'isSyncParser' in parse && !!parse.isSyncParser;
 
 // q, as in quote, for quoting strings in error messages.
 const { quote: q } = assert;
@@ -324,8 +333,7 @@ const executeLocalModuleSourceHook = (
  * {@link StaticModuleType} for a particular {@link CompartmentDescriptor} (or
  * `undefined`).
  *
- * Supports both {@link SyncChooseModuleDescriptorOperators sync} and
- * {@link AsyncChooseModuleDescriptorOperators async} operators.
+ * Supports both sync and async operators.
  *
  * Used by both {@link makeImportNowHookMaker} and {@link makeImportHookMaker}.
  *
@@ -839,13 +847,14 @@ export function makeImportNowHookMaker(
       }
     };
 
-    if (!('isSyncParser' in parse)) {
+    if (!isSyncParseFn(parse)) {
       return function impossibleTransformImportNowHook() {
         throw new Error(
           'Dynamic requires are only possible with synchronous parsers and no asynchronous module transforms in options',
         );
       };
     }
+    const /** @type {ParseFn} */ syncParse = parse;
 
     const compartmentDescriptor =
       compartmentDescriptors[packageLocation] || create(null);
@@ -924,7 +933,7 @@ export function makeImportNowHookMaker(
           },
           {
             maybeRead: maybeReadNow,
-            parse,
+            parse: syncParse,
             shouldDeferError,
           },
         );
