@@ -1,0 +1,113 @@
+{
+  "name": "@endo/parser-pipeline",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Composable AST pipeline for JavaScript module analysis and transformation",
+  "repository": {
+    "directory": "packages/parser-pipeline",
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/parser-pipeline#readme",
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ],
+  "keywords": [
+    "parser",
+    "pipeline",
+    "babel",
+    "transform",
+    "analysis",
+    "module",
+    "source",
+    "esm",
+    "endo",
+    "cjs",
+    "commonjs",
+    "mjs"
+  ],
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "postpack": "git clean -fX -e node_modules/",
+    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:xs": "exit 0"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.28.3",
+    "@babel/parser": "~7.28.3",
+    "@babel/traverse": "~7.28.3",
+    "@endo/compartment-mapper": "workspace:^",
+    "@endo/module-source": "workspace:^",
+    "ses": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/lockdown": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "@types/babel__generator": "~7.27.0",
+    "@types/babel__traverse": "~7.28.0",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "tsd": "catalog:dev",
+    "typescript": "~5.9.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "overrides": [
+      {
+        "files": "**/*.ts",
+        "rules": {
+          "no-use-before-define": "off"
+        }
+      }
+    ],
+    "rules": {
+      "jsdoc/check-tag-names": [
+        "error",
+        {
+          "definedTags": [
+            "privateRemarks",
+            "groupDescription",
+            "group",
+            "defaultValue"
+          ]
+        }
+      ]
+    }
+  }
+}
