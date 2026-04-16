@@ -70,7 +70,6 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['formulateMount']} args.formulateMount
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
- * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
  * @param {DaemonCore['formulateDirectoryForStore']} args.formulateDirectoryForStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
@@ -83,7 +82,7 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {NodeNumber} args.localNodeNumber
  * @param {(node: string) => boolean} args.isLocalKey
  * @param {DaemonCore['getAgentIdForHandleId']} args.getAgentIdForHandleId
- * @param {() => Promise<void>} [args.collectIfDirty]
+ * @param {(publicKey: string, daemonNode: string) => void} [args.writeRemoteAgentKey]
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @param {DaemonCore['getFormulaGraphSnapshot']} [args.getFormulaGraphSnapshot]
@@ -104,7 +103,6 @@ export const makeHostMaker = ({
   formulateMount,
   formulateScratchMount,
   formulateInvitation,
-  formulateSyncedPetStore,
   formulateDirectoryForStore,
   getPeerIdForNodeIdentifier,
   formulateChannel,
@@ -117,7 +115,10 @@ export const makeHostMaker = ({
   localNodeNumber,
   isLocalKey,
   getAgentIdForHandleId,
-  collectIfDirty = async () => {},
+  writeRemoteAgentKey = /** @param {string} _pk @param {string} _dn */ (
+    _pk,
+    _dn,
+  ) => {},
   pinTransient = /** @param {any} _id */ _id => {},
   unpinTransient = /** @param {any} _id */ _id => {},
   getFormulaGraphSnapshot = /** @param {any[]} _ids */ async _ids =>
@@ -127,7 +128,6 @@ export const makeHostMaker = ({
    * @param {FormulaIdentifier} hostId
    * @param {FormulaIdentifier} handleId
    * @param {FormulaIdentifier | undefined} hostHandleId
-   * @param {FormulaIdentifier} keypairId
    * @param {NodeNumber} agentNodeNumber
    * @param {(message: Uint8Array) => Uint8Array} agentSignBytes
    * @param {FormulaIdentifier} storeId
@@ -146,7 +146,6 @@ export const makeHostMaker = ({
     hostId,
     handleId,
     hostHandleId,
-    keypairId,
     agentNodeNumber,
     agentSignBytes,
     storeId,
@@ -177,7 +176,6 @@ export const makeHostMaker = ({
       '@agent': hostId,
       '@self': handleId,
       '@host': hostHandleId ?? handleId,
-      '@keypair': keypairId,
       '@main': mainWorkerId,
       '@endo': endoId,
       '@nets': networksDirectoryId,
@@ -299,7 +297,7 @@ export const makeHostMaker = ({
       );
 
       const { id } = await formulateMarshalValue(value, tasks, pinTransient);
-      unpinTransient(id);
+      await unpinTransient(id);
     };
 
     /**
@@ -426,11 +424,12 @@ export const makeHostMaker = ({
       if (resultName === undefined) {
         // Ephemeral eval: the formula was pinned inside formulateEval
         // (inside the lock) so concurrent collection can't reclaim it.
-        // Unpin after the value resolves.
+        // Unpin after the value resolves and drain any resulting
+        // collection cleanup (worker termination, etc.).
         try {
           return await value;
         } finally {
-          unpinTransient(id);
+          await unpinTransient(id);
         }
       }
       return value;
@@ -822,127 +821,102 @@ export const makeHostMaker = ({
     const accept = async (invitationLocator, guestName) => {
       assertPetName(guestName);
       const url = new URL(invitationLocator);
-      const nodeNumber = url.hostname;
+      const daemonNode = url.hostname;
       const invitationNumber = url.searchParams.get('id');
       const remoteHandleNumber = url.searchParams.get('from');
+      // The remote handle's node may differ from the daemon node when
+      // agent keys are used as formula nodes.
+      const remoteHandleNodeParam = url.searchParams.get('fromNode');
       const addresses = url.searchParams.getAll('at');
 
-      nodeNumber || assert.Fail`Invitation must have a hostname`;
+      daemonNode || assert.Fail`Invitation must have a hostname`;
       if (!remoteHandleNumber) {
         throw makeError(`Invitation must have a "from" parameter`);
       }
       if (invitationNumber === null) {
         throw makeError(`Invitation must have an "id" parameter`);
       }
-      assertNodeNumber(nodeNumber);
+      assertNodeNumber(daemonNode);
       assertFormulaNumber(remoteHandleNumber);
       assertFormulaNumber(invitationNumber);
 
       /** @type {PeerInfo} */
       const peerInfo = {
-        node: nodeNumber,
+        node: daemonNode,
         addresses,
       };
       // eslint-disable-next-line no-use-before-define
       await addPeerInfo(peerInfo);
 
+      // Register the remote agent key so we can route to its daemon.
+      if (remoteHandleNodeParam && remoteHandleNodeParam !== daemonNode) {
+        writeRemoteAgentKey(remoteHandleNodeParam, daemonNode);
+      }
+
       const invitationId = formatId({
         number: invitationNumber,
-        node: nodeNumber,
+        node: daemonNode,
       });
 
-      const { number: handleNumber } = parseId(handleId);
+      const { number: handleNumber, node: handleNode } = parseId(handleId);
       // eslint-disable-next-line no-use-before-define
       const { addresses: hostAddresses } = await getPeerInfo();
       const handleUrl = new URL('endo://');
-      handleUrl.hostname = agentNodeNumber;
+      handleUrl.hostname = localNodeNumber;
       handleUrl.searchParams.set('id', handleNumber);
+      // Include the handle's node if it differs from the daemon node
+      // (i.e. it uses an agent key).
+      if (handleNode !== localNodeNumber) {
+        handleUrl.searchParams.set('handleNode', handleNode);
+      }
       for (const address of hostAddresses) {
         handleUrl.searchParams.append('at', address);
       }
       const handleLocator = handleUrl.href;
 
       const invitation = await provide(invitationId, 'invitation');
-      const acceptResult = await E(invitation).accept(handleLocator, guestName);
+      await E(invitation).accept(handleLocator, guestName);
 
-      // The host's accept handler returns the synced store number.
-      const { syncedStoreNumber } =
-        /** @type {{ syncedStoreNumber: import('./types.js').FormulaNumber }} */ (
-          acceptResult
-        );
-
-      // Create a synced-pet-store (grantee role) paired with the host's store.
-      const peerId = await getPeerIdForNodeIdentifier(
-        /** @type {import('./types.js').NodeNumber} */ (nodeNumber),
-      );
-      const { id: syncedStoreId } = await formulateSyncedPetStore(
-        peerId,
-        'grantee',
-        /** @type {import('./types.js').FormulaNumber} */ (syncedStoreNumber),
-        peerId, // store dependency
-      );
-
-      // Create a local guest backed by the synced store.
+      // Create a local guest with a regular pet store.
+      // Pin the guest handle via deferred task to prevent premature
+      // collection, then store the durable name after the lock releases.
       /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
       const guestTasks = makeDeferredTasks();
+      guestTasks.push(async identifiers => pinTransient(identifiers.handleId));
       const { id: localGuestId } = await formulateGuest(
         hostId,
         handleId,
         guestTasks,
         `guest:${guestName}`,
-        syncedStoreId,
       );
 
       // Look up the local guest's handle from its formula so we can
       // name it.  Incarnating the handle transitively incarnates the
-      // guest and its synced pet store, starting synchronisation.
+      // guest.
       const localGuestFormula =
         /** @type {import('./types.js').GuestFormula} */ (
           await getFormulaForId(localGuestId)
         );
+
+      // Store the durable name and release the transient pin.
       await E(directory).storeIdentifier(
         ['@pins', `guest-${guestName}`],
         localGuestFormula.handle,
       );
+      await unpinTransient(localGuestFormula.handle);
 
       // Store the remote handle under guestName for mail delivery.
+      // Use the handle's actual node (which may be an agent key) if
+      // provided, falling back to the daemon node.
+      const remoteHandleNode = remoteHandleNodeParam || daemonNode;
       const remoteHandleId = formatId({
         number: /** @type {import('./types.js').FormulaNumber} */ (
           remoteHandleNumber
         ),
-        node: /** @type {import('./types.js').NodeNumber} */ (nodeNumber),
+        node: /** @type {import('./types.js').NodeNumber} */ (remoteHandleNode),
       });
       const remoteHandleLocator = formatLocator(remoteHandleId, 'handle');
       await E(directory).storeLocator([guestName], remoteHandleLocator);
-    };
-
-    /** @type {EndoHost['registerSyncedStore']} */
-    const registerSyncedStore = async (_petName, _syncedStoreId) => {
-      // No-op: the synced store is now discovered via the formula
-      // graph (guest handle → guest → petStore).  Retained for
-      // interface compatibility.
-    };
-
-    /** @type {EndoHost['getSyncedStore']} */
-    const getSyncedStore = async petName => {
-      // Traverse the formula graph:
-      // @pins/guest-<name> → local guest handle
-      //   → handle formula.agent → guest formula
-      //     → guest formula.petStore → synced store
-      const localHandleId = await E(directory).identify(
-        '@pins',
-        `guest-${petName}`,
-      );
-      if (localHandleId === undefined) {
-        throw new Error(`No synced store for ${q(petName)}`);
-      }
-      const handleFormula = /** @type {import('./types.js').HandleFormula} */ (
-        await getFormulaForId(/** @type {FormulaIdentifier} */ (localHandleId))
-      );
-      const guestFormula = /** @type {import('./types.js').GuestFormula} */ (
-        await getFormulaForId(handleFormula.agent)
-      );
-      return provide(guestFormula.petStore, 'synced-pet-store');
     };
 
     /** @type {EndoHost['cancel']} */
@@ -994,7 +968,7 @@ export const makeHostMaker = ({
     const getPeerInfo = async () => {
       const addresses = await getAllNetworkAddresses(networksDirectoryId);
       const peerInfo = {
-        node: agentNodeNumber,
+        node: localNodeNumber,
         addresses,
       };
       return peerInfo;
@@ -1236,8 +1210,6 @@ export const makeHostMaker = ({
       makeTimer: makeTimerCmd,
       invite,
       accept,
-      getSyncedStore,
-      registerSyncedStore,
       endow,
       submit,
       sendValue,
@@ -1245,62 +1217,27 @@ export const makeHostMaker = ({
       getFormulaGraph,
     };
 
-    /** @param {Function} fn */
-    const withCollection =
-      fn =>
-      async (...args) => {
-        await null;
-        try {
-          return await fn(...args);
-        } finally {
-          await collectIfDirty();
-        }
-      };
-
-    // Methods that create formulas and resolve them through promise chains
-    // (E.sendOnly(resolver).resolveWithId) must NOT trigger collection on
-    // return, because the resolver runs asynchronously and hasn't written
-    // the formula ID to the pet store yet. Collection at this point would
-    // find the just-created formula unreachable and delete it.
-    const unwrappedMethods = new Set([
-      'handle',
-      'reverseIdentify',
-      'endow',
-      'submit',
-      'sendValue',
-    ]);
-    const wrappedHost = Object.fromEntries(
-      Object.entries(host).map(([name, fn]) => [
-        name,
-        unwrappedMethods.has(name) ? fn : withCollection(fn),
-      ]),
-    );
-
     const hostExo = makeExo(
       'EndoHost',
       HostInterface,
       /** @type {any} */ ({
         help: makeHelp(hostHelp),
-        ...wrappedHost,
+        ...host,
         /** @param {string} locator */
         followLocatorNameChanges: async locator => {
           const iterator = host.followLocatorNameChanges(locator);
-          await collectIfDirty();
           return makeIteratorRef(iterator);
         },
         followMessages: async () => {
           const iterator = host.followMessages();
-          await collectIfDirty();
           return makeIteratorRef(iterator);
         },
         followNameChanges: async () => {
           const iterator = host.followNameChanges();
-          await collectIfDirty();
           return makeIteratorRef(iterator);
         },
         followPeerChanges: async () => {
           const iterator = await host.followPeerChanges();
-          await collectIfDirty();
           return makeIteratorRef(iterator);
         },
       }),

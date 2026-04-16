@@ -22,7 +22,7 @@ import {
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { makeSerialJobs } from './serial-jobs.js';
-import { externalizeId, LOCAL_NODE } from './locator.js';
+import { externalizeId } from './locator.js';
 
 import {
   EnvelopeInterface,
@@ -149,11 +149,7 @@ export const makeMailboxMaker = ({
     directory,
     context,
   }) => {
-    const { number: selfNumber } = parseId(localSelfId);
-    const selfId = formatId({
-      number: selfNumber,
-      node: /** @type {import('./types.js').NodeNumber} */ (agentNodeNumber),
-    });
+    const selfId = localSelfId;
 
     /** @param {import('./types.js').FormulaIdentifier} id */
     const externalizeForMessage = async id => {
@@ -790,7 +786,7 @@ export const makeMailboxMaker = ({
       );
       // Externalize the ID so that a remote resolver (on a different
       // daemon) can correctly internalize it.  For same-daemon
-      // resolvers the locator is internalized back to LOCAL_NODE.
+      // resolvers the locator is internalized back to the local ID.
       const externalizedId = await externalizeForMessage(
         /** @type {FormulaIdentifier} */ (id),
       );
@@ -1099,19 +1095,15 @@ export const makeMailboxMaker = ({
       if (senderId !== message.from) {
         throw new Error('Mail fraud: alleged sender does not recognize parcel');
       }
-      // For remote senders, translate LOCAL_NODE in sender-owned IDs
-      // to the sender's actual node number.  LOCAL_NODE is only
-      // meaningful within a single daemon; once a message crosses a
-      // boundary, it must be externalized.
-      // For local senders (same daemon) LOCAL_NODE correctly refers
-      // to local formulas and is left as-is.
+      // For remote senders, translate local node keys in sender-owned
+      // IDs to the sender's actual node number so the message can be
+      // correctly routed back.
       const { node: senderNode } = parseId(senderId);
-      const isRemoteSender =
-        senderNode !== LOCAL_NODE && !isLocalKey(senderNode);
+      const isRemoteSender = !isLocalKey(senderNode);
       if (isRemoteSender) {
         const externalize = id => {
           const { number, node } = parseId(id);
-          if (node === LOCAL_NODE) {
+          if (isLocalKey(node)) {
             return formatId({
               number,
               node: /** @type {import('./types.js').NodeNumber} */ (senderNode),

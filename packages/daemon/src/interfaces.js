@@ -369,10 +369,6 @@ export const HostInterface = M.interface('EndoHost', {
   invite: M.call(NameShape).returns(M.promise()),
   // Accept an invitation
   accept: M.call(LocatorShape, NameShape).returns(M.promise()),
-  // Get the synced store for a peer
-  getSyncedStore: M.call(NameShape).returns(M.promise()),
-  // Register a synced store (called internally by daemon accept)
-  registerSyncedStore: M.call(NameShape, IdShape).returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,

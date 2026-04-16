@@ -97,11 +97,15 @@ const sendEnvelope = async (handle, verb, payload, nonce) => {
   await writeFrameToStream(envelopeWriteStream, data);
 };
 
+const { promise: cancelled, reject: cancel } =
+  /** @type {PromiseKit<never>} */ (makePromiseKit());
+
 const networkPowers = makeNetworkPowers({ net });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
-const powers = makeDaemonicGoPowers({
+const powers = await makeDaemonicGoPowers({
   config,
+  cancelled,
   url,
   filePowers,
   cryptoPowers,
@@ -109,9 +113,6 @@ const powers = makeDaemonicGoPowers({
   envelopeReadStream,
 });
 const { persistence: daemonicPersistencePowers } = powers;
-
-const { promise: cancelled, reject: cancel } =
-  /** @type {PromiseKit<never>} */ (makePromiseKit());
 
 // Engo owns endo.pid (the authoritative PID for kill). This function
 // overwrites it with the node daemon PID so that killDaemonProcess

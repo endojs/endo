@@ -50,11 +50,15 @@ const config = {
 
 const { pid, kill } = process;
 
+const { promise: cancelled, reject: cancel } =
+  /** @type {PromiseKit<never>} */ (makePromiseKit());
+
 const networkPowers = makeNetworkPowers({ net });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
-const powers = makeDaemonicPowers({
+const powers = await makeDaemonicPowers({
   config,
+  cancelled,
   fs,
   popen,
   url,
@@ -77,9 +81,6 @@ const reportErrorToParent = message => {
     process.send({ type: 'error', message });
   }
 };
-
-const { promise: cancelled, reject: cancel } =
-  /** @type {PromiseKit<never>} */ (makePromiseKit());
 
 const updateRecordedPid = async () => {
   const pidPath = filePowers.joinPath(ephemeralStatePath, 'endo.pid');

@@ -154,13 +154,13 @@ export const addressesFromLocator = locator => {
 };
 
 /**
- * Convert an internal formula identifier to a locator for agent consumption.
- * Replaces LOCAL_NODE with the agent's public key.
+ * Convert an internal formula identifier to a locator for agent
+ * consumption. Replaces the internal node with the agent's public key.
  *
  * @param {FormulaIdentifier} id - Internal formula identifier.
  * @param {string} formulaType - The type of the formula.
- * @param {NodeNumber} agentNodeNumber - The agent's public key to use as peer key.
- * @param {string[]} [addresses] - Optional network addresses (connection hints).
+ * @param {NodeNumber} agentNodeNumber - The agent's public key.
+ * @param {string[]} [addresses] - Optional network addresses.
  * @returns {string} A locator string.
  */
 export const externalizeId = (
@@ -169,27 +169,23 @@ export const externalizeId = (
   agentNodeNumber,
   addresses = [],
 ) => {
-  const { number, node } = parseId(id);
-  const peerKey = node === LOCAL_NODE ? agentNodeNumber : node;
-  const externalId = formatId({ number, node: peerKey });
   if (addresses.length > 0) {
-    return formatLocatorForSharing(externalId, formulaType, addresses);
+    return formatLocatorForSharing(id, formulaType, addresses);
   }
-  return formatLocator(externalId, formulaType);
+  return formatLocator(id, formulaType);
 };
 
 /**
- * Convert a locator from an agent back to an internal formula identifier.
- * The node is preserved as-is (internal IDs use the real node number).
+ * Convert a locator back to an internal formula identifier.
+ * The node is preserved as-is since formula identifiers carry
+ * actual node numbers (no sentinel normalization needed).
  *
- * @param {string} locator - A locator string from an agent.
- * @param {(node: NodeNumber) => boolean} isLocalKey - Predicate that returns true for any known local agent key.
+ * @param {string} locator - A locator string.
  * @returns {{ id: FormulaIdentifier, formulaType: string, addresses: string[] }}
  */
-export const internalizeLocator = (locator, isLocalKey) => {
+export const internalizeLocator = locator => {
   const { number, node, formulaType } = parseLocator(locator);
   const addresses = addressesFromLocator(locator);
-  const normalizedNode = isLocalKey(node) ? LOCAL_NODE : node;
-  const id = formatId({ number, node: normalizedNode });
+  const id = formatId({ number, node });
   return { id, formulaType, addresses };
 };
