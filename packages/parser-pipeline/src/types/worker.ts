@@ -9,6 +9,7 @@ import type {
   ParseOptions,
 } from '@endo/compartment-mapper';
 import type { Worker } from 'worker_threads';
+import type { CjsModuleSourceRecord } from '@endo/module-source';
 import type { FinalStaticModuleType } from 'ses';
 import type {
   LogFn,
@@ -376,7 +377,7 @@ export interface TerminatableAsyncParserImplementation
  *
  * @group Worker Parser
  */
-export type WorkerRecord = FinalStaticModuleType;
+export type WorkerRecord = FinalStaticModuleType | CjsModuleSourceRecord;
 
 /**
  * A function which builds a {@link WorkerRecord} from generated code inside a

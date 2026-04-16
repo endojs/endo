@@ -1,5 +1,6 @@
 export type * from './types/visitor-passes.ts';
 export type {
+  CjsModuleSourceRecord,
   SourceMapObject,
   SourceMapHook,
   SourceMapHookDetails,

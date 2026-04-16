@@ -6,9 +6,14 @@ import 'ses';
 import test from 'ava';
 import path from 'path';
 import { scaffold } from './scaffold.js';
+import {
+  defaultParserForLanguage,
+  parserForLanguageWithCjsBabel,
+} from '../src/import-parsers.js';
 
 /**
  * @import {FixtureAssertionFn} from './test.types.js';
+ * @import {ThirdPartyStaticModuleInterface} from 'ses'
  */
 
 const fixture = new URL(
@@ -19,9 +24,13 @@ const fixtureDirname = new URL(
   'fixtures-cjs-compat/node_modules/app/dirname.js',
   import.meta.url,
 ).toString();
+const fixtureDynamicImport = new URL(
+  'fixtures-cjs-compat/node_modules/dynamic-import/index.js',
+  import.meta.url,
+).toString();
 
 const q = JSON.stringify;
-
+const { freeze } = Object;
 /**
  * @type {FixtureAssertionFn<{requireResolvePaths: string[]}>}
  */
@@ -70,50 +79,94 @@ const assertFixture = (t, { namespace, testCategoryHint }) => {
 
 const fixtureAssertionCount = 2;
 
-scaffold(
-  'fixtures-cjs-compat',
-  test,
-  fixture,
-  assertFixture,
-  fixtureAssertionCount,
-);
+const parsersForLanguage = {
+  default: defaultParserForLanguage,
+  babel: parserForLanguageWithCjsBabel,
+};
 
-// Exit module errors are also deferred
-scaffold(
-  'fixtures-cjs-compat-exit-module',
-  test,
-  fixture,
-  assertFixture,
-  fixtureAssertionCount,
-  {
-    additionalOptions: {
-      importHook: async specifier => {
-        throw Error(`${q(specifier)} is NOT an exit module.`);
+for (const [name, parserForLanguage] of Object.entries(parsersForLanguage)) {
+  scaffold(
+    `fixtures-cjs-compat-${name}`,
+    test,
+    fixture,
+    assertFixture,
+    fixtureAssertionCount,
+    {
+      parserForLanguage,
+    },
+  );
+
+  // Exit module errors are also deferred
+  scaffold(
+    `fixtures-cjs-compat-exit-module-${name}`,
+    test,
+    fixture,
+    assertFixture,
+    fixtureAssertionCount,
+    {
+      additionalOptions: {
+        importHook: async specifier => {
+          throw Error(`${q(specifier)} is NOT an exit module.`);
+        },
+      },
+      parserForLanguage,
+    },
+  );
+
+  scaffold(
+    `fixtures-cjs-compat-__dirname-${name}`,
+    test,
+    fixtureDirname,
+    (t, { namespace, testCategoryHint }) => {
+      if (testCategoryHint === 'Location') {
+        const { __filename, __dirname } = namespace;
+        t.is(__filename, path.join(__dirname, '/dirname.js'));
+        t.assert(!__dirname.startsWith('file://'));
+        t.notRegex(
+          __dirname,
+          /[\\/]$/,
+          'Expected __dirname to NOT have a trailing slash',
+        );
+      } else {
+        const { __filename, __dirname } = namespace;
+        t.is(__dirname, null);
+        t.is(__filename, null);
+        t.pass();
+      }
+    },
+    3,
+    {
+      parserForLanguage,
+    },
+  );
+
+  scaffold(
+    `fixtures-cjs-compat-dynamic-import-${name}`,
+    test,
+    fixtureDynamicImport,
+    async (t, { namespace }) => {
+      const { namespace: dynamicNamespace } =
+        // @ts-expect-error - untyped
+        await namespace.dynamicImport('a');
+      t.is(dynamicNamespace.foo, 'foo');
+    },
+    1,
+    {
+      // NOTE: this should fail with parse-cjs, but not parse-cjs-babel
+      knownFailure: name === 'default',
+      parserForLanguage,
+      additionalOptions: {
+        importHook: async () => {
+          /** @type {ThirdPartyStaticModuleInterface} */
+          return freeze({
+            imports: [],
+            exports: ['foo'],
+            execute: moduleExports => {
+              moduleExports.foo = 'foo';
+            },
+          });
+        },
       },
     },
-  },
-);
-
-scaffold(
-  'fixtures-cjs-compat-__dirname',
-  test,
-  fixtureDirname,
-  (t, { namespace, testCategoryHint }) => {
-    if (testCategoryHint === 'Location') {
-      const { __filename, __dirname } = namespace;
-      t.is(__filename, path.join(__dirname, '/dirname.js'));
-      t.assert(!__dirname.startsWith('file://'));
-      t.notRegex(
-        __dirname,
-        /[\\/]$/,
-        'Expected __dirname to NOT have a trailing slash',
-      );
-    } else {
-      const { __filename, __dirname } = namespace;
-      t.is(__dirname, null);
-      t.is(__filename, null);
-      t.pass();
-    }
-  },
-  3,
-);
+  );
+}

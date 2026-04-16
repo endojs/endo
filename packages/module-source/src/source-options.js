@@ -5,7 +5,7 @@
  */
 
 /**
- * @import {TransformSourceParams} from './types/module-source.js'
+ * @import {TransformSourceParams, CjsTransformSourceParams} from './types/module-source.js'
  */
 
 /**
@@ -53,3 +53,45 @@ export const createSourceOptions = overrides => ({
   importMeta: { present: false },
   ...(overrides ?? {}),
 });
+
+/**
+ * Creates a fresh `sourceOptions` object with the mutable state properties
+ * that `makeCjsModulePlugins` populates during CJS analysis and transform
+ * passes.
+ *
+ * @template {object} T
+ * @overload
+ * @param {T} overrides
+ * @returns {CjsTransformSourceParams & T}
+ */
+/**
+ * Creates a fresh `sourceOptions` object with the mutable state properties
+ * that `makeCjsModulePlugins` populates during CJS analysis and transform
+ * passes.
+ *
+ * @overload
+ * @returns {CjsTransformSourceParams}
+ */
+
+/**
+ * @template {object} T
+ * @param {T} [overrides]
+ */
+export const createCjsSourceOptions = overrides =>
+  /** @type {CjsTransformSourceParams} */ ({
+    sourceType: 'commonjs',
+    /** @type {string[]} */
+    requires: [],
+    /** @type {Set<string>} */
+    exports: new Set(),
+    /** @type {Set<string>} */
+    reexports: new Set(),
+    /** @type {string[]} */
+    imports: [],
+    /** @type {Set<string>} */
+    unsafeGetters: new Set(),
+    dynamicImport: { present: false },
+    /** @type {Record<string, string>} */
+    starExportMap: Object.create(null),
+    ...(overrides ?? {}),
+  });
