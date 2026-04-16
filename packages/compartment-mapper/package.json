@@ -23,6 +23,7 @@
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./cjs.js": "./cjs.js",
     "./import.js": "./import.js",
     "./import-lite.js": "./import-lite.js",
     "./import-parsers.js": "./import-parsers.js",
