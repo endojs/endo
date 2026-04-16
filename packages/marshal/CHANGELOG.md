@@ -1,5 +1,31 @@
 # @endo/marshal
 
+## 1.9.1
+
+### Patch Changes
+
+- [#3153](https://github.com/endojs/endo/pull/3153) [`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e) Thanks [@erights](https://github.com/erights)! - # Plug NaN Side-channel
+
+  The JavaScript language can leak the bit encoding of a NaN via shared TypedArray views of an common ArrayBuffer. Although the JavaScript language has only one NaN value, the underlying IEEE 754 double-precision floating-point representation has many different bit patterns that represent NaN. This can be exploited as a side-channel to leak information. This actually happens on some platforms such as v8.
+
+  @ChALkeR explains at https://github.com/tc39/ecma262/pull/758#issuecomment-3919093669 that the behavior of this side-channel on v8. At https://junk.rray.org/poc/nani.html he demonstrates it, and it indeed even worse than I expected.
+
+  To plug this side-channel, we make two coordinated changes.
+  - We stop listing the `Float*Array` constructors as universal globals. This prevents them from being implicitly endowed to created compartments, because they are not harmless. However, we still keep them on the start compartment (the original global), consider them intrinsics, and still repair and harden them on `lockdown()`. Thus, they can be explicitly endowed to child compartments at the price of enabling code in that compartment to read the side-channel.
+  - On `lockdown()`, we repair the `DataView.prototype.setFloat*` methods so that they only write canonical NaNs into the underlying ArrayBuffer.
+
+  The `@endo.marshal` package's `encodePassable` encodings need to obtain the bit representation of floating point values. It had used `Float64Array` for that. However, sometimes the `@endo/marshal` package is evaluated in a created compartment that would now lack that constructor. (This reevaluation typically occurs when bundling bundles in that package.) So instead, `encodePassable` now uses the `DataView` methods which are now safe.
+
+- [#3127](https://github.com/endojs/endo/pull/3127) [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd) Thanks [@turadg](https://github.com/turadg)! - Remove stale runtime dependencies from package manifests.
+
+- Updated dependencies [[`98c89b7`](https://github.com/endojs/endo/commit/98c89b79a22c2a038e90ac1d81abdf6127f70e10), [`f65b000`](https://github.com/endojs/endo/commit/f65b0002324d38210d11000cff741c5c8dc83b60), [`88bc2b9`](https://github.com/endojs/endo/commit/88bc2b915d95326a3e911a9f8bf4571d948c44d8), [`43165e5`](https://github.com/endojs/endo/commit/43165e584cfd6437c7f8edb8872ff81ed4415ed6), [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd)]:
+  - @endo/common@1.4.0
+  - @endo/eventual-send@1.5.0
+  - @endo/pass-style@1.8.0
+  - @endo/errors@1.3.1
+  - @endo/harden@1.1.0
+  - @endo/nat@5.2.0
+
 ## 1.9.0
 
 ### Minor Changes

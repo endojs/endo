@@ -1,5 +1,16 @@
 # @endo/lp32
 
+## 1.2.1
+
+### Patch Changes
+
+- [#3127](https://github.com/endojs/endo/pull/3127) [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd) Thanks [@turadg](https://github.com/turadg)! - Remove stale runtime dependencies from package manifests.
+
+- Updated dependencies []:
+  - @endo/errors@1.3.1
+  - @endo/harden@1.1.0
+  - @endo/stream@1.3.1
+
 ## 1.2.0
 
 ### Minor Changes

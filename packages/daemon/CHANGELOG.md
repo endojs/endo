@@ -1,5 +1,26 @@
 # @endo/daemon
 
+## 2.5.3
+
+### Patch Changes
+
+- Updated dependencies [[`8195a5a`](https://github.com/endojs/endo/commit/8195a5aa8dd99d147b34e40ce8fa7328ce596e87), [`154102b`](https://github.com/endojs/endo/commit/154102b47491f8fc587c891cfe69d206bd7833d2), [`2b674ca`](https://github.com/endojs/endo/commit/2b674cad4149909b3063acb706eba70a1c8ab901), [`f65b000`](https://github.com/endojs/endo/commit/f65b0002324d38210d11000cff741c5c8dc83b60), [`d1d9625`](https://github.com/endojs/endo/commit/d1d96256f47c5209dfce3f3d52d3f222f266121a), [`b4820dc`](https://github.com/endojs/endo/commit/b4820dc946821dd87f78ee856cd5e9292b55f83c), [`88bc2b9`](https://github.com/endojs/endo/commit/88bc2b915d95326a3e911a9f8bf4571d948c44d8), [`9111b4e`](https://github.com/endojs/endo/commit/9111b4e657d07e2f138a9192238849828c2b52aa), [`acbacba`](https://github.com/endojs/endo/commit/acbacba5364f4f9ba85a962bef773c4170845b77), [`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e), [`df84eea`](https://github.com/endojs/endo/commit/df84eeaa25af0b9c2c5b98c27ac95e4cb39f0001), [`cdb6eae`](https://github.com/endojs/endo/commit/cdb6eaed646c698a8a6d8d85f562fe63c31308cb), [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd), [`6ad084a`](https://github.com/endojs/endo/commit/6ad084a6900b8b6cca5580977502d79389f3b209), [`1cd1246`](https://github.com/endojs/endo/commit/1cd12469b6874bb181238c2d2e41ce9bc6e8bb9f), [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59)]:
+  - @endo/patterns@1.9.0
+  - @endo/compartment-mapper@2.1.0
+  - @endo/eventual-send@1.5.0
+  - @endo/promise-kit@1.2.1
+  - @endo/exo@1.7.0
+  - ses@2.0.0
+  - @endo/marshal@1.9.1
+  - @endo/netstring@1.1.1
+  - @endo/stream-node@1.2.1
+  - @endo/captp@4.5.0
+  - @endo/errors@1.3.1
+  - @endo/far@1.1.14
+  - @endo/harden@1.1.0
+  - @endo/import-bundle@1.6.1
+  - @endo/stream@1.3.1
+
 ## 2.5.2
 
 ### Patch Changes
