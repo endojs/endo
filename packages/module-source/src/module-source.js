@@ -57,45 +57,18 @@ export function ModuleSource(source, opts = {}) {
   if (typeof opts === 'string') {
     opts = { sourceUrl: opts };
   }
-  const {
-    imports,
-    functorSource,
-    liveExportMap,
-    reexportMap,
-    fixedExportMap,
-    exportAlls,
-    needsImport,
-    needsImportMeta,
-  } = analyzeModule(source, opts);
-  this.imports = freeze([...keys(imports)]);
-  this.exports = freeze(
-    [
-      ...keys(liveExportMap),
-      ...keys(fixedExportMap),
-      ...values(reexportMap)
-        .flat()
-        .map(([_, exportName]) => exportName),
-    ].sort(),
-  );
-  this.reexports = freeze([...exportAlls].sort());
-  this.__syncModuleProgram__ = functorSource;
-  for (const entry of values(liveExportMap)) {
-    freeze(entry);
-  }
-  for (const entry of values(fixedExportMap)) {
-    freeze(entry);
-  }
-  for (const reexports of values(reexportMap)) {
-    for (const pair of reexports) {
-      freeze(pair);
-    }
-    freeze(reexports);
-  }
-  this.__liveExportMap__ = freeze(liveExportMap);
-  this.__reexportMap__ = freeze(reexportMap);
-  this.__fixedExportMap__ = freeze(fixedExportMap);
-  this.__needsImport__ = needsImport;
-  this.__needsImportMeta__ = needsImportMeta;
+  // analyzeModule now returns a frozen PrecompiledModuleSource-shaped record
+  // via buildModuleRecord(), so we copy its properties directly.
+  const record = analyzeModule(source, opts);
+  this.imports = record.imports;
+  this.exports = record.exports;
+  this.reexports = record.reexports;
+  this.__syncModuleProgram__ = record.__syncModuleProgram__;
+  this.__liveExportMap__ = record.__liveExportMap__;
+  this.__reexportMap__ = record.__reexportMap__;
+  this.__fixedExportMap__ = record.__fixedExportMap__;
+  this.__needsImport__ = record.__needsImport__;
+  this.__needsImportMeta__ = record.__needsImportMeta__;
   freeze(this);
 }
 
