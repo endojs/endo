@@ -1021,6 +1021,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/parser-pipeline@workspace:packages/parser-pipeline":
+  version: 0.0.0-use.local
+  resolution: "@endo/parser-pipeline@workspace:packages/parser-pipeline"
+  dependencies:
+    "@babel/generator": "npm:^7.28.3"
+    "@babel/parser": "npm:~7.28.3"
+    "@babel/traverse": "npm:~7.28.3"
+    "@endo/compartment-mapper": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/module-source": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@types/babel__generator": "npm:~7.27.0"
+    "@types/babel__traverse": "npm:~7.28.0"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/pass-style@workspace:^, @endo/pass-style@workspace:packages/pass-style":
   version: 0.0.0-use.local
   resolution: "@endo/pass-style@workspace:packages/pass-style"
