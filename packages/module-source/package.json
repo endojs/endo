@@ -100,13 +100,15 @@
         }
       ]
     },
-    "overrides": [{
-      "files": "**/*.ts",
-      "rules": {
-        "vars-on-top": "off",
-        "no-var": "off"
+    "overrides": [
+      {
+        "files": "**/*.ts",
+        "rules": {
+          "vars-on-top": "off",
+          "no-var": "off"
+        }
       }
-    }],
+    ],
     "ignorePatterns": [
       "test/fixtures/"
     ]
