@@ -1238,9 +1238,7 @@ export const makeChannelMaker = ({
             const iterator = (async function* emptyHeatEvents() {})();
             return makeIteratorRef(iterator);
           },
-        })
-      )
-    );
+        });
 
     return channelExo;
   };

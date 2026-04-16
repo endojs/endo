@@ -226,8 +226,8 @@ export const microblogComponent = async (
           },
           anchorElement: $author,
         });
-      })
-      .catch(() => {});
+      });
+    }).catch(() => {});
 
     return $author;
   };
