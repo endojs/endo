@@ -2,6 +2,10 @@
 
 import * as h from './hidden.js';
 
+/**
+ * @import {PluginFactory, TransformSourceParams} from './types/module-source.js'
+ */
+
 /*
  * Collects all of the identifiers on the left-hand-side of an exported
  * assignment expression, deeply exploring complex destructuring assignment.
@@ -40,6 +44,12 @@ const collectPatternIdentifiers = (path, pattern) => {
   }
 };
 
+/**
+ * Creates a plugin for the Babel parser that analyzes and transforms module source code.
+ *
+ * @param {TransformSourceParams} options
+ * @returns {{analyzePlugin: PluginFactory, transformPlugin: PluginFactory}}
+ */
 function makeModulePlugins(options) {
   const {
     sourceType,
@@ -209,7 +219,7 @@ function makeModulePlugins(options) {
               } else {
                 // Rewrite to be just name = value.
                 soften(id);
-                options.hoistedDecls.push([name]);
+                options.hoistedDecls.push([name, false, undefined]);
                 replacements.push(
                   t.expressionStatement(
                     t.assignmentExpression(
