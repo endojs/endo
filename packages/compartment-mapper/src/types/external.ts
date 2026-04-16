@@ -256,7 +256,41 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
    * from the `parserForLanguage` option.
    */
   languages: Array<Language> | undefined;
+  /**
+   * Additional package locations to graph alongside the entry package. Each
+   * entry is graphed into the same compartment map, with an edge from the entry
+   * package. If `modules` is specified, those paths are injected into the
+   * package's external aliases.
+   *
+   * These can be thought of as "additional entry points" insofar as building
+   * the compartment map.
+   */
+  additionalLocations: Array<AdditionalLocation>;
 }>;
+
+/**
+ * An additional package location to include in the compartment map graph.
+ *
+ * This allows packages that are not reachable through the entry package's
+ * dependency graph to appear in the compartment map. A common use case is
+ * including a project root package when the entry point is a tool binary
+ * (e.g., webpack) inside `node_modules`.
+ */
+export interface AdditionalLocation {
+  /**
+   * File URL of the package root directory (must contain a `package.json`).
+   */
+  location: FileUrlString;
+
+  /**
+   * Specific relative module paths to expose as external aliases. These paths
+   * are relative to {@link location}.
+   *
+   * If omitted, only modules discovered by standard inference (see
+   * `infer-exports.js`) are externally visible.
+   */
+  modules?: Array<string>;
+}
 
 /**
  * Hook options for `mapNodeModules()`
