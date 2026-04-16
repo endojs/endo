@@ -376,6 +376,53 @@ test.serial(
 );
 
 test.serial(
+  'channel can be introduced by mention-style message attachment',
+  async t => {
+    const relay = await startLocalRelay();
+    try {
+      const hostA = await prepareHostWithWsRelay(
+        t,
+        relay.relayUrl,
+        relay.relayDomain,
+      );
+      const hostB = await prepareHostWithWsRelay(
+        t,
+        relay.relayUrl,
+        relay.relayDomain,
+      );
+
+      await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+      await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+
+      // Introduce each host with stable pet names for direct send().
+      const inviteB = await E(hostB).invite('alice');
+      await E(hostA).accept(await E(inviteB).locate(), 'bob');
+
+      // Host A creates a channel and invitation for Bob, then sends a
+      // mention-style direct message with the channel attached as a ref.
+      const channel = await E(hostA).makeChannel('mention-room', 'Alice');
+      await E(channel).createInvitation('Bob');
+      await E(hostA).send('bob', ['Join ', '!'], ['channel'], ['mention-room']);
+
+      const inboxB = await E(hostB).listMessages();
+      t.is(inboxB.length, 1, 'Bob should receive mention-style intro message');
+      t.is(inboxB[0].type, 'package');
+
+      await E(hostB).adopt(inboxB[0].number, 'channel', ['remote-channel']);
+      const remoteChannel = await E(hostB).lookup('remote-channel');
+      const bobMember = await E(remoteChannel).join('Bob');
+      await E(bobMember).post(['Hi from Bob via mention intro'], [], []);
+
+      const aliceMessages = await E(channel).listMessages();
+      t.is(aliceMessages.length, 1, 'Alice sees Bob message in introduced channel');
+      t.deepEqual(aliceMessages[0].strings, ['Hi from Bob via mention intro']);
+    } finally {
+      await relay.teardown();
+    }
+  },
+);
+
+test.serial(
   'adoptFromLocator extracts connection hints and registers peer info',
   async t => {
     const relay = await startLocalRelay();
