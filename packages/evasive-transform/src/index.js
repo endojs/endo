@@ -6,7 +6,6 @@
 
 /**
  * @import {TransformedResult, TransformedResultWithSourceMap} from './generate.js'
- * @import {SourceMapOption} from './generate.js'
  */
 
 import { transformAst } from './transform-ast.js';
@@ -17,7 +16,7 @@ import { generate } from './generate.js';
  * Options for {@link evadeCensorSync}
  *
  * @typedef EvadeCensorOptions
- * @property {SourceMapOption | undefined} [sourceMap] - Original source map in JSON string or object form
+ * @property {object | string | undefined} [sourceMap] - Original source map in JSON string or object form
  * @property {string | undefined} [sourceUrl] - URL or filepath of the original source in `code`
  * @property {boolean | undefined} [elideComments] - Empties the comments but preserves interior newlines.
  * @property {import('./parse-ast.js').SourceType | undefined} [sourceType] - Module source type
@@ -128,3 +127,5 @@ export function evadeCensorSync(source, options) {
 export async function evadeCensor(source, options) {
   return evadeCensorSync(source, options);
 }
+
+export { createEvasiveTransformPass } from './transform-pass.js';
