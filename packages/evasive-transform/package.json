@@ -40,6 +40,7 @@
   "devDependencies": {
     "@babel/types": "~7.28.2",
     "@endo/ses-ava": "workspace:^",
+    "@types/babel__generator": "~7.27.0",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
@@ -74,6 +75,7 @@
   "dependencies": {
     "@babel/generator": "^7.28.3",
     "@babel/parser": "~7.28.3",
-    "@babel/traverse": "~7.28.3"
+    "@babel/traverse": "~7.28.3",
+    "@types/babel__traverse": "~7.28.0"
   }
 }
