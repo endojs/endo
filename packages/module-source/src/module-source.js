@@ -2,6 +2,10 @@
 
 import { makeModuleAnalyzer } from './transform-analyze.js';
 
+/**
+ * @import {ModuleSourceOptions} from './types/module-source.js'
+ */
+
 const { keys, values } = Object;
 
 // Disable readonly markings.
@@ -33,28 +37,6 @@ const freeze = /** @type {<T>(v: T) => T} */ (Object.freeze);
 
 const analyzeModule = makeModuleAnalyzer();
 
-/**
- * @typedef {object} SourceMapHookDetails
- * @property {string} compartment
- * @property {string} module
- * @property {string} location
- * @property {string} sha512
- */
-
-/**
- * @callback SourceMapHook
- * @param {string} sourceMap
- * @param {SourceMapHookDetails} details
- */
-
-/**
- * @typedef {object} Options
- * @property {string | undefined} [sourceUrl]
- * @property {string | undefined} [sourceMap]
- * @property {string | undefined} [sourceMapUrl]
- * @property {SourceMapHook | undefined} [sourceMapHook]
- */
-
 // XXX implements import('ses').PrecompiledModuleSource but adding
 // `@implements` errors that this isn't a class and `@returns` errors that
 // there's no value returned.
@@ -64,7 +46,7 @@ const analyzeModule = makeModuleAnalyzer();
  *
  * @class
  * @param {string} source
- * @param {string | Options} [opts]
+ * @param {string | ModuleSourceOptions} [opts]
  */
 export function ModuleSource(source, opts = {}) {
   if (new.target === undefined) {

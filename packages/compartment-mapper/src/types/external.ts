@@ -12,6 +12,7 @@ import type {
   ThirdPartyStaticModuleInterface,
   Transform,
 } from 'ses';
+import type { SourceMapObject } from '@endo/module-source';
 import type {
   ATTENUATORS_COMPARTMENT,
   ENTRY_COMPARTMENT,
@@ -650,6 +651,15 @@ export type SourceMapHookDetails = {
   sha512: string;
 };
 
+/**
+ * Source map hook as received by {@link ParseFn}.
+ *
+ * The import hook wraps the public {@link SourceMapHook} into this shape; it
+ * receives the raw source map object from the code generator, not a JSON
+ * string.
+ */
+export type ParseSourceMapHook = (sourceMapObject: SourceMapObject) => void;
+
 export type ModuleTransforms = Record<string, ModuleTransform>;
 
 export type SyncModuleTransforms = Record<string, SyncModuleTransform>;
@@ -735,19 +745,27 @@ export interface AsyncParserImplementation extends BaseParserImplementation {
   synchronous: false;
 }
 
-type ParseArguments = [
+/**
+ * Options bag for a {@link ParseFn} or {@link AsyncParseFn}.
+ */
+export type ParseOptions = Partial<{
+  sourceMap: string | undefined;
+  sourceMapHook: ParseSourceMapHook | undefined;
+  sourceMapUrl: string | undefined;
+  readPowers: ReadFn | ReadPowers | undefined;
+  compartmentDescriptor: CompartmentDescriptor | undefined;
+}> &
+  ArchiveOnlyOption;
+
+/**
+ * Arguments for a {@link ParseFn} or {@link AsyncParseFn}.
+ */
+export type ParseArguments = [
   bytes: Uint8Array,
   specifier: string,
   moduleLocation: string,
   packageLocation: string,
-  options?: Partial<{
-    sourceMap: string | undefined;
-    sourceMapHook: SourceMapHook | undefined;
-    sourceMapUrl: string | undefined;
-    readPowers: ReadFn | ReadPowers | undefined;
-    compartmentDescriptor: CompartmentDescriptor | undefined;
-  }> &
-    ArchiveOnlyOption,
+  options?: ParseOptions,
 ];
 
 /**
