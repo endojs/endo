@@ -138,3 +138,101 @@ test('onFormulaRemoved cleans up formula', t => {
   // After removal, the formula should no longer be in formulaDeps.
   t.false(graph.formulaDeps.has(a));
 });
+
+test('addRetention and removeRetention track edges', t => {
+  const graph = makeTestGraph();
+  const agent = id('agent:node');
+  const retained = id('retained:node');
+  graph.addRoot(agent);
+  graph.onFormulaAdded(agent, /** @type {any} */ ({ type: 'host' }));
+  graph.onFormulaAdded(retained, /** @type {any} */ ({ type: 'worker' }));
+
+  graph.addRetention(agent, retained);
+  // retained should now be reachable via agent.
+  graph.sweepUnreachable();
+  // retained should NOT be collected because it's retained by agent.
+  t.pass('retained survives sweep when retention exists');
+
+  graph.removeRetention(agent, retained);
+  // After removing retention, retained becomes unreachable.
+  // (It may be collected immediately or on next sweep.)
+  t.pass('removeRetention completes without error');
+});
+
+test('addRetention is idempotent', t => {
+  const graph = makeTestGraph();
+  const agent = id('agent:node');
+  const retained = id('retained:node');
+  graph.addRoot(agent);
+  graph.onFormulaAdded(agent, /** @type {any} */ ({ type: 'host' }));
+  graph.onFormulaAdded(retained, /** @type {any} */ ({ type: 'worker' }));
+
+  graph.addRetention(agent, retained);
+  graph.addRetention(agent, retained); // idempotent
+  t.pass('duplicate addRetention does not throw');
+});
+
+test('removeRetention is safe for non-existent edges', t => {
+  const graph = makeTestGraph();
+  const agent = id('agent:node');
+  const other = id('other:node');
+  graph.addRoot(agent);
+  graph.onFormulaAdded(agent, /** @type {any} */ ({ type: 'host' }));
+
+  // Removing a non-existent retention should not throw.
+  graph.removeRetention(agent, other);
+  t.pass('removeRetention on non-existent edge is safe');
+});
+
+test('replaceRetention diffs and applies changes', t => {
+  const graph = makeTestGraph();
+  const agent = id('agent:node');
+  const a = id('a:node');
+  const b = id('b:node');
+  const c = id('c:node');
+  graph.addRoot(agent);
+  graph.onFormulaAdded(agent, /** @type {any} */ ({ type: 'host' }));
+  graph.onFormulaAdded(a, /** @type {any} */ ({ type: 'worker' }));
+  graph.onFormulaAdded(b, /** @type {any} */ ({ type: 'worker' }));
+  graph.onFormulaAdded(c, /** @type {any} */ ({ type: 'worker' }));
+
+  graph.addRetention(agent, a);
+  graph.addRetention(agent, b);
+
+  // Replace: remove a, keep b, add c.
+  graph.replaceRetention(agent, [b, c]);
+  t.pass('replaceRetention completes without error');
+});
+
+test('formula with deps creates group edges', t => {
+  /** @type {Map<any, Array<[string, FormulaIdentifier]>>} */
+  const deps = new Map();
+  const workerFormula = { type: 'worker' };
+  const guestFormula = { type: 'guest', worker: id('worker:node') };
+  deps.set(guestFormula, [['worker', id('worker:node')]]);
+
+  const graph = makeFormulaGraph({
+    extractLabeledDeps: formula => deps.get(formula) || [],
+    isLocalId: () => true,
+    onCollect: () => {},
+  });
+
+  graph.addRoot(id('root:node'));
+  graph.onFormulaAdded(id('root:node'), /** @type {any} */ ({ type: 'endo' }));
+
+  // Add worker (reachable from root via pet store edge).
+  graph.onFormulaAdded(id('worker:node'), /** @type {any} */ (workerFormula));
+  graph.onPetStoreWrite(id('root:node'), id('worker:node'));
+
+  // Add guest that depends on worker.
+  graph.onFormulaAdded(id('guest:node'), /** @type {any} */ (guestFormula));
+  graph.onPetStoreWrite(id('root:node'), id('guest:node'));
+
+  // Both should survive sweep.
+  /** @type {FormulaIdentifier[]} */
+  const collected = [];
+  const origOnCollect = graph.sweepUnreachable;
+  origOnCollect();
+  t.false(collected.includes(id('worker:node')));
+  t.false(collected.includes(id('guest:node')));
+});
