@@ -44,6 +44,43 @@ import {
 
 export { installShouldTerminate, markShouldTerminate, silentReject, textDecoder, textEncoder };
 
+// Console polyfill for XS bootstraps that share this module.
+//
+// `@endo/marshal`'s default `marshalSaveError` calls
+// `console.log('Temporary logging of sent error', err)` while
+// serializing rejected errors. In an XS realm where `globalThis.console`
+// is undefined, that lookup throws "get console: undefined variable"
+// inside `captp`'s `processResult`, the rejection is silently swallowed,
+// and the eval question never receives a `CTP_RETURN`. The result is a
+// hang any time a cross-CapTP-session call rejects.
+//
+// `bus-daemon-rust-xs.js` already installs its own polyfill; this one
+// covers the worker bootstrap (and any other future consumer of
+// `bus-xs-core`).
+if (typeof globalThis.console === 'undefined') {
+  const formatArg = a => {
+    if (typeof a === 'string') return a;
+    if (a && typeof a === 'object' && typeof a.message === 'string') {
+      return `${a.name || 'Error'}: ${a.message}`;
+    }
+    try { return JSON.stringify(a); } catch { return String(a); }
+  };
+  const makeLogFn = prefix => (...args) => {
+    try {
+      // eslint-disable-next-line no-undef
+      trace(`${prefix}${args.map(formatArg).join(' ')}`);
+    } catch (_e) {}
+  };
+  globalThis.console = harden({
+    log: makeLogFn(''),
+    warn: makeLogFn('[warn] '),
+    error: makeLogFn('[error] '),
+    info: makeLogFn('[info] '),
+    debug: makeLogFn('[debug] '),
+    trace: makeLogFn('[trace] '),
+  });
+}
+
 const EMPTY_PAYLOAD = new Uint8Array(0);
 
 /**

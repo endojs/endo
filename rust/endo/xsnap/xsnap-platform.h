@@ -7,8 +7,19 @@
 #ifndef __XSNAP_PLATFORM__
 #define __XSNAP_PLATFORM__
 
-#undef mxLinux
-#define mxLinux 1
+#if defined(__APPLE__)
+	#undef mxMacOSX
+	#define mxMacOSX 1
+#elif defined(__linux__)
+	#undef mxLinux
+	#define mxLinux 1
+#elif defined(_WIN32)
+	#undef mxWindows
+	#define mxWindows 1
+#else
+	#undef mxLinux
+	#define mxLinux 1
+#endif
 
 #include <ctype.h>
 #include <float.h>

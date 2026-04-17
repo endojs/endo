@@ -18838,6 +18838,32 @@ harden(makeRefIterator);
 
 
 
+// Console polyfill: marshal.js's default marshalSaveError calls
+// `console.log('Temporary logging of sent error', err)` while
+// serializing rejected errors. Without a global `console`, the call
+// throws "get console: undefined variable" inside captp's processResult,
+// which silently swallows the rejection and hangs the eval round-trip.
+if (typeof globalThis.console === 'undefined') {
+  const makeLogFn = prefix => (...args) => {
+    const parts = args.map(a => {
+      if (typeof a === 'string') return a;
+      if (a && typeof a === 'object' && typeof a.message === 'string') {
+        return `${a.name || 'Error'}: ${a.message}`;
+      }
+      try { return JSON.stringify(a); } catch { return String(a); }
+    });
+    try { hostTrace(`${prefix}${parts.join(' ')}`); } catch (_e) {}
+  };
+  globalThis.console = {
+    log: makeLogFn(''),
+    warn: makeLogFn('[warn] '),
+    error: makeLogFn('[error] '),
+    info: makeLogFn('[info] '),
+    debug: makeLogFn('[debug] '),
+    trace: makeLogFn('[trace] '),
+  };
+}
+
 const node = makeXsNode();
 
 const daemonHandle = hostGetDaemonHandle();
