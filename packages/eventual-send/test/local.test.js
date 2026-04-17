@@ -43,6 +43,31 @@ test('getMethodNames with symbol-keyed methods', t => {
   t.true(names.includes(sym));
 });
 
+test('getMethodNames sorts symbols before strings', t => {
+  const symA = Symbol.for('alpha');
+  const symB = Symbol.for('beta');
+  // Place a string method between two symbol methods in declaration order
+  // to ensure the sort comparator handles both (symbol, string) and
+  // (string, symbol) orderings.
+  const obj = {
+    [symB]() {},
+    middle() {},
+    [symA]() {},
+    zzz() {},
+    aaa() {},
+  };
+  const names = getMethodNames(obj);
+  // Symbols should come first, sorted among themselves
+  const symbols = names.filter(n => typeof n === 'symbol');
+  t.deepEqual(symbols, [symA, symB]);
+  // Strings should come after, sorted among themselves
+  const strings = names.filter(n => typeof n === 'string');
+  t.deepEqual(strings, ['aaa', 'middle', 'zzz']);
+  // Overall: symbols first, then strings
+  t.is(names.indexOf(symA), 0);
+  t.is(names.indexOf(symB), 1);
+});
+
 test('localApplyFunction calls the function', t => {
   const fn = (a, b) => a + b;
   t.is(localApplyFunction(fn, [3, 4]), 7);
