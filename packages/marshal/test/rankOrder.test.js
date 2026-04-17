@@ -204,6 +204,23 @@ test('intersectRankCovers computes intersection of covers', t => {
   t.is(compareRank(intersection[1], specific[1]) <= 0, true);
 });
 
+test('getIndexCover returns index bounds', t => {
+  // Sorted array of strings (same type, clear ordering)
+  const sorted = harden(sortByRank(['a', 'b', 'c', 'd', 'e'], compareRank));
+
+  // Cover that targets a middle range.
+  // Using values within the sorted array as cover keys.
+  const cover = getIndexCover(sorted, compareRank, ['b', 'd']);
+  t.is(typeof cover[0], 'number');
+  t.is(typeof cover[1], 'number');
+  t.true(cover[0] >= 0, 'leftIndex is non-negative');
+  t.true(cover[1] < sorted.length, 'rightIndex within bounds');
+
+  // A cover with a single-element range
+  const singleCover = getIndexCover(sorted, compareRank, ['c', 'c']);
+  t.is(typeof singleCover[0], 'number');
+});
+
 test('coveredEntries iterates entries within index bounds', t => {
   const sorted = harden(sortByRank([3, 1, 'a', 'z', 2, 'b'], compareRank));
   // Use explicit index bounds to test the iterator.
