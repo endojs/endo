@@ -37,9 +37,11 @@ pub unsafe extern "C" fn host_get_env(the: *mut XsMachine) {
 /// Joins path components. Accepts 1-8 string arguments.
 /// Uses the argc from the XS frame to determine how many parts.
 pub unsafe extern "C" fn host_join_path(the: *mut XsMachine) {
-    // XS stores argc at frame[-1] (the slot before the return value)
-    let argc_slot = (*the).frame.sub(1);
-    let argc = fxToInteger(the, argc_slot) as usize;
+    // XS stores argc in the frame slot's ID field: mxArgc = the->frame->ID
+    // In the txSlot layout (64-bit LE): next(8) + kind(1) + flag(1) + ID(2)
+    // So ID is at byte offset 10 as a signed 16-bit integer.
+    let frame_bytes = (*the).frame as *const u8;
+    let argc = *(frame_bytes.add(10) as *const i16) as usize;
     let count = argc.min(8);
     // Collect all parts, then split on path separator to handle
     // ".." and "." components (matching Node.js path.join behavior).
@@ -118,6 +120,14 @@ pub unsafe extern "C" fn host_real_path(the: *mut XsMachine) {
         ),
     }
 }
+
+/// All host callbacks in registration order for snapshot tables.
+pub const CALLBACKS: &[crate::ffi::XsCallback] = &[
+    host_get_pid,
+    host_get_env,
+    host_join_path,
+    host_real_path,
+];
 
 /// Register all process host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {

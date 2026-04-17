@@ -4,6 +4,7 @@
  * c/xsnap-pub/xsnap/sources/xsnapPlatform.c.
  */
 
+#define _GNU_SOURCE
 #include "xsAll.h"
 
 /* ---- Timer job struct (forward declaration) ---- */
@@ -268,4 +269,69 @@ void fxRunLoop(txMachine* the)
 		}
 	}
 	fxCheckUnhandledRejections(the, 1);
+}
+
+/* ---- Snapshot callback discovery ---- */
+
+/*
+ * Collect all host callback pointers found on the machine heap.
+ * Returns the number of unique callbacks found.
+ * If `out` is non-NULL and `out_cap` > 0, stores pointers in `out`.
+ *
+ * Walks XS_CALLBACK_KIND and XS_CALLBACK_X_KIND slots, which is
+ * the same slot kind the snapshot writer projects via
+ * fxProjectCallback.
+ */
+#include <dlfcn.h>
+
+int fxCollectHostCallbacks(txMachine* the, txCallback* out, int out_cap) {
+	int count = 0;
+	txSlot* aSlot;
+	txSlot* bSlot;
+	txSlot* cSlot;
+
+	/* Walk heap chunks */
+	aSlot = the->firstHeap;
+	while (aSlot) {
+		bSlot = aSlot + 1;
+		cSlot = aSlot + 1 + ((aSlot + 1)->next->value.integer);
+		while (bSlot < cSlot) {
+			if (bSlot->kind == XS_CALLBACK_KIND
+				|| bSlot->kind == XS_CALLBACK_X_KIND) {
+				txCallback cb = bSlot->value.callback.address;
+				if (cb) {
+					int found = 0;
+					for (int i = 0; i < count; i++) {
+						if (out && out[i] == cb) { found = 1; break; }
+					}
+					if (!found) {
+						if (out && count < out_cap) {
+							out[count] = cb;
+						}
+						count++;
+					}
+				}
+			}
+			bSlot++;
+		}
+		aSlot = aSlot->next;
+	}
+	return count;
+}
+
+/* Print all host callbacks found on the machine to stderr.
+   Useful for discovering which callbacks the snapshot table needs. */
+void fxDebugDumpCallbacks(txMachine* the) {
+	txCallback cbs[256];
+	int n = fxCollectHostCallbacks(the, cbs, 256);
+	fprintf(stderr, "=== Host callbacks on machine: %d ===\n", n);
+	for (int i = 0; i < n && i < 256; i++) {
+		Dl_info info;
+		if (dladdr((void*)cbs[i], &info) && info.dli_sname) {
+			fprintf(stderr, "  [%d] %s (%p)\n", i, info.dli_sname, (void*)cbs[i]);
+		} else {
+			fprintf(stderr, "  [%d] <unknown> (%p)\n", i, (void*)cbs[i]);
+		}
+	}
+	fprintf(stderr, "=== end ===\n");
 }

@@ -12,9 +12,15 @@ pub mod powers;
 pub mod worker_io;
 
 use ffi::*;
+use std::cell::RefCell;
 use std::ffi::CString;
-use std::os::raw::{c_char, c_void};
+use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
+
+/// Snapshot signature — must change when the host callback table
+/// layout changes.  Includes the XS version implicitly (the
+/// snapshot VERS atom carries it).
+pub const SNAPSHOT_SIGNATURE: &[u8] = b"endo-xs 1";
 
 /// Default machine creation parameters.
 /// Sized for a general-purpose worker — not microcontroller-constrained.
@@ -62,6 +68,10 @@ pub fn ensure_shared_cluster() {
 /// Wraps `xsMachine*` with RAII — the machine is deleted on drop.
 pub struct Machine {
     pub(crate) raw: *mut XsMachine,
+    /// Host callbacks registered via `define_function`, in
+    /// registration order.  Used as the external callback table
+    /// for snapshot write/read.  Append-only — order is material.
+    registered_callbacks: RefCell<Vec<XsCallback>>,
 }
 
 // XS machines are single-threaded — not Send or Sync.
@@ -92,7 +102,10 @@ impl Machine {
         if raw.is_null() {
             None
         } else {
-            Some(Machine { raw })
+            Some(Machine {
+                raw,
+                registered_callbacks: RefCell::new(Vec::new()),
+            })
         }
     }
 
@@ -208,6 +221,13 @@ impl Machine {
         callback: XsCallback,
         length: i32,
     ) {
+        // Track for snapshot callback table (dedup by pointer).
+        {
+            let mut cbs = self.registered_callbacks.borrow_mut();
+            if !cbs.iter().any(|&c| c == callback) {
+                cbs.push(callback);
+            }
+        }
         let c_name = CString::new(name).unwrap();
         unsafe {
             let the = fxBeginHost(self.raw);
@@ -287,6 +307,395 @@ impl Machine {
     /// Run garbage collection.
     pub fn collect_garbage(&self) {
         unsafe { fxCollectGarbage(self.raw) };
+    }
+
+    /// Write the machine's heap to a snapshot.
+    ///
+    /// The machine must be quiescent — no running JS, no pending
+    /// host entries.  Returns the snapshot bytes on success.
+    ///
+    /// The `callbacks` slice must contain all host function pointers
+    /// that have been registered on this machine.
+    pub fn write_snapshot(
+        &self,
+        signature: &[u8],
+        callbacks: &mut [ffi::XsCallback],
+    ) -> Result<Vec<u8>, SnapshotError> {
+        let mut stream = MemWriteStream {
+            data: Vec::with_capacity(256 * 1024),
+        };
+        let mut snapshot = ffi::XsSnapshot {
+            signature: signature.as_ptr() as *mut c_char,
+            signature_length: signature.len() as c_int,
+            callbacks: callbacks.as_mut_ptr(),
+            callbacks_length: callbacks.len() as c_int,
+            read: None,
+            write: Some(mem_write),
+            stream: &mut stream as *mut MemWriteStream as *mut c_void,
+            error: 0,
+            first_chunk: ptr::null_mut(),
+            first_projection: ptr::null_mut(),
+            first_slot: ptr::null_mut(),
+            slot_size: 0,
+            slots: ptr::null_mut(),
+        };
+        let ok = unsafe { ffi::fxWriteSnapshot(self.raw, &mut snapshot) };
+        if ok == 1 {
+            Ok(stream.data)
+        } else {
+            Err(SnapshotError::Write(snapshot.error))
+        }
+    }
+
+    /// Create a machine from a snapshot.
+    ///
+    /// The snapshot must have been written with a compatible
+    /// signature and callback table.
+    pub fn from_snapshot(
+        data: &[u8],
+        name: &str,
+        signature: &[u8],
+        callbacks: &mut [ffi::XsCallback],
+    ) -> Result<Machine, SnapshotError> {
+        let c_name = CString::new(name).map_err(|_| SnapshotError::InvalidName)?;
+        let mut stream = MemReadStream { data, pos: 0 };
+        let mut snapshot = ffi::XsSnapshot {
+            signature: signature.as_ptr() as *mut c_char,
+            signature_length: signature.len() as c_int,
+            callbacks: callbacks.as_mut_ptr(),
+            callbacks_length: callbacks.len() as c_int,
+            read: Some(mem_read),
+            write: None,
+            stream: &mut stream as *mut MemReadStream as *mut c_void,
+            error: 0,
+            first_chunk: ptr::null_mut(),
+            first_projection: ptr::null_mut(),
+            first_slot: ptr::null_mut(),
+            slot_size: 0,
+            slots: ptr::null_mut(),
+        };
+        let raw = unsafe {
+            ffi::fxReadSnapshot(&mut snapshot, c_name.as_ptr(), ptr::null_mut())
+        };
+        if raw.is_null() {
+            Err(SnapshotError::Read(snapshot.error))
+        } else {
+            Ok(Machine {
+                raw,
+                registered_callbacks: RefCell::new(callbacks.to_vec()),
+            })
+        }
+    }
+    /// Write the machine's heap snapshot using tracked callbacks.
+    ///
+    /// Returns a `SuspendData` containing the snapshot bytes and the
+    /// callback table needed to restore.  The machine must be
+    /// quiescent (no running JS).
+    pub fn suspend(&self, signature: &[u8]) -> Result<SuspendData, SnapshotError> {
+        let mut cbs = self.registered_callbacks.borrow().clone();
+        let snap = self.write_snapshot(signature, &mut cbs)?;
+        Ok(SuspendData {
+            snapshot: snap,
+            callbacks: cbs,
+            signature: signature.to_vec(),
+        })
+    }
+
+    /// Restore a machine from `SuspendData`.
+    ///
+    /// Convenience wrapper around `from_snapshot` that unpacks the
+    /// suspend data.
+    pub fn resume(
+        data: &SuspendData,
+        name: &str,
+    ) -> Result<Machine, SnapshotError> {
+        let mut cbs = data.callbacks.clone();
+        Machine::from_snapshot(
+            &data.snapshot,
+            name,
+            &data.signature,
+            &mut cbs,
+        )
+    }
+}
+
+/// Data needed to resume a suspended machine.
+///
+/// Bundles the raw snapshot bytes, the callback table, and the
+/// signature.  Produced by `Machine::suspend()`, consumed by
+/// `Machine::resume()`.
+#[derive(Clone)]
+pub struct SuspendData {
+    /// Raw XS heap snapshot bytes.
+    pub snapshot: Vec<u8>,
+    /// Host callback table (same order as registration).
+    pub callbacks: Vec<XsCallback>,
+    /// Snapshot signature.
+    pub signature: Vec<u8>,
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot I/O helpers
+// ---------------------------------------------------------------------------
+
+/// Collect the deterministic callback table for a worker.
+///
+/// Returns all host function pointers in the exact order they are
+/// registered by `register_worker_io` + `register_powers`.  This
+/// list is used as the external snapshot callback table for both
+/// `write_snapshot` and `from_snapshot`.
+///
+/// The order is material and append-only — never reorder.
+pub fn worker_snapshot_callbacks() -> Vec<ffi::XsCallback> {
+    let mut cbs = Vec::new();
+    // worker_io callbacks (registered by register_worker_io)
+    cbs.extend_from_slice(worker_io::WORKER_IO_CALLBACKS);
+    // powers callbacks (registered by register_powers, in order:
+    // fs, crypto, modules, process, sqlite)
+    cbs.extend_from_slice(powers::fs::CALLBACKS);
+    cbs.extend_from_slice(powers::crypto::CALLBACKS);
+    cbs.extend_from_slice(powers::modules::CALLBACKS);
+    cbs.extend_from_slice(powers::process::CALLBACKS);
+    cbs.extend_from_slice(powers::sqlite::CALLBACKS);
+    cbs
+}
+
+/// Error type for snapshot operations.
+#[derive(Debug)]
+pub enum SnapshotError {
+    /// fxWriteSnapshot failed with the given error code.
+    Write(c_int),
+    /// fxReadSnapshot failed with the given error code.
+    Read(c_int),
+    /// Machine name contained a null byte.
+    InvalidName,
+    /// File I/O error during streaming snapshot.
+    Io(std::io::Error),
+}
+
+impl std::fmt::Display for SnapshotError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SnapshotError::Write(e) => write!(f, "snapshot write failed (error {})", e),
+            SnapshotError::Read(e) => write!(f, "snapshot read failed (error {})", e),
+            SnapshotError::InvalidName => write!(f, "machine name contains null byte"),
+            SnapshotError::Io(e) => write!(f, "snapshot I/O: {}", e),
+        }
+    }
+}
+
+struct MemWriteStream {
+    data: Vec<u8>,
+}
+
+struct MemReadStream<'a> {
+    data: &'a [u8],
+    pos: usize,
+}
+
+unsafe extern "C" fn mem_write(
+    stream: *mut c_void,
+    ptr: *mut c_void,
+    size: usize,
+) -> c_int {
+    let s = &mut *(stream as *mut MemWriteStream);
+    let bytes = std::slice::from_raw_parts(ptr as *const u8, size);
+    s.data.extend_from_slice(bytes);
+    0
+}
+
+unsafe extern "C" fn mem_read(
+    stream: *mut c_void,
+    ptr: *mut c_void,
+    size: usize,
+) -> c_int {
+    let s = &mut *(stream as *mut MemReadStream);
+    if s.pos + size > s.data.len() {
+        return 1; // error: not enough data
+    }
+    let dst = std::slice::from_raw_parts_mut(ptr as *mut u8, size);
+    dst.copy_from_slice(&s.data[s.pos..s.pos + size]);
+    s.pos += size;
+    0
+}
+
+// ---------------------------------------------------------------------------
+// File-backed snapshot I/O — stream chunks to/from disk without
+// buffering the entire snapshot in memory.
+// ---------------------------------------------------------------------------
+
+use sha2::{Digest, Sha256};
+use std::io::Write as IoWrite;
+
+/// Stream that writes snapshot chunks to a file while computing
+/// SHA-256 on the fly.
+struct FileWriteStream {
+    file: std::fs::File,
+    hasher: Sha256,
+    err: Option<std::io::Error>,
+}
+
+/// Stream that reads snapshot chunks from a file.
+struct FileReadStream {
+    file: std::fs::File,
+}
+
+unsafe extern "C" fn file_write(
+    stream: *mut c_void,
+    ptr: *mut c_void,
+    size: usize,
+) -> c_int {
+    let s = &mut *(stream as *mut FileWriteStream);
+    if s.err.is_some() {
+        return 1;
+    }
+    let bytes = std::slice::from_raw_parts(ptr as *const u8, size);
+    s.hasher.update(bytes);
+    match s.file.write_all(bytes) {
+        Ok(()) => 0,
+        Err(e) => {
+            s.err = Some(e);
+            1
+        }
+    }
+}
+
+unsafe extern "C" fn file_read(
+    stream: *mut c_void,
+    ptr: *mut c_void,
+    size: usize,
+) -> c_int {
+    use std::io::Read;
+    let s = &mut *(stream as *mut FileReadStream);
+    let dst = std::slice::from_raw_parts_mut(ptr as *mut u8, size);
+    let mut total = 0;
+    while total < size {
+        match s.file.read(&mut dst[total..]) {
+            Ok(0) => return 1, // unexpected EOF
+            Ok(n) => total += n,
+            Err(_) => return 1,
+        }
+    }
+    0
+}
+
+impl Machine {
+    /// Write the machine's heap snapshot directly to a file,
+    /// computing SHA-256 on the fly.
+    ///
+    /// Returns the hex-encoded SHA-256 digest on success.
+    /// The snapshot is never buffered fully in memory — each
+    /// chunk from `fxWriteSnapshot` is written through to the
+    /// file and fed to the hasher.
+    pub fn write_snapshot_to_file(
+        &self,
+        signature: &[u8],
+        callbacks: &mut [ffi::XsCallback],
+        file: std::fs::File,
+    ) -> Result<String, SnapshotError> {
+        let mut fws = FileWriteStream {
+            file,
+            hasher: Sha256::new(),
+            err: None,
+        };
+        let mut snapshot = ffi::XsSnapshot {
+            signature: signature.as_ptr() as *mut c_char,
+            signature_length: signature.len() as c_int,
+            callbacks: callbacks.as_mut_ptr(),
+            callbacks_length: callbacks.len() as c_int,
+            read: None,
+            write: Some(file_write),
+            stream: &mut fws as *mut FileWriteStream as *mut c_void,
+            error: 0,
+            first_chunk: ptr::null_mut(),
+            first_projection: ptr::null_mut(),
+            first_slot: ptr::null_mut(),
+            slot_size: 0,
+            slots: ptr::null_mut(),
+        };
+        let ok = unsafe { ffi::fxWriteSnapshot(self.raw, &mut snapshot) };
+        if ok != 1 {
+            return Err(SnapshotError::Write(snapshot.error));
+        }
+        if let Some(e) = fws.err {
+            return Err(SnapshotError::Io(e));
+        }
+        // Flush to ensure all data hits disk before we rename.
+        fws.file.flush().map_err(SnapshotError::Io)?;
+        fws.file.sync_all().map_err(SnapshotError::Io)?;
+        let hash = format!("{:x}", fws.hasher.finalize());
+        Ok(hash)
+    }
+
+    /// Create a machine from a snapshot file, streaming chunks
+    /// from disk without buffering.
+    pub fn from_snapshot_file(
+        file: std::fs::File,
+        name: &str,
+        signature: &[u8],
+        callbacks: &mut [ffi::XsCallback],
+    ) -> Result<Machine, SnapshotError> {
+        let c_name = CString::new(name).map_err(|_| SnapshotError::InvalidName)?;
+        let mut frs = FileReadStream { file };
+        let mut snapshot = ffi::XsSnapshot {
+            signature: signature.as_ptr() as *mut c_char,
+            signature_length: signature.len() as c_int,
+            callbacks: callbacks.as_mut_ptr(),
+            callbacks_length: callbacks.len() as c_int,
+            read: Some(file_read),
+            write: None,
+            stream: &mut frs as *mut FileReadStream as *mut c_void,
+            error: 0,
+            first_chunk: ptr::null_mut(),
+            first_projection: ptr::null_mut(),
+            first_slot: ptr::null_mut(),
+            slot_size: 0,
+            slots: ptr::null_mut(),
+        };
+        let raw = unsafe {
+            ffi::fxReadSnapshot(&mut snapshot, c_name.as_ptr(), ptr::null_mut())
+        };
+        if raw.is_null() {
+            Err(SnapshotError::Read(snapshot.error))
+        } else {
+            Ok(Machine {
+                raw,
+                registered_callbacks: RefCell::new(callbacks.to_vec()),
+            })
+        }
+    }
+
+    /// Write snapshot to CAS directory, streaming to disk.
+    ///
+    /// Writes to a temp file in `cas_dir`, then renames to
+    /// `{cas_dir}/{sha256_hex}`.  Returns the hex digest.
+    pub fn suspend_to_cas(
+        &self,
+        signature: &[u8],
+        cas_dir: &std::path::Path,
+    ) -> Result<String, SnapshotError> {
+        std::fs::create_dir_all(cas_dir).map_err(SnapshotError::Io)?;
+        let tmp_path = cas_dir.join(".snapshot.tmp");
+        let file = std::fs::File::create(&tmp_path)
+            .map_err(SnapshotError::Io)?;
+        let mut cbs = self.registered_callbacks.borrow().clone();
+        let hash = self.write_snapshot_to_file(signature, &mut cbs, file)?;
+        let final_path = cas_dir.join(&hash);
+        std::fs::rename(&tmp_path, &final_path).map_err(SnapshotError::Io)?;
+        Ok(hash)
+    }
+
+    /// Restore a machine from a CAS-stored snapshot file.
+    pub fn resume_from_cas(
+        cas_dir: &std::path::Path,
+        sha256: &str,
+        name: &str,
+        signature: &[u8],
+        callbacks: &mut [ffi::XsCallback],
+    ) -> Result<Machine, SnapshotError> {
+        let path = cas_dir.join(sha256);
+        let file = std::fs::File::open(&path).map_err(SnapshotError::Io)?;
+        Machine::from_snapshot_file(file, name, signature, callbacks)
     }
 }
 
@@ -484,12 +893,20 @@ impl std::error::Error for XsnapError {}
 
 /// Evaluate JS code with try-catch error reporting.
 /// Returns true if evaluation succeeded (no error), false otherwise.
+/// Evaluate JS code with try-catch error reporting.
+///
+/// Returns true if evaluation succeeded (no error), false otherwise.
+///
+/// IMPORTANT: The code is inlined directly into the try-catch block,
+/// NOT passed through an inner `eval()` call.  Using `eval(string)`
+/// creates a nested evaluation context in XS which could shift the
+/// stack frame layout.  Inlining avoids this by keeping the host
+/// call in the same evaluation context as `machine.eval()`.
 fn eval_wrapped(machine: &Machine, code: &str, label: &str) -> bool {
-    let json = serde_json::to_string(code).unwrap();
     let wrapped = format!(
-        "var __e = undefined; try {{ eval({}) }} catch(e) {{ __e = e; }} \
+        "var __e = undefined; try {{ {} }} catch(e) {{ __e = e; }} \
          __e ? ('ERROR: ' + __e.message + '\\nSTACK: ' + __e.stack) : 'ok'",
-        json
+        code
     );
     match machine.eval(&wrapped) {
         Some(JsValue::String(ref s)) if s.starts_with("ERROR") => {
@@ -534,12 +951,18 @@ fn send_control_response(verb: &str, nonce: i64) {
     let _ = worker_io::with_transport(|t| t.send_raw_frame(&encoded));
 }
 
-/// Handle an incoming envelope: intercept debug-related verbs
-/// (`debug-attach`, `debug-detach`, `debug`) and route them to
-/// the XS debugger; otherwise dispatch to JS.
-///
-/// Returns `true` if the envelope was handled as debug traffic.
-fn handle_envelope(machine: &Machine, data: &[u8]) -> bool {
+/// Result of handling an envelope.
+enum EnvelopeAction {
+    /// Normal dispatch or debug traffic — continue the loop.
+    Continue,
+    /// Worker should suspend: snapshot written, exit the loop.
+    Suspend,
+}
+
+/// Handle an incoming envelope: intercept control verbs
+/// (`debug-attach`, `debug-detach`, `debug`, `suspend`) and
+/// route them; otherwise dispatch to JS.
+fn handle_envelope(machine: &Machine, data: &[u8]) -> EnvelopeAction {
     if let Ok(env) = envelope::decode_envelope(data) {
         match env.verb.as_str() {
             "debug-attach" => {
@@ -547,24 +970,73 @@ fn handle_envelope(machine: &Machine, data: &[u8]) -> bool {
                 machine.run_debugger();
                 flush_debug_outbound();
                 send_control_response("debug-attached", env.nonce);
-                return true;
+                return EnvelopeAction::Continue;
             }
             "debug-detach" => {
                 powers::debug::debug_reset();
                 send_control_response("debug-detached", env.nonce);
-                return true;
+                return EnvelopeAction::Continue;
             }
             "debug" if powers::debug::debug_is_active() => {
                 powers::debug::debug_push_inbound(&env.payload);
                 machine.run_debugger();
                 flush_debug_outbound();
-                return true;
+                return EnvelopeAction::Continue;
+            }
+            "suspend" => {
+                return handle_suspend(machine, env.nonce, &env.payload);
             }
             _ => {}
         }
     }
     dispatch_envelope(machine, data);
-    false
+    EnvelopeAction::Continue
+}
+
+/// Handle a suspend request: stream snapshot to CAS, send back hash.
+///
+/// The `cas_dir` payload tells the worker where the content-
+/// addressable store lives.  The snapshot is written chunk-by-chunk
+/// to a temp file in that directory while computing SHA-256, then
+/// renamed to `{cas_dir}/{hex_hash}`.  Only the hash string is
+/// sent back to the supervisor — the snapshot never transits the
+/// envelope bus.
+fn handle_suspend(machine: &Machine, nonce: i64, cas_dir: &[u8]) -> EnvelopeAction {
+    let cas_path = match std::str::from_utf8(cas_dir) {
+        Ok(s) if !s.is_empty() => std::path::PathBuf::from(s),
+        _ => {
+            send_suspend_error(nonce, "suspend: missing or invalid cas_dir");
+            return EnvelopeAction::Continue;
+        }
+    };
+    match machine.suspend_to_cas(SNAPSHOT_SIGNATURE, &cas_path) {
+        Ok(hash) => {
+            let env = envelope::Envelope {
+                handle: 0,
+                verb: "suspended".to_string(),
+                payload: hash.into_bytes(),
+                nonce,
+            };
+            let encoded = envelope::encode_envelope(&env);
+            let _ = worker_io::with_transport(|t| t.send_raw_frame(&encoded));
+            EnvelopeAction::Suspend
+        }
+        Err(e) => {
+            send_suspend_error(nonce, &format!("{e}"));
+            EnvelopeAction::Continue
+        }
+    }
+}
+
+fn send_suspend_error(nonce: i64, msg: &str) {
+    let env = envelope::Envelope {
+        handle: 0,
+        verb: "suspend-error".to_string(),
+        payload: msg.as_bytes().to_vec(),
+        nonce,
+    };
+    let encoded = envelope::encode_envelope(&env);
+    let _ = worker_io::with_transport(|t| t.send_raw_frame(&encoded));
 }
 
 /// Deliver a raw envelope to the JS `handleCommand` function.
@@ -646,126 +1118,161 @@ pub fn run_xs_program(
 ) -> Result<(), XsnapError> {
     eprintln!("{label}: starting");
     ensure_shared_cluster();
-    eprintln!("{label}: cluster ready, creating machine");
-
-    let machine = Machine::new(creation, label)
-        .ok_or_else(|| XsnapError::MachineInit("failed to create XS machine".to_string()))?;
-    eprintln!("{label}: machine created");
 
     let supervised = transport.is_some();
+    let mut restore_path: Option<String> = None;
 
     // 1. Install transport + register worker-I/O host functions
     //    (always installed so that bundles that reference
     //    sendRawFrame/trace/etc. resolve; in standalone mode, only
     //    trace is exercised).
     if let Some(mut t) = transport {
-        t.init_handshake()
+        let init_result = t.init_handshake()
             .map_err(|e| XsnapError::Io(format!("init handshake failed: {e}")))?;
+        if let worker_io::InitResult::Restore(_, path_bytes) = init_result {
+            let path_str = String::from_utf8(path_bytes)
+                .map_err(|e| XsnapError::Io(format!("restore path not UTF-8: {e}")))?;
+            restore_path = Some(path_str);
+        }
         eprintln!("{label}: init handshake complete");
         worker_io::install_transport(t);
     }
-    machine.register_worker_io();
-    eprintln!("{label}: worker I/O registered");
 
-    // 2. Register all powers (fs, crypto, modules, process)
+    // 2. Create the machine: either fresh or from snapshot file.
+    let is_restore = restore_path.is_some();
+    let machine = if let Some(ref snap_path) = restore_path {
+        eprintln!("{label}: restoring from snapshot file {snap_path}");
+        let file = std::fs::File::open(snap_path)
+            .map_err(|e| XsnapError::Io(format!("open snapshot: {e}")))?;
+        let mut callbacks = worker_snapshot_callbacks();
+        let m = Machine::from_snapshot_file(
+            file,
+            label,
+            SNAPSHOT_SIGNATURE,
+            &mut callbacks,
+        ).map_err(|e| XsnapError::MachineInit(format!("snapshot restore failed: {e}")))?;
+        eprintln!("{label}: machine restored from snapshot");
+        m
+    } else {
+        eprintln!("{label}: cluster ready, creating machine");
+        let m = Machine::new(creation, label)
+            .ok_or_else(|| XsnapError::MachineInit("failed to create XS machine".to_string()))?;
+        eprintln!("{label}: machine created");
+        m
+    };
+
+    // For fresh machines, register host functions and bootstrap.
+    // For restored machines, the snapshot already has the globals —
+    // we only need to set up the host context pointer for powers.
+    if !is_restore {
+        machine.register_worker_io();
+        eprintln!("{label}: worker I/O registered");
+    }
+
+    // Register host powers context (needed for both fresh and
+    // restored machines — the context pointer is not in the
+    // snapshot).
     let powers_ptr = register_host_powers(&machine);
-    eprintln!("{label}: host powers registered");
 
-    // Standalone runs get a print() alias for basic console output.
-    if !supervised {
-        machine.define_function("print", worker_io::host_trace, 1);
+    if !is_restore {
+        // Standalone runs get a print() alias for basic console output.
+        if !supervised {
+            machine.define_function("print", worker_io::host_trace, 1);
+        }
+
+        // Install host<Name> aliases so bundled code that references
+        // hostReadFile / hostSendRawFrame / hostGetDaemonHandle / ...
+        // resolves to the unprefixed implementations. This runs BEFORE
+        // SES lockdown so it can write to globalThis.
+        machine
+            .eval(HOST_ALIASES)
+            .expect("host aliases evaluation failed");
+
+        // Install native TextEncoder/TextDecoder replacements before SES
+        // lockdown so that the bundled `new TextEncoder()` picks up the
+        // fast native implementation instead of XS's built-in which is
+        // extremely slow for large strings (>100KB).
+        machine.eval(
+            "(function() { \
+                var OrigEncoder = globalThis.TextEncoder; \
+                var OrigDecoder = globalThis.TextDecoder; \
+                function NativeTextEncoder() {} \
+                NativeTextEncoder.prototype.encode = function(s) { \
+                    return new Uint8Array(hostEncodeUtf8(s)); \
+                }; \
+                globalThis.TextEncoder = NativeTextEncoder; \
+                function NativeTextDecoder() {} \
+                NativeTextDecoder.prototype.decode = function(buf) { \
+                    if (buf instanceof ArrayBuffer) { \
+                        return hostDecodeUtf8(new Uint8Array(buf)); \
+                    } \
+                    return hostDecodeUtf8(buf); \
+                }; \
+                globalThis.TextDecoder = NativeTextDecoder; \
+            })();",
+        );
+
+        // Bootstrap: polyfills → SES boot → role-specific program
+        bootstrap_ses(&machine, label);
+        eprintln!("{label}: SES bootstrapped");
+
+        // Install globalThis.Base64 so that @endo/base64 picks up the
+        // native Rust-backed codec instead of the pure-JS fallback.
+        machine.eval(
+            "globalThis.Base64 = harden({ \
+                decode(s) { return new Uint8Array(hostBase64Decode(s)); }, \
+                encode(b) { return hostBase64Encode(b); }, \
+            });",
+        );
+        eprintln!("{label}: Base64 native binding installed");
     }
 
-    // Install host<Name> aliases so bundled code that references
-    // hostReadFile / hostSendRawFrame / hostGetDaemonHandle / ...
-    // resolves to the unprefixed implementations. This runs BEFORE
-    // SES lockdown so it can write to globalThis.
-    machine
-        .eval(HOST_ALIASES)
-        .expect("host aliases evaluation failed");
-
-    // Install native TextEncoder/TextDecoder replacements before SES
-    // lockdown so that the bundled `new TextEncoder()` picks up the
-    // fast native implementation instead of XS's built-in which is
-    // extremely slow for large strings (>100KB).
-    machine.eval(
-        "(function() { \
-            var OrigEncoder = globalThis.TextEncoder; \
-            var OrigDecoder = globalThis.TextDecoder; \
-            function NativeTextEncoder() {} \
-            NativeTextEncoder.prototype.encode = function(s) { \
-                return new Uint8Array(hostEncodeUtf8(s)); \
-            }; \
-            globalThis.TextEncoder = NativeTextEncoder; \
-            function NativeTextDecoder() {} \
-            NativeTextDecoder.prototype.decode = function(buf) { \
-                if (buf instanceof ArrayBuffer) { \
-                    return hostDecodeUtf8(new Uint8Array(buf)); \
-                } \
-                return hostDecodeUtf8(buf); \
-            }; \
-            globalThis.TextDecoder = NativeTextDecoder; \
-        })();",
-    );
-
-    // 3. Bootstrap: polyfills → SES boot → role-specific program
-    bootstrap_ses(&machine, label);
-    eprintln!("{label}: SES bootstrapped");
-
-    // 4. Install globalThis.Base64 so that @endo/base64 picks up the
-    //    native Rust-backed codec instead of the pure-JS fallback
-    //    (which is orders of magnitude too slow on XS for large data).
-    machine.eval(
-        "globalThis.Base64 = harden({ \
-            decode(s) { return new Uint8Array(hostBase64Decode(s)); }, \
-            encode(b) { return hostBase64Encode(b); }, \
-        });",
-    );
-    eprintln!("{label}: Base64 native binding installed");
-
-    match program {
-        XsProgram::Bundle(src) => {
-            eprintln!("{label}: about to eval bundle ({} bytes)", src.len());
-            // The bundle is a top-level expression that may throw
-            // (e.g. module init errors). XS JS exceptions use C
-            // longjmp which is UB across Rust frames, so we wrap
-            // the eval in a JS try/catch and inspect the result.
-            if !eval_wrapped(&machine, src, &format!("{label}/bundle")) {
-                return Err(XsnapError::Bootstrap(format!(
-                    "{label}: bundle eval threw"
-                )));
+    if !is_restore {
+        match program {
+            XsProgram::Bundle(src) => {
+                // The bundle is an IIFE that:
+                // (a) defines all `const`s in a function scope, and
+                // (b) calls async `main()` with `.catch()` — no
+                //     synchronous throws to worry about.
+                // We use eval_wrapped (inline try/catch) as a safety
+                // net for any unexpected synchronous errors.
+                if !eval_wrapped(&machine, src, &format!("{label}/bundle")) {
+                    return Err(XsnapError::Bootstrap(format!(
+                        "{label}: bundle eval threw"
+                    )));
+                }
+                eprintln!("{label}: bundle eval returned, quiescing");
+                machine.quiesce();
+                eprintln!("{label}: quiesce complete");
             }
-            eprintln!("{label}: bundle eval returned, quiescing");
-            machine.quiesce();
-            eprintln!("{label}: quiesce complete");
-        }
-        XsProgram::Archive(bytes) => {
-            // Provide globals visible inside archive Compartments.
-            machine.eval(
-                "globalThis.__archiveEndowments = { \
-                    print: trace, trace, \
-                    readFileText, writeFileText, readDir, mkdir, \
-                    remove, rename, exists, isDir, readLink, \
-                    openReader, read, closeReader, \
-                    openWriter, write, closeWriter, \
-                    openDir, closeDir, symlink, link, \
-                    sha256, sha256Init, sha256Update, sha256Finish, \
-                    randomHex256, ed25519Keygen, ed25519Sign, \
-                    getPid, getEnv, joinPath, realPath \
-                };",
-            );
-            let cursor = std::io::Cursor::new(bytes);
-            let archive = archive::load_archive(cursor)
-                .map_err(|e| XsnapError::Archive(format!("cannot read archive: {e}")))?;
-            if !archive::install_archive(&machine, &archive) {
-                return Err(XsnapError::Archive(
-                    "archive installation failed".to_string(),
-                ));
+            XsProgram::Archive(bytes) => {
+                // Provide globals visible inside archive Compartments.
+                machine.eval(
+                    "globalThis.__archiveEndowments = { \
+                        print: trace, trace, \
+                        readFileText, writeFileText, readDir, mkdir, \
+                        remove, rename, exists, isDir, readLink, \
+                        openReader, read, closeReader, \
+                        openWriter, write, closeWriter, \
+                        openDir, closeDir, symlink, link, \
+                        sha256, sha256Init, sha256Update, sha256Finish, \
+                        randomHex256, ed25519Keygen, ed25519Sign, \
+                        getPid, getEnv, joinPath, realPath \
+                    };",
+                );
+                let cursor = std::io::Cursor::new(bytes);
+                let archive = archive::load_archive(cursor)
+                    .map_err(|e| XsnapError::Archive(format!("cannot read archive: {e}")))?;
+                if !archive::install_archive(&machine, &archive) {
+                    return Err(XsnapError::Archive(
+                        "archive installation failed".to_string(),
+                    ));
+                }
+                machine.quiesce();
             }
-            machine.quiesce();
         }
+        eprintln!("{label}: bootstrap eval complete");
     }
-    eprintln!("{label}: bootstrap eval complete");
 
     if supervised {
         eprintln!("{label}: entering main loop");
@@ -774,7 +1281,10 @@ pub fn run_xs_program(
             let frame = worker_io::with_transport(|t| t.recv_raw_envelope());
             match frame {
                 Ok(Some(data)) => {
-                    handle_envelope(&machine, &data);
+                    if matches!(handle_envelope(&machine, &data), EnvelopeAction::Suspend) {
+                        eprintln!("{label}: suspended");
+                        break;
+                    }
                 }
                 Ok(None) => break,
                 Err(e) => {
@@ -783,19 +1293,36 @@ pub fn run_xs_program(
                 }
             }
 
-            // Reactive pump: interleave promise-job processing with
+            // Reactive pump: drain promise jobs and interleave with
             // non-blocking envelope dispatch so that CapTP round-trips
-            // that occur during quiescence (e.g. storeBlob iterating a
-            // remote reader) can complete without deadlocking.
-            let mut _pump_iter = 0u32;
+            // can complete without deadlocking.
+            //
+            // fxHasPendingJobs() is check-and-reset: returns 1 if any
+            // promise job was queued since the last call, then clears
+            // the flag. We loop `fxRunPromiseJobs` until no new jobs
+            // are queued, then drain inbound envelopes. If after
+            // draining we still have fresh jobs, repeat. When both
+            // promise jobs and envelopes are exhausted, break.
             loop {
-                unsafe { fxRunPromiseJobs(machine.raw) };
+                // Drain all ready promise jobs (multiple turns may be
+                // needed as resolving one promise can queue another).
+                loop {
+                    unsafe { fxRunPromiseJobs(machine.raw) };
+                    if unsafe { ffi::fxHasPendingJobs() } == 0 {
+                        break;
+                    }
+                }
 
                 // Drain any envelopes that arrived while JS was running.
+                let mut got_envelope = false;
                 loop {
                     match worker_io::with_transport(|t| t.try_recv_raw_envelope()) {
                         Ok(Some(data)) => {
-                            handle_envelope(&machine, &data);
+                            got_envelope = true;
+                            if matches!(handle_envelope(&machine, &data), EnvelopeAction::Suspend) {
+                                eprintln!("{label}: suspended (during pump)");
+                                break 'outer;
+                            }
                         }
                         Ok(None) => break,
                         Err(e) => {
@@ -809,17 +1336,22 @@ pub fn run_xs_program(
                 // cycle (breakpoint hits, step responses, etc.).
                 flush_debug_outbound();
 
-                let pending = unsafe { ffi::fxHasPendingJobs() };
-                if pending == 0 {
-                    break;
+                // If we processed envelopes, loop back to drain the
+                // promise jobs they may have triggered.
+                if got_envelope {
+                    continue;
                 }
 
-                _pump_iter += 1;
+                // No envelopes and no ready promise jobs. Check if
+                // any new jobs were queued during envelope handling
+                // (e.g., by sendRawFrame callbacks).
+                if unsafe { ffi::fxHasPendingJobs() } != 0 {
+                    continue;
+                }
 
-                // Jobs are pending but no envelopes available yet.
-                // Briefly yield to let the bridge tasks deliver
-                // responses, then try again.
-                std::thread::sleep(std::time::Duration::from_millis(1));
+                // Truly idle — break to the outer loop which will
+                // block for the next envelope.
+                break;
             }
 
             if let Some(JsValue::Boolean(true)) =
@@ -871,6 +1403,24 @@ pub fn run_xs_manager_inproc(
         XsProgram::Bundle(MANAGER_BOOTSTRAP),
         &MANAGER_CREATION,
         "endor[manager]",
+        Some(transport),
+    )
+}
+
+/// Run the worker bundle inside the current thread over an
+/// in-process channel transport.
+///
+/// Used for both fresh in-process workers and resumed (restored)
+/// workers.  When the transport's init handshake returns a
+/// "restore" verb, `run_xs_program` skips the bundle eval and
+/// restores from the snapshot instead.
+pub fn run_xs_worker_inproc(
+    transport: Box<dyn worker_io::WorkerTransport>,
+) -> Result<(), XsnapError> {
+    run_xs_program(
+        XsProgram::Bundle(WORKER_BOOTSTRAP),
+        &WORKER_CREATION,
+        "endor[worker]",
         Some(transport),
     )
 }
@@ -1018,10 +1568,9 @@ mod tests {
 
         // Host function that adds two numbers
         unsafe extern "C" fn add(the: *mut XsMachine) {
-            // xsArg(0) = the->frame[-2 - 0] = the->frame[-2]
-            // xsArg(1) = the->frame[-2 - 1] = the->frame[-3]
-            let a = fxToInteger(the, (*the).frame.sub(2));
-            let b = fxToInteger(the, (*the).frame.sub(3));
+            // mxArgv(0) = frame - 1, mxArgv(1) = frame - 2
+            let a = fxToInteger(the, (*the).frame.sub(1));
+            let b = fxToInteger(the, (*the).frame.sub(2));
             fxInteger(the, &mut (*the).scratch, a + b);
             // xsResult = the->frame[1]
             *(*the).frame.add(1) = (*the).scratch;
@@ -1041,7 +1590,7 @@ mod tests {
 
         // Host function that returns the length of a string
         unsafe extern "C" fn strlen(the: *mut XsMachine) {
-            let s = fxToString(the, (*the).frame.sub(2));
+            let s = fxToString(the, (*the).frame.sub(1));
             let len = std::ffi::CStr::from_ptr(s).to_bytes().len() as i32;
             fxInteger(the, &mut (*the).scratch, len);
             *(*the).frame.add(1) = (*the).scratch;
@@ -2626,8 +3175,8 @@ mod tests {
         worker_io::install_transport(Box::new(transport));
 
         // Process the debug-attach envelope.
-        let handled = handle_envelope(&machine, &attach_bytes);
-        assert!(handled, "debug-attach should be handled");
+        let action = handle_envelope(&machine, &attach_bytes);
+        assert!(matches!(action, EnvelopeAction::Continue), "debug-attach should be handled");
 
         // Check that debug is now active (only if mxDebug is in
         // the binary).
@@ -2664,8 +3213,8 @@ mod tests {
     }
 
     impl WorkerTransport for MockTransport {
-        fn init_handshake(&mut self) -> Result<envelope::Handle, std::io::Error> {
-            Ok(0)
+        fn init_handshake(&mut self) -> Result<worker_io::InitResult, std::io::Error> {
+            Ok(worker_io::InitResult::Init(0))
         }
         fn recv_raw_envelope(&mut self) -> Result<Option<Vec<u8>>, std::io::Error> {
             Ok(None)
@@ -2685,6 +3234,410 @@ mod tests {
         }
         fn daemon_handle(&self) -> envelope::Handle {
             0
+        }
+    }
+
+    // --- Snapshot round-trip tests ---
+
+    const TEST_SNAPSHOT_SIG: &[u8] = b"test-snap 1";
+
+    // --- Snapshot round-trip tests ---
+
+    #[test]
+    fn snapshot_round_trip_integer() {
+        let machine = new_machine();
+        machine.eval("var x = 42").unwrap();
+
+        let mut callbacks: Vec<ffi::XsCallback> = Vec::new();
+        let snap = machine
+            .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("write_snapshot failed");
+
+        assert!(!snap.is_empty(), "snapshot should not be empty");
+
+        let restored = Machine::from_snapshot(
+            &snap,
+            "restored",
+            TEST_SNAPSHOT_SIG,
+            &mut callbacks,
+        )
+        .expect("from_snapshot failed");
+
+        match restored.eval("x").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 42),
+            JsValue::Number(n) => assert_eq!(n, 42.0),
+            other => panic!("expected 42, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn snapshot_round_trip_string() {
+        let machine = new_machine();
+        machine.eval("var greeting = 'hello snapshot'").unwrap();
+
+        let mut callbacks: Vec<ffi::XsCallback> = Vec::new();
+        let snap = machine
+            .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("write_snapshot failed");
+
+        let restored = Machine::from_snapshot(
+            &snap,
+            "restored",
+            TEST_SNAPSHOT_SIG,
+            &mut callbacks,
+        )
+        .expect("from_snapshot failed");
+
+        match restored.eval("greeting").unwrap() {
+            JsValue::String(s) => assert_eq!(s, "hello snapshot"),
+            other => panic!("expected string, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn snapshot_round_trip_object() {
+        let machine = new_machine();
+        machine
+            .eval("var obj = { a: 1, b: 'two', c: true }")
+            .unwrap();
+
+        let mut callbacks: Vec<ffi::XsCallback> = Vec::new();
+        let snap = machine
+            .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("write_snapshot failed");
+
+        let restored = Machine::from_snapshot(
+            &snap,
+            "restored",
+            TEST_SNAPSHOT_SIG,
+            &mut callbacks,
+        )
+        .expect("from_snapshot failed");
+
+        match restored.eval("obj.a").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 1),
+            other => panic!("expected 1, got {:?}", js_value_debug(&other)),
+        }
+        match restored.eval("obj.b").unwrap() {
+            JsValue::String(s) => assert_eq!(s, "two"),
+            other => panic!("expected 'two', got {:?}", js_value_debug(&other)),
+        }
+        match restored.eval("obj.c").unwrap() {
+            JsValue::Boolean(b) => assert!(b),
+            other => panic!("expected true, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn snapshot_round_trip_closure() {
+        let machine = new_machine();
+        machine
+            .eval("var counter = 0; function inc() { return ++counter; }")
+            .unwrap();
+        // Advance the counter
+        machine.eval("inc(); inc(); inc()").unwrap();
+
+        let mut callbacks: Vec<ffi::XsCallback> = Vec::new();
+        let snap = machine
+            .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("write_snapshot failed");
+
+        let restored = Machine::from_snapshot(
+            &snap,
+            "restored",
+            TEST_SNAPSHOT_SIG,
+            &mut callbacks,
+        )
+        .expect("from_snapshot failed");
+
+        // Counter should resume from 3
+        match restored.eval("inc()").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 4),
+            other => panic!("expected 4, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn snapshot_signature_mismatch_fails() {
+        let machine = new_machine();
+        machine.eval("var x = 1").unwrap();
+
+        let mut callbacks: Vec<ffi::XsCallback> = Vec::new();
+        let snap = machine
+            .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("write_snapshot failed");
+
+        // Try to restore with a different signature
+        let result = Machine::from_snapshot(
+            &snap,
+            "restored",
+            b"wrong-sig 9",
+            &mut callbacks,
+        );
+        assert!(result.is_err(), "mismatched signature should fail");
+    }
+
+    #[test]
+    fn snapshot_with_host_function() {
+        let machine = new_machine();
+
+        unsafe extern "C" fn return_99(the: *mut XsMachine) {
+            fxInteger(the, &mut (*the).scratch, 99);
+            *(*the).frame.add(1) = (*the).scratch;
+        }
+
+        machine.define_function("hostReturn99", return_99, 0);
+        machine.eval("var cached = hostReturn99()").unwrap();
+
+        let mut callbacks: Vec<ffi::XsCallback> = vec![return_99];
+        let snap = machine
+            .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("write_snapshot failed");
+
+        let restored = Machine::from_snapshot(
+            &snap,
+            "restored",
+            TEST_SNAPSHOT_SIG,
+            &mut callbacks,
+        )
+        .expect("from_snapshot failed");
+
+        // The cached value should survive
+        match restored.eval("cached").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 99),
+            other => panic!("expected 99, got {:?}", js_value_debug(&other)),
+        }
+
+        // The host function should still work after restore
+        match restored.eval("hostReturn99()").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 99),
+            other => panic!("expected 99, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Suspend / Resume API tests
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn suspend_resume_preserves_state() {
+        let machine = new_machine();
+        machine.eval("var counter = 0; function inc() { return ++counter; }").unwrap();
+        machine.eval("inc(); inc(); inc()").unwrap(); // counter = 3
+
+        let suspend_data = machine
+            .suspend(TEST_SNAPSHOT_SIG)
+            .expect("suspend failed");
+
+        assert!(!suspend_data.snapshot.is_empty());
+
+        // Drop the original machine.
+        drop(machine);
+
+        // Resume from the suspend data.
+        let restored = Machine::resume(&suspend_data, "resumed")
+            .expect("resume failed");
+
+        // Counter should continue from 3.
+        match restored.eval("inc()").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 4),
+            other => panic!("expected 4, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn suspend_resume_with_host_function() {
+        let machine = new_machine();
+
+        unsafe extern "C" fn return_7(the: *mut XsMachine) {
+            fxInteger(the, &mut (*the).scratch, 7);
+            *(*the).frame.add(1) = (*the).scratch;
+        }
+
+        machine.define_function("hostSeven", return_7, 0);
+        machine.eval("var saved = hostSeven()").unwrap();
+
+        let suspend_data = machine
+            .suspend(TEST_SNAPSHOT_SIG)
+            .expect("suspend failed");
+        drop(machine);
+
+        let restored = Machine::resume(&suspend_data, "resumed")
+            .expect("resume failed");
+
+        // Cached value survives.
+        match restored.eval("saved").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 7),
+            other => panic!("expected 7, got {:?}", js_value_debug(&other)),
+        }
+
+        // Host function still callable after resume.
+        match restored.eval("hostSeven()").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 7),
+            other => panic!("expected 7, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn suspend_resume_multiple_cycles() {
+        let machine = new_machine();
+        machine.eval("var n = 0").unwrap();
+
+        // Suspend/resume three times, incrementing each time.
+        let mut data = machine
+            .suspend(TEST_SNAPSHOT_SIG)
+            .expect("first suspend");
+        drop(machine);
+
+        for i in 1..=3 {
+            let m = Machine::resume(&data, "cycle")
+                .expect("resume failed");
+            m.eval("n++").unwrap();
+            data = m.suspend(TEST_SNAPSHOT_SIG)
+                .expect("suspend failed");
+            drop(m);
+        }
+
+        let final_m = Machine::resume(&data, "final")
+            .expect("final resume");
+        match final_m.eval("n").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 3),
+            other => panic!("expected 3, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // File-streaming CAS tests
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn suspend_to_cas_streams_to_disk() {
+        let machine = new_machine();
+        machine.eval("var x = 42; var s = 'hello CAS'").unwrap();
+
+        let tmp = tempfile::tempdir().unwrap();
+        let cas_dir = tmp.path().join("store-sha256");
+
+        let hash = machine
+            .suspend_to_cas(TEST_SNAPSHOT_SIG, &cas_dir)
+            .expect("suspend_to_cas failed");
+
+        // The CAS file should exist.
+        let cas_file = cas_dir.join(&hash);
+        assert!(cas_file.exists(), "CAS file should exist at {}", cas_file.display());
+        let file_size = std::fs::metadata(&cas_file).unwrap().len();
+        assert!(file_size > 0, "CAS file should not be empty");
+
+        // Restore from the CAS file and verify state.
+        let mut callbacks: Vec<ffi::XsCallback> = Vec::new();
+        let restored = Machine::resume_from_cas(
+            &cas_dir,
+            &hash,
+            "restored",
+            TEST_SNAPSHOT_SIG,
+            &mut callbacks,
+        ).expect("resume_from_cas failed");
+
+        match restored.eval("x").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 42),
+            other => panic!("expected 42, got {:?}", js_value_debug(&other)),
+        }
+        match restored.eval("s").unwrap() {
+            JsValue::String(s) => assert_eq!(s, "hello CAS"),
+            other => panic!("expected 'hello CAS', got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn cas_round_trip_with_host_functions() {
+        let machine = new_machine();
+
+        unsafe extern "C" fn return_11(the: *mut XsMachine) {
+            fxInteger(the, &mut (*the).scratch, 11);
+            *(*the).frame.add(1) = (*the).scratch;
+        }
+
+        machine.define_function("hostEleven", return_11, 0);
+        machine.eval("var cached = hostEleven()").unwrap();
+
+        let tmp = tempfile::tempdir().unwrap();
+        let cas_dir = tmp.path().join("store-sha256");
+
+        let hash = machine
+            .suspend_to_cas(TEST_SNAPSHOT_SIG, &cas_dir)
+            .expect("suspend_to_cas failed");
+        drop(machine);
+
+        let mut callbacks: Vec<ffi::XsCallback> = vec![return_11];
+        let restored = Machine::resume_from_cas(
+            &cas_dir,
+            &hash,
+            "restored",
+            TEST_SNAPSHOT_SIG,
+            &mut callbacks,
+        ).expect("resume_from_cas failed");
+
+        match restored.eval("cached").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 11),
+            other => panic!("expected 11, got {:?}", js_value_debug(&other)),
+        }
+        match restored.eval("hostEleven()").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 11),
+            other => panic!("expected 11, got {:?}", js_value_debug(&other)),
+        }
+    }
+
+    #[test]
+    fn cas_multiple_suspend_resume_cycles() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cas_dir = tmp.path().join("store-sha256");
+
+        let machine = new_machine();
+        machine.eval("var n = 0").unwrap();
+
+        let mut last_hash = machine
+            .suspend_to_cas(TEST_SNAPSHOT_SIG, &cas_dir)
+            .expect("first suspend");
+        drop(machine);
+
+        for _ in 0..3 {
+            let mut cbs: Vec<ffi::XsCallback> = Vec::new();
+            let m = Machine::resume_from_cas(
+                &cas_dir,
+                &last_hash,
+                "cycle",
+                TEST_SNAPSHOT_SIG,
+                &mut cbs,
+            ).expect("resume failed");
+            m.eval("n++").unwrap();
+            last_hash = m
+                .suspend_to_cas(TEST_SNAPSHOT_SIG, &cas_dir)
+                .expect("suspend failed");
+            drop(m);
+        }
+
+        // Each cycle creates a distinct CAS entry.
+        let entries: Vec<_> = std::fs::read_dir(&cas_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .collect();
+        assert!(
+            entries.len() >= 2,
+            "expected multiple CAS entries, got {}",
+            entries.len()
+        );
+
+        let mut cbs: Vec<ffi::XsCallback> = Vec::new();
+        let final_m = Machine::resume_from_cas(
+            &cas_dir,
+            &last_hash,
+            "final",
+            TEST_SNAPSHOT_SIG,
+            &mut cbs,
+        ).expect("final resume");
+        match final_m.eval("n").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 3),
+            other => panic!("expected 3, got {:?}", js_value_debug(&other)),
         }
     }
 }

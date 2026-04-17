@@ -28601,7 +28601,7 @@ const makeDaemonCore = async (
     localNodeNumber,
     signBytes,
     gcEnabled = true,
-    defaultWorkerKind = 'node',
+    defaultPlatform = 'separate',
   },
 ) => {
   const {
@@ -29482,14 +29482,14 @@ const makeDaemonCore = async (
   /**
    * @param {string} workerId512
    * @param {Context} context
-   * @param {'locked' | 'node'} [kind]
+   * @param {string} [platform] - "separate" | "shared" | "node"
    * @param {string[]} [trustedShims]
    * @param {string} [label]
    */
   const makeIdentifiedWorker = async (
     workerId512,
     context,
-    kind = undefined,
+    platform = undefined,
     trustedShims = undefined,
     label = undefined,
   ) => {
@@ -29510,7 +29510,7 @@ const makeDaemonCore = async (
         capTpConnectionRegistrar,
         trustedShims,
         label,
-        kind,
+        platform,
       );
 
     const terminateWorker = async (_reason = undefined) => {
@@ -30577,7 +30577,7 @@ const makeDaemonCore = async (
         context,
       ),
     worker: (formula, context, _id, formulaNumber) =>
-      makeIdentifiedWorker(formulaNumber, context, formula.kind, formula.trustedShims, formula.label),
+      makeIdentifiedWorker(formulaNumber, context, formula.platform, formula.trustedShims, formula.label),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier, env = {}, cancelWithWorker },
       context,
@@ -31709,7 +31709,7 @@ const makeDaemonCore = async (
    * @param {string} [label] - Human-readable label for status reporting.
    * @returns {ReturnType<DaemonCore['formulateWorker']>}
    */
-  const formulateNumberedWorker = (formulaNumber, { trustedShims, label = '<untitled>', kind } = {}) => {
+  const formulateNumberedWorker = (formulaNumber, { trustedShims, label = '<untitled>', platform } = {}) => {
     /** @type {WorkerFormula} */
     const formula = {
       type: 'worker',
@@ -31717,7 +31717,7 @@ const makeDaemonCore = async (
       ...(trustedShims && trustedShims.length > 0
         ? { trustedShims }
         : undefined),
-      ...(kind ? { kind } : undefined),
+      ...(platform ? { platform } : undefined),
     };
 
     return /** @type {FormulateResult<EndoWorker>} */ (
@@ -32059,19 +32059,19 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} [specifiedWorkerId]
    * @param {string[]} [trustedShims]
    * @param {string} [label]
-   * @param {'locked' | 'node'} [kind]
+   * @param {string} [platform] - "separate" | "shared" | "node"
    */
   const provideWorkerId = async (
     specifiedWorkerId,
     trustedShims = undefined,
     label = undefined,
-    kind = undefined,
+    platform = undefined,
   ) => {
     await null;
-    console.log(`provideWorkerId: kind=${kind} defaultWorkerKind=${defaultWorkerKind} specifiedWorkerId=${typeof specifiedWorkerId === 'string' ? specifiedWorkerId.slice(0, 12) : specifiedWorkerId}`);
+    console.log(`provideWorkerId: platform=${platform} defaultPlatform=${defaultPlatform} specifiedWorkerId=${typeof specifiedWorkerId === 'string' ? specifiedWorkerId.slice(0, 12) : specifiedWorkerId}`);
     if (typeof specifiedWorkerId === 'string') {
-      if (kind === 'node' && defaultWorkerKind !== 'node') {
-        // Default workers are XS/locked (bus daemon under Rust
+      if (platform === 'node' && defaultPlatform !== 'node') {
+        // Default workers are XS (separate platform under Rust
         // supervisor).  Create a separate Node.js worker.  The original
         // XS worker stays alive (it may have running evals).
         const existingFormula = formulaForId.get(specifiedWorkerId);
@@ -32079,14 +32079,14 @@ const makeDaemonCore = async (
         if (
           existingFormula &&
           existingFormula.type === 'worker' &&
-          !existingFormula.kind
+          !existingFormula.platform
         ) {
           const workerFormulaNumber = /** @type {FormulaNumber} */ (
             await randomHex256()
           );
           const workerFormulation = await formulateNumberedWorker(
             workerFormulaNumber,
-            { kind, trustedShims, label },
+            { platform, trustedShims, label },
           );
           return workerFormulation.id;
         }
@@ -32099,7 +32099,7 @@ const makeDaemonCore = async (
     );
     const workerFormulation = await formulateNumberedWorker(
       workerFormulaNumber,
-      { kind, trustedShims, label },
+      { platform, trustedShims, label },
     );
     return workerFormulation.id;
   };
@@ -32334,7 +32334,7 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} [specifiedPowersId]
    * @param {string[]} [trustedShims]
    * @param {string} [workerLabel]
-   * @param {'locked' | 'node'} [workerKind]
+   * @param {string} [workerPlatform] - "separate" | "shared" | "node"
    */
   const formulateCapletDependencies = async (
     hostAgentId,
@@ -32344,12 +32344,12 @@ const makeDaemonCore = async (
     specifiedPowersId,
     trustedShims = undefined,
     workerLabel = undefined,
-    workerKind = undefined,
+    workerPlatform = undefined,
   ) => {
     const ownFormulaNumber = /** @type {FormulaNumber} */ (
       await randomHex256()
     );
-    const workerId = await provideWorkerId(specifiedWorkerId, trustedShims, workerLabel, workerKind);
+    const workerId = await provideWorkerId(specifiedWorkerId, trustedShims, workerLabel, workerPlatform);
     // When a new node worker was created because the specified worker
     // was XS-only, record the original so that cancelling the original
     // worker cascades to the caplet.  This is a runtime dependency only,
@@ -33258,7 +33258,7 @@ const makeDaemonCore = async (
  */
 const provideEndoBootstrap = async (
   powers,
-  { cancel, gracePeriodMs, gracePeriodElapsed, specials, gcEnabled, defaultWorkerKind },
+  { cancel, gracePeriodMs, gracePeriodElapsed, specials, gcEnabled, defaultPlatform },
 ) => {
   const { persistence: persistencePowers } = powers;
   const { rootNonce: endoFormulaNumber, isNewlyCreated } =
@@ -33275,7 +33275,7 @@ const provideEndoBootstrap = async (
     localNodeNumber,
     signBytes: rootKeypair.sign,
     gcEnabled,
-    defaultWorkerKind,
+    defaultPlatform,
   });
   const { capTpConnectionRegistrar } = daemonCore;
   const isInitialized = !isNewlyCreated;
@@ -33335,7 +33335,7 @@ const provideEndoBootstrap = async (
   specials = {},
   options = {},
 ) => {
-  const { gcEnabled, defaultWorkerKind } = options;
+  const { gcEnabled, defaultPlatform } = options;
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {PromiseKit<never>} */ (makePromiseKit());
 
@@ -33358,7 +33358,7 @@ const provideEndoBootstrap = async (
       gracePeriodElapsed,
       specials,
       gcEnabled,
-      defaultWorkerKind,
+      defaultPlatform,
     });
 
   await Promise.allSettled([
@@ -34960,7 +34960,7 @@ const CBOR_NEGINT = 1;
 const CBOR_BYTES = 2;
 const CBOR_TEXT = 3;
 const CBOR_ARRAY = 4;
-// const CBOR_MAP = 5;
+const CBOR_MAP = 5;
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -35995,28 +35995,46 @@ const cborHead = (buf, major, n) => {
 };
 
 /**
+ * @param {string} platform - "separate" | "shared" | "node"
  * @param {string} command
  * @param {string[]} args
  * @returns {Uint8Array}
  */
-const encodeSpawnPayload = (command, args) => {
+const encodeSpawnPayload = (platform, command, args) => {
   /** @type {number[]} */
   const buf = [];
-  cborHead(buf, CBOR_MAP, 2);
-  const commandKey = textEncoder.encode('command');
-  cborHead(buf, CBOR_TEXT, commandKey.length);
-  for (let i = 0; i < commandKey.length; i += 1) buf.push(commandKey[i]);
-  const commandVal = textEncoder.encode(command);
-  cborHead(buf, CBOR_TEXT, commandVal.length);
-  for (let i = 0; i < commandVal.length; i += 1) buf.push(commandVal[i]);
-  const argsKey = textEncoder.encode('args');
-  cborHead(buf, CBOR_TEXT, argsKey.length);
-  for (let i = 0; i < argsKey.length; i += 1) buf.push(argsKey[i]);
-  cborHead(buf, CBOR_ARRAY, args.length);
-  for (const arg of args) {
-    const argVal = textEncoder.encode(arg);
-    cborHead(buf, CBOR_TEXT, argVal.length);
-    for (let i = 0; i < argVal.length; i += 1) buf.push(argVal[i]);
+  if (platform === 'shared') {
+    // Shared workers run in-process; no command/args needed.
+    cborHead(buf, CBOR_MAP, 1);
+    const platformKey = textEncoder.encode('platform');
+    cborHead(buf, CBOR_TEXT, platformKey.length);
+    for (let i = 0; i < platformKey.length; i += 1) buf.push(platformKey[i]);
+    const platformVal = textEncoder.encode(platform);
+    cborHead(buf, CBOR_TEXT, platformVal.length);
+    for (let i = 0; i < platformVal.length; i += 1) buf.push(platformVal[i]);
+  } else {
+    cborHead(buf, CBOR_MAP, 3);
+    const platformKey = textEncoder.encode('platform');
+    cborHead(buf, CBOR_TEXT, platformKey.length);
+    for (let i = 0; i < platformKey.length; i += 1) buf.push(platformKey[i]);
+    const platformVal = textEncoder.encode(platform);
+    cborHead(buf, CBOR_TEXT, platformVal.length);
+    for (let i = 0; i < platformVal.length; i += 1) buf.push(platformVal[i]);
+    const commandKey = textEncoder.encode('command');
+    cborHead(buf, CBOR_TEXT, commandKey.length);
+    for (let i = 0; i < commandKey.length; i += 1) buf.push(commandKey[i]);
+    const commandVal = textEncoder.encode(command);
+    cborHead(buf, CBOR_TEXT, commandVal.length);
+    for (let i = 0; i < commandVal.length; i += 1) buf.push(commandVal[i]);
+    const argsKey = textEncoder.encode('args');
+    cborHead(buf, CBOR_TEXT, argsKey.length);
+    for (let i = 0; i < argsKey.length; i += 1) buf.push(argsKey[i]);
+    cborHead(buf, CBOR_ARRAY, args.length);
+    for (const arg of args) {
+      const argVal = textEncoder.encode(arg);
+      cborHead(buf, CBOR_TEXT, argVal.length);
+      for (let i = 0; i < argVal.length; i += 1) buf.push(argVal[i]);
+    }
   }
   return new Uint8Array(buf);
 };
@@ -36050,8 +36068,13 @@ const decodeCborInt = data => {
  * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
  * @param {string[]} [_trustedShims]
  * @param {string} [_label]
- * @param {'locked' | 'node'} [kind]
+ * @param {string} [platform] - "separate" | "shared" | "node"
  */
+// defaultPlatform is used by makeWorker but is defined inside
+// makeDaemonCore's closure.  For the XS daemon bootstrap it
+// defaults to "separate" but can be overridden via env var.
+const defaultPlatform = hostGetEnv('ENDO_DEFAULT_PLATFORM') || 'separate';
+
 const makeWorker = async (
   workerId,
   daemonWorkerFacet,
@@ -36060,7 +36083,7 @@ const makeWorker = async (
   capTpConnectionRegistrar = undefined,
   _trustedShims = undefined,
   _label = undefined,
-  kind = undefined,
+  platform = undefined,
 ) => {
   await Promise.all([
     filePowers.makePath(filePowers.joinPath(statePath, 'worker', workerId)),
@@ -36069,18 +36092,25 @@ const makeWorker = async (
     ),
   ]);
 
-  // For kind === 'node', use ENDO_NODE_WORKER_BIN so that unconfined
-  // and bundle caplets run in a Node.js process. Otherwise use
-  // ENDO_WORKER_BIN (the XS worker binary).
-  hostTrace(`makeWorker: kind=${kind} nodeWorkerBin=${endoNodeWorkerBin} workerBin=${endoWorkerBin}`);
-  let workerParts;
-  if (kind === 'node' && endoNodeWorkerBin) {
-    workerParts = endoNodeWorkerBin.split(/\s+/).filter(Boolean);
+  // Resolve the platform to a spawn payload.
+  // - "shared": in-process XS worker, no command/args needed.
+  // - "node": use ENDO_NODE_WORKER_BIN for Node.js caplets.
+  // - "separate" or absent: use ENDO_WORKER_BIN (XS worker binary).
+  const effectivePlatform = platform || defaultPlatform;
+  hostTrace(`makeWorker: platform=${effectivePlatform} nodeWorkerBin=${endoNodeWorkerBin} workerBin=${endoWorkerBin}`);
+  let command = '';
+  let args = [];
+  if (effectivePlatform === 'shared') {
+    // No command/args needed for in-process workers.
+  } else if (effectivePlatform === 'node' && endoNodeWorkerBin) {
+    const workerParts = endoNodeWorkerBin.split(/\s+/).filter(Boolean);
+    command = workerParts[0];
+    args = workerParts.slice(1);
   } else {
-    workerParts = (endoWorkerBin || 'node').split(/\s+/);
+    const workerParts = (endoWorkerBin || 'node').split(/\s+/);
+    command = workerParts[0];
+    args = workerParts.slice(1);
   }
-  const command = workerParts[0];
-  const args = workerParts.slice(1);
 
   const nonce = nextNonce;
   nextNonce += 1;
@@ -36091,7 +36121,7 @@ const makeWorker = async (
     );
   pendingSpawns.set(nonce, { resolve: resolveSpawn });
 
-  const payloadBuf = encodeSpawnPayload(command, args);
+  const payloadBuf = encodeSpawnPayload(effectivePlatform, command, args);
   sendEnvelope(0, 'spawn', payloadBuf, nonce);
 
   hostTrace(`Endo worker spawn requested for ${workerId} (nonce=${nonce})`);
@@ -36199,7 +36229,7 @@ const main = async () => {
 
   const gcEnabled = hostGetEnv('ENDO_GC') === '1';
   const result = await makeDaemon(powers, daemonLabel, cancel, cancelled, {}, {
-    defaultWorkerKind: 'locked',
+    defaultPlatform,
     gcEnabled,
   });
   daemonResult = result;
@@ -36217,9 +36247,34 @@ const main = async () => {
   globalThis.__endoBootstrap = endoBootstrap;
   globalThis.__cancelGracePeriod = cancelGracePeriod;
 
-  // Request supervisor to listen on Unix socket.
-  const listenPayload = textEncoder.encode(JSON.stringify({ path: sockPath }));
-  sendEnvelope(0, 'listen', listenPayload, 0);
+  // Request supervisor to listen on Unix socket (CBOR map).
+  // Build the listen payload using inline CBOR encoding.
+  // (The cborAppendHead/cborAppendText helpers are in the same
+  // scope but XS may not retain them across async continuations
+  // inside eval; use sendEnvelope which is on globalThis.)
+  const listenPayload = (() => {
+    const CBOR_MAP_MAJOR = 5;
+    const CBOR_TEXT_MAJOR = 3;
+    const buf = [];
+    // CBOR map with 1 entry
+    buf.push((CBOR_MAP_MAJOR << 5) | 1);
+    // key: "path"
+    const keyBytes = new TextEncoder().encode('path');
+    buf.push((CBOR_TEXT_MAJOR << 5) | keyBytes.length);
+    for (let i = 0; i < keyBytes.length; i += 1) buf.push(keyBytes[i]);
+    // value: sockPath
+    const valBytes = new TextEncoder().encode(sockPath);
+    if (valBytes.length < 24) {
+      buf.push((CBOR_TEXT_MAJOR << 5) | valBytes.length);
+    } else if (valBytes.length <= 0xff) {
+      buf.push((CBOR_TEXT_MAJOR << 5) | 24, valBytes.length);
+    } else {
+      buf.push((CBOR_TEXT_MAJOR << 5) | 25, (valBytes.length >> 8) & 0xff, valBytes.length & 0xff);
+    }
+    for (let i = 0; i < valBytes.length; i += 1) buf.push(valBytes[i]);
+    return new Uint8Array(buf);
+  })();
+  sendEnvelope(0, 'listen-path', listenPayload, 0);
 
   // Update endo.pid with our PID.
   const pidPath = filePowers.joinPath(ephemeralStatePath, 'endo.pid');
@@ -36382,7 +36437,7 @@ globalThis.handleCommand = harden(bytes => {
   }
 
   // Socket listener acknowledgement.
-  if (env.verb === 'listening') {
+  if (env.verb === 'listening-path') {
     hostTrace('daemon-xs: supervisor reports socket listening');
     return;
   }

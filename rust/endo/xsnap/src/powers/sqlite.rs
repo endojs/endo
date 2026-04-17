@@ -296,7 +296,7 @@ pub unsafe extern "C" fn host_sqlite_open(the: *mut XsMachine) {
 
 /// `sqliteClose(dbH) -> undefined`
 pub unsafe extern "C" fn host_sqlite_close(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
 
     // Remove associated statements first.
@@ -311,7 +311,7 @@ pub unsafe extern "C" fn host_sqlite_close(the: *mut XsMachine) {
 
 /// `sqliteExec(dbH, sql) -> undefined | "Error: ..."`
 pub unsafe extern "C" fn host_sqlite_exec(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
     let sql = arg_str(the, 1);
 
@@ -330,7 +330,7 @@ pub unsafe extern "C" fn host_sqlite_exec(the: *mut XsMachine) {
 
 /// `sqlitePrepare(dbH, sql) -> number | "Error: ..."`
 pub unsafe extern "C" fn host_sqlite_prepare(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let db_handle = fxToInteger(the, handle_slot) as u32;
     let sql = arg_str(the, 1);
 
@@ -361,7 +361,7 @@ pub unsafe extern "C" fn host_sqlite_prepare(the: *mut XsMachine) {
 
 /// `sqliteStmtRun(stmtH, paramsJson) -> JSON | "Error: ..."`
 pub unsafe extern "C" fn host_sqlite_stmt_run(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let stmt_handle = fxToInteger(the, handle_slot) as u32;
     let params_json = arg_str(the, 1);
 
@@ -411,7 +411,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_run(the: *mut XsMachine) {
 
 /// `sqliteStmtGet(stmtH, paramsJson) -> JSON | "null" | "Error: ..."`
 pub unsafe extern "C" fn host_sqlite_stmt_get(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let stmt_handle = fxToInteger(the, handle_slot) as u32;
     let params_json = arg_str(the, 1);
 
@@ -458,7 +458,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_get(the: *mut XsMachine) {
 
 /// `sqliteStmtAll(stmtH, paramsJson) -> JSON | "Error: ..."`
 pub unsafe extern "C" fn host_sqlite_stmt_all(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let stmt_handle = fxToInteger(the, handle_slot) as u32;
     let params_json = arg_str(the, 1);
 
@@ -502,7 +502,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_all(the: *mut XsMachine) {
 
 /// `sqliteStmtColumns(stmtH) -> JSON | "Error: ..."`
 pub unsafe extern "C" fn host_sqlite_stmt_columns(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let stmt_handle = fxToInteger(the, handle_slot) as u32;
 
     let (db_handle, sql) = {
@@ -548,12 +548,25 @@ pub unsafe extern "C" fn host_sqlite_stmt_columns(the: *mut XsMachine) {
 
 /// `sqliteStmtFinalize(stmtH) -> undefined`
 pub unsafe extern "C" fn host_sqlite_stmt_finalize(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let stmt_handle = fxToInteger(the, handle_slot) as u32;
 
     let mut stmts = get_stmt_map();
     stmts.as_mut().unwrap().remove(&stmt_handle);
 }
+
+/// All host callbacks in registration order for snapshot tables.
+pub const CALLBACKS: &[crate::ffi::XsCallback] = &[
+    host_sqlite_open,
+    host_sqlite_close,
+    host_sqlite_exec,
+    host_sqlite_prepare,
+    host_sqlite_stmt_run,
+    host_sqlite_stmt_get,
+    host_sqlite_stmt_all,
+    host_sqlite_stmt_columns,
+    host_sqlite_stmt_finalize,
+];
 
 /// Register all SQLite host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {

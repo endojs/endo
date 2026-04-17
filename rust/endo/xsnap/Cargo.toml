@@ -25,3 +25,14 @@ cc = "1"
 
 [dev-dependencies]
 tempfile = "3"
+criterion = { version = "0.5", features = ["html_reports"] }
+os_pipe = "1"
+endo = { path = ".." }
+
+[[bench]]
+name = "xs_engine"
+harness = false
+
+[[bench]]
+name = "transport"
+harness = false

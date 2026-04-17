@@ -46,10 +46,19 @@ use std::sync::mpsc as std_mpsc;
 /// Implementations must carry byte-identical CBOR envelope frames
 /// on the wire so that the daemon routing logic is oblivious to
 /// whether the peer is a child process or an in-process thread.
+/// Result of the init handshake.
+#[derive(Debug)]
+pub enum InitResult {
+    /// Normal bootstrap — parent handle.
+    Init(Handle),
+    /// Restore from snapshot — parent handle + CAS file path bytes.
+    Restore(Handle, Vec<u8>),
+}
+
 pub trait WorkerTransport: Send {
-    /// Perform the init handshake: consume a pre-seeded init envelope
-    /// and return the parent daemon handle it carries.
-    fn init_handshake(&mut self) -> io::Result<Handle>;
+    /// Perform the init handshake: consume a pre-seeded init
+    /// envelope and return the init result (normal or restore).
+    fn init_handshake(&mut self) -> io::Result<InitResult>;
 
     /// Read one raw envelope frame (CBOR byte-string payload).
     /// Returns `Ok(None)` on clean EOF.
@@ -120,17 +129,18 @@ impl PipeTransport {
 }
 
 impl WorkerTransport for PipeTransport {
-    fn init_handshake(&mut self) -> io::Result<Handle> {
+    fn init_handshake(&mut self) -> io::Result<InitResult> {
         let env = envelope::read_envelope(&mut self.reader)?
             .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "no init envelope"))?;
-        if env.verb != "init" {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("expected init envelope, got verb '{}'", env.verb),
-            ));
-        }
         self.daemon_handle = env.handle;
-        Ok(self.daemon_handle)
+        match env.verb.as_str() {
+            "init" => Ok(InitResult::Init(self.daemon_handle)),
+            "restore" => Ok(InitResult::Restore(self.daemon_handle, env.payload)),
+            other => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("expected init or restore envelope, got verb '{other}'"),
+            )),
+        }
     }
 
     fn recv_raw_envelope(&mut self) -> io::Result<Option<Vec<u8>>> {
@@ -225,7 +235,7 @@ impl ChannelTransport {
 }
 
 impl WorkerTransport for ChannelTransport {
-    fn init_handshake(&mut self) -> io::Result<Handle> {
+    fn init_handshake(&mut self) -> io::Result<InitResult> {
         // The supervisor pre-seeds the inbound channel with the init
         // envelope before starting the machine thread, so this
         // recv blocks only momentarily on the wake-up path.
@@ -239,14 +249,15 @@ impl WorkerTransport for ChannelTransport {
             }
         };
         let env = envelope::decode_envelope(&bytes)?;
-        if env.verb != "init" {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("expected init envelope, got verb '{}'", env.verb),
-            ));
-        }
         self.daemon_handle = env.handle;
-        Ok(self.daemon_handle)
+        match env.verb.as_str() {
+            "init" => Ok(InitResult::Init(self.daemon_handle)),
+            "restore" => Ok(InitResult::Restore(self.daemon_handle, env.payload)),
+            other => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("expected init or restore envelope, got verb '{other}'"),
+            )),
+        }
     }
 
     fn recv_raw_envelope(&mut self) -> io::Result<Option<Vec<u8>>> {
@@ -368,7 +379,7 @@ where
 /// Caller must ensure `the` is a valid XS machine pointer and
 /// `index` is within the argument count.
 pub(crate) unsafe fn arg_str(the: *mut XsMachine, index: usize) -> String {
-    let slot = (*the).frame.sub(2 + index);
+    let slot = (*the).frame.sub(1 + index);
     let ptr = fxToString(the, slot);
     xs_string_to_utf8(ptr)
 }
@@ -439,7 +450,7 @@ pub unsafe extern "C" fn host_get_daemon_handle(the: *mut XsMachine) {
 
 /// `issueCommand(uint8Array) -> undefined`
 pub unsafe extern "C" fn host_issue_command(the: *mut XsMachine) {
-    let slot = (*the).frame.sub(2);
+    let slot = (*the).frame.sub(1);
     if let Some(buf) = read_typed_array_bytes(the, slot) {
         if let Err(e) = with_transport(|t| t.send_frame(&buf)) {
             eprintln!("endor: issueCommand error: {}", e);
@@ -449,7 +460,7 @@ pub unsafe extern "C" fn host_issue_command(the: *mut XsMachine) {
 
 /// `sendRawFrame(uint8Array) -> undefined`
 pub unsafe extern "C" fn host_send_raw_frame(the: *mut XsMachine) {
-    let slot = (*the).frame.sub(2);
+    let slot = (*the).frame.sub(1);
     if let Some(buf) = read_typed_array_bytes(the, slot) {
         if let Err(e) = with_transport(|t| t.send_raw_frame(&buf)) {
             eprintln!("endor: sendRawFrame error: {}", e);
@@ -495,7 +506,7 @@ pub unsafe fn read_typed_array_bytes(the: *mut XsMachine, slot: *mut XsSlot) -> 
 
 /// `importArchive(uint8Array) -> boolean`
 pub unsafe extern "C" fn host_import_archive(the: *mut XsMachine) {
-    let slot = (*the).frame.sub(2);
+    let slot = (*the).frame.sub(1);
     let buf = match read_typed_array_bytes(the, slot) {
         Some(b) => b,
         None => {
@@ -507,7 +518,7 @@ pub unsafe extern "C" fn host_import_archive(the: *mut XsMachine) {
     let cursor = std::io::Cursor::new(buf);
     match crate::archive::load_archive(cursor) {
         Ok(loaded) => {
-            let machine = std::mem::ManuallyDrop::new(crate::Machine { raw: the });
+            let machine = std::mem::ManuallyDrop::new(crate::Machine { raw: the, registered_callbacks: std::cell::RefCell::new(Vec::new()) });
             let ok = crate::archive::install_archive(&machine, &loaded);
             fxBoolean(the, &mut (*the).scratch, if ok { 1 } else { 0 });
             *(*the).frame.add(1) = (*the).scratch;
@@ -577,7 +588,7 @@ pub unsafe extern "C" fn host_base64_decode(the: *mut XsMachine) {
 ///
 /// Encode raw bytes as a base64 string. Paired with `hostBase64Decode`.
 pub unsafe extern "C" fn host_base64_encode(the: *mut XsMachine) {
-    let slot = (*the).frame.sub(2);
+    let slot = (*the).frame.sub(1);
     if let Some(buf) = read_typed_array_bytes(the, slot) {
         use base64::Engine as _;
         let encoded = base64::engine::general_purpose::STANDARD.encode(&buf);
@@ -594,7 +605,7 @@ pub unsafe extern "C" fn host_base64_encode(the: *mut XsMachine) {
 /// buffers (>100KB), causing the daemon to hang on large CapTP
 /// payloads like bundled source code in storeBlob.
 pub unsafe extern "C" fn host_decode_utf8(the: *mut XsMachine) {
-    let slot = (*the).frame.sub(2);
+    let slot = (*the).frame.sub(1);
     if let Some(buf) = read_typed_array_bytes(the, slot) {
         match std::str::from_utf8(&buf) {
             Ok(s) => {
@@ -640,10 +651,28 @@ pub unsafe extern "C" fn host_encode_utf8(the: *mut XsMachine) {
 ///
 /// When mxDebug is not compiled in, `run_debugger()` is a no-op.
 pub unsafe extern "C" fn host_debug_poll(the: *mut XsMachine) {
-    let machine = std::mem::ManuallyDrop::new(crate::Machine { raw: the });
+    let machine = std::mem::ManuallyDrop::new(crate::Machine { raw: the, registered_callbacks: std::cell::RefCell::new(Vec::new()) });
     machine.run_debugger();
     crate::flush_debug_outbound();
 }
+
+/// All worker I/O host callbacks in registration order.
+/// Used for the snapshot callback table.
+pub const WORKER_IO_CALLBACKS: &[crate::ffi::XsCallback] = &[
+    host_recv_frame,
+    host_send_frame,
+    host_get_daemon_handle,
+    host_issue_command,
+    host_send_raw_frame,
+    host_import_archive,
+    host_trace,
+    host_get_pending_envelope,
+    host_decode_utf8,
+    host_encode_utf8,
+    host_base64_decode,
+    host_base64_encode,
+    host_debug_poll,
+];
 
 /// Register worker I/O host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {
@@ -702,8 +731,11 @@ mod tests {
             nonce: 0,
         };
         let mut t = make_test_pipe(&[init]);
-        let handle = t.init_handshake().unwrap();
-        assert_eq!(handle, 5);
+        let result = t.init_handshake().unwrap();
+        match result {
+            InitResult::Init(h) => assert_eq!(h, 5),
+            other => panic!("expected Init(5), got {:?}", other),
+        }
         assert_eq!(t.daemon_handle(), 5);
     }
 
@@ -789,8 +821,11 @@ mod tests {
         });
         tx.send(init_bytes).unwrap();
 
-        let handle = t.init_handshake().unwrap();
-        assert_eq!(handle, 42);
+        let result = t.init_handshake().unwrap();
+        match result {
+            InitResult::Init(h) => assert_eq!(h, 42),
+            other => panic!("expected Init(42), got {:?}", other),
+        }
         assert_eq!(t.daemon_handle(), 42);
     }
 
@@ -817,8 +852,11 @@ mod tests {
 
         // init_handshake() must consume the init frame before the
         // next recv returns the deliver frame.
-        let h = t.init_handshake().unwrap();
-        assert_eq!(h, 9);
+        let result = t.init_handshake().unwrap();
+        match result {
+            InitResult::Init(h) => assert_eq!(h, 9),
+            other => panic!("expected Init(9), got {:?}", other),
+        }
 
         let bytes = t.recv_raw_envelope().unwrap().unwrap();
         let env = envelope::decode_envelope(&bytes).unwrap();

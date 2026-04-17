@@ -51,7 +51,7 @@ unsafe fn get_powers(the: *mut XsMachine) -> &'static HostPowers {
 /// `the` must be valid, index must be in range, and the slot must be
 /// coercible to a string.
 unsafe fn arg_bytes(the: *mut XsMachine, index: usize) -> &'static [u8] {
-    let slot = (*the).frame.sub(2 + index);
+    let slot = (*the).frame.sub(1 + index);
     let ptr = fxToString(the, slot) as *const u8;
     let mut len = 0usize;
     while *ptr.add(len) != 0 {
@@ -122,7 +122,7 @@ fn get_dir_map() -> std::sync::MutexGuard<'static, Option<HashMap<u32, cap_std::
 /// directory that has no associated string token). Used by ambient
 /// root-token fallbacks that operate via `std::fs` on absolute paths.
 unsafe fn arg_dir_token(the: *mut XsMachine, slot_index: usize) -> Option<String> {
-    let slot = (*the).frame.sub(2 + slot_index);
+    let slot = (*the).frame.sub(1 + slot_index);
     let ty = fxTypeOf(the, slot);
     if ty == XS_INTEGER_TYPE || ty == XS_NUMBER_TYPE {
         None
@@ -152,7 +152,7 @@ unsafe fn resolve_dir(
     the: *mut XsMachine,
     slot_index: usize,
 ) -> Result<cap_std::fs::Dir, String> {
-    let slot = (*the).frame.sub(2 + slot_index);
+    let slot = (*the).frame.sub(1 + slot_index);
     let ty = fxTypeOf(the, slot);
     if ty == XS_INTEGER_TYPE || ty == XS_NUMBER_TYPE {
         let handle = fxToInteger(the, slot) as u32;
@@ -211,9 +211,9 @@ pub unsafe extern "C" fn host_open_reader(the: *mut XsMachine) {
 /// Returns an ArrayBuffer with the bytes read, or null on EOF.
 /// Returns an "Error: ..." string for invalid handles.
 pub unsafe extern "C" fn host_read_chunk(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
-    let max_slot = (*the).frame.sub(3);
+    let max_slot = (*the).frame.sub(2);
     let max_bytes = fxToInteger(the, max_slot) as usize;
 
     let mut map = get_file_map();
@@ -247,7 +247,7 @@ pub unsafe extern "C" fn host_read_chunk(the: *mut XsMachine) {
 ///
 /// Closes the reader handle. Idempotent.
 pub unsafe extern "C" fn host_close_reader(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
     let mut map = get_file_map();
     map.as_mut().unwrap().remove(&handle);
@@ -282,9 +282,9 @@ pub unsafe extern "C" fn host_open_writer(the: *mut XsMachine) {
 /// Writes bytes from a Uint8Array to the open writer handle.
 /// Returns undefined on success, or an "Error: ..." string on failure.
 pub unsafe extern "C" fn host_write_chunk(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
-    let data_slot = (*the).frame.sub(3);
+    let data_slot = (*the).frame.sub(2);
 
     let buf = match read_typed_array_bytes(the, data_slot) {
         Some(b) => b,
@@ -306,7 +306,7 @@ pub unsafe extern "C" fn host_write_chunk(the: *mut XsMachine) {
 ///
 /// Flushes and closes the writer handle. Idempotent.
 pub unsafe extern "C" fn host_close_writer(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
 
     let mut map = get_file_map();
@@ -625,7 +625,7 @@ pub unsafe extern "C" fn host_open_dir(the: *mut XsMachine) {
 ///
 /// Removes the directory handle from `DIR_MAP`. Idempotent.
 pub unsafe extern "C" fn host_close_dir(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
     let mut map = get_dir_map();
     map.as_mut().unwrap().remove(&handle);
@@ -675,6 +675,29 @@ pub unsafe extern "C" fn host_link(the: *mut XsMachine) {
         Err(msg) => set_result_string(the, &msg),
     }
 }
+
+/// All host callbacks in registration order for snapshot tables.
+pub const CALLBACKS: &[crate::ffi::XsCallback] = &[
+    host_read_file_text,
+    host_write_file_text,
+    host_read_dir,
+    host_mkdir,
+    host_remove,
+    host_rename,
+    host_exists,
+    host_is_dir,
+    host_read_link,
+    host_open_reader,
+    host_read_chunk,
+    host_close_reader,
+    host_open_writer,
+    host_write_chunk,
+    host_close_writer,
+    host_open_dir,
+    host_close_dir,
+    host_symlink,
+    host_link,
+];
 
 /// Register all filesystem host functions on the machine.
 ///

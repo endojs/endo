@@ -261,6 +261,50 @@ extern "C" {
         interval: u32,
     );
     pub fn fxEndMetering(the: *mut XsMachine);
+
+    // Lockdown host functions (registered during machine creation
+    // when mxLockdown is defined).  Must be in the snapshot
+    // callback table.
+    pub fn fx_harden(the: *mut XsMachine);
+
+    // Snapshots
+    pub fn fxWriteSnapshot(
+        the: *mut XsMachine,
+        snapshot: *mut XsSnapshot,
+    ) -> c_int;
+    pub fn fxReadSnapshot(
+        snapshot: *mut XsSnapshot,
+        name: *const c_char,
+        context: *mut c_void,
+    ) -> *mut XsMachine;
+}
+
+/// Snapshot read callback signature.
+pub type XsSnapshotReadFn =
+    unsafe extern "C" fn(stream: *mut c_void, ptr: *mut c_void, size: usize) -> c_int;
+
+/// Snapshot write callback signature.
+pub type XsSnapshotWriteFn =
+    unsafe extern "C" fn(stream: *mut c_void, ptr: *mut c_void, size: usize) -> c_int;
+
+/// XS snapshot record.
+/// Maps to `xsSnapshotRecord` in xsnap.h.
+#[repr(C)]
+pub struct XsSnapshot {
+    pub signature: *mut c_char,
+    pub signature_length: c_int,
+    pub callbacks: *mut XsCallback,
+    pub callbacks_length: c_int,
+    pub read: Option<XsSnapshotReadFn>,
+    pub write: Option<XsSnapshotWriteFn>,
+    pub stream: *mut c_void,
+    pub error: c_int,
+    // Internal fields — must be initialized to null/zero.
+    pub first_chunk: *mut c_void,
+    pub first_projection: *mut c_void,
+    pub first_slot: *mut c_void,
+    pub slot_size: c_int,
+    pub slots: *mut c_void,
 }
 
 /// Get the global object slot.

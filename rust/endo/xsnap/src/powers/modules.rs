@@ -78,6 +78,12 @@ fn normalize_path(path: &str) -> String {
     parts.join("/")
 }
 
+/// All host callbacks in registration order for snapshot tables.
+pub const CALLBACKS: &[crate::ffi::XsCallback] = &[
+    host_load_module_source,
+    host_resolve_module,
+];
+
 /// Register module loading host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {
     machine.define_function("loadModuleSource", host_load_module_source, 1);

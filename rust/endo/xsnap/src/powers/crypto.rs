@@ -115,7 +115,7 @@ pub unsafe extern "C" fn host_sha256_init(the: *mut XsMachine) {
 ///
 /// Feeds data into an incremental SHA-256 hasher.
 pub unsafe extern "C" fn host_sha256_update(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
     let data = arg_str(the, 1);
 
@@ -130,9 +130,9 @@ pub unsafe extern "C" fn host_sha256_update(the: *mut XsMachine) {
 /// Feeds binary data (Uint8Array) into an incremental SHA-256 hasher.
 /// This bypasses the slow TextDecoder path used by `sha256Update`.
 pub unsafe extern "C" fn host_sha256_update_bytes(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
-    let data_slot = (*the).frame.sub(3);
+    let data_slot = (*the).frame.sub(2);
     if let Some(buf) = crate::worker_io::read_typed_array_bytes(the, data_slot) {
         let mut map = get_hasher_map();
         if let Some(hasher) = map.as_mut().unwrap().get_mut(&handle) {
@@ -146,7 +146,7 @@ pub unsafe extern "C" fn host_sha256_update_bytes(the: *mut XsMachine) {
 /// Finalizes the incremental SHA-256 hasher and returns the hex digest.
 /// The handle is consumed and cannot be reused.
 pub unsafe extern "C" fn host_sha256_finish(the: *mut XsMachine) {
-    let handle_slot = (*the).frame.sub(2);
+    let handle_slot = (*the).frame.sub(1);
     let handle = fxToInteger(the, handle_slot) as u32;
 
     let mut map = get_hasher_map();
@@ -160,6 +160,18 @@ pub unsafe extern "C" fn host_sha256_finish(the: *mut XsMachine) {
         }
     }
 }
+
+/// All host callbacks in registration order for snapshot tables.
+pub const CALLBACKS: &[crate::ffi::XsCallback] = &[
+    host_sha256,
+    host_random_hex256,
+    host_ed25519_keygen,
+    host_ed25519_sign,
+    host_sha256_init,
+    host_sha256_update,
+    host_sha256_update_bytes,
+    host_sha256_finish,
+];
 
 /// Register all crypto host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {
