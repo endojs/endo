@@ -174,6 +174,77 @@ test('disconnectRetainersHolding skips invitation formulas', t => {
   t.is(terminated.length, 0, 'invitation formulas should not trigger termination');
 });
 
+test('retain then release through registered retainer', t => {
+  const refs = new Map();
+  const tracker = makeResidenceTracker({
+    getLocalIdForRef: ref => refs.get(ref),
+    getFormula: () => undefined,
+    terminateWorker: () => {},
+  });
+
+  const { promise: closed } = makePromiseKit();
+  tracker.register({
+    name: 'conn',
+    close: async () => {},
+    closed,
+  });
+
+  // Retain a formula through the registered retainer.
+  tracker.residenceWatcher.retain({
+    retainerId: 'conn-0',
+    retaineeId: id('val:node'),
+    retaineeIncarnation: 'slot-0',
+  });
+
+  // Release the same incarnation.
+  tracker.residenceWatcher.release({
+    retainerId: 'conn-0',
+    retaineeId: id('val:node'),
+    retaineeIncarnation: 'slot-0',
+  });
+  t.pass('release after retain completes');
+
+  // Release for unknown retainee (no incarnations) should be a no-op.
+  tracker.residenceWatcher.release({
+    retainerId: 'conn-0',
+    retaineeId: id('unknown:node'),
+    retaineeIncarnation: 'slot-99',
+  });
+  t.pass('release for unknown retainee is a no-op');
+});
+
+test('disconnectRetainersHolding skips non-worker retainers', t => {
+  const terminated = [];
+  const tracker = makeResidenceTracker({
+    getLocalIdForRef: () => undefined,
+    getFormula: formulaId => {
+      if (formulaId === id('eval:node')) return { type: 'eval' };
+      return undefined;
+    },
+    terminateWorker: (workerId, reason) => {
+      terminated.push({ workerId, message: reason.message });
+    },
+  });
+
+  const { promise: closed } = makePromiseKit();
+  // Register a non-worker retainer (no "Worker " prefix).
+  tracker.register({
+    name: 'browser-conn',
+    close: async () => {},
+    closed,
+  });
+
+  tracker.residenceWatcher.retain({
+    retainerId: 'browser-conn-0',
+    retaineeId: id('eval:node'),
+    retaineeIncarnation: 'slot-0',
+  });
+
+  // Should not terminate — retainer is not a worker.
+  tracker.disconnectRetainersHolding([id('eval:node')]);
+  t.is(terminated.length, 0, 'non-worker retainers should not trigger termination');
+});
+
 test('releaseAllForRetainer cleans up on connection close', async t => {
   const tracker = makeResidenceTracker({
     getLocalIdForRef: () => undefined,
