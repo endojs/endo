@@ -204,6 +204,101 @@ test('replaceRetention diffs and applies changes', t => {
   t.pass('replaceRetention completes without error');
 });
 
+test('promise and resolver sharing a store are unioned', t => {
+  /** @type {Map<any, Array<[string, FormulaIdentifier]>>} */
+  const deps = new Map();
+  const promiseFormula = { type: 'promise', store: id('store:node') };
+  const resolverFormula = { type: 'resolver', store: id('store:node') };
+  deps.set(promiseFormula, [['store', id('store:node')]]);
+  deps.set(resolverFormula, [['store', id('store:node')]]);
+
+  const graph = makeFormulaGraph({
+    extractLabeledDeps: formula => deps.get(formula) || [],
+    isLocalId: () => true,
+    onCollect: () => {},
+  });
+
+  const root = id('root:node');
+  graph.addRoot(root);
+  graph.onFormulaAdded(root, /** @type {any} */ ({ type: 'endo' }));
+  graph.onFormulaAdded(id('store:node'), /** @type {any} */ ({ type: 'pet-store' }));
+  graph.onPetStoreWrite(root, id('store:node'));
+
+  // Add promise and resolver that share the same store.
+  graph.onFormulaAdded(id('promise:node'), /** @type {any} */ (promiseFormula));
+  graph.onPetStoreWrite(root, id('promise:node'));
+  graph.onFormulaAdded(id('resolver:node'), /** @type {any} */ (resolverFormula));
+  graph.onPetStoreWrite(root, id('resolver:node'));
+
+  // Promise and resolver should be in the same group (unioned).
+  const promiseGroup = graph.findGroup(id('promise:node'));
+  const resolverGroup = graph.findGroup(id('resolver:node'));
+  t.is(promiseGroup, resolverGroup, 'promise and resolver should share a group');
+});
+
+test('onFormulaRemoved cleans up promise/resolver store entries', t => {
+  /** @type {Map<any, Array<[string, FormulaIdentifier]>>} */
+  const deps = new Map();
+  const promiseFormula = { type: 'promise', store: id('pstore:node') };
+  deps.set(promiseFormula, [['store', id('pstore:node')]]);
+
+  const graph = makeFormulaGraph({
+    extractLabeledDeps: formula => deps.get(formula) || [],
+    isLocalId: () => true,
+    onCollect: () => {},
+  });
+
+  const root = id('root:node');
+  graph.addRoot(root);
+  graph.onFormulaAdded(root, /** @type {any} */ ({ type: 'endo' }));
+  graph.onFormulaAdded(id('pstore:node'), /** @type {any} */ ({ type: 'pet-store' }));
+  graph.onPetStoreWrite(root, id('pstore:node'));
+  graph.onFormulaAdded(id('mypromise:node'), /** @type {any} */ (promiseFormula));
+  graph.onPetStoreWrite(root, id('mypromise:node'));
+
+  // Remove the promise formula �� cleanup should not throw.
+  graph.onFormulaRemoved(id('mypromise:node'));
+  t.false(graph.formulaDeps.has(id('mypromise:node')));
+});
+
+test('listRetentionPaths finds paths from root', t => {
+  /** @type {Map<any, Array<[string, FormulaIdentifier]>>} */
+  const deps = new Map();
+  const workerFormula = { type: 'worker' };
+  const guestFormula = { type: 'guest', worker: id('w:node') };
+  deps.set(guestFormula, [['worker', id('w:node')]]);
+
+  const graph = makeFormulaGraph({
+    extractLabeledDeps: formula => deps.get(formula) || [],
+    isLocalId: () => true,
+    onCollect: () => {},
+  });
+
+  const root = id('root:node');
+  graph.addRoot(root);
+  graph.onFormulaAdded(root, /** @type {any} */ ({ type: 'endo' }));
+  graph.onFormulaAdded(id('w:node'), /** @type {any} */ (workerFormula));
+  graph.onPetStoreWrite(root, id('w:node'));
+  graph.onFormulaAdded(id('g:node'), /** @type {any} */ (guestFormula));
+  graph.onPetStoreWrite(root, id('g:node'));
+
+  // Worker should have retention paths.
+  const paths = graph.listRetentionPaths(id('w:node'));
+  t.true(paths.length > 0, 'worker should have at least one retention path');
+
+  // Each path should end at a root.
+  for (const path of paths) {
+    const last = path[path.length - 1];
+    t.is(last.type, 'root', 'path should terminate at a root');
+  }
+});
+
+test('listRetentionPaths returns empty for unknown id', t => {
+  const graph = makeTestGraph();
+  const paths = graph.listRetentionPaths(id('unknown:node'));
+  t.deepEqual(paths, []);
+});
+
 test('formula with deps creates group edges', t => {
   /** @type {Map<any, Array<[string, FormulaIdentifier]>>} */
   const deps = new Map();
