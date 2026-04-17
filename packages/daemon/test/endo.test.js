@@ -13,16 +13,10 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import bundleSource from '@endo/bundle-source';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { netListenAllowed } from './_net-permission.js';
-import {
-  start,
-  stop,
-  restart,
-  purge,
-  makeEndoClient,
-  makeReaderRef,
-  makeRefIterator,
-} from '../index.js';
+import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId } from '../src/formula-identifier.js';
 import { idFromLocator, parseLocator } from '../src/locator.js';
@@ -65,7 +59,7 @@ const takeCount = async (asyncIterator, count) => {
  */
 const prepareFollowNameChangesIterator = async host => {
   const existingNames = await E(host).list();
-  const changesIterator = makeRefIterator(await E(host).followNameChanges());
+  const changesIterator = iterateReader(E(host).followNameChanges());
   await takeCount(changesIterator, existingNames.length);
   return changesIterator;
 };
@@ -79,8 +73,8 @@ const prepareFollowNameChangesIterator = async host => {
  */
 const prepareFollowLocatorNameChangesIterator = async (host, locator) => {
   await null;
-  const changesIterator = makeRefIterator(
-    await E(host).followLocatorNameChanges(locator),
+  const changesIterator = iterateReader(
+    E(host).followLocatorNameChanges(locator),
   );
   await takeCount(changesIterator, 1);
   return changesIterator;
@@ -143,8 +137,8 @@ const prepareHostWithTestNetwork = async t => {
   );
 
   // set address via request
-  const iteratorRef = E(host).followMessages();
-  const { value: message } = await E(iteratorRef).next();
+  const messagesIterator = iterateReader(E(host).followMessages());
+  const { value: message } = await messagesIterator.next();
   const { number } = E.get(message);
   await E(host).storeValue('127.0.0.1:0', 'netport');
   await E(host).resolve(await number, 'netport');
@@ -178,7 +172,7 @@ const doMakeBundle = async (host, filePath, callback) => {
   const bundle = await bundleSource(filePath);
   const bundleText = JSON.stringify(bundle);
   const bundleBytes = textEncoder.encode(bundleText);
-  const bundleReaderRef = makeReaderRef([bundleBytes]);
+  const bundleReaderRef = bytesReaderFromIterator([bundleBytes]);
 
   await E(host).storeBlob(bundleReaderRef, bundleName);
   const result = await callback(bundleName);
@@ -427,7 +421,9 @@ test('persist spawn and evaluation', async t => {
 test('store blob without name fails', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await t.throwsAsync(E(host).storeBlob(readerRef), {
     message: 'Invalid name path',
   });
@@ -438,7 +434,9 @@ test('store with name', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([
+      new TextEncoder().encode('hello\n'),
+    ]);
     const readable = await E(host).storeBlob(readerRef, 'hello-text');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
@@ -458,7 +456,9 @@ test('store blob in subdirectory', async t => {
   {
     const { host } = await makeHost(config, cancelled);
     await E(host).makeDirectory('subdir');
-    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([
+      new TextEncoder().encode('hello\n'),
+    ]);
     const readable = await E(host).storeBlob(readerRef, [
       'subdir',
       'hello-text',
@@ -478,7 +478,9 @@ test('store blob in subdirectory', async t => {
 test('store blob requires a name', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await t.throwsAsync(E(host).storeBlob(readerRef, []), {
     message: 'Invalid name path',
   });
@@ -749,8 +751,8 @@ test('persist unconfined services and their requests', async t => {
       [],
       ['grant'],
     );
-    const iteratorRef = E(host).followMessages();
-    const { value: message } = await E(iteratorRef).next();
+    const messagesIterator = iterateReader(E(host).followMessages());
+    const { value: message } = await messagesIterator.next();
     const { number, from: fromId } = E.get(message);
     const [fromName] = await E(host).reverseIdentify(await fromId);
     t.is(await fromName, 'h1');
@@ -813,8 +815,8 @@ test('persist confined services and their requests', async t => {
       [],
       ['grant'],
     );
-    const iteratorRef = E(host).followMessages();
-    const { value: message } = await E(iteratorRef).next();
+    const messagesIterator = iterateReader(E(host).followMessages());
+    const { value: message } = await messagesIterator.next();
     const { number, from: fromId } = E.get(message);
     const [fromName] = await E(host).reverseIdentify(await fromId);
     t.is(await fromName, 'h1');
@@ -862,18 +864,18 @@ test('guest facet receives a message for host', async t => {
   await E(host).provideWorker(['worker']);
   await E(host).evaluate('worker', '10', [], [], ['ten1']);
 
-  const iteratorRef = E(host).followMessages();
+  const messagesIterator = iterateReader(E(host).followMessages());
   const numberP = E(guest).request('HOST', 'a number', 'number');
-  const { value: message0 } = await E(iteratorRef).next();
-  t.is(message0.number, 0n);
-  await E(host).resolve(message0.number, 'ten1');
+  const { value: message0 } = await messagesIterator.next();
+  t.is(/** @type {any} */ (message0).number, 0n);
+  await E(host).resolve(/** @type {any} */ (message0).number, 'ten1');
   await numberP;
 
   await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
 
-  const { value: message1 } = await E(iteratorRef).next();
-  t.is(message1.number, 1n);
-  await E(host).adopt(message1.number, 'gift', ['ten2']);
+  const { value: message1 } = await messagesIterator.next();
+  t.is(/** @type {any} */ (message1).number, 1n);
+  await E(host).adopt(/** @type {any} */ (message1).number, 'gift', ['ten2']);
   const ten = await E(host).lookup(['ten2']);
   t.is(ten, 10);
 
@@ -909,17 +911,17 @@ test('mailboxes persist messages across restart', async t => {
   const { cancelled, config, host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const iteratorRef = E(host).followMessages();
+  const messagesIterator = iterateReader(E(host).followMessages());
 
   E.sendOnly(guest).request('HOST', 'first request', 'response0');
   E.sendOnly(guest).request('HOST', 'second request', 'response1');
 
-  const { value: message0 } = await E(iteratorRef).next();
-  const { value: message1 } = await E(iteratorRef).next();
-  t.is(message0.number, 0n);
-  t.is(message1.number, 1n);
+  const { value: message0 } = await messagesIterator.next();
+  const { value: message1 } = await messagesIterator.next();
+  t.is(/** @type {any} */ (message0).number, 0n);
+  t.is(/** @type {any} */ (message1).number, 1n);
 
-  await E(host).dismiss(message0.number);
+  await E(host).dismiss(/** @type {any} */ (message0).number);
 
   const inboxBefore = await E(host).listMessages();
   t.deepEqual(
@@ -955,11 +957,11 @@ test('rehydrated requests can be resolved after restart', async t => {
   await E(host).storeValue(10, 'ten');
 
   const guest = E(host).provideGuest('guest');
-  const guestMessages = E(guest).followMessages();
+  const guestMessagesIterator = iterateReader(E(guest).followMessages());
 
   E.sendOnly(guest).request('HOST', 'need a number');
 
-  const { value: guestMessage } = await E(guestMessages).next();
+  const { value: guestMessage } = await guestMessagesIterator.next();
   const { promiseId: promiseIdP } = E.get(guestMessage);
   const promiseId = await promiseIdP;
   await E(host).write(['pending'], promiseId);
@@ -981,7 +983,7 @@ test('followNamehanges first publishes existing names', async t => {
   const { host } = await prepareHost(t);
 
   const existingNames = await E(host).list();
-  const changesIterator = makeRefIterator(await E(host).followNameChanges());
+  const changesIterator = iterateReader(E(host).followNameChanges());
   const values = await takeCount(changesIterator, existingNames.length);
 
   t.deepEqual(values.map(value => value.add).sort(), [...existingNames].sort());
@@ -995,7 +997,7 @@ test('followNameChanges publishes new names', async t => {
   await E(host).storeValue(10, 'ten');
 
   const { value } = await changesIterator.next();
-  t.is(value.add, 'ten');
+  t.is(/** @type {any} */ (value).add, 'ten');
 });
 
 test('followNameChanges publishes removed names', async t => {
@@ -1008,7 +1010,7 @@ test('followNameChanges publishes removed names', async t => {
 
   await E(host).remove('ten');
   const { value } = await changesIterator.next();
-  t.is(value.remove, 'ten');
+  t.is(/** @type {any} */ (value).remove, 'ten');
 });
 
 test('followNameChanges publishes renamed names', async t => {
@@ -1022,9 +1024,9 @@ test('followNameChanges publishes renamed names', async t => {
   await E(host).move(['ten'], ['zehn']);
 
   let { value } = await changesIterator.next();
-  t.is(value.remove, 'ten');
+  t.is(/** @type {any} */ (value).remove, 'ten');
   value = (await changesIterator.next()).value;
-  t.is(value.add, 'zehn');
+  t.is(/** @type {any} */ (value).add, 'zehn');
 });
 
 test('followNameChanges publishes renamed names (existing mappings for both names)', async t => {
@@ -1040,11 +1042,11 @@ test('followNameChanges publishes renamed names (existing mappings for both name
   await E(host).move(['ten'], ['decimus']);
 
   let { value } = await changesIterator.next();
-  t.is(value.remove, 'decimus');
+  t.is(/** @type {any} */ (value).remove, 'decimus');
   value = (await changesIterator.next()).value;
-  t.is(value.remove, 'ten');
+  t.is(/** @type {any} */ (value).remove, 'ten');
   value = (await changesIterator.next()).value;
-  t.is(value.add, 'decimus');
+  t.is(/** @type {any} */ (value).add, 'decimus');
 });
 
 test('followNameChanges does not notify of redundant pet store writes', async t => {
@@ -1062,7 +1064,7 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
   // published as as result of the redundant write.
   await E(host).storeValue(11, 'eleven');
   const { value } = await changesIterator.next();
-  t.is(value.add, 'eleven');
+  t.is(/** @type {any} */ (value).add, 'eleven');
 });
 
 test('followLocatorNameChanges first publishes existing pet name', async t => {
@@ -1071,8 +1073,8 @@ test('followLocatorNameChanges first publishes existing pet name', async t => {
   await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
-  const tenLocatorSub = makeRefIterator(
-    await E(host).followLocatorNameChanges(tenLocator),
+  const tenLocatorSub = iterateReader(
+    E(host).followLocatorNameChanges(tenLocator),
   );
   const { value } = await tenLocatorSub.next();
   t.deepEqual(value, { add: tenLocator, names: ['ten'] });
@@ -1082,8 +1084,8 @@ test('followLocatorNameChanges first publishes existing special name', async t =
   const { host } = await prepareHost(t);
 
   const selfLocator = await E(host).locate('SELF');
-  const selfLocatorSub = makeRefIterator(
-    await E(host).followLocatorNameChanges(selfLocator),
+  const selfLocatorSub = iterateReader(
+    E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
   t.deepEqual(value, { add: selfLocator, names: ['SELF'] });
@@ -1097,8 +1099,8 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
   await E(host).write(['self2'], selfId);
 
   const selfLocator = await E(host).locate('SELF');
-  const selfLocatorSub = makeRefIterator(
-    await E(host).followLocatorNameChanges(selfLocator),
+  const selfLocatorSub = iterateReader(
+    E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
   t.deepEqual(value, { add: selfLocator, names: ['SELF', 'self1', 'self2'] });
@@ -1402,7 +1404,7 @@ test('indirect cancellation via worker', async t => {
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
 test('indirect cancellation via caplet', async t => {
   const { host } = await prepareHost(t);
-  const messages = E(host).followMessages();
+  const messagesIterator = iterateReader(E(host).followMessages());
 
   await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -1415,10 +1417,13 @@ test('indirect cancellation via caplet', async t => {
   const doublerLocation = url.pathToFileURL(doublerPath).href;
   await E(host).makeUnconfined('w2', doublerLocation, 'guest-agent', 'doubler');
   {
-    const { value: message } = await E(messages).next();
-    t.is(message.type, 'request');
-    t.is(message.description, 'a counter, suitable for doubling');
-    await E(host).resolve(message.number, 'counter');
+    const { value: message } = await messagesIterator.next();
+    t.is(/** @type {any} */ (message).type, 'request');
+    t.is(
+      /** @type {any} */ (message).description,
+      'a counter, suitable for doubling',
+    );
+    await E(host).resolve(/** @type {any} */ (message).number, 'counter');
   }
 
   t.is(
@@ -1452,16 +1457,16 @@ test('cancel because of requested capability', async t => {
   await E(host).provideWorker(['worker']);
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
 
-  const messages = E(host).followMessages();
+  const messagesIterator = iterateReader(E(host).followMessages());
 
   const counterPath = path.join(dirname, 'test', 'counter-agent.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
   E(host).makeUnconfined('worker', counterLocation, 'guest-agent', 'counter');
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
-  const { value: message } = await E(messages).next();
-  t.is(message.type, 'request');
-  await E(host).resolve(message.number, 'zero');
+  const { value: message } = await messagesIterator.next();
+  t.is(/** @type {any} */ (message).type, 'request');
+  await E(host).resolve(/** @type {any} */ (message).number, 'zero');
 
   t.is(
     1,
@@ -1719,7 +1724,9 @@ test('evaluate name resolved by lookup path', async t => {
 test('list special names', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await E(host).storeBlob(readerRef, 'hello-text');
 
   /** @type {string[]} */
