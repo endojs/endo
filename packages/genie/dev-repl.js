@@ -430,7 +430,7 @@ async function* runAgent({
         yield `${RED}Heartbeat failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
       }
 
-    else if (prompt === '.observe') {
+    } else if (prompt === '.observe') {
       // ─── Dot command .observe ────────────────────────
       if (!observer) {
         yield `${RED}Observer not available (memory tools required).${RESET}\n`;
