@@ -2,3 +2,6 @@
 
 > Multi-line
 > blockquote here.
+
+> Quote followed by text
+Not a quote anymore.
