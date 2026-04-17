@@ -678,12 +678,18 @@ async function* runMain(args) {
   /** @type {import('./src/reflector/index.js').Reflector | undefined} */
   let reflector;
   if (!noTools) {
+
+    // TODO we need observability so that background work can be printed for debugging
+    // - the observer's sub-agent should be able to provide a ChatEvent stream, which we could consume here
     observer = makeObserver({
       memoryGet: memoryTools.memoryGet,
       memorySet: memoryTools.memorySet,
       searchBackend,
       workspaceDir: workspaceArg,
     });
+
+    // TODO we need observability so that background work can be printed for debugging
+    // - the reflector's sub-agent should be able to provide a ChatEvent stream, which we could consume here
     reflector = makeReflector({
       memoryGet: memoryTools.memoryGet,
       memorySet: memoryTools.memorySet,
