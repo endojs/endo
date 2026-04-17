@@ -5,8 +5,8 @@
 //! CapTP traffic into envelopes addressed to the daemon.
 //!
 //! Protocol:
-//!   1. Daemon sends `[0, "listen", {path: sockPath}, nonce]`
-//!   2. Supervisor binds the Unix socket, responds `[0, "listening", {}, nonce]`
+//!   1. Daemon sends `[0, "listen-path", {path: sockPath}, nonce]`
+//!   2. Supervisor binds the Unix socket, responds `[0, "listening-path", {}, nonce]`
 //!   3. Client connects → supervisor assigns handle C, sends
 //!      `[C, "connect", {}, 0]` to daemon
 //!   4. Client CapTP traffic bridged:

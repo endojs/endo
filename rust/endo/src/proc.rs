@@ -65,6 +65,8 @@ pub fn wire_worker_tasks(
     sup: &Arc<Supervisor>,
     mut inbox: MailboxReceiver,
     on_exit: Option<Box<dyn FnOnce() + Send>>,
+    init_verb: &str,
+    init_payload: Vec<u8>,
 ) -> io::Result<()> {
     let SpawnedWorker {
         child,
@@ -82,8 +84,8 @@ pub fn wire_worker_tasks(
     // where to address its outbound messages.
     let init_data = codec::encode_envelope(&Envelope {
         handle: parent_handle,
-        verb: "init".to_string(),
-        payload: Vec::new(),
+        verb: init_verb.to_string(),
+        payload: init_payload,
         nonce: 0,
     });
     {
@@ -210,6 +212,7 @@ async fn write_message(writer: &mut PipeWriter, _handle: Handle, msg: Message) -
 /// Spawn a worker subprocess with pipes on fd 3/4.
 pub fn spawn_process(
     sup: &Arc<Supervisor>,
+    platform: &str,
     command: &str,
     args: &[String],
     parent_handle: Handle,
@@ -223,6 +226,7 @@ pub fn spawn_process(
 
     let info = WorkerInfo {
         handle,
+        platform: platform.to_string(),
         cmd: command.to_string(),
         args: args.to_vec(),
         pid,
@@ -230,7 +234,7 @@ pub fn spawn_process(
     };
     let inbox = sup.register(handle, Some(info));
 
-    wire_worker_tasks(spawned, handle, parent_handle, sup, inbox, None)?;
+    wire_worker_tasks(spawned, handle, parent_handle, sup, inbox, None, "init", Vec::new())?;
 
     Ok(handle)
 }

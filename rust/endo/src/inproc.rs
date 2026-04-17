@@ -76,6 +76,22 @@ pub fn spawn_inproc_xs_manager(
     )
 }
 
+/// Spawn an in-process XS worker (platform "shared").
+///
+/// Thin wrapper around `spawn_inproc_xs_peer` that runs
+/// `xsnap::run_xs_worker_inproc` on a dedicated thread.
+pub fn spawn_shared_worker(
+    sup: &Arc<Supervisor>,
+    _parent_handle: Handle,
+) -> io::Result<Handle> {
+    spawn_inproc_xs_peer(
+        sup,
+        "<shared-worker>".to_string(),
+        None,
+        Box::new(|transport| xsnap::run_xs_worker_inproc(transport)),
+    )
+}
+
 /// Generalized in-process XS peer spawn.
 ///
 /// Today only `spawn_inproc_xs_manager` calls this; the scaffolding
@@ -102,6 +118,7 @@ pub fn spawn_inproc_xs_peer(
     let handle = sup.alloc_handle();
     let info = WorkerInfo {
         handle,
+        platform: "shared".to_string(),
         cmd: "<in-process>".to_string(),
         args: Vec::new(),
         pid: std::process::id(),

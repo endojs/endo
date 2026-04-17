@@ -18,8 +18,10 @@ pub struct Message {
     pub response_tx: Option<oneshot::Sender<Envelope>>,
 }
 
+#[derive(Clone)]
 pub struct WorkerInfo {
     pub handle: Handle,
+    pub platform: String,
     pub cmd: String,
     pub args: Vec<String>,
     pub pid: u32,

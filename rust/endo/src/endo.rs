@@ -97,10 +97,23 @@ impl Endo {
         // Start supervisor routing with control message handler.
         let sup_for_control = Arc::clone(&self.supervisor);
         let spawn_sup = Arc::clone(&self.supervisor);
+        let resume_sup = Arc::clone(&self.supervisor);
+        let cas_dir = self.paths.state_path.join("store-sha256");
+        let cas_dir_for_control = cas_dir.clone();
+        let cas_dir_for_resume = cas_dir;
         let outbox_rx = self.outbox_rx.take().expect("serve() called twice");
-        supervisor::start_routing(&self.supervisor, outbox_rx, move |msg| {
-            handle_control_message(&sup_for_control, &spawn_sup, msg);
-        });
+        supervisor::start_routing(
+            &self.supervisor,
+            outbox_rx,
+            supervisor::RoutingCallbacks {
+                on_control: Box::new(move |msg| {
+                    handle_control_message(&sup_for_control, &spawn_sup, &cas_dir_for_control, msg);
+                }),
+                on_resume: Box::new(move |sup, handle, suspended, pending_msg| {
+                    handle_resume(&resume_sup, sup, handle, suspended, &cas_dir_for_resume, pending_msg);
+                }),
+            },
+        );
 
         match ManagerMode::from_env() {
             ManagerMode::InProcessXs => {
@@ -190,6 +203,7 @@ impl Endo {
 
         let info = WorkerInfo {
             handle: daemon_handle,
+            platform: "node".to_string(),
             cmd: self.node_path.clone(),
             args: args.clone(),
             pid,
@@ -206,29 +220,27 @@ impl Endo {
             sup_for_exit.stop();
         });
 
-        wire_worker_tasks(spawned, daemon_handle, 0, &self.supervisor, inbox, Some(on_exit))?;
+        wire_worker_tasks(spawned, daemon_handle, 0, &self.supervisor, inbox, Some(on_exit), "init", Vec::new())?;
 
         Ok(())
     }
 }
 
-fn handle_control_message(sup: &Arc<Supervisor>, spawn_sup: &Arc<Supervisor>, msg: Message) {
+fn handle_control_message(sup: &Arc<Supervisor>, spawn_sup: &Arc<Supervisor>, cas_dir: &std::path::Path, msg: Message) {
     match msg.envelope.verb.as_str() {
         "ready" => {
             eprintln!("endor: daemon reports ready");
         }
-        "listen" => {
-            // Daemon requests socket listener.
-            // Payload is JSON: {"path": "/path/to/sock"}
-            let payload_str = std::str::from_utf8(&msg.envelope.payload).unwrap_or("{}");
-            let sock_path = match serde_json::from_str::<serde_json::Value>(payload_str) {
-                Ok(v) => v.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
-                Err(_) => String::new(),
+        "listen-path" => {
+            // Daemon requests socket listener on a Unix path.
+            // Payload is CBOR map: {"path": "/path/to/sock"}
+            let sock_path = match codec::decode_listen_path_request(&msg.envelope.payload) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("endor: listen request decode error: {e}");
+                    return;
+                }
             };
-            if sock_path.is_empty() {
-                eprintln!("endor: listen request with empty path");
-                return;
-            }
             let daemon_handle = msg.from;
             match socket::start_socket_listener(
                 Arc::clone(sup),
@@ -242,7 +254,7 @@ fn handle_control_message(sup: &Arc<Supervisor>, spawn_sup: &Arc<Supervisor>, ms
                         to: msg.from,
                         envelope: Envelope {
                             handle: 0,
-                            verb: "listening".to_string(),
+                            verb: "listening-path".to_string(),
                             payload: Vec::new(),
                             nonce: msg.envelope.nonce,
                         },
@@ -268,21 +280,19 @@ fn handle_control_message(sup: &Arc<Supervisor>, spawn_sup: &Arc<Supervisor>, ms
         }
         "spawn" => {
             match codec::decode_spawn_request(&msg.envelope.payload) {
-                Ok((command, args)) => {
-                    // Dispatch through the Engine enum. Today every
-                    // spawn resolves to Engine::Process; a follow-up
-                    // will teach the JS spawn payload to carry an
-                    // `engine` field and add the in-process XS arm.
-                    let engine = engine::engine_for_spawn_request(&command, &args, &msg);
+                Ok((platform, command, args)) => {
+                    let engine = engine::engine_for_spawn_request(&platform, &command, &args, &msg);
                     let spawn_result = match engine {
-                        Engine::Process { command, args } => {
-                            crate::proc::spawn_process(spawn_sup, &command, &args, msg.from)
+                        Ok(Engine::Separate { platform, command, args }) => {
+                            crate::proc::spawn_process(spawn_sup, &platform, &command, &args, msg.from)
                         }
-                        Engine::XsInProcess { .. } => {
-                            // Scaffolding only — no call site yet.
+                        Ok(Engine::Shared { .. }) => {
+                            crate::inproc::spawn_shared_worker(spawn_sup, msg.from)
+                        }
+                        Err(e) => {
                             Err(std::io::Error::new(
-                                std::io::ErrorKind::Unsupported,
-                                "in-process XS workers not yet wired up",
+                                std::io::ErrorKind::InvalidInput,
+                                e,
                             ))
                         }
                     };
@@ -345,12 +355,273 @@ fn handle_control_message(sup: &Arc<Supervisor>, spawn_sup: &Arc<Supervisor>, ms
                 response_tx: None,
             });
         }
+        "suspend" => {
+            // Payload: CBOR map {"handle": <worker_handle>}
+            let target_handle = match codec::decode_suspend_request(&msg.envelope.payload) {
+                Ok(h) => h,
+                Err(e) => {
+                    sup.deliver(Message {
+                        from: 0,
+                        to: msg.from,
+                        envelope: Envelope {
+                            handle: 0,
+                            verb: "error".to_string(),
+                            payload: format!("suspend: {e}").into_bytes(),
+                            nonce: msg.envelope.nonce,
+                        },
+                        response_tx: None,
+                    });
+                    return;
+                }
+            };
+            // Forward "suspend" to the target worker with CAS dir
+            // path as payload — the worker streams the snapshot
+            // directly to the CAS.
+            sup.deliver(Message {
+                from: 0,
+                to: target_handle,
+                envelope: Envelope {
+                    handle: 0,
+                    verb: "suspend".to_string(),
+                    payload: cas_dir.to_string_lossy().into_owned().into_bytes(),
+                    nonce: msg.envelope.nonce,
+                },
+                response_tx: None,
+            });
+        }
+        "suspended" => {
+            // Worker streamed the snapshot to CAS and sent back
+            // the SHA-256 hash.
+            let worker_handle = msg.from;
+            let sha256 = String::from_utf8_lossy(&msg.envelope.payload).into_owned();
+            eprintln!(
+                "endor: worker {} suspended (sha256={})",
+                worker_handle,
+                &sha256[..sha256.len().min(16)]
+            );
+            sup.mark_suspended(worker_handle, sha256, cas_dir.to_path_buf());
+        }
         other => {
             if crate::supervisor::is_debug_public() {
                 eprintln!("endor: unhandled control verb: {other}");
             }
         }
     }
+}
+
+/// Resume a suspended worker, dispatching based on platform.
+///
+/// - `"shared"` or `""` → in-process XS via channel transport
+/// - `"separate"`, `"node"`, or other → child process via pipes
+fn handle_resume(
+    _resume_sup: &Arc<Supervisor>,
+    sup: &Arc<Supervisor>,
+    handle: Handle,
+    suspended: supervisor::SuspendedWorker,
+    _cas_dir: &std::path::Path,
+    pending_msg: Message,
+) {
+    let cas_file_path = suspended.cas_dir.join(&suspended.sha256);
+    let info = suspended.info;
+
+    match info.platform.as_str() {
+        "shared" | "" => resume_shared(sup, handle, info, cas_file_path, pending_msg),
+        _ => resume_process(sup, handle, info, cas_file_path, pending_msg),
+    }
+}
+
+/// Resume a shared (in-process XS) worker via channel transport.
+fn resume_shared(
+    sup: &Arc<Supervisor>,
+    handle: Handle,
+    info: WorkerInfo,
+    cas_file_path: std::path::PathBuf,
+    pending_msg: Message,
+) {
+    // Re-register the handle with a fresh inbox.
+    let mut inbox = sup.register(
+        handle,
+        Some(WorkerInfo {
+            handle,
+            platform: info.platform.clone(),
+            cmd: info.cmd,
+            args: info.args,
+            pid: std::process::id(),
+            started: SystemTime::now(),
+        }),
+    );
+
+    // Build channels for the restored worker.
+    let (sup_to_machine_tx, sup_to_machine_rx) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (machine_to_sup_tx, machine_to_sup_rx) = std::sync::mpsc::channel::<Vec<u8>>();
+
+    // Pre-seed with "restore" init carrying the CAS file path
+    // (not the snapshot bytes — the worker streams from disk).
+    let parent_handle: Handle = 0;
+    let init_bytes = codec::encode_envelope(&Envelope {
+        handle: parent_handle,
+        verb: "restore".to_string(),
+        payload: cas_file_path.to_string_lossy().into_owned().into_bytes(),
+        nonce: 0,
+    });
+    if sup_to_machine_tx.send(init_bytes).is_err() {
+        eprintln!("endor: resume: failed to send restore init");
+        return;
+    }
+
+    // Send the pending message that triggered the resume.
+    {
+        let mut env = pending_msg.envelope;
+        if env.verb != "init" {
+            env.handle = pending_msg.from;
+        }
+        let bytes = codec::encode_envelope(&env);
+        if sup_to_machine_tx.send(bytes).is_err() {
+            eprintln!("endor: resume: failed to send pending message");
+            return;
+        }
+    }
+
+    // Inbound bridge: supervisor inbox → machine channel.
+    let sup_to_machine_tx_bridge = sup_to_machine_tx;
+    tokio::spawn(async move {
+        loop {
+            match inbox.recv().await {
+                Some(msg) => {
+                    let mut env = msg.envelope;
+                    if env.verb != "init" {
+                        env.handle = msg.from;
+                    }
+                    let bytes = codec::encode_envelope(&env);
+                    if sup_to_machine_tx_bridge.send(bytes).is_err() {
+                        return;
+                    }
+                    for msg in inbox.drain() {
+                        let mut env = msg.envelope;
+                        if env.verb != "init" {
+                            env.handle = msg.from;
+                        }
+                        let bytes = codec::encode_envelope(&env);
+                        if sup_to_machine_tx_bridge.send(bytes).is_err() {
+                            return;
+                        }
+                    }
+                }
+                None => return,
+            }
+        }
+    });
+
+    // Outbound bridge: machine → supervisor.
+    let sup_outbound = Arc::clone(sup);
+    tokio::task::spawn_blocking(move || {
+        loop {
+            match machine_to_sup_rx.recv() {
+                Ok(bytes) => match codec::decode_envelope(&bytes) {
+                    Ok(env) => {
+                        let to = env.handle;
+                        sup_outbound.deliver(Message {
+                            from: handle,
+                            to,
+                            envelope: env,
+                            response_tx: None,
+                        });
+                    }
+                    Err(e) => {
+                        eprintln!("endor: resume decode error: {e}");
+                    }
+                },
+                Err(_) => return,
+            }
+        }
+    });
+
+    // Spawn the machine thread.
+    let sup_for_exit = Arc::clone(sup);
+    let thread_builder = std::thread::Builder::new()
+        .name(format!("resumed-worker-{handle}"))
+        .stack_size(32 * 1024 * 1024);
+    let _ = thread_builder.spawn(move || {
+        let transport: Box<dyn xsnap::worker_io::WorkerTransport> =
+            Box::new(xsnap::worker_io::ChannelTransport::new(
+                sup_to_machine_rx,
+                machine_to_sup_tx,
+            ));
+        let result = xsnap::run_xs_worker_inproc(transport);
+        if let Err(e) = result {
+            eprintln!("endor: resumed worker {handle} exited with error: {e}");
+        } else {
+            eprintln!("endor: resumed worker {handle} exited cleanly");
+        }
+        sup_for_exit.unregister(handle);
+    });
+}
+
+/// Resume a process-based worker (separate or node) by re-spawning
+/// the child process with a "restore" init envelope.
+fn resume_process(
+    sup: &Arc<Supervisor>,
+    handle: Handle,
+    info: WorkerInfo,
+    cas_file_path: std::path::PathBuf,
+    pending_msg: Message,
+) {
+    let platform = info.platform.clone();
+    let command = info.cmd;
+    let args = info.args;
+
+    // Re-register the handle with a fresh inbox.
+    let inbox = sup.register(
+        handle,
+        Some(WorkerInfo {
+            handle,
+            platform: platform.clone(),
+            cmd: command.clone(),
+            args: args.clone(),
+            pid: 0, // updated after spawn
+            started: SystemTime::now(),
+        }),
+    );
+
+    let mut cmd = tokio::process::Command::new(&command);
+    let spawned = match spawn_with_pipes(&command, &args, &mut cmd) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("endor: resume_process: spawn failed: {e}");
+            sup.unregister(handle);
+            return;
+        }
+    };
+
+    let pid = spawned.child.id().unwrap_or(0);
+    // Update the WorkerInfo with the actual pid.
+    {
+        let mut workers = sup.workers_write();
+        if let Some(w) = workers.get_mut(&handle) {
+            w.pid = pid;
+        }
+    }
+
+    let restore_payload = cas_file_path.to_string_lossy().into_owned().into_bytes();
+
+    // Wire up with "restore" verb so the worker loads from snapshot.
+    if let Err(e) = wire_worker_tasks(
+        spawned,
+        handle,
+        pending_msg.from,
+        sup,
+        inbox,
+        None,
+        "restore",
+        restore_payload,
+    ) {
+        eprintln!("endor: resume_process: wire_worker_tasks failed: {e}");
+        sup.unregister(handle);
+        return;
+    }
+
+    // Deliver the pending message that triggered resume.
+    sup.deliver(pending_msg);
 }
 
 async fn wait_for_socket(sock_path: &std::path::Path, timeout: Duration) -> Result<(), EndoError> {

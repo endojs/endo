@@ -320,9 +320,11 @@ pub fn decode_envelope(data: &[u8]) -> io::Result<Envelope> {
 // Spawn request encoding/decoding
 // ---------------------------------------------------------------------------
 
-pub fn encode_spawn_request(command: &str, args: &[String]) -> Vec<u8> {
+pub fn encode_spawn_request(platform: &str, command: &str, args: &[String]) -> Vec<u8> {
     let mut buf = Vec::new();
-    cbor_append_head(&mut buf, CBOR_MAP, 2);
+    cbor_append_head(&mut buf, CBOR_MAP, 3);
+    cbor_append_text(&mut buf, "platform");
+    cbor_append_text(&mut buf, platform);
     cbor_append_text(&mut buf, "command");
     cbor_append_text(&mut buf, command);
     cbor_append_text(&mut buf, "args");
@@ -333,14 +335,16 @@ pub fn encode_spawn_request(command: &str, args: &[String]) -> Vec<u8> {
     buf
 }
 
-pub fn decode_spawn_request(data: &[u8]) -> io::Result<(String, Vec<String>)> {
+pub fn decode_spawn_request(data: &[u8]) -> io::Result<(String, String, Vec<String>)> {
     let mut c = Cursor::new(data);
     let n = c.read_map_header()?;
+    let mut platform = String::new();
     let mut command = String::new();
     let mut args = Vec::new();
     for _ in 0..n {
         let key = c.read_text()?;
         match key.as_str() {
+            "platform" => platform = c.read_text()?,
             "command" => command = c.read_text()?,
             "args" => {
                 let alen = c.read_array_header()?;
@@ -351,7 +355,11 @@ pub fn decode_spawn_request(data: &[u8]) -> io::Result<(String, Vec<String>)> {
             _ => c.skip()?,
         }
     }
-    Ok((command, args))
+    // Default to "separate" for backward compat with old payloads.
+    if platform.is_empty() {
+        platform = "separate".to_string();
+    }
+    Ok((platform, command, args))
 }
 
 // ---------------------------------------------------------------------------
@@ -370,6 +378,54 @@ pub fn decode_handle(data: &[u8]) -> io::Result<Handle> {
 }
 
 // ---------------------------------------------------------------------------
+// listen-path request decoding (CBOR map: {"path": <text>})
+// ---------------------------------------------------------------------------
+
+pub fn decode_listen_path_request(data: &[u8]) -> io::Result<String> {
+    let mut c = Cursor::new(data);
+    let n = c.read_map_header()?;
+    let mut path = String::new();
+    for _ in 0..n {
+        let key = c.read_text()?;
+        match key.as_str() {
+            "path" => path = c.read_text()?,
+            _ => c.skip()?,
+        }
+    }
+    if path.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "listen-path: missing or empty path",
+        ));
+    }
+    Ok(path)
+}
+
+// ---------------------------------------------------------------------------
+// Suspend request decoding (CBOR map: {"handle": <i64>})
+// ---------------------------------------------------------------------------
+
+pub fn decode_suspend_request(data: &[u8]) -> io::Result<Handle> {
+    let mut c = Cursor::new(data);
+    let n = c.read_map_header()?;
+    let mut target: Handle = 0;
+    for _ in 0..n {
+        let key = c.read_text()?;
+        match key.as_str() {
+            "handle" => target = c.read_int()?,
+            _ => c.skip()?,
+        }
+    }
+    if target == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "suspend: missing or zero handle",
+        ));
+    }
+    Ok(target)
+}
+
+// ---------------------------------------------------------------------------
 // Worker list encoding
 // ---------------------------------------------------------------------------
 
@@ -377,9 +433,11 @@ pub fn encode_worker_list(workers: &[WorkerInfo]) -> Vec<u8> {
     let mut buf = Vec::new();
     cbor_append_head(&mut buf, CBOR_ARRAY, workers.len() as u64);
     for w in workers {
-        cbor_append_head(&mut buf, CBOR_MAP, 5);
+        cbor_append_head(&mut buf, CBOR_MAP, 6);
         cbor_append_text(&mut buf, "handle");
         cbor_append_int(&mut buf, w.handle);
+        cbor_append_text(&mut buf, "platform");
+        cbor_append_text(&mut buf, &w.platform);
         cbor_append_text(&mut buf, "command");
         cbor_append_text(&mut buf, &w.cmd);
         cbor_append_text(&mut buf, "args");
@@ -436,4 +494,75 @@ fn days_to_ymd(mut days: u64) -> (u64, u64, u64) {
 
 fn is_leap(y: u64) -> bool {
     (y % 4 == 0 && y % 100 != 0) || y % 400 == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::SystemTime;
+
+    #[test]
+    fn spawn_request_round_trip_separate() {
+        let args = vec!["arg1".to_string(), "arg2".to_string()];
+        let encoded = encode_spawn_request("separate", "/bin/worker", &args);
+        let (platform, command, decoded_args) = decode_spawn_request(&encoded).unwrap();
+        assert_eq!(platform, "separate");
+        assert_eq!(command, "/bin/worker");
+        assert_eq!(decoded_args, args);
+    }
+
+    #[test]
+    fn spawn_request_round_trip_shared() {
+        let encoded = encode_spawn_request("shared", "", &[]);
+        let (platform, command, args) = decode_spawn_request(&encoded).unwrap();
+        assert_eq!(platform, "shared");
+        assert_eq!(command, "");
+        assert!(args.is_empty());
+    }
+
+    #[test]
+    fn spawn_request_legacy_no_platform() {
+        // Simulate a legacy 2-entry map without "platform" key.
+        let mut buf = Vec::new();
+        cbor_append_head(&mut buf, CBOR_MAP, 2);
+        cbor_append_text(&mut buf, "command");
+        cbor_append_text(&mut buf, "/bin/old-worker");
+        cbor_append_text(&mut buf, "args");
+        cbor_append_head(&mut buf, CBOR_ARRAY, 0);
+        let (platform, command, args) = decode_spawn_request(&buf).unwrap();
+        assert_eq!(platform, "separate"); // default
+        assert_eq!(command, "/bin/old-worker");
+        assert!(args.is_empty());
+    }
+
+    #[test]
+    fn worker_list_includes_platform() {
+        let workers = vec![WorkerInfo {
+            handle: 42,
+            platform: "shared".to_string(),
+            cmd: "<in-process>".to_string(),
+            args: Vec::new(),
+            pid: 1234,
+            started: SystemTime::UNIX_EPOCH,
+        }];
+        let encoded = encode_worker_list(&workers);
+        // Decode and verify the platform field is present.
+        let mut c = Cursor::new(&encoded);
+        let n = c.read_array_header().unwrap();
+        assert_eq!(n, 1);
+        let map_len = c.read_map_header().unwrap();
+        assert_eq!(map_len, 6);
+        let mut found_platform = false;
+        for _ in 0..map_len {
+            let key = c.read_text().unwrap();
+            if key == "platform" {
+                let val = c.read_text().unwrap();
+                assert_eq!(val, "shared");
+                found_platform = true;
+            } else {
+                c.skip().unwrap();
+            }
+        }
+        assert!(found_platform, "platform field not found in worker list");
+    }
 }
