@@ -1,5 +1,5 @@
 ---
-'@endo/pass-style': minor
+'@endo/pass-style': patch
 ---
 
 Revert the TypeScript declaration for `PASS_STYLE` back to a unique symbol. Compile-time type changes only; no runtime behavior changes.
