@@ -1,10 +1,14 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import { Readable, PassThrough } from 'node:stream';
+
 import {
   encodeEnvelope,
   decodeEnvelope,
   encodeFrame,
   decodeFrame,
+  readFrameFromStream,
+  writeFrameToStream,
 } from '../src/envelope.js';
 
 test('encodeEnvelope / decodeEnvelope round-trip', t => {
@@ -83,4 +87,70 @@ test('round-trip with empty verb', t => {
   const encoded = encodeEnvelope(env);
   const decoded = decodeEnvelope(encoded);
   t.is(decoded.verb, '');
+});
+
+// --- Stream functions ---
+
+test('writeFrameToStream and readFrameFromStream round-trip', async t => {
+  const passthrough = new PassThrough();
+  const data = new Uint8Array([10, 20, 30, 40, 50]);
+
+  await writeFrameToStream(passthrough, data);
+  passthrough.end();
+
+  const result = await readFrameFromStream(passthrough);
+  t.deepEqual(result, data);
+});
+
+test('readFrameFromStream returns null on empty stream', async t => {
+  const stream = Readable.from([]);
+  const result = await readFrameFromStream(stream);
+  t.is(result, null);
+});
+
+test('readFrameFromStream reads small frame (length < 24)', async t => {
+  const passthrough = new PassThrough();
+  const data = new Uint8Array([1, 2, 3]);
+  await writeFrameToStream(passthrough, data);
+  passthrough.end();
+
+  const result = await readFrameFromStream(passthrough);
+  t.deepEqual(result, data);
+});
+
+test('readFrameFromStream reads medium frame (length > 255)', async t => {
+  const passthrough = new PassThrough();
+  const data = new Uint8Array(300);
+  for (let i = 0; i < 300; i += 1) data[i] = i % 256;
+
+  await writeFrameToStream(passthrough, data);
+  passthrough.end();
+
+  const result = await readFrameFromStream(passthrough);
+  t.deepEqual(result, data);
+});
+
+test('readFrameFromStream reads empty frame', async t => {
+  const passthrough = new PassThrough();
+  await writeFrameToStream(passthrough, new Uint8Array(0));
+  passthrough.end();
+
+  const result = await readFrameFromStream(passthrough);
+  t.deepEqual(result, new Uint8Array(0));
+});
+
+test('multiple frames read sequentially', async t => {
+  const passthrough = new PassThrough();
+
+  await writeFrameToStream(passthrough, new Uint8Array([1]));
+  await writeFrameToStream(passthrough, new Uint8Array([2, 3]));
+  passthrough.end();
+
+  const f1 = await readFrameFromStream(passthrough);
+  const f2 = await readFrameFromStream(passthrough);
+  const f3 = await readFrameFromStream(passthrough);
+
+  t.deepEqual(f1, new Uint8Array([1]));
+  t.deepEqual(f2, new Uint8Array([2, 3]));
+  t.is(f3, null, 'third read returns null (EOF)');
 });
