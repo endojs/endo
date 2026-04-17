@@ -141,7 +141,6 @@ export type HostFormula = {
   type: 'host';
   handle: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
-  keypair: FormulaIdentifier;
   worker: FormulaIdentifier;
   inspector: FormulaIdentifier;
   petStore: FormulaIdentifier;
@@ -155,7 +154,6 @@ export type HostFormula = {
 export type GuestFormula = {
   type: 'guest';
   handle: FormulaIdentifier;
-  keypair: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
   hostAgent: FormulaIdentifier;
   petStore: FormulaIdentifier;
@@ -271,12 +269,6 @@ export type MakeCapletDeferredTaskParams = {
   workerId: FormulaIdentifier;
 };
 
-type KeypairFormula = {
-  type: 'keypair';
-  publicKey: string; // 64-char hex
-  privateKey: string; // 64-char hex (seed)
-};
-
 type PeerFormula = {
   type: 'peer';
   networks: FormulaIdentifier;
@@ -381,18 +373,6 @@ export type ChannelMessage = {
   replyType?: string;
 };
 
-type SyncedPetStoreFormula = {
-  type: 'synced-pet-store';
-  /** The peer this store is shared with. */
-  peer: FormulaIdentifier;
-  /** Role of this replica. */
-  role: 'grantor' | 'grantee';
-  /** The formula number of the paired store on the remote peer. */
-  remoteStoreNumber: FormulaNumber;
-  /** Underlying local storage (a pet-store formula for persistence). */
-  store: FormulaIdentifier;
-};
-
 type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
@@ -438,8 +418,6 @@ export type Formula =
   | ResolverFormula
   | DirectoryFormula
   | PeerFormula
-  | KeypairFormula
-  | SyncedPetStoreFormula
   | InvitationFormula
   | TimerFormula;
 
@@ -665,77 +643,9 @@ export interface PetStore {
    * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
    */
   reverseIdentify(id: string): Array<Name>;
-  /**
-   * Normalize all stored formula identifiers using the given function.
-   * If the normalizer returns a different ID, the on-disk and in-memory
-   * mappings are rewritten.
-   */
-  repairIds(normalizeId: (id: string) => string): Promise<void>;
 }
 
 // --- Synced Pet Store (CRDT) types ---
-
-export type SyncedEntry = {
-  /** The formula locator, or null if deleted/revoked (tombstone). */
-  locator: string | null;
-  /** Lamport timestamp: incremented on every local write. */
-  timestamp: number;
-  /** Node number of the peer that wrote this entry. */
-  writer: string;
-};
-
-export type SyncedPetStoreState = Map<string, SyncedEntry>;
-
-export type SyncedPetStoreMetadata = {
-  /** This replica's Lamport clock (monotonically increasing). */
-  localClock: number;
-  /** The highest localClock value the remote peer has acknowledged. */
-  remoteAckedClock: number;
-};
-
-export type SyncedPetStoreChange = {
-  key: string;
-  entry: SyncedEntry;
-};
-
-export interface SyncedPetStore {
-  /** Store a name->locator entry (grantor only). */
-  storeLocator(petName: PetName, locator: string): Promise<void>;
-  /** Delete a name (tombstone). Either party can delete. */
-  remove(petName: PetName): Promise<void>;
-  /** Check if a non-tombstoned entry exists for the name. */
-  has(petName: string): boolean;
-  /** Look up the locator for a name, or undefined if absent/tombstoned. */
-  lookup(petName: string): string | undefined;
-  /** List all non-tombstoned pet names, sorted. */
-  list(): PetName[];
-  /** Return a serializable snapshot of the full CRDT state (including tombstones). */
-  getState(): Record<string, SyncedEntry>;
-  /** Return the current Lamport clock value. */
-  getLocalClock(): number;
-  /** Return the highest clock value acknowledged by the remote peer. */
-  getRemoteAckedClock(): number;
-  /** Merge a remote peer's state into this replica. Returns changed keys. */
-  mergeRemoteState(
-    remoteState: Record<string, SyncedEntry>,
-    remoteClock: number,
-  ): Promise<string[]>;
-  /** Record that the remote peer has acknowledged up to the given clock. */
-  acknowledgeRemoteClock(ackedClock: number): Promise<void>;
-  /** Prune tombstones that both sides have acknowledged. Returns pruned keys. */
-  pruneTombstones(): Promise<string[]>;
-  /** Subscribe to entry changes (yields current state, then deltas). */
-  followChanges(): AsyncGenerator<SyncedPetStoreChange, undefined, undefined>;
-}
-
-export type SyncedPetStorePowers = {
-  makeSyncedPetStore: (opts: {
-    storePath: string;
-    filePowers: FilePowers;
-    localNodeId: string;
-    role: 'grantor' | 'grantee';
-  }) => Promise<SyncedPetStore>;
-};
 
 export type KnownPeersStore = Omit<
   PetStore,
@@ -789,18 +699,6 @@ export type GcHooks = {
   onPetStoreRemove: (storeId: FormulaIdentifier, id: FormulaIdentifier) => void;
   isLocalId: (id: string) => boolean;
   withFormulaGraphLock: (asyncFn?: () => Promise<any>) => Promise<any>;
-};
-
-export type StoreConverters = {
-  idFromLocator: (locator: string) => string;
-  formatLocator: (id: string, formulaType: string) => string;
-  getTypeForId: (id: FormulaIdentifier) => Promise<string>;
-  internalizeLocator: (
-    locator: string,
-    isLocalKey: (node: string) => boolean,
-  ) => { id: FormulaIdentifier; formulaType: string; addresses: string[] };
-  isLocalKey: (node: string) => boolean;
-  localNodeNumber: NodeNumber;
 };
 
 export interface StoreController {
@@ -943,6 +841,13 @@ export interface EndoPeer {
 
 export interface EndoGateway {
   provide: (id: string) => Promise<unknown>;
+  followRetentionSet: (
+    peerNodeNumber: string,
+  ) => Promise<
+    FarRef<
+      AsyncIterableIterator<import('./retention-accumulator.js').RetentionDelta>
+    >
+  >;
 }
 
 export interface EndoGreeter {
@@ -1095,11 +1000,6 @@ export interface EndoHost extends EndoAgent {
   ): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
-  getSyncedStore(petName: string): Promise<SyncedPetStore>;
-  registerSyncedStore(
-    petName: string,
-    storeId: FormulaIdentifier,
-  ): Promise<void>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,
@@ -1298,6 +1198,8 @@ export type FilePowers = {
 
 export type AssertValidNameFn = (name: string) => void;
 
+export type DaemonDatabase = import('./daemon-database.js').DaemonDatabase;
+
 export type PetStorePowers = {
   makeIdentifiedPetStore: (
     id: string,
@@ -1308,12 +1210,6 @@ export type PetStorePowers = {
     formulaNumber: FormulaNumber,
     formulaType: string,
   ) => Promise<void>;
-  makeIdentifiedSyncedPetStore: (
-    formulaNumber: string,
-    localNodeId: string,
-    role: 'grantor' | 'grantee',
-  ) => Promise<SyncedPetStore>;
-  deleteSyncedPetStore: (formulaNumber: string) => Promise<void>;
 };
 
 export type SocketPowers = {
@@ -1362,19 +1258,45 @@ export type RootKeypairDescriptor = {
   isNewlyCreated: boolean;
 };
 
+export type AgentKeyRecord = {
+  publicKey: string;
+  privateKey: string;
+  agentId: string;
+};
+
 export type DaemonicPersistencePowers = {
   statePath: string;
   initializePersistence: () => Promise<void>;
   provideRootNonce: () => Promise<RootNonceDescriptor>;
   provideRootKeypair: () => Promise<RootKeypairDescriptor>;
   makeContentStore: () => import('@endo/platform/fs/lite/types').SnapshotStore;
-  readFormula: (formulaNumber: FormulaNumber) => Promise<Formula>;
+  readFormula: (
+    formulaNumber: FormulaNumber,
+  ) => Promise<{ node: string; formula: Formula }>;
   writeFormula: (
     formulaNumber: FormulaNumber,
+    nodeNumber: string,
     formula: Formula,
   ) => Promise<void>;
   deleteFormula: (formulaNumber: FormulaNumber) => Promise<void>;
-  listFormulas: () => Promise<FormulaNumber[]>;
+  listFormulas: () => Promise<Array<{ number: string; node: string }>>;
+  listFormulaNumbersByNode: (nodeNumber: string) => string[];
+  writeAgentKey: (
+    publicKey: string,
+    privateKey: string,
+    agentId: string,
+  ) => void;
+  getAgentKey: (publicKey: string) => AgentKeyRecord | undefined;
+  hasAgentKey: (publicKey: string) => boolean;
+  listAgentKeys: () => AgentKeyRecord[];
+  deleteAgentKey: (publicKey: string) => void;
+  writeRemoteAgentKey: (publicKey: string, daemonNode: string) => void;
+  getRemoteAgentKey: (publicKey: string) => string | undefined;
+  writeRetention: (guestPublicKey: string, formulaNumber: string) => void;
+  deleteRetention: (guestPublicKey: string, formulaNumber: string) => void;
+  listRetention: (guestPublicKey: string) => Array<{ formulaNumber: string }>;
+  replaceRetention: (guestPublicKey: string, formulaNumbers: string[]) => void;
+  deleteAllRetention: (guestPublicKey: string) => void;
 };
 
 export interface DaemonWorkerFacet {}
@@ -1450,7 +1372,7 @@ export type DeferredTasks<T extends Record<string, string | string[]>> = {
 type FormulateNumberedGuestParams = {
   guestFormulaNumber: FormulaNumber;
   handleId: FormulaIdentifier;
-  keypairId: FormulaIdentifier;
+  agentNodeNumber: NodeNumber;
   guestId: FormulaIdentifier;
   hostAgentId: FormulaIdentifier;
   hostHandleId: FormulaIdentifier;
@@ -1476,7 +1398,7 @@ type FormulateNumberedHostParams = {
   hostId: FormulaIdentifier;
   handleId: FormulaIdentifier;
   hostHandleId: FormulaIdentifier;
-  keypairId: FormulaIdentifier;
+  agentNodeNumber: NodeNumber;
   workerId: FormulaIdentifier;
   storeId: FormulaIdentifier;
   mailboxStoreId: FormulaIdentifier;
@@ -1493,7 +1415,6 @@ export type FormulaValueTypes = {
   network: EndoNetwork;
   peer: EndoGateway;
   'pet-store': PetStore;
-  'synced-pet-store': SyncedPetStore;
   'mailbox-store': PetStore;
   'mail-hub': NameHub;
   message: NameHub;
@@ -1524,6 +1445,7 @@ export interface DaemonCore {
   formulate: (
     formulaNumber: FormulaNumber,
     formula: Formula,
+    nodeNumber?: NodeNumber,
   ) => Promise<{
     id: FormulaIdentifier;
     value: unknown;
@@ -1541,18 +1463,13 @@ export interface DaemonCore {
     workerLabel?: string,
   ) => FormulateResult<unknown>;
 
-  formulateDirectory: () => FormulateResult<EndoDirectory>;
+  formulateDirectory: (
+    nodeNumber?: NodeNumber,
+  ) => FormulateResult<EndoDirectory>;
 
   formulateDirectoryForStore: (
     storeId: FormulaIdentifier,
   ) => FormulateResult<EndoDirectory>;
-
-  formulateSyncedPetStore: (
-    peerId: FormulaIdentifier,
-    role: 'grantor' | 'grantee',
-    remoteStoreNumber: FormulaNumber,
-    storeId: FormulaIdentifier,
-  ) => FormulateResult<SyncedPetStore>;
 
   getPeerIdForNodeIdentifier: (
     nodeNumber: NodeNumber,
@@ -1599,22 +1516,19 @@ export interface DaemonCore {
     hostHandleId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     workerLabel?: string,
-    existingStoreId?: FormulaIdentifier,
   ) => FormulateResult<EndoGuest>;
 
   /**
    * Helper for callers of {@link formulateNumberedGuest}.
-   * @param hostId - The formula identifier of the host to formulate a guest for.
-   * @param existingStoreId - If provided, use this store as the guest's
-   *   backing pet store instead of creating a fresh one.  Used by the
-   *   invite/accept flow to back a guest with a synced pet store.
+   * @param hostAgentId - The formula identifier of the host agent.
+   * @param hostHandleId - The formula identifier of the host handle.
+   * @param workerLabel - Optional label for the guest worker.
    * @returns The formula identifiers for the guest formulation's dependencies.
    */
   formulateGuestDependencies: (
     hostAgentId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
     workerLabel?: string,
-    existingStoreId?: FormulaIdentifier,
   ) => Promise<Readonly<FormulateNumberedGuestParams>>;
 
   formulateChannel: (

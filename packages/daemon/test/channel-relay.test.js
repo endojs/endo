@@ -122,6 +122,9 @@ const makeHost = async (config, cancelled) => {
 /** @param {import('ava').ExecutionContext<any>} t */
 const prepareConfig = async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
+  // Sink the rejection to prevent SES from treating the teardown rejection as
+  // unhandled. Consumers of `cancelled` attach their own .catch() handlers.
+  cancelled.catch(() => {});
   const config = makeConfig(
     'tmp',
     getConfigDirectoryName(t.title, t.context.configs.length),
@@ -172,14 +175,20 @@ test.beforeEach(t => {
 });
 
 test.afterEach.always(async t => {
-  await Promise.allSettled(
+  // Stop all daemons first, then cancel the client connections.
+  // Stopping first avoids an unhandled rejection race: if cancel() fires
+  // before the daemon has shut down, CapTP teardown can produce derivative
+  // promises whose rejection reaches the unhandledRejection handler before
+  // any .catch() has been attached.
+  const configs =
     /** @type {{ cancel: Function, cancelled: Promise<void>, config: ReturnType<typeof makeConfig> }[]} */ (
       t.context.configs
-    ).flatMap(({ cancel, cancelled, config }) => {
-      cancel(Error('teardown'));
-      return [cancelled, stop(config)];
-    }),
-  );
+    );
+  await Promise.allSettled(configs.map(({ config }) => stop(config)));
+  for (const { cancel, cancelled } of configs) {
+    cancelled.catch(() => {});
+    cancel(Error('teardown'));
+  }
 });
 
 // ── Tests ───────────────────────────────────────────────────────────

@@ -138,8 +138,11 @@ export const makeResidenceTracker = ({
    * references to any of the given collected formula ids.
    *
    * @param {Iterable<FormulaIdentifier>} ids
+   * @param {Map<FormulaIdentifier, string>} [formulaTypes] - Pre-collected
+   *   formula types. When formulas are already deleted from formulaForId
+   *   (as in ref-counted collection), the caller supplies this map.
    */
-  const disconnectRetainersHolding = ids => {
+  const disconnectRetainersHolding = (ids, formulaTypes) => {
     const collected = new Set(ids);
     for (const [retainerId, retainees] of retaineesByRetainer.entries()) {
       for (const id of retainees.keys()) {
@@ -148,12 +151,14 @@ export const makeResidenceTracker = ({
           if (!workerId) {
             break;
           }
-          const formula = getFormula(id);
-          if (!formula || formula.type === 'invitation') {
+          // Look up formula type from the provided map or from the
+          // live cache (for callers that haven't deleted yet).
+          const formulaType = formulaTypes?.get(id) ?? getFormula(id)?.type;
+          if (!formulaType || formulaType === 'invitation') {
             break;
           }
           const reason = new Error(
-            `Formula ${q(formula.type)} became unreachable by any pet name path and was collected`,
+            `Formula ${q(formulaType)} became unreachable by any pet name path and was collected`,
           );
           const close = retainerClose.get(retainerId);
           if (close) {

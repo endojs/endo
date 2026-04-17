@@ -30,7 +30,6 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {(node: string) => boolean} args.isLocalKey
- * @param {() => Promise<void>} [args.collectIfDirty]
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  */
@@ -45,14 +44,12 @@ export const makeGuestMaker = ({
   makeMailbox,
   makeDirectoryNode,
   isLocalKey,
-  collectIfDirty = async () => {},
   pinTransient = /** @param {any} _id */ _id => {},
   unpinTransient = /** @param {any} _id */ _id => {},
 }) => {
   /**
    * @param {FormulaIdentifier} guestId
    * @param {FormulaIdentifier} handleId
-   * @param {FormulaIdentifier} keypairId
    * @param {NodeNumber} agentNodeNumber
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
@@ -66,7 +63,6 @@ export const makeGuestMaker = ({
   const makeGuest = async (
     guestId,
     handleId,
-    keypairId,
     agentNodeNumber,
     hostAgentId,
     hostHandleId,
@@ -93,7 +89,6 @@ export const makeGuestMaker = ({
       '@agent': guestId,
       '@self': handleId,
       '@host': hostHandleId,
-      '@keypair': keypairId,
     };
     if (mailHubId !== undefined) {
       specialNames['@mail'] = mailHubId;
@@ -266,7 +261,7 @@ export const makeGuestMaker = ({
         try {
           return await value;
         } finally {
-          unpinTransient(id);
+          await unpinTransient(id);
         }
       }
       return value;
@@ -314,7 +309,7 @@ export const makeGuestMaker = ({
         E(directory).storeIdentifier(namePath, identifiers.marshalId),
       );
       const { id } = await formulateMarshalValue(value, tasks, pinTransient);
-      unpinTransient(id);
+      await unpinTransient(id);
     };
 
     /** @type {EndoGuest} */
@@ -366,51 +361,23 @@ export const makeGuestMaker = ({
       sendValue,
     };
 
-    /** @param {Function} fn */
-    const withCollection =
-      fn =>
-      async (...args) => {
-        await null;
-        try {
-          return await fn(...args);
-        } finally {
-          await collectIfDirty();
-        }
-      };
-
-    const unwrappedMethods = new Set([
-      'handle',
-      'reverseIdentify',
-      'submit',
-      'sendValue',
-    ]);
-    const wrappedGuest = Object.fromEntries(
-      Object.entries(guest).map(([name, fn]) => [
-        name,
-        unwrappedMethods.has(name) ? fn : withCollection(fn),
-      ]),
-    );
-
     return makeExo(
       'EndoGuest',
       GuestInterface,
       /** @type {any} */ ({
         help: makeHelp(guestHelp),
-        ...wrappedGuest,
+        ...guest,
         /** @param {string} locator */
         followLocatorNameChanges: async locator => {
           const iterator = guest.followLocatorNameChanges(locator);
-          await collectIfDirty();
           return makeIteratorRef(iterator);
         },
         followMessages: async () => {
           const iterator = guest.followMessages();
-          await collectIfDirty();
           return makeIteratorRef(iterator);
         },
         followNameChanges: async () => {
           const iterator = guest.followNameChanges();
-          await collectIfDirty();
           return makeIteratorRef(iterator);
         },
       }),

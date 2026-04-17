@@ -5,7 +5,6 @@ import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
-import { q } from '@endo/errors';
 import { makeSnapshotStore } from '@endo/platform/fs/lite';
 
 import { makeNetstringCapTP } from './connection.js';
@@ -14,10 +13,12 @@ import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { toHex, fromHex } from './hex.js';
+import { makeDaemonDatabase } from './daemon-database.js';
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { CapTpConnectionRegistrar, Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
+/** @import { DaemonDatabase } from './daemon-database.js' */
 
 const textEncoder = new TextEncoder();
 
@@ -389,16 +390,40 @@ export const makeCryptoPowers = crypto => {
 };
 
 /**
+ * @param {DaemonDatabase} daemonDb
  * @param {FilePowers} filePowers
  * @param {CryptoPowers} cryptoPowers
  * @param {Config} config
  * @returns {DaemonicPersistencePowers}
  */
 export const makeDaemonicPersistencePowers = (
+  daemonDb,
   filePowers,
   cryptoPowers,
   config,
 ) => {
+  const {
+    readFormula,
+    writeFormula,
+    deleteFormula,
+    listFormulas,
+    listFormulaNumbersByNode,
+    getState,
+    setState,
+    writeAgentKey,
+    getAgentKey,
+    hasAgentKey,
+    listAgentKeys,
+    deleteAgentKey,
+    writeRemoteAgentKey,
+    getRemoteAgentKey,
+    writeRetention,
+    deleteRetention,
+    listRetention,
+    replaceRetention,
+    deleteAllRetention,
+  } = daemonDb;
+
   const initializePersistence = async () => {
     const { statePath, ephemeralStatePath, cachePath } = config;
     const statePathP = filePowers.makePath(statePath);
@@ -409,37 +434,35 @@ export const makeDaemonicPersistencePowers = (
 
   /** @type {DaemonicPersistencePowers['provideRootNonce']} */
   const provideRootNonce = async () => {
-    const noncePath = filePowers.joinPath(config.statePath, 'nonce');
-    const existingNonce = await filePowers.maybeReadFileText(noncePath);
+    const existingNonce = getState('root_nonce');
     if (existingNonce === undefined) {
       const rootNonce = /** @type {FormulaNumber} */ (
         await cryptoPowers.randomHex256()
       );
-      await filePowers.writeFileText(noncePath, `${rootNonce}\n`);
+      setState('root_nonce', rootNonce);
       return { rootNonce, isNewlyCreated: true };
     } else {
-      const rootNonce = /** @type {FormulaNumber} */ (existingNonce.trim());
+      const rootNonce = /** @type {FormulaNumber} */ (existingNonce);
       return { rootNonce, isNewlyCreated: false };
     }
   };
 
   /** @type {DaemonicPersistencePowers['provideRootKeypair']} */
   const provideRootKeypair = async () => {
-    const keypairPath = filePowers.joinPath(config.statePath, 'keypair');
-    const existingKeypair = await filePowers.maybeReadFileText(keypairPath);
-    if (existingKeypair === undefined) {
+    const existingPublicHex = getState('public_key');
+    if (existingPublicHex === undefined) {
       const keypair = await cryptoPowers.generateEd25519Keypair();
       const publicHex = toHex(keypair.publicKey);
       const privateHex = toHex(keypair.privateKey);
-      await filePowers.writeFileText(
-        keypairPath,
-        `${publicHex}\n${privateHex}\n`,
-      );
+      setState('public_key', publicHex);
+      setState('private_key', privateHex);
       return { keypair, isNewlyCreated: true };
     } else {
-      const lines = existingKeypair.trim().split('\n');
-      const publicKey = fromHex(lines[0]);
-      const privateKey = fromHex(lines[1]);
+      const existingPrivateHex = /** @type {string} */ (
+        getState('private_key')
+      );
+      const publicKey = fromHex(existingPublicHex);
+      const privateKey = fromHex(existingPrivateHex);
       return {
         keypair: harden({
           publicKey,
@@ -451,6 +474,7 @@ export const makeDaemonicPersistencePowers = (
     }
   };
 
+  // Content store uses the filesystem for streaming binary data.
   const makeContentStore = () => {
     const { statePath } = config;
     const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha256');
@@ -523,106 +547,37 @@ export const makeDaemonicPersistencePowers = (
     return makeSnapshotStore(rawStore);
   };
 
-  /**
-   * @param {string} formulaNumber
-   */
-  const makeFormulaPath = formulaNumber => {
-    const { statePath } = config;
-    if (formulaNumber.length < 3) {
-      throw new TypeError(`Invalid formula number ${q(formulaNumber)}`);
-    }
-    const head = formulaNumber.slice(0, 2);
-    const tail = formulaNumber.slice(2);
-    const directory = filePowers.joinPath(statePath, 'formulas', head);
-    const file = filePowers.joinPath(directory, `${tail}.json`);
-    return harden({ directory, file });
-  };
-
-  /**
-   * @param {string} formulaNumber
-   * @returns {Promise<Formula>}
-   */
-  const readFormula = async formulaNumber => {
-    const { file: formulaPath } = makeFormulaPath(formulaNumber);
-    const formulaText = await filePowers.maybeReadFileText(formulaPath);
-    if (formulaText === undefined) {
-      throw new ReferenceError(`No reference exists at path ${formulaPath}`);
-    }
-    const formula = (() => {
-      try {
-        return JSON.parse(formulaText);
-      } catch (error) {
-        throw new TypeError(
-          `Corrupt description for reference in file ${formulaPath}: ${error.message}`,
-        );
-      }
-    })();
-    return formula;
-  };
-
-  // Persist instructions for revival (this can be collected)
-  /** @type {DaemonicPersistencePowers['writeFormula']} */
-  const writeFormula = async (formulaNumber, formula) => {
-    const { directory, file } = makeFormulaPath(formulaNumber);
-    // TODO Take care to write atomically with a rename here.
-    await filePowers.makePath(directory);
-    await filePowers.writeFileText(file, `${q(formula)}\n`);
-  };
-
-  /** @type {DaemonicPersistencePowers['deleteFormula']} */
-  const deleteFormula = async formulaNumber => {
-    const { file } = makeFormulaPath(formulaNumber);
-    await filePowers.removePath(file);
-  };
-
-  /** @type {DaemonicPersistencePowers['listFormulas']} */
-  const listFormulas = async () => {
-    const formulasPath = filePowers.joinPath(config.statePath, 'formulas');
-    const heads = await filePowers.readDirectory(formulasPath).catch(error => {
-      if (error.message.startsWith('ENOENT: ')) {
-        return [];
-      }
-      throw error;
-    });
-    /** @type {import('./types.js').FormulaNumber[]} */
-    const numbers = [];
-    await Promise.all(
-      heads.map(async head => {
-        const headPath = filePowers.joinPath(formulasPath, head);
-        const files = await filePowers.readDirectory(headPath).catch(error => {
-          if (
-            error.message.startsWith('ENOTDIR: ') ||
-            error.message.startsWith('ENOENT: ')
-          ) {
-            return [];
-          }
-          throw error;
-        });
-        for (const file of files) {
-          if (file.endsWith('.json')) {
-            const tail = file.slice(0, -'.json'.length);
-            numbers.push(
-              /** @type {import('./types.js').FormulaNumber} */ (
-                `${head}${tail}`
-              ),
-            );
-          }
-        }
-      }),
-    );
-    return numbers;
-  };
-
+  // Wrap synchronous database operations as async so that
+  // implementations using async I/O are not constrained.
   return harden({
     statePath: config.statePath,
     initializePersistence,
     provideRootNonce,
     provideRootKeypair,
     makeContentStore,
-    readFormula,
-    writeFormula,
-    deleteFormula,
-    listFormulas,
+    readFormula: async (/** @type {string} */ formulaNumber) =>
+      readFormula(formulaNumber),
+    writeFormula: async (
+      /** @type {string} */ formulaNumber,
+      /** @type {string} */ nodeNumber,
+      /** @type {Formula} */ formula,
+    ) => writeFormula(formulaNumber, nodeNumber, formula),
+    deleteFormula: async (/** @type {string} */ formulaNumber) =>
+      deleteFormula(formulaNumber),
+    listFormulas: async () => listFormulas(),
+    listFormulaNumbersByNode,
+    writeAgentKey,
+    getAgentKey,
+    hasAgentKey,
+    listAgentKeys,
+    deleteAgentKey,
+    writeRemoteAgentKey,
+    getRemoteAgentKey,
+    writeRetention,
+    deleteRetention,
+    listRetention,
+    replaceRetention,
+    deleteAllRetention,
   });
 };
 
@@ -769,15 +724,17 @@ export const makeDaemonicControlPowers = (
 /**
  * @param {object} opts
  * @param {Config} opts.config
+ * @param {Promise<never>} opts.cancelled
  * @param {typeof import('fs')} opts.fs
  * @param {typeof import('child_process')} opts.popen
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
- * @returns {DaemonicPowers}
+ * @returns {Promise<DaemonicPowers>}
  */
-export const makeDaemonicPowers = ({
+export const makeDaemonicPowers = async ({
   config,
+  cancelled,
   fs,
   popen,
   url,
@@ -786,8 +743,15 @@ export const makeDaemonicPowers = ({
 }) => {
   const { fileURLToPath } = url;
 
-  const petStorePowers = makePetStoreMaker(filePowers, config);
+  // Ensure state directory exists before opening database.
+  await filePowers.makePath(config.statePath);
+
+  const daemonDb = makeDaemonDatabase(config);
+  cancelled.catch(() => daemonDb.close());
+
+  const petStorePowers = makePetStoreMaker(daemonDb);
   const daemonicPersistencePowers = makeDaemonicPersistencePowers(
+    daemonDb,
     filePowers,
     cryptoPowers,
     config,

@@ -154,7 +154,7 @@ export const makeDirectoryMaker = ({
 
     /** @type {EndoDirectory['reverseLocate']} */
     const reverseLocate = async locator => {
-      const { id } = internalizeLocator(locator, isLocalKey);
+      const { id } = internalizeLocator(locator);
       return controller.reverseIdentify(id);
     };
 
@@ -162,7 +162,7 @@ export const makeDirectoryMaker = ({
     const followLocatorNameChanges = async function* followLocatorNameChanges(
       locator,
     ) {
-      const { id } = internalizeLocator(locator, isLocalKey);
+      const { id } = internalizeLocator(locator);
       for await (const idNameChange of controller.followIdNameChanges(id)) {
         /** @type {any} */
         const locatorNameChange = {
@@ -326,7 +326,7 @@ export const makeDirectoryMaker = ({
           `storeLocator requires an endo:// locator, got ${q(locator)}`,
         );
       }
-      const { id } = internalizeLocator(locator, isLocalKey);
+      const { id } = internalizeLocator(locator);
       await storeIdentifier(petNamePath, id);
     };
 

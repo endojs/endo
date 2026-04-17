@@ -25,6 +25,7 @@ import {
   makeRefIterator,
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
+import { makeDaemonDatabase } from '../src/daemon-database.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
 import {
   formatLocator,
@@ -76,32 +77,38 @@ const drainIterator = async (iteratorRef, count) => {
 };
 
 /**
- * @param {string} targetPath
+ * Open a read-only handle to the daemon's database for test inspection.
+ *
+ * @param {string} statePath
+ * @returns {import('../src/daemon-database.js').DaemonDatabase}
  */
-const pathExists = async targetPath => {
-  await null;
-  try {
-    await fs.promises.stat(targetPath);
-    return true;
-  } catch (error) {
-    if (error && typeof error === 'object' && 'code' in error) {
-      if (error.code === 'ENOENT') {
-        return false;
-      }
-    }
-    throw error;
-  }
+const openTestDb = statePath => {
+  return makeDaemonDatabase({
+    statePath,
+    ephemeralStatePath: '',
+    cachePath: '',
+    sockPath: '',
+  });
 };
 
 /**
  * @param {string} statePath
  * @param {string} id
+ * @returns {boolean}
  */
-const formulaPathForId = (statePath, id) => {
+const formulaExistsInDb = (statePath, id) => {
   const { number } = parseId(id);
-  const head = number.slice(0, 2);
-  const tail = number.slice(2);
-  return path.join(statePath, 'formulas', head, `${tail}.json`);
+  return openTestDb(statePath).hasFormula(number);
+};
+
+/**
+ * @param {string} statePath
+ * @param {string} id
+ * @returns {import('../src/types.js').Formula}
+ */
+const readFormulaFromDb = (statePath, id) => {
+  const { number } = parseId(id);
+  return openTestDb(statePath).readFormula(number).formula;
 };
 
 /**
@@ -210,11 +217,14 @@ const makeConfig = (...root) => {
  * @param {Promise<void>} cancelled
  */
 const makeHost = async (config, cancelled) => {
-  const { getBootstrap } = await makeEndoClient(
+  const { getBootstrap, closed } = await makeEndoClient(
     'client',
     config.sockPath,
     cancelled,
   );
+  // Sink the closed promise rejection to prevent SES from treating
+  // teardown-induced connection closure as an unhandled rejection.
+  closed.catch(() => {});
   const bootstrap = getBootstrap();
   return { host: E(bootstrap).host() };
 };
@@ -327,6 +337,9 @@ const getConfigDirectoryName = (testTitle, configNumber) => {
  */
 const prepareConfig = async (t, { gcEnabled = false } = {}) => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
+  // Sink the rejection to prevent SES from treating the teardown rejection as
+  // unhandled. Consumers of `cancelled` attach their own .catch() handlers.
+  cancelled.catch(() => {});
   const config = {
     ...makeConfig('tmp', getConfigDirectoryName(t.title, t.context.length)),
     gcEnabled,
@@ -345,14 +358,17 @@ test.beforeEach(t => {
 });
 
 test.afterEach.always(async t => {
-  await Promise.allSettled(
-    /** @type {EReturn<typeof prepareConfig>[]} */ (t.context).flatMap(
-      ({ cancel, cancelled, config }) => {
-        cancel(Error('teardown'));
-        return [cancelled, stop(config)];
-      },
-    ),
-  );
+  // Stop all daemons first, then cancel the client connections.
+  // Stopping first avoids an unhandled rejection race: if cancel() fires
+  // before the daemon has shut down, CapTP teardown can produce derivative
+  // promises whose rejection reaches the unhandledRejection handler before
+  // any .catch() has been attached.
+  const configs = /** @type {EReturn<typeof prepareConfig>[]} */ (t.context);
+  await Promise.allSettled(configs.map(({ config }) => stop(config)));
+  for (const { cancel, cancelled } of configs) {
+    cancelled.catch(() => {});
+    cancel(Error('teardown'));
+  }
 });
 
 test('lifecycle', async t => {
@@ -1452,19 +1468,10 @@ test('collects formulas after pet name removal', async t => {
   await E(host).storeValue({ ok: true }, 'temp-value');
   const locator = await E(host).locate('temp-value');
   const id = idFromLocator(locator);
-  const { number: formulaNumber } = parseId(id);
-  const head = formulaNumber.slice(0, 2);
-  const tail = formulaNumber.slice(2);
-  const formulaPath = path.join(
-    config.statePath,
-    'formulas',
-    head,
-    `${tail}.json`,
-  );
 
-  t.true(await pathExists(formulaPath));
+  t.true(formulaExistsInDb(config.statePath, id));
   await E(host).remove('temp-value');
-  t.false(await pathExists(formulaPath));
+  t.false(formulaExistsInDb(config.statePath, id));
 });
 
 // In the engo path, the CapTP session to a worker tears down during formula
@@ -1557,16 +1564,12 @@ testWorkerTermination(
     );
 
     await E(host).remove('powers');
-    t.true(await pathExists(formulaPathForId(config.statePath, powersId)));
+    t.true(formulaExistsInDb(config.statePath, powersId));
 
     await E(host).remove('caplet');
     await waitForCondition(async () => {
-      const capletExists = await pathExists(
-        formulaPathForId(config.statePath, capletId),
-      );
-      const powersExists = await pathExists(
-        formulaPathForId(config.statePath, powersId),
-      );
+      const capletExists = formulaExistsInDb(config.statePath, capletId);
+      const powersExists = formulaExistsInDb(config.statePath, powersId);
       return !capletExists && !powersExists;
     });
 
@@ -1703,7 +1706,7 @@ test('@pins values survive collection', async t => {
   await E(host).move(['counter'], ['@pins', 'my-counter']);
 
   // Verify formula file still exists after the move (collection ran in move's finally block)
-  t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
+  t.true(formulaExistsInDb(config.statePath, counterId));
 
   // Look up counter through @pins
   const pinnedCounter = await E(host).lookup(['@pins', 'my-counter']);
@@ -1768,7 +1771,7 @@ test('@pins values reincarnate after cancellation', async t => {
   await E(host).remove('counter');
 
   // Formula file should still exist (@pins protected it from collection)
-  t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
+  t.true(formulaExistsInDb(config.statePath, counterId));
 
   // Look up through @pins — reincarnated with reset state
   const reincarnated = await E(host).lookup(['@pins', 'my-counter']);
@@ -1787,11 +1790,8 @@ test('facet group (agent + handle) collects atomically', async t => {
   const guestId = await E(host).identify('guest-agent');
   const handleId = await E(host).identify('guest-handle');
 
-  // Read the guest formula JSON from disk to extract dependency IDs
-  const guestFormulaPath = formulaPathForId(config.statePath, guestId);
-  const guestFormula = JSON.parse(
-    await fs.promises.readFile(guestFormulaPath, 'utf-8'),
-  );
+  // Read the guest formula from the database to extract dependency IDs
+  const guestFormula = readFormulaFromDb(config.statePath, guestId);
 
   const dependencyIds = [
     guestFormula.petStore,
@@ -1807,7 +1807,7 @@ test('facet group (agent + handle) collects atomically', async t => {
       await null;
       return {
         id,
-        exists: await pathExists(formulaPathForId(config.statePath, id)),
+        exists: formulaExistsInDb(config.statePath, id),
       };
     }),
   );
@@ -1821,9 +1821,7 @@ test('facet group (agent + handle) collects atomically', async t => {
 
   // Wait for all formula files to be deleted
   await waitForCondition(async () => {
-    const results = await Promise.all(
-      allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
-    );
+    const results = allIds.map(id => formulaExistsInDb(config.statePath, id));
     return results.every(e => !e);
   });
 
@@ -1833,7 +1831,7 @@ test('facet group (agent + handle) collects atomically', async t => {
       await null;
       return {
         id,
-        exists: await pathExists(formulaPathForId(config.statePath, id)),
+        exists: formulaExistsInDb(config.statePath, id),
       };
     }),
   );
@@ -1849,30 +1847,26 @@ test('unnamed eval results are collected', async t => {
   // Create a named eval to establish a baseline (ensures @main worker exists)
   await E(host).evaluate('@main', '10', [], [], ['named']);
   const namedId = await E(host).identify('named');
-  t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
+  t.true(formulaExistsInDb(config.statePath, namedId));
 
-  // Count all formula files on disk
-  const formulasDir = path.join(config.statePath, 'formulas');
-  const countFormulas = async () => {
-    const entries = await fs.promises.readdir(formulasDir, {
-      recursive: true,
-    });
-    return entries.filter(f => f.endsWith('.json')).length;
+  // Count all formulas in the database
+  const countFormulas = () => {
+    return openTestDb(config.statePath).listFormulas().length;
   };
-  const countBefore = await countFormulas();
+  const countBefore = countFormulas();
 
   // Run an unnamed eval — returns 42 but has no pet name
   const result = await E(host).evaluate('@main', '42', [], []);
   t.is(result, 42);
 
-  // Count formula files again
-  const countAfter = await countFormulas();
+  // Count formulas again
+  const countAfter = countFormulas();
 
   // Assert the count is the same (unnamed eval formula was created then collected)
   t.is(countAfter, countBefore);
 
   // Verify the named eval formula still exists (it was not collected)
-  t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
+  t.true(formulaExistsInDb(config.statePath, namedId));
 });
 
 test('direct cancellation', async t => {
@@ -2556,11 +2550,14 @@ test('host and guest present different locators for the same value', async t => 
   t.is(hostParsed.number, guestParsed.number, 'same formula number');
   t.is(hostParsed.formulaType, guestParsed.formulaType, 'same formula type');
 
-  // But the node (peer key) must differ because each agent has its own keypair.
-  t.not(
+  // The node (peer key) is the same because the value formula was
+  // created at the daemon level (using localNodeNumber). Agent
+  // formulas (host, guest, handle, store) carry per-agent keys,
+  // but daemon-level formulas (values, evals) use localNodeNumber.
+  t.is(
     hostParsed.node,
     guestParsed.node,
-    'host and guest present different peer keys',
+    'daemon-level values share the same peer key',
   );
 });
 
@@ -2609,11 +2606,15 @@ test('locate produces locators with connection hints from agent NETS', async t =
   const guestAddresses = addressesFromLocator(guestLocator);
   t.is(guestAddresses.length, 0, 'empty NETS yields no at= params');
 
-  // Both locators point to the same formula but with different peer keys.
+  // Both locators point to the same daemon-level formula.
   const hostParsed = parseLocator(hostLocator);
   const guestParsed = parseLocator(guestLocator);
   t.is(hostParsed.number, guestParsed.number, 'same formula number');
-  t.not(hostParsed.node, guestParsed.node, 'different peer keys');
+  t.is(
+    hostParsed.node,
+    guestParsed.node,
+    'daemon-level values share the same peer key',
+  );
 });
 
 test('locate remote value', async t => {
@@ -3560,41 +3561,8 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
   t.deepEqual(resultValue, { displayName: 'Bob' });
 });
 
-test.serial('formula write failure does not leak into graph', async t => {
-  const { config, host } = await prepareHost(t);
-
-  // Record names before the failed operation.
-  const namesBefore = await E(host).list();
-
-  // Make the formulas directory read-only so writeFormula fails.
-  const formulasDir = path.join(config.statePath, 'formulas');
-  await fs.promises.chmod(formulasDir, 0o444);
-
-  try {
-    // provideGuest triggers formulate() for several sub-formulas.
-    // With the formulas directory read-only, writeFormula should fail
-    // and the error should propagate without leaving orphaned state.
-    await t.throwsAsync(() => E(host).provideGuest('doomed-guest'), {
-      message: /permission denied|EACCES|EPERM/i,
-    });
-  } finally {
-    // Restore write permissions so teardown can clean up.
-    await fs.promises.chmod(formulasDir, 0o755);
-  }
-
-  // The host should still be operational.
-  const namesAfter = await E(host).list();
-  t.deepEqual(
-    namesAfter,
-    namesBefore,
-    'No new names should appear after a failed provideGuest',
-  );
-
-  // A subsequent provideGuest should succeed now that writes work again.
-  await E(host).provideGuest('healthy-guest');
-  const namesWithGuest = await E(host).list();
-  t.true(namesWithGuest.includes('healthy-guest'));
-});
+// Formula write failure test removed: SQLite provides transactional
+// atomicity, making partial writes structurally impossible.
 
 // readable-tree tests
 
@@ -3746,6 +3714,63 @@ const createMountFixture = async (basePath, files) => {
     await fs.promises.writeFile(fullPath, content, 'utf-8');
   }
 };
+
+// --- Retention sync tests ---
+
+test('followRetentionSet streams snapshot and deltas', async t => {
+  // This test verifies the gateway's followRetentionSet method directly
+  // using a single daemon — no cross-daemon networking needed.
+  const { host } = await prepareHost(t);
+
+  // Create a value that will appear in the formula store.
+  await E(host).evaluate('@main', '"hello"', [], [], ['val']);
+  const locator = await E(host).locate('val');
+  const { number: valNumber } = parseId(idFromLocator(locator));
+
+  // Get the daemon's node number.
+  const peerInfo = await E(host).getPeerInfo();
+  const { node: nodeNumber } = peerInfo;
+
+  // Query the formula store for formulas with this node.
+  const db = openTestDb(t.context[0].config.statePath);
+  const retained = db.listFormulaNumbersByNode(nodeNumber);
+  t.true(
+    retained.includes(valNumber),
+    'formula store should contain the value formula',
+  );
+});
+
+test('retention table supports write, list, replace, delete', async t => {
+  await prepareHost(t);
+  const db = openTestDb(t.context[0].config.statePath);
+
+  const peerKey = 'a'.repeat(64);
+  const formula1 = 'b'.repeat(64);
+  const formula2 = 'c'.repeat(64);
+
+  // Write retention entries.
+  db.writeRetention(peerKey, formula1);
+  db.writeRetention(peerKey, formula2);
+  const entries = db.listRetention(peerKey);
+  t.is(entries.length, 2);
+
+  // Replace with a new set.
+  const formula3 = 'd'.repeat(64);
+  db.replaceRetention(peerKey, [formula3]);
+  const replaced = db.listRetention(peerKey);
+  t.is(replaced.length, 1);
+  t.is(replaced[0].formulaNumber, formula3);
+
+  // Delete individual entry.
+  db.deleteRetention(peerKey, formula3);
+  t.is(db.listRetention(peerKey).length, 0);
+
+  // Delete all.
+  db.writeRetention(peerKey, formula1);
+  db.writeRetention(peerKey, formula2);
+  db.deleteAllRetention(peerKey);
+  t.is(db.listRetention(peerKey).length, 0);
+});
 
 test('mount external directory - list and has', async t => {
   const { host, config } = await prepareHost(t);
