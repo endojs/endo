@@ -3,10 +3,32 @@
 | | |
 |---|---|
 | **Created** | 2026-04-14 |
-| **Updated** | 2026-04-14 |
+| **Updated** | 2026-04-16 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
 | **Supersedes** | designs/daemon-endor-sqlite.md |
+
+## Status
+
+All phases implemented.
+
+- `rust/endo/xsnap/src/powers/sqlite.rs` — 9 host functions,
+  `DB_MAP` / `STMT_MAP` handle maps, `$bigint` / `$bytes` FFI
+  encoding, WAL-mode defaults.
+- `rust/endo/xsnap/src/powers/mod.rs` — `pub mod sqlite`
+- `rust/endo/xsnap/src/lib.rs` — `powers::sqlite::register()`
+  called in power registration; `powers::sqlite::CALLBACKS`
+  included in the snapshot callback table.
+- `rust/endo/xsnap/Cargo.toml` — `rusqlite` with `bundled`
+  feature.
+- `rust/endo/xsnap/src/host_aliases.js` — 9 sqlite alias
+  entries.
+- `packages/daemon/src/bus-daemon-rust-xs-powers.js` —
+  `makeXsSqlitePowers()` with `encodeValue` / `decodeValue` /
+  `decodeRow` helpers.
+- 14 unit tests covering open/close, exec, prepare, run, get,
+  all, columns, finalize, bigint round-trip, blob round-trip,
+  null values, named params, transactions, and cleanup on close.
 
 ## Motivation
 
@@ -546,23 +568,24 @@ These can be added as follow-up work:
 ## Implementation phases
 
 1. Add `rusqlite` to `Cargo.toml`, verify compilation with
-   `bundled` feature.
+   `bundled` feature. **(done)**
 2. Create `powers/sqlite.rs` with `DB_MAP`,
    `sqliteOpen` / `sqliteClose` / `sqliteExec`.
    Wire into `mod.rs` and `lib.rs`.
    Smoke-test: open in-memory db, exec `CREATE TABLE`, close.
+   **(done)**
 3. Add `sqlitePrepare` and statement functions
    (`stmtRun`, `stmtGet`, `stmtAll`, `stmtColumns`,
    `stmtFinalize`).
    Implement `$bigint` and `$bytes` encoding/decoding in the
-   Rust JSON conversion layer.
-4. Add host aliases to `host_aliases.js`.
+   Rust JSON conversion layer. **(done)**
+4. Add host aliases to `host_aliases.js`. **(done)**
 5. Build JS `makeXsSqlitePowers()` wrapper with `encodeValue` /
    `decodeValue` / `decodeRow` helpers.
-   Add types to `types.d.ts`.
+   Add types to `types.d.ts`. **(done)**
 6. Integration test: open in-memory db, create table, insert rows
    with bigint and Uint8Array values, select, verify round-trip
-   through XS with correct types.
+   through XS with correct types. **(done)**
 
 ## Design decisions
 
