@@ -22,12 +22,9 @@ import { Far } from '@endo/marshal';
  * Sealer / unsealer / sealed? triplet. The sealed handles are plain Far
  * remotables; the WeakMap stores only the unsealed value, so a handle that
  * escapes to another peer carries no value and cannot be forged.
- *
- * @template T
- * @returns {{ sealer: any, unsealer: any, isSealed: any }}
  */
 const spawnSealerTriplet = () => {
-  /** @type {WeakMap<object, T>} */
+  /** @type {WeakMap<object, any>} */
   const contents = new WeakMap();
   const sealer = Far('sealer', value => {
     const handle = Far('sealed', {});
@@ -233,7 +230,7 @@ export const makeUserControllerPair = selfProposedName => {
    * through the inbox controller.
    *
    * @param {any} roomChannel
-   * @param {{ subscribe: (s: any) => boolean, unsubscribe: (s: any) => void, revoke: () => void }} inboxController
+   * @param {any} inboxController
    */
   const makeAuthenticatedChannel = (roomChannel, inboxController) =>
     Far('authenticated-channel', {
