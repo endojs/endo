@@ -1,4 +1,5 @@
 // @ts-check
+/* global process */
 
 /**
  * Host script: runs an Endo OCapN peer that serves a Goblin Chat compatible
