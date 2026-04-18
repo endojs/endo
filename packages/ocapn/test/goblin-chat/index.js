@@ -16,12 +16,14 @@ import { makeChatroom } from './backend.js';
 const CHATROOM_SWISS = 'goblinChatRoomSwissnumForInteropTests0001';
 const DEFAULT_PORT = 22047;
 const DEFAULT_NAME = 'endo-interop';
+const DEFAULT_CAPTP_VERSION = 'goblins-0.16';
 
 const main = async () => {
   const roomName = process.argv[2] || DEFAULT_NAME;
   const port = Number(process.env.OCAPN_TEST_PORT) || DEFAULT_PORT;
 
-  const client = makeClient({ verbose: true });
+  const captpVersion = process.env.OCAPN_CAPTP_VERSION || DEFAULT_CAPTP_VERSION;
+  const client = makeClient({ verbose: true, captpVersion });
   const chatroom = makeChatroom(roomName);
   client.registerSturdyRef(CHATROOM_SWISS, chatroom);
 

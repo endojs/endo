@@ -25,6 +25,7 @@
              (goblins ocapn ids)
              (goblins ocapn netlayer base-port)
              (goblins utils hashmap)
+             (ice-9 iconv)
              (ice-9 match)
              (fibers conditions))
 
@@ -82,9 +83,9 @@
   (define (outgoing-connect-to-loc loc)
     (unless (eq? (ocapn-peer-transport loc) 'tcp-testing-only)
       (error "Wrong netlayer! Expected `tcp-testing-only'" loc))
-    (let*-values (((hints) (ocapn-peer-hints loc))
-                  ((host) (hashmap-ref hints "host"))
-                  ((port) (hashmap-ref hints "port")))
+    (let* ((hints (ocapn-peer-hints loc))
+           (host (hashmap-ref hints "host"))
+           (port (hashmap-ref hints "port")))
       (make-client-socket host (string->number port))))
 
   (define main-beh
@@ -159,9 +160,31 @@
     (spawn ^user-controller))
   (values user user-controller))
 
+(define done?
+  (make-condition))
+
 (define args (cdr (command-line)))
 (define uri (list-ref args 0))
 (define message (list-ref args 1))
+
+;; Endo's interop host currently prints a peer-style URI where the designator is
+;; the swiss number. Goblins `enliven` expects an actual sturdyref object.
+;; Accept both forms:
+;;   - ocapn://<peer>.<transport>/s/<base64swiss>?...
+;;   - ocapn://<swiss-as-designator>.<transport>?...
+(define (uri->chat-sturdyref uri-string)
+  (define ocapn-id
+    (string->ocapn-id uri-string))
+  (cond
+   ((ocapn-sturdyref? ocapn-id)
+    ocapn-id)
+   ((ocapn-peer? ocapn-id)
+    (make-ocapn-sturdyref ocapn-id
+                          (string->bytevector
+                           (ocapn-peer-designator ocapn-id)
+                           "ascii")))
+   (else
+    (error "Expected OCapN sturdyref/peer URI" uri-string))))
 
 (define machine-vat (spawn-vat))
 (define user-vat (spawn-vat))
@@ -175,7 +198,7 @@
 (define mycapn
   (machine-run (lambda () (spawn-mycapn netlayer))))
 
-(define chat-sref (string->ocapn-id uri))
+(define chat-sref (uri->chat-sturdyref uri))
 
 (define-values (user user-controller)
   (user-run (lambda () (spawn-user-controller-pair "endo-interop-ci"))))
@@ -183,41 +206,45 @@
 (define chatroom-vow
   (user-run (lambda () (<- mycapn 'enliven chat-sref))))
 
-(on chatroom-vow
-    (lambda (chatroom)
-      (define channel-vow
-        (user-run (lambda () (<- user-controller 'join-room chatroom))))
-      (on channel-vow
-          (lambda (channel)
-            (define ack-vow
-              (user-run (lambda () (<- channel 'send-message message))))
-            (on ack-vow
-                (lambda (ack)
-                  (display "interop-client: sent message, ack = ")
-                  (write ack)
-                  (newline)
-                  (exit 0))
-                #:catch
-                (lambda (err)
-                  (display "interop-client: send failed: ")
-                  (write err)
-                  (newline)
-                  (exit 2))
-                #:promise? #t))
-          #:catch
-          (lambda (err)
-            (display "interop-client: join-room failed: ")
-            (write err)
-            (newline)
-            (exit 3))
-          #:promise? #t))
-    #:catch
-    (lambda (err)
-      (display "interop-client: enliven failed: ")
-      (write err)
-      (newline)
-      (exit 4))
-    #:promise? #t)
-
-(define forever (make-condition))
-(wait forever)
+(user-run
+ (lambda ()
+   (on chatroom-vow
+       (lambda (chatroom)
+         (define channel-vow
+           (<- user-controller 'join-room chatroom))
+         (on channel-vow
+             (lambda (channel)
+               (define ack-vow
+                 (<- channel 'send-message message))
+               (on ack-vow
+                   (lambda (ack)
+                     (display "interop-client: sent message, ack = ")
+                     (write ack)
+                     (newline)
+                  (signal-condition! done?))
+                   #:catch
+                   (lambda (err)
+                     (display "interop-client: send failed: ")
+                     (write err)
+                     (newline)
+                  (signal-condition! done?)
+                  (primitive-exit 2))
+                   #:promise? #t))
+             #:catch
+             (lambda (err)
+               (display "interop-client: join-room failed: ")
+               (write err)
+               (newline)
+              (signal-condition! done?)
+              (primitive-exit 3))
+             #:promise? #t))
+       #:catch
+       (lambda (err)
+         (display "interop-client: enliven failed: ")
+         (write err)
+         (newline)
+         (signal-condition! done?)
+         (primitive-exit 4))
+       #:promise? #t)))
+(wait done?)
+(primitive-exit 0)
