@@ -3,14 +3,15 @@
 
 /**
  * Host script: runs an Endo OCapN peer that serves a Goblin Chat compatible
- * chatroom on the tcp-testing-only netlayer. Intended to be driven by a
+ * chatroom on the websocket netlayer. Intended to be driven by a
  * Goblins client (or another OCapN implementation) for interop exercises.
  */
 
 import '@endo/init';
 
-import { makeTcpNetLayer } from '../../src/netlayers/tcp-test-only.js';
+import { makeWebSocketNetLayer } from '../../src/netlayers/websocket.js';
 import { makeClient } from '../../src/client/index.js';
+import { locationToLocationId } from '../../src/client/util.js';
 import { makeChatroom } from './backend.js';
 
 const CHATROOM_SWISS = 'goblinChatRoomSwissnumForInteropTests0001';
@@ -28,17 +29,23 @@ const main = async () => {
   client.registerSturdyRef(CHATROOM_SWISS, chatroom);
 
   const netlayer = await client.registerNetlayer((handlers, logger) =>
-    makeTcpNetLayer({ handlers, logger, specifiedPort: port }),
+    makeWebSocketNetLayer({ handlers, logger, specifiedPort: port }),
   );
-
-  const { designator, hints } = netlayer.location;
-  const hintRecord = hints && typeof hints === 'object' ? hints : {};
-  const host = hintRecord.host ?? '127.0.0.1';
-  const boundPort = hintRecord.port ?? String(port);
+  const hintRecord =
+    netlayer.location.hints && typeof netlayer.location.hints === 'object'
+      ? netlayer.location.hints
+      : {};
+  const roomLocation = {
+    ...netlayer.location,
+    hints: {
+      ...hintRecord,
+      swiss: CHATROOM_SWISS,
+    },
+  };
   // Peer locator the remote end dials to open a session.
-  const peerUri = `ocapn://${designator}.tcp-testing-only?host=${host}&port=${boundPort}`;
+  const peerUri = locationToLocationId(netlayer.location);
   // Sturdyref the remote end enlivens to get the chatroom.
-  const roomUri = `ocapn://${CHATROOM_SWISS}.tcp-testing-only?host=${host}&port=${boundPort}`;
+  const roomUri = locationToLocationId(roomLocation);
   console.log(`*** Peer locator: ${peerUri}`);
   console.log(`*** Serving chatroom "#${roomName}" at sturdyref: ${roomUri}`);
 };
