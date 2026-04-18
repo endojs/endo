@@ -6,9 +6,8 @@ name: OCapN Guile interop
 #
 # This is scaffolding: it stands up the pieces (Guix toolchain, Spritely
 # goblin-chat, Endo chatroom server) and runs a minimal Guile interop
-# client. Expect to iterate on the Guile module paths and manifest the first
-# few runs; that's why it's a standalone workflow with `continue-on-error`
-# and `workflow_dispatch` rather than a required job in the main CI graph.
+# client. It remains a standalone workflow (`workflow_dispatch`) but should
+# fail normally so regressions are visible in PR checks.
 
 on:
   pull_request:
@@ -28,7 +27,6 @@ jobs:
   test-ocapn-guile-interop:
     name: test-ocapn-guile-interop
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 45
 
     steps:
