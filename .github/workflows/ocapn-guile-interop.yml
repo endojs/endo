@@ -117,7 +117,8 @@ jobs:
           # One-shot diagnostic so we don't have to keep guessing module
           # names. Prints every .scm under goblins/ocapn/ in the resolved
           # profile, which is the source of truth for `use-modules` paths.
-          guix shell --pure --no-grafts --manifest="$INTEROP_MANIFEST" -- \
+          # No --pure here: we need the host's `find` + shell utilities.
+          guix shell --no-grafts --manifest="$INTEROP_MANIFEST" -- \
             bash -c 'find "$GUIX_ENVIRONMENT/share" -path "*goblins/ocapn*" -name "*.scm" | sort'
 
       - name: Run Guile interop client
