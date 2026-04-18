@@ -30,8 +30,9 @@ const main = async () => {
   );
 
   const { designator, hints } = netlayer.location;
-  const host = hints?.host ?? '127.0.0.1';
-  const boundPort = hints?.port ?? String(port);
+  const hintRecord = hints && typeof hints === 'object' ? hints : {};
+  const host = hintRecord.host ?? '127.0.0.1';
+  const boundPort = hintRecord.port ?? String(port);
   // Peer locator the remote end dials to open a session.
   const peerUri = `ocapn://${designator}.tcp-testing-only?host=${host}&port=${boundPort}`;
   // Sturdyref the remote end enlivens to get the chatroom.
