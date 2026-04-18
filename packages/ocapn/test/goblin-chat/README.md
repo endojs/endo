@@ -11,7 +11,7 @@ app-layer protocol).
   names are kebab-case so that Goblins' CapTP selector symbols dispatch
   directly.
 - `index.js` — runnable host that advertises a chatroom sturdyref on the
-  `tcp-testing-only` netlayer.
+  `websocket` netlayer.
 
 ## Host a chatroom
 
@@ -22,19 +22,18 @@ node ./packages/ocapn/test/goblin-chat/index.js [room-name]
 The script prints both a peer locator and the chatroom sturdyref:
 
 ```
-*** Peer locator: ocapn://0000.tcp-testing-only?host=127.0.0.1&port=22047
-*** Serving chatroom "#endo-interop" at sturdyref: ocapn://goblinChatRoomSwissnumForInteropTests0001.tcp-testing-only?host=127.0.0.1&port=22047
+*** Peer locator: ocapn://<base32-ed25519-public-key>.websocket?url=ws%3A%2F%2F127.0.0.1%3A22047
+*** Serving chatroom "#endo-interop" at sturdyref: ocapn://<base32-ed25519-public-key>.websocket?swiss=goblinChatRoomSwissnumForInteropTests0001&url=ws%3A%2F%2F127.0.0.1%3A22047
 ```
 
 Override the port with `OCAPN_TEST_PORT=<n>`.
 
 ## Drive it from Goblins
 
-Goblins ships an onion netlayer by default. To use the TCP testing netlayer
-against this server you need a build of goblin-chat wired up with the
-tcp-testing-only netlayer instead of (or alongside) the onion one. See
-`../python-test-suite/README.md` for the analogous flow against the Python
-conformance runner.
+Goblins ships an existing websocket netlayer, which this interop harness uses
+directly. The Guile interop client in this directory imports
+`(goblins ocapn netlayer websocket)` and runs with `#:encrypted? #f` against
+the local `ws://` endpoint emitted by `index.js`.
 
 From the client side, a Goblins user-controller would:
 
