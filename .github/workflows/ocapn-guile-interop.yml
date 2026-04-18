@@ -72,6 +72,8 @@ jobs:
 
       - name: Start Endo goblin-chat host
         working-directory: endo
+        env:
+          OCAPN_CAPTP_VERSION: goblins-0.16
         run: |
           node ./packages/ocapn/test/goblin-chat/index.js interop-room \
             > /tmp/endo-chat.log 2>&1 &
