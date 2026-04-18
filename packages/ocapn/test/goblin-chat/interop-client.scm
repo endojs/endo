@@ -1,8 +1,6 @@
 ;;; Minimal tcp-testing-only interop client for the Endo goblin-chat host.
 ;;;
-;;; Intended to run inside `guix shell --manifest=manifest.scm` against
-;;; spritely/goblin-chat checked out at $GOBLIN_CHAT_SRC, so it can reuse
-;;; that repository's (goblin-chat backend) for the user-controller side.
+;;; Intended to run inside `guix shell --manifest=manifest.scm`.
 ;;;
 ;;; Expected env/args:
 ;;;   $1  sturdyref URI printed by `test/goblin-chat/index.js`
@@ -13,17 +11,22 @@
 ;;; Guix's packaged guile-goblins may not include a dedicated
 ;;; `(goblins ocapn netlayer tcp-testing)` module. To keep this script runnable
 ;;; against those builds, we define a small tcp-testing netlayer actor locally,
-;;; following Goblins' own OCapN test-suite implementation.
+;;; following Goblins' own OCapN test-suite implementation. We also define a
+;;; minimal user-controller pair locally so this client doesn't depend on
+;;; `(goblin-chat backend)`, whose extra module dependencies vary by package
+;;; build.
 
 (use-modules (goblins)
              (goblins actor-lib common)
              (goblins actor-lib io)
+             (goblins actor-lib methods)
+             (goblins actor-lib sealers)
              (goblins ocapn captp)
              (goblins ocapn ids)
              (goblins ocapn netlayer base-port)
              (goblins utils hashmap)
-             (goblin-chat backend)
-             (ice-9 match))
+             (ice-9 match)
+             (fibers conditions))
 
 ;; Copied from Goblins' OCapN test-suite pattern:
 ;; this gives us a tcp-testing-only netlayer without depending on a module that
@@ -66,13 +69,15 @@
                               ("port" (number->string assigned-port)))))
 
   (define (incoming-accept)
-    (on-match (<- socket-io
-                  (lambda (resource)
-                    (accept resource O_NONBLOCK)))
-        ((client-socket . _)
-         (setvbuf client-socket 'block)
-         (use-nonblocking-i/o client-socket)
-         client-socket)))
+    (on (<- socket-io
+            (lambda (resource)
+              (accept resource O_NONBLOCK)))
+        (match-lambda
+          ((client-socket . _)
+           (setvbuf client-socket 'block)
+           (use-nonblocking-i/o client-socket)
+           client-socket))
+        #:promise? #t))
 
   (define (outgoing-connect-to-loc loc)
     (unless (eq? (ocapn-peer-transport loc) 'tcp-testing-only)
@@ -89,6 +94,70 @@
   (extend-methods main-beh
    ((halt)
     ($ socket-io 'halt))))
+
+;; Minimal subset of goblin-chat backend needed for CI:
+;; - create a user with the expected methods
+;; - join a room via `subscribe`
+;; - return an authenticated channel that seals chat messages
+(define (spawn-user-controller-pair self-proposed-name)
+  (define-values (chat-msg-sealer chat-msg-unsealer chat-msg-sealed?)
+    (spawn-sealer-triplet))
+  (define-values (subscription-sealer subscription-unsealer _subscription-sealed?)
+    (spawn-sealer-triplet))
+
+  (define (^user _bcom)
+    (methods
+     ((self-proposed-name) self-proposed-name)
+     ((get-chat-sealed?) chat-msg-sealed?)
+     ((get-chat-unsealer) chat-msg-unsealer)
+     ((get-subscription-sealer) subscription-sealer)))
+  (define user (spawn ^user))
+
+  (define (^user-inbox _bcom context)
+    (methods
+     ((new-message from-user sealed-msg)
+      ;; Decode messages to exercise the same app-layer path as Goblins.
+      (on (<- from-user 'get-chat-unsealer)
+          (lambda (chat-unsealer)
+            (on (<- chat-unsealer sealed-msg)
+                (lambda (_message)
+                  #t)
+                #:promise? #t))
+          #:promise? #t)
+      #t)
+     ((user-joined _user) #t)
+     ((user-left _user) #t)
+     ((context) context)))
+
+  (define (^authenticated-channel _bcom room-channel)
+    (methods
+     ((send-message contents)
+      (on (<- chat-msg-sealer contents)
+          (lambda (sealed-msg)
+            (<- room-channel 'send-message sealed-msg))
+          #:promise? #t))
+     ((leave)
+      (<- room-channel 'leave))
+     ((list-users)
+      (<- room-channel 'list-users))))
+
+  (define (^user-controller _bcom)
+    (methods
+     ((whoami) user)
+     ((join-room room)
+      (define inbox (spawn ^user-inbox room))
+      (define sealed-finalizer-vow
+        (<- room 'subscribe user))
+      (define subscription-finalizer-vow
+        (<- subscription-unsealer sealed-finalizer-vow))
+      (on (<- subscription-finalizer-vow inbox)
+          (lambda (room-channel)
+            (spawn ^authenticated-channel room-channel))
+          #:promise? #t))))
+
+  (define user-controller
+    (spawn ^user-controller))
+  (values user user-controller))
 
 (define args (cdr (command-line)))
 (define uri (list-ref args 0))
@@ -150,4 +219,5 @@
       (exit 4))
     #:promise? #t)
 
+(define forever (make-condition))
 (wait forever)
