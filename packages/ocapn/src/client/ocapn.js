@@ -922,19 +922,19 @@ export const makeOcapn = (
         untagPromise,
       );
     },
-    'op:gc-export': message => {
+    'op:gc-exports': message => {
       const { exportPositions, wireDeltas } = message;
-      logger.info(`gc-export`, { exportPositions, wireDeltas });
+      logger.info(`gc-exports`, { exportPositions, wireDeltas });
       if (!Array.isArray(exportPositions) || !Array.isArray(wireDeltas)) {
         throw Error(
-          `OCapN: op:gc-export requires exportPositions and wireDeltas arrays`,
+          `OCapN: op:gc-exports requires exportPositions and wireDeltas arrays`,
         );
       }
       const exportLen = exportPositions.length;
       const wireLen = wireDeltas.length;
       if (exportLen !== wireLen) {
         throw Error(
-          `OCapN: op:gc-export exportPositions and wireDeltas length mismatch: ${exportLen} vs ${wireLen}`,
+          `OCapN: op:gc-exports exportPositions and wireDeltas length mismatch: ${exportLen} vs ${wireLen}`,
         );
       }
       for (let i = 0; i < exportPositions.length; i += 1) {
@@ -950,9 +950,9 @@ export const makeOcapn = (
         }
       }
     },
-    'op:gc-answer': message => {
+    'op:gc-answers': message => {
       const { answerPositions } = message;
-      logger.info(`gc-answer`, { answerPositions });
+      logger.info(`gc-answers`, { answerPositions });
       for (const answerPosition of answerPositions) {
         const slot = makeSlot('a', true, answerPosition);
         // eslint-disable-next-line no-use-before-define
@@ -1060,14 +1060,14 @@ export const makeOcapn = (
     if (type === 'o' || type === 'p') {
       // Remote object or promise - tell peer to decrement export refcount
       send({
-        type: 'op:gc-export',
+        type: 'op:gc-exports',
         exportPositions: [position],
         wireDeltas: [BigInt(refcount)],
       });
     } else if (type === 'a') {
       // Remote answer - tell peer they can GC the answer
       send({
-        type: 'op:gc-answer',
+        type: 'op:gc-answers',
         answerPositions: [position],
       });
     }

@@ -101,18 +101,18 @@ const PositiveIntegerListCodec = makeCodec('PositiveIntegerList', {
   },
 });
 
-const OpGcExportCodec = makeOcapnRecordCodecFromDefinition(
-  'OpGcExport',
-  'op:gc-export',
+const OpGcExportsCodec = makeOcapnRecordCodecFromDefinition(
+  'OpGcExports',
+  'op:gc-exports',
   {
     exportPositions: NonNegativeIntegerListCodec,
     wireDeltas: PositiveIntegerListCodec,
   },
 );
 
-const OpGcAnswerCodec = makeOcapnRecordCodecFromDefinition(
-  'OpGcAnswer',
-  'op:gc-answer',
+const OpGcAnswersCodec = makeOcapnRecordCodecFromDefinition(
+  'OpGcAnswers',
+  'op:gc-answers',
   {
     answerPositions: NonNegativeIntegerListCodec,
   },
@@ -286,8 +286,8 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     OpUntagCodec,
     OpAbortCodec,
     OpListenCodec,
-    OpGcExportCodec,
-    OpGcAnswerCodec,
+    OpGcExportsCodec,
+    OpGcAnswersCodec,
   });
 
   /**

@@ -195,7 +195,7 @@ test('echo object - sending objects back and forth', async t => {
   shutdownBoth();
 });
 
-test('exported object dropped after op:gc-export', async t => {
+test('exported object dropped after op:gc-exports', async t => {
   const testObjectTable = new Map();
   testObjectTable.set(
     'Echo',
@@ -239,7 +239,7 @@ test('exported object dropped after op:gc-export', async t => {
     'should have 1 reference to the exported object',
   );
 
-  // Now simulate B sending an op:gc-export message to A
+  // Now simulate B sending an op:gc-exports message to A
   // saying it's dropping all references to objFromA
 
   // The export position is the numeric part of the slot (e.g., "o+1" -> 1)
@@ -247,7 +247,7 @@ test('exported object dropped after op:gc-export', async t => {
   const exportPosition = BigInt(objASlot.slice(2));
 
   const gcExportMessage = {
-    type: 'op:gc-export',
+    type: 'op:gc-exports',
     exportPositions: [exportPosition],
     wireDeltas: [1n], // Drop 1 reference
   };
@@ -276,7 +276,7 @@ test('exported object dropped after op:gc-export', async t => {
   shutdownBoth();
 });
 
-test('partial op:gc-export does not remove object, full gc does', async t => {
+test('partial op:gc-exports does not remove object, full gc does', async t => {
   const testObjectTable = new Map();
   testObjectTable.set(
     'Echo',
@@ -328,12 +328,12 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
       getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(objASlot);
     t.is(exportedValue, objFromA, 'exported object should be in export table');
 
-    // Now simulate B sending an op:gc-export with partial wire-delta
+    // Now simulate B sending an op:gc-exports with partial wire-delta
     // The export position is the numeric part of the slot (e.g., "o+1" -> 1)
     const exportPosition = BigInt(objASlot.slice(2));
 
     const partialGcMessage = {
-      type: 'op:gc-export',
+      type: 'op:gc-exports',
       exportPositions: [exportPosition],
       wireDeltas: [3n], // Drop only 3 out of 5 references
     };
@@ -355,9 +355,9 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
       'should have 2 references remaining after partial gc-export',
     );
 
-    // Now send another op:gc-export for the remaining references
+    // Now send another op:gc-exports for the remaining references
     const finalGcMessage = {
-      type: 'op:gc-export',
+      type: 'op:gc-exports',
       exportPositions: [exportPosition],
       wireDeltas: [2n], // Drop the remaining 2 references
     };
@@ -383,7 +383,7 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
   }
 });
 
-test('op:gc-answer deletes answer from engine', async t => {
+test('op:gc-answers deletes answer from engine', async t => {
   const testObjectTable = new Map();
 
   const { establishSession, shutdownBoth } = await makeTestClientPair({
@@ -410,17 +410,17 @@ test('op:gc-answer deletes answer from engine', async t => {
       'answer should match',
     );
 
-    // Now A sends op:gc-answer to B
+    // Now A sends op:gc-answers to B
     const answerPosition = BigInt(1); // Position 1 for q+1
     const gcAnswerMessage = {
-      type: 'op:gc-answer',
+      type: 'op:gc-answers',
       answerPositions: [answerPosition],
     };
 
     const gcBytes = ocapnA.writeOcapnMessage(gcAnswerMessage);
     ocapnB.dispatchMessageData(gcBytes);
 
-    // After op:gc-answer, B should have deleted the answer
+    // After op:gc-answers, B should have deleted the answer
     t.is(
       getOcapnDebug(ocapnB).ocapnTable.getValueForSlot(answerSlot),
       undefined,
@@ -483,7 +483,7 @@ test("object can be re-exported after being GC'd", async t => {
     // GC the export completely
     const exportPosition = BigInt(objASlot.slice(2));
     const gcMessage = {
-      type: 'op:gc-export',
+      type: 'op:gc-exports',
       exportPositions: [exportPosition],
       wireDeltas: [1n],
     };
@@ -537,7 +537,7 @@ test("object can be re-exported after being GC'd", async t => {
 // Tests for SENDING GC messages (when imports are garbage collected)
 // =============================================================================
 
-test('op:gc-export is sent when imported object is garbage collected', async t => {
+test('op:gc-exports is sent when imported object is garbage collected', async t => {
   const testObjectTable = new Map();
   const testObject = Far('testObject', {
     greet: name => `Hello ${name}`,
@@ -589,10 +589,10 @@ test('op:gc-export is sent when imported object is garbage collected', async t =
   })();
 
   // Wait for the GC message to be sent (with repeated GC attempts)
-  const gcMessage = await waitForGcMessage(sentMessages, 'op:gc-export');
+  const gcMessage = await waitForGcMessage(sentMessages, 'op:gc-exports');
 
-  // Check that an op:gc-export message was sent
-  t.truthy(gcMessage, 'should have sent an op:gc-export message');
+  // Check that an op:gc-exports message was sent
+  t.truthy(gcMessage, 'should have sent an op:gc-exports message');
   t.is(
     gcMessage.wireDeltas.reduce((s, d) => s + d, 0n),
     1n,
@@ -602,7 +602,7 @@ test('op:gc-export is sent when imported object is garbage collected', async t =
   shutdownBoth();
 });
 
-test('op:gc-export wireDelta reflects accumulated refcount', async t => {
+test('op:gc-exports wireDelta reflects accumulated refcount', async t => {
   // This test verifies that when multiple references to the same remote object
   // are received, the wireDelta in the gc-export message reflects the total.
   // We test this by manually verifying refcount tracking, since JS GC is non-deterministic.
@@ -651,7 +651,7 @@ test('op:gc-export wireDelta reflects accumulated refcount', async t => {
   shutdownBoth();
 });
 
-test('op:gc-answer is sent when answer promise is garbage collected', async t => {
+test('op:gc-answers is sent when answer promise is garbage collected', async t => {
   const testObjectTable = new Map();
   testObjectTable.set(
     'Echo',
@@ -693,10 +693,10 @@ test('op:gc-answer is sent when answer promise is garbage collected', async t =>
   })();
 
   // Wait for the GC message to be sent
-  const gcMessage = await waitForGcMessage(sentMessages, 'op:gc-answer');
+  const gcMessage = await waitForGcMessage(sentMessages, 'op:gc-answers');
 
-  // Check that an op:gc-answer message was sent
-  t.truthy(gcMessage, 'should have sent an op:gc-answer message');
+  // Check that an op:gc-answers message was sent
+  t.truthy(gcMessage, 'should have sent an op:gc-answers message');
   t.is(
     typeof gcMessage.answerPositions[0],
     'bigint',
@@ -712,7 +712,7 @@ test('op:gc-answer is sent when answer promise is garbage collected', async t =>
 // =============================================================================
 
 /**
- * Wait for op:gc-export message(s) for a specific export position, with GC triggering.
+ * Wait for op:gc-exports message(s) for a specific export position, with GC triggering.
  * @param {Array<{direction: string, message: any}>} sentMessages - Array to check for messages
  * @param {bigint} exportPosition - The export position to wait for
  * @param {number} [timeoutMs] - Timeout in milliseconds
@@ -733,7 +733,7 @@ const waitForGcExportsForPosition = async (
     // Check for messages
     const found = sentMessages.filter(
       m =>
-        m.message.type === 'op:gc-export' &&
+        m.message.type === 'op:gc-exports' &&
         m.message.exportPositions?.includes(exportPosition),
     );
     if (found.length > 0) {
@@ -759,10 +759,10 @@ const sumWireDelta = gcMessages => {
   );
 };
 
-test('ocapn-test-suite: op:gc-export emitted for single object', async t => {
+test('ocapn-test-suite: op:gc-exports emitted for single object', async t => {
   // Mirrors test_gc_export_emitted_single_object from op_gc.py
   // When A sends a local object to B's discard service (that immediately drops it),
-  // B should send op:gc-export back to A.
+  // B should send op:gc-exports back to A.
 
   const testObjectTable = new Map();
   // A "discard" service that accepts objects but doesn't hold references
@@ -813,13 +813,13 @@ test('ocapn-test-suite: op:gc-export emitted for single object', async t => {
     // Clear messages so we only capture GC messages
     sentByB.length = 0;
 
-    // Wait for B to send op:gc-export for this position
+    // Wait for B to send op:gc-exports for this position
     const gcMessages = await waitForGcExportsForPosition(
       sentByB,
       exportPosition,
     );
 
-    t.true(gcMessages.length > 0, 'B should have sent op:gc-export');
+    t.true(gcMessages.length > 0, 'B should have sent op:gc-exports');
     t.is(
       sumWireDelta(gcMessages),
       1n,
@@ -830,7 +830,7 @@ test('ocapn-test-suite: op:gc-export emitted for single object', async t => {
   }
 });
 
-test('ocapn-test-suite: op:gc-export with multiple references in same message', async t => {
+test('ocapn-test-suite: op:gc-exports with multiple references in same message', async t => {
   // Mirrors test_gc_export_with_multiple_refrences from op_gc.py
   // When A sends the same object multiple times in one message's arguments,
   // B should eventually report the total wire-delta matching the number of references.
@@ -900,7 +900,7 @@ test('ocapn-test-suite: op:gc-export with multiple references in same message', 
 
     // Now manually trigger GC by sending gc-export with full wire-delta
     const gcExportMessage = {
-      type: 'op:gc-export',
+      type: 'op:gc-exports',
       exportPositions: [exportPosition],
       wireDeltas: [BigInt(refCount)],
     };
@@ -925,7 +925,7 @@ test('ocapn-test-suite: op:gc-export with multiple references in same message', 
   }
 });
 
-test('ocapn-test-suite: op:gc-export with multiple references in different messages', async t => {
+test('ocapn-test-suite: op:gc-exports with multiple references in different messages', async t => {
   // Mirrors test_gc_export_with_multiple_refrences_in_different_messages from op_gc.py
   // When A sends the same object in multiple separate messages,
   // B should eventually report the total wire-delta.
@@ -1002,7 +1002,7 @@ test('ocapn-test-suite: op:gc-export with multiple references in different messa
     // Now manually trigger GC on B's side by sending gc-export
     // This simulates what would happen if B's import collection was enabled
     const gcExportMessage = {
-      type: 'op:gc-export',
+      type: 'op:gc-exports',
       exportPositions: [exportPosition],
       wireDeltas: [BigInt(refCount)], // Drop all references
     };
@@ -1027,10 +1027,10 @@ test('ocapn-test-suite: op:gc-export with multiple references in different messa
   }
 });
 
-test('ocapn-test-suite: op:gc-answer after promise fulfillment', async t => {
+test('ocapn-test-suite: op:gc-answers after promise fulfillment', async t => {
   // Mirrors test_gc_answer from op_gc.py
   // When A makes a call to B that returns a value (creating an answer on B's side),
-  // then A drops the reference to that answer, A should send op:gc-answer to B.
+  // then A drops the reference to that answer, A should send op:gc-answers to B.
 
   const testObjectTable = new Map();
   // A greeter service that returns a greeting
@@ -1070,12 +1070,12 @@ test('ocapn-test-suite: op:gc-answer after promise fulfillment', async t => {
     // Clear messages before letting the promise go out of scope
     sentByA.length = 0;
 
-    // Wait for op:gc-answer to be sent by A
-    const gcMessage = await waitForGcMessage(sentByA, 'op:gc-answer');
+    // Wait for op:gc-answers to be sent by A
+    const gcMessage = await waitForGcMessage(sentByA, 'op:gc-answers');
 
     // Verify the message was sent
-    t.truthy(gcMessage, 'should have sent an op:gc-answer message');
-    t.is(gcMessage.type, 'op:gc-answer', 'should be op:gc-answer');
+    t.truthy(gcMessage, 'should have sent an op:gc-answers message');
+    t.is(gcMessage.type, 'op:gc-answers', 'should be op:gc-answers');
     t.is(
       typeof gcMessage.answerPositions[0],
       'bigint',
@@ -1086,13 +1086,13 @@ test('ocapn-test-suite: op:gc-answer after promise fulfillment', async t => {
   }
 });
 
-test('ocapn-test-suite: op:gc-answer after callback promise fulfillment', async t => {
+test('ocapn-test-suite: op:gc-answers after callback promise fulfillment', async t => {
   // Mirrors test_gc_answer from op_gc.py (lines 126-154)
   // This tests the callback pattern:
   // 1. A sends a local object to B's greeter
   // 2. B's greeter calls back to A's object (creating an answer on B's side)
   // 3. A fulfills the promise
-  // 4. B sends op:gc-answer to A when the answer is garbage collected
+  // 4. B sends op:gc-answers to A when the answer is garbage collected
 
   const testObjectTable = new Map();
   // A greeter service that calls back to the object passed to it
@@ -1150,12 +1150,12 @@ test('ocapn-test-suite: op:gc-answer after callback promise fulfillment', async 
     const result = await E(greeter).greet(objectToGreet);
     t.is(result, 'Received: Hello', 'callback result should be correct');
 
-    // Wait for B to send op:gc-answer for the answer it created when calling A's object
-    const gcMessage = await waitForGcMessage(sentByB, 'op:gc-answer');
+    // Wait for B to send op:gc-answers for the answer it created when calling A's object
+    const gcMessage = await waitForGcMessage(sentByB, 'op:gc-answers');
 
     // Verify the message was sent
-    t.truthy(gcMessage, 'B should have sent an op:gc-answer message');
-    t.is(gcMessage.type, 'op:gc-answer', 'should be op:gc-answer');
+    t.truthy(gcMessage, 'B should have sent an op:gc-answers message');
+    t.is(gcMessage.type, 'op:gc-answers', 'should be op:gc-answers');
     t.is(
       typeof gcMessage.answerPositions[0],
       'bigint',

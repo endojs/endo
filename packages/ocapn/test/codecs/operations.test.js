@@ -144,20 +144,20 @@ export const table = [
     }),
   },
   {
-    // <op:gc-export export-positions   ; list of non-negative integers
+    // <op:gc-exports export-positions   ; list of non-negative integers
     //               wire-deltas>       ; list of positive integers
-    name: 'op:gc-export',
+    name: 'op:gc-exports',
     value: {
-      type: 'op:gc-export',
+      type: 'op:gc-exports',
       exportPositions: [1n],
       wireDeltas: [2n],
     },
   },
   {
-    // <op:gc-answer answer-positions>  ; list of non-negative integers
-    name: 'op:gc-answer',
+    // <op:gc-answers answer-positions>  ; list of non-negative integers
+    name: 'op:gc-answers',
     value: {
-      type: 'op:gc-answer',
+      type: 'op:gc-answers',
       answerPositions: [1n],
     },
   },
