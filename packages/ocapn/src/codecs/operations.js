@@ -161,6 +161,31 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     descCodecs;
   const { PassableCodec } = passableCodecs;
 
+  /** `false` or a local resolver import for op:deliver */
+  const OpDeliverResolveMeDescCodec = makeCodec('OpDeliverResolveMeDesc', {
+    /**
+     * @param {import('../syrup/decode.js').SyrupReader} syrupReader
+     */
+    read: syrupReader => {
+      const hint = syrupReader.peekTypeHint();
+      if (hint === 'boolean') {
+        return FalseCodec.read(syrupReader);
+      }
+      return ResolveMeDescCodec.read(syrupReader);
+    },
+    /**
+     * @param {any} value
+     * @param {import('../syrup/encode.js').SyrupWriter} syrupWriter
+     */
+    write: (value, syrupWriter) => {
+      if (value === false) {
+        FalseCodec.write(false, syrupWriter);
+      } else {
+        ResolveMeDescCodec.write(value, syrupWriter);
+      }
+    },
+  });
+
   const OpListenCodec = makeOcapnRecordCodecFromDefinition(
     'OpListen',
     'op:listen',
@@ -173,7 +198,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
 
   /** @typedef {[...any[]]} OpDeliverArgs */
 
-  // Used by the deliver and deliver-only operations
+  // Used by op:deliver
   // First arg is method name, rest are Passables
   const OpDeliverArgsCodec = makeCodec('OpDeliverArgs', {
     /**
@@ -203,15 +228,6 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   });
 
-  const OpDeliverOnlyCodec = makeOcapnRecordCodecFromDefinition(
-    'OpDeliverOnly',
-    'op:deliver-only',
-    {
-      to: DeliverTargetCodec,
-      args: OpDeliverArgsCodec,
-    },
-  );
-
   // The OpDeliver answer is either a positive integer or false
   const OpDeliverAnswerCodec = makeTypeHintUnionCodec(
     'OpDeliverAnswer',
@@ -232,7 +248,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
       to: DeliverTargetCodec,
       args: OpDeliverArgsCodec,
       answerPosition: OpDeliverAnswerCodec,
-      resolveMeDesc: ResolveMeDescCodec,
+      resolveMeDesc: OpDeliverResolveMeDescCodec,
     },
   );
 
@@ -264,7 +280,6 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
 
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
-    OpDeliverOnlyCodec,
     OpDeliverCodec,
     OpGetCodec,
     OpIndexCodec,

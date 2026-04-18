@@ -438,7 +438,7 @@ jobs:
         with:
           # https://github.com/ocapn/ocapn-test-suite/ (main branch)
           repository: ocapn/ocapn-test-suite
-          ref: 6c146dc4fcf6c633a6a0738a226ada66c57acd72
+          ref: 925df10ade2135aa43507c4706f99a7bf0fe98ff
           path: ocapn-test-suite
 
       - run: corepack enable

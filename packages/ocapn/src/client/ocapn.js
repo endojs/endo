@@ -329,14 +329,16 @@ const makeMakeHandlerForRemoteReference = ({
     };
 
     /**
-     * Send op:deliver-only (fire and forget, no answer expected).
+     * Send op:deliver with no answer and no resolver (fire and forget).
      * @param {unknown[]} args
      */
     const sendDeliverOnly = args => {
       send({
-        type: 'op:deliver-only',
+        type: 'op:deliver',
         to: targetGetter(),
         args: harden(args),
+        answerPosition: false,
+        resolveMeDesc: false,
       });
     };
 
@@ -774,7 +776,7 @@ export const makeOcapn = (
 
   const fulfillRemoteResolverWithPromise = (resolveMeDesc, promise) => {
     // Use E.sendOnly since we don't need a response from fulfill/break calls.
-    // This sends via op:deliver-only
+    // This sends op:deliver with answerPosition and resolveMeDesc both false.
     Promise.resolve(promise).then(
       val => {
         E.sendOnly(resolveMeDesc).fulfill(val);
@@ -800,19 +802,16 @@ export const makeOcapn = (
         );
       }
 
-      fulfillRemoteResolverWithPromise(resolveMeDesc, deliverPromise);
-    },
-    'op:deliver-only': message => {
-      const { to, args } = message;
-      logger.info(`deliver-only`, { to, toType: typeof to, args });
-
-      const deliverPromise = invokeDeliver(to, args);
-
-      // Add context and pass the error to the reject handler.
-      deliverPromise.catch(cause => {
-        const err = Error('OCapN: Error during deliver-only', { cause });
-        onReject(err);
-      });
+      if (resolveMeDesc !== false) {
+        fulfillRemoteResolverWithPromise(resolveMeDesc, deliverPromise);
+      } else {
+        deliverPromise.catch(cause => {
+          const err = Error('OCapN: Error during deliver (no resolver)', {
+            cause,
+          });
+          onReject(err);
+        });
+      }
     },
     'op:listen': message => {
       // There is a "wantsPartial" option, but we don't support it yet.
