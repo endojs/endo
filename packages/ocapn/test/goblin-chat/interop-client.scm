@@ -10,21 +10,85 @@
 ;;;
 ;;; Exit 0 on a successful `send-message` ack, non-zero otherwise.
 ;;;
-;;; Module paths for the tcp-testing-only netlayer in guile-goblins: the
-;;; published TCP+TLS doc uses singular `netlayer`
-;;;   (goblins ocapn netlayer tcp-tls)
-;;; so the testing variant is assumed to live alongside it as
-;;;   (goblins ocapn netlayer tcp-testing)
-;;; Adjust if that's off — at least the `netlayer` vs `netlayers` pluralisation
-;;; is verified.
+;;; Guix's packaged guile-goblins may not include a dedicated
+;;; `(goblins ocapn netlayer tcp-testing)` module. To keep this script runnable
+;;; against those builds, we define a small tcp-testing netlayer actor locally,
+;;; following Goblins' own OCapN test-suite implementation.
 
 (use-modules (goblins)
              (goblins actor-lib common)
+             (goblins actor-lib io)
              (goblins ocapn captp)
              (goblins ocapn ids)
-             (goblins ocapn netlayer tcp-testing)
+             (goblins ocapn netlayer base-port)
+             (goblins utils hashmap)
              (goblin-chat backend)
              (ice-9 match))
+
+;; Copied from Goblins' OCapN test-suite pattern:
+;; this gives us a tcp-testing-only netlayer without depending on a module that
+;; might be absent from packaged guile-goblins.
+(define (use-nonblocking-i/o port)
+  (fcntl port F_SETFL (logior O_NONBLOCK (fcntl port F_GETFL))))
+
+(define (make-server-socket+port port max-connections)
+  (let ((sock (socket AF_INET SOCK_STREAM IPPROTO_TCP)))
+    (bind sock AF_INET INADDR_ANY (or port 0))
+    (setsockopt sock SOL_SOCKET SO_REUSEADDR 1)
+    (fcntl sock F_SETFD FD_CLOEXEC)
+    (use-nonblocking-i/o sock)
+    (listen sock max-connections)
+    (values sock (vector-ref (getsockname sock) 2))))
+
+(define (make-client-socket host port)
+  ;; Resolve hostname to get IP address.
+  (match (getaddrinfo host (number->string port)
+                      AI_NUMERICSERV AF_INET SOCK_STREAM IPPROTO_TCP)
+    ((info _ ...)
+     (let* ((family (addrinfo:fam info))
+            (socktype (addrinfo:socktype info))
+            (address (sockaddr:addr (addrinfo:addr info)))
+            (sock (socket family socktype IPPROTO_TCP)))
+       (use-nonblocking-i/o sock)
+       (connect sock family address port)
+       sock))))
+
+(define-actor (^tcp-testing-netlayer bcom host #:optional [port 0])
+  (define-values (sock assigned-port)
+    (make-server-socket+port port 32))
+  (define socket-io
+    (spawn ^io sock #:cleanup close-port))
+
+  (define our-location
+    (make-ocapn-peer 'tcp-testing-only
+                     "guile-goblins"
+                     (hashmap ("host" host)
+                              ("port" (number->string assigned-port)))))
+
+  (define (incoming-accept)
+    (on-match (<- socket-io
+                  (lambda (resource)
+                    (accept resource O_NONBLOCK)))
+        ((client-socket . _)
+         (setvbuf client-socket 'block)
+         (use-nonblocking-i/o client-socket)
+         client-socket)))
+
+  (define (outgoing-connect-to-loc loc)
+    (unless (eq? (ocapn-peer-transport loc) 'tcp-testing-only)
+      (error "Wrong netlayer! Expected `tcp-testing-only'" loc))
+    (let*-values (((hints) (ocapn-peer-hints loc))
+                  ((host) (hashmap-ref hints "host"))
+                  ((port) (hashmap-ref hints "port")))
+      (make-client-socket host (string->number port))))
+
+  (define main-beh
+    (^base-port-netlayer bcom our-location incoming-accept
+                         outgoing-connect-to-loc))
+
+  (extend-methods main-beh
+   ((halt)
+    ($ socket-io 'halt))))
 
 (define args (cdr (command-line)))
 (define uri (list-ref args 0))
@@ -37,7 +101,7 @@
 (define (user-run thunk) (with-vat user-vat (thunk)))
 
 (define netlayer
-  (machine-run (lambda () (spawn ^tcp-testing-netlayer))))
+  (machine-run (lambda () (spawn ^tcp-testing-netlayer "127.0.0.1"))))
 
 (define mycapn
   (machine-run (lambda () (spawn-mycapn netlayer))))

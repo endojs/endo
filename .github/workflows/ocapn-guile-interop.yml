@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,31 +63,12 @@ jobs:
         working-directory: endo
         run: yarn build
 
-      - name: Cache Guix store
-        id: cache-guix
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4
-        with:
-          path: |
-            /gnu
-            /var/guix
-          key: guix-${{ runner.os }}-v2-interop-manifest
-          # Fall back to older caches if the interop manifest key misses,
-          # so we still populate /gnu and just rebuild what's missing.
-          restore-keys: |
-            guix-${{ runner.os }}-v2-
-            guix-${{ runner.os }}-v1
-
       - name: Install GNU Guix
-        if: steps.cache-guix.outputs.cache-hit != 'true'
         uses: PromyLOPh/guix-install-action@40615e98e5c16a451aec10fe01c214ed07cbaa77 # v1
-
-      - name: Put guix on PATH (cache hit path)
-        if: steps.cache-guix.outputs.cache-hit == 'true'
-        run: |
-          # The install-action already puts guix on PATH; on a cache hit we
-          # skipped it, so wire the same paths ourselves.
-          echo "/var/guix/profiles/per-user/root/current-guix/bin" >> $GITHUB_PATH
-          echo "GUIX_PROFILE=/var/guix/profiles/per-user/root/current-guix" >> $GITHUB_ENV
+        with:
+          # Skip `guix pull`: the default action behavior updates channels to
+          # bleeding edge and costs most of the runtime in this workflow.
+          pullAfterInstall: false
 
       - name: Report Guix version
         run: guix describe || guix --version
@@ -110,22 +92,12 @@ jobs:
           fi
           echo "STURDYREF=$STURDYREF" >> $GITHUB_ENV
 
-      - name: List installed goblins ocapn modules
-        env:
-          INTEROP_MANIFEST: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-manifest.scm
-        run: |
-          # One-shot diagnostic so we don't have to keep guessing module
-          # names. Prints every .scm under goblins/ocapn/ in the resolved
-          # profile, which is the source of truth for `use-modules` paths.
-          # No --pure here: we need the host's `find` + shell utilities.
-          guix shell --no-grafts --manifest="$INTEROP_MANIFEST" -- \
-            bash -c 'find "$GUIX_ENVIRONMENT/share" -path "*goblins/ocapn*" -name "*.scm" | sort'
-
       - name: Run Guile interop client
         working-directory: goblin-chat
         env:
           INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-client.scm
           INTEROP_MANIFEST: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-manifest.scm
+          GUILE_AUTO_COMPILE: 0
         run: |
           # Slim manifest: only guile + guile-goblins + guile-fibers.
           # Spritely's goblin-chat/manifest.scm also pulls gtk/g-golf/mesa
