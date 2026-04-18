@@ -1,0 +1,151 @@
+name: OCapN Guile interop
+
+# Mirrors the `test-ocapn-python` job in ci.yml but drives a Goblins (Guile)
+# chat client against the Endo `@endo/ocapn` goblin-chat test host over the
+# tcp-testing-only netlayer.
+#
+# This is scaffolding: it stands up the pieces (Guix toolchain, Spritely
+# goblin-chat, Endo chatroom server) and runs a minimal Guile interop
+# client. Expect to iterate on the Guile module paths and manifest the first
+# few runs; that's why it's a standalone workflow with `continue-on-error`
+# and `workflow_dispatch` rather than a required job in the main CI graph.
+
+on:
+  pull_request:
+    paths:
+      - 'packages/ocapn/**'
+      - '.github/workflows/ocapn-guile-interop.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-ocapn-guile-interop:
+    name: test-ocapn-guile-interop
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Endo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: endo
+
+      - name: Clone Spritely goblin-chat (Guile) from Codeberg
+        run: |
+          # spritely/goblin-chat is hosted on Codeberg, so actions/checkout
+          # (which targets github.com) isn't useful here. Pin via
+          # `--branch <rev>` once a known-good revision is picked.
+          git clone --depth 1 https://codeberg.org/spritely/goblin-chat goblin-chat
+
+      - run: corepack enable
+        working-directory: endo
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 20.x
+          cache: yarn
+          cache-dependency-path: endo/yarn.lock
+
+      - name: Install Node dependencies
+        working-directory: endo
+        run: yarn install --immutable
+
+      - name: Build Endo
+        working-directory: endo
+        run: yarn build
+
+      - name: Cache Guix store
+        id: cache-guix
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4
+        with:
+          path: |
+            /gnu
+            /var/guix
+          key: guix-${{ runner.os }}-v2-interop-manifest
+          # Fall back to older caches if the interop manifest key misses,
+          # so we still populate /gnu and just rebuild what's missing.
+          restore-keys: |
+            guix-${{ runner.os }}-v2-
+            guix-${{ runner.os }}-v1
+
+      - name: Install GNU Guix
+        if: steps.cache-guix.outputs.cache-hit != 'true'
+        uses: PromyLOPh/guix-install-action@40615e98e5c16a451aec10fe01c214ed07cbaa77 # v1
+
+      - name: Put guix on PATH (cache hit path)
+        if: steps.cache-guix.outputs.cache-hit == 'true'
+        run: |
+          # The install-action already puts guix on PATH; on a cache hit we
+          # skipped it, so wire the same paths ourselves.
+          echo "/var/guix/profiles/per-user/root/current-guix/bin" >> $GITHUB_PATH
+          echo "GUIX_PROFILE=/var/guix/profiles/per-user/root/current-guix" >> $GITHUB_ENV
+
+      - name: Report Guix version
+        run: guix describe || guix --version
+
+      - name: Start Endo goblin-chat host
+        working-directory: endo
+        run: |
+          node ./packages/ocapn/test/goblin-chat/index.js interop-room \
+            > /tmp/endo-chat.log 2>&1 &
+          echo $! > /tmp/endo-chat.pid
+          # Wait for server to advertise its sturdyref.
+          for i in $(seq 1 20); do
+            if grep -q 'sturdyref:' /tmp/endo-chat.log; then break; fi
+            sleep 1
+          done
+          cat /tmp/endo-chat.log
+          STURDYREF=$(sed -n 's/.*sturdyref: \(ocapn:[^ ]*\).*/\1/p' /tmp/endo-chat.log | head -n1)
+          if [ -z "$STURDYREF" ]; then
+            echo "Failed to read sturdyref from server log"
+            exit 1
+          fi
+          echo "STURDYREF=$STURDYREF" >> $GITHUB_ENV
+
+      - name: List installed goblins ocapn modules
+        env:
+          INTEROP_MANIFEST: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-manifest.scm
+        run: |
+          # One-shot diagnostic so we don't have to keep guessing module
+          # names. Prints every .scm under goblins/ocapn/ in the resolved
+          # profile, which is the source of truth for `use-modules` paths.
+          # No --pure here: we need the host's `find` + shell utilities.
+          guix shell --no-grafts --manifest="$INTEROP_MANIFEST" -- \
+            bash -c 'find "$GUIX_ENVIRONMENT/share" -path "*goblins/ocapn*" -name "*.scm" | sort'
+
+      - name: Run Guile interop client
+        working-directory: goblin-chat
+        env:
+          INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-client.scm
+          INTEROP_MANIFEST: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-manifest.scm
+        run: |
+          # Slim manifest: only guile + guile-goblins + guile-fibers.
+          # Spritely's goblin-chat/manifest.scm also pulls gtk/g-golf/mesa
+          # for its GUI, which the headless interop client doesn't need.
+          # Guile load path: `.` picks up goblin-chat/backend.scm from the
+          # Spritely checkout (the working directory), and the interop
+          # client's own directory for side modules.
+          guix shell --pure --no-grafts --manifest="$INTEROP_MANIFEST" -- \
+            guile -L . -L "$(dirname "$INTEROP_CLIENT")" \
+              "$INTEROP_CLIENT" "$STURDYREF" "hello from Guile CI"
+
+      - name: Show Endo server log on failure
+        if: failure()
+        run: |
+          echo "=== Endo goblin-chat log ==="
+          cat /tmp/endo-chat.log || echo "(no log)"
+
+      - name: Stop Endo server
+        if: always()
+        run: |
+          if [ -f /tmp/endo-chat.pid ]; then
+            kill $(cat /tmp/endo-chat.pid) || true
+          fi
