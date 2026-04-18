@@ -69,7 +69,12 @@ jobs:
           path: |
             /gnu
             /var/guix
-          key: guix-${{ runner.os }}-v1
+          key: guix-${{ runner.os }}-v2-interop-manifest
+          # Fall back to older caches if the interop manifest key misses,
+          # so we still populate /gnu and just rebuild what's missing.
+          restore-keys: |
+            guix-${{ runner.os }}-v2-
+            guix-${{ runner.os }}-v1
 
       - name: Install GNU Guix
         if: steps.cache-guix.outputs.cache-hit != 'true'
@@ -83,10 +88,8 @@ jobs:
           echo "/var/guix/profiles/per-user/root/current-guix/bin" >> $GITHUB_PATH
           echo "GUIX_PROFILE=/var/guix/profiles/per-user/root/current-guix" >> $GITHUB_ENV
 
-      - name: Pull Guix channels
-        run: |
-          sudo --preserve-env=PATH -H guix pull --disable-authentication || true
-          guix describe || true
+      - name: Report Guix version
+        run: guix describe || guix --version
 
       - name: Start Endo goblin-chat host
         working-directory: endo
@@ -111,11 +114,15 @@ jobs:
         working-directory: goblin-chat
         env:
           INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-client.scm
+          INTEROP_MANIFEST: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-manifest.scm
         run: |
-          # Reuse spritely/goblin-chat's manifest.scm for guile-goblins +
-          # guile-fibers. The GUI packages (gtk, g-golf) aren't needed for
-          # the interop client but the manifest is simplest to reuse as-is.
-          guix shell --pure --no-grafts --manifest=manifest.scm -- \
+          # Slim manifest: only guile + guile-goblins + guile-fibers.
+          # Spritely's goblin-chat/manifest.scm also pulls gtk/g-golf/mesa
+          # for its GUI, which the headless interop client doesn't need.
+          # Guile load path: `.` picks up goblin-chat/backend.scm from the
+          # Spritely checkout (the working directory), and the interop
+          # client's own directory for side modules.
+          guix shell --pure --no-grafts --manifest="$INTEROP_MANIFEST" -- \
             guile -L . -L "$(dirname "$INTEROP_CLIENT")" \
               "$INTEROP_CLIENT" "$STURDYREF" "hello from Guile CI"
 
