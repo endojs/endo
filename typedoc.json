@@ -22,7 +22,6 @@
     "**/tmp/**",
     "**/dist/**",
     "**/node_modules/**",
-    "packages/ocapn/test/**",
     "packages/cjs-module-analyzer",
     "packages/cli",
     "packages/compartment-mapper",
