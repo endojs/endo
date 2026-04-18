@@ -924,27 +924,41 @@ export const makeOcapn = (
       );
     },
     'op:gc-export': message => {
-      const { exportPosition, wireDelta } = message;
-      logger.info(`gc-export (${exportPosition})`, {
-        exportPosition,
-        wireDelta,
-      });
-      // eslint-disable-next-line no-use-before-define
-      const value = referenceKit.provideLocalExportValue(exportPosition);
-      // eslint-disable-next-line no-use-before-define
-      const slot = ocapnTable.getSlotForValue(value);
-      if (slot === undefined) {
-        return;
+      const { exportPositions, wireDeltas } = message;
+      logger.info(`gc-export`, { exportPositions, wireDeltas });
+      if (!Array.isArray(exportPositions) || !Array.isArray(wireDeltas)) {
+        throw Error(
+          `OCapN: op:gc-export requires exportPositions and wireDeltas arrays`,
+        );
       }
-      // eslint-disable-next-line no-use-before-define
-      ocapnTable.dropSlot(slot, Number(wireDelta));
+      const exportLen = exportPositions.length;
+      const wireLen = wireDeltas.length;
+      if (exportLen !== wireLen) {
+        throw Error(
+          `OCapN: op:gc-export exportPositions and wireDeltas length mismatch: ${exportLen} vs ${wireLen}`,
+        );
+      }
+      for (let i = 0; i < exportPositions.length; i += 1) {
+        const exportPosition = exportPositions[i];
+        const wireDelta = wireDeltas[i];
+        // eslint-disable-next-line no-use-before-define
+        const value = referenceKit.provideLocalExportValue(exportPosition);
+        // eslint-disable-next-line no-use-before-define
+        const slot = ocapnTable.getSlotForValue(value);
+        if (slot !== undefined) {
+          // eslint-disable-next-line no-use-before-define
+          ocapnTable.dropSlot(slot, Number(wireDelta));
+        }
+      }
     },
     'op:gc-answer': message => {
-      const { answerPosition } = message;
-      logger.info(`gc-answer (${answerPosition})`, { answerPosition });
-      const slot = makeSlot('a', true, answerPosition);
-      // eslint-disable-next-line no-use-before-define
-      ocapnTable.dropSlot(slot, 1);
+      const { answerPositions } = message;
+      logger.info(`gc-answer`, { answerPositions });
+      for (const answerPosition of answerPositions) {
+        const slot = makeSlot('a', true, answerPosition);
+        // eslint-disable-next-line no-use-before-define
+        ocapnTable.dropSlot(slot, 1);
+      }
     },
     'op:abort': message => {
       const { reason } = message;
@@ -1048,14 +1062,14 @@ export const makeOcapn = (
       // Remote object or promise - tell peer to decrement export refcount
       send({
         type: 'op:gc-export',
-        exportPosition: position,
-        wireDelta: BigInt(refcount),
+        exportPositions: [position],
+        wireDeltas: [BigInt(refcount)],
       });
     } else if (type === 'a') {
       // Remote answer - tell peer they can GC the answer
       send({
         type: 'op:gc-answer',
-        answerPosition: position,
+        answerPositions: [position],
       });
     }
   };

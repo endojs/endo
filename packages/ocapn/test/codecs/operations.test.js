@@ -182,21 +182,21 @@ export const table = [
     }),
   },
   {
-    // <op:gc-export export-pos   ; positive integer
-    //               wire-delta>  ; positive integer
+    // <op:gc-export export-positions   ; list of non-negative integers
+    //               wire-deltas>       ; list of positive integers
     name: 'op:gc-export',
     value: {
       type: 'op:gc-export',
-      exportPosition: 1n,
-      wireDelta: 2n,
+      exportPositions: [1n],
+      wireDeltas: [2n],
     },
   },
   {
-    // <op:gc-answer answer-pos>  ; answer-pos: positive integer
+    // <op:gc-answer answer-positions>  ; list of non-negative integers
     name: 'op:gc-answer',
     value: {
       type: 'op:gc-answer',
-      answerPosition: 1n,
+      answerPositions: [1n],
     },
   },
   // Below are messages observed in the ocapn python test suite.

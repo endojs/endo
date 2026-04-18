@@ -248,8 +248,8 @@ test('exported object dropped after op:gc-export', async t => {
 
   const gcExportMessage = {
     type: 'op:gc-export',
-    exportPosition,
-    wireDelta: 1n, // Drop 1 reference
+    exportPositions: [exportPosition],
+    wireDeltas: [1n], // Drop 1 reference
   };
 
   // Use B's writeOcapnMessage to serialize the message
@@ -334,8 +334,8 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
 
     const partialGcMessage = {
       type: 'op:gc-export',
-      exportPosition,
-      wireDelta: 3n, // Drop only 3 out of 5 references
+      exportPositions: [exportPosition],
+      wireDeltas: [3n], // Drop only 3 out of 5 references
     };
 
     const partialBytes = ocapnB.writeOcapnMessage(partialGcMessage);
@@ -358,8 +358,8 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
     // Now send another op:gc-export for the remaining references
     const finalGcMessage = {
       type: 'op:gc-export',
-      exportPosition,
-      wireDelta: 2n, // Drop the remaining 2 references
+      exportPositions: [exportPosition],
+      wireDeltas: [2n], // Drop the remaining 2 references
     };
 
     const finalBytes = ocapnB.writeOcapnMessage(finalGcMessage);
@@ -414,7 +414,7 @@ test('op:gc-answer deletes answer from engine', async t => {
     const answerPosition = BigInt(1); // Position 1 for q+1
     const gcAnswerMessage = {
       type: 'op:gc-answer',
-      answerPosition,
+      answerPositions: [answerPosition],
     };
 
     const gcBytes = ocapnA.writeOcapnMessage(gcAnswerMessage);
@@ -484,8 +484,8 @@ test("object can be re-exported after being GC'd", async t => {
     const exportPosition = BigInt(objASlot.slice(2));
     const gcMessage = {
       type: 'op:gc-export',
-      exportPosition,
-      wireDelta: 1n,
+      exportPositions: [exportPosition],
+      wireDeltas: [1n],
     };
     const gcBytes = ocapnB.writeOcapnMessage(gcMessage);
     ocapnA.dispatchMessageData(gcBytes);
@@ -593,7 +593,11 @@ test('op:gc-export is sent when imported object is garbage collected', async t =
 
   // Check that an op:gc-export message was sent
   t.truthy(gcMessage, 'should have sent an op:gc-export message');
-  t.is(gcMessage.wireDelta, 1n, 'wireDelta should be 1 (the refcount)');
+  t.is(
+    gcMessage.wireDeltas.reduce((s, d) => s + d, 0n),
+    1n,
+    'wireDeltas should sum to 1 (the refcount)',
+  );
 
   shutdownBoth();
 });
@@ -694,9 +698,9 @@ test('op:gc-answer is sent when answer promise is garbage collected', async t =>
   // Check that an op:gc-answer message was sent
   t.truthy(gcMessage, 'should have sent an op:gc-answer message');
   t.is(
-    typeof gcMessage.answerPosition,
+    typeof gcMessage.answerPositions[0],
     'bigint',
-    'answerPosition should be a bigint',
+    'answerPositions[0] should be a bigint',
   );
 
   shutdownBoth();
@@ -730,7 +734,7 @@ const waitForGcExportsForPosition = async (
     const found = sentMessages.filter(
       m =>
         m.message.type === 'op:gc-export' &&
-        m.message.exportPosition === exportPosition,
+        m.message.exportPositions?.includes(exportPosition),
     );
     if (found.length > 0) {
       return found.map(f => f.message);
@@ -745,11 +749,14 @@ const waitForGcExportsForPosition = async (
 
 /**
  * Sum up all wireDelta values from gc-export messages.
- * @param {Array<{wireDelta: bigint}>} gcMessages
+ * @param {Array<{wireDeltas: bigint[]}>} gcMessages
  * @returns {bigint}
  */
 const sumWireDelta = gcMessages => {
-  return gcMessages.reduce((sum, msg) => sum + msg.wireDelta, 0n);
+  return gcMessages.reduce(
+    (sum, msg) => sum + msg.wireDeltas.reduce((s, d) => s + d, 0n),
+    0n,
+  );
 };
 
 test('ocapn-test-suite: op:gc-export emitted for single object', async t => {
@@ -894,8 +901,8 @@ test('ocapn-test-suite: op:gc-export with multiple references in same message', 
     // Now manually trigger GC by sending gc-export with full wire-delta
     const gcExportMessage = {
       type: 'op:gc-export',
-      exportPosition,
-      wireDelta: BigInt(refCount),
+      exportPositions: [exportPosition],
+      wireDeltas: [BigInt(refCount)],
     };
     const gcBytes = ocapnB.writeOcapnMessage(gcExportMessage);
     ocapnA.dispatchMessageData(gcBytes);
@@ -996,8 +1003,8 @@ test('ocapn-test-suite: op:gc-export with multiple references in different messa
     // This simulates what would happen if B's import collection was enabled
     const gcExportMessage = {
       type: 'op:gc-export',
-      exportPosition,
-      wireDelta: BigInt(refCount), // Drop all references
+      exportPositions: [exportPosition],
+      wireDeltas: [BigInt(refCount)], // Drop all references
     };
     const gcBytes = ocapnB.writeOcapnMessage(gcExportMessage);
     ocapnA.dispatchMessageData(gcBytes);
@@ -1070,9 +1077,9 @@ test('ocapn-test-suite: op:gc-answer after promise fulfillment', async t => {
     t.truthy(gcMessage, 'should have sent an op:gc-answer message');
     t.is(gcMessage.type, 'op:gc-answer', 'should be op:gc-answer');
     t.is(
-      typeof gcMessage.answerPosition,
+      typeof gcMessage.answerPositions[0],
       'bigint',
-      'answerPosition should be a bigint',
+      'answerPositions[0] should be a bigint',
     );
   } finally {
     shutdownBoth();
@@ -1150,9 +1157,9 @@ test('ocapn-test-suite: op:gc-answer after callback promise fulfillment', async 
     t.truthy(gcMessage, 'B should have sent an op:gc-answer message');
     t.is(gcMessage.type, 'op:gc-answer', 'should be op:gc-answer');
     t.is(
-      typeof gcMessage.answerPosition,
+      typeof gcMessage.answerPositions[0],
       'bigint',
-      'answerPosition should be a bigint',
+      'answerPositions[0] should be a bigint',
     );
   } finally {
     shutdownBoth();

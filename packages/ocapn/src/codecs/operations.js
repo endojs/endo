@@ -45,12 +45,68 @@ const OpAbortCodec = makeOcapnRecordCodecFromDefinition('OpAbort', 'op:abort', {
   reason: 'string',
 });
 
+/** @type {import('../syrup/codec.js').SyrupCodec} */
+const NonNegativeIntegerListCodec = makeCodec('NonNegativeIntegerList', {
+  /**
+   * @param {import('../syrup/decode.js').SyrupReader} syrupReader
+   */
+  read: syrupReader => {
+    syrupReader.enterList();
+    /** @type {bigint[]} */
+    const result = [];
+    while (!syrupReader.peekListEnd()) {
+      result.push(NonNegativeIntegerCodec.read(syrupReader));
+    }
+    syrupReader.exitList();
+    return result;
+  },
+  /**
+   * @param {bigint[]} positions
+   * @param {import('../syrup/encode.js').SyrupWriter} syrupWriter
+   */
+  write: (positions, syrupWriter) => {
+    syrupWriter.enterList();
+    for (const pos of positions) {
+      NonNegativeIntegerCodec.write(pos, syrupWriter);
+    }
+    syrupWriter.exitList();
+  },
+});
+
+/** @type {import('../syrup/codec.js').SyrupCodec} */
+const PositiveIntegerListCodec = makeCodec('PositiveIntegerList', {
+  /**
+   * @param {import('../syrup/decode.js').SyrupReader} syrupReader
+   */
+  read: syrupReader => {
+    syrupReader.enterList();
+    /** @type {bigint[]} */
+    const result = [];
+    while (!syrupReader.peekListEnd()) {
+      result.push(PositiveIntegerCodec.read(syrupReader));
+    }
+    syrupReader.exitList();
+    return result;
+  },
+  /**
+   * @param {bigint[]} deltas
+   * @param {import('../syrup/encode.js').SyrupWriter} syrupWriter
+   */
+  write: (deltas, syrupWriter) => {
+    syrupWriter.enterList();
+    for (const d of deltas) {
+      PositiveIntegerCodec.write(d, syrupWriter);
+    }
+    syrupWriter.exitList();
+  },
+});
+
 const OpGcExportCodec = makeOcapnRecordCodecFromDefinition(
   'OpGcExport',
   'op:gc-export',
   {
-    exportPosition: NonNegativeIntegerCodec,
-    wireDelta: PositiveIntegerCodec,
+    exportPositions: NonNegativeIntegerListCodec,
+    wireDeltas: PositiveIntegerListCodec,
   },
 );
 
@@ -58,7 +114,7 @@ const OpGcAnswerCodec = makeOcapnRecordCodecFromDefinition(
   'OpGcAnswer',
   'op:gc-answer',
   {
-    answerPosition: NonNegativeIntegerCodec,
+    answerPositions: NonNegativeIntegerListCodec,
   },
 );
 
