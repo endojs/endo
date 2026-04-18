@@ -8,16 +8,14 @@
  * @import { PassableCodecs } from './passable.js'
  */
 
-import {
-  makeCodec,
-  makeRecordUnionCodec,
-  makeTypeHintUnionCodec,
-} from '../syrup/codec.js';
+import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import { makeOcapnRecordCodecFromDefinition } from './util.js';
 import {
   NonNegativeIntegerCodec,
-  FalseCodec,
+  NonNegativeIntegerListCodec,
   PositiveIntegerCodec,
+  PositiveIntegerListCodec,
+  makeOcapnFalseForOptionalCodec,
 } from './subtypes.js';
 import {
   OcapnPeerCodec,
@@ -43,62 +41,6 @@ const OpStartSessionCodec = makeOcapnRecordCodecFromDefinition(
 
 const OpAbortCodec = makeOcapnRecordCodecFromDefinition('OpAbort', 'op:abort', {
   reason: 'string',
-});
-
-/** @type {import('../syrup/codec.js').SyrupCodec} */
-const NonNegativeIntegerListCodec = makeCodec('NonNegativeIntegerList', {
-  /**
-   * @param {import('../syrup/decode.js').SyrupReader} syrupReader
-   */
-  read: syrupReader => {
-    syrupReader.enterList();
-    /** @type {bigint[]} */
-    const result = [];
-    while (!syrupReader.peekListEnd()) {
-      result.push(NonNegativeIntegerCodec.read(syrupReader));
-    }
-    syrupReader.exitList();
-    return result;
-  },
-  /**
-   * @param {bigint[]} positions
-   * @param {import('../syrup/encode.js').SyrupWriter} syrupWriter
-   */
-  write: (positions, syrupWriter) => {
-    syrupWriter.enterList();
-    for (const pos of positions) {
-      NonNegativeIntegerCodec.write(pos, syrupWriter);
-    }
-    syrupWriter.exitList();
-  },
-});
-
-/** @type {import('../syrup/codec.js').SyrupCodec} */
-const PositiveIntegerListCodec = makeCodec('PositiveIntegerList', {
-  /**
-   * @param {import('../syrup/decode.js').SyrupReader} syrupReader
-   */
-  read: syrupReader => {
-    syrupReader.enterList();
-    /** @type {bigint[]} */
-    const result = [];
-    while (!syrupReader.peekListEnd()) {
-      result.push(PositiveIntegerCodec.read(syrupReader));
-    }
-    syrupReader.exitList();
-    return result;
-  },
-  /**
-   * @param {bigint[]} deltas
-   * @param {import('../syrup/encode.js').SyrupWriter} syrupWriter
-   */
-  write: (deltas, syrupWriter) => {
-    syrupWriter.enterList();
-    for (const d of deltas) {
-      PositiveIntegerCodec.write(d, syrupWriter);
-    }
-    syrupWriter.exitList();
-  },
 });
 
 const OpGcExportsCodec = makeOcapnRecordCodecFromDefinition(
@@ -162,29 +104,10 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
   const { PassableCodec } = passableCodecs;
 
   /** `false` or a local resolver import for op:deliver */
-  const OpDeliverResolveMeDescCodec = makeCodec('OpDeliverResolveMeDesc', {
-    /**
-     * @param {import('../syrup/decode.js').SyrupReader} syrupReader
-     */
-    read: syrupReader => {
-      const hint = syrupReader.peekTypeHint();
-      if (hint === 'boolean') {
-        return FalseCodec.read(syrupReader);
-      }
-      return ResolveMeDescCodec.read(syrupReader);
-    },
-    /**
-     * @param {any} value
-     * @param {import('../syrup/encode.js').SyrupWriter} syrupWriter
-     */
-    write: (value, syrupWriter) => {
-      if (value === false) {
-        FalseCodec.write(false, syrupWriter);
-      } else {
-        ResolveMeDescCodec.write(value, syrupWriter);
-      }
-    },
-  });
+  const OptionalResolveMeDescCodec = makeOcapnFalseForOptionalCodec(
+    'OptionalResolveMeDesc',
+    ResolveMeDescCodec,
+  );
 
   const OpListenCodec = makeOcapnRecordCodecFromDefinition(
     'OpListen',
@@ -228,17 +151,10 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   });
 
-  // The OpDeliver answer is either a positive integer or false
-  const OpDeliverAnswerCodec = makeTypeHintUnionCodec(
-    'OpDeliverAnswer',
-    {
-      'number-prefix': NonNegativeIntegerCodec,
-      boolean: FalseCodec,
-    },
-    {
-      bigint: NonNegativeIntegerCodec,
-      boolean: FalseCodec,
-    },
+  /** `false` or a non-negative integer answer slot for op:deliver */
+  const OptionalAnswerPositionCodec = makeOcapnFalseForOptionalCodec(
+    'OptionalAnswerPosition',
+    NonNegativeIntegerCodec,
   );
 
   const OpDeliverCodec = makeOcapnRecordCodecFromDefinition(
@@ -247,8 +163,8 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     {
       to: DeliverTargetCodec,
       args: OpDeliverArgsCodec,
-      answerPosition: OpDeliverAnswerCodec,
-      resolveMeDesc: OpDeliverResolveMeDescCodec,
+      answerPosition: OptionalAnswerPositionCodec,
+      resolveMeDesc: OptionalResolveMeDescCodec,
     },
   );
 
