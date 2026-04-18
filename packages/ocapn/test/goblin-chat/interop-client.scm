@@ -10,18 +10,19 @@
 ;;;
 ;;; Exit 0 on a successful `send-message` ack, non-zero otherwise.
 ;;;
-;;; Module paths for the tcp-testing-only netlayer in guile-goblins are
-;;; unverified — adjust to match whichever form the installed Goblins
-;;; exposes. The OCapN Python test suite targets guile-goblins over this
-;;; same transport, so the netlayer exists; only the public binding name
-;;; needs to line up.
+;;; Module paths for the tcp-testing-only netlayer in guile-goblins: the
+;;; published TCP+TLS doc uses singular `netlayer`
+;;;   (goblins ocapn netlayer tcp-tls)
+;;; so the testing variant is assumed to live alongside it as
+;;;   (goblins ocapn netlayer tcp-testing)
+;;; Adjust if that's off — at least the `netlayer` vs `netlayers` pluralisation
+;;; is verified.
 
 (use-modules (goblins)
              (goblins actor-lib common)
              (goblins ocapn captp)
              (goblins ocapn ids)
-             ;; TODO: confirm module path on current guile-goblins.
-             (goblins ocapn netlayers tcp-testing)
+             (goblins ocapn netlayer tcp-testing)
              (goblin-chat backend)
              (ice-9 match))
 
