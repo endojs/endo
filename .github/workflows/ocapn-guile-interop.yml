@@ -110,6 +110,16 @@ jobs:
           fi
           echo "STURDYREF=$STURDYREF" >> $GITHUB_ENV
 
+      - name: List installed goblins ocapn modules
+        env:
+          INTEROP_MANIFEST: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-manifest.scm
+        run: |
+          # One-shot diagnostic so we don't have to keep guessing module
+          # names. Prints every .scm under goblins/ocapn/ in the resolved
+          # profile, which is the source of truth for `use-modules` paths.
+          guix shell --pure --no-grafts --manifest="$INTEROP_MANIFEST" -- \
+            bash -c 'find "$GUIX_ENVIRONMENT/share" -path "*goblins/ocapn*" -name "*.scm" | sort'
+
       - name: Run Guile interop client
         working-directory: goblin-chat
         env:
