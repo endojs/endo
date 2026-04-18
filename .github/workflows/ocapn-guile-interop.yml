@@ -73,16 +73,13 @@ jobs:
 
       - name: Install GNU Guix
         if: steps.cache-guix.outputs.cache-hit != 'true'
-        run: |
-          # Official Guix binary installer. Non-interactive via `yes`.
-          cd /tmp
-          wget -q https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
-          yes | sudo bash guix-install.sh || true
-          # Post-install sanity check.
-          /var/guix/profiles/per-user/root/current-guix/bin/guix --version
+        uses: PromyLOPh/guix-install-action@40615e98e5c16a451aec10fe01c214ed07cbaa77 # v1
 
-      - name: Put guix on PATH
+      - name: Put guix on PATH (cache hit path)
+        if: steps.cache-guix.outputs.cache-hit == 'true'
         run: |
+          # The install-action already puts guix on PATH; on a cache hit we
+          # skipped it, so wire the same paths ourselves.
           echo "/var/guix/profiles/per-user/root/current-guix/bin" >> $GITHUB_PATH
           echo "GUIX_PROFILE=/var/guix/profiles/per-user/root/current-guix" >> $GITHUB_ENV
 
