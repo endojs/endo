@@ -2,7 +2,7 @@ name: OCapN Guile interop
 
 # Mirrors the `test-ocapn-python` job in ci.yml but drives a Goblins (Guile)
 # chat client against the Endo `@endo/ocapn` goblin-chat test host over the
-# tcp-testing-only netlayer.
+# websocket netlayer.
 #
 # This is scaffolding: it stands up the pieces (Guix toolchain, Spritely
 # goblin-chat, Endo chatroom server) and runs a minimal Guile interop
