@@ -64,6 +64,9 @@ export const makeChatroom = selfProposedName => {
    *
    * One of these is handed back to each user after their subscription is
    * finalized. It's the capability they use to speak in the room.
+   *
+   * @param {any} associatedUser
+   * @param {any} _userInbox
    */
   const makeUserMessagingChannel = (associatedUser, _userInbox) => {
     let alive = true;
@@ -95,6 +98,8 @@ export const makeChatroom = selfProposedName => {
    * Sealed by the user before being returned from `subscribe`. The
    * user-controller unseals it and calls it once with the user's inbox; it
    * then wires the subscription up and returns the messaging channel.
+   *
+   * @param {any} associatedUser
    */
   const makeFinalizeSubscription = associatedUser => {
     let finalized = false;
@@ -164,6 +169,8 @@ export const makeUserControllerPair = selfProposedName => {
    * them. Here we keep the controller-only surface as a closed-over set of
    * plain functions and only expose the public surface to the wire, which
    * achieves the same access gate without the warden dance.
+   *
+   * @param {any} context
    */
   const makeUserInbox = context => {
     const roomUsers = new Set();
@@ -224,6 +231,9 @@ export const makeUserControllerPair = selfProposedName => {
    * Wraps the room-channel returned by the chatroom so clients can hand off
    * a plain message; we seal it on the way out and forward subscribe
    * through the inbox controller.
+   *
+   * @param {any} roomChannel
+   * @param {{ subscribe: (s: any) => boolean, unsubscribe: (s: any) => void, revoke: () => void }} inboxController
    */
   const makeAuthenticatedChannel = (roomChannel, inboxController) =>
     Far('authenticated-channel', {
