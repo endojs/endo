@@ -1,8 +1,6 @@
-;;; Minimal tcp-testing-only interop client for the Endo goblin-chat host.
+;;; Minimal websocket interop client for the Endo goblin-chat host.
 ;;;
-;;; Intended to run inside `guix shell --manifest=manifest.scm` against
-;;; spritely/goblin-chat checked out at $GOBLIN_CHAT_SRC, so it can reuse
-;;; that repository's (goblin-chat backend) for the user-controller side.
+;;; Intended to run inside `guix shell --manifest=manifest.scm`.
 ;;;
 ;;; Expected env/args:
 ;;;   $1  sturdyref URI printed by `test/goblin-chat/index.js`
@@ -10,25 +8,116 @@
 ;;;
 ;;; Exit 0 on a successful `send-message` ack, non-zero otherwise.
 ;;;
-;;; Module paths for the tcp-testing-only netlayer in guile-goblins: the
-;;; published TCP+TLS doc uses singular `netlayer`
-;;;   (goblins ocapn netlayer tcp-tls)
-;;; so the testing variant is assumed to live alongside it as
-;;;   (goblins ocapn netlayer tcp-testing)
-;;; Adjust if that's off — at least the `netlayer` vs `netlayers` pluralisation
-;;; is verified.
+;;; We intentionally use Spritely's existing websocket netlayer implementation
+;;; to exercise the same framing and designator-auth path used by Goblins.
+;;; We still define a minimal user-controller pair locally so this client
+;;; doesn't depend on `(goblin-chat backend)`, whose extra module dependencies
+;;; vary by package build.
 
 (use-modules (goblins)
              (goblins actor-lib common)
+             (goblins actor-lib methods)
+             (goblins actor-lib sealers)
              (goblins ocapn captp)
              (goblins ocapn ids)
-             (goblins ocapn netlayer tcp-testing)
-             (goblin-chat backend)
-             (ice-9 match))
+             (goblins ocapn netlayer websocket)
+             (ice-9 match)
+             (fibers conditions))
+
+;; Minimal subset of goblin-chat backend needed for CI:
+;; - create a user with the expected methods
+;; - join a room via `subscribe`
+;; - return an authenticated channel that seals chat messages
+(define (spawn-user-controller-pair self-proposed-name)
+  (define-values (chat-msg-sealer chat-msg-unsealer chat-msg-sealed?)
+    (spawn-sealer-triplet))
+  (define-values (subscription-sealer subscription-unsealer _subscription-sealed?)
+    (spawn-sealer-triplet))
+
+  (define (^user _bcom)
+    (methods
+     ((self-proposed-name) self-proposed-name)
+     ((get-chat-sealed?) chat-msg-sealed?)
+     ((get-chat-unsealer) chat-msg-unsealer)
+     ((get-subscription-sealer) subscription-sealer)))
+  (define user (spawn ^user))
+
+  (define (^user-inbox _bcom context)
+    (methods
+     ((new-message from-user sealed-msg)
+      ;; Decode messages to exercise the same app-layer path as Goblins.
+      (on (<- from-user 'get-chat-unsealer)
+          (lambda (chat-unsealer)
+            (on (<- chat-unsealer sealed-msg)
+                (lambda (_message)
+                  #t)
+                #:promise? #t))
+          #:promise? #t)
+      #t)
+     ((user-joined _user) #t)
+     ((user-left _user) #t)
+     ((context) context)))
+
+  (define (^authenticated-channel _bcom room-channel)
+    (methods
+     ((send-message contents)
+      (on (<- chat-msg-sealer contents)
+          (lambda (sealed-msg)
+            (<- room-channel 'send-message sealed-msg))
+          #:promise? #t))
+     ((leave)
+      (<- room-channel 'leave))
+     ((list-users)
+      (<- room-channel 'list-users))))
+
+  (define (^user-controller _bcom)
+    (methods
+     ((whoami) user)
+     ((join-room room)
+      (define inbox (spawn ^user-inbox room))
+      (define sealed-finalizer-vow
+        (<- room 'subscribe user))
+      (define subscription-finalizer-vow
+        (<- subscription-unsealer sealed-finalizer-vow))
+      (on (<- subscription-finalizer-vow inbox)
+          (lambda (room-channel)
+            (spawn ^authenticated-channel room-channel))
+          #:promise? #t))))
+
+  (define user-controller
+    (spawn ^user-controller))
+  (values user user-controller))
+
+(define done?
+  (make-condition))
 
 (define args (cdr (command-line)))
 (define uri (list-ref args 0))
 (define message (list-ref args 1))
+
+;; Endo's interop host currently prints a peer-style URI where the designator is
+;; the swiss number. Goblins `enliven` expects an actual sturdyref object.
+;; Accept both forms:
+;;   - ocapn://<peer>.<transport>/s/<base64swiss>?...
+;;   - ocapn://<swiss-as-designator>.<transport>?...
+(define (uri->chat-sturdyref uri-string)
+  (define ocapn-id
+    (string->ocapn-id uri-string))
+  (cond
+   ((ocapn-sturdyref? ocapn-id)
+    ocapn-id)
+   ((ocapn-peer? ocapn-id)
+    (define hints
+      (ocapn-peer-hints ocapn-id))
+    (define swiss
+      (and hints (hashmap-ref hints "swiss" #f)))
+    (make-ocapn-sturdyref ocapn-id
+                          (string->bytevector
+                           (or swiss
+                               (ocapn-peer-designator ocapn-id))
+                           "ascii")))
+   (else
+    (error "Expected OCapN sturdyref/peer URI" uri-string))))
 
 (define machine-vat (spawn-vat))
 (define user-vat (spawn-vat))
@@ -37,12 +126,12 @@
 (define (user-run thunk) (with-vat user-vat (thunk)))
 
 (define netlayer
-  (machine-run (lambda () (spawn ^tcp-testing-netlayer))))
+  (machine-run (lambda () (spawn ^websocket-netlayer #:encrypted? #f))))
 
 (define mycapn
   (machine-run (lambda () (spawn-mycapn netlayer))))
 
-(define chat-sref (string->ocapn-id uri))
+(define chat-sref (uri->chat-sturdyref uri))
 
 (define-values (user user-controller)
   (user-run (lambda () (spawn-user-controller-pair "endo-interop-ci"))))
@@ -50,40 +139,45 @@
 (define chatroom-vow
   (user-run (lambda () (<- mycapn 'enliven chat-sref))))
 
-(on chatroom-vow
-    (lambda (chatroom)
-      (define channel-vow
-        (user-run (lambda () (<- user-controller 'join-room chatroom))))
-      (on channel-vow
-          (lambda (channel)
-            (define ack-vow
-              (user-run (lambda () (<- channel 'send-message message))))
-            (on ack-vow
-                (lambda (ack)
-                  (display "interop-client: sent message, ack = ")
-                  (write ack)
-                  (newline)
-                  (exit 0))
-                #:catch
-                (lambda (err)
-                  (display "interop-client: send failed: ")
-                  (write err)
-                  (newline)
-                  (exit 2))
-                #:promise? #t))
-          #:catch
-          (lambda (err)
-            (display "interop-client: join-room failed: ")
-            (write err)
-            (newline)
-            (exit 3))
-          #:promise? #t))
-    #:catch
-    (lambda (err)
-      (display "interop-client: enliven failed: ")
-      (write err)
-      (newline)
-      (exit 4))
-    #:promise? #t)
-
-(wait forever)
+(user-run
+ (lambda ()
+   (on chatroom-vow
+       (lambda (chatroom)
+         (define channel-vow
+           (<- user-controller 'join-room chatroom))
+         (on channel-vow
+             (lambda (channel)
+               (define ack-vow
+                 (<- channel 'send-message message))
+               (on ack-vow
+                   (lambda (ack)
+                     (display "interop-client: sent message, ack = ")
+                     (write ack)
+                     (newline)
+                  (signal-condition! done?))
+                   #:catch
+                   (lambda (err)
+                     (display "interop-client: send failed: ")
+                     (write err)
+                     (newline)
+                  (signal-condition! done?)
+                  (primitive-exit 2))
+                   #:promise? #t))
+             #:catch
+             (lambda (err)
+               (display "interop-client: join-room failed: ")
+               (write err)
+               (newline)
+              (signal-condition! done?)
+              (primitive-exit 3))
+             #:promise? #t))
+       #:catch
+       (lambda (err)
+         (display "interop-client: enliven failed: ")
+         (write err)
+         (newline)
+         (signal-condition! done?)
+         (primitive-exit 4))
+       #:promise? #t)))
+(wait done?)
+(primitive-exit 0)
