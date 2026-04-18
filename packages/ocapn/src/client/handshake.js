@@ -24,6 +24,26 @@ import { decodeSyrup } from '../syrup/js-representation.js';
 import { locationToLocationId } from './util.js';
 
 /**
+ * @param {any} err
+ * @returns {boolean}
+ */
+const isIncompleteSyrupError = err => {
+  let cursor = err;
+  while (cursor) {
+    if (
+      typeof cursor === 'object' &&
+      cursor !== null &&
+      typeof cursor.message === 'string' &&
+      cursor.message.includes('End of data reached')
+    ) {
+      return true;
+    }
+    cursor = cursor.cause;
+  }
+  return false;
+};
+
+/**
  * @param {Connection} connection
  * @param {SelfIdentity} selfIdentity
  * @param {string} captpVersion
@@ -148,6 +168,13 @@ const handleSessionHandshakeMessage = (
       } = message;
       // Handle invalid version
       if (messageCaptpVersion !== captpVersion) {
+        logger.info(
+          'Handshake CapTP version mismatch',
+          JSON.stringify({
+            received: messageCaptpVersion,
+            expected: captpVersion,
+          }),
+        );
         // send op abort
         logger.info(`Abort during start-session message with invalid version`);
         sendAbortAndClose(connection, 'invalid-version');
@@ -256,6 +283,7 @@ const handleSessionHandshakeMessage = (
  * @param {Uint8Array} data
  * @param {string} captpVersion
  * @param {(connection: Connection, sessionId: SessionId, peerLocation: OcapnLocation) => Ocapn} prepareOcapn
+ * @returns {Uint8Array}
  */
 export const handleHandshakeMessageData = (
   logger,
@@ -269,14 +297,25 @@ export const handleHandshakeMessageData = (
 ) => {
   try {
     const syrupReader = makeSyrupReader(data);
+    let priorSession = sessionManager.getSessionForConnection(connection);
     while (syrupReader.index < data.length) {
       const start = syrupReader.index;
       let message;
       try {
         message = readOcapnHandshakeMessage(syrupReader);
       } catch (err) {
+        // Stream transport can split a Syrup message across packets.
+        // Keep the remaining bytes and wait for more data.
+        if (isIncompleteSyrupError(err)) {
+          return data.slice(start);
+        }
         const problematicBytes = data.slice(start);
-        const syrupMessage = decodeSyrup(problematicBytes);
+        let syrupMessage;
+        try {
+          syrupMessage = decodeSyrup(problematicBytes);
+        } catch {
+          syrupMessage = '<un-decodable>';
+        }
         logger.error(
           `Message decode error:`,
           err,
@@ -302,10 +341,20 @@ export const handleHandshakeMessageData = (
           message,
         );
       }
+
+      const nextSession = sessionManager.getSessionForConnection(connection);
+      if (!priorSession && nextSession) {
+        // Session handshake completed; leave any remaining bytes to be decoded
+        // by the normal post-handshake OCapN message decoder.
+        return data.slice(syrupReader.index);
+      }
+      priorSession = nextSession;
     }
+    return new Uint8Array(0);
   } catch (err) {
     logger.error(`Unexpected error while processing handshake message:`, err);
     sendAbortAndClose(connection, 'internal error');
     sessionManager.deleteConnection(connection);
+    return new Uint8Array(0);
   }
 };
