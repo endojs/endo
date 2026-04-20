@@ -2,10 +2,12 @@
 
 import { randomBytes } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
-import { ed25519 } from '@noble/curves/ed25519';
 import harden from '@endo/harden';
 
-import { makeOcapnKeyPair } from '../cryptography.js';
+import {
+  makeOcapnKeyPair,
+  makeOcapnPublicKey,
+} from '../cryptography.js';
 import {
   immutableArrayBufferToUint8Array,
   uint8ArrayToImmutableArrayBuffer,
@@ -14,6 +16,7 @@ import { locationToLocationId } from '../client/util.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
 import { OcapnSignatureCodec } from '../codecs/components.js';
+import { makeOcapnRecordCodecFromDefinition } from '../codecs/util.js';
 
 /**
  * @import { RawData } from 'ws'
@@ -21,12 +24,62 @@ import { OcapnSignatureCodec } from '../codecs/components.js';
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  */
 
+/**
+ * Authentication protocol (matches Spritely Goblins websocket netlayer):
+ *
+ *   1. Outgoing client opens the websocket and sends a syrup-encoded
+ *      `<init:peer-auth payload>` record where `payload` is 32 random bytes.
+ *      The record wrapper is required to prevent a signing-oracle attack
+ *      (the server only ever signs typed `init:peer-auth` payloads).
+ *   2. Incoming server decodes the message, asserts it is a valid
+ *      `init:peer-auth` record, then signs the received bytes with its
+ *      designator key and replies with a syrup-encoded
+ *      `<desc:sig-envelope object signature>` record carrying both the
+ *      original `init:peer-auth` and the signature.
+ *   3. Outgoing client decodes the envelope, extracts the signature, and
+ *      verifies it against the bytes it originally sent using the public
+ *      key encoded in the remote designator.
+ *
+ * See goblins/ocapn/netlayer/websocket.scm in spritely/goblins.
+ */
+
 const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
-const DESIGNATOR_CHALLENGE_BYTES = 64;
+const DESIGNATOR_CHALLENGE_PAYLOAD_BYTES = 32;
+const DESIGNATOR_PUBLIC_KEY_BYTES = 32;
 
 /** @type {Map<string, number>} */
 const BASE32_DECODE_TABLE = new Map(
   [...BASE32_ALPHABET].map((char, index) => [char, index]),
+);
+
+/**
+ * @typedef {object} InitPeerAuth
+ * @property {'init:peer-auth'} type
+ * @property {ArrayBufferLike} payload
+ */
+
+/**
+ * @typedef {object} InitPeerAuthSigEnvelope
+ * @property {'desc:sig-envelope'} type
+ * @property {InitPeerAuth} object
+ * @property {OcapnSignature} signature
+ */
+
+const InitPeerAuthCodec = makeOcapnRecordCodecFromDefinition(
+  'InitPeerAuth',
+  'init:peer-auth',
+  {
+    payload: 'bytestring',
+  },
+);
+
+const InitPeerAuthSigEnvelopeCodec = makeOcapnRecordCodecFromDefinition(
+  'InitPeerAuthSigEnvelope',
+  'desc:sig-envelope',
+  {
+    object: InitPeerAuthCodec,
+    signature: OcapnSignatureCodec,
+  },
 );
 
 /**
@@ -60,19 +113,6 @@ const rawDataToBytes = rawData => {
     return new Uint8Array(view);
   }
   throw Error('Unsupported websocket message type');
-};
-
-/**
- * @param {OcapnSignature} signature
- * @returns {Uint8Array}
- */
-const signatureToBytes = signature => {
-  const r = immutableArrayBufferToUint8Array(signature.r);
-  const s = immutableArrayBufferToUint8Array(signature.s);
-  const bytes = new Uint8Array(r.length + s.length);
-  bytes.set(r, 0);
-  bytes.set(s, r.length);
-  return bytes;
 };
 
 /**
@@ -129,34 +169,55 @@ const base32Decode = value => {
 };
 
 /**
- * @param {OcapnSignature} signature
+ * @param {Uint8Array} payload
  * @returns {Uint8Array}
  */
-const writeSignatureMessage = signature => {
+const encodeInitPeerAuth = payload => {
   const syrupWriter = makeSyrupWriter();
-  OcapnSignatureCodec.write(signature, syrupWriter);
+  InitPeerAuthCodec.write(
+    {
+      type: 'init:peer-auth',
+      payload: uint8ArrayToImmutableArrayBuffer(payload),
+    },
+    syrupWriter,
+  );
   return syrupWriter.getBytes();
 };
 
 /**
  * @param {Uint8Array} bytes
- * @returns {OcapnSignature}
+ * @returns {InitPeerAuth}
  */
-const readSignatureMessage = bytes => {
+const decodeInitPeerAuth = bytes => {
   const syrupReader = makeSyrupReader(bytes);
-  return OcapnSignatureCodec.read(syrupReader);
+  return InitPeerAuthCodec.read(syrupReader);
+};
+
+/**
+ * @param {InitPeerAuth} initPeerAuth
+ * @param {OcapnSignature} signature
+ * @returns {Uint8Array}
+ */
+const encodeInitPeerAuthSigEnvelope = (initPeerAuth, signature) => {
+  const syrupWriter = makeSyrupWriter();
+  InitPeerAuthSigEnvelopeCodec.write(
+    {
+      type: 'desc:sig-envelope',
+      object: initPeerAuth,
+      signature,
+    },
+    syrupWriter,
+  );
+  return syrupWriter.getBytes();
 };
 
 /**
  * @param {Uint8Array} bytes
- * @returns {void}
+ * @returns {InitPeerAuthSigEnvelope}
  */
-const assertDesignatorChallenge = bytes => {
-  if (bytes.byteLength !== DESIGNATOR_CHALLENGE_BYTES) {
-    throw Error(
-      `Expected designator challenge to be ${DESIGNATOR_CHALLENGE_BYTES} bytes, got ${bytes.byteLength}`,
-    );
-  }
+const decodeInitPeerAuthSigEnvelope = bytes => {
+  const syrupReader = makeSyrupReader(bytes);
+  return InitPeerAuthSigEnvelopeCodec.read(syrupReader);
 };
 
 /**
@@ -294,13 +355,17 @@ export const makeWebSocketNetLayer = async ({
       outgoingConnections.delete(locationId);
     }
 
-    const remotePublicKey = base32Decode(remoteLocation.designator);
-    if (remotePublicKey.byteLength !== 32) {
+    const remotePublicKeyBytes = base32Decode(remoteLocation.designator);
+    if (remotePublicKeyBytes.byteLength !== DESIGNATOR_PUBLIC_KEY_BYTES) {
       throw Error(
-        `Expected websocket designator to decode to 32 bytes, got ${remotePublicKey.byteLength}`,
+        `Expected websocket designator to decode to ${DESIGNATOR_PUBLIC_KEY_BYTES} bytes, got ${remotePublicKeyBytes.byteLength}`,
       );
     }
+    const remotePublicKey = makeOcapnPublicKey(
+      uint8ArrayToImmutableArrayBuffer(remotePublicKeyBytes),
+    );
 
+    logger.info('Connecting to websocket', { wsUrl });
     const ws = new WebSocket(wsUrl);
     activeSockets.add(ws);
 
@@ -310,31 +375,28 @@ export const makeWebSocketNetLayer = async ({
       pendingWrites: [],
     };
 
-    let challengePayload = new Uint8Array(0);
+    /** @type {Uint8Array} */
+    let challengeMessage = new Uint8Array(0);
     const socketOps = makeOutgoingSocketOperations(ws, socketState);
     const connection = handlers.makeConnection(netlayer, true, socketOps);
 
     ws.on('open', () => {
-      challengePayload = new Uint8Array(
-        randomBytes(DESIGNATOR_CHALLENGE_BYTES),
+      const payload = Uint8Array.from(
+        randomBytes(DESIGNATOR_CHALLENGE_PAYLOAD_BYTES),
       );
-      ws.send(challengePayload, { binary: true });
+      challengeMessage = encodeInitPeerAuth(payload);
+      ws.send(challengeMessage, { binary: true });
     });
 
     ws.on('message', rawData => {
       const messageBytes = rawDataToBytes(rawData);
       if (!socketState.authenticated) {
         try {
-          const signature = readSignatureMessage(messageBytes);
-          const signatureBytes = signatureToBytes(signature);
-          const isValid = ed25519.verify(
-            signatureBytes,
-            challengePayload,
-            remotePublicKey,
+          const envelope = decodeInitPeerAuthSigEnvelope(messageBytes);
+          remotePublicKey.assertSignatureValid(
+            uint8ArrayToImmutableArrayBuffer(challengeMessage),
+            envelope.signature,
           );
-          if (!isValid) {
-            throw Error('Websocket designator signature verification failed');
-          }
           socketState.authenticated = true;
           for (const pendingWrite of socketState.pendingWrites) {
             if (ws.readyState === WebSocket.OPEN) {
@@ -398,12 +460,17 @@ export const makeWebSocketNetLayer = async ({
 
       if (!connection) {
         try {
-          assertDesignatorChallenge(messageBytes);
+          const initPeerAuth = decodeInitPeerAuth(messageBytes);
+          // Sign the received bytes verbatim. The wrapping `init:peer-auth`
+          // record prevents this from being used as a generic signing oracle.
           const signature = designatorKeyPair.sign(
             uint8ArrayToImmutableArrayBuffer(messageBytes),
           );
-          const signatureMessageBytes = writeSignatureMessage(signature);
-          ws.send(signatureMessageBytes, { binary: true });
+          const responseBytes = encodeInitPeerAuthSigEnvelope(
+            initPeerAuth,
+            signature,
+          );
+          ws.send(responseBytes, { binary: true });
 
           const socketOps = makeIncomingSocketOperations(ws);
           connection = handlers.makeConnection(netlayer, false, socketOps);

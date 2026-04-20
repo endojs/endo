@@ -9,6 +9,8 @@
 
 import '@endo/init';
 
+import { Buffer } from 'node:buffer';
+
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { makeWebSocketNetLayer } from '../../src/netlayers/websocket.js';
@@ -100,21 +102,22 @@ const main = async () => {
   const netlayer = await client.registerNetlayer((handlers, logger) =>
     makeWebSocketNetLayer({ handlers, logger, specifiedPort: port }),
   );
-  const hintRecord =
-    netlayer.location.hints && typeof netlayer.location.hints === 'object'
-      ? netlayer.location.hints
-      : {};
-  const roomLocation = {
-    ...netlayer.location,
-    hints: {
-      ...hintRecord,
-      swiss: CHATROOM_SWISS,
-    },
-  };
   // Peer locator the remote end dials to open a session.
   const peerUri = locationToLocationId(netlayer.location);
-  // Sturdyref the remote end enlivens to get the chatroom.
-  const roomUri = locationToLocationId(roomLocation);
+  // Sturdyref the remote end enlivens to get the chatroom. Per the
+  // OCapN spec (and the Spritely Goblins reference implementation),
+  // the swissnum is base64url(no-padding) of the raw swiss bytes
+  // spliced in as a `/s/<value>` path segment between the authority
+  // and the query string. We use the ASCII bytes of `CHATROOM_SWISS`
+  // so the round-trip into Endo's `swissnumTable` (which keys on
+  // ASCII strings via `decodeSwissnum`) keeps working.
+  const swissBase64Url = Buffer.from(CHATROOM_SWISS, 'ascii').toString(
+    'base64url',
+  );
+  const [authority, query = ''] = peerUri.split('?', 2);
+  const roomUri = query
+    ? `${authority}/s/${swissBase64Url}?${query}`
+    : `${authority}/s/${swissBase64Url}`;
   console.log(`*** Peer locator: ${peerUri}`);
   console.log(`*** Serving chatroom "#${roomName}" at sturdyref: ${roomUri}`);
 };
