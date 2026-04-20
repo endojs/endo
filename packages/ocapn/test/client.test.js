@@ -431,11 +431,7 @@ test('fragmented handshake message is buffered and establishes session', async t
 
     // Send first partial chunk directly on the wire.
     connectionAtoB.write(chunk1);
-    await waitUntilTrue(
-      () => !connectionAtoB.isDestroyed,
-      200,
-      20,
-    );
+    await waitUntilTrue(() => !connectionAtoB.isDestroyed, 200, 20);
     t.false(
       connectionAtoB.isDestroyed,
       'connection should remain alive after partial handshake fragment',
@@ -445,13 +441,17 @@ test('fragmented handshake message is buffered and establishes session', async t
     connectionAtoB.write(chunk2);
     await waitUntilTrue(
       () =>
-        !!clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId),
+        !!clientKitA.debug.sessionManager.getActiveSession(
+          clientKitB.locationId,
+        ),
       1000,
       20,
     );
     await waitUntilTrue(
       () =>
-        !!clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
+        !!clientKitB.debug.sessionManager.getActiveSession(
+          clientKitA.locationId,
+        ),
       1000,
       20,
     );
