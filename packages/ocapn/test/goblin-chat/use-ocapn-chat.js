@@ -26,31 +26,55 @@ import { Far } from '@endo/marshal';
 import { Buffer } from 'node:buffer';
 
 import { makeClient } from '../../src/client/index.js';
-import { decodeSwissnum } from '../../src/client/util.js';
 import { immutableArrayBufferToUint8Array } from '../../src/buffer-utils.js';
 import { makeWebSocketNetLayer } from '../../src/netlayers/websocket.js';
 import { makeUserControllerPair } from './backend.js';
 import { parseOcapnUri } from './uri-parse.js';
 import { initialState, reducer, formatError } from './chat-state.js';
 
+const ASCII_DECODER = new TextDecoder('ascii');
+
 /**
- * Render a swissnum for log display. The OCapN URI form
- * (`/s/<base64url>`) produces opaque binary bytes, so we render in
- * the same canonical base64url form they appeared on the wire. Some
- * Endo-originated swissnums happen to be printable ASCII (e.g. the
- * built-in `'Echo'` test object), which is more readable than its
- * base64url encoding, so try the strict-ASCII decoder first and only
- * fall back to base64url on failure.
+ * Render a swissnum for log display.
+ *
+ * Two cases:
+ *
+ *   1. Endo-originated swissnums that happen to be printable ASCII
+ *      (e.g. the built-in `'Echo'` test object's name). Show the
+ *      literal string — much more useful than its base64 form.
+ *
+ *   2. The general case: opaque random bytes, e.g. the 32-byte values
+ *      that appear in `ocapn://…/s/<base64url>` URIs. Render in the
+ *      same canonical base64url form they appeared on the wire.
+ *
+ * NOTE: this used to delegate to `decodeSwissnum` and rely on its
+ * `TextDecoder('ascii', { fatal: true })` to throw on non-ASCII. That
+ * doesn't work — per the WHATWG encoding spec the `'ascii'` label is
+ * aliased to `'windows-1252'`, every byte 0–255 is "valid" in
+ * windows-1252, so `fatal` never fires and 32 random bytes come back
+ * as Latin-1 garbage like `ôr¤\`RB…`. We do the printable-ASCII check
+ * ourselves now.
+ *
  * @param {ArrayBufferLike} swissNum
+ * @returns {string}
  */
 const formatSwissnumForLog = swissNum => {
-  try {
-    return decodeSwissnum(swissNum);
-  } catch (_) {
-    return Buffer.from(immutableArrayBufferToUint8Array(swissNum)).toString(
-      'base64url',
-    );
+  const bytes = immutableArrayBufferToUint8Array(swissNum);
+  let allPrintable = bytes.length > 0;
+  for (let i = 0; i < bytes.length; i += 1) {
+    const c = bytes[i];
+    // 0x20 (space) through 0x7e (~) inclusive — the printable ASCII
+    // range. Tab/newline are excluded on purpose; a swissnum that
+    // contains them is interesting enough to want the base64url form.
+    if (c < 0x20 || c > 0x7e) {
+      allPrintable = false;
+      break;
+    }
   }
+  if (allPrintable) {
+    return ASCII_DECODER.decode(bytes);
+  }
+  return Buffer.from(bytes).toString('base64url');
 };
 
 /**
