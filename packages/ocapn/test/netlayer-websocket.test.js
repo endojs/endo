@@ -77,7 +77,9 @@ test('websocket netlayer rejects peer with mismatched designator', async t => {
       throw Error('Expected debug mode client');
     }
     const sessionPromise = clientA.provideSession(badLocation);
-    const err = await t.throwsAsync(() => sessionPromise, { instanceOf: Error });
+    const err = await t.throwsAsync(() => sessionPromise, {
+      instanceOf: Error,
+    });
     t.regex(
       err.message,
       /Connection closed during handshake|Session ended/,

@@ -350,7 +350,8 @@ export const makeClient = ({
         captpVersion,
         prepareOcapn,
       );
-      const postHandshakeSession = sessionManager.getSessionForConnection(connection);
+      const postHandshakeSession =
+        sessionManager.getSessionForConnection(connection);
       if (postHandshakeSession) {
         pendingHandshakeBytes.delete(connection);
         if (remaining.length > 0) {
