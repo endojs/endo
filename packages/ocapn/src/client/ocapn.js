@@ -59,6 +59,10 @@ import { makeGrantDetails } from './grant-tracker.js';
 const sink = harden(() => {});
 
 /**
+ * @param {any} err
+ * @returns {boolean}
+ */
+/**
  * @callback MessageObserver
  * @param {'send' | 'receive'} direction - Whether the message was sent or received
  * @param {object} message - The message object
@@ -1205,7 +1209,12 @@ export const makeOcapn = (
         // Tell the engine message deserialization has failed.
         ocapnTable.clearPendingRefCounts();
         const problematicBytes = data.slice(start);
-        const syrupMessage = decodeSyrup(problematicBytes);
+        let syrupMessage;
+        try {
+          syrupMessage = decodeSyrup(problematicBytes);
+        } catch {
+          syrupMessage = '<un-decodable>';
+        }
         logger.error(`Message decode error:`);
         logger.error(
           JSON.stringify(

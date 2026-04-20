@@ -200,7 +200,6 @@ export const makeClient = ({
   });
 
   const sessionManager = makeSessionManager();
-
   /** @type {WeakMap<Connection, SelfIdentity>} */
   const connectionSelfIdentityMap = new WeakMap();
 
