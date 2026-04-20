@@ -1,13 +1,13 @@
 name: OCapN Guile interop
 
-# Mirrors the `test-ocapn-python` job in ci.yml but drives a Goblins (Guile)
-# chat client against the Endo `@endo/ocapn` goblin-chat test host over the
-# websocket netlayer.
+# Mirrors the `test-ocapn-python` job in ci.yml but drives Endo `@endo/ocapn`
+# as a client joining a Goblins (Guile)-hosted chatroom over the websocket
+# netlayer.
 #
 # This is scaffolding: it stands up the pieces (Guix toolchain, Spritely
-# goblin-chat, Endo chatroom server) and runs a minimal Guile interop
-# client. It remains a standalone workflow (`workflow_dispatch`) but should
-# fail normally so regressions are visible in PR checks.
+# goblin-chat, Guile chatroom host, Endo interop client). It remains a
+# standalone workflow (`workflow_dispatch`) but should fail normally so
+# regressions are visible in PR checks.
 
 on:
   pull_request:
@@ -71,28 +71,7 @@ jobs:
       - name: Report Guix version
         run: guix describe || guix --version
 
-      - name: Start Endo goblin-chat host
-        working-directory: endo
-        env:
-          OCAPN_CAPTP_VERSION: goblins-0.16
-        run: |
-          node ./packages/ocapn/test/goblin-chat/index.js interop-room \
-            > /tmp/endo-chat.log 2>&1 &
-          echo $! > /tmp/endo-chat.pid
-          # Wait for server to advertise its sturdyref.
-          for i in $(seq 1 20); do
-            if grep -q 'sturdyref:' /tmp/endo-chat.log; then break; fi
-            sleep 1
-          done
-          cat /tmp/endo-chat.log
-          STURDYREF=$(sed -n 's/.*sturdyref: \(ocapn:[^ ]*\).*/\1/p' /tmp/endo-chat.log | head -n1)
-          if [ -z "$STURDYREF" ]; then
-            echo "Failed to read sturdyref from server log"
-            exit 1
-          fi
-          echo "STURDYREF=$STURDYREF" >> $GITHUB_ENV
-
-      - name: Run Guile interop client
+      - name: Start Guile goblin-chat host
         working-directory: goblin-chat
         env:
           INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-client.scm
@@ -100,36 +79,61 @@ jobs:
           INTEROP_ENDO_MESSAGE: hello from Endo OCapN
           GUILE_AUTO_COMPILE: 0
         run: |
-          # Slim manifest: only guile + guile-goblins + guile-fibers.
-          # Spritely's goblin-chat/manifest.scm also pulls gtk/g-golf/mesa
-          # for its GUI, which the headless interop client doesn't need.
-          # Guile load path: `.` picks up goblin-chat/backend.scm from the
-          # Spritely checkout (the working directory), and the interop
-          # client's own directory for side modules.
           guix shell --pure --no-grafts --manifest="$INTEROP_MANIFEST" -- \
             guile -L . -L "$(dirname "$INTEROP_CLIENT")" \
-              "$INTEROP_CLIENT" "$STURDYREF" "hello from Guile CI" "$INTEROP_ENDO_MESSAGE" \
-              > /tmp/guile-interop.log 2>&1
+              "$INTEROP_CLIENT" "hello from Guile CI" "$INTEROP_ENDO_MESSAGE" \
+              > /tmp/guile-interop.log 2>&1 &
+          echo $! > /tmp/guile-interop.pid
+          # Wait for the Guile host to advertise its sturdyref.
+          for i in $(seq 1 20); do
+            if grep -q 'sturdyref:' /tmp/guile-interop.log; then break; fi
+            sleep 1
+          done
+          cat /tmp/guile-interop.log
+          STURDYREF=$(sed -n 's/.*sturdyref: \(ocapn:[^ ]*\).*/\1/p' /tmp/guile-interop.log | head -n1)
+          if [ -z "$STURDYREF" ]; then
+            echo "Failed to read sturdyref from Guile host log"
+            exit 1
+          fi
+          echo "STURDYREF=$STURDYREF" >> $GITHUB_ENV
+
+      - name: Run Endo interop client
+        working-directory: endo
+        env:
+          OCAPN_CAPTP_VERSION: goblins-0.16
+          OCAPN_INTEROP_GUILE_MESSAGE: hello from Guile CI
+          OCAPN_INTEROP_ENDO_MESSAGE: hello from Endo OCapN
+        run: |
+          node ./packages/ocapn/test/goblin-chat/index.js "$STURDYREF" \
+            > /tmp/endo-interop.log 2>&1
+          cat /tmp/endo-interop.log
+          # Guile host should complete once bilateral messaging succeeds.
+          wait $(cat /tmp/guile-interop.pid)
           cat /tmp/guile-interop.log
 
-      - name: Assert bilateral message delivery and host subscription behavior
+      - name: Assert bilateral message delivery and subscription behavior
         run: |
-          # Verify Guile-side bilateral receive assertions.
+          # Verify Guile-host side published sturdyref and bilateral assertions.
+          grep -q 'sturdyref: ocapn:' /tmp/guile-interop.log
+          grep -q 'interop-client: subscription ready' /tmp/guile-interop.log
           grep -q 'observed local+remote messages and ack' /tmp/guile-interop.log
-          # Verify host-side OCapN observer subscription and two-way message flow.
-          grep -q 'Interop host observer subscription ready' /tmp/endo-chat.log
-          grep -q 'Interop host sent message, ack = "OK"' /tmp/endo-chat.log
-          grep -q 'Interop host observer received both expected messages' /tmp/endo-chat.log
+          # Verify Endo-side OCapN observer subscription and two-way message flow.
+          grep -q 'Endo interop observer subscription ready' /tmp/endo-interop.log
+          grep -q 'Endo interop sent message, ack = "OK"' /tmp/endo-interop.log
+          grep -q 'Endo interop observer received both expected messages' /tmp/endo-interop.log
+          grep -q 'Endo interop completed' /tmp/endo-interop.log
 
-      - name: Show Endo server log on failure
+      - name: Show interop logs on failure
         if: failure()
         run: |
-          echo "=== Endo goblin-chat log ==="
-          cat /tmp/endo-chat.log || echo "(no log)"
+          echo "=== Guile goblin-chat host log ==="
+          cat /tmp/guile-interop.log || echo "(no log)"
+          echo "=== Endo interop client log ==="
+          cat /tmp/endo-interop.log || echo "(no log)"
 
-      - name: Stop Endo server
+      - name: Stop Guile host
         if: always()
         run: |
-          if [ -f /tmp/endo-chat.pid ]; then
-            kill $(cat /tmp/endo-chat.pid) || true
+          if [ -f /tmp/guile-interop.pid ]; then
+            kill $(cat /tmp/guile-interop.pid) || true
           fi
