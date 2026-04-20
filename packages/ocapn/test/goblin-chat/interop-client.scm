@@ -21,6 +21,8 @@
              (goblins ocapn captp)
              (goblins ocapn ids)
              (goblins ocapn netlayer websocket)
+             (goblins utils hashmap)
+             (ice-9 iconv)
              (ice-9 match)
              (fibers conditions))
 
