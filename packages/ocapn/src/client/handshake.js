@@ -149,14 +149,12 @@ const handleSessionHandshakeMessage = (
       // Handle invalid version
       if (messageCaptpVersion !== captpVersion) {
         logger.info(
-          'Handshake CapTP version mismatch',
+          'Abort during start-session message with invalid version',
           JSON.stringify({
             received: messageCaptpVersion,
             expected: captpVersion,
           }),
         );
-        // send op abort
-        logger.info(`Abort during start-session message with invalid version`);
         sendAbortAndClose(connection, 'invalid-version');
         sessionManager.deleteConnection(connection);
         return;
@@ -283,12 +281,7 @@ export const handleHandshakeMessageData = (
         message = readOcapnHandshakeMessage(syrupReader);
       } catch (err) {
         const problematicBytes = data.slice(start);
-        let syrupMessage;
-        try {
-          syrupMessage = decodeSyrup(problematicBytes);
-        } catch {
-          syrupMessage = '<un-decodable>';
-        }
+        const syrupMessage = decodeSyrup(problematicBytes);
         logger.error(
           `Message decode error:`,
           err,
