@@ -197,6 +197,7 @@ const makeReducerLogger = (dispatch, source, logSink) => {
  *   client: ReturnType<typeof makeClient> | undefined,
  *   channel: any,
  *   unsubscribe: any,
+ *   selfUser: any,
  *   pendingNames: WeakSet<object>,
  * }} SessionRef
  */
@@ -218,6 +219,7 @@ export const useOcapnChat = ({
       client: undefined,
       channel: undefined,
       unsubscribe: undefined,
+      selfUser: undefined,
       pendingNames: new WeakSet(),
     }),
   );
@@ -327,12 +329,32 @@ export const useOcapnChat = ({
         }
 
         dispatch({ type: 'set-status', status: 'joining room…' });
-        const { userController } = makeUserControllerPair(name);
+        const { user: selfUser, userController } = makeUserControllerPair(name);
+        sessionRef.current.selfUser = selfUser;
         const channel = await E(userController)['join-room'](chatroom);
         sessionRef.current.channel = channel;
 
+        // The chatroom (per `backend.js`) broadcasts `new-message` to
+        // *every* subscriber including the sender, and some chatroom
+        // implementations (e.g. Spritely Goblins) likewise echo
+        // `user-joined`/`user-left` back at the actor that triggered
+        // them. We render those events optimistically (in `sendMessage`
+        // for messages; the lobby→chat phase transition implicitly
+        // covers our own join), so the echo would show up as a duplicate
+        // if we didn't filter it out here.
+        //
+        // Identity check: when our own `user` Far is sent out and comes
+        // back, Endo's CapTP canonicalises the inbound reference back to
+        // the original local Far, so `===` is a sound test for "this is
+        // me". We compare against `sessionRef.current.selfUser` (rather
+        // than closing over `selfUser`) so that a future `joinRoom` call
+        // with a fresh user-controller pair uses the new identity.
+        const isSelf = candidate =>
+          candidate === sessionRef.current.selfUser;
+
         const observer = Far('tui-observer', {
           'new-message': (_context, fromUser, message) => {
+            if (isSelf(fromUser)) return;
             const text =
               typeof message === 'string'
                 ? message
@@ -341,10 +363,12 @@ export const useOcapnChat = ({
             kickResolveName(fromUser);
           },
           'user-joined': user => {
+            if (isSelf(user)) return;
             dispatch({ type: 'user-joined', user });
             kickResolveName(user);
           },
           'user-left': user => {
+            if (isSelf(user)) return;
             dispatch({ type: 'user-left', user });
             kickResolveName(user);
           },
@@ -361,9 +385,14 @@ export const useOcapnChat = ({
 
         try {
           const users = await E(channel)['list-users']();
-          if (Array.isArray(users) && users.length > 0) {
-            dispatch({ type: 'users-present', users });
-            for (const u of users) kickResolveName(u);
+          if (Array.isArray(users)) {
+            // The chatroom roster includes us; filter ourselves out so
+            // the panel reads as "everyone else who's already here".
+            const others = users.filter(u => !isSelf(u));
+            if (others.length > 0) {
+              dispatch({ type: 'users-present', users: others });
+              for (const u of others) kickResolveName(u);
+            }
           }
         } catch (err) {
           logError(err, 'list-users');
