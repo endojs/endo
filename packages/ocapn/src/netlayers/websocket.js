@@ -315,7 +315,9 @@ export const makeWebSocketNetLayer = async ({
     const connection = handlers.makeConnection(netlayer, true, socketOps);
 
     ws.on('open', () => {
-      challengePayload = new Uint8Array(randomBytes(DESIGNATOR_CHALLENGE_BYTES));
+      challengePayload = new Uint8Array(
+        randomBytes(DESIGNATOR_CHALLENGE_BYTES),
+      );
       ws.send(challengePayload, { binary: true });
     });
 
