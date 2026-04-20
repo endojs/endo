@@ -62,22 +62,6 @@ const sink = harden(() => {});
  * @param {any} err
  * @returns {boolean}
  */
-const isIncompleteSyrupError = err => {
-  let cursor = err;
-  while (cursor) {
-    if (
-      typeof cursor === 'object' &&
-      cursor !== null &&
-      typeof cursor.message === 'string' &&
-      cursor.message.includes('End of data reached')
-    ) {
-      return true;
-    }
-    cursor = cursor.cause;
-  }
-  return false;
-};
-
 /**
  * @callback MessageObserver
  * @param {'send' | 'receive'} direction - Whether the message was sent or received
@@ -1221,19 +1205,12 @@ export const makeOcapn = (
     }
   }
 
-  /** @type {Uint8Array} */
-  let pendingMessageBytes = new Uint8Array(0);
-
   /**
    * @param {Uint8Array} data
    */
   const dispatchMessageData = data => {
-    const incoming =
-      pendingMessageBytes.length > 0
-        ? new Uint8Array([...pendingMessageBytes, ...data])
-        : data;
-    const syrupReader = makeSyrupReader(incoming);
-    while (syrupReader.index < incoming.length) {
+    const syrupReader = makeSyrupReader(data);
+    while (syrupReader.index < data.length) {
       let message;
       const start = syrupReader.index;
       try {
@@ -1242,13 +1219,9 @@ export const makeOcapn = (
         // Tell the engine message deserialization has completed.
         ocapnTable.commitReceivedRefCounts();
       } catch (err) {
-        if (isIncompleteSyrupError(err)) {
-          pendingMessageBytes = incoming.slice(start);
-          return;
-        }
         // Tell the engine message deserialization has failed.
         ocapnTable.clearPendingRefCounts();
-        const problematicBytes = incoming.slice(start);
+        const problematicBytes = data.slice(start);
         let syrupMessage;
         try {
           syrupMessage = decodeSyrup(problematicBytes);
@@ -1268,7 +1241,6 @@ export const makeOcapn = (
       }
       dispatch(message);
     }
-    pendingMessageBytes = new Uint8Array(0);
   };
 
   const localBootstrapSlot = makeSlot('o', true, ZERO_N);
