@@ -38,9 +38,10 @@ jobs:
       - name: Clone Spritely goblin-chat (Guile) from Codeberg
         run: |
           # spritely/goblin-chat is hosted on Codeberg, so actions/checkout
-          # (which targets github.com) isn't useful here. Pin via
-          # `--branch <rev>` once a known-good revision is picked.
-          git clone --depth 1 https://codeberg.org/spritely/goblin-chat goblin-chat
+          # (which targets github.com) isn't useful here.
+          GOBLIN_CHAT_COMMIT=fd0b3fcec186e54f978fb24b23bb46a65ae2e0a7
+          git clone https://codeberg.org/spritely/goblin-chat goblin-chat
+          git -C goblin-chat checkout --detach "$GOBLIN_CHAT_COMMIT"
 
       - run: corepack enable
         working-directory: endo
