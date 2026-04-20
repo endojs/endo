@@ -4,9 +4,12 @@
 ;;;
 ;;; Expected env/args:
 ;;;   $1  sturdyref URI printed by `test/goblin-chat/index.js`
-;;;   $2  message to send
+;;;   $2  message Guile sends to the room
+;;;   $3  message expected from Endo OCapN observer client
 ;;;
-;;; Exit 0 on a successful `send-message` ack, non-zero otherwise.
+;;; Exit 0 after:
+;;;   - successful `send-message` ack, and
+;;;   - observing both the Guile message and Endo message in inbox callbacks.
 ;;;
 ;;; We intentionally use Spritely's existing websocket netlayer implementation
 ;;; to exercise the same framing and designator-auth path used by Goblins.
@@ -30,7 +33,7 @@
 ;; - create a user with the expected methods
 ;; - join a room via `subscribe`
 ;; - return an authenticated channel that seals chat messages
-(define (spawn-user-controller-pair self-proposed-name)
+(define (spawn-user-controller-pair self-proposed-name note-observed-message!)
   (define-values (chat-msg-sealer chat-msg-unsealer chat-msg-sealed?)
     (spawn-sealer-triplet))
   (define-values (subscription-sealer subscription-unsealer _subscription-sealed?)
@@ -51,7 +54,8 @@
       (on (<- from-user 'get-chat-unsealer)
           (lambda (chat-unsealer)
             (on (<- chat-unsealer sealed-msg)
-                (lambda (_message)
+                (lambda (decoded-message)
+                  (note-observed-message! decoded-message)
                   #t)
                 #:promise? #t))
           #:promise? #t)
@@ -96,6 +100,39 @@
 (define args (cdr (command-line)))
 (define uri (list-ref args 0))
 (define message (list-ref args 1))
+(define expected-remote-message
+  (if (> (length args) 2)
+      (list-ref args 2)
+      "hello from Endo OCapN"))
+
+(define sent-ack? #f)
+(define saw-local-message? #f)
+(define saw-remote-message? #f)
+(define completed? #f)
+
+(define (maybe-finish!)
+  (when (and (not completed?)
+             sent-ack?
+             saw-local-message?
+             saw-remote-message?)
+    (set! completed? #t)
+    (display "interop-client: observed local+remote messages and ack")
+    (newline)
+    (signal-condition! done?)))
+
+(define (record-observed-message! observed-message)
+  (unless (string? observed-message)
+    (display "interop-client: ignoring non-string message")
+    (newline)
+    (set! observed-message (format #f "~a" observed-message)))
+  (display "interop-client: observed message = ")
+  (write observed-message)
+  (newline)
+  (when (string=? observed-message message)
+    (set! saw-local-message? #t))
+  (when (string=? observed-message expected-remote-message)
+    (set! saw-remote-message? #t))
+  (maybe-finish!))
 
 ;; Endo's interop host currently prints a peer-style URI where the designator is
 ;; the swiss number. Goblins `enliven` expects an actual sturdyref object.
@@ -136,7 +173,9 @@
 (define chat-sref (uri->chat-sturdyref uri))
 
 (define-values (user user-controller)
-  (user-run (lambda () (spawn-user-controller-pair "endo-interop-ci"))))
+  (user-run
+   (lambda ()
+     (spawn-user-controller-pair "endo-interop-ci" record-observed-message!))))
 
 (define chatroom-vow
   (user-run (lambda () (<- mycapn 'enliven chat-sref))))
@@ -156,7 +195,13 @@
                      (display "interop-client: sent message, ack = ")
                      (write ack)
                      (newline)
-                  (signal-condition! done?))
+                     (unless (equal? ack "OK")
+                       (display "interop-client: unexpected ack value")
+                       (newline)
+                       (signal-condition! done?)
+                       (primitive-exit 5))
+                     (set! sent-ack? #t)
+                     (maybe-finish!))
                    #:catch
                    (lambda (err)
                      (display "interop-client: send failed: ")
