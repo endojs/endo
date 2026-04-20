@@ -50,10 +50,13 @@
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
+    "@types/react": "^19.2.0",
     "@types/ws": "^8",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
+    "ink": "^7.0.1",
+    "react": "^19.2.0",
     "ses": "workspace:^",
     "tsd": "catalog:dev",
     "typescript": "catalog:dev"

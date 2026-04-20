@@ -12,6 +12,12 @@ app-layer protocol).
   directly.
 - `index.js` — runnable host that advertises a chatroom sturdyref on the
   `websocket` netlayer.
+- `uri-parse.js` — pure parser for `ocapn://…` peer / sturdyref URIs as
+  defined by `draft-specifications/Locators.md`. Sturdyrefs use the
+  `/s/<base64url-swiss>` path form (matching Spritely Goblins'
+  `string->ocapn-id` in `goblins/ocapn/ids.scm`).
+- `tui.js` — interactive [Ink](https://github.com/vadimdemedes/ink)
+  client that joins a remote chatroom from a pasted sturdyref URI.
 
 ## Host a chatroom
 
@@ -23,10 +29,32 @@ The script prints both a peer locator and the chatroom sturdyref:
 
 ```
 *** Peer locator: ocapn://<base32-ed25519-public-key>.websocket?url=ws%3A%2F%2F127.0.0.1%3A22047
-*** Serving chatroom "#endo-interop" at sturdyref: ocapn://<base32-ed25519-public-key>.websocket?swiss=goblinChatRoomSwissnumForInteropTests0001&url=ws%3A%2F%2F127.0.0.1%3A22047
+*** Serving chatroom "#endo-interop" at sturdyref: ocapn://<base32-ed25519-public-key>.websocket/s/<base64url-swiss>?url=ws%3A%2F%2F127.0.0.1%3A22047
 ```
 
 Override the port with `OCAPN_TEST_PORT=<n>`.
+
+## Join a chatroom from the TUI
+
+Run the Ink TUI to join an existing chatroom (hosted by Goblins or by the
+script above) using the sturdyref URI it printed:
+
+```bash
+node ./packages/ocapn/test/goblin-chat/tui.js
+```
+
+The TUI takes over the terminal (alt screen) and shows a single input
+box. Paste an `ocapn://…/s/<base64url-swiss>?url=ws://…` URI and press
+Enter to connect, then type messages and press Enter to send them.
+Errors and protocol diagnostics surface inline in the message log;
+`Ctrl+C` exits and restores the terminal.
+
+Environment overrides:
+
+- `OCAPN_TUI_NAME` — `self-proposed-name` for the local user
+  (default `endo-tui`).
+- `OCAPN_CAPTP_VERSION` — handshake CapTP version; default
+  `goblins-0.16` to interop with Spritely Goblins peers.
 
 ## Drive it from Goblins
 
