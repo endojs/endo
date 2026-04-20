@@ -1222,12 +1222,7 @@ export const makeOcapn = (
         // Tell the engine message deserialization has failed.
         ocapnTable.clearPendingRefCounts();
         const problematicBytes = data.slice(start);
-        let syrupMessage;
-        try {
-          syrupMessage = decodeSyrup(problematicBytes);
-        } catch {
-          syrupMessage = '<un-decodable>';
-        }
+        const syrupMessage = decodeSyrup(problematicBytes);
         logger.error(`Message decode error:`);
         logger.error(
           JSON.stringify(
