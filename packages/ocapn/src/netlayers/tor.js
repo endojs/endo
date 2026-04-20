@@ -5,6 +5,7 @@ import net from 'net';
 import os from 'os';
 import path from 'path';
 import { randomBytes } from 'crypto';
+import { Buffer } from 'buffer';
 import harden from '@endo/harden';
 
 import { locationToLocationId } from '../client/util.js';
@@ -169,11 +170,13 @@ const waitForSocketConnect = socket => {
       resolve();
       return;
     }
+    /** @type {(err: Error) => void} */
+    let onError = () => {};
     const onConnect = () => {
       socket.off('error', onError);
       resolve();
     };
-    const onError = err => {
+    onError = err => {
       socket.off('connect', onConnect);
       reject(err);
     };
@@ -187,6 +190,7 @@ const waitForSocketConnect = socket => {
  * @returns {Promise<net.Socket>}
  */
 const connectUnixSocket = async unixPath => {
+  await undefined;
   const socket = net.createConnection({ path: unixPath });
   try {
     await waitForSocketConnect(socket);
@@ -211,25 +215,27 @@ const writeControlLine = (socket, line) => {
  * @returns {Promise<string[]>}
  */
 const readTorControlReply = async lineReader => {
-  /** @type {string[]} */
-  const lines = [];
-  while (true) {
+  await undefined;
+  /**
+   * @param {string[]} lines
+   * @returns {Promise<string[]>}
+   */
+  const readNext = async lines => {
     const line = await lineReader.readLine();
-    lines.push(line);
+    const nextLines = [...lines, line];
     if (line.startsWith(TOR_CONTROL_CONTINUATION_PREFIX)) {
-      // Multi-line continuation: keep reading.
-      // Example:
+      // Multi-line continuation:
       // 250-ServiceID=...
       // 250-PrivateKey=...
       // 250 OK
-      // eslint-disable-next-line no-continue
-      continue;
+      return readNext(nextLines);
     }
     if (line.startsWith(TOR_CONTROL_SUCCESS_PREFIX)) {
-      return lines;
+      return nextLines;
     }
     throw Error(`Unexpected Tor control response line: ${line}`);
-  }
+  };
+  return readNext([]);
 };
 
 /**
@@ -415,11 +421,10 @@ export const makeTorNetLayer = async ({
   await fs.mkdir(resolvedOcapnSocketDir, { recursive: true });
   const ocapnSocketPath = path.join(
     resolvedOcapnSocketDir,
-    `ocapn-${process.pid}-${randomBytes(6).toString('hex')}.sock`,
+    `ocapn-${randomBytes(8).toString('hex')}.sock`,
   );
 
-  /** @type {net.Server | undefined} */
-  let server;
+  const server = net.createServer();
   /** @type {net.Socket | undefined} */
   let torControlSocket;
   /** @type {LineReader | undefined} */
@@ -430,7 +435,6 @@ export const makeTorNetLayer = async ({
   let onionPrivateKey;
 
   try {
-    server = net.createServer();
     await new Promise((resolve, reject) => {
       server.listen(ocapnSocketPath, err => {
         if (err) {
@@ -480,12 +484,17 @@ export const makeTorNetLayer = async ({
     if (torControlSocket) {
       torControlSocket.destroy();
     }
-    if (server) {
-      server.close();
-    }
+    server.close();
     await fs.rm(ocapnSocketPath, { force: true }).catch(() => undefined);
     throw error;
   }
+
+  if (!torControlSocket || !torControlLineReader) {
+    throw Error('Tor control connection setup incomplete');
+  }
+
+  const controlSocket = torControlSocket;
+  const controlLineReader = torControlLineReader;
 
   logger.log('Tor onion service registered', actualServiceId);
   logger.info('Tor control socket path', resolvedControlSocketPath);
@@ -509,6 +518,7 @@ export const makeTorNetLayer = async ({
    * @param {net.Socket} socket
    * @param {Connection} connection
    * @param {() => void} [onClose]
+   * @param {(data: Buffer) => void} [onData]
    */
   const setupSocketHandlers = (socket, connection, onClose, onData) => {
     socket.on('data', data => {
@@ -698,8 +708,8 @@ export const makeTorNetLayer = async ({
 
   const shutdown = () => {
     server.close();
-    torControlLineReader.dispose();
-    torControlSocket.end();
+    controlLineReader.dispose();
+    controlSocket.end();
     for (const socket of activeSockets) {
       socket.destroy();
     }

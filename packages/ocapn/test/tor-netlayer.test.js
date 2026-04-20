@@ -1,6 +1,7 @@
 // @ts-check
 
 import test from '@endo/ses-ava/test.js';
+import { Buffer } from 'buffer';
 
 import {
   DEFAULT_TOR_VIRTUAL_PORT,
