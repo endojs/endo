@@ -200,9 +200,6 @@ export const makeClient = ({
   });
 
   const sessionManager = makeSessionManager();
-  /** @type {WeakMap<Connection, Uint8Array>} */
-  const pendingHandshakeBytes = new WeakMap();
-
   /** @type {WeakMap<Connection, SelfIdentity>} */
   const connectionSelfIdentityMap = new WeakMap();
 
@@ -324,11 +321,6 @@ export const makeClient = ({
    */
   const handleMessageData = (connection, data) => {
     logger.info(`handleMessageData called`);
-    const buffered = pendingHandshakeBytes.get(connection);
-    const incoming =
-      buffered && buffered.length > 0
-        ? new Uint8Array([...buffered, ...data])
-        : data;
     const session = sessionManager.getSessionForConnection(connection);
     if (session) {
       handleActiveSessionMessageData(
@@ -336,38 +328,19 @@ export const makeClient = ({
         sessionManager,
         connection,
         session,
-        incoming,
+        data,
       );
-      pendingHandshakeBytes.delete(connection);
     } else {
-      const remaining = handleHandshakeMessageData(
+      handleHandshakeMessageData(
         logger,
         sessionManager,
         connection,
         getSelfIdentityForConnection,
         sendAbortAndClose,
-        incoming,
+        data,
         captpVersion,
         prepareOcapn,
       );
-      const postHandshakeSession =
-        sessionManager.getSessionForConnection(connection);
-      if (postHandshakeSession) {
-        pendingHandshakeBytes.delete(connection);
-        if (remaining.length > 0) {
-          handleActiveSessionMessageData(
-            logger,
-            sessionManager,
-            connection,
-            postHandshakeSession,
-            remaining,
-          );
-        }
-      } else if (remaining.length > 0) {
-        pendingHandshakeBytes.set(connection, remaining);
-      } else {
-        pendingHandshakeBytes.delete(connection);
-      }
     }
   };
 
@@ -388,7 +361,6 @@ export const makeClient = ({
       // If no session exists, check if there's a pending session for this connection
       sessionManager.rejectPendingSessionForConnection(connection);
     }
-    pendingHandshakeBytes.delete(connection);
     sessionManager.deleteConnection(connection);
   };
 
