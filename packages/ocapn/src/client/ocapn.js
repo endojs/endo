@@ -59,10 +59,6 @@ import { makeGrantDetails } from './grant-tracker.js';
 const sink = harden(() => {});
 
 /**
- * @param {any} err
- * @returns {boolean}
- */
-/**
  * @callback MessageObserver
  * @param {'send' | 'receive'} direction - Whether the message was sent or received
  * @param {object} message - The message object
