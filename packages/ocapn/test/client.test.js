@@ -1665,12 +1665,16 @@ test('E() sends op:deliver with answer tracking', async t => {
     } = await establishSession();
 
     // Track messages sent by A
-    /** @type {Array<{type: string}>} */
+    /** @type {Array<{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }>} */
     const sentMessages = [];
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(/** @type {{type: string}} */ (message));
+          sentMessages.push(
+            /** @type {{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }} */ (
+              message
+            ),
+          );
         }
       },
     );
@@ -1687,10 +1691,9 @@ test('E() sends op:deliver with answer tracking', async t => {
 
     unsubscribe();
 
-    // Should have sent op:deliver (not op:deliver-only)
     const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
-    const deliverOnlyMessages = sentMessages.filter(
-      m => m.type === 'op:deliver-only',
+    const fireAndForgetDelivers = deliverMessages.filter(
+      m => m.answerPosition === false && m.resolveMeDesc === false,
     );
 
     t.true(
@@ -1698,16 +1701,16 @@ test('E() sends op:deliver with answer tracking', async t => {
       'E() should send at least one op:deliver message',
     );
     t.is(
-      deliverOnlyMessages.length,
+      fireAndForgetDelivers.length,
       0,
-      'E() should NOT send op:deliver-only messages',
+      'E() should not use fire-and-forget op:deliver (needs answer or resolver)',
     );
   } finally {
     shutdownBoth();
   }
 });
 
-test('E.sendOnly() sends op:deliver-only without answer tracking', async t => {
+test('E.sendOnly() sends op:deliver without answer or resolver', async t => {
   const testObjectTable = new Map();
   /** @type {string | undefined} */
   let receivedValue;
@@ -1730,12 +1733,16 @@ test('E.sendOnly() sends op:deliver-only without answer tracking', async t => {
     } = await establishSession();
 
     // Track messages sent by A
-    /** @type {Array<{type: string}>} */
+    /** @type {Array<{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }>} */
     const sentMessages = [];
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(/** @type {{type: string}} */ (message));
+          sentMessages.push(
+            /** @type {{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }} */ (
+              message
+            ),
+          );
         }
       },
     );
@@ -1754,20 +1761,16 @@ test('E.sendOnly() sends op:deliver-only without answer tracking', async t => {
 
     unsubscribe();
 
-    // Should have sent op:deliver-only (not op:deliver)
-    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
-    const deliverOnlyMessages = sentMessages.filter(
-      m => m.type === 'op:deliver-only',
+    const sendOnlyDelivers = sentMessages.filter(
+      m =>
+        m.type === 'op:deliver' &&
+        m.answerPosition === false &&
+        m.resolveMeDesc === false,
     );
 
-    t.is(
-      deliverMessages.length,
-      0,
-      'E.sendOnly() should NOT send op:deliver messages',
-    );
     t.true(
-      deliverOnlyMessages.length >= 1,
-      'E.sendOnly() should send at least one op:deliver-only message',
+      sendOnlyDelivers.length >= 1,
+      'E.sendOnly() should send op:deliver with no answer and no resolver',
     );
 
     t.is(
@@ -1780,7 +1783,7 @@ test('E.sendOnly() sends op:deliver-only without answer tracking', async t => {
   }
 });
 
-test('E.sendOnly() on function call sends op:deliver-only', async t => {
+test('E.sendOnly() on function call sends op:deliver without answer or resolver', async t => {
   const testObjectTable = new Map();
   /** @type {string | undefined} */
   let receivedValue;
@@ -1801,12 +1804,16 @@ test('E.sendOnly() on function call sends op:deliver-only', async t => {
     } = await establishSession();
 
     // Track messages sent by A
-    /** @type {Array<{type: string}>} */
+    /** @type {Array<{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }>} */
     const sentMessages = [];
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(/** @type {{type: string}} */ (message));
+          sentMessages.push(
+            /** @type {{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }} */ (
+              message
+            ),
+          );
         }
       },
     );
@@ -1825,20 +1832,16 @@ test('E.sendOnly() on function call sends op:deliver-only', async t => {
 
     unsubscribe();
 
-    // Should have sent op:deliver-only (not op:deliver)
-    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
-    const deliverOnlyMessages = sentMessages.filter(
-      m => m.type === 'op:deliver-only',
+    const sendOnlyDelivers = sentMessages.filter(
+      m =>
+        m.type === 'op:deliver' &&
+        m.answerPosition === false &&
+        m.resolveMeDesc === false,
     );
 
-    t.is(
-      deliverMessages.length,
-      0,
-      'E.sendOnly() function call should NOT send op:deliver messages',
-    );
     t.true(
-      deliverOnlyMessages.length >= 1,
-      'E.sendOnly() function call should send at least one op:deliver-only message',
+      sendOnlyDelivers.length >= 1,
+      'E.sendOnly() function call should send op:deliver with no answer and no resolver',
     );
 
     t.is(
@@ -1851,10 +1854,9 @@ test('E.sendOnly() on function call sends op:deliver-only', async t => {
   }
 });
 
-test('resolver callbacks use op:deliver-only', async t => {
+test('resolver callbacks use op:deliver without answer or resolver', async t => {
   // When Bob responds to a call from Alice, he calls fulfill/break on
-  // a remote resolver. These should use op:deliver-only since we don't
-  // need a response from the resolver call.
+  // a remote resolver. These should use fire-and-forget op:deliver.
 
   const testObjectTable = new Map();
   testObjectTable.set(
@@ -1875,12 +1877,16 @@ test('resolver callbacks use op:deliver-only', async t => {
     } = await establishSession();
 
     // Track messages sent by B (the responder)
-    /** @type {Array<{type: string}>} */
+    /** @type {Array<{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }>} */
     const messagesSentByB = [];
     const unsubscribe = getOcapnDebug(ocapnB).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          messagesSentByB.push(/** @type {{type: string}} */ (message));
+          messagesSentByB.push(
+            /** @type {{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }} */ (
+              message
+            ),
+          );
         }
       },
     );
@@ -1897,14 +1903,16 @@ test('resolver callbacks use op:deliver-only', async t => {
 
     unsubscribe();
 
-    // B's response should use op:deliver-only for the resolver callback
-    const deliverOnlyMessages = messagesSentByB.filter(
-      m => m.type === 'op:deliver-only',
+    const resolverDelivers = messagesSentByB.filter(
+      m =>
+        m.type === 'op:deliver' &&
+        m.answerPosition === false &&
+        m.resolveMeDesc === false,
     );
 
     t.true(
-      deliverOnlyMessages.length >= 1,
-      'Resolver callbacks should use op:deliver-only',
+      resolverDelivers.length >= 1,
+      'Resolver callbacks should use op:deliver with no answer and no resolver',
     );
   } finally {
     shutdownBoth();

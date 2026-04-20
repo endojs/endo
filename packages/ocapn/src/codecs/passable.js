@@ -153,6 +153,7 @@ export const makePassableCodecs = descCodecs => {
     },
   );
 
+  // syrup type hint "number-prefix" can be String, ByteArray (Syrup bytestring), Selector, Integer
   const OcapnPassableNumberPrefixUnionCodec = makeCodec(
     'OcapnPassableNumberPrefixUnion',
     {
@@ -168,18 +169,11 @@ export const makePassableCodecs = descCodecs => {
           `Unexpected type ${type} for OcapnPassableNumberPrefixUnionCodec`,
         );
       },
-      write(value, syrupWriter) {
-        if (typeof value === 'string') {
-          syrupWriter.writeString(value);
-        } else if (typeof value === 'bigint') {
-          syrupWriter.writeInteger(value);
-        } else if (value instanceof ArrayBuffer) {
-          syrupWriter.writeBytestring(value);
-        } else {
-          throw new Error(
-            `Unexpected value ${value} for OcapnPassableNumberPrefixUnionCodec`,
-          );
-        }
+      write(value, _syrupWriter) {
+        // Only used for reading, not writing.
+        throw new Error(
+          `Unexpected value ${value} for OcapnPassableNumberPrefixUnionCodec`,
+        );
       },
     },
   );
