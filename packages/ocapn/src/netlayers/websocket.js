@@ -13,7 +13,6 @@ import {
 import { locationToLocationId } from '../client/util.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
-import { makeRecordCodecFromDefinition } from '../syrup/codec.js';
 import { OcapnSignatureCodec } from '../codecs/components.js';
 
 /**
@@ -23,29 +22,11 @@ import { OcapnSignatureCodec } from '../codecs/components.js';
  */
 
 const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
+const DESIGNATOR_CHALLENGE_BYTES = 64;
 
 /** @type {Map<string, number>} */
 const BASE32_DECODE_TABLE = new Map(
   [...BASE32_ALPHABET].map((char, index) => [char, index]),
-);
-
-const InitPeerAuthCodec = makeRecordCodecFromDefinition(
-  'InitPeerAuthCodec',
-  'init:peer-auth',
-  'selector',
-  {
-    payload: 'bytestring',
-  },
-);
-
-const DescSigEnvelopePeerAuthCodec = makeRecordCodecFromDefinition(
-  'DescSigEnvelopePeerAuthCodec',
-  'desc:sig-envelope',
-  'selector',
-  {
-    object: InitPeerAuthCodec,
-    signature: OcapnSignatureCodec,
-  },
 );
 
 /**
@@ -82,14 +63,6 @@ const rawDataToBytes = rawData => {
 };
 
 /**
- * @param {Uint8Array} bytes
- * @returns {ArrayBuffer}
- */
-const toImmutableBytes = bytes => {
-  return uint8ArrayToImmutableArrayBuffer(bytes);
-};
-
-/**
  * @param {OcapnSignature} signature
  * @returns {Uint8Array}
  */
@@ -100,23 +73,6 @@ const signatureToBytes = signature => {
   bytes.set(r, 0);
   bytes.set(s, r.length);
   return bytes;
-};
-
-/**
- * @param {Uint8Array} left
- * @param {Uint8Array} right
- * @returns {boolean}
- */
-const isSameBytes = (left, right) => {
-  if (left.byteLength !== right.byteLength) {
-    return false;
-  }
-  for (let i = 0; i < left.byteLength; i += 1) {
-    if (left[i] !== right[i]) {
-      return false;
-    }
-  }
-  return true;
 };
 
 /**
@@ -173,64 +129,34 @@ const base32Decode = value => {
 };
 
 /**
- * @param {Uint8Array} payload
+ * @param {OcapnSignature} signature
  * @returns {Uint8Array}
  */
-const writePeerAuthChallenge = payload => {
+const writeSignatureMessage = signature => {
   const syrupWriter = makeSyrupWriter();
-  InitPeerAuthCodec.write(
-    {
-      type: 'init:peer-auth',
-      payload: toImmutableBytes(payload),
-    },
-    syrupWriter,
-  );
+  OcapnSignatureCodec.write(signature, syrupWriter);
   return syrupWriter.getBytes();
 };
 
 /**
  * @param {Uint8Array} bytes
- * @returns {{ payload: Uint8Array }}
+ * @returns {OcapnSignature}
  */
-const readPeerAuthChallenge = bytes => {
+const readSignatureMessage = bytes => {
   const syrupReader = makeSyrupReader(bytes);
-  const parsed = InitPeerAuthCodec.read(syrupReader);
-  return {
-    payload: immutableArrayBufferToUint8Array(parsed.payload),
-  };
-};
-
-/**
- * @param {{ payload: Uint8Array, signature: OcapnSignature }} value
- * @returns {Uint8Array}
- */
-const writePeerAuthSignature = value => {
-  const syrupWriter = makeSyrupWriter();
-  DescSigEnvelopePeerAuthCodec.write(
-    {
-      type: 'desc:sig-envelope',
-      object: {
-        type: 'init:peer-auth',
-        payload: toImmutableBytes(value.payload),
-      },
-      signature: value.signature,
-    },
-    syrupWriter,
-  );
-  return syrupWriter.getBytes();
+  return OcapnSignatureCodec.read(syrupReader);
 };
 
 /**
  * @param {Uint8Array} bytes
- * @returns {{ payload: Uint8Array, signature: OcapnSignature }}
+ * @returns {void}
  */
-const readPeerAuthSignature = bytes => {
-  const syrupReader = makeSyrupReader(bytes);
-  const parsed = DescSigEnvelopePeerAuthCodec.read(syrupReader);
-  return {
-    payload: immutableArrayBufferToUint8Array(parsed.object.payload),
-    signature: parsed.signature,
-  };
+const assertDesignatorChallenge = bytes => {
+  if (bytes.byteLength !== DESIGNATOR_CHALLENGE_BYTES) {
+    throw Error(
+      `Expected designator challenge to be ${DESIGNATOR_CHALLENGE_BYTES} bytes, got ${bytes.byteLength}`,
+    );
+  }
 };
 
 /**
@@ -385,31 +311,23 @@ export const makeWebSocketNetLayer = async ({
     };
 
     let challengePayload = new Uint8Array(0);
-    let challengeMessageBytes = new Uint8Array(0);
     const socketOps = makeOutgoingSocketOperations(ws, socketState);
     const connection = handlers.makeConnection(netlayer, true, socketOps);
 
     ws.on('open', () => {
-      challengePayload = new Uint8Array(randomBytes(64));
-      const challengeMessage = writePeerAuthChallenge(challengePayload);
-      challengeMessageBytes = new Uint8Array(challengeMessage);
-      ws.send(challengeMessageBytes, { binary: true });
+      challengePayload = new Uint8Array(randomBytes(DESIGNATOR_CHALLENGE_BYTES));
+      ws.send(challengePayload, { binary: true });
     });
 
     ws.on('message', rawData => {
       const messageBytes = rawDataToBytes(rawData);
       if (!socketState.authenticated) {
         try {
-          const peerAuthSignature = readPeerAuthSignature(messageBytes);
-          if (!isSameBytes(peerAuthSignature.payload, challengePayload)) {
-            throw Error(
-              'Websocket auth signature payload did not match challenge',
-            );
-          }
-          const signatureBytes = signatureToBytes(peerAuthSignature.signature);
+          const signature = readSignatureMessage(messageBytes);
+          const signatureBytes = signatureToBytes(signature);
           const isValid = ed25519.verify(
             signatureBytes,
-            challengeMessageBytes,
+            challengePayload,
             remotePublicKey,
           );
           if (!isValid) {
@@ -478,14 +396,11 @@ export const makeWebSocketNetLayer = async ({
 
       if (!connection) {
         try {
-          const peerAuth = readPeerAuthChallenge(messageBytes);
+          assertDesignatorChallenge(messageBytes);
           const signature = designatorKeyPair.sign(
             uint8ArrayToImmutableArrayBuffer(messageBytes),
           );
-          const signatureMessageBytes = writePeerAuthSignature({
-            payload: peerAuth.payload,
-            signature,
-          });
+          const signatureMessageBytes = writeSignatureMessage(signature);
           ws.send(signatureMessageBytes, { binary: true });
 
           const socketOps = makeIncomingSocketOperations(ws);
