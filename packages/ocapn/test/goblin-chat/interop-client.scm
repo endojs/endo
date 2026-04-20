@@ -1,7 +1,7 @@
-;;; Minimal websocket interop client for the Endo goblin-chat host.
+;;; Minimal websocket interop host for Endo OCapN.
 ;;;
-;;; This intentionally keeps Guile-side logic small and relies on Spritely's
-;;; existing `(goblin-chat backend)` for all chat protocol behavior.
+;;; This intentionally keeps Guile-side logic small and uses Spritely's
+;;; existing `(goblin-chat backend)` to host the chatroom.
 
 (use-modules (goblins)
              (goblin-chat backend)
@@ -9,20 +9,27 @@
              (goblins ocapn captp)
              (goblins ocapn ids)
              (goblins ocapn netlayer websocket)
-             (goblins utils hashmap)
-             (ice-9 iconv)
              (fibers conditions))
 
 (define done? (make-condition))
 (define args (cdr (command-line)))
 
-(define uri (list-ref args 0))
-(define local-message (list-ref args 1))
-(define expected-remote-message
-  (if (> (length args) 2)
-      (list-ref args 2)
-      "hello from Endo OCapN"))
+(define (arg-or-default idx default)
+  (if (> (length args) idx)
+      (list-ref args idx)
+      default))
 
+(define local-message
+  (arg-or-default 0 "hello from Guile CI"))
+(define expected-remote-message
+  (arg-or-default 1 "hello from Endo OCapN"))
+(define websocket-port
+  (let ((env-port (getenv "OCAPN_TEST_PORT")))
+    (if env-port
+        (string->number env-port)
+        22047)))
+
+(define sent-local-message? #f)
 (define sent-ack? #f)
 (define saw-local-message? #f)
 (define saw-remote-message? #f)
@@ -47,24 +54,7 @@
   (signal-condition! done?)
   (primitive-exit 1))
 
-;; The host may print either a sturdyref URI or a peer URI with the swiss
-;; number in hints / designator.
-(define (uri->chat-sturdyref uri-string)
-  (define ocapn-id (string->ocapn-id uri-string))
-  (cond
-   ((ocapn-sturdyref? ocapn-id)
-    ocapn-id)
-   ((ocapn-peer? ocapn-id)
-    (define hints (ocapn-peer-hints ocapn-id))
-    (define swiss (and hints (hashmap-ref hints "swiss" #f)))
-    (make-ocapn-sturdyref ocapn-id
-                          (string->bytevector
-                           (or swiss (ocapn-peer-designator ocapn-id))
-                           "ascii")))
-   (else
-    (error "Expected OCapN sturdyref/peer URI" uri-string))))
-
-(define (^interop-observer _bcom)
+(define (^interop-observer _bcom user channel)
   (methods
    ((new-message _context _from-user observed-message)
     (define message-string
@@ -77,7 +67,22 @@
       (set! saw-remote-message? #t))
     (finish-if-ready!)
     #t)
-   ((user-joined _user) #t)
+   ((user-joined joining-user)
+    (when (and (not sent-local-message?)
+               (not (eq? joining-user user)))
+      (set! sent-local-message? #t)
+      (on (<- channel 'send-message local-message)
+          (lambda (ack)
+            (display "interop-client: sent message, ack = ")
+            (write ack)
+            (newline)
+            (set! sent-ack? #t)
+            (finish-if-ready!))
+          #:catch
+          (lambda (err)
+            (fatal! "send-message failed" err))
+          #:promise? #t))
+    #t)
    ((user-left _user) #t)))
 
 (define machine-vat (spawn-vat))
@@ -86,44 +91,48 @@
 (define (user-run thunk) (with-vat user-vat (thunk)))
 
 (define netlayer
-  (machine-run (lambda () (spawn ^websocket-netlayer #:encrypted? #f))))
+  (machine-run
+   (lambda ()
+     (spawn ^websocket-netlayer
+            #:encrypted? #f
+            #:port websocket-port))))
 (define mycapn
   (machine-run (lambda () (spawn-mycapn netlayer))))
-(define chat-sref (uri->chat-sturdyref uri))
+(define chatroom
+  (user-run (lambda () (spawn ^chatroom "#interop-room"))))
+(define-values (user user-controller)
+  (user-run (lambda () (spawn-user-controller-pair "guile-interop-host"))))
 
-(define-values (_user user-controller)
-  (user-run (lambda () (spawn-user-controller-pair "endo-interop-ci"))))
+;; Register the chatroom on the websocket transport and print sturdyref for Endo.
+(machine-run
+ (lambda ()
+   (on (<- mycapn 'register chatroom 'websocket)
+       (lambda (chat-sref)
+         (display "sturdyref: ")
+         (display (ocapn-id->string chat-sref))
+         (newline))
+       #:catch
+       (lambda (err)
+         (fatal! "register failed" err))
+       #:promise? #t)))
 
+;; Join locally and wait for Endo to join. Once Endo joins, send the local
+;; message and verify bilateral message flow.
 (user-run
  (lambda ()
-   (on (<- mycapn 'enliven chat-sref)
-       (lambda (chatroom)
-         (on (<- user-controller 'join-room chatroom)
-             (lambda (channel)
-               (on (<- channel 'subscribe (spawn ^interop-observer))
-                   (lambda (_subscription-result)
-                     (on (<- channel 'send-message local-message)
-                         (lambda (ack)
-                           (display "interop-client: sent message, ack = ")
-                           (write ack)
-                           (newline)
-                           (set! sent-ack? #t)
-                           (finish-if-ready!))
-                         #:catch
-                         (lambda (err)
-                           (fatal! "send-message failed" err))
-                         #:promise? #t))
-                   #:catch
-                   (lambda (err)
-                     (fatal! "subscribe failed" err))
-                   #:promise? #t))
+   (on (<- user-controller 'join-room chatroom)
+       (lambda (channel)
+         (on (<- channel 'subscribe (spawn ^interop-observer user channel))
+             (lambda (_subscription-result)
+               (display "interop-client: subscription ready")
+               (newline))
              #:catch
              (lambda (err)
-               (fatal! "join-room failed" err))
+               (fatal! "subscribe failed" err))
              #:promise? #t))
        #:catch
        (lambda (err)
-         (fatal! "enliven failed" err))
+         (fatal! "join-room failed" err))
        #:promise? #t)))
 
 (wait done?)

@@ -1,43 +1,43 @@
 # Goblin Chat interop utility
 
-A test utility that implements the core of the Guile Goblins
-[`goblin-chat`](https://codeberg.org/spritely/goblin-chat) backend in
-JavaScript so an Endo OCapN peer can participate in interop exercises
-against Goblins (or any other OCapN implementation that speaks the same
-app-layer protocol).
+Interop harness for Endo <-> Guile Goblins chatroom tests.
 
-- `backend.js` — direct port of `(goblin-chat backend)`: `^chatroom`,
-  `spawn-user-controller-pair`, plus a small sealer-triplet helper. Method
-  names are kebab-case so that Goblins' CapTP selector symbols dispatch
-  directly.
-- `index.js` — runnable host that advertises a chatroom sturdyref on the
-  `websocket` netlayer.
-- `uri-parse.js` — pure parser for `ocapn://…` peer / sturdyref URIs as
-  defined by `draft-specifications/Locators.md`. Sturdyrefs use the
-  `/s/<base64url-swiss>` path form (matching Spritely Goblins'
-  `string->ocapn-id` in `goblins/ocapn/ids.scm`).
+- `interop-client.scm` — Guile-hosted side. Uses Spritely's existing
+  `(goblin-chat backend)` implementation to host a room, registers it on the
+  websocket netlayer, and prints a sturdyref for Endo to join.
+- `index.js` — Endo client side. Accepts the Guile sturdyref URI, joins that
+  room, and verifies bilateral message flow.
+- `backend.js` — JavaScript port of `(goblin-chat backend)` used by the Endo
+  side to produce a Goblins-compatible user-controller/client surface.
 - `tui.js` — interactive [Ink](https://github.com/vadimdemedes/ink)
   client that joins a remote chatroom from a pasted sturdyref URI.
 
-## Host a chatroom
+## Direction under test (current)
+
+Current CI direction is:
+
+1. **Guile hosts** the chatroom (existing Goblins backend).
+2. Guile prints `sturdyref: ocapn://...`.
+3. **Endo joins** that Guile-hosted sturdyref.
+4. Both sides exchange one message and assert bilateral receive.
+
+## Run Endo client against a Guile-hosted sturdyref
 
 ```bash
-node ./packages/ocapn/test/goblin-chat/index.js [room-name]
+node ./packages/ocapn/test/goblin-chat/index.js "ocapn://.../s/..."
 ```
 
-The script prints both a peer locator and the chatroom sturdyref:
+Environment knobs:
 
-```
-*** Peer locator: ocapn://<base32-ed25519-public-key>.websocket?url=ws%3A%2F%2F127.0.0.1%3A22047
-*** Serving chatroom "#endo-interop" at sturdyref: ocapn://<base32-ed25519-public-key>.websocket/s/<base64url-swiss>?url=ws%3A%2F%2F127.0.0.1%3A22047
-```
-
-Override the port with `OCAPN_TEST_PORT=<n>`.
+- `OCAPN_CAPTP_VERSION` (default: `goblins-0.16`)
+- `OCAPN_INTEROP_GUILE_MESSAGE` (default: `hello from Guile CI`)
+- `OCAPN_INTEROP_ENDO_MESSAGE` (default: `hello from Endo OCapN`)
+- `OCAPN_TEST_PORT` (optional local Endo websocket bind; default ephemeral)
 
 ## Join a chatroom from the TUI
 
 Run the Ink TUI to join an existing chatroom (hosted by Goblins or by the
-script above) using the sturdyref URI it printed:
+Guile interop client) using the sturdyref URI it printed:
 
 ```bash
 node ./packages/ocapn/test/goblin-chat/tui.js
@@ -55,26 +55,6 @@ Environment overrides:
   (default `endo-tui`).
 - `OCAPN_CAPTP_VERSION` — handshake CapTP version; default
   `goblins-0.16` to interop with Spritely Goblins peers.
-
-## Drive it from Goblins
-
-Goblins ships an existing websocket netlayer, which this interop harness uses
-directly. The Guile interop client in this directory imports
-`(goblins ocapn netlayer websocket)` and runs with `#:encrypted? #f` against
-the local `ws://` endpoint emitted by `index.js`.
-
-From the client side, a Goblins user-controller would:
-
-1. `enliven` the chatroom sturdyref above → live chatroom ref.
-2. `(<- user-controller 'join-room chatroom)` — the controller calls
-   `(<- chatroom 'subscribe user)`, which:
-   - asks the user for its `get-subscription-sealer`,
-   - spawns a finalizer, has the sealer seal it, and returns the handle;
-   - the controller unseals with its own `subscription-unsealer`, calls
-     the finalizer with its `user-inbox`, and gets back a
-     `user-messaging-channel`.
-3. Send messages with `(<- channel 'send-message …)` (the controller's
-   authenticated-channel wrapper seals the contents first).
 
 ## App-layer surface (matches Guile implementation)
 
