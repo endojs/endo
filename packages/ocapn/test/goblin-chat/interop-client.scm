@@ -8,19 +8,18 @@
 ;;;   $3  message expected from Endo OCapN observer client
 ;;;
 ;;; Exit 0 after:
-;;;   - successful `send-message` ack, and
+;;;   - successful `send-message` call, and
 ;;;   - observing both the Guile message and Endo message in inbox callbacks.
 ;;;
 ;;; We intentionally use Spritely's existing websocket netlayer implementation
 ;;; to exercise the same framing and designator-auth path used by Goblins.
-;;; We still define a minimal user-controller pair locally so this client
-;;; doesn't depend on `(goblin-chat backend)`, whose extra module dependencies
-;;; vary by package build.
+;;; For chat behavior, we import Spritely's published `(goblin-chat backend)`
+;;; directly and add only compatibility shims in this repo when Guix variants
+;;; are missing helper modules.
 
 (use-modules (goblins)
-             (goblins actor-lib common)
+             (goblin-chat backend)
              (goblins actor-lib methods)
-             (goblins actor-lib sealers)
              (goblins ocapn captp)
              (goblins ocapn ids)
              (goblins ocapn netlayer websocket)
@@ -28,71 +27,6 @@
              (ice-9 iconv)
              (ice-9 match)
              (fibers conditions))
-
-;; Minimal subset of goblin-chat backend needed for CI:
-;; - create a user with the expected methods
-;; - join a room via `subscribe`
-;; - return an authenticated channel that seals chat messages
-(define (spawn-user-controller-pair self-proposed-name note-observed-message!)
-  (define-values (chat-msg-sealer chat-msg-unsealer chat-msg-sealed?)
-    (spawn-sealer-triplet))
-  (define-values (subscription-sealer subscription-unsealer _subscription-sealed?)
-    (spawn-sealer-triplet))
-
-  (define (^user _bcom)
-    (methods
-     ((self-proposed-name) self-proposed-name)
-     ((get-chat-sealed?) chat-msg-sealed?)
-     ((get-chat-unsealer) chat-msg-unsealer)
-     ((get-subscription-sealer) subscription-sealer)))
-  (define user (spawn ^user))
-
-  (define (^user-inbox _bcom context)
-    (methods
-     ((new-message from-user sealed-msg)
-      ;; Decode messages to exercise the same app-layer path as Goblins.
-      (on (<- from-user 'get-chat-unsealer)
-          (lambda (chat-unsealer)
-            (on (<- chat-unsealer sealed-msg)
-                (lambda (decoded-message)
-                  (note-observed-message! decoded-message)
-                  #t)
-                #:promise? #t))
-          #:promise? #t)
-      #t)
-     ((user-joined _user) #t)
-     ((user-left _user) #t)
-     ((context) context)))
-
-  (define (^authenticated-channel _bcom room-channel)
-    (methods
-     ((send-message contents)
-      (on (<- chat-msg-sealer contents)
-          (lambda (sealed-msg)
-            (<- room-channel 'send-message sealed-msg))
-          #:promise? #t))
-     ((leave)
-      (<- room-channel 'leave))
-     ((list-users)
-      (<- room-channel 'list-users))))
-
-  (define (^user-controller _bcom)
-    (methods
-     ((whoami) user)
-     ((join-room room)
-      (define inbox (spawn ^user-inbox room))
-      (define sealed-finalizer-vow
-        (<- room 'subscribe user))
-      (define subscription-finalizer-vow
-        (<- subscription-unsealer sealed-finalizer-vow))
-      (on (<- subscription-finalizer-vow inbox)
-          (lambda (room-channel)
-            (spawn ^authenticated-channel room-channel))
-          #:promise? #t))))
-
-  (define user-controller
-    (spawn ^user-controller))
-  (values user user-controller))
 
 (define done?
   (make-condition))
@@ -109,6 +43,7 @@
 (define saw-local-message? #f)
 (define saw-remote-message? #f)
 (define completed? #f)
+(define inbox-subscription-setup? #f)
 
 (define (maybe-finish!)
   (when (and (not completed?)
@@ -133,6 +68,14 @@
   (when (string=? observed-message expected-remote-message)
     (set! saw-remote-message? #t))
   (maybe-finish!))
+
+(define (^interop-observer _bcom)
+  (methods
+   ((new-message _context _from-user observed-message)
+    (record-observed-message! observed-message)
+    #t)
+   ((user-joined _user) #t)
+   ((user-left _user) #t)))
 
 ;; Endo's interop host currently prints a peer-style URI where the designator is
 ;; the swiss number. Goblins `enliven` expects an actual sturdyref object.
@@ -175,7 +118,7 @@
 (define-values (user user-controller)
   (user-run
    (lambda ()
-     (spawn-user-controller-pair "endo-interop-ci" record-observed-message!))))
+     (spawn-user-controller-pair "endo-interop-ci"))))
 
 (define chatroom-vow
   (user-run (lambda () (<- mycapn 'enliven chat-sref))))
@@ -188,6 +131,30 @@
            (<- user-controller 'join-room chatroom))
          (on channel-vow
              (lambda (channel)
+              (define subscriber
+                (spawn ^interop-observer))
+              (define inbox-subscription-vow
+                (<- channel 'subscribe subscriber))
+              (on inbox-subscription-vow
+                  (lambda (subscription-result)
+                    (match subscription-result
+                      (#(OK _unsubscribe-cap)
+                       (set! inbox-subscription-setup? #t))
+                      (_
+                       (display "interop-client: channel subscribe returned unexpected value")
+                       (newline)
+                       (write subscription-result)
+                       (newline)
+                       (signal-condition! done?)
+                       (primitive-exit 6))))
+                  #:catch
+                  (lambda (err)
+                    (display "interop-client: channel subscribe failed: ")
+                    (write err)
+                    (newline)
+                    (signal-condition! done?)
+                    (primitive-exit 7))
+                  #:promise? #t)
                (define ack-vow
                  (<- channel 'send-message message))
                (on ack-vow
@@ -195,12 +162,12 @@
                      (display "interop-client: sent message, ack = ")
                      (write ack)
                      (newline)
-                     (unless (equal? ack "OK")
-                       (display "interop-client: unexpected ack value")
+                     (set! sent-ack? #t)
+                     (unless inbox-subscription-setup?
+                       (display "interop-client: channel subscribe not confirmed before ack")
                        (newline)
                        (signal-condition! done?)
                        (primitive-exit 5))
-                     (set! sent-ack? #t)
                      (maybe-finish!))
                    #:catch
                    (lambda (err)

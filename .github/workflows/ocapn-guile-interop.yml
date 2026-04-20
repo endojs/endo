@@ -107,10 +107,14 @@ jobs:
           # client's own directory for side modules.
           guix shell --pure --no-grafts --manifest="$INTEROP_MANIFEST" -- \
             guile -L . -L "$(dirname "$INTEROP_CLIENT")" \
-              "$INTEROP_CLIENT" "$STURDYREF" "hello from Guile CI" "$INTEROP_ENDO_MESSAGE"
+              "$INTEROP_CLIENT" "$STURDYREF" "hello from Guile CI" "$INTEROP_ENDO_MESSAGE" \
+              > /tmp/guile-interop.log 2>&1
+          cat /tmp/guile-interop.log
 
       - name: Assert bilateral message delivery and host subscription behavior
         run: |
+          # Verify Guile-side bilateral receive assertions.
+          grep -q 'observed local+remote messages and ack' /tmp/guile-interop.log
           # Verify host-side OCapN observer subscription and two-way message flow.
           grep -q 'Interop host observer subscription ready' /tmp/endo-chat.log
           grep -q 'Interop host sent message, ack = "OK"' /tmp/endo-chat.log
