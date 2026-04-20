@@ -3,7 +3,8 @@
 ;;; This intentionally keeps Guile-side logic small and uses Spritely's
 ;;; existing `(goblin-chat backend)` to host the chatroom.
 
-(use-modules (goblins)
+(use-modules (goblins core)
+             (goblins vat)
              (goblin-chat backend)
              (goblins actor-lib methods)
              (goblins ocapn captp)
