@@ -96,6 +96,7 @@ jobs:
         env:
           INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-client.scm
           INTEROP_MANIFEST: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-manifest.scm
+          INTEROP_ENDO_MESSAGE: hello from Endo OCapN
           GUILE_AUTO_COMPILE: 0
         run: |
           # Slim manifest: only guile + guile-goblins + guile-fibers.
@@ -106,7 +107,14 @@ jobs:
           # client's own directory for side modules.
           guix shell --pure --no-grafts --manifest="$INTEROP_MANIFEST" -- \
             guile -L . -L "$(dirname "$INTEROP_CLIENT")" \
-              "$INTEROP_CLIENT" "$STURDYREF" "hello from Guile CI"
+              "$INTEROP_CLIENT" "$STURDYREF" "hello from Guile CI" "$INTEROP_ENDO_MESSAGE"
+
+      - name: Assert bilateral message delivery and host subscription behavior
+        run: |
+          # Verify host-side OCapN observer subscription and two-way message flow.
+          grep -q 'Interop host observer subscription ready' /tmp/endo-chat.log
+          grep -q 'Interop host sent message, ack = "OK"' /tmp/endo-chat.log
+          grep -q 'Interop host observer received both expected messages' /tmp/endo-chat.log
 
       - name: Show Endo server log on failure
         if: failure()
