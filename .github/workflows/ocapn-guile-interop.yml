@@ -11,6 +11,7 @@ on:
   pull_request:
     paths:
       - 'packages/ocapn/**'
+      - 'packages/goblin-chat/**'
       - '.github/workflows/ocapn-guile-interop.yml'
   workflow_dispatch:
 
@@ -86,7 +87,7 @@ jobs:
       - name: Start Guile goblin-chat host
         working-directory: endo
         env:
-          INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/ocapn/test/goblin-chat/interop-client.scm
+          INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/goblin-chat/test/guile-interop/interop-client.scm
           GOBLINS_REPO: ${{ github.workspace }}/goblins
           GOBLIN_CHAT_REPO: ${{ github.workspace }}/goblin-chat
         run: |
@@ -146,7 +147,7 @@ jobs:
           OCAPN_TEST_PORT: '0'
         run: |
           set +e
-          timeout 120s node ./packages/ocapn/test/goblin-chat/index.js "$STURDYREF" \
+          timeout 120s node ./packages/goblin-chat/test/guile-interop/index.js "$STURDYREF" \
             > /tmp/endo-interop.log 2>&1
           ENDO_EXIT=$?
           set -e

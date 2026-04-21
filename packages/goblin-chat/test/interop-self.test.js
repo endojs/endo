@@ -3,7 +3,7 @@
 /**
  * All-JS bilateral interop test.
  *
- * Mirrors the structure of `packages/ocapn/test/goblin-chat/` (where
+ * Mirrors the structure of `./guile-interop/` (where
  * an Endo OCapN client connects to a Guile-hosted chatroom over the
  * websocket netlayer) — but here both sides run in this process. One
  * side hosts the JS port of `^chatroom` and registers it under a

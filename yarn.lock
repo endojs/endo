@@ -780,7 +780,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/goblin-chat@workspace:^, @endo/goblin-chat@workspace:packages/goblin-chat":
+"@endo/goblin-chat@workspace:packages/goblin-chat":
   version: 0.0.0-use.local
   resolution: "@endo/goblin-chat@workspace:packages/goblin-chat"
   dependencies:
@@ -1005,7 +1005,6 @@ __metadata:
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
     "@endo/eventual-send": "workspace:^"
-    "@endo/goblin-chat": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
