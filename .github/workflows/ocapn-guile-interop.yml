@@ -103,7 +103,6 @@ jobs:
 
           # Use a non-default port to reduce cross-job collisions.
           OCAPN_TEST_PORT=26804
-          echo "OCAPN_TEST_PORT=$OCAPN_TEST_PORT" >> "$GITHUB_ENV"
 
           # Goblins from raw git source has exhibited interpreter-only failures
           # with auto-compile disabled; allow Guile to compile modules first.
@@ -142,6 +141,9 @@ jobs:
           OCAPN_CAPTP_VERSION: goblins-0.18
           OCAPN_INTEROP_GUILE_MESSAGE: hello from Guile CI
           OCAPN_INTEROP_ENDO_MESSAGE: hello from Endo OCapN
+          # Endo only needs an outbound websocket client in this flow, so bind
+          # its local netlayer listener to an ephemeral port.
+          OCAPN_TEST_PORT: '0'
         run: |
           set +e
           timeout 120s node ./packages/ocapn/test/goblin-chat/index.js "$STURDYREF" \
