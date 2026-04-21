@@ -105,7 +105,9 @@ jobs:
           OCAPN_TEST_PORT=26804
           echo "OCAPN_TEST_PORT=$OCAPN_TEST_PORT" >> "$GITHUB_ENV"
 
-          OCAPN_TEST_PORT="$OCAPN_TEST_PORT" GUILE_AUTO_COMPILE=0 \
+          # Goblins from raw git source has exhibited interpreter-only failures
+          # with auto-compile disabled; allow Guile to compile modules first.
+          OCAPN_TEST_PORT="$OCAPN_TEST_PORT" GUILE_AUTO_COMPILE=1 \
             timeout 300s guix shell --pure --no-grafts \
             --preserve='^OCAPN_TEST_PORT$|^GUILE_AUTO_COMPILE$' \
             guile guile-fibers guile-websocket guile-gnutls guile-gcrypt -- \
