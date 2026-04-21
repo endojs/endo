@@ -44,6 +44,7 @@
     (set! finished? #t)
     (display "interop-client: observed local+remote messages and ack")
     (newline)
+    (force-output)
     (signal-condition! done?)))
 
 (define (fatal! label err)
@@ -52,6 +53,7 @@
   (display ": ")
   (write err)
   (newline)
+  (force-output)
   (signal-condition! done?)
   (primitive-exit 1))
 
@@ -77,6 +79,7 @@
             (display "interop-client: sent message, ack = ")
             (write ack)
             (newline)
+            (force-output)
             (set! sent-ack? #t)
             (finish-if-ready!))
           #:catch
@@ -111,7 +114,8 @@
        (lambda (chat-sref)
          (display "sturdyref: ")
          (display (ocapn-id->string chat-sref))
-         (newline))
+         (newline)
+         (force-output))
        #:catch
        (lambda (err)
          (fatal! "register failed" err))
@@ -126,7 +130,8 @@
          (on (<- channel 'subscribe (spawn ^interop-observer user channel))
              (lambda (_subscription-result)
                (display "interop-client: subscription ready")
-               (newline))
+               (newline)
+               (force-output))
              #:catch
              (lambda (err)
                (fatal! "subscribe failed" err))
