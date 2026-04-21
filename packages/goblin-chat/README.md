@@ -105,9 +105,10 @@ file logging entirely.
 import { makeChatroom, makeUserControllerPair, parseOcapnUri } from '@endo/goblin-chat';
 ```
 
-The same protocol pieces back the [interop test in
-`@endo/ocapn`](../ocapn/test/goblin-chat/) which connects an Endo
-client to a Guile-hosted chatroom (and vice versa).
+The same protocol pieces back the [Guile interop
+harness](./test/guile-interop/) which connects an Endo client to a
+Guile-hosted chatroom, alongside the all-JS
+[`test/interop-self.test.js`](./test/interop-self.test.js).
 
 Lower-level subpaths are also available for consumers that need them
 directly:
@@ -169,6 +170,6 @@ The TUI's observer absorbs the self-echoes transparently.
 
 - [`packages/ocapn`](../ocapn) — the underlying CapTP / OCapN client +
   netlayer.
-- [`packages/ocapn/test/goblin-chat/`](../ocapn/test/goblin-chat) —
-  bilateral interop test against a Guile-hosted chatroom; uses this
-  package's `makeUserControllerPair`.
+- [`./test/guile-interop/`](./test/guile-interop) — bilateral interop
+  test against a Guile-hosted chatroom; uses this package's
+  `makeUserControllerPair` and `@endo/ocapn`'s websocket netlayer.

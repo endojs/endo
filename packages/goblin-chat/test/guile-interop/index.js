@@ -5,33 +5,25 @@
  * Endo interop client for a Guile-hosted Goblin Chat room.
  *
  * The exchange itself (join → subscribe → bilateral send/receive →
- * verify) lives in `@endo/goblin-chat/interop-driver` (imported here
- * via a relative path; see the import comment) so it can be shared
- * with the all-JS self-interop test in
- * `packages/goblin-chat/test/interop-self.test.js`. This script's job
- * is just to stand up an Endo-side websocket netlayer, parse the
- * Guile-printed sturdyref URI, enliven it, and hand the resulting
- * `^chatroom` presence to that shared driver.
+ * verify) lives in `../../src/interop-driver.js` so it can be shared
+ * with the all-JS self-interop test in `../interop-self.test.js`.
+ * This script's job is just to stand up an Endo-side websocket
+ * netlayer, parse the Guile-printed sturdyref URI, enliven it, and
+ * hand the resulting `^chatroom` presence to that shared driver.
  */
 
 import '@endo/init';
 
 /**
- * @import { OcapnLocation } from '../../src/codecs/components.js'
+ * @import { OcapnLocation, SwissNum } from '@endo/ocapn'
  */
 
 import { Buffer } from 'buffer';
-// Use the explicit `./src/...` subpath instead of the cleaner
-// `@endo/goblin-chat/interop-driver` shortcut: `eslint-plugin-import`'s
-// resolver in this repo doesn't consult the `exports` field, and
-// `import/no-relative-packages` rejects the equivalent `../../../`
-// relative form. The package.json mirrors this subpath in `exports`
-// so Node's runtime resolution agrees.
-import { runChatParticipant } from '@endo/goblin-chat/src/interop-driver.js';
-import { makeWebSocketNetLayer } from '../../src/netlayers/websocket.js';
-import { makeClient } from '../../src/client/index.js';
-import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
-import { encodeSwissnum } from '../../src/client/util.js';
+import { makeClient, swissnumFromBytes } from '@endo/ocapn';
+import { makeWebSocketNetLayer } from '@endo/ocapn/src/netlayers/websocket.js';
+import { runChatParticipant } from '../../src/interop-driver.js';
+
+const swissnumEncoder = new TextEncoder();
 
 const DEFAULT_PORT = 0;
 const DEFAULT_CAPTP_VERSION = 'goblins-0.16';
@@ -40,19 +32,34 @@ const DEFAULT_ENDO_MESSAGE = 'hello from Endo OCapN';
 
 /**
  * @param {string} value
- * @returns {ArrayBufferLike}
+ * @returns {SwissNum}
  */
-const decodeBase64Url = value => {
+const swissnumFromBase64Url = value => {
   const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
   const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-  return uint8ArrayToImmutableArrayBuffer(
-    Uint8Array.from(Buffer.from(padded, 'base64')),
-  );
+  return swissnumFromBytes(Uint8Array.from(Buffer.from(padded, 'base64')));
+};
+
+/**
+ * Local equivalent of `encodeSwissnum`, kept inline so this script
+ * doesn't pull a swissnum-encoding helper into `@endo/ocapn`'s public
+ * exports map (mirrors `test/interop-self.test.js`).
+ *
+ * @param {string} value
+ * @returns {SwissNum}
+ */
+const swissnumFromAsciiString = value => {
+  for (let i = 0; i < value.length; i += 1) {
+    if (value.charCodeAt(i) > 127) {
+      throw Error(`Non-ASCII byte in swissnum at position ${i}: ${value[i]}`);
+    }
+  }
+  return swissnumFromBytes(swissnumEncoder.encode(value));
 };
 
 /**
  * @param {string} uri
- * @returns {{ location: OcapnLocation; swissNum: import('../../src/client/types.js').SwissNum }}
+ * @returns {{ location: OcapnLocation; swissNum: SwissNum }}
  */
 const parseSturdyrefUri = uri => {
   const match = /^ocapn:\/\/([^/?#]+)(\/[^?#]*)?(?:\?([^#]*))?$/.exec(uri);
@@ -76,22 +83,18 @@ const parseSturdyrefUri = uri => {
     hints[key] = value;
   }
 
-  /** @type {ArrayBufferLike | import('../../src/client/types.js').SwissNum} */
-  let parsedSwissNum;
+  /** @type {SwissNum} */
+  let swissNum;
   if (path && path !== '/') {
     if (!path.startsWith('/s/')) {
       throw Error(`Unsupported OCapN URI path: ${path}`);
     }
-    const swissBase64Url = path.slice(3);
-    parsedSwissNum = decodeBase64Url(swissBase64Url);
+    swissNum = swissnumFromBase64Url(path.slice(3));
   } else if (typeof hints.swiss === 'string' && hints.swiss.length > 0) {
-    parsedSwissNum = encodeSwissnum(hints.swiss);
+    swissNum = swissnumFromAsciiString(hints.swiss);
   } else {
     throw Error(`No sturdyref swiss number found in URI: ${uri}`);
   }
-  const swissNum = /** @type {import('../../src/client/types.js').SwissNum} */ (
-    parsedSwissNum
-  );
 
   return {
     location: {

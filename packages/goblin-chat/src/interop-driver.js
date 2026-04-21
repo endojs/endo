@@ -10,9 +10,9 @@
  * The same routine therefore drives:
  *
  *   - the Endo OCapN client side of the Endo↔Guile CI test (against
- *     a Guile-hosted chatroom; see `packages/ocapn/test/goblin-chat/`),
+ *     a Guile-hosted chatroom; see `../test/guile-interop/`),
  *   - both sides of the all-JS self-interop test in
- *     `packages/goblin-chat/test/interop-self.test.js` (where one
+ *     `../test/interop-self.test.js` (where one
  *     participant holds the local `^chatroom` Far and the other talks
  *     to it through the OCapN websocket netlayer).
  *

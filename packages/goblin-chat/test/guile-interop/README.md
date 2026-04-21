@@ -3,10 +3,11 @@
 Interop harness for Endo ↔ Guile Goblins chatroom tests.
 
 The user-facing chatroom client (Ink TUI) and the JS port of the
-Goblins `(goblin-chat backend)` module both live in
-[`@endo/goblin-chat`](../../../goblin-chat). This directory contains only
-the **interop harness** that drives the Endo client against a
-Guile-hosted sturdyref under CI.
+Goblins `(goblin-chat backend)` module live in this same package
+(`@endo/goblin-chat`). This directory contains only the **interop
+harness** that drives the Endo client against a Guile-hosted
+sturdyref under CI. Its all-JS counterpart lives in
+[`../interop-self.test.js`](../interop-self.test.js).
 
 - `interop-client.scm` — Guile-hosted side. Uses Spritely's existing
   `(goblin-chat backend)` implementation to host a room, registers it on
@@ -27,7 +28,7 @@ Current CI direction is:
 ## Run Endo client against a Guile-hosted sturdyref
 
 ```bash
-node ./packages/ocapn/test/goblin-chat/index.js "ocapn://.../s/..."
+node ./packages/goblin-chat/test/guile-interop/index.js "ocapn://.../s/..."
 ```
 
 Environment knobs:
@@ -46,13 +47,13 @@ log panel, recent rooms), use the dedicated package:
 node ./packages/goblin-chat/bin/goblin-chat.js
 ```
 
-See [`@endo/goblin-chat`](../../../goblin-chat/README.md) for keys and
+See the package [`README.md`](../../README.md) for keys and
 configuration.
 
 ## App-layer surface (matches Guile implementation)
 
 These are reproduced bit-for-bit by the JS port that lives in
-[`@endo/goblin-chat/backend`](../../../goblin-chat/src/backend.js):
+[`../../src/backend.js`](../../src/backend.js):
 
 - `^chatroom`: `self-proposed-name`, `subscribe`.
 - `^user`: `self-proposed-name`, `get-chat-sealed?`, `get-chat-unsealer`,

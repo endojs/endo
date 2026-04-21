@@ -50,7 +50,6 @@
     "ws": "^8.20.0"
   },
   "devDependencies": {
-    "@endo/goblin-chat": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@types/ws": "^8",
