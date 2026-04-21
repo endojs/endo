@@ -21,12 +21,26 @@ import '@endo/init';
 
 import test from '@endo/ses-ava/test.js';
 
-import { makeClient } from '@endo/ocapn/src/client/index.js';
+import { makeClient, swissnumFromBytes } from '@endo/ocapn';
 import { makeWebSocketNetLayer } from '@endo/ocapn/src/netlayers/websocket.js';
-import { encodeSwissnum } from '@endo/ocapn/src/client/util.js';
 
 import { makeChatroom } from '../src/backend.js';
 import { runChatParticipant } from '../src/interop-driver.js';
+
+// Local equivalent of `encodeSwissnum`, kept inline so this test
+// doesn't drag the helper into `@endo/ocapn`'s public exports map.
+// Validates printable ASCII so a stray non-ASCII char in the room
+// constant fails loudly here rather than producing a wire-level mystery.
+const swissnumEncoder = new TextEncoder();
+/** @param {string} value */
+const swissnumFromAsciiString = value => {
+  for (let i = 0; i < value.length; i += 1) {
+    if (value.charCodeAt(i) > 127) {
+      throw Error(`Non-ASCII byte in swissnum at position ${i}: ${value[i]}`);
+    }
+  }
+  return swissnumFromBytes(swissnumEncoder.encode(value));
+};
 
 const ROOM_SWISS = 'interop-room';
 const ROOM_NAME = '#interop-room';
@@ -64,7 +78,7 @@ test('endo OCapN client interops with the JS goblin-chat backend', async t => {
   try {
     const sturdyRef = remoteClient.makeSturdyRef(
       hostNetlayer.location,
-      encodeSwissnum(ROOM_SWISS),
+      swissnumFromAsciiString(ROOM_SWISS),
     );
     const remoteChatroom = await remoteClient.enlivenSturdyRef(sturdyRef);
 
