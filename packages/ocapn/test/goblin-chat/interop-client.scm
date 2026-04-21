@@ -141,8 +141,30 @@
 (define-values (user user-controller)
   (user-run (lambda () (spawn-user-controller-pair "guile-interop-host"))))
 
-;; Register the chatroom on the websocket transport and print the sturdyref.
-;; CI extracts this `sturdyref:` line and passes it to the Endo client.
+;; Start the local user flow (join + subscribe) after we have successfully
+;; registered and published the sturdyref. This avoids contradictory states
+;; where join-side logs appear even though registration failed.
+(define (start-user-flow!)
+  (user-run
+   (lambda ()
+     (on (<- user-controller 'join-room chatroom)
+         (lambda (channel)
+           (on (<- channel 'subscribe (spawn ^interop-observer user channel))
+               (lambda (_subscription-result)
+                 (display "interop-client: subscription ready")
+                 (newline)
+                 (force-output))
+               #:catch
+               (lambda (err)
+                 (fatal! "subscribe failed" err))
+               #:promise? #t))
+         #:catch
+         (lambda (err)
+           (fatal! "join-room failed" err))
+         #:promise? #t))))
+
+;; Register the chatroom on websocket, print sturdyref for Endo, then start
+;; the local user flow.
 (machine-run
  (lambda ()
    (on (<- mycapn 'register chatroom 'websocket)
@@ -150,31 +172,11 @@
          (display "sturdyref: ")
          (display (ocapn-id->string chat-sref))
          (newline)
-         (force-output))
+         (force-output)
+         (start-user-flow!))
        #:catch
        (lambda (err)
          (fatal! "register failed" err))
-       #:promise? #t)))
-
-;; Join the room as the local Guile participant and subscribe our observer.
-;; After Endo joins, observer `user-joined` triggers the Guile send; success
-;; is declared only after both messages are seen and send ack is received.
-(user-run
- (lambda ()
-   (on (<- user-controller 'join-room chatroom)
-       (lambda (channel)
-         (on (<- channel 'subscribe (spawn ^interop-observer user channel))
-             (lambda (_subscription-result)
-               (display "interop-client: subscription ready")
-               (newline)
-               (force-output))
-             #:catch
-             (lambda (err)
-               (fatal! "subscribe failed" err))
-             #:promise? #t))
-       #:catch
-       (lambda (err)
-         (fatal! "join-room failed" err))
        #:promise? #t)))
 
 ;; Block the process until success/failure path signals `done?`.
