@@ -7,6 +7,7 @@
              (goblins vat)
              (goblin-chat backend)
              (goblins actor-lib methods)
+             (goblins utils crypto)
              (goblins ocapn captp)
              (goblins ocapn ids)
              (goblins ocapn netlayer websocket)
@@ -128,12 +129,18 @@
 ;; - websocket netlayer bound to `websocket-port`
 ;; - mycapn node on that netlayer
 ;; - chatroom actor plus a local user/controller pair
+;;
+;; We provide a pre-generated designator key to avoid the websocket netlayer's
+;; async key-generation handoff path, which has proven flaky in this harness.
+(define netlayer-designator-key
+  (generate-key-pair))
 (define netlayer
   (machine-run
    (lambda ()
      (spawn ^websocket-netlayer
             #:encrypted? #f
-            #:port websocket-port))))
+            #:port websocket-port
+            #:designator-key netlayer-designator-key))))
 (define mycapn
   (machine-run (lambda () (spawn-mycapn netlayer))))
 (define chatroom
