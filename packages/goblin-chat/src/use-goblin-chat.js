@@ -2,7 +2,7 @@
 /* eslint-disable import/no-unresolved */
 
 /**
- * `useOcapnChat` — React hook that owns the OCapN-side state machine and
+ * `useGoblinChat` — React hook that owns the OCapN-side state machine and
  * side effects for the goblin-chat TUI.
  *
  * The hook deliberately encapsulates the `makeClient` call so the same
@@ -11,6 +11,17 @@
  * (matching the `chat-state.js` shape) and a small set of action
  * functions; everything else — sessions, capabilities, name lookups —
  * is internal.
+ *
+ * Two log streams flow out of the hook:
+ *   - the **chat events** stream (`messages`, `events`) — strictly
+ *     human-meaningful per-room activity (joins, leaves, message
+ *     traffic). Diagnostic info and non-critical errors do *not* land
+ *     here, so a connect-time hiccup or a missing display-name doesn't
+ *     pollute the chat view.
+ *   - the **log panel** stream (`logs`) — every diagnostic line, every
+ *     non-critical error, plus the verbatim output of the OCapN client
+ *     and netlayer. This panel is hidden by default in the TUI; users
+ *     toggle it on for forensics.
  *
  * Shutdown is handled cooperatively. The hook installs a polite-leave
  * function into the exported `shutdownHandle` on mount and clears it on
@@ -25,9 +36,9 @@ import { Far } from '@endo/marshal';
 
 import { Buffer } from 'node:buffer';
 
-import { makeClient } from '../../src/client/index.js';
-import { immutableArrayBufferToUint8Array } from '../../src/buffer-utils.js';
-import { makeWebSocketNetLayer } from '../../src/netlayers/websocket.js';
+import { makeClient } from '@endo/ocapn/src/client/index.js';
+import { immutableArrayBufferToUint8Array } from '@endo/ocapn/src/buffer-utils.js';
+import { makeWebSocketNetLayer } from '@endo/ocapn/src/netlayers/websocket.js';
 import { makeUserControllerPair } from './backend.js';
 import { parseOcapnUri } from './uri-parse.js';
 import { initialState, reducer, formatError } from './chat-state.js';
@@ -81,6 +92,7 @@ const formatSwissnumForLog = swissNum => {
  * @typedef {import('./chat-state.js').State} State
  * @typedef {import('./chat-state.js').Action} Action
  * @typedef {import('./chat-state.js').LogLevel} LogLevel
+ * @typedef {import('./chat-state.js').Phase} Phase
  */
 
 /**
@@ -145,7 +157,8 @@ const formatLogArg = value => {
  */
 const makeReducerLogger = (dispatch, source, logSink) => {
   /** @param {LogLevel} level */
-  const make = level =>
+  const make =
+    level =>
     /** @param {unknown[]} args */
     (...args) => {
       const text = args.map(formatLogArg).join(' ');
@@ -166,9 +179,12 @@ const makeReducerLogger = (dispatch, source, logSink) => {
 };
 
 /**
- * @typedef {object} OcapnChatConfig
- * @property {string} name              Self-proposed display name we
- *   announce on `join-room`.
+ * @typedef {object} JoinedRoom
+ * @property {string} uri          The full `ocapn://…` URI just joined.
+ * @property {string} [roomName]   The chatroom's `self-proposed-name`,
+ *   when the lookup succeeded.
+ *
+ * @typedef {object} GoblinChatConfig
  * @property {string} [captpVersion]    Forwarded to `makeClient`.
  * @property {boolean} [verbose=true]   Forwarded to `makeClient`. The
  *   default is `true` because the dedicated log panel is the whole
@@ -177,19 +193,34 @@ const makeReducerLogger = (dispatch, source, logSink) => {
  * @property {LogSink} [logSink]        Optional side-channel called for
  *   every log line in addition to the reducer dispatch. The TUI
  *   entrypoint uses this to mirror logs to a per-session file.
+ * @property {(joined: JoinedRoom) => void} [onJoined]
+ *   Called once per successful `join-room`, after the chatroom name
+ *   has been fetched (or skipped). The TUI uses this to push the room
+ *   into its persistent recent-rooms list. Errors thrown by the
+ *   callback are caught and logged — they never block the join.
  *
- * @typedef {object} OcapnChatActions
- * @property {(uri: string) => Promise<void>} joinRoom    Parse a
- *   sturdyref URI, stand up a websocket netlayer, enliven the chatroom,
- *   join, and subscribe. Errors are caught and surfaced via the chat
- *   state's `error` events; the returned promise itself never rejects.
- * @property {(text: string) => Promise<void>} sendMessage  Send a
- *   message into the joined room. Errors are caught and surfaced as
- *   above.
- * @property {() => void} shutdown   Synchronous polite teardown:
- *   unsubscribe (eventual), leave (eventual), `client.shutdown()`
- *   (sync). Safe to call multiple times. The same function is wired
- *   into `shutdownHandle.run` for signal-handler use.
+ * @typedef {object} GoblinChatActions
+ * @property {(args: { uri: string, name: string }) => Promise<void>} joinRoom
+ *   Parse a sturdyref URI, stand up a websocket netlayer, enliven the
+ *   chatroom, join, and subscribe. Errors are caught: the failure is
+ *   recorded in the log panel and the phase falls back to `menu` with
+ *   a `connect failed` status — the returned promise itself never
+ *   rejects.
+ * @property {(text: string) => Promise<void>} sendMessage
+ *   Send a message into the joined room. Errors are caught and
+ *   surfaced in the log panel.
+ * @property {() => void} leaveRoom
+ *   Politely tear down the active session (unsubscribe → leave →
+ *   `client.shutdown()`), reset the room slice of state, and return
+ *   to the `menu` phase. Safe to call when no session is active.
+ * @property {(phase: Phase) => void} setPhase
+ *   Drive the high-level phase transition. The TUI uses this to move
+ *   between `menu`, `name-input`, `uri-input`, and `recent-list`.
+ * @property {() => void} shutdown
+ *   Synchronous polite teardown for process exit: unsubscribe
+ *   (eventual), leave (eventual), `client.shutdown()` (sync). Safe to
+ *   call multiple times. The same function is wired into
+ *   `shutdownHandle.run` for signal-handler use.
  */
 
 /**
@@ -198,20 +229,21 @@ const makeReducerLogger = (dispatch, source, logSink) => {
  *   channel: any,
  *   unsubscribe: any,
  *   selfUser: any,
+ *   activeName: string | undefined,
  *   pendingNames: WeakSet<object>,
  * }} SessionRef
  */
 
 /**
- * @param {OcapnChatConfig} config
- * @returns {{ state: State } & OcapnChatActions}
+ * @param {GoblinChatConfig} [config]
+ * @returns {{ state: State } & GoblinChatActions}
  */
-export const useOcapnChat = ({
-  name,
+export const useGoblinChat = ({
   captpVersion,
   verbose = true,
   logSink,
-}) => {
+  onJoined,
+} = {}) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const sessionRef = useRef(
@@ -220,17 +252,24 @@ export const useOcapnChat = ({
       channel: undefined,
       unsubscribe: undefined,
       selfUser: undefined,
+      activeName: undefined,
       pendingNames: new WeakSet(),
     }),
   );
 
-  const logInfo = useCallback(
+  // Diagnostic logging — these always go to the (toggleable) log panel
+  // and never to the chat events stream. The chat events stream is
+  // reserved for human-meaningful per-room activity (joins, leaves,
+  // message traffic) so connect-time noise and best-effort name
+  // lookups don't push the actual conversation off-screen.
+  const logDiag = useCallback(
     /** @param {string} text */
-    text => dispatch({ type: 'info', text }),
+    text =>
+      dispatch({ type: 'log', level: 'info', source: 'tui', text }),
     [],
   );
 
-  const logError = useCallback(
+  const logDiagError = useCallback(
     /**
      * @param {unknown} err
      * @param {string} [context]
@@ -239,7 +278,7 @@ export const useOcapnChat = ({
       const text = context
         ? `${context}: ${formatError(err)}`
         : formatError(err);
-      dispatch({ type: 'error', text });
+      dispatch({ type: 'log', level: 'error', source: 'tui', text });
     },
     [],
   );
@@ -270,17 +309,71 @@ export const useOcapnChat = ({
             user,
             name: '<unknown user>',
           });
-          logError(err, 'failed to resolve user name');
+          logDiagError(err, 'failed to resolve user name');
         });
     },
-    [logError],
+    [logDiagError],
   );
 
+  const setPhase = useCallback(
+    /** @param {Phase} phase */
+    phase => dispatch({ type: 'set-phase', phase }),
+    [],
+  );
+
+  const teardownSession = useCallback(() => {
+    const { client, channel, unsubscribe } = sessionRef.current;
+    // Best-effort polite leave so the remote chatroom hears us go.
+    // Each call is independently try/caught because any one failing
+    // (e.g. the channel is already closed) shouldn't skip the others.
+    if (unsubscribe) {
+      try {
+        E(unsubscribe)().catch(() => undefined);
+      } catch (_) {
+        // ignore
+      }
+    }
+    if (channel) {
+      try {
+        E(channel)
+          .leave()
+          .catch(() => undefined);
+      } catch (_) {
+        // ignore
+      }
+    }
+    if (client) {
+      try {
+        client.shutdown();
+      } catch (err) {
+        logDiagError(err, 'shutdown');
+      }
+    }
+    sessionRef.current.client = undefined;
+    sessionRef.current.channel = undefined;
+    sessionRef.current.unsubscribe = undefined;
+    sessionRef.current.selfUser = undefined;
+    sessionRef.current.activeName = undefined;
+    sessionRef.current.pendingNames = new WeakSet();
+  }, [logDiagError]);
+
+  const leaveRoom = useCallback(() => {
+    teardownSession();
+    dispatch({ type: 'reset-room' });
+    dispatch({ type: 'set-phase', phase: 'menu' });
+    dispatch({ type: 'set-status', status: 'main menu' });
+  }, [teardownSession]);
+
   const joinRoom = useCallback(
-    /** @param {string} uri */
-    async uri => {
+    /** @param {{ uri: string, name: string }} args */
+    async ({ uri, name }) => {
       await null;
       try {
+        // Tear down any prior session before standing up a new one.
+        // Without this, repeatedly joining different rooms would leak
+        // websockets and clients per visit.
+        teardownSession();
+
         dispatch({ type: 'reset-room' });
         dispatch({ type: 'set-phase', phase: 'connecting' });
         dispatch({ type: 'set-status', status: 'parsing URI…' });
@@ -290,7 +383,7 @@ export const useOcapnChat = ({
             'URI does not include a swiss number (expected ocapn://…/s/<base64url-swiss>)',
           );
         }
-        logInfo(
+        logDiag(
           `parsed ${kind} URI: transport=${location.transport} designator=${location.designator} swissNum=${formatSwissnumForLog(swissNum)}`,
         );
 
@@ -314,23 +407,28 @@ export const useOcapnChat = ({
         );
 
         dispatch({ type: 'set-status', status: 'enlivening sturdyref…' });
-        
+
         const sref = client.makeSturdyRef(location, swissNum);
         const chatroom = await client.enlivenSturdyRef(sref);
 
         dispatch({ type: 'set-status', status: 'fetching room name…' });
+        /** @type {string | undefined} */
+        let resolvedRoomName;
         try {
           const roomName = await E(chatroom)['self-proposed-name']();
           if (typeof roomName === 'string') {
+            resolvedRoomName = roomName;
             dispatch({ type: 'set-room', roomName });
           }
         } catch (err) {
-          logError(err, 'self-proposed-name');
+          logDiagError(err, 'self-proposed-name');
         }
 
         dispatch({ type: 'set-status', status: 'joining room…' });
-        const { user: selfUser, userController } = makeUserControllerPair(name);
+        const { user: selfUser, userController } =
+          makeUserControllerPair(name);
         sessionRef.current.selfUser = selfUser;
+        sessionRef.current.activeName = name;
         const channel = await E(userController)['join-room'](chatroom);
         sessionRef.current.channel = channel;
 
@@ -339,16 +437,17 @@ export const useOcapnChat = ({
         // implementations (e.g. Spritely Goblins) likewise echo
         // `user-joined`/`user-left` back at the actor that triggered
         // them. We render those events optimistically (in `sendMessage`
-        // for messages; the lobby→chat phase transition implicitly
-        // covers our own join), so the echo would show up as a duplicate
-        // if we didn't filter it out here.
+        // for messages; the menu→chat phase transition implicitly
+        // covers our own join), so the echo would show up as a
+        // duplicate if we didn't filter it out here.
         //
         // Identity check: when our own `user` Far is sent out and comes
-        // back, Endo's CapTP canonicalises the inbound reference back to
-        // the original local Far, so `===` is a sound test for "this is
-        // me". We compare against `sessionRef.current.selfUser` (rather
-        // than closing over `selfUser`) so that a future `joinRoom` call
-        // with a fresh user-controller pair uses the new identity.
+        // back, Endo's CapTP canonicalises the inbound reference back
+        // to the original local Far, so `===` is a sound test for
+        // "this is me". We compare against `sessionRef.current.selfUser`
+        // (rather than closing over `selfUser`) so that a future
+        // `joinRoom` call with a fresh user-controller pair uses the
+        // new identity.
         const isSelf = candidate =>
           candidate === sessionRef.current.selfUser;
 
@@ -395,7 +494,7 @@ export const useOcapnChat = ({
             }
           }
         } catch (err) {
-          logError(err, 'list-users');
+          logDiagError(err, 'list-users');
         }
 
         dispatch({ type: 'set-phase', phase: 'chat' });
@@ -403,63 +502,67 @@ export const useOcapnChat = ({
           type: 'set-status',
           status: `connected as ${name}`,
         });
+
+        if (onJoined) {
+          try {
+            onJoined({ uri, roomName: resolvedRoomName });
+          } catch (err) {
+            logDiagError(err, 'onJoined');
+          }
+        }
       } catch (err) {
-        logError(err, 'joinRoom');
-        dispatch({ type: 'set-status', status: 'connect failed — try again' });
-        dispatch({ type: 'set-phase', phase: 'lobby' });
+        // Connect-failure flow: details land in the log panel (so
+        // toggling Ctrl+L shows the actual exception), and the status
+        // line carries the user-facing message so the menu indicates
+        // *something* went wrong even with the log hidden. We
+        // deliberately don't push an `error` event into the chat
+        // stream — that stream is reserved for real per-room activity.
+        logDiagError(err, 'joinRoom');
+        dispatch({
+          type: 'set-status',
+          status: 'connect failed — try again',
+        });
+        dispatch({ type: 'set-phase', phase: 'menu' });
       }
     },
-    [name, captpVersion, verbose, logSink, logError, logInfo, kickResolveName],
+    [
+      captpVersion,
+      verbose,
+      logSink,
+      logDiag,
+      logDiagError,
+      kickResolveName,
+      teardownSession,
+      onJoined,
+    ],
   );
 
   const sendMessage = useCallback(
     /** @param {string} text */
     async text => {
       await null;
-      const { channel } = sessionRef.current;
+      const { channel, activeName } = sessionRef.current;
       if (!channel) {
-        logError(Error('no channel'));
+        logDiagError(Error('no channel'));
         return;
       }
       try {
         await E(channel)['send-message'](text);
-        dispatch({ type: 'message-sent', name, text });
+        dispatch({
+          type: 'message-sent',
+          name: activeName ?? '<self>',
+          text,
+        });
       } catch (err) {
-        logError(err, 'send-message');
+        logDiagError(err, 'send-message');
       }
     },
-    [name, logError],
+    [logDiagError],
   );
 
   const shutdown = useCallback(() => {
-    const { client, channel, unsubscribe } = sessionRef.current;
-    // Best-effort polite leave so the remote chatroom hears us go.
-    // Each call is independently try/caught because any one failing
-    // (e.g. the channel is already closed) shouldn't skip the others.
-    if (unsubscribe) {
-      try {
-        E(unsubscribe)().catch(() => undefined);
-      } catch (_) {
-        // ignore
-      }
-    }
-    if (channel) {
-      try {
-        E(channel)
-          .leave()
-          .catch(() => undefined);
-      } catch (_) {
-        // ignore
-      }
-    }
-    if (client) {
-      try {
-        client.shutdown();
-      } catch (err) {
-        logError(err, 'shutdown');
-      }
-    }
-  }, [logError]);
+    teardownSession();
+  }, [teardownSession]);
 
   // Install the polite-shutdown into the module-level handle so signal
   // handlers in the entrypoint can invoke the same teardown as the
@@ -472,5 +575,12 @@ export const useOcapnChat = ({
     };
   }, [shutdown]);
 
-  return { state, joinRoom, sendMessage, shutdown };
+  return {
+    state,
+    joinRoom,
+    sendMessage,
+    leaveRoom,
+    setPhase,
+    shutdown,
+  };
 };

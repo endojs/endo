@@ -780,6 +780,30 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/goblin-chat@workspace:^, @endo/goblin-chat@workspace:packages/goblin-chat":
+  version: 0.0.0-use.local
+  resolution: "@endo/goblin-chat@workspace:packages/goblin-chat"
+  dependencies:
+    "@endo/eventual-send": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/marshal": "workspace:^"
+    "@endo/ocapn": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@types/react": "npm:^19.2.0"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ink: "npm:^7.0.1"
+    react: "npm:^19.2.0"
+    ses: "workspace:^"
+    tsd: "catalog:dev"
+    typescript: "catalog:dev"
+  bin:
+    goblin-chat: ./bin/goblin-chat.js
+  languageName: unknown
+  linkType: soft
+
 "@endo/harden@workspace:^, @endo/harden@workspace:packages/harden":
   version: 0.0.0-use.local
   resolution: "@endo/harden@workspace:packages/harden"
@@ -976,11 +1000,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/ocapn@workspace:packages/ocapn":
+"@endo/ocapn@workspace:^, @endo/ocapn@workspace:packages/ocapn":
   version: 0.0.0-use.local
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
     "@endo/eventual-send": "workspace:^"
+    "@endo/goblin-chat": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
@@ -991,13 +1016,10 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     "@noble/curves": "npm:^1.9.0"
     "@noble/hashes": "npm:^1.8.0"
-    "@types/react": "npm:^19.2.0"
     "@types/ws": "npm:^8"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ink: "npm:^7.0.1"
-    react: "npm:^19.2.0"
     ses: "workspace:^"
     tsd: "catalog:dev"
     typescript: "catalog:dev"

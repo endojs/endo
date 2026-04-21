@@ -14,11 +14,11 @@ import '@endo/init';
 import { Buffer } from 'buffer';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
+import { makeUserControllerPair } from '@endo/goblin-chat';
 import { makeWebSocketNetLayer } from '../../src/netlayers/websocket.js';
 import { makeClient } from '../../src/client/index.js';
 import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
 import { encodeSwissnum } from '../../src/client/util.js';
-import { makeUserControllerPair } from './backend.js';
 
 const DEFAULT_PORT = 0;
 const DEFAULT_CAPTP_VERSION = 'goblins-0.16';
