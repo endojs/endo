@@ -9,6 +9,17 @@
  * selectors Goblins sends over CapTP; the Endo OCapN dispatcher coerces
  * incoming selector symbols to string method names.
  *
+ * The aim of this port is to be observably **bit-for-bit equivalent** to
+ * upstream `(goblin-chat backend)` over the wire. Where upstream has
+ * documented quirks or outright bugs (e.g. `list-users` is a no-op, the
+ * `unsubscribe` thunk dangles, the join backfill echoes the joiner back
+ * to themselves), we mirror them rather than "fix" them — interop tests
+ * are easier when both peers agree on how things misbehave. Each such
+ * site is called out with a "Bit-for-bit with Guile" comment.
+ *
+ * Source compared against:
+ *   https://codeberg.org/spritely/goblin-chat/raw/branch/main/goblin-chat/backend.scm
+ *
  * Original copyright, carried over since this is a direct port:
  *   Copyright 2023 Jessica Tallon
  *   Copyright 2020-2022 Christine Lemmer-Webber
@@ -62,29 +73,45 @@ export const makeChatroom = selfProposedName => {
    * One of these is handed back to each user after their subscription is
    * finalized. It's the capability they use to speak in the room.
    *
+   * Mirrors the Guile `^user-messaging-channel`: on `leave` the actor
+   * `bcom`s into a `dead-beh` that returns the symbol `'CONNECTION-CLOSED`
+   * for any subsequent invocation. We approximate that here by flipping
+   * an `alive` flag and short-circuiting each known selector to the
+   * string `'CONNECTION-CLOSED'`. (We can't intercept *unknown*
+   * selectors short of using a Proxy, which Far doesn't compose with;
+   * for the protocol's documented surface this is equivalent.)
+   *
    * @param {any} associatedUser
    * @param {any} _userInbox
    */
   const makeUserMessagingChannel = (associatedUser, _userInbox) => {
     let alive = true;
-    const requireAlive = () => {
-      if (!alive) throw Error('CONNECTION-CLOSED');
-    };
+    const dead = () => 'CONNECTION-CLOSED';
     return Far('user-messaging-channel', {
       leave: () => {
-        requireAlive();
+        if (!alive) return dead();
         subscribers.delete(associatedUser);
         sendToSubscribers('user-left', associatedUser);
         alive = false;
+        // Guile's `(bcom dead-beh)` evaluates to unspecified; the leave
+        // call itself returns nothing meaningful (only subsequent calls
+        // see the dead behavior).
+        return undefined;
       },
       'send-message': sealedMsg => {
-        requireAlive();
+        if (!alive) return dead();
         sendToSubscribers('new-message', associatedUser, sealedMsg);
         return 'OK';
       },
       'list-users': () => {
-        requireAlive();
-        return [...subscribers.keys()];
+        if (!alive) return dead();
+        // Bug-for-bug with upstream: Guile uses `ghash-for-each` here
+        // (iteration-for-side-effect) with a TODO note "add 'keys to
+        // ^ghash". The lambda body produces the user, but `for-each`
+        // discards it, so the call resolves to unspecified. We mirror
+        // that — walk the keys, return nothing.
+        Array.from(subscribers.keys());
+        return undefined;
       },
     });
   };
@@ -109,11 +136,15 @@ export const makeChatroom = selfProposedName => {
       sendToSubscribers('user-joined', associatedUser);
       // subscribe the new user
       subscribers.set(associatedUser, userInbox);
-      // backfill: tell the new user about everyone already present
+      // Backfill: tell the new user about everyone already present.
+      //
+      // Bit-for-bit with Guile: the iteration runs over `subscribers`
+      // *after* the new user has been inserted, with no self-skip. So
+      // the joiner receives a `user-joined` echo of themselves as the
+      // last item in the backfill. The TUI handles the self-echo on
+      // its end.
       for (const presentUser of subscribers.keys()) {
-        if (presentUser !== associatedUser) {
-          E.sendOnly(userInbox)['user-joined'](presentUser);
-        }
+        E.sendOnly(userInbox)['user-joined'](presentUser);
       }
       return makeUserMessagingChannel(associatedUser, userInbox);
     });
@@ -162,10 +193,11 @@ export const makeUserControllerPair = selfProposedName => {
    * ^user-inbox
    *
    * The Guile version wards the controller-only methods (`revoke`,
-   * `subscribe`) behind an incanter so only the local controller can reach
-   * them. Here we keep the controller-only surface as a closed-over set of
-   * plain functions and only expose the public surface to the wire, which
-   * achieves the same access gate without the warden dance.
+   * `subscribe`) behind an incanter so only the local controller can
+   * reach them. We keep the same controller-only surface (and only
+   * those two methods, matching upstream) as a closed-over plain
+   * object, and expose only the public surface to the wire. Same
+   * access gate, no warden dance.
    *
    * @param {any} context
    */
@@ -203,6 +235,14 @@ export const makeUserControllerPair = selfProposedName => {
       context: () => context,
     });
 
+    // Bit-for-bit with Guile `controller-methods`: only `revoke` and
+    // `subscribe` exist on the controller surface. Upstream's
+    // `^unsubscribe` thunk reaches in for an `'unsubscribe` selector
+    // that has no implementation, so it errors at call time — we
+    // mirror that by leaving `unsubscribe` off the controller. The
+    // `^authenticated-channel.subscribe` path below still hands back
+    // the unsubscribe thunk so the on-the-wire shape matches; calling
+    // it just rejects, exactly as in Guile.
     const controller = Object.freeze({
       revoke: () => {
         revoked = true;
@@ -213,9 +253,6 @@ export const makeUserControllerPair = selfProposedName => {
           E.sendOnly(subscriber)['user-joined'](u);
         }
         return true;
-      },
-      unsubscribe: subscriber => {
-        inboxSubscribers.delete(subscriber);
       },
     });
 
@@ -242,7 +279,13 @@ export const makeUserControllerPair = selfProposedName => {
         inboxController.subscribe(subscriber);
         return [
           'OK',
-          Far('unsubscribe', () => inboxController.unsubscribe(subscriber)),
+          // Bit-for-bit with Guile: the thunk reaches for an
+          // `'unsubscribe` method on the inbox controller that the
+          // controller-methods table doesn't define. Calling it
+          // therefore rejects with "no such method", same as upstream.
+          Far('unsubscribe', () =>
+            /** @type {any} */ (inboxController).unsubscribe(subscriber),
+          ),
         ];
       },
       leave: () => E(roomChannel).leave(),

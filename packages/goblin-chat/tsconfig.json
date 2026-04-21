@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.eslint-base.json",
+  "include": [
+    "*.js",
+    "*.ts",
+    "bin",
+    "src",
+    "test"
+  ]
+}

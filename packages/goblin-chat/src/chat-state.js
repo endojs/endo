@@ -56,7 +56,15 @@ const MAX_LOGS = 500;
  *   text: string,
  * }} LogEntry
  *
- * @typedef {'lobby' | 'connecting' | 'chat'} Phase
+ * High-level UI phases. Roughly:
+ *   - `menu`         main menu (set name / join new / join previous)
+ *   - `name-input`   single-line text editor for the user's name
+ *   - `uri-input`    single-line text editor for an ocapn:// URI
+ *   - `recent-list`  list-picker over `recentRooms`
+ *   - `connecting`   joinRoom in flight, no input accepted
+ *   - `chat`         in a room, normal chat input
+ *
+ * @typedef {'menu' | 'name-input' | 'uri-input' | 'recent-list' | 'connecting' | 'chat'} Phase
  *
  * @typedef {{
  *   messages: ChatMessage[],
@@ -97,9 +105,9 @@ export const initialState = {
   nextId: 1,
   nextSeq: 1,
   nextLogId: 1,
-  status: 'idle — paste an ocapn:// sturdyref URI and press Enter',
+  status: 'main menu',
   roomName: undefined,
-  phase: 'lobby',
+  phase: 'menu',
 };
 
 /**

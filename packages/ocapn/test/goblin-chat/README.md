@@ -1,16 +1,19 @@
 # Goblin Chat interop utility
 
-Interop harness for Endo <-> Guile Goblins chatroom tests.
+Interop harness for Endo ↔ Guile Goblins chatroom tests.
+
+The user-facing chatroom client (Ink TUI) and the JS port of the
+Goblins `(goblin-chat backend)` module both live in
+[`@endo/goblin-chat`](../../../goblin-chat). This directory contains only
+the **interop harness** that drives the Endo client against a
+Guile-hosted sturdyref under CI.
 
 - `interop-client.scm` — Guile-hosted side. Uses Spritely's existing
-  `(goblin-chat backend)` implementation to host a room, registers it on the
-  websocket netlayer, and prints a sturdyref for Endo to join.
-- `index.js` — Endo client side. Accepts the Guile sturdyref URI, joins that
-  room, and verifies bilateral message flow.
-- `backend.js` — JavaScript port of `(goblin-chat backend)` used by the Endo
-  side to produce a Goblins-compatible user-controller/client surface.
-- `tui.js` — interactive [Ink](https://github.com/vadimdemedes/ink)
-  client that joins a remote chatroom from a pasted sturdyref URI.
+  `(goblin-chat backend)` implementation to host a room, registers it on
+  the websocket netlayer, and prints a sturdyref for Endo to join.
+- `index.js` — Endo client side. Accepts the Guile sturdyref URI, joins
+  that room (using `makeUserControllerPair` from `@endo/goblin-chat`),
+  and verifies bilateral message flow.
 
 ## Direction under test (current)
 
@@ -34,29 +37,22 @@ Environment knobs:
 - `OCAPN_INTEROP_ENDO_MESSAGE` (default: `hello from Endo OCapN`)
 - `OCAPN_TEST_PORT` (optional local Endo websocket bind; default ephemeral)
 
-## Join a chatroom from the TUI
+## Interactive client (TUI)
 
-Run the Ink TUI to join an existing chatroom (hosted by Goblins or by the
-Guile interop client) using the sturdyref URI it printed:
+For the human-driven TUI client (main menu, persistent settings,
+log panel, recent rooms), use the dedicated package:
 
 ```bash
-node ./packages/ocapn/test/goblin-chat/tui.js
+node ./packages/goblin-chat/bin/goblin-chat.js
 ```
 
-The TUI takes over the terminal (alt screen) and shows a single input
-box. Paste an `ocapn://…/s/<base64url-swiss>?url=ws://…` URI and press
-Enter to connect, then type messages and press Enter to send them.
-Errors and protocol diagnostics surface inline in the message log;
-`Ctrl+C` exits and restores the terminal.
-
-Environment overrides:
-
-- `OCAPN_TUI_NAME` — `self-proposed-name` for the local user
-  (default `endo-tui`).
-- `OCAPN_CAPTP_VERSION` — handshake CapTP version; default
-  `goblins-0.16` to interop with Spritely Goblins peers.
+See [`@endo/goblin-chat`](../../../goblin-chat/README.md) for keys and
+configuration.
 
 ## App-layer surface (matches Guile implementation)
+
+These are reproduced bit-for-bit by the JS port that lives in
+[`@endo/goblin-chat/backend`](../../../goblin-chat/src/backend.js):
 
 - `^chatroom`: `self-proposed-name`, `subscribe`.
 - `^user`: `self-proposed-name`, `get-chat-sealed?`, `get-chat-unsealer`,

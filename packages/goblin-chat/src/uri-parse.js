@@ -1,13 +1,13 @@
 // @ts-check
 
 /**
- * @import { OcapnLocation } from '../../src/codecs/components.js'
- * @import { SwissNum } from '../../src/client/types.js'
+ * @import { OcapnLocation } from '@endo/ocapn/src/codecs/components.js'
+ * @import { SwissNum } from '@endo/ocapn/src/client/types.js'
  */
 
 import { Buffer } from 'node:buffer';
 
-import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
+import { uint8ArrayToImmutableArrayBuffer } from '@endo/ocapn/src/buffer-utils.js';
 
 /**
  * Decode a base64url-encoded string (RFC 4648 §5) without padding into
