@@ -62,8 +62,7 @@ import { AnimatedLogo } from './src/animated-logo.js';
 const h = React.createElement;
 
 const DEFAULT_NAME = process.env.GOBLIN_CHAT_NAME || 'goblin-chatter';
-const DEFAULT_CAPTP_VERSION =
-  process.env.OCAPN_CAPTP_VERSION || '1.0'; // 'goblins-0.16';
+const DEFAULT_CAPTP_VERSION = process.env.OCAPN_CAPTP_VERSION || '1.0'; // 'goblins-0.16';
 
 // Height of the log panel when visible. Hidden by default; toggled
 // with Ctrl+L. Picked to be tall enough to read the most recent few
@@ -293,7 +292,11 @@ const RecentRoomsList = ({ recentRooms, selected }) => {
         : room.uri;
       return h(
         Text,
-        { key: `${room.uri}-${i}`, inverse: i === selected, wrap: 'truncate-end' },
+        {
+          key: `${room.uri}-${i}`,
+          inverse: i === selected,
+          wrap: 'truncate-end',
+        },
         `${cursor}${label}`,
       );
     }),
@@ -332,7 +335,11 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
   // The hook owns OCapN-side state. We hand it an `onJoined` callback
   // so successful joins push into our persisted recent-rooms list
   // without the hook having to know what a state-store is.
-  const onJoinedRef = useRef(/** @type {((args: { uri: string, roomName?: string }) => void) | undefined} */ (undefined));
+  const onJoinedRef = useRef(
+    /** @type {((args: { uri: string, roomName?: string }) => void) | undefined} */ (
+      undefined
+    ),
+  );
   const { state, joinRoom, sendMessage, leaveRoom, setPhase } = useGoblinChat({
     captpVersion: DEFAULT_CAPTP_VERSION,
     logSink,
@@ -443,7 +450,10 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
     switch (state.phase) {
       case 'menu': {
         if (key.upArrow) {
-          setMenuSelected(prev => (prev - 1 + BASE_MENU_ITEMS.length) % BASE_MENU_ITEMS.length);
+          setMenuSelected(
+            prev =>
+              (prev - 1 + BASE_MENU_ITEMS.length) % BASE_MENU_ITEMS.length,
+          );
           return;
         }
         if (key.downArrow) {
@@ -600,10 +610,8 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
   const phaseHints = {
     menu: '↑/↓ select • Enter activate • 1–4 quick • Ctrl+C quit',
     'name-input': 'type your name • Enter save • Esc cancel',
-    'uri-input':
-      'paste an ocapn://… URI • Enter join • Esc cancel',
-    'recent-list':
-      '↑/↓ select • Enter join • d delete • Esc back',
+    'uri-input': 'paste an ocapn://… URI • Enter join • Esc cancel',
+    'recent-list': '↑/↓ select • Enter join • d delete • Esc back',
     connecting: 'connecting…  • Ctrl+C cancel',
     chat: 'Enter send • Ctrl+C leave room',
   };

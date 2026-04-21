@@ -4,10 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import harden from '@endo/harden';
 
-import {
-  makeOcapnKeyPair,
-  makeOcapnPublicKey,
-} from '../cryptography.js';
+import { makeOcapnKeyPair, makeOcapnPublicKey } from '../cryptography.js';
 import {
   immutableArrayBufferToUint8Array,
   uint8ArrayToImmutableArrayBuffer,

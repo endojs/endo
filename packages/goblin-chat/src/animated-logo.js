@@ -48,12 +48,12 @@ const h = React.createElement;
 // The ASCII art. Carefully transcribed — single-quoted strings with
 // `\\` for backslash, `\'` for apostrophe; backticks pass through.
 const LOGO_LINES = [
-  '   )\\.-.      .-./(     /(,-.   .\')      .\'(   )\\  )\\          )\\.-.       .\'(     /`-.   .-,.-.,-. ',
-  ' ,\' ,-,_)   ,\'     )  ,\' _   ) ( /       \\  ) (  \\, /        ,\' ,-,_)  ,\') \\  )  ,\' _  \\  ) ,, ,. ( ',
-  '(  .   __  (  .-, (  (  \'-\' (   ))       ) (   ) \\ (        (  .   _  (  \'-\' (  (  \'-\' (  \\( |(  )/ ',
-  ' ) \'._\\ _)  ) \'._\\ )  )  _   )  )\'._.-.  \\  ) ( ( \\ \\        ) \'..\' )  ) .-.  )  )   _  )    ) \\    ',
-  '(  ,   (   (  ,   (  (  \'-\' /  (       )  ) \\  `.)/  )      (  ,   (  (  ,  ) \\ (  ,\' ) \\    \\ (    ',
-  ' )/\'._.\'    )/ ._.\'   )/._.\'    )/,__.\'    )/     \'.(        )/\'._.\'   )/    )/  )/    )/     )/    ',
+  "   )\\.-.      .-./(     /(,-.   .')      .'(   )\\  )\\          )\\.-.       .'(     /`-.   .-,.-.,-. ",
+  " ,' ,-,_)   ,'     )  ,' _   ) ( /       \\  ) (  \\, /        ,' ,-,_)  ,') \\  )  ,' _  \\  ) ,, ,. ( ",
+  "(  .   __  (  .-, (  (  '-' (   ))       ) (   ) \\ (        (  .   _  (  '-' (  (  '-' (  \\( |(  )/ ",
+  " ) '._\\ _)  ) '._\\ )  )  _   )  )'._.-.  \\  ) ( ( \\ \\        ) '..' )  ) .-.  )  )   _  )    ) \\    ",
+  "(  ,   (   (  ,   (  (  '-' /  (       )  ) \\  `.)/  )      (  ,   (  (  ,  ) \\ (  ,' ) \\    \\ (    ",
+  " )/'._.'    )/ ._.'   )/._.'    )/,__.'    )/     '.(        )/'._.'   )/    )/  )/    )/     )/    ",
 ];
 
 const LOGO_WIDTH = Math.max(...LOGO_LINES.map(l => l.length));
@@ -191,7 +191,8 @@ const cellColor = (x, y, t) => {
   // multiplier ranges 0.55..1.25 so empty cells (which we won't draw
   // anyway) sit cool, while dense centres of letters bloom.
   const density = DENSITY[y][x];
-  const fill = 0.30 + 0.10 * (1 - x / LOGO_WIDTH) + 0.06 * (1 - y / (LOGO_HEIGHT - 1));
+  const fill =
+    0.3 + 0.1 * (1 - x / LOGO_WIDTH) + 0.06 * (1 - y / (LOGO_HEIGHT - 1));
   const ambient = fill * (0.55 + 0.7 * density);
 
   // --- sparkle -------------------------------------------------------
@@ -207,7 +208,8 @@ const cellColor = (x, y, t) => {
   const sparkle = sparkleRaw > 0.985 ? (sparkleRaw - 0.985) * 60 : 0;
 
   // --- combine to lightness -----------------------------------------
-  let l = ambient + shimmer + breath + sweep1 * 0.55 + sweep2 * 0.30 + sparkle * 0.4;
+  let l =
+    ambient + shimmer + breath + sweep1 * 0.55 + sweep2 * 0.3 + sparkle * 0.4;
   if (l < 0.04) l = 0.04;
   if (l > 0.96) l = 0.96;
 
@@ -218,7 +220,7 @@ const cellColor = (x, y, t) => {
   // [0, 1).
   let hue =
     0.55 +
-    0.10 * (x / LOGO_WIDTH - 0.5) +
+    0.1 * (x / LOGO_WIDTH - 0.5) +
     0.05 * Math.sin(t * 0.25) -
     0.18 * sweep2;
   hue -= Math.floor(hue);
@@ -226,8 +228,8 @@ const cellColor = (x, y, t) => {
   // --- saturation ----------------------------------------------------
   // Spec highlight bleaches toward white; sparkle does too.
   const sat = Math.max(
-    0.10,
-    0.78 - 0.55 * sweep1 - 0.30 * sweep2 - 0.40 * sparkle,
+    0.1,
+    0.78 - 0.55 * sweep1 - 0.3 * sweep2 - 0.4 * sparkle,
   );
 
   const [r, g, b] = hslToRgb(hue, sat, l);
