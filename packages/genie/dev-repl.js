@@ -14,8 +14,13 @@
  * a readline-based interactive loop.
  *
  * Usage:
- *   node dev-repl.js [-m provider/modelId] [-w /path] [--no-tools] [-v] [-s substring|fts5]
+ *   node dev-repl.js [-m provider/modelId] [-w /path] [--no-tools] [-v] [-s substring|fts5] [--quiet-background]
  *   node dev-repl.js -c "prompt text" [-m provider/modelId] [-w /path]
+ *
+ * Flags:
+ *   --quiet-background   Suppress automatic observer/reflector event
+ *                        output in the REPL (use the `.background on`
+ *                        dot-command to re-enable at runtime).
  *
  * Environment:
  *   ${provider}_API_KEY — Required by some providers
@@ -26,7 +31,8 @@
 import '@endo/init/debug.js';
 
 import { createRequire } from 'module';
-import { createInterface } from 'readline';
+import readline, { createInterface } from 'readline';
+/** @import { Interface as ReadlineInterface } from 'readline' */
 
 // eslint-disable-next-line import/no-unresolved
 import {
@@ -91,6 +97,225 @@ const YELLOW = '\x1b[33m';
 const MAGENTA = '\x1b[35m';
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
+
+// ---------------------------------------------------------------------------
+// Background sub-agent event printer
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {string} s
+ * @param {number} [n]
+ * @returns {string}
+ */
+const truncatePreview = (s, n = 80) => {
+  if (!s) return '';
+  return s.length > n ? `${s.slice(0, n)}…` : s;
+};
+
+/**
+ * Render a single `ChatEvent` from a sub-agent (observer / reflector)
+ * into a single-line preview terminated with `\n`, prefixed with a
+ * dim `[label]` tag so the user can tell which sub-agent emitted it.
+ *
+ * Streaming deltas (`assistant_delta`, `thinking_delta`) and the echoed
+ * `UserMessage` are intentionally dropped — only high-signal events
+ * show up in the background stream.
+ *
+ * @param {ChatEvent} event
+ * @param {string} label
+ * @returns {string} Rendered chunk (may be empty).
+ */
+const renderBackgroundEvent = (event, label) => {
+  const prefix = `${DIM}[${label}]${RESET} `;
+  switch (event.type) {
+    case 'ToolCallStart': {
+      let argsPreview = '(…)';
+      try {
+        argsPreview = truncatePreview(JSON.stringify(event.args), 80);
+      } catch {
+      }
+      return `${prefix}${YELLOW}⚡ ${event.toolName}${RESET} ${DIM}${argsPreview}${RESET}\n`;
+    }
+    case 'ToolCallEnd': {
+      if ('error' in event) {
+        return `${prefix}${RED}✗ failed: ${event.error}${RESET}\n`;
+      }
+      return `${prefix}${GREEN}✓ done${RESET}\n`;
+    }
+    case 'Thinking': {
+      if (event.redacted) {
+        return `${prefix}${DIM}${ITALIC}${MAGENTA}💭 (thinking redacted)${RESET}\n`;
+      }
+      if (event.role === 'thinking') {
+        return `${prefix}${DIM}${ITALIC}${MAGENTA}💭 ${truncatePreview(event.content, 120)}${RESET}\n`;
+      }
+      return '';
+    }
+    case 'Message': {
+      if (event.role === 'assistant' && event.content) {
+        return `${prefix}${BOLD}${CYAN}${label}>${RESET} ${event.content}\n`;
+      }
+      return '';
+    }
+    case 'Error': {
+      return `${prefix}${RED}[error] ${event.message} — ${event.cause}${RESET}\n`;
+    }
+    case 'UserMessage':
+      // Sub-agent prompts are noisy and duplicate the outer context — skip.
+      return '';
+    default:
+      return '';
+  }
+};
+
+/**
+ * @typedef {object} BackgroundPrinterOptions
+ * @property {ReadlineInterface} [rl] - Optional readline
+ *   interface used to clear & redraw the prompt when events print
+ *   while the user is idle at the prompt.
+ * @property {boolean} [quiet] - Start in "quiet" mode (events are
+ *   silently dropped rather than printed).  Can be toggled at runtime
+ *   via `setQuiet()`.
+ */
+
+/**
+ * @typedef {object} BackgroundPrinter
+ * @property {() => void} setBusy - Transition to "busy" state.
+ *   Events arriving from now on are queued instead of printed.
+ * @property {() => void} setIdle - Transition to "idle" state and
+ *   flush any queued events.
+ * @property {(q: boolean) => void} setQuiet - Toggle quiet mode.
+ * @property {() => boolean} isQuiet - Current quiet-mode flag.
+ * @property {(label: string) => void} mute - Temporarily drop events
+ *   for the given label (used when a dot-command is driving the
+ *   sub-agent's stream directly, to avoid duplicate output).
+ * @property {(label: string) => void} unmute - Resume forwarding
+ *   events for the given label.
+ * @property {(subagent: { subscribe: (handler: (event: ChatEvent) => void) => () => void }, label: string) => () => void} subscribe
+ *   - Subscribe to a sub-agent's event stream under the given label,
+ *   returning an unsubscribe function.
+ */
+
+/**
+ * Create a background-event printer that routes observer / reflector
+ * events to stdout with readline-aware coexistence.
+ *
+ * See `TADA/53_genie_obs_bg_stream.md` § "Design notes"; briefly:
+ * - `idle` — the REPL is waiting at the readline prompt.
+ *   Events print inline: we clear the current prompt line, write the event
+ *   preview, then ask readline to redraw the prompt (preserving any
+ *   partially-typed input).
+ * - `busy` — the main agent is streaming or a dot-command is actively
+ *   rendering output.  Events are queued and flushed when the REPL returns to
+ *   idle.
+ *
+ * A `mute(label)` hook lets the REPL suppress a sub-agent's background output
+  * while a caller-driven dot-command is consuming the same events via the
+  * returned iterable — otherwise the user would see them twice.
+ *
+ * @param {BackgroundPrinterOptions} [options]
+ * @returns {BackgroundPrinter}
+ */
+const makeBackgroundPrinter = ({ rl, quiet = false } = {}) => {
+  /** @type {'idle' | 'busy'} */
+  let state = 'busy'; // start busy until the REPL signals idle
+
+  /** @type {Set<string>} */
+  const muted = new Set();
+
+  /** @type {Array<{ label: string, event: ChatEvent }>} */
+  const queue = [];
+
+  /**
+   * Redraw the readline prompt + input buffer after writing background text.
+   * Uses `_refreshLine()` when available
+   * (private but widely used in Node REPL tooling)
+   * and falls back to `rl.prompt(true)` otherwise.
+   */
+  const refreshPrompt = () => {
+    if (!rl) return;
+    /** @type {any} */
+    const anyRl = rl;
+    if (typeof anyRl._refreshLine === 'function') {
+      anyRl._refreshLine();
+    } else {
+      rl.prompt(true);
+    }
+  };
+
+  /**
+   * Write background text to stdout,
+   * taking care not to corrupt the readline prompt line.
+   * In idle state we pause readline,
+   * clear the current line, write the text,
+   * resume readline, and redraw the prompt.
+   * In busy state we just append to stdout —
+   * the consumer has already set that state,
+   * so nothing is being drawn below.
+   *
+   * @param {string} text
+   */
+  const writeChunks = text => {
+    if (!text) return;
+    if (rl && state === 'idle') {
+      rl.pause();
+      readline.cursorTo(process.stdout, 0);
+      readline.clearLine(process.stdout, 0);
+      process.stdout.write(text);
+      rl.resume();
+      refreshPrompt();
+    } else {
+      process.stdout.write(text);
+    }
+  };
+
+  const flush = () => {
+    while (queue.length) {
+      const item = /** @type {{ label: string, event: ChatEvent }} */ (queue.shift());
+      if (muted.has(item.label)) continue;
+      const text = renderBackgroundEvent(item.event, item.label);
+      if (text) writeChunks(text);
+    }
+  };
+
+  /**
+   * @param {string} label
+   * @param {ChatEvent} event
+   */
+  const enqueue = (label, event) => {
+    if (quiet || muted.has(label)) return;
+    if (state === 'idle') {
+      const text = renderBackgroundEvent(event, label);
+      if (text) writeChunks(text);
+    } else {
+      queue.push({ label, event });
+    }
+  };
+
+  return harden({
+    setBusy: () => {
+      state = 'busy';
+    },
+    setIdle: () => {
+      state = 'idle';
+      flush();
+    },
+    setQuiet: q => {
+      quiet = q;
+    },
+    isQuiet: () => quiet,
+    mute: label => {
+      muted.add(label);
+    },
+    unmute: label => {
+      muted.delete(label);
+    },
+    subscribe: (subagent, label) => subagent.subscribe(
+      /** @param {ChatEvent} event */ event => enqueue(label, event),
+    ),
+  });
+};
+harden(makeBackgroundPrinter);
 
 // ---------------------------------------------------------------------------
 // Utilities
@@ -382,11 +607,12 @@ async function* runAgent({
     } else if (prompt === '.help') {
       // TODO eject
       yield `${DIM}Commands:${RESET}\n`;
-      yield `${DIM}  .exit      — quit the REPL${RESET}\n`;
-      yield `${DIM}  .clear     — clear conversation history${RESET}\n`;
-      yield `${DIM}  .tools     — list available tools${RESET}\n`;
-      yield `${DIM}  .help      — show this help${RESET}\n`;
-      yield `${DIM}  .heartbeat — run a heartbeat cycle${RESET}\n`;
+      yield `${DIM}  .exit                     — quit the REPL${RESET}\n`;
+      yield `${DIM}  .clear                    — clear conversation history${RESET}\n`;
+      yield `${DIM}  .tools                    — list available tools${RESET}\n`;
+      yield `${DIM}  .help                     — show this help${RESET}\n`;
+      yield `${DIM}  .heartbeat                — run a heartbeat cycle${RESET}\n`;
+      yield `${DIM}  .background on|off|status — toggle automatic sub-agent event printing${RESET}\n`;
 
     } else if (prompt === '.clear') {
       // TODO eject
@@ -431,8 +657,30 @@ async function* runAgent({
 // Readline prompt source
 // ---------------------------------------------------------------------------
 
-async function* readPrompts() {
-  const rl = createInterface({
+/**
+ * Async iterable of user prompts driven by a readline interface.
+ *
+ * Accepts optional `onIdle` / `onBusy` callbacks so the REPL can
+ * signal a background-event printer when it is safe to flush queued
+ * output (idle at the prompt) versus when events must be buffered
+ * (prompt in flight).
+ *
+ * @param {object} [options]
+ * @param {ReadlineInterface} [options.rl] - Externally
+ *   supplied readline interface.  If omitted, a default one is
+ *   created bound to stdin/stdout.
+ * @param {() => void} [options.onBusy] - Called after a prompt is
+ *   received but before it is yielded for processing.
+ * @param {() => void} [options.onIdle] - Called immediately before
+ *   each `await nextPrompt()` (i.e. when the REPL is about to wait
+ *   at the prompt).
+ */
+async function* readPrompts({
+  rl: providedRl,
+  onBusy,
+  onIdle,
+} = {}) {
+  const rl = providedRl || createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: `${BOLD}${GREEN}you>${RESET} `,
@@ -475,10 +723,12 @@ async function* readPrompts() {
     });
 
   for (; ;) {
+    if (onIdle) onIdle();
     const prompt = await nextPrompt();
     if (prompt === null) {
       break;
     }
+    if (onBusy) onBusy();
 
     // Pause readline while we process
     rl.pause();
@@ -497,6 +747,7 @@ async function* runMain(args) {
   const modelArg = getFlag(args, '--model', '-m');
   const noTools = hasFlag(args, '--no-tools');
   const verbose = hasFlag(args, '--verbose', '-v');
+  const quietBackground = hasFlag(args, '--quiet-background');
   const searchArg = getFlag(args, '--search', '-s') || 'substring';
 
   // Stabilise workspaceArg => workspaceDir,
@@ -669,11 +920,31 @@ async function* runMain(args) {
     yield* settle();
     yield `${DIM}Type your message and press Enter. Use Ctrl-C or type ".exit" to quit.${RESET}\n`;
     yield '\n';
+
+    // ── Background printer / subscriber wiring ─────────────────────
+    // The shared readline interface is owned by readPrompts but we
+    // create it here so the background printer can clear/redraw the
+    // prompt line when sub-agent events arrive while the user is
+    // idle at the prompt.
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: `${BOLD}${GREEN}you>${RESET} `,
+    });
+    const backgroundPrinter = makeBackgroundPrinter({
+      rl,
+      quiet: quietBackground,
+    });
+
     yield* runAgent({
       piAgent,
       tools,
       verbose,
-      prompts: readPrompts(),
+      prompts: readPrompts({
+        rl,
+        onIdle: backgroundPrinter.setIdle,
+        onBusy: backgroundPrinter.setBusy,
+      }),
       messages,
       specials: {
 
@@ -706,6 +977,26 @@ async function* runMain(args) {
             }
           } catch (err) {
             yield `${RED}Heartbeat failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+          }
+        },
+
+        background: async function*(tail) {
+          if (!backgroundPrinter) {
+            yield `${RED}background printer not available.${RESET}\n`;
+            return;
+          }
+          const arg = tail[0] ?? '';
+          if (arg === '' || arg === 'status') {
+            const state = backgroundPrinter.isQuiet() ? 'off' : 'on';
+            yield `${DIM}background event printing: ${state}.${RESET}\N`;
+          } else if (arg === 'on') {
+            backgroundPrinter.setQuiet(false);
+            yield `${DIM}background event printing: on.${RESET}\n`;
+          } else if (arg === 'off') {
+            backgroundPrinter.setQuiet(true);
+            yield `${DIM}background event printing: off.${RESET}\n`;
+          } else {
+            yield `${RED}usage: .background on|off|status${RESET}\n`;
           }
         },
 
