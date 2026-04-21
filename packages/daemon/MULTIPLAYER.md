@@ -119,7 +119,7 @@ yarn exec endo store --text "127.0.0.1:8940" --name tcp-listen-addr
 yarn exec endo make --UNCONFINED packages/daemon/src/networks/tcp-netstring.js --powers @agent --name network-service
 
 # Move to the networks directory
-yarn exec endo mv network-service NETS.tcp
+yarn exec endo mv network-service NETS/tcp
 ```
 
 After this step, each daemon listens on an ephemeral TCP port and includes
@@ -244,13 +244,7 @@ First, create a value to share. In Alice's chat:
 /js 'Hello, World!'
 ```
 
-Save the result as `greeting` when prompted, or use:
-
-```
-/js
-```
-
-with source `'Hello, World!'` and save the result name as `greeting`.
+Save the result as `greeting` when prompted.
 
 Then send it:
 
@@ -343,7 +337,7 @@ message in the inbox and use the reply action, or compose a new message to
 3. **Accept**: The acceptor registers the inviter's peer info, resolves
    the remote invitation formula, and exchanges host handle IDs
 4. **CapTP Session**: A persistent CapTP session carries all subsequent
-   E() calls between the daemons
+   `E()` calls between the daemons
 
 ### Formula IDs Across Nodes
 
@@ -401,15 +395,15 @@ The remote daemon may be unreachable. Check that:
 
 ## Chat Commands Reference
 
-| Command | Description |
-|---------|-------------|
-| `/network` | Enable TCP networking (module path + listen address) |
-| `/network-libp2p` | Enable libp2p networking (no open ports needed) |
-| `/invite` | Create an invitation for a peer (prints `endo://` locator) |
-| `/accept` | Accept an invitation locator and name the peer |
-| `/adopt` | Adopt a value from a received message |
-| `/request` | Send a request to a peer |
-| `/resolve` | Resolve a pending request with a value |
-| `/reject` | Reject a pending request |
-| `/show` | Inspect a value (works for remote values too) |
-| `/ls` | List names in inventory |
+| Command           | Description                                                |
+|-------------------|------------------------------------------------------------|
+| `/network`        | Enable TCP networking (module path + listen address)       |
+| `/network-libp2p` | Enable libp2p networking (no open ports needed)            |
+| `/invite`         | Create an invitation for a peer (prints `endo://` locator) |
+| `/accept`         | Accept an invitation locator and name the peer             |
+| `/adopt`          | Adopt a value from a received message                      |
+| `/request`        | Send a request to a peer                                   |
+| `/resolve`        | Resolve a pending request with a value                     |
+| `/reject`         | Reject a pending request                                   |
+| `/show`           | Inspect a value (works for remote values too)              |
+| `/ls`             | List names in inventory                                    |
