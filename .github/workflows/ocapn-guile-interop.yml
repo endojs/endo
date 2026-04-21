@@ -105,9 +105,10 @@ jobs:
           OCAPN_TEST_PORT=26804
           echo "OCAPN_TEST_PORT=$OCAPN_TEST_PORT" >> "$GITHUB_ENV"
 
-          timeout 300s guix shell --pure --no-grafts \
-            guile-fibers guile-websocket guile-gnutls guile-gcrypt -- \
-            env OCAPN_TEST_PORT="$OCAPN_TEST_PORT" GUILE_AUTO_COMPILE=0 \
+          OCAPN_TEST_PORT="$OCAPN_TEST_PORT" GUILE_AUTO_COMPILE=0 \
+            timeout 300s guix shell --pure --no-grafts \
+            --preserve='^OCAPN_TEST_PORT$|^GUILE_AUTO_COMPILE$' \
+            guile guile-fibers guile-websocket guile-gnutls guile-gcrypt -- \
             guile \
               -L "$FIBERS_OUT/share/guile/site/3.0" \
               -L "$WEBSOCKET_OUT/share/guile/site/3.0" \
