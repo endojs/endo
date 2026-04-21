@@ -4,8 +4,8 @@ name: OCapN Guile interop
 # as a client joining a Goblins (Guile)-hosted chatroom over the websocket netlayer.
 #
 # This currently targets Spritely git repos directly (both goblins + goblin-chat),
-# pinned by commit. At this stage we assert that session-establishment reaches the
-# websocket handshake and fails there (expected while handshake interop is in flight).
+# pinned by commit. The flow asserts full Guile-hosted/Endo-joined interoperability:
+# sturdyref publication, websocket session establishment, and bilateral message exchange.
 
 on:
   pull_request:
@@ -148,12 +148,18 @@ jobs:
           echo "ENDO_EXIT=$ENDO_EXIT" >> "$GITHUB_ENV"
           cat /tmp/endo-interop.log
 
-      - name: Assert expected websocket handshake-stage failure
+      - name: Assert interop success
         run: |
+          test "${ENDO_EXIT:-1}" -eq 0
           # Verify Guile host started and published a sturdyref.
           grep -q 'sturdyref: ocapn:' /tmp/guile-interop.log
-          # At this stage, we expect session-establishment/handshake errors.
-          grep -Eq 'Connection closed during handshake|Invalid location signature|CapTP version is incompatible|Websocket outgoing connection error|connect ECONNREFUSED' /tmp/endo-interop.log
+          grep -q 'interop-client: subscription ready' /tmp/guile-interop.log
+          grep -q 'interop-client: sent message, ack' /tmp/guile-interop.log
+          grep -q '\*\*\* Endo interop observer subscription ready' /tmp/endo-interop.log
+          grep -q '\*\*\* Endo interop sent message, ack =' /tmp/endo-interop.log
+          grep -q '\*\*\* Endo interop observer received message: hello from Guile CI' /tmp/endo-interop.log
+          grep -q '\*\*\* Endo interop observer received message: hello from Endo OCapN' /tmp/endo-interop.log
+          grep -q '\*\*\* Endo interop completed' /tmp/endo-interop.log
 
       - name: Show interop logs on failure
         if: failure()
