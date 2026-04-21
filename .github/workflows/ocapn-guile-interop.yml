@@ -160,11 +160,15 @@ jobs:
           grep -q 'sturdyref: ocapn:' /tmp/guile-interop.log
           grep -q 'interop-client: subscription ready' /tmp/guile-interop.log
           grep -q 'interop-client: sent message, ack' /tmp/guile-interop.log
-          grep -q '\*\*\* Endo interop observer subscription ready' /tmp/endo-interop.log
-          grep -q '\*\*\* Endo interop sent message, ack =' /tmp/endo-interop.log
-          grep -q '\*\*\* Endo interop observer received message: hello from Guile CI' /tmp/endo-interop.log
-          grep -q '\*\*\* Endo interop observer received message: hello from Endo OCapN' /tmp/endo-interop.log
-          grep -q '\*\*\* Endo interop completed' /tmp/endo-interop.log
+          # The Endo participant logs status via the shared
+          # `runChatParticipant` driver in @endo/goblin-chat, which prefixes
+          # each line with the participant name (`endo-interop-ocapn`). Use
+          # fixed-string matching so the brackets stay literal.
+          grep -Fq '*** [endo-interop-ocapn] subscription ready' /tmp/endo-interop.log
+          grep -Fq '*** [endo-interop-ocapn] sent message, ack =' /tmp/endo-interop.log
+          grep -Fq '*** [endo-interop-ocapn] interop observer received message: hello from Guile CI' /tmp/endo-interop.log
+          grep -Fq '*** [endo-interop-ocapn] interop observer received message: hello from Endo OCapN' /tmp/endo-interop.log
+          grep -Fq '*** Endo interop completed' /tmp/endo-interop.log
 
       - name: Show interop logs on failure
         if: failure()
