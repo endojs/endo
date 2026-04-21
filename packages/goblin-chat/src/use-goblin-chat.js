@@ -30,14 +30,17 @@
  * `shutdownHandle` for the raw-mode/`signal-exit` race-condition story.
  */
 
+/**
+ * @import { SwissNum } from '@endo/ocapn'
+ */
+
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 
 import { Buffer } from 'node:buffer';
 
-import { makeClient } from '@endo/ocapn/src/client/index.js';
-import { immutableArrayBufferToUint8Array } from '@endo/ocapn/src/buffer-utils.js';
+import { makeClient, swissnumToBytes } from '@endo/ocapn';
 import { makeWebSocketNetLayer } from '@endo/ocapn/src/netlayers/websocket.js';
 import { makeUserControllerPair } from './backend.js';
 import { parseOcapnUri } from './uri-parse.js';
@@ -66,11 +69,11 @@ const ASCII_DECODER = new TextDecoder('ascii');
  * as Latin-1 garbage like `ôr¤\`RB…`. We do the printable-ASCII check
  * ourselves now.
  *
- * @param {ArrayBufferLike} swissNum
+ * @param {SwissNum} swissNum
  * @returns {string}
  */
 const formatSwissnumForLog = swissNum => {
-  const bytes = immutableArrayBufferToUint8Array(swissNum);
+  const bytes = swissnumToBytes(swissNum);
   let allPrintable = bytes.length > 0;
   for (let i = 0; i < bytes.length; i += 1) {
     const c = bytes[i];

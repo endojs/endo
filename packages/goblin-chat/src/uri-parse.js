@@ -1,13 +1,12 @@
 // @ts-check
 
 /**
- * @import { OcapnLocation } from '@endo/ocapn/src/codecs/components.js'
- * @import { SwissNum } from '@endo/ocapn/src/client/types.js'
+ * @import { OcapnLocation, SwissNum } from '@endo/ocapn'
  */
 
 import { Buffer } from 'node:buffer';
 
-import { uint8ArrayToImmutableArrayBuffer } from '@endo/ocapn/src/buffer-utils.js';
+import { swissnumFromBytes } from '@endo/ocapn';
 
 /**
  * Decode a base64url-encoded string (RFC 4648 §5) without padding into
@@ -49,8 +48,7 @@ const decodeBase64UrlSwissnum = value => {
       `Sturdyref swiss-num is not a valid base64url encoding: ${value}`,
     );
   }
-  // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
-  return uint8ArrayToImmutableArrayBuffer(Uint8Array.from(buf));
+  return swissnumFromBytes(Uint8Array.from(buf));
 };
 
 /**

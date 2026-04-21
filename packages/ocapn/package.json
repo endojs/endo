@@ -19,11 +19,7 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./src/buffer-utils.js": "./src/buffer-utils.js",
-    "./src/client/index.js": "./src/client/index.js",
-    "./src/client/types.js": "./src/client/types.js",
-    "./src/client/util.js": "./src/client/util.js",
-    "./src/codecs/components.js": "./src/codecs/components.js",
+    "./src/netlayers/tcp-test-only.js": "./src/netlayers/tcp-test-only.js",
     "./src/netlayers/websocket.js": "./src/netlayers/websocket.js",
     "./package.json": "./package.json"
   },
