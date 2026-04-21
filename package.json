@@ -78,5 +78,8 @@
       "@lavamoat/preinstall-always-fail": false,
       "lerna>nx": false
     }
+  },
+  "resolutions": {
+    "@types/node@*": "20.19.39"
   }
 }
