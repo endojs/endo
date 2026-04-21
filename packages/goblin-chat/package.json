@@ -27,10 +27,12 @@
   "exports": {
     ".": "./api.js",
     "./backend": "./src/backend.js",
+    "./interop-driver": "./src/interop-driver.js",
     "./uri-parse": "./src/uri-parse.js",
     "./chat-state": "./src/chat-state.js",
     "./use-goblin-chat": "./src/use-goblin-chat.js",
     "./state-store": "./src/state-store.js",
+    "./src/interop-driver.js": "./src/interop-driver.js",
     "./package.json": "./package.json"
   },
   "bin": "./bin/goblin-chat.js",

@@ -1,8 +1,17 @@
 // @ts-check
-/* global process, setTimeout, clearTimeout */
+/* global process */
 
 /**
  * Endo interop client for a Guile-hosted Goblin Chat room.
+ *
+ * The exchange itself (join → subscribe → bilateral send/receive →
+ * verify) lives in `@endo/goblin-chat/interop-driver` (imported here
+ * via a relative path; see the import comment) so it can be shared
+ * with the all-JS self-interop test in
+ * `packages/goblin-chat/test/interop-self.test.js`. This script's job
+ * is just to stand up an Endo-side websocket netlayer, parse the
+ * Guile-printed sturdyref URI, enliven it, and hand the resulting
+ * `^chatroom` presence to that shared driver.
  */
 
 import '@endo/init';
@@ -12,9 +21,13 @@ import '@endo/init';
  */
 
 import { Buffer } from 'buffer';
-import { E } from '@endo/eventual-send';
-import { Far } from '@endo/marshal';
-import { makeUserControllerPair } from '@endo/goblin-chat';
+// Use the explicit `./src/...` subpath instead of the cleaner
+// `@endo/goblin-chat/interop-driver` shortcut: `eslint-plugin-import`'s
+// resolver in this repo doesn't consult the `exports` field, and
+// `import/no-relative-packages` rejects the equivalent `../../../`
+// relative form. The package.json mirrors this subpath in `exports`
+// so Node's runtime resolution agrees.
+import { runChatParticipant } from '@endo/goblin-chat/src/interop-driver.js';
 import { makeWebSocketNetLayer } from '../../src/netlayers/websocket.js';
 import { makeClient } from '../../src/client/index.js';
 import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
@@ -24,7 +37,6 @@ const DEFAULT_PORT = 0;
 const DEFAULT_CAPTP_VERSION = 'goblins-0.16';
 const DEFAULT_GUILE_MESSAGE = 'hello from Guile CI';
 const DEFAULT_ENDO_MESSAGE = 'hello from Endo OCapN';
-const DEFAULT_TIMEOUT_MS = 30000;
 
 /**
  * @param {string} value
@@ -92,78 +104,6 @@ const parseSturdyrefUri = uri => {
   };
 };
 
-/**
- * @param {any} chatroom
- * @param {string} expectedRemoteMessage
- * @param {string} localMessage
- */
-const startInteropOcapnClient = async (
-  chatroom,
-  expectedRemoteMessage,
-  localMessage,
-) => {
-  const { userController } = makeUserControllerPair('endo-interop-ocapn');
-  const channel = await E(userController)['join-room'](chatroom);
-
-  /** @type {(value?: unknown) => void} */
-  let resolveDone;
-  /** @type {(reason?: any) => void} */
-  let rejectDone;
-  const done = new Promise((resolve, reject) => {
-    resolveDone = resolve;
-    rejectDone = reject;
-  });
-  const timeout = setTimeout(() => {
-    rejectDone(
-      Error(`Timed out waiting for interop messages (${DEFAULT_TIMEOUT_MS}ms)`),
-    );
-  }, DEFAULT_TIMEOUT_MS);
-
-  /** @type {Set<string>} */
-  const seenMessages = new Set();
-  let sentLocalMessageAck = false;
-
-  const finishIfReady = () => {
-    if (
-      sentLocalMessageAck &&
-      seenMessages.has(expectedRemoteMessage) &&
-      seenMessages.has(localMessage)
-    ) {
-      console.log('*** Endo interop observer received both expected messages');
-      resolveDone(undefined);
-    }
-  };
-
-  const observer = Far('interop-observer', {
-    'new-message': (_context, _fromUser, message) => {
-      if (typeof message !== 'string') {
-        return;
-      }
-      console.log(`*** Endo interop observer received message: ${message}`);
-      seenMessages.add(message);
-      finishIfReady();
-    },
-    'user-joined': _user => undefined,
-    'user-left': _user => undefined,
-  });
-
-  const [status] = await E(channel).subscribe(observer);
-  if (status !== 'OK') {
-    throw Error(`Unexpected subscribe status: ${status}`);
-  }
-  console.log('*** Endo interop observer subscription ready');
-  const ack = await E(channel)['send-message'](localMessage);
-  sentLocalMessageAck = true;
-  console.log(`*** Endo interop sent message, ack = ${JSON.stringify(ack)}`);
-  finishIfReady();
-
-  try {
-    await done;
-  } finally {
-    clearTimeout(timeout);
-  }
-};
-
 const main = async () => {
   const sturdyrefUri = process.argv[2];
   if (!sturdyrefUri) {
@@ -186,7 +126,13 @@ const main = async () => {
     );
     const sturdyRef = client.makeSturdyRef(location, swissNum);
     const chatroom = await client.enlivenSturdyRef(sturdyRef);
-    await startInteropOcapnClient(chatroom, expectedGuileMessage, endoMessage);
+    await runChatParticipant({
+      chatroom,
+      name: 'endo-interop-ocapn',
+      localMessage: endoMessage,
+      expectedRemoteMessage: expectedGuileMessage,
+      log: line => console.log(`*** ${line}`),
+    });
     console.log('*** Endo interop completed');
   } finally {
     client.shutdown();

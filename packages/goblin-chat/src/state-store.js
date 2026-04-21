@@ -223,7 +223,7 @@ export const openStateStore = ({ filePath, onError } = {}) => {
     const updated = {
       uri,
       lastJoinedAt: now,
-      ...(displayName ?? existing?.displayName
+      ...((displayName ?? existing?.displayName)
         ? { displayName: displayName ?? existing?.displayName }
         : {}),
     };

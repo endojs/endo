@@ -264,8 +264,7 @@ export const useGoblinChat = ({
   // lookups don't push the actual conversation off-screen.
   const logDiag = useCallback(
     /** @param {string} text */
-    text =>
-      dispatch({ type: 'log', level: 'info', source: 'tui', text }),
+    text => dispatch({ type: 'log', level: 'info', source: 'tui', text }),
     [],
   );
 
@@ -425,8 +424,7 @@ export const useGoblinChat = ({
         }
 
         dispatch({ type: 'set-status', status: 'joining room…' });
-        const { user: selfUser, userController } =
-          makeUserControllerPair(name);
+        const { user: selfUser, userController } = makeUserControllerPair(name);
         sessionRef.current.selfUser = selfUser;
         sessionRef.current.activeName = name;
         const channel = await E(userController)['join-room'](chatroom);
@@ -448,8 +446,7 @@ export const useGoblinChat = ({
         // (rather than closing over `selfUser`) so that a future
         // `joinRoom` call with a fresh user-controller pair uses the
         // new identity.
-        const isSelf = candidate =>
-          candidate === sessionRef.current.selfUser;
+        const isSelf = candidate => candidate === sessionRef.current.selfUser;
 
         const observer = Far('tui-observer', {
           'new-message': (_context, fromUser, message) => {
