@@ -190,6 +190,20 @@ const makeModuleMapHook = (
           /** @type {FileUrlString} */
           (foreignCompartmentName || compartmentName);
 
+        // A passthrough wildcard like "./*": "./*" produces a pattern where
+        // the resolved path equals the original specifier in the same
+        // compartment — a self-referential no-op.  Returning it as a redirect
+        // would cause SES's memoized loader to await the in-flight Promise for
+        // this specifier from within that same Promise's resolution chain,
+        // deadlocking permanently.  Skip it and let importHook load the module
+        // directly from the filesystem instead.
+        if (
+          targetCompartmentName === compartmentName &&
+          resolvedPath === moduleSpecifier
+        ) {
+          return undefined;
+        }
+
         // Write back to moduleDescriptors for caching, archival, and
         // policy enforcement. The write-back must precede the policy
         // check because enforcePolicyByModule verifies the specifier
