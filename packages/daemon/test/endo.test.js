@@ -187,27 +187,34 @@ const doMakeBundle = async (host, filePath, callback) => {
   return result;
 };
 
-let configPathId = 0;
+/** @type {Map<string, number>} */
+const testNumbers = new Map();
 
 /**
  * @param {string} testTitle - The title of the current test.
- * @param {number} configNumber - The number of the current config. If this
- * is the n:th config created for the current test, the config number is n.
+ * @param {number} testConfigIndex - The 0-based index of this config, scoped to
+ * the current test.
+ * @returns {string} A unique directory name based on the inputs, with a suffix
+ * like `~${numberForTest}${alphabeticCounter`, e.g. "test-title~0000a".
  */
-const getConfigDirectoryName = (testTitle, configNumber) => {
-  const defaultPath = testTitle.replace(/\s/giu, '-').replace(/[^\w-]/giu, '');
+const getConfigDirectoryName = (testTitle, testConfigIndex) => {
+  const munged = testTitle.match(/\w+/gu)?.join('-') || '';
 
   // We truncate the subdirectory name to 30 characters in an attempt to respect
-  // the maximum Unix domain socket path length.
+  // the maximum Unix domain socket path length (`sockaddr_un` `sun_path`).
   // With our apologies to John Jacob Jingleheimerschmidt, for whom this may
   // not be enough.
-  const basePath =
-    defaultPath.length <= 22 ? defaultPath : defaultPath.slice(0, 22);
-  const testId = String(configPathId).padStart(4, '0');
-  const configId = String(configNumber).padStart(2, '0');
-  const configSubDirectory = `${basePath}#${testId}-${configId}`;
-
-  configPathId += 1;
+  if (!testNumbers.has(testTitle)) testNumbers.set(testTitle, testNumbers.size);
+  const testNumber = testNumbers.get(testTitle);
+  const nnnn = String(testNumber).padStart(4, '0');
+  if (!nnnn.match(/^[0-9]{4}$/)) {
+    throw Error('meta: time for five-digit test numbers?');
+  }
+  const letter = (testConfigIndex + 10).toString(36);
+  if (!letter.match(/^[a-z]$/)) {
+    throw Error('meta: time for two-letter suffixes?');
+  }
+  const configSubDirectory = `${munged.slice(0, 24)}~${nnnn}${letter}`;
 
   return configSubDirectory;
 };
