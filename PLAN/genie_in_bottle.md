@@ -530,12 +530,16 @@ is the first thing we run _over_ that edge.
 
 ### Phase 3: install story
 
+Phase 0's `bottle.sh evoke` already implements the bring-your-own-repo
+push mode (default `--install=push`) and the yarn-global alternative
+(`--install=yarn-global`); Phase 3 hardens the latter and picks a
+canonical install path we are willing to document to end users.
+
 - Validate `yarn global add github:endojs/endo#<rev>` in a clean
-  VM.
+  VM and record whether it links the `endo` bin without the
+  repo-root `"private": true` getting in the way.
 - Pick one of: workspace-root `bin`, npm publish, or
   bootstrap-clone script, and document the outcome.
-- Add the bring-your-own-repo push mode (SSH + `git push` into
-  the bottle account, remote `yarn install`).
 - Document in `packages/genie/README.md`.
 
 ### Phase 4: systemd user unit generator
