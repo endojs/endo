@@ -913,23 +913,58 @@ test('Division / Regex ambiguity', t => {
 });
 
 test('Keyword regex disambiguation', t => {
-  // Exercise regex detection after keywords that are expression
-  // punctuators: do, debugger, await, new, throw, catch.
+  // After each keyword that is (or can be followed by) an expression
+  // context, a '/' must start a RegExp literal — not a division. If
+  // the lexer misclassifies any of these, the require() that follows
+  // will be skipped (or parsing will throw). We assert that every
+  // require id is recovered, and that neither 'not-a-require' nor
+  // 'leaked' ever appear in the results.
   const source = `
-    do /regex1/g;
-    while (false);
-    debugger;/regex2/g;
-    async function f() { await /regex3/g; }
-    new /regex4/g;
-    try { throw /regex5/g; } catch (e) {}
-    catch (e) { /regex6/g; }
-    if (true) /regex7/g; else /regex8/g;
-    switch (x) { case /regex9/g: break; }
-    delete /regex10/g;
-    typeof /regex11/g;
-    x instanceof /regex12/g;
+    do /do/g; while (false); require('do');
+    debugger; /debugger/g; require('debugger');
+    async function f() {
+      await /await/g; require('await');
+    }
+    new /new/g(); require('new');
+    try { throw /throw/g; } catch (e) { require('throw'); }
+    switch (x) {
+      case /case/g: require('case'); break;
+      default: require('default');
+    }
+    if (true) { /if/g; require('if'); } else { require('else'); }
+    const a = typeof /typeof/g; require('typeof');
+    const b = delete /delete/g; require('delete');
+    const c = void /void/g; require('void');
+    const d = x instanceof /instanceof/g; require('instanceof');
+    const e = x in /in/g; require('in');
+    return /return/g; /* not-a-require */
   `;
-  t.assert(analyzeCommonJS(source));
+  const result = analyzeCommonJS(source);
+  const expected = [
+    'do',
+    'debugger',
+    'await',
+    'new',
+    'throw',
+    'case',
+    'default',
+    'if',
+    'else',
+    'typeof',
+    'delete',
+    'void',
+    'instanceof',
+    'in',
+  ];
+  t.deepEqual(
+    result.requires,
+    expected,
+    'every require() after a keyword-regex must be discovered',
+  );
+  t.false(
+    result.requires.includes('not-a-require'),
+    'commented-out text must not be reported as a require',
+  );
 });
 
 test('Template string expression ambiguity', t => {
