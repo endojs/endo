@@ -1,5 +1,6 @@
 import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
+import process from 'node:process';
 
 import { makeMessageBreakpointTester } from '../src/message-breakpoints.js';
 
