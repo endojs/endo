@@ -1,49 +1,41 @@
 #!/usr/bin/env bash
 # @endo/genie bottle shell recipe — Phase 0
 #
-# Stands up a throwaway Endo daemon, installs a network transport,
-# runs genie setup.js (Phase 0 fallback shape: the existing main-genie
-# path driven by GENIE_MODEL / GENIE_WORKSPACE env), and then issues
-# `endo invite owner` at the host level so the operator can attach
-# their own daemon via the matching `endo accept` flow.
+# Stands up an Endo daemon, installs a network transport, runs genie setup.js
+# (Phase 0 fallback shape: the existing main-genie path driven by GENIE_MODEL /
+# GENIE_WORKSPACE env), and then issues `endo invite owner` at the host level
+# so the operator can attach their own daemon via the matching `endo accept`
+# flow.
 #
-# This is the Phase 0 composition proof: everything is stitched from
-# primitives that already exist, so the later phases (R2 --owner flag,
-# R3 primordial genie, systemd unit, sd_notify, etc.) can replace
-# these pieces one at a time.  See PLAN/genie_in_bottle.md for the
-# surrounding design and TODO/81_genie_bottle_phase0_shell.md for the
-# scope that this script implements.
+# This is the Phase 0 composition proof: everything is stitched from primitives
+# that already exist, so the later phases (R2 --owner flag, R3 primordial
+# genie, systemd unit, sd_notify, etc.) can replace these pieces one at a time.
+# See PLAN/genie_in_bottle.md for the surrounding design and
+# TODO/81_genie_bottle_phase0_shell.md for the scope that this script
+# implements.
 #
 # Usage:
 #   ./packages/genie/scripts/bottle.sh [options]
 #
 # Options:
-#   --transport=(libp2p|tcp|both|tailscale|wireguard)
-#                       transport(s) to bring up.  Default: libp2p.
-#                       tailscale/wireguard are aliases for TCP on an
-#                       overlay IP.
-#   --workspace=<path>  genie workspace directory.  Default:
-#                       $XDG_DATA_HOME/endo/genie/workspace (falling
-#                       back to $HOME/.local/share/endo/genie/workspace).
-#   --state-dir=<path>  daemon state dir.  Default: a throwaway dir
-#                       under packages/genie/tmp/bottle-$$.
-#   --listen=<host:port> TCP listen address.  Default: 127.0.0.1:0
-#                       (OS-assigned ephemeral port).
+#   --transport=(libp2p|tcp|both)
+#                       transport(s) to bring up. Default: libp2p.
+#   --workspace=<path>  genie workspace directory.
+#                       Default: $XDG_DATA_HOME/endo/genie/workspace.
+#   --listen=<host:port> TCP listen address.
+#                        Default: 127.0.0.1:0 (OS-assigned ephemeral port).
 #   -E KEY=VAL          Set an environment variable.  Repeatable.
-#                       Mirrors test/integration.sh.
 #   -f <env-file>       Source a file of `export KEY=VAL` lines.
-#   --no-wait           Do not wait for the owner to attach; exit once
-#                       the invite locator has been emitted.
 #   --help              Show this help and exit 0.
 #
 # Required environment:
-#   GENIE_MODEL         LLM model spec, e.g. ollama/llama3.2.  (Phase 2
-#                       will let the owner hand model credentials in
-#                       over the invite edge instead; for Phase 0 we
-#                       still require it up front.)
+#   GENIE_MODEL         LLM model spec, e.g. ollama/llama3.2.
+#                       Phase 2 will let the owner hand model credentials in
+#                       over the invite edge instead; for Phase 0 we still
+#                       require it up front.
 #
 # Exit status:
-#   0  owner attached (or --no-wait and invite emitted)
+#   0  owner attached
 #   1  bad usage / prerequisites / transport turnup failed
 
 set -euo pipefail
@@ -62,7 +54,7 @@ DAEMON_PKG="$REPO_ROOT/packages/daemon"
 # ---------------------------------------------------------------------------
 
 usage() {
-  sed -n '3,46p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '3,40p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 # ---------------------------------------------------------------------------
@@ -71,9 +63,7 @@ usage() {
 
 TRANSPORT="libp2p"
 WORKSPACE_ARG=""
-STATE_DIR_ARG=""
 LISTEN_ADDR_ARG="127.0.0.1:0"
-WAIT_FOR_OWNER=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -105,17 +95,6 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
 
-    --state-dir=*)
-      STATE_DIR_ARG="${1#--state-dir=}"
-      shift
-      ;;
-
-    --state-dir)
-      shift
-      STATE_DIR_ARG="${1:-}"
-      shift
-      ;;
-
     --listen=*)
       LISTEN_ADDR_ARG="${1#--listen=}"
       shift
@@ -124,11 +103,6 @@ while [[ $# -gt 0 ]]; do
     --listen)
       shift
       LISTEN_ADDR_ARG="${1:-}"
-      shift
-      ;;
-
-    --no-wait)
-      WAIT_FOR_OWNER=0
       shift
       ;;
 
@@ -165,17 +139,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Normalize transport aliases.  tailscale/wireguard present as TCP with
-# an overlay IP — the operator is expected to supply a suitable --listen.
+# Normalize transport aliases.
+# the operator is expected to supply a suitable --listen.
 TRANSPORT_BANNER="$TRANSPORT"
 case "$TRANSPORT" in
-  libp2p|tcp|both) ;;
-  tailscale|wireguard)
+  libp2p|tcp|both)
     TRANSPORT_BANNER="$TRANSPORT (tcp over overlay)"
     TRANSPORT="tcp"
     ;;
   *)
-    echo "[bottle] ERROR: --transport must be one of libp2p|tcp|both|tailscale|wireguard (got '$TRANSPORT')." >&2
+    echo "[bottle] ERROR: --transport must be one of libp2p|tcp|both (got '$TRANSPORT')." >&2
     exit 1
     ;;
 esac
@@ -196,41 +169,20 @@ fi
 # Workspace and state directories
 # ---------------------------------------------------------------------------
 
-default_workspace() {
-  if [[ -n "${XDG_DATA_HOME:-}" ]]; then
-    echo "$XDG_DATA_HOME/endo/genie/workspace"
-  else
-    echo "$HOME/.local/share/endo/genie/workspace"
-  fi
-}
-
 if [[ -n "$WORKSPACE_ARG" ]]; then
   WORKSPACE="$WORKSPACE_ARG"
 elif [[ -n "${GENIE_WORKSPACE:-}" ]]; then
   WORKSPACE="$GENIE_WORKSPACE"
 else
-  WORKSPACE="$(default_workspace)"
+  WORKSPACE="${XDG_DATA_HOME:-$HOME/.local/share}/endo/genie/workspace"
   echo "[bottle] GENIE_WORKSPACE unset — using default $WORKSPACE" >&2
 fi
 
-if [[ -n "$STATE_DIR_ARG" ]]; then
-  STATE_DIR="$STATE_DIR_ARG"
-else
-  STATE_DIR="$PACKAGE_DIR/tmp/bottle-$$"
-fi
+mkdir -p "$WORKSPACE"
 
-mkdir -p "$STATE_DIR" "$WORKSPACE"
-
-# Isolated daemon environment, mirroring test/integration.sh:87–104.
-export ENDO_STATE_PATH="$STATE_DIR/state"
-export ENDO_EPHEMERAL_STATE_PATH="$STATE_DIR/run"
-export ENDO_SOCK_PATH="$STATE_DIR/endo.sock"
-export ENDO_CACHE_PATH="$STATE_DIR/cache"
 export ENDO_ADDR="$LISTEN_ADDR_ARG"
 export GENIE_WORKSPACE="$WORKSPACE"
 export GENIE_MODEL
-
-mkdir -p "$ENDO_STATE_PATH" "$ENDO_EPHEMERAL_STATE_PATH" "$ENDO_CACHE_PATH"
 
 PENDING_INVITE_FILE="$WORKSPACE/PENDING_OWNER_INVITE"
 
@@ -243,8 +195,6 @@ cat <<EOF
 === genie in a bottle (Phase 0) ===
  transport : $TRANSPORT_BANNER
  workspace : $WORKSPACE
- state dir : $STATE_DIR
- sock      : $ENDO_SOCK_PATH
  listen    : $ENDO_ADDR
  model     : $GENIE_MODEL
 ====================================
@@ -252,30 +202,10 @@ cat <<EOF
 EOF
 
 # ---------------------------------------------------------------------------
-# Cleanup trap — mirrors test/integration.sh:267–275.
-# ---------------------------------------------------------------------------
-
-cleanup() {
-  local exit_status=$?
-  echo "[bottle] Cleaning up..."
-  endo purge -f 2>/dev/null || true
-  # Kill leftover daemon-node processes tied to this state tree.
-  pkill -f "daemon-node.*$STATE_DIR" 2>/dev/null || true
-  # The state dir itself is always throwaway; the workspace is the
-  # operator's, so we leave it alone (except for PENDING_OWNER_INVITE,
-  # which is cleared once the owner attaches or we know we failed).
-  rm -rf "$STATE_DIR"
-  exit "$exit_status"
-}
-trap cleanup EXIT
-trap 'echo "[bottle] Interrupted."; exit 130' INT TERM
-
-# ---------------------------------------------------------------------------
 # Start daemon and wait for ping
 # ---------------------------------------------------------------------------
 
 echo "=== Phase 1: Start daemon ==="
-endo purge -f 2>/dev/null || true
 endo start
 
 echo "[bottle] Waiting for daemon to become ready..."
@@ -394,15 +324,6 @@ EOF
 # non-self locator.  Phase 5 ("sd_notify") replaces this with a real
 # readiness signal.
 # ---------------------------------------------------------------------------
-
-if [[ "$WAIT_FOR_OWNER" -ne 1 ]]; then
-  echo "[bottle] --no-wait set; leaving $PENDING_INVITE_FILE in place."
-  # The EXIT trap will still run, tearing down the daemon.  Tell the
-  # operator that's expected.
-  echo "[bottle] Daemon will be torn down on exit.  Re-run the script"
-  echo "         to re-issue an invite."
-  exit 0
-fi
 
 echo ""
 echo "=== Phase 5: Waiting for owner to attach ==="
