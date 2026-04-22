@@ -133,7 +133,11 @@ test('E.sendOnly function call', async t => {
     return n * 2;
   };
   const result = E.sendOnly(fn)(21);
-  t.is(result, undefined, 'sendOnly function call returns undefined');
+  t.is(
+    /** @type {unknown} */ (result),
+    undefined,
+    'sendOnly function call returns undefined',
+  );
   await null;
   t.true(called, 'sendOnly function call invokes the function');
 });

@@ -1,8 +1,19 @@
 import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
+import assert from 'node:assert';
 import process from 'node:process';
 
 import { makeMessageBreakpointTester } from '../src/message-breakpoints.js';
+
+/**
+ * @param {string} envVarName
+ * @returns {import('../src/message-breakpoints.js').MessageBreakpointTester}
+ */
+const requireTester = envVarName => {
+  const tester = makeMessageBreakpointTester(envVarName);
+  assert(tester, `tester for ${envVarName} must be defined`);
+  return tester;
+};
 
 test('returns undefined when env var is not set', t => {
   const tester = makeMessageBreakpointTester('NONEXISTENT_BP_OPTION');
@@ -15,7 +26,7 @@ test('returns tester when env var has valid JSON', t => {
     delete process.env.TEST_BP_VALID;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_VALID');
+  const tester = requireTester('TEST_BP_VALID');
   t.truthy(tester);
   t.is(typeof tester.getBreakpoints, 'function');
   t.is(typeof tester.setBreakpoints, 'function');
@@ -29,7 +40,7 @@ test('getBreakpoints returns the parsed breakpoints', t => {
     delete process.env.TEST_BP_GET;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_GET');
+  const tester = requireTester('TEST_BP_GET');
   t.deepEqual(tester.getBreakpoints(), bp);
 });
 
@@ -39,7 +50,7 @@ test('shouldBreakpoint matches exact tag and method', t => {
     delete process.env.TEST_BP_EXACT;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_EXACT');
+  const tester = requireTester('TEST_BP_EXACT');
 
   const recipient = { [Symbol.toStringTag]: 'Foo' };
   t.true(tester.shouldBreakpoint(recipient, 'bar'));
@@ -52,7 +63,7 @@ test('shouldBreakpoint strips Alleged: prefix from tag', t => {
     delete process.env.TEST_BP_ALLEGED;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_ALLEGED');
+  const tester = requireTester('TEST_BP_ALLEGED');
 
   const recipient = { [Symbol.toStringTag]: 'Alleged: Issuer' };
   t.true(tester.shouldBreakpoint(recipient, 'deposit'));
@@ -64,7 +75,7 @@ test('shouldBreakpoint strips DebugName: prefix from tag', t => {
     delete process.env.TEST_BP_DEBUG;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_DEBUG');
+  const tester = requireTester('TEST_BP_DEBUG');
 
   const recipient = { [Symbol.toStringTag]: 'DebugName: Purse' };
   t.true(tester.shouldBreakpoint(recipient, 'withdraw'));
@@ -76,7 +87,7 @@ test('shouldBreakpoint wildcard tag matches any recipient', t => {
     delete process.env.TEST_BP_WILD_TAG;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_WILD_TAG');
+  const tester = requireTester('TEST_BP_WILD_TAG');
 
   const recipient = { [Symbol.toStringTag]: 'Anything' };
   t.true(tester.shouldBreakpoint(recipient, 'doStuff'));
@@ -88,7 +99,7 @@ test('shouldBreakpoint wildcard method matches any method', t => {
     delete process.env.TEST_BP_WILD_METHOD;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_WILD_METHOD');
+  const tester = requireTester('TEST_BP_WILD_METHOD');
 
   const recipient = { [Symbol.toStringTag]: 'Foo' };
   t.true(tester.shouldBreakpoint(recipient, 'anyMethod'));
@@ -102,7 +113,7 @@ test('shouldBreakpoint countdown decrements then fires', t => {
     delete process.env.TEST_BP_COUNT;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_COUNT');
+  const tester = requireTester('TEST_BP_COUNT');
 
   const recipient = { [Symbol.toStringTag]: 'Foo' };
   t.false(tester.shouldBreakpoint(recipient, 'bar')); // 2 → 1
@@ -117,7 +128,7 @@ test('shouldBreakpoint returns false for undefined methodName', t => {
     delete process.env.TEST_BP_UNDEF;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_UNDEF');
+  const tester = requireTester('TEST_BP_UNDEF');
 
   const recipient = { [Symbol.toStringTag]: 'Foo' };
   t.false(tester.shouldBreakpoint(recipient, undefined));
@@ -129,7 +140,7 @@ test('shouldBreakpoint returns false for unmatched method', t => {
     delete process.env.TEST_BP_NOMATCH;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_NOMATCH');
+  const tester = requireTester('TEST_BP_NOMATCH');
 
   const recipient = { [Symbol.toStringTag]: 'Foo' };
   t.false(tester.shouldBreakpoint(recipient, 'notBar'));
@@ -141,7 +152,7 @@ test('setBreakpoints updates breakpoints', t => {
     delete process.env.TEST_BP_SET;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_SET');
+  const tester = requireTester('TEST_BP_SET');
 
   const recipientA = { [Symbol.toStringTag]: 'A' };
   const recipientB = { [Symbol.toStringTag]: 'B' };
@@ -162,7 +173,7 @@ test('shouldBreakpoint with countdown 0 fires immediately', t => {
     delete process.env.TEST_BP_ZERO;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_ZERO');
+  const tester = requireTester('TEST_BP_ZERO');
 
   const recipient = { [Symbol.toStringTag]: 'Foo' };
   t.true(tester.shouldBreakpoint(recipient, 'go'));
@@ -177,7 +188,7 @@ test('shouldBreakpoint falls back to wildcard tag when specific tag not found', 
     delete process.env.TEST_BP_FALLBACK;
   });
 
-  const tester = makeMessageBreakpointTester('TEST_BP_FALLBACK');
+  const tester = requireTester('TEST_BP_FALLBACK');
 
   const unknownRecipient = { [Symbol.toStringTag]: 'Unknown' };
   // Should fall back to '*' tag

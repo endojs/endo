@@ -11,11 +11,11 @@ test('passStyleOf recognizes immutable ArrayBuffer as byteArray', t => {
   view[2] = 0xbe;
   view[3] = 0xef;
   const immutable = harden(buf.sliceToImmutable());
-  t.is(passStyleOf(immutable), 'byteArray');
+  t.is(/** @type {string} */ (passStyleOf(immutable)), 'byteArray');
 });
 
 test('passStyleOf byteArray with empty buffer', t => {
   const buf = new ArrayBuffer(0);
   const immutable = harden(buf.sliceToImmutable());
-  t.is(passStyleOf(immutable), 'byteArray');
+  t.is(/** @type {string} */ (passStyleOf(immutable)), 'byteArray');
 });
