@@ -1,37 +1,43 @@
 _Note for future readers_:
-this document is the initial design for the "genie in a bottle" deployment
-story — a remote Endo daemon hosting a root `@endo/genie` agent with an
-invite-back path to the operator.
-It is derived from the sketch in `TODO/90_genie_in_bottle.md` plus research
-reported by the explore agents on 2026-04-21.
-No code has been written yet.
+this document is the design for the "genie in a bottle" deployment
+story — a remote Endo daemon hosting a root `@endo/genie` agent with
+an invite-back path to the operator.
+It was derived from the sketch in `TODO/90_genie_in_bottle.md` plus
+research reported by the explore agents on 2026-04-21, then revised
+2026-04-22 after the open-questions round of human feedback.
+No code has been written yet;
+see [§ Implementation phases](#implementation-phases) for the
+ordered backlog.
 
 # Genie in a Bottle: Remote Daemon + Root Genie Deployment
 
 ## Goal
 
 Stand up `@endo/genie` on an arbitrary SSH-accessible host (bare metal,
-systemd capsule, container, or micro-VM) with the smallest number of
-user-visible steps and have the operator's own daemon linked back via an
-invite/accept handshake.
+alternate local user, systemd capsule, container, or micro-VM) with
+the smallest number of user-visible steps and have the operator's own
+daemon linked back via an invite/accept handshake.
 
-"Genie in a bottle" = one daemon per host, with a single root genie agent
-that fully owns it, and a CapTP edge from that daemon back to the
-operator's local daemon.
+"Genie in a bottle" = one daemon per host/user, with a single
+**root genie** agent that fully owns it, and a CapTP edge from that
+daemon back to the operator's local daemon.
 
 ## Non-goals
 
 - Multi-tenant daemons.
-  Each "bottle" holds one genie, and the operator invited in is assumed
-  trusted.
+  Each "bottle" holds one genie, and the operator invited in is
+  assumed trusted.
   A shared/hosted genie service is a separate design.
-- Secret management beyond what the operator supplies via env.
-  `GENIE_MODEL` credentials (API keys, local Ollama URLs, etc.) are
-  provisioning-time inputs, not rotated by the bottle.
+- Secret management beyond what the operator supplies over the
+  CapTP edge after handshake.
+  `GENIE_MODEL` credentials (API keys, local Ollama URLs, etc.) flow
+  from the owner _through_ the invite edge to a primordial genie,
+  not via provisioning-time env;
+  see [§ Credentialing](#credentialing-and-the-primordial-genie).
 - Unattended install of Node.js / yarn / systemd.
   The bottle assumes a minimally-provisioned host.
-  The design names where those prerequisites land but does not automate
-  their installation.
+  The design names where those prerequisites land but does not
+  automate their installation.
 - Replacing the dev-repl or in-process genie loop.
   Remote-mode dev-repl
   (see [`genie_loop_remote.md`](./genie_loop_remote.md))
@@ -46,12 +52,12 @@ What already works vs what is missing:
 
 | Concern            | Today                                                                                                      | Gap for "genie in a bottle"                                                                |
 |--------------------|------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| Daemon bootstrap   | `endo start` forks a detached `daemon-node.js` (see `packages/daemon/index.js:443` and `daemon-node-powers.js:129`) | No systemd integration (no `sd_notify`, no `Type=notify`, no socket activation, no unit file generator) |
-| Install            | `@endo/cli` is the only `bin` publisher; all packages build with `exit 0`; no native deps                  | Monorepo is `private: true`; `yarn global add <repo>#<branch>` path is untested and not documented |
-| Networking         | TCP (`networks/tcp-netstring.js` + store `tcp-listen-addr` + `NETS.tcp`) and libp2p (`networks/setup-libp2p.js`) both supported | Sketch only names the TCP recipe; libp2p is strictly better for NAT-bound remote hosts |
-| Genie provisioning | `yarn setup` runs `endo run --UNCONFINED setup.js --powers @agent` with `GENIE_MODEL`/`GENIE_WORKSPACE` env (setup.js:22–70) | The `setup-genie` guest is a sandbox for the form-submission workflow; it is _not_ a privileged root genie agent |
-| Owner invite       | `endo invite <name>` and `endo accept <name>` are wired end-to-end (`cli/src/commands/{invite,accept}.js`, `host.js:793`) | No convention for "the invitee is the operator who should own this daemon" |
-| Workspace          | Genie tools enforce workspace root; genie writes `HEARTBEAT.md`, `MEMORY.md`, `.genie/` etc.               | No default path on a remote host; sketch proposes `$XDG_RUNTIME_DIR/endo/genie/workspace` which is wrong (runtime dir is tmpfs; workspace must be persistent) |
+| Daemon bootstrap   | `endo start` forks a detached `daemon-node.js` (see `packages/daemon/index.js:443` and `daemon-node-powers.js:129`); `endo run-daemon` runs it in-process for init supervisors | No unit file generator; no `sd_notify`; no socket activation |
+| Install            | `@endo/cli` is the only `bin` publisher; all packages build with `exit 0`; no native deps                  | Monorepo is `private: true`; `yarn global add <repo>#<branch>` path is untested and not documented; no bring-your-own-repo push path |
+| Networking         | TCP (`networks/tcp-netstring.js` + store `tcp-listen-addr` + `NETS.tcp`) and libp2p (`networks/setup-libp2p.js`) both supported | Sketch only names the TCP recipe; libp2p is strictly better for NAT-bound remote hosts; no treatment of tailscale/wireguard-atop-TCP, unix-domain, or ssh-pipe netlayers |
+| Genie provisioning | `yarn setup` runs `endo run --UNCONFINED setup.js --powers @agent` with `GENIE_MODEL`/`GENIE_WORKSPACE` env (setup.js:22–70) | The `setup-genie` guest is a sandbox for the form-submission workflow; it is _not_ a privileged root genie agent, and it assumes model credentials are already in env |
+| Owner invite       | `endo invite <name>` and `endo accept <name>` are wired end-to-end (`cli/src/commands/{invite,accept}.js`, `host.js:793`) | No convention for "the invitee is the operator who should own this daemon"; no workspace-file rendezvous for the locator |
+| Workspace          | Genie tools enforce workspace root; genie writes `HEARTBEAT.md`, `MEMORY.md`, `.genie/` etc.               | No default path on a remote host; sketch's `$XDG_RUNTIME_DIR/endo/genie/workspace` is wrong (runtime dir is tmpfs; workspace must be persistent) |
 
 ## Proposed architecture
 
@@ -71,36 +77,65 @@ Target URL forms, in order of ambition:
 
 The bottle script never assumes it is root.
 Everything lands under the invoking user's XDG directories, and
-host-level isolation (capsule, container, VM) is the operator's
-responsibility to set up _once_, then invoke the bottle script inside.
+host-level isolation (alternate user, capsule, container, VM) is the
+operator's responsibility to set up _once_, then invoke the bottle
+script inside.
 
 **Default workspace**: `$XDG_DATA_HOME/endo/genie/workspace`
 (_not_ `$XDG_RUNTIME_DIR`).
 `$XDG_RUNTIME_DIR` is tmpfs on most systemd systems and is cleared
 on logout; genie expects the workspace to survive reboots.
 
+**Same-host coexistence.**
+The bottle script must run safely next to an operator's existing
+daemon, most obviously in the "alternate local user" and
+"systemd-capsule" cases.
+Concretely that means:
+
+- Always use the invoking user's own `$XDG_*` tree.
+  Do not read or write the operator's main-user tree.
+- Honor `ENDO_SOCK` / `ENDO_ADDR` overrides if supplied
+  (per `MULTIPLAYER.md`), but default to the XDG layout rather than
+  hard-coding a path.
+- On a TCP turnup, prefer `127.0.0.1:0` and let the OS pick a port so
+  two bottles on the same host cannot collide.
+  _(Open for capsules: if a capsule eventually carries a private
+  network namespace we can revert to a fixed port; today we cannot
+  assume that.)_
+
 ### 2. _install_ — putting `endo` on PATH
 
 Precedence:
 
 1. If `endo` is already on PATH and version-compatible, use it.
-2. Else, try `corepack` + `yarn global add
+2. **Bring-your-own-repo push.**
+   The operator is typically running the bottle script from a dev
+   checkout; let them opt in to pushing _that_ checkout over to the
+   bottle rather than pulling from GitHub.
+   Mechanism: `git` over SSH into the bottle account,
+   `git push ssh://user@host:~/endo.git <rev>:refs/heads/bottle`,
+   then on the remote side `corepack yarn install` +
+   `PATH=$PWD/packages/cli/bin:$PATH`.
+   This is the preferred mode for development iteration.
+3. Else, try `corepack` + `yarn global add
    github:endojs/endo#<branch-or-tag>`.
-   Open question:
-   the repo root is `"private": true` and the only publishable `bin` is
-   `@endo/cli`, so a top-level install may fail to link the `endo` bin.
-   **Action item**: validate `yarn global add
-   github:endojs/endo#master` in a clean VM and document the outcome.
-   Likely we need either:
+   The repo root is `"private": true` and the only publishable `bin`
+   is `@endo/cli`, so a top-level install may fail to link the `endo`
+   bin.
+   We commit to yarn-global for now and accept that we may need one
+   of the following fixes before it's reliable:
    - a `bin` passthrough at the workspace root,
-   - a published `@endo/cli` tarball on npm (preferred long-term), or
+   - a published `@endo/cli` tarball on npm (a release-engineering
+     decision orthogonal to this plan), or
    - a bootstrap script that clones + runs `yarn install` + symlinks
      `packages/cli/bin/endo` into `~/.local/bin`.
-3. Else fall back to a from-source bootstrap: `git clone`, `corepack
+   Phase 2 validates yarn-global in a clean VM and records the
+   outcome.
+4. Else fall back to a from-source bootstrap: `git clone`, `corepack
    yarn install`, `PATH=$PWD/packages/cli/bin:$PATH`.
 
-The bottle script emits one of those three states to the operator so
-they know which path was taken.
+The bottle script emits which branch was taken so the operator knows
+what's on PATH.
 We do not try to reconcile Node.js version mismatches automatically;
 `nvm` / `fnm` / `mise` are prerequisites the operator owns.
 
@@ -115,10 +150,12 @@ This is enough to unblock the rest of the design.
 Phase B — _systemd user unit_ (opt-in, best-effort):
 Generate
 `$XDG_CONFIG_HOME/systemd/user/endo.service`
-with `Type=simple`
-and `ExecStart=/usr/bin/env endo start --foreground`, where
-`--foreground` is a new CLI flag that runs the daemon in the current
-process instead of re-forking.
+with `Type=simple` and
+`ExecStart=/usr/bin/env endo run-daemon`.
+`endo run-daemon` already exists (`packages/cli/src/endo.js:786`,
+"runs the endo daemon directly, no forking around") and is the
+supported in-process entry point for init supervisors — no new CLI
+flag is required.
 
 Then:
 
@@ -143,10 +180,6 @@ Phase C — _`sd_notify` readiness and socket activation_ (future work):
 - Daemon honors `LISTEN_FDS` so systemd can hand it an already-bound
   Unix socket; makes socket activation possible.
 - `Type=notify` in the unit. Requires phase C landed.
-
-Phase C work is called out here so phase B does not paint us into a
-corner (e.g. we should land `--foreground` before generating the unit
-so there is nothing to unwind later).
 
 ### 4. _turnup_ — networking + root genie
 
@@ -187,63 +220,109 @@ Pick via `--transport=tcp|libp2p|both` on the bottle script.
 the invitation locator aggregates `at=` params across all active
 transports, and the acceptor tries them in order.
 
-#### Root genie vs setup-genie
+**Overlay / tunnel transports.**
+Tailscale and WireGuard do not need bespoke netlayers — they present
+as plain TCP endpoints once the overlay is up, so `--transport=tcp`
+with an overlay IP is sufficient.
+The bottle script should document this and, when the operator names
+`--transport=tailscale|wireguard`, treat those as aliases for TCP
+with a hint in the banner that the listen address must be an
+overlay IP.
 
-The sketch asks for "elevated powers since this daemon is here to be
-fully owned and operated by this root genie agent."
-This is the part of the design that most needs clarification with the
-humans — see [§ Open questions](#open-questions).
-Starting point:
+**Two additional netlayers worth exploring (later phases).**
+These share a theme — no public port required, no overlay required,
+just a byte-stream that the operator already trusts:
 
-Today `setup.js` creates a `setup-genie` guest with `@agent`
-introduced as `host-agent` (setup.js:28–32) and launches `main.js`
-under that guest.
-The child agents that `main.js` provisions are _confined_ —
-they only get `workspace-mount`.
+- **Unix domain sockets.**
+  When both endpoints are on the same host (e.g. two daemons under
+  different local users sharing a socket in `/run/endo/` or a
+  user-owned directory), a UDS netlayer avoids the TCP loopback
+  dance entirely.
+- **SSH-piped stdio.**
+  Model the shape after `git-upload-pack` / `git-receive-pack`:
+  the client runs `ssh user@host endo <gateway-receiver>` and the
+  two processes speak the mail protocol over the SSH stdin/stdout
+  pair.
+  This turns SSH itself into the transport.
+  Requires a new receiver command and a corresponding client
+  netlayer; tracked as Phase 6 future work.
 
-For a "bottle-owning" genie we need one of:
+#### Root genie (the R2+R3 shape)
 
-- **Option R1.** `setup-genie` _is_ the root genie. Skip the child-agent
-  provisioning step, or have `setup.js` submit its own form so that
-  `setup-genie` runs the piAgent loop directly.
-  - Pros: no new capability grants; the `@agent` introduction already exists.
-  - Cons: `setup-genie` was designed to be a provisioner, not a conversational
-    agent; its tool surface and prompt are shaped for form-watching, not
-    piAgent rounds.
+The bottle's genie has to be _the_ agent for that daemon — it owns
+the host, speaks to the owner over CapTP, and (over time) takes on
+low-level reliability and deployment responsibilities.
+We pick a composition of two existing moves rather than inventing a
+new kind of guest from whole cloth:
 
-- **Option R2.** Introduce a third flavor of genie guest (call it `root-genie`)
-  that is provisioned by `setup.js` with `@agent` and `@host` introduced, runs
-  a normal piAgent loop (like a `main-genie` child), and is the one the owner
-  invite is bound to.
-  - Pros: clean separation, keeps `main-genie` confined behavior unchanged.
-  - Cons: new guest flavor; needs its own form fields or a short- circuited
-    bootstrap.
+- **R2 — a `root-genie` guest with elevated introductions.**
+  `setup.js` grows an `--owner` mode that, instead of provisioning a
+  confined `main-genie` child, provisions a single `root-genie`
+  guest with both `@agent` and `@host` introduced (naming-wise:
+  _the_ agent, not just an agent), configured with a system prompt
+  that names its role as bottle owner.
+  This is a clean separation from the confined child-agent surface
+  `main.js` normally stamps out, and keeps `main-genie` semantics
+  unchanged.
 
-- **Option R3.** Leave guest provisioning alone but have the bottle script call
-  `endo invite owner` from the _host_ level, and document that the owner's
-  handle in the bottle daemon's pet store _is_ the ownership token. Any tool
-  that needs to give the owner more power does so by sending capabilities over
-  that CapTP edge.
-  - Pros: avoids re-architecting genie; matches the existing invite/accept
-    semantics (which already give the acceptor a peer host handle, equivalent
-    to `@host` on that remote daemon).
-  - Cons: owner ownership is implicit; no single "this genie is the boss"
-    capability on the remote side.
+- **R3 — the owner handshake carries ownership.**
+  The bottle script runs `endo invite owner` from the _host_ level
+  (not from inside the guest).
+  The operator's acceptance of that invite installs them as a peer
+  host in the bottle's pet store.
+  From that edge, the owner can hand capabilities (including model
+  credentials, see next section) into the root-genie guest over
+  normal CapTP traffic.
+  No extra plumbing beyond standard invite/accept.
 
-**Recommendation**: combine R2 and R3.
-`setup.js` grows an `--owner` flag that, when present:
+Together: R2 gives the bottle a single identified root agent, and
+R3 gives the owner a way to drive it.
 
-1. Provisions a `root-genie` guest with both `@agent` and `@host`
-   introduced (clear naming: this is _the_ agent, not just an agent).
-2. Configures it with a distinctive system prompt describing its
-   ownership role.
-3. Emits an `endo://` invitation locator for the operator to paste
-   into their local daemon's `endo accept`.
+#### Credentialing and the primordial genie
+
+`GENIE_MODEL` env-var provisioning is wrong for the bottle because
+it requires model credentials to exist before the daemon does.
+Instead we go capability-native: the operator hands credentials to
+the root genie over the invite edge _after_ handshake.
+
+That means the root genie must be bootable in a
+"no-model-yet" state.
+We introduce a **primordial genie** — a pre-LLM message-processing
+automaton that the root-genie guest runs until a model is
+configured:
+
+- Driven by a `/model` builtin command on the genie side that
+  accepts model-provider discovery, selection, and credential
+  values over CapTP.
+- Paired with a classic pre-LLM parser/responder that recognizes
+  a small set of message shapes ("what models do you support?",
+  "use provider X with API key Y", "run a smoke test") and
+  guides the owner through early setup without needing an LLM to
+  be online.
+- Cedes the conversation to the piAgent loop once a model is
+  selected and credentialed.
+
+Over time the primordial genie is the natural home for other
+low-level reliability / deployment concerns (restart recovery,
+transport reconfiguration, migration) that should work even when
+the LLM is unavailable or misconfigured.
 
 ### 5. _invite_ — owner handshake
 
 Once networking is up, `endo invite owner` prints a locator to stdout
 (`cli/src/commands/invite.js:8-11`).
+The bottle emits the locator in two places:
+
+- **Stdout**, with a copy-paste-ready multi-line banner so SSH
+  scrollback doesn't eat it.
+- **A workspace file**, default `PENDING_OWNER_INVITE` in the
+  genie workspace root.
+  Friendlier for detached systemd services and for tools that want
+  to poll for a fresh locator.
+  The bottle removes this file once the owner's `endo accept` lands
+  and the first CapTP message arrives — its presence is exactly
+  "there is a pending invite" state.
+
 The operator runs `endo accept <bottle-label>` on their local daemon
 with that locator piped in.
 After that:
@@ -259,15 +338,10 @@ From this moment on:
 - The bottle's root genie can do the same in reverse (this is what
   makes R3 work without more plumbing).
 
-We need a small convention to avoid footguns:
-
-- The bottle script prints the locator with a copy-paste-ready
-  multi-line banner rather than bare stdout, so SSH-session
-  scrollback doesn't eat it.
-- The bottle emits an explicit "waiting for owner…" readiness
-  signal (maybe `followMessages` tailing for the first message
-  `from=<owner handle>`) so the operator can know when the edge is
-  live.
+The bottle also emits an explicit "waiting for owner…" readiness
+signal (likely `followMessages` tailing for the first message
+`from=<owner handle>`) so the operator can know when the edge is
+live and `PENDING_OWNER_INVITE` has been cleared.
 
 ## Deployment scenarios (MECE)
 
@@ -281,15 +355,28 @@ and in what prerequisites the operator has arranged.
    The bottle script runs entirely under `$HOME`.
    Daemon lives as long as the SSH session unless linger is enabled
    or the systemd user unit is used.
-   - **NOTE** this could also be a locally added alternate user, operator could:
-     1. run classic `useradd`
-     2. configure resource limits in something like `/etc/systemd/system/user-$UID.slice.d/override.conf`
-     3. enable user linger via `loginctl`
-     4. run `systemctl start user@$UID.service` to start a background session for the new user
-     5. run `systemctl add-wants default.target user@$UID.service` so that such session starts after system reboot
-       - alternately run `systemctl add-wants user@$MAIN_UID.service user@$ALTER_UID.service` ...
-       - ... to instead link auto launching of an alter user to its main owning user logging in
-   - **NOTE** this can also potentially generalize to other Operating Systems and/or init implementations other than systemd
+
+   **Alternate local user variant (same host, second daemon).**
+   The operator can host a bottle on their own box under a
+   separate UID.
+   Roughly:
+   1. Run classic `useradd` to create the alter user.
+   2. Configure resource limits under something like
+      `/etc/systemd/system/user-$UID.slice.d/override.conf`
+      (see [§ Example systemd resource limit override](#example-systemd-resource-limit-override)).
+   3. Enable user linger via `loginctl enable-linger`.
+   4. Run `systemctl start user@$UID.service` to start a background
+      session for the new user.
+   5. Run `systemctl add-wants default.target user@$UID.service` so
+      the session starts after system reboot.
+      Alternately, run
+      `systemctl add-wants user@$MAIN_UID.service user@$ALTER_UID.service`
+      to instead link auto-launching of the alter user to the main
+      owning user logging in.
+
+   This pattern generalizes to non-systemd inits (launchd, OpenRC,
+   etc.); the bottle design names the systemd recipe because it's
+   the most common case but the script should not hard-assume it.
 
 2. **systemd-capsule (systemd 256+).**
    `systemctl start capsule@genie.service` pre-creates a scoped user
@@ -298,6 +385,9 @@ and in what prerequisites the operator has arranged.
    Then `ssh -C genie@host` (or the new `-C` flag on systemd tools)
    drops into that scope and the same bottle script runs there.
    No need for linger — the capsule manages its own lifecycle.
+   _Open:_ capsules today share the host network namespace, so the
+   "second daemon on the same host" concerns from § 1 apply;
+   revisit if capsules gain a private netns.
 
 3. **Container (incus/podman/docker).**
    Operator arranges a rootless container with Node available.
@@ -312,9 +402,10 @@ and in what prerequisites the operator has arranged.
 
 ### Example systemd resource limit override
 
-Relevant to plan local alternate user accounts, an maybe also systemd-capsule,
-this example sets limits to:
-- 4 cpu core virtual quota
+Relevant to the alternate-local-user scenario and possibly also
+systemd-capsule, this example sets limits to:
+
+- 4 virtual CPU cores
 - 8G memory and swap limit
 - limited task count, e.g. to contain classic fork-bomb behavior
 - denied access to typical IPv4 LAN ranges
@@ -342,134 +433,116 @@ emit guidance when it detects common shapes:
 
 | Layer          | What it gives you                                       | What the bottle script does                                      |
 |----------------|---------------------------------------------------------|------------------------------------------------------------------|
-| Nothing        | Nothing; genie has the user's home dir                  | Warn. Suggest capsule or container.                              |
+| Nothing        | Nothing; genie has the user's home dir                  | Warn. Suggest capsule or alternate-user.                         |
+| Alternate user | UID boundary + cgroup slice limits                      | Run under that UID; honor XDG; libp2p or TCP-on-loopback:0       |
 | systemd-capsule| Dynamic user, per-scope home, `systemctl -C genie`      | Use `systemctl --user` as normal; linger not needed              |
-| Container      | FS + process isolation                                  | Install inside container; expose no ports; libp2p default         |
+| Container      | FS + process isolation                                  | Install inside container; expose no ports; libp2p default        |
 | Micro-VM       | Kernel isolation                                        | Same as container                                                |
+
+## Resolved decisions
+
+Carried over from the open-questions round (2026-04-22 feedback).
+Each of these was explicitly confirmed before implementation starts;
+the prior options are archived in git history rather than belabored
+here.
+
+- **Root genie shape**: R2 + R3 as described in
+  [§ Root genie](#root-genie-the-r2r3-shape).
+  The primordial genie extends this with a pre-LLM bootstrap path.
+- **Same-host coexistence**: yes, supported. See
+  [§ 1 _where_](#1-where--the-bottle-surface).
+  Especially matters for alternate-local-user bottles and
+  (until capsules gain a private netns) for capsule bottles.
+- **Credentialing**: capability-native over the invite edge, driven
+  by a `/model` builtin on the primordial genie.
+  See [§ Credentialing](#credentialing-and-the-primordial-genie).
+- **Install path**: yarn-global from GitHub is the committed path
+  for now, with a bring-your-own-repo push mode as the preferred
+  dev loop.
+  See [§ 2 _install_](#2-install--putting-endo-on-path).
+- **Transport menu**: libp2p default, TCP fallback, tailscale /
+  wireguard as TCP-atop-overlay, and two future netlayers (Unix
+  domain socket and SSH-piped stdio).
+  See [§ Networking](#networking).
+- **Invitation locator**: emitted to _both_ stdout and
+  `PENDING_OWNER_INVITE` in the workspace; the file is removed on
+  successful accept.
+  See [§ 5 _invite_](#5-invite--owner-handshake).
+- **Daemon-as-systemd-service**: use the existing `endo run-daemon`
+  command as the unit's `ExecStart`; no new `--foreground` flag on
+  `endo start` required.
+  See [§ 3 _start_](#3-start--the-daemon).
 
 ## Implementation phases
 
 All phases independently mergeable; each leaves the tree in a
 working state.
 
-### 1. **Phase 0: bottle script as a dumb shell recipe.**
+### Phase 0: bottle script as a dumb shell recipe
 
-- Add `packages/genie/scripts/bottle.sh` that assumes `endo` on PATH
-- runs `endo start`
-- picks a transport
-- runs genie `setup.js` with an `--owner` flag
-- prints the invite locator
+- Add `packages/genie/scripts/bottle.sh` that assumes `endo` on
+  PATH.
+- Runs `endo start`.
+- Picks a transport (libp2p default; TCP fallback).
+- Runs genie `setup.js` with an `--owner` flag _(stubbed until
+  Phase 1 lands; Phase 0 can fall back to the existing
+  `main-genie` path and still prove composition)_.
+- Prints the invite locator to stdout _and_ writes
+  `PENDING_OWNER_INVITE` in the workspace.
 
-* No systemd
-* No install
-* Proves the composition works.
+No systemd, no install, no credential bootstrap.
+Proves the composition works.
+Tracked in [`TODO/81_genie_bottle_phase0_shell.md`](../TODO/81_genie_bottle_phase0_shell.md).
 
-### 2. **Phase 1: `--owner` flag in `setup.js`.**
+### Phase 1: `--owner` flag in `setup.js` (R2)
 
-Implements R2 above: provisions a `root-genie` guest with
-`@agent` + `@host`, configures it, emits an invitation.
+Provisions a `root-genie` guest with `@agent` + `@host` introduced,
+configures it with the ownership system prompt, and emits the
+invitation locator via Phase 0's file + stdout contract.
 
-### 3. **Phase 2: install story.**
+### Phase 2: primordial genie and `/model` builtin (credentialing)
 
-- Validate `yarn global add github:endojs/endo#<rev>` in a clean VM
-- Pick one of: workspace-root `bin`, npm publish, or bootstrap-clone script
-- Document in `packages/genie/README.md`
+R3's invite edge is already live after Phase 0 + Phase 1; this phase
+is the first thing we run _over_ that edge.
 
-### 4. **Phase 3: `endo start --foreground`.**
+- Pre-LLM message-processing automaton that the root-genie guest
+  runs until a model is configured.
+- `/model` builtin command for model discovery / selection /
+  credential ingestion over CapTP.
+- Hand-off to the piAgent loop once configured.
 
-- Daemon can run in the foreground without forking.
-- Prerequisite for any systemd unit that uses `Type=simple`.
+### Phase 3: install story
 
-### 5. **Phase 4: systemd user unit generator.**
+- Validate `yarn global add github:endojs/endo#<rev>` in a clean
+  VM.
+- Pick one of: workspace-root `bin`, npm publish, or
+  bootstrap-clone script, and document the outcome.
+- Add the bring-your-own-repo push mode (SSH + `git push` into
+  the bottle account, remote `yarn install`).
+- Document in `packages/genie/README.md`.
 
-`endo-genie-in-a-bottle --systemd`
-- writes the unit under `$XDG_CONFIG_HOME/systemd/user/`
-- runs `systemctl --user enable --now endo.service`
-- tries `loginctl enable-linger`
-- reports results
+### Phase 4: systemd user unit generator
 
-### 6. **Phase 5: `sd_notify` + `Type=notify` + socket activation.**
+`endo-genie-in-a-bottle --systemd`:
 
-- Daemon signals readiness and optionally receives a pre-bound socket.
+- Writes the unit under `$XDG_CONFIG_HOME/systemd/user/` with
+  `ExecStart=/usr/bin/env endo run-daemon`.
+- Runs `systemctl --user enable --now endo.service`.
+- Tries `loginctl enable-linger`.
+- Reports results.
+
+### Phase 5: `sd_notify` + `Type=notify` + socket activation
+
+- Daemon signals readiness and optionally receives a pre-bound
+  socket.
 - Drop the `ping`-polling from the bottle script.
 
-## Open questions — Updated With Feedback
+### Phase 6: additional netlayers
 
-These are the things I want to confirm with the humans before
-implementation begins.
-
-1. **What does "fully owned and operated by this root genie agent"
-   mean concretely?**
-   Option R1 vs R2 vs R3 above are three different answers.
-   The design currently recommends R2+R3.
-   Is that the right shape, or is R1 (just promote `setup-genie`)
-   preferred for its simplicity?
-   - **Answer** you've convinced me that your R2+R3 recommendation seems
-     sensible, let's go with that, revamp the design around that path, and I'll
-     review before implementation
-   - **Answer extended** note this also has overlap with number 3 below, when I
-     talk about how there needs to be a pre-LLM-model-selection fallback,
-     basically a primordial genie that aids with its own model selection and
-     credentialing; such primordial genie may take on additional low level
-     reliability/deployment concerns as they come up going forward
-
-2. **Do we care about the "same host, second daemon" use case?**
-   `MULTIPLAYER.md` supports it via `ENDO_SOCK` / `ENDO_ADDR` /
-   XDG overrides.
-   If the bottle script must be safe to run on the operator's own
-   box, it needs to check and refuse (or silently use an alternate
-   state tree).
-   - **Answer** yes we care about this, especially for "same host, different
-     user(s), additional daemon(s)" ; probably also the systemd capsule case,
-     unless capsules get a private network interface?
-
-3. **How should `GENIE_MODEL` credentials arrive at the bottle?**
-   Env via `ssh -E`? Pre-seeded file? Owner passes them over CapTP
-   after the handshake?  The last option is most capability-native
-   but requires `setup.js` to wait for a post-invite configuration
-   message.
-   - **Answer** let's just go with the capability-native path, so what we'll
-     need to provide a fallback non-LLM driven message processing automaton
-     that assists with such low level tasks as model discovery, selection, and
-     passing credentials for model providers. Much of this can probably be done
-     under a new special `/model` builtin command, but we should/could still
-     have a fallback message parser/responder based on classic pre-LLM methods
-     to lightly guide the owner thru early setup.
-
-4. **Is `yarn global add github:endojs/endo#<rev>` a supported path
-   we want to commit to, or do we want to publish `@endo/cli` to
-   npm and install from there?**
-   This is a release-engineering question as much as a design
-   question.  The bottle design does not depend on the answer;
-   it only depends on _some_ answer existing.
-   - **Answer** yes we'll just go with yarn-global for now, but also have the
-     ability to push a git repository in during bottle setup; basically bottle
-     running in "use my dev repo where we're running from, but push a copy into
-     the bottle to use"
-
-5. **Do we need a transport preference beyond `libp2p | tcp | both`?**
-   e.g. is there a case for tailscale, wireguard, or a Unix-domain
-   relay?  Default to no for now.
-   - **Answer** so tailscale and wireguard yes, make notes and affordance for
-     those since they can work with our existing tcp netlayer; if endo has a
-     netlayer for unix domain socket, or even just anonymous reader/writer pipe
-     handles, then we could use those also; imagine doing like git-push and
-     git-pull do, and just using ssh as the netlayer, by handing off to a
-     receiving `endo ...` command on the other side via stdin/stdout piping
-     thru ssh
-
-6. **Should the invitation locator be emitted on stdout or written
-   to a file?**
-   Stdout is friendlier to SSH piping; a file is friendlier to
-   detached systemd services.  Probably both, controlled by a flag.
-   - **Answer** yes both, write the pending invitation to a workspace file like
-     `PENDING_OWNER_INVITE`, which we can and should remove after the invite
-     has been accepted
-
-### Other Feedback
-
-**Answer** we do not need to add a `--foreground` flag to `endo start`; there
-is already an `endo run-daemon` specifically for things like systemd unit entry.
+- Unix domain socket netlayer (for same-host, cross-user bottles).
+- SSH-piped stdio netlayer modeled on `git-upload-pack` /
+  `git-receive-pack`; requires a receiver-side `endo` command
+  that speaks mail over stdin/stdout.
 
 ## References
 
@@ -483,5 +556,8 @@ is already an `endo run-daemon` specifically for things like systemd unit entry.
   — TCP transport
 - [`packages/daemon/src/host.js`](../packages/daemon/src/host.js)
   § `invite` / `accept` (lines 793–899)
+- [`packages/cli/src/endo.js`](../packages/cli/src/endo.js) §
+  `run-daemon` (line 786) — the in-process daemon entry point
+  used by the systemd unit
 - [`PLAN/genie_loop_remote.md`](./genie_loop_remote.md) — what will
   consume the bottle from the operator's side once it exists
