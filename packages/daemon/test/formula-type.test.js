@@ -17,8 +17,6 @@ const ALL_FORMULA_TYPES = [
   'guest',
   'handle',
   'host',
-  'http-client',
-  'interval-scheduler',
   'invitation',
   'known-peers-store',
   'least-authority',
@@ -30,10 +28,7 @@ const ALL_FORMULA_TYPES = [
   'make-unconfined',
   'marshal',
   'message',
-  'message-stream',
   'mount',
-  'notification',
-  'oauth',
   'peer',
   'pet-inspector',
   'pet-store',
@@ -43,7 +38,6 @@ const ALL_FORMULA_TYPES = [
   'resolver',
   'scratch-mount',
   'timer',
-  'webhook',
   'worker',
 ];
 
@@ -72,12 +66,12 @@ test('isValidFormulaType rejects invalid inputs', t => {
 test('assertValidFormulaType does not throw for valid types', t => {
   t.notThrows(() => assertValidFormulaType('eval'));
   t.notThrows(() => assertValidFormulaType('host'));
-  t.notThrows(() => assertValidFormulaType('webhook'));
-  t.notThrows(() => assertValidFormulaType('oauth'));
-  t.notThrows(() => assertValidFormulaType('notification'));
-  t.notThrows(() => assertValidFormulaType('http-client'));
-  t.notThrows(() => assertValidFormulaType('interval-scheduler'));
-  t.notThrows(() => assertValidFormulaType('message-stream'));
+  t.notThrows(() => assertValidFormulaType('guest'));
+  t.notThrows(() => assertValidFormulaType('mount'));
+  t.notThrows(() => assertValidFormulaType('directory'));
+  t.notThrows(() => assertValidFormulaType('worker'));
+  t.notThrows(() => assertValidFormulaType('timer'));
+  t.notThrows(() => assertValidFormulaType('peer'));
 });
 
 test('assertValidFormulaType throws for invalid types', t => {
