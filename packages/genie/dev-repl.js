@@ -37,19 +37,23 @@ import readline, { createInterface } from 'readline';
 // eslint-disable-next-line import/no-unresolved
 import {
   buildGenieTools,
+  BUILTIN_HELP_DESCRIPTIONS,
   DEFAULT_MODEL_STRING,
-  HeartbeatStatus,
+  formatHelpLines,
+  makeBuiltinSpecials,
   makeGenieAgents,
+  makeSpecialsDispatcher,
   runAgentRound,
-  runHeartbeat,
 } from '@endo/genie';
+
+/** @import { SpecialsIO } from './src/loop/builtin-specials.js' */
+/** @import { SpecialHandler } from './src/loop/specials.js' */
 
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
 /** @import { AgentError, ChatEvent } from './src/agent/index.js' */
-/** @import { Tool } from './src/tools/common.js' */
-/** @import { HeartbeatEvent } from './src/heartbeat/index.js' */
+/** @import { SpecialsDispatcher } from './src/loop/specials.js' */
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { initWorkspace, isWorkspace } from './src/workspace/init.js';
 
@@ -59,16 +63,6 @@ const { version: GENIE_VERSION } =
   /** @type {{ version: string }} */ (
     createRequire(import.meta.url)('./package.json')
   );
-
-/**
- * @template T, R
- * @param {(r: R) => void} have
- * @param {AsyncIterable<T, R>} it
- */
-async function* collectIt(have, it) {
-  const r = yield* it;
-  have(r);
-}
 
 /**
  * @param {never} nope
@@ -590,77 +584,47 @@ async function* runPrompt(
 // ---------------------------------------------------------------------------
 
 /**
- * Run the genie agent, yielding output chunks as strings.
+ * Run the genie agent REPL loop, yielding output chunks as strings.
  *
- * In one-shot mode (`options.command` is set), runs a single prompt and
- * returns. In REPL mode, iterates over `options.prompts`, handling dot-
- * commands (.help, .clear, .tools, .exit/.quit) and delegating real
- * prompts to `runPrompt`.
+ * Special inputs (dot-commands) are routed through the shared
+ * `SpecialsDispatcher`; every other line is fed to `runPrompt` as a
+ * user chat turn.
+ *
+ * The loop exits when `prompts` is exhausted or when the dispatcher signals
+ * exit via `shouldExit()` (typically from the built-in `.exit` handler).
  *
  * @param {object} options
  * @param {PiAgent} options.piAgent
- * @param {Record<string, Tool>} options.tools
  * @param {boolean} options.verbose - Enable debug output.
  * @param {Array<{ role: string, content: string }>} [options.messages]
- * @param {Record<string, (tail: string[]) => AsyncIterable<string>>} [options.specials] - special builtin commands like .heartbeat
- * @param {AsyncIterable<string>} options.prompts - Async iterable of user prompts for REPL mode. Ignored in one-shot (command) mode.
+ * @param {SpecialsDispatcher<string>} options.dispatcher
+ *   - Pre-built specials dispatcher (prefix `.` in dev-repl).
+ * @param {() => boolean} options.shouldExit
+ *   - Polled after each dispatch to break the loop when the `exit` special fires.
+ * @param {AsyncIterable<string>} options.prompts
+ *   - Async iterable of user prompts for REPL mode.
  * @returns {AsyncGenerator<string>}
  */
 async function* runAgent({
   piAgent,
-  tools,
   verbose,
-  specials = {},
+  dispatcher,
+  shouldExit,
   prompts,
   messages = [],
 }) {
   for await (const prompt of prompts) {
-    if (prompt === '.exit' || prompt === '.quit') {
-      yield `${DIM}Goodbye.${RESET}\n`;
-      break;
-
-    } else if (prompt === '.help') {
-      // TODO eject
-      yield `${DIM}Commands:${RESET}\n`;
-      yield `${DIM}  .exit                     — quit the REPL${RESET}\n`;
-      yield `${DIM}  .clear                    — clear conversation history${RESET}\n`;
-      yield `${DIM}  .tools                    — list available tools${RESET}\n`;
-      yield `${DIM}  .help                     — show this help${RESET}\n`;
-      yield `${DIM}  .heartbeat                — run a heartbeat cycle${RESET}\n`;
-      yield `${DIM}  .observe                  — run an observation cycle${RESET}\n`;
-      yield `${DIM}  .reflect                  — run a reflection cycle${RESET}\n`;
-      yield `${DIM}  .background on|off|status — toggle automatic sub-agent event printing${RESET}\n`;
-    } else if (prompt === '.clear') {
-      // TODO eject
-      messages.length = 0;
-      yield `${DIM}Conversation history cleared.${RESET}\n`;
-
-    } else if (prompt === '.tools') {
-      // TODO eject
-      const toolNames = Object.keys(tools);
-      if (!toolNames.length) {
-        yield `${DIM}-- No Tools --${RESET}\n`;
-      } else {
-        for (const name of toolNames) {
-          yield `${DIM}  • ${name}${RESET}\n`;
-        }
-      }
-    } else if (prompt.startsWith('.')) {
-      const [head, ...tail] = prompt.slice(1).split(/\s+/);
-      if (head in specials) {
-        yield* specials[head](tail);
-      } else {
-        yield `${RED}Unknown command: ${prompt}${RESET}\n`;
-        yield `${DIM}Type .help for a list of commands.${RESET}\n`;
-      }
-    } else {
-      try {
-        yield* runPrompt(piAgent, prompt, { messages, verbose });
-      } catch (err) {
-        yield `${RED}REPL error: ${err.message}${RESET}\n`;
-        if (verbose) {
-          yield `${err.stack}\n`;
-        }
+    if (dispatcher.isSpecial(prompt)) {
+      yield* dispatcher.dispatch(prompt);
+      if (shouldExit()) break;
+      continue;
+    }
+    try {
+      yield* runPrompt(piAgent, prompt, { messages, verbose });
+    } catch (err) {
+      yield `${RED}REPL error: ${err.message}${RESET}\n`;
+      if (verbose) {
+        yield `${err.stack}\n`;
       }
     }
   }
@@ -895,119 +859,98 @@ async function* runMain(args) {
     if (observer) backgroundPrinter.subscribe(observer, 'observer');
     if (reflector) backgroundPrinter.subscribe(reflector, 'reflector');
 
+    // ── Specials dispatcher ────────────────────────────────────────
+    // Built-in handlers come from the shared factory so the dev-repl and the
+    // daemon plugin share one source of truth for
+    // heartbeat/observe/reflect/help/tools/clear/exit.
+    // The dev-repl mixes in its own `background` toggle and a `quit` alias for
+    // `.exit`.
+    let exitRequested = false;
+    /** @type {SpecialsIO<string>} */
+    const io = harden({
+      info: msg => `${DIM}${msg}${RESET}\n`,
+      notice: msg => `${DIM}${msg}${RESET}\n`,
+      warn: msg => `${YELLOW}${msg}${RESET}\n`,
+      error: msg => `${RED}${msg}${RESET}\n`,
+      success: msg => `${GREEN}${msg}${RESET}\n`,
+      renderEvents: (events, { label = 'genie' } = {}) =>
+        runAgentEvents(events, { verbose, label, echoUser: label === 'heartbeat' }),
+      muteBackground: label => backgroundPrinter.mute(label),
+      unmuteBackground: label => backgroundPrinter.unmute(label),
+      clearHistory: () => {
+        messages.length = 0;
+      },
+      requestExit: () => {
+        exitRequested = true;
+      },
+      listToolNames: () => Object.keys(tools),
+      listHelpLines: () => formatHelpLines({
+        prefix: '.',
+        // Order matches the pre-refactor listing; filtered implicitly
+        // against `BUILTIN_HELP_DESCRIPTIONS` so unknown names are
+        // skipped rather than rendered blank.
+        commands: [
+          'exit',
+          'clear',
+          'tools',
+          'help',
+          'heartbeat',
+          'observe',
+          'reflect',
+        ].filter(name => name in BUILTIN_HELP_DESCRIPTIONS),
+        extras: [
+          ['.background on|off|status', 'toggle automatic sub-agent event printing'],
+        ],
+      }),
+    });
+
+    const builtins = makeBuiltinSpecials({
+      agents: { piAgent, heartbeatAgent, observer, reflector },
+      workspaceDir,
+      io,
+    });
+
+    /** @type {SpecialHandler<string>} */
+    const backgroundHandler = async function* backgroundHandlerImpl(tail) {
+      const arg = tail[0] ?? '';
+      if (arg === '' || arg === 'status') {
+        const state = backgroundPrinter.isQuiet() ? 'off' : 'on';
+        yield `${DIM}background event printing: ${state}.${RESET}\n`;
+      } else if (arg === 'on') {
+        backgroundPrinter.setQuiet(false);
+        yield `${DIM}background event printing: on.${RESET}\n`;
+      } else if (arg === 'off') {
+        backgroundPrinter.setQuiet(true);
+        yield `${DIM}background event printing: off.${RESET}\n`;
+      } else {
+        yield `${RED}usage: .background on|off|status${RESET}\n`;
+      }
+    };
+
+    const dispatcher = makeSpecialsDispatcher({
+      prefix: '.',
+      handlers: harden({
+        ...builtins,
+        quit: builtins.exit,
+        background: backgroundHandler,
+      }),
+      onUnknown: async function* onUnknown([head]) {
+        yield `${RED}Unknown command: .${head}${RESET}\n`;
+        yield `${DIM}Type .help for a list of commands.${RESET}\n`;
+      },
+    });
+
     yield* runAgent({
       piAgent,
-      tools,
       verbose,
+      dispatcher,
+      shouldExit: () => exitRequested,
       prompts: readPrompts({
         rl,
         onIdle: backgroundPrinter.setIdle,
         onBusy: backgroundPrinter.setBusy,
       }),
       messages,
-      specials: {
-
-        heartbeat: async function*(_tail) {
-          yield `${DIM}Running heartbeat cycle...${RESET}\n`;
-
-          /** @type {HeartbeatEvent|null} */
-          let heartbeatEvent = null;
-          try {
-            yield* runAgentEvents(
-              collectIt(he => { heartbeatEvent = he }, runHeartbeat({
-                workspaceDir,
-                piAgent: heartbeatAgent,
-              })),
-              {
-                verbose,
-                echoUser: true,
-              }
-            );
-            if (!heartbeatEvent) {
-              yield `${RED}⚠ Heartbeat failed, but did not throw?.${RESET}\n`;
-            } else {
-              // TODO why need the cast
-              const status = /** @type {HeartbeatEvent} */(heartbeatEvent).status;
-              if (status != HeartbeatStatus.Ok) {
-                yield `${YELLOW}⚠ Heartbeat completed not OK: ${status}${RESET}\n`;
-              } else {
-                yield `${GREEN}✓ Heartbeat OK.${RESET}\n`;
-              }
-            }
-          } catch (err) {
-            yield `${RED}Heartbeat failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
-          }
-        },
-
-        background: async function*(tail) {
-          if (!backgroundPrinter) {
-            yield `${RED}background printer not available.${RESET}\n`;
-            return;
-          }
-          const arg = tail[0] ?? '';
-          if (arg === '' || arg === 'status') {
-            const state = backgroundPrinter.isQuiet() ? 'off' : 'on';
-            yield `${DIM}background event printing: ${state}.${RESET}\N`;
-          } else if (arg === 'on') {
-            backgroundPrinter.setQuiet(false);
-            yield `${DIM}background event printing: on.${RESET}\n`;
-          } else if (arg === 'off') {
-            backgroundPrinter.setQuiet(true);
-            yield `${DIM}background event printing: off.${RESET}\n`;
-          } else {
-            yield `${RED}usage: .background on|off|status${RESET}\n`;
-          }
-        },
-
-        observe: async function*() {
-          if (!observer) {
-            yield `${RED}Observer not available (memory tools required).${RESET}\n`;
-          } else if (observer.isRunning()) {
-            yield `${YELLOW}Observation is already in progress.${RESET}\n`;
-          } else {
-            const events = await observer.observe(piAgent);
-            if (!events) {
-              yield `${DIM}No unobserved messages to process.${RESET}\n`;
-            } else {
-              if (backgroundPrinter) backgroundPrinter.mute('observer');
-              yield `${DIM}Running observation cycle...${RESET}\n`;
-              try {
-                yield* runAgentEvents(events, { verbose, label: 'observer' });
-                yield `${GREEN}✓ Observation complete.${RESET}\n`;
-              } catch (err) {
-                yield `${RED}Observation failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
-              } finally {
-                if (backgroundPrinter) backgroundPrinter.unmute('observer');
-              }
-            }
-          }
-        },
-
-        reflect: async function*() {
-          if (!reflector) {
-            yield `${RED}Reflector not available (memory tools required).${RESET}\n`;
-          } else if (reflector.isRunning()) {
-            yield `${YELLOW}Reflection is already in progress.${RESET}\n`;
-          } else {
-            // `reflect()` only returns `undefined` when `running` is true,
-            // and the `isRunning()` guard above already covers that case.
-            const events = /** @type {AsyncIterable<ChatEvent>} */ (
-              await reflector.reflect()
-            );
-            if (backgroundPrinter) backgroundPrinter.mute('reflector');
-            yield `${DIM}Running reflection cycle...${RESET}\n`;
-            try {
-              yield* runAgentEvents(events, { verbose, label: 'reflector' });
-              yield `${GREEN}✓ Reflection cycle complete.${RESET}\n`;
-            } catch (err) {
-              yield `${RED}Reflection failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
-            } finally {
-              if (backgroundPrinter) backgroundPrinter.unmute('reflector');
-            }
-          }
-        },
-
-      },
     });
   }
 }

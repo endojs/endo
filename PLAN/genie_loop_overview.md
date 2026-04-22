@@ -102,7 +102,7 @@ completion.
    so both deployments can tune independently — no hard-coded
    "main model for all" fallback at the pack layer.
    See [`TODO/74_genie_loop_agent_pack.md`](../TODO/74_genie_loop_agent_pack.md).
-4. [ ] **Specials dispatcher** — introduce the prefix-parameterised registry;
+4. [x] **Specials dispatcher** — introduce the prefix-parameterised registry;
    migrate dev-repl's `.`-commands first, then main.js's `/`-commands.
    Keep today's prefix characters (`/` in daemon mail, `.` in REPL);
    the integration tests added in step 5 will reveal whether `/` is

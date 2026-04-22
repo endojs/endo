@@ -37,10 +37,19 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 // eslint-disable-next-line import/no-unresolved
 import {
   buildGenieTools,
+  formatHelpLines,
+  makeBuiltinSpecials,
   makeGenieAgents,
+  makeSpecialsDispatcher,
   PLUGIN_DEFAULT_INCLUDE,
   runAgentRound,
 } from '@endo/genie';
+
+/** @import { Observer } from './src/observer/index.js' */
+/** @import { Reflector } from './src/reflector/index.js' */
+/** @import { GenieTools } from './src/tools/registry.js' */
+/** @import { SpecialsIO } from './src/loop/builtin-specials.js' */
+/** @import { SpecialHandler } from './src/loop/specials.js' */
 
 import { runHeartbeat, HeartbeatStatus } from './src/heartbeat/index.js';
 import { makeIntervalScheduler } from './src/interval/index.js';
@@ -544,8 +553,9 @@ export const make = (guestPowers, _context) => {
    * @param {string} opts.workspaceDir - Agent workspace directory
    * @param {Promise<any>} opts.cancelledP - Resolves when the agent is cancelled
    * @param {Map<string, IntervalTickMessage>} opts.pendingHeartbeatTicks - Side-channel map for tick lookup
-   * @param {object} [opts.observer] - Observer instance from makeObserver
-   * @param {object} [opts.reflector] - Reflector instance from makeReflector
+   * @param {GenieTools} opts.genieTools
+   * @param {Observer} [opts.observer] - Observer instance from makeObserver
+   * @param {Reflector} [opts.reflector] - Reflector instance from makeReflector
    */
   const runAgentLoop = async ({
     agentPowers,
@@ -557,9 +567,67 @@ export const make = (guestPowers, _context) => {
     pendingHeartbeatTicks,
     observer,
     reflector,
+    genieTools,
   }) => {
     const selfId = await E(agentPowers).locate('@self');
     const messageIterator = makeRefIterator(E(agentPowers).followMessages());
+
+    // ── Specials dispatcher ────────────────────────────────────────
+    // The `/observe`, `/reflect`, `/help`, `/tools`, `/clear`, and
+    // `/exit` slash commands are routed through the shared
+    // `makeBuiltinSpecials` so the daemon and the dev-repl stay on
+    // one implementation.  `/heartbeat` is intentionally **not**
+    // mounted here: heartbeat messages are system self-sends handled
+    // separately below so they can drive tick resolution and
+    // coalescing.
+    const toolNames = Object.keys(genieTools.tools);
+
+    /** @type {SpecialsIO<string>} */
+    const dispatcherIo = harden({
+      info: msg => msg,
+      notice: msg => msg,
+      warn: msg => msg,
+      error: msg => msg,
+      success: msg => msg,
+      // Drain events silently — the daemon does not yet forward
+      // sub-agent events back through mail.
+      // Consuming the iterator is still required so the observer / reflector
+      // cycles run to completion.
+      renderEvents: async function* drain(events) {
+        for await (const _event of events) {
+          // TODO once we have progressive message edits
+        }
+      },
+      listToolNames: () => toolNames.slice(),
+      listHelpLines: () => formatHelpLines({
+        prefix: '/',
+        // Only the handlers actually mounted below; `/heartbeat`
+        // remains a system self-send, so it is intentionally absent.
+        commands: ['help', 'tools', 'observe', 'reflect'],
+      }),
+    });
+
+    const allBuiltins = makeBuiltinSpecials({
+      agents: { piAgent, heartbeatAgent, observer, reflector },
+      workspaceDir,
+      io: dispatcherIo,
+    });
+
+    // Mount only the user-facing built-ins; `/heartbeat` stays with
+    // the system handler below.
+    const dispatcher = makeSpecialsDispatcher({
+      prefix: '/',
+      handlers: harden({
+        observe: allBuiltins.observe,
+        reflect: allBuiltins.reflect,
+        help: allBuiltins.help,
+        tools: allBuiltins.tools,
+      }),
+      /** @type {SpecialHandler<string>} */
+      onUnknown: async function* onUnknown([head]) {
+        yield `Unknown command: /${head}. Type /help for a list of commands.`;
+      },
+    });
 
     /**
      * Collect any additional pending heartbeat messages from the
@@ -659,44 +727,33 @@ export const make = (guestPowers, _context) => {
             }
           }
 
-        } else if (head.startsWith('/observe')) {
-          // ─── Slash command (/observe) ────────────────────
-          for await (const mess of (async function*() {
-            if (!observer) {
-              yield 'Observer not available.';
-            } else if (observer.isRunning()) {
-              yield 'Observation is already in progress.';
-            } else {
-              observer.check(piAgent);
-              if (observer.isRunning()) {
-                yield 'Observation cycle triggered.';
-              } else {
-                observer.onIdle(piAgent);
-                yield 'No unobserved messages to process.';
+        } else if (dispatcher.isSpecial(first.trim())) {
+          // ─── Slash commands ────────────────────
+          // Route `/observe`, `/reflect`, `/help`, `/tools`, and any
+          // unknown `/`-commands through the shared dispatcher.
+          // Each yielded chunk is relayed as its own daemon-mail reply;
+          // this mirrors the pre-migration "one reply per progress string"
+          // behaviour.
+          try {
+            for await (const mess of dispatcher.dispatch(first.trim())) {
+              if (mess) {
+                // TODO use progressive messaged edits and sub-status
+                await E(agentPowers).reply(message.number, [mess], [], []);
               }
             }
-          })()) {
-            await E(agentPowers).reply(message.number, [mess], [], []);
-          }
-
-        } else if (head.startsWith('/reflect')) {
-          // ─── Slash command (/reflect) ────────────────────
-          for await (const mess of (async function*() {
-            if (!reflector) {
-              yield 'Reflector not available.';
-            } else if (reflector.isRunning()) {
-              yield 'Reflection is already in progress.';
-            } else {
-              yield 'Running reflection cycle...';
-              try {
-                await reflector.run();
-                yield 'Reflection cycle complete.';
-              } catch (err) {
-                yield `Reflection failed: ${err?.message || String(err)}`;
-              }
+          } catch (err) {
+            const errorMessage = /** @type {Error} */ (err).message || String(err);
+            console.error(`[genie:${agentName}] Special command error:`, errorMessage);
+            try {
+              await E(agentPowers).reply(
+                message.number,
+                [`Special command error: ${errorMessage}`],
+                [],
+                [],
+              );
+            } catch {
+              // best-effort
             }
-          })()) {
-            await E(agentPowers).reply(message.number, [mess], [], []);
           }
 
         } else {

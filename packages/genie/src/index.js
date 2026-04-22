@@ -50,6 +50,14 @@ export { default as buildSystemPrompt } from './system/index.js';
 export { estimateTokens } from './utils/index.js';
 
 export {
+  BUILTIN_HELP_DESCRIPTIONS,
+  formatHelpLines,
+  makeBuiltinSpecials,
+} from './loop/builtin-specials.js';
+
+export { makeSpecialsDispatcher } from './loop/specials.js';
+
+export {
   buildGenieTools,
   PLUGIN_DEFAULT_INCLUDE,
 } from './tools/registry.js';
