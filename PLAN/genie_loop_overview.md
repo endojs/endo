@@ -84,7 +84,7 @@ Phases 1–5 each have a task file under `TODO/`; tasks track the
 detailed checklist and update the `[ ]`/`[x]` marker here on
 completion.
 
-1. [ ] **Tool-gate extraction** — move `makeToolGate` to
+1. [x] **Tool-gate extraction** — move `makeToolGate` to
    `src/agent/tool-gate.js`, export it, fix its bugs, rewrite observer's inline
    gate to use it.
    See [`TODO/72_genie_loop_tool_gate.md`](../TODO/72_genie_loop_tool_gate.md).

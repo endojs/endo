@@ -15,6 +15,8 @@ export {
   makeError,
 } from './agent/index.js';
 
+export { makeToolGate } from './agent/tool-gate.js';
+
 export {
   runHeartbeat,
   HeartbeatStatus,
