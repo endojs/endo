@@ -1,6 +1,8 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import {
+  assertFormulaNumber,
+  assertNodeNumber,
   assertValidId,
   assertValidNumber,
   formatId,
@@ -58,4 +60,30 @@ test('assertValidNumber rejects non-hex', t => {
 
 test('parseId rejects bare number', t => {
   t.throws(() => parseId(validNumber));
+});
+
+test('assertFormulaNumber rejects invalid input', t => {
+  t.throws(() => assertFormulaNumber('not-a-number'), {
+    message: /Invalid formula number/,
+  });
+});
+
+test('assertFormulaNumber accepts valid input', t => {
+  t.notThrows(() => assertFormulaNumber(validNumber));
+});
+
+test('assertNodeNumber rejects invalid input', t => {
+  t.throws(() => assertNodeNumber('not-a-number'), {
+    message: /Invalid node number/,
+  });
+});
+
+test('assertNodeNumber accepts valid input', t => {
+  t.notThrows(() => assertNodeNumber(validNode));
+});
+
+test('assertValidId includes pet name in error message', t => {
+  t.throws(() => assertValidId('bad-id', 'my-thing'), {
+    message: /for pet name.*my-thing/,
+  });
 });

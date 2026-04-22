@@ -60,10 +60,39 @@ test('panic using process.abort', t => {
   t.true(catchHappened);
 });
 
+test('panic using globalThis.panic (XS fallback)', t => {
+  delete globalThis[PanicEndowmentSymbol];
+  const savedAbort = globalThis.process?.abort;
+  // @ts-expect-error 'abort' is not optional on 'process'
+  delete globalThis.process.abort;
+
+  let xsPanicCalled = false;
+  globalThis.panic = err => {
+    xsPanicCalled = true;
+    throw badError;
+  };
+  let catchHappened = false;
+  try {
+    panic(Error('testing panic using globalThis.panic'));
+  } catch (err) {
+    catchHappened = true;
+    t.is(err, badError);
+  }
+  t.true(xsPanicCalled);
+  t.true(catchHappened);
+
+  // Restore
+  delete globalThis.panic;
+  if (savedAbort) {
+    globalThis.process.abort = savedAbort;
+  }
+});
+
 test('panic last resort', t => {
   delete globalThis[PanicEndowmentSymbol];
   // @ts-expect-error 'abort' is not optional on 'process'
   delete globalThis.process.abort;
+  delete globalThis.panic;
 
   let catchHappened = false;
   try {
@@ -74,4 +103,27 @@ test('panic last resort', t => {
     t.is(err, lastResortError);
   }
   t.true(catchHappened);
+});
+
+test('panic without console.error', t => {
+  delete globalThis[PanicEndowmentSymbol];
+  // @ts-expect-error 'abort' is not optional on 'process'
+  delete globalThis.process.abort;
+  delete globalThis.panic;
+
+  const savedConsole = globalThis.console;
+  // @ts-expect-error mock
+  globalThis.console = undefined;
+
+  let catchHappened = false;
+  try {
+    panic(Error('testing panic without console'));
+  } catch (err) {
+    catchHappened = true;
+    t.is(err, lastResortError);
+  }
+  t.true(catchHappened);
+
+  // Restore
+  globalThis.console = savedConsole;
 });

@@ -307,6 +307,35 @@ test('harden a typed array subclass', t => {
   t.true(Object.isSealed(a));
 });
 
+test('harden an Error object repairs v8 stack accessor', t => {
+  const h = makeHardener({ traversePrototypes: true });
+  const err = new Error('test error');
+  const hardened = h(err);
+  t.is(hardened, err);
+  t.true(Object.isFrozen(err));
+  // The stack should still be accessible after hardening.
+  t.is(typeof err.stack, 'string');
+  t.true(err.stack.includes('test error'));
+  // The stack property should now be a value descriptor (not an accessor)
+  // on platforms where harden repairs the v8 stack accessor.
+  const stackDesc = Object.getOwnPropertyDescriptor(err, 'stack');
+  if (stackDesc) {
+    t.true(
+      'value' in stackDesc,
+      'stack should be a value property after harden',
+    );
+  }
+});
+
+test('harden an Error with custom properties', t => {
+  const h = makeHardener({ traversePrototypes: true });
+  const err = new Error('custom');
+  err.code = 'ERR_TEST';
+  const hardened = h(err);
+  t.is(hardened.code, 'ERR_TEST');
+  t.true(Object.isFrozen(err));
+});
+
 test('harden depends on invariant: typed arrays have no storage for integer indexes beyond length', t => {
   const a = new Uint8Array(1);
   a[1] = 1;

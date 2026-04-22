@@ -1,6 +1,13 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
-import { parseHelpdown } from '../src/helpdown.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  parseHelpdown,
+  loadHelpTextFile,
+  readHelpTextFileSync,
+} from '../src/helpdown.js';
 
 test('parseHelpdown returns empty array for empty string', t => {
   const entries = parseHelpdown('');
@@ -225,4 +232,67 @@ test('parseHelpdown handles method with no body', t => {
   const [, help] = entries[0];
   t.is(help.bar, 'bar() -> void');
   t.is(help.baz, 'baz() -> string');
+});
+
+test('parseHelpdown handles method header with special characters', t => {
+  // Method header like "## @special" — the @ is not a \w char, so
+  // extractMethodName falls back to trimmed header text.
+  const md = ['# Entity - desc', '', '## @special', 'Some body'].join('\n');
+  const entries = parseHelpdown(md);
+  const [, help] = entries[0];
+  t.true(typeof help['@special'] === 'string');
+  t.true(help['@special'].includes('Some body'));
+});
+
+test('readHelpTextFileSync reads and parses a markdown file', t => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helpdown-test-'));
+  const tmpFile = path.join(tmpDir, 'test-help.md');
+  fs.writeFileSync(
+    tmpFile,
+    ['# TestEntity - A test entity.', '', '## foo()', 'Does foo.'].join('\n'),
+  );
+  try {
+    const helpMap = readHelpTextFileSync(new URL(`file://${tmpFile}`));
+    t.true(helpMap instanceof Map);
+    t.true(helpMap.has('TestEntity'));
+    const help = helpMap.get('TestEntity');
+    t.is(help[''], 'TestEntity - A test entity.');
+    t.true(typeof help.foo === 'string');
+    t.true(help.foo.includes('Does foo.'));
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('loadHelpTextFile returns async iterable of entries', async t => {
+  await null;
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helpdown-test-'));
+  const tmpFile = path.join(tmpDir, 'async-help.md');
+  fs.writeFileSync(
+    tmpFile,
+    [
+      '# Alpha - First.',
+      '',
+      '## a()',
+      'Method a.',
+      '',
+      '# Beta - Second.',
+      '',
+      '## b()',
+      'Method b.',
+    ].join('\n'),
+  );
+  try {
+    const results = [];
+    for await (const entry of loadHelpTextFile(new URL(`file://${tmpFile}`))) {
+      results.push(entry);
+    }
+    t.is(results.length, 2);
+    t.is(results[0][0], 'Alpha');
+    t.is(results[1][0], 'Beta');
+    t.true(results[0][1].a.includes('Method a.'));
+    t.true(results[1][1].b.includes('Method b.'));
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 });

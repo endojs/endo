@@ -126,6 +126,37 @@ test('E sendOnly call missing method', async t => {
   t.is(count, 279, `sendOnly method call doesn't change count`);
 });
 
+test('E.sendOnly function call', async t => {
+  let called = false;
+  const fn = n => {
+    called = true;
+    return n * 2;
+  };
+  const result = E.sendOnly(fn)(21);
+  t.is(
+    /** @type {unknown} */ (result),
+    undefined,
+    'sendOnly function call returns undefined',
+  );
+  await null;
+  t.true(called, 'sendOnly function call invokes the function');
+});
+
+test('E proxy has trap returns true', async t => {
+  const x = { hello() {} };
+  const proxy = E(x);
+  // 'in' operator triggers the has trap.
+  t.true('hello' in proxy);
+  t.true('nonexistent' in proxy, 'has returns true for any property');
+});
+
+test('E.sendOnly proxy has trap returns true', async t => {
+  const x = { hello() {} };
+  const proxy = E.sendOnly(x);
+  t.true('hello' in proxy);
+  t.true('nonexistent' in proxy, 'sendOnly has returns true for any property');
+});
+
 test('E call undefined method', async t => {
   const x = {
     double(n) {
