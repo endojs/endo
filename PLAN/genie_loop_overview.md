@@ -108,7 +108,7 @@ completion.
    the integration tests added in step 5 will reveal whether `/` is
    acceptable over endo mail, and we revisit only if it is not.
    See [`TODO/75_genie_loop_specials_dispatcher.md`](../TODO/75_genie_loop_specials_dispatcher.md).
-5. [ ] **Shared loop runner** — collapse the two near-identical
+5. [x] **Shared loop runner** — collapse the two near-identical
    message-dispatch loops into one `runGenieLoop({ io })`.
    See [`TODO/76_genie_loop_shared_runner.md`](../TODO/76_genie_loop_shared_runner.md).
 6. [ ] **Observer/reflector parity in main.js** — wire `subscribe` into a

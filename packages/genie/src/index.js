@@ -55,6 +55,8 @@ export {
   makeBuiltinSpecials,
 } from './loop/builtin-specials.js';
 
+export { runGenieLoop } from './loop/run.js';
+
 export { makeSpecialsDispatcher } from './loop/specials.js';
 
 export {

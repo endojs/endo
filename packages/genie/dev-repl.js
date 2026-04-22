@@ -44,16 +44,17 @@ import {
   makeGenieAgents,
   makeSpecialsDispatcher,
   runAgentRound,
+  runGenieLoop,
 } from '@endo/genie';
 
 /** @import { SpecialsIO } from './src/loop/builtin-specials.js' */
 /** @import { SpecialHandler } from './src/loop/specials.js' */
+/** @import { GenieIO, InboundPrompt } from './src/loop/io.js' */
 
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
 /** @import { AgentError, ChatEvent } from './src/agent/index.js' */
-/** @import { SpecialsDispatcher } from './src/loop/specials.js' */
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { initWorkspace, isWorkspace } from './src/workspace/init.js';
 
@@ -580,69 +581,17 @@ async function* runPrompt(
 }
 
 // ---------------------------------------------------------------------------
-// Agent runner (async generator)
-// ---------------------------------------------------------------------------
-
-/**
- * Run the genie agent REPL loop, yielding output chunks as strings.
- *
- * Special inputs (dot-commands) are routed through the shared
- * `SpecialsDispatcher`; every other line is fed to `runPrompt` as a
- * user chat turn.
- *
- * The loop exits when `prompts` is exhausted or when the dispatcher signals
- * exit via `shouldExit()` (typically from the built-in `.exit` handler).
- *
- * @param {object} options
- * @param {PiAgent} options.piAgent
- * @param {boolean} options.verbose - Enable debug output.
- * @param {Array<{ role: string, content: string }>} [options.messages]
- * @param {SpecialsDispatcher<string>} options.dispatcher
- *   - Pre-built specials dispatcher (prefix `.` in dev-repl).
- * @param {() => boolean} options.shouldExit
- *   - Polled after each dispatch to break the loop when the `exit` special fires.
- * @param {AsyncIterable<string>} options.prompts
- *   - Async iterable of user prompts for REPL mode.
- * @returns {AsyncGenerator<string>}
- */
-async function* runAgent({
-  piAgent,
-  verbose,
-  dispatcher,
-  shouldExit,
-  prompts,
-  messages = [],
-}) {
-  for await (const prompt of prompts) {
-    if (dispatcher.isSpecial(prompt)) {
-      yield* dispatcher.dispatch(prompt);
-      if (shouldExit()) break;
-      continue;
-    }
-    try {
-      yield* runPrompt(piAgent, prompt, { messages, verbose });
-    } catch (err) {
-      yield `${RED}REPL error: ${err.message}${RESET}\n`;
-      if (verbose) {
-        yield `${err.stack}\n`;
-      }
-    }
-  }
-
-  yield `\n${DIM}Goodbye.${RESET}\n`;
-}
-
-// ---------------------------------------------------------------------------
 // Readline prompt source
 // ---------------------------------------------------------------------------
 
 /**
- * Async iterable of user prompts driven by a readline interface.
+ * Async iterable of trimmed, non-empty readline lines.
  *
- * Accepts optional `onIdle` / `onBusy` callbacks so the REPL can
- * signal a background-event printer when it is safe to flush queued
- * output (idle at the prompt) versus when events must be buffered
- * (prompt in flight).
+ * Idle / busy transitions are no longer signalled here — `runGenieLoop`
+ * drives those via the `GenieIO.onIdle` / `onBusy` adapter hooks — but
+ * this generator still pauses and resumes the underlying readline
+ * interface around each yielded prompt so stdin input cannot race the
+ * dispatch of the current prompt.
  *
  * @param {object} [options]
  * @param {ReadlineInterface} [options.rl] - Externally
@@ -653,11 +602,10 @@ async function* runAgent({
  * @param {() => void} [options.onIdle] - Called immediately before
  *   each `await nextPrompt()` (i.e. when the REPL is about to wait
  *   at the prompt).
+ * @returns {AsyncGenerator<string>}
  */
 async function* readPrompts({
   rl: providedRl,
-  onBusy,
-  onIdle,
 } = {}) {
   const rl = providedRl || createInterface({
     input: process.stdin,
@@ -702,17 +650,37 @@ async function* readPrompts({
     });
 
   for (; ;) {
-    if (onIdle) onIdle();
     const prompt = await nextPrompt();
     if (prompt === null) {
       break;
     }
-    if (onBusy) onBusy();
 
     // Pause readline while we process
     rl.pause();
     yield prompt;
     rl.resume();
+  }
+}
+
+/**
+ * Adapt `readPrompts` into the `InboundPrompt` stream consumed by
+ * `runGenieLoop`.
+ *
+ * Each readline line becomes an `InboundPrompt` with a monotonically
+ * increasing numeric id.
+ *
+ * The shared loop falls back to `specials.isSpecial(text)` to distinguish
+ * dot-commands from user chat turns, so `kind` is left unset.
+ *
+ * @param {object} options
+ * @param {import('readline').Interface} options.rl
+ * @returns {AsyncGenerator<InboundPrompt>}
+ */
+async function* readInboundPrompts({ rl }) {
+  let seq = 0;
+  for await (const line of readPrompts({ rl })) {
+    seq += 1;
+    yield harden({ id: seq, text: line });
   }
 }
 
@@ -940,18 +908,37 @@ async function* runMain(args) {
       },
     });
 
-    yield* runAgent({
-      piAgent,
-      verbose,
-      dispatcher,
-      shouldExit: () => exitRequested,
-      prompts: readPrompts({
-        rl,
-        onIdle: backgroundPrinter.setIdle,
-        onBusy: backgroundPrinter.setBusy,
-      }),
-      messages,
+    /** @type {GenieIO<string>} */
+    const genieIo = harden({
+      prompts: () => readInboundPrompts({ rl }),
+      write: chunk => {
+        process.stdout.write(chunk);
+      },
+      onIdle: () => backgroundPrinter.setIdle(),
+      onBusy: () => backgroundPrinter.setBusy(),
     });
+
+    await runGenieLoop({
+      agents: { piAgent, heartbeatAgent, observer, reflector },
+      specials: dispatcher,
+      io: genieIo,
+      handlers: {
+        runUserPrompt: async function* runUserPrompt(prompt) {
+          yield* runPrompt(piAgent, prompt.text, { messages, verbose });
+        },
+        onError: async (_prompt, err) => {
+          const errMsg = /** @type {Error} */ (err).message;
+          process.stdout.write(`${RED}REPL error: ${errMsg}${RESET}\n`);
+          if (verbose) {
+            const stack = /** @type {Error} */ (err).stack;
+            process.stdout.write(`${stack ?? String(err)}\n`);
+          }
+        },
+      },
+      shouldExit: () => exitRequested,
+    });
+
+    yield `\n${DIM}Goodbye.${RESET}\n`;
   }
 }
 

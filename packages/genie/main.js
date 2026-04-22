@@ -43,6 +43,7 @@ import {
   makeSpecialsDispatcher,
   PLUGIN_DEFAULT_INCLUDE,
   runAgentRound,
+  runGenieLoop,
 } from '@endo/genie';
 
 /** @import { Observer } from './src/observer/index.js' */
@@ -50,6 +51,7 @@ import {
 /** @import { GenieTools } from './src/tools/registry.js' */
 /** @import { SpecialsIO } from './src/loop/builtin-specials.js' */
 /** @import { SpecialHandler } from './src/loop/specials.js' */
+/** @import { GenieIO, InboundPrompt, InboundPromptKind } from './src/loop/io.js' */
 
 import { runHeartbeat, HeartbeatStatus } from './src/heartbeat/index.js';
 import { makeIntervalScheduler } from './src/interval/index.js';
@@ -392,6 +394,9 @@ export const make = (guestPowers, _context) => {
     }
 
     // Resolve all coalesced heartbeat ticks and dismiss their messages.
+    // The primary heartbeat message is dismissed by the shared
+    // `runGenieLoop` via `io.dismiss(prompt.id)` once this handler
+    // returns, so only the coalesced extras are dismissed here.
     for (const extra of extraHeartbeats) {
       const { id: extraTickId, tick: extraTick } = getHeartbeatTick(extra);
       if (extraTick) {
@@ -410,12 +415,8 @@ export const make = (guestPowers, _context) => {
       }
     }
 
-    // Dismiss the primary heartbeat message.
-    try {
-      await E(agentPowers).dismiss(messageNumber);
-    } catch {
-      // Best-effort dismiss.
-    }
+    // Ensure messageNumber participates in the returned close-out.
+    void messageNumber;
   };
 
   /**
@@ -654,42 +655,142 @@ export const make = (guestPowers, _context) => {
       return extra;
     };
 
+    // ── IO adapter for the shared `runGenieLoop` ───────────────────
+    // Each inbound daemon message becomes an `InboundPrompt`; the adapter
+    // classifies heartbeat self-sends as `kind='heartbeat'`, other
+    // slash-prefixed messages as `kind='special'`, and everything else as
+    // `kind='user'` so the runner can route them without re-parsing the text.
+    //
+    // Cancellation is plumbed through `cancelledP` — racing the message
+    // iterator against the cancel sentinel matches the pre-migration shutdown
+    // semantics.
     /** @type {Promise<{cancelled: any}>} */
     const cancelSentinel = cancelledP.then((cancelled) => ({ cancelled }));
 
-    while (true) {
-      const result = await Promise.race([
-        messageIterator.next(),
-        cancelSentinel,
-      ]);
+    /** @returns {AsyncGenerator<InboundPrompt>} */
+    async function* daemonPrompts() {
+      while (true) {
+        const result = await Promise.race([
+          messageIterator.next(),
+          cancelSentinel,
+        ]);
 
-      // Exit the loop when the agent is cancelled externally.
-      if ('cancelled' in result) {
-        const { cancelled } = result;
-        console.log(`[genie:${agentName}] Agent loop cancelled`, cancelled);
-        break;
-      }
+        // Exit the loop when the agent is cancelled externally.
+        if ('cancelled' in result) {
+          const { cancelled } = result;
+          console.log(`[genie:${agentName}] Agent loop cancelled`, cancelled);
+          return;
+        }
 
-      const { value: message, done } = result;
-      if (done) break;
+        const { value: message, done } = result;
+        if (done) return;
 
-      // Skip our own outbound messages.
-      if (message.from === selfId) continue;
+        // Skip our own outbound messages.
+        if (message.from === selfId) continue;
+        if (message.type !== 'package') {
+          console.warn(`[genie:${agentName}] Unhandled message #${message.number} (type: ${message.type})`);
+          continue;
+        }
 
-      if (message.type === 'package') {
-        const { strings: [first = ''] } = message;
-        const head = first.trim().toLowerCase();
-
+        const [first = ''] = message.strings;
+        const trimmed = first.trim();
+        const head = trimmed.toLowerCase();
+        /** @type {InboundPromptKind} */
+        let kind = 'user';
         if (head.startsWith('/heartbeat')) {
-          // ─── Heartbeat messages ──────────────────────────────────────
+          kind = 'heartbeat';
+        } else if (dispatcher.isSpecial(trimmed)) {
+          kind = 'special';
+        }
+        yield harden({
+          id: message.number,
+          text: trimmed,
+          kind,
+          from: message.from,
+          raw: message,
+        });
+      }
+    }
 
-          // Coalesce: drain any additional pending heartbeat messages
-          // so one round clears them all.
+    /** @type {GenieIO<string>} */
+    const genieIo = harden({
+      prompts: () => daemonPrompts(),
+      // One reply per yielded chunk (drop empties) — mirrors the
+      // pre-migration "one mail reply per progress string" behaviour
+      // for slash-command output.
+      reply: async (promptId, chunks) => {
+        // `InboundPromptId` is `string | number | bigint` for the
+        // generic loop contract, but the daemon adapter always threads
+        // `message.number` (a bigint) through `id`, so narrowing here
+        // is sound.
+        const messageNumber = /** @type {bigint} */ (promptId);
+        for (const chunk of chunks) {
+          if (chunk) {
+            await E(agentPowers).reply(messageNumber, [chunk], [], []);
+          }
+        }
+      },
+      dismiss: async promptId => {
+        const messageNumber = /** @type {bigint} */ (promptId);
+        try {
+          await E(agentPowers).dismiss(messageNumber);
+        } catch {
+          // Best-effort dismiss.
+        }
+      },
+    });
+
+    await runGenieLoop({
+      agents: { piAgent, heartbeatAgent, observer, reflector },
+      specials: dispatcher,
+      io: genieIo,
+
+      handlers: harden({
+        /**
+         * Normal user-message handler.
+         * Performs the same side-effects (resetIdleTimer, processMessage) as
+         * the pre-migration `runAgentLoop` user branch; no output chunks are
+         * yielded because `processMessage` already streams "Thinking…" /
+         * final-message replies directly via `E(agentPowers).reply`.
+         *
+         * @param {InboundPrompt} prompt
+         */
+        runUserPrompt: async function* runUserPrompt(prompt) {
+          const message = /** @type {Package & StampedMessage} */ (prompt.raw);
+          console.log(`[genie:${agentName}] New message #${prompt.id} (type: ${message.type})`);
+
+          // Reset the observer idle timer on each inbound message so
+          // opportunistic observation only fires after a quiet period.
+          if (observer) {
+            observer.resetIdleTimer();
+          }
+
+          try {
+            await processMessage(agentPowers, piAgent, message);
+          } catch (err) {
+            const errorMessage = /** @type {Error} */ (err).message || String(err);
+            console.error(
+              `[genie:${agentName}] Failed to process message #${prompt.id}:`,
+              errorMessage,
+            );
+          }
+        },
+
+        /**
+         * Heartbeat self-send handler.
+         *
+         * Coalesces any other pending heartbeat messages and runs a single
+         * heartbeat round; the runner then dismisses the primary heartbeat
+         * message via `io.dismiss`.
+         *
+         * The coalesced extras are dismissed inside `processHeartbeat` because
+         * they never appear to the runner as distinct prompts.
+         *
+         * @param {InboundPrompt} prompt
+         */
+        runHeartbeat: async prompt => {
+          const message = /** @type {Package & StampedMessage} */ (prompt.raw);
           const extraHeartbeats = await drainPendingHeartbeats();
-
-          // Run a single heartbeat round for the latest tick.
-          // processHeartbeat handles tick resolution and message
-          // dismissal for both the primary and coalesced heartbeats.
           try {
             await processHeartbeat(
               agentPowers,
@@ -708,9 +809,6 @@ export const make = (guestPowers, _context) => {
               errorMessage,
             );
           }
-
-          // After heartbeat processing, check whether the reflector
-          // should consolidate observations into long-term knowledge.
           if (reflector) {
             try {
               const triggered = await reflector.checkAndRun();
@@ -727,75 +825,49 @@ export const make = (guestPowers, _context) => {
             }
           }
 
-        } else if (dispatcher.isSpecial(first.trim())) {
-          // ─── Slash commands ────────────────────
-          // Route `/observe`, `/reflect`, `/help`, `/tools`, and any
-          // unknown `/`-commands through the shared dispatcher.
-          // Each yielded chunk is relayed as its own daemon-mail reply;
-          // this mirrors the pre-migration "one reply per progress string"
-          // behaviour.
+        },
+
+        /**
+         * Error hook — the runner catches errors thrown from any of the
+         * three dispatch paths and forwards them here.  We log and
+         * attempt a best-effort `reply` so the sender sees the failure.
+         *
+         * @param {InboundPrompt} prompt
+         * @param {unknown} err
+         */
+        onError: async (prompt, err) => {
+          const errorMessage = /** @type {Error} */(err).message || String(err);
+          console.error(`[genie:${agentName}] Dispatch error for #${prompt.id}:`, errorMessage);
           try {
-            for await (const mess of dispatcher.dispatch(first.trim())) {
-              if (mess) {
-                // TODO use progressive messaged edits and sub-status
-                await E(agentPowers).reply(message.number, [mess], [], []);
-              }
-            }
-          } catch (err) {
-            const errorMessage = /** @type {Error} */ (err).message || String(err);
-            console.error(`[genie:${agentName}] Special command error:`, errorMessage);
-            try {
-              await E(agentPowers).reply(
-                message.number,
-                [`Special command error: ${errorMessage}`],
-                [],
-                [],
-              );
-            } catch {
-              // best-effort
-            }
-          }
-
-        } else {
-          // ─── Normal user messages ────────────────────────────────────
-          console.log(`[genie:${agentName}] New message #${message.number} (type: ${message.type})`);
-
-          // Reset the observer idle timer on each inbound message so
-          // opportunistic observation only fires after a quiet period.
-          if (observer) {
-            observer.resetIdleTimer();
-          }
-
-          try {
-            await processMessage(agentPowers, piAgent, message);
-          } catch (err) {
-            const errorMessage = /** @type {Error} */ (err).message || String(err);
-            console.error(
-              `[genie:${agentName}] Failed to process message #${message.number}:`,
-              errorMessage,
+            // See `io.reply` above — the daemon adapter's prompt ids
+            // are always bigints even though `InboundPromptId` allows
+            // string / number for other deployments.
+            await E(agentPowers).reply(
+              /** @type {bigint} */ (prompt.id),
+              [`Dispatch error: ${errorMessage}`],
+              [],
+              [],
             );
+          } catch {
+            // best-effort
           }
+        },
+      }),
+
+      /**
+       * After-dispatch hook — runs for every prompt (user / special /
+       * heartbeat) so the observer's unobserved-token accounting and
+       * idle-timer scheduling stay in lockstep with inbound traffic.
+       *
+       * @param {InboundPrompt} _prompt
+       */
+      afterDispatch: async _prompt => {
+        if (observer) {
+          observer.check(piAgent);
+          observer.scheduleIdle(piAgent);
         }
-      } else {
-        console.warn(`[genie:${agentName}] Unhandled message #${message.number} (type: ${message.type})`);
-        continue;
-      }
-
-      // After processing, let the observer check whether unobserved
-      // tokens have exceeded the threshold and schedule an idle
-      // observation for when the conversation goes quiet.
-      if (observer) {
-        observer.check(piAgent);
-        observer.scheduleIdle(piAgent);
-      }
-
-      // Dismiss the message after processing.
-      try {
-        await E(agentPowers).dismiss(message.number);
-      } catch {
-        // Best-effort dismiss.
-      }
-    }
+      },
+    });
   };
 
   /**
