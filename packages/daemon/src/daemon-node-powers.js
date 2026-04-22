@@ -21,9 +21,10 @@ const textEncoder = new TextEncoder();
 /**
  * @param {object} modules
  * @param {typeof import('net')} modules.net
+ * @param {Pick<typeof import('fs/promises'), 'access'>} modules.fsp
  * @returns {SocketPowers}
  */
-export const makeSocketPowers = ({ net }) => {
+export const makeSocketPowers = ({ net, fsp: { access } }) => {
   const serveListener = async (listen, cancelled) => {
     const [
       /** @type {Reader<Connection>} */ readFrom,
@@ -98,14 +99,24 @@ export const makeSocketPowers = ({ net }) => {
   const servePath = async ({ path, cancelled }) => {
     const { connections } = await serveListener(server => {
       return new Promise((resolve, reject) =>
-        server.listen({ path }, error => {
+        server.listen({ path }, async error => {
+          await null;
+          // In some environments, an overly-long Unix domain socket path
+          // (`sockaddr_un` `sun_path`) is silently truncated. This exposes the
+          // problem, but we may still leak the incorrectly-named file and
+          // thereby cause EADDRINUSE errors for future attempts to start.
+          error ||= await access(path).catch(err => err);
           if (error) {
             if (path.length >= 104) {
               console.warn(
                 `Warning: Length of path for domain socket or named path exceeeds common maximum (104, possibly 108) for some platforms (length: ${path.length}, path: ${path})`,
               );
             }
-            reject(error);
+            try {
+              server.close(_serverNotRunningErr => reject(error));
+            } catch (_serverCloseErr) {
+              reject(error);
+            }
           } else {
             resolve(undefined);
           }
@@ -121,10 +132,11 @@ export const makeSocketPowers = ({ net }) => {
 /**
  * @param {object} modules
  * @param {typeof import('net')} modules.net
+ * @param {Pick<typeof import('fs/promises'), 'access'>} modules.fsp
  * @returns {NetworkPowers}
  */
-export const makeNetworkPowers = ({ net }) => {
-  const { servePort, servePath, connectPort } = makeSocketPowers({ net });
+export const makeNetworkPowers = ({ net, fsp }) => {
+  const { servePort, servePath, connectPort } = makeSocketPowers({ net, fsp });
 
   const connectionNumbers = (function* generateNumbers() {
     let n = 0;

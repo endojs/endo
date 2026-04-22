@@ -6,6 +6,7 @@ import '@endo/init/debug.js';
 
 import baseTest from 'ava';
 import url from 'url';
+import fsp from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import { E } from '@endo/far';
@@ -261,6 +262,29 @@ test('lifecycle', async t => {
   await closed.catch(() => {});
 
   t.pass();
+});
+
+test('failure to start', async t => {
+  await null;
+  const cleanup = async () => {
+    const dirAccessErr = await fsp.access('tmp').catch(err => err);
+    if (dirAccessErr) return;
+    for (const entry of await fsp.readdir('tmp')) {
+      // eslint-disable-next-line no-continue
+      if (!entry.startsWith('failure-to-start~0')) continue;
+      // eslint-disable-next-line no-await-in-loop
+      await fsp.rm(path.join('tmp', entry), { force: true, recursive: true });
+    }
+  };
+  try {
+    await cleanup();
+    const configSubDirectory = `failure-to-start~${'0'.repeat(200)}`;
+    const config = makeConfig('tmp', configSubDirectory);
+    await purge(config);
+    await t.throwsAsync(() => start(config));
+  } finally {
+    await cleanup().catch(err => t.log('cleanup error', err));
+  }
 });
 
 test('store pass-copy values', async t => {

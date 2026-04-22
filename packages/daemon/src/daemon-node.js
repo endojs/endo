@@ -20,6 +20,8 @@ import {
   makeCryptoPowers,
 } from './daemon-node-powers.js';
 
+const fsp = { access: fs.promises.access };
+
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config, Builtins } from './types.js' */
 
@@ -44,7 +46,7 @@ const config = {
 
 const { pid, kill } = process;
 
-const networkPowers = makeNetworkPowers({ net });
+const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
 const powers = makeDaemonicPowers({
