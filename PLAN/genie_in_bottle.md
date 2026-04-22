@@ -480,17 +480,34 @@ working state.
 
 ### Phase 0: bottle script as a dumb shell recipe
 
-- Add `packages/genie/scripts/bottle.sh` that assumes `endo` on
-  PATH.
-- Runs `endo start`.
-- Picks a transport (libp2p default; TCP fallback).
-- Runs genie `setup.js` with an `--owner` flag _(stubbed until
-  Phase 1 lands; Phase 0 can fall back to the existing
-  `main-genie` path and still prove composition)_.
-- Prints the invite locator to stdout _and_ writes
-  `PENDING_OWNER_INVITE` in the workspace.
+`packages/genie/scripts/bottle.sh` dispatches on two subcommands:
 
-No systemd, no install, no credential bootstrap.
+- **`invoke`** — runs _inside_ the bottle.  Assumes `endo` on PATH.
+  - Runs `endo start` under the invoking user's XDG paths (no
+    throwaway state dir; the daemon is meant to survive the
+    script).
+  - Picks a transport (libp2p default; TCP fallback).
+  - Runs genie `setup.js` with an `--owner` flag _(stubbed until
+    Phase 1 lands; Phase 0 can fall back to the existing
+    `main-genie` path and still prove composition)_.
+  - Prints the invite locator to stdout _and_ writes
+    `PENDING_OWNER_INVITE` in the workspace.
+  - Idempotent on re-run: transport turnup is skipped when
+    `@nets/<name>` already exists; `endo start` no-ops when a
+    daemon is already running.
+
+- **`evoke`** — runs on the _operator's_ workstation.
+  - Pushes the local checkout's `HEAD` to a bare repo on the
+    bottle host (default: `$HOME/endo.git`), checks it out under
+    `$HOME/endo`, runs `corepack yarn install`, and execs into
+    `bottle.sh invoke` on that host.
+  - `--install=yarn-global` falls back to
+    `yarn global add github:endojs/endo#<branch>` on the remote;
+    `--install=none` assumes endo is already on the remote PATH.
+  - Pass-through args after `--` go straight to the remote invoke.
+
+No systemd, no credential bootstrap, no validated install story
+(Phase 3 hardens the install path).
 Proves the composition works.
 Tracked in [`TODO/81_genie_bottle_phase0_shell.md`](../TODO/81_genie_bottle_phase0_shell.md).
 
@@ -513,12 +530,16 @@ is the first thing we run _over_ that edge.
 
 ### Phase 3: install story
 
+Phase 0's `bottle.sh evoke` already implements the bring-your-own-repo
+push mode (default `--install=push`) and the yarn-global alternative
+(`--install=yarn-global`); Phase 3 hardens the latter and picks a
+canonical install path we are willing to document to end users.
+
 - Validate `yarn global add github:endojs/endo#<rev>` in a clean
-  VM.
+  VM and record whether it links the `endo` bin without the
+  repo-root `"private": true` getting in the way.
 - Pick one of: workspace-root `bin`, npm publish, or
   bootstrap-clone script, and document the outcome.
-- Add the bring-your-own-repo push mode (SSH + `git push` into
-  the bottle account, remote `yarn install`).
 - Document in `packages/genie/README.md`.
 
 ### Phase 4: systemd user unit generator
