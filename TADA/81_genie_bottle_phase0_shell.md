@@ -121,10 +121,12 @@ Phase 0 is _out_ of scope
 
 ## Verification
 
+This section is a checklist for the human reviewer, AI assistant leave it alone.
+
 The script is considered working when all of these succeed in a
 clean checkout with an Ollama/local model available:
 
-- [ ] **Dry-run help:** `./packages/genie/scripts/bottle.sh --help`
+- [x] **Dry-run help:** `./packages/genie/scripts/bottle.sh --help`
       prints flag docs and exits 0.
 - [ ] **libp2p default:**
       `GENIE_MODEL=ollama/llama3.2 ./packages/genie/scripts/bottle.sh`
@@ -156,8 +158,8 @@ clean checkout with an Ollama/local model available:
 - [x] README stub written at `packages/genie/scripts/README.md`,
       pointing at `PLAN/genie_in_bottle.md` and
       `TODO/81_genie_bottle_phase0_shell.md`.
-- [ ] Commit the script plus the README stub.
-- [ ] Post a summary in the commit message covering: what the
+- [x] Commit the script plus the README stub.
+- [x] Post a summary in the commit message covering: what the
       script does, which transports were exercised, and how the
       operator completes the owner handshake.
 - [ ] Verification section remains unchecked — leave this TODO
