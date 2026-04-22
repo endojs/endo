@@ -54,8 +54,9 @@ hideAndHardenFunction(assertScalarKey);
 
 // ////////////////////////////// Keys /////////////////////////////////////////
 
-// @ts-expect-error Key does not satisfy WeakKey
-/** @type {WeakSet<Key>} */
+// Non-atom Keys are memoized. Atom keys are handled by the early return
+// in confirmKey and cannot inhabit a WeakSet.
+/** @type {WeakSet<Exclude<Key, Atom | void>>} */
 const keyMemo = new WeakSet();
 
 /**
