@@ -22,7 +22,7 @@ test('isPassableSymbol - well-known symbols', t => {
 
 test('isPassableSymbol - unique symbols are not passable', t => {
   t.false(isPassableSymbol(Symbol('unique')));
-  t.false(isPassableSymbol(Symbol()));
+  t.false(isPassableSymbol(Symbol('no-description-intent')));
 });
 
 test('isPassableSymbol - non-symbols', t => {
@@ -99,11 +99,16 @@ test('passableSymbolForName - throws for non-string', t => {
 test('nameForPassableSymbol / passableSymbolForName round-trip', t => {
   // Registered symbol
   const reg = Symbol.for('test-round-trip');
-  t.is(passableSymbolForName(/** @type {string} */ (nameForPassableSymbol(reg))), reg);
+  t.is(
+    passableSymbolForName(/** @type {string} */ (nameForPassableSymbol(reg))),
+    reg,
+  );
 
   // Well-known symbol
   t.is(
-    passableSymbolForName(/** @type {string} */ (nameForPassableSymbol(Symbol.iterator))),
+    passableSymbolForName(
+      /** @type {string} */ (nameForPassableSymbol(Symbol.iterator)),
+    ),
     Symbol.iterator,
   );
 

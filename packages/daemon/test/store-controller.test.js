@@ -15,9 +15,7 @@ const makeMockPetStore = () => {
     identifyLocal: name => entries.get(name),
     list: () => [...entries.keys()],
     reverseIdentify: targetId =>
-      [...entries.entries()]
-        .filter(([, v]) => v === targetId)
-        .map(([k]) => k),
+      [...entries.entries()].filter(([, v]) => v === targetId).map(([k]) => k),
     storeIdentifier: async (name, formulaId) => {
       entries.set(name, formulaId);
     },
@@ -29,10 +27,16 @@ const makeMockPetStore = () => {
       entries.delete(from);
       if (val !== undefined) entries.set(to, val);
     },
-    followNameChanges: () => (async function* () {})(),
-    followIdNameChanges: () => (async function* () {})(),
+    followNameChanges: () =>
+      (async function* noNames() {
+        yield* [];
+      })(),
+    followIdNameChanges: () =>
+      (async function* noIdNames() {
+        yield* [];
+      })(),
     // Expose entries for test assertions.
-    _entries: entries,
+    testEntries: entries,
   });
 };
 
@@ -60,7 +64,7 @@ test('has delegates to petStore', t => {
   const { hooks } = makeMockGcHooks();
   const ctrl = makeLocalStoreController(id('store:node'), store, hooks);
 
-  store._entries.set('foo', id('a:node'));
+  store.testEntries.set('foo', id('a:node'));
   t.true(ctrl.has('foo'));
   t.false(ctrl.has('bar'));
 });
@@ -70,7 +74,7 @@ test('identifyLocal delegates to petStore', t => {
   const { hooks } = makeMockGcHooks();
   const ctrl = makeLocalStoreController(id('store:node'), store, hooks);
 
-  store._entries.set('x', id('b:node'));
+  store.testEntries.set('x', id('b:node'));
   t.is(ctrl.identifyLocal('x'), id('b:node'));
   t.is(ctrl.identifyLocal('missing'), undefined);
 });
@@ -80,8 +84,8 @@ test('list delegates to petStore', t => {
   const { hooks } = makeMockGcHooks();
   const ctrl = makeLocalStoreController(id('store:node'), store, hooks);
 
-  store._entries.set('a', id('1:node'));
-  store._entries.set('b', id('2:node'));
+  store.testEntries.set('a', id('1:node'));
+  store.testEntries.set('b', id('2:node'));
   t.deepEqual(ctrl.list(), ['a', 'b']);
 });
 
@@ -91,7 +95,7 @@ test('storeIdentifier writes to store and registers GC edge', async t => {
   const ctrl = makeLocalStoreController(id('store:node'), store, hooks);
 
   await ctrl.storeIdentifier('myval', id('val:node'));
-  t.is(store._entries.get('myval'), id('val:node'));
+  t.is(store.testEntries.get('myval'), id('val:node'));
   t.is(writes.length, 1);
   t.is(writes[0].formulaId, id('val:node'));
 });
@@ -101,7 +105,7 @@ test('storeIdentifier removes GC edge for overwritten id', async t => {
   const { hooks, removes } = makeMockGcHooks();
   const ctrl = makeLocalStoreController(id('store:node'), store, hooks);
 
-  store._entries.set('name', id('old:node'));
+  store.testEntries.set('name', id('old:node'));
   await ctrl.storeIdentifier('name', id('new:node'));
 
   // old:node is no longer referenced by any name → GC edge removed.
@@ -124,10 +128,10 @@ test('remove deletes from store and cleans up GC edge', async t => {
   const { hooks, removes } = makeMockGcHooks();
   const ctrl = makeLocalStoreController(id('store:node'), store, hooks);
 
-  store._entries.set('gone', id('orphan:node'));
+  store.testEntries.set('gone', id('orphan:node'));
   await ctrl.remove('gone');
 
-  t.false(store._entries.has('gone'));
+  t.false(store.testEntries.has('gone'));
   t.is(removes.length, 1);
   t.is(removes[0].formulaId, id('orphan:node'));
 });
@@ -137,11 +141,11 @@ test('rename updates store and handles GC edges', async t => {
   const { hooks, writes } = makeMockGcHooks();
   const ctrl = makeLocalStoreController(id('store:node'), store, hooks);
 
-  store._entries.set('old-name', id('val:node'));
+  store.testEntries.set('old-name', id('val:node'));
   await ctrl.rename('old-name', 'new-name');
 
-  t.false(store._entries.has('old-name'));
-  t.is(store._entries.get('new-name'), id('val:node'));
+  t.false(store.testEntries.has('old-name'));
+  t.is(store.testEntries.get('new-name'), id('val:node'));
   // Re-registers the moved ID's GC edge under the store.
   t.true(writes.some(w => w.formulaId === id('val:node')));
 });
@@ -151,8 +155,8 @@ test('seedGcEdges registers all local IDs', async t => {
   const { hooks, writes } = makeMockGcHooks();
   const ctrl = makeLocalStoreController(id('store:node'), store, hooks);
 
-  store._entries.set('a', id('1:node'));
-  store._entries.set('b', id('2:node'));
+  store.testEntries.set('a', id('1:node'));
+  store.testEntries.set('b', id('2:node'));
 
   await ctrl.seedGcEdges();
   t.is(writes.length, 2);

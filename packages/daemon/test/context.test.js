@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import { setTimeout } from 'node:timers';
 import { makeContextMaker } from '../src/context.js';
 
 /** @typedef {import('../src/types.js').FormulaIdentifier} FormulaIdentifier */

@@ -171,7 +171,11 @@ test('disconnectRetainersHolding skips invitation formulas', t => {
   // Should NOT terminate — invitation formulas are skipped.
   tracker.disconnectRetainersHolding([id('inv:node')]);
 
-  t.is(terminated.length, 0, 'invitation formulas should not trigger termination');
+  t.is(
+    terminated.length,
+    0,
+    'invitation formulas should not trigger termination',
+  );
 });
 
 test('retain then release through registered retainer', t => {
@@ -242,7 +246,11 @@ test('disconnectRetainersHolding skips non-worker retainers', t => {
 
   // Should not terminate — retainer is not a worker.
   tracker.disconnectRetainersHolding([id('eval:node')]);
-  t.is(terminated.length, 0, 'non-worker retainers should not trigger termination');
+  t.is(
+    terminated.length,
+    0,
+    'non-worker retainers should not trigger termination',
+  );
 });
 
 test('releaseAllForRetainer cleans up on connection close', async t => {

@@ -3,7 +3,11 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseHelpdown, loadHelpTextFile, readHelpTextFileSync } from '../src/helpdown.js';
+import {
+  parseHelpdown,
+  loadHelpTextFile,
+  readHelpTextFileSync,
+} from '../src/helpdown.js';
 
 test('parseHelpdown returns empty array for empty string', t => {
   const entries = parseHelpdown('');
@@ -248,9 +252,7 @@ test('readHelpTextFileSync reads and parses a markdown file', t => {
     ['# TestEntity - A test entity.', '', '## foo()', 'Does foo.'].join('\n'),
   );
   try {
-    const helpMap = readHelpTextFileSync(
-      new URL(`file://${tmpFile}`),
-    );
+    const helpMap = readHelpTextFileSync(new URL(`file://${tmpFile}`));
     t.true(helpMap instanceof Map);
     t.true(helpMap.has('TestEntity'));
     const help = helpMap.get('TestEntity');
@@ -263,6 +265,7 @@ test('readHelpTextFileSync reads and parses a markdown file', t => {
 });
 
 test('loadHelpTextFile returns async iterable of entries', async t => {
+  await null;
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helpdown-test-'));
   const tmpFile = path.join(tmpDir, 'async-help.md');
   fs.writeFileSync(
@@ -281,9 +284,7 @@ test('loadHelpTextFile returns async iterable of entries', async t => {
   );
   try {
     const results = [];
-    for await (const entry of loadHelpTextFile(
-      new URL(`file://${tmpFile}`),
-    )) {
+    for await (const entry of loadHelpTextFile(new URL(`file://${tmpFile}`))) {
       results.push(entry);
     }
     t.is(results.length, 2);

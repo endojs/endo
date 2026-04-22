@@ -3,7 +3,13 @@ import test from '@endo/ses-ava/test.js';
 import harden from '@endo/harden';
 import { Far } from '@endo/pass-style';
 import { makeCopySet, makeCopyBag } from '../src/keys/checkKey.js';
-import { compareKeys, keyLT, keyLTE, keyGT, keyGTE } from '../src/keys/compareKeys.js';
+import {
+  compareKeys,
+  keyLT,
+  keyLTE,
+  keyGT,
+  keyGTE,
+} from '../src/keys/compareKeys.js';
 
 test('compareKeys - identical primitives', t => {
   t.is(compareKeys(3, 3), 0);
@@ -52,17 +58,17 @@ test('compareKeys - copyRecords with incommensurate values', t => {
   const r1 = Far('r1');
   const r2 = Far('r2');
   // Records with different remotable values at the same key
-  t.is(
-    Number.isNaN(
-      compareKeys(harden({ x: r1 }), harden({ x: r2 })),
-    ),
-    true,
-  );
+  t.is(Number.isNaN(compareKeys(harden({ x: r1 }), harden({ x: r2 }))), true);
 });
 
 test('compareKeys - different tagged types are incommensurate', t => {
   const aSet = makeCopySet(harden([1, 2]));
-  const aBag = makeCopyBag(harden([[1, 1n], [2, 1n]]));
+  const aBag = makeCopyBag(
+    harden([
+      [1, 1n],
+      [2, 1n],
+    ]),
+  );
   t.is(Number.isNaN(compareKeys(aSet, aBag)), true);
 });
 

@@ -126,7 +126,10 @@ test('onPetStoreRemoveAll removes all edges from a store', t => {
   t.is(graph.petStoreEdges.get(store)?.size, 2);
 
   graph.onPetStoreRemoveAll(store);
-  t.true(!graph.petStoreEdges.has(store) || graph.petStoreEdges.get(store)?.size === 0);
+  t.true(
+    !graph.petStoreEdges.has(store) ||
+      graph.petStoreEdges.get(store)?.size === 0,
+  );
 });
 
 test('onFormulaRemoved cleans up formula', t => {
@@ -221,19 +224,29 @@ test('promise and resolver sharing a store are unioned', t => {
   const root = id('root:node');
   graph.addRoot(root);
   graph.onFormulaAdded(root, /** @type {any} */ ({ type: 'endo' }));
-  graph.onFormulaAdded(id('store:node'), /** @type {any} */ ({ type: 'pet-store' }));
+  graph.onFormulaAdded(
+    id('store:node'),
+    /** @type {any} */ ({ type: 'pet-store' }),
+  );
   graph.onPetStoreWrite(root, id('store:node'));
 
   // Add promise and resolver that share the same store.
   graph.onFormulaAdded(id('promise:node'), /** @type {any} */ (promiseFormula));
   graph.onPetStoreWrite(root, id('promise:node'));
-  graph.onFormulaAdded(id('resolver:node'), /** @type {any} */ (resolverFormula));
+  graph.onFormulaAdded(
+    id('resolver:node'),
+    /** @type {any} */ (resolverFormula),
+  );
   graph.onPetStoreWrite(root, id('resolver:node'));
 
   // Promise and resolver should be in the same group (unioned).
   const promiseGroup = graph.findGroup(id('promise:node'));
   const resolverGroup = graph.findGroup(id('resolver:node'));
-  t.is(promiseGroup, resolverGroup, 'promise and resolver should share a group');
+  t.is(
+    promiseGroup,
+    resolverGroup,
+    'promise and resolver should share a group',
+  );
 });
 
 test('onFormulaRemoved cleans up promise/resolver store entries', t => {
@@ -251,9 +264,15 @@ test('onFormulaRemoved cleans up promise/resolver store entries', t => {
   const root = id('root:node');
   graph.addRoot(root);
   graph.onFormulaAdded(root, /** @type {any} */ ({ type: 'endo' }));
-  graph.onFormulaAdded(id('pstore:node'), /** @type {any} */ ({ type: 'pet-store' }));
+  graph.onFormulaAdded(
+    id('pstore:node'),
+    /** @type {any} */ ({ type: 'pet-store' }),
+  );
   graph.onPetStoreWrite(root, id('pstore:node'));
-  graph.onFormulaAdded(id('mypromise:node'), /** @type {any} */ (promiseFormula));
+  graph.onFormulaAdded(
+    id('mypromise:node'),
+    /** @type {any} */ (promiseFormula),
+  );
   graph.onPetStoreWrite(root, id('mypromise:node'));
 
   // Remove the promise formula �� cleanup should not throw.

@@ -65,14 +65,24 @@ test('round-trip with large handle and long payload', t => {
 });
 
 test('round-trip with negative handle', t => {
-  const env = { handle: -1, verb: 'error', payload: new Uint8Array(0), nonce: 0 };
+  const env = {
+    handle: -1,
+    verb: 'error',
+    payload: new Uint8Array(0),
+    nonce: 0,
+  };
   const encoded = encodeEnvelope(env);
   const decoded = decodeEnvelope(encoded);
   t.is(decoded.handle, -1);
 });
 
 test('frame wrapping preserves envelope', t => {
-  const env = { handle: 5, verb: 'test', payload: new Uint8Array([99]), nonce: 1 };
+  const env = {
+    handle: 5,
+    verb: 'test',
+    payload: new Uint8Array([99]),
+    nonce: 1,
+  };
   const envBytes = encodeEnvelope(env);
   const frame = encodeFrame(envBytes);
   const unwrapped = decodeFrame(frame);

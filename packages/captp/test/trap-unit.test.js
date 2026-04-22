@@ -35,14 +35,24 @@ test('makeTrap proxy rejects set', t => {
   const Trap = makeTrap(nearTrapImpl);
   const obj = { x: 1 };
   const trapped = Trap(obj);
-  t.throws(() => { trapped.newProp = 'bad'; }, { instanceOf: TypeError });
+  t.throws(
+    () => {
+      trapped.newProp = 'bad';
+    },
+    { instanceOf: TypeError },
+  );
 });
 
 test('makeTrap proxy rejects deleteProperty', t => {
   const Trap = makeTrap(nearTrapImpl);
   const obj = { x: 1 };
   const trapped = Trap(obj);
-  t.throws(() => { delete trapped.x; }, { instanceOf: TypeError });
+  t.throws(
+    () => {
+      delete trapped.x;
+    },
+    { instanceOf: TypeError },
+  );
 });
 
 test('makeTrap proxy rejects setPrototypeOf', t => {

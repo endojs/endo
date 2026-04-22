@@ -1,7 +1,10 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
-import { makeGrantDetails, makeGrantTracker } from '../src/client/grant-tracker.js';
+import {
+  makeGrantDetails,
+  makeGrantTracker,
+} from '../src/client/grant-tracker.js';
 
 const fakeLocation = harden({
   type: 'ocapn-peer',
@@ -19,23 +22,28 @@ test('makeGrantDetails creates handoff grant', t => {
 });
 
 test('makeGrantDetails creates sturdy-ref grant', t => {
-  const details = makeGrantDetails(fakeLocation, fakeSlot, 'sturdy-ref', 'swiss123');
+  const details = makeGrantDetails(
+    fakeLocation,
+    fakeSlot,
+    'sturdy-ref',
+    'swiss123',
+  );
   t.is(details.type, 'sturdy-ref');
   t.is(details.swissNum, 'swiss123');
 });
 
 test('makeGrantDetails rejects invalid type', t => {
   t.throws(
-    () => makeGrantDetails(fakeLocation, fakeSlot, /** @type {any} */ ('invalid')),
+    () =>
+      makeGrantDetails(fakeLocation, fakeSlot, /** @type {any} */ ('invalid')),
     { message: /Invalid grant type/ },
   );
 });
 
 test('makeGrantDetails rejects sturdy-ref without swissNum', t => {
-  t.throws(
-    () => makeGrantDetails(fakeLocation, fakeSlot, 'sturdy-ref'),
-    { message: /must have a swiss num/ },
-  );
+  t.throws(() => makeGrantDetails(fakeLocation, fakeSlot, 'sturdy-ref'), {
+    message: /must have a swiss num/,
+  });
 });
 
 test('makeGrantDetails rejects handoff with swissNum', t => {
@@ -62,7 +70,12 @@ test('makeGrantTracker allows handoff -> sturdy-ref upgrade', t => {
   const tracker = makeGrantTracker();
   const remotable = harden({ __proto__: null });
   const handoff = makeGrantDetails(fakeLocation, fakeSlot, 'handoff');
-  const sturdy = makeGrantDetails(fakeLocation, fakeSlot, 'sturdy-ref', 'swiss456');
+  const sturdy = makeGrantDetails(
+    fakeLocation,
+    fakeSlot,
+    'sturdy-ref',
+    'swiss456',
+  );
   tracker.recordImport(remotable, handoff);
   t.notThrows(() => tracker.recordImport(remotable, sturdy));
   t.is(tracker.getGrantDetails(remotable)?.type, 'sturdy-ref');
@@ -71,7 +84,12 @@ test('makeGrantTracker allows handoff -> sturdy-ref upgrade', t => {
 test('makeGrantTracker rejects invalid grant type transition', t => {
   const tracker = makeGrantTracker();
   const remotable = harden({ __proto__: null });
-  const sturdy = makeGrantDetails(fakeLocation, fakeSlot, 'sturdy-ref', 'swiss789');
+  const sturdy = makeGrantDetails(
+    fakeLocation,
+    fakeSlot,
+    'sturdy-ref',
+    'swiss789',
+  );
   const handoff = makeGrantDetails(fakeLocation, fakeSlot, 'handoff');
   tracker.recordImport(remotable, sturdy);
   t.throws(() => tracker.recordImport(remotable, handoff), {

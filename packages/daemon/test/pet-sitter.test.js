@@ -20,8 +20,10 @@ const makeMockController = () => {
           .filter(([, v]) => v === targetId)
           .map(([k]) => k),
       ),
-    followNameChanges: async function* () {},
-    followIdNameChanges: async function* (_id) {
+    async *followNameChanges() {
+      yield* [];
+    },
+    async *followIdNameChanges(_id) {
       yield harden({ names: [] });
     },
     storeIdentifier: async () => {},
@@ -29,7 +31,7 @@ const makeMockController = () => {
     remove: async () => {},
     rename: async () => {},
     seedGcEdges: async () => {},
-    _entries: entries,
+    testEntries: entries,
   };
 };
 
@@ -42,7 +44,7 @@ test('has finds special names', t => {
 
 test('has delegates to controller for pet names', t => {
   const ctrl = makeMockController();
-  ctrl._entries.set('myval', id('val:node'));
+  ctrl.testEntries.set('myval', id('val:node'));
   const sitter = makePetSitter(ctrl, { '@agent': id('agent:node') });
   t.true(sitter.has('myval'));
   t.false(sitter.has('nope'));
@@ -60,7 +62,7 @@ test('identifyLocal resolves special names', t => {
 
 test('identifyLocal delegates pet names to controller', t => {
   const ctrl = makeMockController();
-  ctrl._entries.set('foo', id('foo:node'));
+  ctrl.testEntries.set('foo', id('foo:node'));
   const sitter = makePetSitter(ctrl, { '@agent': id('agent:node') });
   t.is(sitter.identifyLocal('foo'), id('foo:node'));
 });
@@ -76,8 +78,8 @@ test('identifyLocal throws for name with @ that is not a known special', t => {
 
 test('list prepends sorted special names', t => {
   const ctrl = makeMockController();
-  ctrl._entries.set('beta', id('b:node'));
-  ctrl._entries.set('alpha', id('a:node'));
+  ctrl.testEntries.set('beta', id('b:node'));
+  ctrl.testEntries.set('alpha', id('a:node'));
   const sitter = makePetSitter(ctrl, {
     '@self': id('self:node'),
     '@agent': id('agent:node'),
@@ -92,7 +94,7 @@ test('list prepends sorted special names', t => {
 
 test('reverseIdentify includes special names', t => {
   const ctrl = makeMockController();
-  ctrl._entries.set('myname', id('target:node'));
+  ctrl.testEntries.set('myname', id('target:node'));
   const sitter = makePetSitter(ctrl, { '@agent': id('target:node') });
   const names = sitter.reverseIdentify(id('target:node'));
   t.true(names.includes('myname'));

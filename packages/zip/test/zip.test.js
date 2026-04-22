@@ -2,10 +2,8 @@ import test from 'ava';
 import assert from 'node:assert';
 
 import '../src/types.js';
-import { ZipWriter } from '../src/writer.js';
-import { ZipReader } from '../src/reader.js';
-import { readZip } from '../src/reader.js';
-import { writeZip } from '../src/writer.js';
+import { ZipWriter, writeZip } from '../src/writer.js';
+import { ZipReader, readZip } from '../src/reader.js';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -56,10 +54,9 @@ test('ZipReader.stat returns undefined for missing file', t => {
 
 test('ZipWriter.write throws without content', t => {
   const writer = new ZipWriter();
-  t.throws(
-    () => writer.write('bad.txt', /** @type {any} */ (undefined)),
-    { message: /requires content/ },
-  );
+  t.throws(() => writer.write('bad.txt', /** @type {any} */ (undefined)), {
+    message: /requires content/,
+  });
 });
 
 test('readZip async wrapper works', async t => {
@@ -82,7 +79,6 @@ test('writeZip async wrapper works', async t => {
 });
 
 test('ZipWriter uses default date', t => {
-  const before = new Date();
   const writer = new ZipWriter();
   writer.write('a.txt', textEncoder.encode('A'));
   // Default date should be "now" (no explicit date)
