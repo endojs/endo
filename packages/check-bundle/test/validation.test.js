@@ -23,13 +23,18 @@ test('checkBundle rejects null', async t => {
   });
 });
 
-test('checkBundle rejects unfrozen bundle', async t => {
-  const computeSha512 = () => 'fakehash';
-  await t.throwsAsync(
-    () => checkBundle({ moduleFormat: 'getExport' }, computeSha512),
-    { message: /ongoing integrity of an unfrozen object/ },
-  );
-});
+// Skipped when isFrozen is compromised by unsafe hardenTaming,
+// which makes every object appear frozen.
+(Object.isFrozen({}) ? test.skip : test)(
+  'checkBundle rejects unfrozen bundle',
+  async t => {
+    const computeSha512 = () => 'fakehash';
+    await t.throwsAsync(
+      () => checkBundle({ moduleFormat: 'getExport' }, computeSha512),
+      { message: /ongoing integrity of an unfrozen object/ },
+    );
+  },
+);
 
 test('checkBundle rejects bundle with getter properties', async t => {
   const computeSha512 = () => 'fakehash';
