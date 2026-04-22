@@ -36,20 +36,17 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 
 // eslint-disable-next-line import/no-unresolved
 import {
+  buildGenieTools,
   makeObserver,
   makePiAgent,
   makeReflector,
+  PLUGIN_DEFAULT_INCLUDE,
   runAgentRound,
 } from '@endo/genie';
 
 import { runHeartbeat, HeartbeatStatus } from './src/heartbeat/index.js';
 import { makeIntervalScheduler } from './src/interval/index.js';
-import { bash } from './src/tools/command.js';
-import { makeFileTools } from './src/tools/filesystem.js';
-import { makeMemoryTools } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
-import { webFetch } from './src/tools/web-fetch.js';
-import { webSearch } from './src/tools/web-search.js';
 import { initWorkspace } from './src/workspace/init.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
@@ -105,63 +102,15 @@ export const make = (guestPowers, _context) => {
   const powers = guestPowers;
 
   /**
-   * Build the tool registry, mirroring the set available in dev-repl.js.
+   * Build the tool registry for the daemon-hosted genie.
    *
    * @param {string} workspaceDir - Root directory for file tools
    */
   const buildTools = workspaceDir => {
-    const fileTools = makeFileTools({
-      root: workspaceDir,
-    });
-
     const searchBackend = makeFTS5Backend({ dbDir: workspaceDir });
-    const {
-      indexing: _memoryIndexing,
-      ...memoryTools
-    } = makeMemoryTools({
-      root: workspaceDir,
-      searchBackend,
-    });
-
-    const tools = {
-      bash,
-      ...fileTools,
-      ...memoryTools,
-      webFetch,
-      webSearch,
-    };
-
-    /**
-     * List available tools in the ToolSpec format expected by makeAgent.
-     *
-     * @returns {Array<{ name: string, summary: string }>}
-     */
-    const listTools = () => {
-      return Object.entries(tools).map(([name, tool]) => ({
-        name,
-        summary: tool.help(),
-      }));
-    };
-
-    /**
-     * Execute a tool by name.
-     *
-     * @param {string} name
-     * @param {any} toolArgs
-     * @returns {Promise<any>}
-     */
-    const execTool = async (name, toolArgs) => {
-      const tool = tools[name];
-      if (!tool) {
-        throw new Error(`Unknown tool: ${name}`);
-      }
-      return tool.execute(toolArgs);
-    };
-
-    return harden({
-      listTools,
-      execTool,
-      memoryTools,
+    return buildGenieTools({
+      workspaceDir,
+      include: PLUGIN_DEFAULT_INCLUDE,
       searchBackend,
     });
   };

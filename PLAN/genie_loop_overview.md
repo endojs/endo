@@ -88,7 +88,7 @@ completion.
    `src/agent/tool-gate.js`, export it, fix its bugs, rewrite observer's inline
    gate to use it.
    See [`TODO/72_genie_loop_tool_gate.md`](../TODO/72_genie_loop_tool_gate.md).
-2. [ ] **Tool-registry helper** — extract `buildGenieTools` from
+2. [x] **Tool-registry helper** — extract `buildGenieTools` from
    dev-repl/main.js; keep each call-site's inclusion choices as a config
    option.
    Plugin default: `['bash']` only — `exec` and `git` stay as example

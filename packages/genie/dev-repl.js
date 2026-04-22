@@ -36,13 +36,14 @@ import readline, { createInterface } from 'readline';
 
 // eslint-disable-next-line import/no-unresolved
 import {
-  runHeartbeat,
-  HeartbeatStatus,
-  makePiAgent,
-  runAgentRound,
-  makeObserver,
-  makeReflector,
+  buildGenieTools,
   DEFAULT_MODEL_STRING,
+  HeartbeatStatus,
+  makeObserver,
+  makePiAgent,
+  makeReflector,
+  runAgentRound,
+  runHeartbeat,
 } from '@endo/genie';
 
 /** @import { Observer } from './src/observer/index.js' */
@@ -54,12 +55,7 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import {ChatEvent} from './src/agent/index.js' */
 /** @import { Tool } from './src/tools/common.js' */
 /** @import { HeartbeatEvent } from './src/heartbeat/index.js' */
-import { bash, makeCommandTool } from './src/tools/command.js';
-import { makeFileTools } from './src/tools/filesystem.js';
-import { makeMemoryTools } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
-import { webFetch } from './src/tools/web-fetch.js';
-import { webSearch } from './src/tools/web-search.js';
 import { initWorkspace, isWorkspace } from './src/workspace/init.js';
 
 // `createRequire` avoids the experimental-flag / assertion-style JSON import
@@ -789,79 +785,36 @@ async function* runMain(args) {
     );
   }
 
-  const fileTools = makeFileTools({ root: workspaceDir });
-  const {
-    indexing: memoryIndexing,
-    ...memoryTools
-  } = makeMemoryTools({
-    root: workspaceDir,
+  // Delegate registry construction to the shared helper.
+  // The dev-repl opts into the full set (including the `exec` and `git`
+  // example attenuations); `--no-tools` collapses to an empty include list.
+  const genieTools = buildGenieTools({
+    workspaceDir,
     searchBackend,
-  });
-
-  // example of targeted command execution, rather than full bash
-  const git = makeCommandTool({
-    name: 'git',
-    program: 'git',
-    description:
-      'Runs git version control commands (status, log, diff, commit, etc.).',
-    allowPath: true,
-    policies: [
-      // eslint-disable-next-line no-shadow
-      args => {
-        const first = args.filter(arg => !arg.startsWith('-'))[0];
-        return !(
-          // ban network touching commands ; TODO moar
-          (first && ['push', 'pull', 'fetch'].includes(first))
-        );
-      },
+    include: noTools ? [] : [
+      'bash',
+      'exec',
+      'git',
+      'files',
+      'memory',
+      'webFetch',
+      'webSearch',
     ],
   });
 
-  /**
-   * @type {Record<string, Tool>} - TODO probably better as a Map<string, Tool>
-   */
-  const tools = noTools
-    ? {}
-    : {
-      bash,
-      git,
-      ...fileTools,
-      ...memoryTools,
-      webFetch,
-      webSearch,
-    };
+  const { tools, memoryTools } = genieTools;
+  const memoryIndexing = memoryTools
+    ? memoryTools.indexing
+    : Promise.resolve();
 
-  /**
-   * List available tools in the ToolSpec format expected by makeAgent.
-   *
-   * @returns {Array<{ name: string, summary: string }>}
-   */
-  const listTools = () => {
-    return Object.entries(tools).map(([name, tool]) => ({
-      name,
-      summary: tool.help(),
-    }));
-  };
+  const currentTime = new Date().toISOString();
 
-  /**
-   * Execute a tool by name.
-   *
-   * @param {string} name
-   * @param {any} toolArgs
-   * @returns {Promise<any>}
-   */
-  const execTool = async (name, toolArgs) => {
-    const tool = tools[name];
-    if (!tool) {
-      throw new Error(`Unknown tool: ${name}`);
-    }
-    return tool.execute(toolArgs);
-  };
+  const { listTools, execTool } = genieTools
 
   // main chat agent
   const piAgent = await makePiAgent({
     hostname: 'dev-repl',
-    currentTime: new Date().toISOString(),
+    currentTime,
     workspaceDir,
     model: modelArg,
     listTools,
@@ -870,7 +823,7 @@ async function* runMain(args) {
 
   const heartbeatAgent = await makePiAgent({
     hostname: 'dev-repl',
-    currentTime: new Date().toISOString(),
+    currentTime,
     workspaceDir,
     model: modelArg,
     listTools,

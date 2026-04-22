@@ -46,3 +46,8 @@ export {
 export { default as buildSystemPrompt } from './system/index.js';
 
 export { estimateTokens } from './utils/index.js';
+
+export {
+  buildGenieTools,
+  PLUGIN_DEFAULT_INCLUDE,
+} from './tools/registry.js';
