@@ -6,7 +6,6 @@
     "checkJs": true,
     "incremental": true,
     "noEmit": true,
-    "strict": true,
     "verbatimModuleSyntax": true,
     "moduleResolution": "NodeNext",
     "noImplicitAny": false,
