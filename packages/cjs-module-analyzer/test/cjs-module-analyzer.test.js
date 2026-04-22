@@ -912,6 +912,26 @@ test('Division / Regex ambiguity', t => {
   t.assert(analyzeCommonJS(source));
 });
 
+test('Keyword regex disambiguation', t => {
+  // Exercise regex detection after keywords that are expression
+  // punctuators: do, debugger, await, new, throw, catch.
+  const source = `
+    do /regex1/g;
+    while (false);
+    debugger;/regex2/g;
+    async function f() { await /regex3/g; }
+    new /regex4/g;
+    try { throw /regex5/g; } catch (e) {}
+    catch (e) { /regex6/g; }
+    if (true) /regex7/g; else /regex8/g;
+    switch (x) { case /regex9/g: break; }
+    delete /regex10/g;
+    typeof /regex11/g;
+    x instanceof /regex12/g;
+  `;
+  t.assert(analyzeCommonJS(source));
+});
+
 test('Template string expression ambiguity', t => {
   const source = `
     \`$\`

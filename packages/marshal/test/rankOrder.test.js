@@ -16,6 +16,9 @@ import {
   getPassStyleCover,
   getIndexCover,
   assertRankSorted,
+  unionRankCovers,
+  intersectRankCovers,
+  coveredEntries,
 } from '../src/rankOrder.js';
 import { unsortedSample, sortedSample } from '../tools/marshal-test-data.js';
 
@@ -175,4 +178,71 @@ test.skip('range queries', t => {
     t.is(range[0], indexRange[0]);
     t.is(range[1], indexRange[1]);
   }
+});
+
+test('unionRankCovers computes union of covers', t => {
+  const cover1 = getPassStyleCover('number');
+  const cover2 = getPassStyleCover('string');
+  const union = unionRankCovers(compareRank, [cover1, cover2]);
+  // Union should encompass both covers — left bound is the min,
+  // right bound is the max.
+  t.is(compareRank(union[0], cover1[0]) <= 0, true);
+  t.is(compareRank(union[0], cover2[0]) <= 0, true);
+  t.is(compareRank(union[1], cover1[1]) >= 0, true);
+  t.is(compareRank(union[1], cover2[1]) >= 0, true);
+});
+
+test('intersectRankCovers computes intersection of covers', t => {
+  // Use FullRankCover intersected with a specific cover —
+  // should return the specific cover bounds.
+  const specific = getPassStyleCover('number');
+  const intersection = intersectRankCovers(compareRank, [
+    FullRankCover,
+    specific,
+  ]);
+  t.is(compareRank(intersection[0], specific[0]) >= 0, true);
+  t.is(compareRank(intersection[1], specific[1]) <= 0, true);
+});
+
+test('getIndexCover returns index bounds', t => {
+  // Sorted array of strings (same type, clear ordering)
+  const sorted = harden(sortByRank(['a', 'b', 'c', 'd', 'e'], compareRank));
+
+  // Cover that targets a middle range.
+  // Using values within the sorted array as cover keys.
+  const cover = getIndexCover(sorted, compareRank, ['b', 'd']);
+  t.is(typeof cover[0], 'number');
+  t.is(typeof cover[1], 'number');
+  t.true(cover[0] >= 0, 'leftIndex is non-negative');
+  t.true(cover[1] < sorted.length, 'rightIndex within bounds');
+
+  // A cover with a single-element range
+  const singleCover = getIndexCover(sorted, compareRank, ['c', 'c']);
+  t.is(typeof singleCover[0], 'number');
+});
+
+test('coveredEntries iterates entries within index bounds', t => {
+  const sorted = harden(sortByRank([3, 1, 'a', 'z', 2, 'b'], compareRank));
+  // Use explicit index bounds to test the iterator.
+  const entries = coveredEntries(sorted, [0, 2]);
+  const result = [];
+  for (const [i, value] of entries) {
+    result.push({ i, value });
+  }
+  t.is(result.length, 3);
+  // coveredEntries yields [i+1, element] per iteration.
+  t.is(result[0].value, sorted[0]);
+  t.is(result[1].value, sorted[1]);
+  t.is(result[2].value, sorted[2]);
+});
+
+test('coveredEntries empty range', t => {
+  const sorted = harden([1, 2, 3]);
+  // leftIndex > rightIndex → empty iteration
+  const entries = coveredEntries(sorted, [5, 2]);
+  const result = [];
+  for (const entry of entries) {
+    result.push(entry);
+  }
+  t.is(result.length, 0);
 });

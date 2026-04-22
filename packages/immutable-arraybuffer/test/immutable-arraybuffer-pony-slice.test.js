@@ -203,3 +203,48 @@ test('sliceBufferToImmutable ponyfill', t => {
   const ta3 = new Uint8Array(ab3.slice());
   t.deepEqual([...ta3], [5]);
 });
+
+test('Immutable ArrayBuffer ponyfill resize throws', t => {
+  const iab = sliceBufferToImmutable(new ArrayBuffer(4));
+  t.throws(() => iab.resize(8), {
+    instanceOf: TypeError,
+    message: /Cannot resize an immutable ArrayBuffer/,
+  });
+});
+
+test('Immutable ArrayBuffer ponyfill transfer throws', t => {
+  const iab = sliceBufferToImmutable(new ArrayBuffer(4));
+  t.throws(() => iab.transfer(), {
+    instanceOf: TypeError,
+    message: /Cannot detach an immutable ArrayBuffer/,
+  });
+  t.throws(() => iab.transfer(8), {
+    instanceOf: TypeError,
+    message: /Cannot detach an immutable ArrayBuffer/,
+  });
+});
+
+test('Immutable ArrayBuffer ponyfill transferToFixedLength throws', t => {
+  const iab = sliceBufferToImmutable(new ArrayBuffer(4));
+  t.throws(() => iab.transferToFixedLength(), {
+    instanceOf: TypeError,
+    message: /Cannot detach an immutable ArrayBuffer/,
+  });
+});
+
+test('Immutable ArrayBuffer ponyfill transferToImmutable throws', t => {
+  const iab = sliceBufferToImmutable(new ArrayBuffer(4));
+  t.throws(() => iab.transferToImmutable(), {
+    instanceOf: TypeError,
+    message: /Cannot detach an immutable ArrayBuffer/,
+  });
+});
+
+test('Immutable ArrayBuffer ponyfill sliceToImmutable on immutable', t => {
+  const iab = sliceBufferToImmutable(new Uint8Array([1, 2, 3]).buffer);
+  const iab2 = iab.sliceToImmutable(1, 2);
+  t.true(isBufferImmutable(iab2));
+  t.is(iab2.byteLength, 1);
+  const ta = new Uint8Array(iab2.slice());
+  t.deepEqual([...ta], [2]);
+});

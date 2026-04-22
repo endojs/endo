@@ -22,3 +22,35 @@ test('test dot-membrane basics', t => {
   });
   t.is(blueState[0], 88);
 });
+
+test('dot-membrane wraps remotable objects with methods', t => {
+  const blueCounter = Far('counter', {
+    incr(n) {
+      return n + 1;
+    },
+    double(n) {
+      return n * 2;
+    },
+  });
+  const { proxy: yellowCounter } = makeDotMembraneKit(blueCounter);
+
+  // Methods are proxied through the membrane
+  t.is(yellowCounter.incr(5), 6);
+  t.is(yellowCounter.double(4), 8);
+});
+
+test('dot-membrane remotable object revocation', t => {
+  const blueObj = Far('service', {
+    greet(name) {
+      return `hello ${name}`;
+    },
+  });
+  const { proxy: yellowObj, revoke } = makeDotMembraneKit(blueObj);
+
+  t.is(yellowObj.greet('world'), 'hello world');
+
+  revoke('Done!');
+  t.throws(() => yellowObj.greet('world'), {
+    message: /Revoked: Done!/,
+  });
+});
