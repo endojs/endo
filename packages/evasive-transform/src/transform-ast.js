@@ -11,7 +11,7 @@ import {
   evadeTemplates,
   evadeDecrementGreater,
   evadeRegexpLiteral,
-  evadeClassMethod,
+  evadeMethod,
 } from './transform-code.js';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
@@ -73,7 +73,7 @@ export function transformAst(
         evadeStrings(p);
         evadeTemplates(p);
         evadeRegexpLiteral(p);
-        evadeClassMethod(p);
+        evadeMethod(p);
         evadeDecrementGreater(p);
         customVisitor?.(p);
       }

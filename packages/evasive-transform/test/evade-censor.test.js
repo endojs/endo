@@ -161,7 +161,13 @@ const evadeThat = `
     class Foo {
       static import() { return 'static method'; }
       import() { return 'instance method'; }
+      import(x) { throw Error(x+' not found') }
+      eval(x) { return 'I refuse to run: '+x; }
     }
+
+    const notAClass = {
+      import() { return 'this is fine'; }
+    };
     
     import("some-module");
     if (a--> b) {}
