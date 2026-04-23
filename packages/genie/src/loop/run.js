@@ -16,6 +16,16 @@
  *     The daemon self-routes its `/heartbeat <tickID>` messages here; dev-repl
  *     never takes this path (its `.heartbeat` is a normal special).
  *     When unset, heartbeat prompts fall through to the specials dispatcher.
+ * @property {(prompt: InboundPrompt) => AsyncIterable<Chunk>} [runPrimordial]
+ *   - Adapter-specific handler for `kind === 'primordial'` prompts.
+ *     The daemon's IO adapter classifies plain-text prompts as
+ *     `'primordial'` while the genie is in primordial mode (no LLM
+ *     configured yet); the runner drains the returned chunks into
+ *     `io.write` / `io.reply` just like the regular user-prompt path so
+ *     the automaton can reply with a "not configured yet" message.
+ *     When unset, primordial prompts are silently dropped — matching
+ *     the heartbeat fallback and keeping piAgent-mode behaviour
+ *     unchanged.
  * @property {(prompt: InboundPrompt, err: unknown) => (void | Promise<void>)} [onError]
  *   - Optional per-prompt error hook.
  *     Called when any of the three dispatch paths (user / special / heartbeat) throws.
@@ -46,22 +56,24 @@
  */
 
 /**
- * Classify an inbound prompt into one of `'user' | 'special' | 'heartbeat'`.
+ * Classify an inbound prompt into one of
+ * `'user' | 'special' | 'heartbeat' | 'primordial'`.
  *
  * Adapters can override by setting `prompt.kind`; otherwise the
  * runner falls back to `specials.isSpecial(text)` for text-based
  * detection.
  *
- * Heartbeat prompts must be explicitly flagged by the adapter —
- * the runner never infers heartbeat from text.
+ * Heartbeat and primordial prompts must be explicitly flagged by the
+ * adapter — the runner never infers either kind from text.
  *
  * @template Chunk
  * @param {InboundPrompt} prompt
  * @param {SpecialsDispatcher<Chunk>} specials
- * @returns {'user' | 'special' | 'heartbeat'}
+ * @returns {'user' | 'special' | 'heartbeat' | 'primordial'}
  */
 const classifyPrompt = (prompt, specials) => {
   if (prompt.kind === 'heartbeat') return 'heartbeat';
+  if (prompt.kind === 'primordial') return 'primordial';
   if (prompt.kind === 'special') return 'special';
   if (prompt.kind === 'user') return 'user';
   // No explicit kind — fall back to prefix detection.
@@ -153,7 +165,7 @@ export const runGenieLoop = async ({
   afterDispatch,
   shouldExit,
 }) => {
-  const { runUserPrompt, runHeartbeat, onError } = handlers;
+  const { runUserPrompt, runHeartbeat, runPrimordial, onError } = handlers;
 
   // Signal idle once before the first prompt await so adapters that
   // start in "busy" (e.g. dev-repl's background printer) transition to
@@ -171,6 +183,13 @@ export const runGenieLoop = async ({
         }
         // If no heartbeat handler is wired, silently drop — the
         // caller opted out.
+      } else if (kind === 'primordial') {
+        if (runPrimordial) {
+          await drainChunks(runPrimordial(prompt), prompt, io);
+        }
+        // If no primordial handler is wired, silently drop — this
+        // preserves piAgent-mode behaviour (which never emits
+        // `kind: 'primordial'`) and matches the heartbeat fallback.
       } else if (kind === 'special') {
         await drainChunks(specials.dispatch(prompt.text), prompt, io);
       } else {

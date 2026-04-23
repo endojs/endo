@@ -57,9 +57,12 @@ export {
 
 export { runGenieLoop } from './loop/run.js';
 
-export { runGenieLoop } from './loop/run.js';
-
 export { makeSpecialsDispatcher } from './loop/specials.js';
+
+export {
+  makePrimordialAutomaton,
+  NOT_CONFIGURED_MESSAGE,
+} from './primordial/index.js';
 
 export {
   buildGenieTools,

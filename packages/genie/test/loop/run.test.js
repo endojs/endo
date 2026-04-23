@@ -333,6 +333,71 @@ test('runGenieLoop — kind="heartbeat" without a handler is silently dropped', 
 });
 
 // ---------------------------------------------------------------------------
+// Primordial dispatch
+// ---------------------------------------------------------------------------
+
+test('runGenieLoop — routes kind="primordial" to handlers.runPrimordial and streams chunks', async t => {
+  /** @type {string[]} */
+  const primordialCalls = [];
+  /** @type {string[][]} */
+  const specialCalls = [];
+  /** @type {import('../../src/loop/specials.js').SpecialHandler<string>} */
+  const primordialSpecial = async function* primordialSpecial(tail) {
+    specialCalls.push(tail.slice());
+    yield 'SPECIAL-SHOULD-NOT-FIRE';
+  };
+  const specials = makeSpecialsDispatcher({
+    prefix: '/',
+    handlers: { primordial: primordialSpecial },
+  });
+  /** @type {InboundPrompt[]} */
+  const prompts = [{ id: 7, text: 'hello there', kind: 'primordial' }];
+  const { io, writes } = makeFakeIo({ prompts });
+
+  await runGenieLoop({
+    agents: /** @type {any} */ ({}),
+    specials,
+    io,
+    handlers: {
+      runUserPrompt: () => asyncGenOf(['USER-SHOULD-NOT-FIRE']),
+      runPrimordial: prompt => {
+        primordialCalls.push(prompt.text);
+        return asyncGenOf(['not-configured-yet']);
+      },
+    },
+  });
+
+  t.deepEqual(primordialCalls, ['hello there']);
+  t.deepEqual(specialCalls, []);
+  // Chunks drained through the shared `drainChunks` path — same as
+  // user prompts — so the handler's yielded reply reaches `io.write`.
+  t.deepEqual(writes, ['not-configured-yet']);
+});
+
+test('runGenieLoop — kind="primordial" without a handler is silently dropped', async t => {
+  // Matches the heartbeat fallback: piAgent-mode runs never set
+  // `runPrimordial`, and the classifier only emits `kind: 'primordial'`
+  // when the daemon's IO adapter is in primordial mode, so dropping the
+  // prompt keeps piAgent-mode byte-equivalent.
+  const specials = makeSpecialsDispatcher({ prefix: '/', handlers: {} });
+  /** @type {InboundPrompt[]} */
+  const prompts = [{ id: 1, text: 'ignored', kind: 'primordial' }];
+  const { io, writes } = makeFakeIo({ prompts });
+
+  await t.notThrowsAsync(() =>
+    runGenieLoop({
+      agents: /** @type {any} */ ({}),
+      specials,
+      io,
+      handlers: {
+        runUserPrompt: () => asyncGenOf(['USER-SHOULD-NOT-FIRE']),
+      },
+    }),
+  );
+  t.deepEqual(writes, []);
+});
+
+// ---------------------------------------------------------------------------
 // afterDispatch + dismiss + shouldExit
 // ---------------------------------------------------------------------------
 

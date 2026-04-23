@@ -46,6 +46,7 @@ import {
   formatHelpLines,
   makeBuiltinSpecials,
   makeGenieAgents,
+  makePrimordialAutomaton,
   makeSpecialsDispatcher,
   PLUGIN_DEFAULT_INCLUDE,
   runAgentRound,
@@ -571,19 +572,43 @@ export const make = (powers, _context, { env = {} } = {}) => {
    * if multiple heartbeat messages have accumulated, only one heartbeat
    * round runs and all stacked heartbeat ticks are resolved.
    *
+   * In primordial mode (sub-task 94 of TODO/92_genie_primordial.md) the
+   * piAgent / heartbeat / observer / reflector pack is absent —
+   * `state.mode === 'primordial'` instructs the IO adapter to classify
+   * plain-text prompts as `kind: 'primordial'` so they flow through the
+   * dedicated `runPrimordial` handler below, and specials keep flowing
+   * through the dispatcher (so `/help` and `/tools` work even without a
+   * model).  The piAgent- and heartbeat-only paths stay guarded so
+   * primordial-mode callers never try to invoke missing agents.
+   *
    * @param {object} opts
    * @param {EndoAgent} opts.agentPowers - The agent's mail-capable powers
    *   (root genie passes the daemon host; future child agents would
    *   pass a provisioned guest)
-   * @param {object} opts.piAgent - The PiAgent instance
-   * @param {object} opts.heartbeatAgent - The dedicated heartbeat PiAgent instance.
    * @param {string} opts.agentName - Display name for logging
    * @param {string} opts.workspaceDir - Agent workspace directory
    * @param {Promise<any>} opts.cancelledP - Resolves when the agent is cancelled
-   * @param {Map<string, IntervalTickMessage>} opts.pendingHeartbeatTicks - Side-channel map for tick lookup
-   * @param {GenieTools} opts.genieTools
+   * @param {import('./src/primordial/index.js').PrimordialState} opts.state
+   *   - Shared mode-flag object.  The IO adapter reads `state.mode` when
+   *     classifying inbound prompts so primordial-mode plain-text goes
+   *     through the automaton.  Sub-task 97 flips the mode in-place as
+   *     part of the hand-off helper.
+   * @param {object} [opts.piAgent] - The PiAgent instance.  Absent in
+   *   primordial mode.
+   * @param {object} [opts.heartbeatAgent] - The dedicated heartbeat
+   *   PiAgent instance.  Absent in primordial mode.
+   * @param {Map<string, IntervalTickMessage>} [opts.pendingHeartbeatTicks]
+   *   - Side-channel map for tick lookup.  Absent in primordial mode.
+   * @param {GenieTools} [opts.genieTools] - Tool registry.  Absent in
+   *   primordial mode; `/tools` reports an empty list in that case.
    * @param {Observer} [opts.observer] - Observer instance from makeObserver
    * @param {Reflector} [opts.reflector] - Reflector instance from makeReflector
+   * @param {import('./src/primordial/index.js').PrimordialAutomaton} [opts.primordialAutomaton]
+   *   - Automaton consulted by the `runPrimordial` handler.  Required
+   *     whenever the worker may see `kind: 'primordial'` prompts; the
+   *     piAgent-only boot path leaves it unset, which is safe because
+   *     `state.mode === 'piAgent'` keeps the classifier on the normal
+   *     user-prompt path.
    */
   const runAgentLoop = async ({
     agentPowers,
@@ -596,6 +621,8 @@ export const make = (powers, _context, { env = {} } = {}) => {
     observer,
     reflector,
     genieTools,
+    state,
+    primordialAutomaton,
   }) => {
     const selfId = await E(agentPowers).locate('@self');
     const messageIterator = makeRefIterator(E(agentPowers).followMessages());
@@ -608,7 +635,13 @@ export const make = (powers, _context, { env = {} } = {}) => {
     // mounted here: heartbeat messages are system self-sends handled
     // separately below so they can drive tick resolution and
     // coalescing.
-    const toolNames = Object.keys(genieTools.tools);
+    //
+    // In primordial mode `genieTools` is absent — we mount the same
+    // specials set so `/help` still works, and `/tools` simply reports
+    // an empty list.  The observer / reflector handlers already
+    // self-guard on missing agent-pack members, so they surface a
+    // useful "not available" error rather than blowing up.
+    const toolNames = genieTools ? Object.keys(genieTools.tools) : [];
 
     /** @type {SpecialsIO<string>} */
     const dispatcherIo = harden({
@@ -661,6 +694,11 @@ export const make = (powers, _context, { env = {} } = {}) => {
      * Collect any additional pending heartbeat messages from the
      * iterator without blocking.  Returns an array of heartbeat
      * messages that need to be dismissed along at end of heartbeat.
+     *
+     * Only meaningful when a heartbeat ticker is configured (piAgent
+     * mode).  In primordial mode no heartbeat self-sends are scheduled
+     * and no heartbeat prompts reach the runner anyway, so this helper
+     * is never invoked.
      */
     const drainPendingHeartbeats = async () => {
       /** @type {Array<Package & StampedMessage>} */
@@ -728,6 +766,12 @@ export const make = (powers, _context, { env = {} } = {}) => {
           kind = 'heartbeat';
         } else if (dispatcher.isSpecial(trimmed)) {
           kind = 'special';
+        } else if (state.mode === 'primordial') {
+          // No model configured yet — route plain-text prompts to the
+          // primordial automaton (sub-task 94 of TODO/92_genie_primordial.md).
+          // Specials still win because the `dispatcher.isSpecial` branch
+          // above is evaluated first.
+          kind = 'primordial';
         }
         yield harden({
           id: message.number,
@@ -852,6 +896,40 @@ export const make = (powers, _context, { env = {} } = {}) => {
             }
           }
 
+        },
+
+        /**
+         * Primordial-mode handler — sub-task 94 of
+         * `TODO/92_genie_primordial.md`.
+         *
+         * Reached only when `state.mode === 'primordial'` (the IO adapter
+         * above classifies plain-text prompts as `kind: 'primordial'`
+         * only in that case), so piAgent-mode runs never take this
+         * branch and the piAgent behaviour stays byte-equivalent.
+         *
+         * Delegates to `primordialAutomaton.processPrompt`, which yields
+         * a single "not configured yet" chunk pointing the operator at
+         * `/help` and `/model list`.  The runner drains the chunks via
+         * the usual `drainChunks` → `io.reply` path so the sender gets
+         * one mail reply per yielded chunk — matching the daemon's
+         * existing reply cadence for slash-command output.
+         *
+         * If the automaton is not wired (defensive: the piAgent boot
+         * path intentionally leaves it unset), drop the prompt with a
+         * log line rather than throwing — `runGenieLoop` would swallow
+         * an uncaught throw here anyway via `onError`, but a targeted
+         * log makes a misconfiguration easier to spot.
+         *
+         * @param {InboundPrompt} prompt
+         */
+        runPrimordial: async function* runPrimordialHandler(prompt) {
+          if (!primordialAutomaton) {
+            console.warn(
+              `[genie:${agentName}] primordial prompt #${prompt.id} dropped (no automaton wired)`,
+            );
+            return;
+          }
+          yield* primordialAutomaton.processPrompt(prompt.text);
         },
 
         /**
@@ -1102,75 +1180,6 @@ export const make = (powers, _context, { env = {} } = {}) => {
   harden(listChildAgents);
 
   /**
-   * Minimal inbox loop used when `runRootAgent` is invoked in
-   * primordial mode.  Follows the daemon inbox, replies to each
-   * non-self message with a fixed placeholder, and exits when the
-   * cancel sentinel resolves.  There is deliberately no piAgent, no
-   * tool dispatch, and no heartbeat here — sub-task 94 lands the
-   * real primordial automaton.  The stub exists only so operator
-   * messages do not silently pile up while the worker waits for
-   * `/model` (sub-task 95).
-   *
-   * @param {object} opts
-   * @param {EndoAgent} opts.agentPowers - Mail-capable powers; for the
-   *   root genie this is the daemon's host root agent (`@self`).
-   * @param {string} opts.agentName - Display name for logging.
-   * @param {Promise<any>} opts.cancelledP - Resolves when the agent is
-   *   cancelled; races with the inbox iterator to tear the loop down.
-   */
-  const runPrimordialStubLoop = async ({
-    agentPowers,
-    agentName,
-    cancelledP,
-  }) => {
-    const selfId = await E(agentPowers).locate('@self');
-    const messageIterator = makeRefIterator(E(agentPowers).followMessages());
-
-    /** @type {Promise<{cancelled: any}>} */
-    const cancelSentinel = cancelledP.then(cancelled => ({ cancelled }));
-
-    const placeholder =
-      '(primordial mode — no model configured; `/model` arrives in sub-task 95)';
-
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const result = await Promise.race([
-        messageIterator.next(),
-        cancelSentinel,
-      ]);
-      if ('cancelled' in result) {
-        console.log(
-          `[genie:${agentName}] Primordial loop cancelled`,
-          result.cancelled,
-        );
-        return;
-      }
-      const { value: message, done } = result;
-      if (done) return;
-      if (message.from === selfId) continue;
-      if (message.type !== 'package') {
-        console.warn(
-          `[genie:${agentName}] Primordial loop ignoring message #${message.number} (type: ${message.type})`,
-        );
-        continue;
-      }
-      const preview = message.strings.join('').trim().slice(0, 120);
-      console.log(
-        `[genie:${agentName}] Primordial stub reply to #${message.number}: ${preview}`,
-      );
-      try {
-        await E(agentPowers).reply(message.number, [placeholder], [], []);
-      } catch (err) {
-        const errorMessage = /** @type {Error} */ (err).message || String(err);
-        console.error(
-          `[genie:${agentName}] Primordial reply failed for #${message.number}:`,
-          errorMessage,
-        );
-      }
-    }
-  };
-
-  /**
    * Boot the genie agent loop directly under the daemon's root host
    * agent (`powers`).  This replaces the previous form-driven
    * `provideGuest` boot: there is no intermediate `setup-genie` guest,
@@ -1213,23 +1222,39 @@ export const make = (powers, _context, { env = {} } = {}) => {
 
     // ── Primordial mode ────────────────────────────────────────────
     // No model is configured (neither via env nor via persisted
-    // config), so we skip `makeGenieAgents`, the heartbeat ticker,
-    // and the full `runAgentLoop` wiring.  Instead we run a minimal
-    // stub loop that acknowledges inbound messages with a fixed
-    // placeholder — enough to prove the worker is alive without
-    // pretending to have an LLM behind it.  Sub-task 94 replaces the
-    // stub with the primordial automaton that can drive `/model`
-    // (sub-task 95).
+    // config), so we skip `makeGenieAgents` and the heartbeat ticker —
+    // but we still use the shared `runAgentLoop` so specials (`/help`,
+    // `/tools`, and once sub-task 95 lands, `/model`) route through
+    // the dispatcher instead of reaching a would-be LLM.  Plain-text
+    // prompts flow through `handlers.runPrimordial`, which delegates
+    // to the primordial automaton and replies with a friendly "not
+    // configured yet" message.
     if (config.mode === 'primordial') {
       console.log(
         `[genie:${agentName}] primordial mode — no model configured (workspace: ${workspaceDir}); \`/model\` arrives in sub-task 95`,
       );
-      const stubLoopP = runPrimordialStubLoop({
+      /** @type {import('./src/primordial/index.js').PrimordialState} */
+      const primordialState = {
+        mode: 'primordial',
+        // Sub-task 97 replaces this stub with the real hand-off helper
+        // that flips `mode` to `'piAgent'` and rebuilds the agent pack.
+        // Until then, `activate` is a no-op so the automaton's
+        // constructor signature stays stable across the in-flight work.
+        activate: async () => {},
+      };
+      const primordialAutomaton = makePrimordialAutomaton({
+        workspaceDir,
+        state: primordialState,
+      });
+      const agentLoopP = runAgentLoop({
         agentPowers: rootPowers,
         agentName,
+        workspaceDir,
         cancelledP,
+        state: primordialState,
+        primordialAutomaton,
       });
-      stubLoopP.catch(err => {
+      agentLoopP.catch(err => {
         console.error(`[genie:${agentName}] Primordial loop error:`, err);
         cancel(undefined);
       });
