@@ -1,12 +1,21 @@
 // @ts-check
 /* eslint-disable no-void */
 
+import os from 'os';
+import fsp from 'fs/promises';
+
 import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { q } from '@endo/errors';
-import { makeNetstringCapTP } from './connection.js';
+import { xsnap } from '@agoric/xsnap';
+import {
+  makeNetstringCapTP,
+  makeMessageCapTP,
+  messageToBytes,
+  bytesToMessage,
+} from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
@@ -447,10 +456,6 @@ export const makeDaemonicPersistencePowers = (
  * @param {FilePowers} filePowers
  * @param {typeof import('fs')} fs
  * @param {typeof import('child_process')} popen
- * @param {object} [options]
- * @param {string} [options.xsnapBinaryPath] - Path to the xsnap executable.
- *   When omitted, attempts to use an xsnap-hosted worker fail at spawn time;
- *   ordinary Node workers continue to work.
  */
 export const makeDaemonicControlPowers = (
   config,
@@ -458,7 +463,6 @@ export const makeDaemonicControlPowers = (
   filePowers,
   fs,
   popen,
-  options = {},
 ) => {
   const endoWorkerPath = fileURLToPath(
     new URL('worker-node.js', import.meta.url),
@@ -466,6 +470,17 @@ export const makeDaemonicControlPowers = (
   const xsnapWorkerBootstrapPath = fileURLToPath(
     new URL('xsnap-worker-bootstrap.js', import.meta.url),
   );
+
+  /**
+   * Minimal `fs` adapter for @agoric/xsnap in pipe-snapshot mode. xsnap only
+   * calls `tmpName` when `snapshotUseFs` is true, which we never set.
+   */
+  const xsnapFs = harden({
+    open: fsp.open,
+    stat: fsp.stat,
+    unlink: fsp.unlink,
+    createReadStream: fs.createReadStream,
+  });
 
   /**
    * @param {string} workerId
@@ -552,29 +567,28 @@ export const makeDaemonicControlPowers = (
   /**
    * Spawn or revive an xsnap-hosted worker.
    *
-   * The xsnap process is the persistence boundary: when the worker is
-   * suspended, xsnap writes the entire JS heap to a snapshot file under the
-   * worker's state directory. On revival, the snapshot is loaded and the
-   * worker resumes with every value still reachable from its globals.
+   * The xsnap process is the persistence boundary. On graceful shutdown, the
+   * daemon asks xsnap to emit a snapshot of the entire JS heap and writes it
+   * atomically to `heap.xss` in the worker's state directory. On revival, the
+   * snapshot is streamed back in and the worker resumes with every value
+   * still reachable from its globals.
    *
    * This is orthogonal persistence — the guest opts in to nothing — and is
    * deliberately NOT a durable zone: there is no per-object durability
    * mechanism, no upgrade-survivable virtual collections, and no separate
-   * persistent storage layer. Anything that is not reachable in the live
-   * heap at snapshot time is gone.
+   * persistent storage layer. Anything not reachable in the live heap at
+   * snapshot time is gone.
+   *
+   * Transport: xsnap's own netstring protocol on fds 3/4 delivers one
+   * Uint8Array per `issueCommand`/`handleCommand`; we treat each of those as
+   * one pre-framed CapTP message and ride {@link makeMessageCapTP} on top
+   * rather than double-framing with netstrings inside.
    *
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
    * @param {Promise<never>} cancelled
    */
   const makeXsnapWorker = async (workerId, daemonWorkerFacet, cancelled) => {
-    const { xsnapBinaryPath } = options;
-    if (xsnapBinaryPath === undefined) {
-      throw new Error(
-        'No xsnap binary configured for daemon; pass `xsnapBinaryPath` to makeDaemonicPowers to enable xsnap-worker formulas',
-      );
-    }
-
     const { statePath, ephemeralStatePath } = config;
     const workerStatePath = filePowers.joinPath(
       statePath,
@@ -587,73 +601,167 @@ export const makeDaemonicControlPowers = (
       workerId,
     );
     const snapshotPath = filePowers.joinPath(workerStatePath, 'heap.xss');
+    const snapshotTmpPath = `${snapshotPath}.tmp`;
 
     await Promise.all([
       filePowers.makePath(workerStatePath),
       filePowers.makePath(workerEphemeralStatePath),
     ]);
 
-    const logPath = filePowers.joinPath(workerStatePath, 'worker.log');
     const pidPath = filePowers.joinPath(workerEphemeralStatePath, 'worker.pid');
 
-    const log = fs.openSync(logPath, 'a');
-    const hasSnapshot = fs.existsSync(snapshotPath);
-    const args = hasSnapshot
-      ? ['-r', snapshotPath, xsnapWorkerBootstrapPath]
-      : [xsnapWorkerBootstrapPath];
+    const hasSnapshot = await fsp
+      .access(snapshotPath)
+      .then(() => true)
+      .catch(() => false);
 
-    const child = popen.spawn(xsnapBinaryPath, args, {
-      stdio: ['pipe', log, log, 'pipe', 'pipe'],
-      windowsHide: true,
-    });
-    const workerPid = child.pid;
-    const nodeWriter = /** @type {import('stream').Writable} */ (
-      child.stdio[3]
-    );
-    const nodeReader = /** @type {import('stream').Readable} */ (
-      child.stdio[4]
-    );
-    assert(nodeWriter);
-    assert(nodeReader);
-    const reader = makeNodeReader(nodeReader);
-    const writer = makeNodeWriter(nodeWriter);
+    /**
+     * When reviving, stream the on-disk snapshot into xsnap via fd 8.
+     * Otherwise, first boot: xsnap evaluates the worker bootstrap below.
+     */
+    let snapshotStream;
+    if (hasSnapshot) {
+      const handle = await fsp.open(snapshotPath, 'r');
+      snapshotStream = /** @type {AsyncIterable<Uint8Array>} */ (
+        /** @type {unknown} */ (handle.createReadStream({ autoClose: true }))
+      );
+    }
 
-    const workerClosed = new Promise(resolve => {
-      child.on('exit', () => {
-        console.log(
-          `Endo xsnap worker exited for PID ${workerPid} with unique identifier ${workerId}`,
-        );
-        resolve(undefined);
+    // Incoming: xsnap → daemon. Each `handleCommand` call is one CapTP frame.
+    const [incomingReader, incomingWriter] = makePipe();
+
+    /** @param {Uint8Array} frame */
+    const handleCommand = async frame => {
+      // Copy defensively — xsnap may reuse the buffer.
+      const copy = new Uint8Array(frame);
+      const message = bytesToMessage(copy);
+      await incomingWriter.next(message);
+      // The daemon never replies synchronously; all replies are async CapTP
+      // messages sent by the daemon via `issueCommand` in a later turn.
+      return new Uint8Array(0);
+    };
+
+    /** @type {Awaited<ReturnType<typeof xsnap>>} */
+    let vat;
+    try {
+      vat = await xsnap({
+        os: os.type(),
+        spawn: popen.spawn,
+        fs: xsnapFs,
+        name: `xsnap-worker ${workerId}`,
+        handleCommand,
+        stdout: 'inherit',
+        stderr: 'inherit',
+        snapshotStream,
+        snapshotDescription: `xsnap-worker ${workerId}`,
       });
+    } catch (error) {
+      await incomingWriter.return(undefined);
+      throw error;
+    }
+
+    const workerPid = /** @type {number | undefined} */ (undefined);
+    await filePowers.writeFileText(pidPath, `${workerPid ?? ''}\n`);
+
+    // Outgoing: daemon → xsnap. Each `issueCommand` is one CapTP frame.
+    // We serialize through a single promise chain so in-flight commands
+    // don't overlap (xsnap is single-threaded; issueCommand is serialized
+    // internally too, but this gives us a clean backpressure signal).
+    let sendChain = Promise.resolve();
+    const outgoingWriter = harden({
+      /** @param {unknown} message */
+      next: message => {
+        const bytes = messageToBytes(message);
+        sendChain = sendChain.then(() =>
+          vat.issueCommand(bytes).then(() => {}),
+        );
+        return sendChain.then(() => ({ done: false, value: undefined }));
+      },
+      return: async () => {
+        return { done: true, value: undefined };
+      },
+      /** @param {Error} error */
+      throw: async error => {
+        throw error;
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
     });
 
-    await filePowers.writeFileText(pidPath, `${child.pid}\n`);
-
-    cancelled.catch(async () => {
-      // Snapshotting on graceful shutdown is the responsibility of the
-      // bootstrap inside xsnap, in cooperation with daemon-side teardown.
-      child.kill();
-    });
+    if (!hasSnapshot) {
+      // First-time boot: load the worker bootstrap into xsnap's heap. The
+      // next invocation will revive from snapshot instead and this step
+      // is skipped.
+      const bootstrapSource = await fsp.readFile(
+        xsnapWorkerBootstrapPath,
+        'utf-8',
+      );
+      await vat.evaluate(bootstrapSource);
+    }
 
     console.log(
-      `Endo xsnap worker started PID ${workerPid} unique identifier ${workerId} (snapshot ${hasSnapshot ? 'restored' : 'fresh'})`,
+      `Endo xsnap worker started unique identifier ${workerId} (${hasSnapshot ? 'revived from snapshot' : 'fresh boot'})`,
     );
 
-    const { getBootstrap, closed: capTpClosed } = makeNetstringCapTP(
+    /**
+     * Take a snapshot of the live heap and atomically replace `heap.xss`.
+     * Serialized with {@link sendChain} so we don't interleave with other
+     * issueCommand calls, which xsnap forbids.
+     */
+    const takeSnapshot = async () => {
+      const stream = vat.makeSnapshotStream(`xsnap-worker ${workerId}`);
+      const handle = await fsp.open(snapshotTmpPath, 'w');
+      try {
+        await handle.writeFile(stream);
+      } finally {
+        await handle.close();
+      }
+      await fsp.rename(snapshotTmpPath, snapshotPath);
+    };
+
+    const workerTerminatedKit =
+      /** @type {import('@endo/promise-kit').PromiseKit<void>} */ (
+        makePromiseKit()
+      );
+
+    cancelled.catch(async error => {
+      // No-op synchronous preamble; the first real await is inside the try.
+      await null;
+      try {
+        await takeSnapshot();
+        await vat.close();
+      } catch (snapshotError) {
+        console.warn(
+          `Endo xsnap worker ${workerId} snapshot failed: ${snapshotError.message}; forcing termination`,
+        );
+        await vat.terminate().catch(() => {});
+      } finally {
+        await incomingWriter.return(undefined);
+        workerTerminatedKit.resolve(undefined);
+      }
+      // Re-throwing is unhelpful here; the caller already knows about the cancel.
+      void error;
+    });
+
+    const { getBootstrap, closed: capTpClosed } = makeMessageCapTP(
       `XsnapWorker ${workerId}`,
-      writer,
-      reader,
+      outgoingWriter,
+      /** @type {any} */ (incomingReader),
       cancelled,
       daemonWorkerFacet,
     );
 
     capTpClosed.finally(() => {
       console.log(
-        `Endo xsnap worker connection closed for PID ${workerPid} with unique identifier ${workerId}`,
+        `Endo xsnap worker connection closed for unique identifier ${workerId}`,
       );
     });
 
-    const workerTerminated = Promise.race([workerClosed, capTpClosed]);
+    const workerTerminated = Promise.race([
+      workerTerminatedKit.promise,
+      capTpClosed,
+    ]);
 
     /** @type {ERef<WorkerDaemonFacet>} */
     const workerDaemonFacet = getBootstrap();
@@ -675,8 +783,6 @@ export const makeDaemonicControlPowers = (
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
- * @param {string} [opts.xsnapBinaryPath] - Path to the xsnap executable.
- *   Required to host `xsnap-worker` formulas.
  * @returns {DaemonicPowers}
  */
 export const makeDaemonicPowers = ({
@@ -686,7 +792,6 @@ export const makeDaemonicPowers = ({
   url,
   filePowers,
   cryptoPowers,
-  xsnapBinaryPath,
 }) => {
   const { fileURLToPath } = url;
 
@@ -702,7 +807,6 @@ export const makeDaemonicPowers = ({
     filePowers,
     fs,
     popen,
-    { xsnapBinaryPath },
   );
 
   return harden({

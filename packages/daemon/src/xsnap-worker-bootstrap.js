@@ -1,70 +1,131 @@
 // @ts-nocheck
-/* global globalThis */
+/* global globalThis, issueCommand */
 
-// Bootstrap script that runs *inside* the xsnap engine for the
-// `xsnap-worker` daemon formula type.
+// Transport bootstrap for the `xsnap-worker` daemon formula type.
 //
-// The worker is the persistence boundary: when xsnap is suspended, the host
-// snapshots the entire heap to disk; when revived, every value still
-// reachable from the globals here is restored. There is intentionally no
-// durable zone — guests do not opt objects into durability, and there is no
-// upgrade-survivable storage layer separate from the snapshot. If a value is
-// not reachable from a global at snapshot time, it is gone.
+// This file is evaluated *inside* the xsnap engine on first boot only. It
+// runs in xsnap's runtime — not Node — so it must not use Node modules,
+// dynamic import, or the SES shim until those are loaded by a separate
+// bundle (see ENDO_XSNAP_WORKER_BUNDLE below).
 //
-// On first boot, this file establishes the SES perimeter, opens the
-// netstring CapTP channel to the daemon over xsnap's stdio extension fds,
-// and exposes a `WorkerDaemonFacet`. On revival, the channel must be
-// re-established by the daemon — pre-snapshot in-flight CapTP state cannot
-// be replayed across host processes — but every guest object reachable from
-// the worker's globals survives unchanged.
+// The daemon communicates with the worker via xsnap's native command
+// protocol:
+//   - daemon → worker: xsnap calls `globalThis.handleCommand(bytes)` once
+//     per message, expecting a Uint8Array reply.
+//   - worker → daemon: the worker calls the host-provided `issueCommand`
+//     global. The daemon receives each call via the `handleCommand` it
+//     registered when spawning xsnap.
 //
-// This file is loaded via `xsnap <bootstrap.js>`. `globalThis` here is
-// xsnap's, not Node's; modules and the SES shim must come from a bundle the
-// host supplies. The wiring below is the contract the daemon expects.
+// We wire both directions into async iterator adapters exposed on
+// `globalThis.endoXsnapTransport` so that a later-evaluated, SES-framed
+// worker bundle can ride {@link makeMessageCapTP} on top. Each message is a
+// pre-framed CapTP payload serialized as JSON; no netstring framing is
+// applied on top of xsnap's own message protocol.
+//
+// Persistence: once the worker bundle has established CapTP over this
+// transport, the complete state — queues, closures, CapTP tables — lives in
+// the xsnap heap and is captured by the daemon's snapshot on shutdown. On
+// revival, the snapshot restores everything and no bootstrap re-evaluation
+// is required. There is intentionally no durable zone; values not reachable
+// from globals at snapshot time are gone.
 
-import '@endo/init';
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
 
-import { makePromiseKit } from '@endo/promise-kit';
-import { main } from './worker.js';
+const deferred = () => {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
 
-const { promise: cancelled, reject: cancel } = makePromiseKit();
-
-const installSignalHandling = () => {
-  // xsnap delivers external interrupts via a host-defined hook; the host
-  // calls `globalThis.handleCommand` for each message. We treat any
-  // sentinel "terminate" command as a graceful cancel.
-  const previous = globalThis.handleCommand;
-  globalThis.handleCommand = message => {
-    if (message === 'terminate') {
-      cancel(new Error('terminate'));
-      return undefined;
-    }
-    if (typeof previous === 'function') {
-      return previous(message);
-    }
-    return undefined;
+const makeQueue = () => {
+  const items = [];
+  const waiters = [];
+  let closed = false;
+  return {
+    push(item) {
+      if (closed) return;
+      if (waiters.length > 0) {
+        const w = waiters.shift();
+        w.resolve({ value: item, done: false });
+      } else {
+        items.push(item);
+      }
+    },
+    close() {
+      closed = true;
+      for (const w of waiters.splice(0)) {
+        w.resolve({ value: undefined, done: true });
+      }
+    },
+    pull() {
+      if (items.length > 0) {
+        return Promise.resolve({ value: items.shift(), done: false });
+      }
+      if (closed) {
+        return Promise.resolve({ value: undefined, done: true });
+      }
+      const w = deferred();
+      waiters.push(w);
+      return w.promise;
+    },
   };
 };
 
-installSignalHandling();
+const inbox = makeQueue();
 
-// Stdio fds 3 and 4 carry the netstring CapTP frames, matching the
-// Node-hosted worker's convention so the daemon-side wiring is symmetric.
-// xsnap exposes these via its `os` module rather than Node's `fs`; the
-// host-supplied build of xsnap is expected to provide a stream shim that
-// presents reader/writer at those fds.
-const { reader, writer } = globalThis.endoXsnapConnection || {};
-if (!reader || !writer) {
-  throw new Error(
-    'xsnap-worker bootstrap requires globalThis.endoXsnapConnection to be set by the xsnap host build',
-  );
-}
+globalThis.handleCommand = frame => {
+  const bytes = new Uint8Array(frame);
+  const text = textDecoder.decode(bytes);
+  const message = JSON.parse(text);
+  inbox.push(message);
+  return new Uint8Array(0);
+};
 
-const powers = harden({
-  connection: { reader, writer },
-  pathToFileURL: path => `file://${path}`,
-});
+const outgoingWriter = {
+  next(message) {
+    const text = JSON.stringify(message);
+    const bytes = textEncoder.encode(text);
+    issueCommand(bytes);
+    return Promise.resolve({ value: undefined, done: false });
+  },
+  return() {
+    return Promise.resolve({ value: undefined, done: true });
+  },
+  throw(error) {
+    return Promise.reject(error);
+  },
+  [Symbol.asyncIterator]() {
+    return this;
+  },
+};
 
-main(powers, undefined, cancel, cancelled).catch(error => {
-  console.error(error);
+const incomingReader = {
+  next() {
+    return inbox.pull();
+  },
+  return() {
+    inbox.close();
+    return Promise.resolve({ value: undefined, done: true });
+  },
+  throw(error) {
+    inbox.close();
+    return Promise.reject(error);
+  },
+  [Symbol.asyncIterator]() {
+    return this;
+  },
+};
+
+// The daemon's first-boot handshake evaluates this file, then evaluates a
+// SES-framed worker bundle that picks up `endoXsnapTransport` and installs a
+// `WorkerDaemonFacet` over CapTP. After the snapshot is taken, neither is
+// re-evaluated; the revived heap already contains the running worker.
+globalThis.endoXsnapTransport = Object.freeze({
+  reader: incomingReader,
+  writer: outgoingWriter,
 });

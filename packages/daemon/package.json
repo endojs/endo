@@ -44,6 +44,7 @@
     "test:clean": "rm -rf tmp && yarn test"
   },
   "dependencies": {
+    "@agoric/xsnap": "^0.15.0",
     "@endo/base64": "workspace:^",
     "@endo/captp": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",

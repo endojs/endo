@@ -54,7 +54,6 @@ const powers = makeDaemonicPowers({
   url,
   filePowers,
   cryptoPowers,
-  xsnapBinaryPath: process.env.ENDO_XSNAP_BINARY,
 });
 const { persistence: daemonicPersistencePowers } = powers;
 
