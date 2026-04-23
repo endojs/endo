@@ -8,7 +8,7 @@ import {
   ATTENUATORS_COMPARTMENT,
   ENTRY_COMPARTMENT,
 } from '../src/policy-format.js';
-import { makePackagePolicy } from '../src/policy.js';
+import { makePackagePolicy, findUnknownCanonicalNames } from '../src/policy.js';
 
 function combineAssertions(...assertionFunctions) {
   return async (...args) => {
@@ -632,4 +632,82 @@ test('makePackagePolicy() - empty resources object returns empty package policy'
   const result = makePackagePolicy('alice', { policy: testPolicy });
 
   t.deepEqual(result, {});
+});
+
+test('findUnknownCanonicalNames() - returns empty set when all names are known', t => {
+  const known = new Set(['alice', 'alice>carol']);
+  const testPolicy = {
+    entry: {},
+    resources: {
+      alice: {
+        packages: { 'alice>carol': true },
+      },
+    },
+  };
+
+  const result = findUnknownCanonicalNames(known, testPolicy);
+
+  t.deepEqual(result, new Set());
+});
+
+test('findUnknownCanonicalNames() - detects unknown top-level resource names', t => {
+  const known = new Set(['alice']);
+  const testPolicy = {
+    entry: {},
+    resources: {
+      alice: {},
+      ghost: {},
+    },
+  };
+
+  const result = findUnknownCanonicalNames(known, testPolicy);
+
+  t.deepEqual(result, new Set(['ghost']));
+});
+
+test('findUnknownCanonicalNames() - detects unknown names nested in packages', t => {
+  const known = new Set(['alice', 'bob']);
+  const testPolicy = {
+    entry: {},
+    resources: {
+      alice: {
+        packages: {
+          bob: true,
+          'alice>nobody': true,
+        },
+      },
+    },
+  };
+
+  const result = findUnknownCanonicalNames(known, testPolicy);
+
+  t.deepEqual(result, new Set(['alice>nobody']));
+});
+
+test('findUnknownCanonicalNames() - deduplicates names referenced multiple times', t => {
+  const known = new Set(['alice']);
+  const testPolicy = {
+    entry: {},
+    resources: {
+      alice: {
+        packages: { ghost: true },
+      },
+      ghost: {
+        packages: { ghost: true },
+      },
+    },
+  };
+
+  const result = findUnknownCanonicalNames(known, testPolicy);
+
+  t.deepEqual(result, new Set(['ghost']));
+});
+
+test('findUnknownCanonicalNames() - returns empty set for policy with no resources', t => {
+  const known = new Set(['alice']);
+  const testPolicy = { entry: {} };
+
+  const result = findUnknownCanonicalNames(known, testPolicy);
+
+  t.deepEqual(result, new Set());
 });
