@@ -24,7 +24,11 @@ const {
 // that this is the canonical NaN for web standards.
 // Casual googling stongly suggests that this is also the cosmWasm
 // canonical NaN. But I have not yet found an authoritative page stating this.
-const canonicalNaN = 0x7ff8000000000000n;
+const canonicalNaN64Encoding = 0x7ff8000000000000n;
+// eslint-disable-next-line no-bitwise
+const canonicalNaN32Encoding = Number(canonicalNaN64Encoding >> 32n);
+// eslint-disable-next-line no-bitwise
+const canonicalNaN16Encoding = canonicalNaN32Encoding >>> 16;
 
 // Use method shorthand syntax to be this-sensitive but now be constructable
 // nor have a `prototype` property.
@@ -38,7 +42,7 @@ const methods = {
     if (is(value, NaN)) {
       return apply(setUint16, this, [
         byteOffset,
-        Number(canonicalNaN),
+        Number(canonicalNaN16Encoding),
         littleEndian,
       ]);
     } else {
@@ -54,7 +58,7 @@ const methods = {
     if (is(value, NaN)) {
       return apply(setUint32, this, [
         byteOffset,
-        Number(canonicalNaN),
+        canonicalNaN32Encoding,
         littleEndian,
       ]);
     } else {
@@ -70,7 +74,7 @@ const methods = {
     if (is(value, NaN)) {
       return apply(setBigUint64, this, [
         byteOffset,
-        canonicalNaN,
+        canonicalNaN64Encoding,
         littleEndian,
       ]);
     } else {
