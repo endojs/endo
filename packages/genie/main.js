@@ -726,7 +726,7 @@ export const make = (guestPowers, _context) => {
         const messageNumber = /** @type {bigint} */ (promptId);
         for (const chunk of chunks) {
           if (chunk) {
-            await E(agentPowers).reply(messageNumber, [chunk], [], []);
+            await E(agentPowers).reply(promptId, [chunk], [], []);
           }
         }
       },

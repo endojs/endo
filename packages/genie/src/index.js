@@ -57,6 +57,8 @@ export {
 
 export { runGenieLoop } from './loop/run.js';
 
+export { runGenieLoop } from './loop/run.js';
+
 export { makeSpecialsDispatcher } from './loop/specials.js';
 
 export {
