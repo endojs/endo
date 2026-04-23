@@ -6,10 +6,8 @@
  */
 
 /**
- * @import {ModuleSourcePassesResult} from './types/visitor-passes.js'
- * @import {CjsModuleSourcePassesResult} from './types/visitor-passes.js'
- * @import {ModuleSourceRecord} from './types/module-source.js'
- * @import {CjsModuleSourceRecord} from './types/module-source.js'
+ * @import {ModuleSourcePassesResult, CjsModuleSourcePassesResult} from './types/visitor-passes.js'
+ * @import {ModuleSourceRecord, CjsModuleSourceRecord} from './types/module-source.js'
  */
 
 import makeModulePlugins from './babel-plugin.js';
