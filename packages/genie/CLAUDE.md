@@ -48,7 +48,14 @@ context, { env })`.
 `GENIE_*` variables from the launcher's `process.env` into that `env`
 object.
 
-- `GENIE_MODEL` — **required**; LLM model spec (e.g. `ollama/llama3.2`).
+- `GENIE_MODEL` — required unless a persisted model config exists or
+  the operator plans to use `/model`; LLM model spec
+  (e.g. `ollama/llama3.2`).
+  When neither this var nor a persisted config is present, `main.js`
+  boots in **primordial mode** — the inbox loop runs and every plain-text
+  message receives a friendly pointer at `/help` and `/model list`
+  (see `src/primordial/index.js`'s `makePrimordialAutomaton`) until
+  `/model commit` hands off to piAgent.
 - `GENIE_WORKSPACE` — **required**; absolute path to the persistent
   workspace directory (`MEMORY.md`, `HEARTBEAT.md`, `.genie/`).
 - `GENIE_NAME` — optional; stable pet name, defaults to `main-genie`.
@@ -64,6 +71,40 @@ object.
 the bottom of `make()` for the current list and defaults, and the
 `setup.js` forwarding table for which variables propagate across the
 `makeUnconfined` boundary.
+
+### Persisted model config
+
+`/model commit` writes the active model configuration to
+`<GENIE_WORKSPACE>/.genie/config.json` (schema v1; see
+`src/primordial/types.js` for the typedef and
+`src/primordial/persistence.js` for the read / write helpers).
+The file is written atomically (temp file + rename) and chmod'd to
+`0600` on POSIX so co-tenants on the same machine cannot read the
+credentials.
+
+The boot-time precedence rule lives in `make()` and is, in order:
+
+1. **Env-var.** `GENIE_MODEL` — wins outright; the persisted file is
+   not consulted.
+2. **Persisted.** `<GENIE_WORKSPACE>/.genie/config.json` — when no
+   `GENIE_MODEL` is set, the loader reads `provider` / `modelId` /
+   `credentials` / `options` from disk.
+   Credentials and options are stamped into `process.env` before the
+   agent pack is constructed so pi-ai's request-time `getEnvApiKey`
+   lookups find the operator's configured values.
+   Existing env values win over persisted ones, so a launcher-supplied
+   override is never silently clobbered.
+3. **Primordial.** No env, no persisted config — `main.js` boots into
+   primordial mode and the operator can use `/model` to install a
+   provider.
+
+The plaintext file **must not** be checked into source control.
+The first line of the file is a `_README` pointer back to this
+document so an operator browsing the workspace by hand sees the
+warning.
+A capability- / keychain-backed credential store is tracked as a
+follow-up under `TADA/92_genie_primordial.md` § 3g — the env-stamping
+hack is documented there too.
 
 ## Sub-agent spawning (deferred)
 

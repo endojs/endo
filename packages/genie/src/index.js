@@ -59,4 +59,15 @@ export { runGenieLoop } from './loop/run.js';
 
 export { makeSpecialsDispatcher } from './loop/specials.js';
 
+export {
+  CONFIG_REL_PATH,
+  README_TEXT,
+  clearConfig,
+  loadConfig,
+  makePrimordialAutomaton,
+  NOT_CONFIGURED_MESSAGE,
+  saveConfig,
+  validateConfig,
+} from './primordial/index.js';
+
 export { buildGenieTools, PLUGIN_DEFAULT_INCLUDE } from './tools/registry.js';

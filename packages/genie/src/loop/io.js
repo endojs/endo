@@ -34,14 +34,19 @@
  */
 
 /**
- * @typedef {'user' | 'heartbeat' | 'special'} InboundPromptKind
+ * @typedef {'user' | 'heartbeat' | 'special' | 'primordial'} InboundPromptKind
  *   Classification hint supplied by the IO adapter.  Adapters that
  *   cannot tell user prompts from specials apart should mark them as
  *   `'user'` and let the shared loop fall back to prefix-matching via
  *   `specials.isSpecial`.  `'heartbeat'` is reserved for system
  *   self-sends (the daemon's `/heartbeat <tickID>` messages) so the
  *   loop can route them to a heartbeat handler without parsing the
- *   prompt text twice.
+ *   prompt text twice.  `'primordial'` is reserved for plain-text
+ *   prompts that arrive while the genie is in primordial mode (no LLM
+ *   configured yet); the shared loop routes them to
+ *   `handlers.runPrimordial` so the non-LLM dispatch path can answer
+ *   with a "not configured yet" reply instead of silently dropping the
+ *   message.  See `TODO/94_genie_primordial_automaton.md` for context.
  */
 
 /**

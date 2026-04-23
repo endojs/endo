@@ -5,18 +5,21 @@ an invite-back path to the operator.
 It was derived from the sketch in `TODO/90_genie_in_bottle.md` plus
 research reported by the explore agents on 2026-04-21, then revised
 2026-04-22 after the open-questions round of human feedback.
-Phase 0 (bottle shell recipe) and what is now Phase 1
-(genie-as-`@self` boot collapse) have landed — see
-[`TADA/81_genie_bottle_phase0_shell.md`](../TADA/81_genie_bottle_phase0_shell.md)
-and
+Phase 0 (bottle shell recipe), Phase 1 (genie-as-`@self` boot
+collapse), and Phase 2 (primordial genie + `/model` builtin) have all
+landed — see
+[`TADA/81_genie_bottle_phase0_shell.md`](../TADA/81_genie_bottle_phase0_shell.md),
 [`TADA/10_genie_self.md`](../TADA/10_genie_self.md) and its
-sub-tasks (11–14).
-The latter eliminated the form-submission + `setup-genie` guest +
+sub-tasks (11–14), and
+[`TADA/92_genie_primordial.md`](../TADA/92_genie_primordial.md) and
+its sub-tasks (93–98).
+Phase 1 eliminated the form-submission + `setup-genie` guest +
 `main-genie` guest stack described in earlier revisions of this
-document; the genie now runs as the daemon's `@self` worker
-directly.
-Phase 2 (primordial genie + `/model` builtin) is the next
-unattempted phase;
+document; the genie now runs as the daemon's `@self` worker directly.
+Phase 2 added a primordial-mode boot path so a bottle can come up
+without model credentials and accept them over the invite edge via
+the `/model` builtin.
+Phase 3 (install story) is the next unattempted phase;
 see [§ Implementation phases](#implementation-phases) for the
 ordered backlog.
 
@@ -303,7 +306,7 @@ Retained but dormant: `spawnAgent`, `removeChildAgent`, and
 `listChildAgents` still exist in `main.js` as building blocks for
 a future child-agent UX the root genie can expose as a capability.
 They are not invoked on boot.
-See [`TODO/10_genie_self.md`](../TADA/10_genie_self.md)
+See [`TADA/10_genie_self.md`](../TADA/10_genie_self.md)
 Clarification 2 for the planned shape.
 
 #### Credentialing and the primordial genie
@@ -523,9 +526,10 @@ working state.
     throwaway state dir; the daemon is meant to survive the
     script).
   - Picks a transport (libp2p default; TCP fallback).
-  - Runs genie `setup.js` with an `--owner` flag _(stubbed until
-    Phase 1 lands; Phase 0 can fall back to the existing
-    `main-genie` path and still prove composition)_.
+  - Runs genie `setup.js` to spawn the root genie worker
+    under `powersName: '@agent'`, `resultName: 'main-genie'`
+    (the R2b shape that landed as Phase 1; no `--owner` flag and
+    no stubbing required — see Phase 1 below).
   - Prints the invite locator to stdout _and_ writes
     `PENDING_OWNER_INVITE` in the workspace.
   - Idempotent on re-run: transport turnup is skipped when
@@ -547,22 +551,63 @@ No systemd, no credential bootstrap, no validated install story
 Proves the composition works.
 Tracked in [`TODO/81_genie_bottle_phase0_shell.md`](../TODO/81_genie_bottle_phase0_shell.md).
 
-### Phase 1: `--owner` flag in `setup.js` (R2)
+### Phase 1: genie as `@self` (R2b) — **landed**
 
-Provisions a `root-genie` guest with `@agent` + `@host` introduced,
-configures it with the ownership system prompt, and emits the
-invitation locator via Phase 0's file + stdout contract.
+Originally drafted as "R2: a `root-genie` guest with `@agent` + `@host`
+introduced", this phase was replaced by the R2b shape during
+implementation: the genie runs as the daemon's `@self` / `@agent`
+directly, with no intermediate guest at all.
+`setup.js` became a thin launcher that calls
+`makeUnconfined('@main', main.js, { powersName: '@agent', resultName:
+'main-genie', env })`;
+`main.js` reads `GENIE_*` from `context.env`, validates
+`GENIE_MODEL` / `GENIE_WORKSPACE`, and runs the piAgent loop against
+`@self`.
+The owner handshake still comes from Phase 0's `endo invite owner`
+call at the host level;
+because genie *is* `@self`, the operator's mail lands in the piAgent
+inbox directly with no extra plumbing.
+See [`TADA/10_genie_self.md`](../TADA/10_genie_self.md) and its
+sub-tasks (11–14) for the landed design, code change, narrative
+update, and test coverage.
 
-### Phase 2: primordial genie and `/model` builtin (credentialing)
+_Deferred under Phase 1_: `spawnAgent` / `removeChildAgent` /
+`listChildAgents` retained in `main.js` but not invoked on boot;
+see `TADA/10_genie_self.md` Clarification 2.
+A future "root genie exposes a child-agent capability" task will pick
+those up — it is not blocking Phase 2.
 
-R3's invite edge is already live after Phase 0 + Phase 1; this phase
-is the first thing we run _over_ that edge.
+### Phase 2: primordial genie and `/model` builtin (credentialing) — **landed**
 
-- Pre-LLM message-processing automaton that the root-genie guest
-  runs until a model is configured.
+R3's invite edge went live after Phase 0 + Phase 1; this phase was
+the first thing we ran _over_ that edge.
+
+- Pre-LLM message-processing automaton that the root genie worker
+  runs until a model is configured (no `piAgent` round-trip, no LLM
+  calls).
 - `/model` builtin command for model discovery / selection /
   credential ingestion over CapTP.
-- Hand-off to the piAgent loop once configured.
+  Registered in the specials dispatcher alongside `/observe`,
+  `/reflect`, `/help`, `/tools` in `main.js`.
+- Persist selected model + credentials in the workspace (next to
+  `MEMORY.md` / `HEARTBEAT.md`) so a daemon restart re-enters the
+  piAgent loop without re-prompting the owner.
+- Relaxed the `GENIE_MODEL` fail-fast in `main.js` to "start in
+  primordial mode when no model is configured (via env or persisted
+  state) and wait for `/model` over the invite edge".
+- Hand-off to the piAgent loop once a model is selected and
+  credentialed — the automaton cedes the conversation and the next
+  inbound message goes through `runAgentRound` as normal.
+  In piAgent mode, `/model commit` persists the new draft and exits
+  the worker; the daemon reincarnates with the new config on the
+  next access.
+
+See [`TADA/92_genie_primordial.md`](../TADA/92_genie_primordial.md)
+for the design and the six sub-task files (93–98) that land the
+work, plus
+[`packages/genie/CLAUDE.md`](../packages/genie/CLAUDE.md)
+§§ "Env-var config" / "Persisted model config" for the operational
+contract.
 
 ### Phase 3: install story
 
@@ -580,7 +625,8 @@ canonical install path we are willing to document to end users.
 
 ### Phase 4: systemd user unit generator
 
-`endo-genie-in-a-bottle --systemd`:
+`bottle.sh invoke --systemd` (or a sibling `bottle.sh install-unit`
+subcommand — decide at task-authoring time):
 
 - Writes the unit under `$XDG_CONFIG_HOME/systemd/user/` with
   `ExecStart=/usr/bin/env endo run-daemon`.
