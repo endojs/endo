@@ -159,7 +159,8 @@ const evadeThat = `
     const reHtmlAlike = /<!--.*-->/g;
 
     class Foo {
-      import() { return 'yes'; }
+      static import() { return 'static method'; }
+      import() { return 'instance method'; }
     }
     
     import("some-module");
@@ -323,9 +324,15 @@ test('evadeCensor() - templates - only last quasi has pattern', async t => {
 });
 
 test('evadeCensor() - class method named import is evaded', async t => {
-  const { code } = evadeCensorSync(`class Foo { import() { return 'yes'; } }`, {
-    sourceType: 'module',
-  });
+  const { code } = evadeCensorSync(
+    `class Foo {
+      static import() { return 'static method'; }
+      import() { return 'instance method'; }
+    }`,
+    {
+      sourceType: 'module',
+    },
+  );
   t.true(code.includes('["import"]'));
   t.false(/ import\s*\(/.test(code));
 });

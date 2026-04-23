@@ -75,9 +75,7 @@ export function transformAst(
         evadeRegexpLiteral(p);
         evadeClassMethod(p);
         evadeDecrementGreater(p);
-        if (customVisitor) {
-          customVisitor(p);
-        }
+        customVisitor?.(p);
       }
     },
   });
