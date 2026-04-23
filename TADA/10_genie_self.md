@@ -234,16 +234,16 @@ Assumptions encoded in the plan below — call them out if any are wrong:
 
 ## 4. Follow-up tasks
 
-Written as separate files in `TODO/` (see task 2 in this file).
+Written as separate files in `TADA/` (see task 2 in this file).
 
-- `TODO/11_genie_self_main_refactor.md` — rewrite `main.js` to run as the
+- `TADA/11_genie_self_main_refactor.md` — rewrite `main.js` to run as the
   root agent (§ 3a).
-- `TODO/12_genie_self_setup_launcher.md` — collapse `setup.js` to a thin
+- `TADA/12_genie_self_setup_launcher.md` — collapse `setup.js` to a thin
   `makeUnconfined` launcher (§ 3b).
-- `TODO/13_genie_self_bottle_narrative.md` — update `bottle.sh` comments,
+- `TADA/13_genie_self_bottle_narrative.md` — update `bottle.sh` comments,
   `packages/genie/README.md`, and `packages/genie/CLAUDE.md` to describe
   the new single-identity boot (§§ 3c, 3e).
-- `TODO/14_genie_self_tests.md` — catalogue and update genie tests that
+- `TADA/14_genie_self_tests.md` — catalogue and update genie tests that
   assume the form-submission boot path (§ 3e risk 2).
 
 ## 5. Status
