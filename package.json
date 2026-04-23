@@ -76,7 +76,8 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "lerna>nx": false
+      "lerna>nx": false,
+      "@endo/daemon>@agoric/xsnap": true
     }
   }
 }

@@ -187,7 +187,15 @@ const makeDaemonCore = async (
   } = powers;
   const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
-  /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
+  /**
+   * Tracks the daemon-facing facet for each provisioned worker. The facet
+   * shape varies by worker type — `WorkerDaemonFacet` for Node-hosted
+   * workers, the eval-only {@link import('./types.js').XsnapWorkerDaemonFacet}
+   * for xsnap-hosted workers — so the value type is loose here. Consumers
+   * (`makeEval`, `makeBundle`, `makeUnconfined`) currently assume the Node
+   * shape; xsnap workers are not yet usable through those code paths.
+   * @type {WeakMap<object, ERef<any>>}
+   */
   const workerDaemonFacets = new WeakMap();
   /**
    * Mutations of the formula graph must be serialized through this queue.
@@ -396,6 +404,7 @@ const makeDaemonCore = async (
   };
 
   /**
+   * @template {{ terminate(): Promise<void> }} F
    * @param {string} workerId512
    * @param {Context} context
    * @param {(
@@ -404,7 +413,7 @@ const makeDaemonCore = async (
    *   cancelled: Promise<never>,
    * ) => Promise<{
    *   workerTerminated: Promise<void>;
-   *   workerDaemonFacet: ERef<WorkerDaemonFacet>;
+   *   workerDaemonFacet: ERef<F>;
    * }>} spawn
    */
   const makeWorkerLifetime = async (workerId512, context, spawn) => {

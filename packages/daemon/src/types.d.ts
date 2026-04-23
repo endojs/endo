@@ -845,6 +845,21 @@ export interface WorkerDaemonFacet {
   ): Promise<unknown>;
 }
 
+/**
+ * The facet exposed by an xsnap-hosted worker. Unlike a Node-hosted worker,
+ * the xsnap worker does not run SES and does not speak CapTP; it speaks an
+ * eval-only request/response dialect. Mutations to its `globalThis` survive
+ * snapshot/revival, but no durable-zone abstraction is layered on top.
+ */
+export interface XsnapWorkerDaemonFacet {
+  terminate(): Promise<void>;
+  /**
+   * Evaluate `source` in the worker's global scope. The result must be
+   * JSON-serializable; non-serializable results are reported as an error.
+   */
+  evaluate(source: string): Promise<unknown>;
+}
+
 export type DaemonicControlPowers = {
   makeWorker: (
     id: string,
@@ -859,6 +874,9 @@ export type DaemonicControlPowers = {
    * the entire JS heap on suspension, so the worker resumes with all values
    * still reachable from its globals. There is no durable zone: anything not
    * reachable in the live heap at snapshot time is lost.
+   *
+   * The `daemonWorkerFacet` argument is accepted for symmetry with
+   * {@link makeWorker} but is unused — the xsnap worker does not host CapTP.
    */
   makeXsnapWorker: (
     id: string,
@@ -866,7 +884,7 @@ export type DaemonicControlPowers = {
     cancelled: Promise<never>,
   ) => Promise<{
     workerTerminated: Promise<void>;
-    workerDaemonFacet: ERef<WorkerDaemonFacet>;
+    workerDaemonFacet: ERef<XsnapWorkerDaemonFacet>;
   }>;
 };
 

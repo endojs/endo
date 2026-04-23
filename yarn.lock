@@ -737,6 +737,9 @@ __metadata:
     ses: "workspace:^"
     typescript: "catalog:dev"
     ws: "npm:^8.13.0"
+  dependenciesMeta:
+    "@agoric/xsnap":
+      built: true
   languageName: unknown
   linkType: soft
 

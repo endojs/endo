@@ -10,12 +10,7 @@ import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { q } from '@endo/errors';
 import { xsnap } from '@agoric/xsnap';
-import {
-  makeNetstringCapTP,
-  makeMessageCapTP,
-  messageToBytes,
-  bytesToMessage,
-} from './connection.js';
+import { makeNetstringCapTP } from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
@@ -23,7 +18,7 @@ import { makeSerialJobs } from './serial-jobs.js';
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
-/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
+/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet, XsnapWorkerDaemonFacet } from './types.js' */
 
 const textEncoder = new TextEncoder();
 
@@ -567,28 +562,30 @@ export const makeDaemonicControlPowers = (
   /**
    * Spawn or revive an xsnap-hosted worker.
    *
-   * The xsnap process is the persistence boundary. On graceful shutdown, the
-   * daemon asks xsnap to emit a snapshot of the entire JS heap and writes it
-   * atomically to `heap.xss` in the worker's state directory. On revival, the
-   * snapshot is streamed back in and the worker resumes with every value
-   * still reachable from its globals.
+   * The xsnap process is the persistence boundary. On graceful shutdown the
+   * daemon asks xsnap to stream a snapshot of the entire JS heap, writes it
+   * to `heap.xss.tmp`, then atomic-renames to `heap.xss`. On revival, the
+   * snapshot is streamed back into a fresh xsnap process and the worker
+   * resumes with every value still reachable from its globals.
    *
    * This is orthogonal persistence — the guest opts in to nothing — and is
    * deliberately NOT a durable zone: there is no per-object durability
-   * mechanism, no upgrade-survivable virtual collections, and no separate
-   * persistent storage layer. Anything not reachable in the live heap at
-   * snapshot time is gone.
+   * mechanism, no upgrade-survivable virtual collections, and no persistent
+   * storage layer separate from the snapshot.
    *
-   * Transport: xsnap's own netstring protocol on fds 3/4 delivers one
-   * Uint8Array per `issueCommand`/`handleCommand`; we treat each of those as
-   * one pre-framed CapTP message and ride {@link makeMessageCapTP} on top
-   * rather than double-framing with netstrings inside.
+   * Wire protocol: each daemon→worker `issueCommand` carries one JSON
+   * `{ type: 'eval', source }` request; xsnap's `handleCommand` returns one
+   * JSON `{ ok }` or `{ error }` reply. `daemonWorkerFacet` is unused — the
+   * xsnap worker speaks an eval-only dialect rather than CapTP, because the
+   * xsnap runtime does not host the SES shim or Node module loader on its
+   * own. Mutations to `globalThis` from successive evals survive snapshot/
+   * revival; everything else is gone.
    *
    * @param {string} workerId
-   * @param {DaemonWorkerFacet} daemonWorkerFacet
+   * @param {DaemonWorkerFacet} _daemonWorkerFacet - Unused; see above.
    * @param {Promise<never>} cancelled
    */
-  const makeXsnapWorker = async (workerId, daemonWorkerFacet, cancelled) => {
+  const makeXsnapWorker = async (workerId, _daemonWorkerFacet, cancelled) => {
     const { statePath, ephemeralStatePath } = config;
     const workerStatePath = filePowers.joinPath(
       statePath,
@@ -615,10 +612,6 @@ export const makeDaemonicControlPowers = (
       .then(() => true)
       .catch(() => false);
 
-    /**
-     * When reviving, stream the on-disk snapshot into xsnap via fd 8.
-     * Otherwise, first boot: xsnap evaluates the worker bootstrap below.
-     */
     let snapshotStream;
     if (hasSnapshot) {
       const handle = await fsp.open(snapshotPath, 'r');
@@ -627,72 +620,41 @@ export const makeDaemonicControlPowers = (
       );
     }
 
-    // Incoming: xsnap → daemon. Each `handleCommand` call is one CapTP frame.
-    const [incomingReader, incomingWriter] = makePipe();
-
-    /** @param {Uint8Array} frame */
-    const handleCommand = async frame => {
-      // Copy defensively — xsnap may reuse the buffer.
-      const copy = new Uint8Array(frame);
-      const message = bytesToMessage(copy);
-      await incomingWriter.next(message);
-      // The daemon never replies synchronously; all replies are async CapTP
-      // messages sent by the daemon via `issueCommand` in a later turn.
-      return new Uint8Array(0);
+    // The xsnap protocol delivers worker→host replies through the host's
+    // `handleCommand` callback rather than through the `issueCommand` reply.
+    // We serialize evaluations through a single in-flight slot so each
+    // command's reply is unambiguous.
+    /** @type {((bytes: Uint8Array) => void) | undefined} */
+    let pendingReplyResolver;
+    const handleCommand = bytes => {
+      if (pendingReplyResolver !== undefined) {
+        const resolver = pendingReplyResolver;
+        pendingReplyResolver = undefined;
+        // Copy defensively; xsnap may reuse the buffer.
+        resolver(new Uint8Array(bytes));
+      }
+      return new Uint8Array();
     };
 
     /** @type {Awaited<ReturnType<typeof xsnap>>} */
-    let vat;
-    try {
-      vat = await xsnap({
-        os: os.type(),
-        spawn: popen.spawn,
-        fs: xsnapFs,
-        name: `xsnap-worker ${workerId}`,
-        handleCommand,
-        stdout: 'inherit',
-        stderr: 'inherit',
-        snapshotStream,
-        snapshotDescription: `xsnap-worker ${workerId}`,
-      });
-    } catch (error) {
-      await incomingWriter.return(undefined);
-      throw error;
-    }
-
-    const workerPid = /** @type {number | undefined} */ (undefined);
-    await filePowers.writeFileText(pidPath, `${workerPid ?? ''}\n`);
-
-    // Outgoing: daemon → xsnap. Each `issueCommand` is one CapTP frame.
-    // We serialize through a single promise chain so in-flight commands
-    // don't overlap (xsnap is single-threaded; issueCommand is serialized
-    // internally too, but this gives us a clean backpressure signal).
-    let sendChain = Promise.resolve();
-    const outgoingWriter = harden({
-      /** @param {unknown} message */
-      next: message => {
-        const bytes = messageToBytes(message);
-        sendChain = sendChain.then(() =>
-          vat.issueCommand(bytes).then(() => {}),
-        );
-        return sendChain.then(() => ({ done: false, value: undefined }));
-      },
-      return: async () => {
-        return { done: true, value: undefined };
-      },
-      /** @param {Error} error */
-      throw: async error => {
-        throw error;
-      },
-      [Symbol.asyncIterator]() {
-        return this;
-      },
+    const vat = await xsnap({
+      os: os.type(),
+      spawn: popen.spawn,
+      fs: xsnapFs,
+      name: `xsnap-worker ${workerId}`,
+      handleCommand,
+      stdout: 'inherit',
+      stderr: 'inherit',
+      snapshotStream,
+      snapshotDescription: `xsnap-worker ${workerId}`,
     });
 
+    await filePowers.writeFileText(pidPath, `\n`);
+
     if (!hasSnapshot) {
-      // First-time boot: load the worker bootstrap into xsnap's heap. The
-      // next invocation will revive from snapshot instead and this step
-      // is skipped.
+      // First boot only: install the request/response handler in the heap.
+      // After the first snapshot is taken, the handler closure lives in the
+      // snapshotted globals and is restored on revival without re-eval.
       const bootstrapSource = await fsp.readFile(
         xsnapWorkerBootstrapPath,
         'utf-8',
@@ -706,8 +668,8 @@ export const makeDaemonicControlPowers = (
 
     /**
      * Take a snapshot of the live heap and atomically replace `heap.xss`.
-     * Serialized with {@link sendChain} so we don't interleave with other
-     * issueCommand calls, which xsnap forbids.
+     * Must not interleave with `issueCommand`; xsnap serializes both through
+     * its own internal baton.
      */
     const takeSnapshot = async () => {
       const stream = vat.makeSnapshotStream(`xsnap-worker ${workerId}`);
@@ -726,7 +688,6 @@ export const makeDaemonicControlPowers = (
       );
 
     cancelled.catch(async error => {
-      // No-op synchronous preamble; the first real await is inside the try.
       await null;
       try {
         await takeSnapshot();
@@ -737,36 +698,62 @@ export const makeDaemonicControlPowers = (
         );
         await vat.terminate().catch(() => {});
       } finally {
-        await incomingWriter.return(undefined);
         workerTerminatedKit.resolve(undefined);
       }
-      // Re-throwing is unhelpful here; the caller already knows about the cancel.
       void error;
     });
 
-    const { getBootstrap, closed: capTpClosed } = makeMessageCapTP(
-      `XsnapWorker ${workerId}`,
-      outgoingWriter,
-      /** @type {any} */ (incomingReader),
-      cancelled,
-      daemonWorkerFacet,
-    );
+    const requestEncoder = new TextEncoder();
+    const responseDecoder = new TextDecoder();
 
-    capTpClosed.finally(() => {
-      console.log(
-        `Endo xsnap worker connection closed for unique identifier ${workerId}`,
+    let evalChain = Promise.resolve();
+
+    /**
+     * @param {string} source
+     * @returns {Promise<unknown>}
+     */
+    const xsnapEvaluate = source => {
+      const next = evalChain.then(async () => {
+        if (pendingReplyResolver !== undefined) {
+          throw new Error(
+            `xsnap-worker ${workerId}: pending reply slot already in use`,
+          );
+        }
+        const replyPromise = /** @type {Promise<Uint8Array>} */ (
+          new Promise(resolve => {
+            pendingReplyResolver = resolve;
+          })
+        );
+        const requestBytes = requestEncoder.encode(
+          JSON.stringify({ type: 'eval', source }),
+        );
+        await vat.issueCommand(requestBytes);
+        const replyBytes = await replyPromise;
+        const reply = JSON.parse(responseDecoder.decode(replyBytes));
+        if (reply && Object.prototype.hasOwnProperty.call(reply, 'error')) {
+          throw new Error(`xsnap-worker ${workerId}: ${reply.error}`);
+        }
+        return reply.ok;
+      });
+      evalChain = next.then(
+        () => undefined,
+        () => undefined,
       );
+      return next;
+    };
+
+    /** @type {ERef<XsnapWorkerDaemonFacet>} */
+    const workerDaemonFacet = Object.freeze({
+      terminate: async () => {
+        await vat.close().catch(() => {});
+      },
+      evaluate: async source => xsnapEvaluate(source),
     });
 
-    const workerTerminated = Promise.race([
-      workerTerminatedKit.promise,
-      capTpClosed,
-    ]);
-
-    /** @type {ERef<WorkerDaemonFacet>} */
-    const workerDaemonFacet = getBootstrap();
-
-    return { workerTerminated, workerDaemonFacet };
+    return {
+      workerTerminated: workerTerminatedKit.promise,
+      workerDaemonFacet,
+    };
   };
 
   return harden({

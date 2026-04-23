@@ -88,6 +88,11 @@
   "publishConfig": {
     "access": "public"
   },
+  "dependenciesMeta": {
+    "@agoric/xsnap": {
+      "built": true
+    }
+  },
   "eslintConfig": {
     "extends": [
       "plugin:@endo/daemon"
