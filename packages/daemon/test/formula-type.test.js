@@ -10,6 +10,8 @@ test('isValidFormulaType', t => {
   const cases = [
     ['eval', true],
     ['make-unconfined', true],
+    ['worker', true],
+    ['xsnap-worker', true],
     ['', false],
     [null, false],
     [undefined, false],

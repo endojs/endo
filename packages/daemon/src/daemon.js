@@ -398,19 +398,26 @@ const makeDaemonCore = async (
   /**
    * @param {string} workerId512
    * @param {Context} context
+   * @param {(
+   *   id: string,
+   *   daemonWorkerFacet: import('./types.js').DaemonWorkerFacet,
+   *   cancelled: Promise<never>,
+   * ) => Promise<{
+   *   workerTerminated: Promise<void>;
+   *   workerDaemonFacet: ERef<WorkerDaemonFacet>;
+   * }>} spawn
    */
-  const makeIdentifiedWorker = async (workerId512, context) => {
+  const makeWorkerLifetime = async (workerId512, context, spawn) => {
     const daemonWorkerFacet = makeDaemonFacetForWorker(workerId512);
 
     const { promise: forceCancelled, reject: forceCancel } =
       /** @type {PromiseKit<never>} */ (makePromiseKit());
 
-    const { workerTerminated, workerDaemonFacet } =
-      await controlPowers.makeWorker(
-        workerId512,
-        daemonWorkerFacet,
-        Promise.race([forceCancelled, gracePeriodElapsed]),
-      );
+    const { workerTerminated, workerDaemonFacet } = await spawn(
+      workerId512,
+      daemonWorkerFacet,
+      Promise.race([forceCancelled, gracePeriodElapsed]),
+    );
 
     const gracefulCancel = async () => {
       E.sendOnly(workerDaemonFacet).terminate();
@@ -439,6 +446,25 @@ const makeDaemonCore = async (
 
     return worker;
   };
+
+  /**
+   * @param {string} workerId512
+   * @param {Context} context
+   */
+  const makeIdentifiedWorker = (workerId512, context) =>
+    makeWorkerLifetime(workerId512, context, controlPowers.makeWorker);
+
+  /**
+   * Identified xsnap-hosted worker. The lifecycle is identical to a normal
+   * worker, but the underlying process is xsnap, which captures the entire
+   * heap as an orthogonal snapshot when suspended. There is no durable zone
+   * — values survive only because they remain reachable in the live heap.
+   *
+   * @param {string} workerId512
+   * @param {Context} context
+   */
+  const makeIdentifiedXsnapWorker = (workerId512, context) =>
+    makeWorkerLifetime(workerId512, context, controlPowers.makeXsnapWorker);
 
   /**
    * @param {string} sha512
@@ -1218,6 +1244,8 @@ const makeDaemonCore = async (
     lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
+    'xsnap-worker': (_formula, context, _id, formulaNumber) =>
+      makeIdentifiedXsnapWorker(formulaNumber, context),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier },
       context,

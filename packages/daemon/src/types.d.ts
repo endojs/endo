@@ -112,6 +112,18 @@ type WorkerFormula = {
   type: 'worker';
 };
 
+/**
+ * A worker hosted by the xsnap XS engine, persisted via orthogonal heap
+ * snapshots. The entire JS heap is captured by the snapshot, so any value
+ * reachable from globals at snapshot time is restored on revival, with no
+ * cooperation required from the guest. There is no separate durable zone:
+ * objects do not opt in to durability, and there is no upgrade-survivable
+ * persistent store distinct from the snapshot.
+ */
+type XsnapWorkerFormula = {
+  type: 'xsnap-worker';
+};
+
 export type WorkerDeferredTaskParams = {
   workerId: FormulaIdentifier;
 };
@@ -303,6 +315,7 @@ export type Formula =
   | EndoFormula
   | LoopbackNetworkFormula
   | WorkerFormula
+  | XsnapWorkerFormula
   | HostFormula
   | GuestFormula
   | LeastAuthorityFormula
@@ -841,6 +854,20 @@ export type DaemonicControlPowers = {
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
   }>;
+  /**
+   * Spawns or revives an xsnap-hosted worker. The xsnap engine snapshots
+   * the entire JS heap on suspension, so the worker resumes with all values
+   * still reachable from its globals. There is no durable zone: anything not
+   * reachable in the live heap at snapshot time is lost.
+   */
+  makeXsnapWorker: (
+    id: string,
+    daemonWorkerFacet: DaemonWorkerFacet,
+    cancelled: Promise<never>,
+  ) => Promise<{
+    workerTerminated: Promise<void>;
+    workerDaemonFacet: ERef<WorkerDaemonFacet>;
+  }>;
 };
 
 export type DaemonicPowers = {
@@ -918,6 +945,7 @@ export type FormulaValueTypes = {
   host: EndoHost;
   invitation: Invitation;
   worker: EndoWorker;
+  'xsnap-worker': EndoWorker;
 };
 
 export type ProvideTypes = FormulaValueTypes & {

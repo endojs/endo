@@ -447,6 +447,10 @@ export const makeDaemonicPersistencePowers = (
  * @param {FilePowers} filePowers
  * @param {typeof import('fs')} fs
  * @param {typeof import('child_process')} popen
+ * @param {object} [options]
+ * @param {string} [options.xsnapBinaryPath] - Path to the xsnap executable.
+ *   When omitted, attempts to use an xsnap-hosted worker fail at spawn time;
+ *   ordinary Node workers continue to work.
  */
 export const makeDaemonicControlPowers = (
   config,
@@ -454,9 +458,13 @@ export const makeDaemonicControlPowers = (
   filePowers,
   fs,
   popen,
+  options = {},
 ) => {
   const endoWorkerPath = fileURLToPath(
     new URL('worker-node.js', import.meta.url),
+  );
+  const xsnapWorkerBootstrapPath = fileURLToPath(
+    new URL('xsnap-worker-bootstrap.js', import.meta.url),
   );
 
   /**
@@ -541,8 +549,121 @@ export const makeDaemonicControlPowers = (
     return { workerTerminated, workerDaemonFacet };
   };
 
+  /**
+   * Spawn or revive an xsnap-hosted worker.
+   *
+   * The xsnap process is the persistence boundary: when the worker is
+   * suspended, xsnap writes the entire JS heap to a snapshot file under the
+   * worker's state directory. On revival, the snapshot is loaded and the
+   * worker resumes with every value still reachable from its globals.
+   *
+   * This is orthogonal persistence — the guest opts in to nothing — and is
+   * deliberately NOT a durable zone: there is no per-object durability
+   * mechanism, no upgrade-survivable virtual collections, and no separate
+   * persistent storage layer. Anything that is not reachable in the live
+   * heap at snapshot time is gone.
+   *
+   * @param {string} workerId
+   * @param {DaemonWorkerFacet} daemonWorkerFacet
+   * @param {Promise<never>} cancelled
+   */
+  const makeXsnapWorker = async (workerId, daemonWorkerFacet, cancelled) => {
+    const { xsnapBinaryPath } = options;
+    if (xsnapBinaryPath === undefined) {
+      throw new Error(
+        'No xsnap binary configured for daemon; pass `xsnapBinaryPath` to makeDaemonicPowers to enable xsnap-worker formulas',
+      );
+    }
+
+    const { statePath, ephemeralStatePath } = config;
+    const workerStatePath = filePowers.joinPath(
+      statePath,
+      'xsnap-worker',
+      workerId,
+    );
+    const workerEphemeralStatePath = filePowers.joinPath(
+      ephemeralStatePath,
+      'xsnap-worker',
+      workerId,
+    );
+    const snapshotPath = filePowers.joinPath(workerStatePath, 'heap.xss');
+
+    await Promise.all([
+      filePowers.makePath(workerStatePath),
+      filePowers.makePath(workerEphemeralStatePath),
+    ]);
+
+    const logPath = filePowers.joinPath(workerStatePath, 'worker.log');
+    const pidPath = filePowers.joinPath(workerEphemeralStatePath, 'worker.pid');
+
+    const log = fs.openSync(logPath, 'a');
+    const hasSnapshot = fs.existsSync(snapshotPath);
+    const args = hasSnapshot
+      ? ['-r', snapshotPath, xsnapWorkerBootstrapPath]
+      : [xsnapWorkerBootstrapPath];
+
+    const child = popen.spawn(xsnapBinaryPath, args, {
+      stdio: ['pipe', log, log, 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    const workerPid = child.pid;
+    const nodeWriter = /** @type {import('stream').Writable} */ (
+      child.stdio[3]
+    );
+    const nodeReader = /** @type {import('stream').Readable} */ (
+      child.stdio[4]
+    );
+    assert(nodeWriter);
+    assert(nodeReader);
+    const reader = makeNodeReader(nodeReader);
+    const writer = makeNodeWriter(nodeWriter);
+
+    const workerClosed = new Promise(resolve => {
+      child.on('exit', () => {
+        console.log(
+          `Endo xsnap worker exited for PID ${workerPid} with unique identifier ${workerId}`,
+        );
+        resolve(undefined);
+      });
+    });
+
+    await filePowers.writeFileText(pidPath, `${child.pid}\n`);
+
+    cancelled.catch(async () => {
+      // Snapshotting on graceful shutdown is the responsibility of the
+      // bootstrap inside xsnap, in cooperation with daemon-side teardown.
+      child.kill();
+    });
+
+    console.log(
+      `Endo xsnap worker started PID ${workerPid} unique identifier ${workerId} (snapshot ${hasSnapshot ? 'restored' : 'fresh'})`,
+    );
+
+    const { getBootstrap, closed: capTpClosed } = makeNetstringCapTP(
+      `XsnapWorker ${workerId}`,
+      writer,
+      reader,
+      cancelled,
+      daemonWorkerFacet,
+    );
+
+    capTpClosed.finally(() => {
+      console.log(
+        `Endo xsnap worker connection closed for PID ${workerPid} with unique identifier ${workerId}`,
+      );
+    });
+
+    const workerTerminated = Promise.race([workerClosed, capTpClosed]);
+
+    /** @type {ERef<WorkerDaemonFacet>} */
+    const workerDaemonFacet = getBootstrap();
+
+    return { workerTerminated, workerDaemonFacet };
+  };
+
   return harden({
     makeWorker,
+    makeXsnapWorker,
   });
 };
 
@@ -554,6 +675,8 @@ export const makeDaemonicControlPowers = (
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
+ * @param {string} [opts.xsnapBinaryPath] - Path to the xsnap executable.
+ *   Required to host `xsnap-worker` formulas.
  * @returns {DaemonicPowers}
  */
 export const makeDaemonicPowers = ({
@@ -563,6 +686,7 @@ export const makeDaemonicPowers = ({
   url,
   filePowers,
   cryptoPowers,
+  xsnapBinaryPath,
 }) => {
   const { fileURLToPath } = url;
 
@@ -578,6 +702,7 @@ export const makeDaemonicPowers = ({
     filePowers,
     fs,
     popen,
+    { xsnapBinaryPath },
   );
 
   return harden({
