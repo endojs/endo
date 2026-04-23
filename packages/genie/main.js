@@ -10,13 +10,19 @@
  * up the same tools and PiAgent, but communicates via Endo host mail
  * instead of stdin/stdout.
  *
- * On startup the module sends a configuration form to `@host`.  Each
- * form submission provisions a **new** Endo guest via the host agent
- * and runs the genie agent loop under that guest's identity.  This
- * means "agent ready" messages and all subsequent replies originate
- * from the agent guest (e.g. `main-genie`), not from `setup-genie`.
- * The first agent defaults to `main-genie`; subsequent form
- * submissions can specify a custom name.
+ * The module is launched by `setup.js` via `makeUnconfined('@main', …,
+ * { powersName: '@agent', env: { GENIE_MODEL, GENIE_WORKSPACE, … } })`.
+ * `powers` is therefore the daemon's root host agent itself — there is
+ * no intermediate `setup-genie` guest and no daemon-side configuration
+ * form.  The agent loop runs under the root host's own identity, so
+ * "agent ready" log lines and all subsequent replies originate from
+ * the daemon's `@self` inbox.
+ *
+ * Configuration is read from the `env` argument passed by
+ * `makeUnconfined`.  `GENIE_MODEL` and `GENIE_WORKSPACE` are required
+ * and the module fails fast if either is missing; the rest fall back
+ * to defaults.  See `TODO/10_genie_self.md` § 3b for the full env
+ * surface forwarded by the launcher.
  *
  * Because the daemon does not yet support streaming, this module:
  *  1. Sends incremental "Thinking..." status messages during reasoning.
@@ -59,7 +65,7 @@ import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { initWorkspace } from './src/workspace/init.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
-/** @import { EndoGuest, EndoHost, Package, StampedMessage } from '@endo/daemon' */
+/** @import { EndoAgent, EndoGuest, EndoHost, Package, StampedMessage } from '@endo/daemon' */
 /** @import { IntervalTickMessage, } from './src/interval/types.js' */
 /** @import { HeartbeatEvent } from './src/heartbeat/index.js' */
 
@@ -95,20 +101,24 @@ const GenieInterface = M.interface('Genie', {
 // ============================================================================
 
 /**
- * Creates the Genie daemon guest.
+ * Creates the Genie daemon root agent.
  *
- * Sends a configuration form to `@host`.  Each form submission
- * provisions a **new** Endo guest via the host agent and runs the
- * genie agent loop under that guest's identity.  The first agent
- * created is named `main-genie` so the user can interact with it
- * immediately; subsequent submissions can specify a custom name.
+ * `powers` is the daemon's host root agent itself (the launcher passes
+ * `powersName: '@agent'` to `makeUnconfined`), so this module owns the
+ * daemon's `@self` inbox directly — there is no intermediate guest and
+ * no configuration form.  Agent configuration is read from the `env`
+ * argument that `makeUnconfined` forwards.  Required env vars
+ * (`GENIE_MODEL`, `GENIE_WORKSPACE`) are validated up front so failures
+ * surface in the worker log rather than as silent boot deadlocks.
  *
- * @param {EndoGuest} guestPowers - Guest powers from the Endo daemon
+ * @param {EndoHost} powers - Host root agent from the Endo daemon
  * @param {Promise<object> | object | undefined} _context - Context (unused for now)
+ * @param {{ env?: Record<string, string> }} [options] - Launcher options;
+ *   `env` carries the `GENIE_*` configuration variables forwarded by
+ *   `setup.js`.
  * @returns {object} The Genie exo object
  */
-export const make = (guestPowers, _context) => {
-  const powers = guestPowers;
+export const make = (powers, _context, { env = {} } = {}) => {
 
   /**
    * Build the tool registry for the daemon-hosted genie.
@@ -144,7 +154,9 @@ export const make = (guestPowers, _context) => {
    * Process a single inbound message by running a genie chat round and
    * relaying events back to the sender via daemon mail.
    *
-   * @param {EndoGuest} agentPowers - The agent guest's powers (for send/reply)
+   * @param {EndoAgent} agentPowers - The agent's powers (for send/reply).
+   *   For the root genie this is the daemon's host root agent; for
+   *   future child agents it would be a provisioned guest.
    * @param {object} piAgent - The PiAgent instance
    * @param {object} inboxMessage - The inbound daemon message
    * @param {bigint} inboxMessage.number - Message number for reply/dismiss
@@ -271,7 +283,7 @@ export const make = (guestPowers, _context) => {
    * Process a heartbeat tick: build a heartbeat prompt, run an agent
    * round, record the result, and resolve the tick.
    *
-   * @param {EndoGuest} agentPowers
+   * @param {EndoAgent} agentPowers
    * @param {object} piAgent
    * @param {string} agentName
    * @param {string} workspaceDir
@@ -431,7 +443,10 @@ export const make = (guestPowers, _context) => {
    * no further ticks fire.
    *
    * @param {object} opts
-   * @param {EndoGuest} opts.agentGuest - The agent guest's EndoGuest powers
+   * @param {EndoAgent} opts.agentGuest - The agent's mail-capable powers.
+   *   For the root genie this is the daemon's host root agent; the
+   *   `@self` self-send below routes back to the same inbox the agent
+   *   loop is following, so no special targeting is needed.
    * @param {string} opts.agentName - Display name for logging
    * @param {string} opts.workspaceDir - Agent workspace directory
    * @param {number} opts.heartbeatPeriodMs - Heartbeat period in ms (0 disables)
@@ -547,7 +562,9 @@ export const make = (guestPowers, _context) => {
    * round runs and all stacked heartbeat ticks are resolved.
    *
    * @param {object} opts
-   * @param {EndoGuest} opts.agentPowers - The agent guest's EndoGuest powers
+   * @param {EndoAgent} opts.agentPowers - The agent's mail-capable powers
+   *   (root genie passes the daemon host; future child agents would
+   *   pass a provisioned guest)
    * @param {object} opts.piAgent - The PiAgent instance
    * @param {object} opts.heartbeatAgent - The dedicated heartbeat PiAgent instance.
    * @param {string} opts.agentName - Display name for logging
@@ -1026,6 +1043,12 @@ export const make = (guestPowers, _context) => {
     );
     console.log(`[genie:${agentName}] ${readyMess}`,);
   };
+  // `spawnAgent` is no longer invoked on boot — the root genie now
+  // owns `@self` directly via `runRootAgent` below — but the helper is
+  // retained for the future child-agent spawning UX (TODO/10
+  // Clarification 2).  Harden it so the unused-export-style binding
+  // satisfies lint and so the kept code path stays SES-correct.
+  harden(spawnAgent);
 
   /**
    * Remove a child agent: delete its entry from the parent's agent
@@ -1069,138 +1092,167 @@ export const make = (guestPowers, _context) => {
   harden(listChildAgents);
 
   /**
-   * Main loop — sends a configuration form to `@host`, waits for each
-   * submission, provisions a new Endo guest for each agent, and loops
-   * back to accept further submissions.
+   * Boot the genie agent loop directly under the daemon's root host
+   * agent (`powers`).  This replaces the previous form-driven
+   * `provideGuest` boot: there is no intermediate `setup-genie` guest,
+   * no `host-agent` lookup bounce, and no nested guest profile —
+   * `powers` already *is* the daemon's `@self`.
+   *
+   * The body mirrors the relevant portion of `spawnAgent` (workspace
+   * init, tool construction, `makeGenieAgents`, agent loop, heartbeat
+   * ticker) but skips:
+   *   - `provideGuest` provisioning (root has direct host powers);
+   *   - `parentPowers` directory tracking (no parent above the root);
+   *   - the introducedNames `workspace-mount` plumbing (a future task
+   *     can revive a host-level workspace mount if needed — for now
+   *     the launcher passes the workspace path via `GENIE_WORKSPACE`).
+   *
+   * The "agent ready" announcement is emitted via `console.log` instead
+   * of an `@host` mail so the readiness signal lands in the worker log;
+   * `bottle.sh` watches `endo inbox` separately for operator-visible
+   * readiness.
+   *
+   * @param {EndoHost} rootPowers - The daemon's root host agent.
+   * @param {AgentConfig} config - Agent configuration sourced from env.
    */
-  const runLoop = async () => {
-    // Resolve the host agent for provisioning new guests.
-    const hostAgent = /** @type {FarRef<EndoHost>} */ (
-      await E(powers).lookup('host-agent')
-    );
+  const runRootAgent = async (rootPowers, config) => {
+    const agentName = config.name || 'main-genie';
+    const workspaceDir = config.workspace;
 
-    // Send the configuration form to HOST.
-    await E(powers).form(
-      '@host',
-      'Configure Genie agent',
-      harden([
-        {
-          name: 'name',
-          label: 'Agent name',
-          example: 'main-genie',
-        },
-        {
-          name: 'agentDirectory',
-          label: 'Agent directory name (for child-agent tracking)',
-          default: 'genie',
-        },
-        {
-          name: 'model',
-          label: 'Model',
-          default: 'ollama/llama3.2',
-        },
-        {
-          name: 'workspace',
-          label: 'Workspace directory',
-          example: '/home/user/project',
-        },
-        {
-          name: 'heartbeatPeriod',
-          label: 'Heartbeat period (ms, 0 to disable, default: 30 minutes)',
-          default: '1800000',
-        },
-        {
-          name: 'heartbeatTimeout',
-          label: 'Heartbeat timeout (ms, default: period/2)',
-          example: '900000',
-          default: '',
-        },
-        {
-          name: 'observerModel',
-          label: 'Observer model (default: same as chat model)',
-          example: 'ollama/llama3.2',
-          default: '',
-        },
-        {
-          name: 'reflectorModel',
-          label: 'Reflector model (default: same as chat model)',
-          example: 'anthropic/claude-sonnet',
-          default: '',
-        },
-      ]),
-    );
-
-    const selfId = await E(powers).locate('@self');
-
-    // Pre-scan existing messages to find our latest form messageId so that
-    // old value messages (from prior sessions) that reply to an earlier form
-    // are not accidentally matched when the iterator replays history.
-    /** @type {string | undefined} */
-    let formMessageId;
-    const existingMessages = /** @type {any[]} */ (
-      await E(powers).listMessages()
-    );
-    for (const msg of existingMessages) {
-      if (msg.from === selfId && msg.type === 'form') {
-        formMessageId = msg.messageId;
-      }
+    // Seed the workspace from the shipped template on first spawn.
+    // Existing files are never overwritten.
+    const didInit = await initWorkspace(workspaceDir);
+    if (didInit) {
+      console.log(
+        `[genie:${agentName}] Workspace initialised from template: ${workspaceDir}`,
+      );
     }
 
-    // -----------------------------------------------------------------------
-    // Accept form submissions and spawn agent guests
-    // -----------------------------------------------------------------------
+    // Cancellation kit — resolving `cancel` signals all sub-systems
+    // (agent loop, heartbeat, etc.) to tear down.
+    const { promise: cancelledP, resolve: cancel } = makePromiseKit();
 
-    for await (const msg of makeRefIterator(E(powers).followMessages())) {
-      // Capture the form's messageId from our own outbound message.
-      if (msg.from === selfId && msg.type === 'form') {
-        formMessageId = msg.messageId;
-        continue;
-      }
+    const genieTools = buildTools(workspaceDir);
 
-      // Only accept value messages that reply to our form.
-      if (msg.type !== 'value') continue;
-      if (msg.replyTo !== formMessageId) continue;
+    // Shared side-channel map for delivering heartbeat tick objects
+    // from runHeartbeatTicker to runAgentLoop without serializing
+    // through daemon mail.
+    /** @type {Map<string, IntervalTickMessage>} */
+    const pendingHeartbeatTicks = new Map();
+    const makeTickId = (() => {
+      let value = 0;
+      return () => {
+        const id = `${value}`;
+        value += 1;
+        return id;
+      };
+    })();
 
-      try {
-        const config = /** @type {AgentConfig} */ (
-          await E(powers).lookupById(msg.valueId)
-        );
-        const { name: agentName = 'main-genie' } = config;
+    // Assemble the shared agent pack.  See `spawnAgent` for the same
+    // wiring under a child-guest identity.
+    const { piAgent, heartbeatAgent, observer, reflector } =
+      await makeGenieAgents({
+        hostname: 'endo-daemon',
+        workspaceDir,
+        tools: genieTools,
+        config: {
+          model: config.model || undefined,
+          observerModel: config.observerModel || undefined,
+          reflectorModel: config.reflectorModel || undefined,
+        },
+      });
 
-        console.log(
-          `[genie] Configuration received: name=${agentName}, model=${config.model}, workspace=${config.workspace}`,
-        );
+    const observerModelLog =
+      config.observerModel || config.model || '(default)';
+    const reflectorModelLog =
+      config.reflectorModel || config.model || '(default)';
+    console.log(
+      `[genie:${agentName}] Memory sub-agents: observer=${observerModelLog}, reflector=${reflectorModelLog}`,
+    );
 
-        // Delegate existence authority to the endo pet namespace.
-        // spawnAgent handles idempotent guest creation (reuses
-        // existing guests on restart), so we always call through.
-        await spawnAgent(hostAgent, agentName, config);
+    // Start the message loop (fire-and-forget).  `agentPowers` is the
+    // root host: heartbeat self-sends target `@self`, which resolves to
+    // the very inbox this loop is following — no special routing.
+    const agentLoopP = runAgentLoop({
+      agentPowers: rootPowers,
+      piAgent,
+      heartbeatAgent,
+      agentName,
+      workspaceDir,
+      cancelledP,
+      pendingHeartbeatTicks,
+      observer,
+      reflector,
+      genieTools,
+    });
 
-        await E(powers).reply(
-          msg.number,
-          [`Agent "${agentName}" is now running.`],
-          [],
-          [],
-        );
-      } catch (err) {
-        console.error('[genie] Form submission error:', err);
-        try {
-          await E(powers).reply(
-            msg.number,
-            [`Error creating agent: ${err?.message || err}`],
-            [],
-            [],
-          );
-        } catch {
-          // Best-effort reply.
-        }
-      }
-    }
+    // If the agent loop crashes, trigger cancellation so dependent
+    // sub-systems (heartbeat, etc.) also tear down.
+    agentLoopP.catch(err => {
+      console.error(`[genie:${agentName}] Agent loop error:`, err);
+      cancel(undefined);
+    });
+
+    // ── Heartbeat interval ─────────────────────────────────────────
+    const heartbeatPeriodMs = config.heartbeatPeriod
+      ? Number(config.heartbeatPeriod)
+      : DEFAULT_HEARTBEAT_PERIOD_MS;
+    const heartbeatTimeoutMs = config.heartbeatTimeout
+      ? Number(config.heartbeatTimeout)
+      : heartbeatPeriodMs / 2;
+    await runHeartbeatTicker({
+      agentGuest: rootPowers,
+      agentName,
+      workspaceDir,
+      heartbeatPeriodMs,
+      heartbeatTimeoutMs,
+      cancelledP,
+      pendingHeartbeatTicks,
+      makeTickId,
+    });
+
+    // Announce readiness to the worker log (no `@host` mail — the
+    // launcher / `bottle.sh` watch `endo inbox` separately).
+    const heartbeatInfo =
+      heartbeatPeriodMs > 0 ? `, heartbeat: ${heartbeatPeriodMs / 1000}s` : '';
+    console.log(
+      `[genie:${agentName}] agent ready (model: ${config.model}, workspace: ${workspaceDir}${heartbeatInfo})`,
+    );
   };
 
-  // Kick off the main loop (fire-and-forget within the daemon worker).
-  runLoop().catch(err => {
-    console.error('[genie] Main loop error:', err);
+  // ── Validate env and assemble root config ─────────────────────────
+  // `GENIE_MODEL` and `GENIE_WORKSPACE` used to be enforced by the
+  // daemon-side configuration form's required-fields logic.  With the
+  // form gone, validation moves here so missing values fail loudly in
+  // the worker log instead of leaving the worker idle.
+  const model = env.GENIE_MODEL;
+  const workspace = env.GENIE_WORKSPACE;
+  if (!model) {
+    throw new Error(
+      'genie root agent: GENIE_MODEL env var is required (set via setup.js launcher)',
+    );
+  }
+  if (!workspace) {
+    throw new Error(
+      'genie root agent: GENIE_WORKSPACE env var is required (set via setup.js launcher)',
+    );
+  }
+
+  /** @type {AgentConfig} */
+  const rootConfig = {
+    model,
+    workspace,
+    name: env.GENIE_NAME || 'main-genie',
+    agentDirectory: env.GENIE_AGENT_DIRECTORY || DEFAULT_AGENT_DIRECTORY,
+    heartbeatPeriod: env.GENIE_HEARTBEAT_PERIOD || undefined,
+    heartbeatTimeout: env.GENIE_HEARTBEAT_TIMEOUT || undefined,
+    observerModel: env.GENIE_OBSERVER_MODEL || undefined,
+    reflectorModel: env.GENIE_REFLECTOR_MODEL || undefined,
+  };
+
+  // Kick off the root agent (fire-and-forget within the daemon worker).
+  runRootAgent(powers, rootConfig).catch(err => {
+    console.error('[genie] Root agent error:', err);
   });
 
   return makeExo('Genie', GenieInterface, {
@@ -1210,7 +1262,7 @@ export const make = (guestPowers, _context) => {
      */
     help(methodName) {
       if (methodName === undefined) {
-        return 'Genie AI agent. Submit the configuration form, then send messages to interact.';
+        return 'Genie AI agent (daemon root). Send messages to @self to interact; configuration is sourced from GENIE_* env vars at boot.';
       }
       return `No documentation for method "${methodName}".`;
     },
