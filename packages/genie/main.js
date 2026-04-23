@@ -136,7 +136,15 @@ export const make = (powers, _context, { env = {} } = {}) => {
 
   /**
    * @typedef {object} AgentConfig
-   * @property {string} model
+   * @property {'piAgent' | 'primordial'} mode - Boot mode.  `piAgent`
+   *   wires the full PiAgent + heartbeat + observer/reflector pack;
+   *   `primordial` skips all of that and runs a stub inbox loop so
+   *   the operator can install a model via `/model` (sub-task 95).
+   *   Extra modes (e.g. degraded-no-tools) can extend the same
+   *   surface in the future without reshuffling arguments.
+   * @property {string} [model] - LLM model spec.  Required when
+   *   `mode === 'piAgent'`; unused (and typically absent) in
+   *   primordial mode.
    * @property {string} workspace
    * @property {string} [name]
    * @property {string} [agentDirectory]
@@ -553,9 +561,11 @@ export const make = (powers, _context, { env = {} } = {}) => {
   /**
    * Run the message processing loop for a single agent guest.
    *
-   * Follows the agent guest's inbox and dispatches each inbound message
-   * to processMessage, using the agent guest's powers so that replies
-   * originate from the agent's identity (not setup-genie).
+   * Follows the agent powers' inbox and dispatches each inbound message
+   * to processMessage, using those same powers so that replies
+   * originate from the agent's identity — `@self` for the root genie
+   * under the post-refactor boot shape, or the child guest's identity
+   * when `spawnAgent` drives this loop for a sub-agent.
    *
    * Heartbeat messages (type `'heartbeat'`) are detected and coalesced:
    * if multiple heartbeat messages have accumulated, only one heartbeat
@@ -1092,6 +1102,75 @@ export const make = (powers, _context, { env = {} } = {}) => {
   harden(listChildAgents);
 
   /**
+   * Minimal inbox loop used when `runRootAgent` is invoked in
+   * primordial mode.  Follows the daemon inbox, replies to each
+   * non-self message with a fixed placeholder, and exits when the
+   * cancel sentinel resolves.  There is deliberately no piAgent, no
+   * tool dispatch, and no heartbeat here — sub-task 94 lands the
+   * real primordial automaton.  The stub exists only so operator
+   * messages do not silently pile up while the worker waits for
+   * `/model` (sub-task 95).
+   *
+   * @param {object} opts
+   * @param {EndoAgent} opts.agentPowers - Mail-capable powers; for the
+   *   root genie this is the daemon's host root agent (`@self`).
+   * @param {string} opts.agentName - Display name for logging.
+   * @param {Promise<any>} opts.cancelledP - Resolves when the agent is
+   *   cancelled; races with the inbox iterator to tear the loop down.
+   */
+  const runPrimordialStubLoop = async ({
+    agentPowers,
+    agentName,
+    cancelledP,
+  }) => {
+    const selfId = await E(agentPowers).locate('@self');
+    const messageIterator = makeRefIterator(E(agentPowers).followMessages());
+
+    /** @type {Promise<{cancelled: any}>} */
+    const cancelSentinel = cancelledP.then(cancelled => ({ cancelled }));
+
+    const placeholder =
+      '(primordial mode — no model configured; `/model` arrives in sub-task 95)';
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const result = await Promise.race([
+        messageIterator.next(),
+        cancelSentinel,
+      ]);
+      if ('cancelled' in result) {
+        console.log(
+          `[genie:${agentName}] Primordial loop cancelled`,
+          result.cancelled,
+        );
+        return;
+      }
+      const { value: message, done } = result;
+      if (done) return;
+      if (message.from === selfId) continue;
+      if (message.type !== 'package') {
+        console.warn(
+          `[genie:${agentName}] Primordial loop ignoring message #${message.number} (type: ${message.type})`,
+        );
+        continue;
+      }
+      const preview = message.strings.join('').trim().slice(0, 120);
+      console.log(
+        `[genie:${agentName}] Primordial stub reply to #${message.number}: ${preview}`,
+      );
+      try {
+        await E(agentPowers).reply(message.number, [placeholder], [], []);
+      } catch (err) {
+        const errorMessage = /** @type {Error} */ (err).message || String(err);
+        console.error(
+          `[genie:${agentName}] Primordial reply failed for #${message.number}:`,
+          errorMessage,
+        );
+      }
+    }
+  };
+
+  /**
    * Boot the genie agent loop directly under the daemon's root host
    * agent (`powers`).  This replaces the previous form-driven
    * `provideGuest` boot: there is no intermediate `setup-genie` guest,
@@ -1131,6 +1210,31 @@ export const make = (powers, _context, { env = {} } = {}) => {
     // Cancellation kit — resolving `cancel` signals all sub-systems
     // (agent loop, heartbeat, etc.) to tear down.
     const { promise: cancelledP, resolve: cancel } = makePromiseKit();
+
+    // ── Primordial mode ────────────────────────────────────────────
+    // No model is configured (neither via env nor via persisted
+    // config), so we skip `makeGenieAgents`, the heartbeat ticker,
+    // and the full `runAgentLoop` wiring.  Instead we run a minimal
+    // stub loop that acknowledges inbound messages with a fixed
+    // placeholder — enough to prove the worker is alive without
+    // pretending to have an LLM behind it.  Sub-task 94 replaces the
+    // stub with the primordial automaton that can drive `/model`
+    // (sub-task 95).
+    if (config.mode === 'primordial') {
+      console.log(
+        `[genie:${agentName}] primordial mode — no model configured (workspace: ${workspaceDir}); \`/model\` arrives in sub-task 95`,
+      );
+      const stubLoopP = runPrimordialStubLoop({
+        agentPowers: rootPowers,
+        agentName,
+        cancelledP,
+      });
+      stubLoopP.catch(err => {
+        console.error(`[genie:${agentName}] Primordial loop error:`, err);
+        cancel(undefined);
+      });
+      return;
+    }
 
     const genieTools = buildTools(workspaceDir);
 
@@ -1221,37 +1325,75 @@ export const make = (powers, _context, { env = {} } = {}) => {
   };
 
   // ── Validate env and assemble root config ─────────────────────────
-  // `GENIE_MODEL` and `GENIE_WORKSPACE` used to be enforced by the
-  // daemon-side configuration form's required-fields logic.  With the
-  // form gone, validation moves here so missing values fail loudly in
-  // the worker log instead of leaving the worker idle.
-  const model = env.GENIE_MODEL;
+  // `GENIE_WORKSPACE` is still mandatory (the agent cannot run without
+  // a persistent workspace) and is validated synchronously so a missing
+  // value fails loudly in the worker log rather than as a silent boot
+  // deadlock.  `GENIE_MODEL` used to be mandatory too, but primordial
+  // mode (see TODO/92 § 1c) lets the genie boot without a configured
+  // model so the operator can install one via `/model` (sub-task 95).
   const workspace = env.GENIE_WORKSPACE;
-  if (!model) {
-    throw new Error(
-      'genie root agent: GENIE_MODEL env var is required (set via setup.js launcher)',
-    );
-  }
   if (!workspace) {
     throw new Error(
       'genie root agent: GENIE_WORKSPACE env var is required (set via setup.js launcher)',
     );
   }
 
-  /** @type {AgentConfig} */
-  const rootConfig = {
-    model,
-    workspace,
-    name: env.GENIE_NAME || 'main-genie',
-    agentDirectory: env.GENIE_AGENT_DIRECTORY || DEFAULT_AGENT_DIRECTORY,
-    heartbeatPeriod: env.GENIE_HEARTBEAT_PERIOD || undefined,
-    heartbeatTimeout: env.GENIE_HEARTBEAT_TIMEOUT || undefined,
-    observerModel: env.GENIE_OBSERVER_MODEL || undefined,
-    reflectorModel: env.GENIE_REFLECTOR_MODEL || undefined,
+  /**
+   * Stub for the persisted model config reader.  The real
+   * filesystem-backed loader lands in sub-task 96 (see TODO/92 § 1c);
+   * until then it unconditionally returns `undefined` so the
+   * precedence switch below falls through to primordial when no
+   * env-var model is set.
+   *
+   * TODO(96): read the persisted config from the workspace.
+   *
+   * @returns {Promise<{ model?: string } | undefined>}
+   */
+  const loadConfig = async () => undefined;
+
+  /**
+   * Resolve the boot mode from the configured sources.  Precedence
+   * (TODO/92 § 1c): env-var wins, then the persisted config written
+   * by a prior `/model` run, then primordial as a last resort.  Kept
+   * as one small switch block so the full rule is visible in a
+   * single diff to audit.
+   *
+   * @returns {Promise<
+   *   | { mode: 'piAgent', model: string }
+   *   | { mode: 'primordial' }
+   * >}
+   */
+  const resolveBootMode = async () => {
+    if (env.GENIE_MODEL) {
+      return { mode: 'piAgent', model: env.GENIE_MODEL };
+    }
+    const persisted = await loadConfig();
+    if (persisted && persisted.model) {
+      return { mode: 'piAgent', model: persisted.model };
+    }
+    return { mode: 'primordial' };
   };
 
   // Kick off the root agent (fire-and-forget within the daemon worker).
-  runRootAgent(powers, rootConfig).catch(err => {
+  // Wrapped in an async IIFE so `resolveBootMode` (which may do disk
+  // I/O in sub-task 96) can be awaited without blocking `make()`'s
+  // synchronous return of the Genie exo.
+  (async () => {
+    const resolved = await resolveBootMode();
+    /** @type {AgentConfig} */
+    const rootConfig = {
+      mode: resolved.mode,
+      model: resolved.mode === 'piAgent' ? resolved.model : undefined,
+      workspace,
+      name: env.GENIE_NAME || 'main-genie',
+      agentDirectory: env.GENIE_AGENT_DIRECTORY || DEFAULT_AGENT_DIRECTORY,
+      heartbeatPeriod: env.GENIE_HEARTBEAT_PERIOD || undefined,
+      heartbeatTimeout: env.GENIE_HEARTBEAT_TIMEOUT || undefined,
+      observerModel: env.GENIE_OBSERVER_MODEL || undefined,
+      reflectorModel: env.GENIE_REFLECTOR_MODEL || undefined,
+    };
+    await runRootAgent(powers, rootConfig);
+  })().catch(err => {
     console.error('[genie] Root agent error:', err);
   });
 

@@ -295,6 +295,29 @@ const spawnRootGenie = async (hostAgent, workspaceDir) => {
   });
 };
 
+/**
+ * Spawn the genie root agent without a `GENIE_MODEL` env var — the
+ * boot-mode resolution in `main.js` should fall through to primordial
+ * mode (TODO/92 § 1c) instead of throwing.
+ *
+ * @param {any} hostAgent
+ * @param {string} workspaceDir
+ */
+const spawnPrimordialGenie = async (hostAgent, workspaceDir) => {
+  await E(hostAgent).makeUnconfined('@main', mainSpecifier, {
+    powersName: '@agent',
+    resultName: 'main-genie',
+    env: {
+      GENIE_WORKSPACE: workspaceDir,
+      // No GENIE_MODEL — exercises the env→persisted→primordial
+      // precedence.  Heartbeat is irrelevant here (primordial mode
+      // skips the ticker entirely) but we still set it to 0 for
+      // symmetry with the piAgent case.
+      GENIE_HEARTBEAT_PERIOD: '0',
+    },
+  });
+};
+
 test.beforeEach(t => {
   t.context = [];
 });
@@ -396,6 +419,48 @@ test.serial(
     // it back through `runRootAgent`, not just that the pet name
     // survived in the store.
     await waitForWorkerLogCount(config, readyPattern, 2);
+
+    t.pass();
+  },
+);
+
+test.serial(
+  'genie boots primordial when GENIE_MODEL absent',
+  async t => {
+    const { config, host } = await prepareHost(t);
+
+    const workspaceDir = path.join(config.statePath, 'genie-workspace');
+    await fs.promises.mkdir(workspaceDir, { recursive: true });
+
+    // With no `GENIE_MODEL` (and no persisted config — `loadConfig`
+    // is a stub until sub-task 96), `make()` must fall through to
+    // primordial mode rather than throwing.  The pet name still
+    // lands, confirming the worker reached `makeExo` without a
+    // synchronous boot failure.
+    await spawnPrimordialGenie(host, workspaceDir);
+
+    t.true(
+      await E(host).has('main-genie'),
+      'main-genie pet name must exist even in primordial mode',
+    );
+
+    // The primordial banner is emitted from the primordial branch in
+    // `runRootAgent` before the stub loop starts — waiting for it
+    // proves the mode switch fired.
+    await waitForWorkerText(
+      config,
+      /\[genie:main-genie\] primordial mode/u,
+    );
+
+    // The piAgent "agent ready" banner is only emitted at the end of
+    // the piAgent branch.  Under primordial mode we skip that whole
+    // branch, so it must never appear — the post-banner snapshot of
+    // the worker log should still be free of it.
+    const text = await readAllWorkerLogs(config);
+    t.false(
+      /\[genie:main-genie\] agent ready/u.test(text),
+      'primordial boot must not reach the piAgent `agent ready` banner',
+    );
 
     t.pass();
   },

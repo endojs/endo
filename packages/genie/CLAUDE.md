@@ -48,7 +48,13 @@ context, { env })`.
 `GENIE_*` variables from the launcher's `process.env` into that `env`
 object.
 
-- `GENIE_MODEL` — **required**; LLM model spec (e.g. `ollama/llama3.2`).
+- `GENIE_MODEL` — required unless a persisted model config exists or
+  the operator plans to use `/model` (sub-task 95); LLM model spec
+  (e.g. `ollama/llama3.2`).
+  When neither this var nor a persisted config is present, `main.js`
+  boots in **primordial mode** — the inbox loop runs but every message
+  gets a fixed "no model configured" placeholder reply until `/model`
+  lands.
 - `GENIE_WORKSPACE` — **required**; absolute path to the persistent
   workspace directory (`MEMORY.md`, `HEARTBEAT.md`, `.genie/`).
 - `GENIE_NAME` — optional; stable pet name, defaults to `main-genie`.
