@@ -9,12 +9,14 @@
 # Modes:
 #   invoke    Runs INSIDE the bottle.  Brings up an endo daemon under the
 #             invoking user's own XDG paths, installs a network transport,
-#             runs genie setup.js (Phase 0 fallback: the existing main-genie
-#             path driven by GENIE_MODEL / GENIE_WORKSPACE env), issues
-#             `endo invite owner` at the host level, and prints the locator
-#             for the operator to accept.  The daemon survives the script;
-#             tear-down is the operator's responsibility (e.g. `endo stop`
-#             or the systemd unit landed in Phase 4).
+#             runs genie setup.js (which spawns the root genie directly on
+#             the daemon's host agent — the worker's inbox is `@self`, no
+#             intermediate guest or form-submission step — driven by
+#             GENIE_MODEL / GENIE_WORKSPACE env), issues `endo invite owner`
+#             at the host level, and prints the locator for the operator
+#             to accept.  The daemon survives the script; tear-down is the
+#             operator's responsibility (e.g. `endo stop` or the systemd
+#             unit landed in Phase 4).
 #
 #   evoke     Runs on the OPERATOR's workstation.  Reaches into a remote
 #             SSH target, puts a copy of the endo CLI on that host (either
@@ -543,17 +545,21 @@ EOF
   esac
 
   # -------------------------------------------------------------------------
-  # Genie setup (Phase 0 shape: main-genie fallback).
+  # Genie setup.
+  #
+  # `setup.js` spawns the root genie directly on the daemon's host agent
+  # — the worker's inbox is `@self`, no intermediate guest or
+  # form-submission step.  `makeUnconfined('@main', main.js, {
+  # powersName: '@agent', env: … })` forwards the GENIE_* environment to
+  # `main.js`, which validates required values and runs the agent loop
+  # under the daemon's own identity.  Re-running this phase is
+  # idempotent: `setup.js` short-circuits when `main-genie` is already
+  # present.
   # -------------------------------------------------------------------------
 
   echo ""
   echo "=== Phase 3: Genie setup ==="
 
-  # TODO(phase-1): add an `--owner` flag here to provision the R2
-  #   root-genie guest with both @agent and @host introduced, in place of
-  #   the main-genie fallback used below.  See PLAN/genie_in_bottle.md
-  #   § "Phase 1: --owner flag in setup.js (R2)" and
-  #   § "Root genie (the R2+R3 shape)".
   endo run --UNCONFINED \
     "$PACKAGE_DIR/setup.js" --powers @agent \
     -E "GENIE_MODEL=$GENIE_MODEL" \

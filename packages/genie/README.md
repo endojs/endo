@@ -103,7 +103,32 @@ const runner = new HeartbeatRunner({ heartbeatPath: './HEARTBEAT.md' });
 const result = await runner.run();
 ```
 
+## Boot model
+
+The genie runs as the daemon's root agent.
+`scripts/bottle.sh invoke` starts an Endo daemon, then launches
+`setup.js` via `endo run --UNCONFINED setup.js --powers @agent`.
+`setup.js` calls
+`E(hostAgent).makeUnconfined('@main', main.js, { powersName: '@agent',
+resultName: 'main-genie', env: … })`,
+which spawns the genie worker directly on the daemon's host agent —
+there is no intermediate guest and no configuration form.
+The worker's inbox is `@self` and `@agent`;
+both names refer to the same root agent.
+
+Configuration is sourced from `GENIE_*` environment variables at the
+moment `makeUnconfined` forwards them;
+`main.js` reads them from the `env` argument it receives and fails
+fast if required values are missing.
+See `main.js` for the authoritative list of variables.
+
+The stable pet name for the root worker is `main-genie`.
+`setup.js` is idempotent: repeated `bottle.sh invoke` calls short-circuit
+once `main-genie` exists, and restarting the daemon reincarnates the
+worker from the stored formula without re-running `setup.js`.
+
 ## Documentation
 
 - [Design Document](DESIGN.md) - Complete architecture and implementation details
 - [Tool Schema](src/tools/) - Tool definitions and schemas
+- [Agent Development Guide](CLAUDE.md) - Boot model, identity, env-var config
