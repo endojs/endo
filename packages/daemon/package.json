@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@agoric/xsnap": "^0.15.0",
+    "@agoric/xsnap-lockdown": "^0.14.1",
     "@endo/base64": "workspace:^",
     "@endo/captp": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",

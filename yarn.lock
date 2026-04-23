@@ -63,7 +63,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@agoric/xsnap-lockdown@npm:0.14.1":
+"@agoric/xsnap-lockdown@npm:0.14.1, @agoric/xsnap-lockdown@npm:^0.14.1":
   version: 0.14.1
   resolution: "@agoric/xsnap-lockdown@npm:0.14.1"
   checksum: 10c0/644b0e3299322ac3faf5421199579066e6d476941804029c5b721f87a675f111d9a75c771d3276384319a4b847f40f5a7d6df280aa934ebc6805bfc0da4973ef
@@ -711,6 +711,7 @@ __metadata:
   resolution: "@endo/daemon@workspace:packages/daemon"
   dependencies:
     "@agoric/xsnap": "npm:^0.15.0"
+    "@agoric/xsnap-lockdown": "npm:^0.14.1"
     "@endo/base64": "workspace:^"
     "@endo/bundle-source": "workspace:^"
     "@endo/captp": "workspace:^"

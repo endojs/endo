@@ -10,6 +10,7 @@ import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { q } from '@endo/errors';
 import { xsnap } from '@agoric/xsnap';
+import { getLockdownBundle } from '@agoric/xsnap-lockdown';
 import { makeNetstringCapTP } from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
@@ -652,9 +653,23 @@ export const makeDaemonicControlPowers = (
     await filePowers.writeFileText(pidPath, `\n`);
 
     if (!hasSnapshot) {
-      // First boot only: install the request/response handler in the heap.
-      // After the first snapshot is taken, the handler closure lives in the
-      // snapshotted globals and is restored on revival without re-eval.
+      // First-boot sequence. All three steps leave their state in the heap,
+      // which the first snapshot captures — neither is re-evaluated on
+      // revival.
+      //   1. Apply SES lockdown using the pre-built bundle from
+      //      @agoric/xsnap-lockdown. xsnap's Start Compartment has no SES
+      //      shim built in, so without this step the bootstrap would run
+      //      on raw XS with no `harden`, no tamed primordials, and no
+      //      Compartment constructor.
+      //   2. Evaluate the worker bootstrap, which installs the
+      //      request/response handler on `globalThis`.
+      // Even if the bootstrap does not strictly require SES today, running
+      // under lockdown matches the surface the regular worker presents to
+      // guest code, so future CapTP wiring that reuses worker.js can rely
+      // on `harden`, `Compartment`, and hardened primordials.
+      const lockdownBundle = await getLockdownBundle();
+      await vat.evaluate(`(${lockdownBundle.source}\n)()`.trim());
+
       const bootstrapSource = await fsp.readFile(
         xsnapWorkerBootstrapPath,
         'utf-8',

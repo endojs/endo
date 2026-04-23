@@ -114,6 +114,25 @@ conditionalTest(
           /** @type {Promise<never>} */ (cancelled1.promise),
         );
 
+      // SES lockdown has been applied on first boot; the start compartment
+      // should expose `harden` and `Compartment`, and the primordials should
+      // be frozen.
+      t.is(
+        await workerDaemonFacet.evaluate('typeof harden'),
+        'function',
+        'harden is available after SES lockdown',
+      );
+      t.is(
+        await workerDaemonFacet.evaluate('typeof Compartment'),
+        'function',
+        'Compartment is available after SES lockdown',
+      );
+      t.is(
+        await workerDaemonFacet.evaluate('Object.isFrozen(Object.prototype)'),
+        true,
+        'primordials are frozen after SES lockdown',
+      );
+
       // No snapshot yet, so the counter starts undefined.
       t.is(
         await workerDaemonFacet.evaluate('typeof globalThis.counter'),
@@ -167,6 +186,18 @@ conditionalTest(
           /** @type {any} */ (undefined),
           /** @type {Promise<never>} */ (cancelled2.promise),
         );
+
+      // SES state survives the snapshot along with everything else.
+      t.is(
+        await workerDaemonFacet.evaluate('typeof harden'),
+        'function',
+        'harden still present after revival',
+      );
+      t.is(
+        await workerDaemonFacet.evaluate('Object.isFrozen(Object.prototype)'),
+        true,
+        'primordials still frozen after revival',
+      );
 
       t.is(
         await workerDaemonFacet.evaluate('globalThis.counter'),
