@@ -1,4 +1,5 @@
 // @ts-check
+import fs from 'fs';
 import net from 'net';
 
 import harden from '@endo/harden';
@@ -12,10 +13,12 @@ import {
 } from '../connection.js';
 import { makeSocketPowers } from '../daemon-node-powers.js';
 
+const fsp = { access: fs.promises.access };
+
 const protocol = 'tcp+netstring+json+captp0';
 
 export const make = async (powers, context) => {
-  const { servePort, connectPort } = makeSocketPowers({ net });
+  const { servePort, connectPort } = makeSocketPowers({ net, fsp });
 
   const cancelled = /** @type {Promise<never>} */ (E(context).whenCancelled());
   const cancelServer = error => E(context).cancel(error);
