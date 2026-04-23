@@ -250,6 +250,113 @@ conditionalTest(
   },
 );
 
+conditionalTest('vref-addressed exports survive daemon restart', async t => {
+  // This is the architecture the user cares about: values that cannot
+  // travel by JSON (closures, objects with identity) can still be
+  // named and re-invoked across a daemon restart, because the vref
+  // string is stable and the vref → object map lives in the worker's
+  // snapshotted heap. No captp state on either side needs to be
+  // durable.
+  await cleanupTmp('vref');
+  t.teardown(() => cleanupTmp('vref'));
+
+  const config = makeConfig('vref');
+  const control = await setupControl(config);
+  const workerId = await cryptoPowers.randomHex512();
+
+  /** @type {string} */
+  let counterVref;
+
+  // Session 1: create a closure-bearing counter, get a vref for it,
+  // and drive it a few times to prove `invoke` works.
+  {
+    const cancelled = makePromiseKit();
+    const { workerDaemonFacet, workerTerminated } =
+      await control.makeXsnapWorker(
+        workerId,
+        /** @type {any} */ (undefined),
+        /** @type {Promise<never>} */ (cancelled.promise),
+      );
+    counterVref = await workerDaemonFacet.evaluateAndExport(`
+        (() => {
+          let n = 0;
+          return harden(step => {
+            n += step;
+            return n;
+          });
+        })()
+      `);
+    t.regex(counterVref, /^o\+\d+$/, 'vref has expected shape');
+    t.is(await workerDaemonFacet.invoke(counterVref, [1]), 1);
+    t.is(await workerDaemonFacet.invoke(counterVref, [1]), 2);
+    t.is(await workerDaemonFacet.invoke(counterVref, [5]), 7);
+    cancelled.reject(new Error('teardown'));
+    await workerTerminated;
+  }
+
+  // Session 2: reopen the same worker id (revives from snapshot),
+  // and invoke the SAME vref the previous session got back. The
+  // closure's private `n` is still 7.
+  {
+    const cancelled = makePromiseKit();
+    const { workerDaemonFacet, workerTerminated } =
+      await control.makeXsnapWorker(
+        workerId,
+        /** @type {any} */ (undefined),
+        /** @type {Promise<never>} */ (cancelled.promise),
+      );
+    t.is(
+      await workerDaemonFacet.invoke(counterVref, [0]),
+      7,
+      'vref resolves to the same closure after revival',
+    );
+    t.is(
+      await workerDaemonFacet.invoke(counterVref, [100]),
+      107,
+      'closure private state resumed correctly',
+    );
+    cancelled.reject(new Error('teardown'));
+    await workerTerminated;
+  }
+
+  // Session 3: releasing the vref makes subsequent invokes fail,
+  // and the same rejection shape survives another revival.
+  {
+    const cancelled = makePromiseKit();
+    const { workerDaemonFacet, workerTerminated } =
+      await control.makeXsnapWorker(
+        workerId,
+        /** @type {any} */ (undefined),
+        /** @type {Promise<never>} */ (cancelled.promise),
+      );
+    await workerDaemonFacet.release(counterVref);
+    await t.throwsAsync(
+      () => workerDaemonFacet.invoke(counterVref, [1]),
+      { message: /no export/ },
+      'released vref is no longer resolvable',
+    );
+    cancelled.reject(new Error('teardown'));
+    await workerTerminated;
+  }
+
+  {
+    const cancelled = makePromiseKit();
+    const { workerDaemonFacet, workerTerminated } =
+      await control.makeXsnapWorker(
+        workerId,
+        /** @type {any} */ (undefined),
+        /** @type {Promise<never>} */ (cancelled.promise),
+      );
+    await t.throwsAsync(
+      () => workerDaemonFacet.invoke(counterVref, [1]),
+      { message: /no export/ },
+      'release survives snapshot round-trip',
+    );
+    cancelled.reject(new Error('teardown'));
+    await workerTerminated;
+  }
+});
+
 conditionalTest('distinct xsnap-worker ids get distinct heaps', async t => {
   await cleanupTmp('distinct');
   t.teardown(() => cleanupTmp('distinct'));

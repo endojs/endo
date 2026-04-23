@@ -1,74 +1,146 @@
 // @ts-nocheck
-/* global globalThis, issueCommand */
+/* global globalThis */
 
 // Bootstrap for the `xsnap-worker` daemon formula type.
 //
 // Runs *inside* the xsnap engine on first boot only. After the first
-// snapshot is taken, this file is never re-evaluated: the closures and
-// `globalThis` mutations established here live in the snapshotted heap and
-// are restored verbatim on revival.
+// snapshot, the daemon revives the worker from `heap.xss` and neither
+// this file nor the preceding SES lockdown bundle is re-evaluated — the
+// closures and `globalThis` mutations established here live in the
+// snapshotted heap.
 //
-// Wire protocol:
-//   - host → worker: one `vat.issueCommand(bytes)` per request, delivered
-//     here as a `globalThis.handleCommand(bytes)` call.
-//   - worker → host: each request is replied to by calling the host-provided
-//     `issueCommand` global with the response bytes. xsnap routes that back
-//     to the host's own `handleCommand` callback. The return value of *this*
-//     `handleCommand` is unused for replies; we return an empty buffer to
-//     satisfy xsnap's protocol.
+// Wire protocol (after @agoric/swingset-xsnap-supervisor's managerPort
+// idiom):
+//   - Every message is a tagged JSON array `[tag, ...args]`.
+//   - host → worker: `vat.issueCommand(encode([tag, ...]))` delivered to
+//     this file's `globalThis.handleCommand`.
+//   - reply: `handleCommand` returns a `{ result }` report object and
+//     fills in `report.result = encodedReplyBytes` when the async work
+//     settles. xsnap drains the microtask queue until `report.result`
+//     appears, then sends it as the `.`/OK reply.
 //
-// Each request is `{ type: 'eval', source }`. The reply is `{ ok: <value> }`
-// or `{ error: <message> }`. The evaluated source runs in the worker's
-// global scope, so anything it writes to `globalThis` survives across
-// requests — and across snapshot boundaries.
+// Replies are themselves tagged arrays:
+//   `['ok', value]` — success, `value` is JSON-serializable
+//   `['error', message]`
+//   `['unserializable', message]` — the computed value couldn't be
+//     JSON-encoded (e.g., a function or a captp-style remote that has no
+//     wire form). The daemon can still refer to such values by vref in a
+//     later request.
 //
-// This is intentionally not CapTP and not SES. xsnap's runtime has no Node
-// module system and no SES shim out of the box; the eval-only contract is
-// the smallest interface that demonstrates orthogonal persistence end to
-// end and is enough for the daemon to drive guest code.
-//
-// Persistence boundary: the daemon takes the snapshot. There is no durable
-// zone — values not reachable from `globalThis` at snapshot time are gone.
+// The xsnap worker does **not** speak CapTP. Instead, values produced by
+// guest code that cannot be returned by value are registered in the
+// worker-local `exports` table under a stable vref string (e.g. `"o+3"`).
+// The daemon treats vrefs as durable names for formula values. The
+// snapshot captures the `exports` table, so after a restart the same
+// vref still resolves to the same in-heap object. See
+// docs/xsnap-worker.md for the broader design.
 
-const decoder = new TextDecoder();
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 const indirectEval = (0, eval); // eslint-disable-line no-eval
 
-const sendReply = response => {
-  let body;
-  try {
-    body = JSON.stringify(response);
-  } catch (serializeErr) {
-    body = JSON.stringify({
-      error: `result not JSON-serializable: ${serializeErr.message}`,
-    });
+/** @param {unknown} item */
+const encodeItem = item => encoder.encode(JSON.stringify(item)).buffer;
+
+/** @param {Uint8Array | ArrayBuffer} bytes */
+const decodeItem = bytes => JSON.parse(decoder.decode(new Uint8Array(bytes)));
+
+// vref-indexed registry of values that can't travel by value. The map
+// lives in the snapshotted heap; its entries survive revival. The daemon
+// is the source of truth for durable formula↔vref bindings, so we only
+// allocate a vref when asked.
+const exportsByVref = new Map();
+let nextExportId = 1;
+
+/** @param {unknown} value */
+const registerExport = value => {
+  const vref = `o+${nextExportId}`;
+  nextExportId += 1;
+  exportsByVref.set(vref, value);
+  return vref;
+};
+
+/** @param {string} vref */
+const lookupExport = vref => {
+  if (!exportsByVref.has(vref)) {
+    throw new Error(`no export ${vref} in this worker`);
   }
-  // xsnap's `issueCommand` accepts an ArrayBuffer; passing the underlying
-  // buffer of an encoded Uint8Array is the canonical way to send bytes.
-  issueCommand(encoder.encode(body).buffer);
+  return exportsByVref.get(vref);
+};
+
+const canonicalize = value => {
+  if (value === undefined) return null;
+  try {
+    // Round-trip through JSON to reject non-serializable values loudly.
+    return JSON.parse(JSON.stringify(value));
+  } catch (err) {
+    throw new Error(`unserializable: ${(err && err.message) || err}`);
+  }
+};
+
+/** @param {[string, ...unknown[]]} item */
+const handleItem = async ([tag, ...args]) => {
+  await null;
+  switch (tag) {
+    case 'eval': {
+      const [source] = args;
+      const value = await indirectEval(source);
+      return ['ok', canonicalize(value)];
+    }
+    case 'evalAndExport': {
+      // Evaluate; whatever it returns is stashed under a fresh vref so
+      // the daemon can refer to it later even if its wire form would be
+      // lossy (functions, closures, remotable exos).
+      const [source] = args;
+      const value = await indirectEval(source);
+      const vref = registerExport(value);
+      return ['ok', vref];
+    }
+    case 'invoke': {
+      // Call a previously-exported value as a function with the given
+      // JSON-safe arguments.
+      const [vref, argv = []] = args;
+      const fn = lookupExport(vref);
+      if (typeof fn !== 'function') {
+        throw new Error(`export ${vref} is not callable`);
+      }
+      const value = await fn(...argv);
+      return ['ok', canonicalize(value)];
+    }
+    case 'release': {
+      const [vref] = args;
+      exportsByVref.delete(vref);
+      return ['ok', null];
+    }
+    default:
+      return ['error', `unknown tag: ${tag}`];
+  }
 };
 
 globalThis.handleCommand = frame => {
-  let request;
+  // xsnap's async-reply idiom: returning an object whose `.result`
+  // property is filled in later causes xsnap to drain microtasks until
+  // `.result` becomes an ArrayBuffer, then send that as the OK reply.
+  const report = {};
+  let item;
   try {
-    request = JSON.parse(decoder.decode(new Uint8Array(frame)));
+    item = decodeItem(frame);
+    if (!Array.isArray(item) || item.length === 0) {
+      throw new Error('expected a non-empty tagged array');
+    }
   } catch (parseErr) {
-    sendReply({ error: `bad request: ${parseErr.message}` });
-    return new Uint8Array();
+    report.result = encodeItem(['error', `bad request: ${parseErr.message}`]);
+    return report;
   }
-  if (!request || request.type !== 'eval') {
-    sendReply({
-      error: `unknown request type ${request && request.type}`,
+  handleItem(/** @type {[string, ...unknown[]]} */ (item))
+    .then(reply => {
+      report.result = encodeItem(reply);
+    })
+    .catch(err => {
+      report.result = encodeItem([
+        'error',
+        String((err && err.message) || err),
+      ]);
     });
-    return new Uint8Array();
-  }
-  let value;
-  try {
-    value = indirectEval(request.source);
-  } catch (evalErr) {
-    sendReply({ error: String((evalErr && evalErr.message) || evalErr) });
-    return new Uint8Array();
-  }
-  sendReply({ ok: value === undefined ? null : value });
-  return new Uint8Array();
+  return report;
 };

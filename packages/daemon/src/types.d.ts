@@ -846,18 +846,55 @@ export interface WorkerDaemonFacet {
 }
 
 /**
- * The facet exposed by an xsnap-hosted worker. Unlike a Node-hosted worker,
- * the xsnap worker does not run SES and does not speak CapTP; it speaks an
- * eval-only request/response dialect. Mutations to its `globalThis` survive
- * snapshot/revival, but no durable-zone abstraction is layered on top.
+ * A stable, worker-local identifier for an exported value in an
+ * xsnap-hosted worker. The string form (e.g. `"o+3"`) is meaningful only
+ * inside the worker that minted it, but — crucially — it survives
+ * snapshot/revival, so the daemon can store a vref as a durable name for
+ * a formula value.
+ */
+export type XsnapWorkerVref = string;
+
+/**
+ * The facet exposed by an xsnap-hosted worker.
+ *
+ * Unlike the Node worker this is **not** a CapTP remote. The underlying
+ * wire protocol is tagged-array JSON-RPC over xsnap's `issueCommand`
+ * command protocol (after @agoric/swingset-xsnap-supervisor's
+ * `managerPort` idiom). Values that can't travel by value are assigned
+ * a {@link XsnapWorkerVref} and referenced by that string in subsequent
+ * calls; the worker maintains the `vref → object` mapping in its
+ * snapshotted heap.
+ *
+ * The snapshot preserves the vref table along with the rest of the heap,
+ * so the daemon can reconnect after a restart and resume invoking
+ * exports by vref. No captp-style import/export tables need to survive
+ * on the daemon side.
  */
 export interface XsnapWorkerDaemonFacet {
   terminate(): Promise<void>;
   /**
-   * Evaluate `source` in the worker's global scope. The result must be
-   * JSON-serializable; non-serializable results are reported as an error.
+   * Evaluate `source` in the worker's global scope and return its value
+   * by JSON round-trip. Throws if the result is not JSON-serializable.
    */
   evaluate(source: string): Promise<unknown>;
+  /**
+   * Evaluate `source` and retain the result in the worker under a fresh
+   * vref. Returns the vref so the daemon can invoke or release it
+   * later. Use this for values that can't travel by JSON — closures,
+   * hardened exos, anything with identity.
+   */
+  evaluateAndExport(source: string): Promise<XsnapWorkerVref>;
+  /**
+   * Call the export named by `vref` as a function with JSON-safe
+   * arguments. Throws if the export is not callable.
+   */
+  invoke(vref: XsnapWorkerVref, args: readonly unknown[]): Promise<unknown>;
+  /**
+   * Drop the worker-side reference associated with `vref`. After
+   * release, the value becomes unreachable unless other globals still
+   * refer to it.
+   */
+  release(vref: XsnapWorkerVref): Promise<void>;
 }
 
 export type DaemonicControlPowers = {

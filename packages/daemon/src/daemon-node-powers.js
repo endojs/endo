@@ -621,29 +621,12 @@ export const makeDaemonicControlPowers = (
       );
     }
 
-    // The xsnap protocol delivers worker→host replies through the host's
-    // `handleCommand` callback rather than through the `issueCommand` reply.
-    // We serialize evaluations through a single in-flight slot so each
-    // command's reply is unambiguous.
-    /** @type {((bytes: Uint8Array) => void) | undefined} */
-    let pendingReplyResolver;
-    const handleCommand = bytes => {
-      if (pendingReplyResolver !== undefined) {
-        const resolver = pendingReplyResolver;
-        pendingReplyResolver = undefined;
-        // Copy defensively; xsnap may reuse the buffer.
-        resolver(new Uint8Array(bytes));
-      }
-      return new Uint8Array();
-    };
-
     /** @type {Awaited<ReturnType<typeof xsnap>>} */
     const vat = await xsnap({
       os: os.type(),
       spawn: popen.spawn,
       fs: xsnapFs,
       name: `xsnap-worker ${workerId}`,
-      handleCommand,
       stdout: 'inherit',
       stderr: 'inherit',
       snapshotStream,
@@ -653,20 +636,15 @@ export const makeDaemonicControlPowers = (
     await filePowers.writeFileText(pidPath, `\n`);
 
     if (!hasSnapshot) {
-      // First-boot sequence. All three steps leave their state in the heap,
+      // First-boot sequence. Both steps leave their state in the heap,
       // which the first snapshot captures — neither is re-evaluated on
       // revival.
-      //   1. Apply SES lockdown using the pre-built bundle from
-      //      @agoric/xsnap-lockdown. xsnap's Start Compartment has no SES
-      //      shim built in, so without this step the bootstrap would run
-      //      on raw XS with no `harden`, no tamed primordials, and no
-      //      Compartment constructor.
-      //   2. Evaluate the worker bootstrap, which installs the
-      //      request/response handler on `globalThis`.
-      // Even if the bootstrap does not strictly require SES today, running
-      // under lockdown matches the surface the regular worker presents to
-      // guest code, so future CapTP wiring that reuses worker.js can rely
-      // on `harden`, `Compartment`, and hardened primordials.
+      //   1. Apply SES lockdown from @agoric/xsnap-lockdown. xsnap's Start
+      //      Compartment has no SES shim by default, so without this step
+      //      the bootstrap would run on raw XS with no `harden`, no tamed
+      //      primordials, and no Compartment constructor.
+      //   2. Evaluate the worker bootstrap, which installs the tagged-array
+      //      RPC handler on `globalThis.handleCommand`.
       const lockdownBundle = await getLockdownBundle();
       await vat.evaluate(`(${lockdownBundle.source}\n)()`.trim());
 
@@ -721,40 +699,31 @@ export const makeDaemonicControlPowers = (
     const requestEncoder = new TextEncoder();
     const responseDecoder = new TextDecoder();
 
-    let evalChain = Promise.resolve();
-
     /**
-     * @param {string} source
+     * Issue a tagged-array RPC command to the worker and decode its reply.
+     * xsnap serializes issueCommand calls through its own baton, so we
+     * rely on that rather than chaining promises here.
+     *
+     * @param {[string, ...unknown[]]} item
      * @returns {Promise<unknown>}
      */
-    const xsnapEvaluate = source => {
-      const next = evalChain.then(async () => {
-        if (pendingReplyResolver !== undefined) {
-          throw new Error(
-            `xsnap-worker ${workerId}: pending reply slot already in use`,
-          );
-        }
-        const replyPromise = /** @type {Promise<Uint8Array>} */ (
-          new Promise(resolve => {
-            pendingReplyResolver = resolve;
-          })
+    const call = async item => {
+      const request = requestEncoder.encode(JSON.stringify(item));
+      const { reply } = await vat.issueCommand(request);
+      const decoded = JSON.parse(responseDecoder.decode(reply));
+      if (!Array.isArray(decoded) || decoded.length === 0) {
+        throw new Error(`xsnap-worker ${workerId}: malformed reply`);
+      }
+      const [tag, payload] = decoded;
+      if (tag === 'error') {
+        throw new Error(`xsnap-worker ${workerId}: ${payload}`);
+      }
+      if (tag !== 'ok') {
+        throw new Error(
+          `xsnap-worker ${workerId}: unexpected reply tag ${tag}`,
         );
-        const requestBytes = requestEncoder.encode(
-          JSON.stringify({ type: 'eval', source }),
-        );
-        await vat.issueCommand(requestBytes);
-        const replyBytes = await replyPromise;
-        const reply = JSON.parse(responseDecoder.decode(replyBytes));
-        if (reply && Object.prototype.hasOwnProperty.call(reply, 'error')) {
-          throw new Error(`xsnap-worker ${workerId}: ${reply.error}`);
-        }
-        return reply.ok;
-      });
-      evalChain = next.then(
-        () => undefined,
-        () => undefined,
-      );
-      return next;
+      }
+      return payload;
     };
 
     /** @type {ERef<XsnapWorkerDaemonFacet>} */
@@ -762,7 +731,15 @@ export const makeDaemonicControlPowers = (
       terminate: async () => {
         await vat.close().catch(() => {});
       },
-      evaluate: async source => xsnapEvaluate(source),
+      evaluate: async source => call(['eval', source]),
+      evaluateAndExport: async source => {
+        const vref = await call(['evalAndExport', source]);
+        return /** @type {string} */ (vref);
+      },
+      invoke: async (vref, args) => call(['invoke', vref, args]),
+      release: async vref => {
+        await call(['release', vref]);
+      },
     });
 
     return {
