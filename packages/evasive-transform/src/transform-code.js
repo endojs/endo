@@ -1,3 +1,8 @@
+/**
+ * @import {BinaryExpression, Expression, Node, TemplateElement} from '@babel/types'
+ * @import {NodePath} from '@babel/traverse'
+ */
+
 const evadeRegexp = /import\s*\(|<!--|-->/g;
 // The replacement collection for regexp patterns matching the evadeRegexp is only applied to the first matched character, so it is necessary for the regexpReplacements to be maintained together with the evadeRegexp.
 const regexpReplacements = {
@@ -11,8 +16,8 @@ const regexpReplacements = {
  * to sever references), updating the target's end position as if it had zero
  * length.
  *
- * @param {import('@babel/types').Node} target
- * @param {import('@babel/types').Node} src
+ * @param {Node} target
+ * @param {Node} src
  */
 const adoptStartFrom = (target, src) => {
   try {
@@ -37,9 +42,9 @@ const adoptStartFrom = (target, src) => {
 /**
  * Creates a BinaryExpression adding two expressions
  *
- * @param {import('@babel/types').Expression} left
+ * @param {Expression} left
  * @param {string} rightString
- * @returns {import('@babel/types').BinaryExpression}
+ * @returns {BinaryExpression}
  */
 const addStringToExpressions = (left, rightString) => ({
   type: 'BinaryExpression',
@@ -55,7 +60,7 @@ const addStringToExpressions = (left, rightString) => ({
  * Break up problematic substrings into concatenation expressions, e.g.
  * `"import("` -> `"im"+"port("`.
  *
- * @param {import('@babel/traverse').NodePath} p
+ * @param {NodePath} p
  */
 export const evadeStrings = p => {
   const { node } = p;
@@ -63,7 +68,7 @@ export const evadeStrings = p => {
     return;
   }
   const { value } = node;
-  /** @type {import('@babel/types').Expression | undefined} */
+  /** @type {Expression | undefined} */
   let expr;
   let lastIndex = 0;
   for (const match of value.matchAll(evadeRegexp)) {
@@ -85,10 +90,9 @@ export const evadeStrings = p => {
  * Break up problematic substrings in template literals with empty-string
  * expressions, e.g. `import(` -> `im${''}port(`.
  *
- * @param {import('@babel/traverse').NodePath} p
+ * @param {NodePath} p
  */
 export const evadeTemplates = p => {
-  /** @type {import('@babel/types').TemplateLiteral} */
   const node = p.node;
   // The transform is only meaning-preserving if not part of a
   // TaggedTemplateExpression, so these need to be excluded until a motivating
@@ -107,11 +111,14 @@ export const evadeTemplates = p => {
   // Check if any quasi needs transformation
   if (!quasis.some(quasi => quasi.value.raw.search(evadeRegexp) !== -1)) return;
 
-  /** @type {import('@babel/types').TemplateElement[]} */
+  /** @type {TemplateElement[]} */
   const newQuasis = [];
-  /** @type {import('@babel/types').Expression[]} */
+  /** @type {Expression[]} */
   const newExpressions = [];
 
+  /**
+   * @param {string} quasiValue
+   */
   const addQuasi = quasiValue => {
     // Insert empty expression to break the pattern
     newExpressions.push({
@@ -130,6 +137,7 @@ export const evadeTemplates = p => {
     });
   };
 
+  // eslint-disable-next-line @endo/restrict-comparison-operands
   for (let i = 0; i < quasis.length; i += 1) {
     const quasi = quasis[i];
     // We're not currently preserving raw vs. cooked literal data.
@@ -158,6 +166,7 @@ export const evadeTemplates = p => {
     }
 
     // Add original expression between quasis
+    // eslint-disable-next-line @endo/restrict-comparison-operands
     if (i < node.expressions.length) {
       // @ts-ignore whatever was there, must still be allowed.
       newExpressions.push(node.expressions[i]);
@@ -169,7 +178,7 @@ export const evadeTemplates = p => {
     newQuasis[newQuasis.length - 1].tail = true;
   }
 
-  /** @type {import('@babel/types').Node} */
+  /** @type {Node} */
   const replacement = {
     type: 'TemplateLiteral',
     quasis: newQuasis,
@@ -185,7 +194,7 @@ export const evadeTemplates = p => {
  *
  * `/import(/` -> `/im[p]ort(/`
  *
- * @param {import('@babel/traverse').NodePath} p
+ * @param {NodePath} p
  * @returns {void}
  */
 export const evadeRegexpLiteral = p => {
@@ -207,7 +216,7 @@ export const evadeRegexpLiteral = p => {
  * Prevents `-->` from appearing in output by transforming
  * `x-->y` to `(0,x--)>y`.
  *
- * @param {import('@babel/traverse').NodePath} p
+ * @param {NodePath} p
  * @returns {void}
  */
 export const evadeDecrementGreater = p => {

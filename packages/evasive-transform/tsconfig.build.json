@@ -1,12 +1,7 @@
 {
-  "extends": [
-    "./tsconfig.json",
-    "../../tsconfig-build-options.json"
-  ],
+  "extends": ["./tsconfig.json", "../../tsconfig-build-options.json"],
   "compilerOptions": {
     "allowJs": true
   },
-  "exclude": [
-    "test/"
-  ]
+  "exclude": ["test/"]
 }
