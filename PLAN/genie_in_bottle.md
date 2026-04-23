@@ -5,7 +5,18 @@ an invite-back path to the operator.
 It was derived from the sketch in `TODO/90_genie_in_bottle.md` plus
 research reported by the explore agents on 2026-04-21, then revised
 2026-04-22 after the open-questions round of human feedback.
-No code has been written yet;
+Phase 0 (bottle shell recipe) and what is now Phase 1
+(genie-as-`@self` boot collapse) have landed — see
+[`TADA/81_genie_bottle_phase0_shell.md`](../TADA/81_genie_bottle_phase0_shell.md)
+and
+[`TADA/10_genie_self.md`](../TADA/10_genie_self.md) and its
+sub-tasks (11–14).
+The latter eliminated the form-submission + `setup-genie` guest +
+`main-genie` guest stack described in earlier revisions of this
+document; the genie now runs as the daemon's `@self` worker
+directly.
+Phase 2 (primordial genie + `/model` builtin) is the next
+unattempted phase;
 see [§ Implementation phases](#implementation-phases) for the
 ordered backlog.
 
@@ -44,20 +55,21 @@ daemon back to the operator's local daemon.
   is the likely client once this bottle exists, but the bottle itself
   only cares about mail-level reachability.
 
-## Current state (2026-04-21)
+## Current state (2026-04-23)
 
-Drawn from `TODO/90_genie_in_bottle.md`, the genie package, and the
-daemon + CLI packages.
+Drawn from `TODO/90_genie_in_bottle.md`, the genie package, the
+daemon + CLI packages, and the Phase 0 + genie-as-`@self` work
+already landed.
 What already works vs what is missing:
 
 | Concern            | Today                                                                                                      | Gap for "genie in a bottle"                                                                |
 |--------------------|------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
 | Daemon bootstrap   | `endo start` forks a detached `daemon-node.js` (see `packages/daemon/index.js:443` and `daemon-node-powers.js:129`); `endo run-daemon` runs it in-process for init supervisors | No unit file generator; no `sd_notify`; no socket activation |
-| Install            | `@endo/cli` is the only `bin` publisher; all packages build with `exit 0`; no native deps                  | Monorepo is `private: true`; `yarn global add <repo>#<branch>` path is untested and not documented; no bring-your-own-repo push path |
-| Networking         | TCP (`networks/tcp-netstring.js` + store `tcp-listen-addr` + `NETS.tcp`) and libp2p (`networks/setup-libp2p.js`) both supported | Sketch only names the TCP recipe; libp2p is strictly better for NAT-bound remote hosts; no treatment of tailscale/wireguard-atop-TCP, unix-domain, or ssh-pipe netlayers |
-| Genie provisioning | `yarn setup` runs `endo run --UNCONFINED setup.js --powers @agent` with `GENIE_MODEL`/`GENIE_WORKSPACE` env (setup.js:22–70) | The `setup-genie` guest is a sandbox for the form-submission workflow; it is _not_ a privileged root genie agent, and it assumes model credentials are already in env |
-| Owner invite       | `endo invite <name>` and `endo accept <name>` are wired end-to-end (`cli/src/commands/{invite,accept}.js`, `host.js:793`) | No convention for "the invitee is the operator who should own this daemon"; no workspace-file rendezvous for the locator |
-| Workspace          | Genie tools enforce workspace root; genie writes `HEARTBEAT.md`, `MEMORY.md`, `.genie/` etc.               | No default path on a remote host; sketch's `$XDG_RUNTIME_DIR/endo/genie/workspace` is wrong (runtime dir is tmpfs; workspace must be persistent) |
+| Install            | `@endo/cli` is the only `bin` publisher; all packages build with `exit 0`; no native deps                  | Monorepo is `private: true`; `yarn global add <repo>#<branch>` path is untested and not documented; `bottle.sh evoke --install=push` (Phase 0) provides the bring-your-own-repo alternative |
+| Networking         | TCP (`networks/tcp-netstring.js` + store `tcp-listen-addr` + `@nets/tcp`) and libp2p (`networks/setup-libp2p.js`) both supported; `bottle.sh invoke --transport=(libp2p\|tcp\|both)` wires them up | No treatment of unix-domain or ssh-pipe netlayers; tailscale/wireguard present as plain TCP over an overlay IP |
+| Genie provisioning | `bottle.sh invoke` → `endo run --UNCONFINED setup.js --powers @agent` → `makeUnconfined('@main', main.js, { powersName: '@agent', resultName: 'main-genie', env })`.  The worker owns the daemon's `@self` / `@agent` inbox directly — no `setup-genie` form guest, no intermediate `main-genie` guest.  `GENIE_MODEL` / `GENIE_WORKSPACE` are required env vars validated at worker boot | Still assumes model credentials are in env at turn-up; the invite edge cannot yet hand credentials in post-handshake |
+| Owner invite       | `endo invite owner` runs at the host level in `bottle.sh invoke`; locator emitted to stdout _and_ `PENDING_OWNER_INVITE` in the workspace; readiness wait polls `endo inbox` and removes the file on first non-self message | Fine for Phase 0.  Future work: replace polling with `sd_notify` and add structured CapTP ownership metadata rather than relying on "first message from a non-self locator" |
+| Workspace          | Genie tools enforce workspace root; genie writes `HEARTBEAT.md`, `MEMORY.md`, `.genie/` etc.  `bottle.sh` defaults to `$XDG_DATA_HOME/endo/genie/workspace` | Root-level workspace-mount pet name (so child agents share a mount) is a future concern; the root `main.js` uses the literal `GENIE_WORKSPACE` path today |
 
 ## Proposed architecture
 
@@ -247,36 +259,52 @@ just a byte-stream that the operator already trusts:
   Requires a new receiver command and a corresponding client
   netlayer; tracked as Phase 6 future work.
 
-#### Root genie (the R2+R3 shape)
+#### Root genie (the R2b+R3 shape, as landed)
 
 The bottle's genie has to be _the_ agent for that daemon — it owns
 the host, speaks to the owner over CapTP, and (over time) takes on
 low-level reliability and deployment responsibilities.
-We pick a composition of two existing moves rather than inventing a
-new kind of guest from whole cloth:
+Two moves compose to make this work:
 
-- **R2 — a `root-genie` guest with elevated introductions.**
-  `setup.js` grows an `--owner` mode that, instead of provisioning a
-  confined `main-genie` child, provisions a single `root-genie`
-  guest with both `@agent` and `@host` introduced (naming-wise:
-  _the_ agent, not just an agent), configured with a system prompt
-  that names its role as bottle owner.
-  This is a clean separation from the confined child-agent surface
-  `main.js` normally stamps out, and keeps `main-genie` semantics
-  unchanged.
+- **R2b — the genie _is_ `@self`.**
+  Originally drafted as "R2 — a `root-genie` guest with elevated
+  introductions" (one level of indirection short of "genie *is*
+  `@self`"), the landed design went further.
+  `setup.js` is a thin launcher that calls
+  `makeUnconfined('@main', main.js, { powersName: '@agent',
+  resultName: 'main-genie', env })`; no intermediate `setup-genie`
+  or `root-genie` guest exists.
+  `main.js` receives the daemon's root host agent as its `powers`
+  argument, reads `GENIE_*` configuration from `context.env`, and
+  runs the agent loop against `@self` / `@agent` directly.
+  See [`TADA/10_genie_self.md`](../TADA/10_genie_self.md) §§ 3a–3d
+  for the collapsed boot chain, and
+  [`packages/genie/CLAUDE.md`](../packages/genie/CLAUDE.md)
+  § "Identity model" / "Boot shape" for the operational contract.
+  The single-tenant constraint (no other plugin may claim `@self`
+  on the same daemon) is documented in the same file.
 
 - **R3 — the owner handshake carries ownership.**
-  The bottle script runs `endo invite owner` from the _host_ level
-  (not from inside the guest).
-  The operator's acceptance of that invite installs them as a peer
-  host in the bottle's pet store.
-  From that edge, the owner can hand capabilities (including model
-  credentials, see next section) into the root-genie guest over
-  normal CapTP traffic.
-  No extra plumbing beyond standard invite/accept.
+  The bottle script runs `endo invite owner` from the _host_ level.
+  The operator's acceptance installs them as a peer host in the
+  bottle's pet store.
+  Because genie *is* `@self`, the owner's `endo send <bottle-label>`
+  mail lands in the genie's piAgent inbox directly — no per-guest
+  addressing.
+  The owner can hand capabilities (including model credentials, see
+  next section) into the root genie over normal CapTP traffic with
+  no extra plumbing beyond standard invite/accept.
 
-Together: R2 gives the bottle a single identified root agent, and
-R3 gives the owner a way to drive it.
+Together: R2b gives the bottle a single identified root agent
+whose identity is the daemon itself, and R3 gives the owner a way
+to drive it.
+
+Retained but dormant: `spawnAgent`, `removeChildAgent`, and
+`listChildAgents` still exist in `main.js` as building blocks for
+a future child-agent UX the root genie can expose as a capability.
+They are not invoked on boot.
+See [`TODO/10_genie_self.md`](../TADA/10_genie_self.md)
+Clarification 2 for the planned shape.
 
 #### Credentialing and the primordial genie
 
@@ -288,10 +316,9 @@ the root genie over the invite edge _after_ handshake.
 That means the root genie must be bootable in a
 "no-model-yet" state.
 We introduce a **primordial genie** — a pre-LLM message-processing
-automaton that the root-genie guest runs until a model is
-configured:
+automaton that `main.js` runs until a model is configured:
 
-- Driven by a `/model` builtin command on the genie side that
+- Reached via a `/model` builtin command on the genie side that
   accepts model-provider discovery, selection, and credential
   values over CapTP.
 - Paired with a classic pre-LLM parser/responder that recognizes
@@ -301,6 +328,13 @@ configured:
   be online.
 - Cedes the conversation to the piAgent loop once a model is
   selected and credentialed.
+
+Today `main.js` fails fast if `GENIE_MODEL` is unset; the
+primordial-genie work relaxes that to "start in primordial mode,
+wait for `/model` over the invite edge".
+Persist the selected model + credentials in the workspace
+(next to `MEMORY.md`) so a daemon restart re-enters the
+piAgent loop without re-prompting the owner.
 
 Over time the primordial genie is the natural home for other
 low-level reliability / deployment concerns (restart recovery,
@@ -327,8 +361,8 @@ The operator runs `endo accept <bottle-label>` on their local daemon
 with that locator piped in.
 After that:
 
-- Operator's pet store: `<bottle-label>` → remote root-genie handle
-  (equivalent to remote `@host`).
+- Operator's pet store: `<bottle-label>` → remote root handle, which
+  is the bottle daemon's `@self`, which is the genie worker.
 - Bottle's pet store: `owner` → operator's local host handle.
 
 From this moment on:
@@ -446,8 +480,10 @@ Each of these was explicitly confirmed before implementation starts;
 the prior options are archived in git history rather than belabored
 here.
 
-- **Root genie shape**: R2 + R3 as described in
-  [§ Root genie](#root-genie-the-r2r3-shape).
+- **Root genie shape**: R2b + R3 as described in
+  [§ Root genie](#root-genie-the-r2br3-shape-as-landed) — genie
+  runs as the daemon's `@self` directly (no intermediate guest),
+  and the owner attaches over a standard invite/accept edge.
   The primordial genie extends this with a pre-LLM bootstrap path.
 - **Same-host coexistence**: yes, supported. See
   [§ 1 _where_](#1-where--the-bottle-surface).
