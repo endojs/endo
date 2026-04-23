@@ -54,7 +54,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, XsnapRefDeferredTaskParams, XsnapRefFormula } from './types.js' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, XsnapRefDeferredTaskParams, XsnapRefFormula, XsnapRefRetryPolicy } from './types.js' */
 
 /**
  * @param {number} ms
@@ -554,9 +554,14 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @param {'none' | 'once' | undefined} retry */
+  /** @param {XsnapRefRetryPolicy | undefined} retry */
   const normalizeXsnapRefRetry = retry => {
-    if (retry === undefined || retry === 'none' || retry === 'once') {
+    if (
+      retry === undefined ||
+      retry === 'none' ||
+      retry === 'once' ||
+      retry === 'twice'
+    ) {
       return retry ?? 'none';
     }
     throw new TypeError(`Invalid xsnap ref retry policy ${q(retry)}`);
@@ -564,22 +569,72 @@ const makeDaemonCore = async (
 
   /**
    * @param {FormulaIdentifier} targetId
-   * @param {'none' | 'once' | undefined} retry
+   * @param {XsnapRefRetryPolicy | undefined} retry
+   * @param {FormulaIdentifier | undefined} hubId
+   * @param {NamePath | undefined} path
    */
-  const makeXsnapRef = (targetId, retry) => {
+  const makeXsnapRef = (targetId, retry, hubId, path) => {
     const normalizedRetry = normalizeXsnapRefRetry(retry);
+    /** @type {string | undefined} */
+    let lastFailure;
+    /** @type {number | undefined} */
+    let lastRebindMs;
+    let currentTargetId = targetId;
+    let callCount = 0;
+    let retryCount = 0;
+
+    /**
+     * @param {unknown} error
+     */
+    const describeError = error => {
+      if (error instanceof Error) {
+        return error.message;
+      }
+      return String(error);
+    };
+
+    /**
+     * @param {boolean} record
+     */
+    const resolveTarget = async record => {
+      if (!hubId || !path) {
+        return provide(currentTargetId);
+      }
+      const hub = await provide(hubId, 'hub');
+      const rebound = await E(hub).identify(...path);
+      if (typeof rebound === 'string') {
+        assertValidId(rebound);
+        if (record && rebound !== currentTargetId) {
+          lastRebindMs = Date.now();
+        }
+        currentTargetId = rebound;
+        return provide(currentTargetId);
+      }
+      return provide(currentTargetId);
+    };
 
     /** @param {() => Promise<unknown>} operation */
     const attempt = async operation => {
       await null;
-      try {
-        return await operation();
-      } catch (error) {
-        if (normalizedRetry !== 'once') {
-          throw error;
+      callCount += 1;
+      lastFailure = undefined;
+      const retryBudget =
+        normalizedRetry === 'none' ? 0 : normalizedRetry === 'once' ? 1 : 2;
+      let retriesRemaining = retryBudget;
+      for (;;) {
+        try {
+          const value = await operation();
+          lastFailure = undefined;
+          return value;
+        } catch (error) {
+          lastFailure = describeError(error);
+          if (retriesRemaining <= 0) {
+            throw error;
+          }
+          retryCount += 1;
+          retriesRemaining -= 1;
         }
       }
-      return operation();
     };
 
     const handler = harden({
@@ -589,7 +644,18 @@ const makeDaemonCore = async (
        */
       get: (_p, propertyKey) =>
         attempt(async () => {
-          const target = await provide(targetId);
+          const target = await resolveTarget(false);
+          if (propertyKey === 'diagnostics') {
+            return harden({
+              targetId: currentTargetId,
+              retry: normalizedRetry,
+              callCount,
+              retryCount,
+              lastRebindMs,
+              lastFailure,
+              ...(path !== undefined && { lookupPath: [...path] }),
+            });
+          }
           return E.get(target)[propertyKey];
         }),
       /**
@@ -599,7 +665,7 @@ const makeDaemonCore = async (
        */
       applyMethod: (_p, propertyKey, args) =>
         attempt(async () => {
-          const target = await provide(targetId);
+          const target = await resolveTarget(true);
           if (propertyKey === undefined) {
             return /** @type {any} */ (E(target))(...args);
           }
@@ -611,7 +677,7 @@ const makeDaemonCore = async (
        */
       applyFunction: (_p, args) =>
         attempt(async () => {
-          const target = await provide(targetId);
+          const target = await resolveTarget(true);
           return /** @type {any} */ (E(target))(...args);
         }),
       /**
@@ -621,7 +687,7 @@ const makeDaemonCore = async (
        */
       applyMethodSendOnly: (_p, propertyKey, args) => {
         attempt(async () => {
-          const target = await provide(targetId);
+          const target = await resolveTarget(true);
           E.sendOnly(target)[propertyKey](...args);
         }).catch(_error => undefined);
       },
@@ -631,14 +697,16 @@ const makeDaemonCore = async (
        */
       applyFunctionSendOnly: (_p, args) => {
         attempt(async () => {
-          const target = await provide(targetId);
+          const target = await resolveTarget(true);
           /** @type {any} */ (E.sendOnly(target))(...args);
         }).catch(_error => undefined);
       },
     });
 
-    /** @type {(presenceHandler: unknown) => unknown} */
-    let resolveWithPresence;
+    /** @type {(presenceHandler: unknown) => object} */
+    let resolveWithPresence = _presenceHandler => {
+      throw new Error('xsnap-ref presence initializer not ready');
+    };
     const settledPromise = new HandledPromise(
       (_resolve, _reject, rwp) => {
         resolveWithPresence = rwp;
@@ -648,7 +716,11 @@ const makeDaemonCore = async (
     const presence = resolveWithPresence(handler);
     // Keep the promise chain settled and quiet in case internals reject.
     settledPromise.catch(() => undefined);
-    return Remotable('Alleged: EndoXsnapRef', undefined, presence);
+    return Remotable(
+      'Alleged: EndoXsnapRef',
+      undefined,
+      /** @type {Record<string | symbol, unknown>} */ (presence),
+    );
   };
 
   /** @param {object} ref */
@@ -1316,7 +1388,8 @@ const makeDaemonCore = async (
     lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
-    'xsnap-ref': ({ target, retry }) => makeXsnapRef(target, retry),
+    'xsnap-ref': ({ target, retry, hub, path }) =>
+      makeXsnapRef(target, retry, hub, path),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier },
       context,
@@ -1889,9 +1962,21 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateXsnapRef']} */
-  const formulateXsnapRef = async (targetId, deferredTasks, retry) => {
+  const formulateXsnapRef = async (
+    targetId,
+    deferredTasks,
+    retry,
+    hubId,
+    path,
+  ) => {
     await null;
     assertValidId(targetId);
+    if (hubId !== undefined) {
+      assertValidId(hubId);
+    }
+    if (path !== undefined) {
+      assertNamePath(path);
+    }
     const normalizedRetry = normalizeXsnapRefRetry(retry);
     const xsnapRefFormulaNumber = await formulaGraphJobs.enqueue(async () => {
       const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
@@ -1908,6 +1993,8 @@ const makeDaemonCore = async (
     const formula = {
       type: 'xsnap-ref',
       target: targetId,
+      ...(hubId !== undefined && { hub: hubId }),
+      ...(path !== undefined && { path }),
       ...(normalizedRetry !== 'none' && { retry: normalizedRetry }),
     };
 

@@ -220,13 +220,47 @@ Creating a boundary facade should feel like existing host operations that materi
 4. Add host API:
    - `makeXsnapRef(targetNameOrPath, resultName?, retry?)`
    - resolve target formula identifier from host naming graph
+   - persist both target id and original host/path binding metadata for rebinding
    - formulate and optionally store resulting facade by pet name
+5. Add facade diagnostics:
+   - `E.get(facade).diagnostics` returns
+     - `targetId`
+     - `retry`
+     - `callCount`
+     - `retryCount`
+     - `lastRebindMs`
+     - `lastFailure`
 
 ### Concrete tests
 
 1. **Ergonomics parity**: worker code can call `E(facade).method()` with no extra protocol.
 2. **Durable formula continuity**: `xsnap-ref` formula persists across daemon restart and still forwards to target formula ID.
 3. **Rebinding behavior**: when target formula is cancelled/reincarnated, facade calls continue to work and hit fresh incarnation state.
+4. **Diagnostics behavior**: stats reflect retries/rebinds/failures for observability.
+
+### Option B continuation (current iteration)
+
+This iteration expands Option B to better expose and control behavior at the
+durability boundary without changing worker-call ergonomics.
+
+#### Richer retry policy
+
+- Add `retry: 'none' | 'once' | 'twice'`.
+- Keep retries bounded and local to each call attempt.
+- Preserve explicit error surfacing after retry budget exhaustion.
+
+#### Naming-graph rebinding
+
+- Persist `hub` + `path` alongside `target`.
+- On each forwarded call, attempt to re-identify through the host naming graph.
+- Fall back to original `target` when rebinding path no longer resolves.
+- Update rebind diagnostics when identity changes are observed.
+
+#### Diagnostics as first-class ergonomics
+
+- Expose `diagnostics` as an ordinary property reachable with `E.get(facade)`.
+- Designed for operational introspection and UI/CLI tooling.
+- Keeps call path unchanged (`E(facade).method()` still primary API).
 
 ## Exploratory tests added in this branch
 

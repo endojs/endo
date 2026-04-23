@@ -235,6 +235,12 @@ test('host makeXsnapRef forwards with formula-like ergonomics across restart', a
     t.truthy(facadeId);
     const facadeFormula = await readFormulaById(config, facadeId);
     t.is(facadeFormula.type, 'xsnap-ref');
+    const selfId = await E(host).identify('SELF');
+    t.truthy(selfId);
+    const { node: selfNode } = parseId(selfId);
+    const { node: facadeHubNode } = parseId(facadeFormula.hub);
+    t.is(facadeHubNode, selfNode);
+    t.deepEqual(facadeFormula.path, ['counter']);
     t.is(facadeFormula.retry, undefined);
     t.is(
       await E(host).evaluate(
@@ -292,4 +298,132 @@ test('xsnap facade retry once rebinds after transient target failure', async t =
   const facadeFormula = await readFormulaById(config, facadeId);
   t.is(facadeFormula.type, 'xsnap-ref');
   t.is(facadeFormula.retry, 'once');
+});
+
+test('xsnap facade diagnostics report retries and failures', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+  const host = await makeHost(config, cancelled);
+  await E(host).provideWorker(['w1']);
+  await E(host).provideWorker(['w2']);
+  await E(host).evaluate(
+    'w1',
+    `
+      (() => {
+        let calls = 0;
+        return makeExo(
+          'AlwaysFail',
+          M.interface('AlwaysFail', {}, { defaultGuards: 'passable' }),
+          {
+            incr: () => {
+              calls += 1;
+              throw new Error('always-fails-' + calls);
+            },
+          }
+        );
+      })()
+    `,
+    [],
+    [],
+    ['always-fail'],
+  );
+  await E(host).makeXsnapRef('always-fail', 'always-fail-facade', 'twice');
+
+  await t.throwsAsync(
+    E(host).evaluate(
+      'w2',
+      'E(facade).incr()',
+      ['facade'],
+      ['always-fail-facade'],
+    ),
+    {
+      message: /always-fails-/u,
+    },
+  );
+
+  const diagnostics = await E(host).evaluate(
+    'w2',
+    'E.get(facade).diagnostics',
+    ['facade'],
+    ['always-fail-facade'],
+  );
+  const typedDiagnostics = /** @type {any} */ (diagnostics);
+  t.is(typedDiagnostics.retry, 'twice');
+  t.is(typeof typedDiagnostics.callCount, 'number');
+  t.is(typeof typedDiagnostics.retryCount, 'number');
+  t.truthy(typedDiagnostics.callCount);
+  t.truthy(typedDiagnostics.retryCount);
+  t.true(
+    typedDiagnostics.lastFailure === undefined ||
+      typeof typedDiagnostics.lastFailure === 'string',
+  );
+  t.is(typedDiagnostics.targetId, await E(host).identify('always-fail'));
+});
+
+test('xsnap facade rebinds to latest name target via hub/path', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+  const host = await makeHost(config, cancelled);
+  await E(host).provideWorker(['w1']);
+  await E(host).provideWorker(['w2']);
+  await E(host).evaluate(
+    'w1',
+    `
+      (() => {
+        let value = 0;
+        return makeExo(
+          'CounterA',
+          M.interface('CounterA', {}, { defaultGuards: 'passable' }),
+          { incr: () => value += 1 }
+        );
+      })()
+    `,
+    [],
+    [],
+    ['counter'],
+  );
+  await E(host).makeXsnapRef('counter', 'counter-facade', 'twice');
+  t.is(
+    await E(host).evaluate(
+      'w2',
+      'E(facade).incr()',
+      ['facade'],
+      ['counter-facade'],
+    ),
+    1,
+  );
+
+  await E(host).evaluate(
+    'w1',
+    `
+      (() => {
+        let value = 100;
+        return makeExo(
+          'CounterB',
+          M.interface('CounterB', {}, { defaultGuards: 'passable' }),
+          { incr: () => value += 1 }
+        );
+      })()
+    `,
+    [],
+    [],
+    ['counter-new'],
+  );
+  await E(host).move(['counter-new'], ['counter']);
+
+  const reboundValue = await E(host).evaluate(
+    'w2',
+    'E(facade).incr()',
+    ['facade'],
+    ['counter-facade'],
+  );
+  t.is(reboundValue, 101);
+
+  const diagnostics = await E(host).evaluate(
+    'w2',
+    'E.get(facade).diagnostics',
+    ['facade'],
+    ['counter-facade'],
+  );
+  const typedDiagnostics = /** @type {any} */ (diagnostics);
+  t.true(typeof typedDiagnostics.lastRebindMs === 'number');
+  t.is(typedDiagnostics.retry, 'twice');
 });

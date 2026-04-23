@@ -434,7 +434,13 @@ export const makeHostMaker = ({
         );
       }
 
-      const { value } = await formulateXsnapRef(targetId, tasks, retry);
+      const { value } = await formulateXsnapRef(
+        targetId,
+        tasks,
+        retry,
+        hostId,
+        targetNamePath,
+      );
       return value;
     };
 

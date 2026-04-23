@@ -112,10 +112,28 @@ type WorkerFormula = {
   type: 'worker';
 };
 
+export type XsnapRefRetryPolicy = 'none' | 'once' | 'twice';
+
+export type XsnapRefDiagnostics = {
+  targetId: FormulaIdentifier;
+  retry: XsnapRefRetryPolicy;
+  callCount: number;
+  retryCount: number;
+  lastRebindMs?: number;
+  lastFailure?: string;
+  lookupPath?: string[];
+};
+
+export type XsnapRefRuntime = {
+  diagnostics(): Promise<XsnapRefDiagnostics>;
+};
+
 type XsnapRefFormula = {
   type: 'xsnap-ref';
   target: FormulaIdentifier;
-  retry?: 'none' | 'once';
+  hub?: FormulaIdentifier;
+  path?: NamePath;
+  retry?: XsnapRefRetryPolicy;
 };
 
 export type WorkerDeferredTaskParams = {
@@ -710,7 +728,7 @@ export interface EndoHost extends EndoAgent {
   makeXsnapRef(
     targetNameOrPath: string | string[],
     resultName?: string | string[],
-    retry?: 'none' | 'once',
+    retry?: XsnapRefRetryPolicy,
   ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
@@ -934,6 +952,7 @@ export type FormulaValueTypes = {
   host: EndoHost;
   invitation: Invitation;
   worker: EndoWorker;
+  'xsnap-ref': XsnapRefRuntime;
 };
 
 export type ProvideTypes = FormulaValueTypes & {
@@ -1076,7 +1095,9 @@ export interface DaemonCore {
   formulateXsnapRef: (
     targetId: FormulaIdentifier,
     deferredTasks: DeferredTasks<XsnapRefDeferredTaskParams>,
-    retry?: 'none' | 'once',
+    retry?: XsnapRefRetryPolicy,
+    hubId?: FormulaIdentifier,
+    path?: NamePath,
   ) => FormulateResult<unknown>;
 
   getAllNetworkAddresses: (
