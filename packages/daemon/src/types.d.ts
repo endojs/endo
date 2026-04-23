@@ -855,46 +855,60 @@ export interface WorkerDaemonFacet {
 export type XsnapWorkerVref = string;
 
 /**
+ * A daemon-side handled-promise presence backed by a worker-side vref.
+ * `E(presence).method(args)` translates into an `applyMethod` RPC to
+ * the worker; `E(presence)(args)` into `applyFunction`. The presence
+ * is the unit of reference the rest of the daemon hands out to hosts —
+ * it behaves exactly like any other remotable and is passable through
+ * CapTP at the daemon/host boundary.
+ */
+export type XsnapWorkerPresence = object;
+
+/**
  * The facet exposed by an xsnap-hosted worker.
  *
- * Unlike the Node worker this is **not** a CapTP remote. The underlying
- * wire protocol is tagged-array JSON-RPC over xsnap's `issueCommand`
- * command protocol (after @agoric/swingset-xsnap-supervisor's
+ * Unlike the Node worker this is **not** a CapTP remote at the wire
+ * level. The underlying protocol is tagged-array JSON-RPC over xsnap's
+ * `issueCommand` command protocol (after @agoric/swingset-xsnap-supervisor's
  * `managerPort` idiom). Values that can't travel by value are assigned
- * a {@link XsnapWorkerVref} and referenced by that string in subsequent
- * calls; the worker maintains the `vref → object` mapping in its
- * snapshotted heap.
+ * a {@link XsnapWorkerVref} by the worker; the daemon auto-wraps each
+ * vref in a handled-promise {@link XsnapWorkerPresence} so callers can
+ * use `E(obj).method()` syntax transparently.
  *
  * The snapshot preserves the vref table along with the rest of the heap,
- * so the daemon can reconnect after a restart and resume invoking
- * exports by vref. No captp-style import/export tables need to survive
- * on the daemon side.
+ * so the daemon can reconnect after a restart, re-import each vref via
+ * {@link importVref}, and resume invoking exports. No captp-style import
+ * or export tables need to survive on the daemon side.
  */
 export interface XsnapWorkerDaemonFacet {
   terminate(): Promise<void>;
   /**
-   * Evaluate `source` in the worker's global scope and return its value
-   * by JSON round-trip. Throws if the result is not JSON-serializable.
+   * Evaluate `source` in the worker's global scope. Returns the result
+   * by JSON round-trip if it is JSON-serializable, otherwise auto-wraps
+   * it in a {@link XsnapWorkerPresence} that the caller can drive with
+   * `E(...)` and pass around as a regular remotable.
    */
   evaluate(source: string): Promise<unknown>;
   /**
-   * Evaluate `source` and retain the result in the worker under a fresh
-   * vref. Returns the vref so the daemon can invoke or release it
-   * later. Use this for values that can't travel by JSON — closures,
-   * hardened exos, anything with identity.
+   * Reconstruct the presence for a previously-seen vref. Useful for
+   * reviving handles across daemon restarts: store the vref string as
+   * a durable attribute, then on restart call `importVref(vref)` on
+   * the revived worker to get a presence pointing at the still-alive
+   * object in the snapshotted heap.
    */
-  evaluateAndExport(source: string): Promise<XsnapWorkerVref>;
+  importVref(vref: XsnapWorkerVref): XsnapWorkerPresence;
   /**
-   * Call the export named by `vref` as a function with JSON-safe
-   * arguments. Throws if the export is not callable.
+   * Inverse of {@link importVref}: recover the worker-side vref string
+   * for a presence minted by this facet. The daemon persists this
+   * string as the durable formula-bound reference.
    */
-  invoke(vref: XsnapWorkerVref, args: readonly unknown[]): Promise<unknown>;
+  vrefOf(presence: XsnapWorkerPresence | XsnapWorkerVref): XsnapWorkerVref;
   /**
-   * Drop the worker-side reference associated with `vref`. After
-   * release, the value becomes unreachable unless other globals still
-   * refer to it.
+   * Drop the worker-side entry associated with `presenceOrVref`. After
+   * release the value becomes unreachable on the worker unless another
+   * global still retains it.
    */
-  release(vref: XsnapWorkerVref): Promise<void>;
+  release(presenceOrVref: XsnapWorkerPresence | XsnapWorkerVref): Promise<void>;
 }
 
 export type DaemonicControlPowers = {

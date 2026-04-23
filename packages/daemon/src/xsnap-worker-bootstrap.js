@@ -11,29 +11,32 @@
 //
 // Wire protocol (after @agoric/swingset-xsnap-supervisor's managerPort
 // idiom):
-//   - Every message is a tagged JSON array `[tag, ...args]`.
-//   - host → worker: `vat.issueCommand(encode([tag, ...]))` delivered to
-//     this file's `globalThis.handleCommand`.
-//   - reply: `handleCommand` returns a `{ result }` report object and
-//     fills in `report.result = encodedReplyBytes` when the async work
-//     settles. xsnap drains the microtask queue until `report.result`
-//     appears, then sends it as the `.`/OK reply.
 //
-// Replies are themselves tagged arrays:
-//   `['ok', value]` — success, `value` is JSON-serializable
-//   `['error', message]`
-//   `['unserializable', message]` — the computed value couldn't be
-//     JSON-encoded (e.g., a function or a captp-style remote that has no
-//     wire form). The daemon can still refer to such values by vref in a
-//     later request.
+//   Every message is a tagged JSON array `[tag, ...args]` encoded as
+//   UTF-8. Host → worker: `vat.issueCommand(encode([tag, ...]))`. The
+//   reply rides back on xsnap's async-reply idiom: `handleCommand`
+//   returns a report object and fills in `report.result` with the
+//   encoded reply when the async work settles; xsnap drains microtasks
+//   until `.result` is an ArrayBuffer.
 //
-// The xsnap worker does **not** speak CapTP. Instead, values produced by
-// guest code that cannot be returned by value are registered in the
-// worker-local `exports` table under a stable vref string (e.g. `"o+3"`).
-// The daemon treats vrefs as durable names for formula values. The
-// snapshot captures the `exports` table, so after a restart the same
-// vref still resolves to the same in-heap object. See
-// docs/xsnap-worker.md for the broader design.
+//   Requests:
+//     ['eval', source]                      evaluate source
+//     ['applyMethod', vref, prop, args]     vref[prop](...args)
+//     ['applyFunction', vref, args]         vref(...args)
+//     ['release', vref]                     drop export
+//
+//   Replies:
+//     ['value', v]    JSON-safe value
+//     ['ref', vref]   opaque handle into this worker's export table
+//     ['error', msg]
+//
+// Return-value marshaling: any result that isn't plain JSON (closures,
+// hardened exos, anything with identity) is transparently registered
+// in a worker-local `exports` table and returned as `['ref', vref]`.
+// The daemon-side bridge wraps those vrefs in handled-promise presences
+// so the host can drive them with `E(obj).method()` just like any
+// other remote. Args must currently be JSON-safe; marshaling vrefs
+// through arguments would require symmetric capdata wiring.
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -46,17 +49,34 @@ const encodeItem = item => encoder.encode(JSON.stringify(item)).buffer;
 const decodeItem = bytes => JSON.parse(decoder.decode(new Uint8Array(bytes)));
 
 // vref-indexed registry of values that can't travel by value. The map
-// lives in the snapshotted heap; its entries survive revival. The daemon
-// is the source of truth for durable formula↔vref bindings, so we only
-// allocate a vref when asked.
+// lives in the snapshotted heap; its entries survive revival. The
+// daemon is the source of truth for durable formula↔vref bindings.
 const exportsByVref = new Map();
+const vrefByValue = new WeakMap();
 let nextExportId = 1;
 
 /** @param {unknown} value */
 const registerExport = value => {
+  // A given value gets a stable vref within a worker lifetime; repeat
+  // exports return the same string. Critically this means two
+  // `evalAndExport` of the same closure produce the same vref, which
+  // the daemon can use to dedup durable references.
+  if (
+    value !== null &&
+    (typeof value === 'object' || typeof value === 'function')
+  ) {
+    const existing = vrefByValue.get(value);
+    if (existing !== undefined) return existing;
+  }
   const vref = `o+${nextExportId}`;
   nextExportId += 1;
   exportsByVref.set(vref, value);
+  if (
+    value !== null &&
+    (typeof value === 'object' || typeof value === 'function')
+  ) {
+    vrefByValue.set(value, vref);
+  }
   return vref;
 };
 
@@ -68,14 +88,43 @@ const lookupExport = vref => {
   return exportsByVref.get(vref);
 };
 
-const canonicalize = value => {
-  if (value === undefined) return null;
-  try {
-    // Round-trip through JSON to reject non-serializable values loudly.
-    return JSON.parse(JSON.stringify(value));
-  } catch (err) {
-    throw new Error(`unserializable: ${(err && err.message) || err}`);
-  }
+/**
+ * Is `value` losslessly representable as JSON data — ordinary plain
+ * objects and arrays of primitives, with no function or symbol members
+ * anywhere in the tree? Hardened exos, closures, Maps, etc. fail this
+ * check and are exported by reference instead.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+const isPlainData = value => {
+  if (value === null) return true;
+  const t = typeof value;
+  if (t === 'string' || t === 'number' || t === 'boolean') return true;
+  if (t === 'bigint' || t === 'function' || t === 'symbol') return false;
+  if (t !== 'object') return false;
+  if (Array.isArray(value)) return value.every(isPlainData);
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return false;
+  // Object.values only walks own enumerable string-keyed properties,
+  // which is what JSON.stringify would emit. Symbol-keyed entries are
+  // implicitly excluded.
+  return Object.values(value).every(isPlainData);
+};
+
+/**
+ * Encode a result either by value (for plain JSON data) or as a
+ * freshly-allocated `['ref', vref]` for anything else — hardened exos,
+ * closures, and anything JSON.stringify would lossily drop function
+ * members from.
+ *
+ * @param {unknown} value
+ * @returns {['value', unknown] | ['ref', string]}
+ */
+const marshalResult = value => {
+  if (value === undefined) return ['value', null];
+  if (isPlainData(value)) return ['value', value];
+  return ['ref', registerExport(value)];
 };
 
 /** @param {[string, ...unknown[]]} item */
@@ -85,32 +134,40 @@ const handleItem = async ([tag, ...args]) => {
     case 'eval': {
       const [source] = args;
       const value = await indirectEval(source);
-      return ['ok', canonicalize(value)];
+      return marshalResult(value);
     }
-    case 'evalAndExport': {
-      // Evaluate; whatever it returns is stashed under a fresh vref so
-      // the daemon can refer to it later even if its wire form would be
-      // lossy (functions, closures, remotable exos).
-      const [source] = args;
-      const value = await indirectEval(source);
-      const vref = registerExport(value);
-      return ['ok', vref];
+    case 'applyMethod': {
+      const [vref, prop, argv = []] = args;
+      const target = lookupExport(vref);
+      if (prop === null || prop === undefined) {
+        // applyMethod(prop=null) in captp means "apply as function" —
+        // we split those onto separate tags, so reject here.
+        throw new Error(`applyMethod requires a property name`);
+      }
+      const method = target[prop];
+      if (typeof method !== 'function') {
+        throw new Error(`export ${vref} has no method ${String(prop)}`);
+      }
+      const value = await method.apply(target, argv);
+      return marshalResult(value);
     }
-    case 'invoke': {
-      // Call a previously-exported value as a function with the given
-      // JSON-safe arguments.
+    case 'applyFunction': {
       const [vref, argv = []] = args;
       const fn = lookupExport(vref);
       if (typeof fn !== 'function') {
         throw new Error(`export ${vref} is not callable`);
       }
       const value = await fn(...argv);
-      return ['ok', canonicalize(value)];
+      return marshalResult(value);
     }
     case 'release': {
       const [vref] = args;
+      const value = exportsByVref.get(vref);
       exportsByVref.delete(vref);
-      return ['ok', null];
+      if (value !== null && typeof value === 'object') {
+        vrefByValue.delete(value);
+      }
+      return ['value', null];
     }
     default:
       return ['error', `unknown tag: ${tag}`];

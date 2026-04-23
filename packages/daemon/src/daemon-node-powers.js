@@ -5,6 +5,8 @@ import os from 'os';
 import fsp from 'fs/promises';
 
 import harden from '@endo/harden';
+import { Far } from '@endo/far';
+import { HandledPromise } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
@@ -699,15 +701,21 @@ export const makeDaemonicControlPowers = (
     const requestEncoder = new TextEncoder();
     const responseDecoder = new TextDecoder();
 
+    // Daemon-side bookkeeping: we hand out exactly one presence per
+    // vref so `E(a).foo()` and `E(b).foo()` behave like the same
+    // remote whenever they point at the same worker-side object.
+    /** @type {Map<string, object>} */
+    const presenceByVref = new Map();
+    /** @type {WeakMap<object, string>} */
+    const vrefByPresence = new WeakMap();
+
     /**
-     * Issue a tagged-array RPC command to the worker and decode its reply.
-     * xsnap serializes issueCommand calls through its own baton, so we
-     * rely on that rather than chaining promises here.
+     * Issue a tagged-array RPC to the worker and decode the reply.
      *
      * @param {[string, ...unknown[]]} item
      * @returns {Promise<unknown>}
      */
-    const call = async item => {
+    const rawCall = async item => {
       const request = requestEncoder.encode(JSON.stringify(item));
       const { reply } = await vat.issueCommand(request);
       const decoded = JSON.parse(responseDecoder.decode(reply));
@@ -715,15 +723,69 @@ export const makeDaemonicControlPowers = (
         throw new Error(`xsnap-worker ${workerId}: malformed reply`);
       }
       const [tag, payload] = decoded;
-      if (tag === 'error') {
-        throw new Error(`xsnap-worker ${workerId}: ${payload}`);
+      switch (tag) {
+        case 'value':
+          return payload;
+        case 'ref':
+          // eslint-disable-next-line no-use-before-define
+          return importVref(/** @type {string} */ (payload));
+        case 'error':
+          throw new Error(`xsnap-worker ${workerId}: ${payload}`);
+        default:
+          throw new Error(
+            `xsnap-worker ${workerId}: unexpected reply tag ${tag}`,
+          );
       }
-      if (tag !== 'ok') {
+    };
+
+    /**
+     * Turn a worker-side vref into a local presence that forwards
+     * `E(p).method(args)` and `E(p)(args)` as tagged-array RPC calls.
+     * The presence is stable: repeated `importVref(v)` returns the
+     * same object.
+     *
+     * @param {string} vref
+     */
+    const importVref = vref => {
+      const cached = presenceByVref.get(vref);
+      if (cached !== undefined) return cached;
+
+      const handler = Far(`XsnapHandler ${vref}`, {
+        applyMethod(_target, prop, args) {
+          return rawCall(['applyMethod', vref, prop, args]);
+        },
+        applyFunction(_target, args) {
+          return rawCall(['applyFunction', vref, args]);
+        },
+        get(_target, prop) {
+          // Treat a get as a zero-arg method invocation on the
+          // worker, the same convention captp uses.
+          return rawCall(['applyMethod', vref, prop, []]);
+        },
+      });
+
+      /** @type {object | undefined} */
+      let presence;
+      // eslint-disable-next-line no-new
+      new HandledPromise((_resolve, _reject, resolveWithPresence) => {
+        presence = resolveWithPresence(handler);
+      });
+      assert(presence !== undefined);
+      presenceByVref.set(vref, presence);
+      vrefByPresence.set(presence, vref);
+      return presence;
+    };
+
+    /** @param {object} presenceOrVref */
+    const vrefOf = presenceOrVref => {
+      if (typeof presenceOrVref === 'string') return presenceOrVref;
+      const v = vrefByPresence.get(presenceOrVref);
+      if (v === undefined) {
         throw new Error(
-          `xsnap-worker ${workerId}: unexpected reply tag ${tag}`,
+          `xsnap-worker ${workerId}: value is not a presence from this worker`,
         );
       }
-      return payload;
+      return v;
     };
 
     /** @type {ERef<XsnapWorkerDaemonFacet>} */
@@ -731,14 +793,17 @@ export const makeDaemonicControlPowers = (
       terminate: async () => {
         await vat.close().catch(() => {});
       },
-      evaluate: async source => call(['eval', source]),
-      evaluateAndExport: async source => {
-        const vref = await call(['evalAndExport', source]);
-        return /** @type {string} */ (vref);
-      },
-      invoke: async (vref, args) => call(['invoke', vref, args]),
-      release: async vref => {
-        await call(['release', vref]);
+      evaluate: async source => rawCall(['eval', source]),
+      importVref: vref => importVref(vref),
+      vrefOf: presence => vrefOf(presence),
+      release: async presenceOrVref => {
+        const vref = vrefOf(presenceOrVref);
+        const presence = presenceByVref.get(vref);
+        if (presence !== undefined) {
+          presenceByVref.delete(vref);
+          // WeakMap entries die with the presence itself.
+        }
+        await rawCall(['release', vref]);
       },
     });
 

@@ -36,33 +36,48 @@ specific exports. The fix is to not use captp at all, and instead give
 every long-lived export a stable, content-addressed name the daemon can
 store durably.
 
-## vref naming
+## vref naming + handled-promise facade
 
 Values that cannot travel by JSON (closures, hardened exos, anything
-with identity) are registered in a worker-local `Map<vref, value>` and
-referenced by the vref string from the daemon side:
+with identity) are classified on the worker side by a small
+`isPlainData` walk. Anything plain is returned `['value', v]`; anything
+else is registered in a worker-local `Map<vref, value>` and returned
+`['ref', vref]`. The daemon auto-wraps each vref in a
+handled-promise presence:
 
-```
-const vref = await worker.evaluateAndExport(`
+```js
+const counter = await worker.evaluate(`
   (() => {
     let n = 0;
-    return harden(step => (n += step));
+    return harden({
+      incr: step => (n += step),
+      value: () => n,
+    });
   })()
 `);
-// vref is "o+1" or similar
+// counter is a presence — typeof counter === 'object', no vref visible
 
-await worker.invoke(vref, [1]);  // 1
-await worker.invoke(vref, [5]);  // 6
+await E(counter).incr(1);    // 1   → applyMethod RPC
+await E(counter).incr(5);    // 6
+await E(counter).value();    // 6
 
-// ... daemon restarts, worker revived from snapshot ...
+// ... daemon cancels; worker snapshot written ...
+// ... daemon revives; heap.xss streamed back ...
 
-await worker.invoke(vref, [10]); // 16 — same closure, same captured `n`
+const vref = worker.vrefOf(counter);   // e.g. "o+1"
+// ... persist vref as a durable formula attribute ...
+
+const revived = worker.importVref(vref);
+await E(revived).value();    // 6  — same closure, same `n`
 ```
 
-The `exports` map and the closures themselves live in the xsnap heap,
-so the snapshot preserves them together. The daemon stores `vref` as a
-durable formula attribute; nothing daemon-side needs to survive as
-captp state.
+The presence is a `resolveWithPresence`-returned plain object with a
+far handler wired to `{ applyMethod, applyFunction, get }`; each of
+those forwards a tagged-array RPC (`['applyMethod', vref, prop, args]`
+etc.) to xsnap. Identity is stable inside a worker lifetime — repeated
+`importVref(v)` returns the same presence object so host code can use
+it as a `Map` key — and stable across restarts because the vref string
+is the durable name on both sides.
 
 This is the direct analogue of swingset's vref scheme, minus the kernel
 c-list: the daemon plays the kernel's role of "source of truth for
@@ -141,8 +156,9 @@ the worker invalidates every eval that lives in its heap.
 - `Formula` gains a `{ type: 'xsnap-worker' }` variant, routed to
   `makeIdentifiedXsnapWorker` in `daemon.js`.
 - `DaemonicControlPowers.makeXsnapWorker` returns an
-  `XsnapWorkerDaemonFacet` with `evaluate`, `evaluateAndExport`,
-  `invoke`, and `release`, backed by tagged-array RPC.
+  `XsnapWorkerDaemonFacet` with `evaluate`, `importVref`, `vrefOf`,
+  and `release`, backed by tagged-array RPC. `evaluate` auto-wraps a
+  non-JSON result in a handled-promise presence usable with `E(...)`.
 - First boot of a worker: evaluate `@agoric/xsnap-lockdown` to install
   SES, then evaluate `xsnap-worker-bootstrap.js` to install the RPC
   handler. Both are captured by the first snapshot.
@@ -151,10 +167,23 @@ the worker invalidates every eval that lives in its heap.
 - Tests in `test/xsnap-worker.test.js` cover:
   1. counter/closure values on `globalThis` survive snapshot/revival;
      SES (`harden`, `Compartment`, frozen primordials) survives too.
-  2. vref-addressed closures resume across daemon restart and respect
-     `release`.
-  3. distinct worker ids get disjoint heaps.
+  2. `E(presence).method(args)` and `E(fn)(args)` drive worker-side
+     exos; JSON-safe eval results come back by value.
+  3. `vrefOf` + `importVref` round-trip a presence across a daemon
+     restart with closure private state intact. `importVref` is
+     idempotent.
+  4. `release(presence)` makes further `E(...)` calls reject, and
+     the release state itself survives a further snapshot.
+  5. distinct worker ids get disjoint heaps.
 
-The CapTP-facade bridge (presenting `WorkerDaemonFacet` so the rest of
-the daemon can treat xsnap workers interchangeably) is not yet wired
-up; the `XsnapWorkerDaemonFacet` is exposed directly for now.
+The piece not yet wired up is the daemon-side exo that would expose
+the xsnap worker to the rest of the daemon as a full
+`WorkerDaemonFacet` (same interface as the Node worker, so the
+existing `host.evaluate` / `makeBundle` / `makeUnconfined` code paths
+could target it interchangeably). That exo wraps
+`XsnapWorkerDaemonFacet` with `Far('EndoXsnapWorkerFacet', { ... })`
+where `evaluate(source, names, values, id, cancelled)` binds the
+endowments as globals on the worker via tagged RPC, calls the
+eval, and returns whatever the worker gives back — a presence for
+exo-shaped results, a value for plain data. Straightforward but
+out of scope for this change.

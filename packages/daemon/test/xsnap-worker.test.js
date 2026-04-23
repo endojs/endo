@@ -11,6 +11,7 @@ import path from 'path';
 import popen from 'child_process';
 import url from 'url';
 
+import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import {
   makeCryptoPowers,
@@ -250,26 +251,20 @@ conditionalTest(
   },
 );
 
-conditionalTest('vref-addressed exports survive daemon restart', async t => {
-  // This is the architecture the user cares about: values that cannot
-  // travel by JSON (closures, objects with identity) can still be
-  // named and re-invoked across a daemon restart, because the vref
-  // string is stable and the vref → object map lives in the worker's
-  // snapshotted heap. No captp state on either side needs to be
-  // durable.
-  await cleanupTmp('vref');
-  t.teardown(() => cleanupTmp('vref'));
+conditionalTest(
+  'E(presence).method(args) against xsnap-worker exports',
+  async t => {
+    // Exercises the daemon-side handled-promise facade. When the
+    // worker's eval result is not JSON (here, a hardened exo), the
+    // daemon auto-wraps it in a presence; the caller uses `E(p).foo()`
+    // syntax just like any other remotable and never touches a vref.
+    await cleanupTmp('e-send');
+    t.teardown(() => cleanupTmp('e-send'));
 
-  const config = makeConfig('vref');
-  const control = await setupControl(config);
-  const workerId = await cryptoPowers.randomHex512();
+    const config = makeConfig('e-send');
+    const control = await setupControl(config);
+    const workerId = await cryptoPowers.randomHex512();
 
-  /** @type {string} */
-  let counterVref;
-
-  // Session 1: create a closure-bearing counter, get a vref for it,
-  // and drive it a few times to prove `invoke` works.
-  {
     const cancelled = makePromiseKit();
     const { workerDaemonFacet, workerTerminated } =
       await control.makeXsnapWorker(
@@ -277,84 +272,143 @@ conditionalTest('vref-addressed exports survive daemon restart', async t => {
         /** @type {any} */ (undefined),
         /** @type {Promise<never>} */ (cancelled.promise),
       );
-    counterVref = await workerDaemonFacet.evaluateAndExport(`
+
+    const counter = await workerDaemonFacet.evaluate(`
+      (() => {
+        let n = 0;
+        return harden({
+          incr: step => (n += step),
+          value: () => n,
+          sumObj: obj => obj.a + obj.b,
+        });
+      })()
+    `);
+
+    t.is(typeof counter, 'object', 'non-JSON result arrives as a presence');
+
+    // Method application: E(p).method(args) → applyMethod RPC
+    t.is(await E(counter).incr(1), 1);
+    t.is(await E(counter).incr(1), 2);
+    t.is(await E(counter).incr(5), 7);
+    t.is(await E(counter).value(), 7);
+    t.is(
+      await E(counter).sumObj({ a: 2, b: 3 }),
+      5,
+      'JSON args are forwarded through E() invocation',
+    );
+
+    // Function application: E(fn)(args) → applyFunction RPC
+    const double = await workerDaemonFacet.evaluate(`harden(x => x * 2)`);
+    t.is(await E(double)(21), 42);
+
+    // Results that *are* JSON come straight back, no presence involved.
+    t.is(
+      await workerDaemonFacet.evaluate(`1 + 2`),
+      3,
+      'JSON-safe eval result arrives by value',
+    );
+
+    cancelled.reject(new Error('teardown'));
+    await workerTerminated;
+  },
+);
+
+conditionalTest(
+  'presence identity survives daemon restart via importVref',
+  async t => {
+    // The host persists `vrefOf(presence)` as a durable formula
+    // attribute. After a daemon restart, `importVref(vref)` on the
+    // revived worker hands back a presence that drives the same
+    // underlying exo — private closure state intact.
+    await cleanupTmp('import-vref');
+    t.teardown(() => cleanupTmp('import-vref'));
+
+    const config = makeConfig('import-vref');
+    const control = await setupControl(config);
+    const workerId = await cryptoPowers.randomHex512();
+
+    /** @type {string} */
+    let durableVref;
+
+    {
+      const cancelled = makePromiseKit();
+      const { workerDaemonFacet, workerTerminated } =
+        await control.makeXsnapWorker(
+          workerId,
+          /** @type {any} */ (undefined),
+          /** @type {Promise<never>} */ (cancelled.promise),
+        );
+      const counter = await workerDaemonFacet.evaluate(`
         (() => {
           let n = 0;
-          return harden(step => {
-            n += step;
-            return n;
+          return harden({
+            incr: step => (n += step),
+            value: () => n,
           });
         })()
       `);
-    t.regex(counterVref, /^o\+\d+$/, 'vref has expected shape');
-    t.is(await workerDaemonFacet.invoke(counterVref, [1]), 1);
-    t.is(await workerDaemonFacet.invoke(counterVref, [1]), 2);
-    t.is(await workerDaemonFacet.invoke(counterVref, [5]), 7);
-    cancelled.reject(new Error('teardown'));
-    await workerTerminated;
-  }
+      t.is(await E(counter).incr(1), 1);
+      t.is(await E(counter).incr(10), 11);
 
-  // Session 2: reopen the same worker id (revives from snapshot),
-  // and invoke the SAME vref the previous session got back. The
-  // closure's private `n` is still 7.
-  {
-    const cancelled = makePromiseKit();
-    const { workerDaemonFacet, workerTerminated } =
-      await control.makeXsnapWorker(
-        workerId,
-        /** @type {any} */ (undefined),
-        /** @type {Promise<never>} */ (cancelled.promise),
-      );
-    t.is(
-      await workerDaemonFacet.invoke(counterVref, [0]),
-      7,
-      'vref resolves to the same closure after revival',
-    );
-    t.is(
-      await workerDaemonFacet.invoke(counterVref, [100]),
-      107,
-      'closure private state resumed correctly',
-    );
-    cancelled.reject(new Error('teardown'));
-    await workerTerminated;
-  }
+      durableVref = workerDaemonFacet.vrefOf(counter);
+      t.regex(durableVref, /^o\+\d+$/);
 
-  // Session 3: releasing the vref makes subsequent invokes fail,
-  // and the same rejection shape survives another revival.
-  {
-    const cancelled = makePromiseKit();
-    const { workerDaemonFacet, workerTerminated } =
-      await control.makeXsnapWorker(
-        workerId,
-        /** @type {any} */ (undefined),
-        /** @type {Promise<never>} */ (cancelled.promise),
-      );
-    await workerDaemonFacet.release(counterVref);
-    await t.throwsAsync(
-      () => workerDaemonFacet.invoke(counterVref, [1]),
-      { message: /no export/ },
-      'released vref is no longer resolvable',
-    );
-    cancelled.reject(new Error('teardown'));
-    await workerTerminated;
-  }
+      cancelled.reject(new Error('teardown'));
+      await workerTerminated;
+    }
 
-  {
-    const cancelled = makePromiseKit();
-    const { workerDaemonFacet, workerTerminated } =
-      await control.makeXsnapWorker(
-        workerId,
-        /** @type {any} */ (undefined),
-        /** @type {Promise<never>} */ (cancelled.promise),
+    {
+      const cancelled = makePromiseKit();
+      const { workerDaemonFacet, workerTerminated } =
+        await control.makeXsnapWorker(
+          workerId,
+          /** @type {any} */ (undefined),
+          /** @type {Promise<never>} */ (cancelled.promise),
+        );
+      const revived = workerDaemonFacet.importVref(durableVref);
+      t.is(
+        await E(revived).value(),
+        11,
+        'E(revived).value() returns closure state from before the cancel',
       );
-    await t.throwsAsync(
-      () => workerDaemonFacet.invoke(counterVref, [1]),
-      { message: /no export/ },
-      'release survives snapshot round-trip',
-    );
-    cancelled.reject(new Error('teardown'));
-    await workerTerminated;
-  }
+      t.is(await E(revived).incr(100), 111);
+
+      // `importVref` is idempotent — repeated calls return `===` the
+      // same presence so host code can use it as a Map key.
+      t.is(revived, workerDaemonFacet.importVref(durableVref));
+
+      cancelled.reject(new Error('teardown'));
+      await workerTerminated;
+    }
+  },
+);
+
+conditionalTest('release of a presence rejects further E() calls', async t => {
+  await cleanupTmp('release');
+  t.teardown(() => cleanupTmp('release'));
+
+  const config = makeConfig('release');
+  const control = await setupControl(config);
+  const workerId = await cryptoPowers.randomHex512();
+
+  const cancelled = makePromiseKit();
+  const { workerDaemonFacet, workerTerminated } = await control.makeXsnapWorker(
+    workerId,
+    /** @type {any} */ (undefined),
+    /** @type {Promise<never>} */ (cancelled.promise),
+  );
+
+  const fn = await workerDaemonFacet.evaluate(`harden(x => x * 2)`);
+  t.is(await E(fn)(21), 42);
+  await workerDaemonFacet.release(fn);
+  await t.throwsAsync(
+    () => E(fn)(21),
+    { message: /no export/ },
+    'released presence rejects further invocations',
+  );
+
+  cancelled.reject(new Error('teardown'));
+  await workerTerminated;
 });
 
 conditionalTest('distinct xsnap-worker ids get distinct heaps', async t => {
