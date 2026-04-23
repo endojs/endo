@@ -2,9 +2,10 @@
 /* global setTimeout, clearTimeout */
 
 import harden from '@endo/harden';
+import { HandledPromise } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { E, Far } from '@endo/far';
-import { makeMarshal } from '@endo/marshal';
+import { makeMarshal, Remotable } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
@@ -53,7 +54,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, XsnapRefDeferredTaskParams, XsnapRefFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -551,6 +552,103 @@ const makeDaemonCore = async (
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
     );
+  };
+
+  /** @param {'none' | 'once' | undefined} retry */
+  const normalizeXsnapRefRetry = retry => {
+    if (retry === undefined || retry === 'none' || retry === 'once') {
+      return retry ?? 'none';
+    }
+    throw new TypeError(`Invalid xsnap ref retry policy ${q(retry)}`);
+  };
+
+  /**
+   * @param {FormulaIdentifier} targetId
+   * @param {'none' | 'once' | undefined} retry
+   */
+  const makeXsnapRef = (targetId, retry) => {
+    const normalizedRetry = normalizeXsnapRefRetry(retry);
+
+    /** @param {() => Promise<unknown>} operation */
+    const attempt = async operation => {
+      await null;
+      try {
+        return await operation();
+      } catch (error) {
+        if (normalizedRetry !== 'once') {
+          throw error;
+        }
+      }
+      return operation();
+    };
+
+    const handler = harden({
+      /**
+       * @param {unknown} _p
+       * @param {PropertyKey} propertyKey
+       */
+      get: (_p, propertyKey) =>
+        attempt(async () => {
+          const target = await provide(targetId);
+          return E.get(target)[propertyKey];
+        }),
+      /**
+       * @param {unknown} _p
+       * @param {PropertyKey | undefined} propertyKey
+       * @param {unknown[]} args
+       */
+      applyMethod: (_p, propertyKey, args) =>
+        attempt(async () => {
+          const target = await provide(targetId);
+          if (propertyKey === undefined) {
+            return /** @type {any} */ (E(target))(...args);
+          }
+          return /** @type {any} */ (E(target)[propertyKey])(...args);
+        }),
+      /**
+       * @param {unknown} _p
+       * @param {unknown[]} args
+       */
+      applyFunction: (_p, args) =>
+        attempt(async () => {
+          const target = await provide(targetId);
+          return /** @type {any} */ (E(target))(...args);
+        }),
+      /**
+       * @param {unknown} _p
+       * @param {PropertyKey} propertyKey
+       * @param {unknown[]} args
+       */
+      applyMethodSendOnly: (_p, propertyKey, args) => {
+        attempt(async () => {
+          const target = await provide(targetId);
+          E.sendOnly(target)[propertyKey](...args);
+        }).catch(_error => undefined);
+      },
+      /**
+       * @param {unknown} _p
+       * @param {unknown[]} args
+       */
+      applyFunctionSendOnly: (_p, args) => {
+        attempt(async () => {
+          const target = await provide(targetId);
+          /** @type {any} */ (E.sendOnly(target))(...args);
+        }).catch(_error => undefined);
+      },
+    });
+
+    /** @type {(presenceHandler: unknown) => unknown} */
+    let resolveWithPresence;
+    const settledPromise = new HandledPromise(
+      (_resolve, _reject, rwp) => {
+        resolveWithPresence = rwp;
+      },
+      handler,
+    );
+    const presence = resolveWithPresence(handler);
+    // Keep the promise chain settled and quiet in case internals reject.
+    settledPromise.catch(() => undefined);
+    return Remotable('Alleged: EndoXsnapRef', undefined, presence);
   };
 
   /** @param {object} ref */
@@ -1218,6 +1316,7 @@ const makeDaemonCore = async (
     lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
+    'xsnap-ref': ({ target, retry }) => makeXsnapRef(target, retry),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier },
       context,
@@ -1787,6 +1886,32 @@ const makeDaemonCore = async (
         return formulaNumber;
       }),
     );
+  };
+
+  /** @type {DaemonCore['formulateXsnapRef']} */
+  const formulateXsnapRef = async (targetId, deferredTasks, retry) => {
+    await null;
+    assertValidId(targetId);
+    const normalizedRetry = normalizeXsnapRefRetry(retry);
+    const xsnapRefFormulaNumber = await formulaGraphJobs.enqueue(async () => {
+      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+      await deferredTasks.execute({
+        xsnapRefId: formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        }),
+      });
+      return formulaNumber;
+    });
+
+    /** @type {XsnapRefFormula} */
+    const formula = {
+      type: 'xsnap-ref',
+      target: targetId,
+      ...(normalizedRetry !== 'none' && { retry: normalizedRetry }),
+    };
+
+    return formulate(xsnapRefFormulaNumber, formula);
   };
 
   /**
@@ -2559,6 +2684,7 @@ const makeDaemonCore = async (
     formulateEval,
     formulateUnconfined,
     formulateBundle,
+    formulateXsnapRef,
     formulateReadableBlob,
     formulateInvitation,
     makeMailbox,

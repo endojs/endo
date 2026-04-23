@@ -182,3 +182,114 @@ test('cross-worker reference keeps formula id across restart', async t => {
     2,
   );
 });
+
+test('host makeXsnapRef forwards with formula-like ergonomics across restart', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+
+  {
+    const host = await makeHost(config, cancelled);
+    await E(host).provideWorker(['w1']);
+    await E(host).provideWorker(['w2']);
+    await E(host).evaluate(
+      'w1',
+      `
+        (() => {
+          let value = 0;
+          return makeExo(
+            'Counter',
+            M.interface('Counter', {}, { defaultGuards: 'passable' }),
+            { incr: () => value += 1 }
+          );
+        })()
+      `,
+      [],
+      [],
+      ['counter'],
+    );
+    await E(host).makeXsnapRef('counter', 'counter-facade');
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(facade).incr()',
+        ['facade'],
+        ['counter-facade'],
+      ),
+      1,
+    );
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(facade).incr()',
+        ['facade'],
+        ['counter-facade'],
+      ),
+      2,
+    );
+  }
+
+  await restart(config);
+
+  {
+    const host = await makeHost(config, cancelled);
+    const facadeId = await E(host).identify('counter-facade');
+    t.truthy(facadeId);
+    const facadeFormula = await readFormulaById(config, facadeId);
+    t.is(facadeFormula.type, 'xsnap-ref');
+    t.is(facadeFormula.retry, undefined);
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(facade).incr()',
+        ['facade'],
+        ['counter-facade'],
+      ),
+      1,
+    );
+  }
+});
+
+test('xsnap facade retry once rebinds after transient target failure', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+  const host = await makeHost(config, cancelled);
+  await E(host).provideWorker(['w1']);
+  await E(host).provideWorker(['w2']);
+  await E(host).evaluate(
+    'w1',
+    `
+      (() => {
+        let failNextCall = true;
+        return makeExo(
+          'FlakyCounter',
+          M.interface('FlakyCounter', {}, { defaultGuards: 'passable' }),
+          {
+            incr: () => {
+              if (failNextCall) {
+                failNextCall = false;
+                throw new Error('transient');
+              }
+              return 42;
+            },
+          }
+        );
+      })()
+    `,
+    [],
+    [],
+    ['flaky'],
+  );
+  await E(host).makeXsnapRef('flaky', 'flaky-facade', 'once');
+
+  const value = await E(host).evaluate(
+    'w2',
+    'E(facade).incr()',
+    ['facade'],
+    ['flaky-facade'],
+  );
+  t.is(value, 42);
+
+  const facadeId = await E(host).identify('flaky-facade');
+  t.truthy(facadeId);
+  const facadeFormula = await readFormulaById(config, facadeId);
+  t.is(facadeFormula.type, 'xsnap-ref');
+  t.is(facadeFormula.retry, 'once');
+});

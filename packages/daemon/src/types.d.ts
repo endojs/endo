@@ -112,8 +112,18 @@ type WorkerFormula = {
   type: 'worker';
 };
 
+type XsnapRefFormula = {
+  type: 'xsnap-ref';
+  target: FormulaIdentifier;
+  retry?: 'none' | 'once';
+};
+
 export type WorkerDeferredTaskParams = {
   workerId: FormulaIdentifier;
+};
+
+export type XsnapRefDeferredTaskParams = {
+  xsnapRefId: FormulaIdentifier;
 };
 
 /**
@@ -303,6 +313,7 @@ export type Formula =
   | EndoFormula
   | LoopbackNetworkFormula
   | WorkerFormula
+  | XsnapRefFormula
   | HostFormula
   | GuestFormula
   | LeastAuthorityFormula
@@ -696,6 +707,11 @@ export interface EndoHost extends EndoAgent {
     powersName: string,
     resultName?: string | string[],
   ): Promise<unknown>;
+  makeXsnapRef(
+    targetNameOrPath: string | string[],
+    resultName?: string | string[],
+    retry?: 'none' | 'once',
+  ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
@@ -1056,6 +1072,12 @@ export interface DaemonCore {
   formulateWorker: (
     deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
   ) => FormulateResult<EndoWorker>;
+
+  formulateXsnapRef: (
+    targetId: FormulaIdentifier,
+    deferredTasks: DeferredTasks<XsnapRefDeferredTaskParams>,
+    retry?: 'none' | 'once',
+  ) => FormulateResult<unknown>;
 
   getAllNetworkAddresses: (
     networksDirectoryId: FormulaIdentifier,

@@ -183,6 +183,51 @@ Practical interpretation:
 
 This gives durable state benefits without forcing user code into vat-data durable object APIs.
 
+## Option B implementation plan (ergonomics-first)
+
+This section refines Option B into concrete repository changes.
+
+### Ergonomics goals
+
+#### Formula author ergonomics (inside workers)
+
+Code that receives a boundary value should be able to keep using ordinary eventual-send style:
+
+- preferred: `E(counterLike).incr()`
+- avoid requiring a bespoke wrapper call style like `E(ref).dispatch('incr', [])`
+
+To preserve this, the facade value should behave like a generic eventual-send target and forward arbitrary method/property operations to the latest target incarnation.
+
+#### Host ergonomics (outside workers)
+
+Creating a boundary facade should feel like existing host operations that materialize formulas and optionally name them:
+
+- new host helper: `makeXsnapRef(targetNameOrPath, resultName?, retryPolicy?)`
+- this creates a durable formula and (optionally) writes a pet name
+- hosts/workers can then pass the named value exactly like other formula-backed values
+
+### Concrete daemon changes
+
+1. Add formula type `xsnap-ref` with persisted payload:
+   - `target: FormulaIdentifier`
+   - `retry: 'none' | 'once'`
+2. Add daemon maker for `xsnap-ref`:
+   - produce a handled facade that forwards `get` / `applyMethod` / `applyFunction`
+   - resolve target using `provide(targetId)` on every interaction (rebind-ready)
+   - apply retry policy (`once` retries one time after failure with fresh provide)
+3. Add core formulation helper:
+   - `formulateXsnapRef(targetId, deferredTasks, retry?)`
+4. Add host API:
+   - `makeXsnapRef(targetNameOrPath, resultName?, retry?)`
+   - resolve target formula identifier from host naming graph
+   - formulate and optionally store resulting facade by pet name
+
+### Concrete tests
+
+1. **Ergonomics parity**: worker code can call `E(facade).method()` with no extra protocol.
+2. **Durable formula continuity**: `xsnap-ref` formula persists across daemon restart and still forwards to target formula ID.
+3. **Rebinding behavior**: when target formula is cancelled/reincarnated, facade calls continue to work and hit fresh incarnation state.
+
 ## Exploratory tests added in this branch
 
 The tests in `test/xsnap-boundary-exploration.test.js` probe key invariants:

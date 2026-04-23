@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams, XsnapRefDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -46,6 +46,7 @@ const assertPowersName = name => {
  * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateUnconfined']} args.formulateUnconfined
  * @param {DaemonCore['formulateBundle']} args.formulateBundle
+ * @param {DaemonCore['formulateXsnapRef']} args.formulateXsnapRef
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
@@ -64,6 +65,7 @@ export const makeHostMaker = ({
   formulateEval,
   formulateUnconfined,
   formulateBundle,
+  formulateXsnapRef,
   formulateReadableBlob,
   formulateInvitation,
   getAllNetworkAddresses,
@@ -407,6 +409,35 @@ export const makeHostMaker = ({
       return value;
     };
 
+    /** @type {EndoHost['makeXsnapRef']} */
+    const makeXsnapRef = async (targetNameOrPath, resultName, retry) => {
+      const targetNamePath = namePathFrom(targetNameOrPath);
+      assertNamePath(targetNamePath);
+      if (resultName !== undefined) {
+        assertNamePath(namePathFrom(resultName));
+      }
+
+      const targetId = /** @type {FormulaIdentifier | undefined} */ (
+        await E(directory).identify(...targetNamePath)
+      );
+      if (targetId === undefined) {
+        throw new TypeError(
+          `Unknown target for xsnap ref: ${q(targetNamePath.join('/'))}`,
+        );
+      }
+
+      /** @type {DeferredTasks<XsnapRefDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      if (resultName !== undefined) {
+        tasks.push(identifiers =>
+          E(directory).write(namePathFrom(resultName), identifiers.xsnapRefId),
+        );
+      }
+
+      const { value } = await formulateXsnapRef(targetId, tasks, retry);
+      return value;
+    };
+
     /**
      * Attempts to introduce the given names to the specified agent. The agent in question
      * must be formulated before this function is called.
@@ -739,6 +770,7 @@ export const makeHostMaker = ({
       evaluate,
       makeUnconfined,
       makeBundle,
+      makeXsnapRef,
       cancel,
       gateway,
       greeter,
