@@ -3,48 +3,28 @@ import { makeTransformSource } from './transform-source.js';
 import makeModulePlugins from './babel-plugin.js';
 
 import * as h from './hidden.js';
+import { createSourceOptions } from './source-options.js';
+import { buildFunctorSource, buildModuleRecord } from './functor.js';
 
-const { freeze } = Object;
-
-/** @import {Options} from './module-source.js' */
+/** @import {ModuleSourceOptions} from './types/module-source.js' */
 
 const makeCreateStaticRecord = transformSource =>
   /**
    *
    * @param {string} moduleSource
-   * @param {Options} options
+   * @param {ModuleSourceOptions} options
    */
   function createStaticRecord(
     moduleSource,
     { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook } = {},
   ) {
-    // Transform the Module source code.
-    const sourceOptions = {
+    const sourceOptions = createSourceOptions({
       sourceUrl,
       sourceMap,
       sourceMapUrl,
       sourceMapHook,
-      sourceType: 'module',
-      // exportNames of variables that are only initialized and used, but
-      // never assigned to.
-      fixedExportMap: Object.create(null),
-      // Record of imported module specifier names to list of importNames.
-      // The importName '*' is that module's module namespace object.
-      imports: Object.create(null),
-      // List of module specifiers that we export all from.
-      exportAlls: [],
-      // exportNames of variables that are assigned to, or reexported and
-      // therefore assumed live. A reexported variable might not have any
-      // localName.
-      reexportMap: Object.create(null),
-      liveExportMap: Object.create(null),
-      hoistedDecls: [],
-      importSources: Object.create(null),
-      importDecls: [],
-      dynamicImport: { present: false },
-      // enables passing import.meta usage hints up.
-      importMeta: { present: false },
-    };
+    });
+
     if (moduleSource.startsWith('#!')) {
       // Comment out the shebang lines.
       moduleSource = `//${moduleSource}`;
@@ -62,71 +42,23 @@ const makeCreateStaticRecord = transformSource =>
       );
     }
 
-    let preamble = sourceOptions.importDecls.join(',');
-    if (preamble !== '') {
-      preamble = `let ${preamble};`;
-    }
-    const js = JSON.stringify;
-    const isrc = sourceOptions.importSources;
-    preamble += `${h.HIDDEN_IMPORTS}([${Object.keys(isrc)
-      .map(
-        src =>
-          `[${js(src)}, [${Object.entries(isrc[src])
-            .map(([exp, upds]) => `[${js(exp)},[${upds.join(',')}]]`)
-            .join(',')}]]`,
-      )
-      .join(',')}]);`;
-    preamble += sourceOptions.hoistedDecls
-      .map(([vname, isOnce, cvname]) => {
-        let src = '';
-        if (cvname) {
-          // It's a function assigned to, so set its name property.
-          src = `Object.defineProperty(${cvname},'name',{value:${js(vname)}});`;
-        }
-        const hDeclId = isOnce ? h.HIDDEN_ONCE : h.HIDDEN_LIVE;
-        src += `${hDeclId}.${vname}(${cvname || ''});`;
-        return src;
-      })
-      .join('');
+    const functorSource = buildFunctorSource(
+      scriptSource,
+      sourceOptions,
+      sourceUrl,
+    );
 
-    // The outer function destructures the module calling convention's internal
-    // variables into hidden lexical variables.
-    // The inner function binds `this` to `undefined` and overshadows the
-    // evaluator's `arguments` with a completely empty `arguments` object.
-    // There is no avoiding the overshadowing of `globalThis.arguments` if it
-    // exists in this emulation of ESM since the evaluator binds `arguments` as
-    // well.
-    // Relies on the evaluator to ensure these functions are strict.
-    let functorSource = `\
-({imports:${h.HIDDEN_IMPORTS},liveVar:${h.HIDDEN_LIVE},onceVar:${h.HIDDEN_ONCE},import:${h.HIDDEN_IMPORT},importMeta:${h.HIDDEN_META}})=>(function(){'use strict';\
-${preamble}\
-${scriptSource}
-})()
-`;
-
-    if (sourceUrl) {
-      functorSource += `//# sourceURL=${sourceUrl}\n`;
-    }
-    const moduleAnalysis = freeze({
-      exportAlls: freeze(sourceOptions.exportAlls),
-      imports: freeze(sourceOptions.imports),
-      liveExportMap: freeze(sourceOptions.liveExportMap),
-      fixedExportMap: freeze(sourceOptions.fixedExportMap),
-      reexportMap: freeze(sourceOptions.reexportMap),
-      needsImport: sourceOptions.dynamicImport.present,
-      needsImportMeta: sourceOptions.importMeta.present,
-      functorSource,
-    });
-    return moduleAnalysis;
+    return buildModuleRecord(sourceOptions, functorSource);
   };
 
-export const makeModuleAnalyzer = babel => {
-  const transformSource = makeTransformSource(makeModulePlugins, babel);
+export const makeModuleAnalyzer = () => {
+  const transformSource = makeTransformSource(makeModulePlugins);
   return makeCreateStaticRecord(transformSource);
 };
 
-export const makeModuleTransformer = (babel, importer) => {
-  const transformSource = makeTransformSource(makeModulePlugins, babel);
+// TODO: May be unused; referenced only in ses/test262
+export const makeModuleTransformer = (_babel, importer) => {
+  const transformSource = makeTransformSource(makeModulePlugins);
   const createStaticRecord = makeCreateStaticRecord(transformSource);
   return {
     rewrite(ss) {

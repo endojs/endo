@@ -6,6 +6,7 @@
  */
 
 import type { WILDCARD_POLICY_VALUE } from '../policy-format.js';
+import type { IsAny } from './typescript.js';
 
 /* eslint-disable no-use-before-define */
 
@@ -31,9 +32,16 @@ export type ImplicitAttenuationDefinition = [any, ...any[]];
 export type AttenuationDefinition =
   | FullAttenuationDefinition
   | ImplicitAttenuationDefinition;
+
+/**
+ * Information about the attenuator implementation
+ */
 export type UnifiedAttenuationDefinition = {
+  /** Name of the attenuator (for error messages) */
   displayName: string;
+  /** The module specifier of the implementation */
   specifier: string | null;
+  /** Parameters to pass to the attenuator at invocation */
   params?: any[] | undefined;
 };
 
@@ -52,10 +60,24 @@ export type PropertyPolicy = Record<string, boolean>;
  * A type representing a policy item, which can be a {@link WildcardPolicy
  * wildcard policy}, a property policy, `undefined`, or defined by an
  * attenuator
+ *
+ * @remarks
+ * The void-vs-custom `T` branch was originally `[T] extends [void] ? … : …`, but
+ * the type `any` also makes that test succeed, so `PolicyItem<any>` used to
+ * reduce to the same as `void` and
+ * `PackagePolicy<any, any, any, any> = AnyPackagePolicy` was not a supertype of
+ * policies with extra string literals (for example, LavaMoat's {@code "root"} on
+ * package imports). A separate branch for a wide
+ * `any` type parameter yields
+ * `PolicyItem<any> = WildcardPolicy | PropertyPolicy | any` so
+ * `AnyPackagePolicy` correctly accepts all package policy item shapes.
  */
-export type PolicyItem<T = void> = [T] extends [void]
-  ? WildcardPolicy | PropertyPolicy
-  : WildcardPolicy | PropertyPolicy | T;
+export type PolicyItem<T = void> =
+  IsAny<T> extends true
+    ? WildcardPolicy | PropertyPolicy | T
+    : [T] extends [void]
+      ? WildcardPolicy | PropertyPolicy
+      : WildcardPolicy | PropertyPolicy | T;
 
 /**
  * An object representing a nested attenuation definition.
@@ -69,10 +91,10 @@ export type NestedAttenuationDefinition = Record<
  * An object representing a base package policy.
  */
 export type PackagePolicy<
-  PackagePolicyItem = void,
-  GlobalsPolicyItem = void,
-  BuiltinsPolicyItem = void,
-  ExtraOptions = unknown,
+  PackagePolicyExtra = void,
+  GlobalsPolicyExtra = void,
+  BuiltinsPolicyExtra = void,
+  Options = unknown,
 > = {
   /**
    * The default attenuator, if any.
@@ -81,17 +103,17 @@ export type PackagePolicy<
   /**
    * The policy item for packages.
    */
-  packages?: PolicyItem<PackagePolicyItem> | undefined;
+  packages?: PolicyItem<PackagePolicyExtra> | undefined;
   /**
    * The policy item or full attenuation definition for globals.
    */
-  globals?: AttenuationDefinition | PolicyItem<GlobalsPolicyItem> | undefined;
+  globals?: AttenuationDefinition | PolicyItem<GlobalsPolicyExtra> | undefined;
   /**
    * The policy item or nested attenuation definition for builtins.
    */
   builtins?:
     | NestedAttenuationDefinition
-    | PolicyItem<BuiltinsPolicyItem>
+    | PolicyItem<BuiltinsPolicyExtra>
     | undefined;
   /**
    * Whether to disable global freeze.
@@ -104,26 +126,26 @@ export type PackagePolicy<
   /**
    * Any additional user-defined options can be added to the policy here
    */
-  options?: ExtraOptions | undefined;
+  options?: Options | undefined;
 };
 
 /**
  * An object representing a base policy.
  */
 export type Policy<
-  PackagePolicyItem = void,
-  GlobalsPolicyItem = void,
-  BuiltinsPolicyItem = void,
-  ExtraOptions = unknown,
+  PackagePolicyExtra = void,
+  GlobalsPolicyExtra = void,
+  BuiltinsPolicyExtra = void,
+  Options = unknown,
 > = {
   /** The package policies for the resources. */
   resources: Record<
     string,
     PackagePolicy<
-      PackagePolicyItem,
-      GlobalsPolicyItem,
-      BuiltinsPolicyItem,
-      ExtraOptions
+      PackagePolicyExtra,
+      GlobalsPolicyExtra,
+      BuiltinsPolicyExtra,
+      Options
     >
   >;
   /** The default attenuator. */
@@ -131,16 +153,20 @@ export type Policy<
   /** The package policy for the entry. */
   entry?:
     | PackagePolicy<
-        PackagePolicyItem,
-        GlobalsPolicyItem,
-        BuiltinsPolicyItem,
-        ExtraOptions
+        PackagePolicyExtra,
+        GlobalsPolicyExtra,
+        BuiltinsPolicyExtra,
+        Options
       >
     | undefined;
 };
 
-/** Any {@link Policy} */
+/**
+ * Any {@link Policy}
+ */
 export type SomePolicy = Policy<any, any, any, any>;
 
-/** Any {@link PackagePolicy} */
-export type SomePackagePolicy = PackagePolicy<void, void, void, unknown>;
+/**
+ * Any {@link PackagePolicy}
+ */
+export type SomePackagePolicy = PackagePolicy<any, any, any, any>;
