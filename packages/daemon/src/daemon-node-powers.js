@@ -788,12 +788,35 @@ export const makeDaemonicControlPowers = (
       return v;
     };
 
+    /**
+     * Resolve a daemon-side endowments map (name → presence-or-vref)
+     * into the vref-only shape the worker expects. Throws loudly if
+     * a given endowment isn't actually from this worker, so mistakes
+     * surface at the call site instead of inside xsnap.
+     *
+     * @param {Record<string, unknown> | undefined} endowments
+     */
+    const resolveEndowments = endowments => {
+      if (endowments === undefined) return undefined;
+      /** @type {Record<string, string>} */
+      const resolved = {};
+      for (const [name, v] of Object.entries(endowments)) {
+        resolved[name] = vrefOf(/** @type {any} */ (v));
+      }
+      return resolved;
+    };
+
     /** @type {ERef<XsnapWorkerDaemonFacet>} */
     const workerDaemonFacet = Object.freeze({
       terminate: async () => {
         await vat.close().catch(() => {});
       },
-      evaluate: async source => rawCall(['eval', source]),
+      evaluate: async (source, endowments) => {
+        const resolved = resolveEndowments(endowments);
+        return resolved === undefined
+          ? rawCall(['eval', source])
+          : rawCall(['eval', source, resolved]);
+      },
       importVref: vref => importVref(vref),
       vrefOf: presence => vrefOf(presence),
       release: async presenceOrVref => {

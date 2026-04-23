@@ -883,12 +883,24 @@ export type XsnapWorkerPresence = object;
 export interface XsnapWorkerDaemonFacet {
   terminate(): Promise<void>;
   /**
-   * Evaluate `source` in the worker's global scope. Returns the result
-   * by JSON round-trip if it is JSON-serializable, otherwise auto-wraps
-   * it in a {@link XsnapWorkerPresence} that the caller can drive with
-   * `E(...)` and pass around as a regular remotable.
+   * Evaluate `source` in the worker's global scope, optionally with
+   * named `endowments` bound to values previously exported from this
+   * worker. Returns the result by JSON round-trip if it is plain data,
+   * otherwise auto-wraps it in a {@link XsnapWorkerPresence} that the
+   * caller can drive with `E(...)` and pass around as a regular
+   * remotable.
+   *
+   * Identity: if `source` returns a value that this worker has
+   * exported before (e.g. the endowment itself, or a value that's
+   * also reachable through another path), the returned presence is
+   * `===` to the previous presence for that worker-side value. This
+   * makes formula composition "formula B just returns formula A's
+   * result" idempotent on the daemon side.
    */
-  evaluate(source: string): Promise<unknown>;
+  evaluate(
+    source: string,
+    endowments?: Record<string, XsnapWorkerPresence | XsnapWorkerVref>,
+  ): Promise<unknown>;
   /**
    * Reconstruct the presence for a previously-seen vref. Useful for
    * reviving handles across daemon restarts: store the vref string as

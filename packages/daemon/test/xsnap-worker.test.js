@@ -383,6 +383,88 @@ conditionalTest(
   },
 );
 
+conditionalTest(
+  'presence identity: same worker object === same presence',
+  async t => {
+    // Two invariants we need the xsnap worker and its daemon-side
+    // facade to uphold so formulas can compose without accidentally
+    // branching identity:
+    //
+    //   (a) evaluating twice a source that returns the same in-heap
+    //       object yields the same presence (x === y).
+    //   (b) a formula B that takes formula A's result as an endowment
+    //       and returns it verbatim yields the same presence as A.
+    //
+    // Both reduce to two cooperating pieces: the worker dedups exports
+    // by value through a WeakMap so a given in-heap object always gets
+    // the same vref; the daemon caches presences by vref so the same
+    // vref always yields the same presence.
+    await cleanupTmp('identity');
+    t.teardown(() => cleanupTmp('identity'));
+
+    const config = makeConfig('identity');
+    const control = await setupControl(config);
+    const workerId = await cryptoPowers.randomHex512();
+
+    const cancelled = makePromiseKit();
+    const { workerDaemonFacet, workerTerminated } =
+      await control.makeXsnapWorker(
+        workerId,
+        /** @type {any} */ (undefined),
+        /** @type {Promise<never>} */ (cancelled.promise),
+      );
+
+    // (a) Two separate evaluates of an expression that returns the same
+    // global reference yield `===` the same presence.
+    await workerDaemonFacet.evaluate(`
+    globalThis.shared = harden({ hello: () => 'world' });
+  `);
+    const first = await workerDaemonFacet.evaluate('globalThis.shared');
+    const second = await workerDaemonFacet.evaluate('globalThis.shared');
+    t.is(first, second, 'same in-heap object → same presence');
+    t.is(await E(first).hello(), 'world');
+    t.is(await E(second).hello(), 'world');
+    t.is(
+      workerDaemonFacet.vrefOf(first),
+      workerDaemonFacet.vrefOf(second),
+      'same presence → same vref',
+    );
+
+    // (b) Formula A returns a new hardened exo. Formula B takes A's
+    // result as an endowment and returns it verbatim. The presences
+    // are `===`.
+    const formulaA = await workerDaemonFacet.evaluate(`
+    (() => {
+      let n = 0;
+      return harden({ incr: s => (n += s), value: () => n });
+    })()
+  `);
+    const formulaB = await workerDaemonFacet.evaluate('a', { a: formulaA });
+    t.is(formulaA, formulaB, 'formula B returning formula A → same presence');
+    // Writing via E(formulaB) is observed by reads via E(formulaA): it
+    // really is the same closure, not an incidentally-equal twin.
+    await E(formulaB).incr(5);
+    t.is(await E(formulaA).value(), 5);
+
+    // Formula C derives a new value from A via an endowment, so it
+    // gets its own presence — identity *only* collapses when the
+    // worker-side value is literally the same JS reference.
+    const formulaC = await workerDaemonFacet.evaluate(
+      'harden({ ...a, tag: "derived" })',
+      { a: formulaA },
+    );
+    t.not(formulaC, formulaA, 'derived result gets a distinct presence');
+    t.is(
+      typeof workerDaemonFacet.vrefOf(formulaC),
+      'string',
+      'derived result has its own vref',
+    );
+
+    cancelled.reject(new Error('teardown'));
+    await workerTerminated;
+  },
+);
+
 conditionalTest('release of a presence rejects further E() calls', async t => {
   await cleanupTmp('release');
   t.teardown(() => cleanupTmp('release'));

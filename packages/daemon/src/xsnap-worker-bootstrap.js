@@ -20,7 +20,23 @@
 //   until `.result` is an ArrayBuffer.
 //
 //   Requests:
-//     ['eval', source]                      evaluate source
+//     ['eval', source, endowments?]         evaluate source, optionally
+//                                           with named endowments. Each
+//                                           endowment value is a vref
+//                                           that resolves to an entry
+//                                           in the worker's export
+//                                           table. This is how the
+//                                           daemon feeds one formula's
+//                                           result into another: if
+//                                           B's source just returns
+//                                           the endowment, the worker
+//                                           sees the same JS value as
+//                                           before and its vref is
+//                                           deduped through the
+//                                           WeakMap, so the daemon
+//                                           gets back the same vref
+//                                           and therefore the same
+//                                           presence.
 //     ['applyMethod', vref, prop, args]     vref[prop](...args)
 //     ['applyFunction', vref, args]         vref(...args)
 //     ['release', vref]                     drop export
@@ -132,8 +148,23 @@ const handleItem = async ([tag, ...args]) => {
   await null;
   switch (tag) {
     case 'eval': {
-      const [source] = args;
-      const value = await indirectEval(source);
+      const [source, endowments = {}] = args;
+      const names = Object.keys(endowments);
+      let value;
+      if (names.length === 0) {
+        value = await indirectEval(source);
+      } else {
+        // Wrap the source in an arrow whose parameters receive the
+        // resolved endowment values, then invoke. Indirect-eval'd in
+        // the start compartment so the names available are the globals
+        // plus our parameters. Note this means the source should be an
+        // expression, not a statement list — consistent with the
+        // plain `['eval', source]` case.
+        const wrapperSrc = `((${names.join(', ')}) => (${source}))`;
+        const fn = indirectEval(wrapperSrc);
+        const values = names.map(n => lookupExport(endowments[n]));
+        value = await fn(...values);
+      }
       return marshalResult(value);
     }
     case 'applyMethod': {
