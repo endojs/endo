@@ -659,3 +659,74 @@ test('xsnapEvaluate uses xsnap-worker and recovers heap across restart', async t
     t.is(third, 3);
   }
 });
+
+test('xsnapEvaluate retains ordinary closure heap state across restart', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+
+  {
+    const host = await makeHost(config, cancelled);
+    await E(host).provideWorker(['w2']);
+    await E(host).provideXsnapWorker(['xsw']);
+
+    await E(host).xsnapEvaluate(
+      'xsw',
+      `
+        (() => {
+          let value = 0;
+          return makeExo(
+            'ClosureCounter',
+            M.interface('ClosureCounter', {}, { defaultGuards: 'passable' }),
+            { incr: () => (value += 1) }
+          );
+        })()
+      `,
+      [],
+      [],
+      ['xsnap-closure-counter'],
+    );
+
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-closure-counter'],
+      ),
+      1,
+    );
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-closure-counter'],
+      ),
+      2,
+    );
+  }
+
+  await restart(config);
+
+  {
+    const host = await makeHost(config, cancelled);
+    await E(host).provideXsnapWorker(['xsw']);
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-closure-counter'],
+      ),
+      3,
+    );
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-closure-counter'],
+      ),
+      4,
+    );
+  }
+});

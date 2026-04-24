@@ -814,7 +814,7 @@ export const makeDaemonicControlPowers = (
         return result;
       };
 
-      const methodTable = Object.create(null);
+      const methodTable = {};
       for (const method of methods) {
         methodTable[method] = (...args) => invoke(method, args);
       }
@@ -826,13 +826,18 @@ export const makeDaemonicControlPowers = (
     await worker.evaluate(`
       const encoder = new TextEncoder();
       const decoder = new TextDecoder();
-      const formulas = new Map();
-      const xsSlots = new Map();
-      let nextXsSlot = 1;
+      const state = globalThis.__endoXsnapState || {
+        formulas: new Map(),
+        xsSlots: new Map(),
+        nextXsSlot: 1,
+      };
+      globalThis.__endoXsnapState = state;
+      const { formulas, xsSlots } = state;
 
       const M = { interface: () => ({}) };
       globalThis.M = M;
-      globalThis.makeExo = (_name, _iface, methods) => methods;
+      globalThis.makeExo = (_name, _iface, methods) =>
+        Object.assign(Object.create(null), methods);
       globalThis.E = target => new Proxy({}, {
         get: (_obj, prop) => (...args) => target[prop](...args),
       });
@@ -903,7 +908,8 @@ export const makeDaemonicControlPowers = (
               return { xsSlot: slot, methods: stored.__methodNames__ || [] };
             }
           }
-          const slot = nextXsSlot++;
+          const slot = state.nextXsSlot;
+          state.nextXsSlot += 1;
           const methodNames = Object.getOwnPropertyNames(value).filter(name =>
             typeof value[name] === 'function',
           );
