@@ -27,6 +27,8 @@ export {
 
 export { makeIntervalScheduler } from './interval/index.js';
 
+export { makeGenieAgents } from './loop/agents.js';
+
 export {
   makeObserver,
   OBSERVER_SYSTEM_PROMPT,

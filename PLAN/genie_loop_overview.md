@@ -95,7 +95,7 @@ completion.
    attenuations for granting narrower access than full `bash` (see
    [Decisions](#decisions)).
    See [`TODO/73_genie_loop_tool_registry.md`](../TODO/73_genie_loop_tool_registry.md).
-3. [ ] **Agent-pack factory** — introduce `makeGenieAgents` as a pure bundling
+3. [x] **Agent-pack factory** — introduce `makeGenieAgents` as a pure bundling
    helper; migrate dev-repl first, then main.js.
    The factory accepts per-sub-agent model overrides
    (`model` / `observerModel` / `reflectorModel` / `heartbeatModel`)

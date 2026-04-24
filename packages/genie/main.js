@@ -37,9 +37,7 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 // eslint-disable-next-line import/no-unresolved
 import {
   buildGenieTools,
-  makeObserver,
-  makePiAgent,
-  makeReflector,
+  makeGenieAgents,
   PLUGIN_DEFAULT_INCLUDE,
   runAgentRound,
 } from '@endo/genie';
@@ -541,6 +539,7 @@ export const make = (guestPowers, _context) => {
    * @param {object} opts
    * @param {EndoGuest} opts.agentPowers - The agent guest's EndoGuest powers
    * @param {object} opts.piAgent - The PiAgent instance
+   * @param {object} opts.heartbeatAgent - The dedicated heartbeat PiAgent instance.
    * @param {string} opts.agentName - Display name for logging
    * @param {string} opts.workspaceDir - Agent workspace directory
    * @param {Promise<any>} opts.cancelledP - Resolves when the agent is cancelled
@@ -551,6 +550,7 @@ export const make = (guestPowers, _context) => {
   const runAgentLoop = async ({
     agentPowers,
     piAgent,
+    heartbeatAgent,
     agentName,
     workspaceDir,
     cancelledP,
@@ -625,7 +625,7 @@ export const make = (guestPowers, _context) => {
           try {
             await processHeartbeat(
               agentPowers,
-              piAgent,
+              heartbeatAgent,
               agentName,
               workspaceDir,
               message,
@@ -815,21 +815,7 @@ export const make = (guestPowers, _context) => {
     // (agent loop, heartbeat, etc.) to tear down.
     const { promise: cancelledP, resolve: cancel } = makePromiseKit();
 
-    const {
-      listTools,
-      execTool,
-      memoryTools,
-      searchBackend,
-    } = buildTools(workspaceDir);
-
-    const piAgent = await makePiAgent({
-      hostname: 'endo-daemon',
-      currentTime: new Date().toISOString(),
-      workspaceDir,
-      model: config.model || undefined,
-      listTools,
-      execTool,
-    });
+    const genieTools = buildTools(workspaceDir);
 
     // Shared side-channel map for delivering heartbeat tick objects from
     // runHeartbeatTicker to runAgentLoop without serializing through daemon mail.
@@ -842,35 +828,28 @@ export const make = (guestPowers, _context) => {
       };
     })();
 
-    // ── Memory sub-agents: Observer & Reflector ────────────────────
-    const observerModel = config.observerModel || config.model || undefined;
-    const reflectorModel = config.reflectorModel || config.model || undefined;
-
-    const observer = makeObserver({
-      model: observerModel,
-      memoryGet: memoryTools.memoryGet,
-      memorySet: memoryTools.memorySet,
-      searchBackend,
+    const { piAgent, heartbeatAgent, observer, reflector } = await makeGenieAgents({
+      hostname: 'endo-daemon',
       workspaceDir,
+      tools: genieTools,
+      config: {
+        model: config.model || undefined,
+        observerModel: config.observerModel || undefined,
+        reflectorModel: config.reflectorModel || undefined,
+      },
     });
 
-    const reflector = makeReflector({
-      model: reflectorModel,
-      memoryGet: memoryTools.memoryGet,
-      memorySet: memoryTools.memorySet,
-      memorySearch: memoryTools.memorySearch,
-      searchBackend,
-      workspaceDir,
-    });
-
+    const observerModelLog = config.observerModel || config.model || '(default)';
+    const reflectorModelLog = config.reflectorModel || config.model || '(default)';
     console.log(
-      `[genie:${agentName}] Memory sub-agents: observer=${observerModel || '(default)'}, reflector=${reflectorModel || '(default)'}`,
+      `[genie:${agentName}] Memory sub-agents: observer=${observerModelLog}, reflector=${reflectorModelLog}`,
     );
 
     // Start the message loop (fire-and-forget).
     const agentLoopP = runAgentLoop({
       agentPowers: agentGuest,
       piAgent,
+      heartbeatAgent,
       agentName,
       workspaceDir,
       cancelledP,
