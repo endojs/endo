@@ -226,3 +226,22 @@ export const evadeDecrementGreater = p => {
     };
   }
 };
+
+const EVADE_METHODS = ['import', 'eval'];
+/**
+ * @param {import('@babel/traverse').NodePath} p
+ */
+export const evadeMethod = p => {
+  const { node } = p;
+  // find class and object definitions with a method name we need to evade.
+  // E.g. import() -> `['import']()`
+  const isMethod = p.isObjectMethod() || p.isClassMethod();
+  if (
+    isMethod &&
+    node.key.type === 'Identifier' &&
+    EVADE_METHODS.includes(node.key.name)
+  ) {
+    node.computed = true;
+    node.key = { type: 'StringLiteral', value: node.key.name };
+  }
+};
