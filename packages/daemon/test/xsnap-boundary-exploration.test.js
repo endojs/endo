@@ -267,3 +267,63 @@ test('xsnapEvaluate callers can invoke non-xsnap values across restart', async t
     );
   }
 });
+
+test('xsnapEvaluate uses compartment endowments without global name leakage', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+
+  const host = await makeHost(config, cancelled);
+  await E(host).provideWorker(['w1']);
+  await E(host).provideXsnapWorker(['xsw']);
+
+  await E(host).evaluate(
+    'w1',
+    `
+      (() => makeExo(
+        'PlainCounter',
+        M.interface('PlainCounter', {}, { defaultGuards: 'passable' }),
+        {
+          incr: (() => {
+            let value = 0;
+            return () => value += 1;
+          })(),
+        },
+      ))()
+    `,
+    [],
+    [],
+    ['plain-counter'],
+  );
+
+  await E(host).xsnapEvaluate(
+    'xsw',
+    `
+      (() => makeExo(
+        'BridgeCounter',
+        M.interface('BridgeCounter', {}, { defaultGuards: 'passable' }),
+        { callIncr: () => E(counter).incr() },
+      ))()
+    `,
+    ['counter'],
+    ['plain-counter'],
+    ['bridge-counter'],
+  );
+
+  t.is(
+    await E(host).evaluate(
+      'w1',
+      'typeof counter',
+      [],
+      [],
+    ),
+    'undefined',
+  );
+  t.is(
+    await E(host).evaluate(
+      'w1',
+      'E(counter).callIncr()',
+      ['counter'],
+      ['bridge-counter'],
+    ),
+    1,
+  );
+});

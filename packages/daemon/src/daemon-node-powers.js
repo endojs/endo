@@ -842,6 +842,14 @@ export const makeDaemonicControlPowers = (
         get: (_obj, prop) => (...args) => target[prop](...args),
       });
       globalThis.E.get = target => target;
+      const baseEndowments = {
+        M: globalThis.M,
+        makeExo: globalThis.makeExo,
+        E: globalThis.E,
+        TextEncoder: globalThis.TextEncoder,
+        TextDecoder: globalThis.TextDecoder,
+        URL: globalThis.URL,
+      };
 
       const issueHost = payload => {
         const response = issueCommand(
@@ -933,10 +941,24 @@ export const makeDaemonicControlPowers = (
               ).buffer;
             }
             const decodedValues = decodeData(values || []);
-            for (let i = 0; i < names.length; i += 1) {
-              globalThis[names[i]] = decodedValues[i];
+            if (!Array.isArray(names) || names.length !== decodedValues.length) {
+              throw new Error('Invalid xsnap evaluate endowments');
             }
-            const value = eval(source);
+            const formulaEndowments = Object.fromEntries(
+              names.map((name, index) => {
+                if (typeof name !== 'string') {
+                  throw new Error('Invalid xsnap evaluate endowment name');
+                }
+                return [name, decodedValues[index]];
+              }),
+            );
+            const compartment = new Compartment();
+            Object.assign(compartment.globalThis, {
+              ...baseEndowments,
+              $id: id,
+              ...formulaEndowments,
+            });
+            const value = compartment.evaluate(source);
             formulas.set(id, value);
             return encoder.encode(
               JSON.stringify({ ok: true, value: encodeData(value) }),
