@@ -52,7 +52,7 @@ import {
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
-/** @import {ChatEvent} from './src/agent/index.js' */
+/** @import { AgentError, ChatEvent } from './src/agent/index.js' */
 /** @import { Tool } from './src/tools/common.js' */
 /** @import { HeartbeatEvent } from './src/heartbeat/index.js' */
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
@@ -85,6 +85,19 @@ function inconceivable(nope, wat) {
 
 // Register built-in API providers so getModel lookups work for known providers
 registerBuiltInApiProviders();
+
+/** @param {AgentError} err */
+function* errorLines(err) {
+  const { cause, message } = err;
+  yield* `${message} — ${cause}`.split(/\n/);
+  if (cause.stack) {
+    for (const line of cause.stack.split(/\n/)) {
+      yield `  ${line}`;
+    }
+  } else {
+    yield '  <STACK REDACTED>';
+  }
+}
 
 // ---------------------------------------------------------------------------
 // ANSI helpers
@@ -160,7 +173,7 @@ const renderBackgroundEvent = (event, label) => {
       return '';
     }
     case 'Error': {
-      return `${prefix}${RED}[error] ${event.message} — ${event.cause}${RESET}\n`;
+      return Array.from(errorLines(event)).join('');
     }
     case 'UserMessage':
       // Sub-agent prompts are noisy and duplicate the outer context — skip.
@@ -505,7 +518,9 @@ async function* runAgentEvents(
           yield `${RESET}\n`;
           streamStarted = false;
         }
-        yield `${RED}[error] ${event.message} — ${event.cause}${RESET}\n`;
+        for (const line of errorLines(event)) {
+          yield `${RED}[error] ${line}${RESET}\n`;
+        }
         break;
       }
 

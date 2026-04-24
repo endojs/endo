@@ -474,13 +474,28 @@ harden(getMessageTokenCount);
 export async function* runAgentRound(piAgent, prompt) {
   // Collect events via subscription for progressive yielding
   let agentDone = false;
-  /** @type {Array<AgentEvent|{type: 'error', error: any}>} */
+  /**
+   * @typedef {AgentEvent|{type: 'error', error: any}} QueueEvent
+   * @type {Array<QueueEvent>}
+   */
   const eventQueue = [];
 
   /** @type {((value?: any) => void) | null} */
   let resolveWaiting = null;
-  /** @param {boolean} done */
-  const mayYield = done => {
+
+  /** @returns {Promise<void>} */
+  const forQueue = () => {
+    return new Promise(resolve => {
+      resolveWaiting = resolve;
+    });
+  };
+
+  /**
+   * @param {QueueEvent} event
+   * @param {boolean} [done]
+   */
+  const giveQueue = (event, done = false) => {
+    eventQueue.push(event);
     if (!agentDone) {
       agentDone = done;
       if (resolveWaiting) {
@@ -490,39 +505,25 @@ export async function* runAgentRound(piAgent, prompt) {
       }
     }
   };
-  /** @returns {Promise<void>} */
-  const forQueue = () =>
-    new Promise(resolve => {
-      resolveWaiting = resolve;
-    });
 
-  piAgent.subscribe(event => {
-    eventQueue.push(event);
-    mayYield(false);
-  });
+  piAgent.subscribe(event => giveQueue(event));
 
   // Start the prompt (non-blocking)
   const promptDone = piAgent
     .prompt(prompt)
-    .then(() => {
-      eventQueue.push({ type: 'agent_start' });
-      mayYield(false);
-    })
-    .catch(err => {
-      eventQueue.push({ type: 'error', error: err });
-      mayYield(true);
-    });
+    .then(
+      () => giveQueue({ type: 'agent_start' }),
+      (err) => giveQueue({ type: 'error', error: err }, true),
+    )
+    .catch(err => giveQueue({ type: 'error', error: err }, true));
 
   piAgent
     .waitForIdle()
-    .then(() => {
-      eventQueue.push({ type: 'agent_end', messages: [] });
-      mayYield(true);
-    })
-    .catch(err => {
-      eventQueue.push({ type: 'error', error: err });
-      mayYield(true);
-    });
+    .then(
+      () => giveQueue({ type: 'agent_end', messages: [] }, true),
+      (err) => giveQueue({ type: 'error', error: err }, true),
+    )
+    .catch(err => giveQueue({ type: 'error', error: err }, true));
 
   // Process events as they arrive, yielding Genie events
   let fullAssistantText = '';
