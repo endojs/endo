@@ -89,7 +89,7 @@ Pros:
 
 Cons:
 
-- Added call indirection and policy complexity (retry idempotence, timeout, backoff)
+- Added call indirection and policy complexity (error propagation, timeout, observability)
 
 Best when:
 
@@ -172,10 +172,7 @@ Practical interpretation:
 1. Add `xsnap-worker` formula type (parallel to `worker`).
 2. Add worker power implementation for xsnap process lifecycle and snapshot management.
 3. Add `xsnap-ref` formula type for stable client-facing references.
-4. Keep daemon dependency graph semantics (`thisDiesIfThatDies`) but define rebinding policies for `xsnap-ref`:
-   - no retry
-   - retry once on epoch mismatch
-   - bounded retry with backoff
+4. Keep daemon dependency graph semantics (`thisDiesIfThatDies`) and fail-fast call behavior for `xsnap-ref`, while relying on formula/id rebinding through persisted naming metadata.
 5. Expose explicit diagnostics on references:
    - current epoch
    - last rebind time
@@ -202,7 +199,7 @@ To preserve this, the facade value should behave like a generic eventual-send ta
 
 Creating a boundary facade should feel like existing host operations that materialize formulas and optionally name them:
 
-- new host helper: `makeXsnapRef(targetNameOrPath, resultName?, retryPolicy?)`
+- new host helper: `makeXsnapRef(workerName, targetNameOrPath, resultName?)`
 - this creates a durable formula and (optionally) writes a pet name
 - hosts/workers can then pass the named value exactly like other formula-backed values
 
@@ -210,24 +207,26 @@ Creating a boundary facade should feel like existing host operations that materi
 
 1. Add formula type `xsnap-ref` with persisted payload:
    - `target: FormulaIdentifier`
-   - `retry: 'none' | 'once'`
+   - `worker: FormulaIdentifier`
 2. Add daemon maker for `xsnap-ref`:
    - produce a handled facade that forwards `get` / `applyMethod` / `applyFunction`
    - resolve target using `provide(targetId)` on every interaction (rebind-ready)
-   - apply retry policy (`once` retries one time after failure with fresh provide)
+   - enforce configured worker formula is of type `xsnap-worker`
 3. Add core formulation helper:
-   - `formulateXsnapRef(targetId, deferredTasks, retry?)`
+   - `formulateXsnapRef(targetId, workerId, deferredTasks)`
+4. Add `xsnap-worker` formula support:
+   - `formulateXsnapWorker(deferredTasks)`
+   - host caller can request by name, and daemon formulates `xsnap-worker`
 4. Add host API:
-   - `makeXsnapRef(targetNameOrPath, resultName?, retry?)`
+   - `makeXsnapRef(workerName, targetNameOrPath, resultName?)`
    - resolve target formula identifier from host naming graph
-   - persist both target id and original host/path binding metadata for rebinding
+   - resolve/provide configured xsnap worker formula identifier
+   - persist target id, worker id, and original host/path binding metadata
    - formulate and optionally store resulting facade by pet name
 5. Add facade diagnostics:
    - `E.get(facade).diagnostics` returns
      - `targetId`
-     - `retry`
      - `callCount`
-     - `retryCount`
      - `lastRebindMs`
      - `lastFailure`
 
@@ -236,22 +235,24 @@ Creating a boundary facade should feel like existing host operations that materi
 1. **Ergonomics parity**: worker code can call `E(facade).method()` with no extra protocol.
 2. **Durable formula continuity**: `xsnap-ref` formula persists across daemon restart and still forwards to target formula ID.
 3. **Rebinding behavior**: when target formula is cancelled/reincarnated, facade calls continue to work and hit fresh incarnation state.
-4. **Diagnostics behavior**: stats reflect retries/rebinds/failures for observability.
+4. **Diagnostics behavior**: stats reflect rebinds/failures for observability.
+5. **Worker regime enforcement**: using a non-`xsnap-worker` formula fails at call time.
 
 ### Option B continuation (current iteration)
 
 This iteration expands Option B to better expose and control behavior at the
 durability boundary without changing worker-call ergonomics.
 
-#### Richer retry policy
+#### Worker regime alignment
 
-- Add `retry: 'none' | 'once' | 'twice'`.
-- Keep retries bounded and local to each call attempt.
-- Preserve explicit error surfacing after retry budget exhaustion.
+- `xsnap-ref` now carries explicit `worker` formula identity.
+- Host API requires a worker argument (`workerName`) so formulation stays close to
+  other daemon APIs that are worker-scoped.
+- Daemon enforces that configured worker formula type is `xsnap-worker`.
 
 #### Naming-graph rebinding
 
-- Persist `hub` + `path` alongside `target`.
+- Persist `hub` + `path` alongside `target` and `worker`.
 - On each forwarded call, attempt to re-identify through the host naming graph.
 - Fall back to original `target` when rebinding path no longer resolves.
 - Update rebind diagnostics when identity changes are observed.
@@ -273,8 +274,6 @@ These tests do not implement xsnap workers; they establish baseline facts the xs
 
 ## Open questions to settle before implementation
 
-1. Should `xsnap-ref` auto-retry calls by default, or fail fast with explicit rebinding?
-2. What methods are safe to replay after rebind (idempotence policy)?
-3. Should old-epoch references expose a specific error class for client tooling?
-4. Do we allow mixed graphs where xsnap durable references point to purely ephemeral non-xsnap exports, and if so with what downgrade behavior?
-5. Is a daemon-level "session ended" notification stream needed, or is call-time failure sufficient?
+1. Should old-epoch references expose a specific error class for client tooling?
+2. Do we allow mixed graphs where xsnap durable references point to purely ephemeral non-xsnap exports, and if so with what downgrade behavior?
+3. Is a daemon-level "session ended" notification stream needed, or is call-time failure sufficient?

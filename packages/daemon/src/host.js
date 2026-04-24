@@ -40,6 +40,7 @@ const assertPowersName = name => {
  * @param {DaemonCore['provideController']} args.provideController
  * @param {DaemonCore['cancelValue']} args.cancelValue
  * @param {DaemonCore['formulateWorker']} args.formulateWorker
+ * @param {DaemonCore['formulateXsnapWorker']} args.formulateXsnapWorker
  * @param {DaemonCore['formulateHost']} args.formulateHost
  * @param {DaemonCore['formulateGuest']} args.formulateGuest
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
@@ -59,6 +60,7 @@ export const makeHostMaker = ({
   provideController,
   cancelValue,
   formulateWorker,
+  formulateXsnapWorker,
   formulateHost,
   formulateGuest,
   formulateMarshalValue,
@@ -228,6 +230,31 @@ export const makeHostMaker = ({
           return petStore.write(petName, identifiers.workerId);
         });
         return undefined;
+      }
+      return workerId;
+    };
+
+    /**
+     * @param {Name | undefined} workerName
+     * @returns {Promise<FormulaIdentifier>}
+     */
+    const provideXsnapWorkerId = async workerName => {
+      await null;
+      if (workerName === undefined) {
+        /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
+        const tasks = makeDeferredTasks();
+        const { id } = await formulateXsnapWorker(tasks);
+        return id;
+      }
+      const workerId = /** @type {FormulaIdentifier | undefined} */ (
+        petStore.identifyLocal(workerName)
+      );
+      if (workerId === undefined) {
+        /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
+        const tasks = makeDeferredTasks();
+        const { id } = await formulateXsnapWorker(tasks);
+        await petStore.write(/** @type {PetName} */ (workerName), id);
+        return id;
       }
       return workerId;
     };
@@ -410,7 +437,10 @@ export const makeHostMaker = ({
     };
 
     /** @type {EndoHost['makeXsnapRef']} */
-    const makeXsnapRef = async (targetNameOrPath, resultName, retry) => {
+    const makeXsnapRef = async (workerName, targetNameOrPath, resultName) => {
+      if (workerName !== undefined) {
+        assertPetName(workerName);
+      }
       const targetNamePath = namePathFrom(targetNameOrPath);
       assertNamePath(targetNamePath);
       if (resultName !== undefined) {
@@ -428,6 +458,7 @@ export const makeHostMaker = ({
 
       /** @type {DeferredTasks<XsnapRefDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
+      const workerId = await provideXsnapWorkerId(workerName);
       if (resultName !== undefined) {
         tasks.push(identifiers =>
           E(directory).write(namePathFrom(resultName), identifiers.xsnapRefId),
@@ -436,8 +467,8 @@ export const makeHostMaker = ({
 
       const { value } = await formulateXsnapRef(
         targetId,
+        workerId,
         tasks,
-        retry,
         hostId,
         targetNamePath,
       );

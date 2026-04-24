@@ -54,7 +54,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, XsnapRefDeferredTaskParams, XsnapRefFormula, XsnapRefRetryPolicy } from './types.js' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, XsnapRefDeferredTaskParams, XsnapRefFormula, XsnapRefRuntime, XsnapWorkerFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -554,34 +554,19 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @param {XsnapRefRetryPolicy | undefined} retry */
-  const normalizeXsnapRefRetry = retry => {
-    if (
-      retry === undefined ||
-      retry === 'none' ||
-      retry === 'once' ||
-      retry === 'twice'
-    ) {
-      return retry ?? 'none';
-    }
-    throw new TypeError(`Invalid xsnap ref retry policy ${q(retry)}`);
-  };
-
   /**
    * @param {FormulaIdentifier} targetId
-   * @param {XsnapRefRetryPolicy | undefined} retry
+   * @param {FormulaIdentifier} workerId
    * @param {FormulaIdentifier | undefined} hubId
    * @param {NamePath | undefined} path
    */
-  const makeXsnapRef = (targetId, retry, hubId, path) => {
-    const normalizedRetry = normalizeXsnapRefRetry(retry);
+  const makeXsnapRef = async (targetId, _workerId, hubId, path) => {
     /** @type {string | undefined} */
     let lastFailure;
     /** @type {number | undefined} */
     let lastRebindMs;
     let currentTargetId = targetId;
     let callCount = 0;
-    let retryCount = 0;
 
     /**
      * @param {unknown} error
@@ -618,22 +603,13 @@ const makeDaemonCore = async (
       await null;
       callCount += 1;
       lastFailure = undefined;
-      const retryBudget =
-        normalizedRetry === 'none' ? 0 : normalizedRetry === 'once' ? 1 : 2;
-      let retriesRemaining = retryBudget;
-      for (;;) {
-        try {
-          const value = await operation();
-          lastFailure = undefined;
-          return value;
-        } catch (error) {
-          lastFailure = describeError(error);
-          if (retriesRemaining <= 0) {
-            throw error;
-          }
-          retryCount += 1;
-          retriesRemaining -= 1;
-        }
+      try {
+        const value = await operation();
+        lastFailure = undefined;
+        return value;
+      } catch (error) {
+        lastFailure = describeError(error);
+        throw error;
       }
     };
 
@@ -648,9 +624,7 @@ const makeDaemonCore = async (
           if (propertyKey === 'diagnostics') {
             return harden({
               targetId: currentTargetId,
-              retry: normalizedRetry,
               callCount,
-              retryCount,
               lastRebindMs,
               lastFailure,
               ...(path !== undefined && { lookupPath: [...path] }),
@@ -1388,8 +1362,10 @@ const makeDaemonCore = async (
     lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
-    'xsnap-ref': ({ target, retry, hub, path }) =>
-      makeXsnapRef(target, retry, hub, path),
+    'xsnap-worker': (_formula, context, _id, formulaNumber) =>
+      makeIdentifiedWorker(formulaNumber, context),
+    'xsnap-ref': ({ target, worker, hub, path }) =>
+      makeXsnapRef(target, worker, hub, path),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier },
       context,
@@ -1939,6 +1915,24 @@ const makeDaemonCore = async (
   };
 
   /**
+   * Formulates an `xsnap-worker` formula and synchronously adds it to the
+   * formula graph.
+   *
+   * @param {FormulaNumber} formulaNumber - The xsnap worker formula number.
+   * @returns {ReturnType<DaemonCore['formulateXsnapWorker']>}
+   */
+  const formulateNumberedXsnapWorker = formulaNumber => {
+    /** @type {XsnapWorkerFormula} */
+    const formula = {
+      type: 'xsnap-worker',
+    };
+
+    return /** @type {FormulateResult<EndoWorker>} */ (
+      formulate(formulaNumber, formula)
+    );
+  };
+
+  /**
    * @type {DaemonCore['formulateWorker']}
    */
   const formulateWorker = async deferredTasks => {
@@ -1961,23 +1955,58 @@ const makeDaemonCore = async (
     );
   };
 
+  /**
+   * Formulates an `xsnap-worker` formula and synchronously adds it to the
+   * formula graph.
+   *
+   * @type {DaemonCore['formulateXsnapWorker']}
+   */
+  const formulateXsnapWorker = async deferredTasks => {
+    await null;
+    const formulaNumber = await formulaGraphJobs.enqueue(async () => {
+      const number = /** @type {FormulaNumber} */ (await randomHex512());
+      await deferredTasks.execute({
+        workerId: formatId({
+          number,
+          node: localNodeNumber,
+        }),
+      });
+      return number;
+    });
+    /** @type {XsnapWorkerFormula} */
+    const formula = {
+      type: 'xsnap-worker',
+    };
+    return /** @type {FormulateResult<EndoWorker>} */ (
+      formulate(formulaNumber, formula)
+    );
+  };
+
   /** @type {DaemonCore['formulateXsnapRef']} */
   const formulateXsnapRef = async (
     targetId,
+    workerId,
     deferredTasks,
-    retry,
     hubId,
     path,
   ) => {
     await null;
     assertValidId(targetId);
+    assertValidId(workerId);
+    const workerFormula = await getFormulaForId(workerId);
+    if (workerFormula.type !== 'xsnap-worker') {
+      throw new TypeError(
+        `xsnap-ref requires an xsnap worker, got formula type ${q(
+          workerFormula.type,
+        )}`,
+      );
+    }
     if (hubId !== undefined) {
       assertValidId(hubId);
     }
     if (path !== undefined) {
       assertNamePath(path);
     }
-    const normalizedRetry = normalizeXsnapRefRetry(retry);
     const xsnapRefFormulaNumber = await formulaGraphJobs.enqueue(async () => {
       const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
       await deferredTasks.execute({
@@ -1993,12 +2022,14 @@ const makeDaemonCore = async (
     const formula = {
       type: 'xsnap-ref',
       target: targetId,
+      worker: workerId,
       ...(hubId !== undefined && { hub: hubId }),
       ...(path !== undefined && { path }),
-      ...(normalizedRetry !== 'none' && { retry: normalizedRetry }),
     };
 
-    return formulate(xsnapRefFormulaNumber, formula);
+    return /** @type {FormulateResult<XsnapRefRuntime>} */ (
+      formulate(xsnapRefFormulaNumber, formula)
+    );
   };
 
   /**
@@ -2765,6 +2796,7 @@ const makeDaemonCore = async (
     provideController,
     cancelValue,
     formulateWorker,
+    formulateXsnapWorker,
     formulateHost,
     formulateGuest,
     formulateMarshalValue,

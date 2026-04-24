@@ -28,6 +28,7 @@ const formulaTypes = new Set([
   'readable-blob',
   'resolver',
   'worker',
+  'xsnap-worker',
   'xsnap-ref',
 ]);
 

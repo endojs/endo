@@ -206,7 +206,7 @@ test('host makeXsnapRef forwards with formula-like ergonomics across restart', a
       [],
       ['counter'],
     );
-    await E(host).makeXsnapRef('counter', 'counter-facade');
+    await E(host).makeXsnapRef('xsw', 'counter', 'counter-facade');
     t.is(
       await E(host).evaluate(
         'w2',
@@ -241,7 +241,7 @@ test('host makeXsnapRef forwards with formula-like ergonomics across restart', a
     const { node: facadeHubNode } = parseId(facadeFormula.hub);
     t.is(facadeHubNode, selfNode);
     t.deepEqual(facadeFormula.path, ['counter']);
-    t.is(facadeFormula.retry, undefined);
+    t.is(facadeFormula.worker, await E(host).identify('xsw'));
     t.is(
       await E(host).evaluate(
         'w2',
@@ -254,7 +254,38 @@ test('host makeXsnapRef forwards with formula-like ergonomics across restart', a
   }
 });
 
-test('xsnap facade retry once rebinds after transient target failure', async t => {
+test('xsnap ref requires xsnap worker formula', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+  const host = await makeHost(config, cancelled);
+  await E(host).provideWorker(['w1']);
+  await E(host).provideWorker(['w2']);
+  await E(host).evaluate(
+    'w1',
+    `
+      (() => {
+        let value = 0;
+        return makeExo(
+          'Counter',
+          M.interface('Counter', {}, { defaultGuards: 'passable' }),
+          { incr: () => value += 1 }
+        );
+      })()
+    `,
+    [],
+    [],
+    ['counter'],
+  );
+  await E(host).provideWorker(['plain-worker']);
+
+  await t.throwsAsync(
+    E(host).makeXsnapRef('plain-worker', 'counter', 'bad-facade'),
+    {
+      message: /xsnap worker/u,
+    },
+  );
+});
+
+test('xsnap facade forwards target failures without retry semantics', async t => {
   const { config, cancelled } = await prepareConfig(t);
   const host = await makeHost(config, cancelled);
   await E(host).provideWorker(['w1']);
@@ -283,7 +314,14 @@ test('xsnap facade retry once rebinds after transient target failure', async t =
     [],
     ['flaky'],
   );
-  await E(host).makeXsnapRef('flaky', 'flaky-facade', 'once');
+  await E(host).makeXsnapRef('xsw', 'flaky', 'flaky-facade');
+
+  await t.throwsAsync(
+    E(host).evaluate('w2', 'E(facade).incr()', ['facade'], ['flaky-facade']),
+    {
+      message: 'transient',
+    },
+  );
 
   const value = await E(host).evaluate(
     'w2',
@@ -297,10 +335,40 @@ test('xsnap facade retry once rebinds after transient target failure', async t =
   t.truthy(facadeId);
   const facadeFormula = await readFormulaById(config, facadeId);
   t.is(facadeFormula.type, 'xsnap-ref');
-  t.is(facadeFormula.retry, 'once');
+  t.is(facadeFormula.worker, await E(host).identify('xsw'));
 });
 
-test('xsnap facade diagnostics report retries and failures', async t => {
+test('xsnap facade rejects non-xsnap worker selection', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+  const host = await makeHost(config, cancelled);
+  await E(host).provideWorker(['w1']);
+  await E(host).provideWorker(['w2']);
+  await E(host).provideWorker(['plain-worker']);
+  await E(host).evaluate(
+    'w1',
+    `
+      (() => {
+        let value = 0;
+        return makeExo(
+          'Counter',
+          M.interface('Counter', {}, { defaultGuards: 'passable' }),
+          { incr: () => value += 1 }
+        );
+      })()
+    `,
+    [],
+    [],
+    ['counter'],
+  );
+  await t.throwsAsync(
+    E(host).makeXsnapRef('plain-worker', 'counter', 'counter-facade'),
+    {
+      message: /xsnap-ref requires an xsnap worker/u,
+    },
+  );
+});
+
+test('xsnap facade diagnostics report call counts and failures', async t => {
   const { config, cancelled } = await prepareConfig(t);
   const host = await makeHost(config, cancelled);
   await E(host).provideWorker(['w1']);
@@ -326,7 +394,7 @@ test('xsnap facade diagnostics report retries and failures', async t => {
     [],
     ['always-fail'],
   );
-  await E(host).makeXsnapRef('always-fail', 'always-fail-facade', 'twice');
+  await E(host).makeXsnapRef('xsw', 'always-fail', 'always-fail-facade');
 
   await t.throwsAsync(
     E(host).evaluate(
@@ -347,11 +415,8 @@ test('xsnap facade diagnostics report retries and failures', async t => {
     ['always-fail-facade'],
   );
   const typedDiagnostics = /** @type {any} */ (diagnostics);
-  t.is(typedDiagnostics.retry, 'twice');
   t.is(typeof typedDiagnostics.callCount, 'number');
-  t.is(typeof typedDiagnostics.retryCount, 'number');
   t.truthy(typedDiagnostics.callCount);
-  t.truthy(typedDiagnostics.retryCount);
   t.true(
     typedDiagnostics.lastFailure === undefined ||
       typeof typedDiagnostics.lastFailure === 'string',
@@ -380,7 +445,7 @@ test('xsnap facade rebinds to latest name target via hub/path', async t => {
     [],
     ['counter'],
   );
-  await E(host).makeXsnapRef('counter', 'counter-facade', 'twice');
+  await E(host).makeXsnapRef('xsw', 'counter', 'counter-facade');
   t.is(
     await E(host).evaluate(
       'w2',
@@ -425,5 +490,8 @@ test('xsnap facade rebinds to latest name target via hub/path', async t => {
   );
   const typedDiagnostics = /** @type {any} */ (diagnostics);
   t.true(typeof typedDiagnostics.lastRebindMs === 'number');
-  t.is(typedDiagnostics.retry, 'twice');
+  t.true(
+    typedDiagnostics.lookupPath === undefined ||
+      Array.isArray(typedDiagnostics.lookupPath),
+  );
 });
