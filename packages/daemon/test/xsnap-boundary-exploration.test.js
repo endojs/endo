@@ -495,3 +495,99 @@ test('xsnap facade rebinds to latest name target via hub/path', async t => {
       Array.isArray(typedDiagnostics.lookupPath),
   );
 });
+
+test('bidirectional xsnap/non-xsnap calls survive full restart teardown', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+
+  {
+    const host = await makeHost(config, cancelled);
+    await E(host).provideWorker(['w1']);
+    await E(host).provideWorker(['w2']);
+
+    // Non-xsnap formula in worker w1.
+    await E(host).evaluate(
+      'w1',
+      `
+        (() => {
+          let value = 0;
+          return makeExo(
+            'PlainCounter',
+            M.interface('PlainCounter', {}, { defaultGuards: 'passable' }),
+            { incr: () => value += 1 }
+          );
+        })()
+      `,
+      [],
+      [],
+      ['plain-counter'],
+    );
+
+    // Non-xsnap caller formula in worker w2.
+    await E(host).evaluate(
+      'w2',
+      `
+        (() => makeExo(
+          'PlainCaller',
+          M.interface('PlainCaller', {}, { defaultGuards: 'passable' }),
+          {
+            callIncr: target => E(target).incr(),
+          },
+        ))()
+      `,
+      [],
+      [],
+      ['plain-caller'],
+    );
+
+    // Xsnap-scoped facade formula (materialized by an xsnap worker).
+    await E(host).makeXsnapRef('xsw', 'plain-counter', 'xsnap-counter');
+
+    // Direction 1: non-xsnap worker -> xsnap formula (facade value).
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(caller).callIncr(counter)',
+        ['caller', 'counter'],
+        ['plain-caller', 'xsnap-counter'],
+      ),
+      1,
+    );
+
+    // Direction 2: xsnap formula (facade value) -> non-xsnap formula target.
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-counter'],
+      ),
+      2,
+    );
+  }
+
+  await restart(config);
+
+  {
+    const host = await makeHost(config, cancelled);
+
+    // Re-verify both directions after full daemon restart/teardown.
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(caller).callIncr(counter)',
+        ['caller', 'counter'],
+        ['plain-caller', 'xsnap-counter'],
+      ),
+      1,
+    );
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-counter'],
+      ),
+      2,
+    );
+  }
+});
