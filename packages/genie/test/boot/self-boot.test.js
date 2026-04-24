@@ -465,3 +465,69 @@ test.serial(
     t.pass();
   },
 );
+
+test.serial(
+  'primordial genie replies with a pointer at /help and /model',
+  async t => {
+    // Sub-task 94 of TODO/92_genie_primordial.md: a bottle booted in
+    // primordial mode must answer plain-text prompts instead of staring
+    // back silently.  The reply is produced by `makePrimordialAutomaton`
+    // (see `src/primordial/index.js`) and delivered through the
+    // daemon's reply path — so an operator sending "hello" to a fresh
+    // bottle sees a friendly pointer at `/help` and `/model list`.
+    const { config, host } = await prepareHost(t);
+
+    const workspaceDir = path.join(config.statePath, 'genie-workspace');
+    await fs.promises.mkdir(workspaceDir, { recursive: true });
+
+    await spawnPrimordialGenie(host, workspaceDir);
+
+    // Wait for the primordial banner so we know the inbox loop is live
+    // before we send the probe prompt.  Otherwise a race between
+    // `send` and the loop's first `followMessages` iteration could let
+    // the message land before the loop is watching.
+    await waitForWorkerText(config, /\[genie:main-genie\] primordial mode/u);
+
+    // Provide a separate guest identity so the daemon's self-filter
+    // (`message.from === selfId` in main.js's `daemonPrompts`) does not
+    // skip the probe message.
+    const guest = await E(host).provideGuest('sender');
+    await E(guest).send('@host', ['hello'], [], []);
+
+    // Poll the sender guest's inbox for the reply.  `reply(number, ...)`
+    // lands a new package message in the original sender's inbox (see
+    // `packages/daemon/src/mail.js:reply`), so `listMessages` on the
+    // guest eventually surfaces a package whose concatenated strings
+    // point at `/model` — the affordance sub-task 94 promises.
+    const deadline = Date.now() + 30_000;
+    /** @type {string | undefined} */
+    let replyText;
+    while (Date.now() < deadline) {
+      // eslint-disable-next-line no-await-in-loop
+      const inbox = /** @type {any[]} */ (await E(guest).listMessages());
+      const replies = inbox.filter(
+        m => m && m.type === 'package' && Array.isArray(m.strings),
+      );
+      for (const msg of replies) {
+        const joined = /** @type {string[]} */ (msg.strings).join('');
+        if (/\/model/u.test(joined)) {
+          replyText = joined;
+          break;
+        }
+      }
+      if (replyText !== undefined) break;
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    t.truthy(
+      replyText,
+      'primordial mode must reply to plain-text prompts with a pointer at /model',
+    );
+    t.regex(
+      /** @type {string} */ (replyText),
+      /\/help/u,
+      'reply must also point at /help so first-contact operators can list specials',
+    );
+  },
+);

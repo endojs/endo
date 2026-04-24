@@ -1302,6 +1302,21 @@ export const make = (powers, _context, { env = {} } = {}) => {
     // Start the message loop (fire-and-forget).  `agentPowers` is the
     // root host: heartbeat self-sends target `@self`, which resolves to
     // the very inbox this loop is following — no special routing.
+    //
+    // In the piAgent branch `state.mode === 'piAgent'` so the
+    // `daemonPrompts` classifier never emits `kind: 'primordial'` and no
+    // `primordialAutomaton` is needed.  The state object is still
+    // threaded through so `runAgentLoop`'s `state.mode` read is safe (a
+    // missing handle would throw on the `state.mode === 'primordial'`
+    // check inside `daemonPrompts`), matching the pre-sub-task-94
+    // behaviour of "every non-heartbeat, non-special prompt is a normal
+    // user prompt".  Sub-task 97's hand-off helper will flip `mode` in
+    // place once `/model commit` lands.
+    /** @type {import('./src/primordial/index.js').PrimordialState} */
+    const piAgentState = {
+      mode: 'piAgent',
+      activate: async () => {},
+    };
     const agentLoopP = runAgentLoop({
       agentPowers: rootPowers,
       piAgent,
@@ -1313,6 +1328,7 @@ export const make = (powers, _context, { env = {} } = {}) => {
       observer,
       reflector,
       genieTools,
+      state: piAgentState,
     });
 
     // If the agent loop crashes, trigger cancellation so dependent
