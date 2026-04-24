@@ -38,7 +38,7 @@ jobs:
         run: |
           # Both repos are hosted on Codeberg. We pin to explicit commits so CI
           # stays deterministic while still tracking git repositories directly.
-          GOBLINS_COMMIT=649797dcfa69a3c44c28be2c38fab758856cec4f
+          GOBLINS_COMMIT=d42d3a4ff560ecd2a1ac8ef0e44e52ad9e20bdb6
           GOBLIN_CHAT_COMMIT=fd0b3fcec186e54f978fb24b23bb46a65ae2e0a7
           git clone https://codeberg.org/spritely/goblins goblins
           git -C goblins checkout --detach "$GOBLINS_COMMIT"
@@ -97,8 +97,8 @@ jobs:
             "$GOBLINS_REPO/goblins/config.scm.in" \
             > "$GOBLINS_REPO/goblins/config.scm"
 
-          # Runtime compatibility shim while goblin-chat still imports the
-          # pre-move module path.
+          # Runtime compatibility shim while goblin-chat imports the legacy
+          # module path `(goblins ghash)`.
           sed -i 's/(goblins ghash)/(goblins utils ghash)/' \
             "$GOBLIN_CHAT_REPO/goblin-chat/backend.scm"
 
@@ -139,7 +139,8 @@ jobs:
       - name: Run Endo interop client
         working-directory: endo
         env:
-          OCAPN_CAPTP_VERSION: goblins-0.18
+          # Newer Goblins reports CapTP version `1.0`.
+          OCAPN_CAPTP_VERSION: '1.0'
           OCAPN_INTEROP_GUILE_MESSAGE: hello from Guile CI
           OCAPN_INTEROP_ENDO_MESSAGE: hello from Endo OCapN
           # Endo only needs an outbound websocket client in this flow, so bind

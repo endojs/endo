@@ -33,7 +33,7 @@ node ./packages/goblin-chat/test/guile-interop/index.js "ocapn://.../s/..."
 
 Environment knobs:
 
-- `OCAPN_CAPTP_VERSION` (default: `goblins-0.16`)
+- `OCAPN_CAPTP_VERSION` (default: `1.0`)
 - `OCAPN_INTEROP_GUILE_MESSAGE` (default: `hello from Guile CI`)
 - `OCAPN_INTEROP_ENDO_MESSAGE` (default: `hello from Endo OCapN`)
 - `OCAPN_TEST_PORT` (optional local Endo websocket bind; default ephemeral)

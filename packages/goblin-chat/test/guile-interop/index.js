@@ -26,7 +26,7 @@ import { runChatParticipant } from '../../src/interop-driver.js';
 const swissnumEncoder = new TextEncoder();
 
 const DEFAULT_PORT = 0;
-const DEFAULT_CAPTP_VERSION = 'goblins-0.16';
+const DEFAULT_CAPTP_VERSION = '1.0';
 const DEFAULT_GUILE_MESSAGE = 'hello from Guile CI';
 const DEFAULT_ENDO_MESSAGE = 'hello from Endo OCapN';
 
