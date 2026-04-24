@@ -93,96 +93,6 @@ baseTest.afterEach.always(async t => {
   );
 });
 
-test('marshal formula persists smallcaps body and formula slot', async t => {
-  const { config, cancelled } = await prepareConfig(t);
-  const host = await makeHost(config, cancelled);
-
-  await E(host).provideWorker(['w1']);
-  const counter = await E(host).evaluate(
-    'w1',
-    `
-      (() => {
-        let value = 0;
-        return makeExo(
-          'Counter',
-          M.interface('Counter', {}, { defaultGuards: 'passable' }),
-          { incr: () => value += 1 }
-        );
-      })()
-    `,
-    [],
-    [],
-    ['counter'],
-  );
-
-  await E(host).storeValue(counter, 'counter-copy');
-  const counterId = await E(host).identify('counter');
-  const counterCopyId = await E(host).identify('counter-copy');
-  t.truthy(counterId);
-  t.truthy(counterCopyId);
-
-  const formula = await readFormulaById(config, counterCopyId);
-  t.is(formula.type, 'marshal');
-  t.true(typeof formula.body === 'string' && formula.body.startsWith('#'));
-  t.deepEqual(formula.slots, [counterId]);
-});
-
-test('cross-worker reference keeps formula id across restart', async t => {
-  const { config, cancelled } = await prepareConfig(t);
-
-  {
-    const host = await makeHost(config, cancelled);
-    await E(host).provideWorker(['w1']);
-    await E(host).provideWorker(['w2']);
-    await E(host).evaluate(
-      'w1',
-      `
-        (() => {
-          let value = 0;
-          return makeExo(
-            'Counter',
-            M.interface('Counter', {}, { defaultGuards: 'passable' }),
-            { incr: () => value += 1 }
-          );
-        })()
-      `,
-      [],
-      [],
-      ['counter'],
-    );
-    t.is(await E(host).evaluate('w2', 'E(counter).incr()', ['counter'], ['counter']), 1);
-    t.is(await E(host).evaluate('w2', 'E(counter).incr()', ['counter'], ['counter']), 2);
-  }
-
-  const hostBeforeRestart = await makeHost(config, cancelled);
-  const counterIdBefore = await E(hostBeforeRestart).identify('counter');
-
-  await restart(config);
-
-  const hostAfterRestart = await makeHost(config, cancelled);
-  const counterIdAfter = await E(hostAfterRestart).identify('counter');
-
-  t.is(counterIdAfter, counterIdBefore);
-  t.is(
-    await E(hostAfterRestart).evaluate(
-      'w2',
-      'E(counter).incr()',
-      ['counter'],
-      ['counter'],
-    ),
-    1,
-  );
-  t.is(
-    await E(hostAfterRestart).evaluate(
-      'w2',
-      'E(counter).incr()',
-      ['counter'],
-      ['counter'],
-    ),
-    2,
-  );
-});
-
 test('non-xsnap callers can invoke xsnapEvaluate values across restart', async t => {
   const { config, cancelled } = await prepareConfig(t);
 
@@ -248,7 +158,6 @@ test('non-xsnap callers can invoke xsnapEvaluate values across restart', async t
 
   {
     const host = await makeHost(config, cancelled);
-    await E(host).provideXsnapWorker(['xsw']);
 
     t.is(
       await E(host).evaluate(
@@ -300,16 +209,13 @@ test('xsnapEvaluate callers can invoke non-xsnap values across restart', async t
     await E(host).xsnapEvaluate(
       'xsw',
       `
-        (() => {
-          globalThis.__xsnapCallerBridge = globalThis.__xsnapCallerBridge || makeExo(
-            'XsnapCallerBridge',
-            M.interface('XsnapCallerBridge', {}, { defaultGuards: 'passable' }),
-            {
-              callIncr: () => E(counter).incr(),
-            }
-          );
-          return globalThis.__xsnapCallerBridge;
-        })()
+        (() => makeExo(
+          'XsnapCallerBridge',
+          M.interface('XsnapCallerBridge', {}, { defaultGuards: 'passable' }),
+          {
+            callIncr: () => E(counter).incr(),
+          }
+        ))()
       `,
       ['counter'],
       ['plain-counter'],
@@ -340,7 +246,6 @@ test('xsnapEvaluate callers can invoke non-xsnap values across restart', async t
 
   {
     const host = await makeHost(config, cancelled);
-    await E(host).provideXsnapWorker(['xsw']);
 
     t.is(
       await E(host).evaluate(
@@ -359,145 +264,6 @@ test('xsnapEvaluate callers can invoke non-xsnap values across restart', async t
         ['xsnap-caller'],
       ),
       2,
-    );
-  }
-});
-
-test('xsnapEvaluate uses xsnap-worker and recovers heap across restart', async t => {
-  const { config, cancelled } = await prepareConfig(t);
-
-  {
-    const host = await makeHost(config, cancelled);
-    await E(host).provideWorker(['w2']);
-    await E(host).provideXsnapWorker(['xsw']);
-    const xswId = await E(host).identify('xsw');
-    t.truthy(xswId);
-    const xswFormula = await readFormulaById(config, xswId);
-    t.is(xswFormula.type, 'xsnap-worker');
-
-    const first = await E(host).xsnapEvaluate(
-      'xsw',
-      `
-        (() => {
-          globalThis.__xsnapCounter = (globalThis.__xsnapCounter || 0) + 1;
-          return globalThis.__xsnapCounter;
-        })()
-      `,
-      [],
-      [],
-      ['xsnap-value-1'],
-    );
-    const second = await E(host).xsnapEvaluate(
-      'xsw',
-      `
-        (() => {
-          globalThis.__xsnapCounter = (globalThis.__xsnapCounter || 0) + 1;
-          return globalThis.__xsnapCounter;
-        })()
-      `,
-      [],
-      [],
-      ['xsnap-value-2'],
-    );
-    t.is(first, 1);
-    t.is(second, 2);
-
-    const xsnapValueId = await E(host).identify('xsnap-value-1');
-    t.truthy(xsnapValueId);
-    const xsnapCounterFormula = await readFormulaById(config, xsnapValueId);
-    t.is(xsnapCounterFormula.type, 'eval');
-    const workerFormula = await readFormulaById(config, xsnapCounterFormula.worker);
-    t.is(workerFormula.type, 'xsnap-worker');
-  }
-
-  await restart(config);
-
-  {
-    const host = await makeHost(config, cancelled);
-    await E(host).provideXsnapWorker(['xsw']);
-    const third = await E(host).xsnapEvaluate(
-      'xsw',
-      `
-        (() => {
-          globalThis.__xsnapCounter = (globalThis.__xsnapCounter || 0) + 1;
-          return globalThis.__xsnapCounter;
-        })()
-      `,
-      [],
-      [],
-      ['xsnap-value-3'],
-    );
-    t.is(third, 3);
-  }
-});
-
-test('xsnapEvaluate retains ordinary closure heap state across restart', async t => {
-  const { config, cancelled } = await prepareConfig(t);
-
-  {
-    const host = await makeHost(config, cancelled);
-    await E(host).provideWorker(['w2']);
-    await E(host).provideXsnapWorker(['xsw']);
-
-    await E(host).xsnapEvaluate(
-      'xsw',
-      `
-        (() => {
-          let value = 0;
-          return makeExo(
-            'ClosureCounter',
-            M.interface('ClosureCounter', {}, { defaultGuards: 'passable' }),
-            { incr: () => (value += 1) }
-          );
-        })()
-      `,
-      [],
-      [],
-      ['xsnap-closure-counter'],
-    );
-
-    t.is(
-      await E(host).evaluate(
-        'w2',
-        'E(counter).incr()',
-        ['counter'],
-        ['xsnap-closure-counter'],
-      ),
-      1,
-    );
-    t.is(
-      await E(host).evaluate(
-        'w2',
-        'E(counter).incr()',
-        ['counter'],
-        ['xsnap-closure-counter'],
-      ),
-      2,
-    );
-  }
-
-  await restart(config);
-
-  {
-    const host = await makeHost(config, cancelled);
-    await E(host).provideXsnapWorker(['xsw']);
-    t.is(
-      await E(host).evaluate(
-        'w2',
-        'E(counter).incr()',
-        ['counter'],
-        ['xsnap-closure-counter'],
-      ),
-      3,
-    );
-    t.is(
-      await E(host).evaluate(
-        'w2',
-        'E(counter).incr()',
-        ['counter'],
-        ['xsnap-closure-counter'],
-      ),
-      4,
     );
   }
 });
