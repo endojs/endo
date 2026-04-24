@@ -556,7 +556,7 @@ const makeDaemonCore = async (
 
   /**
    * @param {FormulaIdentifier} targetId
-   * @param {FormulaIdentifier} workerId
+   * @param {FormulaIdentifier} _workerId
    * @param {FormulaIdentifier | undefined} hubId
    * @param {NamePath | undefined} path
    */
@@ -1907,24 +1907,6 @@ const makeDaemonCore = async (
     /** @type {WorkerFormula} */
     const formula = {
       type: 'worker',
-    };
-
-    return /** @type {FormulateResult<EndoWorker>} */ (
-      formulate(formulaNumber, formula)
-    );
-  };
-
-  /**
-   * Formulates an `xsnap-worker` formula and synchronously adds it to the
-   * formula graph.
-   *
-   * @param {FormulaNumber} formulaNumber - The xsnap worker formula number.
-   * @returns {ReturnType<DaemonCore['formulateXsnapWorker']>}
-   */
-  const formulateNumberedXsnapWorker = formulaNumber => {
-    /** @type {XsnapWorkerFormula} */
-    const formula = {
-      type: 'xsnap-worker',
     };
 
     return /** @type {FormulateResult<EndoWorker>} */ (

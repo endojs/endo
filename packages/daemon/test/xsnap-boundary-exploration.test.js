@@ -591,3 +591,79 @@ test('bidirectional xsnap/non-xsnap calls survive full restart teardown', async 
     );
   }
 });
+
+test('xsnapEvaluate creates xsnap-worker formulas with restart-scoped state', async t => {
+  const { config, cancelled } = await prepareConfig(t);
+
+  {
+    const host = await makeHost(config, cancelled);
+    await E(host).provideWorker(['w2']);
+
+    await E(host).xsnapEvaluate(
+      'xsw',
+      `
+        (() => {
+          let value = 0;
+          return makeExo(
+            'XsnapCounter',
+            M.interface('XsnapCounter', {}, { defaultGuards: 'passable' }),
+            { incr: () => value += 1 }
+          );
+        })()
+      `,
+      [],
+      [],
+      ['xsnap-counter'],
+    );
+
+    const xsnapCounterId = await E(host).identify('xsnap-counter');
+    t.truthy(xsnapCounterId);
+    const xsnapCounterFormula = await readFormulaById(config, xsnapCounterId);
+    t.is(xsnapCounterFormula.type, 'eval');
+    const workerFormula = await readFormulaById(config, xsnapCounterFormula.worker);
+    t.is(workerFormula.type, 'xsnap-worker');
+
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-counter'],
+      ),
+      1,
+    );
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-counter'],
+      ),
+      2,
+    );
+  }
+
+  await restart(config);
+
+  {
+    const host = await makeHost(config, cancelled);
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-counter'],
+      ),
+      1,
+    );
+    t.is(
+      await E(host).evaluate(
+        'w2',
+        'E(counter).incr()',
+        ['counter'],
+        ['xsnap-counter'],
+      ),
+      2,
+    );
+  }
+});

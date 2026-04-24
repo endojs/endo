@@ -715,6 +715,13 @@ export interface EndoHost extends EndoAgent {
     petNames: Array<string>,
     resultName?: string | string[],
   ): Promise<unknown>;
+  xsnapEvaluate(
+    workerPetName: string | undefined,
+    source: string,
+    codeNames: Array<string>,
+    petNames: Array<string>,
+    resultName?: string | string[],
+  ): Promise<unknown>;
   makeUnconfined(
     workerName: string | undefined,
     specifier: string,

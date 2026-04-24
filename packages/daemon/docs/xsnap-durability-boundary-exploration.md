@@ -203,6 +203,13 @@ Creating a boundary facade should feel like existing host operations that materi
 - this creates a durable formula and (optionally) writes a pet name
 - hosts/workers can then pass the named value exactly like other formula-backed values
 
+Creating new formulas directly in an xsnap worker should mirror ordinary `evaluate`:
+
+- new host helper: `xsnapEvaluate(workerName, source, codeNames, petNames, resultName?)`
+- semantics intentionally parallel `evaluate`
+- the daemon resolves/formulates `workerName` as an `xsnap-worker`
+- resulting formula records still use normal `eval` type, but are pinned to the xsnap worker
+
 ### Concrete daemon changes
 
 1. Add formula type `xsnap-ref` with persisted payload:
@@ -217,13 +224,16 @@ Creating a boundary facade should feel like existing host operations that materi
 4. Add `xsnap-worker` formula support:
    - `formulateXsnapWorker(deferredTasks)`
    - host caller can request by name, and daemon formulates `xsnap-worker`
-4. Add host API:
+5. Add host APIs:
+   - `xsnapEvaluate(workerName, source, codeNames, petNames, resultName?)`
+   - ensure specified worker is an `xsnap-worker`
+   - persist resulting `eval` formulas against that worker
    - `makeXsnapRef(workerName, targetNameOrPath, resultName?)`
    - resolve target formula identifier from host naming graph
    - resolve/provide configured xsnap worker formula identifier
    - persist target id, worker id, and original host/path binding metadata
    - formulate and optionally store resulting facade by pet name
-5. Add facade diagnostics:
+6. Add facade diagnostics:
    - `E.get(facade).diagnostics` returns
      - `targetId`
      - `callCount`
@@ -237,6 +247,7 @@ Creating a boundary facade should feel like existing host operations that materi
 3. **Rebinding behavior**: when target formula is cancelled/reincarnated, facade calls continue to work and hit fresh incarnation state.
 4. **Diagnostics behavior**: stats reflect rebinds/failures for observability.
 5. **Worker regime enforcement**: using a non-`xsnap-worker` formula fails at call time.
+6. **Xsnap evaluate ergonomics**: `xsnapEvaluate` mirrors `evaluate` and produces `eval` formulas attached to an `xsnap-worker`.
 
 ### Option B continuation (current iteration)
 
