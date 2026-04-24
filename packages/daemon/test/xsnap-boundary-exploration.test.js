@@ -268,6 +268,95 @@ test('xsnapEvaluate callers can invoke non-xsnap values across restart', async t
   }
 });
 
+/** @type {any} */ (test).failing(
+  'xsnapEvaluate stores promised counter reference across restart (exploration)',
+  async t => {
+    const { config, cancelled } = await prepareConfig(t);
+
+    {
+      const host = await makeHost(config, cancelled);
+      await E(host).provideWorker(['w1']);
+      await E(host).provideWorker(['w2']);
+      await E(host).provideXsnapWorker(['xsw']);
+
+      await E(host).evaluate(
+        'w1',
+        `
+          (() => makeExo(
+            'CounterFactory',
+            M.interface('CounterFactory', {}, { defaultGuards: 'passable' }),
+            {
+              makeCounter: async () => {
+                let value = 0;
+                return makeExo(
+                  'Counter',
+                  M.interface('Counter', {}, { defaultGuards: 'passable' }),
+                  { incr: () => value += 1 }
+                );
+              },
+            }
+          ))()
+        `,
+        [],
+        [],
+        ['counter-factory'],
+      );
+
+      await E(host).xsnapEvaluate(
+        'xsw',
+        `
+          (() => {
+            let storedCounterP;
+            return makeExo(
+              'StoredCounterHolder',
+              M.interface('StoredCounterHolder', {}, { defaultGuards: 'passable' }),
+              {
+                initAndIncr: async () => {
+                  storedCounterP = storedCounterP || E(factory).makeCounter();
+                  const counter = await storedCounterP;
+                  return E(counter).incr();
+                },
+                incrStored: async () => {
+                  const counter = await storedCounterP;
+                  return E(counter).incr();
+                },
+              }
+            );
+          })()
+        `,
+        ['factory'],
+        ['counter-factory'],
+        ['xsnap-stored-counter-holder'],
+      );
+
+      t.is(
+        await E(host).evaluate(
+          'w2',
+          'E(holder).initAndIncr()',
+          ['holder'],
+          ['xsnap-stored-counter-holder'],
+        ),
+        1,
+      );
+    }
+
+    await restart(config);
+
+    {
+      const host = await makeHost(config, cancelled);
+      t.is(
+        await E(host).evaluate(
+          'w2',
+          'E(holder).incrStored()',
+          ['holder'],
+          ['xsnap-stored-counter-holder'],
+        ),
+        2,
+      );
+    }
+  },
+);
+
 test('xsnapEvaluate uses compartment endowments without global name leakage', async t => {
   const { config, cancelled } = await prepareConfig(t);
 
