@@ -844,7 +844,9 @@ export const makeDaemonicControlPowers = (
       globalThis.E.get = target => target;
 
       const issueHost = payload => {
-        const response = issueCommand(encoder.encode(JSON.stringify(payload)));
+        const response = issueCommand(
+          encoder.encode(JSON.stringify(payload)).buffer,
+        );
         const parsed = JSON.parse(decoder.decode(response));
         if (!parsed || parsed.ok !== true) {
           throw new Error(parsed && parsed.message || 'Host command failed');

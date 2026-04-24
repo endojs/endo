@@ -112,36 +112,12 @@ type WorkerFormula = {
   type: 'worker';
 };
 
-export type XsnapRefDiagnostics = {
-  targetId: FormulaIdentifier;
-  callCount: number;
-  lastRebindMs?: number;
-  lastFailure?: string;
-  lookupPath?: string[];
-};
-
-export interface XsnapRefRuntime {
-  diagnostics(): Promise<XsnapRefDiagnostics>;
-}
-
 type XsnapWorkerFormula = {
   type: 'xsnap-worker';
 };
 
-type XsnapRefFormula = {
-  type: 'xsnap-ref';
-  target: FormulaIdentifier;
-  worker: FormulaIdentifier;
-  hub?: FormulaIdentifier;
-  path?: NamePath;
-};
-
 export type WorkerDeferredTaskParams = {
   workerId: FormulaIdentifier;
-};
-
-export type XsnapRefDeferredTaskParams = {
-  xsnapRefId: FormulaIdentifier;
 };
 
 /**
@@ -332,7 +308,6 @@ export type Formula =
   | LoopbackNetworkFormula
   | WorkerFormula
   | XsnapWorkerFormula
-  | XsnapRefFormula
   | HostFormula
   | GuestFormula
   | LeastAuthorityFormula
@@ -734,11 +709,6 @@ export interface EndoHost extends EndoAgent {
     powersName: string,
     resultName?: string | string[],
   ): Promise<unknown>;
-  makeXsnapRef(
-    workerName: string,
-    targetNameOrPath: string | string[],
-    resultName?: string | string[],
-  ): Promise<XsnapRefRuntime>;
   cancel(petName: string, reason: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
@@ -970,7 +940,6 @@ export type FormulaValueTypes = {
   invitation: Invitation;
   worker: EndoWorker;
   'xsnap-worker': EndoWorker;
-  'xsnap-ref': XsnapRefRuntime;
 };
 
 export type ProvideTypes = FormulaValueTypes & {
@@ -1113,14 +1082,6 @@ export interface DaemonCore {
   formulateXsnapWorker: (
     deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
   ) => FormulateResult<EndoWorker>;
-
-  formulateXsnapRef: (
-    targetId: FormulaIdentifier,
-    workerId: FormulaIdentifier,
-    deferredTasks: DeferredTasks<XsnapRefDeferredTaskParams>,
-    hubId?: FormulaIdentifier,
-    path?: NamePath,
-  ) => FormulateResult<XsnapRefRuntime>;
 
   getAllNetworkAddresses: (
     networksDirectoryId: FormulaIdentifier,

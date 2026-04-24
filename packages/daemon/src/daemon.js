@@ -2,10 +2,9 @@
 /* global setTimeout, clearTimeout */
 
 import harden from '@endo/harden';
-import { HandledPromise } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { E, Far } from '@endo/far';
-import { makeMarshal, Remotable } from '@endo/marshal';
+import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
@@ -54,7 +53,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, XsnapRefDeferredTaskParams, XsnapRefFormula, XsnapRefRuntime, XsnapWorkerFormula } from './types.js' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, XsnapWorkerFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -559,149 +558,6 @@ const makeDaemonCore = async (
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
-    );
-  };
-
-  /**
-   * @param {FormulaIdentifier} targetId
-   * @param {FormulaIdentifier} _workerId
-   * @param {FormulaIdentifier | undefined} hubId
-   * @param {NamePath | undefined} path
-   */
-  const makeXsnapRef = async (targetId, _workerId, hubId, path) => {
-    /** @type {string | undefined} */
-    let lastFailure;
-    /** @type {number | undefined} */
-    let lastRebindMs;
-    let currentTargetId = targetId;
-    let callCount = 0;
-
-    /**
-     * @param {unknown} error
-     */
-    const describeError = error => {
-      if (error instanceof Error) {
-        return error.message;
-      }
-      return String(error);
-    };
-
-    /**
-     * @param {boolean} record
-     */
-    const resolveTarget = async record => {
-      if (!hubId || !path) {
-        return provide(currentTargetId);
-      }
-      const hub = await provide(hubId, 'hub');
-      const rebound = await E(hub).identify(...path);
-      if (typeof rebound === 'string') {
-        assertValidId(rebound);
-        if (record && rebound !== currentTargetId) {
-          lastRebindMs = Date.now();
-        }
-        currentTargetId = rebound;
-        return provide(currentTargetId);
-      }
-      return provide(currentTargetId);
-    };
-
-    /** @param {() => Promise<unknown>} operation */
-    const attempt = async operation => {
-      await null;
-      callCount += 1;
-      lastFailure = undefined;
-      try {
-        const value = await operation();
-        lastFailure = undefined;
-        return value;
-      } catch (error) {
-        lastFailure = describeError(error);
-        throw error;
-      }
-    };
-
-    const handler = harden({
-      /**
-       * @param {unknown} _p
-       * @param {PropertyKey} propertyKey
-       */
-      get: (_p, propertyKey) =>
-        attempt(async () => {
-          const target = await resolveTarget(false);
-          if (propertyKey === 'diagnostics') {
-            return harden({
-              targetId: currentTargetId,
-              callCount,
-              lastRebindMs,
-              lastFailure,
-              ...(path !== undefined && { lookupPath: [...path] }),
-            });
-          }
-          return E.get(target)[propertyKey];
-        }),
-      /**
-       * @param {unknown} _p
-       * @param {PropertyKey | undefined} propertyKey
-       * @param {unknown[]} args
-       */
-      applyMethod: (_p, propertyKey, args) =>
-        attempt(async () => {
-          const target = await resolveTarget(true);
-          if (propertyKey === undefined) {
-            return /** @type {any} */ (E(target))(...args);
-          }
-          return /** @type {any} */ (E(target)[propertyKey])(...args);
-        }),
-      /**
-       * @param {unknown} _p
-       * @param {unknown[]} args
-       */
-      applyFunction: (_p, args) =>
-        attempt(async () => {
-          const target = await resolveTarget(true);
-          return /** @type {any} */ (E(target))(...args);
-        }),
-      /**
-       * @param {unknown} _p
-       * @param {PropertyKey} propertyKey
-       * @param {unknown[]} args
-       */
-      applyMethodSendOnly: (_p, propertyKey, args) => {
-        attempt(async () => {
-          const target = await resolveTarget(true);
-          E.sendOnly(target)[propertyKey](...args);
-        }).catch(_error => undefined);
-      },
-      /**
-       * @param {unknown} _p
-       * @param {unknown[]} args
-       */
-      applyFunctionSendOnly: (_p, args) => {
-        attempt(async () => {
-          const target = await resolveTarget(true);
-          /** @type {any} */ (E.sendOnly(target))(...args);
-        }).catch(_error => undefined);
-      },
-    });
-
-    /** @type {(presenceHandler: unknown) => object} */
-    let resolveWithPresence = _presenceHandler => {
-      throw new Error('xsnap-ref presence initializer not ready');
-    };
-    const settledPromise = new HandledPromise(
-      (_resolve, _reject, rwp) => {
-        resolveWithPresence = rwp;
-      },
-      handler,
-    );
-    const presence = resolveWithPresence(handler);
-    // Keep the promise chain settled and quiet in case internals reject.
-    settledPromise.catch(() => undefined);
-    return Remotable(
-      'Alleged: EndoXsnapRef',
-      undefined,
-      /** @type {Record<string | symbol, unknown>} */ (presence),
     );
   };
 
@@ -1372,8 +1228,6 @@ const makeDaemonCore = async (
       makeIdentifiedWorker(formulaNumber, context),
     'xsnap-worker': (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context, 'xsnap-worker'),
-    'xsnap-ref': ({ target, worker, hub, path }) =>
-      makeXsnapRef(target, worker, hub, path),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier },
       context,
@@ -1969,56 +1823,6 @@ const makeDaemonCore = async (
     };
     return /** @type {FormulateResult<EndoWorker>} */ (
       formulate(formulaNumber, formula)
-    );
-  };
-
-  /** @type {DaemonCore['formulateXsnapRef']} */
-  const formulateXsnapRef = async (
-    targetId,
-    workerId,
-    deferredTasks,
-    hubId,
-    path,
-  ) => {
-    await null;
-    assertValidId(targetId);
-    assertValidId(workerId);
-    const workerFormula = await getFormulaForId(workerId);
-    if (workerFormula.type !== 'xsnap-worker') {
-      throw new TypeError(
-        `xsnap-ref requires an xsnap worker, got formula type ${q(
-          workerFormula.type,
-        )}`,
-      );
-    }
-    if (hubId !== undefined) {
-      assertValidId(hubId);
-    }
-    if (path !== undefined) {
-      assertNamePath(path);
-    }
-    const xsnapRefFormulaNumber = await formulaGraphJobs.enqueue(async () => {
-      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
-      await deferredTasks.execute({
-        xsnapRefId: formatId({
-          number: formulaNumber,
-          node: localNodeNumber,
-        }),
-      });
-      return formulaNumber;
-    });
-
-    /** @type {XsnapRefFormula} */
-    const formula = {
-      type: 'xsnap-ref',
-      target: targetId,
-      worker: workerId,
-      ...(hubId !== undefined && { hub: hubId }),
-      ...(path !== undefined && { path }),
-    };
-
-    return /** @type {FormulateResult<XsnapRefRuntime>} */ (
-      formulate(xsnapRefFormulaNumber, formula)
     );
   };
 
@@ -2793,7 +2597,6 @@ const makeDaemonCore = async (
     formulateEval,
     formulateUnconfined,
     formulateBundle,
-    formulateXsnapRef,
     formulateReadableBlob,
     formulateInvitation,
     makeMailbox,

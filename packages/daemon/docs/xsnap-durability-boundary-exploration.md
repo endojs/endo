@@ -71,29 +71,30 @@ Best when:
 
 - we prioritize explicit failure over transparent reconnection
 
-## Option B: Durable reference facade formula (recommended incremental direction)
+## Option B: Direct `xsnapEvaluate` worker model (implemented direction)
 
-Introduce a new formula type that acts as a stable rebinding facade.
+Keep formulas explicit and worker-scoped, and formulate directly in an
+`xsnap-worker` instead of introducing an extra facade formula type.
 
-- Example formula: `xsnap-ref`
-- Stores stable target formula ID plus rebinding strategy
-- Client receives facade object, not raw xsnap export
-- Facade internally resolves latest incarnation before each call
-- If peer formula restarted, facade re-provides and retries (policy-controlled)
+- New worker formula: `xsnap-worker`
+- New host helper: `xsnapEvaluate(workerName, source, codeNames, petNames, resultName?)`
+- Resulting formulas remain normal `eval` formulas, pinned to an `xsnap-worker`
+- Heap continuity comes from xsnap snapshots plus formula-id keyed value reuse inside the xsnap worker
 
 Pros:
 
-- Strong alignment with daemon formula model (IDs are already durable)
-- Can communicate with non-xsnap formulas while insulating clients from session churn
-- Compatible with smallcaps persisted marshal records (`body + slots`)
+- Calling conventions stay aligned with existing daemon APIs (`evaluate`, `provideWorker`)
+- No extra forwarding layer; cross-boundary calls are direct capability passing
+- Explicit worker selection allows daemon enforcement of xsnap regime boundaries
 
 Cons:
 
-- Added call indirection and policy complexity (error propagation, timeout, observability)
+- Clients still reacquire values through formula identities after daemon/session restart
+- No transparent "old presence revival" for stale sessions (same as existing daemon model)
 
 Best when:
 
-- we want "normal Endo formula feel" with durable backing
+- we want durable xsnap heap behavior with minimal API novelty
 
 ## Option C: Durable mailbox endpoint between regimes
 
@@ -171,39 +172,30 @@ Practical interpretation:
 
 1. Add `xsnap-worker` formula type (parallel to `worker`).
 2. Add worker power implementation for xsnap process lifecycle and snapshot management.
-3. Add `xsnap-ref` formula type for stable client-facing references.
-4. Keep daemon dependency graph semantics (`thisDiesIfThatDies`) and fail-fast call behavior for `xsnap-ref`, while relying on formula/id rebinding through persisted naming metadata.
-5. Expose explicit diagnostics on references:
-   - current epoch
-   - last rebind time
-   - last rebind failure reason
+3. Add `xsnapEvaluate(...)` host API that mirrors `evaluate(...)` but provisions/uses `xsnap-worker`.
+4. Ensure daemon enforcement that formulas intended for xsnap execution are bound to `xsnap-worker`.
+5. Validate cross-boundary capability traffic (xsnap <-> non-xsnap) before and after full restart.
 
 This gives durable state benefits without forcing user code into vat-data durable object APIs.
 
-## Option B implementation plan (ergonomics-first)
+## `xsnapEvaluate` implementation plan (ergonomics-first)
 
-This section refines Option B into concrete repository changes.
+This section refines the direct `xsnapEvaluate` model into concrete repository changes.
 
 ### Ergonomics goals
 
 #### Formula author ergonomics (inside workers)
 
-Code that receives a boundary value should be able to keep using ordinary eventual-send style:
+Code that receives a boundary value should use ordinary eventual-send style:
 
 - preferred: `E(counterLike).incr()`
-- avoid requiring a bespoke wrapper call style like `E(ref).dispatch('incr', [])`
+- avoid requiring a bespoke wrapper call style
 
-To preserve this, the facade value should behave like a generic eventual-send target and forward arbitrary method/property operations to the latest target incarnation.
+This is preserved by passing ordinary capabilities across the boundary; no facade type is required.
 
 #### Host ergonomics (outside workers)
 
-Creating a boundary facade should feel like existing host operations that materialize formulas and optionally name them:
-
-- new host helper: `makeXsnapRef(workerName, targetNameOrPath, resultName?)`
-- this creates a durable formula and (optionally) writes a pet name
-- hosts/workers can then pass the named value exactly like other formula-backed values
-
-Creating new formulas directly in an xsnap worker should mirror ordinary `evaluate`:
+Creating formulas in an xsnap worker should mirror ordinary `evaluate`:
 
 - new host helper: `xsnapEvaluate(workerName, source, codeNames, petNames, resultName?)`
 - semantics intentionally parallel `evaluate`
@@ -212,78 +204,41 @@ Creating new formulas directly in an xsnap worker should mirror ordinary `evalua
 
 ### Concrete daemon changes
 
-1. Add formula type `xsnap-ref` with persisted payload:
-   - `target: FormulaIdentifier`
-   - `worker: FormulaIdentifier`
-2. Add daemon maker for `xsnap-ref`:
-   - produce a handled facade that forwards `get` / `applyMethod` / `applyFunction`
-   - resolve target using `provide(targetId)` on every interaction (rebind-ready)
-   - enforce configured worker formula is of type `xsnap-worker`
-3. Add core formulation helper:
-   - `formulateXsnapRef(targetId, workerId, deferredTasks)`
-4. Add `xsnap-worker` formula support:
+1. Add `xsnap-worker` formula support:
    - `formulateXsnapWorker(deferredTasks)`
    - host caller can request by name, and daemon formulates `xsnap-worker`
-5. Add host APIs:
+2. Add host APIs:
    - `xsnapEvaluate(workerName, source, codeNames, petNames, resultName?)`
    - ensure specified worker is an `xsnap-worker`
    - persist resulting `eval` formulas against that worker
-   - `makeXsnapRef(workerName, targetNameOrPath, resultName?)`
-   - resolve target formula identifier from host naming graph
-   - resolve/provide configured xsnap worker formula identifier
-   - persist target id, worker id, and original host/path binding metadata
-   - formulate and optionally store resulting facade by pet name
-6. Add facade diagnostics:
-   - `E.get(facade).diagnostics` returns
-     - `targetId`
-     - `callCount`
-     - `lastRebindMs`
-     - `lastFailure`
+3. Add xsnap runtime support in node powers:
+   - use real `@agoric/xsnap` worker process
+   - load snapshot on worker startup
+   - persist snapshot after evaluate/call operations and termination
+4. Add capability wire protocol for host/xsnap method calls and slot identity.
 
 ### Concrete tests
 
-1. **Ergonomics parity**: worker code can call `E(facade).method()` with no extra protocol.
-2. **Durable formula continuity**: `xsnap-ref` formula persists across daemon restart and still forwards to target formula ID.
-3. **Rebinding behavior**: when target formula is cancelled/reincarnated, facade calls continue to work and hit fresh incarnation state.
-4. **Diagnostics behavior**: stats reflect rebinds/failures for observability.
-5. **Worker regime enforcement**: using a non-`xsnap-worker` formula fails at call time.
-6. **Xsnap evaluate ergonomics**: `xsnapEvaluate` mirrors `evaluate` and produces `eval` formulas attached to an `xsnap-worker`.
-
-### Option B continuation (current iteration)
-
-This iteration expands Option B to better expose and control behavior at the
-durability boundary without changing worker-call ergonomics.
-
-#### Worker regime alignment
-
-- `xsnap-ref` now carries explicit `worker` formula identity.
-- Host API requires a worker argument (`workerName`) so formulation stays close to
-  other daemon APIs that are worker-scoped.
-- Daemon enforces that configured worker formula type is `xsnap-worker`.
-
-#### Naming-graph rebinding
-
-- Persist `hub` + `path` alongside `target` and `worker`.
-- On each forwarded call, attempt to re-identify through the host naming graph.
-- Fall back to original `target` when rebinding path no longer resolves.
-- Update rebind diagnostics when identity changes are observed.
-
-#### Diagnostics as first-class ergonomics
-
-- Expose `diagnostics` as an ordinary property reachable with `E.get(facade)`.
-- Designed for operational introspection and UI/CLI tooling.
-- Keeps call path unchanged (`E(facade).method()` still primary API).
+1. **Worker regime enforcement**: `xsnapEvaluate` formulas are attached to `xsnap-worker`.
+2. **Global heap continuity**: `globalThis` values survive full daemon restart via snapshots.
+3. **Ordinary closure heap continuity**: exo closure/object state survives restart.
+4. **Cross-boundary non-xsnap -> xsnap**: non-xsnap callers invoke xsnap values before and after restart.
+5. **Cross-boundary xsnap -> non-xsnap**: xsnap callers invoke non-xsnap values before and after restart.
 
 ## Exploratory tests added in this branch
 
 The tests in `test/xsnap-boundary-exploration.test.js` probe key invariants:
 
 1. Persisted marshal formulas use smallcaps body and slot references for formula values.
-2. `xsnapEvaluate` creates formulas tied to `xsnap-worker` and recovers
-   `globalThis` heap state across daemon restart via snapshots.
+2. `xsnapEvaluate` creates formulas tied to `xsnap-worker`.
+3. `xsnapEvaluate` recovers `globalThis` heap state across daemon restart via snapshots.
+4. `xsnapEvaluate` recovers ordinary closure/object heap state across restart.
+5. Cross-boundary calls are covered in both directions across restart:
+   - non-xsnap caller -> xsnap value
+   - xsnap caller -> non-xsnap value
 
 ## Open questions to settle before implementation
 
-1. Should old-epoch references expose a specific error class for client tooling?
-2. Do we allow mixed graphs where xsnap durable references point to purely ephemeral non-xsnap exports, and if so with what downgrade behavior?
-3. Is a daemon-level "session ended" notification stream needed, or is call-time failure sufficient?
+1. Should daemon expose explicit worker regime metadata in inspector output for tooling/UX?
+2. Is a daemon-level "session ended" notification stream needed, or is call-time failure sufficient?
+3. Should we add an explicit conformance test around formula-id stability of repeated `xsnapEvaluate` on named results?

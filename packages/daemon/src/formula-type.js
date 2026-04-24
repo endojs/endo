@@ -29,7 +29,6 @@ const formulaTypes = new Set([
   'resolver',
   'worker',
   'xsnap-worker',
-  'xsnap-ref',
 ]);
 
 /** @param {string} allegedType */

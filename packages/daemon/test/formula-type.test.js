@@ -11,7 +11,6 @@ test('isValidFormulaType', t => {
     ['eval', true],
     ['make-unconfined', true],
     ['xsnap-worker', true],
-    ['xsnap-ref', true],
     ['', false],
     [null, false],
     [undefined, false],
