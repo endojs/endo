@@ -17,6 +17,30 @@
 - Cast `catch` error variables: `/** @type {Error} */ (e).message`
 - Cast untyped inputs from external APIs with inline `/** @type {T} */` assertions.
 
+### Type-assertion discipline
+
+- Before reaching for `/** @type {T} */ (v)` or `@ts-expect-error`, try:
+  type narrowing, an additional overload, or an `assertXxx` helper that
+  returns the refined type.
+  `@ts-expect-error` is brittle because it flips to an error as soon as
+  the upstream types improve.
+- For strings that have been validated (pet names, name paths, formula
+  ids, file URLs), prefer a **branded** return type from the validator
+  over raw `string` in the rest of the code.
+  This pushes assertions to the boundary where they are cheap and makes
+  downstream sites check-free.
+
+### Modernisms
+
+- Prefer `{ __proto__: Proto }` over `Object.create(Proto)` when all you
+  want is a syntactic prototype link.
+  The former depends only on syntax; the latter depends on the current
+  binding of `Object.create`.
+- Prefer `Uint8Array` + `TextEncoder`/`TextDecoder`/`atob`/`btoa` over
+  Node `Buffer`.
+  `Buffer` is Node-only; the others are portable across XS, browsers,
+  and SES realms.
+
 ### Error handling
 
 - Use `@endo/errors` for structured errors: `import { makeError, q, X } from '@endo/errors'`.
@@ -77,6 +101,70 @@ if (methods.includes('followNameChanges')) {
 - Daemon integration tests: `cd packages/daemon && npx ava test/endo.test.js --timeout=120s`
 - Syntax check without SES runtime: `node --check <file.js>`
 - Full module loading requires the Endo daemon (SES lockdown provides `harden` as a global).
+
+### Pre-PR checklist
+
+Reviewers repeatedly flag the same classes of fix-up.
+Running the following before pushing avoids the churn:
+
+- `yarn format` — Prettier drift is the single most common review nit.
+- `yarn lint` in the changed package (and root, if the changes are
+  cross-cutting) — catches ESLint-only rules such as `harden-exports`
+  and `no-underscore-dangle`.
+- `yarn docs` or `tsc --build` — catches missing members on exported
+  interfaces, type-too-narrow/too-wide drift, and broken `@import`
+  specifiers.
+- The package's `npx ava` — at least the tests nearest the change.
+- If the change adds or updates a dependency, commit `yarn.lock`
+  **in its own commit**, separately from the `package.json` change,
+  with the message `chore: Update yarn.lock`.
+  A separate lock-file commit can be dropped and regenerated cleanly
+  on rebase; a combined commit turns lock-file churn into merge
+  conflicts.
+
+### Lint-rule gotchas
+
+- Do **not** rename "intentionally unused" identifiers with a leading
+  underscore.
+  This conflicts with `no-underscore-dangle`.
+  Use `// eslint-disable-next-line no-unused-vars` instead, or delete
+  the unused declaration.
+- `/** @type {T} */` binds to the **next declaration**, not the
+  enclosing block.
+  When refactoring, keep the tag adjacent to the thing it annotates;
+  hoisting a local above its type comment silently retypes the local.
+
+### Testing with AVA
+
+- Register a teardown for every resource a test acquires:
+  `t.teardown(() => cleanup())` for `fs.mkdtemp`, forked processes,
+  opened ports, spawned daemons.
+  Leaked temp directories and daemons are the usual cause of "works on
+  my machine" flakes.
+- Put an explicit `t.timeout(...)` on any test guarding a deadlock,
+  hang, or stall regression, so CI fails fast rather than waiting for
+  the global AVA timeout.
+- Prefer `t.throwsAsync(fn, { message: /.../, instanceOf: X })` over
+  bare `t.throws`/`try/catch`.
+  The regex form gives a usable failure message when the guard regresses.
+- Prefer inline assertions (`t.is`, `t.deepEqual`, `t.like`) over
+  `t.snapshot` when the expected value is small enough to fit in the
+  test file.
+  Snapshots are appropriate for large structured output where the
+  volume of assertions would obscure the intent.
+- Gateway, daemon, and fork-based tests must be `test.serial` —
+  they fork a full daemon per test and share filesystem state.
+
+### Diagnostic discipline
+
+- Libraries should be **silent by default**.
+  No `console.log` from library code.
+- Use `console.error` for diagnostics so output lands on stderr and
+  does not interleave with a caller's stdout.
+- When rendering a passable value for a log message, use
+  `passableAsJustin` from `@endo/marshal` rather than
+  `JSON.stringify`, which produces ambiguous output for remotables and
+  promises.
 
 ## Familiar (Electron shell)
 

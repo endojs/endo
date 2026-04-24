@@ -99,6 +99,55 @@ The gateway (`src/daemon.js` line ~851) rejects requests for non-local node IDs 
 
 Never use `--ours` or `--theirs` strategies when merging. All conflicts must be resolved manually by understanding both sides of the change.
 
+## Exo and Interface Authoring
+
+### `M.interface()` rest patterns take a per-element shape
+
+`M.call(...).rest(shape)` repeats `shape` for every element of the rest
+arguments; it does **not** take an array-of-element-shape.
+
+```js
+// Good — rest of strings:
+foo: M.call(M.string()).rest(M.string()).returns(M.promise()),
+
+// Wrong — describes a call whose rest is a single array argument:
+foo: M.call(M.string()).rest(M.arrayOf(M.string())).returns(M.promise()),
+```
+
+Mixing these up silently accepts or rejects the wrong call shapes and
+is a recurring review finding on the mount and host facets.
+
+### Keep exported facet `.d.ts` interfaces in sync
+
+When adding a method to an exo (e.g. `EndoHost`, `EndoGuest`,
+`EndoMount`), add the method to both the runtime `M.interface(...)`
+guard and the exported TypeScript interface in `src/types.d.ts`.
+TypeDoc and downstream type consumers fail silently if a method exists
+at runtime but not in the exported interface.
+
+## Diagnostic Discipline in Formulas
+
+- Formula implementations must be silent by default on the happy path.
+  Diagnostic logging belongs in the lifecycle log (see
+  [DEBUGGING.md](./DEBUGGING.md)), not in ad-hoc `console.log` calls.
+- Use `console.error` for unexpected conditions so output lands on
+  stderr and doesn't interleave with a caller's stdout or a test
+  harness's output parsing.
+- Prefer structured results for partial/corrupted data
+  (`{ value, broken, brokenAt }` + a single `console.warn`) over
+  silent truncation.
+  Silent truncation is a repeat review finding.
+
+## CapTP Error Surface
+
+- Errors that cross a CapTP connection between the daemon and a
+  worker formula arrive annotated with an `errorId` minted by
+  `@endo/marshal`.
+  That id is the correlation key for the worker-trace facility; see
+  [`docs/error-tracing-design.md`](../../docs/error-tracing-design.md).
+- When a formula propagates an error up the CapTP chain, keep the
+  `errorId` annotation intact so the aggregator can stitch together
+  the originating worker's stack and the caller's view.
 
 ## Debugging
 
