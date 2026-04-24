@@ -884,6 +884,14 @@ export type DaemonicControlPowers = {
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
   }>;
+  makeXsnapWorker: (
+    id: string,
+    daemonWorkerFacet: DaemonWorkerFacet,
+    cancelled: Promise<never>,
+  ) => Promise<{
+    workerTerminated: Promise<void>;
+    workerDaemonFacet: ERef<WorkerDaemonFacet>;
+  }>;
 };
 
 export type DaemonicPowers = {

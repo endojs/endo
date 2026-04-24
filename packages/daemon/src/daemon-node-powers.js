@@ -5,6 +5,7 @@ import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
+import { E, Far } from '@endo/far';
 import { q } from '@endo/errors';
 import { makeNetstringCapTP } from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
@@ -470,6 +471,8 @@ export const makeDaemonicControlPowers = (
   const endoWorkerPath = fileURLToPath(
     new URL('worker-node.js', import.meta.url),
   );
+  const wireDecoder = new TextDecoder();
+  const wireEncoder = new TextEncoder();
 
   /**
    * @param {string} workerId
@@ -553,8 +556,455 @@ export const makeDaemonicControlPowers = (
     return { workerTerminated, workerDaemonFacet };
   };
 
+  /**
+   * @param {string} workerId
+   * @param {DaemonWorkerFacet} _daemonWorkerFacet
+   * @param {Promise<never>} cancelled
+   */
+  const makeXsnapWorker = async (workerId, _daemonWorkerFacet, cancelled) => {
+    const { statePath, ephemeralStatePath } = config;
+    const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
+    const workerEphemeralStatePath = filePowers.joinPath(
+      ephemeralStatePath,
+      'worker',
+      workerId,
+    );
+    await Promise.all([
+      filePowers.makePath(workerStatePath),
+      filePowers.makePath(workerEphemeralStatePath),
+    ]);
+
+    const snapshotPath = filePowers.joinPath(workerStatePath, 'worker.xss');
+    const pidPath = filePowers.joinPath(workerEphemeralStatePath, 'worker.pid');
+    const workerName = `endo-xsnap-${workerId.slice(0, 16)}`;
+    const os = await import('os');
+    const path = await import('path');
+    const { createRequire } = await import('module');
+    const require = createRequire(import.meta.url);
+    const { xsnap } = await import('@agoric/xsnap');
+
+    /** @type {Map<number, unknown>} */
+    const hostSlots = new Map();
+    /** @type {WeakMap<object, number>} */
+    const hostValuesToSlots = new WeakMap();
+    let nextHostSlot = 1;
+
+    /** @type {Map<number, unknown>} */
+    const xsSlots = new Map();
+
+    /**
+     * @param {number} slot
+     */
+    const provideHostSlot = slot => {
+      const target = hostSlots.get(slot);
+      if (target === undefined) {
+        throw new Error(`Unknown host slot ${q(slot)}`);
+      }
+      return target;
+    };
+
+    /** @type {(slot: number, methods?: string[]) => unknown} */
+    let provideXsnapSlot = (slot, _methods = []) => {
+      throw new Error(`Unknown xs slot ${q(slot)}`);
+    };
+
+    /**
+     * @param {unknown} value
+     * @returns {unknown}
+     */
+    const decodeWireData = value => {
+      if (Array.isArray(value)) {
+        return value.map(decodeWireData);
+      }
+      if (value && typeof value === 'object') {
+        if ('xsSlot' in value) {
+          const slot = Reflect.get(value, 'xsSlot');
+          const methods = Reflect.get(value, 'methods');
+          const normalizedMethods = Array.isArray(methods)
+            ? methods.filter(method => typeof method === 'string')
+            : [];
+          return provideXsnapSlot(/** @type {number} */ (slot), normalizedMethods);
+        }
+        if ('hostSlot' in value) {
+          const slot = Reflect.get(value, 'hostSlot');
+          return provideHostSlot(/** @type {number} */ (slot));
+        }
+        return Object.fromEntries(
+          Object.entries(value).map(([key, inner]) => [key, decodeWireData(inner)]),
+        );
+      }
+      return value;
+    };
+
+    /**
+     * @param {unknown} value
+     * @returns {unknown}
+     */
+    const encodeWireData = value => {
+      if (value === null || value === undefined) {
+        return value;
+      }
+      const valueType = typeof value;
+      if (
+        valueType === 'boolean' ||
+        valueType === 'number' ||
+        valueType === 'string'
+      ) {
+        return value;
+      }
+      if (Array.isArray(value)) {
+        return value.map(encodeWireData);
+      }
+      if (valueType === 'object') {
+        if (Object.getPrototypeOf(value) === Object.prototype) {
+          return Object.fromEntries(
+            Object.entries(value).map(([key, inner]) => [key, encodeWireData(inner)]),
+          );
+        }
+        const knownSlot = hostValuesToSlots.get(/** @type {object} */ (value));
+        if (knownSlot !== undefined) {
+          return harden({ hostSlot: knownSlot });
+        }
+        const newSlot = nextHostSlot;
+        nextHostSlot += 1;
+        hostValuesToSlots.set(/** @type {object} */ (value), newSlot);
+        hostSlots.set(newSlot, value);
+        return harden({ hostSlot: newSlot });
+      }
+      throw new TypeError(`Cannot pass unsupported value into xsnap worker`);
+    };
+
+    const maybeBuildXsnapBinary = () => {
+      const xsnapPackageJsonPath = require.resolve('@agoric/xsnap/package.json');
+      const xsnapPackagePath = path.dirname(xsnapPackageJsonPath);
+      const binaryPath = path.join(
+        xsnapPackagePath,
+        'xsnap-native/xsnap/build/bin/lin/release/xsnap-worker',
+      );
+      if (fs.existsSync(binaryPath)) {
+        return;
+      }
+      const result = popen.spawnSync('npm', ['run', 'build:from-env'], {
+        cwd: xsnapPackagePath,
+        stdio: 'pipe',
+      });
+      if (result.status !== 0 || !fs.existsSync(binaryPath)) {
+        const stderr = result.stderr?.toString() ?? '';
+        throw new Error(
+          `Failed to build xsnap worker binary for ${workerName}: ${stderr}`,
+        );
+      }
+    };
+
+    const snapshotStream = fs.existsSync(snapshotPath)
+      ? fs.createReadStream(snapshotPath)
+      : undefined;
+
+    /** @type {Awaited<ReturnType<typeof xsnap>> | undefined} */
+    let worker;
+
+    const spawnXsnap = async () => {
+      await null;
+      return xsnap({
+        os: os.type(),
+        spawn: popen.spawn,
+        fs,
+        name: workerName,
+        snapshotStream,
+        snapshotDescription: workerId,
+        stdout: 'ignore',
+        stderr: 'ignore',
+        handleCommand: async request => {
+          await null;
+          const command = JSON.parse(wireDecoder.decode(request));
+          if (command.type !== 'host-call') {
+            const failure = harden({
+              ok: false,
+              message: `Unknown host command ${q(command.type)}`,
+            });
+            return wireEncoder.encode(JSON.stringify(failure));
+          }
+          const { slot, method, args } = command;
+          if (typeof method !== 'string') {
+            const failure = harden({
+              ok: false,
+              message: `Invalid host method ${q(method)}`,
+            });
+            return wireEncoder.encode(JSON.stringify(failure));
+          }
+          const target = hostSlots.get(slot);
+          if (target === undefined) {
+            const failure = harden({
+              ok: false,
+              message: `Unknown host slot ${q(slot)}`,
+            });
+            return wireEncoder.encode(JSON.stringify(failure));
+          }
+          try {
+            const decodedArgs = decodeWireData(args);
+            if (!Array.isArray(decodedArgs)) {
+              throw new Error('Host call arguments must be an array');
+            }
+            const targetAny = /** @type {any} */ (target);
+            const result = await /** @type {any} */ (E(targetAny)[method])(
+              ...decodedArgs,
+            );
+            const success = harden({
+              ok: true,
+              value: encodeWireData(result),
+            });
+            return wireEncoder.encode(JSON.stringify(success));
+          } catch (error) {
+            const failure = harden({
+              ok: false,
+              message: error instanceof Error ? error.message : String(error),
+            });
+            return wireEncoder.encode(JSON.stringify(failure));
+          }
+        },
+      });
+    };
+
+    try {
+      worker = await spawnXsnap();
+    } catch {
+      maybeBuildXsnapBinary();
+      worker = await spawnXsnap();
+    }
+
+    const persistSnapshot = async reason => {
+      await null;
+      if (worker === undefined) {
+        throw new Error('xsnap worker not initialized');
+      }
+      const stream = worker.makeSnapshotStream(reason);
+      await fs.promises.writeFile(snapshotPath, stream);
+    };
+
+    await filePowers.writeFileText(pidPath, `xsnap:${workerName}\n`);
+
+    /**
+     * @param {Record<string, unknown>} command
+     */
+    const callWorker = async command => {
+      await null;
+      const { reply } = await worker.issueCommand(
+        wireEncoder.encode(JSON.stringify(command)),
+      );
+      const response = JSON.parse(wireDecoder.decode(reply));
+      if (!response || response.ok !== true) {
+        throw new Error(response?.message ?? 'Unknown xsnap worker error');
+      }
+      return decodeWireData(response.value);
+    };
+
+    provideXsnapSlot = (slot, methods = []) => {
+      if (xsSlots.has(slot)) {
+        return xsSlots.get(slot);
+      }
+      const invoke = async (method, args) => {
+        await null;
+        const result = await callWorker({
+          type: 'call',
+          slot,
+          method,
+          args: encodeWireData(args),
+        });
+        await persistSnapshot(`call-${workerId}-${method}`);
+        return result;
+      };
+
+      const methodTable = Object.create(null);
+      for (const method of methods) {
+        methodTable[method] = (...args) => invoke(method, args);
+      }
+      const value = Far(`XsnapValue-${slot}`, methodTable);
+      xsSlots.set(slot, value);
+      return value;
+    };
+
+    await worker.evaluate(`
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      const formulas = new Map();
+      const xsSlots = new Map();
+      let nextXsSlot = 1;
+
+      const M = { interface: () => ({}) };
+      globalThis.M = M;
+      globalThis.makeExo = (_name, _iface, methods) => methods;
+      globalThis.E = target => new Proxy({}, {
+        get: (_obj, prop) => (...args) => target[prop](...args),
+      });
+      globalThis.E.get = target => target;
+
+      const issueHost = payload => {
+        const response = issueCommand(encoder.encode(JSON.stringify(payload)));
+        const parsed = JSON.parse(decoder.decode(response));
+        if (!parsed || parsed.ok !== true) {
+          throw new Error(parsed && parsed.message || 'Host command failed');
+        }
+        return parsed.value;
+      };
+
+      const decodeData = value => {
+        if (Array.isArray(value)) {
+          return value.map(decodeData);
+        }
+        if (value && typeof value === 'object') {
+          if ('hostSlot' in value) {
+            const hostSlot = value.hostSlot;
+            return new Proxy({}, {
+              get: (_obj, prop) => {
+                if (prop === 'then') {
+                  return undefined;
+                }
+                return (...args) =>
+                  decodeData(
+                    issueHost({
+                      type: 'host-call',
+                      slot: hostSlot,
+                      method: String(prop),
+                      args: encodeData(args),
+                    }),
+                  );
+              },
+            });
+          }
+          if ('xsSlot' in value) {
+            return xsSlots.get(value.xsSlot);
+          }
+          return Object.fromEntries(
+            Object.entries(value).map(([key, inner]) => [key, decodeData(inner)]),
+          );
+        }
+        return value;
+      };
+
+      const encodeData = value => {
+        if (value === null || value === undefined) {
+          return value;
+        }
+        const valueType = typeof value;
+        if (valueType === 'boolean' || valueType === 'number' || valueType === 'string') {
+          return value;
+        }
+        if (Array.isArray(value)) {
+          return value.map(encodeData);
+        }
+        if (valueType === 'object' || valueType === 'function') {
+          if (valueType === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+            return Object.fromEntries(
+              Object.entries(value).map(([key, inner]) => [key, encodeData(inner)]),
+            );
+          }
+          for (const [slot, stored] of xsSlots.entries()) {
+            if (stored === value) {
+              return { xsSlot: slot, methods: stored.__methodNames__ || [] };
+            }
+          }
+          const slot = nextXsSlot++;
+          const methodNames = Object.getOwnPropertyNames(value).filter(name =>
+            typeof value[name] === 'function',
+          );
+          value.__methodNames__ = methodNames;
+          xsSlots.set(slot, value);
+          return { xsSlot: slot, methods: methodNames };
+        }
+        throw new Error('Unsupported xs value type');
+      };
+
+      globalThis.handleCommand = message => {
+        const command = JSON.parse(decoder.decode(message));
+        try {
+          if (command.type === 'evaluate') {
+            const { id, source, names, values } = command;
+            if (formulas.has(id)) {
+              return encoder.encode(
+                JSON.stringify({ ok: true, value: encodeData(formulas.get(id)) }),
+              ).buffer;
+            }
+            const decodedValues = decodeData(values || []);
+            for (let i = 0; i < names.length; i += 1) {
+              globalThis[names[i]] = decodedValues[i];
+            }
+            const value = eval(source);
+            formulas.set(id, value);
+            return encoder.encode(
+              JSON.stringify({ ok: true, value: encodeData(value) }),
+            ).buffer;
+          }
+          if (command.type === 'call') {
+            const target = xsSlots.get(command.slot);
+            if (target === undefined) {
+              throw new Error('Unknown xs slot');
+            }
+            const decodedArgs = decodeData(command.args || []);
+            const value = target[command.method](...decodedArgs);
+            return encoder.encode(
+              JSON.stringify({ ok: true, value: encodeData(value) }),
+            ).buffer;
+          }
+          return encoder.encode(
+            JSON.stringify({ ok: false, message: 'Unknown command type' }),
+          ).buffer;
+        } catch (error) {
+          return encoder.encode(
+            JSON.stringify({
+              ok: false,
+              message: error instanceof Error ? error.message : String(error),
+            }),
+          ).buffer;
+        }
+      };
+    `);
+
+    const terminated = makePromiseKit();
+    const closeWorker = async () => {
+      await null;
+      try {
+        await persistSnapshot(`close-${workerId}`);
+      } finally {
+        await worker.close().catch(() => undefined);
+        terminated.resolve(undefined);
+      }
+    };
+    cancelled.catch(() => {
+      void closeWorker();
+    });
+
+    const workerDaemonFacet = Far(`EndoXsnapWorkerFacet-${workerId}`, {
+      terminate: async () => {
+        await closeWorker();
+      },
+      evaluate: async (source, names, values, id, _workerCancelled) => {
+        const result = await callWorker({
+          type: 'evaluate',
+          id,
+          source,
+          names,
+          values: encodeWireData(values),
+        });
+        await persistSnapshot(`eval-${workerId}`);
+        return result;
+      },
+      makeBundle: async () => {
+        throw new Error('xsnap worker does not support makeBundle yet');
+      },
+      makeUnconfined: async () => {
+        throw new Error('xsnap worker does not support makeUnconfined yet');
+      },
+    });
+
+    return {
+      workerTerminated: terminated.promise,
+      workerDaemonFacet,
+    };
+  };
+
   return harden({
     makeWorker,
+    makeXsnapWorker,
   });
 };
 

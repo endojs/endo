@@ -399,19 +399,27 @@ const makeDaemonCore = async (
   /**
    * @param {string} workerId512
    * @param {Context} context
+   * @param {'worker' | 'xsnap-worker'} [workerType]
    */
-  const makeIdentifiedWorker = async (workerId512, context) => {
+  const makeIdentifiedWorker = async (
+    workerId512,
+    context,
+    workerType = 'worker',
+  ) => {
     const daemonWorkerFacet = makeDaemonFacetForWorker(workerId512);
 
     const { promise: forceCancelled, reject: forceCancel } =
       /** @type {PromiseKit<never>} */ (makePromiseKit());
 
-    const { workerTerminated, workerDaemonFacet } =
-      await controlPowers.makeWorker(
-        workerId512,
-        daemonWorkerFacet,
-        Promise.race([forceCancelled, gracePeriodElapsed]),
-      );
+    const makeWorkerPower =
+      workerType === 'xsnap-worker'
+        ? controlPowers.makeXsnapWorker
+        : controlPowers.makeWorker;
+    const { workerTerminated, workerDaemonFacet } = await makeWorkerPower(
+      workerId512,
+      daemonWorkerFacet,
+      Promise.race([forceCancelled, gracePeriodElapsed]),
+    );
 
     const gracefulCancel = async () => {
       E.sendOnly(workerDaemonFacet).terminate();
@@ -1363,7 +1371,7 @@ const makeDaemonCore = async (
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
     'xsnap-worker': (_formula, context, _id, formulaNumber) =>
-      makeIdentifiedWorker(formulaNumber, context),
+      makeIdentifiedWorker(formulaNumber, context, 'xsnap-worker'),
     'xsnap-ref': ({ target, worker, hub, path }) =>
       makeXsnapRef(target, worker, hub, path),
     'make-unconfined': (

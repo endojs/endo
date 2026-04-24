@@ -279,9 +279,8 @@ durability boundary without changing worker-call ergonomics.
 The tests in `test/xsnap-boundary-exploration.test.js` probe key invariants:
 
 1. Persisted marshal formulas use smallcaps body and slot references for formula values.
-2. Cross-worker references survive restart by formula identity, while worker heap state still resets (current baseline behavior).
-
-These tests do not implement xsnap workers; they establish baseline facts the xsnap design must preserve or intentionally change.
+2. `xsnapEvaluate` creates formulas tied to `xsnap-worker` and recovers
+   `globalThis` heap state across daemon restart via snapshots.
 
 ## Open questions to settle before implementation
 
