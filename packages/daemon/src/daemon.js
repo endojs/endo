@@ -7,7 +7,10 @@ import { E, Far } from '@endo/far';
 import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
-import { makeRefReader } from './ref-reader.js';
+import { encodeBase64 } from '@endo/base64';
+import { mapReader } from '@endo/stream';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
@@ -444,14 +447,14 @@ const makeDaemonCore = async (
    * @param {string} sha512
    */
   const makeReadableBlob = sha512 => {
-    const { text, json, streamBase64 } = contentStore.fetch(sha512);
+    const { makeFileReader, text, json } = contentStore.fetch(sha512);
     /** @type {FarRef<EndoReadable>} */
     return makeExo(
       `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
       BlobInterface,
       {
         sha512: () => sha512,
-        streamBase64,
+        streamBase64: makeReaderPump(mapReader(makeFileReader(), encodeBase64)),
         text,
         json,
       },
@@ -1577,13 +1580,19 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateReadableBlob']} */
-  const formulateReadableBlob = async (readerRef, deferredTasks) => {
+  const formulateReadableBlob = async (streamRef, deferredTasks) => {
     const { formulaNumber, contentSha512 } = await formulaGraphJobs.enqueue(
       async () => {
         await null;
         const values = {
           formulaNumber: /** @type {FormulaNumber} */ (await randomHex512()),
-          contentSha512: await contentStore.store(makeRefReader(readerRef)),
+          contentSha512: await contentStore.store(
+            // Use a higher string length limit to accommodate large payloads
+            // like bundles. 10MB base64 ~= 7.5MB binary.
+            await iterateBytesReader(streamRef, {
+              stringLengthLimit: 10_000_000,
+            }),
+          ),
         };
 
         await deferredTasks.execute({

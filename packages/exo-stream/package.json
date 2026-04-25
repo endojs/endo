@@ -1,0 +1,137 @@
+{
+  "name": "@endo/exo-stream",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CapTP abstraction for bridging async iterator streams",
+  "keywords": [
+    "endo",
+    "captp",
+    "stream",
+    "iterator",
+    "async"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/exo-stream#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/exo-stream"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./index.js"
+    },
+    "./reader-pump.js": {
+      "types": "./reader-pump.d.ts",
+      "default": "./reader-pump.js"
+    },
+    "./reader-from-iterator.js": {
+      "types": "./reader-from-iterator.d.ts",
+      "default": "./reader-from-iterator.js"
+    },
+    "./iterate-reader.js": {
+      "types": "./iterate-reader.d.ts",
+      "default": "./iterate-reader.js"
+    },
+    "./bytes-reader-from-iterator.js": {
+      "types": "./bytes-reader-from-iterator.d.ts",
+      "default": "./bytes-reader-from-iterator.js"
+    },
+    "./iterate-bytes-reader.js": {
+      "types": "./iterate-bytes-reader.d.ts",
+      "default": "./iterate-bytes-reader.js"
+    },
+    "./bytes-writer-from-iterator.js": {
+      "types": "./bytes-writer-from-iterator.d.ts",
+      "default": "./bytes-writer-from-iterator.js"
+    },
+    "./iterate-bytes-writer.js": {
+      "types": "./iterate-bytes-writer.d.ts",
+      "default": "./iterate-bytes-writer.js"
+    },
+    "./writer-pump.js": {
+      "types": "./writer-pump.d.ts",
+      "default": "./writer-pump.js"
+    },
+    "./writer-from-iterator.js": {
+      "types": "./writer-from-iterator.d.ts",
+      "default": "./writer-from-iterator.js"
+    },
+    "./iterate-writer.js": {
+      "types": "./iterate-writer.d.ts",
+      "default": "./iterate-writer.js"
+    },
+    "./type-guards.js": {
+      "types": "./type-guards.d.ts",
+      "default": "./type-guards.js"
+    },
+    "./async-iterate.js": {
+      "types": "./async-iterate.d.ts",
+      "default": "./async-iterate.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc",
+    "postpack": "git clean -fX \"*.tsbuildinfo\"",
+    "prepack": "tsc --build tsconfig.build.json --noCheck",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:xs": "exit 0"
+  },
+  "dependencies": {
+    "@endo/base64": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/pass-style": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/captp": "workspace:^",
+    "@endo/lockdown": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "tsd": "catalog:dev",
+    "typescript": "catalog:dev"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}
