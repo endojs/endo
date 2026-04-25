@@ -1,7 +1,9 @@
 import harden from '@endo/harden';
 import { X, Fail } from '@endo/errors';
+import { encodeHex, decodeHex } from '@endo/hex';
 
 /**
+ * @import {ByteArray} from './types.js';
  * @import {PassStyleHelper} from './internal-types.js';
  */
 
@@ -66,3 +68,60 @@ export const ByteArrayHelper = harden({
       );
   },
 });
+harden(ByteArrayHelper);
+
+/**
+ * Returns a Uint8Array reflecting the current contents of `byteArray`.
+ *
+ * On platforms with native immutable ArrayBuffer support, the byteArray
+ * inherits directly from `ArrayBuffer.prototype` and the returned
+ * `Uint8Array` is a zero-copy view. On platforms using the
+ * `@endo/immutable-arraybuffer` shim, the shim-emulated buffer does not
+ * admit a `Uint8Array` view, so this slices out a fresh mutable copy.
+ *
+ * @param {ArrayBuffer} byteArray A `passStyleOf === 'byteArray'` value
+ * (hardened Immutable ArrayBuffer), or a plain mutable ArrayBuffer
+ * (in which case the returned Uint8Array is a read-write view).
+ * @returns {Uint8Array}
+ */
+export const byteArrayToUint8Array = byteArray => {
+  if (getPrototypeOf(byteArray) === ArrayBuffer.prototype) {
+    return new Uint8Array(byteArray);
+  }
+  const genuineArrayBuffer = byteArray.slice();
+  return new Uint8Array(genuineArrayBuffer);
+};
+harden(byteArrayToUint8Array);
+
+/**
+ * Converts a `Uint8Array` to a `ByteArray`, i.e., a hardened Immutable
+ * ArrayBuffer whose `passStyleOf` is `'byteArray'`.
+ *
+ * @param {Uint8Array} uint8Array
+ * @returns {ArrayBuffer}
+ */
+export const uint8ArrayToByteArray = uint8Array =>
+  // @ts-expect-error shim-augmented ArrayBuffer type
+  harden(uint8Array.buffer.sliceToImmutable(0, uint8Array.length));
+harden(uint8ArrayToByteArray);
+
+/**
+ * Hex-encodes the contents of a ByteArray.
+ *
+ * @param {ByteArray} byteArray
+ * @returns {string}
+ */
+export const byteArrayToHex = byteArray =>
+  encodeHex(byteArrayToUint8Array(byteArray));
+harden(byteArrayToHex);
+
+/**
+ * Decodes a hex string into a ByteArray (hardened Immutable ArrayBuffer).
+ *
+ * @param {string} hex
+ * @param {string} [name]
+ * @returns {ByteArray}
+ */
+export const hexToByteArray = (hex, name) =>
+  uint8ArrayToByteArray(decodeHex(hex, name));
+harden(hexToByteArray);
