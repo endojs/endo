@@ -20,6 +20,7 @@
   "exports": {
     ".": "./index.js",
     "./src/netlayers/tcp-test-only.js": "./src/netlayers/tcp-test-only.js",
+    "./src/netlayers/websocket.js": "./src/netlayers/websocket.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -45,11 +46,13 @@
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@noble/curves": "^1.9.0",
-    "@noble/hashes": "^1.8.0"
+    "@noble/hashes": "^1.8.0",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
+    "@types/ws": "^8",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
