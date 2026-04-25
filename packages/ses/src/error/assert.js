@@ -11,6 +11,7 @@
 // of `console.js`. However, for code that does not have such access, this
 // module should not be observably impure.
 
+import { getEnvironmentOption as getenv } from '@endo/env-options';
 import {
   RangeError,
   TypeError,
@@ -290,7 +291,7 @@ const tagError = (err, optErrorName = err.name) => {
  *     such as `stack` on v8 (Chrome, Brave, Edge?)
  *   - `sanitizeError` will freeze the error, preventing any correct engine from
  *     adding or
- *     altering any of the error's own properties `sanitizeError` is done.
+ *     altering any of the error's own properties once `sanitizeError` is done.
  *
  * However, `sanitizeError` will not, for example, `harden`
  * (i.e., deeply freeze)
@@ -385,7 +386,23 @@ const makeError = (
   if (sanitize) {
     sanitizeError(error);
   }
-  // The next line is a particularly fruitful place to put a breakpoint.
+  // We assume creating an error means we're already on the slow path
+  // so we can afford to check the environment variable again. We
+  // check it each time so that it could be modified by something else,
+  // affecting behavior here.
+  const viewAssertError = getenv('SES_VIEW_ASSERT_ERROR', 'none', [
+    'breakpoint',
+    'log',
+  ]);
+  if (viewAssertError !== 'none') {
+    if (viewAssertError === 'breakpoint') {
+      // eslint-disable-next-line no-debugger
+      debugger;
+    } else if (viewAssertError === 'log') {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      console.log(error);
+    }
+  }
   return error;
 };
 freeze(makeError);
