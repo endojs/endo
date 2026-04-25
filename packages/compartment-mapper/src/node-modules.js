@@ -718,7 +718,7 @@ const gatherDependency = async (
  * @param {boolean} strict
  * @param {LogicalPathGraph} logicalPathGraph
  * @param {GraphPackagesOptions} options
- * @returns {Promise<Graph>}
+ * @returns {Promise<{graph: Graph, readDescriptor: MaybeReadDescriptorFn}>}
  */
 const graphPackages = async (
   maybeRead,
@@ -801,7 +801,7 @@ const graphPackages = async (
       policy,
     },
   );
-  return graph;
+  return { graph, readDescriptor };
 };
 
 /**
@@ -1316,7 +1316,18 @@ export const compartmentMapForNodeModules_ = async (
     unknownCanonicalNameHook,
     packageDataHook,
     packageDependenciesHook,
+    additionalLocations = [],
   } = options;
+
+  for (const { location: additionalLocation } of additionalLocations) {
+    try {
+      assertFileUrlString(additionalLocation);
+    } catch (error) {
+      throw new TypeError(
+        `Invalid additional location: ${q(additionalLocation)}; must be a file URL string`,
+      );
+    }
+  }
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const languageOptions = makeLanguageOptions(options);
 
@@ -1326,8 +1337,6 @@ export const compartmentMapForNodeModules_ = async (
    * This graph will contain nodes for each package location (a
    * {@link FileUrlString}) and edges representing dependencies between packages.
    *
-   * The edges are weighted by {@link calculatePackageWeight}.
-   *
    * @type {LogicalPathGraph}
    */
   const logicalPathGraph = new GenericGraph();
@@ -1335,7 +1344,7 @@ export const compartmentMapForNodeModules_ = async (
   // dev is only set for the entry package, and implied by the development
   // condition.
 
-  const graph = await graphPackages(
+  const { graph, readDescriptor } = await graphPackages(
     maybeRead,
     canonical,
     entryPackageLocation,
@@ -1348,6 +1357,57 @@ export const compartmentMapForNodeModules_ = async (
     logicalPathGraph,
     { log, policy, packageDependenciesHook },
   );
+
+  // Graph additional package locations that are not reachable from the entry's
+  // dependency tree (e.g., a project root package when the entry is a tool
+  // binary in node_modules).
+
+  // NOTE: This operation could theoretically be run safely in parallel, but the
+  // performance benefits are minimal given the expected number of additional
+  // locations.
+  for (const {
+    location: additionalLocation,
+    modules: additionalModules,
+  } of additionalLocations) {
+    // eslint-disable-next-line no-await-in-loop
+    const additionalDescriptor = await readDescriptor(`${additionalLocation}/`);
+    if (additionalDescriptor === undefined) {
+      log(
+        `WARNING: additionalLocations entry at ${q(additionalLocation)} has no package.json; skipping`,
+      );
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    assertPackageDescriptor(additionalDescriptor);
+
+    logicalPathGraph.addNode(additionalLocation);
+    logicalPathGraph.addEdge(entryPackageLocation, additionalLocation);
+
+    // eslint-disable-next-line no-await-in-loop
+    await graphPackage(
+      additionalDescriptor.name,
+      readDescriptor,
+      canonical,
+      graph,
+      {
+        packageLocation: additionalLocation,
+        packageDescriptor: additionalDescriptor,
+      },
+      conditions,
+      true,
+      languageOptions,
+      strict,
+      logicalPathGraph,
+      { commonDependencyDescriptors: {}, log, packageDependenciesHook, policy },
+    );
+
+    if (additionalModules && graph[additionalLocation]) {
+      const node = graph[additionalLocation];
+      for (const modulePath of additionalModules) {
+        node.externalAliases[modulePath] = modulePath;
+      }
+    }
+  }
 
   makeAttenuatorsNode(graph, graph[entryPackageLocation], policy);
 
