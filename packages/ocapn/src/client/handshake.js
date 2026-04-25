@@ -150,10 +150,10 @@ const handleSessionHandshakeMessage = (
       if (messageCaptpVersion !== captpVersion) {
         logger.info(
           'Abort during start-session message with invalid version',
-          JSON.stringify({
+          {
             received: messageCaptpVersion,
             expected: captpVersion,
-          }),
+          },
         );
         sendAbortAndClose(connection, 'invalid-version');
         sessionManager.deleteConnection(connection);

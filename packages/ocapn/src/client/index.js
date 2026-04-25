@@ -198,7 +198,7 @@ export const makeClient = ({
     harden({
       log: (...args) => console.log(`${debugLabel} [${Date.now()}]:`, ...args),
       error: (...args) =>
-        console.error(`${debugLabel} [${Date.now()}}:`, ...args),
+        console.error(`${debugLabel} [${Date.now()}]:`, ...args),
       info: (...args) =>
         verbose && console.info(`${debugLabel} [${Date.now()}]:`, ...args),
     });

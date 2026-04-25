@@ -3,9 +3,10 @@
 /**
  * Public entry point for `@endo/ocapn`.
  *
- * The exports map deliberately keeps the public runtime surface tiny
- * (this main entry, `./src/client/util.js` for swissnum helpers, and
- * `./src/netlayers/websocket.js` for the websocket transport). Any new
+ * The exports map deliberately keeps the public runtime surface tiny:
+ * this main entry (which re-exports swissnum helpers below) plus
+ * explicit netlayer subpaths such as
+ * `./src/netlayers/websocket.js` for the websocket transport. Any new
  * value or type that consumers need should be added here in preference
  * to opening another subpath, since each subpath is a long-term API
  * commitment.
