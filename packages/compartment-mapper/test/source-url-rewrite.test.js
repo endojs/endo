@@ -46,16 +46,16 @@ test('rewrite source url', async t => {
     },
   });
 
+  /** @type {Error | undefined} */
   let error;
   try {
     await app.import();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
 
   t.assert(error);
-  t.log(error.stack);
-  t.assert(
-    error.stack.includes('/compartment-mapper/test/fixtures-stack/index.js:3:'),
-  );
+  const stack = /** @type {string} */ (error?.stack);
+  t.log(stack);
+  t.true(stack.includes('/compartment-mapper/test/fixtures-stack/index.js:3:'));
 });

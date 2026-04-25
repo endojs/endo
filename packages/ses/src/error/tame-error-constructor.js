@@ -42,10 +42,16 @@ export default function tameErrorConstructor(
     typeof originalCaptureStackTrace === 'function' ? 'v8' : 'unknown';
 
   const makeErrorConstructor = (_ = {}) => {
+    /**
+     * @this {ErrorConstructor}
+     * @param {...any} rest
+     */
     // eslint-disable-next-line no-shadow
     const ResultError = function Error(...rest) {
       let error;
       if (new.target === undefined) {
+        // Forward caller's `this` to FERAL_ERROR to keep the shim transparent.
+        // Error() as a function ignores `this` per spec, but do not narrow it.
         error = apply(FERAL_ERROR, this, rest);
       } else {
         error = construct(FERAL_ERROR, rest, new.target);

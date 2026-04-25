@@ -224,6 +224,7 @@ export const makeCapTP = (
 
   /** @type {any} */
   let unplug = false;
+  /** @type {(reason?: any, returnIt?: boolean) => Promise<void> | Promise<never>} */
   const quietReject = (reason = undefined, returnIt = true) => {
     if ((unplug === false || reason !== unplug) && reason !== undefined) {
       onReject(reason);
@@ -657,7 +658,7 @@ export const makeCapTP = (
         } catch (error) {
           // Promote serialization errors to rejections.
           isReject = true;
-          serial = serialize(harden(error));
+          serial = serialize(harden(/** @type {any} */ (error)));
         }
 
         send({
@@ -758,7 +759,10 @@ export const makeCapTP = (
           if (!e) {
             Fail`trapGuest expected trapHost AsyncIterator(${questionID}) to be done, but it wasn't`;
           }
-          annotateError(e, X`trapHost AsyncIterator(${questionID}) threw`);
+          annotateError(
+            /** @type {Error} */ (e),
+            X`trapHost AsyncIterator(${questionID}) threw`,
+          );
           throw e;
         }
       };

@@ -22,19 +22,19 @@ test('archive stack trace source', async t => {
   const archive = await makeArchive(readPowers, fixtureLocation);
   const app = await parseArchive(archive);
 
+  /** @type {Error | undefined} */
   let error;
   try {
     await app.import();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
 
   t.assert(error);
-  t.log(error.stack);
-  t.assert(
-    error.stack.includes(
-      '.../compartment-mapper/test/fixtures-stack/index.js:3:',
-    ),
+  const stack = /** @type {string} */ (error?.stack);
+  t.log(stack);
+  t.true(
+    stack.includes('.../compartment-mapper/test/fixtures-stack/index.js:3:'),
   );
 });
 
@@ -42,17 +42,19 @@ test('archive stack trace source', async t => {
 // have a fully qualified file URL in the stack trace.
 test('disk stack trace source', async t => {
   await null;
+  /** @type {Error | undefined} */
   let error;
   try {
     await importLocation(readPowers, fixtureLocation);
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
 
   t.assert(error);
-  t.log(error.stack);
-  t.assert(
-    error.stack.includes(
+  const stack = /** @type {string} */ (error?.stack);
+  t.log(stack);
+  t.true(
+    stack.includes(
       '/packages/compartment-mapper/test/fixtures-stack/index.js:3:',
     ),
   );

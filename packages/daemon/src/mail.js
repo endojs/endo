@@ -620,7 +620,9 @@ export const makeMailboxMaker = ({
       if (responseName !== undefined) {
         const resolutionId = await E(directory).identify(responseName);
         if (resolutionId !== undefined) {
-          context.thisDiesIfThatDies(resolutionId);
+          context.thisDiesIfThatDies(
+            /** @type {FormulaIdentifier} */ (resolutionId),
+          );
           return provide(/** @type {FormulaIdentifier} */ (resolutionId));
         }
       }

@@ -335,7 +335,7 @@ function assertModuleConfiguration(allegedModule, keypath, url, kinds) {
         try {
           assertCompartmentModuleConfiguration(allegedModule, keypath, url);
         } catch (error) {
-          errors.push(error);
+          errors.push(/** @type {Error} */ (error));
         }
         break;
       }
@@ -343,7 +343,7 @@ function assertModuleConfiguration(allegedModule, keypath, url, kinds) {
         try {
           assertFileModuleConfiguration(allegedModule, keypath, url);
         } catch (error) {
-          errors.push(error);
+          errors.push(/** @type {Error} */ (error));
         }
         break;
       }
@@ -351,7 +351,7 @@ function assertModuleConfiguration(allegedModule, keypath, url, kinds) {
         try {
           assertExitModuleConfiguration(allegedModule, keypath, url);
         } catch (error) {
-          errors.push(error);
+          errors.push(/** @type {Error} */ (error));
         }
         break;
       }
@@ -359,7 +359,7 @@ function assertModuleConfiguration(allegedModule, keypath, url, kinds) {
         try {
           assertErrorModuleConfiguration(allegedModule, keypath, url);
         } catch (error) {
-          errors.push(error);
+          errors.push(/** @type {Error} */ (error));
         }
         break;
       }

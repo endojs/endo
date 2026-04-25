@@ -100,7 +100,10 @@ const CounterI = M.interface('Counter', {
     },
   );
   const counter = makeCounter(0n);
-  counter.incr(1); // Runtime guard will reject this, but TypeScript does not error on the impl.
+  counter.incr(1n);
+  // @ts-expect-error 'number' not compatible with the guard's type 'bigint'
+  counter.incr(1);
+  // The above only errors under strict mode, so before we had that enabled we also did this check, which is still valid:
   const cm: GuardedMethods<typeof counter> = counter;
   // @ts-expect-error
   cm.incr(1); // GuardedMethods reflects the guard's type, so this is an error.
