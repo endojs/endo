@@ -57,14 +57,23 @@ const MAX_LOGS = 500;
  * }} LogEntry
  *
  * High-level UI phases. Roughly:
- *   - `menu`         main menu (set name / join new / join previous)
- *   - `name-input`   single-line text editor for the user's name
- *   - `uri-input`    single-line text editor for an ocapn:// URI
- *   - `recent-list`  list-picker over `recentRooms`
- *   - `connecting`   joinRoom in flight, no input accepted
- *   - `chat`         in a room, normal chat input
+ *   - `menu`              main menu (set name / join new / host / join previous)
+ *   - `name-input`        single-line text editor for the user's name
+ *   - `uri-input`         single-line text editor for an ocapn:// URI
+ *   - `host-name-input`   single-line text editor for a chatroom name to host
+ *   - `recent-list`       list-picker over `recentRooms`
+ *   - `connecting`        joinRoom (or hostRoom) in flight, no input accepted
+ *   - `chat`              in a room, normal chat input
  *
- * @typedef {'menu' | 'name-input' | 'uri-input' | 'recent-list' | 'connecting' | 'chat'} Phase
+ * @typedef {(
+ *   | 'menu'
+ *   | 'name-input'
+ *   | 'uri-input'
+ *   | 'host-name-input'
+ *   | 'recent-list'
+ *   | 'connecting'
+ *   | 'chat'
+ * )} Phase
  *
  * @typedef {{
  *   messages: ChatMessage[],

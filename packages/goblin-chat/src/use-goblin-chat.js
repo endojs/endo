@@ -186,7 +186,9 @@ const makeReducerLogger = (dispatch, source, logSink) => {
  * @property {string} uri          The full `ocapn://…` URI just joined.
  * @property {string} [roomName]   The chatroom's `self-proposed-name`,
  *   when the lookup succeeded.
- *
+ */
+
+/**
  * @typedef {object} GoblinChatConfig
  * @property {string} [captpVersion]    Forwarded to `makeClient`.
  * @property {boolean} [verbose=true]   Forwarded to `makeClient`. The
@@ -201,9 +203,23 @@ const makeReducerLogger = (dispatch, source, logSink) => {
  *   has been fetched (or skipped). The TUI uses this to push the room
  *   into its persistent recent-rooms list. Errors thrown by the
  *   callback are caught and logged — they never block the join.
- *
+ */
+
+/**
+ * @typedef {object} JoinRoomOptions
+ * @property {string} uri
+ * @property {string} name
+ * @property {boolean} [transient=false]
+ *   When true, suppress the `onJoined` callback so the join doesn't
+ *   land in any persistent recent-rooms list. Used by the "host a new
+ *   chat" flow, where the URI is single-use (fresh ephemeral port and
+ *   swissnum every session) and saving it would clutter history with
+ *   stale entries.
+ */
+
+/**
  * @typedef {object} GoblinChatActions
- * @property {(args: { uri: string, name: string }) => Promise<void>} joinRoom
+ * @property {(args: JoinRoomOptions) => Promise<void>} joinRoom
  *   Parse a sturdyref URI, stand up a websocket netlayer, enliven the
  *   chatroom, join, and subscribe. Errors are caught: the failure is
  *   recorded in the log panel and the phase falls back to `menu` with
@@ -218,7 +234,13 @@ const makeReducerLogger = (dispatch, source, logSink) => {
  *   to the `menu` phase. Safe to call when no session is active.
  * @property {(phase: Phase) => void} setPhase
  *   Drive the high-level phase transition. The TUI uses this to move
- *   between `menu`, `name-input`, `uri-input`, and `recent-list`.
+ *   between `menu`, `name-input`, `uri-input`, `host-name-input`, and
+ *   `recent-list`.
+ * @property {(text: string) => void} addInfo
+ *   Push an `info` system event onto the chat events stream. Used by
+ *   the host-a-new-chat flow to render the freshly minted sturdyref
+ *   URI inline with the chat (so the user sees what landed on their
+ *   clipboard, even with the diagnostic log panel hidden).
  * @property {() => void} shutdown
  *   Synchronous polite teardown for process exit: unsubscribe
  *   (eventual), leave (eventual), `client.shutdown()` (sync). Safe to
@@ -367,8 +389,8 @@ export const useGoblinChat = ({
   }, [teardownSession]);
 
   const joinRoom = useCallback(
-    /** @param {{ uri: string, name: string }} args */
-    async ({ uri, name }) => {
+    /** @param {{ uri: string, name: string, transient?: boolean }} args */
+    async ({ uri, name, transient = false }) => {
       await null;
       try {
         // Tear down any prior session before standing up a new one.
@@ -503,7 +525,7 @@ export const useGoblinChat = ({
           status: `connected as ${name}`,
         });
 
-        if (onJoined) {
+        if (onJoined && !transient) {
           try {
             onJoined({ uri, roomName: resolvedRoomName });
           } catch (err) {
@@ -560,6 +582,12 @@ export const useGoblinChat = ({
     [logDiagError],
   );
 
+  const addInfo = useCallback(
+    /** @param {string} text */
+    text => dispatch({ type: 'info', text }),
+    [],
+  );
+
   const shutdown = useCallback(() => {
     teardownSession();
   }, [teardownSession]);
@@ -581,6 +609,7 @@ export const useGoblinChat = ({
     sendMessage,
     leaveRoom,
     setPhase,
+    addInfo,
     shutdown,
   };
 };

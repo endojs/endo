@@ -10,9 +10,12 @@ The package ships:
   `^user-inbox`, `^user-messaging-channel`, `^authenticated-channel`.
   A direct port of the Guile reference implementation, suitable for
   hosting a chatroom from JS or for talking to a Goblins-hosted one.
-- **TUI client** — a full-screen Ink app with a main menu (set name /
-  join previous / join new), persistent settings, an optional
-  diagnostic log panel, and per-session log file.
+- **TUI client** — a full-screen Ink app with a main menu (join new /
+  host new / join previous / set name), persistent settings, an
+  optional diagnostic log panel, and per-session log file. The
+  "Host a new chat" entry stands up an in-process chatroom on a
+  loopback websocket and copies the freshly minted sturdyref URI to
+  the system clipboard so it can be pasted to a peer.
 
 ## Quickstart — connect to a chatroom
 
@@ -31,8 +34,8 @@ menu. Keys:
 | -------------- | ------------------------------------------------------------- |
 | `↑` `↓`        | Move the menu / list cursor                                   |
 | `Enter`        | Activate the highlighted item / submit the current input      |
-| `1`–`4`        | Quick-pick the corresponding menu item                        |
-| `Esc`          | Cancel name/URI input and return to the menu                  |
+| `1`–`5`        | Quick-pick the corresponding menu item                        |
+| `Esc`          | Cancel name / URI / room-name input and return to the menu    |
 | `d`            | (Recent-list) delete the highlighted entry                    |
 | `Ctrl+L`       | Toggle the diagnostic log panel (hidden by default)           |
 | `Ctrl+C`       | From chat: leave the room. From menu: quit.                   |
@@ -40,6 +43,77 @@ menu. Keys:
 Pasting a sturdyref URI works in the URI input phase — most terminals
 emit the whole pasted blob as a single keystroke event, including the
 trailing newline, which the TUI treats as `Enter`.
+
+## Hosting your own chat
+
+Pick **Host a new chat** from the main menu, type a chatroom name, and
+the TUI will:
+
+1. Stand up a fresh `^chatroom` Far in a separate OCapN client.
+2. Bind a websocket netlayer to a random port on `127.0.0.1`.
+3. Build a sturdyref URI of the form
+   `ocapn://<designator>.websocket/s/<base64url>?url=ws://127.0.0.1:<port>`
+4. Copy that URI to the system clipboard (via `pbcopy` on macOS,
+   `clip` on Windows, or `wl-copy`/`xclip`/`xsel` on Linux/BSD — the
+   first one that runs wins; absence is non-fatal).
+5. Auto-join you to your own chatroom over the loopback websocket so
+   you're sitting in the room ready to receive participants.
+
+The URI is also rendered into the chat events stream as an `info`
+event, so you can read it without leaving the TUI even if the
+clipboard write failed.
+
+A few caveats:
+
+- The URI is single-use: closing the TUI tears down the websocket
+  server, and the next session generates a fresh ephemeral port and
+  swissnum. Hosted joins are deliberately *not* added to the
+  persistent recent-rooms list for that reason.
+- The default `127.0.0.1:<random-port>` bind is reachable only from
+  this machine. To share off-host, see "Hosting publicly" below.
+- The host stays alive even after you `Ctrl+C` out of the chat back
+  to the menu — only quitting the TUI shuts it down.
+
+### Hosting publicly
+
+When deploying as a server (or on a LAN box you want peers to dial
+into), point the websocket netlayer at a real interface and tell it
+the URL to advertise:
+
+| Variable                  | Default            | Effect                                                                                                                                                              |
+| ------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GOBLIN_CHAT_HOST_BIND`   | `127.0.0.1`        | Network interface the websocket server listens on. Set to `0.0.0.0` (or a specific NIC IP) to accept off-host connections.                                          |
+| `GOBLIN_CHAT_HOST_PORT`   | `0` (ephemeral)    | TCP port the websocket server listens on. Pin to a stable number when running behind a firewall / port-forward so the URI doesn't change between restarts.          |
+| `GOBLIN_CHAT_HOST_URL`    | `ws://<bind>:<port>` | URL announced to peers in the sturdyref's `hints.url`. Override when the externally reachable URL differs from the bind address — e.g. behind a TLS-terminating reverse proxy (`wss://chat.example.com`), or when the public hostname/port differs from the bind. |
+
+Typical deployment shapes:
+
+- **Bare public IP**, no proxy:
+
+  ```bash
+  GOBLIN_CHAT_HOST_BIND=0.0.0.0 \
+  GOBLIN_CHAT_HOST_PORT=9000 \
+  GOBLIN_CHAT_HOST_URL=ws://chat.example.com:9000 \
+    goblin-chat
+  ```
+
+- **Behind an nginx/Caddy reverse proxy with TLS termination**:
+
+  ```bash
+  GOBLIN_CHAT_HOST_BIND=127.0.0.1 \
+  GOBLIN_CHAT_HOST_PORT=9000 \
+  GOBLIN_CHAT_HOST_URL=wss://chat.example.com \
+    goblin-chat
+  ```
+
+  The proxy forwards `wss://chat.example.com` → `ws://127.0.0.1:9000`.
+
+The host's designator (the long base32 string before `.websocket` in
+the URI) is generated fresh each time the netlayer starts and is part
+of the OCapN peer-auth handshake; nothing you set in env can pin it.
+The swissnum (the `/s/<…>` segment) is likewise re-generated on every
+"Host a new chat", so each chatroom hosted within a session gets its
+own unguessable URI even if the netlayer's bind/URL is fixed.
 
 ## Persistent state
 
@@ -92,12 +166,18 @@ file logging entirely.
 
 ## Environment knobs
 
-| Variable                  | Default            | Effect                                          |
-| ------------------------- | ------------------ | ----------------------------------------------- |
-| `GOBLIN_CHAT_NAME`        | `goblin-chatter`   | Initial display name (overridden by stored).    |
-| `OCAPN_CAPTP_VERSION`     | `1.0`              | Handshake CapTP version.                        |
-| `GOBLIN_CHAT_STATE_FILE`  | platform default   | Path to the persisted state JSON.               |
-| `GOBLIN_CHAT_LOG_FILE`    | auto-named in CWD  | Path to per-session log; `''` disables.         |
+| Variable                  | Default              | Effect                                                                       |
+| ------------------------- | -------------------- | ---------------------------------------------------------------------------- |
+| `GOBLIN_CHAT_NAME`        | `goblin-chatter`     | Initial display name (overridden by stored).                                 |
+| `OCAPN_CAPTP_VERSION`     | `1.0`                | Handshake CapTP version.                                                     |
+| `GOBLIN_CHAT_STATE_FILE`  | platform default     | Path to the persisted state JSON.                                            |
+| `GOBLIN_CHAT_LOG_FILE`    | auto-named in CWD    | Path to per-session log; `''` disables.                                      |
+| `GOBLIN_CHAT_HOST_BIND`   | `127.0.0.1`          | Hosted-chat websocket bind interface; set to `0.0.0.0` to listen publicly.   |
+| `GOBLIN_CHAT_HOST_PORT`   | `0` (ephemeral)      | Hosted-chat websocket bind port; pin for stable, firewall-friendly URIs.     |
+| `GOBLIN_CHAT_HOST_URL`    | `ws://<bind>:<port>` | URL announced in `hints.url`; override behind a TLS-terminating proxy/NAT.   |
+
+See ["Hosting publicly"](#hosting-publicly) below for full details on
+the host-side variables.
 
 ## Programmatic surface
 
@@ -134,6 +214,8 @@ src/
   chat-state.js              reducer, typedefs, pure helpers
   use-goblin-chat.js         React hook: OCapN session orchestration
   state-store.js             on-disk persistence (name + recent rooms)
+  host-room.js               stand up a chatroom + websocket + sturdyref URI
+  clipboard.js               best-effort pbcopy/clip/wl-copy/xclip/xsel writer
 ```
 
 `index.js` deliberately includes `import '@endo/init';` — that

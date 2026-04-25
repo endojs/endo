@@ -48,6 +48,8 @@ import { lookupName } from './src/chat-state.js';
 import { useGoblinChat, shutdownHandle } from './src/use-goblin-chat.js';
 import { openStateStore } from './src/state-store.js';
 import { AnimatedLogo } from './src/animated-logo.js';
+import { hostRoom, hostRegistry } from './src/host-room.js';
+import { copyToClipboard } from './src/clipboard.js';
 
 /**
  * @typedef {import('./src/chat-state.js').ChatMessage} ChatMessage
@@ -63,6 +65,50 @@ const h = React.createElement;
 
 const DEFAULT_NAME = process.env.GOBLIN_CHAT_NAME || 'goblin-chatter';
 const DEFAULT_CAPTP_VERSION = process.env.OCAPN_CAPTP_VERSION || '1.0'; // 'goblins-0.16';
+
+// ---------------------------------------------------------------------------
+// Hosting configuration (read from env once, applied to every "Host a
+// new chat" invocation in this session)
+// ---------------------------------------------------------------------------
+//
+// `GOBLIN_CHAT_HOST_BIND` — interface the websocket server listens on.
+//   Default `127.0.0.1` (loopback only) so casual local hosting can't
+//   accidentally expose a chatroom off-host. Set to `0.0.0.0` (or a
+//   specific NIC address) when deploying as a server.
+//
+// `GOBLIN_CHAT_HOST_PORT` — port the websocket server listens on.
+//   Default `0` (ephemeral) so an ad-hoc host doesn't collide with a
+//   neighbour. Set to a stable number when running behind a firewall
+//   or port-forwarding rule so the URI can be re-used across restarts.
+//
+// `GOBLIN_CHAT_HOST_URL` — the URL announced to peers in `hints.url`.
+//   Default `ws://<bind-host>:<bind-port>`. Override when the
+//   externally reachable URL differs from the bind address — e.g.
+//   running behind a reverse proxy that terminates TLS
+//   (`wss://chat.example.com`), or NAT'd to a public IP under a
+//   different port.
+const DEFAULT_HOST_BIND = process.env.GOBLIN_CHAT_HOST_BIND || '127.0.0.1';
+const DEFAULT_HOST_PORT_RAW = process.env.GOBLIN_CHAT_HOST_PORT;
+const DEFAULT_HOST_PORT = (() => {
+  if (!DEFAULT_HOST_PORT_RAW) return 0;
+  const parsed = Number.parseInt(DEFAULT_HOST_PORT_RAW, 10);
+  if (
+    !Number.isInteger(parsed) ||
+    parsed < 0 ||
+    parsed > 65535 ||
+    String(parsed) !== DEFAULT_HOST_PORT_RAW.trim()
+  ) {
+    // Fail loud-but-gentle: print a warning, fall back to ephemeral.
+    // We don't want to refuse to launch over a typo in a deployment
+    // env file.
+    process.stderr.write(
+      `goblin-chat: ignoring invalid GOBLIN_CHAT_HOST_PORT=${JSON.stringify(DEFAULT_HOST_PORT_RAW)}; using ephemeral port\n`,
+    );
+    return 0;
+  }
+  return parsed;
+})();
+const DEFAULT_HOST_PUBLIC_URL = process.env.GOBLIN_CHAT_HOST_URL || undefined;
 
 // Height of the log panel when visible. Hidden by default; toggled
 // with Ctrl+L. Picked to be tall enough to read the most recent few
@@ -222,6 +268,7 @@ const LogLine = ({ entry }) => {
  * @typedef {(
  *   | 'set-name'
  *   | 'join-new'
+ *   | 'host-new'
  *   | 'join-previous'
  *   | 'quit'
  * )} MenuItemId
@@ -230,6 +277,7 @@ const LogLine = ({ entry }) => {
 /** @type {{ id: MenuItemId, label: string }[]} */
 const BASE_MENU_ITEMS = [
   { id: 'join-new', label: 'Join a new chat' },
+  { id: 'host-new', label: 'Host a new chat' },
   { id: 'join-previous', label: 'Join a previous chat' },
   { id: 'set-name', label: 'Set your name' },
   { id: 'quit', label: 'Quit' },
@@ -340,15 +388,16 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
       undefined
     ),
   );
-  const { state, joinRoom, sendMessage, leaveRoom, setPhase } = useGoblinChat({
-    captpVersion: DEFAULT_CAPTP_VERSION,
-    logSink,
-    onJoined: ({ uri, roomName }) => {
-      // Indirection through a ref so we always see the latest store
-      // reference without re-creating the hook on every render.
-      if (onJoinedRef.current) onJoinedRef.current({ uri, roomName });
-    },
-  });
+  const { state, joinRoom, sendMessage, leaveRoom, setPhase, addInfo } =
+    useGoblinChat({
+      captpVersion: DEFAULT_CAPTP_VERSION,
+      logSink,
+      onJoined: ({ uri, roomName }) => {
+        // Indirection through a ref so we always see the latest store
+        // reference without re-creating the hook on every render.
+        if (onJoinedRef.current) onJoinedRef.current({ uri, roomName });
+      },
+    });
 
   useEffect(() => {
     onJoinedRef.current = ({ uri, roomName }) => {
@@ -371,6 +420,9 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
       case 'join-new':
         setPhase('uri-input');
         break;
+      case 'host-new':
+        setPhase('host-name-input');
+        break;
       case 'join-previous':
         if (storedSnap.recentRooms.length === 0) return;
         setRecentSelected(0);
@@ -383,6 +435,60 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
       default:
         break;
     }
+  };
+
+  /**
+   * Stand up a freshly hosted chatroom on a loopback websocket and
+   * auto-join it as a participant. The URI is copied to the clipboard
+   * (best-effort) and rendered into the chat events stream so the user
+   * can paste it manually if every clipboard provider is missing.
+   * @param {string} roomName
+   */
+  const startHosting = async roomName => {
+    await null;
+    setPhase('connecting');
+    /** @type {{ uri: string, shutdown: () => void } | undefined} */
+    let hosted;
+    try {
+      hosted = await hostRoom({
+        roomName,
+        captpVersion: DEFAULT_CAPTP_VERSION,
+        logSink,
+        bindHostname: DEFAULT_HOST_BIND,
+        bindPort: DEFAULT_HOST_PORT,
+        publicUrl: DEFAULT_HOST_PUBLIC_URL,
+      });
+    } catch (err) {
+      // Hosting itself failed (port bind error, etc.). Bail back to the
+      // menu with a hint in the status line; the log panel carries the
+      // actual exception via the host-client/host-netlayer sources.
+      logSink?.('error', 'tui', `hostRoom failed: ${String(err)}`);
+      setPhase('menu');
+      return;
+    }
+    const { uri } = hosted;
+    // Best-effort clipboard write. Failure is recorded in the log
+    // panel and surfaced inline (so the user knows to copy manually);
+    // it never blocks the join.
+    const clipResult = await copyToClipboard(uri);
+    if (!clipResult.ok) {
+      logSink?.(
+        'error',
+        'tui',
+        `clipboard copy failed: ${String(clipResult.error)}`,
+      );
+    }
+    // `transient: true` keeps the auto-join out of the persistent
+    // recent-rooms list — the URI is single-use (fresh ephemeral port
+    // every session), so saving it would clutter history with stale
+    // entries.
+    await joinRoom({ uri, name, transient: true });
+    // Push a friendly inline notice so the URI is visible in the chat
+    // body without the user having to toggle the diagnostic log panel.
+    const clipNote = clipResult.ok
+      ? 'copied to clipboard'
+      : 'clipboard unavailable — copy manually';
+    addInfo(`Hosting #${roomName} at ${uri} (${clipNote})`);
   };
 
   /**
@@ -408,6 +514,14 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
           return;
         }
         joinRoom({ uri: trimmed, name });
+        break;
+      }
+      case 'host-name-input': {
+        if (trimmed.length === 0) {
+          setPhase('menu');
+          return;
+        }
+        startHosting(trimmed);
         break;
       }
       case 'chat': {
@@ -520,6 +634,7 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
 
       case 'name-input':
       case 'uri-input':
+      case 'host-name-input':
       case 'chat':
         // Fall through to the shared text-editor block below.
         break;
@@ -530,10 +645,14 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
 
     // Shared text-editor handling for the input phases above.
     if (key.escape) {
-      // Esc backs out of name/uri inputs; in chat it's a no-op (use
-      // Ctrl+C to leave the room — Esc is too easy to hit by accident
-      // mid-message).
-      if (state.phase === 'name-input' || state.phase === 'uri-input') {
+      // Esc backs out of name/uri/host inputs; in chat it's a no-op
+      // (use Ctrl+C to leave the room — Esc is too easy to hit by
+      // accident mid-message).
+      if (
+        state.phase === 'name-input' ||
+        state.phase === 'uri-input' ||
+        state.phase === 'host-name-input'
+      ) {
         setInput('');
         setPhase('menu');
       }
@@ -608,9 +727,10 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
 
   // --- footer ----------------------------------------------------------
   const phaseHints = {
-    menu: '↑/↓ select • Enter activate • 1–4 quick • Ctrl+C quit',
+    menu: '↑/↓ select • Enter activate • 1–5 quick • Ctrl+C quit',
     'name-input': 'type your name • Enter save • Esc cancel',
     'uri-input': 'paste an ocapn://… URI • Enter join • Esc cancel',
+    'host-name-input': 'name your chatroom • Enter host • Esc cancel',
     'recent-list': '↑/↓ select • Enter join • d delete • Esc back',
     connecting: 'connecting…  • Ctrl+C cancel',
     chat: 'Enter send • Ctrl+C leave room',
@@ -629,6 +749,8 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
       prompt = 'name> ';
     } else if (state.phase === 'uri-input') {
       prompt = 'sturdyref> ';
+    } else if (state.phase === 'host-name-input') {
+      prompt = 'room name> ';
     } else if (state.phase === 'chat') {
       prompt = `${name}> `;
     } else {
@@ -701,6 +823,22 @@ const App = ({ logSink, logFilePath, store, initialName }) => {
             Text,
             { dimColor: true },
             'e.g. ocapn://….websocket/s/<base64url>?url=ws://….',
+          ),
+        );
+      case 'host-name-input':
+        return h(
+          Box,
+          { paddingY: 1, paddingX: 2, flexDirection: 'column' },
+          h(Text, null, 'Name your chatroom.'),
+          h(
+            Text,
+            { dimColor: true },
+            "We'll spin up a local websocket host and copy the sturdyref URI to your clipboard.",
+          ),
+          h(
+            Text,
+            { dimColor: true },
+            'The room is reachable from this machine; share the URI off-host only with port-forwarding in place.',
           ),
         );
       case 'connecting':
@@ -858,6 +996,16 @@ const main = () => {
   }
   process.once('exit', leaveAltScreen);
   process.once('exit', closeLogFile);
+  // Hosted chatrooms live in their own OCapN clients with their own
+  // websocket servers; without an explicit shutdown those servers
+  // would keep the event loop pinned open after a clean menu-Ctrl+C.
+  process.once('exit', () => {
+    try {
+      hostRegistry.shutdownAll();
+    } catch (_) {
+      // best-effort
+    }
+  });
   // Catch the cases ink's `useInput` Ctrl+C branch doesn't see:
   //   SIGINT  — `kill -INT $pid`, or Ctrl+C from a parent if we ever
   //             lose raw mode (e.g. during a crash unwind).
@@ -879,6 +1027,11 @@ const main = () => {
     process.once(signal, () => {
       try {
         shutdownHandle.run();
+      } catch (_) {
+        // best-effort; never block exit on cleanup
+      }
+      try {
+        hostRegistry.shutdownAll();
       } catch (_) {
         // best-effort; never block exit on cleanup
       }
