@@ -42,7 +42,11 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ava",
     "test:xs": "exit 0"
   },
+  "dependencies": {
+    "@endo/harden": "workspace:^"
+  },
   "devDependencies": {
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
@@ -73,5 +77,11 @@
       "test/**/*.test.*"
     ],
     "timeout": "2m"
+  },
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "base": "../../ava-base.config.mjs",
+    "noop-harden": "../../ava-noop-harden.config.mjs"
   }
 }
