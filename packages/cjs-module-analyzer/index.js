@@ -27,6 +27,8 @@ let myexports;
 let unsafeGetters;
 let reexports;
 let requires;
+let imports;
+let importCallPositions;
 
 function resetState() {
   openTokenDepth = 0;
@@ -45,6 +47,8 @@ function resetState() {
   unsafeGetters = new Set();
   reexports = new Set();
   requires = [];
+  imports = [];
+  importCallPositions = [];
 }
 
 /** @typedef {0 | 1 | 2} RequireType */
@@ -66,10 +70,29 @@ const strictReserved = new Set([
 ]);
 
 /**
+ * Result of {@link analyzeCommonJS}
+ *
+ * @typedef {object} CJSModuleAnalysis
+ * @property {string[]} exports List of export names.
+ * @property {string[]} reexports List of reexported names; always empty.
+ * @property {string[]} requires List of specifiers found in `require()` calls.
+ * @property {string[]} imports List of specifiers found in `import()` calls.
+ * @property {string} source The source code with `import()` calls replaced with `$h_import`.
+ */
+
+/**
+ * Analyzes a CommonJS module source code and returns a record of the module's
+ * exports, reexports, requires, imports, and source code.
+ *
  * @param {string} cjsSource
  * @param {string} [name]
+ * @returns {CJSModuleAnalysis}
  */
 export function analyzeCommonJS(cjsSource, name = '<unknown>') {
+  if (cjsSource.includes('$h_import')) {
+    throw Error('Source contains reserved identifier "$h_import"');
+  }
+
   resetState();
   try {
     parseSource(cjsSource);
@@ -81,10 +104,25 @@ export function analyzeCommonJS(cjsSource, name = '<unknown>') {
     err.loc = pos;
     throw err;
   }
+
+  let transformedSource = cjsSource;
+  if (importCallPositions.length > 0) {
+    let built = '';
+    let lastPos = 0;
+    for (const importPos of importCallPositions) {
+      built += `${cjsSource.slice(lastPos, importPos)}$h_import`;
+      lastPos = importPos + 6;
+    }
+    built += cjsSource.slice(lastPos);
+    transformedSource = built;
+  }
+
   const result = {
     exports: [...myexports].filter(expt => !unsafeGetters.has(expt)),
     reexports: [...reexports],
     requires,
+    imports,
+    source: transformedSource,
   };
   resetState();
   return result;
@@ -127,8 +165,9 @@ function parseSource(cjsSource) {
     if (openTokenDepth === 0) {
       switch (ch) {
         case 105 /* i */:
-          if (source.startsWith('mport', pos + 1) && keywordStart(pos))
-            throwIfImportStatement();
+          if (source.startsWith('mport', pos + 1) && keywordStart(pos)) {
+            if (!tryParseImportCall()) throwIfImportStatement();
+          }
           lastTokenPos = pos;
           continue;
         case 114 /* r */: {
@@ -177,6 +216,10 @@ function parseSource(cjsSource) {
         lastTokenPos = pos;
         continue;
       }
+      case 105 /* i */:
+        if (source.startsWith('mport', pos + 1) && keywordStart(pos))
+          tryParseImportCall();
+        break;
       case 101 /* e */:
         if (source.startsWith('xport', pos + 1) && keywordStart(pos)) {
           if (source.charCodeAt(pos + 6) === 115 /* s */)
@@ -1077,6 +1120,38 @@ function tryParseRequire(requireType) {
     }
     pos = revertPos;
   }
+  return false;
+}
+
+function tryParseImportCall() {
+  const revertPos = pos;
+  pos += 6;
+  let ch = commentWhitespace();
+  if (ch === 40 /* ( */) {
+    pos++;
+    ch = commentWhitespace();
+    const specifierStart = pos + 1;
+    if (ch === 39 /* ' */) {
+      const simple = singleQuoteString();
+      const specifierEnd = pos++;
+      ch = commentWhitespace();
+      if (ch === 41 /* ) */ && simple) {
+        imports.push(source.slice(specifierStart, specifierEnd));
+        importCallPositions.push(revertPos);
+        return true;
+      }
+    } else if (ch === 34 /* " */) {
+      const simple = doubleQuoteString();
+      const specifierEnd = pos++;
+      ch = commentWhitespace();
+      if (ch === 41 /* ) */ && simple) {
+        imports.push(source.slice(specifierStart, specifierEnd));
+        importCallPositions.push(revertPos);
+        return true;
+      }
+    }
+  }
+  pos = revertPos;
   return false;
 }
 

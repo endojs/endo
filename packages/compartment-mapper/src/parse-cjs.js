@@ -11,6 +11,7 @@ import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
 
 const textDecoder = new TextDecoder();
+const textEncoder = new TextEncoder();
 
 const { freeze } = Object;
 
@@ -22,13 +23,18 @@ export const parseCjs = (
   _packageLocation,
   { readPowers } = {},
 ) => {
-  const source = textDecoder.decode(bytes);
+  const originalSource = textDecoder.decode(bytes);
 
   const {
-    requires: imports,
+    requires: requires_,
+    imports,
     exports,
     reexports,
-  } = analyzeCommonJS(source, location);
+    source,
+  } = analyzeCommonJS(originalSource, location);
+
+  const requires =
+    imports.length > 0 ? [...new Set([...requires_, ...imports])] : requires_;
 
   if (!exports.includes('default')) {
     exports.push('default');
@@ -43,10 +49,10 @@ export const parseCjs = (
    */
   const execute = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
-      `(function (require, exports, module, __filename, __dirname) { 'use strict'; ${source} })\n`,
+      `(function (require, exports, module, __filename, __dirname, $h_import) { 'use strict'; ${source} })\n`,
     );
 
-    const { require, moduleExports, module, afterExecute } = wrap({
+    const { require, moduleExports, module, afterExecute, importFn } = wrap({
       moduleEnvironmentRecord,
       compartment,
       resolvedImports,
@@ -62,15 +68,18 @@ export const parseCjs = (
       module,
       filename,
       dirname,
+      importFn,
     );
 
     afterExecute();
   };
 
+  const transformedBytes = textEncoder.encode(source);
+
   return {
     parser: 'cjs',
-    bytes,
-    record: freeze({ imports, exports, reexports, execute }),
+    bytes: transformedBytes,
+    record: freeze({ imports: requires, exports, reexports, execute }),
   };
 };
 
