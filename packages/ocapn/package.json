@@ -38,6 +38,7 @@
   "dependencies": {
     "@endo/eventual-send": "workspace:^",
     "@endo/harden": "workspace:^",
+    "@endo/hex": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/nat": "workspace:^",

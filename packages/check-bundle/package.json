@@ -43,7 +43,8 @@
     "@endo/base64": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/errors": "workspace:^",
-    "@endo/harden": "workspace:^"
+    "@endo/harden": "workspace:^",
+    "@endo/hex": "workspace:^"
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
