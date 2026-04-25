@@ -10,6 +10,8 @@ import {
   isErrorLike,
   nameForPassableSymbol,
   passableSymbolForName,
+  byteArrayToHex,
+  hexToByteArray,
 } from '@endo/pass-style';
 
 /**
@@ -473,14 +475,47 @@ const decodeLegacyArray = (encoded, decodePassable, skip = 0) => {
 };
 
 /**
+ * Encodes a ByteArray as `a<length><:><hex>`, where `<length>` is the
+ * `encodeBigInt` of `byteLength` (a non-negative bigint, which already
+ * encodes in shortlex-numerical order), followed by the explicit
+ * separator `:` and the lowercase hex of the bytes.
+ *
+ * Shortlex is inherited in two stages:
+ *  1. `encodeBigInt` on the length preserves numerical order, so shorter
+ *     byteArrays sort before longer ones.
+ *  2. At equal length, the length encodings are identical and ordering
+ *     falls through to the byte-lex-preserving hex body.
+ *
+ * Every character used here — `a`, `p`/`n`/`~`/`#`, decimal digits, `:`,
+ * and hex digits `[0-9a-f]` — is outside the escape-reserved sets of
+ * both the `legacyOrdered` and `compactOrdered` array framings, so no
+ * escaping is needed.
+ *
  * @param {ByteArray} byteArray
  * @param {(byteArray: ByteArray) => string} _encodePassable
  * @returns {string}
  */
 const encodeByteArray = (byteArray, _encodePassable) => {
-  // TODO implement
-  Fail`encodePassable(byteArray) not yet implemented: ${byteArray}`;
-  return ''; // Just for the type
+  const lenEnc = encodeBigInt(BigInt(byteArray.byteLength));
+  return `a${lenEnc}:${byteArrayToHex(byteArray)}`;
+};
+
+const rByteArrayPayload = /^(p[~]*[0-9]+:[0-9]+):([0-9a-f]*)$/;
+
+/**
+ * Inverse of {@link encodeByteArray}.
+ *
+ * @param {string} encoded The body after the leading `'a'` prefix char.
+ * @returns {import('@endo/pass-style').ByteArray}
+ */
+const decodeByteArray = encoded => {
+  const match = encoded.match(rByteArrayPayload);
+  match || Fail`Encoded byteArray expected: ${encoded}`;
+  const [, lenEnc, hex] = /** @type {RegExpMatchArray} */ (match);
+  const byteLength = Number(decodeBigInt(lenEnc));
+  hex.length === byteLength * 2 ||
+    Fail`byteArray length mismatch: header ${q(byteLength)} vs body ${q(hex.length / 2)}`;
+  return hexToByteArray(hex, 'encodePassable byteArray');
 };
 
 const encodeRecord = (record, encodeArray, encodePassable) => {
@@ -748,6 +783,9 @@ const makeInnerDecode = (decodeStringSuffix, decodeArray, options) => {
       }
       case ':': {
         return decodeTagged(encoded, decodeArray, innerDecode, skip);
+      }
+      case 'a': {
+        return decodeByteArray(getSuffix(encoded, skip + 1));
       }
       default: {
         throw Fail`invalid database key: ${getSuffix(encoded, skip)}`;

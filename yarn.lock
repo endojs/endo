@@ -1035,6 +1035,7 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/hex": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"

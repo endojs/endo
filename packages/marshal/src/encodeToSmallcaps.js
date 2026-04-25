@@ -17,6 +17,8 @@ import {
   assertPassableSymbol,
   nameForPassableSymbol,
   passableSymbolForName,
+  byteArrayToHex,
+  hexToByteArray,
 } from '@endo/pass-style';
 
 /** @import {Passable, RemotableObject} from '@endo/pass-style' */
@@ -50,6 +52,7 @@ const DASH = '-'.charCodeAt(0);
  * Of these, smallcaps currently uses the following:
  *
  *  * `!` - escaped string
+ *  * `*` - byteArray (hardened Immutable ArrayBuffer), hex-encoded
  *  * `+` - non-negative bigint
  *  * `-` - negative bigint
  *  * `#` - manifest constant
@@ -57,7 +60,7 @@ const DASH = '-'.charCodeAt(0);
  *  * `$` - remotable
  *  * `&` - promise
  *
- * All other special characters (`"'()*,`) are reserved for future use.
+ * All other special characters (`"'(),`) are reserved for future use.
  *
  * The manifest constants that smallcaps currently uses for values:
  *  * `#undefined`
@@ -230,8 +233,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
         return passable.map(encodeToSmallcapsRecur);
       }
       case 'byteArray': {
-        // TODO implement
-        throw Fail`marsal of byteArray not yet implemented: ${passable}`;
+        return `*${byteArrayToHex(passable)}`;
       }
       case 'tagged': {
         return {
@@ -406,6 +408,9 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
               Fail`internal: decodePromiseFromSmallcaps option must return a promise: ${result}`;
             }
             return result;
+          }
+          case '*': {
+            return hexToByteArray(encoding.slice(1), 'smallcaps byteArray');
           }
           default: {
             throw Fail`Special char ${q(
