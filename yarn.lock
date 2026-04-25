@@ -593,6 +593,8 @@ __metadata:
     "@endo/env-options": "workspace:^"
     "@endo/evasive-transform": "workspace:^"
     "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/hex": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/module-source": "workspace:^"
     "@endo/path-compare": "workspace:^"
