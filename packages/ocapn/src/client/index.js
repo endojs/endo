@@ -176,6 +176,7 @@ const makeSessionManager = () => {
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
+ * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. The same logger is also handed to netlayer factories registered via `registerNetlayer`. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
  * @returns {Client}
  */
 export const makeClient = ({
@@ -186,18 +187,21 @@ export const makeClient = ({
   captpVersion = '1.0',
   enableImportCollection = true,
   debugMode = false,
+  logger: providedLogger,
 } = {}) => {
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
 
   /** @type {Logger} */
-  const logger = harden({
-    log: (...args) => console.log(`${debugLabel} [${Date.now()}]:`, ...args),
-    error: (...args) =>
-      console.error(`${debugLabel} [${Date.now()}}:`, ...args),
-    info: (...args) =>
-      verbose && console.info(`${debugLabel} [${Date.now()}]:`, ...args),
-  });
+  const logger =
+    providedLogger ||
+    harden({
+      log: (...args) => console.log(`${debugLabel} [${Date.now()}]:`, ...args),
+      error: (...args) =>
+        console.error(`${debugLabel} [${Date.now()}]:`, ...args),
+      info: (...args) =>
+        verbose && console.info(`${debugLabel} [${Date.now()}]:`, ...args),
+    });
 
   const sessionManager = makeSessionManager();
 
