@@ -112,6 +112,10 @@ type WorkerFormula = {
   type: 'worker';
 };
 
+type XsnapWorkerFormula = {
+  type: 'xsnap-worker';
+};
+
 export type WorkerDeferredTaskParams = {
   workerId: FormulaIdentifier;
 };
@@ -303,6 +307,7 @@ export type Formula =
   | EndoFormula
   | LoopbackNetworkFormula
   | WorkerFormula
+  | XsnapWorkerFormula
   | HostFormula
   | GuestFormula
   | LeastAuthorityFormula
@@ -677,7 +682,15 @@ export interface EndoHost extends EndoAgent {
   ): Promise<EndoHost>;
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
   provideWorker(petNamePath: string | string[]): Promise<EndoWorker>;
+  provideXsnapWorker(petNamePath: string | string[]): Promise<EndoWorker>;
   evaluate(
+    workerPetName: string | undefined,
+    source: string,
+    codeNames: Array<string>,
+    petNames: Array<string>,
+    resultName?: string | string[],
+  ): Promise<unknown>;
+  xsnapEvaluate(
     workerPetName: string | undefined,
     source: string,
     codeNames: Array<string>,
@@ -841,6 +854,14 @@ export type DaemonicControlPowers = {
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
   }>;
+  makeXsnapWorker: (
+    id: string,
+    daemonWorkerFacet: DaemonWorkerFacet,
+    cancelled: Promise<never>,
+  ) => Promise<{
+    workerTerminated: Promise<void>;
+    workerDaemonFacet: ERef<WorkerDaemonFacet>;
+  }>;
 };
 
 export type DaemonicPowers = {
@@ -918,6 +939,7 @@ export type FormulaValueTypes = {
   host: EndoHost;
   invitation: Invitation;
   worker: EndoWorker;
+  'xsnap-worker': EndoWorker;
 };
 
 export type ProvideTypes = FormulaValueTypes & {
@@ -1054,6 +1076,10 @@ export interface DaemonCore {
   ) => FormulateResult<unknown>;
 
   formulateWorker: (
+    deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
+  ) => FormulateResult<EndoWorker>;
+
+  formulateXsnapWorker: (
     deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
   ) => FormulateResult<EndoWorker>;
 

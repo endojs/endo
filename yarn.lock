@@ -12,6 +12,87 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@agoric/base-zone@npm:0.2.0":
+  version: 0.2.0
+  resolution: "@agoric/base-zone@npm:0.2.0"
+  dependencies:
+    "@agoric/store": "npm:0.10.0"
+    "@endo/common": "npm:^1.2.13"
+    "@endo/errors": "npm:^1.2.13"
+    "@endo/exo": "npm:^1.5.12"
+    "@endo/far": "npm:^1.1.14"
+    "@endo/pass-style": "npm:^1.6.3"
+    "@endo/patterns": "npm:^1.7.0"
+  checksum: 10c0/74b284f39a4dab72aa918bde5642003440db18f63a955e915e7115a66c5507310354bbd2fe26d428f8590e360f19fc40e276cac8be7ad81232e5c17ba0e1460d
+  languageName: node
+  linkType: hard
+
+"@agoric/internal@npm:0.4.0":
+  version: 0.4.0
+  resolution: "@agoric/internal@npm:0.4.0"
+  dependencies:
+    "@agoric/base-zone": "npm:0.2.0"
+    "@endo/common": "npm:^1.2.13"
+    "@endo/compartment-mapper": "npm:^1.6.3"
+    "@endo/errors": "npm:^1.2.13"
+    "@endo/eventual-send": "npm:^1.3.4"
+    "@endo/far": "npm:^1.1.14"
+    "@endo/init": "npm:^1.1.12"
+    "@endo/marshal": "npm:^1.8.0"
+    "@endo/nat": "npm:^5.1.3"
+    "@endo/pass-style": "npm:^1.6.3"
+    "@endo/patterns": "npm:^1.7.0"
+    "@endo/promise-kit": "npm:^1.1.13"
+    "@endo/stream": "npm:^1.2.13"
+    anylogger: "npm:^0.21.0"
+    jessie.js: "npm:^0.3.4"
+  checksum: 10c0/6127460268d9d15f671b6fa194de78fbb10194eb58202f1a509e1867a149aba7d059222786c751a108967d481d48cf4b98f63376b2775d139646c9aec1febe9b
+  languageName: node
+  linkType: hard
+
+"@agoric/store@npm:0.10.0":
+  version: 0.10.0
+  resolution: "@agoric/store@npm:0.10.0"
+  dependencies:
+    "@endo/errors": "npm:^1.2.13"
+    "@endo/exo": "npm:^1.5.12"
+    "@endo/marshal": "npm:^1.8.0"
+    "@endo/pass-style": "npm:^1.6.3"
+    "@endo/patterns": "npm:^1.7.0"
+  checksum: 10c0/6f48367b8e2394ea3f07e586018df9de714b54fc50b9412b2c1741f19f84b44bd16d67d987ebe0f462e6ffba2c1e3d80522f2a1b50a8779b3e8b08baa92ec859
+  languageName: node
+  linkType: hard
+
+"@agoric/xsnap-lockdown@npm:0.14.1":
+  version: 0.14.1
+  resolution: "@agoric/xsnap-lockdown@npm:0.14.1"
+  checksum: 10c0/644b0e3299322ac3faf5421199579066e6d476941804029c5b721f87a675f111d9a75c771d3276384319a4b847f40f5a7d6df280aa934ebc6805bfc0da4973ef
+  languageName: node
+  linkType: hard
+
+"@agoric/xsnap@npm:^0.15.0":
+  version: 0.15.0
+  resolution: "@agoric/xsnap@npm:0.15.0"
+  dependencies:
+    "@agoric/internal": "npm:0.4.0"
+    "@agoric/xsnap-lockdown": "npm:0.14.1"
+    "@endo/bundle-source": "npm:^4.1.2"
+    "@endo/errors": "npm:^1.2.13"
+    "@endo/eventual-send": "npm:^1.3.4"
+    "@endo/init": "npm:^1.1.12"
+    "@endo/netstring": "npm:^1.0.18"
+    "@endo/promise-kit": "npm:^1.1.13"
+    "@endo/stream": "npm:^1.2.13"
+    "@endo/stream-node": "npm:^1.1.13"
+    glob: "npm:^7.1.6"
+    tmp: "npm:^0.2.1"
+  bin:
+    ava-xs: ./src/ava-xs.js
+    xsrepl: ./src/xsrepl
+  checksum: 10c0/36284a1857da750d6df08f836423abc4290d7a617e31bc50da90d7d223fa8a83356f1efd2c429e99fb765303151d421e5ade8da0e937560e079f7b48d4e4c831
+  languageName: node
+  linkType: hard
+
 "@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.27.1":
   version: 7.27.1
   resolution: "@babel/code-frame@npm:7.27.1"
@@ -433,7 +514,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/bundle-source@workspace:^, @endo/bundle-source@workspace:packages/bundle-source":
+"@endo/bundle-source@npm:^4.1.2, @endo/bundle-source@workspace:^, @endo/bundle-source@workspace:packages/bundle-source":
   version: 0.0.0-use.local
   resolution: "@endo/bundle-source@workspace:packages/bundle-source"
   dependencies:
@@ -458,7 +539,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/cache-map@workspace:^, @endo/cache-map@workspace:packages/cache-map":
+"@endo/cache-map@npm:^1.1.0, @endo/cache-map@workspace:^, @endo/cache-map@workspace:packages/cache-map":
   version: 0.0.0-use.local
   resolution: "@endo/cache-map@workspace:packages/cache-map"
   dependencies:
@@ -518,7 +599,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/cjs-module-analyzer@workspace:^, @endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer":
+"@endo/cjs-module-analyzer@npm:^1.0.11, @endo/cjs-module-analyzer@workspace:^, @endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer":
   version: 0.0.0-use.local
   resolution: "@endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer"
   dependencies:
@@ -564,7 +645,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/common@workspace:^, @endo/common@workspace:packages/common":
+"@endo/common@npm:^1.2.13, @endo/common@workspace:^, @endo/common@workspace:packages/common":
   version: 0.0.0-use.local
   resolution: "@endo/common@workspace:packages/common"
   dependencies:
@@ -582,6 +663,20 @@ __metadata:
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
+
+"@endo/compartment-mapper@npm:^1.6.3":
+  version: 1.6.3
+  resolution: "@endo/compartment-mapper@npm:1.6.3"
+  dependencies:
+    "@endo/cjs-module-analyzer": "npm:^1.0.11"
+    "@endo/module-source": "npm:^1.3.3"
+    "@endo/path-compare": "npm:^1.1.0"
+    "@endo/trampoline": "npm:^1.0.5"
+    "@endo/zip": "npm:^1.0.11"
+    ses: "npm:^1.14.0"
+  checksum: 10c0/869b0f4eb62ab621d8bf0dd62f11e1e3498ab57cf4f5d1ae9a27492155af52746a86cce21ed972c07b4c6785238113400b9df1c82ed4662252fdad171ab56ff7
+  languageName: node
+  linkType: hard
 
 "@endo/compartment-mapper@workspace:^, @endo/compartment-mapper@workspace:packages/compartment-mapper":
   version: 0.0.0-use.local
@@ -615,6 +710,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/daemon@workspace:packages/daemon"
   dependencies:
+    "@agoric/xsnap": "npm:^0.15.0"
     "@endo/base64": "workspace:^"
     "@endo/bundle-source": "workspace:^"
     "@endo/captp": "workspace:^"
@@ -644,7 +740,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/env-options@workspace:^, @endo/env-options@workspace:packages/env-options":
+"@endo/env-options@npm:^1.1.11, @endo/env-options@workspace:^, @endo/env-options@workspace:packages/env-options":
   version: 0.0.0-use.local
   resolution: "@endo/env-options@workspace:packages/env-options"
   dependencies:
@@ -654,7 +750,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/errors@workspace:^, @endo/errors@workspace:packages/errors":
+"@endo/errors@npm:^1.2.13, @endo/errors@workspace:^, @endo/errors@workspace:packages/errors":
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
@@ -707,7 +803,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/eventual-send@workspace:^, @endo/eventual-send@workspace:packages/eventual-send":
+"@endo/eventual-send@npm:^1.3.4, @endo/eventual-send@workspace:^, @endo/eventual-send@workspace:packages/eventual-send":
   version: 0.0.0-use.local
   resolution: "@endo/eventual-send@workspace:packages/eventual-send"
   dependencies:
@@ -723,7 +819,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/exo@workspace:^, @endo/exo@workspace:packages/exo":
+"@endo/exo@npm:^1.5.12, @endo/exo@workspace:^, @endo/exo@workspace:packages/exo":
   version: 0.0.0-use.local
   resolution: "@endo/exo@workspace:packages/exo"
   dependencies:
@@ -752,7 +848,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/far@workspace:^, @endo/far@workspace:packages/far":
+"@endo/far@npm:^1.0.0, @endo/far@npm:^1.1.14, @endo/far@workspace:^, @endo/far@workspace:packages/far":
   version: 0.0.0-use.local
   resolution: "@endo/far@workspace:packages/far"
   dependencies:
@@ -783,7 +879,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/immutable-arraybuffer@workspace:^, @endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
+"@endo/immutable-arraybuffer@npm:^1.1.2, @endo/immutable-arraybuffer@workspace:^, @endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
   version: 0.0.0-use.local
   resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
   dependencies:
@@ -817,7 +913,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/init@workspace:^, @endo/init@workspace:packages/init":
+"@endo/init@npm:^1.1.12, @endo/init@workspace:^, @endo/init@workspace:packages/init":
   version: 0.0.0-use.local
   resolution: "@endo/init@workspace:packages/init"
   dependencies:
@@ -858,7 +954,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/marshal@workspace:^, @endo/marshal@workspace:packages/marshal":
+"@endo/marshal@npm:^1.8.0, @endo/marshal@workspace:^, @endo/marshal@workspace:packages/marshal":
   version: 0.0.0-use.local
   resolution: "@endo/marshal@workspace:packages/marshal"
   dependencies:
@@ -901,7 +997,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/module-source@workspace:^, @endo/module-source@workspace:packages/module-source":
+"@endo/module-source@npm:^1.3.3, @endo/module-source@workspace:^, @endo/module-source@workspace:packages/module-source":
   version: 0.0.0-use.local
   resolution: "@endo/module-source@workspace:packages/module-source"
   dependencies:
@@ -920,7 +1016,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/nat@workspace:^, @endo/nat@workspace:packages/nat":
+"@endo/nat@npm:^5.1.3, @endo/nat@workspace:^, @endo/nat@workspace:packages/nat":
   version: 0.0.0-use.local
   resolution: "@endo/nat@workspace:packages/nat"
   dependencies:
@@ -935,7 +1031,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/netstring@workspace:^, @endo/netstring@workspace:packages/netstring":
+"@endo/netstring@npm:^1.0.18, @endo/netstring@workspace:^, @endo/netstring@workspace:packages/netstring":
   version: 0.0.0-use.local
   resolution: "@endo/netstring@workspace:packages/netstring"
   dependencies:
@@ -1002,7 +1098,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/pass-style@workspace:^, @endo/pass-style@workspace:packages/pass-style":
+"@endo/pass-style@npm:^1.6.3, @endo/pass-style@workspace:^, @endo/pass-style@workspace:packages/pass-style":
   version: 0.0.0-use.local
   resolution: "@endo/pass-style@workspace:packages/pass-style"
   dependencies:
@@ -1030,7 +1126,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/path-compare@workspace:^, @endo/path-compare@workspace:packages/path-compare":
+"@endo/path-compare@npm:^1.1.0, @endo/path-compare@workspace:^, @endo/path-compare@workspace:packages/path-compare":
   version: 0.0.0-use.local
   resolution: "@endo/path-compare@workspace:packages/path-compare"
   dependencies:
@@ -1042,7 +1138,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/patterns@workspace:^, @endo/patterns@workspace:packages/patterns":
+"@endo/patterns@npm:^1.7.0, @endo/patterns@workspace:^, @endo/patterns@workspace:packages/patterns":
   version: 0.0.0-use.local
   resolution: "@endo/patterns@workspace:packages/patterns"
   dependencies:
@@ -1070,7 +1166,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/promise-kit@workspace:^, @endo/promise-kit@workspace:packages/promise-kit":
+"@endo/promise-kit@npm:^1.1.13, @endo/promise-kit@workspace:^, @endo/promise-kit@workspace:packages/promise-kit":
   version: 0.0.0-use.local
   resolution: "@endo/promise-kit@workspace:packages/promise-kit"
   dependencies:
@@ -1114,7 +1210,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/stream-node@workspace:^, @endo/stream-node@workspace:packages/stream-node":
+"@endo/stream-node@npm:^1.1.13, @endo/stream-node@workspace:^, @endo/stream-node@workspace:packages/stream-node":
   version: 0.0.0-use.local
   resolution: "@endo/stream-node@workspace:packages/stream-node"
   dependencies:
@@ -1142,7 +1238,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/stream@workspace:^, @endo/stream@workspace:packages/stream":
+"@endo/stream@npm:^1.2.13, @endo/stream@workspace:^, @endo/stream@workspace:packages/stream":
   version: 0.0.0-use.local
   resolution: "@endo/stream@workspace:packages/stream"
   dependencies:
@@ -1171,7 +1267,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/trampoline@workspace:^, @endo/trampoline@workspace:packages/trampoline":
+"@endo/trampoline@npm:^1.0.5, @endo/trampoline@workspace:^, @endo/trampoline@workspace:packages/trampoline":
   version: 0.0.0-use.local
   resolution: "@endo/trampoline@workspace:packages/trampoline"
   dependencies:
@@ -1194,7 +1290,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/zip@workspace:^, @endo/zip@workspace:packages/zip":
+"@endo/zip@npm:^1.0.11, @endo/zip@workspace:^, @endo/zip@workspace:packages/zip":
   version: 0.0.0-use.local
   resolution: "@endo/zip@workspace:packages/zip"
   dependencies:
@@ -3052,6 +3148,13 @@ __metadata:
   version: 6.2.1
   resolution: "ansi-styles@npm:6.2.1"
   checksum: 10c0/5d1ec38c123984bcedd996eac680d548f31828bd679a66db2bdf11844634dde55fec3efa9c6bb1d89056a5e79c1ac540c4c784d592ea1d25028a92227d2f2d5c
+  languageName: node
+  linkType: hard
+
+"anylogger@npm:^0.21.0":
+  version: 0.21.0
+  resolution: "anylogger@npm:0.21.0"
+  checksum: 10c0/1ca7fcf5bc2b78d1e1d9b8c8cc7ce50b5c6cc67a8da5a28c9c975b7b46fff255a04abab02de38a5139190c9d8b34b3d6c59af6724521b077f7d7dfbad9b47a9c
   languageName: node
   linkType: hard
 
@@ -7317,6 +7420,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jessie.js@npm:^0.3.4":
+  version: 0.3.4
+  resolution: "jessie.js@npm:0.3.4"
+  dependencies:
+    "@endo/far": "npm:^1.0.0"
+  checksum: 10c0/853ab3f8a0e30df11742882f5e11479d1303033a5a203a247d8ffbf4c6f3f3d4bcbefa53084ae4632e6ab106e348f23dc988280486cbeaaf5d16487fa3d40e96
+  languageName: node
+  linkType: hard
+
 "jest-diff@npm:>=29.4.3 < 30, jest-diff@npm:^29.0.3, jest-diff@npm:^29.4.1":
   version: 29.7.0
   resolution: "jest-diff@npm:29.7.0"
@@ -10346,6 +10458,17 @@ __metadata:
   version: 0.18.3
   resolution: "ses@npm:0.18.3"
   checksum: 10c0/c07df71cf297f31e862efbc2cc46ee724e85f73cc67002b9b4fa47089fc89d147a56e579b8012fb1534419c77afafbb98bc5808fae82096951479d0bd6dfb377
+  languageName: node
+  linkType: hard
+
+"ses@npm:^1.14.0":
+  version: 1.15.0
+  resolution: "ses@npm:1.15.0"
+  dependencies:
+    "@endo/cache-map": "npm:^1.1.0"
+    "@endo/env-options": "npm:^1.1.11"
+    "@endo/immutable-arraybuffer": "npm:^1.1.2"
+  checksum: 10c0/1fd8661905acbd61006a8528f3c7e1d8839e645eae2148eace99df2421c18947c2f470de7fde7b27764aca1b297c429dc92688770a5c146ecfa14c81cc76a9da
   languageName: node
   linkType: hard
 
