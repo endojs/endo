@@ -77,11 +77,17 @@ jobs:
           ControlSocket unix:/home/runner/.cache/ocapn/tor/tor-control-sock RelaxDirModeCheck
           Log notice file /home/runner/.cache/ocapn/tor/tor-log.txt
           EOF
-          timeout 300s tor -f "$HOME/.config/ocapn-tor-config.txt" > /tmp/tor.log 2>&1 &
+          rm -f /tmp/tor.pid
+          tor -f "$HOME/.config/ocapn-tor-config.txt" > /tmp/tor.log 2>&1 &
           echo $! > /tmp/tor.pid
           for i in $(seq 1 60); do
             if [ -S "$TOR_BASE/tor-control-sock" ] && [ -S "$TOR_BASE/tor-socks-sock" ]; then
               break
+            fi
+            if ! kill -0 "$(cat /tmp/tor.pid)" 2>/dev/null; then
+              echo "Tor exited before creating its sockets" >&2
+              cat /tmp/tor.log >&2 || true
+              exit 1
             fi
             sleep 1
           done

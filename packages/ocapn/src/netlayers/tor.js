@@ -443,15 +443,20 @@ export const makeTorNetLayer = async ({
 
   try {
     await new Promise((resolve, reject) => {
-      server.listen(ocapnSocketPath, err => {
-        if (err) {
-          reject(
-            Error(`${makeTorPathError('listen on', ocapnSocketPath)}: ${err}`),
-          );
-        } else {
-          resolve(undefined);
-        }
-      });
+      let onError = () => {};
+      const onListening = () => {
+        server.off('error', onError);
+        resolve(undefined);
+      };
+      onError = err => {
+        server.off('listening', onListening);
+        reject(
+          Error(`${makeTorPathError('listen on', ocapnSocketPath)}: ${err}`),
+        );
+      };
+      server.once('listening', onListening);
+      server.once('error', onError);
+      server.listen(ocapnSocketPath);
     });
 
     torControlSocket = await connectUnixSocket(resolvedControlSocketPath);

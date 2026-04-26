@@ -72,7 +72,7 @@ at `src/netlayers/tor.js`, designed to be compatible with Spritely Goblins'
 Guile onion netlayer conventions.
 
 ```js
-import { makeTorNetLayer } from './src/netlayers/tor.js';
+import { makeTorNetLayer } from '@endo/ocapn/src/netlayers/tor.js';
 
 await client.registerNetlayer((handlers, logger) =>
   makeTorNetLayer({
