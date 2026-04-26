@@ -32,14 +32,32 @@
 ;; Tor socket paths. Defaults match Goblins docs and module defaults, but
 ;; are overridable from env so CI can isolate paths.
 (define tor-control-path
-  (or (getenv "OCAPN_TOR_CONTROL_SOCKET")
+  (or (getenv "OCAPN_TOR_CONTROL_PATH")
+      (getenv "OCAPN_TOR_CONTROL_SOCKET")
+      (getenv "TOR_CONTROL_PATH")
       (string-append (getenv "HOME") "/.cache/goblins/tor/tor-control-sock")))
 (define tor-socks-path
-  (or (getenv "OCAPN_TOR_SOCKS_SOCKET")
+  (or (getenv "OCAPN_TOR_SOCKS_PATH")
+      (getenv "OCAPN_TOR_SOCKS_SOCKET")
+      (getenv "TOR_SOCKS_PATH")
       (string-append (getenv "HOME") "/.cache/goblins/tor/tor-socks-sock")))
 (define tor-ocapn-socks-dir
-  (or (getenv "OCAPN_TOR_OCAPN_SOCKETS_DIR")
+  (or (getenv "OCAPN_TOR_OCAPN_SOCKS_DIR")
+      (getenv "OCAPN_TOR_OCAPN_SOCKETS_DIR")
+      (getenv "TOR_OCAPN_SOCKS_DIR")
       (string-append (getenv "HOME") "/.cache/goblins/tor/ocapn-sockets")))
+
+;; Ensure the onion netlayer's target directory exists before spawn.
+;; Goblins' onion netlayer currently performs a non-recursive mkdir in its
+;; setup path, so we proactively create the parent tree here.
+(define (mkdir-if-missing dir)
+  (unless (file-exists? dir)
+    (mkdir dir #o755)))
+
+(mkdir-if-missing (string-append (getenv "HOME") "/.cache"))
+(mkdir-if-missing (string-append (getenv "HOME") "/.cache/goblins"))
+(mkdir-if-missing (string-append (getenv "HOME") "/.cache/goblins/tor"))
+(mkdir-if-missing tor-ocapn-socks-dir)
 
 ;; Interop progress flags.
 (define sent-local-message? #f)

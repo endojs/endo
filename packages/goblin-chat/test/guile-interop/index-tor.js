@@ -1,5 +1,5 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout */
 
 /**
  * Endo interop client for a Guile-hosted Goblin Chat room over Tor onion.
@@ -46,11 +46,20 @@ const main = async () => {
   const endoMessage =
     process.env.OCAPN_INTEROP_ENDO_MESSAGE || DEFAULT_ENDO_MESSAGE;
   const controlSocketPath =
-    process.env.OCAPN_TOR_CONTROL_SOCKET_PATH || DEFAULT_TOR_CONTROL_SOCKET_PATH;
+    process.env.OCAPN_TOR_CONTROL_PATH ||
+    process.env.OCAPN_TOR_CONTROL_SOCKET_PATH ||
+    process.env.TOR_CONTROL_PATH ||
+    DEFAULT_TOR_CONTROL_SOCKET_PATH;
   const socksSocketPath =
-    process.env.OCAPN_TOR_SOCKS_SOCKET_PATH || DEFAULT_TOR_SOCKS_SOCKET_PATH;
+    process.env.OCAPN_TOR_SOCKS_PATH ||
+    process.env.OCAPN_TOR_SOCKS_SOCKET_PATH ||
+    process.env.TOR_SOCKS_PATH ||
+    DEFAULT_TOR_SOCKS_SOCKET_PATH;
   const ocapnSocketDir =
-    process.env.OCAPN_TOR_OCAPN_SOCKET_DIR || DEFAULT_TOR_OCAPN_SOCKET_DIR;
+    process.env.OCAPN_TOR_OCAPN_SOCKS_DIR ||
+    process.env.OCAPN_TOR_OCAPN_SOCKET_DIR ||
+    process.env.TOR_OCAPN_SOCKS_DIR ||
+    DEFAULT_TOR_OCAPN_SOCKET_DIR;
 
   const { location, swissNum } = parseSturdyrefUri(sturdyrefUri);
   const captpVersion = process.env.OCAPN_CAPTP_VERSION || DEFAULT_CAPTP_VERSION;
@@ -70,12 +79,15 @@ const main = async () => {
     const chatroom = await client.enlivenSturdyRef(sturdyRef);
     await runChatParticipant({
       chatroom,
-      name: 'endo-interop-ocapn',
+      name: 'endo-interop-ocapn-tor',
       localMessage: endoMessage,
       expectedRemoteMessage: expectedGuileMessage,
       log: line => console.log(`*** ${line}`),
     });
-    console.log('*** Endo interop over Tor completed');
+    // Give the Guile side a short window to observe the final message/ack path
+    // before this process tears down its connection.
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('*** Endo Tor interop completed');
   } finally {
     client.shutdown();
   }

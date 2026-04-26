@@ -123,12 +123,12 @@ jobs:
           TOR_OCAPN_SOCKS_DIR="$HOME/.cache/ocapn/tor/ocapn-sockets-guile"
           mkdir -p "$TOR_OCAPN_SOCKS_DIR"
 
-          TOR_CONTROL_PATH="$TOR_CONTROL_PATH" \
-          TOR_SOCKS_PATH="$TOR_SOCKS_PATH" \
-          TOR_OCAPN_SOCKS_DIR="$TOR_OCAPN_SOCKS_DIR" \
+          OCAPN_TOR_CONTROL_SOCKET="$TOR_CONTROL_PATH" \
+          OCAPN_TOR_SOCKS_SOCKET="$TOR_SOCKS_PATH" \
+          OCAPN_TOR_OCAPN_SOCKETS_DIR="$TOR_OCAPN_SOCKS_DIR" \
           GUILE_AUTO_COMPILE=1 \
             timeout 300s guix shell --pure --no-grafts \
-            --preserve='^TOR_CONTROL_PATH$|^TOR_SOCKS_PATH$|^TOR_OCAPN_SOCKS_DIR$|^GUILE_AUTO_COMPILE$' \
+            --preserve='^OCAPN_TOR_CONTROL_SOCKET$|^OCAPN_TOR_SOCKS_SOCKET$|^OCAPN_TOR_OCAPN_SOCKETS_DIR$|^GUILE_AUTO_COMPILE$' \
             guile guile-fibers guile-gnutls guile-gcrypt -- \
             guile \
               -L "$FIBERS_OUT/share/guile/site/3.0" \
@@ -160,11 +160,11 @@ jobs:
           OCAPN_CAPTP_VERSION: '1.0'
           OCAPN_INTEROP_GUILE_MESSAGE: hello from Guile CI (Tor)
           OCAPN_INTEROP_ENDO_MESSAGE: hello from Endo OCapN (Tor)
-          TOR_CONTROL_PATH: /home/runner/.cache/ocapn/tor/tor-control-sock
-          TOR_SOCKS_PATH: /home/runner/.cache/ocapn/tor/tor-socks-sock
-          TOR_OCAPN_SOCKS_DIR: /home/runner/.cache/ocapn/tor/ocapn-sockets-endo
+          OCAPN_TOR_CONTROL_PATH: /home/runner/.cache/ocapn/tor/tor-control-sock
+          OCAPN_TOR_SOCKS_PATH: /home/runner/.cache/ocapn/tor/tor-socks-sock
+          OCAPN_TOR_OCAPN_SOCKS_DIR: /home/runner/.cache/ocapn/tor/ocapn-sockets-endo
         run: |
-          mkdir -p "$TOR_OCAPN_SOCKS_DIR"
+          mkdir -p "$OCAPN_TOR_OCAPN_SOCKS_DIR"
           set +e
           timeout 150s node ./packages/goblin-chat/test/guile-interop/index-tor.js "$STURDYREF" \
             > /tmp/endo-interop-tor.log 2>&1
@@ -179,6 +179,7 @@ jobs:
           rg -q 'sturdyref: ocapn:' /tmp/guile-interop-tor.log
           rg -q 'interop-client-tor: subscription ready' /tmp/guile-interop-tor.log
           rg -q 'interop-client-tor: sent message, ack' /tmp/guile-interop-tor.log
+          rg -q 'interop-client-tor: observed local+remote messages and ack' /tmp/guile-interop-tor.log
           rg -Fq '*** [endo-interop-ocapn-tor] subscription ready' /tmp/endo-interop-tor.log
           rg -Fq '*** [endo-interop-ocapn-tor] sent message, ack =' /tmp/endo-interop-tor.log
           rg -Fq '*** [endo-interop-ocapn-tor] interop observer received message: hello from Guile CI (Tor)' /tmp/endo-interop-tor.log

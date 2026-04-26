@@ -37,7 +37,9 @@ export const DEFAULT_TOR_OCAPN_SOCKET_DIR = '~/.cache/ocapn/tor/ocapn-sockets';
  * @returns {Uint8Array}
  */
 const bufferToBytes = buffer => {
-  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  // Keep handshake/decoder paths compatible with BufferReader.fromBytes(),
+  // which currently rejects Uint8Array views with non-zero byteOffset.
+  return new Uint8Array(buffer);
 };
 
 /**
