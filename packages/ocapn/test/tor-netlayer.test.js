@@ -79,8 +79,12 @@ test('parseSocks5ConnectReply accepts IPv4 reply', t => {
     0x00, // success
     0x00, // reserved
     0x01, // atyp ipv4
-    127, 0, 0, 1, // bound address
-    0x23, 0x55, // bound port 9045
+    127,
+    0,
+    0,
+    1, // bound address
+    0x23,
+    0x55, // bound port 9045
   ]);
   t.is(parseSocks5ConnectReply(reply), reply.length);
 });
@@ -96,8 +100,12 @@ test('parseSocks5ConnectReply rejects failure status', t => {
     0x05, // connection refused
     0x00, // reserved
     0x01, // atyp ipv4
-    127, 0, 0, 1,
-    0x23, 0x55,
+    127,
+    0,
+    0,
+    1,
+    0x23,
+    0x55,
   ]);
   const error = t.throws(() => parseSocks5ConnectReply(failureReply), {
     instanceOf: Error,
