@@ -19,7 +19,8 @@ import { runChatParticipant } from '../../src/interop-driver.js';
 const DEFAULT_CAPTP_VERSION = '1.0';
 const DEFAULT_GUILE_MESSAGE = 'hello from Guile CI';
 const DEFAULT_ENDO_MESSAGE = 'hello from Endo OCapN';
-const DEFAULT_TOR_CONTROL_SOCKET_PATH = '/tmp/ocapn-guile-interop/tor-control-sock';
+const DEFAULT_TOR_CONTROL_SOCKET_PATH =
+  '/tmp/ocapn-guile-interop/tor-control-sock';
 const DEFAULT_TOR_SOCKS_SOCKET_PATH = '/tmp/ocapn-guile-interop/tor-socks-sock';
 const DEFAULT_TOR_OCAPN_SOCKET_DIR = '/tmp/ocapn-guile-interop/ocapn-sockets';
 

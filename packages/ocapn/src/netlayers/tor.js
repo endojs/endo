@@ -29,7 +29,8 @@ const SOCKS_ATYP_DOMAIN = 0x03;
 export const DEFAULT_TOR_VIRTUAL_PORT = 9045;
 export const DEFAULT_TOR_CONTROL_SOCKET_PATH =
   '~/.cache/ocapn/tor/tor-control-sock';
-export const DEFAULT_TOR_SOCKS_SOCKET_PATH = '~/.cache/ocapn/tor/tor-socks-sock';
+export const DEFAULT_TOR_SOCKS_SOCKET_PATH =
+  '~/.cache/ocapn/tor/tor-socks-sock';
 export const DEFAULT_TOR_OCAPN_SOCKET_DIR = '~/.cache/ocapn/tor/ocapn-sockets';
 
 /**
@@ -128,7 +129,9 @@ const makeSocketLineReader = socket => {
   };
   const onClose = () => {
     if (!terminalError) {
-      failWaiters(Error('Socket closed while waiting for Tor control response'));
+      failWaiters(
+        Error('Socket closed while waiting for Tor control response'),
+      );
     }
   };
 
@@ -256,7 +259,9 @@ export const parseAddOnionReplyLines = lines => {
     }
   }
   if (!serviceId) {
-    throw Error(`ADD_ONION did not return ServiceID. Reply: ${lines.join(' | ')}`);
+    throw Error(
+      `ADD_ONION did not return ServiceID. Reply: ${lines.join(' | ')}`,
+    );
   }
   return { serviceId, privateKey };
 };
@@ -553,7 +558,12 @@ export const makeTorNetLayer = async ({
    * @param {string} designator
    * @returns {void}
    */
-  const processSocks5HandshakeChunk = (connection, socket, state, designator) => {
+  const processSocks5HandshakeChunk = (
+    connection,
+    socket,
+    state,
+    designator,
+  ) => {
     if (state.stage === 'connected') {
       if (state.buffer.length > 0) {
         handlers.handleMessageData(connection, bufferToBytes(state.buffer));
