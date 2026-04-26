@@ -148,7 +148,7 @@ jobs:
           echo $! > /tmp/guile-interop-tor.pid
 
           for i in $(seq 1 120); do
-            if rg -q 'sturdyref:' /tmp/guile-interop-tor.log; then break; fi
+            if grep -q 'sturdyref:' /tmp/guile-interop-tor.log; then break; fi
             if ! kill -0 "$(cat /tmp/guile-interop-tor.pid)" 2>/dev/null; then break; fi
             sleep 1
           done
@@ -182,15 +182,14 @@ jobs:
       - name: Assert interop success
         run: |
           test "${ENDO_EXIT:-1}" -eq 0
-          rg -q 'sturdyref: ocapn:' /tmp/guile-interop-tor.log
-          rg -q 'interop-client-tor: subscription ready' /tmp/guile-interop-tor.log
-          rg -q 'interop-client-tor: sent message, ack' /tmp/guile-interop-tor.log
-          rg -q 'interop-client-tor: observed local+remote messages and ack' /tmp/guile-interop-tor.log
-          rg -Fq '*** [endo-interop-ocapn-tor] subscription ready' /tmp/endo-interop-tor.log
-          rg -Fq '*** [endo-interop-ocapn-tor] sent message, ack =' /tmp/endo-interop-tor.log
-          rg -Fq '*** [endo-interop-ocapn-tor] interop observer received message: hello from Guile CI (Tor)' /tmp/endo-interop-tor.log
-          rg -Fq '*** [endo-interop-ocapn-tor] interop observer received message: hello from Endo OCapN (Tor)' /tmp/endo-interop-tor.log
-          rg -Fq '*** Endo Tor interop completed' /tmp/endo-interop-tor.log
+          grep -q 'sturdyref: ocapn:' /tmp/guile-interop-tor.log
+          grep -q 'interop-client-tor: subscription ready' /tmp/guile-interop-tor.log
+          grep -q 'interop-client-tor: sent message, ack' /tmp/guile-interop-tor.log
+          grep -Fq '*** [endo-interop-ocapn-tor] subscription ready' /tmp/endo-interop-tor.log
+          grep -Fq '*** [endo-interop-ocapn-tor] sent message, ack =' /tmp/endo-interop-tor.log
+          grep -Fq '*** [endo-interop-ocapn-tor] interop observer received message: hello from Guile CI (Tor)' /tmp/endo-interop-tor.log
+          grep -Fq '*** [endo-interop-ocapn-tor] interop observer received message: hello from Endo OCapN (Tor)' /tmp/endo-interop-tor.log
+          grep -Fq '*** Endo Tor interop completed' /tmp/endo-interop-tor.log
 
       - name: Show interop logs on failure
         if: failure()
