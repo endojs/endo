@@ -7,9 +7,15 @@ import * as babelTypes from '@babel/types';
 
 import makeModulePlugins from './babelPlugin.js';
 
-const parseBabel = babelParser.default
-  ? babelParser.default.parse
-  : babelParser.parse || babelParser;
+const parseBabel =
+  (typeof babelParser.parse === 'function' && babelParser.parse) ||
+  (babelParser.default &&
+    (typeof babelParser.default.parse === 'function'
+      ? babelParser.default.parse
+      : typeof babelParser.default === 'function'
+        ? babelParser.default
+        : undefined)) ||
+  (typeof babelParser === 'function' ? babelParser : undefined);
 
 const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
 
