@@ -258,12 +258,12 @@ export const allocCompositeList = (
 /**
  * Get the StructBuilder/StructLocation for the i-th element of a composite list.
  *
+ * @param {any} msg
  * @param {object} listLoc
  * @param {number} listLoc.segId
  * @param {number} listLoc.wordOffset
  * @param {number} listLoc.elemDataWords
  * @param {number} listLoc.elemPtrWords
- * @param {any} msg
  * @param {number} idx
  */
 export const compositeElement = (msg, listLoc, idx) => {

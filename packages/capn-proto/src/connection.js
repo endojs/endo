@@ -40,7 +40,7 @@ const utf8Encoder = new TextEncoder();
  */
 export const makeConnection = cfg => {
   const { send, interfaceRegistry } = cfg;
-  let bootstrap = { value: cfg.bootstrap };
+  const bootstrap = { value: cfg.bootstrap };
 
   let aborted = false;
   /** @type {((reason: unknown) => void) | undefined} */
@@ -80,6 +80,30 @@ export const makeConnection = cfg => {
   // ---- Embargo tracker ----
   const embargoTracker = makeEmbargoTracker();
 
+  /**
+   * Describe a resolved value as a CapDescriptor used in a Resolve message
+   * payload. Defined before payloadCodec so the closure below can reference
+   * it without a use-before-define hazard.
+   *
+   * @param {unknown} value
+   */
+  const describeForResolve = value => {
+    if (value === null || value === undefined) return { kind: 'none' };
+    if (isPromise(value)) {
+      const { id } = exportRegistry.exportValue(value);
+      return { kind: 'senderPromise', id };
+    }
+    // Could be a remote presence we already imported (loopback case).
+    const { id } = exportRegistry.exportValue(value);
+    return { kind: 'senderHosted', id };
+  };
+
+  // The ImportRegistry is defined later (its handler factory needs sendCall
+  // which itself uses payloadCodec). We forward-declare a holder so the
+  // codec closure can dereference it safely at call time.
+  /** @type {ReturnType<typeof makeImportRegistry> | undefined} */
+  let importRegistry;
+
   // ---- Payload codec ----
   const payloadCodec = {
     encode: value =>
@@ -91,7 +115,9 @@ export const makeConnection = cfg => {
           if (v == null) return false;
           const t = typeof v;
           if (t !== 'object' && t !== 'function') return false;
-          if (importRegistry?.importIdOf?.(v) !== undefined) return true;
+          if (importRegistry && importRegistry.importIdOf(v) !== undefined) {
+            return true;
+          }
           if (typeof (/** @type {any} */ (v).then) === 'function') return true;
           const proto = Object.getPrototypeOf(v);
           return proto !== Object.prototype && proto !== Array.prototype;
@@ -99,7 +125,7 @@ export const makeConnection = cfg => {
         exportCap: v => {
           // Pass-back: if this is a presence we imported from the peer, send
           // back as receiverHosted so the peer recognizes its own export.
-          const importId = importRegistry?.importIdOf?.(v);
+          const importId = importRegistry && importRegistry.importIdOf(v);
           if (importId !== undefined) {
             return { kind: 'receiverHosted', id: importId };
           }
@@ -147,6 +173,7 @@ export const makeConnection = cfg => {
     decode: payload =>
       decodePayload(payload, {
         importCap: desc => {
+          if (!importRegistry) return undefined;
           if (desc.kind === 'senderHosted')
             return importRegistry.importCap(desc.id, false);
           if (desc.kind === 'senderPromise')
@@ -162,18 +189,6 @@ export const makeConnection = cfg => {
           return undefined;
         },
       }),
-  };
-
-  // ---- Describe a resolved value as a CapDescriptor for Resolve. ----
-  const describeForResolve = value => {
-    if (value === null || value === undefined) return { kind: 'none' };
-    if (isPromise(value)) {
-      const { id } = exportRegistry.exportValue(value);
-      return { kind: 'senderPromise', id };
-    }
-    // Could be a remote presence we already imported (loopback case).
-    const { id } = exportRegistry.exportValue(value);
-    return { kind: 'senderHosted', id };
   };
 
   // ---- Sending Calls ----
@@ -240,40 +255,15 @@ export const makeConnection = cfg => {
     return { questionId, answerPromise, pipelineHandler };
   };
 
-  // ---- Import handler factory ----
-  const makeRemoteHandlerForImport = (id, isPromiseImport) =>
-    makeRemoteHandler({
-      sendCall,
-      sendCallOnly: (target, iid, mid, args) => {
-        sendCall(target, iid, mid, args);
-      },
-      resolveMethod: prop => {
-        // Resolve method against any registered interface that has a method
-        // by this name. If multiple, the user must use applyMethod with an
-        // explicit interface (see registerMethodForApplication below).
-        for (const id_ of /** @type {any} */ (
-          interfaceRegistry
-        ).byIdEntries?.() || []) {
-          if (id_.methods[String(prop)] !== undefined) {
-            return { interfaceId: id_.id, methodId: id_.methods[String(prop)] };
-          }
-        }
-        // Fallback: scan registered interfaces.
-        const found = findMethodAcrossInterfaces(String(prop));
-        if (found) return found;
-        throw Fail`no registered interface contains method ${prop}`;
-      },
-      target: () => ({ kind: 'importedCap', id }),
-      registerReturnedPromise: () => {},
-    });
-
   /**
    * Scan registered interfaces for any with a method by this name. Returns
-   * the first match.
+   * the first match. The InterfaceRegistry exposes iterate() which yields
+   * the registered descriptors; if a method name appears in multiple
+   * interfaces, callers should use a more specific dispatch path.
+   *
+   * @param {string} name
    */
   const findMethodAcrossInterfaces = name => {
-    // The InterfaceRegistry doesn't expose an iterator, but our makeInterfaceRegistry
-    // stores byId internally; we bolt on a fallback through a getter.
     if (typeof interfaceRegistry.iterate === 'function') {
       for (const desc of interfaceRegistry.iterate()) {
         const m = desc.methods[name];
@@ -283,8 +273,24 @@ export const makeConnection = cfg => {
     return undefined;
   };
 
-  // ---- Import registry ----
-  const importRegistry = makeImportRegistry({
+  // ---- Import handler factory ----
+  const makeRemoteHandlerForImport = (id, _isPromiseImport) =>
+    makeRemoteHandler({
+      sendCall,
+      sendCallOnly: (target, iid, mid, args) => {
+        sendCall(target, iid, mid, args);
+      },
+      resolveMethod: prop => {
+        const found = findMethodAcrossInterfaces(String(prop));
+        if (found) return found;
+        throw Fail`no registered interface contains method ${String(prop)}`;
+      },
+      target: () => ({ kind: 'importedCap', id }),
+      registerReturnedPromise: () => {},
+    });
+
+  // ---- Import registry (assigned to the forward-declared holder above). ----
+  importRegistry = makeImportRegistry({
     importIdToPresence: tables.importIdToPresence,
     importEntries: tables.importEntries,
     makeRemoteHandler: (id, isP) => makeRemoteHandlerForImport(id, isP),
