@@ -21,13 +21,21 @@ export const makeEmbargoTracker = () => {
   const outstanding = new Map();
 
   return {
-    /** Allocate a senderLoopback id; resolves callback on echo. */
+    /**
+     * Allocate a senderLoopback id; the callback fires on echo.
+     *
+     * @param {() => void} onEcho
+     */
     open(onEcho) {
       const id = ids.alloc();
       outstanding.set(id, onEcho);
       return id;
     },
-    /** Called when we receive a receiverLoopback echo from the peer. */
+    /**
+     * Called when we receive a receiverLoopback echo from the peer.
+     *
+     * @param {number} id
+     */
     echo(id) {
       const cb = outstanding.get(id);
       if (cb) {

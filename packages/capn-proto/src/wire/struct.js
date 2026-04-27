@@ -141,7 +141,11 @@ export const readUint8 = (loc, byteIdx) => {
     .view.getUint8(dataByteOffset(loc) + byteIdx);
 };
 
-/** @param {StructBuilder} loc */
+/**
+ * @param {StructBuilder} loc
+ * @param {number} byteIdx
+ * @param {number} value
+ */
 export const writeUint8 = (loc, byteIdx, value) => {
   if (byteIdx >= loc.dataWords * WORD_SIZE) {
     throw Fail`uint8 write out of range`;
@@ -163,7 +167,11 @@ export const readUint16 = (loc, byteIdx) => {
     .view.getUint16(dataByteOffset(loc) + byteIdx, true);
 };
 
-/** @param {StructBuilder} loc */
+/**
+ * @param {StructBuilder} loc
+ * @param {number} byteIdx
+ * @param {number} value
+ */
 export const writeUint16 = (loc, byteIdx, value) => {
   if (byteIdx + 2 > loc.dataWords * WORD_SIZE) {
     throw Fail`uint16 write at byte ${byteIdx} out of range (data section ${loc.dataWords * WORD_SIZE} bytes)`;
@@ -183,7 +191,11 @@ export const readUint32 = (loc, byteIdx) => {
     .view.getUint32(dataByteOffset(loc) + byteIdx, true);
 };
 
-/** @param {StructBuilder} loc */
+/**
+ * @param {StructBuilder} loc
+ * @param {number} byteIdx
+ * @param {number} value
+ */
 export const writeUint32 = (loc, byteIdx, value) => {
   if (byteIdx + 4 > loc.dataWords * WORD_SIZE) {
     throw Fail`uint32 write at byte ${byteIdx} out of range (data section ${loc.dataWords * WORD_SIZE} bytes)`;
@@ -204,7 +216,11 @@ export const readUint64 = (loc, byteIdx) => {
     .view.getBigUint64(dataByteOffset(loc) + byteIdx, true);
 };
 
-/** @param {StructBuilder} loc */
+/**
+ * @param {StructBuilder} loc
+ * @param {number} byteIdx
+ * @param {number | bigint} value
+ */
 export const writeUint64 = (loc, byteIdx, value) => {
   if (byteIdx + 8 > loc.dataWords * WORD_SIZE) {
     throw Fail`uint64 write at byte ${byteIdx} out of range (data section ${loc.dataWords * WORD_SIZE} bytes)`;
@@ -238,7 +254,11 @@ export const readBool = (loc, bitIdx) => {
   );
 };
 
-/** @param {StructBuilder} loc */
+/**
+ * @param {StructBuilder} loc
+ * @param {number} bitIdx
+ * @param {boolean} value
+ */
 export const writeBool = (loc, bitIdx, value) => {
   // eslint-disable-next-line no-bitwise
   const byteIdx = bitIdx >>> 3;

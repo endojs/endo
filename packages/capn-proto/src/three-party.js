@@ -120,14 +120,22 @@ export const makeThreeParty = ctx => {
     });
   };
 
-  /** Handle an inbound Provide from B (we are C). */
+  /**
+   * Handle an inbound Provide from B (we are C).
+   *
+   * @param {{ questionId: number, target: any, recipient: Uint8Array }} msg
+   */
   const handleProvide = msg => {
     const { questionId, target, recipient } = msg;
     // Stash the provide so a future Accept from A can claim it.
     network.acceptIncomingProvide(questionId, target, recipient);
   };
 
-  /** Handle an inbound Accept from A (we are C). */
+  /**
+   * Handle an inbound Accept from A (we are C).
+   *
+   * @param {{ questionId: number, provision: Uint8Array }} msg
+   */
   const handleAccept = msg => {
     const { questionId, provision } = msg;
     const provided = network.consumeProvision(provision);

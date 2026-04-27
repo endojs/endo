@@ -41,9 +41,17 @@ import * as S from './schema.js';
  * Cap'n Proto Bool fields with `= true` defaults are stored XOR'd against 1
  * so that the all-zero data section represents the default. These helpers
  * make the flip explicit at every call site.
+ *
+ * @param {any} loc
+ * @param {number} bitOffset
+ * @param {boolean} value
  */
 const writeBoolDefaultTrue = (loc, bitOffset, value) =>
   writeBool(loc, bitOffset, !value);
+/**
+ * @param {any} loc
+ * @param {number} bitOffset
+ */
 const readBoolDefaultTrue = (loc, bitOffset) => !readBool(loc, bitOffset);
 
 /* ===================================================================== *
@@ -530,24 +538,22 @@ export const encodeAccept = ({ questionId, provision, embargo = false }) => {
   return finalize(msg);
 };
 
-export const encodeUnimplemented = ({ originalBytes }) => {
-  // Message.unimplemented @0 :Message — the variant *is* a Message struct
-  // (recursively). We don't have parsed-bytes-to-Message conversion here;
-  // the caller passes the original framed bytes, and we embed them as the
-  // root pointer of an inner Message-shaped placeholder. For diagnostic
-  // purposes peers only echo unimplemented messages; we encode an empty
-  // inner Message struct (8 bytes data, 1 ptr) with no variant set and
-  // attach the originalBytes as a side annotation that we drop on the
-  // wire. This is wire-conformant: an empty Message decodes as the zero
-  // discriminator (unimplemented) which means "no further info".
+/**
+ * Message.unimplemented @0 :Message — the variant *is* a Message struct
+ * (recursively). We don't have parsed-bytes-to-Message conversion here;
+ * the caller may pass the original framed bytes, but we encode an empty
+ * inner Message-shaped placeholder. An empty Message decodes as the zero
+ * discriminator (unimplemented) which means "no further info"; this is
+ * wire-conformant for peers that only inspect the tag.
+ *
+ * @param {{ originalBytes?: Uint8Array }} _arg The originalBytes are
+ *   intentionally ignored on the wire; the parameter is accepted so the
+ *   API mirrors the other variant encoders.
+ */
+export const encodeUnimplemented = _arg => {
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_UNIMPLEMENTED);
-  // Allocate an inner Message struct as the variant; leave it empty.
   allocStruct(msg, ptrSlot(root, 0), S.MESSAGE_DATA_WORDS, S.MESSAGE_PTR_WORDS);
-  // originalBytes is intentionally not embedded; the spec uses the inner
-  // Message as the original payload and decoding it requires recursive
-  // capnp parsing. We treat it as opaque on the wire.
-  void originalBytes;
   return finalize(msg);
 };
 

@@ -45,13 +45,11 @@ export const makeRemoteHandler = ({
   };
 
   return {
-    get(_target, prop, returnedP) {
-      // `get` is unusual for Cap'n Proto - we treat it as a zero-arg call to
-      // a method whose ordinal is the property's ordinal in some interface.
-      // Without an interface context we cannot resolve it; users should use
-      // method calls with E(p).foo() instead.
-      void _target;
-      void returnedP;
+    get(_target, prop, _returnedP) {
+      // `get` is unusual for Cap'n Proto: methods are addressed by ordinal,
+      // not name, so we cannot resolve a property access without an
+      // interface context. Users should use E(p).method() instead of
+      // accessing a property directly.
       return Promise.reject(
         Error(
           `E(p).${q(prop)} get is unsupported; use E(p).${q(prop)}() instead`,
@@ -60,7 +58,6 @@ export const makeRemoteHandler = ({
     },
 
     applyMethod(_target, prop, args, returnedP) {
-      void _target;
       if (prop === undefined || prop === null) {
         return Promise.reject(
           Error('applyFunction requires undefined property'),
@@ -109,26 +106,22 @@ export const makeRemoteHandler = ({
       return pipelineP;
     },
 
-    applyFunction(_target, args, returnedP) {
+    applyFunction(_target, _args, _returnedP) {
       // Cap'n Proto has no plain "function call" semantics; all calls are on
       // an interface method. Fail loudly so users register an interface.
-      void _target;
-      void args;
-      void returnedP;
       return Promise.reject(fail);
     },
 
     applyMethodSendOnly(_target, prop, args) {
-      void _target;
       if (prop === undefined || prop === null) return;
       const resolved = resolveMethod(prop);
       const t = target();
       sendCallOnly(t, resolved.interfaceId, resolved.methodId, args);
     },
 
-    applyFunctionSendOnly(_target, args) {
-      void _target;
-      void args;
+    applyFunctionSendOnly(_target, _args) {
+      // Cap'n Proto has no plain "function call" semantics; intentionally a
+      // no-op here. Underscored parameter names mark them unused.
     },
   };
 };

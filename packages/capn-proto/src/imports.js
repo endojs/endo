@@ -47,10 +47,13 @@ export const makeImportRegistry = ({
       // and resolves the promise to it. We keep the Presence (not the
       // promise) as our identity-bearing value.
       let captured;
-      const p = new HandledPromise((_resolve, _reject, resolveWithPresence) => {
+      // The HandledPromise itself isn't used directly; we only need the
+      // Presence that `resolveWithPresence` synthesises. The promise
+      // resolves to the same Presence as a side-effect.
+      // eslint-disable-next-line no-new
+      new HandledPromise((_resolve, _reject, resolveWithPresence) => {
         captured = resolveWithPresence(handler);
       });
-      void p;
       presence = captured;
     }
 
@@ -80,7 +83,11 @@ export const makeImportRegistry = ({
       importEntries.delete(id);
       importIdToPresence.delete(id);
     },
-    /** Returns the import id if `value` is one of our imported presences. */
+    /**
+     * Returns the import id if `value` is one of our imported presences.
+     *
+     * @param {unknown} value
+     */
     importIdOf: value => presenceToImportId.get(/** @type {object} */ (value)),
   };
 };
