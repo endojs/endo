@@ -6,8 +6,21 @@
 //   ["pipeline", id, ["foo", "bar"], [arg1, arg2]]
 // which means: load the value at id, get .foo, get .bar, then call it with
 // (arg1, arg2).
+//
+// The walker rejects path segments that are prototype-affecting names
+// (`__proto__`, `constructor`, `prototype`) so a malicious peer can't
+// reach into our internals via path traversal.
 
 import harden from '@endo/harden';
+
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const checkSegment = seg => {
+  if (typeof seg === 'string' && FORBIDDEN_KEYS.has(seg)) {
+    throw new TypeError(`forbidden property name in path: ${seg}`);
+  }
+  return seg;
+};
 
 /**
  * @param {unknown} root
@@ -16,6 +29,7 @@ import harden from '@endo/harden';
  * @returns {Promise<unknown>}
  */
 export const walkPathAndCall = async (root, path, args) => {
+  for (const seg of path) checkSegment(seg);
   let cur = await root;
   if (args === undefined) {
     // Pure property descent: walk every segment.

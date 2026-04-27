@@ -79,7 +79,6 @@ export const makeCapnWebSession = (transport, opts = {}) => {
 
   const devaluator = makeDevaluator({
     importIdOf: v => tables.importIdOf(v),
-    promiseImportIdOf: v => tables.importIdOf(v),
     exportValue: (value, isPromise) => {
       const id = tables.exportValue(value, isPromise);
       if (isPromise) {
@@ -87,18 +86,15 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       }
       return id;
     },
-    attachPromise: noop, // already handled in exportValue
   });
 
   const stubMachinery = harden({
-    sendPipelinedPush: (rootId, path, args) => {
-      return doPipelinedPush(rootId, path, args);
+    sendPipelinedPush: (rootId, path, args, returnedP) => {
+      return doPipelinedPush(rootId, path, args, returnedP);
     },
     sendPipelinedPushSendOnly: (rootId, path, args) => {
       doPipelinedPushSendOnly(rootId, path, args);
     },
-    registerStub: noop,
-    registerPromiseStub: noop,
   });
 
   const evaluator = makeEvaluator({
@@ -146,24 +142,39 @@ export const makeCapnWebSession = (transport, opts = {}) => {
 
   /**
    * Hook a local promise that we just exported.  When it settles, send the
-   * peer a resolve or reject.
+   * peer a resolve or reject.  If devaluation of the settled value (or
+   * rejection reason) fails we send a generic Error to the peer — failing
+   * to settle would leave the import dangling forever.
+   *
    * @param {number} id
    * @param {Promise<unknown>} p
    */
   function attachExportedPromise(id, p) {
     if (pendingExportPromises.has(id)) return;
     pendingExportPromises.add(id);
+    const safeSend = (tag, val) => {
+      if (aborted) return;
+      pendingExportPromises.delete(id);
+      let expr;
+      try {
+        expr = devaluator.devaluate(val);
+      } catch (devalErr) {
+        // Couldn't serialize; surface a generic error to the peer.
+        try {
+          expr = devaluator.devaluate(
+            new Error(`failed to serialize ${tag} value: ${devalErr.message}`),
+          );
+        } catch (_e) {
+          expr = ['error', 'Error', 'failed to serialize answer'];
+        }
+        sendMessage(['reject', id, expr]);
+        return;
+      }
+      sendMessage([tag, id, expr]);
+    };
     Promise.resolve(p).then(
-      v => {
-        if (aborted) return;
-        pendingExportPromises.delete(id);
-        sendMessage(['resolve', id, devaluator.devaluate(v)]);
-      },
-      e => {
-        if (aborted) return;
-        pendingExportPromises.delete(id);
-        sendMessage(['reject', id, devaluator.devaluate(e)]);
-      },
+      v => safeSend('resolve', v),
+      e => safeSend('reject', e),
     );
   }
 
@@ -199,8 +210,12 @@ export const makeCapnWebSession = (transport, opts = {}) => {
    * @param {number} rootId
    * @param {readonly PropertyKey[]} path
    * @param {readonly unknown[] | undefined} args
+   * @param {Promise<unknown>} [returnedP]  HandledPromise's externally-
+   *   returned promise.  When supplied (always, in normal handler dispatch)
+   *   we register it in the imports table at the answer's id so devaluator
+   *   can recognise it for round-trip identity.
    */
-  function doPipelinedPush(rootId, path, args) {
+  function doPipelinedPush(rootId, path, args, returnedP) {
     if (aborted)
       return Promise.reject(abortReason || new Error('session aborted'));
     const qid = nextOutgoingPushId;
@@ -210,6 +225,12 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     sendMessage(['pull', qid]);
     const { promise, resolve, reject } = makePromiseStub(qid, stubMachinery);
     tables.installImport(qid, /** @type {object} */ (promise), true);
+    if (returnedP && returnedP !== promise) {
+      // Register HandledPromise's externally-returned promise at the same
+      // id so the devaluator recognises a user-held E(remote).foo() promise
+      // when it's later passed back as an argument.
+      tables.aliasImport(qid, /** @type {object} */ (returnedP));
+    }
     pendingPushAnswers.set(qid, { resolve, reject });
     return promise;
   }
@@ -352,6 +373,11 @@ export const makeCapnWebSession = (transport, opts = {}) => {
 
     /** @type {Promise<unknown>} */
     const answer = (async () => executePushExpression(expr))();
+    // Suppress unhandled-rejection warnings if the peer never pulls — the
+    // export sits in our table waiting for either pull or release.  A
+    // no-op observer is enough; handlePull's own await will still see the
+    // rejection if a pull arrives.
+    answer.catch(noop);
     tables.installExportAtId(qid, answer, true);
 
     if (isStream) {
@@ -382,6 +408,15 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       // extension carrying the answerRef explicitly so the user's mapper
       // can return any of the recorded values (or input directly).
       const [, id, path, capturesExpr, instructions, answerRef = 0] = expr;
+      if (
+        typeof id !== 'number' ||
+        (path !== undefined && path !== null && !Array.isArray(path)) ||
+        (capturesExpr !== undefined && !Array.isArray(capturesExpr)) ||
+        !Array.isArray(instructions) ||
+        typeof answerRef !== 'number'
+      ) {
+        throw new TypeError('invalid remap expression');
+      }
       const targetExpr =
         Array.isArray(path) && path.length > 0
           ? ['pipeline', id, path]

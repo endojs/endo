@@ -476,6 +476,7 @@ __metadata:
   dependencies:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/pass-style": "workspace:^"

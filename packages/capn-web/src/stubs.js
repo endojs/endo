@@ -21,14 +21,16 @@ import harden from '@endo/harden';
 import { HandledPromise } from '@endo/eventual-send';
 
 /**
+ * The handler functions receive `returnedP` as their last argument: this is
+ * the promise that E() will return to the user.  We register that promise
+ * in our imports table at the answer's id so devaluator can recognise it
+ * for round-trip identity (a user-held `await E(remote).foo()` promise that
+ * is later passed back as an argument to another remote call must encode
+ * as `["pipeline", id]`, not as a brand-new export).
+ *
  * @typedef {object} StubMachinery
- * @property {(rootId: number, path: PropertyKey[], args: unknown[] | undefined) => Promise<unknown>} sendPipelinedPush
- *   Send `["push", ["pipeline", rootId, path, args?]]` and return a stub
- *   promise for the answer.
+ * @property {(rootId: number, path: PropertyKey[], args: unknown[] | undefined, returnedP: Promise<unknown>) => Promise<unknown>} sendPipelinedPush
  * @property {(rootId: number, path: PropertyKey[], args: unknown[] | undefined) => void} sendPipelinedPushSendOnly
- * @property {(value: object, id: number, isPromise: boolean) => void} registerStub
- *   Record the (value, id) association so devaluator can re-export by id.
- * @property {(value: Promise<unknown>, id: number) => void} [registerPromiseStub]
  */
 
 const FUNCTION_CALL_PROP = undefined;
@@ -40,22 +42,22 @@ const FUNCTION_CALL_PROP = undefined;
  */
 const makeHandler = (rootId, m) =>
   harden({
-    get(_p, prop) {
-      return m.sendPipelinedPush(rootId, [prop], undefined);
+    get(_p, prop, returnedP) {
+      return m.sendPipelinedPush(rootId, [prop], undefined, returnedP);
     },
     getSendOnly(_p, prop) {
       m.sendPipelinedPushSendOnly(rootId, [prop], undefined);
     },
-    applyMethod(_p, prop, args) {
+    applyMethod(_p, prop, args, returnedP) {
       const path = prop === FUNCTION_CALL_PROP ? [] : [prop];
-      return m.sendPipelinedPush(rootId, path, args);
+      return m.sendPipelinedPush(rootId, path, args, returnedP);
     },
     applyMethodSendOnly(_p, prop, args) {
       const path = prop === FUNCTION_CALL_PROP ? [] : [prop];
       m.sendPipelinedPushSendOnly(rootId, path, args);
     },
-    applyFunction(_p, args) {
-      return m.sendPipelinedPush(rootId, [], args);
+    applyFunction(_p, args, returnedP) {
+      return m.sendPipelinedPush(rootId, [], args, returnedP);
     },
     applyFunctionSendOnly(_p, args) {
       m.sendPipelinedPushSendOnly(rootId, [], args);
@@ -74,7 +76,6 @@ export const makePresenceStub = (id, m) => {
   new HandledPromise((_resolve, _reject, resolveWithPresence) => {
     presence = resolveWithPresence(handler);
   }, handler);
-  m.registerStub(/** @type {object} */ (presence), id, false);
   return /** @type {object} */ (presence);
 };
 
@@ -91,10 +92,6 @@ export const makePromiseStub = (id, m) => {
     resolveFn = resolve;
     rejectFn = reject;
   }, handler);
-  if (m.registerPromiseStub) {
-    m.registerPromiseStub(promise, id);
-  }
-  m.registerStub(/** @type {object} */ (promise), id, true);
   return harden({
     promise,
     resolve: /** @type {(v: unknown) => void} */ (

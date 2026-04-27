@@ -11,13 +11,27 @@
 //     freshly introduced) or ["import", id] (when round-tripping a remote
 //     reference).
 //   - Special atomic values (undefined, BigInt, Date, etc.) get tagged forms.
+//
+// Classification dispatches in this order:
+//   1. atomic specials (undefined / nan / inf / bigint / Date / Uint8Array
+//      / Error) via tryEncodeSpecial
+//   2. JSON-safe primitives (null, string, boolean, finite number)
+//   3. host objects with explicit wire forms (Headers / Request / Response,
+//      WritableStream / ReadableStream)
+//   4. round-trip identity for stubs we already imported
+//   5. `passStyleOf` leaf classification — used to recognise remotables
+//      (Far / makeExo) and bare promises in a way that respects endo's
+//      pass-style discipline.  We do NOT pass the whole value tree through
+//      passStyleOf, because that's recursive and would reject any nested
+//      non-passable host (Date, Uint8Array, …) that we already handle
+//      ourselves.
+//   6. plain arrays and records — recursed locally
+//   7. anything else → "cannot serialize" error.
 
 import harden from '@endo/harden';
-import { isPromise } from '@endo/promise-kit';
-import { getInterfaceOf } from '@endo/pass-style';
+import { passStyleOf } from '@endo/pass-style';
 
 import { tryEncodeSpecial } from './special-values.js';
-import { RpcTarget } from './rpc-target.js';
 import {
   isHeaders,
   isRequest,
@@ -27,9 +41,8 @@ import {
   encodeResponse,
 } from './fetch-codec.js';
 
-/**
- * @param {unknown} v
- */
+const G = /** @type {any} */ (globalThis);
+
 const isPlainObject = v => {
   if (v === null || typeof v !== 'object') return false;
   const proto = Object.getPrototypeOf(v);
@@ -37,30 +50,28 @@ const isPlainObject = v => {
 };
 
 /**
- * @param {unknown} v
+ * Try `passStyleOf` on a single value but don't let it raise — we only
+ * use it for leaf classification (remotable / promise / error).  Returns
+ * undefined if the value isn't passable on its own terms.
+ *
+ * @param {unknown} value
  */
-const isReferenceTarget = v => {
-  if (v === null) return false;
-  if (typeof v === 'function') return true;
-  if (typeof v !== 'object') return false;
-  if (v instanceof RpcTarget) return true;
-  if (getInterfaceOf(v) !== undefined) return true;
-  return false;
+const passStyleOfOrUndefined = value => {
+  try {
+    return passStyleOf(/** @type {any} */ (value));
+  } catch (_e) {
+    return undefined;
+  }
 };
 
 /**
  * @typedef {object} DevaluatorContext
  * @property {(value: object) => number | undefined} importIdOf
- *   If `value` is a remote stub from this session, returns its positive (or
- *   peer-allocated negative) id; otherwise undefined.
- * @property {(value: Promise<unknown>) => number | undefined} promiseImportIdOf
- *   Same for a promise stub.
+ *   If `value` is a remote stub (presence or promise) from this session's
+ *   imports, returns its allocator-side id; otherwise undefined.
  * @property {(value: unknown, isPromise: boolean) => number} exportValue
  *   Allocate (or reuse) a negative export id and register `value` as our
  *   export.  Returns the id.
- * @property {(promiseId: number, p: Promise<unknown>) => void} attachPromise
- *   Called when we just allocated a fresh export id for a promise.  The
- *   session will attach `.then` to send resolve/reject when settled.
  */
 
 /**
@@ -72,65 +83,17 @@ export const makeDevaluator = ctx => {
    * @returns {unknown} a JSON-serialisable expression
    */
   const devaluate = value => {
-    // 1. JSON-safe primitives pass through.
-    if (value === null) return null;
-    if (typeof value === 'string') return value;
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'number') {
-      const special = tryEncodeSpecial(value);
-      return special !== undefined ? special : value;
-    }
-
-    // 2. Special atomic values that need tagging.
+    // 1. Atomic specials.
     const special = tryEncodeSpecial(value);
     if (special !== undefined) return special;
 
-    // 3. Round-trip identity: if value is a presence/promise from this
-    // session's imports, encode as ["import", id] / ["pipeline", id] so the
-    // peer recognises it as their export.
-    if (
-      value !== null &&
-      (typeof value === 'object' || typeof value === 'function')
-    ) {
-      const importId = ctx.importIdOf(/** @type {object} */ (value));
-      if (importId !== undefined) {
-        return [isPromise(value) ? 'pipeline' : 'import', importId];
-      }
-    }
+    // 2. JSON-safe primitives.
+    if (value === null) return null;
+    if (typeof value === 'string') return value;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value;
 
-    // 4. Promises: introduce a new export id with isPromise=true.
-    if (isPromise(value)) {
-      const id = ctx.exportValue(value, true);
-      ctx.attachPromise(id, /** @type {Promise<unknown>} */ (value));
-      return ['promise', id];
-    }
-
-    // 5a. Streams: WritableStream / ReadableStream are exported by reference,
-    // tagged so the receiver may interpret them as streams.
-    if (
-      typeof globalThis !== 'undefined' &&
-      /** @type {any} */ (globalThis).WritableStream &&
-      value instanceof /** @type {any} */ (globalThis).WritableStream
-    ) {
-      const id = ctx.exportValue(value, false);
-      return ['writable', id];
-    }
-    if (
-      typeof globalThis !== 'undefined' &&
-      /** @type {any} */ (globalThis).ReadableStream &&
-      value instanceof /** @type {any} */ (globalThis).ReadableStream
-    ) {
-      const id = ctx.exportValue(value, false);
-      return ['readable', id];
-    }
-
-    // 5. Reference targets: capabilities (Far/RpcTarget/function).
-    if (isReferenceTarget(value)) {
-      const id = ctx.exportValue(value, false);
-      return ['export', id];
-    }
-
-    // 5b. Fetch types: Headers, Request, Response.
+    // 3. Host objects with explicit wire forms.
     if (isHeaders(value)) return encodeHeaders(/** @type {Headers} */ (value));
     if (isRequest(value)) {
       return encodeRequest(/** @type {Request} */ (value), devaluate);
@@ -138,23 +101,73 @@ export const makeDevaluator = ctx => {
     if (isResponse(value)) {
       return encodeResponse(/** @type {Response} */ (value), devaluate);
     }
-
-    // 6. Arrays: escape with [[…]].
-    if (Array.isArray(value)) {
-      const inner = value.map(v => devaluate(v));
-      return [inner];
+    if (G.WritableStream && value instanceof G.WritableStream) {
+      const id = ctx.exportValue(value, false);
+      return ['writable', id];
+    }
+    if (G.ReadableStream && value instanceof G.ReadableStream) {
+      const id = ctx.exportValue(value, false);
+      return ['readable', id];
     }
 
-    // 7. Plain objects: recurse on values.
+    // 4. Round-trip identity.
+    if (
+      value !== null &&
+      (typeof value === 'object' || typeof value === 'function')
+    ) {
+      const importId = ctx.importIdOf(/** @type {object} */ (value));
+      if (importId !== undefined) {
+        const isPromiseStub =
+          typeof (/** @type {any} */ (value).then) === 'function';
+        return [isPromiseStub ? 'pipeline' : 'import', importId];
+      }
+    }
+
+    // 5. Pass-style leaf classification — remotable / promise / error.
+    const style = passStyleOfOrUndefined(value);
+    if (style === 'remotable') {
+      const id = ctx.exportValue(value, false);
+      return ['export', id];
+    }
+    if (style === 'promise') {
+      const id = ctx.exportValue(value, true);
+      return ['promise', id];
+    }
+    if (style === 'error') {
+      // This branch covers Error subclasses that didn't match
+      // `instanceof Error` in tryEncodeSpecial (e.g. cross-realm errors).
+      return [
+        'error',
+        /** @type {any} */ (value).name || 'Error',
+        /** @type {any} */ (value).message || '',
+      ];
+    }
+
+    // 6. Plain shapes — locally recursed.  We don't require these to be
+    //    hardened (or pass passStyleOf overall), because they'll often
+    //    contain nested non-passable hosts like Date that we handle in
+    //    step 1.
+    if (Array.isArray(value)) {
+      return [value.map(v => devaluate(v))];
+    }
     if (isPlainObject(value)) {
       /** @type {Record<string, unknown>} */
       const out = {};
       for (const [k, v] of Object.entries(/** @type {object} */ (value))) {
-        out[k] = devaluate(v);
+        if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+          out[k] = devaluate(v);
+        }
       }
       return out;
     }
 
+    // 7. Functions that aren't marked as remotables, exotic class
+    //    instances, etc.  Reject with a clear message.
+    if (typeof value === 'function') {
+      throw new TypeError(
+        `Cannot serialize bare function; wrap with Far / makeExo to expose it as a remotable.`,
+      );
+    }
     throw new TypeError(
       `Cannot serialize value of type ${Object.prototype.toString.call(value)}`,
     );

@@ -3,12 +3,9 @@
 import test from '@endo/ses-ava/test.js';
 import { Far } from '@endo/pass-style';
 import { E } from '@endo/eventual-send';
+import { makeExo } from '@endo/exo';
 
-import {
-  makeCapnWebSession,
-  makeLoopbackPair,
-  RpcTarget,
-} from '../src/index.js';
+import { makeCapnWebSession, makeLoopbackPair } from '../src/index.js';
 
 const makePair = bMain => {
   const { a, b } = makeLoopbackPair();
@@ -51,33 +48,22 @@ test('local abort closes peer cleanly', async t => {
   t.true(sessionB.isAborted());
 });
 
-// Hoisted out of the test below so we don't trip max-classes-per-file.
-const makeCounter = () => {
-  class Counter extends RpcTarget {
-    constructor() {
-      super();
-      this.count = 0;
-    }
-
+test('makeExo instance is exported by reference', async t => {
+  let count = 0;
+  const counter = makeExo('counter', undefined, {
     incr() {
-      this.count += 1;
-      return this.count;
-    }
-  }
-  return new Counter();
-};
-
-test('RpcTarget instance is exported by reference', async t => {
-  const c = makeCounter();
-  const { sessionA } = makePair(Far('s', { get: () => c }));
+      count += 1;
+      return count;
+    },
+  });
+  const { sessionA } = makePair(Far('s', { get: () => counter }));
   const r = sessionA.getRemoteMain();
   const stub = await E(r).get();
   t.is(await E(stub).incr(), 1);
   t.is(await E(stub).incr(), 2);
 });
 
-test('plain class instance without RpcTarget is rejected', async t => {
-  // Plain function-as-constructor without RpcTarget extension.
+test('plain class instance is rejected (must use Far / makeExo)', async t => {
   function NotRemote() {}
   const v = new NotRemote();
   const { sessionA } = makePair(Far('s', { get: () => v }));
@@ -91,8 +77,9 @@ test('plain class instance without RpcTarget is rejected', async t => {
   t.truthy(caught);
 });
 
-test('functions are exported by reference', async t => {
-  const fn = () => 'fnReturn';
+test('Far-wrapped function is exported by reference', async t => {
+  // Bare functions aren't passable per pass-style; wrap with Far/makeExo.
+  const fn = Far('fn', () => 'fnReturn');
   const { sessionA } = makePair(Far('s', { fn: () => fn }));
   const r = sessionA.getRemoteMain();
   const stub = await E(r).fn();

@@ -17,6 +17,16 @@
 
 import harden from '@endo/harden';
 
+const FORBIDDEN_PATH_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const checkPath = path => {
+  for (const seg of path) {
+    if (typeof seg === 'string' && FORBIDDEN_PATH_KEYS.has(seg)) {
+      throw new TypeError(`forbidden property name in remap path: ${seg}`);
+    }
+  }
+};
+
 /**
  * Internal: a placeholder proxy returned from the recorder.  Each operation
  * appends to the shared instruction list and returns a fresh placeholder
@@ -167,6 +177,7 @@ export const replayRemap = async (recording, input) => {
     } else if (op === 'get') {
       const target = await resolveRef(['ref', instr[1]]);
       const path = /** @type {PropertyKey[]} */ (instr[2]);
+      checkPath(path);
       let cur = target;
       for (const seg of path) {
         cur = await cur;
@@ -179,6 +190,7 @@ export const replayRemap = async (recording, input) => {
     } else if (op === 'call') {
       const target = await resolveRef(['ref', instr[1]]);
       const path = /** @type {PropertyKey[]} */ (instr[2]);
+      checkPath(path);
       const argEncs = /** @type {unknown[]} */ (instr[3]);
       const args = await Promise.all(argEncs.map(a => resolveRef(a)));
       let cur = target;

@@ -63,6 +63,7 @@
   "dependencies": {
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^"

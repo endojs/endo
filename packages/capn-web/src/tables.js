@@ -97,8 +97,6 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
   /** WeakMap from imported presence -> positive id. */
   const presenceToImportId = new WeakMap();
 
-  let nextImportId = 1;
-
   // ----- exports API -----
 
   /**
@@ -192,18 +190,10 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
   // ----- imports API -----
 
   /**
-   * Allocate a fresh positive id for a question we're issuing (push result).
-   * The caller is responsible for installing a presence at that id.
-   */
-  const allocateQuestionId = () => {
-    const id = nextImportId;
-    nextImportId += 1;
-    return id;
-  };
-
-  /**
    * Install a presence at a positive id.  If one already exists it's reused
-   * and its refcount bumped.
+   * and its refcount bumped.  If the existing entry's `isPromise` flag
+   * differs from the requested one, that's a protocol violation — we throw
+   * rather than silently ignore the mismatch.
    *
    * @param {number} id
    * @param {object} presence
@@ -212,6 +202,12 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
   const installImport = (id, presence, isPromise) => {
     const existing = importsTable.get(id);
     if (existing) {
+      const existingIsPromise = importIsPromise.get(id);
+      if (existingIsPromise !== isPromise) {
+        throw new TypeError(
+          `import ${id} reintroduced with conflicting isPromise (was ${existingIsPromise}, now ${isPromise})`,
+        );
+      }
       importRefcounts.set(id, (importRefcounts.get(id) || 0) + 1);
       return existing;
     }
@@ -220,6 +216,20 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
     importRefcounts.set(id, 1);
     importIsPromise.set(id, isPromise);
     return presence;
+  };
+
+  /**
+   * Add an alias mapping in `presenceToImportId` so that another object
+   * (typically HandledPromise's externally-returned promise) is recognised
+   * by the devaluator as the same import.  Does not change refcounts or
+   * the canonical importsTable[id] entry.
+   *
+   * @param {number} id
+   * @param {object} alias
+   */
+  const aliasImport = (id, alias) => {
+    if (!importsTable.has(id)) return;
+    presenceToImportId.set(alias, id);
   };
 
   /**
@@ -246,31 +256,6 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
    */
   const importIdOf = value => presenceToImportId.get(value);
 
-  /**
-   * If `value` was already exported by this session, return its id.
-   * @param {object} value
-   */
-  const exportIdOf = value =>
-    valueToExportId.get(/** @type {object} */ (value));
-
-  /**
-   * Force-drop an import by id and schedule the corresponding release on
-   * the next microtask.  This is a session-level hook for forcibly
-   * releasing a known-id import; imported presences in this module do
-   * not currently define `Symbol.dispose`, so this is not invoked
-   * automatically — it's available for callers that have an id in hand.
-   * @param {number} id
-   */
-  const disposeImport = id => {
-    if (!importsTable.has(id)) return;
-    const refcount = importRefcounts.get(id) || 1;
-    importsTable.delete(id);
-    importRefcounts.delete(id);
-    importIsPromise.delete(id);
-    pendingReleases.set(id, (pendingReleases.get(id) || 0) + refcount);
-    scheduleRelease();
-  };
-
   const getStats = () =>
     harden({
       exports: exportsTable.size,
@@ -295,14 +280,11 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
     installExportAtId,
     getExport,
     releaseExport,
-    exportIdOf,
-    allocateQuestionId,
     installImport,
+    aliasImport,
     getImport,
     reintroduceImport,
     importIdOf,
-    disposeImport,
-    flushReleases,
     getStats,
     clear,
   });

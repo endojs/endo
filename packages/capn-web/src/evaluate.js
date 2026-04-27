@@ -39,7 +39,7 @@ export const makeEvaluator = ctx => {
       // imports table, which is OUR exports table — regardless of sign.
       // (The sign tells us which side allocated the id; for lookup, both
       // signs land in our exports.)
-      if ((path === undefined || path === null) && args === undefined) {
+      if (path === undefined && args === undefined) {
         return ctx.getExportValue(id);
       }
       // import/pipeline can carry path/args — meaning "the value of calling
@@ -108,11 +108,24 @@ export const makeEvaluator = ctx => {
     }
 
     if (typeof expr === 'object') {
-      // Plain object: recurse on values.
+      // Plain object: recurse on values.  Skip prototype-affecting keys
+      // defensively — assigning to `out["__proto__"]` walks through
+      // Object.prototype's __proto__ setter and would mutate out's
+      // prototype.  We use Object.defineProperty with an own-data
+      // descriptor for the same reason: bracket-assignment to
+      // accessor-named keys would dispatch to setters, even though
+      // copyRecord-style values are normally clean.
       /** @type {Record<string, unknown>} */
       const out = {};
       for (const [k, v] of Object.entries(/** @type {object} */ (expr))) {
-        out[k] = evaluate(v);
+        if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+          Object.defineProperty(out, k, {
+            value: evaluate(v),
+            writable: true,
+            enumerable: true,
+            configurable: true,
+          });
+        }
       }
       return out;
     }
