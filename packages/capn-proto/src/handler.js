@@ -79,38 +79,34 @@ export const makeRemoteHandler = ({
         resolved.methodId,
         args,
       );
-      // Wire returnedP to our pipeline. Folding returnedP into a
-      // HandledPromise that uses our pipelineHandler means downstream
-      // E(returnedP).foo() will invoke pipelineHandler with the question's
-      // transform path as its base.
       if (returnedP) {
         registerReturnedPromise(returnedP, questionId);
-        // Make returnedP shorten onto a HandledPromise with our handler.
-        const pipelineP = new HandledPromise(
-          (_res, _rej, resolveWithPresence) => {
-            resolveWithPresence(pipelineHandler);
-          },
-        );
-        // Forward returnedP into pipelineP, then settle pipelineP with the
-        // eventual answer. shortening copies the pendingHandler.
-        HandledPromise.resolve(returnedP, pipelineP);
-        // When the answer arrives, propagate the value to the user via
-        // returnedP. answerPromise resolves to the decoded result; the
-        // framework's shorten machinery then folds returnedP onto it.
-        answerPromise.then(
-          v => HandledPromise.resolve(returnedP, v),
-          e => {
-            // Forward rejection into returnedP via a settled rejected
-            // promise. Attach a no-op catch so this auxiliary promise
-            // doesn't trigger unhandled-rejection diagnostics; the
-            // user-facing rejection still surfaces through returnedP.
-            const rej = Promise.reject(e);
-            rej.catch(() => {});
-            HandledPromise.resolve(returnedP, rej);
-          },
-        );
       }
-      return answerPromise;
+      // Build a HandledPromise carrying our pipeline handler. The framework's
+      // `returnedP` is shortened onto whatever we return here, so this
+      // becomes the user-visible result and downstream E(p).foo() runs
+      // through `pipelineHandler` with the question's transform path as
+      // its base. The settler is captured so we can settle it from
+      // `answerPromise`'s eventual value or rejection.
+      let resolveSettler;
+      let rejectSettler;
+      const pipelineP = new HandledPromise(
+        (resolveExec, rejectExec, _resolveWithPresence) => {
+          resolveSettler = resolveExec;
+          rejectSettler = rejectExec;
+        },
+        pipelineHandler,
+      );
+      // pipelineP itself may end up rejected, but the framework's
+      // `returnedP` (which the user awaits) carries the rejection too,
+      // so we attach a no-op catch here strictly to silence unhandled-
+      // rejection diagnostics on this intermediate promise.
+      pipelineP.catch(() => {});
+      answerPromise.then(
+        value => resolveSettler(value),
+        err => rejectSettler(err),
+      );
+      return pipelineP;
     },
 
     applyFunction(_target, args, returnedP) {
