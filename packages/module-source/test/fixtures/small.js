@@ -5,7 +5,7 @@ import babelTraverse from '@babel/traverse';
 import * as babelTypes from '@babel/types';
 
 import makeModulePlugins from './babelPlugin.js';
-import { parseBabel } from '../../src/parse-babel.js';
+import { babelParse } from '../../src/parse-babel.js';
 
 const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
 
@@ -23,7 +23,7 @@ export const makeTransformSource = (babel = null) => {
     // console.log(`transforming`, sourceOptions, code);
     const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
 
-    const ast = parseBabel(code, { sourceType: sourceOptions.sourceType });
+    const ast = babelParse(code, { sourceType: sourceOptions.sourceType });
 
     traverseBabel(ast, visitorFromPlugin(analyzePlugin));
     traverseBabel(ast, visitorFromPlugin(transformPlugin));

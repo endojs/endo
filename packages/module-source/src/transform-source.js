@@ -2,7 +2,7 @@
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import * as babelTypes from '@babel/types';
-import { parseBabel } from './parse-babel.js';
+import { babelParse } from './parse-babel.js';
 
 const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
 
@@ -22,7 +22,7 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
     const { sourceUrl, sourceMapUrl, sourceType, sourceMap, sourceMapHook } =
       sourceOptions;
 
-    const ast = parseBabel(source, {
+    const ast = babelParse(source, {
       sourceType,
       tokens: true,
       createParenthesizedExpressions: true,

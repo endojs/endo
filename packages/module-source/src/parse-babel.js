@@ -1,6 +1,6 @@
 import * as babelParser from '@babel/parser';
 
-export const parseBabel =
+export const babelParse =
   (typeof babelParser.parse === 'function' && babelParser.parse) ||
   (babelParser.default &&
     ((typeof babelParser.default.parse === 'function' &&
@@ -8,6 +8,6 @@ export const parseBabel =
       (typeof babelParser.default === 'function' && babelParser.default))) ||
   (typeof babelParser === 'function' ? babelParser : undefined);
 
-if (typeof parseBabel !== 'function') {
+if (typeof babelParse !== 'function') {
   throw Error('Unable to resolve @babel/parser parse function');
 }
