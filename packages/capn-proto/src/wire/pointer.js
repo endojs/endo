@@ -176,12 +176,13 @@ export const readPointer = (view, byteOffset) => {
  * caller-supplied value against its representable range and Fail loudly
  * otherwise.
  */
-const SIGNED_30_MIN = -(1 << 29);
-const SIGNED_30_MAX = (1 << 29) - 1;
+const SIGNED_30_MIN = -(2 ** 29);
+const SIGNED_30_MAX = 2 ** 29 - 1;
 const UINT16_MAX = 0xffff;
 const UINT29_MAX = 0x1fffffff;
 const UINT32_MAX = 0xffffffff;
 
+/** @param {number} offsetWords */
 const checkSignedOffset30 = offsetWords => {
   if (
     !Number.isInteger(offsetWords) ||
@@ -192,18 +193,30 @@ const checkSignedOffset30 = offsetWords => {
   }
 };
 
+/**
+ * @param {number} value
+ * @param {string} name
+ */
 const checkUint16 = (value, name) => {
   if (!Number.isInteger(value) || value < 0 || value > UINT16_MAX) {
     throw Fail`pointer ${name} ${value} not representable as uint16`;
   }
 };
 
+/**
+ * @param {number} value
+ * @param {string} name
+ */
 const checkUint29 = (value, name) => {
   if (!Number.isInteger(value) || value < 0 || value > UINT29_MAX) {
     throw Fail`pointer ${name} ${value} not representable as uint29`;
   }
 };
 
+/**
+ * @param {number} value
+ * @param {string} name
+ */
 const checkUint32 = (value, name) => {
   if (!Number.isInteger(value) || value < 0 || value > UINT32_MAX) {
     throw Fail`pointer ${name} ${value} not representable as uint32`;

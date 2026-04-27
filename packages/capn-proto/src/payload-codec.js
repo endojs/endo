@@ -45,6 +45,7 @@ const BIGINT_TAG = '@bigint:';
 const BYTES_TAG = '@bytes:';
 
 const hasBuffer = typeof Buffer !== 'undefined';
+/** @param {Uint8Array} bytes */
 const toBase64 = bytes => {
   // Assume Node-compatible Buffer or browser btoa.
   if (hasBuffer) {
@@ -55,6 +56,7 @@ const toBase64 = bytes => {
     bin += String.fromCharCode(bytes[i]);
   return btoa(bin);
 };
+/** @param {string} s */
 const fromBase64 = s => {
   if (hasBuffer) {
     return new Uint8Array(Buffer.from(s, 'base64'));

@@ -68,12 +68,12 @@ export const makeFourTables = ({ onImportFinalized }) => {
   // allocated by the peer.
   const questions = new Map(); // id → QuestionEntry
   const answers = new Map(); // id → AnswerEntry
-  const exports_ = new Map(); // id → ExportEntry
+  // Named `exportsMap` to avoid the reserved-word collision with the
+  // `exports` keyword in module scope; the public field name is still
+  // `exports`.
+  const exportsMap = new Map(); // id → ExportEntry
   /** @type {WeakMap<object, number>} */
   const valToExportId = new WeakMap();
-  /** @type {Map<bigint, number>} */
-  const promiseToExportId = new Map(); // promises don't go in WeakMap reliably across realms? we use Map keyed by question id strings if needed
-  // We use a Map for promise → export id keyed by the promise object.
   /** @type {WeakMap<Promise<unknown>, number>} */
   const promiseValToExportId = new WeakMap();
 
@@ -91,13 +91,12 @@ export const makeFourTables = ({ onImportFinalized }) => {
   return {
     questions,
     answers,
-    exports: exports_,
+    exports: exportsMap,
     valToExportId,
     promiseValToExportId,
     importIdToPresence,
     importEntries,
     questionIds,
     exportIds,
-    promiseToExportId, // not used for hot path; kept for diagnostics
   };
 };

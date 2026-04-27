@@ -1,4 +1,5 @@
 // @ts-check
+/* global Buffer, atob, btoa */
 /**
  * Trap: synchronous round-trip via SharedArrayBuffer + Atomics.
  *
@@ -35,17 +36,15 @@ export {
  *
  * @param {SharedArrayBuffer} transferBuffer
  */
+const hasBuffer = typeof Buffer !== 'undefined';
+
 export const makeCapnpTrapHost = transferBuffer => {
   const inner = captpHost(transferBuffer);
   return async function* trapHost([isReject, framed]) {
     const u8 = new Uint8Array(framed);
     let bin = '';
     for (let i = 0; i < u8.length; i += 1) bin += String.fromCharCode(u8[i]);
-    // eslint-disable-next-line no-undef
-    const b64 =
-      typeof Buffer !== 'undefined'
-        ? Buffer.from(u8).toString('base64')
-        : btoa(bin);
+    const b64 = hasBuffer ? Buffer.from(u8).toString('base64') : btoa(bin);
     yield* inner([isReject, b64]);
   };
 };
@@ -58,10 +57,9 @@ export const makeCapnpTrapGuest = transferBuffer => {
   return ({ startTrap }) => {
     const [isReject, b64] = inner({ startTrap });
     let bytes;
-    if (typeof Buffer !== 'undefined') {
+    if (hasBuffer) {
       bytes = new Uint8Array(Buffer.from(b64, 'base64'));
     } else {
-      // eslint-disable-next-line no-undef
       const bin = atob(b64);
       bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);

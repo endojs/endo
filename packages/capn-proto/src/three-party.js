@@ -29,9 +29,7 @@ export const makeThreeParty = ctx => {
     encodeAccept,
     encodeDisembargo,
     sendFramed,
-    importRegistry,
     tables,
-    findOrCreatePeerConnection,
     questionIds,
   } = ctx;
 
