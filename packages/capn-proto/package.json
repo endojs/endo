@@ -58,6 +58,7 @@
     "typescript": "catalog:dev"
   },
   "dependencies": {
+    "@endo/captp": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
