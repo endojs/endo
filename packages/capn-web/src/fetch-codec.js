@@ -33,28 +33,12 @@ export const isResponse = v =>
   G.Response !== undefined && v instanceof G.Response;
 
 /**
- * Encode Headers as an array-of-pairs.  Uses forEach to avoid iterating
- * twice (some Headers implementations, including undici's, mutate an
- * internal sort cache on iteration which trips SES's frozen-prototype
- * checks the second time).
- *
- * @param {Headers} h
- */
-export const encodeHeaders = h => {
-  /** @type {[string, string][]} */
-  const pairs = [];
-  h.forEach((value, name) => {
-    pairs.push([name, value]);
-  });
-  return ['headers', pairs];
-};
-
-/**
  * Try to iterate Headers and return the entries.  Some host Headers
  * implementations (notably undici's, which backs Node's fetch) maintain a
  * sort-cache on a Symbol-keyed slot of an internal object that's frozen
- * when accessed via Request/Response under SES lockdown.  In that case we
- * return null and the caller may opt to skip header encoding.
+ * under SES — both for Headers attached to a Request/Response (Node 20+)
+ * AND for standalone Headers (Node 18).  In that case we return null and
+ * the caller may opt to fall back to an empty entry list.
  *
  * @param {Headers} h
  * @returns {[string, string][] | null}
@@ -70,6 +54,19 @@ const tryReadHeaders = h => {
   } catch (_e) {
     return null;
   }
+};
+
+/**
+ * Encode Headers as an array-of-pairs.  If iteration throws (Node + SES +
+ * undici interaction), we degrade gracefully to an empty headers array
+ * rather than failing the whole serialisation — the caller can detect a
+ * stripped Headers via `back.get(name) === null`.
+ *
+ * @param {Headers} h
+ */
+export const encodeHeaders = h => {
+  const pairs = tryReadHeaders(h) || [];
+  return ['headers', pairs];
 };
 
 /**

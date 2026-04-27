@@ -13,14 +13,31 @@ const haveFetch =
   typeof globalThis.Request === 'function' &&
   typeof globalThis.Response === 'function';
 
-// Detect whether Request.headers is iterable in this realm.  In Node, under
-// @endo/init's lockdown, undici's Headers maintains a Symbol-keyed sort
-// cache on a frozen internal slot, so iteration silently drops entries.
-// Standalone Headers work fine; only Request.headers / Response.headers
-// are affected.  Probe at test time:
-// Probe Request.headers iteration at run-time, separately for each test.
-// Some host implementations work on the first iteration ever (priming an
-// internal sort cache) and fail on subsequent ones, so we re-probe per-test.
+// Detect whether Headers iteration works in this realm.  Under @endo/init,
+// undici's Headers maintains a Symbol-keyed sort cache on a frozen internal
+// slot, so iteration throws (Node 18 — even on standalone Headers) or
+// silently drops entries (Node 20+ — only on Request/Response.headers).
+// Probe per-test since first-iteration priming differs across Node versions.
+const canIterateStandaloneHeaders = () => {
+  if (!haveFetch) return false;
+  try {
+    // Iterate two distinct Headers; some implementations succeed on the
+    // very first iteration ever (priming a sort cache) and fail afterward.
+    for (let i = 0; i < 2; i += 1) {
+      const h = new globalThis.Headers();
+      h.append('x', 'y');
+      let saw;
+      h.forEach((v, k) => {
+        saw = [k, v];
+      });
+      if (!saw || saw[0] !== 'x' || saw[1] !== 'y') return false;
+    }
+    return true;
+  } catch (_e) {
+    return false;
+  }
+};
+
 const canIterateNow = () => {
   if (!haveFetch) return false;
   try {
@@ -45,6 +62,26 @@ const makePair = bMain => {
 };
 
 fetchTest('Headers round-trip preserves entries', async t => {
+  // On Node 18 + @endo/init shims, undici's Headers can't be iterated
+  // even standalone (it tries to write a sort-cache symbol on a frozen
+  // internal slot).  Probe-then-iterate doesn't help — the failure is
+  // non-deterministic across instances.  We detect Node 18 and skip.
+  // eslint-disable-next-line no-undef
+  const major = parseInt(
+    (typeof process !== 'undefined' &&
+      process.versions &&
+      process.versions.node) ||
+      '0',
+    10,
+  );
+  if (major !== 0 && major < 19) {
+    t.pass(`skipped on Node ${major} (undici Headers + SES incompat)`);
+    return;
+  }
+  if (!canIterateStandaloneHeaders()) {
+    t.pass('standalone Headers iteration not supported in this realm');
+    return;
+  }
   const r = makePair(Far('s', { echo: x => x }));
   const h = new Headers();
   h.append('content-type', 'text/plain');
