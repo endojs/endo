@@ -729,7 +729,10 @@ export const makeTorNetLayer = async ({
         logger.error('Failed to close Tor OCapN listener', closeError);
       }
       fs.rm(ocapnSocketPath, { force: true }).catch(err => {
-        logger.error(`Failed to remove OCapN Tor socket ${ocapnSocketPath}`, err);
+        logger.error(
+          `Failed to remove OCapN Tor socket ${ocapnSocketPath}`,
+          err,
+        );
       });
     });
     controlLineReader.dispose();
