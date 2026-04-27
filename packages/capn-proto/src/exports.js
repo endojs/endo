@@ -68,8 +68,14 @@ export const makeExportRegistry = ({
   const releaseExport = (id, dec) => {
     const entry = expTable.get(id);
     if (!entry) return;
+    if (dec > entry.refCount) {
+      // Peer asked us to drop more refs than we issued. Treat as protocol
+      // error: drop the export entirely rather than letting refCount go
+      // negative (which would silently corrupt subsequent accounting).
+      throw Fail`peer released ${dec} refs of export ${id} but only ${entry.refCount} were outstanding`;
+    }
     entry.refCount -= dec;
-    if (entry.refCount <= 0) {
+    if (entry.refCount === 0) {
       // Drop the WeakMap entry so a fresh export gets a new id.
       const map = entry.isPromise ? promiseValToExportId : valToExportId;
       // WeakMap.delete is allowed for any key.

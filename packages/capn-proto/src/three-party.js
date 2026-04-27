@@ -103,9 +103,16 @@ export const makeThreeParty = ctx => {
     const hostConnection = network.connectToThirdParty(desc.thirdPartyCapId);
     const acceptQuestionId = hostConnection.allocQuestion();
     return new Promise((resolve, reject) => {
+      const cleanup = () => acceptQuestions.delete(acceptQuestionId);
       acceptQuestions.set(acceptQuestionId, {
-        resolve,
-        reject,
+        resolve: v => {
+          cleanup();
+          resolve(v);
+        },
+        reject: e => {
+          cleanup();
+          reject(e);
+        },
         vineId: desc.vineId,
       });
       hostConnection.sendFramed(
@@ -116,6 +123,29 @@ export const makeThreeParty = ctx => {
         }),
       );
     });
+  };
+
+  /**
+   * Release the bookkeeping for a Provide question — typically called when
+   * the recipient (A) finishes its A↔C Accept, signalling that the original
+   * vine on B is no longer required.
+   *
+   * @param {number} provideQuestionId
+   */
+  const finishProvide = provideQuestionId => {
+    provideQuestions.delete(provideQuestionId);
+    for (const [vineId, qid] of vines) {
+      if (qid === provideQuestionId) {
+        vines.delete(vineId);
+        break;
+      }
+    }
+    for (const [targetId, qid] of provideQuestionByTargetId) {
+      if (qid === provideQuestionId) {
+        provideQuestionByTargetId.delete(targetId);
+        break;
+      }
+    }
   };
 
   /**
@@ -214,6 +244,7 @@ export const makeThreeParty = ctx => {
   return {
     initiateProvide,
     acceptThirdParty,
+    finishProvide,
     handleProvide,
     handleAccept,
     handleDisembargoAccept,

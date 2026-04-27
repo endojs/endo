@@ -7,6 +7,7 @@
  */
 
 import { HandledPromise } from '@endo/eventual-send';
+import { Fail } from '@endo/errors';
 
 /**
  * @param {object} ctx The connection context built by makeConnection.
@@ -101,12 +102,15 @@ export const makeDispatch = ctx => {
         let v = result;
         for (const op of target.transform || []) {
           if (op.op === 'getPointerField') {
+            if (v === null || v === undefined || typeof v !== 'object') {
+              throw Fail`cannot pipeline through non-object result for getPointerField`;
+            }
             // For our schema-less Payload encoding, we treat the result as a
             // record where pointer field N is the Nth own enumerable
             // property's value. Application code should structure result
             // objects accordingly.
-            const keys = v && typeof v === 'object' ? Object.keys(v) : [];
-            v = v?.[keys[op.fieldOrdinal]];
+            const keys = Object.keys(v);
+            v = v[keys[op.fieldOrdinal]];
           }
         }
         return v;
@@ -141,8 +145,29 @@ export const makeDispatch = ctx => {
       return;
     }
 
-    const args = payloadCodec.decode(params);
-    const argList = Array.isArray(args) ? args : [];
+    let argList;
+    try {
+      const args = payloadCodec.decode(params);
+      argList = Array.isArray(args) ? args : [];
+    } catch (err) {
+      // payload decoding failed — surface as an exception Return so the
+      // peer's question rejects rather than blocking forever.
+      sendFramed(
+        encodeReturn({
+          answerId: questionId,
+          result: {
+            kind: 'exception',
+            exception: {
+              type: 0,
+              reason: `payload decode failed: ${
+                /** @type {any} */ (err)?.message || err
+              }`,
+            },
+          },
+        }),
+      );
+      return;
+    }
 
     const resultP = targetP.then(t =>
       HandledPromise.applyMethod(t, methodName, argList),
@@ -232,17 +257,30 @@ export const makeDispatch = ctx => {
     if (payload.kind === 'cap') {
       const desc = payload.cap;
       let resolvedTo;
+      let resolveError;
       if (desc.kind === 'senderHosted' || desc.kind === 'senderPromise') {
         resolvedTo = importRegistry.importCap(
           desc.id,
           desc.kind === 'senderPromise',
         );
       } else if (desc.kind === 'receiverHosted') {
-        resolvedTo = tables.exports.get(desc.id)?.value;
+        const ent = tables.exports.get(desc.id);
+        if (ent) {
+          resolvedTo = ent.value;
+        } else {
+          // Peer claims the promise resolved to one of our exports, but
+          // we've already released that export. Reject the promise rather
+          // than silently resolving to undefined.
+          resolveError = Error(`resolve referenced unknown export ${desc.id}`);
+        }
       } else if (desc.kind === 'thirdPartyHosted') {
         resolvedTo = threeParty.acceptThirdParty(desc);
       } else {
-        resolvedTo = undefined;
+        resolveError = Error(`resolve with unknown cap kind ${desc.kind}`);
+      }
+      if (resolveError) {
+        if (entry.rejectSettler) entry.rejectSettler(resolveError);
+        return;
       }
       entry.resolvedTo = resolvedTo;
       // Tribble rule: messages addressed to promiseId stay routed via the
