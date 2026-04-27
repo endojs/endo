@@ -122,7 +122,6 @@ expressly introduced (preventing some covert communication channels).
 
 `hardenIntrinsics()` *freezes* all JavaScript defined objects accessible to any program in the realm. The frozen
 accessible objects include but are not limited to:
-- `globalThis`
 - `[].__proto__` the array prototype, equivalent to `Array.prototype` in a pristine JavaScript environment.
 - `{}.__proto__` the `Object.prototype`
 - `(() => {}).__proto__` the `Function.prototype`
