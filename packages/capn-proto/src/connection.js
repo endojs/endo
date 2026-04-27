@@ -194,7 +194,22 @@ export const makeConnection = cfg => {
   };
 
   // ---- Sending Calls ----
-  const sendCall = (target, interfaceId, methodId, args) => {
+  // Closed over by every remote handler; pulled out so both `sendCall`'s
+  // pipeline handler and `makeRemoteHandlerForImport` share one definition.
+  // eslint-disable-next-line prefer-const
+  let sendCall;
+  /** @type {(t: any, iid: bigint, mid: number, a: unknown[]) => void} */
+  const sendCallOnly = (t, iid, mid, a) => {
+    sendCall(t, iid, mid, a);
+  };
+  /** Common subset of `makeRemoteHandler` options used by every handler. */
+  const baseHandlerOptions = () => ({
+    sendCall,
+    sendCallOnly,
+    registerReturnedPromise: () => {},
+  });
+
+  sendCall = (target, interfaceId, methodId, args) => {
     const questionId = tables.questionIds.alloc();
     let resolveFn;
     let rejectFn;
@@ -206,13 +221,7 @@ export const makeConnection = cfg => {
 
     const params = payloadCodec.encode(args);
     const pipelineHandler = makeRemoteHandler({
-      sendCall: (childTarget, ifaceId, mId, childArgs) =>
-        sendCall(childTarget, ifaceId, mId, childArgs),
-      sendCallOnly: (childTarget, ifaceId, mId, childArgs) => {
-        // For pipelining-only sends we still allocate a question (Cap'n Proto
-        // requires one), but we don't expose its promise.
-        sendCall(childTarget, ifaceId, mId, childArgs);
-      },
+      ...baseHandlerOptions(),
       resolveMethod: prop => {
         // The pipelined target is a result struct; we cannot in general know
         // its interface. We default to the same interface as the originating
@@ -224,14 +233,7 @@ export const makeConnection = cfg => {
         }
         return { interfaceId, methodId: ord };
       },
-      target: () => {
-        // The pipelined target is "the question we just sent, plus a
-        // getPointerField step keyed by the result's first ptr field." We
-        // reflect that by returning a promisedAnswer with empty transform;
-        // outer methods will extend the path.
-        return { kind: 'promisedAnswer', questionId, transform: [] };
-      },
-      registerReturnedPromise: () => {},
+      target: () => ({ kind: 'promisedAnswer', questionId, transform: [] }),
     });
 
     tables.questions.set(questionId, {
@@ -278,17 +280,13 @@ export const makeConnection = cfg => {
   // ---- Import handler factory ----
   const makeRemoteHandlerForImport = (id, _isPromiseImport) =>
     makeRemoteHandler({
-      sendCall,
-      sendCallOnly: (target, iid, mid, args) => {
-        sendCall(target, iid, mid, args);
-      },
+      ...baseHandlerOptions(),
       resolveMethod: prop => {
         const found = findMethodAcrossInterfaces(String(prop));
         if (found) return found;
         throw Fail`no registered interface contains method ${String(prop)}`;
       },
       target: () => ({ kind: 'importedCap', id }),
-      registerReturnedPromise: () => {},
     });
 
   // ---- Import registry (assigned to the forward-declared holder above). ----
