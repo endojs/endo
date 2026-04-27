@@ -1,5 +1,12 @@
 # @endo/evasive-transform
 
+## 2.2.0
+
+### Minor Changes
+
+- [#3131](https://github.com/endojs/endo/pull/3131) [`5c098c4`](https://github.com/endojs/endo/commit/5c098c4d9cb4de3b1a844addcae63c34ec8f03fb) Thanks [@naugtur](https://github.com/naugtur)! - - Add `customVisitor` option - a visitor function to be called on each node of the Babel traverse, in addition to the standard transforms in evasive-transform. Receives the same path argument as a normal Babel visitor.
+  - Add an evasion for a class or object method being named `import` or `eval`
+
 ## 2.1.0
 
 ### Minor Changes
