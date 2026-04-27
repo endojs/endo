@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* global globalThis */
+/* global globalThis, process */
 // Round-trip Headers, Request, Response across the wire.
 
 import test from '@endo/ses-ava/test.js';
