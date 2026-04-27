@@ -1,21 +1,11 @@
 /* eslint-disable */
 console.error("This is a code sample for trying out babel transforms, it's not meant to be run");
-import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import * as babelTypes from '@babel/types';
 
 import makeModulePlugins from './babelPlugin.js';
-
-const parseBabel =
-  (typeof babelParser.parse === 'function' && babelParser.parse) ||
-  (babelParser.default &&
-    (typeof babelParser.default.parse === 'function'
-      ? babelParser.default.parse
-      : typeof babelParser.default === 'function'
-        ? babelParser.default
-        : undefined)) ||
-  (typeof babelParser === 'function' ? babelParser : undefined);
+import { parseBabel } from '../../src/parse-babel.js';
 
 const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
 
