@@ -9,6 +9,8 @@ import harden from '@endo/harden';
 
 const { isNaN, isFinite } = Number;
 
+// AggregateError is ES2021 and may be missing in some constrained
+// runtimes; guard so module evaluation doesn't fail.
 const ERROR_TYPES = harden({
   Error,
   EvalError,
@@ -17,7 +19,8 @@ const ERROR_TYPES = harden({
   SyntaxError,
   TypeError,
   URIError,
-  AggregateError,
+  // eslint-disable-next-line no-undef
+  ...(typeof AggregateError !== 'undefined' ? { AggregateError } : {}),
 });
 
 const ERROR_TYPE_NAMES = harden(Object.keys(ERROR_TYPES));

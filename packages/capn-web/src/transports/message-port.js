@@ -16,6 +16,12 @@ export const makeMessagePortTransport = port => {
   const waiters = [];
   let closed = false;
 
+  const closeAndWake = () => {
+    if (closed) return;
+    closed = true;
+    for (const w of waiters.splice(0)) w(null);
+  };
+
   const handler = ev => {
     const data = typeof ev?.data === 'string' ? ev.data : String(ev?.data);
     const w = waiters.shift();
@@ -27,20 +33,28 @@ export const makeMessagePortTransport = port => {
   };
 
   if (typeof port.addEventListener === 'function') {
+    // Browser-style MessagePort / Web Worker.
     port.addEventListener('message', handler);
+    port.addEventListener('messageerror', closeAndWake);
+    port.addEventListener('close', closeAndWake);
     if (typeof port.start === 'function') port.start();
   } else if (typeof port.on === 'function') {
     // Node worker_threads MessagePort.
-    port.on('message', data => {
-      const ev = { data };
-      handler(ev);
-    });
+    port.on('message', data => handler({ data }));
+    port.on('messageerror', closeAndWake);
+    port.on('close', closeAndWake);
   }
 
   return harden({
     send: m => {
       if (closed) return;
-      port.postMessage(m);
+      // postMessage may throw synchronously if the port is closed; treat
+      // any failure as a transport close so the session can recover.
+      try {
+        port.postMessage(m);
+      } catch (_e) {
+        closeAndWake();
+      }
     },
     receive: () => {
       if (buf.length > 0) return Promise.resolve(buf.shift());
@@ -48,8 +62,7 @@ export const makeMessagePortTransport = port => {
       return new Promise(resolve => waiters.push(resolve));
     },
     abort: () => {
-      closed = true;
-      for (const w of waiters.splice(0)) w(null);
+      closeAndWake();
       try {
         if (typeof port.close === 'function') port.close();
       } catch (_e) {

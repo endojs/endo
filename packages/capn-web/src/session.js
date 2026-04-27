@@ -181,7 +181,16 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       abort(e);
       return;
     }
-    Promise.resolve(transport.send(serialized)).catch(e => abort(e));
+    // transport.send may throw synchronously (e.g. closed MessagePort);
+    // catch sync throws here so they don't escape into user code.
+    let sendResult;
+    try {
+      sendResult = transport.send(serialized);
+    } catch (e) {
+      abort(e);
+      return;
+    }
+    Promise.resolve(sendResult).catch(e => abort(e));
   }
 
   // ------- outgoing pushes -------
@@ -222,12 +231,15 @@ export const makeCapnWebSession = (transport, opts = {}) => {
   function doPipelinedPushSendOnly(rootId, path, args) {
     if (aborted) return;
     const expr = buildPipelineExpression(rootId, path, args);
-    // Spec-compliant fire-and-forget: a push without a pull.  The peer
-    // will compute the answer and hold it in their exports table until we
-    // either release it or the session ends.  We still need to advance our
-    // outgoing-push id so the peer's exports table stays in sync.
+    // Spec-compliant fire-and-forget: a push without a pull.  We still
+    // need to advance our outgoing-push id so the peer's exports table
+    // stays in sync, and we eagerly emit a release for that id so the
+    // peer can drop the unused answer (otherwise long-lived sessions
+    // would accumulate one orphan export per send-only call).
+    const qid = nextOutgoingPushId;
     nextOutgoingPushId += 1;
     sendMessage(['push', expr]);
+    sendMessage(['release', qid, 1]);
   }
 
   /**
@@ -272,30 +284,53 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       return;
     }
     const [tag, ...rest] = message;
+    const assertArity = expected => {
+      if (rest.length !== expected) {
+        throw new TypeError(
+          `malformed ${tag} message: expected ${expected} args, got ${rest.length}`,
+        );
+      }
+    };
+    const assertNumber = index => {
+      if (typeof rest[index] !== 'number') {
+        throw new TypeError(
+          `malformed ${tag} message: arg ${index} must be a number`,
+        );
+      }
+    };
     try {
       switch (tag) {
         case 'push':
+          assertArity(1);
           handlePush(rest[0], false).catch(e => abort(e));
           break;
         case 'stream':
+          assertArity(1);
           handlePush(rest[0], true).catch(e => abort(e));
           break;
         case 'pull':
-          handlePull(/** @type {number} */ (rest[0])).catch(e => abort(e));
+          assertArity(1);
+          assertNumber(0);
+          handlePull(rest[0]).catch(e => abort(e));
           break;
         case 'resolve':
-          handleResolve(/** @type {number} */ (rest[0]), rest[1], false);
+          assertArity(2);
+          assertNumber(0);
+          handleResolve(rest[0], rest[1], false);
           break;
         case 'reject':
-          handleResolve(/** @type {number} */ (rest[0]), rest[1], true);
+          assertArity(2);
+          assertNumber(0);
+          handleResolve(rest[0], rest[1], true);
           break;
         case 'release':
-          handleRelease(
-            /** @type {number} */ (rest[0]),
-            /** @type {number} */ (rest[1]),
-          );
+          assertArity(2);
+          assertNumber(0);
+          assertNumber(1);
+          handleRelease(rest[0], rest[1]);
           break;
         case 'abort':
+          assertArity(1);
           handleAbort(rest[0]);
           break;
         default:
@@ -359,9 +394,16 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       Array.isArray(expr) &&
       (expr[0] === 'pipeline' || expr[0] === 'import')
     ) {
-      const id = /** @type {number} */ (expr[1]);
-      const path = /** @type {PropertyKey[] | undefined} */ (expr[2]);
-      const args = /** @type {unknown[] | undefined} */ (expr[3]);
+      const id = expr[1];
+      const path = expr[2];
+      const args = expr[3];
+      if (
+        typeof id !== 'number' ||
+        (path !== undefined && !Array.isArray(path)) ||
+        (args !== undefined && !Array.isArray(args))
+      ) {
+        throw new TypeError(`invalid ${expr[0]} expression`);
+      }
       const root = lookupReferenceForExecution(id);
       if (path === undefined && args === undefined) return root;
       const evaluatedArgs =
