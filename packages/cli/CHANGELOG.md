@@ -1,5 +1,12 @@
 # @endo/cli
 
+## 2.3.13
+
+### Patch Changes
+
+- Updated dependencies [[`c372670`](https://github.com/endojs/endo/commit/c372670c6ff21771b37b2c11b9f82552eed7a94f), [`291e224`](https://github.com/endojs/endo/commit/291e2241bdb25ce10045f2f972496b4ffe43dd05)]:
+  - @endo/daemon@3.0.0
+
 ## 2.3.12
 
 ### Patch Changes

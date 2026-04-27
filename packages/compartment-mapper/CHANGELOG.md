@@ -1,5 +1,11 @@
 # @endo/compartment-mapper
 
+## 2.1.1
+
+### Patch Changes
+
+- [#3201](https://github.com/endojs/endo/pull/3201) [`67ed1ce`](https://github.com/endojs/endo/commit/67ed1ce31b70126201756f7a3a54e1450a709665) Thanks [@boneskull](https://github.com/boneskull)! - Compatibility fix for passthrough-style wildcards in subpath exports.
+
 ## 2.1.0
 
 ### Minor Changes

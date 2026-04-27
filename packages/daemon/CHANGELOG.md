@@ -1,5 +1,23 @@
 # @endo/daemon
 
+## 3.0.0
+
+### Major Changes
+
+- [#3204](https://github.com/endojs/endo/pull/3204) [`291e224`](https://github.com/endojs/endo/commit/291e2241bdb25ce10045f2f972496b4ffe43dd05) Thanks [@gibson042](https://github.com/gibson042)! - Detect truncation of Unix domain socket paths
+
+### Patch Changes
+
+- [#3171](https://github.com/endojs/endo/pull/3171) [`c372670`](https://github.com/endojs/endo/commit/c372670c6ff21771b37b2c11b9f82552eed7a94f) Thanks [@turadg](https://github.com/turadg)! - TypeScript 6 conformance: public types in `types.d.ts` are now more precise.
+  - `Context.thisDiesIfThatDies` and `thatDiesIfThisDies` parameters tightened from `string` to `FormulaIdentifier` (a branded string type).
+  - `RemoteControl.accept`/`connect` and `RemoteControlState.accept`/`connect` take `remoteGateway: ERef<EndoGateway>` (was `Promise<EndoGateway>`); `RemoteControl.connect` now returns `ERef<EndoGateway>` (was `Promise<EndoGateway>`); `RemoteControlState.connect` returns `{ state; remoteGateway: ERef<EndoGateway> }`.
+  - `EndoInspector` generic type parameter renamed from `Record` to `RecordT` to avoid shadowing the built-in `Record` utility type; `lookup` and `list` now use method syntax so that `EndoInspector<'some literal'>` remains assignable to `EndoInspector<string>` under `strictFunctionTypes`.
+
+  TypeScript consumers implementing or calling these interfaces may need to update their types accordingly.
+
+- Updated dependencies [[`67ed1ce`](https://github.com/endojs/endo/commit/67ed1ce31b70126201756f7a3a54e1450a709665)]:
+  - @endo/compartment-mapper@2.1.1
+
 ## 2.5.3
 
 ### Patch Changes
