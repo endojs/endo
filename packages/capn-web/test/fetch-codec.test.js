@@ -18,8 +18,22 @@ const haveFetch =
 // slot, so iteration throws (Node 18 — even on standalone Headers) or
 // silently drops entries (Node 20+ — only on Request/Response.headers).
 // Probe per-test since first-iteration priming differs across Node versions.
+// On Node 18, undici's Headers iteration writes to a Symbol-keyed sort cache
+// on a frozen internal slot under @endo/init's lockdown — even for
+// standalone Headers (Node 20+ only has the issue on Request/Response
+// headers).  We skip the round-trip headers test on Node 18 entirely.
+const nodeMajor = (() => {
+  try {
+    const v = process.versions && process.versions.node;
+    return v ? parseInt(v.split('.')[0], 10) : 0;
+  } catch (_e) {
+    return 0;
+  }
+})();
+
 const canIterateStandaloneHeaders = () => {
   if (!haveFetch) return false;
+  if (nodeMajor > 0 && nodeMajor < 20) return false;
   try {
     // Iterate two distinct Headers; some implementations succeed on the
     // very first iteration ever (priming a sort cache) and fail afterward.
