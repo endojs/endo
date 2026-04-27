@@ -6,7 +6,10 @@ import {
 } from '../src/index.js';
 
 test('trap framing constants are reused from captp', t => {
-  t.is(MIN_TRANSFER_BUFFER_LENGTH, MIN_DATA_BUFFER_LENGTH + TRANSFER_OVERHEAD_LENGTH);
+  t.is(
+    MIN_TRANSFER_BUFFER_LENGTH,
+    MIN_DATA_BUFFER_LENGTH + TRANSFER_OVERHEAD_LENGTH,
+  );
   t.true(MIN_DATA_BUFFER_LENGTH >= 1);
 });
 

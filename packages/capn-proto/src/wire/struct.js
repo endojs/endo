@@ -11,11 +11,7 @@
 import { Fail } from '@endo/errors';
 
 import { WORD_SIZE } from './segment.js';
-import {
-  readPointer,
-  writePointer,
-  resolvePointer,
-} from './pointer.js';
+import { readPointer, writePointer, resolvePointer } from './pointer.js';
 
 /**
  * @typedef {object} StructLocation
@@ -53,8 +49,7 @@ export const allocStruct = (msg, pointerLocation, dataWords, ptrWords) => {
   const ptrSeg = msg.segments[pSeg];
   if (alloc.segId === pSeg) {
     // Same segment: regular struct pointer.
-    const offsetWords =
-      alloc.wordOffset - (pointerLocation.wordOffset + 1);
+    const offsetWords = alloc.wordOffset - (pointerLocation.wordOffset + 1);
     writePointer(ptrSeg.view, pointerLocation.wordOffset * WORD_SIZE, {
       kind: 'struct',
       offsetWords,
@@ -62,19 +57,12 @@ export const allocStruct = (msg, pointerLocation, dataWords, ptrWords) => {
       ptrWords,
     });
   } else {
-    // Different segment: write a far pointer, plus a single-landing-pad with
-    // the struct pointer at offset 0 of the destination.
-    // Simplest strategy: write a far pointer with landingPad=0 pointing to a
-    // struct pointer placed in the new segment immediately before content. To
-    // keep things simple we promote to a double landing pad layout.
-    // We'll allocate a 2-word landing pad in the same target segment is
-    // overkill; instead, allocate one pad word adjacent to the struct.
-    // Here we use double landing pad in the target segment.
-    const padAlloc = msg.allocate(2);
-    if (padAlloc.segId !== alloc.segId) {
-      // Should not happen for small allocations but guard anyway.
-      throw Fail`landing pad allocation crossed segments`;
-    }
+    // Different segment: write a double landing pad (2 words) in the same
+    // segment as the struct so the far pointer's landingPad=1 layout is
+    // intact. We use allocateInSegment so that the pad is guaranteed to
+    // land next to the payload — `allocate`'s first-fit policy could
+    // otherwise place the pad in an earlier segment with spare room.
+    const padAlloc = msg.allocateInSegment(alloc.segId, 2);
     // First pad word: single-far pointing at content.
     writePointer(
       msg.segments[padAlloc.segId].view,
@@ -148,7 +136,9 @@ const ptrSlotByteOffset = (loc, idx) =>
  */
 export const readUint8 = (loc, byteIdx) => {
   if (byteIdx >= loc.dataWords * WORD_SIZE) return 0;
-  return loc.msg.segment(loc.segId).view.getUint8(dataByteOffset(loc) + byteIdx);
+  return loc.msg
+    .segment(loc.segId)
+    .view.getUint8(dataByteOffset(loc) + byteIdx);
 };
 
 /** @param {StructBuilder} loc */
@@ -157,7 +147,7 @@ export const writeUint8 = (loc, byteIdx, value) => {
     throw Fail`uint8 write out of range`;
   }
   loc.msg.segments[loc.segId].view.setUint8(
-    (loc.wordOffset * WORD_SIZE) + byteIdx,
+    loc.wordOffset * WORD_SIZE + byteIdx,
     value,
   );
 };
@@ -175,8 +165,11 @@ export const readUint16 = (loc, byteIdx) => {
 
 /** @param {StructBuilder} loc */
 export const writeUint16 = (loc, byteIdx, value) => {
+  if (byteIdx + 2 > loc.dataWords * WORD_SIZE) {
+    throw Fail`uint16 write at byte ${byteIdx} out of range (data section ${loc.dataWords * WORD_SIZE} bytes)`;
+  }
   loc.msg.segments[loc.segId].view.setUint16(
-    (loc.wordOffset * WORD_SIZE) + byteIdx,
+    loc.wordOffset * WORD_SIZE + byteIdx,
     value,
     true,
   );
@@ -192,8 +185,12 @@ export const readUint32 = (loc, byteIdx) => {
 
 /** @param {StructBuilder} loc */
 export const writeUint32 = (loc, byteIdx, value) => {
+  if (byteIdx + 4 > loc.dataWords * WORD_SIZE) {
+    throw Fail`uint32 write at byte ${byteIdx} out of range (data section ${loc.dataWords * WORD_SIZE} bytes)`;
+  }
   loc.msg.segments[loc.segId].view.setUint32(
-    (loc.wordOffset * WORD_SIZE) + byteIdx,
+    loc.wordOffset * WORD_SIZE + byteIdx,
+    // eslint-disable-next-line no-bitwise
     value >>> 0,
     true,
   );
@@ -209,8 +206,11 @@ export const readUint64 = (loc, byteIdx) => {
 
 /** @param {StructBuilder} loc */
 export const writeUint64 = (loc, byteIdx, value) => {
+  if (byteIdx + 8 > loc.dataWords * WORD_SIZE) {
+    throw Fail`uint64 write at byte ${byteIdx} out of range (data section ${loc.dataWords * WORD_SIZE} bytes)`;
+  }
   loc.msg.segments[loc.segId].view.setBigUint64(
-    (loc.wordOffset * WORD_SIZE) + byteIdx,
+    loc.wordOffset * WORD_SIZE + byteIdx,
     BigInt(value),
     true,
   );
@@ -229,22 +229,26 @@ export const readBool = (loc, bitIdx) => {
   const bit = bitIdx & 7;
   // eslint-disable-next-line no-bitwise
   return (
-    (loc.msg
+    ((loc.msg
       .segment(loc.segId)
       .view.getUint8(dataByteOffset(loc) + byteIdx) >>>
       bit) &
-      1
-  ) !==
-    0;
+      1) !==
+    0
+  );
 };
 
 /** @param {StructBuilder} loc */
 export const writeBool = (loc, bitIdx, value) => {
+  // eslint-disable-next-line no-bitwise
   const byteIdx = bitIdx >>> 3;
+  if (byteIdx >= loc.dataWords * WORD_SIZE) {
+    throw Fail`bool write at bit ${bitIdx} out of range (data section ${loc.dataWords * WORD_SIZE} bytes)`;
+  }
   // eslint-disable-next-line no-bitwise
   const bit = bitIdx & 7;
-  const view = loc.msg.segments[loc.segId].view;
-  const off = (loc.wordOffset * WORD_SIZE) + byteIdx;
+  const { view } = loc.msg.segments[loc.segId];
+  const off = loc.wordOffset * WORD_SIZE + byteIdx;
   let cur = view.getUint8(off);
   // eslint-disable-next-line no-bitwise
   cur = value ? cur | (1 << bit) : cur & ~(1 << bit);

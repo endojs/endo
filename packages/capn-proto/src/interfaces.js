@@ -43,22 +43,28 @@ export const makeInterfaceRegistry = () => {
   const reverseByIface = new Map();
 
   const register = desc => {
-    desc && typeof desc === 'object' || Fail`registerInterface requires a descriptor`;
-    typeof desc.id === 'bigint' || Fail`interface id must be bigint, got ${desc.id}`;
-    desc.methods && typeof desc.methods === 'object' ||
+    (desc && typeof desc === 'object') ||
+      Fail`registerInterface requires a descriptor`;
+    typeof desc.id === 'bigint' ||
+      Fail`interface id must be bigint, got ${desc.id}`;
+    (desc.methods && typeof desc.methods === 'object') ||
       Fail`interface ${desc.id} requires methods map`;
     const existing = byIdMap.get(desc.id);
     if (existing) {
       // Allow idempotent re-registration if maps match.
       const a = JSON.stringify(existing.methods);
       const b = JSON.stringify(desc.methods);
-      a === b || Fail`interface ${q(desc.id)} already registered with a different method map`;
+      a === b ||
+        Fail`interface ${q(desc.id)} already registered with a different method map`;
       return;
     }
     /** @type {Map<number, string>} */
     const reverse = new Map();
     for (const [name, ord] of Object.entries(desc.methods)) {
-      typeof ord === 'number' && Number.isInteger(ord) && ord >= 0 && ord < 0x10000 ||
+      (typeof ord === 'number' &&
+        Number.isInteger(ord) &&
+        ord >= 0 &&
+        ord < 0x10000) ||
         Fail`method ${q(name)} ordinal must be uint16, got ${ord}`;
       !reverse.has(ord) ||
         Fail`method ordinal ${ord} duplicated in interface ${q(desc.id)}`;

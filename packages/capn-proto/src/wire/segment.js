@@ -37,7 +37,10 @@ const MAX_SEGMENT_WORDS = 1 << 24;
  * @param {number} initialWords
  * @returns {SegmentBuilder}
  */
-export const makeSegmentBuilder = (id, initialWords = INITIAL_SEGMENT_WORDS) => {
+export const makeSegmentBuilder = (
+  id,
+  initialWords = INITIAL_SEGMENT_WORDS,
+) => {
   let capacityWords = initialWords;
   let buffer = new ArrayBuffer(capacityWords * WORD_SIZE);
   let view = new DataView(buffer);
@@ -97,6 +100,12 @@ export const makeSegmentBuilder = (id, initialWords = INITIAL_SEGMENT_WORDS) => 
  * @property {(words: number) => { segId: number, wordOffset: number }} allocate
  *   Allocate `words` words in any segment that has room, growing or creating
  *   segments as needed.
+ * @property {(segId: number, words: number) => { segId: number, wordOffset: number }} allocateInSegment
+ *   Allocate `words` words specifically inside `segId`, growing it (or
+ *   creating a fresh segment if it cannot grow). This is required when a
+ *   landing pad must live adjacent to a payload that has already been
+ *   placed in a particular segment; otherwise the first-fit policy of
+ *   `allocate` could put the pad in an earlier segment with spare room.
  * @property {() => ArrayBuffer[]} finish Returns one ArrayBuffer per segment,
  *   trimmed to the used portion. The framing layer wraps these.
  */
@@ -131,10 +140,25 @@ export const makeMessageBuilder = () => {
     return { segId: seg.id, wordOffset: off };
   };
 
+  const allocateInSegment = (segId, words) => {
+    const seg = segments[segId];
+    seg || Fail`unknown segment ${segId}`;
+    let off = seg.allocate(words);
+    if (off >= 0) return { segId, wordOffset: off };
+    // Grow this specific segment to fit.
+    if (words <= MAX_SEGMENT_WORDS / 2) {
+      seg.grow(words);
+      off = seg.allocate(words);
+      off >= 0 || Fail`grow failed for segment ${segId}`;
+      return { segId, wordOffset: off };
+    }
+    throw Fail`cannot allocate ${words} words in segment ${segId}`;
+  };
+
   const finish = () =>
     segments.map(seg => seg.buffer.slice(0, seg.usedWords * WORD_SIZE));
 
-  return { segments, allocate, finish };
+  return { segments, allocate, allocateInSegment, finish };
 };
 
 /**

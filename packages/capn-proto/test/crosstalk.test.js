@@ -4,10 +4,14 @@ import { E, makeLoopback } from '../src/index.js';
 
 test('both sides can originate calls concurrently', async t => {
   const farRoot = makeExo('far', undefined, {
-    pingFar() { return 'far-pong'; },
+    pingFar() {
+      return 'far-pong';
+    },
   });
   const nearRoot = makeExo('near', undefined, {
-    pingNear() { return 'near-pong'; },
+    pingNear() {
+      return 'near-pong';
+    },
   });
   const { near, far, registerInterface } = makeLoopback({
     nearBootstrap: nearRoot,
@@ -26,10 +30,14 @@ test('both sides can originate calls concurrently', async t => {
 
 test('many concurrent calls in both directions all complete', async t => {
   const farRoot = makeExo('far', undefined, {
-    echo(x) { return `F:${x}`; },
+    echo(x) {
+      return `F:${x}`;
+    },
   });
   const nearRoot = makeExo('near', undefined, {
-    echo(x) { return `N:${x}`; },
+    echo(x) {
+      return `N:${x}`;
+    },
   });
   const { near, far, registerInterface } = makeLoopback({
     nearBootstrap: nearRoot,

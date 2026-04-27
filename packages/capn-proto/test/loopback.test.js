@@ -4,7 +4,9 @@ import { E, makeLoopback } from '../src/index.js';
 
 test('makeLoopback yields working near + far + registerInterface', async t => {
   const root = makeExo('root', undefined, {
-    add(a, b) { return a + b; },
+    add(a, b) {
+      return a + b;
+    },
   });
   const lb = makeLoopback({ farBootstrap: root });
   lb.registerInterface({ id: 0xa1n, methods: { add: 0 } });

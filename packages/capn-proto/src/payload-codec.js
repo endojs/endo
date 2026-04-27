@@ -49,7 +49,8 @@ const toBase64 = bytes => {
     return Buffer.from(bytes).toString('base64');
   }
   let bin = '';
-  for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.length; i += 1)
+    bin += String.fromCharCode(bytes[i]);
   // eslint-disable-next-line no-undef
   return btoa(bin);
 };
@@ -141,7 +142,8 @@ export const decodePayload = (payload, ctx) => {
   const restore = v => {
     if (v === null || v === undefined) return v;
     if (typeof v === 'string') {
-      if (v.startsWith(CAP_TAG)) return imported[Number(v.slice(CAP_TAG.length))];
+      if (v.startsWith(CAP_TAG))
+        return imported[Number(v.slice(CAP_TAG.length))];
       if (v.startsWith(PROMISE_TAG))
         return imported[Number(v.slice(PROMISE_TAG.length))];
       if (v.startsWith(BIGINT_TAG)) return BigInt(v.slice(BIGINT_TAG.length));

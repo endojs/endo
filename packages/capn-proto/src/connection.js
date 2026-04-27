@@ -64,8 +64,9 @@ export const makeConnection = cfg => {
 
   // ---- isPromise predicate ----
   const isPromise = v =>
-    v != null && (typeof v === 'object' || typeof v === 'function') &&
-    typeof (/** @type {any} */ (v)).then === 'function';
+    v != null &&
+    (typeof v === 'object' || typeof v === 'function') &&
+    typeof (/** @type {any} */ (v).then) === 'function';
 
   // ---- Export registry ----
   const exportRegistry = makeExportRegistry({
@@ -81,69 +82,86 @@ export const makeConnection = cfg => {
 
   // ---- Payload codec ----
   const payloadCodec = {
-    encode: value => encodePayload(value, {
-      isCap: v => {
-        // A value is a capability if it is one of our imported presences,
-        // or if it is a non-Object-prototype object (e.g. an Exo, Far'd
-        // object, or HandledPromise/Presence).
-        if (v == null) return false;
-        const t = typeof v;
-        if (t !== 'object' && t !== 'function') return false;
-        if (importRegistry?.importIdOf?.(v) !== undefined) return true;
-        if (typeof (/** @type {any} */ (v).then) === 'function') return true;
-        const proto = Object.getPrototypeOf(v);
-        return proto !== Object.prototype && proto !== Array.prototype;
-      },
-      exportCap: v => {
-        // Pass-back: if this is a presence we imported from the peer, send
-        // back as receiverHosted so the peer recognizes its own export.
-        const importId = importRegistry?.importIdOf?.(v);
-        if (importId !== undefined) {
-          return { kind: 'receiverHosted', id: importId };
-        }
-        if (isPromise(v)) {
+    encode: value =>
+      encodePayload(value, {
+        isCap: v => {
+          // A value is a capability if it is one of our imported presences,
+          // or if it is a non-Object-prototype object (e.g. an Exo, Far'd
+          // object, or HandledPromise/Presence).
+          if (v == null) return false;
+          const t = typeof v;
+          if (t !== 'object' && t !== 'function') return false;
+          if (importRegistry?.importIdOf?.(v) !== undefined) return true;
+          if (typeof (/** @type {any} */ (v).then) === 'function') return true;
+          const proto = Object.getPrototypeOf(v);
+          return proto !== Object.prototype && proto !== Array.prototype;
+        },
+        exportCap: v => {
+          // Pass-back: if this is a presence we imported from the peer, send
+          // back as receiverHosted so the peer recognizes its own export.
+          const importId = importRegistry?.importIdOf?.(v);
+          if (importId !== undefined) {
+            return { kind: 'receiverHosted', id: importId };
+          }
+          if (isPromise(v)) {
+            const { id } = exportRegistry.exportValue(v);
+            // Schedule resolve on settle so the peer can collapse the promise.
+            Promise.resolve(v).then(
+              resolved => {
+                const entry = tables.exports.get(id);
+                if (!entry || entry.resolved) return;
+                entry.resolved = true;
+                const cap = describeForResolve(resolved);
+                sendFramed(
+                  encodeResolve({
+                    promiseId: id,
+                    payload: { kind: 'cap', cap },
+                  }),
+                );
+              },
+              err => {
+                const entry = tables.exports.get(id);
+                if (!entry || entry.resolved) return;
+                entry.resolved = true;
+                sendFramed(
+                  encodeResolve({
+                    promiseId: id,
+                    payload: {
+                      kind: 'exception',
+                      exception: {
+                        type: 0,
+                        reason: String(err?.message || err),
+                      },
+                    },
+                  }),
+                );
+              },
+            );
+            return { kind: 'senderPromise', id };
+          }
           const { id } = exportRegistry.exportValue(v);
-          // Schedule resolve on settle so the peer can collapse the promise.
-          Promise.resolve(v).then(
-            resolved => {
-              const entry = tables.exports.get(id);
-              if (!entry || entry.resolved) return;
-              entry.resolved = true;
-              const cap = describeForResolve(resolved);
-              sendFramed(encodeResolve({ promiseId: id, payload: { kind: 'cap', cap } }));
-            },
-            err => {
-              const entry = tables.exports.get(id);
-              if (!entry || entry.resolved) return;
-              entry.resolved = true;
-              sendFramed(encodeResolve({
-                promiseId: id,
-                payload: { kind: 'exception', exception: { type: 0, reason: String(err?.message || err) } },
-              }));
-            },
-          );
-          return { kind: 'senderPromise', id };
-        }
-        const { id } = exportRegistry.exportValue(v);
-        return { kind: 'senderHosted', id };
-      },
-    }),
+          return { kind: 'senderHosted', id };
+        },
+      }),
     encodeRoot: marker => utf8Encoder.encode(JSON.stringify(marker)),
-    decode: payload => decodePayload(payload, {
-      importCap: desc => {
-        if (desc.kind === 'senderHosted') return importRegistry.importCap(desc.id, false);
-        if (desc.kind === 'senderPromise') return importRegistry.importCap(desc.id, true);
-        if (desc.kind === 'receiverHosted') {
-          const ent = tables.exports.get(desc.id);
-          return ent?.value;
-        }
-        if (desc.kind === 'receiverAnswer') {
-          const ans = tables.questions.get(desc.questionId);
-          return ans?.returnedP;
-        }
-        return undefined;
-      },
-    }),
+    decode: payload =>
+      decodePayload(payload, {
+        importCap: desc => {
+          if (desc.kind === 'senderHosted')
+            return importRegistry.importCap(desc.id, false);
+          if (desc.kind === 'senderPromise')
+            return importRegistry.importCap(desc.id, true);
+          if (desc.kind === 'receiverHosted') {
+            const ent = tables.exports.get(desc.id);
+            return ent?.value;
+          }
+          if (desc.kind === 'receiverAnswer') {
+            const ans = tables.questions.get(desc.questionId);
+            return ans?.returnedP;
+          }
+          return undefined;
+        },
+      }),
   };
 
   // ---- Describe a resolved value as a CapDescriptor for Resolve. ----
@@ -209,13 +227,15 @@ export const makeConnection = cfg => {
       pipelinedCapImports: new Set(),
     });
 
-    sendFramed(encodeCall({
-      questionId,
-      target,
-      interfaceId,
-      methodId,
-      params,
-    }));
+    sendFramed(
+      encodeCall({
+        questionId,
+        target,
+        interfaceId,
+        methodId,
+        params,
+      }),
+    );
 
     return { questionId, answerPromise, pipelineHandler };
   };
@@ -231,7 +251,9 @@ export const makeConnection = cfg => {
         // Resolve method against any registered interface that has a method
         // by this name. If multiple, the user must use applyMethod with an
         // explicit interface (see registerMethodForApplication below).
-        for (const id_ of /** @type {any} */ (interfaceRegistry).byIdEntries?.() || []) {
+        for (const id_ of /** @type {any} */ (
+          interfaceRegistry
+        ).byIdEntries?.() || []) {
           if (id_.methods[String(prop)] !== undefined) {
             return { interfaceId: id_.id, methodId: id_.methods[String(prop)] };
           }
@@ -272,7 +294,9 @@ export const makeConnection = cfg => {
   const threeParty = makeThreeParty({
     network: cfg.network || {
       thirdPartyCapIdForHost: () => new Uint8Array(0),
-      connectToThirdParty: () => { throw Fail`no VatNetwork configured`; },
+      connectToThirdParty: () => {
+        throw Fail`no VatNetwork configured`;
+      },
       provisionIdForHandoff: () => new Uint8Array(0),
       acceptIncomingProvide: () => {},
       consumeProvision: () => undefined,
@@ -354,7 +378,11 @@ export const makeConnection = cfg => {
     try {
       msg = decodeMessage(framed);
     } catch (e) {
-      sendFramed(encodeAbort({ exception: { type: 0, reason: `decode failed: ${e?.message || e}` } }));
+      sendFramed(
+        encodeAbort({
+          exception: { type: 0, reason: `decode failed: ${e?.message || e}` },
+        }),
+      );
       return;
     }
     const fn = /** @type {any} */ (dispatcher)[msg.type];
@@ -388,7 +416,11 @@ export const makeConnection = cfg => {
     getBootstrap,
     abort,
     stats,
-    setBootstrap: v => { bootstrap.value = v; },
-    setOnAbort: cb => { onAbort = cb; },
+    setBootstrap: v => {
+      bootstrap.value = v;
+    },
+    setOnAbort: cb => {
+      onAbort = cb;
+    },
   };
 };

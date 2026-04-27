@@ -7,7 +7,6 @@
  */
 
 import { HandledPromise } from '@endo/eventual-send';
-import { Fail } from '@endo/errors';
 
 /**
  * @param {object} ctx The connection context built by makeConnection.
@@ -36,10 +35,12 @@ export const makeDispatch = ctx => {
   const handleBootstrap = ({ questionId }) => {
     if (!bootstrap.value) {
       const exc = { type: 0, reason: 'no bootstrap object' };
-      sendFramed(encodeReturn({
-        answerId: questionId,
-        result: { kind: 'exception', exception: exc },
-      }));
+      sendFramed(
+        encodeReturn({
+          answerId: questionId,
+          result: { kind: 'exception', exception: exc },
+        }),
+      );
       return;
     }
     const { id } = exportRegistry.exportValue(bootstrap.value);
@@ -53,10 +54,12 @@ export const makeDispatch = ctx => {
       finishReceived: false,
       pipelineExportsByPath: new Map(),
     });
-    sendFramed(encodeReturn({
-      answerId: questionId,
-      result: { kind: 'results', payload },
-    }));
+    sendFramed(
+      encodeReturn({
+        answerId: questionId,
+        result: { kind: 'results', payload },
+      }),
+    );
   };
 
   // ---- Call ----
@@ -67,20 +70,30 @@ export const makeDispatch = ctx => {
       // The peer is calling a cap that we exported earlier.
       const entry = tables.exports.get(target.id);
       if (!entry) {
-        sendFramed(encodeReturn({
-          answerId: questionId,
-          result: { kind: 'exception', exception: { type: 2, reason: `no export ${target.id}` } },
-        }));
+        sendFramed(
+          encodeReturn({
+            answerId: questionId,
+            result: {
+              kind: 'exception',
+              exception: { type: 2, reason: `no export ${target.id}` },
+            },
+          }),
+        );
         return;
       }
       targetP = Promise.resolve(entry.value);
     } else if (target?.kind === 'promisedAnswer') {
       const ans = tables.answers.get(target.questionId);
       if (!ans) {
-        sendFramed(encodeReturn({
-          answerId: questionId,
-          result: { kind: 'exception', exception: { type: 2, reason: `no answer ${target.questionId}` } },
-        }));
+        sendFramed(
+          encodeReturn({
+            answerId: questionId,
+            result: {
+              kind: 'exception',
+              exception: { type: 2, reason: `no answer ${target.questionId}` },
+            },
+          }),
+        );
         return;
       }
       // Walk transform path — defer to the resultP. For our payload codec a
@@ -101,19 +114,32 @@ export const makeDispatch = ctx => {
         return v;
       });
     } else {
-      sendFramed(encodeReturn({
-        answerId: questionId,
-        result: { kind: 'exception', exception: { type: 0, reason: 'bad target' } },
-      }));
+      sendFramed(
+        encodeReturn({
+          answerId: questionId,
+          result: {
+            kind: 'exception',
+            exception: { type: 0, reason: 'bad target' },
+          },
+        }),
+      );
       return;
     }
 
     const methodName = interfaceRegistry.methodName(interfaceId, methodId);
     if (methodName === undefined) {
-      sendFramed(encodeReturn({
-        answerId: questionId,
-        result: { kind: 'exception', exception: { type: 3, reason: `unknown method ${interfaceId}.${methodId}` } },
-      }));
+      sendFramed(
+        encodeReturn({
+          answerId: questionId,
+          result: {
+            kind: 'exception',
+            exception: {
+              type: 3,
+              reason: `unknown method ${interfaceId}.${methodId}`,
+            },
+          },
+        }),
+      );
       return;
     }
 
@@ -136,20 +162,24 @@ export const makeDispatch = ctx => {
         if (!ans || ans.returnSent) return;
         ans.returnSent = true;
         const payload = payloadCodec.encode(value);
-        sendFramed(encodeReturn({
-          answerId: questionId,
-          result: { kind: 'results', payload },
-        }));
+        sendFramed(
+          encodeReturn({
+            answerId: questionId,
+            result: { kind: 'results', payload },
+          }),
+        );
       },
       err => {
         const ans = tables.answers.get(questionId);
         if (!ans || ans.returnSent) return;
         ans.returnSent = true;
         const exc = { type: 0, reason: String(err?.message || err) };
-        sendFramed(encodeReturn({
-          answerId: questionId,
-          result: { kind: 'exception', exception: exc },
-        }));
+        sendFramed(
+          encodeReturn({
+            answerId: questionId,
+            result: { kind: 'exception', exception: exc },
+          }),
+        );
       },
     );
   };
@@ -174,11 +204,17 @@ export const makeDispatch = ctx => {
       q.reject(Error(`unhandled return kind ${result.kind}`));
     }
     // After receiving Return, send Finish to release any pipelined answer
-    // resources on the peer side.
+    // resources on the peer side. Once Finish is sent, the QuestionEntry's
+    // bookkeeping is no longer needed locally either; drop it and recycle
+    // the questionId so the allocator can reuse it.
     if (!q.finishSent) {
       q.finishSent = true;
-      sendFramed(encodeFinish({ questionId: answerId, releaseResultCaps: false }));
+      sendFramed(
+        encodeFinish({ questionId: answerId, releaseResultCaps: false }),
+      );
     }
+    tables.questions.delete(answerId);
+    tables.questionIds.release(answerId);
   };
 
   // ---- Finish ----
@@ -199,7 +235,10 @@ export const makeDispatch = ctx => {
       const desc = payload.cap;
       let resolvedTo;
       if (desc.kind === 'senderHosted' || desc.kind === 'senderPromise') {
-        resolvedTo = importRegistry.importCap(desc.id, desc.kind === 'senderPromise');
+        resolvedTo = importRegistry.importCap(
+          desc.id,
+          desc.kind === 'senderPromise',
+        );
       } else if (desc.kind === 'receiverHosted') {
         resolvedTo = tables.exports.get(desc.id)?.value;
       } else if (desc.kind === 'thirdPartyHosted') {
@@ -213,7 +252,10 @@ export const makeDispatch = ctx => {
       // simply settle the user-facing presence for direct E()'s on it.
       if (entry.resolveSettler) entry.resolveSettler(resolvedTo);
     } else if (payload.kind === 'exception') {
-      if (entry.rejectSettler) entry.rejectSettler(Error(payload.exception.reason || 'remote rejection'));
+      if (entry.rejectSettler)
+        entry.rejectSettler(
+          Error(payload.exception.reason || 'remote rejection'),
+        );
     }
   };
 
@@ -231,10 +273,12 @@ export const makeDispatch = ctx => {
       // single-threaded JS, we send the echo on the next microtask which is
       // sufficient to preserve E-order with already-queued Calls.
       Promise.resolve().then(() => {
-        sendFramed(encodeDisembargo({
-          target,
-          context: { kind: 'receiverLoopback', id: context.id },
-        }));
+        sendFramed(
+          encodeDisembargo({
+            target,
+            context: { kind: 'receiverLoopback', id: context.id },
+          }),
+        );
       });
     } else if (context.kind === 'receiverLoopback') {
       embargoTracker.echo(context.id);
@@ -272,5 +316,3 @@ export const makeDispatch = ctx => {
     },
   };
 };
-
-void Fail;

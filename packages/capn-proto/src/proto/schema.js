@@ -118,16 +118,16 @@ export const PA_OP_TAG_GET_POINTER_FIELD = 1;
 /* ===== Payload ===== */
 export const PAYLOAD_DATA_WORDS = 0;
 export const PAYLOAD_PTR_WORDS = 2;
-export const PAYLOAD_PTR_CONTENT = 0;     // AnyPointer
-export const PAYLOAD_PTR_CAP_TABLE = 1;   // List(CapDescriptor)
+export const PAYLOAD_PTR_CONTENT = 0; // AnyPointer
+export const PAYLOAD_PTR_CAP_TABLE = 1; // List(CapDescriptor)
 
 /* ===== CapDescriptor ===== */
 export const CAPDESC_DATA_WORDS = 1;
 export const CAPDESC_PTR_WORDS = 1;
 export const CAPDESC_TAG_BO = 0; // uint16 union tag
-export const CAPDESC_ID_BO = 4;  // uint32 (id used by senderHosted, senderPromise, receiverHosted)
+export const CAPDESC_ID_BO = 4; // uint32 (id used by senderHosted, senderPromise, receiverHosted)
 export const CAPDESC_PTR_RECEIVER_ANSWER = 0; // PromisedAnswer
-export const CAPDESC_PTR_THIRD_PARTY = 0;     // ThirdPartyCapDescriptor (re-uses pointer slot)
+export const CAPDESC_PTR_THIRD_PARTY = 0; // ThirdPartyCapDescriptor (re-uses pointer slot)
 export const CAPDESC_TAG_NONE = 0;
 export const CAPDESC_TAG_SENDER_HOSTED = 1;
 export const CAPDESC_TAG_SENDER_PROMISE = 2;
@@ -139,7 +139,7 @@ export const CAPDESC_TAG_THIRD_PARTY = 5;
 export const TPCD_DATA_WORDS = 1;
 export const TPCD_PTR_WORDS = 1;
 export const TPCD_VINE_ID_BO = 0; // uint32
-export const TPCD_PTR_ID = 0;     // ThirdPartyCapId (AnyPointer / network specific)
+export const TPCD_PTR_ID = 0; // ThirdPartyCapId (AnyPointer / network specific)
 
 /* ===== Return ===== */
 export const RETURN_DATA_WORDS = 2;
@@ -147,8 +147,8 @@ export const RETURN_PTR_WORDS = 1;
 export const RETURN_ANSWER_ID_BO = 0; // uint32
 export const RETURN_RELEASE_PARAM_CAPS_BIT = 4 * 8 + 0; // bit @ byte 4 bit 0
 export const RETURN_TAG_BO = 6; // uint16 union tag at byte 6
-export const RETURN_PTR_RESULTS = 0;     // Payload (when tag=results)
-export const RETURN_PTR_EXCEPTION = 0;   // Exception (when tag=exception)
+export const RETURN_PTR_RESULTS = 0; // Payload (when tag=results)
+export const RETURN_PTR_EXCEPTION = 0; // Exception (when tag=exception)
 export const RETURN_TAKE_FROM_OTHER_QUESTION_ID_BO = 8; // uint32 (when tag=takeFromOtherQuestion)
 export const RETURN_PTR_ACCEPT_FROM_THIRD_PARTY = 0;
 export const RETURN_TAG_RESULTS = 0;

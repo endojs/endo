@@ -42,9 +42,10 @@ export const makeCapnpTrapHost = transferBuffer => {
     let bin = '';
     for (let i = 0; i < u8.length; i += 1) bin += String.fromCharCode(u8[i]);
     // eslint-disable-next-line no-undef
-    const b64 = typeof Buffer !== 'undefined'
-      ? Buffer.from(u8).toString('base64')
-      : btoa(bin);
+    const b64 =
+      typeof Buffer !== 'undefined'
+        ? Buffer.from(u8).toString('base64')
+        : btoa(bin);
     yield* inner([isReject, b64]);
   };
 };

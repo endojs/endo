@@ -19,8 +19,6 @@
  * Disembargo{provide=&lt;provideQid&gt;} to C; C drains its queue then unblocks A.
  */
 
-import { Fail } from '@endo/errors';
-
 /**
  * @param {object} ctx
  */
@@ -43,8 +41,15 @@ export const makeThreeParty = ctx => {
   const provideQuestions = new Map();
   /** Accept questions we've issued: questionId → settler. */
   const acceptQuestions = new Map();
-  /** Pending disembargo accept echoes keyed by target. */
-  const pendingAcceptDisembargoes = [];
+  /**
+   * Map from a target the recipient (A) has asked us to disembargo back
+   * over the original B↔C path → the Provide questionId we used to
+   * introduce that target. Populated when we (acting as B) initiate a
+   * Provide and consulted when A bounces a Disembargo{accept} back at us.
+   *
+   * @type {Map<number, number>}
+   */
+  const provideQuestionByTargetId = new Map();
 
   /**
    * Initiate a three-party handoff.
@@ -53,9 +58,16 @@ export const makeThreeParty = ctx => {
    * @param {{ targetCapDescriptor: any, recipientId: Uint8Array, hostConnection: any }} params
    * @returns {{ thirdPartyCapId: Uint8Array, vineId: number, provideQuestionId: number }}
    */
-  const initiateProvide = ({ targetCapDescriptor, recipientId, hostConnection }) => {
+  const initiateProvide = ({
+    targetCapDescriptor,
+    recipientId,
+    hostConnection,
+  }) => {
     const provideQuestionId = questionIds.alloc();
-    provideQuestions.set(provideQuestionId, { targetCapDescriptor, recipientId });
+    provideQuestions.set(provideQuestionId, {
+      targetCapDescriptor,
+      recipientId,
+    });
     // Send the Provide on the host connection.
     hostConnection.sendFramed(
       encodeProvide({
@@ -72,6 +84,13 @@ export const makeThreeParty = ctx => {
     const entry = tables.exports.get(vineId);
     if (entry) entry.vine = { vinedFor: provideQuestionId };
     vines.set(vineId, provideQuestionId);
+    if (
+      targetCapDescriptor &&
+      targetCapDescriptor.kind === 'importedCap' &&
+      typeof targetCapDescriptor.id === 'number'
+    ) {
+      provideQuestionByTargetId.set(targetCapDescriptor.id, provideQuestionId);
+    }
     const thirdPartyCapId = network.thirdPartyCapIdForHost(hostConnection);
     return { thirdPartyCapId, vineId, provideQuestionId };
   };
@@ -86,7 +105,11 @@ export const makeThreeParty = ctx => {
     const hostConnection = network.connectToThirdParty(desc.thirdPartyCapId);
     const acceptQuestionId = hostConnection.allocQuestion();
     return new Promise((resolve, reject) => {
-      acceptQuestions.set(acceptQuestionId, { resolve, reject, vineId: desc.vineId });
+      acceptQuestions.set(acceptQuestionId, {
+        resolve,
+        reject,
+        vineId: desc.vineId,
+      });
       hostConnection.sendFramed(
         encodeAccept({
           questionId: acceptQuestionId,
@@ -112,7 +135,10 @@ export const makeThreeParty = ctx => {
       sendFramed(
         ctx.encodeReturn({
           answerId: questionId,
-          result: { kind: 'exception', exception: { type: 2, reason: 'unknown provision' } },
+          result: {
+            kind: 'exception',
+            exception: { type: 2, reason: 'unknown provision' },
+          },
         }),
       );
       return;
@@ -123,7 +149,10 @@ export const makeThreeParty = ctx => {
       sendFramed(
         ctx.encodeReturn({
           answerId: questionId,
-          result: { kind: 'exception', exception: { type: 2, reason: 'no such cap' } },
+          result: {
+            kind: 'exception',
+            exception: { type: 2, reason: 'no such cap' },
+          },
         }),
       );
       return;
@@ -143,15 +172,29 @@ export const makeThreeParty = ctx => {
     );
   };
 
+  /**
+   * The recipient (A) has bounced a Disembargo{accept} back at us. We are
+   * acting as B (introducer) and must forward Disembargo{provide=Q} to the
+   * host (C), where Q is the Provide question id we previously used to
+   * introduce this target. The peer (C) then drains its in-flight queue and
+   * unblocks A's Accept.
+   *
+   * @param {{ kind: 'importedCap', id: number } | { kind: 'promisedAnswer', questionId: number }} target
+   */
   const handleDisembargoAccept = target => {
-    pendingAcceptDisembargoes.push(target);
-    // Forward to host as Disembargo{provide}.
-    // In a real implementation we'd track the Provide question id; for our
-    // loopback tests we resend immediately.
+    let provideQid;
+    if (target && target.kind === 'importedCap') {
+      provideQid = provideQuestionByTargetId.get(target.id);
+    }
+    if (provideQid === undefined) {
+      // Not actually one of our outstanding Provides — drop on the floor.
+      // (A spec-conformant peer should not have sent us this Disembargo.)
+      return;
+    }
     sendFramed(
       encodeDisembargo({
         target,
-        context: { kind: 'provide', questionId: 0 },
+        context: { kind: 'provide', questionId: provideQid },
       }),
     );
   };
@@ -176,5 +219,3 @@ export const makeThreeParty = ctx => {
     }),
   };
 };
-
-void Fail;

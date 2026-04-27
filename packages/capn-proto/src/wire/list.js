@@ -120,10 +120,10 @@ export const allocList = (msg, pointerLocation, elemSize, elemCount) => {
     // Promote to far landing pad. Allocate a single landing pad with the list
     // pointer at offset 0 of the destination, content immediately after.
     // Simpler: use double landing pad.
-    const padAlloc = msg.allocate(2);
-    if (padAlloc.segId !== alloc.segId) {
-      throw Fail`landing pad allocation crossed segments`;
-    }
+    // Place the landing pad inside the same segment as the payload so that
+    // far+landingPad=1 always finds its pair in alloc.segId. allocate()'s
+    // first-fit policy could otherwise put the pad in an earlier segment.
+    const padAlloc = msg.allocateInSegment(alloc.segId, 2);
     writePointer(
       msg.segments[padAlloc.segId].view,
       padAlloc.wordOffset * WORD_SIZE,
@@ -150,8 +150,7 @@ export const allocList = (msg, pointerLocation, elemSize, elemCount) => {
       },
     );
   } else {
-    const offsetWords =
-      alloc.wordOffset - (pointerLocation.wordOffset + 1);
+    const offsetWords = alloc.wordOffset - (pointerLocation.wordOffset + 1);
     writePointer(
       msg.segments[pointerLocation.segId].view,
       pointerLocation.wordOffset * WORD_SIZE,
@@ -194,11 +193,9 @@ export const allocCompositeList = (
   // 1 tag word + payload.
   const alloc = msg.allocate(1 + payloadWords);
   if (alloc.segId !== pointerLocation.segId) {
-    // Far landing pad.
-    const padAlloc = msg.allocate(2);
-    if (padAlloc.segId !== alloc.segId) {
-      throw Fail`landing pad crossed segments`;
-    }
+    // Far landing pad: place pad in the payload segment so far+landingPad=1
+    // resolution always finds the pair.
+    const padAlloc = msg.allocateInSegment(alloc.segId, 2);
     writePointer(
       msg.segments[padAlloc.segId].view,
       padAlloc.wordOffset * WORD_SIZE,
@@ -230,8 +227,7 @@ export const allocCompositeList = (
       },
     );
   } else {
-    const offsetWords =
-      alloc.wordOffset - (pointerLocation.wordOffset + 1);
+    const offsetWords = alloc.wordOffset - (pointerLocation.wordOffset + 1);
     writePointer(
       msg.segments[pointerLocation.segId].view,
       pointerLocation.wordOffset * WORD_SIZE,
@@ -244,16 +240,12 @@ export const allocCompositeList = (
     );
   }
   // Write the tag word.
-  writePointer(
-    msg.segments[alloc.segId].view,
-    alloc.wordOffset * WORD_SIZE,
-    {
-      kind: 'struct',
-      offsetWords: elemCount,
-      dataWords: elemDataWords,
-      ptrWords: elemPtrWords,
-    },
-  );
+  writePointer(msg.segments[alloc.segId].view, alloc.wordOffset * WORD_SIZE, {
+    kind: 'struct',
+    offsetWords: elemCount,
+    dataWords: elemDataWords,
+    ptrWords: elemPtrWords,
+  });
   return {
     segId: alloc.segId,
     wordOffset: alloc.wordOffset + 1,

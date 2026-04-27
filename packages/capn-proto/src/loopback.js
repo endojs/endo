@@ -40,7 +40,8 @@ export const makeLoopback = (opts = {}) => {
   };
 
   // eslint-disable-next-line prefer-const
-  let near; let far;
+  let near;
+  let far;
   near = makeCapnp({
     send: framed => {
       farInbox.push(() => far.dispatch(framed));

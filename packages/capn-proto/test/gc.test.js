@@ -4,7 +4,9 @@ import { E, makeLoopback } from '../src/index.js';
 
 test('Finish is sent after Return; answers are released', async t => {
   const root = makeExo('root', undefined, {
-    echo(x) { return x; },
+    echo(x) {
+      return x;
+    },
   });
   const { near, far, registerInterface } = makeLoopback({ farBootstrap: root });
   registerInterface({ id: 0xfffan, methods: { echo: 0 } });
@@ -19,9 +21,15 @@ test('Finish is sent after Return; answers are released', async t => {
 });
 
 test('exports are reused for the same value as long as peer holds it', async t => {
-  const inner = makeExo('inner', undefined, { ping() { return 'pong'; } });
+  const inner = makeExo('inner', undefined, {
+    ping() {
+      return 'pong';
+    },
+  });
   const root = makeExo('root', undefined, {
-    getInner() { return inner; },
+    getInner() {
+      return inner;
+    },
   });
   const { near, far, registerInterface } = makeLoopback({ farBootstrap: root });
   registerInterface({ id: 0xfffbn, methods: { getInner: 0, ping: 1 } });

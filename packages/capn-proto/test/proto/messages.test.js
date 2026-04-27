@@ -27,9 +27,10 @@ test('Call round-trips', t => {
     target: { kind: 'importedCap', id: 3 },
     interfaceId: 0xa1b2c3d4e5f60718n,
     methodId: 11,
-    params: { contentBytes: new Uint8Array([1, 2, 3]), capTable: [
-      { kind: 'senderHosted', id: 9 },
-    ] },
+    params: {
+      contentBytes: new Uint8Array([1, 2, 3]),
+      capTable: [{ kind: 'senderHosted', id: 9 }],
+    },
   });
   const m = decodeMessage(framed);
   t.is(m.type, 'call');
@@ -65,7 +66,10 @@ test('Call with promisedAnswer target round-trips', t => {
 test('Return with results round-trips', t => {
   const framed = encodeReturn({
     answerId: 12,
-    result: { kind: 'results', payload: { contentBytes: new Uint8Array([9]), capTable: [] } },
+    result: {
+      kind: 'results',
+      payload: { contentBytes: new Uint8Array([9]), capTable: [] },
+    },
   });
   const m = decodeMessage(framed);
   t.is(m.type, 'return');
@@ -191,5 +195,8 @@ test('thirdPartyHosted CapDescriptor round-trips inside Resolve', t => {
   const m = decodeMessage(framed);
   t.is(m.payload.cap.kind, 'thirdPartyHosted');
   t.is(m.payload.cap.vineId, 13);
-  t.deepEqual(Array.from(m.payload.cap.thirdPartyCapId), [0xde, 0xad, 0xbe, 0xef]);
+  t.deepEqual(
+    Array.from(m.payload.cap.thirdPartyCapId),
+    [0xde, 0xad, 0xbe, 0xef],
+  );
 });

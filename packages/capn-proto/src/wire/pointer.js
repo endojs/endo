@@ -170,6 +170,47 @@ export const readPointer = (view, byteOffset) => {
 };
 
 /**
+ * Range checks for individual pointer fields. Cap'n Proto pointer encoding
+ * tightly packs sub-fields into the 64-bit word, so silent truncation by JS
+ * bitwise operators would corrupt the wire format. We validate each
+ * caller-supplied value against its representable range and Fail loudly
+ * otherwise.
+ */
+const SIGNED_30_MIN = -(1 << 29);
+const SIGNED_30_MAX = (1 << 29) - 1;
+const UINT16_MAX = 0xffff;
+const UINT29_MAX = 0x1fffffff;
+const UINT32_MAX = 0xffffffff;
+
+const checkSignedOffset30 = offsetWords => {
+  if (
+    !Number.isInteger(offsetWords) ||
+    offsetWords < SIGNED_30_MIN ||
+    offsetWords > SIGNED_30_MAX
+  ) {
+    throw Fail`pointer offsetWords ${offsetWords} not representable as signed 30-bit`;
+  }
+};
+
+const checkUint16 = (value, name) => {
+  if (!Number.isInteger(value) || value < 0 || value > UINT16_MAX) {
+    throw Fail`pointer ${name} ${value} not representable as uint16`;
+  }
+};
+
+const checkUint29 = (value, name) => {
+  if (!Number.isInteger(value) || value < 0 || value > UINT29_MAX) {
+    throw Fail`pointer ${name} ${value} not representable as uint29`;
+  }
+};
+
+const checkUint32 = (value, name) => {
+  if (!Number.isInteger(value) || value < 0 || value > UINT32_MAX) {
+    throw Fail`pointer ${name} ${value} not representable as uint32`;
+  }
+};
+
+/**
  * @param {DataView} view
  * @param {number} byteOffset
  * @param {Pointer} ptr
@@ -181,35 +222,54 @@ export const writePointer = (view, byteOffset, ptr) => {
       view.setUint32(byteOffset + 4, 0, true);
       return;
     case 'struct': {
+      checkSignedOffset30(ptr.offsetWords);
+      checkUint16(ptr.dataWords, 'dataWords');
+      checkUint16(ptr.ptrWords, 'ptrWords');
       const lo = encodeOffset(PTR_STRUCT, ptr.offsetWords);
       // eslint-disable-next-line no-bitwise
       const hi = ((ptr.ptrWords & 0xffff) << 16) | (ptr.dataWords & 0xffff);
       view.setUint32(byteOffset, lo, true);
+      // eslint-disable-next-line no-bitwise
       view.setUint32(byteOffset + 4, hi >>> 0, true);
       return;
     }
     case 'list': {
+      checkSignedOffset30(ptr.offsetWords);
+      if (ptr.elemSize < 0 || ptr.elemSize > 7) {
+        throw Fail`pointer elemSize ${ptr.elemSize} not in 0..7`;
+      }
+      checkUint29(ptr.elemCount, 'elemCount');
       const lo = encodeOffset(PTR_LIST, ptr.offsetWords);
       // eslint-disable-next-line no-bitwise
       const hi = ((ptr.elemCount & 0x1fffffff) << 3) | (ptr.elemSize & 0x7);
       view.setUint32(byteOffset, lo, true);
+      // eslint-disable-next-line no-bitwise
       view.setUint32(byteOffset + 4, hi >>> 0, true);
       return;
     }
     case 'far': {
+      checkUint29(ptr.offsetWords, 'far offsetWords');
+      if (ptr.landingPad !== 0 && ptr.landingPad !== 1) {
+        throw Fail`far landingPad must be 0 or 1, got ${ptr.landingPad}`;
+      }
+      checkUint32(ptr.segmentId, 'segmentId');
       // eslint-disable-next-line no-bitwise
-      const lo = (((ptr.offsetWords & 0x1fffffff) << 3) |
-        ((ptr.landingPad & 0x1) << 2) |
-        PTR_FAR) >>>
+      const lo =
+        (((ptr.offsetWords & 0x1fffffff) << 3) |
+          ((ptr.landingPad & 0x1) << 2) |
+          PTR_FAR) >>>
         0;
       view.setUint32(byteOffset, lo, true);
+      // eslint-disable-next-line no-bitwise
       view.setUint32(byteOffset + 4, ptr.segmentId >>> 0, true);
       return;
     }
     case 'cap': {
+      checkUint32(ptr.index, 'cap index');
       // eslint-disable-next-line no-bitwise
       const lo = ((OTHER_CAPABILITY << 2) | PTR_OTHER) >>> 0;
       view.setUint32(byteOffset, lo, true);
+      // eslint-disable-next-line no-bitwise
       view.setUint32(byteOffset + 4, ptr.index >>> 0, true);
       return;
     }
@@ -259,10 +319,7 @@ export const resolvePointer = (msg, segId, pointerWordOffset) => {
     // Double landing pad: two words. First is a far ptr (offset to content),
     // second is the actual struct/list/cap pointer with offset=0.
     const firstFar = readPointer(farSeg.view, ptr.offsetWords * WORD_SIZE);
-    const tagPtr = readPointer(
-      farSeg.view,
-      (ptr.offsetWords + 1) * WORD_SIZE,
-    );
+    const tagPtr = readPointer(farSeg.view, (ptr.offsetWords + 1) * WORD_SIZE);
     if (firstFar.kind !== 'far' || firstFar.landingPad !== 0) {
       throw Fail`double-landing-pad first word must be single far pointer`;
     }

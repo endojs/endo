@@ -1,8 +1,5 @@
 import test from '@endo/ses-ava/test.js';
-import {
-  encodeDisembargo,
-  decodeMessage,
-} from '../src/index.js';
+import { encodeDisembargo, decodeMessage } from '../src/index.js';
 import { makeEmbargoTracker } from '../src/embargo.js';
 
 test('senderLoopback round-trips through encode/decode', t => {
@@ -18,7 +15,9 @@ test('senderLoopback round-trips through encode/decode', t => {
 test('embargo tracker echo invokes the callback exactly once', t => {
   const tr = makeEmbargoTracker();
   let called = 0;
-  const id = tr.open(() => { called += 1; });
+  const id = tr.open(() => {
+    called += 1;
+  });
   t.is(tr.outstanding(), 1);
   tr.echo(id);
   t.is(called, 1);

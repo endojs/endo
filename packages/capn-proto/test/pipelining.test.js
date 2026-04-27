@@ -4,10 +4,14 @@ import { E, makeLoopback } from '../src/index.js';
 
 test('promise pipelining: chained call without intermediate await', async t => {
   const inner = makeExo('inner', undefined, {
-    say(word) { return `inner says ${word}`; },
+    say(word) {
+      return `inner says ${word}`;
+    },
   });
   const outer = makeExo('outer', undefined, {
-    getInner() { return inner; },
+    getInner() {
+      return inner;
+    },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: outer });
   registerInterface({
@@ -23,10 +27,14 @@ test('promise pipelining: chained call without intermediate await', async t => {
 
 test('pipelining preserves identity of the pipelined target', async t => {
   const inner = makeExo('inner', undefined, {
-    name() { return 'inner'; },
+    name() {
+      return 'inner';
+    },
   });
   const outer = makeExo('outer', undefined, {
-    getInner() { return inner; },
+    getInner() {
+      return inner;
+    },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: outer });
   registerInterface({

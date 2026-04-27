@@ -4,10 +4,18 @@ import { E, makeLoopback } from '../src/index.js';
 
 test('returning a Promise emits Resolve and settles the import', async t => {
   let res;
-  const pending = new Promise(r => { res = r; });
-  const inner = makeExo('inner', undefined, { tag() { return 'inner'; } });
+  const pending = new Promise(r => {
+    res = r;
+  });
+  const inner = makeExo('inner', undefined, {
+    tag() {
+      return 'inner';
+    },
+  });
   const root = makeExo('root', undefined, {
-    pendingInner() { return pending; },
+    pendingInner() {
+      return pending;
+    },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
   registerInterface({ id: 0xa55en, methods: { pendingInner: 0, tag: 1 } });
@@ -22,9 +30,13 @@ test('returning a Promise emits Resolve and settles the import', async t => {
 
 test('rejected far-side promise is delivered as exception', async t => {
   let rej;
-  const pending = new Promise((_r, r2) => { rej = r2; });
+  const pending = new Promise((_r, r2) => {
+    rej = r2;
+  });
   const root = makeExo('root', undefined, {
-    pending() { return pending; },
+    pending() {
+      return pending;
+    },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
   registerInterface({ id: 0xa55fn, methods: { pending: 0 } });

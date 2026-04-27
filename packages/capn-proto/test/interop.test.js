@@ -61,7 +61,9 @@ const runCapnpEncode = text => {
     input: text,
   });
   if (r.status !== 0) {
-    throw Error(`capnp encode failed: ${r.stderr?.toString() || r.stdout?.toString()}`);
+    throw Error(
+      `capnp encode failed: ${r.stderr?.toString() || r.stdout?.toString()}`,
+    );
   }
   // r.stdout is a Buffer; copy out the bytes into a fresh ArrayBuffer.
   const stdout = /** @type {Buffer} */ (r.stdout);
@@ -106,7 +108,10 @@ if (!haveCapnp) {
   test('interop: Return with results decoded; releaseParamCaps default true', t => {
     const framed = encodeReturn({
       answerId: 12,
-      result: { kind: 'results', payload: { contentBytes: new Uint8Array(0), capTable: [] } },
+      result: {
+        kind: 'results',
+        payload: { contentBytes: new Uint8Array(0), capTable: [] },
+      },
     });
     const out = runCapnpDecode(framed);
     t.regex(out, /answerId = 12/);
@@ -119,7 +124,10 @@ if (!haveCapnp) {
     const framed = encodeReturn({
       answerId: 1,
       releaseParamCaps: false,
-      result: { kind: 'results', payload: { contentBytes: new Uint8Array(0), capTable: [] } },
+      result: {
+        kind: 'results',
+        payload: { contentBytes: new Uint8Array(0), capTable: [] },
+      },
     });
     const out = runCapnpDecode(framed);
     t.regex(out, /releaseParamCaps = false/);

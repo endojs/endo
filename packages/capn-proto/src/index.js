@@ -31,12 +31,5 @@ export {
   makeMessageReader,
   WORD_SIZE,
 } from './wire/segment.js';
-export {
-  frameSegments,
-  unframeSegments,
-} from './wire/framing.js';
-export {
-  readPointer,
-  writePointer,
-  resolvePointer,
-} from './wire/pointer.js';
+export { frameSegments, unframeSegments } from './wire/framing.js';
+export { readPointer, writePointer, resolvePointer } from './wire/pointer.js';

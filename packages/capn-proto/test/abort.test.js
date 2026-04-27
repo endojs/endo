@@ -6,9 +6,13 @@ test('abort rejects outstanding questions', async t => {
   // A bootstrap that never returns is not directly possible (it returns
   // immediately), so we test by aborting after issuing a slow call.
   let resolveSlow;
-  const slow = new Promise(resolve => { resolveSlow = resolve; });
+  const slow = new Promise(resolve => {
+    resolveSlow = resolve;
+  });
   const root = makeExo('root', undefined, {
-    slow() { return slow; },
+    slow() {
+      return slow;
+    },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
   registerInterface({ id: 0xab0070n, methods: { slow: 0 } });

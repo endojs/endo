@@ -1,8 +1,5 @@
 import test from '@endo/ses-ava/test.js';
-import {
-  readPointer,
-  writePointer,
-} from '../../src/wire/pointer.js';
+import { readPointer, writePointer } from '../../src/wire/pointer.js';
 
 const makeView = () => new DataView(new ArrayBuffer(16));
 

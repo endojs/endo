@@ -46,25 +46,31 @@ references) and Level 4 (Join) are out of scope for this release.
 
 ```js
 import { makeCapnp, E } from '@endo/capn-proto';
-import { makeTwoPartyVatNetwork } from '@endo/capn-proto/two-party.js';
 import { makeExo } from '@endo/exo';
 
-const network = makeTwoPartyVatNetwork({ ourVatId, transport });
+// `transport` is any duplex carrier of framed bytes (TCP socket, WebSocket,
+// MessageChannel, ...). It must call `dispatch` for each inbound message
+// and accept outbound bytes via the `send` callback we pass to makeCapnp.
 const greeter = makeExo('greeter', undefined, {
   hello(name) {
     return `hello, ${name}`;
   },
 });
-const { getBootstrap, abort, stats, registerInterface } = makeCapnp({
-  network,
+const { dispatch, getBootstrap, abort, stats, registerInterface } = makeCapnp({
+  send: framed => transport.write(framed),
   bootstrap: greeter,
 });
+transport.onMessage(framed => dispatch(framed));
 
 registerInterface({
   id: 0xa1b2c3d4e5f60718n,
   methods: { hello: 0 },
 });
 
-const remote = getBootstrap(remoteVatId);
+const remote = getBootstrap();
 console.log(await E(remote).hello('world'));
 ```
+
+For multi-peer setups (Level 3 three-party handoff), instantiate one
+`makeCapnp` per peer and share a single `InterfaceRegistry` between them via
+`makeInterfaceRegistry()` and the `interfaceRegistry` option.

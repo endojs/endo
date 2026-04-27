@@ -14,10 +14,7 @@
 
 import { Fail } from '@endo/errors';
 
-import {
-  makeMessageBuilder,
-  makeMessageReader,
-} from '../wire/segment.js';
+import { makeMessageBuilder, makeMessageReader } from '../wire/segment.js';
 import { frameSegments, unframeSegments } from '../wire/framing.js';
 import {
   allocStruct,
@@ -31,8 +28,14 @@ import {
   writeUint64,
   writeBool,
   ptrSlot,
-  readPtrAt,
 } from '../wire/struct.js';
+import {
+  allocCompositeList,
+  readListPointer,
+  compositeElement,
+} from '../wire/list.js';
+import { writeText, readText, writeData, readData } from '../wire/text.js';
+import * as S from './schema.js';
 
 /**
  * Cap'n Proto Bool fields with `= true` defaults are stored XOR'd against 1
@@ -42,15 +45,6 @@ import {
 const writeBoolDefaultTrue = (loc, bitOffset, value) =>
   writeBool(loc, bitOffset, !value);
 const readBoolDefaultTrue = (loc, bitOffset) => !readBool(loc, bitOffset);
-import {
-  allocCompositeList,
-  readListPointer,
-  compositeElement,
-  primitiveElementByteOffset,
-} from '../wire/list.js';
-import { LIST_BYTE } from '../wire/pointer.js';
-import { writeText, readText, writeData, readData } from '../wire/text.js';
-import * as S from './schema.js';
 
 /* ===================================================================== *
  *  Helpers
@@ -61,7 +55,7 @@ const newMessageRoot = () => {
   // Reserve word 0 as the root pointer slot. Allocate the Message struct as
   // its target.
   const rootSlotAlloc = msg.allocate(1);
-  rootSlotAlloc.segId === 0 && rootSlotAlloc.wordOffset === 0 ||
+  (rootSlotAlloc.segId === 0 && rootSlotAlloc.wordOffset === 0) ||
     Fail`root slot must be segment 0 word 0`;
   const root = allocStruct(
     msg,
@@ -88,7 +82,12 @@ const allocVariant = (msg, root, dataWords, ptrWords) => {
  * ===================================================================== */
 
 const writeException = (msg, slot, exc) => {
-  const e = allocStruct(msg, slot, S.EXCEPTION_DATA_WORDS, S.EXCEPTION_PTR_WORDS);
+  const e = allocStruct(
+    msg,
+    slot,
+    S.EXCEPTION_DATA_WORDS,
+    S.EXCEPTION_PTR_WORDS,
+  );
   writeUint16(e, S.EXCEPTION_TYPE_BO, exc.type);
   writeText(msg, ptrSlot(e, S.EXCEPTION_PTR_REASON), exc.reason || '');
 };
@@ -97,8 +96,12 @@ const readException = loc => {
   if (loc === null) return { type: 0, reason: '' };
   return {
     type: readUint16(loc, S.EXCEPTION_TYPE_BO),
-    reason: readText(loc.msg, loc.segId,
-      loc.wordOffset + loc.dataWords + S.EXCEPTION_PTR_REASON) || '',
+    reason:
+      readText(
+        loc.msg,
+        loc.segId,
+        loc.wordOffset + loc.dataWords + S.EXCEPTION_PTR_REASON,
+      ) || '',
   };
 };
 
@@ -134,8 +137,11 @@ const writePromisedAnswer = (msg, slot, pa) => {
 
 const readPromisedAnswer = loc => {
   const questionId = readUint32(loc, S.PA_QUESTION_ID_BO);
-  const list = readListPointer(loc.msg, loc.segId,
-    loc.wordOffset + loc.dataWords + S.PA_PTR_TRANSFORM);
+  const list = readListPointer(
+    loc.msg,
+    loc.segId,
+    loc.wordOffset + loc.dataWords + S.PA_PTR_TRANSFORM,
+  );
   const transform = [];
   if (list !== null) {
     for (let i = 0; i < list.elemCount; i += 1) {
@@ -183,8 +189,11 @@ const readMessageTarget = loc => {
     };
   }
   if (tag === S.TARGET_TAG_PROMISED_ANSWER) {
-    const paLoc = readStructPointer(loc.msg, loc.segId,
-      loc.wordOffset + loc.dataWords + S.TARGET_PTR_PROMISED_ANSWER);
+    const paLoc = readStructPointer(
+      loc.msg,
+      loc.segId,
+      loc.wordOffset + loc.dataWords + S.TARGET_PTR_PROMISED_ANSWER,
+    );
     if (paLoc === null) throw Fail`promisedAnswer target with null pointer`;
     return { kind: 'promisedAnswer', ...readPromisedAnswer(paLoc) };
   }
@@ -218,7 +227,11 @@ const writeCapDescriptor = (msg, structLoc, idx, desc) => {
   }
   if (desc.kind === 'receiverAnswer') {
     writeUint16(structLoc, S.CAPDESC_TAG_BO, S.CAPDESC_TAG_RECEIVER_ANSWER);
-    writePromisedAnswer(msg, ptrSlot(structLoc, S.CAPDESC_PTR_RECEIVER_ANSWER), desc);
+    writePromisedAnswer(
+      msg,
+      ptrSlot(structLoc, S.CAPDESC_PTR_RECEIVER_ANSWER),
+      desc,
+    );
     return;
   }
   if (desc.kind === 'thirdPartyHosted') {
@@ -248,17 +261,26 @@ const readCapDescriptor = elem => {
     case S.CAPDESC_TAG_RECEIVER_HOSTED:
       return { kind: 'receiverHosted', id: readUint32(elem, S.CAPDESC_ID_BO) };
     case S.CAPDESC_TAG_RECEIVER_ANSWER: {
-      const paLoc = readStructPointer(elem.msg, elem.segId,
-        elem.wordOffset + elem.dataWords + S.CAPDESC_PTR_RECEIVER_ANSWER);
+      const paLoc = readStructPointer(
+        elem.msg,
+        elem.segId,
+        elem.wordOffset + elem.dataWords + S.CAPDESC_PTR_RECEIVER_ANSWER,
+      );
       if (paLoc === null) throw Fail`receiverAnswer with null pointer`;
       return { kind: 'receiverAnswer', ...readPromisedAnswer(paLoc) };
     }
     case S.CAPDESC_TAG_THIRD_PARTY: {
-      const tpcdLoc = readStructPointer(elem.msg, elem.segId,
-        elem.wordOffset + elem.dataWords + S.CAPDESC_PTR_THIRD_PARTY);
+      const tpcdLoc = readStructPointer(
+        elem.msg,
+        elem.segId,
+        elem.wordOffset + elem.dataWords + S.CAPDESC_PTR_THIRD_PARTY,
+      );
       if (tpcdLoc === null) throw Fail`thirdParty with null pointer`;
-      const id = readData(tpcdLoc.msg, tpcdLoc.segId,
-        tpcdLoc.wordOffset + tpcdLoc.dataWords + S.TPCD_PTR_ID);
+      const id = readData(
+        tpcdLoc.msg,
+        tpcdLoc.segId,
+        tpcdLoc.wordOffset + tpcdLoc.dataWords + S.TPCD_PTR_ID,
+      );
       return {
         kind: 'thirdPartyHosted',
         vineId: readUint32(tpcdLoc, S.TPCD_VINE_ID_BO),
@@ -298,14 +320,23 @@ const writePayload = (msg, slot, payload) => {
 
 const readPayload = loc => {
   if (loc === null) return { contentBytes: new Uint8Array(0), capTable: [] };
-  const contentBytes = readData(loc.msg, loc.segId,
-    loc.wordOffset + loc.dataWords + S.PAYLOAD_PTR_CONTENT) || new Uint8Array(0);
-  const capListLoc = readListPointer(loc.msg, loc.segId,
-    loc.wordOffset + loc.dataWords + S.PAYLOAD_PTR_CAP_TABLE);
+  const contentBytes =
+    readData(
+      loc.msg,
+      loc.segId,
+      loc.wordOffset + loc.dataWords + S.PAYLOAD_PTR_CONTENT,
+    ) || new Uint8Array(0);
+  const capListLoc = readListPointer(
+    loc.msg,
+    loc.segId,
+    loc.wordOffset + loc.dataWords + S.PAYLOAD_PTR_CAP_TABLE,
+  );
   const capTable = [];
   if (capListLoc !== null) {
     for (let i = 0; i < capListLoc.elemCount; i += 1) {
-      capTable.push(readCapDescriptor(compositeElement(capListLoc.msg, capListLoc, i)));
+      capTable.push(
+        readCapDescriptor(compositeElement(capListLoc.msg, capListLoc, i)),
+      );
     }
   }
   return { contentBytes: new Uint8Array(contentBytes), capTable };
@@ -318,7 +349,12 @@ const readPayload = loc => {
 export const encodeBootstrap = ({ questionId, deprecatedObjectId }) => {
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_BOOTSTRAP);
-  const v = allocVariant(msg, root, S.BOOTSTRAP_DATA_WORDS, S.BOOTSTRAP_PTR_WORDS);
+  const v = allocVariant(
+    msg,
+    root,
+    S.BOOTSTRAP_DATA_WORDS,
+    S.BOOTSTRAP_PTR_WORDS,
+  );
   writeUint32(v, S.BOOTSTRAP_QUESTION_ID, questionId);
   if (deprecatedObjectId) {
     writeData(msg, ptrSlot(v, 0), deprecatedObjectId);
@@ -349,17 +385,16 @@ export const encodeCall = ({
   writeMessageTarget(msg, ptrSlot(v, S.CALL_PTR_TARGET), target);
   writePayload(msg, ptrSlot(v, S.CALL_PTR_PARAMS), params);
   if (sendResultsTo.kind === 'thirdParty') {
-    writeData(msg, ptrSlot(v, S.CALL_PTR_SEND_RESULTS_TO_DATA),
-      sendResultsTo.recipientId);
+    writeData(
+      msg,
+      ptrSlot(v, S.CALL_PTR_SEND_RESULTS_TO_DATA),
+      sendResultsTo.recipientId,
+    );
   }
   return finalize(msg);
 };
 
-export const encodeReturn = ({
-  answerId,
-  releaseParamCaps = true,
-  result,
-}) => {
+export const encodeReturn = ({ answerId, releaseParamCaps = true, result }) => {
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_RETURN);
   const v = allocVariant(msg, root, S.RETURN_DATA_WORDS, S.RETURN_PTR_WORDS);
@@ -380,7 +415,11 @@ export const encodeReturn = ({
     writeUint32(v, S.RETURN_TAKE_FROM_OTHER_QUESTION_ID_BO, result.questionId);
   } else if (result.kind === 'acceptFromThirdParty') {
     writeUint16(v, S.RETURN_TAG_BO, S.RETURN_TAG_ACCEPT_FROM_THIRD_PARTY);
-    writeData(msg, ptrSlot(v, S.RETURN_PTR_ACCEPT_FROM_THIRD_PARTY), result.thirdPartyCapId);
+    writeData(
+      msg,
+      ptrSlot(v, S.RETURN_PTR_ACCEPT_FROM_THIRD_PARTY),
+      result.thirdPartyCapId,
+    );
   } else {
     throw Fail`unknown return result kind ${result}`;
   }
@@ -397,7 +436,11 @@ export const encodeFinish = ({
   const v = allocVariant(msg, root, S.FINISH_DATA_WORDS, S.FINISH_PTR_WORDS);
   writeUint32(v, S.FINISH_QUESTION_ID_BO, questionId);
   writeBoolDefaultTrue(v, S.FINISH_RELEASE_RESULT_CAPS_BIT, releaseResultCaps);
-  writeBoolDefaultTrue(v, S.FINISH_REQUIRE_EARLY_CANCELLATION_BIT, requireEarlyCancellation);
+  writeBoolDefaultTrue(
+    v,
+    S.FINISH_REQUIRE_EARLY_CANCELLATION_BIT,
+    requireEarlyCancellation,
+  );
   return finalize(msg);
 };
 
@@ -410,8 +453,12 @@ export const encodeResolve = ({ promiseId, payload }) => {
     writeUint16(v, S.RESOLVE_TAG_BO, S.RESOLVE_TAG_CAP);
     // CapDescriptor as a single element struct, but per rpc.capnp the
     // resolve.cap is a single CapDescriptor not a list, so we inline it.
-    const capLoc = allocStruct(msg, ptrSlot(v, S.RESOLVE_PTR_CAP),
-      S.CAPDESC_DATA_WORDS, S.CAPDESC_PTR_WORDS);
+    const capLoc = allocStruct(
+      msg,
+      ptrSlot(v, S.RESOLVE_PTR_CAP),
+      S.CAPDESC_DATA_WORDS,
+      S.CAPDESC_PTR_WORDS,
+    );
     writeCapDescriptor(msg, capLoc, 0, payload.cap);
   } else if (payload.kind === 'exception') {
     writeUint16(v, S.RESOLVE_TAG_BO, S.RESOLVE_TAG_EXCEPTION);
@@ -434,7 +481,12 @@ export const encodeRelease = ({ id, referenceCount }) => {
 export const encodeDisembargo = ({ target, context }) => {
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_DISEMBARGO);
-  const v = allocVariant(msg, root, S.DISEMBARGO_DATA_WORDS, S.DISEMBARGO_PTR_WORDS);
+  const v = allocVariant(
+    msg,
+    root,
+    S.DISEMBARGO_DATA_WORDS,
+    S.DISEMBARGO_PTR_WORDS,
+  );
   writeMessageTarget(msg, ptrSlot(v, S.DISEMBARGO_PTR_TARGET), target);
   let tag = S.DISEMBARGO_CTX_SENDER_LOOPBACK;
   let value = 0;
@@ -519,16 +571,22 @@ export const decodeMessage = framed => {
   const rootLoc = readStructPointer(reader, 0, 0);
   if (rootLoc === null) throw Fail`null root pointer`;
   const tag = readUint16(rootLoc, S.MESSAGE_TAG_BYTE_OFFSET);
-  const variantLoc = readStructPointer(reader, rootLoc.segId,
-    rootLoc.wordOffset + rootLoc.dataWords + 0);
+  const variantLoc = readStructPointer(
+    reader,
+    rootLoc.segId,
+    rootLoc.wordOffset + rootLoc.dataWords + 0,
+  );
   if (variantLoc === null && tag !== S.MSG_UNIMPLEMENTED) {
     throw Fail`null variant pointer for tag ${tag}`;
   }
   switch (tag) {
     case S.MSG_BOOTSTRAP: {
       const v = variantLoc;
-      const deprecatedObjectId = readData(v.msg, v.segId,
-        v.wordOffset + v.dataWords + 0);
+      const deprecatedObjectId = readData(
+        v.msg,
+        v.segId,
+        v.wordOffset + v.dataWords + 0,
+      );
       return {
         type: 'bootstrap',
         questionId: readUint32(v, S.BOOTSTRAP_QUESTION_ID),
@@ -546,17 +604,28 @@ export const decodeMessage = framed => {
       } else if (srtTag === S.CALL_SRT_YOURSELF) {
         sendResultsTo = { kind: 'yourself' };
       } else {
-        const recipientId = readData(v.msg, v.segId,
-          v.wordOffset + v.dataWords + S.CALL_PTR_SEND_RESULTS_TO_DATA);
+        const recipientId = readData(
+          v.msg,
+          v.segId,
+          v.wordOffset + v.dataWords + S.CALL_PTR_SEND_RESULTS_TO_DATA,
+        );
         sendResultsTo = {
           kind: 'thirdParty',
-          recipientId: recipientId ? new Uint8Array(recipientId) : new Uint8Array(0),
+          recipientId: recipientId
+            ? new Uint8Array(recipientId)
+            : new Uint8Array(0),
         };
       }
-      const targetLoc = readStructPointer(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.CALL_PTR_TARGET);
-      const paramsLoc = readStructPointer(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.CALL_PTR_PARAMS);
+      const targetLoc = readStructPointer(
+        v.msg,
+        v.segId,
+        v.wordOffset + v.dataWords + S.CALL_PTR_TARGET,
+      );
+      const paramsLoc = readStructPointer(
+        v.msg,
+        v.segId,
+        v.wordOffset + v.dataWords + S.CALL_PTR_PARAMS,
+      );
       return {
         type: 'call',
         questionId: readUint32(v, S.CALL_QUESTION_ID_BO),
@@ -573,12 +642,18 @@ export const decodeMessage = framed => {
       const retTag = readUint16(v, S.RETURN_TAG_BO);
       let result;
       if (retTag === S.RETURN_TAG_RESULTS) {
-        const pLoc = readStructPointer(v.msg, v.segId,
-          v.wordOffset + v.dataWords + S.RETURN_PTR_RESULTS);
+        const pLoc = readStructPointer(
+          v.msg,
+          v.segId,
+          v.wordOffset + v.dataWords + S.RETURN_PTR_RESULTS,
+        );
         result = { kind: 'results', payload: readPayload(pLoc) };
       } else if (retTag === S.RETURN_TAG_EXCEPTION) {
-        const eLoc = readStructPointer(v.msg, v.segId,
-          v.wordOffset + v.dataWords + S.RETURN_PTR_EXCEPTION);
+        const eLoc = readStructPointer(
+          v.msg,
+          v.segId,
+          v.wordOffset + v.dataWords + S.RETURN_PTR_EXCEPTION,
+        );
         result = { kind: 'exception', exception: readException(eLoc) };
       } else if (retTag === S.RETURN_TAG_CANCELED) {
         result = { kind: 'canceled' };
@@ -590,8 +665,11 @@ export const decodeMessage = framed => {
           questionId: readUint32(v, S.RETURN_TAKE_FROM_OTHER_QUESTION_ID_BO),
         };
       } else if (retTag === S.RETURN_TAG_ACCEPT_FROM_THIRD_PARTY) {
-        const tpid = readData(v.msg, v.segId,
-          v.wordOffset + v.dataWords + S.RETURN_PTR_ACCEPT_FROM_THIRD_PARTY);
+        const tpid = readData(
+          v.msg,
+          v.segId,
+          v.wordOffset + v.dataWords + S.RETURN_PTR_ACCEPT_FROM_THIRD_PARTY,
+        );
         result = {
           kind: 'acceptFromThirdParty',
           thirdPartyCapId: tpid ? new Uint8Array(tpid) : new Uint8Array(0),
@@ -602,7 +680,10 @@ export const decodeMessage = framed => {
       return {
         type: 'return',
         answerId: readUint32(v, S.RETURN_ANSWER_ID_BO),
-        releaseParamCaps: readBoolDefaultTrue(v, S.RETURN_RELEASE_PARAM_CAPS_BIT),
+        releaseParamCaps: readBoolDefaultTrue(
+          v,
+          S.RETURN_RELEASE_PARAM_CAPS_BIT,
+        ),
         result,
       };
     }
@@ -611,8 +692,14 @@ export const decodeMessage = framed => {
       return {
         type: 'finish',
         questionId: readUint32(v, S.FINISH_QUESTION_ID_BO),
-        releaseResultCaps: readBoolDefaultTrue(v, S.FINISH_RELEASE_RESULT_CAPS_BIT),
-        requireEarlyCancellation: readBoolDefaultTrue(v, S.FINISH_REQUIRE_EARLY_CANCELLATION_BIT),
+        releaseResultCaps: readBoolDefaultTrue(
+          v,
+          S.FINISH_RELEASE_RESULT_CAPS_BIT,
+        ),
+        requireEarlyCancellation: readBoolDefaultTrue(
+          v,
+          S.FINISH_REQUIRE_EARLY_CANCELLATION_BIT,
+        ),
       };
     }
     case S.MSG_RESOLVE: {
@@ -620,14 +707,28 @@ export const decodeMessage = framed => {
       const resTag = readUint16(v, S.RESOLVE_TAG_BO);
       const promiseId = readUint32(v, S.RESOLVE_PROMISE_ID_BO);
       if (resTag === S.RESOLVE_TAG_CAP) {
-        const capLoc = readStructPointer(v.msg, v.segId,
-          v.wordOffset + v.dataWords + S.RESOLVE_PTR_CAP);
+        const capLoc = readStructPointer(
+          v.msg,
+          v.segId,
+          v.wordOffset + v.dataWords + S.RESOLVE_PTR_CAP,
+        );
         if (capLoc === null) throw Fail`resolve.cap with null pointer`;
-        return { type: 'resolve', promiseId, payload: { kind: 'cap', cap: readCapDescriptor(capLoc) } };
+        return {
+          type: 'resolve',
+          promiseId,
+          payload: { kind: 'cap', cap: readCapDescriptor(capLoc) },
+        };
       }
-      const eLoc = readStructPointer(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.RESOLVE_PTR_EXCEPTION);
-      return { type: 'resolve', promiseId, payload: { kind: 'exception', exception: readException(eLoc) } };
+      const eLoc = readStructPointer(
+        v.msg,
+        v.segId,
+        v.wordOffset + v.dataWords + S.RESOLVE_PTR_EXCEPTION,
+      );
+      return {
+        type: 'resolve',
+        promiseId,
+        payload: { kind: 'exception', exception: readException(eLoc) },
+      };
     }
     case S.MSG_RELEASE: {
       const v = variantLoc;
@@ -641,8 +742,11 @@ export const decodeMessage = framed => {
       const v = variantLoc;
       const ctxTag = readUint16(v, S.DISEMBARGO_CTX_TAG_BO);
       const ctxValue = readUint32(v, S.DISEMBARGO_CTX_VALUE_BO);
-      const targetLoc = readStructPointer(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.DISEMBARGO_PTR_TARGET);
+      const targetLoc = readStructPointer(
+        v.msg,
+        v.segId,
+        v.wordOffset + v.dataWords + S.DISEMBARGO_PTR_TARGET,
+      );
       let context;
       if (ctxTag === S.DISEMBARGO_CTX_SENDER_LOOPBACK) {
         context = { kind: 'senderLoopback', id: ctxValue };
@@ -663,10 +767,16 @@ export const decodeMessage = framed => {
     }
     case S.MSG_PROVIDE: {
       const v = variantLoc;
-      const targetLoc = readStructPointer(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.PROVIDE_PTR_TARGET);
-      const recipient = readData(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.PROVIDE_PTR_RECIPIENT);
+      const targetLoc = readStructPointer(
+        v.msg,
+        v.segId,
+        v.wordOffset + v.dataWords + S.PROVIDE_PTR_TARGET,
+      );
+      const recipient = readData(
+        v.msg,
+        v.segId,
+        v.wordOffset + v.dataWords + S.PROVIDE_PTR_RECIPIENT,
+      );
       return {
         type: 'provide',
         questionId: readUint32(v, S.PROVIDE_QUESTION_ID_BO),
@@ -676,8 +786,11 @@ export const decodeMessage = framed => {
     }
     case S.MSG_ACCEPT: {
       const v = variantLoc;
-      const provision = readData(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.ACCEPT_PTR_PROVISION);
+      const provision = readData(
+        v.msg,
+        v.segId,
+        v.wordOffset + v.dataWords + S.ACCEPT_PTR_PROVISION,
+      );
       return {
         type: 'accept',
         questionId: readUint32(v, S.ACCEPT_QUESTION_ID_BO),
@@ -704,8 +817,3 @@ export const decodeMessage = framed => {
       return { type: 'unimplementedTag', tag };
   }
 };
-
-// Suppress lint warning about unused helpers we keep for completeness.
-void readPtrAt;
-void primitiveElementByteOffset;
-void LIST_BYTE;

@@ -4,10 +4,14 @@ import { E, makeLoopback } from '../src/index.js';
 
 test('reference equality preserved for the same far cap re-imported', async t => {
   const inner = makeExo('inner', undefined, {
-    name() { return 'inner'; },
+    name() {
+      return 'inner';
+    },
   });
   const root = makeExo('root', undefined, {
-    getInner() { return inner; },
+    getInner() {
+      return inner;
+    },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
   registerInterface({ id: 0x1n, methods: { getInner: 0, name: 1 } });
@@ -19,11 +23,17 @@ test('reference equality preserved for the same far cap re-imported', async t =>
 
 test('passing a remote presence back returns the original local value (round-trip)', async t => {
   const sentinel = makeExo('sentinel', undefined, {
-    tag() { return 'sentinel'; },
+    tag() {
+      return 'sentinel';
+    },
   });
   const root = makeExo('root', undefined, {
-    getSentinel() { return sentinel; },
-    isSentinel(s) { return s === sentinel; },
+    getSentinel() {
+      return sentinel;
+    },
+    isSentinel(s) {
+      return s === sentinel;
+    },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
   registerInterface({

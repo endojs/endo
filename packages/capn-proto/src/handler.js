@@ -53,14 +53,18 @@ export const makeRemoteHandler = ({
       void _target;
       void returnedP;
       return Promise.reject(
-        Error(`E(p).${q(prop)} get is unsupported; use E(p).${q(prop)}() instead`),
+        Error(
+          `E(p).${q(prop)} get is unsupported; use E(p).${q(prop)}() instead`,
+        ),
       );
     },
 
     applyMethod(_target, prop, args, returnedP) {
       void _target;
       if (prop === undefined || prop === null) {
-        return Promise.reject(Error('applyFunction requires undefined property'));
+        return Promise.reject(
+          Error('applyFunction requires undefined property'),
+        );
       }
       let resolved;
       try {

@@ -67,8 +67,8 @@ export const makeFourTables = ({ onImportFinalized }) => {
   // Question / Export ids are allocated by us. Answer / Import ids are
   // allocated by the peer.
   const questions = new Map(); // id → QuestionEntry
-  const answers = new Map();   // id → AnswerEntry
-  const exports_ = new Map();  // id → ExportEntry
+  const answers = new Map(); // id → AnswerEntry
+  const exports_ = new Map(); // id → ExportEntry
   /** @type {WeakMap<object, number>} */
   const valToExportId = new WeakMap();
   /** @type {Map<bigint, number>} */
