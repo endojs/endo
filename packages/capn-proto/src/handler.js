@@ -43,6 +43,16 @@ export const makeRemoteHandler = ({
   const fail = () => {
     throw Fail`cannot resolve method without an interface id; first argument of E(target).method must be a registered interface method`;
   };
+  /** Build the rejection reason for `applyFunction` calls. */
+  const applyFunctionRejection = () => {
+    try {
+      fail();
+    } catch (e) {
+      return e;
+    }
+    // unreachable; `fail()` always throws.
+    return Error('unreachable');
+  };
 
   return {
     get(_target, prop, _returnedP) {
@@ -60,7 +70,7 @@ export const makeRemoteHandler = ({
     applyMethod(_target, prop, args, returnedP) {
       if (prop === undefined || prop === null) {
         return Promise.reject(
-          Error('applyFunction requires undefined property'),
+          Error('applyMethod requires a method name; got undefined / null'),
         );
       }
       let resolved;
@@ -109,7 +119,7 @@ export const makeRemoteHandler = ({
     applyFunction(_target, _args, _returnedP) {
       // Cap'n Proto has no plain "function call" semantics; all calls are on
       // an interface method. Fail loudly so users register an interface.
-      return Promise.reject(fail);
+      return Promise.reject(applyFunctionRejection());
     },
 
     applyMethodSendOnly(_target, prop, args) {

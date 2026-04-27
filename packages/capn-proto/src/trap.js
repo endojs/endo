@@ -43,9 +43,18 @@ export const makeCapnpTrapHost = transferBuffer => {
   const inner = captpHost(transferBuffer);
   return async function* trapHost([isReject, framed]) {
     const u8 = new Uint8Array(framed);
-    let bin = '';
-    for (let i = 0; i < u8.length; i += 1) bin += String.fromCharCode(u8[i]);
-    const b64 = hasBuffer ? NodeBuffer.from(u8).toString('base64') : btoa(bin);
+    let b64;
+    if (hasBuffer) {
+      b64 = NodeBuffer.from(u8).toString('base64');
+    } else {
+      // btoa only accepts a binary string. Build it lazily here, since
+      // String concat per byte is O(n) in modern engines (small chunks
+      // would be unnecessary with Array.from + join, but for typical
+      // trap-sized payloads the simple loop is adequate).
+      let bin = '';
+      for (let i = 0; i < u8.length; i += 1) bin += String.fromCharCode(u8[i]);
+      b64 = btoa(bin);
+    }
     yield* /** @type {any} */ (inner)([isReject, b64]);
   };
 };
@@ -67,6 +76,13 @@ export const makeCapnpTrapGuest = transferBuffer => {
       bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
     }
-    return [isReject, bytes.buffer];
+    // `bytes.buffer` may be a pooled ArrayBuffer (Node Buffer) where
+    // `bytes` covers only [byteOffset, byteOffset + byteLength). Slice
+    // out the exact view to avoid leaking adjacent prefix/suffix bytes
+    // that would corrupt downstream framing.
+    return [
+      isReject,
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    ];
   };
 };

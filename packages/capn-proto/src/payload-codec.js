@@ -105,12 +105,12 @@ export const encodePayload = (value, ctx) => {
     if (t === 'object') {
       // Treat anything the connection identifies as a capability as such.
       // Otherwise use prototype to decide between plain record and remote
-      // cap. Frozen plain objects (proto === Object.prototype || null) are
+      // cap. Plain objects (proto === Object.prototype || null) are
       // pass-by-copy. Anything with a non-trivial proto chain is a cap.
       const isCap = ctx.isCap ? ctx.isCap(v) : false;
       if (!isCap) {
         const proto = Object.getPrototypeOf(v);
-        if (proto === Object.prototype) {
+        if (proto === Object.prototype || proto === null) {
           const out = {};
           for (const [k, sub] of Object.entries(v)) out[k] = replace(sub);
           return out;
