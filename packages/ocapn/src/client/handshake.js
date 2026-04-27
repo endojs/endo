@@ -148,8 +148,10 @@ const handleSessionHandshakeMessage = (
       } = message;
       // Handle invalid version
       if (messageCaptpVersion !== captpVersion) {
-        // send op abort
-        logger.info(`Abort during start-session message with invalid version`);
+        logger.info('Abort during start-session message with invalid version', {
+          received: messageCaptpVersion,
+          expected: captpVersion,
+        });
         sendAbortAndClose(connection, 'invalid-version');
         sessionManager.deleteConnection(connection);
         return;
