@@ -1,0 +1,88 @@
+{
+  "name": "@endo/capn-proto",
+  "version": "0.1.0",
+  "description": "Cap'n Proto RPC over eventual-send with HandledPromise, Presence, and FinalizationRegistry-based GC",
+  "type": "module",
+  "keywords": [
+    "endo",
+    "capnproto",
+    "capn-proto",
+    "rpc",
+    "eventual-send"
+  ],
+  "author": "Endo contributors",
+  "homepage": "https://github.com/endojs/endo#readme",
+  "license": "Apache-2.0",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./two-party.js": "./src/two-party.js",
+    "./loopback.js": "./src/loopback.js",
+    "./package.json": "./package.json"
+  },
+  "module": "src/index.js",
+  "directories": {
+    "src": "src",
+    "test": "test"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "src",
+    "rpc.capnp"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/capn-proto"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ses-ava",
+    "test:xs": "exit 0",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint": "yarn lint:eslint && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc"
+  },
+  "devDependencies": {
+    "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "ses": "workspace:^",
+    "typescript": "catalog:dev"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/nat": "workspace:^",
+    "@endo/pass-style": "workspace:^",
+    "@endo/promise-kit": "workspace:^"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "endo": "../../ava-endo-shims-only.config.mjs"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "typeCoverage": {
+    "atLeast": 0
+  }
+}
