@@ -13,7 +13,7 @@ const { WeakRef, FinalizationRegistry } = globalThis;
 
 /**
  * @template K
- * @template {object} V
+ * @template {WeakKey} V
  * @typedef {{
  *   get(key: K): V | undefined,
  *   has(key: K): boolean,
@@ -26,7 +26,7 @@ const { WeakRef, FinalizationRegistry } = globalThis;
 
 /**
  * @template K
- * @template {object} V
+ * @template {WeakKey} V
  * @param {(key: K) => void} [finalizer]
  * @param {object} [opts]
  * @param {boolean} [opts.weakValues]

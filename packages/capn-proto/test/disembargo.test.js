@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from '@endo/ses-ava/test.js';
 import { encodeDisembargo, decodeMessage } from '../src/index.js';
 import { makeEmbargoTracker } from '../src/embargo.js';

@@ -3,8 +3,8 @@
  * Layout constants for the rpc.capnp messages we encode and decode.
  *
  * These match `c++/src/capnp/rpc.capnp` from the Cap'n Proto upstream
- * (schema id @0xb312981b2552a250). Field ordinals and slot offsets here are
- * the source of truth for our hand-written codecs in the rest of this
+ * (schema id `\@0xb312981b2552a250`). Field ordinals and slot offsets here
+ * are the source of truth for our hand-written codecs in the rest of this
  * directory; bytes on the wire match what the C++ reference would produce
  * for the same logical content.
  */
@@ -56,25 +56,25 @@ export const BOOTSTRAP_DATA_WORDS = 1;
 export const BOOTSTRAP_PTR_WORDS = 1;
 export const BOOTSTRAP_QUESTION_ID = 0; // byte offset
 
-/* ===== Call ===== */
-/**
- * struct Call @0x836a53ce789d4cd4 { # 24 bytes, 3 ptrs
- *   questionId      @0  :UInt32;  bits[0, 32)
- *   target          @1  :MessageTarget;  ptr[0]
- *   interfaceId     @2  :UInt64;  bits[64, 128)
- *   methodId        @3  :UInt16;  bits[32, 48)  (placed in 4-byte hole)
- *   allowThirdPartyTailCall @8 :Bool = false;  bit[128, 129) = byte 16 bit 0
- *   noPromisePipelining @9 :Bool = false;      bit 129
- *   onlyPromisePipeline @10:Bool = false;      bit 130
- *   params          @4  :Payload;  ptr[1]
- *   sendResultsTo   :group {
- *     union { tag bits[48, 64) = byte 6 word 0:
- *       caller     @5  :Void;
- *       yourself   @6  :Void;
- *       thirdParty @7  :AnyPointer;  ptr[2]
+/* ===== Call =====
+ *
+ *   struct Call @0x836a53ce789d4cd4 { # 24 bytes, 3 ptrs
+ *     questionId      @0  :UInt32;  bits[0, 32)
+ *     target          @1  :MessageTarget;  ptr[0]
+ *     interfaceId     @2  :UInt64;  bits[64, 128)
+ *     methodId        @3  :UInt16;  bits[32, 48)  (placed in 4-byte hole)
+ *     allowThirdPartyTailCall @8 :Bool = false;  bit[128, 129) = byte 16 bit 0
+ *     noPromisePipelining @9 :Bool = false;      bit 129
+ *     onlyPromisePipeline @10:Bool = false;      bit 130
+ *     params          @4  :Payload;  ptr[1]
+ *     sendResultsTo   :group {
+ *       union { tag bits[48, 64) = byte 6 word 0:
+ *         caller     @5  :Void;
+ *         yourself   @6  :Void;
+ *         thirdParty @7  :AnyPointer;  ptr[2]
+ *       }
  *     }
  *   }
- * }
  */
 export const CALL_DATA_WORDS = 3;
 export const CALL_PTR_WORDS = 3;
@@ -181,19 +181,19 @@ export const RELEASE_PTR_WORDS = 0;
 export const RELEASE_ID_BO = 0; // uint32
 export const RELEASE_REF_COUNT_BO = 4; // uint32
 
-/* ===== Disembargo ===== */
-/**
- * struct Disembargo { # 8 bytes, 1 ptrs
- *   target @0 :MessageTarget; ptr[0]
- *   context :group {
- *     union { tag bits[32, 48) = byte 4
- *       senderLoopback @1 :UInt32;  bits[0, 32) = byte 0
- *       receiverLoopback @2 :UInt32; bits[0, 32)
- *       accept @3 :Void;
- *       provide @4 :UInt32;
+/* ===== Disembargo =====
+ *
+ *   struct Disembargo { # 8 bytes, 1 ptrs
+ *     target @0 :MessageTarget; ptr[0]
+ *     context :group {
+ *       union { tag bits[32, 48) = byte 4
+ *         senderLoopback @1 :UInt32;  bits[0, 32) = byte 0
+ *         receiverLoopback @2 :UInt32; bits[0, 32)
+ *         accept @3 :Void;
+ *         provide @4 :UInt32;
+ *       }
  *     }
  *   }
- * }
  */
 export const DISEMBARGO_DATA_WORDS = 1;
 export const DISEMBARGO_PTR_WORDS = 1;

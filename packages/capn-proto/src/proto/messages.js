@@ -100,6 +100,7 @@ const writeException = (msg, slot, exc) => {
   writeText(msg, ptrSlot(e, S.EXCEPTION_PTR_REASON), exc.reason || '');
 };
 
+/** @param {any} loc */
 const readException = loc => {
   if (loc === null) return { type: 0, reason: '' };
   return {
@@ -152,6 +153,7 @@ const writePromisedAnswer = (msg, slot, pa) => {
   }
 };
 
+/** @param {any} loc */
 const readPromisedAnswer = loc => {
   const questionId = readUint32(loc, S.PA_QUESTION_ID_BO);
   const list = readListPointer(
@@ -196,6 +198,7 @@ const writeMessageTarget = (msg, slot, target) => {
   }
 };
 
+/** @param {any} loc */
 const readMessageTarget = loc => {
   if (loc === null) return null;
   const tag = readUint16(loc, S.TARGET_TAG_BO);
@@ -266,6 +269,7 @@ const writeCapDescriptor = (msg, structLoc, idx, desc) => {
   throw Fail`unknown cap descriptor kind ${desc}`;
 };
 
+/** @param {any} elem */
 const readCapDescriptor = elem => {
   const tag = readUint16(elem, S.CAPDESC_TAG_BO);
   switch (tag) {
@@ -342,6 +346,7 @@ const writePayload = (msg, slot, payload) => {
   }
 };
 
+/** @param {any} loc */
 const readPayload = loc => {
   if (loc === null) return { contentBytes: new Uint8Array(0), capTable: [] };
   const contentBytes =
@@ -386,6 +391,18 @@ export const encodeBootstrap = ({ questionId, deprecatedObjectId }) => {
   return finalize(msg);
 };
 
+/**
+ * @param {object} arg
+ * @param {number} arg.questionId
+ * @param {any} arg.target
+ * @param {bigint} arg.interfaceId
+ * @param {number} arg.methodId
+ * @param {{ contentBytes?: Uint8Array, capTable?: any[] }} arg.params
+ * @param {{ kind: 'caller' } |
+ *         { kind: 'yourself' } |
+ *         { kind: 'thirdParty', recipientId: Uint8Array }} [arg.sendResultsTo]
+ * @param {boolean} [arg.allowThirdPartyTailCall]
+ */
 export const encodeCall = ({
   questionId,
   target,
@@ -409,11 +426,8 @@ export const encodeCall = ({
   writeMessageTarget(msg, ptrSlot(v, S.CALL_PTR_TARGET), target);
   writePayload(msg, ptrSlot(v, S.CALL_PTR_PARAMS), params);
   if (sendResultsTo.kind === 'thirdParty') {
-    writeData(
-      msg,
-      ptrSlot(v, S.CALL_PTR_SEND_RESULTS_TO_DATA),
-      sendResultsTo.recipientId,
-    );
+    const tp = /** @type {{ recipientId: Uint8Array }} */ (sendResultsTo);
+    writeData(msg, ptrSlot(v, S.CALL_PTR_SEND_RESULTS_TO_DATA), tp.recipientId);
   }
   return finalize(msg);
 };
@@ -555,7 +569,7 @@ export const encodeAccept = ({ questionId, provision, embargo = false }) => {
 };
 
 /**
- * Message.unimplemented @0 :Message — the variant *is* a Message struct
+ * `Message.unimplemented \@0 :Message` — the variant *is* a Message struct
  * (recursively). We don't have parsed-bytes-to-Message conversion here;
  * the caller may pass the original framed bytes, but we encode an empty
  * inner Message-shaped placeholder. An empty Message decodes as the zero
@@ -601,9 +615,12 @@ export const decodeMessage = framed => {
   if (variantLoc === null && tag !== S.MSG_UNIMPLEMENTED) {
     throw Fail`null variant pointer for tag ${tag}`;
   }
+  // TypeScript narrowing across switch arms below: every non-Unimplemented
+  // arm has just been guarded above, so we assert non-null once.
+  const variant = /** @type {NonNullable<typeof variantLoc>} */ (variantLoc);
   switch (tag) {
     case S.MSG_BOOTSTRAP: {
-      const v = variantLoc;
+      const v = variant;
       const deprecatedObjectId = readData(
         v.msg,
         v.segId,
@@ -618,7 +635,7 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_CALL: {
-      const v = variantLoc;
+      const v = variant;
       const srtTag = readUint16(v, S.CALL_SEND_RESULTS_TO_TAG_BO);
       let sendResultsTo;
       if (srtTag === S.CALL_SRT_CALLER) {
@@ -660,7 +677,7 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_RETURN: {
-      const v = variantLoc;
+      const v = variant;
       const retTag = readUint16(v, S.RETURN_TAG_BO);
       let result;
       if (retTag === S.RETURN_TAG_RESULTS) {
@@ -710,7 +727,7 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_FINISH: {
-      const v = variantLoc;
+      const v = variant;
       return {
         type: 'finish',
         questionId: readUint32(v, S.FINISH_QUESTION_ID_BO),
@@ -725,7 +742,7 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_RESOLVE: {
-      const v = variantLoc;
+      const v = variant;
       const resTag = readUint16(v, S.RESOLVE_TAG_BO);
       const promiseId = readUint32(v, S.RESOLVE_PROMISE_ID_BO);
       if (resTag === S.RESOLVE_TAG_CAP) {
@@ -753,7 +770,7 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_RELEASE: {
-      const v = variantLoc;
+      const v = variant;
       return {
         type: 'release',
         id: readUint32(v, S.RELEASE_ID_BO),
@@ -761,7 +778,7 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_DISEMBARGO: {
-      const v = variantLoc;
+      const v = variant;
       const ctxTag = readUint16(v, S.DISEMBARGO_CTX_TAG_BO);
       const ctxValue = readUint32(v, S.DISEMBARGO_CTX_VALUE_BO);
       const targetLoc = readStructPointer(
@@ -788,7 +805,7 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_PROVIDE: {
-      const v = variantLoc;
+      const v = variant;
       const targetLoc = readStructPointer(
         v.msg,
         v.segId,
@@ -807,7 +824,7 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_ACCEPT: {
-      const v = variantLoc;
+      const v = variant;
       const provision = readData(
         v.msg,
         v.segId,

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global Buffer */
 // Byte-level interop test against the reference Cap'n Proto C++
 // implementation. Runs only when the `capnp` CLI is on PATH; otherwise the

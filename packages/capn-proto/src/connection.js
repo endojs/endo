@@ -156,7 +156,9 @@ export const makeConnection = cfg => {
                       kind: 'exception',
                       exception: {
                         type: 0,
-                        reason: String(err?.message || err),
+                        reason: String(
+                          /** @type {any} */ (err)?.message || err,
+                        ),
                       },
                     },
                   }),
@@ -384,9 +386,10 @@ export const makeConnection = cfg => {
     try {
       msg = decodeMessage(framed);
     } catch (e) {
+      const reason = `decode failed: ${/** @type {any} */ (e)?.message || e}`;
       sendFramed(
         encodeAbort({
-          exception: { type: 0, reason: `decode failed: ${e?.message || e}` },
+          exception: { type: 0, reason },
         }),
       );
       return;

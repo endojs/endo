@@ -1,5 +1,5 @@
 // @ts-check
-/* global Buffer, atob, btoa */
+/* global atob, btoa */
 /**
  * Trap: synchronous round-trip via SharedArrayBuffer + Atomics.
  *
@@ -36,7 +36,8 @@ export {
  *
  * @param {SharedArrayBuffer} transferBuffer
  */
-const hasBuffer = typeof Buffer !== 'undefined';
+const NodeBuffer = /** @type {any} */ (globalThis).Buffer;
+const hasBuffer = typeof NodeBuffer !== 'undefined';
 
 export const makeCapnpTrapHost = transferBuffer => {
   const inner = captpHost(transferBuffer);
@@ -44,8 +45,8 @@ export const makeCapnpTrapHost = transferBuffer => {
     const u8 = new Uint8Array(framed);
     let bin = '';
     for (let i = 0; i < u8.length; i += 1) bin += String.fromCharCode(u8[i]);
-    const b64 = hasBuffer ? Buffer.from(u8).toString('base64') : btoa(bin);
-    yield* inner([isReject, b64]);
+    const b64 = hasBuffer ? NodeBuffer.from(u8).toString('base64') : btoa(bin);
+    yield* /** @type {any} */ (inner)([isReject, b64]);
   };
 };
 
@@ -55,10 +56,12 @@ export const makeCapnpTrapHost = transferBuffer => {
 export const makeCapnpTrapGuest = transferBuffer => {
   const inner = captpGuest(transferBuffer);
   return ({ startTrap }) => {
-    const [isReject, b64] = inner({ startTrap });
+    const [isReject, b64] = /** @type {any} */ (inner)(
+      /** @type {any} */ ({ startTrap }),
+    );
     let bytes;
     if (hasBuffer) {
-      bytes = new Uint8Array(Buffer.from(b64, 'base64'));
+      bytes = new Uint8Array(NodeBuffer.from(b64, 'base64'));
     } else {
       const bin = atob(b64);
       bytes = new Uint8Array(bin.length);

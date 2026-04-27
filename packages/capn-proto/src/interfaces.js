@@ -33,6 +33,7 @@ import { Fail, q } from '@endo/errors';
  * @property {(interfaceId: bigint, methodId: number) => string | undefined} methodName
  * @property {(interfaceId: bigint, methodName: string) => number | undefined} methodOrdinal
  * @property {(interfaceId: bigint) => boolean} has
+ * @property {() => IterableIterator<InterfaceDescriptor>} iterate
  */
 
 /** @returns {InterfaceRegistry} */

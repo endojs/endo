@@ -44,12 +44,15 @@ const CAP_TAG = '@cap:';
 const BIGINT_TAG = '@bigint:';
 const BYTES_TAG = '@bytes:';
 
-const hasBuffer = typeof Buffer !== 'undefined';
+// Pulled off `globalThis` so TS doesn't need ambient Node typings; behaves
+// the same way at runtime as `typeof Buffer !== 'undefined'`.
+const NodeBuffer = /** @type {any} */ (globalThis).Buffer;
+const hasBuffer = typeof NodeBuffer !== 'undefined';
 /** @param {Uint8Array} bytes */
 const toBase64 = bytes => {
   // Assume Node-compatible Buffer or browser btoa.
   if (hasBuffer) {
-    return Buffer.from(bytes).toString('base64');
+    return NodeBuffer.from(bytes).toString('base64');
   }
   let bin = '';
   for (let i = 0; i < bytes.length; i += 1)
@@ -59,7 +62,7 @@ const toBase64 = bytes => {
 /** @param {string} s */
 const fromBase64 = s => {
   if (hasBuffer) {
-    return new Uint8Array(Buffer.from(s, 'base64'));
+    return new Uint8Array(NodeBuffer.from(s, 'base64'));
   }
   const bin = atob(s);
   const out = new Uint8Array(bin.length);

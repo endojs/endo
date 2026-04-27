@@ -320,8 +320,12 @@ export const resolvePointer = (msg, segId, pointerWordOffset) => {
       // Single landing pad: the word at offset is the actual struct/list/cap
       // pointer, and content immediately follows.
       const inner = readPointer(farSeg.view, ptr.offsetWords * WORD_SIZE);
-      if (inner.kind === 'far' || inner.kind === 'null') {
-        throw Fail`single-landing-pad must point to inline pointer`;
+      if (
+        inner.kind === 'far' ||
+        inner.kind === 'null' ||
+        inner.kind === 'cap'
+      ) {
+        throw Fail`single-landing-pad must point to inline struct/list pointer`;
       }
       return {
         targetSegId: ptr.segmentId,
@@ -345,7 +349,11 @@ export const resolvePointer = (msg, segId, pointerWordOffset) => {
       ptr: tagPtr,
     };
   }
-  // Inline pointer: content begins at pointer slot + 1 + offset.
+  // Inline pointer: content begins at pointer slot + 1 + offset (caps have
+  // no in-segment content; their target offset is irrelevant).
+  if (ptr.kind === 'cap') {
+    return { targetSegId: segId, targetWordOffset: 0, ptr };
+  }
   return {
     targetSegId: segId,
     targetWordOffset: pointerWordOffset + 1 + ptr.offsetWords,

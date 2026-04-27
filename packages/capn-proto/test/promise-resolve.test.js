@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
