@@ -6,7 +6,13 @@
 // cloudflare/capnweb RpcSession over an in-memory transport pair.  Both
 // sides should successfully exchange capabilities, calls, and results.
 //
-// Skipped if `capnweb` isn't installable in this environment.
+// `capnweb` is NOT a tracked devDependency of this package — its current
+// shipped TypeScript declarations contain TS2574 errors that break our
+// docs build.  To run this suite locally:
+//
+//     yarn workspace @endo/capn-web add -D capnweb
+//
+// Without capnweb installed, all tests in this file are skipped.
 
 import test from '@endo/ses-ava/test.js';
 import { Far } from '@endo/pass-style';
@@ -16,6 +22,8 @@ import { makeCapnWebSession, makeLoopbackPair } from '../src/index.js';
 
 let capnweb;
 try {
+  // capnweb is intentionally NOT a tracked devDep — see header comment.
+  // eslint-disable-next-line import/no-unresolved
   capnweb = await import('capnweb');
 } catch (_e) {
   capnweb = null;

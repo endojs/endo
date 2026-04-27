@@ -1,3 +1,5 @@
+/** @typedef {import('./types.js').RpcTransport} RpcTransport */
+
 export { makeCapnWebSession } from './session.js';
 export { RpcTarget } from './rpc-target.js';
 export { recordRemap, replayRemap } from './remap.js';

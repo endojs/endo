@@ -56,7 +56,6 @@
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
-    "capnweb": "^0.6.1",
     "eslint": "catalog:dev",
     "ses": "workspace:^",
     "typescript": "catalog:dev"
