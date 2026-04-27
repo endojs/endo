@@ -1,15 +1,11 @@
 /* eslint-disable */
 console.error("This is a code sample for trying out babel transforms, it's not meant to be run");
-import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import * as babelTypes from '@babel/types';
 
 import makeModulePlugins from './babelPlugin.js';
-
-const parseBabel = babelParser.default
-  ? babelParser.default.parse
-  : babelParser.parse || babelParser;
+import { babelParse } from '../../src/parse-babel.js';
 
 const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
 
@@ -27,7 +23,7 @@ export const makeTransformSource = (babel = null) => {
     // console.log(`transforming`, sourceOptions, code);
     const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
 
-    const ast = parseBabel(code, { sourceType: sourceOptions.sourceType });
+    const ast = babelParse(code, { sourceType: sourceOptions.sourceType });
 
     traverseBabel(ast, visitorFromPlugin(analyzePlugin));
     traverseBabel(ast, visitorFromPlugin(transformPlugin));
