@@ -40,6 +40,13 @@ const encodeArg = (state, arg) => {
   ) {
     return ['ref', /** @type {any} */ (arg)[PLACEHOLDER]];
   }
+  // Symbol values can't be JSON-serialised; reject up-front rather than
+  // letting them silently coerce to null on serialisation.
+  if (typeof arg === 'symbol') {
+    throw new TypeError(
+      `remap recorder cannot capture symbol value: ${String(arg)}`,
+    );
+  }
   state.captures.push(arg);
   return ['ref', -state.captures.length];
 };
@@ -65,6 +72,13 @@ const makePlaceholder = (state, ref) => {
     get(_t, prop) {
       if (prop === PLACEHOLDER) return ref;
       if (prop === 'then') return undefined; // not a thenable
+      // Symbol property keys can't be JSON-serialised; reject early so the
+      // user gets a clear error rather than a silently-corrupted recording.
+      if (typeof prop === 'symbol') {
+        throw new TypeError(
+          `remap recorder cannot record symbol property access: ${String(prop)}`,
+        );
+      }
       // Property access: emit a "get" instruction.
       state.instructions.push(['get', ref, [prop]]);
       state.answerRef.value = state.instructions.length;

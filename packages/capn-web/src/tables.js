@@ -254,8 +254,11 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
     valueToExportId.get(/** @type {object} */ (value));
 
   /**
-   * Force-drop an import; sends the appropriate release synchronously
-   * (on the next microtask).  Used by explicit Symbol.dispose on a presence.
+   * Force-drop an import by id and schedule the corresponding release on
+   * the next microtask.  This is a session-level hook for forcibly
+   * releasing a known-id import; imported presences in this module do
+   * not currently define `Symbol.dispose`, so this is not invoked
+   * automatically — it's available for callers that have an id in hand.
    * @param {number} id
    */
   const disposeImport = id => {

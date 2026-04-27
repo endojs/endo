@@ -10,9 +10,6 @@ import { E } from '@endo/eventual-send';
 import { makeCapnWebSession, makeWebSocketTransport } from '../../src/index.js';
 
 const makeFakeWebSocketPair = () => {
-  /** @type {Array<{ a: any, b: any }>} */
-  const aListeners = [];
-  const bListeners = [];
   const make = (mySend, registerListeners) => {
     const listeners = { message: [], close: [], error: [], open: [] };
     registerListeners(listeners);
@@ -48,8 +45,6 @@ const makeFakeWebSocketPair = () => {
       bSendListeners = ls;
     },
   );
-  aListeners;
-  bListeners;
   return { a, b };
 };
 

@@ -64,11 +64,16 @@ disposeTest('explicit Symbol.dispose on local export releases it', async t => {
   t.true(disposed === 0, 'not disposed yet');
   // We let `h` go out of scope at end of test.
   await gcAndFinalize();
-  // Note: disposal happens on B's side when A's release reaches B; without
-  // --expose-gc this test mostly just exercises the disposal codepath
-  // synchronously by aborting.
-  sessionA.abort();
+  // Symbol.dispose is invoked when an export's refcount reaches zero on
+  // B's side.  The deterministic way to trigger that here (without
+  // depending on FinalizationRegistry timing) is to inject a release
+  // message from A → B for the export id B allocated when it returned
+  // farHandle (-1, the first export B made in this session).
+  const farHandleExportId = -1;
+  await a.send(JSON.stringify(['release', farHandleExportId, 1]));
   await new Promise(r2 => setTimeout(r2, 50));
+  t.is(disposed, 1, 'farHandle was disposed exactly once');
+  sessionA.abort();
 });
 
 test('exporting same value twice reuses the same id (refcount bumps)', async t => {

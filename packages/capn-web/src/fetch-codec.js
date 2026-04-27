@@ -88,28 +88,33 @@ export const decodeHeaders = expr => {
 };
 
 /**
- * Encode a Request as ["request", url, init].  We reach into the request
- * to harvest method, headers, and body (which is consumed asynchronously,
- * so the caller is responsible for awaiting if it matters).  In the
- * synchronous codec we read only properties that are synchronously
- * accessible: method, url, headers.  The body is included only if it's a
- * trivially serialisable value (null/string/Uint8Array).
+ * Encode a Request as ["request", url, init].  We harvest method, headers,
+ * and (in future) body — all of which we leave as wire expressions
+ * directly so the receiver's `evaluate()` walk sees the right shapes.
+ *
+ * Crucially we do NOT pass `init` through `devaluate()` here: doing so
+ * would treat the already-tagged `["headers", pairs]` expression as a
+ * data array and re-escape it as `[["headers", pairs]]`, breaking the
+ * receiver's tag-dispatch.  `init` is built directly as a wire-shaped
+ * plain object whose values are either JSON-safe primitives (method,
+ * status) or already-tagged expressions (headers).
  *
  * @param {Request} r
- * @param {(v: unknown) => unknown} devaluate
+ * @param {(v: unknown) => unknown} _devaluate  Unused; kept for
+ *   forward-compat when body support is added.
  */
-export const encodeRequest = (r, devaluate) => {
+export const encodeRequest = (r, _devaluate) => {
   const init = {};
   if (r.method && r.method !== 'GET') init.method = r.method;
   if (r.headers) {
     const pairs = tryReadHeaders(r.headers);
     if (pairs && pairs.length > 0) init.headers = ['headers', pairs];
   }
-  // NB: r.body is a ReadableStream and can't be read sync.  We document
-  // this as unsupported here: callers wanting to send a body should do so
-  // via init.body in a freshly-constructed Request, OR send the body
-  // payload alongside the URL/headers.
-  return ['request', r.url, devaluate(init)];
+  // r.body is a ReadableStream and can't be read sync.  We document this
+  // as unsupported here: callers wanting to send a body should do so via
+  // init.body in a freshly-constructed Request, OR send the body payload
+  // alongside the URL/headers.
+  return ['request', r.url, init];
 };
 
 /**
@@ -121,25 +126,23 @@ export const decodeRequest = (expr, evaluate) => {
   if (typeof url !== 'string') {
     throw new TypeError('request url must be a string');
   }
+  // The receiver's `evaluate` recurses into the plain init object and
+  // dispatches on tagged sub-expressions (so `["headers", pairs]` becomes
+  // a real Headers via decodeHeaders).
   const init = /** @type {any} */ (evaluate(initExpr)) || {};
-  // headers may have been left as a tagged form; if so, decode now.
-  if (Array.isArray(init.headers) && init.headers[0] === 'headers') {
-    init.headers = decodeHeaders(init.headers);
-  }
   return new G.Request(url, init);
 };
 
 /**
- * Encode a Response.  Body is read synchronously only if Response#body is
- * null (e.g. constructed from a string we already buffered).  In practice
- * users will mostly pass ['response', null, init] for redirects/empties,
- * or hand us a Response we constructed from a string, in which case we use
- * the lazily-decoded text only at decode time.
+ * Encode a Response.  Same shape as Request: a plain init object with
+ * already-tagged sub-expressions.  Body is currently sent as null; a
+ * caller wanting to send a buffered body should pass the body explicitly
+ * as a separate argument rather than relying on this codec.
  *
  * @param {Response} r
- * @param {(v: unknown) => unknown} devaluate
+ * @param {(v: unknown) => unknown} _devaluate  Unused; reserved.
  */
-export const encodeResponse = (r, devaluate) => {
+export const encodeResponse = (r, _devaluate) => {
   const init = {};
   if (r.status !== 200) init.status = r.status;
   if (r.statusText) init.statusText = r.statusText;
@@ -147,7 +150,7 @@ export const encodeResponse = (r, devaluate) => {
     const pairs = tryReadHeaders(r.headers);
     if (pairs && pairs.length > 0) init.headers = ['headers', pairs];
   }
-  return ['response', null, devaluate(init)];
+  return ['response', null, init];
 };
 
 /**
@@ -157,9 +160,6 @@ export const encodeResponse = (r, devaluate) => {
 export const decodeResponse = (expr, evaluate) => {
   const [, body, initExpr] = expr;
   const init = /** @type {any} */ (evaluate(initExpr)) || {};
-  if (Array.isArray(init.headers) && init.headers[0] === 'headers') {
-    init.headers = decodeHeaders(init.headers);
-  }
   const decodedBody =
     body === null ? null : /** @type {any} */ (evaluate(body));
   return new G.Response(decodedBody, init);
