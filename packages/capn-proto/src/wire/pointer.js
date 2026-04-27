@@ -266,15 +266,15 @@ export const writePointer = (view, byteOffset, ptr) => {
         throw Fail`far landingPad must be 0 or 1, got ${ptr.landingPad}`;
       }
       checkUint32(ptr.segmentId, 'segmentId');
-      // eslint-disable-next-line no-bitwise
+      /* eslint-disable no-bitwise */
       const lo =
         (((ptr.offsetWords & 0x1fffffff) << 3) |
           ((ptr.landingPad & 0x1) << 2) |
           PTR_FAR) >>>
         0;
       view.setUint32(byteOffset, lo, true);
-      // eslint-disable-next-line no-bitwise
       view.setUint32(byteOffset + 4, ptr.segmentId >>> 0, true);
+      /* eslint-enable no-bitwise */
       return;
     }
     case 'cap': {

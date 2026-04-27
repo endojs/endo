@@ -16,7 +16,7 @@ import { Fail } from '@endo/errors';
 
 export const WORD_SIZE = 8;
 const INITIAL_SEGMENT_WORDS = 64;
-const MAX_SEGMENT_WORDS = 1 << 24;
+const MAX_SEGMENT_WORDS = 2 ** 24;
 
 /**
  * @typedef {object} SegmentBuilder
@@ -64,6 +64,7 @@ export const makeSegmentBuilder = (
     get capacityWords() {
       return capacityWords;
     },
+    /** @param {number} words */
     allocate(words) {
       if (words < 0) {
         throw Fail`negative allocation ${words}`;
@@ -75,6 +76,7 @@ export const makeSegmentBuilder = (
       usedWords += words;
       return start;
     },
+    /** @param {number} minWords */
     grow(minWords) {
       let newCap = capacityWords;
       while (newCap < usedWords + minWords) {
