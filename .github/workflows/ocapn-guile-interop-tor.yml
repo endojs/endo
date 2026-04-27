@@ -71,11 +71,11 @@ jobs:
         run: |
           TOR_BASE="$HOME/.cache/ocapn/tor"
           mkdir -p "$TOR_BASE/data"
-          cat > "$HOME/.config/ocapn-tor-config.txt" <<'EOF'
-          DataDirectory /home/runner/.cache/ocapn/tor/data/
-          SocksPort unix:/home/runner/.cache/ocapn/tor/tor-socks-sock RelaxDirModeCheck
-          ControlSocket unix:/home/runner/.cache/ocapn/tor/tor-control-sock RelaxDirModeCheck
-          Log notice file /home/runner/.cache/ocapn/tor/tor-log.txt
+          cat > "$HOME/.config/ocapn-tor-config.txt" <<EOF
+          DataDirectory $TOR_BASE/data/
+          SocksPort unix:$TOR_BASE/tor-socks-sock RelaxDirModeCheck
+          ControlSocket unix:$TOR_BASE/tor-control-sock RelaxDirModeCheck
+          Log notice file $TOR_BASE/tor-log.txt
           EOF
           rm -f /tmp/tor.pid
           tor -f "$HOME/.config/ocapn-tor-config.txt" > /tmp/tor.log 2>&1 &

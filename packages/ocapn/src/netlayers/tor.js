@@ -432,6 +432,18 @@ export const makeTorNetLayer = async ({
   );
 
   const server = net.createServer();
+  /** @type {Set<net.Socket>} */
+  const activeSockets = new Set();
+  /** @type {Set<net.Socket>} */
+  const pendingIncomingSockets = new Set();
+  /** @type {(socket: net.Socket) => void} */
+  let handleIncomingSocket = socket => {
+    pendingIncomingSockets.add(socket);
+  };
+  server.on('connection', socket => {
+    handleIncomingSocket(socket);
+  });
+
   /** @type {net.Socket | undefined} */
   let torControlSocket;
   /** @type {LineReader | undefined} */
@@ -490,6 +502,10 @@ export const makeTorNetLayer = async ({
     }
     onionPrivateKey = privateKey || parsedAddOnionReply.privateKey;
   } catch (error) {
+    for (const socket of pendingIncomingSockets) {
+      socket.destroy();
+    }
+    pendingIncomingSockets.clear();
     if (torControlLineReader) {
       torControlLineReader.dispose();
     }
@@ -508,7 +524,7 @@ export const makeTorNetLayer = async ({
   const controlSocket = torControlSocket;
   const controlLineReader = torControlLineReader;
 
-  logger.log('Tor onion service registered', actualServiceId);
+  logger.info('Tor onion service registered', actualServiceId);
   logger.info('Tor control socket path', resolvedControlSocketPath);
   logger.info('Tor SOCKS socket path', resolvedSocksSocketPath);
   logger.info('Tor OCapN unix listener path', ocapnSocketPath);
@@ -523,8 +539,8 @@ export const makeTorNetLayer = async ({
 
   /** @type {Map<string, Connection>} */
   const outgoingConnections = new Map();
-  /** @type {Set<net.Socket>} */
-  const activeSockets = new Set();
+  /** @type {TorNetLayer | undefined} */
+  let netlayer;
 
   /**
    * @param {net.Socket} socket
@@ -554,6 +570,28 @@ export const makeTorNetLayer = async ({
       }
       handlers.handleConnectionClose(connection);
     });
+  };
+
+  /**
+   * @param {net.Socket} socket
+   * @returns {void}
+   */
+  const attachIncomingSocket = socket => {
+    activeSockets.add(socket);
+    if (!netlayer) {
+      pendingIncomingSockets.add(socket);
+      return;
+    }
+    const socketOps = {
+      write(bytes) {
+        socket.write(bytes);
+      },
+      end() {
+        socket.end();
+      },
+    };
+    const connection = handlers.makeConnection(netlayer, false, socketOps);
+    setupSocketHandlers(socket, connection);
   };
 
   /**
@@ -654,7 +692,9 @@ export const makeTorNetLayer = async ({
       },
     };
 
-    // eslint-disable-next-line no-use-before-define
+    if (!netlayer) {
+      throw Error('Tor netlayer is not ready');
+    }
     const connection = handlers.makeConnection(netlayer, true, socketOps);
 
     socket.on('connect', () => {
@@ -744,8 +784,7 @@ export const makeTorNetLayer = async ({
     outgoingConnections.clear();
   };
 
-  /** @type {TorNetLayer} */
-  const netlayer = harden({
+  netlayer = harden({
     location: localLocation,
     locationId: locationToLocationId(localLocation),
     connect: lookupOrConnect,
@@ -760,19 +799,13 @@ export const makeTorNetLayer = async ({
     },
   });
 
-  server.on('connection', socket => {
-    activeSockets.add(socket);
-    const socketOps = {
-      write(bytes) {
-        socket.write(bytes);
-      },
-      end() {
-        socket.end();
-      },
-    };
-    const connection = handlers.makeConnection(netlayer, false, socketOps);
-    setupSocketHandlers(socket, connection);
-  });
+  handleIncomingSocket = socket => {
+    attachIncomingSocket(socket);
+  };
+  for (const socket of pendingIncomingSockets) {
+    pendingIncomingSockets.delete(socket);
+    attachIncomingSocket(socket);
+  }
 
   return netlayer;
 };
