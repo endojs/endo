@@ -19,14 +19,12 @@ const G = /** @type {any} */ (globalThis);
 /**
  * @param {unknown} v
  */
-export const isHeaders = v =>
-  G.Headers !== undefined && v instanceof G.Headers;
+export const isHeaders = v => G.Headers !== undefined && v instanceof G.Headers;
 
 /**
  * @param {unknown} v
  */
-export const isRequest = v =>
-  G.Request !== undefined && v instanceof G.Request;
+export const isRequest = v => G.Request !== undefined && v instanceof G.Request;
 
 /**
  * @param {unknown} v
@@ -165,7 +163,8 @@ export const decodeResponse = (expr, evaluate) => {
   if (Array.isArray(init.headers) && init.headers[0] === 'headers') {
     init.headers = decodeHeaders(init.headers);
   }
-  const decodedBody = body === null ? null : /** @type {any} */ (evaluate(body));
+  const decodedBody =
+    body === null ? null : /** @type {any} */ (evaluate(body));
   return new G.Response(decodedBody, init);
 };
 

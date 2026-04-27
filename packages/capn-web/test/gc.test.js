@@ -26,18 +26,22 @@ const collectMessages = transport => {
   return { wrapped, sent };
 };
 
-test('explicit Symbol.dispose on local export releases it', async t => {
+// Symbol.dispose is Stage 3 and only available on Node 20.11+ / 22+.  The
+// test below uses it as a computed property key, which would throw at module
+// load time on older runtimes — so we guard at module level and skip when
+// the symbol isn't available.
+const disposeTest = typeof Symbol.dispose === 'symbol' ? test : test.skip;
+
+disposeTest('explicit Symbol.dispose on local export releases it', async t => {
   let disposed = 0;
-  // A Far'd object with [Symbol.dispose].
+  // A Far'd object with [Symbol.dispose].  We assign with bracket notation
+  // (not a computed key in an object literal) so older runtimes can still
+  // parse this file even if the test is skipped.
   const handle = Object.create(null);
-  Object.assign(handle, {
-    ping() {
-      return 'pong';
-    },
-    [Symbol.dispose]() {
-      disposed += 1;
-    },
-  });
+  handle.ping = () => 'pong';
+  handle[Symbol.dispose] = () => {
+    disposed += 1;
+  };
   const farHandle = Far('handle', handle);
   const server = Far('server', { get: () => farHandle });
   const { a, b } = makeLoopbackPair();

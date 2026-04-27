@@ -9,7 +9,12 @@
 // return the captured outgoing messages — that's typically a thin wrapper
 // around `makeCapnWebSession` plus a synchronous `drain()` step; we don't
 // ship one in v1 because environments differ widely.
+//
+// The transport stays open across batches: each new outgoing message
+// schedules another POST.  Call `transport.abort()` (or end the session) to
+// stop the loop.
 
+/* global setTimeout */
 import harden from '@endo/harden';
 
 /**
@@ -18,6 +23,10 @@ import harden from '@endo/harden';
  * @param {(input: any, init: any) => Promise<any>} [opts.fetch]  Fetch
  *   implementation; defaults to globalThis.fetch.
  * @param {Record<string, string>} [opts.headers]  Additional request headers.
+ * @param {(reason: unknown) => void} [opts.onError]  Optional callback for
+ *   transport-level errors (network failures, non-2xx responses).  By default
+ *   such errors close the transport (waking pending `receive()` callers with
+ *   `null`) so the session sees end-of-stream.
  * @returns {import('../types.js').RpcTransport}
  */
 export const makeHttpBatchTransport = (url, opts = {}) => {
@@ -27,6 +36,7 @@ export const makeHttpBatchTransport = (url, opts = {}) => {
     throw new Error('makeHttpBatchTransport: no fetch available');
   }
   const baseHeaders = opts.headers || {};
+  const onError = opts.onError;
 
   /** @type {string[]} */
   const outBuf = [];
@@ -36,6 +46,23 @@ export const makeHttpBatchTransport = (url, opts = {}) => {
   const waiters = [];
   let closed = false;
   let scheduled = false;
+
+  // Forward declared so drain() can refer to it; defined just below.
+  /** @type {() => void} */
+  let scheduledDrain;
+
+  const closeWith = reason => {
+    if (closed) return;
+    closed = true;
+    for (const w of waiters.splice(0)) w(null);
+    if (onError && reason !== undefined) {
+      try {
+        onError(reason);
+      } catch (_e) {
+        /* swallow */
+      }
+    }
+  };
 
   const drain = async () => {
     scheduled = false;
@@ -53,11 +80,26 @@ export const makeHttpBatchTransport = (url, opts = {}) => {
         body,
       });
     } catch (e) {
-      closed = true;
-      for (const w of waiters.splice(0)) w(null);
-      throw e;
+      closeWith(e);
+      return;
     }
-    const text = /** @type {string} */ (await res.text());
+    if (!res || res.ok === false) {
+      const status = res && res.status;
+      const statusText = res && res.statusText;
+      closeWith(
+        new Error(
+          `HTTP batch request failed: ${status || 'no response'} ${statusText || ''}`.trim(),
+        ),
+      );
+      return;
+    }
+    let text;
+    try {
+      text = /** @type {string} */ (await res.text());
+    } catch (e) {
+      closeWith(e);
+      return;
+    }
     if (text.length > 0) {
       for (const line of text.split('\n')) {
         const w = waiters.shift();
@@ -65,17 +107,19 @@ export const makeHttpBatchTransport = (url, opts = {}) => {
         else inBuf.push(line);
       }
     }
-    // After a batch, the server has typically released everything; signal
-    // EOS so the session can exit cleanly.  Schedule another drain in case
-    // session emitted more during processing.
+    // The transport stays open: if more messages have queued during the
+    // round-trip, schedule another drain.  Otherwise we just sit waiting
+    // for the next send.
     if (outBuf.length > 0 && !scheduled) {
       scheduled = true;
-      // eslint-disable-next-line no-undef
-      setTimeout(drain, 0);
-    } else {
-      closed = true;
-      for (const w of waiters.splice(0)) w(null);
+      setTimeout(scheduledDrain, 0);
     }
+  };
+
+  // Wrap drain() so an unobserved rejection from the fetch chain can never
+  // escape as an unhandled rejection.
+  scheduledDrain = () => {
+    drain().catch(e => closeWith(e));
   };
 
   return harden({
@@ -84,8 +128,7 @@ export const makeHttpBatchTransport = (url, opts = {}) => {
       outBuf.push(m);
       if (!scheduled) {
         scheduled = true;
-        // eslint-disable-next-line no-undef
-        setTimeout(drain, 0);
+        setTimeout(scheduledDrain, 0);
       }
     },
     receive: () => {
@@ -94,8 +137,7 @@ export const makeHttpBatchTransport = (url, opts = {}) => {
       return new Promise(resolve => waiters.push(resolve));
     },
     abort: () => {
-      closed = true;
-      for (const w of waiters.splice(0)) w(null);
+      closeWith(undefined);
     },
   });
 };

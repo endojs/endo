@@ -140,21 +140,24 @@ interop('capnweb client → endo server: special values round-trip', async t => 
   t.is(await remoteMain.echo(undefined), undefined);
 });
 
-interop('endo client → capnweb server: capability passed both ways', async t => {
-  const { a, b } = makeLoopbackPair();
-  class Main extends capnweb.RpcTarget {
-    async use(helper, x) {
-      // helper is an Endo Far on the wire.  Calling .square(x) on it sends
-      // a method call back to the Endo side.
-      return helper.square(x);
+interop(
+  'endo client → capnweb server: capability passed both ways',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    class Main extends capnweb.RpcTarget {
+      async use(helper, x) {
+        // helper is an Endo Far on the wire.  Calling .square(x) on it sends
+        // a method call back to the Endo side.
+        return helper.square(x);
+      }
     }
-  }
-  // eslint-disable-next-line no-new
-  new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+    // eslint-disable-next-line no-new
+    new capnweb.RpcSession(adaptForCapnweb(b), new Main());
 
-  const helper = Far('helper', { square: x => x * x });
-  const endoClient = makeCapnWebSession(a, { gcImports: false });
-  const r = endoClient.getRemoteMain();
-  t.is(await E(r).use(helper, 9), 81);
-  endoClient.abort();
-});
+    const helper = Far('helper', { square: x => x * x });
+    const endoClient = makeCapnWebSession(a, { gcImports: false });
+    const r = endoClient.getRemoteMain();
+    t.is(await E(r).use(helper, 9), 81);
+    endoClient.abort();
+  },
+);

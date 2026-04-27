@@ -27,10 +27,7 @@ test('record + replay: property access', async t => {
 
 test('record + replay: nested property access', async t => {
   const rec = recordRemap(user => user.profile.email);
-  t.is(
-    await replayRemap(rec, { profile: { email: 'a@b.com' } }),
-    'a@b.com',
-  );
+  t.is(await replayRemap(rec, { profile: { email: 'a@b.com' } }), 'a@b.com');
 });
 
 test('record + replay: method call', async t => {

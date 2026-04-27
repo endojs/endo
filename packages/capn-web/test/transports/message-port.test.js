@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Use Node's worker_threads MessageChannel as a real MessagePort.
 
 import test from '@endo/ses-ava/test.js';

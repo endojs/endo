@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global globalThis */
 // Round-trip Headers, Request, Response across the wire.
 

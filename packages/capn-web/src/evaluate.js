@@ -7,11 +7,7 @@
 import harden from '@endo/harden';
 
 import { decodeSpecial, isSpecialTag, isRefTag } from './special-values.js';
-import {
-  decodeHeaders,
-  decodeRequest,
-  decodeResponse,
-} from './fetch-codec.js';
+import { decodeHeaders, decodeRequest, decodeResponse } from './fetch-codec.js';
 
 /**
  * @typedef {object} EvaluatorContext

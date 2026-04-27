@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global globalThis */
 // Wire-level support for ["writable", id] / ["readable", id].  We don't
 // implement full WritableStream-wrapper semantics yet — the test confirms
@@ -75,32 +76,29 @@ streamTest('JS ReadableStream is encoded as ["readable", -id]', async t => {
   t.deepEqual(arg, ['readable', -1]);
 });
 
-test(
-  'incoming ["writable", id] is usable as a remote capability',
-  async t => {
-    // Server "exports" a Far that the client interacts with as if it were
-    // a writable.  We don't synthesise a real WritableStream here — that's
-    // a layer we don't ship in v1.  We just verify the wire form decodes
-    // and the resulting stub supports E() method calls.
-    const writes = [];
-    const writable = Far('writable', {
-      write: chunk => {
-        writes.push(chunk);
-        return undefined;
-      },
-      close: () => 'closed',
-      abort: () => 'aborted',
-    });
-    const { a, b } = makeLoopbackPair();
-    const sessionA = makeCapnWebSession(a, { gcImports: false });
-    makeCapnWebSession(b, {
-      localMain: Far('s', { open: () => writable }),
-      gcImports: false,
-    });
-    const stub = await E(sessionA.getRemoteMain()).open();
-    await E(stub).write('hello');
-    await E(stub).write('world');
-    t.is(await E(stub).close(), 'closed');
-    t.deepEqual(writes, ['hello', 'world']);
-  },
-);
+test('incoming ["writable", id] is usable as a remote capability', async t => {
+  // Server "exports" a Far that the client interacts with as if it were
+  // a writable.  We don't synthesise a real WritableStream here — that's
+  // a layer we don't ship in v1.  We just verify the wire form decodes
+  // and the resulting stub supports E() method calls.
+  const writes = [];
+  const writable = Far('writable', {
+    write: chunk => {
+      writes.push(chunk);
+      return undefined;
+    },
+    close: () => 'closed',
+    abort: () => 'aborted',
+  });
+  const { a, b } = makeLoopbackPair();
+  const sessionA = makeCapnWebSession(a, { gcImports: false });
+  makeCapnWebSession(b, {
+    localMain: Far('s', { open: () => writable }),
+    gcImports: false,
+  });
+  const stub = await E(sessionA.getRemoteMain()).open();
+  await E(stub).write('hello');
+  await E(stub).write('world');
+  t.is(await E(stub).close(), 'closed');
+  t.deepEqual(writes, ['hello', 'world']);
+});

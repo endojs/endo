@@ -114,7 +114,9 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
       (typeof value === 'object' || typeof value === 'function') &&
       valueToExportId.has(/** @type {object} */ (value))
     ) {
-      const id = /** @type {number} */ (valueToExportId.get(/** @type {object} */ (value)));
+      const id = /** @type {number} */ (
+        valueToExportId.get(/** @type {object} */ (value))
+      );
       const entry = /** @type {ExportEntry} */ (exportsTable.get(id));
       entry.refcount += 1;
       return id;
@@ -164,7 +166,8 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
       exportsTable.delete(id);
       if (
         entry.value !== null &&
-        (typeof entry.value === 'object' || typeof entry.value === 'function') &&
+        (typeof entry.value === 'object' ||
+          typeof entry.value === 'function') &&
         valueToExportId.get(/** @type {object} */ (entry.value)) === id
       ) {
         valueToExportId.delete(/** @type {object} */ (entry.value));

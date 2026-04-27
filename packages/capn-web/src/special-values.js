@@ -36,7 +36,11 @@ export const isSpecialNumber = v =>
  */
 export const bytesToBase64 = bytes => {
   if (typeof Buffer !== 'undefined') {
-    return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('base64');
+    return Buffer.from(
+      bytes.buffer,
+      bytes.byteOffset,
+      bytes.byteLength,
+    ).toString('base64');
   }
   let binary = '';
   for (let i = 0; i < bytes.length; i += 1) {
@@ -145,6 +149,12 @@ export const decodeSpecial = expr => {
   }
 };
 
+// Tags handled by `decodeSpecial`/`tryEncodeSpecial` (atomic, leaf values).
+// Compound/structural fetch tags (`headers`, `request`, `response`) are
+// handled separately in `evaluate.js`/`devaluate.js` via `fetch-codec.js`,
+// because they need recursive (de)valuation.  Including them here would be a
+// lie that would route them through `decodeSpecial`, which doesn't know
+// about them.
 const SPECIAL_TAGS = harden(
   new Set([
     'undefined',
@@ -155,9 +165,6 @@ const SPECIAL_TAGS = harden(
     'date',
     'bytes',
     'error',
-    'headers',
-    'request',
-    'response',
   ]),
 );
 

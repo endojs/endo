@@ -7,10 +7,7 @@ import test from '@endo/ses-ava/test.js';
 import { Far } from '@endo/pass-style';
 import { E } from '@endo/eventual-send';
 
-import {
-  makeCapnWebSession,
-  makeWebSocketTransport,
-} from '../../src/index.js';
+import { makeCapnWebSession, makeWebSocketTransport } from '../../src/index.js';
 
 const makeFakeWebSocketPair = () => {
   /** @type {Array<{ a: any, b: any }>} */

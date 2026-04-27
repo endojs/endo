@@ -35,13 +35,27 @@ export const makeWebSocketTransport = socket => {
     buf.push(data);
   };
 
-  const onClose = () => {
+  const closeAndWake = reason => {
+    if (closed) return;
     closed = true;
+    if (reason !== undefined) closeReason = reason;
     for (const w of waiters.splice(0)) w(null);
   };
 
+  const onClose = () => closeAndWake(closeReason);
+
   const onError = ev => {
-    closeReason = ev?.error || new Error('websocket error');
+    // An "error" event is terminal even when no "close" follows: the
+    // session must see end-of-stream so it can abort.  We mark closed,
+    // wake any pending receive() callers, and try to actively close the
+    // socket.  closeReason is captured for any later diagnostic use.
+    const reason = ev?.error || ev || new Error('websocket error');
+    closeAndWake(reason);
+    try {
+      socket.close(3000, 'error');
+    } catch (_e) {
+      /* ignore */
+    }
   };
 
   socket.addEventListener('message', onMessage);
@@ -80,14 +94,12 @@ export const makeWebSocketTransport = socket => {
     },
     abort: reason => {
       if (closed) return;
-      closed = true;
       try {
         socket.close(3000, typeof reason === 'string' ? reason : 'abort');
       } catch (_e) {
         /* ignore */
       }
-      // closeReason captured for diagnostics; not currently surfaced.
-      closeReason = closeReason || reason;
+      closeAndWake(reason);
     },
   });
 };

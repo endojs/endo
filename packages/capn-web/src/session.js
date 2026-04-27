@@ -192,7 +192,8 @@ export const makeCapnWebSession = (transport, opts = {}) => {
    * @param {readonly unknown[] | undefined} args
    */
   function doPipelinedPush(rootId, path, args) {
-    if (aborted) return Promise.reject(abortReason || new Error('session aborted'));
+    if (aborted)
+      return Promise.reject(abortReason || new Error('session aborted'));
     const qid = nextOutgoingPushId;
     nextOutgoingPushId += 1;
     const expr = buildPipelineExpression(rootId, path, args);
@@ -205,6 +206,15 @@ export const makeCapnWebSession = (transport, opts = {}) => {
   }
 
   /**
+   * Send-only push: emits a regular spec-compliant `["push", expr]` and
+   * skips the matching `pull` so the peer is never asked to deliver the
+   * answer.  This wastes one export slot on the receiver until they
+   * release it (or we abort), but keeps us strictly within the documented
+   * Cap'n Web protocol.  We previously used `["stream", expr]` here, which
+   * is how cloudflare/capnweb spells fire-and-forget — but that tag isn't
+   * part of the "core six" message types the spec lists, so emitting it
+   * to a strict peer would risk an `unknown message tag` abort.
+   *
    * @param {number} rootId
    * @param {readonly PropertyKey[]} path
    * @param {readonly unknown[] | undefined} args
@@ -212,7 +222,12 @@ export const makeCapnWebSession = (transport, opts = {}) => {
   function doPipelinedPushSendOnly(rootId, path, args) {
     if (aborted) return;
     const expr = buildPipelineExpression(rootId, path, args);
-    sendMessage(['stream', expr]);
+    // Spec-compliant fire-and-forget: a push without a pull.  The peer
+    // will compute the answer and hold it in their exports table until we
+    // either release it or the session ends.  We still need to advance our
+    // outgoing-push id so the peer's exports table stays in sync.
+    nextOutgoingPushId += 1;
+    sendMessage(['push', expr]);
   }
 
   /**
@@ -275,7 +290,10 @@ export const makeCapnWebSession = (transport, opts = {}) => {
           handleResolve(/** @type {number} */ (rest[0]), rest[1], true);
           break;
         case 'release':
-          handleRelease(/** @type {number} */ (rest[0]), /** @type {number} */ (rest[1]));
+          handleRelease(
+            /** @type {number} */ (rest[0]),
+            /** @type {number} */ (rest[1]),
+          );
           break;
         case 'abort':
           handleAbort(rest[0]);
@@ -335,10 +353,7 @@ export const makeCapnWebSession = (transport, opts = {}) => {
           : ['pipeline', id];
       const target = await Promise.resolve(executePushExpression(targetExpr));
       const captures = (capturesExpr || []).map(c => evaluator.evaluate(c));
-      return replayRemap(
-        { instructions, captures, answerRef },
-        target,
-      );
+      return replayRemap({ instructions, captures, answerRef }, target);
     }
     if (
       Array.isArray(expr) &&
@@ -414,7 +429,11 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     if (!entry) {
       // The peer is asking about an id we don't have; could happen if we
       // released it concurrently.  Reply with a generic error.
-      sendMessage(['reject', id, devaluator.devaluate(new Error(`unknown export ${id}`))]);
+      sendMessage([
+        'reject',
+        id,
+        devaluator.devaluate(new Error(`unknown export ${id}`)),
+      ]);
       return;
     }
     try {
@@ -465,10 +484,9 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     } catch (_e) {
       reason = new Error('peer aborted with unparseable reason');
     }
-    aborted = true;
-    abortReason = reason;
-    rejectAllPending(reason);
-    onAbort(reason);
+    // Peer-initiated abort: do all the same cleanup as a local abort,
+    // except don't echo an abort message back at the peer.
+    teardown(reason, false);
   }
 
   /**
@@ -485,32 +503,54 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     pendingPushAnswers.clear();
   }
 
-  // ------- abort -------
+  // ------- abort / teardown -------
 
   /**
-   * @param {unknown} [reason]
+   * Common teardown: marks the session aborted, releases all tables,
+   * rejects outstanding pushes, closes the underlying transport, and
+   * notifies the user-provided onAbort callback.
+   *
+   * @param {unknown} reason
+   * @param {boolean} sendAbortMessage  If true, attempt to notify the
+   *   peer with `["abort", reason]` before closing the transport.
    */
-  function abort(reason) {
+  function teardown(reason, sendAbortMessage) {
     if (aborted) return;
     aborted = true;
-    abortReason = reason || new Error('session aborted');
-    try {
-      const expr = devaluator.devaluate(abortReason);
-      const raw = JSON.stringify(['abort', expr]);
-      Promise.resolve(transport.send(raw)).catch(noop);
-    } catch (_e) {
-      /* ignore */
-    }
-    if (transport.abort) {
+    abortReason = reason;
+    if (sendAbortMessage) {
       try {
-        transport.abort(abortReason);
+        const expr = devaluator.devaluate(reason);
+        const raw = JSON.stringify(['abort', expr]);
+        Promise.resolve(transport.send(raw)).catch(noop);
       } catch (_e) {
         /* ignore */
       }
     }
-    rejectAllPending(abortReason);
+    if (transport.abort) {
+      try {
+        transport.abort(reason);
+      } catch (_e) {
+        /* ignore */
+      }
+    }
+    rejectAllPending(reason);
     tables.clear();
-    onAbort(abortReason);
+    try {
+      onAbort(reason);
+    } catch (_e) {
+      /* ignore */
+    }
+  }
+
+  /**
+   * Locally initiated abort.  Notifies the peer via `["abort", reason]`,
+   * then performs the standard teardown.
+   *
+   * @param {unknown} [reason]
+   */
+  function abort(reason) {
+    teardown(reason || new Error('session aborted'), true);
   }
 
   // ------- public api -------

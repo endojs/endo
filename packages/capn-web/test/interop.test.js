@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Wire-format interop tests.  Verify that the messages we put on the wire
 // match the shape documented at
 // https://github.com/cloudflare/capnweb/blob/main/protocol.md
@@ -49,7 +50,10 @@ test('outgoing argument shape: BigInt becomes ["bigint", str]', async t => {
     gcImports: false,
   });
   await E(sessionA.getRemoteMain()).echo(123n);
-  t.deepEqual(sent[0], ['push', ['pipeline', 0, ['echo'], [['bigint', '123']]]]);
+  t.deepEqual(sent[0], [
+    'push',
+    ['pipeline', 0, ['echo'], [['bigint', '123']]],
+  ]);
 });
 
 test('outgoing argument shape: Date becomes ["date", ms]', async t => {
@@ -73,7 +77,10 @@ test('outgoing argument shape: Uint8Array becomes ["bytes", b64]', async t => {
     gcImports: false,
   });
   await E(sessionA.getRemoteMain()).echo(new Uint8Array([1, 2, 3]));
-  t.deepEqual(sent[0], ['push', ['pipeline', 0, ['echo'], [['bytes', 'AQID']]]]);
+  t.deepEqual(sent[0], [
+    'push',
+    ['pipeline', 0, ['echo'], [['bytes', 'AQID']]],
+  ]);
 });
 
 test('outgoing argument shape: undefined becomes ["undefined"]', async t => {

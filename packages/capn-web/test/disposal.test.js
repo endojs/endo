@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global setTimeout */
 import test from '@endo/ses-ava/test.js';
 import { Far } from '@endo/pass-style';
@@ -12,7 +13,10 @@ import {
 const makePair = bMain => {
   const { a, b } = makeLoopbackPair();
   const sessionA = makeCapnWebSession(a, { gcImports: false });
-  const sessionB = makeCapnWebSession(b, { localMain: bMain, gcImports: false });
+  const sessionB = makeCapnWebSession(b, {
+    localMain: bMain,
+    gcImports: false,
+  });
   return { sessionA, sessionB };
 };
 

@@ -118,6 +118,12 @@ bidirectional method invocation all work both directions.
   `ReadableStream` values are encoded as `["writable", -id]` /
   `["readable", -id]`, but the receiver gets a plain presence stub rather
   than a synthesised host-side `WritableStream` wrapper.
+- Sender-side `["stream", …]` (cloudflare/capnweb's fire-and-forget
+  variant) is intentionally not emitted: send-only calls use a normal
+  `["push", expr]` *without* a paired `["pull", id]`, which is strictly
+  spec-compliant and works against any conforming peer. The trade-off
+  is one wasted exports-table slot per send-only call until the peer
+  sees a release. Receiving `["stream", expr]` from a peer is supported.
 - `Request`/`Response` headers don't round-trip under the strict SES-lockdown
   ses-ava config (Node's undici-backed `Headers` can't be iterated against
   frozen internal slots). Standalone `Headers` round-trip everywhere; URL
