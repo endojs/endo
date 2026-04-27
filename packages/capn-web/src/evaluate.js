@@ -1,0 +1,113 @@
+// Evaluator: turn a Cap'n Web wire expression into a live JS value.
+//
+// This is the dual of `devaluate.js`.  Reference forms (["import", id],
+// ["pipeline", id], ["export", id], ["promise", id]) consult the session's
+// stub tables and either reuse an existing entry or allocate a new stub.
+
+import harden from '@endo/harden';
+
+import { decodeSpecial, isSpecialTag, isRefTag } from './special-values.js';
+
+/**
+ * @typedef {object} EvaluatorContext
+ * @property {(id: number) => object} getOrMakePresence
+ *   Return the presence stub at the given id, creating one if needed.
+ * @property {(id: number) => Promise<unknown>} getOrMakePromise
+ *   Return the promise stub at the given id, creating one if needed.
+ * @property {(id: number) => unknown} getExportValue
+ *   Return the locally-hosted value at the given (positive or negative) id.
+ *   Used for ["import", id] / ["pipeline", id] referring to OUR exports
+ *   (sender's imports = our exports).
+ */
+
+/**
+ * @param {EvaluatorContext} ctx
+ */
+export const makeEvaluator = ctx => {
+  /**
+   * @param {unknown} expr
+   * @returns {unknown}
+   */
+  const evaluate = expr => {
+    if (expr === null) return null;
+    if (typeof expr === 'string') return expr;
+    if (typeof expr === 'boolean') return expr;
+    if (typeof expr === 'number') return expr;
+
+    if (Array.isArray(expr)) {
+      // Escaped array literal: [[<inner>]]
+      if (expr.length === 1 && Array.isArray(expr[0])) {
+        return expr[0].map(v => evaluate(v));
+      }
+      const [tag, ...rest] = expr;
+      if (typeof tag !== 'string') {
+        throw new TypeError('expression array must begin with a string tag');
+      }
+      if (isSpecialTag(tag)) {
+        return decodeSpecial(expr);
+      }
+      if (isRefTag(tag)) {
+        return evaluateRef(tag, rest);
+      }
+      throw new TypeError(`unknown expression tag: ${tag}`);
+    }
+
+    if (typeof expr === 'object') {
+      // Plain object: recurse on values.
+      /** @type {Record<string, unknown>} */
+      const out = {};
+      for (const [k, v] of Object.entries(/** @type {object} */ (expr))) {
+        out[k] = evaluate(v);
+      }
+      return out;
+    }
+
+    throw new TypeError(`unsupported expression type: ${typeof expr}`);
+  };
+
+  /**
+   * @param {string} tag
+   * @param {unknown[]} rest
+   */
+  const evaluateRef = (tag, rest) => {
+    if (tag === 'import' || tag === 'pipeline') {
+      const [id, path, args] = rest;
+      if (typeof id !== 'number') {
+        throw new TypeError(`${tag} id must be a number`);
+      }
+      // Sender's perspective: ["import", id] refers to id in the sender's
+      // imports table, which is OUR exports table — regardless of sign.
+      // (The sign tells us which side allocated the id; for lookup, both
+      // signs land in our exports.)
+      if ((path === undefined || path === null) && args === undefined) {
+        return ctx.getExportValue(id);
+      }
+      // import/pipeline can carry path/args — meaning "the value of calling
+      // path(args) on the referenced target".  Only the push/stream
+      // dispatcher handles this form at top level (see executePushExpression
+      // in session.js); seeing it inline (e.g. nested in args) is not
+      // supported.
+      throw new TypeError(
+        `evaluating inline pipelined ${tag} is not supported`,
+      );
+    }
+    if (tag === 'export' || tag === 'promise') {
+      const [id] = rest;
+      if (typeof id !== 'number') {
+        throw new TypeError(`${tag} id must be a number`);
+      }
+      // The sender is introducing one of THEIR exports as a fresh capability
+      // for us.  We install it in our imports.
+      if (tag === 'promise') {
+        return ctx.getOrMakePromise(id);
+      }
+      return ctx.getOrMakePresence(id);
+    }
+    if (tag === 'remap') {
+      throw new TypeError('remap evaluation handled separately');
+    }
+    throw new TypeError(`unknown ref tag: ${tag}`);
+  };
+
+  return harden({ evaluate });
+};

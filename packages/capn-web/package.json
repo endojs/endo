@@ -1,0 +1,89 @@
+{
+  "name": "@endo/capn-web",
+  "version": "0.1.0",
+  "description": "Cap'n Web RPC for the browser, on top of @endo/eventual-send",
+  "type": "module",
+  "keywords": [
+    "endo",
+    "capnweb",
+    "rpc",
+    "eventual-send",
+    "object-capabilities"
+  ],
+  "author": "Endo contributors",
+  "homepage": "https://github.com/endojs/endo#readme",
+  "license": "Apache-2.0",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./loopback.js": "./src/transports/loopback.js",
+    "./websocket.js": "./src/transports/websocket.js",
+    "./http-batch.js": "./src/transports/http-batch.js",
+    "./message-port.js": "./src/transports/message-port.js",
+    "./package.json": "./package.json"
+  },
+  "module": "src/index.js",
+  "directories": {
+    "src": "src",
+    "test": "test"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/capn-web"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
+    "postpack": "git clean -fX -e node_modules/",
+    "test": "ses-ava",
+    "test:xs": "exit 0",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint": "yarn lint:eslint && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc"
+  },
+  "devDependencies": {
+    "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "ses": "workspace:^",
+    "typescript": "catalog:dev"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/pass-style": "workspace:^",
+    "@endo/promise-kit": "workspace:^"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "endo": "../../ava-endo-shims-only.config.mjs"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "typeCoverage": {
+    "atLeast": 0
+  }
+}

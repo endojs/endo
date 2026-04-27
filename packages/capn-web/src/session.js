@@ -1,0 +1,544 @@
+// Cap'n Web session.
+//
+// Wires together a transport, the imports/exports tables, the devaluator and
+// evaluator, the stub factories, and the message dispatch loop.
+
+import harden from '@endo/harden';
+
+import { makeTables } from './tables.js';
+import { makeDevaluator } from './devaluate.js';
+import { makeEvaluator } from './evaluate.js';
+import { makePresenceStub, makePromiseStub } from './stubs.js';
+import { walkPathAndCall } from './walk-path.js';
+import { recordRemap, replayRemap } from './remap.js';
+
+const noop = () => {};
+
+/**
+ * @param {import('./types.js').RpcTransport} transport
+ * @param {object} [opts]
+ * @param {unknown} [opts.localMain]   The local "main" interface, accessible
+ *   by the peer as ["pipeline", 0, ...] / ["import", 0].  May be undefined.
+ * @param {boolean} [opts.gcImports]   Use weak refs + FinalizationRegistry
+ *   to drop imported stubs automatically when no longer reachable.  Default
+ *   true.
+ * @param {(reason?: unknown) => void} [opts.onAbort]  Optional callback when
+ *   the session aborts.
+ */
+export const makeCapnWebSession = (transport, opts = {}) => {
+  const { localMain, gcImports = true, onAbort = noop } = opts;
+
+  let aborted = false;
+  /** @type {unknown} */
+  let abortReason;
+
+  // ------- table + counters -------
+
+  const tables = makeTables({
+    gcImports,
+    sendRelease: (id, refcount) => {
+      if (aborted) return;
+      sendMessage(['release', id, refcount]);
+    },
+  });
+
+  // Bootstrap: id 0 is the local main on our side; the peer reaches it via
+  // ["import", 0] / ["pipeline", 0, ...].
+  if (localMain !== undefined) {
+    tables.installExportAtId(0, localMain, false);
+  } else {
+    tables.installExportAtId(0, harden({}), false);
+  }
+
+  let nextOutgoingPushId = 1;
+  let nextIncomingPushId = 1;
+
+  // ------- pending resolutions -------
+
+  /**
+   * For each push we issued (outgoing), the resolver pair to fulfil when
+   * a resolve/reject arrives, plus the cached result for an early-arriving
+   * resolution.
+   * @type {Map<number, { resolve: (v: unknown) => void, reject: (e: unknown) => void }>}
+   */
+  const pendingPushAnswers = new Map();
+
+  /**
+   * For each export promise we've sent (negative id, isPromise=true),
+   * track that we still need to send a resolve/reject.  When the local
+   * promise settles we send the message and remove the entry.
+   * @type {Set<number>}
+   */
+  const pendingExportPromises = new Set();
+
+  // ------- devaluate / evaluate -------
+
+  const devaluator = makeDevaluator({
+    importIdOf: v => tables.importIdOf(v),
+    promiseImportIdOf: v => tables.importIdOf(v),
+    exportValue: (value, isPromise) => {
+      const id = tables.exportValue(value, isPromise);
+      if (isPromise) {
+        attachExportedPromise(id, /** @type {Promise<unknown>} */ (value));
+      }
+      return id;
+    },
+    attachPromise: noop, // already handled in exportValue
+  });
+
+  const stubMachinery = harden({
+    sendPipelinedPush: (rootId, path, args) => {
+      return doPipelinedPush(rootId, path, args);
+    },
+    sendPipelinedPushSendOnly: (rootId, path, args) => {
+      doPipelinedPushSendOnly(rootId, path, args);
+    },
+    registerStub: noop,
+    registerPromiseStub: noop,
+  });
+
+  const evaluator = makeEvaluator({
+    getOrMakePresence: id => getOrMakePresence(id),
+    getOrMakePromise: id => getOrMakePromise(id),
+    getExportValue: id => {
+      const entry = tables.getExport(id);
+      if (!entry) {
+        throw new Error(`unknown export id ${id}`);
+      }
+      return entry.value;
+    },
+  });
+
+  /**
+   * @param {number} id
+   * @returns {object}
+   */
+  function getOrMakePresence(id) {
+    const existing = tables.getImport(id);
+    if (existing) {
+      tables.reintroduceImport(id);
+      return existing;
+    }
+    const presence = makePresenceStub(id, stubMachinery);
+    tables.installImport(id, presence, false);
+    return presence;
+  }
+
+  /**
+   * @param {number} id
+   * @returns {Promise<unknown>}
+   */
+  function getOrMakePromise(id) {
+    const existing = tables.getImport(id);
+    if (existing) {
+      tables.reintroduceImport(id);
+      return /** @type {Promise<unknown>} */ (existing);
+    }
+    const { promise, resolve, reject } = makePromiseStub(id, stubMachinery);
+    tables.installImport(id, /** @type {object} */ (promise), true);
+    pendingPushAnswers.set(id, { resolve, reject });
+    return promise;
+  }
+
+  /**
+   * Hook a local promise that we just exported.  When it settles, send the
+   * peer a resolve or reject.
+   * @param {number} id
+   * @param {Promise<unknown>} p
+   */
+  function attachExportedPromise(id, p) {
+    if (pendingExportPromises.has(id)) return;
+    pendingExportPromises.add(id);
+    Promise.resolve(p).then(
+      v => {
+        if (aborted) return;
+        pendingExportPromises.delete(id);
+        sendMessage(['resolve', id, devaluator.devaluate(v)]);
+      },
+      e => {
+        if (aborted) return;
+        pendingExportPromises.delete(id);
+        sendMessage(['reject', id, devaluator.devaluate(e)]);
+      },
+    );
+  }
+
+  // ------- send/receive -------
+
+  /**
+   * @param {unknown[]} message
+   */
+  function sendMessage(message) {
+    if (aborted) return;
+    let serialized;
+    try {
+      serialized = JSON.stringify(message);
+    } catch (e) {
+      abort(e);
+      return;
+    }
+    Promise.resolve(transport.send(serialized)).catch(e => abort(e));
+  }
+
+  // ------- outgoing pushes -------
+
+  /**
+   * @param {number} rootId
+   * @param {readonly PropertyKey[]} path
+   * @param {readonly unknown[] | undefined} args
+   */
+  function doPipelinedPush(rootId, path, args) {
+    if (aborted) return Promise.reject(abortReason || new Error('session aborted'));
+    const qid = nextOutgoingPushId;
+    nextOutgoingPushId += 1;
+    const expr = buildPipelineExpression(rootId, path, args);
+    sendMessage(['push', expr]);
+    sendMessage(['pull', qid]);
+    const { promise, resolve, reject } = makePromiseStub(qid, stubMachinery);
+    tables.installImport(qid, /** @type {object} */ (promise), true);
+    pendingPushAnswers.set(qid, { resolve, reject });
+    return promise;
+  }
+
+  /**
+   * @param {number} rootId
+   * @param {readonly PropertyKey[]} path
+   * @param {readonly unknown[] | undefined} args
+   */
+  function doPipelinedPushSendOnly(rootId, path, args) {
+    if (aborted) return;
+    const expr = buildPipelineExpression(rootId, path, args);
+    sendMessage(['stream', expr]);
+  }
+
+  /**
+   * @param {number} rootId
+   * @param {readonly PropertyKey[]} path
+   * @param {readonly unknown[] | undefined} args
+   */
+  function buildPipelineExpression(rootId, path, args) {
+    const pathStr = path.map(p => {
+      if (typeof p === 'string') return p;
+      if (typeof p === 'number') return p;
+      throw new TypeError('symbol property keys are not supported on the wire');
+    });
+    if (args === undefined) {
+      return ['pipeline', rootId, pathStr];
+    }
+    const argsExpr = args.map(a => devaluator.devaluate(a));
+    return ['pipeline', rootId, pathStr, argsExpr];
+  }
+
+  // ------- incoming dispatch -------
+
+  /**
+   * Dispatch one incoming message.  Synchronously decodes and starts the
+   * appropriate handler, but does NOT await any handler that may block
+   * (push, pull) — those run as detached async tasks so the receive loop
+   * stays responsive to concurrent traffic.
+   *
+   * @param {string} raw
+   */
+  function handleMessage(raw) {
+    if (aborted) return;
+    let message;
+    try {
+      message = JSON.parse(raw);
+    } catch (e) {
+      abort(e);
+      return;
+    }
+    if (!Array.isArray(message) || typeof message[0] !== 'string') {
+      abort(new TypeError('malformed message'));
+      return;
+    }
+    const [tag, ...rest] = message;
+    try {
+      switch (tag) {
+        case 'push':
+          handlePush(rest[0], false).catch(e => abort(e));
+          break;
+        case 'stream':
+          handlePush(rest[0], true).catch(e => abort(e));
+          break;
+        case 'pull':
+          handlePull(/** @type {number} */ (rest[0])).catch(e => abort(e));
+          break;
+        case 'resolve':
+          handleResolve(/** @type {number} */ (rest[0]), rest[1], false);
+          break;
+        case 'reject':
+          handleResolve(/** @type {number} */ (rest[0]), rest[1], true);
+          break;
+        case 'release':
+          handleRelease(/** @type {number} */ (rest[0]), /** @type {number} */ (rest[1]));
+          break;
+        case 'abort':
+          handleAbort(rest[0]);
+          break;
+        default:
+          throw new TypeError(`unknown message tag: ${tag}`);
+      }
+    } catch (e) {
+      abort(e);
+    }
+  }
+
+  /**
+   * @param {unknown} expr
+   * @param {boolean} isStream  If true, no answer should be sent and the
+   *   answer id is auto-released.
+   */
+  async function handlePush(expr, isStream) {
+    const qid = nextIncomingPushId;
+    nextIncomingPushId += 1;
+
+    /** @type {Promise<unknown>} */
+    const answer = (async () => executePushExpression(expr))();
+    tables.installExportAtId(qid, answer, true);
+
+    if (isStream) {
+      // Auto-pull, auto-release.
+      try {
+        const v = await answer;
+        if (!aborted) {
+          sendMessage(['resolve', qid, devaluator.devaluate(v)]);
+        }
+      } catch (e) {
+        if (!aborted) {
+          sendMessage(['reject', qid, devaluator.devaluate(e)]);
+        }
+      }
+      // Receiver should auto-release on its side; we drop locally.
+      tables.releaseExport(qid, 1);
+    }
+    // Otherwise wait for an explicit ["pull", qid].
+  }
+
+  /**
+   * @param {unknown} expr
+   * @returns {Promise<unknown>}
+   */
+  async function executePushExpression(expr) {
+    if (Array.isArray(expr) && expr[0] === 'remap') {
+      // ["remap", id, path, captures, instructions, answerRef] — endo
+      // extension carrying the answerRef explicitly so the user's mapper
+      // can return any of the recorded values (or input directly).
+      const [, id, path, capturesExpr, instructions, answerRef = 0] = expr;
+      const targetExpr =
+        path && path.length > 0 ? ['pipeline', id, path] : ['pipeline', id];
+      const target = await Promise.resolve(executePushExpression(targetExpr));
+      const captures = (capturesExpr || []).map(c => evaluator.evaluate(c));
+      return replayRemap(
+        { instructions, captures, answerRef },
+        target,
+      );
+    }
+    if (
+      Array.isArray(expr) &&
+      (expr[0] === 'pipeline' || expr[0] === 'import')
+    ) {
+      const id = /** @type {number} */ (expr[1]);
+      const path = /** @type {PropertyKey[] | undefined} */ (expr[2]);
+      const args = /** @type {unknown[] | undefined} */ (expr[3]);
+      const root = lookupReferenceForExecution(id);
+      if (path === undefined && args === undefined) return root;
+      const evaluatedArgs =
+        args === undefined ? undefined : args.map(a => evaluator.evaluate(a));
+      return walkPathAndCall(root, path || [], evaluatedArgs);
+    }
+    return evaluator.evaluate(expr);
+  }
+
+  // ------- public helpers -------
+
+  /**
+   * Issue a `["remap", ...]` push that runs `mapper` on the peer side against
+   * each input, returning a promise for the result.
+   *
+   * @param {object} stub  An imported presence whose handler we own.
+   * @param {(input: unknown) => unknown} mapper
+   * @returns {Promise<unknown>}
+   */
+  function callRemap(stub, mapper) {
+    const id = tables.importIdOf(stub);
+    if (id === undefined) {
+      throw new Error('callRemap: argument is not a remote stub');
+    }
+    const recording = recordRemap(mapper);
+    const captures = recording.captures.map(c => devaluator.devaluate(c));
+    const expr = [
+      'remap',
+      id,
+      [],
+      captures,
+      recording.instructions,
+      recording.answerRef,
+    ];
+    if (aborted) {
+      return Promise.reject(abortReason || new Error('session aborted'));
+    }
+    const qid = nextOutgoingPushId;
+    nextOutgoingPushId += 1;
+    sendMessage(['push', expr]);
+    sendMessage(['pull', qid]);
+    const { promise, resolve, reject } = makePromiseStub(qid, stubMachinery);
+    tables.installImport(qid, /** @type {object} */ (promise), true);
+    pendingPushAnswers.set(qid, { resolve, reject });
+    return promise;
+  }
+
+  /**
+   * Look up an id for execution: a top-level ["pipeline", id, ...] in a
+   * push always refers to the sender's imports = our exports, regardless of
+   * sign.  (The sign just records which side allocated the id.)
+   * @param {number} id
+   */
+  function lookupReferenceForExecution(id) {
+    const entry = tables.getExport(id);
+    if (!entry) throw new Error(`unknown export id ${id}`);
+    return entry.value;
+  }
+
+  /**
+   * @param {number} id
+   */
+  async function handlePull(id) {
+    const entry = tables.getExport(id);
+    if (!entry) {
+      // The peer is asking about an id we don't have; could happen if we
+      // released it concurrently.  Reply with a generic error.
+      sendMessage(['reject', id, devaluator.devaluate(new Error(`unknown export ${id}`))]);
+      return;
+    }
+    try {
+      const v = await Promise.resolve(entry.value);
+      if (aborted) return;
+      sendMessage(['resolve', id, devaluator.devaluate(v)]);
+    } catch (e) {
+      if (aborted) return;
+      sendMessage(['reject', id, devaluator.devaluate(e)]);
+    }
+  }
+
+  /**
+   * @param {number} id
+   * @param {unknown} expr
+   * @param {boolean} isReject
+   */
+  function handleResolve(id, expr, isReject) {
+    const pending = pendingPushAnswers.get(id);
+    if (!pending) return;
+    pendingPushAnswers.delete(id);
+    let value;
+    try {
+      value = evaluator.evaluate(expr);
+    } catch (e) {
+      pending.reject(e);
+      return;
+    }
+    if (isReject) pending.reject(value);
+    else pending.resolve(value);
+  }
+
+  /**
+   * @param {number} id
+   * @param {number} refcount
+   */
+  function handleRelease(id, refcount) {
+    tables.releaseExport(id, refcount);
+  }
+
+  /**
+   * @param {unknown} expr
+   */
+  function handleAbort(expr) {
+    let reason;
+    try {
+      reason = evaluator.evaluate(expr);
+    } catch (_e) {
+      reason = new Error('peer aborted with unparseable reason');
+    }
+    aborted = true;
+    abortReason = reason;
+    rejectAllPending(reason);
+    onAbort(reason);
+  }
+
+  /**
+   * @param {unknown} reason
+   */
+  function rejectAllPending(reason) {
+    for (const { reject } of pendingPushAnswers.values()) {
+      try {
+        reject(reason);
+      } catch (_e) {
+        /* ignore */
+      }
+    }
+    pendingPushAnswers.clear();
+  }
+
+  // ------- abort -------
+
+  /**
+   * @param {unknown} [reason]
+   */
+  function abort(reason) {
+    if (aborted) return;
+    aborted = true;
+    abortReason = reason || new Error('session aborted');
+    try {
+      const expr = devaluator.devaluate(abortReason);
+      const raw = JSON.stringify(['abort', expr]);
+      Promise.resolve(transport.send(raw)).catch(noop);
+    } catch (_e) {
+      /* ignore */
+    }
+    if (transport.abort) {
+      try {
+        transport.abort(abortReason);
+      } catch (_e) {
+        /* ignore */
+      }
+    }
+    rejectAllPending(abortReason);
+    tables.clear();
+    onAbort(abortReason);
+  }
+
+  // ------- public api -------
+
+  /**
+   * @returns {object} the peer's main interface as a presence stub.
+   */
+  const getRemoteMain = () => getOrMakePresence(0);
+
+  // ------- start the receive loop -------
+
+  (async () => {
+    while (!aborted) {
+      let raw;
+      try {
+        raw = await transport.receive();
+      } catch (e) {
+        abort(e);
+        return;
+      }
+      if (raw === null || raw === undefined) {
+        // Treat null receive as end-of-stream.
+        abort(new Error('transport closed'));
+        return;
+      }
+      handleMessage(raw);
+    }
+  })().catch(e => abort(e));
+
+  return harden({
+    getRemoteMain,
+    callRemap,
+    abort,
+    getStats: () => tables.getStats(),
+    isAborted: () => aborted,
+  });
+};
