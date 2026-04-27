@@ -11,8 +11,10 @@ test('makeLoopback yields working near + far + registerInterface', async t => {
   const lb = makeLoopback({ farBootstrap: root });
   lb.registerInterface({ id: 0xa1n, methods: { add: 0 } });
   const remote = lb.near.getBootstrap();
-  t.is(await E(remote).add(2, 3), 5);
-  t.is(await E(remote).add(10, 20), 30);
+  const sum1 = await E(remote).add(2, 3);
+  t.is(sum1, 5);
+  const sum2 = await E(remote).add(10, 20);
+  t.is(sum2, 30);
 });
 
 test('makeLoopback shares an InterfaceRegistry across both ends', t => {
