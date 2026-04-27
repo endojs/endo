@@ -1,5 +1,5 @@
 // @ts-check
-/* global atob, btoa */
+/* global globalThis, atob, btoa */
 /**
  * Trap: synchronous round-trip via SharedArrayBuffer + Atomics.
  *

@@ -1,5 +1,5 @@
 // @ts-check
-/* global Buffer, atob, btoa */
+/* global globalThis, atob, btoa */
 /**
  * Payload codec for Call/Return parameters.
  *
