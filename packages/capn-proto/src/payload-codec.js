@@ -1,4 +1,5 @@
 // @ts-check
+/* global Buffer, atob, btoa */
 /**
  * Payload codec for Call/Return parameters.
  *
@@ -43,22 +44,21 @@ const CAP_TAG = '@cap:';
 const BIGINT_TAG = '@bigint:';
 const BYTES_TAG = '@bytes:';
 
+const hasBuffer = typeof Buffer !== 'undefined';
 const toBase64 = bytes => {
   // Assume Node-compatible Buffer or browser btoa.
-  if (typeof Buffer !== 'undefined') {
+  if (hasBuffer) {
     return Buffer.from(bytes).toString('base64');
   }
   let bin = '';
   for (let i = 0; i < bytes.length; i += 1)
     bin += String.fromCharCode(bytes[i]);
-  // eslint-disable-next-line no-undef
   return btoa(bin);
 };
 const fromBase64 = s => {
-  if (typeof Buffer !== 'undefined') {
+  if (hasBuffer) {
     return new Uint8Array(Buffer.from(s, 'base64'));
   }
-  // eslint-disable-next-line no-undef
   const bin = atob(s);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);

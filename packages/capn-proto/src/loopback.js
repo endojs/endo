@@ -39,18 +39,21 @@ export const makeLoopback = (opts = {}) => {
     Promise.resolve().then(flush);
   };
 
-  // eslint-disable-next-line prefer-const
-  let near;
-  let far;
-  near = makeCapnp({
+  // The two halves of the loopback hold mutual references to each other
+  // through their `send` callbacks. We wrap each in a tiny indirection
+  // object so we can construct them in order without a let-then-assign
+  // pattern that prefer-const objects to.
+  /** @type {{ ref: ReturnType<typeof makeCapnp> | undefined }} */
+  const farRef = { ref: undefined };
+  const near = makeCapnp({
     send: framed => {
-      farInbox.push(() => far.dispatch(framed));
+      farInbox.push(() => /** @type {any} */ (farRef.ref).dispatch(framed));
       schedule();
     },
     bootstrap: opts.nearBootstrap,
     interfaceRegistry,
   });
-  far = makeCapnp({
+  const far = makeCapnp({
     send: framed => {
       nearInbox.push(() => near.dispatch(framed));
       schedule();
@@ -58,6 +61,7 @@ export const makeLoopback = (opts = {}) => {
     bootstrap: opts.farBootstrap,
     interfaceRegistry,
   });
+  farRef.ref = far;
 
   return {
     near,

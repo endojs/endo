@@ -30,10 +30,10 @@ export const extendPath = (prefix, step) => [...prefix, step];
 export const followTransform = (value, transform, pointerFieldByOrdinal) => {
   let v = value;
   for (const op of transform) {
-    if (op.op === 'noop') continue;
     if (op.op === 'getPointerField') {
       v = pointerFieldByOrdinal(/** @type {number} */ (op.fieldOrdinal));
     }
+    // 'noop' and any unrecognised op are silently skipped.
   }
   return v;
 };

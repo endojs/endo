@@ -183,7 +183,10 @@ export const writeUint16 = (loc, byteIdx, value) => {
   );
 };
 
-/** @param {StructLocation} loc */
+/**
+ * @param {StructLocation} loc
+ * @param {number} byteIdx
+ */
 export const readUint32 = (loc, byteIdx) => {
   if (byteIdx + 4 > loc.dataWords * WORD_SIZE) return 0;
   return loc.msg
@@ -208,7 +211,10 @@ export const writeUint32 = (loc, byteIdx, value) => {
   );
 };
 
-/** @param {StructLocation} loc */
+/**
+ * @param {StructLocation} loc
+ * @param {number} byteIdx
+ */
 export const readUint64 = (loc, byteIdx) => {
   if (byteIdx + 8 > loc.dataWords * WORD_SIZE) return 0n;
   return loc.msg

@@ -117,6 +117,14 @@ const readException = loc => {
  *  PromisedAnswer
  * ===================================================================== */
 
+/**
+ * @param {any} msg
+ * @param {{ segId: number, wordOffset: number }} slot
+ * @param {{
+ *   questionId: number,
+ *   transform?: Array<{ op: string, fieldOrdinal?: number }>,
+ * }} pa
+ */
 const writePromisedAnswer = (msg, slot, pa) => {
   const s = allocStruct(msg, slot, S.PA_DATA_WORDS, S.PA_PTR_WORDS);
   writeUint32(s, S.PA_QUESTION_ID_BO, pa.questionId);
@@ -131,11 +139,12 @@ const writePromisedAnswer = (msg, slot, pa) => {
     for (let i = 0; i < pa.transform.length; i += 1) {
       const op = pa.transform[i];
       const elem = compositeElement(msg, list, i);
-      if (op.op === 'noop') {
+      const opName = String(op.op);
+      if (opName === 'noop') {
         writeUint16(elem, S.PA_OP_TAG_BO, S.PA_OP_TAG_NOOP);
-      } else if (op.op === 'getPointerField') {
+      } else if (opName === 'getPointerField') {
         writeUint16(elem, S.PA_OP_TAG_BO, S.PA_OP_TAG_GET_POINTER_FIELD);
-        writeUint16(elem, S.PA_OP_FIELD_BO, op.fieldOrdinal);
+        writeUint16(elem, S.PA_OP_FIELD_BO, Number(op.fieldOrdinal));
       } else {
         throw Fail`unknown transform op ${op}`;
       }
@@ -304,24 +313,31 @@ const readCapDescriptor = elem => {
  *  Payload
  * ===================================================================== */
 
+/**
+ * @param {any} msg
+ * @param {{ segId: number, wordOffset: number }} slot
+ * @param {{ contentBytes?: Uint8Array, capTable?: Array<any> }} payload
+ */
 const writePayload = (msg, slot, payload) => {
   const p = allocStruct(msg, slot, S.PAYLOAD_DATA_WORDS, S.PAYLOAD_PTR_WORDS);
   // Content: an opaque user-supplied bytes blob, written as Data list.
   // (Application-level types are not statically known to this layer.)
-  if (payload.contentBytes && payload.contentBytes.length > 0) {
-    writeData(msg, ptrSlot(p, S.PAYLOAD_PTR_CONTENT), payload.contentBytes);
+  const contentBytes = payload.contentBytes;
+  if (contentBytes && contentBytes.length > 0) {
+    writeData(msg, ptrSlot(p, S.PAYLOAD_PTR_CONTENT), contentBytes);
   }
-  if (payload.capTable && payload.capTable.length > 0) {
+  const capTable = payload.capTable;
+  if (capTable && capTable.length > 0) {
     const list = allocCompositeList(
       msg,
       ptrSlot(p, S.PAYLOAD_PTR_CAP_TABLE),
-      payload.capTable.length,
+      capTable.length,
       S.CAPDESC_DATA_WORDS,
       S.CAPDESC_PTR_WORDS,
     );
-    for (let i = 0; i < payload.capTable.length; i += 1) {
+    for (let i = 0; i < capTable.length; i += 1) {
       const elem = compositeElement(msg, list, i);
-      writeCapDescriptor(msg, elem, i, payload.capTable[i]);
+      writeCapDescriptor(msg, elem, i, capTable[i]);
     }
   }
 };
