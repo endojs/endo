@@ -55,19 +55,19 @@ const pair = (reg, aBootstrap, bBootstrap) => {
     scheduled = true;
     Promise.resolve().then(flush);
   };
-  // eslint-disable-next-line prefer-const
-  let a;
-  // eslint-disable-next-line prefer-const
-  let b;
-  a = makeCapnp({
+  // The two halves of each pair hold mutual references; wrap each in a
+  // tiny indirection so we can keep both as `const`.
+  /** @type {{ ref: ReturnType<typeof makeCapnp> | undefined }} */
+  const bRef = { ref: undefined };
+  const a = makeCapnp({
     send: framed => {
-      bIn.push(() => b.dispatch(framed));
+      bIn.push(() => /** @type {any} */ (bRef.ref).dispatch(framed));
       schedule();
     },
     bootstrap: aBootstrap,
     interfaceRegistry: reg,
   });
-  b = makeCapnp({
+  const b = makeCapnp({
     send: framed => {
       aIn.push(() => a.dispatch(framed));
       schedule();
@@ -75,6 +75,7 @@ const pair = (reg, aBootstrap, bBootstrap) => {
     bootstrap: bBootstrap,
     interfaceRegistry: reg,
   });
+  bRef.ref = b;
   return { a, b };
 };
 

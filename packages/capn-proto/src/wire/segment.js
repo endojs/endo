@@ -117,6 +117,7 @@ export const makeMessageBuilder = () => {
   /** @type {SegmentBuilder[]} */
   const segments = [makeSegmentBuilder(0)];
 
+  /** @param {number} words */
   const allocate = words => {
     for (const seg of segments) {
       const off = seg.allocate(words);
@@ -142,6 +143,10 @@ export const makeMessageBuilder = () => {
     return { segId: seg.id, wordOffset: off };
   };
 
+  /**
+   * @param {number} segId
+   * @param {number} words
+   */
   const allocateInSegment = (segId, words) => {
     const seg = segments[segId];
     seg || Fail`unknown segment ${segId}`;

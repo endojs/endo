@@ -1,3 +1,4 @@
+/* global Buffer */
 // Byte-level interop test against the reference Cap'n Proto C++
 // implementation. Runs only when the `capnp` CLI is on PATH; otherwise the
 // suite exits cleanly with a single skip so the rest of CI can proceed.

@@ -26,13 +26,13 @@ test('bigint and Uint8Array survive the round trip', t => {
 test('cap markers route through capTable', t => {
   const counter = { n: 0 };
   const ctx = {
-    isCap: v => v && v.__cap === true,
+    isCap: v => v && v.isCapMarker === true,
     exportCap: v => {
       counter.n += 1;
       return { kind: 'senderHosted', id: counter.n };
     },
   };
-  const cap = { __cap: true };
+  const cap = { isCapMarker: true };
   const payload = encodePayload({ a: cap, list: [cap, 'plain'] }, ctx);
   t.is(payload.capTable.length, 1, 'duplicate caps are deduplicated');
   const importedFor = idx => ({ presence: idx + 100 });

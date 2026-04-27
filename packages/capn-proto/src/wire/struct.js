@@ -245,19 +245,15 @@ export const writeUint64 = (loc, byteIdx, value) => {
  * @param {number} bitIdx
  */
 export const readBool = (loc, bitIdx) => {
+  /* eslint-disable no-bitwise */
   const byteIdx = bitIdx >>> 3;
   if (byteIdx >= loc.dataWords * WORD_SIZE) return false;
-  // eslint-disable-next-line no-bitwise
   const bit = bitIdx & 7;
-  // eslint-disable-next-line no-bitwise
-  return (
-    ((loc.msg
-      .segment(loc.segId)
-      .view.getUint8(dataByteOffset(loc) + byteIdx) >>>
-      bit) &
-      1) !==
-    0
-  );
+  const byte = loc.msg
+    .segment(loc.segId)
+    .view.getUint8(dataByteOffset(loc) + byteIdx);
+  return ((byte >>> bit) & 1) !== 0;
+  /* eslint-enable no-bitwise */
 };
 
 /**
