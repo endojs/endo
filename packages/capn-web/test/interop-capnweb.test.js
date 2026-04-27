@@ -20,41 +20,17 @@ import { E } from '@endo/eventual-send';
 
 import { makeCapnWebSession, makeLoopbackPair } from '../src/index.js';
 
-// Lazy import via a runtime-computed string so the linter's
-// import/no-unresolved doesn't flag this and the module loader doesn't
-// surface a parse-time warning when capnweb isn't installed.  We also
-// avoid top-level await — some test environments react badly to a
-// rejected top-level await even when caught.
+// Try to load capnweb at module top.  If it's not installed, every
+// test in the file becomes test.skip rather than failing.
 let capnweb;
-let capnwebLoad;
-const loadCapnweb = async () => {
-  if (capnwebLoad) return capnwebLoad;
-  // Use Function indirection so static analysis (eslint's
-  // import/no-unresolved + tsc's checker) can't see the import path; a
-  // missing `capnweb` package therefore doesn't break the build, and a
-  // missing-module rejection here is caught and surfaced as a skip.
-  // eslint-disable-next-line no-new-func
-  const dynamicImport = new Function('name', 'return import(name);');
-  capnwebLoad = (async () => {
-    try {
-      capnweb = await dynamicImport('capnweb');
-    } catch (_e) {
-      capnweb = null;
-    }
-  })();
-  return capnwebLoad;
-};
+try {
+  // eslint-disable-next-line import/no-unresolved
+  capnweb = await import('capnweb');
+} catch (_e) {
+  capnweb = null;
+}
 
-// Wrapper that loads capnweb on first use and skips the body if absent.
-const interop = (label, fn) =>
-  test(label, async t => {
-    await loadCapnweb();
-    if (!capnweb) {
-      t.pass(`skipped: capnweb not installed`);
-      return;
-    }
-    return fn(t);
-  });
+const interop = capnweb ? test : test.skip;
 
 // Adapt our loopback queue to the capnweb RpcTransport interface, which
 // expects `receive()` to return a Promise<string> (rejecting on disconnect)
