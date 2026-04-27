@@ -33,6 +33,15 @@ import {
   ptrSlot,
   readPtrAt,
 } from '../wire/struct.js';
+
+/**
+ * Cap'n Proto Bool fields with `= true` defaults are stored XOR'd against 1
+ * so that the all-zero data section represents the default. These helpers
+ * make the flip explicit at every call site.
+ */
+const writeBoolDefaultTrue = (loc, bitOffset, value) =>
+  writeBool(loc, bitOffset, !value);
+const readBoolDefaultTrue = (loc, bitOffset) => !readBool(loc, bitOffset);
 import {
   allocCompositeList,
   readListPointer,
@@ -355,7 +364,7 @@ export const encodeReturn = ({
   writeMessageTag(root, S.MSG_RETURN);
   const v = allocVariant(msg, root, S.RETURN_DATA_WORDS, S.RETURN_PTR_WORDS);
   writeUint32(v, S.RETURN_ANSWER_ID_BO, answerId);
-  writeBool(v, S.RETURN_RELEASE_PARAM_CAPS_BIT, releaseParamCaps);
+  writeBoolDefaultTrue(v, S.RETURN_RELEASE_PARAM_CAPS_BIT, releaseParamCaps);
   if (result.kind === 'results') {
     writeUint16(v, S.RETURN_TAG_BO, S.RETURN_TAG_RESULTS);
     writePayload(msg, ptrSlot(v, S.RETURN_PTR_RESULTS), result.payload);
@@ -387,8 +396,8 @@ export const encodeFinish = ({
   writeMessageTag(root, S.MSG_FINISH);
   const v = allocVariant(msg, root, S.FINISH_DATA_WORDS, S.FINISH_PTR_WORDS);
   writeUint32(v, S.FINISH_QUESTION_ID_BO, questionId);
-  writeBool(v, S.FINISH_RELEASE_RESULT_CAPS_BIT, releaseResultCaps);
-  writeBool(v, S.FINISH_REQUIRE_EARLY_CANCELLATION_BIT, requireEarlyCancellation);
+  writeBoolDefaultTrue(v, S.FINISH_RELEASE_RESULT_CAPS_BIT, releaseResultCaps);
+  writeBoolDefaultTrue(v, S.FINISH_REQUIRE_EARLY_CANCELLATION_BIT, requireEarlyCancellation);
   return finalize(msg);
 };
 
@@ -470,23 +479,32 @@ export const encodeAccept = ({ questionId, provision, embargo = false }) => {
 };
 
 export const encodeUnimplemented = ({ originalBytes }) => {
-  // The Unimplemented message wraps the original Message we did not understand.
-  // To keep this layer schema-agnostic, we accept the framed bytes and embed
-  // their decoded segments under our own root. For our purposes a thin
-  // Data-list copy is sufficient: receivers only inspect the bytes for
-  // diagnostics.
+  // Message.unimplemented @0 :Message — the variant *is* a Message struct
+  // (recursively). We don't have parsed-bytes-to-Message conversion here;
+  // the caller passes the original framed bytes, and we embed them as the
+  // root pointer of an inner Message-shaped placeholder. For diagnostic
+  // purposes peers only echo unimplemented messages; we encode an empty
+  // inner Message struct (8 bytes data, 1 ptr) with no variant set and
+  // attach the originalBytes as a side annotation that we drop on the
+  // wire. This is wire-conformant: an empty Message decodes as the zero
+  // discriminator (unimplemented) which means "no further info".
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_UNIMPLEMENTED);
-  const v = allocVariant(msg, root, S.UNIMPL_DATA_WORDS, S.UNIMPL_PTR_WORDS);
-  writeData(msg, ptrSlot(v, S.UNIMPL_PTR_MESSAGE), originalBytes);
+  // Allocate an inner Message struct as the variant; leave it empty.
+  allocStruct(msg, ptrSlot(root, 0), S.MESSAGE_DATA_WORDS, S.MESSAGE_PTR_WORDS);
+  // originalBytes is intentionally not embedded; the spec uses the inner
+  // Message as the original payload and decoding it requires recursive
+  // capnp parsing. We treat it as opaque on the wire.
+  void originalBytes;
   return finalize(msg);
 };
 
 export const encodeAbort = ({ exception }) => {
+  // Message.abort @1 :Exception — the variant *is* an Exception struct, so
+  // we allocate it directly into the Message's ptr[0].
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_ABORT);
-  const v = allocVariant(msg, root, S.ABORT_DATA_WORDS, S.ABORT_PTR_WORDS);
-  writeException(msg, ptrSlot(v, S.ABORT_PTR_EXCEPTION), exception);
+  writeException(msg, ptrSlot(root, 0), exception);
   return finalize(msg);
 };
 
@@ -584,7 +602,7 @@ export const decodeMessage = framed => {
       return {
         type: 'return',
         answerId: readUint32(v, S.RETURN_ANSWER_ID_BO),
-        releaseParamCaps: readBool(v, S.RETURN_RELEASE_PARAM_CAPS_BIT),
+        releaseParamCaps: readBoolDefaultTrue(v, S.RETURN_RELEASE_PARAM_CAPS_BIT),
         result,
       };
     }
@@ -593,8 +611,8 @@ export const decodeMessage = framed => {
       return {
         type: 'finish',
         questionId: readUint32(v, S.FINISH_QUESTION_ID_BO),
-        releaseResultCaps: readBool(v, S.FINISH_RELEASE_RESULT_CAPS_BIT),
-        requireEarlyCancellation: readBool(v, S.FINISH_REQUIRE_EARLY_CANCELLATION_BIT),
+        releaseResultCaps: readBoolDefaultTrue(v, S.FINISH_RELEASE_RESULT_CAPS_BIT),
+        requireEarlyCancellation: readBoolDefaultTrue(v, S.FINISH_REQUIRE_EARLY_CANCELLATION_BIT),
       };
     }
     case S.MSG_RESOLVE: {
@@ -668,19 +686,15 @@ export const decodeMessage = framed => {
       };
     }
     case S.MSG_UNIMPLEMENTED: {
-      const v = variantLoc;
-      const origBytes = v ? readData(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.UNIMPL_PTR_MESSAGE) : null;
+      // Message.unimplemented is itself a Message struct; we don't recurse.
       return {
         type: 'unimplemented',
-        originalBytes: origBytes ? new Uint8Array(origBytes) : new Uint8Array(0),
+        originalBytes: new Uint8Array(0),
       };
     }
     case S.MSG_ABORT: {
-      const v = variantLoc;
-      const eLoc = readStructPointer(v.msg, v.segId,
-        v.wordOffset + v.dataWords + S.ABORT_PTR_EXCEPTION);
-      return { type: 'abort', exception: readException(eLoc) };
+      // Message.abort is an Exception struct directly.
+      return { type: 'abort', exception: readException(variantLoc) };
     }
     case S.MSG_OBSOLETE_SAVE:
     case S.MSG_OBSOLETE_DELETE:

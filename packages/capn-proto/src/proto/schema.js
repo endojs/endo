@@ -58,26 +58,34 @@ export const BOOTSTRAP_QUESTION_ID = 0; // byte offset
 
 /* ===== Call ===== */
 /**
- * struct Call {
- *   questionId      @0  :UInt32;
- *   target          @1  :MessageTarget;
- *   interfaceId     @2  :UInt64;
- *   methodId        @3  :UInt16;
- *   allowThirdPartyTailCall @8 :Bool = false;
- *   params          @4  :Payload;
- *   sendResultsTo   @5  :group { ... };
+ * struct Call @0x836a53ce789d4cd4 { # 24 bytes, 3 ptrs
+ *   questionId      @0  :UInt32;  bits[0, 32)
+ *   target          @1  :MessageTarget;  ptr[0]
+ *   interfaceId     @2  :UInt64;  bits[64, 128)
+ *   methodId        @3  :UInt16;  bits[32, 48)  (placed in 4-byte hole)
+ *   allowThirdPartyTailCall @8 :Bool = false;  bit[128, 129) = byte 16 bit 0
+ *   noPromisePipelining @9 :Bool = false;      bit 129
+ *   onlyPromisePipeline @10:Bool = false;      bit 130
+ *   params          @4  :Payload;  ptr[1]
+ *   sendResultsTo   :group {
+ *     union { tag bits[48, 64) = byte 6 word 0:
+ *       caller     @5  :Void;
+ *       yourself   @6  :Void;
+ *       thirdParty @7  :AnyPointer;  ptr[2]
+ *     }
+ *   }
  * }
  */
 export const CALL_DATA_WORDS = 3;
 export const CALL_PTR_WORDS = 3;
 export const CALL_QUESTION_ID_BO = 0; // uint32
+export const CALL_METHOD_ID_BO = 4; // uint16 (placed in hole at byte 4)
+export const CALL_SEND_RESULTS_TO_TAG_BO = 6; // uint16 union tag at byte 6
 export const CALL_INTERFACE_ID_BO = 8; // uint64
-export const CALL_METHOD_ID_BO = 16; // uint16
-export const CALL_SEND_RESULTS_TO_TAG_BO = 18; // uint16 union tag (group inline)
-export const CALL_ALLOW_3PTY_TAIL_BIT = 4 * 8 + 0; // bit @ byte 4 bit 0 (allowThirdPartyTailCall @8)
+export const CALL_ALLOW_3PTY_TAIL_BIT = 16 * 8 + 0; // bit @ byte 16 bit 0
 export const CALL_PTR_TARGET = 0;
 export const CALL_PTR_PARAMS = 1;
-export const CALL_PTR_SEND_RESULTS_TO_DATA = 2; // for redirect/yourself variants
+export const CALL_PTR_SEND_RESULTS_TO_DATA = 2; // for thirdParty variant
 
 /* ===== Call.sendResultsTo discriminator (group is inline; we use byte 18) ===== */
 export const CALL_SRT_CALLER = 0;
@@ -174,10 +182,23 @@ export const RELEASE_ID_BO = 0; // uint32
 export const RELEASE_REF_COUNT_BO = 4; // uint32
 
 /* ===== Disembargo ===== */
+/**
+ * struct Disembargo { # 8 bytes, 1 ptrs
+ *   target @0 :MessageTarget; ptr[0]
+ *   context :group {
+ *     union { tag bits[32, 48) = byte 4
+ *       senderLoopback @1 :UInt32;  bits[0, 32) = byte 0
+ *       receiverLoopback @2 :UInt32; bits[0, 32)
+ *       accept @3 :Void;
+ *       provide @4 :UInt32;
+ *     }
+ *   }
+ * }
+ */
 export const DISEMBARGO_DATA_WORDS = 1;
 export const DISEMBARGO_PTR_WORDS = 1;
-export const DISEMBARGO_CTX_TAG_BO = 0; // uint16
-export const DISEMBARGO_CTX_VALUE_BO = 4; // uint32 (sender/receiver loopback id, or accept variant id, or provide question id)
+export const DISEMBARGO_CTX_TAG_BO = 4; // uint16 discriminator at byte 4
+export const DISEMBARGO_CTX_VALUE_BO = 0; // uint32 value at byte 0
 export const DISEMBARGO_PTR_TARGET = 0; // MessageTarget
 export const DISEMBARGO_CTX_SENDER_LOOPBACK = 0;
 export const DISEMBARGO_CTX_RECEIVER_LOOPBACK = 1;

@@ -1,0 +1,60 @@
+name: capn-proto interop
+
+# Verifies that the @endo/capn-proto package's wire format is byte-level
+# compatible with the reference Cap'n Proto C++ implementation. We install
+# `capnproto` from apt and run the test/interop.test.js file, which spawns
+# the `capnp` CLI to round-trip every rpc.capnp Message variant in both
+# directions (our encoder → capnp decode, and capnp encode → our decoder).
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capn-proto-interop:
+    name: capn-proto interop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install Cap'n Proto reference implementation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y capnproto libcapnp-dev
+          capnp --version
+
+      - name: Install Node dependencies
+        run: yarn install --immutable
+
+      - name: Build
+        run: yarn build
+
+      - name: Run capn-proto unit tests
+        working-directory: packages/capn-proto
+        run: yarn test
+
+      - name: Run capn-proto interop test against capnp CLI
+        working-directory: packages/capn-proto
+        run: |
+          # The test/interop.test.js file runs by default as part of `yarn
+          # test`, but we re-run it here in isolation so the workflow log
+          # surfaces a clear pass/fail on the byte-level interop layer.
+          yarn ses-ava test/interop.test.js
