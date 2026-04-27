@@ -115,7 +115,7 @@ test('outgoing argument shape: introducing a capability uses ["export", -id]', a
 
 test('release message is sent on disposal', async t => {
   const { a, b } = makeLoopbackPair();
-  const { wrapped, sent } = collect(a);
+  const { wrapped, sent: _sent } = collect(a);
   const sessionA = makeCapnWebSession(wrapped, { gcImports: false });
   makeCapnWebSession(b, {
     localMain: Far('s', {

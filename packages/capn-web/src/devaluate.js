@@ -1,3 +1,4 @@
+/* global globalThis */
 // Devaluator: turn a live JS value into a Cap'n Web wire expression.
 //
 // The output is a JSON-serialisable structure whose semantics are described
@@ -17,6 +18,14 @@ import { getInterfaceOf } from '@endo/pass-style';
 
 import { tryEncodeSpecial } from './special-values.js';
 import { RpcTarget } from './rpc-target.js';
+import {
+  isHeaders,
+  isRequest,
+  isResponse,
+  encodeHeaders,
+  encodeRequest,
+  encodeResponse,
+} from './fetch-codec.js';
 
 /**
  * @param {unknown} v
@@ -96,10 +105,38 @@ export const makeDevaluator = ctx => {
       return ['promise', id];
     }
 
+    // 5a. Streams: WritableStream / ReadableStream are exported by reference,
+    // tagged so the receiver may interpret them as streams.
+    if (
+      typeof globalThis !== 'undefined' &&
+      /** @type {any} */ (globalThis).WritableStream &&
+      value instanceof /** @type {any} */ (globalThis).WritableStream
+    ) {
+      const id = ctx.exportValue(value, false);
+      return ['writable', id];
+    }
+    if (
+      typeof globalThis !== 'undefined' &&
+      /** @type {any} */ (globalThis).ReadableStream &&
+      value instanceof /** @type {any} */ (globalThis).ReadableStream
+    ) {
+      const id = ctx.exportValue(value, false);
+      return ['readable', id];
+    }
+
     // 5. Reference targets: capabilities (Far/RpcTarget/function).
     if (isReferenceTarget(value)) {
       const id = ctx.exportValue(value, false);
       return ['export', id];
+    }
+
+    // 5b. Fetch types: Headers, Request, Response.
+    if (isHeaders(value)) return encodeHeaders(/** @type {Headers} */ (value));
+    if (isRequest(value)) {
+      return encodeRequest(/** @type {Request} */ (value), devaluate);
+    }
+    if (isResponse(value)) {
+      return encodeResponse(/** @type {Response} */ (value), devaluate);
     }
 
     // 6. Arrays: escape with [[…]].

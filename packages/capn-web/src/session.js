@@ -3,6 +3,10 @@
 // Wires together a transport, the imports/exports tables, the devaluator and
 // evaluator, the stub factories, and the message dispatch loop.
 
+/* eslint-disable no-use-before-define -- session uses mutually-recursive
+   nested function declarations (all hoisted; the no-use-before-define rule
+   doesn't recognize that for nested functions) */
+
 import harden from '@endo/harden';
 
 import { makeTables } from './tables.js';
@@ -326,7 +330,9 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       // can return any of the recorded values (or input directly).
       const [, id, path, capturesExpr, instructions, answerRef = 0] = expr;
       const targetExpr =
-        path && path.length > 0 ? ['pipeline', id, path] : ['pipeline', id];
+        Array.isArray(path) && path.length > 0
+          ? ['pipeline', id, path]
+          : ['pipeline', id];
       const target = await Promise.resolve(executePushExpression(targetExpr));
       const captures = (capturesExpr || []).map(c => evaluator.evaluate(c));
       return replayRemap(
@@ -517,6 +523,7 @@ export const makeCapnWebSession = (transport, opts = {}) => {
   // ------- start the receive loop -------
 
   (async () => {
+    /* eslint-disable no-await-in-loop -- sequential receive loop */
     while (!aborted) {
       let raw;
       try {

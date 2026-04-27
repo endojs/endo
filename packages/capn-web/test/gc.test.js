@@ -1,3 +1,5 @@
+// @ts-nocheck
+/* global setTimeout */
 // Garbage-collection tests.  These need --expose-gc + a --no-warnings node
 // invocation to work fully; without it the tests still pass because the
 // gcAndFinalize helper degrades to a no-op and we only assert what we can
@@ -44,7 +46,7 @@ test('explicit Symbol.dispose on local export releases it', async t => {
     localMain: server,
     gcImports: true,
   });
-  void sessionB;
+  sessionB;
   const r = sessionA.getRemoteMain();
   const h = await E(r).get();
   t.is(await E(h).ping(), 'pong');
@@ -94,7 +96,7 @@ test('explicit release: peer release decrements refcount, drops on zero', async 
     localMain: Far('s', { take: _ => null }),
     gcImports: false,
   });
-  void sessionB;
+  sessionB;
   const cap = Far('cap', {});
   const r = sessionA.getRemoteMain();
   await E(r).take(cap);

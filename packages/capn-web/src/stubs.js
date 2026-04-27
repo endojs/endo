@@ -97,7 +97,11 @@ export const makePromiseStub = (id, m) => {
   m.registerStub(/** @type {object} */ (promise), id, true);
   return harden({
     promise,
-    resolve: /** @type {(v: unknown) => void} */ (resolveFn),
-    reject: /** @type {(e: unknown) => void} */ (rejectFn),
+    resolve: /** @type {(v: unknown) => void} */ (
+      /** @type {unknown} */ (resolveFn)
+    ),
+    reject: /** @type {(e: unknown) => void} */ (
+      /** @type {unknown} */ (rejectFn)
+    ),
   });
 };

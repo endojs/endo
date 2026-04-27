@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop -- the path walker is sequential by design */
 // Walk a property path on a value (resolving promises at each step) and
 // optionally invoke the result as a method/function with given arguments.
 //

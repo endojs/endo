@@ -19,7 +19,7 @@ test('messageport transport: round-trip call', async t => {
     localMain: Far('s', { add: (a, b) => a + b }),
     gcImports: false,
   });
-  void sessionB;
+  sessionB;
   t.is(await E(sessionA.getRemoteMain()).add(40, 2), 42);
   sessionA.abort();
 });
@@ -36,7 +36,7 @@ test('messageport transport: bidirectional pipelining', async t => {
     }),
     gcImports: false,
   });
-  void sessionB;
+  sessionB;
   t.is(await E(sessionA.getRemoteMain()).use(helper, 9), 81);
   sessionA.abort();
 });

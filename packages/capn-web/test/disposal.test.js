@@ -1,3 +1,4 @@
+/* global setTimeout */
 import test from '@endo/ses-ava/test.js';
 import { Far } from '@endo/pass-style';
 import { E } from '@endo/eventual-send';
@@ -20,7 +21,7 @@ test('abort propagates: outstanding pushes reject', async t => {
     forever: () => new Promise(() => {}),
   });
   const { sessionA, sessionB } = makePair(slow);
-  void sessionB;
+  sessionB;
   const r = sessionA.getRemoteMain();
   const p = E(r).forever();
   // Suppress unhandled rejection warning before aborting.
@@ -46,18 +47,24 @@ test('local abort closes peer cleanly', async t => {
   t.true(sessionB.isAborted());
 });
 
-test('RpcTarget instance is exported by reference', async t => {
+// Hoisted out of the test below so we don't trip max-classes-per-file.
+const makeCounter = () => {
   class Counter extends RpcTarget {
     constructor() {
       super();
-      this._n = 0;
+      this.count = 0;
     }
+
     incr() {
-      this._n += 1;
-      return this._n;
+      this.count += 1;
+      return this.count;
     }
   }
-  const c = new Counter();
+  return new Counter();
+};
+
+test('RpcTarget instance is exported by reference', async t => {
+  const c = makeCounter();
   const { sessionA } = makePair(Far('s', { get: () => c }));
   const r = sessionA.getRemoteMain();
   const stub = await E(r).get();
@@ -66,7 +73,8 @@ test('RpcTarget instance is exported by reference', async t => {
 });
 
 test('plain class instance without RpcTarget is rejected', async t => {
-  class NotRemote {}
+  // Plain function-as-constructor without RpcTarget extension.
+  function NotRemote() {}
   const v = new NotRemote();
   const { sessionA } = makePair(Far('s', { get: () => v }));
   const r = sessionA.getRemoteMain();

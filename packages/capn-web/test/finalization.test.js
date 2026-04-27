@@ -1,3 +1,4 @@
+/* global setTimeout */
 // Live garbage-collection tests.  These rely on `--expose-gc` (Node) and the
 // FinalizationRegistry firing during a forced GC.  When run without
 // --expose-gc the gcAndFinalize helper degrades to a no-op and these tests
@@ -29,7 +30,7 @@ test('dropping a presence sends a release', async t => {
     localMain: Far('s', { get: () => Far('thing', { id: () => 1 }) }),
     gcImports: true,
   });
-  void sessionB;
+  sessionB;
   const gcAndFinalize = await makeGcAndFinalize(detectEngineGC());
 
   // Hold a presence in a closure that we can drop.
@@ -52,14 +53,14 @@ test('dropping a presence sends a release', async t => {
 });
 
 test('repeated imports of the same exported presence dedupe under GC', async t => {
+  const stable = Far('stable', { kind: () => 'stable' });
   const { a, b } = makeLoopbackPair();
   const sessionA = makeCapnWebSession(a, { gcImports: true });
   const sessionB = makeCapnWebSession(b, {
     localMain: Far('s', { get: () => stable }),
     gcImports: true,
   });
-  void sessionB;
-  const stable = Far('stable', { kind: () => 'stable' });
+  sessionB;
   const r = sessionA.getRemoteMain();
   const a1 = await E(r).get();
   const a2 = await E(r).get();

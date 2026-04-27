@@ -25,34 +25,6 @@ import harden from '@endo/harden';
 const PLACEHOLDER = Symbol('capnweb.remapPlaceholder');
 
 /**
- * @param {{ instructions: unknown[][], answerRef: { value: number } }} state
- * @param {number} ref
- */
-const makePlaceholder = (state, ref) => {
-  const fn = (...args) => {
-    // Calling the placeholder = a function call.
-    state.instructions.push(['call', ref, [], args.map(a => encodeArg(state, a))]);
-    state.answerRef.value = state.instructions.length;
-    return makePlaceholder(state, state.instructions.length);
-  };
-  return new Proxy(fn, {
-    get(_t, prop) {
-      if (prop === PLACEHOLDER) return ref;
-      if (prop === 'then') return undefined; // not a thenable
-      // Property access: emit a "get" instruction.
-      state.instructions.push(['get', ref, [prop]]);
-      state.answerRef.value = state.instructions.length;
-      return makePlaceholder(state, state.instructions.length);
-    },
-    apply(_t, _thisArg, args) {
-      state.instructions.push(['call', ref, [], args.map(a => encodeArg(state, a))]);
-      state.answerRef.value = state.instructions.length;
-      return makePlaceholder(state, state.instructions.length);
-    },
-  });
-};
-
-/**
  * Encode an argument to an instruction.  Placeholders become reference
  * indices; non-placeholder values are stored as captures and referenced by
  * negative index.
@@ -70,6 +42,45 @@ const encodeArg = (state, arg) => {
   }
   state.captures.push(arg);
   return ['ref', -state.captures.length];
+};
+
+/**
+ * @param {{ instructions: unknown[][], captures: unknown[], answerRef: { value: number } }} state
+ * @param {number} ref
+ * @returns {any}
+ */
+const makePlaceholder = (state, ref) => {
+  const fn = (...args) => {
+    // Calling the placeholder = a function call.
+    state.instructions.push([
+      'call',
+      ref,
+      [],
+      args.map(a => encodeArg(state, a)),
+    ]);
+    state.answerRef.value = state.instructions.length;
+    return makePlaceholder(state, state.instructions.length);
+  };
+  return new Proxy(fn, {
+    get(_t, prop) {
+      if (prop === PLACEHOLDER) return ref;
+      if (prop === 'then') return undefined; // not a thenable
+      // Property access: emit a "get" instruction.
+      state.instructions.push(['get', ref, [prop]]);
+      state.answerRef.value = state.instructions.length;
+      return makePlaceholder(state, state.instructions.length);
+    },
+    apply(_t, _thisArg, args) {
+      state.instructions.push([
+        'call',
+        ref,
+        [],
+        args.map(a => encodeArg(state, a)),
+      ]);
+      state.answerRef.value = state.instructions.length;
+      return makePlaceholder(state, state.instructions.length);
+    },
+  });
 };
 
 /**
@@ -116,6 +127,7 @@ export const recordRemap = mapper => {
  * @param {unknown} input
  * @returns {Promise<unknown>}
  */
+/* eslint-disable no-await-in-loop -- the interpreter is sequential by design */
 export const replayRemap = async (recording, input) => {
   const { instructions, captures, answerRef } = recording;
   const results = new Array(instructions.length + 1);

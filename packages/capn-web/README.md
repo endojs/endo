@@ -91,13 +91,38 @@ A marker class. Subclasses are passed by reference (like an `Far` remotable).
 Plain JS classes that don't extend `RpcTarget` and aren't marked with `Far` are
 not serialisable — the devaluator throws.
 
+## Wire-format compatibility
+
+The wire format matches `cloudflare/capnweb` 0.6 for the implemented surface:
+
+- All top-level message types (`push`, `pull`, `resolve`, `reject`, `release`,
+  `stream`, `abort`).
+- All special-value tags (`undefined`, `nan`, `inf`, `-inf`, `bigint`, `date`,
+  `bytes`, `error`, `headers`, `request`, `response`).
+- Reference-introducing expressions (`import`, `pipeline`, `export`, `promise`,
+  `writable`, `readable`).
+- Array escape (`[[…]]`).
+
+The `test/interop-capnweb.test.js` suite proves end-to-end interop by running
+an `@endo/capn-web` session against a real `cloudflare/capnweb` `RpcSession`
+in the same process: simple calls, special values, capability passing, and
+bidirectional method invocation all work both directions.
+
 ## Limitations (v1)
 
 - `.map()` (`["remap", …]`) uses an endo-specific extension that includes the
   `answerRef` so mappers can return any recorded value. Strict
-  cloudflare/capnweb-compatibility for `["remap"]` is out of scope here.
-- `["stream"]`, `["pipe"]`, `["readable"]`, `["writable"]` and the
-  `Headers` / `Request` / `Response` codecs are not yet implemented.
+  `cloudflare/capnweb`-compatibility for `["remap", …]` would need additional
+  protocol-spec alignment and is out of scope here.
+- `["pipe"]` (open a new pipe) is not yet implemented. JS `WritableStream` /
+  `ReadableStream` values are encoded as `["writable", -id]` /
+  `["readable", -id]`, but the receiver gets a plain presence stub rather
+  than a synthesised host-side `WritableStream` wrapper.
+- `Request`/`Response` headers don't round-trip under the strict SES-lockdown
+  ses-ava config (Node's undici-backed `Headers` can't be iterated against
+  frozen internal slots). Standalone `Headers` round-trip everywhere; URL
+  and method on `Request`/`Response` round-trip everywhere; the limitation
+  is purely on iterating headers attached to a `Request`/`Response`.
 - The recorder for `.map()` records *operations* (property access, method
   call, function call). Arbitrary JS in the mapper (arithmetic, conditionals)
   isn't recorded.

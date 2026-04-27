@@ -86,7 +86,8 @@ export const makeWebSocketTransport = socket => {
       } catch (_e) {
         /* ignore */
       }
-      void closeReason;
+      // closeReason captured for diagnostics; not currently surfaced.
+      closeReason = closeReason || reason;
     },
   });
 };

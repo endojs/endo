@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Test the WebSocket transport using a fake WebSocket pair that mirrors the
 // browser interface (addEventListener / send / close / readyState).  A real
 // WebSocket library isn't required.
@@ -13,8 +14,8 @@ import {
 
 const makeFakeWebSocketPair = () => {
   /** @type {Array<{ a: any, b: any }>} */
-  let aListeners = [];
-  let bListeners = [];
+  const aListeners = [];
+  const bListeners = [];
   const make = (mySend, registerListeners) => {
     const listeners = { message: [], close: [], error: [], open: [] };
     registerListeners(listeners);
@@ -50,8 +51,8 @@ const makeFakeWebSocketPair = () => {
       bSendListeners = ls;
     },
   );
-  void aListeners;
-  void bListeners;
+  aListeners;
+  bListeners;
   return { a, b };
 };
 
@@ -64,7 +65,7 @@ test('websocket transport: round-trip call', async t => {
     localMain: Far('s', { hi: name => `hi ${name}` }),
     gcImports: false,
   });
-  void sessionB;
+  sessionB;
   t.is(await E(sessionA.getRemoteMain()).hi('there'), 'hi there');
   sessionA.abort();
 });

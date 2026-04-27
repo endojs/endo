@@ -1,3 +1,4 @@
+/* global setTimeout */
 // HTTP batch transport.  We test the client-side batching using a fake fetch
 // that simulates a server: it parses the request body, runs a session
 // against it, captures outgoing messages, and returns them as the response
@@ -25,7 +26,8 @@ const makeServerFetch = (localMain) => {
         outLines.push(m);
       },
       receive: () => {
-        if (inLines.length > 0) return Promise.resolve(inLines.shift());
+        if (/** @type {string[]} */ (inLines).length > 0)
+          return Promise.resolve(inLines.shift());
         if (closed) return Promise.resolve(null);
         return new Promise(resolve => outWaiters.push(resolve));
       },
@@ -37,7 +39,7 @@ const makeServerFetch = (localMain) => {
       localMain,
       gcImports: false,
     });
-    void session;
+    session;
     // Allow processing turns.  Run several macrotasks to let the session
     // chew through all input and produce all outputs.
     for (let i = 0; i < 10; i += 1) {

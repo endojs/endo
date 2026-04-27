@@ -1,3 +1,4 @@
+/* global Buffer */
 // Special-value codecs for the Cap'n Web wire format.
 //
 // Atomic values that cannot be represented directly in JSON are wrapped in a
@@ -126,7 +127,9 @@ export const decodeSpecial = expr => {
     }
     case 'error': {
       const [typeName, message, stack] = rest;
-      const Cls = ERROR_TYPES[/** @type {keyof typeof ERROR_TYPES} */ (typeName)] || Error;
+      const Cls = /** @type {ErrorConstructor} */ (
+        ERROR_TYPES[/** @type {keyof typeof ERROR_TYPES} */ (typeName)] || Error
+      );
       const err = new Cls(typeof message === 'string' ? message : '');
       if (typeof stack === 'string') {
         try {
@@ -166,9 +169,24 @@ export const isSpecialTag = tag =>
 
 /**
  * Tags that name reference-introducing expressions.
+ *
+ * - import / pipeline: reference to sender's imports = our exports.
+ * - export / promise: a fresh capability the sender introduces (= our import).
+ * - remap: a recorded mapper to be replayed on the peer.
+ * - writable / readable: stream halves.  At the protocol level these are
+ *   exactly like export / promise (positive vs negative id allocation,
+ *   refcount semantics) but the receiver may interpret them as streams.
  */
 const REF_TAGS = harden(
-  new Set(['import', 'pipeline', 'export', 'promise', 'remap']),
+  new Set([
+    'import',
+    'pipeline',
+    'export',
+    'promise',
+    'remap',
+    'writable',
+    'readable',
+  ]),
 );
 
 /**

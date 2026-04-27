@@ -7,6 +7,11 @@
 import harden from '@endo/harden';
 
 import { decodeSpecial, isSpecialTag, isRefTag } from './special-values.js';
+import {
+  decodeHeaders,
+  decodeRequest,
+  decodeResponse,
+} from './fetch-codec.js';
 
 /**
  * @typedef {object} EvaluatorContext
@@ -24,47 +29,6 @@ import { decodeSpecial, isSpecialTag, isRefTag } from './special-values.js';
  * @param {EvaluatorContext} ctx
  */
 export const makeEvaluator = ctx => {
-  /**
-   * @param {unknown} expr
-   * @returns {unknown}
-   */
-  const evaluate = expr => {
-    if (expr === null) return null;
-    if (typeof expr === 'string') return expr;
-    if (typeof expr === 'boolean') return expr;
-    if (typeof expr === 'number') return expr;
-
-    if (Array.isArray(expr)) {
-      // Escaped array literal: [[<inner>]]
-      if (expr.length === 1 && Array.isArray(expr[0])) {
-        return expr[0].map(v => evaluate(v));
-      }
-      const [tag, ...rest] = expr;
-      if (typeof tag !== 'string') {
-        throw new TypeError('expression array must begin with a string tag');
-      }
-      if (isSpecialTag(tag)) {
-        return decodeSpecial(expr);
-      }
-      if (isRefTag(tag)) {
-        return evaluateRef(tag, rest);
-      }
-      throw new TypeError(`unknown expression tag: ${tag}`);
-    }
-
-    if (typeof expr === 'object') {
-      // Plain object: recurse on values.
-      /** @type {Record<string, unknown>} */
-      const out = {};
-      for (const [k, v] of Object.entries(/** @type {object} */ (expr))) {
-        out[k] = evaluate(v);
-      }
-      return out;
-    }
-
-    throw new TypeError(`unsupported expression type: ${typeof expr}`);
-  };
-
   /**
    * @param {string} tag
    * @param {unknown[]} rest
@@ -91,14 +55,21 @@ export const makeEvaluator = ctx => {
         `evaluating inline pipelined ${tag} is not supported`,
       );
     }
-    if (tag === 'export' || tag === 'promise') {
+    if (
+      tag === 'export' ||
+      tag === 'promise' ||
+      tag === 'writable' ||
+      tag === 'readable'
+    ) {
       const [id] = rest;
       if (typeof id !== 'number') {
         throw new TypeError(`${tag} id must be a number`);
       }
       // The sender is introducing one of THEIR exports as a fresh capability
-      // for us.  We install it in our imports.
-      if (tag === 'promise') {
+      // for us.  We install it in our imports.  Promise-like tags (promise,
+      // readable) install a promise stub; object-like tags (export, writable)
+      // install a presence stub.
+      if (tag === 'promise' || tag === 'readable') {
         return ctx.getOrMakePromise(id);
       }
       return ctx.getOrMakePresence(id);
@@ -107,6 +78,50 @@ export const makeEvaluator = ctx => {
       throw new TypeError('remap evaluation handled separately');
     }
     throw new TypeError(`unknown ref tag: ${tag}`);
+  };
+
+  /**
+   * @param {unknown} expr
+   * @returns {unknown}
+   */
+  const evaluate = expr => {
+    if (expr === null) return null;
+    if (typeof expr === 'string') return expr;
+    if (typeof expr === 'boolean') return expr;
+    if (typeof expr === 'number') return expr;
+
+    if (Array.isArray(expr)) {
+      // Escaped array literal: [[<inner>]]
+      if (expr.length === 1 && Array.isArray(expr[0])) {
+        return expr[0].map(v => evaluate(v));
+      }
+      const [tag, ...rest] = expr;
+      if (typeof tag !== 'string') {
+        throw new TypeError('expression array must begin with a string tag');
+      }
+      if (tag === 'headers') return decodeHeaders(expr);
+      if (tag === 'request') return decodeRequest(expr, evaluate);
+      if (tag === 'response') return decodeResponse(expr, evaluate);
+      if (isSpecialTag(tag)) {
+        return decodeSpecial(expr);
+      }
+      if (isRefTag(tag)) {
+        return evaluateRef(tag, rest);
+      }
+      throw new TypeError(`unknown expression tag: ${tag}`);
+    }
+
+    if (typeof expr === 'object') {
+      // Plain object: recurse on values.
+      /** @type {Record<string, unknown>} */
+      const out = {};
+      for (const [k, v] of Object.entries(/** @type {object} */ (expr))) {
+        out[k] = evaluate(v);
+      }
+      return out;
+    }
+
+    throw new TypeError(`unsupported expression type: ${typeof expr}`);
   };
 
   return harden({ evaluate });

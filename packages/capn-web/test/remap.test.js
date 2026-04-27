@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Tests for the remap (record-replay) machinery used to ship `.map()` callbacks
 // over the wire.  Covers both the standalone recorder/interpreter and the
 // session integration via `session.callRemap(stub, mapper)`.

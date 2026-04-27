@@ -57,7 +57,7 @@ export const makeHttpBatchTransport = (url, opts = {}) => {
       for (const w of waiters.splice(0)) w(null);
       throw e;
     }
-    const text = await res.text();
+    const text = /** @type {string} */ (await res.text());
     if (text.length > 0) {
       for (const line of text.split('\n')) {
         const w = waiters.shift();
