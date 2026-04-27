@@ -698,8 +698,8 @@ export const makeTorNetLayer = async ({
    * @returns {Connection}
    */
   const connect = location => {
-    logger.info('Connecting over Tor to', location.designator);
     const { connection } = internalEstablishConnection(location);
+    logger.info('Connecting over Tor to', location.designator);
     return connection;
   };
 
@@ -724,7 +724,14 @@ export const makeTorNetLayer = async ({
   };
 
   const shutdown = () => {
-    server.close();
+    server.close(closeError => {
+      if (closeError) {
+        logger.error('Failed to close Tor OCapN listener', closeError);
+      }
+      fs.rm(ocapnSocketPath, { force: true }).catch(err => {
+        logger.error(`Failed to remove OCapN Tor socket ${ocapnSocketPath}`, err);
+      });
+    });
     controlLineReader.dispose();
     controlSocket.end();
     for (const socket of activeSockets) {
@@ -732,9 +739,6 @@ export const makeTorNetLayer = async ({
     }
     activeSockets.clear();
     outgoingConnections.clear();
-    fs.rm(ocapnSocketPath, { force: true }).catch(err => {
-      logger.error(`Failed to remove OCapN Tor socket ${ocapnSocketPath}`, err);
-    });
   };
 
   /** @type {TorNetLayer} */
