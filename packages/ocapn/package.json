@@ -20,6 +20,7 @@
   "exports": {
     ".": "./index.js",
     "./src/netlayers/tcp-test-only.js": "./src/netlayers/tcp-test-only.js",
+    "./src/netlayers/tor.js": "./src/netlayers/tor.js",
     "./src/netlayers/websocket.js": "./src/netlayers/websocket.js",
     "./package.json": "./package.json"
   },

@@ -65,6 +65,60 @@ The package is organized in layers, from high to low:
 3. **Codecs** (`src/codecs/`): Syrup encoding, descriptors, and operations
 4. **Netlayer** (`src/netlayers/`): Network and transport abstraction
 
+## Tor netlayer (experimental)
+
+This package currently ships an implementation-oriented Tor netlayer constructor
+at `src/netlayers/tor.js`, designed to be compatible with Spritely Goblins'
+Guile onion netlayer conventions.
+
+```js
+import { makeTorNetLayer } from '@endo/ocapn/src/netlayers/tor.js';
+
+await client.registerNetlayer((handlers, logger) =>
+  makeTorNetLayer({
+    handlers,
+    logger,
+    controlSocketPath: '~/.cache/ocapn/tor/tor-control-sock',
+    socksSocketPath: '~/.cache/ocapn/tor/tor-socks-sock',
+    // optional when restoring a stable onion identity:
+    // privateKey: 'ED25519-V3:...',
+    // serviceId: '<56-char-onion-service-id>',
+  }),
+);
+```
+
+`makeTorNetLayer` currently follows these interoperability defaults:
+
+- transport: `onion`
+- location URI shape: `ocapn://<service-id>.onion`
+- Tor command: `ADD_ONION ... PORT=9045,unix:<local-ocapn-socket>`
+- outgoing dial target: `<service-id>.onion:9045` via SOCKS5
+
+### Tor daemon setup
+
+The recommended daemon model is one Tor process "as your user", shared by
+multiple local OCapN peers (Endo, Goblins, test clients, etc.).
+
+Example `tor` config:
+
+```txt
+DataDirectory /home/<user>/.cache/ocapn/tor/data/
+SocksPort unix:/home/<user>/.cache/ocapn/tor/tor-socks-sock RelaxDirModeCheck
+ControlSocket unix:/home/<user>/.cache/ocapn/tor/tor-control-sock RelaxDirModeCheck
+Log notice file /home/<user>/.cache/ocapn/tor/tor-log.txt
+```
+
+Create state directory and run Tor:
+
+```sh
+mkdir -p ~/.cache/ocapn/tor/data
+tor -f ~/.config/ocapn/tor-config.txt
+```
+
+For Goblins interop, you can point `controlSocketPath` and `socksSocketPath`
+at Goblins' defaults (for example `~/.cache/goblins/tor/*`) so both stacks
+share a single daemon.
+
 ## Related Packages
 
 - [`@endo/captp`](../captp/README.md): A minimal CapTP implementation using

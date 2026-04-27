@@ -31,6 +31,43 @@ const DEFAULT_GUILE_MESSAGE = 'hello from Guile CI';
 const DEFAULT_ENDO_MESSAGE = 'hello from Endo OCapN';
 
 /**
+ * Install signal handlers that synchronously close the OCapN client before
+ * process exit. Returning 0 only after interop has completed avoids masking
+ * real failures if a signal arrives early.
+ *
+ * @param {() => void} shutdownClient
+ * @param {() => boolean} isInteropComplete
+ * @returns {() => void}
+ */
+const installSignalShutdown = (shutdownClient, isInteropComplete) => {
+  const signals = /** @type {const} */ (['SIGINT', 'SIGTERM', 'SIGHUP']);
+  let shutdownStarted = false;
+
+  /** @param {NodeJS.Signals} signal */
+  const onSignal = signal => {
+    if (shutdownStarted) {
+      return;
+    }
+    shutdownStarted = true;
+    try {
+      shutdownClient();
+    } catch (error) {
+      console.error('Failed to shutdown Endo interop client', error);
+    }
+    process.exit(isInteropComplete() ? 0 : 1);
+  };
+
+  for (const signal of signals) {
+    process.once(signal, onSignal);
+  }
+  return () => {
+    for (const signal of signals) {
+      process.off(signal, onSignal);
+    }
+  };
+};
+
+/**
  * @param {string} value
  * @returns {SwissNum}
  */
@@ -122,6 +159,11 @@ const main = async () => {
   const { location, swissNum } = parseSturdyrefUri(sturdyrefUri);
   const captpVersion = process.env.OCAPN_CAPTP_VERSION || DEFAULT_CAPTP_VERSION;
   const client = makeClient({ verbose: true, captpVersion });
+  let interopComplete = false;
+  const removeSignalShutdownHandlers = installSignalShutdown(
+    () => client.shutdown(),
+    () => interopComplete,
+  );
   await null;
   try {
     await client.registerNetlayer((handlers, logger) =>
@@ -136,8 +178,10 @@ const main = async () => {
       expectedRemoteMessage: expectedGuileMessage,
       log: line => console.log(`*** ${line}`),
     });
+    interopComplete = true;
     console.log('*** Endo interop completed');
   } finally {
+    removeSignalShutdownHandlers();
     client.shutdown();
   }
 };
