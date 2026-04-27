@@ -160,9 +160,11 @@ export const makeCapnWebSession = (transport, opts = {}) => {
         expr = devaluator.devaluate(val);
       } catch (devalErr) {
         // Couldn't serialize; surface a generic error to the peer.
+        const reason =
+          devalErr instanceof Error ? devalErr.message : String(devalErr);
         try {
           expr = devaluator.devaluate(
-            new Error(`failed to serialize ${tag} value: ${devalErr.message}`),
+            new Error(`failed to serialize ${tag} value: ${reason}`),
           );
         } catch (_e) {
           expr = ['error', 'Error', 'failed to serialize answer'];
