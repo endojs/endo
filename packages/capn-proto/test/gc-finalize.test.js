@@ -37,14 +37,18 @@ test('imported Presence collection triggers a Release on the far side', async t 
   registerInterface({ id: 0xfa11n, methods: { getInner: 0, name: 1 } });
   const remote = near.getBootstrap();
 
-  // Acquire a Presence for `inner`, then promptly drop it.
-  let importedInner = await E(remote).getInner();
-  // Confirm the export is live on far.
-  const beforeExports = far.stats().exports;
-  t.true(beforeExports >= 1, 'far exported `inner` while we held it');
-
-  // Drop the only reference so the FinalizationRegistry can collect.
-  importedInner = undefined;
+  // Acquire a Presence for `inner`, hold it long enough to confirm the
+  // export is live on far, then drop the reference. We wrap the
+  // acquire-and-drop in an immediately-invoked async block so the local
+  // binding goes out of scope cleanly without leaving a "let assigned and
+  // never read" lint warning trailing through the rest of the test.
+  let beforeExports;
+  await (async () => {
+    const importedInner = await E(remote).getInner();
+    t.truthy(importedInner, 'imported a Presence for inner');
+    beforeExports = far.stats().exports;
+    t.true(beforeExports >= 1, 'far exported `inner` while we held it');
+  })();
 
   // Best-effort: a few rounds of GC + timer ticks so the registry's
   // finalizer can run, the Release message is sent, and far's handleRelease

@@ -123,13 +123,12 @@ test('L3 end-to-end (host side): Provide + Accept resolves to a senderHosted Ret
   // bootstrap export id is allocated lazily by the bootstrap handler. We
   // exercise it explicitly so an export with id 0 exists for B to refer
   // to in the Provide target.
+  const indexModule = await import('../src/index.js');
   c.dispatch(
-    /** @type {any} */ (
-      (await import('../src/index.js')).encodeBootstrap({
-        questionId: 100,
-        deprecatedObjectId: null,
-      })
-    ),
+    indexModule.encodeBootstrap({
+      questionId: 100,
+      deprecatedObjectId: null,
+    }),
   );
   cOut.length = 0; // discard the bootstrap Return; we're done with it.
 
