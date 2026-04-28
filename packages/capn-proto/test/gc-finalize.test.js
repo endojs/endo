@@ -45,7 +45,6 @@ test('imported Presence collection triggers a Release on the far side', async t 
 
   // Drop the only reference so the FinalizationRegistry can collect.
   importedInner = undefined;
-  void importedInner;
 
   // Best-effort: a few rounds of GC + timer ticks so the registry's
   // finalizer can run, the Release message is sent, and far's handleRelease

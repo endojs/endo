@@ -53,7 +53,12 @@ export const pack = unpacked => {
     out[outLen] = byte;
     outLen += 1;
   };
-  /** @param {number} start word offset @param {number} end exclusive */
+  /**
+   * Append the byte range covered by word indices [start, end).
+   *
+   * @param {number} start word offset
+   * @param {number} end exclusive word offset
+   */
   const emitWordRange = (start, end) => {
     out.set(u8.subarray(start * WORD_SIZE, end * WORD_SIZE), outLen);
     outLen += (end - start) * WORD_SIZE;

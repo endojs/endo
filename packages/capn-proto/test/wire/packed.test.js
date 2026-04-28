@@ -1,4 +1,5 @@
 // @ts-nocheck
+/* eslint-disable @endo/restrict-comparison-operands, no-bitwise */
 import test from '@endo/ses-ava/test.js';
 import { pack, unpack } from '../../src/wire/packed.js';
 
