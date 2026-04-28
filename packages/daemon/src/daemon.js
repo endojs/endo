@@ -53,7 +53,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, XsnapWorkerFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -398,19 +398,27 @@ const makeDaemonCore = async (
   /**
    * @param {string} workerId512
    * @param {Context} context
+   * @param {'worker' | 'xsnap-worker'} [workerType]
    */
-  const makeIdentifiedWorker = async (workerId512, context) => {
+  const makeIdentifiedWorker = async (
+    workerId512,
+    context,
+    workerType = 'worker',
+  ) => {
     const daemonWorkerFacet = makeDaemonFacetForWorker(workerId512);
 
     const { promise: forceCancelled, reject: forceCancel } =
       /** @type {PromiseKit<never>} */ (makePromiseKit());
 
-    const { workerTerminated, workerDaemonFacet } =
-      await controlPowers.makeWorker(
-        workerId512,
-        daemonWorkerFacet,
-        Promise.race([forceCancelled, gracePeriodElapsed]),
-      );
+    const makeWorkerPower =
+      workerType === 'xsnap-worker'
+        ? controlPowers.makeXsnapWorker
+        : controlPowers.makeWorker;
+    const { workerTerminated, workerDaemonFacet } = await makeWorkerPower(
+      workerId512,
+      daemonWorkerFacet,
+      Promise.race([forceCancelled, gracePeriodElapsed]),
+    );
 
     const gracefulCancel = async () => {
       E.sendOnly(workerDaemonFacet).terminate();
@@ -1218,6 +1226,8 @@ const makeDaemonCore = async (
     lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
+    'xsnap-worker': (_formula, context, _id, formulaNumber) =>
+      makeIdentifiedWorker(formulaNumber, context, 'xsnap-worker'),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier },
       context,
@@ -1786,6 +1796,33 @@ const makeDaemonCore = async (
 
         return formulaNumber;
       }),
+    );
+  };
+
+  /**
+   * Formulates an `xsnap-worker` formula and synchronously adds it to the
+   * formula graph.
+   *
+   * @type {DaemonCore['formulateXsnapWorker']}
+   */
+  const formulateXsnapWorker = async deferredTasks => {
+    await null;
+    const formulaNumber = await formulaGraphJobs.enqueue(async () => {
+      const number = /** @type {FormulaNumber} */ (await randomHex512());
+      await deferredTasks.execute({
+        workerId: formatId({
+          number,
+          node: localNodeNumber,
+        }),
+      });
+      return number;
+    });
+    /** @type {XsnapWorkerFormula} */
+    const formula = {
+      type: 'xsnap-worker',
+    };
+    return /** @type {FormulateResult<EndoWorker>} */ (
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -2553,6 +2590,7 @@ const makeDaemonCore = async (
     provideController,
     cancelValue,
     formulateWorker,
+    formulateXsnapWorker,
     formulateHost,
     formulateGuest,
     formulateMarshalValue,

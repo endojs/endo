@@ -40,6 +40,7 @@ const assertPowersName = name => {
  * @param {DaemonCore['provideController']} args.provideController
  * @param {DaemonCore['cancelValue']} args.cancelValue
  * @param {DaemonCore['formulateWorker']} args.formulateWorker
+ * @param {DaemonCore['formulateXsnapWorker']} args.formulateXsnapWorker
  * @param {DaemonCore['formulateHost']} args.formulateHost
  * @param {DaemonCore['formulateGuest']} args.formulateGuest
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
@@ -58,6 +59,7 @@ export const makeHostMaker = ({
   provideController,
   cancelValue,
   formulateWorker,
+  formulateXsnapWorker,
   formulateHost,
   formulateGuest,
   formulateMarshalValue,
@@ -231,6 +233,45 @@ export const makeHostMaker = ({
     };
 
     /**
+     * @param {Name | undefined} workerName
+     * @returns {Promise<FormulaIdentifier>}
+     */
+    const provideXsnapWorkerId = async workerName => {
+      await null;
+      if (workerName === undefined) {
+        /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
+        const tasks = makeDeferredTasks();
+        const { id } = await formulateXsnapWorker(tasks);
+        return id;
+      }
+      const workerId = /** @type {FormulaIdentifier | undefined} */ (
+        petStore.identifyLocal(workerName)
+      );
+      if (workerId === undefined) {
+        /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
+        const tasks = makeDeferredTasks();
+        const { id } = await formulateXsnapWorker(tasks);
+        await petStore.write(/** @type {PetName} */ (workerName), id);
+        return id;
+      }
+      return workerId;
+    };
+
+    /**
+     * @param {string | string[]} workerNamePath
+     */
+    const provideXsnapWorker = async workerNamePath => {
+      const namePath = namePathFrom(workerNamePath);
+      assertNamePath(namePath);
+      if (namePath.length !== 1) {
+        throw new Error('Xsnap worker name path must have length 1');
+      }
+      const [workerName] = namePath;
+      const workerId = await provideXsnapWorkerId(workerName);
+      return provide(workerId, 'worker');
+    };
+
+    /**
      * @param {string | undefined} workerName
      * @param {string} source
      * @param {Array<string>} codeNames
@@ -296,6 +337,70 @@ export const makeHostMaker = ({
         endowmentFormulaIdsOrPaths,
         tasks,
         workerId,
+      );
+      return value;
+    };
+
+    /** @type {EndoHost['xsnapEvaluate']} */
+    const xsnapEvaluate = async (
+      workerName,
+      source,
+      codeNames,
+      petNamePaths,
+      resultName,
+    ) => {
+      if (workerName !== undefined) {
+        assertName(workerName);
+      }
+      if (!Array.isArray(codeNames)) {
+        throw new Error('Evaluator requires an array of code names');
+      }
+      for (const codeName of codeNames) {
+        if (typeof codeName !== 'string') {
+          throw new Error(`Invalid endowment name: ${q(codeName)}`);
+        }
+      }
+      if (resultName !== undefined) {
+        const resultNamePath = namePathFrom(resultName);
+        assertNamePath(resultNamePath);
+      }
+      if (petNamePaths.length !== codeNames.length) {
+        throw new Error('Evaluator requires one pet name for each code name');
+      }
+
+      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      const specifiedWorkerId = await provideXsnapWorkerId(
+        /** @type {Name | undefined} */ (workerName),
+      );
+
+      /** @type {(FormulaIdentifier | NamePath)[]} */
+      const endowmentFormulaIdsOrPaths = petNamePaths.map(petNameOrPath => {
+        const petNamePath = namePathFrom(petNameOrPath);
+        if (petNamePath.length === 1) {
+          const id = petStore.identifyLocal(petNamePath[0]);
+          if (id === undefined) {
+            throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
+          }
+          return /** @type {FormulaIdentifier} */ (id);
+        }
+        return petNamePath;
+      });
+
+      if (resultName !== undefined) {
+        const resultNamePath = namePathFrom(resultName);
+        tasks.push(identifiers =>
+          E(directory).write(resultNamePath, identifiers.evalId),
+        );
+      }
+
+      const { value } = await formulateEval(
+        hostId,
+        source,
+        codeNames,
+        endowmentFormulaIdsOrPaths,
+        tasks,
+        specifiedWorkerId,
       );
       return value;
     };
@@ -736,7 +841,9 @@ export const makeHostMaker = ({
       provideGuest,
       provideHost,
       provideWorker,
+      provideXsnapWorker,
       evaluate,
+      xsnapEvaluate,
       makeUnconfined,
       makeBundle,
       cancel,
