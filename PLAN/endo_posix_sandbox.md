@@ -1,33 +1,32 @@
 _Note for future readers_:
-this document is the design for the **Endo POSIX sandbox plugin** —
+This document is the design for the **Endo POSIX sandbox plugin** —
 an Endo capability that exposes a confined slice of a POSIX-like
 system (process namespace, filesystem view, optional network) as one
 or more `Exo` handles, with a primary near-term consumer of
 `@endo/genie`'s workspace.
 It was derived from
-[`TODO/10_endo_posix_sandbox.md`](../TODO/10_endo_posix_sandbox.md),
+[`TADA/10_endo_posix_sandbox.md`](../TADA/10_endo_posix_sandbox.md),
 which carried the first-pass research notes plus operator answers
 to the open questions raised in that pass.
 This file is the consolidated, opinion-bearing form;
-the original research sketch in `TODO/` remains useful as a longer
+the original research sketch in `TADA/` remains useful as a longer
 reference for backends we considered but are deferring.
 
 # Endo POSIX Sandbox: Plugin Plan
 
 ## Goal
 
-Expose a "slice of a POSIX-like system" as an Endo capability surface
-delivered through CapTP.
-The slice is a confined process namespace plus a writable filesystem
-view, optionally with a private network.
-It is constructed from Endo `Mount` capabilities (granted by the
-caller) and is GC-pinned by its handle — when the handle is released,
-the inner processes die, scratch unmounts, and the slice goes away.
+1. Expose a "slice of a POSIX-like system" as an Endo capability surface
+   delivered through CapTP.
+2. The slice is a confined process namespace plus a writable filesystem view,
+   optionally with a private network.
+3. It is constructed from Endo `Mount` capabilities (granted by the caller) and
+   is GC-pinned by its handle — when the handle is released, the inner
+   processes die, scratch unmounts, and the slice goes away.
 
-The first concrete consumer is `@endo/genie`:
-the plan is to run a genie's entire workspace and `bash`/`exec`
-tools _inside_ such a slice so a model that goes off the rails
-cannot trivially exfiltrate from the host.
+The first concrete consumer is `@endo/genie`: the plan is to run a genie's
+entire workspace and `bash`/`exec` tools _inside_ such a slice so a model that
+goes off the rails cannot trivially exfiltrate from the host.
 
 ## Non-goals
 
@@ -60,7 +59,7 @@ cannot trivially exfiltrate from the host.
 ## Decisions
 
 These resolve the open questions raised in
-[`TODO/10_endo_posix_sandbox.md`](../TODO/10_endo_posix_sandbox.md)
+[`TADA/10_endo_posix_sandbox.md`](../TADA/10_endo_posix_sandbox.md)
 § "Responses to Open Questions".
 They drive the rest of the design.
 
@@ -94,7 +93,7 @@ They drive the rest of the design.
 - **Nested slices (`fork()`)** — yes, in scope.
   This is the "agent spawns a sub-agent in its own slice" pattern
   the genie loop will eventually want.
-  v1 ships a stub returning `notImplemented`; Phase 5 lands the real
+  v1 ships a stub returning `notImplemented`; Phase 3 lands the real
   implementation, behind a kernel-feature probe (uid_map size,
   `/proc/sys/user/max_user_namespaces`).
 - **Genie integration shape — workspace, not new tools** — the v1
@@ -242,12 +241,13 @@ interface SandboxDriver {
 
 Drivers in scope:
 
-| Driver  | OS      | External deps            | Phase |
-|---------|---------|--------------------------|-------|
-| `bwrap` | Linux   | `bwrap`, optional `pasta`| 1     |
-| `podman`| Linux   | `podman` (rootless)      | 2     |
-| `lima`  | macOS   | `lima` / `colima`        | 3     |
-| `wsl`   | Windows | `wsl.exe`                | 4     |
+| Driver           | OS      | External deps              | Phase |
+|------------------|---------|----------------------------|-------|
+| `bwrap`          | Linux   | `bwrap`, optional `pasta`  | 1     |
+| `podman`         | Linux   | `podman` (rootless)        | 2     |
+| `lima`           | macOS   | `lima` / `colima`          | 4     |
+| `containerization`| macOS  | macOS 15+, Apple framework | 4     |
+| `wsl`            | Windows | `wsl.exe`                  | 6     |
 
 Drivers do **not** receive Endo capabilities directly.
 The plugin layer is the single mediator: it resolves each granted
@@ -352,7 +352,7 @@ Two constraints:
   there is no way to grant a child slice a mount the parent does
   not already have.
 
-Phase 5 lands real `fork()`; Phases 1–4 stub it as
+Phase 3 lands real `fork()`; Phases 1, 1.5, and 2 stub it as
 `notImplemented`.
 
 ### Plugin shape in Endo
@@ -468,7 +468,30 @@ Exit criteria: a slice configured with a Debian or Alpine image
 runs `apt`/`apk` against its private rootfs without touching the
 host system.
 
-### Phase 3 — macOS via lima
+### Phase 3 — nested slices
+
+(Was Phase 5; promoted ahead of multi-platform work so the
+nested-slice pattern is in place before lima / WSL2 drivers are
+asked to compose it.)
+
+- Implement `SandboxHandle.fork()` against the bwrap and podman
+  drivers, with kernel-feature probing
+  (uid_map size, `/proc/sys/user/max_user_namespaces`).
+- Forked slice's mounts are scoped to the parent's view; no way to
+  grant a child a mount the parent does not have.
+- Replace the Phase 1 / 1.5 / 2 `notImplemented` stub with the real
+  implementation, returning a structured error if the kernel
+  refuses nesting.
+
+Exit criteria: a sandboxed genie can spawn a child genie in its own
+sub-slice, on Linux, under both the bwrap and podman drivers.
+
+### Phase 4 — macOS via lima and apple containerization
+
+(Was Phase 3; combined with the Apple `Containerization.framework`
+driver that previously lived in Phase 5, so the macOS story lands
+as a single phase covering both the lima fallback and the modern
+macOS 15+ upgrade.)
 
 - Detect `limactl`.
 - `prepareSlice` boots (or attaches to) a long-lived lima VM;
@@ -478,33 +501,30 @@ host system.
   unmodified.
 - The host-side `SandboxHandle` is a thin proxy that forwards calls
   to the in-guest factory over SSH or WS-CapTP.
+- Optional driver: Apple `Containerization.framework` on
+  macOS 15+, gated behind a runtime check.
+  Same `SandboxInterface`, faster cold-start than lima.
 
 Exit criteria: same genie-in-a-slice acceptance test as Phase 1,
-running on macOS, talking to a lima guest.
+running on macOS, talking to a lima guest;
+Apple driver passes the Phase 1 acceptance test on macOS 15+
+where available.
 
-### Phase 4 — Windows via WSL2
+### Phase 6 — Windows via WSL2
+
+(Was Phase 4; deferred until after macOS lands, since the familiar
+roadmap prioritises macOS over Windows and WSL2 support reuses the
+same in-guest backend pattern lima establishes.)
 
 - Detect `wsl.exe` and a registered distro the plugin can use.
-- Same shape as Phase 3: a long-lived WSL2 distro, the plugin runs
+- Same shape as Phase 4: a long-lived WSL2 distro, the plugin runs
   the bwrap / podman driver inside, host-side `SandboxHandle` is a
   proxy.
 
 Exit criteria: the same acceptance test, on Windows, talking to a
 WSL2 guest.
 
-### Phase 5 — nested slices and apple containerization
-
-- Implement `SandboxHandle.fork()` against the bwrap and podman
-  drivers, with kernel-feature probing.
-- Optional driver: Apple `Containerization.framework` on
-  macOS 15+, gated behind a runtime check.
-  Same `SandboxInterface`, faster cold-start than lima.
-
-Exit criteria: a sandboxed genie can spawn a child genie in its own
-sub-slice, on Linux; Apple driver passes the Phase 1 acceptance
-test on macOS 15+ where available.
-
-### Phase 6 — focused tools and renderer integration
+### Phase 7 — focused tools and renderer integration
 
 Deferred follow-ups, scoped only after the workspace integration is
 in production use:
@@ -592,7 +612,7 @@ phases land:
   one VM per slice is too expensive; one VM per daemon is the
   obvious answer but raises cleanup questions when the daemon
   restarts.
-  Decide alongside Phase 3.
+  Decide alongside Phase 4 (lima / Apple containerization).
 - **Cgroup v2 delegation requirements** — rootless cgroup v2 needs
   `Delegate=` in the user systemd unit on some distros.
   Document the install prerequisite when Phase 1.5 lands resource
