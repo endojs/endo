@@ -70,6 +70,9 @@ import {
   makeWebSocketTransport,
   makeMessagePortTransport,
   makeHttpBatchTransport,
+  // server-side HTTP batch
+  processHttpBatchBody,
+  handleHttpBatchRequest,
 } from '@endo/capn-web';
 ```
 
@@ -84,6 +87,39 @@ All transports satisfy the simple `RpcTransport` interface:
 ```
 
 so plugging in a custom transport is straightforward.
+
+### Server-side HTTP batch
+
+Two helpers are provided for hosting an HTTP-batch endpoint:
+
+```js
+// Fetch-API style (Cloudflare Workers, Bun, Deno, modern Node):
+addEventListener('fetch', event => {
+  event.respondWith(
+    handleHttpBatchRequest(event.request, { localMain }),
+  );
+});
+
+// Or the protocol-only kernel, taking and returning a string body:
+const responseBody = await processHttpBatchBody(reqBody, { localMain });
+```
+
+Each call processes one HTTP-batch round trip: parses the request body
+(`\n`-joined RPC messages), runs a per-request session against `localMain`,
+waits for `session.drain()`, and returns the captured outgoing messages.
+
+Bidirectional capability passing within a single batch is not supported
+(the server can't make callbacks while holding the response open). For
+that, use the WebSocket or MessagePort transports.
+
+### Streams
+
+JavaScript `WritableStream` / `ReadableStream` instances are sent over the
+wire as `["writable", id]` / `["readable", id]`. The receiver side
+synthesises a real `WritableStream` / `ReadableStream` whose underlying
+sink/source forwards `write` / `read` / `close` / `cancel` / `abort` calls
+to the remote writer/reader. Pass them as method arguments or return values
+just like any other capability.
 
 ### `RpcTarget`
 
@@ -114,10 +150,13 @@ bidirectional method invocation all work both directions.
   `answerRef` so mappers can return any recorded value. Strict
   `cloudflare/capnweb`-compatibility for `["remap", …]` would need additional
   protocol-spec alignment and is out of scope here.
-- `["pipe"]` (open a new pipe) is not yet implemented. JS `WritableStream` /
-  `ReadableStream` values are encoded as `["writable", -id]` /
-  `["readable", -id]`, but the receiver gets a plain presence stub rather
-  than a synthesised host-side `WritableStream` wrapper.
+- `["pipe"]` (open a new pipe) is not yet implemented. JS
+  `WritableStream` / `ReadableStream` values are encoded as
+  `["writable", -id]` / `["readable", -id]`, and the receiver gets a real
+  `WritableStream` / `ReadableStream` whose I/O round-trips through one
+  remote method call per chunk. Chunked streaming over a single
+  HTTP-batch request isn't feasible (the response is not held open);
+  WebSocket and MessagePort transports work fine.
 - Sender-side `["stream", …]` (cloudflare/capnweb's fire-and-forget
   variant) is intentionally not emitted: send-only calls use a normal
   `["push", expr]` *without* a paired `["pull", id]`, which is strictly

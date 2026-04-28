@@ -40,6 +40,7 @@ import {
   encodeRequest,
   encodeResponse,
 } from './fetch-codec.js';
+import { exportWritableStream, exportReadableStream } from './streams.js';
 
 const G = /** @type {any} */ (globalThis);
 
@@ -102,11 +103,20 @@ export const makeDevaluator = ctx => {
       return encodeResponse(/** @type {Response} */ (value), devaluate);
     }
     if (G.WritableStream && value instanceof G.WritableStream) {
-      const id = ctx.exportValue(value, false);
+      // Export a Far'd writer-end whose methods delegate to the user's
+      // stream.  The wire form is ["writable", id]; the peer will
+      // synthesise a real WritableStream that proxies through us.
+      const writer = exportWritableStream(
+        /** @type {WritableStream} */ (value),
+      );
+      const id = ctx.exportValue(writer, false);
       return ['writable', id];
     }
     if (G.ReadableStream && value instanceof G.ReadableStream) {
-      const id = ctx.exportValue(value, false);
+      const reader = exportReadableStream(
+        /** @type {ReadableStream} */ (value),
+      );
+      const id = ctx.exportValue(reader, false);
       return ['readable', id];
     }
 

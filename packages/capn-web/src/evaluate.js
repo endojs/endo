@@ -8,6 +8,7 @@ import harden from '@endo/harden';
 
 import { decodeSpecial, isSpecialTag, isRefTag } from './special-values.js';
 import { decodeHeaders, decodeRequest, decodeResponse } from './fetch-codec.js';
+import { importWritableStream, importReadableStream } from './streams.js';
 
 /**
  * @typedef {object} EvaluatorContext
@@ -51,24 +52,26 @@ export const makeEvaluator = ctx => {
         `evaluating inline pipelined ${tag} is not supported`,
       );
     }
-    if (
-      tag === 'export' ||
-      tag === 'promise' ||
-      tag === 'writable' ||
-      tag === 'readable'
-    ) {
+    if (tag === 'export' || tag === 'promise') {
       const [id] = rest;
       if (typeof id !== 'number') {
         throw new TypeError(`${tag} id must be a number`);
       }
-      // The sender is introducing one of THEIR exports as a fresh capability
-      // for us.  We install it in our imports.  Promise-like tags (promise,
-      // readable) install a promise stub; object-like tags (export, writable)
-      // install a presence stub.
-      if (tag === 'promise' || tag === 'readable') {
-        return ctx.getOrMakePromise(id);
-      }
+      if (tag === 'promise') return ctx.getOrMakePromise(id);
       return ctx.getOrMakePresence(id);
+    }
+    if (tag === 'writable' || tag === 'readable') {
+      const [id] = rest;
+      if (typeof id !== 'number') {
+        throw new TypeError(`${tag} id must be a number`);
+      }
+      // For streams, install a presence stub at the import id and wrap it
+      // in a real WritableStream / ReadableStream that proxies write/read
+      // calls back to the peer.  In environments without the WHATWG
+      // Streams classes, the wrapper falls through to the bare stub.
+      const stub = ctx.getOrMakePresence(id);
+      if (tag === 'writable') return importWritableStream(stub);
+      return importReadableStream(stub);
     }
     if (tag === 'remap') {
       throw new TypeError('remap evaluation handled separately');

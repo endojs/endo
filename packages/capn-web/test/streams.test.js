@@ -77,10 +77,10 @@ streamTest('JS ReadableStream is encoded as ["readable", -id]', async t => {
 });
 
 test('incoming ["writable", id] is usable as a remote capability', async t => {
-  // Server "exports" a Far that the client interacts with as if it were
-  // a writable.  We don't synthesise a real WritableStream here — that's
-  // a layer we don't ship in v1.  We just verify the wire form decodes
-  // and the resulting stub supports E() method calls.
+  // Server returns a Far that the client interacts with as a writable.
+  // The evaluator wraps it in a real WritableStream when WHATWG Streams
+  // are available; otherwise the user gets the bare presence (still
+  // usable via E()).
   const writes = [];
   const writable = Far('writable', {
     write: chunk => {
@@ -96,9 +96,38 @@ test('incoming ["writable", id] is usable as a remote capability', async t => {
     localMain: Far('s', { open: () => writable }),
     gcImports: false,
   });
+  // We received a Far via E(...).open() (not via ['writable', id] — the
+  // server side never tagged it that way), so the import is a plain
+  // presence.  Calls work the same way:
   const stub = await E(sessionA.getRemoteMain()).open();
   await E(stub).write('hello');
   await E(stub).write('world');
   t.is(await E(stub).close(), 'closed');
   t.deepEqual(writes, ['hello', 'world']);
+});
+
+test('exported writable stub: write/close/abort delegate to a Far writer', async t => {
+  // Direct test of exportWritableStream-style proxy: wrap a Far that
+  // tracks ops, send it as the server's main, drive it via E() from the
+  // client.  This exercises the writer-end API the bridge synthesises.
+  const ops = [];
+  const writerFar = Far('writer', {
+    write: chunk => {
+      ops.push(['write', chunk]);
+    },
+    close: () => {
+      ops.push(['close']);
+    },
+    abort: reason => {
+      ops.push(['abort', reason]);
+    },
+  });
+  const { a, b } = makeLoopbackPair();
+  const sessionA = makeCapnWebSession(a, { gcImports: false });
+  makeCapnWebSession(b, { localMain: writerFar, gcImports: false });
+  const writer = sessionA.getRemoteMain();
+  await E(writer).write('a');
+  await E(writer).write('b');
+  await E(writer).close();
+  t.deepEqual(ops, [['write', 'a'], ['write', 'b'], ['close']]);
 });

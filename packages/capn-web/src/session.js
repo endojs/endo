@@ -639,6 +639,34 @@ export const makeCapnWebSession = (transport, opts = {}) => {
    */
   const getRemoteMain = () => getOrMakePresence(0);
 
+  /**
+   * Resolves once we have no further outbound traffic to produce: no
+   * outstanding outgoing pushes waiting for answers, no exported promises
+   * still settling, and no incoming pushes still being computed.  Useful
+   * for batch transports that need to know when to flush a response.
+   *
+   * Polls on the macrotask queue (setTimeout 0) so each iteration gives
+   * the session loop and microtasks a chance to advance.
+   */
+  /* global setTimeout */
+  async function drain() {
+    /* eslint-disable no-await-in-loop -- explicit polling loop */
+    // We finish two consecutive idle ticks in a row to allow last-mile
+    // microtasks to settle.
+    let idleCount = 0;
+    while (!aborted) {
+      const inFlight =
+        pendingPushAnswers.size > 0 || pendingExportPromises.size > 0;
+      if (!inFlight) {
+        idleCount += 1;
+        if (idleCount >= 2) return;
+      } else {
+        idleCount = 0;
+      }
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+
   // ------- start the receive loop -------
 
   (async () => {
@@ -664,6 +692,7 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     getRemoteMain,
     callRemap,
     abort,
+    drain,
     getStats: () => tables.getStats(),
     isAborted: () => aborted,
   });
