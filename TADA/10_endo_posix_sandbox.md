@@ -1,14 +1,119 @@
+## Design Endo Posix Sandbox Plugin
 
-We're researching how to write an Endo plugin that can provide a sandboxed
-slice of a posix-like system as a capability or set of capabilities.
+- [x] review the "Responses to Open Questions" below
+- [x] integrate into and evolve our "Research Notes: Sandboxed POSIX Slice as an Endo Capability"
+- [x] into a concrete `PLAN/` document for along the lines of "Suggested implementation phasing" near the end of file
 
-- I think I want to start out supporting Linux, using unprivileged podman containers
-- but maybe I want wield the Linux subuid / namespace / etc APIs directly instead?
-- MacOS and Windows, we can plan to just use a Linux VM for now, but maybe give
-  me research notes about similar darwin/bsd-native or windows-native
-  containment APIs or tools?
+The consolidated, opinion-bearing plan now lives at
+[`PLAN/endo_posix_sandbox.md`](../PLAN/endo_posix_sandbox.md).
+That document captures:
 
-- [x] research and layout options here in this task for now, write no code
+- the resolved decisions corresponding to each operator answer below
+  (pure-Node plugin / "require installed" tooling, BYO rootfs, three
+  named network profiles with `private` as the recommended default,
+  nested slices in scope, genie-as-workspace primary integration,
+  familiar deferred, Linux-only CI for v1),
+- the full capability surface (`SandboxFactory`, `SandboxHandle`,
+  `ProcessHandle`, `MountHandle`) as a sketch for Phase 0 to formalise
+  into `M.interface()` guards,
+- the `SandboxDriver` adapter shape and the four in-scope drivers
+  (`bwrap`, `podman`, `lima`, `wsl`),
+- cross-cutting concerns: backend probing, stdio bridging via existing
+  `reader-ref` / `writer-ref`, cap-not-string mounts, GC anchored on
+  the handle's formula, network profile semantics, nested-slice
+  prereqs, and the `make-unconfined` plugin shape mirroring `lal` /
+  `jaine` / the networks plugin,
+- a six-phase implementation plan (0: interface design,
+  1: bwrap on Linux, 1.5: bwrap hardening, 2: podman, 3: macOS via
+  lima, 4: Windows via WSL2, 5: nested slices + Apple
+  containerization, 6: focused tools & renderer integration),
+- the genie integration shape (sandbox-as-workspace, existing
+  `bash`/`exec`/`git` tools spawn through the slice unchanged
+  externally),
+- familiar follow-up notes for renderer reach,
+  `endo-sandbox-stdio:` protocol scheme, distribution-shipped
+  rootfs, and cross-OS CI,
+- a small set of secondary open questions deferred to the relevant
+  phase (default seccomp profile, egress filter mechanism, long-lived
+  guest VM lifecycle, cgroup v2 delegation prerequisites).
+
+The research notes below are retained as the longer reference for
+backends and approaches we considered but are deferring; the PLAN
+document is the authoritative source from this point on.
+
+---
+
+## Responses to Open Questions
+
+Blockquotes in this section cite open question from the first pass of research,
+responses are bullet points following each quote.
+
+### 1. **Native helper appetite.**
+
+> Bwrap is C; podman is Go; WSL is Win32.
+> Do we want the Endo plugin to be allowed to depend on a binary
+> per platform (and if so, ship-with vs. require-installed)?
+> Or do we want a pure-Node plugin that fails fast when its
+> external tool is missing?
+- pure node plugin is where to start, go with "require installed"
+
+### 2. **Rootfs distribution.**
+
+> Are we OK with shipping a minimal rootfs tarball (Alpine ≈ 5 MB,
+> busybox ≈ 1 MB) inside Endo, or should every consumer BYO?
+- for now, avoid shipping a rootfs tarball, just BYO
+- eventually, distributions like the `@endo/familiar` electron chat app may
+  choose to add such things to their build
+
+### 3. **Networking policy default.**
+
+> "No network" is the safest default but breaks `git clone` etc.
+> Do we want the default to be "loopback only," "host network with
+> read-only DNS," or "private NAT'd net via pasta/slirp4netns"?
+- the base case should be fully isolated "no network"
+- but we should ship a more functional default of "private NAT, no access to
+  RFC 1918 addresses, and especially, no access upwards onto the host machine's
+  loopback"
+- any endowment of access to LAN surface area, host loopback, and such must be
+  explicit by the consumer/caller
+
+### 4. **Multi-tenant slice nesting.**
+
+> Should `SandboxHandle.fork()` be a real feature, i.e. nested
+> user namespaces?
+> Linux supports it but with surprises (uid_map size limits,
+> `/proc/sys/user/max_user_namespaces`).
+> Useful for "agent spawns a sub-agent in its own slice" patterns.
+- yes very much so we want this
+
+### 5. **Genie integration shape.**
+
+> Should the genie tool registry get a first-class
+> `sandbox.spawn`/`sandbox.exec` tool, or should we model the
+> sandbox as a *workspace* and let the existing `bash`/`exec`
+> tools target it transparently?
+> The latter is more uniform but pushes complexity into the
+> workspace abstraction.
+- so the primary use case we've got in mind, is very much to isolate an entire genie's workspace
+- but also focused sandbox tools as described may be useful eventually
+
+### 6. **Familiar / Electron interaction.**
+
+> Familiar already has `exfiltration-defense.js` and a `navigation-guard.js`.
+> Should the sandbox plugin be reachable from the Electron
+> renderer at all, or strictly from worker-side code?
+> If reachable, does the `protocol-handler` need a new scheme to
+> stream sandboxed-process stdio into a webview?
+- any integration into the familiar / electron app is out of initial scope, we're starting with genie as noted in prior section
+- leave design notes in a follow up `PLAN/` document for eventual familiar work and usage
+
+### 7. **CI footprint.**
+
+> Tests for this plugin will need bwrap/podman/lima/wsl in CI.
+> Are we OK with Linux-only CI for the sandbox plugin and manual
+> smoke-tests on macOS/Windows, or do we need a cross-OS matrix?
+- start with Linux only CI for now, yes
+- macOS and windows test matrix can be scoped alongside familiar chat app integration, per prior section
 
 ---
 
@@ -53,7 +158,7 @@ and could back the sandbox's writable layers.
 Backend selection — podman, bwrap, namespaces, lima, WSL2, etc. — is
 what the rest of this document explores.
 A driver interface ("provide me a confined `argv` runner with these
-mounts") lets one capability surface span backends.
+mounts") lets one capability surface spawn backends.
 
 ---
 
@@ -568,49 +673,15 @@ Phase 5 — **hardening passes**
 
 ---
 
-## Open questions / needs clarification
+## Initiator Prompt
 
-1. **Native helper appetite.**
-   Bwrap is C; podman is Go; WSL is Win32.
-   Do we want the Endo plugin to be allowed to depend on a binary
-   per platform (and if so, ship-with vs. require-installed)?
-   Or do we want a pure-Node plugin that fails fast when its
-   external tool is missing?
-
-2. **Rootfs distribution.**
-   Are we OK with shipping a minimal rootfs tarball (Alpine ≈ 5 MB,
-   busybox ≈ 1 MB) inside Endo, or should every consumer BYO?
-
-3. **Networking policy default.**
-   "No network" is the safest default but breaks `git clone` etc.
-   Do we want the default to be "loopback only," "host network with
-   read-only DNS," or "private NAT'd net via pasta/slirp4netns"?
-
-4. **Multi-tenant slice nesting.**
-   Should `SandboxHandle.fork()` be a real feature, i.e. nested
-   user namespaces?
-   Linux supports it but with surprises (uid_map size limits,
-   `/proc/sys/user/max_user_namespaces`).
-   Useful for "agent spawns a sub-agent in its own slice" patterns.
-
-5. **Genie integration shape.**
-   Should the genie tool registry get a first-class
-   `sandbox.spawn`/`sandbox.exec` tool, or should we model the
-   sandbox as a *workspace* and let the existing `bash`/`exec`
-   tools target it transparently?
-   The latter is more uniform but pushes complexity into the
-   workspace abstraction.
-
-6. **Familiar / Electron interaction.**
-   Familiar already has `exfiltration-defense.js` and a
-   `navigation-guard.js`.
-   Should the sandbox plugin be reachable from the Electron
-   renderer at all, or strictly from worker-side code?
-   If reachable, does the `protocol-handler` need a new scheme to
-   stream sandboxed-process stdio into a webview?
-
-7. **CI footprint.**
-   Tests for this plugin will need bwrap/podman/lima/wsl in CI.
-   Are we OK with Linux-only CI for the sandbox plugin and manual
-   smoke-tests on macOS/Windows, or do we need a cross-OS matrix?
-
+> We're researching how to write an Endo plugin that can provide a sandboxed
+> slice of a posix-like system as a capability or set of capabilities.
+> 
+> - I think I want to start out supporting Linux, using unprivileged podman containers
+> - but maybe I want wield the Linux subuid / namespace / etc APIs directly instead?
+> - MacOS and Windows, we can plan to just use a Linux VM for now, but maybe give
+>   me research notes about similar darwin/bsd-native or windows-native
+>   containment APIs or tools?
+> 
+> - [x] research and layout options here in this task for now, write no code
