@@ -81,9 +81,11 @@ const passStyleOfOrUndefined = value => {
 export const makeDevaluator = ctx => {
   /**
    * @param {unknown} value
-   * @returns {unknown} a JSON-serialisable expression
+   * @param {WeakSet<object>} seen  Tracks containers currently on the
+   *   recursion stack to detect cycles.
+   * @returns {unknown}
    */
-  const devaluate = value => {
+  const devaluateInner = (value, seen) => {
     // 1. Atomic specials.
     const special = tryEncodeSpecial(value);
     if (special !== undefined) return special;
@@ -97,15 +99,16 @@ export const makeDevaluator = ctx => {
     // 3. Host objects with explicit wire forms.
     if (isHeaders(value)) return encodeHeaders(/** @type {Headers} */ (value));
     if (isRequest(value)) {
-      return encodeRequest(/** @type {Request} */ (value), devaluate);
+      return encodeRequest(/** @type {Request} */ (value), v =>
+        devaluateInner(v, seen),
+      );
     }
     if (isResponse(value)) {
-      return encodeResponse(/** @type {Response} */ (value), devaluate);
+      return encodeResponse(/** @type {Response} */ (value), v =>
+        devaluateInner(v, seen),
+      );
     }
     if (G.WritableStream && value instanceof G.WritableStream) {
-      // Export a Far'd writer-end whose methods delegate to the user's
-      // stream.  The wire form is ["writable", id]; the peer will
-      // synthesise a real WritableStream that proxies through us.
       const writer = exportWritableStream(
         /** @type {WritableStream} */ (value),
       );
@@ -144,8 +147,6 @@ export const makeDevaluator = ctx => {
       return ['promise', id];
     }
     if (style === 'error') {
-      // This branch covers Error subclasses that didn't match
-      // `instanceof Error` in tryEncodeSpecial (e.g. cross-realm errors).
       return [
         'error',
         /** @type {any} */ (value).name || 'Error',
@@ -153,22 +154,37 @@ export const makeDevaluator = ctx => {
       ];
     }
 
-    // 6. Plain shapes — locally recursed.  We don't require these to be
-    //    hardened (or pass passStyleOf overall), because they'll often
-    //    contain nested non-passable hosts like Date that we handle in
-    //    step 1.
+    // 6. Plain shapes — locally recursed.  Detect cycles up-front: a
+    //    structure that contains itself can't be serialised, and a naive
+    //    recursion would never return.
     if (Array.isArray(value)) {
-      return [value.map(v => devaluate(v))];
+      if (seen.has(/** @type {object} */ (value))) {
+        throw new TypeError('Cannot serialize circular reference');
+      }
+      seen.add(/** @type {object} */ (value));
+      try {
+        return [value.map(v => devaluateInner(v, seen))];
+      } finally {
+        seen.delete(/** @type {object} */ (value));
+      }
     }
     if (isPlainObject(value)) {
-      /** @type {Record<string, unknown>} */
-      const out = {};
-      for (const [k, v] of Object.entries(/** @type {object} */ (value))) {
-        if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
-          out[k] = devaluate(v);
-        }
+      if (seen.has(/** @type {object} */ (value))) {
+        throw new TypeError('Cannot serialize circular reference');
       }
-      return out;
+      seen.add(/** @type {object} */ (value));
+      try {
+        /** @type {Record<string, unknown>} */
+        const out = {};
+        for (const [k, v] of Object.entries(/** @type {object} */ (value))) {
+          if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+            out[k] = devaluateInner(v, seen);
+          }
+        }
+        return out;
+      } finally {
+        seen.delete(/** @type {object} */ (value));
+      }
     }
 
     // 7. Functions that aren't marked as remotables, exotic class
@@ -182,6 +198,12 @@ export const makeDevaluator = ctx => {
       `Cannot serialize value of type ${Object.prototype.toString.call(value)}`,
     );
   };
+
+  /**
+   * @param {unknown} value
+   * @returns {unknown} a JSON-serialisable expression
+   */
+  const devaluate = value => devaluateInner(value, new WeakSet());
 
   return harden({ devaluate });
 };
