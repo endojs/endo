@@ -9,6 +9,7 @@
 
 import { Fail } from '@endo/errors';
 import { HandledPromise } from '@endo/eventual-send';
+import { Remotable } from '@endo/pass-style';
 
 /**
  * @param {object} ctx
@@ -45,16 +46,23 @@ export const makeImportRegistry = ({
     } else {
       // resolveWithPresence(handler) returns the underlying Presence object
       // and resolves the promise to it. We keep the Presence (not the
-      // promise) as our identity-bearing value.
+      // promise) as our identity-bearing value, then upgrade it via
+      // `Remotable(...)` so `@endo/pass-style` accepts it as a properly
+      // declared remotable when it crosses an Exo / marshal boundary.
       let captured;
-      // The HandledPromise itself isn't used directly; we only need the
-      // Presence that `resolveWithPresence` synthesises. The promise
-      // resolves to the same Presence as a side-effect.
       // eslint-disable-next-line no-new
       new HandledPromise((_resolve, _reject, resolveWithPresence) => {
         captured = resolveWithPresence(handler);
       });
-      presence = captured;
+      // Remotable mutates `captured`'s prototype to a tag record and
+      // hardens it. The HandledPromise-side maps (presenceToHandler etc.)
+      // are keyed by reference, so the in-place upgrade is invisible to
+      // them.
+      presence = Remotable(
+        `Alleged: capn-proto/import:${id}`,
+        undefined,
+        captured,
+      );
     }
 
     importIdToPresence.set(id, /** @type {object} */ (presence));
