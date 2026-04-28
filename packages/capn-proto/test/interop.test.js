@@ -334,6 +334,8 @@ if (!haveCapnp) {
   /**
    * Spawn `capnp decode --packed rpc.capnp Message` with the given packed
    * bytes on stdin.
+   *
+   * @param {ArrayBuffer | Uint8Array} packedFramed
    */
   const runCapnpDecodePacked = packedFramed => {
     const r = spawnSync('capnp', ['decode', '--packed', RPC_CAPNP, 'Message'], {
@@ -346,7 +348,11 @@ if (!haveCapnp) {
     return r.stdout.split('*** ERROR')[0].trim();
   };
 
-  /** Spawn `capnp encode --packed rpc.capnp Message` with text on stdin. */
+  /**
+   * Spawn `capnp encode --packed rpc.capnp Message` with text on stdin.
+   *
+   * @param {string} text
+   */
   const runCapnpEncodePacked = text => {
     const r = spawnSync('capnp', ['encode', '--packed', RPC_CAPNP, 'Message'], {
       input: text,

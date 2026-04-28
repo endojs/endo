@@ -42,7 +42,7 @@ test('imported Presence collection triggers a Release on the far side', async t 
   // acquire-and-drop in an immediately-invoked async block so the local
   // binding goes out of scope cleanly without leaving a "let assigned and
   // never read" lint warning trailing through the rest of the test.
-  let beforeExports;
+  let beforeExports = -1;
   await (async () => {
     const importedInner = await E(remote).getInner();
     t.truthy(importedInner, 'imported a Presence for inner');
