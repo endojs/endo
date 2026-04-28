@@ -33,3 +33,4 @@ export {
 } from './wire/segment.js';
 export { frameSegments, unframeSegments } from './wire/framing.js';
 export { readPointer, writePointer, resolvePointer } from './wire/pointer.js';
+export { pack, unpack } from './wire/packed.js';

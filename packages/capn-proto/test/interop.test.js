@@ -34,6 +34,8 @@ import {
   encodeAccept,
   encodeAbort,
   decodeMessage,
+  pack,
+  unpack,
 } from '../src/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -325,5 +327,90 @@ if (!haveCapnp) {
     t.is(m.type, 'release');
     t.is(m.id, 100);
     t.is(m.referenceCount, 5);
+  });
+
+  // ----- Packed encoding interop ------------------------------------------
+
+  /**
+   * Spawn `capnp decode --packed rpc.capnp Message` with the given packed
+   * bytes on stdin.
+   */
+  const runCapnpDecodePacked = packedFramed => {
+    const r = spawnSync('capnp', ['decode', '--packed', RPC_CAPNP, 'Message'], {
+      input: Buffer.from(packedFramed),
+      encoding: 'utf8',
+    });
+    if (r.status !== 0) {
+      throw Error(`capnp decode --packed failed: ${r.stderr || r.stdout}`);
+    }
+    return r.stdout.split('*** ERROR')[0].trim();
+  };
+
+  /** Spawn `capnp encode --packed rpc.capnp Message` with text on stdin. */
+  const runCapnpEncodePacked = text => {
+    const r = spawnSync('capnp', ['encode', '--packed', RPC_CAPNP, 'Message'], {
+      input: text,
+    });
+    if (r.status !== 0) {
+      throw Error(
+        `capnp encode --packed failed: ${
+          r.stderr?.toString() || r.stdout?.toString()
+        }`,
+      );
+    }
+    const stdout = r.stdout;
+    const out = new ArrayBuffer(stdout.length);
+    new Uint8Array(out).set(stdout);
+    return out;
+  };
+
+  test('interop packed: our pack(framed) decoded by `capnp decode --packed`', t => {
+    const framed = encodeCall({
+      questionId: 7,
+      target: { kind: 'importedCap', id: 3 },
+      interfaceId: 0xa1b2c3d4e5f60718n,
+      methodId: 11,
+      params: {
+        contentBytes: new Uint8Array([1, 2, 3]),
+        capTable: [{ kind: 'senderHosted', id: 9 }],
+      },
+    });
+    const packed = pack(framed);
+    // Sanity: packed should usually be smaller than unpacked (Cap'n Proto
+    // messages are full of zero padding).
+    t.true(
+      packed.byteLength <= framed.byteLength,
+      `packed (${packed.byteLength}) <= unpacked (${framed.byteLength})`,
+    );
+    const out = runCapnpDecodePacked(packed);
+    t.regex(out, /questionId = 7/);
+    t.regex(out, /methodId = 11/);
+    t.regex(out, /senderHosted = 9/);
+  });
+
+  test('interop packed reverse: `capnp encode --packed` → unpack() → our decoder', t => {
+    const text = '( bootstrap = (questionId = 4242) )';
+    const packed = runCapnpEncodePacked(text);
+    const unpacked = unpack(packed);
+    const m = decodeMessage(unpacked);
+    t.is(m.type, 'bootstrap');
+    t.is(m.questionId, 4242);
+  });
+
+  test('interop packed: pack ∘ unpack ≡ identity for a real Message', t => {
+    const framed = encodeReturn({
+      answerId: 1,
+      releaseParamCaps: false,
+      result: {
+        kind: 'results',
+        payload: { contentBytes: new Uint8Array(0), capTable: [] },
+      },
+    });
+    const repacked = unpack(pack(framed));
+    t.deepEqual(
+      Array.from(new Uint8Array(repacked)),
+      Array.from(new Uint8Array(framed)),
+      'pack/unpack round-trip is byte-identical',
+    );
   });
 }

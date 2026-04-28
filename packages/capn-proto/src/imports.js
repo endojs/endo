@@ -59,7 +59,11 @@ export const makeImportRegistry = ({
 
     importIdToPresence.set(id, /** @type {object} */ (presence));
     importEntries.set(id, {
-      presence,
+      // NOTE: deliberately no strong `presence` reference here; importEntries
+      // is a strong Map and including the presence would defeat the
+      // FinalizationRegistry on importIdToPresence (the whole point of the
+      // weak map is so the user-facing Presence can be GC'd when the user
+      // drops it, triggering the Release-on-finalize callback).
       resolveSettler,
       rejectSettler,
       isPromise,
