@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-27*
+*Last updated: 2026-04-23*
 
 ## Summary
 
@@ -16,6 +16,7 @@
 | [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-27 | Proposed |
 | [chat-pending-commands](chat-pending-commands.md) | 2026-03-11 | 2026-03-11 | Not Started |
 | [chat-rename-dismiss-to-clear](chat-rename-dismiss-to-clear.md) | 2026-03-03 | 2026-03-03 | Proposed |
+| [chat-slot-slash-commands](chat-slot-slash-commands.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-03-21 | Not Started |
 | [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | 2026-02-28 | Deprecated |
 | [chat-spaces-home](chat-spaces-home.md) | 2026-03-02 | 2026-03-02 | **Complete** |
@@ -74,11 +75,17 @@
 | [ocapn-noise-cryptographic-review](ocapn-noise-cryptographic-review.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-noise-network](ocapn-noise-network.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [ocapn-tcp-syrup-framing](ocapn-tcp-syrup-framing.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [outliner-design-doc](outliner-design-doc.md) | 2026-03-17 | 2026-03-18 | In Progress |
+| [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [endor-bus-tui](endor-bus-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [endor-tui](endor-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [hex-package](hex-package.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 21 Complete/Implemented, 5 In Progress, 38 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
+**Totals:** 21 Complete/Implemented, 5 In Progress, 45 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
 
 ## Roadmap
 
@@ -251,6 +258,9 @@ capabilities available to agents.
 | endoclaw-network-fetch | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. |
 | daemon-cross-peer-gc | Not Started | **Urgent:** Synced pet store CRDT for cross-peer GC, revocation propagation, offline progress |
 | daemon-guest-eval-simplification | Not Started | Remove eval-proposal handshake; guest eval delegates directly to `formulateEval` |
+| ci-no-npm-lifecycle | Not Started | Pin `enableScripts: false` posture into CI; enforcement check for workflows |
+| base64-native-fallthrough | Not Started | `@endo/base64` dispatches to `Uint8Array.fromBase64` / `toBase64` when available |
+| hex-package | Not Started | New `@endo/hex` ponyfill with native fallthrough; audit and migrate scattered hex sites |
 
 **Exit criterion:** Someone can self-host a daemon with our Docker image
 and remote control it, by whatever means, using a local Familiar or a
@@ -273,6 +283,7 @@ finalized.
 |--------|--------|-------|
 | ocapn-network-transport-separation | In Progress | Foundation for transport abstraction |
 | ocapn-tcp-for-test-extraction | Not Started | Clean separation before Noise |
+| ocapn-tcp-syrup-framing | Not Started | Comma-less netstring variant (`@endo/syrup-frame`) on a distinct `tcp+syrup-frame` netlayer identifier |
 | ocapn-noise-cryptographic-review | Not Started | External review coordination |
 | daemon-agent-network-identity | Not Started | Per-agent keypairs for network identity |
 | ocapn-noise-network | Not Started | Full Noise protocol network layer |
@@ -320,6 +331,7 @@ webhook events.
 |--------|--------|-------|
 | ~~chat-reply-chain-visualization~~ | Deprecated | Superseded by chat-focus-message |
 | chat-pending-commands | Not Started | Pending commands region, unlocked command bar |
+| chat-slot-slash-commands | Not Started | Slash commands (e.g. `/js`) inside slot inputs; daemon-side transient pinning until retained by the outer formula |
 | daemon-commands-as-messages | Not Started | Commands as self-addressed messages with reply results; subsumes pending region |
 | inventory-cancel-and-liveness | Not Started | Cancel button with liveness indicator, coalesced watcher protocol |
 | inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
@@ -359,6 +371,28 @@ identity. Browser automation available for web research and form filling.
 Agents reachable from external messaging platforms via channel bridges.
 
 **Estimated duration (1 dev):** 8-12 weeks
+
+---
+
+#### Milestone 6: Rust Daemon (`endor`)
+
+**Goal:** Begin the Rust re-implementation of the Endo daemon, targeting
+a terminal-first experience.
+Workers are still XS-based, but the host daemon, its bus, and its primary
+user interface move to Rust.
+
+| Design | Status | Notes |
+|--------|--------|-------|
+| endor-tui | Not Started | TUI entry point for `endor`: Chat UI in terminal idiom, and an integrated stepping debugger for XS workers (XS `mxDebug` protocol) |
+| endor-bus-tui | Not Started | Bus-protocol verbs for worker-owned TUI regions, XS handle API, Exo/CapTP wrapper |
+
+**Exit criterion:** `endor` runs as a second-seat daemon against the same
+state directory as the Node daemon, exposes a fully functional Chat TUI
+over its bus, and can attach to an XS worker's debugger.
+Worker-authored TUI regions compose into the same layout.
+
+**Estimated duration (1 dev):** 10-14 weeks (research-heavy; Rust port
+includes codec, mailbox, supervisor, and terminal rendering substrates)
 
 ---
 
@@ -429,8 +463,12 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | endoclaw-timer | S-M | 2-3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
 | daemon-guest-eval-simplification | S | 1 day | 1 | Remove eval-proposal flow, guest eval delegates to `formulateEval` |
 | endoclaw-network-fetch | S-M | 2-3 days | 1 | HttpClient with origin allowlist, rate/size limits |
+| ci-no-npm-lifecycle | S | 1 day | 1 | Workflow audit, env var pinning, enforcement check |
+| base64-native-fallthrough | S | 1 day | 1 | Detect `Uint8Array.fromBase64`, dispatch, dual-path tests |
+| hex-package | S-M | 2-3 days | 1 | New `@endo/hex` package, migrate `daemon/src/hex.js`, `relay-server/src/protocol.js`, OCapN hex sites |
 | ocapn-network-transport-separation | M-L | 1-1.5 weeks | 2 | Architectural refactor |
 | ocapn-tcp-for-test-extraction | S-M | 2-3 days | 2 | Code relocation |
+| ocapn-tcp-syrup-framing | S-M | 2-3 days | 2 | `@endo/syrup-frame` package, new `tcp+syrup-frame` netlayer, fix chunk-boundary bug in `tcp-test-only` |
 | ocapn-noise-cryptographic-review | S | 1 day | 2 | External review coordination |
 | daemon-agent-network-identity | S-M | 2-3 days | 2 | Network registration, locator construction |
 | ocapn-noise-network | L | 1.5-2 weeks | 2 | Full network + transport |
@@ -445,6 +483,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | endoclaw-voice | S | 1-2 days | 3 | Web Speech API in Chat UI |
 | ~~chat-reply-chain-visualization~~ | — | — | 4 | Deprecated (superseded by chat-focus-message) |
 | chat-pending-commands | S-M | 2-3 days | 4 | Pending region, unlocked command bar (UI only) |
+| chat-slot-slash-commands | M | 3-4 days | 4 | Slot-level verb registry, transient-pin extension of `formulateEval`, shared slot-input component |
 | daemon-commands-as-messages | M-L | 1-1.5 weeks | 4 | New message type, self-delivery, result replies, Chat rendering |
 | inventory-cancel-and-liveness | M | 3-4 days | 4 | Cancel button, indicator states, coalesced watcher exo + daemon hooks |
 | inventory-grouping-by-type | S | 1-2 days | 4 | UI grouping |
@@ -459,18 +498,21 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | endoclaw-browser | M-L | 1-1.5 weeks | 5 | Playwright-backed, origin-confined |
 | endoclaw-channel-bridges | M | 3-4 days | 5 | Vercel `chat` SDK adapters |
 | endoclaw-skill-registry | S-M | 2-3 days | 5 | Skills directory with capability declarations |
+| endor-tui | XL | 4-6 weeks | 6 | Rust TUI: ratatui/crossterm, concept-map of every Chat component, XS `mxDebug` debugger integration |
+| endor-bus-tui | XL | 3-5 weeks | 6 | Bus-verb spec, XS handle API, Exo/CapTP wrapper; cross-worker layout composition |
 
 #### Summary by Milestone
 
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 11 remaining | 6-7 weeks |
-| M2: Networking | 5 | 3-4 weeks |
+| M1: Remote Access & Tools | 14 remaining | 7-8 weeks |
+| M2: Networking | 6 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
-| M4: UX & Tooling | 9 | 5-7 weeks |
+| M4: UX & Tooling | 10 | 6-8 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **38** | **~26-36 weeks** |
+| M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
+| **Total remaining** | **46** | **~38-52 weeks** |
 
 ### Timeline
 
@@ -496,6 +538,9 @@ gantt
 
     section Milestone 5
     Confinement & Ecosystem       :m5, after m4, 10w
+
+    section Milestone 6
+    Rust Daemon (endor)           :m6, after m5, 12w
 ```
 
 | Milestone | Duration | Cumulative | Target Date |
@@ -506,10 +551,13 @@ gantt
 | M3: Weblets & Integrations | 4-6 weeks | 12-17 weeks | Late June 2026 |
 | M4: UX & Tooling | 5-7 weeks | 16-23 weeks | Late August 2026 |
 | M5: Confinement & Ecosystem | 8-12 weeks | 24-35 weeks | Late October 2026 |
+| M6: Rust Daemon (`endor`) | 10-14 weeks | 34-49 weeks | Q1 2027 |
 
 *Milestones 3 and 4 are less order-dependent and can be interleaved.
 Milestones 0, 1, and 2 form the critical path. Weblets prioritized over
-UX polish (swapped 2026-03-06).*
+UX polish (swapped 2026-03-06).
+M6 (Rust `endor`) is research-heavy and may run in parallel to later
+chat/UX milestones once basic host scaffolding is in place.*
 
 ### Strategic Early Items
 
