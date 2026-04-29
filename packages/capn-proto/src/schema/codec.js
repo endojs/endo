@@ -107,12 +107,12 @@ const writeDataField = (loc, dataSlot, kind, v) => {
         return;
       }
       if (BIGINT_TYPES.has(kind)) {
-        const big = typeof v === 'bigint' ? v : BigInt(v);
+        const big = typeof v === 'bigint' ? v : BigInt(/** @type {any} */ (v));
         if (kind === 'int64') view.setBigInt64(absByte, big, true);
         else view.setBigUint64(absByte, big, true);
         return;
       }
-      writeUint64(loc, byteOffset, BigInt(v));
+      writeUint64(loc, byteOffset, BigInt(/** @type {any} */ (v)));
       return;
     default:
       throw Fail`writeDataField: bad bitSize ${bitSize}`;
@@ -294,10 +294,18 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
         view.setFloat32(off, Number(v), true);
         break;
       case 'int64':
-        view.setBigInt64(off, typeof v === 'bigint' ? v : BigInt(v), true);
+        view.setBigInt64(
+          off,
+          typeof v === 'bigint' ? v : BigInt(/** @type {any} */ (v)),
+          true,
+        );
         break;
       case 'uint64':
-        view.setBigUint64(off, typeof v === 'bigint' ? v : BigInt(v), true);
+        view.setBigUint64(
+          off,
+          typeof v === 'bigint' ? v : BigInt(/** @type {any} */ (v)),
+          true,
+        );
         break;
       case 'float64':
         view.setFloat64(off, Number(v), true);
@@ -476,13 +484,18 @@ const readList = (msg, ptrLocation, listType, layouts) => {
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
  */
 export const decodeRootStruct = (framed, layout, layouts) => {
-  const ab =
-    framed instanceof ArrayBuffer
-      ? framed
-      : framed.buffer.slice(
-          framed.byteOffset,
-          framed.byteOffset + framed.byteLength,
-        );
+  /** @type {ArrayBuffer} */
+  let ab;
+  if (framed instanceof ArrayBuffer) {
+    ab = framed;
+  } else {
+    // Copy bytes into a fresh ArrayBuffer. We can't call
+    // `framed.buffer.slice(...)` directly because typed-array `.buffer` is
+    // `ArrayBufferLike`, which TypeScript widens to `ArrayBuffer |
+    // SharedArrayBuffer`, and `unframeSegments` insists on plain ArrayBuffer.
+    ab = new ArrayBuffer(framed.byteLength);
+    new Uint8Array(ab).set(framed);
+  }
   const segments = unframeSegments(ab);
   const reader = makeMessageReader(segments);
   const root = readStructPointer(reader, 0, 0);
