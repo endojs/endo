@@ -214,6 +214,12 @@ export type BundleSourceResult<T extends ModuleFormat> =
           }
         : never;
 
+export interface BundlePowers extends SharedPowers {
+  read?: ReadFn | undefined;
+  canonical?: CanonicalFn | undefined;
+  externals?: string[] | undefined;
+}
+
 export type BundleSourceSimple = <T extends 'endoZipBase64'>(
   startFilename: string,
 ) => Promise<BundleSourceResult<T>>;
@@ -221,11 +227,7 @@ export type BundleSourceSimple = <T extends 'endoZipBase64'>(
 export type BundleSourceWithFormat = <T extends ModuleFormat = 'endoZipBase64'>(
   startFilename: string,
   format: T,
-  powers?: {
-    read?: ReadFn;
-    canonical?: CanonicalFn;
-    externals?: string[];
-  },
+  powers?: BundlePowers,
 ) => Promise<BundleSourceResult<T>>;
 
 export type BundleSourceWithOptions = <
@@ -233,25 +235,21 @@ export type BundleSourceWithOptions = <
 >(
   startFilename: string,
   bundleOptions: BundleOptions<T>,
-  powers?: {
-    read?: ReadFn;
-    canonical?: CanonicalFn;
-    externals?: string[];
-  },
+  powers?: BundlePowers,
 ) => Promise<BundleSourceResult<T>>;
 
 export type BundleSourceGeneral = <T extends ModuleFormat = 'endoZipBase64'>(
   startFilename: string,
   formatOrOptions?: T | BundleOptions<T>,
-  powers?: {
-    read?: ReadFn;
-    canonical?: CanonicalFn;
-    externals?: string[];
-  },
+  powers?: BundlePowers,
 ) => Promise<BundleSourceResult<T>>;
 
 export type BundleOptions<T extends ModuleFormat> = {
   format?: T | undefined;
+  /**
+   * when true, render source maps to a per-user per-host cache
+   * directory. Defaults to false. See README for details.
+   */
   cacheSourceMaps?: boolean | undefined;
   /**
    * - development mode, for test bundles that need
@@ -275,7 +273,21 @@ export type BundleOptions<T extends ModuleFormat> = {
    * exports and imports.
    */
   conditions?: string[] | undefined;
-};
+  /**
+   * common dependencies for the entry package.
+   */
+  commonDependencies?: Record<string, string> | undefined;
+} & (T extends 'endoZipBase64'
+  ? {
+      /**
+       * import hook for exit modules, only honored
+       * for the `endoZipBase64` format.
+       */
+      importHook?:
+        | import('@endo/compartment-mapper').ExitModuleImportHook
+        | undefined;
+    }
+  : {});
 
 export type ReadFn = (location: string) => Promise<Uint8Array>;
 
