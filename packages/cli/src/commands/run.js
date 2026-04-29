@@ -79,13 +79,6 @@ export const run = async ({
         /** @type {any} */
         let bundle;
         if (bundleName !== undefined) {
-          if (importPath !== undefined) {
-            console.error(
-              'Must specify either --bundle or --UNCONFINED, not both',
-            );
-            process.exitCode = 1;
-            return;
-          }
           if (filePath !== undefined) {
             args.unshift(filePath);
           }
