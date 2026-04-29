@@ -2,6 +2,7 @@
 /* eslint-disable no-void */
 
 import harden from '@endo/harden';
+import { encodeHex } from '@endo/hex';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
@@ -282,7 +283,7 @@ export const makeCryptoPowers = crypto => {
     return harden({
       update: chunk => digester.update(chunk),
       updateText: chunk => digester.update(textEncoder.encode(chunk)),
-      digestHex: () => digester.digest('hex'),
+      digestHex: () => encodeHex(digester.digest()),
     });
   };
 
@@ -292,7 +293,7 @@ export const makeCryptoPowers = crypto => {
         if (err) {
           reject(err);
         } else {
-          resolve(bytes.toString('hex'));
+          resolve(encodeHex(bytes));
         }
       }),
     );

@@ -1,12 +1,6 @@
-import 'ses';
+import './_lockdown.js';
 import test from 'ava';
 import { scaffold } from './scaffold.js';
-
-// The JSONP parser uses harden, as a bit.
-lockdown({
-  errorTaming: 'unsafe',
-  errorTrapping: 'none',
-});
 
 const assertions = (t, { namespace }) => {
   t.is(namespace.default, 42);

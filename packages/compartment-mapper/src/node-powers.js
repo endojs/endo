@@ -35,6 +35,7 @@
  */
 
 import { createRequire } from 'module';
+import { encodeHex } from '@endo/hex';
 
 /**
  * @type {FileURLToPathFn}
@@ -163,7 +164,7 @@ const makeReadPowersSloppy = ({
     ? bytes => {
         const hash = crypto.createHash('sha512');
         hash.update(bytes);
-        return hash.digest().toString('hex');
+        return encodeHex(hash.digest());
       }
     : undefined;
 

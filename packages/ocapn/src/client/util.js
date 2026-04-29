@@ -5,7 +5,7 @@
  * @import { LocationId, SwissNum } from './types.js'
  */
 
-import { Buffer } from 'buffer';
+import { encodeHex } from '@endo/hex';
 import {
   immutableArrayBufferToUint8Array,
   uint8ArrayToImmutableArrayBuffer,
@@ -16,7 +16,7 @@ import {
  * @returns {string}
  */
 export const toHex = value => {
-  return Buffer.from(immutableArrayBufferToUint8Array(value)).toString('hex');
+  return encodeHex(immutableArrayBufferToUint8Array(value));
 };
 
 /**

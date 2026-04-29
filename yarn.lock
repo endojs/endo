@@ -501,6 +501,7 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/hex": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/zip": "workspace:^"
@@ -540,6 +541,7 @@ __metadata:
     "@endo/exo": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/hex": "workspace:^"
     "@endo/import-bundle": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/pass-style": "workspace:^"
@@ -591,6 +593,8 @@ __metadata:
     "@endo/env-options": "workspace:^"
     "@endo/evasive-transform": "workspace:^"
     "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/hex": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/module-source": "workspace:^"
     "@endo/path-compare": "workspace:^"
@@ -624,6 +628,7 @@ __metadata:
     "@endo/exo": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/hex": "workspace:^"
     "@endo/import-bundle": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
@@ -779,6 +784,24 @@ __metadata:
     eslint: "catalog:dev"
     ses: "workspace:^"
     tsd: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/hex@workspace:^, @endo/hex@workspace:packages/hex":
+  version: 0.0.0-use.local
+  resolution: "@endo/hex@workspace:packages/hex"
+  dependencies:
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    babel-eslint: "npm:^10.1.0"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    prettier: "npm:^3.5.3"
+    ses: "workspace:^"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -972,6 +995,7 @@ __metadata:
   dependencies:
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/hex": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/marshal": "workspace:^"

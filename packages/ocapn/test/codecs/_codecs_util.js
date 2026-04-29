@@ -10,8 +10,8 @@
  * @import { PublicKeyId, SessionId, SwissNum } from '../../src/client/types.js'
  */
 
-import { Buffer } from 'buffer';
 import harden from '@endo/harden';
+import { encodeHex } from '@endo/hex';
 import { Far } from '@endo/marshal';
 import { HandledPromise } from '@endo/eventual-send';
 import {
@@ -37,9 +37,9 @@ import { makeOcapnTable } from '../../src/captp/ocapn-tables.js';
 import { makeSlot } from '../../src/captp/pairwise.js';
 
 const bufferToHex = arrayBuffer => {
-  // Convert ImmutableArrayBuffer to regular ArrayBuffer
+  // Convert ImmutableArrayBuffer to regular ArrayBuffer.
   const buffer = arrayBuffer.slice();
-  return Buffer.from(buffer).toString('hex');
+  return encodeHex(new Uint8Array(buffer));
 };
 
 /** @type {OcapnLocation} */

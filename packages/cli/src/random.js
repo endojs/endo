@@ -1,3 +1,4 @@
+import { encodeHex } from '@endo/hex';
 import crypto from 'crypto';
 
 export const randomHex16 = () =>
@@ -6,7 +7,7 @@ export const randomHex16 = () =>
       if (err) {
         reject(err);
       } else {
-        resolve(bytes.toString('hex'));
+        resolve(encodeHex(bytes));
       }
     }),
   );

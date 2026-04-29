@@ -9,6 +9,7 @@ import harden from '@endo/harden';
 import bundleSource from '@endo/bundle-source';
 import { ZipReader, ZipWriter } from '@endo/zip';
 import { decodeBase64, encodeBase64 } from '@endo/base64';
+import { encodeHex } from '@endo/hex';
 import { checkBundle } from '../lite.js';
 import {
   checkBundleBytes,
@@ -27,7 +28,7 @@ const bundleFixturePath = url.fileURLToPath(
 const computeSha512 = bytes => {
   const hash = crypto.createHash('sha512');
   hash.update(bytes);
-  return hash.digest().toString('hex');
+  return encodeHex(hash.digest());
 };
 
 test('bundle and check get export package', async t => {
