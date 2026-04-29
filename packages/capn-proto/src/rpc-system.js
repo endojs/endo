@@ -31,6 +31,8 @@ export const makeCapnp = cfg => {
     getBootstrap: connection.getBootstrap,
     abort: connection.abort,
     stats: connection.stats,
+    sendAccept: connection.sendAccept,
+    sendRelease: connection.sendRelease,
     setBootstrap: connection.setBootstrap,
     setOnAbort: connection.setOnAbort,
     registerInterface: interfaceRegistry.register,

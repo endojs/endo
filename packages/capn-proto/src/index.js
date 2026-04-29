@@ -34,3 +34,11 @@ export {
 export { frameSegments, unframeSegments } from './wire/framing.js';
 export { readPointer, writePointer, resolvePointer } from './wire/pointer.js';
 export { pack, unpack } from './wire/packed.js';
+export {
+  loadSchema,
+  parseCapnpSchema,
+  layoutSchema,
+  layoutStruct,
+  encodeRootStruct,
+  decodeRootStruct,
+} from './schema/index.js';

@@ -219,7 +219,24 @@ export const makeConnection = cfg => {
     });
     answerPromise.catch(() => {});
 
-    const params = payloadCodec.encode(args);
+    // If a request codec is registered for (interfaceId, methodId), use it
+    // to encode the args as a typed Cap'n Proto struct in
+    // Payload.contentBytes (with an empty cap table; schema-typed payloads
+    // do not currently embed caps inline). Falls back to JSON otherwise.
+    const reqCodec = interfaceRegistry.methodCodec(
+      interfaceId,
+      methodId,
+      'request',
+    );
+    let params;
+    if (reqCodec) {
+      const encoded = reqCodec.encode(args);
+      const u8 =
+        encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
+      params = { contentBytes: u8, capTable: [] };
+    } else {
+      params = payloadCodec.encode(args);
+    }
     const pipelineHandler = makeRemoteHandler({
       ...baseHandlerOptions(),
       resolveMethod: prop => {
@@ -244,6 +261,10 @@ export const makeConnection = cfg => {
       finishSent: false,
       pipelineHandler,
       pipelinedCapImports: new Set(),
+      // Recorded so handleReturn can pick the matching response codec
+      // when a schema-typed method registered one.
+      interfaceId,
+      methodId,
     });
 
     sendFramed(
@@ -296,7 +317,54 @@ export const makeConnection = cfg => {
     makeRemoteHandler: (id, isP) => makeRemoteHandlerForImport(id, isP),
   });
 
-  // ---- Three-party stub (uses ctx; some operations require network setup) ----
+  // ---- Send Accept (used by the recipient side of L3 handoff) ----
+  /**
+   * Allocate a question, send `Accept { questionId, provision, embargo }` on
+   * this connection (which is the A↔C connection from the recipient's
+   * perspective), and return a Promise that settles with the host's Return
+   * payload — i.e. the actual capability that was handed off.
+   *
+   * The caller is responsible for any vine release on the original B↔A
+   * connection after this promise settles.
+   *
+   * @param {Uint8Array} provision
+   * @param {boolean} [embargo]
+   */
+  const sendAccept = (provision, embargo = false) => {
+    const questionId = tables.questionIds.alloc();
+    let resolveFn;
+    let rejectFn;
+    const answerPromise = new Promise((res, rej) => {
+      resolveFn = res;
+      rejectFn = rej;
+    });
+    answerPromise.catch(() => {});
+    tables.questions.set(questionId, {
+      resolve: resolveFn,
+      reject: rejectFn,
+      returnedP: answerPromise,
+      settled: false,
+      finishSent: false,
+      pipelineHandler: undefined,
+      pipelinedCapImports: new Set(),
+    });
+    sendFramed(encodeAccept({ questionId, provision, embargo }));
+    return answerPromise;
+  };
+
+  /**
+   * Explicit Release on this connection for an import id we know about but
+   * never wrapped in a user-facing Presence (e.g. an L3 vine the recipient
+   * holds only long enough for the direct Accept to settle).
+   *
+   * @param {number} id
+   * @param {number} [referenceCount]
+   */
+  const sendRelease = (id, referenceCount = 1) => {
+    sendFramed(encodeRelease({ id, referenceCount }));
+  };
+
+  // ---- Three-party (uses ctx; concrete operations require network setup) ----
   const threeParty = makeThreeParty({
     network: cfg.network || {
       thirdPartyCapIdForHost: () => new Uint8Array(0),
@@ -312,9 +380,9 @@ export const makeConnection = cfg => {
     encodeDisembargo,
     encodeReturn,
     sendFramed,
+    sendRelease,
     importRegistry,
     tables,
-    findOrCreatePeerConnection: () => undefined,
     questionIds: tables.questionIds,
     exportRegistry,
     payloadCodec,
@@ -423,6 +491,8 @@ export const makeConnection = cfg => {
     getBootstrap,
     abort,
     stats,
+    sendAccept,
+    sendRelease,
     setBootstrap: v => {
       bootstrap.value = v;
     },

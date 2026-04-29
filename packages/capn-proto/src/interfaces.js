@@ -21,9 +21,21 @@
 import { Fail, q } from '@endo/errors';
 
 /**
+ * @typedef {object} MethodCodec
+ * @property {(jsObj: unknown) => Uint8Array | ArrayBuffer} encode
+ * @property {(bytes: ArrayBuffer | Uint8Array) => unknown} decode
+ */
+
+/**
  * @typedef {object} InterfaceDescriptor
  * @property {bigint} id
  * @property {Record<string, number>} methods         method name → ordinal
+ * @property {Record<number | string, { request?: MethodCodec, response?: MethodCodec }>} [methodCodecs]
+ *   Optional per-method schema-typed codecs. Keys may be method ordinals
+ *   (numbers) or method names (strings). When present, the payload codec
+ *   uses these instead of the default JSON-over-bytes serialization for
+ *   the matching direction. A method may register a request codec, a
+ *   response codec, both, or neither.
  */
 
 /**
@@ -34,6 +46,7 @@ import { Fail, q } from '@endo/errors';
  * @property {(interfaceId: bigint, methodName: string) => number | undefined} methodOrdinal
  * @property {(interfaceId: bigint) => boolean} has
  * @property {() => IterableIterator<InterfaceDescriptor>} iterate
+ * @property {(interfaceId: bigint, methodId: number, dir: 'request' | 'response') => MethodCodec | undefined} methodCodec
  */
 
 /** @returns {InterfaceRegistry} */
@@ -42,6 +55,8 @@ export const makeInterfaceRegistry = () => {
   const byIdMap = new Map();
   /** @type {Map<bigint, Map<number, string>>} */
   const reverseByIface = new Map();
+  /** @type {Map<bigint, Map<number, { request?: MethodCodec, response?: MethodCodec }>>} */
+  const codecsByIface = new Map();
 
   const register = desc => {
     (desc && typeof desc === 'object') ||
@@ -73,6 +88,18 @@ export const makeInterfaceRegistry = () => {
     }
     byIdMap.set(desc.id, { id: desc.id, methods: { ...desc.methods } });
     reverseByIface.set(desc.id, reverse);
+    if (desc.methodCodecs) {
+      /** @type {Map<number, { request?: MethodCodec, response?: MethodCodec }>} */
+      const codecs = new Map();
+      for (const [k, v] of Object.entries(desc.methodCodecs)) {
+        const ord = Number.isInteger(Number(k)) ? Number(k) : desc.methods[k];
+        if (ord === undefined) {
+          throw Fail`methodCodec key ${q(k)} does not name a known method`;
+        }
+        codecs.set(ord, v);
+      }
+      codecsByIface.set(desc.id, codecs);
+    }
   };
 
   return {
@@ -82,5 +109,6 @@ export const makeInterfaceRegistry = () => {
     methodName: (id, mid) => reverseByIface.get(id)?.get(mid),
     methodOrdinal: (id, name) => byIdMap.get(id)?.methods[name],
     iterate: () => byIdMap.values(),
+    methodCodec: (id, mid, dir) => codecsByIface.get(id)?.get(mid)?.[dir],
   };
 };

@@ -28,6 +28,7 @@ export const makeThreeParty = ctx => {
     encodeProvide,
     encodeDisembargo,
     sendFramed,
+    sendRelease,
     tables,
     questionIds,
   } = ctx;
@@ -94,22 +95,52 @@ export const makeThreeParty = ctx => {
 
   /**
    * As recipient (A), accept a thirdPartyHosted CapDescriptor that arrived in
-   * a Resolve or capTable. Returns a Presence that resolves to the cap on C.
+   * a Resolve or capTable from the introducer (B).
    *
-   * NOTE: this path is currently scaffolding only. A spec-conformant
-   * implementation needs (a) a `VatNetwork.connectToThirdParty` that returns a
-   * full A↔C connection object exposing `allocQuestion`/`sendFramed` and
-   * routing inbound Returns back into a peer dispatch loop, and (b) a hook
-   * inside that peer's dispatch that consults `acceptQuestions` on Return.
-   * Neither is wired up yet, so we fail loudly rather than half-execute.
+   *   1. Resolve `desc.thirdPartyCapId` to an A↔C peer connection via the
+   *      configured `VatNetwork.connectToThirdParty`. The peer is itself a
+   *      `makeCapnp`-shaped object so it tracks its own questions/answers.
+   *   2. Compute the provision id with `network.provisionIdForHandoff` and
+   *      call `peer.sendAccept(provision)` on the A↔C peer; this returns a
+   *      promise that settles when C sends its Return for the Accept.
+   *   3. Once that promise settles (success or failure), Release the vine
+   *      back on the original B↔A connection — A no longer needs B as a
+   *      forwarder once the direct A↔C path is established (or has failed
+   *      and the user is about to discover the rejection).
    *
-   * @param {{ thirdPartyCapId: Uint8Array, vineId: number }} _desc
+   * Returns a Promise that mirrors the Accept's resolution. On success it
+   * resolves to the actual capability the host returned. On failure (no such
+   * provision, host unreachable, etc.) it rejects with an Error; callers
+   * receiving a `thirdPartyHosted` cap in a Resolve will surface that as the
+   * rejection of the user-facing Presence.
+   *
+   * @param {{ thirdPartyCapId: Uint8Array, vineId: number }} desc
    */
-  const acceptThirdParty = _desc => {
-    throw Error(
-      'capn-proto: recipient-side Accept (L3) not yet implemented; ' +
-        'requires a concrete VatNetwork.connectToThirdParty and dispatch wiring',
-    );
+  const acceptThirdParty = desc => {
+    const peer = network.connectToThirdParty(desc.thirdPartyCapId);
+    if (!peer || typeof peer.sendAccept !== 'function') {
+      throw Error(
+        'connectToThirdParty must return a peer with a sendAccept method',
+      );
+    }
+    const provision = network.provisionIdForHandoff(desc.thirdPartyCapId);
+    const answerP = peer.sendAccept(provision);
+    // Track the in-flight Accept so stats() reflects it; clean up in finally.
+    const acceptKey = Symbol('accept');
+    acceptQuestions.set(/** @type {any} */ (acceptKey), { vineId: desc.vineId });
+    const releaseVine = () => {
+      acceptQuestions.delete(/** @type {any} */ (acceptKey));
+      // The vine import lives on this connection (the original B↔A). After
+      // the direct path settles, A no longer needs the vine — Release it.
+      try {
+        sendRelease(desc.vineId, 1);
+      } catch {
+        // sendRelease is best-effort; if the connection is already aborted
+        // the peer is gone anyway.
+      }
+    };
+    answerP.then(releaseVine, releaseVine);
+    return answerP;
   };
 
   /**

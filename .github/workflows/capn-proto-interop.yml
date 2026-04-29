@@ -54,7 +54,9 @@ jobs:
       - name: Run capn-proto interop test against capnp CLI
         working-directory: packages/capn-proto
         run: |
-          # The test/interop.test.js file runs by default as part of `yarn
-          # test`, but we re-run it here in isolation so the workflow log
-          # surfaces a clear pass/fail on the byte-level interop layer.
+          # These files run by default as part of `yarn test`, but we re-run
+          # them in isolation here so the workflow log surfaces a clear
+          # pass/fail on the byte-level interop layer (rpc.capnp Message
+          # variants and schema-typed user payloads).
           yarn ses-ava test/interop.test.js
+          yarn ses-ava test/schema-interop.test.js

@@ -145,10 +145,20 @@ export const makeDispatch = ctx => {
       return;
     }
 
+    const reqCodec = interfaceRegistry.methodCodec(
+      interfaceId,
+      methodId,
+      'request',
+    );
     let argList;
     try {
-      const args = payloadCodec.decode(params);
-      argList = Array.isArray(args) ? args : [];
+      let args;
+      if (reqCodec) {
+        args = reqCodec.decode(params.contentBytes);
+      } else {
+        args = payloadCodec.decode(params);
+      }
+      argList = Array.isArray(args) ? args : [args];
     } catch (err) {
       // payload decoding failed — surface as an exception Return so the
       // peer's question rejects rather than blocking forever.
@@ -179,12 +189,25 @@ export const makeDispatch = ctx => {
       pipelineExportsByPath: new Map(),
     });
 
+    const respCodec = interfaceRegistry.methodCodec(
+      interfaceId,
+      methodId,
+      'response',
+    );
     resultP.then(
       value => {
         const ans = tables.answers.get(questionId);
         if (!ans || ans.returnSent) return;
         ans.returnSent = true;
-        const payload = payloadCodec.encode(value);
+        let payload;
+        if (respCodec) {
+          const encoded = respCodec.encode(value);
+          const u8 =
+            encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
+          payload = { contentBytes: u8, capTable: [] };
+        } else {
+          payload = payloadCodec.encode(value);
+        }
         sendFramed(
           encodeReturn({
             answerId: questionId,
@@ -217,7 +240,13 @@ export const makeDispatch = ctx => {
     }
     q.settled = true;
     if (result.kind === 'results') {
-      const value = payloadCodec.decode(result.payload);
+      const respCodec =
+        q.interfaceId !== undefined
+          ? interfaceRegistry.methodCodec(q.interfaceId, q.methodId, 'response')
+          : undefined;
+      const value = respCodec
+        ? respCodec.decode(result.payload.contentBytes)
+        : payloadCodec.decode(result.payload);
       q.resolve(value);
     } else if (result.kind === 'exception') {
       q.reject(Error(result.exception.reason || 'remote exception'));
