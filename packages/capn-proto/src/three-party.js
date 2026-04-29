@@ -26,7 +26,6 @@ export const makeThreeParty = ctx => {
   const {
     network,
     encodeProvide,
-    encodeAccept,
     encodeDisembargo,
     sendFramed,
     tables,
@@ -97,32 +96,20 @@ export const makeThreeParty = ctx => {
    * As recipient (A), accept a thirdPartyHosted CapDescriptor that arrived in
    * a Resolve or capTable. Returns a Presence that resolves to the cap on C.
    *
-   * @param {{ thirdPartyCapId: Uint8Array, vineId: number }} desc
+   * NOTE: this path is currently scaffolding only. A spec-conformant
+   * implementation needs (a) a `VatNetwork.connectToThirdParty` that returns a
+   * full A↔C connection object exposing `allocQuestion`/`sendFramed` and
+   * routing inbound Returns back into a peer dispatch loop, and (b) a hook
+   * inside that peer's dispatch that consults `acceptQuestions` on Return.
+   * Neither is wired up yet, so we fail loudly rather than half-execute.
+   *
+   * @param {{ thirdPartyCapId: Uint8Array, vineId: number }} _desc
    */
-  const acceptThirdParty = desc => {
-    const hostConnection = network.connectToThirdParty(desc.thirdPartyCapId);
-    const acceptQuestionId = hostConnection.allocQuestion();
-    return new Promise((resolve, reject) => {
-      const cleanup = () => acceptQuestions.delete(acceptQuestionId);
-      acceptQuestions.set(acceptQuestionId, {
-        resolve: v => {
-          cleanup();
-          resolve(v);
-        },
-        reject: e => {
-          cleanup();
-          reject(e);
-        },
-        vineId: desc.vineId,
-      });
-      hostConnection.sendFramed(
-        encodeAccept({
-          questionId: acceptQuestionId,
-          provision: network.provisionIdForHandoff(desc.thirdPartyCapId),
-          embargo: false,
-        }),
-      );
-    });
+  const acceptThirdParty = _desc => {
+    throw Error(
+      'capn-proto: recipient-side Accept (L3) not yet implemented; ' +
+        'requires a concrete VatNetwork.connectToThirdParty and dispatch wiring',
+    );
   };
 
   /**

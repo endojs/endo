@@ -343,6 +343,12 @@ export const resolvePointer = (msg, segId, pointerWordOffset) => {
     if (tagPtr.kind === 'far' || tagPtr.kind === 'null') {
       throw Fail`double-landing-pad tag word must be inline pointer`;
     }
+    // Per spec, the tag word's pointer has offsetWords == 0; the content lives
+    // at firstFar.offsetWords. Cap pointers have no offset field. For
+    // struct/list, refuse a non-zero tag offset rather than silently ignore it.
+    if (tagPtr.kind !== 'cap' && tagPtr.offsetWords !== 0) {
+      throw Fail`double-landing-pad tag pointer must have offsetWords === 0`;
+    }
     return {
       targetSegId: firstFar.segmentId,
       targetWordOffset: firstFar.offsetWords,

@@ -274,7 +274,11 @@ export const makeDispatch = ctx => {
           resolveError = Error(`resolve referenced unknown export ${desc.id}`);
         }
       } else if (desc.kind === 'thirdPartyHosted') {
-        resolvedTo = threeParty.acceptThirdParty(desc);
+        try {
+          resolvedTo = threeParty.acceptThirdParty(desc);
+        } catch (e) {
+          resolveError = e;
+        }
       } else {
         resolveError = Error(`resolve with unknown cap kind ${desc.kind}`);
       }

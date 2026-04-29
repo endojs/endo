@@ -131,19 +131,19 @@ export const pack = unpacked => {
  * @param {ArrayBuffer | Uint8Array} packed
  * @returns {ArrayBuffer}
  */
-export const unpack = packed => {
-  const u8 = packed instanceof Uint8Array ? packed : new Uint8Array(packed);
-  // Generous overallocation; trimmed at the end.
-  const out = new Uint8Array(u8.length * 8 + 64);
-  let outLen = 0;
+/**
+ * Compute the unpacked length (in bytes) of a packed stream without
+ * actually decoding it. We need this because a packed stream can expand
+ * by far more than 8x — a single 2-byte zero-run header can represent up
+ * to 256 zero words = 2048 bytes of unpacked output, so a naive
+ * `u8.length * 8 + C` overallocation is unsound.
+ *
+ * @param {Uint8Array} u8
+ * @returns {number}
+ */
+const measureUnpackedLength = u8 => {
   let i = 0;
-
-  /** @param {number} count words @returns {number} new outLen */
-  const emitZeros = count => {
-    // out is already zero-initialised; just advance.
-    return outLen + count * WORD_SIZE;
-  };
-
+  let bytes = 0;
   while (i < u8.length) {
     const tag = u8[i];
     i += 1;
@@ -153,16 +153,11 @@ export const unpack = packed => {
       }
       const n = u8[i];
       i += 1;
-      // 1 word of zeros for the tag itself + n more.
-      outLen = emitZeros(n + 1);
+      bytes += (n + 1) * WORD_SIZE;
     } else if (tag === 0xff) {
-      // 8 non-zero bytes follow, then a literal-run count, then that many
-      // additional uncompressed words.
       if (i + WORD_SIZE > u8.length) {
         throw Fail`unpack: truncated full-tag word`;
       }
-      out.set(u8.subarray(i, i + WORD_SIZE), outLen);
-      outLen += WORD_SIZE;
       i += WORD_SIZE;
       if (i >= u8.length) {
         throw Fail`unpack: truncated literal-run count`;
@@ -173,6 +168,54 @@ export const unpack = packed => {
       if (i + literalBytes > u8.length) {
         throw Fail`unpack: truncated literal run`;
       }
+      i += literalBytes;
+      bytes += (1 + n) * WORD_SIZE;
+    } else {
+      let setBits = 0;
+      for (let j = 0; j < WORD_SIZE; j += 1) {
+        // eslint-disable-next-line no-bitwise
+        if ((tag & (1 << j)) !== 0) setBits += 1;
+      }
+      if (i + setBits > u8.length) {
+        throw Fail`unpack: truncated mixed word`;
+      }
+      i += setBits;
+      bytes += WORD_SIZE;
+    }
+  }
+  return bytes;
+};
+
+/**
+ * Unpack a packed Cap'n Proto stream back into the unpacked form.
+ *
+ * @param {ArrayBuffer | Uint8Array} packed
+ * @returns {ArrayBuffer}
+ */
+export const unpack = packed => {
+  const u8 = packed instanceof Uint8Array ? packed : new Uint8Array(packed);
+  // First pass computes the exact unpacked size and validates framing;
+  // the second pass below assumes a non-truncated stream.
+  const unpackedBytes = measureUnpackedLength(u8);
+  const out = new Uint8Array(unpackedBytes);
+  let outLen = 0;
+  let i = 0;
+
+  while (i < u8.length) {
+    const tag = u8[i];
+    i += 1;
+    if (tag === 0x00) {
+      const n = u8[i];
+      i += 1;
+      // out is already zero-initialised; just advance.
+      outLen += (n + 1) * WORD_SIZE;
+    } else if (tag === 0xff) {
+      out.set(u8.subarray(i, i + WORD_SIZE), outLen);
+      outLen += WORD_SIZE;
+      i += WORD_SIZE;
+      const n = u8[i];
+      i += 1;
+      const literalBytes = n * WORD_SIZE;
       out.set(u8.subarray(i, i + literalBytes), outLen);
       outLen += literalBytes;
       i += literalBytes;
@@ -181,9 +224,6 @@ export const unpack = packed => {
       for (let j = 0; j < WORD_SIZE; j += 1) {
         // eslint-disable-next-line no-bitwise
         if ((tag & (1 << j)) !== 0) {
-          if (i >= u8.length) {
-            throw Fail`unpack: truncated mixed word`;
-          }
           out[outLen + j] = u8[i];
           i += 1;
         }
