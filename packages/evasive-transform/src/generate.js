@@ -18,16 +18,12 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
 );
 
 /**
- * @typedef {NonNullable<import('@babel/generator').GeneratorOptions['inputSourceMap']>} SourceMapOption
- */
-
-/**
  * Options for {@link generateCode} with source map
  *
  * @typedef GenerateAstOptionsWithSourceMap
  * @property {string} [source]
  * @property {string} sourceUrl - If present, we will generate a source map
- * @property {SourceMapOption | undefined} [sourceMap] - If present, the generated source map will be a transform over the given source map.
+ * @property {object | string | undefined} [sourceMap] - If present, the generated source map will be a transform over the given source map.
  * @internal
  */
 
@@ -58,7 +54,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
 
 /**
  * Generates new code from a Babel AST; returns code and source map
- *@overload
+ * @overload
  * @param {import('@babel/types').File} ast - Babel "File" AST
  * @param {GenerateAstOptionsWithSourceMap} options - Options for the transform
  * @returns {TransformedResultWithSourceMap}
@@ -67,7 +63,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
 
 /**
  * Generates new code from a Babel AST; returns code only
- *@overload
+ * @overload
  * @param {import('@babel/types').File} ast - Babel "File" AST
  * @param {GenerateAstOptions} [options] - Options for the transform
  * @returns {TransformedResult}
@@ -93,6 +89,7 @@ export const generate = (ast, options) => {
     {
       sourceFileName: sourceUrl,
       sourceMaps: Boolean(sourceUrl),
+      // @ts-expect-error undocumented option
       inputSourceMap,
       retainLines: true,
       ...(source === undefined ? {} : { experimental_preserveFormat: true }),
