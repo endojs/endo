@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-04-23*
+*Last updated: 2026-04-29*
 
 ## Summary
 
@@ -35,7 +35,7 @@
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-03-20 | In Progress |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-03-18 | In Progress |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
-| [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-03-07 | Not Started |
+| [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-04-29 | **Complete** |
 | [daemon-guest-eval-simplification](daemon-guest-eval-simplification.md) | 2026-03-21 | 2026-03-21 | Not Started |
 | [daemon-docker-selfhost](daemon-docker-selfhost.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-engo-supervisor](daemon-engo-supervisor.md) | 2026-02-25 | 2026-02-25 | Not Started |
@@ -85,7 +85,7 @@
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 21 Complete/Implemented, 5 In Progress, 45 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
+**Totals:** 22 Complete/Implemented, 5 In Progress, 44 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
 
 ## Roadmap
 
@@ -256,7 +256,7 @@ capabilities available to agents.
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
 | endoclaw-timer | In Progress | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; Timer is the only way agents get scheduled execution. Prerequisite for proactive behavior. First implementation in `@endo/genie`. |
 | endoclaw-network-fetch | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. |
-| daemon-cross-peer-gc | Not Started | **Urgent:** Synced pet store CRDT for cross-peer GC, revocation propagation, offline progress |
+| ~~daemon-cross-peer-gc~~ | **Complete** | Replaced the proposed CRDT-of-pet-stores with a one-way retention-set sync per peer connection (`retention-accumulator.js`, `EndoGateway.followRetentionSet`, SQLite `retention` table). Solves the GC gap; bidirectional shared namespace deferred as YAGNI. |
 | daemon-guest-eval-simplification | Not Started | Remove eval-proposal handshake; guest eval delegates directly to `formulateEval` |
 | ci-no-npm-lifecycle | Not Started | Pin `enableScripts: false` posture into CI; enforcement check for workflows |
 | base64-native-fallthrough | Not Started | `@endo/base64` dispatches to `Uint8Array.fromBase64` / `toBase64` when available |
@@ -506,13 +506,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 14 remaining | 7-8 weeks |
+| M1: Remote Access & Tools | 13 remaining | 7-8 weeks |
 | M2: Networking | 6 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
 | M4: UX & Tooling | 10 | 6-8 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
 | M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
-| **Total remaining** | **46** | **~38-52 weeks** |
+| **Total remaining** | **45** | **~38-52 weeks** |
 
 ### Timeline
 
