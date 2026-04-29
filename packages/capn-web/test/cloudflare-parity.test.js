@@ -202,12 +202,36 @@ test('pipelining: error in a chained call propagates', async t => {
 
 // ---------- three-party capability passing ----------
 
-// NOTE: three-party capability forwarding (Bob receives a stub from Alice
-// over session A, then passes it on to Carol over session B) is NOT
-// supported in this implementation.  cloudflare/capnweb supports it via
-// per-session proxy synthesis; we'd need to detect a "foreign" stub at
-// devaluate time and wrap it in a session-local proxy that forwards
-// method calls back through its origin session.  Tracked as a follow-up.
+test('capability passing: Alice → Bob → Carol forwarding (proxied through Bob)', async t => {
+  // Bob holds two sessions: one to Alice (whose main is a helper) and one
+  // to Carol (whose main accepts a helper and calls a method on it).  Bob
+  // forwards Alice's stub through to Carol.  Carol's invocation on the
+  // helper proxies back through Bob into Alice — this is the same
+  // "proxied through the intermediary" forwarding capnweb's README
+  // documents.
+  const aliceHelper = Far('alice-helper', {
+    hello: name => `from-alice ${name}`,
+  });
+  const carolMain = Far('carol', {
+    invoke: async helper => E(helper).hello('carol'),
+  });
+
+  const { a: aliceLink, b: bobLinkToAlice } = makeLoopbackPair();
+  const { a: bobLinkToCarol, b: carolLink } = makeLoopbackPair();
+
+  makeCapnWebSession(aliceLink, { localMain: aliceHelper, gcImports: false });
+  makeCapnWebSession(carolLink, { localMain: carolMain, gcImports: false });
+  const bobToAlice = makeCapnWebSession(bobLinkToAlice, { gcImports: false });
+  const bobToCarol = makeCapnWebSession(bobLinkToCarol, { gcImports: false });
+
+  const aliceFromBob = bobToAlice.getRemoteMain();
+  const carolFromBob = bobToCarol.getRemoteMain();
+  const result = await E(carolFromBob).invoke(aliceFromBob);
+  t.is(result, 'from-alice carol');
+
+  bobToAlice.abort();
+  bobToCarol.abort();
+});
 
 // ---------- e-order ----------
 

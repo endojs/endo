@@ -7,11 +7,22 @@
 // which means: load the value at id, get .foo, get .bar, then call it with
 // (arg1, arg2).
 //
+// Property reads and method invocations dispatch via `HandledPromise` so
+// the same code works for:
+//   - Far / makeExo locals (handler-dispatched but ultimately a direct call),
+//   - presences from another session (handler-dispatched as a remote send,
+//     which is what makes three-party capability forwarding work — when a
+//     foreign stub flows through us as an export, calls on it forward back
+//     through its origin session),
+//   - plain functions and objects (HandledPromise falls back to direct
+//     property access / function call).
+//
 // The walker rejects path segments that are prototype-affecting names
 // (`__proto__`, `constructor`, `prototype`) so a malicious peer can't
 // reach into our internals via path traversal.
 
 import harden from '@endo/harden';
+import { HandledPromise } from '@endo/eventual-send';
 
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
@@ -30,51 +41,44 @@ const checkSegment = seg => {
  */
 export const walkPathAndCall = async (root, path, args) => {
   for (const seg of path) checkSegment(seg);
-  let cur = await root;
+
+  // Pure property descent: walk every segment via HandledPromise.get.
   if (args === undefined) {
-    // Pure property descent: walk every segment.
+    let cur = await root;
     for (const seg of path) {
-      cur = await cur;
-      if (cur === null || cur === undefined) {
-        throw new TypeError(
-          `cannot read property ${String(seg)} of ${cur === null ? 'null' : 'undefined'}`,
-        );
-      }
-      cur = /** @type {any} */ (cur)[seg];
+      cur = await HandledPromise.get(cur, seg);
     }
     return cur;
   }
-  // Method or function call: descend all but the last segment for a method
-  // call; descend zero segments for a function call.
+
+  // Function or method call.
   if (path.length === 0) {
-    cur = await cur;
-    if (typeof cur !== 'function') {
-      throw new TypeError('cannot call non-function');
+    // Calling the root value itself as a function.
+    const target = await root;
+    if (typeof target === 'function') {
+      return target(.../** @type {unknown[]} */ (args));
     }
-    return /** @type {Function} */ (cur)(...args);
-  }
-  const target = path.slice(0, -1);
-  const method = path[path.length - 1];
-  for (const seg of target) {
-    cur = await cur;
-    if (cur === null || cur === undefined) {
-      throw new TypeError(
-        `cannot read property ${String(seg)} of ${cur === null ? 'null' : 'undefined'}`,
-      );
-    }
-    cur = /** @type {any} */ (cur)[seg];
-  }
-  cur = await cur;
-  if (cur === null || cur === undefined) {
-    throw new TypeError(
-      `cannot call method ${String(method)} of ${cur === null ? 'null' : 'undefined'}`,
+    // If the target has a HandledPromise handler with applyFunction (e.g.
+    // a function-stub from a peer), use it.
+    return HandledPromise.applyFunction(
+      target,
+      /** @type {unknown[]} */ (args),
     );
   }
-  const fn = /** @type {any} */ (cur)[method];
-  if (typeof fn !== 'function') {
-    throw new TypeError(`property ${String(method)} is not a function`);
+
+  // Method call: descend all but the last segment, then invoke the last as
+  // a method.  Using HandledPromise.applyMethod on the receiver lets the
+  // call forward through any handler in play (foreign stub → remote send).
+  let cur = await root;
+  for (const seg of path.slice(0, -1)) {
+    cur = await HandledPromise.get(cur, seg);
   }
-  return fn.apply(cur, args);
+  const method = path[path.length - 1];
+  return HandledPromise.applyMethod(
+    cur,
+    method,
+    /** @type {unknown[]} */ (args),
+  );
 };
 
 harden(walkPathAndCall);

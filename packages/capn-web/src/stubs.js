@@ -19,6 +19,7 @@
 
 import harden from '@endo/harden';
 import { HandledPromise } from '@endo/eventual-send';
+import { Remotable } from '@endo/pass-style';
 
 /**
  * The handler functions receive `returnedP` as their last argument: this is
@@ -76,7 +77,14 @@ export const makePresenceStub = (id, m) => {
   new HandledPromise((_resolve, _reject, resolveWithPresence) => {
     presence = resolveWithPresence(handler);
   }, handler);
-  return /** @type {object} */ (presence);
+  // Mark the presence as a passable remotable so `passStyleOf` recognises
+  // it as 'remotable' downstream.  This is what makes three-party
+  // capability passing (and in general, any cross-session round-trip)
+  // work automatically: a stub from session A passed to session B has
+  // `passStyleOf === 'remotable'`, so session B's devaluator accepts it
+  // and re-exports it; calls then forward through session B's executor
+  // back to A's stub.
+  return Remotable(`Alleged: capn-web stub`, undefined, presence);
 };
 
 /**
