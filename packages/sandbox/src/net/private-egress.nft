@@ -20,6 +20,7 @@
 #   - 127.0.0.0/8      (loopback)
 #   - fc00::/7         (IPv6 ULA, including fd00::/8)
 #   - ::1/128          (IPv6 loopback)
+#   - fe80::/10        (IPv6 link-local)
 #
 # Localhost loopback inside the slice (the slice's OWN 127.0.0.1)
 # is also blocked here.  The slice gets its own loopback interface
@@ -51,7 +52,8 @@ table inet endo_sandbox {
         flags interval
         elements = {
             fc00::/7,
-            ::1/128
+            ::1/128,
+            fe80::/10
         }
     }
 

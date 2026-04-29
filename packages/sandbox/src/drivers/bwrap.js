@@ -4,7 +4,19 @@
 
 import { makeError, q, X } from '@endo/errors';
 
-/** @import { SandboxDriver, SliceSpec, SpawnOpts, DriverProcess, BackendProbe } from '../types.js' */
+import { makeLandlockProbe } from '../landlock.js';
+import {
+  PRIVATE_BLOCKED_RANGES,
+  HOST_LOOPBACK_ALLOWED_RANGES,
+  HOST_LAN_ALLOWED_RANGES,
+} from '../net/blocked-ranges.js';
+import {
+  assemblePrlimitArgv,
+  makeCgroup2Probe,
+  resolveLimits,
+} from '../limits.js';
+
+/** @import { SandboxDriver, SliceSpec, SpawnOpts, DriverProcess, BackendProbe, BackendProbeDetails } from '../types.js' */
 
 /**
  * `SandboxDriver` for `bubblewrap` (`bwrap`) on Linux.
@@ -46,24 +58,6 @@ const HOST_BIND_ROOTFS_PATHS = harden([
   '/sbin',
   '/etc',
 ]);
-
-/**
- * RFC 1918 / link-local / CGNAT / loopback ranges blocked by the
- * `private` network profile.  Documented here for the driver's
- * teardown-message diagnostics; the actual rules live in
- * `src/net/private-egress.nft`.
- */
-const PRIVATE_BLOCKED_RANGES = harden([
-  '10.0.0.0/8',
-  '172.16.0.0/12',
-  '192.168.0.0/16',
-  '100.64.0.0/10',
-  '169.254.0.0/16',
-  '127.0.0.0/8',
-  'fc00::/7',
-  '::1/128',
-]);
-harden(PRIVATE_BLOCKED_RANGES);
 
 /**
  * Parse `bwrap --version` output into a version string.
@@ -151,6 +145,11 @@ harden(readableToAsyncIterable);
  * @typedef {object} BwrapSliceContext
  * @property {string[]} sliceArgv      Bwrap argv prefix (everything
  *                                     before the `--` separator).
+ * @property {string[]} prlimitArgv    `prlimit ...` prefix prepended
+ *                                     to every spawn so resource caps
+ *                                     are applied before bwrap execs
+ *                                     the slice command.  Empty when
+ *                                     no caps are configured.
  * @property {SliceSpec} spec          Original slice spec.
  * @property {Set<import('child_process').ChildProcess>} live  Live
  *                                     child processes for teardown.
@@ -160,6 +159,10 @@ harden(readableToAsyncIterable);
  * @property {string | null} seccompTempPath  Temp file holding the
  *                                     compiled seccomp BPF blob,
  *                                     unlinked at teardown.
+ * @property {{ landlock: { available: boolean, reason?: string }, cgroup2: { available: boolean, controllers: string[], reason?: string }, prlimit: { applied: string[] } }} runtimeDetails
+ *                                     Hardening-layer report the
+ *                                     factory weaves into per-slice
+ *                                     `help()` output.
  */
 
 /**
@@ -191,13 +194,23 @@ const assembleSliceArgv = (spec, extras) => {
   argv.push('--unshare-all');
   // bwrap 0.11+ already implies `--no-new-privileges` and exposes no
   // separate flag for it; do NOT pass `--no-new-privileges`.
-  if (spec.network !== 'none') {
-    // For `private` we still keep --unshare-all (which unshares net),
-    // and pasta will set up the netns separately.  For host-* (Phase
-    // 1.5) we'd add `--share-net` here.  Phase 1 only handles `none`
-    // and `private`; both keep the network unshared at the bwrap
-    // boundary.
+  if (
+    spec.network === 'host-loopback' ||
+    spec.network === 'host-lan' ||
+    spec.network === 'host-net'
+  ) {
+    // Phase 1.5 host-* profiles share the host's net namespace.  The
+    // actual filtering for `host-loopback` / `host-lan` is the
+    // operator's responsibility (see README § "Host network
+    // profiles") because installing host-firewall rules requires
+    // CAP_NET_ADMIN that the rootless slice does not hold.  The
+    // driver still validates that the profile name is one of the
+    // three documented values.
+    argv.push('--share-net');
   }
+  // For `none` (default) and `private` (pasta-managed netns) the
+  // slice keeps its own private net namespace; bwrap's --unshare-all
+  // is sufficient.
 
   // 2. Lifecycle.
   argv.push('--die-with-parent');
@@ -302,6 +315,14 @@ export const makeBwrapDriver = ({
     return cpModule;
   };
 
+  // Phase 1.5 surfaces these kernel-feature probes via
+  // `BackendProbe.details` so callers can tell which hardening layers
+  // are actually in effect on this host.  The probes are stateless and
+  // best-effort; failures degrade gracefully to `available: false` with
+  // a human-readable reason.
+  const landlockProbe = makeLandlockProbe();
+  const cgroup2Probe = makeCgroup2Probe();
+
   /** @returns {Promise<Omit<BackendProbe, 'name'>>} */
   const probe = async () => {
     await null;
@@ -342,7 +363,27 @@ export const makeBwrapDriver = ({
         reason: `could not parse bwrap --version output: ${q(result.stdout)}`,
       });
     }
-    return harden({ available: true, version });
+
+    // Run Phase 1.5 kernel-feature probes in parallel.  These never
+    // throw — `LandlockProbe.probe()` / `Cgroup2Probe.probe()` always
+    // resolve, with `available: false` on any error path.
+    const [landlock, cgroup2] = await Promise.all([
+      landlockProbe.probe(),
+      cgroup2Probe.probe(),
+    ]);
+    /** @type {BackendProbeDetails} */
+    const details = harden({
+      landlock: harden({
+        available: landlock.available,
+        ...(landlock.reason !== undefined ? { reason: landlock.reason } : {}),
+      }),
+      cgroup2: harden({
+        available: cgroup2.available,
+        controllers: cgroup2.controllers,
+        ...(cgroup2.reason !== undefined ? { reason: cgroup2.reason } : {}),
+      }),
+    });
+    return harden({ available: true, version, details });
   };
 
   /**
@@ -350,18 +391,19 @@ export const makeBwrapDriver = ({
    * @returns {Promise<BwrapSliceContext>}
    */
   const prepareSlice = async spec => {
-    // Validate network profile up front.  Phase 1 implements `none`
-    // and `private`; the `host-*` family is deferred to Phase 1.5.
+    // Validate network profile up front.  Phase 1.5 lifts the
+    // `notImplemented` stubs for the `host-*` family.  Each is mapped
+    // to bwrap's `--share-net` in `assembleSliceArgv()`; in-slice
+    // filtering for `host-loopback` / `host-lan` is the operator's
+    // responsibility (see README § "Host network profiles") because
+    // the rootless slice does not hold CAP_NET_ADMIN.
     if (
-      spec.network === 'host-loopback' ||
-      spec.network === 'host-lan' ||
-      spec.network === 'host-net'
+      spec.network !== 'none' &&
+      spec.network !== 'private' &&
+      spec.network !== 'host-loopback' &&
+      spec.network !== 'host-lan' &&
+      spec.network !== 'host-net'
     ) {
-      throw makeError(
-        X`network profile ${q(spec.network)} not implemented before Phase 1.5`,
-      );
-    }
-    if (spec.network !== 'none' && spec.network !== 'private') {
       throw makeError(X`unknown network profile ${q(spec.network)}`);
     }
 
@@ -377,13 +419,46 @@ export const makeBwrapDriver = ({
 
     const sliceArgv = assembleSliceArgv(spec, { seccompFd });
 
+    // Phase 1.5 resource caps.  The factory passes a fully-resolved
+    // limits dictionary in `spec.limits`; the driver maps it onto a
+    // `prlimit` argv prefix that wraps every spawn.  Limits set on
+    // the bwrap process survive `execve` and propagate to the slice's
+    // child PIDs via the kernel's standard inheritance rules
+    // (RLIMIT_NPROC counts processes per host UID after the userns
+    // mapping; RLIMIT_AS / RLIMIT_NOFILE / RLIMIT_CORE / RLIMIT_FSIZE
+    // are per-process and inherited at exec time).
+    const limits = resolveLimits(spec.limits);
+    const prlimitArgv = assemblePrlimitArgv(limits);
+
+    // Run kernel-feature probes once per slice so the runtime report
+    // reflects the host the slice actually runs on (the daemon's
+    // `probe()` cache could be stale across host reconfigurations).
+    const [landlock, cgroup2] = await Promise.all([
+      landlockProbe.probe(),
+      cgroup2Probe.probe(),
+    ]);
+    const runtimeDetails = harden({
+      landlock: harden({
+        available: landlock.available,
+        ...(landlock.reason !== undefined ? { reason: landlock.reason } : {}),
+      }),
+      cgroup2: harden({
+        available: cgroup2.available,
+        controllers: cgroup2.controllers,
+        ...(cgroup2.reason !== undefined ? { reason: cgroup2.reason } : {}),
+      }),
+      prlimit: harden({ applied: harden([...prlimitArgv]) }),
+    });
+
     /** @type {BwrapSliceContext} */
     const ctx = {
       sliceArgv,
+      prlimitArgv,
       spec,
       live: new Set(),
       pasta: null,
       seccompTempPath,
+      runtimeDetails,
     };
 
     // `private` network: spawn pasta to drive the netns and load the
@@ -437,10 +512,27 @@ export const makeBwrapDriver = ({
 
     fullArgv.push('--', ...argv);
 
+    // Phase 1.5: when the factory supplied resource caps, prepend
+    // `prlimit --foo=N -- bwrap …` so the rlimits are set on the
+    // bwrap process and inherited into the slice via execve.  The
+    // empty-prefix case (`prlimitArgv.length === 0`) preserves the
+    // Phase 1 behaviour of execing bwrap directly.
+    /** @type {string} */
+    let execProgram;
+    /** @type {string[]} */
+    let execArgv;
+    if (slice.prlimitArgv.length === 0) {
+      execProgram = 'bwrap';
+      execArgv = fullArgv;
+    } else {
+      execProgram = slice.prlimitArgv[0];
+      execArgv = [...slice.prlimitArgv.slice(1), 'bwrap', ...fullArgv];
+    }
+
     /** @type {import('child_process').ChildProcess} */
     let child;
     try {
-      child = cp.spawn('bwrap', fullArgv, {
+      child = cp.spawn(execProgram, execArgv, {
         stdio: ['pipe', 'pipe', 'pipe'],
         // Inherit minimal env: bwrap itself needs PATH to find
         // libraries; the slice's clearenv inside takes effect after
@@ -449,7 +541,7 @@ export const makeBwrapDriver = ({
       });
     } catch (e) {
       throw makeError(
-        X`failed to spawn bwrap: ${q(/** @type {Error} */ (e).message)}`,
+        X`failed to spawn ${q(execProgram)}: ${q(/** @type {Error} */ (e).message)}`,
       );
     }
 
@@ -576,4 +668,8 @@ export const makeBwrapDriver = ({
 };
 harden(makeBwrapDriver);
 
-export { PRIVATE_BLOCKED_RANGES };
+export {
+  PRIVATE_BLOCKED_RANGES,
+  HOST_LOOPBACK_ALLOWED_RANGES,
+  HOST_LAN_ALLOWED_RANGES,
+};

@@ -13,6 +13,7 @@ import {
   SandboxFactoryInterface,
   SandboxHandleInterface,
 } from './interfaces.js';
+import { resolveLimits } from './limits.js';
 
 const AsyncReaderInterface = M.interface('SandboxReader', {
   next: M.call().returns(M.promise()),
@@ -50,7 +51,7 @@ const METHOD_HELP = harden({
     'opts.network defaults to "none"; opts.backend defaults to "auto".',
 });
 
-const HANDLE_HELP = `\
+const HANDLE_HELP_BASE = `\
 SandboxHandle — a live confined POSIX slice.
 
 Pinned by the formula that minted it. When dropped, every
@@ -66,6 +67,70 @@ Methods:
   reset()             Tear down processes / scratch, keep mounts.
   dispose()           Full teardown.
 `;
+
+/**
+ * Render a per-slice "hardening layers in effect" report.  Drivers
+ * may attach a `runtimeDetails` field to the slice context with
+ * `landlock` / `cgroup2` / `prlimit` summaries; the report formats
+ * those as a stable, human-readable block appended to `help()`.
+ *
+ * Driver-attached fields:
+ *   - `runtimeDetails.landlock: { available, reason? }`
+ *   - `runtimeDetails.cgroup2:  { available, controllers, reason? }`
+ *   - `runtimeDetails.prlimit:  { applied: string[] }`
+ *
+ * Missing fields render as "not detected" so the report stays
+ * informative across drivers that do not implement every layer.
+ *
+ * @param {{ runtimeDetails?: { landlock?: { available: boolean, reason?: string }, cgroup2?: { available: boolean, controllers: string[], reason?: string }, prlimit?: { applied: string[] } } }} driverSlice
+ * @param {SliceSpec} spec
+ * @returns {string}
+ */
+const renderSliceRuntimeReport = (driverSlice, spec) => {
+  const details = driverSlice.runtimeDetails;
+  const lines = ['Hardening layers in effect:'];
+  // Network profile is always present.
+  lines.push(`  network: ${spec.network}`);
+  if (details === undefined) {
+    lines.push('  (driver did not report runtime details)');
+    return lines.join('\n');
+  }
+  if (details.landlock !== undefined) {
+    if (details.landlock.available) {
+      lines.push('  landlock: available');
+    } else {
+      const why =
+        details.landlock.reason !== undefined
+          ? ` (${details.landlock.reason})`
+          : '';
+      lines.push(`  landlock: unavailable${why}`);
+    }
+  } else {
+    lines.push('  landlock: not detected');
+  }
+  if (details.cgroup2 !== undefined) {
+    if (details.cgroup2.available) {
+      lines.push(
+        `  cgroup2: available (controllers: ${details.cgroup2.controllers.join(', ')})`,
+      );
+    } else {
+      const why =
+        details.cgroup2.reason !== undefined
+          ? ` (${details.cgroup2.reason})`
+          : '';
+      lines.push(`  cgroup2: unavailable${why}`);
+    }
+  } else {
+    lines.push('  cgroup2: not detected');
+  }
+  if (details.prlimit !== undefined && details.prlimit.applied.length > 0) {
+    lines.push(`  prlimit: ${details.prlimit.applied.join(' ')}`);
+  } else {
+    lines.push('  prlimit: (none applied)');
+  }
+  return lines.join('\n');
+};
+harden(renderSliceRuntimeReport);
 
 const PROCESS_HELP = `\
 ProcessHandle — a process running inside a slice.
@@ -342,6 +407,13 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
       // scratch bind when the path is empty.
     }
 
+    // Phase 1.5: merge caller-supplied resource caps onto the driver
+    // defaults.  Drivers translate the resolved dictionary into a
+    // `prlimit` prefix before exec.  Passing the merged dictionary
+    // (rather than the raw overrides) keeps drivers ignorant of the
+    // default policy table.
+    const limits = resolveLimits(opts.limits);
+
     /** @type {SliceSpec} */
     const sliceSpec = harden({
       rootfs,
@@ -351,9 +423,20 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
       seccomp: opts.seccomp ?? 'default',
       env: harden({ ...(opts.env ?? {}) }),
       cwd: opts.cwd,
+      limits,
     });
 
     const driverSlice = await driver.prepareSlice(sliceSpec);
+    // Drivers may attach a `runtimeDetails` summary to the slice
+    // context.  When present, the factory weaves it into the
+    // per-slice `help()` text so callers can see which hardening
+    // layers (Landlock, cgroup v2, prlimit) are actually in effect
+    // without having to round-trip through `listBackends()`.
+    /** @type {string} */
+    const sliceRuntimeReport = renderSliceRuntimeReport(
+      /** @type {any} */ (driverSlice),
+      sliceSpec,
+    );
 
     /** @type {Set<{ proc: import('child_process').ChildProcess | undefined; driverProc: DriverProcess; processHandle: ProcessHandle }>} */
     const liveProcesses = new Set();
@@ -547,7 +630,7 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
     /** @type {SandboxHandle} */
     const handle = /** @type {any} */ (
       makeExo('SandboxHandle', SandboxHandleInterface, {
-        help: () => HANDLE_HELP,
+        help: () => `${HANDLE_HELP_BASE}\n${sliceRuntimeReport}`,
         spawn: spawnProc,
         mount: mountInSlice,
         scratch: scratchInSlice,
