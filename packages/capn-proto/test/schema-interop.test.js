@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global Buffer */
 /**
  * Byte-level schema interop with the reference Cap'n Proto C++ implementation.
  *
@@ -35,6 +34,9 @@ if (!haveCapnp) {
   /**
    * Write `schemaText` into a temp .capnp file and return the path. The
    * caller is responsible for cleaning up the parent dir.
+   *
+   * @param {string} dir
+   * @param {string} schemaText
    */
   const writeSchemaFile = (dir, schemaText) => {
     const p = join(dir, 'schema.capnp');
@@ -42,7 +44,13 @@ if (!haveCapnp) {
     return p;
   };
 
-  /** Run `capnp encode` with the given schema + struct + value text. */
+  /**
+   * Run `capnp encode` with the given schema + struct + value text.
+   *
+   * @param {string} schemaPath
+   * @param {string} structName
+   * @param {string} valueText
+   */
   const capnpEncode = (schemaPath, structName, valueText) => {
     const r = spawnSync(
       'capnp',
