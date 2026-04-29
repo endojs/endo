@@ -156,6 +156,48 @@ const readDataField = (loc, dataSlot, kind) => {
 };
 
 /**
+ * Write a struct's fields into an already-allocated `StructBuilder` slot.
+ * Defined before `writeList` so the latter can call it for List(struct)
+ * elements without tripping `no-use-before-define`.
+ *
+ * @param {any} msg
+ * @param {any} loc
+ * @param {import('./layout.js').StructLayout} layout
+ * @param {any} obj
+ * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ */
+const writeStructInPlace = (msg, loc, layout, obj, layouts) => {
+  const src = obj == null ? {} : obj;
+  for (const f of layout.fields) {
+    const v = src[f.name];
+    if (f.slot.kind === 'void') {
+      // void: nothing to write
+    } else if (f.slot.kind === 'data') {
+      if (v !== undefined) writeDataField(loc, f.slot, f.type.kind, v);
+    } else if (v === undefined || v === null) {
+      // pointer slot stays null
+    } else {
+      const slot = ptrSlot(loc, f.slot.index);
+      if (f.type.kind === 'text') {
+        writeText(msg, slot, /** @type {string} */ (v));
+      } else if (f.type.kind === 'data') {
+        writeData(msg, slot, /** @type {Uint8Array} */ (v));
+      } else if (f.type.kind === 'list') {
+        // eslint-disable-next-line no-use-before-define
+        writeList(msg, slot, f.type, v, layouts);
+      } else if (f.type.kind === 'struct') {
+        const sub = layouts.get(/** @type {string} */ (f.type.name));
+        if (!sub) throw Fail`unknown struct type ${f.type.name}`;
+        const subLoc = allocStruct(msg, slot, sub.dataWords, sub.pointerCount);
+        writeStructInPlace(msg, subLoc, sub, v, layouts);
+      } else {
+        throw Fail`writeStructInPlace: unhandled field type ${f.type.kind}`;
+      }
+    }
+  }
+};
+
+/**
  * Encode a list field. `pointerLocation` is the pointer slot the list
  * pointer should be written into.
  *
@@ -267,47 +309,6 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
 };
 
 /**
- * Write a struct's fields into an already-allocated `StructBuilder` slot.
- * Declared as a function (not a const arrow) so it is hoisted above
- * `writeList`, which calls it for List(struct) elements.
- *
- * @param {any} msg
- * @param {any} loc
- * @param {import('./layout.js').StructLayout} layout
- * @param {any} obj
- * @param {Map<string, import('./layout.js').StructLayout>} layouts
- */
-function writeStructInPlace(msg, loc, layout, obj, layouts) {
-  const src = obj == null ? {} : obj;
-  for (const f of layout.fields) {
-    const v = src[f.name];
-    if (f.slot.kind === 'void') continue;
-    if (f.slot.kind === 'data') {
-      if (v === undefined) continue;
-      writeDataField(loc, f.slot, f.type.kind, v);
-      continue;
-    }
-    // pointer slot
-    if (v === undefined || v === null) continue;
-    const slot = ptrSlot(loc, f.slot.index);
-    if (f.type.kind === 'text') {
-      writeText(msg, slot, /** @type {string} */ (v));
-    } else if (f.type.kind === 'data') {
-      writeData(msg, slot, /** @type {Uint8Array} */ (v));
-    } else if (f.type.kind === 'list') {
-      writeList(msg, slot, f.type, v, layouts);
-    } else if (f.type.kind === 'struct') {
-      const sub = layouts.get(/** @type {string} */ (f.type.name));
-      if (!sub) throw Fail`unknown struct type ${f.type.name}`;
-      const subLoc = allocStruct(msg, slot, sub.dataWords, sub.pointerCount);
-      writeStructInPlace(msg, subLoc, sub, v, layouts);
-    } else {
-      throw Fail`writeStructInPlace: unhandled field type ${f.type.kind}`;
-    }
-  }
-}
-
-/**
  * Encode a JS object as a top-level Cap'n Proto framed message whose root
  * is a struct of the given layout.
  *
@@ -334,6 +335,51 @@ export const encodeRootStruct = (obj, layout, layouts) => {
 /* ===================================================================== *
  *  Decoder
  * ===================================================================== */
+
+/**
+ * Read a struct's fields from `loc` into a plain JS object. Defined before
+ * `readList` so the latter can call it for List(struct) elements without
+ * tripping `no-use-before-define`.
+ *
+ * @param {any} msg
+ * @param {any} loc
+ * @param {import('./layout.js').StructLayout} layout
+ * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ */
+const readStructFields = (msg, loc, layout, layouts) => {
+  /** @type {Record<string, unknown>} */
+  const out = {};
+  for (const f of layout.fields) {
+    if (f.slot.kind === 'void') {
+      // void: nothing to read
+    } else if (f.slot.kind === 'data') {
+      out[f.name] = readDataField(loc, f.slot, f.type.kind);
+    } else {
+      const ptrLoc = {
+        segId: loc.segId,
+        wordOffset: loc.wordOffset + loc.dataWords + f.slot.index,
+      };
+      if (f.type.kind === 'text') {
+        out[f.name] = readText(msg, ptrLoc.segId, ptrLoc.wordOffset);
+      } else if (f.type.kind === 'data') {
+        out[f.name] = readData(msg, ptrLoc.segId, ptrLoc.wordOffset);
+      } else if (f.type.kind === 'list') {
+        // eslint-disable-next-line no-use-before-define
+        out[f.name] = readList(msg, ptrLoc, f.type, layouts);
+      } else if (f.type.kind === 'struct') {
+        const sub = layouts.get(/** @type {string} */ (f.type.name));
+        if (!sub) throw Fail`unknown struct type ${f.type.name}`;
+        const subLoc = readStructPointer(msg, ptrLoc.segId, ptrLoc.wordOffset);
+        out[f.name] = subLoc
+          ? readStructFields(msg, subLoc, sub, layouts)
+          : null;
+      } else {
+        throw Fail`readStructFields: unhandled field type ${f.type.kind}`;
+      }
+    }
+  }
+  return out;
+};
 
 /**
  * @param {any} msg
@@ -420,46 +466,6 @@ const readList = (msg, ptrLocation, listType, layouts) => {
   }
   return out;
 };
-
-/**
- * Declared as a function so it is hoisted above `readList`, which calls
- * it for List(struct) elements.
- *
- * @param {any} msg
- * @param {any} loc
- * @param {import('./layout.js').StructLayout} layout
- * @param {Map<string, import('./layout.js').StructLayout>} layouts
- */
-function readStructFields(msg, loc, layout, layouts) {
-  /** @type {Record<string, unknown>} */
-  const out = {};
-  for (const f of layout.fields) {
-    if (f.slot.kind === 'void') continue;
-    if (f.slot.kind === 'data') {
-      out[f.name] = readDataField(loc, f.slot, f.type.kind);
-      continue;
-    }
-    const ptrLoc = {
-      segId: loc.segId,
-      wordOffset: loc.wordOffset + loc.dataWords + f.slot.index,
-    };
-    if (f.type.kind === 'text') {
-      out[f.name] = readText(msg, ptrLoc.segId, ptrLoc.wordOffset);
-    } else if (f.type.kind === 'data') {
-      out[f.name] = readData(msg, ptrLoc.segId, ptrLoc.wordOffset);
-    } else if (f.type.kind === 'list') {
-      out[f.name] = readList(msg, ptrLoc, f.type, layouts);
-    } else if (f.type.kind === 'struct') {
-      const sub = layouts.get(/** @type {string} */ (f.type.name));
-      if (!sub) throw Fail`unknown struct type ${f.type.name}`;
-      const subLoc = readStructPointer(msg, ptrLoc.segId, ptrLoc.wordOffset);
-      out[f.name] = subLoc ? readStructFields(msg, subLoc, sub, layouts) : null;
-    } else {
-      throw Fail`readStructFields: unhandled field type ${f.type.kind}`;
-    }
-  }
-  return out;
-}
 
 /**
  * Decode a Cap'n Proto framed message whose root is a struct of the given

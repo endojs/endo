@@ -192,9 +192,7 @@ export const layoutStruct = decl => {
   for (const f of decl.fields) {
     if (f.type.kind === 'void') {
       fields.push({ ...f, slot: { kind: 'void' } });
-      continue;
-    }
-    if (isPointerType(f.type)) {
+    } else if (isPointerType(f.type)) {
       const slot = {
         kind: /** @type {const} */ ('pointer'),
         index: pointerCount,

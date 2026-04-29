@@ -82,39 +82,27 @@ const tokenize = src => {
     const c = src[i];
     if (c === '#') {
       while (i < n && src[i] !== '\n') i += 1;
-      continue;
-    }
-    if (/\s/.test(c)) {
+    } else if (/\s/.test(c)) {
       i += 1;
-      continue;
-    }
-    if ('{}();,@:='.includes(c)) {
+    } else if ('{}();,@:='.includes(c)) {
       tokens.push(c);
       i += 1;
-      continue;
-    }
-    if (c === '0' && src[i + 1] === 'x') {
+    } else if (c === '0' && src[i + 1] === 'x') {
       let j = i + 2;
       while (j < n && /[0-9a-fA-F]/.test(src[j])) j += 1;
       tokens.push(src.slice(i, j));
       i = j;
-      continue;
-    }
-    if (/[0-9]/.test(c)) {
+    } else if (/[0-9]/.test(c)) {
       let j = i;
       while (j < n && /[0-9.]/.test(src[j])) j += 1;
       tokens.push(src.slice(i, j));
       i = j;
-      continue;
-    }
-    if (/[A-Za-z_]/.test(c)) {
+    } else if (/[A-Za-z_]/.test(c)) {
       let j = i;
       while (j < n && /[A-Za-z0-9_]/.test(src[j])) j += 1;
       tokens.push(src.slice(i, j));
       i = j;
-      continue;
-    }
-    if (c === '"') {
+    } else if (c === '"') {
       // Lexer keeps string literals (used in default values) intact.
       let j = i + 1;
       while (j < n && src[j] !== '"') {
@@ -123,9 +111,9 @@ const tokenize = src => {
       }
       tokens.push(src.slice(i, j + 1));
       i = j + 1;
-      continue;
+    } else {
+      throw Fail`schema parse: unexpected character ${c} at offset ${i}`;
     }
-    throw Fail`schema parse: unexpected character ${c} at offset ${i}`;
   }
   return tokens;
 };
@@ -223,15 +211,14 @@ export const parseCapnpSchema = src => {
       const tok = peek();
       if (tok === 'union' || tok === 'enum' || tok === 'group') {
         throw Fail`schema parse: ${tok} not supported`;
-      }
-      if (tok === 'struct') {
+      } else if (tok === 'struct') {
         // Nested struct declaration — supported by parsing it as a sibling
         // for now (capnp does namespace it, but our flat name table works
         // for the interop subset).
         parseStruct();
-        continue;
+      } else {
+        fields.push(parseField());
       }
-      fields.push(parseField());
     }
     eat('}');
     out.structs.set(name, { name, id, fields });
