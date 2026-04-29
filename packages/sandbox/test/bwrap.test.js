@@ -53,12 +53,158 @@ const probeBwrap = async () => {
   }
 };
 
-/** @type {{ available: boolean; version?: string; reason?: string }} */
-let bwrapAvailability = { available: false, reason: 'not yet probed' };
+/**
+ * Confirm that `bwrap` can actually create a user namespace on this
+ * host with the same flags every slice uses.  Some hosts ship bwrap
+ * but block unprivileged user-namespace creation via AppArmor,
+ * `kernel.unprivileged_userns_clone=0`, or by being nested inside a
+ * locked-down container.  When that happens bwrap exits non-zero with
+ * `bwrap: Creating new namespace failed: ...` on stderr — a single
+ * clean skip is more useful than seven look-alike exit-code-1
+ * failures with the stderr swallowed.
+ *
+ * Returns the same shape as `probeBwrap` plus the captured stderr so
+ * the skip reason can quote the kernel's own message.
+ *
+ * @returns {Promise<{ available: boolean; reason?: string }>}
+ */
+const probeBwrapUserns = async () => {
+  await null;
+  try {
+    const proc = nodeSpawn(
+      'bwrap',
+      [
+        '--unshare-all',
+        '--die-with-parent',
+        '--cap-drop',
+        'ALL',
+        '--ro-bind-try',
+        '/usr',
+        '/usr',
+        '--ro-bind-try',
+        '/bin',
+        '/bin',
+        '--ro-bind-try',
+        '/lib',
+        '/lib',
+        '--ro-bind-try',
+        '/lib64',
+        '/lib64',
+        '--proc',
+        '/proc',
+        '--dev',
+        '/dev',
+        '--clearenv',
+        '--',
+        '/bin/true',
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    /** @type {Buffer[]} */
+    const stderrChunks = [];
+    proc.stderr?.on('data', c => stderrChunks.push(c));
+    return await new Promise(resolve => {
+      proc.once('error', e =>
+        resolve({
+          available: false,
+          reason: `failed to spawn bwrap: ${/** @type {Error} */ (e).message}`,
+        }),
+      );
+      proc.once('close', code => {
+        if (code === 0) {
+          resolve({ available: true });
+          return;
+        }
+        const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+        resolve({
+          available: false,
+          reason:
+            stderr === ''
+              ? `bwrap user-namespace smoke test exit ${code}`
+              : `bwrap user-namespace smoke test exit ${code}: ${stderr}`,
+        });
+      });
+    });
+  } catch (e) {
+    return {
+      available: false,
+      reason: /** @type {Error} */ (e).message,
+    };
+  }
+};
+
+/**
+ * Combined availability flag.  `available` is true only when both the
+ * `--version` probe and the user-namespace smoke test succeed.  When
+ * the smoke test fails we keep the parsed version (so the "probe
+ * reports available with a version" test still asserts the right
+ * thing) but mark the slice tests as skipped with the smoke-test
+ * stderr as the reason.
+ *
+ * @type {{
+ *   versionAvailable: boolean,
+ *   sliceAvailable: boolean,
+ *   version?: string,
+ *   reason?: string,
+ * }}
+ */
+let bwrapAvailability = {
+  versionAvailable: false,
+  sliceAvailable: false,
+  reason: 'not yet probed',
+};
 
 test.serial.before(async _t => {
-  bwrapAvailability = await probeBwrap();
+  const versionProbe = await probeBwrap();
+  if (!versionProbe.available) {
+    bwrapAvailability = {
+      versionAvailable: false,
+      sliceAvailable: false,
+      reason: versionProbe.reason,
+    };
+    return;
+  }
+  const usernsProbe = await probeBwrapUserns();
+  bwrapAvailability = {
+    versionAvailable: true,
+    sliceAvailable: usernsProbe.available,
+    version: versionProbe.version,
+    ...(usernsProbe.reason !== undefined ? { reason: usernsProbe.reason } : {}),
+  };
 });
+
+/**
+ * Pretty-print stdout / stderr captures for inclusion in test
+ * failure messages.  Trims trailing newlines and replaces empty
+ * captures with "(empty)" so a missing stream is visually obvious.
+ *
+ * @param {string} label
+ * @param {string} text
+ * @returns {string}
+ */
+const formatCapture = (label, text) => {
+  const trimmed = text.replace(/\n+$/, '');
+  return `${label}=${trimmed === '' ? '(empty)' : JSON.stringify(trimmed)}`;
+};
+
+/**
+ * Surface a bwrap-level failure (stderr begins with "bwrap: ...") as
+ * a clear assertion failure.  Without this the surface symptom is
+ * just "exit code 1" with stderr discarded; the call site sees the
+ * actual kernel-policy / bwrap argv error.  No-op when the slice ran.
+ *
+ * @param {import('ava').ExecutionContext} t
+ * @param {{ exit: { code: number | null }, stderr: string }} result
+ * @param {string} where  Short label naming the slice command, used
+ *                        in the failure message.
+ */
+const failOnBwrapError = (t, result, where) => {
+  if (result.exit.code === 0) return;
+  const m = result.stderr.match(/^bwrap: .+$/m);
+  if (m !== null) {
+    t.fail(`${where}: bwrap itself failed (exit ${result.exit.code}): ${m[0]}`);
+  }
+};
 
 /**
  * Build a stub `SandboxPowers` that:
@@ -135,7 +281,7 @@ const drainReader = async reader => {
 };
 
 test.serial('bwrap probe reports available with a version', async t => {
-  if (!bwrapAvailability.available) {
+  if (!bwrapAvailability.versionAvailable) {
     t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
     return;
   }
@@ -149,7 +295,7 @@ test.serial('bwrap probe reports available with a version', async t => {
 test.serial(
   'listBackends() reports bwrap available via the factory',
   async t => {
-    if (!bwrapAvailability.available) {
+    if (!bwrapAvailability.versionAvailable) {
       t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
       return;
     }
@@ -167,9 +313,37 @@ test.serial(
   },
 );
 
+/**
+ * Spawn a command in the slice and drain stdout / stderr fully so a
+ * failed assertion can quote both streams.  Without this every test
+ * that just checks `exit.code` reports "exit code 1" with no clue
+ * whether bwrap itself failed (e.g. blocked userns), the user's argv
+ * was wrong, or the in-slice command actually exited non-zero.
+ *
+ * @param {any} handle
+ * @param {string[]} argv
+ * @returns {Promise<{
+ *   exit: { code: number | null, signal: string | null },
+ *   stdout: string,
+ *   stderr: string,
+ * }>}
+ */
+const runInSlice = async (handle, argv) => {
+  const proc = await E(handle).spawn(harden(argv));
+  const stdoutPromise = drainReader(await E(proc).stdout());
+  const stderrPromise = drainReader(await E(proc).stderr());
+  const exit = await E(proc).wait();
+  const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+  return {
+    exit,
+    stdout: stdout.toString('utf8'),
+    stderr: stderr.toString('utf8'),
+  };
+};
+
 test.serial('host-bind slice spawns /bin/echo hello', async t => {
-  if (!bwrapAvailability.available) {
-    t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+  if (!bwrapAvailability.sliceAvailable) {
+    t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
     return;
   }
   const driver = makeBwrapDriver({ env: {} });
@@ -196,17 +370,22 @@ test.serial('host-bind slice spawns /bin/echo hello', async t => {
     }
   });
 
-  const proc = await E(handle).spawn(harden(['/bin/echo', 'hello']));
-  const stdoutPromise = drainReader(await E(proc).stdout());
-  const exit = await E(proc).wait();
-  const stdout = await stdoutPromise;
-  t.is(exit.code, 0, `exit code 0, got ${exit.code}`);
-  t.true(stdout.toString('utf8').startsWith('hello'));
+  const result = await runInSlice(handle, ['/bin/echo', 'hello']);
+  failOnBwrapError(t, result, '/bin/echo hello');
+  t.is(
+    result.exit.code,
+    0,
+    `exit code 0, got ${result.exit.code}; ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
+  );
+  t.true(
+    result.stdout.startsWith('hello'),
+    `stdout should start with "hello"; ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
+  );
 });
 
 test.serial('read-only mount rejects writes from inside the slice', async t => {
-  if (!bwrapAvailability.available) {
-    t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+  if (!bwrapAvailability.sliceAvailable) {
+    t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
     return;
   }
   const driver = makeBwrapDriver({ env: {} });
@@ -243,29 +422,37 @@ test.serial('read-only mount rejects writes from inside the slice', async t => {
   });
 
   // Attempt to write to /ro — should fail with non-zero exit.
-  const proc = await E(handle).spawn(
-    harden(['/bin/sh', '-c', 'echo nope > /ro/should-fail']),
+  const result = await runInSlice(handle, [
+    '/bin/sh',
+    '-c',
+    'echo nope > /ro/should-fail',
+  ]);
+  failOnBwrapError(t, result, 'echo > /ro/should-fail');
+  t.not(
+    result.exit.code,
+    0,
+    `write to /ro should fail; ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
   );
-  const stderr = await drainReader(await E(proc).stderr());
-  const exit = await E(proc).wait();
-  t.not(exit.code, 0, 'write to /ro should fail');
   t.regex(
-    stderr.toString('utf8'),
+    result.stderr,
     /Read-only file system|Permission denied|read-only/i,
-    'stderr should mention read-only',
+    `stderr should mention read-only; ${formatCapture('stderr', result.stderr)}`,
   );
 
   // Sanity: the RO file is still readable from inside.
-  const proc2 = await E(handle).spawn(harden(['/bin/cat', '/ro/sentinel']));
-  const stdout2 = await drainReader(await E(proc2).stdout());
-  const exit2 = await E(proc2).wait();
-  t.is(exit2.code, 0);
-  t.is(stdout2.toString('utf8'), 'baseline\n');
+  const sanity = await runInSlice(handle, ['/bin/cat', '/ro/sentinel']);
+  failOnBwrapError(t, sanity, 'cat /ro/sentinel');
+  t.is(
+    sanity.exit.code,
+    0,
+    `cat /ro/sentinel exit 0, got ${sanity.exit.code}; ${formatCapture('stderr', sanity.stderr)}`,
+  );
+  t.is(sanity.stdout, 'baseline\n');
 });
 
 test.serial('network: none blocks loopback reach', async t => {
-  if (!bwrapAvailability.available) {
-    t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+  if (!bwrapAvailability.sliceAvailable) {
+    t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
     return;
   }
   const driver = makeBwrapDriver({ env: {} });
@@ -304,40 +491,43 @@ test.serial('network: none blocks loopback reach', async t => {
   // fresh netns with no interfaces) returns ENETUNREACH.
   const cmd =
     'if exec 3<>/dev/tcp/10.0.0.1/1 2>/dev/null; then echo connected; else echo blocked; fi';
-  const proc = await E(handle).spawn(harden(['/bin/bash', '-c', cmd]));
-  const stdout = await drainReader(await E(proc).stdout());
-  const stderr = await drainReader(await E(proc).stderr());
-  const exit = await E(proc).wait();
-  void exit;
-  void stderr;
-  const combined = stdout.toString('utf8');
-  t.regex(combined, /blocked/, 'connect to external host should fail');
-  t.notRegex(combined, /connected/, 'connect should not have succeeded');
+  const result = await runInSlice(handle, ['/bin/bash', '-c', cmd]);
+  failOnBwrapError(t, result, 'bash -c (tcp probe)');
+  t.regex(
+    result.stdout,
+    /blocked/,
+    `connect to external host should fail; ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
+  );
+  t.notRegex(
+    result.stdout,
+    /connected/,
+    `connect should not have succeeded; ${formatCapture('stdout', result.stdout)}`,
+  );
 
   // Verify there are no non-loopback interfaces.  The fresh netns
   // should only have `lo`.
-  const proc2 = await E(handle).spawn(
-    harden(['/bin/sh', '-c', 'ls /sys/class/net 2>/dev/null || true']),
-  );
-  const stdout2 = await drainReader(await E(proc2).stdout());
-  await E(proc2).wait();
-  const ifaces = stdout2
-    .toString('utf8')
+  const ifaceResult = await runInSlice(handle, [
+    '/bin/sh',
+    '-c',
+    'ls /sys/class/net 2>/dev/null || true',
+  ]);
+  failOnBwrapError(t, ifaceResult, 'ls /sys/class/net');
+  const ifaces = ifaceResult.stdout
     .split('\n')
     .map(s => s.trim())
     .filter(s => s !== '');
   t.deepEqual(
     ifaces.filter(i => i !== 'lo').sort(),
     [],
-    'no non-loopback interfaces in network: none',
+    `no non-loopback interfaces in network: none; ${formatCapture('stdout', ifaceResult.stdout)} ${formatCapture('stderr', ifaceResult.stderr)}`,
   );
 });
 
 test.serial(
   'private network profile is accepted but pasta wiring is Phase 1.5',
   async t => {
-    if (!bwrapAvailability.available) {
-      t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+    if (!bwrapAvailability.sliceAvailable) {
+      t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
       return;
     }
     // Phase 1 accepts `network: 'private'` for slice construction;
@@ -372,8 +562,8 @@ test.serial(
 test.serial(
   'host-net profile shares the host net namespace (Phase 1.5)',
   async t => {
-    if (!bwrapAvailability.available) {
-      t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+    if (!bwrapAvailability.sliceAvailable) {
+      t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
       return;
     }
     const driver = makeBwrapDriver({ env: {} });
@@ -405,24 +595,26 @@ test.serial(
     // shared and only `lo` when it is not.  Sysfs is not bind-mounted
     // into the slice (the rootfs only binds /usr, /lib, /etc, etc.),
     // so we cannot use `/sys/class/net` here.
-    const proc = await E(handle).spawn(harden(['/bin/cat', '/proc/net/dev']));
-    const stdout = await drainReader(await E(proc).stdout());
-    const exit = await E(proc).wait();
-    t.is(exit.code, 0, 'cat /proc/net/dev should succeed');
+    const result = await runInSlice(handle, ['/bin/cat', '/proc/net/dev']);
+    failOnBwrapError(t, result, 'cat /proc/net/dev');
+    t.is(
+      result.exit.code,
+      0,
+      `cat /proc/net/dev should succeed; ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
+    );
     // /proc/net/dev format:
     //   Inter-|   Receive                                                |  Transmit
     //    face |bytes    packets errs drop fifo frame compressed multicast|bytes ...
     //       lo: ...
     //     eth0: ...
-    const ifaces = stdout
-      .toString('utf8')
+    const ifaces = result.stdout
       .split('\n')
       .slice(2) // skip the two header rows
       .map(line => line.trim().split(':')[0]?.trim() ?? '')
       .filter(name => name !== '');
     t.true(
       ifaces.includes('lo'),
-      'host loopback visible inside host-net slice',
+      `host loopback visible inside host-net slice; ${formatCapture('stdout', result.stdout)}`,
     );
     // We do not assert a specific non-loopback interface name (CI may
     // run without one); we only assert the slice could enumerate the
@@ -431,8 +623,8 @@ test.serial(
 );
 
 test.serial('host-loopback profile is accepted', async t => {
-  if (!bwrapAvailability.available) {
-    t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+  if (!bwrapAvailability.sliceAvailable) {
+    t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
     return;
   }
   const driver = makeBwrapDriver({ env: {} });
@@ -461,14 +653,18 @@ test.serial('host-loopback profile is accepted', async t => {
   // host-loopback firewall (drop everything except 127.0.0.0/8 / ::1)
   // is the operator's responsibility because rootless slices lack
   // CAP_NET_ADMIN. See README § "Host network profiles".
-  const proc = await E(handle).spawn(harden(['/bin/echo', 'ok']));
-  const exit = await E(proc).wait();
-  t.is(exit.code, 0, 'host-loopback slice spawns successfully');
+  const result = await runInSlice(handle, ['/bin/echo', 'ok']);
+  failOnBwrapError(t, result, '/bin/echo ok (host-loopback)');
+  t.is(
+    result.exit.code,
+    0,
+    `host-loopback slice spawns successfully; ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
+  );
 });
 
 test.serial('host-lan profile is accepted', async t => {
-  if (!bwrapAvailability.available) {
-    t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+  if (!bwrapAvailability.sliceAvailable) {
+    t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
     return;
   }
   const driver = makeBwrapDriver({ env: {} });
@@ -493,16 +689,20 @@ test.serial('host-lan profile is accepted', async t => {
       }
     }
   });
-  const proc = await E(handle).spawn(harden(['/bin/echo', 'ok']));
-  const exit = await E(proc).wait();
-  t.is(exit.code, 0, 'host-lan slice spawns successfully');
+  const result = await runInSlice(handle, ['/bin/echo', 'ok']);
+  failOnBwrapError(t, result, '/bin/echo ok (host-lan)');
+  t.is(
+    result.exit.code,
+    0,
+    `host-lan slice spawns successfully; ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
+  );
 });
 
 test.serial(
   'slice.help() reports the Landlock and prlimit hardening layers',
   async t => {
-    if (!bwrapAvailability.available) {
-      t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+    if (!bwrapAvailability.sliceAvailable) {
+      t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
       return;
     }
     const driver = makeBwrapDriver({ env: {} });
@@ -542,8 +742,8 @@ test.serial(
 );
 
 test.serial('prlimit nproc cap is enforced inside the slice', async t => {
-  if (!bwrapAvailability.available) {
-    t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+  if (!bwrapAvailability.sliceAvailable) {
+    t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
     return;
   }
   // Ask for an `nproc` ceiling that is comfortably above the
@@ -592,21 +792,24 @@ test.serial('prlimit nproc cap is enforced inside the slice', async t => {
   // prlimit set.  We assert the cap is in effect rather than
   // running an actual fork bomb (which would also stress the host
   // the test process is running on).
-  const proc = await E(handle).spawn(harden(['/bin/sh', '-c', 'ulimit -u']));
-  const stdout = await drainReader(await E(proc).stdout());
-  const exit = await E(proc).wait();
-  t.is(exit.code, 0, `ulimit -u exit code 0 (got ${exit.code})`);
-  const reported = Number(stdout.toString('utf8').trim());
+  const result = await runInSlice(handle, ['/bin/sh', '-c', 'ulimit -u']);
+  failOnBwrapError(t, result, 'ulimit -u');
+  t.is(
+    result.exit.code,
+    0,
+    `ulimit -u exit code 0 (got ${result.exit.code}); ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
+  );
+  const reported = Number(result.stdout.trim());
   t.is(
     reported,
     cap,
-    `slice should observe RLIMIT_NPROC=${cap}, got ${reported}`,
+    `slice should observe RLIMIT_NPROC=${cap}, got ${reported}; ${formatCapture('stdout', result.stdout)} ${formatCapture('stderr', result.stderr)}`,
   );
 });
 
 test.serial('fork() throws notImplemented before Phase 3', async t => {
-  if (!bwrapAvailability.available) {
-    t.pass(`bwrap not available: ${bwrapAvailability.reason}`);
+  if (!bwrapAvailability.sliceAvailable) {
+    t.pass(`bwrap slice unavailable: ${bwrapAvailability.reason}`);
     return;
   }
   const driver = makeBwrapDriver({ env: {} });
