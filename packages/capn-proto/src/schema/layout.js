@@ -112,6 +112,7 @@ const addWord = hs => {
  * @returns {number}
  */
 const splitHole = (hs, offset, holeLog2, wantLog2) => {
+  // eslint-disable-next-line no-bitwise
   const wantBits = 1 << wantLog2;
   let pos = offset + wantBits;
   // Remaining bits become new holes, smallest first so subsequent allocations
@@ -119,6 +120,7 @@ const splitHole = (hs, offset, holeLog2, wantLog2) => {
   // lands the Bool at byte 1 bit 0, not at byte 7 bit 0).
   for (let i = wantLog2; i < holeLog2; i += 1) {
     hs.holes[i].push(pos);
+    // eslint-disable-next-line no-bitwise
     pos += 1 << i;
   }
   return offset;

@@ -116,6 +116,7 @@ export const makeThreeParty = ctx => {
    *
    * @param {{ thirdPartyCapId: Uint8Array, vineId: number }} desc
    */
+  let nextAcceptKey = 0;
   const acceptThirdParty = desc => {
     const peer = network.connectToThirdParty(desc.thirdPartyCapId);
     if (!peer || typeof peer.sendAccept !== 'function') {
@@ -125,18 +126,20 @@ export const makeThreeParty = ctx => {
     }
     const provision = network.provisionIdForHandoff(desc.thirdPartyCapId);
     const answerP = peer.sendAccept(provision);
-    // Track the in-flight Accept so stats() reflects it; clean up in finally.
-    const acceptKey = Symbol('accept');
-    acceptQuestions.set(/** @type {any} */ (acceptKey), { vineId: desc.vineId });
+    // Track the in-flight Accept so stats() reflects it; clean up in then().
+    nextAcceptKey += 1;
+    const acceptKey = nextAcceptKey;
+    acceptQuestions.set(acceptKey, { vineId: desc.vineId });
     const releaseVine = () => {
-      acceptQuestions.delete(/** @type {any} */ (acceptKey));
+      acceptQuestions.delete(acceptKey);
       // The vine import lives on this connection (the original B↔A). After
       // the direct path settles, A no longer needs the vine — Release it.
+      // sendRelease is best-effort; if the connection is already aborted
+      // the peer is gone anyway, so swallow any throw.
       try {
         sendRelease(desc.vineId, 1);
-      } catch {
-        // sendRelease is best-effort; if the connection is already aborted
-        // the peer is gone anyway.
+      } catch (_e) {
+        // ignore
       }
     };
     answerP.then(releaseVine, releaseVine);

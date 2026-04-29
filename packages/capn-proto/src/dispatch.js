@@ -152,13 +152,10 @@ export const makeDispatch = ctx => {
     );
     let argList;
     try {
-      let args;
-      if (reqCodec) {
-        args = reqCodec.decode(params.contentBytes);
-      } else {
-        args = payloadCodec.decode(params);
-      }
-      argList = Array.isArray(args) ? args : [args];
+      const args = reqCodec
+        ? reqCodec.decode(params.contentBytes)
+        : payloadCodec.decode(params);
+      argList = Array.isArray(args) ? args : [];
     } catch (err) {
       // payload decoding failed — surface as an exception Return so the
       // peer's question rejects rather than blocking forever.

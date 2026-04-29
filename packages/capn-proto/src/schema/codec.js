@@ -48,7 +48,6 @@ import {
   LIST_TWO_BYTES,
   LIST_FOUR_BYTES,
   LIST_EIGHT_BYTES,
-  LIST_COMPOSITE,
 } from '../wire/pointer.js';
 
 const PRIMITIVE_LIST_ELEM_SIZE = {
@@ -65,8 +64,6 @@ const PRIMITIVE_LIST_ELEM_SIZE = {
   float64: LIST_EIGHT_BYTES,
 };
 
-const SIGNED_TYPES = new Set(['int8', 'int16', 'int32', 'int64']);
-const FLOAT_TYPES = new Set(['float32', 'float64']);
 const BIGINT_TYPES = new Set(['int64', 'uint64']);
 
 /**
@@ -101,6 +98,7 @@ const writeDataField = (loc, dataSlot, kind, v) => {
     case 32:
       if (kind === 'float32') view.setFloat32(absByte, Number(v), true);
       else if (kind === 'int32') view.setInt32(absByte, Number(v), true);
+      // eslint-disable-next-line no-bitwise
       else writeUint32(loc, byteOffset, Number(v) >>> 0);
       return;
     case 64:
@@ -211,6 +209,7 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
     const bytes = msg.segments[list.segId].bytes;
     for (let i = 0; i < arr.length; i += 1) {
       if (arr[i]) {
+        // eslint-disable-next-line no-bitwise
         const byteIdx = list.wordOffset * WORD_SIZE + (i >>> 3);
         // eslint-disable-next-line no-bitwise
         bytes[byteIdx] |= 1 << (i & 7);
@@ -239,6 +238,7 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
         view.setInt32(off, Number(v), true);
         break;
       case 'uint32':
+        // eslint-disable-next-line no-bitwise
         view.setUint32(off, Number(v) >>> 0, true);
         break;
       case 'float32':
@@ -261,6 +261,8 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
 
 /**
  * Write a struct's fields into an already-allocated `StructBuilder` slot.
+ * Declared as a function (not a const arrow) so it is hoisted above
+ * `writeList`, which calls it for List(struct) elements.
  *
  * @param {any} msg
  * @param {any} loc
@@ -268,7 +270,7 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
  * @param {any} obj
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
  */
-const writeStructInPlace = (msg, loc, layout, obj, layouts) => {
+function writeStructInPlace(msg, loc, layout, obj, layouts) {
   const src = obj == null ? {} : obj;
   for (const f of layout.fields) {
     const v = src[f.name];
@@ -296,7 +298,7 @@ const writeStructInPlace = (msg, loc, layout, obj, layouts) => {
       throw Fail`writeStructInPlace: unhandled field type ${f.type.kind}`;
     }
   }
-};
+}
 
 /**
  * Encode a JS object as a top-level Cap'n Proto framed message whose root
@@ -362,6 +364,7 @@ const readList = (msg, ptrLocation, listType, layouts) => {
     const bytes = msg.segment(list.segId).bytes;
     const out = [];
     for (let i = 0; i < list.elemCount; i += 1) {
+      // eslint-disable-next-line no-bitwise
       const byteIdx = list.wordOffset * WORD_SIZE + (i >>> 3);
       // eslint-disable-next-line no-bitwise
       out.push((bytes[byteIdx] & (1 << (i & 7))) !== 0);
@@ -411,12 +414,15 @@ const readList = (msg, ptrLocation, listType, layouts) => {
 };
 
 /**
+ * Declared as a function so it is hoisted above `readList`, which calls
+ * it for List(struct) elements.
+ *
  * @param {any} msg
  * @param {any} loc
  * @param {import('./layout.js').StructLayout} layout
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
  */
-const readStructFields = (msg, loc, layout, layouts) => {
+function readStructFields(msg, loc, layout, layouts) {
   /** @type {Record<string, unknown>} */
   const out = {};
   for (const f of layout.fields) {
@@ -445,7 +451,7 @@ const readStructFields = (msg, loc, layout, layouts) => {
     }
   }
   return out;
-};
+}
 
 /**
  * Decode a Cap'n Proto framed message whose root is a struct of the given
@@ -469,7 +475,3 @@ export const decodeRootStruct = (framed, layout, layouts) => {
   if (!root) return null;
   return readStructFields(reader, root, layout, layouts);
 };
-
-// Suppress unused import warning under @ts-check / eslint:
-void SIGNED_TYPES;
-void FLOAT_TYPES;
