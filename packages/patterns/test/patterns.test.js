@@ -12,7 +12,12 @@ import {
   isKey,
   assertKey,
 } from '../src/keys/checkKey.js';
-import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
+import {
+  mustMatch,
+  matches,
+  M,
+  getRankCover,
+} from '../src/patterns/patternMatchers.js';
 
 const { stringify: q } = JSON;
 
@@ -970,4 +975,19 @@ test('Far functions (callable remotables) are valid Keys', t => {
   // Usable as a CopySet element (set insertion confirms the element is a Key).
   const set = makeCopySet([farFn]);
   t.true(matches(set, M.set()));
+});
+
+test('getRankCover treats copyBag like other tagged kinds (#3052)', t => {
+  // copySet, copyBag, and copyMap all encode as the 'tagged' pass style,
+  // so getRankCover must produce the same range for each. Previously
+  // copyBag fell through to the default branch and threw a TypeError
+  // because 'copyBag' is not a known PassStyle.
+  // The kind matcher's getRankCover does not consult encodePassable, so
+  // this test does not require a real encoder.
+  const stubEncode = () => '';
+  const setCover = getRankCover(M.kind('copySet'), stubEncode);
+  const bagCover = getRankCover(M.kind('copyBag'), stubEncode);
+  const mapCover = getRankCover(M.kind('copyMap'), stubEncode);
+  t.deepEqual(bagCover, setCover);
+  t.deepEqual(bagCover, mapCover);
 });
