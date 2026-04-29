@@ -8,3 +8,4 @@ export const atob = encodedData => {
   const buf = decodeBase64(encodedData);
   return String.fromCharCode(...buf);
 };
+Object.freeze(atob);
