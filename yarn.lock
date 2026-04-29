@@ -2344,6 +2344,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/sandbox@workspace:packages/sandbox":
+  version: 0.0.0-use.local
+  resolution: "@endo/sandbox@workspace:packages/sandbox"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/ses-ava@workspace:^, @endo/ses-ava@workspace:packages/ses-ava":
   version: 0.0.0-use.local
   resolution: "@endo/ses-ava@workspace:packages/ses-ava"

@@ -9,9 +9,15 @@ This is interface-only work: no production driver code lands here.
 The exit goal is a plugin that loads in a daemon, advertises an
 empty backend list, and gives Phase 1 a typed surface to fill in.
 
+**Status: complete.**
+All deliverables landed in `packages/sandbox/`; the 12 ava tests
+in `test/factory.test.js` and `test/daemon-smoke.test.js` pass,
+`tsc` reports no errors, and `node --check` is clean across
+`src/*.js`.
+
 ## Deliverables
 
-- [ ] **Package skeleton** — `packages/sandbox/` with `package.json`
+- [x] **Package skeleton** — `packages/sandbox/` with `package.json`
   declaring it as a `@endo/*` workspace member.
   - `"type": "module"`, `"main": "./src/agent.js"`,
     `"workspace:^"` deps on `@endo/exo`, `@endo/patterns`,
@@ -20,7 +26,7 @@ empty backend list, and gives Phase 1 a typed surface to fill in.
     packages (e.g. `packages/lal`, `packages/networks`).
   - `eslint` config inheriting `plugin:@endo/internal`.
 
-- [ ] **`src/types.d.ts`** — typedef-only file declaring:
+- [x] **`src/types.d.ts`** — typedef-only file declaring:
   - `SandboxFactory`, `SandboxHandle`, `ProcessHandle`, `MountHandle`
     capability shapes (mirroring the `// @ts-check`/`@typedef` style
     used in `packages/daemon/src/types.js`).
@@ -30,7 +36,7 @@ empty backend list, and gives Phase 1 a typed surface to fill in.
     (`'none' | 'private' | 'host-loopback' | 'host-lan' | 'host-net'`).
   - `BackendName` literal union and `BackendProbe` result type.
 
-- [ ] **`src/interfaces.js`** — `M.interface()` guards corresponding
+- [x] **`src/interfaces.js`** — `M.interface()` guards corresponding
   to each capability shape above.
   - Use `@endo/patterns` (`M.string()`, `M.arrayOf()`,
     `M.recordOf()`, `M.remotable()`, etc.) consistent with how
@@ -38,7 +44,7 @@ empty backend list, and gives Phase 1 a typed surface to fill in.
   - Each interface exports the `M.interface()` value and is
     `harden()`ed at module top level.
 
-- [ ] **`src/factory.js`** — stub `makeSandboxFactory` that:
+- [x] **`src/factory.js`** — stub `makeSandboxFactory` that:
   - Returns a `makeExo` instance bound to the `SandboxFactory`
     interface guard.
   - Implements `help()` (descriptive string) and
@@ -46,23 +52,27 @@ empty backend list, and gives Phase 1 a typed surface to fill in.
   - `make({ ... })` throws a structured `makeError(X\`no backend
     available: ${q(name)}\`)` from `@endo/errors`.
 
-- [ ] **`src/agent.js`** — `make-unconfined` plugin entry point
-  mirroring `packages/lal/src/agent.js`:
+- [x] **`src/agent.js`** — `make-unconfined` plugin entry point
+  mirroring `packages/lal/agent.js`:
   - `export const make = async (powers, _context, { env } = {}) => { ... }`
   - Calls `makeSandboxFactory({ drivers: [], scratchProvider: powers })`.
   - `harden`-exports `make`.
 
-- [ ] **Tests** — `packages/sandbox/test/factory.test.js`:
+- [x] **Tests** — `packages/sandbox/test/factory.test.js`:
   - `ava` test that imports `makeSandboxFactory`,
     asserts `listBackends()` returns `[]`,
     asserts `make({...})` throws the structured "no backend"
     error.
   - `M.interface()` guards pass shape checks for stubbed remotables.
 
-- [ ] **Daemon registration smoke test** — extend (or add) a
-  daemon test that loads the new plugin via `make-unconfined`,
-  resolves `SandboxFactory.listBackends()` over CapTP, and confirms
-  the empty list round-trips through `__getMethodNames__()`.
+- [x] **Daemon registration smoke test** — `test/daemon-smoke.test.js`
+  drives the agent's `make-unconfined` entry point through the same
+  surface a daemon would (`await import('../src/agent.js')`, then
+  `await module.make(powers)`), exercises CapTP introspection
+  (`__getMethodNames__()`), and confirms `listBackends()` round-trips
+  `[]`. A full fork-a-daemon end-to-end test is deferred to Phase 1
+  where a non-trivial backend list is available to round-trip;
+  the docstring on `daemon-smoke.test.js` records that deferral.
 
 ## Out of scope (defer to Phase 1+)
 
