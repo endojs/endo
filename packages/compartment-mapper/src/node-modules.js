@@ -199,12 +199,13 @@ export const basename = location => {
 };
 
 /**
- * Asserts that the given value is a `PackageDescriptor`.
+ * Asserts that the given value is a plain-object `PackageDescriptor`.
  *
- * TODO: This only validates that the value is a plain object. As mentioned in
- * {@link PackageDescriptor}, `name` is currently a required field, but in the
- * real world this is not so. We _do_ make assumptions about the shape of a
- * `PackageDescriptor`, but it may not be worth eagerly validating further.
+ * Note: this does _not_ enforce the presence of a `name`. Callers that adopt
+ * a descriptor as the root of a compartment must additionally call
+ * {@link assertPackageDescriptorHasName} so that the diagnostic blames the
+ * correct `package.json`.
+ *
  * @param {unknown} allegedPackageDescriptor
  * @returns {asserts allegedPackageDescriptor is PackageDescriptor}
  */
@@ -214,6 +215,33 @@ const assertPackageDescriptor = allegedPackageDescriptor => {
       Object(allegedPackageDescriptor) === allegedPackageDescriptor,
     `Package descriptor must be a plain object, got ${q(allegedPackageDescriptor)}`,
   );
+};
+
+/**
+ * Asserts that the given `PackageDescriptor` has a non-empty `name`.
+ *
+ * `name` is required by {@link PackageDescriptor} and the compartment mapper
+ * relies on it to label and link compartments. Without it, downstream
+ * failures are obscure (for example, the bundler reports an undefined name
+ * far from the offending `package.json`). This surfaces a precise
+ * diagnostic that points at the offending file so the misconfiguration
+ * is easy to fix.
+ *
+ * @param {PackageDescriptor} packageDescriptor
+ * @param {string} packageDescriptorLocation - URL of the `package.json`
+ * file that produced this descriptor, used to attribute errors.
+ * @returns {void}
+ */
+const assertPackageDescriptorHasName = (
+  packageDescriptor,
+  packageDescriptorLocation,
+) => {
+  const { name } = packageDescriptor;
+  if (name === undefined || name === '') {
+    throw Error(
+      `package.json at ${q(packageDescriptorLocation)} must have a "name" field; consider naming it after the parent directory`,
+    );
+  }
 };
 
 /**
@@ -229,6 +257,11 @@ const readDescriptor = async (maybeRead, packageLocation) => {
   }
   const descriptorText = decoder.decode(descriptorBytes);
   const descriptor = parseLocatedJson(descriptorText, descriptorLocation);
+  // Only validate plain-object shape here. The `name` requirement is enforced
+  // separately at sites that adopt a descriptor as the root of a compartment,
+  // because `readDescriptorUpwards` legitimately reads ancestor `package.json`
+  // files (e.g., declaring `type: "module"` for sub-folder module resolution)
+  // that are not themselves package roots.
   assertPackageDescriptor(descriptor);
   return descriptor;
 };
@@ -282,6 +315,13 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
     // eslint-disable-next-line no-await-in-loop
     const packageDescriptor = await readDescriptor(packageLocation);
     if (packageDescriptor !== undefined) {
+      // Surface a precise diagnostic when a node_modules dependency lacks a
+      // "name". This is a strict requirement of the compartment mapper that
+      // would otherwise produce an obscure failure deep in the bundler.
+      assertPackageDescriptorHasName(
+        packageDescriptor,
+        resolveLocation('package.json', packageLocation),
+      );
       return { packageLocation, packageDescriptor };
     }
 
@@ -753,6 +793,10 @@ const graphPackages = async (
   }
 
   assertPackageDescriptor(allegedPackageDescriptor);
+  assertPackageDescriptorHasName(
+    allegedPackageDescriptor,
+    resolveLocation('package.json', packageLocation),
+  );
   const packageDescriptor = allegedPackageDescriptor;
 
   conditions = new Set(conditions || []);
@@ -1518,6 +1562,7 @@ export const mapNodeModules = async (
   )(packageDescriptorText, packageDescriptorLocation);
 
   assertPackageDescriptor(packageDescriptor);
+  assertPackageDescriptorHasName(packageDescriptor, packageDescriptorLocation);
   assertFileUrlString(packageLocation);
 
   return compartmentMapForNodeModules_(
