@@ -43,7 +43,7 @@ test('agent.js make() loads and returns a factory matching the documented shape'
   t.true([...methods].includes('help'), 'CapTP introspection sees help');
 });
 
-test('listBackends() round-trips an empty list', async t => {
+test('listBackends() round-trips the registered backends', async t => {
   const agentModule = await import('../src/agent.js');
   const factory = await agentModule.make(
     /** @type {any} */ (stubScratchProvider),
@@ -51,7 +51,11 @@ test('listBackends() round-trips an empty list', async t => {
     {},
   );
   const backends = await E(factory).listBackends();
-  t.deepEqual(backends, []);
+  // Phase 1 registers the bwrap driver. Whether bwrap is *available*
+  // depends on the host; the registration itself is what we assert.
+  t.true(Array.isArray(backends));
+  const names = backends.map(b => b.name);
+  t.true(names.includes('bwrap'), 'bwrap driver is registered');
 });
 
 test('agent.js handles missing options gracefully', async t => {
@@ -63,5 +67,9 @@ test('agent.js handles missing options gracefully', async t => {
     null,
   );
   const backends = await E(factory).listBackends();
-  t.deepEqual(backends, []);
+  t.true(Array.isArray(backends));
+  t.true(
+    backends.map(b => b.name).includes('bwrap'),
+    'bwrap driver is registered without an options argument',
+  );
 });

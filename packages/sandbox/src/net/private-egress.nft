@@ -1,0 +1,67 @@
+#!/usr/sbin/nft -f
+#
+# private-egress.nft — Endo sandbox `network: 'private'` egress filter.
+#
+# Loaded by the bwrap driver inside the slice's private network
+# namespace, AFTER `pasta` has set up the default route. The driver
+# enters the netns (e.g. via `ip netns exec` or `nsenter --net=...`)
+# and runs `nft -f path/to/private-egress.nft`.
+#
+# Goal: block traffic to RFC 1918 / link-local / CGNAT / loopback
+# while permitting everything else (i.e. the public Internet).
+#
+# Documented blocked ranges (PLAN/endo_posix_sandbox.md
+# § "Network policy"):
+#   - 10.0.0.0/8       (RFC 1918)
+#   - 172.16.0.0/12    (RFC 1918)
+#   - 192.168.0.0/16   (RFC 1918)
+#   - 100.64.0.0/10    (RFC 6598 CGNAT)
+#   - 169.254.0.0/16   (RFC 3927 link-local)
+#   - 127.0.0.0/8      (loopback)
+#   - fc00::/7         (IPv6 ULA, including fd00::/8)
+#   - ::1/128          (IPv6 loopback)
+#
+# Localhost loopback inside the slice (the slice's OWN 127.0.0.1)
+# is also blocked here.  The slice gets its own loopback interface
+# from the netns; programs that genuinely need to talk to a sibling
+# in the slice should use a unix socket on a scratch mount.
+#
+# Note: this ruleset uses inet so it covers ip / ip6 in one table.
+# It is idempotent under repeated loads thanks to `flush table`.
+
+table inet endo_sandbox
+flush table inet endo_sandbox
+
+table inet endo_sandbox {
+    set blocked_v4 {
+        type ipv4_addr
+        flags interval
+        elements = {
+            10.0.0.0/8,
+            172.16.0.0/12,
+            192.168.0.0/16,
+            100.64.0.0/10,
+            169.254.0.0/16,
+            127.0.0.0/8
+        }
+    }
+
+    set blocked_v6 {
+        type ipv6_addr
+        flags interval
+        elements = {
+            fc00::/7,
+            ::1/128
+        }
+    }
+
+    chain output {
+        type filter hook output priority filter; policy accept;
+
+        # Block IPv4 destinations in the documented ranges.
+        ip daddr @blocked_v4 reject with icmp type host-unreachable
+
+        # Block IPv6 destinations in the documented ranges.
+        ip6 daddr @blocked_v6 reject with icmpv6 type addr-unreachable
+    }
+}

@@ -168,7 +168,7 @@ export type SliceSpec = {
   /** Environment variables for the slice's `init` / first child. */
   env: Record<string, string>;
   /** Initial cwd inside the slice. */
-  cwd?: string;
+  cwd?: string|undefined;
 };
 
 // ---------------------------------------------------------------------------
