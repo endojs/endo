@@ -14,7 +14,7 @@ test('taming NaN16 DataView side-channel', t => {
     t.pass('platform does yet support float16');
     return;
   }
-  const canonicalNaN16Encoding = 0x7ff8;
+  const canonicalNaN16Encoding = 0x7e00;
   const otherNaN16Encoding = 0xfff8;
 
   // This is the JavaScript analog to a C union: a way to map between a float as a
@@ -37,7 +37,7 @@ test('taming NaN16 DataView side-channel', t => {
       ? 'canonical'
       : n === otherNaN16Encoding
         ? 'other'
-        : `0x${n.toString(16)}n`;
+        : `0x${n.toString(16)}`;
 
   bufferView.setUint16(0, otherNaN16Encoding);
   const someNaN = bufferView.getFloat16(0, false);
@@ -46,7 +46,7 @@ test('taming NaN16 DataView side-channel', t => {
   const dirtyNaNEncoding = bufferView.getUint16(0);
   // We cannot test for non-canonical, since it depends on the platform.
   // Instead, we just show it.
-  t.log(show(dirtyNaNEncoding), 'NaN');
+  t.log('before lockdown() otherNaN ->', show(dirtyNaNEncoding), 'NaN');
 
   lockdown();
   bufferView.setUint16(0, otherNaN16Encoding);
@@ -58,6 +58,23 @@ test('taming NaN16 DataView side-channel', t => {
   // Adapted reproducer from https://github.com/endojs/endo/issues/3202
   const dv = new DataView(new ArrayBuffer(4));
   dv.setFloat16(0, NaN, true);
-  t.deepEqual(Array.from(new Uint8Array(dv.buffer, 0, 2)), [248, 127]);
+  t.deepEqual(Array.from(new Uint8Array(dv.buffer, 0, 2)), [0, 126]);
   t.is(dv.getFloat16(0, true), NaN);
+
+  // Check that the late object->number coercion attack is
+  // fixed by our own early coercion.
+  for (let i = 0; i < 1000; i += 1) {
+    const view = new DataView(new Uint8Array(8).buffer);
+    view.setFloat16(
+      0,
+      // @ts-expect-error I intend to use an object where TO expects a number.
+      { valueOf: () => [-NaN][0] },
+      false,
+    );
+    const actualNaN16Encoding = view.getUint16(0, false);
+    t.is(actualNaN16Encoding, canonicalNaN16Encoding, `at iteration ${i}`);
+    if (actualNaN16Encoding !== canonicalNaN16Encoding) {
+      break;
+    }
+  }
 });

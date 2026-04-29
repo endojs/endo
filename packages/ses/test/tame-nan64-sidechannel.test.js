@@ -41,7 +41,7 @@ test('taming NaN64 DataView side-channel', t => {
   const dirtyNaNEncoding = bufferView.getBigUint64(0);
   // We cannot test for non-canonical, since it depends on the platform.
   // Instead, we just show it.
-  t.log(show(dirtyNaNEncoding), 'NaN');
+  t.log('before lockdown() otherNaN ->', show(dirtyNaNEncoding), 'NaN');
 
   lockdown();
   bufferView.setBigUint64(0, otherNaN64Encoding);
@@ -58,4 +58,21 @@ test('taming NaN64 DataView side-channel', t => {
     [0, 0, 0, 0, 0, 0, 248, 127],
   );
   t.is(dv.getFloat64(0, true), NaN);
+
+  // Check that the late object->number coercion attack is
+  // fixed by our own early coercion.
+  for (let i = 0; i < 1000; i += 1) {
+    const view = new DataView(new Uint8Array(8).buffer);
+    view.setFloat64(
+      0,
+      // @ts-expect-error I intend to use an object where TO expects a number.
+      { valueOf: () => [-NaN][0] },
+      false,
+    );
+    const actualNaN64Encoding = view.getBigUint64(0, false);
+    t.is(actualNaN64Encoding, canonicalNaN64Encoding, `at iteration ${i}`);
+    if (actualNaN64Encoding !== canonicalNaN64Encoding) {
+      break;
+    }
+  }
 });

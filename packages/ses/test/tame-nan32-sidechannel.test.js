@@ -9,7 +9,7 @@ const { is } = Object;
 // or refactor to something less irritating than duplication.
 
 test('taming NaN32 DataView side-channel', t => {
-  const canonicalNaN32Encoding = 0x7ff80000;
+  const canonicalNaN32Encoding = 0x7fc00000;
   const otherNaN32Encoding = 0xfff80000;
 
   // This is the JavaScript analog to a C union: a way to map between a float as a
@@ -32,7 +32,7 @@ test('taming NaN32 DataView side-channel', t => {
       ? 'canonical'
       : n === otherNaN32Encoding
         ? 'other'
-        : `0x${n.toString(16)}n`;
+        : `0x${n.toString(16)}`;
 
   bufferView.setUint32(0, otherNaN32Encoding);
   const someNaN = bufferView.getFloat32(0, false);
@@ -41,7 +41,7 @@ test('taming NaN32 DataView side-channel', t => {
   const dirtyNaNEncoding = bufferView.getUint32(0);
   // We cannot test for non-canonical, since it depends on the platform.
   // Instead, we just show it.
-  t.log(show(dirtyNaNEncoding), 'NaN');
+  t.log('before lockdown() otherNaN ->', show(dirtyNaNEncoding), 'NaN');
 
   lockdown();
   bufferView.setUint32(0, otherNaN32Encoding);
@@ -53,6 +53,23 @@ test('taming NaN32 DataView side-channel', t => {
   // Adapted reproducer from https://github.com/endojs/endo/issues/3202
   const dv = new DataView(new ArrayBuffer(8));
   dv.setFloat32(0, NaN, true);
-  t.deepEqual(Array.from(new Uint8Array(dv.buffer, 0, 4)), [0, 0, 248, 127]);
+  t.deepEqual(Array.from(new Uint8Array(dv.buffer, 0, 4)), [0, 0, 192, 127]);
   t.is(dv.getFloat32(0, true), NaN);
+
+  // Check that the late object->number coercion attack is
+  // fixed by our own early coercion.
+  for (let i = 0; i < 1000; i += 1) {
+    const view = new DataView(new Uint8Array(8).buffer);
+    view.setFloat32(
+      0,
+      // @ts-expect-error I intend to use an object where TO expects a number.
+      { valueOf: () => [-NaN][0] },
+      false,
+    );
+    const actualNaN32Encoding = view.getUint32(0, false);
+    t.is(actualNaN32Encoding, canonicalNaN32Encoding, `at iteration ${i}`);
+    if (actualNaN32Encoding !== canonicalNaN32Encoding) {
+      break;
+    }
+  }
 });
