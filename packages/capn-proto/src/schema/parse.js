@@ -1,5 +1,5 @@
 // @ts-check
-/**
+/*
  * Minimal Cap'n Proto schema-language parser.
  *
  * Supports the subset needed for schema-typed RPC payloads:
@@ -19,6 +19,10 @@
  * Layout offsets are *not* assigned here — see `./layout.js`. Parser output
  * is a plain object tree that downstream layout/encode/decode passes
  * consume.
+ *
+ * Note: this block intentionally opens with a single asterisk so it is a
+ * plain block comment, not a JSDoc comment — the `@N` schema-language
+ * tokens above would otherwise be parsed by typedoc as JSDoc tags.
  */
 
 import { Fail } from '@endo/errors';
