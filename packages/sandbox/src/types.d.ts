@@ -55,8 +55,9 @@ export type BackendSelector = 'auto' | BackendName;
 
 /**
  * Optional kernel-feature detail attached to a backend probe.  Phase
- * 1.5 surfaces Landlock and cgroup v2 status so callers can reason
- * about which hardening layers are actually in effect.
+ * 1.5 surfaces Landlock and cgroup v2 status; Phase 2 adds the
+ * `rootless` flag for the podman driver so callers can tell whether
+ * podman runs as a regular user (the only mode the sandbox supports).
  */
 export type BackendProbeDetails = {
   /** Landlock LSM availability (kernel ≥ 5.13). */
@@ -69,6 +70,15 @@ export type BackendProbeDetails = {
     available: boolean;
     controllers: string[];
     reason?: string;
+  };
+  /**
+   * Rootless container engine availability (Phase 2; podman driver).
+   * `available: false` either means the binary is rootful-only or that
+   * rootless support could not be confirmed.
+   */
+  rootless?: {
+    available: boolean;
+    reason?: string|undefined;
   };
 };
 
@@ -120,10 +130,21 @@ export type MountSpec = {
  * Rootfs selector for the slice. Either:
  * - a `Mount` capability rooted at a directory containing a userland tree,
  * - `{ kind: 'host-bind' }` to bind-mount the host's `/usr` / `/etc` /
- *   etc. read-only (the Flatpak pattern), or
- * - `{ kind: 'minimal' }` for a backend-supplied empty / busybox rootfs.
+ *   etc. read-only (the Flatpak pattern),
+ * - `{ kind: 'minimal' }` for a backend-supplied empty / busybox rootfs,
+ *   or
+ * - `{ kind: 'oci', ref }` to materialise the slice from an OCI image
+ *   reference (Phase 2; podman driver only).  The reference uses the
+ *   transport / repo / tag form podman accepts directly, e.g.
+ *   `docker.io/library/alpine:3.19`.  The driver pulls the image into
+ *   the user's container storage on first use; the bwrap driver
+ *   rejects `oci` rootfs with a structured error.
  */
-export type RootfsSpec = MountCap | { kind: 'host-bind' } | { kind: 'minimal' };
+export type RootfsSpec =
+  | MountCap
+  | { kind: 'host-bind' }
+  | { kind: 'minimal' }
+  | { kind: 'oci'; ref: string };
 
 // ---------------------------------------------------------------------------
 // Seccomp policy
@@ -195,7 +216,8 @@ export type SliceSpec = {
   rootfs:
     | { kind: 'host-bind' }
     | { kind: 'minimal' }
-    | { kind: 'mount'; hostPath: string; mode: MountMode };
+    | { kind: 'mount'; hostPath: string; mode: MountMode }
+    | { kind: 'oci'; ref: string };
   /** Resolved bind-mount triples. */
   mounts: Array<{ hostPath: string; innerPath: string; mode: MountMode }>;
   /** Writable scratch host path provided by the daemon's scratch service. */

@@ -75,14 +75,16 @@ Methods:
  * those as a stable, human-readable block appended to `help()`.
  *
  * Driver-attached fields:
- *   - `runtimeDetails.landlock: { available, reason? }`
- *   - `runtimeDetails.cgroup2:  { available, controllers, reason? }`
- *   - `runtimeDetails.prlimit:  { applied: string[] }`
+ *   - `runtimeDetails.landlock:   { available, reason? }` (bwrap)
+ *   - `runtimeDetails.cgroup2:    { available, controllers, reason? }`
+ *   - `runtimeDetails.prlimit:    { applied: string[] }` (bwrap)
+ *   - `runtimeDetails.rootless:   { available, reason? }` (podman)
+ *   - `runtimeDetails.rootlessNet:{ backend, reason? }` (podman)
  *
  * Missing fields render as "not detected" so the report stays
  * informative across drivers that do not implement every layer.
  *
- * @param {{ runtimeDetails?: { landlock?: { available: boolean, reason?: string }, cgroup2?: { available: boolean, controllers: string[], reason?: string }, prlimit?: { applied: string[] } } }} driverSlice
+ * @param {{ runtimeDetails?: { landlock?: { available: boolean, reason?: string }, cgroup2?: { available: boolean, controllers: string[], reason?: string }, prlimit?: { applied: string[] }, rootless?: { available: boolean, reason?: string }, rootlessNet?: { backend: string | null, reason?: string } } }} driverSlice
  * @param {SliceSpec} spec
  * @returns {string}
  */
@@ -127,6 +129,28 @@ const renderSliceRuntimeReport = (driverSlice, spec) => {
     lines.push(`  prlimit: ${details.prlimit.applied.join(' ')}`);
   } else {
     lines.push('  prlimit: (none applied)');
+  }
+  if (details.rootless !== undefined) {
+    if (details.rootless.available) {
+      lines.push('  rootless: yes');
+    } else {
+      const why =
+        details.rootless.reason !== undefined
+          ? ` (${details.rootless.reason})`
+          : '';
+      lines.push(`  rootless: no${why}`);
+    }
+  }
+  if (details.rootlessNet !== undefined) {
+    if (details.rootlessNet.backend !== null) {
+      lines.push(`  rootless-net: ${details.rootlessNet.backend}`);
+    } else {
+      const why =
+        details.rootlessNet.reason !== undefined
+          ? ` (${details.rootlessNet.reason})`
+          : '';
+      lines.push(`  rootless-net: none${why}`);
+    }
   }
   return lines.join('\n');
 };
@@ -322,6 +346,15 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
     ) {
       return harden({ kind: rootfs.kind });
     }
+    if (
+      typeof rootfs === 'object' &&
+      rootfs !== null &&
+      'kind' in rootfs &&
+      rootfs.kind === 'oci'
+    ) {
+      const ociSpec = /** @type {{ kind: 'oci'; ref: string }} */ (rootfs);
+      return harden({ kind: 'oci', ref: ociSpec.ref });
+    }
     // Otherwise treat it as a Mount cap.
     const hostPath = await resolveHostPath(
       scratchProvider,
@@ -399,7 +432,9 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
     } catch (e) {
       // Scratch is optional in Phase 1 — some callers may want a
       // pure read-only slice. Re-throw only if we actually need it
-      // (e.g. minimal rootfs with no mounts).
+      // (e.g. minimal rootfs with no mounts).  An `oci` rootfs supplies
+      // its own writable layer (podman manages a per-container upper
+      // overlay) so a missing scratch is not fatal there either.
       if (rootfs.kind === 'minimal' && resolvedMounts.length === 0) {
         throw e;
       }

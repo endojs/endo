@@ -248,6 +248,14 @@ const assembleSliceArgv = (spec, extras) => {
         );
       const flag = mountSpec.mode === 'rw' ? '--bind' : '--ro-bind';
       argv.push(flag, mountSpec.hostPath, '/');
+    } else if (spec.rootfs.kind === 'oci') {
+      // OCI image refs are the podman driver's surface; bwrap has no
+      // way to materialise an OCI image without an external store.
+      // Surfaced as a structured error from `prepareSlice` below; the
+      // argv assembly should never see this branch.
+      throw makeError(
+        X`bwrap driver does not support oci rootfs; use backend: 'podman' instead`,
+      );
     }
   }
 
@@ -405,6 +413,17 @@ export const makeBwrapDriver = ({
       spec.network !== 'host-net'
     ) {
       throw makeError(X`unknown network profile ${q(spec.network)}`);
+    }
+
+    if (
+      typeof spec.rootfs === 'object' &&
+      spec.rootfs !== null &&
+      'kind' in spec.rootfs &&
+      spec.rootfs.kind === 'oci'
+    ) {
+      throw makeError(
+        X`bwrap driver does not support oci rootfs; use backend: 'podman' instead`,
+      );
     }
 
     // Phase 1 does not compile JSON seccomp profiles to BPF.  If the

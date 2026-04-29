@@ -28,6 +28,14 @@ The architecture is documented in
   surfaced via `slice.help()`.
   Done — see § "Phase 1.5 status notes" below for what is
   intentionally deferred.
+- **Phase 2** (`15_endo_posix_sandbox_phase2_podman.md`): rootless
+  `podman` driver with OCI image rootfs, `--cap-drop ALL` +
+  `no-new-privileges` + `--read-only` posture, slirp4netns / pasta
+  rootless network backends, boot-time orphan-container sweep, and
+  parametrised acceptance tests (alpine `/bin/echo`, `/bin/sh` write
+  rejection, `apk update`).
+  Done — see § "Phase 2 status notes" below for what is
+  intentionally deferred.
 
 ## Operational prerequisites (Linux + bwrap driver)
 
@@ -74,6 +82,44 @@ Kernel requirements:
 so the driver does NOT pass `--no-new-privileges`.
 Older bwrap versions are untested.
 
+## Operational prerequisites (Linux + podman driver, Phase 2)
+
+The podman driver shells out to a rootless `podman` binary.  The
+driver `probe()` returns `available: false` when any of these is
+missing; `make()` then refuses the slice with a structured error.
+
+| Tool             | Phase | Tested version | Notes                                                                |
+| ---------------- | ----- | -------------- | -------------------------------------------------------------------- |
+| `podman`         | 2     | 5.8.x          | <https://podman.io>; rootful installs are rejected by the probe.     |
+| `crun` / `runc`  | 2     | 1.x            | OCI runtime that supports `podman exec`.  See "OCI runtime" below.   |
+| `slirp4netns`    | 2     | 1.x            | Default rootless network backend; required for `network: 'private'`. |
+| `pasta`          | 2     | passt 2026_01  | Used as the fallback when `slirp4netns` is absent.                   |
+
+Rootless prerequisites:
+
+- `/etc/subuid` and `/etc/subgid` ranges configured for the running
+  user.  `newuidmap` and `newgidmap` setuid helpers must be
+  installed (`uidmap` package on Debian-derived distros).
+- `~/.local/share/containers/storage` is the user-private image
+  store podman writes to.  The driver `podman pull`s images on
+  first use and otherwise leaves them alone; callers can prune the
+  store with `podman image prune` outside the slice.
+- For `network: 'private'`: either `slirp4netns` or `pasta` must be
+  on PATH.  The driver auto-detects which one is present and
+  surfaces the choice via `slice.help()`'s `rootless-net:` row.
+
+### OCI runtime
+
+`podman` ships with a default OCI runtime that varies across distros.
+Some Bazzite / Universal Blue images default to `krun` (libkrun
+microVM) which does not implement `podman exec`; the driver detects
+that case at probe time and transparently switches to `crun` or
+`runc` so the slice's spawn surface keeps working.  The override is
+visible from `podman info --format '{{.Host.OCIRuntime.Name}}'` and
+in the `--runtime` flag the driver prepends to every podman call.
+The override is opt-out via `makePodmanDriver({ ociRuntime: 'krun' })`
+when callers know what they are doing.
+
 ## Driver auto-registration
 
 `packages/sandbox/src/agent.js` is the `make-unconfined` entry point.
@@ -81,13 +127,23 @@ On `make(powers, _ctx, options)` it:
 
 1. Constructs `makeBwrapDriver({ env: options.env })`.
    Construction is cheap and does not probe the binary.
-2. Wraps the driver list in `makeSandboxFactory({ drivers, scratchProvider: powers })`.
-3. Returns the factory.
+2. Constructs `makePodmanDriver({ env: options.env })` (Phase 2).
+   Same probe-gated pattern: a missing podman binary or rootful-only
+   install is reported via `listBackends()`, never surfaces as a
+   daemon boot failure.
+3. Wraps the driver list in `makeSandboxFactory({ drivers, scratchProvider: powers })`.
+4. Returns the factory.
 
 The factory's `listBackends()` runs each driver's `probe()` lazily on
-first call, so a daemon with no `bwrap` binary still boots cleanly —
-`listBackends()` simply returns `[{ name: 'bwrap', available: false, reason: '...' }]`,
-and `make()` rejects with `"no backend available"`.
+first call, so a daemon with no `bwrap` / `podman` binary still boots
+cleanly — `listBackends()` simply returns
+`[{ name: 'bwrap', available: false, reason: '...' }, …]`, and
+`make()` rejects with `"no backend available"`.
+
+The `'auto'` selector picks the first available driver in
+registration order.  Bwrap is registered first, so callers asking
+for OCI image rootfs must opt in via `make({ backend: 'podman',
+rootfs: { kind: 'oci', ref: 'docker.io/library/alpine:3.19' } })`.
 
 ## Capability surface
 
@@ -245,6 +301,14 @@ The test suite covers:
 - [`test/blocked-ranges.test.js`](./test/blocked-ranges.test.js) —
   Phase 1.5 regression test that keeps `blocked-ranges.js` and
   `private-egress.nft` in lockstep.
+- [`test/podman.test.js`](./test/podman.test.js) — Phase 2 podman
+  driver acceptance tests on an Alpine OCI image: `/bin/echo`
+  smoke test, read-only mount rejection, `network: 'none'` /
+  `'private'` interface inventory, `apk update` (skipped on
+  air-gapped CI), boot-time orphan-container reap, and the
+  rootless / rootless-net rows of the `slice.help()` runtime
+  report.  Each case skips gracefully when `podman` or the
+  `docker.io/library/alpine:3.19` image is not present.
 
 Run them with:
 
@@ -301,8 +365,52 @@ Items intentionally deferred:
   `host-lan`.  These need `CAP_NET_ADMIN` outside the slice; the
   README documents the operator-side responsibility.
 
+## Phase 2 status notes
+
+Items that landed:
+
+- Rootless `podman` driver with `--cap-drop ALL`,
+  `--security-opt no-new-privileges`, `--read-only` upper layer,
+  and the same scratch-mount-backed writable `/scratch` contract
+  as the bwrap driver.
+- `rootfs: { kind: 'oci', ref }` materialises the slice from any
+  podman-pullable OCI image reference; first-use pulls go to the
+  user's `~/.local/share/containers/storage` and are reused on
+  subsequent slice creations.
+- Network profiles map to `--network none` (`'none'`),
+  `slirp4netns` / `pasta` (`'private'`) with auto-detection, and
+  `--network host` for the `host-*` family (per-profile filtering
+  remains the operator's responsibility, same as the bwrap
+  driver — see § "Host network profiles").
+- Boot-time orphan-container sweep: containers whose names start
+  with `endo-sandbox-` are removed at first probe so a daemon
+  restart never trips over leftovers from a crashed run.
+- OCI-runtime auto-fallback (`krun` → `crun` → `runc`) so the
+  driver's `podman exec`-based spawn surface keeps working on
+  hosts that default to a microVM runtime.
+- `slice.help()` runtime report extended with `rootless:` and
+  `rootless-net:` rows so callers can confirm which hardening
+  layers are in effect on a per-slice basis.
+- Acceptance tests covering `apk update` inside an Alpine slice
+  (with a graceful skip on air-gapped CI), read-only mount
+  rejection, network-profile interface inventory, and the
+  orphan-reap path.
+
+Items intentionally deferred:
+
+- **`skopeo`-backed OCI pulls** — Phase 7.  Today the driver
+  shells out to `podman pull`, which is sufficient for local
+  workstations and CI hosts that already trust the registry.
+- **In-slice `landlock_create_ruleset`** — same follow-up as the
+  bwrap driver.  Surface-level Landlock probing is bwrap-only;
+  the podman runtime applies its own LSM hooks already.
+- **`fork()`** — Phase 3.  The current stub matches the bwrap
+  driver and rejects with the same `notImplemented` error.
+- **macOS / Windows** — bare-metal Linux only.  Containerization
+  on macOS and WSL2 on Windows are tracked as Phase 4–5.
+
 ## Next steps
 
-See `TODO/14_endo_posix_sandbox_phase1_5_bwrap_hardening.md` for
-the deliverables checklist.  Phase 2 (`TODO/15_*.md`) carries the
-podman driver.
+See the per-phase TODO files for the next deliverables checklist.
+Phase 3 lands `fork()` once the daemon's userns-nesting story is
+settled.

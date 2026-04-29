@@ -1,6 +1,7 @@
 // @ts-check
 
 import { makeBwrapDriver } from './drivers/bwrap.js';
+import { makePodmanDriver } from './drivers/podman.js';
 import { makeSandboxFactory } from './factory.js';
 
 /** @import { SandboxDriver, SandboxFactory, SandboxPowers } from './types.js' */
@@ -8,15 +9,22 @@ import { makeSandboxFactory } from './factory.js';
 /**
  * `make-unconfined` entry point for the `@endo/sandbox` plugin.
  *
- * Phase 1 registers the `bwrap` driver. Driver registration is
- * probe-gated: a missing `bwrap` binary does NOT fail the daemon's
- * boot — it appears as `available: false` in `listBackends()`, and
- * `make()` rejects with a structured "no backend available" error.
+ * Registers every driver shipped with the package.  Driver
+ * registration is probe-gated: a missing external tool (e.g. `bwrap`,
+ * `podman`) does NOT fail the daemon's boot — the driver appears as
+ * `available: false` in `listBackends()`, and `make()` rejects with a
+ * structured "no backend available" error.
+ *
+ * Phase 1 ships the `bwrap` driver; Phase 2 adds `podman` (rootless,
+ * Linux-only).  The factory's `'auto'` selector picks the first
+ * available driver in the order they appear here, so the bwrap driver
+ * remains the default when both are present — callers asking for OCI
+ * rootfs must opt in via `backend: 'podman'`.
  *
  * Mirrors `packages/lal/agent.js`'s entry-point shape.
  *
  * @param {SandboxPowers} powers - guest powers from the daemon
- * @param {unknown} _context - cancellation context (unused in Phase 1)
+ * @param {unknown} _context - cancellation context (unused in v1)
  * @param {{ env?: Record<string, string> }} [options]
  * @returns {Promise<SandboxFactory>}
  */
@@ -35,6 +43,16 @@ export const make = async (powers, _context, options = {}) => {
     // never breaks the daemon's boot path.
     // eslint-disable-next-line no-console
     console.warn('@endo/sandbox: bwrap driver registration failed', e);
+  }
+
+  // podman (Linux, Phase 2).  Same probe-gated pattern as bwrap: a
+  // missing podman binary or rootful-only install reports
+  // `available: false` rather than failing daemon boot.
+  try {
+    drivers.push(makePodmanDriver({ env: options.env ?? {} }));
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('@endo/sandbox: podman driver registration failed', e);
   }
 
   return makeSandboxFactory({

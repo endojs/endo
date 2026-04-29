@@ -43,6 +43,7 @@ const RootfsSpecShape = M.or(
   M.remotable('Mount'),
   M.splitRecord({ kind: 'host-bind' }),
   M.splitRecord({ kind: 'minimal' }),
+  M.splitRecord({ kind: 'oci', ref: M.string() }),
 );
 harden(RootfsSpecShape);
 
@@ -113,6 +114,7 @@ const BackendProbeDetailsShape = M.splitRecord(
       { available: M.boolean(), controllers: M.arrayOf(M.string()) },
       { reason: M.string() },
     ),
+    rootless: M.splitRecord({ available: M.boolean() }, { reason: M.string() }),
   },
 );
 harden(BackendProbeDetailsShape);

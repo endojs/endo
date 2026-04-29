@@ -19,7 +19,7 @@ touching the host system, and that exposes the same
 
 ## Deliverables
 
-- [ ] **`src/drivers/podman.js`** — `SandboxDriver` implementation:
+- [x] **`src/drivers/podman.js`** — `SandboxDriver` implementation:
   - `name: 'podman'`.
   - `probe()` runs `podman --version` and verifies rootless mode
     is available
@@ -27,7 +27,7 @@ touching the host system, and that exposes the same
     Returns `{ available: false, reason }` on missing binary,
     rootful-only install, or unsupported version.
 
-- [ ] **Image story** (delegated, not embedded):
+- [x] **Image story** (delegated, not embedded):
   - `make({ rootfs: { kind: 'oci', ref } })` accepts an OCI image
     reference (e.g. `docker.io/library/alpine:3.19`).
   - Driver runs `podman pull <ref>` if the image is not already
@@ -38,7 +38,7 @@ touching the host system, and that exposes the same
     (`~/.local/share/containers/storage`) as caller-relevant
     state.
 
-- [ ] **`prepareSlice` mapping**:
+- [x] **`prepareSlice` mapping**:
   - `podman create --name <slice-id> --replace=false ...` with:
     - `--security-opt no-new-privileges`,
     - `--cap-drop ALL`,
@@ -52,7 +52,7 @@ touching the host system, and that exposes the same
   - `podman start <slice-id>` defers to first `spawn`; subsequent
     spawns use `podman exec`.
 
-- [ ] **Network profiles** map to podman:
+- [x] **Network profiles** map to podman:
   - `none`: `--network none`.
   - `private`: `--network slirp4netns:port_handler=slirp4netns`
     plus the in-netns egress filter from Phase 1 / 1.5
@@ -64,7 +64,7 @@ touching the host system, and that exposes the same
     with the same nftables overlays Phase 1.5 installs.
   - Reject unknown profiles at slice construction (no fall-through).
 
-- [ ] **`spawn` / `exec` bridge**:
+- [x] **`spawn` / `exec` bridge**:
   - `child_process.spawn('podman', ['exec', '-i', slice.id, ...argv])`.
   - Wrap stdio in `reader-ref` / `writer-ref` exactly like Phase 1.
   - `kill(sig)` translates to `podman kill --signal <sig> <slice.id>`
@@ -73,7 +73,7 @@ touching the host system, and that exposes the same
   - `wait()` polls `podman wait` or attaches to the exec child
     directly (prefer the latter for latency).
 
-- [ ] **Teardown / GC**:
+- [x] **Teardown / GC**:
   - `dispose()` runs `podman stop --time 5 <slice-id>` then
     `podman rm <slice-id>`.
   - `ScratchMount` cleanup piggybacks on the daemon's existing
@@ -82,10 +82,10 @@ touching the host system, and that exposes the same
     `endo-sandbox-` name prefix) are reaped by the factory's
     boot-time sweep.
 
-- [ ] **`fork()` stub** — same `notImplemented` structured error as
+- [x] **`fork()` stub** — same `notImplemented` structured error as
   Phase 1; real implementation is Phase 3.
 
-- [ ] **Tests** — `packages/sandbox/test/podman.test.js`:
+- [x] **Tests** — `packages/sandbox/test/podman.test.js`:
   - `test.serial`, gateway-test pattern, skip when `podman` is
     unavailable.
   - Acceptance test: spawn `apk add curl` in an Alpine slice;
@@ -134,3 +134,32 @@ touching the host system, and that exposes the same
 - `14_endo_posix_sandbox_phase1_5_bwrap_hardening.md` for the
   egress filter and cgroup v2 delegation notes that apply here
   too.
+
+## Status notes
+
+Done — the deliverables above all landed under
+`packages/sandbox/src/drivers/podman.js` and the matching
+`packages/sandbox/test/podman.test.js`, with `agent.js` registering
+the driver alongside the Phase 1 bwrap driver.
+
+Implementation deltas worth flagging:
+
+- **OCI runtime fallback.**  Some distros ship a default podman
+  runtime (e.g. `krun` libkrun microVMs) that cannot host
+  `podman exec`, which the driver's spawn surface relies on.  The
+  driver detects that case at probe time and transparently switches
+  to `crun` / `runc` (with an `ociRuntime` constructor opt-out for
+  callers that genuinely want the microVM).  See README §
+  "Operational prerequisites (Linux + podman driver, Phase 2)".
+- **Seccomp pass-through.**  `'default'` falls through to podman's
+  bundled containers/common allow-list (the same source as
+  `src/seccomp/default.json`, so passing our copy explicitly would
+  only invite drift); `'unconfined'` becomes
+  `--security-opt seccomp=unconfined`; a caller-supplied
+  `{ profile }` is materialised to a temp file that teardown
+  unlinks.
+- **Test posture.**  The acceptance tests use the alpine:3.19 OCI
+  image and skip gracefully when podman or the image is missing
+  (mirroring the bwrap-test pattern).  `apk update` additionally
+  soft-skips on air-gapped CI by recognising network-error stderr
+  rather than failing.
