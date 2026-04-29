@@ -134,7 +134,9 @@ const readDataField = (loc, dataSlot, kind) => {
   const absByte = loc.wordOffset * WORD_SIZE + byteOffset;
   switch (bitSize) {
     case 8:
-      return kind === 'int8' ? view.getInt8(absByte) : readUint8(loc, byteOffset);
+      return kind === 'int8'
+        ? view.getInt8(absByte)
+        : readUint8(loc, byteOffset);
     case 16:
       return kind === 'int16'
         ? view.getInt16(absByte, true)
@@ -185,7 +187,12 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
     return;
   }
   if (elementType.kind === 'text' || elementType.kind === 'data') {
-    const list = allocList(msg, pointerLocation, /* LIST_POINTER */ 6, arr.length);
+    const list = allocList(
+      msg,
+      pointerLocation,
+      /* LIST_POINTER */ 6,
+      arr.length,
+    );
     for (let i = 0; i < arr.length; i += 1) {
       const slot = {
         segId: list.segId,
@@ -340,7 +347,8 @@ const readList = (msg, ptrLocation, listType, layouts) => {
   const elementType = /** @type {any} */ (listType.elementType);
   if (elementType.kind === 'struct') {
     const elemLayout = layouts.get(elementType.name);
-    if (!elemLayout) throw Fail`unknown struct element type ${elementType.name}`;
+    if (!elemLayout)
+      throw Fail`unknown struct element type ${elementType.name}`;
     const out = [];
     for (let i = 0; i < list.elemCount; i += 1) {
       const elemLoc = compositeElement(msg, list, i);

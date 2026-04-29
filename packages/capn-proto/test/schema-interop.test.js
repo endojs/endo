@@ -239,13 +239,19 @@ struct Stuff @0x8888000000000020 {
       'Stuff',
       {
         tags: ['alpha', 'beta', 'gamma'],
-        blobs: [new Uint8Array([0xde, 0xad]), new Uint8Array([0xbe, 0xef, 0x00])],
+        blobs: [
+          new Uint8Array([0xde, 0xad]),
+          new Uint8Array([0xbe, 0xef, 0x00]),
+        ],
       },
       `( tags = ["alpha", "beta", "gamma"],
          blobs = [0x"dead", 0x"beef00"] )`,
       {
         tags: ['alpha', 'beta', 'gamma'],
-        blobs: [new Uint8Array([0xde, 0xad]), new Uint8Array([0xbe, 0xef, 0x00])],
+        blobs: [
+          new Uint8Array([0xde, 0xad]),
+          new Uint8Array([0xbe, 0xef, 0x00]),
+        ],
       },
     );
   });

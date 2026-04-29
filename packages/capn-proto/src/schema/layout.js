@@ -195,7 +195,10 @@ export const layoutStruct = decl => {
       continue;
     }
     if (isPointerType(f.type)) {
-      const slot = { kind: /** @type {const} */ ('pointer'), index: pointerCount };
+      const slot = {
+        kind: /** @type {const} */ ('pointer'),
+        index: pointerCount,
+      };
       pointerCount += 1;
       fields.push({ ...f, slot });
     } else {
