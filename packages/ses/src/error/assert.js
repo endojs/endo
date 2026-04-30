@@ -22,12 +22,12 @@ import {
   assign,
   freeze,
   defineProperty,
+  freezeRegexp,
   globalThis,
   is,
   isError,
-  regexpExec,
-  regexpReplace,
-  sealRegexp,
+  regexpSearch,
+  stringEndsWith,
   stringIndexOf,
   stringSlice,
   stringStartsWith,
@@ -74,13 +74,13 @@ const quote = (value, spaces = undefined) => {
 };
 freeze(quote);
 
-const canBeBare = freeze(/^[\w:-]( ?[\w:-])*$/);
+const canBeBare = freezeRegexp(/^[\w:-]( ?[\w:-])*$/);
 
 /**
  * @type {AssertionUtilities['bare']}
  */
 const bare = (text, spaces = undefined) => {
-  if (typeof text !== 'string' || !regexpExec(canBeBare, text)) {
+  if (typeof text !== 'string' || regexpSearch(canBeBare, text) === -1) {
     return quote(text, spaces);
   }
   const result = freeze({
@@ -201,9 +201,6 @@ const unredactedDetails = (template, ...args) => {
 freeze(unredactedDetails);
 export { unredactedDetails };
 
-const leadingSpacePattern = sealRegexp(/^ /);
-const trailingSpacePattern = sealRegexp(/ $/);
-
 /**
  * Get arguments suitable for a console logger function (e.g., `console.error`)
  * from `details` template literal contents, unquoting quoted substitution
@@ -221,20 +218,18 @@ const getLogArgs = ({ template, args }) => {
     }
     // Remove substitution-adjacent spaces from template fixed-string parts
     // (since console logging inserts its own argument-separating spaces).
-    const prevLiteralPart = regexpReplace(
-      trailingSpacePattern,
-      arrayPop(logArgs) || '',
-      '',
-    );
-    if (prevLiteralPart !== '') {
-      arrayPush(logArgs, prevLiteralPart);
+    const prevLiteralPart = arrayPop(logArgs) || '';
+    const trimmedPrev = stringEndsWith(prevLiteralPart, ' ')
+      ? stringSlice(prevLiteralPart, 0, -1)
+      : prevLiteralPart;
+    if (trimmedPrev !== '') {
+      arrayPush(logArgs, trimmedPrev);
     }
-    const nextLiteralPart = regexpReplace(
-      leadingSpacePattern,
-      template[i + 1],
-      '',
-    );
-    arrayPush(logArgs, arg, nextLiteralPart);
+    const nextLiteralPart = template[i + 1];
+    const trimmedNext = stringStartsWith(nextLiteralPart, ' ')
+      ? stringSlice(nextLiteralPart, 1)
+      : nextLiteralPart;
+    arrayPush(logArgs, arg, trimmedNext);
   }
   if (logArgs[logArgs.length - 1] === '') {
     arrayPop(logArgs);

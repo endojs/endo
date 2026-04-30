@@ -64,7 +64,6 @@ export const {
   create,
   defineProperties,
   entries,
-  freeze,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
@@ -82,12 +81,24 @@ export const {
   fromEntries,
 } = Object;
 
+/**
+ * For use with any value except a regular expression (@see {@link sealRegexp}
+ * and {@link freezeRegexp}).
+ *
+ * @type { &
+ *   ((obj: RegExp) => void) &
+ *   typeof Object.freeze
+ * }
+ */
+export const freeze = /** @type {any} */ (Object.freeze);
+
 export const {
   species: speciesSymbol,
   toStringTag: toStringTagSymbol,
   iterator: iteratorSymbol,
   matchAll: matchAllSymbol,
   replace: replaceSymbol,
+  search: searchSymbol,
   unscopables: unscopablesSymbol,
   keyFor: symbolKeyFor,
   for: symbolFor,
@@ -236,6 +247,7 @@ export const iterateSet = uncurryThis(setPrototype[iteratorSymbol]);
  * vulnerable to RegExp.prototype poisoning.
  */
 export const regexpExec = uncurryThis(regexpPrototype.exec);
+
 /**
  * @type { &
  *   ((thisArg: RegExp, string: string, replaceValue: string) => string) &
@@ -245,7 +257,21 @@ export const regexpExec = uncurryThis(regexpPrototype.exec);
 export const regexpReplace = /** @type {any} */ (
   uncurryThis(regexpPrototype[replaceSymbol])
 );
+
+/**
+ * `regexpSearch` can be used with a frozen non-global non-sticky RegExp.
+ *
+ * @type {(thisArg: RegExp, string: string) => number}
+ */
+export const regexpSearch = uncurryThis(regexpPrototype[searchSymbol]);
+
+/**
+ * `matchAll` internally creates a new RegExp vulnerable to prototype poisoning,
+ * but this function is still needed to reach %RegExpStringIteratorPrototype%.
+ * @private
+ */
 export const matchAllRegExp = uncurryThis(regexpPrototype[matchAllSymbol]);
+
 const regexpDescriptors = getOwnPropertyDescriptors(regexpPrototype);
 arrayForEach(ownKeys(regexpDescriptors), key => {
   const desc = regexpDescriptors[/** @type {any} */ (key)];
@@ -260,13 +286,28 @@ defineProperty(regexpDescriptors, 'constructor', {
   configurable: false,
   writable: false,
 });
+
 /**
  * Protect a RegExp instance against RegExp.prototype poisoning ("exec",
- * "flags", Symbol.replace, etc.).
+ * "flags", Symbol.replace, etc.) while still maintaining mutability of its
+ * "lastIndex" property (which is necessary with flags "g" and/or "y" for some
+ * operations, most notably {@link regexpReplace}).
+ *
  * @type {<T extends RegExp>(regexp: T) => T}
  */
 export const sealRegexp = regexp =>
   seal(defineProperties(regexp, regexpDescriptors));
+
+/**
+ * Protect a RegExp instance against RegExp.prototype poisoning ("exec",
+ * "flags", Symbol.replace, etc.) and freeze its "lastIndex" property, rendering
+ * it fully inert but (absent flags "g" and/or "y") still usable by
+ * {@link regexpExec} and {@link regexpSearch}.
+ *
+ * @type {<T extends RegExp>(regexp: T) => T}
+ */
+export const freezeRegexp = regexp =>
+  freeze(/** @type {any} */ (defineProperties(regexp, regexpDescriptors)));
 //
 export const stringEndsWith = uncurryThis(stringPrototype.endsWith);
 export const stringIncludes = uncurryThis(stringPrototype.includes);

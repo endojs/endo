@@ -8,9 +8,11 @@ import {
   arraySlice,
   create,
   defineProperties,
+  freezeRegexp,
   fromEntries,
   reflectSet,
   regexpExec,
+  regexpSearch,
   weakmapGet,
   weakmapSet,
   weaksetAdd,
@@ -63,27 +65,33 @@ const safeV8SST = sst => arrayMap(sst, safeV8CallSiteFacet);
 // If it has `/node_modules/` anywhere in it, on Node it is likely
 // to be a dependent package of the current package, and so to
 // be an infrastructure frame to be dropped from concise stack traces.
-const FILENAME_NODE_DEPENDENTS_CENSOR = /\/node_modules\//;
+const FILENAME_NODE_DEPENDENTS_CENSOR = freezeRegexp(/\/node_modules\//);
 
 // If it begins with `internal/` or `node:internal` then it is likely
 // part of the node infrustructre itself, to be dropped from concise
 // stack traces.
-const FILENAME_NODE_INTERNALS_CENSOR = /^(?:node:)?internal\//;
+const FILENAME_NODE_INTERNALS_CENSOR = freezeRegexp(/^(?:node:)?internal\//);
 
 // Frames within SES `assert.js` should be dropped from concise stack traces, as
 // these are just steps towards creating the error object in question.
-const FILENAME_ASSERT_CENSOR = /\/packages\/ses\/src\/error\/assert\.js$/;
+const FILENAME_ASSERT_CENSOR = freezeRegexp(
+  /\/packages\/ses\/src\/error\/assert\.js$/,
+);
 
 // Frames within the `eventual-send` shim should be dropped so that concise
 // deep stacks omit the internals of the eventual-sending mechanism causing
 // asynchronous messages to be sent.
 // Note that the eventual-send package will move from agoric-sdk to
 // Endo, so this rule will be of general interest.
-const FILENAME_EVENTUAL_SEND_CENSOR = /\/packages\/eventual-send\/src\//;
+const FILENAME_EVENTUAL_SEND_CENSOR = freezeRegexp(
+  /\/packages\/eventual-send\/src\//,
+);
 
 // Frames within the `ses-ava` package should be dropped from concise stack
 // traces, as they just support exposing error details to AVA.
-const FILENAME_SES_AVA_CENSOR = /\/packages\/ses-ava\/src\/ses-ava-test\.js$/;
+const FILENAME_SES_AVA_CENSOR = freezeRegexp(
+  /\/packages\/ses-ava\/src\/ses-ava-test\.js$/,
+);
 
 // Any stack frame whose `fileName` matches any of these censor patterns
 // will be omitted from concise stacks.
@@ -106,7 +114,7 @@ export const filterFileName = fileName => {
     return false;
   }
   for (const filter of FILENAME_CENSORS) {
-    if (regexpExec(filter, fileName)) {
+    if (regexpSearch(filter, fileName) !== -1) {
       return false;
     }
   }
@@ -123,7 +131,9 @@ export const filterFileName = fileName => {
 //
 // See thread starting at
 // https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
-const CALLSITE_ELLIPSIS_PATTERN1 = /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/;
+const CALLSITE_ELLIPSIS_PATTERN1 = freezeRegexp(
+  /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/,
+);
 
 // The ad-hoc rule of the current pattern is that any likely-file-path or
 // likely url-path prefix consisting of `.../` should get dropped.
@@ -135,7 +145,7 @@ const CALLSITE_ELLIPSIS_PATTERN1 = /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/;
 //
 // See thread starting at
 // https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
-const CALLSITE_ELLIPSIS_PATTERN2 = /^((?:.*[( ])?)\.\.\.\/(.+)$/;
+const CALLSITE_ELLIPSIS_PATTERN2 = freezeRegexp(/^((?:.*[( ])?)\.\.\.\/(.+)$/);
 
 // The ad-hoc rule of the current pattern is that any likely-file-path or
 // likely url-path prefix, ending in a `/` and prior to `package/` should get
@@ -147,7 +157,9 @@ const CALLSITE_ELLIPSIS_PATTERN2 = /^((?:.*[( ])?)\.\.\.\/(.+)$/;
 // `'Object.bar (packages/errors/test/deep-send.test.js:13:21)'`.
 // Note that `/packages/` is a convention for monorepos encouraged by
 // lerna.
-const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
+const CALLSITE_PACKAGES_PATTERN = freezeRegexp(
+  /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/,
+);
 
 // The ad-hoc rule of the current pattern is that any likely-file-path or
 // likely url-path prefix of the form `file://` but not `file:///` gets
@@ -163,7 +175,9 @@ const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
 // clickable without removing the `file:///`, whereas `file://` usually precedes
 // a relative path which, for whatever vscode reason, is not clickable until the
 // `file://` is removed.
-const CALLSITE_FILE_2SLASH_PATTERN = /^((?:.*[( ])?)file:\/\/([^/].*)$/;
+const CALLSITE_FILE_2SLASH_PATTERN = freezeRegexp(
+  /^((?:.*[( ])?)file:\/\/([^/].*)$/,
+);
 
 // The use of these callSite patterns below assumes that any match will bind
 // capture groups containing the parts of the original string we want

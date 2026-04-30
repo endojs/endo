@@ -60,7 +60,7 @@ export const getAnonymousIntrinsics = () => {
 
   // 21.2.7.1 The %RegExpStringIteratorPrototype% Object
   const RegExpStringIterator =
-    regexpPrototype[matchAllSymbol] && matchAllRegExp(/./);
+    regexpPrototype[matchAllSymbol] && matchAllRegExp(/./, '');
   const RegExpStringIteratorPrototype =
     RegExpStringIterator && getPrototypeOf(RegExpStringIterator);
 

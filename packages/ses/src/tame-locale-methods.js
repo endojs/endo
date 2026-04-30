@@ -3,6 +3,7 @@ import {
   String,
   TypeError,
   defineProperty,
+  freezeRegexp,
   getOwnPropertyNames,
   isPrimitive,
   regexpExec,
@@ -11,7 +12,7 @@ import { assert } from './error/assert.js';
 
 const { Fail, quote: q } = assert;
 
-const localePattern = /^(\w*[a-z])Locale([A-Z]\w*)$/;
+const localePattern = freezeRegexp(/^(\w*[a-z])Locale([A-Z]\w*)$/);
 
 // Use concise methods to obtain named functions without constructor
 // behavior or `.prototype` property.

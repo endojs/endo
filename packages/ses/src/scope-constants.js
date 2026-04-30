@@ -1,10 +1,11 @@
 import {
   arrayFilter,
   arrayIncludes,
+  freezeRegexp,
   getOwnPropertyDescriptor,
   getOwnPropertyNames,
   hasOwn,
-  regexpExec,
+  regexpSearch,
   Set,
   setHas,
 } from './commons.js';
@@ -91,7 +92,7 @@ const reservedNames = new Set([
  * Note: \w is equivalent [a-zA-Z_0-9]
  * See 11.6.1 Identifier Names
  */
-const identifierPattern = /^[a-zA-Z_$][\w$]*$/;
+const identifierPattern = freezeRegexp(/^[a-zA-Z_$][\w$]*$/);
 
 /**
  * isValidIdentifierName()
@@ -100,7 +101,7 @@ const identifierPattern = /^[a-zA-Z_$][\w$]*$/;
  * @param {string} name
  */
 export const isValidIdentifierName = name =>
-  !setHas(reservedNames, name) && !!regexpExec(identifierPattern, name);
+  !setHas(reservedNames, name) && regexpSearch(identifierPattern, name) !== -1;
 
 /*
  * isImmutableDataProperty
