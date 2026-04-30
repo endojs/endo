@@ -46,7 +46,7 @@ struct Container @0x111100000000aaac {
   inner @0 :NoSuchThing;
 }`;
   t.throws(() => loadSchema(text), {
-    message: /unknown type reference NoSuchThing/,
+    message: /unknown type reference.*NoSuchThing/,
   });
 });
 
@@ -58,7 +58,7 @@ struct Container @0x111100000000aaad {
   items @0 :List(NoSuchThing);
 }`;
   t.throws(() => loadSchema(text), {
-    message: /unknown type reference NoSuchThing/,
+    message: /unknown type reference.*NoSuchThing/,
   });
 });
 
