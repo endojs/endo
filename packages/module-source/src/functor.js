@@ -6,6 +6,7 @@
  */
 
 import * as h from './hidden.js';
+import { sanitizeSourceUrl } from './sanitize-source-url.js';
 
 /**
  * @import {ModuleSourceRecord} from './types/module-source.js'
@@ -81,6 +82,7 @@ ${scriptSource}
 })()
 `;
 
+  sourceUrl = sanitizeSourceUrl(sourceUrl);
   if (sourceUrl) {
     functorSource += `//# sourceURL=${sourceUrl}\n`;
   }
