@@ -32,6 +32,10 @@ const PRIMITIVE_BITS = {
   int64: 64,
   uint64: 64,
   float64: 64,
+  // Cap'n Proto enums are encoded as UInt16 on the wire. The codec resolves
+  // the symbolic member name from a separate enum declaration carried on
+  // the field's TypeRef.
+  enum: 16,
 };
 
 const POINTER_KINDS = new Set(['text', 'data', 'list', 'struct', 'capability']);
@@ -159,7 +163,7 @@ const allocBits = (hs, bits) => {
  * @typedef {object} FieldLayout
  * @property {string} name
  * @property {number} ordinal
- * @property {{ kind: string, elementType?: any, name?: string }} type
+ * @property {{ kind: string, elementType?: any, name?: string, enumMembers?: any }} type
  * @property {{ kind: 'data', bitOffset: number, bitSize: number }
  *           | { kind: 'pointer', index: number }
  *           | { kind: 'void' }} slot
@@ -168,6 +172,9 @@ const allocBits = (hs, bits) => {
  *   discriminator must hold for this member to be the active one. Equals
  *   the member's position in the union's declaration order, NOT its `@N`
  *   field ordinal.
+ * @property {string[]} [groupPath]
+ *   Carried over from FieldDecl. The codec uses this to route values into
+ *   / out of nested JS sub-objects. Wire layout is unaffected.
  */
 
 /**

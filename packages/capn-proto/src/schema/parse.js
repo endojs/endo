@@ -46,9 +46,13 @@ const PRIMITIVE_TYPES = new Set([
 
 /**
  * @typedef {object} TypeRef
- * @property {string} kind  one of PRIMITIVE_TYPES (lower-cased) or 'list' or 'struct'
+ * @property {string} kind  one of PRIMITIVE_TYPES (lower-cased) or 'list' or
+ *   'struct' or 'enum' or 'capability'
  * @property {TypeRef} [elementType]   list element type
- * @property {string} [name]           struct reference name
+ * @property {string} [name]           struct/enum/capability reference name
+ * @property {Array<{ name: string, ordinal: number }>} [enumMembers]
+ *   For enum-typed fields: the resolved member list, populated during the
+ *   post-parse rewriteCapRefs pass.
  */
 
 /**
@@ -56,6 +60,12 @@ const PRIMITIVE_TYPES = new Set([
  * @property {string} name
  * @property {number} ordinal
  * @property {TypeRef} type
+ * @property {string[]} [groupPath]
+ *   For fields declared inside a `:group { ... }` clause: the chain of
+ *   group names from the outermost struct down to (but not including) the
+ *   field itself. The codec uses this to nest the field's value inside the
+ *   right sub-object on the JS side. Wire layout is unaffected — group
+ *   members live in the parent struct's data/pointer sections.
  */
 
 /**
@@ -70,19 +80,40 @@ const PRIMITIVE_TYPES = new Set([
  */
 
 /**
+ * @typedef {object} InterfaceMethod
+ * @property {string} name
+ * @property {number} ordinal
+ * @property {string} paramsStructName
+ *   Name of the synthetic struct holding this method's parameters. Always
+ *   present in `parsed.structs` so the codec can look up its layout.
+ * @property {string} resultsStructName
+ *   Same, for the method's results.
+ */
+
+/**
  * @typedef {object} InterfaceDecl
  * @property {string} name
  * @property {bigint} id
+ * @property {Array<InterfaceMethod>} methods
+ */
+
+/**
+ * @typedef {object} EnumDecl
+ * @property {string} name
+ * @property {bigint} id
+ * @property {Array<{ name: string, ordinal: number }>} members
  */
 
 /**
  * @typedef {object} ParsedSchema
  * @property {bigint | undefined} fileId
  * @property {Map<string, StructDecl>} structs
- * @property {Set<string>} interfaces
- *   Names of interface declarations seen in the schema. A struct field
- *   whose type is an interface name is encoded as a capability pointer
+ * @property {Map<string, EnumDecl>} enums
+ * @property {Map<string, InterfaceDecl>} interfaces
+ *   Interfaces seen in the schema, keyed by name. A struct field whose
+ *   type is an interface name is encoded as a capability pointer
  *   (PTR_OTHER subtag=CAPABILITY) referencing the message's cap table.
+ *   Methods are auto-promoted to synthetic structs in `structs`.
  */
 
 /**
@@ -102,7 +133,9 @@ const tokenize = src => {
       while (i < n && src[i] !== '\n') i += 1;
     } else if (/\s/.test(c)) {
       i += 1;
-    } else if ('{}();,@:='.includes(c)) {
+    } else if ('{}();,@:=->'.includes(c)) {
+      // `-` and `>` are needed for the `->` arrow in interface method
+      // declarations.
       tokens.push(c);
       i += 1;
     } else if (c === '0' && src[i + 1] === 'x') {
@@ -154,7 +187,12 @@ export const parseCapnpSchema = src => {
   };
 
   /** @type {ParsedSchema} */
-  const out = { fileId: undefined, structs: new Map(), interfaces: new Set() };
+  const out = {
+    fileId: undefined,
+    structs: new Map(),
+    enums: new Map(),
+    interfaces: new Map(),
+  };
 
   // File-level `@0x...;` (optional in our parser).
   if (peek() === '@') {
@@ -207,6 +245,33 @@ export const parseCapnpSchema = src => {
     return { name, ordinal: ord, type };
   };
 
+  /**
+   * Recursively parse a `:group { ... }` body, tagging each child field with
+   * `groupPath` so the codec can route values into / out of nested JS
+   * sub-objects.
+   *
+   * @param {Array<FieldDecl>} fields
+   * @param {string[]} groupPath
+   */
+  const parseGroupBody = (fields, groupPath) => {
+    while (peek() !== '}') {
+      // A group body is like a struct body but cannot contain unions or
+      // nested struct/enum declarations. Sub-groups are allowed.
+      if (peek(1) === ':' && peek(2) === 'group') {
+        const subName = eat();
+        eat(':');
+        eat('group');
+        eat('{');
+        parseGroupBody(fields, [...groupPath, subName]);
+        eat('}');
+      } else {
+        const f = parseField();
+        f.groupPath = groupPath;
+        fields.push(f);
+      }
+    }
+  };
+
   const parseStruct = () => {
     eat('struct');
     const name = eat();
@@ -229,8 +294,11 @@ export const parseCapnpSchema = src => {
     let unionMembers;
     while (peek() !== '}') {
       const tok = peek();
-      if (tok === 'enum' || tok === 'group') {
-        throw Fail`schema parse: ${tok} not supported`;
+      if (tok === 'enum') {
+        // Nested enum declaration — parse it as a sibling. capnpc namespaces
+        // these but our flat name table is fine for the interop subset.
+        // eslint-disable-next-line no-use-before-define
+        parseEnum();
       } else if (tok === 'union') {
         if (unionMembers !== undefined) {
           throw Fail`schema parse: only one anonymous union per struct`;
@@ -247,6 +315,15 @@ export const parseCapnpSchema = src => {
         // for now (capnp does namespace it, but our flat name table works
         // for the interop subset).
         parseStruct();
+      } else if (peek(1) === ':' && peek(2) === 'group') {
+        // Group: `name :group { ... }`. Members are flat-laid in the parent's
+        // wire layout but nested under `name` in the JS object.
+        const groupName = eat();
+        eat(':');
+        eat('group');
+        eat('{');
+        parseGroupBody(fields, [groupName]);
+        eat('}');
       } else {
         fields.push(parseField());
       }
@@ -255,22 +332,137 @@ export const parseCapnpSchema = src => {
     out.structs.set(name, { name, id, fields, unionMembers });
   };
 
+  const parseEnum = () => {
+    eat('enum');
+    const name = eat();
+    let id = 0n;
+    if (peek() === '@') {
+      eat('@');
+      const idTok = eat();
+      if (!idTok.startsWith('0x')) {
+        throw Fail`schema parse: enum id must be hex, got ${idTok}`;
+      }
+      id = BigInt(idTok);
+    }
+    eat('{');
+    /** @type {Array<{ name: string, ordinal: number }>} */
+    const members = [];
+    while (peek() !== '}') {
+      const memberName = eat();
+      eat('@');
+      const ord = Number(eat());
+      if (!Number.isInteger(ord) || ord < 0 || ord > 0xffff) {
+        throw Fail`schema parse: bad enum member ordinal ${ord}`;
+      }
+      eat(';');
+      members.push({ name: memberName, ordinal: ord });
+    }
+    eat('}');
+    out.enums.set(name, { name, id, members });
+  };
+
+  /**
+   * Parse `(name :Type, name :Type, ...)` — used for interface method
+   * params and results. Returns a list of FieldDecls with auto-assigned
+   * sequential ordinals (capnp method args have implicit `@N` ordinals
+   * starting at 0). Empty `()` yields an empty list.
+   */
+  const parseParamList = () => {
+    eat('(');
+    /** @type {Array<FieldDecl>} */
+    const fields = [];
+    let ord = 0;
+    while (peek() !== ')') {
+      const fname = eat();
+      eat(':');
+      const type = parseType();
+      fields.push({ name: fname, ordinal: ord, type });
+      ord += 1;
+      if (peek() === ',') eat(',');
+    }
+    eat(')');
+    return fields;
+  };
+
+  const parseInterface = () => {
+    eat('interface');
+    const ifaceName = eat();
+    let id = 0n;
+    if (peek() === '@') {
+      eat('@');
+      const idTok = eat();
+      if (!idTok.startsWith('0x')) {
+        throw Fail`schema parse: interface id must be hex, got ${idTok}`;
+      }
+      id = BigInt(idTok);
+    }
+    eat('{');
+    /** @type {Array<InterfaceMethod>} */
+    const methods = [];
+    while (peek() !== '}') {
+      const methodName = eat();
+      eat('@');
+      const ord = Number(eat());
+      if (!Number.isInteger(ord) || ord < 0 || ord > 0xffff) {
+        throw Fail`schema parse: bad method ordinal ${ord}`;
+      }
+      const params = parseParamList();
+      eat('-');
+      eat('>');
+      const results = parseParamList();
+      eat(';');
+      // Synthesize Params and Results structs in the global struct table.
+      const paramsName = `${ifaceName}$${methodName}$Params`;
+      const resultsName = `${ifaceName}$${methodName}$Results`;
+      out.structs.set(paramsName, {
+        name: paramsName,
+        id: 0n,
+        fields: params,
+        unionMembers: undefined,
+      });
+      out.structs.set(resultsName, {
+        name: resultsName,
+        id: 0n,
+        fields: results,
+        unionMembers: undefined,
+      });
+      methods.push({
+        name: methodName,
+        ordinal: ord,
+        paramsStructName: paramsName,
+        resultsStructName: resultsName,
+      });
+    }
+    eat('}');
+    out.interfaces.set(ifaceName, { name: ifaceName, id, methods });
+  };
+
   /**
    * After parsing the whole file, walk every struct field and rewrite any
-   * `{ kind: 'struct', name: X }` whose `X` is the name of an interface
-   * declaration to `{ kind: 'capability', name: X }`. This pass exists
-   * because the parser cannot tell a struct ref from an interface ref by
-   * looking at the type token alone — the file may declare the interface
-   * later than the struct that uses it.
+   * `{ kind: 'struct', name: X }` whose `X` is the name of an interface OR
+   * enum declaration to the corresponding kind. This pass exists because
+   * the parser cannot tell a struct ref from an interface or enum ref by
+   * looking at the type token alone — the file may declare the
+   * interface/enum later than the struct that uses it.
    *
    * @param {TypeRef} t
    */
   const rewriteCapRefs = t => {
-    if (t.kind === 'struct' && t.name && out.interfaces.has(t.name)) {
-      // mutate in place — every ref to t was created in this parse run
-      // and is uniquely owned by exactly one field.
-      // eslint-disable-next-line no-param-reassign
-      t.kind = 'capability';
+    if (t.kind === 'struct' && t.name) {
+      if (out.interfaces.has(t.name)) {
+        // mutate in place — every ref to t was created in this parse run
+        // and is uniquely owned by exactly one field.
+        // eslint-disable-next-line no-param-reassign
+        t.kind = 'capability';
+      } else if (out.enums.has(t.name)) {
+        const decl = out.enums.get(t.name);
+        // eslint-disable-next-line no-param-reassign
+        t.kind = 'enum';
+        // Attach the member list so the codec can resolve names ↔ ordinals
+        // without a separate enum registry traversal.
+        // eslint-disable-next-line no-param-reassign
+        t.enumMembers = decl ? decl.members : [];
+      }
     } else if (t.kind === 'list' && t.elementType) {
       rewriteCapRefs(t.elementType);
     }
@@ -285,27 +477,10 @@ export const parseCapnpSchema = src => {
       while (peek() !== ';' && i < toks.length) i += 1;
       eat(';');
     } else if (tok === 'interface') {
-      // We don't model interface methods (this package handles RPC method
-      // dispatch separately via interfaceRegistry). Record the name so
-      // struct fields whose type is an interface ref are recognized as
-      // capability pointers, then skip the body.
-      eat('interface');
-      const ifaceName = eat();
-      if (peek() === '@') {
-        eat('@');
-        eat();
-      }
-      out.interfaces.add(ifaceName);
-      eat('{');
-      let depth = 1;
-      while (depth > 0 && i < toks.length) {
-        const t = peek();
-        if (t === '{') depth += 1;
-        else if (t === '}') depth -= 1;
-        i += 1;
-      }
+      // eslint-disable-next-line no-use-before-define
+      parseInterface();
     } else if (tok === 'enum') {
-      throw Fail`schema parse: top-level ${tok} not supported in this subset`;
+      parseEnum();
     } else {
       throw Fail`schema parse: unexpected token ${tok}`;
     }

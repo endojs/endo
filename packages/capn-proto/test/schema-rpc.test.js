@@ -188,3 +188,82 @@ struct JobResult @0xfade0000ffff0012 {
 
   t.deepEqual(observed, ['a: +5', 'b: -3', 'c: reset']);
 });
+
+test('schema.registerInterface auto-derives methods + codecs from .capnp', async t => {
+  const SCHEMA = `@0xfeed1111feed2222;
+interface Greeter @0xa1a1a1a1a1a1a1a1 {
+  greet @0 (name :Text, loud :Bool) -> (greeting :Text, charCount :UInt32);
+  add @1 (lhs :Int32, rhs :Int32) -> (sum :Int32);
+}`;
+  const schema = loadSchema(SCHEMA);
+
+  const greeter = makeExo('greeter', undefined, {
+    greet({ name, loud }) {
+      const word = loud ? 'HELLO' : 'hello';
+      const greeting = `${word}, ${name}!`;
+      return { greeting, charCount: greeting.length };
+    },
+    add({ lhs, rhs }) {
+      return { sum: lhs + rhs };
+    },
+  });
+
+  const registry = makeInterfaceRegistry();
+  schema.registerInterface(registry, 'Greeter');
+  const { near } = makeLoopback({
+    farBootstrap: greeter,
+    interfaceRegistry: registry,
+  });
+  const remote = near.getBootstrap();
+
+  const quiet = await E(remote).greet({ name: 'world', loud: false });
+  t.deepEqual(quiet, { greeting: 'hello, world!', charCount: 13 });
+
+  const loud = await E(remote).greet({ name: 'world', loud: true });
+  t.deepEqual(loud, { greeting: 'HELLO, world!', charCount: 13 });
+
+  const sum = await E(remote).add({ lhs: 17, rhs: 25 });
+  t.deepEqual(sum, { sum: 42 });
+});
+
+test('schema.registerInterface: capability-typed params survive auto-codec', async t => {
+  const SCHEMA = `@0xfeed3333feed4444;
+interface Sink @0xb0b0b0b0b0b00001 {}
+interface Service @0xa1a1a1a1a1a1a1a2 {
+  submit @0 (label :Text, sink :Sink) -> (acked :Bool);
+}`;
+  const schema = loadSchema(SCHEMA);
+
+  const observed = [];
+  const sinkExo = makeExo('sink', undefined, {
+    notify(line) {
+      observed.push(line);
+    },
+  });
+  const svc = makeExo('svc', undefined, {
+    async submit({ label, sink }) {
+      await E(sink).notify(label);
+      return { acked: true };
+    },
+  });
+
+  const registry = makeInterfaceRegistry();
+  schema.registerInterface(registry, 'Service');
+  // Sink doesn't appear in the schema's `methods` slot of any param/result,
+  // so its method ordinals must be registered separately. (A future
+  // iteration could let users register Sink via schema too even though it
+  // declares no methods of its own.)
+  registry.register({
+    id: 0xb0b0b0b0b0b00001n,
+    methods: { notify: 0 },
+  });
+
+  const { near } = makeLoopback({
+    farBootstrap: svc,
+    interfaceRegistry: registry,
+  });
+  const remote = near.getBootstrap();
+  const r = await E(remote).submit({ label: 'hi', sink: sinkExo });
+  t.deepEqual(r, { acked: true });
+  t.deepEqual(observed, ['hi']);
+});

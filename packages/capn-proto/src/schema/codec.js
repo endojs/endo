@@ -194,7 +194,22 @@ const writeFieldValue = (msg, loc, f, v, layouts, ctx) => {
   if (f.slot.kind === 'void') {
     // void: nothing to write
   } else if (f.slot.kind === 'data') {
-    writeDataField(loc, f.slot, f.type.kind, v);
+    if (f.type.kind === 'enum') {
+      // Enum values arrive as either a string (member name) or a number
+      // (ordinal). Resolve names via the member list attached to the
+      // TypeRef during parse, then write as UInt16.
+      let ord;
+      if (typeof v === 'number') {
+        ord = v;
+      } else {
+        const m = (f.type.enumMembers || []).find(e => e.name === v);
+        if (!m) throw Fail`enum ${f.type.name}: unknown member ${v}`;
+        ord = m.ordinal;
+      }
+      writeDataField(loc, f.slot, 'uint16', ord);
+    } else {
+      writeDataField(loc, f.slot, f.type.kind, v);
+    }
   } else if (v === undefined || v === null) {
     // pointer slot stays null
   } else {
@@ -244,7 +259,19 @@ const writeFieldValue = (msg, loc, f, v, layouts, ctx) => {
 const writeStructInPlace = (msg, loc, layout, obj, layouts, ctx) => {
   const src = obj == null ? {} : obj;
   for (const f of layout.fields) {
-    const v = src[f.name];
+    // Group fields are flat in the wire layout but nested in the JS object.
+    // Walk groupPath to reach the right sub-object before reading the leaf.
+    let container = src;
+    if (f.groupPath) {
+      for (const seg of f.groupPath) {
+        if (container == null) {
+          container = undefined;
+          break;
+        }
+        container = container[seg];
+      }
+    }
+    const v = container == null ? undefined : container[f.name];
     if (v !== undefined) writeFieldValue(msg, loc, f, v, layouts, ctx);
   }
   // Anonymous union: at most one member key in `src` should match. Find it,
@@ -329,6 +356,25 @@ const writeList = (msg, pointerLocation, listType, value, layouts, ctx) => {
       } else {
         writeData(msg, slot, /** @type {Uint8Array} */ (arr[i]));
       }
+    }
+    return;
+  }
+  // Enum element: encode names → ordinals, then treat as a UInt16 list.
+  if (elementType.kind === 'enum') {
+    const list = allocList(msg, pointerLocation, LIST_TWO_BYTES, arr.length);
+    const view = msg.segments[list.segId].view;
+    const members = elementType.enumMembers || [];
+    for (let i = 0; i < arr.length; i += 1) {
+      const v = arr[i];
+      let ord;
+      if (typeof v === 'number') {
+        ord = v;
+      } else {
+        const m = members.find(e => e.name === v);
+        if (!m) throw Fail`enum ${elementType.name}: unknown member ${v}`;
+        ord = m.ordinal;
+      }
+      view.setUint16(primitiveElementByteOffset(list, i), ord, true);
     }
     return;
   }
@@ -463,7 +509,16 @@ export const encodeRootStruct = (obj, layout, layouts, ctx) => {
  */
 const readFieldValue = (msg, loc, f, layouts, ctx) => {
   if (f.slot.kind === 'void') return null;
-  if (f.slot.kind === 'data') return readDataField(loc, f.slot, f.type.kind);
+  if (f.slot.kind === 'data') {
+    if (f.type.kind === 'enum') {
+      const ord = readDataField(loc, f.slot, 'uint16');
+      const m = (f.type.enumMembers || []).find(e => e.ordinal === ord);
+      // Unknown ordinals decode to the raw number (forward compatibility:
+      // the encoder may have known a member we don't).
+      return m ? m.name : ord;
+    }
+    return readDataField(loc, f.slot, f.type.kind);
+  }
   const ptrLoc = {
     segId: loc.segId,
     wordOffset: loc.wordOffset + loc.dataWords + f.slot.index,
@@ -518,10 +573,21 @@ const readFieldValue = (msg, loc, f, layouts, ctx) => {
  * @param {DecodeCtx} [ctx]
  */
 const readStructFields = (msg, loc, layout, layouts, ctx) => {
-  /** @type {Record<string, unknown>} */
+  /** @type {Record<string, any>} */
   const out = {};
   for (const f of layout.fields) {
-    out[f.name] = readFieldValue(msg, loc, f, layouts, ctx);
+    const v = readFieldValue(msg, loc, f, layouts, ctx);
+    // Place the value at the right nested location for group members.
+    if (f.groupPath && f.groupPath.length > 0) {
+      let cur = out;
+      for (const seg of f.groupPath) {
+        if (cur[seg] === undefined) cur[seg] = {};
+        cur = cur[seg];
+      }
+      cur[f.name] = v;
+    } else {
+      out[f.name] = v;
+    }
   }
   // Anonymous union: read the discriminator and decode only the active
   // member. Inactive members are absent from the output object.
@@ -568,6 +634,17 @@ const readList = (msg, ptrLocation, listType, layouts, ctx) => {
           ? readText(msg, list.segId, slotOff)
           : readData(msg, list.segId, slotOff),
       );
+    }
+    return out;
+  }
+  if (elementType.kind === 'enum') {
+    const view = msg.segment(list.segId).view;
+    const members = elementType.enumMembers || [];
+    const out = [];
+    for (let i = 0; i < list.elemCount; i += 1) {
+      const ord = view.getUint16(primitiveElementByteOffset(list, i), true);
+      const m = members.find(e => e.ordinal === ord);
+      out.push(m ? m.name : ord);
     }
     return out;
   }

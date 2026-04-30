@@ -332,4 +332,69 @@ struct V @0x9999000000000041 {
       which: 'b',
     });
   });
+
+  test('schema interop: enum field + List(enum)', t => {
+    const schemaText = `
+@0xeeee0000eeee0001;
+enum Color @0xee01000000000001 { red @0; green @1; blue @2; }
+struct Box @0xee01000000000002 {
+  label @0 :Text;
+  color @1 :Color;
+  active @2 :Bool;
+  swatches @3 :List(Color);
+}
+`;
+    roundTrip(
+      t,
+      schemaText,
+      'Box',
+      {
+        label: 'x',
+        color: 'green',
+        active: true,
+        swatches: ['red', 'blue', 'blue', 'green'],
+      },
+      `( label = "x", color = green, active = true,
+         swatches = [red, blue, blue, green] )`,
+      {
+        label: 'x',
+        color: 'green',
+        active: true,
+        swatches: ['red', 'blue', 'blue', 'green'],
+      },
+    );
+  });
+
+  test('schema interop: groups (incl. nested groups) flatten on the wire', t => {
+    const schemaText = `
+@0xeeee0000ffff0001;
+struct Foo @0xee01000000000003 {
+  name @0 :Text;
+  details :group {
+    weight @1 :UInt32;
+    height @2 :UInt32;
+    nested :group { tag @3 :UInt8; }
+  }
+  active @4 :Bool;
+}
+`;
+    roundTrip(
+      t,
+      schemaText,
+      'Foo',
+      {
+        name: 'x',
+        details: { weight: 7, height: 11, nested: { tag: 5 } },
+        active: true,
+      },
+      `( name = "x",
+         details = (weight = 7, height = 11, nested = (tag = 5)),
+         active = true )`,
+      {
+        name: 'x',
+        details: { weight: 7, height: 11, nested: { tag: 5 } },
+        active: true,
+      },
+    );
+  });
 }

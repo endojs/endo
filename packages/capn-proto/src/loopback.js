@@ -13,9 +13,12 @@ import { makeInterfaceRegistry } from './interfaces.js';
  * @param {object} [opts]
  * @param {unknown} [opts.nearBootstrap]
  * @param {unknown} [opts.farBootstrap]
+ * @param {ReturnType<typeof makeInterfaceRegistry>} [opts.interfaceRegistry]
+ *   Optional pre-built registry to share, e.g. one already populated via
+ *   `schema.registerInterface(...)`. If omitted, a fresh one is created.
  */
 export const makeLoopback = (opts = {}) => {
-  const interfaceRegistry = makeInterfaceRegistry();
+  const interfaceRegistry = opts.interfaceRegistry || makeInterfaceRegistry();
   /** @type {Array<() => void>} */
   let nearInbox = [];
   /** @type {Array<() => void>} */
