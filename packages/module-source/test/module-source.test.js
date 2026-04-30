@@ -735,7 +735,6 @@ test('source map generation', t => {
   const { __syncModuleProgram__ } = new ModuleSource(`'Hello, World!'`, {
     sourceUrl: 'must-appear-in-source.js',
     sourceMapUrl: 'must-not-appear-in-source.js',
-    // @ts-expect-error SourceMapHookDetails do not have those properties!
     sourceMapHook(sourceMap, { sourceUrl, sourceMapUrl, source }) {
       t.log(sourceMap);
       t.is(sourceMapUrl, 'must-not-appear-in-source.js');
