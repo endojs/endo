@@ -129,6 +129,13 @@ const toNumber = v => {
  * delegate the `ToBoolean(isLittleEndian)` to the built-in, since
  * the conditional on `NaN` has already been safely performed.
  *
+ * We added these coercions to defend against an attack noticed by
+ * https://github.com/deepview-autofix .
+ * We were vulnerable to `value` being an
+ * object with a `valueOf` method that returns a (bad) NaN, since it
+ * would bypass the is NaN check. See where the
+ * `tame-nan*-sidechannel.test.js test cases mention "coercion attack".
+ *
  * Uses method shorthand syntax to be `this`-sensitive but not be constructable
  * nor have a `prototype` property.
  */
