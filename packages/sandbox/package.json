@@ -26,6 +26,7 @@
   "scripts": {
     "build": "exit 0",
     "test": "ses-ava",
+    "test:drivers": "ses-ava test/bwrap.test.js test/podman.test.js",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",

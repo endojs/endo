@@ -78,7 +78,7 @@ export type BackendProbeDetails = {
    */
   rootless?: {
     available: boolean;
-    reason?: string|undefined;
+    reason?: string | undefined;
   };
 };
 
@@ -93,7 +93,7 @@ export type BackendProbe = {
   /** Whether this backend is usable on the current host. */
   available: boolean;
   /** Optional human-readable explanation when `available` is false. */
-  reason?: string;
+  reason?: string | undefined;
   /** Optional version string reported by the backend's CLI. */
   version?: string;
   /** Optional kernel-feature detail, populated by Phase 1.5+ drivers. */
@@ -236,7 +236,7 @@ export type SliceSpec = {
   /** Environment variables for the slice's `init` / first child. */
   env: Record<string, string>;
   /** Initial cwd inside the slice. */
-  cwd?: string|undefined;
+  cwd?: string | undefined;
   /**
    * Resolved resource caps (defaults merged in by the factory).
    * Drivers translate this into `prlimit` argv before bwrap exec.
