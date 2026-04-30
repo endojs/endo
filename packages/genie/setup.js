@@ -12,6 +12,21 @@ import { E } from '@endo/eventual-send';
 const genieSpecifier = new URL('main.js', import.meta.url).href;
 
 /**
+ * `make-unconfined` specifier for the `@endo/sandbox` plugin's agent
+ * entry point.  Resolved relative to this file's URL so the launcher
+ * works against the in-tree workspace layout without a runtime import
+ * of `@endo/sandbox` (setup.js never loads the module — it only hands
+ * the path to `makeUnconfined`, which dynamically imports it inside
+ * the unconfined worker).  Couples the genie launcher to the sandbox
+ * package's directory layout (`packages/sandbox/src/agent.js`),
+ * matching the package's `"main"` export in `packages/sandbox/package.json`.
+ */
+const sandboxAgentSpecifier = new URL(
+  '../sandbox/src/agent.js',
+  import.meta.url,
+).href;
+
+/**
  * Pet name under which the host agent pins the workspace `Mount`
  * capability covering `GENIE_WORKSPACE`.  `main.js` looks this name
  * up in `powers` on boot to obtain the mount it threads into the
@@ -26,6 +41,20 @@ const genieSpecifier = new URL('main.js', import.meta.url).href;
  * responsibility `setup.js` takes on.
  */
 const WORKSPACE_MOUNT_NAME = 'workspace-mount';
+
+/**
+ * Pet name under which the host agent pins the
+ * `SandboxFactory` exo returned by `@endo/sandbox`'s
+ * `make-unconfined` entry point.  `main.js` resolves this from
+ * `powers` on boot to mint its workspace slice
+ * (`main-genie-sandbox`) — see TADA/22 § Decision 1: the slice is
+ * minted main-side because `MakeCapletOptionsShape` has no
+ * `introducedNames` channel today, so the factory must be reachable
+ * via the host pet store rather than threaded through
+ * `makeUnconfined`'s `env`.  Kept as a single source of truth so
+ * the launcher and `main.js` cannot drift on the name.
+ */
+const SANDBOX_FACTORY_NAME = 'sandbox-factory';
 
 /**
  * Launch the genie root agent as an unconfined worklet running under
@@ -77,6 +106,26 @@ export const main = async hostAgent => {
   } else {
     console.log(
       `${WORKSPACE_MOUNT_NAME} already pinned — skipping provideMount.`,
+    );
+  }
+
+  // Register the `@endo/sandbox` plugin as an unconfined caplet under
+  // a stable pet name so `main.js` can resolve the resulting
+  // `SandboxFactory` from `powers` on boot (TADA/22 Decision 1:
+  // main-side slice minting).  Pinning via `makeUnconfined` produces
+  // a `make-unconfined` formula the daemon reincarnates on restart,
+  // so the factory ref survives daemon bounces without re-running
+  // `setup.js`.  Guard with `has` to keep re-runs idempotent and
+  // avoid orphaning the previous formula.
+  if (!(await E(hostAgent).has(SANDBOX_FACTORY_NAME))) {
+    await E(hostAgent).makeUnconfined('@agent', sandboxAgentSpecifier, {
+      powersName: '@agent',
+      resultName: SANDBOX_FACTORY_NAME,
+    });
+    console.log(`registered ${SANDBOX_FACTORY_NAME} from @endo/sandbox.`);
+  } else {
+    console.log(
+      `${SANDBOX_FACTORY_NAME} already registered — skipping makeUnconfined.`,
     );
   }
 
