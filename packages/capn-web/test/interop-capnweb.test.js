@@ -170,3 +170,68 @@ interop(
     endoClient.abort();
   },
 );
+
+// ---------- map() interop ----------
+
+interop(
+  'endo callRemap → capnweb server: peer applies recorded mapper',
+  async t => {
+    // Endo client uses session.callRemap to ship a recorded mapper.  The
+    // capnweb server receives a `["remap", id, path, captures, instructions]`
+    // expression and applies it via its built-in map machinery.
+    const { a, b } = makeLoopbackPair();
+    class Main extends capnweb.RpcTarget {
+      getItems() {
+        return [{ name: 'a' }, { name: 'b' }, { name: 'c' }];
+      }
+    }
+    // eslint-disable-next-line no-new
+    new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+
+    const endoClient = makeCapnWebSession(a, { gcImports: false });
+    const r = endoClient.getRemoteMain();
+    // Use the path-based callRemap form: target is `r.getItems()`, the
+    // mapper applies to each element of the resulting array.  capnweb
+    // returns each result as its own promise stub, so we await the
+    // returned array of stubs to materialise the values.
+    const namePromises = await endoClient.callRemap(
+      { stub: r, path: ['getItems'], args: [] },
+      x => x.name,
+    );
+    const names = await Promise.all(namePromises);
+    t.deepEqual(names, ['a', 'b', 'c']);
+    endoClient.abort();
+  },
+);
+
+interop('endo callRemap → capnweb server: method call per element', async t => {
+  const { a, b } = makeLoopbackPair();
+  class Counter extends capnweb.RpcTarget {
+    constructor(start) {
+      super();
+      this.n = start;
+    }
+    next() {
+      const v = this.n;
+      this.n += 1;
+      return v;
+    }
+  }
+  class Main extends capnweb.RpcTarget {
+    getCounters() {
+      return [new Counter(10), new Counter(100), new Counter(1000)];
+    }
+  }
+  // eslint-disable-next-line no-new
+  new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+
+  const endoClient = makeCapnWebSession(a, { gcImports: false });
+  const r = endoClient.getRemoteMain();
+  const firstPromises = await endoClient.callRemap(
+    { stub: r, path: ['getCounters'], args: [] },
+    c => c.next(),
+  );
+  const firsts = await Promise.all(firstPromises);
+  t.deepEqual(firsts, [10, 100, 1000]);
+  endoClient.abort();
+});

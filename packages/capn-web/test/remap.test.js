@@ -16,7 +16,9 @@ import {
 
 test('record + replay: identity (returning input)', async t => {
   const rec = recordRemap(x => x);
-  t.is(rec.instructions.length, 0);
+  // Capnweb wire format always emits at least one instruction for the
+  // recording's answer; identity emits a single ["pipeline", 0, []].
+  t.is(rec.instructions.length, 1);
   t.is(await replayRemap(rec, 7), 7);
 });
 
@@ -37,11 +39,14 @@ test('record + replay: method call', async t => {
 });
 
 test('record + replay: capture is shipped along', async t => {
+  // Stub captures end up in the captures array.  Primitive arguments
+  // (like the string below) are inlined directly in the instruction's
+  // args expression — that's how capnweb's wire form treats them.
   const suffix = '!!';
   const rec = recordRemap(obj => obj.greet(suffix));
-  // suffix is a non-placeholder, so it's captured.
-  t.is(rec.captures.length, 1);
-  t.is(rec.captures[0], '!!');
+  // Primitive captures are inlined; captures[] only holds non-primitive
+  // captures (e.g. stubs).
+  t.is(rec.captures.length, 0);
   const greeter = { greet: s => `hello${s}` };
   t.is(await replayRemap(rec, greeter), 'hello!!');
 });

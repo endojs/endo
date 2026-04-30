@@ -406,16 +406,18 @@ export const makeCapnWebSession = (transport, opts = {}) => {
    */
   async function executePushExpression(expr) {
     if (Array.isArray(expr) && expr[0] === 'remap') {
-      // ["remap", id, path, captures, instructions, answerRef] — endo
-      // extension carrying the answerRef explicitly so the user's mapper
-      // can return any of the recorded values (or input directly).
-      const [, id, path, capturesExpr, instructions, answerRef = 0] = expr;
+      // ["remap", subjectId, propertyPath, captures, instructions]
+      // — capnweb wire format.  The mapper subject is `subjectId` (one
+      // of our exports); the captures and instructions follow.
+      if (expr.length !== 5) {
+        throw new TypeError(`invalid remap expression: arity ${expr.length}`);
+      }
+      const [, id, path, capturesExpr, instructions] = expr;
       if (
         typeof id !== 'number' ||
         (path !== undefined && path !== null && !Array.isArray(path)) ||
-        (capturesExpr !== undefined && !Array.isArray(capturesExpr)) ||
-        !Array.isArray(instructions) ||
-        typeof answerRef !== 'number'
+        !Array.isArray(capturesExpr) ||
+        !Array.isArray(instructions)
       ) {
         throw new TypeError('invalid remap expression');
       }
@@ -424,8 +426,15 @@ export const makeCapnWebSession = (transport, opts = {}) => {
           ? ['pipeline', id, path]
           : ['pipeline', id];
       const target = await Promise.resolve(executePushExpression(targetExpr));
-      const captures = (capturesExpr || []).map(c => evaluator.evaluate(c));
-      return replayRemap({ instructions, captures, answerRef }, target);
+      const captures = capturesExpr.map(c => evaluator.evaluate(c));
+      // capnweb's apply-map iterates an array input element-by-element;
+      // for a non-array target we apply once.  We follow the same shape.
+      if (Array.isArray(target)) {
+        return Promise.all(
+          target.map(elem => replayRemap({ instructions, captures }, elem)),
+        );
+      }
+      return replayRemap({ instructions, captures }, target);
     }
     if (
       Array.isArray(expr) &&
@@ -453,34 +462,104 @@ export const makeCapnWebSession = (transport, opts = {}) => {
   // ------- public helpers -------
 
   /**
-   * Issue a `["remap", ...]` push that runs `mapper` on the peer side against
-   * each input, returning a promise for the result.
+   * Issue a `["remap", ...]` push that runs `mapper` on the peer side.
+   * Wire form is `["remap", subjectId, propertyPath, captures,
+   * instructions]` (capnweb-compatible).  The peer evaluates
+   * `subjectId.propertyPath`; if the result is an array, the mapper is
+   * applied per-element (capnweb's apply-map semantics).
    *
-   * @param {object} stub  An imported presence whose handler we own.
+   * The first argument can be:
+   *   - An imported presence/promise stub.  Used as the subject directly.
+   *   - A `{ stub, path, args? }` descriptor that says "apply the mapper
+   *     to the result of `stub.path[0].path[1]…(args?)`".  This avoids
+   *     the timing of HandledPromise's async dispatch when the user
+   *     wants to map over a property/method result of a known stub.
+   *
+   * @param {object | { stub: object, path?: readonly (string|number)[], args?: readonly unknown[] }} target
    * @param {(input: unknown) => unknown} mapper
    * @returns {Promise<unknown>}
    */
-  function callRemap(stub, mapper) {
-    const id = tables.importIdOf(stub);
+  async function callRemap(target, mapper) {
+    /** @type {object} */
+    let baseStub;
+    /** @type {readonly (string | number)[]} */
+    let propertyPath = [];
+    /** @type {readonly unknown[] | undefined} */
+    let pathArgs;
+    if (
+      target &&
+      typeof target === 'object' &&
+      'stub' in target &&
+      /** @type {any} */ (target).stub
+    ) {
+      baseStub = /** @type {any} */ (target).stub;
+      propertyPath = /** @type {any} */ (target).path || [];
+      pathArgs = /** @type {any} */ (target).args;
+    } else {
+      baseStub = /** @type {any} */ (target);
+    }
+    let id = tables.importIdOf(baseStub);
+    // Allow any pending E()-driven HandledPromise dispatch to fire so
+    // its alias has been registered.  HandledPromise dispatches in a
+    // future turn; mix microtasks + macrotasks for robustness.
+    /* eslint-disable no-await-in-loop -- short retry loop */
+    for (let i = 0; id === undefined && i < 20; i += 1) {
+      await Promise.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      id = tables.importIdOf(baseStub);
+    }
     if (id === undefined) {
       throw new Error('callRemap: argument is not a remote stub');
     }
     const recording = recordRemap(mapper);
-    const captures = recording.captures.map(c => devaluator.devaluate(c));
-    const expr = [
-      'remap',
-      id,
-      [],
-      captures,
-      recording.instructions,
-      recording.answerRef,
-    ];
+    const wireCaptures = recording.captures.map(c => devaluator.devaluate(c));
+    // Build the "subject expression" that the remap targets.  If the
+    // user supplied path/args, embed them in the subject's pipeline so
+    // the peer first invokes that, then maps the result.  Capnweb's
+    // remap form has a single propertyPath but no inline args, so for
+    // the args case we synthesise an intermediate push.
+    let remapExpr;
+    if (pathArgs !== undefined) {
+      // Issue an intermediate push for `id.path(args)`, then use that
+      // result as the remap's subject (path=[]).
+      const argsExpr = pathArgs.map(a => devaluator.devaluate(a));
+      const intermediateExpr = ['pipeline', id, propertyPath.slice(), argsExpr];
+      const intermediateQid = nextOutgoingPushId;
+      nextOutgoingPushId += 1;
+      sendMessage(['push', intermediateExpr]);
+      const {
+        promise: ip,
+        resolve: ir,
+        reject: irej,
+      } = makePromiseStub(intermediateQid, stubMachinery);
+      // The intermediate promise is internal — the caller never awaits
+      // it directly.  Attach a no-op catch so an abort-time rejection
+      // doesn't surface as an unhandled rejection.
+      ip.catch(noop);
+      tables.installImport(intermediateQid, /** @type {object} */ (ip), true);
+      pendingPushAnswers.set(intermediateQid, { resolve: ir, reject: irej });
+      remapExpr = [
+        'remap',
+        intermediateQid,
+        [],
+        wireCaptures,
+        recording.instructions,
+      ];
+    } else {
+      remapExpr = [
+        'remap',
+        id,
+        propertyPath.slice(),
+        wireCaptures,
+        recording.instructions,
+      ];
+    }
     if (aborted) {
       return Promise.reject(abortReason || new Error('session aborted'));
     }
     const qid = nextOutgoingPushId;
     nextOutgoingPushId += 1;
-    sendMessage(['push', expr]);
+    sendMessage(['push', remapExpr]);
     sendMessage(['pull', qid]);
     const { promise, resolve, reject } = makePromiseStub(qid, stubMachinery);
     tables.installImport(qid, /** @type {object} */ (promise), true);
