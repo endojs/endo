@@ -9,3 +9,5 @@ export type {
   AnalysisOptions,
   ModuleAnalysisContext,
 } from './analyzer.ts';
+export type { CjsAnalysisContext } from './cjs-analyzer.ts';
+export type { CjsModuleSourceRecord } from './cjs-module-source.ts';

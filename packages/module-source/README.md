@@ -83,6 +83,16 @@ That is, the XS native `bindings` will be translated to `imports`, `exports`,
 and `reexports` getters.
 This form of `ModuleSource` ignores all options.
 
+## CommonJS-Specific Variant
+
+In the default/Node variant of `@endo/module-source`, a `CjsModuleSource`
+constructor provides a similar interface for CommonJS modules. It accepts the
+same options as `ModuleSource` and produces a `CjsModuleSourceRecord` object
+containing the analysis data plus a pre-built functor source string.
+
+Note: the `xs` condition currently provides only `ModuleSource`;
+`CjsModuleSource` is not available under `xs`.
+
 ## Bug Disclosure
 
 Please help us practice coordinated security bug disclosure, by using the
