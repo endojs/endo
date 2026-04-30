@@ -11,14 +11,25 @@ import parserText from './parse-text.js';
 import parserBytes from './parse-bytes.js';
 import parserCjs from './parse-cjs.js';
 import parserMjs from './parse-mjs.js';
+import parserCjsBabel from './parse-cjs-babel.js';
+
+const { freeze } = Object;
 
 /** @satisfies {Readonly<ParserForLanguage>} */
-export const defaultParserForLanguage = Object.freeze(
+export const defaultParserForLanguage = freeze(
   /** @type {const} */ ({
     mjs: parserMjs,
     cjs: parserCjs,
     json: parserJson,
     text: parserText,
     bytes: parserBytes,
+  }),
+);
+
+/** @satisfies {Readonly<ParserForLanguage>} */
+export const parserForLanguageWithCjsBabel = freeze(
+  /** @type {const} */ ({
+    ...defaultParserForLanguage,
+    cjs: parserCjsBabel,
   }),
 );
