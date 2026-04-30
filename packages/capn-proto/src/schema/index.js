@@ -49,7 +49,10 @@ export const loadSchema = capnpText => {
    * @param {import('./layout.js').StructLayout} layout
    */
   const makeStructCodec = layout => ({
-    /** @param {any} value @param {any} [ctx] */
+    /**
+     * @param {any} value
+     * @param {any} [ctx]
+     */
     encode: (value, ctx) => {
       /** @type {any[]} */
       const capTable = [];

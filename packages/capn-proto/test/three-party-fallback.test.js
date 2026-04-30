@@ -40,7 +40,7 @@ const makeMockCtx = (overrides = {}) => {
     importRegistry: {
       importCap: id => {
         importedVineIds.push(id);
-        return { __isVinePresence: true, vineId: id };
+        return { isVinePresence: true, vineId: id };
       },
       importIdOf: () => undefined,
     },
@@ -75,7 +75,7 @@ test('vine fallback: sendAccept Return is an exception → resolves to vine', as
   });
 
   t.deepEqual(importedVineIds, [42], 'vine was imported eagerly');
-  t.true(resolved.__isVinePresence, 'resolved value is the vine Presence');
+  t.true(resolved.isVinePresence, 'resolved value is the vine Presence');
   t.is(resolved.vineId, 42);
   t.deepEqual(released, [], 'vine NOT released — it is now the live path');
 });
@@ -100,7 +100,7 @@ test('vine fallback: connectToThirdParty throws → resolves to vine', async t =
   });
 
   t.deepEqual(importedVineIds, [7]);
-  t.true(resolved.__isVinePresence);
+  t.true(resolved.isVinePresence);
   t.deepEqual(released, []);
 });
 
@@ -121,11 +121,11 @@ test('vine fallback: connectToThirdParty returns a peer without sendAccept → v
     vineId: 11,
   });
   t.deepEqual(importedVineIds, [11]);
-  t.true(resolved.__isVinePresence);
+  t.true(resolved.isVinePresence);
 });
 
 test('direct path success: Release the vine and resolve to the direct cap', async t => {
-  const directCap = { __direct: true };
+  const directCap = { isDirect: true };
   const { ctx, released } = makeMockCtx({
     network: {
       thirdPartyCapIdForHost: () => new Uint8Array(0),
@@ -149,7 +149,7 @@ test('direct path success: Release the vine and resolve to the direct cap', asyn
 });
 
 test('direct path success: sendRelease throws → still returns the direct cap', async t => {
-  const directCap = { __direct: true };
+  const directCap = { isDirect: true };
   const { ctx } = makeMockCtx({
     sendRelease: () => {
       throw Error('connection aborted');
