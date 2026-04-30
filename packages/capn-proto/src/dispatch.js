@@ -153,7 +153,10 @@ export const makeDispatch = ctx => {
     let argList;
     try {
       const args = reqCodec
-        ? reqCodec.decode(params.contentBytes)
+        ? reqCodec.decode(params.contentBytes, params.capTable, {
+            exportCap: payloadCodec.exportCap,
+            importCap: payloadCodec.importCap,
+          })
         : payloadCodec.decode(params);
       argList = Array.isArray(args) ? args : [];
     } catch (err) {
@@ -198,10 +201,21 @@ export const makeDispatch = ctx => {
         ans.returnSent = true;
         let payload;
         if (respCodec) {
-          const encoded = respCodec.encode(value);
-          const u8 =
-            encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
-          payload = { contentBytes: u8, capTable: [] };
+          const encoded = respCodec.encode(value, {
+            exportCap: payloadCodec.exportCap,
+            importCap: payloadCodec.importCap,
+          });
+          if (
+            encoded &&
+            typeof encoded === 'object' &&
+            'contentBytes' in encoded
+          ) {
+            payload = encoded;
+          } else {
+            const u8 =
+              encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
+            payload = { contentBytes: u8, capTable: [] };
+          }
         } else {
           payload = payloadCodec.encode(value);
         }
@@ -242,7 +256,14 @@ export const makeDispatch = ctx => {
           ? interfaceRegistry.methodCodec(q.interfaceId, q.methodId, 'response')
           : undefined;
       const value = respCodec
-        ? respCodec.decode(result.payload.contentBytes)
+        ? respCodec.decode(
+            result.payload.contentBytes,
+            result.payload.capTable,
+            {
+              exportCap: payloadCodec.exportCap,
+              importCap: payloadCodec.importCap,
+            },
+          )
         : payloadCodec.decode(result.payload);
       q.resolve(value);
     } else if (result.kind === 'exception') {

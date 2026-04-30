@@ -34,7 +34,7 @@ const PRIMITIVE_BITS = {
   float64: 64,
 };
 
-const POINTER_KINDS = new Set(['text', 'data', 'list', 'struct']);
+const POINTER_KINDS = new Set(['text', 'data', 'list', 'struct', 'capability']);
 
 /**
  * Whether a parsed type ref occupies a pointer slot rather than data bits.
@@ -163,6 +163,11 @@ const allocBits = (hs, bits) => {
  * @property {{ kind: 'data', bitOffset: number, bitSize: number }
  *           | { kind: 'pointer', index: number }
  *           | { kind: 'void' }} slot
+ * @property {number} [discriminantValue]
+ *   Set on union members. The integer value the parent struct's
+ *   discriminator must hold for this member to be the active one. Equals
+ *   the member's position in the union's declaration order, NOT its `@N`
+ *   field ordinal.
  */
 
 /**
@@ -173,6 +178,11 @@ const allocBits = (hs, bits) => {
  * @property {number} pointerCount
  * @property {Array<FieldLayout>} fields
  * @property {Map<string, FieldLayout>} byName
+ * @property {{ bitOffset: number } | undefined} discriminant
+ *   When present, the struct carries an anonymous union; this is the bit
+ *   offset of the UInt16 discriminator within the data section.
+ * @property {Array<FieldLayout>} [unionMembers]
+ *   The union's members, ordered by discriminant value.
  */
 
 /**
@@ -208,13 +218,94 @@ export const layoutStruct = decl => {
       });
     }
   }
+
+  /**
+   * Anonymous union layout.
+   *
+   * capnpc treats the union as one logical "field" in declaration order.
+   * When that slot is reached, three allocations happen in this order:
+   *
+   *   1. A shared data slot, sized to the largest data-typed union member.
+   *      Every data-typed union member gets THIS bit offset; their own
+   *      `bitSize` controls how many of the slot's bits they actually
+   *      consume. (Different members share the slot since the union is
+   *      tagged — only one is live at a time.)
+   *   2. The 16-bit discriminator (UInt16), allocated from the same hole
+   *      list so it lands wherever the next available 16-bit hole is.
+   *   3. A single shared pointer slot, used by every pointer-typed member.
+   *
+   * Verified empirically against `capnp encode --no-standard-import` for
+   * the simple union, the union mixed with non-union fields, and the
+   * union with mixed primitive/pointer members.
+   */
+  /** @type {{ bitOffset: number } | undefined} */
+  let discriminant;
+  /** @type {Array<FieldLayout> | undefined} */
+  let unionMembers;
+  if (decl.unionMembers) {
+    let maxDataBits = 0;
+    let hasPointerMember = false;
+    for (const m of decl.unionMembers) {
+      if (m.type.kind === 'void') {
+        // void members don't reserve any slot
+      } else if (isPointerType(m.type)) {
+        hasPointerMember = true;
+      } else {
+        const bits = dataBitsFor(m.type);
+        if (bits > maxDataBits) maxDataBits = bits;
+      }
+    }
+    const sharedDataOffset = maxDataBits > 0 ? allocBits(hs, maxDataBits) : 0;
+    const discriminantBitOffset = allocBits(hs, 16);
+    discriminant = { bitOffset: discriminantBitOffset };
+    let sharedPointerSlot = -1;
+    if (hasPointerMember) {
+      sharedPointerSlot = pointerCount;
+      pointerCount += 1;
+    }
+    unionMembers = decl.unionMembers.map((m, i) => {
+      if (m.type.kind === 'void') {
+        return {
+          ...m,
+          slot: /** @type {{kind: 'void'}} */ ({ kind: 'void' }),
+          discriminantValue: i,
+        };
+      }
+      if (isPointerType(m.type)) {
+        return {
+          ...m,
+          slot: /** @type {{kind: 'pointer', index: number}} */ ({
+            kind: 'pointer',
+            index: sharedPointerSlot,
+          }),
+          discriminantValue: i,
+        };
+      }
+      const bits = dataBitsFor(m.type);
+      return {
+        ...m,
+        slot: /** @type {{kind: 'data', bitOffset: number, bitSize: number}} */ ({
+          kind: 'data',
+          bitOffset: sharedDataOffset,
+          bitSize: bits,
+        }),
+        discriminantValue: i,
+      };
+    });
+  }
+
   const dataWords = Math.ceil(hs.dataBits / 64);
   /** @type {Map<string, FieldLayout>} */
   const byName = new Map();
   for (const fl of fields) byName.set(fl.name, fl);
+  if (unionMembers) {
+    for (const um of unionMembers) byName.set(um.name, um);
+  }
   return {
     name: decl.name,
     id: decl.id,
+    discriminant,
+    unionMembers,
     dataWords,
     pointerCount,
     fields,

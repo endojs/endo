@@ -104,93 +104,95 @@ export const makeConnection = cfg => {
   /** @type {ReturnType<typeof makeImportRegistry> | undefined} */
   let importRegistry;
 
+  // ---- Cap encode/decode helpers ----
+  // Extracted so both the JSON-payload codec AND user-supplied schema-typed
+  // method codecs can share the same exportCap/importCap behaviour.
+
+  const isCap = v => {
+    // A value is a capability if it is one of our imported presences,
+    // or if it is a non-Object-prototype object (e.g. an Exo, Far'd
+    // object, or HandledPromise/Presence).
+    if (v == null) return false;
+    const t = typeof v;
+    if (t !== 'object' && t !== 'function') return false;
+    if (importRegistry && importRegistry.importIdOf(v) !== undefined) {
+      return true;
+    }
+    if (typeof (/** @type {any} */ (v).then) === 'function') return true;
+    const proto = Object.getPrototypeOf(v);
+    return proto !== Object.prototype && proto !== Array.prototype;
+  };
+
+  const exportCap = v => {
+    // Pass-back: if this is a presence we imported from the peer, send
+    // back as receiverHosted so the peer recognizes its own export.
+    const importId = importRegistry && importRegistry.importIdOf(v);
+    if (importId !== undefined) {
+      return { kind: 'receiverHosted', id: importId };
+    }
+    if (isPromise(v)) {
+      const { id } = exportRegistry.exportValue(v);
+      // Schedule resolve on settle so the peer can collapse the promise.
+      Promise.resolve(v).then(
+        resolved => {
+          const entry = tables.exports.get(id);
+          if (!entry || entry.resolved) return;
+          entry.resolved = true;
+          const cap = describeForResolve(resolved);
+          sendFramed(
+            encodeResolve({ promiseId: id, payload: { kind: 'cap', cap } }),
+          );
+        },
+        err => {
+          const entry = tables.exports.get(id);
+          if (!entry || entry.resolved) return;
+          entry.resolved = true;
+          sendFramed(
+            encodeResolve({
+              promiseId: id,
+              payload: {
+                kind: 'exception',
+                exception: {
+                  type: 0,
+                  reason: String(/** @type {any} */ (err)?.message || err),
+                },
+              },
+            }),
+          );
+        },
+      );
+      return { kind: 'senderPromise', id };
+    }
+    const { id } = exportRegistry.exportValue(v);
+    return { kind: 'senderHosted', id };
+  };
+
+  const importCap = desc => {
+    if (!importRegistry) return undefined;
+    if (desc.kind === 'senderHosted')
+      return importRegistry.importCap(desc.id, false);
+    if (desc.kind === 'senderPromise')
+      return importRegistry.importCap(desc.id, true);
+    if (desc.kind === 'receiverHosted') {
+      const ent = tables.exports.get(desc.id);
+      return ent?.value;
+    }
+    if (desc.kind === 'receiverAnswer') {
+      const ans = tables.questions.get(desc.questionId);
+      return ans?.returnedP;
+    }
+    return undefined;
+  };
+
   // ---- Payload codec ----
   const payloadCodec = {
-    encode: value =>
-      encodePayload(value, {
-        isCap: v => {
-          // A value is a capability if it is one of our imported presences,
-          // or if it is a non-Object-prototype object (e.g. an Exo, Far'd
-          // object, or HandledPromise/Presence).
-          if (v == null) return false;
-          const t = typeof v;
-          if (t !== 'object' && t !== 'function') return false;
-          if (importRegistry && importRegistry.importIdOf(v) !== undefined) {
-            return true;
-          }
-          if (typeof (/** @type {any} */ (v).then) === 'function') return true;
-          const proto = Object.getPrototypeOf(v);
-          return proto !== Object.prototype && proto !== Array.prototype;
-        },
-        exportCap: v => {
-          // Pass-back: if this is a presence we imported from the peer, send
-          // back as receiverHosted so the peer recognizes its own export.
-          const importId = importRegistry && importRegistry.importIdOf(v);
-          if (importId !== undefined) {
-            return { kind: 'receiverHosted', id: importId };
-          }
-          if (isPromise(v)) {
-            const { id } = exportRegistry.exportValue(v);
-            // Schedule resolve on settle so the peer can collapse the promise.
-            Promise.resolve(v).then(
-              resolved => {
-                const entry = tables.exports.get(id);
-                if (!entry || entry.resolved) return;
-                entry.resolved = true;
-                const cap = describeForResolve(resolved);
-                sendFramed(
-                  encodeResolve({
-                    promiseId: id,
-                    payload: { kind: 'cap', cap },
-                  }),
-                );
-              },
-              err => {
-                const entry = tables.exports.get(id);
-                if (!entry || entry.resolved) return;
-                entry.resolved = true;
-                sendFramed(
-                  encodeResolve({
-                    promiseId: id,
-                    payload: {
-                      kind: 'exception',
-                      exception: {
-                        type: 0,
-                        reason: String(
-                          /** @type {any} */ (err)?.message || err,
-                        ),
-                      },
-                    },
-                  }),
-                );
-              },
-            );
-            return { kind: 'senderPromise', id };
-          }
-          const { id } = exportRegistry.exportValue(v);
-          return { kind: 'senderHosted', id };
-        },
-      }),
+    encode: value => encodePayload(value, { isCap, exportCap }),
     encodeRoot: marker => utf8Encoder.encode(JSON.stringify(marker)),
-    decode: payload =>
-      decodePayload(payload, {
-        importCap: desc => {
-          if (!importRegistry) return undefined;
-          if (desc.kind === 'senderHosted')
-            return importRegistry.importCap(desc.id, false);
-          if (desc.kind === 'senderPromise')
-            return importRegistry.importCap(desc.id, true);
-          if (desc.kind === 'receiverHosted') {
-            const ent = tables.exports.get(desc.id);
-            return ent?.value;
-          }
-          if (desc.kind === 'receiverAnswer') {
-            const ans = tables.questions.get(desc.questionId);
-            return ans?.returnedP;
-          }
-          return undefined;
-        },
-      }),
+    decode: payload => decodePayload(payload, { importCap }),
+    /** Exposed so dispatch.js / send-side code can hand a ctx to user
+     *  schema-typed method codecs without rebuilding these closures. */
+    exportCap,
+    importCap,
   };
 
   // ---- Sending Calls ----
@@ -220,9 +222,13 @@ export const makeConnection = cfg => {
     answerPromise.catch(() => {});
 
     // If a request codec is registered for (interfaceId, methodId), use it
-    // to encode the args as a typed Cap'n Proto struct in
-    // Payload.contentBytes (with an empty cap table; schema-typed payloads
-    // do not currently embed caps inline). Falls back to JSON otherwise.
+    // to encode the args as a typed Cap'n Proto struct in Payload.contentBytes.
+    // The codec's `encode(args, ctx)` may either:
+    //   - return raw bytes (Uint8Array | ArrayBuffer) — cap-free schemas
+    //   - return `{ contentBytes, capTable }` — cap-aware schemas that
+    //     populated the cap table via `ctx.exportCap(value)`.
+    // Falls back to the JSON-over-bytes payloadCodec when no schema codec
+    // is registered.
     const reqCodec = interfaceRegistry.methodCodec(
       interfaceId,
       methodId,
@@ -230,10 +236,14 @@ export const makeConnection = cfg => {
     );
     let params;
     if (reqCodec) {
-      const encoded = reqCodec.encode(args);
-      const u8 =
-        encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
-      params = { contentBytes: u8, capTable: [] };
+      const encoded = reqCodec.encode(args, { exportCap, importCap });
+      if (encoded && typeof encoded === 'object' && 'contentBytes' in encoded) {
+        params = encoded;
+      } else {
+        const u8 =
+          encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
+        params = { contentBytes: u8, capTable: [] };
+      }
     } else {
       params = payloadCodec.encode(args);
     }

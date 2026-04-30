@@ -48,6 +48,8 @@ import {
   LIST_TWO_BYTES,
   LIST_FOUR_BYTES,
   LIST_EIGHT_BYTES,
+  writePointer,
+  readPointer,
 } from '../wire/pointer.js';
 
 const PRIMITIVE_LIST_ELEM_SIZE = {
@@ -166,34 +168,103 @@ const readDataField = (loc, dataSlot, kind) => {
  * @param {any} obj
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
  */
-const writeStructInPlace = (msg, loc, layout, obj, layouts) => {
+/**
+ * @typedef {object} EncodeCtx
+ * @property {(value: unknown) => any} [exportCap]
+ *   Called for capability-typed fields. Should return a CapDescriptor that
+ *   the caller will append to the message's cap table; the descriptor's
+ *   index in `capTable` is what gets written into the cap pointer.
+ * @property {any[]} [capTable]
+ *   Mutable list of CapDescriptor objects accumulated during the encode.
+ */
+
+/**
+ * Encode the value at `f` into the appropriate slot of the struct at
+ * `loc`. Used both by the regular-field loop and by the union member
+ * dispatch below.
+ *
+ * @param {any} msg
+ * @param {any} loc
+ * @param {import('./layout.js').FieldLayout} f
+ * @param {unknown} v
+ * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {EncodeCtx} [ctx]
+ */
+const writeFieldValue = (msg, loc, f, v, layouts, ctx) => {
+  if (f.slot.kind === 'void') {
+    // void: nothing to write
+  } else if (f.slot.kind === 'data') {
+    writeDataField(loc, f.slot, f.type.kind, v);
+  } else if (v === undefined || v === null) {
+    // pointer slot stays null
+  } else {
+    const slot = ptrSlot(loc, f.slot.index);
+    if (f.type.kind === 'text') {
+      writeText(msg, slot, /** @type {string} */ (v));
+    } else if (f.type.kind === 'data') {
+      writeData(msg, slot, /** @type {Uint8Array} */ (v));
+    } else if (f.type.kind === 'list') {
+      // eslint-disable-next-line no-use-before-define
+      writeList(msg, slot, f.type, v, layouts, ctx);
+    } else if (f.type.kind === 'struct') {
+      const sub = layouts.get(/** @type {string} */ (f.type.name));
+      if (!sub) throw Fail`unknown struct type ${f.type.name}`;
+      const subLoc = allocStruct(msg, slot, sub.dataWords, sub.pointerCount);
+      // eslint-disable-next-line no-use-before-define
+      writeStructInPlace(msg, subLoc, sub, v, layouts, ctx);
+    } else if (f.type.kind === 'capability') {
+      if (!ctx || !ctx.exportCap || !ctx.capTable) {
+        throw Fail`capability field ${f.name} requires an EncodeCtx with exportCap + capTable`;
+      }
+      const desc = ctx.exportCap(v);
+      const index = ctx.capTable.length;
+      ctx.capTable.push(desc);
+      writePointer(msg.segments[slot.segId].view, slot.wordOffset * WORD_SIZE, {
+        kind: 'cap',
+        index,
+      });
+    } else {
+      throw Fail`writeFieldValue: unhandled field type ${f.type.kind}`;
+    }
+  }
+};
+
+const writeStructInPlace = (msg, loc, layout, obj, layouts, ctx) => {
   const src = obj == null ? {} : obj;
   for (const f of layout.fields) {
     const v = src[f.name];
-    if (f.slot.kind === 'void') {
-      // void: nothing to write
-    } else if (f.slot.kind === 'data') {
-      if (v !== undefined) writeDataField(loc, f.slot, f.type.kind, v);
-    } else if (v === undefined || v === null) {
-      // pointer slot stays null
-    } else {
-      const slot = ptrSlot(loc, f.slot.index);
-      if (f.type.kind === 'text') {
-        writeText(msg, slot, /** @type {string} */ (v));
-      } else if (f.type.kind === 'data') {
-        writeData(msg, slot, /** @type {Uint8Array} */ (v));
-      } else if (f.type.kind === 'list') {
-        // eslint-disable-next-line no-use-before-define
-        writeList(msg, slot, f.type, v, layouts);
-      } else if (f.type.kind === 'struct') {
-        const sub = layouts.get(/** @type {string} */ (f.type.name));
-        if (!sub) throw Fail`unknown struct type ${f.type.name}`;
-        const subLoc = allocStruct(msg, slot, sub.dataWords, sub.pointerCount);
-        writeStructInPlace(msg, subLoc, sub, v, layouts);
-      } else {
-        throw Fail`writeStructInPlace: unhandled field type ${f.type.kind}`;
+    if (v !== undefined) writeFieldValue(msg, loc, f, v, layouts, ctx);
+  }
+  // Anonymous union: at most one member key in `src` should match. Find it,
+  // write the discriminator, and write that member's value.
+  if (layout.unionMembers && layout.discriminant) {
+    let activeMember;
+    for (const m of layout.unionMembers) {
+      if (src[m.name] !== undefined) {
+        if (activeMember) {
+          throw Fail`union ${layout.name}: ${activeMember.name} and ${m.name} both set`;
+        }
+        activeMember = m;
       }
     }
+    if (activeMember) {
+      writeUint16(
+        loc,
+        layout.discriminant.bitOffset / 8,
+        activeMember.discriminantValue,
+      );
+      writeFieldValue(
+        msg,
+        loc,
+        activeMember,
+        src[activeMember.name],
+        layouts,
+        ctx,
+      );
+    }
+    // If no member set: leave discriminator at zero (= first member is
+    // active), which matches capnp's "default value of an anonymous union is
+    // the first member". The corresponding slot stays zero / null too.
   }
 };
 
@@ -206,8 +277,9 @@ const writeStructInPlace = (msg, loc, layout, obj, layouts) => {
  * @param {{ kind: string, elementType?: any }} listType
  * @param {Iterable<unknown>} value
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {EncodeCtx} [ctx]
  */
-const writeList = (msg, pointerLocation, listType, value, layouts) => {
+const writeList = (msg, pointerLocation, listType, value, layouts, ctx) => {
   const elementType = /** @type {any} */ (listType.elementType);
   const arr = Array.from(value);
   if (elementType.kind === 'struct') {
@@ -224,7 +296,7 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
     );
     for (let i = 0; i < arr.length; i += 1) {
       const elemLoc = compositeElement(msg, list, i);
-      writeStructInPlace(msg, elemLoc, elemLayout, arr[i], layouts);
+      writeStructInPlace(msg, elemLoc, elemLayout, arr[i], layouts, ctx);
     }
     return;
   }
@@ -318,14 +390,17 @@ const writeList = (msg, pointerLocation, listType, value, layouts) => {
 
 /**
  * Encode a JS object as a top-level Cap'n Proto framed message whose root
- * is a struct of the given layout.
+ * is a struct of the given layout. If `ctx` is omitted, capability fields
+ * in the schema (if any) cannot be encoded — this entry point is for
+ * cap-free schemas.
  *
  * @param {any} obj
  * @param {import('./layout.js').StructLayout} layout
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {EncodeCtx} [ctx]
  * @returns {ArrayBuffer}
  */
-export const encodeRootStruct = (obj, layout, layouts) => {
+export const encodeRootStruct = (obj, layout, layouts, ctx) => {
   const msg = makeMessageBuilder();
   // Reserve the first word of segment 0 for the root pointer; allocStruct
   // below writes into it.
@@ -336,7 +411,7 @@ export const encodeRootStruct = (obj, layout, layouts) => {
     layout.dataWords,
     layout.pointerCount,
   );
-  writeStructInPlace(msg, root, layout, obj, layouts);
+  writeStructInPlace(msg, root, layout, obj, layouts, ctx);
   return frameSegments(msg.finish());
 };
 
@@ -354,36 +429,86 @@ export const encodeRootStruct = (obj, layout, layouts) => {
  * @param {import('./layout.js').StructLayout} layout
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
  */
-const readStructFields = (msg, loc, layout, layouts) => {
+/**
+ * @typedef {object} DecodeCtx
+ * @property {(desc: any) => unknown} [importCap]
+ *   Called for capability-typed fields. Receives the CapDescriptor at the
+ *   slot's cap-table index and should return the user-facing JS value
+ *   (typically a Presence / HandledPromise).
+ * @property {any[]} [capTable]
+ *   The CapDescriptors that arrived alongside the contentBytes. The cap
+ *   pointer at each capability field stores an index into this array.
+ */
+
+/**
+ * Read the value of one field from a struct slot.
+ *
+ * @param {any} msg
+ * @param {any} loc
+ * @param {import('./layout.js').FieldLayout} f
+ * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {DecodeCtx} [ctx]
+ */
+const readFieldValue = (msg, loc, f, layouts, ctx) => {
+  if (f.slot.kind === 'void') return null;
+  if (f.slot.kind === 'data') return readDataField(loc, f.slot, f.type.kind);
+  const ptrLoc = {
+    segId: loc.segId,
+    wordOffset: loc.wordOffset + loc.dataWords + f.slot.index,
+  };
+  if (f.type.kind === 'text') {
+    return readText(msg, ptrLoc.segId, ptrLoc.wordOffset);
+  }
+  if (f.type.kind === 'data') {
+    return readData(msg, ptrLoc.segId, ptrLoc.wordOffset);
+  }
+  if (f.type.kind === 'list') {
+    // eslint-disable-next-line no-use-before-define
+    return readList(msg, ptrLoc, f.type, layouts, ctx);
+  }
+  if (f.type.kind === 'struct') {
+    const sub = layouts.get(/** @type {string} */ (f.type.name));
+    if (!sub) throw Fail`unknown struct type ${f.type.name}`;
+    const subLoc = readStructPointer(msg, ptrLoc.segId, ptrLoc.wordOffset);
+    // eslint-disable-next-line no-use-before-define
+    return subLoc ? readStructFields(msg, subLoc, sub, layouts, ctx) : null;
+  }
+  if (f.type.kind === 'capability') {
+    const ptr = readPointer(
+      msg.segment(ptrLoc.segId).view,
+      ptrLoc.wordOffset * WORD_SIZE,
+    );
+    if (ptr.kind === 'null') return null;
+    if (ptr.kind !== 'cap') {
+      throw Fail`capability field ${f.name} expected cap pointer, got ${ptr.kind}`;
+    }
+    if (!ctx || !ctx.capTable) {
+      throw Fail`capability field ${f.name} requires a DecodeCtx with capTable`;
+    }
+    const desc = ctx.capTable[ptr.index];
+    if (desc === undefined) {
+      throw Fail`capability field ${f.name}: index ${ptr.index} out of capTable bounds`;
+    }
+    return ctx.importCap ? ctx.importCap(desc) : desc;
+  }
+  throw Fail`readFieldValue: unhandled field type ${f.type.kind}`;
+};
+
+const readStructFields = (msg, loc, layout, layouts, ctx) => {
   /** @type {Record<string, unknown>} */
   const out = {};
   for (const f of layout.fields) {
-    if (f.slot.kind === 'void') {
-      // void: nothing to read
-    } else if (f.slot.kind === 'data') {
-      out[f.name] = readDataField(loc, f.slot, f.type.kind);
-    } else {
-      const ptrLoc = {
-        segId: loc.segId,
-        wordOffset: loc.wordOffset + loc.dataWords + f.slot.index,
-      };
-      if (f.type.kind === 'text') {
-        out[f.name] = readText(msg, ptrLoc.segId, ptrLoc.wordOffset);
-      } else if (f.type.kind === 'data') {
-        out[f.name] = readData(msg, ptrLoc.segId, ptrLoc.wordOffset);
-      } else if (f.type.kind === 'list') {
-        // eslint-disable-next-line no-use-before-define
-        out[f.name] = readList(msg, ptrLoc, f.type, layouts);
-      } else if (f.type.kind === 'struct') {
-        const sub = layouts.get(/** @type {string} */ (f.type.name));
-        if (!sub) throw Fail`unknown struct type ${f.type.name}`;
-        const subLoc = readStructPointer(msg, ptrLoc.segId, ptrLoc.wordOffset);
-        out[f.name] = subLoc
-          ? readStructFields(msg, subLoc, sub, layouts)
-          : null;
-      } else {
-        throw Fail`readStructFields: unhandled field type ${f.type.kind}`;
-      }
+    out[f.name] = readFieldValue(msg, loc, f, layouts, ctx);
+  }
+  // Anonymous union: read the discriminator and decode only the active
+  // member. Inactive members are absent from the output object.
+  if (layout.unionMembers && layout.discriminant) {
+    const which = readUint16(loc, layout.discriminant.bitOffset / 8);
+    const active = layout.unionMembers[which];
+    if (active) {
+      out[active.name] = readFieldValue(msg, loc, active, layouts, ctx);
+      // _which gives downstream switch-on access without iterating keys.
+      out._which = active.name;
     }
   }
   return out;
@@ -395,7 +520,7 @@ const readStructFields = (msg, loc, layout, layouts) => {
  * @param {{ kind: string, elementType?: any }} listType
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
  */
-const readList = (msg, ptrLocation, listType, layouts) => {
+const readList = (msg, ptrLocation, listType, layouts, ctx) => {
   const list = readListPointer(msg, ptrLocation.segId, ptrLocation.wordOffset);
   if (!list) return [];
   const elementType = /** @type {any} */ (listType.elementType);
@@ -406,7 +531,7 @@ const readList = (msg, ptrLocation, listType, layouts) => {
     const out = [];
     for (let i = 0; i < list.elemCount; i += 1) {
       const elemLoc = compositeElement(msg, list, i);
-      out.push(readStructFields(msg, elemLoc, elemLayout, layouts));
+      out.push(readStructFields(msg, elemLoc, elemLayout, layouts, ctx));
     }
     return out;
   }
@@ -482,8 +607,9 @@ const readList = (msg, ptrLocation, listType, layouts) => {
  * @param {ArrayBuffer | Uint8Array} framed
  * @param {import('./layout.js').StructLayout} layout
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {DecodeCtx} [ctx]
  */
-export const decodeRootStruct = (framed, layout, layouts) => {
+export const decodeRootStruct = (framed, layout, layouts, ctx) => {
   /** @type {ArrayBuffer} */
   let ab;
   if (framed instanceof ArrayBuffer) {
@@ -500,5 +626,5 @@ export const decodeRootStruct = (framed, layout, layouts) => {
   const reader = makeMessageReader(segments);
   const root = readStructPointer(reader, 0, 0);
   if (!root) return null;
-  return readStructFields(reader, root, layout, layouts);
+  return readStructFields(reader, root, layout, layouts, ctx);
 };

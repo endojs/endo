@@ -97,3 +97,98 @@ test('schema-typed RPC: request and response flow through the schema runtime', a
   // Sanity: the far peer is still alive (it answered all four calls above).
   t.truthy(far);
 });
+
+test('schema-typed RPC: anonymous union and capability field round-trip', async t => {
+  const schema = loadSchema(`
+@0xc0debabec0debabe;
+
+interface Sink @0xfade0000ffff0001 {}
+
+struct Op @0xfade0000ffff0010 {
+  union {
+    add @0 :UInt32;
+    sub @1 :UInt32;
+    reset @2 :Void;
+  }
+}
+
+struct Job @0xfade0000ffff0011 {
+  label @0 :Text;
+  op @1 :Op;
+  sink @2 :Sink;
+}
+
+struct JobResult @0xfade0000ffff0012 {
+  acknowledged @0 :Bool;
+}
+`);
+
+  const jobCodec = {
+    request: {
+      encode: (args, ctx) => schema.encodePayload('Job', args[0], ctx),
+      decode: (bytes, capTable, ctx) => [
+        schema.decodePayload('Job', { contentBytes: bytes, capTable }, ctx),
+      ],
+    },
+    response: {
+      encode: value => schema.encode('JobResult', value),
+      decode: bytes => schema.decode('JobResult', bytes),
+    },
+  };
+
+  /** Calls observed on the sink, recorded by the test sink Exo. */
+  const observed = [];
+  const sink = makeExo('sink', undefined, {
+    notify(line) {
+      observed.push(line);
+    },
+  });
+
+  const service = makeExo('service', undefined, {
+    async submit(job) {
+      // Switch on the active union member.
+      let line;
+      if (job.op._which === 'add') line = `${job.label}: +${job.op.add}`;
+      else if (job.op._which === 'sub') line = `${job.label}: -${job.op.sub}`;
+      else if (job.op._which === 'reset') line = `${job.label}: reset`;
+      else line = `${job.label}: ?`;
+      await E(job.sink).notify(line);
+      return { acknowledged: true };
+    },
+  });
+
+  const { near, registerInterface } = makeLoopback({ farBootstrap: service });
+  registerInterface({
+    id: 0xa1b2c3d4e5f60808n,
+    methods: { submit: 0, notify: 1 },
+    methodCodecs: { submit: jobCodec },
+  });
+  const remote = near.getBootstrap();
+
+  t.deepEqual(
+    await E(remote).submit({
+      label: 'a',
+      op: { add: 5 },
+      sink,
+    }),
+    { acknowledged: true },
+  );
+  t.deepEqual(
+    await E(remote).submit({
+      label: 'b',
+      op: { sub: 3 },
+      sink,
+    }),
+    { acknowledged: true },
+  );
+  t.deepEqual(
+    await E(remote).submit({
+      label: 'c',
+      op: { reset: null },
+      sink,
+    }),
+    { acknowledged: true },
+  );
+
+  t.deepEqual(observed, ['a: +5', 'b: -3', 'c: reset']);
+});

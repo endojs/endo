@@ -280,4 +280,56 @@ struct Bits @0x8888000000000030 {
       { flags: [true, false, true, true, false, false, true, false, true] },
     );
   });
+
+  test('schema interop: anonymous union (data + pointer + void members)', t => {
+    const schemaText = `
+@0xfeedfacefacefeed;
+struct M @0x9999000000000040 {
+  union {
+    a @0 :UInt32;
+    b @1 :Text;
+    c @2 :UInt8;
+    d @3 :Void;
+  }
+}
+`;
+    // The decoder also includes a synthetic `_which` field naming the
+    // active member, so callers can switch on it without iterating keys.
+    roundTrip(t, schemaText, 'M', { a: 0xdeadbeef }, `(a = 0xdeadbeef)`, {
+      a: 3735928559,
+      _which: 'a',
+    });
+    roundTrip(t, schemaText, 'M', { b: 'hello' }, `(b = "hello")`, {
+      b: 'hello',
+      _which: 'b',
+    });
+    roundTrip(t, schemaText, 'M', { c: 7 }, `(c = 7)`, { c: 7, _which: 'c' });
+    roundTrip(t, schemaText, 'M', { d: null }, `(d = void)`, {
+      d: null,
+      _which: 'd',
+    });
+  });
+
+  test('schema interop: anonymous union mixed with regular fields', t => {
+    const schemaText = `
+@0xfeedfacefacefeed;
+struct V @0x9999000000000041 {
+  x @0 :UInt32;
+  union {
+    a @1 :UInt32;
+    b @2 :UInt32;
+  }
+}
+`;
+    roundTrip(t, schemaText, 'V', { x: 100, a: 200 }, `(x = 100, a = 200)`, {
+      x: 100,
+      a: 200,
+      _which: 'a',
+    });
+    roundTrip(t, schemaText, 'V', { x: 100, b: 300 }, `(x = 100, b = 300)`, {
+      x: 100,
+      b: 300,
+      _which: 'b',
+    });
+  });
 }

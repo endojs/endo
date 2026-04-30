@@ -62,13 +62,27 @@ const PRIMITIVE_TYPES = new Set([
  * @typedef {object} StructDecl
  * @property {string} name
  * @property {bigint} id
- * @property {Array<FieldDecl>} fields
+ * @property {Array<FieldDecl>} fields            non-union fields, in declaration order
+ * @property {Array<FieldDecl> | undefined} unionMembers
+ *   When present, this struct also carries an anonymous union whose members
+ *   are listed here in declaration order. The discriminator value of each
+ *   member is its index in this array (NOT its `@N` field ordinal).
+ */
+
+/**
+ * @typedef {object} InterfaceDecl
+ * @property {string} name
+ * @property {bigint} id
  */
 
 /**
  * @typedef {object} ParsedSchema
  * @property {bigint | undefined} fileId
  * @property {Map<string, StructDecl>} structs
+ * @property {Set<string>} interfaces
+ *   Names of interface declarations seen in the schema. A struct field
+ *   whose type is an interface name is encoded as a capability pointer
+ *   (PTR_OTHER subtag=CAPABILITY) referencing the message's cap table.
  */
 
 /**
@@ -140,7 +154,7 @@ export const parseCapnpSchema = src => {
   };
 
   /** @type {ParsedSchema} */
-  const out = { fileId: undefined, structs: new Map() };
+  const out = { fileId: undefined, structs: new Map(), interfaces: new Set() };
 
   // File-level `@0x...;` (optional in our parser).
   if (peek() === '@') {
@@ -211,10 +225,23 @@ export const parseCapnpSchema = src => {
     eat('{');
     /** @type {Array<FieldDecl>} */
     const fields = [];
+    /** @type {Array<FieldDecl> | undefined} */
+    let unionMembers;
     while (peek() !== '}') {
       const tok = peek();
-      if (tok === 'union' || tok === 'enum' || tok === 'group') {
+      if (tok === 'enum' || tok === 'group') {
         throw Fail`schema parse: ${tok} not supported`;
+      } else if (tok === 'union') {
+        if (unionMembers !== undefined) {
+          throw Fail`schema parse: only one anonymous union per struct`;
+        }
+        eat('union');
+        eat('{');
+        unionMembers = [];
+        while (peek() !== '}') {
+          unionMembers.push(parseField());
+        }
+        eat('}');
       } else if (tok === 'struct') {
         // Nested struct declaration — supported by parsing it as a sibling
         // for now (capnp does namespace it, but our flat name table works
@@ -225,7 +252,28 @@ export const parseCapnpSchema = src => {
       }
     }
     eat('}');
-    out.structs.set(name, { name, id, fields });
+    out.structs.set(name, { name, id, fields, unionMembers });
+  };
+
+  /**
+   * After parsing the whole file, walk every struct field and rewrite any
+   * `{ kind: 'struct', name: X }` whose `X` is the name of an interface
+   * declaration to `{ kind: 'capability', name: X }`. This pass exists
+   * because the parser cannot tell a struct ref from an interface ref by
+   * looking at the type token alone — the file may declare the interface
+   * later than the struct that uses it.
+   *
+   * @param {TypeRef} t
+   */
+  const rewriteCapRefs = t => {
+    if (t.kind === 'struct' && t.name && out.interfaces.has(t.name)) {
+      // mutate in place — every ref to t was created in this parse run
+      // and is uniquely owned by exactly one field.
+      // eslint-disable-next-line no-param-reassign
+      t.kind = 'capability';
+    } else if (t.kind === 'list' && t.elementType) {
+      rewriteCapRefs(t.elementType);
+    }
   };
 
   while (i < toks.length) {
@@ -236,10 +284,37 @@ export const parseCapnpSchema = src => {
       // Skip the rest of the declaration up through `;`.
       while (peek() !== ';' && i < toks.length) i += 1;
       eat(';');
-    } else if (tok === 'interface' || tok === 'enum') {
+    } else if (tok === 'interface') {
+      // We don't model interface methods (this package handles RPC method
+      // dispatch separately via interfaceRegistry). Record the name so
+      // struct fields whose type is an interface ref are recognized as
+      // capability pointers, then skip the body.
+      eat('interface');
+      const ifaceName = eat();
+      if (peek() === '@') {
+        eat('@');
+        eat();
+      }
+      out.interfaces.add(ifaceName);
+      eat('{');
+      let depth = 1;
+      while (depth > 0 && i < toks.length) {
+        const t = peek();
+        if (t === '{') depth += 1;
+        else if (t === '}') depth -= 1;
+        i += 1;
+      }
+    } else if (tok === 'enum') {
       throw Fail`schema parse: top-level ${tok} not supported in this subset`;
     } else {
       throw Fail`schema parse: unexpected token ${tok}`;
+    }
+  }
+
+  for (const struct of out.structs.values()) {
+    for (const f of struct.fields) rewriteCapRefs(f.type);
+    if (struct.unionMembers) {
+      for (const m of struct.unionMembers) rewriteCapRefs(m.type);
     }
   }
 
