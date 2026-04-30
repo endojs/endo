@@ -9,6 +9,7 @@
 /** @import {ReadFn, ReadPowers} from './types.js' */
 
 import { findInvalidReadNowPowersProps, isReadNowPowers } from './powers.js';
+import { resolve } from './node-module-specifier.js';
 
 const { apply } = Reflect;
 const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
@@ -80,13 +81,15 @@ export const getModulePaths = (readPowers, location) => {
  * @param {object} in.moduleEnvironmentRecord
  * @param {Compartment} in.compartment
  * @param {Record<string, string>} in.resolvedImports
- * @param {string} in.location
+ * @param {string} in.location - The full URL of the module being executed (e.g. `file:///pkg/lib/index.js`)
+ * @param {string} [in.packageLocation] - The URL of the package root (e.g. `file:///pkg/`). Used to resolve relative dynamic specifiers against the referrer module rather than the package root.
  * @param {ReadFn | ReadPowers | undefined} in.readPowers
  * @returns {{
- *   module: { exports: any },
- *   moduleExports: any,
- *   afterExecute: Function,
- *   require: Function,
+ *   module: { exports: unknown },
+ *   moduleExports: unknown,
+ *   afterExecute: () => void,
+ *   require: (specifier: string) => unknown,
+ *   importFn: (specifier: string) => Promise<unknown>,
  * }}
  */
 export const wrap = ({
@@ -94,8 +97,49 @@ export const wrap = ({
   compartment,
   resolvedImports,
   location,
+  packageLocation,
   readPowers,
 }) => {
+  // Compute the referrer specifier for this module relative to its package
+  // root. This is needed so that dynamic relative require/import specifiers
+  // (e.g. `require('./plugins/foo')` from inside `./lib/index.js`) are
+  // resolved against the calling module's path, not the package root.
+  let referrerSpecifier;
+  if (
+    packageLocation !== undefined &&
+    typeof location === 'string' &&
+    location.startsWith(packageLocation)
+  ) {
+    referrerSpecifier = `./${location.slice(packageLocation.length)}`;
+  }
+
+  /**
+   * Canonicalize a dynamic specifier relative to this module's location.
+   * Non-relative specifiers (builtins, package names) pass through unchanged.
+   *
+   * Specifiers that traverse above the package root (e.g. `../../other-pkg`)
+   * are passed through unchanged so the importNowHook can handle them by
+   * resolving against `packageLocation` instead — which is the pre-existing
+   * behavior for cross-package ancestor traversal.
+   *
+   * @param {string} importSpecifier
+   * @returns {string}
+   */
+  const canonicalize = importSpecifier => {
+    importSpecifier = `${importSpecifier}`;
+    if (
+      referrerSpecifier !== undefined &&
+      (importSpecifier.startsWith('./') || importSpecifier.startsWith('../'))
+    ) {
+      try {
+        return resolve(importSpecifier, referrerSpecifier);
+      } catch (_) {
+        // Specifier escapes the package root (e.g. `../../sibling-pkg`).
+        // Fall through so the importNowHook resolves it against packageLocation.
+      }
+    }
+    return importSpecifier;
+  };
   // This initial default value makes things like exports.hasOwnProperty() work in cjs.
   moduleEnvironmentRecord.default = create(
     compartment.globalThis.Object.prototype,
@@ -141,6 +185,7 @@ export const wrap = ({
 
   /** @param {string} importSpecifier */
   const require = importSpecifier => {
+    importSpecifier = `${importSpecifier}`;
     // if this fails, tell user
 
     /** @type {import('ses').ModuleExportsNamespace} */
@@ -148,7 +193,7 @@ export const wrap = ({
 
     if (!has(resolvedImports, importSpecifier)) {
       if (isReadNowPowers(readPowers)) {
-        namespace = compartment.importNow(importSpecifier);
+        namespace = compartment.importNow(canonicalize(importSpecifier));
       } else {
         const invalidProps = findInvalidReadNowPowersProps(readPowers).sort();
         throw new Error(
@@ -204,6 +249,19 @@ export const wrap = ({
 
   freeze(require);
 
+  /** @param {string} importSpecifier */
+  const importFn = async importSpecifier => {
+    importSpecifier = `${importSpecifier}`;
+    const specifier = has(resolvedImports, importSpecifier)
+      ? resolvedImports[importSpecifier]
+      : canonicalize(importSpecifier);
+    const ns = await compartment.import(specifier);
+
+    // eslint-disable-next-line no-underscore-dangle
+    return compartment.__noNamespaceBox__ ? ns : ns.namespace;
+  };
+  freeze(importFn);
+
   const afterExecute = () => {
     const finalExports = module.exports; // in case it's a getter, only call it once
     const exportsHaveBeenOverwritten = finalExports !== originalExports;
@@ -231,5 +289,6 @@ export const wrap = ({
     moduleExports: originalExports,
     afterExecute,
     require,
+    importFn,
   };
 };

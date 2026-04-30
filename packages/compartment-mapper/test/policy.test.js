@@ -165,97 +165,6 @@ const assertTestAlwaysThrows = t => {
   t.fail('Expected it to throw.');
 };
 
-scaffold(
-  'policy - enforcement',
-  test,
-  fixture,
-  combineAssertions(
-    makeResultAssertions(defaultExpectations),
-    assertExternalModuleNotFound,
-  ),
-  2, // expected number of assertions
-  {
-    addGlobals: globals,
-    policy,
-  },
-);
-
-scaffold(
-  'policy - enforcement with "any" policy',
-  test,
-  fixture,
-  combineAssertions(
-    makeResultAssertions(anyExpectations),
-    assertExternalModuleNotFound,
-  ),
-  2, // expected number of assertions
-  {
-    addGlobals: globals,
-    policy: anyPolicy,
-  },
-);
-
-scaffold(
-  'policy - attack - browser alias - with alias hint',
-  test,
-  fixtureAttack,
-  assertTestAlwaysThrows,
-  2, // expected number of assertions
-  {
-    shouldFailBeforeArchiveOperations: true,
-    onError: (t, { error, testCategoryHint }) => {
-      if (testCategoryHint === 'Archive') {
-        t.regex(error.message, /unknown resources found in policy/i);
-        t.snapshot(sanitizePaths(error.message), 'archive case error message');
-      } else {
-        t.regex(error.message, /cannot find external module/i);
-        t.snapshot(sanitizePaths(error.message), 'location case error message');
-      }
-      // see the snapshot for the error hint in the message
-    },
-    addGlobals: globals,
-    policy: {
-      entry: {
-        packages: {
-          eve: true,
-        },
-      },
-      resources: {
-        eve: {
-          packages: {
-            dan: true,
-          },
-        },
-        dan: {},
-      },
-    },
-    // 'eve' defines a browser override for 'dan' pointing to 'hackity'
-    conditions: new Set(['browser']),
-  },
-);
-
-// This should not be possible by spec. The browser override should be local file only.
-// Left here to guard against accidentally extending support of the browser field beyond that.
-scaffold(
-  'policy - attack - scoped module alias',
-  test,
-  fixture,
-  assertTestAlwaysThrows,
-  1, // expected number of assertions
-  {
-    onError: (t, { error }) => {
-      t.regex(
-        error.message,
-        /Cannot find file for internal module ".\/hackity".*/,
-      );
-    },
-    addGlobals: globals,
-    policy,
-    // This turns alice malicious - attempting to redirect alice.js to an outside module
-    conditions: new Set(['browser']),
-  },
-);
-
 const recursiveEdit = editor => originalPolicy => {
   const policyToAlter = JSON.parse(JSON.stringify(originalPolicy));
   const recur = obj => {
@@ -269,6 +178,7 @@ const recursiveEdit = editor => originalPolicy => {
   };
   return recur(policyToAlter);
 };
+
 const mutationEdit = editor => originalPolicy => {
   const policyToAlter = JSON.parse(JSON.stringify(originalPolicy));
   editor(policyToAlter);
@@ -319,184 +229,334 @@ const nestedAttenuator = recursiveEdit((key, obj) => {
   }
 });
 
-scaffold(
-  'policy - allow skipping policy entries for powerless compartments',
-  test,
-  fixture,
-  makeResultAssertions(powerlessCarolExpectations),
-  1, // expected number of assertions
-  {
-    addGlobals: globals,
-    policy: skipCarol(policy),
-  },
-);
+const variants = /** @type {const} */ ({
+  'namespace box': false,
+  'no namespace box': true,
+});
 
-scaffold(
-  'policy - disallowed package with error hint',
-  test,
-  fixture,
-  assertTestAlwaysThrows,
-  2, // expected number of assertions
-  {
-    shouldFailBeforeArchiveOperations: true,
-    onError: (t, { error }) => {
-      t.regex(error.message, /cannot find external module "carol"/i);
-      t.snapshot(sanitizePaths(error.message));
-    },
-    addGlobals: globals,
-    policy: disallowCarol(policy),
-  },
-);
+/**
+ * Helper to create a `Compartment` subclass that can be used to test the
+ * compartment mapper API with different "namespace box" flags.
+ *
+ * @param {boolean} [__noNamespaceBox__ ]
+ * @returns {typeof Compartment}
+ */
+const makeCompartmentConstructor = (__noNamespaceBox__ = false) =>
+  class extends Compartment {
+    constructor(options = {}) {
+      super({ ...options, __noNamespaceBox__ });
+    }
+  };
 
-scaffold(
-  'policy - globals attenuator',
-  test,
-  fixture,
-  combineAssertions(
-    makeResultAssertions(defaultExpectations),
-    async (t, { compartments }) => {
-      t.is(
-        1,
-        compartments.find(c => c.name.includes('alice')).globalThis
-          .attenuatorFlag,
-        'attenuator should have been called with access to globalThis',
-      );
-    },
-  ),
-  2, // expected number of assertions
-  {
-    addGlobals: globals,
-    policy: addAttenuatorForAllGlobals(policy),
-  },
-);
-
-scaffold(
-  'policy - default attenuator',
-  test,
-  fixture,
-  combineAssertions(
-    makeResultAssertions(defaultExpectations),
-    async (t, { compartments }) => {
-      t.is(
-        1,
-        compartments.find(c => c.name.includes('alice')).globalThis
-          .attenuatorFlag,
-        'attenuator should have been called with access to globalThis',
-      );
-    },
-  ),
-  2, // expected number of assertions
-  {
-    addGlobals: globals,
-    policy: {
-      defaultAttenuator: 'myattenuator',
-      ...implicitAttenuator(policy),
-    },
-  },
-);
-
-scaffold(
-  'policy - attenuator error aggregation',
-  test,
-  fixture,
-  assertTestAlwaysThrows,
-  2, // expected number of assertions
-  {
-    onError: (t, { error }) => {
-      const count = (string, substring) => string.split(substring).length - 1;
-      t.is(
-        count(error.message, 'Error while attenuating globals'),
-        3,
-        'attenuator errors should be aggregated',
-      );
-      t.snapshot(sanitizePaths(error.message));
-    },
-    addGlobals: globals,
-    policy: errorAttenuatorForAllGlobals(policy),
-  },
-);
-
-scaffold(
-  'policy - exitModules import',
-  test,
-  fixture,
-  makeResultAssertions(defaultExpectations),
-  1, // expected number of assertions
-  {
-    addGlobals: globals,
-    policy,
-    additionalOptions: {
-      modules: {},
-      importHook: async specifier => {
-        const ns = {
-          a: 1,
-          b: 2,
-          c: 3,
-        };
-        return Object.freeze({
-          imports: [],
-          exports: Object.keys(ns),
-          execute: moduleExports => {
-            moduleExports.default = ns;
-            Object.assign(moduleExports, ns);
-          },
-        });
+for (const [variant, __noNamespaceBox__] of Object.entries(variants)) {
+  scaffold(
+    `policy - enforcement (${variant})`,
+    test,
+    fixture,
+    combineAssertions(
+      makeResultAssertions(defaultExpectations),
+      assertExternalModuleNotFound,
+    ),
+    2, // expected number of assertions
+    {
+      addGlobals: globals,
+      policy,
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
       },
     },
-  },
-);
+  );
 
-// Counterpart of `policy - exitModules import` whose importHook returns the
-// `{ source: VirtualModuleSource }` StrictModuleDescriptor shape instead of a
-// bare virtual source. Covers the `'source' in moduleDescriptor` branch of
-// `attenuateModule` in policy.js, which the host-module-exits change added so
-// that arbitrary module descriptors can flow through the attenuating adapter.
-scaffold(
-  'policy - exitModules import returning a strict module descriptor',
-  test,
-  fixture,
-  makeResultAssertions(defaultExpectations),
-  1, // expected number of assertions
-  {
-    addGlobals: globals,
-    policy,
-    additionalOptions: {
-      modules: {},
-      importHook: async specifier => {
-        const ns = {
-          a: 1,
-          b: 2,
-          c: 3,
-        };
-        return Object.freeze({
-          source: Object.freeze({
+  scaffold(
+    `policy - enforcement with "any" policy (${variant})`,
+    test,
+    fixture,
+    combineAssertions(
+      makeResultAssertions(anyExpectations),
+      assertExternalModuleNotFound,
+    ),
+    2, // expected number of assertions
+    {
+      addGlobals: globals,
+      policy: anyPolicy,
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  scaffold(
+    `policy - attack - browser alias - with alias hint (${variant})`,
+    test,
+    fixtureAttack,
+    assertTestAlwaysThrows,
+    2, // expected number of assertions
+    {
+      shouldFailBeforeArchiveOperations: true,
+      onError: (t, { error, testCategoryHint }) => {
+        if (testCategoryHint === 'Archive') {
+          t.regex(error.message, /unknown resources found in policy/i);
+          t.snapshot(
+            sanitizePaths(error.message),
+            'archive case error message',
+          );
+        } else {
+          t.regex(error.message, /cannot find external module/i);
+          t.snapshot(
+            sanitizePaths(error.message),
+            'location case error message',
+          );
+        }
+        // see the snapshot for the error hint in the message
+      },
+      addGlobals: globals,
+      policy: {
+        entry: {
+          packages: {
+            eve: true,
+          },
+        },
+        resources: {
+          eve: {
+            packages: {
+              dan: true,
+            },
+          },
+          dan: {},
+        },
+      },
+      // 'eve' defines a browser override for 'dan' pointing to 'hackity'
+      conditions: new Set(['browser']),
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  // This should not be possible by spec. The browser override should be local file only.
+  // Left here to guard against accidentally extending support of the browser field beyond that.
+  scaffold(
+    `policy - attack - scoped module alias (${variant})`,
+    test,
+    fixture,
+    assertTestAlwaysThrows,
+    1, // expected number of assertions
+    {
+      onError: (t, { error }) => {
+        t.regex(
+          error.message,
+          /Cannot find file for internal module ".\/hackity".*/,
+        );
+      },
+      addGlobals: globals,
+      policy,
+      // This turns alice malicious - attempting to redirect alice.js to an outside module
+      conditions: new Set(['browser']),
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  scaffold(
+    `policy - allow skipping policy entries for powerless compartments (${variant})`,
+    test,
+    fixture,
+    makeResultAssertions(powerlessCarolExpectations),
+    1, // expected number of assertions
+    {
+      addGlobals: globals,
+      policy: skipCarol(policy),
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  scaffold(
+    `policy - disallowed package with error hint (${variant})`,
+    test,
+    fixture,
+    assertTestAlwaysThrows,
+    2, // expected number of assertions
+    {
+      shouldFailBeforeArchiveOperations: true,
+      onError: (t, { error }) => {
+        t.regex(error.message, /cannot find external module "carol"/i);
+        t.snapshot(sanitizePaths(error.message));
+      },
+      addGlobals: globals,
+      policy: disallowCarol(policy),
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  scaffold(
+    `policy - globals attenuator (${variant})`,
+    test,
+    fixture,
+    combineAssertions(
+      makeResultAssertions(defaultExpectations),
+      async (t, { compartments }) => {
+        t.is(
+          1,
+          compartments.find(c => c.name.includes('alice')).globalThis
+            .attenuatorFlag,
+          'attenuator should have been called with access to globalThis',
+        );
+      },
+    ),
+    2, // expected number of assertions
+    {
+      addGlobals: globals,
+      policy: addAttenuatorForAllGlobals(policy),
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  scaffold(
+    `policy - default attenuator (${variant})`,
+    test,
+    fixture,
+    combineAssertions(
+      makeResultAssertions(defaultExpectations),
+      async (t, { compartments }) => {
+        t.is(
+          1,
+          compartments.find(c => c.name.includes('alice')).globalThis
+            .attenuatorFlag,
+          'attenuator should have been called with access to globalThis',
+        );
+      },
+    ),
+    2, // expected number of assertions
+    {
+      addGlobals: globals,
+      policy: {
+        defaultAttenuator: 'myattenuator',
+        ...implicitAttenuator(policy),
+      },
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  scaffold(
+    `policy - attenuator error aggregation (${variant})`,
+    test,
+    fixture,
+    assertTestAlwaysThrows,
+    2, // expected number of assertions
+    {
+      onError: (t, { error }) => {
+        const count = (string, substring) => string.split(substring).length - 1;
+        t.is(
+          count(error.message, 'Error while attenuating globals'),
+          3,
+          'attenuator errors should be aggregated',
+        );
+        t.snapshot(sanitizePaths(error.message));
+      },
+      addGlobals: globals,
+      policy: errorAttenuatorForAllGlobals(policy),
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  scaffold(
+    `policy - exitModules import (${variant})`,
+    test,
+    fixture,
+    makeResultAssertions(defaultExpectations),
+    1, // expected number of assertions
+    {
+      addGlobals: globals,
+      policy,
+      additionalOptions: {
+        modules: {},
+        importHook: async specifier => {
+          const ns = {
+            a: 1,
+            b: 2,
+            c: 3,
+          };
+          return Object.freeze({
             imports: [],
             exports: Object.keys(ns),
             execute: moduleExports => {
               moduleExports.default = ns;
               Object.assign(moduleExports, ns);
             },
-          }),
-        });
+          });
+        },
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
       },
     },
-  },
-);
+  );
 
-scaffold(
-  'policy - nested export in attenuator',
-  test,
-  fixture,
-  combineAssertions(
+  // Counterpart of `policy - exitModules import` whose importHook returns the
+  // `{ source: VirtualModuleSource }` StrictModuleDescriptor shape instead of a
+  // bare virtual source. Covers the `'source' in moduleDescriptor` branch of
+  // `attenuateModule` in policy.js, which the host-module-exits change added so
+  // that arbitrary module descriptors can flow through the attenuating adapter.
+  scaffold(
+    `policy - exitModules import returning a strict module descriptor (${variant})`,
+    test,
+    fixture,
     makeResultAssertions(defaultExpectations),
-    assertExternalModuleNotFound,
-  ),
-  2, // expected number of assertions
-  {
-    addGlobals: globals,
-    policy: nestedAttenuator(policy),
-  },
-);
+    1, // expected number of assertions
+    {
+      addGlobals: globals,
+      policy,
+      additionalOptions: {
+        modules: {},
+        importHook: async specifier => {
+          const ns = {
+            a: 1,
+            b: 2,
+            c: 3,
+          };
+          return Object.freeze({
+            source: Object.freeze({
+              imports: [],
+              exports: Object.keys(ns),
+              execute: moduleExports => {
+                moduleExports.default = ns;
+                Object.assign(moduleExports, ns);
+              },
+            }),
+          });
+        },
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+
+  scaffold(
+    `policy - nested export in attenuator (${variant})`,
+    test,
+    fixture,
+    combineAssertions(
+      makeResultAssertions(defaultExpectations),
+      assertExternalModuleNotFound,
+    ),
+    2, // expected number of assertions
+    {
+      addGlobals: globals,
+      policy: nestedAttenuator(policy),
+      additionalOptions: {
+        Compartment: makeCompartmentConstructor(__noNamespaceBox__),
+      },
+    },
+  );
+}
 
 // Unit tests for makePackagePolicy
 test('makePackagePolicy() - no policy provided', t => {

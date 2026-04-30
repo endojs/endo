@@ -23,6 +23,7 @@
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./cjs.js": "./cjs.js",
     "./import.js": "./import.js",
     "./import-lite.js": "./import-lite.js",
     "./import-parsers.js": "./import-parsers.js",
@@ -103,7 +104,17 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
-    ]
+    ],
+    "rules": {
+      "jsdoc/check-tag-names": [
+        "error",
+        {
+          "definedTags": [
+            "remarks"
+          ]
+        }
+      ]
+    }
   },
   "prettier": {
     "arrowParens": "avoid",
