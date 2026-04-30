@@ -1,4 +1,6 @@
 {
+  "name": "endo-marshal-demo",
+  "private": true,
   "type": "module",
   "dependencies": {
     "@endo/marshal": "*"
