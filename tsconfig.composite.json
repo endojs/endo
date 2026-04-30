@@ -111,6 +111,9 @@
       "path": "packages/panic/tsconfig.composite.json"
     },
     {
+      "path": "packages/parser-pipeline/tsconfig.composite.json"
+    },
+    {
       "path": "packages/pass-style/tsconfig.composite.json"
     },
     {
