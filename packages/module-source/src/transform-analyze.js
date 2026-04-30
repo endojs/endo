@@ -1,133 +1,124 @@
-// @ts-nocheck XXX Babel types
-import { makeTransformSource } from './transform-source.js';
-import makeModulePlugins from './babel-plugin.js';
+/**
+ * Composes the ESM Babel plugin with the parse/traverse/generate cycle and
+ * the ESM functor builder.
+ *
+ * Parallel to {@link makeCjsAnalyzer} for CJS.
+ *
+ * @module
+ */
 
+import { generate as generateBabel } from '@babel/generator';
+import { parse as parseBabel } from '@babel/parser';
+import babelTraverse from '@babel/traverse';
+import { analyzeModule } from './analyzer.js';
 import * as h from './hidden.js';
 
-const { freeze } = Object;
+/**
+ * @import {ModuleSourceOptions, ModuleSourceRecord} from './types/module-source.js'
+ * @import {AnalysisOptions} from './types/analyzer.js'
+ */
 
-/** @import {Options} from './module-source.js' */
+const { default: traverseBabel } = babelTraverse;
 
-const makeCreateStaticRecord = transformSource =>
+/**
+ * Creates a module analyzer function. Call the returned function with ESM
+ * source to get a frozen `ModuleSourceRecord`.
+ *
+ * @returns {(source: string, options?: ModuleSourceOptions & AnalysisOptions) => ModuleSourceRecord}
+ */
+export const makeModuleAnalyzer = () =>
   /**
-   *
    * @param {string} moduleSource
-   * @param {Options} options
+   * @param {ModuleSourceOptions & AnalysisOptions} [options]
+   * @returns {ModuleSourceRecord}
    */
   function createStaticRecord(
     moduleSource,
-    { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook } = {},
+    { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook, allowHidden } = {},
   ) {
-    // Transform the Module source code.
-    const sourceOptions = {
-      sourceUrl,
-      sourceMap,
-      sourceMapUrl,
-      sourceMapHook,
-      sourceType: 'module',
-      // exportNames of variables that are only initialized and used, but
-      // never assigned to.
-      fixedExportMap: Object.create(null),
-      // Record of imported module specifier names to list of importNames.
-      // The importName '*' is that module's module namespace object.
-      imports: Object.create(null),
-      // List of module specifiers that we export all from.
-      exportAlls: [],
-      // exportNames of variables that are assigned to, or reexported and
-      // therefore assumed live. A reexported variable might not have any
-      // localName.
-      reexportMap: Object.create(null),
-      liveExportMap: Object.create(null),
-      hoistedDecls: [],
-      importSources: Object.create(null),
-      importDecls: [],
-      dynamicImport: { present: false },
-      // enables passing import.meta usage hints up.
-      importMeta: { present: false },
-    };
     if (moduleSource.startsWith('#!')) {
       // Comment out the shebang lines.
       moduleSource = `//${moduleSource}`;
     }
+
+    const ctx = analyzeModule({ allowHidden });
+
     let scriptSource;
     try {
-      scriptSource = transformSource(moduleSource, sourceOptions);
+      const ast = parseBabel(moduleSource, {
+        sourceType: 'module',
+        tokens: true,
+        createParenthesizedExpressions: true,
+      });
+
+      traverseBabel(ast, ctx.analyzePass.visitor);
+      traverseBabel(ast, ctx.transformPass.visitor);
+
+      const { code: transformedSource, map: transformedSourceMap } =
+        generateBabel(
+          ast,
+          {
+            sourceFileName: sourceMapUrl,
+            sourceMaps: !!sourceMapHook,
+            // @ts-expect-error undocumented option
+            inputSourceMap: sourceMap,
+            experimental_preserveFormat: true,
+            preserveFormat: true,
+            retainLines: true,
+            verbatim: true,
+          },
+          moduleSource,
+        );
+
+      if (sourceMapHook && transformedSourceMap) {
+        sourceMapHook(transformedSourceMap, {
+          sourceUrl,
+          sourceMapUrl,
+          source: moduleSource,
+        });
+      }
+
+      scriptSource = transformedSource;
     } catch (err) {
       const moduleLocation = sourceUrl
         ? JSON.stringify(sourceUrl)
         : '<unknown>';
       throw SyntaxError(
-        `Error transforming source in ${moduleLocation}: ${err.message}`,
+        `Error transforming source in ${moduleLocation}: ${/** @type {Error} */ (err).message}`,
         { cause: err },
       );
     }
 
-    let preamble = sourceOptions.importDecls.join(',');
-    if (preamble !== '') {
-      preamble = `let ${preamble};`;
-    }
-    const js = JSON.stringify;
-    const isrc = sourceOptions.importSources;
-    preamble += `${h.HIDDEN_IMPORTS}([${Object.keys(isrc)
-      .map(
-        src =>
-          `[${js(src)}, [${Object.entries(isrc[src])
-            .map(([exp, upds]) => `[${js(exp)},[${upds.join(',')}]]`)
-            .join(',')}]]`,
-      )
-      .join(',')}]);`;
-    preamble += sourceOptions.hoistedDecls
-      .map(([vname, isOnce, cvname]) => {
-        let src = '';
-        if (cvname) {
-          // It's a function assigned to, so set its name property.
-          src = `Object.defineProperty(${cvname},'name',{value:${js(vname)}});`;
-        }
-        const hDeclId = isOnce ? h.HIDDEN_ONCE : h.HIDDEN_LIVE;
-        src += `${hDeclId}.${vname}(${cvname || ''});`;
-        return src;
-      })
-      .join('');
-
-    // The outer function destructures the module calling convention's internal
-    // variables into hidden lexical variables.
-    // The inner function binds `this` to `undefined` and overshadows the
-    // evaluator's `arguments` with a completely empty `arguments` object.
-    // There is no avoiding the overshadowing of `globalThis.arguments` if it
-    // exists in this emulation of ESM since the evaluator binds `arguments` as
-    // well.
-    // Relies on the evaluator to ensure these functions are strict.
-    let functorSource = `\
-({imports:${h.HIDDEN_IMPORTS},liveVar:${h.HIDDEN_LIVE},onceVar:${h.HIDDEN_ONCE},import:${h.HIDDEN_IMPORT},importMeta:${h.HIDDEN_META}})=>(function(){'use strict';\
-${preamble}\
-${scriptSource}
-})()
-`;
-
-    if (sourceUrl) {
-      functorSource += `//# sourceURL=${sourceUrl}\n`;
-    }
-    const moduleAnalysis = freeze({
-      exportAlls: freeze(sourceOptions.exportAlls),
-      imports: freeze(sourceOptions.imports),
-      liveExportMap: freeze(sourceOptions.liveExportMap),
-      fixedExportMap: freeze(sourceOptions.fixedExportMap),
-      reexportMap: freeze(sourceOptions.reexportMap),
-      needsImport: sourceOptions.dynamicImport.present,
-      needsImportMeta: sourceOptions.importMeta.present,
-      functorSource,
-    });
-    return moduleAnalysis;
+    return ctx.buildRecord(scriptSource, sourceUrl);
   };
 
-export const makeModuleAnalyzer = babel => {
-  const transformSource = makeTransformSource(makeModulePlugins, babel);
-  return makeCreateStaticRecord(transformSource);
-};
+// TODO: May be unused; referenced only in ses/test262
+export const makeModuleTransformer = (_babel, importer) => {
+  const createStaticRecord = makeModuleAnalyzer();
 
-export const makeModuleTransformer = (babel, importer) => {
-  const transformSource = makeTransformSource(makeModulePlugins, babel);
-  const createStaticRecord = makeCreateStaticRecord(transformSource);
+  /**
+   * Transforms ESM or script source for evaluation in a compartment.
+   * For the script/expression path we re-run a minimal parse+traverse+generate
+   * to rewrite dynamic `import()` calls, mirroring what the analyze pass does.
+   *
+   * @param {string} source
+   * @param {{ allowHidden?: boolean, sourceType?: string }} options
+   * @returns {string}
+   */
+  const transformSource = (source, options = {}) => {
+    const { allowHidden = false } = options;
+    const ctx = analyzeModule({ allowHidden });
+    const ast = parseBabel(source, {
+      sourceType: 'script',
+      tokens: true,
+      createParenthesizedExpressions: true,
+    });
+    // Only run the transform pass (rewrites import() calls)
+    traverseBabel(ast, ctx.transformPass.visitor);
+    const { code } = generateBabel(ast, {}, source);
+    return code;
+  };
+
   return {
     rewrite(ss) {
       // Transform the source into evaluable form.
