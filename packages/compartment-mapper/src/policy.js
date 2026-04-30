@@ -557,3 +557,35 @@ export const attenuateModuleHook = async (
     originalModuleRecord,
   });
 };
+
+/**
+ * Returns the set of canonical names referenced in `policy` that do not exist
+ * in the provided `canonicalNames` set.
+ *
+ * @param {Set<CanonicalName>} canonicalNames Set of all known canonical names
+ * @param {SomePolicy} policy Policy to inspect
+ * @returns {Set<CanonicalName>} Set of unknown canonical names found in the policy
+ */
+
+export const findUnknownCanonicalNames = (canonicalNames, policy) => {
+  /** @type {Set<CanonicalName>} */
+  const unknown = new Set();
+  for (const [resourceName, resourcePolicy] of entries(
+    policy.resources ?? {},
+  )) {
+    if (!canonicalNames.has(resourceName)) {
+      unknown.add(resourceName);
+    }
+    if (
+      resourcePolicy?.packages &&
+      typeof resourcePolicy.packages === 'object'
+    ) {
+      for (const packageName of keys(resourcePolicy.packages)) {
+        if (!canonicalNames.has(packageName)) {
+          unknown.add(packageName);
+        }
+      }
+    }
+  }
+  return unknown;
+};
