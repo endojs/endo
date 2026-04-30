@@ -9,6 +9,7 @@ import harden from '@endo/harden';
 import { decodeSpecial, isSpecialTag, isRefTag } from './special-values.js';
 import { decodeHeaders, decodeRequest, decodeResponse } from './fetch-codec.js';
 import { importWritableStream, importReadableStream } from './streams.js';
+import { isForbiddenKey } from './path-keys.js';
 
 /**
  * @typedef {object} EvaluatorContext
@@ -121,7 +122,7 @@ export const makeEvaluator = ctx => {
       /** @type {Record<string, unknown>} */
       const out = {};
       for (const [k, v] of Object.entries(/** @type {object} */ (expr))) {
-        if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+        if (!isForbiddenKey(k)) {
           Object.defineProperty(out, k, {
             value: evaluate(v),
             writable: true,

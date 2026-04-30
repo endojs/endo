@@ -24,11 +24,11 @@
 import harden from '@endo/harden';
 import { HandledPromise } from '@endo/eventual-send';
 
-const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+import { isForbiddenKey } from './path-keys.js';
 
 const checkSegment = seg => {
-  if (typeof seg === 'string' && FORBIDDEN_KEYS.has(seg)) {
-    throw new TypeError(`forbidden property name in path: ${seg}`);
+  if (isForbiddenKey(seg)) {
+    throw new TypeError(`forbidden property name in path: ${String(seg)}`);
   }
   return seg;
 };

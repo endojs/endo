@@ -373,8 +373,11 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     const qid = nextIncomingPushId;
     nextIncomingPushId += 1;
 
+    // executePushExpression is already async; we don't need an extra
+    // wrapper.  Promise.resolve coerces a possibly-sync throw into a
+    // rejected promise.
     /** @type {Promise<unknown>} */
-    const answer = (async () => executePushExpression(expr))();
+    const answer = Promise.resolve().then(() => executePushExpression(expr));
     // Suppress unhandled-rejection warnings if the peer never pulls — the
     // export sits in our table waiting for either pull or release.  A
     // no-op observer is enough; handlePull's own await will still see the
@@ -421,11 +424,14 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       ) {
         throw new TypeError('invalid remap expression');
       }
-      const targetExpr =
+      // Resolve the subject directly: look up our local export at `id`,
+      // and walk the propertyPath.  No need to recurse via
+      // executePushExpression for what's effectively a get.
+      const root = lookupReferenceForExecution(id);
+      const target =
         Array.isArray(path) && path.length > 0
-          ? ['pipeline', id, path]
-          : ['pipeline', id];
-      const target = await Promise.resolve(executePushExpression(targetExpr));
+          ? await walkPathAndCall(root, path, undefined)
+          : await Promise.resolve(root);
       const captures = capturesExpr.map(c => evaluator.evaluate(c));
       // capnweb's apply-map iterates an array input element-by-element;
       // for a non-array target we apply once.  We follow the same shape.

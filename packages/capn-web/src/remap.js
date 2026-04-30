@@ -24,13 +24,15 @@
 
 import harden from '@endo/harden';
 
+import { isForbiddenKey } from './path-keys.js';
+
 const PLACEHOLDER = Symbol('capnweb.remap.placeholder');
 
-const FORBIDDEN_PATH_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-
 const checkPathSegment = seg => {
-  if (typeof seg === 'string' && FORBIDDEN_PATH_KEYS.has(seg)) {
-    throw new TypeError(`forbidden property name in remap path: ${seg}`);
+  if (isForbiddenKey(seg)) {
+    throw new TypeError(
+      `forbidden property name in remap path: ${String(seg)}`,
+    );
   }
 };
 

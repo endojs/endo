@@ -41,6 +41,7 @@ import {
   encodeResponse,
 } from './fetch-codec.js';
 import { exportWritableStream, exportReadableStream } from './streams.js';
+import { isForbiddenKey } from './path-keys.js';
 
 const G = /** @type {any} */ (globalThis);
 
@@ -177,7 +178,7 @@ export const makeDevaluator = ctx => {
         /** @type {Record<string, unknown>} */
         const out = {};
         for (const [k, v] of Object.entries(/** @type {object} */ (value))) {
-          if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+          if (!isForbiddenKey(k)) {
             out[k] = devaluateInner(v, seen);
           }
         }

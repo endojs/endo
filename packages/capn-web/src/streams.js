@@ -33,51 +33,44 @@ export const haveWebStreams =
 
 /**
  * Wrap a JS WritableStream so it can be sent over the wire as a Far'd
- * write-end.  The first call locks the underlying stream's writer.
+ * write-end.  The underlying stream's writer is locked eagerly at export
+ * time — concurrent calls from the peer can't race a lazy `getWriter`.
  *
  * @param {WritableStream} ws
  */
 export const exportWritableStream = ws => {
   /** @type {any} */
-  let writer;
-  const ensureWriter = () => {
-    if (!writer) writer = ws.getWriter();
-    return writer;
-  };
+  const writer = ws.getWriter();
   return Far('writable', {
     write: async chunk => {
-      await ensureWriter().write(chunk);
+      await writer.write(chunk);
     },
     close: async () => {
-      await ensureWriter().close();
+      await writer.close();
     },
     abort: async reason => {
-      await ensureWriter().abort(reason);
+      await writer.abort(reason);
     },
   });
 };
 
 /**
  * Wrap a JS ReadableStream so it can be sent over the wire as a Far'd
- * read-end with `read()` and `cancel()` methods.  Each `read()` returns
- * `{value, done}` exactly like the standard reader.
+ * read-end with `read()` and `cancel()` methods.  The reader is locked
+ * eagerly at export time so concurrent peer calls can't race.
  *
  * @param {ReadableStream} rs
  */
 export const exportReadableStream = rs => {
   /** @type {any} */
-  let reader;
-  const ensureReader = () => {
-    if (!reader) reader = rs.getReader();
-    return reader;
-  };
+  const reader = rs.getReader();
   return Far('readable', {
     read: async () => {
-      const { value, done } = await ensureReader().read();
+      const { value, done } = await reader.read();
       return harden({ value, done });
     },
     cancel: async reason => {
-      await ensureReader().cancel(reason);
+      await reader.cancel(reason);
     },
   });
 };

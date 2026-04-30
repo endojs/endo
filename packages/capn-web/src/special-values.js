@@ -7,7 +7,7 @@
 
 import harden from '@endo/harden';
 
-const { isNaN, isFinite } = Number;
+const { isNaN } = Number;
 
 // AggregateError is ES2021 and may be missing in some constrained
 // runtimes; guard so module evaluation doesn't fail.
@@ -24,13 +24,6 @@ const ERROR_TYPES = harden({
 });
 
 const ERROR_TYPE_NAMES = harden(Object.keys(ERROR_TYPES));
-
-/**
- * @param {unknown} v
- * @returns {boolean}
- */
-export const isSpecialNumber = v =>
-  typeof v === 'number' && (isNaN(v) || !isFinite(v));
 
 /**
  * Encode a Uint8Array to base64.  Works in both browsers (btoa) and Node.
