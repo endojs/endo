@@ -9,6 +9,11 @@
 import { makeError, q, X } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 
+import {
+  SANDBOX_FACTORY_NAME,
+  WORKSPACE_MOUNT_NAME,
+} from './src/pet-names.js';
+
 const genieSpecifier = new URL('main.js', import.meta.url).href;
 
 /**
@@ -25,36 +30,6 @@ const sandboxAgentSpecifier = new URL(
   '../sandbox/src/agent.js',
   import.meta.url,
 ).href;
-
-/**
- * Pet name under which the host agent pins the workspace `Mount`
- * capability covering `GENIE_WORKSPACE`.  `main.js` looks this name
- * up in `powers` on boot to obtain the mount it threads into the
- * sandbox slice (`mounts: [{ cap: workspaceMount, innerPath:
- * '/workspace', mode: 'rw' }]`).  Kept as a single source of truth
- * so the launcher and `main.js` cannot drift on the name.
- *
- * See `TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md`
- * § Decisions 1 + 3 for the rationale: the slice is minted main-side,
- * but the mount it consumes must already exist in the host pet store
- * before `main-genie` boots, hence its provisioning is the one new
- * responsibility `setup.js` takes on.
- */
-const WORKSPACE_MOUNT_NAME = 'workspace-mount';
-
-/**
- * Pet name under which the host agent pins the
- * `SandboxFactory` exo returned by `@endo/sandbox`'s
- * `make-unconfined` entry point.  `main.js` resolves this from
- * `powers` on boot to mint its workspace slice
- * (`main-genie-sandbox`) — see TADA/22 § Decision 1: the slice is
- * minted main-side because `MakeCapletOptionsShape` has no
- * `introducedNames` channel today, so the factory must be reachable
- * via the host pet store rather than threaded through
- * `makeUnconfined`'s `env`.  Kept as a single source of truth so
- * the launcher and `main.js` cannot drift on the name.
- */
-const SANDBOX_FACTORY_NAME = 'sandbox-factory';
 
 /**
  * Launch the genie root agent as an unconfined worklet running under

@@ -58,6 +58,11 @@ import {
   loadConfig as loadPersistedConfig,
   saveConfig as savePersistedConfig,
 } from './src/primordial/persistence.js';
+import {
+  SANDBOX_FACTORY_NAME,
+  SANDBOX_SLICE_NAME,
+  WORKSPACE_MOUNT_NAME,
+} from './src/pet-names.js';
 
 /** @import { Observer } from './src/observer/index.js' */
 /** @import { Reflector } from './src/reflector/index.js' */
@@ -131,13 +136,25 @@ export const make = (powers, _context, { env = {} } = {}) => {
    * Build the tool registry for the daemon-hosted genie.
    *
    * @param {string} workspaceDir - Root directory for file tools
+   * @param {import('./src/tools/registry.js').SandboxSlice} [slice]
+   *   - Optional persistent workspace `SandboxHandle` minted by
+   *     `runRootAgent` per `TODO/34_endo_genie_sandbox_main_wiring.md`.
+   *     Threaded into `buildGenieTools` so sub-task 35
+   *     (`TODO/35_endo_genie_sandbox_tool_spawn.md`) can route
+   *     `bash` / `exec` / `git` spawns through `E(slice).spawn(...)`
+   *     rather than the host `child_process.spawn`.  The legacy
+   *     `spawnAgent` path leaves it absent (its child guests do not
+   *     yet have a per-child slice — that's the 23 / sub-agent
+   *     follow-up); the `runRootAgent` cold-boot path passes the
+   *     `main-genie-sandbox` handle minted at boot.
    */
-  const buildTools = workspaceDir => {
+  const buildTools = (workspaceDir, slice) => {
     const searchBackend = makeFTS5Backend({ dbDir: workspaceDir });
     return buildGenieTools({
       workspaceDir,
       include: PLUGIN_DEFAULT_INCLUDE,
       searchBackend,
+      slice,
     });
   };
 
@@ -1118,8 +1135,8 @@ export const make = (powers, _context, { env = {} } = {}) => {
     // Build introducedNames: only grant capabilities the child needs.
     /** @type {Record<string, string>} */
     const introducedNames = {};
-    if (await E(hostAgent).has('workspace-mount')) {
-      introducedNames['workspace-mount'] = 'workspace';
+    if (await E(hostAgent).has(WORKSPACE_MOUNT_NAME)) {
+      introducedNames[WORKSPACE_MOUNT_NAME] = 'workspace';
     }
 
     // Guard idempotency — on restart the guest already exists.
@@ -1342,6 +1359,85 @@ export const make = (powers, _context, { env = {} } = {}) => {
       );
     }
 
+    // ── Sandbox slice resolution ──────────────────────────────────
+    // Per `TODO/34_endo_genie_sandbox_main_wiring.md` (Decision 1 of
+    // `TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md`), the
+    // root genie mints its workspace `SandboxHandle` main-side from
+    // capabilities the launcher (`setup.js`) pinned in the host pet
+    // store: `sandbox-factory` (the `@endo/sandbox` `SandboxFactory`)
+    // and `workspace-mount` (the `Mount` covering `GENIE_WORKSPACE`).
+    //
+    // `makePersistent(name, opts)` (sub-task 33) records the resolved
+    // spec on disk and returns the same handle on re-deref, so a
+    // daemon restart reincarnates the slice without operator
+    // intervention.  We pin under `main-genie-sandbox`
+    // (`SANDBOX_SLICE_NAME`).
+    //
+    // Both lookups are tolerant: a missing capability (e.g. the
+    // `self-boot.test.js` harness, which calls `makeUnconfined`
+    // directly without `setup.js`, or a deployment that opted out of
+    // the sandbox plugin) downgrades to `slice = undefined`.  The tool
+    // registry already documents that consumers must handle the
+    // missing-slice case; sub-task 35 will pick the policy
+    // (host-spawn fallback vs hard refusal) at the `makeCommandTool`
+    // chokepoint.
+    /** @type {import('./src/tools/registry.js').SandboxSlice | undefined} */
+    let workspaceSlice;
+    if (
+      (await E(rootPowers).has(SANDBOX_FACTORY_NAME)) &&
+      (await E(rootPowers).has(WORKSPACE_MOUNT_NAME))
+    ) {
+      try {
+        const factory = await E(rootPowers).lookup(SANDBOX_FACTORY_NAME);
+        const workspaceMount = await E(rootPowers).lookup(
+          WORKSPACE_MOUNT_NAME,
+        );
+        workspaceSlice =
+          /** @type {import('./src/tools/registry.js').SandboxSlice} */ (
+            await E(factory).makePersistent(
+              SANDBOX_SLICE_NAME,
+              harden({
+                rootfs: { kind: 'host-bind' },
+                mounts: [
+                  {
+                    cap: workspaceMount,
+                    innerPath: '/workspace',
+                    mode: 'rw',
+                  },
+                ],
+                network: 'private',
+                backend: 'auto',
+              }),
+            )
+          );
+        console.log(
+          `[genie:${agentName}] Workspace sandbox minted (${SANDBOX_SLICE_NAME}, network: private, backend: auto)`,
+        );
+      } catch (err) {
+        // Mint failure is best-effort: the bottle does not yet have a
+        // hard contract that tools must run through the slice (sub-
+        // task 35 will tighten that).  Log loudly so an operator on a
+        // mis-configured host (no bwrap / no podman / kernel feature
+        // floor unmet) can correlate the warning with the
+        // `listBackends()` probe output.
+        console.warn(
+          `[genie:${agentName}] Failed to mint workspace sandbox slice (${SANDBOX_SLICE_NAME}); proceeding without slice. Reason: ${
+            /** @type {Error} */ (err).message || String(err)
+          }`,
+        );
+        workspaceSlice = undefined;
+      }
+    } else {
+      // Missing-capability path is expected on the daemon self-boot
+      // test (which bypasses `setup.js`) and on deployments that opt
+      // out of the sandbox plugin.  Log at INFO so the trace remains
+      // useful without alarming an operator who deliberately skipped
+      // setup.js's sandbox-factory registration.
+      console.log(
+        `[genie:${agentName}] Sandbox capabilities not pinned (sandbox-factory present: ${await E(rootPowers).has(SANDBOX_FACTORY_NAME)}, workspace-mount present: ${await E(rootPowers).has(WORKSPACE_MOUNT_NAME)}) — proceeding without slice.`,
+      );
+    }
+
     // Cancellation kit — resolving `cancel` signals all sub-systems
     // (agent loop, heartbeat, etc.) to tear down.
     const { promise: cancelledP, resolve: cancel } = makePromiseKit();
@@ -1397,7 +1493,11 @@ export const make = (powers, _context, { env = {} } = {}) => {
      *   - The shared mode/agent-pack carrier.  Mutated in place.
      */
     const activatePiAgent = async ({ modelString, state }) => {
-      const genieTools = buildTools(workspaceDir);
+      // `workspaceSlice` is captured from the surrounding
+      // `runRootAgent` closure (minted above the mode branch so the
+      // primordial → piAgent hand-off and the cold-boot piAgent path
+      // share a single handle).
+      const genieTools = buildTools(workspaceDir, workspaceSlice);
 
       // Assemble the shared agent pack.  See `spawnAgent` for the
       // same wiring under a child-guest identity.

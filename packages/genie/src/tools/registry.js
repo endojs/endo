@@ -26,6 +26,20 @@ import { webSearch } from './web-search.js';
 
 /** @import { Tool } from './common.js' */
 /** @import { SearchBackend } from './memory.js' */
+/** @import { ERef } from '@endo/eventual-send' */
+
+/**
+ * Capability shape the registry hands down to `makeCommandTool`.  The
+ * full shape lives in `@endo/sandbox/src/types.d.ts` (`SandboxHandle`);
+ * the tool layer only ever calls `spawn(argv, opts)` against it, so we
+ * type the field structurally here to avoid pulling `@endo/sandbox`
+ * into the genie package's dependency graph.  Sub-task 35 of
+ * `TODO/35_endo_genie_sandbox_tool_spawn.md` is the consumer.
+ *
+ * @typedef {ERef<{
+ *   spawn: (argv: string[], opts?: object) => Promise<unknown>
+ * }>} SandboxSlice
+ */
 
 /**
  * A group of tools that can be toggled on or off via the `include`
@@ -90,6 +104,16 @@ export const PLUGIN_DEFAULT_INCLUDE = harden([
  *     Used by observer and reflector sub-agents.
  *     Missing when the caller did not supply one
  *     (the memory tools then use an internal substring backend that is not re-exposed here).
+ * @property {SandboxSlice} [slice]
+ *   - The persistent workspace `SandboxHandle` minted by `main.js`
+ *     (`TODO/34_endo_genie_sandbox_main_wiring.md`).  Re-exposed on
+ *     the registry so sub-task 35's `makeCommandTool` can route
+ *     `bash` / `exec` / `git` spawns through `E(slice).spawn(...)`
+ *     instead of the host `child_process.spawn`.  Absent when the
+ *     caller did not supply one (e.g. `dev-repl.js`, the daemon
+ *     self-boot test, or a future deployment that opts out of the
+ *     sandbox slice).  Sub-task 35 wires the consumption side; this
+ *     sub-task only threads the cap through.
  */
 
 /**
@@ -106,11 +130,21 @@ export const PLUGIN_DEFAULT_INCLUDE = harden([
  * @param {readonly GenieToolGroup[]} [options.include]
  *   - An empty list builds an empty registry.
  * @param {SearchBackend} [options.searchBackend]
+ * @param {SandboxSlice} [options.slice]
+ *   - Optional persistent workspace `SandboxHandle` minted by
+ *     `main.js` per `TODO/34_endo_genie_sandbox_main_wiring.md`.
+ *     Sub-task 35 (`TODO/35_endo_genie_sandbox_tool_spawn.md`) will
+ *     wire `makeCommandTool` to consume it; this sub-task only
+ *     threads it through the registry so the slice cap survives the
+ *     hand-off without further `main.js` changes.  Absent when no
+ *     slice is available — the consumer (sub-task 35) is responsible
+ *     for falling back to host spawn or refusing.
  * @returns {GenieTools}
  */
 export const buildGenieTools = ({
   workspaceDir,
   searchBackend,
+  slice,
   include = PLUGIN_DEFAULT_INCLUDE,
 }) => {
   const groups = new Set(include);
@@ -206,6 +240,7 @@ export const buildGenieTools = ({
     execTool,
     memoryTools,
     searchBackend,
+    slice,
   });
 };
 harden(buildGenieTools);
