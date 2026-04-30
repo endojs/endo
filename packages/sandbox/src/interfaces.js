@@ -149,6 +149,9 @@ export const SandboxFactoryInterface = M.interface('SandboxFactory', {
   help: M.call().optional(M.string()).returns(M.string()),
   listBackends: M.call().returns(M.promise()),
   make: M.call(SandboxMakeOptsShape).returns(M.promise()),
+  makePersistent: M.call(M.string(), SandboxMakeOptsShape).returns(M.promise()),
+  listPersistent: M.call().returns(M.promise()),
+  forgetPersistent: M.call(M.string()).returns(M.promise()),
 });
 harden(SandboxFactoryInterface);
 

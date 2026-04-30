@@ -283,6 +283,65 @@ export type SandboxFactory = FarRef<{
   listBackends(): Promise<BackendProbe[]>;
   /** Mint a new sandbox slice. */
   make(opts: SandboxMakeOpts): Promise<SandboxHandle>;
+  /**
+   * Mint (or re-mint) a slice and pin it under a stable `name` so that
+   * subsequent `makePersistent(name, opts)` calls within the same
+   * factory instance return the same `SandboxHandle` rather than
+   * spawning a parallel slice.
+   *
+   * The caller-supplied `opts` are resolved against the factory's
+   * powers in the usual way (Mount caps to host paths, scratch mount
+   * acquired, etc.) and the resulting `SliceSpec` is recorded on disk
+   * under the daemon-managed scratch directory keyed by `name`
+   * (`sandbox-persistent-${name}`).  The recorded spec captures the
+   * resolved host paths, network profile, backend selector, and
+   * seccomp policy summary — Mount caps are explicitly NOT serialised
+   * because Endo capabilities do not survive a process restart on
+   * their own; the caller is expected to re-supply equivalent caps
+   * across daemon restarts (the same cap by formula identity, in the
+   * `provideMount` / `provideScratchMount` idiom).
+   *
+   * Reincarnation contract: the `SandboxFactory` itself is pinned by
+   * its `make-unconfined` formula in the host pet store, so a daemon
+   * restart reincarnates the factory.  The factory's in-memory
+   * `name → handle` map does not survive that restart; the caller's
+   * idempotent boot path (the genie's `setup.js` / `main.js` in the
+   * Phase 3.5a wiring) re-invokes `makePersistent(name, opts)` with
+   * the same opts and the factory re-mints the slice from the same
+   * resolved spec.  The on-disk record is the canonical source of
+   * truth for spec drift detection between sessions.
+   *
+   * @param name  Pet-name-shaped identifier; must be a non-empty
+   *              string with no path separators (validated at the
+   *              capability boundary).
+   * @param opts  Same shape as `make()`; rootfs is required, network
+   *              defaults to `'none'`, backend defaults to `'auto'`.
+   */
+  makePersistent(
+    name: string,
+    opts: SandboxMakeOpts,
+  ): Promise<SandboxHandle>;
+  /**
+   * List the persistent slice names currently pinned by the factory.
+   * Returns a hardened array of `{ name, network, backend }` entries
+   * (the minimum the factory tracks in-memory; the full recorded spec
+   * lives on disk under each slice's scratch mount).
+   */
+  listPersistent(): Promise<
+    ReadonlyArray<{
+      name: string;
+      network: NetworkProfile;
+      backend: BackendSelector;
+    }>
+  >;
+  /**
+   * Drop a persistent slice's in-memory pin.  The handle's `dispose()`
+   * is invoked synchronously and the on-disk record is left in place
+   * (a fresh `makePersistent(name, opts)` call after `forget` re-uses
+   * the same scratch directory).  Returns `true` when an entry was
+   * forgotten, `false` when no such name was known.
+   */
+  forgetPersistent(name: string): Promise<boolean>;
 }>;
 
 /**
