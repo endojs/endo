@@ -23,7 +23,11 @@ import {
   ENTRY_COMPARTMENT,
   generateCanonicalName,
 } from './policy-format.js';
-import { dependencyAllowedByPolicy, makePackagePolicy } from './policy.js';
+import {
+  dependencyAllowedByPolicy,
+  makePackagePolicy,
+  findUnknownCanonicalNames,
+} from './policy.js';
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
 import { GenericGraph, makeShortestPath } from './generic-graph.js';
@@ -1269,73 +1273,6 @@ const finalizeGraph = (
 };
 
 /**
- * Returns an array of "issue" objects if any resources referenced in `policy`
- * are unknown.
- *
- * @param {Set<CanonicalName>} canonicalNames Set of all known canonical names
- * @param {SomePolicy} policy Policy to validate
- * @returns {Array<{canonicalName: CanonicalName, message: string, path:
- * string[], suggestion?: CanonicalName}>} Array of issue objects, or `undefined` if no issues were
- * found
- */
-const validatePolicyResources = (canonicalNames, policy) => {
-  /**
-   * Finds a suggestion for `badName` if it is a suffix of any
-   * canonical name in `canonicalNames`.
-   *
-   * @param {string} badName Unknown canonical name
-   * @returns {CanonicalName | undefined}
-   */
-  const findSuggestion = badName => {
-    for (const canonicalName of canonicalNames) {
-      if (canonicalName.endsWith(`>${badName}`)) {
-        return canonicalName;
-      }
-    }
-    return undefined;
-  };
-
-  /** @type {Array<{canonicalName: CanonicalName, message: string, path: string[], suggestion?: CanonicalName}>} */
-  const issues = [];
-  for (const [resourceName, resourcePolicy] of entries(
-    policy.resources ?? {},
-  )) {
-    if (!canonicalNames.has(resourceName)) {
-      const issueMessage = `Resource ${q(resourceName)} was not found`;
-      const suggestion = findSuggestion(resourceName);
-      const issue = {
-        canonicalName: resourceName,
-        message: issueMessage,
-        path: ['resources', resourceName],
-      };
-      if (suggestion) {
-        issue.suggestion = suggestion;
-      }
-      issues.push(issue);
-    }
-    if (typeof resourcePolicy?.packages === 'object') {
-      for (const packageName of keys(resourcePolicy.packages)) {
-        if (!canonicalNames.has(packageName)) {
-          const issueMessage = `Resource ${q(packageName)} from resource ${q(resourceName)} was not found`;
-          const suggestion = findSuggestion(packageName);
-          const issue = {
-            canonicalName: packageName,
-            message: issueMessage,
-            path: ['resources', resourceName, 'packages', packageName],
-          };
-          if (suggestion) {
-            issue.suggestion = suggestion;
-          }
-          issues.push(issue);
-        }
-      }
-    }
-  }
-
-  return issues;
-};
-
-/**
  * @param {ReadFn | ReadPowers<FileUrlString> | MaybeReadPowers<FileUrlString>} readPowers
  * @param {FileUrlString} entryPackageLocation
  * @param {Set<string>} conditionsOption
@@ -1472,8 +1409,8 @@ export const compartmentMapForNodeModules_ = async (
   // of known canonical names and fire the `unknownCanonicalName` hook for each
   // unknown resource, if found
   if (policy) {
-    const canonicalNames = new Set(canonicalNameMap.keys());
-    const issues = validatePolicyResources(canonicalNames, policy) ?? [];
+    const knownCanonicalNames = new Set(canonicalNameMap.keys());
+    const issues = findUnknownCanonicalNames(knownCanonicalNames, policy);
     // Call default handler first if policy exists
     for (const { message, canonicalName, path, suggestion } of issues) {
       const hookInput = {
