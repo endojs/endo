@@ -2,6 +2,7 @@
     "extends": "./tsconfig.eslint-base.json",
     "compilerOptions": {
         "allowSyntheticDefaultImports": true,
+        "skipLibCheck": true,
     },
     "exclude": [
         "api-docs",
