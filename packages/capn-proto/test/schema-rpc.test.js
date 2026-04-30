@@ -10,7 +10,12 @@
  */
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
-import { E, makeLoopback, loadSchema } from '../src/index.js';
+import {
+  E,
+  makeLoopback,
+  loadSchema,
+  makeInterfaceRegistry,
+} from '../src/index.js';
 
 const SERVICE_ID = 0xa1b2c3d4e5f60707n;
 
