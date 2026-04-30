@@ -9,6 +9,10 @@ const { is } = Object;
 // or refactor to something less irritating than duplication.
 
 test('taming NaN32 DataView side-channel', t => {
+  t.is(typeof Float32Array, 'function');
+  t.true('getFloat32' in DataView.prototype);
+  t.true('setFloat32' in DataView.prototype);
+
   const canonicalNaN32Encoding = 0x7fc00000;
   const otherNaN32Encoding = 0xfff80000;
 
@@ -41,7 +45,7 @@ test('taming NaN32 DataView side-channel', t => {
   const dirtyNaNEncoding = bufferView.getUint32(0);
   // We cannot test for non-canonical, since it depends on the platform.
   // Instead, we just show it.
-  t.log('before lockdown() otherNaN ->', show(dirtyNaNEncoding), 'NaN');
+  t.log('before lockdown() other NaN ->', show(dirtyNaNEncoding), 'NaN');
 
   lockdown();
   bufferView.setUint32(0, otherNaN32Encoding);

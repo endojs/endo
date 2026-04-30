@@ -6,6 +6,7 @@ import {
   TypeError,
   RangeError,
   Math,
+  hasOwn,
 } from './commons.js';
 
 const { is, defineProperty, entries } = Object;
@@ -217,10 +218,12 @@ const methods = {
  */
 export const tameNaNSideChannel = () => {
   for (const [name, method] of entries(methods)) {
-    defineProperty(dataViewPrototype, name, {
-      // Since we're redefining properties that already exist, by omitting the
-      // other descriptor attributes here, they are unchanged.
-      value: method,
-    });
+    if (hasOwn(dataViewPrototype, name)) {
+      defineProperty(dataViewPrototype, name, {
+        // Since we're redefining properties that already exist, by omitting the
+        // other descriptor attributes here, they are unchanged.
+        value: method,
+      });
+    }
   }
 };

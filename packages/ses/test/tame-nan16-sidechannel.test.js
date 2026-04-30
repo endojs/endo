@@ -11,9 +11,18 @@ const { is } = Object;
 test('taming NaN16 DataView side-channel', t => {
   if (typeof Float16Array !== 'function') {
     t.log('platform does yet support float16');
-    t.pass('platform does yet support float16');
+    t.false('getFloat16' in DataView.prototype);
+    t.false('setFloat16' in DataView.prototype);
+
+    lockdown();
+    // Preserve feature testability
+    t.false('getFloat16' in DataView.prototype);
+    t.false('setFloat16' in DataView.prototype);
     return;
   }
+  t.true('getFloat16' in DataView.prototype);
+  t.true('setFloat16' in DataView.prototype);
+
   const canonicalNaN16Encoding = 0x7e00;
   const otherNaN16Encoding = 0xfff8;
 
@@ -46,7 +55,7 @@ test('taming NaN16 DataView side-channel', t => {
   const dirtyNaNEncoding = bufferView.getUint16(0);
   // We cannot test for non-canonical, since it depends on the platform.
   // Instead, we just show it.
-  t.log('before lockdown() otherNaN ->', show(dirtyNaNEncoding), 'NaN');
+  t.log('before lockdown() other NaN ->', show(dirtyNaNEncoding), 'NaN');
 
   lockdown();
   bufferView.setUint16(0, otherNaN16Encoding);
