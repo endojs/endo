@@ -205,7 +205,7 @@ const writeFieldValue = (msg, loc, f, v, layouts, ctx) => {
       writeData(msg, slot, /** @type {Uint8Array} */ (v));
     } else if (f.type.kind === 'list') {
       // eslint-disable-next-line no-use-before-define
-      writeList(msg, slot, f.type, v, layouts, ctx);
+      writeList(msg, slot, f.type, /** @type {any} */ (v), layouts, ctx);
     } else if (f.type.kind === 'struct') {
       const sub = layouts.get(/** @type {string} */ (f.type.name));
       if (!sub) throw Fail`unknown struct type ${f.type.name}`;
@@ -263,7 +263,7 @@ const writeStructInPlace = (msg, loc, layout, obj, layouts, ctx) => {
       writeUint16(
         loc,
         layout.discriminant.bitOffset / 8,
-        activeMember.discriminantValue,
+        /** @type {number} */ (activeMember.discriminantValue),
       );
       writeFieldValue(
         msg,

@@ -234,18 +234,27 @@ export const makeConnection = cfg => {
       methodId,
       'request',
     );
+    /** @type {{ contentBytes: Uint8Array, capTable: any[] }} */
     let params;
     if (reqCodec) {
       const encoded = reqCodec.encode(args, { exportCap, importCap });
-      if (encoded && typeof encoded === 'object' && 'contentBytes' in encoded) {
-        params = encoded;
+      if (
+        encoded &&
+        typeof encoded === 'object' &&
+        !(encoded instanceof Uint8Array) &&
+        !(encoded instanceof ArrayBuffer) &&
+        'contentBytes' in encoded
+      ) {
+        params = /** @type {any} */ (encoded);
       } else {
         const u8 =
-          encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
+          encoded instanceof Uint8Array
+            ? encoded
+            : new Uint8Array(/** @type {ArrayBuffer} */ (encoded));
         params = { contentBytes: u8, capTable: [] };
       }
     } else {
-      params = payloadCodec.encode(args);
+      params = /** @type {any} */ (payloadCodec.encode(args));
     }
     const pipelineHandler = makeRemoteHandler({
       ...baseHandlerOptions(),

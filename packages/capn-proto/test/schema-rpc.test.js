@@ -165,30 +165,26 @@ struct JobResult @0xfade0000ffff0012 {
   });
   const remote = near.getBootstrap();
 
-  t.deepEqual(
-    await E(remote).submit({
-      label: 'a',
-      op: { add: 5 },
-      sink,
-    }),
-    { acknowledged: true },
-  );
-  t.deepEqual(
-    await E(remote).submit({
-      label: 'b',
-      op: { sub: 3 },
-      sink,
-    }),
-    { acknowledged: true },
-  );
-  t.deepEqual(
-    await E(remote).submit({
-      label: 'c',
-      op: { reset: null },
-      sink,
-    }),
-    { acknowledged: true },
-  );
+  // Hoist each await to its own statement so the @jessie.js
+  // no-nested-await rule sees a clean top-level await per call.
+  const r1 = await E(remote).submit({
+    label: 'a',
+    op: { add: 5 },
+    sink,
+  });
+  t.deepEqual(r1, { acknowledged: true });
+  const r2 = await E(remote).submit({
+    label: 'b',
+    op: { sub: 3 },
+    sink,
+  });
+  t.deepEqual(r2, { acknowledged: true });
+  const r3 = await E(remote).submit({
+    label: 'c',
+    op: { reset: null },
+    sink,
+  });
+  t.deepEqual(r3, { acknowledged: true });
 
   t.deepEqual(observed, ['a: +5', 'b: -3', 'c: reset']);
 });

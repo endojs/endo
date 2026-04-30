@@ -22,8 +22,8 @@ import { Fail, q } from '@endo/errors';
 
 /**
  * @typedef {object} MethodCodec
- * @property {(jsObj: unknown) => Uint8Array | ArrayBuffer} encode
- * @property {(bytes: ArrayBuffer | Uint8Array) => unknown} decode
+ * @property {(jsObj: unknown, ctx?: any) => Uint8Array | ArrayBuffer | { contentBytes: Uint8Array, capTable: any[] }} encode
+ * @property {(bytes: ArrayBuffer | Uint8Array, capTable?: any[], ctx?: any) => unknown} decode
  */
 
 /**
