@@ -8,7 +8,6 @@ import type {
   FinalStaticModuleType,
   ModuleDescriptor,
   StaticModuleType,
-  ThirdPartyStaticModuleInterface,
   Transform,
 } from 'ses';
 import type {
@@ -17,7 +16,6 @@ import type {
 } from '../policy-format.js';
 import type { CanonicalName } from './canonical-name.js';
 import type {
-  SomeCompartmentDescriptor,
   CompartmentDescriptor,
   CompartmentMapDescriptor,
   DigestedCompartmentMapDescriptor,
@@ -25,11 +23,11 @@ import type {
   LanguageForExtension,
   PackageCompartmentDescriptorName,
   PackageCompartmentDescriptors,
+  SomeCompartmentDescriptor,
 } from './compartment-map-schema.js';
 import type { PackageDescriptor } from './node-modules.js';
 import type { SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
-import type { LiteralUnion } from './typescript.js';
 
 export type { CanonicalName, PackageDescriptor };
 
@@ -48,13 +46,21 @@ export type UnknownCanonicalNameHook = (params: {
 export type { PackageCompartmentDescriptorName };
 
 /**
+ * Canonical names that can be used in {@link PackageData}
+ */
+export type PackageDataCanonicalName =
+  | CanonicalName
+  | typeof ATTENUATORS_COMPARTMENT
+  | typeof ENTRY_COMPARTMENT;
+
+/**
  * Data about a package provided by a {@link PackageDataHook}
  */
 export type PackageData = {
   name: string;
   packageDescriptor: PackageDescriptor;
   location: FileUrlString;
-  canonicalName: PackageCompartmentDescriptorName;
+  canonicalName: PackageDataCanonicalName;
 };
 
 /**
@@ -63,15 +69,7 @@ export type PackageData = {
  * Called once before `translateGraph`.
  */
 export type PackageDataHook = (params: {
-  packageData: Readonly<
-    Map<
-      LiteralUnion<
-        typeof ATTENUATORS_COMPARTMENT | typeof ENTRY_COMPARTMENT,
-        FileUrlString
-      >,
-      PackageData
-    >
-  >;
+  packageData: Readonly<Map<PackageDataCanonicalName, PackageData>>;
   log: LogFn;
 }) => void;
 
