@@ -121,11 +121,15 @@ sink/source forwards `write` / `read` / `close` / `cancel` / `abort` calls
 to the remote writer/reader. Pass them as method arguments or return values
 just like any other capability.
 
-### `RpcTarget`
+### Pass-by-reference: remotables
 
-A marker class. Subclasses are passed by reference (like an `Far` remotable).
-Plain JS classes that don't extend `RpcTarget` and aren't marked with `Far` are
-not serialisable — the devaluator throws.
+`@endo/capn-web` uses `@endo/pass-style`'s notion of a remotable: any object
+created with `Far(iface, methods)` (or `makeExo` from `@endo/exo`) is passed
+by reference. Plain JS classes — including subclasses of capnweb's
+`RpcTarget` — are *not* automatically serialisable; mark them with `Far`
+(or wrap them in an exo) to pass them across the wire. The devaluator
+rejects values that aren't a recognised remotable, copyable, or
+special-value type.
 
 ## Wire-format compatibility
 
@@ -146,10 +150,13 @@ bidirectional method invocation all work both directions.
 
 ## Limitations (v1)
 
-- `.map()` (`["remap", …]`) uses an endo-specific extension that includes the
-  `answerRef` so mappers can return any recorded value. Strict
-  `cloudflare/capnweb`-compatibility for `["remap", …]` would need additional
-  protocol-spec alignment and is out of scope here.
+- `.map()` is wire-compatible with `cloudflare/capnweb` 0.6's
+  `["remap", subjectId, propertyPath, captures, instructions]` form:
+  each instruction is `["pipeline", subject, path, args?]` and the last
+  instruction's value is the answer. The interop suite covers both
+  directions. Capturing a *foreign stub* as the receiver of a method
+  call inside the mapper body isn't yet supported — capture stubs as
+  arguments instead.
 - `["pipe"]` (open a new pipe) is not yet implemented. JS
   `WritableStream` / `ReadableStream` values are encoded as
   `["writable", -id]` / `["readable", -id]`, and the receiver gets a real

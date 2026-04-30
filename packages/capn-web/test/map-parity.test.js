@@ -4,12 +4,12 @@
 // (used by `session.callRemap`) handles the same patterns capnweb
 // supports — applied per-element on the receiver side.
 //
-// NOTE: full WIRE interop with cloudflare/capnweb's `["remap", …]` form
-// is out of scope here; capnweb's instructions are tagged
-// `["pipeline", subject, …]` (uniform with their normal pipeline form),
-// while ours are `["get"|"call"|"literal", ref, …]`.  The recorder
-// semantics (record-once-replay-N) are the same; only the wire encoding
-// of the recording differs.  Tests below exercise the semantic surface.
+// Our `recordRemap` emits capnweb's wire form: `["remap", subjectId,
+// propertyPath, captures, instructions]` where each instruction is a
+// uniform `["pipeline", subject, path, args?]` step (and the final
+// instruction may be a literal primitive).  Wire interop with
+// cloudflare/capnweb is exercised in `interop-capnweb.test.js`; the
+// suite below targets the semantic surface (record-once-replay-N).
 
 import test from '@endo/ses-ava/test.js';
 import { Far } from '@endo/pass-style';

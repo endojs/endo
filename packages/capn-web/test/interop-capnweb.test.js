@@ -6,13 +6,12 @@
 // cloudflare/capnweb RpcSession over an in-memory transport pair.  Both
 // sides should successfully exchange capabilities, calls, and results.
 //
-// `capnweb` is NOT a tracked devDependency of this package — its current
-// shipped TypeScript declarations contain TS2574 errors that break our
-// docs build.  To run this suite locally:
-//
-//     yarn workspace @endo/capn-web add -D capnweb
-//
-// Without capnweb installed, all tests in this file are skipped.
+// `capnweb` is a tracked devDependency of this package.  Its shipped
+// TypeScript declarations contain TS2574 errors, so the root tsconfig
+// sets `skipLibCheck: true` to keep the docs build green.  The dynamic
+// `await import('capnweb')` below still falls back to skipping every
+// test in this file if the dependency is somehow unavailable at runtime
+// (e.g. a partial install) — this isn't expected on a fresh `yarn`.
 
 import test from '@endo/ses-ava/test.js';
 import { Far } from '@endo/pass-style';
