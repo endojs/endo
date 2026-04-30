@@ -8,7 +8,6 @@
 /**
  * @import {
  *   LanguageForExtension,
- *   LanguageForModuleSpecifier,
  *   MakeMapParsersOptions,
  *   MapParsersFn,
  *   ModuleTransform,
@@ -18,14 +17,9 @@
  *   ParseResult,
  *   ParserForLanguage,
  *   SyncParserForLanguage,
- *   ParserImplementation,
- *   AsyncParserImplementation,
  *   SyncModuleTransform,
  *   SyncModuleTransforms
  * } from './types.js';
- * @import {
- *   EReturn
- * } from '@endo/eventual-send';
  */
 
 import { syncTrampoline, asyncTrampoline } from '@endo/trampoline';
@@ -52,8 +46,9 @@ const has = (object, key) => apply(hasOwnProperty, object, [key]);
 const extensionImpliesLanguage = extension => extension !== 'js';
 
 /**
- * Resolves the module language from its specifier and location, then applies
- * any matching transform. Shared logic between sync and async generators.
+ * Resolves the module language from its specifier and location.
+ *
+ * Shared logic between sync and async generators.
  *
  * @param {string} specifier
  * @param {string} location
@@ -240,7 +235,7 @@ const makeAsyncExtensionParser = (
         ));
       } catch (err) {
         throw Error(
-          `Error transforming ${q(language)} source in ${q(location)}: ${err.message}`,
+          `Error transforming ${q(language)} source in ${q(location)}: ${/** @type {Error} */ (err).message}`,
           { cause: err },
         );
       }
