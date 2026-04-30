@@ -240,7 +240,7 @@ const makeAsyncExtensionParser = (
         ));
       } catch (err) {
         throw Error(
-          `Error transforming ${q(language)} source in ${q(location)}: ${err.message}`,
+          `Error transforming ${q(language)} source in ${q(location)}: ${/** @type {Error} */ (err).message}`,
           { cause: err },
         );
       }
