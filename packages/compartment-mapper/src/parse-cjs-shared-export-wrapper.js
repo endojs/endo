@@ -83,10 +83,11 @@ export const getModulePaths = (readPowers, location) => {
  * @param {string} in.location
  * @param {ReadFn | ReadPowers | undefined} in.readPowers
  * @returns {{
- *   module: { exports: any },
- *   moduleExports: any,
- *   afterExecute: Function,
- *   require: Function,
+ *   module: { exports: unknown },
+ *   moduleExports: unknown,
+ *   afterExecute: () => void,
+ *   require: (specifier: string) => unknown,
+ *   importFn: (specifier: string) => Promise<unknown>,
  * }}
  */
 export const wrap = ({
@@ -204,6 +205,15 @@ export const wrap = ({
 
   freeze(require);
 
+  /** @param {string} importSpecifier */
+  const importFn = async importSpecifier => {
+    const specifier = has(resolvedImports, importSpecifier)
+      ? resolvedImports[importSpecifier]
+      : importSpecifier;
+    return compartment.import(specifier);
+  };
+  freeze(importFn);
+
   const afterExecute = () => {
     const finalExports = module.exports; // in case it's a getter, only call it once
     const exportsHaveBeenOverwritten = finalExports !== originalExports;
@@ -231,5 +241,6 @@ export const wrap = ({
     moduleExports: originalExports,
     afterExecute,
     require,
+    importFn,
   };
 };
