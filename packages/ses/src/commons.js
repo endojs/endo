@@ -246,12 +246,19 @@ export const regexpReplace = /** @type {any} */ (
   uncurryThis(regexpPrototype[replaceSymbol])
 );
 export const matchAllRegExp = uncurryThis(regexpPrototype[matchAllSymbol]);
-const { _regexpConstructor, ...regexpDescriptors } =
-  getOwnPropertyDescriptors(regexpPrototype);
+const regexpDescriptors = getOwnPropertyDescriptors(regexpPrototype);
 arrayForEach(ownKeys(regexpDescriptors), key => {
   const desc = regexpDescriptors[/** @type {any} */ (key)];
   desc.configurable = false;
   if (desc.writable) desc.writable = false;
+});
+// Don't follow Symbol.species
+// https://tc39.es/ecma262/multipage/abstract-operations.html#sec-speciesconstructor
+defineProperty(regexpDescriptors, 'constructor', {
+  value: undefined,
+  enumerable: false,
+  configurable: false,
+  writable: false,
 });
 /**
  * Protect a RegExp instance against RegExp.prototype poisoning ("exec",
