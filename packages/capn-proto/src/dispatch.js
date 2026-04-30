@@ -8,6 +8,8 @@
 
 import { HandledPromise } from '@endo/eventual-send';
 import { Fail } from '@endo/errors';
+import { EXCEPTION_TYPE } from './proto/messages.js';
+import { normalizeCodecResult } from './payload-codec.js';
 
 /**
  * @param {object} ctx The connection context built by makeConnection.
@@ -33,7 +35,10 @@ export const makeDispatch = ctx => {
   // ---- Bootstrap ----
   const handleBootstrap = ({ questionId }) => {
     if (!bootstrap.value) {
-      const exc = { type: 0, reason: 'no bootstrap object' };
+      const exc = {
+        type: EXCEPTION_TYPE.failed,
+        reason: 'no bootstrap object',
+      };
       sendFramed(
         encodeReturn({
           answerId: questionId,
@@ -74,7 +79,10 @@ export const makeDispatch = ctx => {
             answerId: questionId,
             result: {
               kind: 'exception',
-              exception: { type: 2, reason: `no export ${target.id}` },
+              exception: {
+                type: EXCEPTION_TYPE.failed,
+                reason: `no export ${target.id}`,
+              },
             },
           }),
         );
@@ -89,7 +97,10 @@ export const makeDispatch = ctx => {
             answerId: questionId,
             result: {
               kind: 'exception',
-              exception: { type: 2, reason: `no answer ${target.questionId}` },
+              exception: {
+                type: EXCEPTION_TYPE.failed,
+                reason: `no answer ${target.questionId}`,
+              },
             },
           }),
         );
@@ -121,7 +132,7 @@ export const makeDispatch = ctx => {
           answerId: questionId,
           result: {
             kind: 'exception',
-            exception: { type: 0, reason: 'bad target' },
+            exception: { type: EXCEPTION_TYPE.failed, reason: 'bad target' },
           },
         }),
       );
@@ -136,7 +147,7 @@ export const makeDispatch = ctx => {
           result: {
             kind: 'exception',
             exception: {
-              type: 3,
+              type: EXCEPTION_TYPE.unimplemented,
               reason: `unknown method ${interfaceId}.${methodId}`,
             },
           },
@@ -168,7 +179,7 @@ export const makeDispatch = ctx => {
           result: {
             kind: 'exception',
             exception: {
-              type: 0,
+              type: EXCEPTION_TYPE.failed,
               reason: `payload decode failed: ${
                 /** @type {any} */ (err)?.message || err
               }`,
@@ -199,26 +210,14 @@ export const makeDispatch = ctx => {
         const ans = tables.answers.get(questionId);
         if (!ans || ans.returnSent) return;
         ans.returnSent = true;
-        let payload;
-        if (respCodec) {
-          const encoded = respCodec.encode(value, {
-            exportCap: payloadCodec.exportCap,
-            importCap: payloadCodec.importCap,
-          });
-          if (
-            encoded &&
-            typeof encoded === 'object' &&
-            'contentBytes' in encoded
-          ) {
-            payload = encoded;
-          } else {
-            const u8 =
-              encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
-            payload = { contentBytes: u8, capTable: [] };
-          }
-        } else {
-          payload = payloadCodec.encode(value);
-        }
+        const payload = respCodec
+          ? normalizeCodecResult(
+              respCodec.encode(value, {
+                exportCap: payloadCodec.exportCap,
+                importCap: payloadCodec.importCap,
+              }),
+            )
+          : payloadCodec.encode(value);
         sendFramed(
           encodeReturn({
             answerId: questionId,
@@ -230,7 +229,10 @@ export const makeDispatch = ctx => {
         const ans = tables.answers.get(questionId);
         if (!ans || ans.returnSent) return;
         ans.returnSent = true;
-        const exc = { type: 0, reason: String(err?.message || err) };
+        const exc = {
+          type: EXCEPTION_TYPE.failed,
+          reason: String(err?.message || err),
+        };
         sendFramed(
           encodeReturn({
             answerId: questionId,

@@ -329,6 +329,21 @@ export const parseCapnpSchema = src => {
       }
     }
     eat('}');
+    // Check for duplicate `@N` ordinals across the struct's flat field
+    // list and any union members. Cap'n Proto requires ordinals to be
+    // unique within the struct because they double as the per-field
+    // identity used during schema evolution; silent collisions would
+    // produce an undefined layout.
+    const seen = new Map();
+    const checkOrdinal = f => {
+      const prior = seen.get(f.ordinal);
+      if (prior !== undefined) {
+        throw Fail`schema parse: duplicate field ordinal ${f.ordinal} in struct ${name} (${prior} and ${f.name})`;
+      }
+      seen.set(f.ordinal, f.name);
+    };
+    for (const f of fields) checkOrdinal(f);
+    if (unionMembers) for (const m of unionMembers) checkOrdinal(m);
     out.structs.set(name, { name, id, fields, unionMembers });
   };
 
@@ -462,6 +477,12 @@ export const parseCapnpSchema = src => {
         // without a separate enum registry traversal.
         // eslint-disable-next-line no-param-reassign
         t.enumMembers = decl ? decl.members : [];
+      } else if (!out.structs.has(t.name)) {
+        // Unknown type reference — surface it at parse time with the
+        // original field's type name rather than letting it leak into
+        // the layout / codec layer where the failure would point at
+        // mysterious "unknown struct type" deep inside an encode call.
+        throw Fail`schema parse: unknown type reference ${t.name}`;
       }
     } else if (t.kind === 'list' && t.elementType) {
       rewriteCapRefs(t.elementType);

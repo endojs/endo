@@ -89,6 +89,22 @@ const allocVariant = (msg, root, dataWords, ptrWords) => {
  *  Exception
  * ===================================================================== */
 
+/**
+ * Cap'n Proto `Exception.Type` enum (rpc.capnp). Use named constants
+ * everywhere instead of bare integers; the wire encoding is the integer.
+ *
+ *   failed        : a generic problem occurred (most user-level errors).
+ *   overloaded    : the callee is overloaded and asks the caller to retry.
+ *   disconnected  : the connection itself is lost or unrecoverably broken.
+ *   unimplemented : the callee does not implement the requested method.
+ */
+export const EXCEPTION_TYPE = /** @type {const} */ ({
+  failed: 0,
+  overloaded: 1,
+  disconnected: 2,
+  unimplemented: 3,
+});
+
 const writeException = (msg, slot, exc) => {
   const e = allocStruct(
     msg,

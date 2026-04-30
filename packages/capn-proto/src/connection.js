@@ -26,8 +26,13 @@ import {
   encodeUnimplemented,
   encodeAbort,
   decodeMessage,
+  EXCEPTION_TYPE,
 } from './proto/messages.js';
-import { encodePayload, decodePayload } from './payload-codec.js';
+import {
+  encodePayload,
+  decodePayload,
+  normalizeCodecResult,
+} from './payload-codec.js';
 
 const utf8Encoder = new TextEncoder();
 
@@ -153,7 +158,7 @@ export const makeConnection = cfg => {
               payload: {
                 kind: 'exception',
                 exception: {
-                  type: 0,
+                  type: EXCEPTION_TYPE.failed,
                   reason: String(/** @type {any} */ (err)?.message || err),
                 },
               },
@@ -235,27 +240,9 @@ export const makeConnection = cfg => {
       'request',
     );
     /** @type {{ contentBytes: Uint8Array, capTable: any[] }} */
-    let params;
-    if (reqCodec) {
-      const encoded = reqCodec.encode(args, { exportCap, importCap });
-      if (
-        encoded &&
-        typeof encoded === 'object' &&
-        !(encoded instanceof Uint8Array) &&
-        !(encoded instanceof ArrayBuffer) &&
-        'contentBytes' in encoded
-      ) {
-        params = /** @type {any} */ (encoded);
-      } else {
-        const u8 =
-          encoded instanceof Uint8Array
-            ? encoded
-            : new Uint8Array(/** @type {ArrayBuffer} */ (encoded));
-        params = { contentBytes: u8, capTable: [] };
-      }
-    } else {
-      params = /** @type {any} */ (payloadCodec.encode(args));
-    }
+    const params = reqCodec
+      ? normalizeCodecResult(reqCodec.encode(args, { exportCap, importCap }))
+      : /** @type {any} */ (payloadCodec.encode(args));
     const pipelineHandler = makeRemoteHandler({
       ...baseHandlerOptions(),
       resolveMethod: prop => {
@@ -474,7 +461,7 @@ export const makeConnection = cfg => {
       const reason = `decode failed: ${/** @type {any} */ (e)?.message || e}`;
       sendFramed(
         encodeAbort({
-          exception: { type: 0, reason },
+          exception: { type: EXCEPTION_TYPE.failed, reason },
         }),
       );
       return;
@@ -490,7 +477,9 @@ export const makeConnection = cfg => {
   const abort = reason => {
     if (aborted) return;
     aborted = true;
-    sendFramed(encodeAbort({ exception: { type: 0, reason } }));
+    sendFramed(
+      encodeAbort({ exception: { type: EXCEPTION_TYPE.failed, reason } }),
+    );
     for (const q of tables.questions.values()) {
       if (!q.settled) q.reject(Error(reason));
     }

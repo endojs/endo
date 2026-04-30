@@ -199,3 +199,98 @@ test('L3 end-to-end: Accept with unknown provision returns an exception', async 
   t.regex(m.result.exception.reason, /unknown provision/);
   c.abort('done');
 });
+
+test('L3 host: Accept{embargo:true} defers Return until Disembargo{provide=Q}', async t => {
+  const reg = makeInterfaceRegistry();
+  const target = makeExo('target', undefined, {
+    hello() {
+      return 'hi';
+    },
+  });
+
+  const PROVISION = new Uint8Array([0xea, 0xea]);
+  const PROVIDE_QID = 7100;
+  /** @type {Map<string, { questionId: number, target: any }>} */
+  const pending = new Map();
+  const network = {
+    ourVatId: () => new Uint8Array(0),
+    thirdPartyCapIdForHost: () => new Uint8Array(0),
+    connectToThirdParty: () => {
+      throw Error();
+    },
+    provisionIdForHandoff: () => PROVISION,
+    acceptIncomingProvide: (questionId, providedTarget) => {
+      pending.set(Array.from(PROVISION).join(','), {
+        questionId,
+        target: providedTarget,
+      });
+    },
+    consumeProvision: provision => {
+      const k = Array.from(provision).join(',');
+      const found = pending.get(k);
+      if (found) pending.delete(k);
+      return found;
+    },
+  };
+
+  /** @type {ArrayBuffer[]} */
+  const out = [];
+  const c = makeCapnp({
+    send: framed => out.push(framed),
+    bootstrap: target,
+    interfaceRegistry: reg,
+    network,
+  });
+
+  // Materialise the bootstrap export (id 0) so Provide can refer to it.
+  const indexModule = await import('../src/index.js');
+  c.dispatch(
+    indexModule.encodeBootstrap({ questionId: 9999, deprecatedObjectId: null }),
+  );
+  out.length = 0;
+
+  // B → C: Provide. C parks it under our PROVISION key with PROVIDE_QID.
+  c.dispatch(
+    encodeProvide({
+      questionId: PROVIDE_QID,
+      target: { kind: 'importedCap', id: 0 },
+      recipient: new Uint8Array([0x41]),
+    }),
+  );
+
+  // A → C: Accept with embargo:true. C must NOT emit a Return yet.
+  out.length = 0;
+  c.dispatch(
+    encodeAccept({
+      questionId: 9100,
+      provision: PROVISION,
+      embargo: true,
+    }),
+  );
+  // Drain microtasks so any spurious Return would have been emitted.
+  await Promise.resolve();
+  await Promise.resolve();
+  t.is(out.length, 0, 'C parked the Accept Return until disembargo lifts');
+
+  // B → C: Disembargo{provide=PROVIDE_QID}. C drains and now sends the
+  // deferred Return.
+  c.dispatch(
+    indexModule.encodeDisembargo({
+      target: { kind: 'importedCap', id: 0 },
+      context: { kind: 'provide', questionId: PROVIDE_QID },
+    }),
+  );
+  // The drain is one microtask; await two ticks to be safe.
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  t.is(out.length, 1, 'C emitted the deferred Accept Return');
+  const ret = decodeMessage(out[0]);
+  t.is(ret.type, 'return');
+  t.is(ret.answerId, 9100);
+  t.is(ret.result.kind, 'results');
+  t.is(ret.result.payload.capTable[0].kind, 'senderHosted');
+
+  c.abort('done');
+});

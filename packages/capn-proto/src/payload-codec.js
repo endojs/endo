@@ -165,3 +165,37 @@ export const decodePayload = (payload, ctx) => {
   };
   return restore(parsed);
 };
+
+/**
+ * Normalise a user-supplied method codec's `encode()` result into the
+ * canonical `{ contentBytes: Uint8Array, capTable: any[] }` Payload shape.
+ *
+ * Codecs are allowed to return either:
+ *   - A `Uint8Array` or `ArrayBuffer` (no caps in the message).
+ *   - A `{ contentBytes, capTable }` object (cap-aware codecs that
+ *     accumulated capability descriptors during encoding).
+ *
+ * Both connection.js (sendCall) and dispatch.js (handleCall response)
+ * need to perform this same shape-narrowing before handing the payload
+ * to `encodeCall`/`encodeReturn`, so the conversion lives here.
+ *
+ * @param {unknown} encoded
+ * @returns {{ contentBytes: Uint8Array, capTable: any[] }}
+ */
+export const normalizeCodecResult = encoded => {
+  if (
+    encoded &&
+    typeof encoded === 'object' &&
+    !(encoded instanceof Uint8Array) &&
+    !(encoded instanceof ArrayBuffer) &&
+    'contentBytes' in /** @type {any} */ (encoded)
+  ) {
+    const e = /** @type {any} */ (encoded);
+    return { contentBytes: e.contentBytes, capTable: e.capTable || [] };
+  }
+  const u8 =
+    encoded instanceof Uint8Array
+      ? encoded
+      : new Uint8Array(/** @type {ArrayBuffer} */ (encoded));
+  return { contentBytes: u8, capTable: [] };
+};

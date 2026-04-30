@@ -8,6 +8,19 @@
  *
  * The schema object is reusable and immutable. For multi-file schemas,
  * concatenate the files (or load them separately and merge).
+ *
+ * Two flavours of encode/decode:
+ *
+ *   • `encode(name, value)` / `decode(name, bytes)` — cap-free path. The
+ *     framed bytes are a complete Cap'n Proto message, returned as an
+ *     `ArrayBuffer`. If the schema has capability fields and the input
+ *     carries non-null values for them, encoding throws (no cap table to
+ *     write the descriptors into).
+ *   • `encodePayload(name, value, ctx)` / `decodePayload(name, payload,
+ *     ctx)` — cap-aware path. Returns / accepts the `{ contentBytes,
+ *     capTable }` shape that drops directly into a Cap'n Proto `Payload`
+ *     struct. Use this when feeding the result into Call/Return params,
+ *     or wrap method codecs via `registerInterface(registry, name)`.
  */
 
 import { Fail } from '@endo/errors';
@@ -26,6 +39,38 @@ export const loadSchema = capnpText => {
     if (!l) throw Fail`unknown struct ${name}`;
     return l;
   };
+
+  /**
+   * Build a cap-aware codec pair (encode + decode) for one struct layout.
+   * Used by `registerInterface` to derive request/response codecs for
+   * each method's synthetic Params/Results struct without writing four
+   * near-identical closures by hand.
+   *
+   * @param {import('./layout.js').StructLayout} layout
+   */
+  const makeStructCodec = layout => ({
+    /** @param {any} value @param {any} [ctx] */
+    encode: (value, ctx) => {
+      /** @type {any[]} */
+      const capTable = [];
+      const ab = encodeRootStruct(value, layout, layouts, {
+        exportCap: ctx ? ctx.exportCap : undefined,
+        capTable,
+      });
+      return { contentBytes: new Uint8Array(ab), capTable };
+    },
+    /**
+     * @param {ArrayBuffer | Uint8Array} contentBytes
+     * @param {any[]} [capTable]
+     * @param {any} [ctx]
+     */
+    decode: (contentBytes, capTable, ctx) =>
+      decodeRootStruct(contentBytes, layout, layouts, {
+        importCap: ctx ? ctx.importCap : undefined,
+        capTable: capTable || [],
+      }),
+  });
+
   return {
     fileId: parsed.fileId,
     structs: layouts,
@@ -61,15 +106,8 @@ export const loadSchema = capnpText => {
      * @param {{ exportCap: (v: unknown) => any }} ctx
      * @returns {{ contentBytes: Uint8Array, capTable: any[] }}
      */
-    encodePayload: (structName, value, ctx) => {
-      /** @type {any[]} */
-      const capTable = [];
-      const ab = encodeRootStruct(value, requireLayout(structName), layouts, {
-        exportCap: ctx.exportCap,
-        capTable,
-      });
-      return { contentBytes: new Uint8Array(ab), capTable };
-    },
+    encodePayload: (structName, value, ctx) =>
+      makeStructCodec(requireLayout(structName)).encode(value, ctx),
     /**
      * Cap-aware decode. Takes the `{ contentBytes, capTable }` shape from a
      * Cap'n Proto Payload struct.
@@ -79,11 +117,10 @@ export const loadSchema = capnpText => {
      * @param {{ importCap: (desc: any) => unknown }} ctx
      */
     decodePayload: (structName, payload, ctx) =>
-      decodeRootStruct(
+      makeStructCodec(requireLayout(structName)).decode(
         payload.contentBytes,
-        requireLayout(structName),
-        layouts,
-        { importCap: ctx.importCap, capTable: payload.capTable },
+        payload.capTable,
+        ctx,
       ),
     /**
      * Register an interface declared in the .capnp schema with an
@@ -106,45 +143,23 @@ export const loadSchema = capnpText => {
       const methodCodecs = {};
       for (const m of iface.methods) {
         methods[m.name] = m.ordinal;
-        const paramsLayout = requireLayout(m.paramsStructName);
-        const resultsLayout = requireLayout(m.resultsStructName);
+        const paramsCodec = makeStructCodec(requireLayout(m.paramsStructName));
+        const resultsCodec = makeStructCodec(
+          requireLayout(m.resultsStructName),
+        );
         methodCodecs[m.name] = {
           request: {
-            // The eventual-send dispatch passes the method's args as a
-            // positional array: [ paramsObj ]. The encoder pulls args[0]
-            // and writes it into the synthetic Params struct.
-            encode: (args, ctx) => {
-              /** @type {any[]} */
-              const capTable = [];
-              const ab = encodeRootStruct(args[0], paramsLayout, layouts, {
-                exportCap: ctx ? ctx.exportCap : undefined,
-                capTable,
-              });
-              return { contentBytes: new Uint8Array(ab), capTable };
-            },
+            // eventual-send hands a method's args as a positional array
+            // `[paramsObj]`. The struct codec only knows how to encode /
+            // decode a single value, so the request adaptor is just an
+            // index-into-args / wrap-in-array shim around makeStructCodec.
+            encode: (args, ctx) => paramsCodec.encode(args[0], ctx),
             decode: (contentBytes, capTable, ctx) => [
-              decodeRootStruct(contentBytes, paramsLayout, layouts, {
-                importCap: ctx ? ctx.importCap : undefined,
-                capTable: capTable || [],
-              }),
+              paramsCodec.decode(contentBytes, capTable, ctx),
             ],
           },
-          response: {
-            encode: (value, ctx) => {
-              /** @type {any[]} */
-              const capTable = [];
-              const ab = encodeRootStruct(value, resultsLayout, layouts, {
-                exportCap: ctx ? ctx.exportCap : undefined,
-                capTable,
-              });
-              return { contentBytes: new Uint8Array(ab), capTable };
-            },
-            decode: (contentBytes, capTable, ctx) =>
-              decodeRootStruct(contentBytes, resultsLayout, layouts, {
-                importCap: ctx ? ctx.importCap : undefined,
-                capTable: capTable || [],
-              }),
-          },
+          // Response is the value verbatim — no array shimming needed.
+          response: resultsCodec,
         };
       }
       registry.register({ id: iface.id, methods, methodCodecs });
