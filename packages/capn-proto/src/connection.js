@@ -189,8 +189,8 @@ export const makeConnection = cfg => {
     encode: value => encodePayload(value, { isCap, exportCap }),
     encodeRoot: marker => utf8Encoder.encode(JSON.stringify(marker)),
     decode: payload => decodePayload(payload, { importCap }),
-    /** Exposed so dispatch.js / send-side code can hand a ctx to user
-     *  schema-typed method codecs without rebuilding these closures. */
+    // Exposed so dispatch.js / send-side code can hand a ctx to user
+    // schema-typed method codecs without rebuilding these closures.
     exportCap,
     importCap,
   };

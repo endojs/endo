@@ -148,9 +148,9 @@ struct JobResult @0xfade0000ffff0012 {
     async submit(job) {
       // Switch on the active union member.
       let line;
-      if (job.op._which === 'add') line = `${job.label}: +${job.op.add}`;
-      else if (job.op._which === 'sub') line = `${job.label}: -${job.op.sub}`;
-      else if (job.op._which === 'reset') line = `${job.label}: reset`;
+      if (job.op.which === 'add') line = `${job.label}: +${job.op.add}`;
+      else if (job.op.which === 'sub') line = `${job.label}: -${job.op.sub}`;
+      else if (job.op.which === 'reset') line = `${job.label}: reset`;
       else line = `${job.label}: ?`;
       await E(job.sink).notify(line);
       return { acknowledged: true };

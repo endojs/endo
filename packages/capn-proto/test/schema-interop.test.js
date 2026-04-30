@@ -293,20 +293,20 @@ struct M @0x9999000000000040 {
   }
 }
 `;
-    // The decoder also includes a synthetic `_which` field naming the
+    // The decoder also includes a synthetic `which` field naming the
     // active member, so callers can switch on it without iterating keys.
     roundTrip(t, schemaText, 'M', { a: 0xdeadbeef }, `(a = 0xdeadbeef)`, {
       a: 3735928559,
-      _which: 'a',
+      which: 'a',
     });
     roundTrip(t, schemaText, 'M', { b: 'hello' }, `(b = "hello")`, {
       b: 'hello',
-      _which: 'b',
+      which: 'b',
     });
-    roundTrip(t, schemaText, 'M', { c: 7 }, `(c = 7)`, { c: 7, _which: 'c' });
+    roundTrip(t, schemaText, 'M', { c: 7 }, `(c = 7)`, { c: 7, which: 'c' });
     roundTrip(t, schemaText, 'M', { d: null }, `(d = void)`, {
       d: null,
-      _which: 'd',
+      which: 'd',
     });
   });
 
@@ -324,12 +324,12 @@ struct V @0x9999000000000041 {
     roundTrip(t, schemaText, 'V', { x: 100, a: 200 }, `(x = 100, a = 200)`, {
       x: 100,
       a: 200,
-      _which: 'a',
+      which: 'a',
     });
     roundTrip(t, schemaText, 'V', { x: 100, b: 300 }, `(x = 100, b = 300)`, {
       x: 100,
       b: 300,
-      _which: 'b',
+      which: 'b',
     });
   });
 }

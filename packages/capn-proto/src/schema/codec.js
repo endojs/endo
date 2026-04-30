@@ -229,6 +229,18 @@ const writeFieldValue = (msg, loc, f, v, layouts, ctx) => {
   }
 };
 
+/**
+ * Write a struct's fields into an already-allocated `StructBuilder` slot.
+ * If the layout has an anonymous union, scan input keys to find the active
+ * member, write the discriminator, and write that member's value.
+ *
+ * @param {any} msg
+ * @param {any} loc
+ * @param {import('./layout.js').StructLayout} layout
+ * @param {any} obj
+ * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {EncodeCtx} [ctx]
+ */
 const writeStructInPlace = (msg, loc, layout, obj, layouts, ctx) => {
   const src = obj == null ? {} : obj;
   for (const f of layout.fields) {
@@ -494,6 +506,17 @@ const readFieldValue = (msg, loc, f, layouts, ctx) => {
   throw Fail`readFieldValue: unhandled field type ${f.type.kind}`;
 };
 
+/**
+ * Read a struct's fields from `loc` into a plain JS object. If the layout
+ * has an anonymous union, read the discriminator and decode only the
+ * active member.
+ *
+ * @param {any} msg
+ * @param {any} loc
+ * @param {import('./layout.js').StructLayout} layout
+ * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {DecodeCtx} [ctx]
+ */
 const readStructFields = (msg, loc, layout, layouts, ctx) => {
   /** @type {Record<string, unknown>} */
   const out = {};
@@ -507,8 +530,8 @@ const readStructFields = (msg, loc, layout, layouts, ctx) => {
     const active = layout.unionMembers[which];
     if (active) {
       out[active.name] = readFieldValue(msg, loc, active, layouts, ctx);
-      // _which gives downstream switch-on access without iterating keys.
-      out._which = active.name;
+      // which gives downstream switch-on access without iterating keys.
+      out.which = active.name;
     }
   }
   return out;
@@ -519,6 +542,7 @@ const readStructFields = (msg, loc, layout, layouts, ctx) => {
  * @param {{ segId: number, wordOffset: number }} ptrLocation
  * @param {{ kind: string, elementType?: any }} listType
  * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {DecodeCtx} [ctx]
  */
 const readList = (msg, ptrLocation, listType, layouts, ctx) => {
   const list = readListPointer(msg, ptrLocation.segId, ptrLocation.wordOffset);
