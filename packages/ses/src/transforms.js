@@ -3,9 +3,10 @@
 import {
   FERAL_REG_EXP,
   SyntaxError,
+  freezeRegexp,
   regexpReplace,
+  regexpSearch,
   sealRegexp,
-  stringSearch,
   stringSlice,
   stringSplit,
   freeze,
@@ -21,7 +22,7 @@ import { getSourceURL } from './get-source-url.js';
  * @returns {number}
  */
 function getLineNumber(src, pattern) {
-  const index = stringSearch(src, pattern);
+  const index = regexpSearch(pattern, src);
   if (index < 0) {
     return -1;
   }
@@ -177,9 +178,8 @@ export const evadeImportExpressionTest = src => {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const someDirectEvalPattern = new FERAL_REG_EXP(
-  '(^|[^.])\\beval(\\s*\\()',
-  'g',
+const someDirectEvalPattern = freezeRegexp(
+  new FERAL_REG_EXP('(^|[^.])\\beval(\\s*\\()'),
 );
 
 /**
