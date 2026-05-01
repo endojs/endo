@@ -56,8 +56,9 @@ Creates a session over a transport. Returns
 `{ getRemoteMain, callRemap, abort, getStats, isAborted }`.
 
 Options:
-- `localMain`: a value (typically `Far(...)` or an `RpcTarget` subclass) that
-  the peer reaches as its bootstrap (id 0). Defaults to an empty hardened object.
+- `localMain`: a remotable value (typically `Far(...)` or an `@endo/exo`
+  exo) that the peer reaches as its bootstrap (id 0). Defaults to an
+  empty hardened object.
 - `gcImports` *(default `true`)*: use weak refs + `FinalizationRegistry` to
   auto-release imported presences when no longer reachable.
 - `onAbort`: callback invoked when the session aborts.
