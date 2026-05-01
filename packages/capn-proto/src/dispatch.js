@@ -354,9 +354,37 @@ export const makeDispatch = ctx => {
         return;
       }
       entry.resolvedTo = resolvedTo;
-      // Tribble rule: messages addressed to promiseId stay routed via the
-      // original import (which forwards). We DO NOT redirect handlers; we
-      // simply settle the user-facing presence for direct E()'s on it.
+      // Tribble rule + L1 embargo:
+      //
+      //   • For senderHosted / senderPromise: both the OLD route
+      //     (Calls addressed to `promiseId`) and the NEW route (Calls
+      //     addressed to the resolved import id) go through the same
+      //     peer. Order is preserved automatically by the peer's
+      //     in-order message processing — no Disembargo needed.
+      //   • For receiverHosted: the resolved cap is OUR OWN export.
+      //     Without an embargo, future E(presence).foo() invocations
+      //     would run LOCALLY at us while pipelined Calls we'd already
+      //     sent through the OLD route are still in flight at the
+      //     peer (about to bounce back to our export). Local-direct
+      //     would beat the bounce → out-of-order. Emit a senderLoopback
+      //     Disembargo and gate the user-facing settle on the
+      //     receiverLoopback echo so the bounced Calls land first.
+      //   • thirdPartyHosted is handled above by `acceptThirdParty`,
+      //     which has its own embargo handshake on the A↔C connection.
+      const needsLoopbackEmbargo =
+        desc.kind === 'receiverHosted' && entry.hadPipelinedCalls === true;
+      if (needsLoopbackEmbargo) {
+        const embargoId = embargoTracker.open(() => {
+          if (entry.resolveSettler) entry.resolveSettler(resolvedTo);
+        });
+        sendFramed(
+          encodeDisembargo({
+            target: { kind: 'importedCap', id: promiseId },
+            context: { kind: 'senderLoopback', id: embargoId },
+          }),
+        );
+        return;
+      }
       if (entry.resolveSettler) entry.resolveSettler(resolvedTo);
     } else if (payload.kind === 'exception') {
       if (entry.rejectSettler)
