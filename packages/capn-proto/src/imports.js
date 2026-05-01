@@ -81,6 +81,14 @@ export const makeImportRegistry = ({
       rejectSettler,
       isPromise,
       resolvedTo: undefined,
+      // L3 embargo bookkeeping: flipped to `true` by sendCall whenever it
+      // dispatches a Call against this promise import id. If the import
+      // later resolves to a `thirdPartyHosted` cap, handleResolve uses
+      // this flag to decide whether to set `embargo: true` on the
+      // outgoing Accept (and emit a matching `Disembargo{accept}` on the
+      // original introducer connection) so C's pipelined-call queue
+      // drains in front of A's Accept Return.
+      hadPipelinedCalls: false,
     });
     presenceToImportId.set(/** @type {object} */ (presence), id);
     if (onImport) onImport(/** @type {object} */ (presence), id);

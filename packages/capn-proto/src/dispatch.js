@@ -47,10 +47,16 @@ export const makeDispatch = ctx => {
       );
       return;
     }
-    const { id } = exportRegistry.exportValue(bootstrap.value);
+    // Route through `payloadCodec.exportCap` (instead of hard-coding
+    // `senderHosted`) so a Promise-valued bootstrap, or one that is
+    // itself an import from another peer, gets the right descriptor:
+    // senderPromise / receiverHosted / thirdPartyHosted as applicable.
+    // The payloadCodec's exportCap shares the auto-Provide branch with
+    // the regular Call/Return encode path.
+    const desc = payloadCodec.exportCap(bootstrap.value);
     const payload = {
       contentBytes: payloadCodec.encodeRoot('@cap:0'),
-      capTable: [{ kind: 'senderHosted', id }],
+      capTable: [desc],
     };
     tables.answers.set(questionId, {
       resultP: Promise.resolve(bootstrap.value),
@@ -324,7 +330,19 @@ export const makeDispatch = ctx => {
         }
       } else if (desc.kind === 'thirdPartyHosted') {
         try {
-          resolvedTo = threeParty.acceptThirdParty(desc);
+          // L3 embargo: if A made any pipelined calls against this
+          // promise before the Resolve arrived, request that C defer
+          // its Accept Return until our matching Disembargo{accept}
+          // makes it through B → C. The flag was tagged in
+          // connection.js#sendCall.
+          const embargo = entry.hadPipelinedCalls === true;
+          resolvedTo = threeParty.acceptThirdParty({
+            ...desc,
+            embargo,
+            // Surface the original promise id so acceptThirdParty can
+            // address the Disembargo it sends back over this connection.
+            originalPromiseId: promiseId,
+          });
         } catch (e) {
           resolveError = e;
         }

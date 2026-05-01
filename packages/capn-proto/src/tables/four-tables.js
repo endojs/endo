@@ -53,11 +53,17 @@ import { makeFinalizingMap } from '../finalize.js';
 
 /**
  * @typedef {object} ImportEntry
- * @property {object} presence
+ * @property {object} [presence]
  * @property {((v: unknown) => void) | undefined} resolveSettler
  * @property {((reason: unknown) => void) | undefined} rejectSettler
  * @property {boolean} isPromise
  * @property {object | undefined} resolvedTo   the resolved presence (Tribble: route via R)
+ * @property {boolean} [hadPipelinedCalls]
+ *   Set to true by `sendCall` whenever it dispatches against this
+ *   promise import. `handleResolve` reads it to decide whether to set
+ *   `embargo: true` on the outgoing Accept when the import resolves to
+ *   a `thirdPartyHosted` cap (so C drains its pipelined queue before
+ *   sending the Accept Return).
  */
 
 /**

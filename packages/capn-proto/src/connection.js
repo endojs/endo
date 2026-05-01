@@ -102,19 +102,19 @@ export const makeConnection = cfg => {
   /**
    * Describe a resolved value as a CapDescriptor used in a Resolve message
    * payload. Defined before payloadCodec so the closure below can reference
-   * it without a use-before-define hazard.
+   * it without a use-before-define hazard. Delegates to `exportCap`
+   * (defined a few lines below) so the senderPromise-resolution path
+   * shares the SAME pass-back / auto-Provide / senderHosted decision tree
+   * the regular Call/Return payload encoder uses. Without this delegation,
+   * a senderPromise that settles to a cap-on-another-peer would emit
+   * `senderHosted` (turning B into an L1 forwarder) instead of
+   * `thirdPartyHosted`.
    *
    * @param {unknown} value
    */
   const describeForResolve = value => {
     if (value === null || value === undefined) return { kind: 'none' };
-    if (isPromise(value)) {
-      const { id } = exportRegistry.exportValue(value);
-      return { kind: 'senderPromise', id };
-    }
-    // Could be a remote presence we already imported (loopback case).
-    const { id } = exportRegistry.exportValue(value);
-    return { kind: 'senderHosted', id };
+    return exportCap(value);
   };
 
   // The ImportRegistry is defined later (its handler factory needs sendCall
@@ -271,6 +271,16 @@ export const makeConnection = cfg => {
       rejectFn = rej;
     });
     answerPromise.catch(() => {});
+
+    // L3 embargo bookkeeping: if the call's target is one of our
+    // unresolved promise imports, mark the import as "had pipelined
+    // traffic". A later Resolve-to-thirdPartyHosted on this same id
+    // will read the flag in handleResolve to decide whether to set
+    // `embargo: true` on the outgoing Accept.
+    if (target && target.kind === 'importedCap') {
+      const imp = tables.importEntries.get(target.id);
+      if (imp && imp.isPromise) imp.hadPipelinedCalls = true;
+    }
 
     // If a request codec is registered for (interfaceId, methodId), use it
     // to encode the args as a typed Cap'n Proto struct in Payload.contentBytes.

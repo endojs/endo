@@ -129,17 +129,26 @@ export const makeThreeParty = ctx => {
    *   2. Resolve `desc.thirdPartyCapId` to an A↔C peer connection via
    *      `VatNetwork.connectToThirdParty`. If the network fails to give
    *      us one (or the network is misconfigured), return the vine.
-   *   3. Send `Accept { provision }` via `peer.sendAccept(provision,
-   *      embargo)` and race its promise. If the host's Return is a
-   *      success, Release the vine and resolve to the direct cap. If the
-   *      Return is an exception (no such provision, no such cap, host
-   *      gone), keep the vine alive and resolve to it instead.
+   *   3. Send `Accept { provision, embargo }` via `peer.sendAccept`. If
+   *      `desc.embargo === true` (handleResolve sets this when A had
+   *      pipelined calls in flight on the just-resolved promise), also
+   *      emit a `Disembargo { context: accept }` on this connection
+   *      addressed at the original promise import id, so B forwards a
+   *      `Disembargo { context: provide(Q) }` to C. C drains its
+   *      pipelined-call queue then unblocks the deferred Accept Return,
+   *      preserving E-order across the handoff. Race the Accept's
+   *      promise: success → Release the vine and resolve to the direct
+   *      cap; failure → keep the vine and resolve to it instead.
    *
    * Returns a Promise that always settles to a usable Presence; it
-   * rejects only if neither path is viable (e.g. no vine import id and
-   * no direct connection).
+   * rejects only if neither path is viable.
    *
-   * @param {{ thirdPartyCapId: Uint8Array, vineId: number, embargo?: boolean }} desc
+   * @param {{
+   *   thirdPartyCapId: Uint8Array,
+   *   vineId: number,
+   *   embargo?: boolean,
+   *   originalPromiseId?: number,
+   * }} desc
    */
   const acceptThirdParty = desc => {
     // Always import the vine first. importCap is idempotent per-id, so
@@ -160,6 +169,22 @@ export const makeThreeParty = ctx => {
       return Promise.resolve(vinePresence);
     }
     const useEmbargo = desc.embargo === true;
+    if (
+      useEmbargo &&
+      typeof desc.originalPromiseId === 'number' &&
+      typeof encodeDisembargo === 'function'
+    ) {
+      // Tell B to forward a Disembargo{provide=Q} to C in front of any
+      // pipelined work A previously addressed at `desc.originalPromiseId`.
+      // B's `handleDisembargoAccept` looks up the corresponding Provide
+      // questionId and forwards on B↔C.
+      sendFramed(
+        encodeDisembargo({
+          target: { kind: 'importedCap', id: desc.originalPromiseId },
+          context: { kind: 'accept' },
+        }),
+      );
+    }
     const directP = peer.sendAccept(provision, useEmbargo);
     return directP.then(
       direct => {
