@@ -1407,9 +1407,44 @@ export const make = (powers, _context, { env = {} } = {}) => {
                 ],
                 network: 'private',
                 backend: 'auto',
+                // Slice-internal env / cwd resolution
+                // (`TODO/36_endo_genie_sandbox_workspace_path.md`).
+                // Bake `GENIE_WORKSPACE=/workspace` and `cwd=/workspace`
+                // into the slice's construction-time spec so every
+                // tool spawn that routes through `E(slice).spawn(...)`
+                // — bash / exec / git via
+                // `packages/genie/src/tools/command.js` — sees the
+                // slice-internal mount path rather than the operator-
+                // supplied host path.  The bwrap driver renders these
+                // as `--setenv GENIE_WORKSPACE /workspace` and
+                // `--chdir /workspace` (see
+                // `packages/sandbox/src/drivers/bwrap.js`
+                // `assembleSliceArgv`); per-spawn `env` / `cwd`
+                // overrides from `command.js` layer on top.
+                env: { GENIE_WORKSPACE: '/workspace' },
+                cwd: '/workspace',
               }),
             )
           );
+        // ── In-process `GENIE_WORKSPACE` rewrite ──────────────────────
+        // After slice mint, flip `process.env.GENIE_WORKSPACE` to the
+        // slice-internal path so any future host-side reader of
+        // `process.env.GENIE_WORKSPACE` (defence-in-depth: today no
+        // genie source path consults it, but third-party code or a
+        // future tool might) sees the same view a spawn-through-slice
+        // child would.  The on-host call sites that actually do touch
+        // the host filesystem — `initWorkspace`, `loadPersistedConfig`,
+        // `savePersistedConfig`, `makeFTS5Backend`, `makeFileTools`,
+        // `makeMemoryTools` — all read from the captured `workspaceDir`
+        // local (sourced from the launcher's `env` snapshot via
+        // `config.workspace`), so they keep their host view across
+        // this rewrite.  Audited per
+        // `TODO/36_endo_genie_sandbox_workspace_path.md`; missing-
+        // slice path below leaves `process.env.GENIE_WORKSPACE`
+        // untouched so the host-spawn fallback in
+        // `tools/command.js`'s `...process.env` propagation keeps
+        // pointing at the host path.
+        process.env.GENIE_WORKSPACE = '/workspace';
         console.log(
           `[genie:${agentName}] Workspace sandbox minted (${SANDBOX_SLICE_NAME}, network: private, backend: auto)`,
         );
