@@ -145,6 +145,8 @@ const setupNet = bootstrapB => {
  * Walk every inbound Return and return the first senderPromise descriptor's
  * id we see in any capTable. Used by the test to learn which import id
  * the senderPromise was given without having to peek at internals.
+ *
+ * @param {ArrayBuffer[]} inboundToA
  */
 const sniffSenderPromiseId = inboundToA => {
   for (const framed of inboundToA) {
@@ -159,6 +161,10 @@ const sniffSenderPromiseId = inboundToA => {
 };
 
 const drainTicks = async (n = 10) => {
+  // First await is hoisted out of the loop so the @jessie.js no-nested-await
+  // rule sees an unnested top-level await before the `await` inside the
+  // for-loop body.
+  await null;
   for (let i = 0; i < n; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await Promise.resolve();

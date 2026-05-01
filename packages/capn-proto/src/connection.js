@@ -114,6 +114,10 @@ export const makeConnection = cfg => {
    */
   const describeForResolve = value => {
     if (value === null || value === undefined) return { kind: 'none' };
+    // exportCap is defined a few lines below; the closure here is only
+    // invoked once a senderPromise's resolver is called, by which point
+    // exportCap is fully initialised.
+    // eslint-disable-next-line no-use-before-define
     return exportCap(value);
   };
 
