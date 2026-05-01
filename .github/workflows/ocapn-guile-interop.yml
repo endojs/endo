@@ -1,11 +1,14 @@
 name: OCapN Guile interop
 
-# Mirrors the `test-ocapn-python` job in ci.yml but drives Endo `@endo/ocapn`
-# as a client joining a Goblins (Guile)-hosted chatroom over the websocket netlayer.
+# Drives Endo `@endo/ocapn` as a client joining a Goblins (Guile)-hosted
+# chatroom over both the websocket netlayer and the Tor onion netlayer in
+# a single job. Each transport asserts full Guile-hosted/Endo-joined
+# interoperability: sturdyref publication, session establishment, and
+# bilateral message exchange.
 #
-# This currently targets Spritely git repos directly (both goblins + goblin-chat),
-# pinned by commit. The flow asserts full Guile-hosted/Endo-joined interoperability:
-# sturdyref publication, websocket session establishment, and bilateral message exchange.
+# This currently targets Spritely git repos directly (both goblins +
+# goblin-chat), pinned by commit. Setup (Endo build, Goblins clone, Guix
+# install, Tor install) is shared across both transports.
 
 on:
   pull_request:
@@ -26,7 +29,7 @@ jobs:
   test-ocapn-guile-interop:
     name: test-ocapn-guile-interop
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout Endo
@@ -65,6 +68,11 @@ jobs:
         working-directory: endo
         run: yarn build
 
+      - name: Install Tor daemon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tor
+
       - name: Install GNU Guix
         uses: PromyLOPh/guix-install-action@40615e98e5c16a451aec10fe01c214ed07cbaa77 # v1
         with:
@@ -84,10 +92,8 @@ jobs:
           echo "GNUTLS_OUT=$(guix build guile-gnutls | tail -n 1)" >> "$GITHUB_ENV"
           echo "GCRYPT_OUT=$(guix build guile-gcrypt | tail -n 1)" >> "$GITHUB_ENV"
 
-      - name: Start Guile goblin-chat host
-        working-directory: endo
+      - name: Prepare Goblins source for Guile execution
         env:
-          INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/goblin-chat/test/guile-interop/interop-client.scm
           GOBLINS_REPO: ${{ github.workspace }}/goblins
           GOBLIN_CHAT_REPO: ${{ github.workspace }}/goblin-chat
         run: |
@@ -105,6 +111,15 @@ jobs:
           sed -i 's/(goblins ghash)/(goblins utils ghash)/' \
             "$GOBLIN_CHAT_REPO/goblin-chat/backend.scm"
 
+      # ─── Websocket netlayer flow ─────────────────────────────────────────
+
+      - name: Start Guile goblin-chat host (websocket)
+        working-directory: endo
+        env:
+          INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/goblin-chat/test/guile-interop/interop-client.scm
+          GOBLINS_REPO: ${{ github.workspace }}/goblins
+          GOBLIN_CHAT_REPO: ${{ github.workspace }}/goblin-chat
+        run: |
           # Use a non-default port to reduce cross-job collisions.
           OCAPN_TEST_PORT=26804
 
@@ -137,9 +152,9 @@ jobs:
             echo "Failed to read sturdyref from Guile host log"
             exit 1
           fi
-          echo "STURDYREF=$STURDYREF" >> $GITHUB_ENV
+          echo "STURDYREF_WS=$STURDYREF" >> "$GITHUB_ENV"
 
-      - name: Run Endo interop client
+      - name: Run Endo interop client (websocket)
         working-directory: endo
         env:
           # Newer Goblins reports CapTP version `1.0`.
@@ -151,16 +166,16 @@ jobs:
           OCAPN_TEST_PORT: '0'
         run: |
           set +e
-          timeout 120s node ./packages/goblin-chat/test/guile-interop/index.js "$STURDYREF" \
+          timeout 120s node ./packages/goblin-chat/test/guile-interop/index.js "$STURDYREF_WS" \
             > /tmp/endo-interop.log 2>&1
           ENDO_EXIT=$?
           set -e
-          echo "ENDO_EXIT=$ENDO_EXIT" >> "$GITHUB_ENV"
+          echo "ENDO_EXIT_WS=$ENDO_EXIT" >> "$GITHUB_ENV"
           cat /tmp/endo-interop.log
 
-      - name: Assert interop success
+      - name: Assert websocket interop success
         run: |
-          test "${ENDO_EXIT:-1}" -eq 0
+          test "${ENDO_EXIT_WS:-1}" -eq 0
           # Verify Guile host started and published a sturdyref.
           grep -q 'sturdyref: ocapn:' /tmp/guile-interop.log
           grep -q 'interop-client: subscription ready' /tmp/guile-interop.log
@@ -175,17 +190,141 @@ jobs:
           grep -Fq '*** [endo-interop-ocapn] interop observer received message: hello from Endo OCapN' /tmp/endo-interop.log
           grep -Fq '*** Endo interop completed' /tmp/endo-interop.log
 
+      # ─── Tor onion netlayer flow ─────────────────────────────────────────
+
+      - name: Start Tor daemon (shared by Guile + Endo)
+        run: |
+          TOR_BASE="$HOME/.cache/ocapn/tor"
+          mkdir -p "$TOR_BASE/data"
+          # `CookieAuthentication 0` matches what the Endo Tor netlayer
+          # currently expects (`AUTHENTICATE` with no credentials). Defaults
+          # vary across distributions; pinning it here keeps CI deterministic
+          # regardless of which Tor build the runner has installed.
+          cat > "$HOME/.config/ocapn-tor-config.txt" <<EOF
+          DataDirectory $TOR_BASE/data/
+          SocksPort unix:$TOR_BASE/tor-socks-sock RelaxDirModeCheck
+          ControlSocket unix:$TOR_BASE/tor-control-sock RelaxDirModeCheck
+          CookieAuthentication 0
+          Log notice file $TOR_BASE/tor-log.txt
+          EOF
+          rm -f /tmp/tor.pid
+          tor -f "$HOME/.config/ocapn-tor-config.txt" > /tmp/tor.log 2>&1 &
+          echo $! > /tmp/tor.pid
+          for i in $(seq 1 60); do
+            if [ -S "$TOR_BASE/tor-control-sock" ] && [ -S "$TOR_BASE/tor-socks-sock" ]; then
+              break
+            fi
+            if ! kill -0 "$(cat /tmp/tor.pid)" 2>/dev/null; then
+              echo "Tor exited before creating its sockets" >&2
+              cat /tmp/tor.log >&2 || true
+              exit 1
+            fi
+            sleep 1
+          done
+          test -S "$TOR_BASE/tor-control-sock"
+          test -S "$TOR_BASE/tor-socks-sock"
+
+      - name: Start Guile goblin-chat host (Tor onion)
+        working-directory: endo
+        env:
+          INTEROP_CLIENT: ${{ github.workspace }}/endo/packages/goblin-chat/test/guile-interop/interop-client-tor.scm
+          GOBLINS_REPO: ${{ github.workspace }}/goblins
+          GOBLIN_CHAT_REPO: ${{ github.workspace }}/goblin-chat
+        run: |
+          TOR_CONTROL_PATH="$HOME/.cache/ocapn/tor/tor-control-sock"
+          TOR_SOCKS_PATH="$HOME/.cache/ocapn/tor/tor-socks-sock"
+          TOR_OCAPN_SOCKS_DIR="$HOME/.cache/ocapn/tor/ocapn-sockets-guile"
+          mkdir -p "$TOR_OCAPN_SOCKS_DIR"
+
+          OCAPN_TOR_CONTROL_SOCKET="$TOR_CONTROL_PATH" \
+          OCAPN_TOR_SOCKS_SOCKET="$TOR_SOCKS_PATH" \
+          OCAPN_TOR_OCAPN_SOCKETS_DIR="$TOR_OCAPN_SOCKS_DIR" \
+          GUILE_AUTO_COMPILE=1 \
+            timeout 300s guix shell --pure --no-grafts \
+            --preserve='^OCAPN_TOR_CONTROL_SOCKET$|^OCAPN_TOR_SOCKS_SOCKET$|^OCAPN_TOR_OCAPN_SOCKETS_DIR$|^GUILE_AUTO_COMPILE$' \
+            guile guile-fibers guile-gnutls guile-gcrypt -- \
+            guile \
+              -L "$FIBERS_OUT/share/guile/site/3.0" \
+              -L "$GNUTLS_OUT/share/guile/site/3.0" \
+              -L "$GCRYPT_OUT/share/guile/site/3.0" \
+              -L "$GOBLINS_REPO" \
+              -L "$GOBLIN_CHAT_REPO" \
+              "$INTEROP_CLIENT" \
+              "hello from Guile CI (Tor)" "hello from Endo OCapN (Tor)" \
+              > /tmp/guile-interop-tor.log 2>&1 &
+          echo $! > /tmp/guile-interop-tor.pid
+
+          for i in $(seq 1 120); do
+            if grep -q 'sturdyref:' /tmp/guile-interop-tor.log; then break; fi
+            if ! kill -0 "$(cat /tmp/guile-interop-tor.pid)" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          cat /tmp/guile-interop-tor.log
+          STURDYREF=$(sed -n 's/.*sturdyref: \(ocapn:[^ ]*\).*/\1/p' /tmp/guile-interop-tor.log | head -n1)
+          if [ -z "$STURDYREF" ]; then
+            echo "Failed to read sturdyref from Guile Tor host log"
+            exit 1
+          fi
+          echo "STURDYREF_TOR=$STURDYREF" >> "$GITHUB_ENV"
+
+      - name: Run Endo interop client (Tor)
+        working-directory: endo
+        env:
+          OCAPN_CAPTP_VERSION: '1.0'
+          OCAPN_INTEROP_GUILE_MESSAGE: hello from Guile CI (Tor)
+          OCAPN_INTEROP_ENDO_MESSAGE: hello from Endo OCapN (Tor)
+        run: |
+          # GitHub Actions doesn't expand shell variables inside an `env:`
+          # block, so resolve the Tor socket paths from `$HOME` here rather
+          # than hardcoding `/home/runner/...` (which would silently break
+          # on self-hosted runners or future image changes).
+          export OCAPN_TOR_CONTROL_PATH="$HOME/.cache/ocapn/tor/tor-control-sock"
+          export OCAPN_TOR_SOCKS_PATH="$HOME/.cache/ocapn/tor/tor-socks-sock"
+          export OCAPN_TOR_OCAPN_SOCKS_DIR="$HOME/.cache/ocapn/tor/ocapn-sockets-endo"
+          mkdir -p "$OCAPN_TOR_OCAPN_SOCKS_DIR"
+          set +e
+          timeout 150s node ./packages/goblin-chat/test/guile-interop/index-tor.js "$STURDYREF_TOR" \
+            > /tmp/endo-interop-tor.log 2>&1
+          ENDO_EXIT=$?
+          set -e
+          echo "ENDO_EXIT_TOR=$ENDO_EXIT" >> "$GITHUB_ENV"
+          cat /tmp/endo-interop-tor.log
+
+      - name: Assert Tor interop success
+        run: |
+          test "${ENDO_EXIT_TOR:-1}" -eq 0
+          grep -q 'sturdyref: ocapn:' /tmp/guile-interop-tor.log
+          grep -q 'interop-client-tor: subscription ready' /tmp/guile-interop-tor.log
+          grep -q 'interop-client-tor: sent message, ack' /tmp/guile-interop-tor.log
+          grep -Fq '*** [endo-interop-ocapn-tor] subscription ready' /tmp/endo-interop-tor.log
+          grep -Fq '*** [endo-interop-ocapn-tor] sent message, ack =' /tmp/endo-interop-tor.log
+          grep -Fq '*** [endo-interop-ocapn-tor] interop observer received message: hello from Guile CI (Tor)' /tmp/endo-interop-tor.log
+          grep -Fq '*** [endo-interop-ocapn-tor] interop observer received message: hello from Endo OCapN (Tor)' /tmp/endo-interop-tor.log
+          grep -Fq '*** Endo Tor interop completed' /tmp/endo-interop-tor.log
+
       - name: Show interop logs on failure
         if: failure()
         run: |
-          echo "=== Guile goblin-chat host log ==="
+          echo "=== Guile goblin-chat host (websocket) log ==="
           cat /tmp/guile-interop.log || echo "(no log)"
-          echo "=== Endo interop client log ==="
+          echo "=== Endo interop client (websocket) log ==="
           cat /tmp/endo-interop.log || echo "(no log)"
+          echo "=== Tor daemon log ==="
+          cat /tmp/tor.log || echo "(no log)"
+          echo "=== Guile goblin-chat host (Tor) log ==="
+          cat /tmp/guile-interop-tor.log || echo "(no log)"
+          echo "=== Endo interop client (Tor) log ==="
+          cat /tmp/endo-interop-tor.log || echo "(no log)"
 
-      - name: Stop Guile host (always)
+      - name: Stop background processes (always)
         if: always()
         run: |
           if [ -f /tmp/guile-interop.pid ]; then
-            kill $(cat /tmp/guile-interop.pid) || true
+            kill "$(cat /tmp/guile-interop.pid)" || true
+          fi
+          if [ -f /tmp/guile-interop-tor.pid ]; then
+            kill "$(cat /tmp/guile-interop-tor.pid)" || true
+          fi
+          if [ -f /tmp/tor.pid ]; then
+            kill "$(cat /tmp/tor.pid)" || true
           fi
