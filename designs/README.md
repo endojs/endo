@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-04-29*
+*Last updated: 2026-04-30*
 
 ## Summary
 
@@ -36,6 +36,7 @@
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-03-18 | In Progress |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-04-29 | **Complete** |
+| [daemon-retention-paths](daemon-retention-paths.md) | 2026-04-30 | 2026-04-30 | Not Started |
 | [daemon-guest-eval-simplification](daemon-guest-eval-simplification.md) | 2026-03-21 | 2026-03-21 | Not Started |
 | [daemon-docker-selfhost](daemon-docker-selfhost.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-engo-supervisor](daemon-engo-supervisor.md) | 2026-02-25 | 2026-02-25 | Not Started |
@@ -85,7 +86,7 @@
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 22 Complete/Implemented, 5 In Progress, 44 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
+**Totals:** 22 Complete/Implemented, 5 In Progress, 45 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
 
 ## Roadmap
 
@@ -336,8 +337,9 @@ webhook events.
 | inventory-cancel-and-liveness | Not Started | Cancel button with liveness indicator, coalesced watcher protocol |
 | inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
 | inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
-| formula-inspector | Not Started | New panel, daemon API exposure |
-| workers-panel | Not Started | Metrics, sparklines |
+| formula-inspector | Not Started | New panel, daemon API exposure (retention-paths surface factored out into `daemon-retention-paths`) |
+| workers-panel | Not Started | Metrics, sparklines (retention-paths section factored out into `daemon-retention-paths`) |
+| daemon-retention-paths | Not Started | Host-only `listRetentionPaths` / `followRetentionPaths`, `endo paths` CLI, Chat paths panel with delete-pet-name and disincarnate/reincarnate |
 | chat-view-edit-commands | Not Started | `/view` and `/edit` for blobs; Monaco editor, Markdown split preview |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
 
@@ -490,6 +492,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | inventory-drag-and-drop | S-M | 2-3 days | 4 | HTML5 DnD |
 | formula-inspector | M | 3-4 days | 4 | New panel, daemon API |
 | workers-panel | M | 3-5 days | 4 | Metrics, sparklines |
+| daemon-retention-paths | M-L | 1-1.5 weeks | 4 | Snapshot + subscription daemon API, CLI verb, Chat paths panel with delete-pet-name and disincarnate/reincarnate; superset of the retention-path slices in formula-inspector and workers-panel |
 | chat-view-edit-commands | M | 3-5 days | 4 | `/view`, `/edit` modal, Monaco reuse, Markdown split preview (Phase 4) |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
 | daemon-os-sandbox-plugin | L-XL | 2-3 weeks | 5 | Platform-specific |
@@ -509,10 +512,10 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | M1: Remote Access & Tools | 13 remaining | 7-8 weeks |
 | M2: Networking | 6 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
-| M4: UX & Tooling | 10 | 6-8 weeks |
+| M4: UX & Tooling | 11 | 7-9 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
 | M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
-| **Total remaining** | **45** | **~38-52 weeks** |
+| **Total remaining** | **46** | **~39-53 weeks** |
 
 ### Timeline
 
