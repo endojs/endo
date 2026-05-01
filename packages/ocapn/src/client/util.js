@@ -78,3 +78,33 @@ export const encodeSwissnum = value => {
   // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
   return uint8ArrayToImmutableArrayBuffer(swissnumEncoder.encode(value));
 };
+
+/**
+ * Wrap raw swissnum bytes as a hardened immutable `SwissNum`. Use this
+ * when the bytes already came from a wire-format source (e.g. the
+ * base64url-decoded `/s/<…>` segment of a sturdyref URI) and only the
+ * branded type wrapping is missing.
+ *
+ * For the common case of constructing a swissnum from a printable
+ * ASCII string (e.g. a hard-coded test name), use `encodeSwissnum`,
+ * which validates the alphabet for you.
+ *
+ * @param {Uint8Array} bytes
+ * @returns {SwissNum}
+ */
+export const swissnumFromBytes = bytes => {
+  // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
+  return uint8ArrayToImmutableArrayBuffer(bytes);
+};
+
+/**
+ * View the raw bytes of a swissnum. Returns a freshly allocated
+ * (mutable) `Uint8Array` over a copy, so the caller may safely write
+ * into it without disturbing the underlying immutable `SwissNum`.
+ *
+ * @param {SwissNum} swissNum
+ * @returns {Uint8Array}
+ */
+export const swissnumToBytes = swissNum => {
+  return immutableArrayBufferToUint8Array(swissNum);
+};
