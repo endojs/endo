@@ -9,10 +9,11 @@
  * `network` argument.
  */
 
+import harden from '@endo/harden';
+
 import { makeConnection } from './connection.js';
 import { makeInterfaceRegistry } from './interfaces.js';
 import { makeCapHomeRegistry } from './cap-home-registry.js';
-import harden from '@endo/harden';
 
 /**
  * @param {object} cfg
