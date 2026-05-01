@@ -39,6 +39,72 @@ already exists.
 A daemon restart reincarnates `main-genie` from its persisted formula
 without re-running `setup.js`.
 
+### Sandbox slice (Phase 3.5a)
+
+Before launching the worker, `setup.js` also pins two capabilities in
+the host pet store that `main.js` consumes from `powers` on boot
+(see `packages/sandbox/` and
+[`TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md`](../../TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md)
+for the full design):
+
+- **`workspace-mount`** — a `Mount` capability rooted at
+  `GENIE_WORKSPACE`, provisioned via `provideMount` and reused on
+  re-runs.
+  This is the host-side handle the slice binds at `/workspace`.
+- **`sandbox-factory`** — the `@endo/sandbox` plugin loaded via
+  `makeUnconfined('@agent', sandboxAgentSpecifier, { powersName:
+  '@agent', resultName: 'sandbox-factory' })`.
+  Resolves to a `SandboxFactory` exo whose `makePersistent(name,
+  spec)` mints (and on subsequent boots, re-mints from the recorded
+  spec) a `SandboxHandle` pinned by pet name.
+
+`main.js` then calls `E(factory).makePersistent('main-genie-sandbox',
+{ rootfs: { kind: 'host-bind' }, mounts: [{ cap: workspaceMount,
+innerPath: '/workspace', mode: 'rw' }], env: { GENIE_WORKSPACE:
+'/workspace' }, cwd: '/workspace', network: 'private', backend:
+'auto' })` and threads the resulting `SandboxHandle` into the tool
+registry so `bash` / `exec` / `git` spawn through
+`E(slice).spawn(...)` instead of host `child_process.spawn`.
+
+If either capability is absent (e.g. an older `setup.js`, or the
+sandbox plugin failed to register because no backend is installed),
+`main.js` logs a clearly-marked diagnostic and proceeds with the
+host-spawn fallback path in `tools/command.js`.
+The agent surface is unchanged either way — the slice swap is purely
+internal.
+
+#### Host vs slice `GENIE_WORKSPACE`
+
+`GENIE_WORKSPACE` has two coexisting views after 3.5a:
+
+- **Outside the slice** (the launcher and the host-side worker): the
+  operator-supplied absolute host path (e.g.
+  `/home/op/.local/share/endo/genie/workspace`).
+  This view is what `initWorkspace`, `loadPersistedConfig` /
+  `savePersistedConfig`, `makeFTS5Backend`, `makeFileTools`, and
+  `makeMemoryTools` see when they read MEMORY.md, HEARTBEAT.md, or
+  `.genie/` on disk.
+  These call sites consume the captured `workspaceDir` local sourced
+  from `make()`'s `env` argument, not `process.env`.
+- **Inside the slice** (every tool spawn): `/workspace`.
+  The bwrap / podman driver renders `--setenv GENIE_WORKSPACE
+  /workspace` and `--chdir /workspace` from the `env` and `cwd` baked
+  into the slice spec, and any tool the agent runs with `bash` /
+  `exec` / `git` sees that view.
+
+After the slice mint resolves, `main.js` rewrites
+`process.env.GENIE_WORKSPACE` to `/workspace` — defence-in-depth for a
+future tool or third-party module that reads `process.env` while
+running in-process inside the worker.
+The missing-slice fallback path intentionally **does not** rewrite,
+so `command.js`'s host-spawn branch keeps matching the workspace
+files on disk.
+See
+[`TADA/36_endo_genie_sandbox_workspace_path.md`](../../TADA/36_endo_genie_sandbox_workspace_path.md)
+for the full audit and the in-source `// ── In-process
+GENIE_WORKSPACE rewrite ──` comment in `runRootAgent`'s mint block
+for the call-site catalogue.
+
 ## Env-var config
 
 `main.js` reads configuration from the `env` object that

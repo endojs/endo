@@ -140,10 +140,30 @@ and threads the resulting `SandboxHandle` into the tool registry so
 that `bash` / `exec` / `git` spawn through `E(slice).spawn(...)`
 instead of the host `child_process.spawn`.
 
+The slice receives exactly **one** filesystem endowment beyond the
+host-bind rootfs: the operator-supplied `workspace-mount` `Mount`
+capability, installed read-write at `/workspace`.
+Inside the slice, tools see only this view of the workspace; outside
+the slice (the launcher and the host-side worker), `GENIE_WORKSPACE`
+remains the absolute host path so the worker's own MEMORY.md /
+HEARTBEAT.md / `.genie/` reads keep working unchanged.
+See
+[`packages/genie/CLAUDE.md`](CLAUDE.md) § "Boot shape" → "Host vs
+slice `GENIE_WORKSPACE`" for the call-site audit and the
+in-process-rewrite rationale.
+
 The `network: 'private'` profile drops RFC 1918 ranges, host loopback,
 and known VPN ranges from any tool-spawned process, so a tool cannot
 reach the host's daemon port, the operator's LAN, or VPN-side
 services even when given a public-internet route.
+
+When no sandbox backend is available on the host (no `bwrap`, no
+`podman`), `setup.js` still pins the `workspace-mount` and
+`sandbox-factory` capabilities, but `main.js`'s `makePersistent` call
+fails on first deref and falls back to host `child_process.spawn` for
+tools.
+Operators see a clear warning in the worker log; the agent surface
+itself is unchanged either way.
 
 ### Residual exposure (the 3.5a shape)
 

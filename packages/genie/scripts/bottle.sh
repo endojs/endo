@@ -464,6 +464,27 @@ run_invoke() {
 
   local pending_invite_file="$workspace/PENDING_OWNER_INVITE"
 
+  # ----------------------------------------------------------------------
+  # Sandbox backend detection (Phase 3.5a).
+  #
+  # `setup.js` pins a `sandbox-factory` capability and `main.js` mints a
+  # `main-genie-sandbox` slice through it on boot.  The slice backend is
+  # selected at slice-mint time inside the daemon-side plugin
+  # (`backend: 'auto'`) — `bwrap` is preferred on Linux, `podman` is the
+  # fallback once Phase 2 lands.  If neither is present, the slice mint
+  # fails on first deref and the genie's `bash` / `exec` / `git` tools
+  # silently fall back to host `child_process.spawn` (no confinement).
+  # We probe the operator's PATH up front so the banner advertises the
+  # chosen backend (or warns loudly when none is available) before the
+  # daemon starts.
+  # ----------------------------------------------------------------------
+  local sandbox_backend="none"
+  if command -v bwrap >/dev/null 2>&1; then
+    sandbox_backend="bwrap"
+  elif command -v podman >/dev/null 2>&1; then
+    sandbox_backend="podman"
+  fi
+
   cat <<EOF
 
 === genie in a bottle (Phase 0) — invoke ===
@@ -471,9 +492,22 @@ run_invoke() {
  workspace : $workspace
  listen    : $ENDO_ADDR
  model     : $GENIE_MODEL
+ sandbox   : $sandbox_backend
 =============================================
 
 EOF
+
+  if [[ "$sandbox_backend" == "none" ]]; then
+    cat >&2 <<EOF
+[bottle] WARNING: no sandbox backend found on PATH (looked for bwrap, podman).
+[bottle]          The genie will boot, but its bash/exec/git tools will fall
+[bottle]          back to host child_process.spawn — workspace confinement and
+[bottle]          the network: 'private' egress filter will NOT be in effect.
+[bottle]          Install bwrap (Linux) or podman to enable the slice.
+[bottle]          See PLAN/endo_posix_sandbox.md § "Phase 3.5a" for context.
+
+EOF
+  fi
 
   # -------------------------------------------------------------------------
   # Start daemon and wait for ping.
