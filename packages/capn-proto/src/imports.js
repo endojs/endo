@@ -17,11 +17,16 @@ import { Remotable } from '@endo/pass-style';
  * @param {Map<number, any>} ctx.importEntries
  * @param {(id: number, isPromise: boolean) => any} ctx.makeRemoteHandler
  *   Factory producing a HandledPromise handler for an import id.
+ * @param {(presence: object, importId: number) => void} [ctx.onImport]
+ *   Optional notifier invoked exactly once per freshly-created Presence,
+ *   used by the network's CapHomeRegistry to record where this Presence
+ *   came from so the auto-Provide path can find its home connection.
  */
 export const makeImportRegistry = ({
   importIdToPresence,
   importEntries,
   makeRemoteHandler,
+  onImport,
 }) => {
   /** Reverse lookup so we can encode pass-back as receiverHosted. */
   /** @type {WeakMap<object, number>} */
@@ -78,6 +83,7 @@ export const makeImportRegistry = ({
       resolvedTo: undefined,
     });
     presenceToImportId.set(/** @type {object} */ (presence), id);
+    if (onImport) onImport(/** @type {object} */ (presence), id);
     return presence;
   };
 

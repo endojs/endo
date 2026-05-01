@@ -42,3 +42,4 @@ export {
   encodeRootStruct,
   decodeRootStruct,
 } from './schema/index.js';
+export { makeCapHomeRegistry } from './cap-home-registry.js';

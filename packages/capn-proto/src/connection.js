@@ -42,6 +42,16 @@ const utf8Encoder = new TextEncoder();
  * @param {unknown} [cfg.bootstrap]
  * @param {import('./interfaces.js').InterfaceRegistry} cfg.interfaceRegistry
  * @param {object} [cfg.network]
+ * @param {Uint8Array} [cfg.recipientVatId]
+ *   Vat-id bytes naming the peer this connection speaks to. Required for
+ *   L3 auto-Provide on encode (passed to `Provide.recipient`); networks
+ *   that don't auto-Provide can leave it unset.
+ * @param {{ value: any }} [cfg.selfRef]
+ *   Mutable holder the rpc-system wrapper fills with the public
+ *   `makeCapnp` instance after construction. The connection consults
+ *   it when it needs to identify itself to the network's CapHome
+ *   registry — without it, auto-Provide can't tell whether a cap-home
+ *   hit refers to "us" or "the other guy".
  */
 export const makeConnection = cfg => {
   const { send, interfaceRegistry } = cfg;
@@ -108,6 +118,13 @@ export const makeConnection = cfg => {
   // codec closure can dereference it safely at call time.
   /** @type {ReturnType<typeof makeImportRegistry> | undefined} */
   let importRegistry;
+  // Same forward-declare for the threeParty helper: exportCap (defined a
+  // few lines below) needs `initiateProvide` for the auto-Provide path,
+  // but the helper itself depends on importRegistry + exportRegistry +
+  // sendRelease + the L3 message codecs — none of which are constructed
+  // yet at the point where exportCap closes over it.
+  /** @type {ReturnType<typeof makeThreeParty> | undefined} */
+  let threeParty;
 
   // ---- Cap encode/decode helpers ----
   // Extracted so both the JSON-payload codec AND user-supplied schema-typed
@@ -134,6 +151,24 @@ export const makeConnection = cfg => {
     const importId = importRegistry && importRegistry.importIdOf(v);
     if (importId !== undefined) {
       return { kind: 'receiverHosted', id: importId };
+    }
+    // L3 auto-Provide: if `v` is a presence we imported from a DIFFERENT
+    // peer (the network's CapHomeRegistry knows because every
+    // ImportRegistry registers its imports there), trigger the
+    // three-party handoff dance instead of becoming a forwarder. Note
+    // that pass-back above already caught the same-connection case; if
+    // we reach here and findCapHome returns a hit, the home is by
+    // construction a different peer.
+    const homes = cfg.network && cfg.network.capHomes;
+    const home = homes && homes.find(v);
+    if (home && threeParty) {
+      const { thirdPartyCapId, vineId } = threeParty.initiateProvide({
+        target: v,
+        targetCapDescriptor: { kind: 'importedCap', id: home.hostImportId },
+        recipientId: cfg.recipientVatId || new Uint8Array(0),
+        hostConnection: home.hostConnection,
+      });
+      return { kind: 'thirdPartyHosted', thirdPartyCapId, vineId };
     }
     if (isPromise(v)) {
       const { id } = exportRegistry.exportValue(v);
@@ -185,6 +220,14 @@ export const makeConnection = cfg => {
     if (desc.kind === 'receiverAnswer') {
       const ans = tables.questions.get(desc.questionId);
       return ans?.returnedP;
+    }
+    if (desc.kind === 'thirdPartyHosted' && threeParty) {
+      // L3 recipient side: open a direct connection to the host and
+      // hand the caller a Promise<Presence> that resolves to the direct
+      // cap on success or the vine import on failure. eventual-send's
+      // E pipelines through the promise so `E(presence).foo()` Just
+      // Works either way.
+      return threeParty.acceptThirdParty(desc);
     }
     return undefined;
   };
@@ -321,6 +364,16 @@ export const makeConnection = cfg => {
     importIdToPresence: tables.importIdToPresence,
     importEntries: tables.importEntries,
     makeRemoteHandler: (id, isP) => makeRemoteHandlerForImport(id, isP),
+    onImport: (presence, id) => {
+      // Tell the network's CapHomeRegistry that this Presence lives on
+      // this connection, so a future encode for a different peer can
+      // auto-Provide instead of becoming a forwarder. Networks without
+      // a capHomes registry (single-peer setups) skip this entirely.
+      const homes = cfg.network && cfg.network.capHomes;
+      if (homes && cfg.selfRef && cfg.selfRef.value) {
+        homes.register(presence, cfg.selfRef.value, id);
+      }
+    },
   });
 
   // ---- Send Accept (used by the recipient side of L3 handoff) ----
@@ -371,7 +424,7 @@ export const makeConnection = cfg => {
   };
 
   // ---- Three-party (uses ctx; concrete operations require network setup) ----
-  const threeParty = makeThreeParty({
+  threeParty = makeThreeParty({
     network: cfg.network || {
       thirdPartyCapIdForHost: () => new Uint8Array(0),
       connectToThirdParty: () => {
@@ -501,6 +554,12 @@ export const makeConnection = cfg => {
     stats,
     sendAccept,
     sendRelease,
+    /**
+     * Surface the abort-aware framed-send so a peer's L3 `initiateProvide`
+     * (called from another connection's auto-Provide path) can target
+     * this connection without having to re-implement the abort check.
+     */
+    sendFramed,
     setBootstrap: v => {
       bootstrap.value = v;
     },
