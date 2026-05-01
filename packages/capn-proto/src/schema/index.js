@@ -24,6 +24,7 @@
  */
 
 import { Fail } from '@endo/errors';
+import harden from '@endo/harden';
 import { parseCapnpSchema } from './parse.js';
 import { layoutSchema } from './layout.js';
 import { encodeRootStruct, decodeRootStruct } from './codec.js';
@@ -74,7 +75,7 @@ export const loadSchema = capnpText => {
       }),
   });
 
-  return {
+  return harden({
     fileId: parsed.fileId,
     structs: layouts,
     interfaces: parsed.interfaces,
@@ -167,7 +168,7 @@ export const loadSchema = capnpText => {
       }
       registry.register({ id: iface.id, methods, methodCodecs });
     },
-  };
+  });
 };
 
 export { parseCapnpSchema } from './parse.js';

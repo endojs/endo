@@ -12,6 +12,9 @@
  * common single-peer Cap'n Proto use case.
  */
 
+import { Fail } from '@endo/errors';
+import harden from '@endo/harden';
+
 const u8 = s => new TextEncoder().encode(s);
 
 /**
@@ -20,16 +23,16 @@ const u8 = s => new TextEncoder().encode(s);
  * @param {{ send(framed: ArrayBuffer): void, onMessage(cb: (framed: ArrayBuffer) => void): void }} args.transport
  */
 export const makeTwoPartyVatNetwork = ({ ourVatId, transport }) => {
-  return {
+  return harden({
     ourVatId: () => ourVatId,
     send: framed => transport.send(framed),
     onMessage: cb => transport.onMessage(cb),
     thirdPartyCapIdForHost: () => u8('two-party-host'),
     connectToThirdParty: () => {
-      throw new Error('two-party network has no third party');
+      throw Fail`two-party network has no third party`;
     },
     provisionIdForHandoff: () => u8('two-party-prov'),
     acceptIncomingProvide: () => {},
     consumeProvision: () => undefined,
-  };
+  });
 };

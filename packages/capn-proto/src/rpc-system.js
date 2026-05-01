@@ -12,6 +12,7 @@
 import { makeConnection } from './connection.js';
 import { makeInterfaceRegistry } from './interfaces.js';
 import { makeCapHomeRegistry } from './cap-home-registry.js';
+import harden from '@endo/harden';
 
 /**
  * @param {object} cfg
@@ -79,6 +80,11 @@ export const makeCapnp = cfg => {
     // bypassing the abort check.
     sendFramed: connection.sendFramed,
   };
+  // Harden the public surface so callers can rely on the API being
+  // tamper-proof — same discipline as @endo/captp's makeCapTP and
+  // @endo/exo's makeExo. Method bodies still close over mutable internal
+  // state; harden only freezes the returned record's own properties.
+  harden(self);
   selfRef.value = self;
   return self;
 };

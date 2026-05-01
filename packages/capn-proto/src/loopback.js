@@ -6,6 +6,8 @@
  * methods on one side are usable from the other.
  */
 
+import harden from '@endo/harden';
+
 import { makeCapnp } from './rpc-system.js';
 import { makeInterfaceRegistry } from './interfaces.js';
 
@@ -66,11 +68,11 @@ export const makeLoopback = (opts = {}) => {
   });
   farRef.ref = far;
 
-  return {
+  return harden({
     near,
     far,
     interfaceRegistry,
     flush,
     registerInterface: interfaceRegistry.register,
-  };
+  });
 };

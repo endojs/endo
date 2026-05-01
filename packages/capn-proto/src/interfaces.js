@@ -19,6 +19,7 @@
  */
 
 import { Fail, q } from '@endo/errors';
+import harden from '@endo/harden';
 
 /**
  * @typedef {object} MethodCodec
@@ -102,7 +103,7 @@ export const makeInterfaceRegistry = () => {
     }
   };
 
-  return {
+  return harden({
     register,
     byId: id => byIdMap.get(id),
     has: id => byIdMap.has(id),
@@ -110,5 +111,5 @@ export const makeInterfaceRegistry = () => {
     methodOrdinal: (id, name) => byIdMap.get(id)?.methods[name],
     iterate: () => byIdMap.values(),
     methodCodec: (id, mid, dir) => codecsByIface.get(id)?.get(mid)?.[dir],
-  };
+  });
 };

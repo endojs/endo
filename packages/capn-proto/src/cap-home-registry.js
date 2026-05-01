@@ -23,6 +23,8 @@
  * `grant-tracker.js` — same shape, same `WeakMap<presence, details>`.
  */
 
+import harden from '@endo/harden';
+
 /**
  * @typedef {object} CapHome
  * @property {any} hostConnection  The `makeCapnp` peer that exports the cap.
@@ -35,7 +37,7 @@ export const makeCapHomeRegistry = () => {
   /** @type {WeakMap<object, CapHome>} */
   const presenceToHome = new WeakMap();
 
-  return {
+  return harden({
     /**
      * Record where a freshly-imported Presence came from. Idempotent —
      * a re-import of the same id (which our import registry collapses
@@ -57,5 +59,5 @@ export const makeCapHomeRegistry = () => {
      * @returns {CapHome | undefined}
      */
     find: value => presenceToHome.get(/** @type {object} */ (value)),
-  };
+  });
 };

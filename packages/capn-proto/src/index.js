@@ -43,3 +43,8 @@ export {
   decodeRootStruct,
 } from './schema/index.js';
 export { makeCapHomeRegistry } from './cap-home-registry.js';
+// `types.js` is documentation-only — it exports `{}` and exists so that
+// consumers can `@import` typedefs (`CapDescriptor`, `VatNetwork`,
+// `MethodCodec`, etc.) from one place. Re-export it so the typedef
+// imports work via the package root.
+export {} from './types.js';

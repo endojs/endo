@@ -21,6 +21,7 @@ import {
   MIN_DATA_BUFFER_LENGTH,
   MIN_TRANSFER_BUFFER_LENGTH,
 } from '@endo/captp';
+import harden from '@endo/harden';
 
 export {
   TRANSFER_OVERHEAD_LENGTH,
@@ -41,7 +42,7 @@ const hasBuffer = typeof NodeBuffer !== 'undefined';
 
 export const makeCapnpTrapHost = transferBuffer => {
   const inner = captpHost(transferBuffer);
-  return async function* trapHost([isReject, framed]) {
+  return harden(async function* trapHost([isReject, framed]) {
     const u8 = new Uint8Array(framed);
     let b64;
     if (hasBuffer) {
@@ -56,7 +57,7 @@ export const makeCapnpTrapHost = transferBuffer => {
       b64 = btoa(bin);
     }
     yield* /** @type {any} */ (inner)([isReject, b64]);
-  };
+  });
 };
 
 /**
@@ -64,7 +65,7 @@ export const makeCapnpTrapHost = transferBuffer => {
  */
 export const makeCapnpTrapGuest = transferBuffer => {
   const inner = captpGuest(transferBuffer);
-  return ({ startTrap }) => {
+  return harden(({ startTrap }) => {
     const [isReject, b64] = /** @type {any} */ (inner)(
       /** @type {any} */ ({ startTrap }),
     );
@@ -84,5 +85,5 @@ export const makeCapnpTrapGuest = transferBuffer => {
       isReject,
       bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
     ];
-  };
+  });
 };

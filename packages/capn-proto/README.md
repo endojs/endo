@@ -72,5 +72,45 @@ console.log(await E(remote).hello('world'));
 ```
 
 For multi-peer setups (Level 3 three-party handoff), instantiate one
-`makeCapnp` per peer and share a single `InterfaceRegistry` between them via
-`makeInterfaceRegistry()` and the `interfaceRegistry` option.
+`makeCapnp` per peer and share both an `InterfaceRegistry` AND a
+`CapHomeRegistry` between them. The `CapHomeRegistry` is the network-wide
+WeakMap of `Presence → { hostConnection, hostImportId }` that lets B's
+encoder recognise "this cap was imported from C, not minted locally" and
+trigger the auto-Provide flow instead of becoming an L1 forwarder.
+
+```js
+import { makeCapnp, makeInterfaceRegistry, makeCapHomeRegistry } from '@endo/capn-proto';
+
+const interfaceRegistry = makeInterfaceRegistry();
+const capHomes = makeCapHomeRegistry();
+
+const aToB = makeCapnp({ send: ..., interfaceRegistry, capHomes, network, recipientVatId: VAT_B });
+const aToC = makeCapnp({ send: ..., interfaceRegistry, capHomes, network, recipientVatId: VAT_C });
+// ... one makeCapnp per (vat, peer) pair, all sharing the same registry.
+```
+
+## Public API surface
+
+The package re-exports a wider-than-usual set of helpers from
+`src/index.js`. In addition to the high-level `makeCapnp`, `makeLoopback`,
+`makeTwoPartyVatNetwork`, `makeInterfaceRegistry`, `makeCapHomeRegistry`,
+and `loadSchema` factories, we also re-export:
+
+- The wire primitives `frameSegments`, `unframeSegments`, `pack`, `unpack`,
+  `readPointer`, `writePointer`, `resolvePointer`, `makeMessageBuilder`,
+  `makeMessageReader`, and `WORD_SIZE`.
+- The rpc.capnp message encoders / decoders `encodeBootstrap`,
+  `encodeCall`, `encodeReturn`, `encodeFinish`, `encodeResolve`,
+  `encodeRelease`, `encodeDisembargo`, `encodeProvide`, `encodeAccept`,
+  `encodeUnimplemented`, `encodeAbort`, and `decodeMessage`.
+- The schema-runtime building blocks `parseCapnpSchema`, `layoutSchema`,
+  `layoutStruct`, `encodeRootStruct`, `decodeRootStruct`.
+
+These are not internal — they exist so that users who need to interoperate
+with non-`@endo/capn-proto` peers (e.g. authoring a custom `VatNetwork`,
+producing test fixtures, or integrating with a hand-written Cap'n Proto
+encoder elsewhere in their stack) can do so without forking the package.
+Public typedefs (`CapDescriptor`, `VatNetwork`, `MethodCodec`,
+`InterfaceDescriptor`, `CapHome`, `CapHomeRegistry`) live in
+`src/types.js` and are importable via
+`import('@endo/capn-proto/src/types.js').T`.
