@@ -15,3 +15,4 @@ export const btoa = stringToEncode => {
   const buf = new Uint8Array(bytes);
   return encodeBase64(buf);
 };
+Object.freeze(btoa);

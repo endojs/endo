@@ -1,4 +1,5 @@
 // Like test-sanity-unfiltered.js but with { stackFiltering: 'concise' }
+import './_lockdown-concise.js';
 import { makeSanityTests } from './_sanity.js';
 
 // 'concise' is currently the default. But the purpose of this
