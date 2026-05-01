@@ -22,7 +22,7 @@
 // streaming over a single HTTP request batch is not feasible.
 
 import harden from '@endo/harden';
-import { Far } from '@endo/pass-style';
+import { makeExo } from '@endo/exo';
 import { E } from '@endo/eventual-send';
 
 const G = /** @type {any} */ (globalThis);
@@ -41,7 +41,7 @@ export const haveWebStreams =
 export const exportWritableStream = ws => {
   /** @type {any} */
   const writer = ws.getWriter();
-  return Far('writable', {
+  return makeExo('writable', undefined, {
     write: async chunk => {
       await writer.write(chunk);
     },
@@ -64,7 +64,7 @@ export const exportWritableStream = ws => {
 export const exportReadableStream = rs => {
   /** @type {any} */
   const reader = rs.getReader();
-  return Far('readable', {
+  return makeExo('readable', undefined, {
     read: async () => {
       const { value, done } = await reader.read();
       return harden({ value, done });
