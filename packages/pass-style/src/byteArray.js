@@ -97,16 +97,34 @@ harden(byteArrayToUint8Array);
  * Converts a `Uint8Array` to a `ByteArray`, i.e., a hardened Immutable
  * ArrayBuffer whose `passStyleOf` is `'byteArray'`.
  *
+ * Honors the `Uint8Array`'s `byteOffset` and `length` so that a view
+ * over a slice of a larger buffer round-trips correctly:
+ * `uint8ArrayToByteArray(new Uint8Array(buf, byteOffset, length))`
+ * always represents exactly the bytes in `[byteOffset, byteOffset +
+ * length)`.
+ *
+ * If the underlying platform implements `sliceToImmutable` natively
+ * with the obvious zero-copy optimization on an already-immutable
+ * source buffer, this conversion is zero-copy.  Otherwise, it pays
+ * the copy cost implicit in `sliceToImmutable`.
+ *
  * @param {Uint8Array} uint8Array
  * @returns {ArrayBuffer}
  */
-export const uint8ArrayToByteArray = uint8Array =>
+export const uint8ArrayToByteArray = uint8Array => {
+  const { byteOffset, length } = uint8Array;
   // @ts-expect-error shim-augmented ArrayBuffer type
-  harden(uint8Array.buffer.sliceToImmutable(0, uint8Array.length));
+  const byteArray = uint8Array.buffer.sliceToImmutable(
+    byteOffset,
+    byteOffset + length,
+  );
+  return harden(byteArray);
+};
 harden(uint8ArrayToByteArray);
 
 /**
- * Hex-encodes the contents of a ByteArray.
+ * Like `encodeHex` but starting from a presumably frozen (immutable)
+ * ByteArray.
  *
  * @param {ByteArray} byteArray
  * @returns {string}
@@ -116,7 +134,9 @@ export const byteArrayToHex = byteArray =>
 harden(byteArrayToHex);
 
 /**
- * Decodes a hex string into a ByteArray (hardened Immutable ArrayBuffer).
+ * Like `decodeHex` but producing a hardened Immutable ArrayBuffer
+ * (`passStyleOf === 'byteArray'`) instead of a fresh mutable
+ * `Uint8Array`.
  *
  * @param {string} hex
  * @param {string} [name]

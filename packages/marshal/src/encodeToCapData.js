@@ -451,3 +451,4 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
   };
   return harden(decodeFromCapData);
 };
+harden(makeDecodeFromCapData);

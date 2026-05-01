@@ -477,3 +477,4 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
   };
   return harden(decodeFromSmallcaps);
 };
+harden(makeDecodeFromSmallcaps);

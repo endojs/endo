@@ -5,6 +5,7 @@ import { makeError, X } from '@endo/errors';
 import {
   Far,
   Remotable,
+  hexToByteArray,
   makeTagged,
   passableSymbolForName,
 } from '@endo/pass-style';
@@ -42,6 +43,7 @@ const fakeJustinCompartment = () => {
   return new Compartment({
     slot,
     slotToVal,
+    hexToByteArray,
     makeTagged,
     passableSymbolForName,
   });
