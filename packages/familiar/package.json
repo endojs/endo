@@ -58,6 +58,9 @@
     "extends": [
       "plugin:@endo/internal"
     ],
+    "ignorePatterns": [
+      "out/*"
+    ],
     "rules": {
       "no-restricted-globals": "off"
     },
