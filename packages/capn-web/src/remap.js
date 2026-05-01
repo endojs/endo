@@ -28,6 +28,16 @@ import { isForbiddenKey } from './path-keys.js';
 
 const PLACEHOLDER = Symbol('capnweb.remap.placeholder');
 
+// Numbers that survive JSON.stringify round-trip.  NaN / +Infinity /
+// -Infinity become `null` in JSON, so we must NOT inline them as
+// literals in the wire form — they have to go through `captures`,
+// where the special-value codec encodes them as `["nan"]` etc.
+const isJsonSafePrimitive = v =>
+  v === null ||
+  typeof v === 'string' ||
+  typeof v === 'boolean' ||
+  (typeof v === 'number' && Number.isFinite(v));
+
 const checkPathSegment = seg => {
   if (isForbiddenKey(seg)) {
     throw new TypeError(
@@ -60,14 +70,12 @@ const encodeArg = (state, arg) => {
     );
   }
   // For atomic JSON-safe primitives we can inline the value directly.
-  // For objects (typically stubs) and other non-trivial captures we
-  // store them in `state.captures` and reference via negative subject.
-  if (
-    arg === null ||
-    typeof arg === 'string' ||
-    typeof arg === 'boolean' ||
-    typeof arg === 'number'
-  ) {
+  // For objects (typically stubs), non-finite numbers (NaN/Infinity that
+  // would JSON-stringify to null), and other non-trivial captures we
+  // store them in `state.captures` and reference via negative subject —
+  // captures are devalued at send time, so the special-value codec
+  // handles them.
+  if (isJsonSafePrimitive(arg)) {
     return arg;
   }
   state.captures.push(arg);
@@ -149,13 +157,10 @@ export const recordRemap = mapper => {
     throw new TypeError(
       `remap recorder cannot return a symbol from the mapper`,
     );
-  } else if (
-    result === null ||
-    typeof result === 'string' ||
-    typeof result === 'boolean' ||
-    typeof result === 'number'
-  ) {
-    // Atomic primitive: encode inline as the final instruction.
+  } else if (isJsonSafePrimitive(result)) {
+    // JSON-safe atomic primitive: encode inline as the final
+    // instruction.  Non-finite numbers fall through to the captures
+    // path below so the special-value codec can encode them.
     state.instructions.push(/** @type {any} */ (result));
   } else {
     // Arbitrary value (e.g. a stub the user captured): push to

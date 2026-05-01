@@ -88,7 +88,7 @@ export const makeWebSocketTransport = socket => {
       trySend(m);
     },
     receive: () => {
-      if (buf.length > 0) return Promise.resolve(buf.shift());
+      if (buf.length > 0) return Promise.resolve(buf.shift() ?? null);
       if (closed) return Promise.resolve(null);
       return new Promise(resolve => waiters.push(resolve));
     },

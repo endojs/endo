@@ -101,3 +101,53 @@ test('record + replay: works on multiple inputs', async t => {
   const out = await Promise.all(items.map(it => replayRemap(rec, it)));
   t.deepEqual(out, [2, 4]);
 });
+
+test('non-finite numbers in mapper args go through captures, not inline', async t => {
+  // JSON.stringify(NaN) is "null", so inlining NaN/Infinity as a literal
+  // arg would silently corrupt the recording on the wire.  These values
+  // must be routed through `captures`, where the special-value codec
+  // preserves them as ["nan"] / ["inf"] / ["-inf"].
+  const rec = recordRemap(item => item.scale(NaN, Infinity, -Infinity));
+  // Find the call instruction (the one with args), not the get-only
+  // answer-reference that follows it.
+  const callExpr = rec.instructions.find(
+    i => Array.isArray(i) && i[0] === 'pipeline' && i[3] !== undefined,
+  );
+  t.truthy(callExpr, 'expected a pipeline call instruction');
+  const args = callExpr[3];
+  for (const a of args) {
+    t.true(
+      Array.isArray(a) &&
+        a[0] === 'pipeline' &&
+        typeof a[1] === 'number' &&
+        a[1] < 0,
+    );
+  }
+  t.is(rec.captures.length, 3);
+  t.true(Number.isNaN(rec.captures[0]));
+  t.is(rec.captures[1], Infinity);
+  t.is(rec.captures[2], -Infinity);
+  // And the recording still replays correctly locally.
+  const item = {
+    scale: (a, b, c) => [a, b, c],
+  };
+  const out = await replayRemap(rec, item);
+  t.true(Number.isNaN(out[0]));
+  t.is(out[1], Infinity);
+  t.is(out[2], -Infinity);
+});
+
+test('non-finite number as mapper return value also goes through captures', async t => {
+  const rec = recordRemap(_ => NaN);
+  // Final instruction should be a pipeline reference into captures, not
+  // the raw NaN (which would JSON-stringify to null).
+  const last = rec.instructions[rec.instructions.length - 1];
+  t.true(
+    Array.isArray(last) &&
+      last[0] === 'pipeline' &&
+      typeof last[1] === 'number' &&
+      last[1] < 0,
+  );
+  t.is(rec.captures.length, 1);
+  t.true(Number.isNaN(rec.captures[0]));
+});

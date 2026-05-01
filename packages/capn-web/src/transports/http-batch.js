@@ -132,7 +132,7 @@ export const makeHttpBatchTransport = (url, opts = {}) => {
       }
     },
     receive: () => {
-      if (inBuf.length > 0) return Promise.resolve(inBuf.shift());
+      if (inBuf.length > 0) return Promise.resolve(inBuf.shift() ?? null);
       if (closed) return Promise.resolve(null);
       return new Promise(resolve => waiters.push(resolve));
     },

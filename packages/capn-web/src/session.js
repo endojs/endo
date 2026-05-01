@@ -75,6 +75,21 @@ export const makeCapnWebSession = (transport, opts = {}) => {
    */
   const pendingExportPromises = new Set();
 
+  /**
+   * Promises spawned by incoming push/pull dispatch that are still in
+   * flight (computing the answer, awaiting an export, or producing the
+   * matching `resolve`/`reject`).  `drain()` waits for these so a batch
+   * transport doesn't return a response before the session has finished
+   * producing all outbound messages for the inbound batch.
+   * @type {Set<Promise<unknown>>}
+   */
+  const incomingInFlight = new Set();
+  const trackIncoming = p => {
+    incomingInFlight.add(p);
+    p.finally(() => incomingInFlight.delete(p)).catch(noop);
+    return p;
+  };
+
   // ------- devaluate / evaluate -------
 
   const devaluator = makeDevaluator({
@@ -325,16 +340,16 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       switch (tag) {
         case 'push':
           assertArity(1);
-          handlePush(rest[0], false).catch(e => abort(e));
+          trackIncoming(handlePush(rest[0], false)).catch(e => abort(e));
           break;
         case 'stream':
           assertArity(1);
-          handlePush(rest[0], true).catch(e => abort(e));
+          trackIncoming(handlePush(rest[0], true)).catch(e => abort(e));
           break;
         case 'pull':
           assertArity(1);
           assertNumber(0);
-          handlePull(rest[0]).catch(e => abort(e));
+          trackIncoming(handlePull(rest[0])).catch(e => abort(e));
           break;
         case 'resolve':
           assertArity(2);
@@ -383,6 +398,10 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     // no-op observer is enough; handlePull's own await will still see the
     // rejection if a pull arrives.
     answer.catch(noop);
+    // Track the answer in `incomingInFlight` so `drain()` waits for it
+    // even between this push and the matching pull (HTTP batch may flush
+    // a response right after this returns otherwise).
+    trackIncoming(answer);
     tables.installExportAtId(qid, answer, true);
 
     if (isStream) {
@@ -741,7 +760,9 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     let idleCount = 0;
     while (!aborted) {
       const inFlight =
-        pendingPushAnswers.size > 0 || pendingExportPromises.size > 0;
+        pendingPushAnswers.size > 0 ||
+        pendingExportPromises.size > 0 ||
+        incomingInFlight.size > 0;
       if (!inFlight) {
         idleCount += 1;
         if (idleCount >= 2) return;
