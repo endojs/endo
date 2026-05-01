@@ -37,12 +37,16 @@ const u8 = s => new TextEncoder().encode(s);
 
 /**
  * Build a fully-connected three-vat in-memory network. Returns an object
- * with `{ aToB, bToA, aToC, cToA, bToC, cToB, flush }` — six makeCapnp
- * peers (one per direction) sharing one interfaceRegistry and one
- * capHomes registry.
+ * with `{ aToB, bToA, aToC, cToA, bToC, cToB, flush, interfaceRegistry,
+ * capHomes }` — six `makeCapnp` peers (one per direction) sharing one
+ * `interfaceRegistry` and one `capHomes` registry.
  *
  * Each pair-connection runs its own scheduler queue, drained
  * cooperatively by `flush()`.
+ *
+ * @param {object} cfg
+ * @param {unknown} cfg.bootstrapB  Initial bootstrap value for vat B.
+ * @param {unknown} cfg.bootstrapC  Initial bootstrap value for vat C.
  */
 const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
   const interfaceRegistry = makeInterfaceRegistry();
@@ -104,14 +108,22 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
     C: { A: undefined, B: undefined },
   };
 
+  // Provision bytes are mostly opaque to capn-proto itself; the network
+  // just needs B and C to agree on what they are. Use plain decimal
+  // arithmetic (no bitwise shifts — the lint config bans those, and the
+  // counter never exceeds 16 bits for this fixture's purposes).
+  const provisionBytes = n =>
+    new Uint8Array([0xa0, Math.floor(n / 256) % 256, n % 256]);
+
   const networkFor = me => ({
-    capHomes,
     ourVatId: () => ({ A: VAT_A, B: VAT_B, C: VAT_C })[me],
     /**
      * Identify the host peer by its vat id bytes. The `hostConnection`
      * argument is the makeCapnp peer object the auto-Provide path on
      * `me` is about to send a Provide on; we walk our connection map
      * to figure out which named peer it is.
+     *
+     * @param {any} hostConnection
      */
     thirdPartyCapIdForHost: hostConnection => {
       for (const peerName of ['A', 'B', 'C']) {
@@ -124,6 +136,8 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
     /**
      * Recipient (A) → look up our existing connection to the host and
      * return it. (Real networks would dial a fresh socket here.)
+     *
+     * @param {Uint8Array} thirdPartyCapId
      */
     connectToThirdParty: thirdPartyCapId => {
       const peerName = vatIdToName(thirdPartyCapId);
@@ -134,39 +148,36 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
     /**
      * Both B and A end up calling this — and they need to agree. We
      * embed a counter into the bytes; B mints, then stashes the same
-     * provision in BOTH the host (C) and the recipient (A) tables so
-     * a later Accept from A matches the Provide from B.
+     * provision in the host (C) table so the matching Accept from A
+     * matches the Provide from B.
      */
     provisionIdForHandoff: () => {
       provisionCounter += 1;
-      return new Uint8Array([
-        0xa0,
-        (provisionCounter >>> 8) & 0xff,
-        provisionCounter & 0xff,
-      ]);
+      return provisionBytes(provisionCounter);
     },
     /**
      * Host side (we are C): a Provide arrived; remember it so the next
      * matching Accept from A can claim it. Index by provision bytes.
+     *
+     * @param {number} questionId
+     * @param {any} target
+     * @param {Uint8Array} recipient
      */
     acceptIncomingProvide: (questionId, target, recipient) => {
       // The provision bytes B used in its outgoing Provide aren't on
       // the wire (Cap'n Proto's Provide carries questionId, target,
-      // recipient — not provision). We compute the same bytes by
-      // re-running provisionIdForHandoff. NB: this fixture is a test
+      // recipient — not provision). We re-derive them by reading the
+      // network's current counter. NB: this fixture is a test
       // simulator, not a real network — real networks share the
       // provision via cryptographic tokens.
-      const provision = new Uint8Array([
-        0xa0,
-        (provisionCounter >>> 8) & 0xff,
-        provisionCounter & 0xff,
-      ]);
+      const provision = provisionBytes(provisionCounter);
       pendingByVat[me].set(provisionKey(provision), {
         questionId,
         target,
         recipient,
       });
     },
+    /** @param {Uint8Array} provision */
     consumeProvision: provision => {
       const k = provisionKey(provision);
       const found = pendingByVat[me].get(k);
@@ -194,6 +205,7 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
   const aToB = makeCapnp({
     send: ab.sendLeftToRight,
     interfaceRegistry,
+    capHomes,
     network: networkFor('A'),
     recipientVatId: VAT_B,
   });
@@ -201,12 +213,14 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
     send: ab.sendRightToLeft,
     bootstrap: bootstrapB,
     interfaceRegistry,
+    capHomes,
     network: networkFor('B'),
     recipientVatId: VAT_A,
   });
   const aToC = makeCapnp({
     send: ac.sendLeftToRight,
     interfaceRegistry,
+    capHomes,
     network: networkFor('A'),
     recipientVatId: VAT_C,
   });
@@ -214,12 +228,14 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
     send: ac.sendRightToLeft,
     bootstrap: bootstrapC,
     interfaceRegistry,
+    capHomes,
     network: networkFor('C'),
     recipientVatId: VAT_A,
   });
   const bToC = makeCapnp({
     send: bc.sendLeftToRight,
     interfaceRegistry,
+    capHomes,
     network: networkFor('B'),
     recipientVatId: VAT_C,
   });
@@ -227,6 +243,7 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
     send: bc.sendRightToLeft,
     bootstrap: bootstrapC,
     interfaceRegistry,
+    capHomes,
     network: networkFor('C'),
     recipientVatId: VAT_B,
   });

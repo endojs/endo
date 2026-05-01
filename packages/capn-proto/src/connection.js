@@ -43,15 +43,19 @@ const utf8Encoder = new TextEncoder();
  * @param {import('./interfaces.js').InterfaceRegistry} cfg.interfaceRegistry
  * @param {object} [cfg.network]
  * @param {Uint8Array} [cfg.recipientVatId]
- *   Vat-id bytes naming the peer this connection speaks to. Required for
- *   L3 auto-Provide on encode (passed to `Provide.recipient`); networks
- *   that don't auto-Provide can leave it unset.
+ *   Vat-id bytes naming the peer this connection speaks to. Required
+ *   for L3 auto-Provide on encode (passed to `Provide.recipient`).
+ * @param {ReturnType<typeof import('./cap-home-registry.js').makeCapHomeRegistry>} [cfg.capHomes]
+ *   The CapHome registry to read on export and write to on import. The
+ *   `makeCapnp` wrapper auto-creates one if not supplied; multi-peer
+ *   setups should pass the *same* registry to every peer in the same
+ *   vat so cap-home lookups span the whole vat's import set.
  * @param {{ value: any }} [cfg.selfRef]
  *   Mutable holder the rpc-system wrapper fills with the public
  *   `makeCapnp` instance after construction. The connection consults
- *   it when it needs to identify itself to the network's CapHome
- *   registry — without it, auto-Provide can't tell whether a cap-home
- *   hit refers to "us" or "the other guy".
+ *   it when it needs to identify itself to the CapHome registry —
+ *   without it, auto-Provide can't tell whether a cap-home hit refers
+ *   to "us" or "the other guy".
  */
 export const makeConnection = cfg => {
   const { send, interfaceRegistry } = cfg;
@@ -159,8 +163,7 @@ export const makeConnection = cfg => {
     // that pass-back above already caught the same-connection case; if
     // we reach here and findCapHome returns a hit, the home is by
     // construction a different peer.
-    const homes = cfg.network && cfg.network.capHomes;
-    const home = homes && homes.find(v);
+    const home = cfg.capHomes && cfg.capHomes.find(v);
     if (home && threeParty) {
       const { thirdPartyCapId, vineId } = threeParty.initiateProvide({
         target: v,
@@ -365,13 +368,14 @@ export const makeConnection = cfg => {
     importEntries: tables.importEntries,
     makeRemoteHandler: (id, isP) => makeRemoteHandlerForImport(id, isP),
     onImport: (presence, id) => {
-      // Tell the network's CapHomeRegistry that this Presence lives on
-      // this connection, so a future encode for a different peer can
-      // auto-Provide instead of becoming a forwarder. Networks without
-      // a capHomes registry (single-peer setups) skip this entirely.
-      const homes = cfg.network && cfg.network.capHomes;
-      if (homes && cfg.selfRef && cfg.selfRef.value) {
-        homes.register(presence, cfg.selfRef.value, id);
+      // Record where this Presence came from so a future encode for a
+      // different peer can auto-Provide it instead of becoming a
+      // forwarder. With the default fresh-per-connection registry the
+      // entry is harmless but unread (no other peer queries this same
+      // map); with a shared registry across multi-peer setups this is
+      // the only way the encoder learns about cross-peer caps.
+      if (cfg.capHomes && cfg.selfRef && cfg.selfRef.value) {
+        cfg.capHomes.register(presence, cfg.selfRef.value, id);
       }
     },
   });
