@@ -18,7 +18,11 @@
 
 import harden from '@endo/harden';
 
-import { bash, exec, makeCommandTool } from './command.js';
+import {
+  DANGEROUS_PATTERNS,
+  makeCommandTool,
+  rejectPatterns,
+} from './command.js';
 import { makeFileTools } from './filesystem.js';
 import { makeMemoryTools } from './memory.js';
 import { webFetch } from './web-fetch.js';
@@ -152,12 +156,40 @@ export const buildGenieTools = ({
   /** @type {Record<string, Tool>} */
   const tools = {};
 
+  // `bash` / `exec` / `git` are constructed in-place rather than
+  // imported from `./command.js` so each one captures the optional
+  // `slice` parameter.  When `slice` is supplied, every spawn routes
+  // through `E(slice).spawn(...)` (the `@endo/sandbox` `SandboxHandle`
+  // surface; see `TODO/35_endo_genie_sandbox_tool_spawn.md` and
+  // `TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md`
+  // § "Tool spawn channel"); when absent, `makeCommandTool` falls
+  // back to host-side `child_process.spawn`.  The agent-visible
+  // result-shape contract (`{ success, command, stdout, stderr,
+  // exitCode, path? }`) is identical across both channels.
   if (groups.has('bash')) {
-    tools.bash = bash;
+    tools.bash = makeCommandTool({
+      name: 'bash',
+      description: [
+        'Runs a shell command (ls, grep, find, cat, curl, etc.).',
+        'Use for general tasks not covered by other tools.',
+      ].join('\n'),
+      policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+      shell: true,
+      slice,
+    });
   }
 
   if (groups.has('exec')) {
-    tools.exec = exec;
+    tools.exec = makeCommandTool({
+      name: 'exec',
+      description: [
+        'Runs a system command (ls, grep, find, cat, curl, etc.).',
+        'Use for general tasks not covered by other tools.',
+        'NOTE: does not execute through a shell',
+      ].join('\n'),
+      policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+      slice,
+    });
   }
 
   if (groups.has('git')) {
@@ -179,6 +211,7 @@ export const buildGenieTools = ({
           );
         },
       ],
+      slice,
     });
   }
 
