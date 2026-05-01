@@ -275,8 +275,17 @@ export const handleHandshakeMessageData = (
       try {
         message = readOcapnHandshakeMessage(syrupReader);
       } catch (err) {
+        // Best-effort diagnostic: try to render the bytes as generic syrup
+        // for the log. If they can't even be decoded as syrup (e.g. junk
+        // bytes), don't let the diagnostic itself mask the original error.
         const problematicBytes = data.slice(start);
-        const syrupMessage = decodeSyrup(problematicBytes);
+        let syrupMessage;
+        try {
+          syrupMessage = decodeSyrup(problematicBytes);
+        } catch (decodeErr) {
+          syrupMessage = '<undecodable syrup>';
+          logger.error(`Bytes are not valid syrup:`, decodeErr);
+        }
         logger.error(
           `Message decode error:`,
           err,

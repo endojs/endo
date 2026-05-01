@@ -1217,16 +1217,27 @@ export const makeOcapn = (
       } catch (err) {
         // Tell the engine message deserialization has failed.
         ocapnTable.clearPendingRefCounts();
+        // Best-effort diagnostic: try to render the bytes as generic syrup
+        // for the log. If they can't even be decoded as syrup (e.g. junk
+        // bytes), don't let the diagnostic itself mask the original error
+        // or skip the connection.end() cleanup below.
         const problematicBytes = data.slice(start);
-        const syrupMessage = decodeSyrup(problematicBytes);
-        logger.error(`Message decode error:`);
-        logger.error(
-          JSON.stringify(
-            syrupMessage,
-            (key, value) => (typeof value === 'bigint' ? `${value}n` : value),
-            2,
-          ),
-        );
+        try {
+          const syrupMessage = decodeSyrup(problematicBytes);
+          logger.error(`Message decode error:`);
+          logger.error(
+            JSON.stringify(
+              syrupMessage,
+              (key, value) => (typeof value === 'bigint' ? `${value}n` : value),
+              2,
+            ),
+          );
+        } catch (decodeErr) {
+          logger.error(
+            `Message decode error (bytes are not valid syrup):`,
+            decodeErr,
+          );
+        }
         connection.end();
         throw err;
       }
