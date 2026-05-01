@@ -829,10 +829,10 @@ const makePatternKit = () => {
 
     getRankCover: (patts, encodePassable) =>
       intersectRankCovers(
-        compareRank,
         /** @type {CopyArray<Passable>} */ (patts).map(p =>
           getRankCover(p, encodePassable),
         ),
+        compareRank,
       ),
   });
 
@@ -868,10 +868,10 @@ const makePatternKit = () => {
 
     getRankCover: (patts, encodePassable) =>
       unionRankCovers(
-        compareRank,
         /** @type {CopyArray<Passable>} */ (patts).map(p =>
           getRankCover(p, encodePassable),
         ),
+        compareRank,
       ),
   });
 

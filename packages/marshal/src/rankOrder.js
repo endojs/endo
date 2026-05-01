@@ -482,11 +482,6 @@ const rankSearch = (
   return bias === 'leftMost' ? left : right - 1;
 };
 
-// TODO https://github.com/endojs/endo/issues/2883#issuecomment-3063809592
-// Some (all?) rank cover operations take a compare parameter.
-// These should all now be optional, moved to the end, and default to
-// `compareRankRemotablesTied`.
-
 /**
  * @param {Passable[]} sorted
  * @param {RankCover} rankCover
@@ -555,11 +550,15 @@ const maxRank = (compare, a, b) => (compare(a, b) >= 0 ? a : b);
 const minRank = (compare, a, b) => (compare(a, b) <= 0 ? a : b);
 
 /**
- * @param {RankCompare} compare
  * @param {RankCover[]} covers
+ * @param {RankCompare} [compare] which rank comparison function to use.
+ * Default to `compareRankRemotablesTied`.
  * @returns {RankCover}
  */
-export const unionRankCovers = (compare, covers) => {
+export const unionRankCovers = (
+  covers,
+  compare = compareRankRemotablesTied,
+) => {
   /**
    * @param {RankCover} a
    * @param {RankCover} b
@@ -574,11 +573,15 @@ export const unionRankCovers = (compare, covers) => {
 harden(unionRankCovers);
 
 /**
- * @param {RankCompare} compare
  * @param {RankCover[]} covers
+ * @param {RankCompare} [compare] which rank comparison function to use.
+ * Default to `compareRankRemotablesTied`.
  * @returns {RankCover}
  */
-export const intersectRankCovers = (compare, covers) => {
+export const intersectRankCovers = (
+  covers,
+  compare = compareRankRemotablesTied,
+) => {
   /**
    * @param {RankCover} a
    * @param {RankCover} b
