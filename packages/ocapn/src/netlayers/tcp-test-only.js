@@ -153,6 +153,12 @@ export const makeTcpNetLayer = async ({
       if (onClose) {
         onClose();
       }
+      // Mark the connection destroyed before notifying the client.
+      // Otherwise a socket that closes without the userland data handler
+      // first observing an op:abort (e.g. RST, dropped in-flight bytes,
+      // or close racing data delivery) would leave `connection.isDestroyed`
+      // false, which causes test waiters and reconnect logic to hang.
+      connection.end();
       handlers.handleConnectionClose(connection);
     });
   };
@@ -182,7 +188,14 @@ export const makeTcpNetLayer = async ({
     const connection = handlers.makeConnection(netlayer, true, socketOps);
 
     setupSocketHandlers(socket, connection, () => {
-      outgoingConnections.delete(location.designator);
+      // Only evict ourselves from the outgoing map. The map may contain a
+      // *different* connection for this designator (e.g. one created by a
+      // later `lookupOrConnect`) when this one was created via the debug
+      // `establishConnection` helper that bypasses registration. An
+      // unconditional delete would silently break later sessions.
+      if (outgoingConnections.get(location.designator) === connection) {
+        outgoingConnections.delete(location.designator);
+      }
     });
 
     return { connection, socket };

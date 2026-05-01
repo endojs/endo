@@ -356,6 +356,13 @@ export const makeClient = ({
    */
   const handleConnectionClose = (connection, reason) => {
     logger.info(`handleConnectionClose called`, { reason });
+    // The underlying socket has closed, so the connection is no longer
+    // usable regardless of how it got here (graceful op:abort, error,
+    // remote RST, etc). Marking it destroyed here is idempotent and
+    // ensures `connection.isDestroyed` is always true once the socket
+    // is gone, even when a netlayer fires close without an intervening
+    // userland call to connection.end().
+    connection.end();
     const session = sessionManager.getSessionForConnection(connection);
     if (session) {
       const locationId = locationToLocationId(session.peer.location);
