@@ -97,21 +97,40 @@ jobs:
           restore-keys: |
             guix-binary-nightly-x86_64-linux-
       - name: Download Guix nightly tarball (skip if cached)
-        # Even with caching, `ci.guix.gnu.org/search/latest/archive`
-        # periodically returns sustained HTTP 502s. Retry generously
-        # (up to 12 attempts at 60 s spacing, ~12 min budget) when the
-        # cache is empty. The stable 1.4.0 tarball on ftp.gnu.org is
-        # not a viable fallback; its bundled Guile + guile-fibers
-        # predate the `spawn` binding goblin-chat depends on, so the
-        # tests fail later in a more confusing way.
+        # `ci.guix.gnu.org/search/latest/archive` periodically returns
+        # sustained HTTP 502s for hours, exhausting any reasonable
+        # in-step retry budget. Retry briefly (6 attempts at 30 s
+        # spacing) so transient errors heal, then fall through to the
+        # stable-tarball fallback below. `continue-on-error` keeps
+        # the job alive when nightly is unreachable.
+        if: ${{ hashFiles('guix-binary-nightly.x86_64-linux.tar.xz') == '' }}
+        id: download-nightly
+        continue-on-error: true
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          max_attempts: 6
+          retry_wait_seconds: 30
+          timeout_minutes: 3
+          command: |
+            wget -nv "https://ci.guix.gnu.org/search/latest/archive?query=spec:tarball+status:success+system:x86_64-linux+guix-binary.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz
+      - name: Download Guix stable tarball as fallback
+        # When ci.guix.gnu.org is fully down, GNU's release tarball on
+        # ftpmirror.gnu.org is the canonical mirror for the binary
+        # install. Pin to 1.5.0 (released 2026-01-22) so the bundled
+        # Guile and channel snapshot are recent enough to expose the
+        # `spawn` binding goblin-chat depends on; older 1.4.0 is not
+        # a usable fallback for that reason. The pinned channel inside
+        # the tarball is then refreshed implicitly by `guix build`
+        # against bordeaux/ci substitutes, so the older bootstrap is
+        # purely a way to get a working `guix` binary on the runner.
         if: ${{ hashFiles('guix-binary-nightly.x86_64-linux.tar.xz') == '' }}
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
         with:
-          max_attempts: 12
-          retry_wait_seconds: 60
+          max_attempts: 6
+          retry_wait_seconds: 30
           timeout_minutes: 5
           command: |
-            wget -nv "https://ci.guix.gnu.org/search/latest/archive?query=spec:tarball+status:success+system:x86_64-linux+guix-binary.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz
+            wget -nv "https://ftp.gnu.org/gnu/guix/guix-binary-1.5.0.x86_64-linux.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz
       - name: Install Guix
         run: |
           sudo -- tar --extract --file "guix-binary-nightly.x86_64-linux.tar.xz" -C / --no-overwrite-dir
