@@ -2350,126 +2350,147 @@ const makeDaemonCore = async (
       const help = makeHelp(endoHelp);
       const endoBootstrap = /** @type {FarRef<EndoBootstrap>} */ (
         /** @type {unknown} */ (
-          makeExo('Endo', EndoInterface, /** @type {any} */ ({
-        help,
-        ping: async () => 'pong',
-        terminate: async () => {
-          cancel(new Error('Termination requested'));
-        },
-        host: () => provide(hostId, 'host'),
-        leastAuthority: () => provide(leastAuthorityId, 'guest'),
-        greeter: async () => localGreeter,
-        gateway: async () => localGateway,
-        nodeId: () => localNodeNumber,
-        sign: async hexBytes => toHex(signBytes(fromHex(hexBytes))),
-        reviveNetworks: async () => {
-          const networksDirectory = await provide(networksId, 'directory');
-          const networkIds = await networksDirectory.listIdentifiers();
-          await Promise.allSettled(
-            networkIds.map(id =>
-              provide(/** @type {FormulaIdentifier} */ (id)),
-            ),
-          );
-        },
-        revivePins: async () => {
-          const pinsDirectory = await provide(pinsId, 'directory');
-          const pinIds = await pinsDirectory.listIdentifiers();
-          for (const id of pinIds) {
-            logLifecycle(/** @type {FormulaIdentifier} */ (id), 'REVIVE_PIN');
-          }
-          await Promise.allSettled(
-            pinIds.map(id => provide(/** @type {FormulaIdentifier} */ (id))),
-          );
-        },
-        addPeerInfo: async (
-          /** @type {import('./types.js').PeerInfo} */ peerInfo,
-        ) => {
-          const knownPeers = /** @type {KnownPeersStore} */ (
-            /** @type {unknown} */ (await provideStoreController(peersId))
-          );
-          const { node: nodeNumber, addresses } = peerInfo;
-          assertNodeNumber(nodeNumber);
-          if (knownPeers.has(nodeNumber)) {
-            const existingPeerId = knownPeers.identifyLocal(nodeNumber);
-            if (existingPeerId !== undefined) {
-              const existingFormulaId = /** @type {FormulaIdentifier} */ (
-                existingPeerId
-              );
-              const existingFormula = await getFormulaForId(existingFormulaId);
-              if (
-                existingFormula.type === 'peer' &&
-                JSON.stringify(existingFormula.addresses) !==
-                  JSON.stringify(addresses)
-              ) {
+          makeExo(
+            'Endo',
+            EndoInterface,
+            /** @type {any} */ ({
+              help,
+              ping: async () => 'pong',
+              terminate: async () => {
+                cancel(new Error('Termination requested'));
+              },
+              host: () => provide(hostId, 'host'),
+              leastAuthority: () => provide(leastAuthorityId, 'guest'),
+              greeter: async () => localGreeter,
+              gateway: async () => localGateway,
+              nodeId: () => localNodeNumber,
+              sign: async hexBytes => toHex(signBytes(fromHex(hexBytes))),
+              reviveNetworks: async () => {
+                const networksDirectory = await provide(
+                  networksId,
+                  'directory',
+                );
+                const networkIds = await networksDirectory.listIdentifiers();
+                await Promise.allSettled(
+                  networkIds.map(id =>
+                    provide(/** @type {FormulaIdentifier} */ (id)),
+                  ),
+                );
+              },
+              revivePins: async () => {
+                const pinsDirectory = await provide(pinsId, 'directory');
+                const pinIds = await pinsDirectory.listIdentifiers();
+                for (const id of pinIds) {
+                  logLifecycle(
+                    /** @type {FormulaIdentifier} */ (id),
+                    'REVIVE_PIN',
+                  );
+                }
+                await Promise.allSettled(
+                  pinIds.map(id =>
+                    provide(/** @type {FormulaIdentifier} */ (id)),
+                  ),
+                );
+              },
+              addPeerInfo: async (
+                /** @type {import('./types.js').PeerInfo} */ peerInfo,
+              ) => {
+                const knownPeers = /** @type {KnownPeersStore} */ (
+                  /** @type {unknown} */ (await provideStoreController(peersId))
+                );
+                const { node: nodeNumber, addresses } = peerInfo;
+                assertNodeNumber(nodeNumber);
+                if (knownPeers.has(nodeNumber)) {
+                  const existingPeerId = knownPeers.identifyLocal(nodeNumber);
+                  if (existingPeerId !== undefined) {
+                    const existingFormulaId = /** @type {FormulaIdentifier} */ (
+                      existingPeerId
+                    );
+                    const existingFormula =
+                      await getFormulaForId(existingFormulaId);
+                    if (
+                      existingFormula.type === 'peer' &&
+                      JSON.stringify(existingFormula.addresses) !==
+                        JSON.stringify(addresses)
+                    ) {
+                      console.log(
+                        `addPeerInfo: replacing stale peer for node ${nodeNumber.slice(0, 16)}... (old: ${existingFormula.addresses.length} addr, new: ${addresses.length} addr)`,
+                      );
+                      console.log(
+                        `addPeerInfo:   old addresses=${JSON.stringify(existingFormula.addresses)} new addresses=${JSON.stringify(addresses)}`,
+                      );
+                      // eslint-disable-next-line no-use-before-define
+                      await cancelValue(
+                        existingFormulaId,
+                        new Error('Peer addresses updated'),
+                      );
+                      await knownPeers.remove(
+                        /** @type {PetName} */ (
+                          /** @type {unknown} */ (nodeNumber)
+                        ),
+                      );
+                      const { id: peerId } =
+                        // eslint-disable-next-line no-use-before-define
+                        await formulatePeer(networksId, nodeNumber, addresses);
+                      await knownPeers.storeIdentifier(nodeNumber, peerId);
+                      return;
+                    }
+                  }
+                  return;
+                }
                 console.log(
-                  `addPeerInfo: replacing stale peer for node ${nodeNumber.slice(0, 16)}... (old: ${existingFormula.addresses.length} addr, new: ${addresses.length} addr)`,
+                  `addPeerInfo: new peer for node ${nodeNumber.slice(0, 16)}... with ${addresses.length} address(es)`,
                 );
                 console.log(
-                  `addPeerInfo:   old addresses=${JSON.stringify(existingFormula.addresses)} new addresses=${JSON.stringify(addresses)}`,
-                );
-                // eslint-disable-next-line no-use-before-define
-                await cancelValue(
-                  existingFormulaId,
-                  new Error('Peer addresses updated'),
-                );
-                await knownPeers.remove(
-                  /** @type {PetName} */ (/** @type {unknown} */ (nodeNumber)),
+                  `addPeerInfo:   addresses=${JSON.stringify(addresses)}`,
                 );
                 const { id: peerId } =
                   // eslint-disable-next-line no-use-before-define
                   await formulatePeer(networksId, nodeNumber, addresses);
                 await knownPeers.storeIdentifier(nodeNumber, peerId);
-                return;
-              }
-            }
-            return;
-          }
-          console.log(
-            `addPeerInfo: new peer for node ${nodeNumber.slice(0, 16)}... with ${addresses.length} address(es)`,
-          );
-          console.log(`addPeerInfo:   addresses=${JSON.stringify(addresses)}`);
-          const { id: peerId } =
-            // eslint-disable-next-line no-use-before-define
-            await formulatePeer(networksId, nodeNumber, addresses);
-          await knownPeers.storeIdentifier(nodeNumber, peerId);
-        },
-        listKnownPeers: async () => {
-          const knownPeers = /** @type {KnownPeersStore} */ (
-            /** @type {unknown} */ (await provideStoreController(peersId))
-          );
-          const connectionStates = provideRemoteControl.getConnectionStates();
-          const nodeNumbers = knownPeers.list();
-          /** @type {Array<PeerInfo & { connectionState: string }>} */
-          const peers = [];
-          for (const nodeNumber of nodeNumbers) {
-            const peerId = knownPeers.identifyLocal(
-              /** @type {NodeNumber} */ (/** @type {unknown} */ (nodeNumber)),
-            );
-            if (peerId !== undefined) {
-              const formula = await getFormulaForId(
-                /** @type {FormulaIdentifier} */ (peerId),
-              );
-              if (formula.type === 'peer') {
-                const nodeId = /** @type {PeerFormula} */ (formula).node;
-                peers.push(
-                  harden({
-                    node: nodeId,
-                    addresses: /** @type {PeerFormula} */ (formula).addresses,
-                    connectionState: connectionStates[nodeId] || 'start',
-                  }),
+              },
+              listKnownPeers: async () => {
+                const knownPeers = /** @type {KnownPeersStore} */ (
+                  /** @type {unknown} */ (await provideStoreController(peersId))
                 );
-              }
-            }
-          }
-          return harden(peers);
-        },
-        followPeerChanges: async () => {
-          const knownPeers = /** @type {KnownPeersStore} */ (
-            /** @type {unknown} */ (await provideStoreController(peersId))
-          );
-          return knownPeers.followNameChanges();
-        },
-      }))
+                const connectionStates =
+                  provideRemoteControl.getConnectionStates();
+                const nodeNumbers = knownPeers.list();
+                /** @type {Array<PeerInfo & { connectionState: string }>} */
+                const peers = [];
+                for (const nodeNumber of nodeNumbers) {
+                  const peerId = knownPeers.identifyLocal(
+                    /** @type {NodeNumber} */ (
+                      /** @type {unknown} */ (nodeNumber)
+                    ),
+                  );
+                  if (peerId !== undefined) {
+                    const formula = await getFormulaForId(
+                      /** @type {FormulaIdentifier} */ (peerId),
+                    );
+                    if (formula.type === 'peer') {
+                      const nodeId = /** @type {PeerFormula} */ (formula).node;
+                      peers.push(
+                        harden({
+                          node: nodeId,
+                          addresses: /** @type {PeerFormula} */ (formula)
+                            .addresses,
+                          connectionState: connectionStates[nodeId] || 'start',
+                        }),
+                      );
+                    }
+                  }
+                }
+                return harden(peers);
+              },
+              followPeerChanges: async () => {
+                const knownPeers = /** @type {KnownPeersStore} */ (
+                  /** @type {unknown} */ (await provideStoreController(peersId))
+                );
+                return knownPeers.followNameChanges();
+              },
+            }),
+          )
         )
       );
       return endoBootstrap;
