@@ -273,6 +273,17 @@ jobs:
           OCAPN_CAPTP_VERSION: '1.0'
           OCAPN_INTEROP_GUILE_MESSAGE: hello from Guile CI (Tor)
           OCAPN_INTEROP_ENDO_MESSAGE: hello from Endo OCapN (Tor)
+          # Tor hidden-service descriptors take a non-deterministic amount of
+          # time (often ~10s, sometimes longer) to propagate to HSDir relays
+          # after `ADD_ONION`. The first dial after publication can fail with
+          # SOCKS5 reply 0x06 (TTL expired) or 0x04 (host unreachable) just
+          # because Tor gave up before a descriptor was fetched. The Tor
+          # netlayer itself already retries internally on those codes; the
+          # workflow-level loop here is the second line of defense for the
+          # case where the entire client run timed out before any retry
+          # could connect.
+          MAX_TOR_ATTEMPTS: '3'
+          TOR_RETRY_BACKOFF_SECS: '30'
         run: |
           # GitHub Actions doesn't expand shell variables inside an `env:`
           # block, so resolve the Tor socket paths from `$HOME` here rather
@@ -282,11 +293,24 @@ jobs:
           export OCAPN_TOR_SOCKS_PATH="$HOME/.cache/ocapn/tor/tor-socks-sock"
           export OCAPN_TOR_OCAPN_SOCKS_DIR="$HOME/.cache/ocapn/tor/ocapn-sockets-endo"
           mkdir -p "$OCAPN_TOR_OCAPN_SOCKS_DIR"
-          set +e
-          timeout 150s node ./packages/goblin-chat/test/guile-interop/index-tor.js "$STURDYREF_TOR" \
-            > /tmp/endo-interop-tor.log 2>&1
-          ENDO_EXIT=$?
-          set -e
+          ENDO_EXIT=1
+          for attempt in $(seq 1 "$MAX_TOR_ATTEMPTS"); do
+            echo "=== Endo Tor interop attempt ${attempt}/${MAX_TOR_ATTEMPTS} ==="
+            set +e
+            timeout 150s node ./packages/goblin-chat/test/guile-interop/index-tor.js "$STURDYREF_TOR" \
+              > /tmp/endo-interop-tor.log 2>&1
+            ENDO_EXIT=$?
+            set -e
+            if [ "$ENDO_EXIT" -eq 0 ]; then
+              break
+            fi
+            echo "--- Endo Tor interop attempt ${attempt} failed (exit ${ENDO_EXIT}) ---"
+            cat /tmp/endo-interop-tor.log || true
+            if [ "$attempt" -lt "$MAX_TOR_ATTEMPTS" ]; then
+              echo "--- Sleeping ${TOR_RETRY_BACKOFF_SECS}s to let HS descriptor settle ---"
+              sleep "$TOR_RETRY_BACKOFF_SECS"
+            fi
+          done
           echo "ENDO_EXIT_TOR=$ENDO_EXIT" >> "$GITHUB_ENV"
           cat /tmp/endo-interop-tor.log
 
