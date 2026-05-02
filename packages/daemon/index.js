@@ -333,15 +333,21 @@ const runEndo = async (detached, config) => {
     stdio,
   });
 
-  // waitForSpawn is unnecessary here: waitForMessage already listens
-  // for the 'error' event on the child process.
-  const message = await waitForMessage(child).catch(cause => {
-    // Disconnect the IPC channel so the parent process is not held alive
-    // by a child that never reached the 'ready' message. Without this,
-    // ava workers fail to exit (see "failure to start" test).
+  // Detach the child so the parent's event loop is not held alive by it
+  // — necessary on the failure path when start() throws before the caller
+  // gets a chance to call child.unref() itself, and harmless on the
+  // success path where start() unrefs again.
+  const releaseChild = () => {
     if (child.connected) {
       child.disconnect();
     }
+    child.unref();
+  };
+
+  // waitForSpawn is unnecessary here: waitForMessage already listens
+  // for the 'error' event on the child process.
+  const message = await waitForMessage(child).catch(cause => {
+    releaseChild();
     throw Error(`Daemon failed to spawn ${cause.message}, see (${logPath})`);
   });
   child.disconnect();
@@ -357,6 +363,7 @@ const runEndo = async (detached, config) => {
       'message' in message &&
       typeof message.message === 'string'
     ) {
+      releaseChild();
       throw new Error(message.message);
     }
   }
