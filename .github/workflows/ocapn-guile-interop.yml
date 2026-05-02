@@ -65,24 +65,144 @@ jobs:
         working-directory: endo
         run: yarn build
 
-      - name: Install GNU Guix
-        uses: PromyLOPh/guix-install-action@40615e98e5c16a451aec10fe01c214ed07cbaa77 # v1
+      # `PromyLOPh/guix-install-action` is a composite action whose
+      # `Download` step wgets the Guix nightly tarball from
+      # `ci.guix.gnu.org`, which periodically returns sustained 502s
+      # for the entire timeout budget of the action. The action has no
+      # internal retry; `Wandalen/wretry.action` cannot wrap composite
+      # actions; and `nick-fields/retry` only wraps shell commands,
+      # not `uses:` blocks. Inline the action's eight steps verbatim
+      # from `PromyLOPh/guix-install-action@40615e98e5...` so the
+      # wget is a plain shell step we can cache and wrap in
+      # `nick-fields/retry`, and so we can configure the daemon to
+      # consult `bordeaux.guix.gnu.org` for substitutes when
+      # `ci.guix.gnu.org` is degraded.
+      - name: Set LANG
+        run: echo LANG=en_US.utf8 >> $GITHUB_ENV
+      - name: Compute Guix cache key (ISO week)
+        # Refresh the cached tarball weekly so we eventually pick up
+        # new nightlies, but survive ci.guix.gnu.org outages within a
+        # week from a previously-downloaded copy.
+        id: guix-cache-key
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Restore Guix nightly tarball cache
+        id: guix-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          # Skip `guix pull`: the default action behavior updates channels to
-          # bleeding edge and costs most of the runtime in this workflow.
-          pullAfterInstall: false
+          path: guix-binary-nightly.x86_64-linux.tar.xz
+          key: guix-binary-nightly-x86_64-linux-${{ steps.guix-cache-key.outputs.week }}
+          # Fall back to any previous week's tarball when this week's
+          # exact key misses; ci.guix.gnu.org is the single point of
+          # failure we're hedging against.
+          restore-keys: |
+            guix-binary-nightly-x86_64-linux-
+      - name: Download Guix nightly tarball (skip if cached)
+        # Even with caching, `ci.guix.gnu.org/search/latest/archive`
+        # periodically returns sustained HTTP 502s. Retry generously
+        # (up to 12 attempts at 60 s spacing, ~12 min budget) when the
+        # cache is empty. The stable 1.4.0 tarball on ftp.gnu.org is
+        # not a viable fallback; its bundled Guile + guile-fibers
+        # predate the `spawn` binding goblin-chat depends on, so the
+        # tests fail later in a more confusing way.
+        if: ${{ hashFiles('guix-binary-nightly.x86_64-linux.tar.xz') == '' }}
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          max_attempts: 12
+          retry_wait_seconds: 60
+          timeout_minutes: 5
+          command: |
+            wget -nv "https://ci.guix.gnu.org/search/latest/archive?query=spec:tarball+status:success+system:x86_64-linux+guix-binary.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz
+      - name: Install Guix
+        run: |
+          sudo -- tar --extract --file "guix-binary-nightly.x86_64-linux.tar.xz" -C / --no-overwrite-dir
+          sudo -- groupadd --system guixbuild
+
+          for i in $(seq -w 1 10); do
+              sudo useradd -g guixbuild -G guixbuild -d /var/empty -s "$(which nologin)" -c "Guix build user $i" --system "guixbuilder${i}"
+          done
+
+          export GUIX_PATH=/var/guix/profiles/per-user/root/current-guix
+
+          sudo cp "$GUIX_PATH/lib/systemd/system/gnu-store.mount" /etc/systemd/system/
+          # Configure the daemon with both substitute servers up front so
+          # `guix build` falls back to bordeaux.guix.gnu.org whenever
+          # ci.guix.gnu.org is degraded. Both keys are authorized below
+          # from the tarball's bundled `share/guix/*.pub` files. Pass
+          # `--fallback` so the daemon builds locally rather than failing
+          # when neither substitute server has the requested item.
+          cat <<'EOF' | sudo tee /etc/systemd/system/guix-daemon.service > /dev/null
+          # Service unit file for guix-daemon, modeled on the upstream
+          # template in the Guix install tarball but with explicit
+          # substitute URLs and --fallback.
+
+          [Unit]
+          Description=Build daemon for GNU Guix
+
+          [Service]
+          ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon \
+              --build-users-group=guixbuild --discover=yes \
+              --substitute-urls='https://bordeaux.guix.gnu.org https://ci.guix.gnu.org' \
+              --fallback
+          Environment='GUIX_LOCPATH=/var/guix/profiles/per-user/root/guix-profile/lib/locale' LC_ALL=en_US.utf8
+
+          StandardOutput=syslog
+          StandardError=syslog
+
+          OOMPolicy=continue
+
+          Restart=always
+
+          TasksMax=8192
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          sudo chmod 664 /etc/systemd/system/gnu-store.mount /etc/systemd/system/guix-daemon.service
+          sudo systemctl daemon-reload
+          sudo systemctl enable --now gnu-store.mount guix-daemon.service
+
+          echo "$GUIX_PATH/bin" >> "$GITHUB_PATH"
+      - name: Authorize build farm
+        # Authorizes both ci.guix.gnu.org and bordeaux.guix.gnu.org;
+        # both .pub files ship inside the Guix tarball under
+        # share/guix/.
+        run: |
+          for F in /var/guix/profiles/per-user/root/current-guix/share/guix/*.pub; do
+              sudo /var/guix/profiles/per-user/root/current-guix/bin/guix archive --authorize < "$F"
+          done
+      - name: Generate keys
+        run: sudo /var/guix/profiles/per-user/root/current-guix/bin/guix archive --generate-key
 
       - name: Report Guix version
         run: guix describe || guix --version
 
+      # The substitute fetches that follow already inherit
+      # `--substitute-urls=... --fallback` from the daemon, so they
+      # consult bordeaux.guix.gnu.org when ci.guix.gnu.org is degraded
+      # and build locally as a last resort. The retry wrapper here is
+      # belt-and-braces against transient daemon errors during the
+      # bordeaux <-> ci handoff.
       - name: Resolve Guix module paths
-        run: |
-          # We shell into Guix for execution, but also pass explicit -L paths so
-          # module resolution is deterministic in pure environments.
-          echo "FIBERS_OUT=$(guix build guile-fibers | tail -n 1)" >> "$GITHUB_ENV"
-          echo "WEBSOCKET_OUT=$(guix build guile-websocket | tail -n 1)" >> "$GITHUB_ENV"
-          echo "GNUTLS_OUT=$(guix build guile-gnutls | tail -n 1)" >> "$GITHUB_ENV"
-          echo "GCRYPT_OUT=$(guix build guile-gcrypt | tail -n 1)" >> "$GITHUB_ENV"
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 20
+          # Build into a scratch file, then promote to $GITHUB_ENV only
+          # if all four `guix build` invocations succeed. This keeps
+          # retries idempotent: a partial failure on attempt 1 does
+          # not pollute the environment seen by attempt 2 or by the
+          # rest of the job.
+          command: |
+            set -euo pipefail
+            scratch="$(mktemp)"
+            {
+              echo "FIBERS_OUT=$(guix build guile-fibers | tail -n 1)"
+              echo "WEBSOCKET_OUT=$(guix build guile-websocket | tail -n 1)"
+              echo "GNUTLS_OUT=$(guix build guile-gnutls | tail -n 1)"
+              echo "GCRYPT_OUT=$(guix build guile-gcrypt | tail -n 1)"
+            } > "$scratch"
+            cat "$scratch" >> "$GITHUB_ENV"
 
       - name: Start Guile goblin-chat host
         working-directory: endo
