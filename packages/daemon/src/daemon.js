@@ -590,10 +590,10 @@ const makeDaemonCore = async (
     }
   };
 
-  /** @type {Set<string>} */
-  /** @param {NodeNumber} node */
+  /** @param {string} node */
   const isLocalKey = node =>
-    node === localNodeNumber || persistencePowers.hasAgentKey(node);
+    node === localNodeNumber ||
+    persistencePowers.hasAgentKey(/** @type {NodeNumber} */ (node));
 
   /** @param {string} id */
   const isLocalId = id => {
@@ -1155,7 +1155,8 @@ const makeDaemonCore = async (
         label,
       );
 
-    const terminateWorker = async (_reason = undefined) => {
+    /** @param {Error} [_reason] */
+    const terminateWorker = async _reason => {
       E.sendOnly(workerDaemonFacet).terminate();
       await Promise.race([
         workerTerminated,
@@ -1314,8 +1315,8 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makeBundle = async (workerId, powersId, bundleId, env, context) => {
-    context.thisDiesIfThatDies(workerId);
-    context.thisDiesIfThatDies(powersId);
+    context.thisDiesIfThatDies(/** @type {FormulaIdentifier} */ (workerId));
+    context.thisDiesIfThatDies(/** @type {FormulaIdentifier} */ (powersId));
 
     const worker = await provide(
       /** @type {FormulaIdentifier} */ (workerId),
@@ -1594,8 +1595,11 @@ const makeDaemonCore = async (
       }
       const value = provide(/** @type {FormulaIdentifier} */ (id), 'message');
       return tailNames.reduce(
-        (directory, petName) => E(directory).lookup(petName),
-        value,
+        (directory, petName) =>
+          /** @type {Promise<NameHub>} */ (
+            /** @type {unknown} */ (E(directory).lookup(petName))
+          ),
+        /** @type {Promise<NameHub>} */ (/** @type {unknown} */ (value)),
       );
     };
 
@@ -2344,8 +2348,9 @@ const makeDaemonCore = async (
       peers: peersId,
     }) => {
       const help = makeHelp(endoHelp);
-      /** @type {FarRef<EndoBootstrap>} */
-      const endoBootstrap = makeExo('Endo', EndoInterface, {
+      const endoBootstrap = /** @type {FarRef<EndoBootstrap>} */ (
+        /** @type {unknown} */ (
+          makeExo('Endo', EndoInterface, /** @type {any} */ ({
         help,
         ping: async () => 'pong',
         terminate: async () => {
@@ -2464,7 +2469,9 @@ const makeDaemonCore = async (
           );
           return knownPeers.followNameChanges();
         },
-      });
+      }))
+        )
+      );
       return endoBootstrap;
     },
     'loopback-network': () =>
@@ -4395,7 +4402,7 @@ const makeDaemonCore = async (
               throw error;
             }
             console.log(
-              `Endo daemon peer ${nodeId.slice(0, 8)}: provide failed with ${error.message}, re-dialing`,
+              `Endo daemon peer ${nodeId.slice(0, 8)}: provide failed with ${/** @type {Error} */ (error).message}, re-dialing`,
             );
             const gateway = await resilientDial();
             return E(gateway).provide(requestedId);

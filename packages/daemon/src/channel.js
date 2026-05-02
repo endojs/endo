@@ -1041,8 +1041,8 @@ export const makeChannelMaker = ({
               strings,
               names,
               ids,
-              replyTo,
-              replyType,
+              /** @type {string | undefined} */ (replyTo),
+              /** @type {string | undefined} */ (replyType),
             );
           },
           followMessages: async () => {

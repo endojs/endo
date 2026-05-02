@@ -495,10 +495,13 @@ export const makeDaemonicPersistencePowers = (
     /** @type {import('@endo/platform/fs/lite/types').ContentStore} */
     const rawStore = harden({
       /**
-       * @param {AsyncIterable<Uint8Array>} readable
+       * @param {AsyncIterable<Uint8Array> | AsyncIterator<Uint8Array>} readableOrIterator
        * @returns {Promise<string>}
        */
-      async store(readable) {
+      async store(readableOrIterator) {
+        const readable = /** @type {AsyncIterable<Uint8Array>} */ (
+          /** @type {unknown} */ (readableOrIterator)
+        );
         const digester = cryptoPowers.makeSha256();
         const storageId256 = await cryptoPowers.randomHex256();
         const temporaryStoragePath = filePowers.joinPath(

@@ -654,7 +654,7 @@ export const make = async (powers, context) => {
         reader,
         writer,
         closed: streamClosed,
-      } = adaptLibp2pStream(rawStream);
+      } = adaptLibp2pStream(/** @type {any} */ (rawStream));
 
       const { closed: capTpClosed, close: closeCapTp } = makeNetstringCapTP(
         'Endo',
@@ -985,7 +985,7 @@ export const make = async (powers, context) => {
       reader,
       writer,
       closed: streamClosed,
-    } = adaptLibp2pStream(rawStream);
+    } = adaptLibp2pStream(/** @type {any} */ (rawStream));
 
     const {
       closed: capTpClosed,

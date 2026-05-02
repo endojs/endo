@@ -27,6 +27,8 @@ import {
   writeFrameToStream,
 } from './envelope.js';
 
+const fsp = { access: fs.promises.access };
+
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config } from './types.js' */
 
@@ -100,7 +102,7 @@ const sendEnvelope = async (handle, verb, payload, nonce) => {
 const { promise: cancelled, reject: cancel } =
   /** @type {PromiseKit<never>} */ (makePromiseKit());
 
-const networkPowers = makeNetworkPowers({ net });
+const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
 const powers = await makeDaemonicGoPowers({

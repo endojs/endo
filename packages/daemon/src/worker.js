@@ -49,7 +49,7 @@ const normalizeFilePath = path => {
  * @param {(error: Error) => void} args.cancel
  */
 export const makeWorkerFacet = ({ cancel }) => {
-  return makeExo('EndoWorkerFacetForDaemon', WorkerFacetForDaemonInterface, {
+  return makeExo('EndoWorkerFacetForDaemon', WorkerFacetForDaemonInterface, /** @type {any} */ ({
     terminate: async () => {
       console.error('Endo worker received terminate request');
       cancel(Error('terminate'));
@@ -109,7 +109,7 @@ export const makeWorkerFacet = ({ cancel }) => {
       });
       return namespace.make(powersP, contextP, { env });
     },
-  });
+  }));
 };
 
 /**

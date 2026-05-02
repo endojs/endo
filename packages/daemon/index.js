@@ -396,10 +396,11 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
         return `Special(mode:o${stats.mode.toString(8)})`;
       }
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      const e = /** @type {NodeJS.ErrnoException} */ (err);
+      if (e.code === 'ENOENT') {
         return 'MISSING';
       } else {
-        return `StatError:${err.message}`;
+        return `StatError:${e.message}`;
       }
     }
   };

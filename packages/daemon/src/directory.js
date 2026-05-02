@@ -79,8 +79,11 @@ export const makeDirectoryMaker = ({
       }
       const value = provide(/** @type {FormulaIdentifier} */ (id), 'hub');
       return tailNames.reduce(
-        (directory, petName) => E(directory).lookup(petName),
-        value,
+        (directory, petName) =>
+          /** @type {Promise<NameHub>} */ (
+            /** @type {unknown} */ (E(directory).lookup(petName))
+          ),
+        /** @type {Promise<NameHub>} */ (/** @type {unknown} */ (value)),
       );
     };
 
