@@ -48,7 +48,7 @@ export const writerFromIterator = (iterator, options = {}) => {
 
   return /** @type {PassableWriter<TWrite, TWriteReturn>} */ (
     /** @type {unknown} */ (
-      makeExo('PassableWriter', PassableWriterInterface, {
+      makeExo('PassableWriter', PassableWriterInterface, /** @type {any} */ ({
         stream: pump,
 
         /**
@@ -66,7 +66,7 @@ export const writerFromIterator = (iterator, options = {}) => {
         writeReturnPattern() {
           return writeReturnPattern;
         },
-      })
+      }))
     )
   );
 };

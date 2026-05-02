@@ -24,7 +24,9 @@ export const withInterrupt = async callback => {
       cancel(error);
       throw error;
     }
-    console.log(`\nExiting due to ${error?.message}`);
+    console.log(
+      `\nExiting due to ${/** @type {Error} */ (error)?.message}`,
+    );
   }
   cancel(Error('normal termination'));
 };

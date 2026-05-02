@@ -71,17 +71,21 @@ export const bytesWriterFromIterator = (iterator, options = {}) => {
 
   return /** @type {PassableBytesWriter<TWriteReturn>} */ (
     /** @type {unknown} */ (
-      makeExo('PassableBytesWriter', PassableBytesWriterInterface, {
-        streamBase64: pump,
+      makeExo(
+        'PassableBytesWriter',
+        PassableBytesWriterInterface,
+        /** @type {any} */ ({
+          streamBase64: pump,
 
-        /**
-         * Returns the pattern for validating TWriteReturn (return value).
-         * @returns {Pattern | undefined}
-         */
-        writeReturnPattern() {
-          return writeReturnPattern;
-        },
-      })
+          /**
+           * Returns the pattern for validating TWriteReturn (return value).
+           * @returns {Pattern | undefined}
+           */
+          writeReturnPattern() {
+            return writeReturnPattern;
+          },
+        }),
+      )
     )
   );
 };

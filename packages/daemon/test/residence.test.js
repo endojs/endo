@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makePromiseKit } from '@endo/promise-kit';

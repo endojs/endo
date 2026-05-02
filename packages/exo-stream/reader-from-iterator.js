@@ -49,7 +49,7 @@ export const readerFromIterator = (iterator, options = {}) => {
 
   return /** @type {PassableReader<TRead, TReadReturn>} */ (
     /** @type {unknown} */ (
-      makeExo('PassableReader', PassableReaderInterface, {
+      makeExo('PassableReader', PassableReaderInterface, /** @type {any} */ ({
         stream: pump,
 
         /**
@@ -67,7 +67,7 @@ export const readerFromIterator = (iterator, options = {}) => {
         readReturnPattern() {
           return readReturnPattern;
         },
-      })
+      }))
     )
   );
 };

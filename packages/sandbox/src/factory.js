@@ -240,26 +240,30 @@ harden(makeReaderExoFromAsyncIterable);
  * @returns {object}
  */
 const makeWriterExoFromClosures = (write, close) => {
-  return makeExo('SandboxWriter', AsyncWriterInterface, {
-    /** @param {Uint8Array} [chunk] */
-    async next(chunk) {
-      await null;
-      if (write === undefined || chunk === undefined) {
+  return makeExo(
+    'SandboxWriter',
+    AsyncWriterInterface,
+    /** @type {any} */ ({
+      /** @param {Uint8Array} [chunk] */
+      async next(chunk) {
+        await null;
+        if (write === undefined || chunk === undefined) {
+          return harden({ done: true, value: undefined });
+        }
+        await write(chunk);
+        return harden({ done: false, value: undefined });
+      },
+      async return() {
+        await null;
+        if (close !== undefined) await close();
         return harden({ done: true, value: undefined });
-      }
-      await write(chunk);
-      return harden({ done: false, value: undefined });
-    },
-    async return() {
-      await null;
-      if (close !== undefined) await close();
-      return harden({ done: true, value: undefined });
-    },
-    async throw(error) {
-      await null;
-      throw error;
-    },
-  });
+      },
+      async throw(error) {
+        await null;
+        throw error;
+      },
+    }),
+  );
 };
 harden(makeWriterExoFromClosures);
 

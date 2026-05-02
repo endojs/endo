@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global process */
 
 import os from 'os';

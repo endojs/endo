@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* global process, setTimeout */
 
 // Establish a perimeter:

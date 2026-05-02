@@ -29,6 +29,7 @@
     "packages/compartment-mapper",
     "packages/conversation-tree",
     "packages/daemon",
+    "packages/demo",
     "packages/evasive-transform",
     "packages/fae",
     "packages/familiar",

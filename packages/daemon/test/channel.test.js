@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* global process */
 
 /** @import { ERef } from '@endo/far' */

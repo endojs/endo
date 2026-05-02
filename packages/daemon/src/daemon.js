@@ -1315,8 +1315,8 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makeBundle = async (workerId, powersId, bundleId, env, context) => {
-    context.thisDiesIfThatDies(/** @type {FormulaIdentifier} */ (workerId));
-    context.thisDiesIfThatDies(/** @type {FormulaIdentifier} */ (powersId));
+    context.thisDiesIfThatDies(workerId);
+    context.thisDiesIfThatDies(powersId);
 
     const worker = await provide(
       /** @type {FormulaIdentifier} */ (workerId),

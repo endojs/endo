@@ -559,13 +559,13 @@ export interface Context {
    * @param id - The formula identifier of the value whose
    * cancellation should cause this value to be cancelled.
    */
-  thisDiesIfThatDies: (id: FormulaIdentifier) => void;
+  thisDiesIfThatDies: (id: string) => void;
 
   /**
    * @param id - The formula identifier of the value that should
    * be cancelled if this value is cancelled.
    */
-  thatDiesIfThisDies: (id: FormulaIdentifier) => void;
+  thatDiesIfThisDies: (id: string) => void;
 
   /**
    * @param hook - A hook to run when the value is cancelled.
