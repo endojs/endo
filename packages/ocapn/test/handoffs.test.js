@@ -338,17 +338,18 @@ testWithErrorUnwrapping(
         await E(bootstrapBFromC)['withdraw-gift'](signedReceive2);
         t.fail('replay attack should have been rejected');
       } catch (error) {
-        replayError = error;
+        replayError = /** @type {Error} */ (error);
       }
 
       t.truthy(replayError, 'replay attack threw an error');
+      const thrownReplayError = /** @type {Error} */ (replayError);
       t.regex(
-        String(replayError.message),
+        String(thrownReplayError.message),
         /Gift handoff already used/,
         'error mentions handoff already used',
       );
       t.regex(
-        String(replayError.message),
+        String(thrownReplayError.message),
         /0/,
         'error mentions the reused handoff count 0',
       );
@@ -402,12 +403,13 @@ testWithErrorUnwrapping('deposit-gift rejects non-local gift', async t => {
       await E(bootstrapBFromA)['deposit-gift'](giftId, objA);
       t.fail('Expected deposit-gift to reject non-local gift');
     } catch (error) {
-      depositError = error;
+      depositError = /** @type {Error} */ (error);
     }
 
     t.truthy(depositError, 'deposit-gift threw an error');
+    const thrownDepositError = /** @type {Error} */ (depositError);
     t.regex(
-      String(depositError.message),
+      String(thrownDepositError.message),
       /Gift must be local/,
       'error mentions gift must be local',
     );
@@ -448,12 +450,13 @@ testWithErrorUnwrapping(
         await E(bootstrapBFromA)['deposit-gift'](giftId, structGift);
         t.fail('Expected deposit-gift to reject non-remotable gift');
       } catch (error) {
-        depositError = error;
+        depositError = /** @type {Error} */ (error);
       }
 
       t.truthy(depositError, 'deposit-gift threw an error');
+      const thrownDepositError = /** @type {Error} */ (depositError);
       t.regex(
-        String(depositError.message),
+        String(thrownDepositError.message),
         /Gift must be remotable/,
         'error mentions gift must be remotable',
       );

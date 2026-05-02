@@ -54,44 +54,6 @@ export const table = [
     },
   },
   {
-    // <op:deliver-only <desc:export 1> ['fulfill <desc:import-object 2>]>
-    name: 'op:deliver-only fulfill',
-    makeValue: testKit => ({
-      type: 'op:deliver-only',
-      to: testKit.referenceKit.provideRemoteObjectValue(1n),
-      args: [makeSelector('fulfill'), testKit.makeLocalObject(2n)],
-    }),
-    makeExpectedValue: testKit => ({
-      type: 'op:deliver-only',
-      to: testKit.makeLocalObject(1n),
-      args: [
-        makeSelector('fulfill'),
-        testKit.referenceKit.provideRemoteObjectValue(2n),
-      ],
-    }),
-  },
-  {
-    // <op:deliver-only <desc:export 0>               ; Remote bootstrap object
-    //                  ['deposit-gift                ; Symbol "deposit-gift"
-    //                   42                           ; gift-id, a positive integer
-    //                   <desc:import-object ...>]>   ; remote object being shared
-    name: 'op:deliver-only deposit-gift',
-    makeValue: testKit => ({
-      type: 'op:deliver-only',
-      to: testKit.referenceKit.provideRemoteObjectValue(0n),
-      args: [makeSelector('deposit-gift'), 42n, testKit.makeLocalObject(1n)],
-    }),
-    makeExpectedValue: testKit => ({
-      type: 'op:deliver-only',
-      to: testKit.makeLocalObject(0n),
-      args: [
-        makeSelector('deposit-gift'),
-        42n,
-        testKit.referenceKit.provideRemoteObjectValue(1n),
-      ],
-    }),
-  },
-  {
     // <op:deliver <desc:export 5> ['make-car-factory] 3 <desc:import-object 15>>
     name: 'op:deliver make-car-factory',
     makeValue: testKit => ({
@@ -182,21 +144,21 @@ export const table = [
     }),
   },
   {
-    // <op:gc-export export-pos   ; positive integer
-    //               wire-delta>  ; positive integer
-    name: 'op:gc-export',
+    // <op:gc-exports export-positions   ; list of non-negative integers
+    //               wire-deltas>       ; list of positive integers
+    name: 'op:gc-exports',
     value: {
-      type: 'op:gc-export',
-      exportPosition: 1n,
-      wireDelta: 2n,
+      type: 'op:gc-exports',
+      exportPositions: [1n],
+      wireDeltas: [2n],
     },
   },
   {
-    // <op:gc-answer answer-pos>  ; answer-pos: positive integer
-    name: 'op:gc-answer',
+    // <op:gc-answers answer-positions>  ; list of non-negative integers
+    name: 'op:gc-answers',
     value: {
-      type: 'op:gc-answer',
-      answerPosition: 1n,
+      type: 'op:gc-answers',
+      answerPositions: [1n],
     },
   },
   // Below are messages observed in the ocapn python test suite.
@@ -255,16 +217,20 @@ export const table = [
     }),
   },
   {
-    name: 'python op:deliver-only fulfill',
+    name: 'python op:deliver fulfill (no resolver)',
     makeValue: testKit => ({
-      type: 'op:deliver-only',
+      type: 'op:deliver',
       to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [testKit.makeLocalObject(1n)],
+      answerPosition: false,
+      resolveMeDesc: false,
     }),
     makeExpectedValue: testKit => ({
-      type: 'op:deliver-only',
+      type: 'op:deliver',
       to: testKit.makeLocalObject(0n),
       args: [testKit.referenceKit.provideRemoteObjectValue(1n)],
+      answerPosition: false,
+      resolveMeDesc: false,
     }),
   },
   {

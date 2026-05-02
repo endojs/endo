@@ -6,10 +6,12 @@ import {
   makeWeakMultimap,
 } from '../src/multimap.js';
 
-[
+/** @type {Array<[() => import('../src/types.js').Multimap<any, any>, string]>} */
+const multimapCases = [
   [makeMultimap, 'multimap'],
   [makeWeakMultimap, 'weak multimap'],
-].forEach(([multimapConstructor, mapName]) => {
+];
+for (const [multimapConstructor, mapName] of multimapCases) {
   test(`${mapName}: add`, t => {
     const multimap = multimapConstructor();
     const key = {};
@@ -109,7 +111,7 @@ import {
     t.is(multimap.deleteAll(key), false);
     t.is(multimap.get(key), undefined);
   });
-});
+}
 
 test('multi-bimap: add', t => {
   const bimap = makeBidirectionalMultimap();

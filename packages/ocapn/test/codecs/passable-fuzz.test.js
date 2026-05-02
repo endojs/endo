@@ -3,7 +3,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
-import { Buffer } from 'buffer';
+import { encodeHex } from '@endo/hex';
 import { makeTagged } from '@endo/pass-style';
 import { XorShift } from '../_xorshift.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';
@@ -155,7 +155,7 @@ test('fuzz', t => {
       const syrupBytes2 = encodePassable(object1);
       const syrupString2 = descDecoder.decode(syrupBytes2);
       const desc = JSON.stringify(syrupString2);
-      const hexString = Buffer.from(syrupBytes2).toString('hex');
+      const hexString = encodeHex(syrupBytes2);
       let object3;
       let syrup4;
       notThrowsWithErrorUnwrapping(

@@ -345,7 +345,7 @@ export const makeHandledPromise = () => {
         handledResolve(resolvedTarget);
         return resolvedTarget;
       } catch (e) {
-        annotateError(e, X`during resolveWithPresence`);
+        annotateError(/** @type {Error} */ (e), X`during resolveWithPresence`);
         handledReject(e);
         throw e;
       }

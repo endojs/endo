@@ -1,5 +1,29 @@
 # ses
 
+## 2.0.0
+
+### Major Changes
+
+- [#3153](https://github.com/endojs/endo/pull/3153) [`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e) Thanks [@erights](https://github.com/erights)! - # Plug NaN Side-channel
+
+  The JavaScript language can leak the bit encoding of a NaN via shared TypedArray views of an common ArrayBuffer. Although the JavaScript language has only one NaN value, the underlying IEEE 754 double-precision floating-point representation has many different bit patterns that represent NaN. This can be exploited as a side-channel to leak information. This actually happens on some platforms such as v8.
+
+  @ChALkeR explains at https://github.com/tc39/ecma262/pull/758#issuecomment-3919093669 that the behavior of this side-channel on v8. At https://junk.rray.org/poc/nani.html he demonstrates it, and it indeed even worse than I expected.
+
+  To plug this side-channel, we make two coordinated changes.
+  - We stop listing the `Float*Array` constructors as universal globals. This prevents them from being implicitly endowed to created compartments, because they are not harmless. However, we still keep them on the start compartment (the original global), consider them intrinsics, and still repair and harden them on `lockdown()`. Thus, they can be explicitly endowed to child compartments at the price of enabling code in that compartment to read the side-channel.
+  - On `lockdown()`, we repair the `DataView.prototype.setFloat*` methods so that they only write canonical NaNs into the underlying ArrayBuffer.
+
+  The `@endo.marshal` package's `encodePassable` encodings need to obtain the bit representation of floating point values. It had used `Float64Array` for that. However, sometimes the `@endo/marshal` package is evaluated in a created compartment that would now lack that constructor. (This reevaluation typically occurs when bundling bundles in that package.) So instead, `encodePassable` now uses the `DataView` methods which are now safe.
+
+### Minor Changes
+
+- [#3129](https://github.com/endojs/endo/pull/3129) [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59) Thanks [@erights](https://github.com/erights)! - `overrideTaming: 'moderate'` includes `overrideTaming: 'min'`.
+
+  Previously `overrideTaming: 'min'` correctly enabled `Iterator.prototype.constructor` to be overridden by assignment, but due to an oversight, `overrideTaming: 'moderate'` did not. Now it does.
+
+  To make such mistakes less likely, this PR also adopts a style where all records within larger enablements triple-dot the corresponding record from a smaller enablement, if present.
+
 ## 1.15.0
 
 ### Minor Changes

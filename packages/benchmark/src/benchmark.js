@@ -32,7 +32,7 @@ async function test(name, fn) {
     await fn({ assert, truthy });
     console.log(`✅ Passed`);
   } catch (err) {
-    console.log(`❌ Failed: ${err.message}`);
+    console.log(`❌ Failed: ${/** @type {Error} */ (err).message}`);
   }
 }
 

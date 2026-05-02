@@ -157,6 +157,17 @@ const evadeThat = `
 
     const re = /import (.*)/g;
     const reHtmlAlike = /<!--.*-->/g;
+
+    class Foo {
+      static import() { return 'static method'; }
+      import() { return 'instance method'; }
+      import(x) { throw Error(x+' not found') }
+      eval(x) { return 'I refuse to run: '+x; }
+    }
+
+    const notAClass = {
+      import() { return 'this is fine'; }
+    };
     
     import("some-module");
     if (a--> b) {}
@@ -316,6 +327,20 @@ test('evadeCensor() - templates - only last quasi has pattern', async t => {
     sourceType: 'module',
   });
   t.is(code, 'const x = `safe text ${a}im${""}port(`');
+});
+
+test('evadeCensor() - class method named import is evaded', async t => {
+  const { code } = evadeCensorSync(
+    `class Foo {
+      static import() { return 'static method'; }
+      import() { return 'instance method'; }
+    }`,
+    {
+      sourceType: 'module',
+    },
+  );
+  t.true(code.includes('["import"]'));
+  t.false(/ import\s*\(/.test(code));
 });
 
 test('evadeCensor() - x-->y transform preserves meaning', async t => {

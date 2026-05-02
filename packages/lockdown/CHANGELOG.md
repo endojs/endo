@@ -1,5 +1,12 @@
 # @endo/lockdown
 
+## 1.0.19
+
+### Patch Changes
+
+- Updated dependencies [[`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e), [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59)]:
+  - ses@2.0.0
+
 ## [1.0.18](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.17...@endo/lockdown@1.0.18) (2025-07-12)
 
 **Note:** Version bump only for package @endo/lockdown
@@ -12,7 +19,7 @@
 
 ### Bug Fixes
 
-* **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
+- **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
 
 ## [1.0.15](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.14...@endo/lockdown@1.0.15) (2025-03-24)
 
@@ -80,7 +87,7 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [1.0.2](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.1...@endo/lockdown@1.0.2) (2024-01-18)
 
@@ -90,13 +97,13 @@
 
 ### Bug Fixes
 
-* Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
+- Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
 
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.32...@endo/lockdown@1.0.0) (2023-12-12)
 
 ### Bug Fixes
 
-* **lockdown:** Support absence of TextEncoder and TextDecoder ([383046e](https://github.com/endojs/endo/commit/383046ed02ce20ca4ac0260340b5eea93bb67719)), closes [#1819](https://github.com/endojs/endo/issues/1819)
+- **lockdown:** Support absence of TextEncoder and TextDecoder ([383046e](https://github.com/endojs/endo/commit/383046ed02ce20ca4ac0260340b5eea93bb67719)), closes [#1819](https://github.com/endojs/endo/issues/1819)
 
 ## [0.1.32](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.31...@endo/lockdown@0.1.32) (2023-09-12)
 

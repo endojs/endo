@@ -19,6 +19,7 @@ import type {
   CopyMap,
   InterfaceGuard,
   MethodGuard,
+  CastedPattern,
 } from './types.js';
 
 /**
@@ -38,6 +39,23 @@ type Simplify<T> = { [K in keyof T]: T[K] } & {};
  * ```
  */
 export type TypeFromPattern<P> =
+  // {@link CastedPattern} carries an unchecked static type assertion via a
+  // phantom property. When the phantom is set to a specific type, return
+  // it directly, bypassing structural inference. The `unknown extends
+  // Asserted` check distinguishes a real cast (`Asserted` is concrete)
+  // from an unset phantom (`Asserted` widens to `unknown`).
+  P extends CastedPattern<infer Asserted>
+    ? unknown extends Asserted
+      ? TFStructuralPattern<P>
+      : Asserted
+    : TFStructuralPattern<P>;
+
+/**
+ * Structural pattern inference (the original three-branch dispatch).
+ * Pulled out so {@link TypeFromPattern} can fall through to it when
+ * a {@link CastedPattern}'s phantom is unset.
+ */
+type TFStructuralPattern<P> =
   P extends CopyTagged<`match:${infer K}`, infer Payload>
     ? TFDispatch<K, Payload>
     : P extends readonly [infer H, ...infer T]
@@ -89,7 +107,19 @@ type TFLeafMap<Payload> = {
 /** Maps PassStyle / Kind strings to their TypeScript value types. */
 type TFKindMap = {
   boolean: boolean;
-  undefined: undefined;
+  // `void` rather than `undefined` so that impls declared with
+  // `method(): void` satisfy guards like `M.call(...).returns()` or
+  // `.returns(M.undefined())`.  At runtime `M.undefined()` only checks
+  // that the returned value *is* `undefined`, which a void-returning
+  // impl satisfies trivially (JS returns `undefined` when no value is
+  // produced).  TypeScript's distinction between `void` and `undefined`
+  // is that a `void`-returning function may actually return any value
+  // (callers must ignore it), while an `undefined`-returning function
+  // must return literally `undefined`.  At a parameter/return position
+  // in a guarded method signature, `void` is the honest type — it lets
+  // the impl declare whatever return is ergonomic (`void`, `undefined`,
+  // or omitted) without the guard rejecting it.
+  undefined: void;
   null: null;
   error: Error;
   number: number;
@@ -103,7 +133,14 @@ type TFKindMap = {
   copyBag: CopyBag;
   copyMap: CopyMap;
   remotable: RemotableObject | RemotableBrand<any, any>;
-  promise: Promise<any>;
+  // PromiseLike (not Promise) so that thenable values like ERef and the
+  // result of `await` blocks satisfy the constraint.  At runtime
+  // `M.promise()` checks `passStyleOf === 'promise'`, which is duck-typed
+  // for any thenable, so the more permissive PromiseLike is the honest
+  // type.  Using Promise<any> here would reject perfectly valid impls
+  // that return ERef<X> or PromiseLike<X> from a method whose guard
+  // declares `.returns(M.promise())`.
+  promise: PromiseLike<any>;
 };
 
 /**
@@ -121,7 +158,7 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
     ? TFKindMap[Payload]
     : Passable
   : K extends 'promise'
-    ? Promise<unknown extends Payload ? any : Payload>
+    ? PromiseLike<unknown extends Payload ? any : Payload>
     : K extends 'or'
       ? Payload extends readonly any[]
         ? TFOr<Payload>
@@ -160,22 +197,41 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
                     : K extends 'bagOf'
                       ? CopyBag<TypeFromPattern<Payload> & Key>
                       : K extends 'tagged'
-                        ? Payload extends readonly [infer TP, any]
-                          ? CopyTagged<TypeFromPattern<TP> & string, Passable>
+                        ? Payload extends readonly [infer TP, infer PP]
+                          ? CopyTagged<
+                              TypeFromPattern<TP> & string,
+                              TypeFromPattern<PP> & Passable
+                            >
                           : CopyTagged
                         : K extends 'remotable'
                           ? TFRemotable<Payload>
                           : Passable;
 
-/** Union of inferred types from a tuple of patterns. */
+/**
+ * Union of inferred types from a tuple or array of patterns.
+ *
+ * The tuple branch `[H, ...R]` handles `M.or(a, b, c)` where TS can
+ * preserve the positional element types.  The array fallback handles
+ * `M.or(...Object.values(Enum))` where the spread produces a
+ * homogeneous `E[]` and tuple destructuring is impossible — returning
+ * `TypeFromPattern<E>` is the honest union, not `never`.
+ */
 type TFOr<T extends readonly any[]> = T extends readonly [infer H, ...infer R]
   ? TypeFromPattern<H> | TFOr<R>
-  : never;
+  : T extends readonly (infer E)[]
+    ? [E] extends [never]
+      ? never
+      : TypeFromPattern<E>
+    : never;
 
-/** Intersection of inferred types from a tuple of patterns. */
+/** Intersection of inferred types from a tuple or array of patterns. */
 type TFAnd<T extends readonly any[]> = T extends readonly [infer H, ...infer R]
   ? TypeFromPattern<H> & TFAnd<R>
-  : unknown;
+  : T extends readonly (infer E)[]
+    ? [E] extends [never]
+      ? unknown
+      : TypeFromPattern<E>
+    : unknown;
 
 /** Infer a split record: required fields + optional fields + rest (index signature). */
 type TFSplitRecord<Req, Opt, Rest = never> = Simplify<
@@ -185,7 +241,17 @@ type TFSplitRecord<Req, Opt, Rest = never> = Simplify<
     (Opt extends CopyRecord<any>
       ? { [K in keyof Opt]?: TypeFromPattern<Opt[K]> }
       : {}) &
-    ([Rest] extends [never] ? {} : { [key: string]: TypeFromPattern<Rest> })
+    // When the rest arg is the empty-record pattern `{}`
+    // (i.e. "refuse unsupported options"), don't emit an index
+    // signature — `[key: string]: {}` disallows `undefined` values
+    // for known keys (since `{}` excludes `undefined`) and pollutes
+    // every consumer with a wildcard that breaks excess-property
+    // checking.  Treat empty-rest the same as no rest.
+    ([Rest] extends [never]
+      ? {}
+      : [keyof Rest] extends [never]
+        ? {}
+        : { [key: string]: TypeFromPattern<Rest> })
 >;
 
 /** Infer a split array: required tuple + optional trailing elements + rest. */
@@ -198,30 +264,31 @@ type TFSplitArray<Req, Opt, Rest = never> = Req extends readonly any[]
   : any[];
 
 /**
- * Map a tuple to elements that may be undefined (approximates optional).
+ * Map a tuple of patterns to a tuple of inferred types whose elements are
+ * truly optional (`[X?, Y?]`), not just `T | undefined`.
  *
- * TS limitation: We cannot produce `[X?, Y?]` from a recursive conditional
- * type — `Partial<Tuple>` only works on concrete tuples.  For splitArray
- * optional elements we use `T | undefined` instead, meaning the array
- * must still be the full length.  If TS gains support for producing truly
- * optional tuple elements from conditional types, this should be revised.
+ * Uses a homomorphic mapped type with the `?` modifier
+ * (`{ [K in keyof T]?: ... }`).  TypeScript's homomorphic-mapped-type-over-
+ * tuple special case preserves tuple-ness — the result is a clean tuple
+ * shape (no `length` or `Array.prototype` pollution) with truly-optional
+ * positions, matching consumer typedefs declared with `[X?, Y?]` syntax.
  */
-type TFOptionalTuple<T extends readonly any[]> = T extends readonly [
-  infer H,
-  ...infer R,
-]
-  ? [TypeFromPattern<H> | undefined, ...TFOptionalTuple<R>]
-  : [];
+type TFOptionalTuple<T extends readonly any[]> = {
+  [K in keyof T]?: TypeFromPattern<T[K]>;
+};
 
 /**
  * Resolve a remotable matcher's payload.
  *
- * When `M.remotable<typeof SomeInterfaceGuard>()` is used, the Payload
- * carries the InterfaceGuard type.  We resolve it to the interface's
- * methods with remotable branding, giving facet-isolated return types.
- *
- * When unparameterized (`M.remotable()`), Payload defaults to
- * `RemotableObject | RemotableBrand<any, any>` which passes through as-is.
+ * - `M.remotable<typeof SomeInterfaceGuard>()`: the Payload carries the
+ *   InterfaceGuard type. We resolve to the interface's methods with
+ *   remotable branding, giving facet-isolated return types.
+ * - `M.remotable<SomeTypedef>()` (or via a TypedPattern cast): the
+ *   Payload is a concrete remotable type like `Brand`. Return it
+ *   directly so guards using these shapes preserve the actual type.
+ * - Unparameterized (`M.remotable()`): Payload defaults to `any` so
+ *   the inferred type is compatible with any concrete remotable
+ *   interface, matching `M.promise()`.
  */
 type TFRemotable<Payload> =
   Payload extends InterfaceGuard<infer MG>
@@ -229,7 +296,7 @@ type TFRemotable<Payload> =
         { [K in keyof MG]: TypeFromMethodGuard<MG[K]> } & RemotableObject &
           RemotableBrand<{}, any>
       >
-    : Payload;
+    : any;
 
 // ===== Method and Interface Guard inference =====
 
@@ -241,8 +308,10 @@ type TFRemotable<Payload> =
  */
 type TypeFromArgGuard<G> = G extends { [Symbol.toStringTag]: 'guard:rawGuard' }
   ? any
-  : G extends { payload: { argGuard: infer P } }
-    ? TypeFromPattern<P>
+  : G extends { [Symbol.toStringTag]: 'guard:awaitArgGuard' }
+    ? G extends { payload: { argGuard: infer P } }
+      ? TypeFromPattern<P>
+      : any
     : TypeFromPattern<G>;
 
 /** Map a tuple of arg guards to a tuple of inferred types. */
@@ -268,8 +337,16 @@ type TypeFromReturnGuard<G> = G extends {
 
 /**
  * Infer rest-args type from a rest guard.
- * - RawGuard → `any[]`
- * - A specific pattern guard → `TypeFromPattern<G>[]`
+ *
+ * `.rest(P)` matches the rest portion of the args array (as a single array)
+ * against pattern P. Two cases:
+ *
+ * - If P infers to an array type (e.g. `M.arrayOf(M.string())` →
+ *   `string[]`), the rest type IS that array — don't wrap.
+ * - If P infers to a non-array (e.g. `M.any()` → `Passable`), each
+ *   individual rest arg must match P, so the rest type is `P[]`.
+ *
+ * - RawGuard → `any[]` (no checking)
  *
  * When `.rest()` is not called, `restArgGuard` defaults to `SyncValueGuard`
  * (= `RawGuard | Pattern`).  We detect this via `[Pattern] extends [G]` —
@@ -281,7 +358,9 @@ type TFRestArgs<G> = [G] extends [{ [Symbol.toStringTag]: 'guard:rawGuard' }]
   ? any[]
   : [Pattern] extends [G]
     ? [] // wide default (SyncValueGuard) → no .rest() was called
-    : TypeFromPattern<G>[];
+    : TypeFromPattern<G> extends readonly any[]
+      ? TypeFromPattern<G>
+      : TypeFromPattern<G>[];
 
 /** Build the full args tuple: required + optional + rest (if any). */
 type TFBuildArgs<

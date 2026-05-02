@@ -19,6 +19,8 @@ coverage
 
 # LLM tools
 .claude/*.local.*
+# UNTIL https://github.com/anthropics/claude-code/issues/27282
+.claude/worktrees/
 
 # Platform metadata
 .DS_Store

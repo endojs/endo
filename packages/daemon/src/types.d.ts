@@ -559,13 +559,13 @@ export interface Context {
    * @param id - The formula identifier of the value whose
    * cancellation should cause this value to be cancelled.
    */
-  thisDiesIfThatDies: (id: string) => void;
+  thisDiesIfThatDies: (id: FormulaIdentifier) => void;
 
   /**
    * @param id - The formula identifier of the value that should
    * be cancelled if this value is cancelled.
    */
-  thatDiesIfThisDies: (id: string) => void;
+  thatDiesIfThisDies: (id: FormulaIdentifier) => void;
 
   /**
    * @param hook - A hook to run when the value is cancelled.
@@ -1142,9 +1142,9 @@ export interface EndoChannelMember {
   followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
 }
 
-export type EndoInspector<Record = string> = {
-  lookup: (petNameOrPath: Record | NameOrPath) => Promise<unknown>;
-  list: () => Record[];
+export type EndoInspector<RecordT = string> = {
+  lookup(petNameOrPath: RecordT | NameOrPath): Promise<unknown>;
+  list(): RecordT[];
 };
 
 export type KnownEndoInspectors = {
@@ -1365,7 +1365,7 @@ export type DeferredTask<T extends Record<string, string | string[]>> = (
  * parallel.
  */
 export type DeferredTasks<T extends Record<string, string | string[]>> = {
-  execute(identifiers: Readonly<T>): Promise<void>;
+  execute(identifiers?: Readonly<T>): Promise<void>;
   push(value: DeferredTask<T>): void;
 };
 
@@ -1670,7 +1670,7 @@ export interface DaemonCoreExternal {
 }
 
 export type SerialJobs = {
-  enqueue: <T>(asyncFn?: () => Promise<T>) => Promise<T>;
+  enqueue: <T>(fn?: () => T | Promise<T>) => Promise<T>;
 };
 
 export type Multimap<K, V> = {
@@ -1782,31 +1782,31 @@ export type AddressChecker = (remoteAddress: string) => boolean;
 
 export interface RemoteControl {
   accept(
-    remoteGateway: Promise<EndoGateway>,
+    remoteGateway: ERef<EndoGateway>,
     cancel: (error: Error) => void | Promise<void>,
     cancelled: Promise<never>,
     dispose?: () => void,
   ): void;
   connect(
-    getRemoteGateway: () => Promise<EndoGateway>,
+    getRemoteGateway: () => ERef<EndoGateway>,
     cancel: (error: Error) => void | Promise<void>,
     cancelled: Promise<never>,
     dispose?: () => void,
-  ): Promise<EndoGateway>;
+  ): ERef<EndoGateway>;
   getStateName(): string;
 }
 
 export interface RemoteControlState {
   accept(
-    remoteGateway: Promise<EndoGateway>,
+    remoteGateway: ERef<EndoGateway>,
     cancel: (error: Error) => void | Promise<void>,
     cancelled: Promise<never>,
     dispose: () => void,
   ): RemoteControlState;
   connect(
-    getRemoteGateway: () => Promise<EndoGateway>,
+    getRemoteGateway: () => ERef<EndoGateway>,
     cancel: (error: Error) => void | Promise<void>,
     cancelled: Promise<never>,
     dispose: () => void,
-  ): { state: RemoteControlState; remoteGateway: Promise<EndoGateway> };
+  ): { state: RemoteControlState; remoteGateway: ERef<EndoGateway> };
 }

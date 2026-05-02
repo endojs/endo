@@ -52,6 +52,7 @@ export const cauterizeProperty = (
   try {
     delete obj[prop];
   } catch (err) {
+    const reason = /** @type {string | object} */ (err);
     if (hasOwn(obj, prop)) {
       if (typeof obj === 'function' && prop === 'prototype') {
         obj.prototype = undefined;
@@ -60,9 +61,9 @@ export const cauterizeProperty = (
           return;
         }
       }
-      error(`failed to delete ${subPath}`, err);
+      error(`failed to delete ${subPath}`, reason);
     } else {
-      error(`deleting ${subPath} threw`, err);
+      error(`deleting ${subPath} threw`, reason);
     }
     throw err;
   }

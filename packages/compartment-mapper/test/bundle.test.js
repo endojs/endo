@@ -105,15 +105,18 @@ test('makeScript with useEvaluate preserves error stack trace line numbers', asy
     __options__: true,
   });
   const { raise } = compartment.evaluate(bundle);
+  /** @type {null | Error} */
   let error = null;
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundle/main.js'));
-  t.false(error.stack.includes('file:/.*main.js'));
+  t.assert(error);
+  const stack = /** @type {string} */ (error?.stack);
+  t.true(stack.includes(':4:'));
+  t.true(stack.includes('bundle/main.js'));
+  t.false(stack.includes('file:/.*main.js'));
 });
 
 test('makeScript with useEvaluate and sourceUrlPrefix preserves source URLs in stack traces', async t => {
@@ -134,16 +137,19 @@ test('makeScript with useEvaluate and sourceUrlPrefix preserves source URLs in s
     __options__: true,
   });
   const { raise } = compartment.evaluate(bundle);
+  /** @type {null | Error} */
   let error = null;
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.log(error.stack);
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
-  t.assert(!error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const stack = /** @type {string} */ (error?.stack);
+  t.log(stack);
+  t.true(stack.includes(':4:'));
+  t.true(stack.includes('bundled-sources/.../bundle/main.js'));
+  t.false(stack.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor works', async t => {
@@ -180,15 +186,18 @@ test('makeFunctor with useEvaluate preserves error for compiled sourceUrlPrefix 
     __options__: true,
   });
   const { raise } = compartment.evaluate(bundle)();
+  /** @type {null | Error} */
   let error = null;
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
-  t.false(error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const stack = /** @type {string} */ (error?.stack);
+  t.true(stack.includes(':4:'));
+  t.true(stack.includes('bundled-sources/.../bundle/main.js'));
+  t.false(stack.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate preserves error for sourceUrlPrefix runtime option', async t => {
@@ -213,15 +222,18 @@ test('makeFunctor with useEvaluate preserves error for sourceUrlPrefix runtime o
   const { raise } = compartment.evaluate(bundle)({
     sourceUrlPrefix: 'bundled-sources/.../',
   });
+  /** @type {null | Error} */
   let error = null;
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
-  t.false(error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const stack = /** @type {string} */ (error?.stack);
+  t.true(stack.includes(':4:'));
+  t.true(stack.includes('bundled-sources/.../bundle/main.js'));
+  t.false(stack.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate works', async t => {
@@ -288,15 +300,18 @@ test('makeFunctor with useEvaluate preserves error stack trace line numbers', as
   const { raise } = compartment.evaluate(
     `(${bundle})({ evaluate: nestedEvaluate })`,
   );
+  /** @type {null | Error} */
   let error = null;
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundle/main.js'));
-  t.false(error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const stack = /** @type {string} */ (error?.stack);
+  t.true(stack.includes(':4:'));
+  t.true(stack.includes('bundle/main.js'));
+  t.false(stack.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate and evaluate runtime option preserves stack trace line numbers', async t => {
@@ -318,15 +333,18 @@ test('makeFunctor with useEvaluate and evaluate runtime option preserves stack t
       return compartment.evaluate(source);
     },
   });
+  /** @type {null | Error} */
   let error = null;
   try {
     raise();
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
-  t.assert(error.stack.includes(':4:'));
-  t.assert(error.stack.includes('bundle/main.js'));
-  t.false(error.stack.includes('file:/.*bundle/main.js'));
+  t.assert(error);
+  const stack = /** @type {string} */ (error?.stack);
+  t.true(stack.includes(':4:'));
+  t.true(stack.includes('bundle/main.js'));
+  t.false(stack.includes('file:/.*bundle/main.js'));
 });
 
 // This is failing because it requires support for missing dependencies.

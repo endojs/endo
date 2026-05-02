@@ -16,8 +16,10 @@ const bob2 = Remotable('Alleged: bob');
 
 const convertValToSlot = val =>
   passStyleOf(val) === 'remotable' ? 'far' : val;
-const convertSlotToVal = (slot, iface = undefined) =>
-  slot === 'far' ? Remotable(iface) : slot;
+const convertSlotToVal = (
+  slot,
+  iface = /** @type {string | undefined} */ (undefined),
+) => (slot === 'far' ? Remotable(iface) : slot);
 const { fromCapData, toCapData } = makeMarshal(
   convertValToSlot,
   convertSlotToVal,

@@ -1775,11 +1775,8 @@ const makePatternKit = () => {
       );
     },
 
-    getRankCover: ([
-      _requiredPatt,
-      _optionalPatt = undefined,
-      _restPatt = undefined,
-    ]) => getPassStyleCover('copyArray'),
+    getRankCover: (_splitArray, _encodePassable) =>
+      getPassStyleCover('copyArray'),
   });
 
   /**
@@ -1897,11 +1894,10 @@ const makePatternKit = () => {
       );
     },
 
-    getRankCover: ([
-      requiredPatt,
-      _optionalPatt = undefined,
-      _restPatt = undefined,
-    ]) => getPassStyleCover(passStyleOf(requiredPatt)),
+    getRankCover: (splitArray, _encodePassable) => {
+      const [requiredPatt] = /** @type {CopyArray<Passable>} */ (splitArray);
+      return getPassStyleCover(passStyleOf(requiredPatt));
+    },
   });
 
   /** @type {Record<string, MatchHelper<any>>} */

@@ -1,5 +1,19 @@
 # @endo/common
 
+## 1.4.0
+
+### Minor Changes
+
+- [#3172](https://github.com/endojs/endo/pull/3172) [`98c89b7`](https://github.com/endojs/endo/commit/98c89b79a22c2a038e90ac1d81abdf6127f70e10) Thanks [@turadg](https://github.com/turadg)! - Add `objectExtendEach` helper for merging a sequence of objects into an accumulator, with precise TypeScript inference of the resulting intersection type.
+
+### Patch Changes
+
+- Updated dependencies [[`f65b000`](https://github.com/endojs/endo/commit/f65b0002324d38210d11000cff741c5c8dc83b60), [`d1d9625`](https://github.com/endojs/endo/commit/d1d96256f47c5209dfce3f3d52d3f222f266121a)]:
+  - @endo/eventual-send@1.5.0
+  - @endo/promise-kit@1.2.1
+  - @endo/errors@1.3.1
+  - @endo/harden@1.1.0
+
 ## 1.3.0
 
 ### Minor Changes

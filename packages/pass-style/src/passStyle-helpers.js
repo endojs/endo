@@ -68,7 +68,23 @@ export const isTypedArray = object => {
 };
 hideAndHardenFunction(isTypedArray);
 
-export const PASS_STYLE = Symbol.for('passStyle');
+/**
+ * The well-known symbol used to tag passable objects with their pass style.
+ *
+ * Typed as the string literal `'Symbol(passStyle)'` rather than as
+ * `unique symbol`, to keep the type nameable across module boundaries.
+ * The runtime value is still `Symbol.for('passStyle')` — JS computed property
+ * keys accept any value, so `obj[PASS_STYLE]` indexing is unchanged.
+ *
+ * Without this, declaration emit in downstream packages whose inferred types
+ * structurally contain `[PASS_STYLE]` (via `PassStyled`, `ExtractStyle`, etc.)
+ * fails with TS4023 / TS9006, because `unique symbol` bindings are only
+ * nameable via their original declaration module — which consumers have no
+ * reason to import directly.
+ */
+export const PASS_STYLE = /** @type {'Symbol(passStyle)'} */ (
+  /** @type {unknown} */ (Symbol.for('passStyle'))
+);
 
 /**
  * Below we have a series of predicate functions and their (curried) assertion

@@ -173,7 +173,8 @@ export function scaffold(
         );
       } catch (error) {
         if (onError) {
-          return onError(t, { error, title });
+          const err = /** @type {Error} */ (error);
+          return onError(t, { error: err, title });
         }
         throw error;
       }

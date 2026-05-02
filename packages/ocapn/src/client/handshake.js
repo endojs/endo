@@ -148,8 +148,10 @@ const handleSessionHandshakeMessage = (
       } = message;
       // Handle invalid version
       if (messageCaptpVersion !== captpVersion) {
-        // send op abort
-        logger.info(`Abort during start-session message with invalid version`);
+        logger.info('Abort during start-session message with invalid version', {
+          received: messageCaptpVersion,
+          expected: captpVersion,
+        });
         sendAbortAndClose(connection, 'invalid-version');
         sessionManager.deleteConnection(connection);
         return;
@@ -275,8 +277,17 @@ export const handleHandshakeMessageData = (
       try {
         message = readOcapnHandshakeMessage(syrupReader);
       } catch (err) {
+        // Best-effort diagnostic: try to render the bytes as generic syrup
+        // for the log. If they can't even be decoded as syrup (e.g. junk
+        // bytes), don't let the diagnostic itself mask the original error.
         const problematicBytes = data.slice(start);
-        const syrupMessage = decodeSyrup(problematicBytes);
+        let syrupMessage;
+        try {
+          syrupMessage = decodeSyrup(problematicBytes);
+        } catch (decodeErr) {
+          syrupMessage = '<undecodable syrup>';
+          logger.error(`Bytes are not valid syrup:`, decodeErr);
+        }
         logger.error(
           `Message decode error:`,
           err,

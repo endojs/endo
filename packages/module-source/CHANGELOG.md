@@ -1,5 +1,14 @@
 # @endo/module-source
 
+## 1.4.1
+
+### Patch Changes
+
+- [#3127](https://github.com/endojs/endo/pull/3127) [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd) Thanks [@turadg](https://github.com/turadg)! - Remove stale runtime dependencies from package manifests.
+
+- Updated dependencies [[`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e), [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59)]:
+  - ses@2.0.0
+
 ## 1.4.0
 
 ### Minor Changes

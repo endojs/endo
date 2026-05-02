@@ -1,5 +1,6 @@
 // @ts-check
 import harden from '@endo/harden';
+import { encodeHex } from '@endo/hex';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { checkBundle as powerlessCheckBundle } from './lite.js';
@@ -11,7 +12,7 @@ const textDecoder = new TextDecoder();
 const computeSha512 = bytes => {
   const hash = crypto.createHash('sha512');
   hash.update(bytes);
-  return hash.digest().toString('hex');
+  return encodeHex(hash.digest());
 };
 
 /**

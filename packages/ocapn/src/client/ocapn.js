@@ -329,14 +329,16 @@ const makeMakeHandlerForRemoteReference = ({
     };
 
     /**
-     * Send op:deliver-only (fire and forget, no answer expected).
+     * Send op:deliver with no answer and no resolver (fire and forget).
      * @param {unknown[]} args
      */
     const sendDeliverOnly = args => {
       send({
-        type: 'op:deliver-only',
+        type: 'op:deliver',
         to: targetGetter(),
         args: harden(args),
+        answerPosition: false,
+        resolveMeDesc: false,
       });
     };
 
@@ -670,7 +672,7 @@ const makeBootstrapObject = (
  * @typedef {object} Ocapn
  * @property {((reason?: Error) => void)} abort
  * @property {((data: Uint8Array) => void)} dispatchMessageData
- * @property {() => object} getRemoteBootstrap
+ * @property {() => any} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.
@@ -774,7 +776,7 @@ export const makeOcapn = (
 
   const fulfillRemoteResolverWithPromise = (resolveMeDesc, promise) => {
     // Use E.sendOnly since we don't need a response from fulfill/break calls.
-    // This sends via op:deliver-only
+    // This sends op:deliver with answerPosition and resolveMeDesc both false.
     Promise.resolve(promise).then(
       val => {
         E.sendOnly(resolveMeDesc).fulfill(val);
@@ -800,19 +802,16 @@ export const makeOcapn = (
         );
       }
 
-      fulfillRemoteResolverWithPromise(resolveMeDesc, deliverPromise);
-    },
-    'op:deliver-only': message => {
-      const { to, args } = message;
-      logger.info(`deliver-only`, { to, toType: typeof to, args });
-
-      const deliverPromise = invokeDeliver(to, args);
-
-      // Add context and pass the error to the reject handler.
-      deliverPromise.catch(cause => {
-        const err = Error('OCapN: Error during deliver-only', { cause });
-        onReject(err);
-      });
+      if (resolveMeDesc !== false) {
+        fulfillRemoteResolverWithPromise(resolveMeDesc, deliverPromise);
+      } else {
+        deliverPromise.catch(cause => {
+          const err = Error('OCapN: Error during deliver (no resolver)', {
+            cause,
+          });
+          onReject(err);
+        });
+      }
     },
     'op:listen': message => {
       // There is a "wantsPartial" option, but we don't support it yet.
@@ -923,28 +922,42 @@ export const makeOcapn = (
         untagPromise,
       );
     },
-    'op:gc-export': message => {
-      const { exportPosition, wireDelta } = message;
-      logger.info(`gc-export (${exportPosition})`, {
-        exportPosition,
-        wireDelta,
-      });
-      // eslint-disable-next-line no-use-before-define
-      const value = referenceKit.provideLocalExportValue(exportPosition);
-      // eslint-disable-next-line no-use-before-define
-      const slot = ocapnTable.getSlotForValue(value);
-      if (slot === undefined) {
-        return;
+    'op:gc-exports': message => {
+      const { exportPositions, wireDeltas } = message;
+      logger.info(`gc-exports`, { exportPositions, wireDeltas });
+      if (!Array.isArray(exportPositions) || !Array.isArray(wireDeltas)) {
+        throw Error(
+          `OCapN: op:gc-exports requires exportPositions and wireDeltas arrays`,
+        );
       }
-      // eslint-disable-next-line no-use-before-define
-      ocapnTable.dropSlot(slot, Number(wireDelta));
+      const exportLen = exportPositions.length;
+      const wireLen = wireDeltas.length;
+      if (exportLen !== wireLen) {
+        throw Error(
+          `OCapN: op:gc-exports exportPositions and wireDeltas length mismatch: ${exportLen} vs ${wireLen}`,
+        );
+      }
+      for (let i = 0; i < exportPositions.length; i += 1) {
+        const exportPosition = exportPositions[i];
+        const wireDelta = wireDeltas[i];
+        // eslint-disable-next-line no-use-before-define
+        const value = referenceKit.provideLocalExportValue(exportPosition);
+        // eslint-disable-next-line no-use-before-define
+        const slot = ocapnTable.getSlotForValue(value);
+        if (slot !== undefined) {
+          // eslint-disable-next-line no-use-before-define
+          ocapnTable.dropSlot(slot, Number(wireDelta));
+        }
+      }
     },
-    'op:gc-answer': message => {
-      const { answerPosition } = message;
-      logger.info(`gc-answer (${answerPosition})`, { answerPosition });
-      const slot = makeSlot('a', true, answerPosition);
-      // eslint-disable-next-line no-use-before-define
-      ocapnTable.dropSlot(slot, 1);
+    'op:gc-answers': message => {
+      const { answerPositions } = message;
+      logger.info(`gc-answers`, { answerPositions });
+      for (const answerPosition of answerPositions) {
+        const slot = makeSlot('a', true, answerPosition);
+        // eslint-disable-next-line no-use-before-define
+        ocapnTable.dropSlot(slot, 1);
+      }
     },
     'op:abort': message => {
       const { reason } = message;
@@ -1047,15 +1060,15 @@ export const makeOcapn = (
     if (type === 'o' || type === 'p') {
       // Remote object or promise - tell peer to decrement export refcount
       send({
-        type: 'op:gc-export',
-        exportPosition: position,
-        wireDelta: BigInt(refcount),
+        type: 'op:gc-exports',
+        exportPositions: [position],
+        wireDeltas: [BigInt(refcount)],
       });
     } else if (type === 'a') {
       // Remote answer - tell peer they can GC the answer
       send({
-        type: 'op:gc-answer',
-        answerPosition: position,
+        type: 'op:gc-answers',
+        answerPositions: [position],
       });
     }
   };
@@ -1204,16 +1217,27 @@ export const makeOcapn = (
       } catch (err) {
         // Tell the engine message deserialization has failed.
         ocapnTable.clearPendingRefCounts();
+        // Best-effort diagnostic: try to render the bytes as generic syrup
+        // for the log. If they can't even be decoded as syrup (e.g. junk
+        // bytes), don't let the diagnostic itself mask the original error
+        // or skip the connection.end() cleanup below.
         const problematicBytes = data.slice(start);
-        const syrupMessage = decodeSyrup(problematicBytes);
-        logger.error(`Message decode error:`);
-        logger.error(
-          JSON.stringify(
-            syrupMessage,
-            (key, value) => (typeof value === 'bigint' ? `${value}n` : value),
-            2,
-          ),
-        );
+        try {
+          const syrupMessage = decodeSyrup(problematicBytes);
+          logger.error(`Message decode error:`);
+          logger.error(
+            JSON.stringify(
+              syrupMessage,
+              (key, value) => (typeof value === 'bigint' ? `${value}n` : value),
+              2,
+            ),
+          );
+        } catch (decodeErr) {
+          logger.error(
+            `Message decode error (bytes are not valid syrup):`,
+            decodeErr,
+          );
+        }
         connection.end();
         throw err;
       }

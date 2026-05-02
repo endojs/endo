@@ -76,3 +76,50 @@ export const objectMap = (original, mapFn) => {
   return /** @type {any} */ (harden(newObj));
 };
 harden(objectMap);
+
+/**
+ * Like {@link objectMap}, but preserves the per-key correlation between
+ * each original value's type and the result by *extending* every value
+ * with the same additional properties rather than mapping it to an
+ * unrelated type.  Phrasing the result as `{ [K in keyof O]: O[K] & Ex }`
+ * in the return type evaluates `O[K]` fresh per key, where a single
+ * generic R would collapse to a union.
+ *
+ * @example
+ * ```ts
+ * const chains = {
+ *   ethereum: { namespace: 'eip155', reference: '1' },
+ *   solana: { namespace: 'solana', reference: 'mainnet' },
+ * } as const;
+ *
+ * const withChainId = objectExtendEach(chains, v => ({
+ *   chainId: `${v.namespace}:${v.reference}`,
+ * }));
+ * // {
+ * //   ethereum: { namespace: 'eip155'; reference: '1' } & { chainId: string };
+ * //   solana:   { namespace: 'solana'; reference: 'mainnet' } & { chainId: string };
+ * // }
+ * ```
+ *
+ * Each value in `original` must be an object, because the implementation
+ * spreads `v` (`{ ...v, ...extendFn(v, k) }`) — spreading a primitive
+ * would silently yield an empty object (or, for strings, per-character
+ * indices) and the intersection `O[K] & Ex` would collapse to `never`
+ * for primitive `O[K]`.  Constraining `O` to `Record<string, object>`
+ * makes the type and runtime behavior agree.
+ *
+ * @template {Record<string, object>} O
+ * @template {Record<string, unknown>} Ex
+ * @param {O} original
+ * @param {(value: O[keyof O & string], key: string & keyof O) => Ex} extendFn
+ * @returns {{ [K in keyof O]: O[K] & Ex }}
+ */
+export const objectExtendEach = (original, extendFn) => {
+  const newEntries = typedMap(
+    typedEntries(original),
+    /** @type {([k, v]: [string, object]) => [string, object]} */
+    ([k, v]) => [k, { ...v, ...extendFn(v, k) }],
+  );
+  return /** @type {any} */ (harden(fromTypedEntries(newEntries)));
+};
+harden(objectExtendEach);

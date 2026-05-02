@@ -1,5 +1,38 @@
 # @endo/compartment-mapper
 
+## 2.1.0
+
+### Minor Changes
+
+- [#3132](https://github.com/endojs/endo/pull/3132) [`b4820dc`](https://github.com/endojs/endo/commit/b4820dc946821dd87f78ee856cd5e9292b55f83c) Thanks [@boneskull](https://github.com/boneskull)! - Expose `_redundantPreloadHook` option in `captureFromMap()`, which will be called for each item in the `_preload` array that was already indirectly loaded via the entry `Compartment`.
+
+  Fixes a bug in the type of `_preload` option, which now allows for mixed arrays.
+
+  Fixes a bug in the preloader, which was not exhaustively checking if a non-entry module was already loaded via the entry `Compartment`.
+
+- [#3048](https://github.com/endojs/endo/pull/3048) [`6ad084a`](https://github.com/endojs/endo/commit/6ad084a6900b8b6cca5580977502d79389f3b209) Thanks [@kriskowal](https://github.com/kriskowal)! - Add support for Node.js subpath pattern replacement in `package.json` `exports` and `imports` fields. Patterns like `"./features/*.js": "./src/features/*.js"` and `"#internal/*.js": "./lib/*.js"` are now resolved at link time using prefix/suffix string matching with specificity ordering. Null-target patterns exclude matching specifiers. Conditional pattern values are resolved through the standard condition-matching rules. Patterns are expanded to concrete module entries during archiving.
+
+### Patch Changes
+
+- [#3111](https://github.com/endojs/endo/pull/3111) [`154102b`](https://github.com/endojs/endo/commit/154102b47491f8fc587c891cfe69d206bd7833d2) Thanks [@boneskull](https://github.com/boneskull)! - Fix type of `PackageDataHook.packageData` which now correctly allows `$root$` as a key.
+
+- [#3182](https://github.com/endojs/endo/pull/3182) [`2b674ca`](https://github.com/endojs/endo/commit/2b674cad4149909b3063acb706eba70a1c8ab901) Thanks [@kriskowal](https://github.com/kriskowal)! - Cull underscore-prefixed internal properties (like `__createdBy`) from
+  serialized compartment maps in archives. The compartment map validator
+  now also ignores underscore-prefixed properties when checking for
+  extraneous fields.
+
+- [#3173](https://github.com/endojs/endo/pull/3173) [`acbacba`](https://github.com/endojs/endo/commit/acbacba5364f4f9ba85a962bef773c4170845b77) Thanks [@boneskull](https://github.com/boneskull)! - Fixes potential issue wherein a canonical name may be computed incorrectly. Includes performance improvements.
+
+- [#3157](https://github.com/endojs/endo/pull/3157) [`cdb6eae`](https://github.com/endojs/endo/commit/cdb6eaed646c698a8a6d8d85f562fe63c31308cb) Thanks [@boneskull](https://github.com/boneskull)! - Dramatically improve performance of canonical name (shortest path) computation in `mapNodeModules()`.
+
+- [#3127](https://github.com/endojs/endo/pull/3127) [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd) Thanks [@turadg](https://github.com/turadg)! - Remove stale runtime dependencies from package manifests.
+
+- [#3115](https://github.com/endojs/endo/pull/3115) [`1cd1246`](https://github.com/endojs/endo/commit/1cd12469b6874bb181238c2d2e41ce9bc6e8bb9f) Thanks [@boneskull](https://github.com/boneskull)! - Remove unused "error" `ModuleSourceHookModuleSource` type.
+
+- Updated dependencies [[`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e), [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd), [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59)]:
+  - ses@2.0.0
+  - @endo/module-source@1.4.1
+
 ## 2.0.0
 
 ### Major Changes

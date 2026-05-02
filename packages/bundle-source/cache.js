@@ -8,7 +8,7 @@ import { makeFileReader, makeAtomicFileWriter } from './src/fs.js';
 
 const { Fail, quote: q } = assert;
 
-/** @import {BundleCache, BundleCacheOperationOptions, BundleCacheOptions, BundleMeta, CacheOpts, Logger, ModuleFormat} from './src/types.js' */
+/** @import {BundleCache, BundleCacheOperationOptions, BundleCacheOptions, BundleMeta, BundleOptions, CacheOpts, CanonicalFn, Logger, ModuleFormat, ReadFn} from './src/types.js' */
 
 export const jsOpts = {
   encodeBundle: bundle => `export default ${JSON.stringify(bundle)};\n`,
@@ -105,17 +105,20 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     const bundle = await bundleSource(
       rootPath,
-      {
+      /** @type {BundleOptions<ModuleFormat>} */ ({
         ...bundleOptions,
         noTransforms,
         elideComments,
         format,
         conditions: sortedConditions,
-      },
-      {
+      }),
+      // readPowers.canonical is CanonicalFn<FileUrlString>, but bundleSource's
+      // declared CanonicalFn accepts any string. The runtime is the same; this
+      // cast widens the input type to bridge the two packages' URL typings.
+      /** @type {{ read: ReadFn, canonical: CanonicalFn }} */ ({
         ...readPowers,
         read: loggedRead,
-      },
+      }),
     );
 
     const code = encodeBundle(bundle);
@@ -362,17 +365,18 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * Load a bundle by target name, validating existing cache entries or creating
    * them on demand. Results are memoized per `targetName`.
    *
+   * @template {ModuleFormat} [T='endoZipBase64']
    * @param {string} rootPath
    * @param {string} [targetName]
    * @param {Logger} [log]
-   * @param {BundleCacheOperationOptions} [options]
-   * @returns {Promise<unknown>}
+   * @param {BundleCacheOperationOptions & { format?: T | undefined }} [options]
+   * @returns {Promise<import('./src/types.js').BundleSourceResult<T>>}
    */
   const load = async (
     rootPath,
     targetName = readPowers.basename(rootPath, '.js'),
     log = defaultLog,
-    options = {},
+    options = undefined,
   ) => {
     const found = loaded.get(targetName);
     // console.log('load', { targetName, found: !!found, rootPath });

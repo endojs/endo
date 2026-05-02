@@ -12,10 +12,14 @@ import {
 } from '../src/locator.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
 
-const validNode =
-  'd5c98890be3d17ad375517464ec494068267de60bd4b3143ef0214cc895746f2';
-const validId =
-  '5cf3d8b4d6e03fb51d71fbbb6fa6982edbff673cd193707c902b70a26b7b4680';
+/** @import { FormulaNumber, NodeNumber } from '../src/types.js' */
+
+const validNode = /** @type {NodeNumber} */ (
+  'd5c98890be3d17ad375517464ec494068267de60bd4b3143ef0214cc895746f2'
+);
+const validId = /** @type {FormulaNumber} */ (
+  '5cf3d8b4d6e03fb51d71fbbb6fa6982edbff673cd193707c902b70a26b7b4680'
+);
 const validType = 'eval';
 
 const makeLocator = (components = {}) => {
@@ -43,7 +47,8 @@ test('assertValidLocator - valid', t => {
 });
 
 test('assertValidLocator - invalid', t => {
-  [
+  /** @type {Array<[any, RegExp]>} */
+  const cases = [
     ['foobar', /Invalid URL.$/u],
     ['', /Invalid URL.$/u],
     [null, /Invalid URL.$/u],
@@ -56,9 +61,10 @@ test('assertValidLocator - invalid', t => {
     [`${makeLocator()}&foo=bar`, /Invalid search params.$/u],
     [makeLocator({ param1: 'id=foobar' }), /Invalid id.$/u],
     [makeLocator({ param2: 'type=foobar' }), /Invalid type.$/u],
-  ].forEach(([locator, reason]) => {
+  ];
+  for (const [locator, reason] of cases) {
     t.throws(() => assertValidLocator(locator), { message: reason });
-  });
+  }
 });
 
 test('parseLocator', t => {

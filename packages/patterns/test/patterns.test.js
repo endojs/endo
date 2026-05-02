@@ -9,6 +9,8 @@ import {
   makeCopyMap,
   makeCopySet,
   getCopyMapKeys,
+  isKey,
+  assertKey,
 } from '../src/keys/checkKey.js';
 import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
 
@@ -950,4 +952,22 @@ test('well formed patterns', t => {
   t.throws(() => M.containerHas(3, 1), {
     message: 'M.containerHas payload: [1]: 1 - Must be >= "[1n]"',
   });
+});
+
+test('Far functions (callable remotables) are valid Keys', t => {
+  // Far() accepts a bare function to make a callable remotable. Such values
+  // have `typeof === 'function'` but `passStyleOf === 'remotable'` and must
+  // be treated as Keys by isKey/assertKey and memoized on the Key fast path.
+  // A prior filter on `typeof val === 'object'` silently skipped this case.
+  const farFn = Far('callable-remotable', () => 'ok');
+  t.is(typeof farFn, 'function');
+  t.true(isKey(farFn));
+  assertKey(farFn);
+  t.true(matches(farFn, M.key()));
+  // Second call must also succeed; exercises the memo path with a function
+  // key, which throws TypeError if added to a WeakSet that rejects it.
+  t.true(isKey(farFn));
+  // Usable as a CopySet element (set insertion confirms the element is a Key).
+  const set = makeCopySet([farFn]);
+  t.true(matches(set, M.set()));
 });

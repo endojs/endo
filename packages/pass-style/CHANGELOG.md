@@ -1,5 +1,46 @@
 # @endo/pass-style
 
+## 1.8.0
+
+### Minor Changes
+
+- [#3172](https://github.com/endojs/endo/pull/3172) [`88bc2b9`](https://github.com/endojs/endo/commit/88bc2b915d95326a3e911a9f8bf4571d948c44d8) Thanks [@turadg](https://github.com/turadg)! - Improve TypeScript inference for patterns, exo, and pass-style. These are compile-time type changes only; no runtime behavior changes.
+  - **pass-style**: `CopyArray<T>` is now `readonly T[]` so readonly tuples (e.g. `readonly ['ibc']`) satisfy `Passable`. Backward-compatible because `T[]` still extends `readonly T[]`.
+  - **patterns**: `M.remotable()` defaults to `any` (matching `M.promise()`), so unparameterized remotables are assignable to concrete remotable typedefs. The parameterized form `M.remotable<typeof SomeInterfaceGuard>()` still yields precise inference.
+  - **patterns**: `TFRemotable` returns `any` (not `Payload`) for non-`InterfaceGuard` arguments.
+  - **patterns**: `TFOr` handles array-of-patterns and falls back through `TFAnd`; `M.undefined()` maps to `void`.
+  - **patterns**: `TFOptionalTuple` emits truly optional elements; `M.promise()` maps to `PromiseLike`.
+  - **patterns**: `TFSplitRecord` handles the empty-rest case correctly.
+  - **patterns**: `TFRestArgs` unwraps array patterns.
+  - **patterns**: `TypeFromArgGuard` discriminates by `toStringTag`, not structural shape.
+  - **patterns**: `MatcherOf` payload is preserved through `InterfaceGuard`.
+  - **patterns**: new `CastedPattern<T>` for unchecked type assertions in pattern position.
+  - **exo**: `defineExoClass`, `defineExoClassKit`, and `makeExo` no longer intersect facet constraints with `& Methods`. The previous constraint collapsed specific facet keys into the `string | number | symbol` index signature, making `FilteredKeys` return `never` and erasing facet method inference (`Pick<X, never> = {}`).
+  - **exo**: `Guarded<M, G>` is now structurally compatible across `G`, and the kit `F` constraint is widened.
+  - **exo**: `defineExoClassKit` preserves facet inference when no guard is supplied.
+
+  TypeScript consumers that were working around the previous inference gaps with casts may be able to remove those casts. Downstream code that depended on the narrower `CopyArray<T> = T[]` or the previous `M.remotable()` default may need minor adjustments.
+
+- [#3184](https://github.com/endojs/endo/pull/3184) [`43165e5`](https://github.com/endojs/endo/commit/43165e584cfd6437c7f8edb8872ff81ed4415ed6) Thanks [@turadg](https://github.com/turadg)! - Unblock TypeScript declaration emit in downstream packages that structurally expose `PassStyled`/`Container` types. Compile-time type changes only; no runtime behavior changes.
+  - `PASS_STYLE` is now typed as the string-literal `'Symbol(passStyle)'` rather than `unique symbol`. The runtime value is unchanged (still `Symbol.for('passStyle')`), and computed-key indexing like `obj[PASS_STYLE]` continues to work because JS computed keys accept any value. This removes TS4023 / TS9006 errors in consumers whose inferred types structurally contain `[PASS_STYLE]` (via `PassStyled`, `ExtractStyle`, object spread of a `PassStyled`, etc.). A `unique symbol` is only nameable via its original declaration module, which consumers have no reason to import; a string-literal type has no such nameability requirement.
+  - `CopyArrayInterface`, `CopyRecordInterface`, and `CopyTaggedInterface` are now exported, so downstream `.d.ts` emit can name them when they appear through structural expansion of `Passable`/`Container`.
+  - The `PassStyleOf` array overload is widened from `(p: any[]) => 'copyArray'` to `(p: readonly any[]) => 'copyArray'`, so `as const` tuples and `readonly T[]` values classify as `'copyArray'`. This aligns the classifier with `CopyArray<T>`, which is already `readonly T[]`. Backward-compatible because `T[]` still extends `readonly T[]`.
+
+  Obviates the `@endo/pass-style` patch that agoric-sdk has been carrying in `.yarn/patches/`.
+
+  TypeScript consumers that relied on `typeof PASS_STYLE` being `unique symbol` (e.g. annotating a value as `symbol` from `PASS_STYLE`) will need minor adjustments — widen the annotation to `symbol | string`, or cast via `unknown`.
+
+### Patch Changes
+
+- [#3127](https://github.com/endojs/endo/pull/3127) [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd) Thanks [@turadg](https://github.com/turadg)! - Remove stale runtime dependencies from package manifests.
+
+- Updated dependencies [[`98c89b7`](https://github.com/endojs/endo/commit/98c89b79a22c2a038e90ac1d81abdf6127f70e10), [`f65b000`](https://github.com/endojs/endo/commit/f65b0002324d38210d11000cff741c5c8dc83b60), [`d1d9625`](https://github.com/endojs/endo/commit/d1d96256f47c5209dfce3f3d52d3f222f266121a)]:
+  - @endo/common@1.4.0
+  - @endo/eventual-send@1.5.0
+  - @endo/promise-kit@1.2.1
+  - @endo/errors@1.3.1
+  - @endo/harden@1.1.0
+
 ## 1.7.0
 
 ### Minor Changes

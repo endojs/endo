@@ -1,4 +1,9 @@
-import { FERAL_REG_EXP, regexpExec, stringSlice } from './commons.js';
+import {
+  FERAL_REG_EXP,
+  freezeRegexp,
+  regexpExec,
+  stringSlice,
+} from './commons.js';
 
 // Captures a key and value of the form #key=value or @key=value
 const sourceMetaEntryRegExp =
@@ -9,8 +14,10 @@ const sourceMetaEntryRegExp =
 // On account of the mechanics of regular expressions, scanning from the end
 // does not allow us to capture every pair, so getSourceURL must capture and
 // trim until there are no matching comments.
-const sourceMetaEntriesRegExp = new FERAL_REG_EXP(
-  `(?:\\s*//${sourceMetaEntryRegExp}|/\\*${sourceMetaEntryRegExp}\\s*\\*/)\\s*$`,
+const sourceMetaEntriesRegExp = freezeRegexp(
+  new FERAL_REG_EXP(
+    `(?:\\s*//${sourceMetaEntryRegExp}|/\\*${sourceMetaEntryRegExp}\\s*\\*/)\\s*$`,
+  ),
 );
 
 /**
@@ -31,7 +38,7 @@ export const getSourceURL = src => {
     if (match === null) {
       break;
     }
-    src = stringSlice(src, 0, src.length - match[0].length);
+    src = stringSlice(src, 0, -match[0].length);
 
     // We skip $0 since it contains the entire match.
     // The match contains four capture groups,

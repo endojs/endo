@@ -2,9 +2,16 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makePromiseKit as _makePromiseKit } from '@endo/promise-kit';
 import { makeRemoteControlProvider } from '../src/remote-control.js';
 
+/** @import { PromiseKit } from '@endo/promise-kit' */
+
+// The RemoteControl cancellation promises only reject and never fulfill.
+/** @type {<T = never>() => PromiseKit<T>} */
+const makePromiseKit = _makePromiseKit;
+
+/** @returns {any} */
 const makeFakeGateway = () =>
   makeExo(
     'FakeGateway',
@@ -154,7 +161,7 @@ test('remote control establishes new connection when reconnecting after disconne
     () => makeFakeGateway(),
     cancelBob1,
     bob1Cancelled,
-    disposeBob1,
+    /** @type {() => void} */ (disposeBob1),
   );
   cancelBob1(new Error('Disconnect'));
   await t.throwsAsync(() => bob1Cancelled);

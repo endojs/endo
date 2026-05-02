@@ -78,12 +78,18 @@ export interface BundleCache {
     log?: Logger | undefined,
     options?: BundleCacheOperationOptions | undefined,
   ) => Promise<BundleMeta>;
-  load: (
+  /**
+   * The result type is parameterized on the `format` option:
+   * - omitted → `BundleSourceResult<'endoZipBase64'>` (the default)
+   * - literal → `BundleSourceResult<format>`
+   * - runtime-typed `ModuleFormat` → `BundleSourceResult<ModuleFormat>`
+   */
+  load: <T extends ModuleFormat = 'endoZipBase64'>(
     rootPath: string,
     targetName?: string | undefined,
     log?: Logger | undefined,
-    options?: BundleCacheOperationOptions | undefined,
-  ) => Promise<unknown>;
+    options?: BundleCacheOperationOptions & { format?: T | undefined },
+  ) => Promise<BundleSourceResult<T>>;
 }
 
 export interface FileReader {

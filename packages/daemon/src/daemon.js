@@ -808,8 +808,8 @@ const makeDaemonCore = async (
   /** @type {Map<FormulaIdentifier, object>} */
   const refForId = new Map();
 
-  /** @type {WeakMultimap<Record<string | symbol, unknown>, FormulaIdentifier>['get']} */
-  const getIdForRef = ref => idForRef.get(ref);
+  /** @type {DaemonCore['getIdForRef']} */
+  const getIdForRef = ref => idForRef.get(/** @type {any} */ (ref));
 
   /** @param {unknown} value */
   const getLocalIdForRef = value => {

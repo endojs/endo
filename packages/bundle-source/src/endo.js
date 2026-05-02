@@ -8,7 +8,7 @@ import { defaultParserForLanguage as transformingParserForLanguage } from '@endo
 import { defaultParserForLanguage as transparentParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
 import tsBlankSpace from 'ts-blank-space';
 
-/** @import {Language} from '@endo/compartment-mapper/node-powers.js' */
+/** @import {Language, ParserImplementation} from '@endo/compartment-mapper/node-powers.js' */
 /** @import {BundlingKit, BundlingKitIO, BundlingKitOptions, ModuleTransformsLike, ParserForLanguageLike, SourceMapDescriptor} from './types.js' */
 
 const textEncoder = new TextEncoder();
@@ -189,6 +189,7 @@ export const makeBundlingKit = (
     };
   }
 
+  /** @type {ParserImplementation} */
   const mtsParser = {
     parse(
       sourceBytes,
@@ -212,6 +213,7 @@ export const makeBundlingKit = (
     synchronous: false,
   };
 
+  /** @type {ParserImplementation} */
   const ctsParser = {
     parse(
       sourceBytes,

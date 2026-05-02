@@ -338,7 +338,7 @@ arrayForEach(['caller', 'arguments'], prop => {
     strict[prop];
   } catch (e) {
     // https://github.com/facebook/hermes/blob/main/test/hermes/function-non-strict.js
-    if (e.message === 'Restricted in strict mode') {
+    if (/** @type {Error} */ (e).message === 'Restricted in strict mode') {
       // Fixed in Static Hermes: https://github.com/facebook/hermes/issues/1582
       FunctionInstance[prop] = accessor;
     }

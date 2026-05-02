@@ -1,5 +1,6 @@
 // @ts-check
 
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { RemoteControl, RemoteControlState, EndoGateway } from './types.js' */
 
 /** @param {string} id */
@@ -24,7 +25,7 @@ export const makeRemoteControlProvider = localNodeId => {
     // We do not have a pending outbound connection attempt.
     /**
      * @type {(
-     *   remoteGateway: Promise<EndoGateway>,
+     *   remoteGateway: ERef<EndoGateway>,
      *   cancel: (error: Error) => void | Promise<void>,
      *   cancelled: Promise<never>,
      * ) => RemoteControlState}
@@ -100,7 +101,7 @@ export const makeRemoteControlProvider = localNodeId => {
     // We have an active outbound connection.
     /**
      * @type {(
-     *   remoteGateway: Promise<EndoGateway>,
+     *   remoteGateway: ERef<EndoGateway>,
      *   cancel: (error: Error) => void,
      *   cancelled: Promise<never>,
      * ) => RemoteControlState}
@@ -290,7 +291,7 @@ export const makeRemoteControlProvider = localNodeId => {
     state = start();
 
     /**
-     * @param {Promise<EndoGateway>} proposedRemoteGateway
+     * @param {ERef<EndoGateway>} proposedRemoteGateway
      * @param {(error: Error) => void} cancelConnection
      * @param {Promise<never>} connectionCancelled
      * @param {() => void} connectionDispose
@@ -310,7 +311,7 @@ export const makeRemoteControlProvider = localNodeId => {
       );
     };
     /**
-     * @param {() => Promise<EndoGateway>} getRemoteGateway
+     * @param {() => ERef<EndoGateway>} getRemoteGateway
      * @param {(error: Error) => void} cancelIncarnation
      * @param {Promise<never>} incarnationCancelled
      * @param {() => void} disposeIncarnation

@@ -318,11 +318,12 @@ export const digestCompartmentMap = (
   try {
     assertDigestedCompartmentMap(digestCompartmentMap);
   } catch (err) {
+    const error = /** @type {Error} */ (err);
     throw new TypeError(
       `Invalid compartment map; ${JSON.stringify(
         digestCompartmentMap,
-      )}:\n${err.message}`,
-      { cause: err },
+      )}:\n${error.message}`,
+      { cause: error },
     );
   }
 

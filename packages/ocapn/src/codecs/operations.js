@@ -8,16 +8,14 @@
  * @import { PassableCodecs } from './passable.js'
  */
 
-import {
-  makeCodec,
-  makeRecordUnionCodec,
-  makeTypeHintUnionCodec,
-} from '../syrup/codec.js';
+import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import { makeOcapnRecordCodecFromDefinition } from './util.js';
 import {
   NonNegativeIntegerCodec,
-  FalseCodec,
+  NonNegativeIntegerListCodec,
   PositiveIntegerCodec,
+  PositiveIntegerListCodec,
+  makeOcapnFalseForOptionalCodec,
 } from './subtypes.js';
 import {
   OcapnPeerCodec,
@@ -45,20 +43,20 @@ const OpAbortCodec = makeOcapnRecordCodecFromDefinition('OpAbort', 'op:abort', {
   reason: 'string',
 });
 
-const OpGcExportCodec = makeOcapnRecordCodecFromDefinition(
-  'OpGcExport',
-  'op:gc-export',
+const OpGcExportsCodec = makeOcapnRecordCodecFromDefinition(
+  'OpGcExports',
+  'op:gc-exports',
   {
-    exportPosition: NonNegativeIntegerCodec,
-    wireDelta: PositiveIntegerCodec,
+    exportPositions: NonNegativeIntegerListCodec,
+    wireDeltas: PositiveIntegerListCodec,
   },
 );
 
-const OpGcAnswerCodec = makeOcapnRecordCodecFromDefinition(
-  'OpGcAnswer',
-  'op:gc-answer',
+const OpGcAnswersCodec = makeOcapnRecordCodecFromDefinition(
+  'OpGcAnswers',
+  'op:gc-answers',
   {
-    answerPosition: NonNegativeIntegerCodec,
+    answerPositions: NonNegativeIntegerListCodec,
   },
 );
 
@@ -105,6 +103,12 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     descCodecs;
   const { PassableCodec } = passableCodecs;
 
+  /** `false` or a local resolver import for op:deliver */
+  const OptionalResolveMeDescCodec = makeOcapnFalseForOptionalCodec(
+    'OptionalResolveMeDesc',
+    ResolveMeDescCodec,
+  );
+
   const OpListenCodec = makeOcapnRecordCodecFromDefinition(
     'OpListen',
     'op:listen',
@@ -117,7 +121,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
 
   /** @typedef {[...any[]]} OpDeliverArgs */
 
-  // Used by the deliver and deliver-only operations
+  // Used by op:deliver
   // First arg is method name, rest are Passables
   const OpDeliverArgsCodec = makeCodec('OpDeliverArgs', {
     /**
@@ -147,26 +151,10 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   });
 
-  const OpDeliverOnlyCodec = makeOcapnRecordCodecFromDefinition(
-    'OpDeliverOnly',
-    'op:deliver-only',
-    {
-      to: DeliverTargetCodec,
-      args: OpDeliverArgsCodec,
-    },
-  );
-
-  // The OpDeliver answer is either a positive integer or false
-  const OpDeliverAnswerCodec = makeTypeHintUnionCodec(
-    'OpDeliverAnswer',
-    {
-      'number-prefix': NonNegativeIntegerCodec,
-      boolean: FalseCodec,
-    },
-    {
-      bigint: NonNegativeIntegerCodec,
-      boolean: FalseCodec,
-    },
+  /** `false` or a non-negative integer answer slot for op:deliver */
+  const OptionalAnswerPositionCodec = makeOcapnFalseForOptionalCodec(
+    'OptionalAnswerPosition',
+    NonNegativeIntegerCodec,
   );
 
   const OpDeliverCodec = makeOcapnRecordCodecFromDefinition(
@@ -175,8 +163,8 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     {
       to: DeliverTargetCodec,
       args: OpDeliverArgsCodec,
-      answerPosition: OpDeliverAnswerCodec,
-      resolveMeDesc: ResolveMeDescCodec,
+      answerPosition: OptionalAnswerPositionCodec,
+      resolveMeDesc: OptionalResolveMeDescCodec,
     },
   );
 
@@ -208,15 +196,14 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
 
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
-    OpDeliverOnlyCodec,
     OpDeliverCodec,
     OpGetCodec,
     OpIndexCodec,
     OpUntagCodec,
     OpAbortCodec,
     OpListenCodec,
-    OpGcExportCodec,
-    OpGcAnswerCodec,
+    OpGcExportsCodec,
+    OpGcAnswersCodec,
   });
 
   /**

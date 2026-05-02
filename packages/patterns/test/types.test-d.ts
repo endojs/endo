@@ -1,3 +1,4 @@
+/* eslint-disable */
 import type {
   Passable,
   CopyRecord,
@@ -18,6 +19,7 @@ import type {
   CopySet,
   CopyBag,
   CopyMap,
+  CastedPattern,
 } from '../index.js';
 import type {
   TypeFromPattern,
@@ -121,11 +123,14 @@ const passable: Passable = null as any;
   expectType<symbol>(null as unknown as T);
 }
 
-// M.undefined() → undefined
+// M.undefined() → void
+// Uses `void` rather than `undefined` so that impls declared with a
+// `void` return can satisfy guards ending in `.returns(M.undefined())`.
+// See the TFKindMap['undefined'] comment in type-from-pattern.ts.
 {
   const p = M.undefined();
   type T = TypeFromPattern<typeof p>;
-  expectType<undefined>(null as unknown as T);
+  expectType<void>(null as unknown as T);
 }
 
 // M.null() → null (literal pattern, not a matcher)
@@ -142,11 +147,13 @@ const passable: Passable = null as any;
   expectType<Error>(null as unknown as T);
 }
 
-// M.promise() → Promise<any>
+// M.promise() → PromiseLike<any>
+// Uses PromiseLike (not Promise) because at runtime `M.promise()` checks
+// `passStyleOf === 'promise'` which is duck-typed for any thenable.
 {
   const p = M.promise();
   type T = TypeFromPattern<typeof p>;
-  expectType<Promise<any>>(null as unknown as T);
+  expectType<PromiseLike<any>>(null as unknown as T);
 }
 
 // M.any() → Passable
@@ -156,11 +163,104 @@ const passable: Passable = null as any;
   expectType<Passable>(null as unknown as T);
 }
 
-// M.remotable() → RemotableObject | RemotableBrand<any, any>
+// M.remotable() → any (compatible with any concrete remotable interface)
+// See TFRemotable in type-from-pattern.ts: when unparameterized, the
+// inferred type is `any` so it's assignable to any concrete remotable
+// typedef. Without this, downstream consumers like Agoric SDK's
+// chainStorage StorageNode would need explicit casts at every use site.
 {
   const p = M.remotable();
   type T = TypeFromPattern<typeof p>;
-  expectType<RemotableObject | RemotableBrand<any, any>>(null as unknown as T);
+  expectType<any>(null as unknown as T);
+}
+
+// M.remotable('label') used in M.call() → method param is `any`, not `unknown`.
+// Regression: previously, the unparameterized M.remotable() default was
+// `RemotableObject | RemotableBrand<any, any>`, which propagated as `unknown`
+// when intersected through method-guard inference.
+{
+  const SeatShape = M.remotable('Seat');
+  const guard = M.call(SeatShape).returns(M.any());
+  type Fn = TypeFromMethodGuard<typeof guard>;
+  // The first parameter should be `any`, not `unknown`
+  type Param0 = Parameters<Fn>[0];
+  expectType<any>(null as unknown as Param0);
+}
+
+// Same regression: stored as a const, used via typeof
+{
+  const VoterHandle = M.remotable();
+  const guard = M.call(VoterHandle).returns(M.any());
+  type Fn = TypeFromMethodGuard<typeof guard>;
+  type Param0 = Parameters<Fn>[0];
+  expectType<any>(null as unknown as Param0);
+}
+
+// `.rest(M.arrayOf(X))` → rest type is `X[]`, not `X[][]`.
+// Regression: TFRestArgs always wrapped its result with `[]`, which
+// double-wrapped array patterns. `.rest(P)` matches the rest portion
+// of the args array (as a single array) against P, so when P already
+// infers to an array type, the rest type IS that array.
+{
+  const PathShape = M.arrayOf(M.string());
+  const guard = M.call().rest(PathShape).returns(M.any());
+  type Fn = TypeFromMethodGuard<typeof guard>;
+  // (...args: string[]) — not (...args: string[][])
+  expectType<(...args: string[]) => any>(null as unknown as Fn);
+}
+
+// Non-array rest pattern still wraps: `.rest(M.string())` → `string[]`
+{
+  const guard = M.call().rest(M.string()).returns(M.any());
+  type Fn = TypeFromMethodGuard<typeof guard>;
+  expectType<(...args: string[]) => any>(null as unknown as Fn);
+}
+
+// =============================================================================
+// CastedPattern
+// =============================================================================
+// CastedPattern<T> is an unchecked static type assertion. The runtime
+// pattern still validates the structural shape; the T parameter is a
+// developer claim that may be narrower (or broader) than the structural
+// inference would yield.
+
+// Setting the cast: TypeFromPattern returns the asserted type
+{
+  type Branded = `agoric1${string}`;
+  type Casted = CastedPattern<Branded>;
+  expectType<Branded>(null as unknown as TypeFromPattern<Casted>);
+}
+
+// Discriminated union case (the motivating example): a structural record
+// pattern's natural inference is the cross-product, but a CastedPattern
+// can claim the discriminated-union form.
+{
+  type Coin =
+    | { kind: 'gold'; weight: number }
+    | { kind: 'silver'; purity: number };
+  type CoinShape = CastedPattern<Coin>;
+  type Inferred = TypeFromPattern<CoinShape>;
+  expectType<Coin>(null as unknown as Inferred);
+}
+
+// CastedPattern is structurally a Pattern — accepts existing pattern values
+// without laundering through `unknown`.  The phantom property is optional,
+// so any Pattern value satisfies CastedPattern<T> structurally.
+{
+  const innerShape = M.string();
+  const casted: CastedPattern<'agoric1xyz'> = innerShape;
+  type T = TypeFromPattern<typeof casted>;
+  expectType<'agoric1xyz'>(null as unknown as T);
+}
+
+// Patterns WITHOUT the phantom fall through to structural inference
+// (the unset phantom resolves to `unknown`, which the conditional skips).
+// This verifies the unset case doesn't accidentally hijack normal patterns.
+{
+  const stringP = M.string();
+  type T = TypeFromPattern<typeof stringP>;
+  // Should be the leaf-table result for 'string', not `unknown`
+  expectAssignable<string>(null as unknown as T);
 }
 
 // M.byteArray() → ArrayBuffer (via kind)
@@ -223,18 +323,18 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<string & bigint>(null as unknown as T);
 }
 
-// M.opt() → T | undefined
+// M.opt() → T | void (void rather than undefined; see TFKindMap comment)
 {
   const p = M.opt(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | undefined>(null as unknown as T);
+  expectType<string | void>(null as unknown as T);
 }
 
-// M.eref() → T | Promise<any>
+// M.eref() → T | PromiseLike<any>
 {
   const p = M.eref(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | Promise<any>>(null as unknown as T);
+  expectType<string | PromiseLike<any>>(null as unknown as T);
 }
 
 // ===== 5. Containers: arrayOf, recordOf, mapOf =====
@@ -292,17 +392,14 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<[string, bigint]>(null as unknown as T);
 }
 
-// Required + optional
-// TS limitation: optional splitArray elements are approximated as `T | undefined`
-// rather than truly optional `T?` tuple elements, because TS cannot produce
-// optional tuple elements from recursive conditional types. The array must
-// still be the full length. If TS gains `[X?]` in conditional types, revise.
+// Required + optional: produces truly optional tuple elements `[X?, Y?]`
+// (not just `T | undefined`).  The optional positions in `splitArray`'s
+// second argument become positions you can omit from the call site,
+// matching consumer typedefs like `TransferPart = [a?, b?, c?, d?]`.
 {
   const p = M.splitArray([M.string()], [M.nat(), M.boolean()]);
   type T = TypeFromPattern<typeof p>;
-  expectType<[string, bigint | undefined, boolean | undefined]>(
-    null as unknown as T,
-  );
+  expectType<[string, bigint?, boolean?]>(null as unknown as T);
 }
 
 // ===== 8. Hint parameters (type narrowing) =====
@@ -329,12 +426,12 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<Brand>(null as unknown as T);
 }
 
-// M.promise<Payment>() → Promise<Payment>
+// M.promise<Payment>() → PromiseLike<Payment>
 {
   type Payment = RemotableObject;
   const p = M.promise<Payment>();
   type T = TypeFromPattern<typeof p>;
-  expectType<Promise<Payment>>(null as unknown as T);
+  expectType<PromiseLike<Payment>>(null as unknown as T);
 }
 
 // ===== M.infer ergonomics (like z.infer) =====
@@ -747,18 +844,18 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 
 // ===== M.eref and M.opt =====
 
-// eref infers T | Promise<any>
+// eref infers T | PromiseLike<any>
 {
   const p = M.eref(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | Promise<any>>(null as unknown as T);
+  expectType<string | PromiseLike<any>>(null as unknown as T);
 }
 
-// opt infers T | undefined
+// opt infers T | void
 {
   const p = M.opt(M.nat());
   type T = TypeFromPattern<typeof p>;
-  expectType<bigint | undefined>(null as unknown as T);
+  expectType<bigint | void>(null as unknown as T);
 }
 
 // ===== matches type guard (narrows in if-blocks) =====
@@ -806,11 +903,13 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 
 // ===== M.remotable with InterfaceGuard type parameter =====
 
-// Default M.remotable() → broad remotable union (unchanged)
+// Default M.remotable() → `any` (matching M.promise() default).
+// See the test near the top of the file for the rationale; this duplicate
+// site is preserved as a regression boundary.
 {
   const p = M.remotable();
   type T = TypeFromPattern<typeof p>;
-  expectType<RemotableObject | RemotableBrand<any, any>>(null as unknown as T);
+  expectType<any>(null as unknown as T);
 }
 
 // M.remotable<typeof Guard>() → facet-isolated remotable type
@@ -916,4 +1015,80 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
       description?: string | undefined;
     };
   }>(null as unknown as T);
+}
+
+// ===== Real-world interface: ChainStorageNode-like pattern =====
+// Tests a complex M.interface with callWhen, splitRecord with optional fields,
+// bare .returns(), and M.remotable self-reference.
+{
+  const ChainStorageNodeI = M.interface('StorageNode', {
+    setValue: M.callWhen(M.string()).returns(),
+    getPath: M.call().returns(M.string()),
+    getStoreKey: M.callWhen().returns(
+      M.splitRecord(
+        {
+          storeName: M.string(),
+          storeSubkey: M.string(),
+          dataPrefixBytes: M.string(),
+        },
+        { noDataValue: M.string() },
+      ),
+    ),
+    makeChildNode: M.call(M.string())
+      .optional(M.splitRecord({}, { sequence: M.boolean() }, {}))
+      .returns(M.remotable('StorageNode')),
+  });
+
+  type Methods = TypeFromInterfaceGuard<typeof ChainStorageNodeI>;
+
+  // setValue: async method, bare .returns() defaults to MatcherOf<'kind', 'undefined'>
+  // so the return type is Promise<undefined> — NOT void, NOT null
+  expectType<Promise<undefined>>(
+    null as unknown as ReturnType<Methods['setValue']>,
+  );
+
+  // getPath: sync, returns string
+  expectType<string>(null as unknown as ReturnType<Methods['getPath']>);
+
+  // getStoreKey: async, returns splitRecord with required + optional fields
+  expectType<
+    Promise<{
+      storeName: string;
+      storeSubkey: string;
+      dataPrefixBytes: string;
+      noDataValue?: string | undefined;
+    }>
+  >(null as unknown as ReturnType<Methods['getStoreKey']>);
+
+  // makeChildNode: sync, returns broad remotable. Unparameterized
+  // M.remotable() resolves to `any` (matching M.promise() default)
+  // so the inferred return is compatible with any concrete remotable
+  // typedef.
+  expectType<any>(null as unknown as ReturnType<Methods['makeChildNode']>);
+
+  // makeChildNode: first arg is string
+  expectAssignable<(name: string, ...rest: any[]) => any>(
+    null as unknown as Methods['makeChildNode'],
+  );
+}
+
+// ===== Bare .returns() defaults to void (from MatcherOf<'kind','undefined'>) =====
+// We use `void` rather than `undefined` so that impls declared with
+// `method(): void` satisfy guards ending in bare `.returns()` or
+// `.returns(M.undefined())`.  TypeScript rejects
+// `() => void` assignment to `() => undefined` because a void-returning
+// function may return any value (callers ignore it), while an
+// undefined-returning function must literally return `undefined`.
+// At runtime the guard only checks the value *is* `undefined`, which
+// both void- and undefined-returning impls satisfy in practice.
+{
+  // Sync
+  const mg1 = M.call().returns();
+  type Fn1 = TypeFromMethodGuard<typeof mg1>;
+  expectType<void>(null as unknown as ReturnType<Fn1>);
+
+  // Async (callWhen)
+  const mg2 = M.callWhen().returns();
+  type Fn2 = TypeFromMethodGuard<typeof mg2>;
+  expectType<Promise<void>>(null as unknown as ReturnType<Fn2>);
 }

@@ -86,7 +86,7 @@ export const dumpProjectFixture = (
  *
  * @template [Context=unknown]
  * @param {{log: LogFn}|ExecutionContext<Context>} logger
- * @returns {RestParameters<typeof dumpProjectFixture>}
+ * @returns {(...args: RestParameters<typeof dumpProjectFixture>) => void}
  */
 export const makeDumpProjectFixture = logger =>
   dumpProjectFixture.bind(null, logger);
@@ -187,8 +187,9 @@ export const makeMaybeReadProjectFixture = (fixture, options = {}) => {
         scheduler.wait(
           Math.floor(Math.random() * (MAX_DELAY - MIN_DELAY + 1)) + MIN_DELAY,
         );
-    } else if ('delay' in options) {
-      wait = () => scheduler.wait(options.delay);
+    } else if (options.delay !== undefined) {
+      const { delay } = options;
+      wait = () => scheduler.wait(delay);
     } else {
       wait = async () => {};
     }

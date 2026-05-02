@@ -70,7 +70,7 @@ const makeTypeError = () => {
     null.null;
     throw TypeError('obligatory'); // To convince the type flow inferrence.
   } catch (error) {
-    return error;
+    return /** @type {TypeError} */ (error);
   }
 };
 

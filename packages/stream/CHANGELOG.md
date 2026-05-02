@@ -1,5 +1,15 @@
 # @endo/stream
 
+## 1.3.1
+
+### Patch Changes
+
+- Updated dependencies [[`f65b000`](https://github.com/endojs/endo/commit/f65b0002324d38210d11000cff741c5c8dc83b60), [`d1d9625`](https://github.com/endojs/endo/commit/d1d96256f47c5209dfce3f3d52d3f222f266121a), [`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e), [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59)]:
+  - @endo/eventual-send@1.5.0
+  - @endo/promise-kit@1.2.1
+  - ses@2.0.0
+  - @endo/harden@1.1.0
+
 ## 1.3.0
 
 ### Minor Changes

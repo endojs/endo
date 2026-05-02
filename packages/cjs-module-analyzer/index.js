@@ -74,11 +74,12 @@ export function analyzeCommonJS(cjsSource, name = '<unknown>') {
   try {
     parseSource(cjsSource);
   } catch (e) {
-    e.message += `\n  at ${name}:${
+    const err = /** @type {Error & { loc?: number }} */ (e);
+    err.message += `\n  at ${name}:${
       cjsSource.slice(0, pos).split('\n').length
     }:${pos - cjsSource.lastIndexOf('\n', pos - 1)}`;
-    e.loc = pos;
-    throw e;
+    err.loc = pos;
+    throw err;
   }
   const result = {
     exports: [...myexports].filter(expt => !unsafeGetters.has(expt)),

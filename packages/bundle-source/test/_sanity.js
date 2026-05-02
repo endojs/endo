@@ -1,10 +1,8 @@
 // @ts-check
-import { lockdown } from '@endo/lockdown';
-
 import url from 'url';
+import test from 'ava';
 import { decodeBase64 } from '@endo/base64';
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
-import test from 'ava';
 import bundleSource from '../src/index.js';
 
 function evaluate(src, endowments) {
@@ -13,9 +11,6 @@ function evaluate(src, endowments) {
 }
 
 export function makeSanityTests(stackFiltering) {
-  lockdown({ errorTaming: 'unsafe', stackFiltering });
-  Error.stackTraceLimit = Infinity;
-
   const prefix = stackFiltering === 'concise' ? '' : '/bundled-source/.../';
 
   /**

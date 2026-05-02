@@ -1,6 +1,6 @@
 {
   "name": "@endo/ses-ava",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Virtualize AVA's test to work better under SES.",
   "keywords": [
     "ses",
@@ -53,7 +53,7 @@
     "@endo/panic": "workspace:^",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "typescript": "~5.9.2"
+    "typescript": "catalog:dev"
   },
   "files": [
     "./*.d.ts",

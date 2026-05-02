@@ -38,6 +38,7 @@
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
+    "@endo/hex": "workspace:^",
     "@endo/import-bundle": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/pass-style": "workspace:^",
@@ -58,7 +59,7 @@
     "eslint-plugin-eslint-comments": "^3.2.0",
     "eslint-plugin-import": "^2.31.0",
     "execa": "^9.3.0",
-    "typescript": "~5.9.2"
+    "typescript": "catalog:dev"
   },
   "files": [
     "./*.d.ts",

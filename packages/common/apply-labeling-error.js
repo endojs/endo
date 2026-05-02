@@ -41,7 +41,7 @@ export const applyLabelingError = (func, args, label = undefined) => {
   try {
     result = func(...args);
   } catch (err) {
-    throwLabeled(err, label);
+    throwLabeled(/** @type {Error} */ (err), label);
   }
   if (isPromise(result)) {
     // Cannot be at-ts-expect-error because there is no type error locally.

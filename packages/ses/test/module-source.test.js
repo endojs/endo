@@ -59,5 +59,5 @@ test('module source constructor', t => {
 });
 
 test('ModuleSource is a shared intrinsic', t => {
-  t.truthy(ModuleSource === new Compartment().globalThis.ModuleSource);
+  t.is(ModuleSource, new Compartment().globalThis.ModuleSource);
 });

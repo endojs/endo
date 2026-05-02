@@ -26,6 +26,7 @@ export const makeContextMaker = ({
    * to dependents, and manages cleanup hooks.
    *
    * @param {FormulaIdentifier} id - The unique identifier for the formula.
+   * @returns {Context}
    */
   const makeContext = id => {
     let done = false;
@@ -43,8 +44,7 @@ export const makeContextMaker = ({
     /**
      * Triggers cancellation of this context and all registered dependents.
      *
-     * @param {Error} reason - The error or reason for cancellation.
-     * @param {string} [prefix] - A prefix for console logging, useful for indentation.
+     * @type {Context['cancel']}
      */
     const cancel = (reason, prefix = '*') => {
       if (done) return disposed;
@@ -108,7 +108,7 @@ export const makeContextMaker = ({
       hooks.push(hook);
     };
 
-    return {
+    return /** @type {Context} */ ({
       id,
       cancel,
       cancelled,
@@ -116,7 +116,7 @@ export const makeContextMaker = ({
       thatDiesIfThisDies,
       thisDiesIfThatDies,
       onCancel,
-    };
+    });
   };
 
   return makeContext;

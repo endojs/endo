@@ -592,8 +592,8 @@ export const makeFullOrderComparatorKit = (longLived = false) => {
   // When dynamically created with short lifetimes (the default) a WeakMap
   // would perform poorly, and the leak created by a Map only lasts as long
   // as the Map.
-  const MapConstructor = longLived ? WeakMap : Map;
-  const seen = new MapConstructor();
+  /** @type {WeakMap<object, number> | Map<object, number>} */
+  const seen = longLived ? new WeakMap() : new Map();
   const tag = r => {
     if (seen.has(r)) {
       return seen.get(r);

@@ -192,7 +192,7 @@ test('new HandledPromise expected errors', async t => {
     switch (method) {
       case 'get': {
         const noGet = new HandledPromise((_, _2, rwp) => {
-          const obj = rwp(handler2);
+          const obj = /** @type {any} */ (rwp(handler2));
           obj.foo = 'bar';
         });
         t.is((await noGet).foo, 'bar', `direct get`);
@@ -228,7 +228,7 @@ test('new HandledPromise expected errors', async t => {
       }
       case 'applyMethod': {
         const noApplyMethod = new HandledPromise((_, _2, rwp) => {
-          const obj = rwp(handler2);
+          const obj = /** @type {any} */ (rwp(handler2));
           obj.bar = (str, num) => {
             t.is(str, 'abc', `default applyMethod str argument`);
             t.is(num, 123, `default applyMethod num argument`);

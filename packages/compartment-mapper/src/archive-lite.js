@@ -255,7 +255,7 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
 
   const archiveCompartmentMapText = JSON.stringify(
     archiveCompartmentMap,
-    null,
+    (key, value) => (key.startsWith('_') ? undefined : value),
     2,
   );
   const archiveCompartmentMapBytes = textEncoder.encode(

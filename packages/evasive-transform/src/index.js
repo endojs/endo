@@ -23,6 +23,7 @@ import { generate } from './generate.js';
  * @property {import('./parse-ast.js').SourceType | undefined} [sourceType] - Module source type
  * @property {boolean | undefined} [onlyComments] - if true, will limit transformation to
 comment contents, preserving code positions within each line
+* @property {(path: import('@babel/traverse').NodePath) => void} [customVisitor] - A visitor function to be called on each node, in addition to the standard transforms. Receives the same path argument as a normal Babel visitor.
  * @property {boolean | undefined} [useLocationUnmap] - deprecated, vestigial
  * @public
  */
@@ -69,6 +70,7 @@ export function evadeCensorSync(source, options) {
     sourceType,
     elideComments = false,
     onlyComments = false,
+    customVisitor,
   } = options || {};
 
   // Parse the rolled-up chunk with Babel.
@@ -77,7 +79,7 @@ export function evadeCensorSync(source, options) {
     sourceType,
   });
 
-  transformAst(ast, { elideComments, onlyComments });
+  transformAst(ast, { elideComments, onlyComments, customVisitor });
 
   if (sourceUrl) {
     return generate(ast, {

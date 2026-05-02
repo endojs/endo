@@ -1,5 +1,14 @@
 # @endo/stream-types-test
 
+## 1.0.19
+
+### Patch Changes
+
+- Updated dependencies [[`e619205`](https://github.com/endojs/endo/commit/e6192056a5d7ff5acb084f6a58dca3663aa9943e), [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59)]:
+  - ses@2.0.0
+  - @endo/nat@5.2.0
+  - @endo/stream@1.3.1
+
 ## [1.0.18](https://github.com/endojs/endo/compare/@endo/stream-types-test@1.0.17...@endo/stream-types-test@1.0.18) (2025-07-12)
 
 **Note:** Version bump only for package @endo/stream-types-test
@@ -64,7 +73,7 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [1.0.2](https://github.com/endojs/endo/compare/@endo/stream-types-test@1.0.1...@endo/stream-types-test@1.0.2) (2024-01-18)
 

@@ -26,15 +26,16 @@ test('preserve file names in stack traces', async t => {
   try {
     await compartment.import('./main.js');
   } catch (_error) {
-    error = _error;
+    error = /** @type {Error} */ (_error);
   }
 
   // Not all environments that run this test will necessarily surface stack
   // traces, but all that do should respect the //# sourceURL directive that
   // transform-module injects.
-  if (error.stack != null) {
+  const thrown = /** @type {Error} */ (error);
+  if (thrown.stack != null) {
     t.truthy(
-      /https:\/\/example.com\/packages\/erroneous/.exec(error.stack),
+      /https:\/\/example.com\/packages\/erroneous/.exec(thrown.stack),
       'stack trace contains file name of emitting module',
     );
   }

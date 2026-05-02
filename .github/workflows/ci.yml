@@ -87,16 +87,36 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
 
+      # Some tests (e.g., in package "daemon") create Unix domain sockets, and
+      # their full absolute paths MUST remain short.
+      - name: Move working directory
+        id: move-wd
+        run: |
+          ORIGINAL_WORKDIR="$(pwd)"
+          echo "ORIGINAL_WORKDIR=$ORIGINAL_WORKDIR" >> $GITHUB_ENV
+          cd "$RUNNER_TEMP"
+          WORKDIR="$(mktemp --tmpdir="$(pwd)" --dry-run checkout-XXXXXX)"
+          mv -fv "$ORIGINAL_WORKDIR" "$WORKDIR"
+          echo "WORKDIR=$WORKDIR" >> $GITHUB_ENV
+
       - name: Install dependencies
+        working-directory: ${{ env.WORKDIR }}
         run: yarn install --immutable
 
       # end macro
 
       - name: Run yarn build
+        working-directory: ${{ env.WORKDIR }}
         run: yarn build
 
       - name: Run yarn test
+        working-directory: ${{ env.WORKDIR }}
         run: yarn test
+
+      - name: Restore working directory
+        if: ${{ steps.move-wd.outcome == 'success' }}
+        working-directory: ${{ runner.temp }}
+        run: mv -fv "$WORKDIR" "$ORIGINAL_WORKDIR"
 
   sandbox-drivers:
     name: sandbox-drivers
@@ -482,7 +502,7 @@ jobs:
         with:
           # https://github.com/ocapn/ocapn-test-suite/ (main branch)
           repository: ocapn/ocapn-test-suite
-          ref: f0273f21c5ee05a28785b51c231535124f28bca9
+          ref: 74db78f08a40efba1e2b975d809374ff0e7acf60
           path: ocapn-test-suite
 
       - run: corepack enable

@@ -39,7 +39,7 @@ export const ocapnPassStyleOf = value => {
     return passStyleOf(value);
   } catch (error) {
     throw Error(
-      `Unexpected value ${value} for OcapnPassable: ${error.message}`,
+      `Unexpected value ${value} for OcapnPassable: ${/** @type {Error} */ (error).message}`,
     );
   }
 };

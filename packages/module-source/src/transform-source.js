@@ -1,12 +1,8 @@
 // @ts-nocheck XXX Babel types
-import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import * as babelTypes from '@babel/types';
-
-const parseBabel = babelParser.default
-  ? babelParser.default.parse
-  : babelParser.parse || babelParser;
+import { babelParse } from './parse-babel.js';
 
 const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
 
@@ -26,7 +22,7 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
     const { sourceUrl, sourceMapUrl, sourceType, sourceMap, sourceMapHook } =
       sourceOptions;
 
-    const ast = parseBabel(source, {
+    const ast = babelParse(source, {
       sourceType,
       tokens: true,
       createParenthesizedExpressions: true,

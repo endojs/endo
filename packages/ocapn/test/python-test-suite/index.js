@@ -85,7 +85,7 @@ const makeTestObjectTable = client => {
    * receipt of a message it should send the greeting "Hello" (string) to the object
    * referenced by the argument.
    *
-   * This greeting should be sent as a `op:deliver` (**not** `op:deliver-only`) and
+   * This greeting should be sent as `op:deliver` (with no answer / no resolver) and
    * the resulting promise should be discarded (no references retained). The
    * implementation should (if possible) try to arrange so that the GC is run
    * upon resolution of the promise.
