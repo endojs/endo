@@ -103,6 +103,12 @@ jobs:
         # spacing) so transient errors heal, then fall through to the
         # stable-tarball fallback below. `continue-on-error` keeps
         # the job alive when nightly is unreachable.
+        #
+        # The download writes to `.tmp` and only renames on full
+        # success; this prevents the 502 error body from being
+        # mistaken for a valid tarball (wget leaves a partial file
+        # behind on failure). We also `rm -f` any partial leftover
+        # before each attempt for the same reason.
         if: ${{ hashFiles('guix-binary-nightly.x86_64-linux.tar.xz') == '' }}
         id: download-nightly
         continue-on-error: true
@@ -112,25 +118,41 @@ jobs:
           retry_wait_seconds: 30
           timeout_minutes: 3
           command: |
-            wget -nv "https://ci.guix.gnu.org/search/latest/archive?query=spec:tarball+status:success+system:x86_64-linux+guix-binary.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz
+            set -euo pipefail
+            rm -f guix-binary-nightly.x86_64-linux.tar.xz.tmp
+            wget -nv "https://ci.guix.gnu.org/search/latest/archive?query=spec:tarball+status:success+system:x86_64-linux+guix-binary.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz.tmp
+            file guix-binary-nightly.x86_64-linux.tar.xz.tmp | grep -q 'XZ compressed data'
+            mv guix-binary-nightly.x86_64-linux.tar.xz.tmp guix-binary-nightly.x86_64-linux.tar.xz
       - name: Download Guix stable tarball as fallback
         # When ci.guix.gnu.org is fully down, GNU's release tarball on
-        # ftpmirror.gnu.org is the canonical mirror for the binary
-        # install. Pin to 1.5.0 (released 2026-01-22) so the bundled
-        # Guile and channel snapshot are recent enough to expose the
-        # `spawn` binding goblin-chat depends on; older 1.4.0 is not
-        # a usable fallback for that reason. The pinned channel inside
-        # the tarball is then refreshed implicitly by `guix build`
+        # ftp.gnu.org is the canonical mirror for the binary install.
+        # Pin to 1.5.0 (released 2026-01-22) so the bundled Guile and
+        # channel snapshot are recent enough to expose the `spawn`
+        # binding goblin-chat depends on; older 1.4.0 is not a usable
+        # fallback for that reason. The pinned channel inside the
+        # tarball is then refreshed implicitly by `guix build`
         # against bordeaux/ci substitutes, so the older bootstrap is
         # purely a way to get a working `guix` binary on the runner.
-        if: ${{ hashFiles('guix-binary-nightly.x86_64-linux.tar.xz') == '' }}
+        #
+        # Conditioned on the nightly step's `outcome` rather than
+        # `hashFiles`, since a failed wget can leave a partial file
+        # behind that confuses presence-based detection.
+        # `outcome` reflects the underlying success/failure even with
+        # `continue-on-error: true`. When the cache hit makes the
+        # nightly step skip, `outcome == 'skipped'`, so this fallback
+        # also skips, which is the desired behavior.
+        if: ${{ steps.download-nightly.outcome == 'failure' }}
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
         with:
           max_attempts: 6
           retry_wait_seconds: 30
           timeout_minutes: 5
           command: |
-            wget -nv "https://ftp.gnu.org/gnu/guix/guix-binary-1.5.0.x86_64-linux.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz
+            set -euo pipefail
+            rm -f guix-binary-nightly.x86_64-linux.tar.xz.tmp guix-binary-nightly.x86_64-linux.tar.xz
+            wget -nv "https://ftp.gnu.org/gnu/guix/guix-binary-1.5.0.x86_64-linux.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz.tmp
+            file guix-binary-nightly.x86_64-linux.tar.xz.tmp | grep -q 'XZ compressed data'
+            mv guix-binary-nightly.x86_64-linux.tar.xz.tmp guix-binary-nightly.x86_64-linux.tar.xz
       - name: Install Guix
         run: |
           sudo -- tar --extract --file "guix-binary-nightly.x86_64-linux.tar.xz" -C / --no-overwrite-dir
