@@ -156,4 +156,31 @@ test('parseSocks5ConnectReply rejects failure status', t => {
     instanceOf: Error,
   });
   t.regex(error.message, /connection refused/i);
+  // The reply code is exposed on the thrown error so the netlayer can
+  // distinguish transient reply codes (worth retrying, e.g. 0x06 TTL
+  // expired) from permanent ones (e.g. 0x05 connection refused).
+  t.is(/** @type {{socksReplyCode?: number}} */ (error).socksReplyCode, 0x05);
+});
+
+test('parseSocks5ConnectReply tags TTL-expired replies for retry', t => {
+  // Tor returns 0x06 (TTL expired) when its hidden-service descriptor
+  // fetch budget is exhausted before any HSDir replies. This is the
+  // canonical transient failure that the netlayer should retry on.
+  const ttlExpiredReply = Buffer.from([
+    0x05, // version
+    0x06, // TTL expired
+    0x00, // reserved
+    0x01, // atyp ipv4
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+  ]);
+  const error = t.throws(() => parseSocks5ConnectReply(ttlExpiredReply), {
+    instanceOf: Error,
+  });
+  t.regex(error.message, /TTL expired/i);
+  t.is(/** @type {{socksReplyCode?: number}} */ (error).socksReplyCode, 0x06);
 });

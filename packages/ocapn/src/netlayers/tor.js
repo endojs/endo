@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout */
 
 import fs from 'fs/promises';
 import net from 'net';
@@ -25,6 +26,14 @@ const SOCKS_VERSION = 0x05;
 const SOCKS_NO_AUTHENTICATION = 0x00;
 const SOCKS_CONNECT_COMMAND = 0x01;
 const SOCKS_ATYP_DOMAIN = 0x03;
+
+// Default SOCKS5 dial retry policy. We only retry on transient reply codes
+// (see `TRANSIENT_SOCKS5_REPLY_CODES`). Total worst-case wait is
+// `sum(SOCKS5_DIAL_BACKOFF_MS) ≈ 37s` plus per-attempt timeout, which is
+// short enough to keep CI responsive but long enough to ride out a fresh
+// hidden-service descriptor not yet replicating to HSDir relays.
+const DEFAULT_SOCKS5_DIAL_MAX_ATTEMPTS = 4;
+const SOCKS5_DIAL_BACKOFF_MS = [2000, 5000, 10000, 20000];
 
 export const DEFAULT_TOR_VIRTUAL_PORT = 9045;
 export const DEFAULT_TOR_CONTROL_SOCKET_PATH =
@@ -388,6 +397,28 @@ export const buildSocks5ConnectRequest = (onionHostname, port) => {
   return request;
 };
 
+// SOCKS5 reply codes that indicate a transient Tor hidden-service lookup
+// problem rather than a permanent dial failure. Tor returns `0x06` (TTL
+// expired) when its hidden-service descriptor fetch budget runs out, and
+// occasionally `0x04` (host unreachable) when no HSDir replied yet. Both
+// recover once the descriptor finishes propagating, so callers should
+// retry rather than treat the connection as dead.
+const TRANSIENT_SOCKS5_REPLY_CODES = new Set([0x04, 0x06]);
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+const isTransientSocks5DialError = error => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const code = /** @type {{socksReplyCode?: unknown}} */ (
+    /** @type {unknown} */ (error)
+  ).socksReplyCode;
+  return typeof code === 'number' && TRANSIENT_SOCKS5_REPLY_CODES.has(code);
+};
+
 /**
  * @param {Buffer} buffer
  * @returns {number | undefined} Number of bytes consumed when a full reply is available.
@@ -401,9 +432,15 @@ export const parseSocks5ConnectReply = buffer => {
   }
   const replyCode = buffer[1];
   if (replyCode !== 0x00) {
-    throw Error(
+    const error = Error(
       `SOCKS5 connect failed: ${describeSocks5ReplyCode(replyCode)} (${replyCode})`,
     );
+    // Tagging the reply code lets higher layers distinguish transient HS
+    // descriptor-propagation failures (worth retrying) from permanent
+    // refusals (e.g. `command not supported`, `connection refused`).
+    /** @type {Error & {socksReplyCode: number}} */ (error).socksReplyCode =
+      replyCode;
+    throw error;
   }
 
   const atyp = buffer[3];
@@ -423,12 +460,6 @@ export const parseSocks5ConnectReply = buffer => {
   }
   return expectedLength;
 };
-
-/**
- * @typedef {object} ConnectionSocketPair
- * @property {Connection} connection
- * @property {net.Socket} socket
- */
 
 /**
  * Debug interface for Tor netlayer.
@@ -712,7 +743,7 @@ export const makeTorNetLayer = async ({
 
   /**
    * @param {OcapnLocation} location
-   * @returns {ConnectionSocketPair}
+   * @returns {Connection}
    */
   const internalEstablishConnection = location => {
     if (location.transport !== localLocation.transport) {
@@ -725,70 +756,177 @@ export const makeTorNetLayer = async ({
     // mirrored verbatim into local diagnostics.
     const designator = assertV3OnionServiceId(location.designator);
 
-    const socket = net.createConnection({ path: resolvedSocksSocketPath });
-    activeSockets.add(socket);
-    const state = {
+    if (!netlayer) {
+      throw Error('Tor netlayer is not ready');
+    }
+
+    // The SOCKS5 dial may have to retry on transient HSDir descriptor
+    // propagation failures. The Connection object stays stable across
+    // attempts; only the underlying net.Socket gets replaced. Writes
+    // submitted before the handshake completes are buffered in
+    // `pendingWrites` and replayed atomically once SOCKS5 reaches
+    // `connected` on a successful attempt.
+    const dialState = {
       stage: /** @type {'auth-reply' | 'connect-reply' | 'connected'} */ (
         'auth-reply'
       ),
       buffer: Buffer.alloc(0),
       /** @type {Uint8Array[]} */
       pendingWrites: [],
+      /** @type {net.Socket | undefined} */
+      currentSocket: undefined,
+      aborted: false,
     };
 
     /** @type {SocketOperations} */
     const socketOps = {
       write(bytes) {
-        if (state.stage === 'connected') {
-          socket.write(bytes);
+        if (dialState.aborted) {
+          return;
+        }
+        const activeSocket = dialState.currentSocket;
+        if (dialState.stage === 'connected' && activeSocket) {
+          activeSocket.write(bytes);
         } else {
-          state.pendingWrites.push(bytes);
+          dialState.pendingWrites.push(bytes);
         }
       },
       end() {
-        socket.end();
+        dialState.aborted = true;
+        const activeSocket = dialState.currentSocket;
+        if (activeSocket) {
+          activeSocket.end();
+        }
       },
     };
 
-    if (!netlayer) {
-      throw Error('Tor netlayer is not ready');
-    }
     const connection = handlers.makeConnection(netlayer, true, socketOps);
 
-    socket.on('connect', () => {
-      socket.write(
-        Buffer.from([
-          SOCKS_VERSION,
-          0x01, // one auth method offered
-          SOCKS_NO_AUTHENTICATION,
-        ]),
-      );
-    });
+    /** @param {number} attempt */
+    const dial = attempt => {
+      if (dialState.aborted || connection.isDestroyed) {
+        return;
+      }
+      dialState.stage = 'auth-reply';
+      dialState.buffer = Buffer.alloc(0);
 
-    setupSocketHandlers(
-      socket,
-      connection,
-      () => {
-        outgoingConnections.delete(location.designator);
-      },
-      chunk => {
-        if (state.stage === 'connected') {
-          if (!connection.isDestroyed) {
-            handlers.handleMessageData(connection, bufferToBytes(chunk));
-          }
+      const socket = net.createConnection({ path: resolvedSocksSocketPath });
+      activeSockets.add(socket);
+      dialState.currentSocket = socket;
+
+      let promoted = false;
+
+      /**
+       * @param {string} message
+       * @param {Error} error
+       */
+      function failAndMaybeRetry(message, error) {
+        if (promoted) {
           return;
         }
-        state.buffer = Buffer.concat([state.buffer, chunk]);
-        try {
-          processSocks5HandshakeChunk(connection, socket, state, designator);
-        } catch (error) {
-          logger.error('SOCKS5 handshake failed', error);
+        socket.destroy();
+        activeSockets.delete(socket);
+        if (dialState.currentSocket === socket) {
+          dialState.currentSocket = undefined;
+        }
+        if (dialState.aborted || connection.isDestroyed) {
+          return;
+        }
+        const transient = isTransientSocks5DialError(error);
+        const moreAttempts = attempt < DEFAULT_SOCKS5_DIAL_MAX_ATTEMPTS;
+        if (transient && moreAttempts) {
+          const idx = Math.min(
+            attempt - 1,
+            SOCKS5_DIAL_BACKOFF_MS.length - 1,
+          );
+          const backoffMs = SOCKS5_DIAL_BACKOFF_MS[idx];
+          logger.info(
+            `Tor SOCKS5 dial failed transiently (attempt ${attempt}/${DEFAULT_SOCKS5_DIAL_MAX_ATTEMPTS}); retrying in ${backoffMs}ms`,
+            error,
+          );
+          setTimeout(() => dial(attempt + 1), backoffMs);
+        } else {
+          logger.error(message, error);
           connection.end();
         }
-      },
-    );
+      }
 
-    return { connection, socket };
+      /** @param {Buffer} chunk */
+      function onDialData(chunk) {
+        if (dialState.aborted || promoted) {
+          return;
+        }
+        dialState.buffer = Buffer.concat([dialState.buffer, chunk]);
+        try {
+          processSocks5HandshakeChunk(
+            connection,
+            socket,
+            dialState,
+            designator,
+          );
+        } catch (error) {
+          failAndMaybeRetry(
+            'SOCKS5 handshake failed',
+            /** @type {Error} */ (error),
+          );
+          return;
+        }
+        if (dialState.stage === 'connected') {
+          // eslint-disable-next-line no-use-before-define
+          promote();
+        }
+      }
+
+      /** @param {Error} err */
+      function onDialError(err) {
+        failAndMaybeRetry('Tor SOCKS5 dial socket error', err);
+      }
+
+      function onDialClose() {
+        activeSockets.delete(socket);
+        if (!promoted) {
+          failAndMaybeRetry(
+            'Tor SOCKS5 dial socket closed before handshake completed',
+            Error('socket closed before SOCKS5 handshake completed'),
+          );
+        }
+      }
+
+      function promote() {
+        promoted = true;
+        socket.removeListener('data', onDialData);
+        socket.removeListener('error', onDialError);
+        socket.removeListener('close', onDialClose);
+        // Hand the connected socket off to the production handler chain.
+        // setupSocketHandlers also wires `handleConnectionClose`, which we
+        // intentionally suppressed during dial-phase retries.
+        setupSocketHandlers(socket, connection, () => {
+          outgoingConnections.delete(location.designator);
+        });
+      }
+
+      socket.on('connect', () => {
+        if (dialState.aborted) {
+          socket.destroy();
+          return;
+        }
+        socket.write(
+          Buffer.from([
+            SOCKS_VERSION,
+            0x01, // one auth method offered
+            SOCKS_NO_AUTHENTICATION,
+          ]),
+        );
+      });
+
+      socket.on('data', onDialData);
+      socket.on('error', onDialError);
+      socket.on('close', onDialClose);
+    };
+
+    dial(1);
+
+    return connection;
   };
 
   /**
@@ -796,7 +934,7 @@ export const makeTorNetLayer = async ({
    * @returns {Connection}
    */
   const connect = location => {
-    const { connection } = internalEstablishConnection(location);
+    const connection = internalEstablishConnection(location);
     logger.info('Connecting over Tor to', location.designator);
     return connection;
   };
