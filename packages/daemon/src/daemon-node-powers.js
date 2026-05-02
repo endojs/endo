@@ -6,15 +6,17 @@ import { encodeHex } from '@endo/hex';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
-import { makeSnapshotStore } from '@endo/platform/fs/lite';
-
 import { makeNetstringCapTP } from './connection.js';
-import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
-import { toHex, fromHex } from './hex.js';
-import { makeDaemonDatabase } from './daemon-database.js';
+import { makeDaemonDatabase } from './daemon-database-node.js';
+// The shared SQLite-backed persistence powers live in
+// ./daemon-persistence-powers.js so the XS-on-Rust supervisor can
+// use them without importing the Node-only graph above.
+import { makeDaemonicPersistencePowers } from './daemon-persistence-powers.js';
+
+export { makeDaemonicPersistencePowers };
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
@@ -225,6 +227,44 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
 
   /**
    * @param {string} path
+   * @returns {Promise<Uint8Array>}
+   */
+  const readFileBytes = async path => {
+    const buf = await fs.promises.readFile(path);
+    // Return as a plain Uint8Array (Buffer is a subclass) so the
+    // shape is portable across XS / Node and easy to harden.
+    return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  };
+
+  /**
+   * Binary-safe whole-file read.  Returns the file contents as a
+   * `Uint8Array` (Node's `Buffer` is a `Uint8Array` subclass, so the
+   * value is interoperable with both runtimes).
+   *
+   * @param {string} path
+   * @returns {Promise<Uint8Array>}
+   */
+  const readFile = async path => fs.promises.readFile(path);
+
+  /**
+   * Binary-safe whole-file read that returns `undefined` when the
+   * file does not exist (ENOENT) or the path is a directory (EISDIR).
+   * Other I/O errors propagate.
+   *
+   * @param {string} path
+   * @returns {Promise<Uint8Array | undefined>}
+   */
+  const maybeReadFile = async path =>
+    readFile(path).catch(error => {
+      const code = /** @type {NodeJS.ErrnoException} */ (error).code;
+      if (code === 'ENOENT' || code === 'EISDIR') {
+        return undefined;
+      }
+      throw error;
+    });
+
+  /**
+   * @param {string} path
    */
   const maybeReadFileText = async path =>
     readFileText(path).catch(error => {
@@ -297,6 +337,9 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     makeFileWriter,
     writeFileText,
     readFileText,
+    readFileBytes,
+    readFile,
+    maybeReadFile,
     maybeReadFileText,
     readDirectory,
     makePath,
@@ -399,201 +442,6 @@ export const makeCryptoPowers = crypto => {
     randomHex256,
     generateEd25519Keypair,
     ed25519Sign,
-  });
-};
-
-/**
- * @param {DaemonDatabase} daemonDb
- * @param {FilePowers} filePowers
- * @param {CryptoPowers} cryptoPowers
- * @param {Config} config
- * @returns {DaemonicPersistencePowers}
- */
-export const makeDaemonicPersistencePowers = (
-  daemonDb,
-  filePowers,
-  cryptoPowers,
-  config,
-) => {
-  const {
-    readFormula,
-    writeFormula,
-    deleteFormula,
-    listFormulas,
-    listFormulaNumbersByNode,
-    getState,
-    setState,
-    writeAgentKey,
-    getAgentKey,
-    hasAgentKey,
-    listAgentKeys,
-    deleteAgentKey,
-    writeRemoteAgentKey,
-    getRemoteAgentKey,
-    writeRetention,
-    deleteRetention,
-    listRetention,
-    replaceRetention,
-    deleteAllRetention,
-  } = daemonDb;
-
-  const initializePersistence = async () => {
-    const { statePath, ephemeralStatePath, cachePath } = config;
-    const statePathP = filePowers.makePath(statePath);
-    const ephemeralStatePathP = filePowers.makePath(ephemeralStatePath);
-    const cachePathP = filePowers.makePath(cachePath);
-    await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
-  };
-
-  /** @type {DaemonicPersistencePowers['provideRootNonce']} */
-  const provideRootNonce = async () => {
-    const existingNonce = getState('root_nonce');
-    if (existingNonce === undefined) {
-      const rootNonce = /** @type {FormulaNumber} */ (
-        await cryptoPowers.randomHex256()
-      );
-      setState('root_nonce', rootNonce);
-      return { rootNonce, isNewlyCreated: true };
-    } else {
-      const rootNonce = /** @type {FormulaNumber} */ (existingNonce);
-      return { rootNonce, isNewlyCreated: false };
-    }
-  };
-
-  /** @type {DaemonicPersistencePowers['provideRootKeypair']} */
-  const provideRootKeypair = async () => {
-    const existingPublicHex = getState('public_key');
-    if (existingPublicHex === undefined) {
-      const keypair = await cryptoPowers.generateEd25519Keypair();
-      const publicHex = toHex(keypair.publicKey);
-      const privateHex = toHex(keypair.privateKey);
-      setState('public_key', publicHex);
-      setState('private_key', privateHex);
-      return { keypair, isNewlyCreated: true };
-    } else {
-      const existingPrivateHex = /** @type {string} */ (
-        getState('private_key')
-      );
-      const publicKey = fromHex(existingPublicHex);
-      const privateKey = fromHex(existingPrivateHex);
-      return {
-        keypair: harden({
-          publicKey,
-          privateKey,
-          sign: message => cryptoPowers.ed25519Sign(privateKey, message),
-        }),
-        isNewlyCreated: false,
-      };
-    }
-  };
-
-  // Content store uses the filesystem for streaming binary data.
-  const makeContentStore = () => {
-    const { statePath } = config;
-    const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha256');
-
-    /** @type {import('@endo/platform/fs/lite/types').ContentStore} */
-    const rawStore = harden({
-      /**
-       * @param {AsyncIterable<Uint8Array> | AsyncIterator<Uint8Array>} readableOrIterator
-       * @returns {Promise<string>}
-       */
-      async store(readableOrIterator) {
-        const readable = /** @type {AsyncIterable<Uint8Array>} */ (
-          /** @type {unknown} */ (readableOrIterator)
-        );
-        const digester = cryptoPowers.makeSha256();
-        const storageId256 = await cryptoPowers.randomHex256();
-        const temporaryStoragePath = filePowers.joinPath(
-          storageDirectoryPath,
-          storageId256,
-        );
-
-        // Stream to temporary file and calculate hash.
-        await filePowers.makePath(storageDirectoryPath);
-        const fileWriter = filePowers.makeFileWriter(temporaryStoragePath);
-        // eslint-disable-next-line no-await-in-loop
-        for await (const chunk of readable) {
-          digester.update(chunk);
-          // eslint-disable-next-line no-await-in-loop
-          await fileWriter.next(chunk);
-        }
-        await fileWriter.return(undefined);
-
-        // Calculate hash.
-        const sha256 = digester.digestHex();
-        // Finish with an atomic rename.
-        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
-        await filePowers.renamePath(temporaryStoragePath, storagePath);
-        return sha256;
-      },
-      /**
-       * @param {string} sha256
-       */
-      fetch(sha256) {
-        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
-        const streamBase64 = () => {
-          const reader = filePowers.makeFileReader(storagePath);
-          return makeReaderRef(reader);
-        };
-        const text = async () => {
-          return filePowers.readFileText(storagePath);
-        };
-        const json = async () => {
-          const jsonSrc = await text();
-          return JSON.parse(jsonSrc);
-        };
-        return harden({ streamBase64, text, json });
-      },
-      /**
-       * @param {string} sha256
-       * @returns {Promise<boolean>}
-       */
-      async has(sha256) {
-        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
-        try {
-          await filePowers.readFileText(storagePath);
-          return true;
-        } catch (_e) {
-          return false;
-        }
-      },
-    });
-
-    return makeSnapshotStore(rawStore);
-  };
-
-  // Wrap synchronous database operations as async so that
-  // implementations using async I/O are not constrained.
-  return harden({
-    statePath: config.statePath,
-    initializePersistence,
-    provideRootNonce,
-    provideRootKeypair,
-    makeContentStore,
-    readFormula: async (/** @type {string} */ formulaNumber) =>
-      readFormula(formulaNumber),
-    writeFormula: async (
-      /** @type {string} */ formulaNumber,
-      /** @type {string} */ nodeNumber,
-      /** @type {Formula} */ formula,
-    ) => writeFormula(formulaNumber, nodeNumber, formula),
-    deleteFormula: async (/** @type {string} */ formulaNumber) =>
-      deleteFormula(formulaNumber),
-    listFormulas: async () => listFormulas(),
-    listFormulaNumbersByNode,
-    writeAgentKey,
-    getAgentKey,
-    hasAgentKey,
-    listAgentKeys,
-    deleteAgentKey,
-    writeRemoteAgentKey,
-    getRemoteAgentKey,
-    writeRetention,
-    deleteRetention,
-    listRetention,
-    replaceRetention,
-    deleteAllRetention,
   });
 };
 
