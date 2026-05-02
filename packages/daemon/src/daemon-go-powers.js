@@ -23,7 +23,7 @@ import {
   makeCryptoPowers,
   makeDaemonicPersistencePowers,
 } from './daemon-node-powers.js';
-import { makeDaemonDatabase } from './daemon-database.js';
+import { makeDaemonDatabase } from './daemon-database-node.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { CapTpConnectionRegistrar, Config, CryptoPowers, DaemonWorkerFacet, DaemonicPowers, FilePowers, WorkerDaemonFacet } from './types.js' */

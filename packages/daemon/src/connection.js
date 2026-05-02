@@ -58,8 +58,30 @@ export const makeMessageCapTP = (
       );
     }
     try {
-      return writer.next(message);
+      const writeP = Promise.resolve(writer.next(message));
+      // Swallow rejections from writes that race with peer disconnect
+      // (e.g. CTP_DISCONNECT after the other side has already FIN'd).
+      // Without this, CapTP teardown produces "This socket has been
+      // ended by the other party" rejections that fail otherwise-clean
+      // test runs under AVA's strict unhandled-rejection policy.
+      writeP.catch(err => {
+        const msg = String((err && err.message) || err || '');
+        const isPostDisconnect =
+          msg.includes('socket has been ended') ||
+          msg.includes('write after end') ||
+          msg.includes('EPIPE') ||
+          msg.includes('ECONNRESET');
+        if (!isPostDisconnect) {
+          // Still log non-disconnect errors for visibility.
+          console.error(`CapTP ${name} send error:`, msg);
+        }
+      });
+      return writeP;
     } catch (sendError) {
+      console.error(
+        `CapTP ${name} send error:`,
+        /** @type {Error} */ (sendError).message,
+      );
       return Promise.reject(sendError);
     }
   };
@@ -157,7 +179,6 @@ export const makeMessageCapTP = (
 /** @param {any} message */
 export const messageToBytes = message => {
   const text = JSON.stringify(message);
-  // console.log('->', text);
   const bytes = textEncoder.encode(text);
   return bytes;
 };

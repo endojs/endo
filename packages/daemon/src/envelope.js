@@ -257,7 +257,10 @@ export const decodeEnvelope = data => {
   const verb = cborReadText(cursor);
   const payload = cborReadBytes(cursor);
   const nonce = n === 4 ? cborReadInt(cursor) : 0;
-  return harden({ handle, verb, payload, nonce });
+  // Do not harden the envelope: the payload field is a Uint8Array
+  // whose indexed elements are non-configurable in XS, so
+  // Object.freeze (harden) fails.
+  return { handle, verb, payload, nonce };
 };
 harden(decodeEnvelope);
 

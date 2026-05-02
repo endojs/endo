@@ -1,11 +1,17 @@
 /* global globalThis, process */
+import fs from 'fs';
 import url from 'url';
 import os from 'os';
+import path from 'path';
+import crypto from 'crypto';
 import harden from '@endo/harden';
 import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
-import bundleSource from '@endo/bundle-source';
+import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper';
+import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
+import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
+import { makeRefReader } from '@endo/daemon';
 
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
@@ -23,10 +29,33 @@ const endowments = harden({
   console,
 });
 
+/**
+ * @param {Uint8Array} archiveBytes
+ * @param {unknown} powersP
+ * @param {unknown[]} args
+ */
+const runArchiveBytes = async (archiveBytes, powersP, args) => {
+  const [{ parseArchive }, { defaultParserForLanguage }] = await Promise.all([
+    import('@endo/compartment-mapper'),
+    import('@endo/compartment-mapper/import-archive-all-parsers.js'),
+  ]);
+  const application = await parseArchive(archiveBytes, '<archive>', {
+    parserForLanguage: defaultParserForLanguage,
+  });
+  const { namespace } = await application.import({ globals: endowments });
+  const result = await /** @type {{main: Function}} */ (namespace).main(
+    powersP,
+    ...args,
+  );
+  if (result !== undefined) {
+    console.log(result);
+  }
+};
+
 export const run = async ({
   filePath,
   args,
-  bundleName,
+  archiveName,
   importPath,
   powersName,
   agentNames,
@@ -35,9 +64,9 @@ export const run = async ({
   if (
     filePath === undefined &&
     importPath === undefined &&
-    bundleName === undefined
+    archiveName === undefined
   ) {
-    console.error('Specify at least one of --file, --bundle, or --UNCONFINED');
+    console.error('Specify at least one of --file, --archive, or --UNCONFINED');
     process.exitCode = 1;
     return;
   }
@@ -69,9 +98,9 @@ export const run = async ({
       }
 
       if (importPath !== undefined) {
-        if (bundleName !== undefined) {
+        if (archiveName !== undefined) {
           console.error(
-            'Must specify either --bundle or --UNCONFINED, not both',
+            'Must specify either --archive or --UNCONFINED, not both',
           );
           process.exitCode = 1;
           return;
@@ -86,32 +115,41 @@ export const run = async ({
         if (result !== undefined) {
           console.log(result);
         }
+      } else if (archiveName !== undefined) {
+        if (filePath !== undefined) {
+          args.unshift(filePath);
+        }
+        // Stream the archive bytes from the daemon.
+        const archiveNamePath = parsePetNamePath(archiveName);
+        const readableP = E(agent).lookup(archiveNamePath);
+        /** @type {Uint8Array[]} */
+        const chunks = [];
+        let total = 0;
+        for await (const chunk of makeRefReader(
+          /** @type {any} */ (await E(readableP).streamBase64()),
+        )) {
+          chunks.push(chunk);
+          total += chunk.byteLength;
+        }
+        const archiveBytes = new Uint8Array(total);
+        let offset = 0;
+        for (const chunk of chunks) {
+          archiveBytes.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+        await runArchiveBytes(archiveBytes, powersP, args);
       } else {
-        /** @type {any} */
-        let bundle;
-        if (bundleName !== undefined) {
-          if (filePath !== undefined) {
-            args.unshift(filePath);
-          }
-
-          const bundleNamePath = parsePetNamePath(bundleName);
-          const readableP = E(agent).lookup(bundleNamePath);
-          const bundleText = await E(readableP).text();
-          bundle = JSON.parse(bundleText);
-        } else {
-          bundle = await bundleSource(filePath);
-        }
-
-        // We defer importing the import-bundle machinery to this in order to
-        // avoid an up-front cost for workers that never use importBundle.
-        const { importBundle } = await import('@endo/import-bundle');
-        const namespace = await importBundle(bundle, {
-          endowments,
-        });
-        const result = await namespace.main(powersP, ...args);
-        if (result !== undefined) {
-          console.log(result);
-        }
+        // Build a source-only archive on the fly from the file path.
+        const readPowers = makeReadPowers({ fs, url, crypto, path });
+        const moduleLocation = url.pathToFileURL(
+          path.resolve(/** @type {string} */ (filePath)),
+        ).href;
+        const archiveBytes = await makeCompartmentArchive(
+          readPowers,
+          moduleLocation,
+          { parserForLanguage: sourceParserForLanguage },
+        );
+        await runArchiveBytes(archiveBytes, powersP, args);
       }
     },
   );

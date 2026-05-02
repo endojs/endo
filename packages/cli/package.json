@@ -31,7 +31,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/bundle-source": "workspace:^",
+    "@endo/compartment-mapper": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
@@ -39,7 +39,6 @@
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/hex": "workspace:^",
-    "@endo/import-bundle": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",

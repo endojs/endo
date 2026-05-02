@@ -33,6 +33,9 @@ bower_components
 
 # Rust
 target
+rust/endo/xsnap/src/ses_boot.js
+rust/endo/xsnap/src/worker_bootstrap.js
+rust/endo/xsnap/src/daemon_bootstrap.js
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
@@ -99,6 +102,7 @@ api-docs
 !packages/cli/test/_types.d.ts
 !packages/compartment-mapper/src/types-external.d.ts
 !packages/compartment-mapper/src/types.d.ts
+!packages/daemon/src/bus-xs-host-globals.d.ts
 !packages/daemon/src/types.d.ts
 !packages/daemon/types.d.ts
 !packages/eventual-send/src/exports.d.ts

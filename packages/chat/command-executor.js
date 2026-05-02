@@ -26,6 +26,7 @@ import { makeBrowserTree, checkoutToDirectory } from './browser-tree.js';
  * @property {(error: Error) => unknown} showError - Display an error
  * @property {() => unknown | null} [getChannelRef] - Returns channel ref when in channel mode
  * @property {(petNamePath: string, readOnly: boolean) => Promise<void>} [openBlobViewer] - Open blob viewer/editor
+ * @property {(workerRef: unknown, label: string) => void} [openDebugger] - Open debugger panel for a worker
  */
 
 /**
@@ -40,6 +41,7 @@ export const createCommandExecutor = ({
   showError,
   getChannelRef,
   openBlobViewer,
+  openDebugger,
 }) => {
   /**
    * Execute a command with the given parameters.
@@ -814,6 +816,23 @@ export const createCommandExecutor = ({
             await openBlobViewer(String(petName), false);
           }
           return { success: true };
+        }
+
+        case 'debug': {
+          const { workerName } = params;
+          const workerPath = String(workerName).split('/');
+          const debuggerRef = await E(
+            /** @type {any} */ (powers),
+          ).attachDebugger(
+            .../** @type {[string, ...string[]]} */ (workerPath),
+          );
+          if (openDebugger) {
+            openDebugger(debuggerRef, String(workerName));
+          }
+          return {
+            success: true,
+            message: `Debugger attached to "${workerName}"`,
+          };
         }
 
         // ============ SYSTEM ============

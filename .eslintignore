@@ -4,6 +4,14 @@ dist/
 api-docs/
 browser-test/
 
+# Rust-embedded xsnap JS: either generated bootstraps
+# (daemon_bootstrap.js, ses_boot.js, worker_bootstrap.js — see
+# .gitignore) or hand-authored XS-runtime code (polyfills.js,
+# examples/*).  These run in XS, not Node, so the top-level
+# ESLint config does not apply.
+rust/
+!packages/daemon/src/bus-xs-host-globals.d.ts
+
 *.json
 
 # see .gitignore

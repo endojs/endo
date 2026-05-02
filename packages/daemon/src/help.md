@@ -396,17 +396,22 @@ Load and instantiate an unconfined module (has access to Node.js APIs).
 
 The module's make(powers, context, { env }) function is called.
 
-## makeBundle(workerName, bundleName, options?) -> Promise<any>
+## makeArchive(workerName, archiveName, options?) -> Promise<any>
 
-Instantiate a pre-bundled module.
+Instantiate a module from a source-only ZIP archive (a
+`compartment-map.json` plus modules in their original mjs/cjs
+sources, with no precompiled module formats).
 - workerName: Worker to use (undefined for new worker)
-- bundleName: Pet name of the bundle
+- archiveName: Pet name of the readable blob holding the archive
 - options: Optional object with:
   - powersName: Pet name of the powers to grant (default: '@none')
   - resultName: Pet name or path to store the result
   - env: Environment variables as { KEY: "value" } record
 
 The module's make(powers, context, { env }) function is called.
+The archive bytes are streamed to the worker and parsed via
+`@endo/compartment-mapper`'s `parseArchive`.  The Rust supervisor's
+workers read the same archive content directly from the CAS.
 
 ## cancel(petNameOrPath, reason?) -> Promise<void>
 

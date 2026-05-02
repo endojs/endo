@@ -5,7 +5,7 @@
 // eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
-import test from 'ava';
+import baseTest from 'ava';
 import os from 'os';
 import url from 'url';
 import path from 'path';
@@ -14,7 +14,21 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { parseId } from '../src/formula-identifier.js';
 import { idFromLocator } from '../src/locator.js';
-import { makeDaemonDatabase } from '../src/daemon-database.js';
+import { makeDaemonDatabase } from '../src/daemon-database-node.js';
+
+// Multi-daemon retention tests rely on the TCP network module that
+// is loaded via makeUnconfined (a Node-only path).  Skip the whole
+// suite on the bare Rust supervisor (test:rust without
+// ENDO_NODE_WORKER_BIN).
+const skipNoNodeWorker =
+  process.env.ENDO_BIN && !process.env.ENDO_NODE_WORKER_BIN;
+const test = skipNoNodeWorker
+  ? Object.assign(baseTest.skip, {
+      serial: baseTest.serial.skip,
+      beforeEach: baseTest.beforeEach,
+      afterEach: baseTest.afterEach,
+    })
+  : baseTest;
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 

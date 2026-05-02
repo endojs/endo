@@ -11,6 +11,7 @@ import { createEvalForm } from './eval-form.js';
 import { createDefineForm } from './define-form.js';
 import { createFormBuilder } from './form-builder.js';
 import { createBlobViewer } from './blob-viewer.js';
+import { createDebuggerPanel } from './debugger-panel.js';
 import { createEndowModal } from './endow-modal.js';
 import { createInlineCommandForm } from './inline-command-form.js';
 import { createCommandExecutor } from './command-executor.js';
@@ -102,6 +103,12 @@ export const chatBarComponent = (
   );
   const $blobViewerBackdrop = /** @type {HTMLElement} */ (
     $parent.querySelector('#blob-viewer-backdrop')
+  );
+  const $debuggerContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#debugger-panel-container')
+  );
+  const $debuggerBackdrop = /** @type {HTMLElement} */ (
+    $parent.querySelector('#debugger-panel-backdrop')
   );
   const $inlineFormContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#inline-form-container')
@@ -195,6 +202,9 @@ export const chatBarComponent = (
   /** @type {import('./blob-viewer.js').BlobViewerAPI | null} */
   let blobViewer = null;
 
+  /** @type {import('./debugger-panel.js').DebuggerPanelAPI | null} */
+  let debuggerPanel = null;
+
   // Initialize the send form component
   const sendForm = sendFormComponent({
     $input,
@@ -240,6 +250,15 @@ export const chatBarComponent = (
         });
       }
       await blobViewer.open(petNamePath, readOnly);
+    },
+    openDebugger: (debuggerRef, label) => {
+      if (!debuggerPanel) {
+        debuggerPanel = createDebuggerPanel({
+          $container: $debuggerContainer,
+          $backdrop: $debuggerBackdrop,
+        });
+      }
+      debuggerPanel.open(debuggerRef, label);
     },
     showError: error => {
       const message = error?.message || String(error) || 'Unknown error';
