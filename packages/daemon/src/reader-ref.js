@@ -32,6 +32,26 @@ export const asyncIterate = iterable => {
 };
 
 /**
+ * Defensively freeze an iterator result so the strict XS marshaller
+ * does not reject the `{value, done}` record on the wire as
+ * "extensible object".  We use Object.freeze (one level deep) rather
+ * than harden because the wrapped value (e.g. a base64 string) is
+ * already a primitive — and harden would refuse a `{value:
+ * Uint8Array}` record on XS where TypedArray indexed properties
+ * cannot be reconfigured.
+ *
+ * @template T
+ * @param {IteratorResult<T> | Promise<IteratorResult<T>> | any} result
+ * @returns {any}
+ */
+const freezeResult = result => {
+  if (result && typeof result === 'object' && !Object.isFrozen(result)) {
+    Object.freeze(result);
+  }
+  return result;
+};
+
+/**
  * @template T
  * @param {SomehowAsyncIterable<T>} iterable The iterable object.
  * @returns {FarRef<Reader<T>>}
@@ -41,14 +61,14 @@ export const makeIteratorRef = iterable => {
   // @ts-ignore while switching from Far
   return makeExo('AsyncIterator', AsyncIteratorInterface, {
     async next() {
-      return iterator.next(undefined);
+      return freezeResult(await iterator.next(undefined));
     },
     /**
      * @param {any} value
      */
     async return(value) {
       if (iterator.return !== undefined) {
-        return iterator.return(value);
+        return freezeResult(await iterator.return(value));
       }
       return harden({ done: true, value: undefined });
     },
@@ -57,7 +77,7 @@ export const makeIteratorRef = iterable => {
      */
     async throw(error) {
       if (iterator.throw !== undefined) {
-        return iterator.throw(error);
+        return freezeResult(await iterator.throw(error));
       }
       return harden({ done: true, value: undefined });
     },
