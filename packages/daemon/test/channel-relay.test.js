@@ -5,7 +5,7 @@
 // eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
-import test from 'ava';
+import baseTest from 'ava';
 import url from 'url';
 import path from 'path';
 import http from 'node:http';
@@ -13,6 +13,21 @@ import { WebSocketServer } from 'ws';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, purge, makeEndoClient } from '../index.js';
+
+// All channel-relay tests use prepareHostWithTestNetwork which
+// loads the Node-only TCP network module via makeUnconfined.  The
+// bare Rust supervisor (yarn test:rust without
+// ENDO_NODE_WORKER_BIN) cannot spawn Node workers, so skip the
+// whole file on that path.
+const skipNoNodeWorker =
+  process.env.ENDO_BIN && !process.env.ENDO_NODE_WORKER_BIN;
+const test = skipNoNodeWorker
+  ? Object.assign(baseTest.skip, {
+      serial: baseTest.serial.skip,
+      beforeEach: baseTest.beforeEach,
+      afterEach: baseTest.afterEach,
+    })
+  : baseTest;
 
 // Enable CapTP tracing for relay debugging.
 process.env.ENDO_CAPTP_TRACE = '1';
