@@ -168,13 +168,14 @@ jobs:
           # Configure the daemon with both substitute servers up front so
           # `guix build` falls back to bordeaux.guix.gnu.org whenever
           # ci.guix.gnu.org is degraded. Both keys are authorized below
-          # from the tarball's bundled `share/guix/*.pub` files. Pass
-          # `--fallback` so the daemon builds locally rather than failing
-          # when neither substitute server has the requested item.
+          # from the tarball's bundled `share/guix/*.pub` files.
+          # `--fallback` is a client-side flag (e.g. for `guix build`)
+          # and is rejected by the daemon, so it goes on the build
+          # invocations themselves rather than here.
           cat <<'EOF' | sudo tee /etc/systemd/system/guix-daemon.service > /dev/null
           # Service unit file for guix-daemon, modeled on the upstream
           # template in the Guix install tarball but with explicit
-          # substitute URLs and --fallback.
+          # substitute URLs.
 
           [Unit]
           Description=Build daemon for GNU Guix
@@ -182,8 +183,7 @@ jobs:
           [Service]
           ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon \
               --build-users-group=guixbuild --discover=yes \
-              --substitute-urls='https://bordeaux.guix.gnu.org https://ci.guix.gnu.org' \
-              --fallback
+              --substitute-urls='https://bordeaux.guix.gnu.org https://ci.guix.gnu.org'
           Environment='GUIX_LOCPATH=/var/guix/profiles/per-user/root/guix-profile/lib/locale' LC_ALL=en_US.utf8
 
           StandardOutput=syslog
@@ -217,31 +217,64 @@ jobs:
       - name: Report Guix version
         run: guix describe || guix --version
 
-      # The substitute fetches that follow already inherit
-      # `--substitute-urls=... --fallback` from the daemon, so they
-      # consult bordeaux.guix.gnu.org when ci.guix.gnu.org is degraded
-      # and build locally as a last resort. The retry wrapper here is
-      # belt-and-braces against transient daemon errors during the
-      # bordeaux <-> ci handoff.
+      # The substitute fetches that follow inherit `--substitute-urls`
+      # from the daemon, so they consult bordeaux.guix.gnu.org when
+      # ci.guix.gnu.org is degraded. We pass `--fallback` per-invocation
+      # to permit local builds when neither server has the requested
+      # item. The retry wrapper guards against transient daemon errors
+      # during the bordeaux <-> ci handoff, and against the daemon
+      # socket not being ready for the first few seconds after Install.
       - name: Resolve Guix module paths
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
         with:
           max_attempts: 3
           retry_wait_seconds: 30
           timeout_minutes: 20
-          # Build into a scratch file, then promote to $GITHUB_ENV only
-          # if all four `guix build` invocations succeed. This keeps
-          # retries idempotent: a partial failure on attempt 1 does
-          # not pollute the environment seen by attempt 2 or by the
-          # rest of the job.
+          # Run each `guix build` and assert non-empty output before
+          # trusting it: command substitution doesn't propagate
+          # non-zero exits through `echo`, so without an explicit
+          # check, an empty result silently flows into $GITHUB_ENV
+          # and only fails much later when downstream steps cannot
+          # locate the modules. Promote to $GITHUB_ENV only after all
+          # four resolutions succeed, so retries stay idempotent.
           command: |
             set -euo pipefail
+            shopt -s inherit_errexit
+            wait_for_daemon() {
+              for i in $(seq 1 30); do
+                if [ -S /var/guix/daemon-socket/socket ]; then return 0; fi
+                sleep 1
+              done
+              echo "guix-daemon socket never appeared at /var/guix/daemon-socket/socket" >&2
+              sudo systemctl status guix-daemon.service --no-pager || true
+              return 1
+            }
+            resolve() {
+              local pkg="$1"
+              local out
+              out="$(guix build --fallback "$pkg" | tail -n 1)"
+              if [ -z "$out" ]; then
+                echo "guix build $pkg returned empty output" >&2
+                return 1
+              fi
+              printf '%s\n' "$out"
+            }
+            wait_for_daemon
+            # Resolve into named variables so `set -e` + `inherit_errexit`
+            # propagate failures from inside the command substitutions.
+            # An earlier draft inlined `$(resolve …)` inside `echo "VAR=$(…)"`,
+            # but `echo` always succeeds, so an empty resolution would silently
+            # poison `$GITHUB_ENV` instead of triggering a retry.
+            FIBERS=$(resolve guile-fibers)
+            WEBSOCKET=$(resolve guile-websocket)
+            GNUTLS=$(resolve guile-gnutls)
+            GCRYPT=$(resolve guile-gcrypt)
             scratch="$(mktemp)"
             {
-              echo "FIBERS_OUT=$(guix build guile-fibers | tail -n 1)"
-              echo "WEBSOCKET_OUT=$(guix build guile-websocket | tail -n 1)"
-              echo "GNUTLS_OUT=$(guix build guile-gnutls | tail -n 1)"
-              echo "GCRYPT_OUT=$(guix build guile-gcrypt | tail -n 1)"
+              echo "FIBERS_OUT=$FIBERS"
+              echo "WEBSOCKET_OUT=$WEBSOCKET"
+              echo "GNUTLS_OUT=$GNUTLS"
+              echo "GCRYPT_OUT=$GCRYPT"
             } > "$scratch"
             cat "$scratch" >> "$GITHUB_ENV"
 
@@ -271,8 +304,10 @@ jobs:
 
           # Goblins from raw git source has exhibited interpreter-only failures
           # with auto-compile disabled; allow Guile to compile modules first.
+          # `--fallback` permits local builds when neither substitute server
+          # has the requested item (it is a client flag, not a daemon flag).
           OCAPN_TEST_PORT="$OCAPN_TEST_PORT" GUILE_AUTO_COMPILE=1 \
-            timeout 300s guix shell --pure --no-grafts \
+            timeout 300s guix shell --pure --no-grafts --fallback \
             --preserve='^OCAPN_TEST_PORT$|^GUILE_AUTO_COMPILE$' \
             guile guile-fibers guile-websocket guile-gnutls guile-gcrypt -- \
             guile \
