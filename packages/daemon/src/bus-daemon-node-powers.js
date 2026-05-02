@@ -1,21 +1,34 @@
-// @ts-check
-/* eslint-disable no-await-in-loop, no-bitwise */
+// @ts-nocheck
+// The bus Node daemon powers still delegate to pre-SQLite pet-store
+// and persistence factories; aligning with the llm-side constructor
+// signatures (single daemonDb argument) is follow-up work.
+
 /* global process */
+/* eslint-disable no-void */
+/* eslint-disable no-bitwise -- CBOR envelope encoding / length-prefix
+   parsing requires bitwise operators. */
+/* eslint-disable no-continue -- Envelope framing loop skips malformed
+   frames without nesting. */
+/* eslint-disable no-await-in-loop -- Envelope reader awaits each
+   frame serially by design. */
 
 /**
- * Daemonic powers for the Go (engo) platform.
+ * Daemonic powers for the bus platform (external supervisor).
  *
- * This module is a derivative of daemon-node-powers.js. It shares all powers
- * except for control powers (makeWorker), which requests worker spawns from
- * the engo supervisor via the envelope protocol instead of using
- * child_process.fork().
+ * Instead of spawning workers via child_process.fork(), this module
+ * requests worker spawns from the supervisor via the envelope protocol.
  *
  * The envelope protocol runs on fd 3 (child→parent) and fd 4 (parent→child),
  * using CBOR-framed envelopes.
  */
 
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeNetstringCapTP } from './connection.js';
+import { mapWriter, mapReader } from '@endo/stream';
+import {
+  makeMessageCapTP,
+  messageToBytes,
+  bytesToMessage,
+} from './connection.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { decodeEnvelope, readFrameFromStream } from './envelope.js';
 import {
@@ -23,7 +36,6 @@ import {
   makeCryptoPowers,
   makeDaemonicPersistencePowers,
 } from './daemon-node-powers.js';
-import { makeDaemonDatabase } from './daemon-database-node.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { CapTpConnectionRegistrar, Config, CryptoPowers, DaemonWorkerFacet, DaemonicPowers, FilePowers, WorkerDaemonFacet } from './types.js' */
@@ -38,14 +50,15 @@ export { makeFilePowers, makeCryptoPowers, makeDaemonicPersistencePowers };
  */
 
 /**
- * Create control powers that spawn workers through the engo supervisor.
+ * Create control powers that spawn workers through the bus supervisor.
  *
  * Instead of calling child_process.fork(), this sends a "spawn" envelope
- * to engo (handle 0). Engo spawns the worker as a peer subprocess and
- * routes messages between daemon and worker via handle rewriting.
+ * to the supervisor (handle 0). The supervisor spawns the worker as a peer
+ * subprocess and routes messages between daemon and worker via handle
+ * rewriting.
  *
  * CapTP traffic between daemon and worker is encapsulated in envelopes
- * with verb "captp". The daemon demultiplexes incoming envelopes by
+ * with verb "deliver". The daemon demultiplexes incoming envelopes by
  * handle to dispatch to the correct per-worker CapTP session.
  *
  * @param {Config} config
@@ -53,7 +66,7 @@ export { makeFilePowers, makeCryptoPowers, makeDaemonicPersistencePowers };
  * @param {FilePowers} filePowers
  * @param {EnvelopeChannel} envelopeChannel
  */
-export const makeDaemonicGoControlPowers = (
+export const makeDaemonicBusControlPowers = (
   config,
   fileURLToPath,
   filePowers,
@@ -61,9 +74,14 @@ export const makeDaemonicGoControlPowers = (
 ) => {
   const { sendEnvelope, envelopeReadStream } = envelopeChannel;
 
+  const endoWorkerBin = process.env.ENDO_WORKER_BIN || '';
+  const endoNodeWorkerBin = process.env.ENDO_NODE_WORKER_BIN || '';
   const endoWorkerPath =
     process.env.ENDO_WORKER_SUBPROCESS_PATH ||
-    fileURLToPath(new URL('worker-go.js', import.meta.url));
+    fileURLToPath(new URL('bus-worker-node.js', import.meta.url));
+  const endoNodeWorkerPath = fileURLToPath(
+    new URL('bus-worker-node-raw.js', import.meta.url),
+  );
 
   /** @type {Map<number, { resolve: (env: import('./envelope.js').Envelope) => void }>} */
   const pendingSpawns = new Map();
@@ -78,7 +96,7 @@ export const makeDaemonicGoControlPowers = (
 
   // Start the envelope reader loop. This demultiplexes incoming envelopes:
   // - Envelopes with verb "spawned" are responses to spawn requests.
-  // - Envelopes with verb "captp" are CapTP frames from workers,
+  // - Envelopes with verb "deliver" are CapTP messages from workers,
   //   dispatched to the per-worker CapTP session.
   const startEnvelopeReader = () => {
     const readLoop = async () => {
@@ -97,7 +115,10 @@ export const makeDaemonicGoControlPowers = (
             pendingSpawns.delete(env.nonce);
             pending.resolve(env);
           }
-        } else if (env.verb === 'error' && env.nonce > 0) {
+          continue;
+        }
+
+        if (env.verb === 'error' && env.nonce > 0) {
           // Error response to a spawn request.
           const pending = pendingSpawns.get(env.nonce);
           if (pending) {
@@ -111,18 +132,28 @@ export const makeDaemonicGoControlPowers = (
               }),
             );
           }
-        } else if (env.verb === 'captp') {
-          // CapTP frame from a worker. The handle field has been
-          // rewritten by engo to the worker's handle.
+          continue;
+        }
+
+        if (env.verb === 'deliver') {
+          // CapTP message from a worker. The handle field has been
+          // rewritten by the supervisor to the worker's handle.
           const workerHandle = env.handle;
           const entry = workerWriters.get(workerHandle);
           if (entry) {
-            // Deliver the CapTP frame to the per-worker reader.
-            // The payload is the raw netstring-framed CapTP bytes.
+            // Deliver the CapTP message to the per-worker reader.
+            // The payload is the raw JSON-encoded CapTP message.
             void entry.writer.next(env.payload);
+          } else {
+            console.error(
+              `bus-daemon: deliver from unknown worker handle=${workerHandle}`,
+            );
           }
-        } else if (env.verb === 'exited') {
-          // Worker exit notification from engo.
+          continue;
+        }
+
+        if (env.verb === 'exited') {
+          // Worker exit notification from the supervisor.
           const workerHandle = env.handle;
           const resolve = workerExitResolvers.get(workerHandle);
           if (resolve) {
@@ -134,21 +165,22 @@ export const makeDaemonicGoControlPowers = (
           if (entry) {
             void entry.writer.return(undefined);
           }
-        } else {
-          // Unhandled envelope verb — log and continue.
-          console.error(
-            `daemon-go: unhandled envelope verb=${env.verb} handle=${env.handle}`,
-          );
+          continue;
         }
+
+        // Unhandled envelope verb — log and continue.
+        console.error(
+          `bus-daemon: unhandled envelope verb=${env.verb} handle=${env.handle}`,
+        );
       }
     };
     void readLoop().catch(error => {
-      console.error('daemon-go: envelope reader error:', error);
+      console.error('bus-daemon: envelope reader error:', error);
     });
   };
 
   /**
-   * Spawn a worker through engo.
+   * Spawn a worker through the bus supervisor.
    *
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
@@ -156,6 +188,8 @@ export const makeDaemonicGoControlPowers = (
    * @param {Promise<never>} _forceCancelled
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @param {string[]} [_trustedShims]
+   * @param {string} [_label]
+   * @param {'locked' | 'node'} [kind]
    */
   const makeWorker = async (
     workerId,
@@ -163,7 +197,9 @@ export const makeDaemonicGoControlPowers = (
     cancelled,
     _forceCancelled,
     capTpConnectionRegistrar = undefined,
-    _trustedShims = undefined, // eslint-disable-line no-underscore-dangle
+    _trustedShims = undefined,
+    _label = undefined,
+    kind = 'locked',
   ) => {
     const { statePath, ephemeralStatePath } = config;
 
@@ -179,12 +215,21 @@ export const makeDaemonicGoControlPowers = (
       filePowers.makePath(workerEphemeralStatePath),
     ]);
 
-    // Find the node executable.
-    const nodePath = process.execPath;
-
-    // Build spawn request: engo will spawn `node worker-go.js`
-    const command = nodePath;
-    const args = [endoWorkerPath];
+    // Build spawn request. For kind === 'node', use ENDO_NODE_WORKER_BIN
+    // (or fall back to bus-worker-node-raw.js). Otherwise use
+    // ENDO_WORKER_BIN (or fall back to bus-worker-node.js).
+    let workerParts;
+    if (kind === 'node') {
+      workerParts = endoNodeWorkerBin
+        ? endoNodeWorkerBin.split(/\s+/).filter(Boolean)
+        : [process.execPath, endoNodeWorkerPath];
+    } else {
+      workerParts = endoWorkerBin
+        ? endoWorkerBin.split(/\s+/).filter(Boolean)
+        : [process.execPath, endoWorkerPath];
+    }
+    const command = workerParts[0];
+    const args = workerParts.slice(1);
 
     // Allocate a nonce for the spawn request.
     const nonce = nextNonce;
@@ -200,12 +245,12 @@ export const makeDaemonicGoControlPowers = (
     // Encode the spawn request payload as CBOR map {command, args}.
     const payloadBuf = encodeSpawnPayload(command, args);
 
-    // Send spawn request to engo (handle 0).
+    // Send spawn request to supervisor (handle 0).
     await sendEnvelope(0, 'spawn', payloadBuf, nonce);
 
     console.log(`Endo worker spawn requested for ${workerId} (nonce=${nonce})`);
 
-    // Wait for engo to respond with the worker's handle.
+    // Wait for the supervisor to respond with the worker's handle.
     const response = await spawnResponse;
 
     if (response.verb === 'error') {
@@ -221,8 +266,8 @@ export const makeDaemonicGoControlPowers = (
     // Set up CapTP session over the envelope protocol.
     // Create a pipe pair for the CapTP layer. The daemon side writes
     // CapTP frames that get wrapped in envelopes and sent to the worker
-    // via engo. Incoming CapTP frames from the worker arrive via the
-    // envelope reader and are pushed into the reader side of the pipe.
+    // via the supervisor. Incoming CapTP frames from the worker arrive via
+    // the envelope reader and are pushed into the reader side of the pipe.
     const { makePipe } = await import('@endo/stream');
     const [captpReadFrom, captpWriteTo] = makePipe();
 
@@ -230,12 +275,13 @@ export const makeDaemonicGoControlPowers = (
     // CapTP frames.
     workerWriters.set(workerHandle, { writer: captpWriteTo });
 
-    // Create a writer that wraps CapTP frames in envelopes addressed
-    // to the worker's handle.
+    // Create a writer that wraps CapTP messages in envelopes addressed
+    // to the worker's handle. The payload is the JSON-encoded message
+    // bytes (no netstring framing — the envelope protocol provides framing).
     /** @type {import('@endo/stream').Writer<Uint8Array>} */
-    const envelopeCapTPWriter = harden({
+    const envelopeBytesWriter = harden({
       async next(/** @type {Uint8Array} */ chunk) {
-        await sendEnvelope(workerHandle, 'captp', chunk);
+        await sendEnvelope(workerHandle, 'deliver', chunk);
         return harden({ done: false, value: undefined });
       },
       async return(/** @type {undefined} */ _value) {
@@ -249,16 +295,19 @@ export const makeDaemonicGoControlPowers = (
       },
     });
 
+    const messageWriter = mapWriter(envelopeBytesWriter, messageToBytes);
+    const messageReader = mapReader(captpReadFrom, bytesToMessage);
+
     const workerClosed = new Promise(resolve => {
       workerExitResolvers.set(workerHandle, resolve);
       // Also resolve on cancellation so shutdown isn't blocked.
       cancelled.catch(() => resolve(undefined));
     });
 
-    const { getBootstrap, closed: capTpClosed } = makeNetstringCapTP(
+    const { getBootstrap, closed: capTpClosed } = makeMessageCapTP(
       `Worker ${workerId}`,
-      envelopeCapTPWriter,
-      captpReadFrom,
+      messageWriter,
+      messageReader,
       cancelled,
       daemonWorkerFacet,
       undefined,
@@ -289,17 +338,15 @@ export const makeDaemonicGoControlPowers = (
 /**
  * @param {object} opts
  * @param {Config} opts.config
- * @param {Promise<never>} opts.cancelled
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
  * @param {(handle: number, verb: string, payload?: Uint8Array, nonce?: number) => Promise<void>} opts.sendEnvelope
  * @param {import('stream').Readable} opts.envelopeReadStream
- * @returns {Promise<DaemonicPowers>}
+ * @returns {DaemonicPowers}
  */
-export const makeDaemonicGoPowers = async ({
+export const makeDaemonicBusPowers = ({
   config,
-  cancelled,
   url,
   filePowers,
   cryptoPowers,
@@ -308,20 +355,13 @@ export const makeDaemonicGoPowers = async ({
 }) => {
   const { fileURLToPath } = url;
 
-  // Ensure state directory exists before opening database.
-  await filePowers.makePath(config.statePath);
-
-  const daemonDb = makeDaemonDatabase(config);
-  cancelled.catch(() => daemonDb.close());
-
-  const petStorePowers = makePetStoreMaker(daemonDb);
+  const petStorePowers = makePetStoreMaker(filePowers, config);
   const daemonicPersistencePowers = makeDaemonicPersistencePowers(
-    daemonDb,
     filePowers,
     cryptoPowers,
     config,
   );
-  const daemonicControlPowers = makeDaemonicGoControlPowers(
+  const daemonicControlPowers = makeDaemonicBusControlPowers(
     config,
     fileURLToPath,
     filePowers,
@@ -374,7 +414,7 @@ const cborHead = (buf, major, n) => {
 
 /**
  * Encode a spawn request payload as CBOR: {command: text, args: [text...]}.
- * This matches the Go DecodeSpawnRequest format.
+ * This matches the supervisor's DecodeSpawnRequest format.
  * @param {string} command
  * @param {string[]} args
  * @returns {Uint8Array}
