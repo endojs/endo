@@ -128,6 +128,9 @@ const template = `
 <div id="help-modal-container"></div>
 <div id="add-space-modal-container"></div>
 <div id="share-modal-container"></div>
+
+<div id="debugger-panel-backdrop"></div>
+<div id="debugger-panel-container"></div>
 `;
 
 /**
