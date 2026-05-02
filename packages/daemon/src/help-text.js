@@ -9,13 +9,13 @@
  * Documentation is loaded from help.md using the helpdown scanner.
  */
 
-import { readHelpTextFileSync } from './helpdown.js';
+import { helpTextEntries } from './help-text-data.js';
 
 /**
  * @typedef {Record<string, string>} HelpText
  */
 
-const helpMap = readHelpTextFileSync(new URL('./help.md', import.meta.url));
+const helpMap = new Map(helpTextEntries);
 
 /** @type {HelpText} */
 export const directoryHelp = helpMap.get('EndoDirectory') || {};

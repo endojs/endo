@@ -123,6 +123,7 @@ type WorkerFormula = {
   type: 'worker';
   label?: string;
   trustedShims?: string[];
+  kind?: 'locked' | 'node';
 };
 
 export type WorkerDeferredTaskParams = {
@@ -141,7 +142,8 @@ export type HostFormula = {
   type: 'host';
   handle: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
-  worker: FormulaIdentifier;
+  mainWorker: FormulaIdentifier;
+  nodeWorker: FormulaIdentifier;
   inspector: FormulaIdentifier;
   petStore: FormulaIdentifier;
   mailboxStore: FormulaIdentifier;
@@ -251,15 +253,28 @@ type MakeUnconfinedFormula = {
   powers: FormulaIdentifier;
   specifier: string;
   env?: Record<string, string>;
+  cancelWithWorker?: FormulaIdentifier;
   // TODO formula slots
 };
 
-type MakeBundleFormula = {
-  type: 'make-bundle';
+type MakeArchiveFormula = {
+  type: 'make-archive';
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
-  bundle: FormulaIdentifier;
+  archive: FormulaIdentifier;
   env?: Record<string, string>;
+  cancelWithWorker?: FormulaIdentifier;
+  // TODO formula slots
+};
+
+type MakeFromTreeFormula = {
+  type: 'make-from-tree';
+  worker: FormulaIdentifier;
+  powers: FormulaIdentifier;
+  /** ReadableTree or Mount formula identifier providing module sources. */
+  tree: FormulaIdentifier;
+  env?: Record<string, string>;
+  cancelWithWorker?: FormulaIdentifier;
   // TODO formula slots
 };
 
@@ -406,7 +421,8 @@ export type Formula =
   | ScratchMountFormula
   | LookupFormula
   | MakeUnconfinedFormula
-  | MakeBundleFormula
+  | MakeArchiveFormula
+  | MakeFromTreeFormula
   | HandleFormula
   | PetInspectorFormula
   | KnownPeersStoreFormula
@@ -972,10 +988,36 @@ export interface EndoHost extends EndoAgent {
     specifier: string,
     options?: MakeCapletOptions,
   ): Promise<unknown>;
-  makeBundle(
+  makeArchive(
     workerPetName: string | undefined,
-    bundleName: string,
+    archiveName: string,
     options?: MakeCapletOptions,
+  ): Promise<unknown>;
+  makeFromTree(
+    workerPetName: string | undefined,
+    treeName: string | string[],
+    options?: MakeCapletOptions,
+  ): Promise<unknown>;
+  /**
+   * Materialise a ReadableTree or Mount into a new scratch mount
+   * under `scratchPetName` and return that scratch mount.  The
+   * scratch lives as long as its pet name; cancelling the pet name
+   * removes it.
+   */
+  stageTree(
+    treeName: string | string[],
+    scratchPetName: string,
+  ): Promise<unknown>;
+  /**
+   * Stage a readable tree (ReadableTree or Mount) into an internal
+   * scratch directory under the Endo state tree and invoke the Node
+   * unconfined loader against `options.entry` (default `index.js`).
+   * Supports native Node modules (unlike {@link makeFromTree}).
+   */
+  makeUnconfinedFromTree(
+    workerPetName: string | undefined,
+    treeName: string | string[],
+    options?: MakeCapletOptions & { entry?: string },
   ): Promise<unknown>;
   cancel(petNameOrPath: string | string[], reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
@@ -1150,7 +1192,8 @@ export type EndoInspector<RecordT = string> = {
 export type KnownEndoInspectors = {
   eval: EndoInspector<'endowments' | 'source' | 'worker'>;
   'make-unconfined': EndoInspector<'host'>;
-  'make-bundle': EndoInspector<'bundle' | 'powers' | 'worker'>;
+  'make-archive': EndoInspector<'archive' | 'powers' | 'worker'>;
+  'make-from-tree': EndoInspector<'tree' | 'powers' | 'worker'>;
   guest: EndoInspector<'bundle' | 'powers'>;
   // This is an "empty" inspector, in that there is nothing to `lookup()` or `list()`.
   [formulaType: string]: EndoInspector<any>;
@@ -1185,6 +1228,9 @@ export type FilePowers = {
   makeFileWriter: (path: string) => Writer<Uint8Array>;
   writeFileText: (path: string, text: string) => Promise<void>;
   readFileText: (path: string) => Promise<string>;
+  readFileBytes: (path: string) => Promise<Uint8Array>;
+  readFile: (path: string) => Promise<Uint8Array>;
+  maybeReadFile: (path: string) => Promise<Uint8Array | undefined>;
   maybeReadFileText: (path: string) => Promise<string | undefined>;
   readDirectory: (path: string) => Promise<Array<string>>;
   makePath: (path: string) => Promise<void>;
@@ -1310,8 +1356,8 @@ export interface WorkerDaemonFacet {
     id: FormulaIdentifier,
     cancelled: Promise<never>,
   ): Promise<unknown>;
-  makeBundle(
-    bundle: ERef<EndoReadable>,
+  makeArchive(
+    archive: ERef<EndoReadable>,
     powers: ERef<unknown>,
     context: ERef<FarContext>,
   ): Promise<unknown>;
@@ -1331,6 +1377,7 @@ export type DaemonicControlPowers = {
     capTpConnectionRegistrar?: CapTpConnectionRegistrar,
     trustedShims?: string[],
     label?: string,
+    kind?: 'locked' | 'node',
   ) => Promise<{
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
@@ -1341,6 +1388,16 @@ export type DaemonicControlPowers = {
    * been consumed.
    */
   startEnvelopeReader?: () => void;
+  /**
+   * Attach a debugger to a running worker (Rust supervisor only).
+   * Returns a Debugger exo that wraps the xsbug debug session
+   * and is remotable over CapTP.
+   */
+  attachDebugger?: (workerHandle: number) => Promise<Debugger>;
+  /**
+   * Detach a debugger from a running worker (Rust supervisor only).
+   */
+  detachDebugger?: (workerHandle: number) => void;
 };
 
 export type DaemonicPowers = {
@@ -1399,7 +1456,8 @@ type FormulateNumberedHostParams = {
   handleId: FormulaIdentifier;
   hostHandleId: FormulaIdentifier;
   agentNodeNumber: NodeNumber;
-  workerId: FormulaIdentifier;
+  mainWorkerId: FormulaIdentifier;
+  nodeWorkerId: FormulaIdentifier;
   storeId: FormulaIdentifier;
   mailboxStoreId: FormulaIdentifier;
   mailHubId: FormulaIdentifier;
@@ -1451,10 +1509,22 @@ export interface DaemonCore {
     value: unknown;
   }>;
 
-  formulateBundle: (
+  formulateArchive: (
     hostAgentId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
-    bundleId: FormulaIdentifier,
+    archiveId: FormulaIdentifier,
+    deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
+    specifiedWorkerId?: FormulaIdentifier,
+    specifiedPowersId?: FormulaIdentifier,
+    env?: Record<string, string>,
+    trustedShims?: string[],
+    workerLabel?: string,
+  ) => FormulateResult<unknown>;
+
+  formulateFromTree: (
+    hostAgentId: FormulaIdentifier,
+    hostHandleId: FormulaIdentifier,
+    treeId: FormulaIdentifier,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
     specifiedPowersId?: FormulaIdentifier,
@@ -1794,6 +1864,112 @@ export interface RemoteControl {
     dispose?: () => void,
   ): ERef<EndoGateway>;
   getStateName(): string;
+}
+
+// ---------------------------------------------------------------------------
+// SQLite
+// ---------------------------------------------------------------------------
+
+export type SqliteValue = null | bigint | number | string | Uint8Array;
+
+export type SqliteParams = SqliteValue[] | [Record<string, SqliteValue>];
+
+export interface StatementSync {
+  run(...params: SqliteParams): { changes: bigint; lastInsertRowid: bigint };
+  get(...params: SqliteParams): Record<string, SqliteValue> | undefined;
+  all(...params: SqliteParams): Array<Record<string, SqliteValue>>;
+  columns(): Array<{ name: string; type: string | null }>;
+  finalize(): void;
+}
+
+export interface DatabaseSync {
+  close(): void;
+  exec(sql: string): void;
+  prepare(sql: string): StatementSync;
+  readonly open: boolean;
+}
+
+export interface SqlitePowers {
+  openDatabase(path: string): DatabaseSync;
+}
+
+// ---------------------------------------------------------------------------
+// Debugger
+// ---------------------------------------------------------------------------
+
+export interface BreakEvent {
+  readonly path: string;
+  readonly line: number;
+  readonly message: string;
+}
+
+export interface Frame {
+  readonly name: string;
+  readonly value: string;
+  readonly path: string;
+  readonly line: number;
+}
+
+export interface Property {
+  readonly name: string;
+  readonly value: string;
+  readonly flags: string;
+  readonly children?: Property[];
+}
+
+export interface DebugSession {
+  feedXml(bytes: Uint8Array): void;
+  go(): void;
+  step(): Promise<BreakEvent>;
+  stepIn(): Promise<BreakEvent>;
+  stepOut(): Promise<BreakEvent>;
+  abort(): void;
+  setBreakpoint(path: string, line: number): void;
+  clearBreakpoint(path: string, line: number): void;
+  clearAllBreakpoints(): void;
+  getFrames(): Promise<Frame[]>;
+  getLocals(): Promise<Property[]>;
+  getGlobals(): Promise<Property[]>;
+  selectFrame(id: string): Promise<Property[]>;
+  toggleProperty(id: string): Promise<Property[]>;
+  evaluate(source: string): Promise<string>;
+  startProfiling(): void;
+  stopProfiling(): void;
+  setExceptionBreakMode(mode: 'none' | 'all' | 'uncaught'): void;
+  onBreak(listener: (event: BreakEvent) => void): () => void;
+  isBroken(): boolean;
+  getTitle(): string | undefined;
+  getTag(): string | undefined;
+  getLastBreak(): BreakEvent | null;
+  help(): string;
+}
+
+/**
+ * Remotable debugger exo — a CapTP-safe wrapper around DebugSession.
+ * Methods match DebugSession but omit `feedXml` and `onBreak`
+ * (which are not serialisable over CapTP).
+ */
+export interface Debugger {
+  help(): string;
+  go(): void;
+  step(): Promise<BreakEvent>;
+  stepIn(): Promise<BreakEvent>;
+  stepOut(): Promise<BreakEvent>;
+  abort(): void;
+  setBreakpoint(path: string, line: number): void;
+  clearBreakpoint(path: string, line: number): void;
+  clearAllBreakpoints(): void;
+  getFrames(): Promise<Frame[]>;
+  getLocals(): Promise<Property[]>;
+  getGlobals(): Promise<Property[]>;
+  selectFrame(id: string): Promise<Property[]>;
+  toggleProperty(id: string): Promise<Property[]>;
+  evaluate(source: string): Promise<string>;
+  setExceptionBreakMode(mode: 'none' | 'all' | 'uncaught'): void;
+  isBroken(): boolean;
+  getTitle(): string | undefined;
+  getTag(): string | undefined;
+  getLastBreak(): BreakEvent | null;
 }
 
 export interface RemoteControlState {

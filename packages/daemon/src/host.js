@@ -6,7 +6,7 @@
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
-import { makeError, q } from '@endo/errors';
+import { makeError, q, X } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import {
   assertPetName,
@@ -64,7 +64,9 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateUnconfined']} args.formulateUnconfined
- * @param {DaemonCore['formulateBundle']} args.formulateBundle
+ * @param {DaemonCore['formulateArchive']} args.formulateArchive
+ * @param {DaemonCore['formulateFromTree']} args.formulateFromTree
+ * @param {(id: FormulaIdentifier) => string} args.getScratchMountPath
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['checkinTree']} args.checkinTree
  * @param {DaemonCore['formulateMount']} args.formulateMount
@@ -97,7 +99,9 @@ export const makeHostMaker = ({
   formulateMarshalValue,
   formulateEval,
   formulateUnconfined,
-  formulateBundle,
+  formulateArchive,
+  formulateFromTree,
+  getScratchMountPath,
   formulateReadableBlob,
   checkinTree,
   formulateMount,
@@ -135,6 +139,7 @@ export const makeHostMaker = ({
    * @param {FormulaIdentifier | undefined} mailHubId
    * @param {FormulaIdentifier} inspectorId
    * @param {FormulaIdentifier} mainWorkerId
+   * @param {FormulaIdentifier} nodeWorkerId
    * @param {FormulaIdentifier} endoId
    * @param {FormulaIdentifier} networksDirectoryId
    * @param {FormulaIdentifier} pinsDirectoryId
@@ -153,6 +158,7 @@ export const makeHostMaker = ({
     mailHubId,
     inspectorId,
     mainWorkerId,
+    nodeWorkerId,
     endoId,
     networksDirectoryId,
     pinsDirectoryId,
@@ -162,6 +168,7 @@ export const makeHostMaker = ({
   ) => {
     context.thisDiesIfThatDies(storeId);
     context.thisDiesIfThatDies(mainWorkerId);
+    context.thisDiesIfThatDies(nodeWorkerId);
     context.thisDiesIfThatDies(mailboxStoreId);
     if (mailHubId !== undefined) {
       context.thisDiesIfThatDies(mailHubId);
@@ -177,6 +184,7 @@ export const makeHostMaker = ({
       '@self': handleId,
       '@host': hostHandleId ?? handleId,
       '@main': mainWorkerId,
+      '@node': nodeWorkerId,
       '@endo': endoId,
       '@nets': networksDirectoryId,
       '@pins': pinsDirectoryId,
@@ -436,7 +444,7 @@ export const makeHostMaker = ({
     };
 
     /**
-     * Helper function for makeUnconfined and makeBundle.
+     * Helper function for makeUnconfined and makeArchive.
      * @param {Name | undefined} workerName
      * @param {MakeCapletOptions} [options]
      */
@@ -492,6 +500,17 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
+      // makeUnconfined is unconditionally Node-shaped (loads a plugin
+      // by filesystem path through Node's module loader).  When no
+      // worker is named *and* the caller has not requested trusted
+      // shims (which require a fresh worker pre-lockdown), default
+      // to the host's shared @node worker rather than spawning a
+      // fresh single-use Node worker per call.
+      const wantsFreshWorker =
+        options?.workerTrustedShims !== undefined &&
+        options.workerTrustedShims.length > 0;
+      const effectiveWorkerName =
+        workerName ?? (wantsFreshWorker ? undefined : '@node');
       const {
         tasks,
         workerId,
@@ -500,7 +519,7 @@ export const makeHostMaker = ({
         env,
         workerTrustedShims,
       } = prepareMakeCaplet(
-        /** @type {Name | undefined} */ (workerName),
+        /** @type {Name | undefined} */ (effectiveWorkerName),
         options,
       );
       const workerLabel =
@@ -525,11 +544,13 @@ export const makeHostMaker = ({
       return value;
     };
 
-    /** @type {EndoHost['makeBundle']} */
-    const makeBundle = async (workerName, bundleName, options) => {
-      const bundleId = petStore.identifyLocal(/** @type {Name} */ (bundleName));
-      if (bundleId === undefined) {
-        throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
+    /** @type {EndoHost['makeArchive']} */
+    const makeArchive = async (workerName, archiveName, options) => {
+      const archiveId = petStore.identifyLocal(
+        /** @type {Name} */ (archiveName),
+      );
+      if (archiveId === undefined) {
+        throw new TypeError(`Unknown pet name for archive: ${q(archiveName)}`);
       }
 
       const {
@@ -547,14 +568,203 @@ export const makeHostMaker = ({
         explicitLabel ??
         (options?.resultName !== undefined
           ? `${options.resultName}`
-          : `bundle:${bundleName}`);
+          : `archive:${archiveName}`);
 
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const { value } = await formulateBundle(
+      const { value } = await formulateArchive(
         hostId,
         handleId,
-        /** @type {FormulaIdentifier} */ (bundleId),
+        /** @type {FormulaIdentifier} */ (archiveId),
+        tasks,
+        workerId,
+        powersId,
+        env,
+        workerTrustedShims,
+        workerLabel,
+      );
+      return value;
+    };
+
+    /**
+     * Walk a ReadableTree or Mount and materialise every file into the
+     * destination Mount via `writeText`.  Children are identified by
+     * their advertised method names: anything with `text` is a
+     * blob/file; anything with `list` is a subtree.  Both Mount and
+     * ReadableTree surfaces participate.
+     *
+     * @param {any} src - source readable-tree or mount
+     * @param {any} dst - destination scratch mount (must be writable)
+     * @param {string[]} [pathSegments]
+     */
+    const materializeTree = async (src, dst, pathSegments = []) => {
+      const names = await E(src).list(...pathSegments);
+      for (const name of names) {
+        // Defense against an adversarial source tree that advertises
+        // path-traversal segments.  Mount.writeText would clamp
+        // these at the confinement root, but they would still cause
+        // the discovery walk to revisit parent directories.
+        if (name === '.' || name === '..' || name.includes('/')) {
+          throw makeError(
+            X`Invalid tree entry name ${q(name)} at ${q(pathSegments)}`,
+          );
+        }
+        const subPath = [...pathSegments, name];
+        // eslint-disable-next-line no-await-in-loop
+        const child = await E(src).lookup(subPath);
+        const methodNames =
+          // eslint-disable-next-line no-await-in-loop, no-underscore-dangle
+          await E(child).__getMethodNames__();
+        const looksLikeBlob = methodNames.includes('text');
+        const looksLikeTree = methodNames.includes('list');
+        if (looksLikeBlob && looksLikeTree) {
+          throw makeError(
+            X`Tree entry ${q(subPath)} has both text and list — ambiguous shape`,
+          );
+        } else if (looksLikeBlob) {
+          // eslint-disable-next-line no-await-in-loop
+          const content = await E(child).text();
+          // eslint-disable-next-line no-await-in-loop
+          await E(dst).writeText(subPath, content);
+        } else if (looksLikeTree) {
+          // Subdirectory — create it then recurse.
+          // eslint-disable-next-line no-await-in-loop
+          await E(dst).makeDirectory(subPath);
+          // eslint-disable-next-line no-await-in-loop
+          await materializeTree(src, dst, subPath);
+        } else {
+          throw makeError(
+            X`Tree entry ${q(subPath)} is neither a blob nor a subtree (methods: ${q(methodNames)})`,
+          );
+        }
+      }
+    };
+
+    /**
+     * Like stageTree, but returns both the ScratchMount capability and
+     * its on-disk formula identifier — callers that need the
+     * underlying filesystem path (e.g. `makeUnconfinedFromTree`) use
+     * the id with `getScratchMountPath`.  The public `stageTree`
+     * surface exposes only the mount capability.
+     *
+     * @param {string | string[]} treeName
+     * @param {string} scratchPetName
+     */
+    const stageTreeInternal = async (treeName, scratchPetName) => {
+      assertPetName(scratchPetName);
+      const treeNamePath = namePathFrom(/** @type {NameOrPath} */ (treeName));
+      assertNamePath(treeNamePath);
+      // Use identify + provide instead of a lookup chain to keep the
+      // source invariant (so Mount sub-node wrapping doesn't confuse
+      // the materialise walk).
+      const treeId = await E(directory).identify(...treeNamePath);
+      if (treeId === undefined) {
+        throw new TypeError(`Unknown pet name for tree: ${q(treeName)}`);
+      }
+      const tree = await provide(/** @type {FormulaIdentifier} */ (treeId));
+      // For live mounts, prefer to snapshot the source first so
+      // concurrent writes to the mount cannot perturb the running
+      // caplet.  ReadableTrees are already immutable.  Mount's
+      // `snapshot()` is not implemented at the time of writing
+      // (mount.js:305 throws); we therefore swallow that "not yet
+      // implemented" rejection and fall back to walking the live
+      // mount.  When mount.snapshot lands, this code path becomes
+      // automatically isolated.
+      let sourceForWalk = tree;
+      try {
+        // eslint-disable-next-line no-underscore-dangle
+        const methods = await E(/** @type {any} */ (tree)).__getMethodNames__();
+        if (methods.includes('snapshot')) {
+          sourceForWalk = await E(/** @type {any} */ (tree)).snapshot();
+        }
+      } catch (err) {
+        const msg = String((err && /** @type {any} */ (err).message) || err);
+        if (!msg.includes('not yet implemented')) throw err;
+      }
+      const scratchMount = await provideScratchMount(scratchPetName);
+      await materializeTree(sourceForWalk, scratchMount, []);
+      // Resolve the scratch mount's identifier after it's been stored
+      // by the deferred pet-store task inside provideScratchMount.
+      const scratchId = await E(directory).identify(scratchPetName);
+      if (scratchId === undefined) {
+        throw new TypeError(
+          `Internal error: scratch mount ${q(scratchPetName)} was not stored`,
+        );
+      }
+      const typedScratchId = /** @type {FormulaIdentifier} */ (scratchId);
+      return { scratchMount, scratchId: typedScratchId };
+    };
+
+    /** @type {EndoHost['stageTree']} */
+    const stageTree = async (treeName, scratchPetName) => {
+      const { scratchMount } = await stageTreeInternal(
+        treeName,
+        scratchPetName,
+      );
+      return scratchMount;
+    };
+
+    /** @type {EndoHost['makeUnconfinedFromTree']} */
+    const makeUnconfinedFromTree = async (workerName, treeName, options) => {
+      const entry = options?.entry ?? 'index.js';
+      const resultLabel =
+        options?.resultName !== undefined
+          ? `${options.resultName}`
+          : `tree-unconfined-${await (async () => {
+              // eslint-disable-next-line no-bitwise
+              const r = Math.floor(Math.random() * 0xffffff);
+              return r.toString(16);
+            })()}`;
+      // Scratch mount carries a derived pet name so the caller can
+      // observe / cancel it explicitly if desired.
+      const scratchPetName = `scratch-${resultLabel}`;
+      const { scratchId } = await stageTreeInternal(treeName, scratchPetName);
+      const scratchPath = getScratchMountPath(scratchId);
+      const entryPath = `${scratchPath}/${entry}`;
+      // Reuse the existing makeUnconfined flow (which already defaults
+      // to @node when no worker is named and handles env/powers).
+      // Encode path components so that characters like '#' (used in
+      // test directory suffixes) don't get interpreted as URL fragments.
+      const encodedPath = entryPath
+        .split('/')
+        .map(segment => encodeURIComponent(segment))
+        .join('/');
+      const fileUrl = `file://${encodedPath}`;
+      return makeUnconfined(
+        workerName,
+        fileUrl,
+        /** @type {MakeCapletOptions} */ (options ?? {}),
+      );
+    };
+
+    /** @type {EndoHost['makeFromTree']} */
+    const makeFromTree = async (workerName, treeName, options) => {
+      const namePath = namePathFrom(treeName);
+      assertNamePath(namePath);
+      const treeId = await E(directory).identify(...namePath);
+      if (treeId === undefined) {
+        throw new TypeError(`Unknown pet name for tree: ${q(treeName)}`);
+      }
+
+      const {
+        tasks,
+        workerId,
+        workerLabel: explicitLabel,
+        powersId,
+        env,
+        workerTrustedShims,
+      } = prepareMakeCaplet(
+        /** @type {Name | undefined} */ (workerName),
+        options,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (options?.resultName !== undefined
+          ? `${options.resultName}`
+          : `tree:${Array.isArray(treeName) ? treeName.join('/') : treeName}`);
+
+      const { value } = await formulateFromTree(
+        hostId,
+        handleId,
+        /** @type {FormulaIdentifier} */ (treeId),
         tasks,
         workerId,
         powersId,
@@ -1194,7 +1404,10 @@ export const makeHostMaker = ({
       provideWorker,
       evaluate,
       makeUnconfined,
-      makeBundle,
+      makeArchive,
+      makeFromTree,
+      stageTree,
+      makeUnconfinedFromTree,
       cancel,
       gateway,
       greeter,
@@ -1244,6 +1457,7 @@ export const makeHostMaker = ({
     );
 
     await provide(mainWorkerId, 'worker');
+    await provide(nodeWorkerId, 'worker');
 
     return hostExo;
   };

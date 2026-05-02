@@ -157,6 +157,23 @@ export const makeResidenceTracker = ({
           if (!formulaType || formulaType === 'invitation') {
             break;
           }
+          // In the bus daemon, a replacement node worker is created for
+          // caplets that require Node.js (make-unconfined, make-bundle).
+          // The original XS worker receives the caplet value as a
+          // transient CapTP return value from the creation call.  That
+          // worker should not be terminated merely for having held the
+          // reference; only workers that actively endow or retain the
+          // collected formula should be affected.
+          const formula = getFormula(id);
+          const cancelWithWorker = /** @type {any} */ (formula)
+            ?.cancelWithWorker;
+          const skipThisRetainer =
+            typeof cancelWithWorker === 'string' &&
+            cancelWithWorker.startsWith(`${workerId}:`);
+          if (skipThisRetainer) {
+            // eslint-disable-next-line no-continue
+            continue;
+          }
           const reason = new Error(
             `Formula ${q(formulaType)} became unreachable by any pet name path and was collected`,
           );
