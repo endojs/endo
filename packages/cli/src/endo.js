@@ -68,7 +68,10 @@ export const main = async rawArgs => {
     .command('run [<file>] [<args>...]')
     .description('runs a program (runlet)')
     .option(...commonOptions.as)
-    .option('-b,--bundle <bundle>', 'Bundle name for the caplet program')
+    .option(
+      '-z,--archive <archive>',
+      'Source-only ZIP archive name for the caplet program',
+    )
     .option(
       '--UNCONFINED <path>',
       'Or path of an unconfined plugin to run in Node.js',
@@ -86,7 +89,7 @@ export const main = async rawArgs => {
     .action(async (filePath, args, cmd) => {
       const {
         as: agentNames,
-        bundle: bundleName,
+        archive: archiveName,
         UNCONFINED: importPath,
         powers: powersName = '@none',
         env = {},
@@ -95,7 +98,7 @@ export const main = async rawArgs => {
       return run({
         filePath,
         args,
-        bundleName,
+        archiveName,
         importPath,
         powersName,
         agentNames,
@@ -107,7 +110,7 @@ export const main = async rawArgs => {
     .command('make [file]')
     .alias('mk')
     .description('make a plugin or a worker caplet (worklet)')
-    .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
+    .option('-z,--archive <archive>', 'Source-only ZIP archive name')
     .option('--UNCONFINED <file>', 'Path to a Node.js module')
     .option(...commonOptions.as)
     .option('-p,--powers <name>', 'Name of powers to grant or NONE, SELF, ENDO')
@@ -126,7 +129,7 @@ export const main = async rawArgs => {
       const {
         UNCONFINED: importPath,
         name: resultName,
-        bundle: bundleName,
+        archive: archiveName,
         worker: workerName = undefined,
         as: agentNames,
         powers: powersName = '@none',
@@ -137,7 +140,7 @@ export const main = async rawArgs => {
         filePath,
         importPath,
         resultName,
-        bundleName,
+        archiveName,
         workerName,
         agentNames,
         powersName,
@@ -593,28 +596,30 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('bundle <application-path>')
-    .description('stores a program')
+    .command('archive <application-path>')
+    .description(
+      'stores a program as a source-only ZIP archive (compatible with Rust workers)',
+    )
     .option(...commonOptions.as)
     .option(...commonOptions.name)
     .option(
       '--common-dep <name>',
-      'Specify common dependency for bundle (eg node builtin package shims)',
+      'Specify common dependency for archive (eg node builtin package shims)',
       parseOptionAsMapping,
       {},
     )
     .action(async (applicationPath, cmd) => {
       const {
-        name: bundleName,
+        name: archiveName,
         as: agentNames,
         commonDep: commonDependencies,
       } = cmd.opts();
-      const { bundleCommand } = await import('./commands/bundle.js');
-      return bundleCommand({
+      const { archiveCommand } = await import('./commands/archive.js');
+      return archiveCommand({
         applicationPath,
-        bundleName,
+        archiveName,
         agentNames,
-        bundleOptions: {
+        archiveOptions: {
           commonDependencies,
         },
       });
@@ -912,7 +917,7 @@ export const main = async rawArgs => {
 
     {
       title: 'Execution',
-      commands: ['run', 'make', 'eval', 'spawn', 'bundle', 'install', 'open'],
+      commands: ['run', 'make', 'eval', 'spawn', 'archive', 'install', 'open'],
     },
 
     {
