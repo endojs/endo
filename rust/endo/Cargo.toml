@@ -1,0 +1,27 @@
+[package]
+name = "endo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hex = "0.4"
+libc = "0.2"
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "signal", "process", "io-util", "net", "time"] }
+xsnap = { path = "xsnap" }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3"
+
+[[bin]]
+name = "endor"
+path = "src/bin/endor.rs"
+
+[[bench]]
+name = "codec"
+harness = false
