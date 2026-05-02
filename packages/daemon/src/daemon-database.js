@@ -1,6 +1,5 @@
 // @ts-check
 
-import Database from 'better-sqlite3';
 import harden from '@endo/harden';
 import { q } from '@endo/errors';
 
@@ -109,10 +108,24 @@ const SCHEMA_SQL = `
 /**
  * Open or create the daemon SQLite database.
  *
+ * The Database constructor is injectable so the same schema and
+ * statement layer can target either Node's `better-sqlite3` (the
+ * default, supplied by `daemon-database-node.js`) or the XS
+ * Rust-supervisor shim (`./better-sqlite3-xs.js`), both of which
+ * present the same synchronous prepared-statement surface.
+ *
  * @param {Config} config
+ * @param {object} options
+ * @param {new (path: string) => any} options.Database
  * @returns {DaemonDatabase}
  */
-export const makeDaemonDatabase = config => {
+export const makeDaemonDatabase = (config, options) => {
+  const { Database } = options;
+  if (typeof Database !== 'function') {
+    throw new TypeError(
+      'makeDaemonDatabase requires options.Database (a better-sqlite3-compatible constructor)',
+    );
+  }
   const dbPath = `${config.statePath}/endo.sqlite`;
   const db = new Database(dbPath);
 
