@@ -336,6 +336,12 @@ const runEndo = async (detached, config) => {
   // waitForSpawn is unnecessary here: waitForMessage already listens
   // for the 'error' event on the child process.
   const message = await waitForMessage(child).catch(cause => {
+    // Disconnect the IPC channel so the parent process is not held alive
+    // by a child that never reached the 'ready' message. Without this,
+    // ava workers fail to exit (see "failure to start" test).
+    if (child.connected) {
+      child.disconnect();
+    }
     throw Error(`Daemon failed to spawn ${cause.message}, see (${logPath})`);
   });
   child.disconnect();
