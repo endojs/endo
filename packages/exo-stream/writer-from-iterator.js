@@ -48,25 +48,29 @@ export const writerFromIterator = (iterator, options = {}) => {
 
   return /** @type {PassableWriter<TWrite, TWriteReturn>} */ (
     /** @type {unknown} */ (
-      makeExo('PassableWriter', PassableWriterInterface, /** @type {any} */ ({
-        stream: pump,
+      makeExo(
+        'PassableWriter',
+        PassableWriterInterface,
+        /** @type {any} */ ({
+          stream: pump,
 
-        /**
-         * Returns the pattern for validating TWrite (yielded values).
-         * @returns {Pattern | undefined}
-         */
-        writePattern() {
-          return writePattern;
-        },
+          /**
+           * Returns the pattern for validating TWrite (yielded values).
+           * @returns {Pattern | undefined}
+           */
+          writePattern() {
+            return writePattern;
+          },
 
-        /**
-         * Returns the pattern for validating TWriteReturn (return value).
-         * @returns {Pattern | undefined}
-         */
-        writeReturnPattern() {
-          return writeReturnPattern;
-        },
-      }))
+          /**
+           * Returns the pattern for validating TWriteReturn (return value).
+           * @returns {Pattern | undefined}
+           */
+          writeReturnPattern() {
+            return writeReturnPattern;
+          },
+        }),
+      )
     )
   );
 };

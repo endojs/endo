@@ -49,25 +49,29 @@ export const readerFromIterator = (iterator, options = {}) => {
 
   return /** @type {PassableReader<TRead, TReadReturn>} */ (
     /** @type {unknown} */ (
-      makeExo('PassableReader', PassableReaderInterface, /** @type {any} */ ({
-        stream: pump,
+      makeExo(
+        'PassableReader',
+        PassableReaderInterface,
+        /** @type {any} */ ({
+          stream: pump,
 
-        /**
-         * Returns the pattern for validating TRead (yielded values).
-         * @returns {Pattern | undefined}
-         */
-        readPattern() {
-          return readPattern;
-        },
+          /**
+           * Returns the pattern for validating TRead (yielded values).
+           * @returns {Pattern | undefined}
+           */
+          readPattern() {
+            return readPattern;
+          },
 
-        /**
-         * Returns the pattern for validating TReadReturn (return value).
-         * @returns {Pattern | undefined}
-         */
-        readReturnPattern() {
-          return readReturnPattern;
-        },
-      }))
+          /**
+           * Returns the pattern for validating TReadReturn (return value).
+           * @returns {Pattern | undefined}
+           */
+          readReturnPattern() {
+            return readReturnPattern;
+          },
+        }),
+      )
     )
   );
 };
