@@ -38,7 +38,7 @@
     "test:rebuild-fixtures": "node test/rebuild-fixtures.js"
   },
   "devDependencies": {
-    "@babel/types": "~7.28.2",
+    "@babel/types": "~7.29.0",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
@@ -73,7 +73,7 @@
   },
   "dependencies": {
     "@babel/generator": "^7.28.3",
-    "@babel/parser": "~7.28.3",
-    "@babel/traverse": "~7.28.3"
+    "@babel/parser": "~7.29.3",
+    "@babel/traverse": "~7.29.0"
   }
 }

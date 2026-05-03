@@ -50,7 +50,7 @@
     "appdmg": "^0.6.6",
     "electron": "^40.8.0",
     "electron-installer-dmg": "^5.0.1",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.28.0",
     "eslint": "catalog:dev",
     "typescript": "~5.9.2"
   },

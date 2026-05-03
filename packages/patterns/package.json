@@ -55,7 +55,7 @@
     "eslint-plugin-import": "^2.31.0",
     "prettier": "^3.5.3",
     "ses": "workspace:^",
-    "tsd": "^0.31.2",
+    "tsd": "^0.33.0",
     "typescript": "catalog:dev"
   },
   "files": [
