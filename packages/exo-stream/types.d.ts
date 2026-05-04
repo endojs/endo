@@ -192,15 +192,17 @@ export interface PassableBytesWriter<
  * Local bytes writer iterator returned by iterateBytesWriter.
  * Ensures return() and throw() are present.
  */
-export interface BytesWriterIterator<TWriteReturn extends Passable = undefined>
-  extends WriterIterator<Uint8Array, TWriteReturn> {}
+export interface BytesWriterIterator<
+  TWriteReturn extends Passable = undefined,
+> extends WriterIterator<Uint8Array, TWriteReturn> {}
 
 /**
  * Local bytes reader iterator returned by iterateBytesReader.
  * Ensures return() and throw() are present.
  */
-export interface BytesReaderIterator<TReadReturn extends Passable = undefined>
-  extends ReaderIterator<Uint8Array, TReadReturn> {}
+export interface BytesReaderIterator<
+  TReadReturn extends Passable = undefined,
+> extends ReaderIterator<Uint8Array, TReadReturn> {}
 
 /**
  * Options for makeReader pump.

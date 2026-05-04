@@ -43,9 +43,8 @@ const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
  * @returns {Promise<{ relayUrl: string, relayDomain: string, teardown: () => Promise<void> }>}
  */
 const startLocalRelay = async (domain = 'test.local') => {
-  const { makeRelay: makeRelayServer } = await import(
-    '@endo/relay-server/relay.js'
-  );
+  const { makeRelay: makeRelayServer } =
+    await import('@endo/relay-server/relay.js');
   const relay = makeRelayServer(domain);
 
   const server = http.createServer((_req, res) => {

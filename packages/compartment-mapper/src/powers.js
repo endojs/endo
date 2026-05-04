@@ -79,10 +79,10 @@ const requiredReadNowPowersProps = freeze(
 export const isReadNowPowers = value =>
   Boolean(
     value &&
-      typeof value === 'object' &&
-      requiredReadNowPowersProps.every(
-        prop => prop in value && typeof value[prop] === 'function',
-      ),
+    typeof value === 'object' &&
+    requiredReadNowPowersProps.every(
+      prop => prop in value && typeof value[prop] === 'function',
+    ),
   );
 
 /**

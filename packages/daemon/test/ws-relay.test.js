@@ -46,9 +46,8 @@ const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 const startLocalRelay = async (domain = 'test.local') => {
   // We import makeRelay from the relay-server *package*, not from protocol.
   // The protocol module doesn't export makeRelay — relay.js does.
-  const { makeRelay: makeRelayServer } = await import(
-    '@endo/relay-server/relay.js'
-  );
+  const { makeRelay: makeRelayServer } =
+    await import('@endo/relay-server/relay.js');
   const relay = makeRelayServer(domain);
 
   const server = http.createServer((_req, res) => {

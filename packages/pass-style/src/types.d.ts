@@ -116,12 +116,18 @@ export type Container<PC extends PassableCap, E extends Error> =
   | CopyArrayInterface<PC, E>
   | CopyRecordInterface<PC, E>
   | CopyTaggedInterface<PC, E>;
-export interface CopyArrayInterface<PC extends PassableCap, E extends Error>
-  extends CopyArray<Passable<PC, E>> {}
-export interface CopyRecordInterface<PC extends PassableCap, E extends Error>
-  extends CopyRecord<Passable<PC, E>> {}
-export interface CopyTaggedInterface<PC extends PassableCap, E extends Error>
-  extends CopyTagged<string, Passable<PC, E>> {}
+export interface CopyArrayInterface<
+  PC extends PassableCap,
+  E extends Error,
+> extends CopyArray<Passable<PC, E>> {}
+export interface CopyRecordInterface<
+  PC extends PassableCap,
+  E extends Error,
+> extends CopyRecord<Passable<PC, E>> {}
+export interface CopyTaggedInterface<
+  PC extends PassableCap,
+  E extends Error,
+> extends CopyTagged<string, Passable<PC, E>> {}
 
 export type PassStyleOf = {
   (p: undefined): 'undefined';
