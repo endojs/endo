@@ -67,6 +67,8 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['formulateArchive']} args.formulateArchive
  * @param {DaemonCore['formulateFromTree']} args.formulateFromTree
  * @param {(id: FormulaIdentifier) => string} args.getScratchMountPath
+ * @param {(id: FormulaIdentifier) => string} args.getMountHostPath
+ * @param {(ref: unknown) => FormulaIdentifier | undefined} args.getIdForRef
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['checkinTree']} args.checkinTree
  * @param {DaemonCore['formulateMount']} args.formulateMount
@@ -119,6 +121,10 @@ export const makeHostMaker = ({
   localNodeNumber,
   isLocalKey,
   getAgentIdForHandleId,
+  getMountHostPath = /** @param {FormulaIdentifier} _id */ _id => {
+    throw makeError(X`getMountHostPath not wired into makeHostMaker`);
+  },
+  getIdForRef = /** @param {unknown} _ref */ _ref => undefined,
   writeRemoteAgentKey = /** @param {string} _pk @param {string} _dn */ (
     _pk,
     _dn,
@@ -270,6 +276,44 @@ export const makeHostMaker = ({
 
       const { value } = await formulateMount(mountPath, readOnly, tasks);
       return value;
+    };
+
+    /**
+     * Resolve a `Mount` capability to its host filesystem path.
+     *
+     * This is the privileged operation that bridges the Endo
+     * capability graph and the kernel's bind-mount surface — the
+     * sandbox factory (`@endo/sandbox`) calls this for every granted
+     * mount before assembling the driver's `SliceSpec`.  Sandbox
+     * drivers themselves never call it; only the factory does.
+     *
+     * The resolver rejects any cap the daemon did not mint as a
+     * top-level `mount` or `scratch-mount` formula, including
+     * subdirectory views minted by `Mount.lookup()` and read-only
+     * attenuations minted by `Mount.readOnly()` — those exos do not
+     * have a formula identifier so we cannot prove they were minted
+     * by this daemon.  Callers that need to grant a subdirectory
+     * should mint a fresh `provideMount(absolutePath, …)` against the
+     * subdirectory's host path instead.
+     *
+     * @param {unknown} cap
+     * @returns {Promise<string>}
+     */
+    const provideHostPath = async cap => {
+      await null;
+      // Only locally-minted mount formulas are resolvable.  CapTP
+      // round-trips preserve exo identity, so a cap originating from
+      // this daemon's `provideMount` / `provideScratchMount` will
+      // resolve to the formula identifier it was registered against
+      // even when it has been passed through a worker boundary.
+      const id = getIdForRef(cap);
+      if (id === undefined) {
+        throw makeError(X`provideHostPath: cap is not a daemon-minted mount`);
+      }
+      // getMountHostPath asserts the formula is a top-level
+      // `mount` / `scratch-mount` and surfaces the same structured
+      // error pattern the rest of the daemon uses.
+      return getMountHostPath(/** @type {FormulaIdentifier} */ (id));
     };
 
     /**
@@ -1399,6 +1443,7 @@ export const makeHostMaker = ({
       storeTree,
       provideMount,
       provideScratchMount,
+      provideHostPath,
       provideGuest,
       provideHost,
       provideWorker,

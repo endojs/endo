@@ -174,14 +174,22 @@ graph and the kernel's bind-mount surface.
 Drivers never call it — only the factory does, when assembling a
 `SliceSpec`.
 
-The current daemon does not yet ship a wiring for `provideHostPath`
-out of the box; callers grant it explicitly when constructing the
-plugin.
-The test stub in
-[`test/bwrap.test.js`](./test/bwrap.test.js) is the canonical
-example.
-A future patch will add a `provideMountHostPath`-shaped power to
-`@endo/daemon` that the entry point can pick up automatically.
+The daemon's `EndoHost` exposes both `provideScratchMount` and
+`provideHostPath`, so a caller invoking
+`endo run --UNCONFINED packages/sandbox/src/agent.js` with
+`--powers @host` (the default for `make-unconfined`) gets the full
+`SandboxPowers` surface for free — no per-caller stub is required.
+The resolver lives at `packages/daemon/src/host.js` `provideHostPath`;
+it rejects any cap the daemon did not mint as a top-level `mount`
+or `scratch-mount` formula, so an arbitrary remote object that quacks
+like a mount cannot trick the factory into bind-mounting a host path.
+
+Backend-agnostic factory tests
+([`test/bwrap.test.js`](./test/bwrap.test.js),
+[`test/podman.test.js`](./test/podman.test.js)) still construct a stub
+`provideHostPath` that maps stub Mount exos to real tmpdirs; those
+stubs are unit-test fixtures that exercise the factory without
+standing up a full daemon.
 
 ## Network profiles
 
@@ -413,8 +421,13 @@ npx corepack yarn lint
 ```
 
 The bwrap test suite uses a stub `provideHostPath` that maps a stub
-`Mount` exo to a real tmpdir, so tests can exercise mount caps
-without the daemon's full mount-resolution wiring.
+`Mount` exo to a real tmpdir, so the backend-agnostic tests can
+exercise mount caps without standing up a full daemon.  The daemon
+ships its own `provideHostPath` on `EndoHost`; the round-trip
+(`provideMount(path)` → `E(host).provideHostPath(cap)` returns the
+original path) is covered by
+`packages/daemon/test/endo.test.js` § "provideHostPath resolves Mount
+caps to host paths".
 
 ## Phase 1.5 status notes
 

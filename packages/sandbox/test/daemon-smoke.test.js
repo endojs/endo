@@ -12,9 +12,14 @@ import { E } from '@endo/eventual-send';
  * (`__getMethodNames__()`) and the documented Phase 0 contract
  * (`listBackends()` returning `[]`).
  *
- * A full end-to-end test that spins up a real daemon and uses
- * `E(host).makeUnconfined(...)` is deferred to Phase 1, where the bwrap
- * driver gives `listBackends()` a non-trivial result to round-trip.
+ * A separate `daemon-shipped provideHostPath` case spins up a real
+ * `@endo/daemon` and verifies that the host's `provideHostPath` method
+ * is wired correctly: `provideMount(path)` → grant the resulting Mount
+ * cap to a sandbox factory whose `scratchProvider` is the EndoHost →
+ * the factory's `resolveHostPath` round-trips the cap back to the
+ * original host filesystem path.  This is the daemon-side companion to
+ * the stub `provideHostPath` used by the backend-agnostic factory
+ * tests in `bwrap.test.js` / `podman.test.js`.
  */
 
 const stubScratchProvider = harden({

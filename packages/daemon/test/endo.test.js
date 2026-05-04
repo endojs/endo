@@ -4300,6 +4300,47 @@ test('scratch mount persists across restart', async t => {
   }
 });
 
+test('provideHostPath resolves Mount caps to host paths', async t => {
+  const { host, config } = await prepareHost(t);
+
+  // 1. Mint a regular Mount via provideMount, look it up, and round-trip
+  //    it through provideHostPath.  The host path returned must equal
+  //    the path we originally supplied.
+  const mountPath = path.join(config.statePath, '..', 'host-path-mount');
+  await createMountFixture(mountPath, { 'sentinel.txt': 'present' });
+  await E(host).provideMount(mountPath, 'host-path-mount');
+  const mount = await E(host).lookup(['host-path-mount']);
+  const resolved = await E(host).provideHostPath(mount);
+  t.is(resolved, mountPath);
+
+  // 2. Mint a daemon-managed scratch mount and verify its host path
+  //    lives under <statePath>/mounts/.
+  await E(host).provideScratchMount('host-path-scratch');
+  const scratch = await E(host).lookup(['host-path-scratch']);
+  const scratchPath = await E(host).provideHostPath(scratch);
+  const expectedScratchRoot = path.join(config.statePath, 'mounts');
+  t.true(
+    scratchPath.startsWith(`${expectedScratchRoot}${path.sep}`),
+    `scratch path ${scratchPath} should live under ${expectedScratchRoot}`,
+  );
+
+  // 3. Subdirectory views of a Mount are minted lazily as fresh exos
+  //    that the daemon does not register against a formula identifier.
+  //    provideHostPath must reject them with a structured error rather
+  //    than silently returning the parent mount's path.
+  const subdir = await E(mount).lookup('sentinel.txt'); // a Mount file
+  await t.throwsAsync(() => E(host).provideHostPath(subdir), {
+    message: /not a daemon-minted mount/,
+  });
+
+  // 4. An arbitrary remote object that quacks like a mount must also
+  //    be rejected — the resolver must never trust duck-typed inputs.
+  const fake = Far('FakeMount', { help: () => 'fake' });
+  await t.throwsAsync(() => E(host).provideHostPath(fake), {
+    message: /not a daemon-minted mount/,
+  });
+});
+
 test('mount file writeText and json', async t => {
   const { host, config } = await prepareHost(t);
 
