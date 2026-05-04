@@ -19,6 +19,7 @@
   "main": "./src/agent.js",
   "exports": {
     ".": "./src/agent.js",
+    "./types.js": "./src/types.d.ts",
     "./factory.js": "./src/factory.js",
     "./interfaces.js": "./src/interfaces.js",
     "./package.json": "./package.json"

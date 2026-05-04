@@ -18,14 +18,23 @@
 
 import harden from '@endo/harden';
 
-import { bash, exec, makeCommandTool } from './command.js';
+import {
+  bash,
+  exec,
+  makeBashTool,
+  makeCommandTool,
+  makeExecTool,
+} from './command.js';
 import { makeFileTools } from './filesystem.js';
 import { makeMemoryTools } from './memory.js';
+import { makeMountVFS } from './vfs-mount.js';
 import { webFetch } from './web-fetch.js';
 import { webSearch } from './web-search.js';
 
 /** @import { Tool } from './common.js' */
 /** @import { SearchBackend } from './memory.js' */
+/** @import { Spawner } from './spawner.js' */
+/** @import { MountVFSCap } from './vfs-mount.js' */
 
 /**
  * A group of tools that can be toggled on or off via the `include`
@@ -106,24 +115,48 @@ export const PLUGIN_DEFAULT_INCLUDE = harden([
  * @param {readonly GenieToolGroup[]} [options.include]
  *   - An empty list builds an empty registry.
  * @param {SearchBackend} [options.searchBackend]
+ * @param {Spawner} [options.spawner]
+ *   - Process-execution engine for the `bash` / `exec` / `git`
+ *     tools.  When omitted, those tools fall through to the host
+ *     spawner baked into `command.js` (the default for the
+ *     `dev-repl` and any host-only deployment).  When supplied
+ *     (e.g. a sandbox spawner from `./sandbox-spawner.js`), the
+ *     command tools spawn through it instead — file / memory / web
+ *     tools continue to run daemon-side.
+ * @param {MountVFSCap} [options.workspaceMount]
+ *   - Optional Endo `Mount` capability rooted at `workspaceDir`.
+ *     When supplied, the `files` tool group routes its reads and
+ *     writes through the cap surface (`makeMountVFS`) instead of
+ *     holding ambient host fs authority via `makeNodeVFS`.  The
+ *     `memory` group and FTS5 search backend continue to use the
+ *     host path because they rely on Node-specific APIs (FTS5 SQLite,
+ *     atomic writes) that have no Mount equivalent — the slice's
+ *     bind-mount lands on the same bytes either way, so the two
+ *     views still stay in lockstep.
  * @returns {GenieTools}
  */
 export const buildGenieTools = ({
   workspaceDir,
   searchBackend,
   include = PLUGIN_DEFAULT_INCLUDE,
+  spawner,
+  workspaceMount,
 }) => {
   const groups = new Set(include);
 
   /** @type {Record<string, Tool>} */
   const tools = {};
 
+  // When a spawner is injected, rebuild the bash / exec tools so the
+  // override flows through to the underlying makeCommandTool factory
+  // while preserving the pre-built dangerous-pattern policies.
+  // Otherwise reuse the pre-built host-spawner exports verbatim.
   if (groups.has('bash')) {
-    tools.bash = bash;
+    tools.bash = spawner ? makeBashTool({ spawner }) : bash;
   }
 
   if (groups.has('exec')) {
-    tools.exec = exec;
+    tools.exec = spawner ? makeExecTool({ spawner }) : exec;
   }
 
   if (groups.has('git')) {
@@ -145,11 +178,25 @@ export const buildGenieTools = ({
           );
         },
       ],
+      ...(spawner ? { spawner } : {}),
     });
   }
 
   if (groups.has('files')) {
-    Object.assign(tools, makeFileTools({ root: workspaceDir }));
+    // When the caller passed a `workspaceMount` cap, route the file
+    // tools through the Mount surface so the genie's daemon-side
+    // reads and writes ride the cap minted by `setup.js` instead of
+    // ambient host fs authority.  The `vfs-mount` adapter uses POSIX
+    // path semantics, so `root` stays a string (the host path) and
+    // the adapter strips that prefix to derive the segment list it
+    // forwards to the Mount.
+    const fileTools = workspaceMount
+      ? makeFileTools({
+          root: workspaceDir,
+          vfs: makeMountVFS({ mount: workspaceMount, rootDir: workspaceDir }),
+        })
+      : makeFileTools({ root: workspaceDir });
+    Object.assign(tools, fileTools);
   }
 
   /** @type {MemoryToolBundle | undefined} */

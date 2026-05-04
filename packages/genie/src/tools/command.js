@@ -1,5 +1,5 @@
 // @ts-check
-/* global process, setTimeout, clearTimeout */
+/* global setTimeout, clearTimeout */
 /* eslint-disable no-continue, no-await-in-loop */
 
 /**
@@ -28,15 +28,22 @@
  *   policies: [],
  * });
  * ```
+ *
+ * The actual process-execution engine is pluggable via the
+ * `spawner` option (see {@link makeHostSpawner} and the sandbox
+ * spawner in `./sandbox-spawner.js`).  The timeout / kill /
+ * output-accumulation loop lives here in `makeCommandTool` so it
+ * stays uniform regardless of spawner.
  */
 
-import { spawn } from 'child_process';
-import * as fs from 'fs';
-import { join, resolve, relative } from 'path';
+import { resolve, relative } from 'path';
 
 import harden from '@endo/harden';
 import { M } from '@endo/patterns';
 import { makeTool } from './common.js';
+import { makeHostSpawner } from './spawner.js';
+
+/** @import { Spawner } from './spawner.js' */
 
 // ---------------------------------------------------------------------------
 // Policy-item types
@@ -181,6 +188,106 @@ const DANGEROUS_PATTERNS = harden([
 ]);
 
 // ---------------------------------------------------------------------------
+// Process supervision (timeout / kill / output accumulation)
+// ---------------------------------------------------------------------------
+
+/**
+ * Drain an async-iterable byte stream into a UTF-8 string.  Returns
+ * an empty string when the stream is null / undefined (i.e. the
+ * spawner did not capture this channel).
+ *
+ * Errors raised by the iterable are swallowed: a process kill mid-
+ * stream typically surfaces as an `EPIPE` / read-after-close error
+ * the caller does not need to distinguish from clean EOF.
+ *
+ * @param {AsyncIterable<Uint8Array> | null | undefined} stream
+ * @returns {Promise<string>}
+ */
+const drainToString = async stream => {
+  await null;
+  if (stream === null || stream === undefined) return '';
+  const decoder = new TextDecoder('utf-8');
+  let acc = '';
+  try {
+    for await (const chunk of stream) {
+      acc += decoder.decode(chunk, { stream: true });
+    }
+    acc += decoder.decode();
+  } catch {
+    // ignore: the process may have been killed mid-stream.
+  }
+  return acc;
+};
+
+/**
+ * Supervise a {@link ProcessLike} until it exits, draining its
+ * stdout / stderr and enforcing a soft-kill timeout.  This loop is
+ * deliberately spawner-agnostic so the host and sandbox spawners can
+ * share it.
+ *
+ * @param {object} args
+ * @param {string} args.name
+ * @param {import('./spawner.js').ProcessLike} args.proc
+ * @param {number} args.timeoutMs
+ * @param {boolean} args.allowPath
+ * @param {string} args.cwd
+ * @param {string} args.fullCommand
+ * @returns {Promise<{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}>}
+ */
+const runProcess = async ({
+  name,
+  proc,
+  timeoutMs,
+  allowPath,
+  cwd,
+  fullCommand,
+}) => {
+  let killed = false;
+  const timer = setTimeout(() => {
+    killed = true;
+    void proc.kill('SIGTERM');
+  }, timeoutMs);
+
+  let stdout = '';
+  let stderr = '';
+  /** @type {{ code: number | null; signal: string | null }} */
+  let status = { code: null, signal: null };
+  try {
+    [stdout, stderr, status] = await Promise.all([
+      drainToString(proc.stdout ?? undefined),
+      drainToString(proc.stderr ?? undefined),
+      proc.wait(),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (killed) {
+    throw new Error(`${name} timed out after ${timeoutMs}ms`);
+  }
+  const exitCode = status.code ?? -1;
+  if (exitCode !== 0) {
+    const err = new Error(`Command failed with exit code ${exitCode}`);
+    // @ts-expect-error — attach extra fields for callers
+    err.code = exitCode;
+    throw err;
+  }
+
+  /** @type {{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}} */
+  const out = {
+    success: true,
+    command: fullCommand,
+    stdout: stdout.trim(),
+    stderr: stderr.trim(),
+    exitCode: 0,
+  };
+  if (allowPath) {
+    out.path = cwd;
+  }
+  return out;
+};
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -204,8 +311,14 @@ const DANGEROUS_PATTERNS = harden([
  *   before execution.
  * @property {number}    [defaultTimeout]  - Default timeout in ms
  *   (default: 30 000).
- * @property {string}    [searchPath]      - $PATH override
+ * @property {string}    [searchPath]      - $PATH override (only honoured
+ *   by the default host spawner; ignored when an explicit `spawner` is
+ *   supplied).
  * @property {boolean}   [shell]           - whether to execute thru a shell
+ * @property {Spawner}   [spawner]         - Process-execution engine.
+ *   Defaults to a freshly-built host spawner (see
+ *   {@link makeHostSpawner}).  Pass a sandbox spawner to run the tool
+ *   inside an `@endo/sandbox` slice.
  */
 
 /**
@@ -221,32 +334,12 @@ const makeCommandTool = ({
   allowPath = false,
   policies = [],
   defaultTimeout = 30_000,
-  searchPath = process.env.PATH || '',
+  searchPath,
   shell = false,
+  spawner = makeHostSpawner(
+    searchPath !== undefined ? { searchPath } : undefined,
+  ),
 }) => {
-  /**
-   * @param {string} prog
-   */
-  const whichProgram = async prog => {
-    await Promise.resolve();
-    const isWin = process.platform === 'win32';
-    const pathDirs = searchPath.split(isWin ? ';' : ':');
-    for (const dir of pathDirs) {
-      if (!dir) continue;
-      const candidate = join(dir, prog);
-      try {
-        const stats = await fs.promises.stat(candidate);
-        // eslint-disable-next-line no-bitwise
-        if (isWin ? stats.isFile() : (stats.mode & 0o111) !== 0) {
-          return candidate;
-        }
-      } catch {
-        // not found in this dir
-      }
-    }
-    return null;
-  };
-
   const hasProgram = program !== undefined;
 
   // -- schema pieces --------------------------------------------------------
@@ -314,13 +407,6 @@ const makeCommandTool = ({
         path: cwd = '.',
       } = opts;
 
-      // Resolve the executable
-      const prog = program || args[0] || 'false';
-      const exe = await whichProgram(prog);
-      if (!exe) {
-        throw new Error(`command not found: ${prog}`);
-      }
-
       // Run all policies.
       for (const policy of policies) {
         policy(args);
@@ -333,76 +419,25 @@ const makeCommandTool = ({
         }
       }
 
-      const spawnArgs = hasProgram ? args : args.slice(1);
-
       // Build the full command: when a program is configured, prepend it.
       const allArgs = hasProgram ? [program, ...args] : args;
       const fullCommand = JSON.stringify(allArgs);
 
+      const spawnerOpts = {
+        ...(allowPath ? { cwd } : {}),
+        shell,
+      };
+
       try {
-        /** @type {Promise<{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}>} */
-        // eslint-disable-next-line no-shadow
-        const result = new Promise((resolve, reject) => {
-          const child = spawn(exe, spawnArgs, {
-            ...(allowPath ? { cwd } : {}),
-            env: {
-              ...process.env,
-              PATH: process.env.PATH,
-            },
-            shell,
-          });
-
-          let stdout = '';
-          let stderr = '';
-          let killed = false;
-
-          const timer = setTimeout(() => {
-            killed = true;
-            child.kill('SIGTERM');
-          }, timeoutMs);
-
-          child.stdout.on('data', chunk => {
-            stdout += chunk;
-          });
-
-          child.stderr.on('data', chunk => {
-            stderr += chunk;
-          });
-
-          child.on('error', err => {
-            clearTimeout(timer);
-            reject(err);
-          });
-
-          child.on('close', exitCode => {
-            clearTimeout(timer);
-            if (killed) {
-              reject(new Error(`${name} timed out after ${timeoutMs}ms`));
-              return;
-            }
-            if (exitCode !== 0) {
-              const err = new Error(
-                `Command failed with exit code ${exitCode}`,
-              );
-              // @ts-expect-error — attach extra fields for callers
-              err.code = exitCode;
-              reject(err);
-              return;
-            }
-            const out = {
-              success: true,
-              command: fullCommand,
-              stdout: stdout.trim(),
-              stderr: stderr.trim(),
-              exitCode: 0,
-            };
-            if (allowPath) {
-              out.path = cwd;
-            }
-            resolve(out);
-          });
+        const proc = await spawner(allArgs, spawnerOpts);
+        return await runProcess({
+          name,
+          proc,
+          timeoutMs,
+          allowPath,
+          cwd,
+          fullCommand,
         });
-        return result;
       } catch (err) {
         throw new Error(`${name} execution failed: ${err.message}`);
       }
@@ -416,35 +451,58 @@ harden(makeCommandTool);
 // ---------------------------------------------------------------------------
 
 /**
- * General-purpose system command tool with dangerous-pattern blocking.
+ * Build a fresh `exec` tool — a general-purpose, non-shell system
+ * command tool with dangerous-pattern blocking.  Accepts an optional
+ * spawner override so a sandbox-aware caller (e.g. the daemon-hosted
+ * genie's tool registry) can route execution through a slice.
+ *
+ * @param {{ spawner?: Spawner }} [options]
  */
-const exec = makeCommandTool({
-  name: 'exec',
-  description: [
-    'Runs a system command (ls, grep, find, cat, curl, etc.).',
-    'Use for general tasks not covered by other tools.',
-    'NOTE: does not execute through a shell',
-  ].join('\n'),
-  policies: [rejectPatterns(DANGEROUS_PATTERNS)],
-});
-harden(exec);
+const makeExecTool = ({ spawner } = {}) =>
+  makeCommandTool({
+    name: 'exec',
+    description: [
+      'Runs a system command (ls, grep, find, cat, curl, etc.).',
+      'Use for general tasks not covered by other tools.',
+      'NOTE: does not execute through a shell',
+    ].join('\n'),
+    policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+    ...(spawner ? { spawner } : {}),
+  });
+harden(makeExecTool);
 
 /**
- * General-purpose shell tool with dangerous-pattern blocking.
+ * Build a fresh `bash` tool — a general-purpose shell tool with
+ * dangerous-pattern blocking.  Accepts an optional spawner override
+ * (see {@link makeExecTool}).
+ *
+ * @param {{ spawner?: Spawner }} [options]
  */
-const bash = makeCommandTool({
-  name: 'bash',
-  description: [
-    'Runs a shell command (ls, grep, find, cat, curl, etc.).',
-    'Use for general tasks not covered by other tools.',
-  ].join('\n'),
-  policies: [rejectPatterns(DANGEROUS_PATTERNS)],
-  shell: true,
-});
+const makeBashTool = ({ spawner } = {}) =>
+  makeCommandTool({
+    name: 'bash',
+    description: [
+      'Runs a shell command (ls, grep, find, cat, curl, etc.).',
+      'Use for general tasks not covered by other tools.',
+    ].join('\n'),
+    policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+    shell: true,
+    ...(spawner ? { spawner } : {}),
+  });
+harden(makeBashTool);
+
+/** Default host-spawner-backed exec tool. */
+const exec = makeExecTool();
+harden(exec);
+
+/** Default host-spawner-backed bash tool. */
+const bash = makeBashTool();
 harden(bash);
 
 export {
   makeCommandTool,
+  makeBashTool,
+  makeExecTool,
   bash,
   exec,
   rejectPatterns,

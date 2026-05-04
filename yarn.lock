@@ -1992,6 +1992,7 @@ __metadata:
     "@endo/marshal": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
+    "@endo/sandbox": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"
     "@mariozechner/pi-agent-core": "npm:^0.73.1"
@@ -2493,7 +2494,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/sandbox@workspace:packages/sandbox":
+"@endo/sandbox@workspace:^, @endo/sandbox@workspace:packages/sandbox":
   version: 0.0.0-use.local
   resolution: "@endo/sandbox@workspace:packages/sandbox"
   dependencies:
