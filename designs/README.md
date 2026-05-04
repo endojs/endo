@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-02*
+*Last updated: 2026-05-04*
 
 *See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23).*
 
@@ -39,6 +39,7 @@
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-04-29 | **Complete** |
 | [daemon-retention-paths](daemon-retention-paths.md) | 2026-04-30 | 2026-04-30 | Not Started |
+| [daemon-rename-to-manager](daemon-rename-to-manager.md) | 2026-05-04 | 2026-05-04 | Not Started |
 | [daemon-guest-eval-simplification](daemon-guest-eval-simplification.md) | 2026-03-21 | 2026-03-21 | Not Started |
 | [daemon-docker-selfhost](daemon-docker-selfhost.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-capability-bus](daemon-capability-bus.md) | 2026-02-25 | 2026-04-11 | In Progress |
@@ -99,7 +100,7 @@
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 22 Complete/Implemented, 6 In Progress, 45 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
+**Totals:** 22 Complete/Implemented, 6 In Progress, 46 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
 
 ## Roadmap
 
@@ -268,6 +269,7 @@ capabilities available to agents.
 | daemon-content-store-gc | Not Started | Content-store pruning and scratch-mount directory cleanup at GC time |
 | daemon-mount | In Progress | Phases 1-3, 5 implemented; symlink confinement, 20 integration tests; Phase 4 (sub-mounts, snapshot) and Phase 6 (CLI) remaining |
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
+| daemon-rename-to-manager | Not Started | Rename `daemon.js`/`Daemon`/`MignonicPowers` to `manager.js`/`Manager`/`WorkerPowers` to align JS with Rust `endor` nomenclature |
 | daemon-xs-worker-snapshot | In Progress | XS heap snapshot/restore; Phases 1-2 implemented — streaming CAS write/read, suspend/resume supervisor integration, CBOR control verbs; 12 passing tests; Phase 2 integration test and ephemeral GC roots remaining |
 | endoclaw-timer | In Progress | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; Timer is the only way agents get scheduled execution. Prerequisite for proactive behavior. First implementation in `@endo/genie`. |
 | endoclaw-network-fetch | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. |
@@ -476,6 +478,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | daemon-content-store-gc | S | 1 day | 1 | Sweep-time ref count for store-sha256, scratch-mount dir removal |
 | daemon-mount | M-L | 1-1.5 weeks | 1 | Mount exo, symlink confinement, scratch lifecycle, host methods |
 | daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
+| daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename: 13 source files, ~20 consuming files; three phases (file renames, identifier renames, consumer updates) |
 | endoclaw-timer | S-M | 2-3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
 | daemon-guest-eval-simplification | S | 1 day | 1 | Remove eval-proposal flow, guest eval delegates to `formulateEval` |
 | endoclaw-network-fetch | S-M | 2-3 days | 1 | HttpClient with origin allowlist, rate/size limits |
@@ -523,13 +526,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 13 remaining | 7-8 weeks |
+| M1: Remote Access & Tools | 14 remaining | 7-8 weeks |
 | M2: Networking | 6 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
 | M4: UX & Tooling | 11 | 7-9 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
 | M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
-| **Total remaining** | **46** | **~39-53 weeks** |
+| **Total remaining** | **47** | **~39-53 weeks** |
 
 ### Timeline
 
