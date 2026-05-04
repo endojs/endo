@@ -22,6 +22,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Pin to a specific Guix release rather than tracking nightly. The
+  # nightly tarball lives behind `ci.guix.gnu.org`, which periodically
+  # returns sustained 502s for hours and which is also the substitute
+  # server the daemon talks to at runtime; coupling install to the same
+  # host as substitutes turned a substitute outage into a hard CI
+  # failure. The pinned release is mirrored on `ftp.gnu.org`, which is
+  # operationally independent. Bump `GUIX_VERSION` to update; the
+  # corresponding sha256 must be refreshed at the same time.
+  GUIX_VERSION: '1.5.0'
+  GUIX_TARBALL_SHA256: 'aa41025489c5061543e9c48873eaa829b900b2da75d40f9648913622f5f47817'
+
 jobs:
   test-ocapn-guile-interop:
     name: test-ocapn-guile-interop
@@ -67,81 +79,36 @@ jobs:
 
       # `PromyLOPh/guix-install-action` is a composite action whose
       # `Download` step wgets the Guix nightly tarball from
-      # `ci.guix.gnu.org`, which periodically returns sustained 502s
-      # for the entire timeout budget of the action. The action has no
-      # internal retry; `Wandalen/wretry.action` cannot wrap composite
-      # actions; and `nick-fields/retry` only wraps shell commands,
-      # not `uses:` blocks. Inline the action's eight steps verbatim
-      # from `PromyLOPh/guix-install-action@40615e98e5...` so the
-      # wget is a plain shell step we can cache and wrap in
-      # `nick-fields/retry`, and so we can configure the daemon to
-      # consult `bordeaux.guix.gnu.org` for substitutes when
-      # `ci.guix.gnu.org` is degraded.
+      # `ci.guix.gnu.org`. The action has no internal retry;
+      # `Wandalen/wretry.action` cannot wrap composite actions; and
+      # `nick-fields/retry` only wraps shell commands, not `uses:`
+      # blocks. We inline the action's steps so the wget is a plain
+      # shell step we can cache, wrap in `nick-fields/retry`, and
+      # (most importantly) point at a pinned stable release on
+      # `ftp.gnu.org` rather than the nightly tarball on
+      # `ci.guix.gnu.org`.
       - name: Set LANG
         run: echo LANG=en_US.utf8 >> $GITHUB_ENV
-      - name: Compute Guix cache key (ISO week)
-        # Refresh the cached tarball weekly so we eventually pick up
-        # new nightlies, but survive ci.guix.gnu.org outages within a
-        # week from a previously-downloaded copy.
-        id: guix-cache-key
-        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
-      - name: Restore Guix nightly tarball cache
+      - name: Restore Guix tarball cache
         id: guix-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: guix-binary-nightly.x86_64-linux.tar.xz
-          key: guix-binary-nightly-x86_64-linux-${{ steps.guix-cache-key.outputs.week }}
-          # Fall back to any previous week's tarball when this week's
-          # exact key misses; ci.guix.gnu.org is the single point of
-          # failure we're hedging against.
-          restore-keys: |
-            guix-binary-nightly-x86_64-linux-
-      - name: Download Guix nightly tarball (skip if cached)
-        # `ci.guix.gnu.org/search/latest/archive` periodically returns
-        # sustained HTTP 502s for hours, exhausting any reasonable
-        # in-step retry budget. Retry briefly (6 attempts at 30 s
-        # spacing) so transient errors heal, then fall through to the
-        # stable-tarball fallback below. `continue-on-error` keeps
-        # the job alive when nightly is unreachable.
+          path: guix-binary.x86_64-linux.tar.xz
+          # Cache key includes the version and sha256 so a version
+          # bump or upstream re-publish forces a fresh download.
+          key: guix-binary-x86_64-linux-${{ env.GUIX_VERSION }}-${{ env.GUIX_TARBALL_SHA256 }}
+      - name: Download Guix stable tarball
+        # `ftp.gnu.org/gnu/guix/` is the GNU project's canonical
+        # mirror for release binaries. It is operationally independent
+        # from `ci.guix.gnu.org` (the substitute server), so a
+        # substitute outage does not block the install path.
         #
-        # The download writes to `.tmp` and only renames on full
-        # success; this prevents the 502 error body from being
-        # mistaken for a valid tarball (wget leaves a partial file
-        # behind on failure). We also `rm -f` any partial leftover
-        # before each attempt for the same reason.
-        if: ${{ hashFiles('guix-binary-nightly.x86_64-linux.tar.xz') == '' }}
-        id: download-nightly
-        continue-on-error: true
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
-        with:
-          max_attempts: 6
-          retry_wait_seconds: 30
-          timeout_minutes: 3
-          command: |
-            set -euo pipefail
-            rm -f guix-binary-nightly.x86_64-linux.tar.xz.tmp
-            wget -nv "https://ci.guix.gnu.org/search/latest/archive?query=spec:tarball+status:success+system:x86_64-linux+guix-binary.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz.tmp
-            file guix-binary-nightly.x86_64-linux.tar.xz.tmp | grep -q 'XZ compressed data'
-            mv guix-binary-nightly.x86_64-linux.tar.xz.tmp guix-binary-nightly.x86_64-linux.tar.xz
-      - name: Download Guix stable tarball as fallback
-        # When ci.guix.gnu.org is fully down, GNU's release tarball on
-        # ftp.gnu.org is the canonical mirror for the binary install.
-        # Pin to 1.5.0 (released 2026-01-22) so the bundled Guile and
-        # channel snapshot are recent enough to expose the `spawn`
-        # binding goblin-chat depends on; older 1.4.0 is not a usable
-        # fallback for that reason. The pinned channel inside the
-        # tarball is then refreshed implicitly by `guix build`
-        # against bordeaux/ci substitutes, so the older bootstrap is
-        # purely a way to get a working `guix` binary on the runner.
-        #
-        # Conditioned on the nightly step's `outcome` rather than
-        # `hashFiles`, since a failed wget can leave a partial file
-        # behind that confuses presence-based detection.
-        # `outcome` reflects the underlying success/failure even with
-        # `continue-on-error: true`. When the cache hit makes the
-        # nightly step skip, `outcome == 'skipped'`, so this fallback
-        # also skips, which is the desired behavior.
-        if: ${{ steps.download-nightly.outcome == 'failure' }}
+        # The download writes to `.tmp` and only renames after the
+        # sha256 verifies, so a truncated or replaced file cannot
+        # masquerade as a valid tarball; `rm -f` of any leftover
+        # `.tmp` before each attempt covers the same hazard for
+        # retries within a single wget invocation.
+        if: steps.guix-cache.outputs.cache-hit != 'true'
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
         with:
           max_attempts: 6
@@ -149,13 +116,23 @@ jobs:
           timeout_minutes: 5
           command: |
             set -euo pipefail
-            rm -f guix-binary-nightly.x86_64-linux.tar.xz.tmp guix-binary-nightly.x86_64-linux.tar.xz
-            wget -nv "https://ftp.gnu.org/gnu/guix/guix-binary-1.5.0.x86_64-linux.tar.xz" -O guix-binary-nightly.x86_64-linux.tar.xz.tmp
-            file guix-binary-nightly.x86_64-linux.tar.xz.tmp | grep -q 'XZ compressed data'
-            mv guix-binary-nightly.x86_64-linux.tar.xz.tmp guix-binary-nightly.x86_64-linux.tar.xz
+            rm -f guix-binary.x86_64-linux.tar.xz.tmp guix-binary.x86_64-linux.tar.xz
+            wget -nv "https://ftp.gnu.org/gnu/guix/guix-binary-${GUIX_VERSION}.x86_64-linux.tar.xz" -O guix-binary.x86_64-linux.tar.xz.tmp
+            file guix-binary.x86_64-linux.tar.xz.tmp | grep -q 'XZ compressed data'
+            echo "${GUIX_TARBALL_SHA256}  guix-binary.x86_64-linux.tar.xz.tmp" | sha256sum --check --strict
+            mv guix-binary.x86_64-linux.tar.xz.tmp guix-binary.x86_64-linux.tar.xz
+      - name: Verify cached tarball checksum
+        # Belt-and-suspenders: if a previous run cached a different
+        # blob (for example because someone updated `GUIX_VERSION`
+        # without bumping `GUIX_TARBALL_SHA256`, or vice versa), we
+        # want to fail loud here rather than installing the wrong
+        # bytes.
+        run: |
+          set -euo pipefail
+          echo "${GUIX_TARBALL_SHA256}  guix-binary.x86_64-linux.tar.xz" | sha256sum --check --strict
       - name: Install Guix
         run: |
-          sudo -- tar --extract --file "guix-binary-nightly.x86_64-linux.tar.xz" -C / --no-overwrite-dir
+          sudo -- tar --extract --file "guix-binary.x86_64-linux.tar.xz" -C / --no-overwrite-dir
           sudo -- groupadd --system guixbuild
 
           for i in $(seq -w 1 10); do
