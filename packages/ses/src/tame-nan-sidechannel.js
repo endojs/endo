@@ -1,23 +1,22 @@
 import {
-  Object,
-  DataView,
-  Reflect,
-  Number,
-  TypeError,
   RangeError,
-  Math,
+  dataViewPrototype,
+  MAX_SAFE_INTEGER,
+  apply,
+  defineProperty,
+  entries,
+  getOwnPropertyDescriptor,
   hasOwn,
+  is,
+  max,
+  trunc,
+  uncurryThis,
 } from './commons.js';
-
-const { is, defineProperty, entries } = Object;
-const { apply } = Reflect;
-const { prototype: dataViewPrototype } = DataView;
-const { trunc } = Math;
 
 /**
  * These `FERAL*` methods open up the NaN side-channel on some platforms,
  * like v8. Thus, we need to encapsulate them and replace them with wrappers
- * that canonicaize NaNs.
+ * that canonicalize NaNs.
  */
 const {
   setFloat16: FERAL_SET_FLOAT16,
@@ -28,6 +27,11 @@ const {
   setUint32,
   setBigUint64,
 } = dataViewPrototype;
+
+const dataViewGetBuffer = uncurryThis(
+  // @ts-expect-error we know it is there on all conforming platforms
+  getOwnPropertyDescriptor(dataViewPrototype, 'buffer').get,
+);
 
 /**
  * See https://webidl.spec.whatwg.org/#js-unrestricted-double which implies
@@ -80,6 +84,19 @@ const canonicalNaN32Encoding = 0x7fc00000;
 const canonicalNaN16Encoding = 0x7e00;
 
 /**
+ * Perform `RequireInternalSlot(obj, [[DataView]])` as needed in
+ * SetViewValue.
+ * https://tc39.es/ecma262/multipage/structured-data.html#sec-setviewvalue
+ * https://tc39.es/ecma262/#sec-get-dataview.prototype.buffer
+ *
+ * @param {unknown} obj
+ * @returns {void}
+ */
+const requireDataView = obj => {
+  dataViewGetBuffer(obj);
+};
+
+/**
  * Emulate the internal `ToIndex` from
  * https://tc39.es/ecma262/multipage/abstract-operations.html#sec-toindex
  *
@@ -90,44 +107,41 @@ const toIndex = v => {
   // @ts-expect-error Math.trunc uses the internal `ToNumber` to coerce its
   // argument, whatever it is, to an integer number.
   const n = trunc(v);
-  if (is(n, NaN) || is(n, -0)) {
+  if (n === 0 || is(n, NaN)) {
     return 0;
   }
-  if (n < 0 || n > Number.MAX_SAFE_INTEGER) {
-    throw new RangeError(
-      `Offset is out of bounds for an index into a DataView`,
-    );
+  if (n < 0 || n > MAX_SAFE_INTEGER) {
+    throw RangeError('Invalid offset');
   }
   return n;
 };
 
 /**
- * Emulate the internal `ToNumber` from
+ * Expose the internal `ToNumber` from
  * https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tonumber
- * It seems that JS built-in `Number` function is an adequate emulation
- * except that `ToNumber(bigint)` throws whereas `Number(bigint)` coerces it
- * to a `number`.
+ * We can't just use `Number(value)` because that is backed by `ToNumeric`,
+ * which coerces bigint output from `ToPrimitive` rather than throwing a
+ * TypeError as required of `ToNumber` (e.g., `Number({ valueOf: () => 42n })`
+ * returns 42).
  *
  * @param {unknown} v
  * @returns {number}
  */
-const toNumber = v => {
-  if (typeof v === 'bigint') {
-    throw new TypeError(
-      `DataView.prototype.set* methods cannot convert a BigInt to a number`,
-    );
-  }
-  return Number(v);
-};
+const toNumber = v =>
+  // @ts-expect-error Math.max uses the internal `ToNumber` to coerce its
+  // argument, whatever it is, to a number.
+  max(v);
 
 /**
- * To correctly and safely emulate the `setFloat*` built-ins we wrap,
- * we do the `ToNumber(value)` coercion ourselves, so that our `if`
- * safely guards the built-in. But, according to
- * [SetValueView](https://tc39.es/ecma262/multipage/structured-data.html#sec-setviewvalue),
- * we must therefore do the `ToIndex(byteOffset)` first. OTOH, we safely
- * delegate the `ToBoolean(isLittleEndian)` to the built-in, since
- * the conditional on `NaN` has already been safely performed.
+ * Correctly guarding the `setFloat*` built-ins requires performing
+ * `ToNumber(value)` ourselves, because a non-NaN value such as
+ * `{ valueOf: () => {} }` gets coerced **to** NaN. But, according to
+ * [SetViewValue](https://tc39.es/ecma262/multipage/structured-data.html#sec-setviewvalue),
+ * we must first perform the observable
+ * `RequireInternalSlot(view, [[DataView]])` and `ToIndex(requestIndex)` steps
+ * (in that order). If those steps complete successfully, we have number-coerced
+ * `byteOffset` and `value` values that will pass those same steps internal to
+ * the implementation without incurring further observable interactions.
  *
  * We added these coercions to defend against an attack noticed by
  * https://github.com/deepview-autofix .
@@ -146,12 +160,13 @@ const methods = {
    * @param {boolean} [isLittleEndian]
    */
   setFloat16(byteOffset, value, isLittleEndian = undefined) {
+    requireDataView(this);
     byteOffset = toIndex(byteOffset);
     value = toNumber(value);
     if (is(value, NaN)) {
       return apply(setUint16, this, [
         byteOffset,
-        Number(canonicalNaN16Encoding),
+        canonicalNaN16Encoding,
         isLittleEndian,
       ]);
     } else {
@@ -169,6 +184,7 @@ const methods = {
    * @param {boolean} [isLittleEndian]
    */
   setFloat32(byteOffset, value, isLittleEndian = undefined) {
+    requireDataView(this);
     byteOffset = toIndex(byteOffset);
     value = toNumber(value);
     if (is(value, NaN)) {
@@ -192,6 +208,7 @@ const methods = {
    * @param {boolean} [isLittleEndian]
    */
   setFloat64(byteOffset, value, isLittleEndian = undefined) {
+    requireDataView(this);
     byteOffset = toIndex(byteOffset);
     value = toNumber(value);
     if (is(value, NaN)) {

@@ -104,7 +104,9 @@ export const {
   for: symbolFor,
 } = Symbol;
 
-export const { isInteger } = Number;
+export const { max, min, trunc } = Math;
+
+export const { MAX_SAFE_INTEGER, isInteger } = Number;
 
 export const { stringify: stringifyJson } = JSON;
 
@@ -146,6 +148,7 @@ export const {
 
 export const { isArray, prototype: arrayPrototype } = Array;
 export const { prototype: arrayBufferPrototype } = ArrayBuffer;
+export const { prototype: dataViewPrototype } = DataView;
 export const { prototype: mapPrototype } = Map;
 export const { revocable: proxyRevocable } = Proxy;
 export const { prototype: regexpPrototype } = RegExp;
