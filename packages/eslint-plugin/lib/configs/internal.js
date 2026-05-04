@@ -5,10 +5,11 @@ const dynamicConfig = {
   overrides: /** @type {*[]} */ ([]),
 };
 
-// typescript-eslint has its own config that must be dynamically referenced
-// to include vs. exclude non-"src" files because it cannot itself be dynamic.
-// https://github.com/microsoft/TypeScript/issues/30751
-const rootTsProjectGlob = './tsconfig.eslint-full.json';
+// typescript-eslint 8.59 deprecates `parserOptions.project` when
+// `projectService` is enabled. Keeping both produces:
+//   "Parsing error: Enabling 'project' does nothing when
+//    'projectService' is enabled. You can remove the 'project' setting"
+// Drop `project` and rely on `projectService` to discover tsconfigs.
 const parserOptions = {
   useProjectService: true,
   sourceType: 'module',
@@ -17,7 +18,6 @@ const parserOptions = {
     defaultProject: 'tsconfig.json',
   },
   tsconfigRootDir: path.join(__dirname, '../../../..'),
-  project: [rootTsProjectGlob],
 };
 
 const fileGlobs = ['**/*.{js,ts}'];
