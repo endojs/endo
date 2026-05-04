@@ -3,6 +3,26 @@
 // endo run --UNCONFINED setup.js --powers @agent
 //   -E GENIE_MODEL=ollama/llama3.2
 //   -E GENIE_WORKSPACE=/path/to/workspace
+//
+// Environment variables:
+//   GENIE_MODEL      — model spec (e.g. `ollama/llama3.2`); when absent
+//                      the form is left for manual submission.
+//   GENIE_WORKSPACE  — host filesystem path to the workspace directory
+//                      the daemon should mount on the agent's behalf.
+//                      When provided, setup.js mints a `workspace-mount`
+//                      Mount cap on the host and introduces it into the
+//                      genie guest as `workspace`.  Inside a sandbox
+//                      slice the workspace surfaces at the slice-internal
+//                      path `/workspace`; see
+//                      `TODO/44_genie_sandbox_workspace_slice.md`.
+//                      Omit to keep the legacy "workspace = host cwd,
+//                      no slice" code path during rollout.
+//   GENIE_NAME       — pet name for the first agent guest.  Defaults
+//                      to `main-genie`.
+//
+// The setup script also mints a `sandbox-factory` capability via the
+// `@endo/sandbox` plugin's `make-unconfined` entry point, so the genie
+// guest can request slices without having to mint the factory itself.
 
 /** @import { EndoHost } from '@endo/daemon' */
 
@@ -15,6 +35,8 @@ import {
 } from './src/pet-names.js';
 
 const genieSpecifier = new URL('main.js', import.meta.url).href;
+const sandboxSpecifier = new URL('../sandbox/src/agent.js', import.meta.url)
+  .href;
 
 /**
  * `make-unconfined` specifier for the `@endo/sandbox` plugin's agent
@@ -52,28 +74,58 @@ const sandboxAgentSpecifier = new URL(
  */
 export const main = async hostAgent => {
   const { env } = process;
-
-  // Resolve the workspace path setup-side so a missing `GENIE_WORKSPACE`
-  // fails loudly in the launcher log before we touch the host agent.
-  // `main.js` re-validates inside the worker, but the mount-provisioning
-  // call below cannot proceed without an absolute path.
+  const model = env.GENIE_MODEL;
   const workspace = env.GENIE_WORKSPACE;
-  if (!workspace) {
-    throw makeError(
-      X`genie setup: GENIE_WORKSPACE env var is required (got ${q(workspace)})`,
+  const name = env.GENIE_NAME || 'main-genie';
+
+  // ── Mint host-side capabilities the genie guest will reference ──
+  // Both calls are guarded with `has(...)` so daemon restarts do not
+  // re-mint and so re-running `endo run setup.js` is idempotent.
+
+  // 1. Workspace mount — only when the operator supplied a path.
+  //    Skipping keeps the legacy "workspace = host cwd, no slice"
+  //    code path working in main.js for backwards compatibility.
+  if (workspace) {
+    if (!(await E(hostAgent).has(WORKSPACE_MOUNT_NAME))) {
+      await E(hostAgent).provideMount(workspace, WORKSPACE_MOUNT_NAME);
+      console.log(`Minted workspace-mount at ${workspace}`);
+    }
+  } else {
+    console.log(
+      `No GENIE_WORKSPACE — skipping ${WORKSPACE_MOUNT_NAME} (legacy direct-spawn path).`,
     );
   }
 
-  // Provision the workspace Mount before launching `main-genie` so the
-  // worker's first `lookup('workspace-mount')` always resolves.  Per
-  // TADA/22 Decision 1, the sandbox slice is minted main-side from
-  // `powers`, so the mount must be pinned in the host pet store before
-  // the worker boots.  `provideMount` formulates a fresh `Mount` formula
-  // unconditionally, so guard with `has` to keep re-runs idempotent and
-  // avoid orphaning the previous formula.
-  if (!(await E(hostAgent).has(WORKSPACE_MOUNT_NAME))) {
-    await E(hostAgent).provideMount(workspace, WORKSPACE_MOUNT_NAME, {
-      readOnly: false,
+  // 2. Sandbox factory — minted from the `@endo/sandbox` plugin's
+  //    `make-unconfined` entry point.  `powersName: '@agent'` grants
+  //    the factory the host's `provideHostPath` / `provideScratchMount`
+  //    surface, which is the privileged operation the factory needs to
+  //    bridge granted Mount caps to the kernel's bind-mount surface.
+  if (!(await E(hostAgent).has(SANDBOX_FACTORY_NAME))) {
+    await E(hostAgent).makeUnconfined('@main', sandboxSpecifier, {
+      powersName: '@agent',
+      resultName:SANDBOX_FACTORY_NAME,
+    });
+    console.log(`Minted ${SANDBOX_FACTORY_NAME}`);
+  }
+
+  // ── Provision the genie guest ──
+  // Only create the guest on first run; on restart the guest already exists
+  // and re-running provideGuest with introducedNames hits a daemon bug
+  // where the handle formula lacks the write method.
+  const hasGenie = await E(hostAgent).has('setup-genie');
+  if (!hasGenie) {
+    /** @type {Record<string, string>} */
+    const introducedNames = { '@agent': 'host-agent' };
+    if (await E(hostAgent).has(WORKSPACE_MOUNT_NAME)) {
+      introducedNames[WORKSPACE_MOUNT_NAME] = 'workspace';
+    }
+    if (await E(hostAgent).has(SANDBOX_FACTORY_NAME)) {
+      introducedNames[SANDBOX_FACTORY_NAME] = 'sandboxes';
+    }
+    await E(hostAgent).provideGuest('setup-genie', {
+      introducedNames: harden(introducedNames),
+      agentName: 'profile-for-genie',
     });
     console.log(
       `provisioned ${WORKSPACE_MOUNT_NAME} for GENIE_WORKSPACE=${workspace}`,
@@ -123,5 +175,31 @@ export const main = async hostAgent => {
       GENIE_AGENT_DIRECTORY: env.GENIE_AGENT_DIRECTORY ?? 'genie',
     },
   });
+
+  if (!model) {
+    console.log('No GENIE_MODEL — skipping auto-submit.');
+    return;
+  }
+
+  const selfLocator = await E(hostAgent).locate('@self');
+  const messages = makeRefIterator(E(hostAgent).followMessages());
+
+  console.log('Watching inbox for form from setup-genie...');
+  for await (const message of messages) {
+    if (message.type !== 'form') continue;
+    if (message.from === selfLocator) continue;
+
+    const [fromName] = await E(hostAgent).reverseLocate(message.from);
+    if (fromName !== 'setup-genie') continue;
+
+    console.log(`Found form at message ${message.number} — submitting...`);
+    await E(hostAgent).submit(message.number, {
+      name,
+      model,
+      workspace: workspace || process.cwd(),
+    });
+    console.log('Submitted.');
+    return;
+  }
 };
 harden(main);
