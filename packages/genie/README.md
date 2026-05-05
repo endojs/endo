@@ -57,6 +57,134 @@ tool calls.
 See [`TODO/44_genie_sandbox_workspace_slice.md`](../../TODO/44_genie_sandbox_workspace_slice.md)
 for the cwd plumbing.
 
+## Sandboxed workspace
+
+The daemon-hosted genie can run its `bash` / `exec` / `git` tools
+inside a confined sandbox slice rather than spawning straight onto the
+host.
+The slice is minted by [`@endo/sandbox`](../sandbox/README.md) and
+GC-pinned by `main-genie`; cancellation tears down the bwrap (or
+podman) subprocess and the scratch upper layer along with the agent.
+
+### Host prerequisites
+
+The slice driver shells out to an external sandbox tool.
+Install one before kicking off `setup.js`:
+
+```sh
+sudo apt install bubblewrap        # Debian / Ubuntu
+sudo dnf install bubblewrap        # Fedora
+# OR, for the OCI rootfs path:
+sudo apt install podman            # rootless podman 5.x
+```
+
+Then verify the binary is on PATH and the kernel cooperates:
+
+```sh
+bwrap --version                                            # must succeed
+cat /proc/sys/kernel/unprivileged_userns_clone 2>/dev/null # must be 1 on Debian-derived
+```
+
+The sandbox plugin's full operational matrix (kernel features,
+seccomp, cgroup v2 delegation, podman rootless prerequisites) lives
+in [`packages/sandbox/README.md`](../sandbox/README.md) §
+"Operational prerequisites".
+
+### Slice vs. dev-repl
+
+`dev-repl.js` and `main.js` share the same agent loop and tool
+registry, but they differ in **where** the command tools execute:
+
+| Surface                          | Spawn target            | Workspace path seen by `bash` | Network                    |
+| -------------------------------- | ----------------------- | ----------------------------- | -------------------------- |
+| `dev-repl.js` (interactive host) | `child_process.spawn`   | host `--workspace` flag       | unfiltered host network    |
+| `main.js` (daemon, no factory)   | `child_process.spawn`   | host `GENIE_WORKSPACE` path   | unfiltered host network    |
+| `main.js` (daemon, with factory) | `slice.spawn` via bwrap | `/workspace` (bind-mounted)   | per `GENIE_NETWORK` profile |
+
+The "daemon, no factory" row is the legacy direct-spawn path that
+remains available during rollout.
+It triggers automatically when `setup.js` cannot mint a
+`sandbox-factory` (no driver available, plugin not loaded, etc.).
+The "agent ready" announcement reports `backend: (host),
+network: (host)` so operators can grep for the mode in effect.
+
+When a `sandbox-factory` *is* present, `setup.js` requires
+`GENIE_WORKSPACE` and the agent refuses to start without a slice —
+the security boundary is binary, never a silent fall-through to host
+spawning (PLAN § "Security boundary clarity").
+
+### Network profile expectations
+
+`GENIE_NETWORK` (or the `network` form field) maps directly to
+[`@endo/sandbox`'s network profiles](../sandbox/README.md#network-profiles).
+Defaults to `private`.
+Concretely:
+
+| Profile         | Reachable                                        | Blocked                                                  |
+| --------------- | ------------------------------------------------ | -------------------------------------------------------- |
+| `none`          | nothing (loopback only inside slice)             | everything off-slice                                     |
+| `private`       | public Internet via NAT'd egress                 | RFC 1918, CGNAT, link-local, host loopback, VPN ranges   |
+| `host-loopback` | host `127.0.0.0/8` / `::1`                       | Internet, LAN (operator-installed firewall enforces)     |
+| `host-lan`      | RFC 1918 LAN + loopback                          | public Internet (operator-installed firewall enforces)   |
+| `host-net`      | everything the host can reach                    | nothing — explicit opt-in only                           |
+
+`private` is recommended: the genie can fetch from the public
+Internet (model APIs, package registries) but cannot reach the Endo
+daemon over loopback or pivot onto the operator's LAN.
+The blocklist for `private` is exported as
+[`PRIVATE_BLOCKED_RANGES`](../sandbox/src/net/blocked-ranges.js); a
+unit test keeps the list and the in-netns nft ruleset in lockstep.
+
+`host-*` profiles never auto-upgrade — a misconfiguration is an
+error, not a relaxation.
+
+### Operator quickstart
+
+Fresh Linux host, no Endo daemon yet:
+
+```sh
+# 1. One-time sandbox dependency.
+sudo apt install bubblewrap
+bwrap --version          # confirm the binary works
+
+# 2. Repo bootstrap.
+npx corepack yarn install
+
+# 3. Start the daemon.
+endo start
+
+# 4. Provision the genie guest with a sandbox slice.
+GENIE_MODEL=ollama/llama3.2 \
+  GENIE_WORKSPACE=$HOME/genie-ws \
+  yarn --cwd packages/genie setup
+
+# 5. Talk to it.
+endo send main-genie 'hello'
+```
+
+Skip step 4's `GENIE_WORKSPACE` to exercise the legacy direct-spawn
+path during rollout — see "Slice vs. dev-repl" above.
+Set `GENIE_BACKEND=podman` or `GENIE_NETWORK=host-loopback` to
+override defaults.
+
+### Failure-mode cookbook
+
+Operators see slice-mint failures verbatim in the daemon log and as
+an `Error creating agent: …` reply on the configuration form.
+Common surfaces and their fixes:
+
+| Symptom                                                         | Cause                                                                                     | Fix                                                                                                                           |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `no sandbox backends available; refusing to start`              | `bwrap` (and `podman`) absent from PATH.                                                  | `sudo apt install bubblewrap` (or `podman`); re-run `setup`.                                                                  |
+| `bwrap: Creating new namespace failed: Operation not permitted` | Kernel rejects unprivileged user namespaces (AppArmor `userns` rule, sysctl set to `0`).  | `sudo sysctl -w kernel.unprivileged_userns_clone=1` and/or relax the AppArmor profile per distro docs.                        |
+| `sandbox-factory configured but no workspace Mount cap`         | `GENIE_WORKSPACE` was unset *after* a slice-capable rollout.                              | Re-run `setup.js` with `GENIE_WORKSPACE=/path/to/workspace`; `setup.js` mints `workspace-mount` and re-introduces it.         |
+| `mount cap not resolvable` from `provideHostPath`               | Daemon predates [`41_genie_sandbox_provide_host_path.md`](../../TODO/41_genie_sandbox_provide_host_path.md). | Upgrade the daemon; it must expose `provideHostPath` so `@endo/sandbox` can resolve `Mount` caps to host paths.               |
+| `egress filter blocked X` (slice has no Internet)               | `network: 'private'` blocks RFC 1918 / loopback as documented.                            | Opt into a less-confined profile (`host-loopback`, `host-lan`) — never silently widen the default.  Set `GENIE_NETWORK=…`.    |
+| `agent ready (… backend: (host), network: (host))`              | Plugin / factory missing; agent fell through to direct spawn.                             | Confirm `setup.js` minted `sandbox-factory` (look for the `Minted sandbox-factory` log line) and that `@endo/sandbox` builds. |
+
+Slice failures **never** silently downgrade to host spawning when a
+factory was introduced; the agent refuses to start instead.
+
 ## Features
 
 ### Core Components
