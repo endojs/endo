@@ -1,5 +1,5 @@
 {
   "extends": ["../../typedoc.base.json"],
-  "entryPoints": ["index.js", "lite.js"],
+  "entryPoints": ["index.js", "hardened.js", "noop.js", "is-noop.js"],
   "tsconfig": "./tsconfig.build.json"
 }

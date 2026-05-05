@@ -1,4 +1,11 @@
 {
   "extends": ["../../typedoc.base.json"],
-  "entryPoints": ["index.js"]
+  "entryPoints": [
+    "index.js",
+    "tools/marshal-test-data.js",
+    "tools/prepare-error-if-order-choice-matters.js",
+    "tools/prepare-unicode-code-point-order.js",
+    "tools/prepare-utf16-code-unit-order.js"
+  ],
+  "tsconfig": "./tsconfig.build.json"
 }

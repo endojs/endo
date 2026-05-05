@@ -1,4 +1,5 @@
 {
   "extends": ["../../typedoc.base.json"],
-  "entryPoints": ["index.js"]
+  "entryPoints": ["index.js", "rejector.js"],
+  "tsconfig": "./tsconfig.build.json"
 }

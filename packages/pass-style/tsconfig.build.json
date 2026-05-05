@@ -3,6 +3,9 @@
     "./tsconfig.json",
     "../../tsconfig-build-options.json"
   ],
+  "include": [
+    "*.js", "src/**/*.js", "src/types.d.ts"
+  ],
   "exclude": [
     "test/"
   ]

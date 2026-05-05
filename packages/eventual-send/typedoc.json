@@ -1,4 +1,5 @@
 {
   "extends": ["../../typedoc.base.json"],
-  "entryPoints": ["src/no-shim.js"]
+  "entryPoints": ["src/no-shim.js", "./shim.js", "./utils.js"],
+  "tsconfig": "./tsconfig.build.json"
 }

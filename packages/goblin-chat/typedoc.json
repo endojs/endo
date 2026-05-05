@@ -1,0 +1,13 @@
+{
+  "extends": ["../../typedoc.base.json"],
+  "entryPoints": [
+    "api.js",
+    "src/backend.js",
+    "src/interop-driver.js",
+    "src/uri-parse.js",
+    "src/chat-state.js",
+    "src/use-goblin-chat.js",
+    "src/state-store.js"
+  ],
+  "tsconfig": "./tsconfig.build.json"
+}

@@ -1,0 +1,25 @@
+{
+  "extends": ["../../typedoc.base.json"],
+  "entryPoints": [
+    "index.js",
+    "import.js",
+    "import-lite.js",
+    "import-parsers.js",
+    "archive.js",
+    "archive-lite.js",
+    "archive-parsers.js",
+    "capture-lite.js",
+    "import-archive.js",
+    "import-archive-lite.js",
+    "import-archive-parsers.js",
+    "import-archive-all-parsers.js",
+    "bundle.js",
+    "functor.js",
+    "functor-lite.js",
+    "script.js",
+    "script-lite.js",
+    "node-powers.js",
+    "node-modules.js"
+  ],
+  "tsconfig": "./tsconfig.build.json"
+}

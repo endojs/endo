@@ -1,4 +1,14 @@
 {
   "extends": ["../../typedoc.base.json"],
-  "entryPoints": ["index.js"]
+  "entryPoints": [
+    "index.js",
+    "debug.js",
+    "debug-async-hooks.js",
+    "legacy.js",
+    "unsafe-fast.js",
+    "pre.js",
+    "pre-remoting.js",
+    "pre-bundle-source.js"
+  ],
+  "tsconfig": "./tsconfig.build.json"
 }

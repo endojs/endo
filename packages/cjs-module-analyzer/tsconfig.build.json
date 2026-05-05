@@ -3,6 +3,7 @@
     "./tsconfig.json",
     "../../tsconfig-build-options.json"
   ],
+  "include": ["index.js"],
   "exclude": [
     "test/"
   ]

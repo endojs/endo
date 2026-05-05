@@ -1,4 +1,11 @@
 {
   "extends": ["../../typedoc.base.json"],
-  "entryPoints": ["index.js", "prepare-endo.js"]
+  "entryPoints": [
+    "index.js",
+    "exported.js",
+    "prepare-endo.js",
+    "prepare-endo-config.js",
+    "src/reexport-ava.js"
+  ],
+  "tsconfig": "./tsconfig.build.json"
 }

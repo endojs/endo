@@ -2,11 +2,8 @@
   "extends": ["../../typedoc.base.json"],
   "entryPoints": [
     "index.js",
-    "atob.js",
-    "btoa.js",
-    "encode.js",
-    "decode.js",
-    "shim.js"
+    "src/netlayers/tcp-test-only.js",
+    "src/netlayers/websocket.js"
   ],
   "tsconfig": "./tsconfig.build.json"
 }

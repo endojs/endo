@@ -1,12 +1,9 @@
 {
   "extends": ["../../typedoc.base.json"],
   "entryPoints": [
-    "index.js",
-    "atob.js",
-    "btoa.js",
-    "encode.js",
-    "decode.js",
-    "shim.js"
+    "src/index.js",
+    "source-map-node.js",
+    "source-map-node-powers.js"
   ],
   "tsconfig": "./tsconfig.build.json"
 }

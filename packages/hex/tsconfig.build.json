@@ -3,9 +3,9 @@
     "./tsconfig.json",
     "../../tsconfig-build-options.json"
   ],
-  "compilerOptions": {
-    "allowJs": true
-  },
+  "include": [
+    "*.js", "src/**/*.js"
+  ],
   "exclude": [
     "test/"
   ]

@@ -1,4 +1,4 @@
 {
   "extends": ["../../typedoc.base.json"],
-  "entryPoints": ["pre.js"]
+  "entryPoints": ["pre.js", "post.js", "commit.js", "commit-debug.js"]
 }

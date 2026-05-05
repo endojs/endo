@@ -1,4 +1,16 @@
 {
   "extends": ["../../typedoc.base.json"],
-  "entryPoints": ["*.js"]
+  "entryPoints": [
+    "apply-labeling-error.js",
+    "from-unique-entries.js",
+    "ident-checker.js",
+    "list-difference.js",
+    "make-array-iterator.js",
+    "make-iterator.js",
+    "object-map.js",
+    "object-meta-assign.js",
+    "object-meta-map.js",
+    "throw-labeled.js"
+  ],
+  "tsconfig": "./tsconfig.build.json"
 }
