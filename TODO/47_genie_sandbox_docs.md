@@ -7,7 +7,7 @@ docs need to catch up so the slice is not invisible.
 
 ## Deliverables
 
-- [ ] **`packages/genie/README.md`** — add a "Sandboxed workspace"
+- [x] **`packages/genie/README.md`** — add a "Sandboxed workspace"
   section covering:
   - the bwrap / podman install prerequisites (cross-link to
     [`packages/sandbox/README.md`](../packages/sandbox/README.md)),
@@ -18,7 +18,16 @@ docs need to catch up so the slice is not invisible.
   - what to expect from the network profile (`'private'` blocks
     RFC 1918 / host loopback; explicit opt-in for `host-*`).
 
-- [ ] **`packages/genie/DESIGN.md`** — add an Architecture sub-section
+  Done.  The README's "Sandboxed workspace" section covers all four
+  bullets.  Note: `backend` / `network` are configuration-form fields
+  rather than env vars; `setup.js` does not currently read
+  `GENIE_BACKEND` / `GENIE_NETWORK` from the environment, so the
+  README documents the form path explicitly.  Promoting them to env
+  vars is a follow-up — wiring `setup.js` to forward them into the
+  initial form submission would land in the same patch as a future
+  `setup.js` refactor.
+
+- [x] **`packages/genie/DESIGN.md`** — add an Architecture sub-section
   for the slice integration:
   - which capabilities the genie guest receives
     (`workspace`, `sandboxes`),
@@ -29,7 +38,10 @@ docs need to catch up so the slice is not invisible.
   - file / memory / web tools continue to run daemon-side; only
     `bash` / `exec` / `git` execute inside the slice.
 
-- [ ] **`packages/genie/CLAUDE.md`** — once it exists (or as part of
+  Done.  See `DESIGN.md` § "Sandbox slice integration
+  (`main.js` + `tools/sandbox-spawner.js`)".
+
+- [x] **`packages/genie/CLAUDE.md`** — once it exists (or as part of
   this task), capture the conventions a future contributor needs to
   know:
   - never call `child_process.spawn` directly from a tool — go
@@ -40,7 +52,11 @@ docs need to catch up so the slice is not invisible.
     `/workspace`,
   - testing protocol when a contributor changes the slice wiring.
 
-- [ ] **Operator quickstart** for running a sandboxed genie on a
+  Done.  `packages/genie/CLAUDE.md` was created with all four
+  sections plus a "When you add a new sandbox backend" checklist and
+  a cross-package coupling matrix for slice-wiring changes.
+
+- [x] **Operator quickstart** for running a sandboxed genie on a
   fresh Linux host:
   ```sh
   sudo apt install bubblewrap            # one-time
@@ -54,7 +70,10 @@ docs need to catch up so the slice is not invisible.
   Include the `bubblewrap` install line and a one-line check that
   `bwrap --version` succeeds before kicking off `setup`.
 
-- [ ] **Failure-mode cookbook.**
+  Done.  See README § "Operator quickstart"; `bwrap --version`
+  appears as the verification step right after the install line.
+
+- [x] **Failure-mode cookbook.**
   Document the operator-side fix for each likely error:
   - "no backend available" → install `bwrap`,
   - "Creating new namespace failed" → enable
@@ -65,14 +84,35 @@ docs need to catch up so the slice is not invisible.
   - "egress filter blocked X" → opt into a less-confined network
     profile, never silently widen.
 
+  Done.  See README § "Failure-mode cookbook"; each row maps a
+  literal error string to its operator-side fix, plus a row covering
+  the silent-fallback `agent ready (… backend: (host))` symptom.
+
 ## Status notes
 
 - This task lands together with the test coverage in
   [`45_genie_sandbox_integration_test.md`](./45_genie_sandbox_integration_test.md):
   the README "Testing" section should reference the new scenario.
+  Done — the README's "Testing → Integration tests" subsection
+  documents `yarn test:integration:sandbox-slice` and the
+  bubblewrap / kernel prerequisites.
 - Familiar / Electron renderer notes are out of scope — see
   [`PLAN/endo_posix_sandbox.md`](../PLAN/endo_posix_sandbox.md)
   § "Familiar follow-up notes" for the deferred surface.
+
+## Follow-ups (not blocking this task)
+
+- `setup.js` could grow `GENIE_BACKEND` / `GENIE_NETWORK` env-var
+  support so operators can override slice defaults without answering
+  the configuration form by hand.  The README currently documents
+  the form-only path; flip the docs back to the env-var phrasing
+  when the code lands.
+- Once `@endo/sandbox` lands the in-slice Landlock ruleset and
+  cgroup writes (deferred items in
+  [`packages/sandbox/README.md`](../packages/sandbox/README.md)
+  § "Phase 1.5 status notes"), add a "Hardening layers visible to
+  the agent" subsection to the genie README so operators know which
+  controllers are active per slice.
 
 ## Cross-references
 
