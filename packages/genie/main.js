@@ -77,6 +77,8 @@ import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { makeSandboxSpawner } from './src/tools/sandbox-spawner.js';
 import { initWorkspace } from './src/workspace/init.js';
 
+/** @import { SandboxFactory, SandboxHandle, MountCap, BackendProbe, NetworkProfile, BackendName } from '@endo/sandbox/types.js' */
+
 /** @import { FarRef } from '@endo/eventual-send' */
 /** @import { EndoAgent, EndoGuest, EndoHost, Package, StampedMessage } from '@endo/daemon' */
 /** @import { IntervalTickMessage, } from './src/interval/types.js' */
@@ -164,26 +166,26 @@ export const make = (powers, _context, { env = {} } = {}) => {
   /**
    * Build the tool registry for the daemon-hosted genie.
    *
+   * `workspaceDir` keeps pointing at the host filesystem path so the
+   * daemon-side `files` and `memory` tools can read and write through
+   * `fs.readFile` / FTS5 directly.  When a `spawner` is supplied (the
+   * slice-backed adapter from `./src/tools/sandbox-spawner.js`), the
+   * `bash` / `exec` / `git` tools route through the slice instead and
+   * see the workspace at the slice-internal mount path
+   * (`SLICE_WORKSPACE_PATH`).
+   *
    * @param {string} workspaceDir - Root directory for file tools
-   * @param {import('./src/tools/registry.js').SandboxSlice} [slice]
-   *   - Optional persistent workspace `SandboxHandle` minted by
-   *     `runRootAgent` per `TODO/34_endo_genie_sandbox_main_wiring.md`.
-   *     Threaded into `buildGenieTools` so sub-task 35
-   *     (`TODO/35_endo_genie_sandbox_tool_spawn.md`) can route
-   *     `bash` / `exec` / `git` spawns through `E(slice).spawn(...)`
-   *     rather than the host `child_process.spawn`.  The legacy
-   *     `spawnAgent` path leaves it absent (its child guests do not
-   *     yet have a per-child slice — that's the 23 / sub-agent
-   *     follow-up); the `runRootAgent` cold-boot path passes the
-   *     `main-genie-sandbox` handle minted at boot.
+   * @param {import('./src/tools/spawner.js').Spawner} [spawner] -
+   *   Optional command-spawn engine.  When omitted, command tools fall
+   *   through to the host spawner baked into `command.js`.
    */
-  const buildTools = (workspaceDir, slice) => {
+  const buildTools = (workspaceDir, spawner) => {
     const searchBackend = makeFTS5Backend({ dbDir: workspaceDir });
     return buildGenieTools({
       workspaceDir,
       include: PLUGIN_DEFAULT_INCLUDE,
       searchBackend,
-      slice,
+      ...(spawner ? { spawner } : {}),
     });
   };
 
@@ -209,6 +211,15 @@ export const make = (powers, _context, { env = {} } = {}) => {
    * @property {string} [reflectorModel] - Model string for the reflector
    *   agent.  Defaults to the main chat model.  A reasoning-capable
    *   model is recommended.
+   * @property {string} [backend] - Sandbox backend selector.  One of
+   *   `'auto' | 'bwrap' | 'podman' | 'lima' | 'containerization' |
+   *   'wsl'`.  Defaults to `'auto'` which picks the first available
+   *   driver reported by `listBackends()`.  Only consulted when the
+   *   genie guest was introduced to a `sandbox-factory` cap.
+   * @property {string} [network] - Sandbox network profile.  One of
+   *   `'none' | 'private' | 'host-loopback' | 'host-lan' | 'host-net'`.
+   *   Defaults to `'private'` so the slice gets a loopback-only network
+   *   namespace.  Only consulted when minting a slice.
    */
 
   /**
