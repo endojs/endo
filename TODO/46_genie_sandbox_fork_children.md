@@ -56,6 +56,14 @@ for the v1 "isolate the genie's own workspace" goal.
   slice per agent (parent and child alike); the security boundary is
   the same, but the relationship between parent and child slices is
   not made explicit.
+- 2026-05-05 status check: blocker unchanged.
+  `SandboxHandle.fork()` in
+  [`packages/sandbox/src/factory.js`](../packages/sandbox/src/factory.js)
+  still throws `fork not implemented before Phase 3`, and
+  `spawnAgent` in [`packages/genie/main.js`](../packages/genie/main.js)
+  continues to call `E(sandboxFactory).make(...)` per child rather
+  than forking the parent slice.
+  No deliverable below is actionable yet.
 
 ## Cross-references
 
