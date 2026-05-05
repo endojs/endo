@@ -29,7 +29,12 @@ const packageRoot = join(thisDirname, '..');
  */
 
 /** @type {string[]} */
-const ENTRY_POINTS = ['Client', 'NetlayerHandlers', 'TcpTestOnlyNetLayer'];
+const ENTRY_POINTS = [
+  'Client',
+  'NetlayerHandlers',
+  'TcpTestOnlyNetLayer',
+  'TorNetLayer',
+];
 
 /** @type {string[]} */
 const INTERNAL_ONLY_TYPES = [
