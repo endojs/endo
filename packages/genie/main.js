@@ -128,6 +128,21 @@ const DEFAULT_NETWORK_PROFILE = 'private';
 /** Default backend selector for genie slices. */
 const DEFAULT_BACKEND = 'auto';
 
+/**
+ * Allowed sandbox backend selectors.  Mirrors `BackendSelectorShape`
+ * in `packages/sandbox/src/interfaces.js` (`'auto' | BackendName`) so
+ * the form-side check can reject typos up front rather than waiting
+ * for the factory's interface guard to refuse them mid-mint.
+ */
+const ALLOWED_BACKENDS = harden([
+  'auto',
+  'bwrap',
+  'podman',
+  'lima',
+  'containerization',
+  'wsl',
+]);
+
 // Register built-in API providers so getModel lookups work for known providers.
 registerBuiltInApiProviders();
 
@@ -1162,12 +1177,37 @@ export const make = (powers, _context, { env = {} } = {}) => {
    * receives only explicitly introduced names (e.g. workspace mount)
    * and cannot see the parent, siblings, or host-level names.
    *
+   * When `capabilities.sandboxFactory` is provided, the agent mints a
+   * confined sandbox slice via
+   * `E(sandboxFactory).make({...})` and routes the `bash` / `exec` /
+   * `git` tools through it via the slice-backed spawner from
+   * `./src/tools/sandbox-spawner.js`.  Slice teardown is wired to the
+   * agent's `cancelledP` so the bwrap subprocess and scratch upper
+   * layer are reclaimed promptly even before the GC sweep.
+   *
+   * If `sandboxFactory` is supplied but the slice cannot be minted
+   * (no available backend, factory throws, or the workspace mount cap
+   * is missing), `spawnAgent` refuses to start the agent rather than
+   * silently falling back to direct host spawning — the operator
+   * should see slice failures explicitly (PLAN § "Security boundary
+   * clarity").
+   *
    * @param {FarRef<EndoHost>} hostAgent - The host agent reference
    * @param {string} agentName - Pet name for the new agent guest
    * @param {AgentConfig} config - Agent configuration
    * @param {EndoGuest} [parentPowers] - Optional parent guest powers for scoped child tracking
+   * @param {object} [capabilities] - Caller-resolved capabilities
+   * @param {MountCap} [capabilities.workspaceMount] - Mount cap to bind into the slice at `/workspace`
+   * @param {SandboxFactory} [capabilities.sandboxFactory] - Sandbox factory; when present, slice minting is mandatory
    */
-  const spawnAgent = async (hostAgent, agentName, config, parentPowers) => {
+  const spawnAgent = async (
+    hostAgent,
+    agentName,
+    config,
+    parentPowers,
+    capabilities = {},
+  ) => {
+    const { workspaceMount, sandboxFactory } = capabilities;
     await Promise.resolve();
 
     const profileName = `profile-for-${agentName}`;
@@ -1221,7 +1261,10 @@ export const make = (powers, _context, { env = {} } = {}) => {
     const workspaceDir = config.workspace || process.cwd();
 
     // Seed the workspace from the shipped template on first spawn.
-    // Existing files are never overwritten.
+    // Existing files are never overwritten.  This runs against the
+    // host path **before** the slice is minted; the slice exposes the
+    // seed files via the `Mount`, so no slice-internal `cp` is
+    // required.
     const didInit = await initWorkspace(workspaceDir);
     if (didInit) {
       console.log(
@@ -1230,10 +1273,132 @@ export const make = (powers, _context, { env = {} } = {}) => {
     }
 
     // Cancellation kit — resolving `cancel` signals all sub-systems
-    // (agent loop, heartbeat, etc.) to tear down.
+    // (agent loop, heartbeat, slice teardown) to tear down.
     const { promise: cancelledP, resolve: cancel } = makePromiseKit();
 
-    const genieTools = buildTools(workspaceDir);
+    // ── Form-side validation of slice knobs ────────────────────────
+    // Reject typos up front (the factory's `M.interface()` would also
+    // refuse them, but the form-side check produces a friendlier
+    // message that names the agent).
+    /** @type {NetworkProfile} */
+    const network = /** @type {NetworkProfile} */ (
+      config.network || DEFAULT_NETWORK_PROFILE
+    );
+    if (!ALLOWED_NETWORK_PROFILES.includes(network)) {
+      throw makeError(
+        X`agent ${q(agentName)}: unknown network profile ${q(network)}; expected one of ${q(ALLOWED_NETWORK_PROFILES.join(', '))}`,
+      );
+    }
+    const backend = config.backend || DEFAULT_BACKEND;
+    if (!ALLOWED_BACKENDS.includes(backend)) {
+      throw makeError(
+        X`agent ${q(agentName)}: unknown sandbox backend ${q(backend)}; expected one of ${q(ALLOWED_BACKENDS.join(', '))}`,
+      );
+    }
+
+    // ── Mint a sandbox slice when the factory was introduced ──────
+    // PLAN § "Security boundary clarity": when `setup-genie` minted a
+    // `sandbox-factory`, an agent that fails to obtain a slice must
+    // error out — not fall back to direct spawning.  This preserves
+    // the "explicit confinement, no implicit relaxation" rule.
+    /** @type {SandboxHandle | undefined} */
+    let slice;
+    /** @type {BackendName | 'auto'} */
+    let resolvedBackend = /** @type {BackendName | 'auto'} */ (backend);
+    if (sandboxFactory !== undefined) {
+      if (workspaceMount === undefined) {
+        throw makeError(
+          X`agent ${q(agentName)}: sandbox-factory configured but no workspace Mount cap available; expected setup.js to mint workspace-mount (see ${q('GENIE_WORKSPACE')}).`,
+        );
+      }
+
+      // Probe before minting so the operator sees the underlying
+      // failure ("bwrap not on PATH", "kernel lacks user namespaces")
+      // rather than a generic make() error.
+      /** @type {BackendProbe[]} */
+      const probes = /** @type {BackendProbe[]} */ (
+        await E(sandboxFactory).listBackends()
+      );
+      const available = probes.filter(p => p.available);
+      if (available.length === 0) {
+        const reasonReport = probes
+          .map(p => `${p.name}: ${p.reason || 'unavailable'}`)
+          .join('; ');
+        throw makeError(
+          X`agent ${q(agentName)}: no sandbox backends available; refusing to start (operator must install a backend such as bubblewrap): ${q(reasonReport)}`,
+        );
+      }
+      if (backend !== 'auto') {
+        const probe = probes.find(p => p.name === backend);
+        if (probe === undefined || !probe.available) {
+          const reason =
+            probe?.reason || `driver ${backend} not registered with factory`;
+          throw makeError(
+            X`agent ${q(agentName)}: sandbox backend ${q(backend)} unavailable; refusing to start: ${q(reason)}`,
+          );
+        }
+        resolvedBackend = /** @type {BackendName} */ (backend);
+      } else {
+        resolvedBackend = /** @type {BackendName} */ (available[0].name);
+      }
+
+      try {
+        slice = /** @type {SandboxHandle} */ (
+          await E(sandboxFactory).make(
+            harden({
+              rootfs: { kind: 'host-bind' },
+              mounts: [
+                {
+                  cap: /** @type {MountCap} */ (workspaceMount),
+                  innerPath: SLICE_WORKSPACE_PATH,
+                  mode: 'rw',
+                },
+              ],
+              network,
+              cwd: SLICE_WORKSPACE_PATH,
+              backend,
+            }),
+          )
+        );
+      } catch (err) {
+        const message = /** @type {Error} */ (err).message || String(err);
+        throw makeError(
+          X`agent ${q(agentName)}: failed to mint sandbox slice (backend=${q(backend)}, network=${q(network)}): ${q(message)}`,
+        );
+      }
+
+      // Tear down the slice promptly on cancellation so the bwrap
+      // subprocess and scratch upper layer get reclaimed before the
+      // GC sweep.  Closure capture pins the handle for the agent's
+      // lifetime; explicit dispose() shortens the recovery window
+      // when the agent exits cleanly.
+      cancelledP.then(() => {
+        E(slice)
+          .dispose()
+          .catch(err => {
+            const message = /** @type {Error} */ (err).message || String(err);
+            console.warn(
+              `[genie:${agentName}] slice dispose error: ${message}`,
+            );
+          });
+      });
+
+      console.log(
+        `[genie:${agentName}] Sandbox slice minted (backend: ${resolvedBackend}, network: ${network}, mount: ${SLICE_WORKSPACE_PATH} <- ${workspaceDir}).`,
+      );
+    }
+
+    // Build the slice-backed spawner only when a slice was minted;
+    // otherwise the command tools fall through to the host spawner
+    // baked into `command.js` (the legacy direct-spawn path).
+    //
+    // `workspaceDir` for the daemon-side fs / memory tools stays the
+    // host path so `fs.readFile` / FTS5 keep working.  The slice's
+    // `cwd: '/workspace'` is what `bash`/`exec`/`git` see; the
+    // workspace mount lands on the same bytes the daemon-side tools
+    // see, so the two views stay in lockstep.
+    const spawner = slice ? makeSandboxSpawner({ handle: slice }) : undefined;
+    const genieTools = buildTools(workspaceDir, spawner);
 
     // Shared side-channel map for delivering heartbeat tick objects from
     // runHeartbeatTicker to runAgentLoop without serializing through daemon mail.
@@ -1311,10 +1476,17 @@ export const make = (powers, _context, { env = {} } = {}) => {
       makeTickId,
     });
 
-    // Announce readiness from the agent's own identity.
+    // Announce readiness from the agent's own identity.  Include
+    // backend / network so operators can grep for which slice mode
+    // is in effect (or "(host)" when no slice was minted because
+    // setup-genie did not introduce a sandbox-factory).
     const heartbeatInfo =
       heartbeatPeriodMs > 0 ? `, heartbeat: ${heartbeatPeriodMs / 1000}s` : '';
-    const readyMess = `agent ready (model: ${config.model}, workspace: ${workspaceDir}${heartbeatInfo})`;
+    const sliceInfo = slice
+      ? `, backend: ${resolvedBackend}, network: ${network}`
+      : `, backend: (host), network: (host)`;
+    const innerWorkspace = slice ? SLICE_WORKSPACE_PATH : workspaceDir;
+    const readyMess = `agent ready (model: ${config.model}, workspace: ${innerWorkspace}${sliceInfo}${heartbeatInfo})`;
     await E(agentGuest).send('@host', [`Genie ${readyMess}.`], [], []);
     console.log(`[genie:${agentName}] ${readyMess}`);
   };
@@ -1400,41 +1572,38 @@ export const make = (powers, _context, { env = {} } = {}) => {
     // optional during the rollout of TODO/40_genie_sandbox.md: the
     // legacy "workspace = host cwd, no slice" code path is still
     // exercised by deployments that did not set `GENIE_WORKSPACE`
-    // and have not yet adopted the sandbox plugin.  Surface a
-    // structured-error pair via the local debug log so partial
-    // rollouts are visible instead of silently falling back.
-    /** @type {unknown} */
+    // and have not yet adopted the sandbox plugin.  When either cap
+    // is missing we leave the corresponding variable as `undefined`
+    // and the slice-minting branch in `spawnAgent` falls through to
+    // the legacy direct-spawn path.  When `sandboxFactory` is
+    // present `spawnAgent` will *require* a workspace mount and
+    // refuse to start without one — the security boundary is binary.
+    /** @type {MountCap | undefined} */
     let workspaceMount;
     try {
-      workspaceMount = await E(powers).lookup('workspace');
+      workspaceMount = /** @type {MountCap} */ (
+        await E(powers).lookup('workspace')
+      );
     } catch (err) {
       const message = /** @type {Error} */ (err).message || String(err);
       console.warn(
         `[genie] No 'workspace' cap (${message}); falling back to direct host-cwd workspace.`,
       );
-      // Fail fast in strict mode so misconfigurations are caught
-      // early, but only after the parallel sandboxes lookup runs.
-      workspaceMount = makeError(
-        X`No 'workspace' cap introduced; expected setup.js to mint and introduce a Mount cap (see ${q('GENIE_WORKSPACE')}).`,
-      );
+      workspaceMount = undefined;
     }
-    /** @type {unknown} */
+    /** @type {SandboxFactory | undefined} */
     let sandboxFactory;
     try {
-      sandboxFactory = await E(powers).lookup('sandboxes');
+      sandboxFactory = /** @type {SandboxFactory} */ (
+        await E(powers).lookup('sandboxes')
+      );
     } catch (err) {
       const message = /** @type {Error} */ (err).message || String(err);
       console.warn(
         `[genie] No 'sandboxes' cap (${message}); falling back to direct host spawn.`,
       );
-      sandboxFactory = makeError(
-        X`No 'sandboxes' cap introduced; expected setup.js to mint a SandboxFactory via @endo/sandbox.`,
-      );
+      sandboxFactory = undefined;
     }
-    // The lookups land here so the rollout-tracking
-    // TODOs in 43/44/46 can wire them through to spawnAgent.
-    void workspaceMount;
-    void sandboxFactory;
 
     // Send the configuration form to HOST.
     await E(powers).form(
@@ -1483,6 +1652,18 @@ export const make = (powers, _context, { env = {} } = {}) => {
           label: 'Reflector model (default: same as chat model)',
           example: 'anthropic/claude-sonnet',
           default: '',
+        },
+        {
+          name: 'backend',
+          label:
+            'Sandbox backend (auto | bwrap | podman | lima | containerization | wsl)',
+          default: DEFAULT_BACKEND,
+        },
+        {
+          name: 'network',
+          label:
+            'Sandbox network profile (none | private | host-loopback | host-lan | host-net)',
+          default: DEFAULT_NETWORK_PROFILE,
         },
       ]),
     );
@@ -1590,7 +1771,26 @@ export const make = (powers, _context, { env = {} } = {}) => {
         // pointing at the host path.
         process.env.GENIE_WORKSPACE = '/workspace';
         console.log(
-          `[genie:${agentName}] Workspace sandbox minted (${SANDBOX_SLICE_NAME}, network: private, backend: auto)`,
+          `[genie] Configuration received: name=${agentName}, model=${config.model}, workspace=${config.workspace}`,
+        );
+
+        // Delegate existence authority to the endo pet namespace.
+        // spawnAgent handles idempotent guest creation (reuses
+        // existing guests on restart), so we always call through.
+        // Thread the resolved workspace / sandbox-factory caps so
+        // spawnAgent can mint a confined slice when both are
+        // available (the slice is daemon-only in v1; the dev-repl
+        // path keeps using the host spawner).
+        await spawnAgent(hostAgent, agentName, config, undefined, {
+          workspaceMount,
+          sandboxFactory,
+        });
+
+        await E(powers).reply(
+          msg.number,
+          [`Agent "${agentName}" is now running.`],
+          [],
+          [],
         );
       } catch (err) {
         // Mint failure is best-effort: the bottle does not yet have a
