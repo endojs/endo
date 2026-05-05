@@ -1,4 +1,4 @@
-import * as foo from './a.js';
+import * as foo from './a.cjs';
 
 const result = {
   before: foo.x,

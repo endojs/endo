@@ -38,7 +38,7 @@ const runInCompartment = async () => {
   const fixtureUrl = new URL('_namespace-mutation/', import.meta.url);
   const readSource = name => readFile(new URL(name, fixtureUrl), 'utf8');
   const sources = {
-    './a.js': await readSource('a.js'),
+    './a.cjs': await readSource('a.cjs'),
     './b.js': await readSource('b.js'),
     './c.js': await readSource('c.js'),
     // main.js writes to process.stdout in Node.js; in the Compartment we pull
@@ -52,6 +52,24 @@ const runInCompartment = async () => {
   const compartment = new Compartment({
     __options__: true,
     __noNamespaceBox__: true,
+    // modules take precedence over importHook
+    modules: {
+      // minimal, hardcoded, cjs emulation
+      './a.cjs': {
+        source: {
+          imports: [],
+          exports: ['x'],
+          execute(env) {
+            // eslint-disable-next-line no-new-func
+            new Function('module', 'exports', 'require', sources['./a.cjs'])(
+              { exports: env },
+              env,
+              () => {},
+            );
+          },
+        },
+      },
+    },
     resolveHook: spec => spec,
     importHook: async spec => {
       const src = sources[spec];
