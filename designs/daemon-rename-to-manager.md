@@ -396,9 +396,9 @@ renamed.
 - **Public exports.**
   `@endo/daemon`'s public surface (the `index.js` re-exports) is
   small and almost entirely unrelated to the `Daemon*` names.
-  Anything that does change (`makeDaemon` -> `makeManager`) is a
-  visible API break and should ship with a CHANGELOG entry and a
-  short deprecated alias if the maintainer wants a one-release window.
+  `makeDaemon` -> `makeManager` is a visible rename that ships with
+  a CHANGELOG entry; no deprecated alias is kept, since there are no
+  downstream consumers of this export.
 - **Upstream port to `endojs/endo`.**
   This rename is mechanical; the design and the implementation can
   port cleanly to `endojs/endo` with no `endo-but-for-bots`-specific
@@ -409,18 +409,11 @@ renamed.
   Search of the `endojs/endo` master and visible downstream
   repositories did not find any consumer that imports a `Daemon*`
   identifier from `@endo/daemon`.
-  If one exists, it gets a one-line rename.
+  The rename is therefore an outright cut, not a deprecation.
 
 ## Open Questions
 
-1. **Should `makeDaemon` survive as a deprecated alias for one
-   release?**
-   `export { makeManager as makeDaemon };` in `manager.js` would let
-   downstream consumers migrate without a same-PR change.
-   This is mostly a question of how strict we want the cut to be.
-   Recommendation: include a one-line alias with a `@deprecated` JSDoc
-   tag, drop in the next minor.
-2. **`bench-daemon.js`.**
+1. **`bench-daemon.js`.**
    The benchmark file measures end-to-end performance of "the daemon
    process".
    Renaming it to `bench-manager.js` is consistent; leaving it as
@@ -428,14 +421,14 @@ renamed.
    include OS-process startup, supervisor handshake, and other
    non-manager costs.
    The maintainer's call.
-3. **`daemon-webextension.js` -> `manager-webextension.js`.**
+2. **`daemon-webextension.js` -> `manager-webextension.js`.**
    This module imports a `main` symbol from `daemon.js` that does not
    appear to exist in the current source.
    Either it is dead code that should be deleted before the rename,
    or `main` is a missing export that needs to be added before
    touching the file.
    Builder should investigate.
-4. **Test directory split.**
+3. **Test directory split.**
    `packages/daemon/test/endo.test.js` is the integration test for
    the daemon process; should it move to `packages/daemon/test/`
    subdirectory `manager/` to mirror the source structure?
