@@ -74,6 +74,7 @@ import {
 import { runHeartbeat, HeartbeatStatus } from './src/heartbeat/index.js';
 import { makeIntervalScheduler } from './src/interval/index.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
+import { makeSandboxSpawner } from './src/tools/sandbox-spawner.js';
 import { initWorkspace } from './src/workspace/init.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
@@ -96,6 +97,34 @@ const DEFAULT_AGENT_DIRECTORY = 'genie';
 
 /** Default heartbeat period: 30 minutes. */
 const DEFAULT_HEARTBEAT_PERIOD_MS = 30 * 60 * 1_000;
+
+/**
+ * Slice-internal mount point for the workspace.  Mirrors the path
+ * documented in `setup.js` and the genie README; agents see the
+ * workspace under this fixed path inside the slice regardless of the
+ * host directory it maps from.
+ */
+const SLICE_WORKSPACE_PATH = '/workspace';
+
+/**
+ * Allowed sandbox network profiles.  Mirrors `NetworkProfileShape` in
+ * `packages/sandbox/src/interfaces.js` so the form-side check can
+ * reject unknown profiles up front rather than waiting for the
+ * factory's interface guard to refuse them mid-mint.
+ */
+const ALLOWED_NETWORK_PROFILES = harden([
+  'none',
+  'private',
+  'host-loopback',
+  'host-lan',
+  'host-net',
+]);
+
+/** Default network profile for genie slices. */
+const DEFAULT_NETWORK_PROFILE = 'private';
+
+/** Default backend selector for genie slices. */
+const DEFAULT_BACKEND = 'auto';
 
 // Register built-in API providers so getModel lookups work for known providers.
 registerBuiltInApiProviders();
