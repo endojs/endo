@@ -16,7 +16,7 @@ can look them up alongside `host-agent` and `workspace-mount`.
 
 ## Deliverables
 
-- [ ] **Mint the workspace mount in `setup.js`.**
+- [x] **Mint the workspace mount in `setup.js`.**
   - Use `E(hostAgent).provideMount(workspacePath, 'workspace-mount')`
     (or the `provideMount` shape that ships at the time of
     implementation — confirm against
@@ -27,44 +27,45 @@ can look them up alongside `host-agent` and `workspace-mount`.
   - Idempotency: guard with `E(hostAgent).has('workspace-mount')` so
     daemon restarts do not re-mint.
 
-- [ ] **Mint the sandbox factory in `setup.js`.**
+- [x] **Mint the sandbox factory in `setup.js`.**
   - Pattern after the `lal` plugin's setup or the existing
     `makeUnconfined('@main', genieSpecifier, ...)` call —
     register the factory under a stable host-side pet name
     (e.g. `sandbox-factory`).
   - Idempotency guard via `E(hostAgent).has('sandbox-factory')`.
-  - Decision needed: does `setup-genie` mint the factory directly, or
-    does it provide a script that the operator runs once?
-    Recommendation: mint it inline so a fresh `endo run setup.js`
-    fully bootstraps the integration.
+  - Decision: `setup.js` mints the factory inline via
+    `E(hostAgent).makeUnconfined('@main', sandboxSpecifier, {
+      powersName: '@agent', resultName: 'sandbox-factory' })`,
+    so a fresh `endo run setup.js` fully bootstraps the integration.
 
-- [ ] **Introduce both into the genie guest.**
-  Extend the `introducedNames` map handed to `provideGuest` in both
-  `setup.js` and `main.js`'s `spawnAgent`:
-  ```js
-  introducedNames: harden({
-    '@agent': 'host-agent',
-    'workspace-mount': 'workspace',
-    'sandbox-factory': 'sandboxes',
-  }),
-  ```
-  The names on the right are what `main.js` looks up via
-  `E(powers).lookup('workspace')` / `lookup('sandboxes')`.
+- [x] **Introduce both into the genie guest.**
+  - `setup.js` builds the `introducedNames` map dynamically, mapping
+    `'workspace-mount' → 'workspace'` and
+    `'sandbox-factory' → 'sandboxes'` whenever the corresponding host
+    cap is present (so rollouts that skip `GENIE_WORKSPACE` still work).
+  - `main.js`'s `spawnAgent` mirrors the same mapping when forking
+    child agents, so children see the same names regardless of who
+    spawned them.
 
-- [ ] **Update `main.js` to look up both caps.**
-  - `runLoop` already does `E(powers).lookup('host-agent')`; add
-    parallel lookups for `workspace` and `sandboxes`, with a
-    structured-error fallback when either is absent (so partial
-    rollouts surface clearly instead of silently falling back to
-    direct host spawning).
+- [x] **Update `main.js` to look up both caps.**
+  - `runLoop` now resolves `host-agent`, `workspace`, and `sandboxes`.
+    Each of the latter two is wrapped in a structured-error fallback
+    via `@endo/errors`'s `makeError` / `q` / `X` so partial rollouts
+    log a clear warning instead of silently dropping back to direct
+    host spawning.
+  - The resolved values are deliberately retained as `void` for now;
+    [`43_genie_sandbox_spawner_power.md`](./43_genie_sandbox_spawner_power.md)
+    and [`44_genie_sandbox_workspace_slice.md`](./44_genie_sandbox_workspace_slice.md)
+    will thread them through to `spawnAgent`.
 
-- [ ] **Document the new env-var contract in `setup.js`'s header
+- [x] **Document the new env-var contract in `setup.js`'s header
   comment** and in
   [`packages/genie/README.md`](../packages/genie/README.md).
   - `GENIE_WORKSPACE` continues to be a host filesystem path (the
     workspace directory the daemon mounts).
-  - Add a note that the workspace contents become reachable inside the
-    slice at the slice-internal path (`/workspace`); see
+  - Added a note in the README that the workspace contents become
+    reachable inside the slice at the slice-internal path
+    (`/workspace`); see
     [`44_genie_sandbox_workspace_slice.md`](./44_genie_sandbox_workspace_slice.md)
     for the cwd plumbing.
 
