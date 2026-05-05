@@ -1,194 +1,235 @@
-# Genie Agent Development Guide
+# `@endo/genie` Contributor Conventions
 
-## Identity model
+This file collects the genie-specific conventions a future contributor
+needs to know on top of the repo-root [`CLAUDE.md`](../../CLAUDE.md).
+The repo-root file documents the SES / harden / @ts-check rules that
+apply everywhere; the rules below are specific to the genie package
+and especially to the **sandbox slice** integration.
 
-Genie is the daemon's `@self`.
-`@agent` and `@self` both refer to the same root worker — there is no
-intermediate guest between the daemon's host agent and `main.js`.
-Every message addressed to the bottle daemon's root handle reaches the
-genie's `piAgent` directly.
-Replies and spontaneous mail originate from the daemon's own identity,
-so external peers see the bottle *as* the genie.
+The architecture lives in [`DESIGN.md`](./DESIGN.md) §
+"Sandbox slice integration"; the operator-facing surface lives in
+[`README.md`](./README.md) § "Sandboxed workspace".
+This file is the implementer's lens on the same boundary.
 
-## Single-tenant constraint
+## Spawning rules
 
-Because the genie owns `@self`, at most one plugin per daemon may read
-mail from that inbox.
-Co-hosted plugins (fae, lal, jaine, etc.) are fine as long as they run
-as guests under their own pet names and never claim `@self`.
-If another plugin calls `follow` / `followMessages` on the host agent's
-inbox while the genie is running, the two loops will race for the same
-messages and neither will behave correctly.
+### Never call `child_process.spawn` directly from a tool
 
-## Boot shape
+The only place `child_process.spawn` is allowed is inside
+[`src/tools/spawner.js`](./src/tools/spawner.js)'s `makeHostSpawner`.
+Every command-style tool (`bash`, `exec`, `git`, anything that runs an
+external program) must accept a `Spawner` and forward to it instead.
 
-One identity, one worker, three steps:
+The reason is the slice integration: the daemon-hosted genie swaps
+`makeHostSpawner` for `makeSandboxSpawner({ handle })` so the same
+tool runs inside a `bwrap` slice instead of on the host kernel.
+A tool that calls `child_process.spawn` inline silently bypasses the
+slice and re-opens the exfiltration surface the sandbox is meant to
+close.
 
-1. `bottle.sh invoke` starts a daemon and networks.
-2. `endo run --UNCONFINED setup.js --powers @agent` runs `setup.js`
-   with the host agent as `powers`.
-3. `setup.js` calls
-   `E(hostAgent).makeUnconfined('@main', main.js, { powersName:
-   '@agent', resultName: 'main-genie', env: … })`,
-   which materialises `main.js` as an unconfined worklet whose
-   `powers` argument *is* the daemon's root host agent.
+```js
+// ❌ Wrong — bypasses the slice:
+import { spawn } from 'child_process';
+const child = spawn('git', ['log']);
 
-`setup.js` is idempotent: it checks
-`E(hostAgent).has('main-genie')` and short-circuits when the worker
-already exists.
-A daemon restart reincarnates `main-genie` from its persisted formula
-without re-running `setup.js`.
+// ✅ Right — forwards to the slice when one is bound:
+import { makeCommandTool } from './command.js';
+const git = makeCommandTool({
+  name: 'git',
+  program: 'git',
+  // spawner is injected by buildGenieTools; the tool body calls
+  // `await spawner(argv, opts)` rather than child_process.
+});
+```
 
-### Sandbox slice (Phase 3.5a)
+The lint that enforces this is informal — there is no ESLint rule for
+it (yet) — so reviewers must check by hand when a new tool lands.
+If you do need a new spawn-shaped tool, route it through
+`makeCommandTool` (or add a sibling factory in `tools/command.js`)
+so the `Spawner` seam is respected uniformly.
 
-Before launching the worker, `setup.js` also pins two capabilities in
-the host pet store that `main.js` consumes from `powers` on boot
-(see `packages/sandbox/` and
-[`TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md`](../../TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md)
-for the full design):
+### Tools that need host fs access stay daemon-side
 
-- **`workspace-mount`** — a `Mount` capability rooted at
-  `GENIE_WORKSPACE`, provisioned via `provideMount` and reused on
-  re-runs.
-  This is the host-side handle the slice binds at `/workspace`.
-- **`sandbox-factory`** — the `@endo/sandbox` plugin loaded via
-  `makeUnconfined('@agent', sandboxAgentSpecifier, { powersName:
-  '@agent', resultName: 'sandbox-factory' })`.
-  Resolves to a `SandboxFactory` exo whose `makePersistent(name,
-  spec)` mints (and on subsequent boots, re-mints from the recorded
-  spec) a `SandboxHandle` pinned by pet name.
+`readFile`, `writeFile`, `editFile`, `memory_get`, `memory_search`,
+`webFetch`, `webSearch` all run inside the daemon worker, against the
+**host** workspace path, not against the slice's view.
+This is by design — the slice's bind-mount lands on the same bytes the
+daemon-side tools see, so the two views stay in lockstep without
+needing a CapTP round-trip per file read.
 
-`main.js` then calls `E(factory).makePersistent('main-genie-sandbox',
-{ rootfs: { kind: 'host-bind' }, mounts: [{ cap: workspaceMount,
-innerPath: '/workspace', mode: 'rw' }], env: { GENIE_WORKSPACE:
-'/workspace' }, cwd: '/workspace', network: 'private', backend:
-'auto' })` and threads the resulting `SandboxHandle` into the tool
-registry so `bash` / `exec` / `git` spawn through
-`E(slice).spawn(...)` instead of host `child_process.spawn`.
+When a new daemon-side tool needs filesystem access:
 
-If either capability is absent (e.g. an older `setup.js`, or the
-sandbox plugin failed to register because no backend is installed),
-`main.js` logs a clearly-marked diagnostic and proceeds with the
-host-spawn fallback path in `tools/command.js`.
-The agent surface is unchanged either way — the slice swap is purely
-internal.
+- It must consume a **`Mount` capability**, not a raw host path.
+  `setup.js` mints `workspace-mount` via
+  `E(host).provideMount(GENIE_WORKSPACE, 'workspace-mount')` and
+  introduces it into the genie guest as `workspace`; downstream tools
+  resolve paths *under* that cap rather than accepting strings from
+  the model.
+- The cap-to-host-path resolution lives in `provideHostPath` on the
+  daemon side (see
+  [`packages/sandbox/README.md` § `SandboxPowers.provideHostPath`](../sandbox/README.md#sandboxpowersprovidehostpath)).
+  Tool code never calls it directly; the sandbox factory does, when
+  assembling a `SliceSpec`.
+- Raw string paths from a tool argument are a code-review smell.
+  If a tool truly needs to address something outside the workspace
+  cap, mint a sibling cap on the host side and introduce it into the
+  guest with its own pet name.
 
-#### Host vs slice `GENIE_WORKSPACE`
+### `GENIE_WORKSPACE` is a host path; the slice's cwd is `/workspace`
 
-`GENIE_WORKSPACE` has two coexisting views after 3.5a:
+`GENIE_WORKSPACE` is the **host** filesystem path the operator hands
+to `setup.js`.
+`setup.js` turns it into a `Mount` cap; `spawnAgent` in `main.js`
+binds that cap to the slice-internal path `/workspace`.
 
-- **Outside the slice** (the launcher and the host-side worker): the
-  operator-supplied absolute host path (e.g.
-  `/home/op/.local/share/endo/genie/workspace`).
-  This view is what `initWorkspace`, `loadPersistedConfig` /
-  `savePersistedConfig`, `makeFTS5Backend`, `makeFileTools`, and
-  `makeMemoryTools` see when they read MEMORY.md, HEARTBEAT.md, or
-  `.genie/` on disk.
-  These call sites consume the captured `workspaceDir` local sourced
-  from `make()`'s `env` argument, not `process.env`.
-- **Inside the slice** (every tool spawn): `/workspace`.
-  The bwrap / podman driver renders `--setenv GENIE_WORKSPACE
-  /workspace` and `--chdir /workspace` from the `env` and `cwd` baked
-  into the slice spec, and any tool the agent runs with `bash` /
-  `exec` / `git` sees that view.
+Inside a slice, the agent's `bash` / `exec` / `git` tools see
+`cwd: /workspace`, never the host path.
+Inside the daemon worker, the daemon-side tools (`readFile`, etc.)
+see the host path.
 
-After the slice mint resolves, `main.js` rewrites
-`process.env.GENIE_WORKSPACE` to `/workspace` — defence-in-depth for a
-future tool or third-party module that reads `process.env` while
-running in-process inside the worker.
-The missing-slice fallback path intentionally **does not** rewrite,
-so `command.js`'s host-spawn branch keeps matching the workspace
-files on disk.
-See
-[`TADA/36_endo_genie_sandbox_workspace_path.md`](../../TADA/36_endo_genie_sandbox_workspace_path.md)
-for the full audit and the in-source `// ── In-process
-GENIE_WORKSPACE rewrite ──` comment in `runRootAgent`'s mint block
-for the call-site catalogue.
+When writing a new tool or doc that mentions the workspace path,
+remember which side of the fence you are on:
 
-## Env-var config
+- Tool body that runs **inside the slice** (i.e. routed through the
+  spawner): refer to `/workspace`.
+- Tool body that runs **inside the daemon** (file / memory / web):
+  refer to the operator-supplied `GENIE_WORKSPACE` path.
 
-`main.js` reads configuration from the `env` object that
-`makeUnconfined` forwards as the third argument to `make(powers,
-context, { env })`.
-`setup.js` is the sole authorised forwarder: it copies selected
-`GENIE_*` variables from the launcher's `process.env` into that `env`
-object.
+The mismatch is intentional — confusing the two would either leak the
+host path into the slice's process environment or send the daemon
+hunting for `/workspace` on its own filesystem.
 
-- `GENIE_MODEL` — required unless a persisted model config exists or
-  the operator plans to use `/model`; LLM model spec
-  (e.g. `ollama/llama3.2`).
-  When neither this var nor a persisted config is present, `main.js`
-  boots in **primordial mode** — the inbox loop runs and every plain-text
-  message receives a friendly pointer at `/help` and `/model list`
-  (see `src/primordial/index.js`'s `makePrimordialAutomaton`) until
-  `/model commit` hands off to piAgent.
-- `GENIE_WORKSPACE` — **required**; absolute path to the persistent
-  workspace directory (`MEMORY.md`, `HEARTBEAT.md`, `.genie/`).
-- `GENIE_NAME` — optional; stable pet name, defaults to `main-genie`.
-- `GENIE_AGENT_DIRECTORY` — optional; child-agent directory name,
-  defaults to `genie`.
-- `GENIE_HEARTBEAT_PERIOD` / `GENIE_HEARTBEAT_TIMEOUT` — optional
-  heartbeat tuning.
-- `GENIE_OBSERVER_MODEL` / `GENIE_REFLECTOR_MODEL` — optional model
-  overrides for the observer and reflector sub-agents; default to the
-  main chat model.
+## Capabilities the genie guest receives
 
-`main.js` is the authoritative source — see the env-parsing block near
-the bottom of `make()` for the current list and defaults, and the
-`setup.js` forwarding table for which variables propagate across the
-`makeUnconfined` boundary.
+`setup.js` introduces two host-side caps under fixed pet names:
 
-### Persisted model config
+| Pet name (in guest) | Origin                                                        | Consumer                          |
+| ------------------- | ------------------------------------------------------------- | --------------------------------- |
+| `workspace`         | `E(host).provideMount(GENIE_WORKSPACE, 'workspace-mount')`    | `spawnAgent` (bound to `/workspace`); also passed to daemon-side fs tools as the canonical workspace cap. |
+| `sandboxes`         | `E(host).makeUnconfined('@main', '@endo/sandbox/agent.js', { powersName: '@agent', resultName: 'sandbox-factory' })` | `spawnAgent` calls `E(sandboxes).make({...})` to mint a `SandboxHandle` per agent. |
 
-`/model commit` writes the active model configuration to
-`<GENIE_WORKSPACE>/.genie/config.json` (schema v1; see
-`src/primordial/types.js` for the typedef and
-`src/primordial/persistence.js` for the read / write helpers).
-The file is written atomically (temp file + rename) and chmod'd to
-`0600` on POSIX so co-tenants on the same machine cannot read the
-credentials.
+Both lookups in `main.js` are guarded with structured-error fallbacks
+so a partial rollout (factory present but no workspace mount, or vice
+versa) surfaces clearly rather than silently dropping back to direct
+host spawning.
 
-The boot-time precedence rule lives in `make()` and is, in order:
+If you need an additional cap inside the genie guest, follow the same
+shape: mint host-side in `setup.js`, gate behind `E(host).has(...)`
+for idempotency, introduce under a stable pet name, and look it up by
+that pet name in `main.js` with a structured error on miss.
 
-1. **Env-var.** `GENIE_MODEL` — wins outright; the persisted file is
-   not consulted.
-2. **Persisted.** `<GENIE_WORKSPACE>/.genie/config.json` — when no
-   `GENIE_MODEL` is set, the loader reads `provider` / `modelId` /
-   `credentials` / `options` from disk.
-   Credentials and options are stamped into `process.env` before the
-   agent pack is constructed so pi-ai's request-time `getEnvApiKey`
-   lookups find the operator's configured values.
-   Existing env values win over persisted ones, so a launcher-supplied
-   override is never silently clobbered.
-3. **Primordial.** No env, no persisted config — `main.js` boots into
-   primordial mode and the operator can use `/model` to install a
-   provider.
+## Testing protocol when you change the slice wiring
 
-The plaintext file **must not** be checked into source control.
-The first line of the file is a `_README` pointer back to this
-document so an operator browsing the workspace by hand sees the
-warning.
-A capability- / keychain-backed credential store is tracked as a
-follow-up under `TADA/92_genie_primordial.md` § 3g — the env-stamping
-hack is documented there too.
+The slice integration spans three packages (`@endo/sandbox`,
+`@endo/genie`, `@endo/daemon`).
+A change in any one of them needs the chain re-validated.
 
-## Sub-agent spawning (deferred)
+### Quick path (every commit)
 
-`spawnAgent`, `removeChildAgent`, and `listChildAgents` are defined in
-`main.js` but are **not** invoked on boot.
-They are retained as building blocks for a future capability the root
-genie can expose (see `TODO/10_genie_self.md` Clarification 2 for the
-planned shape).
-Until that work lands, treat them as internal scaffolding — do not add
-new callers without a companion design note.
+```sh
+# Genie unit tests (spawners, command tool, memory, etc.)
+cd packages/genie && npx ava
 
-## Conventions
+# Sandbox unit tests (factory, drivers, blocked ranges)
+cd packages/sandbox && npx ava
+```
 
-- Follow the top-level `CLAUDE.md` § "Hardened JavaScript (SES)
-  Conventions" — `// @ts-check`, JSDoc types, and `harden()` after every
-  named export.
-- Prefer `makeExo` + `M.interface()` over `Far()` for any remotable
-  surface the root genie exposes; `makeExo` gives CapTP introspection
-  `__getMethodNames__()` for free.
-- Use `E(ref)` for all message sends; never invoke remote methods
-  directly.
+These run on any OS and do not require `bubblewrap`.
+They cover the spawner adapter, the `shell: true` translation, the
+backend-agnostic factory contract, and the egress filter regression.
+
+### Integration path (Linux + bubblewrap)
+
+```sh
+# Workspace tool scenario — daemon + setup.js + LLM round-trip.
+cd packages/genie && yarn test:integration
+
+# Sandbox slice scenario — verifies bash actually runs in a slice.
+cd packages/genie && yarn test:integration:sandbox-slice
+```
+
+The `sandbox-slice` scenario boots a real Endo daemon, runs `setup.js`
+with `GENIE_WORKSPACE=$tmpdir`, waits for the agent to announce
+readiness, then asks the agent to probe its own bind mount, mount
+table, host filesystem isolation, and network profile.
+It is **Linux-only** and skips cleanly with `SKIP:` when
+`bwrap --version` fails or the kernel rejects unprivileged user
+namespaces.
+
+When it skips on your machine, install bubblewrap and confirm the
+kernel:
+
+```sh
+sudo apt install bubblewrap
+bwrap --version
+cat /proc/sys/kernel/unprivileged_userns_clone   # must be 1 on Debian
+```
+
+### Daemon-side checks
+
+Slice-mint failures surface in two places:
+
+1. **Daemon log** — `packages/daemon/tmp/<test>/state/worker/<id>/worker.log`.
+   The log records every `E(sandboxes).make(...)` failure verbatim;
+   check there first when a scenario hangs silently.
+2. **Configuration form reply** — the agent guest sends
+   `Error creating agent: …` back through the inbox.
+   `endo inbox` shows it; the integration scenarios fail loudly with
+   the same string.
+
+Between runs, kill leftover daemons and clean state to avoid
+slice-handle leaks across tests:
+
+```sh
+pkill -f "daemon-node.*packages/daemon/tmp"
+rm -rf packages/daemon/tmp/ packages/genie/tmp/
+```
+
+### Cross-package coupling
+
+When you change …
+
+- `packages/sandbox/src/factory.js` (capability surface) — re-run the
+  sandbox unit tests **and** the genie integration scenario, since
+  `spawnAgent` exercises the factory contract end-to-end.
+- `packages/genie/src/tools/spawner.js` or
+  `sandbox-spawner.js` — re-run the genie unit tests; the host
+  spawner has its own coverage and the sandbox spawner is exercised
+  by `test:integration:sandbox-slice`.
+- `packages/genie/main.js`'s `spawnAgent` — re-run both integration
+  scenarios; the workspace-tool scenario covers the legacy
+  direct-spawn path, the sandbox-slice scenario covers the slice
+  path.
+- `packages/genie/setup.js` — re-run `yarn test:integration` (the
+  setup script is part of the integration boot sequence) and verify
+  the `Minted workspace-mount` / `Minted sandbox-factory` log lines
+  appear on a fresh daemon.
+
+### When you add a new sandbox backend
+
+If you wire a new driver (lima, containerization, wsl…) into
+`@endo/sandbox` and want the genie to be able to select it:
+
+1. Add the new name to `ALLOWED_BACKENDS` in
+   [`packages/genie/main.js`](./main.js).
+2. Update the form-field label string under `name: 'backend'` so
+   operators see the new option.
+3. Update the [`README.md`](./README.md) form-field table.
+4. Add a scenario probe under `test/scenarios/` that verifies the new
+   backend selector reaches the slice (and skips gracefully when the
+   driver's binary is absent).
+
+Never widen `ALLOWED_NETWORK_PROFILES` without a corresponding update
+to the sandbox plugin's profile list — the genie defers to the plugin
+for the actual semantics, and a profile the plugin does not implement
+is a hard error at slice-mint time.
+
+## See also
+
+- [`packages/sandbox/README.md`](../sandbox/README.md) — the
+  capability surface, network profiles, and operator prerequisites
+  for the underlying slice.
+- [`PLAN/endo_posix_sandbox.md`](../../PLAN/endo_posix_sandbox.md) —
+  the design that the slice integration consumes.
+- Repo-root [`CLAUDE.md`](../../CLAUDE.md) — SES, harden, JSDoc, and
+  exo conventions that apply to every file in the genie package.

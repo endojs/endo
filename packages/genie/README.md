@@ -40,8 +40,20 @@ its behaviour with the following environment variables:
 | `GENIE_MODEL`     | Model spec (e.g. `ollama/llama3.2`) auto-submitted into the configuration form. When absent the form is left for manual submission.                                                                                                                      |
 | `GENIE_WORKSPACE` | Host filesystem path to the workspace directory the daemon should mount on the agent's behalf. When provided, `setup.js` mints a `workspace-mount` Mount cap on the host and introduces it into the genie guest as `workspace`. Omit to keep the legacy "workspace = host cwd, no slice" code path during rollout. |
 | `GENIE_NAME`      | Pet name for the first agent guest. Defaults to `main-genie`.                                                                                                                                                                                            |
-| `GENIE_BACKEND`   | Sandbox backend selector for the slice the agent runs in. One of `auto` \| `bwrap` \| `podman` \| `lima` \| `containerization` \| `wsl`. Surfaces in the configuration form as the `backend` field; defaults to `auto` (first available driver reported by `listBackends()`).                                              |
-| `GENIE_NETWORK`   | Sandbox network profile. One of `none` \| `private` \| `host-loopback` \| `host-lan` \| `host-net`. Surfaces in the configuration form as the `network` field; defaults to `private`.                                                                                                                                                                                                                                                                                                                       |
+
+The slice's backend selector and network profile are not (yet) exposed
+as env vars; they live on the **configuration form** the genie guest
+emits on first boot.  The form fields are:
+
+| Form field | Allowed values                                                            | Default          | Effect                                                                                                                            |
+| ---------- | ------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `backend`  | `auto` \| `bwrap` \| `podman` \| `lima` \| `containerization` \| `wsl`    | `auto`           | Selects the sandbox driver.  `auto` picks the first available driver reported by `E(sandboxes).listBackends()` (bwrap before podman). |
+| `network`  | `none` \| `private` \| `host-loopback` \| `host-lan` \| `host-net`        | `private`        | Network profile applied to the slice; see [§ Network profile expectations](#network-profile-expectations) below.                   |
+
+`setup.js` only auto-submits `name`, `model`, and `workspace`.
+Operators tuning `backend` or `network` answer the form by hand
+(`endo inbox` → submit) on first boot; both fields are persisted by
+the genie guest formula and survive daemon restarts.
 
 `setup.js` also mints a `sandbox-factory` capability via the
 `@endo/sandbox` plugin's `make-unconfined` entry point (see
@@ -164,8 +176,9 @@ endo send main-genie 'hello'
 
 Skip step 4's `GENIE_WORKSPACE` to exercise the legacy direct-spawn
 path during rollout — see "Slice vs. dev-repl" above.
-Set `GENIE_BACKEND=podman` or `GENIE_NETWORK=host-loopback` to
-override defaults.
+To override the slice defaults, answer the configuration form by hand
+(`endo inbox` lists the pending form; submit a non-default `backend`
+or `network` field) instead of `endo send`-ing a free-form message.
 
 ### Failure-mode cookbook
 
