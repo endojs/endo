@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-04*
+*Last updated: 2026-05-05*
 
 *See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23).*
 
@@ -92,7 +92,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-tcp-syrup-framing](ocapn-tcp-syrup-framing.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [syrups](syrups.md) | 2026-05-04 | 2026-05-05 | Deprecated |
-| [cbors](cbors.md) | 2026-05-04 | 2026-05-04 | Not Started |
+| [cbors](cbors.md) | 2026-05-04 | 2026-05-05 | Not Started |
 | [outliner-design-doc](outliner-design-doc.md) | 2026-03-17 | 2026-03-18 | In Progress |
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-04-23 | Not Started |
@@ -102,7 +102,7 @@
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 22 Complete/Implemented, 6 In Progress, 47 Not Started, 2 Proposed, 1 Active, 1 Reference, 2 Deprecated
+**Totals:** 24 Complete/Implemented, 14 In Progress, 45 Not Started, 2 Proposed, 3 Active, 2 Reference, 2 Deprecated, 1 Draft (93 designs)
 
 ## Roadmap
 
@@ -595,7 +595,9 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-21:** 21 of 69 designs complete/implemented, 5 in progress. M0 complete.
+**Progress as of 2026-05-05:** 24 of 93 designs complete/implemented, 14 in progress. M0 complete.
+M1, M2, M3, and M4 designs continue to land; the most recent merges (PRs #50, #85, #86) are
+informational and framing-package designs that do not change the critical path.
 18 active work days elapsed (Feb 15 – Mar 5), primarily 1 developer
 (128 of 201 commits). Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
