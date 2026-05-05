@@ -208,6 +208,11 @@ imports third.
 "the daemon process" end-to-end, including OS-process startup and
 supervisor handshake, not just the manager.
 
+`daemon-webextension.js` is renamed to `manager-webextension.js` for
+consistency with the rest of the file table.
+The module is not currently used and may be ripe for removal in a
+later pass; that removal is out of scope for this design.
+
 ### Identifier renames (`packages/daemon/src/`)
 
 In `daemon.js` (becoming `manager.js`):
@@ -413,14 +418,7 @@ renamed.
 
 ## Open Questions
 
-1. **`daemon-webextension.js` -> `manager-webextension.js`.**
-   This module imports a `main` symbol from `daemon.js` that does not
-   appear to exist in the current source.
-   Either it is dead code that should be deleted before the rename,
-   or `main` is a missing export that needs to be added before
-   touching the file.
-   Builder should investigate.
-2. **Test directory split.**
+1. **Test directory split.**
    `packages/daemon/test/endo.test.js` is the integration test for
    the daemon process; should it move to `packages/daemon/test/`
    subdirectory `manager/` to mirror the source structure?
