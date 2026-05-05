@@ -204,9 +204,9 @@ imports third.
 | `bus-daemon-rust-xs.js` | `bus-manager-rust-xs.js` |
 | `bus-daemon-rust-xs-powers.js` | `bus-manager-rust-xs-powers.js` |
 
-`packages/daemon/test/bench-daemon.js` keeps its name (it benchmarks
-"the daemon process" end-to-end), or is renamed to `bench-manager.js`
-if the maintainer prefers consistency; see Open Questions.
+`packages/daemon/test/bench-daemon.js` keeps its name; it benchmarks
+"the daemon process" end-to-end, including OS-process startup and
+supervisor handshake, not just the manager.
 
 ### Identifier renames (`packages/daemon/src/`)
 
@@ -413,22 +413,14 @@ renamed.
 
 ## Open Questions
 
-1. **`bench-daemon.js`.**
-   The benchmark file measures end-to-end performance of "the daemon
-   process".
-   Renaming it to `bench-manager.js` is consistent; leaving it as
-   `bench-daemon.js` is also defensible because the measurements
-   include OS-process startup, supervisor handshake, and other
-   non-manager costs.
-   The maintainer's call.
-2. **`daemon-webextension.js` -> `manager-webextension.js`.**
+1. **`daemon-webextension.js` -> `manager-webextension.js`.**
    This module imports a `main` symbol from `daemon.js` that does not
    appear to exist in the current source.
    Either it is dead code that should be deleted before the rename,
    or `main` is a missing export that needs to be added before
    touching the file.
    Builder should investigate.
-3. **Test directory split.**
+2. **Test directory split.**
    `packages/daemon/test/endo.test.js` is the integration test for
    the daemon process; should it move to `packages/daemon/test/`
    subdirectory `manager/` to mirror the source structure?
