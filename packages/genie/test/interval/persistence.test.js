@@ -30,12 +30,15 @@ const makeTmpDir = async () => {
  */
 const createScheduler = async (t, config) => {
   const pair = await makeIntervalScheduler(config);
-  t.teardown(() => {
-    try {
-      pair.schedulerControl.revoke();
-    } catch {
-      // Already revoked — ignore.
-    }
+  t.teardown(async () => {
+    // Await drain so that any in-flight persistence completes before a
+    // later teardown removes the persistDir.  Without this await, an
+    // atomicWriteJSON `*.tmp.<hex>` write can race fs.rm and cause
+    // ENOTEMPTY on slower runners (notably macOS CI).  revoke is
+    // idempotent and its returned promise already converts internal
+    // persistence errors to console.error, so no try/catch is needed.
+    const revoked = pair.schedulerControl.revoke();
+    await revoked;
   });
   return pair;
 };

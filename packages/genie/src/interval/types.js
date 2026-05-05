@@ -66,7 +66,11 @@
  * @property {(ms: number) => void} setMinPeriodMs
  * @property {() => void} pause
  * @property {() => void} resume
- * @property {() => void} revoke
+ * @property {() => Promise<void>} revoke - resolves once any
+ *   persistence kicked off by the revoke (marking entries cancelled)
+ *   has drained.  The synchronous side effects (disarming timers,
+ *   marking entries cancelled in memory) complete before the call
+ *   returns, so callers may ignore the returned promise.
  * @property {() => Promise<IntervalEntry[]>} listAll
  * @property {() => string} help
  */

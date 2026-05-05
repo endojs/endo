@@ -547,7 +547,7 @@ const makeIntervalScheduler = async (config = {}) => {
 
     revoke() {
       if (revoked) {
-        return;
+        return Promise.resolve();
       }
       revoked = true;
       disarmAll();
@@ -559,9 +559,19 @@ const makeIntervalScheduler = async (config = {}) => {
           persistPromises.push(persist(entry));
         }
       }
-      // Fire-and-forget persistence — revoke is synchronous per the design.
-      Promise.all(persistPromises).catch(err =>
-        console.error('[IntervalScheduler] Failed to persist revocation:', err),
+      // Synchronous side effects (disarm, mark cancelled) have already
+      // run, so callers that ignore the returned promise see the
+      // historical fire-and-forget behavior.  Callers that need to
+      // drain in-flight persistence (typically tests that delete the
+      // persistDir on teardown) can await the returned promise.
+      return Promise.all(persistPromises).then(
+        () => undefined,
+        err => {
+          console.error(
+            '[IntervalScheduler] Failed to persist revocation:',
+            err,
+          );
+        },
       );
     },
 
