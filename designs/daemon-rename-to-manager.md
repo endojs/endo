@@ -416,14 +416,6 @@ renamed.
   identifier from `@endo/daemon`.
   The rename is therefore an outright cut, not a deprecation.
 
-## Open Questions
-
-1. **Test directory split.**
-   `packages/daemon/test/endo.test.js` is the integration test for
-   the daemon process; should it move to `packages/daemon/test/`
-   subdirectory `manager/` to mirror the source structure?
-   Out of scope for this design.
-
 ## Prompt
 
 > Please dispatch a designer to propose a change that would deal with
