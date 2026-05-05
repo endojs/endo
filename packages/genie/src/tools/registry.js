@@ -19,9 +19,11 @@
 import harden from '@endo/harden';
 
 import {
-  DANGEROUS_PATTERNS,
+  bash,
+  exec,
+  makeBashTool,
   makeCommandTool,
-  rejectPatterns,
+  makeExecTool,
 } from './command.js';
 import { makeFileTools } from './filesystem.js';
 import { makeMemoryTools } from './memory.js';
@@ -30,20 +32,7 @@ import { webSearch } from './web-search.js';
 
 /** @import { Tool } from './common.js' */
 /** @import { SearchBackend } from './memory.js' */
-/** @import { ERef } from '@endo/eventual-send' */
-
-/**
- * Capability shape the registry hands down to `makeCommandTool`.  The
- * full shape lives in `@endo/sandbox/src/types.d.ts` (`SandboxHandle`);
- * the tool layer only ever calls `spawn(argv, opts)` against it, so we
- * type the field structurally here to avoid pulling `@endo/sandbox`
- * into the genie package's dependency graph.  Sub-task 35 of
- * `TODO/35_endo_genie_sandbox_tool_spawn.md` is the consumer.
- *
- * @typedef {ERef<{
- *   spawn: (argv: string[], opts?: object) => Promise<unknown>
- * }>} SandboxSlice
- */
+/** @import { Spawner } from './spawner.js' */
 
 /**
  * A group of tools that can be toggled on or off via the `include`
@@ -134,15 +123,14 @@ export const PLUGIN_DEFAULT_INCLUDE = harden([
  * @param {readonly GenieToolGroup[]} [options.include]
  *   - An empty list builds an empty registry.
  * @param {SearchBackend} [options.searchBackend]
- * @param {SandboxSlice} [options.slice]
- *   - Optional persistent workspace `SandboxHandle` minted by
- *     `main.js` per `TODO/34_endo_genie_sandbox_main_wiring.md`.
- *     Sub-task 35 (`TODO/35_endo_genie_sandbox_tool_spawn.md`) will
- *     wire `makeCommandTool` to consume it; this sub-task only
- *     threads it through the registry so the slice cap survives the
- *     hand-off without further `main.js` changes.  Absent when no
- *     slice is available — the consumer (sub-task 35) is responsible
- *     for falling back to host spawn or refusing.
+ * @param {Spawner} [options.spawner]
+ *   - Process-execution engine for the `bash` / `exec` / `git`
+ *     tools.  When omitted, those tools fall through to the host
+ *     spawner baked into `command.js` (the default for the
+ *     `dev-repl` and any host-only deployment).  When supplied
+ *     (e.g. a sandbox spawner from `./sandbox-spawner.js`), the
+ *     command tools spawn through it instead — file / memory / web
+ *     tools continue to run daemon-side.
  * @returns {GenieTools}
  */
 export const buildGenieTools = ({
@@ -150,46 +138,22 @@ export const buildGenieTools = ({
   searchBackend,
   slice,
   include = PLUGIN_DEFAULT_INCLUDE,
+  spawner,
 }) => {
   const groups = new Set(include);
 
   /** @type {Record<string, Tool>} */
   const tools = {};
 
-  // `bash` / `exec` / `git` are constructed in-place rather than
-  // imported from `./command.js` so each one captures the optional
-  // `slice` parameter.  When `slice` is supplied, every spawn routes
-  // through `E(slice).spawn(...)` (the `@endo/sandbox` `SandboxHandle`
-  // surface; see `TODO/35_endo_genie_sandbox_tool_spawn.md` and
-  // `TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md`
-  // § "Tool spawn channel"); when absent, `makeCommandTool` falls
-  // back to host-side `child_process.spawn`.  The agent-visible
-  // result-shape contract (`{ success, command, stdout, stderr,
-  // exitCode, path? }`) is identical across both channels.
+  // When a spawner is injected, rebuild the bash / exec tools so the
+  // override flows through to the underlying makeCommandTool factory
+  // while preserving the pre-built dangerous-pattern policies.
+  // Otherwise reuse the pre-built host-spawner exports verbatim.
   if (groups.has('bash')) {
-    tools.bash = makeCommandTool({
-      name: 'bash',
-      description: [
-        'Runs a shell command (ls, grep, find, cat, curl, etc.).',
-        'Use for general tasks not covered by other tools.',
-      ].join('\n'),
-      policies: [rejectPatterns(DANGEROUS_PATTERNS)],
-      shell: true,
-      slice,
-    });
+    tools.bash = spawner ? makeBashTool({ spawner }) : bash;
   }
-
   if (groups.has('exec')) {
-    tools.exec = makeCommandTool({
-      name: 'exec',
-      description: [
-        'Runs a system command (ls, grep, find, cat, curl, etc.).',
-        'Use for general tasks not covered by other tools.',
-        'NOTE: does not execute through a shell',
-      ].join('\n'),
-      policies: [rejectPatterns(DANGEROUS_PATTERNS)],
-      slice,
-    });
+    tools.exec = spawner ? makeExecTool({ spawner }) : exec;
   }
 
   if (groups.has('git')) {
@@ -211,7 +175,7 @@ export const buildGenieTools = ({
           );
         },
       ],
-      slice,
+      ...(spawner ? { spawner } : {}),
     });
   }
 

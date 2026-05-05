@@ -1,5 +1,5 @@
 // @ts-check
-/* global process, setTimeout, clearTimeout */
+/* global setTimeout, clearTimeout */
 /* eslint-disable no-continue, no-await-in-loop */
 
 /**
@@ -47,16 +47,23 @@
  *   policies: [],
  * });
  * ```
+ *
+ * The actual process-execution engine is pluggable via the
+ * `spawner` option (see {@link makeHostSpawner} and the sandbox
+ * spawner in `./sandbox-spawner.js`).  The timeout / kill /
+ * output-accumulation loop lives here in `makeCommandTool` so it
+ * stays uniform regardless of spawner.
  */
 
-import { spawn } from 'child_process';
-import * as fs from 'fs';
-import { join, resolve, relative } from 'path';
+import { resolve, relative } from 'path';
 
 import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 import { M } from '@endo/patterns';
 import { makeTool } from './common.js';
+import { makeHostSpawner } from './spawner.js';
+
+/** @import { Spawner } from './spawner.js' */
 
 /** @import { SandboxSlice } from './registry.js' */
 
@@ -254,6 +261,106 @@ const decodeUtf8 = chunks => {
 };
 
 // ---------------------------------------------------------------------------
+// Process supervision (timeout / kill / output accumulation)
+// ---------------------------------------------------------------------------
+
+/**
+ * Drain an async-iterable byte stream into a UTF-8 string.  Returns
+ * an empty string when the stream is null / undefined (i.e. the
+ * spawner did not capture this channel).
+ *
+ * Errors raised by the iterable are swallowed: a process kill mid-
+ * stream typically surfaces as an `EPIPE` / read-after-close error
+ * the caller does not need to distinguish from clean EOF.
+ *
+ * @param {AsyncIterable<Uint8Array> | null | undefined} stream
+ * @returns {Promise<string>}
+ */
+const drainToString = async stream => {
+  await null;
+  if (stream === null || stream === undefined) return '';
+  const decoder = new TextDecoder('utf-8');
+  let acc = '';
+  try {
+    for await (const chunk of stream) {
+      acc += decoder.decode(chunk, { stream: true });
+    }
+    acc += decoder.decode();
+  } catch {
+    // ignore: the process may have been killed mid-stream.
+  }
+  return acc;
+};
+
+/**
+ * Supervise a {@link ProcessLike} until it exits, draining its
+ * stdout / stderr and enforcing a soft-kill timeout.  This loop is
+ * deliberately spawner-agnostic so the host and sandbox spawners can
+ * share it.
+ *
+ * @param {object} args
+ * @param {string} args.name
+ * @param {import('./spawner.js').ProcessLike} args.proc
+ * @param {number} args.timeoutMs
+ * @param {boolean} args.allowPath
+ * @param {string} args.cwd
+ * @param {string} args.fullCommand
+ * @returns {Promise<{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}>}
+ */
+const runProcess = async ({
+  name,
+  proc,
+  timeoutMs,
+  allowPath,
+  cwd,
+  fullCommand,
+}) => {
+  let killed = false;
+  const timer = setTimeout(() => {
+    killed = true;
+    void proc.kill('SIGTERM');
+  }, timeoutMs);
+
+  let stdout = '';
+  let stderr = '';
+  /** @type {{ code: number | null; signal: string | null }} */
+  let status = { code: null, signal: null };
+  try {
+    [stdout, stderr, status] = await Promise.all([
+      drainToString(proc.stdout ?? undefined),
+      drainToString(proc.stderr ?? undefined),
+      proc.wait(),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (killed) {
+    throw new Error(`${name} timed out after ${timeoutMs}ms`);
+  }
+  const exitCode = status.code ?? -1;
+  if (exitCode !== 0) {
+    const err = new Error(`Command failed with exit code ${exitCode}`);
+    // @ts-expect-error — attach extra fields for callers
+    err.code = exitCode;
+    throw err;
+  }
+
+  /** @type {{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}} */
+  const out = {
+    success: true,
+    command: fullCommand,
+    stdout: stdout.trim(),
+    stderr: stderr.trim(),
+    exitCode: 0,
+  };
+  if (allowPath) {
+    out.path = cwd;
+  }
+  return out;
+};
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -277,18 +384,14 @@ const decodeUtf8 = chunks => {
  *   before execution.
  * @property {number}    [defaultTimeout]  - Default timeout in ms
  *   (default: 30 000).
- * @property {string}    [searchPath]      - $PATH override
+ * @property {string}    [searchPath]      - $PATH override (only honoured
+ *   by the default host spawner; ignored when an explicit `spawner` is
+ *   supplied).
  * @property {boolean}   [shell]           - whether to execute thru a shell
- * @property {SandboxSlice} [slice]
- *   - Optional persistent workspace `SandboxHandle` minted by
- *     `main.js` (`TODO/34_endo_genie_sandbox_main_wiring.md`).
- *     When supplied, every spawn is routed through
- *     `E(slice).spawn([exe, ...spawnArgs], { cwd, env })` instead of
- *     the host `child_process.spawn`.  The result-shape contract is
- *     preserved.  When absent, the tool falls back to host-side
- *     spawn — matching the pre-3.5a behaviour for callers
- *     (`dev-repl.js`, `self-boot.test.js`, the registry's
- *     no-include-list deployments) that do not have a slice.
+ * @property {Spawner}   [spawner]         - Process-execution engine.
+ *   Defaults to a freshly-built host spawner (see
+ *   {@link makeHostSpawner}).  Pass a sandbox spawner to run the tool
+ *   inside an `@endo/sandbox` slice.
  */
 
 /**
@@ -304,33 +407,12 @@ const makeCommandTool = ({
   allowPath = false,
   policies = [],
   defaultTimeout = 30_000,
-  searchPath = process.env.PATH || '',
+  searchPath,
   shell = false,
-  slice,
+  spawner = makeHostSpawner(
+    searchPath !== undefined ? { searchPath } : undefined,
+  ),
 }) => {
-  /**
-   * @param {string} prog
-   */
-  const whichProgram = async prog => {
-    await Promise.resolve();
-    const isWin = process.platform === 'win32';
-    const pathDirs = searchPath.split(isWin ? ';' : ':');
-    for (const dir of pathDirs) {
-      if (!dir) continue;
-      const candidate = join(dir, prog);
-      try {
-        const stats = await fs.promises.stat(candidate);
-        // eslint-disable-next-line no-bitwise
-        if (isWin ? stats.isFile() : (stats.mode & 0o111) !== 0) {
-          return candidate;
-        }
-      } catch {
-        // not found in this dir
-      }
-    }
-    return null;
-  };
-
   const hasProgram = program !== undefined;
 
   // -- schema pieces --------------------------------------------------------
@@ -398,18 +480,6 @@ const makeCommandTool = ({
         path: cwd = '.',
       } = opts;
 
-      // Resolve the executable.  With a `host-bind` rootfs (the only
-      // shape 3.5a wires up; see TADA/22 Decision 3) the host PATH is
-      // mounted into the slice, so a host-resolved absolute path is
-      // valid inside the slice too.  Other rootfs shapes (oci, custom
-      // mount) will need a slice-aware lookup; that is out of scope
-      // for sub-task 35.
-      const prog = program || args[0] || 'false';
-      const exe = await whichProgram(prog);
-      if (!exe) {
-        throw new Error(`command not found: ${prog}`);
-      }
-
       // Run all policies.
       for (const policy of policies) {
         policy(args);
@@ -422,175 +492,25 @@ const makeCommandTool = ({
         }
       }
 
-      const spawnArgs = hasProgram ? args : args.slice(1);
-
       // Build the full command: when a program is configured, prepend it.
       const allArgs = hasProgram ? [program, ...args] : args;
       const fullCommand = JSON.stringify(allArgs);
 
-      if (slice !== undefined) {
-        // ── Slice spawn channel (TODO/35) ────────────────────────────
-        // Route through the workspace `SandboxHandle` so the process
-        // runs inside the slice's namespace + network profile rather
-        // than on the bare host.  `child_process.spawn`'s `shell: true`
-        // shortcut is unavailable on the slice surface, so we
-        // explicitly wrap shell tools in `/bin/sh -c <cmdline>` here —
-        // mirroring Node's own `shell: true` semantics (`/bin/sh -c`
-        // with the resolved exe + args joined by spaces).
-        /** @type {string[]} */
-        const argv = shell
-          ? ['/bin/sh', '-c', [exe, ...spawnArgs].join(' ')]
-          : [exe, ...spawnArgs];
-
-        // Per-spawn env: only PATH is propagated so the slice's view
-        // of the host userland stays close to the operator's.  The
-        // slice's construction-time env (set via `SandboxMakeOpts.env`)
-        // remains the source of truth for everything else; this
-        // override layers on top.
-        /** @type {Record<string, string>} */
-        const env = harden({
-          PATH: searchPath || process.env.PATH || '/usr/bin:/bin',
-        });
-
-        /** @type {Record<string, unknown>} */
-        const spawnOpts = { env };
-        if (allowPath) spawnOpts.cwd = cwd;
-        harden(spawnOpts);
-
-        const proc = await E(slice).spawn(harden(argv), spawnOpts);
-
-        const stdoutRef = await E(proc).stdout();
-        const stderrRef = await E(proc).stderr();
-
-        /** @type {Uint8Array[]} */
-        const stdoutChunks = [];
-        /** @type {Uint8Array[]} */
-        const stderrChunks = [];
-
-        const stdoutP = drainReaderRef(stdoutRef, stdoutChunks);
-        const stderrP = drainReaderRef(stderrRef, stderrChunks);
-
-        // Schedule the timeout so a hung child process eventually
-        // returns control.  On fire we kill (best-effort) and reject;
-        // a clean `wait()` resolution races us and clears the timer.
-        /** @type {ReturnType<typeof setTimeout> | undefined} */
-        let timer;
-        const timeoutP = new Promise((_resolve, reject) => {
-          timer = setTimeout(() => {
-            void E(proc)
-              .kill('SIGTERM')
-              .catch(() => {});
-            reject(new Error(`${name} timed out after ${timeoutMs}ms`));
-          }, timeoutMs);
-        });
-
-        /** @type {{ code: number | null, signal: string | null }} */
-        let exit;
-        try {
-          exit = /** @type {{ code: number | null, signal: string | null }} */ (
-            await Promise.race([E(proc).wait(), timeoutP])
-          );
-        } finally {
-          if (timer !== undefined) clearTimeout(timer);
-        }
-
-        // Drain any trailing bytes the streams produced after exit.
-        // Stream errors during teardown are non-fatal — the process
-        // already returned a status — so we swallow them.
-        await Promise.all([
-          stdoutP.catch(() => {}),
-          stderrP.catch(() => {}),
-        ]);
-
-        const stdout = decodeUtf8(stdoutChunks);
-        const stderr = decodeUtf8(stderrChunks);
-
-        const exitCode = exit.code ?? -1;
-        if (exitCode !== 0) {
-          const err = new Error(
-            `Command failed with exit code ${exitCode}`,
-          );
-          // @ts-expect-error — attach extra fields for callers
-          err.code = exitCode;
-          throw err;
-        }
-        const out = {
-          success: true,
-          command: fullCommand,
-          stdout: stdout.trim(),
-          stderr: stderr.trim(),
-          exitCode: 0,
-        };
-        if (allowPath) {
-          out.path = cwd;
-        }
-        return out;
-      }
+      const spawnerOpts = {
+        ...(allowPath ? { cwd } : {}),
+        shell,
+      };
 
       try {
-        /** @type {Promise<{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}>} */
-        // eslint-disable-next-line no-shadow
-        const result = new Promise((resolve, reject) => {
-          const child = spawn(exe, spawnArgs, {
-            ...(allowPath ? { cwd } : {}),
-            env: {
-              ...process.env,
-              PATH: process.env.PATH,
-            },
-            shell,
-          });
-
-          let stdout = '';
-          let stderr = '';
-          let killed = false;
-
-          const timer = setTimeout(() => {
-            killed = true;
-            child.kill('SIGTERM');
-          }, timeoutMs);
-
-          child.stdout.on('data', chunk => {
-            stdout += chunk;
-          });
-
-          child.stderr.on('data', chunk => {
-            stderr += chunk;
-          });
-
-          child.on('error', err => {
-            clearTimeout(timer);
-            reject(err);
-          });
-
-          child.on('close', exitCode => {
-            clearTimeout(timer);
-            if (killed) {
-              reject(new Error(`${name} timed out after ${timeoutMs}ms`));
-              return;
-            }
-            if (exitCode !== 0) {
-              const err = new Error(
-                `Command failed with exit code ${exitCode}`,
-              );
-              // @ts-expect-error — attach extra fields for callers
-              err.code = exitCode;
-              reject(err);
-              return;
-            }
-            const out = {
-              success: true,
-              command: fullCommand,
-              stdout: stdout.trim(),
-              stderr: stderr.trim(),
-              exitCode: 0,
-            };
-            if (allowPath) {
-              out.path = cwd;
-            }
-            resolve(out);
-          });
+        const proc = await spawner(allArgs, spawnerOpts);
+        return await runProcess({
+          name,
+          proc,
+          timeoutMs,
+          allowPath,
+          cwd,
+          fullCommand,
         });
-        return result;
       } catch (err) {
         throw new Error(`${name} execution failed: ${err.message}`);
       }
@@ -604,48 +524,59 @@ harden(makeCommandTool);
 // ---------------------------------------------------------------------------
 
 /**
- * General-purpose system command tool with dangerous-pattern blocking.
+ * Build a fresh `exec` tool — a general-purpose, non-shell system
+ * command tool with dangerous-pattern blocking.  Accepts an optional
+ * spawner override so a sandbox-aware caller (e.g. the daemon-hosted
+ * genie's tool registry) can route execution through a slice.
  *
- * Slice-less variant — host-side `child_process.spawn`.  The
- * registry constructs the slice-aware sibling inside `buildGenieTools`
- * so it can pass the workspace `SandboxHandle` minted by `main.js`
- * (`TODO/34_endo_genie_sandbox_main_wiring.md`); see
- * `tools/registry.js` for that wiring.
+ * @param {{ spawner?: Spawner }} [options]
  */
-const exec = makeCommandTool({
-  name: 'exec',
-  description: [
-    'Runs a system command (ls, grep, find, cat, curl, etc.).',
-    'Use for general tasks not covered by other tools.',
-    'NOTE: does not execute through a shell',
-  ].join('\n'),
-  policies: [rejectPatterns(DANGEROUS_PATTERNS)],
-});
-harden(exec);
+const makeExecTool = ({ spawner } = {}) =>
+  makeCommandTool({
+    name: 'exec',
+    description: [
+      'Runs a system command (ls, grep, find, cat, curl, etc.).',
+      'Use for general tasks not covered by other tools.',
+      'NOTE: does not execute through a shell',
+    ].join('\n'),
+    policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+    ...(spawner ? { spawner } : {}),
+  });
+harden(makeExecTool);
 
 /**
- * General-purpose shell tool with dangerous-pattern blocking.
+ * Build a fresh `bash` tool — a general-purpose shell tool with
+ * dangerous-pattern blocking.  Accepts an optional spawner override
+ * (see {@link makeExecTool}).
  *
- * Slice-less variant — host-side `child_process.spawn`.  The
- * registry constructs the slice-aware sibling inside `buildGenieTools`
- * so it can pass the workspace `SandboxHandle` minted by `main.js`
- * (`TODO/34_endo_genie_sandbox_main_wiring.md`); see
- * `tools/registry.js` for that wiring.
+ * @param {{ spawner?: Spawner }} [options]
  */
-const bash = makeCommandTool({
-  name: 'bash',
-  description: [
-    'Runs a shell command (ls, grep, find, cat, curl, etc.).',
-    'Use for general tasks not covered by other tools.',
-  ].join('\n'),
-  policies: [rejectPatterns(DANGEROUS_PATTERNS)],
-  shell: true,
-});
+const makeBashTool = ({ spawner } = {}) =>
+  makeCommandTool({
+    name: 'bash',
+    description: [
+      'Runs a shell command (ls, grep, find, cat, curl, etc.).',
+      'Use for general tasks not covered by other tools.',
+    ].join('\n'),
+    policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+    shell: true,
+    ...(spawner ? { spawner } : {}),
+  });
+harden(makeBashTool);
+
+/** Default host-spawner-backed exec tool. */
+const exec = makeExecTool();
+harden(exec);
+
+/** Default host-spawner-backed bash tool. */
+const bash = makeBashTool();
 harden(bash);
 
 export {
   DANGEROUS_PATTERNS,
   makeCommandTool,
+  makeBashTool,
+  makeExecTool,
   bash,
   exec,
   rejectPatterns,
