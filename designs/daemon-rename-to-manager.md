@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-04 |
+| **Updated** | 2026-05-05 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Not Started |
 
@@ -372,10 +373,11 @@ change.
 ### Question of renaming the package itself
 
 The npm package `@endo/daemon` and the directory `packages/daemon/`
-are out of scope for this design; renaming a published package is a
-separate exercise with deprecation, alias, and consumer-migration
-implications.
-See [Open Questions](#open-questions).
+keep their current names.
+The package-level name is still correctly scoped to the daemon as a
+whole (including the supervisor and worker processes); only the
+orchestration file and the `Daemon*` identifiers within it are
+renamed.
 
 ## Compatibility Considerations
 
@@ -411,23 +413,14 @@ See [Open Questions](#open-questions).
 
 ## Open Questions
 
-1. **Should the package directory rename too?**
-   `packages/daemon/` -> `packages/manager/`, `@endo/daemon` ->
-   `@endo/manager`.
-   This is a much larger change with deprecation/alias implications.
-   The user's framing did not cover the package; this design proposes
-   leaving the package name as-is and renaming only the orchestration
-   file and identifiers.
-   The maintainer can decide whether to schedule a follow-up package
-   rename.
-2. **Should `makeDaemon` survive as a deprecated alias for one
+1. **Should `makeDaemon` survive as a deprecated alias for one
    release?**
    `export { makeManager as makeDaemon };` in `manager.js` would let
    downstream consumers migrate without a same-PR change.
    This is mostly a question of how strict we want the cut to be.
    Recommendation: include a one-line alias with a `@deprecated` JSDoc
    tag, drop in the next minor.
-3. **`bench-daemon.js`.**
+2. **`bench-daemon.js`.**
    The benchmark file measures end-to-end performance of "the daemon
    process".
    Renaming it to `bench-manager.js` is consistent; leaving it as
@@ -435,14 +428,14 @@ See [Open Questions](#open-questions).
    include OS-process startup, supervisor handshake, and other
    non-manager costs.
    The maintainer's call.
-4. **`daemon-webextension.js` -> `manager-webextension.js`.**
+3. **`daemon-webextension.js` -> `manager-webextension.js`.**
    This module imports a `main` symbol from `daemon.js` that does not
    appear to exist in the current source.
    Either it is dead code that should be deleted before the rename,
    or `main` is a missing export that needs to be added before
    touching the file.
    Builder should investigate.
-5. **Test directory split.**
+4. **Test directory split.**
    `packages/daemon/test/endo.test.js` is the integration test for
    the daemon process; should it move to `packages/daemon/test/`
    subdirectory `manager/` to mirror the source structure?
