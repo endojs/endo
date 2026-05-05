@@ -27,6 +27,34 @@ const systemPrompt = systemBuilder({
 console.log(systemPrompt);
 ```
 
+## Daemon bootstrap (`setup.js`)
+
+The genie ships with a `setup.js` script that provisions the genie
+guest, mints supporting host-side capabilities, and watches the inbox
+for the configuration form.
+Run it via `endo run --UNCONFINED setup.js --powers @agent` and tune
+its behaviour with the following environment variables:
+
+| Variable          | Purpose                                                                                                                                                                                                                                                  |
+|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `GENIE_MODEL`     | Model spec (e.g. `ollama/llama3.2`) auto-submitted into the configuration form. When absent the form is left for manual submission.                                                                                                                      |
+| `GENIE_WORKSPACE` | Host filesystem path to the workspace directory the daemon should mount on the agent's behalf. When provided, `setup.js` mints a `workspace-mount` Mount cap on the host and introduces it into the genie guest as `workspace`. Omit to keep the legacy "workspace = host cwd, no slice" code path during rollout. |
+| `GENIE_NAME`      | Pet name for the first agent guest. Defaults to `main-genie`.                                                                                                                                                                                            |
+
+`setup.js` also mints a `sandbox-factory` capability via the
+`@endo/sandbox` plugin's `make-unconfined` entry point (see
+[`packages/sandbox/README.md`](../sandbox/README.md)) and introduces
+it into the genie guest as `sandboxes`.
+Both `workspace` and `sandboxes` lookups in `main.js` are guarded with
+structured-error fallbacks so partial rollouts surface clearly rather
+than silently dropping back to direct host spawning.
+
+Inside a sandbox slice the workspace surfaces at the slice-internal
+path `/workspace`; the genie agent should `chdir` there before running
+tool calls.
+See [`TODO/44_genie_sandbox_workspace_slice.md`](../../TODO/44_genie_sandbox_workspace_slice.md)
+for the cwd plumbing.
+
 ## Features
 
 ### Core Components

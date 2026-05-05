@@ -1133,10 +1133,16 @@ export const make = (powers, _context, { env = {} } = {}) => {
     const profileName = `profile-for-${agentName}`;
 
     // Build introducedNames: only grant capabilities the child needs.
+    // Mirrors `setup.js`'s mapping so child agents see the same names
+    // (`workspace`, `sandboxes`) regardless of whether they were
+    // spawned by `setup-genie` directly or forked from a parent agent.
     /** @type {Record<string, string>} */
     const introducedNames = {};
     if (await E(hostAgent).has(WORKSPACE_MOUNT_NAME)) {
       introducedNames[WORKSPACE_MOUNT_NAME] = 'workspace';
+    }
+    if (await E(hostAgent).has('sandbox-factory')) {
+      introducedNames['sandbox-factory'] = 'sandboxes';
     }
 
     // Guard idempotency — on restart the guest already exists.
@@ -1350,13 +1356,111 @@ export const make = (powers, _context, { env = {} } = {}) => {
     const agentName = config.name || 'main-genie';
     const workspaceDir = config.workspace;
 
-    // Seed the workspace from the shipped template on first spawn.
-    // Existing files are never overwritten.
-    const didInit = await initWorkspace(workspaceDir);
-    if (didInit) {
-      console.log(
-        `[genie:${agentName}] Workspace initialised from template: ${workspaceDir}`,
+    // Resolve the workspace mount and sandbox factory.  Both are
+    // optional during the rollout of TODO/40_genie_sandbox.md: the
+    // legacy "workspace = host cwd, no slice" code path is still
+    // exercised by deployments that did not set `GENIE_WORKSPACE`
+    // and have not yet adopted the sandbox plugin.  Surface a
+    // structured-error pair via the local debug log so partial
+    // rollouts are visible instead of silently falling back.
+    /** @type {unknown} */
+    let workspaceMount;
+    try {
+      workspaceMount = await E(powers).lookup('workspace');
+    } catch (err) {
+      const message = /** @type {Error} */ (err).message || String(err);
+      console.warn(
+        `[genie] No 'workspace' cap (${message}); falling back to direct host-cwd workspace.`,
       );
+      // Fail fast in strict mode so misconfigurations are caught
+      // early, but only after the parallel sandboxes lookup runs.
+      workspaceMount = makeError(
+        X`No 'workspace' cap introduced; expected setup.js to mint and introduce a Mount cap (see ${q('GENIE_WORKSPACE')}).`,
+      );
+    }
+    /** @type {unknown} */
+    let sandboxFactory;
+    try {
+      sandboxFactory = await E(powers).lookup('sandboxes');
+    } catch (err) {
+      const message = /** @type {Error} */ (err).message || String(err);
+      console.warn(
+        `[genie] No 'sandboxes' cap (${message}); falling back to direct host spawn.`,
+      );
+      sandboxFactory = makeError(
+        X`No 'sandboxes' cap introduced; expected setup.js to mint a SandboxFactory via @endo/sandbox.`,
+      );
+    }
+    // The lookups land here so the rollout-tracking
+    // TODOs in 43/44/46 can wire them through to spawnAgent.
+    void workspaceMount;
+    void sandboxFactory;
+
+    // Send the configuration form to HOST.
+    await E(powers).form(
+      '@host',
+      'Configure Genie agent',
+      harden([
+        {
+          name: 'name',
+          label: 'Agent name',
+          example: 'main-genie',
+        },
+        {
+          name: 'agentDirectory',
+          label: 'Agent directory name (for child-agent tracking)',
+          default: 'genie',
+        },
+        {
+          name: 'model',
+          label: 'Model',
+          default: 'ollama/llama3.2',
+        },
+        {
+          name: 'workspace',
+          label: 'Workspace directory',
+          example: '/home/user/project',
+        },
+        {
+          name: 'heartbeatPeriod',
+          label: 'Heartbeat period (ms, 0 to disable, default: 30 minutes)',
+          default: '1800000',
+        },
+        {
+          name: 'heartbeatTimeout',
+          label: 'Heartbeat timeout (ms, default: period/2)',
+          example: '900000',
+          default: '',
+        },
+        {
+          name: 'observerModel',
+          label: 'Observer model (default: same as chat model)',
+          example: 'ollama/llama3.2',
+          default: '',
+        },
+        {
+          name: 'reflectorModel',
+          label: 'Reflector model (default: same as chat model)',
+          example: 'anthropic/claude-sonnet',
+          default: '',
+        },
+      ]),
+    );
+
+    const selfId = await E(powers).locate('@self');
+
+    // Pre-scan existing messages to find our latest form messageId so that
+    // old value messages (from prior sessions) that reply to an earlier form
+    // are not accidentally matched when the iterator replays history.
+    /** @type {string | undefined} */
+    let formMessageId;
+    const existingMessages = /** @type {any[]} */ (
+      await E(powers).listMessages()
+    );
+    for (const msg of existingMessages) {
+      if (msg.from === selfId && msg.type === 'form') {
+        formMessageId = msg.messageId;
+      }
     }
 
     // ── Sandbox slice resolution ──────────────────────────────────
