@@ -91,6 +91,8 @@
 | [ocapn-noise-network](ocapn-noise-network.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-tcp-syrup-framing](ocapn-tcp-syrup-framing.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [syrups](syrups.md) | 2026-05-04 | 2026-05-05 | Deprecated |
+| [cbors](cbors.md) | 2026-05-04 | 2026-05-04 | Not Started |
 | [outliner-design-doc](outliner-design-doc.md) | 2026-03-17 | 2026-03-18 | In Progress |
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-04-23 | Not Started |
@@ -100,7 +102,7 @@
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 22 Complete/Implemented, 6 In Progress, 46 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
+**Totals:** 22 Complete/Implemented, 6 In Progress, 47 Not Started, 2 Proposed, 1 Active, 1 Reference, 2 Deprecated
 
 ## Roadmap
 
@@ -301,6 +303,8 @@ finalized.
 | ocapn-network-transport-separation | In Progress | Foundation for transport abstraction |
 | ocapn-tcp-for-test-extraction | Not Started | Clean separation before Noise |
 | ocapn-tcp-syrup-framing | Not Started | Comma-less netstring variant (`@endo/syrup-frame`) on a distinct `tcp+syrup-frame` netlayer identifier |
+| syrups | Deprecated | Consolidated with PR 29's `@endo/syrup-frame` (same shape: `Uint8Array` chunks in, `Uint8Array`-delimited messages out); recommend renaming PR 29's package to `@endo/syrups` for consistency with `@endo/cbors` |
+| cbors | Not Started | `@endo/cbors` reader/writer for length-prefixed CBOR byte strings; peer of `@endo/syrup-frame` (PR 29, queued for rename to `@endo/syrups`) and `@endo/netstring` |
 | ocapn-noise-cryptographic-review | Not Started | External review coordination |
 | daemon-agent-network-identity | Not Started | Per-agent keypairs for network identity |
 | ocapn-noise-network | Not Started | Full Noise protocol network layer |
@@ -488,6 +492,8 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ocapn-network-transport-separation | M-L | 1-1.5 weeks | 2 | Architectural refactor |
 | ocapn-tcp-for-test-extraction | S-M | 2-3 days | 2 | Code relocation |
 | ocapn-tcp-syrup-framing | S-M | 2-3 days | 2 | `@endo/syrup-frame` package, new `tcp+syrup-frame` netlayer, fix chunk-boundary bug in `tcp-test-only` |
+| ~~syrups~~ | — | — | 2 | Consolidated into `ocapn-tcp-syrup-framing` (PR 29); see [`syrups.md`](syrups.md) |
+| cbors | S-M | 2-3 days | 2 | New `@endo/cbors` package; byte-string framing only (CBOR major type 2, optionally tag 24); peer of `@endo/syrup-frame` and `@endo/netstring` |
 | ocapn-noise-cryptographic-review | S | 1 day | 2 | External review coordination |
 | daemon-agent-network-identity | S-M | 2-3 days | 2 | Network registration, locator construction |
 | ocapn-noise-network | L | 1.5-2 weeks | 2 | Full network + transport |
@@ -527,12 +533,12 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
 | M1: Remote Access & Tools | 14 remaining | 7-8 weeks |
-| M2: Networking | 6 | 3-4 weeks |
+| M2: Networking | 8 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
 | M4: UX & Tooling | 11 | 7-9 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
 | M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
-| **Total remaining** | **47** | **~39-53 weeks** |
+| **Total remaining** | **49** | **~39-53 weeks** |
 
 ### Timeline
 
