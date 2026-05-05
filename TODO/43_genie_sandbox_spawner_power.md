@@ -19,7 +19,7 @@ The plan calls this out explicitly in
 
 ## Deliverables
 
-- [ ] **Define a `Spawner` abstraction.**
+- [x] **Define a `Spawner` abstraction.**
   A small JSDoc interface that captures what the tool's
   process-execution path actually needs from its underlying engine:
   - launch a process given `argv`, `cwd`, `env`, optional stdin source,
@@ -27,48 +27,62 @@ The plan calls this out explicitly in
   - signal completion with `{ code, signal }`,
   - support a soft-kill timeout.
 
-  Implementation suggestion: a single function
-  `spawn(argv, opts) -> ProcessLike` returning the same shape as
-  `DriverProcess` from
+  Implemented in
+  [`packages/genie/src/tools/spawner.js`](../packages/genie/src/tools/spawner.js)
+  as a single `spawn(argv, opts) -> ProcessLike` callback whose
+  `ProcessLike` shape mirrors `DriverProcess` from
   [`packages/sandbox/src/types.d.ts`](../packages/sandbox/src/types.d.ts)
-  so the slice's `ProcessHandle` is a drop-in.
+  so the slice's `ProcessHandle` drops in via a thin adapter.
 
-- [ ] **Provide a default host-side `Spawner`.**
-  Wraps `child_process.spawn` with the same timeout / SIGTERM behaviour
-  the current `makeCommandTool` body has.
-  Lives next to `makeCommandTool` in `tools/command.js` (or in a new
-  `tools/spawner.js` if the file gets too large).
+- [x] **Provide a default host-side `Spawner`.**
+  `makeHostSpawner` in
+  [`packages/genie/src/tools/spawner.js`](../packages/genie/src/tools/spawner.js)
+  wraps `child_process.spawn`, preserves the original `whichProgram`
+  PATH-resolution behaviour, and exposes stdout / stderr as
+  `AsyncIterable<Uint8Array>` for the shared supervision loop.  The
+  timeout / SIGTERM behaviour now lives in `runProcess` inside
+  `command.js` so it stays uniform across spawners.
 
-- [ ] **Refactor `makeCommandTool` to accept an injected spawner.**
-  - Add `spawner` to `CommandToolOptions`; default to the host spawner
-    so existing `bash` / `exec` / `git` exports stay drop-in for
+- [x] **Refactor `makeCommandTool` to accept an injected spawner.**
+  - `CommandToolOptions.spawner` defaults to a freshly-built host
+    spawner; existing `bash` / `exec` / `git` exports stay drop-in for
     `dev-repl.js`.
-  - Move the timeout / kill / accumulation loop out of the spawner so
-    it stays uniform across host and slice spawners.
+  - The timeout / kill / accumulation loop (`runProcess`) lives in
+    `command.js` and consumes any `ProcessLike`, so host and slice
+    spawners share the supervision path.
 
-- [ ] **Thread the spawner through `buildGenieTools`.**
-  Add an optional `spawner` field to the `buildGenieTools` options;
-  when present, override the default for `bash` / `exec` / `git` only
-  (file / memory / web tools continue running on the daemon side, see
-  Status notes).
+- [x] **Thread the spawner through `buildGenieTools`.**
+  [`registry.js`](../packages/genie/src/tools/registry.js) accepts an
+  optional `spawner` and rebuilds `bash` / `exec` / `git` via
+  `makeBashTool` / `makeExecTool` / `makeCommandTool` with the
+  override.  File / memory / web tools continue to run daemon-side
+  (see Status notes).
 
-- [ ] **Adapt the slice-backed spawner.**
-  When called with a `SandboxHandle`, build a small adapter that
-  forwards `spawn(argv, opts)` to `E(handle).spawn(argv, opts)` and
-  bridges the returned `ProcessHandle`'s `ReaderRef` / `WriterRef` into
-  the timeout-kill loop.
-  Lives in `packages/genie/src/tools/sandbox-spawner.js` (or similar);
-  importing `@endo/sandbox/factory.js` is allowed so we get the
-  `ProcessHandle` shape.
+- [x] **Adapt the slice-backed spawner.**
+  `makeSandboxSpawner` in
+  [`packages/genie/src/tools/sandbox-spawner.js`](../packages/genie/src/tools/sandbox-spawner.js)
+  forwards `spawn(argv, opts)` to `E(handle).spawn(argv, opts)`,
+  bridges the slice's `ReaderRef`-shaped stdout / stderr into the
+  shared `AsyncIterable<Uint8Array>` surface, eagerly resolves the
+  slice pid, and translates `shell: true` into an explicit
+  `['/bin/sh', '-c', joined]` invocation inside the slice.  The
+  `SandboxHandleLike` typedef captures the `spawn` sub-shape
+  structurally so this module avoids a runtime dep on `@endo/sandbox`.
 
-- [ ] **Tests.**
-  - Unit test for the host spawner (existing behaviour, no regression).
-  - Unit test for the sandbox spawner against a stub `SandboxHandle`
-    that records the `argv` / `opts` and emits a canned process,
-    verifying the timeout / kill plumbing fires correctly.
-  - Optional integration test (skipped when bwrap is absent) that
-    spawns `/bin/echo` through a real bwrap-backed slice and reads
-    stdout.
+- [x] **Tests.**
+  - [`test/tools/spawner.test.js`](../packages/genie/test/tools/spawner.test.js)
+    pins host spawner behaviour: argv resolution, async-iterable
+    stdout / stderr surfaces, exit-status reporting, kill plumbing,
+    and `shell: true` mode.
+  - [`test/tools/sandbox-spawner.test.js`](../packages/genie/test/tools/sandbox-spawner.test.js)
+    drives the sandbox spawner against a stub `SandboxHandle`,
+    verifying argv / cwd / env / shell forwarding, pid resolution,
+    stdio bridging, and end-to-end through `makeCommandTool` so the
+    `runProcess` timeout / kill loop fires on a hung slice process.
+  - Optional bwrap-backed integration test deferred — covered
+    indirectly by `packages/sandbox`'s own driver tests; revisit when
+    the daemon-hosted genie wiring lands so a real slice exists to
+    exercise here.
 
 ## Status notes
 
