@@ -101,6 +101,36 @@ const accessorWrapOwnDataProps = obj => {
  * @param {object} stream
  */
 export const patchStreamForHarden = stream => {
+  // Detect "patch is futile because the stream is already frozen as
+  // data props".  We only need to inspect one level: if the stream's
+  // own kState exists and its first writable-looking own data
+  // property is now non-configurable+non-writable, harden has
+  // already run upstream and there's nothing we can do.
+  if (stream !== null && typeof stream === 'object') {
+    const kState = Object.getOwnPropertySymbols(stream).find(
+      sym => sym.description === 'kState',
+    );
+    if (kState) {
+      const state = /** @type {any} */ (stream)[kState];
+      if (state !== null && typeof state === 'object') {
+        for (const k of Object.getOwnPropertyNames(state)) {
+          const desc = Object.getOwnPropertyDescriptor(state, k);
+          if (desc && 'value' in desc && !desc.writable && !desc.configurable) {
+            throw new TypeError(
+              `patchStreamForHarden: stream is already frozen with ` +
+                `non-configurable internal slots — call before any ` +
+                `harden of the stream (typically before passing it to ` +
+                `E()).  See https://github.com/endojs/endo/issues/3244 .`,
+            );
+          }
+          // Stop after the first definitive signal either way; a
+          // mix would still throw on the first frozen one.
+          if (desc && (desc.writable || desc.configurable)) break;
+          if (desc && (desc.get || desc.set)) break; // already accessor — fine
+        }
+      }
+    }
+  }
   const seen = new WeakSet();
   const walk = obj => {
     if (obj === null || typeof obj !== 'object' || seen.has(obj)) return;

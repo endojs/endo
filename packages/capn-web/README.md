@@ -122,6 +122,40 @@ sink/source forwards `write` / `read` / `close` / `cancel` / `abort` calls
 to the remote writer/reader. Pass them as method arguments or return values
 just like any other capability.
 
+#### SES caveat: `patchStreamForHarden`
+
+Hardened WHATWG streams can't service their own internal slot writes
+(`getReader` / `getWriter` / `close` / `abort` / error-path `resetQueue`)
+because `@endo/harden` freezes the `Symbol(kState)`-keyed slots Node
+mutates on first use. See
+[endojs/endo#3244](https://github.com/endojs/endo/issues/3244).
+
+Streams created _inside_ this package (`makeTransformStream`,
+`importWritableStream`, `importReadableStream`) are pre-patched at
+construction, so the receive side of `["pipe"]` works under SES out of
+the box.
+
+For streams _you_ create and pass into the session, you have to apply the
+patch yourself **before** the value crosses into `E(...)`:
+
+```js
+import { E, makeCapnWebSession, patchStreamForHarden } from '@endo/capn-web';
+
+const rs = new ReadableStream({ /* … */ });
+patchStreamForHarden(rs);          // must happen before E() hardens it
+await E(remote).consume(rs);
+```
+
+`patchStreamForHarden` walks the stream's full `kState` graph and converts
+each writable slot into an accessor pair backed by closure storage — the
+descriptor pair survives `Object.freeze`, so subsequent slot writes still
+land. Caveat: the result _appears_ hardened but isn't truly immutable,
+since the closure-backed setters keep mutating internal state. That's fine
+for in-package plumbing, **not** safe to expose to untrusted code that
+relies on `harden`'s invariants. The function throws if called on an
+already-frozen stream — by then it's too late, the slots are
+non-configurable data properties.
+
 ### Pass-by-reference: remotables
 
 `@endo/capn-web` uses `@endo/pass-style`'s notion of a remotable: any object
