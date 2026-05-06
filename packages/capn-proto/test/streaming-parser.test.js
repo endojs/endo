@@ -31,6 +31,9 @@ import { makeFramedStreamParser } from '../src/wire/streaming.js';
  * Build a synthetic framed message with `segCount` segments, each
  * `wordsPerSegment` words. Returns the concatenated framed bytes (one
  * full Cap'n Proto stream-encoded message).
+ *
+ * @param {number} segCount
+ * @param {number} [wordsPerSegment]
  */
 const synthesizeFramed = (segCount, wordsPerSegment = 1) => {
   const segments = [];
@@ -43,6 +46,7 @@ const synthesizeFramed = (segCount, wordsPerSegment = 1) => {
   return new Uint8Array(frameSegments(segments));
 };
 
+/** @param {Uint8Array[]} chunks */
 const collect = chunks => {
   const got = [];
   const parser = makeFramedStreamParser({
@@ -52,6 +56,10 @@ const collect = chunks => {
   return { got, pending: parser.pending() };
 };
 
+/**
+ * @param {Uint8Array} a
+ * @param {Uint8Array} b
+ */
 const bytesEqual = (a, b) => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
