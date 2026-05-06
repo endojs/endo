@@ -730,6 +730,40 @@ test('export name as default from', t => {
   t.deepEqual(exports, ['default', 'less', 'more'].sort());
 });
 
+// Regression test for `export * as ns from 'src'` (ExportNamespaceSpecifier).
+// Before the fix, the analyzer destructured `local` from the specifier and
+// dereferenced `local.name`, but ExportNamespaceSpecifier nodes have no
+// `local` property, so the transform threw a TypeError instead of producing
+// a working module record.
+test('export namespace as from re-export', t => {
+  const {
+    __reexportMap__,
+    __fixedExportMap__,
+    __liveExportMap__,
+    imports,
+    exports,
+    reexports,
+  } = new ModuleSource(`export * as ns from './foo.js';`);
+  t.deepEqual(imports, ['./foo.js']);
+  t.deepEqual(exports, ['ns']);
+  t.deepEqual(reexports, []);
+  t.deepEqual(__fixedExportMap__, {});
+  t.deepEqual(__liveExportMap__, {});
+  t.deepEqual(__reexportMap__, {
+    './foo.js': [['*', 'ns']],
+  });
+});
+
+// End-to-end check that the namespace re-export wires through SES correctly.
+test('export namespace as from re-export end-to-end', t => {
+  const { namespace } = initialize(t, `export * as ns from 'module';`, {
+    imports: new Map([
+      ['module', new Map([['*', { apples: 'apples', oranges: 'oranges' }]])],
+    ]),
+  });
+  t.deepEqual(namespace.ns, { apples: 'apples', oranges: 'oranges' });
+});
+
 test('source map generation', t => {
   t.plan(5);
   const { __syncModuleProgram__ } = new ModuleSource(`'Hello, World!'`, {
