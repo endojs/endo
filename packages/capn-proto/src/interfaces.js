@@ -21,17 +21,7 @@
 import { Fail, q } from '@endo/errors';
 import harden from '@endo/harden';
 
-/**
- * @typedef {object} MethodCodec
- * @property {(jsObj: unknown, ctx?: { exportCap?: (v: unknown) => any, importCap?: (d: any) => unknown }) => { encodeContent: (msg: any, slot: { segId: number, wordOffset: number }) => void, capTable: any[] }} encode
- *   Encode a request's args (or a response's value) as the AnyPointer-shaped
- *   payload that `writePayload` consumes: `encodeContent(msg, slot)` writes
- *   the struct directly into the parent message at `Payload.content`'s
- *   pointer slot, populating the shared `capTable` along the way.
- * @property {(payload: { contentSlot: { msg: any, segId: number, wordOffset: number } | null, capTable: any[] }, ctx?: { exportCap?: (v: unknown) => any, importCap?: (d: any) => unknown }) => unknown} decode
- *   Inverse of encode: takes the `{ contentSlot, capTable }` shape that
- *   `readPayload` returns and reconstructs the JS args / value.
- */
+/** @typedef {import('./types.js').MethodCodec} MethodCodec */
 
 /**
  * @typedef {object} InterfaceDescriptor

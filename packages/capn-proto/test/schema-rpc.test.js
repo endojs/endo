@@ -3,10 +3,11 @@
  * Schema-typed RPC end-to-end.
  *
  * Demonstrates the full path: a method registered with `methodCodecs`
- * routes its request and response through the schema runtime instead of
- * the default JSON-over-bytes payload codec. The two peers exchange
- * Cap'n Proto-typed structs on the wire, the layout matches what `capnpc`
- * would produce, and the user-visible API at the call site is unchanged.
+ * routes its request and response through the schema runtime — encoding
+ * the args/result struct directly at `Payload.content`'s AnyPointer slot.
+ * The two peers exchange Cap'n Proto-typed structs on the wire, the
+ * layout matches what `capnpc` would produce, and the user-visible API
+ * at the call site is unchanged.
  */
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';

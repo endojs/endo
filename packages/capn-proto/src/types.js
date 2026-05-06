@@ -73,13 +73,20 @@ export {};
 
 /**
  * @typedef {object} MethodCodec
- * @property {(jsObj: unknown, ctx?: any) => Uint8Array | ArrayBuffer | Payload} encode
- * @property {(bytes: ArrayBuffer | Uint8Array, capTable?: any[], ctx?: any) => unknown} decode
+ * @property {(jsObj: unknown, ctx?: { exportCap?: (v: unknown) => any, importCap?: (d: any) => unknown }) => EncodedPayload} encode
+ *   Encode a request's args (or a response's value) as the AnyPointer-shaped
+ *   payload that `writePayload` consumes: `encodeContent(msg, slot)` writes
+ *   the struct directly at `Payload.content`'s pointer slot in the parent
+ *   message, populating the shared `capTable` along the way.
+ * @property {(payload: DecodedPayload, ctx?: { exportCap?: (v: unknown) => any, importCap?: (d: any) => unknown }) => unknown} decode
+ *   Inverse of encode: takes the `{ contentSlot, capTable }` shape that
+ *   `readPayload` returns and reconstructs the JS args / value.
  *
  * Schema-typed method codec for a specific (interfaceId, methodId,
- * direction). When registered via `registerInterface({ methodCodecs })`
- * the connection routes the method's request/response through this codec
- * instead of the default JSON-over-bytes payload codec.
+ * direction). Every called method requires a registered codec; without
+ * one, sendCall throws and handleCall returns an exception. The
+ * `loadSchema(...).registerInterface(registry, name)` entry point
+ * derives codecs automatically from a `.capnp` schema.
  */
 
 /**

@@ -1,7 +1,8 @@
 // @ts-check
 /**
- * Per-peer Cap'n Proto connection: composes the four tables, handler factory,
- * payload codec, and dispatcher. One instance is created per peer.
+ * Per-peer Cap'n Proto connection: composes the four tables, handler
+ * factory, exportCap / importCap, and dispatcher. One instance is created
+ * per peer.
  */
 
 import { Fail } from '@endo/errors';
