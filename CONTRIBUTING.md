@@ -209,6 +209,10 @@ You typically **do not** need a changeset for:
 - Test additions or fixes
 - CI/build configuration changes
 - Refactoring that doesn't change public behavior
+- Static-only TypeScript changes (`.d.ts`, JSDoc types, or generic
+  parameter tweaks) that do not affect runtime behavior
+- Edits to the prose of error messages when the error class, code, or
+  the conditions that raise it are unchanged
 
 The helpful [changeset-bot](https://github.com/apps/changeset-bot) will comment
 on your PR if no changeset is present, but this won't block merging.  
@@ -216,6 +220,20 @@ on your PR if no changeset is present, but this won't block merging.
 > [!TIP]
 >
 > When in doubt, ask a friendly maintainer. Avoid the unfriendly ones.
+
+### Writing the Changeset Body
+
+- Describe the change from the consumer's point of view — "what breaks
+  if I don't upgrade" or "what becomes possible after I do."
+- If the PR changes runtime behavior, say so explicitly.
+  Reviewers repeatedly flag changesets that claim "no runtime
+  behavioral changes" when the diff proves otherwise.
+- Call out security-relevant or capability-surface changes
+  (e.g. any adjustment to what a guest or unconfined module can reach)
+  in the first line so it is visible in the release notes summary.
+- Match the severity tag to the change: `patch` for bug fixes and
+  internal cleanups, `minor` for additive API, `major` only for
+  removal or behavior-incompatible changes to existing API.
 
 ### Release Workflow (For Maintainers)
 
