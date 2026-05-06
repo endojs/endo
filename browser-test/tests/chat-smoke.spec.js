@@ -22,6 +22,8 @@ test('chat bundle builds and loads', async ({ page }) => {
   const pageErrors = [];
   /** @type {{ url: string, failure: string | null }[]} */
   const failedRequests = [];
+  /** @type {{ type: string, text: string }[]} */
+  const consoleMessages = [];
 
   page.on('pageerror', err => {
     pageErrors.push(err.stack || err.message);
@@ -31,6 +33,9 @@ test('chat bundle builds and loads', async ({ page }) => {
       url: req.url(),
       failure: req.failure()?.errorText ?? null,
     });
+  });
+  page.on('console', msg => {
+    consoleMessages.push({ type: msg.type(), text: msg.text() });
   });
 
   await page.addInitScript(SEED_NO_DEV_REDIRECT);
@@ -42,9 +47,35 @@ test('chat bundle builds and loads', async ({ page }) => {
   // ran past its top-level imports
   // (ses, @endo/eventual-send/shim.js, connection.js, chat.js
   // and their transitive dependencies).
-  await expect(
-    page.getByRole('heading', { name: /Gateway not configured/i }),
-  ).toBeVisible({ timeout: 30_000 });
+  //
+  // On failure, dump the page body, captured pageerrors, console
+  // messages, and failed requests so the regression is actionable
+  // from the CI log alone (without downloading the trace zip).
+  const heading = page.getByRole('heading', {
+    name: /Gateway not configured/i,
+  });
+  try {
+    await expect(heading).toBeVisible({ timeout: 30_000 });
+  } catch (err) {
+    const bodyText = await page
+      .locator('body')
+      .innerText()
+      .catch(() => '<unavailable>');
+    const diagnostic = [
+      'Heading "Gateway not configured" never appeared.',
+      'This usually means the chat bundle threw before reaching',
+      'the no-config branch in packages/chat/main.js.',
+      '',
+      `body innerText: ${JSON.stringify(bodyText)}`,
+      `pageErrors (${pageErrors.length}):`,
+      ...pageErrors.map(e => `  ${e}`),
+      `failedRequests (${failedRequests.length}):`,
+      ...failedRequests.map(r => `  ${r.url} ${r.failure ?? ''}`),
+      `consoleMessages (${consoleMessages.length}):`,
+      ...consoleMessages.map(m => `  [${m.type}] ${m.text}`),
+    ].join('\n');
+    throw new Error(`${/** @type {Error} */ (err).message}\n\n${diagnostic}`);
+  }
 
   // The "Gateway not configured" branch in main.js intentionally
   // throws after rendering the heading so the rest of the entry
