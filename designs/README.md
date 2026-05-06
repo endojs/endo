@@ -17,6 +17,7 @@
 | [chat-focus-message](chat-focus-message.md) | 2026-03-04 | 2026-03-04 | Active |
 | [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-27 | Proposed |
 | [chat-pending-commands](chat-pending-commands.md) | 2026-03-11 | 2026-03-11 | Not Started |
+| [chat-playwright-smoke](chat-playwright-smoke.md) | 2026-05-06 | 2026-05-06 | Not Started |
 | [chat-rename-dismiss-to-clear](chat-rename-dismiss-to-clear.md) | 2026-03-03 | 2026-03-03 | Proposed |
 | [chat-slot-slash-commands](chat-slot-slash-commands.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-03-21 | Not Started |
@@ -278,6 +279,7 @@ capabilities available to agents.
 | ~~daemon-cross-peer-gc~~ | **Complete** | Replaced the proposed CRDT-of-pet-stores with a one-way retention-set sync per peer connection (`retention-accumulator.js`, `EndoGateway.followRetentionSet`, SQLite `retention` table). Solves the GC gap; bidirectional shared namespace deferred as YAGNI. |
 | daemon-guest-eval-simplification | Not Started | Remove eval-proposal handshake; guest eval delegates directly to `formulateEval` |
 | ci-no-npm-lifecycle | Not Started | Pin `enableScripts: false` posture into CI; enforcement check for workflows |
+| chat-playwright-smoke | Not Started | Add a build-and-load smoke for the Chat bundle to the existing `browser-tests` job |
 | base64-native-fallthrough | Not Started | `@endo/base64` dispatches to `Uint8Array.fromBase64` / `toBase64` when available |
 | hex-package | Not Started | New `@endo/hex` ponyfill with native fallthrough; audit and migrate scattered hex sites |
 
@@ -487,6 +489,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | daemon-guest-eval-simplification | S | 1 day | 1 | Remove eval-proposal flow, guest eval delegates to `formulateEval` |
 | endoclaw-network-fetch | S-M | 2-3 days | 1 | HttpClient with origin allowlist, rate/size limits |
 | ci-no-npm-lifecycle | S | 1 day | 1 | Workflow audit, env var pinning, enforcement check |
+| chat-playwright-smoke | S | 1 day | 1 | New `browser-test/tests/chat.spec.js`, serve `packages/chat/dist`, assert "Gateway not configured" + zero pageerrors |
 | base64-native-fallthrough | S | 1 day | 1 | Detect `Uint8Array.fromBase64`, dispatch, dual-path tests |
 | hex-package | S-M | 2-3 days | 1 | New `@endo/hex` package, migrate `daemon/src/hex.js`, `relay-server/src/protocol.js`, OCapN hex sites |
 | ocapn-network-transport-separation | M-L | 1-1.5 weeks | 2 | Architectural refactor |
@@ -532,13 +535,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 14 remaining | 7-8 weeks |
+| M1: Remote Access & Tools | 15 remaining | 7-8 weeks |
 | M2: Networking | 8 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
 | M4: UX & Tooling | 11 | 7-9 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
 | M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
-| **Total remaining** | **49** | **~39-53 weeks** |
+| **Total remaining** | **50** | **~39-53 weeks** |
 
 ### Timeline
 
