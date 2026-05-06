@@ -3,15 +3,15 @@
 | | |
 |---|---|
 | **Created** | 2026-05-04 |
-| **Updated** | 2026-05-05 |
+| **Updated** | 2026-05-06 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Deprecated |
-| **Superseded by** | [`ocapn-tcp-syrup-framing.md`](./ocapn-tcp-syrup-framing.md) (PR 29) |
+| **Superseded by** | [`ocapn-tcp-syrups-framing.md`](./ocapn-tcp-syrups-framing.md) (PR 29) |
 
 ## Status
 
 This design is consolidated with PR 29's `@endo/syrup-frame`
-([`ocapn-tcp-syrup-framing.md`](./ocapn-tcp-syrup-framing.md)).
+([`ocapn-tcp-syrups-framing.md`](./ocapn-tcp-syrups-framing.md)).
 The two packages are the same in shape: each adapts a stream of
 `Uint8Array` chunks into a stream of `Uint8Array`-delimited messages,
 using length-prefixed Syrup byte-string framing on the wire
@@ -32,19 +32,15 @@ Adopt PR 29's design and rename the package and design from
 `@endo/syrup-frame` to `@endo/syrups`, so that the two streaming
 message-framing packages in this PR pair (`@endo/cbors` and
 `@endo/syrups`) share a naming convention.
-The steward will dispatch a fixer against PR 29 to perform the rename
-across the package directory, `package.json`, exported reader and
-writer identifiers, design doc title, and PR title and body.
+The rename has been applied to PR 29's branch across the package
+directory, `package.json`, exported reader and writer identifiers,
+design doc title, and PR title and body.
 
 ## Effect on the sibling `@endo/cbors` design
 
 [`cbors.md`](./cbors.md) (the sibling design in this PR) is unaffected.
 It already carries `Uint8Array` at its boundaries and is the precise
-peer of `@endo/syrup-frame` / `@endo/syrups`.
-Its cross-references to `@endo/syrup-frame` will become accurate once
-PR 29's rename lands; in the meantime the cross-reference points at
-the existing in-flight name (`@endo/syrup-frame`) with a note that
-the rename is queued.
+peer of `@endo/syrups`.
 
 ## Prompt
 
