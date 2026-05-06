@@ -13,10 +13,8 @@
  * by src/. Real applications use `loadSchema(...).registerInterface()`,
  * which produces byte-compatible struct content at the AnyPointer slot.
  *
- * The marker convention mirrors what the deleted JSON-payload codec used:
- *   {"@cap": N}     → capTable[N]
- *   {"@bigint": "…"} → BigInt
- *   {"@bytes": "…"}  → Uint8Array (base64)
+ * The marker convention mirrors what the deleted JSON-payload codec used.
+ * See `replaceForJSON` / `reviveFromJSON` below for the literal keys.
  */
 
 import { writeData, readData } from '../../src/wire/text.js';

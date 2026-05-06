@@ -53,7 +53,9 @@ export {};
  * @property {CapDescriptor[]} [capTable]
  *   Side-band capability table referenced by index from cap pointers
  *   inside `content`.
- *
+ */
+
+/**
  * @typedef {object} DecodedPayload
  * @property {{ msg: any, segId: number, wordOffset: number } | null} contentSlot
  *   Pointer slot for `Payload.content`. Null if the surrounding Payload
