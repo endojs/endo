@@ -1,4 +1,5 @@
 // @ts-nocheck
+/* global atob, btoa */
 /**
  * Test-only generic methodCodec.
  *
