@@ -22,6 +22,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Pin to a specific Guix release rather than tracking nightly. The
+  # nightly tarball lives behind `ci.guix.gnu.org`, which periodically
+  # returns sustained 502s for hours and which is also the substitute
+  # server the daemon talks to at runtime; coupling install to the same
+  # host as substitutes turned a substitute outage into a hard CI
+  # failure. The pinned release is mirrored on `ftp.gnu.org`, which is
+  # operationally independent. Bump `GUIX_VERSION` to update; the
+  # corresponding sha256 must be refreshed at the same time.
+  GUIX_VERSION: '1.5.0'
+  GUIX_TARBALL_SHA256: 'aa41025489c5061543e9c48873eaa829b900b2da75d40f9648913622f5f47817'
+
 jobs:
   test-ocapn-guile-interop:
     name: test-ocapn-guile-interop
@@ -65,24 +77,183 @@ jobs:
         working-directory: endo
         run: yarn build
 
-      - name: Install GNU Guix
-        uses: PromyLOPh/guix-install-action@40615e98e5c16a451aec10fe01c214ed07cbaa77 # v1
+      # `PromyLOPh/guix-install-action` is a composite action whose
+      # `Download` step wgets the Guix nightly tarball from
+      # `ci.guix.gnu.org`. The action has no internal retry;
+      # `Wandalen/wretry.action` cannot wrap composite actions; and
+      # `nick-fields/retry` only wraps shell commands, not `uses:`
+      # blocks. We inline the action's steps so the wget is a plain
+      # shell step we can cache, wrap in `nick-fields/retry`, and
+      # (most importantly) point at a pinned stable release on
+      # `ftp.gnu.org` rather than the nightly tarball on
+      # `ci.guix.gnu.org`.
+      - name: Set LANG
+        run: echo LANG=en_US.utf8 >> $GITHUB_ENV
+      - name: Restore Guix tarball cache
+        id: guix-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          # Skip `guix pull`: the default action behavior updates channels to
-          # bleeding edge and costs most of the runtime in this workflow.
-          pullAfterInstall: false
+          path: guix-binary.x86_64-linux.tar.xz
+          # Cache key includes the version and sha256 so a version
+          # bump or upstream re-publish forces a fresh download.
+          key: guix-binary-x86_64-linux-${{ env.GUIX_VERSION }}-${{ env.GUIX_TARBALL_SHA256 }}
+      - name: Download Guix stable tarball
+        # `ftp.gnu.org/gnu/guix/` is the GNU project's canonical
+        # mirror for release binaries. It is operationally independent
+        # from `ci.guix.gnu.org` (the substitute server), so a
+        # substitute outage does not block the install path.
+        #
+        # The download writes to `.tmp` and only renames after the
+        # sha256 verifies, so a truncated or replaced file cannot
+        # masquerade as a valid tarball; `rm -f` of any leftover
+        # `.tmp` before each attempt covers the same hazard for
+        # retries within a single wget invocation.
+        if: steps.guix-cache.outputs.cache-hit != 'true'
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          max_attempts: 6
+          retry_wait_seconds: 30
+          timeout_minutes: 5
+          command: |
+            set -euo pipefail
+            rm -f guix-binary.x86_64-linux.tar.xz.tmp guix-binary.x86_64-linux.tar.xz
+            wget -nv "https://ftp.gnu.org/gnu/guix/guix-binary-${GUIX_VERSION}.x86_64-linux.tar.xz" -O guix-binary.x86_64-linux.tar.xz.tmp
+            file guix-binary.x86_64-linux.tar.xz.tmp | grep -q 'XZ compressed data'
+            echo "${GUIX_TARBALL_SHA256}  guix-binary.x86_64-linux.tar.xz.tmp" | sha256sum --check --strict
+            mv guix-binary.x86_64-linux.tar.xz.tmp guix-binary.x86_64-linux.tar.xz
+      - name: Verify cached tarball checksum
+        # Belt-and-suspenders: if a previous run cached a different
+        # blob (for example because someone updated `GUIX_VERSION`
+        # without bumping `GUIX_TARBALL_SHA256`, or vice versa), we
+        # want to fail loud here rather than installing the wrong
+        # bytes.
+        run: |
+          set -euo pipefail
+          echo "${GUIX_TARBALL_SHA256}  guix-binary.x86_64-linux.tar.xz" | sha256sum --check --strict
+      - name: Install Guix
+        run: |
+          sudo -- tar --extract --file "guix-binary.x86_64-linux.tar.xz" -C / --no-overwrite-dir
+          sudo -- groupadd --system guixbuild
+
+          for i in $(seq -w 1 10); do
+              sudo useradd -g guixbuild -G guixbuild -d /var/empty -s "$(which nologin)" -c "Guix build user $i" --system "guixbuilder${i}"
+          done
+
+          export GUIX_PATH=/var/guix/profiles/per-user/root/current-guix
+
+          sudo cp "$GUIX_PATH/lib/systemd/system/gnu-store.mount" /etc/systemd/system/
+          # Configure the daemon with both substitute servers up front so
+          # `guix build` falls back to bordeaux.guix.gnu.org whenever
+          # ci.guix.gnu.org is degraded. Both keys are authorized below
+          # from the tarball's bundled `share/guix/*.pub` files.
+          # `--fallback` is a client-side flag (e.g. for `guix build`)
+          # and is rejected by the daemon, so it goes on the build
+          # invocations themselves rather than here.
+          cat <<'EOF' | sudo tee /etc/systemd/system/guix-daemon.service > /dev/null
+          # Service unit file for guix-daemon, modeled on the upstream
+          # template in the Guix install tarball but with explicit
+          # substitute URLs.
+
+          [Unit]
+          Description=Build daemon for GNU Guix
+
+          [Service]
+          ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon \
+              --build-users-group=guixbuild --discover=yes \
+              --substitute-urls='https://bordeaux.guix.gnu.org https://ci.guix.gnu.org'
+          Environment='GUIX_LOCPATH=/var/guix/profiles/per-user/root/guix-profile/lib/locale' LC_ALL=en_US.utf8
+
+          StandardOutput=syslog
+          StandardError=syslog
+
+          OOMPolicy=continue
+
+          Restart=always
+
+          TasksMax=8192
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          sudo chmod 664 /etc/systemd/system/gnu-store.mount /etc/systemd/system/guix-daemon.service
+          sudo systemctl daemon-reload
+          sudo systemctl enable --now gnu-store.mount guix-daemon.service
+
+          echo "$GUIX_PATH/bin" >> "$GITHUB_PATH"
+      - name: Authorize build farm
+        # Authorizes both ci.guix.gnu.org and bordeaux.guix.gnu.org;
+        # both .pub files ship inside the Guix tarball under
+        # share/guix/.
+        run: |
+          for F in /var/guix/profiles/per-user/root/current-guix/share/guix/*.pub; do
+              sudo /var/guix/profiles/per-user/root/current-guix/bin/guix archive --authorize < "$F"
+          done
+      - name: Generate keys
+        run: sudo /var/guix/profiles/per-user/root/current-guix/bin/guix archive --generate-key
 
       - name: Report Guix version
         run: guix describe || guix --version
 
+      # The substitute fetches that follow inherit `--substitute-urls`
+      # from the daemon, so they consult bordeaux.guix.gnu.org when
+      # ci.guix.gnu.org is degraded. We pass `--fallback` per-invocation
+      # to permit local builds when neither server has the requested
+      # item. The retry wrapper guards against transient daemon errors
+      # during the bordeaux <-> ci handoff, and against the daemon
+      # socket not being ready for the first few seconds after Install.
       - name: Resolve Guix module paths
-        run: |
-          # We shell into Guix for execution, but also pass explicit -L paths so
-          # module resolution is deterministic in pure environments.
-          echo "FIBERS_OUT=$(guix build guile-fibers | tail -n 1)" >> "$GITHUB_ENV"
-          echo "WEBSOCKET_OUT=$(guix build guile-websocket | tail -n 1)" >> "$GITHUB_ENV"
-          echo "GNUTLS_OUT=$(guix build guile-gnutls | tail -n 1)" >> "$GITHUB_ENV"
-          echo "GCRYPT_OUT=$(guix build guile-gcrypt | tail -n 1)" >> "$GITHUB_ENV"
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 20
+          # Run each `guix build` and assert non-empty output before
+          # trusting it: command substitution doesn't propagate
+          # non-zero exits through `echo`, so without an explicit
+          # check, an empty result silently flows into $GITHUB_ENV
+          # and only fails much later when downstream steps cannot
+          # locate the modules. Promote to $GITHUB_ENV only after all
+          # four resolutions succeed, so retries stay idempotent.
+          command: |
+            set -euo pipefail
+            shopt -s inherit_errexit
+            wait_for_daemon() {
+              for i in $(seq 1 30); do
+                if [ -S /var/guix/daemon-socket/socket ]; then return 0; fi
+                sleep 1
+              done
+              echo "guix-daemon socket never appeared at /var/guix/daemon-socket/socket" >&2
+              sudo systemctl status guix-daemon.service --no-pager || true
+              return 1
+            }
+            resolve() {
+              local pkg="$1"
+              local out
+              out="$(guix build --fallback "$pkg" | tail -n 1)"
+              if [ -z "$out" ]; then
+                echo "guix build $pkg returned empty output" >&2
+                return 1
+              fi
+              printf '%s\n' "$out"
+            }
+            wait_for_daemon
+            # Resolve into named variables so `set -e` + `inherit_errexit`
+            # propagate failures from inside the command substitutions.
+            # An earlier draft inlined `$(resolve …)` inside `echo "VAR=$(…)"`,
+            # but `echo` always succeeds, so an empty resolution would silently
+            # poison `$GITHUB_ENV` instead of triggering a retry.
+            FIBERS=$(resolve guile-fibers)
+            WEBSOCKET=$(resolve guile-websocket)
+            GNUTLS=$(resolve guile-gnutls)
+            GCRYPT=$(resolve guile-gcrypt)
+            scratch="$(mktemp)"
+            {
+              echo "FIBERS_OUT=$FIBERS"
+              echo "WEBSOCKET_OUT=$WEBSOCKET"
+              echo "GNUTLS_OUT=$GNUTLS"
+              echo "GCRYPT_OUT=$GCRYPT"
+            } > "$scratch"
+            cat "$scratch" >> "$GITHUB_ENV"
 
       - name: Start Guile goblin-chat host
         working-directory: endo
@@ -110,8 +281,10 @@ jobs:
 
           # Goblins from raw git source has exhibited interpreter-only failures
           # with auto-compile disabled; allow Guile to compile modules first.
+          # `--fallback` permits local builds when neither substitute server
+          # has the requested item (it is a client flag, not a daemon flag).
           OCAPN_TEST_PORT="$OCAPN_TEST_PORT" GUILE_AUTO_COMPILE=1 \
-            timeout 300s guix shell --pure --no-grafts \
+            timeout 300s guix shell --pure --no-grafts --fallback \
             --preserve='^OCAPN_TEST_PORT$|^GUILE_AUTO_COMPILE$' \
             guile guile-fibers guile-websocket guile-gnutls guile-gcrypt -- \
             guile \
