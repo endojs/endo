@@ -3,6 +3,15 @@
 // Chat sources its `harden` via `@endo/harden` rather than from SES, so
 // `lockdown()` is never called. Monaco editor and other dependencies rely
 // on mutable intrinsics, which SES lockdown would freeze.
+// However, importing `ses` (without calling `lockdown()`) is still
+// required to install `globalThis.assert`. The shim modules under
+// `@endo/eventual-send/shim.js` and other library code in the bundle
+// destructure `assert` at module-load (`const { Fail, quote } = assert;`),
+// which throws `ReferenceError: assert is not defined` if SES has not
+// at least installed its assert shim. The `assert-shim.js` side effect
+// of `import 'ses'` runs without freezing intrinsics, so Monaco still
+// works.
+import 'ses';
 // CapTP and E() require HandledPromise to be installed as a global.
 import '@endo/eventual-send/shim.js';
 
