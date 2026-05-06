@@ -43,9 +43,7 @@ test('rejected far-side promise is delivered as exception', async t => {
     },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
-  registerInterface(
-    withJsonCodecs({ id: 0xa55fn, methods: { pending: 0 } }),
-  );
+  registerInterface(withJsonCodecs({ id: 0xa55fn, methods: { pending: 0 } }));
   const remote = near.getBootstrap();
   const p = E(remote).pending();
   rej(Error('rejected'));

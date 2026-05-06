@@ -17,10 +17,7 @@ import {
   loadSchema,
   makeInterfaceRegistry,
 } from '../src/index.js';
-import {
-  makeJsonMethodCodec,
-  withJsonCodecs,
-} from './fixtures/json-codec.js';
+import { makeJsonMethodCodec, withJsonCodecs } from './fixtures/json-codec.js';
 
 const SERVICE_ID = 0xa1b2c3d4e5f60707n;
 

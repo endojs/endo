@@ -293,9 +293,7 @@ export const makeDispatch = ctx => {
         );
         if (!respCodec) {
           q.reject(
-            Error(
-              `no response methodCodec for ${q.interfaceId}.${q.methodId}`,
-            ),
+            Error(`no response methodCodec for ${q.interfaceId}.${q.methodId}`),
           );
           tables.questions.delete(answerId);
           tables.questionIds.release(answerId);

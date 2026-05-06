@@ -78,7 +78,10 @@ test('Return with results round-trips', t => {
     answerId: 12,
     result: {
       kind: 'results',
-      payload: { encodeContent: contentAsData(new Uint8Array([9])), capTable: [] },
+      payload: {
+        encodeContent: contentAsData(new Uint8Array([9])),
+        capTable: [],
+      },
     },
   });
   const m = decodeMessage(framed);
