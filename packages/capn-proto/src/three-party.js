@@ -137,7 +137,8 @@ export const makeThreeParty = ctx => {
    *      vine import is our fallback Presence — calls on it route through
    *      B as a forwarder. We hold it eagerly so we have a viable cap
    *      even if the direct dial fails before any code runs.
-   *   2. Resolve `desc.thirdPartyCapId` to an A↔C peer connection via
+   *   2. Resolve `desc.idSlot` (the AnyPointer for the host's
+   *      ThirdPartyCapId, decoded by the network) to an A↔C peer connection via
    *      `VatNetwork.connectToThirdParty`. If the network fails to give
    *      us one (or the network is misconfigured), return the vine.
    *   3. Send `Accept { provision, embargo }` via `peer.sendAccept`. If

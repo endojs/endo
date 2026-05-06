@@ -40,6 +40,7 @@ import { withJsonCodecs } from './fixtures/json-codec.js';
 import {
   bytesAsDataEncoder,
   bytesNetworkMock,
+  decodeDataFromSlot,
 } from './fixtures/l3-bytes-network.js';
 
 const SERVICE_ID = 0xa1n;
@@ -275,7 +276,7 @@ test('A-side embargo: pipelined call on a senderPromise triggers Accept{embargo:
   t.truthy(acceptMsg, 'A sent Accept on A↔C');
   t.is(acceptMsg.embargo, true, 'Accept carried embargo:true');
   t.deepEqual(
-    Array.from(acceptMsg.provision),
+    Array.from(decodeDataFromSlot(acceptMsg.provisionSlot)),
     Array.from(PROVISION),
     'Accept used the provision the network minted',
   );
