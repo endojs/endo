@@ -367,6 +367,7 @@ export const main = async rawArgs => {
 
   program
     .command('clear')
+    .alias('dismiss-all')
     .description('dismiss all messages')
     .option(...commonOptions.as)
     .action(async cmd => {
