@@ -14,7 +14,11 @@
 
 import { Fail } from '@endo/errors';
 
-import { makeMessageBuilder, makeMessageReader } from '../wire/segment.js';
+import {
+  makeMessageBuilder,
+  makeMessageReader,
+  WORD_SIZE,
+} from '../wire/segment.js';
 import { frameSegments, unframeSegments } from '../wire/framing.js';
 import {
   allocStruct,
@@ -36,7 +40,6 @@ import {
 } from '../wire/list.js';
 import { writeText, readText, writeData, readData } from '../wire/text.js';
 import { writePointer, readPointer } from '../wire/pointer.js';
-import { WORD_SIZE } from '../wire/segment.js';
 import * as S from './schema.js';
 
 /**
