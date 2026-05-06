@@ -95,7 +95,7 @@ if (!haveCapnp || !haveServerBin) {
   test('Node ⇄ C++: ping/pong over TCP via connectTcp + EzRpcServer', async t => {
     const schemaText = readFileSync(SCHEMA_PATH, 'utf8');
     const interfaceRegistry = makeInterfaceRegistry();
-    loadSchema(schemaText).registerInterface(interfaceRegistry, 'Echo');
+    loadSchema(schemaText).registerInterface(interfaceRegistry, 'TestSuite');
 
     const server = await startEchoServer();
     try {

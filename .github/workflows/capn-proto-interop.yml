@@ -69,7 +69,10 @@ jobs:
           # pass/fail per interop layer:
           #   - byte-level rpc.capnp Message variants
           #   - schema-typed user struct round-trip
-          #   - live RPC against the C++ Echo server (built above)
+          #   - live RPC (single client) against the C++ TestSuite server
+          #   - live RPC multi-client: two-clients-isolation, pipelining,
+          #     cap-as-argument, fan-out concurrency
           yarn ses-ava test/interop.test.js
           yarn ses-ava test/schema-interop.test.js
           yarn ses-ava test/interop-rpc.test.js
+          yarn ses-ava test/interop-rpc-multi.test.js

@@ -1,7 +1,10 @@
-// Minimal Cap'n Proto C++ server exposing the `Echo` interface from
-// `echo.capnp` over TCP. Used as the peer for the live RPC interop test
-// (test/interop-rpc.test.js). Modeled after the upstream calculator-server
-// example.
+// Cap'n Proto C++ server exposing the TestSuite interface defined in
+// echo.capnp. Used as the peer for the live RPC interop tests in:
+//   - test/interop-rpc.test.js          (basic Node→C++ TestSuite round-trip)
+//   - test/interop-rpc-multi.test.js    (two-client + cap-passing scenarios)
+//
+// Modeled after the upstream calculator-server example. Each newCounter()
+// call mints a fresh CounterImpl, and the server stays up until SIGTERM.
 //
 // Build:
 //   capnp compile -oc++ echo.capnp
@@ -21,7 +24,24 @@
 #include "echo.capnp.h"
 #include <iostream>
 
-class EchoImpl final : public Echo::Server {
+class CounterImpl final : public Counter::Server {
+public:
+  kj::Promise<void> inc(IncContext context) override {
+    value += 1;
+    context.getResults().setValue(value);
+    return kj::READY_NOW;
+  }
+
+  kj::Promise<void> get(GetContext context) override {
+    context.getResults().setValue(value);
+    return kj::READY_NOW;
+  }
+
+private:
+  uint32_t value = 0;
+};
+
+class TestSuiteImpl final : public TestSuite::Server {
 public:
   kj::Promise<void> ping(PingContext context) override {
     auto msg = context.getParams().getMsg();
@@ -34,6 +54,24 @@ public:
     context.getResults().setTwiceN(n * 2);
     return kj::READY_NOW;
   }
+
+  kj::Promise<void> newCounter(NewCounterContext context) override {
+    context.getResults().setCounter(kj::heap<CounterImpl>());
+    return kj::READY_NOW;
+  }
+
+  kj::Promise<void> callBack(CallBackContext context) override {
+    auto params = context.getParams();
+    auto target = params.getTarget();
+    auto msg = params.getMsg();
+
+    auto request = target.pingRequest();
+    request.setMsg(msg);
+    return request.send().then(
+        [KJ_CPCAP(context)](auto response) mutable {
+          context.getResults().setReply(response.getReply());
+        });
+  }
 };
 
 int main(int argc, char* argv[]) {
@@ -42,7 +80,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  capnp::EzRpcServer server(kj::heap<EchoImpl>(), argv[1]);
+  capnp::EzRpcServer server(kj::heap<TestSuiteImpl>(), argv[1]);
   auto& waitScope = server.getWaitScope();
   uint port = server.getPort().wait(waitScope);
   std::cout << "listening on port " << port << std::endl;
