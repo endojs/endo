@@ -186,37 +186,41 @@ Both packages give you object-capability RPC built on `@endo/eventual-send`, wit
 brand identity preserved across the wire — but they target different points in
 the design space.
 
+Canonical references: OCapN protocol — [ocapn.org][ocapn-spec]; Syrup wire
+format — [Syrup spec][syrup-spec]. Cap'n Web protocol —
+[cloudflare/capnweb `protocol.md`][cw-spec].
+
 | Axis | `@endo/ocapn` | `@endo/capn-web` |
 | --- | --- | --- |
-| **Lineage** | CapTP / E / Goblins (federated object-capability mesh) | Cloudflare Cap'n Web 2024 (web-shaped RPC) |
-| **Wire format** | Syrup (binary) | JSON arrays |
-| **Handshake** | `op:start-session` with Ed25519-signed location, version, public-key id | None — id `0` is the bootstrap; transport handles trust |
-| **Session identity** | Intrinsic and cryptographic (session id derived from both peers' key ids) | None at the protocol layer; anchored in TLS / `MessagePort` etc. |
-| **Three-party handoff** | Formal, signed (`deposit-gift` / `withdraw-gift` with Ed25519 envelopes) — Carol can verify Bob really got the cap from Alice | Implicit: stubs are remotables (`passStyleOf === 'remotable'`), so Bob's session re-exports them like any other capability. Works between cooperating peers; **no cryptographic guarantee** |
-| **Cross-session reach** | Sturdy refs `(location, swissNum)`, location-signed | None — disconnect/reconnect = fresh ids; layer your own naming on top |
-| **Pipelining** | One op per message (`op:deliver`, `op:get`, `op:index`, `op:untag`, `op:listen`); deep chains span multiple messages | Path-batched: `["pipeline", id, [path], [args]]` walks the path on the receiver in one round-trip |
-| **Promises on the wire** | First-class slot type (`p+N` / `p-N`); peers `op:listen` to subscribe | Implicit: every push allocates an answer-id; the requester explicitly `["pull"]`s |
-| **GC** | `op:gc-exports` (positions + bigint deltas, atomically batched per message) and `op:gc-answers` | `["release", id, count]`; microtask-coalesced |
-| **Streams** | Not defined — application-level | WHATWG `WritableStream` / `ReadableStream` round-trip as `["writable" \| "readable", id]`; receiver gets a real stream |
-| **`.map()` / batched record-replay** | Not defined | `["remap", subjectId, propertyPath, captures, instructions]` — record once, replay per element |
-| **Trust anchor** | The protocol (signatures, swiss-nums) | The transport (TLS) |
+| **Lineage** | CapTP / E / Goblins (federated object-capability mesh) [^o-readme] | Cloudflare Cap'n Web 2024 (web-shaped RPC) [^cw-spec] |
+| **Wire format** | Syrup (binary) [^syrup-spec] | JSON arrays [^cw-spec] |
+| **Handshake** | `op:start-session` with Ed25519-signed location, version, public-key id [^o-handshake] | None — id `0` is the bootstrap; transport handles trust [^cw-spec] |
+| **Session identity** | Intrinsic and cryptographic (session id derived from both peers' key ids) [^o-crypto] | None at the protocol layer; anchored in TLS / `MessagePort` etc. |
+| **Three-party handoff** | Formal, signed (`deposit-gift` / `withdraw-gift` with Ed25519 envelopes) — Carol can verify Bob really got the cap from Alice [^o-handoff] | Implicit: stubs are remotables (`passStyleOf === 'remotable'`), so Bob's session re-exports them like any other capability. Works between cooperating peers; **no cryptographic guarantee** [^cw-stubs] |
+| **Cross-session reach** | Sturdy refs `(location, swissNum)`, location-signed [^o-sturdy] | None — disconnect/reconnect = fresh ids; layer your own naming on top |
+| **Pipelining** | One op per message (`op:deliver`, `op:get`, `op:index`, `op:untag`, `op:listen`); deep chains span multiple messages [^o-ops] | Path-batched: `["pipeline", id, [path], [args]]` walks the path on the receiver in one round-trip [^cw-spec] [^cw-walk] |
+| **Promises on the wire** | First-class slot type (`p+N` / `p-N`); peers `op:listen` to subscribe [^o-ops] | Implicit: every push allocates an answer-id; the requester explicitly `["pull"]`s [^cw-spec] |
+| **GC** | `op:gc-exports` (positions + bigint deltas, atomically batched per message) and `op:gc-answers` [^o-gc] | `["release", id, count]`; microtask-coalesced [^cw-tables] |
+| **Streams** | Not defined — application-level | WHATWG `WritableStream` / `ReadableStream` round-trip as `["writable" \| "readable", id]`; receiver gets a real stream [^cw-streams] |
+| **`.map()` / batched record-replay** | Not defined | `["remap", subjectId, propertyPath, captures, instructions]` — record once, replay per element [^cw-remap] |
+| **Trust anchor** | The protocol (signatures, swiss-nums) [^o-crypto] [^o-handoff] | The transport (TLS) |
 
 ### Wire-type bijection
 
 What each protocol can carry as a leaf, beyond the obvious primitives:
 
-|  | `@endo/ocapn` | `@endo/capn-web` |
+|  | `@endo/ocapn` [^o-passable] | `@endo/capn-web` [^cw-special] |
 | --- | --- | --- |
 | `undefined` | via `copyTagged` escape | `["undefined"]` |
 | `NaN`, ±`Infinity` | no first-class encoding (number is float64; non-finite needs an escape) | `["nan"]`, `["inf"]`, `["-inf"]` |
-| `bigint` | yes (Syrup int) | `["bigint", str]` |
+| `bigint` | yes (Syrup int) [^syrup-spec] | `["bigint", str]` |
 | `Date` | no leaf form — encode as a tagged value | `["date", ms]` |
 | `Uint8Array` / bytes | yes | `["bytes", base64]` |
 | `Error` | message + selector type | `["error", typeName, message, stack?]` |
-| Symbols | yes (selectors) | rejected (devaluator throws) |
-| `copyTagged` (generic) | yes — full `@endo/pass-style` `tagged` | no — atom set is closed |
-| `Map` / `Set` | not yet implemented (planned) | not implemented |
-| `Headers` / `Request` / `Response` | not specified | yes (`["headers", pairs]`, `["request", url, init]`, `["response", body, init]`) |
+| Symbols | yes (selectors) [^o-passable] | rejected (devaluator throws) [^cw-devaluate] |
+| `copyTagged` (generic) | yes — full `@endo/pass-style` `tagged` | no — atom set is closed [^cw-special] |
+| `Map` / `Set` | not yet implemented (planned) [^syrup-spec] | not implemented |
+| `Headers` / `Request` / `Response` | not specified | yes (`["headers", pairs]`, `["request", url, init]`, `["response", body, init]`) [^cw-fetch] |
 
 ### When to pick which
 
@@ -229,6 +233,29 @@ What each protocol can carry as a leaf, beyond the obvious primitives:
 
 Pithy: **Cap'n Web is wire-cheap, model-thin, web-shaped; OCapN is wire-rich,
 model-deep, mesh-shaped.** The two are complementary, not redundant.
+
+[ocapn-spec]: https://ocapn.org/
+[syrup-spec]: https://github.com/ocapn/syrup
+[cw-spec]: https://github.com/cloudflare/capnweb/blob/main/protocol.md
+
+[^o-readme]: `@endo/ocapn` package overview — `packages/ocapn/README.md`
+[^o-handshake]: Handshake (`op:start-session`, location signature, crossed-hellos) — `packages/ocapn/src/client/handshake.js`
+[^o-crypto]: Session id derivation, Ed25519 location signing — `packages/ocapn/src/cryptography.js`
+[^o-handoff]: `HandoffGiveSigEnvelope` / `SignedHandoffReceive` codec, signature verification — `packages/ocapn/src/codecs/descriptors.js`; `deposit-gift` / `withdraw-gift` bootstrap methods — `packages/ocapn/src/client/ocapn.js`
+[^o-sturdy]: Sturdy refs `(location, swissNum)` — `packages/ocapn/src/client/sturdyrefs.js`
+[^o-ops]: Operation tags `op:deliver`, `op:get`, `op:index`, `op:untag`, `op:listen` — `packages/ocapn/src/codecs/operations.js`
+[^o-gc]: `op:gc-exports` / `op:gc-answers` — `packages/ocapn/src/codecs/operations.js`; per-message refcount batching — `packages/ocapn/src/captp/refcount.js`
+[^o-passable]: OCapN passable codec (selectors, copyTagged, copyArray, copyRecord) — `packages/ocapn/src/codecs/passable.js`, `packages/ocapn/src/codecs/ocapn-pass-style.js`
+[^cw-spec]: Cloudflare Cap'n Web protocol — https://github.com/cloudflare/capnweb/blob/main/protocol.md
+[^syrup-spec]: Syrup binary serialization spec — https://github.com/ocapn/syrup
+[^cw-special]: Special-value tags (`undefined`, `nan`, `inf`, `-inf`, `bigint`, `date`, `bytes`, `error`) — `src/special-values.js`
+[^cw-fetch]: Headers / Request / Response codecs — `src/fetch-codec.js`
+[^cw-streams]: WHATWG Streams bridge — `src/streams.js`
+[^cw-remap]: `.map()` recorder + replayer — `src/remap.js`
+[^cw-tables]: Import / export tables, refcount + microtask-coalesced release — `src/tables.js`
+[^cw-stubs]: `Remotable(...)`-wrapped presences (so `passStyleOf === 'remotable'` enables three-party round-trips) — `src/stubs.js`
+[^cw-walk]: Path-and-call walker for incoming `["pipeline", …]` — `src/walk-path.js`
+[^cw-devaluate]: Devaluator (rejects symbols, plain classes, etc.) — `src/devaluate.js`
 
 ## Tests
 
