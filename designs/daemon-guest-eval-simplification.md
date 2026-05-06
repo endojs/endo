@@ -3,8 +3,38 @@
 | | |
 |---|---|
 | **Created** | 2026-03-21 |
+| **Updated** | 2026-05-04 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Implemented** |
+| **PR** | #92 |
+
+## Status
+
+The eval-proposal handshake (`mail.evaluate`, `mail.grantEvaluate`,
+`mail.counterEvaluate`, the `EvalProposalReviewer` and
+`EvalProposalProposer` message types, and the corresponding host
+methods) was removed from the daemon in commit 90f8e910f9 ("Guests
+can eval without permission") on the `llm` branch.
+Guest `evaluate` now calls `formulateEval` directly with endowments
+resolved in the guest's own pet store (`packages/daemon/src/guest.js`),
+structurally identical to the host path.
+The two design-aligned tests `guest evaluate executes code directly`
+and `guest evaluate ephemeral (no resultName)` ship in
+`packages/daemon/test/endo.test.js`.
+
+PR #92 follows up by removing the dead `'eval-request'` literal and
+unused `codeNames` / `petNamePaths` fields from the
+`MessageFormula` type, the matching destructure entries in
+`makeMessageHub`, and an orphan JSDoc block in `mail.js`.
+It also adds a regression test
+(`guest evaluate posts no message to host or guest mailbox`) that
+asserts a guest `evaluate` does not grow either side's mailbox, so a
+future re-introduction of any proposal-style send fails fast.
+
+The `Responder` exo and its `resolveWithId` method are preserved
+because they remain in use by `request` and `definition` message
+types via persisted `resolverId` fields, contrary to the design's
+assumption that they were specific to the eval-proposal flow.
 
 ## Motivation
 
