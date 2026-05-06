@@ -37,7 +37,7 @@ const synthesizeFramed = (segCount, wordsPerSegment = 1) => {
   for (let i = 0; i < segCount; i += 1) {
     const seg = new ArrayBuffer(wordsPerSegment * 8);
     // Sentinel byte per segment so we can verify identity on round-trip.
-    new Uint8Array(seg)[0] = i & 0xff;
+    new Uint8Array(seg)[0] = i % 256;
     segments.push(seg);
   }
   return new Uint8Array(frameSegments(segments));
