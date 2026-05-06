@@ -180,6 +180,56 @@ bidirectional method invocation all work both directions.
   call, function call). Arbitrary JS in the mapper (arithmetic, conditionals)
   isn't recorded.
 
+## Compared to `@endo/ocapn`
+
+Both packages give you object-capability RPC built on `@endo/eventual-send`, with
+brand identity preserved across the wire — but they target different points in
+the design space.
+
+| Axis | `@endo/ocapn` | `@endo/capn-web` |
+| --- | --- | --- |
+| **Lineage** | CapTP / E / Goblins (federated object-capability mesh) | Cloudflare Cap'n Web 2024 (web-shaped RPC) |
+| **Wire format** | Syrup (binary) | JSON arrays |
+| **Handshake** | `op:start-session` with Ed25519-signed location, version, public-key id | None — id `0` is the bootstrap; transport handles trust |
+| **Session identity** | Intrinsic and cryptographic (session id derived from both peers' key ids) | None at the protocol layer; anchored in TLS / `MessagePort` etc. |
+| **Three-party handoff** | Formal, signed (`deposit-gift` / `withdraw-gift` with Ed25519 envelopes) — Carol can verify Bob really got the cap from Alice | Implicit: stubs are remotables (`passStyleOf === 'remotable'`), so Bob's session re-exports them like any other capability. Works between cooperating peers; **no cryptographic guarantee** |
+| **Cross-session reach** | Sturdy refs `(location, swissNum)`, location-signed | None — disconnect/reconnect = fresh ids; layer your own naming on top |
+| **Pipelining** | One op per message (`op:deliver`, `op:get`, `op:index`, `op:untag`, `op:listen`); deep chains span multiple messages | Path-batched: `["pipeline", id, [path], [args]]` walks the path on the receiver in one round-trip |
+| **Promises on the wire** | First-class slot type (`p+N` / `p-N`); peers `op:listen` to subscribe | Implicit: every push allocates an answer-id; the requester explicitly `["pull"]`s |
+| **GC** | `op:gc-exports` (positions + bigint deltas, atomically batched per message) and `op:gc-answers` | `["release", id, count]`; microtask-coalesced |
+| **Streams** | Not defined — application-level | WHATWG `WritableStream` / `ReadableStream` round-trip as `["writable" \| "readable", id]`; receiver gets a real stream |
+| **`.map()` / batched record-replay** | Not defined | `["remap", subjectId, propertyPath, captures, instructions]` — record once, replay per element |
+| **Trust anchor** | The protocol (signatures, swiss-nums) | The transport (TLS) |
+
+### Wire-type bijection
+
+What each protocol can carry as a leaf, beyond the obvious primitives:
+
+|  | `@endo/ocapn` | `@endo/capn-web` |
+| --- | --- | --- |
+| `undefined` | via `copyTagged` escape | `["undefined"]` |
+| `NaN`, ±`Infinity` | no first-class encoding (number is float64; non-finite needs an escape) | `["nan"]`, `["inf"]`, `["-inf"]` |
+| `bigint` | yes (Syrup int) | `["bigint", str]` |
+| `Date` | no leaf form — encode as a tagged value | `["date", ms]` |
+| `Uint8Array` / bytes | yes | `["bytes", base64]` |
+| `Error` | message + selector type | `["error", typeName, message, stack?]` |
+| Symbols | yes (selectors) | rejected (devaluator throws) |
+| `copyTagged` (generic) | yes — full `@endo/pass-style` `tagged` | no — atom set is closed |
+| `Map` / `Set` | not yet implemented (planned) | not implemented |
+| `Headers` / `Request` / `Response` | not specified | yes (`["headers", pairs]`, `["request", url, init]`, `["response", body, init]`) |
+
+### When to pick which
+
+- Pick **`@endo/capn-web`** if you want browser-native HTTP/WebSocket transports
+  with a JSON-readable tape, batched pipelining, batched `.map()`, WHATWG
+  streams, and you're willing to anchor trust in TLS.
+- Pick **`@endo/ocapn`** if you want federated identity, sturdy-refs that
+  survive across sessions, signed three-party handoffs, and the full
+  `@endo/pass-style` bijection (symbols, `copyTagged`, …).
+
+Pithy: **Cap'n Web is wire-cheap, model-thin, web-shaped; OCapN is wire-rich,
+model-deep, mesh-shaped.** The two are complementary, not redundant.
+
 ## Tests
 
 ```sh
