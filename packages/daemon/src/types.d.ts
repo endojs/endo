@@ -315,13 +315,7 @@ type MailHubFormula = {
 
 type MessageFormula = {
   type: 'message';
-  messageType:
-    | 'request'
-    | 'package'
-    | 'eval-request'
-    | 'definition'
-    | 'form'
-    | 'value';
+  messageType: 'request' | 'package' | 'definition' | 'form' | 'value';
   messageId: FormulaNumber;
   replyTo?: FormulaNumber;
   from: FormulaIdentifier;
@@ -334,8 +328,6 @@ type MessageFormula = {
   names?: string[];
   ids?: FormulaIdentifier[];
   source?: string;
-  codeNames?: string[];
-  petNamePaths?: NamePath[];
   slots?: Record<string, { label: string; pattern?: unknown }>;
   fields?: FormField[];
   valueId?: FormulaIdentifier;
