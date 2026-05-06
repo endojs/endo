@@ -35,6 +35,6 @@ Refs: #XXXX
 
 > What aspects of this PR are relevant to upgrading live production systems, and how should they be addressed?
 
-> Include `*BREAKING*:` in the commit message with migration instructions for any breaking change.
+> For any breaking change, add a changeset (`yarn changeset`) with a `major` bump and migration instructions in the description. See the "Using Changesets" section in `CONTRIBUTING.md`.
 
 > Delete guidance from pull request description before merge (including this!)
