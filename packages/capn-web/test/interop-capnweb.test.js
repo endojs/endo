@@ -1,4 +1,5 @@
 // @ts-nocheck
+/* global setTimeout */
 /* eslint-disable max-classes-per-file, class-methods-use-this,
    lines-between-class-members -- the interop suite mirrors capnweb's
    "extend RpcTarget" idiom; multiple short classes per test are idiomatic. */
@@ -234,3 +235,225 @@ interop('endo callRemap → capnweb server: method call per element', async t =>
   t.deepEqual(firsts, [10, 100, 1000]);
   endoClient.abort();
 });
+
+// ---------- non-finite numbers and additional special values ----------
+
+interop(
+  'endo client → capnweb server: NaN / +Infinity / -Infinity round-trip',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    class Main extends capnweb.RpcTarget {
+      echo(x) {
+        return x;
+      }
+    }
+    // eslint-disable-next-line no-new
+    new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+    const endoClient = makeCapnWebSession(a, { gcImports: false });
+    const r = endoClient.getRemoteMain();
+    t.true(Number.isNaN(await E(r).echo(NaN)));
+    t.is(await E(r).echo(Infinity), Infinity);
+    t.is(await E(r).echo(-Infinity), -Infinity);
+    endoClient.abort();
+  },
+);
+
+interop(
+  'capnweb client → endo server: NaN / +Infinity / -Infinity round-trip',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    makeCapnWebSession(b, {
+      localMain: Far('main', { echo: x => x }),
+      gcImports: false,
+    });
+    const cw = new capnweb.RpcSession(adaptForCapnweb(a));
+    const r = cw.getRemoteMain();
+    t.true(Number.isNaN(await r.echo(NaN)));
+    t.is(await r.echo(Infinity), Infinity);
+    t.is(await r.echo(-Infinity), -Infinity);
+  },
+);
+
+// ---------- error propagation ----------
+
+interop(
+  'endo client → capnweb server: server throws preserves error message',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    class Main extends capnweb.RpcTarget {
+      bad() {
+        throw new TypeError('boom from capnweb');
+      }
+    }
+    // eslint-disable-next-line no-new
+    new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+    const endoClient = makeCapnWebSession(a, { gcImports: false });
+    let caught;
+    try {
+      await E(endoClient.getRemoteMain()).bad();
+    } catch (e) {
+      caught = e;
+    }
+    t.true(caught instanceof Error);
+    t.regex(caught.message, /boom from capnweb/);
+    endoClient.abort();
+  },
+);
+
+interop(
+  'capnweb client → endo server: server throws preserves error message',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    makeCapnWebSession(b, {
+      localMain: Far('main', {
+        bad: () => {
+          throw new TypeError('boom from endo');
+        },
+      }),
+      gcImports: false,
+    });
+    const cw = new capnweb.RpcSession(adaptForCapnweb(a));
+    let caught;
+    try {
+      await cw.getRemoteMain().bad();
+    } catch (e) {
+      caught = e;
+    }
+    t.true(caught instanceof Error);
+    t.regex(caught.message, /boom from endo/);
+  },
+);
+
+interop(
+  'endo client → capnweb server: Error object as a value round-trips',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    class Main extends capnweb.RpcTarget {
+      echo(x) {
+        return x;
+      }
+    }
+    // eslint-disable-next-line no-new
+    new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+    const endoClient = makeCapnWebSession(a, { gcImports: false });
+    const back = await E(endoClient.getRemoteMain()).echo(
+      new RangeError('out of bounds'),
+    );
+    t.true(back instanceof RangeError);
+    t.regex(back.message, /out of bounds/);
+    endoClient.abort();
+  },
+);
+
+// ---------- compound argument shapes ----------
+
+interop(
+  'endo client → capnweb server: array of stubs as a single argument',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    class Main extends capnweb.RpcTarget {
+      async sumTags(stubs) {
+        // Each stub is one of our Far'd helpers; invoke .tag() on each
+        // and concatenate.  Pipelining lets us issue all .tag() calls
+        // at once and await them together.
+        const tags = await Promise.all(stubs.map(s => s.tag()));
+        return tags.join('+');
+      }
+    }
+    // eslint-disable-next-line no-new
+    new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+    const endoClient = makeCapnWebSession(a, { gcImports: false });
+    const helpers = [
+      Far('a', { tag: () => 'a' }),
+      Far('b', { tag: () => 'b' }),
+      Far('c', { tag: () => 'c' }),
+    ];
+    t.is(await E(endoClient.getRemoteMain()).sumTags(helpers), 'a+b+c');
+    endoClient.abort();
+  },
+);
+
+interop(
+  'endo client → capnweb server: nested record carrying a stub',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    class Main extends capnweb.RpcTarget {
+      async unwrap(env) {
+        return env.payload.helper.tag();
+      }
+    }
+    // eslint-disable-next-line no-new
+    new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+    const endoClient = makeCapnWebSession(a, { gcImports: false });
+    const env = {
+      kind: 'wrap',
+      payload: {
+        seq: 7,
+        helper: Far('h', { tag: () => 'inner' }),
+      },
+    };
+    t.is(await E(endoClient.getRemoteMain()).unwrap(env), 'inner');
+    endoClient.abort();
+  },
+);
+
+// ---------- promise as argument ----------
+
+interop(
+  'endo client → capnweb server: passing an unresolved Promise as arg',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    class Main extends capnweb.RpcTarget {
+      async eat(p) {
+        const v = await p;
+        return v * 2;
+      }
+    }
+    // eslint-disable-next-line no-new
+    new capnweb.RpcSession(adaptForCapnweb(b), new Main());
+    const endoClient = makeCapnWebSession(a, { gcImports: false });
+    let resolveLater;
+    const pending = new Promise(rr => {
+      resolveLater = rr;
+    });
+    const callP = E(endoClient.getRemoteMain()).eat(pending);
+    setTimeout(() => resolveLater(21), 5);
+    t.is(await callP, 42);
+    endoClient.abort();
+  },
+);
+
+// ---------- map() in the reverse direction (capnweb client → endo server) ----------
+
+interop(
+  'capnweb client → endo server: capnweb .map() against endo Far list',
+  async t => {
+    const { a, b } = makeLoopbackPair();
+    makeCapnWebSession(b, {
+      localMain: Far('main', {
+        getItems: () => [
+          Far('i1', { name: () => 'one' }),
+          Far('i2', { name: () => 'two' }),
+          Far('i3', { name: () => 'three' }),
+        ],
+      }),
+      gcImports: false,
+    });
+    const cw = new capnweb.RpcSession(adaptForCapnweb(a));
+    const r = cw.getRemoteMain();
+    // capnweb's map() on an array result returns an array of result
+    // promises; await all to materialise them.
+    const namePromises = await r.getItems().map(it => it.name());
+    const names = await Promise.all(namePromises);
+    t.deepEqual(names, ['one', 'two', 'three']);
+  },
+);
+
+// NOTE on three-party / cross-call forwarding through capnweb:
+// capnweb auto-disposes method arguments after the call returns, so
+// "stash a Far on the capnweb server, invoke it later" requires
+// capnweb's specific `.dup()` retention mechanics that aren't part of
+// the wire protocol.  In-call callbacks (capability passed both ways
+// above) are the common case and are covered.  Same-side three-party
+// stub identity is covered by `coverage-gaps-2.test.js` T7 across two
+// endo sessions.
