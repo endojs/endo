@@ -1,9 +1,9 @@
 name: Browser Tests
 on:
   push:
-    branches: [master]
+    branches: [master, llm]
   pull_request:
-    branches: [master]
+    branches: [master, llm]
   schedule:
     - cron: '0 0 * * *' # Runs every day at midnight
 
