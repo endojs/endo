@@ -31,11 +31,13 @@ const isCap = v => {
   return proto !== Object.prototype && proto !== Array.prototype;
 };
 
+/** @param {Uint8Array} u8 */
 const u8ToBase64 = u8 => {
   let s = '';
   for (let i = 0; i < u8.length; i += 1) s += String.fromCharCode(u8[i]);
   return btoa(s);
 };
+/** @param {string} b */
 const base64ToU8 = b => {
   const s = atob(b);
   const u8 = new Uint8Array(s.length);
