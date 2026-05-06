@@ -367,12 +367,13 @@ export const main = async rawArgs => {
 
   program
     .command('clear')
+    .alias('dismiss-all')
     .description('dismiss all messages')
     .option(...commonOptions.as)
     .action(async cmd => {
       const { as: agentNames } = cmd.opts();
-      const { dismissAllCommand } = await import('./commands/dismiss-all.js');
-      return dismissAllCommand({
+      const { clearCommand } = await import('./commands/clear.js');
+      return clearCommand({
         agentNames,
       });
     });
