@@ -3,6 +3,7 @@
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
+import harden from '@endo/harden';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 
 /**

@@ -1,6 +1,8 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
+import harden from '@endo/harden';
+
 /**
  * @typedef {object} ParsedDefine
  * @property {string} source - The JavaScript source code

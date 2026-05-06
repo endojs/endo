@@ -1,9 +1,8 @@
 // @ts-check
 
-// Import SES to make `harden` available globally.
-// We use `ses` directly (not `@endo/init`) so that intrinsics are NOT frozen,
-// allowing Monaco editor to run inline without iframe isolation.
-import 'ses';
+// Chat sources its `harden` via `@endo/harden` rather than from SES, so
+// `lockdown()` is never called. Monaco editor and other dependencies rely
+// on mutable intrinsics, which SES lockdown would freeze.
 // CapTP and E() require HandledPromise to be installed as a global.
 import '@endo/eventual-send/shim.js';
 
