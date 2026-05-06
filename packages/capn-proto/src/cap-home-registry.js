@@ -29,8 +29,9 @@ import harden from '@endo/harden';
  * @typedef {object} CapHome
  * @property {any} hostConnection  The `makeCapnp` peer that exports the cap.
  * @property {number} hostImportId The import id this presence carries on
- *   that peer's connection. Same number that `importIdOf(presence)`
- *   returns when called against `hostConnection.interfaceRegistry`.
+ *   that peer's connection — i.e. the value the host's ImportRegistry
+ *   yields for `importIdOf(presence)`. (`importIdOf` lives on the import
+ *   registry / connection, not on the InterfaceRegistry.)
  */
 
 export const makeCapHomeRegistry = () => {

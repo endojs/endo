@@ -10,7 +10,7 @@
  */
 
 import { HandledPromise } from '@endo/eventual-send';
-import { Fail, q } from '@endo/errors';
+import { Fail } from '@endo/errors';
 
 /**
  * @typedef {{
@@ -40,29 +40,26 @@ export const makeRemoteHandler = ({
   target,
   registerReturnedPromise,
 }) => {
-  const fail = () => {
-    throw Fail`cannot resolve method without an interface id; first argument of E(target).method must be a registered interface method`;
-  };
-  /** Build the rejection reason for `applyFunction` calls. */
   const applyFunctionRejection = () => {
     try {
-      fail();
+      throw Fail`Cap'n Proto has no plain function-call semantics; use E(target).method(args) on a method registered via an InterfaceRegistry`;
     } catch (e) {
       return e;
     }
-    // unreachable; `fail()` always throws.
-    return Error('unreachable');
   };
 
   return {
     get(_target, prop, _returnedP) {
-      // `get` is unusual for Cap'n Proto: methods are addressed by ordinal,
-      // not name, so we cannot resolve a property access without an
-      // interface context. Users should use E(p).method() instead of
-      // accessing a property directly.
+      // `get` is unusual for Cap'n Proto: methods are addressed by
+      // (interfaceId, methodId) ordinals, not name, so we cannot resolve a
+      // bare property access. Users should call methods via
+      // `E(p).methodName()` against a registered interface.
+      const name = String(prop);
       return Promise.reject(
         Error(
-          `E(p).${q(prop)} get is unsupported; use E(p).${q(prop)}() instead`,
+          `property access E(p).${name} is unsupported; ` +
+            `Cap'n Proto methods are addressed by ordinal — call ${name}() ` +
+            `against a method registered in the InterfaceRegistry`,
         ),
       );
     },
@@ -124,7 +121,24 @@ export const makeRemoteHandler = ({
 
     applyMethodSendOnly(_target, prop, args) {
       if (prop === undefined || prop === null) return;
-      const resolved = resolveMethod(prop);
+      // sendOnly has no returned promise to reject through, so a thrown
+      // resolveMethod (e.g. unknown method/interface) would otherwise
+      // escape as an uncaught exception out of the eventual-send dispatch
+      // loop. Catch + log to stay symmetric with applyMethod's
+      // promise-rejection path: the call is dropped, the rest of the
+      // session keeps running.
+      let resolved;
+      try {
+        resolved = resolveMethod(prop);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `Cap'n Proto sendOnly: dropping E.sendOnly(p).${String(prop)} — ${
+            /** @type {any} */ (e)?.message || e
+          }`,
+        );
+        return;
+      }
       const t = target();
       sendCallOnly(t, resolved.interfaceId, resolved.methodId, args);
     },

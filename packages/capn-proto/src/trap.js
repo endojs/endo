@@ -48,13 +48,17 @@ export const makeCapnpTrapHost = transferBuffer => {
     if (hasBuffer) {
       b64 = NodeBuffer.from(u8).toString('base64');
     } else {
-      // btoa only accepts a binary string. Build it lazily here, since
-      // String concat per byte is O(n) in modern engines (small chunks
-      // would be unnecessary with Array.from + join, but for typical
-      // trap-sized payloads the simple loop is adequate).
-      let bin = '';
-      for (let i = 0; i < u8.length; i += 1) bin += String.fromCharCode(u8[i]);
-      b64 = btoa(bin);
+      // btoa only accepts a binary string. Per-byte `bin += ...`
+      // concatenation is O(n^2) in V8 (rope strings flatten on certain
+      // operations), so accumulate into an Array and join once for
+      // linear-time behaviour. Chunked `String.fromCharCode(...slice)`
+      // would be even faster but slicing a Uint8Array per iteration has
+      // its own cost; this version is the simple linear baseline.
+      const chars = new Array(u8.length);
+      for (let i = 0; i < u8.length; i += 1) {
+        chars[i] = String.fromCharCode(u8[i]);
+      }
+      b64 = btoa(chars.join(''));
     }
     yield* /** @type {any} */ (inner)([isReject, b64]);
   });
