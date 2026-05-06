@@ -450,10 +450,15 @@ interop(
 );
 
 // NOTE on three-party / cross-call forwarding through capnweb:
-// capnweb auto-disposes method arguments after the call returns, so
-// "stash a Far on the capnweb server, invoke it later" requires
-// capnweb's specific `.dup()` retention mechanics that aren't part of
-// the wire protocol.  In-call callbacks (capability passed both ways
-// above) are the common case and are covered.  Same-side three-party
-// stub identity is covered by `coverage-gaps-2.test.js` T7 across two
-// endo sessions.
+// capnweb's client implementation auto-disposes method-call payloads
+// after the call returns (RpcPayload.deliverCall's `finally` at
+// dist/index.js:715-717), so a Far stashed in `this.cap = arg` becomes
+// a disposed RpcImportHook before any later method on the same target
+// can reach it.  This is a capnweb client-side retention policy, not
+// a wire-protocol requirement — the protocol only defines
+// `["release", id, count]` as the mechanism, leaving retention up to
+// each peer.  Our package's `FinalizingMap` approach is wire-compatible
+// (we just emit releases on GC reachability instead of on call exit).
+// In-call callbacks are covered by "capability passed both ways"
+// above; same-side three-party stub identity across two endo sessions
+// is in coverage-gaps-2.test.js T7.
