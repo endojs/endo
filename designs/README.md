@@ -20,6 +20,7 @@
 | [chat-rename-dismiss-to-clear](chat-rename-dismiss-to-clear.md) | 2026-03-03 | 2026-03-03 | Proposed |
 | [chat-slot-slash-commands](chat-slot-slash-commands.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-03-21 | Not Started |
+| [chat-edit-message-ui](chat-edit-message-ui.md) | 2026-05-05 | 2026-05-05 | Not Started |
 | [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | 2026-02-28 | Deprecated |
 | [chat-spaces-home](chat-spaces-home.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | 2026-02-26 | **Complete** |
@@ -197,8 +198,10 @@ flowchart TD
     subgraph Chat UX
         cpend[chat-pending-commands]
         cvedit[chat-view-edit-commands]
+        cemui[chat-edit-message-ui]
         dcmd --> cpend
         dmount --> cvedit
+        dmstream[daemon-message-streaming] --> cemui
         cscheme[chat-color-schemes<br/><i>COMPLETE</i>]
         cspace[chat-per-space-color-scheme<br/><i>COMPLETE</i>]
         chc[chat-high-contrast-mode<br/><i>COMPLETE</i>]
@@ -361,6 +364,7 @@ webhook events.
 | workers-panel | Not Started | Metrics, sparklines (retention-paths section factored out into `daemon-retention-paths`) |
 | daemon-retention-paths | Not Started | Host-only `listRetentionPaths` / `followRetentionPaths`, `endo paths` CLI, Chat paths panel with delete-pet-name and disincarnate/reincarnate |
 | chat-view-edit-commands | Not Started | `/view` and `/edit` for blobs; Monaco editor, Markdown split preview |
+| chat-edit-message-ui | Not Started | `/edit` slash command, `e` focus shortcut, hover pencil for editing previously sent messages; revision-history panel |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
 
 **Exit criterion:** Chat UI feature-complete for current design scope.
@@ -517,6 +521,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | workers-panel | M | 3-5 days | 4 | Metrics, sparklines |
 | daemon-retention-paths | M-L | 1-1.5 weeks | 4 | Snapshot + subscription daemon API, CLI verb, Chat paths panel with delete-pet-name and disincarnate/reincarnate; superset of the retention-path slices in formula-inspector and workers-panel |
 | chat-view-edit-commands | M | 3-5 days | 4 | `/view`, `/edit` modal, Monaco reuse, Markdown split preview (Phase 4) |
+| chat-edit-message-ui | S-M | 2-3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil, revision-history panel; reuses send-form, message-picker, focus dispatch |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
 | daemon-os-sandbox-plugin | L-XL | 2-3 weeks | 5 | Platform-specific |
 | daemon-capability-persona | S-M | 2-3 days | 5 | Handle extension, epithet tracking |
