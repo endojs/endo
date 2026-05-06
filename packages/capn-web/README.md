@@ -155,16 +155,32 @@ bidirectional method invocation all work both directions.
   `["remap", subjectId, propertyPath, captures, instructions]` form:
   each instruction is `["pipeline", subject, path, args?]` and the last
   instruction's value is the answer. The interop suite covers both
-  directions. Capturing a *foreign stub* as the receiver of a method
-  call inside the mapper body isn't yet supported — capture stubs as
-  arguments instead.
-- `["pipe"]` (open a new pipe) is not yet implemented. JS
-  `WritableStream` / `ReadableStream` values are encoded as
-  `["writable", -id]` / `["readable", -id]`, and the receiver gets a real
-  `WritableStream` / `ReadableStream` whose I/O round-trips through one
-  remote method call per chunk. Chunked streaming over a single
-  HTTP-batch request isn't feasible (the response is not held open);
-  WebSocket and MessagePort transports work fine.
+  directions. To call methods on a captured *foreign stub* inside the
+  mapper body, pass it via `callRemap`'s `captureStubs` parameter — the
+  recorder hands it back as an additional positional argument:
+
+  ```js
+  await session.callRemap(
+    target,
+    (input, bonus) => bonus.combine(input),
+    [bonus],
+  );
+  ```
+
+- `["pipe"]` (capnweb's "open a new pipe" message) is not implemented.
+  capnweb relies on both peers maintaining a shared imports/exports
+  counter that increments symmetrically when a `pipe` message crosses
+  the wire; our package uses an asymmetric signed-id scheme (negative
+  for exports, positive for imports, allocated independently per side),
+  so reproducing `["pipe"]` would require either reworking the id model
+  or carving out a second id space just for pipes. JS `WritableStream` /
+  `ReadableStream` values still cross the wire — encoded as
+  `["writable", -id]` / `["readable", -id]` — and the receiver gets a
+  real stream whose I/O round-trips through one remote method call per
+  chunk. That's the right shape for WebSocket and MessagePort transports;
+  chunked streaming over a single HTTP-batch request isn't feasible
+  (the response body isn't held open) regardless of which message tag
+  is used.
 - Sender-side `["stream", …]` (cloudflare/capnweb's fire-and-forget
   variant) is intentionally not emitted: send-only calls use a normal
   `["push", expr]` *without* a paired `["pull", id]`, which is strictly

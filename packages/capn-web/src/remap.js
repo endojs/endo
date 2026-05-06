@@ -23,6 +23,7 @@
 // instruction.
 
 import harden from '@endo/harden';
+import { HandledPromise } from '@endo/eventual-send';
 
 import { isForbiddenKey } from './path-keys.js';
 
@@ -134,14 +135,28 @@ const makePlaceholder = (state, subject, pendingPath) => {
 /**
  * Record a mapper callback into a remap recording in capnweb wire form.
  *
- * @param {(input: unknown) => unknown} mapper
+ * The mapper is called as `mapper(input, ...captureStubs)`, where each
+ * `captureStubs[i]` is a recorder-aware placeholder for `captures[i]`.
+ * This means a captured stub can be used as the *receiver* of a method
+ * call inside the mapper body (`bonus.combine(x)`), not just as an
+ * argument (`x.combine(bonus)`).  The wire encoding routes capture-stub
+ * receivers through `["pipeline", -(i+1), path, args]` just like
+ * `encodeArg` does for arg-position captures.
+ *
+ * @param {(input: unknown, ...captures: unknown[]) => unknown} mapper
+ * @param {readonly unknown[]} [captures]
  * @returns {{ propertyPath: (string | number)[], captures: unknown[], instructions: unknown[][] }}
  */
-export const recordRemap = mapper => {
+export const recordRemap = (mapper, captures = []) => {
   /** @type {{ instructions: unknown[][], captures: unknown[] }} */
-  const state = { instructions: [], captures: [] };
+  const state = { instructions: [], captures: captures.slice() };
   const inputPlaceholder = makePlaceholder(state, 0, []);
-  const result = mapper(inputPlaceholder);
+  // Pre-allocate a placeholder per capture so the mapper can use them
+  // as method receivers.  Subject is the negative 1-based capture index.
+  const capturePlaceholders = state.captures.map((_, i) =>
+    makePlaceholder(state, -(i + 1), []),
+  );
+  const result = mapper(inputPlaceholder, ...capturePlaceholders);
 
   // Append the answer expression as the final instruction.
   if (
@@ -218,6 +233,10 @@ export const replayRemap = async (recording, input) => {
   /**
    * Evaluate one expression: either a `pipeline` reference or a literal.
    *
+   * Uses `HandledPromise.get` / `applyMethod` / `applyFunction` for path
+   * descent so that remote presences (which look up properties via their
+   * handler, not as own properties) work uniformly with plain objects.
+   *
    * @param {unknown} expr
    */
   const evaluate = async expr => {
@@ -226,41 +245,31 @@ export const replayRemap = async (recording, input) => {
       const path = /** @type {(string | number)[]} */ (expr[2] || []);
       const args = /** @type {unknown[] | undefined} */ (expr[3]);
       for (const seg of path) checkPathSegment(seg);
-      let cur = await resolveSubject(subject);
+      let cur = /** @type {any} */ (await resolveSubject(subject));
       if (args === undefined) {
-        // Pure get: walk the path.
+        // Pure get: walk the whole path via HandledPromise.get so
+        // presence handlers are consulted at each step.
         for (const seg of path) {
-          cur = await cur;
-          if (cur === null || cur === undefined) {
-            throw new TypeError(`cannot read ${String(seg)} of ${cur}`);
-          }
-          cur = /** @type {any} */ (cur)[seg];
+          cur = await HandledPromise.get(cur, /** @type {any} */ (seg));
         }
         return cur;
       }
-      // Call: walk all but the last segment, then invoke.
+      // Call.  Walk all but the last segment as gets, then dispatch the
+      // call as applyMethod (path of length >= 1) or applyFunction
+      // (empty path).
       const evaluatedArgs = await Promise.all(args.map(a => evaluate(a)));
-      if (path.length === 0) {
-        cur = await cur;
-        if (typeof cur !== 'function') {
-          throw new TypeError('cannot call non-function');
-        }
-        return /** @type {Function} */ (cur)(...evaluatedArgs);
-      }
       for (const seg of path.slice(0, -1)) {
-        cur = await cur;
-        if (cur === null || cur === undefined) {
-          throw new TypeError(`cannot read ${String(seg)} of ${cur}`);
-        }
-        cur = /** @type {any} */ (cur)[seg];
+        cur = await HandledPromise.get(cur, /** @type {any} */ (seg));
       }
-      cur = await cur;
+      if (path.length === 0) {
+        return HandledPromise.applyFunction(cur, evaluatedArgs);
+      }
       const method = path[path.length - 1];
-      const fn = /** @type {any} */ (cur)[method];
-      if (typeof fn !== 'function') {
-        throw new TypeError(`${String(method)} is not a function`);
-      }
-      return fn.apply(cur, evaluatedArgs);
+      return HandledPromise.applyMethod(
+        cur,
+        /** @type {any} */ (method),
+        evaluatedArgs,
+      );
     }
     // Literal: a primitive or a captured value already inline.
     return expr;

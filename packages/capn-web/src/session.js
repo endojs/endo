@@ -500,11 +500,17 @@ export const makeCapnWebSession = (transport, opts = {}) => {
    *     the timing of HandledPromise's async dispatch when the user
    *     wants to map over a property/method result of a known stub.
    *
+   * Optional `captureStubs` are passed positionally to the mapper after
+   * `input`, as recorder-aware placeholders.  Use this to call methods
+   * on a foreign stub that the mapper closes over (e.g.
+   * `(x, bonus) => bonus.combine(x)` with `captureStubs: [bonus]`).
+   *
    * @param {object | { stub: object, path?: readonly (string|number)[], args?: readonly unknown[] }} target
-   * @param {(input: unknown) => unknown} mapper
+   * @param {(input: unknown, ...captures: unknown[]) => unknown} mapper
+   * @param {readonly unknown[]} [captureStubs]
    * @returns {Promise<unknown>}
    */
-  async function callRemap(target, mapper) {
+  async function callRemap(target, mapper, captureStubs) {
     /** @type {object} */
     let baseStub;
     /** @type {readonly (string | number)[]} */
@@ -536,7 +542,7 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     if (id === undefined) {
       throw new Error('callRemap: argument is not a remote stub');
     }
-    const recording = recordRemap(mapper);
+    const recording = recordRemap(mapper, captureStubs);
     const wireCaptures = recording.captures.map(c => devaluator.devaluate(c));
     // Build the "subject expression" that the remap targets.  If the
     // user supplied path/args, embed them in the subject's pipeline so

@@ -151,3 +151,40 @@ test('non-finite number as mapper return value also goes through captures', asyn
   t.is(rec.captures.length, 1);
   t.true(Number.isNaN(rec.captures[0]));
 });
+
+test('record + replay: capture stub used as method receiver', async t => {
+  // The mapper's second positional arg is a recorder placeholder for the
+  // first capture.  Using that placeholder as the receiver of a method
+  // call records `["pipeline", -1, ["combine"], [argExpr]]`.
+  const bonus = { combine: x => `bonus(${x})` };
+  const rec = recordRemap((input, b) => b.combine(input), [bonus]);
+  t.is(rec.captures.length, 1);
+  t.is(rec.captures[0], bonus);
+  const callExpr = rec.instructions.find(
+    i => Array.isArray(i) && i[0] === 'pipeline' && i[3] !== undefined,
+  );
+  t.truthy(callExpr, 'expected a pipeline call instruction');
+  t.is(callExpr[1], -1);
+  t.deepEqual(callExpr[2], ['combine']);
+  t.is(await replayRemap(rec, 'X'), 'bonus(X)');
+});
+
+test('callRemap: captureStubs lets a foreign stub act as method receiver', async t => {
+  // Bob exposes `getItems()`; Alice's bonus is captured as a method
+  // receiver.  The recording references bonus via `["pipeline", -1, ...]`
+  // and the peer dispatches back to Alice through the wire when it
+  // resolves the capture.
+  const bonus = Far('bonus', { value: () => 1000 });
+  const items = [Far('a', { tag: () => 'a' }), Far('b', { tag: () => 'b' })];
+  const session = makePair(Far('s', { getItems: () => items }));
+  const r = session.getRemoteMain();
+  const promises = await session.callRemap(
+    { stub: r, path: ['getItems'], args: [] },
+    (item, b) => item.tag().concat('+', b.value()),
+    [bonus],
+  );
+  const out = Array.isArray(promises)
+    ? await Promise.all(promises)
+    : [promises];
+  t.deepEqual(out, ['a+1000', 'b+1000']);
+});
