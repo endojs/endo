@@ -400,6 +400,14 @@ export const makeCapnWebSession = (transport, opts = {}) => {
    * it), and stashes the readable side on the entry so the evaluator
    * can hand it back the first time something references the export
    * via `["readable", id]`.
+   *
+   * SES caveat: a hardened WHATWG stream can't service its own
+   * `getReader`/`getWriter` because `harden` freezes the
+   * `Symbol(kState)`-keyed slots that Node mutates on first use.  See
+   * `patchStreamForHarden` and https://github.com/endojs/endo/issues/3244
+   * for the workaround pattern (not applied here — the freshly
+   * constructed stream isn't hardened until something pulls it through
+   * a pass-style boundary).
    */
   function handlePipe() {
     const id = nextIncomingPushId;
