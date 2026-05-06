@@ -34,8 +34,6 @@ export const haveWebStreams =
 export const haveTransformStream =
   haveWebStreams && typeof G.TransformStream === 'function';
 
-export const makeTransformStream = () => new G.TransformStream();
-
 // Convert each writable+configurable own data property of `obj` into
 // an accessor pair backed by closure storage.  The descriptor itself
 // becomes part of the harden-frozen shape, but assignments to those
@@ -126,6 +124,17 @@ export const patchStreamForHarden = stream => {
   walk(stream);
 };
 
+export const makeTransformStream = () => {
+  const ts = new G.TransformStream();
+  // Patch immediately after construction so subsequent `harden`s — by
+  // the framework when a side flows across a pass-style boundary, or
+  // by user code — don't break the kState slots Node mutates on
+  // first use.  See #3244.
+  patchStreamForHarden(ts.readable);
+  patchStreamForHarden(ts.writable);
+  return ts;
+};
+
 /**
  * Wrap a JS WritableStream so it can be sent over the wire as a Far'd
  * write-end.  The underlying stream's writer is locked eagerly at export
@@ -183,7 +192,7 @@ export const importWritableStream = stub => {
     // Fall through: caller can use E(stub).write/close/abort directly.
     return stub;
   }
-  return new G.WritableStream({
+  const ws = new G.WritableStream({
     write(chunk) {
       return E(stub).write(chunk);
     },
@@ -194,6 +203,9 @@ export const importWritableStream = stub => {
       return E(stub).abort(reason);
     },
   });
+  // Patch immediately after construction — see #3244.
+  patchStreamForHarden(ws);
+  return ws;
 };
 
 /**
@@ -206,7 +218,7 @@ export const importReadableStream = stub => {
   if (!haveWebStreams) {
     return stub;
   }
-  return new G.ReadableStream({
+  const rs = new G.ReadableStream({
     async pull(controller) {
       const { value, done } = /** @type {any} */ (await E(stub).read());
       if (done) {
@@ -219,6 +231,9 @@ export const importReadableStream = stub => {
       return E(stub).cancel(reason);
     },
   });
+  // Patch immediately after construction — see #3244.
+  patchStreamForHarden(rs);
+  return rs;
 };
 
 harden(exportWritableStream);
