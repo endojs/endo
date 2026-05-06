@@ -3,25 +3,95 @@
 | | |
 |---|---|
 | **Created** | 2026-02-14 |
-| **Updated** | 2026-02-26 |
+| **Updated** | 2026-05-06 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
 ## Status
 
-**Implemented.** The unified weblet server is in
-`packages/daemon/src/web-server-node.js`. Key implementation details:
+**Partially implemented; design under revision.**
 
-- The `webletHandlers` map is keyed by the bare access token (first 32 chars
-  of the weblet ID), not by `<id>.localhost`. This simplifies the
-  `localhttp://` protocol handler, which sends the bare access token as the
-  `Host` header.
-- Both HTTP requests and WebSocket upgrades are routed by `Host` header.
-- `makeWeblet` supports two modes: unified server (hostname-based routing on
-  the gateway port) and dedicated port (per-weblet server, path-based
-  routing). The unified mode returns `localhttp://{accessToken}` URLs.
-- The `localhttp://` protocol handler in `packages/familiar` proxies to
-  `http://127.0.0.1:{gatewayPort}` with `Host: {accessToken}`.
+Chat weblets have been removed from the current codebase in order to
+regroup on the approach.
+The Familiar-side `localhttp://` protocol handler remains, but the
+daemon-side unified web server does not exist.
+
+### Key design revision (2026-04-17)
+
+The original design assumed a single unified HTTP server with
+Host-header-based virtual host routing for all weblets.
+This assumption must be revised:
+
+- **Familiar weblets** can use the unified server approach (Host-header
+  routing on the gateway port, proxied via `localhttp://`).
+  The Electron protocol handler provides origin isolation without
+  needing separate ports.
+- **Chat weblets** (standalone browser use without Electron) still need
+  a **separate HTTP port per isolated page**, with the user choosing
+  the port.
+  Browsers cannot intercept and reroute by scheme like Electron can,
+  so each weblet needs its own `http://` origin on a distinct port.
+
+### Deeper problem: gateway multiplexing and confidentiality
+
+The gateway currently listens on a single port for HTTP and WebSocket
+CapTP.
+It acts as a proxy for all users on the system and all personas
+within a single user's daemon.
+This creates a problem of:
+
+1. **Hierarchical multiplexing**: the gateway must route connections to
+   the correct user, then to the correct persona/agent within that
+   user's daemon, then to the correct weblet within that agent's scope.
+2. **Session confidentiality**: each CapTP session must be confidential
+   even over plain local HTTP.
+   Today the gateway trusts that `127.0.0.1` traffic is private, but
+   multi-user scenarios or weblet isolation require per-session
+   encryption or authentication.
+
+These problems are unlikely to be cleanly solved without the OCapN
+Network/Transport separation and the Noise Protocol Network (netlayer).
+Noise would provide per-session confidentiality and mutual
+authentication, which the gateway currently lacks.
+
+### Dependencies added
+
+| Design | Relationship |
+|--------|-------------|
+| [ocapn-network-transport-separation](ocapn-network-transport-separation.md) | The gateway needs a network-level abstraction for session establishment and authentication, not bare WebSocket. |
+| [ocapn-noise-network](ocapn-noise-network.md) | Noise Protocol would provide per-session confidentiality over the shared gateway port, enabling secure multiplexing. |
+
+### Implemented
+
+- **`localhttp://` protocol handler**
+  (`packages/familiar/src/protocol-handler.js`):
+  registers a privileged scheme, proxies `localhttp://<weblet-id>/`
+  requests to `http://127.0.0.1:{gatewayPort}` with
+  `Host: {accessToken}`, injects CSP headers on every response.
+- **Exfiltration defense**
+  (`packages/familiar/src/exfiltration-defense.js`):
+  DNS poisoning protection, request interception, permission handler.
+- **Navigation guard**
+  (`packages/familiar/src/navigation-guard.js`):
+  `will-navigate` and `setWindowOpenHandler` interception.
+
+### Not implemented
+
+- **Daemon-side unified web server:** No weblet HTTP routing or
+  `webletHandlers` map exists in the daemon.
+- **`makeWeblet` function:** No weblet creation or registration mechanism.
+- **Virtual host routing:** The gateway does not demultiplex by `Host` header.
+- **Per-weblet CapTP sessions:** No weblet-specific WebSocket handler isolation.
+- **Per-port Chat weblets:** Not designed yet; requires user-configurable ports.
+- **Noise-based session confidentiality:** Depends on OCapN networking milestones.
+
+### Previous status note
+
+The previous status section claimed full implementation in
+`packages/daemon/src/web-server-node.js`.
+This appears to have been written prospectively or to describe work on
+a different branch.
+The file does not exist on `origin/llm` as of 2026-04-17.
 
 ## What is the Problem Being Solved?
 
@@ -61,7 +131,7 @@ weblet's formula identifier:
 
 ```js
 // In the unified server
-const webletHandlers = new Map(); // hostname → { respond, connect }
+const webletHandlers = new Map(); // hostname -> { respond, connect }
 
 const registerWeblet = (webletId, respond, connect) => {
   const hostname = `${webletId.slice(0, 32)}.localhost`;
@@ -133,14 +203,15 @@ After this change:
 
 ### Affected packages
 
-- `packages/daemon` — unified server, weblet registration, `web-server-node.js`
-  refactor
-- `packages/cli` — `endo install` and `endo open` updated for new URL format
+- `packages/daemon`: unified server, weblet registration,
+  `web-server-node.js` refactor.
+- `packages/cli`: `endo install` and `endo open` updated for new URL
+  format.
 
 ### Dependency
 
-- **familiar-gateway-migration** — the unified server is co-located with or
-  replaces the gateway HTTP listener.
+- **familiar-gateway-migration**: the unified server is co-located with
+  or replaces the gateway HTTP listener.
 
 ## Security Considerations
 
