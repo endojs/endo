@@ -1,10 +1,15 @@
 name: capn-proto interop
 
-# Verifies that the @endo/capn-proto package's wire format is byte-level
-# compatible with the reference Cap'n Proto C++ implementation. We install
-# `capnproto` from apt and run the test/interop.test.js file, which spawns
-# the `capnp` CLI to round-trip every rpc.capnp Message variant in both
-# directions (our encoder → capnp decode, and capnp encode → our decoder).
+# Verifies that the @endo/capn-proto package is byte- and protocol-level
+# compatible with the reference Cap'n Proto C++ implementation:
+#   1. test/interop.test.js — wire-format interop. Each rpc.capnp Message
+#      variant round-trips through `capnp decode` and `capnp encode`.
+#   2. test/schema-interop.test.js — schema-typed structs round-trip via
+#      `capnp encode <schema> <Struct>`.
+#   3. test/interop-rpc.test.js — live RPC interop. The C++ Echo server
+#      built from test/interop-rpc/echo-server.c++ (using `capnp::EzRpcServer`)
+#      listens on TCP; our Node client connects via `connectTcp` and
+#      exercises the `Echo` interface end-to-end.
 
 on:
   push:
@@ -38,8 +43,9 @@ jobs:
       - name: Install Cap'n Proto reference implementation
         run: |
           sudo apt-get update
-          sudo apt-get install -y capnproto libcapnp-dev
+          sudo apt-get install -y capnproto libcapnp-dev pkg-config
           capnp --version
+          pkg-config --modversion capnp-rpc
 
       - name: Install Node dependencies
         run: yarn install --immutable
@@ -47,16 +53,23 @@ jobs:
       - name: Build
         run: yarn build
 
+      - name: Build C++ Echo server fixture
+        working-directory: packages/capn-proto/test/interop-rpc
+        run: ./build.sh
+
       - name: Run capn-proto unit tests
         working-directory: packages/capn-proto
         run: yarn test
 
-      - name: Run capn-proto interop test against capnp CLI
+      - name: Run capn-proto interop tests against capnp CLI + EzRpcServer
         working-directory: packages/capn-proto
         run: |
           # These files run by default as part of `yarn test`, but we re-run
           # them in isolation here so the workflow log surfaces a clear
-          # pass/fail on the byte-level interop layer (rpc.capnp Message
-          # variants and schema-typed user payloads).
+          # pass/fail per interop layer:
+          #   - byte-level rpc.capnp Message variants
+          #   - schema-typed user struct round-trip
+          #   - live RPC against the C++ Echo server (built above)
           yarn ses-ava test/interop.test.js
           yarn ses-ava test/schema-interop.test.js
+          yarn ses-ava test/interop-rpc.test.js

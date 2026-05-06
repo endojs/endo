@@ -47,6 +47,8 @@ export {
   decodeStructFrom,
 } from './schema/index.js';
 export { makeCapHomeRegistry } from './cap-home-registry.js';
+export { makeFramedStreamParser } from './wire/streaming.js';
+export { connectTcp, serveTcp } from './transport/tcp.js';
 // `types.js` is documentation-only — it exports `{}` and exists so that
 // consumers can `@import` typedefs (`CapDescriptor`, `VatNetwork`,
 // `MethodCodec`, etc.) from one place. Re-export it so the typedef
