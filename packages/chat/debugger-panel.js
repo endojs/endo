@@ -12,6 +12,7 @@
 /** @import { ERef } from '@endo/far' */
 
 import { E } from '@endo/far';
+import harden from '@endo/harden';
 
 /**
  * @typedef {object} BreakEvent

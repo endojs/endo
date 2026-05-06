@@ -5,6 +5,7 @@
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
+import harden from '@endo/harden';
 import { channelComponent } from './channel-component.js';
 import { forumComponent } from './forum-component.js';
 import { outlinerComponent } from './outliner-component.js';

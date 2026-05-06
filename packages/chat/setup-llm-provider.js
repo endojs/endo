@@ -8,8 +8,9 @@
 //   ENDO_LLM_AUTH_TOKEN=sk-ant-...
 //   ENDO_LLM_NAME=fae
 
-import { E } from '@endo/eventual-send';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { E } from '@endo/eventual-send';
+import harden from '@endo/harden';
 
 /**
  * Scan the host inbox for the form from llm-provider-factory-handle
