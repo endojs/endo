@@ -455,7 +455,11 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     const syntheticWritable = importWritableStream(writableStub);
     // Pump the user's readable into the writable; ignore errors here so
     // they don't surface as unhandled rejections.  The peer sees them
-    // via the per-chunk write rejections.
+    // via the per-chunk write rejections.  Local cleanup is GC-driven:
+    // once `pipeTo` settles, both `syntheticWritable` and the closure-
+    // captured `writableStub` become unreachable, and the
+    // `FinalizingMap` (with the default `gcImports: true`) fires
+    // `["release", id, 1]` to the peer when GC reclaims the stub.
     Promise.resolve(readable.pipeTo(syntheticWritable)).catch(noop);
     return id;
   }
@@ -631,25 +635,20 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     // remap form has a single propertyPath but no inline args, so for
     // the args case we synthesise an intermediate push.
     let remapExpr;
+    let intermediateQid;
     if (pathArgs !== undefined) {
       // Issue an intermediate push for `id.path(args)`, then use that
-      // result as the remap's subject (path=[]).
+      // result as the remap's subject (path=[]).  The intermediate is
+      // *only* a peer-side answer slot we reference from the remap;
+      // we don't pull it (the remap consumes it directly), so we
+      // don't allocate a local promise/import for it either —
+      // registering one would leak `pendingPushAnswers` (no resolve
+      // ever arrives) and block `drain()` indefinitely.
       const argsExpr = pathArgs.map(a => devaluator.devaluate(a));
       const intermediateExpr = ['pipeline', id, propertyPath.slice(), argsExpr];
-      const intermediateQid = nextOutgoingPushId;
+      intermediateQid = nextOutgoingPushId;
       nextOutgoingPushId += 1;
       sendMessage(['push', intermediateExpr]);
-      const {
-        promise: ip,
-        resolve: ir,
-        reject: irej,
-      } = makePromiseStub(intermediateQid, stubMachinery);
-      // The intermediate promise is internal — the caller never awaits
-      // it directly.  Attach a no-op catch so an abort-time rejection
-      // doesn't surface as an unhandled rejection.
-      ip.catch(noop);
-      tables.installImport(intermediateQid, /** @type {object} */ (ip), true);
-      pendingPushAnswers.set(intermediateQid, { resolve: ir, reject: irej });
       remapExpr = [
         'remap',
         intermediateQid,
@@ -673,6 +672,13 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     nextOutgoingPushId += 1;
     sendMessage(['push', remapExpr]);
     sendMessage(['pull', qid]);
+    if (intermediateQid !== undefined) {
+      // Release the intermediate answer slot now that the remap has
+      // referenced it on the peer side.  The peer processes messages
+      // in order, so by the time this release lands the remap push
+      // has already consumed the slot.
+      sendMessage(['release', intermediateQid, 1]);
+    }
     const { promise, resolve, reject } = makePromiseStub(qid, stubMachinery);
     tables.installImport(qid, /** @type {object} */ (promise), true);
     pendingPushAnswers.set(qid, { resolve, reject });
