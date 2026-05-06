@@ -372,8 +372,9 @@ const readCapDescriptor = elem => {
  * ===================================================================== */
 
 /**
- * Encode a Payload struct in place. Per rpc.capnp:
- *   struct Payload { content @0 :AnyPointer; capTable @1 :List(CapDescriptor); }
+ * Encode a Payload struct in place. Per rpc.capnp, `Payload` has a
+ * `content` field at ordinal 0 typed as `AnyPointer` and a `capTable`
+ * field at ordinal 1 typed as `List(CapDescriptor)`.
  * The caller supplies an `encodeContent(msg, contentPtrSlot)` callback that
  * writes whatever pointer kind it wants (struct, cap, list, …) directly into
  * the AnyPointer slot. Without a callback the slot stays null.

@@ -135,8 +135,10 @@ export const makeJsonMethodCodec = () => ({
  * method gets the same JSON-shaped codec.
  *
  * @param {Record<string, number>} methods
+ * @returns {Record<string, { request: any, response: any }>}
  */
 export const jsonCodecsFor = methods => {
+  /** @type {Record<string, { request: any, response: any }>} */
   const out = {};
   for (const name of Object.keys(methods)) {
     out[name] = makeJsonMethodCodec();
