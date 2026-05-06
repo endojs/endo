@@ -50,6 +50,10 @@
  *   Fetch a blob by its sha256. Returns a ReadableBlob.
  * @property {(sha256: string) => Promise<boolean>} has
  *   Check whether a blob with the given sha256 exists.
+ * @property {(sha256: string) => Promise<void>} remove
+ *   Remove a blob by its sha256. Idempotent: removing a missing
+ *   blob is not an error. Callers are responsible for any
+ *   reference-counting; the store does not track references.
  */
 
 /**

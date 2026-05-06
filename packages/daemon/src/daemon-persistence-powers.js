@@ -181,6 +181,16 @@ export const makeDaemonicPersistencePowers = (
           return false;
         }
       },
+      /**
+       * @param {string} sha256
+       * @returns {Promise<void>}
+       */
+      async remove(sha256) {
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
+        // filePowers.removePath uses fs.promises.rm with force:true,
+        // so removing a missing blob is not an error.
+        await filePowers.removePath(storagePath);
+      },
     });
 
     return makeSnapshotStore(rawStore);

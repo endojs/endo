@@ -179,6 +179,33 @@ export const makeXsFilePowers = () => {
     }
   };
 
+  /**
+   * Recursively remove a directory and its contents.  The XS host's
+   * `remove` is non-recursive, so emulate `rm -rf` by walking the
+   * tree.  Idempotent: a missing directory is not an error.
+   *
+   * @type {FilePowers['removeDirectory']}
+   */
+  const removeDirectory = async path => {
+    const isDir = await isDirectory(path);
+    if (!isDir) {
+      // Either missing or a file; defer to removePath which is
+      // already idempotent for missing entries.
+      const present = await exists(path);
+      if (present) {
+        await removePath(path);
+      }
+      return;
+    }
+    const entries = await readDirectory(path);
+    for (const entry of entries) {
+      const childPath = joinPath(path, entry);
+      // eslint-disable-next-line no-use-before-define, no-await-in-loop
+      await removeDirectory(childPath);
+    }
+    await removePath(path);
+  };
+
   /** @type {FilePowers['renamePath']} */
   const renamePath = async (source, target) => {
     const result = hostRename(
@@ -302,6 +329,7 @@ export const makeXsFilePowers = () => {
     makePath,
     joinPath,
     removePath,
+    removeDirectory,
     renamePath,
     realPath,
     readLink,
