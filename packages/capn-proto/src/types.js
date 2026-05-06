@@ -17,17 +17,25 @@ export {};
  * ===================================================================== */
 
 /**
+ * Encode-side CapDescriptor union, accepted by `writeCapDescriptor` /
+ * `encodeReturn` / `encodeResolve`. The `thirdPartyHosted` variant
+ * carries an `encodeId` callback rather than raw bytes — the
+ * `ThirdPartyCapDescriptor.id` field is AnyPointer per rpc.capnp, and
+ * the VatNetwork populates it via that callback.
+ *
  * @typedef {(
  *   | { kind: 'none' }
  *   | { kind: 'senderHosted', id: number }
  *   | { kind: 'senderPromise', id: number }
  *   | { kind: 'receiverHosted', id: number }
  *   | { kind: 'receiverAnswer', questionId: number, transform?: TransformOp[] }
- *   | { kind: 'thirdPartyHosted', thirdPartyCapId: Uint8Array, vineId: number }
+ *   | { kind: 'thirdPartyHosted', encodeId: (msg: any, slot: { segId: number, wordOffset: number }) => void, vineId: number }
  * )} CapDescriptor
  *
- * Wire-level capability reference inside a Payload's `capTable`. Matches
- * the `CapDescriptor` union from rpc.capnp.
+ * Decode-side: `decodeMessage` returns the same union except
+ * `thirdPartyHosted` carries `idSlot: { msg, segId, wordOffset }`
+ * (the AnyPointer slot the caller's network decodes with its agreed
+ * ThirdPartyCapId schema).
  */
 
 /**
@@ -114,26 +122,46 @@ export {};
  * ===================================================================== */
 
 /**
+ * @typedef {{ msg: any, segId: number, wordOffset: number }} AnyPointerSlot
+ *   A pointer-slot location inside an in-progress message reader. The
+ *   network reads its VatNetwork-defined struct from this slot using
+ *   whatever schema it agreed on for ProvisionId / RecipientId /
+ *   ThirdPartyCapId.
+ *
+ * @typedef {(msg: any, slot: { segId: number, wordOffset: number }) => void} AnyPointerEncoder
+ *   A callback that writes an AnyPointer at the given slot in an
+ *   in-progress message builder. The network uses this to embed its
+ *   VatNetwork-defined ID structs into outgoing Provide / Accept /
+ *   ThirdPartyCapDescriptor messages.
+ *
  * @typedef {object} VatNetwork
  * @property {() => Uint8Array} ourVatId
- * @property {(hostConnection: any) => Uint8Array} thirdPartyCapIdForHost
- *   Encode the bytes that name a third-party host. Called on the
- *   introducer (B) side when issuing a `Provide` — the recipient (A)
- *   later uses these bytes with `connectToThirdParty` to dial the host.
- * @property {(thirdPartyCapId: Uint8Array) => any} connectToThirdParty
- *   Resolve the bytes from `thirdPartyCapIdForHost` back into a peer
- *   connection on the recipient side. Throws or returns null if the
- *   network does not support third-party handoff for this id.
- * @property {(thirdPartyCapId: Uint8Array) => Uint8Array} provisionIdForHandoff
- *   Mint or look up the provision token for an outgoing Provide /
- *   incoming Accept. The introducer and the recipient must agree on
- *   the token.
- * @property {(questionId: number, target: any, recipient: Uint8Array) => void} acceptIncomingProvide
- *   Host (C) side: stash an incoming Provide so a later Accept from
- *   the recipient can claim it.
- * @property {(provision: Uint8Array) => { questionId: number, target: any } | undefined} consumeProvision
- *   Host (C) side: match an incoming Accept's provision against
- *   previously-stashed Provides; returns `undefined` if no match.
+ * @property {(hostConnection: any) => AnyPointerEncoder} encodeThirdPartyCapId
+ *   Introducer (B) side. Returns a callback that writes the
+ *   ThirdPartyCapId AnyPointer naming the host (C) into the
+ *   `ThirdPartyCapDescriptor.id` slot of an outgoing CapDescriptor.
+ *   The recipient (A) decodes this via `connectToThirdParty` to dial C.
+ * @property {(idSlot: AnyPointerSlot) => any} connectToThirdParty
+ *   Recipient (A) side. Reads the ThirdPartyCapId AnyPointer at
+ *   `idSlot` (encoded by some peer's `encodeThirdPartyCapId`) and
+ *   returns a peer connection to the host (C). Throws or returns null
+ *   if the network can't provide a direct connection.
+ * @property {(idSlot: AnyPointerSlot) => AnyPointerEncoder} encodeProvisionForHandoff
+ *   Recipient (A) side. Given the ThirdPartyCapId at `idSlot`, returns
+ *   a callback that writes the matching ProvisionId AnyPointer into an
+ *   outgoing `Accept.provision` slot.
+ * @property {(recipient: any) => AnyPointerEncoder} encodeRecipient
+ *   Introducer (B) side. Given the recipient (A) — typically supplied
+ *   via `cfg.recipientVatId` — returns a callback that writes the
+ *   RecipientId AnyPointer into an outgoing `Provide.recipient` slot.
+ * @property {(questionId: number, target: any, recipientSlot: AnyPointerSlot) => void} acceptIncomingProvide
+ *   Host (C) side: stash an incoming Provide so a later matching Accept
+ *   can claim it. Reads the recipient identity from the AnyPointer slot
+ *   using its agreed RecipientId schema.
+ * @property {(provisionSlot: AnyPointerSlot) => { questionId: number, target: any } | undefined} consumeProvision
+ *   Host (C) side: match an incoming Accept's provision (read from
+ *   `provisionSlot`) against previously-stashed Provides; returns
+ *   `undefined` if no match.
  */
 
 /* ===================================================================== *

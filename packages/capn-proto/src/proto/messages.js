@@ -320,7 +320,13 @@ const writeCapDescriptor = (msg, structLoc, idx, desc) => {
       S.TPCD_PTR_WORDS,
     );
     writeUint32(tpcd, S.TPCD_VINE_ID_BO, desc.vineId);
-    writeData(msg, ptrSlot(tpcd, S.TPCD_PTR_ID), desc.thirdPartyCapId);
+    // `id` is AnyPointer per rpc.capnp; the VatNetwork's
+    // ThirdPartyCapId schema goes here. Caller supplies an
+    // `encodeId(msg, slot)` callback that writes whatever pointer
+    // shape (typically a struct) the network agreed on. Older
+    // call-sites that only had opaque bytes can pass a callback
+    // that delegates to writeData.
+    desc.encodeId(msg, ptrSlot(tpcd, S.TPCD_PTR_ID));
     return;
   }
   throw Fail`unknown cap descriptor kind ${desc}`;
@@ -354,15 +360,18 @@ const readCapDescriptor = elem => {
         elem.wordOffset + elem.dataWords + S.CAPDESC_PTR_THIRD_PARTY,
       );
       if (tpcdLoc === null) throw Fail`thirdParty with null pointer`;
-      const id = readData(
-        tpcdLoc.msg,
-        tpcdLoc.segId,
-        tpcdLoc.wordOffset + tpcdLoc.dataWords + S.TPCD_PTR_ID,
-      );
+      // `id` is the AnyPointer slot — return a pointer location and let
+      // the caller decode it using whatever schema the VatNetwork agreed
+      // on. The slot may hold a struct, a Data list, or be null.
+      const idSlot = {
+        msg: tpcdLoc.msg,
+        segId: tpcdLoc.segId,
+        wordOffset: tpcdLoc.wordOffset + tpcdLoc.dataWords + S.TPCD_PTR_ID,
+      };
       return {
         kind: 'thirdPartyHosted',
         vineId: readUint32(tpcdLoc, S.TPCD_VINE_ID_BO),
-        thirdPartyCapId: id ? new Uint8Array(id) : new Uint8Array(0),
+        idSlot,
       };
     }
     default:
@@ -529,11 +538,10 @@ export const encodeReturn = ({ answerId, releaseParamCaps = true, result }) => {
     writeUint32(v, S.RETURN_TAKE_FROM_OTHER_QUESTION_ID_BO, result.questionId);
   } else if (result.kind === 'acceptFromThirdParty') {
     writeUint16(v, S.RETURN_TAG_BO, S.RETURN_TAG_ACCEPT_FROM_THIRD_PARTY);
-    writeData(
-      msg,
-      ptrSlot(v, S.RETURN_PTR_ACCEPT_FROM_THIRD_PARTY),
-      result.thirdPartyCapId,
-    );
+    // `thirdPartyCapId` is AnyPointer per rpc.capnp; caller supplies an
+    // `encodeId(msg, slot)` callback that places the VatNetwork-shaped
+    // ThirdPartyCapId at the slot.
+    result.encodeId(msg, ptrSlot(v, S.RETURN_PTR_ACCEPT_FROM_THIRD_PARTY));
   } else {
     throw Fail`unknown return result kind ${result}`;
   }
@@ -624,23 +632,43 @@ export const encodeDisembargo = ({ target, context }) => {
   return finalize(msg);
 };
 
-export const encodeProvide = ({ questionId, target, recipient }) => {
+/**
+ * @param {object} arg
+ * @param {number} arg.questionId
+ * @param {any} arg.target
+ * @param {(msg: any, slot: { segId: number, wordOffset: number }) => void} arg.encodeRecipient
+ *   Writes the AnyPointer at `Provide.recipient`. The VatNetwork picks
+ *   the schema; the caller-supplied callback is what actually places a
+ *   struct (or Data, or other pointer kind) at the slot.
+ */
+export const encodeProvide = ({ questionId, target, encodeRecipient }) => {
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_PROVIDE);
   const v = allocVariant(msg, root, S.PROVIDE_DATA_WORDS, S.PROVIDE_PTR_WORDS);
   writeUint32(v, S.PROVIDE_QUESTION_ID_BO, questionId);
   writeMessageTarget(msg, ptrSlot(v, S.PROVIDE_PTR_TARGET), target);
-  writeData(msg, ptrSlot(v, S.PROVIDE_PTR_RECIPIENT), recipient);
+  encodeRecipient(msg, ptrSlot(v, S.PROVIDE_PTR_RECIPIENT));
   return finalize(msg);
 };
 
-export const encodeAccept = ({ questionId, provision, embargo = false }) => {
+/**
+ * @param {object} arg
+ * @param {number} arg.questionId
+ * @param {(msg: any, slot: { segId: number, wordOffset: number }) => void} arg.encodeProvision
+ *   Writes the AnyPointer at `Accept.provision`.
+ * @param {boolean} [arg.embargo]
+ */
+export const encodeAccept = ({
+  questionId,
+  encodeProvision,
+  embargo = false,
+}) => {
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_ACCEPT);
   const v = allocVariant(msg, root, S.ACCEPT_DATA_WORDS, S.ACCEPT_PTR_WORDS);
   writeUint32(v, S.ACCEPT_QUESTION_ID_BO, questionId);
   writeBool(v, S.ACCEPT_EMBARGO_BIT, embargo);
-  writeData(msg, ptrSlot(v, S.ACCEPT_PTR_PROVISION), provision);
+  encodeProvision(msg, ptrSlot(v, S.ACCEPT_PTR_PROVISION));
   return finalize(msg);
 };
 
@@ -780,15 +808,13 @@ export const decodeMessage = framed => {
           questionId: readUint32(v, S.RETURN_TAKE_FROM_OTHER_QUESTION_ID_BO),
         };
       } else if (retTag === S.RETURN_TAG_ACCEPT_FROM_THIRD_PARTY) {
-        const tpid = readData(
-          v.msg,
-          v.segId,
-          v.wordOffset + v.dataWords + S.RETURN_PTR_ACCEPT_FROM_THIRD_PARTY,
-        );
-        result = {
-          kind: 'acceptFromThirdParty',
-          thirdPartyCapId: tpid ? new Uint8Array(tpid) : new Uint8Array(0),
+        const idSlot = {
+          msg: v.msg,
+          segId: v.segId,
+          wordOffset:
+            v.wordOffset + v.dataWords + S.RETURN_PTR_ACCEPT_FROM_THIRD_PARTY,
         };
+        result = { kind: 'acceptFromThirdParty', idSlot };
       } else {
         result = { kind: 'unknown', tag: retTag };
       }
@@ -887,30 +913,33 @@ export const decodeMessage = framed => {
         v.segId,
         v.wordOffset + v.dataWords + S.PROVIDE_PTR_TARGET,
       );
-      const recipient = readData(
-        v.msg,
-        v.segId,
-        v.wordOffset + v.dataWords + S.PROVIDE_PTR_RECIPIENT,
-      );
+      // recipient is AnyPointer per rpc.capnp; return a slot location
+      // and let the VatNetwork-aware caller decode whatever schema the
+      // peer encoded (struct, Data, list, …).
+      const recipientSlot = {
+        msg: v.msg,
+        segId: v.segId,
+        wordOffset: v.wordOffset + v.dataWords + S.PROVIDE_PTR_RECIPIENT,
+      };
       return {
         type: 'provide',
         questionId: readUint32(v, S.PROVIDE_QUESTION_ID_BO),
         target: readMessageTarget(targetLoc),
-        recipient: recipient ? new Uint8Array(recipient) : new Uint8Array(0),
+        recipientSlot,
       };
     }
     case S.MSG_ACCEPT: {
       const v = variant;
-      const provision = readData(
-        v.msg,
-        v.segId,
-        v.wordOffset + v.dataWords + S.ACCEPT_PTR_PROVISION,
-      );
+      const provisionSlot = {
+        msg: v.msg,
+        segId: v.segId,
+        wordOffset: v.wordOffset + v.dataWords + S.ACCEPT_PTR_PROVISION,
+      };
       return {
         type: 'accept',
         questionId: readUint32(v, S.ACCEPT_QUESTION_ID_BO),
         embargo: readBool(v, S.ACCEPT_EMBARGO_BIT),
-        provision: provision ? new Uint8Array(provision) : new Uint8Array(0),
+        provisionSlot,
       };
     }
     case S.MSG_UNIMPLEMENTED: {

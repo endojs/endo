@@ -221,7 +221,7 @@ if (!haveCapnp) {
     const framed = encodeProvide({
       questionId: 10,
       target: { kind: 'importedCap', id: 7 },
-      recipient: new Uint8Array([1, 2, 3]),
+      encodeRecipient: contentAsData(new Uint8Array([1, 2, 3])),
     });
     const out = runCapnpDecode(framed);
     t.regex(out, /questionId = 10/);
@@ -231,7 +231,7 @@ if (!haveCapnp) {
   test('interop: Accept decoded with embargo flag', t => {
     const framed = encodeAccept({
       questionId: 22,
-      provision: new Uint8Array([4, 5, 6]),
+      encodeProvision: contentAsData(new Uint8Array([4, 5, 6])),
       embargo: true,
     });
     const out = runCapnpDecode(framed);

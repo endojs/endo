@@ -20,18 +20,30 @@ import test from '@endo/ses-ava/test.js';
 import { makeThreeParty } from '../src/three-party.js';
 
 const dummyEncodeReturn = arg => /** @type {any} */ (arg);
+const noopEncode = () => () => {};
+
+/**
+ * Build the network shape that `acceptThirdParty` needs. Tests only set
+ * the fields they actually exercise; the rest get plausible no-ops.
+ *
+ * @param {{
+ *   connectToThirdParty?: (slot: any) => any,
+ * }} [overrides]
+ */
+const networkMock = ({ connectToThirdParty } = {}) => ({
+  encodeThirdPartyCapId: () => noopEncode(),
+  connectToThirdParty: connectToThirdParty || (() => null),
+  encodeProvisionForHandoff: () => noopEncode(),
+  encodeRecipient: () => noopEncode(),
+  acceptIncomingProvide: () => {},
+  consumeProvision: () => undefined,
+});
 
 const makeMockCtx = (overrides = {}) => {
   const released = [];
   const importedVineIds = [];
   const ctx = {
-    network: {
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
-      connectToThirdParty: () => null,
-      provisionIdForHandoff: () => new Uint8Array([0x01]),
-      acceptIncomingProvide: () => {},
-      consumeProvision: () => undefined,
-    },
+    network: networkMock(),
     encodeProvide: () => new ArrayBuffer(0),
     encodeDisembargo: () => new ArrayBuffer(0),
     encodeReturn: dummyEncodeReturn,
@@ -55,22 +67,20 @@ const makeMockCtx = (overrides = {}) => {
   return { ctx, released, importedVineIds };
 };
 
+const fakeIdSlot = { msg: null, segId: 0, wordOffset: 0 };
+
 test('vine fallback: sendAccept Return is an exception → resolves to vine', async t => {
   const { ctx, released, importedVineIds } = makeMockCtx({
-    network: {
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
+    network: networkMock({
       connectToThirdParty: () => ({
         sendAccept: () => Promise.reject(Error('unknown provision')),
       }),
-      provisionIdForHandoff: () => new Uint8Array([0x01]),
-      acceptIncomingProvide: () => {},
-      consumeProvision: () => undefined,
-    },
+    }),
   });
   const tp = makeThreeParty(ctx);
 
   const resolved = await tp.acceptThirdParty({
-    thirdPartyCapId: new Uint8Array(0),
+    idSlot: fakeIdSlot,
     vineId: 42,
   });
 
@@ -82,20 +92,16 @@ test('vine fallback: sendAccept Return is an exception → resolves to vine', as
 
 test('vine fallback: connectToThirdParty throws → resolves to vine', async t => {
   const { ctx, released, importedVineIds } = makeMockCtx({
-    network: {
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
+    network: networkMock({
       connectToThirdParty: () => {
         throw Error('no route to host');
       },
-      provisionIdForHandoff: () => new Uint8Array([0x01]),
-      acceptIncomingProvide: () => {},
-      consumeProvision: () => undefined,
-    },
+    }),
   });
   const tp = makeThreeParty(ctx);
 
   const resolved = await tp.acceptThirdParty({
-    thirdPartyCapId: new Uint8Array(0),
+    idSlot: fakeIdSlot,
     vineId: 7,
   });
 
@@ -106,18 +112,14 @@ test('vine fallback: connectToThirdParty throws → resolves to vine', async t =
 
 test('vine fallback: connectToThirdParty returns a peer without sendAccept → vine', async t => {
   const { ctx, importedVineIds } = makeMockCtx({
-    network: {
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
+    network: networkMock({
       connectToThirdParty: () => ({}),
-      provisionIdForHandoff: () => new Uint8Array([0x01]),
-      acceptIncomingProvide: () => {},
-      consumeProvision: () => undefined,
-    },
+    }),
   });
   const tp = makeThreeParty(ctx);
 
   const resolved = await tp.acceptThirdParty({
-    thirdPartyCapId: new Uint8Array(0),
+    idSlot: fakeIdSlot,
     vineId: 11,
   });
   t.deepEqual(importedVineIds, [11]);
@@ -127,20 +129,16 @@ test('vine fallback: connectToThirdParty returns a peer without sendAccept → v
 test('direct path success: Release the vine and resolve to the direct cap', async t => {
   const directCap = { isDirect: true };
   const { ctx, released } = makeMockCtx({
-    network: {
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
+    network: networkMock({
       connectToThirdParty: () => ({
         sendAccept: () => Promise.resolve(directCap),
       }),
-      provisionIdForHandoff: () => new Uint8Array([0x01]),
-      acceptIncomingProvide: () => {},
-      consumeProvision: () => undefined,
-    },
+    }),
   });
   const tp = makeThreeParty(ctx);
 
   const resolved = await tp.acceptThirdParty({
-    thirdPartyCapId: new Uint8Array(0),
+    idSlot: fakeIdSlot,
     vineId: 99,
   });
 
@@ -154,20 +152,16 @@ test('direct path success: sendRelease throws → still returns the direct cap',
     sendRelease: () => {
       throw Error('connection aborted');
     },
-    network: {
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
+    network: networkMock({
       connectToThirdParty: () => ({
         sendAccept: () => Promise.resolve(directCap),
       }),
-      provisionIdForHandoff: () => new Uint8Array([0x01]),
-      acceptIncomingProvide: () => {},
-      consumeProvision: () => undefined,
-    },
+    }),
   });
   const tp = makeThreeParty(ctx);
 
   const resolved = await tp.acceptThirdParty({
-    thirdPartyCapId: new Uint8Array(0),
+    idSlot: fakeIdSlot,
     vineId: 13,
   });
 

@@ -19,6 +19,10 @@ import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeCapnp, makeInterfaceRegistry } from '../src/index.js';
 import { withJsonCodecs } from './fixtures/json-codec.js';
+import {
+  bytesAsDataEncoder,
+  bytesNetworkMock,
+} from './fixtures/l3-bytes-network.js';
 
 const provisionKey = bytes => Array.from(bytes).join(',');
 
@@ -87,21 +91,14 @@ test('L3 recipient sendAccept(provision) resolves to a usable Presence on A↔C'
   const PROVISION = new Uint8Array([0xab, 0xcd, 0xef]);
   cPending.set(provisionKey(PROVISION), { target: cTarget });
 
-  const cNetwork = {
-    ourVatId: () => new Uint8Array([0x43]),
-    thirdPartyCapIdForHost: () => new Uint8Array(0),
-    connectToThirdParty: () => {
-      throw Error('C does not initiate L3');
-    },
-    provisionIdForHandoff: () => PROVISION,
-    acceptIncomingProvide: () => {},
+  const cNetwork = bytesNetworkMock({
     consumeProvision: provision => {
       const k = provisionKey(provision);
       const found = cPending.get(k);
       if (found) cPending.delete(k);
       return found;
     },
-  };
+  });
 
   // Wire A↔C as a single loopback pair. (In a real L3 setup A would also
   // have an A↔B connection; we're not exercising that side here.)
@@ -137,7 +134,7 @@ test('L3 recipient sendAccept(provision) resolves to a usable Presence on A↔C'
   cPending.set(provisionKey(PROVISION), { target: { id: 0 } });
 
   // The actual L3 recipient-side Accept.
-  const cap = await a.sendAccept(PROVISION);
+  const cap = await a.sendAccept(bytesAsDataEncoder(PROVISION));
   t.truthy(cap, 'sendAccept resolved to a Presence');
 
   // Use the cap — the call rides on the same A↔C connection.
@@ -153,16 +150,7 @@ test('L3 recipient sendAccept(provision) resolves to a usable Presence on A↔C'
 
 test('L3 recipient sendAccept(unknown provision) rejects', async t => {
   const interfaceRegistry = makeInterfaceRegistry();
-  const cNetwork = {
-    ourVatId: () => new Uint8Array(0),
-    thirdPartyCapIdForHost: () => new Uint8Array(0),
-    connectToThirdParty: () => {
-      throw Error('unused');
-    },
-    provisionIdForHandoff: () => new Uint8Array(0),
-    acceptIncomingProvide: () => {},
-    consumeProvision: () => undefined,
-  };
+  const cNetwork = bytesNetworkMock();
   const wire = makeLoopbackPair();
   const c = makeCapnp({
     send: wire.sendFromB,
@@ -176,9 +164,12 @@ test('L3 recipient sendAccept(unknown provision) rejects', async t => {
   });
   wire.setDispatchA(a.dispatch);
 
-  await t.throwsAsync(() => a.sendAccept(new Uint8Array([0x00])), {
-    message: /unknown provision/,
-  });
+  await t.throwsAsync(
+    () => a.sendAccept(bytesAsDataEncoder(new Uint8Array([0x00]))),
+    {
+      message: /unknown provision/,
+    },
+  );
   a.abort('done');
   c.abort('done');
 });

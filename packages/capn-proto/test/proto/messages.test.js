@@ -158,25 +158,25 @@ test('Provide round-trips', t => {
   const framed = encodeProvide({
     questionId: 10,
     target: { kind: 'importedCap', id: 7 },
-    recipient: new Uint8Array([1, 2, 3]),
+    encodeRecipient: contentAsData(new Uint8Array([1, 2, 3])),
   });
   const m = decodeMessage(framed);
   t.is(m.type, 'provide');
   t.is(m.questionId, 10);
-  t.deepEqual(Array.from(m.recipient), [1, 2, 3]);
+  t.deepEqual(Array.from(readDataContent(m.recipientSlot)), [1, 2, 3]);
 });
 
 test('Accept round-trips', t => {
   const framed = encodeAccept({
     questionId: 22,
-    provision: new Uint8Array([4, 5, 6]),
+    encodeProvision: contentAsData(new Uint8Array([4, 5, 6])),
     embargo: true,
   });
   const m = decodeMessage(framed);
   t.is(m.type, 'accept');
   t.is(m.questionId, 22);
   t.true(m.embargo);
-  t.deepEqual(Array.from(m.provision), [4, 5, 6]);
+  t.deepEqual(Array.from(readDataContent(m.provisionSlot)), [4, 5, 6]);
 });
 
 test('Abort round-trips', t => {
@@ -201,7 +201,7 @@ test('thirdPartyHosted CapDescriptor round-trips inside Resolve', t => {
       cap: {
         kind: 'thirdPartyHosted',
         vineId: 13,
-        thirdPartyCapId: new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
+        encodeId: contentAsData(new Uint8Array([0xde, 0xad, 0xbe, 0xef])),
       },
     },
   });
@@ -209,7 +209,7 @@ test('thirdPartyHosted CapDescriptor round-trips inside Resolve', t => {
   t.is(m.payload.cap.kind, 'thirdPartyHosted');
   t.is(m.payload.cap.vineId, 13);
   t.deepEqual(
-    Array.from(m.payload.cap.thirdPartyCapId),
+    Array.from(readDataContent(m.payload.cap.idSlot)),
     [0xde, 0xad, 0xbe, 0xef],
   );
 });

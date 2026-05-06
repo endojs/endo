@@ -10,18 +10,23 @@ import {
   makeCapnp,
   makeInterfaceRegistry,
 } from '../src/index.js';
+import {
+  bytesAsDataEncoder,
+  decodeDataFromSlot,
+  bytesNetworkMock,
+} from './fixtures/l3-bytes-network.js';
 
 test('Provide/Accept/Disembargo all encode and decode', t => {
   const p = encodeProvide({
     questionId: 1,
     target: { kind: 'importedCap', id: 5 },
-    recipient: new Uint8Array([0x01, 0x02, 0x03]),
+    encodeRecipient: bytesAsDataEncoder(new Uint8Array([0x01, 0x02, 0x03])),
   });
   t.is(decodeMessage(p).type, 'provide');
 
   const a = encodeAccept({
     questionId: 2,
-    provision: new Uint8Array([0x04, 0x05]),
+    encodeProvision: bytesAsDataEncoder(new Uint8Array([0x04, 0x05])),
     embargo: true,
   });
   const am = decodeMessage(a);
@@ -49,20 +54,28 @@ test('thirdPartyHosted CapDescriptor passes through Resolve unchanged', t => {
     promiseId: 7,
     payload: {
       kind: 'cap',
-      cap: { kind: 'thirdPartyHosted', vineId: 21, thirdPartyCapId: tpid },
+      cap: {
+        kind: 'thirdPartyHosted',
+        vineId: 21,
+        encodeId: bytesAsDataEncoder(tpid),
+      },
     },
   });
   const m = decodeMessage(f);
   t.is(m.payload.cap.kind, 'thirdPartyHosted');
   t.is(m.payload.cap.vineId, 21);
-  t.deepEqual(Array.from(m.payload.cap.thirdPartyCapId), Array.from(tpid));
+  t.deepEqual(
+    Array.from(decodeDataFromSlot(m.payload.cap.idSlot)),
+    Array.from(tpid),
+  );
 });
 
 // ---- L3 end-to-end (protocol-level, single vat acting as host C) ---------
 //
 // A full Level 3 flow involves three independent vats wired through a
 // VatNetwork that knows how to dial peers. Building such a network is out
-// of scope for a unit test, so we instead exercise the handshake at the
+// of scope for a unit test (see test/interop-l3.test.js for the live
+// version with a real C++ peer); here we exercise the handshake at the
 // protocol layer: synthesize the messages a real Vat A and Vat B would
 // have sent, feed them into Vat C's `dispatch`, and assert that Vat C
 // reacts according to the spec — Provide is registered with the network,
@@ -86,12 +99,7 @@ test('L3 end-to-end (host side): Provide + Accept resolves to a senderHosted Ret
   const pendingProvides = new Map();
   const PROVISION = new Uint8Array([0xab, 0xcd]);
   const provisionKey = u8 => Array.from(u8).join(',');
-  const network = {
-    ourVatId: () => new Uint8Array([0x43]),
-    thirdPartyCapIdForHost: () => new Uint8Array(0),
-    connectToThirdParty: () => {
-      throw Error('host vat does not initiate connections');
-    },
+  const network = bytesNetworkMock({
     provisionIdForHandoff: () => PROVISION,
     acceptIncomingProvide: (questionId, providedTarget /* , recipient */) => {
       pendingProvides.set(provisionKey(PROVISION), {
@@ -104,7 +112,7 @@ test('L3 end-to-end (host side): Provide + Accept resolves to a senderHosted Ret
       if (p) pendingProvides.delete(provisionKey(provision));
       return p;
     },
-  };
+  });
 
   // Vat C: connection bound to this network.
   /** @type {ArrayBuffer[]} */
@@ -137,7 +145,7 @@ test('L3 end-to-end (host side): Provide + Accept resolves to a senderHosted Ret
     encodeProvide({
       questionId: 200,
       target: { kind: 'importedCap', id: 0 },
-      recipient: new Uint8Array([0x41]), // sentinel "A"
+      encodeRecipient: bytesAsDataEncoder(new Uint8Array([0x41])), // sentinel "A"
     }),
   );
   t.is(pendingProvides.size, 1, 'C registered the provide with its network');
@@ -149,7 +157,7 @@ test('L3 end-to-end (host side): Provide + Accept resolves to a senderHosted Ret
   c.dispatch(
     encodeAccept({
       questionId: 300,
-      provision: PROVISION,
+      encodeProvision: bytesAsDataEncoder(PROVISION),
       embargo: false,
     }),
   );
@@ -167,16 +175,7 @@ test('L3 end-to-end (host side): Provide + Accept resolves to a senderHosted Ret
 
 test('L3 end-to-end: Accept with unknown provision returns an exception', async t => {
   const reg = makeInterfaceRegistry();
-  const network = {
-    ourVatId: () => new Uint8Array(0),
-    thirdPartyCapIdForHost: () => new Uint8Array(0),
-    connectToThirdParty: () => {
-      throw Error('unused');
-    },
-    provisionIdForHandoff: () => new Uint8Array(0),
-    acceptIncomingProvide: () => {},
-    consumeProvision: () => undefined,
-  };
+  const network = bytesNetworkMock();
   /** @type {ArrayBuffer[]} */
   const out = [];
   const c = makeCapnp({
@@ -188,7 +187,7 @@ test('L3 end-to-end: Accept with unknown provision returns an exception', async 
   c.dispatch(
     encodeAccept({
       questionId: 1,
-      provision: new Uint8Array([0xff]),
+      encodeProvision: bytesAsDataEncoder(new Uint8Array([0xff])),
       embargo: false,
     }),
   );
@@ -212,12 +211,7 @@ test('L3 host: Accept{embargo:true} defers Return until Disembargo{provide=Q}', 
   const PROVIDE_QID = 7100;
   /** @type {Map<string, { questionId: number, target: any }>} */
   const pending = new Map();
-  const network = {
-    ourVatId: () => new Uint8Array(0),
-    thirdPartyCapIdForHost: () => new Uint8Array(0),
-    connectToThirdParty: () => {
-      throw Error();
-    },
+  const network = bytesNetworkMock({
     provisionIdForHandoff: () => PROVISION,
     acceptIncomingProvide: (questionId, providedTarget) => {
       pending.set(Array.from(PROVISION).join(','), {
@@ -231,7 +225,7 @@ test('L3 host: Accept{embargo:true} defers Return until Disembargo{provide=Q}', 
       if (found) pending.delete(k);
       return found;
     },
-  };
+  });
 
   /** @type {ArrayBuffer[]} */
   const out = [];
@@ -254,7 +248,7 @@ test('L3 host: Accept{embargo:true} defers Return until Disembargo{provide=Q}', 
     encodeProvide({
       questionId: PROVIDE_QID,
       target: { kind: 'importedCap', id: 0 },
-      recipient: new Uint8Array([0x41]),
+      encodeRecipient: bytesAsDataEncoder(new Uint8Array([0x41])),
     }),
   );
 
@@ -263,7 +257,7 @@ test('L3 host: Accept{embargo:true} defers Return until Disembargo{provide=Q}', 
   c.dispatch(
     encodeAccept({
       questionId: 9100,
-      provision: PROVISION,
+      encodeProvision: bytesAsDataEncoder(PROVISION),
       embargo: true,
     }),
   );

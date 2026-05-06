@@ -152,13 +152,17 @@ export const makeConnection = cfg => {
     // construction a different peer.
     const home = cfg.capHomes && cfg.capHomes.find(v);
     if (home && threeParty) {
-      const { thirdPartyCapId, vineId } = threeParty.initiateProvide({
+      const { encodeThirdPartyCapId, vineId } = threeParty.initiateProvide({
         target: v,
         targetCapDescriptor: { kind: 'importedCap', id: home.hostImportId },
-        recipientId: cfg.recipientVatId || new Uint8Array(0),
+        recipientId: cfg.recipientVatId,
         hostConnection: home.hostConnection,
       });
-      return { kind: 'thirdPartyHosted', thirdPartyCapId, vineId };
+      return {
+        kind: 'thirdPartyHosted',
+        encodeId: encodeThirdPartyCapId,
+        vineId,
+      };
     }
     if (isPromise(v)) {
       const { id } = exportRegistry.exportValue(v);
@@ -373,10 +377,12 @@ export const makeConnection = cfg => {
    * The caller is responsible for any vine release on the original B↔A
    * connection after this promise settles.
    *
-   * @param {Uint8Array} provision
+   * @param {(msg: any, slot: { segId: number, wordOffset: number }) => void} encodeProvision
+   *   Callback writing the AnyPointer at `Accept.provision`. Provided by
+   *   the VatNetwork (which knows the agreed schema for ProvisionId).
    * @param {boolean} [embargo]
    */
-  const sendAccept = (provision, embargo = false) => {
+  const sendAccept = (encodeProvision, embargo = false) => {
     const questionId = tables.questionIds.alloc();
     let resolveFn;
     let rejectFn;
@@ -394,7 +400,7 @@ export const makeConnection = cfg => {
       pipelineHandler: undefined,
       pipelinedCapImports: new Set(),
     });
-    sendFramed(encodeAccept({ questionId, provision, embargo }));
+    sendFramed(encodeAccept({ questionId, encodeProvision, embargo }));
     return answerPromise;
   };
 
@@ -411,13 +417,20 @@ export const makeConnection = cfg => {
   };
 
   // ---- Three-party (uses ctx; concrete operations require network setup) ----
+  // Default no-network: every L3 path is a no-op, and connectToThirdParty
+  // throws so a peer that sends us a thirdPartyHosted descriptor falls
+  // back to the vine path. Each `encode*` returns a callback that places
+  // an empty Data list at the AnyPointer slot — wire-valid but not
+  // schema-shaped, suitable only for the no-L3 case.
+  const noopEncode = (_msg, _slot) => {};
   threeParty = makeThreeParty({
     network: cfg.network || {
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
+      encodeThirdPartyCapId: () => noopEncode,
       connectToThirdParty: () => {
         throw Fail`no VatNetwork configured`;
       },
-      provisionIdForHandoff: () => new Uint8Array(0),
+      encodeProvisionForHandoff: () => noopEncode,
+      encodeRecipient: () => noopEncode,
       acceptIncomingProvide: () => {},
       consumeProvision: () => undefined,
     },

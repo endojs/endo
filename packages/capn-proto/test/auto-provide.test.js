@@ -32,6 +32,7 @@ import {
   makeCapHomeRegistry,
 } from '../src/index.js';
 import { withJsonCodecs } from './fixtures/json-codec.js';
+import { bytesNetworkMock } from './fixtures/l3-bytes-network.js';
 
 const provisionKey = bytes => Array.from(bytes).join(',');
 const u8 = s => new TextEncoder().encode(s);
@@ -116,76 +117,76 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
   const provisionBytes = n =>
     new Uint8Array([0xa0, Math.floor(n / 256) % 256, n % 256]);
 
-  const networkFor = me => ({
-    ourVatId: () => ({ A: VAT_A, B: VAT_B, C: VAT_C })[me],
-    /**
-     * Identify the host peer by its vat id bytes. The `hostConnection`
-     * argument is the makeCapnp peer object the auto-Provide path on
-     * `me` is about to send a Provide on; we walk our connection map
-     * to figure out which named peer it is.
-     *
-     * @param {any} hostConnection
-     */
-    thirdPartyCapIdForHost: hostConnection => {
-      for (const peerName of ['A', 'B', 'C']) {
-        if (connByVat[me][peerName] === hostConnection) {
-          return { A: VAT_A, B: VAT_B, C: VAT_C }[peerName];
+  const networkFor = me =>
+    bytesNetworkMock({
+      /**
+       * Identify the host peer by its vat id bytes. The `hostConnection`
+       * argument is the makeCapnp peer object the auto-Provide path on
+       * `me` is about to send a Provide on; we walk our connection map
+       * to figure out which named peer it is.
+       *
+       * @param {any} hostConnection
+       */
+      thirdPartyCapIdForHost: hostConnection => {
+        for (const peerName of ['A', 'B', 'C']) {
+          if (connByVat[me][peerName] === hostConnection) {
+            return { A: VAT_A, B: VAT_B, C: VAT_C }[peerName];
+          }
         }
-      }
-      throw Error('hostConnection not in our peer map');
-    },
-    /**
-     * Recipient (A) → look up our existing connection to the host and
-     * return it. (Real networks would dial a fresh socket here.)
-     *
-     * @param {Uint8Array} thirdPartyCapId
-     */
-    connectToThirdParty: thirdPartyCapId => {
-      const peerName = vatIdToName(thirdPartyCapId);
-      const conn = connByVat[me][peerName];
-      if (!conn) throw Error(`no preconfigured connection ${me}↔${peerName}`);
-      return conn;
-    },
-    /**
-     * Both B and A end up calling this — and they need to agree. We
-     * embed a counter into the bytes; B mints, then stashes the same
-     * provision in the host (C) table so the matching Accept from A
-     * matches the Provide from B.
-     */
-    provisionIdForHandoff: () => {
-      provisionCounter += 1;
-      return provisionBytes(provisionCounter);
-    },
-    /**
-     * Host side (we are C): a Provide arrived; remember it so the next
-     * matching Accept from A can claim it. Index by provision bytes.
-     *
-     * @param {number} questionId
-     * @param {any} target
-     * @param {Uint8Array} recipient
-     */
-    acceptIncomingProvide: (questionId, target, recipient) => {
-      // The provision bytes B used in its outgoing Provide aren't on
-      // the wire (Cap'n Proto's Provide carries questionId, target,
-      // recipient — not provision). We re-derive them by reading the
-      // network's current counter. NB: this fixture is a test
-      // simulator, not a real network — real networks share the
-      // provision via cryptographic tokens.
-      const provision = provisionBytes(provisionCounter);
-      pendingByVat[me].set(provisionKey(provision), {
-        questionId,
-        target,
-        recipient,
-      });
-    },
-    /** @param {Uint8Array} provision */
-    consumeProvision: provision => {
-      const k = provisionKey(provision);
-      const found = pendingByVat[me].get(k);
-      if (found) pendingByVat[me].delete(k);
-      return found;
-    },
-  });
+        throw Error('hostConnection not in our peer map');
+      },
+      /**
+       * Recipient (A) → look up our existing connection to the host and
+       * return it. (Real networks would dial a fresh socket here.)
+       *
+       * @param {Uint8Array} thirdPartyCapId
+       */
+      connectToThirdParty: thirdPartyCapId => {
+        const peerName = vatIdToName(thirdPartyCapId);
+        const conn = connByVat[me][peerName];
+        if (!conn) throw Error(`no preconfigured connection ${me}↔${peerName}`);
+        return conn;
+      },
+      /**
+       * Both B and A end up calling this — and they need to agree. We
+       * embed a counter into the bytes; B mints, then stashes the same
+       * provision in the host (C) table so the matching Accept from A
+       * matches the Provide from B.
+       */
+      provisionIdForHandoff: () => {
+        provisionCounter += 1;
+        return provisionBytes(provisionCounter);
+      },
+      /**
+       * Host side (we are C): a Provide arrived; remember it so the next
+       * matching Accept from A can claim it. Index by provision bytes.
+       *
+       * @param {number} questionId
+       * @param {any} target
+       * @param {Uint8Array} recipient
+       */
+      acceptIncomingProvide: (questionId, target, recipient) => {
+        // The provision bytes B used in its outgoing Provide aren't on
+        // the wire (Cap'n Proto's Provide carries questionId, target,
+        // recipient — not provision). We re-derive them by reading the
+        // network's current counter. NB: this fixture is a test
+        // simulator, not a real network — real networks share the
+        // provision via cryptographic tokens.
+        const provision = provisionBytes(provisionCounter);
+        pendingByVat[me].set(provisionKey(provision), {
+          questionId,
+          target,
+          recipient,
+        });
+      },
+      /** @param {Uint8Array} provision */
+      consumeProvision: provision => {
+        const k = provisionKey(provision);
+        const found = pendingByVat[me].get(k);
+        if (found) pendingByVat[me].delete(k);
+        return found;
+      },
+    });
 
   const makeChannel = (left, right) => {
     const sendLeftToRight = framed => {

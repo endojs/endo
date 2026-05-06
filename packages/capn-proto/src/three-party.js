@@ -73,13 +73,24 @@ export const makeThreeParty = ctx => {
    * direct A↔C handshake fails) gets forwarded by B's normal handleCall
    * machinery to the underlying cap on B↔C.
    *
+   * The two AnyPointer slots — `Provide.recipient` (sent on the B↔C
+   * connection) and `ThirdPartyCapDescriptor.id` (encoded into the
+   * descriptor B sends to A) — are populated via VatNetwork-supplied
+   * encoder callbacks. The network's `encodeRecipient` and
+   * `encodeThirdPartyCapId` methods know what schema to put at the slot;
+   * the proto layer just forwards the AnyPointer location.
+   *
    * @param {{
    *   target: unknown,
    *   targetCapDescriptor: any,
-   *   recipientId: Uint8Array,
+   *   recipientId: any,
    *   hostConnection: any,
    * }} params
-   * @returns {{ thirdPartyCapId: Uint8Array, vineId: number, provideQuestionId: number }}
+   * @returns {{
+   *   encodeThirdPartyCapId: (msg: any, slot: { segId: number, wordOffset: number }) => void,
+   *   vineId: number,
+   *   provideQuestionId: number,
+   * }}
    */
   const initiateProvide = ({
     target,
@@ -97,7 +108,7 @@ export const makeThreeParty = ctx => {
       encodeProvide({
         questionId: provideQuestionId,
         target: targetCapDescriptor,
-        recipient: recipientId,
+        encodeRecipient: network.encodeRecipient(recipientId),
       }),
     );
     // Allocate a vine export id whose value IS the target cap, so calls A
@@ -114,8 +125,8 @@ export const makeThreeParty = ctx => {
     ) {
       provideQuestionByTargetId.set(targetCapDescriptor.id, provideQuestionId);
     }
-    const thirdPartyCapId = network.thirdPartyCapIdForHost(hostConnection);
-    return { thirdPartyCapId, vineId, provideQuestionId };
+    const encodeThirdPartyCapId = network.encodeThirdPartyCapId(hostConnection);
+    return { encodeThirdPartyCapId, vineId, provideQuestionId };
   };
 
   /**
@@ -144,7 +155,7 @@ export const makeThreeParty = ctx => {
    * rejects only if neither path is viable.
    *
    * @param {{
-   *   thirdPartyCapId: Uint8Array,
+   *   idSlot: { msg: any, segId: number, wordOffset: number },
    *   vineId: number,
    *   embargo?: boolean,
    *   originalPromiseId?: number,
@@ -156,10 +167,10 @@ export const makeThreeParty = ctx => {
     // same Presence.
     const vinePresence = ctx.importRegistry.importCap(desc.vineId, false);
     let peer;
-    let provision;
+    let encodeProvision;
     try {
-      peer = network.connectToThirdParty(desc.thirdPartyCapId);
-      provision = network.provisionIdForHandoff(desc.thirdPartyCapId);
+      peer = network.connectToThirdParty(desc.idSlot);
+      encodeProvision = network.encodeProvisionForHandoff(desc.idSlot);
     } catch (_e) {
       // VatNetwork couldn't give us a direct connection — fall back to
       // the vine and keep it alive.
@@ -185,7 +196,7 @@ export const makeThreeParty = ctx => {
         }),
       );
     }
-    const directP = peer.sendAccept(provision, useEmbargo);
+    const directP = peer.sendAccept(encodeProvision, useEmbargo);
     return directP.then(
       direct => {
         // Direct succeeded; release the vine on the original B↔A path.
@@ -233,12 +244,18 @@ export const makeThreeParty = ctx => {
   /**
    * Handle an inbound Provide from B (we are C).
    *
-   * @param {{ questionId: number, target: any, recipient: Uint8Array }} msg
+   * @param {{
+   *   questionId: number,
+   *   target: any,
+   *   recipientSlot: { msg: any, segId: number, wordOffset: number },
+   * }} msg
    */
   const handleProvide = msg => {
-    const { questionId, target, recipient } = msg;
-    // Stash the provide so a future Accept from A can claim it.
-    network.acceptIncomingProvide(questionId, target, recipient);
+    const { questionId, target, recipientSlot } = msg;
+    // Stash the provide so a future Accept from A can claim it. The
+    // network reads the AnyPointer at recipientSlot using whatever
+    // schema it agreed on for VatNetwork.RecipientId.
+    network.acceptIncomingProvide(questionId, target, recipientSlot);
   };
 
   /**
@@ -267,11 +284,15 @@ export const makeThreeParty = ctx => {
   /**
    * Handle an inbound Accept from A (we are C).
    *
-   * @param {{ questionId: number, provision: Uint8Array, embargo?: boolean }} msg
+   * @param {{
+   *   questionId: number,
+   *   provisionSlot: { msg: any, segId: number, wordOffset: number },
+   *   embargo?: boolean,
+   * }} msg
    */
   const handleAccept = msg => {
-    const { questionId, provision, embargo } = msg;
-    const provided = network.consumeProvision(provision);
+    const { questionId, provisionSlot, embargo } = msg;
+    const provided = network.consumeProvision(provisionSlot);
     if (!provided) {
       sendFramed(
         ctx.encodeReturn({

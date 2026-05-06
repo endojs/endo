@@ -37,6 +37,10 @@ import {
   decodeMessage,
 } from '../src/index.js';
 import { withJsonCodecs } from './fixtures/json-codec.js';
+import {
+  bytesAsDataEncoder,
+  bytesNetworkMock,
+} from './fixtures/l3-bytes-network.js';
 
 const SERVICE_ID = 0xa1n;
 
@@ -91,16 +95,11 @@ const setupNet = bootstrapB => {
     send: framed => acOut.push(framed),
     interfaceRegistry,
     capHomes,
-    network: {
-      ourVatId: () => new Uint8Array(0),
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
+    network: bytesNetworkMock({
       connectToThirdParty: () => {
         throw Error();
       },
-      provisionIdForHandoff: () => new Uint8Array(0),
-      acceptIncomingProvide: () => {},
-      consumeProvision: () => undefined,
-    },
+    }),
   });
   const PROVISION = new Uint8Array([0xc0, 0xff]);
   const aToB = makeCapnp({
@@ -111,14 +110,10 @@ const setupNet = bootstrapB => {
     },
     interfaceRegistry,
     capHomes,
-    network: {
-      ourVatId: () => new Uint8Array(0),
-      thirdPartyCapIdForHost: () => new Uint8Array(0),
+    network: bytesNetworkMock({
       connectToThirdParty: () => aToC,
       provisionIdForHandoff: () => PROVISION,
-      acceptIncomingProvide: () => {},
-      consumeProvision: () => undefined,
-    },
+    }),
     recipientVatId: new Uint8Array(0),
   });
   const bToA = makeCapnp({
@@ -248,7 +243,11 @@ test('A-side embargo: pipelined call on a senderPromise triggers Accept{embargo:
       promiseId: promiseImportId,
       payload: {
         kind: 'cap',
-        cap: { kind: 'thirdPartyHosted', vineId: 9999, thirdPartyCapId: TPID },
+        cap: {
+          kind: 'thirdPartyHosted',
+          vineId: 9999,
+          encodeId: bytesAsDataEncoder(TPID),
+        },
       },
     }),
   );
@@ -315,7 +314,7 @@ test('A-side embargo NOT triggered when no pipelined calls fired before Resolve'
         cap: {
           kind: 'thirdPartyHosted',
           vineId: 9999,
-          thirdPartyCapId: new Uint8Array(0),
+          encodeId: bytesAsDataEncoder(new Uint8Array(0)),
         },
       },
     }),
