@@ -441,16 +441,47 @@ export default async function (arg) { return arg; }
   t.is(await ret, 'foo', 'F returns correctly');
 });
 
+// Regression test for the second crash reported in #1596:
+// `Cannot read properties of undefined (reading 'buildError')`.
+// `path.buildCodeFrameError(...)` calls `this.hub.buildError(...)`, and
+// `traverse(ast, visitor)` leaves `path.hub` undefined unless an initial
+// `parentPath` carrying a Hub is supplied.  Before the fix, hitting the
+// reserved-identifier guard surfaced the cryptic TypeError instead of the
+// intended SyntaxError, swallowing the diagnostic the analyzer worked to
+// produce.  Asserting the wrapped SyntaxError plus its `cause.message`
+// makes the assertion fail closed if the Hub wiring regresses.
 test('invisible joiner character is reserved', t => {
-  t.throws(() => {
-    const _ = new ModuleSource(`const $h\u034f_import = 123; $h\u034f_import`);
-  });
+  const err = t.throws(
+    () => {
+      const _ = new ModuleSource(
+        `const $h\u034f_import = 123; $h\u034f_import`,
+      );
+    },
+    { instanceOf: SyntaxError, message: /is reserved/ },
+  );
+  // Ensure the Hub-backed diagnostic flowed through, not the raw TypeError
+  // from `undefined.buildError`.
+  t.notRegex(
+    String(
+      (err && /** @type {Error | undefined} */ (err.cause)?.message) || '',
+    ),
+    /Cannot read properties of undefined \(reading 'buildError'\)/,
+  );
 });
 
 test('invisible joiner character in constified variable is reserved', t => {
-  t.throws(() => {
-    const _ = new ModuleSource(`const $c\u034f_myVar = 123; $c\u034f_myVar`);
-  });
+  const err = t.throws(
+    () => {
+      const _ = new ModuleSource(`const $c\u034f_myVar = 123; $c\u034f_myVar`);
+    },
+    { instanceOf: SyntaxError, message: /is reserved/ },
+  );
+  t.notRegex(
+    String(
+      (err && /** @type {Error | undefined} */ (err.cause)?.message) || '',
+    ),
+    /Cannot read properties of undefined \(reading 'buildError'\)/,
+  );
 });
 
 test('invisible joiner character is allowed in non-reserved words', t => {
