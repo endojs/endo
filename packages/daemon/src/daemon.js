@@ -2072,10 +2072,6 @@ const makeDaemonCore = async (
       ids,
       source,
       slots,
-      // eslint-disable-next-line no-unused-vars
-      codeNames,
-      // eslint-disable-next-line no-unused-vars
-      petNamePaths,
     } = formula;
 
     if (

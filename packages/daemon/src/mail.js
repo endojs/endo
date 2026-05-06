@@ -232,13 +232,6 @@ export const makeMailboxMaker = ({
 
     /**
      * @param {string} source
-     * @param {Array<string>} codeNames
-     * @param {Array<NamePath>} petNamePaths
-     * @param {FormulaIdentifier} fromId
-     * @param {FormulaIdentifier} toId
-     */
-    /**
-     * @param {string} source
      * @param {Record<string, { label: string, pattern?: unknown }>} slots
      * @param {FormulaIdentifier} fromId
      * @param {FormulaIdentifier} toId

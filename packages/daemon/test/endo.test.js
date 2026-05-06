@@ -3379,10 +3379,42 @@ test('guest evaluate ephemeral (no resultName)', async t => {
   const pkg = guestMessages.find(m => m.type === 'package');
   await E(guest).adopt(pkg.number, 'x', ['seven']);
 
-  // Ephemeral eval — no result name, value returned directly
+  // Ephemeral eval, no result name, value returned directly.
   const result = await E(guest).evaluate(undefined, 'x + 3', ['x'], ['seven']);
 
   t.is(result, 10);
+});
+
+test('guest evaluate posts no message to host or guest mailbox', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).storeValue(11, 'eleven');
+
+  await E(host).send('guest', ['value:'], ['n'], ['eleven']);
+  const initialGuestMessages = await E(guest).listMessages();
+  const pkg = initialGuestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(pkg.number, 'n', ['eleven']);
+
+  const hostMessagesBefore = await E(host).listMessages();
+  const guestMessagesBefore = await E(guest).listMessages();
+
+  const result = await E(guest).evaluate(
+    'worker',
+    'n + 1',
+    ['n'],
+    ['eleven'],
+    ['twelve'],
+  );
+  t.is(result, 12);
+
+  // The eval-proposal handshake is gone. A guest evaluate must not
+  // create any new mailbox message on either side.
+  const hostMessagesAfter = await E(host).listMessages();
+  const guestMessagesAfter = await E(guest).listMessages();
+  t.is(hostMessagesAfter.length, hostMessagesBefore.length);
+  t.is(guestMessagesAfter.length, guestMessagesBefore.length);
 });
 
 // Tests for trusted shims

@@ -42,7 +42,7 @@
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-04-29 | **Complete** |
 | [daemon-retention-paths](daemon-retention-paths.md) | 2026-04-30 | 2026-04-30 | Not Started |
 | [daemon-rename-to-manager](daemon-rename-to-manager.md) | 2026-05-04 | 2026-05-05 | Not Started |
-| [daemon-guest-eval-simplification](daemon-guest-eval-simplification.md) | 2026-03-21 | 2026-03-21 | Not Started |
+| [daemon-guest-eval-simplification](daemon-guest-eval-simplification.md) | 2026-03-21 | 2026-05-04 | **Implemented** |
 | [daemon-docker-selfhost](daemon-docker-selfhost.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-capability-bus](daemon-capability-bus.md) | 2026-02-25 | 2026-04-11 | In Progress |
 | [daemon-endo-rust-sqlite](daemon-endo-rust-sqlite.md) | 2026-04-14 | 2026-04-16 | **Complete** |
@@ -134,7 +134,7 @@ flowchart TD
         lalfp[lal-fae-form-provisioning<br/><i>COMPLETE</i>]
         fagent[familiar-bundled-agents<br/><i>COMPLETE</i>]
         dtools[daemon-agent-tools]
-        deval[daemon-guest-eval-simplification]
+        deval[daemon-guest-eval-simplification<br/><i>IMPLEMENTED</i>]
         dform --> lalfp
         dval --> lalfp
         laltx --> lalfp
@@ -280,7 +280,7 @@ capabilities available to agents.
 | endoclaw-timer | In Progress | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; Timer is the only way agents get scheduled execution. Prerequisite for proactive behavior. First implementation in `@endo/genie`. |
 | endoclaw-network-fetch | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. |
 | ~~daemon-cross-peer-gc~~ | **Complete** | Replaced the proposed CRDT-of-pet-stores with a one-way retention-set sync per peer connection (`retention-accumulator.js`, `EndoGateway.followRetentionSet`, SQLite `retention` table). Solves the GC gap; bidirectional shared namespace deferred as YAGNI. |
-| daemon-guest-eval-simplification | Not Started | Remove eval-proposal handshake; guest eval delegates directly to `formulateEval` |
+| ~~daemon-guest-eval-simplification~~ | **Implemented** | Eval-proposal handshake removed; guest eval delegates directly to `formulateEval`. Type-system cleanup and regression test in PR #92. |
 | ci-no-npm-lifecycle | Not Started | Pin `enableScripts: false` posture into CI; enforcement check for workflows |
 | chat-playwright-smoke | Not Started | Add a build-and-load smoke for the Chat bundle to the existing `browser-tests` job |
 | base64-native-fallthrough | Not Started | `@endo/base64` dispatches to `Uint8Array.fromBase64` / `toBase64` when available |
@@ -490,7 +490,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
 | daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename: 13 source files, ~20 consuming files; three phases (file renames, identifier renames, consumer updates) |
 | endoclaw-timer | S-M | 2-3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
-| daemon-guest-eval-simplification | S | 1 day | 1 | Remove eval-proposal flow, guest eval delegates to `formulateEval` |
+| ~~daemon-guest-eval-simplification~~ | — | — | 1 | ✅ Implemented (PR #92 cleanup; eval-proposal flow removed earlier on `llm`) |
 | endoclaw-network-fetch | S-M | 2-3 days | 1 | HttpClient with origin allowlist, rate/size limits |
 | ci-no-npm-lifecycle | S | 1 day | 1 | Workflow audit, env var pinning, enforcement check |
 | chat-playwright-smoke | S | 1 day | 1 | New `browser-test/tests/chat.spec.js`, serve `packages/chat/dist`, assert "Gateway not configured" + zero pageerrors |
