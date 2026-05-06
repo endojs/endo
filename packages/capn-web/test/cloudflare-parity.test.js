@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* global setTimeout */
+/* global setTimeout, globalThis, Response */
 // Integration tests inspired by cloudflare/capnweb's __tests__/index.test.ts
 // suite — patterns we hadn't yet covered.  Run against the in-memory
 // loopback transport (which exercises the same protocol path the real
@@ -341,4 +341,89 @@ test('argument round-trip: passing a remote stub back to its origin is recognise
   const got = await E(r).get();
   const result = await E(r).check(got);
   t.is(result, 'same');
+});
+
+// ---------- additional non-serializable categories (capnweb parity) ----------
+
+test('rejects Map value with a clear error', async t => {
+  const r = makePair(Far('s', { take: x => x }));
+  let caught;
+  try {
+    await E(r).take(new Map([['a', 1]]));
+  } catch (e) {
+    caught = e;
+  }
+  t.true(caught instanceof TypeError);
+  t.regex(caught.message, /serialize|passable/i);
+});
+
+test('rejects Set value with a clear error', async t => {
+  const r = makePair(Far('s', { take: x => x }));
+  let caught;
+  try {
+    await E(r).take(new Set([1, 2]));
+  } catch (e) {
+    caught = e;
+  }
+  t.true(caught instanceof TypeError);
+  t.regex(caught.message, /serialize|passable/i);
+});
+
+test('rejects WeakMap value', async t => {
+  const r = makePair(Far('s', { take: x => x }));
+  let caught;
+  try {
+    await E(r).take(new WeakMap());
+  } catch (e) {
+    caught = e;
+  }
+  t.true(caught instanceof TypeError);
+});
+
+test('rejects unmarked plain class instance with a clear error', async t => {
+  // A class instance that wasn't wrapped with Far / makeExo is neither a
+  // remotable nor a copy-record (its prototype isn't Object.prototype),
+  // so it has no place in the wire form.  capnweb rejects via a generic
+  // "Cannot serialize value" error; we surface a more specific one
+  // mentioning the value's type.
+  class Widget {
+    constructor() {
+      this.kind = 'widget';
+    }
+  }
+  const r = makePair(Far('s', { take: x => x }));
+  let caught;
+  try {
+    await E(r).take(new Widget());
+  } catch (e) {
+    caught = e;
+  }
+  t.true(caught instanceof TypeError);
+  t.regex(caught.message, /serialize|passable/i);
+});
+
+const haveFetch = typeof globalThis.Response === 'function';
+const fetchTest = haveFetch ? test : test.skip;
+
+fetchTest('rejects Response carrying a webSocket (capnweb parity)', async t => {
+  // Capnweb explicitly rejects this on the encode path because the
+  // socket is bound to the emitting runtime and can't survive
+  // serialization.  We mirror that check in `encodeResponse`.
+  const fakeResponse = new Response(null, { status: 200 });
+  // Forcibly stamp a `webSocket` property to simulate what runtimes
+  // like Cloudflare Workers expose on `Response` instances.  Don't
+  // bother with a real WebSocket — the encoder check is shape-only.
+  Object.defineProperty(fakeResponse, 'webSocket', {
+    value: { readyState: 0 },
+    enumerable: false,
+  });
+  const r = makePair(Far('s', { take: x => x }));
+  let caught;
+  try {
+    await E(r).take(fakeResponse);
+  } catch (e) {
+    caught = e;
+  }
+  t.true(caught instanceof TypeError);
+  t.regex(caught.message, /webSocket/);
 });

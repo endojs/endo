@@ -143,6 +143,13 @@ export const decodeRequest = (expr, evaluate) => {
  * @param {(v: unknown) => unknown} _devaluate  Unused; reserved.
  */
 export const encodeResponse = (r, _devaluate) => {
+  // Match cloudflare/capnweb's explicit reject: a Response carrying a
+  // WebSocket can't survive serialization (the socket is bound to the
+  // emitting runtime).  capnweb throws on the encode path; we do the
+  // same so the failure is loud and actionable.
+  if (/** @type {any} */ (r).webSocket) {
+    throw new TypeError(`Can't serialize a Response containing a webSocket.`);
+  }
   const init = {};
   if (r.status !== 200) init.status = r.status;
   if (r.statusText) init.statusText = r.statusText;
