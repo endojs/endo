@@ -10,6 +10,7 @@ export {
   processHttpBatchBody,
   handleHttpBatchRequest,
 } from './http-batch-server.js';
+export { patchStreamForHarden } from './streams.js';
 export { E } from '@endo/eventual-send';
 export { Far } from '@endo/pass-style';
 export { makeExo } from '@endo/exo';

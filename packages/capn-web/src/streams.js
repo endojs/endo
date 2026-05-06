@@ -36,9 +36,37 @@ export const haveTransformStream =
 
 export const makeTransformStream = () => new G.TransformStream();
 
+// Convert each writable+configurable own data property of `obj` into
+// an accessor pair backed by closure storage.  The descriptor itself
+// becomes part of the harden-frozen shape, but assignments to those
+// slots still succeed because the setter is a function reference that
+// mutates the closure variable.
+const accessorWrapOwnDataProps = obj => {
+  const keys = [
+    ...Object.getOwnPropertyNames(obj),
+    ...Object.getOwnPropertySymbols(obj),
+  ];
+  for (const k of keys) {
+    const desc = Object.getOwnPropertyDescriptor(obj, k);
+    if (desc && desc.writable && desc.configurable) {
+      let v = desc.value;
+      Object.defineProperty(obj, k, {
+        configurable: true,
+        enumerable: desc.enumerable,
+        get() {
+          return v;
+        },
+        set(nv) {
+          v = nv;
+        },
+      });
+    }
+  }
+};
+
 /**
- * Pre-patch a Node WHATWG-stream instance so that `harden`-ing it later
- * doesn't break subsequent internal slot writes.
+ * Pre-patch a Node WHATWG-stream instance so that `harden`-ing it
+ * later doesn't break subsequent internal slot writes.
  *
  * Node stores stream state in a hidden `Symbol(kState)`-keyed own
  * property whose top-level slots (`reader`, `writer`, `controller`,
@@ -49,14 +77,15 @@ export const makeTransformStream = () => new G.TransformStream();
  * Object]'", and any stream that crosses an `@endo/pass-style`
  * boundary (Far/exo method args/returns) gets hardened that way.
  *
- * Converting each `kState` slot into an accessor pair backed by
- * closure storage achieves two things at once:
+ * Walks the whole reachable kState graph (the stream and the nested
+ * controller, which has its own `Symbol(kState)` with `queue`,
+ * `started`, etc.) and converts each writable+configurable own data
+ * property to an accessor pair backed by closure storage:
  *  1. Subsequent `state.<slot> = …` writes hit the setter and mutate
  *     the closure value, so freeze can't block them.
  *  2. `harden`'s graph walk stops at the accessor boundary — it
  *     freezes the descriptor pair but doesn't recurse through the
- *     get/set return values, so the controller and other nested
- *     state objects also stay un-frozen.
+ *     get/set return values into more state.
  *
  * See https://github.com/endojs/endo/issues/3244 (filed while
  * investigating; the long-term fix belongs at the SES layer).
@@ -74,29 +103,27 @@ export const makeTransformStream = () => new G.TransformStream();
  * @param {object} stream
  */
 export const patchStreamForHarden = stream => {
-  if (stream === null || typeof stream !== 'object') return;
-  const kState = Object.getOwnPropertySymbols(stream).find(
-    sym => sym.description === 'kState',
-  );
-  if (!kState) return;
-  const state = /** @type {any} */ (stream)[kState];
-  if (state === null || typeof state !== 'object') return;
-  for (const k of Object.keys(state)) {
-    const desc = Object.getOwnPropertyDescriptor(state, k);
-    if (desc && desc.writable && desc.configurable) {
-      let v = desc.value;
-      Object.defineProperty(state, k, {
-        configurable: true,
-        enumerable: desc.enumerable,
-        get() {
-          return v;
-        },
-        set(nv) {
-          v = nv;
-        },
-      });
+  const seen = new WeakSet();
+  const walk = obj => {
+    if (obj === null || typeof obj !== 'object' || seen.has(obj)) return;
+    seen.add(obj);
+    const kState = Object.getOwnPropertySymbols(obj).find(
+      sym => sym.description === 'kState',
+    );
+    if (!kState) return;
+    const state = /** @type {any} */ (obj)[kState];
+    if (state === null || typeof state !== 'object') return;
+    accessorWrapOwnDataProps(state);
+    // Recurse into each value — any nested object with its own
+    // kState gets the same treatment.
+    for (const k of [
+      ...Object.getOwnPropertyNames(state),
+      ...Object.getOwnPropertySymbols(state),
+    ]) {
+      walk(/** @type {any} */ (state)[k]);
     }
-  }
+  };
+  walk(stream);
 };
 
 /**

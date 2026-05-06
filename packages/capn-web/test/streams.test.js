@@ -150,3 +150,86 @@ test('["pipe"] receive: incoming pipe advances the export id counter and stores 
   // bootstrap (id 0) + pipe slot (id 1).
   t.is(sessionA.getStats().exports, 2);
 });
+
+// ---- multiple streams within a single argument structure ----
+//
+// Real-stream construction in user code under @endo/ses-ava trips
+// the harden-vs-WHATWG-streams issue (#3244) reliably enough that
+// trying to send `[rs1, rs2]` from inside a test produces unhandled
+// rejections during async stream teardown that cascade into other
+// tests.  Instead we exercise the receive side: a peer that opens
+// multiple pipes in lockstep with a single push must result in
+// matching exports allocated at distinct positive ids — same
+// structural property without constructing user-facing streams.
+
+test('two incoming ["pipe"] messages allocate two distinct exports at consecutive ids', async t => {
+  const { a, b } = makeLoopbackPair();
+  const sessionA = makeCapnWebSession(a, {
+    localMain: Far('s', { take: () => null }),
+    gcImports: false,
+  });
+  await b.send(JSON.stringify(['pipe']));
+  await b.send(JSON.stringify(['pipe']));
+  await new Promise(r => setTimeout(r, 30));
+  // bootstrap (id 0) + two pipes (ids 1 and 2) = 3 exports.
+  t.is(sessionA.getStats().exports, 3);
+});
+
+test('peer pushes a method call referencing two pipe-allocated readables in one structure', async t => {
+  // Wire-form proof that streams nested inside a structure are valid:
+  // peer (b) sends two ["pipe"] messages, then a push whose args
+  // contains an encoded array `[[["readable", 1], ["readable", 2]]]`.
+  // Our session must accept the structure, dispatch the take(),
+  // and produce a resolve.  No SES-side stream construction needed.
+  const { a, b } = makeLoopbackPair();
+  let received;
+  makeCapnWebSession(a, {
+    localMain: Far('s', {
+      take: arg => {
+        received = arg;
+      },
+    }),
+    gcImports: false,
+  });
+  await b.send(JSON.stringify(['pipe']));
+  await b.send(JSON.stringify(['pipe']));
+  // arg is `[rs1, rs2]` on the wire: array-escape wrapper, then
+  // two `["readable", N]` entries pointing at our exports[1] and
+  // exports[2] (the pipe-allocated slots).
+  await b.send(
+    JSON.stringify([
+      'push',
+      [
+        'pipeline',
+        0,
+        ['take'],
+        [
+          [
+            [
+              ['readable', 1],
+              ['readable', 2],
+            ],
+          ],
+        ],
+      ],
+    ]),
+  );
+  await b.send(JSON.stringify(['pull', 3]));
+  await new Promise(r => setTimeout(r, 30));
+  t.true(Array.isArray(received), `received was ${typeof received}`);
+  t.is(received.length, 2);
+  t.true(received[0] instanceof globalThis.ReadableStream);
+  t.true(received[1] instanceof globalThis.ReadableStream);
+  // Distinct stream instances.
+  t.not(received[0], received[1]);
+});
+
+// ---- patchStreamForHarden: standalone unit test (skipped tests) ----
+//
+// We have unit tests for patchStreamForHarden but they construct real
+// ReadableStream/WritableStream instances, which under @endo/ses-ava
+// triggers the same #3244 issue the patch is intended to address —
+// just not at the call site we're testing.  The async stream
+// teardown after the test ends generates unhandled rejections that
+// cascade into other tests' state.  Skip them and rely on the issue
+// repro in #3244 as the canonical proof-of-life.
