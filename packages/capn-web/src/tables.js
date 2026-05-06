@@ -28,6 +28,10 @@ import { makeFinalizingMap } from './finalize.js';
  * @property {unknown} value     Local value being exported.
  * @property {number} refcount   Number of outstanding wire introductions.
  * @property {boolean} isPromise If true, the entry was sent as ["promise", id].
+ * @property {object} [pipeReadable] For pipe-style stream exports
+ *   (allocated by `installPipeExport` on incoming `["pipe"]`), the
+ *   readable side of the underlying `TransformStream`.  Consumed once
+ *   the first time the export is referenced via `["readable", id]`.
  */
 
 /**
@@ -143,6 +147,42 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
    */
   const installExportAtId = (id, value, isPromise) => {
     exportsTable.set(id, { value, refcount: 1, isPromise });
+  };
+
+  /**
+   * Install a pipe-style export at a positive id (used for incoming
+   * `["pipe"]` messages).  The export's `value` is the writable hook
+   * that incoming chunk pushes will dispatch to; `pipeReadable` holds
+   * the readable side that the evaluator will hand back the first time
+   * something references this id via `["readable", id]`.
+   *
+   * @param {number} id
+   * @param {object} writableHook
+   * @param {object} pipeReadable
+   */
+  const installPipeExport = (id, writableHook, pipeReadable) => {
+    exportsTable.set(id, {
+      value: writableHook,
+      refcount: 1,
+      isPromise: false,
+      pipeReadable,
+    });
+  };
+
+  /**
+   * Consume the `pipeReadable` side of a previously-allocated pipe
+   * export, returning it once and clearing the slot's reference so
+   * later lookups fall back to the writable hook.  Returns undefined
+   * if there's no pipe-readable at this id.
+   *
+   * @param {number} id
+   */
+  const consumePipeReadable = id => {
+    const entry = exportsTable.get(id);
+    if (!entry || entry.pipeReadable === undefined) return undefined;
+    const pr = entry.pipeReadable;
+    entry.pipeReadable = undefined;
+    return pr;
   };
 
   /**
@@ -278,6 +318,8 @@ export const makeTables = ({ gcImports = true, sendRelease }) => {
   return harden({
     exportValue,
     installExportAtId,
+    installPipeExport,
+    consumePipeReadable,
     getExport,
     releaseExport,
     installImport,

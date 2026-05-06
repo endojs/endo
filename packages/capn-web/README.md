@@ -167,20 +167,20 @@ bidirectional method invocation all work both directions.
   );
   ```
 
-- `["pipe"]` (capnweb's "open a new pipe" message) is not implemented.
-  capnweb relies on both peers maintaining a shared imports/exports
-  counter that increments symmetrically when a `pipe` message crosses
-  the wire; our package uses an asymmetric signed-id scheme (negative
-  for exports, positive for imports, allocated independently per side),
-  so reproducing `["pipe"]` would require either reworking the id model
-  or carving out a second id space just for pipes. JS `WritableStream` /
-  `ReadableStream` values still cross the wire — encoded as
-  `["writable", -id]` / `["readable", -id]` — and the receiver gets a
-  real stream whose I/O round-trips through one remote method call per
-  chunk. That's the right shape for WebSocket and MessagePort transports;
-  chunked streaming over a single HTTP-batch request isn't feasible
-  (the response body isn't held open) regardless of which message tag
-  is used.
+- `["pipe"]` (capnweb's symmetric stream-channel message) is supported
+  on the receive side and used on the send side when encoding a JS
+  `ReadableStream`. Our `nextOutgoingPushId` / `nextIncomingPushId`
+  counters track the same logical positions capnweb's
+  `imports.length` / `exports.length` do, so a `["pipe"]` lands in
+  the receiver's exports table at the same id the sender refers to
+  via `["readable", id]` in the parent expression. JS `WritableStream`
+  values are still encoded as `["writable", -id]` (Far'd writable hook
+  on the sender's side); JS `ReadableStream` values now use the
+  capnweb-compatible pipe form. Per-chunk traffic flows as ordinary
+  `["push", ["pipeline", id, ["write"], [chunk]]]` calls into the
+  pipe export's writable hook, so chunked streaming over a single
+  HTTP-batch request still isn't feasible (the response body isn't
+  held open) but `WebSocket` and `MessagePort` transports work.
 - Sender-side `["stream", …]` (cloudflare/capnweb's fire-and-forget
   variant) is intentionally not emitted: send-only calls use a normal
   `["push", expr]` *without* a paired `["pull", id]`, which is strictly

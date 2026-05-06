@@ -31,6 +31,11 @@ export const haveWebStreams =
   typeof G.WritableStream === 'function' &&
   typeof G.ReadableStream === 'function';
 
+export const haveTransformStream =
+  haveWebStreams && typeof G.TransformStream === 'function';
+
+export const makeTransformStream = () => new G.TransformStream();
+
 /**
  * Wrap a JS WritableStream so it can be sent over the wire as a Far'd
  * write-end.  The underlying stream's writer is locked eagerly at export

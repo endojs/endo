@@ -15,6 +15,12 @@ import { makeEvaluator } from './evaluate.js';
 import { makePresenceStub, makePromiseStub } from './stubs.js';
 import { walkPathAndCall } from './walk-path.js';
 import { recordRemap, replayRemap } from './remap.js';
+import {
+  exportWritableStream,
+  importWritableStream,
+  haveTransformStream,
+  makeTransformStream,
+} from './streams.js';
 
 const noop = () => {};
 
@@ -101,6 +107,7 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       }
       return id;
     },
+    sendPipe: rs => sendPipe(rs),
   });
 
   const stubMachinery = harden({
@@ -122,6 +129,7 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       }
       return entry.value;
     },
+    consumePipeReadable: id => tables.consumePipeReadable(id),
   });
 
   /**
@@ -351,6 +359,10 @@ export const makeCapnWebSession = (transport, opts = {}) => {
           assertNumber(0);
           trackIncoming(handlePull(rest[0])).catch(e => abort(e));
           break;
+        case 'pipe':
+          assertArity(0);
+          handlePipe();
+          break;
         case 'resolve':
           assertArity(2);
           assertNumber(0);
@@ -377,6 +389,58 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     } catch (e) {
       abort(e);
     }
+  }
+
+  /**
+   * Handle an incoming `["pipe"]`.  Allocates a fresh export id at the
+   * incoming-message counter (matching the sender's outgoing-message
+   * counter, in lockstep), creates a TransformStream whose writable
+   * side is exposed to the peer as the export's hook (so per-chunk
+   * `["push", ["pipeline", id, ["write"], [chunk]]]` calls flow into
+   * it), and stashes the readable side on the entry so the evaluator
+   * can hand it back the first time something references the export
+   * via `["readable", id]`.
+   */
+  function handlePipe() {
+    const id = nextIncomingPushId;
+    nextIncomingPushId += 1;
+    if (!haveTransformStream) {
+      // Without TransformStream we can't synthesise the pipe.  Allocate
+      // an empty entry so id-counter stays in lockstep, but any later
+      // reference to it will fail evaluator lookup.  This matches
+      // capnweb's behaviour in environments without web streams.
+      tables.installExportAtId(id, undefined, false);
+      return;
+    }
+    const ts = makeTransformStream();
+    const writableHook = exportWritableStream(ts.writable);
+    tables.installPipeExport(id, writableHook, ts.readable);
+  }
+
+  /**
+   * Send a `["pipe"]` to the peer and wire the user's `ReadableStream`
+   * into a synthesised writable that calls `.write(chunk)` etc. on the
+   * remote pipe stub.  Returns the positive id at which the peer's
+   * exports table now holds the writable side — used by the
+   * devaluator as the body of `["readable", id]`.
+   *
+   * @param {ReadableStream} readable
+   * @returns {number}
+   */
+  function sendPipe(readable) {
+    const id = nextOutgoingPushId;
+    nextOutgoingPushId += 1;
+    sendMessage(['pipe']);
+    // Make a presence stub for the writable side; matches the receiver's
+    // exports[id] which holds the writable hook.
+    const writableStub = makePresenceStub(id, stubMachinery);
+    tables.installImport(id, writableStub, false);
+    const syntheticWritable = importWritableStream(writableStub);
+    // Pump the user's readable into the writable; ignore errors here so
+    // they don't surface as unhandled rejections.  The peer sees them
+    // via the per-chunk write rejections.
+    Promise.resolve(readable.pipeTo(syntheticWritable)).catch(noop);
+    return id;
   }
 
   /**

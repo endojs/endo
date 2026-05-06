@@ -21,6 +21,10 @@ import { isForbiddenKey } from './path-keys.js';
  *   Return the locally-hosted value at the given (positive or negative) id.
  *   Used for ["import", id] / ["pipeline", id] referring to OUR exports
  *   (sender's imports = our exports).
+ * @property {(id: number) => object | undefined} [consumePipeReadable]
+ *   For pipe-style stream exports (allocated via an incoming `["pipe"]`),
+ *   return and clear the readable side.  Returns undefined if the export
+ *   isn't a pipe — the caller falls back to the stub-based readable.
  */
 
 /**
@@ -66,10 +70,20 @@ export const makeEvaluator = ctx => {
       if (typeof id !== 'number') {
         throw new TypeError(`${tag} id must be a number`);
       }
-      // For streams, install a presence stub at the import id and wrap it
-      // in a real WritableStream / ReadableStream that proxies write/read
-      // calls back to the peer.  In environments without the WHATWG
-      // Streams classes, the wrapper falls through to the bare stub.
+      // Capnweb-style pipe path: a recent `["pipe"]` allocated an export
+      // entry whose readable side is parked under `pipeReadable` until
+      // somebody references the export.  If we have one, hand it back
+      // directly — the bytes will arrive via `["push"]` chunk dispatch
+      // into the export's writable hook.
+      if (tag === 'readable' && ctx.consumePipeReadable) {
+        const pr = ctx.consumePipeReadable(id);
+        if (pr !== undefined) return pr;
+      }
+      // Fall back to the stub-based form: install a presence stub at the
+      // id and wrap it in a real `WritableStream` / `ReadableStream` that
+      // proxies write/read calls back to the peer.  In environments
+      // without the WHATWG Streams classes, the wrapper falls through to
+      // the bare stub.
       const stub = ctx.getOrMakePresence(id);
       if (tag === 'writable') return importWritableStream(stub);
       return importReadableStream(stub);

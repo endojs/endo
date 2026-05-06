@@ -74,6 +74,11 @@ const passStyleOfOrUndefined = value => {
  * @property {(value: unknown, isPromise: boolean) => number} exportValue
  *   Allocate (or reuse) a negative export id and register `value` as our
  *   export.  Returns the id.
+ * @property {(readable: ReadableStream) => number} [sendPipe]
+ *   Open a capnweb-compatible `["pipe"]` channel for `readable` and
+ *   return the new positive import id.  When omitted (e.g. devaluating
+ *   outside a session context), `ReadableStream` values fall back to
+ *   the legacy Far'd readable stub form.
  */
 
 /**
@@ -117,6 +122,17 @@ export const makeDevaluator = ctx => {
       return ['writable', id];
     }
     if (G.ReadableStream && value instanceof G.ReadableStream) {
+      // Capnweb-compatible: send `["pipe"]` and reference the new pipe
+      // import id via `["readable", +id]`.  The framework pumps the
+      // user's readable into a synthetic writable that issues per-chunk
+      // method calls on the import.  Falls back to the legacy Far'd
+      // readable stub form (`["readable", -id]`) if `sendPipe` isn't
+      // configured (e.g. no `TransformStream` available, or the
+      // devaluator was constructed in a non-session context).
+      if (ctx.sendPipe) {
+        const id = ctx.sendPipe(/** @type {ReadableStream} */ (value));
+        return ['readable', id];
+      }
       const reader = exportReadableStream(
         /** @type {ReadableStream} */ (value),
       );

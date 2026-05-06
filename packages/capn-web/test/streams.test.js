@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* global globalThis */
+/* global globalThis, setTimeout */
 // Wire-level support for ["writable", id] / ["readable", id].  We don't
 // implement full WritableStream-wrapper semantics yet — the test confirms
 // that:
@@ -130,4 +130,23 @@ test('exported writable stub: write/close/abort delegate to a Far writer', async
   await E(writer).write('b');
   await E(writer).close();
   t.deepEqual(ops, [['write', 'a'], ['write', 'b'], ['close']]);
+});
+
+// ---- ["pipe"] wire-form tests (capnweb-compatible) ----
+
+test('["pipe"] receive: incoming pipe advances the export id counter and stores a pipeReadable', async t => {
+  // Wire-shape only — does not touch the readable side, so it works
+  // even under SES (where TransformStream's getReader hits a frozen
+  // slot).  Peer (b) sends ["pipe"]; our session allocates a fresh
+  // export at the next incoming id, so the export count grows by one
+  // beyond the bootstrap.
+  const { a, b } = makeLoopbackPair();
+  const sessionA = makeCapnWebSession(a, {
+    localMain: Far('s', {}),
+    gcImports: false,
+  });
+  await b.send(JSON.stringify(['pipe']));
+  await new Promise(r => setTimeout(r, 20));
+  // bootstrap (id 0) + pipe slot (id 1).
+  t.is(sessionA.getStats().exports, 2);
 });
