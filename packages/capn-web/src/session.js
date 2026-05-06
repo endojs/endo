@@ -20,6 +20,7 @@ import {
   importWritableStream,
   haveTransformStream,
   makeTransformStream,
+  patchStreamForHarden,
 } from './streams.js';
 
 const noop = () => {};
@@ -403,11 +404,14 @@ export const makeCapnWebSession = (transport, opts = {}) => {
    *
    * SES caveat: a hardened WHATWG stream can't service its own
    * `getReader`/`getWriter` because `harden` freezes the
-   * `Symbol(kState)`-keyed slots that Node mutates on first use.  See
-   * `patchStreamForHarden` and https://github.com/endojs/endo/issues/3244
-   * for the workaround pattern (not applied here — the freshly
-   * constructed stream isn't hardened until something pulls it through
-   * a pass-style boundary).
+   * `Symbol(kState)`-keyed slots that Node mutates on first use.
+   * Both sides of the new TransformStream — and `ts.readable` in
+   * particular, which is about to flow across a pass-style boundary
+   * (the user's `take(rs)` Far method) and be hardened by the
+   * framework — are pre-patched via `patchStreamForHarden` so the
+   * post-harden writes succeed.  See
+   * https://github.com/endojs/endo/issues/3244 for the workaround
+   * details and caveats.
    */
   function handlePipe() {
     const id = nextIncomingPushId;
@@ -421,6 +425,13 @@ export const makeCapnWebSession = (transport, opts = {}) => {
       return;
     }
     const ts = makeTransformStream();
+    // Patch BEFORE either side gets hardened.  ts.readable is what
+    // the peer's user-facing `take(rs)` receives — and that crossing
+    // hardens it.  ts.writable is what we expose as the export hook;
+    // hardens haven't been observed there yet, but it's cheap and
+    // consistent.
+    patchStreamForHarden(ts.readable);
+    patchStreamForHarden(ts.writable);
     const writableHook = exportWritableStream(ts.writable);
     tables.installPipeExport(id, writableHook, ts.readable);
   }
@@ -444,6 +455,15 @@ export const makeCapnWebSession = (transport, opts = {}) => {
     const writableStub = makePresenceStub(id, stubMachinery);
     tables.installImport(id, writableStub, false);
     const syntheticWritable = importWritableStream(writableStub);
+    // Pre-patch BOTH the user's readable and the synthetic writable
+    // before pipeTo wires them up — pipeTo's internals + any harden
+    // along the path (HandledPromise, devaluator) would otherwise
+    // freeze internal slots that Node mutates during normal flow and
+    // teardown (see #3244).  Idempotent and safe on already-patched or
+    // already-hardened-with-data-props streams (early-returns when
+    // the kState slots aren't writable+configurable).
+    patchStreamForHarden(readable);
+    patchStreamForHarden(syntheticWritable);
     // Pump the user's readable into the writable; ignore errors here so
     // they don't surface as unhandled rejections.  The peer sees them
     // via the per-chunk write rejections.
