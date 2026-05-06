@@ -9,25 +9,30 @@
  * The schema object is reusable and immutable. For multi-file schemas,
  * concatenate the files (or load them separately and merge).
  *
- * Two flavours of encode/decode:
- *
  *   • `encode(name, value)` / `decode(name, bytes)` — cap-free path. The
  *     framed bytes are a complete Cap'n Proto message, returned as an
  *     `ArrayBuffer`. If the schema has capability fields and the input
  *     carries non-null values for them, encoding throws (no cap table to
  *     write the descriptors into).
- *   • `encodePayload(name, value, ctx)` / `decodePayload(name, payload,
- *     ctx)` — cap-aware path. Returns / accepts the `{ contentBytes,
- *     capTable }` shape that drops directly into a Cap'n Proto `Payload`
- *     struct. Use this when feeding the result into Call/Return params,
- *     or wrap method codecs via `registerInterface(registry, name)`.
+ *   • `registerInterface(registry, name)` — register every method declared
+ *     in an interface with an InterfaceRegistry, deriving each method's
+ *     request/response codec from the schema. Method codecs follow the
+ *     Cap'n Proto wire shape: encode returns `{ encodeContent, capTable }`
+ *     where `encodeContent(msg, slot)` writes the request/response struct
+ *     directly at `Payload.content`'s AnyPointer slot — byte-compatible
+ *     with what capnp-C++ emits for the same schema.
  */
 
 import { Fail } from '@endo/errors';
 import harden from '@endo/harden';
 import { parseCapnpSchema } from './parse.js';
 import { layoutSchema } from './layout.js';
-import { encodeRootStruct, decodeRootStruct } from './codec.js';
+import {
+  encodeRootStruct,
+  decodeRootStruct,
+  encodeStructInto,
+  decodeStructFrom,
+} from './codec.js';
 
 /**
  * @param {string} capnpText
@@ -42,37 +47,54 @@ export const loadSchema = capnpText => {
   };
 
   /**
-   * Build a cap-aware codec pair (encode + decode) for one struct layout.
+   * Build a method codec pair (encode + decode) for one struct layout.
    * Used by `registerInterface` to derive request/response codecs for
-   * each method's synthetic Params/Results struct without writing four
-   * near-identical closures by hand.
+   * each method's synthetic Params/Results struct.
+   *
+   * Encode returns `{ encodeContent, capTable }` ready for `writePayload`
+   * to drop into a Cap'n Proto Payload: `encodeContent(msg, slot)` allocates
+   * the struct at the AnyPointer slot and writes its fields, populating the
+   * shared `capTable` along the way for any capability-typed fields.
+   *
+   * Decode takes the `{ contentSlot, capTable }` shape that `readPayload`
+   * returns, resolves the AnyPointer at contentSlot to a struct, and
+   * decodes its fields.
    *
    * @param {import('./layout.js').StructLayout} layout
    */
   const makeStructCodec = layout => ({
     /**
      * @param {any} value
-     * @param {any} [ctx]
+     * @param {{ exportCap?: (v: unknown) => any, importCap?: (d: any) => unknown }} [ctx]
+     * @returns {{
+     *   encodeContent: (msg: any, slot: { segId: number, wordOffset: number }) => void,
+     *   capTable: any[],
+     * }}
      */
     encode: (value, ctx) => {
       /** @type {any[]} */
       const capTable = [];
-      const ab = encodeRootStruct(value, layout, layouts, {
-        exportCap: ctx ? ctx.exportCap : undefined,
+      return {
+        encodeContent: (msg, slot) => {
+          encodeStructInto(msg, slot, layout, value, layouts, {
+            exportCap: ctx ? ctx.exportCap : undefined,
+            capTable,
+          });
+        },
         capTable,
-      });
-      return { contentBytes: new Uint8Array(ab), capTable };
+      };
     },
     /**
-     * @param {ArrayBuffer | Uint8Array} contentBytes
-     * @param {any[]} [capTable]
-     * @param {any} [ctx]
+     * @param {{ contentSlot: { msg: any, segId: number, wordOffset: number } | null, capTable: any[] }} payload
+     * @param {{ exportCap?: (v: unknown) => any, importCap?: (d: any) => unknown }} [ctx]
      */
-    decode: (contentBytes, capTable, ctx) =>
-      decodeRootStruct(contentBytes, layout, layouts, {
+    decode: (payload, ctx) => {
+      if (!payload.contentSlot) return null;
+      return decodeStructFrom(payload.contentSlot, layout, layouts, {
         importCap: ctx ? ctx.importCap : undefined,
-        capTable: capTable || [],
-      }),
+        capTable: payload.capTable || [],
+      });
+    },
   });
 
   return harden({
@@ -83,7 +105,9 @@ export const loadSchema = capnpText => {
     /**
      * Encode without a cap-table context. If the schema declares any
      * capability fields and the corresponding values are non-null, this
-     * will throw — use `encodePayload` instead for cap-aware encoding.
+     * will throw — capability values need a cap table to write descriptors
+     * into. For RPC use `registerInterface` instead, which wires every
+     * method codec to the connection's exportCap / importCap.
      *
      * @param {string} structName
      * @param {any} value
@@ -93,7 +117,7 @@ export const loadSchema = capnpText => {
       encodeRootStruct(value, requireLayout(structName), layouts),
     /**
      * Decode without a cap-table context. Capability fields cause a
-     * throw when their slot is non-null — use `decodePayload` instead.
+     * throw when their slot is non-null.
      *
      * @param {string} structName
      * @param {ArrayBuffer | Uint8Array} framed
@@ -102,38 +126,21 @@ export const loadSchema = capnpText => {
     decode: (structName, framed) =>
       decodeRootStruct(framed, requireLayout(structName), layouts),
     /**
-     * Cap-aware encode. Returns `{ contentBytes, capTable }` ready to drop
-     * into a Cap'n Proto Payload struct.
+     * Build a request/response method codec pair for one struct layout
+     * directly. Tests and advanced users that want to drive the wire
+     * format by hand can call this; everyday code uses
+     * `registerInterface` instead.
      *
      * @param {string} structName
-     * @param {any} value
-     * @param {{ exportCap: (v: unknown) => any }} ctx
-     * @returns {{ contentBytes: Uint8Array, capTable: any[] }}
      */
-    encodePayload: (structName, value, ctx) =>
-      makeStructCodec(requireLayout(structName)).encode(value, ctx),
-    /**
-     * Cap-aware decode. Takes the `{ contentBytes, capTable }` shape from a
-     * Cap'n Proto Payload struct.
-     *
-     * @param {string} structName
-     * @param {{ contentBytes: ArrayBuffer | Uint8Array, capTable: any[] }} payload
-     * @param {{ importCap: (desc: any) => unknown }} ctx
-     */
-    decodePayload: (structName, payload, ctx) =>
-      makeStructCodec(requireLayout(structName)).decode(
-        payload.contentBytes,
-        payload.capTable,
-        ctx,
-      ),
+    structCodec: structName => makeStructCodec(requireLayout(structName)),
     /**
      * Register an interface declared in the .capnp schema with an
      * `@endo/capn-proto` InterfaceRegistry, automatically deriving the
      * methods map AND per-method request/response codecs from the
      * synthetic Params/Results structs the parser produced. Capability-
-     * typed params and results pass through the same exportCap / importCap
-     * path that the JSON payload codec uses, so methods that take or
-     * return caps continue to work.
+     * typed params and results pass through the connection's exportCap /
+     * importCap so methods that take or return caps work transparently.
      *
      * @param {{ register: (desc: any) => void }} registry
      * @param {string} ifaceName
@@ -158,9 +165,7 @@ export const loadSchema = capnpText => {
             // decode a single value, so the request adaptor is just an
             // index-into-args / wrap-in-array shim around makeStructCodec.
             encode: (args, ctx) => paramsCodec.encode(args[0], ctx),
-            decode: (contentBytes, capTable, ctx) => [
-              paramsCodec.decode(contentBytes, capTable, ctx),
-            ],
+            decode: (payload, ctx) => [paramsCodec.decode(payload, ctx)],
           },
           // Response is the value verbatim — no array shimming needed.
           response: resultsCodec,
@@ -173,4 +178,9 @@ export const loadSchema = capnpText => {
 
 export { parseCapnpSchema } from './parse.js';
 export { layoutSchema, layoutStruct } from './layout.js';
-export { encodeRootStruct, decodeRootStruct } from './codec.js';
+export {
+  encodeRootStruct,
+  decodeRootStruct,
+  encodeStructInto,
+  decodeStructFrom,
+} from './codec.js';

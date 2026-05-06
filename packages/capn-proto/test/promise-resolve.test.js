@@ -2,6 +2,7 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 test('returning a Promise emits Resolve and settles the import', async t => {
   let res;
@@ -19,7 +20,9 @@ test('returning a Promise emits Resolve and settles the import', async t => {
     },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
-  registerInterface({ id: 0xa55en, methods: { pendingInner: 0, tag: 1 } });
+  registerInterface(
+    withJsonCodecs({ id: 0xa55en, methods: { pendingInner: 0, tag: 1 } }),
+  );
   const remote = near.getBootstrap();
   const p = E(remote).pendingInner();
   // Settle on the far side after a tick.
@@ -40,7 +43,9 @@ test('rejected far-side promise is delivered as exception', async t => {
     },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
-  registerInterface({ id: 0xa55fn, methods: { pending: 0 } });
+  registerInterface(
+    withJsonCodecs({ id: 0xa55fn, methods: { pending: 0 } }),
+  );
   const remote = near.getBootstrap();
   const p = E(remote).pending();
   rej(Error('rejected'));

@@ -33,9 +33,14 @@ Highlights:
 - **Trap** — the synchronous `SharedArrayBuffer`-backed Trap mechanism from
   `@endo/captp` is reused to permit synchronous round-trips when both peers
   share an `Atomics`-capable transfer buffer.
+- **Schema-driven, byte-compatible with capnp-C++.** Method parameters
+  and results are encoded as Cap'n Proto structs at the
+  `Payload.content` AnyPointer slot — wire-identical to what
+  `capnpc`-generated code emits. Every called method needs a
+  registered `methodCodec`, typically derived automatically via
+  `loadSchema(text).registerInterface(registry, name)`.
 - **Per-interface ordinal maps** — explicitly registered, no name-to-ordinal
-  heuristic. Use `registerInterface({ id, methods })` before sending or
-  receiving calls on that interface.
+  heuristic.
 
 ## Status
 
@@ -45,30 +50,36 @@ references) and Level 4 (Join) are out of scope for this release.
 ## Quick start
 
 ```js
-import { makeCapnp, E } from '@endo/capn-proto';
+import { makeCapnp, loadSchema, makeInterfaceRegistry, E } from '@endo/capn-proto';
 import { makeExo } from '@endo/exo';
+
+const schema = loadSchema(`
+@0xa1b2c3d4e5f60001;
+interface Greeter @0xa1b2c3d4e5f60718 {
+  hello @0 (name :Text) -> (greeting :Text);
+}
+`);
+const interfaceRegistry = makeInterfaceRegistry();
+schema.registerInterface(interfaceRegistry, 'Greeter');
 
 // `transport` is any duplex carrier of framed bytes (TCP socket, WebSocket,
 // MessageChannel, ...). It must call `dispatch` for each inbound message
 // and accept outbound bytes via the `send` callback we pass to makeCapnp.
 const greeter = makeExo('greeter', undefined, {
-  hello(name) {
-    return `hello, ${name}`;
+  hello({ name }) {
+    return { greeting: `hello, ${name}` };
   },
 });
-const { dispatch, getBootstrap, abort, stats, registerInterface } = makeCapnp({
+const { dispatch, getBootstrap, abort, stats } = makeCapnp({
   send: framed => transport.write(framed),
   bootstrap: greeter,
+  interfaceRegistry,
 });
 transport.onMessage(framed => dispatch(framed));
 
-registerInterface({
-  id: 0xa1b2c3d4e5f60718n,
-  methods: { hello: 0 },
-});
-
 const remote = getBootstrap();
-console.log(await E(remote).hello('world'));
+const { greeting } = await E(remote).hello({ name: 'world' });
+console.log(greeting);
 ```
 
 For multi-peer setups (Level 3 three-party handoff), instantiate one
@@ -102,9 +113,11 @@ and `loadSchema` factories, we also re-export:
 - The rpc.capnp message encoders / decoders `encodeBootstrap`,
   `encodeCall`, `encodeReturn`, `encodeFinish`, `encodeResolve`,
   `encodeRelease`, `encodeDisembargo`, `encodeProvide`, `encodeAccept`,
-  `encodeUnimplemented`, `encodeAbort`, and `decodeMessage`.
+  `encodeUnimplemented`, `encodeAbort`, `decodeMessage`,
+  `encodeCapContent`, and `readCapContent`.
 - The schema-runtime building blocks `parseCapnpSchema`, `layoutSchema`,
-  `layoutStruct`, `encodeRootStruct`, `decodeRootStruct`.
+  `layoutStruct`, `encodeRootStruct`, `decodeRootStruct`,
+  `encodeStructInto`, `decodeStructFrom`.
 
 These are not internal — they exist so that users who need to interoperate
 with non-`@endo/capn-proto` peers (e.g. authoring a custom `VatNetwork`,

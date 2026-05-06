@@ -1,6 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 test('Finish is sent after Return; answers are released', async t => {
   const root = makeExo('root', undefined, {
@@ -9,7 +10,7 @@ test('Finish is sent after Return; answers are released', async t => {
     },
   });
   const { near, far, registerInterface } = makeLoopback({ farBootstrap: root });
-  registerInterface({ id: 0xfffan, methods: { echo: 0 } });
+  registerInterface(withJsonCodecs({ id: 0xfffan, methods: { echo: 0 } }));
   const remote = near.getBootstrap();
   await E(remote).echo('one');
   await E(remote).echo('two');
@@ -32,7 +33,9 @@ test('exports are reused for the same value as long as peer holds it', async t =
     },
   });
   const { near, far, registerInterface } = makeLoopback({ farBootstrap: root });
-  registerInterface({ id: 0xfffbn, methods: { getInner: 0, ping: 1 } });
+  registerInterface(
+    withJsonCodecs({ id: 0xfffbn, methods: { getInner: 0, ping: 1 } }),
+  );
   const remote = near.getBootstrap();
   const a = await E(remote).getInner();
   const b = await E(remote).getInner();

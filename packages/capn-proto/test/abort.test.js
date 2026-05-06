@@ -2,6 +2,7 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 test('abort rejects outstanding questions', async t => {
   // A bootstrap that never returns is not directly possible (it returns
@@ -16,7 +17,7 @@ test('abort rejects outstanding questions', async t => {
     },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
-  registerInterface({ id: 0xab0070n, methods: { slow: 0 } });
+  registerInterface(withJsonCodecs({ id: 0xab0070n, methods: { slow: 0 } }));
   const remote = near.getBootstrap();
   const slowP = E(remote).slow();
   near.abort('disconnected');

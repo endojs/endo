@@ -447,6 +447,36 @@ const writeList = (msg, pointerLocation, listType, value, layouts, ctx) => {
 };
 
 /**
+ * Allocate and populate a struct at an already-existing pointer slot in an
+ * in-progress message. The caller owns the message and the pointer slot;
+ * this writes the struct payload into the message's segments and the
+ * struct pointer into the slot.
+ *
+ * @param {any} msg                                                MessageBuilder
+ * @param {{ segId: number, wordOffset: number }} pointerSlot
+ * @param {import('./layout.js').StructLayout} layout
+ * @param {any} value
+ * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {EncodeCtx} [ctx]
+ */
+export const encodeStructInto = (
+  msg,
+  pointerSlot,
+  layout,
+  value,
+  layouts,
+  ctx,
+) => {
+  const loc = allocStruct(
+    msg,
+    pointerSlot,
+    layout.dataWords,
+    layout.pointerCount,
+  );
+  writeStructInPlace(msg, loc, layout, value, layouts, ctx);
+};
+
+/**
  * Encode a JS object as a top-level Cap'n Proto framed message whose root
  * is a struct of the given layout. If `ctx` is omitted, capability fields
  * in the schema (if any) cannot be encoded — this entry point is for
@@ -460,16 +490,10 @@ const writeList = (msg, pointerLocation, listType, value, layouts, ctx) => {
  */
 export const encodeRootStruct = (obj, layout, layouts, ctx) => {
   const msg = makeMessageBuilder();
-  // Reserve the first word of segment 0 for the root pointer; allocStruct
-  // below writes into it.
+  // Reserve the first word of segment 0 for the root pointer; encodeStructInto
+  // below writes the struct pointer into it.
   const rootPointerLoc = msg.allocate(1);
-  const root = allocStruct(
-    msg,
-    rootPointerLoc,
-    layout.dataWords,
-    layout.pointerCount,
-  );
-  writeStructInPlace(msg, root, layout, obj, layouts, ctx);
+  encodeStructInto(msg, rootPointerLoc, layout, obj, layouts, ctx);
   return frameSegments(msg.finish());
 };
 
@@ -494,7 +518,7 @@ export const encodeRootStruct = (obj, layout, layouts, ctx) => {
  *   slot's cap-table index and should return the user-facing JS value
  *   (typically a Presence / HandledPromise).
  * @property {any[]} [capTable]
- *   The CapDescriptors that arrived alongside the contentBytes. The cap
+ *   The CapDescriptors that arrived alongside the content. The cap
  *   pointer at each capability field stores an index into this array.
  */
 
@@ -702,6 +726,23 @@ const readList = (msg, ptrLocation, listType, layouts, ctx) => {
 };
 
 /**
+ * Decode a struct rooted at a pointer slot in an existing message. The slot
+ * carries its own MessageReader (in `slot.msg`) so call sites that already
+ * have a slot location — like `readPayload`'s `contentSlot` — can pass it
+ * directly. Returns null if the pointer at the slot is null.
+ *
+ * @param {{ msg: any, segId: number, wordOffset: number }} slot
+ * @param {import('./layout.js').StructLayout} layout
+ * @param {Map<string, import('./layout.js').StructLayout>} layouts
+ * @param {DecodeCtx} [ctx]
+ */
+export const decodeStructFrom = (slot, layout, layouts, ctx) => {
+  const loc = readStructPointer(slot.msg, slot.segId, slot.wordOffset);
+  if (!loc) return null;
+  return readStructFields(slot.msg, loc, layout, layouts, ctx);
+};
+
+/**
  * Decode a Cap'n Proto framed message whose root is a struct of the given
  * layout into a JS object.
  *
@@ -725,7 +766,10 @@ export const decodeRootStruct = (framed, layout, layouts, ctx) => {
   }
   const segments = unframeSegments(ab);
   const reader = makeMessageReader(segments);
-  const root = readStructPointer(reader, 0, 0);
-  if (!root) return null;
-  return readStructFields(reader, root, layout, layouts, ctx);
+  return decodeStructFrom(
+    { msg: reader, segId: 0, wordOffset: 0 },
+    layout,
+    layouts,
+    ctx,
+  );
 };

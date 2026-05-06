@@ -16,6 +16,10 @@ import {
   loadSchema,
   makeInterfaceRegistry,
 } from '../src/index.js';
+import {
+  makeJsonMethodCodec,
+  withJsonCodecs,
+} from './fixtures/json-codec.js';
 
 const SERVICE_ID = 0xa1b2c3d4e5f60707n;
 
@@ -44,27 +48,27 @@ struct SumResp @0xc0ffee0000000011 {
 test('schema-typed RPC: request and response flow through the schema runtime', async t => {
   const schema = loadSchema(SCHEMA_SRC);
 
-  const greetCodec = {
+  // structCodec(name) returns the AnyPointer-shaped method codec the
+  // dispatch layer expects: encode(args, ctx) → { encodeContent, capTable };
+  // decode(payload, ctx) → JS object. The request adapter wraps args[0] /
+  // unwraps to [obj] because eventual-send hands args as a positional list.
+  const adapt = struct => ({
     request: {
-      // The wire protocol passes a single positional struct argument as
-      // `args[0]`; we encode that as a GreetReq.
-      encode: args => schema.encode('GreetReq', args[0]),
-      decode: bytes => [schema.decode('GreetReq', bytes)],
+      encode: (args, ctx) => struct.encode(args[0], ctx),
+      decode: (payload, ctx) => [struct.decode(payload, ctx)],
     },
-    response: {
-      encode: value => schema.encode('GreetResp', value),
-      decode: bytes => schema.decode('GreetResp', bytes),
-    },
+  });
+  const greetParams = schema.structCodec('GreetReq');
+  const greetResults = schema.structCodec('GreetResp');
+  const sumParams = schema.structCodec('SumReq');
+  const sumResults = schema.structCodec('SumResp');
+  const greetCodec = {
+    ...adapt(greetParams),
+    response: greetResults,
   };
   const sumCodec = {
-    request: {
-      encode: args => schema.encode('SumReq', args[0]),
-      decode: bytes => [schema.decode('SumReq', bytes)],
-    },
-    response: {
-      encode: value => schema.encode('SumResp', value),
-      decode: bytes => schema.decode('SumResp', bytes),
-    },
+    ...adapt(sumParams),
+    response: sumResults,
   };
 
   const service = makeExo('service', undefined, {
@@ -128,17 +132,14 @@ struct JobResult @0xfade0000ffff0012 {
 }
 `);
 
+  const jobParams = schema.structCodec('Job');
+  const jobResults = schema.structCodec('JobResult');
   const jobCodec = {
     request: {
-      encode: (args, ctx) => schema.encodePayload('Job', args[0], ctx),
-      decode: (bytes, capTable, ctx) => [
-        schema.decodePayload('Job', { contentBytes: bytes, capTable }, ctx),
-      ],
+      encode: (args, ctx) => jobParams.encode(args[0], ctx),
+      decode: (payload, ctx) => [jobParams.decode(payload, ctx)],
     },
-    response: {
-      encode: value => schema.encode('JobResult', value),
-      decode: bytes => schema.decode('JobResult', bytes),
-    },
+    response: jobResults,
   };
 
   /** Calls observed on the sink, recorded by the test sink Exo. */
@@ -163,10 +164,12 @@ struct JobResult @0xfade0000ffff0012 {
   });
 
   const { near, registerInterface } = makeLoopback({ farBootstrap: service });
+  // notify is called from inside service.submit (E(job.sink).notify) and so
+  // also needs a codec; reuse the JSON test codec for it.
   registerInterface({
     id: 0xa1b2c3d4e5f60808n,
     methods: { submit: 0, notify: 1 },
-    methodCodecs: { submit: jobCodec },
+    methodCodecs: { submit: jobCodec, notify: makeJsonMethodCodec() },
   });
   const remote = near.getBootstrap();
 
@@ -258,10 +261,12 @@ interface Service @0xa1a1a1a1a1a1a1a2 {
   // so its method ordinals must be registered separately. (A future
   // iteration could let users register Sink via schema too even though it
   // declares no methods of its own.)
-  registry.register({
-    id: 0xb0b0b0b0b0b00001n,
-    methods: { notify: 0 },
-  });
+  registry.register(
+    withJsonCodecs({
+      id: 0xb0b0b0b0b0b00001n,
+      methods: { notify: 0 },
+    }),
+  );
 
   const { near } = makeLoopback({
     farBootstrap: svc,

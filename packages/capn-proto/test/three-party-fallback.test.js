@@ -49,7 +49,7 @@ const makeMockCtx = (overrides = {}) => {
     },
     questionIds: { alloc: () => 0, release: () => {} },
     exportRegistry: { exportValue: () => ({ id: 0 }) },
-    payloadCodec: { encodeRoot: () => new Uint8Array(0) },
+    encodeCapContent: () => () => {},
     ...overrides,
   };
   return { ctx, released, importedVineIds };

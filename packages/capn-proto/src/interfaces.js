@@ -23,8 +23,14 @@ import harden from '@endo/harden';
 
 /**
  * @typedef {object} MethodCodec
- * @property {(jsObj: unknown, ctx?: any) => Uint8Array | ArrayBuffer | { contentBytes: Uint8Array, capTable: any[] }} encode
- * @property {(bytes: ArrayBuffer | Uint8Array, capTable?: any[], ctx?: any) => unknown} decode
+ * @property {(jsObj: unknown, ctx?: { exportCap?: (v: unknown) => any, importCap?: (d: any) => unknown }) => { encodeContent: (msg: any, slot: { segId: number, wordOffset: number }) => void, capTable: any[] }} encode
+ *   Encode a request's args (or a response's value) as the AnyPointer-shaped
+ *   payload that `writePayload` consumes: `encodeContent(msg, slot)` writes
+ *   the struct directly into the parent message at `Payload.content`'s
+ *   pointer slot, populating the shared `capTable` along the way.
+ * @property {(payload: { contentSlot: { msg: any, segId: number, wordOffset: number } | null, capTable: any[] }, ctx?: { exportCap?: (v: unknown) => any, importCap?: (d: any) => unknown }) => unknown} decode
+ *   Inverse of encode: takes the `{ contentSlot, capTable }` shape that
+ *   `readPayload` returns and reconstructs the JS args / value.
  */
 
 /**
@@ -32,11 +38,12 @@ import harden from '@endo/harden';
  * @property {bigint} id
  * @property {Record<string, number>} methods         method name → ordinal
  * @property {Record<number | string, { request?: MethodCodec, response?: MethodCodec }>} [methodCodecs]
- *   Optional per-method schema-typed codecs. Keys may be method ordinals
- *   (numbers) or method names (strings). When present, the payload codec
- *   uses these instead of the default JSON-over-bytes serialization for
- *   the matching direction. A method may register a request codec, a
- *   response codec, both, or neither.
+ *   Per-method schema-typed codecs. Keys may be method ordinals (numbers)
+ *   or method names (strings). The dispatch + sendCall paths require a
+ *   request and response codec for every called method — without them,
+ *   there's no way to write a CF-interop struct at the AnyPointer slot.
+ *   Schemas registered via `loadSchema(...).registerInterface` populate
+ *   this automatically.
  */
 
 /**

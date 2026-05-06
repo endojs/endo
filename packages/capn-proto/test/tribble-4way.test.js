@@ -33,6 +33,7 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeCapnp, makeInterfaceRegistry } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 const IFACE = 0xb0bb1eb0bb1en;
 
@@ -90,7 +91,7 @@ const pair = (reg, aBootstrap, bBootstrap) => {
 
 test('Tribble 4-way: pipelined calls preserve E-order through 3 forwarders, all hops observe every call', async t => {
   const reg = makeInterfaceRegistry();
-  reg.register({ id: IFACE, methods: { ping: 0, getNext: 1 } });
+  reg.register(withJsonCodecs({ id: IFACE, methods: { ping: 0, getNext: 1 } }));
 
   // Vat D: hosts Bob.
   const observedAtD = [];
@@ -158,10 +159,12 @@ test('Tribble 4-way: pipelined calls preserve E-order through 3 forwarders, all 
 
 test('Tribble routing: calls on a promise stay routed via the original import after the promise resolves', async t => {
   const reg = makeInterfaceRegistry();
-  reg.register({
-    id: IFACE,
-    methods: { ping: 0, getNext: 1, getEventualForwarder: 2 },
-  });
+  reg.register(
+    withJsonCodecs({
+      id: IFACE,
+      methods: { ping: 0, getNext: 1, getEventualForwarder: 2 },
+    }),
+  );
 
   // Vat C: hosts the eventual real cap (Bob).
   const observedAtC = [];

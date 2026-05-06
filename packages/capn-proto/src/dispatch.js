@@ -8,8 +8,11 @@
 
 import { HandledPromise } from '@endo/eventual-send';
 import { Fail } from '@endo/errors';
-import { EXCEPTION_TYPE } from './proto/messages.js';
-import { normalizeCodecResult } from './payload-codec.js';
+import {
+  EXCEPTION_TYPE,
+  encodeCapContent,
+  readCapContent,
+} from './proto/messages.js';
 
 /**
  * @param {object} ctx The connection context built by makeConnection.
@@ -20,7 +23,8 @@ export const makeDispatch = ctx => {
     exportRegistry,
     importRegistry,
     interfaceRegistry,
-    payloadCodec,
+    exportCap,
+    importCap,
     sendFramed,
     encodeReturn,
     encodeFinish,
@@ -47,15 +51,18 @@ export const makeDispatch = ctx => {
       );
       return;
     }
-    // Route through `payloadCodec.exportCap` (instead of hard-coding
-    // `senderHosted`) so a Promise-valued bootstrap, or one that is
-    // itself an import from another peer, gets the right descriptor:
-    // senderPromise / receiverHosted / thirdPartyHosted as applicable.
-    // The payloadCodec's exportCap shares the auto-Provide branch with
-    // the regular Call/Return encode path.
-    const desc = payloadCodec.exportCap(bootstrap.value);
+    // Route through `exportCap` (instead of hard-coding `senderHosted`)
+    // so a Promise-valued bootstrap, or one that is itself an import from
+    // another peer, gets the right descriptor: senderPromise /
+    // receiverHosted / thirdPartyHosted as applicable. exportCap also
+    // wires the auto-Provide branch.
+    const desc = exportCap(bootstrap.value);
+    // Per rpc.capnp `Payload.content @0 :AnyPointer`. A bootstrap result is
+    // a single capability, so content is a cap pointer at index 0; the
+    // matching CapDescriptor occupies capTable[0]. CF-interop:
+    // `bootstrap.getContent().getAs<MyInterface>()` resolves to the cap.
     const payload = {
-      contentBytes: payloadCodec.encodeRoot('@cap:0'),
+      encodeContent: encodeCapContent(0),
       capTable: [desc],
     };
     tables.answers.set(questionId, {
@@ -167,14 +174,24 @@ export const makeDispatch = ctx => {
       methodId,
       'request',
     );
+    if (!reqCodec) {
+      sendFramed(
+        encodeReturn({
+          answerId: questionId,
+          result: {
+            kind: 'exception',
+            exception: {
+              type: EXCEPTION_TYPE.unimplemented,
+              reason: `no methodCodec registered for ${interfaceId}.${methodId}; register a schema first`,
+            },
+          },
+        }),
+      );
+      return;
+    }
     let argList;
     try {
-      const args = reqCodec
-        ? reqCodec.decode(params.contentBytes, params.capTable, {
-            exportCap: payloadCodec.exportCap,
-            importCap: payloadCodec.importCap,
-          })
-        : payloadCodec.decode(params);
+      const args = reqCodec.decode(params, { exportCap, importCap });
       argList = Array.isArray(args) ? args : [];
     } catch (err) {
       // payload decoding failed — surface as an exception Return so the
@@ -216,14 +233,22 @@ export const makeDispatch = ctx => {
         const ans = tables.answers.get(questionId);
         if (!ans || ans.returnSent) return;
         ans.returnSent = true;
-        const payload = respCodec
-          ? normalizeCodecResult(
-              respCodec.encode(value, {
-                exportCap: payloadCodec.exportCap,
-                importCap: payloadCodec.importCap,
-              }),
-            )
-          : payloadCodec.encode(value);
+        if (!respCodec) {
+          sendFramed(
+            encodeReturn({
+              answerId: questionId,
+              result: {
+                kind: 'exception',
+                exception: {
+                  type: EXCEPTION_TYPE.unimplemented,
+                  reason: `no response methodCodec registered for ${interfaceId}.${methodId}`,
+                },
+              },
+            }),
+          );
+          return;
+        }
+        const payload = respCodec.encode(value, { exportCap, importCap });
         sendFramed(
           encodeReturn({
             answerId: questionId,
@@ -259,20 +284,49 @@ export const makeDispatch = ctx => {
     }
     q.settled = true;
     if (result.kind === 'results') {
-      const respCodec =
-        q.interfaceId !== undefined
-          ? interfaceRegistry.methodCodec(q.interfaceId, q.methodId, 'response')
-          : undefined;
-      const value = respCodec
-        ? respCodec.decode(
-            result.payload.contentBytes,
-            result.payload.capTable,
-            {
-              exportCap: payloadCodec.exportCap,
-              importCap: payloadCodec.importCap,
-            },
-          )
-        : payloadCodec.decode(result.payload);
+      let value;
+      if (q.interfaceId !== undefined) {
+        const respCodec = interfaceRegistry.methodCodec(
+          q.interfaceId,
+          q.methodId,
+          'response',
+        );
+        if (!respCodec) {
+          q.reject(
+            Error(
+              `no response methodCodec for ${q.interfaceId}.${q.methodId}`,
+            ),
+          );
+          tables.questions.delete(answerId);
+          tables.questionIds.release(answerId);
+          return;
+        }
+        value = respCodec.decode(result.payload, { exportCap, importCap });
+      } else {
+        // Bootstrap-style question (no interfaceId/methodId): the result is
+        // a single capability — content is a cap pointer at index 0 of the
+        // capTable. CF-interop: same shape `Bootstrap → Return` produces in
+        // capnp-C++.
+        const capIdx = readCapContent(result.payload.contentSlot);
+        if (capIdx === null) {
+          q.reject(Error('bootstrap return had null content'));
+          tables.questions.delete(answerId);
+          tables.questionIds.release(answerId);
+          return;
+        }
+        const desc = result.payload.capTable[capIdx];
+        if (desc === undefined) {
+          q.reject(
+            Error(
+              `bootstrap return content cap index ${capIdx} out of capTable bounds`,
+            ),
+          );
+          tables.questions.delete(answerId);
+          tables.questionIds.release(answerId);
+          return;
+        }
+        value = importCap(desc);
+      }
       q.resolve(value);
     } else if (result.kind === 'exception') {
       q.reject(Error(result.exception.reason || 'remote exception'));

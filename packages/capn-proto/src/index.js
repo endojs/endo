@@ -24,6 +24,8 @@ export {
   encodeUnimplemented,
   encodeAbort,
   decodeMessage,
+  encodeCapContent,
+  readCapContent,
 } from './proto/messages.js';
 export * from './proto/schema.js';
 export {
@@ -41,6 +43,8 @@ export {
   layoutStruct,
   encodeRootStruct,
   decodeRootStruct,
+  encodeStructInto,
+  decodeStructFrom,
 } from './schema/index.js';
 export { makeCapHomeRegistry } from './cap-home-registry.js';
 // `types.js` is documentation-only — it exports `{}` and exists so that

@@ -1,6 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 test('both sides can originate calls concurrently', async t => {
   const farRoot = makeExo('far', undefined, {
@@ -17,7 +18,9 @@ test('both sides can originate calls concurrently', async t => {
     nearBootstrap: nearRoot,
     farBootstrap: farRoot,
   });
-  registerInterface({ id: 0xc1n, methods: { pingFar: 0, pingNear: 1 } });
+  registerInterface(
+    withJsonCodecs({ id: 0xc1n, methods: { pingFar: 0, pingNear: 1 } }),
+  );
   const farRemote = near.getBootstrap();
   const nearRemote = far.getBootstrap();
   const [a, b] = await Promise.all([
@@ -43,7 +46,7 @@ test('many concurrent calls in both directions all complete', async t => {
     nearBootstrap: nearRoot,
     farBootstrap: farRoot,
   });
-  registerInterface({ id: 0xc2n, methods: { echo: 0 } });
+  registerInterface(withJsonCodecs({ id: 0xc2n, methods: { echo: 0 } }));
   const farRemote = near.getBootstrap();
   const nearRemote = far.getBootstrap();
   const ps = [];

@@ -36,6 +36,7 @@ import {
   encodeResolve,
   decodeMessage,
 } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 const SERVICE_ID = 0xa1n;
 
@@ -51,10 +52,12 @@ const SERVICE_ID = 0xa1n;
 const setupNet = bootstrapB => {
   const capHomes = makeCapHomeRegistry();
   const interfaceRegistry = makeInterfaceRegistry();
-  interfaceRegistry.register({
-    id: SERVICE_ID,
-    methods: { hello: 0, getInner: 1 },
-  });
+  interfaceRegistry.register(
+    withJsonCodecs({
+      id: SERVICE_ID,
+      methods: { hello: 0, getInner: 1 },
+    }),
+  );
 
   /** @type {ArrayBuffer[]} */
   const ab = [];

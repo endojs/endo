@@ -31,6 +31,7 @@ import {
   makeInterfaceRegistry,
   makeCapHomeRegistry,
 } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 const provisionKey = bytes => Array.from(bytes).join(',');
 const u8 = s => new TextEncoder().encode(s);
@@ -298,10 +299,9 @@ test('L3 auto-Provide: B encoding a C-hosted cap to A triggers thirdPartyHosted'
     bootstrapB: bBootstrap,
     bootstrapC: cTarget,
   });
-  net.interfaceRegistry.register({
-    id: 0xa1n,
-    methods: { getInner: 0, hello: 1 },
-  });
+  net.interfaceRegistry.register(
+    withJsonCodecs({ id: 0xa1n, methods: { getInner: 0, hello: 1 } }),
+  );
 
   // Step 2: B asks C for its bootstrap, getting a Presence backed by
   // an import on B↔C.

@@ -18,6 +18,7 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeCapnp, makeInterfaceRegistry } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 const provisionKey = bytes => Array.from(bytes).join(',');
 
@@ -66,10 +67,9 @@ const makeLoopbackPair = () => {
 
 test('L3 recipient sendAccept(provision) resolves to a usable Presence on A↔C', async t => {
   const interfaceRegistry = makeInterfaceRegistry();
-  interfaceRegistry.register({
-    id: 0xc0n,
-    methods: { hello: 0, double: 1 },
-  });
+  interfaceRegistry.register(
+    withJsonCodecs({ id: 0xc0n, methods: { hello: 0, double: 1 } }),
+  );
 
   // The cap C exposes via L3.
   const cTarget = makeExo('cTarget', undefined, {

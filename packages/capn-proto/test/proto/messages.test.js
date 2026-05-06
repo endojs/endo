@@ -14,6 +14,15 @@ import {
   encodeUnimplemented,
   decodeMessage,
 } from '../../src/proto/messages.js';
+import { writeData, readData } from '../../src/wire/text.js';
+
+// Proto-level tests use raw bytes wrapped as Data at the AnyPointer slot.
+// Real callers use schema-typed struct content via encodeStructInto, but Data
+// is a perfectly valid AnyPointer payload kind and gives these tests a way
+// to round-trip arbitrary bytes without dragging in a schema.
+const contentAsData = bytes => (msg, slot) => writeData(msg, slot, bytes);
+const readDataContent = slot =>
+  readData(slot.msg, slot.segId, slot.wordOffset) || new Uint8Array(0);
 
 test('Bootstrap round-trips', t => {
   const framed = encodeBootstrap({ questionId: 42, deprecatedObjectId: null });
@@ -29,7 +38,7 @@ test('Call round-trips', t => {
     interfaceId: 0xa1b2c3d4e5f60718n,
     methodId: 11,
     params: {
-      contentBytes: new Uint8Array([1, 2, 3]),
+      encodeContent: contentAsData(new Uint8Array([1, 2, 3])),
       capTable: [{ kind: 'senderHosted', id: 9 }],
     },
   });
@@ -40,7 +49,7 @@ test('Call round-trips', t => {
   t.is(m.target.id, 3);
   t.is(m.interfaceId, 0xa1b2c3d4e5f60718n);
   t.is(m.methodId, 11);
-  t.deepEqual(Array.from(m.params.contentBytes), [1, 2, 3]);
+  t.deepEqual(Array.from(readDataContent(m.params.contentSlot)), [1, 2, 3]);
   t.is(m.params.capTable.length, 1);
   t.is(m.params.capTable[0].kind, 'senderHosted');
   t.is(m.params.capTable[0].id, 9);
@@ -56,7 +65,7 @@ test('Call with promisedAnswer target round-trips', t => {
     },
     interfaceId: 0n,
     methodId: 0,
-    params: { contentBytes: new Uint8Array(0), capTable: [] },
+    params: { capTable: [] },
   });
   const m = decodeMessage(framed);
   t.is(m.target.kind, 'promisedAnswer');
@@ -69,14 +78,14 @@ test('Return with results round-trips', t => {
     answerId: 12,
     result: {
       kind: 'results',
-      payload: { contentBytes: new Uint8Array([9]), capTable: [] },
+      payload: { encodeContent: contentAsData(new Uint8Array([9])), capTable: [] },
     },
   });
   const m = decodeMessage(framed);
   t.is(m.type, 'return');
   t.is(m.answerId, 12);
   t.is(m.result.kind, 'results');
-  t.deepEqual(Array.from(m.result.payload.contentBytes), [9]);
+  t.deepEqual(Array.from(readDataContent(m.result.payload.contentSlot)), [9]);
 });
 
 test('Return with exception round-trips', t => {

@@ -13,12 +13,13 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 const IFACE = 0x49n;
 
 const setup = methods => {
   const lb = makeLoopback({ farBootstrap: undefined });
-  lb.registerInterface({ id: IFACE, methods });
+  lb.registerInterface(withJsonCodecs({ id: IFACE, methods }));
   return lb;
 };
 
@@ -44,10 +45,9 @@ test('multi-stage pipelining: 3 chained method calls without intermediate await'
   });
 
   const lb = makeLoopback({ farBootstrap: outer });
-  lb.registerInterface({
-    id: IFACE,
-    methods: { getMid: 0, getInner: 1, say: 2 },
-  });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { getMid: 0, getInner: 1, say: 2 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   // Issue all three calls without awaiting any.
@@ -110,7 +110,9 @@ test('a method returning multiple caps in a record yields working presences for 
     },
   });
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({ id: IFACE, methods: { getThree: 0, label: 1 } });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { getThree: 0, label: 1 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   const trio = await E(remote).getThree();
@@ -134,7 +136,9 @@ test('cap round-tripped through a remote method retains origin identity', async 
     },
   });
   const lb = makeLoopback({ farBootstrap: farRoot });
-  lb.registerInterface({ id: IFACE, methods: { echo: 0, tag: 1 } });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { echo: 0, tag: 1 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   const back = await E(remote).echo(sentinel);
@@ -158,10 +162,9 @@ test('passing an unresolved promise as an argument: far awaits, then uses', asyn
     },
   });
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({
-    id: IFACE,
-    methods: { useEventually: 0, tag: 1 },
-  });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { useEventually: 0, tag: 1 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   let resolveCap;
@@ -197,7 +200,9 @@ test('pipelining a call on a method whose answer is still in flight', async t =>
     },
   });
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({ id: IFACE, methods: { getSlowInner: 0, say: 1 } });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { getSlowInner: 0, say: 1 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   // Issue the pipelined call before far has even resolved getSlowInner.
@@ -229,10 +234,9 @@ test('bidirectional cap exchange: pass back receiverHosted and call methods', as
     },
   });
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({
-    id: IFACE,
-    methods: { getOrig: 0, same: 1, label: 2 },
-  });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { getOrig: 0, same: 1, label: 2 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   const remoteOrig = await E(remote).getOrig();
@@ -264,7 +268,9 @@ test('100 concurrent pipelined calls on the same unresolved promise', async t =>
     },
   });
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({ id: IFACE, methods: { getBob: 0, note: 1 } });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { getBob: 0, note: 1 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   const bobRemote = E(remote).getBob();
@@ -292,7 +298,9 @@ test('echoing a cap through a far method preserves its handler so subsequent cal
     },
   });
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({ id: IFACE, methods: { pass: 0, poke: 1 } });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { pass: 0, poke: 1 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   const echoed = await E(remote).pass(widget);
@@ -314,7 +322,9 @@ test('exception in a remote call still propagates and does not leak exports', as
     },
   });
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({ id: IFACE, methods: { fail: 0, name: 1 } });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { fail: 0, name: 1 } }),
+  );
   const remote = lb.near.getBootstrap();
 
   await t.throwsAsync(() => E(remote).fail(tag), { message: /boom/ });
@@ -341,7 +351,9 @@ test('a method that returns the bootstrap itself round-trips with identity', asy
   rootRef = root;
 
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({ id: IFACE, methods: { self: 0, label: 1 } });
+  lb.registerInterface(
+    withJsonCodecs({ id: IFACE, methods: { self: 0, label: 1 } }),
+  );
   // `getBootstrap()` returns a HandledPromise that resolves to the Presence;
   // we await it first so we can compare presence-to-presence below.
   const remote = await lb.near.getBootstrap();
@@ -364,7 +376,7 @@ test('applyMethodSendOnly calls are observed by the receiver but the caller wait
     },
   });
   const lb = makeLoopback({ farBootstrap: root });
-  lb.registerInterface({ id: IFACE, methods: { log: 0 } });
+  lb.registerInterface(withJsonCodecs({ id: IFACE, methods: { log: 0 } }));
   // Await the bootstrap so we have a resolved Presence before sendOnly
   // (otherwise the framework's send-only path queues the operation against
   // the still-unresolved bootstrap promise rather than dispatching it).

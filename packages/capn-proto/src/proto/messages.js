@@ -35,7 +35,45 @@ import {
   compositeElement,
 } from '../wire/list.js';
 import { writeText, readText, writeData, readData } from '../wire/text.js';
+import { writePointer, readPointer } from '../wire/pointer.js';
+import { WORD_SIZE } from '../wire/segment.js';
 import * as S from './schema.js';
+
+/**
+ * Build an `encodeContent` callback for `writePayload` that places a single
+ * capability pointer at the AnyPointer slot — the wire shape used when a
+ * Bootstrap or Provide question's result *is* a single capability. The
+ * matching cap descriptor must occupy `capIndex` in the Payload's capTable.
+ *
+ * @param {number} capIndex
+ */
+export const encodeCapContent = capIndex => (msg, slot) => {
+  writePointer(msg.segments[slot.segId].view, slot.wordOffset * WORD_SIZE, {
+    kind: 'cap',
+    index: capIndex,
+  });
+};
+
+/**
+ * Read the AnyPointer at a Payload's content slot as a cap pointer. Returns
+ * the cap-table index, or `null` if the slot is null. Throws if the slot
+ * holds a different pointer kind (the caller had asked for a cap-shaped
+ * content).
+ *
+ * @param {{ msg: any, segId: number, wordOffset: number }} contentSlot
+ * @returns {number | null}
+ */
+export const readCapContent = contentSlot => {
+  const ptr = readPointer(
+    contentSlot.msg.segment(contentSlot.segId).view,
+    contentSlot.wordOffset * WORD_SIZE,
+  );
+  if (ptr.kind === 'null') return null;
+  if (ptr.kind !== 'cap') {
+    throw Fail`expected cap pointer at content, got ${ptr.kind}`;
+  }
+  return ptr.index;
+};
 
 /**
  * Cap'n Proto Bool fields with `= true` defaults are stored XOR'd against 1
@@ -334,17 +372,23 @@ const readCapDescriptor = elem => {
  * ===================================================================== */
 
 /**
+ * Encode a Payload struct in place. Per rpc.capnp:
+ *   struct Payload { content @0 :AnyPointer; capTable @1 :List(CapDescriptor); }
+ * The caller supplies an `encodeContent(msg, contentPtrSlot)` callback that
+ * writes whatever pointer kind it wants (struct, cap, list, …) directly into
+ * the AnyPointer slot. Without a callback the slot stays null.
+ *
  * @param {any} msg
  * @param {{ segId: number, wordOffset: number }} slot
- * @param {{ contentBytes?: Uint8Array, capTable?: Array<any> }} payload
+ * @param {{
+ *   encodeContent?: (msg: any, contentPtrSlot: { segId: number, wordOffset: number }) => void,
+ *   capTable?: Array<any>,
+ * }} payload
  */
 const writePayload = (msg, slot, payload) => {
   const p = allocStruct(msg, slot, S.PAYLOAD_DATA_WORDS, S.PAYLOAD_PTR_WORDS);
-  // Content: an opaque user-supplied bytes blob, written as Data list.
-  // (Application-level types are not statically known to this layer.)
-  const contentBytes = payload.contentBytes;
-  if (contentBytes && contentBytes.length > 0) {
-    writeData(msg, ptrSlot(p, S.PAYLOAD_PTR_CONTENT), contentBytes);
+  if (payload.encodeContent) {
+    payload.encodeContent(msg, ptrSlot(p, S.PAYLOAD_PTR_CONTENT));
   }
   const capTable = payload.capTable;
   if (capTable && capTable.length > 0) {
@@ -362,15 +406,24 @@ const writePayload = (msg, slot, payload) => {
   }
 };
 
-/** @param {any} loc */
+/**
+ * Read a Payload struct. Returns `contentSlot` — a pointer slot the caller
+ * can resolve with their schema-aware decoder (e.g. `decodeStructFrom` for a
+ * struct content, or `readPointer` for a cap content) — and the cap table.
+ *
+ * @param {any} loc
+ * @returns {{
+ *   contentSlot: { msg: any, segId: number, wordOffset: number } | null,
+ *   capTable: any[],
+ * }}
+ */
 const readPayload = loc => {
-  if (loc === null) return { contentBytes: new Uint8Array(0), capTable: [] };
-  const contentBytes =
-    readData(
-      loc.msg,
-      loc.segId,
-      loc.wordOffset + loc.dataWords + S.PAYLOAD_PTR_CONTENT,
-    ) || new Uint8Array(0);
+  if (loc === null) return { contentSlot: null, capTable: [] };
+  const contentSlot = {
+    msg: loc.msg,
+    segId: loc.segId,
+    wordOffset: loc.wordOffset + loc.dataWords + S.PAYLOAD_PTR_CONTENT,
+  };
   const capListLoc = readListPointer(
     loc.msg,
     loc.segId,
@@ -384,7 +437,7 @@ const readPayload = loc => {
       );
     }
   }
-  return { contentBytes: new Uint8Array(contentBytes), capTable };
+  return { contentSlot, capTable };
 };
 
 /* ===================================================================== *
@@ -413,7 +466,10 @@ export const encodeBootstrap = ({ questionId, deprecatedObjectId }) => {
  * @param {any} arg.target
  * @param {bigint} arg.interfaceId
  * @param {number} arg.methodId
- * @param {{ contentBytes?: Uint8Array, capTable?: any[] }} arg.params
+ * @param {{
+ *   encodeContent?: (msg: any, contentPtrSlot: { segId: number, wordOffset: number }) => void,
+ *   capTable?: any[],
+ * }} arg.params
  * @param {{ kind: 'caller' } |
  *         { kind: 'yourself' } |
  *         { kind: 'thirdParty', recipientId: Uint8Array }} [arg.sendResultsTo]

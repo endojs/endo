@@ -1,6 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 test('promise pipelining: chained call without intermediate await', async t => {
   const inner = makeExo('inner', undefined, {
@@ -14,10 +15,9 @@ test('promise pipelining: chained call without intermediate await', async t => {
     },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: outer });
-  registerInterface({
-    id: 0xabc1n,
-    methods: { getInner: 0, say: 1 },
-  });
+  registerInterface(
+    withJsonCodecs({ id: 0xabc1n, methods: { getInner: 0, say: 1 } }),
+  );
   const remote = near.getBootstrap();
   // Pipelined: don't await getInner, just call say on the unresolved promise.
   const inP = E(remote).getInner();
@@ -37,10 +37,9 @@ test('pipelining preserves identity of the pipelined target', async t => {
     },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: outer });
-  registerInterface({
-    id: 0xabc2n,
-    methods: { getInner: 0, name: 1 },
-  });
+  registerInterface(
+    withJsonCodecs({ id: 0xabc2n, methods: { getInner: 0, name: 1 } }),
+  );
   const remote = near.getBootstrap();
   const a = E(remote).getInner();
   const aResolved = await a;

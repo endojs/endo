@@ -16,6 +16,7 @@ import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
 import { detectEngineGC } from './engine-gc.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -34,7 +35,9 @@ test('imported Presence collection triggers a Release on the far side', async t 
   const { near, far, registerInterface } = makeLoopback({
     farBootstrap: root,
   });
-  registerInterface({ id: 0xfa11n, methods: { getInner: 0, name: 1 } });
+  registerInterface(
+    withJsonCodecs({ id: 0xfa11n, methods: { getInner: 0, name: 1 } }),
+  );
   const remote = near.getBootstrap();
 
   // Acquire a Presence for `inner`, hold it long enough to confirm the

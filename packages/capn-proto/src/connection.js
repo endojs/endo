@@ -26,15 +26,9 @@ import {
   encodeUnimplemented,
   encodeAbort,
   decodeMessage,
+  encodeCapContent,
   EXCEPTION_TYPE,
 } from './proto/messages.js';
-import {
-  encodePayload,
-  decodePayload,
-  normalizeCodecResult,
-} from './payload-codec.js';
-
-const utf8Encoder = new TextEncoder();
 
 /**
  * @param {object} cfg
@@ -101,8 +95,9 @@ export const makeConnection = cfg => {
 
   /**
    * Describe a resolved value as a CapDescriptor used in a Resolve message
-   * payload. Defined before payloadCodec so the closure below can reference
-   * it without a use-before-define hazard. Delegates to `exportCap`
+   * payload. Defined here so the importRegistry's onPromiseResolve handler
+   * can reference it without a use-before-define hazard. Delegates to
+   * `exportCap`
    * (defined a few lines below) so the senderPromise-resolution path
    * shares the SAME pass-back / auto-Provide / senderHosted decision tree
    * the regular Call/Return payload encoder uses. Without this delegation,
@@ -121,9 +116,10 @@ export const makeConnection = cfg => {
     return exportCap(value);
   };
 
-  // The ImportRegistry is defined later (its handler factory needs sendCall
-  // which itself uses payloadCodec). We forward-declare a holder so the
-  // codec closure can dereference it safely at call time.
+  // The ImportRegistry is defined later (its handler factory needs
+  // sendCall, which closes over the dispatch handler). We forward-declare a
+  // holder so the exportCap/importCap closures can dereference it safely at
+  // call time.
   /** @type {ReturnType<typeof makeImportRegistry> | undefined} */
   let importRegistry;
   // Same forward-declare for the threeParty helper: exportCap (defined a
@@ -135,23 +131,9 @@ export const makeConnection = cfg => {
   let threeParty;
 
   // ---- Cap encode/decode helpers ----
-  // Extracted so both the JSON-payload codec AND user-supplied schema-typed
-  // method codecs can share the same exportCap/importCap behaviour.
-
-  const isCap = v => {
-    // A value is a capability if it is one of our imported presences,
-    // or if it is a non-Object-prototype object (e.g. an Exo, Far'd
-    // object, or HandledPromise/Presence).
-    if (v == null) return false;
-    const t = typeof v;
-    if (t !== 'object' && t !== 'function') return false;
-    if (importRegistry && importRegistry.importIdOf(v) !== undefined) {
-      return true;
-    }
-    if (typeof (/** @type {any} */ (v).then) === 'function') return true;
-    const proto = Object.getPrototypeOf(v);
-    return proto !== Object.prototype && proto !== Array.prototype;
-  };
+  // Shared by the dispatch + threeParty paths and by every method codec
+  // registered via a schema. exportCap walks pass-back / auto-Provide /
+  // export-promise / export-cap; importCap inverts on the receive side.
 
   const exportCap = v => {
     // Pass-back: if this is a presence we imported from the peer, send
@@ -239,17 +221,6 @@ export const makeConnection = cfg => {
     return undefined;
   };
 
-  // ---- Payload codec ----
-  const payloadCodec = {
-    encode: value => encodePayload(value, { isCap, exportCap }),
-    encodeRoot: marker => utf8Encoder.encode(JSON.stringify(marker)),
-    decode: payload => decodePayload(payload, { importCap }),
-    // Exposed so dispatch.js / send-side code can hand a ctx to user
-    // schema-typed method codecs without rebuilding these closures.
-    exportCap,
-    importCap,
-  };
-
   // ---- Sending Calls ----
   // Closed over by every remote handler; pulled out so both `sendCall`'s
   // pipeline handler and `makeRemoteHandlerForImport` share one definition.
@@ -286,23 +257,20 @@ export const makeConnection = cfg => {
       if (imp && imp.isPromise) imp.hadPipelinedCalls = true;
     }
 
-    // If a request codec is registered for (interfaceId, methodId), use it
-    // to encode the args as a typed Cap'n Proto struct in Payload.contentBytes.
-    // The codec's `encode(args, ctx)` may either:
-    //   - return raw bytes (Uint8Array | ArrayBuffer) — cap-free schemas
-    //   - return `{ contentBytes, capTable }` — cap-aware schemas that
-    //     populated the cap table via `ctx.exportCap(value)`.
-    // Falls back to the JSON-over-bytes payloadCodec when no schema codec
-    // is registered.
+    // The request methodCodec turns the JS args into the AnyPointer-shaped
+    // payload (`encodeContent` callback + `capTable`) that writePayload
+    // consumes. Schema registration is required: without a codec, there's
+    // no way to write a CF-interop struct at the AnyPointer slot.
     const reqCodec = interfaceRegistry.methodCodec(
       interfaceId,
       methodId,
       'request',
     );
-    /** @type {{ contentBytes: Uint8Array, capTable: any[] }} */
-    const params = reqCodec
-      ? normalizeCodecResult(reqCodec.encode(args, { exportCap, importCap }))
-      : /** @type {any} */ (payloadCodec.encode(args));
+    if (!reqCodec) {
+      throw Fail`methodCodec required for ${interfaceId}.${methodId}; register a schema (e.g. via loadSchema(...).registerInterface) first`;
+    }
+    /** @type {{ encodeContent?: any, capTable?: any[] }} */
+    const params = reqCodec.encode(args, { exportCap, importCap });
     const pipelineHandler = makeRemoteHandler({
       ...baseHandlerOptions(),
       resolveMethod: prop => {
@@ -456,13 +424,13 @@ export const makeConnection = cfg => {
     encodeAccept,
     encodeDisembargo,
     encodeReturn,
+    encodeCapContent,
     sendFramed,
     sendRelease,
     importRegistry,
     tables,
     questionIds: tables.questionIds,
     exportRegistry,
-    payloadCodec,
   });
 
   // ---- Bootstrap helpers ----
@@ -498,7 +466,8 @@ export const makeConnection = cfg => {
     exportRegistry,
     importRegistry,
     interfaceRegistry,
-    payloadCodec,
+    exportCap,
+    importCap,
     sendFramed,
     encodeReturn,
     encodeFinish,

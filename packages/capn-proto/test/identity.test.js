@@ -1,6 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 import { makeExo } from '@endo/exo';
 import { E, makeLoopback } from '../src/index.js';
+import { withJsonCodecs } from './fixtures/json-codec.js';
 
 test('reference equality preserved for the same far cap re-imported', async t => {
   const inner = makeExo('inner', undefined, {
@@ -14,7 +15,9 @@ test('reference equality preserved for the same far cap re-imported', async t =>
     },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
-  registerInterface({ id: 0x1n, methods: { getInner: 0, name: 1 } });
+  registerInterface(
+    withJsonCodecs({ id: 0x1n, methods: { getInner: 0, name: 1 } }),
+  );
   const remote = near.getBootstrap();
   const a = await E(remote).getInner();
   const b = await E(remote).getInner();
@@ -36,10 +39,12 @@ test('passing a remote presence back returns the original local value (round-tri
     },
   });
   const { near, registerInterface } = makeLoopback({ farBootstrap: root });
-  registerInterface({
-    id: 0x2n,
-    methods: { getSentinel: 0, isSentinel: 1, tag: 2 },
-  });
+  registerInterface(
+    withJsonCodecs({
+      id: 0x2n,
+      methods: { getSentinel: 0, isSentinel: 1, tag: 2 },
+    }),
+  );
   const remote = near.getBootstrap();
   const remoteSentinel = await E(remote).getSentinel();
   const sameOrigin = await E(remote).isSentinel(remoteSentinel);

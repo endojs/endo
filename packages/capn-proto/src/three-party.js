@@ -256,7 +256,9 @@ export const makeThreeParty = ctx => {
       result: {
         kind: 'results',
         payload: {
-          contentBytes: ctx.payloadCodec.encodeRoot('@cap:0'),
+          // Same shape as handleBootstrap: AnyPointer cap pointer at index 0,
+          // CapDescriptor for the actual export at capTable[0]. CF-interop.
+          encodeContent: ctx.encodeCapContent(0),
           capTable: [{ kind: 'senderHosted', id: exportId }],
         },
       },

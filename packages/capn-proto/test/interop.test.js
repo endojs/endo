@@ -37,6 +37,13 @@ import {
   pack,
   unpack,
 } from '../src/index.js';
+import { writeData } from '../src/wire/text.js';
+
+// Local shim: encode `bytes` as a Data list at the Payload.content AnyPointer
+// slot. Real callers use schema-typed struct content via encodeStructInto;
+// these proto-level interop tests only need *some* well-formed AnyPointer
+// payload so capnp's decode CLI prints the surrounding fields cleanly.
+const contentAsData = bytes => (msg, slot) => writeData(msg, slot, bytes);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RPC_CAPNP = join(here, '..', 'rpc.capnp');
@@ -95,7 +102,7 @@ if (!haveCapnp) {
       interfaceId: 0xa1b2c3d4e5f60718n,
       methodId: 11,
       params: {
-        contentBytes: new Uint8Array([1, 2, 3]),
+        encodeContent: contentAsData(new Uint8Array([1, 2, 3])),
         capTable: [{ kind: 'senderHosted', id: 9 }],
       },
     });
@@ -114,7 +121,7 @@ if (!haveCapnp) {
       answerId: 12,
       result: {
         kind: 'results',
-        payload: { contentBytes: new Uint8Array(0), capTable: [] },
+        payload: { capTable: [] },
       },
     });
     const out = runCapnpDecode(framed);
@@ -130,7 +137,7 @@ if (!haveCapnp) {
       releaseParamCaps: false,
       result: {
         kind: 'results',
-        payload: { contentBytes: new Uint8Array(0), capTable: [] },
+        payload: { capTable: [] },
       },
     });
     const out = runCapnpDecode(framed);
@@ -254,7 +261,7 @@ if (!haveCapnp) {
       },
       interfaceId: 0n,
       methodId: 0,
-      params: { contentBytes: new Uint8Array(0), capTable: [] },
+      params: { capTable: [] },
     });
     const out = runCapnpDecode(framed);
     // Two getPointerField ops should both appear with the right ordinals.
@@ -377,7 +384,7 @@ if (!haveCapnp) {
       interfaceId: 0xa1b2c3d4e5f60718n,
       methodId: 11,
       params: {
-        contentBytes: new Uint8Array([1, 2, 3]),
+        encodeContent: contentAsData(new Uint8Array([1, 2, 3])),
         capTable: [{ kind: 'senderHosted', id: 9 }],
       },
     });
@@ -409,7 +416,7 @@ if (!haveCapnp) {
       releaseParamCaps: false,
       result: {
         kind: 'results',
-        payload: { contentBytes: new Uint8Array(0), capTable: [] },
+        payload: { capTable: [] },
       },
     });
     const repacked = unpack(pack(framed));

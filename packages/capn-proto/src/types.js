@@ -44,16 +44,27 @@ export {};
  * ===================================================================== */
 
 /**
- * @typedef {object} Payload
- * @property {Uint8Array} contentBytes  serialized struct content
- * @property {CapDescriptor[]} capTable  side-band capability table
+ * @typedef {object} EncodedPayload
+ * @property {(msg: any, contentPtrSlot: { segId: number, wordOffset: number }) => void} [encodeContent]
+ *   Called by `writePayload` to populate the `Payload.content` AnyPointer
+ *   slot. Implementations write a struct, list, or cap pointer (or leave
+ *   the slot null by not providing the callback). Schema-typed codecs
+ *   built via `loadSchema(...).registerInterface` use `encodeStructInto`.
+ * @property {CapDescriptor[]} [capTable]
+ *   Side-band capability table referenced by index from cap pointers
+ *   inside `content`.
+ *
+ * @typedef {object} DecodedPayload
+ * @property {{ msg: any, segId: number, wordOffset: number } | null} contentSlot
+ *   Pointer slot for `Payload.content`. Null if the surrounding Payload
+ *   itself is null. Schema-typed callers feed this to `decodeStructFrom`;
+ *   bootstrap-style callers feed it to `readCapContent`.
+ * @property {CapDescriptor[]} capTable
  *
  * A `Payload` is the on-the-wire content of a `Call.params` or
- * `Return.results.payload`. Its `contentBytes` are typically a typed
- * struct (when a schema codec is registered) or this package's default
- * JSON-with-marker serialization; either way the bytes carry no
- * capabilities directly — those live in `capTable` and are referenced
- * by index from inside the content.
+ * `Return.results.payload`. Per rpc.capnp `content @0 :AnyPointer` —
+ * the actual struct (or cap pointer, in the bootstrap/Provide case)
+ * lives directly at the slot, byte-compatible with capnp-C++.
  */
 
 /* ===================================================================== *
