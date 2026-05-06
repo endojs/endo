@@ -4,5 +4,8 @@
   "type": "module",
   "dependencies": {
     "@endo/marshal": "*"
+  },
+  "scripts": {
+    "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
   }
 }
