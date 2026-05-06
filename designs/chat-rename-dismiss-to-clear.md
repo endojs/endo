@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-03-03 |
-| **Updated** | 2026-03-03 |
+| **Updated** | 2026-05-04 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | PR #93 |
 
 ## Motivation
 
