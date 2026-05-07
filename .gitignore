@@ -19,8 +19,6 @@ coverage
 
 # LLM tools
 .claude/*.local.*
-# UNTIL https://github.com/anthropics/claude-code/issues/27282
-.claude/worktrees/
 
 # Platform metadata
 .DS_Store
@@ -120,3 +118,5 @@ api-docs
 !packages/stream/types.d.ts
 !packages/trampoline/types.d.ts
 !packages/where/types.d.ts
+!packages/ocapn/src/codec-interface.d.ts
+!packages/ocapn-noise/src/types.d.ts

@@ -62,7 +62,8 @@
     "test:xs": "yarn workspaces foreach --all run test:xs",
     "test262": "yarn workspaces foreach --all run test262",
     "build": "yarn workspaces foreach --all run build",
-    "build-ts": "tsc --build tsconfig.build.json"
+    "build-ts": "tsc --build tsconfig.build.json",
+    "build:wasm": "bash rust/ocapn_noise/build.sh"
   },
   "prettier": {
     "arrowParens": "avoid",
