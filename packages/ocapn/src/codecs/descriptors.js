@@ -5,7 +5,7 @@
  * @import { HandoffGiveDetails } from '../client/grant-tracker.js'
  * @import { SturdyRef } from '../client/sturdyrefs.js'
  * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordUnionCodec } from '../syrup/codec.js'
- * @import { SyrupWriter } from '../syrup/encode.js'
+ * @import { OcapnWriter, OcapnCodec } from '../codec-interface.js'
  * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './components.js'
  * @import { SessionId, PublicKeyId } from '../client/types.js'
  */
@@ -23,8 +23,8 @@ import {
   OcapnPublicKeyCodec,
   OcapnSignatureCodec,
 } from './components.js';
-import { makeSyrupWriter } from '../syrup/encode.js';
 import { getSturdyRefDetails } from '../client/sturdyrefs.js';
+import { encodeSwissnum } from '../client/util.js';
 import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
 
 /**
@@ -155,6 +155,7 @@ export const makeDescCodecs = referenceKit => {
       const position = referenceKit.provideLocalObjectPosition(value);
       NonNegativeIntegerCodec.write(position, syrupWriter);
     },
+    1, // 1 field: position
   );
 
   const DescImportPromiseCodec = makeOcapnRecordCodec(
@@ -170,6 +171,7 @@ export const makeDescCodecs = referenceKit => {
       const position = referenceKit.provideLocalPromisePosition(value);
       NonNegativeIntegerCodec.write(position, syrupWriter);
     },
+    1, // 1 field: position
   );
 
   const DescExportCodec = makeOcapnRecordCodec(
@@ -185,6 +187,7 @@ export const makeDescCodecs = referenceKit => {
       const position = referenceKit.provideRemoteExportPosition(value);
       NonNegativeIntegerCodec.write(position, syrupWriter);
     },
+    1, // 1 field: position
   );
 
   const DescAnswerCodec = makeOcapnRecordCodec(
@@ -200,6 +203,7 @@ export const makeDescCodecs = referenceKit => {
       const position = referenceKit.provideRemoteAnswerPosition(value);
       NonNegativeIntegerCodec.write(position, syrupWriter);
     },
+    1, // 1 field: position
   );
 
   // RemotePromiseCodec is used to constrain the target Reference to a promise
@@ -236,9 +240,9 @@ export const makeDescCodecs = referenceKit => {
     },
     /**
      * @param {HandoffGiveDetails | HandoffReceiveSigEnvelope} value
-     * @param {SyrupWriter} syrupWriter
+     * @param {OcapnWriter} writer
      */
-    (value, syrupWriter) => {
+    (value, writer) => {
       // @ts-expect-error we're doing type checking
       if (value.type === 'desc:sig-envelope') {
         const signedHandoffReceive = /** @type {HandoffReceiveSigEnvelope} */ (
@@ -246,7 +250,7 @@ export const makeDescCodecs = referenceKit => {
         );
         DescHandoffReceiveSigEnvelopeCodec.writeBody(
           signedHandoffReceive,
-          syrupWriter,
+          writer,
         );
         // @ts-expect-error we're doing type checking
       } else if (value.grantDetails !== undefined) {
@@ -257,14 +261,12 @@ export const makeDescCodecs = referenceKit => {
         }
         // Write SignedHandoffGive
         const signedHandoffGive = referenceKit.sendHandoff(handoffGiveDetails);
-        DescHandoffGiveSigEnvelopeCodec.writeBody(
-          signedHandoffGive,
-          syrupWriter,
-        );
+        DescHandoffGiveSigEnvelopeCodec.writeBody(signedHandoffGive, writer);
       } else {
         throw Error(`Unknown Handoff object ${value}`);
       }
     },
+    2, // 2 fields: object, signature
   );
 
   const DeliverTargetCodec = makeValueInfoRecordUnionCodec(
@@ -284,7 +286,7 @@ export const makeDescCodecs = referenceKit => {
   const ResolveMeDescCodec = makeCodec('ResolveMeDesc', {
     read(syrupReader) {
       syrupReader.enterRecord();
-      syrupReader.readSelectorAsString();
+      syrupReader.readRecordLabel(); // Read and discard label (can be string or selector)
       const position = NonNegativeIntegerCodec.read(syrupReader);
       syrupReader.exitRecord();
       const value = referenceKit.provideRemoteResolverValue(position);
@@ -307,29 +309,47 @@ export const makeDescCodecs = referenceKit => {
     },
   });
 
+  // Wire label is the spec-defined 'ocapn-sturdyref' tag; we keep it
+  // intact for interop even though the JS-side identifier is `SturdyRef`.
   const OcapnSturdyRefCodec = makeOcapnRecordCodec(
     'OcapnSturdyRef',
     'ocapn-sturdyref',
     syrupReader => {
       const node = OcapnPeerCodec.read(syrupReader);
       const swissNum = syrupReader.readBytestring();
-      // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
-      const value = referenceKit.makeSturdyRef(node, swissNum);
+      const textDecoder = new TextDecoder('ascii', { fatal: true });
+      const secretBytes =
+        swissNum instanceof Uint8Array
+          ? swissNum
+          : new Uint8Array(/** @type {ArrayBuffer} */ (swissNum.slice()));
+      const secret = textDecoder.decode(secretBytes);
+      const value = referenceKit.makeSturdyRef(node, secret);
       return value;
     },
     /**
      * @param {SturdyRef} sturdyRef
-     * @param {SyrupWriter} syrupWriter
+     * @param {OcapnWriter} writer
      */
-    (sturdyRef, syrupWriter) => {
+    (sturdyRef, writer) => {
       const details = getSturdyRefDetails(sturdyRef);
       if (!details) {
         throw Error('Cannot serialize: not a valid SturdyRef object');
       }
-      const { location, swissNum } = details;
-      OcapnPeerCodec.write(location, syrupWriter);
-      syrupWriter.writeBytestring(swissNum);
+      const { location, secret } = details;
+      OcapnPeerCodec.write(location, writer);
+      // String secrets get ASCII-encoded; raw-bytes secrets ride the
+      // wire verbatim so non-ASCII swissnums (e.g. Spritely Goblins'
+      // 24-byte randoms) round-trip without corruption.
+      const wireSecret =
+        typeof secret === 'string'
+          ? /** @type {ArrayBufferLike} */ (encodeSwissnum(secret))
+          : secret.buffer.slice(
+              secret.byteOffset,
+              secret.byteOffset + secret.byteLength,
+            );
+      writer.writeBytestring(wireSecret);
     },
+    2, // 2 fields: node, swissNum
   );
 
   // ReferenceCodec is handles any kind of Reference (Promise or Target),
@@ -408,12 +428,13 @@ export const makeHandoffGiveDescriptor = (
 
 /**
  * @param {HandoffGive} handoffGive
+ * @param {OcapnCodec} codec
  * @returns {ArrayBufferLike}
  */
-export const serializeHandoffGive = handoffGive => {
-  const syrupWriter = makeSyrupWriter();
-  DescHandoffGiveCodec.write(handoffGive, syrupWriter);
-  return uint8ArrayToImmutableArrayBuffer(syrupWriter.getBytes());
+export const serializeHandoffGive = (handoffGive, codec) => {
+  const writer = codec.makeWriter();
+  DescHandoffGiveCodec.write(handoffGive, writer);
+  return uint8ArrayToImmutableArrayBuffer(writer.getBytes());
 };
 
 /**
@@ -460,10 +481,11 @@ export const makeHandoffReceiveSigEnvelope = (handoffReceive, signature) => {
 
 /**
  * @param {HandoffReceive} handoffReceive
+ * @param {OcapnCodec} codec
  * @returns {ArrayBufferLike}
  */
-export const serializeHandoffReceive = handoffReceive => {
-  const syrupWriter = makeSyrupWriter();
-  DescHandoffReceiveCodec.write(handoffReceive, syrupWriter);
-  return uint8ArrayToImmutableArrayBuffer(syrupWriter.getBytes());
+export const serializeHandoffReceive = (handoffReceive, codec) => {
+  const writer = codec.makeWriter();
+  DescHandoffReceiveCodec.write(handoffReceive, writer);
+  return uint8ArrayToImmutableArrayBuffer(writer.getBytes());
 };

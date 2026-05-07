@@ -6,7 +6,7 @@ import harden from '@endo/harden';
 /** @typedef {import('@endo/ses-ava/prepare-endo.js').default} Test */
 
 /**
- * @import { Client, ClientDebug, Connection, InternalSession, LocationId, Session } from '../src/client/types.js'
+ * @import { Client, ClientDebug, Connection, InternalSession, LocationId, NonceLocator, Session } from '../src/client/types.js'
  * @import { OcapnLocation } from '../src/codecs/components.js'
  * @import { TcpTestOnlyNetLayer } from '../src/netlayers/tcp-test-only.js'
  * @import { Ocapn, OcapnDebug } from '../src/client/ocapn.js'
@@ -15,7 +15,8 @@ import harden from '@endo/harden';
 import baseTest from '@endo/ses-ava/test.js';
 import { netListenAllowed } from './_net-permission.js';
 import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
-import { makeClient } from '../src/client/index.js';
+import { makeOcapn } from '../src/client/index.js';
+import { syrupCodec } from '../src/syrup/index.js';
 import { locationToLocationId } from '../src/client/util.js';
 
 export const test = netListenAllowed ? baseTest : baseTest.skip;
@@ -170,9 +171,11 @@ export const waitUntilTrue = async (fn, timeoutMs = 1000, delayMs = 20) => {
  * @param {object} options
  * @param {string} options.debugLabel
  * @param {() => Map<string, any>} [options.makeDefaultSwissnumTable]
+ *   Build a locator. Named for historical compatibility with the test
+ *   suite; returns a `Map<string, any>` that serves as the locator.
  * @param {boolean} [options.verbose]
  * @param {object} [options.clientOptions]
- * @param {number} [options.writeLatencyMs] - Optional artificial latency for writes (ms)
+ * @param {number} [options.writeLatencyMs]
  * @returns {Promise<ClientKit>}
  */
 export const makeTestClient = async ({
@@ -182,12 +185,29 @@ export const makeTestClient = async ({
   clientOptions,
   writeLatencyMs,
 }) => {
-  const client = makeClient({
+  /** @type {{ netlayer?: TcpTestOnlyNetLayer }} */
+  const netlayerRef = {};
+  /** @type {NonceLocator} */
+  const locator = makeDefaultSwissnumTable
+    ? makeDefaultSwissnumTable()
+    : new Map();
+  const client = await makeOcapn({
+    codec: syrupCodec,
     debugLabel,
-    swissnumTable: makeDefaultSwissnumTable && makeDefaultSwissnumTable(),
+    locator,
     verbose,
     debugMode: true,
     ...clientOptions,
+    network: (handlers, logger) =>
+      makeTcpNetLayer({
+        handlers,
+        logger,
+        specifiedDesignator: debugLabel,
+        writeLatencyMs,
+      }).then(netlayer => {
+        netlayerRef.netlayer = netlayer;
+        return netlayer;
+      }),
   });
   assert(
     // eslint-disable-next-line no-underscore-dangle
@@ -196,15 +216,8 @@ export const makeTestClient = async ({
   );
   // eslint-disable-next-line no-underscore-dangle
   const { _debug: debug } = client;
-  // Register netlayer with client
-  const netlayer = await client.registerNetlayer((handlers, logger) =>
-    makeTcpNetLayer({
-      handlers,
-      logger,
-      specifiedDesignator: debugLabel,
-      writeLatencyMs,
-    }),
-  );
+  assert(netlayerRef.netlayer, 'makeTcpNetLayer did not resolve a netlayer');
+  const netlayer = netlayerRef.netlayer;
   const { location } = netlayer;
   const locationId = locationToLocationId(location);
   return { client, debug, netlayer, location, locationId };

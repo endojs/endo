@@ -8,10 +8,11 @@
  * @import { GrantTracker, HandoffGiveDetails } from './grant-tracker.js'
  * @import { OcapnLocation } from '../codecs/components.js'
  * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
- * @import { SyrupReader } from '../syrup/decode.js'
+ * @import { OcapnReader } from '../codec-interface.js'
+ * @import { OcapnCodec } from '../codec-interface.js'
  * @import { SturdyRefTracker } from './sturdyrefs.js'
  * @import { Connection, InternalSession, LocationId, Logger, SessionId, SwissNum } from './types.js'
- * @import { OcapnPublicKey } from '../cryptography.js'
+ * @import { OcapnPublicKey, Cryptography } from '../cryptography.js'
  */
 
 import harden from '@endo/harden';
@@ -24,21 +25,12 @@ import {
   makeHandoffReceiveDescriptor,
   makeHandoffReceiveSigEnvelope,
 } from '../codecs/descriptors.js';
-import { makeSyrupReader } from '../syrup/decode.js';
 import { makePassableCodecs } from '../codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../codecs/operations.js';
 import { getSelectorName, makeSelector } from '../selector.js';
-import { decodeSyrup } from '../syrup/js-representation.js';
-import { decodeSwissnum, locationToLocationId, toHex } from './util.js';
-import {
-  publicKeyDescriptorToPublicKey,
-  randomGiftId,
-  assertHandoffGiveSignatureValid,
-  assertHandoffReceiveSignatureValid,
-  signHandoffReceive,
-  makeSignedHandoffGive,
-} from '../cryptography.js';
-import { compareImmutableArrayBuffers } from '../syrup/compare.js';
+import { locationToLocationId, toHex } from './util.js';
+import { randomGiftId } from '../cryptography.js';
+import { compareImmutableArrayBuffers } from '../bytewise-compare.js';
 import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
 import { makeOcapnTable } from '../captp/ocapn-tables.js';
 import { makeSlot, parseSlot } from '../captp/pairwise.js';
@@ -329,7 +321,11 @@ const makeMakeHandlerForRemoteReference = ({
     };
 
     /**
-     * Send op:deliver with no answer and no resolver (fire and forget).
+     * Send a fire-and-forget invocation. Folded into `op:deliver`
+     * with `answerPosition: false` and `resolveMeDesc: false`;
+     * Spritely Goblins (and the OCapN draft spec) no longer accept
+     * a separate `op:deliver-only` opcode.
+     *
      * @param {unknown[]} args
      */
     const sendDeliverOnly = args => {
@@ -468,18 +464,20 @@ const makeMakeRemoteKit = ({
 
 /**
  * @typedef {object} CodecKit
- * @property {(syrupReader: SyrupReader) => any} readOcapnMessage
+ * @property {(reader: OcapnReader) => any} readOcapnMessage
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  *
  * @param {ReferenceKit} referenceKit
+ * @param {OcapnCodec} codec
  * @returns {CodecKit}
  */
-const makeCodecKit = referenceKit => {
+const makeCodecKit = (referenceKit, codec) => {
   const descCodecs = makeDescCodecs(referenceKit);
   const passableCodecs = makePassableCodecs(descCodecs);
   const { readOcapnMessage, writeOcapnMessage } = makeOcapnOperationsCodecs(
     descCodecs,
     passableCodecs,
+    codec,
   );
   return {
     readOcapnMessage,
@@ -495,6 +493,7 @@ const makeCodecKit = referenceKit => {
  * @param {ReferenceKit} referenceKit
  * @param {Map<string, any>} giftTable
  * @param {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {Cryptography} cryptography
  * @returns {any}
  */
 const makeBootstrapObject = (
@@ -505,6 +504,7 @@ const makeBootstrapObject = (
   referenceKit,
   giftTable,
   getPeerPublicKeyForSessionId,
+  cryptography,
 ) => {
   // The "usedGiftHandoffs" is one per session.
   const usedGiftHandoffs = new Set();
@@ -513,13 +513,15 @@ const makeBootstrapObject = (
      * @param {SwissNum} swissnum
      * @returns {Promise<any>}
      */
-    fetch: swissnum => {
-      const object = sturdyRefTracker.lookup(swissnum);
-      if (!object) {
-        const swissnumString = decodeSwissnum(swissnum);
-        throw Error(
-          `${label}: Bootstrap fetch: Unknown swissnum for sturdyref: ${swissnumString}`,
-        );
+    fetch: async swissnum => {
+      const object = await sturdyRefTracker.lookup(swissnum);
+      if (object === undefined) {
+        // Do not echo the swissnum/secret bytes in the error: the
+        // rejection rides back to the peer over CapTP, and is also
+        // typically logged on this side. The peer already knows what
+        // they asked for; treating the secret as a long-lived
+        // capability means it should not be smeared across logs.
+        throw Error(`${label}: Bootstrap fetch: secret not found`);
       }
       return object;
     },
@@ -607,7 +609,7 @@ const makeBootstrapObject = (
         );
       }
       try {
-        assertHandoffGiveSignatureValid(
+        cryptography.assertHandoffGiveSignatureValid(
           handoffGive,
           handoffGiveSig,
           gifterKeyForExporter,
@@ -619,11 +621,11 @@ const makeBootstrapObject = (
       }
 
       // Verify HandoffReceive
-      const receiverKeyForGifter = publicKeyDescriptorToPublicKey(
+      const receiverKeyForGifter = cryptography.publicKeyDescriptorToPublicKey(
         receiverKeyDataForGifter,
       );
       try {
-        assertHandoffReceiveSignatureValid(
+        cryptography.assertHandoffReceiveSignatureValid(
           handoffReceive,
           handoffReceiveSig,
           receiverKeyForGifter,
@@ -672,7 +674,7 @@ const makeBootstrapObject = (
  * @typedef {object} Ocapn
  * @property {((reason?: Error) => void)} abort
  * @property {((data: Uint8Array) => void)} dispatchMessageData
- * @property {() => any} getRemoteBootstrap
+ * @property {() => object} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.
@@ -690,6 +692,8 @@ const makeBootstrapObject = (
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker
+ * @param {OcapnCodec} codec
+ * @param {Cryptography} cryptography
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
@@ -707,6 +711,8 @@ export const makeOcapn = (
   grantTracker,
   giftTable,
   sturdyRefTracker,
+  codec,
+  cryptography,
   ourIdLabel = 'OCapN',
   enableImportCollection = true,
   debugMode = false,
@@ -775,8 +781,10 @@ export const makeOcapn = (
   };
 
   const fulfillRemoteResolverWithPromise = (resolveMeDesc, promise) => {
-    // Use E.sendOnly since we don't need a response from fulfill/break calls.
-    // This sends op:deliver with answerPosition and resolveMeDesc both false.
+    // Use E.sendOnly since we don't need a response from fulfill/break
+    // calls. This emits op:deliver with both `answerPosition` and
+    // `resolveMeDesc` set to `false` (the post-fold replacement for
+    // op:deliver-only).
     Promise.resolve(promise).then(
       val => {
         E.sendOnly(resolveMeDesc).fulfill(val);
@@ -805,6 +813,10 @@ export const makeOcapn = (
       if (resolveMeDesc !== false) {
         fulfillRemoteResolverWithPromise(resolveMeDesc, deliverPromise);
       } else {
+        // Fire-and-forget delivery (the folded `op:deliver-only`
+        // case): there's no resolver to break, so surface any
+        // failure through the session's reject handler instead of
+        // letting it become an unhandled promise rejection.
         deliverPromise.catch(cause => {
           const err = Error('OCapN: Error during deliver (no resolver)', {
             cause,
@@ -1058,14 +1070,17 @@ export const makeOcapn = (
     }
 
     if (type === 'o' || type === 'p') {
-      // Remote object or promise - tell peer to decrement export refcount
+      // Remote object or promise: tell peer to decrement export
+      // refcount. Wrap in a one-element list because OCapN batches
+      // these into `op:gc-exports` (plural, list payload) per the
+      // ocapn-test-suite wire format.
       send({
         type: 'op:gc-exports',
         exportPositions: [position],
         wireDeltas: [BigInt(refcount)],
       });
     } else if (type === 'a') {
-      // Remote answer - tell peer they can GC the answer
+      // Remote answer: same plural-list shape as gc-exports.
       send({
         type: 'op:gc-answers',
         answerPositions: [position],
@@ -1114,7 +1129,10 @@ export const makeOcapn = (
           receiverExporterSessionId,
           receiverPeerIdForExporter,
         );
-        const signature = signHandoffReceive(handoffReceive, receiverGifterKey);
+        const signature = cryptography.signHandoffReceive(
+          handoffReceive,
+          receiverGifterKey,
+        );
         const signedHandoffReceive = makeHandoffReceiveSigEnvelope(
           handoffReceive,
           signature,
@@ -1155,7 +1173,7 @@ export const makeOcapn = (
     } = gifterReceiverSession;
     const gifterSideId = gifterExporterSession.self.keyPair.publicKey.id;
     const giftId = randomGiftId();
-    const signedHandoffGive = makeSignedHandoffGive(
+    const signedHandoffGive = cryptography.makeSignedHandoffGive(
       receiverPublicKeyForGifter,
       exporterLocation,
       gifterExporterSessionId,
@@ -1189,7 +1207,10 @@ export const makeOcapn = (
     sendHandoff,
   );
 
-  const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(referenceKit);
+  const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(
+    referenceKit,
+    codec,
+  );
 
   function serializeAndSendMessage(message) {
     try {
@@ -1205,13 +1226,13 @@ export const makeOcapn = (
    * @param {Uint8Array} data
    */
   const dispatchMessageData = data => {
-    const syrupReader = makeSyrupReader(data);
-    while (syrupReader.index < data.length) {
+    const reader = codec.makeReader(data);
+    while (reader.index < data.length) {
       let message;
-      const start = syrupReader.index;
+      const start = reader.index;
       try {
         ocapnTable.clearPendingRefCounts();
-        message = readOcapnMessage(syrupReader);
+        message = readOcapnMessage(reader);
         // Tell the engine message deserialization has completed.
         ocapnTable.commitReceivedRefCounts();
       } catch (err) {
@@ -1222,22 +1243,8 @@ export const makeOcapn = (
         // bytes), don't let the diagnostic itself mask the original error
         // or skip the connection.end() cleanup below.
         const problematicBytes = data.slice(start);
-        try {
-          const syrupMessage = decodeSyrup(problematicBytes);
-          logger.error(`Message decode error:`);
-          logger.error(
-            JSON.stringify(
-              syrupMessage,
-              (key, value) => (typeof value === 'bigint' ? `${value}n` : value),
-              2,
-            ),
-          );
-        } catch (decodeErr) {
-          logger.error(
-            `Message decode error (bytes are not valid syrup):`,
-            decodeErr,
-          );
-        }
+        logger.error(`Message decode error:`);
+        logger.error(codec.diagnose(problematicBytes));
         connection.end();
         throw err;
       }
@@ -1254,6 +1261,7 @@ export const makeOcapn = (
     referenceKit,
     giftTable,
     getPeerPublicKeyForSessionId,
+    cryptography,
   );
   ocapnTable.registerSlot(localBootstrapSlot, bootstrapObj);
 

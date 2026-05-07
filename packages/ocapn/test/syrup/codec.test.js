@@ -115,11 +115,11 @@ test('zoo.bin', t => {
       return result;
     },
     write: (value, syrupWriter) => {
-      syrupWriter.enterDictionary();
+      syrupWriter.enterDictionary(6); // 6 key-value pairs
       syrupWriter.writeSelectorFromString('age');
       syrupWriter.writeInteger(value.age);
       syrupWriter.writeSelectorFromString('eats');
-      syrupWriter.enterSet();
+      syrupWriter.enterSet(value.eats.length);
       for (const eat of value.eats) {
         syrupWriter.writeBytestring(encodeStringToImmutableArrayBuffer(eat));
       }

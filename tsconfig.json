@@ -11,6 +11,8 @@
         "packages/eslint-plugin",
         "packages/ses-integration-test",
         "packages/module-source",
+        "packages/ocapn",
+        "packages/ocapn-noise",
         "packages/test262-runner",
         "packages/ses/test262",
         "packages/ses/types.test-d.ts",

@@ -15,11 +15,12 @@
 import '@endo/init';
 
 /**
- * @import { OcapnLocation, SwissNum } from '@endo/ocapn'
+ * @import { OcapnLocation } from '@endo/ocapn'
  */
 
-import { makeClient, swissnumFromBytes } from '@endo/ocapn';
+import { makeOcapn } from '@endo/ocapn';
 import { makeWebSocketNetLayer } from '@endo/ocapn/netlayer/ws';
+import { syrupCodec } from '@endo/ocapn/syrup';
 import { decodeBase64Url } from '../../src/base64url.js';
 import { runChatParticipant } from '../../src/interop-driver.js';
 
@@ -31,32 +32,8 @@ const DEFAULT_GUILE_MESSAGE = 'hello from Guile CI';
 const DEFAULT_ENDO_MESSAGE = 'hello from Endo OCapN';
 
 /**
- * @param {string} value
- * @returns {SwissNum}
- */
-const swissnumFromBase64Url = value =>
-  swissnumFromBytes(decodeBase64Url(value));
-
-/**
- * Local equivalent of `encodeSwissnum`, kept inline so this script
- * doesn't pull a swissnum-encoding helper into `@endo/ocapn`'s public
- * exports map (mirrors `test/interop-self.test.js`).
- *
- * @param {string} value
- * @returns {SwissNum}
- */
-const swissnumFromAsciiString = value => {
-  for (let i = 0; i < value.length; i += 1) {
-    if (value.charCodeAt(i) > 127) {
-      throw Error(`Non-ASCII byte in swissnum at position ${i}: ${value[i]}`);
-    }
-  }
-  return swissnumFromBytes(swissnumEncoder.encode(value));
-};
-
-/**
  * @param {string} uri
- * @returns {{ location: OcapnLocation; swissNum: SwissNum }}
+ * @returns {{ location: OcapnLocation; swissNum: Uint8Array }}
  */
 const parseSturdyrefUri = uri => {
   const match = /^ocapn:\/\/([^/?#]+)(\/[^?#]*)?(?:\?([^#]*))?$/.exec(uri);
@@ -80,15 +57,24 @@ const parseSturdyrefUri = uri => {
     hints[key] = value;
   }
 
-  /** @type {SwissNum} */
+  /** @type {Uint8Array} */
   let swissNum;
   if (path && path !== '/') {
     if (!path.startsWith('/s/')) {
       throw Error(`Unsupported OCapN URI path: ${path}`);
     }
-    swissNum = swissnumFromBase64Url(path.slice(3));
+    swissNum = decodeBase64Url(path.slice(3));
   } else if (typeof hints.swiss === 'string' && hints.swiss.length > 0) {
-    swissNum = swissnumFromAsciiString(hints.swiss);
+    // Validate ASCII so a stray non-ASCII char in a `?swiss=…` hint
+    // fails loudly here rather than producing a wire-level mystery.
+    for (let i = 0; i < hints.swiss.length; i += 1) {
+      if (hints.swiss.charCodeAt(i) > 127) {
+        throw Error(
+          `Non-ASCII byte in swissnum at position ${i}: ${hints.swiss[i]}`,
+        );
+      }
+    }
+    swissNum = swissnumEncoder.encode(hints.swiss);
   } else {
     throw Error(`No sturdyref swiss number found in URI: ${uri}`);
   }
@@ -118,12 +104,14 @@ const main = async () => {
 
   const { location, swissNum } = parseSturdyrefUri(sturdyrefUri);
   const captpVersion = process.env.OCAPN_CAPTP_VERSION || DEFAULT_CAPTP_VERSION;
-  const client = makeClient({ verbose: true, captpVersion });
-  await null;
-  try {
-    await client.registerNetlayer((handlers, logger) =>
+  const client = await makeOcapn({
+    codec: syrupCodec,
+    verbose: true,
+    captpVersion,
+    network: (handlers, logger) =>
       makeWebSocketNetLayer({ handlers, logger, specifiedPort: port }),
-    );
+  });
+  try {
     const sturdyRef = client.makeSturdyRef(location, swissNum);
     const chatroom = await client.enlivenSturdyRef(sturdyRef);
     await runChatParticipant({

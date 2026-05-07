@@ -22,7 +22,7 @@ test('negative zero', t => {
   t.deepEqual(encodeSyrup(0), encodeSyrup(-0));
 });
 
-test('invalid string characters', t => {
+test('invalid string characters (unpaired surrogate)', t => {
   const invalidString = String.fromCharCode(0xd800);
   throws(t, () => encodeSyrup(invalidString), {
     message: 'SyrupAnyCodec: write failed at index 0 of <unknown>',
@@ -30,7 +30,7 @@ test('invalid string characters', t => {
       message: 'String: write failed at index 0 of <unknown>',
       cause: {
         message:
-          'Invalid string characters "\\ud800" in string "\\ud800" at index 0',
+          'writeString: Expected well-formed string, got "\\ud800" at index 0',
       },
     },
   });

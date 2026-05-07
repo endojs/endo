@@ -3,9 +3,28 @@
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { test } from './_util.js';
-import { makeClient } from '../src/client/index.js';
+import { makeOcapn } from '../src/client/index.js';
 import { makeWebSocketNetLayer } from '../src/netlayers/websocket.js';
 import { encodeSwissnum } from '../src/client/util.js';
+import { syrupCodec } from '../src/syrup/index.js';
+
+/**
+ * @template T
+ * @typedef {{ netlayer?: T }} NetlayerRef
+ */
+
+/**
+ * Wrap `makeWebSocketNetLayer` so its resolved netlayer is captured in
+ * `netlayerRef.netlayer`, since the single-network `makeOcapn` API does
+ * not otherwise expose the underlying network for the test to inspect.
+ *
+ * @param {NetlayerRef<Awaited<ReturnType<typeof makeWebSocketNetLayer>>>} netlayerRef
+ */
+const captureWebSocketNetLayer = netlayerRef => (handlers, logger) =>
+  makeWebSocketNetLayer({ handlers, logger }).then(netlayer => {
+    netlayerRef.netlayer = netlayer;
+    return netlayer;
+  });
 
 test('websocket netlayer establishes session and delivers messages', async t => {
   const objectTable = new Map();
@@ -16,19 +35,30 @@ test('websocket netlayer establishes session and delivers messages', async t => 
     }),
   );
 
-  const clientA = makeClient({ debugLabel: 'ws-A', debugMode: true });
-  const clientB = makeClient({
+  /** @type {NetlayerRef<Awaited<ReturnType<typeof makeWebSocketNetLayer>>>} */
+  const netlayerRefA = {};
+  /** @type {NetlayerRef<Awaited<ReturnType<typeof makeWebSocketNetLayer>>>} */
+  const netlayerRefB = {};
+
+  const clientA = await makeOcapn({
+    codec: syrupCodec,
+    network: captureWebSocketNetLayer(netlayerRefA),
+    debugLabel: 'ws-A',
+    debugMode: true,
+  });
+  const clientB = await makeOcapn({
+    codec: syrupCodec,
+    network: captureWebSocketNetLayer(netlayerRefB),
     debugLabel: 'ws-B',
-    swissnumTable: objectTable,
+    locator: objectTable,
     debugMode: true,
   });
 
-  const netlayerA = await clientA.registerNetlayer((handlers, logger) =>
-    makeWebSocketNetLayer({ handlers, logger }),
-  );
-  const netlayerB = await clientB.registerNetlayer((handlers, logger) =>
-    makeWebSocketNetLayer({ handlers, logger }),
-  );
+  if (!netlayerRefA.netlayer || !netlayerRefB.netlayer) {
+    throw Error('makeWebSocketNetLayer did not resolve a netlayer');
+  }
+  const netlayerA = netlayerRefA.netlayer;
+  const netlayerB = netlayerRefB.netlayer;
 
   try {
     // eslint-disable-next-line no-underscore-dangle
@@ -54,15 +84,28 @@ test('websocket netlayer establishes session and delivers messages', async t => 
 });
 
 test('websocket netlayer rejects peer with mismatched designator', async t => {
-  const clientA = makeClient({ debugLabel: 'ws-auth-A', debugMode: true });
-  const clientB = makeClient({ debugLabel: 'ws-auth-B', debugMode: true });
+  /** @type {NetlayerRef<Awaited<ReturnType<typeof makeWebSocketNetLayer>>>} */
+  const netlayerRefA = {};
+  /** @type {NetlayerRef<Awaited<ReturnType<typeof makeWebSocketNetLayer>>>} */
+  const netlayerRefB = {};
 
-  await clientA.registerNetlayer((handlers, logger) =>
-    makeWebSocketNetLayer({ handlers, logger }),
-  );
-  const netlayerB = await clientB.registerNetlayer((handlers, logger) =>
-    makeWebSocketNetLayer({ handlers, logger }),
-  );
+  const clientA = await makeOcapn({
+    codec: syrupCodec,
+    network: captureWebSocketNetLayer(netlayerRefA),
+    debugLabel: 'ws-auth-A',
+    debugMode: true,
+  });
+  const clientB = await makeOcapn({
+    codec: syrupCodec,
+    network: captureWebSocketNetLayer(netlayerRefB),
+    debugLabel: 'ws-auth-B',
+    debugMode: true,
+  });
+
+  if (!netlayerRefB.netlayer) {
+    throw Error('makeWebSocketNetLayer did not resolve a netlayer');
+  }
+  const netlayerB = netlayerRefB.netlayer;
 
   const badLocation = {
     ...netlayerB.location,

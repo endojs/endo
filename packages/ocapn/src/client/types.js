@@ -28,6 +28,88 @@
  */
 
 /**
+ * An OCapN Network is responsible for session establishment, authentication,
+ * and encryption.  Each network defines its own handshake protocol and may
+ * support multiple transports (WebSocket, TCP, etc.).
+ *
+ * This is the replacement for NetLayer as part of the network/transport
+ * separation (see designs/ocapn-network-transport-separation.md).
+ *
+ * @typedef {object} OcapnNetwork
+ * @property {string} networkId - Unique identifier for this network.
+ * @property {import('../codec-interface.js').OcapnCodec} [codec] -
+ *   Wire codec this network uses. If present, the client adopts it at
+ *   registration time; this lets `makeOcapn()` be constructed without
+ *   an explicit codec. Two registered networks must agree on the codec
+ *   (and a codec passed to `makeOcapn({ codec })` must match).
+ * @property {() => void} shutdown - Shut the network down, closing
+ *   outgoing and inbound state.
+ * @property {((location: OcapnLocation) => Connection | Promise<Connection>)} [connect] -
+ *   Establish a raw connection to a peer. Required unless the network
+ *   implements `provideSession`. May be synchronous or asynchronous;
+ *   the client always awaits the result.
+ * @property {((location: OcapnLocation) => Promise<NetworkSession>)} [provideSession] -
+ *   Return a fully authenticated session; the client bypasses its own
+ *   handshake machinery. Required unless the network implements `connect`.
+ * @property {OcapnLocation} [location] - A representative location of
+ *   this network, used for self-location checks. Networks that do not
+ *   have a single fixed location may omit this.
+ * @property {LocationId} [locationId] - Cached locationId for `location`.
+ * @property {((connection: Connection, captpVersion: string, selfIdentity: SelfIdentity, codec: import('../codec-interface.js').OcapnCodec) => void)} [sendSessionHandshake] -
+ *   Optional custom handshake for outgoing connections. If present, the
+ *   network owns the handshake bytes for this connection instead of the
+ *   default `op:start-session`. `selfIdentity` is supplied by the client
+ *   for networks that share its identity layer; networks with their own
+ *   identity (e.g. Noise) can ignore it.
+ * @property {((connection: Connection, data: Uint8Array, selfIdentity: SelfIdentity, captpVersion: string) => boolean)} [handleSessionHandshake] -
+ *   Optional custom handler for incoming handshake bytes. Returns true
+ *   if the data was consumed as a network-level handshake message, or
+ *   false to let the client fall back to the default handler.
+ * @property {AsyncIterable<NetworkSession>} [inboundSessions] -
+ *   Async iterable yielding fully-authenticated `NetworkSession`s that
+ *   the network accepted without a corresponding `provideSession` call
+ *   (e.g. a peer-initiated Noise handshake). The client consumes this
+ *   on `registerNetwork` and wires each session into its session
+ *   manager. Networks that have no concept of inbound sessions omit
+ *   this field.
+ */
+
+/**
+ * The handoff interface between a network and OCapN core.
+ * After the network establishes and authenticates a session (via
+ * op:start-session, Noise Protocol, or other handshake), it delivers
+ * a NetworkSession to OCapN core, which runs CapTP over it.
+ *
+ * @typedef {object} NetworkSession
+ * @property {SessionId} sessionId - Unique session identifier.
+ * @property {SelfIdentity} selfIdentity - Our identity for this session,
+ *   supplied by the network (which authenticated to the peer using this
+ *   keypair during handshake).
+ * @property {ArrayBufferLike} remotePublicKeyBytes - Peer's raw public
+ *   key bytes (needed to construct OcapnPublicKey for session).
+ * @property {OcapnLocation} remoteLocation - Peer's location.
+ * @property {import('../codecs/components.js').OcapnSignature} remoteLocationSignature -
+ *   Peer's location signature as verified during session establishment.
+ * @property {import('@endo/stream').Reader<Uint8Array>} reader - Stream
+ *   yielding plaintext OCapN frames as they arrive from the peer. The
+ *   network is responsible for framing, decryption, and anything else
+ *   between the wire and whole OCapN messages. The client pumps this
+ *   reader and dispatches each frame to CapTP.
+ * @property {import('@endo/stream').Writer<Uint8Array>} writer - Stream
+ *   accepting plaintext OCapN frames destined for the peer. One
+ *   `writer.next(bytes)` carries one OCapN message; the network frames,
+ *   encrypts, and delivers.
+ * @property {() => void} close - Terminate session.
+ * @property {boolean} isInitiator - Whether we initiated this session.
+ */
+
+/**
+ * @typedef {object} IncomingConnectionHandler
+ * @property {(connection: Connection) => void} onConnection -
+ *   Called when a new incoming connection is established.
+ */
+
+/**
  * @typedef {object} PendingSession
  * @property {Connection | undefined} outgoingConnection
  * @property {Promise<InternalSession>} promise
@@ -143,14 +225,40 @@
  */
 
 /**
+ * The caller-owned table `makeOcapn` consults when a peer asks for a
+ * local capability (via `bootstrap.fetch(secret)`) or when resolving a
+ * self-local `SturdyRef`. Any object with a `get(secret)` that returns a
+ * capability, `undefined`, or a promise of either works; a plain `Map`
+ * is a valid `NonceLocator`.
+ *
+ * The name parallels the `NonceLocator` term of art in E and Spritely
+ * Goblins for a registry that resolves nonces (here, swissnums or
+ * other secrets) to local capabilities. It also avoids the existing
+ * `formatLocator`/`parseLocator` URI helpers in `@endo/daemon`, which
+ * use the word `Locator` for the addressable URI form.
+ *
+ * @typedef {object} NonceLocator
+ * @property {(secret: string) => unknown | Promise<unknown>} get
+ */
+
+/**
+ * The session-manager instance returned by `makeOcapn`.
+ *
  * @typedef {object} Client
- * @property {<T extends NetLayer>(makeNetlayer: (handlers: NetlayerHandlers, logger: Logger) => T | Promise<T>) => Promise<T>} registerNetlayer
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
- * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
+ *   Open (or reuse) a CapTP session to the peer at `location`.
+ * @property {(location: OcapnLocation, secret: string | Uint8Array) => SturdyRef} makeSturdyRef
+ *   Mint a SturdyRef: an addressable, passable `(location, secret)`
+ *   pair. The secret may be a printable-ASCII string (the friendly
+ *   form for locators keyed by name) or raw bytes for arbitrary-byte
+ *   sturdyrefs (e.g. the 24-byte randoms Spritely Goblins mints).
+ *   Peers resolve the secret against their own `NonceLocator`.
  * @property {(sturdyRef: SturdyRef) => Promise<any>} enlivenSturdyRef
- * @property {(swissStr: string, object: any) => void} registerSturdyRef
- * Register an object with a swissnum string so it can be resolved via SturdyRef.
+ *   Resolve a SturdyRef to a live capability: local SturdyRefs go
+ *   through the injected locator; remote SturdyRefs fetch from the
+ *   peer's bootstrap.
  * @property {() => void} shutdown
  * @property {ClientDebug} [_debug]
- * Only present when client is created with `debugMode: true`. Exposes internal APIs for testing.
+ *   Only present when the client was constructed with `debugMode:
+ *   true`. Exposes internal APIs for testing.
  */

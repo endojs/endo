@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import harden from '@endo/harden';
 
-import { makeOcapnKeyPair, makeOcapnPublicKey } from '../cryptography.js';
+import { makeCryptography } from '../cryptography.js';
 import {
   immutableArrayBufferToUint8Array,
   uint8ArrayToImmutableArrayBuffer,
@@ -12,6 +12,7 @@ import {
 import { locationToLocationId } from '../client/util.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
+import { syrupCodec } from '../syrup/index.js';
 import { OcapnSignatureCodec } from '../codecs/components.js';
 import { makeOcapnRecordCodecFromDefinition } from '../codecs/util.js';
 
@@ -283,7 +284,12 @@ export const makeWebSocketNetLayer = async ({
   specifiedHostname = '127.0.0.1',
   specifiedUrl,
 }) => {
-  const designatorKeyPair = makeOcapnKeyPair();
+  // The Spritely Goblins websocket auth protocol is syrup-encoded; bind
+  // the netlayer's local cryptography to the syrup codec so the
+  // designator key it generates serializes consistently with the
+  // init:peer-auth records on the wire.
+  const cryptography = makeCryptography(syrupCodec);
+  const designatorKeyPair = cryptography.makeOcapnKeyPair();
   const designatorPublicKey = immutableArrayBufferToUint8Array(
     designatorKeyPair.publicKey.bytes,
   );
@@ -358,7 +364,7 @@ export const makeWebSocketNetLayer = async ({
         `Expected websocket designator to decode to ${DESIGNATOR_PUBLIC_KEY_BYTES} bytes, got ${remotePublicKeyBytes.byteLength}`,
       );
     }
-    const remotePublicKey = makeOcapnPublicKey(
+    const remotePublicKey = cryptography.makeOcapnPublicKey(
       uint8ArrayToImmutableArrayBuffer(remotePublicKeyBytes),
     );
 

@@ -71,7 +71,7 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {(remotePromise: Promise<unknown>) => object} makeLocalResolverForRemotePromise
  * @property {(answerPosition: bigint, promise: Promise<unknown>) => Promise<unknown>} makeLocalAnswerPromiseAndFulfill
  * @property {(position: bigint) => Promise<unknown>} getLocalAnswerValue
- * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
+ * @property {(location: OcapnLocation, secret: string) => SturdyRef} makeSturdyRef
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<unknown>} provideHandoff
  * @property {(signedGive: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
  * @property {(value: object) => ValInfo} getInfoForVal
@@ -137,7 +137,6 @@ export const makeReferenceKit = (
   };
 
   const makePromiseResolverPair = () => {
-    /** @type {{ promise: Promise<unknown>, settler: Settler<unknown> }} */
     const { promise, settler } = makeRemoteKit(() => promise);
     return { promise, settler };
   };
@@ -196,7 +195,6 @@ export const makeReferenceKit = (
    * @returns {object}
    */
   const makeRemoteObject = (position, label) => {
-    /** @type {object} */
     let remoteObject;
     const { settler } = makeRemoteKit(() => remoteObject);
     remoteObject = Remotable(
@@ -422,9 +420,7 @@ export const makeReferenceKit = (
     },
     getLocalAnswerValue: position => {
       const slot = makeSlot('a', true, position);
-      const value = /** @type {Promise<unknown> | undefined} */ (
-        ocapnTable.getValueForSlot(slot)
-      );
+      const value = ocapnTable.getValueForSlot(slot);
       if (value === undefined) {
         throw new Error(
           `OCapN: No local answer found for position: ${position}`,
@@ -443,8 +439,8 @@ export const makeReferenceKit = (
       return answerPromise;
     },
 
-    makeSturdyRef: (location, swissNum) => {
-      return sturdyRefTracker.makeSturdyRef(location, swissNum);
+    makeSturdyRef: (location, secret) => {
+      return sturdyRefTracker.makeSturdyRef(location, secret);
     },
 
     provideHandoff: signedGive => {

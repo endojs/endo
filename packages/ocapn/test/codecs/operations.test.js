@@ -16,10 +16,10 @@ import { makeSelector } from '../../src/selector.js';
 import {
   exampleSigParamBytes,
   examplePubKeyQBytes,
-  runTableTests,
+  runTableTestsAllCodecs,
   makeCodecTestKit,
+  AllCodecs,
 } from './_codecs_util.js';
-import { makeSyrupWriter } from '../../src/syrup/encode.js';
 
 /** @type {CodecTestEntry[]} */
 export const table = [
@@ -52,6 +52,57 @@ export const table = [
         s: exampleSigParamBytes,
       },
     },
+  },
+  {
+    // Fire-and-forget invocation, expressed as `op:deliver` with both
+    // `answerPosition` and `resolveMeDesc` set to `false`. OCapN
+    // folded `op:deliver-only` into this shape; senders no longer
+    // emit a separate opcode.
+    // <op:deliver <desc:export 1> ['fulfill <desc:import-object 2>] false false>
+    name: 'op:deliver fulfill (fire-and-forget)',
+    makeValue: testKit => ({
+      type: 'op:deliver',
+      to: testKit.referenceKit.provideRemoteObjectValue(1n),
+      args: [makeSelector('fulfill'), testKit.makeLocalObject(2n)],
+      answerPosition: false,
+      resolveMeDesc: false,
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:deliver',
+      to: testKit.makeLocalObject(1n),
+      args: [
+        makeSelector('fulfill'),
+        testKit.referenceKit.provideRemoteObjectValue(2n),
+      ],
+      answerPosition: false,
+      resolveMeDesc: false,
+    }),
+  },
+  {
+    // <op:deliver <desc:export 0>               ; Remote bootstrap object
+    //             ['deposit-gift                ; Symbol "deposit-gift"
+    //              42                           ; gift-id, a positive integer
+    //              <desc:import-object ...>]    ; remote object being shared
+    //             false false>                  ; fire-and-forget
+    name: 'op:deliver deposit-gift (fire-and-forget)',
+    makeValue: testKit => ({
+      type: 'op:deliver',
+      to: testKit.referenceKit.provideRemoteObjectValue(0n),
+      args: [makeSelector('deposit-gift'), 42n, testKit.makeLocalObject(1n)],
+      answerPosition: false,
+      resolveMeDesc: false,
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:deliver',
+      to: testKit.makeLocalObject(0n),
+      args: [
+        makeSelector('deposit-gift'),
+        42n,
+        testKit.referenceKit.provideRemoteObjectValue(1n),
+      ],
+      answerPosition: false,
+      resolveMeDesc: false,
+    }),
   },
   {
     // <op:deliver <desc:export 5> ['make-car-factory] 3 <desc:import-object 15>>
@@ -144,8 +195,8 @@ export const table = [
     }),
   },
   {
-    // <op:gc-exports export-positions   ; list of non-negative integers
-    //               wire-deltas>       ; list of positive integers
+    // <op:gc-exports [export-pos ...]   ; non-negative integers
+    //                [wire-delta ...]>  ; positive integers
     name: 'op:gc-exports',
     value: {
       type: 'op:gc-exports',
@@ -154,7 +205,7 @@ export const table = [
     },
   },
   {
-    // <op:gc-answers answer-positions>  ; list of non-negative integers
+    // <op:gc-answers [answer-pos ...]>  ; answer-pos: non-negative integer
     name: 'op:gc-answers',
     value: {
       type: 'op:gc-answers',
@@ -217,7 +268,7 @@ export const table = [
     }),
   },
   {
-    name: 'python op:deliver fulfill (no resolver)',
+    name: 'python op:deliver fulfill (fire-and-forget)',
     makeValue: testKit => ({
       type: 'op:deliver',
       to: testKit.referenceKit.provideRemoteObjectValue(0n),
@@ -419,86 +470,89 @@ export const table = [
   },
 ];
 
-runTableTests(
+runTableTestsAllCodecs(
   test,
   'OcapnMessageUnionCodec',
   table,
   testKit => testKit.OcapnMessageUnionCodec,
 );
 
-test('op:get rejects integer fieldName', t => {
-  const testKit = makeCodecTestKit();
-  const syrupWriter = makeSyrupWriter({
-    name: 'op:get with integer fieldName',
+// Error validation tests run with all codec formats
+for (const codec of AllCodecs) {
+  test(`op:get rejects integer fieldName [${codec.name}]`, t => {
+    const testKit = makeCodecTestKit();
+    const writer = codec.makeWriter({
+      name: 'op:get with integer fieldName',
+    });
+
+    const invalidMessage = {
+      type: 'op:get',
+      receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+      fieldName: 42n, // Should be a string, not an integer
+      answerPosition: 7n,
+    };
+
+    const error = t.throws(
+      () => {
+        testKit.OcapnMessageUnionCodec.write(invalidMessage, writer);
+      },
+      undefined,
+      'op:get should reject integer fieldName',
+    );
+
+    // Verify the error chain contains the fieldName failure
+    const cause1 = /** @type {Error} */ (error.cause);
+    const cause2 = /** @type {Error} */ (cause1.cause);
+    t.regex(cause2.message, /OpGet: write failed for field fieldName/);
   });
 
-  const invalidMessage = {
-    type: 'op:get',
-    receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
-    fieldName: 42n, // Should be a string, not an integer
-    answerPosition: 7n,
-  };
+  test(`op:index rejects string index [${codec.name}]`, t => {
+    const testKit = makeCodecTestKit();
+    const writer = codec.makeWriter({ name: 'op:index with string index' });
 
-  const error = t.throws(
-    () => {
-      testKit.OcapnMessageUnionCodec.write(invalidMessage, syrupWriter);
-    },
-    undefined,
-    'op:get should reject integer fieldName',
-  );
+    const invalidMessage = {
+      type: 'op:index',
+      receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+      index: 'notAnIndex', // Should be an integer, not a string
+      answerPosition: 7n,
+    };
 
-  // Verify the error chain contains the fieldName failure
-  const cause1 = /** @type {Error} */ (error.cause);
-  const cause2 = /** @type {Error} */ (cause1.cause);
-  t.regex(cause2.message, /OpGet: write failed for field fieldName/);
-});
+    const error = t.throws(
+      () => {
+        testKit.OcapnMessageUnionCodec.write(invalidMessage, writer);
+      },
+      undefined,
+      'op:index should reject string index',
+    );
 
-test('op:index rejects string index', t => {
-  const testKit = makeCodecTestKit();
-  const syrupWriter = makeSyrupWriter({ name: 'op:index with string index' });
+    // Verify the error chain contains the index failure
+    const cause1 = /** @type {Error} */ (error.cause);
+    const cause2 = /** @type {Error} */ (cause1.cause);
+    t.regex(cause2.message, /OpIndex: write failed for field index/);
+  });
 
-  const invalidMessage = {
-    type: 'op:index',
-    receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
-    index: 'notAnIndex', // Should be an integer, not a string
-    answerPosition: 7n,
-  };
+  test(`op:untag rejects integer tag [${codec.name}]`, t => {
+    const testKit = makeCodecTestKit();
+    const writer = codec.makeWriter({ name: 'op:untag with integer tag' });
 
-  const error = t.throws(
-    () => {
-      testKit.OcapnMessageUnionCodec.write(invalidMessage, syrupWriter);
-    },
-    undefined,
-    'op:index should reject string index',
-  );
+    const invalidMessage = {
+      type: 'op:untag',
+      receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+      tag: 42n, // Should be a string, not an integer
+      answerPosition: 7n,
+    };
 
-  // Verify the error chain contains the index failure
-  const cause1 = /** @type {Error} */ (error.cause);
-  const cause2 = /** @type {Error} */ (cause1.cause);
-  t.regex(cause2.message, /OpIndex: write failed for field index/);
-});
+    const error = t.throws(
+      () => {
+        testKit.OcapnMessageUnionCodec.write(invalidMessage, writer);
+      },
+      undefined,
+      'op:untag should reject integer tag',
+    );
 
-test('op:untag rejects integer tag', t => {
-  const testKit = makeCodecTestKit();
-  const syrupWriter = makeSyrupWriter({ name: 'op:untag with integer tag' });
-
-  const invalidMessage = {
-    type: 'op:untag',
-    receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
-    tag: 42n, // Should be a string, not an integer
-    answerPosition: 7n,
-  };
-
-  const error = t.throws(
-    () => {
-      testKit.OcapnMessageUnionCodec.write(invalidMessage, syrupWriter);
-    },
-    undefined,
-    'op:untag should reject integer tag',
-  );
-
-  // Verify the error chain contains the tag failure
-  const cause1 = /** @type {Error} */ (error.cause);
-  const cause2 = /** @type {Error} */ (cause1.cause);
-  t.regex(cause2.message, /OpUntag: write failed for field tag/);
-});
+    // Verify the error chain contains the tag failure
+    const cause1 = /** @type {Error} */ (error.cause);
+    const cause2 = /** @type {Error} */ (cause1.cause);
+    t.regex(cause2.message, /OpUntag: write failed for field tag/);
+  });
+}

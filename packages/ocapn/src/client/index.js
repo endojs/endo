@@ -3,43 +3,24 @@
 /**
  * @import { OcapnLocation } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
+ * @import { OcapnCodec } from '../codec-interface.js'
  * @import { SturdyRef } from './sturdyrefs.js'
- * @import { Client, Connection, InternalSession, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionManager, SocketOperations, SwissNum } from './types.js'
+ * @import { Client, Connection, InternalSession, LocationId, Logger, NetLayer, NetlayerHandlers, NetworkSession, NonceLocator, OcapnNetwork, PendingSession, SelfIdentity, Session, SessionManager, SocketOperations, SwissNum } from './types.js'
  */
 
 import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { writeOcapnHandshakeMessage } from '../codecs/operations.js';
-import { makeOcapnKeyPair, signLocation } from '../cryptography.js';
+import { makeCryptography } from '../cryptography.js';
 import { makeGrantTracker } from './grant-tracker.js';
 import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
-import { handleHandshakeMessageData, sendHandshake } from './handshake.js';
-import { makeOcapn } from './ocapn.js';
-
-/**
- * @param {OcapnLocation} myLocation
- * @returns {SelfIdentity}
- */
-export const makeSelfIdentity = myLocation => {
-  const keyPair = makeOcapnKeyPair();
-  const myLocationSig = signLocation(myLocation, keyPair);
-  return { keyPair, location: myLocation, locationSignature: myLocationSig };
-};
-
-/**
- * @param {Connection} connection
- * @param {string} [reason]
- */
-const sendAbortAndClose = (connection, reason = 'unknown reason') => {
-  const opAbort = {
-    type: 'op:abort',
-    reason,
-  };
-  const bytes = writeOcapnHandshakeMessage(opAbort);
-  connection.write(bytes);
-  connection.end();
-};
+import {
+  handleHandshakeMessageData,
+  makeSession,
+  sendHandshake,
+} from './handshake.js';
+import { makeOcapn as makeOcapnCore } from './ocapn.js';
 
 /**
  * @param {Logger} logger
@@ -47,6 +28,7 @@ const sendAbortAndClose = (connection, reason = 'unknown reason') => {
  * @param {Connection} connection
  * @param {InternalSession} session
  * @param {Uint8Array} data
+ * @param {(connection: Connection, reason?: string) => void} sendAbortAndClose
  */
 const handleActiveSessionMessageData = (
   logger,
@@ -54,6 +36,7 @@ const handleActiveSessionMessageData = (
   connection,
   session,
   data,
+  sendAbortAndClose,
 ) => {
   try {
     session.ocapn.dispatchMessageData(data);
@@ -168,29 +151,105 @@ const makeSessionManager = () => {
 };
 
 /**
- * @param {object} [options]
+ * @typedef {NetLayer | OcapnNetwork} AnyNetwork
+ * @typedef {((handlers: NetlayerHandlers, logger: Logger) => AnyNetwork | Promise<AnyNetwork>)} NetworkFactory
+ */
+
+/**
+ * @typedef {object} MakeOcapnAsyncResult
+ * @property {Client} ocapn
+ * @property {AnyNetwork} network
+ */
+
+/**
+ * Construct an OCapN session manager against a chosen codec and a
+ * single network. Both are pluggable (so you can experiment with
+ * different codecs and networks, and compare them across dimensions
+ * like performance), but fixed for the life of this instance: OCapN
+ * makes no attempt to negotiate either on the wire, and session
+ * identity is computed against canonical codec bytes.
+ *
+ * The `locator` is the caller-owned table of locally-held
+ * capabilities. A plain `Map` works; anything with a
+ * `get(secret) → value | Promise<value> | undefined` does too. When a
+ * peer asks for a local capability via `bootstrap.fetch(secret)`, the
+ * client calls `locator.get(secret)` and hands the result (or an
+ * error, if `undefined`) back to the peer.
+ *
+ * `network` may be either a pre-built network object or a factory
+ * `(handlers, logger) => network`. Legacy NetLayers need the handlers
+ * at construction time and use the factory form; `OcapnNetwork`-style
+ * networks (Noise) typically don't.
+ *
+ * @param {object} options
+ * @param {OcapnCodec} options.codec
+ * @param {AnyNetwork | NetworkFactory} options.network
+ * @param {NonceLocator} [options.locator]
  * @param {string} [options.debugLabel]
  * @param {boolean} [options.verbose]
- * @param {Map<string, any>} [options.swissnumTable]
  * @param {Map<string, any>} [options.giftTable]
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
- * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. The same logger is also handed to netlayer factories registered via `registerNetlayer`. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
- * @returns {Client}
+ * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
+ * @returns {Promise<Client>}
  */
-export const makeClient = ({
+export const makeOcapn = async ({
+  codec,
+  network: networkArg,
+  locator = new Map(),
   debugLabel = 'ocapn',
   verbose = false,
-  swissnumTable = new Map(),
   giftTable = new Map(),
   captpVersion = '1.0',
   enableImportCollection = true,
   debugMode = false,
   logger: providedLogger,
-} = {}) => {
-  /** @type {Map<string, NetLayer>} */
-  const netlayers = new Map();
+}) => {
+  if (!codec) {
+    throw Error(
+      'makeOcapn: `codec` is required (import one of `cborCodec` from `@endo/ocapn/cbor` or `syrupCodec` from `@endo/ocapn/syrup`)',
+    );
+  }
+  if (!networkArg) {
+    throw Error(
+      'makeOcapn: `network` is required (pass an `OcapnNoiseNetwork` from `@endo/ocapn-noise`, or a legacy `NetLayer`)',
+    );
+  }
+  const cryptography = makeCryptography(codec);
+
+  /**
+   * @param {OcapnLocation} myLocation
+   * @returns {SelfIdentity}
+   */
+  const makeSelfIdentity = myLocation => {
+    const keyPair = cryptography.makeOcapnKeyPair();
+    // tcp-testing-only does not have a Noise transcript hash to bind
+    // against; sign with an empty channel-binding value.  The np
+    // netlayer mints its own per-session SelfIdentity that binds to
+    // the Noise handshake hash instead.
+    const myLocationSig = cryptography.signLocation(
+      myLocation,
+      keyPair,
+      new ArrayBuffer(0),
+    );
+    return {
+      keyPair,
+      location: myLocation,
+      locationSignature: myLocationSig,
+    };
+  };
+
+  /**
+   * @param {Connection} connection
+   * @param {string} [reason]
+   */
+  const sendAbortAndClose = (connection, reason = 'unknown reason') => {
+    const opAbort = { type: 'op:abort', reason };
+    const bytes = writeOcapnHandshakeMessage(opAbort, codec);
+    connection.write(bytes);
+    connection.end();
+  };
 
   /** @type {Logger} */
   const logger =
@@ -204,6 +263,15 @@ export const makeClient = ({
     });
 
   const sessionManager = makeSessionManager();
+
+  /**
+   * The resolved network. Assigned exactly once, after any factory is
+   * called with `netlayerHandlers` and the logger. All closures below
+   * reference this `let` binding; no method on the returned `Client`
+   * runs before assignment, so use-before-assign is not observable.
+   * @type {AnyNetwork}
+   */
+  let network;
 
   /** @type {WeakMap<Connection, SelfIdentity>} */
   const connectionSelfIdentityMap = new WeakMap();
@@ -226,21 +294,151 @@ export const makeClient = ({
    * @returns {Promise<InternalSession>}
    * Establishes a new session by initiating a connection.
    */
-  const establishSession = location => {
-    const netlayer = netlayers.get(location.transport);
-    if (!netlayer) {
-      throw Error(
-        `Netlayer not registered for transport: ${location.transport}`,
-      );
-    }
+  /**
+   * Create an InternalSession from a network-provided NetworkSession.
+   *
+   * This bridges the OcapnNetwork.provideSession() path to the
+   * existing session infrastructure.  The network has already
+   * authenticated the peer; we wrap its write/close into a
+   * synthetic Connection and set up CapTP over it.
+   *
+   * @param {NetworkSession} networkSession
+   * @param {NetLayer | OcapnNetwork} netlayer
+   * @returns {InternalSession}
+   */
+  const makeInternalSessionFromNetwork = (networkSession, netlayer) => {
+    let isDestroyed = false;
+    const netlayerForConnection = /** @type {NetLayer} */ (netlayer);
+    /** @type {Connection} */
+    const connection = harden({
+      netlayer: netlayerForConnection,
+      isOutgoing: networkSession.isInitiator,
+      get isDestroyed() {
+        return isDestroyed;
+      },
+      write(bytes) {
+        // Fire-and-forget: the network's writer returns a promise but
+        // the Connection.write contract is synchronous. Errors are
+        // handled by the reader pump below (end-of-stream → endSession).
+        Promise.resolve(networkSession.writer.next(bytes)).catch(() => {});
+      },
+      end() {
+        if (isDestroyed) return;
+        isDestroyed = true;
+        networkSession.close();
+      },
+    });
+
+    const { selfIdentity } = networkSession;
+    connectionSelfIdentityMap.set(connection, selfIdentity);
+
+    const peerPublicKey = cryptography.makeOcapnPublicKey(
+      networkSession.remotePublicKeyBytes,
+    );
+    const peerLocation = networkSession.remoteLocation;
+    const peerLocationSig = networkSession.remoteLocationSignature;
+
+    // eslint-disable-next-line no-use-before-define
+    const ocapn = prepareOcapn(
+      connection,
+      networkSession.sessionId,
+      peerLocation,
+    );
+
+    const internalSession = makeSession({
+      id: networkSession.sessionId,
+      selfIdentity,
+      peerLocation,
+      peerPublicKey,
+      peerLocationSig,
+      ocapn,
+      connection,
+    });
+
+    // Pump the network's plaintext reader into the CapTP dispatcher.
+    // Each `reader.next()` yields one whole OCapN frame that the
+    // network has already framed/decrypted.
+    const runPump = async () => {
+      await null;
+      try {
+        for (;;) {
+          // eslint-disable-next-line no-await-in-loop
+          const result = await networkSession.reader.next(undefined);
+          if (result.done) break;
+          if (isDestroyed) break;
+          try {
+            ocapn.dispatchMessageData(result.value);
+          } catch (err) {
+            logger.error(`CapTP dispatch failed`, err);
+            // Mirror handleActiveSessionMessageData: notify the peer
+            // with op:abort before tearing the session down, instead
+            // of letting them stare at a quiet half-closed socket.
+            try {
+              sendAbortAndClose(connection, 'internal error');
+            } catch (_e) {
+              // ignore secondary failures during teardown
+            }
+            break;
+          }
+        }
+      } finally {
+        if (!isDestroyed) {
+          isDestroyed = true;
+          sessionManager.endSession(internalSession);
+        }
+      }
+    };
+    runPump();
+
+    return internalSession;
+  };
+
+  const establishSession = async location => {
     const destinationLocationId = locationToLocationId(location);
-    if (destinationLocationId === netlayer.locationId) {
+    if (destinationLocationId === network.locationId) {
       throw Error('Refusing to connect to self');
     }
-    const connection = netlayer.connect(location);
+
+    // Networks that manage their own full session lifecycle (connect,
+    // authenticate, encrypt) short-circuit the handshake machinery.
+    const asNetwork = /** @type {OcapnNetwork} */ (network);
+    if (asNetwork.provideSession) {
+      const networkSession = await asNetwork.provideSession(location);
+      const session = makeInternalSessionFromNetwork(networkSession, network);
+      sessionManager.resolveSession(
+        destinationLocationId,
+        session.connection,
+        session,
+      );
+      return Promise.resolve(session);
+    }
+
+    const asNetlayer = /** @type {NetLayer} */ (network);
+    if (!asNetlayer.connect) {
+      throw Error(
+        'ocapn: network must implement `connect` or `provideSession`',
+      );
+    }
+    // `OcapnNetwork.connect` may be async; legacy `NetLayer.connect` is
+    // sync. Only `await` when actually async, so the synchronous path
+    // registers its pending session without an intervening microtask.
+    const connectResult = asNetlayer.connect(location);
+    const connection =
+      connectResult instanceof Promise ? await connectResult : connectResult;
     const selfIdentity = getSelfIdentityForConnection(connection);
-    // Send handshake for outgoing connections
-    sendHandshake(connection, selfIdentity, captpVersion);
+    // Networks that customize their handshake (e.g. a Noise-based
+    // network) own the send path; otherwise fall back to
+    // `op:start-session`.
+    if (asNetwork.sendSessionHandshake) {
+      asNetwork.sendSessionHandshake(
+        connection,
+        captpVersion,
+        selfIdentity,
+        codec,
+      );
+    } else {
+      sendHandshake(connection, selfIdentity, captpVersion, codec);
+    }
     const pendingSession = sessionManager.makePendingSession(
       destinationLocationId,
       connection,
@@ -249,20 +447,18 @@ export const makeClient = ({
   };
 
   const grantTracker = makeGrantTracker();
-  const sturdyRefTracker = makeSturdyRefTracker(swissnumTable);
+  const sturdyRefTracker = makeSturdyRefTracker(locator);
+
   /**
-   * Check if a location matches one of our own netlayers (self-location)
+   * Check whether a location refers to this instance (as opposed to
+   * another peer).
+   *
    * @param {OcapnLocation} location
    * @returns {boolean}
    */
   const isSelfLocation = location => {
     const locationId = locationToLocationId(location);
-    for (const netlayer of netlayers.values()) {
-      if (netlayer.locationId === locationId) {
-        return true;
-      }
-    }
-    return false;
+    return network.locationId === locationId;
   };
 
   /**
@@ -294,7 +490,7 @@ export const makeClient = ({
   };
 
   const prepareOcapn = (connection, sessionId, peerLocation) => {
-    return makeOcapn(
+    return makeOcapnCore(
       logger,
       connection,
       sessionId,
@@ -313,6 +509,8 @@ export const makeClient = ({
       grantTracker,
       giftTable,
       sturdyRefTracker,
+      codec,
+      cryptography,
       debugLabel,
       enableImportCollection,
       debugMode,
@@ -334,8 +532,26 @@ export const makeClient = ({
         connection,
         session,
         data,
+        sendAbortAndClose,
       );
     } else {
+      // Let the connection's network intercept handshake bytes first if it
+      // implements its own session negotiation.
+      const connectionNetwork =
+        /** @type {OcapnNetwork & NetLayer | undefined} */ (
+          connection.netlayer
+        );
+      if (connectionNetwork && connectionNetwork.handleSessionHandshake) {
+        const selfIdentity = getSelfIdentityForConnection(connection);
+        const handled = connectionNetwork.handleSessionHandshake(
+          connection,
+          data,
+          selfIdentity,
+          captpVersion,
+        );
+        if (handled) return;
+      }
+      // Fall back to the default op:start-session handshake.
       handleHandshakeMessageData(
         logger,
         sessionManager,
@@ -345,6 +561,8 @@ export const makeClient = ({
         data,
         captpVersion,
         prepareOcapn,
+        codec,
+        cryptography,
       );
     }
   };
@@ -418,23 +636,81 @@ export const makeClient = ({
     handleConnectionClose,
   });
 
+  // Resolve the network: either use the object directly, or invoke the
+  // factory now that `netlayerHandlers` is ready. Legacy NetLayers
+  // (e.g. `tcp-testing-only`) rely on the factory form.
+  network =
+    typeof networkArg === 'function'
+      ? await /** @type {NetworkFactory} */ (networkArg)(
+          netlayerHandlers,
+          logger,
+        )
+      : /** @type {AnyNetwork} */ (networkArg);
+
+  // Belt-and-suspenders: if the network declares its codec, ensure
+  // agreement. Catches "wrong codec paired with wrong network" at
+  // construction instead of mid-handshake.
+  const networkCodec = /** @type {OcapnNetwork} */ (network).codec;
+  if (networkCodec && networkCodec !== codec) {
+    throw Error(
+      'makeOcapn: `network.codec` does not match `codec`; both peers must use the same wire codec',
+    );
+  }
+
+  // Consume peer-initiated sessions (if any) as they land. Each yields
+  // a fully-authenticated session that we wire into the session
+  // manager; `provideSession` below returns them from its cache.
+  const asOcapnNetwork = /** @type {OcapnNetwork} */ (network);
+  if (asOcapnNetwork.inboundSessions) {
+    const inboundSessions = asOcapnNetwork.inboundSessions;
+    const runConsumer = async () => {
+      await null;
+      try {
+        for await (const networkSession of inboundSessions) {
+          const locationId = locationToLocationId(
+            networkSession.remoteLocation,
+          );
+          // Race avoidance: a `provideSession` call concurrent with
+          // an inbound handshake may already have promoted (or seen)
+          // the noise network's active session for this peer. The
+          // network may then ALSO publish the same session here.
+          // Discard the duplicate idempotently rather than building
+          // an InternalSession we'd immediately have to abort.
+          // Aborting would tear down the underlying networkSession
+          // that the active path now owns.
+          if (!sessionManager.getActiveSession(locationId)) {
+            const internalSession = makeInternalSessionFromNetwork(
+              networkSession,
+              network,
+            );
+            try {
+              sessionManager.resolveSession(
+                locationId,
+                internalSession.connection,
+                internalSession,
+              );
+            } catch (err) {
+              logger.info(
+                `inbound session for ${locationId} collided with existing; discarding new`,
+                err,
+              );
+              // Tear down only the InternalSession bookkeeping;
+              // calling `ocapn.abort` here would close the shared
+              // underlying networkSession out from under the
+              // already-resolved peer.
+              sessionManager.endSession(internalSession);
+            }
+          }
+        }
+      } catch (err) {
+        logger.error('inboundSessions consumer failed', err);
+      }
+    };
+    runConsumer();
+  }
+
   /** @type {Client} */
   const client = {
-    /**
-     * Registers a netlayer by calling the provided factory with handlers and logger.
-     * @template {NetLayer} T
-     * @param {(handlers: NetlayerHandlers, logger: Logger) => T | Promise<T>} makeNetlayer
-     * @returns {Promise<T>}
-     */
-    async registerNetlayer(makeNetlayer) {
-      const netlayer = await makeNetlayer(netlayerHandlers, logger);
-      const { transport } = netlayer.location;
-      if (netlayers.has(transport)) {
-        throw Error(`Netlayer already registered for transport: ${transport}`);
-      }
-      netlayers.set(transport, netlayer);
-      return netlayer;
-    },
     /**
      * @param {OcapnLocation} location
      * @returns {Promise<Session>}
@@ -449,16 +725,21 @@ export const makeClient = ({
       return session;
     },
     /**
-     * Create a SturdyRef object
+     * Mint a capability reference addressed to `(location, secret)`.
+     * The peer resolves the secret against its own locator.
+     *
      * @param {OcapnLocation} location
-     * @param {SwissNum} swissNum
+     * @param {string | Uint8Array} secret
      * @returns {SturdyRef}
      */
-    makeSturdyRef(location, swissNum) {
-      return sturdyRefTracker.makeSturdyRef(location, swissNum);
+    makeSturdyRef(location, secret) {
+      return sturdyRefTracker.makeSturdyRef(location, secret);
     },
     /**
-     * Enliven a SturdyRef by fetching the actual object
+     * Resolve a `SturdyRef` to a live capability. Local SturdyRefs flow
+     * through the injected locator; remote SturdyRefs fetch from the
+     * peer's bootstrap.
+     *
      * @param {SturdyRef} sturdyRef
      * @returns {Promise<any>}
      */
@@ -467,22 +748,12 @@ export const makeClient = ({
         sturdyRef,
         provideInternalSession,
         isSelfLocation,
-        swissnumTable,
+        locator,
       );
-    },
-    /**
-     * Register an object with a swissnum string so it can be resolved via SturdyRef.
-     * @param {string} swissStr
-     * @param {any} object
-     */
-    registerSturdyRef(swissStr, object) {
-      sturdyRefTracker.register(swissStr, object);
     },
     shutdown() {
       logger.info(`shutdown called`);
-      for (const netlayer of netlayers.values()) {
-        netlayer.shutdown();
-      }
+      network.shutdown();
     },
   };
 

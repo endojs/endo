@@ -916,10 +916,10 @@ test('makePairwiseTable - getSlotForValue returns undefined for primitives', t =
   const table = makeTestTable();
 
   // Primitives can't be used as WeakMap keys, so should return undefined
-  t.is(table.getSlotForValue(/** @type {any} */ (42)), undefined);
-  t.is(table.getSlotForValue(/** @type {any} */ ('string')), undefined);
-  t.is(table.getSlotForValue(/** @type {any} */ (null)), undefined);
-  t.is(table.getSlotForValue(/** @type {any} */ (undefined)), undefined);
+  t.is(table.getSlotForValue(42), undefined);
+  t.is(table.getSlotForValue('string'), undefined);
+  t.is(table.getSlotForValue(null), undefined);
+  t.is(table.getSlotForValue(undefined), undefined);
 });
 
 test('makePairwiseTable - refcount accumulates across multiple commit cycles', t => {

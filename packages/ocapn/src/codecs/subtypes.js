@@ -75,10 +75,11 @@ export const FalseCodec = makeCodec('False', {
 });
 
 /**
- * Syrup encoding of either `false` or the shape produced by `childCodec`.
- * On read, if `peekTypeHint() === 'boolean'`, decodes with {@link FalseCodec};
- * otherwise decodes with `childCodec`. On write, `value === false` uses
- * {@link FalseCodec}; otherwise `childCodec.write`.
+ * Wrap a child codec so the field accepts `false` as a sentinel for
+ * "absent / no value." OCapN uses this pattern for optional message
+ * slots (e.g. `op:deliver` with no `resolveMeDesc` or no
+ * `answerPosition`). Reading peeks the next type hint and routes to
+ * `FalseCodec` when the wire byte is the boolean tag.
  *
  * @param {string} codecName
  * @param {SyrupCodec} childCodec
@@ -87,18 +88,18 @@ export const FalseCodec = makeCodec('False', {
 export const makeOcapnFalseForOptionalCodec = (codecName, childCodec) => {
   /** @type {SyrupCodec} */
   return makeCodec(codecName, {
-    read: syrupReader => {
-      const hint = syrupReader.peekTypeHint();
+    read: reader => {
+      const hint = reader.peekTypeHint();
       if (hint === 'boolean') {
-        return FalseCodec.read(syrupReader);
+        return FalseCodec.read(reader);
       }
-      return childCodec.read(syrupReader);
+      return childCodec.read(reader);
     },
-    write: (value, syrupWriter) => {
+    write: (value, writer) => {
       if (value === false) {
-        FalseCodec.write(false, syrupWriter);
+        FalseCodec.write(false, writer);
       } else {
-        childCodec.write(value, syrupWriter);
+        childCodec.write(value, writer);
       }
     },
   });
@@ -121,6 +122,7 @@ export const makeStructCodecForValues = (codecName, getValuesCodec) => {
       while (!syrupReader.peekDictionaryEnd()) {
         // OCapN Structs are always string keys.
         const start = syrupReader.index;
+        /** @type {string} */
         const key = syrupReader.readString();
         if (lastKey !== undefined) {
           if (key === lastKey) {
@@ -144,9 +146,9 @@ export const makeStructCodecForValues = (codecName, getValuesCodec) => {
     },
     write(value, syrupWriter) {
       const ValuesCodec = getValuesCodec();
-      syrupWriter.enterDictionary();
       const keys = Object.keys(value);
       keys.sort();
+      syrupWriter.enterDictionary(keys.length);
       for (const key of keys) {
         syrupWriter.writeString(key);
         // Value can be any Passable.

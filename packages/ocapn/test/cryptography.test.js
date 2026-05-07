@@ -2,14 +2,8 @@
 
 import test from '@endo/ses-ava/test.js';
 
-import {
-  makeOcapnKeyPair,
-  makeSessionId,
-  signHandoffGive,
-  signHandoffReceive,
-  assertHandoffGiveSignatureValid,
-  assertHandoffReceiveSignatureValid,
-} from '../src/cryptography.js';
+import { makeCryptography, makeSessionId } from '../src/cryptography.js';
+import { syrupCodec } from '../src/syrup/index.js';
 import {
   makeHandoffGiveDescriptor,
   makeHandoffGiveSigEnvelope,
@@ -17,6 +11,14 @@ import {
   makeHandoffReceiveSigEnvelope,
 } from '../src/codecs/descriptors.js';
 import { encodeStringToImmutableArrayBuffer } from '../src/buffer-utils.js';
+
+const {
+  makeOcapnKeyPair,
+  signHandoffGive,
+  signHandoffReceive,
+  assertHandoffGiveSignatureValid,
+  assertHandoffReceiveSignatureValid,
+} = makeCryptography(syrupCodec);
 
 const makeSessionKeys = () => {
   const key1 = makeOcapnKeyPair();

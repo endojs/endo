@@ -23,14 +23,15 @@ import '@endo/init';
 import test from '@endo/ses-ava/test.js';
 
 import { E } from '@endo/eventual-send';
-import { makeClient } from '@endo/ocapn';
+import { decodeSwissnum, makeOcapn } from '@endo/ocapn';
 import { makeWebSocketNetLayer } from '@endo/ocapn/netlayer/ws';
+import { syrupCodec } from '@endo/ocapn/syrup';
 
 import { hostRoom, hostRegistry } from '../src/host-room.js';
 import { parseLocator } from '../src/uri-parse.js';
 
 // Match what the in-process interop test uses; the websocket loopback
-// path through `makeClient`/`makeWebSocketNetLayer` is most-tested at
+// path through `makeOcapn`/`makeWebSocketNetLayer` is most-tested at
 // this version.
 const CAPTP_VERSION = 'goblins-0.16';
 
@@ -56,21 +57,26 @@ test.serial(
       t.regex(String(parsed.location.hints.url), /^ws:\/\/127\.0\.0\.1:\d+$/u);
     }
 
-    const remote = makeClient({ captpVersion: CAPTP_VERSION });
-    await remote.registerNetlayer(handlers =>
-      makeWebSocketNetLayer({
-        handlers,
-        // tests run quietly; the netlayer logger only fires on
-        // exceptional paths anyway.
-        logger: { log: () => {}, info: () => {}, error: () => {} },
-      }),
-    );
+    const remote = await makeOcapn({
+      codec: syrupCodec,
+      captpVersion: CAPTP_VERSION,
+      network: handlers =>
+        makeWebSocketNetLayer({
+          handlers,
+          // tests run quietly; the netlayer logger only fires on
+          // exceptional paths anyway.
+          logger: { log: () => {}, info: () => {}, error: () => {} },
+        }),
+    });
 
     try {
       if (!parsed.swissNum) {
         throw Error('parsed sturdyref URI missing swissNum');
       }
-      const sref = remote.makeSturdyRef(parsed.location, parsed.swissNum);
+      const sref = remote.makeSturdyRef(
+        parsed.location,
+        decodeSwissnum(parsed.swissNum),
+      );
       const chatroom = await remote.enlivenSturdyRef(sref);
       const name = await E(chatroom)['self-proposed-name']();
       t.is(name, '#test-host');

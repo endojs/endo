@@ -21,6 +21,14 @@
     ".": "./index.js",
     "./netlayer/tcp-testing": "./src/netlayers/tcp-test-only.js",
     "./netlayer/ws": "./src/netlayers/websocket.js",
+    "./syrup": "./src/syrup/index.js",
+    "./cbor": "./src/cbor/index.js",
+    "./cryptography": "./src/cryptography.js",
+    "./components": "./src/codecs/components.js",
+    "./operations": "./src/codecs/operations.js",
+    "./codec-interface": {
+      "types": "./src/codec-interface.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -46,6 +54,7 @@
     "@endo/nat": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^",
     "@noble/curves": "^1.9.0",
     "@noble/hashes": "^1.8.0",
     "ws": "^8.20.0"
@@ -56,6 +65,7 @@
     "@types/ws": "^8",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
+    "cbor": "^9.0.2",
     "eslint": "catalog:dev",
     "ses": "workspace:^",
     "tsd": "catalog:dev",

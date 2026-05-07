@@ -41,6 +41,8 @@
     "packages/memoize",
     "packages/module-source",
     "packages/netstring",
+    "packages/ocapn",
+    "packages/ocapn-noise",
     "packages/platform",
     "packages/relay-server",
     "packages/skel",

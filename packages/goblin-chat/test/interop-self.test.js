@@ -21,26 +21,12 @@ import '@endo/init';
 
 import test from '@endo/ses-ava/test.js';
 
-import { makeClient, swissnumFromBytes } from '@endo/ocapn';
+import { makeOcapn } from '@endo/ocapn';
 import { makeWebSocketNetLayer } from '@endo/ocapn/netlayer/ws';
+import { syrupCodec } from '@endo/ocapn/syrup';
 
 import { makeChatroom } from '../src/backend.js';
 import { runChatParticipant } from '../src/interop-driver.js';
-
-// Local equivalent of `encodeSwissnum`, kept inline so this test
-// doesn't drag the helper into `@endo/ocapn`'s public exports map.
-// Validates printable ASCII so a stray non-ASCII char in the room
-// constant fails loudly here rather than producing a wire-level mystery.
-const swissnumEncoder = new TextEncoder();
-/** @param {string} value */
-const swissnumFromAsciiString = value => {
-  for (let i = 0; i < value.length; i += 1) {
-    if (value.charCodeAt(i) > 127) {
-      throw Error(`Non-ASCII byte in swissnum at position ${i}: ${value[i]}`);
-    }
-  }
-  return swissnumFromBytes(swissnumEncoder.encode(value));
-};
 
 const ROOM_SWISS = 'interop-room';
 const ROOM_NAME = '#interop-room';
@@ -54,31 +40,42 @@ test('endo OCapN client interops with the JS goblin-chat backend', async t => {
   const chatroom = makeChatroom(ROOM_NAME);
 
   // Host: owns the chatroom Far and exposes it under a known
-  // swissnum so the remote side can enliven it via sturdyref.
-  const hostClient = makeClient({
+  // swissnum so the remote side can enliven it via sturdyref. The
+  // locator is the live registry the OCapN client consults when a
+  // peer asks for `bootstrap.fetch(swissnum)`.
+  const hostLocator = new Map([[ROOM_SWISS, chatroom]]);
+  /** @type {{ netlayer?: Awaited<ReturnType<typeof makeWebSocketNetLayer>> }} */
+  const hostNetlayerRef = {};
+  const hostClient = await makeOcapn({
+    codec: syrupCodec,
     debugLabel: 'js-host',
     captpVersion: CAPTP_VERSION,
+    locator: hostLocator,
+    network: (handlers, logger) =>
+      makeWebSocketNetLayer({ handlers, logger }).then(netlayer => {
+        hostNetlayerRef.netlayer = netlayer;
+        return netlayer;
+      }),
   });
-  hostClient.registerSturdyRef(ROOM_SWISS, chatroom);
-  const hostNetlayer = await hostClient.registerNetlayer((handlers, logger) =>
-    makeWebSocketNetLayer({ handlers, logger }),
-  );
+  if (!hostNetlayerRef.netlayer) {
+    throw Error('makeWebSocketNetLayer did not resolve a netlayer');
+  }
+  const hostNetlayer = hostNetlayerRef.netlayer;
 
   // Remote participant: a fully separate OCapN client, talks to the
   // host through its websocket netlayer just like the Endo CI client
   // talks to the Guile host.
-  const remoteClient = makeClient({
+  const remoteClient = await makeOcapn({
+    codec: syrupCodec,
     debugLabel: 'endo-remote',
     captpVersion: CAPTP_VERSION,
+    network: (handlers, logger) => makeWebSocketNetLayer({ handlers, logger }),
   });
-  await remoteClient.registerNetlayer((handlers, logger) =>
-    makeWebSocketNetLayer({ handlers, logger }),
-  );
 
   try {
     const sturdyRef = remoteClient.makeSturdyRef(
       hostNetlayer.location,
-      swissnumFromAsciiString(ROOM_SWISS),
+      ROOM_SWISS,
     );
     const remoteChatroom = await remoteClient.enlivenSturdyRef(sturdyRef);
 

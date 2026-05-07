@@ -4,11 +4,8 @@ import { makeRefCounter } from './refcount.js';
 
 /**
  * @typedef {import('@endo/eventual-send').Settler} Settler
+ * @typedef {import('./types.js').Slot} Slot
  * @typedef {import('./types.js').SlotType} SlotType
- */
-/**
- * @template {SlotType} [T=SlotType]
- * @typedef {import('./types.js').Slot<T>} Slot
  * @typedef {import('./finalize.js').FinalizingMap<Slot, object>} ExportTable
  * @typedef {import('./finalize.js').FinalizingMap<Slot, object>} ImportTable
  *
@@ -29,23 +26,22 @@ import { makeRefCounter } from './refcount.js';
  */
 
 /**
- * @template {SlotType} T
- * @param {T} type
+ * @param {SlotType} type
  * @param {boolean} isLocal
  * @param {bigint} position
- * @returns {Slot<T>}
+ * @returns {Slot}
  */
 export const makeSlot = (type, isLocal, position) => {
-  return /** @type {Slot<T>} */ (`${type}${isLocal ? '+' : '-'}${position}`);
+  // @ts-expect-error - we're returning a branded type.
+  return `${type}${isLocal ? '+' : '-'}${position}`;
 };
 
 /**
- * @template {SlotType} T
- * @param {Slot<T>} slot
- * @returns {{ type: T, isLocal: boolean, position: bigint }}
+ * @param {Slot} slot
+ * @returns {{ type: SlotType, isLocal: boolean, position: bigint }}
  */
 export const parseSlot = slot => {
-  const type = /** @type {T} */ (slot[0]);
+  const type = slot[0];
   if (type !== 'a' && type !== 'p' && type !== 'o') {
     throw new Error(`Invalid slot type: ${type}`);
   }

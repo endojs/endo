@@ -176,9 +176,23 @@ test('pipeline: method invocation transcript', async t => {
       // A sends add call (pipelined, before fetch returns)
       { from: 'A', message: { type: 'op:deliver' } },
       // B sends resolution for fetch
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
       // B sends resolution for add
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
   } finally {
     shutdownBoth();
@@ -229,9 +243,30 @@ test('pipeline: op:get field access transcript', async t => {
       // A listens for the get result
       { from: 'A', message: { type: 'op:listen', wantsPartial: false } },
       // B sends resolutions
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
   } finally {
     shutdownBoth();
@@ -280,9 +315,30 @@ test('pipeline: op:index array access transcript', async t => {
       // A listens for the index result
       { from: 'A', message: { type: 'op:listen', wantsPartial: false } },
       // B sends resolutions
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
   } finally {
     shutdownBoth();
@@ -336,10 +392,38 @@ test('pipeline: complex nested access transcript', async t => {
       // A listens for index result
       { from: 'A', message: { type: 'op:listen' } },
       // B sends resolutions
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
   } finally {
     shutdownBoth();
@@ -394,8 +478,22 @@ test('pipeline: all sends before receives proves pipelining', async t => {
     assertMessageTranscript(t, recorder.transcript, [
       { from: 'A', message: { type: 'op:deliver' } },
       { from: 'A', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
   } finally {
     shutdownBoth();
@@ -451,8 +549,22 @@ test('pipeline: verify args in deliver messages', async t => {
     assertMessageTranscript(t, recorder.transcript, [
       { from: 'A', message: { type: 'op:deliver' } },
       { from: 'A', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
   } finally {
     shutdownBoth();
@@ -499,10 +611,10 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
     'Broker',
     Far('broker', {
       getCounter: () => {
-        // B enlivens the sturdyref to C's Counter
+        // B resolves the SturdyRef to C's Counter
         const sturdyRef = clientKitB.client.makeSturdyRef(
           clientKitC.location,
-          encodeSwissnum('Counter'),
+          'Counter',
         );
         return clientKitB.client.enlivenSturdyRef(sturdyRef);
       },
@@ -570,10 +682,38 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
       // A calls double on counter (pipelined through handoff)
       { from: 'A', message: { type: 'op:deliver' } },
       // B sends resolutions back to A
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
 
     // Verify B→C transcript: B forwards A's calls to C
@@ -582,7 +722,14 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
       // B enlivens sturdyref by fetching Counter from C
       { from: 'B', message: { type: 'op:deliver' } },
       // C sends resolution for fetch
-      { from: 'C', message: { type: 'op:deliver' } },
+      {
+        from: 'C',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
       // B forwards increment call to C
       { from: 'B', message: { type: 'op:deliver' } },
       // B forwards double call to C
@@ -590,9 +737,30 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
       // B sends deposit-gift for handoff
       { from: 'B', message: { type: 'op:deliver' } },
       // C sends resolutions back to B
-      { from: 'C', message: { type: 'op:deliver' } },
-      { from: 'C', message: { type: 'op:deliver' } },
-      { from: 'C', message: { type: 'op:deliver' } },
+      {
+        from: 'C',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'C',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
+      {
+        from: 'C',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
   } finally {
     shutdownAll();
@@ -670,9 +838,23 @@ test('pipeline: remote answer promise sent as argument is local to receiver (no 
       // A calls awaitAndDouble on Awaiter with the answer promise
       { from: 'A', message: { type: 'op:deliver' } },
       // B sends resolution for getDelayedValue
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
       // B sends resolution for awaitAndDouble
-      { from: 'B', message: { type: 'op:deliver' } },
+      {
+        from: 'B',
+        message: {
+          type: 'op:deliver',
+          answerPosition: false,
+          resolveMeDesc: false,
+        },
+      },
     ]);
 
     // Additional assertion: verify NO op:listen messages in the transcript
