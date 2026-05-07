@@ -3,8 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-07 |
+| **Updated** | 2026-05-07 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Accepted, not yet implemented |
 | **Source** | PR #115 inline review comment on Open Question #6 |
 
 ## What is the Problem Being Solved?
@@ -226,23 +227,23 @@ gains nothing.
 This split has three benefits:
 
 - **The inventory tree's dispatch collapses.**
-  The `__getMethodNames__` probe is replaced by a single interface
-  check (`E(target).__getInterfaceGuard__()` returns the guard
-  that the target's exo conforms to, and the receiver checks
-  `ReadableNameHubInterface` membership).
-  The wrapper's `identify` / `locate` shims become a separate
-  guard check against `NameHubInterface`; the inventory row
-  renders a locator badge only for targets that satisfy the
-  broader interface.
-  This keeps the locator-display semantics out of the mount story.
+  The wrapper's read-and-follow path treats the target uniformly
+  whenever the target's `__getMethodNames__()` includes the
+  `ReadableNameHubInterface` methods; the `identify` / `locate`
+  shims switch on the presence of those names in the same probe.
+  Method-name detection is the runtime contract; the narrower
+  interface is the documentation contract.
+  Locator-badge rendering becomes "this target advertises
+  `locate`" rather than "this target is a `NameHub` by tag",
+  which keeps the locator-display semantics out of the mount
+  story.
 
 - **The CapTP-introspection contract is preserved.**
   `__getMethodNames__()` still returns a list of methods.
-  Method-name probing on the broader cluster (`identify`,
-  `locate`) yields false for an `EndoMount`, and the consumer
-  branches accordingly.
   `makeExo` provides the method names automatically (per
   `CLAUDE.md`'s "CapTP introspection" guidance).
+  No new introspection surface is required; the consumer that
+  cares about `identify` checks for `identify` by name.
 
 - **The locator question is deferred, not answered.**
   An `EndoMount` does not gain `identify`, `locate`,
@@ -264,13 +265,11 @@ interface guard the target wears.
 Callers that walk for `identify` or `locate` (the inventory
 tree's right-hand badge, future `endo locate` for sub-mounts)
 must distinguish the two interfaces.
-The recommended pattern uses interface introspection rather than
-duck-typing:
+The recommended pattern is duck-type detection by method name:
 
 ```js
-const interfaces = await E(target).__getInterfaceGuard__();
-const isNameHub = interfaces.has(NameHubInterface);
-if (isNameHub) {
+const methods = await E(target).__getMethodNames__();
+if (methods.includes('locate')) {
   const locator = await E(target).locate(name);
   // …
 } else {
@@ -280,6 +279,9 @@ if (isNameHub) {
 
 This pushes the dispatch to one site (the inventory wrapper) and
 keeps the consumer code branch-free in the common case.
+The interface is unlikely to discriminate further; new feature
+families on `NameHubInterface` would advertise themselves by
+method name in the same way.
 
 ### What does **not** change
 
@@ -487,62 +489,78 @@ If the full-`NameHub` path is taken (not recommended), the test
 plan grows to cover the identity questions and is out of scope
 of this design.
 
-## Open Questions
+## Decisions
 
-1. **Which alternative is preferred?**
-   The author recommends the narrower-interface path
-   (`ReadableNameHubInterface` introduced; `MountInterface`
-   conforms to it; `NameHubInterface` extends it).
-   The maintainer may prefer the do-nothing path (keep the
-   `__getMethodNames__` dispatch) if the inventory tree is the
-   only consumer that branches; that simplifies the interface
-   graph at the cost of a per-consumer branch.
-2. **Should `EndoMount` ever gain `identify` / `locate`?**
-   Equivalent: should mount entries live in the formula graph?
-   This is the deep semantic question OQ #6 alluded to, and the
-   answer drives a separate design (working title:
-   `mount-entry-locators`).
-   The author's reading: yes eventually, no now.
-   Mount entries become first-class once cross-peer file fetch
-   is desirable, and not before.
-3. **How does the inventory tree introspect the interface?**
-   The current code uses `E(target).__getMethodNames__()`.
-   `makeExo` exposes `__getMethodNames__` automatically; an
-   analogous `__getInterfaceGuard__` is **not** standard.
-   If the narrower-interface path is taken, the consumer
-   either calls `__getMethodNames__` and checks for the union
-   of `ReadableNameHubInterface`'s methods, or a new
-   `__getInterfaceGuard__()` (or `__getInterfaceName__()`) is
-   added to the exo introspection surface.
-   The latter is a separate small design.
-4. **Naming.**
-   Is `ReadableNameHubInterface` the right name?
-   `ReadableNameHub` collides with `ReadableTree` semantically
-   (both are read-only views), but `ReadableTree` is structural
-   and snapshot-shaped while `ReadableNameHub` is a live hub.
-   Alternatives: `LiveNameHubInterface`,
-   `BasicNameHubInterface`, `NameHubReadInterface`.
-   The naming is bikeshed-grade but a maintainer pick is
-   appropriate.
-5. **`maybeLookup` placement.**
-   `NameHubInterface` has `maybeLookup`; `MountInterface` does
-   not, but mount has `maybeReadText`.
-   Should the narrower interface include `maybeLookup`, push it
-   onto the writable interfaces only, or leave the mount to
-   add `maybeLookup` for parity?
-   The author's reading: include `maybeLookup` in the narrower
-   interface; mount adds it as a one-line wrapper around
-   `lookup`.
-6. **`reverseLookup` semantics on a mount.**
-   `EndoDirectory.reverseLookup(presence)` finds names bound to
-   a presence (formula identifier).
-   On a mount, the analogue is "find names bound to this
-   `EndoMountFile`", but the file's identity is per-call.
-   `reverseLookup` would have to compare paths, not identities,
-   and that semantic split makes it a poor fit for the broader
-   `NameHubInterface`.
-   The author's reading: drop `reverseLookup` from the
-   unification consideration; it stays directory-only.
+The maintainer review of this design resolved each of the original
+open questions.
+The decisions are recorded here so subsequent readers see the
+shape that the implementation is expected to take.
+
+1. **Alternative chosen: the narrower interface.**
+   `ReadableNameHubInterface` is introduced.
+   `MountInterface` extends it.
+   `NameHubInterface` extends it.
+   The do-nothing alternative is rejected; the full-`NameHub`
+   alternative is rejected because it would force the locator
+   semantics question without answering it.
+2. **`EndoMount` does not gain `identify` / `locate`.**
+   The underlying entities have no formulas, so adding these
+   methods would be confusing rather than clarifying.
+   Mount entries stay outside the formula graph.
+   A future cross-peer-fetch design may revisit this; that work
+   is not blocked by, and does not block, this design.
+3. **Feature detection is by method name.**
+   Consumers that need to discriminate (the inventory tree's
+   locator badge, future CLI verbs) probe with
+   `E(target).__getMethodNames__()` and check for the presence
+   of the discriminating method (`identify`, `locate`).
+   The narrower interface is a documentation contract; the
+   runtime check is structural.
+   No new exo introspection surface (`__getInterfaceGuard__`)
+   is required.
+4. **Naming: `ReadableNameHubInterface`.**
+   The name reads cleanly against `NameHubInterface` (the
+   read-and-mutate superset) and `ReadableTreeInterface` (the
+   snapshot-shaped sibling).
+5. **`maybeLookup` is the primitive; `lookup` is the throwing
+   wrapper.**
+   The narrower interface requires both methods so callers can
+   pick the form that suits the caller's error stance.
+   Hubs implement either `lookup` or `maybeLookup` and derive
+   the other.
+   Turning a `maybeLookup` return of `undefined` into a thrown
+   error is a one-line wrapper; the reverse direction (catching
+   a thrown error and returning `undefined`) is more awkward,
+   which is why the primitive is `maybeLookup`.
+6. **`reverseLookup` does not apply to mounts.**
+   `reverseLookup` stays in `NameHubInterface` and is not on
+   `ReadableNameHubInterface`.
+   Mount entries have per-call identity, so the directory's
+   identity-based `reverseLookup` does not have a sensible
+   analogue on a mount.
+
+## Out of Scope, Future Work
+
+- **`mount-entry-locators`.**
+  If the project later decides that mount entries should be
+  identifiable across peers (for example, so a chat user can
+  paste `endo:/scratch/foo.txt` and have a peer fetch it),
+  that is a separate design.
+  The author's reading is "yes eventually, no now"; mount
+  entries become first-class once cross-peer file fetch is
+  desirable, and not before.
+- **`link(namePath, resultName)`.**
+  Lookup formulas exist, but the daemon has no first-class
+  mechanism for creating a `lookup` formula the way other
+  formulas are created: `lookup` does not take an optional
+  `resultName` argument, and probably should not.
+  A separate design for a `link(namePath, resultName)` verb
+  that constructs lookup formulas as a deliberate step would
+  let an operator name a path-derived presence durably,
+  including (in principle) a path through a mount, without
+  conflating the lookup-as-resolution operation with
+  lookup-as-formula-construction.
+  This design does not propose that verb.
 
 ## Dependencies
 
