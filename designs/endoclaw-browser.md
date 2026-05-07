@@ -5,7 +5,7 @@
 | **Created** | 2026-03-03 |
 | **Updated** | 2026-03-03 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | PR #106 |
+| **Status** | PR #106 (`@endo/exo-playwright`) |
 | **Parent** | [endoclaw](endoclaw.md) |
 
 ## Summary
@@ -91,3 +91,11 @@ page content through DOM methods only.
 - Daemon worker infrastructure for headless Chrome lifecycle
 - Optional: [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) for
   additional Chrome process confinement
+
+## Packaging
+
+The exo lives in [`@endo/exo-playwright`](../packages/exo-playwright/),
+named for the Playwright backend it adapts.
+The current release contains the safety scaffolding (origin allowlist,
+read-only mediation, revocation) and an in-memory fake backend used by
+its tests; a real Playwright adapter is a follow-up.
