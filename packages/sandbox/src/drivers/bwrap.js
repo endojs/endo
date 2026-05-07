@@ -15,6 +15,14 @@ import {
   makeCgroup2Probe,
   resolveLimits,
 } from '../limits.js';
+import {
+  CANONICAL_BIN_PATHS,
+  DEFAULT_PATH,
+  detectMountBinPaths,
+  filterAmbientPathForHostBind,
+  joinPathEntries,
+  probeMountRootfsBinPaths,
+} from './path.js';
 
 /** @import { SandboxDriver, SliceSpec, SpawnOpts, DriverProcess, BackendProbe, BackendProbeDetails } from '../types.js' */
 
@@ -49,6 +57,11 @@ const ROOTFS_BASE_FLAGS = harden([
  * Host paths bind-mounted read-only when `rootfs.kind === 'host-bind'`.
  * Each entry is tried with `--ro-bind-try` so a missing host path is
  * skipped rather than failing the slice.
+ *
+ * The bin-dir entries here mirror `CANONICAL_BIN_PATHS` from
+ * `./path.js`; the rootfs binds also include `/usr`, `/lib`,
+ * `/lib64`, and `/etc` so dynamic linkers and configuration files
+ * are reachable.
  */
 const HOST_BIND_ROOTFS_PATHS = harden([
   '/usr',
@@ -183,10 +196,25 @@ harden(readableToAsyncIterable);
  *  10. Initial `--chdir` (when `cwd` is set).
  *
  * @param {SliceSpec} spec
- * @param {{ seccompFd: number | null }} extras
- * @returns {string[]}
+ * @param {{
+ *   seccompFd: number | null,
+ *   ambientPath?: string,
+ *   exists?: (path: string) => boolean,
+ *   realpath?: (path: string) => Promise<string | null>,
+ * }} extras  `ambientPath` is the daemon-side `$PATH` mined for
+ *            host-bind PATH synthesis; defaults to `process.env.PATH`.
+ *            `exists` is the host-disk probe used by the synthesis
+ *            helpers; defaults to `fs.existsSync`.  `realpath` is the
+ *            symlink-resolving canonicaliser applied to ambient PATH
+ *            survivors; defaults to identity (no resolution) so test
+ *            harnesses without a filesystem can call this directly.
+ * @returns {Promise<string[]>}
  */
-const assembleSliceArgv = (spec, extras) => {
+export const assembleSliceArgv = async (spec, extras) => {
+  // Hoisted `await null` so the `safe-await-separator` rule sees a
+  // top-level await before the conditional `await
+  // filterAmbientPathForHostBind(...)` further down.
+  await null;
   /** @type {string[]} */
   const argv = [];
 
@@ -214,6 +242,7 @@ const assembleSliceArgv = (spec, extras) => {
 
   // 2. Lifecycle.
   argv.push('--die-with-parent');
+  argv.push('--new-session');
 
   // 3. Drop all capabilities.
   argv.push('--cap-drop', 'ALL');
@@ -226,6 +255,21 @@ const assembleSliceArgv = (spec, extras) => {
   }
 
   // 5. Rootfs.
+  //
+  // `defaultPathEntries` accumulates the slice-internal directories
+  // we believe should be on `$PATH` if the caller did not supply one.
+  // We compose the final string at the bottom of step 9 so the
+  // entries observe the documented precedence:
+  //
+  //   1. Rootfs-derived defaults (host-bind canonical bin dirs, mount
+  //      rootfs probed bin dirs, or `DEFAULT_PATH` for `minimal`).
+  //   2. Daemon-side ambient `$PATH` survivors (host-bind only;
+  //      `/opt`, `/snap/bin`, etc. that the operator added to the
+  //      daemon's environment).
+  //   3. Caller-granted mount bin-dirs (a hostile caller cannot
+  //      shadow `/usr/bin` because their entries land last).
+  /** @type {string[]} */
+  const defaultPathEntries = [];
   if (
     typeof spec.rootfs === 'object' &&
     spec.rootfs !== null &&
@@ -237,10 +281,33 @@ const assembleSliceArgv = (spec, extras) => {
         // 32-bit hosts) instead of failing the slice.
         argv.push('--ro-bind-try', path, path);
       }
+      // Canonical bin dirs first — these are the same paths we just
+      // bound above and they end up in `DEFAULT_PATH` order.
+      for (const binPath of CANONICAL_BIN_PATHS) {
+        defaultPathEntries.push(binPath);
+      }
+      // Then mine the daemon's `$PATH` for distro-shaped extras
+      // (`/opt/...`, `/snap/bin`, `/var/lib/flatpak/exports/bin`, …).
+      // The filter rejects user-private and world-writable entries,
+      // canonicalises through `realpath` to defeat the
+      // `/opt/eve → /tmp/attacker` symlink trick, and drops any
+      // non-existent host paths; survivors are bound read-only into
+      // the slice and appended to the path string in their
+      // daemon-PATH order.
+      const ambientSurvivors = await filterAmbientPathForHostBind(
+        extras.ambientPath,
+        { exists: extras.exists, realpath: extras.realpath },
+      );
+      for (const path of ambientSurvivors) {
+        argv.push('--ro-bind-try', path, path);
+        defaultPathEntries.push(path);
+      }
     } else if (spec.rootfs.kind === 'minimal') {
       // Nothing — caller is expected to bind their own rootfs via
       // `mounts`.  We still get /proc, /dev, /tmp from the base
-      // rootfs flags below.
+      // rootfs flags below.  Caller-mount bin-dirs (step 6 below)
+      // and the `DEFAULT_PATH` fallback at the end of step 9 cover
+      // the env-PATH side.
     } else if (spec.rootfs.kind === 'mount') {
       const mountSpec =
         /** @type {{ kind: 'mount'; hostPath: string; mode: 'ro' | 'rw' }} */ (
@@ -248,6 +315,23 @@ const assembleSliceArgv = (spec, extras) => {
         );
       const flag = mountSpec.mode === 'rw' ? '--bind' : '--ro-bind';
       argv.push(flag, mountSpec.hostPath, '/');
+      // Probe the host directory for the canonical bin dirs.  The
+      // mount is rooted at `/`, so `<hostPath>/usr/bin` becomes
+      // `/usr/bin` inside the slice.  When the probe finds nothing —
+      // either because `hostPath` is relative (the helper bails out)
+      // or because the rootfs genuinely lacks any of the canonical
+      // bin layouts — we synthesise an empty `$PATH` rather than
+      // falling back to `DEFAULT_PATH`: those default paths point at
+      // directories the slice has just demonstrated it does not
+      // contain, so claiming they exist would produce confusing
+      // `command not found` failures inside the slice.  Callers with
+      // an unconventional rootfs are expected to set `spec.env.PATH`
+      // explicitly.
+      for (const innerPath of probeMountRootfsBinPaths(mountSpec.hostPath, {
+        exists: extras.exists,
+      })) {
+        defaultPathEntries.push(innerPath);
+      }
     } else if (spec.rootfs.kind === 'oci') {
       // OCI image refs are the podman driver's surface; bwrap has no
       // way to materialise an OCI image without an external store.
@@ -263,6 +347,15 @@ const assembleSliceArgv = (spec, extras) => {
   for (const mount of spec.mounts) {
     const flag = mount.mode === 'rw' ? '--bind' : '--ro-bind';
     argv.push(flag, mount.hostPath, mount.innerPath);
+    // Caller-mount bin-dirs land **after** rootfs-derived defaults so
+    // a hostile mount cannot shadow `/usr/bin` with `bin/foo` of its
+    // own.  See `TODO/22_sandbox_bwrap_path_refinements.md` for the
+    // threat model.
+    for (const innerPath of detectMountBinPaths(mount, {
+      exists: extras.exists,
+    })) {
+      defaultPathEntries.push(innerPath);
+    }
   }
 
   // 7. Writable scratch upper layer.  Mounted as `/scratch` so it is
@@ -279,8 +372,40 @@ const assembleSliceArgv = (spec, extras) => {
 
   // 9. Environment.
   argv.push('--clearenv');
+  let hadPath = false;
   for (const [key, value] of Object.entries(spec.env)) {
     argv.push('--setenv', key, value);
+    if (key === 'PATH') hadPath = true;
+  }
+  if (!hadPath) {
+    // Caller did not set `PATH`.  Use the synthesised entries; if
+    // synthesis turned up nothing the fallback depends on the rootfs
+    // shape:
+    //   - `host-bind` and `minimal` fall back to `DEFAULT_PATH` so the
+    //     slice can find `sh`/`echo` against the host bin dirs that
+    //     `host-bind` always binds (or that a `minimal` caller is
+    //     expected to bind explicitly via `mounts`).
+    //   - `mount`-rootfs slices fall back to the empty string: the
+    //     probe just demonstrated that none of the canonical bin
+    //     layouts exist inside the rootfs, so `DEFAULT_PATH` would
+    //     point at directories the slice does not contain.  A caller
+    //     who knows their rootfs uses an unusual layout is expected
+    //     to set `spec.env.PATH` explicitly.
+    const synthesised = joinPathEntries(defaultPathEntries);
+    const isMountRootfs =
+      typeof spec.rootfs === 'object' &&
+      spec.rootfs !== null &&
+      'kind' in spec.rootfs &&
+      spec.rootfs.kind === 'mount';
+    let pathValue;
+    if (synthesised !== '') {
+      pathValue = synthesised;
+    } else if (isMountRootfs) {
+      pathValue = '';
+    } else {
+      pathValue = DEFAULT_PATH;
+    }
+    argv.push('--setenv', 'PATH', pathValue);
   }
 
   // 10. Cwd inside the slice.
@@ -297,19 +422,58 @@ harden(assembleSliceArgv);
  *
  * @param {object} [input]
  * @param {Record<string, string>} [input.env]                Daemon env
- *                                                            (PATH etc.)
+ *                                                            (PATH etc.).
+ *                                                            The `PATH`
+ *                                                            field, when
+ *                                                            present, is
+ *                                                            mined for
+ *                                                            host-bind
+ *                                                            slices so a
+ *                                                            slice can
+ *                                                            see operator-
+ *                                                            installed
+ *                                                            bin dirs
+ *                                                            like `/opt`
+ *                                                            and `/snap/bin`.
+ *                                                            Defaults to
+ *                                                            an empty
+ *                                                            object — a
+ *                                                            test that
+ *                                                            wants
+ *                                                            deterministic
+ *                                                            argv shape
+ *                                                            should pass
+ *                                                            `env: {}`
+ *                                                            explicitly
+ *                                                            so the driver
+ *                                                            does not
+ *                                                            inherit the
+ *                                                            ambient
+ *                                                            `process.env.PATH`.
  * @param {typeof import('child_process')} [input.childProcess] Child-
  *                                                            process module
  *                                                            override
  *                                                            (tests).
  * @param {typeof import('fs')} [input.fs]                    fs module
- *                                                            override.
+ *                                                            override.  Used
+ *                                                            for the
+ *                                                            `existsSync`
+ *                                                            probe and the
+ *                                                            `promises.realpath`
+ *                                                            canonicaliser
+ *                                                            that back the
+ *                                                            ambient-PATH
+ *                                                            and mount-bin
+ *                                                            synthesis;
+ *                                                            tests can
+ *                                                            inject a
+ *                                                            stub.
  * @returns {SandboxDriver}
  */
 export const makeBwrapDriver = ({
-  env: _env = {},
+  env = {},
   childProcess: childProcessModule,
-  fs: _fs,
+  fs: fsModule,
 } = {}) => {
   // Lazy-resolve `child_process` so callers in test environments can
   // inject a stub without paying the import cost up front.
@@ -436,7 +600,52 @@ export const makeBwrapDriver = ({
     /** @type {string | null} */
     const seccompTempPath = null;
 
-    const sliceArgv = assembleSliceArgv(spec, { seccompFd });
+    // Lazy-resolve `fs` for the existsSync probe and the
+    // promise-returning `realpath` resolver used by the PATH
+    // synthesis helpers.  We require fs only when the slice has
+    // either a `host-bind` rootfs (ambient `$PATH` mining +
+    // realpath) or a `mount` rootfs / caller-granted mounts
+    // (canonical bin-dir probing).  When `fs` cannot be loaded, fall
+    // back to a "always exists" probe and an identity realpath —
+    // `--ro-bind-try` already tolerates missing host paths, so the
+    // worst case is a `$PATH` entry that points at a directory the
+    // slice cannot reach.
+    await null;
+    /** @type {(p: string) => boolean} */
+    let exists = () => true;
+    /** @type {(p: string) => Promise<string | null>} */
+    let realpath = async p => p;
+    try {
+      const fs = fsModule ?? (await import('fs'));
+      exists = p => {
+        try {
+          return fs.existsSync(p);
+        } catch {
+          return false;
+        }
+      };
+      realpath = async p => {
+        // Hoisted `await null` to satisfy `safe-await-separator`.
+        await null;
+        try {
+          return await fs.promises.realpath(p);
+        } catch {
+          // ENOENT / EACCES / EIO / ELOOP — the filter treats this as
+          // a drop signal rather than a hard failure so a single
+          // unreadable PATH entry does not poison the whole slice.
+          return null;
+        }
+      };
+    } catch {
+      // best-effort
+    }
+
+    const sliceArgv = await assembleSliceArgv(spec, {
+      seccompFd,
+      ambientPath: env.PATH,
+      exists,
+      realpath,
+    });
 
     // Phase 1.5 resource caps.  The factory passes a fully-resolved
     // limits dictionary in `spec.limits`; the driver maps it onto a

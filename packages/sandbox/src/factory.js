@@ -80,11 +80,12 @@ Methods:
  *   - `runtimeDetails.prlimit:    { applied: string[] }` (bwrap)
  *   - `runtimeDetails.rootless:   { available, reason? }` (podman)
  *   - `runtimeDetails.rootlessNet:{ backend, reason? }` (podman)
+ *   - `runtimeDetails.path:       { value, source }`     (podman)
  *
  * Missing fields render as "not detected" so the report stays
  * informative across drivers that do not implement every layer.
  *
- * @param {{ runtimeDetails?: { landlock?: { available: boolean, reason?: string }, cgroup2?: { available: boolean, controllers: string[], reason?: string }, prlimit?: { applied: string[] }, rootless?: { available: boolean, reason?: string }, rootlessNet?: { backend: string | null, reason?: string } } }} driverSlice
+ * @param {{ runtimeDetails?: { landlock?: { available: boolean, reason?: string }, cgroup2?: { available: boolean, controllers: string[], reason?: string }, prlimit?: { applied: string[] }, rootless?: { available: boolean, reason?: string }, rootlessNet?: { backend: string | null, reason?: string }, path?: { value: string, source: 'env' | 'image' | 'fallback' } } }} driverSlice
  * @param {SliceSpec} spec
  * @returns {string}
  */
@@ -151,6 +152,14 @@ const renderSliceRuntimeReport = (driverSlice, spec) => {
           : '';
       lines.push(`  rootless-net: none${why}`);
     }
+  }
+  if (details.path !== undefined) {
+    // `source` distinguishes "caller set this" / "the OCI image set
+    // this" / "we fell back to the cross-driver default" — useful
+    // when debugging "why can't my slice find `apk`" cases.
+    lines.push(
+      `  path: ${details.path.value} (source: ${details.path.source})`,
+    );
   }
   return lines.join('\n');
 };
@@ -312,11 +321,11 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
         r => harden({ ok: /** @type {const} */ (true), value: r }),
         e => harden({ ok: /** @type {const} */ (false), error: e }),
       );
-      if (result.ok) {
+      if (result.ok === true) {
         probes.push(harden({ name: driver.name, ...result.value }));
       } else {
-        const reason =
-          /** @type {Error} */ (result.error).message || String(result.error);
+        const err = /** @type {{ error: any }} */ (result).error;
+        const reason = /** @type {Error} */ (err).message || String(err);
         probes.push(harden({ name: driver.name, available: false, reason }));
       }
     }

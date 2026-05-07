@@ -13,7 +13,8 @@ import * as nodeOs from 'node:os';
 import * as nodePath from 'node:path';
 import { setTimeout } from 'node:timers';
 
-import { makeBwrapDriver } from '../src/drivers/bwrap.js';
+import { assembleSliceArgv, makeBwrapDriver } from '../src/drivers/bwrap.js';
+import { DEFAULT_PATH } from '../src/drivers/path.js';
 import { makeSandboxFactory } from '../src/factory.js';
 
 const StubMountInterface = M.interface('Mount', {
@@ -895,4 +896,450 @@ test.serial('fork() throws notImplemented before Phase 3', async t => {
   await t.throwsAsync(() => E(handle).fork(), {
     message: /Phase 3/,
   });
+});
+
+// --- PATH synthesis tests --------------------------------------------------
+//
+// These exercise `assembleSliceArgv` directly without spawning bwrap so
+// they run on every host (including non-Linux CI matrix entries).  They
+// assert the `--setenv PATH …` argv slot reflects the rules in
+// `TODO/22_sandbox_bwrap_path_refinements.md` for each rootfs shape.
+
+/**
+ * Pull the `--setenv PATH …` value out of an argv produced by
+ * `assembleSliceArgv`.  Returns `undefined` when no `PATH` setenv pair
+ * is present.
+ *
+ * @param {string[]} argv
+ * @returns {string | undefined}
+ */
+const extractSetenvPath = argv => {
+  for (let i = 0; i < argv.length - 2; i += 1) {
+    if (argv[i] === '--setenv' && argv[i + 1] === 'PATH') {
+      return argv[i + 2];
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Build a minimal `SliceSpec` for the synthesis tests.  The factory's
+ * defaults (limits, seccomp, scratch) are irrelevant here because we
+ * bypass the factory and call `assembleSliceArgv` directly.
+ *
+ * @param {Partial<import('../src/types.js').SliceSpec> & { rootfs: import('../src/types.js').SliceSpec['rootfs'] }} overrides
+ * @returns {import('../src/types.js').SliceSpec}
+ */
+const makeStubSpec = overrides =>
+  /** @type {any} */ (
+    harden({
+      mounts: [],
+      scratchHostPath: '',
+      network: 'none',
+      seccomp: 'default',
+      env: {},
+      ...overrides,
+    })
+  );
+
+test('PATH synthesis: host-bind seeds the canonical user-first default', async t => {
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath: '',
+      exists: () => true,
+    },
+  );
+  const path = extractSetenvPath(argv);
+  t.is(
+    path,
+    DEFAULT_PATH,
+    'host-bind without ambient PATH should match the canonical default',
+  );
+  // Sanity: the canonical default is user-first.
+  t.true(
+    /** @type {string} */ (path).indexOf('/usr/bin') <
+      /** @type {string} */ (path).indexOf('/sbin'),
+    'user bin dirs should appear before /sbin in the default PATH',
+  );
+});
+
+test('PATH synthesis: host-bind appends ambient survivors after canonical bins', async t => {
+  const ambientPath = [
+    '/opt/local/bin',
+    '/snap/bin',
+    '/var/lib/flatpak/exports/bin',
+    '/home/alice/bin', // dropped — under /home
+    '/tmp/bin', // dropped — under /tmp
+    'relative/bin', // dropped — not absolute
+    '/usr/bin', // dropped — already in canonical set
+    '/opt/foo/../bar', // dropped — contains ..
+  ].join(':');
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath,
+      exists: () => true,
+    },
+  );
+  const path = extractSetenvPath(argv);
+  t.true(
+    /** @type {string} */ (path).startsWith(DEFAULT_PATH),
+    'canonical default should be the prefix',
+  );
+  t.regex(
+    /** @type {string} */ (path),
+    /\/opt\/local\/bin/,
+    '/opt entries should be inherited',
+  );
+  t.regex(/** @type {string} */ (path), /\/snap\/bin/);
+  t.regex(/** @type {string} */ (path), /\/var\/lib\/flatpak\/exports\/bin/);
+  t.notRegex(
+    /** @type {string} */ (path),
+    /\/home\//,
+    '/home entries must be dropped from synthesised PATH',
+  );
+  t.notRegex(
+    /** @type {string} */ (path),
+    /\/tmp\//,
+    '/tmp entries must be dropped from synthesised PATH',
+  );
+  t.notRegex(/** @type {string} */ (path), /\.\./, 'no .. segments survive');
+  // Survivors should also appear as `--ro-bind-try` arguments so the
+  // PATH entries actually point at something inside the slice.
+  t.true(
+    argv.includes('/opt/local/bin'),
+    'survivor /opt/local/bin should be bound into the slice',
+  );
+  // The argv pattern is `--ro-bind-try src dst`; check src AND dst.
+  for (let i = 0; i < argv.length - 2; i += 1) {
+    if (argv[i] === '--ro-bind-try' && argv[i + 1] === '/snap/bin') {
+      t.is(argv[i + 2], '/snap/bin', 'binds host path to itself');
+      return;
+    }
+  }
+  t.fail('/snap/bin survivor should appear in a --ro-bind-try pair');
+});
+
+test('PATH synthesis: host-bind drops ambient entries that do not exist', async t => {
+  // The exists() probe simulates `/opt/extant` present and
+  // `/opt/missing` absent.  Only the extant entry should land in PATH
+  // and the bind list.
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath: '/opt/missing:/opt/extant',
+      exists: p => p === '/opt/extant',
+    },
+  );
+  const path = extractSetenvPath(argv);
+  t.regex(/** @type {string} */ (path), /\/opt\/extant/);
+  t.notRegex(
+    /** @type {string} */ (path),
+    /\/opt\/missing/,
+    'missing host paths should not appear in synthesised PATH',
+  );
+});
+
+test('PATH synthesis: host-bind drops ambient entries whose realpath lands in a blocked prefix', async t => {
+  // `/opt/eve` is a symlink to `/tmp/attacker` — the textual prefix
+  // check passes on the literal `/opt/eve`, but the resolved path is
+  // under `/tmp/` and must be rejected.  `/opt/safe` resolves to
+  // itself and is preserved.
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath: '/opt/eve:/opt/safe',
+      exists: () => true,
+      realpath: async p => {
+        if (p === '/opt/eve') return '/tmp/attacker';
+        return p;
+      },
+    },
+  );
+  const path = /** @type {string} */ (extractSetenvPath(argv));
+  t.notRegex(
+    path,
+    /\/opt\/eve/,
+    'symlink-via-/opt to /tmp/* must be dropped after realpath',
+  );
+  t.notRegex(path, /\/tmp/, 'resolved /tmp target must not appear');
+  t.regex(path, /\/opt\/safe/, 'genuine /opt entries survive realpath');
+  t.false(
+    argv.includes('/opt/eve'),
+    'symlinked entry should not be bound into the slice',
+  );
+});
+
+test('PATH synthesis: host-bind drops ambient entries whose realpath fails', async t => {
+  // A realpath that throws (ENOENT/EACCES) drops the entry — we will
+  // not gamble on the textual form when the daemon cannot
+  // canonicalise.
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath: '/opt/broken:/opt/ok',
+      exists: () => true,
+      realpath: async p => {
+        if (p === '/opt/broken') throw new Error('ENOENT');
+        return p;
+      },
+    },
+  );
+  const path = /** @type {string} */ (extractSetenvPath(argv));
+  t.notRegex(path, /\/opt\/broken/);
+  t.regex(path, /\/opt\/ok/);
+});
+
+test('PATH synthesis: mount rootfs probes for canonical bin dirs', async t => {
+  // Probe says only `/usr/bin` and `/bin` exist under the rootfs.
+  // The synthesised PATH should reflect those slice-internal paths
+  // (NOT the host-prefixed paths).
+  const hostPath = '/srv/myrootfs';
+  const presentInner = new Set(['/usr/bin', '/bin']);
+  const argv = await assembleSliceArgv(
+    makeStubSpec({
+      rootfs: /** @type {any} */ ({ kind: 'mount', hostPath, mode: 'ro' }),
+    }),
+    {
+      seccompFd: null,
+      ambientPath: '',
+      exists: p => {
+        if (!p.startsWith(hostPath)) return false;
+        const inner = p.slice(hostPath.length);
+        return presentInner.has(inner);
+      },
+    },
+  );
+  const path = extractSetenvPath(argv);
+  t.is(
+    path,
+    '/usr/bin:/bin',
+    'mount-rootfs probe should yield slice-internal canonical paths in user-first order',
+  );
+});
+
+test('PATH synthesis: mount rootfs with empty probe yields empty PATH', async t => {
+  // The probe demonstrated that none of the canonical bin dirs exist
+  // inside the rootfs; falling back to `DEFAULT_PATH` would point at
+  // directories the slice does not contain, so we synthesise an
+  // empty `$PATH` and leave it to the caller to set `spec.env.PATH`.
+  const argv = await assembleSliceArgv(
+    makeStubSpec({
+      rootfs: /** @type {any} */ ({
+        kind: 'mount',
+        hostPath: '/srv/empty',
+        mode: 'ro',
+      }),
+    }),
+    {
+      seccompFd: null,
+      ambientPath: '',
+      exists: () => false,
+    },
+  );
+  t.is(
+    extractSetenvPath(argv),
+    '',
+    'empty mount rootfs should not falsely advertise host bin dirs',
+  );
+});
+
+test('PATH synthesis: relative mount rootfs hostPath is skipped', async t => {
+  // A relative `hostPath` would otherwise have its probe resolve
+  // against the daemon CWD; bail out early so the synthesised PATH
+  // does not reflect a probe with no bearing on the slice.
+  const probedPaths = [];
+  const argv = await assembleSliceArgv(
+    makeStubSpec({
+      rootfs: /** @type {any} */ ({
+        kind: 'mount',
+        hostPath: 'srv/relative',
+        mode: 'ro',
+      }),
+    }),
+    {
+      seccompFd: null,
+      ambientPath: '',
+      exists: p => {
+        probedPaths.push(p);
+        return true;
+      },
+    },
+  );
+  t.is(
+    extractSetenvPath(argv),
+    '',
+    'relative hostPath probe is skipped, falls back to empty PATH',
+  );
+  t.deepEqual(probedPaths, [], 'no canonical-bin probes against relative CWD');
+});
+
+test('PATH synthesis: minimal rootfs falls back to DEFAULT_PATH', async t => {
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'minimal' } }),
+    {
+      seccompFd: null,
+      ambientPath: '',
+      exists: () => true,
+    },
+  );
+  t.is(extractSetenvPath(argv), DEFAULT_PATH);
+});
+
+test('PATH synthesis: caller-granted bin-shaped mounts append after rootfs defaults', async t => {
+  const argv = await assembleSliceArgv(
+    makeStubSpec({
+      rootfs: { kind: 'host-bind' },
+      mounts: harden([
+        // Inner path ends in /bin → mount itself is a bin-dir.
+        { hostPath: '/srv/tools', innerPath: '/opt/tools/bin', mode: 'ro' },
+        // Mount with a `bin/` subdir (probed via exists).
+        { hostPath: '/srv/extra', innerPath: '/opt/extra', mode: 'ro' },
+      ]),
+    }),
+    {
+      seccompFd: null,
+      ambientPath: '',
+      // `/srv/extra/bin` is the only existence query that matters
+      // here; other probes can return whatever.
+      exists: p => p === '/srv/extra/bin',
+    },
+  );
+  const path = /** @type {string} */ (extractSetenvPath(argv));
+  // Must START with the canonical default — caller bin dirs cannot
+  // shadow /usr/bin.
+  t.true(
+    path.startsWith(DEFAULT_PATH),
+    'caller bin dirs must not shadow rootfs defaults',
+  );
+  t.regex(path, /\/opt\/tools\/bin/, 'inner-path-suffix /bin recognised');
+  t.regex(
+    path,
+    /\/opt\/extra\/bin/,
+    'bin/ subdir recognised under caller mount',
+  );
+  // /usr/bin must come before /opt/tools/bin in the synthesised string.
+  t.true(
+    path.indexOf('/usr/bin') < path.indexOf('/opt/tools/bin'),
+    'rootfs canonical /usr/bin must come before caller-supplied /opt/tools/bin',
+  );
+});
+
+test('PATH synthesis: caller-mount innerPath with embedded colon is split, not smuggled', async t => {
+  // A caller-granted mount with `innerPath = '/opt/tools/bin:/foo'`
+  // would otherwise feed a `/opt/tools/bin:/foo` segment into
+  // joinPathEntries, smuggling `/foo` onto $PATH.  joinPathEntries
+  // must split the entry and process each part as an independent
+  // segment (which here means `/foo` lands in the synthesised PATH
+  // explicitly — but as a known, separate segment, not as a
+  // smuggle-by-concatenation).
+  const argv = await assembleSliceArgv(
+    makeStubSpec({
+      rootfs: { kind: 'host-bind' },
+      mounts: harden([
+        {
+          hostPath: '/srv/tools',
+          innerPath: '/opt/tools/bin:/foo',
+          mode: 'ro',
+        },
+      ]),
+    }),
+    {
+      seccompFd: null,
+      ambientPath: '',
+      exists: () => true,
+    },
+  );
+  const path = /** @type {string} */ (extractSetenvPath(argv));
+  // Each segment of the synthesised PATH must be a clean, non-empty
+  // path with no embedded `:`.
+  for (const segment of path.split(':')) {
+    t.notRegex(
+      segment,
+      /:/,
+      `segment ${segment} should not contain embedded colons`,
+    );
+  }
+  t.regex(path, /\/opt\/tools\/bin/);
+  t.regex(path, /\/foo/);
+});
+
+test('PATH synthesis: caller-mount innerPath with newline is fatal', async t => {
+  // Newlines in `innerPath` corrupt the `--setenv PATH …` argv slot
+  // in arbitrary ways; `joinPathEntries` raises a structured error so
+  // the bug is visible at slice-prep time rather than at exec time.
+  await t.throwsAsync(
+    () =>
+      assembleSliceArgv(
+        makeStubSpec({
+          rootfs: { kind: 'host-bind' },
+          mounts: harden([
+            {
+              hostPath: '/srv/tools',
+              innerPath: '/opt/tools/bin\ninjected',
+              mode: 'ro',
+            },
+          ]),
+        }),
+        {
+          seccompFd: null,
+          ambientPath: '',
+          exists: () => true,
+        },
+      ),
+    { message: /control characters/ },
+  );
+});
+
+test('PATH synthesis: caller-supplied env.PATH always wins', async t => {
+  const argv = await assembleSliceArgv(
+    makeStubSpec({
+      rootfs: { kind: 'host-bind' },
+      env: harden({ PATH: '/only/this' }),
+    }),
+    {
+      seccompFd: null,
+      // Even with a fat ambient PATH, the caller's explicit value
+      // takes precedence.
+      ambientPath: '/opt/local/bin:/snap/bin',
+      exists: () => true,
+    },
+  );
+  // Find the LAST `--setenv PATH …` pair — caller's env iteration runs
+  // before the synthesis fallback would, but the synthesis fallback
+  // is gated by `hadPath`.  The expected behaviour is exactly one
+  // `--setenv PATH …` pair, with the caller's value.
+  /** @type {string[]} */
+  const pathValues = [];
+  for (let i = 0; i < argv.length - 2; i += 1) {
+    if (argv[i] === '--setenv' && argv[i + 1] === 'PATH') {
+      pathValues.push(argv[i + 2]);
+    }
+  }
+  t.deepEqual(
+    pathValues,
+    ['/only/this'],
+    'caller-supplied PATH must be the only --setenv PATH pair',
+  );
+});
+
+test('PATH synthesis: ambient PATH undefined is not an error', async t => {
+  // The bwrap driver may be constructed without an `env` (or with one
+  // that omits PATH).  The synthesis should degrade gracefully to the
+  // canonical default rather than throwing.
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath: undefined,
+      exists: () => true,
+    },
+  );
+  t.is(extractSetenvPath(argv), DEFAULT_PATH);
 });

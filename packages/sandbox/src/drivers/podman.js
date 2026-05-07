@@ -5,6 +5,7 @@
 import { makeError, q, X } from '@endo/errors';
 
 import { makeCgroup2Probe } from '../limits.js';
+import { DEFAULT_PATH } from './path.js';
 
 /** @import { SandboxDriver, SliceSpec, SpawnOpts, DriverProcess, BackendProbe, BackendProbeDetails } from '../types.js' */
 
@@ -52,8 +53,19 @@ const DEFAULT_STOP_GRACE_S = 5;
  * infinity` is portable across both Alpine's busybox and Debian's
  * coreutils, and exits cleanly on SIGTERM.  Subsequent slice work
  * happens via `podman exec`; PID 1 just keeps the namespace alive.
+ *
+ * The path is **absolute** (`/bin/sleep`) so PID 1 starts even when
+ * the slice's `$PATH` is too restrictive to find `sleep` by short
+ * name.  This matters for callers who supply their own
+ * `spec.env.PATH = /opt/myapp/bin` — without an absolute path we
+ * would emit a confusing `crun: executable file `sleep` not found in
+ * $PATH` error from `podman start`.  Both Alpine (busybox) and
+ * Debian / Ubuntu / RHEL (coreutils) ship `sleep` at `/bin/sleep`
+ * (RHEL has it as a `/usr/bin/sleep` symlink target via the usrmerge
+ * symlink farm; the entry point is reachable through `/bin/sleep`
+ * either way).
  */
-const IDLE_PID1 = harden(['sleep', 'infinity']);
+const IDLE_PID1 = harden(['/bin/sleep', 'infinity']);
 
 /**
  * Parse `podman --version` output into a version string.
@@ -311,11 +323,75 @@ harden(probeRootlessNetBackend);
  *                                     or `null` when no profile was
  *                                     materialised.  Unlinked at
  *                                     teardown.
- * @property {{ cgroup2: { available: boolean, controllers: string[], reason?: string }, rootless: { available: boolean, reason?: string }, rootlessNet: { backend: RootlessNetBackend, reason?: string } }} runtimeDetails
+ * @property {{ cgroup2: { available: boolean, controllers: string[], reason?: string }, rootless: { available: boolean, reason?: string }, rootlessNet: { backend: RootlessNetBackend, reason?: string }, path: { value: string, source: 'env' | 'image' | 'fallback' } }} runtimeDetails
  *                                     Hardening-layer report the
  *                                     factory weaves into per-slice
- *                                     `help()` output.
+ *                                     `help()` output.  `path`
+ *                                     records which `PATH` the slice
+ *                                     ended up with and where it came
+ *                                     from (caller env, OCI image,
+ *                                     or canonical fallback).
  */
+
+/**
+ * Resolve which `PATH` value the slice will actually use, and where it
+ * came from.  Mirrors the bwrap driver's "caller wins, then the rootfs
+ * defaults, then the canonical fallback" precedence so the two backends
+ * present a consistent surface.
+ *
+ * Precedence:
+ *   1. Caller-supplied `spec.env.PATH` — `'env'`.  An explicit empty
+ *      string is honoured (the caller is opting out of any PATH).
+ *   2. Image's `Config.Env` `PATH` — `'image'`.
+ *   3. `DEFAULT_PATH` from `./path.js` — `'fallback'`.
+ *
+ * The `source` is surfaced in `slice.help()` so operators can tell
+ * which case fired without inspecting the container's env directly.
+ *
+ * @param {SliceSpec} spec
+ * @param {string | null} imagePath
+ * @returns {{ value: string, source: 'env' | 'image' | 'fallback' }}
+ */
+const resolveSlicePath = (spec, imagePath) => {
+  if (typeof spec.env.PATH === 'string') {
+    return harden({ value: spec.env.PATH, source: 'env' });
+  }
+  if (typeof imagePath === 'string' && imagePath !== '') {
+    return harden({ value: imagePath, source: 'image' });
+  }
+  return harden({ value: DEFAULT_PATH, source: 'fallback' });
+};
+harden(resolveSlicePath);
+
+/**
+ * Parse the JSON array emitted by
+ * `podman image inspect --format '{{json .Config.Env}}'` and return the
+ * value of the `PATH=` entry, if any.  Tolerant of malformed input:
+ * non-array JSON, non-string entries, missing PATH all return `null`.
+ *
+ * Exported for unit testing — the integration path is exercised via
+ * the live podman driver, but isolated parser tests want to drive
+ * pathological shapes without rebuilding an OCI image.
+ *
+ * @param {string} configEnvJson
+ * @returns {string | null}
+ */
+export const parseImagePathFromConfigEnv = configEnvJson => {
+  let parsed;
+  try {
+    parsed = JSON.parse(configEnvJson);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+  for (const entry of parsed) {
+    if (typeof entry === 'string' && entry.startsWith('PATH=')) {
+      return entry.slice('PATH='.length);
+    }
+  }
+  return null;
+};
+harden(parseImagePathFromConfigEnv);
 
 /**
  * Assemble the `podman create` argv for a slice.  The image reference
@@ -325,7 +401,13 @@ harden(probeRootlessNetBackend);
  * @param {SliceSpec} spec
  * @param {string} containerName
  * @param {RootlessNetBackend} netBackend
- * @param {{ seccompProfilePath: string | null }} extras
+ * @param {{ seccompProfilePath: string | null, pathInjection: string | null }} extras
+ *   `pathInjection` is the `PATH` value to inject as `-e PATH=…` when
+ *   the caller did not set one.  `null` means "leave the image's
+ *   `Config.Env` PATH alone" — used when the caller's `spec.env`
+ *   already includes a `PATH` (the per-key loop below emits the `-e`
+ *   itself), or when the helper is invoked from a code path that
+ *   does not need the synthesis.
  * @returns {string[]}
  */
 const assembleCreateArgv = (spec, containerName, netBackend, extras) => {
@@ -385,8 +467,18 @@ const assembleCreateArgv = (spec, containerName, netBackend, extras) => {
 
   // Environment.  podman starts its containers with a minimal env
   // already; we override / append the caller-supplied keys via -e.
+  // When the caller did NOT set `PATH`, we inject `extras.pathInjection`
+  // explicitly so the slice's `PATH` is observable from the host and
+  // does not depend on whether the OCI image happened to set
+  // `Config.Env`.  This mirrors the bwrap driver's `--setenv PATH=…`
+  // path-synthesis behaviour.
+  let hadPath = false;
   for (const [key, value] of Object.entries(spec.env)) {
     argv.push('-e', `${key}=${value}`);
+    if (key === 'PATH') hadPath = true;
+  }
+  if (!hadPath && extras.pathInjection !== null) {
+    argv.push('-e', `PATH=${extras.pathInjection}`);
   }
 
   if (spec.cwd !== undefined && spec.cwd !== '') {
@@ -730,6 +822,67 @@ export const makePodmanDriver = ({
   };
 
   /**
+   * Cache of `image ref` → `Config.Env` PATH (or `null` when the
+   * image declares no PATH / inspection failed).  Image refs are
+   * effectively immutable once pulled; caching for the lifetime of
+   * the driver avoids repeating `podman image inspect` for every
+   * slice that reuses the same image, and the worst case under a
+   * concurrent retag is a stale fallback that still produces a
+   * working `PATH`.
+   *
+   * @type {Map<string, string | null>}
+   */
+  const imagePathCache = new Map();
+
+  /**
+   * Probe the OCI image's `Config.Env` for a `PATH=` entry and return
+   * its value (or `null` when the image declares none).  Result is
+   * cached in `imagePathCache` keyed by `ref`.
+   *
+   * Best-effort: any failure (inspect non-zero, malformed JSON, no
+   * `Config.Env` key) is swallowed and surfaces as `null`, which
+   * `resolveSlicePath` then maps onto the canonical `DEFAULT_PATH`.
+   *
+   * @param {typeof import('child_process')} cp
+   * @param {string} ref
+   * @returns {Promise<string | null>}
+   */
+  const inspectImagePath = async (cp, ref) => {
+    if (imagePathCache.has(ref)) {
+      // `Map.get` returns `T | undefined`; the `has` guard guarantees
+      // the value is in the map, so a non-null assertion via cast is
+      // safer than a `??` that would conflate "cached as null" with
+      // "missing".
+      return /** @type {string | null} */ (imagePathCache.get(ref) ?? null);
+    }
+    const runtime = await ensureRuntime(cp);
+    let result;
+    try {
+      result = await spawnAndCollect(
+        cp,
+        'podman',
+        podmanArgs(runtime, [
+          'image',
+          'inspect',
+          '--format',
+          '{{json .Config.Env}}',
+          ref,
+        ]),
+      );
+    } catch {
+      imagePathCache.set(ref, null);
+      return null;
+    }
+    if (result.code !== 0) {
+      imagePathCache.set(ref, null);
+      return null;
+    }
+    const imagePath = parseImagePathFromConfigEnv(result.stdout.trim());
+    imagePathCache.set(ref, imagePath);
+    return imagePath;
+  };
+
+  /**
    * Ensure the OCI image referenced by the slice spec is present in
    * the user's container storage.  No-op when the image is already
    * present (`podman image exists` exits 0).
@@ -787,6 +940,12 @@ export const makePodmanDriver = ({
     const cp = await getCp();
     await ensureImage(cp, ref);
 
+    // Probe the image's `Config.Env` PATH so the slice's `$PATH`
+    // synthesis (below) has an image-derived default available.
+    // The probe is cached per `ref` for the driver's lifetime; the
+    // first slice for a given image pays the cost.
+    const imagePath = await inspectImagePath(cp, ref);
+
     // Pick the rootless network backend up front so the runtime
     // report reflects what the slice actually got.  `none` and
     // `host-*` profiles do not require pasta / slirp4netns; only
@@ -833,9 +992,19 @@ export const makePodmanDriver = ({
 
     const runtime = await ensureRuntime(cp);
     const containerName = makeSliceName();
+    // Resolve the slice's effective `PATH` once so we can both inject
+    // it into the container's create-time env and surface it via
+    // `runtimeDetails.path` for `slice.help()`.  When the caller's
+    // `spec.env` already includes a `PATH` we leave `pathInjection`
+    // null and let the per-key loop in `assembleCreateArgv` emit it
+    // (the resolved record still records `source: 'env'` so the help
+    // line stays accurate).
+    const slicePath = resolveSlicePath(spec, imagePath);
+    const pathInjection = slicePath.source === 'env' ? null : slicePath.value;
     const createArgv = podmanArgs(runtime, [
       ...assembleCreateArgv(spec, containerName, netBackend, {
         seccompProfilePath: seccompTempPath,
+        pathInjection,
       }),
       ref,
       ...IDLE_PID1,
@@ -888,6 +1057,7 @@ export const makePodmanDriver = ({
             }
           : { backend: netBackend },
       ),
+      path: slicePath,
     });
 
     /** @type {PodmanSliceContext} */
