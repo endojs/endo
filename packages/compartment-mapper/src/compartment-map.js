@@ -1,5 +1,6 @@
 /* Validates a compartment map against its schema. */
 
+import { Fail, q, b } from '@endo/errors';
 import {
   assertPackagePolicy,
   ATTENUATORS_COMPARTMENT,
@@ -31,17 +32,13 @@ import {
  *   DigestedCompartmentDescriptor} from './types.js'
  */
 
-// TODO convert to the new `||` assert style.
-// Deferred because this file pervasively uses simple template strings rather than
-// template strings tagged with `assert.details` (aka `X`), and uses
-// this definition of `q` rather than `assert.quote`
-const q = JSON.stringify;
 const { keys, entries } = Object;
 const { isArray } = Array;
 
-/** @type {(a: string, b: string) => number} */
-// eslint-disable-next-line no-nested-ternary
-export const stringCompare = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
+/** @type {(left: string, right: string) => number} */
+export const stringCompare = (left, right) =>
+  // eslint-disable-next-line no-nested-ternary
+  left === right ? 0 : left < right ? -1 : 1;
 
 /**
  * @template T
@@ -83,12 +80,8 @@ function* enumerate(iterable) {
  * @returns {asserts value is string}
  */
 const assertString = (value, pathOrMessage, url) => {
-  const keypath = pathOrMessage;
-  assert.typeof(
-    value,
-    'string',
-    `${keypath} in ${q(url)} must be a string; got ${q(value)}`,
-  );
+  typeof value === 'string' ||
+    Fail`${b(pathOrMessage)} in ${q(url)} must be a string; got ${q(value)}`;
 };
 
 /**
@@ -97,7 +90,7 @@ const assertString = (value, pathOrMessage, url) => {
  * @param {unknown} allegedLabel
  * @param {string} keypath
  * @param {string} url
- * @returns {asserts alleged is string}
+ * @returns {asserts allegedLabel is string}
  */
 const assertLabel = (allegedLabel, keypath, url) => {
   assertString(allegedLabel, keypath, url);
@@ -107,12 +100,10 @@ const assertLabel = (allegedLabel, keypath, url) => {
   if (allegedLabel === ENTRY_COMPARTMENT) {
     return;
   }
-  assert(
-    /^(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*(?:>(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*)*$/.test(
-      allegedLabel,
-    ),
-    `${keypath} must be a canonical name in ${q(url)}; got ${q(allegedLabel)}`,
-  );
+  /^(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*(?:>(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*)*$/.test(
+    allegedLabel,
+  ) ||
+    Fail`${b(keypath)} must be a canonical name in ${q(url)}; got ${q(allegedLabel)}`;
 };
 
 /**
@@ -123,12 +114,10 @@ const assertLabel = (allegedLabel, keypath, url) => {
  */
 const assertPlainObject = (allegedObject, keypath, url) => {
   const object = Object(allegedObject);
-  assert(
-    object === allegedObject &&
-      !isArray(object) &&
-      !(typeof object === 'function'),
-    `${keypath} must be an object; got ${q(allegedObject)} of type ${q(typeof allegedObject)} in ${q(url)}`,
-  );
+  (object === allegedObject &&
+    !isArray(object) &&
+    !(typeof object === 'function')) ||
+    Fail`${b(keypath)} must be an object; got ${q(allegedObject)} of type ${q(typeof allegedObject)} in ${q(url)}`;
 };
 
 /**
@@ -139,19 +128,8 @@ const assertPlainObject = (allegedObject, keypath, url) => {
  * @returns {asserts value is boolean}
  */
 const assertBoolean = (value, keypath, url) => {
-  assert.typeof(
-    value,
-    'boolean',
-    `${keypath} in ${q(url)} must be a boolean; got ${q(value)}`,
-  );
-};
-
-/**
- * @param {Record<string, unknown>} object
- * @param {string} message
- */
-const assertEmptyObject = (object, message) => {
-  assert(keys(object).length === 0, message);
+  typeof value === 'boolean' ||
+    Fail`${b(keypath)} in ${q(url)} must be a boolean; got ${q(value)}`;
 };
 
 /**
@@ -161,11 +139,11 @@ const assertEmptyObject = (object, message) => {
  */
 const assertConditions = (conditions, url) => {
   if (conditions === undefined) return;
-  assert(
-    isArray(conditions),
-    `conditions must be an array; got ${conditions} in ${q(url)}`,
-  );
-  for (const [index, value] of enumerate(conditions)) {
+  isArray(conditions) ||
+    Fail`conditions must be an array; got ${q(conditions)} in ${q(url)}`;
+  for (const [index, value] of enumerate(
+    /** @type {unknown[]} */ (conditions),
+  )) {
     assertString(value, `conditions[${index}]`, url);
   }
 };
@@ -221,10 +199,8 @@ const assertCompartmentModuleConfiguration = (
     getModuleConfigurationSpecificProperties(
       /** @type {CompartmentModuleConfiguration} */ (moduleDescriptor),
     );
-  assertEmptyObject(
-    extra,
-    `${keypath} must not have extra properties; got ${q(extra)} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`${b(keypath)} must not have extra properties; got ${q(extra)} in ${q(url)}`;
 
   assertString(compartment, `${keypath}.compartment`, url);
   assertString(module, `${keypath}.module`, url);
@@ -241,12 +217,8 @@ const assertFileModuleConfiguration = (moduleDescriptor, keypath, url) => {
     getModuleConfigurationSpecificProperties(
       /** @type {FileModuleConfiguration} */ (moduleDescriptor),
     );
-  assertEmptyObject(
-    extra,
-    `${keypath} must not have extra properties; got ${q(
-      keys(extra),
-    )} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`${b(keypath)} must not have extra properties; got ${q(keys(extra))} in ${q(url)}`;
   if (location !== undefined) {
     assertString(location, `${keypath}.location`, url);
   }
@@ -267,12 +239,8 @@ const assertExitModuleConfiguration = (moduleDescriptor, keypath, url) => {
   const { exit, ...extra } = getModuleConfigurationSpecificProperties(
     /** @type {ExitModuleConfiguration} */ (moduleDescriptor),
   );
-  assertEmptyObject(
-    extra,
-    `${keypath} must not have extra properties; got ${q(
-      keys(extra),
-    )} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`${b(keypath)} must not have extra properties; got ${q(keys(extra))} in ${q(url)}`;
   assertString(exit, `${keypath}.exit`, url);
 };
 
@@ -370,10 +338,8 @@ function assertModuleConfiguration(allegedModule, keypath, url, kinds) {
     }
   }
 
-  assert(
-    errors.length < finalKinds.length,
-    `invalid module descriptor in ${q(url)} at ${q(keypath)}; expected to match one of ${q(kinds)}: ${errors.map(err => err.message).join('; ')}`,
-  );
+  errors.length < finalKinds.length ||
+    Fail`invalid module descriptor in ${q(url)} at ${q(keypath)}; expected to match one of ${q(kinds)}: ${errors.map(err => err.message).join('; ')}`;
 }
 
 /**
@@ -477,12 +443,10 @@ const assertParsers = (allegedParsers, keypath, url) => {
  * @returns {asserts allegedTruthyValue is NonNullable<unknown>}
  */
 const assertTruthy = (allegedTruthyValue, keypath, url) => {
-  assert(
-    allegedTruthyValue,
-    url
-      ? `${keypath} in ${q(url)} must be truthy; got ${q(allegedTruthyValue)}`
-      : url,
-  );
+  allegedTruthyValue ||
+    (url
+      ? Fail`${b(keypath)} in ${q(url)} must be truthy; got ${q(allegedTruthyValue)}`
+      : Fail`${q(url)}`);
 };
 
 /**
@@ -502,12 +466,8 @@ const assertScope = (allegedScope, keypath, url, assertCompartmentValue) => {
   assertPlainObject(allegedScope, keypath, url);
 
   const { compartment, ...extra } = allegedScope;
-  assertEmptyObject(
-    extra,
-    `${keypath} must not have extra properties; got ${q(
-      keys(extra),
-    )} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`${b(keypath)} must not have extra properties; got ${q(keys(extra))} in ${q(url)}`;
 
   if (assertCompartmentValue) {
     assertCompartmentValue(compartment, `${keypath}.compartment`, url);
@@ -630,14 +590,10 @@ const assertCompartmentDescriptor = (
  */
 const assertFileUrlString = (allegedFileUrlString, keypath, url) => {
   assertString(allegedFileUrlString, keypath, url);
-  assert(
-    allegedFileUrlString.startsWith('file://'),
-    `${keypath} must be a file URL in ${q(url)}; got ${q(allegedFileUrlString)}`,
-  );
-  assert(
-    allegedFileUrlString.length > 7,
-    `${keypath} must contain a non-empty path in ${q(url)}; got ${q(allegedFileUrlString)}`,
-  );
+  allegedFileUrlString.startsWith('file://') ||
+    Fail`${b(keypath)} must be a file URL in ${q(url)}; got ${q(allegedFileUrlString)}`;
+  allegedFileUrlString.length > 7 ||
+    Fail`${b(keypath)} must contain a non-empty path in ${q(url)}; got ${q(allegedFileUrlString)}`;
 };
 
 /**
@@ -706,12 +662,8 @@ const assertPackageCompartmentDescriptor = (
     ...extra
   } = /** @type {PackageCompartmentDescriptor} */ (allegedCompartment);
 
-  assertEmptyObject(
-    extra,
-    `${keypath} must not have extra properties; got ${q(
-      keys(extra),
-    )} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`${b(keypath)} must not have extra properties; got ${q(keys(extra))} in ${q(url)}`;
 
   assertPackageLocation(location, `${keypath}.location`, url);
   assertLabel(label, `${keypath}.label`, url);
@@ -746,12 +698,8 @@ const assertDigestedCompartmentDescriptor = (
     ...extra
   } = allegedCompartment;
 
-  assertEmptyObject(
-    extra,
-    `${keypath} must not have extra properties; got ${q(
-      keys(extra),
-    )} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`${b(keypath)} must not have extra properties; got ${q(keys(extra))} in ${q(url)}`;
 };
 
 /**
@@ -777,12 +725,8 @@ const assertFileCompartmentDescriptor = (allegedCompartment, keypath, url) => {
     ...extra
   } = /** @type {FileCompartmentDescriptor} */ (allegedCompartment);
 
-  assertEmptyObject(
-    extra,
-    `${keypath} must not have extra properties; got ${q(
-      keys(extra),
-    )} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`${b(keypath)} must not have extra properties; got ${q(keys(extra))} in ${q(url)}`;
 
   assertString(label, `${keypath}.label`, url);
 };
@@ -795,20 +739,16 @@ const assertFileCompartmentDescriptor = (allegedCompartment, keypath, url) => {
 const assertCompartmentDescriptors = (allegedCompartments, url) => {
   assertPlainObject(allegedCompartments, 'compartments', url);
   const compartmentNames = keys(allegedCompartments);
-  assert(
-    compartmentNames.length > 0,
-    `compartments must not be empty in ${q(url)}`,
-  );
+  compartmentNames.length > 0 ||
+    Fail`compartments must not be empty in ${q(url)}`;
   for (const key of keys(allegedCompartments)) {
     assertString(
       key,
       `all keys of compartments must be strings; got ${key} in ${q(url)}`,
     );
   }
-  assert(
-    compartmentNames.every(name => typeof name === 'string'),
-    `all keys of compartments must be strings; got ${q(compartmentNames)} in ${q(url)}`,
-  );
+  compartmentNames.every(name => typeof name === 'string') ||
+    Fail`all keys of compartments must be strings; got ${q(compartmentNames)} in ${q(url)}`;
 };
 
 /**
@@ -842,12 +782,8 @@ const assertPackageCompartmentDescriptors = (allegedCompartments, url) => {
 const assertEntry = (allegedEntry, url) => {
   assertPlainObject(allegedEntry, 'entry', url);
   const { compartment, module, ...extra } = allegedEntry;
-  assertEmptyObject(
-    extra,
-    `"entry" must not have extra properties in compartment map; got ${q(
-      keys(extra),
-    )} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`"entry" must not have extra properties in compartment map; got ${q(keys(extra))} in ${q(url)}`;
   assertString(compartment, 'entry.compartment', url);
   assertString(module, 'entry.module', url);
 };
@@ -867,12 +803,8 @@ const assertCompartmentMap = (allegedCompartmentMap, url) => {
     compartments: _compartments,
     ...extra
   } = allegedCompartmentMap;
-  assertEmptyObject(
-    extra,
-    `Compartment map must not have extra properties; got ${q(
-      keys(extra),
-    )} in ${q(url)}`,
-  );
+  keys(extra).length === 0 ||
+    Fail`Compartment map must not have extra properties; got ${q(keys(extra))} in ${q(url)}`;
   assertConditions(conditions, url);
   assertEntry(entry, url);
   assertTruthy(
