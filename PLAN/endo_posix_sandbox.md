@@ -381,6 +381,51 @@ Powers needed:
   All host-path access is mediated through `Mount` capabilities
   the caller hands in.
 
+### Environment defaults
+
+A slice's `$PATH` (and, by extension, anything else the inner
+shell looks up by short name) is synthesised from the rootfs shape
+when the caller does not supply one explicitly:
+
+- `host-bind` — start with the canonical Debian / Ubuntu order
+  (`/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin`),
+  then append survivors mined from the daemon's own `$PATH`
+  (`/opt/...`, `/snap/bin`, `/var/lib/flatpak/exports/bin`, …).
+  Survivors must be absolute paths, must not contain a `..`
+  segment, and must not begin with `/home`, `/Users`, `/root`,
+  `/tmp`, `/var/tmp`, or `/run/user` — these would either leak
+  the daemon-user's home layout or expose world-writable scratch
+  to the slice.
+  Each survivor is bind-mounted read-only into the slice so the
+  `$PATH` entry actually points at something inside the namespace.
+- `mount` — probe the host rootfs for the canonical bin dirs that
+  exist underneath it; use the slice-internal paths
+  (e.g. `<hostPath>/usr/bin` becomes `/usr/bin`) and fall back to
+  the canonical default when the probe finds nothing.
+- `minimal` — fall back to the canonical default.
+- `oci` (podman driver) — the image's `Config.Env` PATH, probed
+  once via `podman image inspect --format '{{json .Config.Env}}'`
+  and cached per image ref for the driver's lifetime; falls back to
+  the canonical default when the image declares no PATH.  The
+  resolved value is injected at `podman create` time as
+  `-e PATH=…` so the slice's effective PATH is observable from the
+  host regardless of whether the image declared one, and is
+  surfaced through `slice.help()` as a `path: <value> (source:
+  env|image|fallback)` row.
+
+Caller-granted mounts whose `innerPath` ends in `/bin` or `/sbin`
+(or that contain a `bin/` subdirectory) are promoted to the
+synthesised `$PATH`.
+They land **after** the rootfs-derived entries so a hostile mount
+cannot shadow `/usr/bin` with a bin dir of its own.
+A caller-supplied `env.PATH` always wins; the synthesis only fires
+when the slice's `env` does not include `PATH`.
+
+The canonical default lives in
+[`packages/sandbox/src/drivers/path.js`](../packages/sandbox/src/drivers/path.js)
+and is shared between the bwrap and podman drivers so the two
+backends never drift on the user-vs-administrative ordering.
+
 ### Security boundary clarity
 
 Three rules, restated explicitly:
