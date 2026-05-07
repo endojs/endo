@@ -144,7 +144,8 @@ const makeThreeVatNet = ({ bootstrapB, bootstrapC }) => {
       connectToThirdParty: thirdPartyCapId => {
         const peerName = vatIdToName(thirdPartyCapId);
         const conn = connByVat[me][peerName];
-        if (!conn) throw Error(`no preconfigured connection ${me}↔${peerName}`);
+        if (!conn)
+          throw Error(`no preconfigured connection ${me}↔${peerName}`);
         return conn;
       },
       /**
