@@ -6299,6 +6299,48 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@turbo/darwin-64@npm:2.9.10":
+  version: 2.9.10
+  resolution: "@turbo/darwin-64@npm:2.9.10"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@turbo/darwin-arm64@npm:2.9.10":
+  version: 2.9.10
+  resolution: "@turbo/darwin-arm64@npm:2.9.10"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@turbo/linux-64@npm:2.9.10":
+  version: 2.9.10
+  resolution: "@turbo/linux-64@npm:2.9.10"
+  conditions: os=linux & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@turbo/linux-arm64@npm:2.9.10":
+  version: 2.9.10
+  resolution: "@turbo/linux-arm64@npm:2.9.10"
+  conditions: os=linux & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@turbo/windows-64@npm:2.9.10":
+  version: 2.9.10
+  resolution: "@turbo/windows-64@npm:2.9.10"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@turbo/windows-arm64@npm:2.9.10":
+  version: 2.9.10
+  resolution: "@turbo/windows-arm64@npm:2.9.10"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
 "@tybys/wasm-util@npm:^0.9.0":
   version: 0.9.0
   resolution: "@tybys/wasm-util@npm:0.9.0"
@@ -16979,6 +17021,7 @@ __metadata:
     ses: "workspace:^"
     source-map: "npm:^0.7.4"
     tsd: "npm:^0.33.0"
+    turbo: "npm:^2.9.10"
     type-coverage: "npm:^2.29.1"
     typedoc: "npm:^0.28.19"
     typedoc-plugin-mermaid: "npm:^1.12.0"
@@ -18509,6 +18552,35 @@ __metadata:
   dependencies:
     safe-buffer: "npm:^5.0.1"
   checksum: 10c0/4c7a1b813e7beae66fdbf567a65ec6d46313643753d0beefb3c7973d66fcec3a1e7f39759f0a0b4465883499c6dc8b0750ab8b287399af2e583823e40410a17a
+  languageName: node
+  linkType: hard
+
+"turbo@npm:^2.9.10":
+  version: 2.9.10
+  resolution: "turbo@npm:2.9.10"
+  dependencies:
+    "@turbo/darwin-64": "npm:2.9.10"
+    "@turbo/darwin-arm64": "npm:2.9.10"
+    "@turbo/linux-64": "npm:2.9.10"
+    "@turbo/linux-arm64": "npm:2.9.10"
+    "@turbo/windows-64": "npm:2.9.10"
+    "@turbo/windows-arm64": "npm:2.9.10"
+  dependenciesMeta:
+    "@turbo/darwin-64":
+      optional: true
+    "@turbo/darwin-arm64":
+      optional: true
+    "@turbo/linux-64":
+      optional: true
+    "@turbo/linux-arm64":
+      optional: true
+    "@turbo/windows-64":
+      optional: true
+    "@turbo/windows-arm64":
+      optional: true
+  bin:
+    turbo: bin/turbo
+  checksum: 10c0/8548c62645f24ae0f4c57d99ef0fa168218e39643b2fbef32f0c5280303d6024218391997d78169ae6d4864e0517f53276fd1e5b56e2a993014419a4c81ba719
   languageName: node
   linkType: hard
 
