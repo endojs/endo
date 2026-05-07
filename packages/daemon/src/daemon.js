@@ -724,6 +724,14 @@ const makeDaemonCore = async (
         }),
       );
 
+      // Reclaim daemon-local storage owned by collected formulas.
+      // Content-store blobs use sweep-time reference counting because
+      // multiple readable-blob and readable-tree formulas can dedupe
+      // on the same sha256.  Scratch-mount directories have a 1:1
+      // relationship with their formula and need no reference count.
+      // eslint-disable-next-line no-use-before-define
+      await reclaimCollectedStorage(collectedFormulas);
+
       // Cancel controllers and disconnect workers.
       const cancelReason = new Error(
         'became unreachable by any pet name path and was collected',
@@ -741,6 +749,150 @@ const makeDaemonCore = async (
         collectedFormulaTypes,
       );
     });
+  };
+
+  /**
+   * Walk a `readable-tree` content tree and add every transitively
+   * reachable content-store hash (the root tree JSON, every nested
+   * tree JSON, every leaf blob) to `accum`.  Tree JSON is an array of
+   * `[name, type, childSha256]` tuples (see
+   * `packages/platform/src/fs/snapshot-tree.js`); `type` is `"blob"`
+   * or `"tree"`.
+   *
+   * The walk visits each tree hash at most once via the `accum` set,
+   * so cycles or shared subtrees do not cause repeated I/O.  Errors
+   * fetching or parsing a tree-JSON entry are swallowed: a malformed
+   * or already-missing entry just stops the descent for that branch
+   * and the visited hashes are still candidates for removal.
+   *
+   * @param {string} rootHash
+   * @param {Set<string>} accum
+   * @returns {Promise<void>}
+   */
+  const collectTransitiveTreeHashes = async (rootHash, accum) => {
+    await null;
+    /** @type {string[]} */
+    const stack = [rootHash];
+    while (stack.length > 0) {
+      const hash = /** @type {string} */ (stack.pop());
+      if (!accum.has(hash)) {
+        accum.add(hash);
+        let entries;
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          entries = await contentStore.fetch(hash).json();
+        } catch (_err) {
+          // Tree JSON is missing or unparseable; nothing more to
+          // walk for this branch.  The hash is still in `accum` so
+          // the caller may still attempt to remove it.
+          entries = undefined;
+        }
+        if (Array.isArray(entries)) {
+          for (const entry of entries) {
+            if (Array.isArray(entry) && entry.length >= 3) {
+              const [, childType, childHash] = entry;
+              if (typeof childHash === 'string') {
+                if (childType === 'blob') {
+                  accum.add(childHash);
+                } else if (childType === 'tree') {
+                  stack.push(childHash);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+
+  /**
+   * Add every content-store hash a formula keeps reachable to
+   * `accum`.  For `readable-blob`, that is the single content hash.
+   * For `readable-tree`, that is the root tree-JSON hash plus every
+   * transitively reachable child blob and subtree hash.  See the
+   * design note in `designs/daemon-content-store-gc.md` on the
+   * sweep-time refcount for the precise contract.
+   *
+   * @param {Formula} formula
+   * @param {Set<string>} accum
+   * @returns {Promise<void>}
+   */
+  const collectFormulaHashes = async (formula, accum) => {
+    await null;
+    if (formula.type === 'readable-blob') {
+      accum.add(formula.content);
+    } else if (formula.type === 'readable-tree') {
+      await collectTransitiveTreeHashes(formula.content, accum);
+    }
+  };
+
+  /**
+   * Reclaim daemon-local on-disk storage owned by a batch of just-
+   * collected formulas: orphaned content-store blobs and scratch-mount
+   * backing directories.
+   *
+   * Content-store cleanup uses a sweep-time reference count.  The
+   * candidate set is the union of every collected formula's reachable
+   * content hashes (a single hash for `readable-blob`; the root tree
+   * hash plus every transitively reachable child hash for
+   * `readable-tree`), minus the union of every surviving formula's
+   * reachable hashes (`formulaForId.values()` at sweep time, so any
+   * formula added concurrently is honored as a survivor and its
+   * hashes are protected).
+   *
+   * Scratch-mount cleanup unlinks `{statePath}/mounts/{formulaNumber}`
+   * for every collected `scratch-mount` formula.
+   *
+   * @param {Map<FormulaIdentifier, Formula>} collectedFormulasByid
+   * @returns {Promise<void>}
+   */
+  const reclaimCollectedStorage = async collectedFormulasByid => {
+    /** @type {Set<string>} */
+    const candidateHashes = new Set();
+    for (const formula of collectedFormulasByid.values()) {
+      // eslint-disable-next-line no-await-in-loop
+      await collectFormulaHashes(formula, candidateHashes);
+    }
+    if (candidateHashes.size > 0) {
+      // Subtract hashes still referenced by any surviving formula.
+      // formulaForId at this point reflects the post-Phase-1 state
+      // (the collected formulas are already removed) plus any
+      // formulas added concurrently while this cleanup was queued.
+      // For a surviving readable-tree the entire reachable hash set
+      // must be subtracted, not just the root, so that a child blob
+      // shared between a collected and a surviving tree is preserved.
+      /** @type {Set<string>} */
+      const survivingHashes = new Set();
+      for (const formula of formulaForId.values()) {
+        // eslint-disable-next-line no-await-in-loop
+        await collectFormulaHashes(formula, survivingHashes);
+      }
+      for (const hash of survivingHashes) {
+        candidateHashes.delete(hash);
+      }
+      await Promise.allSettled(
+        [...candidateHashes].map(hash => contentStore.remove(hash)),
+      );
+    }
+
+    // Scratch-mount backing dirs are 1:1 with their formula; no
+    // reference count needed.
+    const scratchMountNumbers = [];
+    for (const [id, formula] of collectedFormulasByid) {
+      if (formula.type === 'scratch-mount') {
+        scratchMountNumbers.push(parseId(id).number);
+      }
+    }
+    await Promise.allSettled(
+      scratchMountNumbers.map(formulaNumber => {
+        const mountPath = filePowers.joinPath(
+          persistencePowers.statePath,
+          'mounts',
+          /** @type {string} */ (formulaNumber),
+        );
+        return filePowers.removeDirectory(mountPath);
+      }),
+    );
   };
 
   const formulaGraph = makeFormulaGraph({

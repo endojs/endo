@@ -301,6 +301,18 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     });
   };
 
+  /**
+   * Recursively remove a directory and its contents.  Idempotent:
+   * removing a missing directory is not an error.
+   *
+   * @param {string} path
+   */
+  const removeDirectory = async path => {
+    await writeJobs.enqueue(async () => {
+      return fs.promises.rm(path, { force: true, recursive: true });
+    });
+  };
+
   const renamePath = async (source, target) => {
     await writeJobs.enqueue(async () => {
       return fs.promises.rename(source, target);
@@ -345,6 +357,7 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     makePath,
     joinPath,
     removePath,
+    removeDirectory,
     renamePath,
     realPath,
     isDirectory,

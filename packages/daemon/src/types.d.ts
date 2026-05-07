@@ -1228,6 +1228,7 @@ export type FilePowers = {
   makePath: (path: string) => Promise<void>;
   joinPath: (...components: Array<string>) => string;
   removePath: (path: string) => Promise<void>;
+  removeDirectory: (path: string) => Promise<void>;
   renamePath: (source: string, target: string) => Promise<void>;
   realPath: (path: string) => Promise<string>;
   isDirectory: (path: string) => Promise<boolean>;

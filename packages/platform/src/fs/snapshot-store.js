@@ -24,6 +24,7 @@ export const makeSnapshotStore = contentStore => {
     store: readable => contentStore.store(readable),
     fetch: sha256 => contentStore.fetch(sha256),
     has: sha256 => contentStore.has(sha256),
+    remove: sha256 => contentStore.remove(sha256),
     loadBlob: sha256 =>
       makeExo(
         `SnapshotBlob ${sha256.slice(0, 8)}...`,
