@@ -91,8 +91,8 @@ Out of scope:
 | `help` | (via `DirectoryInterface`) | yes | trivial |
 | `has` | yes | yes | shape compatible |
 | `list` | yes | yes | shape compatible |
-| `lookup` | yes | yes | shape compatible |
-| `maybeLookup` | yes | no | trivial wrapper around `lookup` |
+| `lookup` | yes | yes | shape compatible; throwing wrapper |
+| `maybeLookup` | yes | added by this design | primitive; `lookup` is derived |
 | `identify` | yes | no | requires a notion of "identifier for a file" |
 | `locate` | yes | no | requires `identify` plus locator construction |
 | `reverseLocate` | yes | no | requires a way to map locators back to mount paths |
@@ -209,11 +209,19 @@ export const ReadableNameHubInterface = M.interface(
     has: M.call().rest(NamePathShape).returns(M.promise()),
     list: M.call().rest(NamePathShape).returns(M.promise()),
     lookup: M.call(NameOrPathShape).returns(M.promise()),
-    maybeLookup: M.call(NameOrPathShape).returns(M.any()),
+    maybeLookup: M.call(NameOrPathShape).returns(M.promise()),
     followNameChanges: M.call().returns(M.remotable()),
   },
 );
 ```
+
+`maybeLookup` is the primitive; `lookup` is a thin throwing
+wrapper around it.
+A hub implements either `lookup` or `maybeLookup` and derives the
+other; it is simpler to turn an `undefined` return into a thrown
+error than the reverse, so `maybeLookup` is the natural primitive.
+The interface requires both names to be present so callers may
+choose the form that matches the caller's error stance.
 
 `NameHubInterface` extends `ReadableNameHubInterface` with the
 identify/locate cluster.
