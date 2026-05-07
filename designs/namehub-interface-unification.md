@@ -65,8 +65,8 @@ This design covers:
 - Architectural concerns: mount identity, recursion through
   subdirectories that are themselves mounts, lifecycle of locators
   for filesystem entries, and the read-only attenuation surface.
-- Open Questions that the maintainer must answer before any path
-  forward is chosen.
+- Decisions taken in maintainer review (recorded in the
+  [Decisions](#decisions) section below).
 
 Out of scope:
 
@@ -76,11 +76,17 @@ Out of scope:
   An `EndoMount` is local to its daemon; remote consumers reach it
   only through `lookup`, `readText`, and (after the watcher design
   lands) `followNameChanges` over CapTP.
-  Locators for files would change that, and the design surfaces it
-  as an Open Question rather than answering it.
+  Locators for files would change that; that work is out of scope
+  here and is summarized under
+  [Out of Scope, Future Work](#out-of-scope-future-work).
 - Renaming files via `move` to follow the directory's `move`-by-id
   semantics; mount `move` is already path-based (`renamePath`) and
   is not what the directory's `move` does.
+- Adding the `identify` / `locate` / `reverseLocate` /
+  `listIdentifiers` / `listLocators` / `storeIdentifier` /
+  `storeLocator` / `followLocatorNameChanges` cluster to mounts.
+  The underlying entities have no formulas; covering all of
+  `NameHub` would force the locator question without answering it.
 
 ## Current Shape
 
@@ -124,6 +130,12 @@ Two columns make `EndoMount` stand apart:
   it is a path on disk, and its resurrected presence (the
   `EndoMountFile` exo) is allocated transiently by `lookup`, not
   durably named in the formula graph.
+  Identifiers and locators for mount entries could in principle be
+  constructed ad-hoc using lookup formulas, but retention
+  lifetimes would be awkward: the source of truth is the disk and
+  it can drift out of sync with the formula store.
+  This design treats the cluster as out of scope for mounts; a
+  future `mount-entry-locators` design may revisit the question.
 
 - The semantic difference in `move`.
   `EndoDirectory.move(fromPath, toPath)` reassigns a formula
@@ -329,9 +341,11 @@ The mount adopts every `NameHubInterface` method.
   must decide whether the formula identifier follows or whether
   the file is materialized at the mount path with a fresh
   identifier.
-- Recommendation: defer.
+- Rejected.
   The locator and identity questions are too large to settle
-  inside a parity-with-directory design.
+  inside a parity-with-directory design, and covering all of
+  `NameHub` is not the intent: locator methods belong on the
+  superset interface, not on every reader.
 
 ### Leave the dispatch at the call site
 
@@ -349,9 +363,11 @@ CLI, and any future consumer.
   (`__getMethodNames__` for capability discovery) becomes
   load-bearing for type discrimination, which is a stronger
   commitment than the convention was designed to carry.
-- Recommendation: this is the do-nothing alternative; the
-  preferred path narrows the interface so callers no longer
-  branch.
+- Rejected.
+  This is the do-nothing alternative; the chosen path narrows
+  the interface so the inventory tree's branch is documented
+  and small consumers do not have to re-derive the union of
+  `ReadableNameHubInterface` methods at runtime.
 
 ### Three pass-through methods only
 
@@ -369,18 +385,11 @@ trivial pass-throughs that throw `Error: not supported`.
 - Con: the `NameHubInterface` guard would have to permit
   `M.error()` returns, which weakens it for every other
   implementor.
-- Recommendation: rejected.
+- Rejected.
   An interface that signals "this is a `NameHub`" must satisfy
   the contract.
-
-If, after considering the alternatives, the maintainer decides
-the entire delta is "add three pass-throughs", that is a much
-smaller design and could land as one PR without any sibling
-document.
-The author's reading is that the three-pass-through path is the
-**wrong** answer because it lies about the interface; the
-narrower-interface path or the do-nothing path are the two
-defensible ones.
+  The three-pass-through path lies about the interface and is
+  the wrong answer.
 
 ## Architectural Concerns
 
@@ -412,6 +421,21 @@ This question is what makes the unification design "larger than
 the watcher addition" per OQ #6 of `filesystem-watchers.md`.
 The proposal here defers the question to a future
 `mount-entry-locators` design rather than answering it.
+
+The daemon does have lookup formulas, but this design does not
+apply them inherently to mount points.
+That observation surfaces a related gap: the daemon has no
+first-class mechanism for creating a lookup formula in the same
+way other formulas are created.
+The `lookup` method does not have an optional `resultName`
+argument (and probably should not).
+A separate design for a `link(namePath, resultName)` verb that
+explicitly constructs a lookup formula could give an operator a
+durable name for a path-derived presence, including (in
+principle) a path through a mount, without conflating the
+lookup-as-resolution operation with lookup-as-formula-construction.
+That work is out of scope here; it is mentioned in
+[Out of Scope, Future Work](#out-of-scope-future-work) below.
 
 ### Recursion through sub-mounts
 
@@ -475,7 +499,10 @@ interfaces.
 Most of this design is interface plumbing; the test plan is
 small.
 
-If the narrower-interface path is taken:
+The narrower-interface path is the chosen alternative; the
+identity-related tests that the full-`NameHub` alternative would
+have required (mount-entry formula minting, locator round-trip,
+GC of mount-entry formulas) are not in scope for this design.
 
 1. **`MountInterface` extends `ReadableNameHubInterface`.**
    Static check: every method on `ReadableNameHubInterface` is
@@ -485,17 +512,19 @@ If the narrower-interface path is taken:
 2. **`NameHubInterface` extends `ReadableNameHubInterface`.**
    Same shape: a `pet-store` controller's exo conforms to the
    narrower interface.
-3. **Dispatch consumer.**
+3. **`maybeLookup` parity.**
+   A `pet-store` (which implements `lookup`) and an `EndoMount`
+   (which implements `maybeLookup`) both expose both names.
+   The derived wrapper's behavior is exercised in both
+   directions: a `maybeLookup` of a missing name returns
+   `undefined`; a `lookup` of the same name throws.
+4. **Dispatch consumer.**
    A unit test that builds a fake `ReadableNameHub` (a hub-shaped
    exo without `identify`) and asserts that the inventory
    wrapper's `nestedPowers` factory does not call `identify` on
    it.
    Pair it with a fake `NameHub` (with `identify`) and assert
    that the locator badge is rendered.
-
-If the full-`NameHub` path is taken (not recommended), the test
-plan grows to cover the identity questions and is out of scope
-of this design.
 
 ## Decisions
 
