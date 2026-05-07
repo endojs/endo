@@ -36,6 +36,7 @@
     "ses": "workspace:^",
     "source-map": "^0.7.4",
     "tsd": "^0.33.0",
+    "turbo": "^2.9.10",
     "type-coverage": "^2.29.1",
     "typedoc": "^0.28.19",
     "typedoc-plugin-mermaid": "^1.12.0",
