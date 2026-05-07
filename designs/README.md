@@ -1,8 +1,9 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-05*
+*Last updated: 2026-05-07*
 
-*See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23).*
+*See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23),
+[filesystem-watchers](filesystem-watchers.md) (added 2026-05-07).*
 
 ## Summary
 
@@ -37,6 +38,7 @@
 | [daemon-content-store-gc](daemon-content-store-gc.md) | 2026-03-20 | 2026-03-20 | Not Started |
 | [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-03-26 | Draft |
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-03-20 | In Progress |
+| [filesystem-watchers](filesystem-watchers.md) | 2026-05-07 | 2026-05-07 | Not Started |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-03-18 | In Progress |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-04-29 | **Complete** |
@@ -104,7 +106,7 @@
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 24 Complete/Implemented, 14 In Progress, 45 Not Started, 2 Proposed, 3 Active, 2 Reference, 2 Deprecated, 1 Draft (93 designs)
+**Totals:** 24 Complete/Implemented, 14 In Progress, 46 Not Started, 2 Proposed, 3 Active, 2 Reference, 2 Deprecated, 1 Draft (94 designs)
 
 ## Roadmap
 
@@ -215,6 +217,7 @@ flowchart TD
         pfs[platform-fs]
         dfs[daemon-capability-filesystem]
         dmount[daemon-mount<br/><i>IN PROGRESS</i>]
+        dfsw[filesystem-watchers]
         dcsgc[daemon-content-store-gc]
         dpers[daemon-capability-persona]
         dbank[daemon-capability-bank]
@@ -222,6 +225,8 @@ flowchart TD
         pfs --> dfs
         pfs --> dmount
         pfs --> dci
+        pfs --> dfsw
+        dmount --> dfsw
         dmount --> dtools
         dmount --> dcsgc
         dsand --> dbank
@@ -274,6 +279,7 @@ capabilities available to agents.
 | daemon-capability-filesystem | Not Started | `Dir`/`File` capabilities for structural filesystem confinement |
 | daemon-content-store-gc | Not Started | Content-store pruning and scratch-mount directory cleanup at GC time |
 | daemon-mount | In Progress | Phases 1-3, 5 implemented; symlink confinement, 20 integration tests; Phase 4 (sub-mounts, snapshot) and Phase 6 (CLI) remaining |
+| filesystem-watchers | Not Started | `EndoMount.followNameChanges` parity with `EndoDirectory`; Node `fs.watch` adapter on `FilePowers` |
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
 | daemon-rename-to-manager | Not Started | Rename `daemon.js`/`Daemon`/`MignonicPowers` to `manager.js`/`Manager`/`WorkerPowers` to align JS with Rust `endor` nomenclature |
 | daemon-xs-worker-snapshot | In Progress | XS heap snapshot/restore; Phases 1-2 implemented — streaming CAS write/read, suspend/resume supervisor integration, CBOR control verbs; 12 passing tests; Phase 2 integration test and ephemeral GC roots remaining |
@@ -487,6 +493,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | daemon-capability-filesystem | L | 1-2 weeks | 1 | Dir/File exos, physical backend |
 | daemon-content-store-gc | S | 1 day | 1 | Sweep-time ref count for store-sha256, scratch-mount dir removal |
 | daemon-mount | M-L | 1-1.5 weeks | 1 | Mount exo, symlink confinement, scratch lifecycle, host methods |
+| filesystem-watchers | S | 1-2 days | 1 | `followNameChanges` on `EndoMount`, `watchDirectory` on `FilePowers`, integration tests |
 | daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
 | daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename: 13 source files, ~20 consuming files; three phases (file renames, identifier renames, consumer updates) |
 | endoclaw-timer | S-M | 2-3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
@@ -540,13 +547,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 15 remaining | 7-8 weeks |
+| M1: Remote Access & Tools | 16 remaining | 7-8 weeks |
 | M2: Networking | 8 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
 | M4: UX & Tooling | 11 | 7-9 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
 | M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
-| **Total remaining** | **50** | **~39-53 weeks** |
+| **Total remaining** | **51** | **~39-53 weeks** |
 
 ### Timeline
 
