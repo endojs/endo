@@ -903,7 +903,7 @@ test.serial('fork() throws notImplemented before Phase 3', async t => {
 // These exercise `assembleSliceArgv` directly without spawning bwrap so
 // they run on every host (including non-Linux CI matrix entries).  They
 // assert the `--setenv PATH …` argv slot reflects the rules in
-// `TODO/22_sandbox_bwrap_path_refinements.md` for each rootfs shape.
+// `TADA/22_sandbox_bwrap_path_refinements.md` for each rootfs shape.
 
 /**
  * Pull the `--setenv PATH …` value out of an argv produced by

@@ -12,8 +12,8 @@ import { makeError, q, X } from '@endo/errors';
  * the security rules that govern which host paths are allowed to leak
  * into the slice.
  *
- * See `TODO/22_sandbox_bwrap_path_refinements.md` and
- * `TODO/23_sandbox_podman_path.md` for the motivating discussion.
+ * See `TADA/22_sandbox_bwrap_path_refinements.md` and
+ * `TADA/23_sandbox_podman_path.md` for the motivating discussion.
  */
 
 /**
@@ -297,7 +297,7 @@ harden(probeMountRootfsBinPaths);
  * children gets both inner paths).  The caller is responsible for
  * appending the result **after** the rootfs-derived defaults so a
  * hostile caller cannot shadow `/usr/bin` with a bin dir of their
- * own — see `TODO/22_sandbox_bwrap_path_refinements.md` for the
+ * own — see `TADA/22_sandbox_bwrap_path_refinements.md` for the
  * threat model.
  *
  * @param {{ hostPath: string, innerPath: string }} mount

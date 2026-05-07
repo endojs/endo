@@ -349,7 +349,7 @@ export const assembleSliceArgv = async (spec, extras) => {
     argv.push(flag, mount.hostPath, mount.innerPath);
     // Caller-mount bin-dirs land **after** rootfs-derived defaults so
     // a hostile mount cannot shadow `/usr/bin` with `bin/foo` of its
-    // own.  See `TODO/22_sandbox_bwrap_path_refinements.md` for the
+    // own.  See `TADA/22_sandbox_bwrap_path_refinements.md` for the
     // threat model.
     for (const innerPath of detectMountBinPaths(mount, {
       exists: extras.exists,

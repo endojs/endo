@@ -658,7 +658,7 @@ test.serial('fork() throws notImplemented before Phase 3', async t => {
 });
 
 // ---------------------------------------------------------------------------
-// $PATH synthesis (TODO/23_sandbox_podman_path.md)
+// $PATH synthesis (TADA/23_sandbox_podman_path.md)
 // ---------------------------------------------------------------------------
 
 test('parseImagePathFromConfigEnv: extracts PATH from Config.Env', t => {
