@@ -1007,20 +1007,146 @@ test('PATH synthesis: host-bind appends ambient survivors after canonical bins',
     '/tmp entries must be dropped from synthesised PATH',
   );
   t.notRegex(/** @type {string} */ (path), /\.\./, 'no .. segments survive');
-  // Survivors should also appear as `--ro-bind-try` arguments so the
-  // PATH entries actually point at something inside the slice.
+  // Survivors are elevated to a package-root mount (the bin dir alone
+  // exposes dangling symlinks into siblings like `lib/`), so the
+  // `--ro-bind-try` pair binds the parent and the bin-dir entry only
+  // appears on `$PATH`.
   t.true(
-    argv.includes('/opt/local/bin'),
-    'survivor /opt/local/bin should be bound into the slice',
+    argv.includes('/opt/local'),
+    'survivor /opt/local/bin should be elevated to /opt/local for binding',
   );
-  // The argv pattern is `--ro-bind-try src dst`; check src AND dst.
+  t.false(
+    argv.includes('/opt/local/bin'),
+    'the unelevated bin dir should not be bound separately',
+  );
+  // The argv pattern is `--ro-bind-try src dst`; check src AND dst for
+  // the elevated `/snap` mount that covers `/snap/bin`.
   for (let i = 0; i < argv.length - 2; i += 1) {
-    if (argv[i] === '--ro-bind-try' && argv[i + 1] === '/snap/bin') {
-      t.is(argv[i + 2], '/snap/bin', 'binds host path to itself');
+    if (argv[i] === '--ro-bind-try' && argv[i + 1] === '/snap') {
+      t.is(argv[i + 2], '/snap', 'binds elevated host path to itself');
       return;
     }
   }
-  t.fail('/snap/bin survivor should appear in a --ro-bind-try pair');
+  t.fail('/snap/bin survivor should appear as /snap in a --ro-bind-try pair');
+});
+
+test('mount dedup: survivors under canonical roots do not emit redundant binds', async t => {
+  // `/usr/bin/site_perl` and `/usr/lib/jvm/default/bin` are PATH
+  // entries that survive the textual filter (they are not literal
+  // CANONICAL_BIN_PATHS) but live entirely under `/usr`, which the
+  // host-bind rootfs already mounts.  The dedup logic must collapse
+  // them so we never emit a second `--ro-bind-try` for a path the
+  // parent mount already covers.
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath: '/usr/bin/site_perl:/usr/lib/jvm/default/bin:/opt/rocm/bin',
+      exists: () => true,
+    },
+  );
+  // Count `--ro-bind-try` pairs whose host path starts with `/usr`.
+  // The canonical `/usr` bind from HOST_BIND_ROOTFS_PATHS is one; no
+  // survivor under it should add another.
+  let usrBindCount = 0;
+  for (let i = 0; i < argv.length - 2; i += 1) {
+    if (
+      argv[i] === '--ro-bind-try' &&
+      typeof argv[i + 1] === 'string' &&
+      (argv[i + 1] === '/usr' || argv[i + 1].startsWith('/usr/'))
+    ) {
+      usrBindCount += 1;
+    }
+  }
+  t.is(usrBindCount, 1, '/usr bind appears once even with /usr/* survivors');
+  // The PATH entries are still recorded so commands resolve at the
+  // operator-supplied locations.
+  const path = /** @type {string} */ (extractSetenvPath(argv));
+  t.regex(path, /\/usr\/bin\/site_perl/);
+  t.regex(path, /\/usr\/lib\/jvm\/default\/bin/);
+  // /opt/rocm/bin elevates to /opt/rocm; the bin dir is on PATH but
+  // the mount is the package root.
+  t.true(
+    argv.includes('/opt/rocm'),
+    '/opt/rocm/bin survivor elevates to /opt/rocm mount',
+  );
+  t.false(
+    argv.includes('/opt/rocm/bin'),
+    'unelevated /opt/rocm/bin is not bound separately',
+  );
+  t.regex(path, /\/opt\/rocm\/bin/, '/opt/rocm/bin still appears on PATH');
+});
+
+test('mount dedup: flatpak survivor elevates past /exports', async t => {
+  // `/var/lib/flatpak/exports/bin/foo` is a shell wrapper that execs
+  // into `/var/lib/flatpak/app/...`; binding only `/var/lib/flatpak/exports`
+  // would still leave dangling references.  Elevate one extra level
+  // past the trailing `/exports` segment so the slice can resolve the
+  // wrapper's downstream paths.
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath: '/var/lib/flatpak/exports/bin',
+      exists: () => true,
+    },
+  );
+  t.true(
+    argv.includes('/var/lib/flatpak'),
+    'flatpak bin dir elevates to the package root',
+  );
+  t.false(
+    argv.includes('/var/lib/flatpak/exports'),
+    'intermediate /exports parent is not the elevation target',
+  );
+  t.false(
+    argv.includes('/var/lib/flatpak/exports/bin'),
+    'unelevated bin dir is not bound separately',
+  );
+  // PATH still points at the operator-supplied bin dir inside the
+  // elevated mount.
+  const path = /** @type {string} */ (extractSetenvPath(argv));
+  t.regex(path, /\/var\/lib\/flatpak\/exports\/bin/);
+});
+
+test('mount dedup: HOST_BIND_ROOTFS_PATHS entries deduplicate against /usr', async t => {
+  // The default HOST_BIND_ROOTFS_PATHS list is already arranged so
+  // `/usr` precedes `/lib`, `/lib32`, `/lib64`, `/bin`, `/sbin`, and
+  // `/etc`.  Those siblings are NOT redundant against `/usr` (they
+  // are top-level paths, not children), so each gets its own bind.
+  // A subsequent survivor under `/usr` *would* be redundant; this test
+  // pins the non-redundant case to guard against an over-eager dedup
+  // that swallows the legitimate sibling binds.
+  const argv = await assembleSliceArgv(
+    makeStubSpec({ rootfs: { kind: 'host-bind' } }),
+    {
+      seccompFd: null,
+      ambientPath: '',
+      exists: () => true,
+    },
+  );
+  for (const expected of [
+    '/usr',
+    '/lib',
+    '/lib32',
+    '/lib64',
+    '/bin',
+    '/sbin',
+    '/etc',
+  ]) {
+    let found = false;
+    for (let i = 0; i < argv.length - 2; i += 1) {
+      if (
+        argv[i] === '--ro-bind-try' &&
+        argv[i + 1] === expected &&
+        argv[i + 2] === expected
+      ) {
+        found = true;
+        break;
+      }
+    }
+    t.true(found, `${expected} should appear as a --ro-bind-try pair`);
+  }
 });
 
 test('PATH synthesis: host-bind drops ambient entries that do not exist', async t => {

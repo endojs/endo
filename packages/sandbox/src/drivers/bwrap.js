@@ -19,6 +19,7 @@ import {
   CANONICAL_BIN_PATHS,
   DEFAULT_PATH,
   detectMountBinPaths,
+  elevateSurvivorToMountRoot,
   filterAmbientPathForHostBind,
   joinPathEntries,
   probeMountRootfsBinPaths,
@@ -60,12 +61,18 @@ const ROOTFS_BASE_FLAGS = harden([
  *
  * The bin-dir entries here mirror `CANONICAL_BIN_PATHS` from
  * `./path.js`; the rootfs binds also include `/usr`, `/lib`,
- * `/lib64`, and `/etc` so dynamic linkers and configuration files
- * are reachable.
+ * `/lib32`, `/lib64`, and `/etc` so dynamic linkers, multilib
+ * runtimes, and configuration files are reachable.  The bin dirs
+ * by themselves are not enough: classically the binaries under
+ * `/bin` and `/sbin` are dynamically linked against `/lib*`, and
+ * tools under `/usr/bin` reach into `/usr/share` for data files.
+ * Mounting the parent roots wholesale lets those references
+ * resolve inside the slice without piecemeal probing.
  */
 const HOST_BIND_ROOTFS_PATHS = harden([
   '/usr',
   '/lib',
+  '/lib32',
   '/lib64',
   '/bin',
   '/sbin',
@@ -270,6 +277,29 @@ export const assembleSliceArgv = async (spec, extras) => {
   //      shadow `/usr/bin` because their entries land last).
   /** @type {string[]} */
   const defaultPathEntries = [];
+  // Track every host path requested via `--ro-bind-try` in the rootfs
+  // section so we never emit a duplicate or a strictly redundant child
+  // bind.  A new request is dropped when the path is identical to a
+  // prior bind or lives underneath one (the parent already covers it).
+  // The `--ro-bind-try` flavour tolerates missing paths, so the dedup
+  // scope is just bookkeeping; we are not promising the directory
+  // exists, only that we will not ask for it twice.
+  /** @type {Set<string>} */
+  const roBindTrySeen = new Set();
+  /**
+   * Append a `--ro-bind-try host host` pair unless an earlier entry
+   * already covers `hostPath`.
+   *
+   * @param {string} hostPath
+   */
+  const tryAddRoBindTry = hostPath => {
+    if (roBindTrySeen.has(hostPath)) return;
+    for (const seen of roBindTrySeen) {
+      if (hostPath.startsWith(`${seen}/`)) return;
+    }
+    roBindTrySeen.add(hostPath);
+    argv.push('--ro-bind-try', hostPath, hostPath);
+  };
   if (
     typeof spec.rootfs === 'object' &&
     spec.rootfs !== null &&
@@ -279,7 +309,7 @@ export const assembleSliceArgv = async (spec, extras) => {
       for (const path of HOST_BIND_ROOTFS_PATHS) {
         // `--ro-bind-try` skips missing paths (e.g. /lib64 on pure
         // 32-bit hosts) instead of failing the slice.
-        argv.push('--ro-bind-try', path, path);
+        tryAddRoBindTry(path);
       }
       // Canonical bin dirs first — these are the same paths we just
       // bound above and they end up in `DEFAULT_PATH` order.
@@ -291,16 +321,27 @@ export const assembleSliceArgv = async (spec, extras) => {
       // The filter rejects user-private and world-writable entries,
       // canonicalises through `realpath` to defeat the
       // `/opt/eve → /tmp/attacker` symlink trick, and drops any
-      // non-existent host paths; survivors are bound read-only into
-      // the slice and appended to the path string in their
-      // daemon-PATH order.
+      // non-existent host paths; survivors are elevated to a package
+      // root and bound read-only into the slice, then appended to the
+      // path string in their daemon-PATH order.
+      //
+      // Elevation is needed because binding only the bin dir leaves
+      // dangling symlinks: `/snap/bin/foo` is a symlink to
+      // `/snap/foo/current/...`, `/opt/rocm/bin/foo` links against
+      // `/opt/rocm/lib`, and `/var/lib/flatpak/exports/bin/foo` execs
+      // into `/var/lib/flatpak/app/...`.  See
+      // `elevateSurvivorToMountRoot` in `./path.js` for the heuristic.
+      // The PATH entry stays at the original survivor path so commands
+      // resolve at the directory the operator actually placed on
+      // `$PATH`; only the *mount* widens to the package root.
       const ambientSurvivors = await filterAmbientPathForHostBind(
         extras.ambientPath,
         { exists: extras.exists, realpath: extras.realpath },
       );
-      for (const path of ambientSurvivors) {
-        argv.push('--ro-bind-try', path, path);
-        defaultPathEntries.push(path);
+      for (const survivor of ambientSurvivors) {
+        const mountRoot = elevateSurvivorToMountRoot(survivor);
+        tryAddRoBindTry(mountRoot);
+        defaultPathEntries.push(survivor);
       }
     } else if (spec.rootfs.kind === 'minimal') {
       // Nothing — caller is expected to bind their own rootfs via

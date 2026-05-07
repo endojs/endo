@@ -324,6 +324,56 @@ export const detectMountBinPaths = (mount, options = {}) => {
 harden(detectMountBinPaths);
 
 /**
+ * Elevate a daemon-PATH survivor to a host directory whose contents
+ * the slice will need on top of the bin entry itself.
+ *
+ * Survivors arrive here as the operator-installed `$PATH` entries
+ * that passed `filterAmbientPathForHostBind`: paths shaped like
+ * `/opt/rocm/bin`, `/snap/bin`, or `/var/lib/flatpak/exports/bin`.
+ * Bind-mounting only the bin directory exposes dangling symlinks: a
+ * snap binary at `/snap/bin/foo` is a symlink to
+ * `/snap/foo/current/usr/bin/foo`, a rocm tool wraps shared
+ * libraries under `/opt/rocm/lib`, and a flatpak wrapper under
+ * `/var/lib/flatpak/exports/bin/foo` execs into `/var/lib/flatpak/app/...`.
+ * The slice needs the broader package root, not just the bin dir.
+ *
+ * Heuristic, in order:
+ *   1. Strip a trailing `/bin` or `/sbin` segment to get the package
+ *      root (`/opt/rocm/bin` → `/opt/rocm`, `/snap/bin` → `/snap`).
+ *   2. If the resulting path then ends in `/exports`, strip that
+ *      suffix as well — flatpak nests its bin dir one extra level
+ *      under the package root (`/var/lib/flatpak/exports` →
+ *      `/var/lib/flatpak`).
+ *   3. If neither suffix matches, return the entry unchanged — there
+ *      is no obvious elevation, and the caller's dedup logic will
+ *      collapse it against any canonical mount that already covers
+ *      it (e.g. `/usr/bin/site_perl` is preserved verbatim and then
+ *      dropped because `/usr` is already mounted).
+ *
+ * Stripping never returns the empty string: a survivor that reduces
+ * to `/` after the suffix strip is left alone, since the upstream
+ * filter already rejects every `CANONICAL_BIN_PATH` (which is the
+ * only way to hit that case).
+ *
+ * @param {string} entry  Absolute, post-realpath PATH entry.
+ * @returns {string}      Host path the bwrap driver should bind in
+ *                        place of `entry`.
+ */
+export const elevateSurvivorToMountRoot = entry => {
+  let candidate = entry;
+  if (candidate.endsWith('/bin') || candidate.endsWith('/sbin')) {
+    const trimmed = candidate.slice(0, candidate.lastIndexOf('/'));
+    if (trimmed !== '') candidate = trimmed;
+  }
+  if (candidate.endsWith('/exports')) {
+    const trimmed = candidate.slice(0, candidate.lastIndexOf('/'));
+    if (trimmed !== '') candidate = trimmed;
+  }
+  return candidate;
+};
+harden(elevateSurvivorToMountRoot);
+
+/**
  * Join an array of path entries into a `$PATH` string.  Empty input
  * yields the empty string (callers usually fall back to `DEFAULT_PATH`
  * in that case).  Duplicates are removed (first occurrence wins) so
