@@ -116,6 +116,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Fetch full history so turbo can compute the affected set against
+          # `origin/llm` for the `--filter='...[origin/llm]'` invocation below.
+          fetch-depth: 0
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -148,9 +152,12 @@ jobs:
         working-directory: ${{ env.WORKDIR }}
         run: yarn build
 
-      - name: Run yarn test
+      # Use turbo's `--filter='...[origin/llm]'` to test only the packages
+      # affected by this PR (and their dependents) rather than the full matrix.
+      # The base `origin/llm` is the repo's default branch on this fork.
+      - name: Run yarn test (affected set)
         working-directory: ${{ env.WORKDIR }}
-        run: yarn test
+        run: yarn turbo run test --filter='...[origin/llm]'
 
       - name: Restore working directory
         if: ${{ steps.move-wd.outcome == 'success' }}
