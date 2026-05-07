@@ -11,6 +11,14 @@ permissions:
   contents: read
   actions: write
 
+# Defense in depth against npm lifecycle scripts running implicitly at install.
+# The browser-test/ subtree uses npm and already sets `ignore-scripts=true` in
+# its local .npmrc; these env vars cover the root yarn install as well.
+# See designs/ci-no-npm-lifecycle.md.
+env:
+  YARN_ENABLE_SCRIPTS: 'false'
+  npm_config_ignore_scripts: 'true'
+
 # Cancel in-progress runs for the same branch when a new run is started
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -43,7 +51,7 @@ jobs:
       - name: Provide yarn # yarn is missing in the Selenium image
         run: corepack enable
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --immutable
       - name: Build artifacts
         run: yarn build
       - name: Install browser test dependencies

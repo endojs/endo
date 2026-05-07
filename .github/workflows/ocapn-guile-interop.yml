@@ -18,6 +18,15 @@ on:
 permissions:
   contents: read
 
+# Defense in depth against npm lifecycle scripts running implicitly at install.
+# .yarnrc.yml sets `enableScripts: false` at rest; these env vars ensure the
+# posture survives a branch that drops the repo-level config, an invocation of
+# npm where yarn was intended, or a workflow that unsets the yarn config.
+# See designs/ci-no-npm-lifecycle.md.
+env:
+  YARN_ENABLE_SCRIPTS: 'false'
+  npm_config_ignore_scripts: 'true'
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

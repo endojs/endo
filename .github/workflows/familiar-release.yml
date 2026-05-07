@@ -14,6 +14,12 @@ on:
 permissions:
   contents: write
 
+# Defense in depth against npm lifecycle scripts running implicitly at install.
+# See designs/ci-no-npm-lifecycle.md.
+env:
+  YARN_ENABLE_SCRIPTS: 'false'
+  npm_config_ignore_scripts: 'true'
+
 jobs:
   build-artifacts:
     name: Build bundles and chat dist
