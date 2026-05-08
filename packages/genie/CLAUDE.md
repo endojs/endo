@@ -173,6 +173,44 @@ persisted by the genie guest formula across restarts.  See
 for the operator's view of the same surface, including the `endo
 make-mount` workflow for the pet-name shape.
 
+### Dev REPL local powers
+
+The dev-repl harness (`dev-repl.js`) has no Endo daemon and therefore
+no `EndoHost` to mint `workspace-mount` / `sandbox-factory` from.
+Instead, it constructs an in-process equivalent via
+[`makeLocalSandboxPowers`](./src/sandbox/local-powers.js) (see
+[`TODO/51`](../../TADA/51_genie_dev_repl_local_sandbox_powers.md)) and
+hands the resulting `SandboxPowers` exo to `@endo/sandbox`'s `make`
+entry point to build a `SandboxFactory` directly.
+
+The asymmetry with the daemon path is intentional and worth pinning:
+
+| Concern                          | Daemon (`main.js`)                                                                                     | Dev REPL (`dev-repl.js`)                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `SandboxPowers` source           | `EndoHost` exo in `packages/daemon/src/host.js`; lives behind a CapTP boundary.                        | `makeLocalSandboxPowers()` exo, in-process, `WeakMap`-backed.                                             |
+| Workspace `MountCap` source      | `E(host).provideMount(GENIE_WORKSPACE, 'workspace-mount')` — daemon-minted, persisted across restarts. | `makeMountCapForPath(workspaceDir)` — minted by the REPL itself, lives only for the lifetime of the run. |
+| `provideHostPath(cap)`           | Daemon resolves the cap via its mount-formula registry (`packages/daemon/src/host.js` `provideHostPath`); rejects strangers with `not a daemon-minted mount`. | Local powers consult their own `WeakMap<cap, hostPath>`; rejects strangers with `not a local-minted mount`. |
+| Scratch tmpdir cleanup           | Daemon's `provideScratchMount` formulas are GC-pinned to the slice and reaped with the agent.          | `disposeSandboxPowers()` `rm -rf`s every tmpdir minted via `provideScratchMount`; called from the REPL's teardown registry on exit (TODO/54). |
+
+The dev-repl owns the workspace `MountCap` end-to-end — there is no
+agent-guest namespace, so the daemon's pet-name resolution path
+(`E(agentGuest).lookup(petName)`) does not apply.  For the same
+reason the dev-repl rejects `--rootfs <pet-name>` at the CLI boundary
+rather than falling through; the only accepted `--rootfs` shapes are
+`host-bind`, `minimal`, and `oci:<ref>`.
+
+Both the daemon and dev-repl paths share the same slice-mint
+boundary: [`src/sandbox/slice.js`](./src/sandbox/slice.js)'s
+`mintGenieSlice` (see
+[`TODO/52`](../../TADA/52_genie_dev_repl_slice_factory_helper.md)) is
+the single place that probes backends, validates rootfs / network,
+calls `factory.make({ ... })`, and wraps the resulting handle in a
+`Spawner`.  When you change the slice-mint sequence, both call sites
+pick up the change automatically; when you change the form-side
+parsing (`parseRootfsValue`, `assertRootfsBackendCompatible`) the
+helper module is the source of truth and `main.js` re-exports the
+symbols only to preserve the public test surface.
+
 ### Template seeding flows through the same Mount cap
 
 When `spawnAgent` minted (or looked up) a `workspaceMount`, the
@@ -232,8 +270,13 @@ backend-agnostic factory contract, and the egress filter regression.
 # Workspace tool scenario — daemon + setup.js + LLM round-trip.
 cd packages/genie && yarn test:integration
 
-# Sandbox slice scenario — verifies bash actually runs in a slice.
+# Sandbox slice scenario — verifies bash actually runs in a slice
+# (daemon path).
 cd packages/genie && yarn test:integration:sandbox-slice
+
+# Same probe shape, dev-repl path — verifies bash actually runs in a
+# slice when invoked through `dev-repl.js -c` instead of the daemon.
+cd packages/genie && yarn test:integration:dev-repl-sandbox
 ```
 
 The `sandbox-slice` scenario boots a real Endo daemon, runs `setup.js`
@@ -244,8 +287,21 @@ It is **Linux-only** and skips cleanly with `SKIP:` when
 `bwrap --version` fails or the kernel rejects unprivileged user
 namespaces.
 
-When it skips on your machine, install bubblewrap and confirm the
-kernel:
+The `dev-repl-sandbox` AVA test mirrors the same probe shape against
+the daemon-free dev-repl: it spawns
+`node packages/genie/dev-repl.js -w $tmp --sandbox bwrap --network none -c "<probe>"`
+and asserts the bash tool's `pwd` lands on the slice's
+`/workspace`, plus a sibling `--sandbox off` test that asserts the
+host-spawn fall-through path still works on platforms without a
+backend (macOS, kernels lacking unprivileged user namespaces).
+Skips with `t.log('SKIP: …'); t.pass()` when `bwrap` is unavailable
+or when the configured `GENIE_MODEL` (default `ollama/llama3.2`) is
+unreachable on `localhost:11434`; non-ollama models are accepted on
+faith because reaching their endpoints would require provider keys
+this test does not own.
+
+When either test skips on your machine, install bubblewrap and
+confirm the kernel:
 
 ```sh
 sudo apt install bubblewrap

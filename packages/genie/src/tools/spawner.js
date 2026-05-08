@@ -192,19 +192,49 @@ export const makeHostSpawner = ({
     if (!Array.isArray(argv) || argv.length === 0) {
       throw new Error('host spawner: argv must be a non-empty string array');
     }
-    const [prog, ...rest] = argv;
+    const useShell = opts.shell ?? false;
 
-    // PATH lookup mirrors the original `whichProgram` behaviour so the
-    // pre-existing "command not found" error message is preserved.
-    // We resolve even in shell mode so the spawner can surface a clean
-    // structured error before the shell fork; this keeps parity with
-    // the pre-refactor `makeCommandTool` body.
-    const exe = await whichProgram(prog, searchPath);
-    if (exe === null) {
-      throw new Error(`command not found: ${prog}`);
+    /** @type {string} */
+    let exe;
+    /** @type {string[]} */
+    let restArgs;
+
+    if (useShell) {
+      // In shell mode we treat the entire argv as a single shell
+      // command line (joined with spaces), matching the sandbox
+      // spawner's `['/bin/sh', '-c', argv.join(' ')]` shape and the
+      // way LLMs typically use the `bash` tool — they routinely emit a
+      // single-string `args: ["ls -F"]` payload because they think of
+      // bash as taking a command, not an argv list.  We let the
+      // underlying shell handle program resolution rather than
+      // `whichProgram`-checking the first whitespace-delimited token,
+      // because that would (a) be wrong for argv-shaped payloads
+      // (`args: ["ls", "-F"]` would treat `ls` as the literal first
+      // token) and (b) re-introduce the silent failure mode reported
+      // in TODO/57 where `args: ["ls -F"]` failed with "command not
+      // found: ls -F" before the shell ever got a look.
+      //
+      // Node's `child_process.spawn(cmd, args, { shell: true })`
+      // concatenates `cmd` and `args` with spaces and runs the result
+      // as `/bin/sh -c <joined>`, so passing the full argv as the
+      // `cmd` string with an empty `args` array reaches the shell
+      // verbatim regardless of how the model split its tokens.
+      exe = argv.join(' ');
+      restArgs = [];
+    } else {
+      const [prog, ...rest] = argv;
+      // PATH lookup mirrors the original `whichProgram` behaviour so
+      // the pre-existing "command not found" error message is
+      // preserved on the non-shell path (the `exec` tool, mostly).
+      const resolved = await whichProgram(prog, searchPath);
+      if (resolved === null) {
+        throw new Error(`command not found: ${prog}`);
+      }
+      exe = resolved;
+      restArgs = rest;
     }
 
-    const child = childSpawn(exe, rest, {
+    const child = childSpawn(exe, restArgs, {
       ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
       env: {
         ...defaultEnv,
@@ -213,7 +243,7 @@ export const makeHostSpawner = ({
         // omits PATH does not break the child.
         PATH: (opts.env && opts.env.PATH) || defaultEnv.PATH,
       },
-      shell: opts.shell ?? false,
+      shell: useShell,
     });
 
     /** @type {Promise<{ code: number | null; signal: string | null }>} */

@@ -158,3 +158,57 @@ test('host spawner — shell:true runs argv through /bin/sh', async t => {
   await proc.wait();
   t.is(stdout.trim(), 'one two');
 });
+
+test('host spawner — shell:true accepts a single-string command line', async t => {
+  if (!isPosix) {
+    t.pass('skipped on non-POSIX host');
+    return;
+  }
+  // Regression for TODO/57: LLMs routinely emit the entire shell
+  // command in a single argv entry (`args: ["ls -F"]`) because they
+  // think of the `bash` tool as accepting a command, not an argv
+  // list.  An earlier rev of the host spawner ran `whichProgram` on
+  // the first element even in shell mode, which then failed to
+  // resolve `"ls -F"` as a file in $PATH and threw
+  // "command not found: ls -F" before the shell ever got a look.
+  // The fix lets the shell handle command resolution.
+  const spawner = makeHostSpawner();
+  const proc = await spawner(['echo hello-from-single-string'], {
+    shell: true,
+  });
+  const stdout = await drain(proc.stdout);
+  await proc.wait();
+  t.is(stdout.trim(), 'hello-from-single-string');
+});
+
+test('host spawner — shell:true single-string supports shell features', async t => {
+  if (!isPosix) {
+    t.pass('skipped on non-POSIX host');
+    return;
+  }
+  // Same regression class: a single-string command with shell
+  // expansion (`$(...)`, quotes) must reach `/bin/sh -c …` intact
+  // rather than being parsed as an argv list.
+  const spawner = makeHostSpawner();
+  const proc = await spawner(['echo "value=$(printf 42)"'], { shell: true });
+  const stdout = await drain(proc.stdout);
+  await proc.wait();
+  t.is(stdout.trim(), 'value=42');
+});
+
+test('host spawner — shell:false still rejects unknown programs', async t => {
+  if (!isPosix) {
+    t.pass('skipped on non-POSIX host');
+    return;
+  }
+  // Pin the asymmetry between the shell-mode and non-shell-mode
+  // resolution paths.  The non-shell-mode path (the `exec` tool) is
+  // still expected to surface a "command not found" error before the
+  // child fork, because the caller is explicitly committing to an
+  // argv-shaped payload where the first token must be a real binary.
+  const spawner = makeHostSpawner();
+  await t.throwsAsync(
+    () => spawner(['definitely-not-a-real-binary-mp1sx0xx'], { shell: false }),
+    { message: /command not found/ },
+  );
+});

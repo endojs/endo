@@ -264,6 +264,90 @@ Common surfaces and their fixes:
 Slice failures **never** silently downgrade to host spawning when a
 factory was introduced; the agent refuses to start instead.
 
+## Dev REPL: sandboxed workspace
+
+`dev-repl.js` is the daemon-free harness that runs the same agent
+loop as the daemon path but spawns its tools through an in-process
+`SandboxFactory`.
+The slice path is exercised by the `--sandbox` / `--network` /
+`--rootfs` CLI flags, which mirror the daemon's configuration form
+fields (see [§ Daemon bootstrap](#daemon-bootstrap-setupjs) above).
+
+| Flag                      | Allowed values                                                                         | Default     |
+| ------------------------- | -------------------------------------------------------------------------------------- | ----------- |
+| `--sandbox <selector>`    | `auto` \| `bwrap` \| `podman` \| `lima` \| `containerization` \| `wsl` \| `off`        | `auto`      |
+| `--network <profile>`     | `none` \| `private` \| `host-loopback` \| `host-lan` \| `host-net`                     | `private`   |
+| `--rootfs <kind>`         | `host-bind` \| `minimal` \| `oci:<ref>`                                                | `host-bind` |
+
+- `--sandbox auto` (the default) probes the registered drivers via
+  `listBackends()` and picks the first one available (bwrap before
+  podman).
+  When no driver is available, it falls back to host spawning with a
+  one-line yellow warning naming the absent drivers' reasons, so the
+  dev-repl still works on contributor laptops that lack `bwrap`.
+- `--sandbox off` skips slice minting entirely (legacy direct host
+  spawn).
+  Use this on macOS / non-Linux contributor machines to silence the
+  "no backend available" warning.
+- `--sandbox bwrap` / `--sandbox podman` is a hard request — the REPL
+  exits with a structured `dev-repl: …` error if the named driver is
+  unavailable.  Mirrors the daemon's "explicit confinement, no
+  implicit relaxation" rule.
+- `--rootfs <pet-name>` is **not** accepted at the dev-repl boundary
+  (no agent-guest namespace exists outside the daemon); a typo
+  surfaces as `dev-repl: unknown rootfs …` rather than falling
+  through to a pet-name lookup.
+
+The status banner the REPL prints on startup names the resolved slice
+configuration so operators can grep for the mode in effect:
+
+```
+Sandbox:   bwrap (network: private, rootfs: host-bind)
+```
+
+(or `Sandbox: off` when `--sandbox off` / no backend was available).
+
+### Worked example
+
+```sh
+node packages/genie/dev-repl.js \
+  -w /tmp/foo \
+  --sandbox bwrap \
+  --network none \
+  -c "bash 'cat /proc/self/status | grep ^Name'"
+```
+
+The `-c` flag runs the dev-repl as a one-shot (single chat round) and
+exits.
+With `--sandbox bwrap` the `bash` tool routes through a freshly minted
+slice, so `/proc/self/status` reports the sandboxed process name (e.g.
+`bash`, not the host shell that launched the dev-repl).
+Adding `-v` makes the dev-repl print the bash tool's raw JSON return
+value so the assertion lands on the tool's stdout rather than on the
+model's paraphrase — the integration test
+(`yarn test:integration:dev-repl-sandbox`) uses this shape to verify
+the slice's `pwd` lands on `/workspace`.
+
+### Backend / rootfs compatibility (dev-repl)
+
+The same bwrap/podman asymmetry that the daemon's configuration form
+enforces applies to the dev-repl flags:
+
+| `--rootfs`              | `--sandbox bwrap` | `--sandbox podman` | Notes                                                                                |
+| ----------------------- | ----------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `host-bind` (default)   | ✅                | ✅                 | Bind-mounts the host's `/usr` / `/etc` / `/lib` etc. read-only.                      |
+| `minimal`               | ✅                | ✅                 | Backend-supplied empty / busybox rootfs.                                             |
+| `oci:<ref>`             | ❌                | ✅                 | `--sandbox bwrap --rootfs oci:…` is rejected up front by `assertRootfsBackendCompatible` (the bwrap driver has no OCI image store; pick `--sandbox podman` or a non-`oci:` rootfs). |
+
+When `--sandbox auto` resolves to bwrap and `--rootfs oci:…` was
+requested, the same error fires from inside `mintGenieSlice` as the
+backend is selected — the form-side check only catches the explicit
+`--sandbox bwrap --rootfs oci:…` combination up front.
+
+See [§ Rootfs form-field shapes](#rootfs-form-field-shapes) above for
+the full operator-facing description of the same compatibility matrix
+on the daemon path.
+
 ## Features
 
 ### Core Components

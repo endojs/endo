@@ -56,12 +56,26 @@ import {
 
 import { runHeartbeat, HeartbeatStatus } from './src/heartbeat/index.js';
 import { makeIntervalScheduler } from './src/interval/index.js';
+import {
+  ALLOWED_BACKENDS as SLICE_ALLOWED_BACKENDS,
+  ALLOWED_NETWORK_PROFILES as SLICE_ALLOWED_NETWORK_PROFILES,
+  ALLOWED_ROOTFS_KINDS as SLICE_ALLOWED_ROOTFS_KINDS,
+  DEFAULT_BACKEND as SLICE_DEFAULT_BACKEND,
+  DEFAULT_NETWORK_PROFILE as SLICE_DEFAULT_NETWORK_PROFILE,
+  DEFAULT_ROOTFS_KIND as SLICE_DEFAULT_ROOTFS_KIND,
+  isAllowedBackend,
+  isAllowedNetworkProfile,
+  isAllowedRootfsKind as sliceIsAllowedRootfsKind,
+  mintGenieSlice,
+  parseRootfsValue as sliceParseRootfsValue,
+  assertRootfsBackendCompatible as sliceAssertRootfsBackendCompatible,
+  SLICE_WORKSPACE_PATH,
+} from './src/sandbox/slice.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
-import { makeSandboxSpawner } from './src/tools/sandbox-spawner.js';
 import { initWorkspace, initWorkspaceMount } from './src/workspace/init.js';
 
-/** @import { SandboxHandleLike } from './src/tools/sandbox-spawner.js' */
-/** @import { BackendProbe, BackendSelector, SandboxFactory, SandboxHandle, MountCap, MountSpec, NetworkProfile, RootfsSpec } from '@endo/sandbox/types.js' */
+/** @import { ParsedRootfsValue } from './src/sandbox/slice.js' */
+/** @import { SandboxFactory, MountCap, RootfsSpec } from '@endo/sandbox/types.js' */
 
 /** @import { FarRef } from '@endo/eventual-send' */
 /** @import { EndoGuest, EndoHost, Package, StampedMessage } from '@endo/daemon' */
@@ -85,187 +99,20 @@ const DEFAULT_AGENT_DIRECTORY = 'genie';
 const DEFAULT_HEARTBEAT_PERIOD_MS = 30 * 60 * 1_000;
 
 /**
- * Slice-internal mount point for the workspace.  Mirrors the path
- * documented in `setup.js` and the genie README; agents see the
- * workspace under this fixed path inside the slice regardless of the
- * host directory it maps from.
+ * Re-export the slice-config surface from the helper module.  Tests
+ * (`test/rootfs-form.test.js`) and other consumers continue to import
+ * these symbols from `main.js`; the source of truth is now
+ * `./src/sandbox/slice.js` so the dev-repl harness (TODO/54) can
+ * consume the same form-side parsers and constants without taking a
+ * dependency on the daemon entry point.
  */
-const SLICE_WORKSPACE_PATH = '/workspace';
-
-/**
- * Allowed sandbox network profiles.  Mirrors `NetworkProfileShape` in
- * `packages/sandbox/src/interfaces.js` so the form-side check can
- * reject unknown profiles up front rather than waiting for the
- * factory's interface guard to refuse them mid-mint.
- */
-const ALLOWED_NETWORK_PROFILES = harden([
-  'none',
-  'private',
-  'host-loopback',
-  'host-lan',
-  'host-net',
-]);
-
-/**
- * @param {string} network
- * @returns {network is NetworkProfile}
- */
-const isAllowedNetworkProfile = network =>
-  ALLOWED_NETWORK_PROFILES.includes(network);
-
-/** Default network profile for genie slices. */
-const DEFAULT_NETWORK_PROFILE = 'private';
-
-/** Default backend selector for genie slices. */
-const DEFAULT_BACKEND = 'auto';
-
-/**
- * Allowed sandbox backend selectors.  Mirrors `BackendSelectorShape`
- * in `packages/sandbox/src/interfaces.js` (`'auto' | BackendName`) so
- * the form-side check can reject typos up front rather than waiting
- * for the factory's interface guard to refuse them mid-mint.
- */
-const ALLOWED_BACKENDS = harden([
-  'auto',
-  'bwrap',
-  'podman',
-  'lima',
-  'containerization',
-  'wsl',
-]);
-
-/**
- * @param {string} backend
- * @returns {backend is BackendSelector}
- */
-const isAllowedBackend = backend => ALLOWED_BACKENDS.includes(backend);
-
-/**
- * Allowed rootfs kind keywords that the form accepts directly (no
- * payload).  Mirrors the keyword-only arms of `RootfsSpec` in
- * `packages/sandbox/src/types.d.ts` ~line 143.  The `oci:<ref>` shape
- * carries a payload and is parsed separately by `parseRootfsValue`;
- * the `MountCap` (pet-name) shape resolves through `agentGuest`
- * inside `spawnAgent` after `parseRootfsValue` reports the
- * `'pet-name'` marker (see `TODO/52_genie_rootfs_mount_cap.md`).
- */
-export const ALLOWED_ROOTFS_KINDS = harden(['host-bind', 'minimal']);
-
-/** Default rootfs kind for genie slices. */
-const DEFAULT_ROOTFS_KIND = 'host-bind';
-
-/**
- * @param {string} kind
- * @returns {kind is 'host-bind' | 'minimal'}
- */
-export const isAllowedRootfsKind = kind => ALLOWED_ROOTFS_KINDS.includes(kind);
+export const ALLOWED_ROOTFS_KINDS = SLICE_ALLOWED_ROOTFS_KINDS;
+harden(ALLOWED_ROOTFS_KINDS);
+export const isAllowedRootfsKind = sliceIsAllowedRootfsKind;
 harden(isAllowedRootfsKind);
-
-/**
- * @typedef {(
- *   | { kind: 'host-bind' }
- *   | { kind: 'minimal' }
- *   | { kind: 'oci', ref: string }
- *   | { kind: 'pet-name', petName: string }
- * )} ParsedRootfsValue
- *
- * The synchronous form-side parse result.  The first three arms map
- * directly onto `RootfsSpec` keyword shapes; the `'pet-name'` arm is
- * a placeholder marker that `spawnAgent` resolves against
- * `agentGuest`'s namespace and validates against `MountInterface`
- * before passing the looked-up cap into `E(sandboxFactory).make(...)`
- * as the `RootfsSpec` `MountCap` arm.
- */
-
-/**
- * Parse a `rootfs` form value into a {@link ParsedRootfsValue}.
- *
- * Accepts:
- *   - `'host-bind'` -> `{ kind: 'host-bind' }`
- *   - `'minimal'`   -> `{ kind: 'minimal' }`
- *   - `'oci:<ref>'` -> `{ kind: 'oci', ref }` (with `ref` non-empty).
- *   - any other non-empty string -> `{ kind: 'pet-name', petName }`,
- *     a placeholder marker that `spawnAgent` resolves through
- *     `E(agentGuest).lookup(petName)` and validates against
- *     `MountInterface` (see `TODO/52_genie_rootfs_mount_cap.md`).
- *
- * Throws a structured error naming the agent for non-string inputs,
- * the empty string, and an `'oci:'` prefix with no reference.  The
- * helper itself stays synchronous; the pet-name -> Mount-cap
- * resolution is the caller's responsibility because it requires an
- * eventual send into the agent guest's namespace.
- *
- * @param {string} value
- * @param {object} options
- * @param {string} options.agentName
- * @returns {ParsedRootfsValue}
- */
-export const parseRootfsValue = (value, { agentName }) => {
-  if (typeof value !== 'string') {
-    throw makeError(
-      X`agent ${q(agentName)}: rootfs value must be a string; got ${q(typeof value)}`,
-    );
-  }
-  if (value === '') {
-    throw makeError(
-      X`agent ${q(agentName)}: rootfs value is empty; expected one of ${q(ALLOWED_ROOTFS_KINDS.join(', '))}, ${q('oci:<ref>')}, or a pet name introduced into the agent guest's namespace`,
-    );
-  }
-  if (value === 'host-bind') {
-    return harden({ kind: 'host-bind' });
-  }
-  if (value === 'minimal') {
-    return harden({ kind: 'minimal' });
-  }
-  if (value.startsWith('oci:')) {
-    const ref = value.slice('oci:'.length);
-    if (ref === '') {
-      throw makeError(
-        X`agent ${q(agentName)}: rootfs ${q(value)} is missing the OCI image reference; expected ${q('oci:<ref>')} (e.g. ${q('oci:docker.io/library/alpine:3.19')})`,
-      );
-    }
-    return harden({ kind: 'oci', ref });
-  }
-  // Fall through to the pet-name branch.  The form has no legacy
-  // host-path arm for `rootfs` (unlike `workspace`), so anything that
-  // isn't a recognised keyword or `oci:<ref>` is treated as a pet
-  // name pointing at a Mount cap already introduced into the agent
-  // guest's namespace.  `spawnAgent` resolves and validates the cap;
-  // a typo surfaces there as a structured error rather than throwing
-  // here — mirroring the workspace pet-name branch's discipline.
-  return harden({ kind: 'pet-name', petName: value });
-};
+export const parseRootfsValue = sliceParseRootfsValue;
 harden(parseRootfsValue);
-
-/**
- * Cross-validate a {@link ParsedRootfsValue} against the resolved
- * backend selector.  The bwrap driver rejects `oci:` rootfs
- * internally with a structured error (see
- * `packages/sandbox/src/drivers/bwrap.js` ~lines 318-326 and
- * 544-552); front-running that check here surfaces a friendlier
- * message that names the agent and points at the fix before we ever
- * reach `E(sandboxFactory).make(...)`.
- *
- * The keyword shapes (`host-bind`, `minimal`) and the `'pet-name'`
- * marker are compatible with both `bwrap` and `podman` and pass
- * through unchanged; only `oci` + `bwrap` is rejected.
- *
- * @param {ParsedRootfsValue} rootfs
- * @param {string} backend
- * @param {object} options
- * @param {string} options.agentName
- */
-export const assertRootfsBackendCompatible = (
-  rootfs,
-  backend,
-  { agentName },
-) => {
-  if (rootfs.kind === 'oci' && backend === 'bwrap') {
-    throw makeError(
-      X`agent ${q(agentName)}: rootfs ${q(`oci:${rootfs.ref}`)} is incompatible with ${q('backend: bwrap')}; set ${q('backend')} to ${q('podman')} or pick a non-oci rootfs`,
-    );
-  }
-};
+export const assertRootfsBackendCompatible = sliceAssertRootfsBackendCompatible;
 harden(assertRootfsBackendCompatible);
 
 // Register built-in API providers so getModel lookups work for known providers.
@@ -1325,16 +1172,16 @@ export const make = (guestPowers, _context) => {
     // Reject typos up front (the factory's `M.interface()` would also
     // refuse them, but the form-side check produces a friendlier
     // message that names the agent).
-    const network = config.network || DEFAULT_NETWORK_PROFILE;
+    const network = config.network || SLICE_DEFAULT_NETWORK_PROFILE;
     if (!isAllowedNetworkProfile(network)) {
       throw makeError(
-        X`agent ${q(agentName)}: unknown network profile ${q(network)}; expected one of ${q(ALLOWED_NETWORK_PROFILES.join(', '))}`,
+        X`agent ${q(agentName)}: unknown network profile ${q(network)}; expected one of ${q(SLICE_ALLOWED_NETWORK_PROFILES.join(', '))}`,
       );
     }
-    const backend = config.backend || DEFAULT_BACKEND;
+    const backend = config.backend || SLICE_DEFAULT_BACKEND;
     if (!isAllowedBackend(backend)) {
       throw makeError(
-        X`agent ${q(agentName)}: unknown sandbox backend ${q(backend)}; expected one of ${q(ALLOWED_BACKENDS.join(', '))}`,
+        X`agent ${q(agentName)}: unknown sandbox backend ${q(backend)}; expected one of ${q(SLICE_ALLOWED_BACKENDS.join(', '))}`,
       );
     }
 
@@ -1344,7 +1191,7 @@ export const make = (guestPowers, _context) => {
     // immediately below via `E(agentGuest).lookup(...)` and validated
     // against `MountInterface` (see `TODO/52_genie_rootfs_mount_cap.md`).
     const parsedRootfs = parseRootfsValue(
-      config.rootfs ?? DEFAULT_ROOTFS_KIND,
+      config.rootfs ?? SLICE_DEFAULT_ROOTFS_KIND,
       { agentName },
     );
 
@@ -1385,124 +1232,60 @@ export const make = (guestPowers, _context) => {
       rootfs = parsedRootfs;
     }
 
-    /** @type {MountSpec[]} */
-    const mounts = [
-      {
-        cap: workspaceMount,
-        innerPath: SLICE_WORKSPACE_PATH,
-        mode: 'rw',
-      },
-    ];
-
-    /** @type {Record<string, string>} */
-    const env = {};
+    // Render the rootfs kind in the slice info so operators can grep
+    // the daemon log for which rootfs mode is in effect.  The OCI
+    // and pet-name shapes both carry a payload (the image ref / pet
+    // name) that is worth logging alongside the kind for debugging.
+    // Computed off `parsedRootfs` rather than the resolved `rootfs` —
+    // after the pet-name branch resolves, `rootfs` is a Mount cap
+    // with no `kind` property to discriminate on.
+    let rootfsLabel;
+    if (parsedRootfs.kind === 'oci') {
+      rootfsLabel = `oci:${parsedRootfs.ref}`;
+    } else if (parsedRootfs.kind === 'pet-name') {
+      rootfsLabel = `pet-name:${parsedRootfs.petName}`;
+    } else {
+      rootfsLabel = parsedRootfs.kind;
+    }
 
     // ── Mint a sandbox slice when the factory was introduced ──────
     // PLAN § "Security boundary clarity": when `setup-genie` minted a
     // `sandbox-factory`, an agent that fails to obtain a slice must
     // error out — not fall back to direct spawning.  This preserves
     // the "explicit confinement, no implicit relaxation" rule.
-    /** @type {SandboxHandle | undefined} */
+    //
+    // The probe / select / mint / dispose / spawner-wrap sequence
+    // itself lives in `./src/sandbox/slice.js` so the dev-repl
+    // harness (TODO/54) can consume the same boundary.  What stays
+    // here is daemon-only — pet-name resolution above, the
+    // cancellation kit + heartbeat ticker, and the readiness mail.
+    /** @type {import('@endo/sandbox/types.js').SandboxHandle | undefined} */
     let slice;
-
-    let resolvedBackend = backend;
-
+    /** @type {import('./src/tools/spawner.js').Spawner | undefined} */
+    let spawner;
+    /** @type {string | undefined} */
+    let sliceLabel;
     if (sandboxFactory !== undefined) {
       if (workspaceMount === undefined) {
         throw makeError(
           X`agent ${q(agentName)}: sandbox-factory configured but no workspace Mount cap available; expected setup.js to mint workspace-mount (see ${q('GENIE_WORKSPACE')}).`,
         );
       }
-
-      // Probe before minting so the operator sees the underlying
-      // failure ("bwrap not on PATH", "kernel lacks user namespaces")
-      // rather than a generic make() error.
-      /** @type {BackendProbe[]} */
-      const probes = await E(sandboxFactory).listBackends();
-      const available = probes.filter(p => p.available);
-      if (available.length === 0) {
-        const reasonReport = probes
-          .map(p => `${p.name}: ${p.reason || 'unavailable'}`)
-          .join('; ');
-        throw makeError(
-          X`agent ${q(agentName)}: no sandbox backends available; refusing to start (operator must install a backend such as bubblewrap): ${q(reasonReport)}`,
-        );
-      }
-      if (backend !== 'auto') {
-        const probe = probes.find(p => p.name === backend);
-        if (probe === undefined || !probe.available) {
-          const reason =
-            probe?.reason || `driver ${backend} not registered with factory`;
-          throw makeError(
-            X`agent ${q(agentName)}: sandbox backend ${q(backend)} unavailable; refusing to start: ${q(reason)}`,
-          );
-        }
-      } else {
-        resolvedBackend = available[0].name;
-      }
-
-      try {
-        slice = await E(sandboxFactory).make(
-          harden({
-            rootfs,
-            mounts,
-            network,
-            env,
-            cwd: SLICE_WORKSPACE_PATH,
-            backend,
-          }),
-        );
-      } catch (err) {
-        const message = /** @type {Error} */ (err).message || String(err);
-        throw makeError(
-          X`agent ${q(agentName)}: failed to mint sandbox slice (backend=${q(backend)}, network=${q(network)}): ${q(message)}`,
-        );
-      }
-
-      // Tear down the slice promptly on cancellation so the bwrap
-      // subprocess and scratch upper layer get reclaimed before the
-      // GC sweep.  Closure capture pins the handle for the agent's
-      // lifetime; explicit dispose() shortens the recovery window
-      // when the agent exits cleanly.
-      cancelledP.then(() => {
-        if (slice)
-          E(slice)
-            .dispose()
-            .catch(err => {
-              const message = /** @type {Error} */ (err).message || String(err);
-              console.warn(
-                `[genie:${agentName}] slice dispose error: ${message}`,
-              );
-            });
+      const minted = await mintGenieSlice({
+        sandboxFactory,
+        agentName,
+        workspaceMount,
+        workspaceDir,
+        backend,
+        network,
+        rootfs,
+        rootfsLabel,
+        env: {},
+        cancelledP,
+        onLog: msg => console.log(`[genie:${agentName}] ${msg}`),
       });
-
-      console.log(
-        `[genie:${agentName}] Sandbox slice minted (backend: ${resolvedBackend}, network: ${network}, mount: ${SLICE_WORKSPACE_PATH} <- ${workspaceDir}).`,
-      );
+      ({ slice, spawner, sliceLabel } = minted);
     }
-
-    // Build the slice-backed spawner only when a slice was minted;
-    // otherwise the command tools fall through to the host spawner
-    // baked into `command.js` (the legacy direct-spawn path).
-    //
-    // `workspaceDir` for the daemon-side `memory` / FTS5 tools stays
-    // the host path so atomic writes and the SQLite index keep working.
-    // The `files` tool group switches to the Mount cap surface (see
-    // `buildTools` below).  The slice's `cwd: '/workspace'` is what
-    // `bash`/`exec`/`git` see; the workspace mount lands on the same
-    // bytes the daemon-side tools see, so all three views stay in
-    // lockstep.
-    // `SandboxHandle` is a `FarRef`, so `makeSandboxSpawner` consumes
-    // it directly: every method is reached via `E(handle).foo()` inside
-    // the adapter, which transparently unwraps the FarRef.  The cast
-    // narrows the FarRef brand to the structural `SandboxHandleLike`
-    // the spawner declares — see the JSDoc on `SandboxHandleLike` for
-    // why a real `FarRef<SandboxHandle>` satisfies that shape.
-    const spawner = slice
-      ? makeSandboxSpawner({
-          handle: /** @type {SandboxHandleLike} */ (slice),
-        })
-      : undefined;
 
     // The `files` tool group rides the Mount cap when one is available
     // (see `buildGenieTools` in `src/tools/registry.js`), routing reads
@@ -1586,26 +1369,14 @@ export const make = (guestPowers, _context) => {
     // Announce readiness from the agent's own identity.  Include
     // backend / network so operators can grep for which slice mode
     // is in effect (or "(host)" when no slice was minted because
-    // setup-genie did not introduce a sandbox-factory).
+    // setup-genie did not introduce a sandbox-factory).  The
+    // `sliceLabel` returned by `mintGenieSlice` already encodes the
+    // resolved backend, network profile, and rootfs kind in the
+    // operator-grep shape (`backend: …, network: …, rootfs: …`).
     const heartbeatInfo =
       heartbeatPeriodMs > 0 ? `, heartbeat: ${heartbeatPeriodMs / 1000}s` : '';
-    // Render the rootfs kind in the slice info so operators can grep
-    // the daemon log for which rootfs mode is in effect.  The OCI
-    // and pet-name shapes both carry a payload (the image ref / pet
-    // name) that is worth logging alongside the kind for debugging.
-    // Read off `parsedRootfs` rather than the resolved `rootfs` —
-    // after the pet-name branch resolves, `rootfs` is a Mount cap
-    // with no `kind` property to discriminate on.
-    let rootfsLabel;
-    if (parsedRootfs.kind === 'oci') {
-      rootfsLabel = `oci:${parsedRootfs.ref}`;
-    } else if (parsedRootfs.kind === 'pet-name') {
-      rootfsLabel = `pet-name:${parsedRootfs.petName}`;
-    } else {
-      rootfsLabel = parsedRootfs.kind;
-    }
-    const sliceInfo = slice
-      ? `, backend: ${resolvedBackend}, network: ${network}, rootfs: ${rootfsLabel}`
+    const sliceInfo = sliceLabel
+      ? `, ${sliceLabel}`
       : `, backend: (host), network: (host), rootfs: (host)`;
     const innerWorkspace = slice ? SLICE_WORKSPACE_PATH : workspaceDir;
     const readyMess = `agent ready (model: ${config.model}, workspace: ${innerWorkspace}${sliceInfo}${heartbeatInfo})`;
@@ -1758,19 +1529,19 @@ export const make = (guestPowers, _context) => {
           name: 'backend',
           label:
             'Sandbox backend (auto | bwrap | podman | lima | containerization | wsl)',
-          default: DEFAULT_BACKEND,
+          default: SLICE_DEFAULT_BACKEND,
         },
         {
           name: 'network',
           label:
             'Sandbox network profile (none | private | host-loopback | host-lan | host-net)',
-          default: DEFAULT_NETWORK_PROFILE,
+          default: SLICE_DEFAULT_NETWORK_PROFILE,
         },
         {
           name: 'rootfs',
           label:
             'Sandbox rootfs (host-bind | minimal | oci:<ref> | <pet-name>); oci:<ref> requires backend: podman (the bwrap driver rejects it).  A pet name resolves to a Mount cap previously introduced into the agent guest (e.g. via `endo make-mount /path rootfs-mount`).',
-          default: DEFAULT_ROOTFS_KIND,
+          default: SLICE_DEFAULT_ROOTFS_KIND,
         },
       ]),
     );
