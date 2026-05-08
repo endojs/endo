@@ -60,6 +60,27 @@ const OpGcAnswersCodec = makeOcapnRecordCodecFromDefinition(
   },
 );
 
+// op:flush is sent by Bob to Alice when Bob is about to shorten a promise
+// exported by Alice (typically as part of a third-party handoff). It targets
+// the export-table position of Alice's resolver for the promise. On receipt
+// Alice swaps the value at that position for a fresh local promise so any
+// further messages from Bob targeting the position buffer locally on Alice's
+// side until the shortened path resolves, then replies with op:flush-done.
+const OpFlushCodec = makeOcapnRecordCodecFromDefinition('OpFlush', 'op:flush', {
+  position: NonNegativeIntegerCodec,
+});
+
+// op:flush-done is Alice's acknowledgement that the swap has happened. After
+// receiving it, Bob knows it has received every message Alice had previously
+// sent that targeted the original promise, and may proceed with the handoff.
+const OpFlushDoneCodec = makeOcapnRecordCodecFromDefinition(
+  'OpFlushDone',
+  'op:flush-done',
+  {
+    position: NonNegativeIntegerCodec,
+  },
+);
+
 export const OcapnPreSessionOperationsCodecs = makeRecordUnionCodec(
   'OcapnPreSessionOperations',
   {
@@ -204,6 +225,8 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     OpListenCodec,
     OpGcExportsCodec,
     OpGcAnswersCodec,
+    OpFlushCodec,
+    OpFlushDoneCodec,
   });
 
   /**

@@ -20,6 +20,7 @@ import {
   makeCodecTestKit,
 } from './_codecs_util.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';
+import { makeSyrupReader } from '../../src/syrup/decode.js';
 
 /** @type {CodecTestEntry[]} */
 export const table = [
@@ -425,6 +426,36 @@ runTableTests(
   table,
   testKit => testKit.OcapnMessageUnionCodec,
 );
+
+test('op:flush round-trips', t => {
+  const testKit = makeCodecTestKit();
+  const syrupWriter = makeSyrupWriter({ name: 'op:flush' });
+  const original = harden({ type: 'op:flush', position: 7n });
+  testKit.OcapnMessageUnionCodec.write(original, syrupWriter);
+  const bytes = syrupWriter.getBytes();
+  // Wire form: <8'op:flush7+>
+  const wire = new TextDecoder().decode(bytes);
+  t.is(wire, "<8'op:flush7+>");
+  const decoded = testKit.OcapnMessageUnionCodec.read(
+    makeSyrupReader(bytes, { name: 'op:flush read back' }),
+  );
+  t.deepEqual(decoded, original);
+});
+
+test('op:flush-done round-trips', t => {
+  const testKit = makeCodecTestKit();
+  const syrupWriter = makeSyrupWriter({ name: 'op:flush-done' });
+  const original = harden({ type: 'op:flush-done', position: 7n });
+  testKit.OcapnMessageUnionCodec.write(original, syrupWriter);
+  const bytes = syrupWriter.getBytes();
+  // Wire form: <13'op:flush-done7+>
+  const wire = new TextDecoder().decode(bytes);
+  t.is(wire, "<13'op:flush-done7+>");
+  const decoded = testKit.OcapnMessageUnionCodec.read(
+    makeSyrupReader(bytes, { name: 'op:flush-done read back' }),
+  );
+  t.deepEqual(decoded, original);
+});
 
 test('op:get rejects integer fieldName', t => {
   const testKit = makeCodecTestKit();

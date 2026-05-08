@@ -666,6 +666,7 @@ const makeBootstrapObject = (
  * @property {OcapnTable} ocapnTable
  * @property {(message: object) => void} sendMessage
  * @property {(observer: MessageObserver) => () => void} subscribeMessages
+ * @property {(remoteValue: object) => Promise<void>} flushExport
  */
 
 /**
@@ -731,6 +732,19 @@ export const makeOcapn = (
     connection.end();
     // eslint-disable-next-line no-use-before-define
     ocapnTable.destroy(disconnectError);
+    // Reject any flush operations that haven't completed.
+    // eslint-disable-next-line no-use-before-define
+    for (const promiseKit of pendingFlushSettlers.values()) {
+      promiseKit.reject(disconnectError);
+    }
+    // eslint-disable-next-line no-use-before-define
+    pendingFlushSettlers.clear();
+    // eslint-disable-next-line no-use-before-define
+    for (const promiseKit of flushedPromiseSettlers.values()) {
+      promiseKit.reject(disconnectError);
+    }
+    // eslint-disable-next-line no-use-before-define
+    flushedPromiseSettlers.clear();
     // Notify the session manager to immediately end the session.
     // This prevents race conditions where a new connection arrives
     // before the socket 'close' event fires.
@@ -959,11 +973,123 @@ export const makeOcapn = (
         ocapnTable.dropSlot(slot, 1);
       }
     },
+    'op:flush': message => {
+      const { position } = message;
+      logger.info(`flush`, { position });
+      // The flush targets the export-table position of a local promise. The
+      // promise-shortening proposal calls for the local resolver `r` to be
+      // fulfilled with a fresh promise `p'` and for the export at the same
+      // position to be replaced with the resolver `r'` of `p'`. Subsequent
+      // messages from the peer that target this position then naturally
+      // buffer on `p'` (an unresolved HandledPromise) until something
+      // (typically the third-party handoff completing) resolves it.
+      const slot = makeSlot('p', true, position);
+      // eslint-disable-next-line no-use-before-define
+      const oldValue = ocapnTable.getValueForSlot(slot);
+      if (oldValue === undefined) {
+        throw Error(
+          `OCapN: op:flush: No local promise at position ${position}`,
+        );
+      }
+      // Build a fresh promise / settler pair; the settler is held in
+      // flushedPromiseSettlers so a subsequent shortening step (e.g. a
+      // handoff) can resolve it. Until then any deliveries targeting this
+      // position queue up locally on the unresolved promise.
+      const rPrimeKit = makePromiseKit();
+      const pPrime = rPrimeKit.promise;
+      // Silence the unhandled rejection warning, but don't affect handlers.
+      pPrime.catch(sink);
+      // eslint-disable-next-line no-use-before-define
+      ocapnTable.replaceExportValue(slot, pPrime);
+      // eslint-disable-next-line no-use-before-define
+      flushedPromiseSettlers.set(position, rPrimeKit);
+      // Acknowledge the flush. Because messages on this connection are FIFO,
+      // by the time this op:flush-done reaches the peer it has already
+      // received every message Alice had sent that targeted the prior
+      // promise.
+      send({
+        type: 'op:flush-done',
+        position,
+      });
+    },
+    'op:flush-done': message => {
+      const { position } = message;
+      logger.info(`flush-done`, { position });
+      // eslint-disable-next-line no-use-before-define
+      const pendingKit = pendingFlushSettlers.get(position);
+      if (pendingKit === undefined) {
+        throw Error(
+          `OCapN: op:flush-done: No pending flush at position ${position}`,
+        );
+      }
+      // eslint-disable-next-line no-use-before-define
+      pendingFlushSettlers.delete(position);
+      pendingKit.resolve(undefined);
+    },
     'op:abort': message => {
       const { reason } = message;
       abort(reason);
     },
   });
+
+  /**
+   * Promise-kits for `op:flush` that we have sent and are awaiting an
+   * `op:flush-done` for. Keyed by the export-position we asked the peer to
+   * flush.
+   * @type {Map<bigint, ReturnType<typeof makePromiseKit>>}
+   */
+  const pendingFlushSettlers = new Map();
+  /**
+   * Promise-kits for fresh promises we created when the peer asked us to
+   * flush one of our exported promises. The settler can be used to fulfill
+   * the new promise (and thus deliver any buffered messages) once the
+   * shortened reference is available.
+   * @type {Map<bigint, ReturnType<typeof makePromiseKit>>}
+   */
+  const flushedPromiseSettlers = new Map();
+
+  /**
+   * Send an op:flush for the given remote promise (i.e. an imported
+   * `desc:import-promise`) and return a promise that resolves when the
+   * peer's op:flush-done has been received. After that point all messages
+   * that the peer had previously sent for this promise have been received,
+   * which is the precondition the proposal needs before initiating the
+   * third-party handoff that shortens the path.
+   *
+   * @param {object} remoteValue
+   * @returns {Promise<void>}
+   */
+  const flushExport = remoteValue => {
+    if (didUnplug()) {
+      return /** @type {Promise<void>} */ (quietReject(didUnplug()));
+    }
+    // eslint-disable-next-line no-use-before-define
+    const slot = ocapnTable.getSlotForValue(remoteValue);
+    if (slot === undefined) {
+      throw Error('flushExport: value is not tracked in this session');
+    }
+    const { type, isLocal, position } = parseSlot(slot);
+    if (isLocal) {
+      throw Error(
+        `flushExport: value must be a remote (peer-exported) reference, got slot ${slot}`,
+      );
+    }
+    if (type !== 'p') {
+      throw Error(`flushExport: value must be a promise, got slot ${slot}`);
+    }
+    if (pendingFlushSettlers.has(position)) {
+      throw Error(
+        `flushExport: a flush is already pending at position ${position}`,
+      );
+    }
+    const promiseKit = makePromiseKit();
+    pendingFlushSettlers.set(position, promiseKit);
+    send({
+      type: 'op:flush',
+      position,
+    });
+    return /** @type {Promise<void>} */ (promiseKit.promise);
+  };
 
   /**
    * @param {Record<string, any>} message
@@ -1276,6 +1402,7 @@ export const makeOcapn = (
       ocapnTable,
       sendMessage: send,
       subscribeMessages,
+      flushExport,
     };
   }
   return harden(ocapn);
