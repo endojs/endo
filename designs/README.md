@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-07*
+*Last updated: 2026-05-08*
 
 *See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23),
 [filesystem-watchers](filesystem-watchers.md) (added 2026-05-07),
@@ -20,7 +20,7 @@
 | [chat-focus-message](chat-focus-message.md) | 2026-03-04 | 2026-03-04 | Active |
 | [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-27 | Proposed |
 | [chat-pending-commands](chat-pending-commands.md) | 2026-03-11 | 2026-03-11 | Not Started |
-| [chat-playwright-smoke](chat-playwright-smoke.md) | 2026-05-06 | 2026-05-06 | Not Started |
+| [chat-playwright-smoke](chat-playwright-smoke.md) | 2026-05-06 | 2026-05-08 | **Complete** |
 | [chat-rename-dismiss-to-clear](chat-rename-dismiss-to-clear.md) | 2026-03-03 | 2026-05-04 | PR #93 |
 | [chat-slot-slash-commands](chat-slot-slash-commands.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-03-21 | Not Started |
@@ -37,7 +37,7 @@
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-checkin-checkout](daemon-checkin-checkout.md) | 2026-03-17 | 2026-03-17 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
-| [daemon-content-store-gc](daemon-content-store-gc.md) | 2026-03-20 | 2026-03-20 | Not Started |
+| [daemon-content-store-gc](daemon-content-store-gc.md) | 2026-03-20 | 2026-05-08 | **Complete** |
 | [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-03-26 | Draft |
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-03-20 | In Progress |
 | [filesystem-watchers](filesystem-watchers.md) | 2026-05-07 | 2026-05-07 | Not Started |
@@ -109,7 +109,7 @@
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 24 Complete/Implemented, 15 In Progress, 45 Not Started, 2 Proposed, 3 Active, 2 Reference, 2 Deprecated, 1 Draft, 1 Superseded (95 designs)
+**Totals:** 26 Complete/Implemented, 15 In Progress, 43 Not Started, 2 Proposed, 3 Active, 2 Reference, 2 Deprecated, 1 Draft, 1 Superseded (95 designs)
 
 ## Roadmap
 
@@ -280,7 +280,7 @@ capabilities available to agents.
 | daemon-agent-tools | Not Started | Filesystem, shell, git tools backed by capabilities |
 | platform-fs | In Progress | `@endo/platform/fs` — shared types, content store, tree adapters |
 | daemon-capability-filesystem | Not Started | `Dir`/`File` capabilities for structural filesystem confinement |
-| daemon-content-store-gc | Not Started | Content-store pruning and scratch-mount directory cleanup at GC time |
+| ~~daemon-content-store-gc~~ | **Complete** | Content-store pruning and scratch-mount directory cleanup at GC time; landed in PR #99 |
 | daemon-mount | In Progress | Phases 1-3, 5 implemented; symlink confinement, 20 integration tests; Phase 4 (sub-mounts, snapshot) and Phase 6 (CLI) remaining |
 | filesystem-watchers | Not Started | `EndoMount.followNameChanges` parity with `EndoDirectory`; Node `fs.watch` adapter on `FilePowers` |
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
@@ -291,7 +291,7 @@ capabilities available to agents.
 | ~~daemon-cross-peer-gc~~ | **Complete** | Replaced the proposed CRDT-of-pet-stores with a one-way retention-set sync per peer connection (`retention-accumulator.js`, `EndoGateway.followRetentionSet`, SQLite `retention` table). Solves the GC gap; bidirectional shared namespace deferred as YAGNI. |
 | ~~daemon-guest-eval-simplification~~ | **Implemented** | Eval-proposal handshake removed; guest eval delegates directly to `formulateEval`. Type-system cleanup and regression test in PR #92. |
 | ci-no-npm-lifecycle | Not Started | Pin `enableScripts: false` posture into CI; enforcement check for workflows |
-| chat-playwright-smoke | Not Started | Add a build-and-load smoke for the Chat bundle to the existing `browser-tests` job |
+| ~~chat-playwright-smoke~~ | **Complete** | Build-and-load smoke for the Chat bundle in the `browser-tests` job; PRs #91 (design), #94 (impl), #95+#104 (harden/import fixes) |
 | base64-native-fallthrough | Not Started | `@endo/base64` dispatches to `Uint8Array.fromBase64` / `toBase64` when available |
 | hex-package | Not Started | New `@endo/hex` ponyfill with native fallthrough; audit and migrate scattered hex sites |
 
@@ -436,6 +436,76 @@ includes codec, mailbox, supervisor, and terminal rendering substrates)
 
 ### Size and Time Estimates
 
+#### Calibration round 2026-05-08
+
+Recalibrated against observed PR-merge velocity since the prior round.
+
+**Sample.**
+N = 14 implementation-bearing designs with merged PRs, plus 8 design-only
+PRs (treated separately because their time-to-merge measures CI plus review
+latency rather than design effort).
+Sources: M0 narrative actuals from the prior round (7 designs) plus
+M1 PRs merged on `endojs/endo-but-for-bots` (`#17`, `#21`, `#61`, `#92`,
+`#93`, `#94`, `#99`, `#104`, plus the `gateway-bearer-token-auth`
+implementation noted in the prior round).
+PRs were matched to designs via branch slug, the design-doc-to-impl
+`Refs:` body convention, and (for the recreated-under-bot pattern)
+the "Forwarded from #N" body line that points back at the original.
+
+**Headline ratio.**
+Median actual / estimate ratio across the 14 completed designs: **1.10**.
+Mean: **1.01**.
+The size-3 estimates from the prior round are roughly accurate when work
+actually completes.
+The bigger story is that completion is not the bottleneck: see the queue
+note below.
+
+**Per-size velocity (completed implementation PRs).**
+
+| Size | N | Median estimate | Median actual | Ratio |
+|------|---|-----------------|---------------|-------|
+| S    | 5 | 1.0 d           | 0.6 d         | 0.64  |
+| M    | 7 | 2.5 d           | 3.0 d         | 1.20  |
+| L    | 1 | 7.0 d           | 10.7 d        | 1.53  |
+| XL   | 0 | n/a             | n/a           | n/a   |
+
+S-sized designs land faster than estimated (most are surgical fixes that
+took an afternoon).
+M-sized designs run ~20% over.
+The single L data point (`daemon-make-archive`, ~11 days across PRs `#17`
+and `#21`) ran ~50% over.
+XL has no completed sample yet.
+
+**Per-milestone aggregate.**
+
+| Milestone | Completed designs | Median actual | Median estimate | Ratio |
+|-----------|-------------------|---------------|-----------------|-------|
+| M0        | 7                 | 3.0 d         | 2.5 d           | 1.20  |
+| M1        | 7 (impl)          | 1.0 d         | 1.0 d           | 1.00  |
+
+**Review-queue latency (the binding constraint).**
+14 implementation PRs forwarded under the bot in the 2026-04-23/04-24
+batch (`#122`–`#135`) remained open as of 2026-05-08 with a median
+elapsed-since-original-branch of **13.9 days**.
+That elapsed includes both author idle time and review-queue time, but
+the salient observation is that the wall-clock between "design accepted"
+and "code on `llm`" for those designs is dominated by review latency,
+not by author throughput.
+For a queue this deep, additive review-queue weeks are a more honest
+correction than multiplying per-design estimates.
+
+**Recalibration applied.**
+
+- S-sized estimates left at 1 day (slightly conservative; observed
+  median 0.6 d).
+- M-sized estimates bumped by ~20% (observed ratio 1.20).
+- L-sized estimates bumped by ~50% (observed ratio 1.53; single sample,
+  so this is provisional).
+- XL estimates left as-is for lack of data, with a note in the design
+  notes column.
+- Per-milestone totals lengthened by an additional 1–2 weeks of "review
+  queue" carry to reflect the observed in-flight backlog.
+
 #### Estimation Methodology
 
 Recalibrated on 2026-03-02 using observed velocity from 15 active work days
@@ -491,74 +561,79 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
 | ~~familiar-bundled-agents~~ | — | — | 0 | ✅ Complete (inline provisioning in daemon-node.js) |
 | ~~gateway-bearer-token-auth~~ | — | — | 1 | ✅ Implemented |
-| daemon-docker-selfhost | S-M | 2-3 days | 1 | Dockerfile, entrypoint, compose |
-| daemon-agent-tools | M-L | 1-1.5 weeks | 1 | Shell, git, fs tool wrappers |
-| platform-fs | S-M | 2-3 days | 1 | Shared types, content store extraction, tree adapters |
-| daemon-capability-filesystem | L | 1-2 weeks | 1 | Dir/File exos, physical backend |
-| daemon-content-store-gc | S | 1 day | 1 | Sweep-time ref count for store-sha256, scratch-mount dir removal |
-| daemon-mount | M-L | 1-1.5 weeks | 1 | Mount exo, symlink confinement, scratch lifecycle, host methods |
-| filesystem-watchers | S | 1-2 days | 1 | `followNameChanges` on `EndoMount`, `watchDirectory` on `FilePowers`, integration tests |
+| daemon-docker-selfhost | S-M | 3 days | 1 | Dockerfile, entrypoint, compose; PR #134 forwarded under bot, awaiting review |
+| daemon-agent-tools | M-L | 1.5 weeks | 1 | Shell, git, fs tool wrappers; PR #130 forwarded under bot |
+| platform-fs | S-M | 3 days | 1 | Shared types, content store extraction, tree adapters; PR #122 forwarded under bot |
+| daemon-capability-filesystem | L | 1.5-3 weeks | 1 | Dir/File exos, physical backend (1.5x for L size) |
+| ~~daemon-content-store-gc~~ | S | — | 1 | ✅ Complete (PR #99, ~2 days actual vs 1 day estimate) |
+| daemon-mount | M-L | 1.5 weeks | 1 | Mount exo, symlink confinement; Phase 4 in PR #135 forwarded under bot |
+| ~~filesystem-watchers~~ (design) | S | — | 1 | ✅ Design merged (PR #115); implementation TBD |
 | daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
-| daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename: 13 source files, ~20 consuming files; three phases (file renames, identifier renames, consumer updates) |
-| endoclaw-timer | S-M | 2-3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
-| ~~daemon-guest-eval-simplification~~ | — | — | 1 | ✅ Implemented (PR #92 cleanup; eval-proposal flow removed earlier on `llm`) |
-| endoclaw-network-fetch | S-M | 2-3 days | 1 | HttpClient with origin allowlist, rate/size limits |
-| ci-no-npm-lifecycle | S | 1 day | 1 | Workflow audit, env var pinning, enforcement check |
-| chat-playwright-smoke | S | 1 day | 1 | New `browser-test/tests/chat.spec.js`, serve `packages/chat/dist`, assert "Gateway not configured" + zero pageerrors |
+| daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename; design merged (PR #85); implementation TBD |
+| endoclaw-timer | S-M | 3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
+| ~~daemon-guest-eval-simplification~~ | — | — | 1 | ✅ Implemented (PR #92, ~2 hours actual; well under 1-day estimate) |
+| endoclaw-network-fetch | S-M | 3 days | 1 | HttpClient with origin allowlist, rate/size limits |
+| ci-no-npm-lifecycle | S | 1 day | 1 | Workflow audit; PR #126 forwarded under bot |
+| ~~chat-playwright-smoke~~ | S | — | 1 | ✅ Complete (PRs #91 design, #94 impl, #95+#104 fix; ~16 hours total) |
 | base64-native-fallthrough | S | 1 day | 1 | Detect `Uint8Array.fromBase64`, dispatch, dual-path tests |
-| hex-package | S-M | 2-3 days | 1 | New `@endo/hex` package, migrate `daemon/src/hex.js`, `relay-server/src/protocol.js`, OCapN hex sites |
-| ocapn-network-transport-separation | M-L | 1-1.5 weeks | 2 | Architectural refactor |
-| ocapn-tcp-for-test-extraction | S-M | 2-3 days | 2 | Code relocation |
-| ocapn-tcp-syrups-framing | S-M | 2-3 days | 2 | `@endo/syrups` package, new `tcp+syrups` netlayer, fix chunk-boundary bug in `tcp-test-only` |
+| hex-package | S-M | 3 days | 1 | New `@endo/hex` package, migrate `daemon/src/hex.js`, `relay-server/src/protocol.js`, OCapN hex sites |
+| ocapn-network-transport-separation | M-L | 1.5 weeks | 2 | Architectural refactor (M-L bumped 1.2x) |
+| ocapn-tcp-for-test-extraction | S-M | 3 days | 2 | Code relocation |
+| ocapn-tcp-syrups-framing | S-M | 3 days | 2 | `@endo/syrups` package, new `tcp+syrups` netlayer; design merged (PR #108); impl PR #109 open |
 | ~~syrups~~ | — | — | 2 | Consolidated into `ocapn-tcp-syrups-framing` (PR 29); see [`syrups.md`](syrups.md) |
-| cbors | S-M | 2-3 days | 2 | New `@endo/cbors` package; byte-string framing only (CBOR major type 2, optionally tag 24); peer of `@endo/syrups` and `@endo/netstring` |
+| cbors | S-M | 3 days | 2 | New `@endo/cbors` package; design merged with syrups in PR #86 |
 | ocapn-noise-cryptographic-review | S | 1 day | 2 | External review coordination |
-| daemon-agent-network-identity | S-M | 2-3 days | 2 | Network registration, locator construction |
-| ocapn-noise-network | L | 1.5-2 weeks | 2 | Full network + transport |
-| familiar-unified-weblet-server | M | 2-3 days | 3 | Web-server restructuring |
-| familiar-chat-weblet-hosting | M | 3-4 days | 3 | Iframe hosting, guest profiles |
-| daemon-checkin-checkout | S-M | 2-3 days | 3 | `endo ci`/`co`, readable-tree formula, zip support |
-| daemon-weblet-application | M | 3-4 days | 3 | Formula types, gateway serving |
-| endoclaw-oauth | S-M | 2-3 days | 3 | Credential proxy exo, token injection |
+| daemon-agent-network-identity | S-M | 3 days | 2 | Network registration, locator construction |
+| ocapn-noise-network | L | 2-3 weeks | 2 | Full network + transport (L bumped 1.5x); netlayer largely complete in stacked PRs #111/#112/#113, awaiting review |
+| familiar-unified-weblet-server | M | 3 days | 3 | Web-server restructuring; design revised in PR #100 |
+| familiar-chat-weblet-hosting | M | 4-5 days | 3 | Iframe hosting, guest profiles (1.2x bump) |
+| daemon-checkin-checkout | S-M | 3 days | 3 | `endo ci`/`co`, readable-tree formula, zip support |
+| daemon-weblet-application | M | 4-5 days | 3 | Formula types, gateway serving (1.2x bump) |
+| endoclaw-oauth | S-M | 3 days | 3 | Credential proxy exo, token injection |
 | endoclaw-proactive-messages | S | 1 day | 3 | Pattern doc: Timer + data caps + send() |
 | endoclaw-notifications | S | 1 day | 3 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
-| endoclaw-webhooks | S-M | 2-3 days | 3 | Gateway webhook routes → inbox messages |
+| endoclaw-webhooks | S-M | 3 days | 3 | Gateway webhook routes → inbox messages |
 | endoclaw-voice | S | 1-2 days | 3 | Web Speech API in Chat UI |
 | ~~chat-reply-chain-visualization~~ | — | — | 4 | Deprecated (superseded by chat-focus-message) |
-| chat-pending-commands | S-M | 2-3 days | 4 | Pending region, unlocked command bar (UI only) |
-| chat-slot-slash-commands | M | 3-4 days | 4 | Slot-level verb registry, transient-pin extension of `formulateEval`, shared slot-input component |
-| daemon-commands-as-messages | M-L | 1-1.5 weeks | 4 | New message type, self-delivery, result replies, Chat rendering |
-| inventory-cancel-and-liveness | M | 3-4 days | 4 | Cancel button, indicator states, coalesced watcher exo + daemon hooks |
+| chat-pending-commands | S-M | 3 days | 4 | Pending region, unlocked command bar (UI only); PR #133 forwarded under bot |
+| chat-slot-slash-commands | M | 4-5 days | 4 | Slot-level verb registry, transient-pin extension of `formulateEval`, shared slot-input component (1.2x bump) |
+| daemon-commands-as-messages | M-L | 1.5 weeks | 4 | New message type, self-delivery, result replies, Chat rendering |
+| inventory-cancel-and-liveness | M | 4-5 days | 4 | Cancel button, indicator states, coalesced watcher exo + daemon hooks |
 | inventory-grouping-by-type | S | 1-2 days | 4 | UI grouping |
-| inventory-drag-and-drop | S-M | 2-3 days | 4 | HTML5 DnD |
-| formula-inspector | M | 3-4 days | 4 | New panel, daemon API |
-| workers-panel | M | 3-5 days | 4 | Metrics, sparklines |
-| daemon-retention-paths | M-L | 1-1.5 weeks | 4 | Snapshot + subscription daemon API, CLI verb, Chat paths panel with delete-pet-name and disincarnate/reincarnate; superset of the retention-path slices in formula-inspector and workers-panel |
-| chat-view-edit-commands | M | 3-5 days | 4 | `/view`, `/edit` modal, Monaco reuse, Markdown split preview (Phase 4) |
-| chat-edit-message-ui | S-M | 2-3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil, revision-history panel; reuses send-form, message-picker, focus dispatch |
+| inventory-drag-and-drop | S-M | 3 days | 4 | HTML5 DnD; PR #131 forwarded under bot |
+| formula-inspector | M | 4-5 days | 4 | New panel, daemon API |
+| workers-panel | M | 4-6 days | 4 | Metrics, sparklines |
+| daemon-retention-paths | M-L | 1.5 weeks | 4 | Snapshot + subscription daemon API, CLI verb, Chat paths panel; superset of retention-path slices in formula-inspector and workers-panel |
+| chat-view-edit-commands | M | 4-6 days | 4 | `/view`, `/edit` modal, Monaco reuse, Markdown split preview (Phase 4) |
+| chat-edit-message-ui | S-M | 3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil; design merged (PR #88); daemon impl in PR #125 forwarded under bot |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
 | ~~daemon-os-sandbox-plugin~~ | — | — | 5 | Superseded by `endo-posix-sandbox` |
 | endo-posix-sandbox | L-XL | 6-10 weeks remaining | 5 | Phases 0-1 shipped (bwrap on Linux); Phase 2 (podman) and Phase 3 (nested slices) in flight; Phases 1.5, 4, 6 ahead. Per-phase estimates pending PLAN backfill |
-| daemon-capability-persona | S-M | 2-3 days | 5 | Handle extension, epithet tracking |
-| daemon-capability-bank | XL | 3-4 weeks | 5 | Integrates all capabilities |
-| endoclaw-browser | M-L | 1-1.5 weeks | 5 | Playwright-backed, origin-confined |
-| endoclaw-channel-bridges | M | 3-4 days | 5 | Vercel `chat` SDK adapters |
-| endoclaw-skill-registry | S-M | 2-3 days | 5 | Skills directory with capability declarations |
-| endor-tui | XL | 4-6 weeks | 6 | Rust TUI: ratatui/crossterm, concept-map of every Chat component, XS `mxDebug` debugger integration |
-| endor-bus-tui | XL | 3-5 weeks | 6 | Bus-verb spec, XS handle API, Exo/CapTP wrapper; cross-worker layout composition |
+| daemon-capability-persona | S-M | 3 days | 5 | Handle extension, epithet tracking |
+| daemon-capability-bank | XL | 4-6 weeks | 5 | Integrates all capabilities (XL bumped 1.3x as conservative pending data) |
+| endoclaw-browser | M-L | 1.5 weeks | 5 | Playwright-backed, origin-confined; smallest cut in PR #106 |
+| endoclaw-channel-bridges | M | 4-5 days | 5 | Vercel `chat` SDK adapters |
+| endoclaw-skill-registry | S-M | 3 days | 5 | Skills directory with capability declarations; PR #105 open |
+| endor-tui | XL | 5-8 weeks | 6 | Rust TUI: ratatui/crossterm, concept-map of every Chat component, XS `mxDebug` debugger integration (XL bumped 1.3x) |
+| endor-bus-tui | XL | 4-7 weeks | 6 | Bus-verb spec, XS handle API, Exo/CapTP wrapper; cross-worker layout composition (XL bumped 1.3x) |
 
 #### Summary by Milestone
 
-| Milestone | Items | Total Estimate (1 dev, serial) |
-|-----------|-------|-------------------------------|
-| M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 16 remaining | 7-8 weeks |
-| M2: Networking | 8 | 3-4 weeks |
-| M3: Weblets & Integrations | 8 | 4-6 weeks |
-| M4: UX & Tooling | 11 | 7-9 weeks |
-| M5: Confinement & Ecosystem | 6 active (1 superseded) | 8-12 weeks |
-| M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
-| **Total remaining** | **51** | **~39-53 weeks** |
+Recalibrated 2026-05-08 by applying per-size median ratios from observed
+PR-merge velocity (S: 0.6, M: 1.2, L: 1.5, XL: 1.3 conservative).
+"Plus review queue" reflects the observed 2-week median wait between
+ready-to-merge and actually-merged for the in-flight backlog.
+
+| Milestone | Items | Effort Estimate | Plus Review Queue (current rate) |
+|-----------|-------|-----------------|----------------------------------|
+| M0: AI Agent Experience | 0 remaining | **Complete** | — |
+| M1: Remote Access & Tools | 13 remaining | 8-10 weeks | 10-12 weeks |
+| M2: Networking | 7 | 4-5 weeks | 5-7 weeks |
+| M3: Weblets & Integrations | 9 | 5-7 weeks | 6-9 weeks |
+| M4: UX & Tooling | 12 | 8-11 weeks | 10-13 weeks |
+| M5: Confinement & Ecosystem | 6 active (1 superseded) | 14-20 weeks | 16-22 weeks |
+| M6: Rust Daemon (`endor`) | 2 | 12-17 weeks | 14-19 weeks |
+| **Total remaining** | **50** | **~51-70 weeks** | **~61-82 weeks** |
 
 ### Timeline
 
@@ -589,15 +664,19 @@ gantt
     Rust Daemon (endor)           :m6, after m5, 12w
 ```
 
+Durations below are the recalibrated effort-side ranges (multiplying by
+the per-size ratios from the 2026-05-08 calibration round).
+Add ~2 weeks per milestone if the current review-queue depth persists.
+
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
 | M0: AI Agent Experience | 18 days (actual) | **Complete** | March 5, 2026 |
-| M1: Remote Access & Tools | 4-5 weeks | 6-8 weeks | Late April 2026 |
-| M2: Networking | 3-4 weeks | 9-12 weeks | Late May 2026 |
-| M3: Weblets & Integrations | 4-6 weeks | 12-17 weeks | Late June 2026 |
-| M4: UX & Tooling | 5-7 weeks | 16-23 weeks | Late August 2026 |
-| M5: Confinement & Ecosystem | 8-12 weeks | 24-35 weeks | Late October 2026 |
-| M6: Rust Daemon (`endor`) | 10-14 weeks | 34-49 weeks | Q1 2027 |
+| M1: Remote Access & Tools | 8-10 weeks | 8-10 weeks | Mid July 2026 |
+| M2: Networking | 4-5 weeks | 12-15 weeks | Mid August 2026 |
+| M3: Weblets & Integrations | 5-7 weeks | 17-22 weeks | Late September 2026 |
+| M4: UX & Tooling | 8-11 weeks | 25-33 weeks | Late November 2026 |
+| M5: Confinement & Ecosystem | 14-20 weeks | 39-53 weeks | Mid-Late March 2027 |
+| M6: Rust Daemon (`endor`) | 12-17 weeks | 51-70 weeks | Q3-Q4 2027 |
 
 *Milestones 3 and 4 are less order-dependent and can be interleaved.
 Milestones 0, 1, and 2 form the critical path. Weblets prioritized over
@@ -615,9 +694,14 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-05-05:** 24 of 93 designs complete/implemented, 14 in progress. M0 complete.
-M1, M2, M3, and M4 designs continue to land; the most recent merges (PRs #50, #85, #86) are
-informational and framing-package designs that do not change the critical path.
+**Progress as of 2026-05-08:** 26 of 95 designs complete/implemented, 15 in progress. M0 complete.
+M1, M2, M3, and M4 designs continue to land; the most recent merges (PRs #50, #85, #86, #91, #92,
+#93, #94, #99, #100, #108, #115) are a mix of design-only PRs and small implementation PRs that
+do not change the critical path.
+Recalibration round 2026-05-08 (see Calibration round section above): per-size median actual /
+estimate ratios are S 0.6, M 1.2, L 1.5; the 14 implementation PRs forwarded under the bot in
+the 2026-04-23/04-24 batch sit at a median 13.9 days open, so review-queue latency rather than
+author throughput is the binding constraint on M1 completion.
 18 active work days elapsed (Feb 15 – Mar 5), primarily 1 developer
 (128 of 201 commits). Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
