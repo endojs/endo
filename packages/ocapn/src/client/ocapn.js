@@ -44,6 +44,7 @@ import { makeOcapnTable } from '../captp/ocapn-tables.js';
 import { makeSlot, parseSlot } from '../captp/pairwise.js';
 import { makeReferenceKit } from './ref-kit.js';
 import { makeGrantDetails } from './grant-tracker.js';
+import { makeEmbargoState } from './embargo.js';
 
 /**
  * @typedef {any} LocalResolver
@@ -729,6 +730,12 @@ export const makeOcapn = (
     // eslint-disable-next-line no-use-before-define
     doUnplug(disconnectError);
     connection.end();
+    // Reject pending embargo entries before destroying the ocapn table:
+    // the wrapped answer-slot settlers held by an embargo entry remove
+    // themselves from the table on settle, so we want them to run while
+    // their slots are still present.
+    // eslint-disable-next-line no-use-before-define
+    embargoState.rejectAll(disconnectError);
     // eslint-disable-next-line no-use-before-define
     ocapnTable.destroy(disconnectError);
     // Notify the session manager to immediately end the session.
@@ -959,6 +966,43 @@ export const makeOcapn = (
         ocapnTable.dropSlot(slot, 1);
       }
     },
+    'op:disembargo': message => {
+      const { context } = message;
+      logger.info(`disembargo`, context);
+      if (context === undefined || context === null) {
+        throw Error('OCapN: op:disembargo requires a context');
+      }
+      if (context.type === 'sender-loopback') {
+        // Peer is disembargoing a promise that has resolved to one of our
+        // local capabilities. The decoder has already resolved `target` to
+        // our local export/answer; per the capnproto protocol we should
+        // verify it points at the sender, but cooperative peers always do.
+        // Echo the disembargo back so the sender can lift its local embargo.
+        const { embargoId } = context;
+        // eslint-disable-next-line no-use-before-define
+        send({
+          type: 'op:disembargo',
+          context: harden({
+            type: 'receiver-loopback',
+            embargoId,
+          }),
+        });
+      } else if (context.type === 'receiver-loopback') {
+        const { embargoId } = context;
+        // eslint-disable-next-line no-use-before-define
+        const entry = embargoState.take(embargoId);
+        if (entry === undefined) {
+          throw Error(
+            `OCapN: op:disembargo receiver-loopback for unknown embargoId: ${embargoId}`,
+          );
+        }
+        // Lift the embargo: resolve the HandledPromise so subsequent E()
+        // calls shorten directly to the resolved value.
+        entry.settler.resolve(entry.value);
+      } else {
+        throw Error(`OCapN: op:disembargo unknown context type: ${context.type}`);
+      }
+    },
     'op:abort': message => {
       const { reason } = message;
       abort(reason);
@@ -1080,6 +1124,8 @@ export const makeOcapn = (
     enableImportCollection,
   });
 
+  const embargoState = makeEmbargoState();
+
   /** @type {MakeHandoff} */
   const makeHandoff = signedGive => {
     // We are the Receiver.
@@ -1187,6 +1233,8 @@ export const makeOcapn = (
     makeRemoteKit,
     makeHandoff,
     sendHandoff,
+    embargoState,
+    send,
   );
 
   const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(referenceKit);

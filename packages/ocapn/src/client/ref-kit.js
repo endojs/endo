@@ -13,6 +13,7 @@ import harden from '@endo/harden';
  * @import { GrantTracker, GrantDetails, HandoffGiveDetails } from './grant-tracker.js'
  * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
  * @import { MakeRemoteKit, SendHandoff } from './ocapn.js'
+ * @import { EmbargoState } from './embargo.js'
  */
 
 /** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
@@ -105,6 +106,8 @@ export const slotTypeToName = type => {
  * @param {MakeRemoteKit} makeRemoteKit
  * @param {MakeHandoff} makeHandoff
  * @param {SendHandoff} sendHandoff
+ * @param {EmbargoState} embargoState
+ * @param {(message: Record<string, any>) => void} send
  * @returns {ReferenceKit}
  */
 export const makeReferenceKit = (
@@ -116,6 +119,8 @@ export const makeReferenceKit = (
   makeRemoteKit,
   makeHandoff,
   sendHandoff,
+  embargoState,
+  send,
 ) => {
   let nextExportPosition = ONE_N;
   const provideSlotForValue = value => {
@@ -216,10 +221,70 @@ export const makeReferenceKit = (
     return makeRemoteObject(ZERO_N, 'Remote Bootstrap');
   };
 
+  /**
+   * Detect whether `value` is a reference hosted locally (an export of ours,
+   * or a local answer). When a remote promise is fulfilled with such a value,
+   * shortening the HandledPromise would let new E() calls bypass the original
+   * promise's path while earlier pipelined messages are still in flight on
+   * that path, breaking per-reference FIFO order. Those resolutions need a
+   * disembargo round-trip; everything else (primitives, copy values, remote
+   * references) can resolve immediately.
+   *
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  const isValueLocallyHosted = value => {
+    if (
+      value === null ||
+      (typeof value !== 'object' && typeof value !== 'function')
+    ) {
+      return false;
+    }
+    if (ocapnTable.getLocalAnswerToPosition(value) !== undefined) {
+      return true;
+    }
+    const valueSlot = ocapnTable.getSlotForValue(value);
+    if (valueSlot === undefined) {
+      return false;
+    }
+    return parseSlot(valueSlot).isLocal;
+  };
+
   const makeLocalResolver = (slot, settler) => {
     const ocapnResolver = Far('OcapnResolver', {
       fulfill: value => {
         logger.info(`ocapnResolver fulfill ${slot}`, value);
+        // Capnproto-style level-1 embargo: if the resolution shortens the
+        // promise to a locally-hosted capability, hold the resolve until a
+        // disembargo round-trip confirms that all already-pipelined messages
+        // on the original path have been forwarded back to us. The original
+        // promise's handler keeps sending new calls through the peer (which
+        // forwards them to us) while the embargo is in flight, so the natural
+        // network FIFO and microtask FIFO cooperate to deliver everything in
+        // order before we lift the embargo and let direct calls take over.
+        if (isValueLocallyHosted(value)) {
+          const target = ocapnTable.getValueForSlot(slot);
+          if (target === undefined) {
+            // The original promise/answer slot was already collected. Nothing
+            // pipelined against it can still arrive, so just resolve.
+            settler.resolve(value);
+            return;
+          }
+          const embargoId = embargoState.allocate({ settler, value, slot });
+          logger.info(
+            `ocapnResolver embargo ${slot} → ${embargoId}`,
+            value,
+          );
+          send({
+            type: 'op:disembargo',
+            context: harden({
+              type: 'sender-loopback',
+              target,
+              embargoId,
+            }),
+          });
+          return;
+        }
         settler.resolve(value);
       },
       break: reason => {

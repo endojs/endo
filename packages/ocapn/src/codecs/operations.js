@@ -194,6 +194,47 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
+  // Disembargo (capnproto-style, level 1) preserves per-reference FIFO order
+  // when a remote promise resolves to a sender-hosted capability. The sender
+  // allocates an embargoId and emits sender-loopback addressed to the original
+  // promise; the receiver echoes back receiver-loopback once all already-queued
+  // pipelined messages on that target have been processed. Until the echo
+  // arrives, the sender locally queues new messages on the resolved capability,
+  // which guarantees that earlier pipelined messages (still in flight through
+  // the original path) are delivered first.
+  const OpDisembargoSenderLoopbackCodec = makeOcapnRecordCodecFromDefinition(
+    'OpDisembargoSenderLoopback',
+    'sender-loopback',
+    {
+      target: RemotePromiseCodec,
+      embargoId: NonNegativeIntegerCodec,
+    },
+  );
+
+  const OpDisembargoReceiverLoopbackCodec = makeOcapnRecordCodecFromDefinition(
+    'OpDisembargoReceiverLoopback',
+    'receiver-loopback',
+    {
+      embargoId: NonNegativeIntegerCodec,
+    },
+  );
+
+  const OpDisembargoContextCodec = makeRecordUnionCodec(
+    'OpDisembargoContext',
+    {
+      OpDisembargoSenderLoopbackCodec,
+      OpDisembargoReceiverLoopbackCodec,
+    },
+  );
+
+  const OpDisembargoCodec = makeOcapnRecordCodecFromDefinition(
+    'OpDisembargo',
+    'op:disembargo',
+    {
+      context: OpDisembargoContextCodec,
+    },
+  );
+
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
     OpDeliverCodec,
@@ -204,6 +245,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     OpListenCodec,
     OpGcExportsCodec,
     OpGcAnswersCodec,
+    OpDisembargoCodec,
   });
 
   /**

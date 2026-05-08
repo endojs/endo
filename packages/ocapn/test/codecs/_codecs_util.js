@@ -19,6 +19,7 @@ import {
   makeGrantDetails,
 } from '../../src/client/grant-tracker.js';
 import { makeReferenceKit } from '../../src/client/ref-kit.js';
+import { makeEmbargoState } from '../../src/client/embargo.js';
 
 import { makeSturdyRefTracker } from '../../src/client/sturdyrefs.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
@@ -216,6 +217,10 @@ export const makeCodecTestKit = (
     throw Error('sendHandoff is not implemented for test');
   };
 
+  const embargoState = makeEmbargoState();
+  const send = _message => {
+    // Codec tests don't drive sessions and never trigger embargos.
+  };
   const referenceKit = makeReferenceKit(
     logger,
     peerLocation,
@@ -225,6 +230,8 @@ export const makeCodecTestKit = (
     makeRemoteKit,
     makeHandoff,
     sendHandoff,
+    embargoState,
+    send,
   );
   const descCodecs = makeDescCodecs(referenceKit);
   const passableCodecs = makePassableCodecs(descCodecs);
