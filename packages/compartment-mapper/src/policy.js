@@ -514,7 +514,6 @@ async function attenuateModule({
         const ns = {};
         originalModuleRecord.execute(ns, compartment, resolvedImports);
         const attenuated = attenuate(ns);
-        moduleExports.default = attenuated;
         assign(moduleExports, attenuated);
       },
     }),
