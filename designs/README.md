@@ -3,7 +3,9 @@
 *Last updated: 2026-05-07*
 
 *See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23),
-[filesystem-watchers](filesystem-watchers.md) (added 2026-05-07).*
+[filesystem-watchers](filesystem-watchers.md) (added 2026-05-07),
+[endo-posix-sandbox](endo-posix-sandbox.md) (added 2026-05-07; mirrors
+`PLAN/endo_posix_sandbox.md` for roadmap calibration).*
 
 ## Summary
 
@@ -71,7 +73,8 @@
 | [endoclaw-voice](endoclaw-voice.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-webhooks](endoclaw-webhooks.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
-| [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-03-19 | Not Started |
+| [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-03-19 | Superseded by [endo-posix-sandbox](endo-posix-sandbox.md) |
+| [endo-posix-sandbox](endo-posix-sandbox.md) | 2026-05-07 | 2026-05-07 | In Progress (Phase 3) |
 | [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-03 | **Complete** |
 | [daemon-web-gateway](daemon-web-gateway.md) | 2026-03-11 | 2026-03-11 | **Complete** |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
@@ -106,7 +109,7 @@
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 24 Complete/Implemented, 14 In Progress, 46 Not Started, 2 Proposed, 3 Active, 2 Reference, 2 Deprecated, 1 Draft (94 designs)
+**Totals:** 24 Complete/Implemented, 15 In Progress, 45 Not Started, 2 Proposed, 3 Active, 2 Reference, 2 Deprecated, 1 Draft, 1 Superseded (95 designs)
 
 ## Roadmap
 
@@ -213,7 +216,7 @@ flowchart TD
     end
 
     subgraph Capability System
-        dsand[daemon-os-sandbox-plugin]
+        dsand[endo-posix-sandbox<br/><i>IN PROGRESS</i>]
         pfs[platform-fs]
         dfs[daemon-capability-filesystem]
         dmount[daemon-mount<br/><i>IN PROGRESS</i>]
@@ -392,7 +395,8 @@ ecosystem.
 
 | Design | Status | Notes |
 |--------|--------|-------|
-| daemon-os-sandbox-plugin | Not Started | Platform-specific process confinement |
+| ~~daemon-os-sandbox-plugin~~ | Superseded | Replaced by `endo-posix-sandbox`; retained as historical proposal |
+| endo-posix-sandbox | In Progress | Phases 0-1 shipped, Phases 2 + 3 in flight on `bots-ssh/jcorbin-sandbox-paths`; Phase 4 (macOS via lima + Apple Containerization) and Phase 6 (Windows via WSL2) compose the same in-guest backend pattern |
 | daemon-capability-persona | Not Started | Epithets and delegation |
 | daemon-capability-bank | Not Started | Integrates all capability categories |
 | endoclaw-browser | Not Started | Playwright-backed `Browser` exo with origin allowlist |
@@ -533,7 +537,8 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | chat-view-edit-commands | M | 3-5 days | 4 | `/view`, `/edit` modal, Monaco reuse, Markdown split preview (Phase 4) |
 | chat-edit-message-ui | S-M | 2-3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil, revision-history panel; reuses send-form, message-picker, focus dispatch |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
-| daemon-os-sandbox-plugin | L-XL | 2-3 weeks | 5 | Platform-specific |
+| ~~daemon-os-sandbox-plugin~~ | — | — | 5 | Superseded by `endo-posix-sandbox` |
+| endo-posix-sandbox | L-XL | 6-10 weeks remaining | 5 | Phases 0-1 shipped (bwrap on Linux); Phase 2 (podman) and Phase 3 (nested slices) in flight; Phases 1.5, 4, 6 ahead. Per-phase estimates pending PLAN backfill |
 | daemon-capability-persona | S-M | 2-3 days | 5 | Handle extension, epithet tracking |
 | daemon-capability-bank | XL | 3-4 weeks | 5 | Integrates all capabilities |
 | endoclaw-browser | M-L | 1-1.5 weeks | 5 | Playwright-backed, origin-confined |
@@ -551,7 +556,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | M2: Networking | 8 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
 | M4: UX & Tooling | 11 | 7-9 weeks |
-| M5: Confinement & Ecosystem | 6 | 8-12 weeks |
+| M5: Confinement & Ecosystem | 6 active (1 superseded) | 8-12 weeks |
 | M6: Rust Daemon (`endor`) | 2 | 10-14 weeks |
 | **Total remaining** | **51** | **~39-53 weeks** |
 
