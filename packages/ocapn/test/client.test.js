@@ -1918,3 +1918,141 @@ test('resolver callbacks use op:deliver without answer or resolver', async t => 
     shutdownBoth();
   }
 });
+
+test('op:flush invokes run on the shortener', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Echo',
+    Far('echo', {
+      echo: val => val,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const { referenceKit } = ocapnA;
+    const { sendMessage } = getOcapnDebug(ocapnA);
+
+    /** @type {unknown[]} */
+    const runCalls = [];
+    const shortener = Far('Test Shortener', {
+      run: value => {
+        runCalls.push(value);
+      },
+    });
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const {
+      answerPromise,
+      position: answerPosition,
+      resolver,
+    } = referenceKit.takeNextRemoteAnswer();
+
+    // Trigger a remote call so B has a local answer at this position to flush.
+    sendMessage({
+      type: 'op:deliver',
+      to: bootstrapB,
+      args: [Symbol.for('fetch'), encodeSwissnum('Echo')],
+      answerPosition,
+      resolveMeDesc: resolver,
+    });
+
+    // Send op:flush on the same answer reference; B should reply by invoking
+    // run() on the shortener after processing the prior op:deliver.
+    sendMessage({
+      type: 'op:flush',
+      to: answerPromise,
+      resolveMeDesc: shortener,
+    });
+
+    await waitUntilTrue(() => runCalls.length >= 1);
+    t.is(runCalls.length, 1, 'shortener.run should be called exactly once');
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:flush preserves FIFO ordering with prior messages', async t => {
+  /** @type {string[]} */
+  const callOrder = [];
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Recorder',
+    Far('recorder', {
+      record: tag => {
+        callOrder.push(tag);
+      },
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const { referenceKit } = ocapnA;
+    const { sendMessage } = getOcapnDebug(ocapnA);
+
+    /** @type {unknown[]} */
+    const runCalls = [];
+    const shortener = Far('Test Shortener', {
+      run: value => {
+        runCalls.push(value);
+      },
+    });
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const recorder = await E(bootstrapB).fetch(encodeSwissnum('Recorder'));
+
+    // Reset call order and send a deliver-only first, then op:flush, on the
+    // same connection. By FIFO transport order, the deliver must be processed
+    // before op:flush, and shortener.run must observe both already in flight.
+    callOrder.length = 0;
+
+    sendMessage({
+      type: 'op:deliver',
+      to: recorder,
+      args: [Symbol.for('record'), 'before'],
+      answerPosition: false,
+      resolveMeDesc: false,
+    });
+
+    // Use a fresh remote answer slot as the flush target: the answer is owned
+    // by us (vatA) but its underlying local answer in vatB is what op:flush
+    // travels on.
+    const { answerPromise, position: answerPosition } =
+      referenceKit.takeNextRemoteAnswer();
+    sendMessage({
+      type: 'op:deliver',
+      to: bootstrapB,
+      args: [Symbol.for('fetch'), encodeSwissnum('Recorder')],
+      answerPosition,
+      resolveMeDesc: false,
+    });
+
+    sendMessage({
+      type: 'op:flush',
+      to: answerPromise,
+      resolveMeDesc: shortener,
+    });
+
+    await waitUntilTrue(() => runCalls.length >= 1);
+
+    t.deepEqual(
+      callOrder,
+      ['before'],
+      'prior deliver-only must be processed before flush completes',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});

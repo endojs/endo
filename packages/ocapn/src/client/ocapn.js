@@ -821,6 +821,20 @@ export const makeOcapn = (
       }
       fulfillRemoteResolverWithPromise(resolveMeDesc, listenTarget);
     },
+    'op:flush': message => {
+      // op:flush is a FIFO marker. By the time this handler runs, every
+      // earlier message on the same connection has already been dispatched
+      // in receive order, so the sender's invariant — "all prior messages
+      // on this reference have been processed in this vat" — is satisfied.
+      // We notify the sender's shortener with `run(target)`. E.sendOnly
+      // follows whatever resolution chain the target promise has, so a
+      // forwarded target carries the flush along to the next vat.
+      const { to: flushTarget, resolveMeDesc: shortener } = message;
+      if (!(flushTarget instanceof Promise)) {
+        throw Error(`OCapN: op:flush expected a promise, got ${flushTarget}`);
+      }
+      E.sendOnly(shortener).run(flushTarget);
+    },
     'op:get': message => {
       const { receiverDesc, fieldName, answerPosition } = message;
       logger.info(`get`, { receiverDesc, fieldName, answerPosition });

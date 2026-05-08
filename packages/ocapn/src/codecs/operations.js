@@ -119,6 +119,20 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
+  // op:flush is a FIFO marker on a promise reference. The receiver, after
+  // processing all prior messages on the reference, invokes `run(value)` on
+  // the supplied shortener so the sender learns the flush has reached the
+  // current end of the chain. Used to preserve per-reference FIFO order
+  // across promise shortening.
+  const OpFlushCodec = makeOcapnRecordCodecFromDefinition(
+    'OpFlush',
+    'op:flush',
+    {
+      to: RemotePromiseCodec,
+      resolveMeDesc: ResolveMeDescCodec,
+    },
+  );
+
   /** @typedef {[...any[]]} OpDeliverArgs */
 
   // Used by op:deliver
@@ -202,6 +216,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     OpUntagCodec,
     OpAbortCodec,
     OpListenCodec,
+    OpFlushCodec,
     OpGcExportsCodec,
     OpGcAnswersCodec,
   });

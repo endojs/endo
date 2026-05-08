@@ -144,6 +144,35 @@ export const table = [
     }),
   },
   {
+    // <op:flush to-desc          ; desc:export | desc:answer
+    //           shortener-desc>  ; desc:import-object
+    name: 'op:flush with desc:export',
+    makeValue: testKit => ({
+      type: 'op:flush',
+      to: testKit.referenceKit.provideRemotePromiseValue(1n),
+      resolveMeDesc: testKit.makeLocalObject(2n),
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:flush',
+      to: testKit.makeLocalPromise(1n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(2n),
+    }),
+  },
+  {
+    // <op:flush <desc:answer 5> <desc:import-object 3>>
+    name: 'op:flush with desc:answer',
+    makeValue: testKit => ({
+      type: 'op:flush',
+      to: testKit.makeRemoteAnswer(5n),
+      resolveMeDesc: testKit.makeLocalObject(3n),
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:flush',
+      to: testKit.makeLocalAnswer(5n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(3n),
+    }),
+  },
+  {
     // <op:gc-exports export-positions   ; list of non-negative integers
     //               wire-deltas>       ; list of positive integers
     name: 'op:gc-exports',
