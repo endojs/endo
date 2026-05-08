@@ -5,7 +5,7 @@
 | **Created** | 2026-05-07 |
 | **Updated** | 2026-05-07 |
 | **Author** | Joshua T Corbin (PLAN) |
-| **Author** | Kris Kowal (designs/ mirror) |
+| **Author** | kriscendobot (prompted by kriskowal) |
 | **Status** | In Progress (Phase 3) |
 
 ## Source
@@ -300,16 +300,16 @@ later phases broaden platform support and harden the slice.
 The PLAN is the authoritative source for phase status; the table
 below is the roadmap-aligned summary.
 
-| Phase | Description                              | Status        |
-|-------|------------------------------------------|---------------|
-| 0     | Driver interface design                  | **Complete**  |
-| 1     | bwrap driver on Linux                    | **Complete**  |
-| 1.5   | bwrap hardening (Landlock, seccomp, cgroups) | Not Started |
-| 2     | podman driver                            | In Progress   |
-| 3     | Nested slices (`fork()`)                 | In Progress   |
-| 4     | macOS via lima and Apple Containerization | Not Started   |
-| 6     | Windows via WSL2                         | Not Started   |
-| 7     | Focused tools and renderer integration   | Deferred      |
+| Phase | Description                                  | Status       |
+| ----- | -------------------------------------------- | ------------ |
+| 0     | Driver interface design                      | **Complete** |
+| 1     | bwrap driver on Linux                        | **Complete** |
+| 1.5   | bwrap hardening (Landlock, seccomp, cgroups) | Not Started  |
+| 2     | podman driver                                | In Progress  |
+| 3     | Nested slices (`fork()`)                     | In Progress  |
+| 4     | macOS via lima and Apple Containerization    | Not Started  |
+| 6     | Windows via WSL2                             | Not Started  |
+| 7     | Focused tools and renderer integration       | Deferred     |
 
 Phase 5 is intentionally absent;
 the original Phase 5 (Apple Containerization) has been folded into
