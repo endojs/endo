@@ -29,10 +29,9 @@ export const getSummary = async () => {
   // Display before/after comparison
   for (const result of results) {
     const { title, ...values } = result;
-    summary[title] = {};
     for (const [key, { before, after }] of Object.entries(values)) {
-      const propagated = before !== after ? '✓ LIVE' : '✗ STATIC';
-      summary[title][key] = propagated;
+      const propagated = before !== after ? 'LIVE' : 'STATIC';
+      summary[`${title}/${key}`] = propagated;
     }
   }
 

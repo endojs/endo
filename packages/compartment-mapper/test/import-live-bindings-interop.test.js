@@ -32,5 +32,13 @@ test('import mutability compared with node.js', async t => {
     node: await result.getSummary(),
     ses: await namespace.getSummary(),
   };
-  t.deepEqual(compare.node, compare.ses, 'expected: node.js actual: ses');
+  const differences = Object.entries(compare.node).map(([key, value]) => {
+    if(value !== compare.ses[key]) {
+      return `[!] ${key}: node=${value} endo=${compare.ses[key]} `;
+    } else {
+      return `    ${key}: both ${value}`;
+    }
+  })
+  t.log(differences.join('\n'));
+  t.snapshot(differences);
 });
