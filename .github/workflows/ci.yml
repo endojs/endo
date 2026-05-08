@@ -7,6 +7,16 @@ on:
   push:
     branches: [master]
   pull_request:
+    # `paths-ignore` causes the workflow not to run at all when every
+    # changed path matches one of these patterns. If `llm` (or any
+    # other base branch) ever gains required-status-check protection
+    # naming the `test` job, doc-only PRs would then be blocked from
+    # merging because the required check would be reported as
+    # "missing" rather than "passed". The fix at that point would be
+    # to add a no-op `test` job on a parallel workflow that runs on
+    # the doc-only path so the required check exists. As of this PR,
+    # `llm` has no branch protection rules and `master` does not name
+    # `test` as required, so no synthesis job is needed.
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
