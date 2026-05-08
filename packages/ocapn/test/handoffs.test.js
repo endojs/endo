@@ -5,17 +5,16 @@ import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { testWithErrorUnwrapping, makeTestClient } from './_util.js';
 import { encodeSwissnum, locationToLocationId } from '../src/client/util.js';
-import {
-  randomGiftId,
-  signHandoffGive,
-  signHandoffReceive,
-} from '../src/cryptography.js';
+import { makeCryptography, randomGiftId } from '../src/cryptography.js';
+import { syrupCodec } from '../src/syrup/index.js';
 import {
   makeHandoffGiveDescriptor,
   makeHandoffGiveSigEnvelope,
   makeHandoffReceiveDescriptor,
   makeHandoffReceiveSigEnvelope,
 } from '../src/codecs/descriptors.js';
+
+const { signHandoffGive, signHandoffReceive } = makeCryptography(syrupCodec);
 
 const makeTestClientTrio = async ({
   makeDefaultSwissnumTable,
@@ -333,6 +332,7 @@ testWithErrorUnwrapping(
       );
 
       // Second withdrawal with reused handoff-count should fail
+      /** @type {Error | undefined} */
       let replayError;
       try {
         await E(bootstrapBFromC)['withdraw-gift'](signedReceive2);
@@ -342,14 +342,13 @@ testWithErrorUnwrapping(
       }
 
       t.truthy(replayError, 'replay attack threw an error');
-      const thrownReplayError = /** @type {Error} */ (replayError);
       t.regex(
-        String(thrownReplayError.message),
+        String(replayError?.message),
         /Gift handoff already used/,
         'error mentions handoff already used',
       );
       t.regex(
-        String(thrownReplayError.message),
+        String(replayError?.message),
         /0/,
         'error mentions the reused handoff count 0',
       );
@@ -398,6 +397,7 @@ testWithErrorUnwrapping('deposit-gift rejects non-local gift', async t => {
 
     // Attempt to deposit A's local object at B
     // B should reject because objA is not local to B
+    /** @type {Error | undefined} */
     let depositError;
     try {
       await E(bootstrapBFromA)['deposit-gift'](giftId, objA);
@@ -407,9 +407,8 @@ testWithErrorUnwrapping('deposit-gift rejects non-local gift', async t => {
     }
 
     t.truthy(depositError, 'deposit-gift threw an error');
-    const thrownDepositError = /** @type {Error} */ (depositError);
     t.regex(
-      String(thrownDepositError.message),
+      String(depositError?.message),
       /Gift must be local/,
       'error mentions gift must be local',
     );
@@ -445,6 +444,7 @@ testWithErrorUnwrapping(
       const giftId = randomGiftId();
       const structGift = harden({ foo: 'bar', count: 42 });
 
+      /** @type {Error | undefined} */
       let depositError;
       try {
         await E(bootstrapBFromA)['deposit-gift'](giftId, structGift);
@@ -454,9 +454,8 @@ testWithErrorUnwrapping(
       }
 
       t.truthy(depositError, 'deposit-gift threw an error');
-      const thrownDepositError = /** @type {Error} */ (depositError);
       t.regex(
-        String(thrownDepositError.message),
+        String(depositError?.message),
         /Gift must be remotable/,
         'error mentions gift must be remotable',
       );

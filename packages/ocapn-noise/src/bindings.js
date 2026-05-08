@@ -1,9 +1,11 @@
 /* eslint-disable no-use-before-define */
 
+import harden from '@endo/harden';
+
 /**
  * @typedef {object} SigningKeys
- * @property {Uint8Array} privateKey - The ed25519 private signing key (32 bytes)
- * @property {Uint8Array} publicKey - The ed25519 public verifying key (32 bytes)
+ * @property {Uint8Array} privateKey - The ed25519 signing-key seed (32 bytes)
+ * @property {Uint8Array} publicKey - The ed25519 verifying key (32 bytes)
  */
 
 /**
@@ -28,27 +30,24 @@
 
 /**
  * @typedef {object} InitiatorWriteSynResult
- * @property {(synack: Uint8Array, ack: Uint8Array) => InitiatorReadSynackWriteAckResult} initiatorReadSynackWriteAck - Function to read SYNACK and write ACK
+ * @property {(synack: Uint8Array) => InitiatorReadSynackResult} initiatorReadSynack - Function to read SYNACK and finalize the handshake
  */
 
 /**
  * @typedef {object} ResponderReadSynWriteSynackResult
- * @property {Uint8Array} initiatorVerifyingKey - The initiator's public verifying key (32 bytes)
- * @property {(ack: Uint8Array) => ResponderReadAckResult} responderReadAck - Function to read ACK message
+ * @property {Uint8Array} initiatorVerifyingKey - The initiator's ed25519 verifying key (32 bytes)
+ * @property {number} encoding - The negotiated encoding version
+ * @property {(message: Uint8Array) => Uint8Array} encrypt - Function to encrypt session messages
+ * @property {(message: Uint8Array) => Uint8Array} decrypt - Function to decrypt session messages
+ * @property {Uint8Array} handshakeHash - 32-byte Noise handshake hash for channel binding
  */
 
 /**
- * @typedef {object} InitiatorReadSynackWriteAckResult
+ * @typedef {object} InitiatorReadSynackResult
  * @property {number} encoding - The negotiated encoding version
- * @property {(message: Uint8Array) => Uint8Array} encrypt - Function to encrypt messages
- * @property {(message: Uint8Array) => Uint8Array} decrypt - Function to decrypt messages
- */
-
-/**
- * @typedef {object} ResponderReadAckResult
- * @property {number} encoding - The negotiated encoding version
- * @property {(message: Uint8Array) => Uint8Array} encrypt - Function to encrypt messages
- * @property {(message: Uint8Array) => Uint8Array} decrypt - Function to decrypt messages
+ * @property {(message: Uint8Array) => Uint8Array} encrypt - Function to encrypt session messages
+ * @property {(message: Uint8Array) => Uint8Array} decrypt - Function to decrypt session messages
+ * @property {Uint8Array} handshakeHash - 32-byte Noise handshake hash for channel binding
  */
 
 /**
@@ -57,40 +56,36 @@
  * @property {() => ResponderResult} asResponder - Create a responder instance
  */
 
-// const PRIVATE_CRYPT_KEY_OFFSET = 0;
-// const PRIVATE_CRYPT_KEY_LENGTH = 32;
-// const PUBLIC_CRYPT_KEY_OFFSET = 32;
-// const PUBLIC_CRYPT_KEY_LENGTH = 32;
+// BUFFER offsets (must match `rust/ocapn_noise/src/lib.rs`).
 const SIGNING_KEY_OFFSET = 64;
 const SIGNING_KEY_LENGTH = 32;
 const INTENDED_RESPONDER_KEY_OFFSET = 96;
 const INTENDED_RESPONDER_KEY_LENGTH = 32;
 const INITIATOR_VERIFYING_KEY_OFFSET = 128;
 const VERIFYING_KEY_LENGTH = 32;
-// const INITIATOR_SIGNATURE_OFFSET = 160;
-// const SIGNATURE_LENGTH = 64;
-const FIRST_ENCODING_OFFSET = 224;
-// const OTHER_ENCODINGS_OFFSET = 226;
-// const SYN_PAYLOAD_OFFSET = 128;
-const SYN_PAYLOAD_LENGTH = 100;
+// FIRST_ENCODING + OTHER_ENCODINGS bitmask sit inside the encrypted SYN
+// payload at the tail, immediately after INITIATOR_VERIFYING_KEY:
+//   SYN_PAYLOAD = INITIATOR_VERIFYING_KEY (32B) || encoding (4B) = 36B
+const FIRST_ENCODING_OFFSET = 160;
 const SYN_OFFSET = 256;
-export const SYN_LENGTH = 32 + SYN_PAYLOAD_LENGTH;
+// SYN = 32 (e) + 32 + 16 (encrypted s) + 36 + 16 (encrypted payload).
+export const SYN_LENGTH = 132;
 export const PREFIXED_SYN_LENGTH = INTENDED_RESPONDER_KEY_LENGTH + SYN_LENGTH;
-// const SYNACK_PAYLOAD_OFFSET = 416;
-const SYNACK_PAYLOAD_LENGTH = 97;
+const ACCEPTED_ENCODING_OFFSET = 416;
 const SYNACK_OFFSET = 544;
-export const SYNACK_LENGTH = 96 + SYNACK_PAYLOAD_LENGTH; // 129
-const RESPONDER_VERIFYING_KEY_OFFSET = 416;
-// const RESPONDER_SIGNATURE_OFFSET = 448;
-const ACCEPTED_ENCODING_OFFSET = 512;
-const ACK_OFFSET = 768;
-export const ACK_LENGTH = 64;
+// SYNACK = 32 (e) + 1 + 16 (encrypted payload).
+export const SYNACK_LENGTH = 49;
+const HANDSHAKE_HASH_OFFSET = 800;
+export const HANDSHAKE_HASH_LENGTH = 32;
 
 /**
  * Encodes supported encoding versions into a buffer for transmission.
  *
- * @param {Uint8Array} bytes - The view to write to (must be at least 2 bytes)
- * @param {number[]} supportedEncodings - Array of supported encoding versions (1-9 versions, each 0-65536)
+ * @param {Uint8Array} bytes - The view to write to (must be at least 4 bytes:
+ *   2 bytes for the first encoding + 2 bytes for the mask of additional encodings)
+ * @param {number[]} supportedEncodings - Array of supported encoding versions
+ *   (1-17 distinct versions, each 0-65535, with the highest no more than 16
+ *   versions above the lowest)
  * @throws {Error} If no encodings provided, too many encodings, or invalid encoding values
  */
 // exported for testing
@@ -162,6 +157,16 @@ const decodeSupportedEncodingsFrom = bytes => {
 /**
  * Creates an OCapN Session Cryptography instance for Noise Protocol handshakes.
  *
+ * Implements `Noise_IK_25519_ChaChaPoly_BLAKE2s`.  The initiator must
+ * know the responder's Ed25519 verifying key in advance; the WASM
+ * derives both peers' static X25519 keys from their Ed25519 seeds via
+ * `to_scalar_bytes()` / `to_montgomery()` (the libsodium / age /
+ * wireguard-tools convention) so a single Ed25519 keypair backs both
+ * the OCapN identity and the Noise handshake.
+ *
+ * The handshake completes after Noise message 2; there is no message
+ * 3 (ACK).
+ *
  * @param {OcapnSessionCryptographyOptions} options - Configuration options
  * @returns {OcapnSessionCryptography} The cryptography instance
  */
@@ -198,16 +203,23 @@ export const makeOcapnSessionCryptography = ({
   const wasmInstance = new WebAssembly.Instance(wasmModule, imports);
 
   /**
+   * Snapshot the post-handshake hash from the WASM buffer into a fresh
+   * `Uint8Array` that survives later buffer mutations.
+   * @returns {Uint8Array}
+   */
+  const readHandshakeHash = () =>
+    buffer.slice(
+      HANDSHAKE_HASH_OFFSET,
+      HANDSHAKE_HASH_OFFSET + HANDSHAKE_HASH_LENGTH,
+    );
+
+  /**
    * Creates an initiator instance for the handshake.
    *
    * @returns {InitiatorResult} The initiator instance with signing keys and SYN function
    */
   const asInitiator = () => {
     wasmInstance.exports.buffer();
-    encodeSupportedEncodingsInto(
-      buffer.subarray(FIRST_ENCODING_OFFSET, FIRST_ENCODING_OFFSET + 2),
-      supportedEncodings,
-    );
     if (signingKeys) {
       buffer
         .subarray(SIGNING_KEY_OFFSET, SIGNING_KEY_OFFSET + SIGNING_KEY_LENGTH)
@@ -231,16 +243,24 @@ export const makeOcapnSessionCryptography = ({
       signingKeys = { privateKey, publicKey };
     }
 
-    return {
+    // The encoding-negotiation bytes live inside the (encrypted) SYN
+    // payload at offset 160; place them now so write_message picks
+    // them up.
+    encodeSupportedEncodingsInto(
+      buffer.subarray(FIRST_ENCODING_OFFSET, FIRST_ENCODING_OFFSET + 4),
+      supportedEncodings,
+    );
+
+    return harden({
       signingKeys,
       initiatorWriteSyn,
-    };
+    });
   };
 
   /**
    * Creates a responder instance for the handshake.
    *
-   * @returns {ResponderResult} The responder instance with signing keys and SYN/SYNACK function
+   * @returns {ResponderResult} The responder instance
    */
   const asResponder = () => {
     if (signingKeys) {
@@ -248,10 +268,14 @@ export const makeOcapnSessionCryptography = ({
       buffer
         .subarray(SIGNING_KEY_OFFSET, SIGNING_KEY_OFFSET + SIGNING_KEY_LENGTH)
         .set(signingKeys.privateKey);
+      // For IK the responder's verifying key sits at INTENDED_RESPONDER_KEY
+      // (the routing slot the initiator dialed against).  The Rust side
+      // recomputes it from the seed and asserts equality, so this copy
+      // is the JS-side ground truth for both directions.
       buffer
         .subarray(
-          RESPONDER_VERIFYING_KEY_OFFSET,
-          RESPONDER_VERIFYING_KEY_OFFSET + VERIFYING_KEY_LENGTH,
+          INTENDED_RESPONDER_KEY_OFFSET,
+          INTENDED_RESPONDER_KEY_OFFSET + INTENDED_RESPONDER_KEY_LENGTH,
         )
         .set(signingKeys.publicKey);
     } else {
@@ -261,29 +285,28 @@ export const makeOcapnSessionCryptography = ({
         SIGNING_KEY_OFFSET + SIGNING_KEY_LENGTH,
       );
       const publicKey = buffer.slice(
-        RESPONDER_VERIFYING_KEY_OFFSET,
-        RESPONDER_VERIFYING_KEY_OFFSET + VERIFYING_KEY_LENGTH,
+        INTENDED_RESPONDER_KEY_OFFSET,
+        INTENDED_RESPONDER_KEY_OFFSET + INTENDED_RESPONDER_KEY_LENGTH,
       );
       signingKeys = { privateKey, publicKey };
     }
-    return {
+    return harden({
       signingKeys,
       responderReadSynWriteSynack,
-    };
+    });
   };
 
   /**
    * Writes the prefixed SYN message for the initiator.
    * The prefixed SYN includes the intended responder's public key in cleartext
-   * followed by the encrypted SYN message, enabling relay routing.
+   * followed by the encrypted Noise-IK SYN message, enabling relay routing.
    *
-   * @param {Uint8Array} intendedResponderKey - The responder's ed25519 public verifying key (32 bytes)
+   * @param {Uint8Array} intendedResponderKey - The responder's ed25519 verifying key (32 bytes)
    * @param {Uint8Array} prefixedSyn - Buffer to write the prefixed SYN message to (must be PREFIXED_SYN_LENGTH bytes)
    * @returns {InitiatorWriteSynResult} Result containing the next handshake function
    * @throws {Error} If SYN message cannot be written
    */
   const initiatorWriteSyn = (intendedResponderKey, prefixedSyn) => {
-    // Store the intended responder key in the buffer for potential future use
     buffer
       .subarray(
         INTENDED_RESPONDER_KEY_OFFSET,
@@ -294,11 +317,22 @@ export const makeOcapnSessionCryptography = ({
     const code = wasmInstance.exports.initiator_write_syn();
     if (code === 1) {
       throw new Error(
-        `OCapN Noise Protocol could not write initiator's SYN message`,
+        "OCapN Noise Protocol could not load initiator's ed25519 signing key",
+      );
+    } else if (code === 2) {
+      throw new Error(
+        "OCapN Noise Protocol could not derive initiator's static x25519 keypair",
+      );
+    } else if (code === 3) {
+      throw new Error(
+        'OCapN Noise Protocol intended responder key is not a valid ed25519 verifying key',
+      );
+    } else if (code === 4) {
+      throw new Error(
+        "OCapN Noise Protocol could not write initiator's SYN message",
       );
     }
 
-    // Output: intended responder key (32 bytes cleartext) + SYN (132 bytes)
     prefixedSyn
       .subarray(0, INTENDED_RESPONDER_KEY_LENGTH)
       .set(intendedResponderKey);
@@ -309,21 +343,19 @@ export const makeOcapnSessionCryptography = ({
       )
       .set(buffer.subarray(SYN_OFFSET, SYN_OFFSET + SYN_LENGTH));
 
-    return { initiatorReadSynackWriteAck };
+    return harden({ initiatorReadSynack });
   };
 
   /**
-   * Reads the prefixed SYN message and writes the SYNACK message for the responder.
-   * The prefixed SYN includes the intended responder's public key in cleartext
-   * followed by the encrypted SYN message.
+   * Reads the prefixed SYN message and writes the SYNACK message for
+   * the responder.  The Noise IK handshake completes after this call;
+   * subsequent reads/writes use `encrypt`/`decrypt` directly.
    *
    * @param {Uint8Array} prefixedSyn - The prefixed SYN message from the initiator (PREFIXED_SYN_LENGTH bytes)
    * @param {Uint8Array} synack - Buffer to write the SYNACK message to (must be SYNACK_LENGTH bytes)
-   * @returns {ResponderReadSynWriteSynackResult} Result containing initiator's key, accepted encoding, and next function
-   * @throws {Error} If SYN message is invalid, intended for wrong responder, signature verification fails, or no mutually supported encodings
+   * @returns {ResponderReadSynWriteSynackResult} The initiator's verifying key, negotiated encoding, ciphers, and handshake hash
    */
   const responderReadSynWriteSynack = (prefixedSyn, synack) => {
-    // Extract intended responder key and SYN from prefixed message
     buffer
       .subarray(
         INTENDED_RESPONDER_KEY_OFFSET,
@@ -339,39 +371,30 @@ export const makeOcapnSessionCryptography = ({
         ),
       );
 
-    let code = wasmInstance.exports.responder_read_syn();
-    if (code === 1) {
+    // Step 1: read msg 1.  Decrypts the SYN payload into BUFFER so we
+    // can read the initiator's encoding offers below.
+    const readCode = wasmInstance.exports.responder_read_syn();
+    if (readCode === 1) {
       throw new Error(
-        "OCapN Noise Protocol responder cannot read initiator's ed25519 signing key",
+        "OCapN Noise Protocol could not load responder's ed25519 signing key",
       );
-    } else if (code === 2) {
+    } else if (readCode === 2) {
       throw new Error(
-        "OCapN Noise Protocol responder cannot read initiator's SYN message",
+        "OCapN Noise Protocol could not derive responder's static x25519 keypair",
       );
-    } else if (code === 3) {
-      throw new Error(
-        "OCapN Noise Protocol responder cannot get initiator's static x25519 encryption key",
-      );
-    } else if (code === 4) {
-      throw new Error(
-        "OCapN Noise Protocol responder cannot read initiator's ed25519 signature of their x25519 encryption key",
-      );
-    } else if (code === 5) {
-      throw new Error(
-        "OCapN Noise Protocol responder cannot read initiator's ed25519 purported public verifying key",
-      );
-    } else if (code === 6) {
-      throw new Error(
-        "OCapN Noise Protocol initiator's purported ed25519 signature does not correspond to their actual x25519 public encryption key",
-      );
-    } else if (code === 7) {
+    } else if (readCode === 3) {
       throw new Error(
         'OCapN Noise Protocol SYN intended for different responder',
       );
+    } else if (readCode === 4) {
+      throw new Error(
+        "OCapN Noise Protocol responder cannot read initiator's SYN message",
+      );
     }
 
+    // Negotiate against the initiator's freshly-decrypted offer set.
     const initiatorSupportedEncodings = decodeSupportedEncodingsFrom(
-      buffer.subarray(FIRST_ENCODING_OFFSET, FIRST_ENCODING_OFFSET + 2),
+      buffer.subarray(FIRST_ENCODING_OFFSET, FIRST_ENCODING_OFFSET + 4),
     );
     let acceptedEncoding;
     for (const encoding of initiatorSupportedEncodings.reverse()) {
@@ -385,16 +408,26 @@ export const makeOcapnSessionCryptography = ({
         `OCapN Noise Protocol no mutually supported encoding versions. Responder supports ${supportedEncodings.join(', ')}; initiator supports ${initiatorSupportedEncodings.join(', ')}`,
       );
     }
+    if (acceptedEncoding > 255) {
+      throw new Error(
+        `OCapN Noise Protocol negotiated encoding ${acceptedEncoding} exceeds the SYNACK payload's 1-byte field`,
+      );
+    }
     buffer[ACCEPTED_ENCODING_OFFSET] = acceptedEncoding;
 
-    code = wasmInstance.exports.responder_write_synack();
-    if (code === 1) {
+    // Step 2: write msg 2 with the negotiated encoding byte in place.
+    const writeCode = wasmInstance.exports.responder_write_synack();
+    if (writeCode === 1) {
       throw new Error(
         'Failed invariant: OCapN Noise Protocol responder handshake not initialized',
       );
-    } else if (code === 2) {
+    } else if (writeCode === 2) {
       throw new Error(
         'OCapN Noise Protocol responder cannot write SYNACK message',
+      );
+    } else if (writeCode === 3) {
+      throw new Error(
+        'Failed invariant: OCapN Noise Protocol responder handshake did not complete after msg 2',
       );
     }
 
@@ -403,118 +436,45 @@ export const makeOcapnSessionCryptography = ({
       INITIATOR_VERIFYING_KEY_OFFSET,
       INITIATOR_VERIFYING_KEY_OFFSET + VERIFYING_KEY_LENGTH,
     );
+    const handshakeHash = readHandshakeHash();
 
-    return {
+    return harden({
       initiatorVerifyingKey,
-      responderReadAck,
-    };
+      encoding: acceptedEncoding,
+      encrypt,
+      decrypt,
+      handshakeHash,
+    });
   };
 
   /**
-   * Reads the SYNACK message and writes the ACK message for the initiator.
+   * Reads the SYNACK message and finalizes the handshake for the
+   * initiator.  No further wire message follows.
    *
-   * @param {Uint8Array} synack - The SYNACK message from the responder
-   * @param {Uint8Array} ack - Buffer to write the ACK message to (must be ACK_LENGTH bytes)
-   * @returns {InitiatorReadSynackWriteAckResult} Result containing negotiated encoding and encrypt/decrypt functions
-   * @throws {Error} If SYNACK message is invalid, signature verification fails, or handshake not initialized
+   * @param {Uint8Array} synack - The SYNACK message from the responder (SYNACK_LENGTH bytes)
+   * @returns {InitiatorReadSynackResult} The negotiated encoding, ciphers, and handshake hash
    */
-  const initiatorReadSynackWriteAck = (synack, ack) => {
-    {
-      buffer.subarray(SYNACK_OFFSET).subarray(0, SYNACK_LENGTH).set(synack);
-      const code = wasmInstance.exports.initiator_read_synack();
-      if (code === 1) {
-        throw new Error(
-          `Failed invariant: OCapN Noise Protocol initiator handshake not initialized`,
-        );
-      } else if (code === 2) {
-        throw new Error(
-          `OCapN Noise Protocol initiator cannot read responder's ACK message`,
-        );
-      } else if (code === 3) {
-        throw new Error(
-          `Failed invariant: OCapN Noise Protocol initiator cannot get responder's static x25519 encryption key`,
-        );
-      } else if (code === 4) {
-        throw new Error(
-          `OCapN Noise Protocol initiator cannot read responder's ed25519 signature of their x25519 encryption key`,
-        );
-      } else if (code === 5) {
-        throw new Error(
-          `OCapN Noise Protocol initiator cannot read responder's ed25519 purported public verifying key`,
-        );
-      } else if (code === 6) {
-        throw new Error(
-          `OCapN Noise Protocol responder's purported ed25519 signature does not correpond to their actual x25519 public encryption key`,
-        );
-      }
-    }
-    {
-      const code = wasmInstance.exports.initiator_write_ack();
-      if (code === 1) {
-        throw new Error(
-          'Failed invariant: OCapN Noise Protocol initiator handshake not initialized',
-        );
-      } else if (code === 2) {
-        throw new Error(
-          'OCapN Noise Protocol initiator cannot write ACK message',
-        );
-      }
-      ack.set(buffer.subarray(ACK_OFFSET).subarray(0, ACK_LENGTH));
-    }
-    const encoding = buffer[ACCEPTED_ENCODING_OFFSET];
-
-    return {
-      encoding,
-      encrypt,
-      decrypt,
-    };
-  };
-
-  /**
-   * Reads the ACK message for the responder to complete the handshake.
-   *
-   * @param {Uint8Array} ack - The ACK message from the initiator
-   * @returns {ResponderReadAckResult} Result containing negotiated encoding and encrypt/decrypt functions
-   * @throws {Error} If ACK message is invalid, signature verification fails, or handshake not initialized
-   */
-  const responderReadAck = ack => {
-    {
-      buffer.subarray(ACK_OFFSET).subarray(0, ACK_LENGTH).set(ack);
-      const code = wasmInstance.exports.responder_read_ack();
-      if (code === 1) {
-        throw new Error(
-          `Failed invariant: OCapN Noise Protocol responder handshake not initialized`,
-        );
-      } else if (code === 2) {
-        throw new Error(
-          `OCapN Noise Protocol responder cannot read initiator's ACK message`,
-        );
-      } else if (code === 3) {
-        throw new Error(
-          `Failed invariant: OCapN Noise Protocol responder cannot get initiator's static x25519 encryption key`,
-        );
-      } else if (code === 4) {
-        throw new Error(
-          `OCapN Noise Protocol responder cannot read initiator's ed25519 signature of their x25519 encryption key`,
-        );
-      } else if (code === 5) {
-        throw new Error(
-          `OCapN Noise Protocol responder cannot read initiator's ed25519 purported public verifying key`,
-        );
-      } else if (code === 6) {
-        throw new Error(
-          `OCapN Noise Protocol initiator's purported ed25519 signature does not correpond to their actual x25519 public encryption key`,
-        );
-      }
+  const initiatorReadSynack = synack => {
+    buffer.subarray(SYNACK_OFFSET, SYNACK_OFFSET + SYNACK_LENGTH).set(synack);
+    const code = wasmInstance.exports.initiator_read_synack();
+    if (code === 1) {
+      throw new Error(
+        'Failed invariant: OCapN Noise Protocol initiator handshake not initialized',
+      );
+    } else if (code === 2) {
+      throw new Error(
+        "OCapN Noise Protocol initiator cannot read responder's SYNACK message",
+      );
     }
 
     const encoding = buffer[ACCEPTED_ENCODING_OFFSET];
-
-    return {
+    const handshakeHash = readHandshakeHash();
+    return harden({
       encoding,
       encrypt,
       decrypt,
-    };
+      handshakeHash,
+    });
   };
 
   /**
@@ -573,8 +533,8 @@ export const makeOcapnSessionCryptography = ({
     return buffer.slice(0, message.length - 16);
   };
 
-  return {
+  return harden({
     asInitiator,
     asResponder,
-  };
+  });
 };

@@ -38,8 +38,8 @@ export const ocapnPassStyleOf = value => {
   try {
     return passStyleOf(value);
   } catch (error) {
-    throw Error(
-      `Unexpected value ${value} for OcapnPassable: ${/** @type {Error} */ (error).message}`,
-    );
+    throw Error(`Unexpected value ${value} for OcapnPassable`, {
+      cause: error,
+    });
   }
 };

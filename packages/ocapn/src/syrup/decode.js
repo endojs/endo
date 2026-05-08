@@ -302,6 +302,13 @@ export function peekTypeHint(bufferReader, name) {
 
 export class SyrupReader {
   /**
+   * Record label type preference for this codec.
+   * Syrup uses selectors (symbols) for record labels.
+   * @type {'selector'}
+   */
+  recordLabelType = 'selector';
+
+  /**
    * @param {BufferReader} bufferReader
    * @param {object} options
    * @param {string} [options.name]

@@ -6,7 +6,8 @@ import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { getSelectorName } from '../../src/selector.js';
 import { makeTcpNetLayer } from '../../src/netlayers/tcp-test-only.js';
-import { makeClient } from '../../src/client/index.js';
+import { makeOcapn } from '../../src/client/index.js';
+import { syrupCodec } from '../../src/syrup/index.js';
 import { startGcScheduler } from '../_gc-util.js';
 
 /**
@@ -85,7 +86,7 @@ const makeTestObjectTable = client => {
    * receipt of a message it should send the greeting "Hello" (string) to the object
    * referenced by the argument.
    *
-   * This greeting should be sent as `op:deliver` (with no answer / no resolver) and
+   * This greeting should be sent as a `op:deliver` (**not** `op:deliver-only`) and
    * the resulting promise should be discarded (no references retained). The
    * implementation should (if possible) try to arrange so that the GC is run
    * upon resolution of the promise.
@@ -140,10 +141,10 @@ const makeTestObjectTable = client => {
    */
   testObjectTable.set(
     'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
-    Far('sturdyrefEnlivener', async sturdyref => {
-      console.log('sturdyrefEnlivener called with', { sturdyref });
-      // SturdyRefs are tagged objects that must be enlivened via the client
-      return client.enlivenSturdyRef(sturdyref);
+    Far('caprefResolver', async sturdyRef => {
+      console.log('caprefResolver called with', { sturdyRef });
+      // SturdyRefs are tagged objects that must be resolved via the client
+      return client.enlivenSturdyRef(sturdyRef);
     }),
   );
 
@@ -154,20 +155,24 @@ const start = async () => {
   // Run the GC scheduler in the background
   startGcScheduler();
 
-  const client = makeClient({ verbose: true });
-  const testObjectTable = makeTestObjectTable(client);
-  // Register the test objects with the client's swissnumTable
+  // Build the locator first so we can populate it with test objects;
+  // the `makeOcapn` call then hands it to CapTP as-is.
+  const locator = new Map();
+  const ocapn = await makeOcapn({
+    codec: syrupCodec,
+    verbose: true,
+    locator,
+    network: (handlers, logger) =>
+      makeTcpNetLayer({
+        handlers,
+        logger,
+        specifiedPort: 22046,
+      }),
+  });
+  const testObjectTable = makeTestObjectTable(ocapn);
   for (const [swissStr, object] of testObjectTable.entries()) {
-    client.registerSturdyRef(swissStr, object);
+    locator.set(swissStr, object);
   }
-  // Register netlayer with client
-  await client.registerNetlayer((handlers, logger) =>
-    makeTcpNetLayer({
-      handlers,
-      logger,
-      specifiedPort: 22046,
-    }),
-  );
 };
 
 start();

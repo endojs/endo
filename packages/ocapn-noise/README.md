@@ -3,56 +3,143 @@
 Provides a [Noise Protocol](https://noiseprotocol.org/) netlayer for
 `@endo/ocapn`.
 
-The particular Noise Protocol variant is XX-x25519-ChaCha20Poly1305-Blake2 with
-Ed25519 signature verification. Each party signs their ephemeral X25519 encryption
-public key with their Ed25519 signing key during the handshake, providing
-cryptographic proof of ownership of both key pairs.
+The particular Noise Protocol variant is
+**`Noise_IK_25519_ChaChaPoly_BLAKE2s`**.
+Each peer publishes a single Ed25519 long-term identity; the X25519
+keypair Noise needs is derived deterministically from the Ed25519 seed
+via the Edwards-to-Montgomery birational map (the libsodium / age /
+wireguard-tools convention).
+A successful Noise DH against the published Ed25519 identity already
+proves control of the corresponding signing key, so no per-message
+Ed25519 signature appears inside the handshake.
 
-The implementation of the cryptography is Rust compiled to Web Assembly.
-The Rust crate is in the Endo project's repository at `rust/ocapn_noise`.
+The implementation of the cryptography is Rust compiled to Web
+Assembly.
+The Rust crate is in the Endo project's repository at
+`rust/ocapn_noise`.
 
 ## Handshake Protocol
 
-The OCapN Noise Protocol uses a 3-message handshake (SYN, SYNACK, ACK) based on
-the Noise XX pattern with the following enhancements:
+Noise IK is a two-message handshake.
+The initiator already knows the responder's static public key
+(its Ed25519 identity, converted to X25519), which exactly matches
+OCapN's dial-by-identity model.
+The responder learns the initiator's static through the encrypted
+first message.
 
-1. **Key Generation**: Each party generates:
-   - An ephemeral X25519 key pair for encryption
-   - An Ed25519 key pair for signing and verification
+1. **Prefixed SYN (initiator to responder)**:
+   - **Cleartext prefix**: the intended responder's Ed25519 verifying
+     key (32 bytes).
+     This enables relay and hub routing: a relay can read the intended
+     recipient and forward the message without being able to decrypt
+     its contents.
+     The responder verifies the prefix matches its own published key.
+   - **Noise IK message 1**: ephemeral X25519 public key, encrypted
+     initiator static, and an encrypted payload carrying the
+     supported encoding versions.
+     Identity hiding (Noise §7.8 property 8): the initiator's static
+     is encrypted on the wire under the responder's static.
 
-2. **Prefixed SYN Message**: The initiator sends:
-   - **Cleartext prefix**: The intended responder's Ed25519 public verifying key (32 bytes)
-   - **Encrypted payload**:
-     - Their Ed25519 public verifying key
-     - A signature of their X25519 ephemeral public key using their Ed25519 private key
-     - Supported encoding versions
+2. **SYNACK (responder to initiator)**:
+   - **Noise IK message 2**: responder ephemeral, encrypted payload
+     carrying the negotiated encoding version.
+     Reading SYNACK finalizes the handshake on the initiator side and
+     exposes the transcript hash for channel binding.
+     There is no message 3 (ACK).
 
-   The cleartext prefix enables relay/hub routing: a relay can read the intended
-   recipient and forward the message without being able to decrypt its contents.
-   The responder verifies this prefix matches their own public key.
+### Prologue
 
-3. **SYNACK Message**: The responder sends:
-   - Their Ed25519 public verifying key  
-   - A signature of their X25519 ephemeral public key using their Ed25519 private key
-   - The negotiated encoding version
+Both peers feed the same prologue bytes into Noise's symmetric state
+before any wire message is exchanged:
 
-4. **ACK Message**: The initiator sends:
-   - A final message to conclude the Noise Protocol handshake.
+```
+prologue = b"OCapN/np/1\0" || INTENDED_RESPONDER_KEY (32B Ed25519)
+```
 
-Each party verifies the other's signature to ensure they control both the
-ephemeral encryption key and the static signing key, providing strong
-authentication and preventing key substitution attacks.
+The prologue commits the handshake to the OCapN protocol identifier
+plus the responder's published Ed25519 verifying key, so an attacker
+cannot replay a handshake payload across protocols or against a
+different responder.
+A successful handshake binds the channel to the responder identity
+the initiator dialed.
+
+### Channel-bound location signature
+
+Once the handshake completes, each peer exchanges its
+`op:start-session` over the encrypted tunnel.
+The location signature in `op:start-session` carries the Noise
+transcript hash as a channel-binding value, so it cannot be replayed
+across sessions even though it is signed only once per identity.
 
 # Aspirational Design
 
-The OCapN JavaScript netlayer interface is intended to be as near to platform-
-neutral as possible and makes extensive use of language level utilities like
-promises and async iterators in order to avoid coupling to platform-specific
-features like event emitters or event targets.
+The OCapN JavaScript netlayer interface is intended to be as near to
+platform-neutral as possible and makes extensive use of language
+level utilities like promises and async iterators in order to avoid
+coupling to platform-specific features like event emitters or event
+targets.
 
-This OCapN Noise Protocol netlayer is also intended to stand atop multiple
-transport layers, but particularly WebSocket.
-Having a single cryptography over multiple transport protocols allows this
-OCapN netlayer to preserve the identities of message targets regardless of what
-transport capabilities are available on various platforms, such that client,
-server, cloud, edge, and any other kind of peer can join the network.
+This OCapN Noise Protocol netlayer is also intended to stand atop
+multiple transport layers, but particularly WebSocket.
+Having a single cryptography over multiple transport protocols
+allows this OCapN netlayer to preserve the identities of message
+targets regardless of what transport capabilities are available on
+various platforms, such that client, server, cloud, edge, and any
+other kind of peer can join the network.
+
+# Using the `np` network
+
+`makeOcapnNoiseNetwork` starts empty: add signing keys and transports
+at any point during the network's lifetime.
+One network can carry many Ed25519 identities concurrently and route
+inbound sessions to whichever local key the initiator's SYN is
+addressed to.
+
+Everything below the API uses `@endo/stream` `Reader<Uint8Array>` and
+`Writer<Uint8Array>` (transports, session bytes, and the internal
+Noise handshake machinery).
+The Noise WASM module is loaded through a platform-conditional export
+(`./platform`), so callers don't pass it in.
+
+The `np` locator's `designator` is the hex-encoded raw Ed25519 public
+key (64 chars).
+An initiator learns the peer's identity up front from the locator
+itself: no extra hint, no out-of-band step.
+
+Transport plugins:
+
+- `@endo/ocapn-noise/transport/mock`: in-process pair for tests.
+- `@endo/ocapn-noise/transport/tcp`: Node `net` via
+  `@endo/stream-node`.
+- `@endo/ocapn-noise/transport/ws`: `WebSocket`; resolves to a Node
+  variant today, with a browser variant planned via the same subpath.
+
+```js
+import { cborCodec } from '@endo/ocapn/cbor';
+import { makeOcapnNoiseNetwork } from '@endo/ocapn-noise';
+import { makeTcpTransport } from '@endo/ocapn-noise/transport/tcp';
+
+const network = makeOcapnNoiseNetwork({ codec: cborCodec });
+
+// Mint and register an identity.
+const keys = network.generateSigningKeys();
+const keyId = network.addSigningKeys(keys);
+
+// Register one or more transports. Adding a transport that supports
+// `listen` immediately starts accepting inbound sessions.
+await network.addTransport(makeTcpTransport());
+
+// Hand peers our location; they reach us at
+// `ocapn://<keyId>.np?tcp:host=...&tcp:port=...`.
+const myLocation = network.locationFor(keyId);
+
+// Initiate on behalf of a specific identity.
+const session = await network.provideSession(peerLocation, {
+  localKeyId: keyId,
+});
+await session.writer.next(new TextEncoder().encode('hello'));
+```
+
+Both peers must share the same OCapN wire codec; the Noise handshake
+provides mutual Ed25519 authentication but leaves codec selection to
+the embedding application.

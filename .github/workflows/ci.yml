@@ -563,3 +563,43 @@ jobs:
           if [ -f /tmp/ocapn-server.pid ]; then
             kill $(cat /tmp/ocapn-server.pid) || true
           fi
+
+  build-wasm:
+    name: build-wasm
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Cache Cargo + target
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # Bust the cache when sources or the pinned toolchain change.
+          key: ${{ runner.os }}-wasm-${{ hashFiles('rust/ocapn_noise/**', 'Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-
+
+      - name: Install rust target
+        run: |
+          # ubuntu-latest images ship with rustup + stable; this just
+          # adds the wasm32 target.  The pinned channel from
+          # rust/ocapn_noise/rust-toolchain.toml takes effect on the
+          # first cargo invocation under that subdirectory.
+          rustup target add wasm32-unknown-unknown
+
+      - name: Build wasm
+        run: bash rust/ocapn_noise/build.sh
+
+      - name: Verify committed wasm matches source
+        run: |
+          # The artifact is committed for JS-only contributors.  CI
+          # regenerates it from source and asserts the committed copy
+          # is identical.  Drift indicates somebody changed Rust source
+          # without re-running build.sh.
+          git diff --exit-code packages/ocapn-noise/gen/ocapn-noise.wasm

@@ -1,17 +1,14 @@
 // @ts-check
 
 import { ZERO_N } from '@endo/nat';
+import { isWellFormedString } from '@endo/pass-style';
+
 import { BufferWriter } from './buffer-writer.js';
 
 const quote = JSON.stringify;
 const textEncoder = new TextEncoder();
 
 const defaultCapacity = 256;
-
-// For strings, U+D800–U+DFFF are invalid.
-// See https://github.com/ocapn/ocapn/blob/main/draft-specifications/Model.md#string
-const INVALID_STRING_CHARS_START = 0xd800;
-const INVALID_STRING_CHARS_END = 0xdfff;
 
 // const MINUS = '-'.charCodeAt(0);
 // const PLUS = '+'.charCodeAt(0);
@@ -55,21 +52,14 @@ function writeStringlike(bufferWriter, bytes, typeChar) {
  * @param {string} value
  */
 function writeString(bufferWriter, value) {
-  if (typeof value !== 'string') {
-    throw Error(`writeString: Expected string, got ${typeof value}`);
-  }
-  const start = bufferWriter.index;
-  const bytes = textEncoder.encode(value);
-  const invalidChars = Array.from(value).filter(
-    char =>
-      char.charCodeAt(0) >= INVALID_STRING_CHARS_START &&
-      char.charCodeAt(0) <= INVALID_STRING_CHARS_END,
-  );
-  if (invalidChars.length > 0) {
+  // Reject strings with unpaired surrogates - these can't be encoded in UTF-8.
+  // isWellFormedString checks typeof and returns false for lone surrogates.
+  if (!isWellFormedString(value)) {
     throw Error(
-      `Invalid string characters ${invalidChars.map(char => quote(char)).join(', ')} in string ${quote(value)} at index ${start}`,
+      `writeString: Expected well-formed string, got ${quote(value)} at index ${bufferWriter.index}`,
     );
   }
+  const bytes = textEncoder.encode(value);
   writeStringlike(bufferWriter, bytes, '"');
 }
 
@@ -136,6 +126,13 @@ export class SyrupWriter {
   #bufferWriter;
 
   /**
+   * Record label type preference for this codec.
+   * Syrup uses selectors (symbols) for record labels.
+   * @type {'selector'}
+   */
+  recordLabelType = 'selector';
+
+  /**
    * @param {BufferWriter} bufferWriter
    * @param {object} options
    * @param {string} [options.name]
@@ -192,7 +189,11 @@ export class SyrupWriter {
     writeFloat64(this.#bufferWriter, value);
   }
 
-  enterRecord() {
+  /**
+   * Enter a record structure.
+   * @param {number} [_elementCount] - Ignored (Syrup uses delimiters, not counts)
+   */
+  enterRecord(_elementCount) {
     this.#bufferWriter.writeByte(RECORD_START);
   }
 
@@ -200,7 +201,11 @@ export class SyrupWriter {
     this.#bufferWriter.writeByte(RECORD_END);
   }
 
-  enterList() {
+  /**
+   * Enter a list structure.
+   * @param {number} [_elementCount] - Ignored (Syrup uses delimiters, not counts)
+   */
+  enterList(_elementCount) {
     this.#bufferWriter.writeByte(LIST_START);
   }
 
@@ -208,7 +213,11 @@ export class SyrupWriter {
     this.#bufferWriter.writeByte(LIST_END);
   }
 
-  enterDictionary() {
+  /**
+   * Enter a dictionary structure.
+   * @param {number} [_pairCount] - Ignored (Syrup uses delimiters, not counts)
+   */
+  enterDictionary(_pairCount) {
     this.#bufferWriter.writeByte(DICT_START);
   }
 
@@ -216,7 +225,11 @@ export class SyrupWriter {
     this.#bufferWriter.writeByte(DICT_END);
   }
 
-  enterSet() {
+  /**
+   * Enter a set structure.
+   * @param {number} [_elementCount] - Ignored (Syrup uses delimiters, not counts)
+   */
+  enterSet(_elementCount) {
     this.#bufferWriter.writeByte(SET_START);
   }
 

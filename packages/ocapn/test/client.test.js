@@ -15,9 +15,12 @@ import {
   getOcapnDebug,
 } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
-import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
+import { makeCryptography } from '../src/cryptography.js';
+import { syrupCodec } from '../src/syrup/index.js';
 import { writeOcapnHandshakeMessage } from '../src/codecs/operations.js';
 import { makeSlot } from '../src/captp/pairwise.js';
+
+const { makeOcapnKeyPair, signLocation } = makeCryptography(syrupCodec);
 
 test('test slow send', async t => {
   const testObjectTable = new Map();
@@ -150,7 +153,11 @@ test('client aborts on start-session with wrong version', async t => {
 
   // Create a start-session message with wrong version
   const keyPair = makeOcapnKeyPair();
-  const locationSignature = signLocation(clientKitA.location, keyPair);
+  const locationSignature = signLocation(
+    clientKitA.location,
+    keyPair,
+    new ArrayBuffer(0),
+  );
   const badStartSession = {
     type: 'op:start-session',
     captpVersion: 'BAD', // Wrong version!
@@ -166,7 +173,7 @@ test('client aborts on start-session with wrong version', async t => {
   try {
     t.false(firstConnection.isDestroyed, 'Connection should not be destroyed');
 
-    const bytes = writeOcapnHandshakeMessage(badStartSession);
+    const bytes = writeOcapnHandshakeMessage(badStartSession, syrupCodec);
     firstConnection.write(bytes);
     await waitUntilTrue(() => firstConnection.isDestroyed);
 
@@ -661,7 +668,7 @@ testWithErrorUnwrapping(
       Far('sturdyRefReturner', {
         getSturdyRef: location =>
           // eslint-disable-next-line no-use-before-define
-          clientKitB.client.makeSturdyRef(location, encodeSwissnum('target')),
+          clientKitB.client.makeSturdyRef(location, 'target'),
       }),
     );
 
@@ -1519,11 +1526,9 @@ test('local answer promise on B is not rejected on connection close', async t =>
 
     // Debug: Check B's slots
     const ocapnTableB = getOcapnDebug(ocapnB).ocapnTable;
-    const slotOnB = ocapnTableB.getSlotForValue(
-      /** @type {any} */ (capturedLocalAnswerPromise),
-    );
+    const slotOnB = ocapnTableB.getSlotForValue(capturedLocalAnswerPromise);
     const answerPosition = ocapnTableB.getLocalAnswerToPosition(
-      /** @type {any} */ (capturedLocalAnswerPromise),
+      capturedLocalAnswerPromise,
     );
     console.log('B: slot for capturedLocalAnswerPromise:', slotOnB);
     console.log('B: getLocalAnswerToPosition result:', answerPosition);
@@ -1665,16 +1670,12 @@ test('E() sends op:deliver with answer tracking', async t => {
     } = await establishSession();
 
     // Track messages sent by A
-    /** @type {Array<{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }>} */
+    /** @type {Array<{type: string}>} */
     const sentMessages = [];
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(
-            /** @type {{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }} */ (
-              message
-            ),
-          );
+          sentMessages.push(message);
         }
       },
     );
@@ -1691,19 +1692,32 @@ test('E() sends op:deliver with answer tracking', async t => {
 
     unsubscribe();
 
-    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
-    const fireAndForgetDelivers = deliverMessages.filter(
-      m => m.answerPosition === false && m.resolveMeDesc === false,
+    // E() should send at least one tracked op:deliver (with answer
+    // position and resolver) and zero fire-and-forget op:deliver
+    // messages.
+    /** @type {Array<{type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown}>} */
+    const trackedSent = sentMessages;
+    const trackedDelivers = trackedSent.filter(
+      m =>
+        m.type === 'op:deliver' &&
+        m.answerPosition !== false &&
+        m.resolveMeDesc !== false,
+    );
+    const fireAndForgetDelivers = trackedSent.filter(
+      m =>
+        m.type === 'op:deliver' &&
+        m.answerPosition === false &&
+        m.resolveMeDesc === false,
     );
 
     t.true(
-      deliverMessages.length >= 1,
-      'E() should send at least one op:deliver message',
+      trackedDelivers.length >= 1,
+      'E() should send at least one tracked op:deliver',
     );
     t.is(
       fireAndForgetDelivers.length,
       0,
-      'E() should not use fire-and-forget op:deliver (needs answer or resolver)',
+      'E() should not send fire-and-forget op:deliver messages',
     );
   } finally {
     shutdownBoth();
@@ -1733,16 +1747,12 @@ test('E.sendOnly() sends op:deliver without answer or resolver', async t => {
     } = await establishSession();
 
     // Track messages sent by A
-    /** @type {Array<{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }>} */
+    /** @type {Array<{type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown}>} */
     const sentMessages = [];
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(
-            /** @type {{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }} */ (
-              message
-            ),
-          );
+          sentMessages.push(message);
         }
       },
     );
@@ -1761,6 +1771,9 @@ test('E.sendOnly() sends op:deliver without answer or resolver', async t => {
 
     unsubscribe();
 
+    // OCapN folded `op:deliver-only` into `op:deliver` with both
+    // `answerPosition` and `resolveMeDesc` set to `false`; that's
+    // what `E.sendOnly()` emits now.
     const sendOnlyDelivers = sentMessages.filter(
       m =>
         m.type === 'op:deliver' &&
@@ -1804,16 +1817,12 @@ test('E.sendOnly() on function call sends op:deliver without answer or resolver'
     } = await establishSession();
 
     // Track messages sent by A
-    /** @type {Array<{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }>} */
+    /** @type {Array<{type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown}>} */
     const sentMessages = [];
     const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          sentMessages.push(
-            /** @type {{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }} */ (
-              message
-            ),
-          );
+          sentMessages.push(message);
         }
       },
     );
@@ -1854,9 +1863,11 @@ test('E.sendOnly() on function call sends op:deliver without answer or resolver'
   }
 });
 
-test('resolver callbacks use op:deliver without answer or resolver', async t => {
+test('resolver callbacks use op:deliver with no answer or resolver', async t => {
   // When Bob responds to a call from Alice, he calls fulfill/break on
-  // a remote resolver. These should use fire-and-forget op:deliver.
+  // a remote resolver. Those callbacks are fire-and-forget — emitted
+  // as `op:deliver` with both `answerPosition` and `resolveMeDesc`
+  // set to `false` (the post-fold replacement for `op:deliver-only`).
 
   const testObjectTable = new Map();
   testObjectTable.set(
@@ -1877,16 +1888,12 @@ test('resolver callbacks use op:deliver without answer or resolver', async t => 
     } = await establishSession();
 
     // Track messages sent by B (the responder)
-    /** @type {Array<{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }>} */
+    /** @type {Array<{type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown}>} */
     const messagesSentByB = [];
     const unsubscribe = getOcapnDebug(ocapnB).subscribeMessages(
       (direction, message) => {
         if (direction === 'send') {
-          messagesSentByB.push(
-            /** @type {{ type: string, answerPosition?: boolean | bigint, resolveMeDesc?: false | unknown }} */ (
-              message
-            ),
-          );
+          messagesSentByB.push(message);
         }
       },
     );
@@ -1903,7 +1910,7 @@ test('resolver callbacks use op:deliver without answer or resolver', async t => 
 
     unsubscribe();
 
-    const resolverDelivers = messagesSentByB.filter(
+    const fireAndForgetDelivers = messagesSentByB.filter(
       m =>
         m.type === 'op:deliver' &&
         m.answerPosition === false &&
@@ -1911,8 +1918,8 @@ test('resolver callbacks use op:deliver without answer or resolver', async t => 
     );
 
     t.true(
-      resolverDelivers.length >= 1,
-      'Resolver callbacks should use op:deliver with no answer and no resolver',
+      fireAndForgetDelivers.length >= 1,
+      'Resolver callbacks should use op:deliver with no answer or resolver',
     );
   } finally {
     shutdownBoth();

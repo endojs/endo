@@ -5,7 +5,7 @@
  * `useGoblinChat` — React hook that owns the OCapN-side state machine and
  * side effects for the goblin-chat TUI.
  *
- * The hook deliberately encapsulates the `makeClient` call so the same
+ * The hook deliberately encapsulates the `makeOcapn` call so the same
  * reducer-backed `Logger` can be wired in once and pumped into both the
  * client and any registered netlayer. Callers get back a `state` slice
  * (matching the `chat-state.js` shape) and a small set of action
@@ -38,8 +38,9 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 
-import { makeClient, swissnumToBytes } from '@endo/ocapn';
+import { makeOcapn, swissnumToBytes } from '@endo/ocapn';
 import { makeWebSocketNetLayer } from '@endo/ocapn/netlayer/ws';
+import { syrupCodec } from '@endo/ocapn/syrup';
 import { makeUserControllerPair } from './backend.js';
 import { parseLocator } from './uri-parse.js';
 import { encodeBase64Url } from './base64url.js';
@@ -189,8 +190,8 @@ const makeReducerLogger = (dispatch, source, logSink) => {
 
 /**
  * @typedef {object} GoblinChatConfig
- * @property {string} [captpVersion]    Forwarded to `makeClient`.
- * @property {boolean} [verbose=true]   Forwarded to `makeClient`. The
+ * @property {string} [captpVersion]    Forwarded to `makeOcapn`.
+ * @property {boolean} [verbose=true]   Forwarded to `makeOcapn`. The
  *   default is `true` because the dedicated log panel is the whole
  *   point of having a logger; `info` lines flowing through is what
  *   makes that panel useful.
@@ -249,7 +250,7 @@ const makeReducerLogger = (dispatch, source, logSink) => {
 
 /**
  * @typedef {{
- *   client: ReturnType<typeof makeClient> | undefined,
+ *   client: Awaited<ReturnType<typeof makeOcapn>> | undefined,
  *   channel: any,
  *   unsubscribe: any,
  *   selfUser: any,
@@ -414,24 +415,29 @@ export const useGoblinChat = ({
           type: 'set-status',
           status: 'starting websocket netlayer…',
         });
-        const client = makeClient({
+        const client = await makeOcapn({
+          codec: syrupCodec,
           verbose,
           ...(captpVersion ? { captpVersion } : {}),
           logger: makeReducerLogger(dispatch, 'client', logSink),
+          network: handlers =>
+            makeWebSocketNetLayer({
+              handlers,
+              logger: makeReducerLogger(dispatch, 'netlayer', logSink),
+              specifiedHostname: '127.0.0.1',
+              specifiedPort: 0,
+            }),
         });
         sessionRef.current.client = client;
-        await client.registerNetlayer(handlers =>
-          makeWebSocketNetLayer({
-            handlers,
-            logger: makeReducerLogger(dispatch, 'netlayer', logSink),
-            specifiedHostname: '127.0.0.1',
-            specifiedPort: 0,
-          }),
-        );
 
         dispatch({ type: 'set-status', status: 'enlivening sturdyref…' });
 
-        const sref = client.makeSturdyRef(location, swissNum);
+        // makeSturdyRef takes either a printable-ASCII string (for
+        // friendly-name locators) or raw bytes (for Spritely-style
+        // arbitrary-byte swissnums). The URI parser returned the raw
+        // bytes form, so unwrap the SwissNum branded type back to a
+        // plain Uint8Array.
+        const sref = client.makeSturdyRef(location, swissnumToBytes(swissNum));
         const chatroom = await client.enlivenSturdyRef(sref);
 
         dispatch({ type: 'set-status', status: 'fetching room name…' });

@@ -35,6 +35,7 @@ const UndefinedCodec = makeOcapnRecordCodec(
   (value, syrupWriter) => {
     // body is empty
   },
+  0, // 0 fields in body
 );
 
 const NullCodec = makeOcapnRecordCodec(
@@ -48,6 +49,7 @@ const NullCodec = makeOcapnRecordCodec(
   (value, syrupWriter) => {
     // body is empty
   },
+  0, // 0 fields in body
 );
 
 const OcapnSelectorCodec = makeCodec('OcapnSelector', {
@@ -118,6 +120,7 @@ export const makePassableCodecs = descCodecs => {
       // eslint-disable-next-line no-use-before-define
       OcapnPassableUnionCodec.write(value.payload, syrupWriter);
     },
+    2, // 2 fields: tagName, value
   );
 
   const ContainerCodecs = {
@@ -139,6 +142,7 @@ export const makePassableCodecs = descCodecs => {
     (value, syrupWriter) => {
       syrupWriter.writeString(value.message);
     },
+    1, // 1 field: message
   );
 
   // all record based passables
@@ -153,7 +157,6 @@ export const makePassableCodecs = descCodecs => {
     },
   );
 
-  // syrup type hint "number-prefix" can be String, ByteArray (Syrup bytestring), Selector, Integer
   const OcapnPassableNumberPrefixUnionCodec = makeCodec(
     'OcapnPassableNumberPrefixUnion',
     {
@@ -169,11 +172,18 @@ export const makePassableCodecs = descCodecs => {
           `Unexpected type ${type} for OcapnPassableNumberPrefixUnionCodec`,
         );
       },
-      write(value, _syrupWriter) {
-        // Only used for reading, not writing.
-        throw new Error(
-          `Unexpected value ${value} for OcapnPassableNumberPrefixUnionCodec`,
-        );
+      write(value, syrupWriter) {
+        if (typeof value === 'string') {
+          syrupWriter.writeString(value);
+        } else if (typeof value === 'bigint') {
+          syrupWriter.writeInteger(value);
+        } else if (value instanceof ArrayBuffer) {
+          syrupWriter.writeBytestring(value);
+        } else {
+          throw new Error(
+            `Unexpected value ${value} for OcapnPassableNumberPrefixUnionCodec`,
+          );
+        }
       },
     },
   );

@@ -8,21 +8,20 @@ import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
 import { makeTagged } from '@endo/pass-style';
-import { makeSyrupReader } from '../../src/syrup/decode.js';
-import { makeSyrupWriter } from '../../src/syrup/encode.js';
 import { makeSelector } from '../../src/selector.js';
 import { recordSyrup } from './_syrup_util.js';
 import {
   exporterLocation,
   makeCodecTestKit,
-  runTableTests,
+  runTableTestsAllCodecs,
+  AllCodecs,
+  SyrupCodec,
 } from './_codecs_util.js';
 import { throws } from '../_util.js';
 import {
   immutableArrayBufferToUint8Array,
   uint8ArrayToImmutableArrayBuffer,
 } from '../../src/buffer-utils.js';
-import { encodeSwissnum } from '../../src/client/util.js';
 import { getSturdyRefDetails } from '../../src/client/sturdyrefs.js';
 
 const textEncoder = new TextEncoder();
@@ -147,30 +146,22 @@ const table = [
   },
   // SturdyRef
   {
-    name: 'sturdyref',
+    name: 'sturdyRef',
     makeValue: testKit =>
-      testKit.sturdyRefTracker.makeSturdyRef(
-        exporterLocation,
-        encodeSwissnum('123'),
-      ),
+      testKit.sturdyRefTracker.makeSturdyRef(exporterLocation, '123'),
     customAssert: (t, actual) => {
       const details = getSturdyRefDetails(actual);
       if (!details) {
         throw Error('SturdyRef has no details');
       }
       t.deepEqual(details.location, exporterLocation);
-      t.deepEqual(details.swissNum, encodeSwissnum('123'));
+      t.is(details.secret, '123');
     },
   },
   {
-    name: 'sturdyref in list',
+    name: 'sturdyRef in list',
     makeValue: testKit =>
-      harden([
-        testKit.sturdyRefTracker.makeSturdyRef(
-          exporterLocation,
-          encodeSwissnum('123'),
-        ),
-      ]),
+      harden([testKit.sturdyRefTracker.makeSturdyRef(exporterLocation, '123')]),
     customAssert: (t, actual) => {
       t.is(actual.length, 1);
       const details = getSturdyRefDetails(actual[0]);
@@ -178,7 +169,7 @@ const table = [
         throw Error('SturdyRef has no details');
       }
       t.deepEqual(details.location, exporterLocation);
-      t.deepEqual(details.swissNum, encodeSwissnum('123'));
+      t.is(details.secret, '123');
     },
   },
   // Tagged objects containing references
@@ -186,12 +177,7 @@ const table = [
     name: 'tagged with reference (local object)',
     makeValue: testKit => makeTagged('myTag', testKit.makeLocalObject(100n)),
     makeExpectedValue: testKit =>
-      makeTagged(
-        'myTag',
-        /** @type {any} */ (
-          testKit.referenceKit.provideRemoteObjectValue(100n)
-        ),
-      ),
+      makeTagged('myTag', testKit.referenceKit.provideRemoteObjectValue(100n)),
   },
   {
     name: 'tagged with reference (local promise)',
@@ -210,41 +196,44 @@ const table = [
     makeExpectedValue: testKit =>
       makeTagged(
         'listTag',
-        /** @type {any} */ (
-          harden([testKit.referenceKit.provideRemoteObjectValue(102n), 'hello'])
-        ),
+        harden([testKit.referenceKit.provideRemoteObjectValue(102n), 'hello']),
       ),
   },
   {
-    name: 'tagged with sturdyref',
+    name: 'tagged with sturdyRef',
     makeValue: testKit =>
       makeTagged(
-        'sturdyTag',
-        testKit.sturdyRefTracker.makeSturdyRef(
-          exporterLocation,
-          encodeSwissnum('456'),
-        ),
+        'sturdyRefTag',
+        testKit.sturdyRefTracker.makeSturdyRef(exporterLocation, '456'),
       ),
     // SturdyRefs need customAssert because object identity differs after round-trip
     customAssert: (t, actual) => {
-      t.is(actual[Symbol.toStringTag], 'sturdyTag');
+      t.is(actual[Symbol.toStringTag], 'sturdyRefTag');
       const details = getSturdyRefDetails(actual.payload);
       if (!details) {
         throw Error('SturdyRef has no details');
       }
       t.deepEqual(details.location, exporterLocation);
-      t.deepEqual(details.swissNum, encodeSwissnum('456'));
+      t.is(details.secret, '456');
     },
   },
 ];
 
-runTableTests(test, 'PassableCodec', table, testKit => testKit.PassableCodec);
+runTableTestsAllCodecs(
+  test,
+  'PassableCodec',
+  table,
+  testKit => testKit.PassableCodec,
+);
 
-test('error on unknown record type in passable', t => {
+// ===== Syrup-specific error tests =====
+// These tests use Syrup-specific encoding to test error handling
+
+test('error on unknown record type in passable [syrup]', t => {
   const codec = PassableCodec;
   const syrup = recordSyrup('unknown-record-type');
   const syrupBytes = immutableArrayBufferToUint8Array(syrup);
-  const syrupReader = makeSyrupReader(syrupBytes, {
+  const syrupReader = SyrupCodec.makeReader(syrupBytes, {
     name: 'unknown record type',
   });
   throws(t, () => codec.read(syrupReader), {
@@ -260,11 +249,11 @@ test('error on unknown record type in passable', t => {
   });
 });
 
-test('passable fails with unordered keys', t => {
+test('passable fails with unordered keys [syrup]', t => {
   const codec = PassableCodec;
   const syrup = '{3"dog20+3"cat10+}';
   const syrupBytes = textEncoder.encode(syrup);
-  const syrupReader = makeSyrupReader(syrupBytes, {
+  const syrupReader = SyrupCodec.makeReader(syrupBytes, {
     name: 'passable with unordered keys',
   });
   throws(t, () => codec.read(syrupReader), {
@@ -281,11 +270,11 @@ test('passable fails with unordered keys', t => {
   });
 });
 
-test('passable fails with repeated keys', t => {
+test('passable fails with repeated keys [syrup]', t => {
   const codec = PassableCodec;
   const syrup = '{3"cat10+3"cat20+}';
   const syrupBytes = textEncoder.encode(syrup);
-  const syrupReader = makeSyrupReader(syrupBytes, {
+  const syrupReader = SyrupCodec.makeReader(syrupBytes, {
     name: 'passable with repeated keys',
   });
   throws(t, () => codec.read(syrupReader), {
@@ -302,106 +291,93 @@ test('passable fails with repeated keys', t => {
   });
 });
 
-// ===== Special Cases =====
+// ===== Special Cases (run with all codec formats) =====
 
-test('passable error - write Error object', t => {
-  // Test writing an actual Error object (reads back as plain object)
-  const codec = PassableCodec;
-  const writer = makeSyrupWriter();
-  codec.write(harden(Error('Test error')), writer);
-  const syrupBytes = writer.getBytes();
+for (const codec of AllCodecs) {
+  test(`passable error - write Error object [${codec.name}]`, t => {
+    // Test writing an actual Error object (reads back as plain object)
+    const writer = codec.makeWriter();
+    PassableCodec.write(harden(Error('Test error')), writer);
+    const bytes = writer.getBytes();
 
-  const reader = makeSyrupReader(syrupBytes, { name: 'error write' });
-  const result = codec.read(reader);
-  t.deepEqual(result, Error('Test error'));
-});
-
-test('passable error - with unicode characters', t => {
-  // Test error with basic unicode (emojis use surrogate pairs which are invalid)
-  const codec = PassableCodec;
-  const message = 'Error with unicode: © ñ Ω α β';
-  const writer = makeSyrupWriter();
-  codec.write(harden(Error(message)), writer);
-  const syrupBytes = writer.getBytes();
-
-  const reader = makeSyrupReader(syrupBytes, { name: 'error unicode' });
-  const result = codec.read(reader);
-  t.deepEqual(result, Error(message));
-});
-
-test('passable nested - float64 in containers', t => {
-  // Test floats in arrays and records
-  const codec = PassableCodec;
-  const value = harden({
-    numbers: [1.0, 2.5, 3.14159],
-    point: { x: 2.0, y: 3.5 },
+    const reader = codec.makeReader(bytes, { name: 'error write' });
+    const result = PassableCodec.read(reader);
+    t.deepEqual(result, Error('Test error'));
   });
-  const writer = makeSyrupWriter();
-  codec.write(value, writer);
-  const syrupBytes = writer.getBytes();
 
-  const reader = makeSyrupReader(syrupBytes, { name: 'float64 nested' });
-  const result = codec.read(reader);
-  t.deepEqual(result, {
-    numbers: [1.0, 2.5, 3.14159],
-    point: { x: 2.0, y: 3.5 },
+  test(`passable error - with unicode characters [${codec.name}]`, t => {
+    // Test error with unicode characters
+    const message = 'Error with unicode: © ñ Ω α β';
+    const writer = codec.makeWriter();
+    PassableCodec.write(harden(Error(message)), writer);
+    const bytes = writer.getBytes();
+
+    const reader = codec.makeReader(bytes, { name: 'error unicode' });
+    const result = PassableCodec.read(reader);
+    t.deepEqual(result, Error(message));
   });
-});
 
-test('passable nested - mixed types with error', t => {
-  // Test error objects nested in complex structures
-  const codec = PassableCodec;
-  const value = harden({
-    count: 10n,
-    error: harden(Error('Failed')),
-    name: 'test',
-    ratio: 0.5,
+  test(`passable nested - float64 in containers [${codec.name}]`, t => {
+    // Test floats in arrays and records
+    const value = harden({
+      numbers: [1.0, 2.5, 3.14159],
+      point: { x: 2.0, y: 3.5 },
+    });
+    const writer = codec.makeWriter();
+    PassableCodec.write(value, writer);
+    const bytes = writer.getBytes();
+
+    const reader = codec.makeReader(bytes, { name: 'float64 nested' });
+    const result = PassableCodec.read(reader);
+    t.deepEqual(result, {
+      numbers: [1.0, 2.5, 3.14159],
+      point: { x: 2.0, y: 3.5 },
+    });
   });
-  const writer = makeSyrupWriter();
-  codec.write(value, writer);
-  const syrupBytes = writer.getBytes();
 
-  const reader = makeSyrupReader(syrupBytes, { name: 'mixed with error' });
-  const result = codec.read(reader);
-  t.deepEqual(result, {
-    count: 10n,
-    error: Error('Failed'),
-    name: 'test',
-    ratio: 0.5,
+  test(`passable nested - mixed types with error [${codec.name}]`, t => {
+    // Test error objects nested in complex structures
+    const value = harden({
+      count: 10n,
+      error: harden(Error('Failed')),
+      name: 'test',
+      ratio: 0.5,
+    });
+    const writer = codec.makeWriter();
+    PassableCodec.write(value, writer);
+    const bytes = writer.getBytes();
+
+    const reader = codec.makeReader(bytes, { name: 'mixed with error' });
+    const result = PassableCodec.read(reader);
+    t.deepEqual(result, {
+      count: 10n,
+      error: Error('Failed'),
+      name: 'test',
+      ratio: 0.5,
+    });
   });
-});
 
-test('passable string - fails with emoji (surrogate pairs)', t => {
-  // Emojis like 🚀 use UTF-16 surrogate pairs (U+D800-U+DFFF) which are invalid in OCapN
-  const codec = PassableCodec;
-  const stringWithEmoji = 'Hello 🚀 World';
-  const writer = makeSyrupWriter();
+  test(`passable string - with emoji (supplementary characters) [${codec.name}]`, t => {
+    // Emojis and other supplementary characters (outside BMP) are valid Unicode
+    // and can be encoded in UTF-8.
+    const stringWithEmoji = 'Hello 🚀 World';
+    const writer = codec.makeWriter();
+    PassableCodec.write(stringWithEmoji, writer);
+    const bytes = writer.getBytes();
 
-  throws(t, () => codec.write(stringWithEmoji, writer), {
-    message: 'OcapnPassable: write failed at index 0 of <unknown>',
-    cause: {
-      message: 'String: write failed at index 0 of <unknown>',
-      cause: {
-        message:
-          'Invalid string characters "🚀" in string "Hello 🚀 World" at index 0',
-      },
-    },
+    const reader = codec.makeReader(bytes, { name: 'emoji string' });
+    const result = PassableCodec.read(reader);
+    t.is(result, stringWithEmoji);
   });
-});
 
-test('passable string - fails with multiple emojis', t => {
-  const codec = PassableCodec;
-  const stringWithEmojis = '🚀 ❌ ✓';
-  const writer = makeSyrupWriter();
+  test(`passable string - with multiple emojis [${codec.name}]`, t => {
+    const stringWithEmojis = '🚀 ❌ ✓';
+    const writer = codec.makeWriter();
+    PassableCodec.write(stringWithEmojis, writer);
+    const bytes = writer.getBytes();
 
-  throws(t, () => codec.write(stringWithEmojis, writer), {
-    message: 'OcapnPassable: write failed at index 0 of <unknown>',
-    cause: {
-      message: 'String: write failed at index 0 of <unknown>',
-      cause: {
-        message:
-          'Invalid string characters "🚀" in string "🚀 ❌ ✓" at index 0',
-      },
-    },
+    const reader = codec.makeReader(bytes, { name: 'multi-emoji string' });
+    const result = PassableCodec.read(reader);
+    t.is(result, stringWithEmojis);
   });
-});
+}

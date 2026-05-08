@@ -11,10 +11,10 @@ import {
   makeCodecTestKit,
   examplePubKeyQBytes,
   exampleSigParamBytes,
-  runTableTests,
+  runTableTestsAllCodecs,
+  SyrupCodec,
 } from './_codecs_util.js';
 import { intSyrup, recordSyrup } from './_syrup_util.js';
-import { makeSyrupReader } from '../../src/syrup/decode.js';
 import {
   immutableArrayBufferToUint8Array,
   encodeStringToImmutableArrayBuffer,
@@ -101,14 +101,20 @@ const table = [
   },
 ];
 
-runTableTests(test, 'ReferenceCodec', table, testKit => testKit.ReferenceCodec);
+runTableTestsAllCodecs(
+  test,
+  'ReferenceCodec',
+  table,
+  testKit => testKit.ReferenceCodec,
+);
 
-test('descriptor fails with negative integer', t => {
+// This test uses Syrup-specific encoding to test error handling
+test('descriptor fails with negative integer [syrup]', t => {
   const testKit = makeCodecTestKit();
   const codec = testKit.DescImportObjectCodec;
   const syrup = recordSyrup('desc:import-object', intSyrup(-1));
   const syrupBytes = immutableArrayBufferToUint8Array(syrup);
-  const syrupReader = makeSyrupReader(syrupBytes, {
+  const syrupReader = SyrupCodec.makeReader(syrupBytes, {
     name: 'import-object with negative integer',
   });
   throws(t, () => codec.read(syrupReader), {

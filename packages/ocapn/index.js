@@ -21,5 +21,9 @@
  * @typedef {import('./src/codecs/components.js').OcapnLocation} OcapnLocation
  */
 
-export { makeClient } from './src/client/index.js';
-export { swissnumFromBytes, swissnumToBytes } from './src/client/util.js';
+export { makeOcapn } from './src/client/index.js';
+export {
+  decodeSwissnum,
+  swissnumFromBytes,
+  swissnumToBytes,
+} from './src/client/util.js';
