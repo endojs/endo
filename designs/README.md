@@ -5,7 +5,9 @@
 *See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23),
 [filesystem-watchers](filesystem-watchers.md) (added 2026-05-07),
 [endo-posix-sandbox](endo-posix-sandbox.md) (added 2026-05-07; mirrors
-`PLAN/endo_posix_sandbox.md` for roadmap calibration).*
+`PLAN/endo_posix_sandbox.md` for roadmap calibration),
+[exo-zip-package](exo-zip-package.md) (added 2026-05-08; PR #128 reshape
+blocker).*
 
 ## Summary
 
@@ -78,6 +80,7 @@
 | [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-03 | **Complete** |
 | [daemon-web-gateway](daemon-web-gateway.md) | 2026-03-11 | 2026-03-11 | **Complete** |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
+| [exo-zip-package](exo-zip-package.md) | 2026-05-08 | 2026-05-08 | Proposed (PR #154 open questions resolved) |
 | [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-05 | **Complete** |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-03-05 | **Complete** |
@@ -159,11 +162,14 @@ flowchart TD
         fchat[familiar-chat-weblet-hosting]
         dci[daemon-checkin-checkout]
         dapp[daemon-weblet-application]
+        exozip[exo-zip-package]
         fbund --> fweb --> fchat
         fweb --> dapp
         fchat --> dapp
         flhttp --> fchat
         dci --> dapp
+        exozip --> dci
+        exozip --> dapp
     end
 
     subgraph Remote Access
@@ -343,6 +349,7 @@ automation.
 | familiar-chat-weblet-hosting | Not Started | Iframe hosting, guest profiles |
 | daemon-checkin-checkout | Not Started | `endo ci` / `endo co` for readable-tree ↔ filesystem |
 | daemon-weblet-application | Not Started | Readable trees, zip archives |
+| exo-zip-package | Proposed | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
 | endoclaw-oauth | Not Started | Credential capability — agent uses service without seeing token |
 | endoclaw-proactive-messages | Not Started | Composes Timer + data caps + send() for briefings/reminders |
 | endoclaw-notifications | Not Started | `Notify` exo → Electron `Notification`; needs daemon↔Electron bridge |
@@ -589,6 +596,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | familiar-chat-weblet-hosting | M | 4-5 days | 3 | Iframe hosting, guest profiles (1.2x bump) |
 | daemon-checkin-checkout | S-M | 3 days | 3 | `endo ci`/`co`, readable-tree formula, zip support |
 | daemon-weblet-application | M | 4-5 days | 3 | Formula types, gateway serving (1.2x bump) |
+| exo-zip-package | S | 1-2 days | 3 | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
 | endoclaw-oauth | S-M | 3 days | 3 | Credential proxy exo, token injection |
 | endoclaw-proactive-messages | S | 1 day | 3 | Pattern doc: Timer + data caps + send() |
 | endoclaw-notifications | S | 1 day | 3 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
