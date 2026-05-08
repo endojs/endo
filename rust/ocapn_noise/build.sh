@@ -15,6 +15,12 @@ export RUSTFLAGS="${RUSTFLAGS:-} \
   --remap-path-prefix=${HOME_DIR}=~"
 # Single codegen unit: removes parallel-codegen ordering nondeterminism.
 export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
-cargo build --target wasm32-unknown-unknown --lib --release
+# `--locked` makes cargo refuse to silently update the lockfile.
+# Since rust/ocapn_noise is a workspace member, the only lockfile
+# cargo consults is the workspace-root ../../Cargo.lock; a build
+# that would have to update it (e.g. after a `cargo update` step
+# elsewhere in the tree) should fail loudly here, not silently embed
+# different dep versions into the committed wasm.
+cargo build --target wasm32-unknown-unknown --lib --release --locked
 cp ../../target/wasm32-unknown-unknown/release/ocapn_noise_protocol_facilities.wasm \
   ../../packages/ocapn-noise/gen/ocapn-noise.wasm
