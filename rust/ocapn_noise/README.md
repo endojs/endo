@@ -74,14 +74,24 @@ git add packages/ocapn-noise/gen/ocapn-noise.wasm
 ```
 
 The pinned channel in `rust-toolchain.toml` and the deps fixed by
-`Cargo.lock` together ensure that a fresh `bash build.sh` produces
-bit-identical bytes across contributors.  CI's `build-wasm` job
-rebuilds from source and runs
+the workspace `Cargo.lock` together ensure that a fresh `bash
+build.sh` produces bit-identical bytes across contributors.
+Because `rust/ocapn_noise` is a member of the top-level Rust workspace
+(`../../Cargo.toml`), the only lockfile cargo consults is the
+workspace-root `../../Cargo.lock`; an inner-member `Cargo.lock`
+would be silently ignored, so this crate intentionally has none.
+**If a workspace-wide `cargo update` lands for an unrelated member
+(e.g. `rust/endo`), the wasm here MUST be regenerated and recommitted**
+in the same change, or `build-wasm` will go red on every PR until
+someone does it.
+CI's `build-wasm` job rebuilds from source and runs
 `git diff --exit-code packages/ocapn-noise/gen/ocapn-noise.wasm`,
-catching drift between Rust source and the committed binary.  Cargo
-caches survive across runs via `actions/cache` keyed on `Cargo.lock`
-plus the Rust source tree, so a clean rebuild is only paid when the
-inputs change.
+catching drift between Rust source and the committed binary.
+The build is pinned with `--locked` so a stale or hand-edited lockfile
+fails loudly rather than silently embedding fresh dep versions.
+Cargo caches survive across runs via `actions/cache` keyed on
+`Cargo.lock` plus the Rust source tree, so a clean rebuild is only
+paid when the inputs change.
 
 ## Why IK
 
