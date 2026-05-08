@@ -1007,6 +1007,7 @@ export const makeOcapn = (
       // by the time this op:flush-done reaches the peer it has already
       // received every message Alice had sent that targeted the prior
       // promise.
+      // eslint-disable-next-line no-use-before-define
       send({
         type: 'op:flush-done',
         position,
@@ -1060,8 +1061,14 @@ export const makeOcapn = (
    * @returns {Promise<void>}
    */
   const flushExport = remoteValue => {
+    // eslint-disable-next-line no-use-before-define
     if (didUnplug()) {
-      return /** @type {Promise<void>} */ (quietReject(didUnplug()));
+      return /** @type {Promise<void>} */ (
+        /** @type {unknown} */ (
+          // eslint-disable-next-line no-use-before-define
+          quietReject(didUnplug())
+        )
+      );
     }
     // eslint-disable-next-line no-use-before-define
     const slot = ocapnTable.getSlotForValue(remoteValue);
@@ -1084,6 +1091,7 @@ export const makeOcapn = (
     }
     const promiseKit = makePromiseKit();
     pendingFlushSettlers.set(position, promiseKit);
+    // eslint-disable-next-line no-use-before-define
     send({
       type: 'op:flush',
       position,

@@ -1,5 +1,6 @@
 // @ts-check
 
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -24,7 +25,11 @@ testWithErrorUnwrapping(
     testObjectTable.set(
       'PromiseProvider',
       Far('PromiseProvider', {
-        get: () => promiseKit.promise,
+        // Wrapping the promise in an array forces it to be serialized as a
+        // desc:import-promise immediately rather than awaited; otherwise an
+        // unresolved promise return value blocks the fulfill message until
+        // it settles.
+        get: () => harden([promiseKit.promise]),
       }),
     );
 
@@ -111,7 +116,9 @@ testWithErrorUnwrapping(
     const testObjectTable = new Map();
     testObjectTable.set(
       'PromiseProvider',
-      Far('PromiseProvider', { get: () => promiseKit.promise }),
+      Far('PromiseProvider', {
+        get: () => harden([promiseKit.promise]),
+      }),
     );
 
     const { establishSession, shutdownBoth } = await makeTestClientPair({
