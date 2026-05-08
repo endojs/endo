@@ -1,0 +1,144 @@
+name: OCapN flush proof
+
+# Builds and verifies the Lean 4 + Veil proof of the op:flush per-reference
+# FIFO claim under packages/ocapn/proofs/veil. The proof's verification of
+# record is Veil's `#check_invariants` step, which calls Z3 and CVC5 to
+# discharge every VC. We assert that the build succeeds and parse the build
+# log to confirm there are no failed clauses (`❌`) and that exactly the
+# expected set of `sorry`-admitted declarations are present.
+
+on:
+  pull_request:
+    paths:
+      - 'packages/ocapn/proofs/**'
+      - '.github/workflows/ocapn-flush-proof.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'packages/ocapn/proofs/**'
+      - '.github/workflows/ocapn-flush-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify Lean 4 + Veil proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # Veil ships a `downloadDependencies` step in its lakefile that fetches
+      # `uv` from astral.sh in addition to z3/cvc5 from GitHub releases. The
+      # GitHub-hosted runners can reach astral.sh, but it has historically
+      # been flaky; pre-installing `uv` here and dropping it into the
+      # build directory means the lakefile target succeeds even when astral
+      # 503s. We also use `uv` only for SMT-model decoration, so a slightly
+      # newer pip-resolved version is a fine substitute for the pinned
+      # 0.9.13.
+      - name: Install uv
+        run: |
+          python3 -m pip install --user uv
+          echo "UV_BIN=$(python3 -m uv --version >/dev/null && command -v uv || echo "$HOME/.local/bin/uv")" >> "$GITHUB_ENV"
+
+      - name: Cache Lake build artifacts
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            packages/ocapn/proofs/veil/.lake
+          # Bump the third component of the key when changing the proof or
+          # toolchain to invalidate the cache.
+          key: lake-${{ runner.os }}-${{ hashFiles('packages/ocapn/proofs/veil/lean-toolchain', 'packages/ocapn/proofs/veil/lakefile.lean', 'packages/ocapn/proofs/veil/lake-manifest.json', 'packages/ocapn/proofs/veil/OcapnFlush/**') }}
+          restore-keys: |
+            lake-${{ runner.os }}-
+
+      # Use lean-action for the Lean toolchain. We disable its automatic
+      # `lake build` because we want to invoke Lake explicitly from the
+      # subdirectory and capture its output for log-shape assertions.
+      - name: Set up Lean toolchain
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          lake-package-directory: packages/ocapn/proofs/veil
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-github-cache: false
+
+      - name: Pre-stage uv binary for Veil's downloadDependencies
+        working-directory: packages/ocapn/proofs/veil
+        run: |
+          mkdir -p .lake/packages/veil/.lake/build
+          cp "$UV_BIN" .lake/packages/veil/.lake/build/uv
+
+      - name: Resolve dependencies
+        working-directory: packages/ocapn/proofs/veil
+        run: lake update
+
+      - name: Build proof and capture log
+        working-directory: packages/ocapn/proofs/veil
+        run: |
+          set -o pipefail
+          lake build OcapnFlush.Flush 2>&1 | tee build.log
+
+      - name: Assert all invariants discharged by SMT
+        working-directory: packages/ocapn/proofs/veil
+        run: |
+          # No clause should fail.
+          if grep -E '❌' build.log; then
+            echo "FAIL: at least one invariant clause failed verification."
+            exit 1
+          fi
+          # Sanity: at least one ✅ — guards against a silent change that
+          # disables `#check_invariants`.
+          if ! grep -qE '✅' build.log; then
+            echo "FAIL: build log contains no ✅ markers; #check_invariants did not run."
+            exit 1
+          fi
+          # Veil reports how many VCs the SMT solver was trusted with. We
+          # don't pin the exact number (it scales with the model) but we
+          # assert it ran.
+          if ! grep -qE 'Trusting the SMT solver for [0-9]+ theorems' build.log; then
+            echo "FAIL: no 'Trusting the SMT solver' line; SMT verification did not occur."
+            exit 1
+          fi
+
+      - name: Assert only documented sorry usages
+        working-directory: packages/ocapn/proofs/veil
+        run: |
+          # Two `sorry`-admitted declarations are documented in the README:
+          # `prove_inv_inductive` (Lean proof-term reconstruction admitted to
+          # SMT) and the `sat trace [happyPath]` BMC. Anything else is a
+          # regression.
+          extra=$(grep -E "warning: OcapnFlush/.*: declaration uses 'sorry'" build.log || true)
+          count=$(printf '%s\n' "$extra" | grep -c "declaration uses 'sorry'" || true)
+          if [ "$count" -ne 2 ]; then
+            echo "FAIL: expected exactly 2 admitted declarations, found $count:"
+            printf '%s\n' "$extra"
+            exit 1
+          fi
+
+      - name: Assert build succeeded
+        working-directory: packages/ocapn/proofs/veil
+        run: |
+          if ! grep -qE 'Build completed successfully' build.log; then
+            echo "FAIL: 'Build completed successfully' not found in log."
+            exit 1
+          fi
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: ocapn-flush-proof-build-log
+          path: packages/ocapn/proofs/veil/build.log
+          if-no-files-found: warn
+          retention-days: 14
