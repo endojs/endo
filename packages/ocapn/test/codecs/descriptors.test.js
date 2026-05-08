@@ -60,6 +60,7 @@ const table = [
         receivingSession: encodeStringToImmutableArrayBuffer('123'),
         receivingSide: encodeStringToImmutableArrayBuffer('456'),
         handoffCount: 1n,
+        embargo: false,
         signedGive: {
           type: 'desc:sig-envelope',
           object: {

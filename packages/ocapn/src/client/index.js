@@ -13,6 +13,7 @@ import { writeOcapnHandshakeMessage } from '../codecs/operations.js';
 import { makeOcapnKeyPair, signLocation } from '../cryptography.js';
 import { makeGrantTracker } from './grant-tracker.js';
 import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';
+import { makeHandoffEmbargoState } from './handoff-embargo.js';
 import { locationToLocationId, toHex } from './util.js';
 import { handleHandshakeMessageData, sendHandshake } from './handshake.js';
 import { makeOcapn } from './ocapn.js';
@@ -189,6 +190,18 @@ export const makeClient = ({
   debugMode = false,
   logger: providedLogger,
 } = {}) => {
+  /**
+   * Per-client bookkeeping for the level-3 disembargo flow. The exporter side
+   * (the vat hosting the gift) gates `withdraw-gift` responses on
+   * `handoffEmbargoState`; the gifter side records each outgoing gift so it
+   * can route the receiver's `accept` disembargo to the exporter session.
+   */
+  const handoffEmbargoState = makeHandoffEmbargoState();
+  /**
+   * giftId-hex → { exporterLocation, gifterExporterSessionId }
+   * @type {Map<string, { exporterLocation: OcapnLocation, gifterExporterSessionId: ArrayBufferLike }>}
+   */
+  const outgoingGifts = new Map();
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
 
@@ -313,6 +326,8 @@ export const makeClient = ({
       grantTracker,
       giftTable,
       sturdyRefTracker,
+      handoffEmbargoState,
+      outgoingGifts,
       debugLabel,
       enableImportCollection,
       debugMode,

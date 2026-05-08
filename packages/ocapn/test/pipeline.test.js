@@ -559,7 +559,9 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
     recorderAtoB.unsubscribe();
     recorderBtoC.unsubscribe();
 
-    // Verify A→B transcript: A sends all pipelined calls to B
+    // Verify A→B transcript: A sends all pipelined calls to B, plus an
+    // `accept` disembargo (level-3 capnproto-style) once the third-party
+    // handoff arrives in the getCounter fulfill.
     assertMessageTranscript(t, recorderAtoB.transcript, [
       // A fetches Broker from B
       { from: 'A', message: { type: 'op:deliver' } },
@@ -569,14 +571,20 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
       { from: 'A', message: { type: 'op:deliver' } },
       // A calls double on counter (pipelined through handoff)
       { from: 'A', message: { type: 'op:deliver' } },
-      // B sends resolutions back to A
+      // B fulfills fetch with the broker
       { from: 'B', message: { type: 'op:deliver' } },
+      // A asks the gifter to forward a `provide` disembargo to the exporter
+      { from: 'A', message: { type: 'op:disembargo' } },
+      // B fulfills getCounter with the third-party handoff give
       { from: 'B', message: { type: 'op:deliver' } },
+      // B forwards the increment / double results back to A
       { from: 'B', message: { type: 'op:deliver' } },
       { from: 'B', message: { type: 'op:deliver' } },
     ]);
 
-    // Verify B→C transcript: B forwards A's calls to C
+    // Verify B→C transcript: B forwards A's calls to C, plus a `provide`
+    // disembargo (level-3 capnproto-style) once A's `accept` arrives back on
+    // the gifter session.
     // Note: Messages are interleaved - C responds to fetch before B forwards other calls
     assertMessageTranscript(t, recorderBtoC.transcript, [
       // B enlivens sturdyref by fetching Counter from C
@@ -589,7 +597,10 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
       { from: 'B', message: { type: 'op:deliver' } },
       // B sends deposit-gift for handoff
       { from: 'B', message: { type: 'op:deliver' } },
-      // C sends resolutions back to B
+      // B forwards A's `accept` as a `provide` disembargo to C, lifting the
+      // exporter-side embargo on the withdraw-gift response.
+      { from: 'B', message: { type: 'op:disembargo' } },
+      // C sends resolutions back to B (increment, double, deposit-gift)
       { from: 'C', message: { type: 'op:deliver' } },
       { from: 'C', message: { type: 'op:deliver' } },
       { from: 'C', message: { type: 'op:deliver' } },

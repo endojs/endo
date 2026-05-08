@@ -326,6 +326,7 @@ export const randomGiftId = () => {
  * @param {SessionId} sessionId
  * @param {PublicKeyId} receiverPeerId
  * @param {OcapnKeyPair} privKeyForGifter
+ * @param {boolean} [embargo]
  * @returns {HandoffReceiveSigEnvelope}
  */
 export const makeSignedHandoffReceive = (
@@ -334,6 +335,7 @@ export const makeSignedHandoffReceive = (
   sessionId,
   receiverPeerId,
   privKeyForGifter,
+  embargo = false,
 ) => {
   /** @type {HandoffReceive} */
   const handoffReceive = makeHandoffReceiveDescriptor(
@@ -341,6 +343,7 @@ export const makeSignedHandoffReceive = (
     handoffCount,
     sessionId,
     receiverPeerId,
+    embargo,
   );
   const signature = signHandoffReceive(handoffReceive, privKeyForGifter);
   return makeHandoffReceiveSigEnvelope(handoffReceive, signature);

@@ -496,6 +496,7 @@ const makeCodecKit = referenceKit => {
  * @param {ReferenceKit} referenceKit
  * @param {Map<string, any>} giftTable
  * @param {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {import('./handoff-embargo.js').HandoffEmbargoState} handoffEmbargoState
  * @returns {any}
  */
 const makeBootstrapObject = (
@@ -506,6 +507,7 @@ const makeBootstrapObject = (
   referenceKit,
   giftTable,
   getPeerPublicKeyForSessionId,
+  handoffEmbargoState,
 ) => {
   // The "usedGiftHandoffs" is one per session.
   const usedGiftHandoffs = new Set();
@@ -643,20 +645,42 @@ const makeBootstrapObject = (
         );
       }
 
-      // Return the gift or a promise that resolves to the gift.
+      // Resolve (or stage) the gift itself. When `embargo` is set on the
+      // HandoffReceive (level-3 capnproto-style), we additionally hold the
+      // response back until the matching `provide` disembargo arrives from
+      // the gifter on the gifter→exporter session. That ensures that any
+      // pipelined messages the gifter forwarded to us via that same wire
+      // are applied to the gift before the receiver gets a direct reference.
       const giftKey = `${toHex(gifterExporterSessionId)}:${toHex(giftId)}`;
-      const gift = giftTable.get(giftKey);
-      logger.info('withdraw-gift', { giftKey, gift, handoffCount });
-      if (gift) {
+      const stagedGift = giftTable.get(giftKey);
+      let giftPromise;
+      if (stagedGift) {
         usedGiftHandoffs.add(handoffCount);
         giftTable.delete(giftKey);
-        return gift;
+        giftPromise = stagedGift;
+      } else {
+        // If the gift is not in the table, we need to return a promise for
+        // its deposit.
+        const promiseKit = makePromiseKit();
+        const pendingGiftKey = `pending:${giftKey}`;
+        giftTable.set(pendingGiftKey, promiseKit);
+        giftPromise = promiseKit.promise;
       }
-      // If the gift is not in the table, we need to return a promise for its deposit.
-      const promiseKit = makePromiseKit();
-      const pendingGiftKey = `pending:${giftKey}`;
-      giftTable.set(pendingGiftKey, promiseKit);
-      return promiseKit.promise;
+      logger.info('withdraw-gift', {
+        giftKey,
+        gift: stagedGift,
+        handoffCount,
+        embargo: handoffReceive.embargo,
+      });
+      if (!handoffReceive.embargo) {
+        return giftPromise;
+      }
+      return handoffEmbargoState
+        .awaitDisembargo(gifterExporterSessionId, giftId)
+        .then(() => {
+          handoffEmbargoState.forget(gifterExporterSessionId, giftId);
+          return giftPromise;
+        });
     },
   });
 };
@@ -676,6 +700,10 @@ const makeBootstrapObject = (
  * @property {() => any} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
  * @property {(message: any) => Uint8Array} writeOcapnMessage
+ * @property {(gifterExporterSessionId: ArrayBufferLike, giftId: ArrayBufferLike) => void} forwardDisembargoProvide
+ *   Internal: emits an `op:disembargo { provide }` on this session. Used by
+ *   the gifter's session-with-receiver to forward an `accept` disembargo
+ *   onto the gifter's session-with-exporter.
  * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.
  */
 
@@ -691,6 +719,8 @@ const makeBootstrapObject = (
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker
+ * @param {import('./handoff-embargo.js').HandoffEmbargoState} handoffEmbargoState
+ * @param {Map<string, { exporterLocation: OcapnLocation, gifterExporterSessionId: ArrayBufferLike }>} outgoingGifts
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
@@ -708,6 +738,8 @@ export const makeOcapn = (
   grantTracker,
   giftTable,
   sturdyRefTracker,
+  handoffEmbargoState,
+  outgoingGifts,
   ourIdLabel = 'OCapN',
   enableImportCollection = true,
   debugMode = false,
@@ -736,6 +768,10 @@ export const makeOcapn = (
     // their slots are still present.
     // eslint-disable-next-line no-use-before-define
     embargoState.rejectAll(disconnectError);
+    // The handoff-embargo state is shared across the client's sessions; we
+    // only nudge entries belonging to this session lazily (on next session
+    // shutdown they would be cleared). Withdraw-gift responses gated on this
+    // session's exporter wire would already error via the broken connection.
     // eslint-disable-next-line no-use-before-define
     ocapnTable.destroy(disconnectError);
     // Notify the session manager to immediately end the session.
@@ -999,6 +1035,41 @@ export const makeOcapn = (
         // Lift the embargo: resolve the HandledPromise so subsequent E()
         // calls shorten directly to the resolved value.
         entry.settler.resolve(entry.value);
+      } else if (context.type === 'accept') {
+        // We were the gifter for this handoff. The receiver has now seen the
+        // HandoffGive and is asking us to send the matching `provide`
+        // disembargo on our session with the exporter, so that the exporter
+        // can release `withdraw-gift` once all of our forwarded pipelined
+        // messages have been delivered through the gifter→exporter wire.
+        const { gifterExporterSessionId, giftId } = context;
+        const giftKey = toHex(giftId);
+        const record = outgoingGifts.get(giftKey);
+        if (record === undefined) {
+          throw Error(
+            `OCapN: op:disembargo accept for unknown gift: ${giftKey}`,
+          );
+        }
+        outgoingGifts.delete(giftKey);
+        const exporterLocationId = locationToLocationId(record.exporterLocation);
+        const exporterSession = getActiveSession(exporterLocationId);
+        if (exporterSession === undefined) {
+          // The session with the exporter is gone; nothing we can do beyond
+          // logging. The receiver's withdraw-gift will eventually fail or
+          // complete via the exporter's session-end cleanup.
+          logger.info(
+            `op:disembargo accept: no active exporter session, dropping`,
+            { giftKey },
+          );
+          return;
+        }
+        exporterSession.ocapn.forwardDisembargoProvide(
+          gifterExporterSessionId,
+          giftId,
+        );
+      } else if (context.type === 'provide') {
+        const { gifterExporterSessionId, giftId } = context;
+        // Lift the embargo on the corresponding withdraw-gift response.
+        handoffEmbargoState.disembargo(gifterExporterSessionId, giftId);
       } else {
         throw Error(`OCapN: op:disembargo unknown context type: ${context.type}`);
       }
@@ -1153,12 +1224,22 @@ export const makeOcapn = (
         } = receiverGifterSession;
         const bootstrap = ocapn.getRemoteBootstrap();
         const handoffCount = receiverExporterSession.takeNextHandoffCount();
-        // Make the HandoffReceive descriptor
+        // Make the HandoffReceive descriptor.
+        //
+        // We always opt into the level-3 disembargo: provideHandoff is called
+        // from HandOffUnionCodec.read which fires on every incoming third-party
+        // reference. We also dispatch an `op:disembargo { accept }` to the
+        // gifter (in ref-kit's provideHandoff) so the gifter forwards a
+        // matching `provide` to the exporter. This holds the withdraw-gift
+        // response back at the exporter long enough for any messages the
+        // gifter forwarded on its own wire with the exporter to be applied
+        // first, preserving end-to-end FIFO order.
         const handoffReceive = makeHandoffReceiveDescriptor(
           signedGive,
           handoffCount,
           receiverExporterSessionId,
           receiverPeerIdForExporter,
+          true,
         );
         const signature = signHandoffReceive(handoffReceive, receiverGifterKey);
         const signedHandoffReceive = makeHandoffReceiveSigEnvelope(
@@ -1209,6 +1290,15 @@ export const makeOcapn = (
       giftId,
       gifterKeyForExporter,
     );
+    // Record this outgoing gift so that when the receiver later sends an
+    // `accept` disembargo back to us we can forward it as a `provide`
+    // disembargo on our (gifter→exporter) session — matching capnproto's
+    // level-3 design where the same vat that sent `Provide` is the one that
+    // sends `Disembargo{provide}`.
+    outgoingGifts.set(toHex(giftId), {
+      exporterLocation,
+      gifterExporterSessionId,
+    });
     // eslint-disable-next-line no-use-before-define
     sendDepositGift(gifterExporterSession, giftId, value);
     return signedHandoffGive;
@@ -1302,12 +1392,28 @@ export const makeOcapn = (
     referenceKit,
     giftTable,
     getPeerPublicKeyForSessionId,
+    handoffEmbargoState,
   );
   ocapnTable.registerSlot(localBootstrapSlot, bootstrapObj);
 
   const remoteBootstrap = referenceKit.provideRemoteBootstrapValue();
   const getRemoteBootstrap = () => {
     return remoteBootstrap;
+  };
+
+  /**
+   * @param {ArrayBufferLike} gifterExporterSessionId
+   * @param {ArrayBufferLike} giftId
+   */
+  const forwardDisembargoProvide = (gifterExporterSessionId, giftId) => {
+    send({
+      type: 'op:disembargo',
+      context: harden({
+        type: 'provide',
+        gifterExporterSessionId,
+        giftId,
+      }),
+    });
   };
 
   /** @type {Ocapn} */
@@ -1317,6 +1423,7 @@ export const makeOcapn = (
     getRemoteBootstrap,
     writeOcapnMessage,
     referenceKit,
+    forwardDisembargoProvide,
   };
   if (debugMode) {
     // eslint-disable-next-line no-underscore-dangle

@@ -501,6 +501,23 @@ export const makeReferenceKit = (
     },
 
     provideHandoff: signedGive => {
+      // Capnproto level-3 disembargo: as the receiver of a third-party
+      // handoff, dispatch an `accept` disembargo on this same session (where
+      // any earlier pipelined messages on the resolving promise also went).
+      // The gifter forwards it as a `provide` disembargo on its session with
+      // the exporter, and the exporter holds back the `withdraw-gift`
+      // response until that arrives. By the time we get the cap, all
+      // earlier pipelined messages have already been delivered to it.
+      const { giftId, exporterSessionId: gifterExporterSessionId } =
+        signedGive.object;
+      send({
+        type: 'op:disembargo',
+        context: harden({
+          type: 'accept',
+          gifterExporterSessionId,
+          giftId,
+        }),
+      });
       return makeHandoff(signedGive);
     },
     sendHandoff,

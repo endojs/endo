@@ -65,6 +65,7 @@ import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
  * @property {SessionId} receivingSession
  * @property {PublicKeyId} receivingSide
  * @property {bigint} handoffCount
+ * @property {boolean} embargo
  * @property {HandoffGiveSigEnvelope} signedGive
  */
 
@@ -107,6 +108,12 @@ const DescHandoffReceiveCodec = makeOcapnRecordCodecFromDefinition(
     receivingSession: 'bytestring',
     receivingSide: 'bytestring',
     handoffCount: NonNegativeIntegerCodec,
+    // Matches capnproto's `Accept.embargo`. When true, the receiver pledges
+    // to send a corresponding `op:disembargo { accept }` so the exporter can
+    // hold the withdraw-gift response back until the matching `provide`
+    // disembargo arrives. When false, the exporter returns the gift
+    // immediately, foregoing the level-3 FIFO guarantee.
+    embargo: 'boolean',
     signedGive: DescHandoffGiveSigEnvelopeCodec,
   },
 );
@@ -431,6 +438,9 @@ export const makeHandoffGiveSigEnvelope = (handoffGive, signature) => {
  * @param {bigint} handoffCount
  * @param {SessionId} sessionId
  * @param {PublicKeyId} receiverPeerId
+ * @param {boolean} [embargo] - Whether the receiver will send a matching
+ *   `op:disembargo { accept }` (level-3). Defaults to false for callers that
+ *   construct handoff-receives manually outside of `provideHandoff`.
  * @returns {HandoffReceive}
  */
 export const makeHandoffReceiveDescriptor = (
@@ -438,12 +448,14 @@ export const makeHandoffReceiveDescriptor = (
   handoffCount,
   sessionId,
   receiverPeerId,
+  embargo = false,
 ) => {
   return harden({
     type: 'desc:handoff-receive',
     receivingSession: sessionId,
     receivingSide: receiverPeerId,
     handoffCount,
+    embargo,
     signedGive,
   });
 };

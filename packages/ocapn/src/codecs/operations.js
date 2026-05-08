@@ -194,14 +194,24 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
-  // Disembargo (capnproto-style, level 1) preserves per-reference FIFO order
-  // when a remote promise resolves to a sender-hosted capability. The sender
-  // allocates an embargoId and emits sender-loopback addressed to the original
-  // promise; the receiver echoes back receiver-loopback once all already-queued
-  // pipelined messages on that target have been processed. Until the echo
-  // arrives, the sender locally queues new messages on the resolved capability,
-  // which guarantees that earlier pipelined messages (still in flight through
-  // the original path) are delivered first.
+  // Disembargo (capnproto-style) preserves per-reference FIFO order across
+  // promise shortening.
+  //
+  // Level 1 (loopback) handles two-party shortening: a remote promise resolves
+  // to a sender-hosted capability. The sender allocates an embargoId and emits
+  // sender-loopback addressed to the original promise; the receiver echoes
+  // receiver-loopback once all already-queued pipelined messages on that
+  // target have been processed.
+  //
+  // Level 3 (accept/provide) handles three-party handoff shortening: a remote
+  // promise resolves to a third-party reference (delivered as a HandoffGive).
+  // The receiver of the gift sends `accept` to the gifter on the same wire as
+  // its earlier pipelined messages; the gifter forwards as `provide` on its
+  // wire with the exporter, which travels behind any pipelined messages the
+  // gifter forwarded to the exporter on that wire. The exporter holds back
+  // its `withdraw-gift` response until the `provide` message arrives, so by
+  // the time the receiver gets the cap, every earlier pipelined message has
+  // already been applied to it.
   const OpDisembargoSenderLoopbackCodec = makeOcapnRecordCodecFromDefinition(
     'OpDisembargoSenderLoopback',
     'sender-loopback',
@@ -219,11 +229,34 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
+  // The receiver (A) names the handoff by (gifterExporterSessionId, giftId)
+  // both pieces are also carried in the HandoffGive A originally received,
+  // and they uniquely identify the gift in the exporter's gift table.
+  const OpDisembargoAcceptCodec = makeOcapnRecordCodecFromDefinition(
+    'OpDisembargoAccept',
+    'accept',
+    {
+      gifterExporterSessionId: 'bytestring',
+      giftId: 'bytestring',
+    },
+  );
+
+  const OpDisembargoProvideCodec = makeOcapnRecordCodecFromDefinition(
+    'OpDisembargoProvide',
+    'provide',
+    {
+      gifterExporterSessionId: 'bytestring',
+      giftId: 'bytestring',
+    },
+  );
+
   const OpDisembargoContextCodec = makeRecordUnionCodec(
     'OpDisembargoContext',
     {
       OpDisembargoSenderLoopbackCodec,
       OpDisembargoReceiverLoopbackCodec,
+      OpDisembargoAcceptCodec,
+      OpDisembargoProvideCodec,
     },
   );
 
