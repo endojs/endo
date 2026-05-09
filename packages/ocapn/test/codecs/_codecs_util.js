@@ -225,6 +225,8 @@ export const makeCodecTestKit = (
     makeRemoteKit,
     makeHandoff,
     sendHandoff,
+    harden(() => {}),
+    false,
   );
   const descCodecs = makeDescCodecs(referenceKit);
   const passableCodecs = makePassableCodecs(descCodecs);

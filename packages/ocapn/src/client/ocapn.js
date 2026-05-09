@@ -247,6 +247,7 @@ const makeOcapnCommsKit = ({
  * @typedef {(targetGetter: () => unknown) => RemoteKit} MakeRemoteKit
  * Make a HandledPromise and settler that sends op:deliver to the `targetSlot`
  * @typedef {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} SendHandoff
+ * @typedef {(position: bigint, resolver: LocalResolver) => void} SendFlush
  */
 
 /**
@@ -263,7 +264,7 @@ const makeMakeRemoteKitForHandler = ({ logger, quietReject }) => {
 
     /** @type {import('@endo/eventual-send').HandledExecutor} */
     const executor = (resolve, reject, resolveWithPresence) => {
-      const s = Far('settler', {
+      settler = Far('settler', {
         resolve: value => {
           logger.info(`settler resolve`, value);
           resolve(value);
@@ -274,7 +275,6 @@ const makeMakeRemoteKitForHandler = ({ logger, quietReject }) => {
         },
         resolveWithPresence: () => resolveWithPresence(handler),
       });
-      settler = s;
     };
 
     const promise = new HandledPromise(executor, handler);
@@ -693,6 +693,7 @@ const makeBootstrapObject = (
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
+ * @param {boolean} [enableExperimentalFeatureFlush] - **EXPERIMENTAL**: If true, enable the `op:flush` and `op:flush-done` operations. Default: false.
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -710,6 +711,7 @@ export const makeOcapn = (
   ourIdLabel = 'OCapN',
   enableImportCollection = true,
   debugMode = false,
+  enableExperimentalFeatureFlush = false,
 ) => {
   const onReject = reason => {
     logger.info(`onReject`, reason);
@@ -731,6 +733,8 @@ export const makeOcapn = (
     connection.end();
     // eslint-disable-next-line no-use-before-define
     ocapnTable.destroy(disconnectError);
+    // eslint-disable-next-line no-use-before-define
+    flushedResolverPositions.clear();
     // Notify the session manager to immediately end the session.
     // This prevents race conditions where a new connection arrives
     // before the socket 'close' event fires.
@@ -742,39 +746,48 @@ export const makeOcapn = (
    * @param {any[]} args
    * @returns {Promise<unknown>}
    */
-  const invokeDeliver = async (to, args) => {
+  const invokeDeliver = (to, args) => {
     // We need to resolve the target to an object or function before we can invoke it.
-    const resolvedTarget = await Promise.resolve(to);
-    // We only apply functions to values with pass-style "remotable".
-    const passStyle = ocapnPassStyleOf(resolvedTarget);
-    if (passStyle !== 'remotable') {
-      throw Error(
-        `OCapN: Cannot apply functions to values with pass-style ${passStyle}`,
-      );
-    }
-    // While the to-value must be local (see DeliverTargetCodec), the resolved target may be remote.
-    // We only want to apply our implementation's selector -> string method name coercion if the target is local.
-    // eslint-disable-next-line no-use-before-define
-    const { isLocal } = referenceKit.getInfoForVal(resolvedTarget);
-    const targetType = typeof resolvedTarget;
-    if (isLocal && targetType === 'object' && resolvedTarget !== null) {
-      const [methodName, ...methodArgs] = args;
-      // Coerce selector to string for method name. Note: This is a deviation from the spec.
-      const methodNameString =
-        typeof methodName === 'string'
-          ? methodName
-          : getSelectorName(methodName);
-      return HandledPromise.applyMethod(
-        resolvedTarget,
-        methodNameString,
-        methodArgs,
-      );
-    } else {
-      return HandledPromise.applyFunction(resolvedTarget, args);
-    }
+    // TODO: We may be missing out on some pipelining if "to" is a local promise that resolves to a remote promise.
+    return HandledPromise.resolve(to).then(resolvedTarget => {
+      // We only apply functions to values with pass-style "remotable".
+      const passStyle = ocapnPassStyleOf(resolvedTarget);
+      if (passStyle !== 'remotable') {
+        return Promise.reject(
+          Error(
+            `OCapN: Cannot apply functions to values with pass-style ${passStyle}`,
+          ),
+        );
+      }
+
+      // While the to-value must be local (see DeliverTargetCodec), the resolved target may be remote.
+      // We only want to apply our implementation's selector -> string method name coercion if the target is local.
+      // eslint-disable-next-line no-use-before-define
+      const { isLocal } = referenceKit.getInfoForVal(resolvedTarget);
+      const targetType = typeof resolvedTarget;
+      if (isLocal && targetType === 'object' && resolvedTarget !== null) {
+        const [methodName, ...methodArgs] = args;
+        // Coerce selector to string for method name.
+        const methodNameString =
+          typeof methodName === 'string'
+            ? methodName
+            : getSelectorName(methodName);
+        return HandledPromise.applyMethod(
+          resolvedTarget,
+          methodNameString,
+          methodArgs,
+        );
+      } else {
+        return HandledPromise.applyFunction(resolvedTarget, args);
+      }
+    });
   };
 
-  const fulfillRemoteResolverWithPromise = (resolveMeDesc, promise) => {
+  const forwardLocalPromiseResolutionToRemoteResolver = (
+    resolveMeDesc,
+    promise,
+  ) => {
+    // TODO: Need to (conditionally?) handle promise shortening here.
     // Use E.sendOnly since we don't need a response from fulfill/break calls.
     // This sends op:deliver with answerPosition and resolveMeDesc both false.
     Promise.resolve(promise).then(
@@ -787,7 +800,7 @@ export const makeOcapn = (
     );
   };
 
-  const ocapnSystemMessageHandler = harden({
+  const ocapnSystemMessageHandler = {
     'op:deliver': message => {
       const { to, answerPosition, args, resolveMeDesc } = message;
       logger.info(`deliver`, { to, toType: typeof to, args, answerPosition });
@@ -803,7 +816,10 @@ export const makeOcapn = (
       }
 
       if (resolveMeDesc !== false) {
-        fulfillRemoteResolverWithPromise(resolveMeDesc, deliverPromise);
+        forwardLocalPromiseResolutionToRemoteResolver(
+          resolveMeDesc,
+          deliverPromise,
+        );
       } else {
         deliverPromise.catch(cause => {
           const err = Error('OCapN: Error during deliver (no resolver)', {
@@ -819,7 +835,10 @@ export const makeOcapn = (
       if (!(listenTarget instanceof Promise)) {
         throw Error(`OCapN: Expected a promise, got ${listenTarget}`);
       }
-      fulfillRemoteResolverWithPromise(resolveMeDesc, listenTarget);
+      forwardLocalPromiseResolutionToRemoteResolver(
+        resolveMeDesc,
+        listenTarget,
+      );
     },
     'op:get': message => {
       const { receiverDesc, fieldName, answerPosition } = message;
@@ -963,7 +982,68 @@ export const makeOcapn = (
       const { reason } = message;
       abort(reason);
     },
-  });
+  };
+
+  // Feature flag: Enable the `op:flush` operation.
+  if (enableExperimentalFeatureFlush) {
+    Object.assign(ocapnSystemMessageHandler, {
+      'op:flush': message => {
+        const { position, resolveMeDesc } = message;
+        logger.info(`flush`, { position });
+        // The flush targets the peer-export position of our local OcapN
+        // resolver (`r`): an `o+` row. We replace it with `r'` (fulfill/break)
+        // and keep `p'` on the side for pipelining; `flushedPromiseSettlers`
+        // retains the HandledPromise settler for handoff completion.
+        if (flushedResolverPositions.has(position)) {
+          throw Error(
+            `OCapN: op:flush: Position ${position} has already been flushed`,
+          );
+        }
+        const slot = makeSlot('o', true, position);
+        // eslint-disable-next-line no-use-before-define
+        const oldResolver = ocapnTable.getValueForSlot(slot);
+        if (oldResolver === undefined) {
+          throw Error(
+            `OCapN: op:flush: No local resolver export at position ${position}`,
+          );
+        }
+        // Build a fresh HandledPromise and Far OcapnResolver (`r'`) sharing
+        // one settler; the settler is held in flushedPromiseSettlers so a
+        // subsequent shortening step (e.g. a handoff) can resolve `p'`.
+        // eslint-disable-next-line no-use-before-define
+        const flushKit = referenceKit.makeFlushKit(slot);
+        const {
+          promise: pPrime,
+          resolver: rPrime,
+          settler: flushSettler,
+        } = flushKit;
+        // Forward unresolved p' to the old resolver.
+        oldResolver.fulfill(pPrime);
+        // eslint-disable-next-line no-use-before-define
+        ocapnTable.replaceExportValue(slot, rPrime);
+        // eslint-disable-next-line no-use-before-define
+        flushedResolverPositions.add(position);
+        // Cleanup the flush position on resolution.
+        pPrime.finally(() => {
+          // eslint-disable-next-line no-use-before-define
+          flushedResolverPositions.delete(position);
+        });
+        // Acknowledge the flush. Because messages on this connection are FIFO,
+        // by the time this reaches the peer it has already
+        // received every message Alice had sent that targeted the prior
+        // promise.
+        E.sendOnly(resolveMeDesc).fulfill();
+      },
+    });
+  }
+
+  harden(ocapnSystemMessageHandler);
+
+  /**
+   * Positions of exported resolvers that have been flushed.
+   * @type {Set<bigint>}
+   */
+  const flushedResolverPositions = new Set();
 
   /**
    * @param {Record<string, any>} message
@@ -1089,13 +1169,12 @@ export const makeOcapn = (
     const {
       object: { exporterLocation },
     } = signedGive;
-    return HandledPromise.resolve(
-      (async () => {
-        const [receiverGifterSession, receiverExporterSession] =
-          await Promise.all([
-            provideSession(gifterLocation),
-            provideSession(exporterLocation),
-          ]);
+    const sessionsP = HandledPromise.all([
+      provideSession(gifterLocation),
+      provideSession(exporterLocation),
+    ]);
+    return sessionsP.then(
+      ([receiverGifterSession, receiverExporterSession]) => {
         const {
           ocapn,
           id: receiverExporterSessionId,
@@ -1120,7 +1199,7 @@ export const makeOcapn = (
           signature,
         );
         return E(bootstrap)['withdraw-gift'](signedHandoffReceive);
-      })(),
+      },
     );
   };
 
@@ -1178,6 +1257,18 @@ export const makeOcapn = (
     });
   };
 
+  /** @type {SendFlush} */
+  const sendFlush = (position, resolver) => {
+    if (!enableExperimentalFeatureFlush) {
+      return;
+    }
+    send({
+      type: 'op:flush',
+      position,
+      resolveMeDesc: resolver,
+    });
+  };
+
   const referenceKit = makeReferenceKit(
     logger,
     peerLocation,
@@ -1187,6 +1278,8 @@ export const makeOcapn = (
     makeRemoteKit,
     makeHandoff,
     sendHandoff,
+    sendFlush,
+    enableExperimentalFeatureFlush,
   );
 
   const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(referenceKit);
