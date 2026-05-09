@@ -46,7 +46,7 @@ test('ZipReader.read throws for missing file', t => {
   writer.write('a.txt', textEncoder.encode('A'));
   const reader = new ZipReader(writer.snapshot(), { name: 'test.zip' });
   t.throws(() => reader.read('missing.txt'), {
-    message: /Cannot find file missing\.txt in Zip file test\.zip/,
+    message: /Cannot find file missing\.txt in ZIP file test\.zip/,
   });
 });
 

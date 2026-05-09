@@ -5,9 +5,12 @@
  * @param {'deflate-raw'} compressionMethodName
  */
 const compress = async (uncompressedBytes, compressionMethodName) => {
-  const uncompressedBlob = new Blob([uncompressedBytes], {
-    type: 'application/octet-stream',
-  });
+  const uncompressedBlob = new Blob(
+    [/** @type {BlobPart} */ (uncompressedBytes)],
+    {
+      type: 'application/octet-stream',
+    },
+  );
   const compressionStream = new CompressionStream(compressionMethodName);
   const compressedStream = uncompressedBlob
     .stream()
