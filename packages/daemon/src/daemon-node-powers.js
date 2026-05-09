@@ -418,7 +418,7 @@ export const makeCryptoPowers = crypto => {
     new Promise((resolve, reject) =>
       crypto.generateKeyPair(
         'ed25519',
-        /** @type {import('crypto').ED25519KeyPairKeyObjectOptions} */ ({}),
+        {},
         (err, publicKeyObject, privateKeyObject) => {
           if (err) {
             reject(err);
