@@ -11,6 +11,7 @@ import harden from '@endo/harden';
 
 import { E } from '@endo/far';
 import { ALL_ICONS, letterIcon, renderIconSelector } from './icon-selector.js';
+import { assertValidLocator } from './locator.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createSchemePicker } from './scheme-picker.js';
 
@@ -1405,21 +1406,6 @@ export const createAddSpaceModal = ({
   };
 
   /**
-   * Parse an endo locator URL into a formula identifier string.
-   * @param {string} locator - e.g., "endo://node/?id=num&type=channel"
-   * @returns {string} formula identifier, e.g., "num:node"
-   */
-  const formulaIdFromLocator = locator => {
-    const url = new URL(locator);
-    const node = url.host;
-    const number = url.searchParams.get('id');
-    if (!node || !number) {
-      throw new Error('Invalid locator: missing node or id');
-    }
-    return `${number}:${node}`;
-  };
-
-  /**
    * Handle connect to channel form submission.
    */
   const handleConnectChannelSubmit = async () => {
@@ -1436,10 +1422,12 @@ export const createAddSpaceModal = ({
       return;
     }
 
-    /** @type {string} */
-    let formulaId;
     try {
-      formulaId = formulaIdFromLocator(locator);
+      // Validate the locator URL shape against the daemon's
+      // parseLocator contract; storeLocator below takes the original
+      // endo:// locator string and would otherwise surface a terser
+      // daemon error to the user on a near-miss.
+      assertValidLocator(locator);
     } catch {
       error = 'Invalid locator URL format';
       render();
@@ -1499,12 +1487,14 @@ export const createAddSpaceModal = ({
           ),
         ).lookup(personaAgentName);
 
-        // 3. Write the channel formula ID into the persona's pet store
+        // 3. Write the channel locator into the persona's pet store.
+        //    Pass the original endo:// locator so the system can drop
+        //    bare-identifier support in the future.
         await E(
           /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
             personaPowers
           ),
-        ).storeLocator('general', formulaId);
+        ).storeLocator('general', locator);
 
         // 4. Create space config
         // Use the view mode from the locator if provided, else default chat.
@@ -1578,12 +1568,14 @@ export const createAddSpaceModal = ({
           ).lookup(segment);
         }
 
-        // Write the channel formula ID into the persona's pet store
+        // Write the channel locator into the persona's pet store.
+        // Pass the original endo:// locator so the system can drop
+        // bare-identifier support in the future.
         await E(
           /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
             personaPowers
           ),
-        ).storeLocator('general', formulaId);
+        ).storeLocator('general', locator);
 
         // No new space needed — the existing space already renders the channel
         hide();
@@ -1652,14 +1644,16 @@ export const createAddSpaceModal = ({
         )
       );
 
-      // Get the formula ID for the agent profile so we can write it
-      // into the whylip host's pet store.
-      const agentFormulaId = /** @type {string} */ (
+      // Get the endo:// locator for the agent profile so we can write
+      // it into the whylip host's pet store.  Per issue #150 reply,
+      // prefer locate()/storeLocator over identify()/storeIdentifier so
+      // the system can drop bare-identifier support in the future.
+      const agentLocator = /** @type {string} */ (
         await E(
-          /** @type {{ identify: (petName: string) => Promise<string> }} */ (
+          /** @type {{ locate: (petName: string) => Promise<string> }} */ (
             powers
           ),
-        ).identify(agentProfileName)
+        ).locate(agentProfileName)
       );
 
       // Create the whylip host profile.
@@ -1681,7 +1675,7 @@ export const createAddSpaceModal = ({
         /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
           whylipPowers
         ),
-      ).storeLocator('fae', agentFormulaId);
+      ).storeLocator('fae', agentLocator);
 
       await onSubmit({
         name,
