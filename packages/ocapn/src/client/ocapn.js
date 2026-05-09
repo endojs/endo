@@ -529,8 +529,10 @@ const makeBootstrapObject = (
      */
     'deposit-gift': (giftId, gift) => {
       const passStyle = ocapnPassStyleOf(gift);
-      if (passStyle !== 'remotable') {
-        throw Error(`${label}: Bootstrap deposit-gift: Gift must be remotable`);
+      if (passStyle !== 'remotable' && passStyle !== 'promise') {
+        throw Error(
+          `${label}: Bootstrap deposit-gift: Gift must be remotable or a promise (got pass-style ${passStyle})`,
+        );
       }
       const { isLocal } = referenceKit.getInfoForVal(gift);
       if (!isLocal) {

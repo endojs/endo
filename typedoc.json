@@ -31,6 +31,7 @@
     "packages/memoize",
     "packages/module-source",
     "packages/netstring",
+    "packages/ocapn-simulator",
     "packages/skel",
     "packages/stream-types-test",
     "packages/syrup",

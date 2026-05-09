@@ -177,6 +177,7 @@ const makeSessionManager = () => {
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.enableExperimentalFeatureFlush] - **EXPERIMENTAL**: If true, enable the `op:flush` and `op:flush-done` operations. Default: false.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
+ * @param {boolean} [options.enableFlush] - Simulator alias for `enableExperimentalFeatureFlush`.
  * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. The same logger is also handed to netlayer factories registered via `registerNetlayer`. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
  * @returns {Client}
  */
@@ -189,8 +190,12 @@ export const makeClient = ({
   enableImportCollection = true,
   enableExperimentalFeatureFlush = false,
   debugMode = false,
+  enableFlush = false,
   logger: providedLogger,
 } = {}) => {
+  const enableFlushFeature =
+    enableExperimentalFeatureFlush || enableFlush;
+
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
 
@@ -318,7 +323,7 @@ export const makeClient = ({
       debugLabel,
       enableImportCollection,
       debugMode,
-      enableExperimentalFeatureFlush,
+      enableFlushFeature,
     );
   };
 
