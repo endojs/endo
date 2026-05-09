@@ -6453,21 +6453,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^20.19.39":
-  version: 20.19.39
-  resolution: "@types/node@npm:20.19.39"
-  dependencies:
-    undici-types: "npm:~6.21.0"
-  checksum: 10c0/1d16da7b5f47a7415b827fcf3b94d279febf4c14671afec74a03e47856b5270023d9beb1b9aeab4d3b622fd97d61a60206cfc2cca588663181331bc592468289
-  languageName: node
-  linkType: hard
-
 "@types/node@npm:^24.9.0":
   version: 24.12.2
   resolution: "@types/node@npm:24.12.2"
   dependencies:
     undici-types: "npm:~7.16.0"
   checksum: 10c0/710050c42f89075c4479e4e1e4c2532486b0c41b1e2a8a13ad88641c88b88cdaea87414e19224f30028719737bd70e327edcaa184d50e86b9418941edd7eb02b
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^25.2.3":
+  version: 25.6.2
+  resolution: "@types/node@npm:25.6.2"
+  dependencies:
+    undici-types: "npm:~7.19.0"
+  checksum: 10c0/7f540331aa3ab88c285aeaf2eb43e3992f54f0cdb7f3593d156af67b199d4eaf56590fa1c310a00aa58ff69dba668cb3915a157fe83cd6b40a73bb338a12f09a
   languageName: node
   linkType: hard
 
@@ -16863,7 +16863,7 @@ __metadata:
     "@lavamoat/allow-scripts": "npm:^3.3.5"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.1"
     "@octokit/core": "npm:^3.4.0"
-    "@types/node": "npm:^20.19.39"
+    "@types/node": "npm:^25.2.3"
     "@typescript-eslint/eslint-plugin": "npm:8.59.1"
     "@typescript-eslint/parser": "npm:8.59.1"
     ava: "npm:^6.4.1"
@@ -18746,13 +18746,6 @@ __metadata:
   version: 6.19.8
   resolution: "undici-types@npm:6.19.8"
   checksum: 10c0/078afa5990fba110f6824823ace86073b4638f1d5112ee26e790155f481f2a868cc3e0615505b6f4282bdf74a3d8caad715fd809e870c2bb0704e3ea6082f344
-  languageName: node
-  linkType: hard
-
-"undici-types@npm:~6.21.0":
-  version: 6.21.0
-  resolution: "undici-types@npm:6.21.0"
-  checksum: 10c0/c01ed51829b10aa72fc3ce64b747f8e74ae9b60eafa19a7b46ef624403508a54c526ffab06a14a26b3120d055e1104d7abe7c9017e83ced038ea5cf52f8d5e04
   languageName: node
   linkType: hard
 
