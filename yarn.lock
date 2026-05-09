@@ -2316,7 +2316,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
     "@noble/curves": "npm:^1.9.0"
-    "@noble/hashes": "npm:^1.8.0"
+    "@noble/hashes": "npm:^2.0.1"
     "@types/ws": "npm:^8"
     ava: "catalog:dev"
     c8: "catalog:dev"
