@@ -25,5 +25,5 @@ export const wasmModule = new WebAssembly.Module(wasmBytes);
 
 /** @param {Uint8Array} array */
 export const getRandomValues = array => {
-  nodeGetRandomValues(array);
+  nodeGetRandomValues(/** @type {Uint8Array<ArrayBuffer>} */ (array));
 };
