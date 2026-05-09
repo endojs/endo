@@ -326,7 +326,7 @@ export const inventoryComponent = async (
           $joinSubmit.disabled = true;
           $joinSubmit.textContent = 'Joining...';
           try {
-            // Parse formula ID from locator URL
+            // Validate the locator URL and extract connection hints.
             const url = new URL(locator);
             const formulaNumber = url.searchParams.get('id');
             const nodeNumber = url.hostname;
@@ -343,8 +343,9 @@ export const inventoryComponent = async (
                 ),
               ).addPeerInfo({ node: nodeNumber, addresses });
             }
-            const formulaId = `${formulaNumber}:${nodeNumber}`;
-            await E(powers).storeLocator(petName, formulaId);
+            // Pass the original endo:// locator to storeLocator so the
+            // system can drop bare-identifier support in the future.
+            await E(powers).storeLocator(petName, locator);
             $inlineForm.classList.remove('visible');
             $inlineForm.innerHTML = '';
             // Auto-select the new channel
