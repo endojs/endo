@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OCapN promise-shortening simulator</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>OCapN promise-shortening simulator</h1>
+      <p class="subtitle">
+        Browser-only experiment. N web workers each host an
+        <code>@endo/ocapn</code> client. They reach each other through a
+        custom MessagePort netlayer with simulated latency.
+      </p>
+    </header>
+
+    <div class="app-main">
+      <section class="controls">
+        <fieldset>
+          <legend>Topology</legend>
+          <label>
+            Clients
+            <input id="control-client-count" type="number" min="2" max="12" value="8" />
+          </label>
+          <label>
+            Latency (ms)
+            <input id="control-latency" type="number" min="0" max="2000" value="500" />
+          </label>
+          <label class="toggle-inline">
+            <input id="control-enable-flush" type="checkbox" checked />
+            Enable op:flush
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend>Forward chain</legend>
+          <label>
+            Length
+            <input id="control-chain-length" type="number" min="1" max="20" value="4" />
+          </label>
+          <label class="toggle-inline">
+            <input id="control-chain-unique-in-path" type="checkbox" checked />
+            No repeat in chain (each node at most once)
+          </label>
+        </fieldset>
+        <div class="controls-run">
+          <button id="control-restart" type="button">Restart</button>
+        </div>
+      </section>
+
+      <section class="viz">
+        <fieldset class="graph-toggles">
+          <legend>Graph messages</legend>
+          <label class="toggle-inline viz-key-forward">
+            <input type="checkbox" id="toggle-viz-forward" checked />
+            Forward
+          </label>
+          <label class="toggle-inline viz-key-noop">
+            <input type="checkbox" id="toggle-viz-noop" checked />
+            Noops
+          </label>
+          <label
+            class="toggle-inline viz-key-flush"
+            title="op:flush / op:flush-done"
+          >
+            <input type="checkbox" id="toggle-viz-flush" checked />
+            Flush
+          </label>
+          <label
+            class="toggle-inline viz-key-handoff"
+            title="CapTP gift handoff: deposit-gift, withdraw-gift"
+          >
+            <input type="checkbox" id="toggle-viz-handoff" checked />
+            Handoff
+          </label>
+          <label
+            class="toggle-inline viz-key-handshake"
+            title="Session setup only: op:start-session (not gift handoff)"
+          >
+            <input type="checkbox" id="toggle-viz-handshake" checked />
+            Handshake
+          </label>
+          <label class="toggle-inline viz-key-abort" title="op:abort">
+            <input type="checkbox" id="toggle-viz-abort" checked />
+            Abort
+          </label>
+        </fieldset>
+        <svg id="viz-svg" viewBox="-300 -300 600 600" preserveAspectRatio="xMidYMid meet"></svg>
+      </section>
+
+      <section class="logs-panel" id="logs-panel">
+        <div class="log-split">
+          <div class="log-column">
+            <h2>Event log</h2>
+            <div id="log-events" class="log-view" aria-live="polite"></div>
+          </div>
+          <div class="log-column">
+            <h2>Active sessions</h2>
+            <pre id="log-sessions" class="log-view log-view-mono"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

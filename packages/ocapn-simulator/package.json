@@ -1,0 +1,53 @@
+{
+  "name": "@endo/ocapn-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-based simulator for OCapN promise-shortening experiments using @endo/ocapn from the op:flush branch.",
+  "keywords": [
+    "ocapn",
+    "captp",
+    "endo",
+    "simulator",
+    "promise-shortening"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/ocapn-simulator#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/ocapn-simulator"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "exit 0",
+    "build:bundle": "vite build",
+    "dev": "vite",
+    "start": "vite",
+    "preview": "vite preview",
+    "lint": "yarn lint:eslint",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint-fix": "yarn lint:eslint --fix",
+    "test": "exit 0",
+    "test:c8": "exit 0",
+    "test:xs": "exit 0"
+  },
+  "dependencies": {
+    "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/marshal": "workspace:^",
+    "@endo/ocapn": "workspace:^",
+    "@endo/pass-style": "workspace:^"
+  },
+  "devDependencies": {
+    "eslint": "catalog:dev",
+    "vite": "^7.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
