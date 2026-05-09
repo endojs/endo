@@ -60,28 +60,47 @@ jobs:
           restore-keys: |
             lake-${{ runner.os }}-
 
-      # Use lean-action for the Lean toolchain. We disable its automatic
-      # `lake build` because we want to invoke Lake explicitly from the
-      # subdirectory and capture its output for log-shape assertions.
-      - name: Set up Lean toolchain
-        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
-        with:
-          lake-package-directory: packages/ocapn/proofs/veil
-          auto-config: false
-          build: false
-          test: false
-          lint: false
-          use-github-cache: false
+      # Install Lean directly from the GitHub release tarball matching
+      # `packages/ocapn/proofs/veil/lean-toolchain`. We deliberately do NOT
+      # use leanprover/lean-action here: the org-level GitHub Actions
+      # policy forbids non-pinned actions, and lean-action's composite
+      # internally references `actions/cache/restore@v5` which is rejected
+      # at runtime. Driving the toolchain manually keeps every executed
+      # action SHA-pinned.
+      - name: Install Lean toolchain
+        working-directory: packages/ocapn/proofs/veil
+        run: |
+          set -euo pipefail
+          spec=$(cat lean-toolchain)
+          # Expected format: leanprover/lean4:v4.X.Y
+          version="${spec##*:v}"
+          if [ -z "$version" ] || [ "$version" = "$spec" ]; then
+            echo "FAIL: could not parse lean-toolchain '$spec'"
+            exit 1
+          fi
+          tarball="lean-${version}-linux.tar.zst"
+          url="https://github.com/leanprover/lean4/releases/download/v${version}/${tarball}"
+          echo "Fetching $url"
+          curl -fsSL --retry 4 --retry-delay 5 -o "/tmp/${tarball}" "$url"
+          sudo apt-get update
+          sudo apt-get install -y zstd
+          mkdir -p "$RUNNER_TEMP/lean"
+          tar --use-compress-program='zstd -d' \
+              -xf "/tmp/${tarball}" \
+              -C "$RUNNER_TEMP/lean" --strip-components=1
+          echo "$RUNNER_TEMP/lean/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/lean/bin/lean" --version
+          "$RUNNER_TEMP/lean/bin/lake" --version
+
+      - name: Resolve dependencies
+        working-directory: packages/ocapn/proofs/veil
+        run: lake update
 
       - name: Pre-stage uv binary for Veil's downloadDependencies
         working-directory: packages/ocapn/proofs/veil
         run: |
           mkdir -p .lake/packages/veil/.lake/build
           cp "$UV_BIN" .lake/packages/veil/.lake/build/uv
-
-      - name: Resolve dependencies
-        working-directory: packages/ocapn/proofs/veil
-        run: lake update
 
       - name: Build proof and capture log
         working-directory: packages/ocapn/proofs/veil
