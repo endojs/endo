@@ -1,0 +1,93 @@
+name: CI (docs-only)
+
+# Sister workflow to `ci.yml` for documentation-only PRs.
+#
+# `ci.yml` skips itself on doc-only changes via `paths-ignore`. This file
+# is the mirror image: it runs only when every changed path matches the
+# doc patterns below. It exists so that a doc-only PR still produces a
+# check named `test` (and `lint`) — the same names `ci.yml` produces for
+# code changes — so that any future branch-protection rule naming those
+# checks as required is satisfied on both paths.
+#
+# The `test` and `lint` jobs here are intentionally lightweight: they
+# do not run the per-package matrix. Instead they perform doc-relevant
+# verification (Prettier formatting, TypeDoc generation) that would be
+# wasteful to run on every code change but is the appropriate work for
+# a doc-only change.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Prettier is the only lint that can meaningfully run against a
+      # doc-only change. ESLint targets `.js` sources; running it on a
+      # branch with no source diff would be a no-op.
+      - name: Run yarn lint:prettier
+        run: yarn lint:prettier
+
+  test:
+    name: test
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # `yarn build` first because TypeDoc reads generated typedefs from
+      # several packages' build output.
+      - name: Run yarn build
+        run: yarn build
+
+      # Doc-only PRs commonly touch the same Markdown that TypeDoc
+      # surfaces in the generated site, so verify the site still
+      # generates cleanly. This is the load-bearing work that justifies
+      # the `test` check name on the doc-only path.
+      - name: Build TypeDoc site
+        run: yarn docs
