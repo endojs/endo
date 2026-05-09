@@ -1,0 +1,4 @@
+# Lake build artifacts. We commit lake-manifest.json so dependency versions
+# are pinned for reproducible builds.
+.lake/
+build/
