@@ -22,4 +22,9 @@
  */
 
 export { makeClient } from './src/client/index.js';
-export { swissnumFromBytes, swissnumToBytes } from './src/client/util.js';
+export {
+  encodeSwissnum,
+  locationToLocationId,
+  swissnumFromBytes,
+  swissnumToBytes,
+} from './src/client/util.js';

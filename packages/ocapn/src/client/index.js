@@ -176,6 +176,7 @@ const makeSessionManager = () => {
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
+ * @param {boolean} [options.enableFlush] - If true, enables `flushExport` and `op:flush` / `op:flush-done`. Default: false.
  * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. The same logger is also handed to netlayer factories registered via `registerNetlayer`. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
  * @returns {Client}
  */
@@ -187,6 +188,7 @@ export const makeClient = ({
   captpVersion = '1.0',
   enableImportCollection = true,
   debugMode = false,
+  enableFlush = false,
   logger: providedLogger,
 } = {}) => {
   /** @type {Map<string, NetLayer>} */
@@ -316,6 +318,7 @@ export const makeClient = ({
       debugLabel,
       enableImportCollection,
       debugMode,
+      enableFlush,
     );
   };
 

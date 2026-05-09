@@ -529,8 +529,10 @@ const makeBootstrapObject = (
      */
     'deposit-gift': (giftId, gift) => {
       const passStyle = ocapnPassStyleOf(gift);
-      if (passStyle !== 'remotable') {
-        throw Error(`${label}: Bootstrap deposit-gift: Gift must be remotable`);
+      if (passStyle !== 'remotable' && passStyle !== 'promise') {
+        throw Error(
+          `${label}: Bootstrap deposit-gift: Gift must be remotable or a promise (got pass-style ${passStyle})`,
+        );
       }
       const { isLocal } = referenceKit.getInfoForVal(gift);
       if (!isLocal) {
@@ -694,6 +696,7 @@ const makeBootstrapObject = (
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
+ * @param {boolean} [enableFlush] - If true, `flushExport` and `op:flush` / `op:flush-done` are enabled. Default: false.
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -711,6 +714,7 @@ export const makeOcapn = (
   ourIdLabel = 'OCapN',
   enableImportCollection = true,
   debugMode = false,
+  enableFlush = false,
 ) => {
   const onReject = reason => {
     logger.info(`onReject`, reason);
@@ -974,6 +978,11 @@ export const makeOcapn = (
       }
     },
     'op:flush': message => {
+      if (!enableFlush) {
+        throw Error(
+          'OCapN: op:flush received but flush is disabled (pass enableFlush: true to makeClient)',
+        );
+      }
       const { position } = message;
       logger.info(`flush`, { position });
       // The flush targets the export-table position of a local promise. The
@@ -1061,6 +1070,11 @@ export const makeOcapn = (
    * @returns {Promise<void>}
    */
   const flushExport = remoteValue => {
+    if (!enableFlush) {
+      throw Error(
+        'OCapN: flushExport requires flush support (pass enableFlush: true to makeClient)',
+      );
+    }
     // eslint-disable-next-line no-use-before-define
     if (didUnplug()) {
       return /** @type {Promise<void>} */ (
