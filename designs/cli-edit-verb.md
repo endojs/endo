@@ -1,4 +1,4 @@
-# CLI `edit` verb: hash-anchored line-based patches for AI agents
+# `edit` verb: hash-anchored line-based patches for AI agents
 
 | | |
 |---|---|
@@ -21,13 +21,45 @@ proposes `endo write --text <name> <path>` and `endo read --text <name>
 Whole-file overwrite via `endo write` is the wrong tool for the
 common AI-agent workflow of "change three lines in this 600-line file
 without re-reading and re-emitting the whole thing".
-A delta-based `endo edit` verb fills the gap.
+A delta-based `edit` operation fills the gap.
 
-This design names the verb shape, the patch input format, the
-atomicity guarantees, the cap surface, and the error model.
+This design names the daemon-side `EndoGuest.edit` API surface, the
+thin CLI wrapper, the patch input formats, the atomicity guarantees,
+the cap surface, and the error model.
 The leading candidate format is **hashline**: short content-hash
 anchors per line that double as both location identifiers and
 staleness checks.
+
+## Design framing: agent tool-calls drive the daemon, not the CLI
+
+The original framing of this design positioned `endo edit` (a CLI verb
+human or scripted callers invoke) as the primary surface.
+Maintainer review on PR #162 corrected that framing.
+AI agents do not type CLI commands.
+They invoke tools, and those tool calls drive the daemon's `EndoGuest`
+API directly.
+The CLI is a thin convenience wrapper around that API for human
+operators and shell scripts; the daemon-side capability is the
+load-bearing surface that needs the design care.
+
+The two surfaces in priority order:
+
+1. **Primary: `E(guest).edit(directoryRef, path, patch, options)`.**
+   The daemon-side eventual-send API.
+   This is what an agent's tool-call lands on.
+   It performs the read, anchor validation, splice, and write under a
+   single mount-internal critical section.
+2. **Secondary: `endo edit <name-path> --patch <file> --format hashline`.**
+   A thin CLI wrapper that resolves the name path, reads the patch
+   from a file or stdin, and delegates to the same daemon API as a
+   single eventual send.
+
+The CLI exists for human ergonomics (debugging, ad-hoc edits,
+shell-script integration), not as the primary integration surface.
+Treating the daemon API as the load-bearing path lets us put
+atomicity, CAS, and concurrency control where they belong: inside the
+daemon, behind the capability boundary, where the mount's revision
+state is already authoritative.
 
 ## Background: what is hashline?
 
@@ -57,8 +89,8 @@ The `LINE#HASH` prefix carries:
 - **`LINE`**: 1-indexed line number, for human readability and ordinal
   reasoning.
 - **`HASH`**: a 2-to-4-character content hash of the normalized line
-  (typically CRC32, FNV-1a, or xxHash, mod a small alphabet, with
-  trailing whitespace stripped before hashing).
+  (CRC32 by default; FNV-1a and xxHash also supported via options;
+  see "Hash algorithm specification").
 
 ### Edit operations reference anchors
 
@@ -116,80 +148,237 @@ retry loops on stronger models.
 The format is small enough that most modern code-editing agents
 (Aider, Cursor, OpenCode, Codex, Claude Code) could adopt it.
 
-## Design: `endo edit` verb shape
+## Daemon-side API: `EndoGuest.edit`
+
+The primary surface is the daemon-side method an agent's tool-call
+lands on:
+
+```js
+/**
+ * @param {EndoDirectory} directoryRef the mount whose path to edit
+ * @param {string} path the path within the mount
+ * @param {EditPatch} patch the parsed patch envelope (see below)
+ * @param {EditOptions} [options]
+ * @returns {Promise<EditResult>}
+ */
+E(guest).edit(directoryRef, path, patch, options)
+```
+
+The `patch` argument is a structured envelope (the canonical
+`hashline-json` shape; see "Patch input formats" below).
+The CLI parses textual `hashline` into this envelope before the
+eventual send; agents that emit JSON directly bypass the textual
+parse.
+
+### Patch envelope shape
+
+```js
+/**
+ * @typedef {object} EditPatch
+ * @property {string} expectedFileHash SHA-256 of the file the agent
+ *   read, as 64-char lowercase hex. The CAS check.
+ * @property {'crc32' | 'fnv1a' | 'xxhash32'} [hashAlgo='crc32']
+ *   the algorithm the per-line anchors were computed with.
+ * @property {EditOp[]} ops operations in any order; sorted bottom-up
+ *   by line number before splicing.
+ */
+
+/**
+ * @typedef {object} EditOp
+ * @property {'replace'|'replace_range'|'delete'|'insert_after'|'insert_before'|'prepend'|'append'} op
+ * @property {Anchor} [anchor] one anchor for non-range ops
+ * @property {Anchor} [anchorEnd] second anchor for range ops
+ * @property {string[]} [payload] inserted lines (LF-terminated implied)
+ */
+
+/**
+ * @typedef {object} Anchor
+ * @property {number} line 1-indexed line number
+ * @property {string} hash 2-to-4-char hex per the chosen algorithm
+ */
+```
+
+### Result shape
+
+```js
+/**
+ * @typedef {object} EditResult
+ * @property {boolean} success
+ * @property {string} fileHashAfter SHA-256 of the file after the edit,
+ *   for the agent to use as its next `expectedFileHash`.
+ * @property {EditFailure} [failure] populated only when success is false
+ */
+
+/**
+ * @typedef {object} EditFailure
+ * @property {'hash_mismatch'|'file_rev_mismatch'|'ambiguous_reapply'|
+ *           'patch_syntax'|'path_not_found'|'permission_denied'} reason
+ * @property {string} fileHashActual the live file SHA-256, returned on
+ *   `file_rev_mismatch` so the agent can re-read at the new revision.
+ * @property {AnchorMismatch[]} [mismatches] populated on `hash_mismatch`
+ */
+
+/**
+ * @typedef {object} AnchorMismatch
+ * @property {number} line
+ * @property {string} hashExpected
+ * @property {string} hashActual
+ */
+```
+
+The result is a value, not a thrown error.
+Returning a structured failure lets the agent inspect `reason`,
+`fileHashActual`, and `mismatches` without unwrapping a thrown error
+across the eventual-send boundary.
+
+### Why a daemon-side API and not just CLI splice
+
+Two reasons reverse the original design's CLI-side recommendation:
+
+1. **Agents drive the daemon directly via tool-calls.**
+   The CLI is one consumer; agent tool-calls are the higher-volume
+   consumer.
+   Centralising the splice in the daemon means both surfaces share
+   the same atomicity, CAS, and concurrency-control logic.
+2. **The daemon already owns the mount's authoritative state.**
+   Putting the read-validate-splice-write sequence behind one
+   capability call lets the daemon hold a mount-internal lock across
+   the read and the write, which is the only way to close the
+   concurrent-edit race for shared mounts.
+   The capability boundary is also the right place to enforce
+   permissions (read-only mounts, restricted paths) once the mount
+   surface grows them.
+
+The CLI verb stays a thin wrapper that parses the patch into the
+envelope, looks up the directory ref by name path, and issues one
+`E(guest).edit(...)` call.
+
+## Investigate dependencies we can imitate or rely on
+
+Per the maintainer's review note: agents drive this through tool
+calls, and we should investigate prior art before re-implementing.
+
+The patch-parsing, hash-anchor, and splice logic has prior
+implementations across the AI-agent ecosystem.
+Before implementation, the builder should evaluate:
+
+- **[oh-my-pi](https://github.com/can1357/oh-my-pi)** (TypeScript /
+  Bun): the originating hashline implementation.
+  Reference for the per-line hash algorithm, the patch grammar, and
+  the bottom-up splice.
+  License-permitting, lifting the parser and adapting to Endo's
+  module conventions is preferable to a clean-room rewrite.
+- **[opencode-hashline](https://github.com/izzzzzi/opencode-hashline)**
+  (TypeScript): the OpenCode adoption.
+  Adds `FILE_REV_MISMATCH` whole-file SHA-256 check and a JSON envelope.
+  Reference for the structured-payload shape we adopt as
+  `hashline-json` first-class.
+- **[Aider](https://github.com/Aider-AI/aider)** (Python): the
+  search-and-replace and unified-diff fallback formats.
+  Not the primary format here, but Aider's prompt-engineering for
+  weak-model patch generation is referenced in the format-comparison
+  section.
+- **[diff-match-patch](https://github.com/google/diff-match-patch)**
+  (Google, multi-language): the canonical fuzzy-patch library.
+  Reference for the `--reapply` bounded relocation search algorithm;
+  not a runtime dependency unless the reapply heuristic needs it.
+- **[parse-diff](https://www.npmjs.com/package/parse-diff)** and
+  **[unidiff](https://www.npmjs.com/package/unidiff)** (npm): if the
+  secondary `--format udiff` mode is in scope from day one, these are
+  small parser dependencies we could pull in rather than write.
+- **[crc-32](https://www.npmjs.com/package/crc-32)** (npm,
+  zero-dependency, ISC): a CRC32 implementation in pure JS.
+  Candidate runtime dependency for the default hash algorithm if we
+  do not write our own.
+- **[@node-rs/xxhash](https://www.npmjs.com/package/@node-rs/xxhash)**
+  or **[xxhash-wasm](https://www.npmjs.com/package/xxhash-wasm)**: if
+  `xxhash32` is exposed as an option, one of these provides the
+  implementation; xxhash-wasm runs in browsers and has no native
+  binding requirement.
+
+The builder dispatch for this design should open with a
+prior-art review (one paragraph per evaluated package: license,
+maintenance status, surface fit) and a recommendation on which to
+imitate vs. depend on.
+The reference implementation lives in `packages/cli/src/hashline.js`
+and `packages/daemon/src/hashline.js` (a shared pure module so the
+agent's view and the daemon's view agree byte-for-byte) regardless of
+whether the algorithm code is original or vendored.
+
+## CLI verb shape (thin wrapper)
 
 ```
-endo edit [--patch <file>|--patch-stdin] <name-path> [--as <agent>]
-endo edit [--format hashline|udiff|search-replace] ...
-endo edit [--dry-run] [--strict|--reapply]
+endo edit <name-path> [--patch <file>|--patch-stdin] [--as <agent>]
+endo edit <name-path> --format hashline | hashline-json | udiff | search-replace
+endo edit <name-path> --hash-algo crc32 | fnv1a | xxhash32
+endo edit <name-path> [--dry-run] [--strict|--reapply]
 ```
 
 The target `<name-path>` resolves through the same path machinery as
 `endo write` and `endo read`: a single name is a top-level pet-name;
 multi-segment paths address a path within a mount.
 
-The patch is read from a file or stdin in the chosen format.
-Default `--format` is `hashline`; the verb stays format-extensible
-(see "Future formats" below).
+The patch is read from a file or stdin.
+The CLI parses it into the `EditPatch` envelope, looks up the
+directory ref, and issues a single `E(guest).edit(...)` call.
+
+### `--format` is required; no auto-detection
+
+Per the maintainer's review on this design: `--format` is an explicit
+flag; the CLI does not attempt to auto-detect format from the leading
+byte of the input.
+
+The supported values are:
+
+- `hashline` (default): the textual hashline grammar described below.
+- `hashline-json`: the JSON envelope described below.
+  First-class peer of `hashline`, not a secondary mode.
+- `udiff`: unified-diff format, parsed into hashline operations.
+  See "Alternative formats considered".
+- `search-replace`: Aider-style SEARCH/REPLACE blocks.
+  See "Alternative formats considered".
+
+Auto-detection by leading byte was rejected because patches that
+happen to start with characters legal in multiple formats (a JSON
+patch that begins with whitespace, a hashline patch with a leading
+comment) are ambiguous.
+The flag is explicit, scriptable, and deterministic.
+
+### `--enum` for line-number annotation on read
+
+Independent of the patch format, the sibling `endo read` verb gains
+`--enum` (or its equivalent flag) to enumerate line numbers without
+implying any patch format.
+A separate, orthogonal flag lets agents request hashline anchors
+specifically when they want them, without coupling line-number
+display to patch-format choice.
+
+```
+endo read --text --enum --hashline <name-path>   # both annotations
+endo read --text --enum <name-path>              # line numbers only
+endo read --text --hashline <name-path>          # hashline anchors only
+```
+
+The annotation flags belong in
+[`cli-store-verb-text-modes.md`](cli-store-verb-text-modes.md) as the
+read-side companion to the edit-side `--format` flag; they are
+mentioned here because round-trip is the load-bearing usage shape.
 
 ### Round-trip pairing with `endo read`
 
-`endo read` (sibling design) gains a `--annotate hashline` flag so
-the agent can ask for the hashline-decorated view directly:
-
 ```
-endo read --text --annotate hashline <name-path>
-endo edit --format hashline --patch-stdin <name-path>
+endo read --text --hashline <name-path> > file.hashline
+# agent edits file.hashline into a patch
+endo edit --format hashline --patch-stdin <name-path> < patch.hashline
 ```
 
-The annotation flag is the read-side companion to the edit-side
-format flag.
-Without it, `endo read --text` returns plain text and an agent that
-wants hashline mode must compute the per-line hashes itself (which
-matches the algorithm spec; see "Hash algorithm specification").
-With it, the daemon does the work and the wire format is canonical.
+## Patch input formats
 
-### Verb scope
+`hashline` and `hashline-json` are first-class peer formats with
+shared semantics; `udiff` and `search-replace` are secondary
+compatibility modes.
 
-`endo edit` is the **mount-path mutation** verb (delta form).
-It does not operate on `readable-blob` content-addressed formulas:
-those are immutable.
-An agent that wants to "edit" a `readable-blob` writes a fresh blob
-under the same pet-name, mediated by `endo write`.
-
-`endo edit` composes with `endo write`: both mutate a path.
-`endo write` replaces the whole file; `endo edit` applies a delta.
-Writing the entire file via `endo edit prepend ...` is technically
-expressible but `endo write` is the right verb for that case.
-
-## Patch input format: hashline
-
-### Hash algorithm specification
-
-To make `endo edit` interoperable with off-the-shelf agent harnesses,
-the hash algorithm is part of the wire contract.
-Recommended:
-
-- **Algorithm:** CRC32 (the IEEE polynomial as in `zlib.crc32`).
-  Cheap, deterministic, JS-portable, well-known.
-  An alternative is FNV-1a, also cheap and well-known; see Open
-  Question #1.
-- **Normalization:** strip trailing whitespace, normalize CRLF to LF,
-  but preserve leading whitespace (indentation is significant for
-  hashing because it's significant for the language).
-- **Encoding:** 8 bits of the CRC, lowercase 2-char hex.
-  16 bits (4-char hex) for files >4096 lines, to keep collision
-  probability negligible.
-- **Empty / whitespace-only lines:** seed the hash with the line
-  number so multiple blank lines do not all map to the same anchor.
-
-A reference implementation lives in `packages/cli/src/hashline.js`
-(to be created); `packages/daemon/src/hashline.js` carries the
-daemon-side validator.
-Both call into a shared pure-function module to ensure the agent's
-view and the daemon's view agree byte-for-byte.
-
-### Wire format
+### Format: `hashline` (textual)
 
 The patch is a UTF-8 text document.
 Line endings in the document itself are LF only.
@@ -215,16 +404,49 @@ more payload lines marked by a separator.
 - Comments begin with `#` at the start of the line and are ignored.
 - A blank line ends an operation; the next non-blank line either
   starts a new operation or is end-of-patch.
+- The patch may be prefixed with a metadata header:
+  `@expected-file-hash <hex>` and `@hash-algo <algo>`.
+  Both are required (the CAS check is on by default; see "CAS
+  semantics").
 
 This is a deliberately textual, line-oriented format so it is human-
 readable, diff-friendly, and survives copy/paste through chat
 interfaces.
-A JSON form is available as a secondary input mode (see Open
-Question #2).
 
-### Worked example
+### Format: `hashline-json` (structured, first-class)
 
-Input file (as `endo read --text --annotate hashline notes/today`):
+Tools that build patches programmatically (a CLI option, a TypeScript
+client, a future Chat UI's edit modal, an agent's tool-call) emit
+JSON directly:
+
+```json
+{
+  "expectedFileHash": "7c1b...",
+  "hashAlgo": "crc32",
+  "ops": [
+    { "op": "replace", "anchor": { "line": 5, "hash": "f1" },
+      "payload": ["  const { agent, store } = powers;"] },
+    { "op": "insert_after", "anchor": { "line": 20, "hash": "dd" },
+      "payload": ["  // diagnostic", "  console.error('starting');"] }
+  ]
+}
+```
+
+The JSON envelope is the canonical in-memory representation; the
+textual hashline format parses into it.
+For agent tool-calls that hit `E(guest).edit(...)` directly, the
+JSON envelope IS the wire format (the daemon API takes the
+`EditPatch` shape; no textual parse).
+
+The two formats are peers, not primary-and-secondary.
+The textual form serves human authors and copy/paste scenarios; the
+JSON form serves machine producers and agent tool-calls.
+Both round-trip through the same `EditPatch` envelope and validate
+through the same daemon-side splice.
+
+### Worked example (textual)
+
+Input file (as `endo read --text --enum --hashline notes/today`):
 
 ```
 1#a3 # Today's notes
@@ -237,6 +459,8 @@ Input file (as `endo read --text --annotate hashline notes/today`):
 Patch:
 
 ```
+@expected-file-hash 7c1b2a... (full SHA-256)
+@hash-algo crc32
 @replace 4#7e
 | Buy eggs (the brown ones).
 @insert_after 4#7e
@@ -254,129 +478,288 @@ Buy bread.
 
 ```
 
-## Atomicity and CAS semantics
+## Hash algorithm specification
 
-`endo edit` is a compare-and-swap on every anchored line:
+To make hashline interoperable with off-the-shelf agent harnesses,
+the hash algorithm is part of the wire contract.
+
+### Default: CRC32
+
+- **Algorithm:** CRC32 (the IEEE polynomial as in `zlib.crc32`).
+  Cheap, deterministic, JS-portable, well-known.
+- **Normalization:** strip trailing whitespace, normalize CRLF to LF,
+  but preserve leading whitespace (indentation is significant for
+  hashing because it's significant for the language).
+- **Encoding:** 8 bits of the CRC, lowercase 2-char hex.
+  16 bits (4-char hex) for files >4096 lines, to keep collision
+  probability negligible.
+- **Empty / whitespace-only lines:** seed the hash with the line
+  number so multiple blank lines do not all map to the same anchor.
+
+### Other algorithms supported via options
+
+Per the maintainer's review on this design: leave the door open for
+other hashing algorithms in options.
+The patch envelope's `hashAlgo` field selects the algorithm; the CLI
+exposes `--hash-algo`:
+
+| Algorithm | Selector | Rationale |
+|---|---|---|
+| `crc32` | default | Zero-dependency, JS-portable, well-known. |
+| `fnv1a` | option | What `opencode-hashline` uses; faster on short inputs; trivial to bundle. |
+| `xxhash32` | option | What oh-my-pi uses (via `Bun.hash.xxHash32`); fastest of the three; needs a small WASM or native dependency. |
+
+The CLI's `--hash-algo` flag, the patch envelope's `hashAlgo` field,
+and the `--hashline` annotation on `endo read` must agree.
+Mismatched algorithms produce hash mismatches the daemon reports as
+ordinary `hash_mismatch` failures.
+
+A reference implementation lives in
+`packages/cli/src/hashline.js` and `packages/daemon/src/hashline.js`,
+both calling into a shared pure-function module to ensure the agent's
+view and the daemon's view agree byte-for-byte for every supported
+algorithm.
+
+## CAS (Compare-And-Swap) semantics
+
+Per the maintainer's review: CAS via whole-file hash check is on by
+default; agents do not opt in.
+"We may as well; we'll often be using the CAS."
+
+Every patch envelope carries an `expectedFileHash` field (the SHA-256
+of the file as the agent read it).
+The daemon performs the CAS check unconditionally as the first step
+of every `edit`:
 
 1. The daemon reads the current file content.
-2. For each operation in the patch, it computes the hash of the line
-   currently at `LINE` and compares to `HASH`.
-3. **If any anchor mismatches, the operation aborts before any
-   mutation.**
-   The verb exits non-zero with a diagnostic that names every
-   mismatching anchor and shows the live hash next to the requested
-   one.
-4. If all anchors validate, operations are sorted bottom-up by line
-   number and applied as a single splice pass; the resulting file is
-   written through the mount's `writeText` (sibling) call.
+2. It computes the current SHA-256.
+3. **If `expectedFileHash` does not match the current SHA-256, the
+   edit fails with `file_rev_mismatch`.**
+   The result includes `fileHashActual`, the live SHA-256, so the
+   agent can re-read at the new revision and retry with a fresh
+   patch.
+4. For each operation in the patch, the daemon computes the per-line
+   hash of the line currently at `LINE` and compares to `HASH`.
+5. **If any per-line anchor mismatches, the edit fails with
+   `hash_mismatch`** and a list of mismatching anchors.
+   This is the inner staleness check that catches partial drift even
+   when whole-file hashes happen to coincide.
+6. If both the file hash and all per-line anchors validate,
+   operations are sorted bottom-up by line number and applied as a
+   single splice pass; the resulting file is written through the
+   mount's `writeText` call.
+7. The result returns `success: true` and `fileHashAfter`, which the
+   agent can adopt as its next `expectedFileHash` for a follow-up
+   edit without re-reading.
 
-This is not transactional across multiple files; one `endo edit`
-invocation targets one path.
-A multi-file batch is a sequence of `endo edit` invocations; a
-failure mid-sequence leaves earlier files mutated.
-See Open Question #3.
+### Concurrency control by hash matching
 
-### Whole-file revision check
+This is the concurrency model.
+Two agents editing the same file race as follows:
 
-In addition to per-anchor hashes, hashline implementations sometimes
-carry a whole-file revision hash (`FILE_REV_MISMATCH` in
-opencode-hashline's parlance).
-`endo edit` adopts this via an optional `--expect-rev <hex>` flag:
+- Both read the file at SHA-256 H1 and produce patches with
+  `expectedFileHash: H1`.
+- Agent A's `edit` arrives first; the daemon's CAS check passes; the
+  splice writes; the file is now at SHA-256 H2.
+- Agent B's `edit` arrives; the daemon's CAS check sees the file at
+  H2 but `expectedFileHash: H1`; the edit fails with
+  `file_rev_mismatch` and `fileHashActual: H2`.
+- Agent B re-reads, re-computes the patch against H2, and retries.
 
-```
-endo edit --patch-stdin --expect-rev 7c1b... <path>
-```
+The daemon does not perform any merge.
+The agent's retry loop is the merge strategy.
+This is the standard CAS pattern; it is the reason the daemon-side
+API is the load-bearing surface (the CLI cannot enforce
+read-validate-write atomicity on its own; the mount-internal lock
+inside the daemon can).
 
-If supplied, the daemon also computes the SHA-256 of the file before
-applying the patch and aborts on mismatch, even if every per-line
-anchor happens to match.
-This catches edits-to-deleted-and-recreated files where the line
-content collisions could spuriously validate.
-See Open Question #4 for whether this should be on by default.
+The patch envelope's `expectedFileHash` is **required**, not
+optional.
+The CLI computes it implicitly when the patch is generated by
+`endo read --text --hashline` (which can include a header), or it can
+be supplied via `--expect-rev <hex>` when the patch is hand-authored.
+A patch without `expectedFileHash` is a syntax error.
 
 ## Reapply mode
 
-`--reapply` enables a bounded relocation search per anchor: when an
-anchor's hash mismatches the line at `LINE`, the daemon searches a
-small window (default ±20 lines) for a line whose hash matches and,
-if exactly one candidate exists, relocates the operation to the new
-line.
-Multiple matches abort with `AMBIGUOUS_REAPPLY`.
+`--reapply` (CLI) or `{ reapply: true }` (API option) enables a
+bounded relocation search per anchor: when an anchor's hash mismatches
+the line at `LINE`, the daemon searches a small window (default ±20
+lines) for a line whose hash matches and, if exactly one candidate
+exists, relocates the operation to the new line.
+Multiple matches abort with `ambiguous_reapply`.
 
-Default is `--strict` (no relocation).
+Default is strict (no relocation).
 Reapply is opt-in because for AI agent flows, abort-and-re-read is
 usually preferable to silent relocation; for human scripts mutating
 mostly-stable files, reapply matches the intuition of "find the line
 even if its number drifted".
 
+`--reapply` does NOT relax the file-level CAS check.
+A `file_rev_mismatch` fails regardless of `--reapply`; the agent
+must re-read.
+Reapply only addresses the per-line anchor case where the file
+otherwise matches but a few lines have shifted.
+
 ## Capability surface
 
-`endo edit` does not introduce a new daemon capability.
-It composes existing ones already exposed on `EndoDirectory` /
-`EndoMount`:
+The daemon-side API extends `EndoGuest` (the per-agent capability
+exposed to tool-calls) with a single new method:
 
-- `readText(petNameOrPath)` to fetch current content.
-- `writeText(petNameOrPath, content)` to write the patched content.
+```js
+E(guest).edit(directoryRef, path, patch, options)
+```
 
-The CLI does the patch parsing, anchor validation, and splice in the
-client process.
-The daemon sees a `readText` followed by a `writeText` of the new
-content, no different from `endo read | edit-locally | endo write`.
+The implementation acquires a mount-internal lock on the target
+directory, reads the file, validates anchors and CAS, splices, and
+writes, all under the lock.
+This is the surface that closes the read-write race for shared
+mounts.
 
-### Why CLI-side and not daemon-side
+The thin CLI wrapper composes `EndoDirectory.lookup(name)` (to
+resolve `<name-path>` to a directory ref) with the new
+`EndoGuest.edit(...)` call.
+No new CLI-side daemon capability is needed.
 
-Two reasons:
+### Why a single new method, not a `readText` + `writeText` pair
 
-1. **Patch grammar churn.**
-   Hashline is one of several plausible patch formats and the
-   ecosystem is still moving.
-   Keeping the parser in the CLI lets the format evolve at CLI
-   release cadence rather than being baked into the daemon's
-   capability surface.
-2. **The daemon's existing surface is sufficient.**
-   `readText` + `writeText` already yields the needed primitives;
-   adding `editText(path, patch)` to `EndoMount` would duplicate
-   parsing logic in two places (CLI for offline edit, daemon for
-   remote-agent edit) without buying confinement, since the agent
-   that can `writeText` can write any content.
+The original design proposed implementing `endo edit` purely on the
+CLI side, composing existing `readText` / `writeText` capabilities.
+That design left a race window between the read and the write that no
+CLI-side guard could close.
+Per the maintainer's review, agents drive the daemon via tool-calls,
+which puts the daemon's API on the critical path, which makes
+closing that race essential rather than optional.
 
-The race window between read and write is the price.
-Two agents editing the same file concurrently can both pass anchor
-validation against the same pre-state and the second `writeText`
-wins (last-write-wins, no merge).
-For AI agent workflows on per-agent scratch mounts this is
-acceptable; for shared mounts it is a hazard called out in Open
-Question #5.
+The new method is the smallest surface that holds the lock across
+the read-validate-splice-write sequence.
+It does not duplicate the parser (the `EditPatch` envelope is the
+wire shape; both the CLI's textual-format parse and the agent's
+direct JSON emission produce the same envelope).
+It does not preclude future extensions (a multi-file batch, a
+streaming-patch mode, a dry-run preview); those grow on top of the
+single-method surface.
 
-### Future: daemon-side `editText` for true atomicity
+## Phase: daemon-side `EndoGuest.edit` for true atomicity
 
-If the read-then-write race becomes painful, a daemon-side
-`EndoMount.editText(path, patch)` method can enforce read-and-write
-under one mount-internal lock.
-The CLI verb is unchanged; it just delegates to the new method when
-the daemon supports it.
-Captured in "Future extensions" below.
+Per the maintainer's review: bring this forward as a phase of this
+design.
+
+This was originally captured under "Future extensions" as a
+fallback if the CLI-side splice's race window became painful.
+Promoted to a first-class phase here because it is now the primary
+surface, not a fallback.
+
+### Phase 1: API surface and wire envelope
+
+- Land `EditPatch`, `EditOp`, `Anchor`, `EditResult`, `EditFailure`
+  type definitions in `packages/daemon/src/types.js`.
+- Land the textual `hashline` parser and the structured
+  `hashline-json` validator in `packages/daemon/src/hashline.js`,
+  both producing `EditPatch`.
+- Stub `E(guest).edit(...)` on `EndoGuest`'s exo interface; reject
+  with `not_implemented` until phase 2 lands.
+- CLI verb scaffolds the call but errors with "edit not available
+  on this daemon" until phase 2.
+
+### Phase 2: daemon-side splice with mount-internal lock
+
+- Implement `E(guest).edit(...)` to acquire the mount lock, read,
+  validate CAS and per-line anchors, splice, write, release.
+- Implement `--strict` (default) and `--reapply` modes.
+- CRC32 hash algorithm; `fnv1a` and `xxhash32` deferred.
+- Test plan: unit tests for parser/validator/splice; integration
+  tests for round-trip read-edit-read; CAS race tests with two
+  concurrent guests editing the same path.
+
+### Phase 3: alternate hash algorithms and secondary formats
+
+- Implement `fnv1a` and `xxhash32` per the algorithm options table.
+- Implement `--format udiff` and `--format search-replace` parsers
+  that translate into `EditPatch`.
+- Test plan: per-algorithm round-trip tests with reference fixtures;
+  per-format equivalence tests producing identical results to the
+  hashline equivalent.
+
+## Phase: multi-file atomicity
+
+Per the maintainer's review on Open Question #3: take this on as a
+phase of this design.
+
+Single-path `edit` is the right primitive, but the multi-file
+atomic case ("rename a symbol across three files") is a real agent
+workflow that the daemon's existing surface does not support today.
+Promoted from "Open Question, defer" to a phase of this design.
+
+### Phase 4: multi-file edit batch
+
+The daemon-side API gains a batch surface:
+
+```js
+/**
+ * @typedef {object} EditBatchEntry
+ * @property {EndoDirectory} directoryRef
+ * @property {string} path
+ * @property {EditPatch} patch
+ */
+
+/**
+ * @param {EditBatchEntry[]} entries
+ * @param {EditOptions} [options]
+ * @returns {Promise<EditBatchResult>}
+ */
+E(guest).editBatch(entries, options)
+```
+
+The daemon acquires locks on every targeted mount in a deterministic
+order (sorted by mount identity) to avoid deadlock, validates every
+patch's CAS and anchors against its target file, and only proceeds
+to splice if every validation passes.
+Any failure leaves every targeted file unmutated.
+
+Lock ordering is the load-bearing concurrency property: two
+concurrent `editBatch` calls that target overlapping mounts in
+opposite orders would deadlock without a global ordering rule.
+Sorting by mount identity (a stable, comparable token already in
+the daemon's namespace) avoids this.
+
+The CLI exposes batch via a manifest file:
+
+```
+endo edit --manifest <path>
+```
+
+where the manifest is a JSON document listing per-path `<name-path>`,
+`expectedFileHash`, and the patch (in any supported format).
+
+Phase 4 sequencing: lands after phase 3, because the single-path
+splice and the alternate formats are the building blocks the batch
+surface composes.
+The maintainer can decide to defer phase 4 indefinitely if the
+single-path surface satisfies the observed agent workflows.
 
 ## Error model
 
-The verb exits with one of these statuses:
+The daemon-side API returns structured `EditFailure` values; the CLI
+maps these to exit codes for shell-script consumption.
 
-| Exit code | Reason | Diagnostic shape |
+| Exit code | Failure `reason` | Diagnostic |
 |---|---|---|
-| 0 | success | (no output by default; `--verbose` shows op count) |
-| 1 | patch syntax error | line number in patch + offending header |
-| 2 | anchor mismatch (`HASH_MISMATCH`) | per-anchor table: requested, live, context |
-| 3 | range or whole-file rev mismatch (`FILE_REV_MISMATCH`) | requested vs live SHA-256 |
-| 4 | `AMBIGUOUS_REAPPLY` | the anchor and the candidate line numbers found |
-| 5 | path not found / not a text file | mount path + cause |
-| 6 | permission denied (read-only mount) | mount name |
+| 0 | success | (no output by default; `--verbose` shows op count and `fileHashAfter`) |
+| 1 | `patch_syntax` | line number in patch + offending header |
+| 2 | `hash_mismatch` | per-anchor table: requested, live, context |
+| 3 | `file_rev_mismatch` | requested SHA-256 vs `fileHashActual`; the agent should re-read |
+| 4 | `ambiguous_reapply` | the anchor and the candidate line numbers found |
+| 5 | `path_not_found` | mount path + cause |
+| 6 | `permission_denied` | mount name |
 
-All diagnostics go to stderr per the project's diagnostic discipline.
+All CLI diagnostics go to stderr per the project's diagnostic
+discipline.
 Stdout stays clean so `endo edit ... && ...` pipelines work.
 Errors use `@endo/errors`'s `makeError(X\`...\`)` for structured
-formatting.
+formatting on the daemon side; the CLI renders them.
 
-## Alternatives considered
+## Alternative formats considered
 
 ### Alt 1: unified diff (RFC 2440-ish)
 
@@ -394,9 +777,9 @@ exactly the failure mode hashline exists to avoid.
 Also, unified diffs do not detect "the file was rewritten between read
 and edit" the way per-line hashes do.
 
-**Verdict:** not the primary format.
-Worth supporting as a secondary `--format udiff` for human-authored
-patches and for `git apply` interop.
+**Verdict:** secondary `--format udiff` for human-authored patches and
+for `git apply` interop; not the primary format.
+Lands in phase 3.
 
 ### Alt 2: search-and-replace blocks (Aider's "diff" format)
 
@@ -420,9 +803,9 @@ no built-in staleness detection.
 Aider's own benchmarks show diff-format succeeds best on top-tier
 models and worst on weaker ones; hashline reverses that gradient.
 
-**Verdict:** offer `--format search-replace` as a secondary mode for
-agents that are heavily trained on it, but hashline is the primary
-recommendation.
+**Verdict:** secondary `--format search-replace` for agents heavily
+trained on it.
+Lands in phase 3.
 
 ### Alt 3: JSON Patch (RFC 6902)
 
@@ -435,10 +818,9 @@ Adapting it to lines is essentially reinventing hashline with an
 unfortunate JSON envelope.
 Verbose for the common case.
 
-**Verdict:** rejected as primary format.
-The `--format hashline-json` mode contemplated under Open Question #2
-captures the structured-payload use case without committing to RFC
-6902 specifically.
+**Verdict:** rejected.
+The first-class `hashline-json` format covers the structured-payload
+use case without committing to RFC 6902 specifically.
 
 ### Alt 4: do nothing; tell agents to use `endo write` with the whole file
 
@@ -465,76 +847,37 @@ Questions follow-up.
 
 ## Open Questions
 
-1. **CRC32 vs FNV-1a vs xxHash for the per-line hash.**
-   CRC32 is widely available, well-known, and fits in a `Uint32Array`
-   loop with no library dependency.
-   FNV-1a is faster on short inputs and what `opencode-hashline` uses.
-   xxHash is what oh-my-pi uses (via Bun's built-in `Bun.hash.xxHash32`)
-   but adds a runtime dependency on a hash library Endo does not
-   currently bundle.
-   Recommendation: **CRC32**, for zero-dependency JS portability.
-   Defer if the maintainer wants to align with an existing
-   ecosystem (oh-my-pi for compatibility with off-the-shelf agent
-   harnesses).
+1. **Hash algorithm default.**
+   This design recommends CRC32 as the default, with `fnv1a` and
+   `xxhash32` available via `--hash-algo` and `EditPatch.hashAlgo`.
+   Maintainer judgment to confirm: is CRC32 the right default, or
+   should we align with oh-my-pi (xxhash32) for off-the-shelf
+   harness compatibility from day one?
+   The choice is reversible; the wire contract carries the algorithm
+   name.
 
-2. **Should `--format hashline-json` be a first-class secondary
-   mode?**
-   The textual hashline format above is human-friendly but tools that
-   build patches programmatically (a CLI option, a TypeScript client,
-   a future Chat UI's edit modal) would prefer a JSON envelope:
-   ```json
-   { "ops": [
-     { "op": "replace", "anchor": "5#f1",
-       "payload": ["new line 1", "new line 2"] }
-   ] }
-   ```
-   Recommendation: yes, accept both, dispatched by the leading
-   character of the input (`{` vs `@`).
-   Defer the actual schema until a client needs it.
+2. **Concurrent-write hazard, beyond the daemon-internal lock.**
+   The daemon-side `EndoGuest.edit` API closes the read-write race
+   for sequential calls.
+   For two truly-concurrent agent tool-calls hitting the daemon at
+   the same instant, the mount-internal lock serialises them and the
+   loser sees `file_rev_mismatch` on the second call's CAS check.
+   This is the documented contract: agents must handle
+   `file_rev_mismatch` by re-reading and retrying.
+   No further hazard remains at the single-mount granularity.
+   Cross-mount hazards are addressed by phase 4's `editBatch` lock
+   ordering.
 
-3. **Multi-file atomicity.**
-   Should `endo edit` accept multiple `<path>` arguments and either
-   apply all-or-none, or emit a manifest patch format that names paths
-   inline?
-   The simplest first cut is one path per invocation; the
-   all-or-none multi-path case is a real workflow ("rename a symbol
-   across files") but requires a daemon-side transactional surface
-   that does not yet exist.
-   Recommendation: defer to a future extension; one-path-per-call
-   covers 80% of agent edit workflows.
-
-4. **Should the whole-file SHA-256 check be on by default?**
-   Per-line hash checks alone can spuriously validate if a file is
-   replaced wholesale with content that happens to share line hashes
-   at the anchor positions.
-   The likelihood is low but nonzero.
-   Making `--expect-rev` mandatory raises the agent's bookkeeping
-   burden; making it default-on requires the agent to fetch the
-   revision hash on read, which `endo read --annotate hashline`
-   could include as a header.
-   Recommendation: include the file revision in the
-   `--annotate hashline` output as a header; require it on
-   `endo edit` only when `--strict-rev` is passed.
-   Defer the default to maintainer judgment.
-
-5. **Concurrent-write hazard on shared mounts.**
-   Two agents editing the same path can both pass per-anchor
-   validation against the same pre-state and silently last-write-wins
-   on `writeText`.
-   Mitigations: (a) a daemon-side `EndoMount.editText(path, patch)`
-   that locks read-then-write under one mount-internal mutex;
-   (b) `--expect-rev` on every edit by default; (c) tell users to
-   not point two agents at the same shared mount.
-   The right fix is (a) once the maintainer decides whether to grow
-   the daemon's mount surface that way.
-   Until then, document the hazard.
-
-6. **Format extensibility: `--format` flag vs auto-detection.**
-   Auto-detect on the leading byte is convenient but ambiguous when a
-   patch happens to start with characters legal in multiple formats.
-   The `--format` flag is explicit and scriptable.
-   Recommendation: require `--format` when the input format is
-   anything other than the default `hashline`.
+3. **CLI's role for human operators vs. agent tool-calls.**
+   The CLI is now framed as a thin wrapper around the daemon API.
+   Should the CLI also offer a `--no-cas` escape hatch for
+   shell-script use cases that explicitly want last-write-wins
+   semantics (e.g., a one-off cleanup script)?
+   Recommendation: no; the agent and the human use cases both
+   benefit from the CAS check, and a `--no-cas` flag is an
+   attractive nuisance.
+   If a human really wants last-write-wins, `endo write` with the
+   whole file content is the right verb.
 
 ## Future extensions
 
@@ -551,14 +894,12 @@ re-deriving the design:
   expressive range; the format flag is the affordance.
   If a need emerges to namespace the verbs separately, `endo patch`
   becomes a thin alias for `endo edit --format udiff`.
-- **Daemon-side `EndoMount.editText(path, patch)`** to close the
-  read-then-write race for shared mounts (Open Question #5).
 - **Chat UI integration** ([`chat-view-edit-commands`](chat-view-edit-commands.md)):
   the existing `/edit` command opens a Monaco editor on a blob.
   An agent-driven `/apply-patch` command, dispatching to the same
-  daemon path as `endo edit`, would let agents propose patches in the
+  `E(guest).edit(...)` API, would let agents propose patches in the
   chat transcript with diff preview before commit.
-- **`endo read --annotate hashline`** as the read-side companion;
+- **`endo read --enum --hashline`** as the read-side companion;
   belongs in [`cli-store-verb-text-modes.md`](cli-store-verb-text-modes.md)
   as a follow-on once `endo read --text` lands.
 
@@ -566,33 +907,49 @@ re-deriving the design:
 
 - Unit tests for the hashline tokenizer:
   every operation type, range syntax, payload separator, comment
-  handling, blank-line termination, malformed inputs.
-- Unit tests for the hash algorithm:
+  handling, blank-line termination, malformed inputs, the
+  `@expected-file-hash` and `@hash-algo` headers.
+- Unit tests for the `hashline-json` validator:
+  every operation type, missing required fields, malformed
+  envelope, algorithm mismatch.
+- Unit tests for each hash algorithm:
   agree byte-for-byte with a reference fixture across CRLF/LF,
   trailing whitespace, empty lines, lines that are only whitespace,
   Unicode (multi-byte) lines.
-- Round-trip integration test: read a file via `endo read --annotate
-  hashline`, parse the output to extract anchors, apply a patch via
-  `endo edit`, read back and assert content.
-- CAS test: read a file at hash H1, modify it externally, attempt
-  to apply a patch anchored at H1, assert the verb exits 2 with a
-  diagnostic naming the changed anchors.
-- Reapply test: insert two unrelated lines above an anchor, run
-  `endo edit --reapply`, assert the operation relocates correctly
-  (single-candidate case) and aborts (multi-candidate case).
+- Round-trip integration test: read a file via `endo read --text
+  --enum --hashline`, parse the output to extract anchors, apply a
+  patch via `E(guest).edit(...)`, read back and assert content.
+- CAS test (file-level): read a file at SHA-256 H1, modify it
+  externally, attempt to apply a patch with `expectedFileHash: H1`,
+  assert the result is `failure: { reason: 'file_rev_mismatch',
+  fileHashActual: H2 }`.
+- CAS test (per-line): read a file at SHA-256 H1, modify a single
+  line, attempt to apply a patch with `expectedFileHash: H1` and an
+  anchor on the modified line, assert the result is `failure: {
+  reason: 'hash_mismatch', mismatches: [...] }`.
+- Reapply test: insert two unrelated lines above an anchor (without
+  changing `expectedFileHash`), run `E(guest).edit(..., { reapply:
+  true })`, assert the operation relocates correctly (single-
+  candidate case) and aborts (multi-candidate case).
 - Multi-op atomicity: a patch with three operations, the middle one
-  having a stale anchor, must leave the file unmodified.
+  having a stale per-line anchor, must leave the file unmodified.
+- Concurrent-edit serialization: two simultaneous `E(guest).edit`
+  calls against the same path; assert one succeeds and the other
+  returns `file_rev_mismatch` with the post-first-edit hash.
 - Format-flag tests: `--format udiff` and `--format search-replace`
   apply equivalent edits to a fixture and produce identical results
   to the hashline equivalent.
+- Phase-4 batch test: an `editBatch` of three patches on three
+  files, one with a stale `expectedFileHash`, must leave all three
+  files unmutated.
 
 ## Dependencies
 
 | Design | Relationship |
 |---|---|
-| [`cli-store-verb-text-modes`](cli-store-verb-text-modes.md) | Sibling. Defines `endo read --text` / `endo write --text` and the mount-path resolution model `endo edit` reuses. `endo edit` is the delta form; `endo write` is the whole-file form. |
-| [`daemon-mount`](daemon-mount.md) | Defines `EndoMount.readText` / `writeText`, the daemon primitives `endo edit` composes. A future `EndoMount.editText` for true atomicity is an extension point on this surface. |
-| [`chat-view-edit-commands`](chat-view-edit-commands.md) | Future Chat UI integration: `/apply-patch` could share the patch parser and validator. |
+| [`cli-store-verb-text-modes`](cli-store-verb-text-modes.md) | Sibling. Defines `endo read --text` / `endo write --text` and the mount-path resolution model `endo edit` reuses. `endo edit` is the delta form; `endo write` is the whole-file form. The `--enum` and `--hashline` annotation flags on `endo read` belong in this sibling design. |
+| [`daemon-mount`](daemon-mount.md) | Defines `EndoMount.readText` / `writeText`, the daemon primitives `E(guest).edit` builds on. Adds the new `EndoGuest.edit` capability and the mount-internal lock the splice acquires. |
+| [`chat-view-edit-commands`](chat-view-edit-commands.md) | Future Chat UI integration: `/apply-patch` would share the patch parser and the `E(guest).edit` API. |
 
 ## Reshape sibling for
 
