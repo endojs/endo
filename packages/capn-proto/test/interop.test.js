@@ -19,6 +19,7 @@
 
 import test from '@endo/ses-ava/test.js';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -34,6 +35,7 @@ import {
   encodeAccept,
   encodeAbort,
   decodeMessage,
+  loadSchema,
   pack,
   unpack,
 } from '../src/index.js';
@@ -237,6 +239,117 @@ if (!haveCapnp) {
     const out = runCapnpDecode(framed);
     t.regex(out, /questionId = 22/);
     t.regex(out, /embargo = true/);
+  });
+
+  // ---------- L3 AnyPointer payloads, structured per l3.capnp ----------
+  //
+  // The Cap'n Proto rpc.capnp spec defines `Provide.recipient`,
+  // `Accept.provision`, and `ThirdPartyCapDescriptor.id` as `:AnyPointer` —
+  // their schemas are application-defined. For CF / capnp-cpp interop
+  // with any peer using a VatNetwork that puts struct-shaped payloads at
+  // those slots (the only sensible choice — `getAs<MyStructType>()` is
+  // how the C++ side reads them), we have to be able to (a) write a
+  // proper struct pointer at the AnyPointer slot, and (b) decode one
+  // back. These tests use loadSchema to drive both directions against a
+  // minimal `l3.capnp` schema (VatLocation / TestRecipientId /
+  // TestProvisionId / TestThirdPartyCapId).
+
+  const L3_SCHEMA_PATH = join(here, 'interop-rpc', 'l3.capnp');
+  const l3Schema = loadSchema(readFileSync(L3_SCHEMA_PATH, 'utf8'));
+  const recipientCodec = l3Schema.structCodec('TestRecipientId');
+  const provisionCodec = l3Schema.structCodec('TestProvisionId');
+  const tpcIdCodec = l3Schema.structCodec('TestThirdPartyCapId');
+
+  test('interop L3: Provide.recipient round-trips via TestRecipientId schema', t => {
+    const recipientValue = {
+      recipient: { vatId: 'A', transport: 'tcp://127.0.0.1:9000' },
+    };
+    const { encodeContent: encodeRecipient } = recipientCodec.encode(
+      recipientValue,
+      {},
+    );
+    const framed = encodeProvide({
+      questionId: 11,
+      target: { kind: 'importedCap', id: 5 },
+      encodeRecipient,
+    });
+
+    // (1) capnp CLI accepts the framed Message: the parent rpc.capnp
+    // bytes parse cleanly even though capnp doesn't know the AnyPointer
+    // schema. This is the "byte-correct outer envelope" check.
+    const out = runCapnpDecode(framed);
+    t.regex(out, /questionId = 11/);
+    t.regex(out, /importedCap = 5/);
+
+    // (2) Round-trip via our decoder + structCodec — the recipient
+    // AnyPointer slot decodes as a real TestRecipientId struct, not
+    // opaque bytes.
+    const m = decodeMessage(framed);
+    t.is(m.type, 'provide');
+    const decoded = recipientCodec.decode(
+      { contentSlot: m.recipientSlot, capTable: [] },
+      {},
+    );
+    t.deepEqual(decoded, recipientValue);
+  });
+
+  test('interop L3: Accept.provision round-trips via TestProvisionId schema', t => {
+    const swiss = new Uint8Array(32);
+    for (let i = 0; i < swiss.length; i += 1) swiss[i] = (i * 7) % 256;
+    const provisionValue = { swissNum: swiss };
+    const { encodeContent: encodeProvision } = provisionCodec.encode(
+      provisionValue,
+      {},
+    );
+    const framed = encodeAccept({
+      questionId: 33,
+      encodeProvision,
+      embargo: true,
+    });
+
+    const out = runCapnpDecode(framed);
+    t.regex(out, /questionId = 33/);
+    t.regex(out, /embargo = true/);
+
+    const m = decodeMessage(framed);
+    const decoded = provisionCodec.decode(
+      { contentSlot: m.provisionSlot, capTable: [] },
+      {},
+    );
+    t.deepEqual(Array.from(decoded.swissNum), Array.from(swiss));
+  });
+
+  test('interop L3: ThirdPartyCapDescriptor.id round-trips via TestThirdPartyCapId schema', t => {
+    const swiss = new Uint8Array([
+      0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+    ]);
+    const tpcIdValue = {
+      host: { vatId: 'C', transport: 'tcp://127.0.0.1:9001' },
+      swissNum: swiss,
+    };
+    const { encodeContent: encodeId } = tpcIdCodec.encode(tpcIdValue, {});
+    const framed = encodeResolve({
+      promiseId: 7,
+      payload: {
+        kind: 'cap',
+        cap: { kind: 'thirdPartyHosted', vineId: 21, encodeId },
+      },
+    });
+
+    const out = runCapnpDecode(framed);
+    t.regex(out, /promiseId = 7/);
+    t.regex(out, /thirdPartyHosted/);
+
+    const m = decodeMessage(framed);
+    t.is(m.payload.cap.kind, 'thirdPartyHosted');
+    t.is(m.payload.cap.vineId, 21);
+    const decoded = tpcIdCodec.decode(
+      { contentSlot: m.payload.cap.idSlot, capTable: [] },
+      {},
+    );
+    t.is(decoded.host.vatId, 'C');
+    t.is(decoded.host.transport, 'tcp://127.0.0.1:9001');
+    t.deepEqual(Array.from(decoded.swissNum), Array.from(swiss));
   });
 
   test('interop: Abort variant is an Exception inline', t => {
