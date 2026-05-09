@@ -4,6 +4,17 @@ This Lake project mechanizes the central per-reference FIFO claim of the
 OCapN promise-shortening / `op:flush` proposal in the
 [Veil framework](https://github.com/verse-lab/veil) on top of Lean 4.
 
+## Modules
+
+* **`OcapnFlush/Flush.lean`** — single shortening, 3-party (Alice / Bob /
+  Carol). The minimal model that exercises the cross-phase Sandwich Lemma.
+* **`OcapnFlush/FourParty.lean`** — two sequential shortenings, 4-party
+  (Alice / Bob / Carol / Dave). Same fence chain instantiated twice; the
+  second shortening can begin and progress while phase-2 traffic is still
+  in flight, so the model exercises the *non-trivial interleaving* case
+  the alt proof report calls out as the next step beyond a single
+  shortening event.
+
 ## What is verified
 
 A simplified 3-party model (Alice, Bob, Carol) where:
@@ -31,19 +42,24 @@ for this model — it is folded into Alice-side processing preconditions.
 
 ## What is *not* in this model
 
-- Concurrent flushes at multiple intermediaries (the n-party / 4-party
-  concurrent case from the alternate proof report). The 3-party Sandwich
-  Lemma reduces n-party serial shortenings to this case; the concurrent
-  4-party "corner case" is out of scope.
-- Carol-side traffic ordering and intra-phase FIFO. Both are immediate
-  consequences of pairwise FIFO on the underlying channels and don't
-  exercise the flush mechanic.
+- Fully concurrent flushes at *adjacent* intermediaries (alt §4 corner
+  case). `FourParty.lean` does verify two shortenings whose handshakes
+  may interleave with each other's data plane, but the second shortening
+  is causally downstream of the first (Carol can only flush after she
+  receives the ref via Bob's handoff). The fully-symmetric case where
+  two intermediaries hold the reference *independently* and flush at the
+  same time is the genuinely-interesting next step.
+- Within-phase ordering. Both modules abstract over per-message order
+  inside a phase; FIFO is established by the underlying transport and
+  doesn't exercise the flush mechanic.
 - Liveness. We verify safety only.
-- Multi-sender: one logical sender (Bob) targeting the reference.
+- Multi-sender per phase: each phase has a single logical sender.
 
 ## How the proof is structured
 
-`OcapnFlush/Flush.lean` declares a Veil transition system with:
+### `OcapnFlush/Flush.lean` — single shortening (3-party)
+
+Declares a Veil transition system with:
 
 - mutable relations for phase classification, `processed`, and protocol-
   event flags;
@@ -78,6 +94,36 @@ the SMT solvers, not on whether each VC is reified into Lean).
 A `sat trace [happyPath]` BMC obligation also confirms the protocol admits
 a non-trivial 15-step execution that ends with both a phase-1 and a phase-2
 message processed.
+
+### `OcapnFlush/FourParty.lean` — two sequential shortenings (4-party)
+
+Adds a fourth party Dave and a second flush+handoff initiated by Carol
+once she holds the reference. The state doubles (one fence chain for
+B↔A, one for C↔A); the safety property generalizes to three pairwise
+cross-phase claims:
+
+```
+phase1 m₁ ∧ phase2 m₂ ∧ processed m₂  →  processed m₁
+phase2 m₂ ∧ phase3 m₃ ∧ processed m₃  →  processed m₂
+phase1 m₁ ∧ phase3 m₃ ∧ processed m₃  →  processed m₁
+```
+
+The key linkage invariant is `cdFlushSentByC → cHoldsRef`, which is what
+forces Carol's flush to be causally downstream of Bob's handoff and lets
+the two fence chains compose. Crucially, the action preconditions do
+*not* require phase-2 traffic to be drained before Carol initiates her
+own flush — phase-2 sends and processings may interleave freely with the
+C↔A flush handshake. The fence `cdFlushFence` (`cdFlushProcessedAtA →
+phase2 M → processed M`) encodes the consequence of B↔A FIFO that makes
+the eventual cross-phase ordering hold despite the interleaving.
+
+`#check_invariants` emits 580 SMT obligations for this module
+(initialization × 21 invariant clauses + 27 actions × 21 clauses + 3
+safety clauses), all reported `✅`. A `sat trace [twoShortenings]` BMC
+obligation runs a 30-step execution that issues, for each phase, a send
+followed by an Alice-side processing, with Carol's flush initiation
+deliberately interleaved between the first phase-2 send and its
+processing.
 
 ## How to build
 

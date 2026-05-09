@@ -1,3 +1,3 @@
--- Top-level module, intentionally empty so `lake build` succeeds while we
--- iterate on the core specification in OcapnFlush/Flush.lean.
+-- Top-level module aggregating the per-scenario flush proofs.
 import OcapnFlush.Flush
+import OcapnFlush.FourParty
