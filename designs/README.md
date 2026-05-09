@@ -25,7 +25,9 @@ PR #151 row-format unblocker; sibling of
 [cli-store-verb-text-modes](cli-store-verb-text-modes.md) (added
 2026-05-08; reshape blocker for PR #128),
 [unhandled-rejection-display](unhandled-rejection-display.md) (added
-2026-05-10; closes issue #171).*
+2026-05-10; closes issue #171),
+[cli-edit-verb](cli-edit-verb.md) (added 2026-05-08; sibling of PR #153
+`cli-store-verb-text-modes`; hashline patches for AI agents).*
 
 ## Summary
 
@@ -33,6 +35,7 @@ PR #151 row-format unblocker; sibling of
 |--------|---------|---------|--------|
 | [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | 2026-02-26 | **Complete** |
 | [cli-store-verb-text-modes](cli-store-verb-text-modes.md) | 2026-05-08 | 2026-05-08 | Proposed |
+| [cli-edit-verb](cli-edit-verb.md) | 2026-05-08 | 2026-05-08 | Proposed |
 | [chat-command-bar](chat-command-bar.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-components](chat-components.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-high-contrast-mode](chat-high-contrast-mode.md) | 2026-02-26 | 2026-02-26 | **Complete** |
@@ -138,7 +141,7 @@ PR #151 row-format unblocker; sibling of
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 8 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (103 designs)
+**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 9 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (104 designs)
 
 ## Roadmap
 
@@ -237,8 +240,10 @@ flowchart TD
         cpend[chat-pending-commands]
         cvedit[chat-view-edit-commands]
         cemui[chat-edit-message-ui]
+        cliedit[cli-edit-verb]
         dcmd --> cpend
         dmount --> cvedit
+        dmount --> cliedit
         dmstream[daemon-message-streaming] --> cemui
         cscheme[chat-color-schemes<br/><i>COMPLETE</i>]
         cspace[chat-per-space-color-scheme<br/><i>COMPLETE</i>]
@@ -376,6 +381,7 @@ automation.
 | familiar-chat-weblet-hosting | Not Started | Iframe hosting, guest profiles |
 | daemon-checkin-checkout | Not Started | `endo ci` / `endo co` for readable-tree ↔ filesystem |
 | cli-store-verb-text-modes | Proposed | Reshape blocker for PR #128: unify `endo store` flag scheme across source/sink/representation axes; subsume `write-text`/`read-text` |
+| cli-edit-verb | Proposed | `endo edit` with hashline patches for AI agents; sibling of `cli-store-verb-text-modes` (PR #153) |
 | daemon-weblet-application | Not Started | Readable trees, zip archives |
 | exo-zip-package | Proposed | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
 | endoclaw-oauth | Not Started | Credential capability — agent uses service without seeing token |
@@ -625,6 +631,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | familiar-unified-weblet-server | M | 3 days | 3 | Web-server restructuring; design revised in PR #100 |
 | familiar-chat-weblet-hosting | M | 4-5 days | 3 | Iframe hosting, guest profiles (1.2x bump) |
 | daemon-checkin-checkout | S-M | 3 days | 3 | `endo ci`/`co`, readable-tree formula, zip support |
+| cli-edit-verb | S-M | 3 days | 3 | `endo edit` with hashline parser, anchor validator, splice; CLI-side, no daemon surface change |
 | daemon-weblet-application | M | 4-5 days | 3 | Formula types, gateway serving (1.2x bump) |
 | exo-zip-package | S | 1-2 days | 3 | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
 | endoclaw-oauth | S-M | 3 days | 3 | Credential proxy exo, token injection |
