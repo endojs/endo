@@ -12,6 +12,7 @@
 
 import 'ses';
 import test from 'ava';
+import assert from 'node:assert';
 import { ZipReader } from '@endo/zip';
 import { scaffold, readPowers } from './scaffold.js';
 import { importLocation, makeArchive } from '../index.js';
@@ -53,7 +54,7 @@ test('patterns are stripped from archived compartment-map.json', async t => {
   });
   const reader = new ZipReader(archive);
   const compartmentMapBytes = reader.files.get('compartment-map.json');
-  t.truthy(compartmentMapBytes, 'archive contains compartment-map.json');
+  assert(compartmentMapBytes, 'archive contains compartment-map.json');
   const compartmentMap = JSON.parse(
     new TextDecoder().decode(compartmentMapBytes.content),
   );

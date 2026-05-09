@@ -2,6 +2,7 @@
 import '@endo/init/pre-bundle-source.js';
 import '@endo/init/debug.js';
 import test from 'ava';
+import assert from 'node:assert';
 import * as fs from 'fs';
 import * as url from 'url';
 import * as crypto from 'crypto';
@@ -125,8 +126,11 @@ test('freshly bundled source passes check', async t => {
   // do not appear in the serialized compartment map.
   const bytes = decodeBase64(bundle.endoZipBase64);
   const { files } = new ZipReader(bytes);
-  const compartmentMapBytes = files.get('compartment-map.json').content;
-  const compartmentMapText = new TextDecoder().decode(compartmentMapBytes);
+  const compartmentMapEntry = files.get('compartment-map.json');
+  assert(compartmentMapEntry);
+  const compartmentMapText = new TextDecoder().decode(
+    compartmentMapEntry.content,
+  );
   t.notRegex(compartmentMapText, /__createdBy/);
   // The bundle must also pass checkBundle validation.
   await checkBundle(bundle, computeSha512, 'fixture/main.js');

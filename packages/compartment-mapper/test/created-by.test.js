@@ -1,5 +1,6 @@
 import 'ses';
 import test from 'ava';
+import assert from 'node:assert';
 import { ZipReader } from '@endo/zip';
 import { makeArchive } from '../index.js';
 import { assertFileCompartmentMap } from '../src/compartment-map.js';
@@ -14,8 +15,11 @@ test('archives do not contain underscore-prefixed properties', async t => {
   const bytes = await makeArchive(readPowers, fixture);
 
   const reader = new ZipReader(bytes);
-  const compartmentMapBytes = reader.files.get('compartment-map.json').content;
-  const compartmentMapText = new TextDecoder().decode(compartmentMapBytes);
+  const compartmentMapEntry = reader.files.get('compartment-map.json');
+  assert(compartmentMapEntry);
+  const compartmentMapText = new TextDecoder().decode(
+    compartmentMapEntry.content,
+  );
 
   t.notRegex(compartmentMapText, /__createdBy/);
 });
