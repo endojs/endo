@@ -134,7 +134,9 @@ export const makeTcpNetLayer = async ({
     activeSockets.add(socket);
 
     socket.on('data', data => {
-      const bytes = bufferToBytes(data);
+      // The 'data' event yields `string | Buffer` in @types/node v25; the
+      // socket has no encoding set so it is always Buffer here.
+      const bytes = bufferToBytes(/** @type {Buffer} */ (data));
       if (!connection.isDestroyed) {
         handlers.handleMessageData(connection, bytes);
       } else {
