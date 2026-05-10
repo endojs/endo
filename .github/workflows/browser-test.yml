@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Put unstable chrome where playwright would look for it
         run: mv /opt/google/chrome /opt/google/chrome-unstable
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
           node-version: 18
