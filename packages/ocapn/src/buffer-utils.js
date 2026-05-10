@@ -1,6 +1,7 @@
 // @ts-check
 
 import harden from '@endo/harden';
+import { concatBytes } from '@endo/bytes/concat.js';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
@@ -72,23 +73,14 @@ export function hexToArrayBuffer(hexString) {
 }
 
 /**
- * Concatenate multiple Uint8Arrays into a single Uint8Array
- * @param {Array<Uint8Array>} uint8Arrays
- * @returns {Uint8Array}
+ * Concatenate multiple Uint8Arrays into a single Uint8Array.
+ * Re-exported from `@endo/bytes` under the local name to preserve
+ * existing call sites; new callers should import `concatBytes` from
+ * `@endo/bytes/concat.js` directly.
+ *
+ * @type {(uint8Arrays: Array<Uint8Array>) => Uint8Array}
  */
-export const concatUint8Arrays = uint8Arrays => {
-  const totalLength = uint8Arrays.reduce(
-    (acc, uint8Array) => acc + uint8Array.length,
-    0,
-  );
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const uint8Array of uint8Arrays) {
-    result.set(uint8Array, offset);
-    offset += uint8Array.length;
-  }
-  return result;
-};
+export const concatUint8Arrays = concatBytes;
 
 /**
  * Concatenate multiple ArrayBuffers into a single Uint8Array
