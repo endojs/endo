@@ -1474,6 +1474,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/bytes@workspace:^, @endo/bytes@workspace:packages/bytes":
+  version: 0.0.0-use.local
+  resolution: "@endo/bytes@workspace:packages/bytes"
+  dependencies:
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    babel-eslint: "npm:^10.1.0"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    prettier: "npm:^3.5.3"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/cache-map@workspace:^, @endo/cache-map@workspace:packages/cache-map":
   version: 0.0.0-use.local
   resolution: "@endo/cache-map@workspace:packages/cache-map"
@@ -1600,6 +1618,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/cli@workspace:packages/cli"
   dependencies:
+    "@endo/bytes": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -1702,6 +1721,7 @@ __metadata:
     "@chainsafe/libp2p-yamux": "npm:^7.0.4"
     "@endo/base64": "workspace:^"
     "@endo/bundle-source": "workspace:^"
+    "@endo/bytes": "workspace:^"
     "@endo/captp": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -2304,6 +2324,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
+    "@endo/bytes": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/hex": "workspace:^"

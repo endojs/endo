@@ -46,6 +46,7 @@
     "test:update-snapshots": "ses-ava --update-snapshots"
   },
   "dependencies": {
+    "@endo/bytes": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/hex": "workspace:^",

@@ -1,6 +1,9 @@
 // @ts-check
 /* eslint-disable no-bitwise */
-/* global Buffer */
+
+import { bytesFromText } from '@endo/bytes/from-string.js';
+import { bytesToText } from '@endo/bytes/to-string.js';
+import { concatBytes } from '@endo/bytes/concat.js';
 
 /**
  * Minimal CBOR codec for the engo envelope protocol.
@@ -8,10 +11,10 @@
  * Envelopes are 4-element CBOR arrays: [handle, verb, payload, nonce].
  * Frames are CBOR byte strings wrapping encoded envelopes.
  *
- * This codec is intentionally minimal — it only handles the types used
+ * This codec is intentionally minimal: it only handles the types used
  * by the envelope protocol (unsigned/negative integers, byte strings,
- * text strings, arrays, maps) and does not attempt to be a general-purpose
- * CBOR library.
+ * text strings, arrays, maps) and does not attempt to be a
+ * general-purpose CBOR library.
  */
 
 // CBOR major types
@@ -21,9 +24,6 @@ const CBOR_BYTES = 2;
 const CBOR_TEXT = 3;
 const CBOR_ARRAY = 4;
 // const CBOR_MAP = 5;
-
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
 
 // ---------------------------------------------------------------------------
 // CBOR encoding
@@ -88,7 +88,7 @@ const cborAppendBytes = (buf, data) => {
  * @param {string} s
  */
 const cborAppendText = (buf, s) => {
-  const encoded = textEncoder.encode(s);
+  const encoded = bytesFromText(s);
   cborAppendHead(buf, CBOR_TEXT, encoded.length);
   for (let i = 0; i < encoded.length; i += 1) {
     buf.push(encoded[i]);
@@ -211,7 +211,7 @@ const cborReadText = cursor => {
   if (major !== CBOR_TEXT) {
     throw new Error(`CBOR: expected text (major 3), got major ${major}`);
   }
-  const result = textDecoder.decode(
+  const result = bytesToText(
     cursor.data.subarray(cursor.pos, cursor.pos + value),
   );
   cursor.pos += value;
@@ -276,7 +276,9 @@ harden(decodeEnvelope);
  */
 const readExactly = (stream, n) => {
   return new Promise((resolve, reject) => {
-    const chunks = /** @type {Buffer[]} */ ([]);
+    // Node.js Buffer instances are Uint8Array subclasses, so they are
+    // valid inputs to concatBytes from @endo/bytes.
+    const chunks = /** @type {Uint8Array[]} */ ([]);
     let remaining = n;
 
     const onReadable = () => {
@@ -289,7 +291,7 @@ const readExactly = (stream, n) => {
         remaining -= chunk.length;
       }
       cleanup();
-      resolve(new Uint8Array(Buffer.concat(chunks)));
+      resolve(concatBytes(chunks));
     };
 
     const onEnd = () => {
