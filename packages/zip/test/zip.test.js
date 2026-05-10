@@ -1,27 +1,31 @@
-import test from 'ava';
 import assert from 'node:assert';
+import fs from 'node:fs';
+import test from 'ava';
 
 import '../src/types.js';
 import { ZipWriter, writeZip } from '../src/writer.js';
 import { ZipReader, readZip } from '../src/reader.js';
 import { BufferReader } from '../src/buffer-reader.js';
+import inflate from '../src/inflate.js';
+import deflate from '../src/deflate.js';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-test('zip round trip', async t => {
+test('zip round trip', t => {
   t.plan(3);
 
   const expectedDate = new Date(1970, 1);
 
   const writer = new ZipWriter();
-  writer.write('hello/hello.txt', textEncoder.encode('Hello, World!\n'), {
+  writer.setNow('hello/hello.txt', textEncoder.encode('Hello, World!\n'), {
     mode: 0o600,
     date: expectedDate,
   });
 
-  const reader = new ZipReader(writer.snapshot());
-  const text = textDecoder.decode(reader.read('hello/hello.txt'));
+  const snapshot = writer.snapshot();
+  const reader = new ZipReader(snapshot);
+  const text = textDecoder.decode(reader.getNow('hello/hello.txt'));
   const result = reader.stat('hello/hello.txt');
   assert(result);
   const { mode, date } = result;
@@ -42,7 +46,7 @@ test('ZipReader.read throws for missing file', t => {
   writer.write('a.txt', textEncoder.encode('A'));
   const reader = new ZipReader(writer.snapshot(), { name: 'test.zip' });
   t.throws(() => reader.read('missing.txt'), {
-    message: /Cannot find file missing\.txt in Zip file test\.zip/,
+    message: /Cannot find file missing\.txt in ZIP file test\.zip/,
   });
 });
 
@@ -124,4 +128,42 @@ test('BufferReader privateFields lookup is per-instance', t => {
   t.is(r2.read(1)[0], 30);
   t.is(r1.index, 3);
   t.is(r2.index, 3);
+});
+
+let canDeflate = false;
+try {
+  canDeflate = !!new CompressionStream('deflate-raw');
+  // eslint-disable-next-line no-empty
+} catch {}
+
+(canDeflate ? test : test.skip)('round trip deflate and inflate', async t => {
+  const inputText = 'hello, hello!\n';
+  const inputBytes = new TextEncoder().encode(inputText);
+  const compressedBytes = await deflate(inputBytes);
+  const outputBytes = await inflate(compressedBytes);
+  const outputText = new TextDecoder().decode(outputBytes);
+  t.is(inputText, outputText);
+});
+
+(canDeflate ? test : test.skip)(
+  'round trip ZipWriter deflate and ZipReader inflate',
+  async t => {
+    const inputText = 'hello, zip!\n';
+    const inputBytes = textEncoder.encode(inputText);
+    const writer = new ZipWriter({ deflate });
+    await writer.set('hello.txt', inputBytes);
+    const snapshot = writer.snapshot();
+    const reader = new ZipReader(snapshot, { inflate, checkCrc32: true });
+    const outputBytes = await reader.get('hello.txt');
+    const outputText = textDecoder.decode(outputBytes);
+    t.is(outputText, inputText);
+  },
+);
+
+(canDeflate ? test : test.skip)('opens native deflate zip', async t => {
+  const bytes = fs.readFileSync('test/_fixture.zip');
+  const reader = new ZipReader(bytes, { inflate });
+  const helloBytes = await reader.get('hello.txt');
+  const helloText = new TextDecoder().decode(helloBytes);
+  t.is(helloText, 'hello hello\n');
 });
