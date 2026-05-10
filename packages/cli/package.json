@@ -31,6 +31,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/bytes": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",
