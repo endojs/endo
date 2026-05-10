@@ -44,6 +44,8 @@ import { makeCapTP } from '@endo/captp';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { mapWriter, mapReader, makePipe } from '@endo/stream';
+import { bytesFromText } from '@endo/bytes/from-string.js';
+import { bytesToText } from '@endo/bytes/to-string.js';
 
 import { makeDaemon } from './daemon.js';
 import { makeDaemonicPersistencePowers } from './daemon-persistence-powers.js';
@@ -66,9 +68,6 @@ import { makeDebugger } from './debugger.js';
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { CapTpConnectionRegistrar, Config, DaemonWorkerFacet, WorkerDaemonFacet } from './types.js' */
-
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
 
 // ---------------------------------------------------------------------------
 // Console polyfill for XS (daemon.js uses console.log/error extensively)
@@ -394,18 +393,18 @@ const encodeSpawnPayload = (command, args) => {
   /** @type {number[]} */
   const buf = [];
   cborHead(buf, CBOR_MAP, 2);
-  const commandKey = textEncoder.encode('command');
+  const commandKey = bytesFromText('command');
   cborHead(buf, CBOR_TEXT, commandKey.length);
   for (let i = 0; i < commandKey.length; i += 1) buf.push(commandKey[i]);
-  const commandVal = textEncoder.encode(command);
+  const commandVal = bytesFromText(command);
   cborHead(buf, CBOR_TEXT, commandVal.length);
   for (let i = 0; i < commandVal.length; i += 1) buf.push(commandVal[i]);
-  const argsKey = textEncoder.encode('args');
+  const argsKey = bytesFromText('args');
   cborHead(buf, CBOR_TEXT, argsKey.length);
   for (let i = 0; i < argsKey.length; i += 1) buf.push(argsKey[i]);
   cborHead(buf, CBOR_ARRAY, args.length);
   for (const arg of args) {
-    const argVal = textEncoder.encode(arg);
+    const argVal = bytesFromText(arg);
     cborHead(buf, CBOR_TEXT, argVal.length);
     for (let i = 0; i < argVal.length; i += 1) buf.push(argVal[i]);
   }
@@ -492,7 +491,7 @@ const makeWorker = async (
   const response = await spawnResponse;
 
   if (response.verb === 'error') {
-    const errorText = textDecoder.decode(response.payload);
+    const errorText = bytesToText(response.payload);
     throw new Error(`Worker spawn failed: ${errorText}`);
   }
 
@@ -689,10 +688,10 @@ const main = async () => {
   /** @type {number[]} */
   const listenBuf = [];
   cborHead(listenBuf, CBOR_MAP, 1);
-  const pathKey = textEncoder.encode('path');
+  const pathKey = bytesFromText('path');
   cborHead(listenBuf, CBOR_TEXT, pathKey.length);
   for (let i = 0; i < pathKey.length; i += 1) listenBuf.push(pathKey[i]);
-  const pathVal = textEncoder.encode(sockPath);
+  const pathVal = bytesFromText(sockPath);
   cborHead(listenBuf, CBOR_TEXT, pathVal.length);
   for (let i = 0; i < pathVal.length; i += 1) listenBuf.push(pathVal[i]);
   sendEnvelope(0, 'listen-path', new Uint8Array(listenBuf), 0);
@@ -739,7 +738,7 @@ const setupClientSession = connectionHandle => {
    */
   const send = message => {
     const json = JSON.stringify(message);
-    const bytes = textEncoder.encode(json);
+    const bytes = bytesFromText(json);
     hostTrace(
       `daemon-xs: client SEND handle=${connectionHandle} type=${message.type || '?'}`,
     );
@@ -817,7 +816,7 @@ globalThis.handleCommand = harden(bytes => {
       const json =
         env.payload.length > 8192
           ? hostDecodeUtf8(env.payload)
-          : textDecoder.decode(env.payload);
+          : bytesToText(env.payload);
       const message = JSON.parse(json);
       hostTrace(
         `daemon-xs: client deliver handle=${handle} type=${message.type || '?'} method=${message.method || '?'}`,

@@ -5,12 +5,11 @@ import { makeCapTP } from '@endo/captp';
 import { makePromiseKit } from '@endo/promise-kit';
 import { mapWriter, mapReader } from '@endo/stream';
 import { makeNetstringReader, makeNetstringWriter } from '@endo/netstring';
+import { bytesFromText } from '@endo/bytes/from-string.js';
+import { bytesToText } from '@endo/bytes/to-string.js';
 
 /** @import { Stream, Reader, Writer } from '@endo/stream' */
 /** @import { CapTpConnectionRegistrar } from './types.js' */
-
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
 
 /**
  * @param {CapTpConnectionRegistrar | undefined} registrar
@@ -179,13 +178,13 @@ export const makeMessageCapTP = (
 /** @param {any} message */
 export const messageToBytes = message => {
   const text = JSON.stringify(message);
-  const bytes = textEncoder.encode(text);
+  const bytes = bytesFromText(text);
   return bytes;
 };
 
 /** @param {Uint8Array} bytes */
 export const bytesToMessage = bytes => {
-  const text = textDecoder.decode(bytes);
+  const text = bytesToText(bytes);
   // console.log('<-', text);
   const message = JSON.parse(text);
   return message;

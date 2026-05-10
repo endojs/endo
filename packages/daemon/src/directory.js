@@ -2,6 +2,7 @@
 
 import harden from '@endo/harden';
 import { encodeBase64 } from '@endo/base64';
+import { bytesFromText } from '@endo/bytes/from-string.js';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
@@ -381,7 +382,7 @@ export const makeDirectoryMaker = ({
       const namePath = namePathFrom(petNameOrPath);
       assertNamePath(namePath);
       if (namePath.length < 2) {
-        const bytes = new TextEncoder().encode(content);
+        const bytes = bytesFromText(content);
         const readerRef = makeIteratorRef(
           harden([encodeBase64(bytes)])[Symbol.iterator](),
         );

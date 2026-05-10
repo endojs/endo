@@ -9,6 +9,8 @@ import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import { ZipWriter } from '@endo/zip/writer.js';
+import { bytesFromText } from '@endo/bytes/from-string.js';
+import { bytesToText } from '@endo/bytes/to-string.js';
 import {
   checkinTree as platformCheckinTree,
   snapshotTreeMethods,
@@ -1643,7 +1645,6 @@ const makeDaemonCore = async (
    * @returns {Promise<Uint8Array>}
    */
   const packTreeIntoArchiveBytes = async treeP => {
-    const textEncoder = new TextEncoder();
     const mapBlob = await E(/** @type {any} */ (treeP)).lookup(
       'compartment-map.json',
     );
@@ -1668,7 +1669,7 @@ const makeDaemonCore = async (
     }
 
     const zip = new ZipWriter();
-    zip.write('compartment-map.json', textEncoder.encode(mapText));
+    zip.write('compartment-map.json', bytesFromText(mapText));
 
     // Pipeline the per-module reads via Promise.all to avoid the
     // round-trip-per-file stall that a naive sequential walk would
@@ -1711,7 +1712,7 @@ const makeDaemonCore = async (
     }
     const sources = await Promise.all(moduleReads.map(r => r.srcP));
     moduleReads.forEach(({ archivePath }, i) => {
-      zip.write(archivePath, textEncoder.encode(sources[i]));
+      zip.write(archivePath, bytesFromText(sources[i]));
     });
 
     return zip.snapshot();
@@ -1739,8 +1740,8 @@ const makeDaemonCore = async (
         help: () => 'Transient in-memory blob',
         sha256: () => sha256Hex,
         streamBase64: () => makeReaderRef([bytes]),
-        text: async () => new TextDecoder().decode(bytes),
-        json: async () => JSON.parse(new TextDecoder().decode(bytes)),
+        text: async () => bytesToText(bytes),
+        json: async () => JSON.parse(bytesToText(bytes)),
       }),
     );
   };
