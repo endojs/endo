@@ -3,10 +3,11 @@
 | | |
 |---|---|
 | **Created** | 2026-05-08 |
-| **Updated** | 2026-05-08 |
+| **Updated** | 2026-05-10 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Reference |
 | **Source** | PR #144 inline comment [discussion_r3212479564](https://github.com/endojs/endo-but-for-bots/pull/144#discussion_r3212479564) on `.changeset/agent-tools-http-client.md` |
+| **Used by** | HTTP client controller+client design (PR #163, [`endoclaw-network-fetch`](endoclaw-network-fetch.md)); browser controller design ([`endoclaw-browser`](endoclaw-browser.md), expected consumer) |
 | **Addendum to** | [endoclaw-network-fetch](endoclaw-network-fetch.md) and the PR #144 HttpClient design revision (HttpController split) |
 
 ## What is the Problem Being Solved?

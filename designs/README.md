@@ -9,7 +9,8 @@
 [exo-zip-package](exo-zip-package.md) (added 2026-05-08; PR #128 reshape
 blocker),
 [trust-on-first-bind](trust-on-first-bind.md) (added 2026-05-08; shared
-capability-policy adapter, addendum to PR #144 HttpClient).*
+capability-policy adapter referenced by HTTP client and browser controller
+designs; addendum to PR #144 HttpClient).*
 
 ## Summary
 
@@ -105,7 +106,7 @@ capability-policy adapter, addendum to PR #144 HttpClient).*
 | [ocapn-tcp-syrups-framing](ocapn-tcp-syrups-framing.md) | 2026-04-23 | 2026-05-06 | Not Started |
 | [syrups](syrups.md) | 2026-05-04 | 2026-05-06 | Deprecated |
 | [cbors](cbors.md) | 2026-05-04 | 2026-05-05 | Not Started |
-| [trust-on-first-bind](trust-on-first-bind.md) | 2026-05-08 | 2026-05-08 | Proposed |
+| [trust-on-first-bind](trust-on-first-bind.md) | 2026-05-08 | 2026-05-10 | Reference |
 | [outliner-design-doc](outliner-design-doc.md) | 2026-03-17 | 2026-03-18 | In Progress |
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-04-23 | Not Started |
@@ -115,7 +116,7 @@ capability-policy adapter, addendum to PR #144 HttpClient).*
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 26 Complete/Implemented, 15 In Progress, 43 Not Started, 3 Proposed, 3 Active, 2 Reference, 2 Deprecated, 1 Draft, 1 Superseded (96 designs)
+**Totals:** 26 Complete/Implemented, 15 In Progress, 43 Not Started, 2 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (96 designs)
 
 ## Roadmap
 
@@ -296,8 +297,7 @@ capabilities available to agents.
 | daemon-rename-to-manager | Not Started | Rename `daemon.js`/`Daemon`/`MignonicPowers` to `manager.js`/`Manager`/`WorkerPowers` to align JS with Rust `endor` nomenclature |
 | daemon-xs-worker-snapshot | In Progress | XS heap snapshot/restore; Phases 1-2 implemented — streaming CAS write/read, suspend/resume supervisor integration, CBOR control verbs; 12 passing tests; Phase 2 integration test and ephemeral GC roots remaining |
 | endoclaw-timer | In Progress | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; Timer is the only way agents get scheduled execution. Prerequisite for proactive behavior. First implementation in `@endo/genie`. |
-| endoclaw-network-fetch | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. |
-| trust-on-first-bind | Proposed | Shared capability-policy adapter: TOFU-style prompt-and-pin for allowlist-bearing caps (HttpClient first; Browser/Shell/Mount candidates). Addendum to PR #144. |
+| endoclaw-network-fetch | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. Reference: [`trust-on-first-bind`](trust-on-first-bind.md) (TOFU-style prompt-and-pin for allowlist-bearing caps). |
 | ~~daemon-cross-peer-gc~~ | **Complete** | Replaced the proposed CRDT-of-pet-stores with a one-way retention-set sync per peer connection (`retention-accumulator.js`, `EndoGateway.followRetentionSet`, SQLite `retention` table). Solves the GC gap; bidirectional shared namespace deferred as YAGNI. |
 | ~~daemon-guest-eval-simplification~~ | **Implemented** | Eval-proposal handshake removed; guest eval delegates directly to `formulateEval`. Type-system cleanup and regression test in PR #92. |
 | ci-no-npm-lifecycle | Not Started | Pin `enableScripts: false` posture into CI; enforcement check for workflows |
@@ -583,8 +583,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename; design merged (PR #85); implementation TBD |
 | endoclaw-timer | S-M | 3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
 | ~~daemon-guest-eval-simplification~~ | — | — | 1 | ✅ Implemented (PR #92, ~2 hours actual; well under 1-day estimate) |
-| endoclaw-network-fetch | S-M | 3 days | 1 | HttpClient with origin allowlist, rate/size limits |
-| trust-on-first-bind | S-M | 3 days | 1 | Shared TOFU policy adapter for allowlist caps; first consumer is HttpController; addendum to PR #144 |
+| endoclaw-network-fetch | S-M | 3 days | 1 | HttpClient with origin allowlist, rate/size limits; references [`trust-on-first-bind`](trust-on-first-bind.md) for the TOFU policy adapter |
 | ci-no-npm-lifecycle | S | 1 day | 1 | Workflow audit; PR #126 forwarded under bot |
 | ~~chat-playwright-smoke~~ | S | — | 1 | ✅ Complete (PRs #91 design, #94 impl, #95+#104 fix; ~16 hours total) |
 | base64-native-fallthrough | S | 1 day | 1 | Detect `Uint8Array.fromBase64`, dispatch, dual-path tests |
@@ -640,7 +639,7 @@ ready-to-merge and actually-merged for the in-flight backlog.
 | Milestone | Items | Effort Estimate | Plus Review Queue (current rate) |
 |-----------|-------|-----------------|----------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** | — |
-| M1: Remote Access & Tools | 13 remaining | 8-10 weeks | 10-12 weeks |
+| M1: Remote Access & Tools | 12 remaining | 8-10 weeks | 10-12 weeks |
 | M2: Networking | 7 | 4-5 weeks | 5-7 weeks |
 | M3: Weblets & Integrations | 9 | 5-7 weeks | 6-9 weeks |
 | M4: UX & Tooling | 12 | 8-11 weeks | 10-13 weeks |
