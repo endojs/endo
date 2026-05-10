@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-10 |
+| **Updated** | 2026-05-10 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Proposed |
 | **Source** | PR #151 inline review comment 3214462743 |
@@ -20,7 +21,7 @@ The maintainer's review surfaced two concrete gaps:
    reachable under several names, under nested directories, or only via
    retention edges with no pet name at all.
 2. There is no syntactic convention for unambiguously rendering a
-   retention path either at the CLI or in the chat UI.
+   retention path at the CLI.
    The design `daemon-retention-paths.md` proposes an inspector panel
    per target value, but does not define a textual notation for one
    path, nor a primitive for collecting one path (or one best path) for
@@ -28,27 +29,36 @@ The maintainer's review surfaced two concrete gaps:
 
 This document defines:
 
-- A canonical string notation for one retention path so a CLI line or
-  a chat message can render it unambiguously.
-- A bulk host method `listRetentionPaths(targetIds)` that returns paths
-  for an array of targets in a single round trip.
-- A "best path" projection used by row-oriented surfaces (`endo
+- A typed `RetentionPath` shape (extending the segment in
+  `daemon-retention-paths.md`) where every component carries its own
+  locator so consumers can drill in without a second round trip.
+- A bulk host method `listRetentionPaths(targetIds)` that returns a
+  best path for each target, in one call, typed.
+  The host returns the typed `RetentionPath`; rendering belongs to the
+  consumer.
+- A "best path" projection rule used by row-oriented surfaces (`endo
   workers`, the workers panel summary list, chat-side tenant chips)
-  where a single line per tenant is the constraint.
+  where a single path per tenant is the constraint.
+- A canonical CLI string notation for one path so a CLI line can
+  render it unambiguously.
+  This notation is owned by the CLI, not the daemon.
+  The chat UI consumes the same typed `RetentionPath` and renders with
+  markup directly; it does not parse the CLI string.
 
 The richer per-target inspector subscription, the chat paths panel,
 and the disincarnate / reincarnate affordances remain in
 [`daemon-retention-paths.md`](./daemon-retention-paths.md).
-This document is the notation and bulk-collection sibling that
-unblocks `endo workers` (PR #151) and any future row-oriented surface.
+This document is the bulk-collection sibling that unblocks `endo
+workers` (PR #151) and any future row-oriented surface, plus the
+CLI-side string notation those surfaces need.
 
 ## Status of Overlapping Designs
 
 | Design | Overlap | Resolution |
 |---|---|---|
-| [`daemon-retention-paths`](./daemon-retention-paths.md) (Not Started) | Defines `RetentionPath[]` shape, `listRetentionPaths(locator)` per-target snapshot, `followRetentionPaths(locator)` subscription, paths panel with delete-pet-name and disincarnate. | This sibling reuses the `RetentionPath` shape verbatim. It adds a string notation for one path, a bulk variant `listRetentionPaths(targetIds)` returning a map, a `bestPath` projection, and the integration sketches for `endo workers` and chat tenant chips. |
-| [`workers-panel`](./workers-panel.md) (Not Started) | Mentions a `retentionPath(petName)` API returning a flat array of `{ name, formulaType }`. | The flat-array API is replaced by the `RetentionPath` shape from `daemon-retention-paths.md` and rendered using the notation defined here. |
-| [`formula-inspector`](./formula-inspector.md) (Not Started) | Mentions surfacing retention paths as a one-line aside. | Inspector embeds the per-target panel from `daemon-retention-paths.md`; the row-oriented `endo inspect` summary line uses the notation here. |
+| [`daemon-retention-paths`](./daemon-retention-paths.md) (Not Started) | Defines the `RetentionPath` segment shape, single-target `listRetentionPaths(locator)`, `followRetentionPaths(locator)` subscription, paths panel with delete-pet-name and disincarnate. | This sibling reuses the segment shape and extends it so each component carries its own locator. It adds a bulk variant `listRetentionPaths(targetIds)` returning one best path per target, a `bestPath` selection rule, and the integration sketches for `endo workers` and chat tenant chips. |
+| [`workers-panel`](./workers-panel.md) (Not Started) | Mentions a `retentionPath(petName)` API returning a flat array of `{ name, formulaType }`. | The flat-array API is replaced by the typed `RetentionPath` from `daemon-retention-paths.md` and rendered by the consumer (CLI string here, chat markup there). |
+| [`formula-inspector`](./formula-inspector.md) (Not Started) | Mentions surfacing retention paths as a one-line aside. | Inspector embeds the per-target panel from `daemon-retention-paths.md`; the row-oriented `endo inspect` summary uses the typed bulk return and renders with the CLI notation defined here. |
 
 ## Status quo
 
@@ -66,9 +76,8 @@ unblocks `endo workers` (PR #151) and any future row-oriented surface.
 - `pet-store.js` `reverseIdentify(id)` returns names within a single
   pet store; nested directory paths are not reconstructed.
 - The existing pet-name path syntax is `/`-delimited (`alice/inbox/2026-05`)
-  per `packages/cli/src/pet-name.js` `parsePetNamePath`.
-  Pet names cannot contain `/`, `\0`, `@`, or be `.` or `..` per
-  `packages/daemon/src/pet-name.js`.
+  per `packages/cli/src/pet-name.js` `parsePetNamePath`; the parser
+  splits on `/` and accepts every other character verbatim.
 - The locator format is
   `endo://{nodeNumber}/?id={formulaNumber}&type={formulaType}` per
   `packages/daemon/src/locator.js`.
@@ -78,11 +87,191 @@ unblocks `endo workers` (PR #151) and any future row-oriented surface.
   `agent`, `mailbox`, `mailHub`), and `retention` for cross-peer
   edges.
 
-The notation surface is therefore not blocked on graph plumbing.
-What is missing is (a) a textual rendering, (b) a host-facing entry
-point, and (c) an aggregation-friendly bulk variant.
+### Pet-name and special-name character set
 
-## Notation
+The exact rules from `packages/daemon/src/pet-name.js` are load-bearing
+for the notation, so they are reproduced here.
+
+A `PetName` (regular pet name, the value most callers think of as a
+"pet name") is any string of length 1 to 255 that:
+
+- does not contain `/`
+- does not contain `\0`
+- does not contain `@`
+- is not exactly `.` or `..`
+
+Every other printable character is allowed in a pet name.
+That includes `:`, `~`, `#`, `*`, ` ` (space), backtick, double-quote,
+and so on.
+The notation in this design cannot assume any of those characters are
+absent from a pet name.
+
+A `SpecialName` is a string matching `/^@[a-z][a-z0-9-]{0,127}$/`,
+that is, an `@` followed by a lowercase ASCII identifier with hyphens.
+Special names include `@self`, `@host`, `@endo`, `@known-peers-store`.
+The `@` prefix is the boundary marker for special names; it does not
+appear in the body of any pet name (pet names forbid `@` outright) but
+it does appear at the start of special names that occupy the same
+namespace.
+
+A `Name` (the type accepted by directory paths) is `PetName |
+SpecialName`.
+Some pet stores (notably the per-host pet store) use the `@` prefix to
+partition special-cased entries; mailbox stores accept only message
+numbers (`assertMailboxStoreName` in `packages/daemon/src/mail.js`).
+Pet stores in general use the `assertValidName` they were constructed
+with, which is `assertPetName` for the standard pet store and other
+asserters elsewhere.
+
+For the notation: the only characters guaranteed safe as
+pet-name-component delimiters are `/` and `\0`.
+`/` is already the path separator.
+`\0` is unprintable and unusable in human-facing notation.
+Every other ASCII punctuation choice (`:`, `~`, `#`, `,`, etc.) can
+appear inside a pet name and therefore needs an escape mechanism.
+
+The notation surface is therefore not blocked on graph plumbing.
+What is missing is (a) a typed bulk return shape, (b) a host-facing
+entry point, and (c) a CLI notation that handles the real pet-name
+character set.
+
+## RetentionPath model
+
+This sibling refines the segment shape in
+`daemon-retention-paths.md` so each component carries its own locator
+and so the union-find merge kind is explicit on segments that
+represent merged groups.
+
+```typescript
+type RetentionPathSegment = {
+  /**
+   * Locator of the group representative for this segment.
+   * Always present; consumers use this as the "click target" for
+   * drilling into a segment.
+   */
+  locator: string;
+  /**
+   * All formula identifiers in the same union-find group as the
+   * representative.
+   * Length 1 if the segment is not a merged group.
+   */
+  groupMembers: FormulaIdentifier[];
+  /**
+   * The kind of merge that produced this group, when length > 1.
+   * Examples: `'host+handle'`, `'channel+handle'`,
+   * `'promise+resolver'`.
+   * Absent when `groupMembers.length === 1`.
+   */
+  mergeKind?: string;
+  /**
+   * The locator of the group representative on the upstream side of
+   * the edge into this segment.
+   * Absent on the root segment.
+   */
+  referencedBy?: string;
+  /**
+   * Edge labels from `referencedBy` into this group.
+   * Distinguishes pet-name edges (`'pet:<name>'`) from internal links
+   * (`'worker'`, `'handle'`, `'hub'`, `'powers'`, `'slot0'`, etc.) and
+   * cross-peer retention edges (`'retention'`).
+   */
+  labels?: string[];
+  /**
+   * Present on the topmost segment if the group is a GC root.
+   * `'persistent'` for entries in `roots` (e.g., `endo`,
+   * `known-peers-store`).
+   * `'transient'` for entries pinned by an in-flight host operation
+   * (entries in `transientRoots`).
+   */
+  rootKind?: 'persistent' | 'transient';
+};
+
+type RetentionPath = RetentionPathSegment[];
+```
+
+The leaf segment is the target group; subsequent segments walk
+*upstream* toward a root.
+The topmost segment carries `rootKind`.
+`mergeKind` and `rootKind` are new relative to
+`daemon-retention-paths.md`; the per-segment `locator` field is also
+new and is the load-bearing addition for "click any component to drill
+in" UX in both CLI and chat.
+
+`graph.js` produces the segment with the locator and merge metadata
+already available; surfacing them is a render-side change rather than
+a graph-side one.
+
+## Host method API
+
+One method is added to the `EndoHost` interface (and the corresponding
+`Mail` interface).
+It is host-only; guests cannot enumerate retention paths through
+capabilities they do not own (the rationale matches
+`daemon-retention-paths.md` § "Why host-only").
+
+```typescript
+interface EndoHost {
+  /**
+   * Snapshot the best retention path for many targets in one call.
+   * `targetIds` may be formula identifiers or locator strings.
+   * Returns one path per input, in input order.
+   * A target with no retention path returns an empty array (length 0)
+   * at that position.
+   * "Best" is defined by the selection rule below.
+   */
+  listRetentionPaths(
+    targetIds: Array<FormulaIdentifier | string>,
+  ): Promise<Array<RetentionPath>>;
+}
+```
+
+The bulk return is `Array<RetentionPath>` (one path per target), not
+`Array<RetentionPath[]>` (a list of paths per target).
+The single-target "all paths" use case (the inspector panel) is served
+by the per-target `listRetentionPaths(locator): Promise<RetentionPath[]>`
+defined in `daemon-retention-paths.md`; this bulk method exists for the
+row-oriented surfaces that need exactly one path per target.
+
+The daemon does not host any string-rendering method.
+The typed return is the shared canonical form; the CLI renders with
+the string notation defined below; the chat UI renders with markup
+directly from the typed value.
+
+### Best-path selection rule
+
+When a target has multiple retention paths, the host picks one as the
+"best" by:
+
+1. Prefer paths rooted at a persistent root (e.g., `@endo`,
+   `@known-peers-store`) over paths rooted at a transient root.
+2. Prefer paths that contain at least one pet-name edge over paths
+   that consist only of field edges (the latter are present but not
+   user-named).
+3. Prefer the shortest path among those tied on (1) and (2).
+4. Prefer the lexicographically smallest path (by rendered notation)
+   among those tied on (1), (2), and (3).
+
+Selection happens on the host because it requires the same graph walk
+that produced the candidate paths; folding it into the same call
+avoids serializing every candidate.
+
+### Errors
+
+- An invalid id or locator string in `targetIds` produces an empty
+  `RetentionPath` (length 0) at that position; it is not an error.
+  This matches the row-oriented use case where some tenants may have
+  been collected between the `listWorkerTenants` call and the
+  `listRetentionPaths` call.
+- A target whose formula is unknown to this host (a remote-only
+  reference) returns the same empty `RetentionPath`.
+
+## CLI string notation
+
+The CLI owns a canonical string notation for rendering one
+`RetentionPath` per line.
+This notation is for human-readable CLI surfaces (`endo workers`,
+`endo paths`, `endo inspect`); it is not transmitted by the daemon and
+is not the chat UI's rendering.
 
 ### Goals
 
@@ -91,9 +280,7 @@ A retention-path notation must be:
 - Unambiguous: one string maps to one path through the formula graph.
 - Type-able: an operator at a CLI prompt can write a path by hand
   using ASCII characters available without modifier keys.
-- Renderable: the same notation works in monospace CLI output and in
-  the chat UI (where it can be additionally styled, but the underlying
-  text is the source of truth).
+- Renderable: works in monospace CLI output.
 - Compact for the common case where every edge along the path is a
   pet-name edge.
 - Distinguishable: pet-name edges, field edges, retention edges, and
@@ -103,17 +290,22 @@ A retention-path notation must be:
 
 A retention path renders left-to-right from a GC root toward the
 target.
-Each segment of the path produces one of three textual forms:
+Each segment of the path produces one of the following textual forms:
 
 | Segment | Notation | Example |
 |---|---|---|
-| Root group | `@<root-name>` | `@endo`, `@known-peers-store` |
+| Persistent root | `@<root-name>` | `@endo`, `@known-peers-store` |
+| Transient root | `*<root-id-prefix>` | `*7a3f` |
 | Pet-name edge | `/<name>` | `/inbox`, `/alice` |
 | Field edge | `:<field>` | `:worker`, `:hub`, `:slot0` |
 | Retention edge | `~peer:<peer-id-prefix>` | `~peer:7a3f` |
 
 A complete path concatenates segments with no intervening whitespace.
-The first segment is always a root in `@<name>` form.
+The first segment is always a root.
+Persistent roots use the `@` prefix; transient roots use the `*`
+prefix to distinguish a short-lived pin from a named root.
+The transient root identifier defaults to a 4-char prefix of the root
+formula's id; `--full-ids` reveals the full id.
 The last segment names the target.
 The target's group type is appended after a `#` to disambiguate when
 the same name resolves to different formula types in different paths.
@@ -125,49 +317,71 @@ Examples:
 @endo:hub/alice/inbox/2026-05#eval
 @known-peers-store:hub~peer:7a3f/shared-file#eval
 @endo/host:worker#worker
+*7a3f/scratch#eval
 ```
 
 Parsing is left-to-right, single-character lookahead on `/`, `:`,
-`~`, `#`.
+`~`, `#`, `@`, `*`.
 The set of root names is closed (`endo`, `known-peers-store`, plus a
 small fixed list maintained alongside `formula-type.js`'s root
 formulas).
 Field names are drawn from `extractLabeledDeps` and are also a closed
 set.
-Pet names cannot contain `/`, `:`, `~`, `#`, `@`, or `\0`; this
-guarantees the notation is unambiguous against pet-name content.
 
-The `~peer:<prefix>` form uses the first 4 hex chars of the peer's
-node number for human readability.
-A full peer id is recoverable via the `--full-ids` flag (CLI) or by
-hovering the rendered chip (chat).
-The notation deliberately does not embed full 64-char peer ids inline;
-they would defeat compactness and readability is the point of the
-notation.
+### Pet-name escaping
+
+Pet names can contain any character except `/`, `\0`, and `@`; in
+particular `:`, `~`, `#`, `*`, and whitespace are all permitted.
+The notation cannot assume those characters are absent.
+
+A pet-name segment whose body contains any of `/`, `:`, `~`, `#`, or
+whitespace renders in a quoted form:
+
+```
+/"name with spaces"
+/"name:with:colons"
+/"name#hash"
+```
+
+Quoted form: a leading `/`, a `"`, the literal pet name with `\` and
+`"` backslash-escaped, a closing `"`.
+A pet name with no special characters renders bare (`/inbox`); the
+parser accepts both forms.
+
+The `@` character cannot appear in a pet name (the pet-name validator
+rejects it), so the leading `@` of a root segment is unambiguous and
+needs no quoting.
+Similarly `*` cannot occur immediately after a segment delimiter
+without ambiguity (it is reserved for the transient-root prefix); a
+pet name beginning with `*` renders as `/"*..."`.
 
 ### Group-membership rendering
 
 A retention-path segment can correspond to a group of formulas merged
-by union-find (host↔handle, channel↔handle, promise↔resolver).
-The default rendering picks the group's primary pet-name segment if
-one exists, else the first member id, and appends `+<n>` if the group
-has more than one member.
+by union-find (host+handle, channel+handle, promise+resolver).
+The default rendering picks the segment's primary pet-name (if any)
+or the group representative's id, and appends `+<mergeKind>` to name
+the merge:
 
 ```
-@endo/promise#promise+1   # promise + resolver group
-@endo/host#host+1         # host + handle group
+@endo/promise#promise+resolver
+@endo/host#host+handle
 ```
 
 The full member list is available via `--verbose` (CLI) or the
 expanded inspector panel.
-This keeps the bulk row format short while giving operators a way to
-drill in.
+The `+<mergeKind>` form is more informative than a count and reads
+naturally for the small fixed set of merges produced by
+`graph.js`'s union-find.
 
 ### Multi-path listing
 
-`listRetentionPaths(targetId)` returns *every* path; many targets
-have several.
-The CLI lists them one per line, prefixed with the path index:
+For surfaces that want every path (the per-target inspector deck or
+`endo paths <name-or-locator>`), call the single-target
+`listRetentionPaths(locator)` from
+[`daemon-retention-paths.md`](./daemon-retention-paths.md).
+The CLI lists them one per line, prefixed with the path index and
+rendered with the notation above:
 
 ```
 $ endo paths shared-file
@@ -175,131 +389,27 @@ $ endo paths shared-file
 2  @known-peers-store:hub~peer:7a3f/shared-file#eval
 ```
 
-The chat UI renders each path as a chip stack, with each segment a
-clickable sub-chip linking to its formula's inspector.
-The notation is the underlying text payload, copy-pasted out of the
-UI as the canonical form.
-
-### Best-path projection
+### Best-path display in row-oriented surfaces
 
 For row-oriented surfaces where one path per target is the constraint
-(`endo workers`, the workers-panel tenant list, chat tenant chips on
-a value), the host returns a single "best" path chosen by:
-
-1. Prefer paths rooted at `@endo` (the host agent root) over peer
-   roots.
-2. Prefer paths that contain at least one pet-name edge over paths
-   that consist only of field edges (the latter are present but not
-   user-named).
-3. Prefer the shortest path among those tied on (1) and (2).
-4. Prefer the lexicographically smallest path among those tied on
-   (1), (2), and (3).
-
-The chosen path is rendered using the notation above and serves as
-the row's identifier surrogate.
-A `+N` suffix indicates additional paths exist for the same target,
-clickable in the chat UI to expand:
+(`endo workers`, the workers-panel tenant list), the host returns a
+single best path; the CLI renders that path and (when there are more)
+appends a `+N` suffix indicating additional paths exist:
 
 ```
 worker-7a3f
-  shared-file       @endo/pins/shared-file#eval +1
-  inbox-mailhub     @endo/inbox:mailHub#mail-hub
+  @endo/pins/shared-file#eval +1
+  @endo/inbox:mailHub#mail-hub
 ```
 
-If no path is reachable (the target is held only by transient pins or
-by an in-flight host operation), the best-path string is `@transient`
-and the `+N` count is zero.
+The CLI obtains `+N` either from a separate count field (added in a
+follow-up) or by calling the per-target `listRetentionPaths(locator)`
+on demand when the operator drills in.
+This iteration ships the best-path return without the count; surfaces
+that want the count call the per-target API.
 
-## Host method API
-
-Two methods are added to the `EndoHost` interface (and the
-corresponding `Mail` interface).
-Both are host-only; guests cannot enumerate retention paths through
-capabilities they do not own (the rationale matches
-`daemon-retention-paths.md` § "Why host-only").
-
-### Bulk snapshot
-
-```typescript
-interface EndoHost {
-  /**
-   * Snapshot retention paths for many targets in one call.
-   * `targetIds` may be formula identifiers or locator strings.
-   * Returns a map keyed by the input order; missing targets map to
-   * an empty array.
-   */
-  listRetentionPaths(
-    targetIds: Array<FormulaIdentifier | string>,
-  ): Promise<Array<RetentionPath[]>>;
-}
-```
-
-The bulk shape replaces the per-target shape proposed in
-`daemon-retention-paths.md` § "Daemon surface".
-A single host call walks the graph once per target without repeated
-CapTP round trips.
-For `endo workers`, the cost is one host call regardless of tenant
-count, where the per-target API would be one call per tenant.
-
-The returned array is positional with `targetIds` so the caller can
-reassemble a result map without sending pet names back over CapTP.
-
-For backwards compatibility with the inspector panel use case, the
-single-target convenience wrapper
-
-```typescript
-listRetentionPathsFor(
-  targetId: FormulaIdentifier | string,
-): Promise<RetentionPath[]>;
-```
-
-remains available; it is sugar for `listRetentionPaths([targetId])
-.then(([paths]) => paths)`.
-
-### Best-path projection
-
-```typescript
-interface EndoHost {
-  /**
-   * Return the chosen "best" retention path for each target as the
-   * notation string defined above, plus a count of additional paths.
-   * Empty path string (`""`) means the target is unreachable;
-   * `"@transient"` means it is held only by transient pins.
-   */
-  describeRetentionPaths(
-    targetIds: Array<FormulaIdentifier | string>,
-  ): Promise<Array<{ best: string; otherCount: number }>>;
-}
-```
-
-`describeRetentionPaths` is the method `endo workers` calls per row.
-It returns rendered strings (not raw `RetentionPath` shapes) so the
-CLI and chat UI share the canonical rendering and cannot drift.
-
-Rendering happens on the host because:
-
-- The notation is the host's authoritative view of its own namespace.
-- Field-label and root-name dictionaries live in the daemon
-  (`extractLabeledDeps`, `formula-type.js`); duplicating them in CLI
-  and chat is a drift hazard.
-- Best-path selection requires the same graph walk; folding rendering
-  into the same call avoids serializing intermediate `RetentionPath`
-  shapes.
-
-The richer `RetentionPath[]` shape is still exposed via
-`listRetentionPaths` for the inspector panel and for any consumer
-that wants to render paths differently.
-
-### Errors
-
-- An invalid id or locator string in `targetIds` produces an empty
-  array entry at that position; it is not an error.
-  This matches the row-oriented use case where some tenants may have
-  been collected between the `listWorkerTenants` call and the
-  `describeRetentionPaths` call.
-- A target whose formula is unknown to this host (a remote-only
-  reference) returns `[]` from `listRetentionPaths` and `{ best: "",
-  otherCount: 0 }` from `describeRetentionPaths`.
+If no path is reachable, the best-path string is empty and the row
+falls back to the locator.
 
 ## Fast collection: indexing and cost
 
@@ -317,13 +427,10 @@ upstream walks across targets within a single bulk call.
 The memoization is correct because the graph cannot mutate during
 the call; the host holds the formula-graph lock for the duration.
 
-The notation rendering itself is O(path-length) and adds negligible
-cost on top of the graph walk.
-
 No reverse-lookup index is added in this iteration.
 The `groupInEdges` map already serves as the reverse-lookup
-substrate; the missing piece was an externally accessible API and a
-notation, not an index.
+substrate; the missing piece was an externally accessible API and the
+shape of the bulk return.
 
 ## Integration with `endo workers` (PR #151)
 
@@ -336,90 +443,99 @@ worker-7a3f
 ```
 
 After this design lands, `workers.js` calls
-`describeRetentionPaths(tenantIds)` once per worker (or once total
-for all workers' tenants) and renders:
+`listRetentionPaths(tenantIds)` once per worker (or once total for all
+workers' tenants), receives an `Array<RetentionPath>`, and renders
+each path with the CLI notation:
 
 ```
 worker-7a3f
-  @endo/pins/shared-file#eval +1
+  @endo/pins/shared-file#eval
   @endo/inbox:mailHub#mail-hub
 ```
 
 The row's left margin (the tenant's discovered pet name) is dropped;
-the notation string is the canonical identifier and includes any
+the rendered notation is the canonical identifier and includes any
 pet-name edges.
-The `+N` suffix tells the operator that drilling in (`endo paths
-<locator>` or the chat panel) reveals additional paths.
 
-The `--json` form gains a `retentionPaths` field per tenant:
+The `--json` form gains a `retentionPath` field per tenant containing
+the typed `RetentionPath`:
 
 ```json
 {
   "name": "shared-file",
   "type": "eval",
   "id": "...:0000...",
-  "retentionPaths": {
-    "best": "@endo/pins/shared-file#eval",
-    "otherCount": 1
-  }
+  "retentionPath": [
+    { "locator": "...", "groupMembers": ["..."], "rootKind": "persistent", "labels": ["pet:pins"] },
+    { "locator": "..." }
+  ]
 }
 ```
+
+JSON consumers read the typed shape directly; the CLI string is for
+the human-facing surface.
 
 ## Integration with chat UI
 
 The chat tenant chip (rendered for each capability inside a worker
-tile, value tile, or inspector panel) uses the same
-`describeRetentionPaths` payload.
-The chip renders the notation string in monospace, with each segment
-a sub-chip styled by edge kind:
+tile, value tile, or inspector panel) consumes the same typed
+`RetentionPath` returned by `listRetentionPaths`.
+The chip renders the path as a sequence of sub-chips, each styled by
+edge kind and bound to its segment's `locator`:
 
-- `@root` segments: bold, blue.
-- `/petname` segments: bold, default text color.
-- `:field` segments: gray, italic.
-- `~peer:abcd` segments: gray, with a hover tooltip showing the full
-  peer id and pet name (if any).
-- `#type` suffix: small caps, muted.
+- Root segments: bold, blue.
+  Persistent vs transient distinguished by an icon, not by the `@` /
+  `*` prefix used in the CLI string.
+- Pet-name edges: bold, default text color.
+- Field edges: gray, italic.
+- Retention edges: gray, with a hover tooltip showing the full peer
+  id and pet name (if any).
+- Type suffix: small caps, muted.
 
-Clicking the chip opens the per-target paths panel from
-`daemon-retention-paths.md` (which subscribes via
-`followRetentionPaths` and lists every path).
+Each sub-chip is clickable and opens the inspector for the segment's
+`locator`.
+The chat UI does not parse the CLI string notation; it walks the
+typed `RetentionPath` directly.
+The CLI string notation and the chat markup rendering are two
+independent renderings of the same typed value; the typed
+`RetentionPath` is the backbone that keeps them from drifting.
 
-The notation string is the chip's `data-retention-path` attribute and
-is what the user copies when the chip is selected.
-Round-tripping through copy and paste is a stated goal.
+The user-facing copy operation in the chat UI yields the CLI string
+notation (rendered on the client from the typed value) so the chip
+text round-trips through copy and paste into a CLI invocation.
 
 ## Phased implementation
 
-### Phase 1: Notation renderer and bulk method
+### Phase 1: Typed bulk method
 
-- Add `packages/daemon/src/retention-path-notation.js` exporting
+- Add `host.listRetentionPaths(targetIds)` returning
+  `Array<RetentionPath>`, with the per-segment `locator` and
+  `mergeKind` fields surfaced from `graph.js`.
+- Surface the new fields on `RetentionPathSegment` from
+  `daemon-retention-paths.md`.
+- Unit tests: best-path selection, positional preservation, missing
+  / invalid ids, transient-only vs persistent-rooted, merged-group
+  segments.
+
+### Phase 2: CLI string notation and integrations
+
+- Add `packages/cli/src/retention-path-notation.js` exporting
   `renderRetentionPath(path) -> string` and `parseRetentionPath(string)
-  -> RetentionPathShape | undefined`.
-  The parser is included so the chat UI can validate hand-typed input
-  in a future search-by-path feature; it is not required by the bulk
-  method.
-- Add `host.listRetentionPaths(targetIds)` and
-  `host.describeRetentionPaths(targetIds)`.
-- Unit tests: notation round-trip on representative paths
-  (single-pet-name, multi-segment with field edges, with retention
-  edge, with group `+N`, transient-only, root-only).
-- Integration test: two-daemon setup; receiving host's
-  `describeRetentionPaths` for a peer-shared target shows both the
-  local pet-store path and the cross-peer retention path.
-
-### Phase 2: CLI integration
-
-- Wire `endo workers` to `describeRetentionPaths`.
+  -> RetentionPath | undefined`.
+  The parser is included so the CLI can validate hand-typed paths in a
+  future search-by-path feature; the bulk method does not depend on it.
+- Wire `endo workers` to `listRetentionPaths` and render with the
+  notation.
 - Add `endo paths <name-or-locator>` (defined in
   `daemon-retention-paths.md`) and have it print using the notation
   defined here.
 
 ### Phase 3: Chat tenant chip
 
-- Tenant chip component reads `describeRetentionPaths` payload and
-  renders per the styling above.
-- Click expands to the per-target panel from
-  `daemon-retention-paths.md`.
+- Tenant chip component reads the typed `RetentionPath` and renders
+  per the styling above.
+- Click on a sub-chip opens the inspector for that segment's locator.
+- Copy yields the CLI notation, rendered on the client.
 
 ## Alternatives considered
 
@@ -438,8 +554,8 @@ available via `--full-ids`.
 Pet-name paths are already used by the CLI and are familiar.
 However, they only describe *one* way the value is reachable
 (through nested directories under one root), and they cannot express
-field edges, peer retention, or paths that pass through a non-pet-named
-intermediary.
+field edges, peer retention, or paths that pass through a
+non-pet-named intermediary.
 A worker held by the host's `:worker` field on a guest formula has no
 pet-name path at all.
 Rejected as insufficient; retained as the *substrate* for the
@@ -448,10 +564,10 @@ Rejected as insufficient; retained as the *substrate* for the
 ### Use a JSON shape inline
 
 `{"root":"endo","segments":[{"type":"pet","name":"pins"},...]}` is
-unambiguous and renderable, but is not type-able and reads poorly in a
-single-line CLI row.
-JSON is appropriate for `--json` output and is what the per-target
-`listRetentionPaths` returns; inline rendering is the notation's job.
+unambiguous and renderable, but is not type-able and reads poorly in
+a single-line CLI row.
+JSON is appropriate for `--json` output and is what the bulk method
+returns; inline rendering is the CLI notation's job.
 Rejected as a default for human-facing surfaces.
 
 ### Use a Unix-path-style notation throughout
@@ -463,65 +579,92 @@ A field name like `worker` would collide with a pet name `worker`
 sharing the same store level.
 Rejected; the `:` prefix on field segments is load-bearing.
 
+### Render on the daemon (`describeRetentionPaths`)
+
+An earlier draft proposed a host method `describeRetentionPaths` that
+returned rendered notation strings instead of typed paths.
+Rationale was shared canonicality: one rendering site, no risk of
+drift between CLI and chat.
+Rejected: rendering is a consumer concern.
+The CLI's notation has no value to the chat UI (which renders with
+markup), and a daemon-side string method would force the chat UI to
+re-parse CLI strings just to discover segment boundaries it could
+have read straight from the typed value.
+The typed `RetentionPath` is the backbone that prevents drift; the
+two renderings are sibling consumers of that backbone.
+
+## Decisions
+
+- **Path stability across formulations.**
+  Snapshot semantics are accepted for this iteration.
+  Pet names move; a tenant's best path may change between two `endo
+  workers` invocations.
+  The `--json` payload includes both the locator and the typed
+  `RetentionPath`, so a script that wants stability across snapshots
+  matches on the locator.
+  Followers and subscribers (a `followRetentionPaths`-style
+  subscription for the bulk return) are deferred to a later design,
+  alongside the per-target subscription already proposed in
+  `daemon-retention-paths.md`.
+- **Bulk return shape.**
+  The host returns typed `RetentionPath`, not rendered strings.
+  Consumer flexibility wins over shared canonicality at the daemon
+  boundary.
+  The CLI owns its string notation; the chat UI owns its markup
+  rendering; the typed shape is the contract that keeps them
+  consistent.
+- **Group rendering.**
+  Merged groups render with the merge kind (`+resolver`, `+handle`)
+  rather than just a count.
+  The `mergeKind` field on `RetentionPathSegment` carries this
+  information from `graph.js`'s union-find.
+
 ## Open questions
 
-- **Root-name dictionary scope.** This design lists `@endo` and
-  `@known-peers-store` as root forms.
-  `transientRoots` are also roots; should they render as
-  `@transient` (proposed) or as `@transient-<formulaId-prefix>` for
-  diagnosability?
+- **Root-name dictionary scope.**
+  This design lists `@endo` and `@known-peers-store` as persistent
+  root names.
+  Transient roots render as `*<root-id-prefix>` (e.g., `*7a3f`).
+  Should the prefix length be configurable, or is 4 hex chars
+  enough for diagnosability?
   The current `endo workers` use case does not need to distinguish
   individual transient roots, but the inspector panel might.
-- **Pet-name escaping.** Pet-name characters are restricted to a
-  printable subset that excludes `/`, `:`, `~`, `#`, `@`, `\0`.
-  No escaping is needed today.
-  If the pet-name grammar is ever relaxed (e.g., to allow Unicode
-  symbols), the notation may need a quoting form like
-  `/"name with spaces"`.
-  Out of scope for this iteration; flagged so the parser keeps room
-  for it.
-- **Group rendering for `+N` members.** The default is `name+1` for a
-  two-member group.
-  Is the count the right summary, or should the notation render the
-  *kind* of merge (`+resolver`, `+handle`)?
-  Resolvable when `endo workers` is the first consumer with real
-  fixtures.
-- **Path stability across formulations.** Pet names move; a tenant's
-  best path may change between two `endo workers` invocations.
-  Is this acceptable for a snapshot-shaped surface, or does the row
-  format need a stable identifier (the locator) plus the notation as
-  a derived display field?
-  The proposed `--json` payload includes both `id` and the rendered
-  notation; the CLI text form prints only the notation but is
-  acknowledged to be snapshot-only.
-- **Bulk rendering vs raw paths.** `describeRetentionPaths` is the
-  proposed shared rendering point.
-  An alternative is to return raw `RetentionPath[]` to all consumers
-  and let each consumer render.
-  The trade-off is shared canonicality versus consumer flexibility;
-  the design picks shared canonicality but flagging the alternative
-  for review.
+- **Pet-name escaping syntax choice.**
+  The notation quotes pet names containing `/`, `:`, `~`, `#`, or
+  whitespace using `"..."` with backslash-escapes.
+  An alternative is percent-encoding (familiar from URLs) which
+  reads worse but parses with off-the-shelf libraries.
+  The proposed quoted form is the recommendation; flagged for review.
 
 ## Affected packages
 
-- `packages/daemon`: new `retention-path-notation.js`, two new host
-  methods, exported types.
-- `packages/cli`: `endo workers` calls `describeRetentionPaths`;
+- `packages/daemon`: surface the `locator`, `mergeKind`, and
+  `rootKind` fields on `RetentionPathSegment`; add the bulk
+  `listRetentionPaths(targetIds)` host method; export updated types.
+- `packages/cli`: new `retention-path-notation.js` (renderer + parser);
+  `endo workers` calls the bulk method and renders with the notation;
   `endo paths` (per `daemon-retention-paths.md`) prints using the new
   renderer.
-- `packages/chat`: tenant chip component renders the notation.
+- `packages/chat`: tenant chip component renders the typed
+  `RetentionPath` directly with markup; copy yields the CLI notation
+  rendered on the client.
 
 ## Test plan
 
-- Unit: notation round-trip; best-path selection rules; bulk method
-  positional preservation; transient-only and unreachable cases.
-- Integration: two-daemon test asserting `describeRetentionPaths` for
-  a peer-shared target lists both local and cross-peer paths in the
-  expected order.
+- Unit (daemon): bulk method positional preservation; transient-only
+  and unreachable cases; merged-group segments expose `mergeKind`;
+  per-segment `locator` matches the group representative.
+- Unit (CLI): notation render + parse round-trip on representative
+  paths (single-pet-name, multi-segment with field edges, with
+  retention edge, with merged group, transient-rooted, root-only,
+  pet name with `:` and spaces requiring quoting).
+- Integration: two-daemon test asserting `listRetentionPaths` for
+  a peer-shared target picks the local persistent-rooted path over
+  the cross-peer retention path per the best-path rule.
 - CLI: smoke test `endo workers` renders notation strings; `--json`
-  payload includes `retentionPaths`.
-- Chat: tenant chip renders all four segment kinds; copy-paste yields
-  the notation string verbatim.
+  payload includes typed `retentionPath`.
+- Chat: tenant chip renders all four segment kinds from the typed
+  shape; copy yields the CLI notation string verbatim.
 
 ## Prompt
 
