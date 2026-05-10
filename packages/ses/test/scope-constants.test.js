@@ -292,3 +292,35 @@ test('getScopeConstants - global object and module lexicals', t => {
     'should only return global contants not hidden by module lexicals',
   );
 });
+
+test('getScopeConstants - tolerates own name with undefined descriptor (iOS Safari quirk, #947)', t => {
+  // iOS Safari 15.0-15.2 reported `showModalDialog` in
+  // `Object.getOwnPropertyNames(window)` while
+  // `Object.getOwnPropertyDescriptor(window, 'showModalDialog')` returned
+  // `undefined`, breaking `lockdown()`. Simulate the same anomaly with a
+  // proxy global that lists `phantom` as an own name but returns no
+  // descriptor for it. `getScopeConstants` must skip the phantom name
+  // rather than crash on `undefined.configurable`.
+  // See https://bugs.webkit.org/show_bug.cgi?id=234282
+  const phantomGlobal = new Proxy(
+    Object.create(null, { real: { value: true } }),
+    {
+      ownKeys() {
+        return ['real', 'phantom'];
+      },
+      getOwnPropertyDescriptor(target, key) {
+        if (key === 'phantom') {
+          return undefined;
+        }
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+    },
+  );
+
+  t.notThrows(() => getScopeConstants(phantomGlobal));
+  t.deepEqual(
+    getScopeConstants(phantomGlobal),
+    { globalObjectConstants: ['real'], moduleLexicalConstants: [] },
+    'should drop names whose descriptor is undefined',
+  );
+});
