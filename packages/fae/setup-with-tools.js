@@ -86,7 +86,9 @@ export const main = async agent => {
     }
 
     const factoryPowers = await E(agent).lookup(factoryAgent);
-    await E(factoryPowers).storeLocator('llm-provider', providerId);
+    // E(agent).identify(...) returns a bare formula id, so use
+    // storeIdentifier rather than storeLocator (which requires endo://).
+    await E(factoryPowers).storeIdentifier('llm-provider', providerId);
 
     await E(agent).makeUnconfined('@main', faeFactorySpecifier, {
       powersName: factoryAgent,
