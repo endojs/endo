@@ -113,10 +113,11 @@ designs; addendum to PR #144 HttpClient).*
 | [endor-bus-tui](endor-bus-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [endor-tui](endor-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [hex-package](hex-package.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 26 Complete/Implemented, 15 In Progress, 43 Not Started, 2 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (96 designs)
+**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 2 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (97 designs)
 
 ## Roadmap
 
@@ -304,6 +305,7 @@ capabilities available to agents.
 | ~~chat-playwright-smoke~~ | **Complete** | Build-and-load smoke for the Chat bundle in the `browser-tests` job; PRs #91 (design), #94 (impl), #95+#104 (harden/import fixes) |
 | base64-native-fallthrough | Not Started | `@endo/base64` dispatches to `Uint8Array.fromBase64` / `toBase64` when available |
 | hex-package | Not Started | New `@endo/hex` ponyfill with native fallthrough; audit and migrate scattered hex sites |
+| endo-bytes | Implemented | New `@endo/bytes` package for portable `Uint8Array` helpers (`concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`); retires duplicates in `cli`, `ocapn`, and `daemon` (PR #142) |
 
 **Exit criterion:** Someone can self-host a daemon with our Docker image
 and remote control it, by whatever means, using a local Familiar or a
@@ -588,6 +590,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~chat-playwright-smoke~~ | S | — | 1 | ✅ Complete (PRs #91 design, #94 impl, #95+#104 fix; ~16 hours total) |
 | base64-native-fallthrough | S | 1 day | 1 | Detect `Uint8Array.fromBase64`, dispatch, dual-path tests |
 | hex-package | S-M | 3 days | 1 | New `@endo/hex` package, migrate `daemon/src/hex.js`, `relay-server/src/protocol.js`, OCapN hex sites |
+| ~~endo-bytes~~ | S | — | 1 | ✅ Implemented (PR #142): `@endo/bytes` with `concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`; consumers in `cli`, `ocapn`, `daemon` migrated |
 | ocapn-network-transport-separation | M-L | 1.5 weeks | 2 | Architectural refactor (M-L bumped 1.2x) |
 | ocapn-tcp-for-test-extraction | S-M | 3 days | 2 | Code relocation |
 | ocapn-tcp-syrups-framing | S-M | 3 days | 2 | `@endo/syrups` package, new `tcp+syrups` netlayer; design merged (PR #108); impl PR #109 open |
