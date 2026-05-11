@@ -52,7 +52,7 @@
     "electron-installer-dmg": "^5.0.1",
     "esbuild": "^0.28.0",
     "eslint": "catalog:dev",
-    "typescript": "~6.0.3"
+    "typescript": "catalog:dev"
   },
   "eslintConfig": {
     "extends": [

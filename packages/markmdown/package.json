@@ -40,7 +40,7 @@
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
     "happy-dom": "^15.0.0",
-    "typescript": "~6.0.3"
+    "typescript": "catalog:dev"
   },
   "files": [
     "./*.d.ts",

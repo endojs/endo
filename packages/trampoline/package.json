@@ -49,7 +49,7 @@
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
     "tsd": "catalog:dev",
-    "typescript": "~6.0.3"
+    "typescript": "catalog:dev"
   },
   "files": [
     "LICENSE*",

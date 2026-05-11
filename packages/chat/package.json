@@ -77,7 +77,7 @@
     "eslint": "catalog:dev",
     "happy-dom": "^15.0.0",
     "tsd": "catalog:dev",
-    "typescript": "~6.0.3",
+    "typescript": "catalog:dev",
     "vite": "^6.0.0"
   },
   "files": [
