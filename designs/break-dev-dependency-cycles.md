@@ -160,16 +160,16 @@ There is no single cut that removes the SCC; the 18 devDep edges
 collapse to four families, each handled by a single new package or a
 single edge deletion.
 
-#### Cut 1: `@endo/test-ses` (eats 11 edges)
+#### Cut 1: `@endo/ses-test` (eats 11 edges)
 
-A new package `packages/test-ses/`.
+A new package `packages/ses-test/`.
 Hosts the SES test files currently in `packages/ses/test/` that need
 `@endo/module-source` and the test262 prelude harness driving
 `@endo/test262-runner`.
 
 ```
-packages/test-ses/package.json:
-  name: @endo/test-ses
+packages/ses-test/package.json:
+  name: @endo/ses-test
   private: true
   dependencies:
     ses:                        workspace:^
@@ -212,13 +212,13 @@ This single move retires:
 - `@endo/eventual-send` --devDep--> `@endo/lockdown`
 - `@endo/eventual-send` --devDep--> `ses`
 
-The mapping holds because `@endo/test-ses` lives downstream of all
+The mapping holds because `@endo/ses-test` lives downstream of all
 these packages: it imports their public surfaces and runs them, but
-nothing in the workspace imports `@endo/test-ses`.
+nothing in the workspace imports `@endo/ses-test`.
 
 Some of these reductions assume that the existing tests in
 `compartment-mapper`, `evasive-transform`, `module-source`, and
-`eventual-send` either move into `@endo/test-ses` or are rewritten so
+`eventual-send` either move into `@endo/ses-test` or are rewritten so
 they no longer depend on `@endo/ses-ava`/`@endo/init` (using plain
 `ava` plus a `prepare-test-env.js` fixture that imports `'ses'` and
 nothing else).
@@ -229,11 +229,11 @@ neither package then needs `@endo/ses-ava` at all.
 
 If the rewrite-in-place path is preferred, only the SES-internal tests
 that genuinely need `@endo/module-source` (the import-hook family)
-move into `@endo/test-ses`, and the package's `dependencies` shrink
+move into `@endo/ses-test`, and the package's `dependencies` shrink
 to just `ses`, `@endo/module-source`, `@endo/compartment-mapper`,
 `@endo/test262-runner`, `@endo/init`, and `ava`.
 
-#### Cut 2: `@endo/test-hex` (eats 4 edges)
+#### Cut 2: `@endo/hex-test` (eats 4 edges)
 
 `@endo/hex` declares four cycle-creating devDeps (`@endo/eventual-send`,
 `@endo/init`, `@endo/ses-ava`, `ses`) but its test
@@ -253,24 +253,29 @@ Two equally cheap options:
   closes the cycle by itself.
   Eliminating it requires the synthetic-package move below.
 
-- **Move to `@endo/test-hex`.**
+- **Move to `@endo/hex-test`.**
   Mirror Cut 1: a new sink-only package whose `dependencies` are
   `@endo/hex`, `@endo/ses-ava`, `ses`.
   `@endo/hex/package.json` then has `devDependencies` of just `ava`
   (or even `null`), and the four edges disappear from the SCC.
 
-Recommended: the move, for symmetry with Cut 1 and for the same hash-
+Decision: the move, for symmetry with Cut 1 and for the same hash-
 correctness benefit (`@endo/hex`'s test cache hash no longer mixes
 with the SES test scaffold's hash).
+The in-place rewrite is preserved above as a "considered" path: it
+still leaves `@endo/hex` --devDep--> `ses` (one of the thirteen SCC
+members), so the move is the only path that fully cuts the edges.
 
-#### Cut 3: `@endo/test-zip` (eats 2 edges) or just delete unused edges
+#### Cut 3: delete unused `@endo/zip` devDeps
 
 `@endo/zip` declares `@endo/eventual-send` and `@endo/ses-ava` as
 devDeps but its test imports neither; it uses plain `ava` and
 `node:assert`.
 
-Recommended: delete the two devDep entries.
+Decision: delete the two devDep entries.
 No new package is needed.
+Settled per kriskowal review (PR #206
+[#discussion_r3216061413](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216061413)).
 
 #### Cut 4: `@endo/harden` ses scaffold (eats 1 edge)
 
@@ -278,28 +283,27 @@ No new package is needed.
 can `import 'ses'` to install the SES intrinsics for assume-hardened
 checks.
 
-Two options:
+Decision: move to `@endo/harden-test`.
+A sink-only package whose `dependencies` are `@endo/harden` and `ses`.
+Hosts the three `assume-hardened-hardens-in-hardened.test.js`,
+`noop-causes-lockdown-to-throw.test.js`, and
+`noop-freezes-after-lockdown.test.js` files plus the shared
+`_lockdown.js` fixture.
+`@endo/harden/package.json` then has no workspace devDeps at all; the
+four remaining test files use plain `ava` and exercise only
+`@endo/harden` itself.
+Settled per kriskowal review (PR #206
+[#discussion_r3216063693](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216063693));
+same rationale as Cut 2.
 
-- **In-place rewrite.**
-  Replace each `import 'ses'` with `import './_lockdown.js'` (the file
-  already exists alongside the other tests in `packages/harden/test/`
-  for exactly this purpose).
-  But `_lockdown.js` itself imports `'ses'`, so this only renames the
-  edge.
-  Real removal needs the move below.
-
-- **Move to `@endo/test-harden`.**
-  A sink-only package whose `dependencies` are `@endo/harden` and
-  `ses`.
-  Hosts the three `assume-hardened-hardens-in-hardened.test.js`,
-  `noop-causes-lockdown-to-throw.test.js`, and
-  `noop-freezes-after-lockdown.test.js` files plus the shared
-  `_lockdown.js` fixture.
-  `@endo/harden/package.json` then has no workspace devDeps at all;
-  the four remaining test files use plain `ava` and exercise only
-  `@endo/harden` itself.
-
-Recommended: the move; same rationale as Cut 2.
+Considered and rejected: an in-place rewrite that replaces each
+`import 'ses'` with `import './_lockdown.js'` (the file already
+exists alongside the other tests in `packages/harden/test/`).
+`_lockdown.js` itself imports `'ses'`, so this only renames the
+edge rather than cutting it.
+Per kriskowal review (PR #206
+[#discussion_r3216062975](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216062975)),
+this is "an illusion of an option" and is dropped from the proposal.
 
 #### Cut 5: pure devDep deletes (mop-up)
 
@@ -309,7 +313,7 @@ After Cuts 1-4, two cycle-creating devDeps remain:
   `commit-debug.js` imports across `e.test.js`,
   `eventual-send.test.js`, `proxy.test.js`, etc.).
   Move the `lockdown/commit-debug.js`-using tests into a new
-  `@endo/test-eventual-send` package whose dependencies are
+  `@endo/eventual-send-test` package whose dependencies are
   `@endo/eventual-send`, `@endo/lockdown`, `ava`.
 - `@endo/eventual-send` --devDep--> `ses` (transitively pulled by
   `@endo/lockdown`; same fix.)
@@ -326,9 +330,9 @@ After all five cuts, the workspace dependency graph consists of:
   `module-source` → `compartment-mapper` → ..., with
   `eventual-send` and `init` flowing into the latter half through
   `harden` and `promise-kit`.
-- Five new sink-only packages (`@endo/test-ses`, `@endo/test-hex`,
-  `@endo/test-harden`, `@endo/test-eventual-send`, and possibly
-  `@endo/test-evasive-transform` if its `_prepare-test-env-ava-fixture.js`
+- Five new sink-only packages (`@endo/ses-test`, `@endo/hex-test`,
+  `@endo/harden-test`, `@endo/eventual-send-test`, and possibly
+  `@endo/evasive-transform-test` if its `_prepare-test-env-ava-fixture.js`
   is treated the same way).
 - `@endo/zip` shrunk by deleting two unused devDeps.
 
@@ -336,7 +340,7 @@ Turbo's `--filter='...[origin/llm]'` continues to work; in fact it
 becomes more precise, because the synthetic packages are
 single-purpose and their `dependencies` faithfully list the
 subsystems they exercise.
-A change to `@endo/module-source` selects `@endo/test-ses` (and
+A change to `@endo/module-source` selects `@endo/ses-test` (and
 indirectly the `ses` test runs that live there), but no longer
 selects unrelated `@endo/compartment-mapper` consumers, because
 `@endo/compartment-mapper` no longer devDepends on the SES test
@@ -344,50 +348,45 @@ fixtures.
 
 ## Naming Convention
 
-Two candidate schemes; the prompt asks for both.
+### Decision: Option B `@endo/<subsystem>-test`
 
-### Option A: `@endo/test-<subsystem>`
+Adopted per kriskowal review (PR #206
+[#discussion_r3216068126](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216068126)):
+"I prefer this option on the grounds that the package and its test
+package will be adjacent in the list."
 
-Mirrors the existing `@endo/stream-types-test` precedent (with the
-word order reversed to put the role first), keeps every synthetic
-package alphabetically grouped under `packages/test-*/`, and reads as
-"the test harness for <subsystem>".
-
-Examples:
-
-- `@endo/test-ses` (host: `packages/test-ses/`)
-- `@endo/test-hex`
-- `@endo/test-harden`
-- `@endo/test-eventual-send`
-
-Pro: single-segment, easy to grep, easy to filter from publish
-(`packages/test-*` is one glob).
-Con: collides aesthetically with the existing `@endo/stream-types-test`
-(suffix order); we would either rename that package or accept the
-inconsistency.
-
-### Option B: `@endo/<subsystem>-test`
-
-Matches the existing `@endo/stream-types-test` exactly; the suffix
-`-test` says "test harness".
+The suffix `-test` says "test harness" and matches the existing
+`@endo/stream-types-test` precedent exactly, so no rename of that
+package is needed.
+Each synthetic package sorts immediately after the package it tests
+(both in `packages/` directory listings and in alphabetical
+`package.json` lookups), which makes it easy to find the test
+package next to its subject.
 
 Examples:
 
-- `@endo/ses-test`
+- `@endo/ses-test` (host: `packages/ses-test/`)
 - `@endo/hex-test`
 - `@endo/harden-test`
 - `@endo/eventual-send-test`
 
-Pro: zero churn for the existing precedent.
-Con: alphabetical sort scatters them across `packages/`; harder to
-filter as a glob (`packages/*-test/` works for shells but not for all
-yarn workspace patterns).
+Filter glob for the synthetic packages: `packages/*-test/` (shell
+glob) or the explicit yarn workspace pattern.
+Per the L508 directive (see Resolved Decisions), turborepo is not
+being used for publishing today, so a publish-skip glob is not
+in scope for this design; sink-only `private: true` is the only
+required marker.
 
-**Recommendation: Option A**, plus a one-shot rename of
-`@endo/stream-types-test` → `@endo/test-stream-types` so the suffix
-convention is uniform.
-The rename is mechanical (`package.json` name, one `tsconfig` path);
-no consumer imports it because it is sink-only.
+### Considered: Option A `@endo/test-<subsystem>`
+
+Considered and rejected.
+Option A used the form `@endo/test-ses`, `@endo/test-hex`, etc., which
+groups all synthetic packages alphabetically under `packages/test-*/`.
+Option A loses the adjacency property kriskowal preferred (a package
+and its test package would have been separated in the alphabetical
+list by every other source package), and would have required a
+one-shot rename of the existing `@endo/stream-types-test`.
+Dropped per the review cited above.
 
 ## Migration Plan
 
@@ -396,7 +395,7 @@ Per cycle, the sequence is the same:
 1. Decide whether the cut takes the **move** path or the **delete
    unused devDep** path.
 2. For move:
-   - `mkdir packages/test-<subsystem>` and add `package.json`,
+   - `mkdir packages/<subsystem>-test` and add `package.json`,
      `tsconfig.json`, and a `test/` directory.
    - Set `private: true` so `lerna publish` skips it.
    - Set `dependencies` (not `devDependencies`) on every workspace
@@ -423,10 +422,10 @@ Recommended order (smallest to largest):
 | # | Cut | Estimated diff | Synthetic package |
 |---|-----|----------------|-------------------|
 | 1 | Cut 3 (delete unused `@endo/zip` devDeps) | ~5 lines | none |
-| 2 | Cut 4 (`@endo/test-harden`) | ~50 lines | `@endo/test-harden` |
-| 3 | Cut 2 (`@endo/test-hex`) | ~30 lines | `@endo/test-hex` |
-| 4 | Cut 5 (`@endo/test-eventual-send`) | ~150 lines | `@endo/test-eventual-send` |
-| 5 | Cut 1 (`@endo/test-ses`) | ~600 lines | `@endo/test-ses` |
+| 2 | Cut 4 (`@endo/harden-test`) | ~50 lines | `@endo/harden-test` |
+| 3 | Cut 2 (`@endo/hex-test`) | ~30 lines | `@endo/hex-test` |
+| 4 | Cut 5 (`@endo/eventual-send-test`) | ~150 lines | `@endo/eventual-send-test` |
+| 5 | Cut 1 (`@endo/ses-test`) | ~600 lines | `@endo/ses-test` |
 | 6 | turbo.json: switch to `^build` | ~10 lines | none |
 
 After PR 5 the SCC collapses to size 0 in the combined graph; the
@@ -448,110 +447,189 @@ Modified `package.json` files (devDeps removed): 7 packages.
 
 New synthetic packages: 4-5.
 
-- `@endo/test-ses`
-- `@endo/test-hex`
-- `@endo/test-harden`
-- `@endo/test-eventual-send`
-- (optional) `@endo/test-evasive-transform`
+- `@endo/ses-test`
+- `@endo/hex-test`
+- `@endo/harden-test`
+- `@endo/eventual-send-test`
+- (optional) `@endo/evasive-transform-test`
 
-Renamed: 1 (only if Option A naming is adopted).
-
-- `@endo/stream-types-test` → `@endo/test-stream-types`.
+Renamed: 0.
+Option B `@endo/<subsystem>-test` matches the existing
+`@endo/stream-types-test` precedent, so no rename of that
+package is required.
 
 Estimated effort, by recalibrated size categories
 (see `designs/README.md` § "Per-size velocity"):
 
 - Cuts 1, 2, 3 (delete-unused, two small moves): S each, 1 day each.
-- Cut 4 (`@endo/test-eventual-send`): S, 1-2 days.
-- Cut 5 (`@endo/test-ses`): M, 2-3 days (largest because the file
+- Cut 4 (`@endo/eventual-send-test`): S, 1-2 days.
+- Cut 5 (`@endo/ses-test`): M, 2-3 days (largest because the file
   count is high and the test262 prelude scripts are nontrivial).
 - Final turbo flip + verification: S, 0.5 days.
 
 Total: M-L, ~1.5-2 weeks of focused work spread across five PRs.
 
+## Resolved Decisions
+
+The questions below were Open Questions in the initial draft.
+Each is now settled by maintainer review on PR #206; the citation
+links the inline that fixed it.
+
+### Helper utilities: no `@endo/test-utils` package
+
+RESOLVED per kriskowal review (PR #206
+[#discussion_r3216069924](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216069924)):
+"I'm fine with duplication where necessary to avoid a utils package."
+
+`@endo/ses-ava`, `@endo/lockdown` (specifically `commit-debug.js`),
+and `@endo/init` are the three test scaffolding modules pulled in via
+cycle-forming devDeps.
+They are not pure test helpers; they are full SES installers and AVA
+wrappers that are also legitimately consumed at runtime by downstream
+packages.
+The synthetic-package approach moves the *consumers* (the tests
+themselves), not the helpers, which preserves the helpers' public
+surface.
+Each `<subsystem>-test` package keeps its own copy of any small
+fixture it needs (such as a `prepare-test-env.js` shim or a local
+`_lockdown.js`); duplication is preferred over introducing an
+indirection package that would itself need to depend on `@endo/init`
+and reintroduce the cycle.
+
+### Internal-only test surfaces: use the `test` exports condition
+
+RESOLVED per kriskowal review (PR #206
+[#discussion_r3216077342](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216077342)).
+
+Tests in a separate `<subsystem>-test` package should use **only the
+public interface** of the subsystem under test wherever possible.
+A spot-check shows that the tests targeted by every cut import from
+the package main (e.g., `import { ModuleSource } from
+'@endo/module-source'`), not from `../src/`, so most moves are
+mechanical: file path changes only, no API surface changes.
+
+When a test genuinely needs an internal surface that is awkward to
+add to the public API, expose it as a subpath export from the source
+package guarded by the `test` condition in `package.json`'s
+`exports` field.
+The condition makes the subpath visible only to consumers that
+resolve with `--conditions=test`, so the surface stays invisible to
+ordinary consumers and to bundlers.
+
+Sketch:
+
+```json
+{
+  "name": "@endo/foo",
+  "exports": {
+    ".": "./src/index.js",
+    "./internal-test-helpers.js": {
+      "test": "./src/internal-test-helpers.js"
+    }
+  }
+}
+```
+
+The `<subsystem>-test` package then imports
+`'@endo/foo/internal-test-helpers.js'` and runs ava with the `test`
+condition active.
+
+This requires threading the `test` condition into the ava invocation
+for every synthetic test package.
+ava reads conditions from Node's resolver, so the practical knob is
+either:
+
+- a per-package `ava` config that sets
+  `nodeArguments: ['--conditions=test']`; or
+- the `test` script invokes `node --conditions=test ./node_modules/.bin/ava`
+  (or the `ava` CLI through `node --conditions=test`).
+
+Either form is local to the synthetic test package and does not leak
+into the source package's own scripts.
+Captured as a follow-up: pick one form and apply it uniformly across
+the new packages when Cut 1 lands.
+
+If the `test` condition mechanism turns out to be impractical (for
+example because a test needs to interleave production and
+test-conditioned imports in the same Node process), the fallback is
+the duplicate-the-fixture rule from the previous decision.
+
+### `@endo/zip` cleanup: delete the unused devDeps
+
+RESOLVED per kriskowal review (PR #206
+[#discussion_r3216061413](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216061413)).
+See Cut 3 above; no synthetic package is needed.
+
+### Cut 4 (`@endo/harden`): take the `@endo/harden-test` move
+
+RESOLVED per kriskowal review (PR #206
+[#discussion_r3216063693](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216063693)).
+See Cut 4 above; the in-place rewrite was rejected as "an illusion
+of an option" (the proposed `_lockdown.js` shim itself imports
+`'ses'`, so the edge would be renamed rather than cut).
+
+### Naming convention: Option B `@endo/<subsystem>-test`
+
+RESOLVED per kriskowal review (PR #206
+[#discussion_r3216068126](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216068126)).
+See "Naming Convention" above.
+The package and its test package now sort adjacent in alphabetical
+listings, and the existing `@endo/stream-types-test` precedent is
+preserved without rename.
+Closes the prior "rename precedent" question (PR #206
+[#discussion_r3216079006](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216079006),
+"Answered above").
+
+### Cut 5 test262 scripts: move with the test files
+
+RESOLVED per kriskowal review (PR #206
+[#discussion_r3216078513](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216078513),
+"Fine.").
+
+`packages/ses/package.json` has `test262`, `test262:xs`, and
+`test262:node` scripts that call `test262-harness` against generated
+preludes.
+These move to `@endo/ses-test` along with the `test262/*.js` source
+files.
+The scripts should be runnable from the new location with the same
+arguments; spot-check during Cut 5 implementation.
+
+### `dependsOn: ["build"]` workaround retires once the cycle is broken
+
+Self-resolving: the future-cleanup section of `turbo.json.md` already
+lists this as future option (1).
+The final PR in the migration plan flips `dependsOn: ["build"]` to
+`^build` for both `test` and `lint`.
+At that point the per-task hash includes upstream packages' `build`
+hashes, which is the stronger correctness invariant the maintainer
+prefers.
+
+## Deferred
+
+### Turborepo and publish-skip globs
+
+DEFERRED as out of scope per kriskowal review (PR #206
+[#discussion_r3216072923](https://github.com/endojs/endo-but-for-bots/pull/206#discussion_r3216072923)):
+"We are seeking to use turborepo for test expedition.
+We haven't considered using it for publishing yet."
+
+The synthetic packages are marked `private: true`, which is what
+keeps `lerna publish` from publishing them; that is the only
+publish-side marker required by this design.
+Whether turborepo's workspace globs eventually need to filter out
+`packages/*-test/` from a future publish pipeline is a separate
+question to revisit when (and if) turborepo takes on a publishing
+role.
+For now, leaving the synthetic packages in the default `packages/*`
+glob and relying on `private: true` matches what the existing
+`@endo/stream-types-test` does.
+
 ## Open Questions
 
-1. **Helper utilities: separate `@endo/test-utils` package, or stay
-   in their home with the cycle accepted on a per-helper basis?**
-
-   `@endo/ses-ava`, `@endo/lockdown` (specifically
-   `commit-debug.js`), and `@endo/init` are the three test
-   scaffolding modules pulled in via cycle-forming devDeps.
-   They are not pure test helpers; they are full SES installers and
-   AVA wrappers that are also legitimately consumed at runtime by
-   downstream packages.
-   The synthetic-package approach above moves the *consumers* (the
-   tests themselves), not the helpers, which preserves the helpers'
-   public surface.
-   An alternative is to extract the helpers into a `@endo/test-utils`
-   that re-exports `@endo/ses-ava`, but this adds an indirection
-   without changing the cycle topology (anyone who depends on
-   `@endo/test-utils` would still transitively need `@endo/init`).
-   Recommendation: keep helpers in their home, move tests.
-   But surface this as a question; the maintainer may prefer the
-   indirection for other reasons (e.g., to standardize the
-   `prepare-test-env.js` pattern across packages).
-
-2. **How does turborepo know to skip the synthetic packages from
-   production builds?**
-
-   Marking each synthetic package `private: true` keeps `lerna
-   publish` from publishing it.
-   Turbo respects workspace globs; if we keep the synthetic packages
-   in `packages/test-*/` we can either (a) leave them in the default
-   `packages/*` glob and rely on `private: true` to keep them out of
-   release artifacts, or (b) move them to a `test-packages/*` glob
-   that is excluded from the `viable-release` job.
-   Option (a) is simpler and is what the existing
-   `@endo/stream-types-test` does.
-   The remaining concern is `viable-release`: it should already skip
-   `private: true` packages, but we should confirm before landing.
-
-3. **Should existing integration tests be REWRITTEN (rather than just
-   moved) to use only public APIs of the tested subsystems, since the
-   synthetic package can't access internals?**
-
-   The tests targeted by Cut 1 already use only public APIs of `ses`
-   and `@endo/module-source` (they import `ModuleSource` from the
-   package's main export, not from `src/`).
-   Spot-checking the other cuts, none import from `../src/`; they all
-   import from the package main.
-   So the move is mechanical: file path changes, but no API surface
-   changes.
-   If a test does turn out to import from `../src/`, the right fix is
-   to expose the helper as a subpath export from the source package
-   (e.g., `@endo/foo/internal-test-helpers.js`) rather than to inline
-   the helper into the synthetic package.
-   This keeps a single source of truth for the helper.
-
-4. **Does the in-package `dependsOn: ["build"]` workaround in
-   `turbo.json` go away once the cycle is broken?**
-
-   Yes; the future-cleanup section of `turbo.json.md` lists exactly
-   this as future option (1).
-   The final PR in the migration plan above flips
-   `dependsOn: ["build"]` to `^build` for both `test` and `lint`.
-   At that point the per-task hash includes upstream packages'
-   `build` hashes, which is the stronger correctness invariant the
-   maintainer prefers.
-
-5. **What about the `@endo/test-ses` test262 scripts?**
-
-   `packages/ses/package.json` has a `test262`, `test262:xs`, and
-   `test262:node` script that calls `test262-harness` against
-   generated preludes.
-   These need to move to `@endo/test-ses` along with the
-   `test262/*.js` source files.
-   The scripts should be runnable from the new location with the
-   same arguments; spot-check during Cut 5 implementation.
-
-6. **Inconsistent existing precedent: rename
-   `@endo/stream-types-test` or grandfather it in?**
-
-   See "Naming Convention" above.
-   This is a maintainer preference call; either is defensible.
-   Recommendation: rename, for one-time consistency cost vs.
-   permanent split convention.
+No open questions remain after the kriskowal review on PR #206.
+New questions that arise during implementation should be filed
+against the per-cut PR or recorded in this design's revision
+history.
 
 ## Future Work
 
@@ -561,8 +639,11 @@ several follow-ups become attractive:
 - Remove the multi-paragraph "Why not `^build`?" section from
   `turbo.json.md` and replace it with a one-paragraph note recording
   the historical rationale.
-- Re-evaluate whether `@endo/stream-types-test` should also be
-  renamed to `@endo/test-stream-types` (only if Option A is adopted).
+- Pick the `--conditions=test` threading form (per-package ava
+  `nodeArguments` config vs. wrapping the `test` script in
+  `node --conditions=test`) and apply it uniformly across the new
+  `@endo/<subsystem>-test` packages, the first time a synthetic
+  package needs an internal-only test surface.
 - Audit the rest of the workspace (the 52 packages outside the SCC)
   for less-impactful devDep edges that could be dropped opportunistically.
   None of those edges form cycles today, but the same rewrite hygiene
