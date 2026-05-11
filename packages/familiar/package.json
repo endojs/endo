@@ -36,6 +36,7 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint --ignore-pattern out '**/*.js'",
     "lint:types": "tsc",
+    "test": "ava",
     "generate-icons": "./scripts/generate-icons.sh"
   },
   "dependencies": {
@@ -48,11 +49,18 @@
     "@endo/init": "workspace:^",
     "@lavamoat/allow-scripts": "^3.4.1",
     "appdmg": "^0.6.6",
+    "ava": "catalog:dev",
     "electron": "^42.0.1",
     "electron-installer-dmg": "^5.0.1",
     "esbuild": "^0.28.0",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "120s"
   },
   "eslintConfig": {
     "extends": [
