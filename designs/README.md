@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-08*
+*Last updated: 2026-05-11*
 
 *See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23),
 [filesystem-watchers](filesystem-watchers.md) (added 2026-05-07),
@@ -10,7 +10,10 @@
 blocker),
 [trust-on-first-bind](trust-on-first-bind.md) (added 2026-05-08; shared
 capability-policy adapter referenced by HTTP client and browser controller
-designs; addendum to PR #144 HttpClient).*
+designs; addendum to PR #144 HttpClient),
+[break-dev-dependency-cycles](break-dev-dependency-cycles.md) (added
+2026-05-11; synthetic test-package factoring to retire the workspace
+devDep SCC; follow-up to PR #121).*
 
 ## Summary
 
@@ -110,6 +113,7 @@ designs; addendum to PR #144 HttpClient).*
 | [outliner-design-doc](outliner-design-doc.md) | 2026-03-17 | 2026-03-18 | In Progress |
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-05-11 | Proposed |
 | [endor-bus-tui](endor-bus-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [endor-tui](endor-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [hex-package](hex-package.md) | 2026-04-23 | 2026-04-23 | Not Started |
@@ -117,7 +121,7 @@ designs; addendum to PR #144 HttpClient).*
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 2 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (97 designs)
+**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 3 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (98 designs)
 
 ## Roadmap
 
