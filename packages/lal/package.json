@@ -34,7 +34,7 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.92.0",
+    "@anthropic-ai/sdk": "^0.95.1",
     "@endo/daemon": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
