@@ -126,7 +126,6 @@ test('test fs import with importHook', async t => {
     },
   };
 
-  // @ts-expect-error no overload matches
   const bundle = await bundleSource(testFilePath, options);
   const ns = await importBundle(bundle, options);
 
