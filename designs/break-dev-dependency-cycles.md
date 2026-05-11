@@ -524,6 +524,16 @@ The condition makes the subpath visible only to consumers that
 resolve with `--conditions=test`, so the surface stays invisible to
 ordinary consumers and to bundlers.
 
+Best practice: name the test-conditioned subpaths after their
+filesystem location and expose them through a single subpath-pattern
+entry rather than one entry per file. **Name the condition after the
+package** (e.g. `test-endo-foo`), not the bare `test`. A
+package-specific condition preserves visibility into which
+internals the test surface relies on; a bare `test` shared across
+every package would degenerate into "internal access from any
+test-mode caller", erasing the public-interface unreachability the
+pattern is meant to enforce.
+
 Sketch:
 
 ```json
@@ -531,16 +541,27 @@ Sketch:
   "name": "@endo/foo",
   "exports": {
     ".": "./src/index.js",
-    "./internal-test-helpers.js": {
-      "test": "./src/internal-test-helpers.js"
+    "./src/*": {
+      "test-endo-foo": "./src/*"
     }
   }
 }
 ```
 
 The `<subsystem>-test` package then imports
-`'@endo/foo/internal-test-helpers.js'` and runs ava with the `test`
-condition active.
+`'@endo/foo/src/internal-test-helpers.js'` and runs ava with the
+`test-endo-foo` condition active.
+
+Two benefits follow from naming the subpath after its on-disk
+location:
+
+- The literal-path form works in environments that do not honor the
+  `exports` directive at all.
+  The path is just the package's filesystem layout, so a consumer
+  that bypasses Node's resolver (a bundler reading files directly,
+  for example) sees the same file at the same location.
+- One subpath-pattern entry replaces N per-file entries, so adding
+  another internal-test surface is a no-op in `package.json`.
 
 This requires threading the `test` condition into the ava invocation
 for every synthetic test package.
