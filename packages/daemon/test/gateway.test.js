@@ -33,6 +33,7 @@ const makeConfig = (...root) => {
     address: '127.0.0.1:0',
     pets: new Map(),
     values: new Map(),
+    gcEnabled: true,
   };
 };
 
