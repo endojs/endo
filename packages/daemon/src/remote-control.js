@@ -3,6 +3,9 @@
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { RemoteControl, RemoteControlState, EndoGateway } from './types.js' */
 
+/** @param {string} id */
+const short = id => id.slice(0, 8);
+
 /**
  * @param {string} localNodeId
  */
@@ -14,6 +17,8 @@ export const makeRemoteControlProvider = localNodeId => {
   const makeRemoteControl = remoteNodeId => {
     /** @type {RemoteControlState} */
     let state;
+    let stateName = 'start';
+    const tag = `${short(localNodeId)}→${short(remoteNodeId)}`;
 
     // In this state, we have received a remoteGateway from an ingress
     // connection (and provided our local gateway to them.)
@@ -26,11 +31,12 @@ export const makeRemoteControlProvider = localNodeId => {
      * ) => RemoteControlState}
      */
     const accepted = (remoteGateway, cancelCurrent, currentCancelled) => {
-      return {
+      /** @type {import('./types.js').RemoteControlState} */
+      const acceptedState = {
         accept(
-          _proposedRemoteGateway,
+          proposedRemoteGateway,
           proposedCancel,
-          _proposedCancelled,
+          proposedCancelled,
           proposedDispose,
         ) {
           // And we receive an inbound connection.
@@ -43,10 +49,18 @@ export const makeRemoteControlProvider = localNodeId => {
           // disruptive.
           // TODO: For the case where we leave a peer wedged half-open, we
           // will need health checks.
-          Promise.resolve(
-            proposedCancel(new Error('Already accepted a connection.')),
-          ).then(proposedDispose);
-          return accepted(remoteGateway, cancelCurrent, currentCancelled);
+          console.log(
+            `Endo remote-control ${tag}: accepted→accepted (replacing connection)`,
+          );
+          cancelCurrent(
+            new Error('Connection replaced by new inbound connection.'),
+          );
+          proposedCancelled.catch(() => {}).then(proposedDispose);
+          return accepted(
+            proposedRemoteGateway,
+            proposedCancel,
+            proposedCancelled,
+          );
         },
         connect(
           _getProposedRemoteGateway,
@@ -69,6 +83,19 @@ export const makeRemoteControlProvider = localNodeId => {
           };
         },
       };
+
+      currentCancelled.catch(() => {
+        if (state === acceptedState) {
+          console.log(
+            `Endo remote-control ${tag}: accepted→start (connection lost)`,
+          );
+          stateName = 'start';
+          state = start();
+        }
+      });
+
+      stateName = 'accepted';
+      return acceptedState;
     };
 
     // We have an active outbound connection.
@@ -84,7 +111,6 @@ export const makeRemoteControlProvider = localNodeId => {
         ? (remoteGateway, cancelCurrent, currentCancelled) => {
             // We are biased toward preserving our own outbound connection.
             return {
-              name: 'connected',
               accept(
                 _proposedRemoteGateway,
                 proposedCancel,
@@ -94,6 +120,9 @@ export const makeRemoteControlProvider = localNodeId => {
                 // We receive an inbound connection.
                 // We favor our outbound connection,
                 // so cancel the inbound.
+                console.log(
+                  `Endo remote-control ${tag}: connected, rejecting inbound (connect bias)`,
+                );
                 Promise.resolve(
                   proposedCancel(
                     new Error(
@@ -144,6 +173,9 @@ export const makeRemoteControlProvider = localNodeId => {
               ) {
                 // We receive an inbound connection.
                 // Ditch our outbound connection.
+                console.log(
+                  `Endo remote-control ${tag}: connected→accepted (accept bias, replacing outbound)`,
+                );
                 cancelCurrent(
                   new Error(
                     'Connection abandoned: accepted new connection (crossed hellos, accept bias)',
@@ -154,6 +186,10 @@ export const makeRemoteControlProvider = localNodeId => {
                 proposedCancelled
                   .catch(() => {
                     if (state === connectedState) {
+                      console.log(
+                        `Endo remote-control ${tag}: connected→start (connection lost, accept bias)`,
+                      );
+                      stateName = 'start';
                       // I would gladly declare you Tuesday for a call today.
                       // eslint-disable-next-line no-use-before-define
                       state = start();
@@ -228,11 +264,16 @@ export const makeRemoteControlProvider = localNodeId => {
             cancelCurrent,
             currentCancelled,
           );
+          stateName = 'connected';
           currentCancelled
             .then(
               () => {},
               () => {
                 if (state === connectedState) {
+                  console.log(
+                    `Endo remote-control ${tag}: connected→start (connection lost)`,
+                  );
+                  stateName = 'start';
                   state = start();
                 }
               },
@@ -261,6 +302,7 @@ export const makeRemoteControlProvider = localNodeId => {
       connectionCancelled,
       connectionDispose,
     ) => {
+      console.log(`Endo remote-control ${tag}: accept (was ${stateName})`);
       state = state.accept(
         proposedRemoteGateway,
         cancelConnection,
@@ -280,6 +322,7 @@ export const makeRemoteControlProvider = localNodeId => {
       incarnationCancelled,
       disposeIncarnation,
     ) => {
+      console.log(`Endo remote-control ${tag}: connect (was ${stateName})`);
       const { state: nextState, remoteGateway } = state.connect(
         getRemoteGateway,
         cancelIncarnation,
@@ -290,7 +333,9 @@ export const makeRemoteControlProvider = localNodeId => {
       return remoteGateway;
     };
 
-    return { accept, connect };
+    const getStateName = () => stateName;
+
+    return { accept, connect, getStateName };
   };
 
   /** @param {string} remoteNodeId */
@@ -302,6 +347,20 @@ export const makeRemoteControlProvider = localNodeId => {
     }
     return remoteControl;
   };
+
+  /**
+   * @returns {Record<string, string>} Map of nodeId to state name
+   */
+  const getConnectionStates = () => {
+    /** @type {Record<string, string>} */
+    const states = {};
+    for (const [nodeId, control] of remoteControls.entries()) {
+      states[nodeId] = control.getStateName();
+    }
+    return states;
+  };
+
+  provideRemoteControl.getConnectionStates = getConnectionStates;
 
   return provideRemoteControl;
 };

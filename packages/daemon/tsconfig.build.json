@@ -3,6 +3,10 @@
     "./tsconfig.json",
     "../../tsconfig-build-options.json"
   ],
+  "compilerOptions": {
+    "allowJs": true,
+    "skipLibCheck": true
+  },
   "exclude": [
     "test/"
   ]

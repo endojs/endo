@@ -8,7 +8,7 @@ export const section = async (execa, testLine) => {
   });
   await testLine(execa`endo send alice ${'Please enjoy this @doubler.'}`);
   await testLine(execa`endo inbox --as alice-agent`, {
-    stdout: /^0\. "HOST" sent "Please enjoy this @doubler\."/,
+    stdout: /^0\. "@host" sent "Please enjoy this @doubler\."/,
   });
   await testLine(execa`endo adopt --as alice-agent 0 doubler`);
   await testLine(execa`endo list alice-agent`, {

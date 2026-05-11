@@ -1,4 +1,10 @@
 module.exports = {
+  settings: {
+    'import/resolver': {
+      exports: {},
+      node: {},
+    },
+  },
   rules: {
     'import/extensions': ['error', 'always', { ignorePackages: true }],
     'import/no-extraneous-dependencies': [
@@ -9,8 +15,8 @@ module.exports = {
           '**/*.config.*.js',
           // leading wildcard to work in CLI (package path) and IDE (repo path)
           '**/test/**',
-          '**/demo*/**/*.js',
-          '**/scripts/**/*.js',
+          '**/demo*/**/*.{js,mjs,cjs}',
+          '**/scripts/**/*.{js,mjs,cjs}',
         ],
       },
     ],

@@ -1,0 +1,9 @@
+[Unit]
+Description=AI Evoker Vigil For %i Project
+
+[Timer]
+OnActiveSec=5m
+OnUnitActiveSec=5m
+
+[Install]
+WantedBy=timers.target

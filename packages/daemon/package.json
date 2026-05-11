@@ -29,6 +29,8 @@
     },
     "./ref-reader.js": "./ref-reader.js",
     "./reader-ref.js": "./reader-ref.js",
+    "./pet-name.js": "./src/pet-name.js",
+    "./src/interfaces.js": "./src/interfaces.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -40,16 +42,25 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava",
-    "test:clean": "rm -rf tmp && yarn test"
+    "test": "ava --serial",
+    "test:clean": "rm -rf tmp && yarn test",
+    "test:go": "ENDO_BIN=../../go/endo/endo-daemon-go ava",
+    "test:engo": "ENDO_BIN=../../go/engo/engo ava --serial",
+    "test:rust": "ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ava",
+    "test:rust-node-workers": "ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ENDO_NODE_WORKER_BIN='node src/bus-worker-node-raw.js' ava",
+    "test:rust-node-manager": "ENDO_MANAGER_NODE=1 ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ENDO_NODE_WORKER_BIN='node src/bus-worker-node-raw.js' ava",
+    "test:supervisors": "yarn test:go && yarn test:rust"
   },
   "dependencies": {
+    "@chainsafe/libp2p-noise": "^16.1.3",
+    "@chainsafe/libp2p-yamux": "^7.0.4",
     "@endo/base64": "workspace:^",
     "@endo/captp": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/hex": "workspace:^",
@@ -58,10 +69,26 @@
     "@endo/marshal": "workspace:^",
     "@endo/netstring": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
+    "@endo/relay-server": "workspace:^",
     "@endo/stream": "workspace:^",
     "@endo/stream-node": "workspace:^",
     "@endo/where": "workspace:^",
+    "@endo/zip": "workspace:^",
+    "@libp2p/autonat": "^3.0.10",
+    "@libp2p/bootstrap": "^11.0.47",
+    "@libp2p/circuit-relay-v2": "^3.2.24",
+    "@libp2p/crypto": "^5.1.8",
+    "@libp2p/dcutr": "^3.0.10",
+    "@libp2p/identify": "^3.0.39",
+    "@libp2p/kad-dht": "14.2.15",
+    "@libp2p/ping": "^2.0.37",
+    "@libp2p/webrtc": "^5.2.24",
+    "@libp2p/websockets": "^9.2.19",
+    "@multiformats/multiaddr": "^12.4.4",
+    "better-sqlite3": "^11.0.0",
+    "libp2p": "^2.10.0",
     "ses": "workspace:^",
     "ws": "^8.13.0"
   },
@@ -69,6 +96,7 @@
     "@endo/bundle-source": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/ses-ava": "workspace:^",
+    "@types/ws": "^8.18.1",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
@@ -97,7 +125,7 @@
     "files": [
       "test/**/*.test.*"
     ],
-    "timeout": "2m"
+    "timeout": "5m"
   },
   "typeCoverage": {
     "atLeast": 97.21

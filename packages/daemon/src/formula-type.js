@@ -4,6 +4,7 @@ import { q } from '@endo/errors';
 
 // Note: Alphabetically sorted
 const formulaTypes = new Set([
+  'channel',
   'directory',
   'endo',
   'eval',
@@ -17,16 +18,21 @@ const formulaTypes = new Set([
   'loopback-network',
   'mail-hub',
   'mailbox-store',
-  'make-bundle',
+  'make-archive',
+  'make-from-tree',
   'make-unconfined',
   'marshal',
   'message',
+  'mount',
   'peer',
   'pet-inspector',
   'pet-store',
   'promise',
   'readable-blob',
+  'readable-tree',
   'resolver',
+  'scratch-mount',
+  'timer',
   'worker',
 ]);
 

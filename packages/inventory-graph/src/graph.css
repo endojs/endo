@@ -1,0 +1,204 @@
+/* ── Inventory Graph Space ────────────────────────────────────── */
+
+.inventory-graph-container {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: auto 1fr;
+  width: 100%;
+  height: 100vh;
+  background: #1a1a2e;
+  overflow: hidden;
+}
+
+.inventory-graph-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+}
+
+.inventory-graph-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #b0bec5;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.inventory-graph-back:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #e0e0e0;
+}
+
+.inventory-graph-layout-group {
+  display: inline-flex;
+  margin-left: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.inventory-graph-layout-btn {
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #78909c;
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.inventory-graph-layout-btn:last-child {
+  border-right: none;
+}
+
+.inventory-graph-layout-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #b0bec5;
+}
+
+.inventory-graph-layout-btn.active {
+  background: rgba(100, 181, 246, 0.2);
+  color: #90caf9;
+}
+
+.inventory-graph-status {
+  font-size: 12px;
+  color: #90a4ae;
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+.inventory-graph-edge-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 8px;
+}
+
+.inventory-graph-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #90a4ae;
+  cursor: pointer;
+  user-select: none;
+}
+
+.inventory-graph-filter-label input[type='checkbox'] {
+  margin: 0;
+  accent-color: #64b5f6;
+}
+
+.inventory-graph-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: #b0bec5;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 20px;
+  height: 0;
+  border-top: 2px solid;
+  flex-shrink: 0;
+}
+
+.legend-petstore {
+  border-color: rgba(100, 181, 246, 0.7);
+  border-style: solid;
+}
+
+.legend-formula {
+  border-color: rgba(255, 152, 0, 0.7);
+  border-style: dashed;
+}
+
+.inventory-graph-canvas {
+  width: 100%;
+  height: 100%;
+  cursor: default;
+}
+
+.inventory-graph-tooltip {
+  position: absolute;
+  display: none;
+  padding: 6px 10px;
+  background: rgba(30, 30, 50, 0.95);
+  color: #e0e0e0;
+  font-size: 11px;
+  font-family: monospace;
+  line-height: 1.5;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: pre;
+  pointer-events: none;
+  z-index: 10;
+  max-width: 360px;
+}
+
+.legend-ring {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.legend-shape {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.legend-square {
+  background: #bdbdbd;
+  border-radius: 2px;
+}
+
+.legend-diamond {
+  width: 10px;
+  height: 10px;
+  background: #90a4ae;
+  transform: rotate(45deg);
+}

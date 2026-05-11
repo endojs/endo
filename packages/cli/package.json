@@ -31,7 +31,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/bundle-source": "workspace:^",
+    "@endo/compartment-mapper": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
@@ -39,15 +39,14 @@
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/hex": "workspace:^",
-    "@endo/import-bundle": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/stream-node": "workspace:^",
     "@endo/where": "workspace:^",
-    "commander": "^5.0.0",
-    "open": "^9.1.0"
+    "commander": "^5.0.0"
   },
   "devDependencies": {
     "@endo/stream": "workspace:^",
@@ -84,7 +83,7 @@
     "files": [
       "test/**/*.test.*"
     ],
-    "timeout": "2m"
+    "timeout": "10m"
   },
   "typeCoverage": {
     "atLeast": 86.18

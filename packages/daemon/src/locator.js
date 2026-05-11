@@ -1,10 +1,17 @@
 // @ts-check
 
-/** @import { FormulaNumber, NodeNumber } from './types.js' */
+/** @import { FormulaNumber, NodeNumber, FormulaIdentifier } from './types.js' */
 
 import { makeError, q } from '@endo/errors';
 import { formatId, isValidNumber, parseId } from './formula-identifier.js';
 import { isValidFormulaType } from './formula-type.js';
+
+/**
+ * Sentinel node number for locally-stored formula keys.
+ * Analogous to 0.0.0.0 in networking — a "this host" placeholder.
+ * All-zeros is never a valid Ed25519 public key.
+ */
+export const LOCAL_NODE = /** @type {NodeNumber} */ ('0'.repeat(64));
 
 /**
  * The endo locator format:
@@ -54,12 +61,15 @@ export const parseLocator = allegedLocator => {
     throw makeError(`${errorPrefix} Invalid node identifier.`);
   }
 
-  if (
-    url.searchParams.size !== 2 ||
-    !url.searchParams.has('id') ||
-    !url.searchParams.has('type')
-  ) {
+  if (!url.searchParams.has('id') || !url.searchParams.has('type')) {
     throw makeError(`${errorPrefix} Invalid search params.`);
+  }
+
+  // Only 'id', 'type', and 'at' (connection hints) are allowed.
+  for (const key of url.searchParams.keys()) {
+    if (key !== 'id' && key !== 'type' && key !== 'at') {
+      throw makeError(`${errorPrefix} Invalid search params.`);
+    }
   }
 
   const number = url.searchParams.get('id');
@@ -106,4 +116,76 @@ export const formatLocator = (id, formulaType) => {
 export const idFromLocator = locator => {
   const { number, node } = parseLocator(locator);
   return formatId({ number, node });
+};
+
+/**
+ * Format a locator with connection hints for sharing with remote peers.
+ *
+ * @param {string} id - The full formula identifier.
+ * @param {string} formulaType - The type of the formula with the given id.
+ * @param {string[]} addresses - Network addresses (connection hints).
+ */
+export const formatLocatorForSharing = (id, formulaType, addresses) => {
+  const { number, node } = parseId(id);
+  const url = new URL(`endo://${node}`);
+  url.pathname = '/';
+
+  url.searchParams.set('id', number);
+
+  assertValidLocatorType(formulaType);
+  url.searchParams.set('type', formulaType);
+
+  for (const address of addresses) {
+    url.searchParams.append('at', address);
+  }
+
+  return url.toString();
+};
+
+/**
+ * Extract connection hint addresses from a locator, if any.
+ *
+ * @param {string} locator
+ * @returns {string[]}
+ */
+export const addressesFromLocator = locator => {
+  const url = new URL(locator);
+  return url.searchParams.getAll('at');
+};
+
+/**
+ * Convert an internal formula identifier to a locator for agent
+ * consumption. Replaces the internal node with the agent's public key.
+ *
+ * @param {FormulaIdentifier} id - Internal formula identifier.
+ * @param {string} formulaType - The type of the formula.
+ * @param {NodeNumber} agentNodeNumber - The agent's public key.
+ * @param {string[]} [addresses] - Optional network addresses.
+ * @returns {string} A locator string.
+ */
+export const externalizeId = (
+  id,
+  formulaType,
+  agentNodeNumber,
+  addresses = [],
+) => {
+  if (addresses.length > 0) {
+    return formatLocatorForSharing(id, formulaType, addresses);
+  }
+  return formatLocator(id, formulaType);
+};
+
+/**
+ * Convert a locator back to an internal formula identifier.
+ * The node is preserved as-is since formula identifiers carry
+ * actual node numbers (no sentinel normalization needed).
+ *
+ * @param {string} locator - A locator string.
+ * @returns {{ id: FormulaIdentifier, formulaType: string, addresses: string[] }}
+ */
+export const internalizeLocator = locator => {
+  const { number, node, formulaType } = parseLocator(locator);
+  const addresses = addressesFromLocator(locator);
+  const id = formatId({ number, node });
+  return { id, formulaType, addresses };
 };

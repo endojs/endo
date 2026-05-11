@@ -5,14 +5,14 @@ import { M } from '@endo/patterns';
 
 import { q } from '@endo/errors';
 
-/** @import {FormulaIdentifier, Name, NameHub} from '../src/types.js' */
+/** @import {Name, NameHub, FormulaIdentifier} from '../src/types.js' */
 
 // This caplet is a mock name hub for testing NameHub.move().
-export const make = () => {
-  /** @type {Map<FormulaIdentifier, string>} */
-  const idToName = new Map();
-  /** @type {Map<string, FormulaIdentifier>} */
-  const nameToId = new Map();
+export const make = (_powers, _context, _options) => {
+  /** @type {Map<string, string>} */
+  const locatorToName = new Map();
+  /** @type {Map<string, string>} */
+  const nameToLocator = new Map();
 
   /**
    * We only support paths of length 1.
@@ -28,22 +28,22 @@ export const make = () => {
   /**
    * @param {string} petName
    */
-  const expectGetId = petName => {
-    const id = nameToId.get(petName);
-    if (id === undefined) {
+  const expectGetLocator = petName => {
+    const locator = nameToLocator.get(petName);
+    if (locator === undefined) {
       throw new Error(`Unknown pet name ${q(petName)}`);
     }
-    return id;
+    return locator;
   };
 
   /**
    * @param {string[]} petNamePath
-   * @param {FormulaIdentifier} id
+   * @param {string} locator
    */
-  const write = async (petNamePath, id) => {
+  const storeIdentifier = async (petNamePath, locator) => {
     const petName = parsePetNamePath(petNamePath);
-    idToName.set(id, petName);
-    nameToId.set(petName, id);
+    locatorToName.set(locator, petName);
+    nameToLocator.set(petName, locator);
   };
 
   /**
@@ -51,17 +51,18 @@ export const make = () => {
    */
   const remove = async (...petNamePath) => {
     const petName = parsePetNamePath(petNamePath);
-    const id = expectGetId(petName);
+    const locator = expectGetLocator(petName);
 
-    nameToId.delete(petName);
-    idToName.delete(id);
+    nameToLocator.delete(petName);
+    locatorToName.delete(locator);
   };
 
   return makeExo(
     'MoveHub',
     M.interface('MoveHub', {}, { defaultGuards: 'passable' }),
     {
-      write,
+      storeIdentifier,
+      storeLocator: storeIdentifier,
       remove,
 
       /**
@@ -69,7 +70,15 @@ export const make = () => {
        */
       async identify(...petNamePath) {
         const petName = parsePetNamePath(petNamePath);
-        return nameToId.get(petName);
+        return nameToLocator.get(petName);
+      },
+
+      /**
+       * @type {NameHub['locate']}
+       */
+      async locate(...petNamePath) {
+        const petName = parsePetNamePath(petNamePath);
+        return nameToLocator.get(petName);
       },
 
       /**
@@ -77,12 +86,12 @@ export const make = () => {
        */
       async move(fromPath, toPath) {
         const fromName = parsePetNamePath(fromPath);
-        const id = expectGetId(fromName);
+        const locator = expectGetLocator(fromName);
 
         const toName = parsePetNamePath(toPath);
 
         await remove(/** @type {Name} */ (fromName));
-        await write([toName], id);
+        await storeIdentifier([toName], locator);
       },
 
       /**
@@ -90,7 +99,7 @@ export const make = () => {
        */
       async has(...petNamePath) {
         const petName = parsePetNamePath(petNamePath);
-        return nameToId.has(petName);
+        return nameToLocator.has(petName);
       },
     },
   );

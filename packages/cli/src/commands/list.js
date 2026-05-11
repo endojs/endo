@@ -39,7 +39,7 @@ export const list = async ({ directory, follow, json, verbose }) =>
     await null;
     if (directory !== undefined) {
       const directoryPath = parsePetNamePath(directory);
-      agent = E(agent).lookup(...directoryPath);
+      agent = E(agent).lookup(directoryPath);
     }
     if (follow) {
       const topic = await E(agent).followNameChanges();

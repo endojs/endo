@@ -132,6 +132,37 @@ test('key uniqueness', t => {
 // TODO: incorporate fast-check for property-based testing that construction
 // reverse rank sorts keys and validation rejects any other key order.
 
+test('rejects non-pair entries', t => {
+  assertIsInvalidCopyBag(
+    t,
+    makeTagged('copyBag', [['a', 1n, 'extra']]),
+    /Each entry of a copyBag must be pair of a key and a bigint/,
+  );
+  assertIsInvalidCopyBag(
+    t,
+    makeTagged('copyBag', [['a']]),
+    /Each entry of a copyBag must be pair of a key and a bigint/,
+  );
+  assertIsInvalidCopyBag(
+    t,
+    makeTagged('copyBag', [['a', 5]]),
+    /Each entry of a copyBag must be pair of a key and a bigint/,
+  );
+});
+
+test('rejects non-positive count', t => {
+  assertIsInvalidCopyBag(
+    t,
+    makeTagged('copyBag', [['a', 0n]]),
+    /Each entry of a copyBag must have a positive count/,
+  );
+  assertIsInvalidCopyBag(
+    t,
+    makeTagged('copyBag', [['a', -1n]]),
+    /Each entry of a copyBag must have a positive count/,
+  );
+});
+
 test('matching', t => {
   const bag = makeCopyBag([
     ['z', 26n],

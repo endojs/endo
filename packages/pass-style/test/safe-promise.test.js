@@ -49,6 +49,17 @@ test('safe promise loophole', t => {
   }
 
   {
+    // toStringTag as accessor (getter) should be rejected.
+    const p3b = Promise.resolve('p3b');
+    defineProperty(p3b, toStringTag, {
+      get: () => 'sneaky',
+    });
+    t.throws(() => passStyleOf(harden(p3b)), {
+      message: /Own @@toStringTag must be a data property/,
+    });
+  }
+
+  {
     const p4 = Promise.resolve('p4');
     defineProperty(p4, toStringTag, {
       value: 'Promise p4',

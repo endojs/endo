@@ -1,24 +1,23 @@
 // @ts-check
 
 import harden from '@endo/harden';
-import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
-import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
+import { parseId, assertValidId } from './formula-identifier.js';
 import { makeBidirectionalMultimap } from './multimap.js';
-
-/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
+/** @import { BidirectionalMultimap, DaemonDatabase, IdChangesTopic, Name, NameChangesTopic, PetName, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
 
 /**
- * @param {FilePowers} filePowers
- * @param {Config} config
+ * @param {DaemonDatabase} daemonDb
+ * @returns {PetStorePowers}
  */
-export const makePetStoreMaker = (filePowers, config) => {
+export const makePetStoreMaker = daemonDb => {
   /**
-   * @param {string} petNameDirectoryPath
+   * @param {string} storeNumber
+   * @param {string} storeType
    * @param {(name: string) => asserts name is Name} assertValidName
-   * @returns {Promise<PetStore>}
+   * @returns {PetStore}
    */
-  const makePetStoreAtPath = async (petNameDirectoryPath, assertValidName) => {
+  const makePetStoreFromDb = (storeNumber, storeType, assertValidName) => {
     /** @type {BidirectionalMultimap<string, Name>} */
     const idsToPetNames = makeBidirectionalMultimap();
     /** @type {NameChangesTopic} */
@@ -47,6 +46,7 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {Name} petName - The new name.
      */
     const publishNameAddition = (id, petName) => {
+      assertValidName(petName);
       const idRecord = parseId(id);
       nameChangesTopic.publisher.next({
         add: petName,
@@ -63,9 +63,8 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {Name} petName - The removed name.
      */
     const publishNameRemoval = (id, petName) => {
-      nameChangesTopic.publisher.next({
-        remove: petName,
-      });
+      assertValidName(petName);
+      nameChangesTopic.publisher.next({ remove: petName });
       if (id !== undefined) {
         publishIdChangeToSubscribers(id, {
           remove: parseId(id),
@@ -74,25 +73,13 @@ export const makePetStoreMaker = (filePowers, config) => {
       }
     };
 
-    /** @param {string} petName */
-    const read = async petName => {
-      const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
-      const petNameText = await filePowers.readFileText(petNamePath);
-      const formulaIdentifier = petNameText.trim();
-      assertValidId(formulaIdentifier, petName);
-      return formulaIdentifier;
-    };
-
-    await filePowers.makePath(petNameDirectoryPath);
-
-    const fileNames = await filePowers.readDirectory(petNameDirectoryPath);
-    await Promise.all(
-      fileNames.map(async petName => {
-        assertValidName(petName);
-        const formulaIdentifier = await read(petName);
-        idsToPetNames.add(formulaIdentifier, petName);
-      }),
-    );
+    // Load entries from database into in-memory map.
+    const entries = daemonDb.listPetStoreEntries(storeNumber, storeType);
+    for (const { name, formulaId } of entries) {
+      assertValidName(name);
+      assertValidId(formulaId, name);
+      idsToPetNames.add(formulaId, name);
+    }
 
     /** @type {PetStore['has']} */
     const has = petName => {
@@ -106,8 +93,8 @@ export const makePetStoreMaker = (filePowers, config) => {
       return idsToPetNames.getKey(petName);
     };
 
-    /** @type {PetStore['write']} */
-    const write = async (petName, formulaIdentifier) => {
+    /** @type {PetStore['storeIdentifier']} */
+    const storeIdentifier = async (petName, formulaIdentifier) => {
       assertValidName(petName);
       assertValidId(formulaIdentifier);
 
@@ -125,15 +112,21 @@ export const makePetStoreMaker = (filePowers, config) => {
       }
 
       idsToPetNames.add(formulaIdentifier, petName);
-
-      const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
-      const petNameText = `${formulaIdentifier}\n`;
-      await filePowers.writeFileText(petNamePath, petNameText);
+      daemonDb.writePetStoreEntry(
+        storeNumber,
+        storeType,
+        petName,
+        formulaIdentifier,
+      );
       publishNameAddition(formulaIdentifier, petName);
     };
 
     /** @type {PetStore['list']} */
-    const list = () => harden(idsToPetNames.getAll().sort());
+    const list = () => {
+      // All names in the pet store have been validated before storage
+      const names = /** @type {PetName[]} */ (idsToPetNames.getAll().sort());
+      return harden(names);
+    };
 
     /** @type {PetStore['followNameChanges']} */
     const followNameChanges = async function* currentAndSubsequentNames() {
@@ -179,12 +172,10 @@ export const makePetStoreMaker = (filePowers, config) => {
       }
       assertValidId(formulaIdentifier, petName);
 
-      const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
-      await filePowers.removePath(petNamePath);
+      daemonDb.deletePetStoreEntry(storeNumber, storeType, petName);
       idsToPetNames.delete(formulaIdentifier, petName);
       publishNameRemoval(formulaIdentifier, petName);
       // TODO consider retaining a backlog of deleted names for recovery
-      // TODO consider tracking historical pet names for formulas
     };
 
     /** @type {PetStore['rename']} */
@@ -203,10 +194,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       }
       assertValidId(formulaIdentifier, fromName);
 
-      // Updated persisted name mapping
-      const fromPath = filePowers.joinPath(petNameDirectoryPath, fromName);
-      const toPath = filePowers.joinPath(petNameDirectoryPath, toName);
-      await filePowers.renamePath(fromPath, toPath);
+      daemonDb.renamePetStoreEntry(storeNumber, storeType, fromName, toName);
 
       // Delete the back-reference for the overwritten pet name if it existed.
       if (overwrittenId !== undefined) {
@@ -220,7 +208,7 @@ export const makePetStoreMaker = (filePowers, config) => {
 
       publishNameRemoval(formulaIdentifier, fromName);
       publishNameAddition(formulaIdentifier, toName);
-      // TODO consider retaining a backlog of overwritten names for recovery
+      // TODO consider tracking historical pet names for formulas
     };
 
     /** @type {PetStore['reverseIdentify']} */
@@ -230,7 +218,9 @@ export const makePetStoreMaker = (filePowers, config) => {
       if (formulaPetNames === undefined) {
         return harden([]);
       }
-      return harden([...formulaPetNames]);
+      // All names in the pet store have been validated before storage
+      const names = /** @type {PetName[]} */ ([...formulaPetNames]);
+      return harden(names);
     };
 
     const petStore = {
@@ -240,7 +230,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       list,
       followIdNameChanges,
       followNameChanges,
-      write,
+      storeIdentifier,
       remove,
       rename,
     };
@@ -256,23 +246,18 @@ export const makePetStoreMaker = (filePowers, config) => {
     formulaType,
     assertValidName,
   ) => {
-    if (!isValidNumber(formulaNumber)) {
-      throw new Error(
-        `Invalid formula number for pet store ${q(formulaNumber)}`,
-      );
-    }
-    const prefix = formulaNumber.slice(0, 2);
-    const suffix = formulaNumber.slice(2);
-    const petNameDirectoryPath = filePowers.joinPath(
-      config.statePath,
-      formulaType,
-      prefix,
-      suffix,
+    // Return synchronously-created pet store wrapped in a resolved promise
+    // to maintain the existing async interface.
+    return Promise.resolve(
+      makePetStoreFromDb(formulaNumber, formulaType, assertValidName),
     );
-    return makePetStoreAtPath(petNameDirectoryPath, assertValidName);
   };
 
   return {
     makeIdentifiedPetStore,
+    deletePetStore: async (
+      /** @type {string} */ formulaNumber,
+      /** @type {string} */ formulaType,
+    ) => daemonDb.deletePetStore(formulaNumber, formulaType),
   };
 };

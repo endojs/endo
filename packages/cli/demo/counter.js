@@ -1,16 +1,10 @@
-import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
-
+/* global Far */
 export const make = () => {
   let counter = 0;
-  return makeExo(
-    'Counter',
-    M.interface('Counter', {}, { defaultGuards: 'passable' }),
-    {
-      incr() {
-        counter += 1;
-        return counter;
-      },
+  return Far('Counter', {
+    incr() {
+      counter += 1;
+      return counter;
     },
-  );
+  });
 };

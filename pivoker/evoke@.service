@@ -1,0 +1,10 @@
+[Unit]
+Description=AI Evoker Within %i Project
+CollectMode=inactive-or-failed
+
+[Service]
+Type=exec
+Slice=background.slice
+SendSIGHUP=yes
+ExecStart=%h/%i/pivoker/evoke.sh
+WorkingDirectory=%h/%i

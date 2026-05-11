@@ -77,6 +77,15 @@ test('bytes conversions', t => {
   }
 });
 
+test('btoa rejects non-latin1 characters', t => {
+  t.throws(() => btoa('\u0100'), {
+    message: /btoa: character out of range/,
+  });
+  t.throws(() => btoa('abc\u2026xyz'), {
+    message: /btoa: character out of range/,
+  });
+});
+
 test('invalid encodings', t => {
   const badInputs = [
     ['%', /Invalid base64 character %/],

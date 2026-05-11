@@ -24,6 +24,10 @@ const q = JSON.stringify;
     location: 'https://example.com/foo.tar.gz',
     extension: 'gz',
   },
+  {
+    location: 'no-slash',
+    extension: '',
+  },
 ].forEach(c => {
   test(`parseExtension(${q(c.location)}) -> ${q(c.extension)}`, t => {
     t.plan(1);

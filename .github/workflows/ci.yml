@@ -118,6 +118,50 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: mv -fv "$WORKDIR" "$ORIGINAL_WORKDIR"
 
+  sandbox-drivers:
+    name: sandbox-drivers
+
+    # begin macro
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # end macro
+
+      - name: Install bubblewrap
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+
+      - name: Run yarn build
+        run: yarn build
+
+      # Pre-pull the OCI image used by packages/sandbox/test/podman.test.js
+      # (`ALPINE_REF`) so the first podman test does not pay the registry
+      # round-trip and so docker.io flakes surface as a single visible
+      # job-setup failure rather than an obscure mid-test timeout.
+      # Keep this ref in sync with `ALPINE_REF` in
+      # packages/sandbox/test/podman.test.js and the references in
+      # packages/sandbox/README.md.
+      - name: Pre-pull alpine OCI image
+        run: podman pull docker.io/library/alpine:3.19
+
+      - name: Run sandbox driver tests
+        run: yarn workspace @endo/sandbox run test:drivers
+
   test-async-hooks:
     name: test-async-hooks
 

@@ -1,0 +1,346 @@
+/* Whylip - Dark literary aesthetic */
+
+.whylip-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  background: #1a1714;
+  color: #d4c9b8;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+
+.whylip-sidebar {
+  width: 260px;
+  min-width: 200px;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  background: #15120f;
+  border-right: 1px solid #2a2520;
+}
+
+.whylip-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a2520;
+}
+
+.whylip-back-button {
+  background: none;
+  border: none;
+  color: #8a7d6b;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.whylip-back-button:hover {
+  background: #2a2520;
+  color: #d4c9b8;
+}
+
+.whylip-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #c4b59a;
+  letter-spacing: 0.5px;
+}
+
+/* ── Tree ── */
+
+.whylip-tree {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tree-header {
+  padding: 10px 16px 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #6a5d4d;
+}
+
+.tree-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.tree-empty {
+  padding: 20px 16px;
+  color: #6a5d4d;
+  font-style: italic;
+  font-size: 13px;
+}
+
+.tree-branch {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: #8a7d6b;
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-node:hover {
+  background: #1f1c17;
+  color: #c4b59a;
+}
+
+.tree-node.active {
+  background: #2a2520;
+  color: #e8dcc8;
+  border-right: 2px solid #8a6e42;
+}
+
+.tree-icon {
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+}
+
+.tree-role-user .tree-icon {
+  color: #6a8a5d;
+}
+
+.tree-role-assistant .tree-icon {
+  color: #8a6e42;
+}
+
+.tree-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Main Area ── */
+
+.whylip-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Scene ── */
+
+.whylip-scene {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  background: #0f0d0a;
+}
+
+.whylip-scene-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scene-placeholder {
+  text-align: center;
+  color: #4a4035;
+}
+
+.scene-placeholder-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.scene-placeholder p {
+  font-size: 14px;
+  font-style: italic;
+  max-width: 300px;
+  line-height: 1.6;
+}
+
+.scene-title-bar {
+  padding: 6px 16px;
+  background: #15120f;
+  border-bottom: 1px solid #2a2520;
+  font-size: 12px;
+  color: #8a7d6b;
+}
+
+.scene-title {
+  font-weight: 600;
+}
+
+.scene-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff;
+}
+
+/* ── Bottom Panel ── */
+
+.whylip-bottom {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #2a2520;
+  max-height: 40%;
+}
+
+/* ── Narrative ── */
+
+.whylip-narrative {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  min-height: 60px;
+  background: #1a1714;
+}
+
+.narrative-empty {
+  color: #4a4035;
+  font-style: italic;
+  font-size: 14px;
+}
+
+.narrative-loading {
+  color: #8a6e42;
+  font-style: italic;
+  animation: whylip-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes whylip-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.narrative-content {
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.narrative-paragraph {
+  margin: 0 0 12px;
+}
+
+.narrative-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.narrative-paragraph strong {
+  color: #e8dcc8;
+  font-weight: 700;
+}
+
+.narrative-paragraph em {
+  color: #b4a58e;
+}
+
+.narrative-paragraph code {
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  background: #0f0d0a;
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: #c4b59a;
+}
+
+/* ── Input Bar ── */
+
+.whylip-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #15120f;
+  border-top: 1px solid #2a2520;
+}
+
+.whylip-input-field {
+  flex: 1;
+  padding: 10px 14px;
+  background: #1a1714;
+  border: 1px solid #2a2520;
+  border-radius: 6px;
+  color: #d4c9b8;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.whylip-input-field:focus {
+  border-color: #8a6e42;
+}
+
+.whylip-input-field::placeholder {
+  color: #4a4035;
+  font-style: italic;
+}
+
+.whylip-input-field:disabled {
+  opacity: 0.5;
+}
+
+.whylip-send-button {
+  padding: 10px 16px;
+  background: #8a6e42;
+  border: none;
+  border-radius: 6px;
+  color: #1a1714;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.whylip-send-button:hover:not(:disabled) {
+  background: #a0834f;
+}
+
+.whylip-send-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Scrollbar ── */
+
+.whylip-layout ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.whylip-layout ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.whylip-layout ::-webkit-scrollbar-thumb {
+  background: #2a2520;
+  border-radius: 3px;
+}
+
+.whylip-layout ::-webkit-scrollbar-thumb:hover {
+  background: #3a3530;
+}

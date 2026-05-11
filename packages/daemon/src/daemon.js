@@ -1,5 +1,6 @@
 // @ts-check
-/* global setTimeout, clearTimeout */
+/* eslint-disable no-await-in-loop */
+/* global clearTimeout, process, setTimeout */
 
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
@@ -7,11 +8,18 @@ import { E, Far } from '@endo/far';
 import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
-import { makeRefReader } from './ref-reader.js';
+import { ZipWriter } from '@endo/zip/writer.js';
+import {
+  checkinTree as platformCheckinTree,
+  snapshotTreeMethods,
+} from '@endo/platform/fs/lite';
+import { makeRefReader, makeRefIterator } from './ref-reader.js';
+import { makeIteratorRef, makeReaderRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
+import { makeChannelMaker } from './channel.js';
 import { makeHostMaker } from './host.js';
 import { makeRemoteControlProvider } from './remote-control.js';
 import {
@@ -21,20 +29,40 @@ import {
   assertPetName,
   namePathFrom,
 } from './pet-name.js';
-import { formatLocator, idFromLocator } from './locator.js';
+import {
+  formatLocator,
+  idFromLocator,
+  internalizeLocator,
+  externalizeId,
+} from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
-  assertValidNumber,
   assertValidId,
+  assertValidNumber,
   assertFormulaNumber,
   assertNodeNumber,
   parseId,
   formatId,
 } from './formula-identifier.js';
+import { makeFormulaGraph } from './graph.js';
+import { makeChangeTopic } from './pubsub.js';
+import { makeRetentionAccumulator } from './retention-accumulator.js';
+import { makeResidenceTracker } from './residence.js';
+import { toHex, fromHex } from './hex.js';
 import { makeSerialJobs } from './serial-jobs.js';
+import { makeLocalStoreController } from './store-controller.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
+import {
+  blobHelp,
+  directoryHelp,
+  endoHelp,
+  guestHelp,
+  makeHelp,
+  readableTreeHelp,
+} from './help-text.js';
+import { makeMount } from './mount.js';
 
 // Sorted:
 import {
@@ -43,21 +71,38 @@ import {
   InspectorHubInterface,
   InspectorInterface,
   InvitationInterface,
+  PeerGatewayInterface,
   ResponderInterface,
   WorkerInterface,
   DirectoryInterface,
   BlobInterface,
+  ReadableTreeInterface,
   EndoInterface,
 } from './interfaces.js';
 
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
+/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
 /**
- * @param {number} ms
- * @param {Promise<never>} cancelled
+ * Creates a delayed promise that can be cancelled.
+ *
+ * This function creates a timeout that resolves after the specified number of milliseconds.
+ * If cancelled, the promise will be rejected
+ * with the cancellation reason
+ * after the grace period
+ * (or immediately if already cancelled).
+ *
+ * @param {number} ms - The number of milliseconds to delay before resolving.
+ * @param {Promise<never>} cancelled - A promise that resolves/rejects when cancelled.
+ * @returns {Promise<void>} A promise that resolves after the delay or rejects if cancelled.
+ *
+ * @example
+ * ```js
+ * const cancelled = makePromiseKit();
+ * await delay(5000, cancelled.promise);
+ * ```
  */
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -80,26 +125,30 @@ const delay = async (ms, cancelled) => {
  * @returns {EndoInspector} The inspector for the given formula.
  */
 const makeInspector = (type, number, record) =>
-  makeExo(`Inspector (${type} ${number})`, InspectorInterface, {
-    lookup: async petNameOrPath => {
-      /** @type {string} */
-      let petName;
-      if (Array.isArray(petNameOrPath)) {
-        if (petNameOrPath.length !== 1) {
-          throw Error('Inspector.lookup(path) requires path length of 1');
+  makeExo(
+    `Inspector (${type} ${number})`,
+    InspectorInterface,
+    /** @type {any} */ ({
+      lookup: async petNameOrPath => {
+        /** @type {string} */
+        let petName;
+        if (Array.isArray(petNameOrPath)) {
+          if (petNameOrPath.length !== 1) {
+            throw Error('Inspector.lookup(path) requires path length of 1');
+          }
+          petName = petNameOrPath[0];
+        } else {
+          petName = petNameOrPath;
         }
-        petName = petNameOrPath[0];
-      } else {
-        petName = petNameOrPath;
-      }
-      assertName(petName);
-      if (!Object.hasOwn(record, petName)) {
-        return undefined;
-      }
-      return record[petName];
-    },
-    list: () => Object.keys(record),
-  });
+        assertName(petName);
+        if (!Object.hasOwn(record, petName)) {
+          return undefined;
+        }
+        return record[petName];
+      },
+      list: () => Object.keys(record),
+    }),
+  );
 
 /**
  * @param {Context} context - The context to make far.
@@ -115,11 +164,22 @@ const makeFarContext = context =>
   });
 
 /**
+ * Derives a unique ID by digesting the path with the root nonce.
  *
- * @param {string} path
- * @param {string} rootNonce
- * @param {Sha512} digester
- * @returns {string}
+ * This function creates a deterministic ID from a path and root nonce using
+ * the provided digester.
+ * The root nonce is first added to the digester, followed by the path.
+ *
+ * @param {string} path - The path to derive the ID from.
+ * @param {string} rootNonce - The root nonce to use as a base for derivation.
+ * @param {Sha256} digester - A SHA256 digester instance
+ * @returns {string} The hex digest ID derived from the path and root nonce.
+ *
+ * @example
+ * ```js
+ * const digester = makeSha256();
+ * const id = deriveId('/my/path', 'root-123', digester);
+ * ```
  */
 const deriveId = (path, rootNonce, digester) => {
   digester.updateText(rootNonce);
@@ -128,23 +188,46 @@ const deriveId = (path, rootNonce, digester) => {
 };
 
 const messageNumberNamePattern = /^(0|[1-9][0-9]*)$/;
-const MESSAGE_FROM_NAME = 'FROM';
-const MESSAGE_TO_NAME = 'TO';
-const MESSAGE_DATE_NAME = 'DATE';
-const MESSAGE_TYPE_NAME = 'TYPE';
-const MESSAGE_DESCRIPTION_NAME = 'DESCRIPTION';
-const MESSAGE_STRINGS_NAME = 'STRINGS';
-const MESSAGE_PROMISE_NAME = 'PROMISE';
-const MESSAGE_RESOLVER_NAME = 'RESOLVER';
+const MESSAGE_FROM_NAME = '@from';
+const MESSAGE_TO_NAME = '@to';
+const MESSAGE_DATE_NAME = '@date';
+const MESSAGE_TYPE_NAME = '@type';
+const MESSAGE_ID_NAME = '@message';
+const MESSAGE_REPLY_TO_NAME = '@reply';
+const MESSAGE_DESCRIPTION_NAME = '@description';
+const MESSAGE_STRINGS_NAME = '@strings';
+const MESSAGE_PROMISE_NAME = '@promise';
+const MESSAGE_RESOLVER_NAME = '@resolver';
 
 /**
- * @param {string} name
+ * Checks if a string is a valid message number.
+ *
+ * Message numbers are non-negative integers without leading zeros.
+ *
+ * @param {string} name - The string to check.
+ * @returns {boolean} True if the string is a valid message number.
+ *
+ * @example
+ * ```js
+ * console.log(isMessageNumberName('0'));    // true
+ * console.log(isMessageNumberName('5'));    // true
+ * console.log(isMessageNumberName('10'));   // true
+ * console.log(isMessageNumberName('01'));   // false
+ * console.log(isMessageNumberName('-1'));   // false
+ * ```
  */
 const isMessageNumberName = name => messageNumberNamePattern.test(name);
 
 /**
- * @param {string} left
- * @param {string} right
+ * Compares two message names for ordering.
+ *
+ * This function compares message names as numeric values.
+ * It returns -1 if the first name is less than the second, 1 if greater, and 0 if equal.
+ * The comparison uses BigInt to handle potentially large message numbers.
+ *
+ * @param {string} left - The first message name to compare.
+ * @param {string} right - The second message name to compare.
+ * @returns {number} -1 if left < right, 1 if left > right, or 0 if equal.
  */
 const compareMessageNames = (left, right) => {
   if (left === right) {
@@ -155,6 +238,10 @@ const compareMessageNames = (left, right) => {
 
 /** @type {PetName} */
 const PROMISE_STATUS_NAME = /** @type {PetName} */ ('status');
+// Stores the resolved formula identifier as a direct pet store entry so the
+// formula graph keeps the resolved value reachable (prevents premature
+// collection before the consumer names it).
+const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
 
 /**
  * Note: "pending" is intentionally omitted; pending is represented by the
@@ -166,29 +253,71 @@ const PROMISE_STATUS_NAME = /** @type {PetName} */ ('status');
  */
 
 /**
- * @param {DaemonicPowers} powers
- * @param {string} rootEntropy
+ * Creates the core daemon infrastructure with formula graph management.
+ *
+ * This function sets up the fundamental components of an Endo daemon, including:
+ * - Formula graph serialization and persistence
+ * - Worker termination management
+ * - Built-in formula references (ENDO, NONE, MAIN)
+ * - Special formula support for user-defined entities
+ * - Inspectors for accessing formula graph contents
+ *
+ * The daemon maintains a persistent formula graph that is loaded from storage on startup.
+ * All formula mutations (formulation, removal, provision, cancellation) are
+ * serialized to prevent concurrent modifications.
+ *
+ * @param {DaemonicPowers} powers - The daemon powers including crypto,
+ * petStore, persistence, and control capabilities.
+ * @param {FormulaNumber} rootEntropy - A root entropy value used for deriving
+ * formula IDs for this daemon instance.
  * @param {object} args
- * @param {(error: Error) => void} args.cancel
- * @param {number} args.gracePeriodMs
- * @param {Specials} args.specials
- * @param {Promise<never>} args.gracePeriodElapsed
+ * @param {(error: Error) => void} args.cancel - Function to call when daemon needs to cancel.
+ * @param {number} args.gracePeriodMs - Grace period in milliseconds for worker shutdown.
+ * @param {Specials} args.specials - Map of special names to formula generators.
+ * @param {Promise<never>} args.gracePeriodElapsed - A promise that resolves/cancels when the grace period expires.
+ * @param {NodeNumber} args.localNodeNumber - The local node number for this daemon.
+ * @param {(bytes: Uint8Array) => Uint8Array} args.signBytes - Sign bytes with the daemon's root Ed25519 key.
+ * @param {boolean} [args.gcEnabled] - Enable garbage collection of worker daemons.
+ * @param {'locked' | 'node'} [args.defaultWorkerKind] - Default kind for newly formulated workers (defaults to 'node').
+ *
+ * @example
+ * ```js
+ * const core = await makeDaemonCore(powers, 'entropy-abc123', {
+ *   cancel: onError,
+ *   gracePeriodMs: 5000,
+ *   gracePeriodElapsed: onCancelled,
+ *   specials: mySpecials,
+ *   localNodeNumber: 'node-123'
+ * });
+ * ```
  */
 const makeDaemonCore = async (
   powers,
   rootEntropy,
-  { cancel, gracePeriodMs, gracePeriodElapsed, specials },
+  {
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
+    specials,
+    localNodeNumber,
+    signBytes,
+    gcEnabled = true,
+    defaultWorkerKind = 'node',
+  },
 ) => {
   const {
     crypto: cryptoPowers,
     petStore: petStorePowers,
     persistence: persistencePowers,
     control: controlPowers,
+    filePowers,
   } = powers;
-  const { randomHex512 } = cryptoPowers;
-  const contentStore = persistencePowers.makeContentSha512Store();
+  const { randomHex256, generateEd25519Keypair } = cryptoPowers;
+  const contentStore = persistencePowers.makeContentStore();
   /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
   const workerDaemonFacets = new WeakMap();
+  /** @type {Map<string, (reason?: Error) => Promise<void>>} */
+  const workerTerminationByNumber = new Map();
   /**
    * Mutations of the formula graph must be serialized through this queue.
    * "Mutations" include:
@@ -198,12 +327,45 @@ const makeDaemonCore = async (
    * - Cancellation
    */
   const formulaGraphJobs = makeSerialJobs();
-  // This is the id of the node that is hosting the values.
-  // This will likely get replaced with a public key in the future.
-  const localNodeNumber = /** @type {NodeNumber} */ (
-    deriveId('node', rootEntropy, cryptoPowers.makeSha512())
-  );
+  let formulaGraphLockDepth = 0;
+  /**
+   * Async cleanup work scheduled by onCollect. Drained by
+   * withFormulaGraphLock after each graph mutation completes.
+   *
+   * @type {Array<() => Promise<void>>}
+   */
+  const pendingCollectionCleanup = [];
+  /**
+   * @param {() => Promise<any>} [asyncFn]
+   * @returns {Promise<any>}
+   */
+  const withFormulaGraphLock = async (asyncFn = async () => undefined) => {
+    await null;
+    if (formulaGraphLockDepth > 0) {
+      // Already holding the lock; avoid deadlock.
+      return asyncFn();
+    }
+    formulaGraphLockDepth += 1;
+    let result;
+    try {
+      result = await formulaGraphJobs.enqueue(asyncFn);
+    } finally {
+      formulaGraphLockDepth -= 1;
+    }
+    // Drain any async collection cleanup scheduled during this
+    // graph operation. This runs AFTER the serial job token is
+    // released so that cleanup operations that need the lock
+    // (e.g., CapTP messages triggering graph mutations on a
+    // remote callback) can acquire it without deadlock.
+    // eslint-disable-next-line no-use-before-define
+    await drainCollectionCleanup();
+    return result;
+  };
   console.log('Node', localNodeNumber);
+  const endoFormulaId = formatId({
+    number: /** @type {FormulaNumber} */ (rootEntropy),
+    node: localNodeNumber,
+  });
 
   // We generate formulas for some entities that are presumed to exist
   // because they are parts of the daemon's root object.
@@ -214,13 +376,17 @@ const makeDaemonCore = async (
    */
   const preformulate = async (derivation, formula) => {
     const formulaNumber = /** @type {FormulaNumber} */ (
-      deriveId(derivation, rootEntropy, cryptoPowers.makeSha512())
+      deriveId(derivation, rootEntropy, cryptoPowers.makeSha256())
     );
     const id = formatId({
       number: formulaNumber,
       node: localNodeNumber,
     });
-    await persistencePowers.writeFormula(formulaNumber, formula);
+    await persistencePowers.writeFormula(
+      formulaNumber,
+      localNodeNumber,
+      formula,
+    );
     return { id, formulaNumber };
   };
 
@@ -236,6 +402,7 @@ const makeDaemonCore = async (
   const builtins = {
     NONE: leastAuthorityId,
     MAIN: mainWorkerId,
+    ENDO: endoFormulaId,
   };
 
   // Prepare platform formulas
@@ -271,13 +438,368 @@ const makeDaemonCore = async (
    */
   const formulaForId = new Map();
 
+  /**
+   * Publishes `{ add: formulaNumber, node }` when a formula is
+   * added and `{ remove: formulaNumber, node }` when collected.
+   * Used by `followRetentionSet` to stream retention changes to
+   * connected peers.
+   * @type {import('./types.js').Topic<{ add?: string, remove?: string, node: string }>}
+   */
+  const formulaChangeTopic = makeChangeTopic();
+
+  // eslint-disable-next-line no-undef
+  const lifecycleLogEnabled =
+    typeof process === 'undefined' || process.env.ENDO_LIFECYCLE_LOG !== '0';
+  const lifecycleT0 = Date.now();
+  /**
+   * @param {FormulaIdentifier} id
+   * @param {string} event
+   * @param {string} [detail]
+   */
+  const logLifecycle = (id, event, detail = '') => {
+    if (!lifecycleLogEnabled) {
+      return;
+    }
+    const elapsed = Date.now() - lifecycleT0;
+    const formula = formulaForId.get(id);
+    const type = formula?.type || '?';
+    console.log(
+      `T+${elapsed}ms\t${id.slice(0, 12)}\t${type}\t${event}\t${detail}`,
+    );
+  };
+
+  /**
+   * Returns [label, id] pairs for each dependency of a formula,
+   * providing meaningful edge labels (e.g. "worker", "handle") for the
+   * graph snapshot.
+   *
+   * @param {Formula} formula
+   * @returns {Array<[string, FormulaIdentifier]>}
+   */
+  const extractLabeledDeps = formula => {
+    switch (formula.type) {
+      case 'endo':
+        return [
+          ['networks', formula.networks],
+          ['pins', formula.pins],
+          ['peers', formula.peers],
+          ['host', formula.host],
+          ['leastAuthority', formula.leastAuthority],
+        ];
+      case 'channel':
+        return [
+          ['handle', formula.handle],
+          ['creator', formula.creatorAgent],
+          ['messages', formula.messageStore],
+          ['members', formula.memberStore],
+        ];
+      case 'host':
+        return [
+          ['handle', formula.handle],
+          ['hostHandle', formula.hostHandle],
+          ['mainWorker', formula.mainWorker],
+          ['nodeWorker', formula.nodeWorker],
+          ['inspector', formula.inspector],
+          ['petStore', formula.petStore],
+          ['mailbox', formula.mailboxStore],
+          ['mailHub', formula.mailHub],
+          ['endo', formula.endo],
+          ['networks', formula.networks],
+          ['pins', formula.pins],
+        ];
+      case 'guest':
+        return [
+          ['handle', formula.handle],
+          ['hostHandle', formula.hostHandle],
+          ['hostAgent', formula.hostAgent],
+          ['petStore', formula.petStore],
+          ['mailbox', formula.mailboxStore],
+          ['mailHub', formula.mailHub],
+          ['worker', formula.worker],
+          ['networks', formula.networks],
+        ];
+      case 'marshal':
+        return (formula.slots ?? []).map((s, i) => [`slot${i}`, s]);
+      case 'eval':
+        return [
+          ['worker', formula.worker],
+          ...(formula.values ?? []).map(
+            (v, i) =>
+              /** @type {[string, FormulaIdentifier]} */ ([
+                formula.names?.[i] || `val${i}`,
+                v,
+              ]),
+          ),
+        ];
+      case 'lookup':
+        return [['hub', formula.hub]];
+      case 'make-unconfined': {
+        /** @type {Array<[string, FormulaIdentifier]>} */
+        const deps = [
+          ['worker', formula.worker],
+          ['powers', formula.powers],
+        ];
+        if (formula.cancelWithWorker) {
+          deps.push(['cancelWithWorker', formula.cancelWithWorker]);
+        }
+        return deps;
+      }
+      case 'make-archive': {
+        /** @type {Array<[string, FormulaIdentifier]>} */
+        const deps = [
+          ['worker', formula.worker],
+          ['powers', formula.powers],
+          ['archive', formula.archive],
+        ];
+        if (formula.cancelWithWorker) {
+          deps.push(['cancelWithWorker', formula.cancelWithWorker]);
+        }
+        return deps;
+      }
+      case 'make-from-tree': {
+        /** @type {Array<[string, FormulaIdentifier]>} */
+        const deps = [
+          ['worker', formula.worker],
+          ['powers', formula.powers],
+          ['tree', formula.tree],
+        ];
+        if (formula.cancelWithWorker) {
+          deps.push(['cancelWithWorker', formula.cancelWithWorker]);
+        }
+        return deps;
+      }
+      case 'peer':
+        return [['networks', formula.networks]];
+      case 'handle':
+        return [['agent', formula.agent]];
+      case 'mail-hub':
+        return [['store', formula.store]];
+      case 'message': {
+        /** @type {Array<[string, FormulaIdentifier]>} */
+        const messageDeps = [
+          ['from', formula.from],
+          ['to', formula.to],
+          ...(formula.ids ?? []).map(
+            (id, i) =>
+              /** @type {[string, FormulaIdentifier]} */ ([`ref${i}`, id]),
+          ),
+        ];
+        if (formula.promiseId) {
+          messageDeps.push(['promise', formula.promiseId]);
+        }
+        if (formula.resolverId) {
+          messageDeps.push(['resolver', formula.resolverId]);
+        }
+        if (formula.valueId) {
+          messageDeps.push(['value', formula.valueId]);
+        }
+        return messageDeps;
+      }
+      case 'promise':
+      case 'resolver':
+        return [['store', formula.store]];
+      case 'readable-tree':
+        return [];
+      case 'mount':
+        return [];
+      case 'scratch-mount':
+        return [];
+      case 'pet-inspector':
+        return [['petStore', formula.petStore]];
+      case 'directory':
+        return [['petStore', formula.petStore]];
+      case 'invitation':
+        return [
+          ['hostAgent', formula.hostAgent],
+          ['hostHandle', formula.hostHandle],
+        ];
+      default:
+        return [];
+    }
+  };
+
+  /** @param {string} node */
+  const isLocalKey = node =>
+    node === localNodeNumber ||
+    persistencePowers.hasAgentKey(/** @type {NodeNumber} */ (node));
+
+  /** @param {string} id */
+  const isLocalId = id => {
+    const { node } = parseId(id);
+    return isLocalKey(node);
+  };
+
+  const enableFormulaCollection = gcEnabled;
+  if (!enableFormulaCollection) {
+    console.log('Formula collection disabled (ENDO_GC=0)');
+  }
+
+  /**
+   * Collection callback invoked synchronously by the formula graph
+   * when a group's reference count drops to zero.
+   *
+   * Phase 1 (synchronous): delete from DB and in-memory caches to
+   * prevent resurrection. Phase 2 (async, queued): cancel
+   * controllers, disconnect retainers, revive pins.
+   *
+   * @param {FormulaIdentifier[]} collectedIds
+   */
+  const onCollect = collectedIds => {
+    if (!enableFormulaCollection) return;
+
+    for (const id of collectedIds) {
+      // eslint-disable-next-line no-use-before-define
+      logLifecycle(id, 'COLLECTED');
+    }
+
+    // Phase 1 (synchronous): remove from in-memory caches so that
+    // concurrent operations cannot see the collected formulas.
+    // Persistence deletion is deferred to the async phase so that
+    // implementations are free to use async I/O.
+    /** @type {Map<FormulaIdentifier, Formula>} */
+    const collectedFormulas = new Map();
+    for (const id of collectedIds) {
+      const formula = formulaForId.get(id);
+      if (formula !== undefined) {
+        collectedFormulas.set(id, formula);
+      }
+    }
+
+    for (const id of collectedIds) {
+      const formula = collectedFormulas.get(id);
+      if (formula !== undefined) {
+        const { number: collectedNumber, node: collectedNode } = parseId(id);
+        formulaForId.delete(id);
+        formulaChangeTopic.publisher.next(
+          harden({ remove: collectedNumber, node: collectedNode }),
+        );
+        if (
+          formula.type === 'pet-store' ||
+          formula.type === 'mailbox-store' ||
+          formula.type === 'known-peers-store'
+        ) {
+          formulaGraph.onPetStoreRemoveAll(id);
+        }
+      }
+    }
+
+    // Snapshot controllers before dropping live values, then drop
+    // synchronously so no stale controllers are accessible.
+    /** @type {Array<{id: FormulaIdentifier, controller: Controller}>} */
+    const controllersToCancel = [];
+    for (const id of collectedIds) {
+      const controller = controllerForId.get(id);
+      if (controller) {
+        controllersToCancel.push({ id, controller });
+      }
+      // eslint-disable-next-line no-use-before-define
+      dropLiveValue(id);
+    }
+
+    // Phase 2 (async): schedule persistence deletion, controller
+    // cancellation, and worker disconnection to run after the
+    // current graph lock holder completes.
+    const collectedFormulaTypes = new Map(
+      [...collectedFormulas.entries()].map(([id, f]) => [id, f.type]),
+    );
+    pendingCollectionCleanup.push(async () => {
+      // Delete from durable storage.
+      await Promise.allSettled(
+        collectedIds.map(id =>
+          persistencePowers.deleteFormula(parseId(id).number),
+        ),
+      );
+      await Promise.allSettled(
+        [...collectedFormulas.entries()].map(async ([id, formula]) => {
+          if (
+            formula.type === 'pet-store' ||
+            formula.type === 'mailbox-store' ||
+            formula.type === 'known-peers-store'
+          ) {
+            await petStorePowers.deletePetStore(
+              parseId(id).number,
+              formula.type,
+            );
+          }
+        }),
+      );
+
+      // Cancel controllers and disconnect workers.
+      const cancelReason = new Error(
+        'became unreachable by any pet name path and was collected',
+      );
+      await Promise.allSettled(
+        controllersToCancel.map(async ({ controller }) => {
+          await null;
+          await controller.context.cancel(cancelReason, '!');
+        }),
+      );
+
+      // eslint-disable-next-line no-use-before-define
+      residenceTracker.disconnectRetainersHolding(
+        collectedIds,
+        collectedFormulaTypes,
+      );
+    });
+  };
+
+  const formulaGraph = makeFormulaGraph({
+    extractLabeledDeps,
+    isLocalId,
+    onCollect,
+  });
+
+  formulaGraph.addRoot(knownPeersId);
+  formulaGraph.addRoot(leastAuthorityId);
+  formulaGraph.addRoot(mainWorkerId);
+  formulaGraph.addRoot(endoFormulaId);
+  for (const id of Object.values(platformNames)) {
+    formulaGraph.addRoot(/** @type {FormulaIdentifier} */ (id));
+  }
+
+  const pinTransient = /** @param {FormulaIdentifier} id */ id =>
+    formulaGraph.pinTransient(id);
+
+  /**
+   * Drain pending collection cleanup. Callers that unpin outside
+   * `withFormulaGraphLock` must call this to ensure async cleanup
+   * (controller cancellation, worker termination) completes.
+   */
+  const drainCollectionCleanup = async () => {
+    while (pendingCollectionCleanup.length > 0) {
+      const cleanup = /** @type {() => Promise<void>} */ (
+        pendingCollectionCleanup.shift()
+      );
+      await cleanup();
+    }
+  };
+
+  /**
+   * Unpin a transient formula and drain any resulting collection
+   * cleanup. Returns a promise that resolves when all async
+   * cleanup (controller cancellation, worker termination) is done.
+   *
+   * Inside `withFormulaGraphLock`, cleanup is deferred to the lock's
+   * finally block. Outside the lock, cleanup runs immediately.
+   *
+   * @param {FormulaIdentifier} id
+   * @returns {Promise<void>}
+   */
+  const unpinTransient = async id => {
+    formulaGraph.unpinTransient(id);
+    if (formulaGraphLockDepth === 0) {
+      await drainCollectionCleanup();
+    }
+  };
+
   /** @type {WeakMap<object, FormulaIdentifier>} */
   const agentIdForHandle = new WeakMap();
 
   // The following are functions that manage that state.
 
-  /** @param {FormulaIdentifier} id */
-  const getFormulaForId = async id => {
+  /** @param {FormulaIdentifier} inputId */
+  const getFormulaForId = async inputId => {
+    const id = inputId;
     // No synchronous preamble.
     await null;
 
@@ -286,17 +808,21 @@ const makeDaemonCore = async (
       return formula;
     }
 
-    formula = await persistencePowers.readFormula(parseId(id).number);
-    formulaForId.set(id, formula);
+    const { number: fNum } = parseId(id);
+    ({ formula } = await persistencePowers.readFormula(fNum));
+    await withFormulaGraphLock(async () => {
+      formulaForId.set(id, formula);
+      formulaGraph.onFormulaAdded(id, formula);
+    });
     return formula;
   };
 
-  /** @param {FormulaIdentifier} id */
-  const getTypeForId = async id => {
-    if (parseId(id).node !== localNodeNumber) {
+  /** @param {FormulaIdentifier} inputId */
+  const getTypeForId = async inputId => {
+    if (!isLocalId(inputId)) {
       return 'remote';
     }
-    const { type } = await getFormulaForId(id);
+    const { type } = await getFormulaForId(inputId);
     return type;
   };
 
@@ -313,6 +839,55 @@ const makeDaemonCore = async (
   /** @type {DaemonCore['getIdForRef']} */
   const getIdForRef = ref => idForRef.get(/** @type {any} */ (ref));
 
+  /** @param {unknown} value */
+  const getLocalIdForRef = value => {
+    if (
+      (typeof value !== 'object' || value === null) &&
+      typeof value !== 'function'
+    ) {
+      return undefined;
+    }
+    const id = /** @type {FormulaIdentifier | undefined} */ (
+      getIdForRef(/** @type {any} */ (value))
+    );
+    return id !== undefined && isLocalId(id) ? id : undefined;
+  };
+
+  const residenceTracker = makeResidenceTracker({
+    getLocalIdForRef,
+    getFormula: id => formulaForId.get(id),
+    terminateWorker: (workerId, reason) => {
+      const terminate = workerTerminationByNumber.get(workerId);
+      if (terminate) {
+        terminate(reason).catch(() => {});
+      }
+      // When a retainer's node worker is terminated by GC, also
+      // terminate any cancelWithWorker (original XS worker) referenced
+      // by make-unconfined/make-archive formulas on this worker.
+      const terminatedId = formatId({
+        number: /** @type {FormulaNumber} */ (workerId),
+        node: localNodeNumber,
+      });
+      for (const formula of formulaForId.values()) {
+        if (
+          (formula.type === 'make-unconfined' ||
+            formula.type === 'make-archive' ||
+            formula.type === 'make-from-tree') &&
+          formula.worker === terminatedId &&
+          formula.cancelWithWorker
+        ) {
+          const { number: cwNumber } = parseId(formula.cancelWithWorker);
+          const cwTerminate = workerTerminationByNumber.get(cwNumber);
+          if (cwTerminate) {
+            cwTerminate(reason).catch(() => {});
+          }
+        }
+      }
+    },
+  });
+
+  const capTpConnectionRegistrar = residenceTracker.register;
+
   /** @type {Provide} */
   const provide = (id, _expectedType) =>
     /** @type {any} */ (
@@ -321,43 +896,176 @@ const makeDaemonCore = async (
       provideController(id).value
     );
 
+  /** @param {FormulaIdentifier} id */
+  const dropLiveValue = id => {
+    controllerForId.delete(id);
+    const ref = refForId.get(id);
+    if (ref !== undefined) {
+      refForId.delete(id);
+      idForRef.delete(ref, id);
+    }
+  };
+
+  const seedFormulaGraphFromPersistence = async () => {
+    const formulaRecords = await persistencePowers.listFormulas();
+    const entries = await Promise.all(
+      formulaRecords.map(async ({ number: formulaNumber, node }) => {
+        const fNum = /** @type {FormulaNumber} */ (formulaNumber);
+        const { formula } = await persistencePowers.readFormula(fNum);
+        const id = formatId({
+          number: fNum,
+          node: /** @type {NodeNumber} */ (node || localNodeNumber),
+        });
+        return { id, formula };
+      }),
+    );
+    await withFormulaGraphLock(async () => {
+      for (const { id, formula } of entries) {
+        if (!formulaForId.has(id)) {
+          formulaForId.set(id, formula);
+        }
+        formulaGraph.onFormulaAdded(id, formula);
+      }
+    });
+
+    const petStoreTypes = new Map([
+      ['pet-store', assertPetName],
+      ['mailbox-store', assertMailboxStoreName],
+      ['known-peers-store', assertValidNumber],
+    ]);
+
+    await Promise.all(
+      entries.map(async ({ id, formula }) => {
+        // Handle regular pet stores.
+        const assertValidName = petStoreTypes.get(formula.type);
+        if (assertValidName !== undefined) {
+          const { number: formulaNumber } = parseId(id);
+          const petStore = await petStorePowers.makeIdentifiedPetStore(
+            formulaNumber,
+            /** @type {'pet-store' | 'mailbox-store' | 'known-peers-store'} */ (
+              formula.type
+            ),
+            assertValidName,
+          );
+          const controller = makeLocalStoreController(
+            /** @type {FormulaIdentifier} */ (id),
+            petStore,
+            gcHooks,
+          );
+          await controller.seedGcEdges();
+        }
+      }),
+    );
+
+    // Load retention edges from SQLite into the graph.
+    const agentKeys = persistencePowers.listAgentKeys();
+    await withFormulaGraphLock(async () => {
+      for (const { publicKey, agentId } of agentKeys) {
+        const retentionEntries = persistencePowers.listRetention(publicKey);
+        const agentIdStr = /** @type {FormulaIdentifier} */ (agentId);
+        for (const { formulaNumber } of retentionEntries) {
+          const retainedId = formatId({
+            number: /** @type {FormulaNumber} */ (formulaNumber),
+            node: localNodeNumber,
+          });
+          if (formulaForId.has(retainedId)) {
+            formulaGraph.addRetention(agentIdStr, retainedId);
+          }
+        }
+      }
+    });
+
+    // One-time sweep for formulas unreachable after loading all edges.
+    // Run inside the lock so that any resulting collection cleanup is
+    // drained before the function returns.
+    await withFormulaGraphLock(async () => {
+      formulaGraph.sweepUnreachable();
+    });
+  };
+
+  /** @type {import('./types.js').GcHooks} */
+  const gcHooks = harden({
+    onPetStoreWrite: (storeId, id) => formulaGraph.onPetStoreWrite(storeId, id),
+    onPetStoreRemove: (storeId, id) =>
+      formulaGraph.onPetStoreRemove(storeId, id),
+    isLocalId,
+    withFormulaGraphLock,
+  });
+
+  /** @type {Map<FormulaIdentifier, import('./types.js').StoreController>} */
+  const controllerCache = new Map();
+
+  /**
+   * Wraps a raw pet store in a StoreController. Controllers are cached
+   * so the same store ID always yields the same controller instance.
+   *
+   * @param {FormulaIdentifier} storeId
+   * @returns {Promise<import('./types.js').StoreController>}
+   */
+  const provideStoreController = async storeId => {
+    const cached = controllerCache.get(storeId);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const store =
+      /** @type {import('./types.js').PetStore} */
+      (await provide(storeId));
+    const controller = makeLocalStoreController(storeId, store, gcHooks);
+    controllerCache.set(storeId, controller);
+    return controller;
+  };
+
   // The following concern connections to other daemons.
 
   const provideRemoteControl = makeRemoteControlProvider(localNodeNumber);
 
-  /**
-   * @param {NodeNumber} remoteNodeNumber
-   * @param {(error: Error) => void} cancelPeer
-   * @param {Promise<never>} peerCancelled
-   */
-  const providePeer = async (remoteNodeNumber, cancelPeer, peerCancelled) => {
-    const remoteControl = provideRemoteControl(remoteNodeNumber);
-    return remoteControl.connect(
-      async () => {
-        // eslint-disable-next-line no-use-before-define
-        const peerId = await getPeerIdForNodeIdentifier(remoteNodeNumber);
-        return provide(peerId, 'peer');
-      },
-      cancelPeer,
-      peerCancelled,
-    );
-  };
-
   // Gateway is equivalent to E's "nonce locator".
-  // It provides a value for a formula identifier to a remote client.
+  // It provides a value for a locator to a remote client.
   const localGateway = Far('Gateway', {
     /** @param {string} requestedId */
     provide: async requestedId => {
       assertValidId(requestedId);
-      const { node, id } = parseId(requestedId);
-      if (node !== localNodeNumber) {
+      if (!isLocalId(requestedId)) {
+        const { node } = parseId(requestedId);
         throw new Error(
           `Gateway can only provide local values. Got request for node ${q(
             node,
           )}`,
         );
       }
-      return provide(id);
+      return provide(requestedId);
+    },
+    /**
+     * Return the formula numbers from `peerNodeNumber` that this
+     * daemon currently holds, followed by incremental updates.
+     * Each yielded value has shape `{ add: string[], remove: string[] }`.
+     * The first delta is the snapshot (all adds, no removes).
+     * Subsequent deltas are batched over microtasks.
+     *
+     * @param {string} peerNodeNumber
+     * @returns {Promise<FarRef<AsyncIterableIterator<import('./retention-accumulator.js').RetentionDelta>>>}
+     */
+    followRetentionSet: async peerNodeNumber => {
+      const snapshot =
+        persistencePowers.listFormulaNumbersByNode(peerNodeNumber);
+      const accumulator = makeRetentionAccumulator({ snapshot });
+
+      // Feed formula change events into the accumulator, filtered
+      // by the peer's node number.
+      const subscription = formulaChangeTopic.subscribe();
+      (async () => {
+        for await (const change of subscription) {
+          if (change.node === peerNodeNumber) {
+            if (change.add !== undefined) {
+              accumulator.add(change.add);
+            } else if (change.remove !== undefined) {
+              accumulator.remove(change.remove);
+            }
+          }
+        }
+      })();
+
+      return makeIteratorRef(accumulator.subscribe());
     },
   });
 
@@ -376,10 +1084,81 @@ const makeDaemonCore = async (
       connectionCancelled,
     ) => {
       assertNodeNumber(remoteNodeId);
+      console.log(
+        `Endo daemon received inbound peer connection from node ${remoteNodeId.slice(0, 8)}`,
+      );
       const remoteControl = provideRemoteControl(remoteNodeId);
       /** @param {Error} error */
       const wrappedCancel = error => E(cancelConnection)(error);
       remoteControl.accept(remoteGateway, wrappedCancel, connectionCancelled);
+
+      // Follow retention set changes in the background.
+      const consumeRetention = async () => {
+        const iter = await E(remoteGateway).followRetentionSet(localNodeNumber);
+        // Resolve the local agent formula ID for this peer so
+        // retention edges land in the right place in the graph.
+        const agentKeyRecord = persistencePowers.getAgentKey(remoteNodeId);
+        const agentIdStr = agentKeyRecord
+          ? /** @type {FormulaIdentifier} */ (agentKeyRecord.agentId)
+          : undefined;
+
+        let isFirst = true;
+        for await (const delta of makeRefIterator(/** @type {any} */ (iter))) {
+          if (isFirst) {
+            // First delta is the full snapshot.
+            persistencePowers.replaceRetention(remoteNodeId, delta.add);
+            if (agentIdStr !== undefined) {
+              await withFormulaGraphLock(async () => {
+                formulaGraph.replaceRetention(
+                  agentIdStr,
+                  delta.add.map(num =>
+                    formatId({
+                      number: /** @type {FormulaNumber} */ (num),
+                      node: localNodeNumber,
+                    }),
+                  ),
+                );
+              });
+            }
+            isFirst = false;
+          } else {
+            for (const num of delta.add) {
+              persistencePowers.writeRetention(remoteNodeId, num);
+            }
+            for (const num of delta.remove) {
+              persistencePowers.deleteRetention(remoteNodeId, num);
+            }
+            if (agentIdStr !== undefined) {
+              await withFormulaGraphLock(async () => {
+                for (const num of delta.add) {
+                  formulaGraph.addRetention(
+                    agentIdStr,
+                    formatId({
+                      number: /** @type {FormulaNumber} */ (num),
+                      node: localNodeNumber,
+                    }),
+                  );
+                }
+                for (const num of delta.remove) {
+                  formulaGraph.removeRetention(
+                    agentIdStr,
+                    formatId({
+                      number: /** @type {FormulaNumber} */ (num),
+                      node: localNodeNumber,
+                    }),
+                  );
+                }
+              });
+            }
+          }
+        }
+      };
+      consumeRetention().catch(err => {
+        console.log(
+          `Retention sync ended for inbound peer ${remoteNodeId.slice(0, 8)}: ${/** @type {Error} */ (err).message}`,
+        );
+      });
+
       return localGateway;
     },
   });
@@ -398,21 +1177,55 @@ const makeDaemonCore = async (
   /**
    * @param {string} workerId512
    * @param {Context} context
+   * @param {'locked' | 'node'} [kind]
+   * @param {string[]} [trustedShims]
+   * @param {string} [label]
    */
-  const makeIdentifiedWorker = async (workerId512, context) => {
+  const makeIdentifiedWorker = async (
+    workerId512,
+    context,
+    kind = undefined,
+    trustedShims = undefined,
+    label = undefined,
+  ) => {
     const daemonWorkerFacet = makeDaemonFacetForWorker(workerId512);
 
     const { promise: forceCancelled, reject: forceCancel } =
+      /** @type {PromiseKit<never>} */ (makePromiseKit());
+
+    const { promise: workerCancelled, reject: cancelWorker } =
       /** @type {PromiseKit<never>} */ (makePromiseKit());
 
     const { workerTerminated, workerDaemonFacet } =
       await controlPowers.makeWorker(
         workerId512,
         daemonWorkerFacet,
+        workerCancelled,
         Promise.race([forceCancelled, gracePeriodElapsed]),
+        capTpConnectionRegistrar,
+        trustedShims,
+        label,
+        kind,
       );
 
+    /** @param {Error} [_reason] */
+    const terminateWorker = async _reason => {
+      E.sendOnly(workerDaemonFacet).terminate();
+      await Promise.race([
+        workerTerminated,
+        delay(gracePeriodMs, gracePeriodElapsed).catch(() => {}),
+      ]).catch(() => {});
+    };
+
+    logLifecycle(context.id, 'WORKER_READY');
+
+    workerTerminationByNumber.set(workerId512, terminateWorker);
+    workerTerminated.finally(() => {
+      workerTerminationByNumber.delete(workerId512);
+    });
+
     const gracefulCancel = async () => {
+      cancelWorker(new Error('Worker cancelled'));
       E.sendOnly(workerDaemonFacet).terminate();
       const cancelWorkerGracePeriod = () => {
         throw new Error('Exited gracefully before grace period elapsed');
@@ -441,22 +1254,31 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} sha512
+   * @param {string} sha256
    */
-  const makeReadableBlob = sha512 => {
-    const { text, json, streamBase64 } = contentStore.fetch(sha512);
-    /** @type {FarRef<EndoReadable>} */
-    return makeExo(
-      `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
+  const makeReadableBlob = sha256 =>
+    makeExo(
+      `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
-      {
-        sha512: () => sha512,
-        streamBase64,
-        text,
-        json,
-      },
+      /** @type {any} */ ({
+        sha256: () => sha256,
+        ...contentStore.fetch(sha256),
+        help: makeHelp(blobHelp),
+      }),
     );
-  };
+
+  /**
+   * @param {string} sha256
+   */
+  const makeReadableTree = sha256 =>
+    makeExo(
+      'ReadableTree',
+      ReadableTreeInterface,
+      /** @type {any} */ ({
+        ...snapshotTreeMethods(contentStore, sha256),
+        help: makeHelp(readableTreeHelp),
+      }),
+    );
 
   /**
    * @param {FormulaIdentifier} workerId
@@ -512,44 +1334,262 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} workerId
    * @param {FormulaIdentifier} powersId
    * @param {string} specifier
+   * @param {Record<string, string>} env
    * @param {Context} context
    */
-  const makeUnconfined = async (workerId, powersId, specifier, context) => {
+  const makeUnconfined = async (
+    workerId,
+    powersId,
+    specifier,
+    env,
+    context,
+    cancelWithWorker,
+  ) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
+    if (cancelWithWorker) {
+      context.thisDiesIfThatDies(cancelWithWorker);
+    }
 
     const worker = await provide(workerId, 'worker');
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make unconfined plugin with non-worker');
     const powersP = provide(powersId);
-    return E(workerDaemonFacet).makeUnconfined(
+    return E(/** @type {any} */ (workerDaemonFacet)).makeUnconfined(
       specifier,
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
+      env,
     );
   };
 
   /**
-   * @param {FormulaIdentifier} workerId
-   * @param {FormulaIdentifier} powersId
-   * @param {FormulaIdentifier} bundleId
+   * @param {string} workerId
+   * @param {string} powersId
+   * @param {string} archiveId
+   * @param {Record<string, string> | undefined} env
    * @param {Context} context
+   * @param {string} [cancelWithWorker]
    */
-  const makeBundle = async (workerId, powersId, bundleId, context) => {
+  const makeArchive = async (
+    workerId,
+    powersId,
+    archiveId,
+    env,
+    context,
+    cancelWithWorker,
+  ) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
+    if (cancelWithWorker) {
+      context.thisDiesIfThatDies(cancelWithWorker);
+    }
 
-    const worker = await provide(workerId, 'worker');
+    const worker = await provide(
+      /** @type {FormulaIdentifier} */ (workerId),
+      'worker',
+    );
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make caplet with non-worker');
-    const readableBundleP = provide(bundleId, 'readable-blob');
-    const powersP = provide(powersId);
-    return E(workerDaemonFacet).makeBundle(
-      readableBundleP,
+    const readableArchiveP = provide(
+      /** @type {FormulaIdentifier} */ (archiveId),
+      'readable-blob',
+    );
+    const powersP = provide(/** @type {FormulaIdentifier} */ (powersId));
+    return E(/** @type {any} */ (workerDaemonFacet)).makeArchive(
+      readableArchiveP,
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
+      env,
+    );
+  };
+
+  /**
+   * Load a source-only tree (ReadableTree or Mount) into a worker and
+   * invoke its entry `make(powers, context, { env })`.  Mirrors
+   * {@link makeArchive} but the source comes from a tree capability
+   * rather than a ZIP blob.
+   *
+   * @param {string} workerId
+   * @param {string} powersId
+   * @param {string} treeId
+   * @param {Record<string, string> | undefined} env
+   * @param {Context} context
+   * @param {string} [cancelWithWorker]
+   */
+  const makeFromTree = async (
+    workerId,
+    powersId,
+    treeId,
+    env,
+    context,
+    cancelWithWorker,
+  ) => {
+    context.thisDiesIfThatDies(workerId);
+    context.thisDiesIfThatDies(powersId);
+    context.thisDiesIfThatDies(treeId);
+    if (cancelWithWorker) {
+      context.thisDiesIfThatDies(cancelWithWorker);
+    }
+
+    const worker = await provide(
+      /** @type {FormulaIdentifier} */ (workerId),
+      'worker',
+    );
+    const workerDaemonFacet = workerDaemonFacets.get(worker);
+    assert(workerDaemonFacet, 'Cannot make caplet with non-worker');
+    const treeP = provide(/** @type {FormulaIdentifier} */ (treeId));
+    const powersP = provide(/** @type {FormulaIdentifier} */ (powersId));
+
+    // XS (locked) workers cannot run @endo/compartment-mapper's
+    // parseArchive themselves yet, so the daemon walks the tree
+    // here, packs it into a synthesized archive, and routes through
+    // the existing makeArchive worker method which is implemented
+    // for both Node and XS via hostImportArchive.  A worker is
+    // "locked" if its formula explicitly says so, OR if the
+    // formula has no `kind` and the daemon's defaultWorkerKind is
+    // 'locked' (i.e. the Rust supervisor path).
+    const workerFormula = formulaForId.get(
+      /** @type {FormulaIdentifier} */ (workerId),
+    );
+    const workerKind =
+      workerFormula?.type === 'worker'
+        ? (workerFormula.kind ?? defaultWorkerKind)
+        : undefined;
+    const isLockedWorker = workerKind === 'locked';
+    if (isLockedWorker) {
+      // eslint-disable-next-line no-use-before-define
+      const archiveBytes = await packTreeIntoArchiveBytes(treeP);
+      // eslint-disable-next-line no-use-before-define
+      const transientBlob = makeBytesBlob(archiveBytes);
+      return E(/** @type {any} */ (workerDaemonFacet)).makeArchive(
+        /** @type {any} */ (transientBlob),
+        /** @type {any} */ (powersP),
+        /** @type {any} */ (makeFarContext(context)),
+        env,
+      );
+    }
+
+    return E(/** @type {any} */ (workerDaemonFacet)).makeFromTree(
+      /** @type {any} */ (treeP),
+      /** @type {any} */ (powersP),
+      /** @type {any} */ (makeFarContext(context)),
+      env,
+    );
+  };
+
+  /**
+   * Walk a ReadableTree or Mount whose layout matches a
+   * compartment-mapper archive (`compartment-map.json` at root plus
+   * modules at their referenced `<compartmentName>/<moduleLocation>`
+   * paths) and pack it into ZIP bytes that {@link makeArchive} can
+   * load via `parseArchive` / `hostImportArchive`.
+   *
+   * @param {Promise<unknown> | unknown} treeP
+   * @returns {Promise<Uint8Array>}
+   */
+  const packTreeIntoArchiveBytes = async treeP => {
+    const textEncoder = new TextEncoder();
+    const mapBlob = await E(/** @type {any} */ (treeP)).lookup(
+      'compartment-map.json',
+    );
+    const mapText = await E(/** @type {any} */ (mapBlob)).text();
+    let compartmentMap;
+    try {
+      compartmentMap = JSON.parse(mapText);
+    } catch (err) {
+      throw makeError(
+        X`Tree's compartment-map.json is not valid JSON: ${q(err)}`,
+      );
+    }
+    if (
+      !compartmentMap ||
+      typeof compartmentMap !== 'object' ||
+      typeof compartmentMap.compartments !== 'object' ||
+      compartmentMap.compartments === null
+    ) {
+      throw makeError(
+        X`Tree's compartment-map.json is missing the compartments map`,
+      );
+    }
+
+    const zip = new ZipWriter();
+    zip.write('compartment-map.json', textEncoder.encode(mapText));
+
+    // Pipeline the per-module reads via Promise.all to avoid the
+    // round-trip-per-file stall that a naive sequential walk would
+    // suffer when daemon and worker live in different processes.
+    // Sort entries so the resulting ZIP is deterministic (helpful
+    // for tests and for content-addressable storage).
+    const sortedCompartments = Object.entries(
+      /** @type {Record<string, any>} */ (compartmentMap.compartments),
+    ).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    /** @type {Array<{ archivePath: string, srcP: Promise<string> }>} */
+    const moduleReads = [];
+    for (const [compartmentName, descriptor] of sortedCompartments) {
+      const modules = descriptor.modules || {};
+      const sortedModules = Object.values(modules).sort((a, b) => {
+        const al =
+          a && typeof a === 'object' && 'location' in a
+            ? String(/** @type {any} */ (a).location)
+            : '';
+        const bl =
+          b && typeof b === 'object' && 'location' in b
+            ? String(/** @type {any} */ (b).location)
+            : '';
+        return al < bl ? -1 : al > bl ? 1 : 0;
+      });
+      for (const moduleInfo of sortedModules) {
+        if (
+          typeof moduleInfo === 'object' &&
+          moduleInfo !== null &&
+          'location' in moduleInfo &&
+          typeof moduleInfo.location === 'string'
+        ) {
+          const archivePath = `${compartmentName}/${moduleInfo.location}`;
+          const pathSegments = archivePath.split('/').filter(Boolean);
+          const srcP = E(/** @type {any} */ (treeP))
+            .lookup(pathSegments)
+            .then(blob => E(/** @type {any} */ (blob)).text());
+          moduleReads.push({ archivePath, srcP });
+        }
+      }
+    }
+    const sources = await Promise.all(moduleReads.map(r => r.srcP));
+    moduleReads.forEach(({ archivePath }, i) => {
+      zip.write(archivePath, textEncoder.encode(sources[i]));
+    });
+
+    return zip.snapshot();
+  };
+
+  /**
+   * Wrap an in-memory Uint8Array as a transient blob exo that
+   * implements the `EndoBlob` surface (sha256 / streamBase64 / text
+   * / json) just well enough for the worker's `makeArchive` method
+   * to consume it.  The blob is not persisted in CAS — its lifetime
+   * is the duration of the eventual-send.
+   *
+   * @param {Uint8Array} bytes
+   */
+  const makeBytesBlob = bytes => {
+    const sha256Hex = (() => {
+      const digester = cryptoPowers.makeSha256();
+      digester.update(bytes);
+      return digester.digestHex();
+    })();
+    return makeExo(
+      'TransientBlob',
+      BlobInterface,
+      /** @type {any} */ ({
+        help: () => 'Transient in-memory blob',
+        sha256: () => sha256Hex,
+        streamBase64: () => makeReaderRef([bytes]),
+        text: async () => new TextDecoder().decode(bytes),
+        json: async () => JSON.parse(new TextDecoder().decode(bytes)),
+      }),
     );
   };
 
@@ -611,7 +1651,7 @@ const makeDaemonCore = async (
    */
   const makePromise = async (storeId, context) => {
     context.thisDiesIfThatDies(storeId);
-    const petStore = await provide(storeId, 'pet-store');
+    const petStore = await provideStoreController(storeId);
     const { promise, resolve, reject } = makePromiseKit();
     let settled = false;
 
@@ -692,7 +1732,7 @@ const makeDaemonCore = async (
    */
   const makeResolver = async (storeId, context) => {
     context.thisDiesIfThatDies(storeId);
-    const petStore = await provide(storeId, 'pet-store');
+    const petStore = await provideStoreController(storeId);
     const resolverJobs = makeSerialJobs();
 
     /** @param {PromiseStatusRecord} record */
@@ -705,31 +1745,53 @@ const makeDaemonCore = async (
       const hardenedRecord = harden(record);
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      const { id } = await formulateMarshalValue(hardenedRecord, tasks);
-      await petStore.write(PROMISE_STATUS_NAME, id);
+      const { id } = await formulateMarshalValue(
+        hardenedRecord,
+        tasks,
+        pinTransient,
+      );
+      try {
+        await petStore.storeIdentifier(PROMISE_STATUS_NAME, id);
+      } finally {
+        await unpinTransient(id);
+      }
     };
 
     return makeExo('EndoResolver', ResponderInterface, {
-      resolveWithId: idOrPromise =>
-        resolverJobs.enqueue(async () => {
+      resolveWithId: async idOrPromise => {
+        await resolverJobs.enqueue(async () => {
           await null;
           if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
             return;
           }
           try {
-            const id = await idOrPromise;
+            let id = await idOrPromise;
             if (typeof id !== 'string') {
               throw new TypeError(
                 `Promise resolution must be a formula identifier (${q(id)})`,
               );
             }
+            // Accept either a raw formula ID or an endo:// locator.
+            // A locator carries the sender's actual node number so we
+            // don't misinterpret local node identifiers across daemon boundaries.
+            if (id.startsWith('endo://')) {
+              const internalized = internalizeLocator(id);
+              id = internalized.id;
+            }
             assertValidId(id);
+            // Write the resolved formula ID as a direct pet store entry so
+            // the formula graph keeps the resolved value reachable.
+            // This must happen before writeStatus because writeStatus
+            // triggers the promise to resolve, and collection may run
+            // before the consumer has a chance to name the result.
+            await petStore.storeIdentifier(RESOLVED_VALUE_NAME, id);
             await writeStatus({ status: 'fulfilled', valueId: id });
           } catch (error) {
             const reason = formatRejectionReason(error);
             await writeStatus({ status: 'rejected', reason });
           }
-        }),
+        });
+      },
     });
   };
 
@@ -739,7 +1801,7 @@ const makeDaemonCore = async (
    */
   const makeMailHub = async (storeId, context) => {
     context.thisDiesIfThatDies(storeId);
-    const mailboxStore = await provide(storeId, 'mailbox-store');
+    const mailboxStore = await provideStoreController(storeId);
 
     const listMessageNames = () =>
       harden(
@@ -776,6 +1838,23 @@ const makeDaemonCore = async (
       return tailNames.reduce(
         (directory, petName) => E(directory).lookup(petName),
         lookup(headName),
+      );
+    };
+
+    const maybeLookup = petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      const [headName, ...tailNames] = namePath;
+      const id = identifyMessage(headName);
+      if (id === undefined) {
+        return undefined;
+      }
+      const value = provide(/** @type {FormulaIdentifier} */ (id), 'message');
+      return tailNames.reduce(
+        (directory, petName) =>
+          /** @type {Promise<NameHub>} */ (
+            /** @type {unknown} */ (E(directory).lookup(petName))
+          ),
+        /** @type {Promise<NameHub>} */ (/** @type {unknown} */ (value)),
       );
     };
 
@@ -873,6 +1952,26 @@ const makeDaemonCore = async (
       return harden(Array.from(identities).sort());
     };
 
+    const listLocators = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        const names = listMessageNames();
+        /** @type {Record<string, string>} */
+        const record = {};
+        await Promise.all(
+          names.map(async name => {
+            const locator = await locate(name);
+            if (locator !== undefined) {
+              record[name] = locator;
+            }
+          }),
+        );
+        return harden(record);
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).listLocators();
+    };
+
     const followNameChanges = async function* followNameChanges(
       ...petNamePath
     ) {
@@ -908,25 +2007,46 @@ const makeDaemonCore = async (
     };
 
     const disallowedMutation = async () => {
-      throw new Error('not allowed');
+      throw new Error('Mailbox directory is read-only');
+    };
+    const notSupported = async () => {
+      throw new Error('Text I/O is not supported on mailbox directories');
     };
 
-    mailHub = makeExo('MailHub', DirectoryInterface, {
-      has,
-      identify,
-      locate,
-      reverseLocate,
-      followLocatorNameChanges,
-      list,
-      listIdentifiers,
-      followNameChanges,
-      lookup,
-      reverseLookup,
-      write: disallowedMutation,
-      remove: disallowedMutation,
-      move: disallowedMutation,
-      copy: disallowedMutation,
-    });
+    mailHub = /** @type {NameHub} */ (
+      /** @type {unknown} */ (
+        makeExo(
+          'MailHub',
+          DirectoryInterface,
+          /** @type {any} */ ({
+            help: makeHelp(directoryHelp),
+            has,
+            identify,
+            locate,
+            reverseLocate,
+            followLocatorNameChanges: locator =>
+              makeIteratorRef(followLocatorNameChanges(locator)),
+            list,
+            listIdentifiers,
+            listLocators,
+            followNameChanges: (...petNamePath) =>
+              makeIteratorRef(followNameChanges(...petNamePath)),
+            lookup,
+            maybeLookup,
+            reverseLookup,
+            storeIdentifier: disallowedMutation,
+            storeLocator: disallowedMutation,
+            remove: disallowedMutation,
+            move: disallowedMutation,
+            copy: disallowedMutation,
+            makeDirectory: disallowedMutation,
+            readText: notSupported,
+            maybeReadText: notSupported,
+            writeText: disallowedMutation,
+          }),
+        )
+      )
+    );
 
     return mailHub;
   };
@@ -936,8 +2056,11 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makeMessageHub = async (messageFormula, context) => {
+    const formula = messageFormula;
     const {
       messageType,
+      messageId,
+      replyTo,
       from,
       to,
       date,
@@ -947,14 +2070,25 @@ const makeDaemonCore = async (
       strings,
       names,
       ids,
-    } = messageFormula;
+      source,
+      slots,
+      // eslint-disable-next-line no-unused-vars
+      codeNames,
+      // eslint-disable-next-line no-unused-vars
+      petNamePaths,
+    } = formula;
 
     if (
+      typeof messageId !== 'string' ||
       typeof from !== 'string' ||
       typeof to !== 'string' ||
       typeof date !== 'string'
     ) {
       throw new Error('Message formula is incomplete');
+    }
+    assertFormulaNumber(messageId);
+    if (replyTo !== undefined) {
+      assertFormulaNumber(replyTo);
     }
 
     /** @type {Map<string, FormulaIdentifier>} */
@@ -987,6 +2121,10 @@ const makeDaemonCore = async (
     registerName(MESSAGE_TO_NAME, to, undefined);
     registerName(MESSAGE_DATE_NAME, undefined, date);
     registerName(MESSAGE_TYPE_NAME, undefined, messageType);
+    registerName(MESSAGE_ID_NAME, undefined, messageId);
+    if (replyTo !== undefined) {
+      registerName(MESSAGE_REPLY_TO_NAME, undefined, replyTo);
+    }
 
     if (messageType === 'request') {
       if (
@@ -1018,6 +2156,30 @@ const makeDaemonCore = async (
       names.forEach((name, index) => {
         registerName(name, ids[index], undefined);
       });
+    } else if (messageType === 'form') {
+      if (typeof description !== 'string') {
+        throw new Error('Form message formula is incomplete');
+      }
+      registerName(MESSAGE_DESCRIPTION_NAME, undefined, description);
+    } else if (messageType === 'value') {
+      const { valueId } = formula;
+      if (valueId === undefined) {
+        throw new Error('Value message formula is incomplete');
+      }
+      registerName('@value', valueId, undefined);
+    } else if (messageType === 'definition') {
+      if (
+        typeof source !== 'string' ||
+        slots === undefined ||
+        promiseId === undefined ||
+        resolverId === undefined
+      ) {
+        throw new Error('Definition message formula is incomplete');
+      }
+      registerName('@source', undefined, source);
+      registerName('@slots', undefined, slots);
+      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
+      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }
@@ -1037,13 +2199,26 @@ const makeDaemonCore = async (
           if (headName === MESSAGE_PROMISE_NAME) {
             return provide(id, 'promise');
           }
+          if (headName === '@result') {
+            // Follow the promise resolution to provide the underlying value.
+            return Promise.resolve(provide(id, 'promise')).then(
+              resolutionId => {
+                if (typeof resolutionId === 'string') {
+                  return provide(
+                    /** @type {FormulaIdentifier} */ (resolutionId),
+                  );
+                }
+                return resolutionId;
+              },
+            );
+          }
           if (headName === MESSAGE_RESOLVER_NAME) {
             return provide(id, 'resolver');
           }
           return provide(id);
         }
         if (valueByName.has(headName)) {
-          return valueByName.get(headName);
+          return Promise.resolve(valueByName.get(headName));
         }
         throw new TypeError(`Unknown message name: ${q(headName)}`);
       }
@@ -1051,6 +2226,17 @@ const makeDaemonCore = async (
         (directory, petName) => E(directory).lookup(petName),
         lookup(headName),
       );
+    };
+
+    const maybeLookup = petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      const [headName, ...tailNames] = namePath;
+      if (tailNames.length === 0) {
+        if (!idByName.has(headName) && !valueByName.has(headName)) {
+          return undefined;
+        }
+      }
+      return lookup(petNameOrPath);
     };
 
     /**
@@ -1152,6 +2338,25 @@ const makeDaemonCore = async (
       return harden(Array.from(identities).sort());
     };
 
+    const listLocators = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        /** @type {Record<string, string>} */
+        const record = {};
+        await Promise.all(
+          orderedNames.map(async name => {
+            const locator = await locate(name);
+            if (locator !== undefined) {
+              record[name] = locator;
+            }
+          }),
+        );
+        return harden(record);
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).listLocators();
+    };
+
     const followNameChanges = async function* followNameChanges(
       ...petNamePath
     ) {
@@ -1183,25 +2388,46 @@ const makeDaemonCore = async (
     };
 
     const disallowedMutation = async () => {
-      throw new Error('not allowed');
+      throw new Error('Message directory is read-only');
+    };
+    const notSupported = async () => {
+      throw new Error('Text I/O is not supported on message directories');
     };
 
-    messageHub = makeExo('MessageHub', DirectoryInterface, {
-      has,
-      identify,
-      locate,
-      reverseLocate,
-      followLocatorNameChanges,
-      list,
-      listIdentifiers,
-      followNameChanges,
-      lookup,
-      reverseLookup,
-      write: disallowedMutation,
-      remove: disallowedMutation,
-      move: disallowedMutation,
-      copy: disallowedMutation,
-    });
+    messageHub = /** @type {NameHub} */ (
+      /** @type {unknown} */ (
+        makeExo(
+          'MessageHub',
+          DirectoryInterface,
+          /** @type {any} */ ({
+            help: makeHelp(directoryHelp),
+            has,
+            identify,
+            locate,
+            reverseLocate,
+            followLocatorNameChanges: locator =>
+              makeIteratorRef(followLocatorNameChanges(locator)),
+            list,
+            listIdentifiers,
+            listLocators,
+            followNameChanges: (...petNamePath) =>
+              makeIteratorRef(followNameChanges(...petNamePath)),
+            lookup,
+            maybeLookup,
+            reverseLookup,
+            storeIdentifier: disallowedMutation,
+            storeLocator: disallowedMutation,
+            remove: disallowedMutation,
+            move: disallowedMutation,
+            copy: disallowedMutation,
+            makeDirectory: disallowedMutation,
+            readText: notSupported,
+            maybeReadText: notSupported,
+            writeText: disallowedMutation,
+          }),
+        )
+      )
+    );
 
     return messageHub;
   };
@@ -1215,25 +2441,100 @@ const makeDaemonCore = async (
     eval: ({ worker, source, names, values }, context) =>
       makeEval(worker, source, names, values, context),
     'readable-blob': ({ content }) => makeReadableBlob(content),
-    lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
-    worker: (_formula, context, _id, formulaNumber) =>
-      makeIdentifiedWorker(formulaNumber, context),
+    'readable-tree': ({ content }) => makeReadableTree(content),
+    mount: async ({ path: mountPath, readOnly }) => {
+      // Verify the mount path exists.
+      const pathExists = await filePowers.exists(mountPath);
+      if (!pathExists) {
+        throw new Error(`Mount path does not exist: ${q(mountPath)}`);
+      }
+      const isDir = await filePowers.isDirectory(mountPath);
+      if (!isDir) {
+        throw new Error(`Mount path is not a directory: ${q(mountPath)}`);
+      }
+      return makeMount({ rootPath: mountPath, readOnly, filePowers });
+    },
+    'scratch-mount': async ({ readOnly }, _context, _id, formulaNumber) => {
+      const rootPath = filePowers.joinPath(
+        persistencePowers.statePath,
+        'mounts',
+        /** @type {string} */ (formulaNumber),
+      );
+      await filePowers.makePath(rootPath);
+      return makeMount({ rootPath, readOnly, filePowers });
+    },
+    lookup: ({ hub, path }, context) =>
+      makeLookup(
+        hub,
+        /** @type {import('./types.js').NamePath} */ (path),
+        context,
+      ),
+    worker: (formula, context, _id, formulaNumber) =>
+      makeIdentifiedWorker(
+        formulaNumber,
+        context,
+        formula.kind,
+        formula.trustedShims,
+        formula.label,
+      ),
     'make-unconfined': (
-      { worker: workerId, powers: powersId, specifier },
+      {
+        worker: workerId,
+        powers: powersId,
+        specifier,
+        env = {},
+        cancelWithWorker,
+      },
       context,
-    ) => makeUnconfined(workerId, powersId, specifier, context),
-    'make-bundle': (
-      { worker: workerId, powers: powersId, bundle: bundleId },
+    ) =>
+      makeUnconfined(
+        workerId,
+        powersId,
+        specifier,
+        env,
+        context,
+        cancelWithWorker,
+      ),
+    'make-archive': (
+      {
+        worker: workerId,
+        powers: powersId,
+        archive: archiveId,
+        env = {},
+        cancelWithWorker,
+      },
       context,
-    ) => makeBundle(workerId, powersId, bundleId, context),
+    ) =>
+      makeArchive(
+        workerId,
+        powersId,
+        archiveId,
+        env,
+        context,
+        cancelWithWorker,
+      ),
+    'make-from-tree': (
+      {
+        worker: workerId,
+        powers: powersId,
+        tree: treeId,
+        env = {},
+        cancelWithWorker,
+      },
+      context,
+    ) =>
+      // eslint-disable-next-line no-use-before-define
+      makeFromTree(workerId, powersId, treeId, env, context, cancelWithWorker),
     host: async (formula, context, id) => {
       const {
+        hostHandle: hostHandleId,
         handle: handleId,
         petStore: petStoreId,
         mailboxStore: mailboxStoreId,
         mailHub: mailHubId,
         inspector: inspectorId,
-        worker: workerId,
+        mainWorker: hostMainWorkerId,
+        nodeWorker: nodeWorkerId,
         endo: endoId,
         networks: networksId,
         pins: pinsId,
@@ -1242,16 +2543,38 @@ const makeDaemonCore = async (
       if (mailHubId === undefined) {
         throw new Error('Host formula missing mail hub');
       }
+      if (nodeWorkerId === undefined) {
+        throw new Error('Host formula missing nodeWorker (Phase 6 required)');
+      }
+      // Look up the agent key by scanning the agent_key table for
+      // an entry whose agentId has the same formula number.
+      const { number: hostNumber } = parseId(id);
+      const hostAgentKeys = persistencePowers.listAgentKeys();
+      const hostAgentKeyRecord = hostAgentKeys.find(entry => {
+        const { number: entryNumber } = parseId(entry.agentId);
+        return entryNumber === hostNumber;
+      });
+      if (hostAgentKeyRecord === undefined) {
+        throw new Error(`No agent key found for host formula ${q(hostNumber)}`);
+      }
+      const agentNodeNumber = /** @type {NodeNumber} */ (
+        hostAgentKeyRecord.publicKey
+      );
+
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeHost(
         id,
         handleId,
+        hostHandleId,
+        agentNodeNumber,
+        signBytes,
         petStoreId,
         mailboxStoreId,
         mailHubId,
         inspectorId,
-        workerId,
+        hostMainWorkerId,
+        nodeWorkerId,
         endoId,
         networksId,
         pinsId,
@@ -1259,7 +2582,7 @@ const makeDaemonCore = async (
         platformNames,
         context,
       );
-      const handle = agent.handle();
+      const handle = /** @type {any} */ (agent).handle();
       agentIdForHandle.set(handle, id);
       return agent;
     },
@@ -1272,29 +2595,48 @@ const makeDaemonCore = async (
         mailboxStore: mailboxStoreId,
         mailHub: mailHubId,
         worker: workerId,
+        networks: networksDirectoryId,
       } = formula;
 
       if (mailHubId === undefined) {
         throw new Error('Guest formula missing mail hub');
       }
+      // Look up the agent key by formula number.
+      const { number: guestNumber } = parseId(id);
+      const guestAgentKeys = persistencePowers.listAgentKeys();
+      const guestAgentKeyRecord = guestAgentKeys.find(entry => {
+        const { number: entryNumber } = parseId(entry.agentId);
+        return entryNumber === guestNumber;
+      });
+      if (guestAgentKeyRecord === undefined) {
+        throw new Error(
+          `No agent key found for guest formula ${q(guestNumber)}`,
+        );
+      }
+      const agentNodeNumber = /** @type {NodeNumber} */ (
+        guestAgentKeyRecord.publicKey
+      );
+
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeGuest(
         id,
         handleId,
+        agentNodeNumber,
         hostAgentId,
         hostHandleId,
         petStoreId,
         mailboxStoreId,
         mailHubId,
         workerId,
+        networksDirectoryId,
         context,
       );
-      const handle = agent.handle();
+      const handle = /** @type {any} */ (agent).handle();
       agentIdForHandle.set(handle, id);
       return agent;
     },
-    handle: async ({ agent: agentId }) => {
+    handle: async ({ agent: agentId }, _context, id) => {
       const agent = await provide(agentId, 'agent');
       const handle = agent.handle();
       agentIdForHandle.set(handle, agentId);
@@ -1306,50 +2648,152 @@ const makeDaemonCore = async (
       pins: pinsId,
       peers: peersId,
     }) => {
-      /** @type {FarRef<EndoBootstrap>} */
-      const endoBootstrap = makeExo('Endo', EndoInterface, {
-        ping: async () => 'pong',
-        terminate: async () => {
-          cancel(new Error('Termination requested'));
-        },
-        host: () => provide(hostId, 'host'),
-        leastAuthority: () => provide(leastAuthorityId, 'guest'),
-        greeter: async () => localGreeter,
-        gateway: async () => localGateway,
-        nodeNumber: () => localNodeNumber,
-        reviveNetworks: async () => {
-          const networksDirectory = await provide(networksId, 'directory');
-          const networkIds = await networksDirectory.listIdentifiers();
-          await Promise.allSettled(
-            networkIds.map(id =>
-              provide(/** @type {FormulaIdentifier} */ (id)),
-            ),
-          );
-        },
-        revivePins: async () => {
-          const pinsDirectory = await provide(pinsId, 'directory');
-          const pinIds = await pinsDirectory.listIdentifiers();
-          await Promise.allSettled(
-            pinIds.map(id => provide(/** @type {FormulaIdentifier} */ (id))),
-          );
-        },
-        addPeerInfo: async peerInfo => {
-          const knownPeers = /** @type {KnownPeersStore} */ (
-            /** @type {unknown} */ (await provide(peersId, 'pet-store'))
-          );
-          const { node: nodeNumber, addresses } = peerInfo;
-          assertNodeNumber(nodeNumber);
-          if (knownPeers.has(nodeNumber)) {
-            // We already have this peer.
-            // TODO: merge connection info
-            return;
-          }
-          const { id: peerId } =
-            // eslint-disable-next-line no-use-before-define
-            await formulatePeer(networksId, nodeNumber, addresses);
-          await knownPeers.write(nodeNumber, peerId);
-        },
-      });
+      const help = makeHelp(endoHelp);
+      const endoBootstrap = /** @type {FarRef<EndoBootstrap>} */ (
+        /** @type {unknown} */ (
+          makeExo(
+            'Endo',
+            EndoInterface,
+            /** @type {any} */ ({
+              help,
+              ping: async () => 'pong',
+              terminate: async () => {
+                cancel(new Error('Termination requested'));
+              },
+              host: () => provide(hostId, 'host'),
+              leastAuthority: () => provide(leastAuthorityId, 'guest'),
+              greeter: async () => localGreeter,
+              gateway: async () => localGateway,
+              nodeId: () => localNodeNumber,
+              sign: async hexBytes => toHex(signBytes(fromHex(hexBytes))),
+              reviveNetworks: async () => {
+                const networksDirectory = await provide(
+                  networksId,
+                  'directory',
+                );
+                const networkIds = await networksDirectory.listIdentifiers();
+                await Promise.allSettled(
+                  networkIds.map(id =>
+                    provide(/** @type {FormulaIdentifier} */ (id)),
+                  ),
+                );
+              },
+              revivePins: async () => {
+                const pinsDirectory = await provide(pinsId, 'directory');
+                const pinIds = await pinsDirectory.listIdentifiers();
+                for (const id of pinIds) {
+                  logLifecycle(
+                    /** @type {FormulaIdentifier} */ (id),
+                    'REVIVE_PIN',
+                  );
+                }
+                await Promise.allSettled(
+                  pinIds.map(id =>
+                    provide(/** @type {FormulaIdentifier} */ (id)),
+                  ),
+                );
+              },
+              addPeerInfo: async (
+                /** @type {import('./types.js').PeerInfo} */ peerInfo,
+              ) => {
+                const knownPeers = /** @type {KnownPeersStore} */ (
+                  /** @type {unknown} */ (await provideStoreController(peersId))
+                );
+                const { node: nodeNumber, addresses } = peerInfo;
+                assertNodeNumber(nodeNumber);
+                if (knownPeers.has(nodeNumber)) {
+                  const existingPeerId = knownPeers.identifyLocal(nodeNumber);
+                  if (existingPeerId !== undefined) {
+                    const existingFormulaId = /** @type {FormulaIdentifier} */ (
+                      existingPeerId
+                    );
+                    const existingFormula =
+                      await getFormulaForId(existingFormulaId);
+                    if (
+                      existingFormula.type === 'peer' &&
+                      JSON.stringify(existingFormula.addresses) !==
+                        JSON.stringify(addresses)
+                    ) {
+                      console.log(
+                        `addPeerInfo: replacing stale peer for node ${nodeNumber.slice(0, 16)}... (old: ${existingFormula.addresses.length} addr, new: ${addresses.length} addr)`,
+                      );
+                      console.log(
+                        `addPeerInfo:   old addresses=${JSON.stringify(existingFormula.addresses)} new addresses=${JSON.stringify(addresses)}`,
+                      );
+                      // eslint-disable-next-line no-use-before-define
+                      await cancelValue(
+                        existingFormulaId,
+                        new Error('Peer addresses updated'),
+                      );
+                      await knownPeers.remove(
+                        /** @type {PetName} */ (
+                          /** @type {unknown} */ (nodeNumber)
+                        ),
+                      );
+                      const { id: peerId } =
+                        // eslint-disable-next-line no-use-before-define
+                        await formulatePeer(networksId, nodeNumber, addresses);
+                      await knownPeers.storeIdentifier(nodeNumber, peerId);
+                      return;
+                    }
+                  }
+                  return;
+                }
+                console.log(
+                  `addPeerInfo: new peer for node ${nodeNumber.slice(0, 16)}... with ${addresses.length} address(es)`,
+                );
+                console.log(
+                  `addPeerInfo:   addresses=${JSON.stringify(addresses)}`,
+                );
+                const { id: peerId } =
+                  // eslint-disable-next-line no-use-before-define
+                  await formulatePeer(networksId, nodeNumber, addresses);
+                await knownPeers.storeIdentifier(nodeNumber, peerId);
+              },
+              listKnownPeers: async () => {
+                const knownPeers = /** @type {KnownPeersStore} */ (
+                  /** @type {unknown} */ (await provideStoreController(peersId))
+                );
+                const connectionStates =
+                  provideRemoteControl.getConnectionStates();
+                const nodeNumbers = knownPeers.list();
+                /** @type {Array<PeerInfo & { connectionState: string }>} */
+                const peers = [];
+                for (const nodeNumber of nodeNumbers) {
+                  const peerId = knownPeers.identifyLocal(
+                    /** @type {NodeNumber} */ (
+                      /** @type {unknown} */ (nodeNumber)
+                    ),
+                  );
+                  if (peerId !== undefined) {
+                    const formula = await getFormulaForId(
+                      /** @type {FormulaIdentifier} */ (peerId),
+                    );
+                    if (formula.type === 'peer') {
+                      const nodeId = /** @type {PeerFormula} */ (formula).node;
+                      peers.push(
+                        harden({
+                          node: nodeId,
+                          addresses: /** @type {PeerFormula} */ (formula)
+                            .addresses,
+                          connectionState: connectionStates[nodeId] || 'start',
+                        }),
+                      );
+                    }
+                  }
+                }
+                return harden(peers);
+              },
+              followPeerChanges: async () => {
+                const knownPeers = /** @type {KnownPeersStore} */ (
+                  /** @type {unknown} */ (await provideStoreController(peersId))
+                );
+                return knownPeers.followNameChanges();
+              },
+            }),
+          )
+        )
+      );
       return endoBootstrap;
     },
     'loopback-network': () =>
@@ -1358,67 +2802,101 @@ const makeDaemonCore = async (
       const disallowedFn = async () => {
         throw new Error('not allowed');
       };
+      const disallowedSyncFn = () => {
+        throw new Error('not allowed');
+      };
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
           makeExo('EndoGuest', GuestInterface, {
+            help: makeHelp(guestHelp),
             has: disallowedFn,
             identify: disallowedFn,
+            reverseIdentify: disallowedSyncFn,
+            locate: disallowedFn,
+            reverseLocate: disallowedFn,
+            followLocatorNameChanges: disallowedFn,
             list: disallowedFn,
+            listIdentifiers: disallowedFn,
+            listLocators: disallowedFn,
             followNameChanges: disallowedFn,
             lookup: disallowedFn,
+            maybeLookup: disallowedSyncFn,
+            lookupById: disallowedFn,
             reverseLookup: disallowedFn,
-            write: disallowedFn,
+            storeIdentifier: disallowedFn,
+            storeLocator: disallowedFn,
             remove: disallowedFn,
             move: disallowedFn,
             copy: disallowedFn,
+            makeDirectory: disallowedFn,
+            readText: disallowedFn,
+            maybeReadText: disallowedFn,
+            writeText: disallowedFn,
+            handle: disallowedSyncFn,
             listMessages: disallowedFn,
             followMessages: disallowedFn,
             resolve: disallowedFn,
             reject: disallowedFn,
             adopt: disallowedFn,
             dismiss: disallowedFn,
+            dismissAll: disallowedFn,
+            reply: disallowedFn,
             request: disallowedFn,
             send: disallowedFn,
-            makeDirectory: disallowedFn,
+            evaluate: disallowedFn,
+            define: disallowedFn,
+            form: disallowedFn,
+            storeBlob: disallowedFn,
+            storeValue: disallowedFn,
+            submit: disallowedFn,
+            sendValue: disallowedFn,
+            deliver: disallowedSyncFn,
           })
         )
       );
     },
-    'pet-store': (_formula, _context, _id, formulaNumber) =>
-      petStorePowers.makeIdentifiedPetStore(
+    'pet-store': async (_formula, _context, _id, formulaNumber) => {
+      await null;
+      return petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         'pet-store',
         assertPetName,
-      ),
-    'mailbox-store': (_formula, _context, _id, formulaNumber) =>
-      petStorePowers.makeIdentifiedPetStore(
+      );
+    },
+    'mailbox-store': async (_formula, _context, _id, formulaNumber) => {
+      await null;
+      return petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         'mailbox-store',
         assertMailboxStoreName,
-      ),
+      );
+    },
     'mail-hub': ({ store: storeId }, context) => makeMailHub(storeId, context),
     message: (formula, context) => makeMessageHub(formula, context),
     promise: ({ store: storeId }, context) => makePromise(storeId, context),
     resolver: ({ store: storeId }, context) => makeResolver(storeId, context),
-    'known-peers-store': (_formula, _context, _id, formulaNumber) =>
-      petStorePowers.makeIdentifiedPetStore(
+    'known-peers-store': async (_formula, _context, _id, formulaNumber) => {
+      await null;
+      return petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         'known-peers-store',
-        // The known peers store is just a pet store that only accepts node identifiers
-        // (i.e. formula numbers) as "names".
         assertValidNumber,
-      ),
+      );
+    },
     'pet-inspector': ({ petStore: petStoreId }) =>
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
       makePetStoreInspector(petStoreId),
-    directory: ({ petStore: petStoreId }, context) =>
+    directory: ({ petStore: petStoreId }, context) => {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
-      makeIdentifiedDirectory({
+      return makeIdentifiedDirectory({
         petStoreId,
         context,
-      }),
+        agentNodeNumber: localNodeNumber,
+        isLocalKey,
+      });
+    },
     peer: (
       { networks: networksId, node: nodeId, addresses: addressesId },
       context,
@@ -1428,12 +2906,91 @@ const makeDaemonCore = async (
       makePeer(networksId, nodeId, addressesId, context),
     invitation: (
       { hostAgent: hostAgentId, hostHandle: hostHandleId, guestName },
-      _context,
+      _context, // eslint-disable-line no-underscore-dangle
       id,
     ) =>
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      makeInvitation(id, hostAgentId, hostHandleId, guestName),
+      makeInvitation(
+        id,
+        hostAgentId,
+        hostHandleId,
+        /** @type {import('./types.js').PetName} */ (guestName),
+      ),
+    timer: async ({ intervalMs, label: timerLabel }, context) => {
+      const interval = Number(intervalMs) || 60000;
+      let tickCount = 0;
+      /** @type {Array<{ callback: object, context: string }>} */
+      const subscribers = [];
+
+      // Start the timer loop (fire-and-forget — runs until cancelled)
+      const runTimer = async () => {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          try {
+            await delay(interval, context.cancelled);
+          } catch {
+            break; // Cancelled — clean exit
+          }
+          tickCount += 1;
+          const tick = harden({
+            tick: tickCount,
+            label: timerLabel || 'timer',
+            timestamp: new Date().toISOString(),
+          });
+          for (const sub of subscribers) {
+            try {
+              await E(sub.callback).onTick(tick);
+            } catch (err) {
+              console.error(
+                `[timer] subscriber error:`,
+                /** @type {Error} */ (err).message,
+              );
+            }
+          }
+        }
+      };
+
+      runTimer();
+
+      return Far('Timer', {
+        __getMethodNames__: () =>
+          harden([
+            '__getMethodNames__',
+            'subscribe',
+            'getLabel',
+            'getInterval',
+            'help',
+          ]),
+        subscribe: callback => {
+          subscribers.push({ callback, context: '' });
+        },
+        getLabel: () => timerLabel || 'timer',
+        getInterval: () => interval,
+        help: () =>
+          `Timer "${timerLabel || 'timer'}" firing every ${interval}ms. Ticks: ${tickCount}`,
+      });
+    },
+    channel: async (formula, context, id) => {
+      const {
+        handle: handleId,
+        creatorAgent: creatorAgentId,
+        messageStore: messageStoreId,
+        memberStore: memberStoreId,
+        proposedName: channelProposedName,
+      } = formula;
+      // Behold, forward reference:
+      // eslint-disable-next-line no-use-before-define
+      return makeChannelInstance(
+        id,
+        handleId,
+        creatorAgentId,
+        messageStoreId,
+        memberStoreId,
+        channelProposedName,
+        context,
+      );
+    },
   };
 
   /**
@@ -1445,9 +3002,8 @@ const makeDaemonCore = async (
   const evaluateFormula = async (id, formulaNumber, formula, context) => {
     await null;
     if (Object.hasOwn(makers, formula.type)) {
-      const make = makers[formula.type];
+      const make = /** @type {any} */ (makers)[formula.type];
       const value = await /** @type {unknown} */ (
-        // @ts-expect-error TypeScript is trying too hard to infer the unknown.
         make(formula, context, id, formulaNumber)
       );
       if (typeof value === 'object' && value !== null) {
@@ -1467,31 +3023,81 @@ const makeDaemonCore = async (
    */
   const evaluateFormulaForId = async (id, context) => {
     const { number: formulaNumber, node: formulaNode } = parseId(id);
-    const isRemote = formulaNode !== localNodeNumber;
+    const isRemote = !isLocalKey(formulaNode);
     if (isRemote) {
-      const peer = providePeer(formulaNode, context.cancel, context.cancelled);
+      // eslint-disable-next-line no-use-before-define
+      const peerId = await getPeerIdForNodeIdentifier(formulaNode);
+      context.thisDiesIfThatDies(peerId);
+      const peer = provide(peerId, 'peer');
       return E(peer).provide(id);
     }
 
     const formula = await getFormulaForId(id);
-    console.log(`Reincarnating ${formula.type} ${id}`);
+    logLifecycle(id, 'REINCARNATE');
     assertValidFormulaType(formula.type);
 
     return evaluateFormula(id, formulaNumber, formula, context);
   };
 
   /** @type {DaemonCore['formulate']} */
-  const formulate = async (formulaNumber, formula) => {
+  /**
+   * Persist a formula to disk and register it in the graph, but do NOT
+   * evaluate it eagerly.  Callers can later call `provide(id)` to
+   * trigger evaluation on demand.  Useful for formulas that should
+   * come to life only when first used (e.g., peer connections).
+   *
+   * @param {FormulaNumber} formulaNumber
+   * @param {Formula} formula
+   * @returns {Promise<FormulaIdentifier>}
+   */
+  const formulateLazy = async (
+    formulaNumber,
+    formula,
+    nodeNumber = localNodeNumber,
+  ) => {
     const id = formatId({
       number: formulaNumber,
-      node: localNodeNumber,
+      node: nodeNumber,
+    });
+    await persistencePowers.writeFormula(formulaNumber, nodeNumber, formula);
+    await withFormulaGraphLock(async () => {
+      if (formulaForId.has(id)) return;
+      formulaForId.set(id, formula);
+      formulaGraph.onFormulaAdded(id, formula);
+    });
+    formulaChangeTopic.publisher.next(
+      harden({ add: formulaNumber, node: nodeNumber }),
+    );
+    logLifecycle(id, 'FORMULATE_LAZY');
+    return id;
+  };
+
+  /** @type {DaemonCore['formulate']} */
+  const formulate = async (
+    formulaNumber,
+    formula,
+    nodeNumber = localNodeNumber,
+  ) => {
+    const id = formatId({
+      number: formulaNumber,
+      node: nodeNumber,
     });
 
-    formulaForId.has(id) && assert.Fail`Formula already exists for id ${id}`;
-    formulaForId.set(id, formula);
+    // Persist to disk before the formula becomes visible in the graph.
+    // This ensures that retries and reincarnation can always read the
+    // formula JSON, even if evaluation fails immediately.
+    await persistencePowers.writeFormula(formulaNumber, nodeNumber, formula);
 
-    // Memoize for lookup.
-    console.log(`Making ${formula.type} ${id}`);
+    await withFormulaGraphLock(async () => {
+      formulaForId.has(id) && assert.Fail`Formula already exists for id ${id}`;
+      formulaForId.set(id, formula);
+      formulaGraph.onFormulaAdded(id, formula);
+    });
+    formulaChangeTopic.publisher.next(
+      harden({ add: formulaNumber, node: nodeNumber }),
+    );
+
+    logLifecycle(id, 'FORMULATE');
     const { promise, resolve } = /** @type {PromiseKit<unknown>} */ (
       makePromiseKit()
     );
@@ -1506,13 +3112,9 @@ const makeDaemonCore = async (
     });
     controllerForId.set(id, controller);
 
-    // Ensure that failure to flush the formula to storage
-    // causes a rejection for both the controller and the value.
-    const written = persistencePowers.writeFormula(formulaNumber, formula);
     // The controller _must_ be constructed in the synchronous prelude of this function.
     const valuePromise = evaluateFormula(id, formulaNumber, formula, context);
-    resolve(written.then(() => valuePromise));
-    await written;
+    resolve(valuePromise);
 
     return harden({
       id,
@@ -1521,7 +3123,8 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['provideController']} */
-  const provideController = id => {
+  const provideController = inputId => {
+    const id = inputId;
     const existingController = controllerForId.get(id);
     if (existingController !== undefined) {
       return existingController;
@@ -1556,55 +3159,156 @@ const makeDaemonCore = async (
       throw new Error(`Cannot get peer formula identifier for self`);
     }
     const knownPeers = /** @type {KnownPeersStore} */ (
-      /** @type {unknown} */ (await provide(knownPeersId, 'pet-store'))
+      /** @type {unknown} */ (await provideStoreController(knownPeersId))
     );
     // The knownPeers pet store uses node numbers as keys, not pet names.
     // This is a deliberate aberration of the pet store abstraction.
-    const peerId = knownPeers.identifyLocal(nodeNumber);
+    let peerId = knownPeers.identifyLocal(nodeNumber);
+
+    // If not found as a daemon node, check if it's a remote agent key
+    // and look up the owning daemon's node.
+    if (peerId === undefined) {
+      const daemonNode = persistencePowers.getRemoteAgentKey(nodeNumber);
+      if (daemonNode !== undefined) {
+        peerId = knownPeers.identifyLocal(
+          /** @type {NodeNumber} */ (daemonNode),
+        );
+      }
+    }
+
     if (peerId === undefined) {
       throw new Error(`No peer found for node identifier ${q(nodeNumber)}.`);
     }
-    const { id: verifiedPeerId } = parseId(peerId);
-    return verifiedPeerId;
+    parseId(peerId);
+    return /** @type {FormulaIdentifier} */ (peerId);
   };
 
   /** @type {DaemonCore['cancelValue']} */
   const cancelValue = async (id, reason) => {
+    // Wait for any in-flight graph operation (formulation, collection)
+    // to finish before cancelling.
     await formulaGraphJobs.enqueue();
     const controller = provideController(id);
-    console.log('Cancelled:');
+    logLifecycle(id, 'CANCEL_REQUEST', reason?.message);
     return controller.context.cancel(reason);
   };
 
   /** @type {DaemonCore['formulateReadableBlob']} */
   const formulateReadableBlob = async (readerRef, deferredTasks) => {
-    const { formulaNumber, contentSha512 } = await formulaGraphJobs.enqueue(
-      async () => {
+    return /** @type {FormulateResult<FarRef<EndoReadable>>} */ (
+      withFormulaGraphLock(async () => {
         await null;
-        const values = {
-          formulaNumber: /** @type {FormulaNumber} */ (await randomHex512()),
-          contentSha512: await contentStore.store(makeRefReader(readerRef)),
-        };
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        const contentSha256 = await contentStore.store(
+          makeRefReader(readerRef),
+        );
 
         await deferredTasks.execute({
           readableBlobId: formatId({
-            number: values.formulaNumber,
+            number: formulaNumber,
             node: localNodeNumber,
           }),
         });
 
-        return values;
-      },
+        /** @type {ReadableBlobFormula} */
+        const formula = {
+          type: 'readable-blob',
+          content: contentSha256,
+        };
+
+        return formulate(formulaNumber, formula);
+      })
     );
+  };
 
-    /** @type {ReadableBlobFormula} */
-    const formula = {
-      type: 'readable-blob',
-      content: contentSha512,
-    };
+  /** @type {DaemonCore['formulateMount']} */
+  const formulateMount = async (mountPath, readOnly, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
 
-    return /** @type {FormulateResult<FarRef<EndoReadable>>} */ (
-      formulate(formulaNumber, formula)
+        await deferredTasks.execute({
+          mountId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').MountFormula} */
+        const formula = harden({
+          type: 'mount',
+          path: mountPath,
+          readOnly,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateScratchMount']} */
+  const formulateScratchMount = async (readOnly, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          scratchMountId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').ScratchMountFormula} */
+        const formula = harden({
+          type: 'scratch-mount',
+          readOnly,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['checkinTree']} */
+  const checkinTree = async (remoteTree, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+
+        // Walk the remote tree and store all content via the platform adapter.
+        const { sha256: treeSha256 } = await platformCheckinTree(
+          remoteTree,
+          contentStore,
+        );
+
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          readableTreeId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').ReadableTreeFormula} */
+        const formula = {
+          type: 'readable-tree',
+          content: treeSha256,
+        };
+
+        return formulate(formulaNumber, formula);
+      })
     );
   };
 
@@ -1620,31 +3324,116 @@ const makeDaemonCore = async (
     guestName,
     deferredTasks,
   ) => {
-    const identifiers = await formulaGraphJobs.enqueue(async () => {
-      const invitationNumber = /** @type {FormulaNumber} */ (
-        await randomHex512()
-      );
-      const invitationId = formatId({
-        number: invitationNumber,
+    return /** @type {FormulateResult<Invitation>} */ (
+      withFormulaGraphLock(async () => {
+        const invitationNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        const invitationId = formatId({
+          number: invitationNumber,
+          node: localNodeNumber,
+        });
+        await deferredTasks.execute({
+          invitationId,
+        });
+
+        /** @type {InvitationFormula} */
+        const formula = {
+          type: 'invitation',
+          hostAgent: hostAgentId,
+          hostHandle: hostHandleId,
+          guestName,
+        };
+
+        return formulate(invitationNumber, formula);
+      })
+    );
+  };
+
+  /**
+   * @param {FormulaIdentifier} creatorAgentId
+   * @param {FormulaIdentifier} handleId
+   * @param {string} channelProposedName
+   * @param {DeferredTasks<import('./types.js').ChannelDeferredTaskParams>} deferredTasks
+   */
+  const formulateChannel = async (
+    creatorAgentId,
+    handleId,
+    channelProposedName,
+    deferredTasks,
+  ) => {
+    return /** @type {FormulateResult<import('./types.js').EndoChannel>} */ (
+      withFormulaGraphLock(async () => {
+        const channelNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        const messageStoreNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        const memberStoreNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        // Formulate subsidiary stores
+        await formulateNumberedPetStore(messageStoreNumber);
+        await formulateNumberedPetStore(memberStoreNumber);
+
+        const messageStoreId = formatId({
+          number: messageStoreNumber,
+          node: localNodeNumber,
+        });
+        const memberStoreId = formatId({
+          number: memberStoreNumber,
+          node: localNodeNumber,
+        });
+        const channelId = formatId({
+          number: channelNumber,
+          node: localNodeNumber,
+        });
+
+        await deferredTasks.execute({
+          channelId,
+        });
+
+        /** @type {import('./types.js').ChannelFormula} */
+        const formula = {
+          type: 'channel',
+          handle: handleId,
+          creatorAgent: creatorAgentId,
+          messageStore: messageStoreId,
+          memberStore: memberStoreId,
+          proposedName: channelProposedName,
+        };
+
+        return formulate(channelNumber, formula);
+      })
+    );
+  };
+
+  /**
+   * @param {number} intervalMs
+   * @param {string} label
+   * @param {import('./types.js').DeferredTasks<{ timerId: FormulaIdentifier }>} deferredTasks
+   */
+  const formulateTimer = async (intervalMs, label, deferredTasks) => {
+    return withFormulaGraphLock(async () => {
+      const timerNumber = /** @type {FormulaNumber} */ (await randomHex256());
+      const timerId = formatId({
+        number: timerNumber,
         node: localNodeNumber,
       });
-      await deferredTasks.execute({
-        invitationId,
+
+      await deferredTasks.execute({ timerId });
+
+      /** @type {TimerFormula} */
+      const formula = harden({
+        type: /** @type {const} */ ('timer'),
+        intervalMs,
+        label,
       });
-      return { invitationNumber };
+
+      return formulate(timerNumber, formula);
     });
-
-    /** @type {InvitationFormula} */
-    const formula = {
-      type: 'invitation',
-      hostAgent: hostAgentId,
-      hostHandle: hostHandleId,
-      guestName,
-    };
-
-    return /** @type {FormulateResult<Invitation>} */ (
-      formulate(identifiers.invitationNumber, formula)
-    );
   };
 
   /**
@@ -1658,20 +3447,28 @@ const makeDaemonCore = async (
    *
    * @param {FormulaNumber} formulaNumber - The formula number of the handle to formulate.
    * @param {FormulaIdentifier} agentId - The formula identifier of the handle's agent.
+   * @param {NodeNumber} [nodeNumber] - The node number to use (defaults to localNodeNumber).
    * @returns {Promise<FormulaIdentifier>}
    */
-  const formulateNumberedHandle = async (formulaNumber, agentId) => {
+  const formulateNumberedHandle = async (
+    formulaNumber,
+    agentId,
+    nodeNumber = localNodeNumber,
+  ) => {
     /** @type {HandleFormula} */
     const formula = {
       type: 'handle',
       agent: agentId,
     };
-    await persistencePowers.writeFormula(formulaNumber, formula);
+    await persistencePowers.writeFormula(formulaNumber, nodeNumber, formula);
     const id = formatId({
       number: formulaNumber,
-      node: localNodeNumber,
+      node: nodeNumber,
     });
-    formulaForId.set(id, formula);
+    await withFormulaGraphLock(async () => {
+      formulaForId.set(id, formula);
+      formulaGraph.onFormulaAdded(id, formula);
+    });
     return id;
   };
 
@@ -1680,15 +3477,19 @@ const makeDaemonCore = async (
    * The returned promise is resolved after the formula is persisted.
    *
    * @param {FormulaNumber} formulaNumber - The formula number of the pet store to formulate.
+   * @param {NodeNumber} [nodeNumber] - The node number to use (defaults to localNodeNumber).
    * @returns {FormulateResult<PetStore>} The formulated pet store.
    */
-  const formulateNumberedPetStore = async formulaNumber => {
+  const formulateNumberedPetStore = async (
+    formulaNumber,
+    nodeNumber = localNodeNumber,
+  ) => {
     /** @type {PetStoreFormula} */
     const formula = {
       type: 'pet-store',
     };
     return /** @type {FormulateResult<PetStore>} */ (
-      formulate(formulaNumber, formula)
+      formulate(formulaNumber, formula, nodeNumber)
     );
   };
 
@@ -1698,15 +3499,19 @@ const makeDaemonCore = async (
    * The returned promise is resolved after the formula is persisted.
    *
    * @param {FormulaNumber} formulaNumber - The formula number of the mailbox store.
+   * @param {NodeNumber} [nodeNumber] - The node number to use (defaults to localNodeNumber).
    * @returns {FormulateResult<PetStore>} The formulated mailbox store.
    */
-  const formulateNumberedMailboxStore = async formulaNumber => {
+  const formulateNumberedMailboxStore = async (
+    formulaNumber,
+    nodeNumber = localNodeNumber,
+  ) => {
     /** @type {MailboxStoreFormula} */
     const formula = {
       type: 'mailbox-store',
     };
     return /** @type {FormulateResult<PetStore>} */ (
-      formulate(formulaNumber, formula)
+      formulate(formulaNumber, formula, nodeNumber)
     );
   };
 
@@ -1717,34 +3522,70 @@ const makeDaemonCore = async (
    *
    * @param {FormulaNumber} formulaNumber - The mail hub formula number.
    * @param {FormulaIdentifier} mailboxStoreId
+   * @param {NodeNumber} [nodeNumber] - The node number to use (defaults to localNodeNumber).
    * @returns {FormulateResult<NameHub>} The formulated mail hub.
    */
-  const formulateNumberedMailHub = async (formulaNumber, mailboxStoreId) => {
+  const formulateNumberedMailHub = async (
+    formulaNumber,
+    mailboxStoreId,
+    nodeNumber = localNodeNumber,
+  ) => {
     /** @type {MailHubFormula} */
     const formula = {
       type: 'mail-hub',
       store: mailboxStoreId,
     };
     return /** @type {FormulateResult<NameHub>} */ (
-      formulate(formulaNumber, formula)
+      formulate(formulaNumber, formula, nodeNumber)
     );
   };
 
   /**
    * @type {DaemonCore['formulateDirectory']}
    */
-  const formulateDirectory = async () => {
-    const { id: petStoreId } = await formulateNumberedPetStore(
-      /** @type {FormulaNumber} */ (await randomHex512()),
-    );
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
-    /** @type {DirectoryFormula} */
-    const formula = {
-      type: 'directory',
-      petStore: petStoreId,
-    };
+  const formulateDirectory = async (nodeNumber = localNodeNumber) => {
     return /** @type {FormulateResult<EndoDirectory>} */ (
-      formulate(formulaNumber, formula)
+      withFormulaGraphLock(async () => {
+        const { id: petStoreId } = await formulateNumberedPetStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          nodeNumber,
+        );
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        /** @type {DirectoryFormula} */
+        const formula = {
+          type: 'directory',
+          petStore: petStoreId,
+        };
+        const result = await formulate(formulaNumber, formula, nodeNumber);
+        pinTransient(result.id);
+        return result;
+      })
+    );
+  };
+
+  /**
+   * Formulates a `directory` formula backed by an existing pet-store.
+   *
+   * @param {FormulaIdentifier} storeId - The existing store formula ID.
+   * @returns {FormulateResult<EndoDirectory>}
+   */
+  const formulateDirectoryForStore = async storeId => {
+    return /** @type {FormulateResult<EndoDirectory>} */ (
+      withFormulaGraphLock(async () => {
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        /** @type {DirectoryFormula} */
+        const formula = {
+          type: 'directory',
+          petStore: storeId,
+        };
+        const result = await formulate(formulaNumber, formula);
+        pinTransient(result.id);
+        return result;
+      })
     );
   };
 
@@ -1753,97 +3594,183 @@ const makeDaemonCore = async (
    * The returned promise is resolved after the formula is persisted.
    *
    * @param {FormulaNumber} formulaNumber - The worker formula number.
+   * @param {object} [options]
+   * @param {string[]} [options.trustedShims] - Module specifiers imported before lockdown.
+   * @param {string} [options.label] - Human-readable label for status reporting.
+   * @param {'locked' | 'node'} [options.kind] - Worker kind (locked for XS, node for Node.js).
+   * @param {NodeNumber} [options.nodeNumber] - Node number (defaults to localNodeNumber).
    * @returns {ReturnType<DaemonCore['formulateWorker']>}
    */
-  const formulateNumberedWorker = formulaNumber => {
+  const formulateNumberedWorker = (
+    formulaNumber,
+    {
+      trustedShims,
+      label = '<untitled>',
+      kind,
+      nodeNumber = localNodeNumber,
+    } = {},
+  ) => {
     /** @type {WorkerFormula} */
     const formula = {
       type: 'worker',
+      label,
+      ...(trustedShims && trustedShims.length > 0
+        ? { trustedShims }
+        : undefined),
+      ...(kind ? { kind } : undefined),
     };
 
     return /** @type {FormulateResult<EndoWorker>} */ (
-      formulate(formulaNumber, formula)
+      formulate(formulaNumber, formula, nodeNumber)
     );
   };
 
   /**
    * @type {DaemonCore['formulateWorker']}
    */
-  const formulateWorker = async deferredTasks => {
-    await null;
-    return formulateNumberedWorker(
-      await formulaGraphJobs.enqueue(async () => {
-        const formulaNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
-        );
+  const formulateWorker = async (
+    deferredTasks,
+    trustedShims = undefined,
+    label = undefined,
+  ) => {
+    return withFormulaGraphLock(async () => {
+      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
 
-        await deferredTasks.execute({
-          workerId: formatId({
-            number: formulaNumber,
-            node: localNodeNumber,
-          }),
-        });
+      await deferredTasks.execute({
+        workerId: formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        }),
+      });
 
-        return formulaNumber;
-      }),
-    );
+      return formulateNumberedWorker(formulaNumber, { trustedShims, label });
+    });
   };
+
+  /**
+   * Generates an Ed25519 keypair, hex-encodes the keys, and formulates
+   * a keypair formula.
+   *
+   */
 
   /**
    * @type {DaemonCore['formulateHostDependencies']}
    */
   const formulateHostDependencies = async specifiedIdentifiers => {
-    const { specifiedWorkerId, ...remainingSpecifiedIdentifiers } =
+    const { specifiedWorkerId, workerLabel, ...remainingSpecifiedIdentifiers } =
       specifiedIdentifiers;
 
-    await null;
-    const storeId = (
-      await formulateNumberedPetStore(
-        /** @type {FormulaNumber} */ (await randomHex512()),
-      )
-    ).id;
-    const mailboxStoreId = (
-      await formulateNumberedMailboxStore(
-        /** @type {FormulaNumber} */ (await randomHex512()),
-      )
-    ).id;
-    const mailHubId = (
-      await formulateNumberedMailHub(
-        /** @type {FormulaNumber} */ (await randomHex512()),
-        mailboxStoreId,
-      )
-    ).id;
+    // Pin each dependency formula to protect it from collection until the
+    // parent host formula links them via formulaDeps.
+    /** @type {FormulaIdentifier[]} */
+    const pinned = [];
+    /** @param {FormulaIdentifier} id */
+    const pin = id => {
+      pinTransient(id);
+      pinned.push(id);
+      return id;
+    };
 
+    await null;
+
+    // Generate the agent keypair first so we know the agent's node number.
     const hostFormulaNumber = /** @type {FormulaNumber} */ (
-      await randomHex512()
+      await randomHex256()
+    );
+    const keypair = await generateEd25519Keypair();
+    const agentNodeNumber = /** @type {NodeNumber} */ (
+      toHex(keypair.publicKey)
     );
     const hostId = formatId({
       number: hostFormulaNumber,
-      node: localNodeNumber,
+      node: agentNodeNumber,
     });
-
-    const handleId = await formulateNumberedHandle(
-      /** @type {FormulaNumber} */ (await randomHex512()),
+    persistencePowers.writeAgentKey(
+      toHex(keypair.publicKey),
+      toHex(keypair.privateKey),
       hostId,
     );
+
+    const storeId = pin(
+      (
+        await formulateNumberedPetStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          agentNodeNumber,
+        )
+      ).id,
+    );
+    const mailboxStoreId = pin(
+      (
+        await formulateNumberedMailboxStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          agentNodeNumber,
+        )
+      ).id,
+    );
+    const mailHubId = pin(
+      (
+        await formulateNumberedMailHub(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          mailboxStoreId,
+          agentNodeNumber,
+        )
+      ).id,
+    );
+
+    const handleId = pin(
+      await formulateNumberedHandle(
+        /** @type {FormulaNumber} */ (await randomHex256()),
+        hostId,
+        agentNodeNumber,
+      ),
+    );
+
+    /* eslint-disable no-use-before-define */
+    const inspectorId = pin(
+      (
+        await formulateNumberedPetInspector(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          storeId,
+          agentNodeNumber,
+        )
+      ).id,
+    );
+    const hostMainWorkerId = pin(
+      await provideWorkerId(
+        specifiedWorkerId,
+        undefined,
+        workerLabel ?? 'host',
+        agentNodeNumber,
+      ),
+    );
+    // The @node special name is backed by a host-scoped Node.js
+    // worker.  Required regardless of the daemon's defaultWorkerKind
+    // so XS-default daemons still expose a Node bridge.
+    const nodeWorkerId = pin(
+      await provideWorkerId(
+        undefined,
+        undefined,
+        'host-node',
+        agentNodeNumber,
+        'node',
+      ),
+    );
+    /* eslint-enable no-use-before-define */
 
     return harden({
       ...remainingSpecifiedIdentifiers,
       hostFormulaNumber,
       hostId,
       handleId,
+      agentNodeNumber,
+      hostHandleId: remainingSpecifiedIdentifiers.hostHandleId ?? handleId,
       storeId,
       mailboxStoreId,
       mailHubId,
-      /* eslint-disable no-use-before-define */
-      inspectorId: (
-        await formulateNumberedPetInspector(
-          /** @type {FormulaNumber} */ (await randomHex512()),
-          storeId,
-        )
-      ).id,
-      workerId: await provideWorkerId(specifiedWorkerId),
-      /* eslint-enable no-use-before-define */
+      inspectorId,
+      mainWorkerId: hostMainWorkerId,
+      nodeWorkerId,
+      pinned,
     });
   };
 
@@ -1852,19 +3779,25 @@ const makeDaemonCore = async (
     /** @type {HostFormula} */
     const formula = {
       type: 'host',
+      hostHandle: identifiers.hostHandleId,
       handle: identifiers.handleId,
       petStore: identifiers.storeId,
       mailboxStore: identifiers.mailboxStoreId,
       mailHub: identifiers.mailHubId,
       inspector: identifiers.inspectorId,
-      worker: identifiers.workerId,
+      mainWorker: identifiers.mainWorkerId,
+      nodeWorker: identifiers.nodeWorkerId,
       endo: identifiers.endoId,
       networks: identifiers.networksDirectoryId,
       pins: identifiers.pinsDirectoryId,
     };
 
     return /** @type {FormulateResult<EndoHost>} */ (
-      formulate(identifiers.hostFormulaNumber, formula)
+      formulate(
+        identifiers.hostFormulaNumber,
+        formula,
+        identifiers.agentNodeNumber,
+      )
     );
   };
 
@@ -1875,69 +3808,126 @@ const makeDaemonCore = async (
     pinsDirectoryId,
     deferredTasks,
     specifiedWorkerId,
+    hostHandleId,
+    workerLabel,
   ) => {
-    await null;
-    return formulateNumberedHost(
-      await formulaGraphJobs.enqueue(async () => {
-        const identifiers = await formulateHostDependencies({
-          endoId,
-          networksDirectoryId,
-          pinsDirectoryId,
-          specifiedWorkerId,
-        });
+    return withFormulaGraphLock(async () => {
+      const identifiers = await formulateHostDependencies({
+        endoId,
+        networksDirectoryId,
+        pinsDirectoryId,
+        specifiedWorkerId,
+        hostHandleId,
+        workerLabel,
+      });
 
-        await deferredTasks.execute({
-          agentId: identifiers.hostId,
-          handleId: identifiers.handleId,
-        });
+      await deferredTasks.execute({
+        agentId: identifiers.hostId,
+        handleId: identifiers.handleId,
+      });
 
-        return identifiers;
-      }),
-    );
+      const result = await formulateNumberedHost(identifiers);
+      for (const id of identifiers.pinned) {
+        unpinTransient(id);
+      }
+      return result;
+    });
   };
 
   /** @type {DaemonCore['formulateGuestDependencies']} */
-  const formulateGuestDependencies = async (hostAgentId, hostHandleId) => {
+  const formulateGuestDependencies = async (
+    hostAgentId,
+    hostHandleId,
+    workerLabel,
+  ) => {
+    // Pin each dependency formula to protect it from collection until the
+    // parent guest formula links them via formulaDeps.
+    /** @type {FormulaIdentifier[]} */
+    const pinned = [];
+    /** @param {FormulaIdentifier} id */
+    const pin = id => {
+      pinTransient(id);
+      pinned.push(id);
+      return id;
+    };
+
+    // Generate the agent keypair first so we know the agent's node number.
     const guestFormulaNumber = /** @type {FormulaNumber} */ (
-      await randomHex512()
+      await randomHex256()
+    );
+    const keypair = await generateEd25519Keypair();
+    const agentNodeNumber = /** @type {NodeNumber} */ (
+      toHex(keypair.publicKey)
     );
     const guestId = formatId({
       number: guestFormulaNumber,
-      node: localNodeNumber,
+      node: agentNodeNumber,
     });
-    const handleId = await formulateNumberedHandle(
-      /** @type {FormulaNumber} */ (await randomHex512()),
+    persistencePowers.writeAgentKey(
+      toHex(keypair.publicKey),
+      toHex(keypair.privateKey),
       guestId,
     );
-    const mailboxStoreId = (
-      await formulateNumberedMailboxStore(
-        /** @type {FormulaNumber} */ (await randomHex512()),
-      )
-    ).id;
-    const mailHubId = (
-      await formulateNumberedMailHub(
-        /** @type {FormulaNumber} */ (await randomHex512()),
-        mailboxStoreId,
-      )
-    ).id;
+
+    const handleId = pin(
+      await formulateNumberedHandle(
+        /** @type {FormulaNumber} */ (await randomHex256()),
+        guestId,
+        agentNodeNumber,
+      ),
+    );
+    const mailboxStoreId = pin(
+      (
+        await formulateNumberedMailboxStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          agentNodeNumber,
+        )
+      ).id,
+    );
+    const mailHubId = pin(
+      (
+        await formulateNumberedMailHub(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          mailboxStoreId,
+          agentNodeNumber,
+        )
+      ).id,
+    );
+
+    const storeId = pin(
+      (
+        await formulateNumberedPetStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          agentNodeNumber,
+        )
+      ).id,
+    );
+    const workerId = pin(
+      (
+        await formulateNumberedWorker(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          { label: workerLabel ?? 'guest', nodeNumber: agentNodeNumber },
+        )
+      ).id,
+    );
+    // Each guest gets its own (initially empty) networks directory that
+    // controls which connection hints appear in locators it produces.
+    const networksDirectoryId = pin(
+      (await formulateDirectory(agentNodeNumber)).id,
+    );
     return harden({
       guestFormulaNumber,
       guestId,
       handleId,
+      agentNodeNumber,
       hostAgentId,
       hostHandleId,
-      storeId: (
-        await formulateNumberedPetStore(
-          /** @type {FormulaNumber} */ (await randomHex512()),
-        )
-      ).id,
+      storeId,
       mailboxStoreId,
       mailHubId,
-      workerId: (
-        await formulateNumberedWorker(
-          /** @type {FormulaNumber} */ (await randomHex512()),
-        )
-      ).id,
+      workerId,
+      networksDirectoryId,
+      pinned,
     });
   };
 
@@ -1953,61 +3943,110 @@ const makeDaemonCore = async (
       mailboxStore: identifiers.mailboxStoreId,
       mailHub: identifiers.mailHubId,
       worker: identifiers.workerId,
+      networks: identifiers.networksDirectoryId,
     };
 
     return /** @type {FormulateResult<EndoGuest>} */ (
-      formulate(identifiers.guestFormulaNumber, formula)
+      formulate(
+        identifiers.guestFormulaNumber,
+        formula,
+        identifiers.agentNodeNumber,
+      )
     );
   };
 
   /** @type {DaemonCore['formulateGuest']} */
-  const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks) => {
-    await null;
-    return formulateNumberedGuest(
-      await formulaGraphJobs.enqueue(async () => {
-        const identifiers = await formulateGuestDependencies(
-          hostAgentId,
-          hostHandleId,
-        );
+  const formulateGuest = async (
+    hostAgentId,
+    hostHandleId,
+    deferredTasks,
+    workerLabel,
+  ) => {
+    return withFormulaGraphLock(async () => {
+      const identifiers = await formulateGuestDependencies(
+        hostAgentId,
+        hostHandleId,
+        workerLabel,
+      );
 
-        await deferredTasks.execute({
-          agentId: identifiers.guestId,
-          handleId: identifiers.handleId,
-        });
+      await deferredTasks.execute({
+        agentId: identifiers.guestId,
+        handleId: identifiers.handleId,
+      });
 
-        return identifiers;
-      }),
-    );
+      const result = await formulateNumberedGuest(identifiers);
+      for (const id of identifiers.pinned) {
+        unpinTransient(id);
+      }
+      return result;
+    });
   };
 
   /**
    * @param {FormulaIdentifier} [specifiedWorkerId]
+   * @param {string[]} [trustedShims]
+   * @param {string} [label]
+   * @param {NodeNumber} [nodeNumber] - The node number to use (defaults to localNodeNumber).
+   * @param {'locked' | 'node'} [kind]
    */
-  const provideWorkerId = async specifiedWorkerId => {
+  const provideWorkerId = async (
+    specifiedWorkerId,
+    trustedShims = undefined,
+    label = undefined,
+    nodeNumber = localNodeNumber,
+    kind = undefined,
+  ) => {
     await null;
     if (typeof specifiedWorkerId === 'string') {
+      if (kind === 'node' && defaultWorkerKind !== 'node') {
+        // Default workers are XS/locked (bus daemon under Rust
+        // supervisor).  Create a separate Node.js worker.  The original
+        // XS worker stays alive (it may have running evals).
+        const existingFormula = formulaForId.get(specifiedWorkerId);
+        if (
+          existingFormula &&
+          existingFormula.type === 'worker' &&
+          !existingFormula.kind
+        ) {
+          const workerFormulaNumber = /** @type {FormulaNumber} */ (
+            await randomHex256()
+          );
+          const workerFormulation = await formulateNumberedWorker(
+            workerFormulaNumber,
+            { kind, trustedShims, label },
+          );
+          return workerFormulation.id;
+        }
+      }
       return specifiedWorkerId;
     }
 
     const workerFormulaNumber = /** @type {FormulaNumber} */ (
-      await randomHex512()
+      await randomHex256()
     );
-    const workerFormulation =
-      await formulateNumberedWorker(workerFormulaNumber);
+    const workerFormulation = await formulateNumberedWorker(
+      workerFormulaNumber,
+      { kind, trustedShims, label, nodeNumber },
+    );
     return workerFormulation.id;
   };
 
   /** @type {DaemonCore['formulateMarshalValue']} */
-  async function formulateMarshalValue(value, deferredTasks) {
-    const { marshalFormulaNumber } = await formulaGraphJobs.enqueue(
-      async () => {
+  async function formulateMarshalValue(value, deferredTasks, pin) {
+    return /** @type {FormulateResult<void>} */ (
+      withFormulaGraphLock(async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
+          await randomHex256()
         );
         const ownId = formatId({
           number: ownFormulaNumber,
           node: localNodeNumber,
         });
+        // Pin before formulate so the formula is protected from
+        // collection even if the lock is bypassed via re-entrancy.
+        if (pin) {
+          pin(ownId);
+        }
 
         const identifiers = harden({
           marshalId: ownId,
@@ -2015,76 +4054,84 @@ const makeDaemonCore = async (
         });
 
         await deferredTasks.execute(identifiers);
-        return identifiers;
-      },
-    );
 
-    const { body, slots } = marshaller.toCapData(value);
+        const { body, slots } = marshaller.toCapData(value);
 
-    /** @type {MarshalFormula} */
-    const formula = {
-      type: 'marshal',
-      body,
-      slots,
-    };
-    return /** @type {FormulateResult<void>} */ (
-      formulate(marshalFormulaNumber, formula)
+        /** @type {MarshalFormula} */
+        const formula = {
+          type: 'marshal',
+          body,
+          slots,
+        };
+        return formulate(ownFormulaNumber, formula);
+      })
     );
   }
 
   /** @type {DaemonCore['formulatePromise']} */
-  const formulatePromise = async () => {
-    const { storeFormulaNumber, promiseFormulaNumber, resolverFormulaNumber } =
-      await formulaGraphJobs.enqueue(async () => {
-        const storeNumber = /** @type {FormulaNumber} */ (await randomHex512());
-        const promiseNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
-        );
-        const resolverNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
-        );
-        return {
-          storeFormulaNumber: storeNumber,
-          promiseFormulaNumber: promiseNumber,
-          resolverFormulaNumber: resolverNumber,
-        };
-      });
+  const formulatePromise = async pin => {
+    return withFormulaGraphLock(async () => {
+      const storeFormulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex256()
+      );
+      const promiseFormulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex256()
+      );
+      const resolverFormulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex256()
+      );
 
-    const { id: storeId } = await formulateNumberedPetStore(storeFormulaNumber);
+      const { id: storeId } =
+        await formulateNumberedPetStore(storeFormulaNumber);
 
-    /** @type {PromiseFormula} */
-    const promiseFormula = {
-      type: 'promise',
-      store: storeId,
-    };
+      /** @type {PromiseFormula} */
+      const promiseFormula = {
+        type: 'promise',
+        store: storeId,
+      };
 
-    /** @type {ResolverFormula} */
-    const resolverFormula = {
-      type: 'resolver',
-      store: storeId,
-    };
+      /** @type {ResolverFormula} */
+      const resolverFormula = {
+        type: 'resolver',
+        store: storeId,
+      };
 
-    const { id: promiseId } = await formulate(
-      promiseFormulaNumber,
-      promiseFormula,
-    );
-    const { id: resolverId } = await formulate(
-      resolverFormulaNumber,
-      resolverFormula,
-    );
+      const { id: promiseId } = await formulate(
+        promiseFormulaNumber,
+        promiseFormula,
+      );
+      if (pin) {
+        pin(promiseId);
+      }
+      const { id: resolverId } = await formulate(
+        resolverFormulaNumber,
+        resolverFormula,
+      );
+      if (pin) {
+        pin(resolverId);
+      }
 
-    return harden({ promiseId, resolverId });
+      return harden({ promiseId, resolverId });
+    });
   };
 
   /** @type {DaemonCore['formulateMessage']} */
-  const formulateMessage = async messageFormula => {
-    await null;
-    const formulaNumber = /** @type {FormulaNumber} */ (
-      await formulaGraphJobs.enqueue(() => randomHex512())
-    );
-    return /** @type {FormulateResult<NameHub>} */ (
-      formulate(formulaNumber, messageFormula)
-    );
+  const formulateMessage = async (messageFormula, pin) => {
+    return withFormulaGraphLock(async () => {
+      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
+      // Pin before formulate so the formula is protected from
+      // collection even if the lock is bypassed via re-entrancy.
+      if (pin) {
+        const messageId = formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        });
+        pin(messageId);
+      }
+      return /** @type {FormulateResult<NameHub>} */ (
+        formulate(formulaNumber, messageFormula)
+      );
+    });
   };
 
   /** @type {DaemonCore['formulateEval']} */
@@ -2095,19 +4142,30 @@ const makeDaemonCore = async (
     endowmentIdsOrPaths,
     deferredTasks,
     specifiedWorkerId,
+    pin,
+    workerLabel = undefined,
   ) => {
-    const { workerId, endowmentIds, evalFormulaNumber } =
-      await formulaGraphJobs.enqueue(async () => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
+          await randomHex256()
         );
         const ownId = formatId({
           number: ownFormulaNumber,
           node: localNodeNumber,
         });
+        // Pin before formulate so the formula is protected from
+        // collection even if the lock is bypassed via re-entrancy.
+        if (pin) {
+          pin(ownId);
+        }
 
         const identifiers = harden({
-          workerId: await provideWorkerId(specifiedWorkerId),
+          workerId: await provideWorkerId(
+            specifiedWorkerId,
+            undefined,
+            workerLabel,
+          ),
           endowmentIds: await Promise.all(
             endowmentIdsOrPaths.map(async formulaIdOrPath => {
               if (typeof formulaIdOrPath === 'string') {
@@ -2118,7 +4176,7 @@ const makeDaemonCore = async (
                 /* eslint-disable no-use-before-define */
                 (
                   await formulateNumberedLookup(
-                    /** @type {FormulaNumber} */ (await randomHex512()),
+                    /** @type {FormulaNumber} */ (await randomHex256()),
                     nameHubId,
                     /** @type {NamePath} */ (formulaIdOrPath),
                   )
@@ -2130,21 +4188,18 @@ const makeDaemonCore = async (
           evalId: ownId,
           evalFormulaNumber: ownFormulaNumber,
         });
-
         await deferredTasks.execute(identifiers);
-        return identifiers;
-      });
 
-    /** @type {EvalFormula} */
-    const formula = {
-      type: 'eval',
-      worker: workerId,
-      source,
-      names: codeNames,
-      values: endowmentIds,
-    };
-    return /** @type {FormulateResult<unknown>} */ (
-      formulate(evalFormulaNumber, formula)
+        /** @type {EvalFormula} */
+        const formula = {
+          type: 'eval',
+          worker: identifiers.workerId,
+          source,
+          names: codeNames,
+          values: identifiers.endowmentIds,
+        };
+        return formulate(identifiers.evalFormulaNumber, formula);
+      })
     );
   };
 
@@ -2176,6 +4231,12 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} hostHandleId
    * @param {FormulaIdentifier} [specifiedPowersId]
    */
+  /**
+   * @param {FormulaIdentifier} hostAgentId
+   * @param {FormulaIdentifier} hostHandleId
+   * @param {FormulaIdentifier} [specifiedPowersId]
+   * @returns {Promise<{powersId: FormulaIdentifier, pinned: FormulaIdentifier[]}>}
+   */
   const providePowersId = async (
     hostAgentId,
     hostHandleId,
@@ -2183,7 +4244,7 @@ const makeDaemonCore = async (
   ) => {
     await null;
     if (typeof specifiedPowersId === 'string') {
-      return specifiedPowersId;
+      return { powersId: specifiedPowersId, pinned: [] };
     }
 
     const guestFormulationData = await formulateGuestDependencies(
@@ -2191,16 +4252,24 @@ const makeDaemonCore = async (
       hostHandleId,
     );
     const guestFormulation = await formulateNumberedGuest(guestFormulationData);
-    return guestFormulation.id;
+    // Return pins to the caller for deferred unpinning — the guest
+    // must be named (via deferred tasks) before its pins are removed.
+    return {
+      powersId: guestFormulation.id,
+      pinned: guestFormulationData.pinned,
+    };
   };
 
   /**
-   * Helper for `formulateUnconfined` and `formulateBundle`.
+   * Helper for `formulateUnconfined` and `formulateArchive`.
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
    * @param {DeferredTasks<MakeCapletDeferredTaskParams>} deferredTasks
    * @param {FormulaIdentifier} [specifiedWorkerId]
    * @param {FormulaIdentifier} [specifiedPowersId]
+   * @param {string[]} [trustedShims]
+   * @param {string} [workerLabel]
+   * @param {'locked' | 'node'} [workerKind]
    */
   const formulateCapletDependencies = async (
     hostAgentId,
@@ -2208,24 +4277,50 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     specifiedPowersId,
+    trustedShims = undefined,
+    workerLabel = undefined,
+    workerKind = undefined,
   ) => {
     const ownFormulaNumber = /** @type {FormulaNumber} */ (
-      await randomHex512()
+      await randomHex256()
     );
+    const { powersId, pinned: powersPinned } = await providePowersId(
+      hostAgentId,
+      hostHandleId,
+      specifiedPowersId,
+    );
+    const workerId = await provideWorkerId(
+      specifiedWorkerId,
+      trustedShims,
+      workerLabel,
+      undefined,
+      workerKind,
+    );
+    // When a new node worker was created because the specified worker
+    // was XS-only, record the original so that cancelling the original
+    // worker cascades to the caplet.  This is a runtime dependency only,
+    // not persisted in the formula JSON.
+    const originalWorkerId =
+      specifiedWorkerId && workerId !== specifiedWorkerId
+        ? specifiedWorkerId
+        : undefined;
     const identifiers = harden({
-      powersId: await providePowersId(
-        hostAgentId,
-        hostHandleId,
-        specifiedPowersId,
-      ),
+      powersId,
       capletId: formatId({
         number: ownFormulaNumber,
         node: localNodeNumber,
       }),
       capletFormulaNumber: ownFormulaNumber,
-      workerId: await provideWorkerId(specifiedWorkerId),
+      workerId,
+      originalWorkerId,
     });
+    // Execute deferred tasks first (stores pet names, creating
+    // pet-store edges) so that the powers guest is reachable
+    // before we unpin its dependencies.
     await deferredTasks.execute(identifiers);
+    for (const id of powersPinned) {
+      unpinTransient(id);
+    }
     return identifiers;
   };
 
@@ -2237,76 +4332,145 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     specifiedPowersId,
+    env = {},
+    trustedShims = undefined,
+    workerLabel = undefined,
   ) => {
-    const { powersId, capletFormulaNumber, workerId } =
-      await formulaGraphJobs.enqueue(() =>
-        formulateCapletDependencies(
+    return withFormulaGraphLock(async () => {
+      const { powersId, capletFormulaNumber, workerId, originalWorkerId } =
+        await formulateCapletDependencies(
           hostAgentId,
           hostHandleId,
           deferredTasks,
           specifiedWorkerId,
           specifiedPowersId,
-        ),
-      );
+          trustedShims,
+          workerLabel,
+          'node',
+        );
 
-    /** @type {MakeUnconfinedFormula} */
-    const formula = {
-      type: 'make-unconfined',
-      worker: workerId,
-      powers: powersId,
-      specifier,
-    };
-    return formulate(capletFormulaNumber, formula);
+      /** @type {MakeUnconfinedFormula} */
+      const formula = {
+        type: 'make-unconfined',
+        worker: workerId,
+        powers: powersId,
+        specifier,
+        env,
+        ...(originalWorkerId ? { cancelWithWorker: originalWorkerId } : {}),
+      };
+      return formulate(capletFormulaNumber, formula);
+    });
   };
 
-  /** @type {DaemonCore['formulateBundle']} */
-  const formulateBundle = async (
+  /** @type {DaemonCore['formulateArchive']} */
+  const formulateArchive = async (
     hostAgentId,
     hostHandleId,
-    bundleId,
+    archiveId,
     deferredTasks,
     specifiedWorkerId,
     specifiedPowersId,
+    env = {},
+    trustedShims = undefined,
+    workerLabel = undefined,
   ) => {
-    const { powersId, capletFormulaNumber, workerId } =
-      await formulaGraphJobs.enqueue(() =>
-        formulateCapletDependencies(
+    return withFormulaGraphLock(async () => {
+      // Pass workerKind=undefined so the worker inherits the
+      // daemon's defaultWorkerKind.  Both the Node worker
+      // (parseArchive) and the XS worker (hostImportArchive)
+      // implement makeArchive natively, so no auto-promotion is
+      // needed — promoting unconditionally would spawn a Node
+      // worker the Rust supervisor cannot run when no Node worker
+      // binary is configured.
+      const { powersId, capletFormulaNumber, workerId, originalWorkerId } =
+        await formulateCapletDependencies(
           hostAgentId,
           hostHandleId,
           deferredTasks,
           specifiedWorkerId,
           specifiedPowersId,
-        ),
-      );
+          trustedShims,
+          workerLabel,
+        );
 
-    /** @type {MakeBundleFormula} */
-    const formula = {
-      type: 'make-bundle',
-      worker: workerId,
-      powers: powersId,
-      bundle: bundleId,
-    };
-    return formulate(capletFormulaNumber, formula);
+      /** @type {MakeArchiveFormula} */
+      const formula = {
+        type: 'make-archive',
+        worker: workerId,
+        powers: powersId,
+        archive: archiveId,
+        env,
+        ...(originalWorkerId ? { cancelWithWorker: originalWorkerId } : {}),
+      };
+      return formulate(capletFormulaNumber, formula);
+    });
+  };
+
+  /** @type {DaemonCore['formulateFromTree']} */
+  const formulateFromTree = async (
+    hostAgentId,
+    hostHandleId,
+    treeId,
+    deferredTasks,
+    specifiedWorkerId,
+    specifiedPowersId,
+    env = {},
+    trustedShims = undefined,
+    workerLabel = undefined,
+  ) => {
+    return withFormulaGraphLock(async () => {
+      // Pass workerKind=undefined so the worker inherits the daemon's
+      // defaultWorkerKind (Node by default, locked under the Rust
+      // supervisor).  Unlike makeUnconfined, makeFromTree can run on
+      // either kind: XS workers get the tree pre-packed into an
+      // archive on the daemon side, then loaded via hostImportArchive.
+      const { powersId, capletFormulaNumber, workerId, originalWorkerId } =
+        await formulateCapletDependencies(
+          hostAgentId,
+          hostHandleId,
+          deferredTasks,
+          specifiedWorkerId,
+          specifiedPowersId,
+          trustedShims,
+          workerLabel,
+        );
+
+      /** @type {MakeFromTreeFormula} */
+      const formula = {
+        type: 'make-from-tree',
+        worker: workerId,
+        powers: powersId,
+        tree: treeId,
+        env,
+        ...(originalWorkerId ? { cancelWithWorker: originalWorkerId } : {}),
+      };
+      return formulate(capletFormulaNumber, formula);
+    });
   };
 
   /**
    * @param {FormulaNumber} formulaNumber
    * @param {FormulaIdentifier} petStoreId
+   * @param {NodeNumber} [nodeNumber] - The node number to use (defaults to localNodeNumber).
    */
-  const formulateNumberedPetInspector = (formulaNumber, petStoreId) => {
+  const formulateNumberedPetInspector = (
+    formulaNumber,
+    petStoreId,
+    nodeNumber = localNodeNumber,
+  ) => {
     /** @type {PetInspectorFormula} */
     const formula = {
       type: 'pet-inspector',
       petStore: petStoreId,
     };
     return /** @type {FormulateResult<EndoInspector>} */ (
-      formulate(formulaNumber, formula)
+      formulate(formulaNumber, formula, nodeNumber)
     );
   };
 
   /** @type {DaemonCore['formulatePeer']} */
   const formulatePeer = async (networksDirectoryId, nodeNumber, addresses) => {
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
     // TODO: validate addresses
     // TODO: mutable state like addresses should not be stored in formula
     /** @type {PeerFormula} */
@@ -2316,14 +4480,26 @@ const makeDaemonCore = async (
       node: nodeNumber,
       addresses,
     };
+    // Persist the peer formula lazily — the dial should only happen
+    // when some formula actually needs to reach the peer, not when the
+    // peer info is registered.  This avoids crossed-hellos races where
+    // both sides dial each other simultaneously upon symmetric
+    // `addPeerInfo` calls.
+    const id = await formulateLazy(formulaNumber, formula);
     return /** @type {FormulateResult<EndoPeer>} */ (
-      formulate(formulaNumber, formula)
+      /** @type {unknown} */ (
+        harden({
+          id,
+          // Value is only populated when someone calls provide(id).
+          value: /** @type {any} */ (undefined),
+        })
+      )
     );
   };
 
   /** @type {DaemonCore['formulateLoopbackNetwork']} */
   const formulateLoopbackNetwork = async () => {
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
     /** @type {LoopbackNetworkFormula} */
     const formula = {
       type: 'loopback-network',
@@ -2338,57 +4514,62 @@ const makeDaemonCore = async (
     const { id, value } = await formulateDirectory();
     // Make default networks.
     const { id: loopbackNetworkId } = await formulateLoopbackNetwork();
-    await E(value).write(/** @type {NamePath} */ (['loop']), loopbackNetworkId);
+    const loopbackType = await getTypeForId(loopbackNetworkId);
+    const loopbackLocator = externalizeId(
+      loopbackNetworkId,
+      loopbackType,
+      localNodeNumber,
+    );
+    await E(value).storeLocator(
+      /** @type {NamePath} */ (['loop']),
+      loopbackLocator,
+    );
     return { id, value };
   };
 
   /** @type {DaemonCore['formulateEndo']} */
   const formulateEndo = async specifiedFormulaNumber => {
-    const identifiers = await formulaGraphJobs.enqueue(async () => {
-      const formulaNumber = /** @type {FormulaNumber} */ (
-        await (specifiedFormulaNumber ?? randomHex512())
-      );
-      const endoId = formatId({
-        number: formulaNumber,
-        node: localNodeNumber,
-      });
-
-      const { id: defaultHostWorkerId } = await formulateNumberedWorker(
-        /** @type {FormulaNumber} */ (await randomHex512()),
-      );
-      const { id: networksDirectoryId } = await formulateNetworksDirectory();
-      const { id: pinsDirectoryId } = await formulateDirectory();
-
-      // Ensure the default host is formulated and persisted.
-      const { id: defaultHostId } = await formulateNumberedHost(
-        await formulateHostDependencies({
-          endoId,
-          networksDirectoryId,
-          pinsDirectoryId,
-          specifiedWorkerId: defaultHostWorkerId,
-        }),
-      );
-
-      return {
-        formulaNumber,
-        defaultHostId,
-        networksDirectoryId,
-        pinsDirectoryId,
-      };
-    });
-
-    /** @type {EndoFormula} */
-    const formula = {
-      type: 'endo',
-      networks: identifiers.networksDirectoryId,
-      pins: identifiers.pinsDirectoryId,
-      peers: knownPeersId,
-      host: identifiers.defaultHostId,
-      leastAuthority: leastAuthorityId,
-    };
-
     return /** @type {FormulateResult<FarRef<EndoBootstrap>>} */ (
-      formulate(identifiers.formulaNumber, formula)
+      withFormulaGraphLock(async () => {
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await (specifiedFormulaNumber ?? randomHex256())
+        );
+        const endoId = formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        });
+
+        const { id: defaultHostWorkerId } = await formulateNumberedWorker(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          { label: 'host' },
+        );
+        const { id: networksDirectoryId } = await formulateNetworksDirectory();
+        const { id: pinsDirectoryId } = await formulateDirectory();
+
+        // Ensure the default host is formulated and persisted.
+        const { id: defaultHostId } = await formulateNumberedHost(
+          await formulateHostDependencies({
+            endoId,
+            networksDirectoryId,
+            pinsDirectoryId,
+            specifiedWorkerId: defaultHostWorkerId,
+          }),
+        );
+
+        /** @type {EndoFormula} */
+        const formula = {
+          type: 'endo',
+          networks: networksDirectoryId,
+          pins: pinsDirectoryId,
+          peers: knownPeersId,
+          host: defaultHostId,
+          leastAuthority: leastAuthorityId,
+        };
+
+        const result = await formulate(formulaNumber, formula);
+        formulaGraph.addRoot(result.id);
+        return result;
+      })
     );
   };
 
@@ -2399,20 +4580,24 @@ const makeDaemonCore = async (
   const getAllNetworks = async networksDirectoryId => {
     const networksDirectory = await provide(networksDirectoryId, 'directory');
     const networkIds = await networksDirectory.listIdentifiers();
-    const networks = await Promise.all(
-      networkIds.map(id =>
-        provide(/** @type {FormulaIdentifier} */ (id), 'network'),
-      ),
-    );
-    return networks;
+    const readyNetworks = networkIds
+      .map(id => /** @type {FormulaIdentifier} */ (id))
+      .filter(id => refForId.has(id))
+      .map(id => /** @type {EndoNetwork} */ (refForId.get(id)));
+    return readyNetworks;
   };
 
   /** @type {DaemonCore['getAllNetworkAddresses']} */
   const getAllNetworkAddresses = async networksDirectoryId => {
-    const networks = await getAllNetworks(networksDirectoryId);
+    const networksDirectory = await provide(networksDirectoryId, 'directory');
+    const networkIds = await networksDirectory.listIdentifiers();
+    const readyNetworks = networkIds
+      .map(id => /** @type {FormulaIdentifier} */ (id))
+      .filter(id => refForId.has(id))
+      .map(id => /** @type {EndoNetwork} */ (refForId.get(id)));
     const addresses = (
       await Promise.all(
-        networks.map(async network => {
+        readyNetworks.map(async network => {
           return E(network).addresses();
         }),
       )
@@ -2427,29 +4612,229 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makePeer = async (networksDirectoryId, nodeId, addresses, context) => {
+    console.log(
+      `Endo daemon dialing peer node ${nodeId.slice(0, 8)} at ${JSON.stringify(addresses)}`,
+    );
     const remoteControl = provideRemoteControl(nodeId);
-    return remoteControl.connect(
-      async () => {
-        // TODO race networks that support protocol for connection
-        // TODO retry, exponential back-off, with full jitter
-        // TODO (in connect implementations) allow for the possibility of
-        // connection loss and invalidate the connection formula and its transitive
-        // dependees when this occurs.
-        const networks = await getAllNetworks(networksDirectoryId);
-        // Connect on first support address.
-        for (const address of addresses) {
-          const { protocol } = new URL(address);
-          for (const network of networks) {
-            // eslint-disable-next-line no-await-in-loop
-            if (await E(network).supports(protocol)) {
-              return E(network).connect(address, makeFarContext(context));
+    // The state machine may abandon our outbound dial attempt (e.g.,
+    // due to crossed-hellos accept bias).  That cancellation must not
+    // cancel the peer formula itself — the peer keeps working with the
+    // replacement (accepted) connection.  Use a local PromiseKit for
+    // the dial attempt's cancellation, distinct from context.cancel.
+    const dialAttempt = () => {
+      const { promise: dialCancelled, reject: cancelDial } =
+        /** @type {PromiseKit<never>} */ (makePromiseKit());
+      context.cancelled.catch(cancelDial);
+      return remoteControl.connect(
+        getRemoteGatewayViaNetwork,
+        cancelDial,
+        dialCancelled,
+        () => {
+          console.log(
+            `Endo daemon peer node ${nodeId.slice(0, 8)} connection disposed`,
+          );
+          dropLiveValue(context.id);
+        },
+      );
+    };
+    /** @returns {Promise<EndoGateway>} */
+    const getRemoteGatewayViaNetwork = async () => {
+      // TODO race networks that support protocol for connection
+      // TODO retry, exponential back-off, with full jitter
+      const networks = await getAllNetworks(networksDirectoryId);
+      console.log(
+        `Endo daemon makePeer ${nodeId.slice(0, 8)}: evaluating ${addresses.length} address(es) across ${networks.length} network service(s)`,
+      );
+      // Connect on first supported address.
+      let addressIndex = 0;
+      for (const address of addresses) {
+        addressIndex += 1;
+        const { protocol } = new URL(address);
+        console.log(
+          `Endo daemon makePeer ${nodeId.slice(0, 8)}: address ${addressIndex}/${addresses.length} protocol=${protocol} value=${address}`,
+        );
+        let networkIndex = 0;
+        for (const network of networks) {
+          networkIndex += 1;
+          // eslint-disable-next-line no-await-in-loop
+          const supported = await E(network).supports(protocol);
+          console.log(
+            `Endo daemon makePeer ${nodeId.slice(0, 8)}: network ${networkIndex}/${networks.length} supports(${protocol}) -> ${supported}`,
+          );
+          if (supported) {
+            const attemptStartedAt = Date.now();
+            console.log(
+              `Endo daemon makePeer ${nodeId.slice(0, 8)}: dialing with network ${networkIndex}/${networks.length}`,
+            );
+            // Create a derived context for this specific dial
+            // attempt.  The network worker uses this context to
+            // observe cancellation (tearing down TCP if the peer
+            // dies) and to report connection loss (by cancelling
+            // this context).  Connection loss must NOT cancel the
+            // peer formula itself — crossed-hellos accept bias
+            // routinely abandons dials while the peer stays alive.
+            const { promise: attemptCancelled, reject: cancelAttempt } =
+              /** @type {PromiseKit<never>} */ (makePromiseKit());
+            // Swallow the rejection to avoid unhandled rejection
+            // warnings; the promise is intentionally a signal.
+            attemptCancelled.catch(() => {});
+            // Die with the peer: if the peer context is cancelled,
+            // also cancel this dial attempt.
+            context.cancelled.catch(cancelAttempt);
+            const attemptContext = Far('Context', {
+              id: () => context.id,
+              cancel: cancelAttempt,
+              whenCancelled: () => attemptCancelled,
+              whenDisposed: () => attemptCancelled,
+              addDisposalHook: _hook => {},
+            });
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const remoteGateway = await E(network).connect(
+                address,
+                /** @type {any} */ (attemptContext),
+              );
+              console.log(
+                `Endo daemon makePeer ${nodeId.slice(0, 8)}: dial succeeded in ${Date.now() - attemptStartedAt}ms`,
+              );
+              return remoteGateway;
+            } catch (error) {
+              console.log(
+                `Endo daemon makePeer ${nodeId.slice(0, 8)}: dial failed in ${Date.now() - attemptStartedAt}ms: ${/** @type {Error} */ (error).message}`,
+              );
+              throw error;
             }
           }
         }
-        throw new Error('Cannot connect to peer: no supported addresses');
-      },
-      context.cancel,
-      context.cancelled,
+      }
+      throw new Error('Cannot connect to peer: no supported addresses');
+    };
+
+    // If crossed-hellos accept bias abandons our dial, retry once.
+    // The state machine should now be in `accepted` state, and the
+    // retry will return the already-accepted gateway without dialing.
+    const isAbandonError = err =>
+      err &&
+      typeof err.message === 'string' &&
+      (err.message.includes('Connection abandoned') ||
+        err.message.includes(
+          'Cannot call write after a stream was destroyed',
+        ) ||
+        err.message.includes('Connection stream ended'));
+
+    /** @returns {Promise<EndoGateway>} */
+    const resilientDial = async () => {
+      try {
+        return await dialAttempt();
+      } catch (error) {
+        if (isAbandonError(error)) {
+          console.log(
+            `Endo daemon makePeer ${nodeId.slice(0, 8)}: retrying after abandoned dial`,
+          );
+          return dialAttempt();
+        }
+        throw error;
+      }
+    };
+
+    // Return a facade gateway whose `provide` method consults the
+    // current state of the remote-control on each call.  If the
+    // current connection is lost mid-flight (e.g., due to crossed
+    // hellos accept bias switching to a different TCP), subsequent
+    // `provide` calls will go through whatever connection the
+    // remote-control currently holds.
+    const currentGatewayP = resilientDial();
+
+    // Follow retention set changes in the background once connected.
+    (async () => {
+      try {
+        const gateway = await currentGatewayP;
+        const iter = await E(gateway).followRetentionSet(localNodeNumber);
+        const peerAgentKeyRecord = persistencePowers.getAgentKey(nodeId);
+        const peerAgentIdStr = peerAgentKeyRecord
+          ? /** @type {FormulaIdentifier} */ (peerAgentKeyRecord.agentId)
+          : undefined;
+
+        let isFirst = true;
+        for await (const delta of makeRefIterator(/** @type {any} */ (iter))) {
+          if (isFirst) {
+            persistencePowers.replaceRetention(nodeId, delta.add);
+            if (peerAgentIdStr !== undefined) {
+              await withFormulaGraphLock(async () => {
+                formulaGraph.replaceRetention(
+                  peerAgentIdStr,
+                  delta.add.map(num =>
+                    formatId({
+                      number: /** @type {FormulaNumber} */ (num),
+                      node: localNodeNumber,
+                    }),
+                  ),
+                );
+              });
+            }
+            isFirst = false;
+          } else {
+            for (const num of delta.add) {
+              persistencePowers.writeRetention(nodeId, num);
+            }
+            for (const num of delta.remove) {
+              persistencePowers.deleteRetention(nodeId, num);
+            }
+            if (peerAgentIdStr !== undefined) {
+              await withFormulaGraphLock(async () => {
+                for (const num of delta.add) {
+                  formulaGraph.addRetention(
+                    peerAgentIdStr,
+                    formatId({
+                      number: /** @type {FormulaNumber} */ (num),
+                      node: localNodeNumber,
+                    }),
+                  );
+                }
+                for (const num of delta.remove) {
+                  formulaGraph.removeRetention(
+                    peerAgentIdStr,
+                    formatId({
+                      number: /** @type {FormulaNumber} */ (num),
+                      node: localNodeNumber,
+                    }),
+                  );
+                }
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.log(
+          `Retention sync failed for peer ${nodeId.slice(0, 8)}: ${/** @type {Error} */ (err).message}`,
+        );
+      }
+    })();
+
+    return makeExo(
+      'ResilientPeerGateway',
+      PeerGatewayInterface,
+      /** @type {any} */ ({
+        /** @param {string} requestedId */
+        provide: async requestedId => {
+          // Try with the current gateway; on failure, re-dial and try
+          // once more.  This handles the case where the initial dial
+          // succeeded but the connection was later abandoned.
+          try {
+            const gateway = await currentGatewayP;
+            return await E(gateway).provide(requestedId);
+          } catch (error) {
+            if (!isAbandonError(error)) {
+              throw error;
+            }
+            console.log(
+              `Endo daemon peer ${nodeId.slice(0, 8)}: provide failed with ${/** @type {Error} */ (error).message}, re-dialing`,
+            );
+            const gateway = await resilientDial();
+            return E(gateway).provide(requestedId);
+          }
+        },
+      }),
     );
   };
 
@@ -2457,19 +4842,26 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} id
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
-   * @param {PetName} guestName
+   * @param {import('./types.js').PetName} guestName
    */
   const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
     const hostAgent = /** @type {EndoHost} */ (await provide(hostAgentId));
 
     const locate = async () => {
       const { node, addresses } = await hostAgent.getPeerInfo();
-      const { number: hostHandleNumber } = parseId(hostHandleId);
+      const { number: hostHandleNumber, node: hostHandleNode } =
+        parseId(hostHandleId);
       const { number } = parseId(id);
       const url = new URL('endo://');
       url.hostname = node;
       url.searchParams.set('id', number);
+      url.searchParams.set('type', 'invitation');
       url.searchParams.set('from', hostHandleNumber);
+      // Include the handle's node if it differs from the daemon node
+      // (i.e. it uses an agent key).
+      if (hostHandleNode !== node) {
+        url.searchParams.set('fromNode', hostHandleNode);
+      }
       for (const address of addresses) {
         url.searchParams.append('at', address);
       }
@@ -2478,27 +4870,38 @@ const makeDaemonCore = async (
 
     /**
      * @param {string} guestHandleLocator
+     * @param {string} [_hostNameFromGuest] - Previously used by synced
+     *   pet stores; now unused but retained for protocol compatibility.
      */
-    const accept = async guestHandleLocator => {
+    const accept = async (guestHandleLocator, _hostNameFromGuest) => {
       const url = new URL(guestHandleLocator);
       const guestHandleNumber = url.searchParams.get('id');
       const addresses = url.searchParams.getAll('at');
-      const guestNodeNumber = url.hostname;
+      const guestDaemonNode = url.hostname;
+      // The handle's node may differ from the daemon node when agent keys
+      // are used as formula nodes.
+      const guestHandleNode =
+        url.searchParams.get('handleNode') || guestDaemonNode;
 
       if (!guestHandleNumber) {
         throw makeError('Handle locator must have an "id" parameter');
       }
-      assertNodeNumber(guestNodeNumber);
+      assertNodeNumber(guestDaemonNode);
       assertFormulaNumber(guestHandleNumber);
 
       const guestHandleId = formatId({
-        node: guestNodeNumber,
+        node: /** @type {NodeNumber} */ (guestHandleNode),
         number: guestHandleNumber,
       });
 
+      // Register the guest's agent key so we can route to its daemon.
+      if (guestHandleNode !== guestDaemonNode) {
+        persistencePowers.writeRemoteAgentKey(guestHandleNode, guestDaemonNode);
+      }
+
       /** @type {PeerInfo} */
       const peerInfo = {
-        node: guestNodeNumber,
+        node: guestDaemonNode,
         addresses,
       };
       await hostAgent.addPeerInfo(peerInfo);
@@ -2506,17 +4909,47 @@ const makeDaemonCore = async (
       // TODO ensure that this is sufficient to cancel the previous
       // incarnation, this invitation, such that it can no longer be redeemed,
       // and such that overwriting the invitation also revokes the invitation.
-      await formulaGraphJobs.enqueue();
+      await withFormulaGraphLock();
       const controller = provideController(id);
-      console.log('Cancelled:');
       await controller.context.cancel(new Error('Invitation accepted'));
 
-      await E(hostAgent).write(
-        /** @type {NamePath} */ ([guestName]),
-        guestHandleId,
+      // Create a local guest with a regular pet store.
+      // Pin the guest handle to protect it from premature collection.
+      /** @type {DeferredTasks<AgentDeferredTaskParams>} */
+      const guestTasks = makeDeferredTasks();
+      guestTasks.push(async identifiers => pinTransient(identifiers.handleId));
+      const { id: localGuestId } = await formulateGuest(
+        hostAgentId,
+        hostHandleId,
+        guestTasks,
+        `guest:${guestName}`,
       );
 
-      return provide(guestHandleId);
+      // Look up the local guest's handle from its formula so we can
+      // name it.  Incarnating the handle transitively incarnates the
+      // guest.
+      const localGuestFormula = /** @type {GuestFormula} */ (
+        await getFormulaForId(localGuestId)
+      );
+
+      // Name the guest handle inside @pins so it persists.
+      await E(hostAgent).storeIdentifier(
+        /** @type {NamePath} */ (['@pins', `guest-${guestName}`]),
+        localGuestFormula.handle,
+      );
+      await unpinTransient(localGuestFormula.handle);
+
+      // Store the remote guest handle under guestName for mail delivery.
+      // Use storeLocator so the directory properly internalizes the
+      // remote formula identifier for peer resolution.
+      const guestHandleLocatorStr = formatLocator(guestHandleId, 'remote');
+      await E(hostAgent).storeLocator(
+        /** @type {NamePath} */ ([guestName]),
+        guestHandleLocatorStr,
+      );
+
+      // Return the remote guest's public key for retention tracking.
+      return harden({ guestPublicKey: guestDaemonNode });
     };
 
     return makeExo('Invitation', InvitationInterface, { accept, locate });
@@ -2525,13 +4958,18 @@ const makeDaemonCore = async (
   const makeContext = makeContextMaker({
     controllerForId,
     provideController,
+    getFormulaType: id => formulaForId.get(id)?.type,
   });
 
   const { makeIdentifiedDirectory, makeDirectoryNode } = makeDirectoryMaker({
     provide,
+    provideStoreController,
     getIdForRef,
     getTypeForId,
     formulateDirectory,
+    formulateReadableBlob,
+    pinTransient,
+    unpinTransient,
   });
 
   const makeMailbox = makeMailboxMaker({
@@ -2540,17 +4978,143 @@ const makeDaemonCore = async (
     formulatePromise,
     formulateMessage,
     getFormulaForId,
+    getTypeForId,
+    isLocalKey,
+    randomHex256,
+    pinTransient,
+    unpinTransient,
+  });
+
+  /** @param {import('@endo/pass-style').Passable} value */
+  const persistValue = async value => {
+    /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+    const tasks = makeDeferredTasks();
+    const { id } = await formulateMarshalValue(value, tasks, pinTransient);
+    return id;
+  };
+
+  const makeChannelInstance = makeChannelMaker({
+    provide,
+    provideStoreController,
+    persistValue,
+    randomHex256,
   });
 
   const makeGuest = makeGuestMaker({
     provide,
+    provideStoreController,
+    formulateEval,
+    formulateReadableBlob,
+    formulateMarshalValue,
+    getFormulaForId,
+    getAllNetworkAddresses,
     makeMailbox,
     makeDirectoryNode,
+    isLocalKey,
+    pinTransient,
+    unpinTransient,
   });
+
+  /**
+   * Look up the agent formula ID for a given handle formula ID.
+   *
+   * @param {FormulaIdentifier} handleId
+   * @returns {Promise<FormulaIdentifier>}
+   */
+  const getAgentIdForHandleId = async handleId => {
+    const handle = await provide(handleId, 'handle');
+    const agentId = agentIdForHandle.get(handle);
+    if (agentId === undefined) {
+      throw makeError(X`No agent found for handle ${q(handleId)}`);
+    }
+    return agentId;
+  };
+
+  /**
+   * Returns a snapshot of the formula dependency graph restricted to
+   * formulas reachable from a given set of formula identifiers.
+   *
+   * @param {FormulaIdentifier[]} seedIds
+   * @returns {Promise<{ nodes: Array<{ id: FormulaIdentifier, type: string }>, edges: Array<{ sourceId: FormulaIdentifier, targetId: FormulaIdentifier, label: string }> }>}
+   */
+  const getFormulaGraphSnapshot = async seedIds => {
+    /** @type {Set<FormulaIdentifier>} */
+    const visited = new Set();
+    /** @type {FormulaIdentifier[]} */
+    const queue = [...seedIds.filter(isLocalId)];
+
+    while (queue.length > 0) {
+      const id = /** @type {FormulaIdentifier} */ (queue.shift());
+      if (!visited.has(id)) {
+        visited.add(id);
+        const deps = formulaGraph.formulaDeps.get(id);
+        if (deps) {
+          for (const dep of deps) {
+            if (!visited.has(dep)) {
+              queue.push(dep);
+            }
+          }
+        }
+      }
+    }
+
+    /** @type {Array<{ id: FormulaIdentifier, type: string }>} */
+    const snapshotNodes = [];
+    /** @type {Array<{ sourceId: FormulaIdentifier, targetId: FormulaIdentifier, label: string }>} */
+    const graphEdges = [];
+
+    for (const id of visited) {
+      const formula = formulaForId.get(id);
+      snapshotNodes.push({ id, type: formula ? formula.type : 'unknown' });
+      if (formula) {
+        for (const [label, dep] of extractLabeledDeps(formula)) {
+          if (dep && visited.has(dep)) {
+            graphEdges.push({ sourceId: id, targetId: dep, label });
+          }
+        }
+      }
+    }
+
+    return harden({ nodes: snapshotNodes, edges: graphEdges });
+  };
+
+  /**
+   * Return the on-disk filesystem path for a scratch-mount formula.
+   * Host-side callers use this to hand a native filesystem path to
+   * Node's module loader (via `makeUnconfined`) without having
+   * Mount expose the path on its public surface.
+   *
+   * @param {FormulaIdentifier} scratchMountId
+   * @returns {string}
+   */
+  const getScratchMountPath = scratchMountId => {
+    // formulaForId.get returns undefined if the formula has been
+    // collected since the caller resolved its identifier.  Surfacing
+    // a clear error here lets the host-side caller decide whether
+    // to re-stage rather than handing back a stale path that points
+    // at a directory the daemon may have removed.
+    const formula = formulaForId.get(scratchMountId);
+    if (formula === undefined) {
+      throw makeError(
+        X`Unknown or collected scratch-mount formula ${q(scratchMountId)}`,
+      );
+    }
+    if (formula.type !== 'scratch-mount') {
+      throw makeError(
+        X`getScratchMountPath requires a scratch-mount formula, got ${q(formula.type)}`,
+      );
+    }
+    const { number: formulaNumber } = parseId(scratchMountId);
+    return filePowers.joinPath(
+      persistencePowers.statePath,
+      'mounts',
+      formulaNumber,
+    );
+  };
 
   const makeHost = makeHostMaker({
     provide,
-    provideController,
+    provideStoreController,
     cancelValue,
     formulateWorker,
     formulateHost,
@@ -2558,13 +5122,30 @@ const makeDaemonCore = async (
     formulateMarshalValue,
     formulateEval,
     formulateUnconfined,
-    formulateBundle,
+    formulateArchive,
+    formulateFromTree,
     formulateReadableBlob,
+    checkinTree,
+    formulateMount,
+    formulateScratchMount,
     formulateInvitation,
+    formulateDirectoryForStore,
+    getPeerIdForNodeIdentifier,
+    getAllNetworkAddresses,
+    getTypeForId,
+    getFormulaForId,
+    formulateChannel,
+    formulateTimer,
     makeMailbox,
     makeDirectoryNode,
-    getAllNetworkAddresses,
     localNodeNumber,
+    isLocalKey,
+    getAgentIdForHandleId,
+    pinTransient,
+    unpinTransient,
+    getFormulaGraphSnapshot,
+    getScratchMountPath,
+    writeRemoteAgentKey: persistencePowers.writeRemoteAgentKey,
   });
 
   /**
@@ -2577,7 +5158,7 @@ const makeDaemonCore = async (
    * @returns {Promise<EndoInspector>}
    */
   const makePetStoreInspector = async petStoreId => {
-    const petStore = await provide(petStoreId, 'pet-store');
+    const petStore = await provideStoreController(petStoreId);
 
     /**
      * @param {string | string[]} petNameOrPath - The pet name to inspect.
@@ -2598,16 +5179,22 @@ const makeDaemonCore = async (
         petName = petNameOrPath;
       }
       assertName(petName);
-      const id = petStore.identifyLocal(petName);
+      const id = /** @type {FormulaIdentifier | undefined} */ (
+        petStore.identifyLocal(petName)
+      );
       if (id === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }
-      const { id: formulaId, number: formulaNumber } = parseId(id);
-      const formula = await getFormulaForId(formulaId);
+      const { number: formulaNumber } = parseId(id);
+      const formula = await getFormulaForId(id);
       if (
-        !['eval', 'lookup', 'make-unconfined', 'make-bundle', 'guest'].includes(
-          formula.type,
-        )
+        ![
+          'eval',
+          'lookup',
+          'make-unconfined',
+          'make-archive',
+          'guest',
+        ].includes(formula.type)
       ) {
         return makeInspector(formula.type, formulaNumber, harden({}));
       }
@@ -2643,12 +5230,22 @@ const makeDaemonCore = async (
             hostHandle: provide(formula.hostHandle, 'handle'),
           }),
         );
-      } else if (formula.type === 'make-bundle') {
+      } else if (formula.type === 'make-archive') {
         return makeInspector(
           formula.type,
           formulaNumber,
           harden({
-            bundle: provide(formula.bundle, 'readable-blob'),
+            archive: provide(formula.archive, 'readable-blob'),
+            powers: provide(formula.powers),
+            worker: provide(formula.worker, 'worker'),
+          }),
+        );
+      } else if (formula.type === 'make-from-tree') {
+        return makeInspector(
+          formula.type,
+          formulaNumber,
+          harden({
+            tree: provide(formula.tree),
             powers: provide(formula.powers),
             worker: provide(formula.worker, 'worker'),
           }),
@@ -2688,57 +5285,144 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCoreExternal} */
+  await seedFormulaGraphFromPersistence();
+
+  // eslint-disable-next-line no-undef
+  if (typeof process !== 'undefined' && process.env.ENDO_FORMULA_GRAPH) {
+    console.log('Formula graph after persistence seed:');
+    for (const [id, formula] of formulaForId.entries()) {
+      const deps = formulaGraph.formulaDeps.get(id);
+      const depList = deps
+        ? [...deps].map(d => d.slice(0, 12)).join(', ')
+        : 'none';
+      const isRoot = formulaGraph.roots.has(id);
+      console.log(
+        `  ${id.slice(0, 12)} ${formula.type}${isRoot ? ' [ROOT]' : ''} deps=[${depList}]`,
+      );
+    }
+  }
+
   return {
     formulateEndo,
     provide,
     nodeNumber: localNodeNumber,
+    capTpConnectionRegistrar,
   };
 };
 
 /**
- * @param {DaemonicPowers} powers
+ * Creates and bootstraps the Endo daemon by loading or creating formulas.
+ *
+ * This function provides the main entry point for creating an Endo daemon. It:
+ * 1. Loads the root nonce and keypair from persistence (or generates new ones)
+ * 2. Creates or recreates the daemon core with appropriate formulas
+ * 3. If the daemon was newly created, formulates the Endo bootstrap formula
+ * 4. Returns the endo bootstrap interface and CapTP connection registrar
+ *
+ * For existing daemons, the formula graph is loaded from persistence and the
+ * Endo bootstrap is provided.
+ * For new daemons, the bootstrap formula is formulated and returned.
+ *
+ * @param {DaemonicPowers} powers - The daemon powers for crypto and persistence.
  * @param {object} args
- * @param {(error: Error) => void} args.cancel
- * @param {number} args.gracePeriodMs
- * @param {Promise<never>} args.gracePeriodElapsed
- * @param {Specials} args.specials
- * @returns {Promise<FarRef<EndoBootstrap>>}
+ * @param {(error: Error) => void} args.cancel - Callback for cancellation.
+ * @param {number} args.gracePeriodMs - Grace period in milliseconds for shutdown.
+ * @param {Promise<never>} args.gracePeriodElapsed - Promise that resolves on grace period end.
+ * @param {Specials} args.specials - Special formula generators.
+ * @param {boolean} [args.gcEnabled] - Enable garbage collection.
+ * @param {'locked' | 'node'} [args.defaultWorkerKind] - Default kind for newly formulated workers.
+ * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
+ *         An object containing the endo bootstrap and CapTP connection registrar.
+ *
+ * @example
+ * ```js
+ * const { endoBootstrap, capTpConnectionRegistrar } =
+ *   await provideEndoBootstrap(powers, {
+ *     cancel: handleCancel,
+ *     gracePeriodMs: 3000,
+ *     gracePeriodElapsed: onCancelled,
+ *     specials: myFormulas
+ *   });
+ * ```
  */
 const provideEndoBootstrap = async (
   powers,
-  { cancel, gracePeriodMs, gracePeriodElapsed, specials },
+  {
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
+    specials,
+    gcEnabled,
+    defaultWorkerKind,
+  },
 ) => {
   const { persistence: persistencePowers } = powers;
   const { rootNonce: endoFormulaNumber, isNewlyCreated } =
     await persistencePowers.provideRootNonce();
+  const { keypair: rootKeypair } = await persistencePowers.provideRootKeypair();
+  const localNodeNumber = /** @type {NodeNumber} */ (
+    toHex(rootKeypair.publicKey)
+  );
   const daemonCore = await makeDaemonCore(powers, endoFormulaNumber, {
     cancel,
     gracePeriodMs,
     gracePeriodElapsed,
     specials,
+    localNodeNumber,
+    signBytes: rootKeypair.sign,
+    gcEnabled,
+    defaultWorkerKind,
   });
+  const { capTpConnectionRegistrar } = daemonCore;
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
     const endoId = formatId({
       number: endoFormulaNumber,
       node: daemonCore.nodeNumber,
     });
-    return /** @type {Promise<FarRef<EndoBootstrap>>} */ (
-      daemonCore.provide(endoId)
+    const endoBootstrap = /** @type {FarRef<EndoBootstrap>} */ (
+      await daemonCore.provide(endoId)
     );
+    return { endoBootstrap, capTpConnectionRegistrar };
   } else {
     const { value: endoBootstrap } =
       await daemonCore.formulateEndo(endoFormulaNumber);
-    return endoBootstrap;
+    return { endoBootstrap, capTpConnectionRegistrar };
   }
 };
 
 /**
- * @param {DaemonicPowers} powers
- * @param {string} daemonLabel
- * @param {(error: Error) => void} cancel
- * @param {Promise<never>} cancelled
- * @param {Specials} [specials]
+ * Creates and initializes an Endo daemon instance.
+ *
+ * This is the main exported function for creating an Endo daemon:
+ * 1. Sets up a grace period for graceful shutdown
+ * 2. Provides the endo bootstrap with CapTP connection registration
+ * 3. Revives networks and pins from the endo bootstrap
+ * 4. Returns a daemon object with the endo bootstrap, cancellation callback,
+ *    and CapTP connection registrar
+ *
+ * The daemon runs in the background and serves as the central point of
+ * coordination for formulas, workers, and persistent state.
+ *
+ * @param {DaemonicPowers} powers - The daemon powers including crypto, persistence, and control.
+ * @param {string} daemonLabel - A label for the daemon instance (used for logging).
+ * @param {(error: Error) => void} cancel - Callback to call when daemon needs to cancel.
+ * @param {Promise<never>} cancelled - A promise that rejects when cancelled.
+ * @param {Specials} [specials] - Special formula generators
+ * @param {object} [options]
+ * @param {boolean} [options.gcEnabled] - Enable garbage collection of worker daemons.
+ * @param {'locked' | 'node'} [options.defaultWorkerKind] - Default kind for newly formulated workers.
+ *
+ * @example
+ * ```js
+ * const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
+ *   await makeDaemon(powers, 'my-daemon', handleError, cancelledPromise, {
+ *     // your special formulas here
+ *   });
+ *
+ * // Later, to cancel:
+ * await cancelGracePeriod(new Error('Daemon shutdown'));
+ * ```
  */
 export const makeDaemon = async (
   powers,
@@ -2746,12 +5430,14 @@ export const makeDaemon = async (
   cancel,
   cancelled,
   specials = {},
+  options = {},
 ) => {
+  const { gcEnabled, defaultWorkerKind } = options;
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {PromiseKit<never>} */ (makePromiseKit());
 
   // TODO thread through command arguments.
-  const gracePeriodMs = 100;
+  const gracePeriodMs = 2000;
 
   /** @type {Promise<never>} */
   const gracePeriodElapsed = cancelled.catch(async error => {
@@ -2762,17 +5448,20 @@ export const makeDaemon = async (
     throw error;
   });
 
-  const endoBootstrap = await provideEndoBootstrap(powers, {
-    cancel,
-    gracePeriodMs,
-    gracePeriodElapsed,
-    specials,
-  });
+  const { endoBootstrap, capTpConnectionRegistrar } =
+    await provideEndoBootstrap(powers, {
+      cancel,
+      gracePeriodMs,
+      gracePeriodElapsed,
+      specials,
+      gcEnabled,
+      defaultWorkerKind,
+    });
 
   await Promise.allSettled([
     E(endoBootstrap).reviveNetworks(),
     E(endoBootstrap).revivePins(),
   ]);
 
-  return { endoBootstrap, cancelGracePeriod };
+  return { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar };
 };

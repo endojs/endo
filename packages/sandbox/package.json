@@ -1,0 +1,74 @@
+{
+  "name": "@endo/sandbox",
+  "version": "0.0.1",
+  "private": true,
+  "description": "POSIX sandbox plugin for Endo — confined process / filesystem / network slices",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/sandbox#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/sandbox"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./src/agent.js",
+  "exports": {
+    ".": "./src/agent.js",
+    "./factory.js": "./src/factory.js",
+    "./interfaces.js": "./src/interfaces.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ses-ava",
+    "test:drivers": "ses-ava test/bwrap.test.js test/podman.test.js",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc"
+  },
+  "dependencies": {
+    "@endo/daemon": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/patterns": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/init": "workspace:^",
+    "@endo/lockdown": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "typescript": "~5.9.2"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "endo": "../../ava-endo-shims-only.config.mjs",
+    "noop-harden": "../../ava-base.config.mjs"
+  }
+}

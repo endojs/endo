@@ -69,7 +69,7 @@ const reverseSlot = slot => {
  * @param {MakeCapTPImportExportTablesOptions} options
  * @returns {CapTPImportExportTables}
  */
-const makeDefaultCapTPImportExportTables = ({
+export const makeDefaultCapTPImportExportTables = ({
   gcImports,
   releaseSlot,
   makeRemoteKit,

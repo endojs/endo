@@ -1,0 +1,9 @@
+[Unit]
+Description=AI Evoker Vigil For %i Project
+CollectMode=inactive-or-failed
+
+[Service]
+Type=exec
+Slice=background.slice
+ExecStart=%h/%i/pivoker/vigil.sh
+WorkingDirectory=%h/%i

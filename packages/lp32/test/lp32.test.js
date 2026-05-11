@@ -161,6 +161,94 @@ test('concurrent writes', async t => {
   );
 });
 
+test('reader rejects message exceeding maxMessageLength', async t => {
+  // Create a chunk that declares a message length exceeding the limit.
+  const header = new Uint8Array(4);
+  const data = new DataView(header.buffer);
+  // Declare a 100-byte message with a 10-byte limit.
+  data.setUint32(0, 100, hostIsLittleEndian);
+  const r = makeLp32Reader([header], {
+    maxMessageLength: 10,
+    name: '<test-max>',
+  });
+  await t.throwsAsync(() => arrayFromAsync(r), {
+    message: /must not exceed/,
+  });
+});
+
+test('reader detects dangling bytes at end of stream', async t => {
+  // Send a partial message: a 4-byte header declaring length 10,
+  // but only 5 bytes of payload.
+  const chunk = new Uint8Array(4 + 5);
+  const data = new DataView(chunk.buffer);
+  data.setUint32(0, 10, hostIsLittleEndian);
+  chunk.set(new Uint8Array([1, 2, 3, 4, 5]), 4);
+  const r = makeLp32Reader([chunk], { name: '<dangling-test>' });
+  await t.throwsAsync(() => arrayFromAsync(r), {
+    message: /Unexpected dangling message/,
+  });
+});
+
+test('writer rejects message exceeding maxMessageLength', async t => {
+  const { writer } = makeArrayWriter();
+  // makeArrayWriter creates a writer with default maxMessageLength (1MB).
+  // Create one with a small limit instead.
+  const smallWriter = makeLp32Writer(
+    {
+      async next() {
+        return { done: false };
+      },
+      async return() {
+        return { done: true };
+      },
+      async throw() {
+        return { done: true };
+      },
+    },
+    { maxMessageLength: 10, name: '<small-writer>' },
+  );
+  void writer; // unused, just for makeArrayWriter pattern
+  await t.throwsAsync(() => smallWriter.next(new Uint8Array(100)), {
+    message: /must not exceed/,
+  });
+});
+
+test('writer throw delegates to output', async t => {
+  let thrownError;
+  const output = {
+    async next() {
+      return { done: false };
+    },
+    async return() {
+      return { done: true };
+    },
+    async throw(error) {
+      thrownError = error;
+      return { done: true };
+    },
+  };
+  const writer = makeLp32Writer(output);
+  const err = new Error('test error');
+  await writer.throw(err);
+  t.is(thrownError, err);
+});
+
+test('writer Symbol.asyncIterator returns self', t => {
+  const output = {
+    async next() {
+      return { done: false };
+    },
+    async return() {
+      return { done: true };
+    },
+    async throw() {
+      return { done: true };
+    },
+  };
+  const writer = makeLp32Writer(output);
+  t.is(writer[Symbol.asyncIterator](), writer);
+});
+
 test('round-trip varying messages', async t => {
   const array = ['', 'A', 'hello'];
 

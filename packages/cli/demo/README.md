@@ -114,7 +114,7 @@ import { M } from '@endo/patterns';
 
 export const make = powers => {
   const counter = E(powers).request(
-    'HOST',
+    '@host',
     'a counter, suitable for doubling',
     'my-counter'
   );
@@ -204,7 +204,7 @@ and adopt the "doubler" object into our own store.
 > endo mkguest alice alice-agent
 > endo send alice 'Please enjoy this @doubler.'
 > endo inbox --as alice-agent
-0. "HOST" sent "Please enjoy this @doubler."
+0. "@host" sent "Please enjoy this @doubler."
 > endo adopt --as alice-agent 0 doubler
 > endo list alice-agent
 doubler
@@ -228,7 +228,7 @@ Then, alice adopts "counter", giving it their own name, "redoubler".
 ```
 > endo send alice 'Please enjoy this @counter:doubler.'
 > endo inbox --as alice-agent
-1. "HOST" sent "Please enjoy this @counter."
+1. "@host" sent "Please enjoy this @counter."
 > endo adopt --as alice-agent 1 counter --name redoubler
 > endo list alice-agent
 redoubler
@@ -241,17 +241,17 @@ Guests can also send their host messages.
 In this example, "alice" send the doubler back to us, their host.
 
 ```
-> endo send HOST --as alice-agent 'This is the @doubler you sent me.'
+> endo send @host --as alice-agent 'This is the @doubler you sent me.'
 > endo inbox
 0. "alice" sent "This is the @doubler you sent me."
 > endo adopt 0 doubler doubler-from-alice
 > endo dismiss 0
 ```
 
-For a guest, the reserved name HOST refers to their host.
-For both hosts and guests, SELF is the name of their own powers object.
+For a guest, the reserved name `@host` refers to their host.
+Special names are @-prefixed like `@host`, `@agent`, and `@self`.
 
-# Familiar Chat
+# Agents
 
 The pet daemon (or familiar, if you will) maintains a petstore and mailbox for
 each agent, like you (the host), and all your guests (like the doubler-agent).
@@ -259,53 +259,9 @@ The `endo list` command shows you the pet names in your pet store.
 The `endo inbox` command (and `endo inbox --follow` command), shows
 messages from your various guests.
 
-Weblets are web page caplets.
-These are programs, like the counter and doubler above, except that
-they run in a web page.
-Each of these applications is connected to the pet daemon and can make
-the same kinds of requests for data and powers.
-Each weblet runs on a separate local HTTP port so they have independent
-origins, so they own their local storage.
-
-_Familiar Chat_ is an example application that provides a web app for
-interacting with your pet daemon.
-
-```
-> endo install cat.js --listen 8920 --powers AGENT --name familiar-chat
-```
-
-This command creates a web page named familiar-chat and endows it with the
-authority to maintain your petstore and mailbox.
-You can then open that page.
-
-```
-> endo open familiar-chat
-```
-
-So, if you were to simulate a request from your cat:
-
-```
-> endo mkguest cat cat-agent
-> endo request HOST 'pet me' --as cat-agent
-```
-
-This will appear in your Familiar Chat web page, where you can resolve
-or reject that request with any value you have a pet name for.
-For example, in your web browser, you will see something like:
-
-> ## Familiar Chat
-> 1. *cat* requests "pet me" `[      ]` `[resolve]` `[reject]`
-
-If you enter the name `counter` and press `[resolve]` and return to your
-terminal, you will see that the `endo request 'pet me' --as cat` command has
-received the counter and exited.
-
-> ## Familiar Chat
-> 1. *cat* requests "pet me" _fulfilled_
-
 # Running a confined script
 
-Beyond weblets and worklets, a runlet is more like a `node` script:
+A runlet is more like a `node` script:
 it runs in your shell and interacts with you directly, not in a supervised
 worker process behind the scenes.
 But, like other caplets, it is fully confined and only receives the powers
