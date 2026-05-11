@@ -38,7 +38,7 @@ jobs:
         run: yarn workspace @endo/chat build
 
       - name: Bundle CLI and gateway
-        run: yarn workspace @endo/familiar bundle
+        run: yarn workspace @endo/familiar step:bundle
 
       - name: Upload chat dist
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -108,7 +108,7 @@ jobs:
           ./scripts/prepare-package.sh ${{ matrix.target-os }} ${{ matrix.target-arch }}
 
       - name: Make distributables
-        run: yarn workspace @endo/familiar make
+        run: yarn workspace @endo/familiar step:make
 
       - name: Upload make output
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
