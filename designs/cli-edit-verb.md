@@ -176,11 +176,12 @@ parse.
 /**
  * @typedef {object} EditPatch
  * @property {string} expectedFileHash SHA-256 of the file the agent
- *   read, as 64-char lowercase hex. The CAS check.
- * @property {'crc32' | 'fnv1a' | 'xxhash32'} [hashAlgo='crc32']
- *   the algorithm the per-line anchors were computed with.
+ *   read, as 64-char lowercase hex. The CAS check, regardless of any
+ *   underlying content store's native digest.
  * @property {EditOp[]} ops operations in any order; sorted bottom-up
- *   by line number before splicing.
+ *   by line number before splicing. Per-line anchor hashes are CRC32
+ *   (see "Hashing" below); the algorithm is fixed for v1, no envelope
+ *   field selects it.
  */
 
 /**
@@ -288,13 +289,8 @@ Before implementation, the builder should evaluate:
   small parser dependencies we could pull in rather than write.
 - **[crc-32](https://www.npmjs.com/package/crc-32)** (npm,
   zero-dependency, ISC): a CRC32 implementation in pure JS.
-  Candidate runtime dependency for the default hash algorithm if we
+  Candidate runtime dependency for the per-line anchor hash if we
   do not write our own.
-- **[@node-rs/xxhash](https://www.npmjs.com/package/@node-rs/xxhash)**
-  or **[xxhash-wasm](https://www.npmjs.com/package/xxhash-wasm)**: if
-  `xxhash32` is exposed as an option, one of these provides the
-  implementation; xxhash-wasm runs in browsers and has no native
-  binding requirement.
 
 The builder dispatch for this design should open with a
 prior-art review (one paragraph per evaluated package: license,
@@ -310,7 +306,6 @@ whether the algorithm code is original or vendored.
 ```
 endo edit <name-path> [--patch <file>|--patch-stdin] [--as <agent>]
 endo edit <name-path> --format hashline | hashline-json | udiff | search-replace
-endo edit <name-path> --hash-algo crc32 | fnv1a | xxhash32
 endo edit <name-path> [--dry-run] [--strict|--reapply]
 ```
 
@@ -404,10 +399,10 @@ more payload lines marked by a separator.
 - Comments begin with `#` at the start of the line and are ignored.
 - A blank line ends an operation; the next non-blank line either
   starts a new operation or is end-of-patch.
-- The patch may be prefixed with a metadata header:
-  `@expected-file-hash <hex>` and `@hash-algo <algo>`.
-  Both are required (the CAS check is on by default; see "CAS
-  semantics").
+- The patch is prefixed with a metadata header:
+  `@expected-file-hash <hex>`. Required (the CAS check is on by
+  default; see "CAS semantics"). Per-line anchor hashes are CRC32;
+  no `@hash-algo` header in v1.
 
 This is a deliberately textual, line-oriented format so it is human-
 readable, diff-friendly, and survives copy/paste through chat
@@ -422,7 +417,6 @@ JSON directly:
 ```json
 {
   "expectedFileHash": "7c1b...",
-  "hashAlgo": "crc32",
   "ops": [
     { "op": "replace", "anchor": { "line": 5, "hash": "f1" },
       "payload": ["  const { agent, store } = powers;"] },
@@ -460,7 +454,6 @@ Patch:
 
 ```
 @expected-file-hash 7c1b2a... (full SHA-256)
-@hash-algo crc32
 @replace 4#7e
 | Buy eggs (the brown ones).
 @insert-after 4#7e
@@ -496,23 +489,24 @@ the hash algorithm is part of the wire contract.
 - **Empty / whitespace-only lines:** seed the hash with the line
   number so multiple blank lines do not all map to the same anchor.
 
-### Other algorithms supported via options
+### Single algorithm: CRC32
 
-Per the maintainer's review on this design: leave the door open for
-other hashing algorithms in options.
-The patch envelope's `hashAlgo` field selects the algorithm; the CLI
-exposes `--hash-algo`:
+Per the maintainer's review (2026-05-11): start with CRC32 only.
+Per-line anchor hashes are always CRC32 in v1.
+There is no `--hash-algo` flag, no `hashAlgo` envelope field, and no
+`@hash-algo` header.
+A future extension can re-introduce algorithm selection if a concrete
+need arises (e.g., off-the-shelf interop with a tool that emits a
+different algorithm); the wire format reservation cost of doing so
+later is low because the envelope's `expectedFileHash` (always
+SHA-256) is a separate field.
 
-| Algorithm | Selector | Rationale |
-|---|---|---|
-| `crc32` | default | Zero-dependency, JS-portable, well-known. |
-| `fnv1a` | option | What `opencode-hashline` uses; faster on short inputs; trivial to bundle. |
-| `xxhash32` | option | What oh-my-pi uses (via `Bun.hash.xxHash32`); fastest of the three; needs a small WASM or native dependency. |
-
-The CLI's `--hash-algo` flag, the patch envelope's `hashAlgo` field,
-and the `--hashline` annotation on `endo read` must agree.
-Mismatched algorithms produce hash mismatches the daemon reports as
-ordinary `hash-mismatch` failures.
+The whole-file CAS hash is **always SHA-256**, regardless of the
+underlying content store's native digest. The agent computes SHA-256
+of the file as it read it; the daemon computes SHA-256 of the file as
+it currently is; mismatch fails the edit. This is independent of the
+per-line anchor algorithm and stays SHA-256 even if the per-line
+algorithm is later made selectable.
 
 A reference implementation lives in
 `packages/cli/src/hashline.js` and `packages/daemon/src/hashline.js`,
@@ -667,19 +661,18 @@ surface, not a fallback.
 - Implement `E(guest).edit(...)` to acquire the mount lock, read,
   validate CAS and per-line anchors, splice, write, release.
 - Implement `--strict` (default) and `--reapply` modes.
-- CRC32 hash algorithm; `fnv1a` and `xxhash32` deferred.
+- CRC32 per-line anchors; SHA-256 file-rev CAS (the only algorithms
+  in v1).
 - Test plan: unit tests for parser/validator/splice; integration
   tests for round-trip read-edit-read; CAS race tests with two
   concurrent guests editing the same path.
 
-### Phase 3: alternate hash algorithms and secondary formats
+### Phase 3: secondary formats
 
-- Implement `fnv1a` and `xxhash32` per the algorithm options table.
 - Implement `--format udiff` and `--format search-replace` parsers
   that translate into `EditPatch`.
-- Test plan: per-algorithm round-trip tests with reference fixtures;
-  per-format equivalence tests producing identical results to the
-  hashline equivalent.
+- Test plan: per-format equivalence tests producing identical results
+  to the hashline equivalent.
 
 ## Phase: multi-file atomicity
 
@@ -847,14 +840,13 @@ Questions follow-up.
 
 ## Open Questions
 
-1. **Hash algorithm default.**
-   This design recommends CRC32 as the default, with `fnv1a` and
-   `xxhash32` available via `--hash-algo` and `EditPatch.hashAlgo`.
-   Maintainer judgment to confirm: is CRC32 the right default, or
-   should we align with oh-my-pi (xxhash32) for off-the-shelf
-   harness compatibility from day one?
-   The choice is reversible; the wire contract carries the algorithm
-   name.
+1. **Hash algorithm default. RESOLVED 2026-05-11 per kriskowal:**
+   start with CRC32 (single algorithm) for per-line anchors and
+   SHA-256 (single algorithm) for the file-rev CAS. The envelope
+   carries no algorithm-selection field; future extension cost is
+   low because the two algorithms occupy independent fields. The
+   off-the-shelf-interop case (oh-my-pi xxhash32, opencode-hashline
+   fnv1a) is deferred until a concrete consumer surfaces.
 
 2. **Concurrent-write hazard, beyond the daemon-internal lock.**
    The daemon-side `EndoGuest.edit` API closes the read-write race
@@ -908,11 +900,10 @@ re-deriving the design:
 - Unit tests for the hashline tokenizer:
   every operation type, range syntax, payload separator, comment
   handling, blank-line termination, malformed inputs, the
-  `@expected-file-hash` and `@hash-algo` headers.
+  `@expected-file-hash` header.
 - Unit tests for the `hashline-json` validator:
-  every operation type, missing required fields, malformed
-  envelope, algorithm mismatch.
-- Unit tests for each hash algorithm:
+  every operation type, missing required fields, malformed envelope.
+- Unit tests for the CRC32 hash:
   agree byte-for-byte with a reference fixture across CRLF/LF,
   trailing whitespace, empty lines, lines that are only whitespace,
   Unicode (multi-byte) lines.
