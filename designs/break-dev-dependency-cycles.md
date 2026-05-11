@@ -526,7 +526,13 @@ ordinary consumers and to bundlers.
 
 Best practice: name the test-conditioned subpaths after their
 filesystem location and expose them through a single subpath-pattern
-entry rather than one entry per file.
+entry rather than one entry per file. **Name the condition after the
+package** (e.g. `test-endo-foo`), not the bare `test`. A
+package-specific condition preserves visibility into which
+internals the test surface relies on; a bare `test` shared across
+every package would degenerate into "internal access from any
+test-mode caller", erasing the public-interface unreachability the
+pattern is meant to enforce.
 
 Sketch:
 
@@ -536,15 +542,15 @@ Sketch:
   "exports": {
     ".": "./src/index.js",
     "./src/*": {
-      "test": "./src/*"
+      "test-endo-foo": "./src/*"
     }
   }
 }
 ```
 
 The `<subsystem>-test` package then imports
-`'@endo/foo/src/internal-test-helpers.js'` and runs ava with the `test`
-condition active.
+`'@endo/foo/src/internal-test-helpers.js'` and runs ava with the
+`test-endo-foo` condition active.
 
 Two benefits follow from naming the subpath after its on-disk
 location:
@@ -561,6 +567,9 @@ Adopted per kriskowal review (PR #211
 [#discussion_r3216544533](https://github.com/endojs/endo-but-for-bots/pull/211#discussion_r3216544533));
 the prior `./internal/<name>.js` per-file form was replaced
 during the Cut 2 (`@endo/hex`) and Cut 4 (`@endo/harden`) landings.
+The package-specific condition naming (e.g. `test-endo-harden`,
+not bare `test`) followed per
+[#discussion_r3220319525](https://github.com/endojs/endo-but-for-bots/pull/210#discussion_r3220319525).
 
 This requires threading the `test` condition into the ava invocation
 for every synthetic test package.
