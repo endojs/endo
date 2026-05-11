@@ -170,6 +170,39 @@ The CLI parses textual `hashline` into this envelope before the
 eventual send; agents that emit JSON directly bypass the textual
 parse.
 
+### `directoryRef` contract
+
+`directoryRef` must satisfy the `EndoDirectory` capability
+guard (the same guard `E(guest).readText` and `E(guest).writeText`
+require).
+In v1 the only `EndoDirectory` implementation that supports
+`edit` is `EndoMount` (and its sub-mounts derived via `lookup()`).
+A `directoryRef` that resolves to a non-mount `EndoDirectory`
+(e.g., a future virtual-filesystem ref) returns
+`{ success: false, failure: { reason: 'path-not-found' } }`
+with a diagnostic explaining that the directory does not back a
+splice-capable file store.
+
+The daemon does not let a CapTP-level "no such method" error
+escape across the boundary; the `EndoGuest.edit` adapter catches
+the missing-method case and translates it into the structured
+`path-not-found` failure so the agent's retry logic sees the
+same shape regardless of whether the path exists, the mount
+exists, or the ref is mount-shaped at all.
+
+`EndoDirectory.edit` is exposed on the `EndoDirectory`
+interface (not only on `EndoMount`) so an agent armed with an
+`EndoDirectory` ref can invoke `E(directoryRef).edit(path,
+patch, options)` directly without going through `EndoGuest`.
+The `EndoGuest.edit(directoryRef, path, patch, options)` form
+is sugar that delegates to `E(directoryRef).edit(path, patch,
+options)`; it exists so an agent that holds only its own guest
+ref can still target a directory it has been given by name.
+Sub-mounts and mount-derived `EndoDirectory` refs satisfy the
+edit method; non-mount `EndoDirectory` implementations either
+implement edit themselves or inherit a default that returns
+`path-not-found` per the previous paragraph.
+
 ### Patch envelope shape
 
 ```js
@@ -177,7 +210,11 @@ parse.
  * @typedef {object} EditPatch
  * @property {string} expectedFileHash SHA-256 of the file the agent
  *   read, as 64-char lowercase hex. The CAS check, regardless of any
- *   underlying content store's native digest.
+ *   underlying content store's native digest. For an empty file the
+ *   canonical value is the SHA-256 of the empty byte string
+ *   (`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`).
+ *   Absent files are not addressable via `edit`; see
+ *   "Empty and absent files" below.
  * @property {EditOp[]} ops operations in any order; sorted bottom-up
  *   by line number before splicing. Per-line anchor hashes are CRC32
  *   (see "Hashing" below); the algorithm is fixed for v1, no envelope
@@ -189,7 +226,11 @@ parse.
  * @property {'replace'|'replace-range'|'delete'|'insert-after'|'insert-before'|'prepend'|'append'} op
  * @property {Anchor} [anchor] one anchor for non-range ops
  * @property {Anchor} [anchorEnd] second anchor for range ops
- * @property {string[]} [payload] inserted lines (LF-terminated implied)
+ * @property {string[]} [payload] inserted lines, each a bare line
+ *   content (no embedded LF). The splice joins them with LF
+ *   separators on insert. A payload entry containing an embedded
+ *   `\n` is a `patch-syntax` failure; multi-line insertion is
+ *   expressed as multiple payload entries.
  */
 
 /**
@@ -198,6 +239,17 @@ parse.
  * @property {string} hash 2-to-4-char hex per the chosen algorithm
  */
 ```
+
+The wire shape is plain JSON.
+CapTP delivers the envelope to the daemon as a hardened pass-by-copy
+record, but the daemon must not assume any particular hardening or
+class identity on the values it receives.
+The mount's `edit` method re-runs the validator
+(`validateEditPatch`) on entry to reject malformed envelopes that
+were accepted by some intermediate hop or by a non-CLI caller that
+constructed the envelope directly.
+Callers cannot rely on hardened envelopes round-tripping with
+identity preserved across the eventual-send boundary.
 
 ### Result shape
 
@@ -222,10 +274,34 @@ parse.
 /**
  * @typedef {object} AnchorMismatch
  * @property {number} line
- * @property {string} hashExpected
- * @property {string} hashActual
+ * @property {string} hashExpected the patch's anchor hash
+ * @property {string} hashActualAtPatchWidth the live line's CRC32
+ *   recomputed at the same hex width as `hashExpected`, for
+ *   apples-to-apples comparison
+ * @property {string} hashActualAtFileWidth the live line's CRC32
+ *   at the file's currently-native width (2-char for ≤4096 lines,
+ *   4-char above), so an agent that hand-edits the patch can see
+ *   what the daemon would render today
  */
 ```
+
+The `permission-denied` reason covers both the static
+read-only case (a mount whose policy disallows mutation) and the
+filesystem case (a writable mount whose target file or directory
+is mode 0444 or otherwise rejects the kernel's `write`/`unlink`
+call with `EACCES`).
+A future taxonomy split (`mount-read-only` vs.
+`fs-permission-denied`) is a clean addition; v1 collapses both
+into `permission-denied` so callers do not have to switch on a
+combinatorial space.
+
+Other OS errors that surface during the splice (`EIO`, `ENOSPC`,
+`EROFS`, `EBUSY`) propagate as thrown errors, not as structured
+failures.
+The structured-failure shape is reserved for cases the agent can
+react to programmatically (re-read, re-author, drop the
+operation); a disk-full condition is a daemon-host concern that
+needs human attention.
 
 The result is a value, not a thrown error.
 Returning a structured failure lets the agent inspect `reason`,
@@ -471,6 +547,197 @@ Buy bread.
 
 ```
 
+## Splice contract
+
+The splice transforms the file's byte content into a new byte
+content under a few normative rules.
+These were under-specified in the first cut of the design and
+surfaced as gaps during the tentative builder dispatch
+(PR [#204](https://github.com/endojs/endo-but-for-bots/pull/204));
+the normative rules are pinned down here.
+
+### Line splitting and trailing newline
+
+The daemon splits the file into lines on LF (`\n`) only.
+A `splitLines` helper returns a `{ lines, trailingNewline }` pair:
+
+- `lines` is the array of line contents excluding their terminating
+  LF.
+- `trailingNewline` is `true` if the file's final byte is `\n` (or
+  the file is empty), `false` otherwise.
+
+The splice preserves `trailingNewline` byte-for-byte: a file that
+ended in `\n` before the splice ends in `\n` after; a file that did
+not, does not.
+Operations that insert lines (`insert-after`, `insert-before`,
+`prepend`, `append`, the payload of a `replace`) do not alter
+`trailingNewline`.
+The only way the trailing-newline state changes across an `edit`
+is if the patch explicitly deletes the file's last line and that
+last line was the trailing `\n` carrier.
+
+`joinLines({ lines, trailingNewline })` is the inverse: lines
+joined by LF, with a final LF appended only if `trailingNewline`
+is true.
+
+### CRLF round-trip
+
+CRLF in the source file is preserved byte-for-byte through the
+splice.
+Specifically: a `\r` immediately preceding a `\n` stays on the line
+content as a trailing `\r`; the LF is the line separator.
+The per-line CRC32 hash strips the trailing `\r` (the
+"normalize CRLF to LF" rule under "Hash algorithm specification"
+applies to the hash input, not to the splice).
+
+This makes the splice oblivious to CRLF: a CRLF file edited by an
+agent that emits LF-only payload will end up with mixed line
+endings.
+The design accepts this trade-off in v1 because:
+
+- Re-writing the whole file to one convention silently mutates
+  bytes the agent did not author.
+- Detecting and matching the file's dominant ending requires
+  reading the whole file just to make the determination.
+- The cost of mixed endings (a noisy diff in `git`) is recoverable;
+  the cost of silently-rewritten endings is not.
+
+A future option (`{ normalizeLineEndings: 'preserve' | 'lf' | 'crlf' }`)
+can pin a single convention if a concrete need surfaces.
+
+### Anchor uniqueness within a patch
+
+Two operations may anchor on the same line.
+The splice sort applies a deterministic tiebreaker so the result
+does not depend on `Array.sort`'s stability:
+
+1. Sort by line number, descending (bottom-up so earlier anchors
+   keep their original positions).
+2. Within a line, apply operations in this priority order:
+   `insert-after` first, then `insert-before`, then `replace` /
+   `delete`.
+3. Within an op type at the same line, apply in the order the
+   operations appear in the patch.
+
+Rationale: `insert-after L` and `insert-before L` cannot coexist
+with `replace L` in any meaningful way (the replace consumes the
+line the inserts anchor on), so adopting a fixed order makes the
+patch's intent unambiguous.
+The validator may emit a warning when this combination appears;
+v1 accepts it without warning.
+
+A `replace L` and a second `replace L` in the same patch is a
+`patch-syntax` failure (the first replace's payload would shadow
+the second's anchor).
+
+### Empty and absent files
+
+The empty file (zero bytes on disk) is addressable via `edit` and
+has the canonical `expectedFileHash`
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
+(SHA-256 of the empty byte string).
+Edits against the empty file may use `prepend` or `append` to
+populate it.
+
+An absent file (the path does not exist within the mount) is not
+addressable via `edit`.
+Every `edit` against an absent path fails with `path-not-found`
+regardless of the patch's contents.
+A patch that consists only of `prepend` / `append` ops does not
+implicitly create the file.
+File creation is `endo write`'s responsibility; once the file
+exists (even at zero bytes), `edit` operates on it.
+
+Rationale: separating creation from mutation keeps the mount's
+permission model legible (a mount that grants `edit` on an
+existing path does not implicitly grant `create` on a new path),
+and avoids the awkward case of an `expectedFileHash` for
+"the file does not exist yet".
+
+### File mode bits and metadata
+
+The splice preserves the target file's mode bits, ownership, and
+mtime semantics through a write-existing-inode pattern:
+
+1. The daemon reads the file via `readFileText` (which yields the
+   original mode bits via `fs.promises.stat`).
+2. The splice computes the new content in memory.
+3. The daemon writes the new content by truncating and rewriting
+   the existing file descriptor, not by writing a new file and
+   renaming it.
+4. The original mode bits and ownership remain because the inode
+   is the same.
+
+Extended attributes (xattr) and ACLs beyond POSIX mode bits are
+**not** preserved in v1.
+A future `{ preserveXattr: true }` option may extend this; the
+host filesystem support for xattr enumeration is the constraint.
+
+The truncate-and-rewrite pattern trades a brief moment of
+"file is half-written" visibility for metadata preservation.
+For the AI-agent workflow this is acceptable because the mount's
+internal lock serializes other `edit` callers; external readers
+that race with an `edit` see either the pre-edit content or the
+post-edit content (the kernel's page cache makes the partial-write
+window vanishingly small for the file sizes the splice supports).
+
+If atomic-rename semantics matter more than metadata preservation
+for a particular mount, the mount may opt in via
+`{ atomicRename: true }` to write a sibling tempfile and rename.
+This is a future option; v1 always uses truncate-and-rewrite.
+
+### File-size cap
+
+The splice reads the whole file into memory.
+Without a cap, a multi-GB file would OOM the daemon.
+
+The daemon enforces a default cap of **16 MiB** per `edit` call.
+A file whose on-disk size exceeds the cap fails with
+`patch-syntax` and a diagnostic naming the file size and the cap.
+(Reusing `patch-syntax` for the cap is a deliberate compromise so
+v1 does not introduce a sixth `EditFailure` reason; a future
+`file-too-large` reason is a clean addition.)
+
+The cap is configurable per mount via a constructor option:
+
+```js
+makeMount(directory, { maxEditFileSize: 64 * 1024 * 1024 })
+```
+
+The default of 16 MiB is large enough for every source file in
+the Endo monorepo (the largest file is under 200 KiB) and small
+enough that a runaway agent does not exhaust daemon memory.
+
+### Lock granularity
+
+The mount-internal lock is **per-mount-instance**, not per-file
+and not per-OS-path.
+Every `edit` against any path within a single `EndoMount`
+instance serializes against every other `edit` against any path
+within the same `EndoMount` instance.
+
+Two top-level `provideMount` calls that resolve to the same
+on-disk directory produce two `EndoMount` instances with
+**independent** locks.
+A patch issued through one instance does not serialize against a
+patch issued through the other.
+This is a known limitation; cross-instance serialization would
+require either a mount-deduplication layer (one `EndoMount` per
+on-disk directory, name-tracked centrally) or a daemon-global
+filesystem lock.
+Neither is in v1.
+
+The agent contract is: hold the same `directoryRef` for the
+duration of an edit session; do not re-resolve the same path
+through `provideMount` between reads and edits.
+The CAS check via `expectedFileHash` is the safety net when
+this contract is violated; the agent will see `file-rev-mismatch`
+and re-read.
+
+Sub-mounts derived via `lookup()` from a parent mount share the
+parent's lock (they are views into the same `EndoMount`
+instance, not independent instances).
+
 ## Hash algorithm specification
 
 To make hashline interoperable with off-the-shelf agent harnesses,
@@ -488,6 +755,20 @@ the hash algorithm is part of the wire contract.
   probability negligible.
 - **Empty / whitespace-only lines:** seed the hash with the line
   number so multiple blank lines do not all map to the same anchor.
+- **Anchor-width selection on validate.** The patch's anchor hashes
+  carry a width (the length of the hex string).
+  Each anchor in a patch declares its own width; the validator
+  recomputes the live line's CRC at the *patch's* declared width
+  for the comparison.
+  This means a patch authored against a small (≤4096 lines)
+  rendering of a file remains valid even after the file grows past
+  4096 lines (the daemon would now render at 4-char width on a
+  fresh read, but the agent's earlier patch with 2-char anchors
+  still validates).
+  The mismatch report includes both widths
+  (`{ hashExpected: 'a3', hashActualAtPatchWidth: 'b7',
+  hashActualAtFileWidth: 'b73c' }`) so an agent that hand-edits
+  the patch can see the file's current native width.
 
 ### Single algorithm: CRC32
 
@@ -582,6 +863,52 @@ the line at `LINE`, the daemon searches a small window (default ±20
 lines) for a line whose hash matches and, if exactly one candidate
 exists, relocates the operation to the new line.
 Multiple matches abort with `ambiguous-reapply`.
+
+### Reapply search algorithm (tentative pending kriskowal confirmation)
+
+The proposed v1 algorithm:
+
+1. Search the closed interval `[LINE - 20, LINE + 20]` clipped to
+   the file's actual line range.
+2. Visit lines in **nearest-by-line-distance** order: `LINE`,
+   `LINE - 1`, `LINE + 1`, `LINE - 2`, `LINE + 2`, …
+3. Within a tie (a line at distance `d` above and a line at
+   distance `d` below), visit the **lower line number first**
+   (the line above the original anchor).
+4. Collect every candidate whose CRC32 matches `HASH` (within the
+   patch's declared anchor width).
+5. If exactly one candidate exists in the window, relocate the
+   operation to that line.
+6. If two or more candidates exist, fail the operation with
+   `ambiguous-reapply` and report all candidate line numbers.
+7. If no candidate exists, fail the operation with
+   `hash-mismatch` (the same failure as strict mode would have
+   produced).
+
+The window default of ±20 is configurable via the API option
+`{ reapplyWindow: <integer> }` (default 20, max 200).
+Larger windows are not free: every candidate is hashed during
+the scan, so a 200-line window costs 400 CRC32 computations per
+anchor.
+
+This proposal departs from `diff-match-patch`'s algorithm
+(which uses a Bitap fuzzy match against quoted context) because
+hashline anchors are content hashes, not text quotations.
+The nearest-distance order matches the intuition "the line
+probably moved a small distance"; the lower-line-number tie
+break matches the intuition "an `insert-after L`'s anchor is
+more likely to have shifted up than down" (because earlier
+inserts grow the file before `L`).
+
+If kriskowal prefers a different default (forward-first,
+breadth-first, or a fuzzy match through `diff-match-patch`),
+this section is the ratchet point.
+
+The implementation in PR #204 currently defers reapply
+(`{ reapply: true }` is accepted but behaves identically to
+strict).
+The behavior described here lands in phase 2 once the algorithm
+is confirmed.
 
 Default is strict (no relocation).
 Reapply is opt-in because for AI agent flows, abort-and-re-read is
@@ -870,6 +1197,110 @@ Questions follow-up.
    attractive nuisance.
    If a human really wants last-write-wins, `endo write` with the
    whole file content is the right verb.
+
+## Resolved during builder dispatch
+
+The tentative builder dispatch on PR
+[#204](https://github.com/endojs/endo-but-for-bots/pull/204)
+surfaced 14 design gaps by reducing the design to code.
+The following gaps are resolved inline above; the citations
+point to the new normative section.
+
+1. **Trailing-newline preservation.**
+   Resolved: `splitLines` returns `{ lines, trailingNewline }`;
+   the splice preserves `trailingNewline` byte-for-byte.
+   See "Splice contract / Line splitting and trailing newline".
+2. **CRLF round-trip behavior.**
+   Resolved: CRLF is preserved byte-for-byte through the splice;
+   the per-line hash strips `\r` for hashing only.
+   See "Splice contract / CRLF round-trip".
+3. **Payload LF semantics.**
+   Resolved: each payload entry is bare line content with no
+   embedded `\n`; an embedded LF is a `patch-syntax` failure.
+   See the `EditOp.payload` typedef.
+4. **Anchor uniqueness within a patch.**
+   Resolved: two ops may share a line; sort applies a fixed
+   tiebreaker (`insert-after` > `insert-before` > `replace` /
+   `delete`); two `replace L` ops in one patch is `patch-syntax`.
+   See "Splice contract / Anchor uniqueness within a patch".
+6. **`expectedFileHash` for the empty / absent file.**
+   Resolved: empty file uses SHA-256 of the empty byte string
+   (`e3b0c44…`); absent files always fail with `path-not-found`;
+   `edit` does not implicitly create files.
+   See "Splice contract / Empty and absent files".
+7. **Lock granularity.**
+   Resolved: per-`EndoMount`-instance, not per-file and not
+   per-OS-path; sub-mounts share the parent's lock; two
+   independent `provideMount` calls have independent locks
+   (CAS is the safety net).
+   See "Splice contract / Lock granularity".
+8. **Permission-error taxonomy.**
+   Resolved: filesystem `EACCES` and mount-policy read-only both
+   map to `permission-denied`; other OS errors (`EIO`, `ENOSPC`,
+   `EROFS`, `EBUSY`) propagate as thrown errors.
+   See the `EditFailure` typedef and the prose immediately
+   following it.
+10. **File mode bits / ownership / xattr.**
+    Resolved (mode bits and ownership): truncate-and-rewrite
+    preserves them; xattrs are not preserved in v1.
+    A future `{ atomicRename: true }` and `{ preserveXattr: true }`
+    can extend this.
+    See "Splice contract / File mode bits and metadata".
+11. **CapTP boundary revalidation.**
+    Resolved: the wire shape is plain JSON; the mount re-runs
+    `validateEditPatch` on entry; callers cannot rely on
+    hardened envelopes round-tripping with identity.
+    See the prose under "Patch envelope shape".
+12. **Anchor hash-width mismatch behavior.**
+    Resolved: validator recomputes the live line at the patch's
+    declared width for the comparison; mismatch report includes
+    both the patch-width and the file-native-width hash.
+    See the `AnchorMismatch` typedef and "Hash algorithm
+    specification / Anchor-width selection on validate".
+13. **`directoryRef` shape.**
+    Resolved: `directoryRef` must satisfy `EndoDirectory`;
+    non-mount or non-edit-capable refs return structured
+    `path-not-found`, not a CapTP no-such-method error.
+    See "Daemon-side API / `directoryRef` contract".
+14. **`EndoDirectory` does not currently expose `edit`.**
+    Resolved: `edit` is added to the `EndoDirectory` interface;
+    `EndoGuest.edit(directoryRef, …)` is sugar that delegates
+    to `E(directoryRef).edit(…)`.
+    See "Daemon-side API / `directoryRef` contract".
+
+The remaining two gaps (5 and 9) are settled with best-guess
+proposals that need maintainer confirmation; see the next
+section.
+
+## Open Questions surfaced by builder dispatch
+
+These two gaps from PR #204 are settled with a best-guess
+proposal in-line above.
+Listing them here for kriskowal's bulk confirmation; the
+proposed answer is the section noted.
+
+5. **`--reapply` search algorithm.**
+   Best-guess proposal: nearest-by-line-distance within ±20
+   lines, ties broken lower-line-number-first; configurable
+   via `{ reapplyWindow }`.
+   Alternatives considered: forward-first (matches `diff -u`
+   convention but biases against the more common "line moved
+   up" case for `insert-after`); breadth-first (loses the
+   distance signal); `diff-match-patch` Bitap (overkill for
+   content-hash anchors).
+   See "Reapply mode / Reapply search algorithm".
+   Asks: confirm the nearest-distance + lower-first tiebreaker,
+   confirm the ±20 default, confirm the configurability.
+
+9. **No file-size cap.**
+   Best-guess proposal: 16 MiB default, configurable per mount
+   via `{ maxEditFileSize }`; over-cap fails as `patch-syntax`
+   (compromise to avoid a sixth `EditFailure` reason in v1).
+   See "Splice contract / File-size cap".
+   Asks: confirm 16 MiB is appropriate, confirm
+   `patch-syntax` is acceptable as the cap-exceeded failure
+   reason (vs. introducing `file-too-large`), confirm the
+   per-mount knob is the right granularity (vs. daemon-global).
 
 ## Future extensions
 
