@@ -59,6 +59,45 @@ jobs:
       - name: build API docs
         run: yarn docs
 
+  familiar-bundle:
+    name: familiar-bundle
+
+    # The Familiar Electron shell bundles a handful of CLI / daemon /
+    # worker / agent entry points with esbuild before it can be packaged.
+    # The `step:bundle` script is build-only — it produces .cjs / .js
+    # files under packages/familiar/bundles/ and does NOT launch
+    # Electron or otherwise need a display, so we can run it in CI
+    # without xvfb. A separate concern (familiar-release.yml) handles
+    # the runtime packaging on tag push.
+    #
+    # Without this job a regression in any module reachable from one of
+    # the bundle entry points (notably packages/daemon/src/daemon-node.js
+    # and packages/daemon/src/worker-node.js) is invisible until release
+    # time. See the d0ce26b327 SQLite migration for an example: it added
+    # top-level await to daemon-node.js, which esbuild's `cjs` output
+    # format rejects, and the bundle build silently broke for months.
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Bundle Familiar entry points
+        run: yarn workspace @endo/familiar step:bundle
+
   test:
     name: test
 
