@@ -390,6 +390,14 @@ Dropped per the review cited above.
 
 ## Migration Plan
 
+The implementation work for every cut targets `endojs/endo` `master`
+(the upstream repo, not this `endo-but-for-bots` fork). This design
+lives in the bot fork, but the synthetic-test-package factoring
+itself is upstream code that consumers of `@endo/*` will see. The
+cuts ship as PRs against `endojs/endo` `master`; this design's PR
+on the bot fork is the planning artifact that the upstream-PR work
+references.
+
 Per cycle, the sequence is the same:
 
 1. Decide whether the cut takes the **move** path or the **delete
