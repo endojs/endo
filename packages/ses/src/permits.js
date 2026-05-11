@@ -1625,9 +1625,11 @@ export const permitted = {
     applyMethod: fn,
     applyMethodSendOnly: fn,
     get: fn,
+    getNextPromiseValue: fn,
     getSendOnly: fn,
     prototype: '%PromisePrototype%',
     resolve: fn,
+    subscribeShortening: fn,
   },
 
   // https://github.com/tc39/proposal-source-phase-imports?tab=readme-ov-file#js-module-source
