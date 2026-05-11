@@ -75,7 +75,7 @@ const makeConfig = (...root) => {
   };
 };
 
-const prepareConfig = async (t, { gcEnabled = false } = {}) => {
+const prepareConfig = async (t, { gcEnabled = true } = {}) => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   cancelled.catch(() => {});
   const config = {

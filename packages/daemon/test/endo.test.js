@@ -436,7 +436,7 @@ const getConfigDirectoryName = (testTitle, testConfigIndex) => {
  * @param {object} [options]
  * @param {boolean} [options.gcEnabled]
  */
-const prepareConfig = async (t, { gcEnabled = false } = {}) => {
+const prepareConfig = async (t, { gcEnabled = true } = {}) => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   // Sink the rejection to prevent SES from treating the teardown rejection as
   // unhandled. Consumers of `cancelled` attach their own .catch() handlers.
