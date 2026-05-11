@@ -22,6 +22,12 @@
       "noop-harden": "./noop.js",
       "default": "./index.js"
     },
+    "./hardened.js": {
+      "test-endo-harden": "./hardened.js"
+    },
+    "./noop.js": {
+      "test-endo-harden": "./noop.js"
+    },
     "./is-noop.js": "./is-noop.js",
     "./package.json": "./package.json"
   },
@@ -41,7 +47,6 @@
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "ses": "workspace:^",
     "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },

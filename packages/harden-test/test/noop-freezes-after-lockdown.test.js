@@ -1,6 +1,6 @@
 import 'ses';
 import test from 'ava';
-import harden from '../noop.js';
+import harden from '@endo/harden/noop.js';
 
 // This test is framed as a stand-alone module because calling `lockdown` has
 // side-effects on the realm.

@@ -1,7 +1,7 @@
 import 'ses';
 import test from 'ava';
 import './_lockdown.js';
-import harden from '../hardened.js';
+import harden from '@endo/harden/hardened.js';
 
 test('presume-hardened harden hardens after lockdown', t => {
   t.true(Object.isFrozen(Object.prototype));
