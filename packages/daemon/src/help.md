@@ -447,7 +447,7 @@ Example: locateForSharing("my-channel") returns a shareable locator URL.
 Adopt a value from a locator that includes connection hints.
 Parses the locator to extract peer info, establishes a connection if needed,
 and writes the formula ID into the local pet store.
-Example: adoptFromLocator("endo://node...?id=...&type=channel&at=...", "remote-channel")
+Example: adoptFromLocator("endo://node.../formula@hint?type=channel", "remote-channel")
 
 ## invite(guestName) -> Promise<Invitation>
 

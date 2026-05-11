@@ -341,7 +341,7 @@ export function makeMockPowers(options = {}) {
       const v = directory.get(key);
       return Promise.resolve(
         v !== undefined
-          ? `endo://localhost/?id=${/** @type {string} */ (v)}&type=handle`
+          ? `endo://localhost/${encodeURIComponent(/** @type {string} */ (v))}?type=handle`
           : undefined,
       );
     },

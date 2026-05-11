@@ -36,7 +36,7 @@ const makeFormPowers = ({ selfId, message }) => {
     locate(...path) {
       calls.push({ method: 'locate', args: path });
       if (path.length === 1 && path[0] === '@self') {
-        return `endo://localhost/?id=${selfId}&type=handle`;
+        return `endo://localhost/${selfId}?type=handle`;
       }
       return undefined;
     },
@@ -125,8 +125,8 @@ test.serial('form renders fields and Submit calls submit()', async t => {
     type: 'form',
     number: 1n,
     date: new Date().toISOString(),
-    from: 'endo://localhost/?id=host-handle-id&type=handle',
-    to: 'endo://localhost/?id=guest-handle-id&type=handle',
+    from: 'endo://localhost/host-handle-id?type=handle',
+    to: 'endo://localhost/guest-handle-id?type=handle',
     messageId: '42',
     dismissed: dismissedKit.promise,
     description: 'Survey',
@@ -211,8 +211,8 @@ test.serial(
       type: 'form',
       number: 10n,
       date: new Date().toISOString(),
-      from: 'endo://localhost/?id=host-handle-id&type=handle',
-      to: 'endo://localhost/?id=guest-handle-id&type=handle',
+      from: 'endo://localhost/host-handle-id?type=handle',
+      to: 'endo://localhost/guest-handle-id?type=handle',
       messageId: '100',
       dismissed: dismissedKit.promise,
       description: 'Survey',
@@ -263,8 +263,8 @@ test.serial('value message renders with Show Value button', async t => {
     type: 'value',
     number: 5n,
     date: new Date().toISOString(),
-    from: 'endo://localhost/?id=guest-handle-id&type=handle',
-    to: 'endo://localhost/?id=host-handle-id&type=handle',
+    from: 'endo://localhost/guest-handle-id?type=handle',
+    to: 'endo://localhost/host-handle-id?type=handle',
     messageId: '200',
     replyTo: '42',
     valueId: 'marshal-formula-id',

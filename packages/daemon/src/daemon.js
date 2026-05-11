@@ -5787,18 +5787,19 @@ const makeDaemonCore = async (
       const { number: hostHandleNumber, node: hostHandleNode } =
         parseId(hostHandleId);
       const { number } = parseId(id);
-      const url = new URL('endo://');
-      url.hostname = node;
-      url.searchParams.set('id', number);
+      // Build path with `@`-delimited URL-encoded components: the first
+      // component is the invitation's formula number, and subsequent
+      // components are connection hints.
+      const invitationPath = [number, ...addresses]
+        .map(encodeURIComponent)
+        .join('@');
+      const url = new URL(`endo://${node}/${invitationPath}`);
       url.searchParams.set('type', 'invitation');
       url.searchParams.set('from', hostHandleNumber);
       // Include the handle's node if it differs from the daemon node
       // (i.e. it uses an agent key).
       if (hostHandleNode !== node) {
         url.searchParams.set('fromNode', hostHandleNode);
-      }
-      for (const address of addresses) {
-        url.searchParams.append('at', address);
       }
       return url.href;
     };
@@ -5810,8 +5811,13 @@ const makeDaemonCore = async (
      */
     const accept = async (guestHandleLocator, _hostNameFromGuest) => {
       const url = new URL(guestHandleLocator);
-      const guestHandleNumber = url.searchParams.get('id');
-      const addresses = url.searchParams.getAll('at');
+      // Path components are `@`-delimited and URL-encoded.  The first
+      // component is the handle's formula address; the rest are
+      // connection hints.
+      const [guestHandleNumber, ...addresses] = url.pathname
+        .replace(/^\//, '')
+        .split('@')
+        .map(decodeURIComponent);
       const guestDaemonNode = url.hostname;
       // The handle's node may differ from the daemon node when agent keys
       // are used as formula nodes.
@@ -5819,7 +5825,7 @@ const makeDaemonCore = async (
         url.searchParams.get('handleNode') || guestDaemonNode;
 
       if (!guestHandleNumber) {
-        throw makeError('Handle locator must have an "id" parameter');
+        throw makeError('Handle locator must include a formula number');
       }
       assertNodeNumber(guestDaemonNode);
       assertFormulaNumber(guestHandleNumber);

@@ -63,10 +63,17 @@ const locatorsMatch = (a, b) => {
   try {
     const ua = new URL(a);
     const ub = new URL(b);
-    return (
-      ua.hostname === ub.hostname &&
-      ua.searchParams.get('id') === ub.searchParams.get('id')
-    );
+    // Compare the formula address: the first `@`-delimited URL-encoded
+    // path component after the hostname.
+    const [aFormula] = ua.pathname
+      .replace(/^\//, '')
+      .split('@')
+      .map(decodeURIComponent);
+    const [bFormula] = ub.pathname
+      .replace(/^\//, '')
+      .split('@')
+      .map(decodeURIComponent);
+    return ua.hostname === ub.hostname && aFormula === bFormula;
   } catch {
     return false;
   }

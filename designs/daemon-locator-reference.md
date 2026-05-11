@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-03-18 |
+| **Updated** | 2026-05-10 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Current |
 
@@ -10,54 +11,73 @@
 
 An **endo locator** is a URL that identifies a formula on the Endo network.
 Locators are the external representation of formula identifiers, suitable for
-sharing between agents and across network boundaries. Internally, the daemon
-stores **formula identifiers** (compact `{number}:{node}` strings); locators
-are produced on demand by combining identifiers with type information and
-optional connection hints.
+sharing between agents and across network boundaries.
+Internally, the daemon stores **formula identifiers** (compact
+`{number}:{node}` strings); locators are produced on demand by combining
+identifiers with type information and optional connection hints.
 
 ## Locator Format
 
 ### Standard Locator
 
 ```
-endo://{nodeNumber}/?id={formulaNumber}&type={formulaType}
+endo://{peerKey}/{formulaAddress}?type={formulaType}
 ```
 
 | Component | Description |
 |-----------|-------------|
-| `nodeNumber` | 64-char hex Ed25519 public key of the peer that hosts the formula |
-| `formulaNumber` | 64-char hex formula number (SHA-256 content address or random capability address) |
+| `peerKey` | 64-char hex Ed25519 public key of the peer that hosts the formula |
+| `formulaAddress` | 64-char hex formula number (SHA-256 content address or random capability address) |
 | `formulaType` | Formula type string (e.g., `host`, `guest`, `handle`, `worker`, `directory`, `remote`) |
 
 ### Locator with Connection Hints
 
 ```
-endo://{nodeNumber}/?id={formulaNumber}&type={formulaType}&at={address1}&at={address2}
+endo://{peerKey}/{formulaAddress}@{hint1}@{hint2}?type={formulaType}
 ```
 
-Connection hints are repeated `at` query parameters providing transport
-addresses where the peer can be reached. Hints are ephemeral — they reflect the
-peer's current network configuration and may change over time.
+The URL path is a sequence of `@`-delimited components.
+The first component is the formula address; subsequent components are
+**connection hints** of the form `<transport-prefix>:<transport-payload>`
+(e.g., `ws-relay+captp0://example.com:8920`,
+`tcp+netstring+json+captp0://127.0.0.1:54321`,
+`libp2p+captp0:///peer1`, `tor:abc123def456.onion:443`).
+
+Each path component is **URL-encoded** with `encodeURIComponent` so that
+`@`, `/`, and `?` inside a hint round-trip cleanly.
+For example, a hint `tcp:user@example.com:8920` is encoded as
+`tcp%3Auser%40example.com%3A8920`.
+
+Hints are ephemeral: they reflect the peer's current network configuration
+and may change over time.
 
 ### Invitation Locator
 
 ```
-endo://{nodeNumber}/?id={invitationNumber}&type=invitation&from={hostHandleNumber}&at={address1}
+endo://{peerKey}/{invitationAddress}@{hint1}@{hint2}?type=invitation&from={hostHandleAddress}&fromNode={hostHandleNode}
 ```
 
-Invitation locators extend the standard format with:
+Invitation locators extend the standard format with two query parameters:
 
 | Parameter | Description |
 |-----------|-------------|
 | `type` | Always `invitation` |
 | `from` | The host's handle formula number (used by the accepting peer to identify the inviting host) |
-| `at` | Connection hints for reaching the inviting peer |
+| `fromNode` | Optional: the host handle's node, present only when the handle uses an agent key distinct from the daemon node |
 
-The `from` parameter is specific to invitation locators. Standard locators
-and invitation locators are parsed separately: `parseLocator` validates
-standard locators (allowing only `id`, `type`, and `at` parameters), while
-invitation locators are parsed directly via `new URL()` in the invitation
-acceptance code paths.
+The `from` and `fromNode` parameters are specific to invitation locators.
+Connection hints live in the path, not in query parameters.
+
+### Handle Locator
+
+```
+endo://{peerKey}/{handleAddress}@{hint1}@{hint2}?type=handle&handleNode={handleNode}
+```
+
+Handle locators are emitted by the accepting peer in response to an
+invitation.
+The `handleNode` query parameter is optional and present only when the
+handle uses an agent key distinct from the daemon node.
 
 ## Formula Identifiers
 
@@ -68,7 +88,7 @@ Internally, the daemon represents formulas as **formula identifiers**:
 ```
 
 The `formulaNumber` and `nodeNumber` are both 64-character hex strings.
-Local formulas use `LOCAL_NODE` (`'0'.repeat(64)`) as the node number — a
+Local formulas use `LOCAL_NODE` (`'0'.repeat(64)`) as the node number: a
 sentinel that is never a valid Ed25519 public key.
 
 ## Externalization and Internalization
@@ -84,22 +104,22 @@ which peer to contact.
 
 ```
 internal id:  {number}:{LOCAL_NODE}
-    → locator: endo://{agentKey}/?id={number}&type={type}
+    → locator: endo://{agentKey}/{number}?type={type}
 ```
 
-If `addresses` are provided, they are appended as `at` query parameters.
+If `addresses` are provided, they become additional `@`-delimited path
+components.
 
 Remote identifiers (where node is not `LOCAL_NODE`) pass through with the
 node number unchanged.
 
-### `internalizeLocator(locator, isLocalKey)`
+### `internalizeLocator(locator)`
 
 Converts a locator from an agent back to an internal formula identifier.
-Recognizes any known local agent key and normalizes it to `LOCAL_NODE`.
 
 ```
-locator: endo://{agentKey}/?id={number}&type={type}&at={addr}
-    → id: {number}:{LOCAL_NODE}
+locator: endo://{agentKey}/{number}@{addr}?type={type}
+    → id: {number}:{agentKey}
     → formulaType: {type}
     → addresses: [{addr}]
 ```
@@ -146,12 +166,14 @@ For remote formulas, the node number is preserved through both operations.
 | `write(path, id)` | `(name, identifier) → void` | Bind a pet name to a formula identifier (internal) |
 | `writeLocator(path, locatorOrId)` | `(name, locator\|id) → void` | Bind a pet name; accepts locator or identifier |
 
-`writeLocator` is the canonical write method exposed through exos. It
-accepts either a locator string (starting with `endo://`) or a raw formula
-identifier. When given a locator, it calls `internalizeLocator` to extract
-the identifier before delegating to `write`. This method is defined once in
-`directory.js` and carried up through `host.js` and `guest.js` via
-destructuring — not re-implemented at each layer.
+`writeLocator` is the canonical write method exposed through exos.
+It accepts either a locator string (starting with `endo://`) or a raw
+formula identifier.
+When given a locator, it calls `internalizeLocator` to extract the
+identifier before delegating to `write`.
+This method is defined once in `directory.js` and carried up through
+`host.js` and `guest.js` via destructuring; it is not re-implemented at
+each layer.
 
 ### Subscription
 
@@ -167,37 +189,44 @@ const LOCAL_NODE = '0'.repeat(64);
 ```
 
 All-zeros is never a valid Ed25519 public key, making it a safe sentinel for
-"this daemon". The daemon maintains a `localKeys` set containing all known
-local agent public keys. The predicate `isLocalKey(node)` returns `true` for
-any key in this set, enabling `internalizeLocator` to normalize locators from
-sibling agents on the same daemon.
+"this daemon".
+The daemon maintains a `localKeys` set containing all known local agent
+public keys.
+The predicate `isLocalKey(node)` returns `true` for any key in this set,
+enabling `internalizeLocator` to normalize locators from sibling agents on
+the same daemon.
 
 ## Locator Validation
 
-`parseLocator(locator)` validates standard locators:
+`parseLocator(locator)` validates locators:
 
 - Protocol must be `endo://`
 - Node (hostname) must be a valid 64-char hex string
-- Required parameters: `id` (formula number) and `type` (formula type)
-- Allowed parameters: `id`, `type`, `at`
-- Any other parameter causes validation failure
+- The first `@`-delimited path component (URL-decoded) must be a valid
+  64-char hex formula number
+- Query parameter `type` is required and must be a valid formula type
+- Allowed query parameters: `type`, `from`, `fromNode`
+- Any other query parameter causes validation failure
 
-Invitation locators include additional parameters (`from`) and are not
-validated through `parseLocator`. They are parsed directly in the invitation
-acceptance code paths in `daemon.js` and `host.js`.
+Invitation and handle locators include `from`/`fromNode` and `handleNode`
+query parameters.
+The invitation acceptance code paths in `daemon.js` and `host.js` parse
+these locators directly so they can extract those parameters.
 
 ## Connection Hints and Peer Info
 
-Connection hints (`at` parameters) are ephemeral transport addresses.
+Connection hints are ephemeral transport addresses encoded as additional
+`@`-delimited path components after the formula address.
 When a locator with hints is received:
 
-1. The formula identifier is extracted and stored durably
-2. The hints are forwarded to the peer info system via `addPeerInfo`
-3. Hints are not stored with the formula — they are looked up fresh when
-   producing a locator for sharing
+1. The formula identifier is extracted and stored durably.
+2. The hints are forwarded to the peer info system via `addPeerInfo`.
+3. Hints are not stored with the formula: they are looked up fresh when
+   producing a locator for sharing.
 
 When producing a locator for sharing (`locate`), the current hints for the
-peer are fetched from the network layer and appended as `at` parameters.
+peer are fetched from the network layer and appended as `@`-delimited path
+components.
 
 ## Files
 

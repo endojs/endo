@@ -1688,10 +1688,15 @@ export const createAddSpaceModal = ({
 
       try {
         // 0. Register peer info from the locator's connection hints
-        //    so the daemon knows how to reach the remote node.
+        //    (subsequent `@`-delimited URL-encoded path components after
+        //    the formula address) so the daemon knows how to reach the
+        //    remote node.
         const locatorUrl = new URL(locator);
         const nodeNumber = locatorUrl.host;
-        const addresses = locatorUrl.searchParams.getAll('at');
+        const [, ...addresses] = locatorUrl.pathname
+          .replace(/^\//, '')
+          .split('@')
+          .map(decodeURIComponent);
         if (addresses.length > 0 && nodeNumber) {
           await E(
             /** @type {{ addPeerInfo: (info: { node: string, addresses: string[] }) => Promise<void> }} */ (
@@ -1766,9 +1771,14 @@ export const createAddSpaceModal = ({
 
       try {
         // Register peer info from the locator's connection hints
+        // (subsequent `@`-delimited URL-encoded path components after the
+        // formula address).
         const locatorUrl = new URL(locator);
         const nodeNumber = locatorUrl.host;
-        const addresses = locatorUrl.searchParams.getAll('at');
+        const [, ...addresses] = locatorUrl.pathname
+          .replace(/^\//, '')
+          .split('@')
+          .map(decodeURIComponent);
         if (addresses.length > 0 && nodeNumber) {
           await E(
             /** @type {{ addPeerInfo: (info: { node: string, addresses: string[] }) => Promise<void> }} */ (
