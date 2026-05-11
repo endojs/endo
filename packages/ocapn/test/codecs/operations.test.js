@@ -417,6 +417,20 @@ export const table = [
       answerPosition: 10n,
     }),
   },
+  {
+    // op:flush: position + resolve-me descriptor (Bob → Alice shorten helper)
+    name: 'op:flush',
+    makeValue: testKit => ({
+      type: 'op:flush',
+      position: 4n,
+      resolveMeDesc: testKit.makeLocalObject(12n),
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:flush',
+      position: 4n,
+      resolveMeDesc: testKit.referenceKit.provideRemoteResolverValue(12n),
+    }),
+  },
 ];
 
 runTableTests(
@@ -501,4 +515,27 @@ test('op:untag rejects integer tag', t => {
   const cause1 = /** @type {Error} */ (error.cause);
   const cause2 = /** @type {Error} */ (cause1.cause);
   t.regex(cause2.message, /OpUntag: write failed for field tag/);
+});
+
+test('op:flush codec write rejects message missing position', t => {
+  const testKit = makeCodecTestKit();
+  const syrupWriter = makeSyrupWriter({ name: 'op:flush without position' });
+
+  const messageMissingPosition = {
+    type: 'op:flush',
+    resolveMeDesc: testKit.makeLocalObject(1n),
+  };
+
+  const error = t.throws(
+    () => {
+      testKit.OcapnMessageUnionCodec.write(messageMissingPosition, syrupWriter);
+    },
+    undefined,
+    'OpFlush codec requires position on the wire',
+  );
+
+  t.regex(
+    /** @type {Error} */ (error).message,
+    /write failed at index .* of op:flush without position/,
+  );
 });

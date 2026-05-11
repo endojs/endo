@@ -718,6 +718,12 @@ export const makeOcapn = (
   };
 
   /**
+   * Positions of exported resolvers that have been flushed.
+   * @type {Set<bigint>}
+   */
+  const flushedResolverPositions = new Set();
+
+  /**
    * @param {Error} [reason]
    */
   const abort = reason => {
@@ -783,23 +789,6 @@ export const makeOcapn = (
     });
   };
 
-  const forwardLocalPromiseResolutionToRemoteResolver = (
-    resolveMeDesc,
-    promise,
-  ) => {
-    // TODO: Need to (conditionally?) handle promise shortening here.
-    // Use E.sendOnly since we don't need a response from fulfill/break calls.
-    // This sends op:deliver with answerPosition and resolveMeDesc both false.
-    Promise.resolve(promise).then(
-      val => {
-        E.sendOnly(resolveMeDesc).fulfill(val);
-      },
-      reason => {
-        E.sendOnly(resolveMeDesc).break(reason);
-      },
-    );
-  };
-
   const ocapnSystemMessageHandler = {
     'op:deliver': message => {
       const { to, answerPosition, args, resolveMeDesc } = message;
@@ -816,28 +805,39 @@ export const makeOcapn = (
       }
 
       if (resolveMeDesc !== false) {
-        forwardLocalPromiseResolutionToRemoteResolver(
-          resolveMeDesc,
+        // eslint-disable-next-line no-use-before-define
+        referenceKit.forwardLocalPromiseResolutionToRemoteResolver(
           deliverPromise,
+          resolveMeDesc,
+          // op:deliver always subscribes to shortening (`wantsPartial` on op:listen).
+          true,
         );
       } else {
+        // Log the error if there was no attached resolveMeDesc.
         deliverPromise.catch(cause => {
-          const err = Error('OCapN: Error during deliver (no resolver)', {
-            cause,
-          });
+          const err = Error(
+            'OCapN: Error during deliver (with no resolveMeDesc)',
+            {
+              cause,
+            },
+          );
           onReject(err);
         });
       }
     },
     'op:listen': message => {
-      // There is a "wantsPartial" option, but we don't support it yet.
-      const { to: listenTarget, resolveMeDesc } = message;
+      const { to: listenTarget, resolveMeDesc, wantsPartial } = message;
       if (!(listenTarget instanceof Promise)) {
         throw Error(`OCapN: Expected a promise, got ${listenTarget}`);
       }
-      forwardLocalPromiseResolutionToRemoteResolver(
-        resolveMeDesc,
+      // `wantsPartial` → subscribe to promise shortening for this listen
+      // ({@link HandledPromise.getNextPromiseValue}); forwarded as the third
+      // argument to {@link ReferenceKit.forwardLocalPromiseResolutionToRemoteResolver}.
+      // eslint-disable-next-line no-use-before-define
+      referenceKit.forwardLocalPromiseResolutionToRemoteResolver(
         listenTarget,
+        resolveMeDesc,
+        wantsPartial,
       );
     },
     'op:get': message => {
@@ -1012,11 +1012,7 @@ export const makeOcapn = (
         // subsequent shortening step (e.g. a handoff) can resolve `p'`.
         // eslint-disable-next-line no-use-before-define
         const flushKit = referenceKit.makeFlushKit(slot);
-        const {
-          promise: pPrime,
-          resolver: rPrime,
-          settler: flushSettler,
-        } = flushKit;
+        const { promise: pPrime, resolver: rPrime } = flushKit;
         // Forward unresolved p' to the old resolver.
         oldResolver.fulfill(pPrime);
         // eslint-disable-next-line no-use-before-define
@@ -1038,12 +1034,6 @@ export const makeOcapn = (
   }
 
   harden(ocapnSystemMessageHandler);
-
-  /**
-   * Positions of exported resolvers that have been flushed.
-   * @type {Set<bigint>}
-   */
-  const flushedResolverPositions = new Set();
 
   /**
    * @param {Record<string, any>} message

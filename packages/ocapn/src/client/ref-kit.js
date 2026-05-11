@@ -19,6 +19,7 @@ import harden from '@endo/harden';
 
 import { ONE_N, ZERO_N } from '@endo/nat';
 import { Far, isPrimitive, Remotable } from '@endo/marshal';
+import { E, HandledPromise } from '@endo/eventual-send';
 import { makeSlot, parseSlot } from '../captp/pairwise.js';
 
 /**
@@ -72,6 +73,7 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {(slot: Slot) => { promise: Promise<unknown>, resolver: object, settler: Settler<unknown> }} makeFlushKit
  * @property {(answerPosition: bigint, promise: Promise<unknown>) => Promise<unknown>} makeLocalAnswerPromiseAndFulfill
  * @property {(position: bigint) => Promise<unknown>} getLocalAnswerValue
+ * @property {(promise: Promise<unknown>, resolveMeDesc: RemoteResolver, wantsPartial?: boolean) => void} forwardLocalPromiseResolutionToRemoteResolver
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<unknown>} provideHandoff
  * @property {(signedGive: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
@@ -203,54 +205,25 @@ export const makeReferenceKit = (
     return grantDetails.location !== peerLocation;
   };
 
-  const makeLocallyResolvedPromise = slot => {
-    const { promise: internalPromise, settler: internalSettler } =
-      makePromiseSettlerPair();
+  /** @param {unknown} v */
+  const isThenable = v =>
+    v != null &&
+    (typeof v === 'object' || typeof v === 'function') &&
+    typeof (/** @type {{ then?: unknown }} */ (v).then) === 'function';
 
-    // Wrap the settler to detect and trigger flush events.
-    const settler = harden({
-      resolve: value => {
-        if (
-          enableExperimentalFeatureFlush &&
-          valueRequiresFlushBeforeResolution(value)
-        ) {
-          // The value is a handoff, so we need to trigger a flush before resolving.
-          const { promise: flushCompletePromise, settler } =
-            makePromiseSettlerPair();
-          const debugLabel = `(flush on resolution of ${slot})`;
-          const resolver = makeLocalOcapnResolver(debugLabel, settler);
-          const position = getPositionForSlot(slot);
-          sendFlush(position, resolver);
-          // Resolve after the flush is complete.
-          flushCompletePromise.then(
-            () => {
-              internalSettler.resolve(value);
-            },
-            reason => {
-              logger.error(`flush failed on resolution of ${slot}: ${reason}`);
-            },
-          );
-        } else {
-          // Just resolve to the value.
-          internalSettler.resolve(value);
-        }
-      },
-      reject: reason => {
-        internalSettler.reject(reason);
-      },
-      resolveWithPresence: () => {
-        return internalSettler.resolveWithPresence();
-      },
+  /**
+   * @param {Promise<unknown>} promise
+   * @param {Settler<unknown>} settler
+   */
+  const forwardNextPromiseValueToSettler = (promise, settler) => {
+    HandledPromise.getNextPromiseValue(promise, ({ kind, value }) => {
+      if (kind === 'rejected') {
+        settler.reject(value);
+      } else {
+        settler.resolve(value);
+      }
     });
-
-    return {
-      promise: internalPromise,
-      settler,
-    };
   };
-
-  const makeRemotePromise = slot => makeLocallyResolvedPromise(slot);
-  const makeLocalAnswer = slot => makeLocallyResolvedPromise(slot);
 
   /**
    * Create a presence for a remote object with the given position and label.
@@ -318,7 +291,7 @@ export const makeReferenceKit = (
       const slot = makeSlot('p', false, position);
       let value = ocapnTable.getValueForSlot(slot);
       if (value === undefined) {
-        const { promise, settler } = makeRemotePromise(slot);
+        const { promise, settler } = makePromiseSettlerPair();
         value = promise;
         ocapnTable.registerSettler(slot, settler);
         ocapnTable.registerSlot(slot, promise);
@@ -506,11 +479,122 @@ export const makeReferenceKit = (
     makeLocalAnswerPromiseAndFulfill: (answerPosition, internalPromise) => {
       // Ensure the answer is registered.
       const slot = makeSlot('a', true, answerPosition);
-      const { promise: answerPromise, settler } = makeLocalAnswer(slot);
+      const { promise: answerPromise, settler } = makePromiseSettlerPair();
       ocapnTable.registerSlot(slot, answerPromise);
-      // Fulfill the answer.
-      Promise.resolve(internalPromise).then(settler.resolve, settler.reject);
+      // Fulfill the answer locally.
+      forwardNextPromiseValueToSettler(internalPromise, settler);
       return answerPromise;
+    },
+    /**
+     * @param {Promise<unknown>} promise
+     * @param {RemoteResolver} resolveMeDesc
+     * @param {boolean} [wantsPartial] - If true (default), subscribe to promise shortening
+     *   ({@link HandledPromise.getNextPromiseValue}); if false, only the final
+     *   settlement is observed ({@link Promise.prototype.then}).
+     */
+    forwardLocalPromiseResolutionToRemoteResolver(
+      promise,
+      resolveMeDesc,
+      wantsPartial = true,
+    ) {
+      // Ensure valid resolveMeDesc.
+      const resolverSlot = ocapnTable.getSlotForValue(resolveMeDesc);
+      if (resolverSlot === undefined) {
+        throw new Error(
+          `OCapN: No slot found for resolveMeDesc: ${resolveMeDesc}`,
+        );
+      }
+      const {
+        type,
+        isLocal,
+        position: resolverPosition,
+      } = parseSlot(resolverSlot);
+      if (type !== 'o' || isLocal) {
+        throw new Error(
+          `OCapN: Expected remote resolver slot, got slot: ${resolverSlot}`,
+        );
+      }
+      // When sending the resolution, use E.sendOnly since we don't need a response from fulfill/break calls.
+      // This sends op:deliver with answerPosition and resolveMeDesc both false.
+      const sendResolve = value => {
+        E.sendOnly(resolveMeDesc).fulfill(value);
+      };
+      const sendBreak = reason => {
+        E.sendOnly(resolveMeDesc).break(reason);
+      };
+
+      /** @param {unknown} reason */
+      const onRejected = reason => {
+        sendBreak(reason);
+      };
+
+      /** @param {unknown} value */
+      const scheduleFlushThenResolve = value => {
+        const { promise: flushDonePromise, settler } = makePromiseSettlerPair();
+        const debugLabel = `(flush for ${resolverSlot})`;
+        const flushDoneResolver = makeLocalOcapnResolver(debugLabel, settler);
+        sendFlush(resolverPosition, flushDoneResolver);
+        flushDonePromise.then(
+          () => {
+            sendResolve(value);
+          },
+          reason => {
+            logger.error(`flush failed on ${resolverSlot}: ${reason}`);
+          },
+        );
+      };
+
+      /** @param {unknown} value */
+      const maybeFlushAndResolve = value => {
+        if (
+          enableExperimentalFeatureFlush &&
+          valueRequiresFlushBeforeResolution(value)
+        ) {
+          scheduleFlushThenResolve(value);
+        } else {
+          sendResolve(value);
+        }
+      };
+
+      /**
+       * With shortening (`wantsPartial`), follow thenables until we flush for a
+       * third-party handoff target or {@link sendResolve}.
+       *
+       * @param {unknown} value
+       */
+      const settleAfterShortening = value => {
+        if (
+          enableExperimentalFeatureFlush &&
+          valueRequiresFlushBeforeResolution(value)
+        ) {
+          scheduleFlushThenResolve(value);
+        } else if (isThenable(value)) {
+          HandledPromise.getNextPromiseValue(
+            /** @type {Promise<unknown>} */ (value),
+            ({ kind, value: next }) => {
+              if (kind === 'rejected') {
+                onRejected(next);
+              } else {
+                settleAfterShortening(next);
+              }
+            },
+          );
+        } else {
+          sendResolve(value);
+        }
+      };
+
+      if (wantsPartial) {
+        HandledPromise.getNextPromiseValue(promise, ({ kind, value }) => {
+          if (kind === 'rejected') {
+            onRejected(value);
+          } else {
+            settleAfterShortening(value);
+          }
+        });
+      } else {
+        Promise.resolve(promise).then(maybeFlushAndResolve, onRejected);
+      }
     },
 
     makeSturdyRef: (location, swissNum) => {
