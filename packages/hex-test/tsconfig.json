@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.eslint-base.json",
+  "compilerOptions": {
+    "customConditions": ["test-endo-hex"]
+  },
+  "include": [
+    "*.js",
+    "*.ts",
+    "src",
+    "test"
+  ]
+}
