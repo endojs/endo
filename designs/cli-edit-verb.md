@@ -101,10 +101,10 @@ The patch payload is a list of operations, each anchored by
 replace 5#f1
   const { agent, store } = powers;
 delete 12#aa..14#bc
-insert_after 20#dd
+insert-after 20#dd
   // diagnostic
   console.error('starting');
-insert_before 1#a3
+insert-before 1#a3
   // Copyright header
 prepend
   #!/usr/bin/env node
@@ -115,10 +115,10 @@ Operations supported across known implementations:
 | Operation | Shape | Effect |
 |---|---|---|
 | `replace` | one anchor + payload | replace one line with N lines |
-| `replace_range` | two anchors + payload | replace inclusive range with N lines |
+| `replace-range` | two anchors + payload | replace inclusive range with N lines |
 | `delete` | one or two anchors | drop one line or an inclusive range |
-| `insert_after` | one anchor + payload | insert N lines after the anchor |
-| `insert_before` | one anchor + payload | insert N lines before the anchor |
+| `insert-after` | one anchor + payload | insert N lines after the anchor |
+| `insert-before` | one anchor + payload | insert N lines before the anchor |
 | `prepend` | no anchor + payload | insert at the file's first line |
 | `append` | no anchor + payload | insert at the file's last line |
 
@@ -185,7 +185,7 @@ parse.
 
 /**
  * @typedef {object} EditOp
- * @property {'replace'|'replace_range'|'delete'|'insert_after'|'insert_before'|'prepend'|'append'} op
+ * @property {'replace'|'replace-range'|'delete'|'insert-after'|'insert-before'|'prepend'|'append'} op
  * @property {Anchor} [anchor] one anchor for non-range ops
  * @property {Anchor} [anchorEnd] second anchor for range ops
  * @property {string[]} [payload] inserted lines (LF-terminated implied)
@@ -211,11 +211,11 @@ parse.
 
 /**
  * @typedef {object} EditFailure
- * @property {'hash_mismatch'|'file_rev_mismatch'|'ambiguous_reapply'|
- *           'patch_syntax'|'path_not_found'|'permission_denied'} reason
+ * @property {'hash-mismatch'|'file-rev-mismatch'|'ambiguous-reapply'|
+ *           'patch-syntax'|'path-not-found'|'permission-denied'} reason
  * @property {string} fileHashActual the live file SHA-256, returned on
- *   `file_rev_mismatch` so the agent can re-read at the new revision.
- * @property {AnchorMismatch[]} [mismatches] populated on `hash_mismatch`
+ *   `file-rev-mismatch` so the agent can re-read at the new revision.
+ * @property {AnchorMismatch[]} [mismatches] populated on `hash-mismatch`
  */
 
 /**
@@ -393,7 +393,7 @@ more payload lines marked by a separator.
 | payload line
 ```
 
-- `@op` is one of `replace`, `delete`, `insert_after`, `insert_before`,
+- `@op` is one of `replace`, `delete`, `insert-after`, `insert-before`,
   `prepend`, `append`.
 - `anchor` is `LINE#HASH` (e.g., `42#a3`).
 - A range uses `..` between two anchors: `12#aa..14#bc`.
@@ -426,7 +426,7 @@ JSON directly:
   "ops": [
     { "op": "replace", "anchor": { "line": 5, "hash": "f1" },
       "payload": ["  const { agent, store } = powers;"] },
-    { "op": "insert_after", "anchor": { "line": 20, "hash": "dd" },
+    { "op": "insert-after", "anchor": { "line": 20, "hash": "dd" },
       "payload": ["  // diagnostic", "  console.error('starting');"] }
   ]
 }
@@ -463,7 +463,7 @@ Patch:
 @hash-algo crc32
 @replace 4#7e
 | Buy eggs (the brown ones).
-@insert_after 4#7e
+@insert-after 4#7e
 | Buy bread.
 ```
 
@@ -512,7 +512,7 @@ exposes `--hash-algo`:
 The CLI's `--hash-algo` flag, the patch envelope's `hashAlgo` field,
 and the `--hashline` annotation on `endo read` must agree.
 Mismatched algorithms produce hash mismatches the daemon reports as
-ordinary `hash_mismatch` failures.
+ordinary `hash-mismatch` failures.
 
 A reference implementation lives in
 `packages/cli/src/hashline.js` and `packages/daemon/src/hashline.js`,
@@ -534,14 +534,14 @@ of every `edit`:
 1. The daemon reads the current file content.
 2. It computes the current SHA-256.
 3. **If `expectedFileHash` does not match the current SHA-256, the
-   edit fails with `file_rev_mismatch`.**
+   edit fails with `file-rev-mismatch`.**
    The result includes `fileHashActual`, the live SHA-256, so the
    agent can re-read at the new revision and retry with a fresh
    patch.
 4. For each operation in the patch, the daemon computes the per-line
    hash of the line currently at `LINE` and compares to `HASH`.
 5. **If any per-line anchor mismatches, the edit fails with
-   `hash_mismatch`** and a list of mismatching anchors.
+   `hash-mismatch`** and a list of mismatching anchors.
    This is the inner staleness check that catches partial drift even
    when whole-file hashes happen to coincide.
 6. If both the file hash and all per-line anchors validate,
@@ -563,7 +563,7 @@ Two agents editing the same file race as follows:
   splice writes; the file is now at SHA-256 H2.
 - Agent B's `edit` arrives; the daemon's CAS check sees the file at
   H2 but `expectedFileHash: H1`; the edit fails with
-  `file_rev_mismatch` and `fileHashActual: H2`.
+  `file-rev-mismatch` and `fileHashActual: H2`.
 - Agent B re-reads, re-computes the patch against H2, and retries.
 
 The daemon does not perform any merge.
@@ -587,7 +587,7 @@ bounded relocation search per anchor: when an anchor's hash mismatches
 the line at `LINE`, the daemon searches a small window (default ±20
 lines) for a line whose hash matches and, if exactly one candidate
 exists, relocates the operation to the new line.
-Multiple matches abort with `ambiguous_reapply`.
+Multiple matches abort with `ambiguous-reapply`.
 
 Default is strict (no relocation).
 Reapply is opt-in because for AI agent flows, abort-and-re-read is
@@ -596,7 +596,7 @@ mostly-stable files, reapply matches the intuition of "find the line
 even if its number drifted".
 
 `--reapply` does NOT relax the file-level CAS check.
-A `file_rev_mismatch` fails regardless of `--reapply`; the agent
+A `file-rev-mismatch` fails regardless of `--reapply`; the agent
 must re-read.
 Reapply only addresses the per-line anchor case where the file
 otherwise matches but a few lines have shifted.
@@ -746,12 +746,12 @@ maps these to exit codes for shell-script consumption.
 | Exit code | Failure `reason` | Diagnostic |
 |---|---|---|
 | 0 | success | (no output by default; `--verbose` shows op count and `fileHashAfter`) |
-| 1 | `patch_syntax` | line number in patch + offending header |
-| 2 | `hash_mismatch` | per-anchor table: requested, live, context |
-| 3 | `file_rev_mismatch` | requested SHA-256 vs `fileHashActual`; the agent should re-read |
-| 4 | `ambiguous_reapply` | the anchor and the candidate line numbers found |
-| 5 | `path_not_found` | mount path + cause |
-| 6 | `permission_denied` | mount name |
+| 1 | `patch-syntax` | line number in patch + offending header |
+| 2 | `hash-mismatch` | per-anchor table: requested, live, context |
+| 3 | `file-rev-mismatch` | requested SHA-256 vs `fileHashActual`; the agent should re-read |
+| 4 | `ambiguous-reapply` | the anchor and the candidate line numbers found |
+| 5 | `path-not-found` | mount path + cause |
+| 6 | `permission-denied` | mount name |
 
 All CLI diagnostics go to stderr per the project's diagnostic
 discipline.
@@ -861,9 +861,9 @@ Questions follow-up.
    for sequential calls.
    For two truly-concurrent agent tool-calls hitting the daemon at
    the same instant, the mount-internal lock serialises them and the
-   loser sees `file_rev_mismatch` on the second call's CAS check.
+   loser sees `file-rev-mismatch` on the second call's CAS check.
    This is the documented contract: agents must handle
-   `file_rev_mismatch` by re-reading and retrying.
+   `file-rev-mismatch` by re-reading and retrying.
    No further hazard remains at the single-mount granularity.
    Cross-mount hazards are addressed by phase 4's `editBatch` lock
    ordering.
@@ -921,12 +921,12 @@ re-deriving the design:
   patch via `E(guest).edit(...)`, read back and assert content.
 - CAS test (file-level): read a file at SHA-256 H1, modify it
   externally, attempt to apply a patch with `expectedFileHash: H1`,
-  assert the result is `failure: { reason: 'file_rev_mismatch',
+  assert the result is `failure: { reason: 'file-rev-mismatch',
   fileHashActual: H2 }`.
 - CAS test (per-line): read a file at SHA-256 H1, modify a single
   line, attempt to apply a patch with `expectedFileHash: H1` and an
   anchor on the modified line, assert the result is `failure: {
-  reason: 'hash_mismatch', mismatches: [...] }`.
+  reason: 'hash-mismatch', mismatches: [...] }`.
 - Reapply test: insert two unrelated lines above an anchor (without
   changing `expectedFileHash`), run `E(guest).edit(..., { reapply:
   true })`, assert the operation relocates correctly (single-
@@ -935,7 +935,7 @@ re-deriving the design:
   having a stale per-line anchor, must leave the file unmodified.
 - Concurrent-edit serialization: two simultaneous `E(guest).edit`
   calls against the same path; assert one succeeds and the other
-  returns `file_rev_mismatch` with the post-first-edit hash.
+  returns `file-rev-mismatch` with the post-first-edit hash.
 - Format-flag tests: `--format udiff` and `--format search-replace`
   apply equivalent edits to a fixture and produce identical results
   to the hashline equivalent.
