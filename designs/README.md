@@ -13,7 +13,9 @@ capability-policy adapter referenced by HTTP client and browser controller
 designs; addendum to PR #144 HttpClient),
 [break-dev-dependency-cycles](break-dev-dependency-cycles.md) (added
 2026-05-11; synthetic test-package factoring to retire the workspace
-devDep SCC; follow-up to PR #121).*
+devDep SCC; follow-up to PR #121),
+[cli-http-client](cli-http-client.md) (added 2026-05-09; PR #144 design
+revision under `endo http` subcommand tree).*
 
 ## Summary
 
@@ -114,6 +116,7 @@ devDep SCC; follow-up to PR #121).*
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-05-11 | Proposed |
+| [cli-http-client](cli-http-client.md) | 2026-05-09 | 2026-05-09 | Proposed (PR #144 design revision) |
 | [endor-bus-tui](endor-bus-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [endor-tui](endor-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [hex-package](hex-package.md) | 2026-04-23 | 2026-04-23 | Not Started |
@@ -121,7 +124,7 @@ devDep SCC; follow-up to PR #121).*
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 3 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (98 designs)
+**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 4 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (99 designs)
 
 ## Roadmap
 
