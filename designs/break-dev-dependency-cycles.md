@@ -563,14 +563,6 @@ location:
 - One subpath-pattern entry replaces N per-file entries, so adding
   another internal-test surface is a no-op in `package.json`.
 
-Adopted per kriskowal review (PR #211
-[#discussion_r3216544533](https://github.com/endojs/endo-but-for-bots/pull/211#discussion_r3216544533));
-the prior `./internal/<name>.js` per-file form was replaced
-during the Cut 2 (`@endo/hex`) and Cut 4 (`@endo/harden`) landings.
-The package-specific condition naming (e.g. `test-endo-harden`,
-not bare `test`) followed per
-[#discussion_r3220319525](https://github.com/endojs/endo-but-for-bots/pull/210#discussion_r3220319525).
-
 This requires threading the `test` condition into the ava invocation
 for every synthetic test package.
 ava reads conditions from Node's resolver, so the practical knob is
