@@ -23,7 +23,9 @@ issue #173, unblocks PR #134),
 PR #151 row-format unblocker; sibling of
 [daemon-retention-paths](daemon-retention-paths.md)),
 [cli-store-verb-text-modes](cli-store-verb-text-modes.md) (added
-2026-05-08; reshape blocker for PR #128).*
+2026-05-08; reshape blocker for PR #128),
+[unhandled-rejection-display](unhandled-rejection-display.md) (added
+2026-05-10; closes issue #171).*
 
 ## Summary
 
@@ -132,10 +134,11 @@ PR #151 row-format unblocker; sibling of
 | [hex-package](hex-package.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
 | [endo-gateway](endo-gateway.md) | 2026-05-10 | 2026-05-10 | Proposed |
+| [unhandled-rejection-display](unhandled-rejection-display.md) | 2026-05-10 | 2026-05-10 | Proposed |
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 7 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (102 designs)
+**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 8 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (103 designs)
 
 ## Roadmap
 

@@ -2,6 +2,7 @@
 /* global process */
 
 import { makeCapTP } from '@endo/captp';
+import { isPassable, passableAsJustin } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { mapWriter, mapReader } from '@endo/stream';
 import { makeNetstringReader, makeNetstringWriter } from '@endo/netstring';
@@ -10,6 +11,57 @@ import { bytesToText } from '@endo/bytes/to-string.js';
 
 /** @import { Stream, Reader, Writer } from '@endo/stream' */
 /** @import { CapTpConnectionRegistrar } from './types.js' */
+
+/**
+ * Sentinel marker for an Error encoded as a plain object on the
+ * `CTP_DISCONNECT.reason` wire shape. The marker disambiguates an
+ * encoded Error from an arbitrary plain object that happens to carry
+ * `name`, `message`, or `stack` fields.
+ */
+const ERROR_SENTINEL = '@@error';
+
+/**
+ * Render a CapTP rejection reason as a string suitable for diagnostic
+ * display. Recognizes three shapes:
+ *
+ * 1. A real `Error` instance (from the local realm, before the wire
+ *    round-trip strips it).
+ * 2. The `{ '@@error': true, name, message, stack }` plain shape that
+ *    `messageToBytes` emits for Error reasons on `CTP_DISCONNECT`.
+ * 3. Any other Passable, rendered through `passableAsJustin` (the
+ *    project-standard diagnostic renderer).
+ *
+ * As a last defence, non-Passable reasons fall through to
+ * `String(reason)` annotated with their type tag, so an unexpected
+ * reason still produces something readable in the trap.
+ *
+ * @param {unknown} reason
+ * @returns {string}
+ */
+export const renderRejection = reason => {
+  if (reason instanceof Error) {
+    return `${reason.name}: ${reason.message}\n${reason.stack || ''}`;
+  }
+  if (
+    reason !== null &&
+    typeof reason === 'object' &&
+    /** @type {any} */ (reason)[ERROR_SENTINEL] === true
+  ) {
+    const {
+      name = 'Error',
+      message = '',
+      stack = '',
+    } = /** @type {{name?: string, message?: string, stack?: string}} */ (
+      reason
+    );
+    return `${name}: ${message}\n${stack}`;
+  }
+  if (isPassable(reason)) {
+    return passableAsJustin(reason);
+  }
+  return `(non-passable ${typeof reason}) ${String(reason)}`;
+};
+harden(renderRejection);
 
 /**
  * @param {CapTpConnectionRegistrar | undefined} registrar
@@ -101,11 +153,7 @@ export const makeMessageCapTP = (
     closedPromise,
   );
   const defaultOnReject = err => {
-    console.error(
-      `CapTP ${name} exception:`,
-      err?.message || err,
-      err?.stack || '',
-    );
+    console.error(`CapTP ${name} exception:`, renderRejection(err));
   };
   const mergedOptions = {
     onReject: defaultOnReject,
@@ -177,7 +225,32 @@ export const makeMessageCapTP = (
 
 /** @param {any} message */
 export const messageToBytes = message => {
-  const text = JSON.stringify(message);
+  let outgoing = message;
+  // Error own-properties (`message`, `stack`, `name`) are non-enumerable
+  // and therefore invisible to `JSON.stringify`. Without this branch, a
+  // `CTP_DISCONNECT` carrying an Error reason arrives at the peer as
+  // `{"reason":{}}` and the receiver-side trap loses the diagnostic.
+  // The narrow type guard keeps the fast path for `CTP_CALL` and
+  // friends, which already serialize Error fulfilments through
+  // `@endo/marshal`.
+  if (
+    message !== null &&
+    typeof message === 'object' &&
+    message.type === 'CTP_DISCONNECT' &&
+    message.reason instanceof Error
+  ) {
+    const { name: errName, message: errMessage, stack } = message.reason;
+    outgoing = {
+      ...message,
+      reason: {
+        [ERROR_SENTINEL]: true,
+        name: errName,
+        message: errMessage,
+        stack,
+      },
+    };
+  }
+  const text = JSON.stringify(outgoing);
   const bytes = bytesFromText(text);
   return bytes;
 };
