@@ -1,0 +1,46 @@
+name: Workflow security audit
+
+# Static analysis of GitHub Actions workflows using zizmor
+# (https://docs.zizmor.sh/). Surfaces the workflow-level patterns that
+# enable supply-chain attacks like the TanStack May 2026 npm compromise:
+# `pull_request_target` "Pwn Request", template injection, excessive
+# permissions, OIDC token exposure, cache poisoning, and unpinned uses.
+#
+# Initial gate is set to fail only on `high` severity so the noise floor
+# from existing medium findings does not block PRs. Once those are
+# addressed in follow-ups, tighten `min-severity` to `medium`.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+        with:
+          # Block only on high-severity findings until existing medium
+          # warnings (mostly `artipacked` on checkout steps) are cleaned up.
+          min-severity: high
+          # `advanced-security: true` would upload SARIF to GitHub Code
+          # Scanning, which requires Advanced Security to be enabled on the
+          # repository and `security-events: write` on this job. Until that
+          # is set up, emit inline PR annotations instead.
+          advanced-security: 'false'
+          annotations: 'true'
