@@ -11,12 +11,12 @@
 import { Buffer } from 'buffer';
 import test from '@endo/ses-ava/test.js';
 import cbor from 'cbor';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { makeCborWriter } from '../../src/cbor/encode.js';
 import {
   bytesToHexString,
   cborToDiagnostic,
 } from '../../src/cbor/diagnostic.js';
-import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
 
 /**
  * Encode using our writer, then decode with the `cbor` npm package.
@@ -248,7 +248,7 @@ test('interop: empty byte string', async t => {
 test('interop: byte string', async t => {
   const bytes = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
   const { value, diagnostic } = await encodeAndValidate(w =>
-    w.writeBytestring(uint8ArrayToImmutableArrayBuffer(bytes)),
+    w.writeBytestring(bytesToImmutable(bytes)),
   );
   t.is(value.length, 4);
   t.deepEqual(Array.from(value), [0xde, 0xad, 0xbe, 0xef]);
@@ -464,9 +464,7 @@ test('interop: complex nested structure', async t => {
   writer.writeArrayHeader(3);
   writer.writeBoolean(true);
   writer.writeFloat64(1.5);
-  writer.writeBytestring(
-    uint8ArrayToImmutableArrayBuffer(new Uint8Array([1, 2, 3])),
-  );
+  writer.writeBytestring(bytesToImmutable(new Uint8Array([1, 2, 3])));
 
   const bytes = writer.getBytes();
   const value = await cbor.decodeFirst(bytes);

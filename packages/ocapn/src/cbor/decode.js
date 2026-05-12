@@ -9,7 +9,8 @@
  * See docs/cbor-encoding.md for the specification.
  */
 
-import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+
 import { BufferReader } from '../syrup/buffer-reader.js';
 
 /**
@@ -119,7 +120,7 @@ function readBytestring(reader, name) {
   }
   const length = Number(readArgument(reader, info, name));
   const bytes = reader.read(length);
-  return uint8ArrayToImmutableArrayBuffer(bytes);
+  return bytesToImmutable(bytes);
 }
 
 /**

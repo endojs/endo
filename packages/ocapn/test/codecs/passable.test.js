@@ -5,9 +5,11 @@
  */
 
 import test from '@endo/ses-ava/test.js';
-
 import harden from '@endo/harden';
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { makeTagged } from '@endo/pass-style';
+
 import { makeSelector } from '../../src/selector.js';
 import { recordSyrup } from './_syrup_util.js';
 import {
@@ -18,10 +20,6 @@ import {
   SyrupCodec,
 } from './_codecs_util.js';
 import { throws } from '../_util.js';
-import {
-  immutableArrayBufferToUint8Array,
-  uint8ArrayToImmutableArrayBuffer,
-} from '../../src/buffer-utils.js';
 import { getSturdyRefDetails } from '../../src/client/sturdyrefs.js';
 
 const textEncoder = new TextEncoder();
@@ -42,15 +40,11 @@ const table = [
   { name: 'string hello', value: 'hello' },
   {
     name: 'byte array hello',
-    value: uint8ArrayToImmutableArrayBuffer(
-      new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
-    ),
+    value: bytesToImmutable(new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f])),
   },
   {
     name: 'byte array',
-    value: uint8ArrayToImmutableArrayBuffer(
-      new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
-    ),
+    value: bytesToImmutable(new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f])),
   },
   {
     name: 'selector',
@@ -232,7 +226,7 @@ runTableTestsAllCodecs(
 test('error on unknown record type in passable [syrup]', t => {
   const codec = PassableCodec;
   const syrup = recordSyrup('unknown-record-type');
-  const syrupBytes = immutableArrayBufferToUint8Array(syrup);
+  const syrupBytes = bytesFromImmutable(syrup);
   const syrupReader = SyrupCodec.makeReader(syrupBytes, {
     name: 'unknown record type',
   });
