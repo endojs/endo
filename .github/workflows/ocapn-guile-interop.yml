@@ -45,6 +45,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: endo
+          persist-credentials: false
 
       - name: Clone Spritely Goblins + goblin-chat from Codeberg
         run: |

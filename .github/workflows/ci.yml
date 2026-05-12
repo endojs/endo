@@ -36,6 +36,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -79,6 +81,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -145,6 +149,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -182,6 +188,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -218,6 +226,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -253,6 +263,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -282,6 +294,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -322,6 +336,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -370,6 +386,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: endo
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -429,6 +446,7 @@ jobs:
           repository: moddable-OpenSource/moddable
           ref: ${{ matrix.moddable-version }}
           path: moddable
+          persist-credentials: false
 
       - name: Build XS
         if: steps.check-release.outputs.release == 'build'
@@ -454,6 +472,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: endo
+          persist-credentials: false
 
       - name: Checkout OCapN Test Suite
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -462,6 +481,7 @@ jobs:
           repository: ocapn/ocapn-test-suite
           ref: 74db78f08a40efba1e2b975d809374ff0e7acf60
           path: ocapn-test-suite
+          persist-credentials: false
 
       - run: corepack enable
         working-directory: endo

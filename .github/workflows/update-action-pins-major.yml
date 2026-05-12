@@ -19,6 +19,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # `peter-evans/create-pull-request` accepts its own `token` input
+          # (default `${{ github.token }}`) for the branch push and PR
+          # creation; it does not rely on credentials persisted into
+          # `.git/config` by checkout.
+          persist-credentials: false
       - name: Enable Corepack
         run: corepack enable
       - name: Use Node.js
