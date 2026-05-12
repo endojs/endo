@@ -505,3 +505,98 @@ test.serial(
     void configB;
   },
 );
+
+// Concurrent agent-ring collection: A invites B, B invites C, C
+// invites A. After every party releases their pet name and the
+// matching '@pins/guest-*' entry, every daemon's local guest-handle
+// formula (the pin) should collect.
+//
+// This is the canonical "no central authority" GC case: each daemon
+// independently holds its local handle for one neighbour by way of a
+// pin; the ring is only realized through pet-name edges. No remote
+// retention edge should keep any local handle alive once both names
+// on its own daemon are gone.
+test.serial(
+  'agent ring (A->B->C->A) collects after all roots released',
+  async t => {
+    t.timeout(60000);
+    const { host: hostA, config: configA } =
+      await prepareHostWithGcAndNetwork(t);
+    const { host: hostB, config: configB } =
+      await prepareHostWithGcAndNetwork(t);
+    const { host: hostC, config: configC } =
+      await prepareHostWithGcAndNetwork(t);
+
+    // A -> B
+    const invAB = await E(hostA).invite('bob');
+    await E(hostB).accept(await E(invAB).locate(), 'alice');
+    // B -> C
+    const invBC = await E(hostB).invite('carol');
+    await E(hostC).accept(await E(invBC).locate(), 'bob');
+    // C -> A
+    const invCA = await E(hostC).invite('alice');
+    await E(hostA).accept(await E(invCA).locate(), 'carol');
+
+    // Capture each daemon's local guest-handle pin ids.  The pet
+    // names ('bob', 'carol', 'alice', ...) point to remote handles
+    // and are not in any local DB; only the @pins entries are.
+    const aBobPin = await E(hostA).identify('@pins', 'guest-bob');
+    const aCarolPin = await E(hostA).identify('@pins', 'guest-carol');
+    const bAlicePin = await E(hostB).identify('@pins', 'guest-alice');
+    const bCarolPin = await E(hostB).identify('@pins', 'guest-carol');
+    const cBobPin = await E(hostC).identify('@pins', 'guest-bob');
+    const cAlicePin = await E(hostC).identify('@pins', 'guest-alice');
+
+    // Sanity: every pin formula is currently reachable in its own DB.
+    for (const [label, statePath, id] of [
+      ['A bob pin', configA.statePath, aBobPin],
+      ['A carol pin', configA.statePath, aCarolPin],
+      ['B alice pin', configB.statePath, bAlicePin],
+      ['B carol pin', configB.statePath, bCarolPin],
+      ['C bob pin', configC.statePath, cBobPin],
+      ['C alice pin', configC.statePath, cAlicePin],
+    ]) {
+      t.true(formulaExistsInDb(statePath, id), `${label} exists pre-release`);
+    }
+
+    // Every party drops every reference (pet name + pin) for the ring.
+    await Promise.all([
+      E(hostA).remove('bob'),
+      E(hostA).remove('@pins', 'guest-bob'),
+      E(hostA).remove('carol'),
+      E(hostA).remove('@pins', 'guest-carol'),
+      E(hostB).remove('alice'),
+      E(hostB).remove('@pins', 'guest-alice'),
+      E(hostB).remove('carol'),
+      E(hostB).remove('@pins', 'guest-carol'),
+      E(hostC).remove('bob'),
+      E(hostC).remove('@pins', 'guest-bob'),
+      E(hostC).remove('alice'),
+      E(hostC).remove('@pins', 'guest-alice'),
+    ]);
+
+    // Every local guest-handle pin formula should collect on its own
+    // daemon. We assert per-daemon so a single regression points at
+    // exactly which side leaked.
+    const allCollected = () =>
+      !formulaExistsInDb(configA.statePath, aBobPin) &&
+      !formulaExistsInDb(configA.statePath, aCarolPin) &&
+      !formulaExistsInDb(configB.statePath, bAlicePin) &&
+      !formulaExistsInDb(configB.statePath, bCarolPin) &&
+      !formulaExistsInDb(configC.statePath, cBobPin) &&
+      !formulaExistsInDb(configC.statePath, cAlicePin);
+
+    await waitForCondition(allCollected, { timeoutMs: 15000 });
+
+    for (const [label, statePath, id] of [
+      ['A bob pin', configA.statePath, aBobPin],
+      ['A carol pin', configA.statePath, aCarolPin],
+      ['B alice pin', configB.statePath, bAlicePin],
+      ['B carol pin', configB.statePath, bCarolPin],
+      ['C bob pin', configC.statePath, cBobPin],
+      ['C alice pin', configC.statePath, cAlicePin],
+    ]) {
+      t.false(formulaExistsInDb(statePath, id), `${label} collected`);
+    }
+  },
+);
