@@ -58,16 +58,6 @@ const { promise: cancelled, reject: cancel } =
 const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
-const powers = await makeDaemonicPowers({
-  config,
-  cancelled,
-  fs,
-  popen,
-  url,
-  filePowers,
-  cryptoPowers,
-});
-const { persistence: daemonicPersistencePowers } = powers;
 
 /**
  * @param {string} [gatewayAddress]
@@ -134,6 +124,23 @@ const main = async () => {
   cancelled.catch(err => {
     console.log(`Endo daemon stopping on PID ${pid} (caught: ${err})`);
   });
+
+  // Initializing daemonic powers must happen inside main() rather than at
+  // module scope so that bundlers targeting CJS (which does not support
+  // top-level await) can include this module in their dependency graph.
+  // The Familiar Electron shell bundles this file with esbuild's `cjs`
+  // format, which requires the only `await` in this file to live inside
+  // an async function.
+  const powers = await makeDaemonicPowers({
+    config,
+    cancelled,
+    fs,
+    popen,
+    url,
+    filePowers,
+    cryptoPowers,
+  });
+  const { persistence: daemonicPersistencePowers } = powers;
 
   await daemonicPersistencePowers.initializePersistence();
   await killStaleWorkers();
