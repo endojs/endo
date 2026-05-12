@@ -1,9 +1,13 @@
 import test from '@endo/ses-ava/test.js';
+import { passStyleOf } from '@endo/pass-style';
 
 import { bytesEqual } from '../src/equals.js';
 import { bytesFromText } from '../src/from-string.js';
 import { bytesToText } from '../src/to-string.js';
 import { concatBytes } from '../src/concat.js';
+import { concatImmutables } from '../src/concat-immutables.js';
+import { bytesToImmutable } from '../src/to-immutable.js';
+import { bytesFromImmutable } from '../src/from-immutable.js';
 
 test('concatBytes: empty input yields empty Uint8Array', t => {
   const result = concatBytes([]);
@@ -140,4 +144,108 @@ test('bytesFromText and concatBytes compose: round-trip', t => {
 test('bytesEqual on bytesFromText output: same input compares equal', t => {
   t.true(bytesEqual(bytesFromText('abc'), bytesFromText('abc')));
   t.false(bytesEqual(bytesFromText('abc'), bytesFromText('abd')));
+});
+
+test('bytesToImmutable: returns ArrayBuffer with byteArray passStyle', t => {
+  const view = new Uint8Array([1, 2, 3, 4, 5]);
+  const immutable = bytesToImmutable(view);
+  t.true(immutable instanceof ArrayBuffer);
+  t.is(immutable.byteLength, 5);
+  // @ts-expect-error passStyleOf typing infers the wrong type for ArrayBuffer.
+  t.is(passStyleOf(immutable), 'byteArray');
+});
+
+test('bytesToImmutable: empty input', t => {
+  const immutable = bytesToImmutable(new Uint8Array(0));
+  t.is(immutable.byteLength, 0);
+});
+
+test('bytesToImmutable: honors subarray byteOffset and byteLength', t => {
+  const full = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]);
+  const window = full.subarray(2, 6); // [2, 3, 4, 5]
+  const immutable = bytesToImmutable(window);
+  t.is(immutable.byteLength, 4);
+  t.deepEqual([...bytesFromImmutable(immutable)], [2, 3, 4, 5]);
+});
+
+test('bytesFromImmutable: copies bytes into a fresh Uint8Array', t => {
+  const source = new Uint8Array([0, 1, 2, 0xff, 0x80, 0x00, 42, 100]);
+  const immutable = bytesToImmutable(source);
+  const result = bytesFromImmutable(immutable);
+  t.true(result instanceof Uint8Array);
+  t.is(result.length, source.length);
+  t.deepEqual([...result], [...source]);
+});
+
+test('bytesFromImmutable: empty input', t => {
+  const immutable = bytesToImmutable(new Uint8Array(0));
+  const result = bytesFromImmutable(immutable);
+  t.true(result instanceof Uint8Array);
+  t.is(result.length, 0);
+});
+
+test('bytesToImmutable + bytesToText composition: UTF-8 round-trip', t => {
+  const original = 'Hello, 你好 \u{1F600}';
+  const immutable = bytesToImmutable(bytesFromText(original));
+  t.is(bytesToText(bytesFromImmutable(immutable)), original);
+});
+
+test('bytesToImmutable + concatBytes composition: assemble from chunks', t => {
+  const parts = ['<', 'test-record', '>'].map(s => bytesFromText(s));
+  const combined = bytesToImmutable(concatBytes(parts));
+  t.is(bytesToText(bytesFromImmutable(combined)), '<test-record>');
+});
+
+test('bytesToText: { fatal: true } accepts valid UTF-8', t => {
+  const bytes = bytesFromText('Hello, 你好 \u{1F600}');
+  t.is(bytesToText(bytes, { fatal: true }), 'Hello, 你好 \u{1F600}');
+});
+
+test('bytesToText: { fatal: true } throws on invalid UTF-8', t => {
+  // 0xC3 begins a two-byte sequence; 0x28 is not a valid continuation byte.
+  const invalid = new Uint8Array([0xc3, 0x28]);
+  t.throws(() => bytesToText(invalid, { fatal: true }), {
+    instanceOf: TypeError,
+  });
+});
+
+test('bytesToText: default mode substitutes U+FFFD on invalid UTF-8', t => {
+  const invalid = new Uint8Array([0xc3, 0x28]);
+  // The default lenient decoder must not throw and emits U+FFFD for the
+  // malformed lead byte.
+  const result = bytesToText(invalid);
+  t.true(result.includes('�'));
+});
+
+test('bytesToText: { fatal: false } also accepts valid UTF-8', t => {
+  const bytes = bytesFromText('plain ASCII');
+  t.is(bytesToText(bytes, { fatal: false }), 'plain ASCII');
+});
+
+test('concatImmutables: empty input yields empty immutable buffer', t => {
+  const result = concatImmutables([]);
+  t.true(result instanceof ArrayBuffer);
+  t.is(result.byteLength, 0);
+  // @ts-expect-error passStyleOf typing infers the wrong type for ArrayBuffer.
+  t.is(passStyleOf(result), 'byteArray');
+});
+
+test('concatImmutables: concatenates multiple immutable buffers byte-for-byte', t => {
+  const parts = [
+    bytesToImmutable(new Uint8Array([1, 2, 3])),
+    bytesToImmutable(new Uint8Array([])),
+    bytesToImmutable(new Uint8Array([4])),
+    bytesToImmutable(new Uint8Array([5, 6, 7, 8])),
+  ];
+  const result = concatImmutables(parts);
+  t.is(result.byteLength, 8);
+  t.deepEqual([...bytesFromImmutable(result)], [1, 2, 3, 4, 5, 6, 7, 8]);
+  // @ts-expect-error passStyleOf typing infers the wrong type for ArrayBuffer.
+  t.is(passStyleOf(result), 'byteArray');
+});
+
+test('concatImmutables: result is hardened', t => {
+  const parts = [bytesToImmutable(new Uint8Array([42]))];
+  const result = concatImmutables(parts);
+  t.true(Object.isFrozen(result));
 });

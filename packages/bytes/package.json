@@ -25,6 +25,9 @@
     "./from-string.js": "./from-string.js",
     "./to-string.js": "./to-string.js",
     "./concat.js": "./concat.js",
+    "./concat-immutables.js": "./concat-immutables.js",
+    "./from-immutable.js": "./from-immutable.js",
+    "./to-immutable.js": "./to-immutable.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -39,11 +42,13 @@
     "test": "ses-ava"
   },
   "dependencies": {
-    "@endo/harden": "workspace:^"
+    "@endo/harden": "workspace:^",
+    "@endo/immutable-arraybuffer": "workspace:^"
   },
   "devDependencies": {
     "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",

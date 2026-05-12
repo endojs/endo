@@ -26,6 +26,8 @@ import { bytesFromText } from '@endo/bytes/from-string.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
 import { concatBytes } from '@endo/bytes/concat.js';
 import { bytesEqual } from '@endo/bytes/equals.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
 
 const a = bytesFromText('Hello, ');
 const b = bytesFromText('world!');
@@ -33,6 +35,11 @@ const greeting = concatBytes([a, b]);
 bytesToText(greeting); // 'Hello, world!'
 
 bytesEqual(bytesFromText('abc'), bytesFromText('abc')); // true
+
+// Wrap a Uint8Array in a passable, immutable ArrayBuffer.
+const passable = bytesToImmutable(greeting);
+// Recover a working Uint8Array from an immutable buffer received over a vat boundary.
+bytesToText(bytesFromImmutable(passable)); // 'Hello, world!'
 ```
 
 The package is exported as per-symbol subpath modules so that callers
@@ -58,6 +65,25 @@ Encodes a string as UTF-8 bytes.
 ### `bytesToText(view) -> string`
 
 Decodes UTF-8 bytes to a string.
+
+### `bytesToImmutable(view) -> ArrayBuffer`
+
+Wraps a `Uint8Array` view's contents in an immutable `ArrayBuffer` via
+the `ArrayBuffer.prototype.sliceToImmutable` shim
+(proposal-immutable-arraybuffer).
+The result carries the `'byteArray'` passStyle and is hardened, so it
+is safe to share across vat boundaries.
+The view's `byteOffset` and `byteLength` are honored, so `subarray`
+windows copy only the addressed bytes.
+
+### `bytesFromImmutable(buffer) -> Uint8Array`
+
+Copies the contents of an immutable `ArrayBuffer` into a fresh,
+mutable `Uint8Array`.
+Immutable `ArrayBuffer` instances cannot back a `Uint8Array` view
+directly and APIs such as `TextDecoder.decode` reject them; this
+helper produces a working `Uint8Array` copy that callers can pass to
+those APIs.
 
 ## Out of scope
 
