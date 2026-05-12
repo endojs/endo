@@ -423,8 +423,10 @@ jobs:
       - name: Choose XS download or build
         if: steps.restore-xs.outputs.cache-hit != 'true'
         id: check-release
+        env:
+          MODDABLE_VERSION: ${{ matrix.moddable-version }}
         run: |
-          if curl -f -s -o /dev/null -I -L https://api.github.com/repos/Moddable-OpenSource/moddable/releases/tags/${{ matrix.moddable-version }}
+          if curl -f -s -o /dev/null -I -L "https://api.github.com/repos/Moddable-OpenSource/moddable/releases/tags/${MODDABLE_VERSION}"
           then
             echo release=download
           else
@@ -433,8 +435,10 @@ jobs:
 
       - name: Download XS
         if: steps.check-release.outputs.release == 'download'
+        env:
+          MODDABLE_VERSION: ${{ matrix.moddable-version }}
         run: |
-          wget "https://github.com/Moddable-OpenSource/moddable/releases/download/${{ matrix.moddable-version }}/xst-lin64.zip"
+          wget "https://github.com/Moddable-OpenSource/moddable/releases/download/${MODDABLE_VERSION}/xst-lin64.zip"
           unzip xst-lin64.zip -d bin
           mkdir -p bin
           chmod 755 bin/xst
