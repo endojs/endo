@@ -5,9 +5,9 @@ on:
     - cron: '0 3 1 * *' # Monthly on the 1st
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+# Default to no permissions at the workflow level; the `update` job
+# below enumerates the writes it actually needs.
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +16,11 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    # `peter-evans/create-pull-request` pushes the chore branch and opens
+    # the PR; both grants are required for that single action.
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
