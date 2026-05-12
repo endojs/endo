@@ -1,12 +1,12 @@
 // @ts-check
 
 import test from '@endo/ses-ava/test.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { makeCborWriter } from '../../src/cbor/encode.js';
 import {
   cborToDiagnostic,
   bytesToHexString,
 } from '../../src/cbor/diagnostic.js';
-import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
 
 /**
  * Test helper: encode a value and return both hex and diagnostic notation
@@ -212,7 +212,7 @@ test('encode empty byte string', t => {
 test('encode byte string', t => {
   const bytes = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
   const { hex, diagnostic } = encode(w =>
-    w.writeBytestring(uint8ArrayToImmutableArrayBuffer(bytes)),
+    w.writeBytestring(bytesToImmutable(bytes)),
   );
   t.is(hex, '44deadbeef'); // Major 2, length 4, bytes
   t.is(diagnostic, "h'deadbeef'");

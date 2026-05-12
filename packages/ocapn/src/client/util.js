@@ -5,18 +5,16 @@
  * @import { LocationId, SwissNum } from './types.js'
  */
 
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { encodeHex } from '@endo/hex';
-import {
-  immutableArrayBufferToUint8Array,
-  uint8ArrayToImmutableArrayBuffer,
-} from '../buffer-utils.js';
 
 /**
  * @param {ArrayBufferLike} value
  * @returns {string}
  */
 export const toHex = value => {
-  return encodeHex(immutableArrayBufferToUint8Array(value));
+  return encodeHex(bytesFromImmutable(value));
 };
 
 /**
@@ -58,7 +56,7 @@ const swissnumEncoder = new TextEncoder();
  * @returns {string}
  */
 export const decodeSwissnum = value => {
-  return swissnumDecoder.decode(immutableArrayBufferToUint8Array(value));
+  return swissnumDecoder.decode(bytesFromImmutable(value));
 };
 
 /**
@@ -76,7 +74,7 @@ export const encodeSwissnum = value => {
     }
   }
   // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
-  return uint8ArrayToImmutableArrayBuffer(swissnumEncoder.encode(value));
+  return bytesToImmutable(swissnumEncoder.encode(value));
 };
 
 /**
@@ -94,7 +92,7 @@ export const encodeSwissnum = value => {
  */
 export const swissnumFromBytes = bytes => {
   // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
-  return uint8ArrayToImmutableArrayBuffer(bytes);
+  return bytesToImmutable(bytes);
 };
 
 /**
@@ -106,5 +104,5 @@ export const swissnumFromBytes = bytes => {
  * @returns {Uint8Array}
  */
 export const swissnumToBytes = swissNum => {
-  return immutableArrayBufferToUint8Array(swissNum);
+  return bytesFromImmutable(swissNum);
 };

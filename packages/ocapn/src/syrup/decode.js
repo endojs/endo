@@ -1,6 +1,7 @@
 // @ts-check
 
-import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+
 import { BufferReader } from './buffer-reader.js';
 
 const MINUS = '-'.charCodeAt(0);
@@ -132,8 +133,8 @@ function readTypeAndMaybeValue(bufferReader, name) {
   if (typeByte === BYTES_START) {
     const number = Number.parseInt(numberString, 10);
     const valueBytes = bufferReader.read(number);
-    // Convert Uint8Array to ArrayBuffer
-    const arrayBuffer = uint8ArrayToImmutableArrayBuffer(valueBytes);
+    // Convert Uint8Array to immutable ArrayBuffer
+    const arrayBuffer = bytesToImmutable(valueBytes);
     return { type: 'bytestring', value: arrayBuffer };
   }
   if (typeByte === STRING_START) {

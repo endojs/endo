@@ -12,15 +12,16 @@
  */
 
 import harden from '@endo/harden';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { encodeHex } from '@endo/hex';
 import { Far } from '@endo/marshal';
 import { HandledPromise } from '@endo/eventual-send';
+
 import {
   makeGrantTracker,
   makeGrantDetails,
 } from '../../src/client/grant-tracker.js';
 import { makeReferenceKit } from '../../src/client/ref-kit.js';
-
 import { makeSturdyRefTracker } from '../../src/client/sturdyrefs.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
 import { makePassableCodecs } from '../../src/codecs/passable.js';
@@ -33,7 +34,6 @@ import { cborToDiagnostic } from '../../src/cbor/diagnostic/index.js';
 import { maybeDecode, notThrowsWithErrorUnwrapping } from '../_util.js';
 import { makeCryptography } from '../../src/cryptography.js';
 import { syrupCodec } from '../../src/syrup/index.js';
-import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
 import { makeOcapnTable } from '../../src/captp/ocapn-tables.js';
 import { makeSlot } from '../../src/captp/pairwise.js';
 
@@ -120,10 +120,10 @@ export const gifterLocation = harden({
   hints: { host: '127.0.0.1', port: '54824' },
 });
 
-export const exampleSigParamBytes = uint8ArrayToImmutableArrayBuffer(
+export const exampleSigParamBytes = bytesToImmutable(
   Uint8Array.from({ length: 32 }, (_, i) => i),
 );
-export const examplePubKeyQBytes = uint8ArrayToImmutableArrayBuffer(
+export const examplePubKeyQBytes = bytesToImmutable(
   Uint8Array.from({ length: 32 }, (_, i) => i * 2),
 );
 
@@ -147,27 +147,19 @@ export const receiverKeyForExporter = makeOcapnKeyPairFromPrivateKey(
 );
 
 export const exampleExporterSessionId = /** @type {SessionId} */ (
-  uint8ArrayToImmutableArrayBuffer(
-    Uint8Array.from({ length: 32 }, (_, i) => i * 7),
-  )
+  bytesToImmutable(Uint8Array.from({ length: 32 }, (_, i) => i * 7))
 );
 export const exampleGifterSideId = /** @type {PublicKeyId} */ (
-  uint8ArrayToImmutableArrayBuffer(
-    Uint8Array.from({ length: 32 }, (_, i) => i * 8),
-  )
+  bytesToImmutable(Uint8Array.from({ length: 32 }, (_, i) => i * 8))
 );
-export const exampleGiftId = uint8ArrayToImmutableArrayBuffer(
+export const exampleGiftId = bytesToImmutable(
   Uint8Array.from({ length: 32 }, (_, i) => i * 9),
 );
 export const exampleReceiverSessionId = /** @type {SessionId} */ (
-  uint8ArrayToImmutableArrayBuffer(
-    Uint8Array.from({ length: 32 }, (_, i) => i * 10),
-  )
+  bytesToImmutable(Uint8Array.from({ length: 32 }, (_, i) => i * 10))
 );
 export const exampleReceiverSideId = /** @type {PublicKeyId} */ (
-  uint8ArrayToImmutableArrayBuffer(
-    Uint8Array.from({ length: 32 }, (_, i) => i * 11),
-  )
+  bytesToImmutable(Uint8Array.from({ length: 32 }, (_, i) => i * 11))
 );
 
 /**
