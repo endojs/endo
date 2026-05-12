@@ -17,6 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
+        # zizmor: ignore[artipacked]
+        # `changesets/action` (below) and the `git config` step rely on the
+        # persisted `RELEASE_TOKEN` to push tags and the release PR back to
+        # this repository, so credential persistence is intentional here.
+        # This workflow runs only on `push: master`, never on PR-triggered
+        # untrusted code, and uploads no artifacts that could leak `.git/`.
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
