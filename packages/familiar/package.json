@@ -34,7 +34,7 @@
     "step:make": "node scripts/make-distributables.mjs",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint:eslint": "eslint --ignore-pattern out '**/*.js'",
+    "lint:eslint": "eslint --ignore-pattern out '**/*.{js,mjs}'",
     "lint:types": "tsc",
     "test": "ava",
     "generate-icons": "./scripts/generate-icons.sh"
@@ -73,17 +73,6 @@
       "no-restricted-globals": "off"
     },
     "overrides": [
-      {
-        "files": [
-          "preload.js"
-        ],
-        "parserOptions": {
-          "sourceType": "script"
-        },
-        "env": {
-          "commonjs": true
-        }
-      },
       {
         "files": [
           "scripts/*.mjs"
