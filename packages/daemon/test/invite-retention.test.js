@@ -417,3 +417,91 @@ test.serial('three-party invite with partition and recovery', async t => {
     'C received message during B partition',
   );
 });
+
+// On both inviter and acceptor sides, after invite/accept:
+//   identify(guestName)            -> the *remote* handle id
+//                                     (not present in the local DB)
+//   identify('@pins', `guest-${guestName}`)
+//                                  -> the *local* guest handle id
+//                                     (the only formula whose
+//                                     collection is observable in
+//                                     this daemon's DB).
+// Both names must be removed for the local handle to become
+// unreachable; only the pin id is meaningful for asserting local
+// collection.
+
+// Sub-invitation chain: A->B->C. B is the inviter for C, so the
+// invitation/handle formulas for the C side originate on B's daemon.
+// When C drops their local references for the chain, C's local
+// guest-handle (held under '@pins/guest-bob-from-B') should collect
+// on C's daemon. A's roots for the original A->B invitation must
+// remain reachable: nothing C does on its own daemon should
+// invalidate A's local pin.
+test.serial(
+  'sub-invitation chain (A->B->C) collects C-side resources after C release',
+  async t => {
+    t.timeout(60000);
+    const { host: hostA, config: configA } =
+      await prepareHostWithGcAndNetwork(t);
+    const { host: hostB, config: configB } =
+      await prepareHostWithGcAndNetwork(t);
+    const { host: hostC, config: configC } =
+      await prepareHostWithGcAndNetwork(t);
+
+    // A invites B. B accepts as 'alice-from-A'. A's pet 'bob' now
+    // points to A's local handle for B.
+    const invAtoB = await E(hostA).invite('bob');
+    await E(hostB).accept(await E(invAtoB).locate(), 'alice-from-A');
+
+    // B invites C, C accepts. This is the sub-invitation: B is the
+    // inviter (creating an invitation formula on B's daemon), and C
+    // accepts to obtain a local guest handle on C's daemon.
+    const invBtoC = await E(hostB).invite('carol');
+    await E(hostC).accept(await E(invBtoC).locate(), 'bob-from-B');
+
+    // The pin id is the formula on C's daemon for C's local guest
+    // handle. The pet name 'bob-from-B' on C points to a remote
+    // handle id (B's handle) and is not in C's DB.
+    const cPinId = await E(hostC).identify('@pins', 'guest-bob-from-B');
+    t.truthy(cPinId, 'C pinned the guest handle');
+    t.true(
+      formulaExistsInDb(configC.statePath, cPinId),
+      'C local guest handle exists pre-release',
+    );
+
+    // Capture A's pin (the local handle for the original A->B
+    // invitation) so we can assert it stays reachable.
+    const aPinId = await E(hostA).identify('@pins', 'guest-bob');
+    t.truthy(aPinId, "A has '@pins/guest-bob'");
+    t.true(
+      formulaExistsInDb(configA.statePath, aPinId),
+      "A's 'guest-bob' pin exists",
+    );
+
+    // C drops both references for the chain it joined. Only after
+    // *both* the pet name and the pin are gone can the local handle
+    // collect (the pin keeps the local handle alive under @pins).
+    await E(hostC).remove('bob-from-B');
+    await E(hostC).remove('@pins', 'guest-bob-from-B');
+
+    // C's local guest handle should collect on C's daemon.
+    await waitForCondition(
+      () => !formulaExistsInDb(configC.statePath, cPinId),
+      { timeoutMs: 8000 },
+    );
+    t.false(
+      formulaExistsInDb(configC.statePath, cPinId),
+      'C local guest handle collected after C dropped both references',
+    );
+
+    // A's pin for 'bob' must still be reachable: nothing C does on
+    // its own daemon should affect A's local roots in the chain.
+    t.true(
+      formulaExistsInDb(configA.statePath, aPinId),
+      "A's 'guest-bob' pin still reachable after C release",
+    );
+
+    // Sanity: B's daemon is still up; suppress an unused-binding lint.
+    void configB;
+  },
+);
