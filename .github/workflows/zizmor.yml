@@ -6,9 +6,12 @@ name: Workflow security audit
 # `pull_request_target` "Pwn Request", template injection, excessive
 # permissions, OIDC token exposure, cache poisoning, and unpinned uses.
 #
-# Initial gate is set to fail only on `high` severity so the noise floor
-# from existing medium findings does not block PRs. Once those are
-# addressed in follow-ups, tighten `min-severity` to `medium`.
+# Gate is set to `min-severity: medium`, which blocks on the audits most
+# directly relevant to the TanStack-class attack chain (dangerous
+# triggers, excessive permissions, template injection, OIDC exposure,
+# artipacked credential persistence). To tighten further, drop to `low`
+# or `informational` after auditing the additional findings those levels
+# surface.
 
 on:
   push:
@@ -35,9 +38,7 @@ jobs:
       - name: Run zizmor
         uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
         with:
-          # Block only on high-severity findings until existing medium
-          # warnings (mostly `artipacked` on checkout steps) are cleaned up.
-          min-severity: high
+          min-severity: medium
           # `advanced-security: true` would upload SARIF to GitHub Code
           # Scanning, which requires Advanced Security to be enabled on the
           # repository and `security-events: write` on this job. Until that
