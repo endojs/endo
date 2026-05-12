@@ -45,6 +45,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: endo
+          persist-credentials: false
 
       - name: Clone Spritely Goblins + goblin-chat from Codeberg
         run: |
@@ -63,7 +64,7 @@ jobs:
         working-directory: endo
 
       - name: Use Node.js 20.x
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 20.x
           cache: yarn

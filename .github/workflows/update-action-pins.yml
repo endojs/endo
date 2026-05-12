@@ -5,9 +5,9 @@ on:
     - cron: '0 3 * * 1' # Weekly on Monday
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+# Default to no permissions at the workflow level; the `update` job
+# below enumerates the writes it actually needs.
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,13 +16,22 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # `peter-evans/create-pull-request` pushes the chore branch
+      pull-requests: write # `peter-evans/create-pull-request` opens the PR
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # `peter-evans/create-pull-request` accepts its own `token` input
+          # (default `${{ github.token }}`) for the branch push and PR
+          # creation; it does not rely on credentials persisted into
+          # `.git/config` by checkout.
+          persist-credentials: false
       - name: Enable Corepack
         run: corepack enable
       - name: Use Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22.x
           cache: yarn
@@ -31,7 +40,7 @@ jobs:
       - name: Update action pins
         run: node scripts/update-action-pins.mjs --report /tmp/action-pin-report.md
       - name: Create pull request
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
           commit-message: 'chore: update action pins'
           title: 'chore: update action pins'
