@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 # Cancel in-progress runs for the same branch when a new run is started
 concurrency:
