@@ -21,13 +21,16 @@ HTTP virtual host for OCapN, lifts hosting out of per-user Daemon; closes
 issue #173, unblocks PR #134),
 [retention-path-notation](retention-path-notation.md) (added 2026-05-10;
 PR #151 row-format unblocker; sibling of
-[daemon-retention-paths](daemon-retention-paths.md)).*
+[daemon-retention-paths](daemon-retention-paths.md)),
+[cli-store-verb-text-modes](cli-store-verb-text-modes.md) (added
+2026-05-08; reshape blocker for PR #128).*
 
 ## Summary
 
 | Design | Created | Updated | Status |
 |--------|---------|---------|--------|
 | [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | 2026-02-26 | **Complete** |
+| [cli-store-verb-text-modes](cli-store-verb-text-modes.md) | 2026-05-08 | 2026-05-08 | Proposed |
 | [chat-command-bar](chat-command-bar.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-components](chat-components.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-high-contrast-mode](chat-high-contrast-mode.md) | 2026-02-26 | 2026-02-26 | **Complete** |
@@ -132,7 +135,7 @@ PR #151 row-format unblocker; sibling of
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 6 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (101 designs)
+**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 7 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (102 designs)
 
 ## Roadmap
 
@@ -369,6 +372,7 @@ automation.
 | familiar-unified-weblet-server | In Progress | Web-server restructuring |
 | familiar-chat-weblet-hosting | Not Started | Iframe hosting, guest profiles |
 | daemon-checkin-checkout | Not Started | `endo ci` / `endo co` for readable-tree ↔ filesystem |
+| cli-store-verb-text-modes | Proposed | Reshape blocker for PR #128: unify `endo store` flag scheme across source/sink/representation axes; subsume `write-text`/`read-text` |
 | daemon-weblet-application | Not Started | Readable trees, zip archives |
 | exo-zip-package | Proposed | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
 | endoclaw-oauth | Not Started | Credential capability — agent uses service without seeing token |
