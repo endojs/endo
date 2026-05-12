@@ -6,14 +6,14 @@ name: Workflow security audit
 # `pull_request_target` "Pwn Request", template injection, excessive
 # permissions, OIDC token exposure, cache poisoning, and unpinned uses.
 #
-# Gate is set to `min-severity: low`. At the `regular` persona, no
-# additional audits fire at `low` or `informational` beyond the ones
-# already covered at `medium`, so this is functionally equivalent today
-# — but it tightens the floor for any future audits that land in those
-# tiers without requiring a follow-up PR. To surface more findings now,
-# switch `persona:` to `pedantic` (catches scope-to-job-level
-# permission improvements) or `auditor` (adds defense-in-depth
-# recommendations like `secrets-outside-env`).
+# Gate is `persona: pedantic` + `min-severity: low`. Pedantic surfaces
+# "code smell" findings beyond what `regular` catches — most notably
+# `excessive-permissions` at the workflow level when grants could live
+# on a single job, `template-injection` from `${{ }}` expansion in
+# `run:` blocks, and `undocumented-permissions`. To tighten further,
+# switch `persona:` to `auditor`, which adds defense-in-depth
+# recommendations like `secrets-outside-env` (wrap publish secrets in
+# a deployment environment with required reviewers).
 
 on:
   push:
@@ -40,6 +40,7 @@ jobs:
       - name: Run zizmor
         uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
         with:
+          persona: pedantic
           min-severity: low
           # `advanced-security: true` would upload SARIF to GitHub Code
           # Scanning, which requires Advanced Security to be enabled on the
