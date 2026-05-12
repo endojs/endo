@@ -1949,6 +1949,44 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/exo-unzip@workspace:^, @endo/exo-unzip@workspace:packages/exo-unzip":
+  version: 0.0.0-use.local
+  resolution: "@endo/exo-unzip@workspace:packages/exo-unzip"
+  dependencies:
+    "@endo/base64": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/zip": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/exo-zip@workspace:packages/exo-zip":
+  version: 0.0.0-use.local
+  resolution: "@endo/exo-zip@workspace:packages/exo-zip"
+  dependencies:
+    "@endo/base64": "workspace:^"
+    "@endo/exo-unzip": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/zip": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/exo@workspace:^, @endo/exo@workspace:packages/exo":
   version: 0.0.0-use.local
   resolution: "@endo/exo@workspace:packages/exo"
@@ -3074,6 +3112,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/zip@workspace:packages/zip"
   dependencies:
+    "@endo/harden": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
