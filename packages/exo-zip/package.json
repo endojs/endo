@@ -1,0 +1,76 @@
+{
+  "name": "@endo/exo-zip",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Walk a readable-tree exo over CapTP and serialize it into in-memory ZIP bytes",
+  "keywords": [
+    "endo",
+    "zip",
+    "exo",
+    "captp",
+    "readable-tree"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/exo-zip#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/exo-zip"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./zip.js": "./zip.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "eslint --fix .",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "test": "ava"
+  },
+  "dependencies": {
+    "@endo/base64": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/zip": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/exo-unzip": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev",
+    "ses": "workspace:^",
+    "typescript": "catalog:dev"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}
