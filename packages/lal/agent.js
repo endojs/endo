@@ -11,7 +11,7 @@ import { makeLocalTree } from '@endo/platform/fs/node';
 import { createProvider } from './providers/index.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
-/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, LalContext } from './agent.types' */
+/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, LalContext } from './agent.types.js' */
 
 // ============================================================================
 // Interface Definition
@@ -822,7 +822,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   // messages appended at that step, plus a pointer to the parent node.
   // The full transcript is assembled by walking the chain when calling the LLM.
 
-  /** @import { TranscriptNode } from './agent.types' */
+  /** @import { TranscriptNode } from './agent.types.js' */
 
   /** @type {Map<string, TranscriptNode>} */
   const nodeCache = new Map();
@@ -1381,30 +1381,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         );
         leafNode.messages.push(...toolResults);
         await putNode(leafNode);
-        // After processing tools, loop again (notifications will be picked up
-        // at the top of the next iteration by processNotifications).
-        // eslint-disable-next-line no-undef, @endo/restrict-comparison-operands
-      } else if (notificationQueue.length > 0) {
-        // No tool calls, but there are notifications to process — loop again.
-        // eslint-disable-next-line no-undef, @endo/restrict-comparison-operands
-      } else if (pendingProposals.size > 0) {
-        // Check if we have pending proposals - wait for them to settle
-        console.log(
-          // eslint-disable-next-line no-undef
-          `[lal] Waiting for ${pendingProposals.size} pending proposal(s) to settle...`,
-        );
-        // Wait for any pending proposal to settle
-        // eslint-disable-next-line no-undef
-        const pendingPromises = [...pendingProposals.values()].map(p =>
-          p.promise.then(
-            () => {},
-            () => {},
-          ),
-        );
-        await Promise.race(pendingPromises);
-        // Loop again to process the notification.
       } else {
-        // Really done
         continueLoop = false;
         await putNode(leafNode);
         activeLeafNode = null;
@@ -1419,7 +1396,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
 
   /**
    * Build the user-role message content for an inbound message.
-   * @param {InboxMessage & {type?: string}} message
+   * @param {InboxMessage & {type?: string}} _message
    * @param _message
    * @returns {string}
    */
