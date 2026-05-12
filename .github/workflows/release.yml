@@ -7,14 +7,22 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
-permissions:
-  contents: write
-  pull-requests: write
+# Default to no permissions at the workflow level so any new job added
+# in the future has to opt in explicitly. The `release` job below
+# enumerates the writes it actually needs.
+permissions: {}
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    # `changesets/action` pushes tags and creates/updates the release PR,
+    # so the job needs `contents: write` and `pull-requests: write`. Keep
+    # the grants on the job (not the workflow) so they cannot leak into
+    # any future sibling job.
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout Repo
         # zizmor: ignore[artipacked]
