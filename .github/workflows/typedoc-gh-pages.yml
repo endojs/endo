@@ -11,7 +11,6 @@ on:
 permissions:
   contents: read
   actions: read
-  id-token: write
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -36,10 +35,12 @@ jobs:
           path: ./api-docs # the "out" path in typedoc.json
   deploy:
     runs-on: ubuntu-latest
-    # Job-level permissions override the workflow-level block (they do not
-    # merge), so `id-token: write` is enumerated here even while it is also
-    # still declared at the workflow level. A subsequent commit removes the
-    # workflow-level `id-token: write` so this becomes the sole grant.
+    # Only the deploy step (`actions/deploy-pages`) mints an OIDC token and
+    # writes to Pages. Keeping these grants on the deploy job — not the
+    # workflow — ensures the `build` job's dependency graph (TypeDoc, yarn
+    # install) cannot reach an `id-token: write` context, which is the
+    # primary surface for OIDC-extraction supply-chain attacks of the
+    # TanStack / tj-actions class.
     permissions:
       pages: write
       id-token: write
