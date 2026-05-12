@@ -15,7 +15,10 @@ designs; addendum to PR #144 HttpClient),
 2026-05-11; synthetic test-package factoring to retire the workspace
 devDep SCC; follow-up to PR #121),
 [cli-http-client](cli-http-client.md) (added 2026-05-09; PR #144 design
-revision under `endo http` subcommand tree).*
+revision under `endo http` subcommand tree),
+[endo-gateway](endo-gateway.md) (added 2026-05-10; per-host system-service
+HTTP virtual host for OCapN, lifts hosting out of per-user Daemon; closes
+issue #173, unblocks PR #134).*
 
 ## Summary
 
@@ -121,10 +124,11 @@ revision under `endo http` subcommand tree).*
 | [endor-tui](endor-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [hex-package](hex-package.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
+| [endo-gateway](endo-gateway.md) | 2026-05-10 | 2026-05-10 | Proposed |
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 4 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (99 designs)
+**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 5 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (100 designs)
 
 ## Roadmap
 
