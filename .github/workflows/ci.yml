@@ -8,10 +8,12 @@ on:
     branches: [master]
   pull_request:
 
-# Minimal permissions for workflows and jobs (cache uses actions API).
+# Minimal permissions for workflows and jobs. `actions/cache` and
+# `setup-node`'s `cache: yarn` use the runner's built-in cache service,
+# which is authenticated independently of the `actions:` permission;
+# `contents: read` is sufficient for every job below.
 permissions:
   contents: read
-  actions: write
 
 # Cancel in-progress runs for the same branch when a new run is started
 concurrency:
