@@ -46,8 +46,8 @@ ZIP comes with a `zip/deflate` utility that relies on web platform
 `CompressionStream`.
 
 ```javascript
-import ZipWriter from 'zip/writer';
-import deflate from 'zip/deflate';
+import { ZipWriter } from 'zip/writer';
+import { deflate } from 'zip/deflate';
 
 const writer = new ZipWriter({ deflate });
 await writer.set('data.txt', textEncoder.encode('Large data...'), {
