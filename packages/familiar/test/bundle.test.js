@@ -5,7 +5,7 @@
  * Familiar build smoke test.
  *
  * Runs the esbuild-driven bundle pipeline from `scripts/bundle.mjs` and
- * asserts that all expected CJS/ESM artifacts are produced under
+ * asserts that all expected ESM artifacts are produced under
  * `bundles/`.  This is the cheapest test that catches:
  *
  *   - esbuild major-version regressions when the Familiar `esbuild`
@@ -13,28 +13,18 @@
  *     Electron 40 → 42 PR).
  *   - import-time breakage in the Endo CLI, daemon-node, worker-node,
  *     LAL setup, or the Familiar `electron-main.js` itself.
- *   - Top-level-await regressions in modules that bundle into CJS
- *     output (esbuild rejects `await` at module scope under
- *     `format: 'cjs'`).
+ *   - Silent loss of an entry point from the bundle script.
  *
  * The test does NOT require Electron to be installed; the bundle marks
  * `electron` as `external` and only resolves it as a module specifier.
  *
  * The bundle step writes ~10 MiB into `bundles/`; allow generous time.
  *
- * Known issue: this test currently runs as `test.serial.failing` because
- * `packages/daemon/src/daemon-node.js` uses top-level `await` (since the
- * daemon's SQLite migration), which esbuild's CJS-format output mode
- * rejects with both 0.24.x and 0.28.x.  The Familiar bundle pipeline has
- * been silently broken on master since that refactor; no CI lane
- * exercised it.  Once daemon-node.js wraps its top-level `await` in an
- * async IIFE (or the bundle script switches the daemon entry to ESM),
- * this assertion flips green and the `.failing` modifier should be
- * removed so a future regression fails CI loudly.
- *
- * See `scripts/bundle.mjs` for the bundle pipeline.
- * See `packages/daemon/src/daemon-node.js` (around line 61) for the
- * top-level `await` site that currently breaks the CJS bundle.
+ * The bundles are emitted as ESM (`.mjs`) rather than CJS so that
+ * `packages/daemon/src/daemon-node.js`'s module-level `await` (since the
+ * SQLite migration) survives bundling — esbuild rejects top-level
+ * `await` under `format: 'cjs'`.  See `scripts/bundle.mjs` for the
+ * pipeline.
  */
 
 import { execFile } from 'node:child_process';
@@ -58,16 +48,16 @@ const bundlesDir = join(familiarRoot, 'bundles');
  * caught here.
  */
 const expectedArtifacts = [
-  'endo-cli.cjs',
-  'endo-daemon.cjs',
-  'worker-node.cjs',
-  'endo-lal-setup.cjs',
+  'endo-cli.mjs',
+  'endo-daemon.mjs',
+  'worker-node.mjs',
+  'endo-lal-setup.mjs',
   'agent.js',
-  'electron-main.cjs',
+  'electron-main.mjs',
   'primer',
 ];
 
-test.serial.failing(
+test.serial(
   'scripts/bundle.mjs builds all Familiar bundles cleanly',
   async t => {
     // The bundle pipeline shells out to esbuild four+ times and copies

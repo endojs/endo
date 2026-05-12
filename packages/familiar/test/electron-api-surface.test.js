@@ -30,7 +30,7 @@ import test from 'ava';
  */
 const electronCallSites = [
   '../electron-main.js',
-  '../preload.js',
+  '../preload.mjs',
   '../src/exfiltration-defense.js',
   '../src/navigation-guard.js',
   '../src/protocol-handler.js',

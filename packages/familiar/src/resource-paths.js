@@ -40,11 +40,11 @@ if (isPackaged) {
     'app',
   );
   nodePath = path.join(appRoot, nodeBinary);
-  endoCliPath = path.join(appRoot, 'bundles', 'endo-cli.cjs');
+  endoCliPath = path.join(appRoot, 'bundles', 'endo-cli.mjs');
   chatDistPath = path.join(appRoot, 'dist', 'chat', 'index.html');
-  endoDaemonPath = path.join(appRoot, 'bundles', 'endo-daemon.cjs');
-  workerSubprocessPath = path.join(appRoot, 'bundles', 'worker-node.cjs');
-  endoLalSetupPath = path.join(appRoot, 'bundles', 'endo-lal-setup.cjs');
+  endoDaemonPath = path.join(appRoot, 'bundles', 'endo-daemon.mjs');
+  workerSubprocessPath = path.join(appRoot, 'bundles', 'worker-node.mjs');
+  endoLalSetupPath = path.join(appRoot, 'bundles', 'endo-lal-setup.mjs');
 } else {
   const repoRoot = path.resolve(dirname, '../../..');
   nodePath = 'node';

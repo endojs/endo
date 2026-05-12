@@ -21,7 +21,7 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./bundles/electron-main.cjs",
+  "main": "./bundles/electron-main.mjs",
   "scripts": {
     "start": "electron .",
     "dev": "electron electron-main.js --dev",
