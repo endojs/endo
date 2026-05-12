@@ -894,7 +894,7 @@ automation.
 | cli-store-verb-text-modes | Proposed | Reshape blocker for PR #128: unify `endo store` flag scheme across source/sink/representation axes; subsume `write-text`/`read-text` |
 | cli-edit-verb | Proposed | `endo edit` with hashline patches for AI agents; sibling of `cli-store-verb-text-modes` (PR #153) |
 | daemon-weblet-application | Not Started | Readable trees, zip archives |
-| exo-zip-package | Proposed | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
+| exo-zip-package | Proposed | `@endo/exo-unzip` (`unzip(bytes) -> ReadableTree`) and `@endo/exo-zip` (`zip(tree) -> bytes`); PR #128 reshape blocker |
 | endoclaw-oauth | Not Started | Credential capability — agent uses service without seeing token |
 | exo-google-sheets | Proposed | `@endo/exo-google-sheets` Spreadsheet exo facets over a plain `@endo/google-sheets` client riding endoclaw-oauth; first concrete OAuth-integration instance |
 | endoclaw-proactive-messages | Not Started | Composes Timer + data caps + send() for briefings/reminders |
@@ -1323,7 +1323,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | ~~daemon-checkin-checkout~~ | S-M | — | 7 | ✅ Complete (`endo ci`/`co` shipped on llm; zip-archive interchange tracked separately under exo-zip-package) |
 | cli-edit-verb | S-M | 3 days | 7 | `endo edit` with hashline parser, anchor validator, splice; CLI-side, no daemon surface change |
 | daemon-weblet-application | M | 4-5 days | 7 | Formula types, gateway serving (1.2x bump) |
-| exo-zip-package | S | 1-2 days | 7 | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
+| exo-zip-package | S | 1-2 days | 7 | `@endo/exo-unzip` (`unzip(bytes) -> ReadableTree`) and `@endo/exo-zip` (`zip(tree) -> bytes`); PR #128 reshape blocker |
 | endoclaw-oauth | S-M | 3 days | 7 | Credential proxy exo, token injection (agent-side OAuth; distinct from gateway-oauth-bonding in M5) |
 | exo-google-sheets | M | 4-5 days | 7 | `@endo/google-sheets` plain client (fetch power injected) + `@endo/exo-google-sheets` facets; daemon-integration phase gated on endoclaw-oauth impl |
 | endoclaw-proactive-messages | S | 1 day | 7 | Pattern doc: Timer + data caps + send() |

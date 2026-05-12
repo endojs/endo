@@ -4,8 +4,60 @@
 |---|---|
 | **Created** | 2026-05-08 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Proposed (split into two packages per PR #160 directive) |
 | **Source** | PR #128 inline review comment ([discussion_r3205653903](https://github.com/endojs/endo-but-for-bots/pull/128#discussion_r3205653903)) |
+
+## Amendment 2026-05-10: package split
+
+Per the maintainer's directive on PR #160, the design's single
+`@endo/exo-zip` package with one factory `makeExoZip(bytes)` is
+split into two packages, one per direction:
+
+- `@endo/exo-unzip` exports `unzip(bytes)` and returns a
+  `ReadableTree`.
+  This is the read-side originally specified below.
+- `@endo/exo-zip` exports `zip(tree)` and returns `Uint8Array`
+  archive bytes.
+  This is the symmetric write-side that was originally deferred to
+  inline use in `checkout.js`.
+
+Function names are plain English verbs (`zip`, `unzip`), not
+`make…` factories.
+The rest of this document refers to the original single-package
+shape and `makeExoZip` for historic context; the implementations
+under `packages/exo-unzip/` and `packages/exo-zip/` carry the
+final names.
+
+## Amendment 2026-05-12: shared path validator and chunked base64
+
+Two further refinements landed during PR #160 review:
+
+- **Shared path validator hoisted to `@endo/zip/path.js`.**
+  The original split duplicated `assertSafePathSegment` /
+  `assertSafePathSegments` / `splitAndValidatePath` between the
+  read-side (`@endo/exo-unzip`) and the write-side
+  (`@endo/exo-zip`).
+  The shared validator now lives at `@endo/zip/path.js` (one file
+  in `@endo/zip`'s flat-root + `src/`-impl layout), so both
+  adapters import from the same definition.
+  This keeps the per-segment safety contract (reject empty, `.`,
+  `..`, control characters `\x00`-`\x1f`) authoritative in one
+  place and lets future zip-adjacent packages share it.
+- **Chunked base64 contract: join encoded chunks then decode once.**
+  Both the read-side (`unzip` over `streamBase64`) and the
+  write-side (`zip` over `drainBase64`) use chunked transfer to
+  bound peak memory.
+  The original implementation decoded each chunk in isolation and
+  concatenated the resulting bytes, which silently corrupts
+  payloads when chunk boundaries fall on non-3-byte multiples
+  (mid-stream padding `=` characters from per-chunk encode
+  invalidate the join).
+  Both sides now agree on a single contract: the producer slices
+  on raw 3-byte multiples (so non-final chunks have no padding),
+  the consumer accumulates encoded strings and decodes the join in
+  one pass.
+  Misaligned producers fail loudly at `atob` rather than silently
+  corrupting bytes; a regression test pins the failure mode.
 
 ## What is the Problem Being Solved?
 
