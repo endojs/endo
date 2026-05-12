@@ -5,7 +5,12 @@ on:
     branches:
       - master
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+# Serialize release runs on the same ref but never cancel an
+# in-progress release: a cancelled `changesets/action` may leave tags
+# pushed without their matching GitHub release, or vice versa.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 # Default to no permissions at the workflow level so any new job added
 # in the future has to opt in explicitly. The `release` job below
