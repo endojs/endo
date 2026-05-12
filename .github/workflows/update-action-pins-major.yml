@@ -16,11 +16,9 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    # `peter-evans/create-pull-request` pushes the chore branch and opens
-    # the PR; both grants are required for that single action.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # `peter-evans/create-pull-request` pushes the chore branch
+      pull-requests: write # `peter-evans/create-pull-request` opens the PR
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
