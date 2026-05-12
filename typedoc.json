@@ -34,6 +34,7 @@
     "packages/fae",
     "packages/familiar",
     "packages/genie",
+    "packages/hex-test",
     "packages/inventory-graph",
     "packages/jaine",
     "packages/hardened262",

@@ -1,8 +1,8 @@
 import test from '@endo/ses-ava/test.js';
 
-import { encodeHex, decodeHex } from '../index.js';
-import { jsEncodeHex } from '../src/encode.js';
-import { jsDecodeHex } from '../src/decode.js';
+import { encodeHex, decodeHex } from '@endo/hex';
+import { jsEncodeHex } from '@endo/hex/src/encode.js';
+import { jsDecodeHex } from '@endo/hex/src/decode.js';
 
 test('round-trip across the full byte space', t => {
   const all = new Uint8Array(256);
