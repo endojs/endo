@@ -18,7 +18,10 @@ devDep SCC; follow-up to PR #121),
 revision under `endo http` subcommand tree),
 [endo-gateway](endo-gateway.md) (added 2026-05-10; per-host system-service
 HTTP virtual host for OCapN, lifts hosting out of per-user Daemon; closes
-issue #173, unblocks PR #134).*
+issue #173, unblocks PR #134),
+[retention-path-notation](retention-path-notation.md) (added 2026-05-10;
+PR #151 row-format unblocker; sibling of
+[daemon-retention-paths](daemon-retention-paths.md)).*
 
 ## Summary
 
@@ -58,6 +61,7 @@ issue #173, unblocks PR #134).*
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-04-29 | **Complete** |
 | [daemon-retention-paths](daemon-retention-paths.md) | 2026-04-30 | 2026-04-30 | Not Started |
+| [retention-path-notation](retention-path-notation.md) | 2026-05-10 | 2026-05-10 | Proposed |
 | [daemon-rename-to-manager](daemon-rename-to-manager.md) | 2026-05-04 | 2026-05-05 | Not Started |
 | [daemon-guest-eval-simplification](daemon-guest-eval-simplification.md) | 2026-03-21 | 2026-05-04 | **Implemented** |
 | [daemon-docker-selfhost](daemon-docker-selfhost.md) | 2026-03-02 | 2026-03-02 | Not Started |
@@ -128,7 +132,7 @@ issue #173, unblocks PR #134).*
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 5 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (100 designs)
+**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 6 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (101 designs)
 
 ## Roadmap
 
@@ -398,6 +402,7 @@ webhook events.
 | formula-inspector | Not Started | New panel, daemon API exposure (retention-paths surface factored out into `daemon-retention-paths`) |
 | workers-panel | Not Started | Metrics, sparklines (retention-paths section factored out into `daemon-retention-paths`) |
 | daemon-retention-paths | Not Started | Host-only `listRetentionPaths` / `followRetentionPaths`, `endo paths` CLI, Chat paths panel with delete-pet-name and disincarnate/reincarnate |
+| retention-path-notation | Proposed | Canonical string notation for one path; bulk `listRetentionPaths(targetIds)` and `describeRetentionPaths(targetIds)`; row-format unblocker for `endo workers` (PR #151); sibling of daemon-retention-paths |
 | chat-view-edit-commands | Not Started | `/view` and `/edit` for blobs; Monaco editor, Markdown split preview |
 | chat-edit-message-ui | Not Started | `/edit` slash command, `e` focus shortcut, hover pencil for editing previously sent messages; revision-history panel |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
@@ -630,6 +635,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | formula-inspector | M | 4-5 days | 4 | New panel, daemon API |
 | workers-panel | M | 4-6 days | 4 | Metrics, sparklines |
 | daemon-retention-paths | M-L | 1.5 weeks | 4 | Snapshot + subscription daemon API, CLI verb, Chat paths panel; superset of retention-path slices in formula-inspector and workers-panel |
+| retention-path-notation | S-M | 3 days | 4 | Notation renderer + parser, bulk `describeRetentionPaths` host method, `endo workers` and chat tenant-chip integration; sibling of daemon-retention-paths |
 | chat-view-edit-commands | M | 4-6 days | 4 | `/view`, `/edit` modal, Monaco reuse, Markdown split preview (Phase 4) |
 | chat-edit-message-ui | S-M | 3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil; design merged (PR #88); daemon impl in PR #125 forwarded under bot |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
