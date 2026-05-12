@@ -19,6 +19,14 @@ import harden from '@endo/harden';
  * @param {string} [options.hostname] - Hostname (optional)
  * @param {string} [options.currentTime] - Current time string (optional)
  * @param {string} [options.workspaceDir] - Workspace directory path
+ * @param {string} [options.sliceWorkspacePath]
+ *   - Slice-internal mount path for the workspace, when the agent's
+ *     command-style tools (`bash`, `exec`, `git`) are routed through a
+ *     sandbox slice that bind-mounts `workspaceDir` to a fixed path
+ *     (`/workspace` by default).  When set, the runtime-info section
+ *     advertises both paths so the model knows that `readFile` /
+ *     `writeFile` see the host path while `bash` / `exec` see the
+ *     slice-internal path.  Leave undefined when no slice is in use.
  * @param {string} [options.model] - Model identifier
  * @param {() => Iterable<{name: string, summary: string}>} [options.buildToolList] - Tools section builder
  * @param {string} [options.skillsPrompt] - Skills prompt section
@@ -33,6 +41,7 @@ function* buildSystemPrompt(options = {}) {
     hostname = 'unknown',
     currentTime = 'unknown',
     workspaceDir = '/dev/null',
+    sliceWorkspacePath,
     buildToolList = () => [],
     skillsPrompt = '',
     disableSuffix = false,
@@ -42,13 +51,29 @@ function* buildSystemPrompt(options = {}) {
   } = options;
 
   function* runtimeInfo() {
-    yield* demarcatedSection(2, 'Runtime Info', [
+    /** @type {string[]} */
+    const lines = [
       '',
       `- **Current Time:** ${currentTime}`,
       `- **Host:** ${hostname}`,
       `- **Current working directory:** ${workspaceDir}`,
       '  - Treat this directory as your **Workspace** for file operations unless instructed otherwise.',
-    ]);
+    ];
+    if (sliceWorkspacePath !== undefined) {
+      // The `bash` / `exec` / `git` tools are routed through a sandbox
+      // slice that bind-mounts the workspace at this fixed path.
+      // Daemon-side tools (`readFile`, `writeFile`, `memorySearch`, …)
+      // continue to see the host path above; the bytes are the same
+      // (the slice's bind mount lands on the host workspace) but the
+      // path the slice sees is rerooted.  Advertising both paths
+      // prevents the model from passing the host path to `bash` / `ls`
+      // and getting `No such file or directory` back.
+      lines.push(
+        `- **Command-tool workspace path:** ${sliceWorkspacePath}`,
+        `  - \`bash\`, \`exec\`, and \`git\` see the Workspace at this path (the host directory above is bind-mounted there).`,
+      );
+    }
+    yield* demarcatedSection(2, 'Runtime Info', lines);
   }
 
   function* policyLines() {

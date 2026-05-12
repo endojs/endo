@@ -1,6 +1,7 @@
 // @ts-check
 
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
+/** @import { Api, Model } from '@mariozechner/pi-ai' */
 /** @import { Observer } from '../observer/index.js' */
 /** @import { Reflector } from '../reflector/index.js' */
 /** @import { GenieTools } from '../tools/registry.js' */
@@ -13,14 +14,18 @@ import { makeReflector } from '../reflector/index.js';
 
 /**
  * @typedef {object} GenieAgentsConfig
- * @property {string} [model]
- * - Baseline model string used by the main chat agent.
- *   Default model for any sub-agent that does not supply its own override.
- * @property {string} [observerModel]
+ * @property {string | Model<Api>} [model]
+ * - Baseline model used by the main chat agent.  Either a
+ *   `provider/modelId` string the pi-ai registry can resolve or a
+ *   pre-constructed `Model<…>` object (used by the dev-repl when a
+ *   `GENIE_FAUX_SCRIPT` registration supplies its own model).
+ *   Default model for any sub-agent that does not supply its own
+ *   override.
+ * @property {string | Model<Api>} [observerModel]
  *   - Override model for the observer sub-agent.
- * @property {string} [reflectorModel]
+ * @property {string | Model<Api>} [reflectorModel]
  *   - Override model for the reflector sub-agent.
- * @property {string} [heartbeatModel]
+ * @property {string | Model<Api>} [heartbeatModel]
  *   - Override model for the heartbeat sub-agent.
  * @property {boolean} [dedicatedHeartbeatAgent]
  * - When `true` (default), `heartbeatAgent` is a separately constructed
@@ -36,6 +41,14 @@ import { makeReflector } from '../reflector/index.js';
  *   - Hostname string passed through to `makePiAgent`.
  * @property {string} workspaceDir
  *   - Workspace root, relevant for any file tools.
+ * @property {string} [sliceWorkspacePath]
+ *   - When the agent's command-style tools are routed through a sandbox
+ *     slice that bind-mounts `workspaceDir` to a fixed path, the
+ *     slice-internal mount path (e.g. `/workspace`).  Threaded into
+ *     every `makePiAgent` call so the main and heartbeat agents'
+ *     system prompts advertise both the host workspace path (used by
+ *     daemon-side file / memory tools) and the slice-internal path
+ *     (used by `bash` / `exec` / `git`).  Omit when no slice is in use.
  * @property {GenieTools} tools
  *   - The pack re-uses `tools.listTools` / `tools.execTool` for the
  *     main/heartbeat agents and `tools.memoryTools` / `tools.searchBackend`
@@ -90,6 +103,7 @@ import { makeReflector } from '../reflector/index.js';
 export const makeGenieAgents = async ({
   hostname,
   workspaceDir,
+  sliceWorkspacePath,
   tools,
   config = {},
   makeAgent = makePiAgent,
@@ -108,10 +122,17 @@ export const makeGenieAgents = async ({
 
   const currentTime = new Date().toISOString();
 
+  // Thread `sliceWorkspacePath` into the main and heartbeat agents only:
+  // observer / reflector run daemon-side and never invoke command-style
+  // tools, so the slice asymmetry is irrelevant to their prompts.
+  const sliceArg =
+    sliceWorkspacePath !== undefined ? { sliceWorkspacePath } : {};
+
   const piAgent = await makeAgent({
     hostname,
     currentTime,
     workspaceDir,
+    ...sliceArg,
     model,
     listTools,
     execTool,
@@ -122,6 +143,7 @@ export const makeGenieAgents = async ({
         hostname,
         currentTime,
         workspaceDir,
+        ...sliceArg,
         model: heartbeatModel,
         listTools,
         execTool,

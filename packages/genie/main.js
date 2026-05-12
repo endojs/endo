@@ -172,8 +172,19 @@ export const make = (guestPowers, _context) => {
    *   rooted at `workspaceDir`.  When supplied, the `files` tool group
    *   routes its reads and writes through the Mount surface
    *   (`makeMountVFS`) instead of `makeNodeVFS`.
+   * @param {string} [sliceWorkspacePath] - Slice-internal mount path for
+   *   the workspace when `spawner` routes the command tools through a
+   *   sandbox slice (e.g. `/workspace`).  Threaded into the registry
+   *   so the `bash` / `exec` / `git` tool descriptions advertise the
+   *   slice path the model should use.  Pair with `spawner`; omit on
+   *   the no-slice fallback path.
    */
-  const buildTools = (workspaceDir, spawner, workspaceMount) => {
+  const buildTools = (
+    workspaceDir,
+    spawner,
+    workspaceMount,
+    sliceWorkspacePath,
+  ) => {
     const searchBackend = makeFTS5Backend({ dbDir: workspaceDir });
     const mountVFSCap =
       /** @type {import('./src/tools/vfs-mount.js').MountVFSCap | undefined} */ (
@@ -184,6 +195,7 @@ export const make = (guestPowers, _context) => {
       include: PLUGIN_DEFAULT_INCLUDE,
       searchBackend,
       ...(spawner ? { spawner } : {}),
+      ...(sliceWorkspacePath !== undefined ? { sliceWorkspacePath } : {}),
       ...(mountVFSCap ? { workspaceMount: mountVFSCap } : {}),
     });
   };
@@ -1294,7 +1306,19 @@ export const make = (guestPowers, _context) => {
     // because they rely on Node-specific APIs (atomic writes, SQLite)
     // that have no Mount equivalent — the slice's bind-mount lands on
     // the same bytes either way, so the views still stay in lockstep.
-    const genieTools = buildTools(workspaceDir, spawner, workspaceMount);
+    //
+    // When the slice was minted, advertise the slice-internal workspace
+    // path through the tool registry (and, below, the agent pack) so
+    // both the tool-level docs and the system-prompt runtime-info
+    // section name `/workspace` rather than the host path that bash
+    // cannot see.  See TADA/62.
+    const innerSlicePath = slice ? SLICE_WORKSPACE_PATH : undefined;
+    const genieTools = buildTools(
+      workspaceDir,
+      spawner,
+      workspaceMount,
+      innerSlicePath,
+    );
 
     // Shared side-channel map for delivering heartbeat tick objects from
     // runHeartbeatTicker to runAgentLoop without serializing through daemon mail.
@@ -1311,6 +1335,9 @@ export const make = (guestPowers, _context) => {
       await makeGenieAgents({
         hostname: 'endo-daemon',
         workspaceDir,
+        ...(innerSlicePath !== undefined
+          ? { sliceWorkspacePath: innerSlicePath }
+          : {}),
         tools: genieTools,
         config: {
           model: config.model || undefined,

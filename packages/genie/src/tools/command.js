@@ -262,24 +262,43 @@ const runProcess = async ({
     clearTimeout(timer);
   }
 
+  const trimmedStdout = stdout.trim();
+  const trimmedStderr = stderr.trim();
+
   if (killed) {
-    throw new Error(`${name} timed out after ${timeoutMs}ms`);
-  }
-  const exitCode = status.code ?? -1;
-  if (exitCode !== 0) {
-    const err = new Error(`Command failed with exit code ${exitCode}`);
-    // @ts-expect-error — attach extra fields for callers
-    err.code = exitCode;
+    const err = new Error(`${name} timed out after ${timeoutMs}ms`);
+    // Attach the same diagnostic fields the non-zero-exit path uses so
+    // callers (and `makeCommandTool.execute`'s error wrapper below) can
+    // surface partial stdout / stderr captured before the kill.
+    Object.assign(err, {
+      command: fullCommand,
+      stdout: trimmedStdout,
+      stderr: trimmedStderr,
+      exitCode: status.code ?? null,
+      signal: status.signal,
+    });
     throw err;
   }
 
+  // Non-zero exits are *data*, not errors — see TADA/60.  Many command-
+  // line tools use the exit code to answer yes/no questions (`grep` for
+  // "did this file contain the pattern", `test -f` for "does this path
+  // exist", `diff` for "do these files differ").  Throwing here would
+  // strand the model with an opaque error and no way to react to the
+  // legitimate negative result.  The schema already advertises both
+  // `success` and `exitCode` — honour the contract.
+  //
+  // Only spawner-init failures (program-not-found, factory reject) and
+  // the timeout-kill branch above still throw; those *are* errors the
+  // caller cannot reason about as data.
+  const exitCode = status.code ?? -1;
   /** @type {{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}} */
   const out = {
-    success: true,
+    success: exitCode === 0,
     command: fullCommand,
-    stdout: stdout.trim(),
-    stderr: stderr.trim(),
-    exitCode: 0,
+    stdout: trimmedStdout,
+    stderr: trimmedStderr,
+    exitCode,
   };
   if (allowPath) {
     out.path = cwd;
@@ -319,6 +338,13 @@ const runProcess = async ({
  *   Defaults to a freshly-built host spawner (see
  *   {@link makeHostSpawner}).  Pass a sandbox spawner to run the tool
  *   inside an `@endo/sandbox` slice.
+ * @property {string}    [sliceWorkspacePath] - When the `spawner` routes
+ *   this tool through a sandbox slice, the slice-internal mount path
+ *   where the workspace is visible (e.g. `/workspace`).  Threaded into
+ *   `help()` so the tool-level docs mention the slice path the model
+ *   should use rather than the host workspace path.  Avoid hard-coding
+ *   the path here — pass it down from the slice-mint site so the same
+ *   wire feeds both the system prompt and the tool descriptions.
  */
 
 /**
@@ -339,6 +365,7 @@ const makeCommandTool = ({
   spawner = makeHostSpawner(
     searchPath !== undefined ? { searchPath } : undefined,
   ),
+  sliceWorkspacePath,
 }) => {
   const hasProgram = program !== undefined;
 
@@ -372,6 +399,17 @@ const makeCommandTool = ({
         yield `Executes ${program} commands.`;
       } else {
         yield 'Executes shell commands.';
+      }
+      if (sliceWorkspacePath !== undefined) {
+        // The model's workspace path inside the slice is not the host
+        // directory the system prompt mentions as the working
+        // directory — the host workspace is bind-mounted to this fixed
+        // path.  Surfacing the slice path here (in addition to the
+        // runtime-info section) makes the tool-level docs self-
+        // sufficient and avoids the host-path-into-bash failure mode
+        // described in TODO/62.
+        yield '';
+        yield `**Workspace path:** This tool runs inside a sandbox slice; the workspace is mounted at \`${sliceWorkspacePath}\`.  Use that path (not the host workspace directory) when referencing the workspace from a shell command.`;
       }
       yield '';
       yield '**Parameters:**';
@@ -439,7 +477,47 @@ const makeCommandTool = ({
           fullCommand,
         });
       } catch (err) {
-        throw new Error(`${name} execution failed: ${err.message}`);
+        const cast =
+          /** @type {Error & { stderr?: string, stdout?: string, exitCode?: number, command?: string }} */ (
+            err
+          );
+        // Compose a diagnostic message that surfaces stderr (and a
+        // truncated stdout when stderr is empty) so that callers — the
+        // dev-repl's red `✗ failed:` line and chatlog renderers — show
+        // *why* the command failed.  Without this every non-zero exit
+        // collapses to an opaque `Command failed with exit code N`.
+        const STDERR_BUDGET = 2048;
+        const STDOUT_BUDGET = 2048;
+        /**
+         * @param {string} text
+         * @param {number} budget
+         */
+        const clip = (text, budget) =>
+          text.length > budget
+            ? `${text.slice(0, budget)}… (truncated, ${text.length - budget} more bytes)`
+            : text;
+        const parts = [`${name} execution failed: ${cast.message}`];
+        if (cast.stderr) {
+          parts.push(`stderr: ${clip(cast.stderr, STDERR_BUDGET)}`);
+        } else if (cast.stdout) {
+          // Some failing commands write their diagnostic to stdout
+          // (e.g. `npm run` indirected through a script).  Surface that
+          // when stderr was empty so the model still has a clue.
+          parts.push(`stdout: ${clip(cast.stdout, STDOUT_BUDGET)}`);
+        }
+        const wrapped = new Error(parts.join('\n'));
+        // Forward the structured fields so a programmatic caller can
+        // still inspect them after the wrap.
+        if (cast.exitCode !== undefined) {
+          Object.assign(wrapped, {
+            code: cast.exitCode,
+            exitCode: cast.exitCode,
+            stdout: cast.stdout,
+            stderr: cast.stderr,
+            command: cast.command,
+          });
+        }
+        throw wrapped;
       }
     },
   });
@@ -456,18 +534,28 @@ harden(makeCommandTool);
  * spawner override so a sandbox-aware caller (e.g. the daemon-hosted
  * genie's tool registry) can route execution through a slice.
  *
- * @param {{ spawner?: Spawner }} [options]
+ * @param {{ spawner?: Spawner, sliceWorkspacePath?: string }} [options]
  */
-const makeExecTool = ({ spawner } = {}) =>
+const makeExecTool = ({ spawner, sliceWorkspacePath } = {}) =>
   makeCommandTool({
     name: 'exec',
     description: [
       'Runs a system command (ls, grep, find, cat, curl, etc.).',
       'Use for general tasks not covered by other tools.',
       'NOTE: does not execute through a shell',
+      '',
+      'Returns `{ success, exitCode, stdout, stderr, command }`.',
+      'A non-zero `exitCode` is reported as data with `success: false` — many',
+      'tools answer yes/no questions through the exit code (`grep` exits 1',
+      'when there is no match; `test -f` exits 1 when the path is missing;',
+      '`diff` exits 1 when files differ).  Inspect `exitCode`, `stdout`, and',
+      '`stderr` to decide what the result means; only an actual error (the',
+      'program could not be launched, or the command timed out) causes the',
+      'tool call itself to fail.',
     ].join('\n'),
     policies: [rejectPatterns(DANGEROUS_PATTERNS)],
     ...(spawner ? { spawner } : {}),
+    ...(sliceWorkspacePath !== undefined ? { sliceWorkspacePath } : {}),
   });
 harden(makeExecTool);
 
@@ -476,18 +564,28 @@ harden(makeExecTool);
  * dangerous-pattern blocking.  Accepts an optional spawner override
  * (see {@link makeExecTool}).
  *
- * @param {{ spawner?: Spawner }} [options]
+ * @param {{ spawner?: Spawner, sliceWorkspacePath?: string }} [options]
  */
-const makeBashTool = ({ spawner } = {}) =>
+const makeBashTool = ({ spawner, sliceWorkspacePath } = {}) =>
   makeCommandTool({
     name: 'bash',
     description: [
       'Runs a shell command (ls, grep, find, cat, curl, etc.).',
       'Use for general tasks not covered by other tools.',
+      '',
+      'Returns `{ success, exitCode, stdout, stderr, command }`.',
+      'A non-zero `exitCode` is reported as data with `success: false` — many',
+      'tools answer yes/no questions through the exit code (`grep` exits 1',
+      'when there is no match; `test -f` exits 1 when the path is missing;',
+      '`diff` exits 1 when files differ).  Inspect `exitCode`, `stdout`, and',
+      '`stderr` to decide what the result means; only an actual error (the',
+      'program could not be launched, or the command timed out) causes the',
+      'tool call itself to fail.',
     ].join('\n'),
     policies: [rejectPatterns(DANGEROUS_PATTERNS)],
     shell: true,
     ...(spawner ? { spawner } : {}),
+    ...(sliceWorkspacePath !== undefined ? { sliceWorkspacePath } : {}),
   });
 harden(makeBashTool);
 

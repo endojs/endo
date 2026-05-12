@@ -123,6 +123,14 @@ export const PLUGIN_DEFAULT_INCLUDE = harden([
  *     (e.g. a sandbox spawner from `./sandbox-spawner.js`), the
  *     command tools spawn through it instead — file / memory / web
  *     tools continue to run daemon-side.
+ * @param {string} [options.sliceWorkspacePath]
+ *   - Slice-internal mount path for the workspace when `spawner`
+ *     routes the command tools through a sandbox slice (e.g.
+ *     `/workspace`).  Threaded into the `bash` / `exec` / `git`
+ *     tool descriptions so the model sees the correct workspace
+ *     path in the tool-level docs (the same value also shows up in
+ *     the system-prompt runtime-info section).  Leave undefined for
+ *     host-spawn deployments.
  * @param {MountVFSCap} [options.workspaceMount]
  *   - Optional Endo `Mount` capability rooted at `workspaceDir`.
  *     When supplied, the `files` tool group routes its reads and
@@ -140,6 +148,7 @@ export const buildGenieTools = ({
   searchBackend,
   include = PLUGIN_DEFAULT_INCLUDE,
   spawner,
+  sliceWorkspacePath,
   workspaceMount,
 }) => {
   const groups = new Set(include);
@@ -147,16 +156,26 @@ export const buildGenieTools = ({
   /** @type {Record<string, Tool>} */
   const tools = {};
 
+  // Slice-aware overrides: when both `spawner` and `sliceWorkspacePath`
+  // are supplied, the model needs to know the slice-internal workspace
+  // path in the tool descriptions as well as the system prompt.  When
+  // only `spawner` is supplied (no slice path threaded), the tool
+  // descriptions stay path-agnostic — the override is opt-in so the
+  // dev-repl's `--sandbox off` path and the daemon's no-factory path
+  // continue to share the pre-built host-spawner exports verbatim.
+  const sliceOpts =
+    sliceWorkspacePath !== undefined ? { sliceWorkspacePath } : {};
+
   // When a spawner is injected, rebuild the bash / exec tools so the
   // override flows through to the underlying makeCommandTool factory
   // while preserving the pre-built dangerous-pattern policies.
   // Otherwise reuse the pre-built host-spawner exports verbatim.
   if (groups.has('bash')) {
-    tools.bash = spawner ? makeBashTool({ spawner }) : bash;
+    tools.bash = spawner ? makeBashTool({ spawner, ...sliceOpts }) : bash;
   }
 
   if (groups.has('exec')) {
-    tools.exec = spawner ? makeExecTool({ spawner }) : exec;
+    tools.exec = spawner ? makeExecTool({ spawner, ...sliceOpts }) : exec;
   }
 
   if (groups.has('git')) {
@@ -179,6 +198,7 @@ export const buildGenieTools = ({
         },
       ],
       ...(spawner ? { spawner } : {}),
+      ...sliceOpts,
     });
   }
 

@@ -34,6 +34,7 @@ import harden from '@endo/harden';
 /** @import { Tool } from '../tools/common.js' */
 /** @import { SearchBackend } from '../tools/memory.js' */
 /** @import { ChatEvent } from '../agent/index.js' */
+/** @import { Api, Model } from '@mariozechner/pi-ai' */
 
 import { makePiAgent, runAgentRound } from '../agent/index.js';
 import { makeToolGate } from '../agent/tool-gate.js';
@@ -167,9 +168,12 @@ const estimateFileTokens = async (memoryGet, path) => {
 
 /**
  * @typedef {object} ReflectorOptions
- * @property {string} [model] - Model string for the reflector
- *   agent.  Defaults to the main chat model.  A reasoning model
- *   is recommended.
+ * @property {string | Model<Api>} [model] - Model identifier for the
+ *   reflector agent — either a `provider/modelId` string or a pre-
+ *   constructed `Model<…>` object (the dev-repl's faux-script path
+ *   threads a Model object through this seam).
+ *   Defaults to the main chat model.  A reasoning model is
+ *   recommended.
  * @property {number} [reflectionThreshold] - Token count threshold
  *   for observations.md that triggers reflection.  Default 40 000.
  * @property {Tool} memoryGet - The memoryGet tool instance.
