@@ -68,7 +68,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 22.x, 24.x]
+        node-version: [20.x, 22.x, 24.x]
         platform: [ubuntu-latest, macos-15]
         # windows-latest exhibited flakey tests that are not yet worth the
         # trouble to investigate, and blocked us from upgrading yarn from 1 to
@@ -173,7 +173,6 @@ jobs:
           # '16.1' last version before some significant promise hooks changes
           # '16.5' last version before unconditional promise fast-path
           # '16.6' first version after unconditional promise fast-path
-          - '18'
           # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
           # '20.3' to '20.6' not viable due to https://github.com/nodejs/node/pull/49211
           # '20.7' first SES-viable version
@@ -218,7 +217,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 24.x]
+        node-version: [20.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -254,7 +253,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 24.x]
+        node-version: [20.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -358,7 +357,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 24.x]
+        node-version: [20.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:
