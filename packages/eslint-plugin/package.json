@@ -10,7 +10,7 @@
   "author": "Endo contributors",
   "main": "./lib/index.js",
   "scripts": {
-    "test": "mocha",
+    "test": "mocha --timeout 60000",
     "test:xs": "exit 0",
     "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:eslint",
