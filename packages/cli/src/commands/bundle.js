@@ -3,7 +3,7 @@
 import os from 'os';
 import { E } from '@endo/far';
 import bundleSource from '@endo/bundle-source';
-import { makeReaderRef } from '@endo/daemon';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 
@@ -28,7 +28,7 @@ export const bundleCommand = async ({
   process.stdout.write(`${bundle.endoZipBase64Sha512}\n`);
   const bundleText = JSON.stringify(bundle);
   const bundleBytes = textEncoder.encode(bundleText);
-  const readerRef = makeReaderRef([bundleBytes]);
+  const readerRef = bytesReaderFromIterator([bundleBytes]);
   return withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     await E(agent).storeBlob(readerRef, bundlePath);
   });
