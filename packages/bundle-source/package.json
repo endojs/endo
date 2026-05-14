@@ -13,8 +13,6 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX -e node_modules/",
     "test": "ava",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",

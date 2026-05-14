@@ -35,8 +35,6 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX -e node_modules/",
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ava",
     "test:xs": "exit 0"

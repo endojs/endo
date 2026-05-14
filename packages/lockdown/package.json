@@ -17,8 +17,7 @@
     "test": "exit 0",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "eslint .",
-    "postpack": "git clean -fX -e node_modules/"
+    "lint": "eslint ."
   },
   "dependencies": {
     "ses": "workspace:^"
