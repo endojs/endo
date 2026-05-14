@@ -7,7 +7,7 @@
   "bin": "./src/tool.js",
   "exports": {
     ".": "./src/index.js",
-    "./exported.js": "./exported.js",
+    "./exported.js": "./src/exports.js",
     "./cache.js": "./cache.js",
     "./package.json": "./package.json"
   },
