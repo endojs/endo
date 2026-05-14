@@ -2,13 +2,13 @@
   "extends": "../../tsconfig.eslint-base.json",
   "include": [
     "*.js",
-    "*.ts",
-    "demo",
+    "demo/**/*.js",
     "src/**/*.js",
-    "src/**/*.ts",
+    "src/types/*.ts",
+    "!src/types/*.d.ts",
+    "src/types-external.d.ts",
+    "src/types.d.ts",
     "test",
-  ],
-  "exclude": [
-    "**/*.d.ts"
+    "!**/*.d.ts"
   ]
 }

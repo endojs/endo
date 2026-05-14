@@ -1,9 +1,11 @@
 {
   "extends": "../../tsconfig.eslint-base.json",
-  "include": [
-    "*.js",
-    "*.ts",
-    "src",
-    "test"
+  "files": [
+    "index.js",
+    "src/trampoline.js",
+    "src/types.ts"
   ],
+  "include": [
+    "test/"
+  ]
 }

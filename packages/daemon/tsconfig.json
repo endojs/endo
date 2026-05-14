@@ -2,12 +2,14 @@
   "extends": "../../tsconfig.eslint-base.json",
   "compilerOptions": {
     "checkJs": false,
-    "allowSyntheticDefaultImports": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "*.js",
-    "*.ts",
-    "src",
-    "test"
+    "src/**/*.js",
+    "src/types.d.ts",
+    "test",
+    "types.d.ts",
+    "!**/*.d.ts"
   ]
 }

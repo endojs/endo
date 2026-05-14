@@ -3,8 +3,8 @@
   "include": [
     "*.js",
     "*.ts",
-    "scripts",
-    "src",
+    "scripts/*.js",
+    "src/*.js",
     "test"
   ],
   "exclude": ["prelude"]
