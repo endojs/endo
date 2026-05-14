@@ -21,9 +21,11 @@
   },
   "scripts": {
     "build": "exit 0",
-    "setup": "endo run --UNCONFINED setup.js --powers @agent GENIE_HOME=$GENIE_HOME",
+    "setup": "endo run --UNCONFINED setup.js --powers @agent",
     "test": "ses-ava",
     "test:integration": "bash test/integration.sh -E GENIE_MODEL=ollama/llama3.2 -E GENIE_TEST=test/scenarios/workspace-tool.sh",
+    "test:integration:sandbox-slice": "bash test/integration.sh -E GENIE_MODEL=ollama/llama3.2 -E GENIE_TEST=test/scenarios/sandbox-slice.sh",
+    "test:integration:dev-repl-sandbox": "ava test/dev-repl-sandbox.test.js --timeout=120s",
     "repl": "node dev-repl.js --workspace workspace_dev",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
@@ -40,6 +42,7 @@
     "@endo/marshal": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^",
+    "@endo/sandbox": "workspace:^",
     "@mariozechner/pi-agent-core": "^0.73.1",
     "@mariozechner/pi-ai": "^0.73.1",
     "better-sqlite3": "^11.0.0"

@@ -111,6 +111,4 @@
  *   to stay under that root (throws otherwise).
  */
 
-// TODO VFS.readdir() should return an async stream of entries, not a promise-of-array
-
 export {};

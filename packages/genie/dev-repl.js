@@ -3,7 +3,7 @@
 /* global process */
 /* eslint-disable no-await-in-loop */
 
-/**
+/*
  * Genie Development REPL
  *
  * A simple command-line REPL that runs the @endo/genie agent outside the Endo
@@ -14,13 +14,34 @@
  * a readline-based interactive loop.
  *
  * Usage:
- *   node dev-repl.js [-m provider/modelId] [-w /path] [--no-tools] [-v] [-s substring|fts5] [--quiet-background]
- *   node dev-repl.js -c "prompt text" [-m provider/modelId] [-w /path]
+ *   node dev-repl.js [-m provider/modelId] [-w /path] [--no-tools] [-v] [-s substring|fts5] [--quiet-background] [--sandbox auto|bwrap|podman|off] [--network <profile>] [--rootfs <kind>]
+ *   node dev-repl.js -c "prompt text" [-m provider/modelId] [-w /path] [--sandbox …]
  *
  * Flags:
  *   --quiet-background   Suppress automatic observer/reflector event
  *                        output in the REPL (use the `.background on`
  *                        dot-command to re-enable at runtime).
+ *   --sandbox <selector> Sandbox backend selector.  Defaults to `auto`
+ *                        (probes registered drivers; falls back to host
+ *                        spawn with a yellow warning if none are
+ *                        available).  Pass `off` to skip slice minting
+ *                        entirely (legacy host spawn — use on macOS /
+ *                        non-Linux to silence the warning).  Explicit
+ *                        `bwrap` / `podman` / etc. is a hard request
+ *                        and exits with a structured error if the
+ *                        named driver is unavailable.  See the
+ *                        `--sandbox auto` / `off` discussion in
+ *                        `packages/genie/README.md` § "Dev REPL:
+ *                        sandboxed workspace".
+ *   --network <profile>  Network profile for the slice; one of `none`,
+ *                        `private` (default), `host-loopback`,
+ *                        `host-lan`, `host-net`.
+ *   --rootfs <kind>      Slice rootfs; one of `host-bind` (default),
+ *                        `minimal`, or `oci:<ref>` (podman only).
+ *                        Pet-name rootfs caps (the daemon's fourth
+ *                        shape) are intentionally rejected here — the
+ *                        dev-repl has no agent-guest namespace to
+ *                        resolve them against.
  *
  * Environment:
  *   ${provider}_API_KEY — Required by some providers
@@ -32,9 +53,16 @@ import '@endo/init/debug.js';
 
 import { createRequire } from 'module';
 import readline, { createInterface } from 'readline';
+import { resolve as resolvePath } from 'node:path';
+import { pathToFileURL } from 'node:url';
 /** @import { Interface as ReadlineInterface } from 'readline' */
 
+import { makeError, q, X } from '@endo/errors';
+import { E } from '@endo/eventual-send';
+import { make as makeSandboxFactoryFromPowers } from '@endo/sandbox';
+/** @import { RootfsSpec, SandboxHandle } from '@endo/sandbox/types.js' */
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
+/** @import { Api, Model } from '@mariozechner/pi-ai' */
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
 import {
@@ -53,8 +81,24 @@ import {
 /** @import { SpecialHandler } from './src/loop/specials.js' */
 /** @import { GenieIO, InboundPrompt } from './src/loop/io.js' */
 /** @import { AgentError, ChatEvent } from './src/agent/index.js' */
+/** @import { Spawner } from './src/tools/spawner.js' */
+import { makeLocalSandboxPowers } from './src/sandbox/local-powers.js';
+import {
+  ALLOWED_BACKENDS,
+  ALLOWED_NETWORK_PROFILES,
+  ALLOWED_ROOTFS_KINDS,
+  DEFAULT_BACKEND,
+  DEFAULT_NETWORK_PROFILE,
+  DEFAULT_ROOTFS_KIND,
+  SLICE_WORKSPACE_PATH,
+  assertRootfsBackendCompatible,
+  isAllowedBackend,
+  isAllowedNetworkProfile,
+  mintGenieSlice,
+  parseRootfsValue,
+} from './src/sandbox/slice.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
-import { initWorkspace, isWorkspace } from './src/workspace/init.js';
+import { initWorkspaceMount, isWorkspace } from './src/workspace/init.js';
 
 // `createRequire` avoids the experimental-flag / assertion-style JSON import
 // syntax and works uniformly under @endo/init's SES shim.
@@ -72,6 +116,40 @@ function inconceivable(nope, wat) {
 
 // Register built-in API providers so getModel lookups work for known providers
 registerBuiltInApiProviders();
+
+/**
+ * When the `GENIE_FAUX_SCRIPT` env var is set, dynamically import the
+ * pointed-at ESM module and call its default export to register a
+ * `pi-ai` faux provider inside this process.  The module's default
+ * export must return a pre-constructed `Model<…>` object that the
+ * dev-repl passes straight into `makePiAgent` (bypassing the
+ * `provider/modelId` string parser).
+ *
+ * This is the test-side seam that lets
+ * `test/dev-repl-sandbox.test.js` drive the agent with a deterministic
+ * scripted assistant rather than a live `ollama/llama3.2` round-trip.
+ * See `packages/genie/test/_helpers/faux.js` for the parent-side
+ * helper that writes the script module.
+ *
+ * Returning `undefined` (env var unset) means the model comes from
+ * the `-m` CLI flag as usual.
+ *
+ * @returns {Promise<Model<Api> | undefined>}
+ */
+const loadFauxScript = async () => {
+  const scriptPath = process.env.GENIE_FAUX_SCRIPT;
+  if (!scriptPath) {
+    return undefined;
+  }
+  /** @type {{ default: () => Promise<Model<Api>> | Model<Api> }} */
+  const mod = await import(pathToFileURL(scriptPath).href);
+  if (typeof mod.default !== 'function') {
+    throw makeError(
+      X`GENIE_FAUX_SCRIPT ${q(scriptPath)} must export a default function returning a pi-ai Model object`,
+    );
+  }
+  return mod.default();
+};
 
 /** @param {AgentError} err */
 function* errorLines(err) {
@@ -310,8 +388,8 @@ const makeBackgroundPrinter = ({ rl, quiet = false } = {}) => {
       state = 'idle';
       flush();
     },
-    setQuiet: q => {
-      quiet = q;
+    setQuiet: nextQuiet => {
+      quiet = nextQuiet;
     },
     isQuiet: () => quiet,
     mute: label => {
@@ -696,6 +774,49 @@ async function* readInboundPrompts({ rl }) {
 }
 
 // ---------------------------------------------------------------------------
+// Teardown registry
+// ---------------------------------------------------------------------------
+//
+// Resources minted while the dev-repl is running — sandbox-powers scratch
+// tmpdirs (`makeLocalSandboxPowers().dispose`) and the `bwrap` subprocess
+// behind a slice handle (`E(slice).dispose`) — must be reclaimed on every
+// exit path, including the SIGINT / SIGTERM paths that bypass `runGenieLoop`'s
+// normal return.  Module-level state lets the signal handlers and
+// `main(...).catch(...)` drain the same list as `runMain`'s try/finally,
+// without having to plumb the resource handles all the way back out.
+//
+// Thunks are pushed in construction order; `runTeardown` drains in LIFO order
+// (`Array.prototype.pop`), so the slice — which holds the bwrap subprocess —
+// is disposed before the powers' scratch tmpdirs are removed.  Errors land on
+// stderr so a partial-failure does not mask the original error or abort the
+// remaining thunks; mirrors the daemon's `cancelledP` + `.catch` discipline
+// from `mintGenieSlice` (`packages/genie/src/sandbox/slice.js`).
+
+/** @type {Array<() => Promise<void>>} */
+const teardownThunks = [];
+
+/**
+ * Drain every registered teardown thunk in LIFO order.  Safe to call
+ * concurrently or repeatedly: each thunk is removed via `pop()` before it
+ * runs, so a second caller iterates an empty list rather than re-firing
+ * thunks the first caller already drained.
+ *
+ * @returns {Promise<void>}
+ */
+const runTeardown = async () => {
+  await null;
+  while (teardownThunks.length > 0) {
+    const thunk = /** @type {() => Promise<void>} */ (teardownThunks.pop());
+    try {
+      await thunk();
+    } catch (e) {
+      const message = /** @type {Error} */ (e).message || String(e);
+      console.error(`dev-repl teardown error: ${message}`);
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Main — thin entry point that wires IO
 // ---------------------------------------------------------------------------
 
@@ -710,6 +831,48 @@ async function* runMain(args) {
   const quietBackground = hasFlag(args, '--quiet-background');
   const searchArg = getFlag(args, '--search', '-s') || 'substring';
 
+  // ── Sandbox CLI flags ─────────────────────────────────────────────
+  // `--sandbox` extends `ALLOWED_BACKENDS` from `slice.js` with `'off'`,
+  // a dev-repl-only opt-out that skips slice minting entirely (legacy
+  // host spawn — useful on macOS / non-Linux where no driver is
+  // available).  All three flags reuse the slice helper's allow-lists
+  // so a typo here surfaces with the same vocabulary the daemon's
+  // configuration form uses, prefixed with the dev-repl context so the
+  // error makes clear which boundary rejected the value.
+  const sandboxArg = getFlag(args, '--sandbox') || DEFAULT_BACKEND;
+  if (sandboxArg !== 'off' && !isAllowedBackend(sandboxArg)) {
+    throw makeError(
+      X`dev-repl: unknown sandbox backend ${q(sandboxArg)}; expected ${q('off')} or one of ${q(ALLOWED_BACKENDS.join(', '))}`,
+    );
+  }
+  const networkArg = getFlag(args, '--network') || DEFAULT_NETWORK_PROFILE;
+  if (!isAllowedNetworkProfile(networkArg)) {
+    throw makeError(
+      X`dev-repl: unknown network profile ${q(networkArg)}; expected one of ${q(ALLOWED_NETWORK_PROFILES.join(', '))}`,
+    );
+  }
+  const rootfsArg = getFlag(args, '--rootfs') || DEFAULT_ROOTFS_KIND;
+  // `parseRootfsValue` falls through to a `'pet-name'` marker for any
+  // unrecognised value because the daemon's `spawnAgent` resolves pet
+  // names against the agent guest's namespace.  The dev-repl has no
+  // such namespace, so we reject the pet-name shape here with an error
+  // that points at the values the dev-repl actually accepts.
+  const parsedRootfs = parseRootfsValue(rootfsArg, { agentName: 'dev-repl' });
+  if (parsedRootfs.kind === 'pet-name') {
+    throw makeError(
+      X`dev-repl: unknown rootfs ${q(rootfsArg)}; expected one of ${q(ALLOWED_ROOTFS_KINDS.join(', '))} or ${q('oci:<ref>')}`,
+    );
+  }
+  if (sandboxArg !== 'off') {
+    // Front-run the bwrap-rejects-oci asymmetry so the operator sees a
+    // dev-repl-prefixed error rather than a slice-mint failure.  When
+    // `sandboxArg === 'auto'` the resolved backend is unknown here, so
+    // this only catches explicit `--sandbox bwrap --rootfs oci:...`.
+    assertRootfsBackendCompatible(parsedRootfs, sandboxArg, {
+      agentName: 'dev-repl',
+    });
+  }
+
   // Stabilise workspaceArg => workspaceDir,
   // but reject implicit uninitialized cwd.
   let workspaceArg = getFlag(args, '--workspace', '-w');
@@ -721,10 +884,42 @@ async function* runMain(args) {
       return;
     }
   }
-  const workspaceDir = workspaceArg;
+  const workspaceDir = resolvePath(workspaceArg);
 
-  // Seed the workspace from the shipped template on first run.
-  if (await initWorkspace(workspaceDir)) {
+  // ── Local sandbox powers + workspace Mount cap ────────────────────
+  // The dev-repl has no daemon, so `makeLocalSandboxPowers` provides
+  // an in-process `SandboxPowers` plus a helper to mint a workspace-
+  // shaped Mount cap rooted at the host workspace path.  The cap is
+  // used in three places, mirroring the daemon's wiring:
+  //   1. Seeding the workspace template (`initWorkspaceMount`) so the
+  //      dev-repl rides the same cap surface as the daemon (TADA/23).
+  //   2. The slice's bind-mount target (passed into `mintGenieSlice`).
+  //   3. The `files` tool group's VFS root (via `buildGenieTools`).
+  // The `dispose` thunk reclaims any scratch tmpdirs minted via
+  // `provideScratchMount`; with `--sandbox off` the slice path is
+  // skipped entirely so no scratch is minted and `dispose` is a no-op,
+  // but registering unconditionally keeps the teardown registry shape
+  // identical across the two modes.  See § "Teardown registry" above.
+  const {
+    powers: sandboxPowers,
+    makeMountCapForPath,
+    dispose: disposeSandboxPowers,
+  } = makeLocalSandboxPowers();
+  teardownThunks.push(disposeSandboxPowers);
+  const workspaceMount = makeMountCapForPath(workspaceDir);
+
+  // Seed the workspace from the shipped template on first run, through
+  // the Mount cap so the seed bytes ride the same cap surface that the
+  // slice bind-mounts.  The cast narrows `MountCap` (from
+  // `@endo/sandbox/types.js`) to the `WorkspaceMountCap` shape
+  // `initWorkspaceMount` declares; both ultimately resolve to the
+  // daemon's `MountInterface`, but the type aliases live in different
+  // packages and don't structurally overlap from the checker's view.
+  const workspaceMountForInit =
+    /** @type {import('./src/workspace/init.js').WorkspaceMountCap} */ (
+      /** @type {unknown} */ (workspaceMount)
+    );
+  if (await initWorkspaceMount(workspaceMountForInit)) {
     yield `Initialized genie workspace in ${workspaceDir}`;
   }
 
@@ -740,35 +935,172 @@ async function* runMain(args) {
     );
   }
 
+  // ── Sandbox slice mint ────────────────────────────────────────────
+  // When `--sandbox off`, skip the slice path entirely and let
+  // `buildGenieTools` fall through to the host spawner baked into
+  // `command.js`.  Otherwise, build the SandboxFactory from local
+  // powers (the same agent.js entry point `setup.js` invokes inside
+  // the daemon, just with our in-process powers) and mint a slice.
+  //
+  // For `--sandbox auto`, probe first so we can warn + fall through to
+  // host spawn when no backend is available — this keeps the dev-repl
+  // working on contributor laptops that lack `bwrap`.  Hard requests
+  // (`--sandbox bwrap` / `--sandbox podman`) skip the probe and let
+  // `mintGenieSlice` throw a structured error if the driver is
+  // unavailable, mirroring the daemon's "explicit confinement, no
+  // implicit relaxation" rule.
+  /** @type {Spawner | undefined} */
+  let spawner;
+  /** @type {string | undefined} */
+  let resolvedBackend;
+  // The slice handle stays in `runMain` scope so the teardown thunk can
+  // reach it from its closure; the daemon's `spawnAgent` takes the
+  // alternative shape and registers disposal via `cancelledP` inside
+  // `mintGenieSlice` (`packages/genie/src/sandbox/slice.js`), but the
+  // dev-repl owns its own lifecycle and drives disposal directly.
+  /** @type {SandboxHandle | undefined} */
+  let slice;
+  if (sandboxArg !== 'off') {
+    const sandboxFactory = await makeSandboxFactoryFromPowers(
+      sandboxPowers,
+      undefined,
+    );
+
+    /** @type {RootfsSpec} */
+    const rootfs = parsedRootfs;
+    const rootfsLabel =
+      parsedRootfs.kind === 'oci'
+        ? `oci:${parsedRootfs.ref}`
+        : parsedRootfs.kind;
+
+    let proceed = true;
+    if (sandboxArg === 'auto') {
+      const probes = await E(sandboxFactory).listBackends();
+      const available = probes.filter(p => p.available);
+      if (available.length === 0) {
+        const reasonReport = probes
+          .map(p => `${p.name}: ${p.reason || 'unavailable'}`)
+          .join('; ');
+        yield `${YELLOW}dev-repl: no sandbox backend available; falling back to host spawn (${reasonReport}). Pass --sandbox off to silence.${RESET}\n`;
+        proceed = false;
+      }
+    }
+
+    if (proceed) {
+      const minted = await mintGenieSlice({
+        sandboxFactory,
+        agentName: 'dev-repl',
+        workspaceMount,
+        workspaceDir,
+        backend: sandboxArg,
+        network: networkArg,
+        rootfs,
+        parsedRootfs,
+        rootfsLabel,
+        env: {},
+        // The dev-repl owns slice teardown directly through the module-
+        // level teardown registry (see § "Teardown registry"), so we
+        // omit `cancelledP`.  The thunk pushed below fires on every
+        // exit path: `runGenieLoop`'s try/finally, `main`'s try/finally,
+        // and the SIGINT / SIGTERM handlers near the bottom of this
+        // file.  `E(slice).dispose()` is idempotent in the sandbox
+        // plugin so duplicate drains are harmless.
+        onLog: msg => process.stderr.write(`${DIM}dev-repl: ${msg}${RESET}\n`),
+        onWarn: msg =>
+          process.stderr.write(`${YELLOW}dev-repl: ${msg}${RESET}\n`),
+      });
+      ({ slice, spawner, resolvedBackend } = minted);
+      const sliceHandle = slice;
+      teardownThunks.push(async () => {
+        await E(sliceHandle).dispose();
+      });
+    }
+  }
+
   // Delegate registry construction to the shared helper.
   // The dev-repl opts into the full set (including the `exec` and `git`
   // example attenuations); `--no-tools` collapses to an empty include list.
+  // When a slice was minted, `spawner` routes `bash` / `exec` / `git`
+  // through the slice; otherwise the host spawner baked into
+  // `command.js` runs them directly.  `workspaceMount` is always passed
+  // so the `files` tool group rides the cap surface (the slice's
+  // bind-mount lands on the same bytes either way, keeping the daemon-
+  // side and slice-side views in lockstep).
+  // `MountVFSCap` (the `files` group's cap shape) and `MountCap` (the
+  // sandbox's payload shape) ultimately resolve to the same Endo Mount
+  // surface, but the type aliases live in different packages and the
+  // checker does not see them as structurally compatible.  Mirror the
+  // cast `main.js`'s `buildTools` uses so the dev-repl rides the same
+  // type-narrowing seam at the boundary.
+  const workspaceMountForVFS =
+    /** @type {import('./src/tools/vfs-mount.js').MountVFSCap} */ (
+      /** @type {unknown} */ (workspaceMount)
+    );
+  // When a slice was minted (`spawner` is set), the `bash` / `exec` /
+  // `git` tools' descriptions and the agent's system prompt both need
+  // to advertise the slice-internal workspace path so the model knows
+  // not to feed the host path into a shell command (see TADA/62).
+  // `--sandbox off` and the `--sandbox auto` no-backend fallback both
+  // leave `spawner` undefined, in which case the runtime-info section
+  // stays single-path and the model treats `workspaceDir` as the one
+  // and only Workspace.
+  const innerSlicePath = spawner ? SLICE_WORKSPACE_PATH : undefined;
   const genieTools = buildGenieTools({
     workspaceDir,
     searchBackend,
     include: noTools
       ? []
       : ['bash', 'exec', 'git', 'files', 'memory', 'webFetch', 'webSearch'],
+    ...(spawner ? { spawner } : {}),
+    ...(innerSlicePath !== undefined
+      ? { sliceWorkspacePath: innerSlicePath }
+      : {}),
+    workspaceMount: workspaceMountForVFS,
   });
 
   const { tools, memoryTools } = genieTools;
   const memoryIndexing = memoryTools ? memoryTools.indexing : Promise.resolve();
+
+  // Optionally install a scripted faux provider before the agent
+  // pack is built.  When `GENIE_FAUX_SCRIPT` is set, the returned
+  // `Model<…>` object becomes the agent's model and `--model` /
+  // `-m` is ignored for the chat agent — the faux model id wins.
+  const fauxModel = await loadFauxScript();
+  /** @type {string | Model<Api> | undefined} */
+  const effectiveModel = fauxModel ?? modelArg;
 
   // Assemble the shared agent pack.
   const { piAgent, heartbeatAgent, observer, reflector } =
     await makeGenieAgents({
       hostname: 'dev-repl',
       workspaceDir,
+      ...(innerSlicePath !== undefined
+        ? { sliceWorkspacePath: innerSlicePath }
+        : {}),
       tools: genieTools,
-      config: { model: modelArg },
+      config: { model: effectiveModel },
     });
 
   function* describe() {
-    const modelName = modelArg || `default (${DEFAULT_MODEL_STRING})`;
+    const modelName = fauxModel
+      ? `faux (${fauxModel.api}/${fauxModel.id})`
+      : modelArg || `default (${DEFAULT_MODEL_STRING})`;
     const toolNames = Object.keys(tools);
+    const rootfsLabel =
+      parsedRootfs.kind === 'oci'
+        ? `oci:${parsedRootfs.ref}`
+        : parsedRootfs.kind;
+    // `resolvedBackend` is set only when `mintGenieSlice` returned a
+    // slice; the `--sandbox auto` no-backend fallback and `--sandbox
+    // off` both leave it undefined, which we render as `off` so the
+    // banner mirrors the daemon's `agent ready` log line shape.
+    const sandboxLine = resolvedBackend
+      ? `${resolvedBackend} (network: ${networkArg}, rootfs: ${rootfsLabel})`
+      : 'off';
     yield `${DIM}Model:     ${modelName}${RESET}\n`;
     yield `${DIM}Workspace: ${workspaceDir}${RESET}\n`;
     yield `${DIM}Search:    ${searchArg}${RESET}\n`;
+    yield `${DIM}Sandbox:   ${sandboxLine}${RESET}\n`;
     const toolSummary =
       toolNames.length < 1 ? '-- No Tools --' : toolNames.join(', ');
     yield `${DIM}Tools:     ${toolSummary}${RESET}\n`;
@@ -932,25 +1264,37 @@ async function* runMain(args) {
       onBusy: () => backgroundPrinter.setBusy(),
     });
 
-    await runGenieLoop({
-      agents: { piAgent, heartbeatAgent, observer, reflector },
-      specials: dispatcher,
-      io: genieIo,
-      handlers: {
-        runUserPrompt: async function* runUserPrompt(prompt) {
-          yield* runPrompt(piAgent, prompt.text, { messages, verbose });
+    // Wrap the loop in a try/finally so that every interactive exit
+    // path — `.exit` / `.quit`, EOF (Ctrl-D), and any uncaught error
+    // bubbling out of a tool — drains the teardown registry before
+    // returning.  The `-c` one-shot path below is covered by `main`'s
+    // outer try/finally instead, since it bypasses `runGenieLoop`
+    // entirely.  SIGINT / SIGTERM bypass both wrappers and are
+    // handled by the signal handlers installed near the bottom of
+    // this file.
+    try {
+      await runGenieLoop({
+        agents: { piAgent, heartbeatAgent, observer, reflector },
+        specials: dispatcher,
+        io: genieIo,
+        handlers: {
+          runUserPrompt: async function* runUserPrompt(prompt) {
+            yield* runPrompt(piAgent, prompt.text, { messages, verbose });
+          },
+          onError: async (_prompt, err) => {
+            const errMsg = /** @type {Error} */ (err).message;
+            process.stdout.write(`${RED}REPL error: ${errMsg}${RESET}\n`);
+            if (verbose) {
+              const stack = /** @type {Error} */ (err).stack;
+              process.stdout.write(`${stack ?? String(err)}\n`);
+            }
+          },
         },
-        onError: async (_prompt, err) => {
-          const errMsg = /** @type {Error} */ (err).message;
-          process.stdout.write(`${RED}REPL error: ${errMsg}${RESET}\n`);
-          if (verbose) {
-            const stack = /** @type {Error} */ (err).stack;
-            process.stdout.write(`${stack ?? String(err)}\n`);
-          }
-        },
-      },
-      shouldExit: () => exitRequested,
-    });
+        shouldExit: () => exitRequested,
+      });
+    } finally {
+      await runTeardown();
+    }
 
     yield `\n${DIM}Goodbye.${RESET}\n`;
   }
@@ -958,16 +1302,49 @@ async function* runMain(args) {
 
 /** @param {string[]} args */
 async function main(args) {
-  for await (const chunk of runMain(args)) {
-    process.stdout.write(chunk);
+  // `await null` separator keeps the first real await of this function
+  // un-nested (`@jessie.js/safe-await-separator`).  The outer try/finally
+  // is the safety net for paths the inner loop's try/finally does not
+  // cover: failures during slice mint or tool construction (which run
+  // before the inner try opens), and the entire `-c` one-shot path
+  // (which bypasses `runGenieLoop`).  `runTeardown` drains via `pop()`,
+  // so a no-op when the inner loop already drained.
+  await null;
+  try {
+    for await (const chunk of runMain(args)) {
+      process.stdout.write(chunk);
+    }
+    return 0;
+  } finally {
+    await runTeardown();
   }
-  return 0;
 }
 
+// Install one-shot SIGINT / SIGTERM handlers so a Ctrl-C or `kill -TERM`
+// at any point — including before `runMain` opens its try/finally —
+// still reclaims the bwrap subprocess and any local-powers scratch
+// tmpdirs before the process exits.  `process.once` (rather than
+// `.on`) means a second signal during teardown reverts to Node's
+// default handler and aborts hard, mirroring the daemon's
+// `cancelledP` discipline.  Exit codes follow the standard 128+signal
+// convention so shells that script the dev-repl can distinguish a
+// signal-driven exit from a `.exit` / `process.exit(0)` exit.
+process.once('SIGINT', () => {
+  runTeardown().finally(() => process.exit(130));
+});
+process.once('SIGTERM', () => {
+  runTeardown().finally(() => process.exit(143));
+});
+
 main(process.argv.slice(2))
-  .catch(err => {
+  .catch(async err => {
     process.stdout.write(`${RED}Main Error: ${err.message}${RESET}`);
     console.error(err);
+    // Defensive drain.  `main`'s finally has already run on this
+    // path, so `runTeardown` is a no-op; calling it here keeps the
+    // invariant explicit at the boundary the TODO/54 acceptance
+    // criteria check (`-c` failures must still dispose the slice).
+    await runTeardown();
     return 1;
   })
   .then(code => process.exit(code));

@@ -16,6 +16,7 @@ export {
 
 export { makeFileTools } from './filesystem.js';
 export { makeMemoryVFS } from './vfs-memory.js';
+export { makeMountVFS } from './vfs-mount.js';
 export { makeNodeVFS } from './vfs-node.js';
 
 export { makeMemoryTools } from './memory.js';

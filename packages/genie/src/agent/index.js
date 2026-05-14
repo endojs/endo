@@ -15,7 +15,7 @@
  */
 
 /** @import { AgentTool, AgentToolResult, AgentEvent } from '@mariozechner/pi-agent-core' */
-/** @import { KnownProvider, Model, Provider } from '@mariozechner/pi-ai' */
+/** @import { Api, KnownProvider, Model, Provider } from '@mariozechner/pi-ai' */
 
 import harden from '@endo/harden';
 
@@ -307,7 +307,16 @@ function toAgentTool(spec, execTool) {
  * @param {string} [options.hostname] - Hostname for system prompt
  * @param {string} [options.currentTime] - Current time string
  * @param {string} [options.workspaceDir] - Workspace directory path
- * @param {string|Model<'openai-completions'>} [options.model] - Model identifier ("provider/modelId" or just "modelId")
+ * @param {string} [options.sliceWorkspacePath]
+ *   - Slice-internal mount path for the workspace when the agent's
+ *     command-style tools (`bash`, `exec`, `git`) are routed through
+ *     a sandbox slice that bind-mounts `workspaceDir` at a fixed
+ *     path (`/workspace`).  Passed through to `buildSystemPrompt`
+ *     so the runtime-info section advertises both the host
+ *     workspace path (used by `readFile` / `writeFile`) and the
+ *     slice-internal path (used by `bash` / `exec` / `git`).  Omit
+ *     when no slice is in use.
+ * @param {string | Model<Api>} [options.model] - Model identifier ("provider/modelId" or just "modelId"), or a pre-constructed `Model<…>` object (used by the dev-repl's faux-script harness)
  * @param {() => Array<ToolSpec>} [options.listTools] - List of available tools with name and execute function
  * @param {(name: string, args: any) => Promise<any>} [options.execTool] - Function to execute a tool by name
  * @param {boolean} [options.disableSuffix] - Disable security suffix
@@ -326,6 +335,7 @@ export async function makePiAgent(options = {}) {
     hostname = 'unknown',
     currentTime = 'unknown',
     workspaceDir = process.cwd(),
+    sliceWorkspacePath,
     model = '',
     listTools = () => [],
     execTool = (_name, _args) =>
@@ -346,6 +356,7 @@ export async function makePiAgent(options = {}) {
         hostname,
         currentTime,
         workspaceDir,
+        ...(sliceWorkspacePath !== undefined ? { sliceWorkspacePath } : {}),
         buildToolList: listTools,
         disableSuffix,
         disablePolicy,

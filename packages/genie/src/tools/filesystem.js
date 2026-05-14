@@ -500,16 +500,13 @@ const makeFileTools = (options = {}) => {
         /** @type {Array<{name: string, type: string, size: number}>} */
         const entries = [];
 
-        for await (const entry of vfs.readdir(fullPath, { recursive })) {
-          if (re && !re.test(basename(entry.name)) && !re.test(entry.name)) {
+        for await (const { name, type, size } of vfs.readdir(fullPath, {
+          recursive,
+        })) {
+          if (re && !(re.test(basename(name)) || re.test(name))) {
             continue;
           }
-
-          entries.push({
-            name: entry.name,
-            type: entry.type,
-            size: entry.size,
-          });
+          entries.push({ name, type, size });
         }
 
         return { success: true, path, entries };

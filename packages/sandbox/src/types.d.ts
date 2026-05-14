@@ -415,17 +415,24 @@ export type SandboxDriver = {
  * bind-mount.
  *
  * Cap-to-path resolution is the *only* privileged operation the factory
- * performs; drivers never see Endo capabilities directly. Phase 1.5+
- * will wire `provideHostPath` to the daemon's mount-resolution power
- * (`packages/daemon/src/mount.js` already tracks the host path of every
- * `Mount` it mints).  Until that wiring lands, callers that intend to
- * use `Mount`-backed mounts must supply a `provideHostPath` themselves
- * (the test stub in `test/bwrap.test.js` is the canonical example).
+ * performs; drivers never see Endo capabilities directly. The daemon's
+ * `EndoHost` exposes both `provideScratchMount` and `provideHostPath`,
+ * so a caller invoking `endo run --UNCONFINED packages/sandbox/src/agent.js`
+ * with `--powers @host` (the default for `make-unconfined`) gets the
+ * full `SandboxPowers` surface for free — no per-caller stub is
+ * required.  See `packages/daemon/src/host.js` `provideHostPath` for
+ * the resolver implementation; it rejects any cap the daemon did not
+ * mint as a top-level `mount` / `scratch-mount` formula.
  *
  * The factory deliberately does **not** receive the daemon's host-paths
  * power directly. All host-path access is mediated through `Mount`
  * capabilities the caller hands in, which `provideHostPath` then
  * resolves on the factory's behalf.
+ *
+ * Backend-agnostic factory tests (e.g. `test/bwrap.test.js`,
+ * `test/podman.test.js`) still construct a stub `provideHostPath` that
+ * maps stub Mount exos to real tmpdirs; those stubs are unit-test
+ * fixtures that exercise the factory without standing up a full daemon.
  */
 export type SandboxPowers = ERef<{
   /** Mint a writable scratch mount. */

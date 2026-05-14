@@ -69,6 +69,86 @@ Security utilities:
 - Policy enforcement
 - Parameter validation
 
+#### 5. Sandbox slice integration (`main.js` + `tools/sandbox-spawner.js`)
+
+`@endo/genie`'s daemon-hosted entry point (`main.js`) optionally
+binds the agent's `bash` / `exec` / `git` tools to a confined POSIX
+slice minted by [`@endo/sandbox`](../sandbox/README.md).
+The slice is the v1 integration point for
+[`PLAN/endo_posix_sandbox.md`](../../PLAN/endo_posix_sandbox.md):
+the agent's *workspace* lives inside the slice, but the agent
+process itself continues to run inside the daemon worker.
+
+**Capabilities the genie guest receives**
+
+`setup.js` mints two host-side capabilities and introduces them into
+the genie guest under fixed pet names:
+
+| Pet name (in guest) | Capability        | Origin                                                 |
+| ------------------- | ----------------- | ------------------------------------------------------ |
+| `workspace`         | `Mount` cap       | `E(host).provideMount(GENIE_WORKSPACE, 'workspace-mount')` |
+| `sandboxes`         | `SandboxFactory`  | `E(host).makeUnconfined('@main', '@endo/sandbox/agent.js', { powersName: '@agent' })` |
+
+Both lookups are guarded with structured-error fallbacks so a partial
+rollout (factory present but no workspace mount, or vice versa)
+surfaces clearly rather than silently dropping back to direct host
+spawning.
+Both names are introduced via the host pet namespace so the daemon's
+GC pins them across restarts.
+
+**Spawner power swap**
+
+The legacy `bash` / `exec` / `git` tools called `child_process.spawn`
+inline.
+The slice integration introduced a `Spawner` seam
+([`src/tools/spawner.js`](./src/tools/spawner.js)):
+
+- `makeHostSpawner()` — wraps `child_process.spawn`; used by
+  `dev-repl.js` and by `main.js` when no factory is present.
+- `makeSandboxSpawner({ handle })` — forwards every spawn to
+  `E(handle).spawn(argv, opts)`; used by `main.js` when a slice was
+  minted.  The adapter normalises `shell: true` to a literal
+  `['/bin/sh', '-c', joined]` invocation since the slice has no
+  "shell" knob.
+
+`buildGenieTools` accepts an optional `spawner`; the file / memory /
+web tools never see this seam — they continue to run daemon-side.
+
+**Lifecycle**
+
+1. `setup.js` runs once on daemon boot (idempotent: guarded by
+   `E(host).has(...)` for both `workspace-mount` and
+   `sandbox-factory`).
+2. `main.js` `runLoop` resolves both capabilities and threads them
+   into `spawnAgent`.
+3. `spawnAgent` validates `backend` / `network` form fields, probes
+   the factory's `listBackends()`, then calls
+   `E(sandboxFactory).make({ rootfs: { kind: 'host-bind' },
+   mounts: [{ cap: workspaceMount, innerPath: '/workspace',
+   mode: 'rw' }], network, cwd: '/workspace', backend })`.
+4. The returned `SandboxHandle` is GC-pinned by the agent's closure
+   capture for the agent's lifetime.
+5. The agent's `cancelledP` triggers `E(slice).dispose()` so the
+   bwrap subprocess and scratch upper layer are reclaimed promptly,
+   ahead of the daemon's GC sweep.
+
+When `sandboxFactory` is absent, `spawnAgent` skips slice minting
+and the command tools fall through to the host spawner.
+When `sandboxFactory` is present but slice minting fails,
+`spawnAgent` refuses to start the agent — there is no implicit
+relaxation to direct host spawn.
+
+**Tool partitioning**
+
+Only `bash` / `exec` / `git` execute inside the slice.
+The daemon-side tools (`readFile`, `writeFile`, `editFile`,
+`memory_get`, `memory_search`, `webFetch`, `webSearch`) keep using
+host `fs.readFile`, FTS5, and the daemon's network stack against the
+host workspace path.
+The slice's bind-mount lands on the same bytes the daemon-side tools
+see, so the two views stay in lockstep — `editFile` from the daemon
+and `bash sed -i` from the slice both target one file on disk.
+
 ## Design Principles
 
 ### 1. Security-First

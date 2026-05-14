@@ -4300,6 +4300,136 @@ test('scratch mount persists across restart', async t => {
   }
 });
 
+test('provideHostPath resolves Mount caps to host paths', async t => {
+  const { host, config } = await prepareHost(t);
+
+  // 1. Mint a regular Mount via provideMount, look it up, and round-trip
+  //    it through provideHostPath.  The host path returned must equal
+  //    the path we originally supplied.
+  const mountPath = path.join(config.statePath, '..', 'host-path-mount');
+  await createMountFixture(mountPath, { 'sentinel.txt': 'present' });
+  await E(host).provideMount(mountPath, 'host-path-mount');
+  const mount = await E(host).lookup(['host-path-mount']);
+  const resolved = await E(host).provideHostPath(mount);
+  t.is(resolved, mountPath);
+
+  // 2. Mint a daemon-managed scratch mount and verify its host path
+  //    lives under <statePath>/mounts/.
+  await E(host).provideScratchMount('host-path-scratch');
+  const scratch = await E(host).lookup(['host-path-scratch']);
+  const scratchPath = await E(host).provideHostPath(scratch);
+  const expectedScratchRoot = path.join(config.statePath, 'mounts');
+  t.true(
+    scratchPath.startsWith(`${expectedScratchRoot}${path.sep}`),
+    `scratch path ${scratchPath} should live under ${expectedScratchRoot}`,
+  );
+
+  // 3. Subdirectory views of a Mount are minted lazily as fresh exos
+  //    that the daemon does not register against a formula identifier.
+  //    provideHostPath must reject them with a structured error rather
+  //    than silently returning the parent mount's path.
+  const subdir = await E(mount).lookup('sentinel.txt'); // a Mount file
+  await t.throwsAsync(() => E(host).provideHostPath(subdir), {
+    message: /not a daemon-minted mount/,
+  });
+
+  // 4. An arbitrary remote object that quacks like a mount must also
+  //    be rejected — the resolver must never trust duck-typed inputs.
+  const fake = Far('FakeMount', { help: () => 'fake' });
+  await t.throwsAsync(() => E(host).provideHostPath(fake), {
+    message: /not a daemon-minted mount/,
+  });
+});
+
+test('provideHostPath rejects a spoof that passes the genie shape gate', async t => {
+  // Pins the layering documented in `@endo/genie`'s `assertIsMountCap`
+  // (see `packages/genie/src/sandbox/slice.js`):
+  //
+  //   - `assertIsMountCap` (in `spawnAgent`'s workspace / rootfs
+  //     pet-name branches) is a **shape** gate.  It probes
+  //     `__getMethodNames__()` against the subset
+  //     ['readText', 'writeText', 'makeDirectory', 'has', 'list']
+  //     and produces friendly, agent-named errors when an operator
+  //     pet-names something that isn't a Mount.
+  //   - `EndoHost.provideHostPath` is the **identity** gate.  It
+  //     consults the daemon's mount-formula registry and rejects
+  //     anything not minted via `provideMount` / `provideScratchMount`
+  //     with `not a daemon-minted mount`.
+  //
+  // Saboteur finding 3 in TODO/60 flagged that the shape gate is the
+  // *only* authentication on a pet-name Mount cap; this test pins the
+  // identity gate's downstream rejection so a spoofed exo with the
+  // right method names cannot widen the slice's bind set.  If a
+  // future refactor accidentally moves identity into the shape gate
+  // (or collapses the two gates together), this test fails loudly.
+  const { host, config } = await prepareHost(t);
+
+  // Seed a real Mount so the test asserts the spoof is rejected
+  // *despite* the daemon being able to produce a legitimate Mount in
+  // the same session.
+  const mountPath = path.join(config.statePath, '..', 'shape-gate-mount');
+  await createMountFixture(mountPath, { 'sentinel.txt': 'real' });
+  await E(host).provideMount(mountPath, 'shape-gate-mount');
+  const realMount = await E(host).lookup(['shape-gate-mount']);
+  t.is(await E(host).provideHostPath(realMount), mountPath);
+
+  // Hand-roll a `makeExo` with the exact method set the genie's shape
+  // gate probes for.  This is the canonical "minted by `Far(...)`
+  // rather than `formulateMount`" spoof — `__getMethodNames__()`
+  // returns the required surface, so the shape gate would happily
+  // pass it through.
+  const SpoofInterface = M.interface('SpoofMount', {
+    has: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
+    list: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
+    readText: M.call(M.any()).returns(M.promise()),
+    writeText: M.call(M.any(), M.string()).returns(M.promise()),
+    makeDirectory: M.call(M.any()).returns(M.promise()),
+  });
+  const spoof = makeExo('SpoofMount', SpoofInterface, {
+    async has() {
+      return true;
+    },
+    async list() {
+      return harden([]);
+    },
+    async readText() {
+      return 'spoofed';
+    },
+    async writeText() {
+      await null;
+    },
+    async makeDirectory() {
+      await null;
+    },
+  });
+
+  // Inline the genie's shape-gate probe (we can't import
+  // `assertIsMountCap` from `@endo/genie` here because
+  // `@endo/daemon` is a dependency of genie, not the other way
+  // around — the genie test in
+  // `packages/genie/test/local-sandbox-powers.test.js` exercises
+  // the helper directly against the dev-repl's local powers).  The
+  // probe matches the helper verbatim so the assertion still pins
+  // the saboteur-3 layering: the spoof passes the shape probe but
+  // is rejected by the identity gate.
+  // eslint-disable-next-line no-underscore-dangle
+  const methods = await E(spoof).__getMethodNames__();
+  for (const m of ['readText', 'writeText', 'makeDirectory', 'has', 'list']) {
+    t.true(
+      methods.includes(m),
+      `spoof must advertise ${m} to land in the saboteur-3 attack shape (got: ${methods.join(', ')})`,
+    );
+  }
+
+  // Identity gate: the daemon does not have the spoof's identity in
+  // its mount-formula registry, so `provideHostPath` rejects it —
+  // the rejection is the only thing standing between a spoofed exo
+  // and `factory.make`'s bind-mount surface.
+  await t.throwsAsync(() => E(host).provideHostPath(spoof), {
+    message: /not a daemon-minted mount/,
+  });
+});
+
 test('mount file writeText and json', async t => {
   const { host, config } = await prepareHost(t);
 

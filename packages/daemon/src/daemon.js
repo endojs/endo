@@ -5228,20 +5228,59 @@ const makeDaemonCore = async (
   };
 
   /**
-   * Return the on-disk filesystem path for a scratch-mount formula.
-   * Host-side callers use this to hand a native filesystem path to
-   * Node's module loader (via `makeUnconfined`) without having
-   * Mount expose the path on its public surface.
+   * Return the on-disk filesystem path for a `mount` or `scratch-mount`
+   * formula.  Privileged host-paths surface the daemon does **not**
+   * place on Mount's public interface — only callers that hold the
+   * formula identifier (and the corresponding host privilege) can
+   * recover the underlying path.
    *
-   * @param {FormulaIdentifier} scratchMountId
+   * - For `mount` formulas, the path is the one the user supplied to
+   *   `provideMount`.
+   * - For `scratch-mount` formulas, the path is the daemon-managed
+   *   `state/mounts/<formulaNumber>` directory.
+   *
+   * Throws a structured error if the formula has been collected, or
+   * if it is not a mount-shaped formula.
+   *
+   * @param {FormulaIdentifier} mountId
    * @returns {string}
    */
-  const getScratchMountPath = scratchMountId => {
+  const getMountHostPath = mountId => {
     // formulaForId.get returns undefined if the formula has been
     // collected since the caller resolved its identifier.  Surfacing
     // a clear error here lets the host-side caller decide whether
     // to re-stage rather than handing back a stale path that points
     // at a directory the daemon may have removed.
+    const formula = formulaForId.get(mountId);
+    if (formula === undefined) {
+      throw makeError(X`Unknown or collected mount formula ${q(mountId)}`);
+    }
+    if (formula.type === 'mount') {
+      return formula.path;
+    }
+    if (formula.type === 'scratch-mount') {
+      const { number: formulaNumber } = parseId(mountId);
+      return filePowers.joinPath(
+        persistencePowers.statePath,
+        'mounts',
+        formulaNumber,
+      );
+    }
+    throw makeError(
+      X`getMountHostPath requires a mount or scratch-mount formula, got ${q(formula.type)}`,
+    );
+  };
+
+  /**
+   * Back-compat alias for callers that only operate on scratch mounts
+   * (see `host.js` `makeUnconfinedFromTree`).  Asserts the formula is
+   * specifically a `scratch-mount`, then delegates to
+   * `getMountHostPath`.
+   *
+   * @param {FormulaIdentifier} scratchMountId
+   * @returns {string}
+   */
+  const getScratchMountPath = scratchMountId => {
     const formula = formulaForId.get(scratchMountId);
     if (formula === undefined) {
       throw makeError(
@@ -5253,12 +5292,7 @@ const makeDaemonCore = async (
         X`getScratchMountPath requires a scratch-mount formula, got ${q(formula.type)}`,
       );
     }
-    const { number: formulaNumber } = parseId(scratchMountId);
-    return filePowers.joinPath(
-      persistencePowers.statePath,
-      'mounts',
-      formulaNumber,
-    );
+    return getMountHostPath(scratchMountId);
   };
 
   const makeHost = makeHostMaker({
@@ -5294,6 +5328,8 @@ const makeDaemonCore = async (
     unpinTransient,
     getFormulaGraphSnapshot,
     getScratchMountPath,
+    getMountHostPath,
+    getIdForRef,
     writeRemoteAgentKey: persistencePowers.writeRemoteAgentKey,
   });
 

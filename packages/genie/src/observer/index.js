@@ -35,6 +35,7 @@ import { clearTimeout, setTimeout } from 'node:timers';
 /** @import { SearchBackend } from '../tools/memory.js' */
 /** @import { ChatEvent } from '../agent/index.js' */
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
+/** @import { Api, Model } from '@mariozechner/pi-ai' */
 
 import { makePiAgent, runAgentRound } from '../agent/index.js';
 import { makeToolGate } from '../agent/tool-gate.js';
@@ -216,7 +217,10 @@ harden(estimateUnobservedTokens);
 
 /**
  * @typedef {object} ObserverOptions
- * @property {string} [model] - Model string for the observer agent.
+ * @property {string | Model<Api>} [model] - Model identifier for the
+ *   observer agent — either a `provider/modelId` string or a pre-
+ *   constructed `Model<…>` object (the dev-repl's faux-script path
+ *   threads a Model object through this seam).
  *   Defaults to the main chat model.
  * @property {number} [tokenThreshold] - Token count threshold that
  *   triggers observation.  Default 30 000.

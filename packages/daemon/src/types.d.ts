@@ -958,6 +958,7 @@ export interface EndoHost extends EndoAgent {
     opts?: { readOnly?: boolean },
   ): Promise<unknown>;
   provideScratchMount(petName: string | string[]): Promise<unknown>;
+  provideHostPath(cap: unknown): Promise<string>;
   provideGuest(
     petName?: string,
     opts?: MakeHostOrGuestOptions,
@@ -1697,6 +1698,16 @@ export interface DaemonCore {
   ) => Promise<string[]>;
 
   getIdForRef: (ref: unknown) => FormulaIdentifier | undefined;
+
+  /**
+   * Privileged accessor that returns the host filesystem path of a
+   * `mount` or `scratch-mount` formula.  The daemon hands this to
+   * `makeHostMaker` so the `EndoHost.provideHostPath` method (used
+   * by the @endo/sandbox factory) can resolve granted Mount caps to
+   * bind-mount source paths without exposing the path on Mount's
+   * public surface.
+   */
+  getMountHostPath: (id: FormulaIdentifier) => string;
 
   getTypeForId: (id: FormulaIdentifier) => Promise<string>;
 

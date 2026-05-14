@@ -335,7 +335,29 @@ echo "[integration] Setup completed."
 echo ""
 echo "=== Phase 3: Wait for agent ready ==="
 # The agent sends `N. "name" sent "Genie agent ready ..." once configured.
-agent_ready=$(wait_for 120 'Genie agent ready')
+# When this hangs, the most likely culprit is slice minting failing inside
+# spawnAgent (missing bwrap, missing workspace mount, kernel without
+# unprivileged user namespaces).  Capture stderr / log dumps so the operator
+# sees a structured diagnosis rather than a bare timeout.
+if ! agent_ready=$(wait_for 120 'Genie agent ready'); then
+  echo "[integration] ERROR: agent did not announce readiness within 120s." >&2
+  echo "[integration] --- daemon log (tail) ---" >&2
+  endo log 2>&1 | tail -80 >&2 || true
+  echo "[integration] --- worker logs ---" >&2
+  if [[ -d "$ENDO_STATE_PATH/worker" ]]; then
+    for w in "$ENDO_STATE_PATH"/worker/*/worker.log; do
+      [[ -f "$w" ]] || continue
+      echo "[integration] ---- $w ----" >&2
+      tail -60 "$w" >&2 || true
+    done
+  fi
+  echo "[integration] --- inbox ---" >&2
+  endo inbox 2>&1 | tail -40 >&2 || true
+  echo "[integration] Hint: confirm bwrap is installed and unprivileged" >&2
+  echo "[integration] user namespaces are permitted on this host" >&2
+  echo "[integration] (sysctl kernel.unprivileged_userns_clone=1)." >&2
+  exit 1
+fi
 agent_ready=${agent_ready#* }
 agent_ready=${agent_ready%% *}
 agent_ready=${agent_ready//\"/}
@@ -355,53 +377,25 @@ export -f endo wait_for trace_reply wait_for_reply send_and_wait \
           assert_reply_contains current_max_msg
 export ENDO_BIN TEST_DIR GENIE_WORKSPACE
 
-# echo "[integration] Commands: /quit to exit, /inbox to dump full inbox, /shell to drop to debug bash"
-#
-# while true; do
-#   printf 'genie> '
-#   IFS= read -r user_input || break
-#
-#   # Skip blank lines
-#   if [[ -z "$user_input" ]]; then
-#     continue
-#   fi
-#
-#   # Special commands
-#   case "$user_input" in
-#     /quit)
-#       echo "[integration] Exiting REPL."
-#       break
-#       ;;
-#
-#     /inbox)
-#       endo inbox 2>/dev/null || true
-#       continue
-#       ;;
-#
-#     /shell)
-
-echo "[integration] Spawning debug sub-shell, exit to return to genie test loop"
-bash
-
-#       continue
-#       ;;
-#
-#   esac
-#
-#   # Send and wait for reply
-#   CURRENT_MAX="$(current_max_msg)"
-#   endo send "$GENIE_NAME" "$user_input"
-#
-#   # TODO filter from $GENIE_NAME
-#   agent_reply="$(trace_reply "$CURRENT_MAX" 180)" || true
-#
-#   if [[ -n "$agent_reply" ]]; then
-#     echo "$agent_reply"
-#   else
-#     echo "[integration] (no reply within 180s)"
-#   fi
-#
-# done
+# When `GENIE_TEST` points at a scenario script, source it so it inherits
+# the helpers and exported state (GENIE_NAME, GENIE_WORKSPACE, …).  Each
+# scenario is responsible for its own assertions and can `exit 0` to
+# pass-with-skip when an environment precondition (e.g. bwrap absent)
+# rules the scenario out.  Without `GENIE_TEST` we drop into an
+# interactive sub-shell so an operator can poke at the running daemon.
+if [[ -n "${GENIE_TEST:-}" ]]; then
+  if [[ ! -f "$GENIE_TEST" ]]; then
+    echo "[integration] ERROR: GENIE_TEST=$GENIE_TEST does not exist." >&2
+    exit 1
+  fi
+  echo "[integration] Sourcing scenario: $GENIE_TEST"
+  # shellcheck disable=SC1090
+  source "$GENIE_TEST"
+else
+  echo "[integration] GENIE_TEST unset — spawning debug sub-shell."
+  echo "[integration] (exit to return to the cleanup phase)"
+  bash
+fi
 
 # ---------------------------------------------------------------------------
 # Phase 5: Final inbox dump and result

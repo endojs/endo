@@ -1,5 +1,5 @@
 // @ts-check
-/* global process, setTimeout, clearTimeout */
+/* global setTimeout, clearTimeout */
 /* eslint-disable no-continue, no-await-in-loop */
 
 /**
@@ -28,15 +28,22 @@
  *   policies: [],
  * });
  * ```
+ *
+ * The actual process-execution engine is pluggable via the
+ * `spawner` option (see {@link makeHostSpawner} and the sandbox
+ * spawner in `./sandbox-spawner.js`).  The timeout / kill /
+ * output-accumulation loop lives here in `makeCommandTool` so it
+ * stays uniform regardless of spawner.
  */
 
-import { spawn } from 'child_process';
-import * as fs from 'fs';
-import { join, resolve, relative } from 'path';
+import { resolve, relative } from 'path';
 
 import harden from '@endo/harden';
 import { M } from '@endo/patterns';
 import { makeTool } from './common.js';
+import { makeHostSpawner } from './spawner.js';
+
+/** @import { Spawner } from './spawner.js' */
 
 // ---------------------------------------------------------------------------
 // Policy-item types
@@ -60,6 +67,44 @@ import { makeTool } from './common.js';
 // ---------------------------------------------------------------------------
 // Built-in policies
 // ---------------------------------------------------------------------------
+
+/**
+ * Reject a `cwd` string that would escape its slice / workspace root.
+ *
+ * The historical check used `cwd.includes('..')`, which over-rejected
+ * legitimate relative paths whose filenames merely *contain* `..` as
+ * a substring — `foo/..bar`, `..baz/qux`, `path..to/file`.  Splitting
+ * on the separator and inspecting each segment lets the bare `..`
+ * segment be vetoed (the only form that can traverse upward) while
+ * leaving substring-`..` filenames alone.
+ *
+ * The absolute-path veto is kept on top because, when this tool runs
+ * inside a sandbox slice with `allowPath`, the slice mounts the
+ * workspace at a fixed slice-internal path (e.g. `/workspace`) — an
+ * absolute path from the agent's view is meaningless on either side
+ * of the fence, so we refuse it up front rather than handing it to
+ * the spawner.
+ *
+ * Defense in depth: the dev-repl and host-spawn fall-through paths
+ * still rely on this textual validation.  The slice itself confines
+ * the spawned process, but we want the same string to be rejected on
+ * every spawn path so the error message stays consistent.
+ *
+ * @param {string} cwd
+ * @returns {void}
+ */
+const assertCwdHasNoParentRefs = cwd => {
+  const segments = cwd.split('/').filter(s => s.length > 0);
+  for (const segment of segments) {
+    if (segment === '..') {
+      throw new Error('Invalid path: directory traversal not allowed');
+    }
+  }
+  if (cwd.startsWith('/')) {
+    throw new Error('Invalid path: absolute paths not allowed');
+  }
+};
+harden(assertCwdHasNoParentRefs);
 
 /**
  * Reject commands that match any of the provided regular expressions.
@@ -181,6 +226,125 @@ const DANGEROUS_PATTERNS = harden([
 ]);
 
 // ---------------------------------------------------------------------------
+// Process supervision (timeout / kill / output accumulation)
+// ---------------------------------------------------------------------------
+
+/**
+ * Drain an async-iterable byte stream into a UTF-8 string.  Returns
+ * an empty string when the stream is null / undefined (i.e. the
+ * spawner did not capture this channel).
+ *
+ * Errors raised by the iterable are swallowed: a process kill mid-
+ * stream typically surfaces as an `EPIPE` / read-after-close error
+ * the caller does not need to distinguish from clean EOF.
+ *
+ * @param {AsyncIterable<Uint8Array> | null | undefined} stream
+ * @returns {Promise<string>}
+ */
+const drainToString = async stream => {
+  await null;
+  if (stream === null || stream === undefined) return '';
+  const decoder = new TextDecoder('utf-8');
+  let acc = '';
+  try {
+    for await (const chunk of stream) {
+      acc += decoder.decode(chunk, { stream: true });
+    }
+    acc += decoder.decode();
+  } catch {
+    // ignore: the process may have been killed mid-stream.
+  }
+  return acc;
+};
+
+/**
+ * Supervise a {@link ProcessLike} until it exits, draining its
+ * stdout / stderr and enforcing a soft-kill timeout.  This loop is
+ * deliberately spawner-agnostic so the host and sandbox spawners can
+ * share it.
+ *
+ * @param {object} args
+ * @param {string} args.name
+ * @param {import('./spawner.js').ProcessLike} args.proc
+ * @param {number} args.timeoutMs
+ * @param {boolean} args.allowPath
+ * @param {string} args.cwd
+ * @param {string} args.fullCommand
+ * @returns {Promise<{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}>}
+ */
+const runProcess = async ({
+  name,
+  proc,
+  timeoutMs,
+  allowPath,
+  cwd,
+  fullCommand,
+}) => {
+  let killed = false;
+  const timer = setTimeout(() => {
+    killed = true;
+    void proc.kill('SIGTERM');
+  }, timeoutMs);
+
+  let stdout = '';
+  let stderr = '';
+  /** @type {{ code: number | null; signal: string | null }} */
+  let status = { code: null, signal: null };
+  try {
+    [stdout, stderr, status] = await Promise.all([
+      drainToString(proc.stdout ?? undefined),
+      drainToString(proc.stderr ?? undefined),
+      proc.wait(),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const trimmedStdout = stdout.trim();
+  const trimmedStderr = stderr.trim();
+
+  if (killed) {
+    const err = new Error(`${name} timed out after ${timeoutMs}ms`);
+    // Attach the same diagnostic fields the non-zero-exit path uses so
+    // callers (and `makeCommandTool.execute`'s error wrapper below) can
+    // surface partial stdout / stderr captured before the kill.
+    Object.assign(err, {
+      command: fullCommand,
+      stdout: trimmedStdout,
+      stderr: trimmedStderr,
+      exitCode: status.code ?? null,
+      signal: status.signal,
+    });
+    throw err;
+  }
+
+  // Non-zero exits are *data*, not errors — see TADA/60.  Many command-
+  // line tools use the exit code to answer yes/no questions (`grep` for
+  // "did this file contain the pattern", `test -f` for "does this path
+  // exist", `diff` for "do these files differ").  Throwing here would
+  // strand the model with an opaque error and no way to react to the
+  // legitimate negative result.  The schema already advertises both
+  // `success` and `exitCode` — honour the contract.
+  //
+  // Only spawner-init failures (program-not-found, factory reject) and
+  // the timeout-kill branch above still throw; those *are* errors the
+  // caller cannot reason about as data.
+  const exitCode = status.code ?? -1;
+  /** @type {{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}} */
+  const out = {
+    success: exitCode === 0,
+    command: fullCommand,
+    stdout: trimmedStdout,
+    stderr: trimmedStderr,
+    exitCode,
+  };
+  if (allowPath) {
+    out.path = cwd;
+  }
+  return out;
+};
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -204,8 +368,21 @@ const DANGEROUS_PATTERNS = harden([
  *   before execution.
  * @property {number}    [defaultTimeout]  - Default timeout in ms
  *   (default: 30 000).
- * @property {string}    [searchPath]      - $PATH override
+ * @property {string}    [searchPath]      - $PATH override (only honoured
+ *   by the default host spawner; ignored when an explicit `spawner` is
+ *   supplied).
  * @property {boolean}   [shell]           - whether to execute thru a shell
+ * @property {Spawner}   [spawner]         - Process-execution engine.
+ *   Defaults to a freshly-built host spawner (see
+ *   {@link makeHostSpawner}).  Pass a sandbox spawner to run the tool
+ *   inside an `@endo/sandbox` slice.
+ * @property {string}    [sliceWorkspacePath] - When the `spawner` routes
+ *   this tool through a sandbox slice, the slice-internal mount path
+ *   where the workspace is visible (e.g. `/workspace`).  Threaded into
+ *   `help()` so the tool-level docs mention the slice path the model
+ *   should use rather than the host workspace path.  Avoid hard-coding
+ *   the path here — pass it down from the slice-mint site so the same
+ *   wire feeds both the system prompt and the tool descriptions.
  */
 
 /**
@@ -221,32 +398,13 @@ const makeCommandTool = ({
   allowPath = false,
   policies = [],
   defaultTimeout = 30_000,
-  searchPath = process.env.PATH || '',
+  searchPath,
   shell = false,
+  spawner = makeHostSpawner(
+    searchPath !== undefined ? { searchPath } : undefined,
+  ),
+  sliceWorkspacePath,
 }) => {
-  /**
-   * @param {string} prog
-   */
-  const whichProgram = async prog => {
-    await Promise.resolve();
-    const isWin = process.platform === 'win32';
-    const pathDirs = searchPath.split(isWin ? ';' : ':');
-    for (const dir of pathDirs) {
-      if (!dir) continue;
-      const candidate = join(dir, prog);
-      try {
-        const stats = await fs.promises.stat(candidate);
-        // eslint-disable-next-line no-bitwise
-        if (isWin ? stats.isFile() : (stats.mode & 0o111) !== 0) {
-          return candidate;
-        }
-      } catch {
-        // not found in this dir
-      }
-    }
-    return null;
-  };
-
   const hasProgram = program !== undefined;
 
   // -- schema pieces --------------------------------------------------------
@@ -279,6 +437,17 @@ const makeCommandTool = ({
         yield `Executes ${program} commands.`;
       } else {
         yield 'Executes shell commands.';
+      }
+      if (sliceWorkspacePath !== undefined) {
+        // The model's workspace path inside the slice is not the host
+        // directory the system prompt mentions as the working
+        // directory — the host workspace is bind-mounted to this fixed
+        // path.  Surfacing the slice path here (in addition to the
+        // runtime-info section) makes the tool-level docs self-
+        // sufficient and avoids the host-path-into-bash failure mode
+        // described in TODO/62.
+        yield '';
+        yield `**Workspace path:** This tool runs inside a sandbox slice; the workspace is mounted at \`${sliceWorkspacePath}\`.  Use that path (not the host workspace directory) when referencing the workspace from a shell command.`;
       }
       yield '';
       yield '**Parameters:**';
@@ -314,97 +483,80 @@ const makeCommandTool = ({
         path: cwd = '.',
       } = opts;
 
-      // Resolve the executable
-      const prog = program || args[0] || 'false';
-      const exe = await whichProgram(prog);
-      if (!exe) {
-        throw new Error(`command not found: ${prog}`);
-      }
-
       // Run all policies.
       for (const policy of policies) {
         policy(args);
       }
 
-      // Path validation when enabled.
+      // Path validation when enabled.  See `assertCwdHasNoParentRefs`
+      // above for the segment-level rationale: a bare `..` segment is
+      // vetoed, but legitimate filenames containing `..` as a substring
+      // (`foo/..bar`, `..baz`, `path..to/file`) are allowed through.
       if (allowPath) {
-        if (cwd.includes('..') || cwd.startsWith('/')) {
-          throw new Error('Invalid path: directory traversal not allowed');
-        }
+        assertCwdHasNoParentRefs(cwd);
       }
-
-      const spawnArgs = hasProgram ? args : args.slice(1);
 
       // Build the full command: when a program is configured, prepend it.
       const allArgs = hasProgram ? [program, ...args] : args;
       const fullCommand = JSON.stringify(allArgs);
 
+      const spawnerOpts = {
+        ...(allowPath ? { cwd } : {}),
+        shell,
+      };
+
       try {
-        /** @type {Promise<{success: boolean, command: string, stdout: string, stderr: string, exitCode: number, path?: string}>} */
-        // eslint-disable-next-line no-shadow
-        const result = new Promise((resolve, reject) => {
-          const child = spawn(exe, spawnArgs, {
-            ...(allowPath ? { cwd } : {}),
-            env: {
-              ...process.env,
-              PATH: process.env.PATH,
-            },
-            shell,
-          });
-
-          let stdout = '';
-          let stderr = '';
-          let killed = false;
-
-          const timer = setTimeout(() => {
-            killed = true;
-            child.kill('SIGTERM');
-          }, timeoutMs);
-
-          child.stdout.on('data', chunk => {
-            stdout += chunk;
-          });
-
-          child.stderr.on('data', chunk => {
-            stderr += chunk;
-          });
-
-          child.on('error', err => {
-            clearTimeout(timer);
-            reject(err);
-          });
-
-          child.on('close', exitCode => {
-            clearTimeout(timer);
-            if (killed) {
-              reject(new Error(`${name} timed out after ${timeoutMs}ms`));
-              return;
-            }
-            if (exitCode !== 0) {
-              const err = new Error(
-                `Command failed with exit code ${exitCode}`,
-              );
-              // @ts-expect-error — attach extra fields for callers
-              err.code = exitCode;
-              reject(err);
-              return;
-            }
-            const out = {
-              success: true,
-              command: fullCommand,
-              stdout: stdout.trim(),
-              stderr: stderr.trim(),
-              exitCode: 0,
-            };
-            if (allowPath) {
-              out.path = cwd;
-            }
-            resolve(out);
-          });
+        const proc = await spawner(allArgs, spawnerOpts);
+        return await runProcess({
+          name,
+          proc,
+          timeoutMs,
+          allowPath,
+          cwd,
+          fullCommand,
         });
-        return result;
       } catch (err) {
-        throw new Error(`${name} execution failed: ${err.message}`);
+        const cast =
+          /** @type {Error & { stderr?: string, stdout?: string, exitCode?: number, command?: string }} */ (
+            err
+          );
+        // Compose a diagnostic message that surfaces stderr (and a
+        // truncated stdout when stderr is empty) so that callers — the
+        // dev-repl's red `✗ failed:` line and chatlog renderers — show
+        // *why* the command failed.  Without this every non-zero exit
+        // collapses to an opaque `Command failed with exit code N`.
+        const STDERR_BUDGET = 2048;
+        const STDOUT_BUDGET = 2048;
+        /**
+         * @param {string} text
+         * @param {number} budget
+         */
+        const clip = (text, budget) =>
+          text.length > budget
+            ? `${text.slice(0, budget)}… (truncated, ${text.length - budget} more bytes)`
+            : text;
+        const parts = [`${name} execution failed: ${cast.message}`];
+        if (cast.stderr) {
+          parts.push(`stderr: ${clip(cast.stderr, STDERR_BUDGET)}`);
+        } else if (cast.stdout) {
+          // Some failing commands write their diagnostic to stdout
+          // (e.g. `npm run` indirected through a script).  Surface that
+          // when stderr was empty so the model still has a clue.
+          parts.push(`stdout: ${clip(cast.stdout, STDOUT_BUDGET)}`);
+        }
+        const wrapped = new Error(parts.join('\n'));
+        // Forward the structured fields so a programmatic caller can
+        // still inspect them after the wrap.
+        if (cast.exitCode !== undefined) {
+          Object.assign(wrapped, {
+            code: cast.exitCode,
+            exitCode: cast.exitCode,
+            stdout: cast.stdout,
+            stderr: cast.stderr,
+            command: cast.command,
+          });
+        }
+        throw wrapped;
       }
     },
   });
@@ -416,38 +568,82 @@ harden(makeCommandTool);
 // ---------------------------------------------------------------------------
 
 /**
- * General-purpose system command tool with dangerous-pattern blocking.
+ * Build a fresh `exec` tool — a general-purpose, non-shell system
+ * command tool with dangerous-pattern blocking.  Accepts an optional
+ * spawner override so a sandbox-aware caller (e.g. the daemon-hosted
+ * genie's tool registry) can route execution through a slice.
+ *
+ * @param {{ spawner?: Spawner, sliceWorkspacePath?: string }} [options]
  */
-const exec = makeCommandTool({
-  name: 'exec',
-  description: [
-    'Runs a system command (ls, grep, find, cat, curl, etc.).',
-    'Use for general tasks not covered by other tools.',
-    'NOTE: does not execute through a shell',
-  ].join('\n'),
-  policies: [rejectPatterns(DANGEROUS_PATTERNS)],
-});
-harden(exec);
+const makeExecTool = ({ spawner, sliceWorkspacePath } = {}) =>
+  makeCommandTool({
+    name: 'exec',
+    description: [
+      'Runs a system command (ls, grep, find, cat, curl, etc.).',
+      'Use for general tasks not covered by other tools.',
+      'NOTE: does not execute through a shell',
+      '',
+      'Returns `{ success, exitCode, stdout, stderr, command }`.',
+      'A non-zero `exitCode` is reported as data with `success: false` — many',
+      'tools answer yes/no questions through the exit code (`grep` exits 1',
+      'when there is no match; `test -f` exits 1 when the path is missing;',
+      '`diff` exits 1 when files differ).  Inspect `exitCode`, `stdout`, and',
+      '`stderr` to decide what the result means; only an actual error (the',
+      'program could not be launched, or the command timed out) causes the',
+      'tool call itself to fail.',
+    ].join('\n'),
+    policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+    ...(spawner ? { spawner } : {}),
+    ...(sliceWorkspacePath !== undefined ? { sliceWorkspacePath } : {}),
+  });
+harden(makeExecTool);
 
 /**
- * General-purpose shell tool with dangerous-pattern blocking.
+ * Build a fresh `bash` tool — a general-purpose shell tool with
+ * dangerous-pattern blocking.  Accepts an optional spawner override
+ * (see {@link makeExecTool}).
+ *
+ * @param {{ spawner?: Spawner, sliceWorkspacePath?: string }} [options]
  */
-const bash = makeCommandTool({
-  name: 'bash',
-  description: [
-    'Runs a shell command (ls, grep, find, cat, curl, etc.).',
-    'Use for general tasks not covered by other tools.',
-  ].join('\n'),
-  policies: [rejectPatterns(DANGEROUS_PATTERNS)],
-  shell: true,
-});
+const makeBashTool = ({ spawner, sliceWorkspacePath } = {}) =>
+  makeCommandTool({
+    name: 'bash',
+    description: [
+      'Runs a shell command (ls, grep, find, cat, curl, etc.).',
+      'Use for general tasks not covered by other tools.',
+      '',
+      'Returns `{ success, exitCode, stdout, stderr, command }`.',
+      'A non-zero `exitCode` is reported as data with `success: false` — many',
+      'tools answer yes/no questions through the exit code (`grep` exits 1',
+      'when there is no match; `test -f` exits 1 when the path is missing;',
+      '`diff` exits 1 when files differ).  Inspect `exitCode`, `stdout`, and',
+      '`stderr` to decide what the result means; only an actual error (the',
+      'program could not be launched, or the command timed out) causes the',
+      'tool call itself to fail.',
+    ].join('\n'),
+    policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+    shell: true,
+    ...(spawner ? { spawner } : {}),
+    ...(sliceWorkspacePath !== undefined ? { sliceWorkspacePath } : {}),
+  });
+harden(makeBashTool);
+
+/** Default host-spawner-backed exec tool. */
+const exec = makeExecTool();
+harden(exec);
+
+/** Default host-spawner-backed bash tool. */
+const bash = makeBashTool();
 harden(bash);
 
 export {
   makeCommandTool,
+  makeBashTool,
+  makeExecTool,
   bash,
   exec,
   rejectPatterns,
   rejectFlags,
   enforcePath,
+  assertCwdHasNoParentRefs,
 };
