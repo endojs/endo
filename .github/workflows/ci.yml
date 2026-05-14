@@ -64,6 +64,9 @@ jobs:
       - name: Run yarn lint
         run: yarn lint
 
+      - name: Check SECURITY.md uniformity
+        run: bash scripts/check-security-md.sh
+
       # build the API docs to verify it works
       - name: build API docs
         run: yarn docs
