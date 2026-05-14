@@ -2,6 +2,8 @@
 
 import test from '@endo/ses-ava/test.js';
 
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+import { bytesFromText } from '@endo/bytes/from-string.js';
 import {
   makeOcapnKeyPair,
   makeSessionId,
@@ -16,7 +18,6 @@ import {
   makeHandoffReceiveDescriptor,
   makeHandoffReceiveSigEnvelope,
 } from '../src/codecs/descriptors.js';
-import { encodeStringToImmutableArrayBuffer } from '../src/buffer-utils.js';
 
 const makeSessionKeys = () => {
   const key1 = makeOcapnKeyPair();
@@ -53,7 +54,7 @@ test('makeWithdrawGiftDescriptor', t => {
     },
     gifterExporterSessionId,
     gifterKey.publicKey.id,
-    encodeStringToImmutableArrayBuffer('gift-id'),
+    bytesToImmutable(bytesFromText('gift-id')),
   );
   const handoffGiveSignature = signHandoffGive(
     handoffGiveDescriptor,

@@ -3,11 +3,10 @@
 import { makeCapTP } from '@endo/captp';
 import { mapWriter, mapReader } from '@endo/stream';
 import { makeNetstringReader, makeNetstringWriter } from '@endo/netstring';
+import { bytesFromText } from '@endo/bytes/from-string.js';
+import { bytesToText } from '@endo/bytes/to-string.js';
 
 /** @import { Stream, Reader, Writer } from '@endo/stream' */
-
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
 
 /**
  * @template TBootstrap
@@ -52,13 +51,13 @@ export const makeMessageCapTP = (
 export const messageToBytes = message => {
   const text = JSON.stringify(message);
   // console.log('->', text);
-  const bytes = textEncoder.encode(text);
+  const bytes = bytesFromText(text);
   return bytes;
 };
 
 /** @param {Uint8Array} bytes */
 export const bytesToMessage = bytes => {
-  const text = textDecoder.decode(bytes);
+  const text = bytesToText(bytes);
   // console.log('<-', text);
   const message = JSON.parse(text);
   return message;

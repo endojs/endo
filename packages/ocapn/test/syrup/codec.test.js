@@ -3,6 +3,10 @@
 import test from '@endo/ses-ava/test.js';
 import path from 'path';
 import fs from 'fs';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
+import { bytesFromText } from '@endo/bytes/from-string.js';
+import { bytesToText } from '@endo/bytes/to-string.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';
 import {
@@ -11,10 +15,6 @@ import {
   StringCodec,
   makeListCodecFromEntryCodec,
 } from '../../src/syrup/codec.js';
-import {
-  decodeImmutableArrayBufferToString,
-  encodeStringToImmutableArrayBuffer,
-} from '../../src/buffer-utils.js';
 
 /**
  * @import { SyrupCodec } from '../../src/syrup/codec.js'
@@ -97,7 +97,9 @@ test('zoo.bin', t => {
       syrupReader.enterSet();
       while (!syrupReader.peekSetEnd()) {
         result.eats.push(
-          decodeImmutableArrayBufferToString(syrupReader.readBytestring()),
+          bytesToText(bytesFromImmutable(syrupReader.readBytestring()), {
+            fatal: true,
+          }),
         );
       }
       syrupReader.exitSet();
@@ -108,8 +110,9 @@ test('zoo.bin', t => {
       t.is(syrupReader.readSelectorAsString(), 'weight');
       result.weight = syrupReader.readFloat64();
       t.is(syrupReader.readSelectorAsString(), 'species');
-      result.species = decodeImmutableArrayBufferToString(
-        syrupReader.readBytestring(),
+      result.species = bytesToText(
+        bytesFromImmutable(syrupReader.readBytestring()),
+        { fatal: true },
       );
       syrupReader.exitDictionary();
       return result;
@@ -121,7 +124,7 @@ test('zoo.bin', t => {
       syrupWriter.writeSelectorFromString('eats');
       syrupWriter.enterSet();
       for (const eat of value.eats) {
-        syrupWriter.writeBytestring(encodeStringToImmutableArrayBuffer(eat));
+        syrupWriter.writeBytestring(bytesToImmutable(bytesFromText(eat)));
       }
       syrupWriter.exitSet();
       syrupWriter.writeSelectorFromString('name');
@@ -132,7 +135,7 @@ test('zoo.bin', t => {
       syrupWriter.writeFloat64(value.weight);
       syrupWriter.writeSelectorFromString('species');
       syrupWriter.writeBytestring(
-        encodeStringToImmutableArrayBuffer(value.species),
+        bytesToImmutable(bytesFromText(value.species)),
       );
       syrupWriter.exitDictionary();
     },

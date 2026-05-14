@@ -6,6 +6,9 @@
 
 import test from '@endo/ses-ava/test.js';
 
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+import { bytesFromText } from '@endo/bytes/from-string.js';
 import { throws } from '../_util.js';
 import {
   makeCodecTestKit,
@@ -15,10 +18,6 @@ import {
 } from './_codecs_util.js';
 import { intSyrup, recordSyrup } from './_syrup_util.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
-import {
-  immutableArrayBufferToUint8Array,
-  encodeStringToImmutableArrayBuffer,
-} from '../../src/buffer-utils.js';
 
 /** @type {CodecTestEntry[]} */
 const table = [
@@ -57,8 +56,8 @@ const table = [
       type: 'desc:sig-envelope',
       object: {
         type: 'desc:handoff-receive',
-        receivingSession: encodeStringToImmutableArrayBuffer('123'),
-        receivingSide: encodeStringToImmutableArrayBuffer('456'),
+        receivingSession: bytesToImmutable(bytesFromText('123')),
+        receivingSide: bytesToImmutable(bytesFromText('456')),
         handoffCount: 1n,
         signedGive: {
           type: 'desc:sig-envelope',
@@ -77,11 +76,11 @@ const table = [
               designator: '1234',
               hints: { host: '127.0.0.1', port: '54822' },
             },
-            exporterSessionId: encodeStringToImmutableArrayBuffer(
-              'exporter-session-id',
+            exporterSessionId: bytesToImmutable(
+              bytesFromText('exporter-session-id'),
             ),
-            gifterSideId: encodeStringToImmutableArrayBuffer('gifter-side-id'),
-            giftId: encodeStringToImmutableArrayBuffer('gift-id'),
+            gifterSideId: bytesToImmutable(bytesFromText('gifter-side-id')),
+            giftId: bytesToImmutable(bytesFromText('gift-id')),
           },
           signature: {
             type: 'sig-val',
@@ -107,7 +106,7 @@ test('descriptor fails with negative integer', t => {
   const testKit = makeCodecTestKit();
   const codec = testKit.DescImportObjectCodec;
   const syrup = recordSyrup('desc:import-object', intSyrup(-1));
-  const syrupBytes = immutableArrayBufferToUint8Array(syrup);
+  const syrupBytes = bytesFromImmutable(syrup);
   const syrupReader = makeSyrupReader(syrupBytes, {
     name: 'import-object with negative integer',
   });

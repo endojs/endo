@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@endo/bundle-source": "workspace:^",
+    "@endo/bytes": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
