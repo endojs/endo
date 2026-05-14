@@ -6,7 +6,7 @@ import { evadeCensor } from '@endo/evasive-transform';
 import { whereEndoCache } from '@endo/where';
 import { defaultParserForLanguage as transformingParserForLanguage } from '@endo/compartment-mapper/archive-parsers.js';
 import { defaultParserForLanguage as transparentParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
-import tsBlankSpace from 'ts-blank-space';
+import { transformSync } from 'amaro';
 
 /** @import {Language, ParserImplementation} from '@endo/compartment-mapper/node-powers.js' */
 /** @import {BundlingKit, BundlingKitIO, BundlingKitOptions, ModuleTransformsLike, ParserForLanguageLike, SourceMapDescriptor} from './types.js' */
@@ -199,7 +199,9 @@ export const makeBundlingKit = (
       options = undefined,
     ) {
       const sourceText = textDecoder.decode(sourceBytes);
-      const objectText = tsBlankSpace(sourceText);
+      const { code: objectText } = transformSync(sourceText, {
+        mode: 'strip-only',
+      });
       const objectBytes = textEncoder.encode(objectText);
       return parserForLanguage.mjs.parse(
         objectBytes,
@@ -223,7 +225,9 @@ export const makeBundlingKit = (
       options = undefined,
     ) {
       const sourceText = textDecoder.decode(sourceBytes);
-      const objectText = tsBlankSpace(sourceText);
+      const { code: objectText } = transformSync(sourceText, {
+        mode: 'strip-only',
+      });
       const objectBytes = textEncoder.encode(objectText);
       return parserForLanguage.cjs.parse(
         objectBytes,

@@ -63,13 +63,14 @@ The syntax to begin or end comments remains.
 TypeScript modules with the `.ts`, `.mts`, and `.cts` extensions in
 packages that are not under a `node_modules` directory are automatically
 converted to JavaScript through type erasure using
-[`ts-blank-space`](https://bloomberg.github.io/ts-blank-space/).
+[`amaro`](https://github.com/nodejs/amaro), the TypeScript parser Node.js uses
+for type stripping.
 
 This will not function for packages that are published as their original
 TypeScript sources, as is consistent with `node
 --experimental-strip-types`.
 This will also not function properly for TypeScript modules that have
-[runtime impacting syntax](https://github.com/bloomberg/ts-blank-space/blob/main/docs/unsupported_syntax.md),
+[runtime impacting syntax](https://nodejs.org/api/typescript.html#typescript-features),
 such as `enum`.
 
 This also does not support importing a `.ts` file using the corresponding
