@@ -25,14 +25,17 @@
 import '@endo/init/debug.js';
 
 import { promises as fs, mkdtempSync } from 'fs';
-import { join } from 'path';
+import { join, sep } from 'path';
 import { tmpdir } from 'os';
 
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import test from 'ava';
 
 import { makeLocalSandboxPowers } from '../src/sandbox/local-powers.js';
+import { assertIsMountCap } from '../src/sandbox/slice.js';
 import { makeFileTools } from '../src/tools/filesystem.js';
 import { makeMountVFS } from '../src/tools/vfs-mount.js';
 
@@ -122,6 +125,92 @@ test('provideHostPath round-trips a cap minted by makeMountCapForPath', async t 
 // provideHostPath rejection paths
 // ---------------------------------------------------------------------------
 
+test('assertIsMountCap is a shape gate; provideHostPath is the identity gate', async t => {
+  // The two-gate layering this test pins:
+  //
+  //   1. `assertIsMountCap` (in `src/sandbox/slice.js`) is a method-set
+  //      probe.  It produces friendly, agent-named errors when the
+  //      operator pet-names something that isn't a Mount (a typo, a
+  //      guest, a value blob).  Crucially it does NOT authenticate the
+  //      cap's identity — any `makeExo` / `Far` exo with the right
+  //      method names passes.
+  //   2. `provideHostPath` (here on the local-powers side; daemon-side
+  //      counterpart in `packages/daemon/src/host.js`) is the
+  //      authoritative identity check.  The local powers consult a
+  //      per-instance `WeakMap`; the daemon consults its mount-formula
+  //      registry.  Either way, a spoofed exo is rejected before any
+  //      host path crosses the slice boundary.
+  //
+  // Without (2) the shape gate would be the only authentication on a
+  // pet-name Mount — saboteur finding 3 in TODO/60.  This test fails
+  // loudly if a future refactor moves identity into the shape gate or
+  // collapses the gates together.
+  const { powers, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  // Hand-roll an exo that matches the daemon's MountInterface method
+  // set — `assertIsMountCap`'s probe returns these names — but is NOT
+  // wired into the local powers' WeakMap.
+  const SpoofInterface = M.interface('SpoofMount', {
+    has: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
+    list: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
+    readText: M.call(M.any()).returns(M.promise()),
+    writeText: M.call(M.any(), M.string()).returns(M.promise()),
+    makeDirectory: M.call(M.any()).returns(M.promise()),
+  });
+  const spoof = makeExo('SpoofMount', SpoofInterface, {
+    async has() {
+      return true;
+    },
+    async list() {
+      return harden([]);
+    },
+    async readText() {
+      return 'spoofed contents';
+    },
+    async writeText() {
+      await null;
+    },
+    async makeDirectory() {
+      await null;
+    },
+  });
+
+  // Gate 1: `assertIsMountCap` accepts the spoof — it only probes the
+  // method-name surface.
+  const accepted = await assertIsMountCap(spoof, {
+    agentName: 'test-agent',
+    role: 'workspace',
+    petName: 'spoof',
+  });
+  t.is(accepted, spoof, 'shape gate returns the cap on success');
+
+  // Gate 2: `provideHostPath` rejects it — the WeakMap has no entry
+  // for an exo the local powers never minted.  The error wording
+  // mirrors the daemon's `not a daemon-minted mount` (the local
+  // powers say `not a local-minted mount`) on purpose.
+  await t.throwsAsync(() => E(powers).provideHostPath(spoof), {
+    message: /not a local-minted mount/,
+  });
+
+  // Symmetric negative: a cap that does NOT match the method-set
+  // never reaches the identity gate — the shape gate refuses it at
+  // the form boundary so the operator sees a friendly diagnostic.
+  const wrongShape = Far('WrongShape', { help: () => 'no methods' });
+  await t.throwsAsync(
+    () =>
+      assertIsMountCap(wrongShape, {
+        agentName: 'test-agent',
+        role: 'rootfs',
+        petName: 'wrong',
+      }),
+    {
+      message:
+        /rootfs pet name "wrong" does not refer to a Mount cap \(missing methods:/,
+    },
+  );
+});
+
 test('provideHostPath rejects an unknown cap with a structured error', async t => {
   const { powers, dispose } = makeLocalSandboxPowers();
   t.teardown(dispose);
@@ -154,6 +243,140 @@ test('provideHostPath rejects an unknown cap with a structured error', async t =
       `unknown cap of type ${typeof garbage} should be rejected`,
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// Confinement hardening — symlink escape, sub-Mount rejection, absolute
+// segments.  See `TODO/61_genie_local_powers_symlink_realpath.md` for
+// the saboteur findings these pin.
+// ---------------------------------------------------------------------------
+
+test('Mount.lookup rejects a symlink that points outside the mount root', async t => {
+  const { makeMountCapForPath, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  // Construct a workspace with a sibling tree that the workspace
+  // should NOT be able to reach.  The sibling tree stands in for any
+  // out-of-workspace host directory an attacker would want to bind
+  // into a slice — `/etc` in the saboteur's original example.
+  const tmp = mkdtempSync(join(tmpdir(), 'genie-local-test-symlink-'));
+  t.teardown(() => fs.rm(tmp, { recursive: true, force: true }));
+  const workspaceDir = join(tmp, 'ws');
+  const siblingDir = join(tmp, 'sibling');
+  await fs.mkdir(workspaceDir);
+  await fs.mkdir(siblingDir);
+  await fs.writeFile(join(siblingDir, 'secret.txt'), 'must not leak');
+  await fs.symlink(siblingDir, join(workspaceDir, 'escape'));
+
+  const mount = /** @type {any} */ (makeMountCapForPath(workspaceDir));
+
+  // The kernel happily resolves `escape` to the sibling directory if
+  // `lookup` does not realpath; this test pins the rejection so that
+  // a regression resurfaces as a failed assertion rather than as
+  // silent host-fs disclosure.
+  await t.throwsAsync(() => E(mount).lookup('escape'), {
+    message: /escapes mount root/,
+  });
+});
+
+test('Mount.lookup allows a symlink whose target stays inside the mount root', async t => {
+  // The symmetric positive case: an in-workspace symlink that
+  // genuinely points to an in-workspace directory must still work
+  // (otherwise the rejection above is too aggressive and silently
+  // breaks operator-set-up workspace trees).
+  const { makeMountCapForPath, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  const workspaceDir = mkdtempSync(join(tmpdir(), 'genie-local-test-ws-'));
+  t.teardown(() => fs.rm(workspaceDir, { recursive: true, force: true }));
+
+  await fs.mkdir(join(workspaceDir, 'real'));
+  await fs.writeFile(join(workspaceDir, 'real', 'hello.txt'), 'hi');
+  await fs.symlink(join(workspaceDir, 'real'), join(workspaceDir, 'alias'));
+
+  const mount = /** @type {any} */ (makeMountCapForPath(workspaceDir));
+  const sub = await E(mount).lookup('alias');
+  const entries = /** @type {string[]} */ (await E(sub).list());
+  t.deepEqual(entries, ['hello.txt']);
+});
+
+test('provideHostPath rejects sub-Mounts minted by Mount.lookup', async t => {
+  // Composition of saboteur findings 1 and 2: if `lookup` returned a
+  // sub-Mount and `provideHostPath` accepted it, an attacker could
+  // bind any directory reachable from the workspace tree (via a
+  // symlink or even via a legitimate sub-directory the operator did
+  // not intend to grant) into the slice.  Both the daemon (see
+  // `packages/daemon/src/host.js:290-297`) and the local powers now
+  // refuse the call.
+  const { powers, makeMountCapForPath, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  const workspaceDir = mkdtempSync(join(tmpdir(), 'genie-local-test-subroot-'));
+  t.teardown(() => fs.rm(workspaceDir, { recursive: true, force: true }));
+  await fs.mkdir(join(workspaceDir, 'subdir'));
+
+  const mount = /** @type {any} */ (makeMountCapForPath(workspaceDir));
+  const sub = await E(mount).lookup('subdir');
+
+  await t.throwsAsync(() => E(powers).provideHostPath(sub), {
+    message: /sub-Mount view, not a top-level mount/,
+  });
+
+  // The recommended workaround is to mint a fresh top-level cap
+  // against the sub-directory's host path.  That cap resolves
+  // normally — the explicit-mint workflow mirrors the daemon's
+  // `provideMount(absolutePath, ...)` shape called out in the
+  // host-side comment.
+  const subPath = join(workspaceDir, 'subdir');
+  const explicit = makeMountCapForPath(subPath);
+  // On macOS, `tmpdir()` is reached through a `/private` symlink, so
+  // the returned path may be realpath'd.  Compare via realpath to
+  // avoid a false negative.
+  const resolved = await E(powers).provideHostPath(explicit);
+  t.is(await fs.realpath(resolved), await fs.realpath(subPath));
+});
+
+test('Mount path-segment veto rejects absolute path segments', async t => {
+  // Saboteur finding 4: POSIX `path.join(hostPath, '/etc/passwd')`
+  // happens to neutralise the absolute prefix today, but a future
+  // swap to `path.resolve` or `path.win32` semantics would promote
+  // the segment.  The textual veto closes the gap unconditionally.
+  const { makeMountCapForPath, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  const workspaceDir = mkdtempSync(join(tmpdir(), 'genie-local-test-abs-'));
+  t.teardown(() => fs.rm(workspaceDir, { recursive: true, force: true }));
+  await fs.writeFile(join(workspaceDir, 'inside.txt'), 'ok');
+
+  const mount = /** @type {any} */ (makeMountCapForPath(workspaceDir));
+
+  // String-form absolute path:
+  await t.throwsAsync(() => E(mount).readText('/etc/passwd'), {
+    message: /must not be absolute/,
+  });
+  // Array-form absolute first segment:
+  await t.throwsAsync(() => E(mount).readText(['/etc', 'passwd']), {
+    message: /must not be absolute/,
+  });
+  // Windows-style separator is vetoed for the same reason.  The
+  // single character `'\\'` (a backslash) is the segment under test.
+  await t.throwsAsync(() => E(mount).readText('\\Windows\\System32'), {
+    message: /must not be absolute/,
+  });
+  // The same veto applies to writeText, makeDirectory, lookup, etc.
+  // Pinning one more arm (lookup) here guards against the next
+  // refactor reintroducing the gap on the path that was originally
+  // attacked.
+  await t.throwsAsync(() => E(mount).lookup('/etc'), {
+    message: /must not be absolute/,
+  });
+
+  // Legitimate non-absolute paths still resolve.  `sep` is `/` on
+  // POSIX and `\` on Windows — the test never asserts a backslash on
+  // POSIX runners, only that the host separator works for joining
+  // multi-segment paths.
+  void sep;
+  t.is(await E(mount).readText('inside.txt'), 'ok');
 });
 
 // ---------------------------------------------------------------------------

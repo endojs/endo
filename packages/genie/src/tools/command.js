@@ -69,6 +69,44 @@ import { makeHostSpawner } from './spawner.js';
 // ---------------------------------------------------------------------------
 
 /**
+ * Reject a `cwd` string that would escape its slice / workspace root.
+ *
+ * The historical check used `cwd.includes('..')`, which over-rejected
+ * legitimate relative paths whose filenames merely *contain* `..` as
+ * a substring — `foo/..bar`, `..baz/qux`, `path..to/file`.  Splitting
+ * on the separator and inspecting each segment lets the bare `..`
+ * segment be vetoed (the only form that can traverse upward) while
+ * leaving substring-`..` filenames alone.
+ *
+ * The absolute-path veto is kept on top because, when this tool runs
+ * inside a sandbox slice with `allowPath`, the slice mounts the
+ * workspace at a fixed slice-internal path (e.g. `/workspace`) — an
+ * absolute path from the agent's view is meaningless on either side
+ * of the fence, so we refuse it up front rather than handing it to
+ * the spawner.
+ *
+ * Defense in depth: the dev-repl and host-spawn fall-through paths
+ * still rely on this textual validation.  The slice itself confines
+ * the spawned process, but we want the same string to be rejected on
+ * every spawn path so the error message stays consistent.
+ *
+ * @param {string} cwd
+ * @returns {void}
+ */
+const assertCwdHasNoParentRefs = cwd => {
+  const segments = cwd.split('/').filter(s => s.length > 0);
+  for (const segment of segments) {
+    if (segment === '..') {
+      throw new Error('Invalid path: directory traversal not allowed');
+    }
+  }
+  if (cwd.startsWith('/')) {
+    throw new Error('Invalid path: absolute paths not allowed');
+  }
+};
+harden(assertCwdHasNoParentRefs);
+
+/**
  * Reject commands that match any of the provided regular expressions.
  *
  * Each entry may be a plain `RegExp` or an object
@@ -450,11 +488,12 @@ const makeCommandTool = ({
         policy(args);
       }
 
-      // Path validation when enabled.
+      // Path validation when enabled.  See `assertCwdHasNoParentRefs`
+      // above for the segment-level rationale: a bare `..` segment is
+      // vetoed, but legitimate filenames containing `..` as a substring
+      // (`foo/..bar`, `..baz`, `path..to/file`) are allowed through.
       if (allowPath) {
-        if (cwd.includes('..') || cwd.startsWith('/')) {
-          throw new Error('Invalid path: directory traversal not allowed');
-        }
+        assertCwdHasNoParentRefs(cwd);
       }
 
       // Build the full command: when a program is configured, prepend it.
@@ -606,4 +645,5 @@ export {
   rejectPatterns,
   rejectFlags,
   enforcePath,
+  assertCwdHasNoParentRefs,
 };

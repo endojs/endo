@@ -36,7 +36,12 @@ import process from 'node:process';
 
 import test from 'ava';
 
-import { makeBashTool, makeExecTool } from '../../src/tools/command.js';
+import {
+  assertCwdHasNoParentRefs,
+  makeBashTool,
+  makeCommandTool,
+  makeExecTool,
+} from '../../src/tools/command.js';
 
 const isPosix = process.platform !== 'win32';
 
@@ -215,4 +220,123 @@ test('bash: timeout still throws and surfaces the timeout message', async t => {
       }),
     { message: /timed out after 50ms/ },
   );
+});
+
+// ---------------------------------------------------------------------------
+// `assertCwdHasNoParentRefs` — segment-level `..` rejection
+// ---------------------------------------------------------------------------
+//
+// The historical guard rejected any `cwd` containing the substring `..`,
+// which over-rejected legitimate filenames whose names merely *include*
+// `..` (such as `foo/..bar` — a hidden file named `..bar` inside `foo/`).
+// TODO/68 splits the path into segments and rejects only the bare `..`
+// segment, while keeping the absolute-path veto on top.
+
+test('assertCwdHasNoParentRefs accepts filenames that contain `..` as a substring', t => {
+  // Each of these has a `..` substring but no bare `..` segment.
+  t.notThrows(() => assertCwdHasNoParentRefs('foo/..bar'));
+  t.notThrows(() => assertCwdHasNoParentRefs('..baz/qux'));
+  t.notThrows(() => assertCwdHasNoParentRefs('path..to/file'));
+  t.notThrows(() => assertCwdHasNoParentRefs('foo..'));
+  t.notThrows(() => assertCwdHasNoParentRefs('..bar.baz'));
+});
+
+test('assertCwdHasNoParentRefs accepts ordinary relative paths', t => {
+  t.notThrows(() => assertCwdHasNoParentRefs('.'));
+  t.notThrows(() => assertCwdHasNoParentRefs('foo'));
+  t.notThrows(() => assertCwdHasNoParentRefs('foo/bar'));
+  t.notThrows(() => assertCwdHasNoParentRefs('foo/bar/baz'));
+  // Empty segments from a doubled separator are filtered out, not
+  // rejected — `foo//bar` is harmless after path normalization.
+  t.notThrows(() => assertCwdHasNoParentRefs('foo//bar'));
+  // The empty string is a degenerate but harmless relative path (no
+  // segments, not absolute) — the guard's job is to reject *escapes*,
+  // not to validate well-formedness.
+  t.notThrows(() => assertCwdHasNoParentRefs(''));
+});
+
+test('assertCwdHasNoParentRefs rejects bare `..` segments', t => {
+  // The literal bare `..` — the simplest escape.  Pin the exact
+  // message so any pre-existing operator-facing diagnostic stays the
+  // same.
+  t.throws(() => assertCwdHasNoParentRefs('..'), {
+    message: 'Invalid path: directory traversal not allowed',
+  });
+  // A bare `..` as the trailing segment.
+  t.throws(() => assertCwdHasNoParentRefs('foo/..'), {
+    message: 'Invalid path: directory traversal not allowed',
+  });
+  // A bare `..` in the middle.
+  t.throws(() => assertCwdHasNoParentRefs('foo/../bar'), {
+    message: 'Invalid path: directory traversal not allowed',
+  });
+  // A bare `..` as the leading segment.
+  t.throws(() => assertCwdHasNoParentRefs('../foo'), {
+    message: 'Invalid path: directory traversal not allowed',
+  });
+});
+
+test('assertCwdHasNoParentRefs rejects absolute paths with a distinct message', t => {
+  t.throws(() => assertCwdHasNoParentRefs('/etc'), {
+    message: 'Invalid path: absolute paths not allowed',
+  });
+  t.throws(() => assertCwdHasNoParentRefs('/etc/passwd'), {
+    message: 'Invalid path: absolute paths not allowed',
+  });
+  t.throws(() => assertCwdHasNoParentRefs('/'), {
+    message: 'Invalid path: absolute paths not allowed',
+  });
+});
+
+// ---------------------------------------------------------------------------
+// End-to-end: the path guard fires inside `execute` for `allowPath` tools
+// ---------------------------------------------------------------------------
+
+test('makeCommandTool with allowPath rejects a bare `..` cwd via execute', async t => {
+  // Build a minimal allowPath-enabled tool so we exercise the guard
+  // through the public surface, not just the helper.
+  const tool = makeCommandTool({
+    name: 'pathy',
+    program: 'true',
+    allowPath: true,
+  });
+  await t.throwsAsync(() => tool.execute({ args: [], path: 'foo/../bar' }), {
+    message: 'Invalid path: directory traversal not allowed',
+  });
+});
+
+test('makeCommandTool with allowPath accepts a substring-`..` cwd via execute', async t => {
+  if (!isPosix) {
+    t.pass('skipped on non-POSIX host');
+    return;
+  }
+  // The pre-fix textual `includes('..')` check would have rejected
+  // this even though `..bar` is a perfectly ordinary hidden filename.
+  // Using `pwd` lets the call reach the spawner and complete; the
+  // working directory itself does not need to exist for the guard
+  // test, but pointing it at the current directory keeps the spawner
+  // happy.
+  const tool = makeCommandTool({
+    name: 'pathy',
+    program: 'true',
+    allowPath: true,
+  });
+  // The spawner will likely fail to chdir into a non-existent dir,
+  // but the guard runs before the spawn, so a *guard* rejection is
+  // what we are pinning here: the call must not throw the directory-
+  // traversal message.
+  const err = await t
+    .throwsAsync(() => tool.execute({ args: [], path: 'foo/..bar' }))
+    .catch(() => null);
+  if (err) {
+    t.notRegex(
+      err.message,
+      /directory traversal not allowed/,
+      'substring-`..` cwd must not be vetoed by the traversal guard',
+    );
+  } else {
+    // The spawner succeeded (e.g. `foo/..bar` happened to exist) —
+    // that also proves the guard let the call through.
+    t.pass();
+  }
 });

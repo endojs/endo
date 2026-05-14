@@ -75,6 +75,43 @@ When a new daemon-side tool needs filesystem access:
   cap, mint a sibling cap on the host side and introduce it into the
   guest with its own pet name.
 
+### Slice-spec boundary: deep-harden every structured input
+
+`mintGenieSlice` in
+[`src/sandbox/slice.js`](./src/sandbox/slice.js) is the single place
+that hands a slice spec to `E(sandboxFactory).make(...)`.
+Structured object inputs from a potentially adversarial caller (the
+agent's configuration form) must be **deep-copied and hardened on
+entry** before the value flows into `factory.make`.
+Today the only such field is `env`:
+
+```js
+/** @type {Record<string, string>} */
+const safeEnv = harden({ __proto__: null, ...env });
+// then validate non-string values up front and pass `safeEnv` (never
+// `env`) into `E(sandboxFactory).make({ env: safeEnv, … })`.
+```
+
+The reason is a time-of-check / time-of-use seam under the central
+confinement claim: a `Proxy`-backed `env` whose getter returns
+different values on successive reads can differentiate the value
+`mintGenieSlice` (or anything else along the path) reads from the
+value the driver eventually injects into the slice.
+The shallow spread reads every own-enumerable property exactly once,
+and `__proto__: null` + `harden` prevents prototype-chain or property
+drift after entry.
+
+Pin the rule when adding new structured inputs to the slice spec
+(future `labels`, `secrets`, anything that takes a fresh object from
+form data): defensively copy + harden at the `mintGenieSlice`
+boundary rather than trusting the factory's `M.interface()` guard to
+re-read the same bytes the helper read.
+`rootfs` is already a tagged union with each arm validated, and
+`mounts` is shaped by the factory's guard — neither needs a separate
+copy — but anything taking a free-form object map does.
+See [`TODO/63_genie_slice_env_deep_harden.md`](../../TODO/63_genie_slice_env_deep_harden.md)
+for the original analysis.
+
 ### `GENIE_WORKSPACE` is a host path; the slice's cwd is `/workspace`
 
 `GENIE_WORKSPACE` is the **host** filesystem path the operator hands
@@ -127,6 +164,34 @@ deep in `initWorkspace` or the slice-mint call.
 `setup.js` auto-submits `workspace: 'workspace'` when
 `GENIE_WORKSPACE` was set at boot.
 
+The cap validation is a two-layer gate; the layering matters because
+either layer alone is insufficient:
+
+- **Shape gate** — `assertIsMountCap` in
+  [`src/sandbox/slice.js`](./src/sandbox/slice.js) probes
+  `E(cap).__getMethodNames__()` and checks for the
+  `['readText', 'writeText', 'makeDirectory', 'has', 'list']` subset.
+  This produces a friendly, agent-named error when the operator
+  pet-names something that isn't a Mount (a guest, a value blob, a
+  typo).  It is **not** an identity check: any `makeExo` / `Far` exo
+  advertising the right method names satisfies it.
+- **Identity gate** — `E(hostAgent).provideHostPath(cap)` (daemon
+  path; see `packages/daemon/src/host.js` `provideHostPath` ~line
+  302) or `E(powers).provideHostPath(cap)` (dev-repl path; see
+  `local-powers.js`'s `WeakMap` lookup) consults the authoritative
+  registry of mints and rejects strangers with
+  `not a daemon-minted mount` / `not a local-minted mount`.  This is
+  the only authentication standing between a spoofed exo and
+  `factory.make`'s bind-mount surface.
+
+The order is "friendly shape error first, authoritative identity
+error second"; both must remain in place.  The pin tests live at
+`packages/daemon/test/endo.test.js` ("provideHostPath rejects a spoof
+that passes the genie shape gate") and
+`packages/genie/test/local-sandbox-powers.test.js`
+("assertIsMountCap is a shape gate; provideHostPath is the identity
+gate").
+
 ### `rootfs` form field — four shapes plus a backend cross-check
 
 The configuration form's `rootfs` field selects the userland tree the
@@ -165,6 +230,16 @@ in lockstep: the genie surfaces the bwrap/podman asymmetry at the
 operator-facing form boundary so it never bubbles up as a confusing
 slice-mint failure, but the sandbox plugin remains the source of
 truth for which driver supports which `RootfsSpec` shapes.
+
+The pet-name arm flows through the same two-layer cap gate as the
+workspace pet-name shape (see § "Capabilities the genie guest
+receives" above for the full layering): `assertIsMountCap`'s
+`__getMethodNames__()` probe is a **shape** gate producing
+agent-named friendly errors, and `E(sandboxFactory).make({ rootfs })`
+later passes the cap through `provideHostPath`, the authoritative
+**identity** gate (`not a daemon-minted mount` /
+`not a local-minted mount`).  The shape gate alone is not
+authentication; the identity gate alone has no operator context.
 
 `setup.js` does **not** auto-submit `rootfs` — operators tuning it
 answer the form by hand on first boot, and the field's value is
@@ -210,6 +285,39 @@ pick up the change automatically; when you change the form-side
 parsing (`parseRootfsValue`, `assertRootfsBackendCompatible`) the
 helper module is the source of truth and `main.js` re-exports the
 symbols only to preserve the public test surface.
+
+The dev-repl's local powers reject sub-Mounts and symlink escapes to
+mirror the daemon's `EndoHost.provideHostPath` rejection surface —
+adversarially-shaped workspace trees cannot widen the slice's bind
+set.  Three constraints compose to close the surface (see
+[`TODO/61`](../../TADA/61_genie_local_powers_symlink_realpath.md)
+saboteur findings 1, 2, and 4 for the original attack analysis):
+
+- **`Mount.lookup` realpaths the resolved target** and refuses to
+  return a sub-Mount whose canonical path escapes the mount root.  A
+  workspace symlink such as `${workspaceDir}/escape -> /etc` is
+  rejected with `local Mount.lookup: … escapes mount root`, matching
+  the daemon's `assertConfined` realpath check in
+  [`packages/daemon/src/mount.js`](../daemon/src/mount.js).
+- **`provideHostPath` rejects sub-Mount views.**  Only top-level caps
+  (those minted by `provideScratchMount` / `makeMountCapForPath`)
+  pass; sub-Mounts returned by `Mount.lookup()` are tracked
+  separately and refused with `cap is a sub-Mount view, not a
+  top-level mount`.  This mirrors
+  [`packages/daemon/src/host.js`](../daemon/src/host.js)'s explicit
+  rejection of subdirectory views.  Callers that need to bind a
+  sub-directory must mint a fresh top-level cap via
+  `makeMountCapForPath(subPath)` — the same explicit-mint workflow
+  the daemon's `provideMount(absolutePath, …)` requires.
+- **`assertNoEscape` rejects absolute path segments.**  In addition
+  to the long-standing `..` / `\0` veto, segments that begin with
+  `/` or `\\` are refused as defense in depth, so a future swap to
+  `path.resolve` or `path.win32` semantics cannot quietly promote
+  `'/etc/passwd'` into an out-of-workspace address.
+
+Per-rejection tests live next to the powers in
+[`packages/genie/test/local-sandbox-powers.test.js`](./test/local-sandbox-powers.test.js)
+under the "Confinement hardening" heading.
 
 ### Template seeding flows through the same Mount cap
 

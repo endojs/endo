@@ -30,6 +30,74 @@ import { makeSandboxSpawner } from '../tools/sandbox-spawner.js';
 /** @import { BackendProbe, BackendSelector, MountCap, MountSpec, NetworkProfile, RootfsSpec, SandboxFactory, SandboxHandle } from '@endo/sandbox/types.js' */
 
 /**
+ * Method names a `MountCap` must expose for the genie's downstream
+ * consumers — `spawnAgent`'s workspace and rootfs pet-name branches in
+ * `main.js`, plus `initWorkspaceMount` and the slice-mint call.  This
+ * is the subset of the daemon's `MountInterface` the genie actually
+ * drives directly; sibling methods like `lookup` / `remove` / `move`
+ * are exercised through `vfs-mount.js` but not by `spawnAgent` itself,
+ * so they are not gated here.
+ */
+export const MOUNT_REQUIRED_METHODS = harden([
+  'readText',
+  'writeText',
+  'makeDirectory',
+  'has',
+  'list',
+]);
+
+/**
+ * Verify that `cap` exposes the {@link MOUNT_REQUIRED_METHODS} surface
+ * and return it narrowed to `MountCap` for the caller to chain.
+ *
+ * **This is a shape gate, not an identity gate.**  Its job is to
+ * produce a friendly, agent-named error when the operator pet-names
+ * something that isn't a Mount (e.g. a guest, a value blob, a typo).
+ * It does **not** authenticate the cap as daemon-minted (or
+ * local-minted on the dev-repl side) — any `makeExo` / `Far` exo with
+ * the right method names satisfies it.
+ *
+ * The *identity* gate fires later, when `spawnAgent` calls
+ * `E(hostAgent).provideHostPath(cap)` (daemon path) or the dev-repl
+ * calls `E(powers).provideHostPath(cap)` (`local-powers.js` path).
+ * The daemon's `EndoHost.provideHostPath` consults its mount-formula
+ * registry (`packages/daemon/src/host.js` ~line 302) and rejects
+ * strangers with `not a daemon-minted mount`; the local powers
+ * consult a `WeakMap` and reject with `not a local-minted mount`.
+ * A spoofed exo that passes this shape gate is therefore rejected by
+ * the identity gate before any host path crosses the slice boundary
+ * — the layering is "friendly shape error first, authoritative
+ * identity error second", and neither stands alone.
+ *
+ * @param {unknown} cap
+ * @param {object} ctx
+ * @param {string} ctx.agentName
+ * @param {'workspace' | 'rootfs'} ctx.role
+ * @param {string} ctx.petName
+ * @returns {Promise<MountCap>}
+ */
+export const assertIsMountCap = async (cap, { agentName, role, petName }) => {
+  /** @type {string[]} */
+  const methods = /** @type {string[]} */ (
+    // eslint-disable-next-line no-underscore-dangle
+    await E(/** @type {any} */ (cap)).__getMethodNames__()
+  );
+  const missing = MOUNT_REQUIRED_METHODS.filter(m => !methods.includes(m));
+  if (missing.length > 0) {
+    if (role === 'workspace') {
+      throw makeError(
+        X`agent ${q(agentName)}: workspace pet name ${q(petName)} does not refer to a Mount cap (missing methods: ${q(missing.join(', '))}; available: ${q(methods.join(', '))})`,
+      );
+    }
+    throw makeError(
+      X`agent ${q(agentName)}: rootfs pet name ${q(petName)} does not refer to a Mount cap (missing methods: ${q(missing.join(', '))}; available: ${q(methods.join(', '))})`,
+    );
+  }
+  return /** @type {MountCap} */ (cap);
+};
+harden(assertIsMountCap);
+
+/**
  * Slice-internal mount point for the workspace.  Mirrors the path
  * documented in `setup.js` and the genie README; agents see the
  * workspace under this fixed path inside the slice regardless of the
@@ -241,6 +309,14 @@ harden(assertRootfsBackendCompatible);
  *   responsible for resolving the `'pet-name'` marker into a
  *   `MountCap` before invoking `mintGenieSlice` (the daemon does
  *   this via `E(agentGuest).lookup(...)`).
+ * @property {ParsedRootfsValue} parsedRootfs - The synchronous
+ *   form-side parse of the operator's `rootfs` value.  Threaded
+ *   alongside the resolved `rootfs` so `mintGenieSlice` can re-run
+ *   `assertRootfsBackendCompatible` against the *resolved* backend
+ *   (after `'auto'` selection) — the form-side check naming the
+ *   agent fires before mint, but it short-circuits the
+ *   bwrap-rejects-oci rule whenever `backend === 'auto'`.  See
+ *   `TODO/62_genie_slice_resolved_backend_consistency.md`.
  * @property {string} rootfsLabel - Human-readable rootfs label for
  *   the readiness log line (e.g. `'host-bind'`, `'oci:alpine:3.19'`,
  *   `'pet-name:rootfs-mount'`).  Computed by the caller from the
@@ -250,10 +326,16 @@ harden(assertRootfsBackendCompatible);
  *   inject into the slice.  Defaults to `{}`.
  * @property {Promise<unknown>} [cancelledP] - Optional cancellation
  *   signal.  When provided, `slice.dispose()` is registered to fire
- *   on resolution so the bwrap subprocess and scratch upper layer
- *   are reclaimed promptly even before the GC sweep.  When omitted,
- *   the caller is expected to call `slice.dispose()` itself (the
- *   dev-repl path, where teardown is REPL-driven — see
+ *   on **either** resolution **or** rejection of the promise so the
+ *   bwrap subprocess and scratch upper layer are reclaimed promptly
+ *   even before the GC sweep.  The reject arm is wired explicitly
+ *   so a future caller that uses `reject(reason)` to signal "tear
+ *   down because the worker is unhealthy" does not leak the slice
+ *   or trip the node-level `unhandledRejection` warning; today the
+ *   only caller (`main.js`'s `spawnAgent`) resolves the kit on the
+ *   happy path.  When `cancelledP` is omitted, the caller is
+ *   expected to call `slice.dispose()` itself (the dev-repl path,
+ *   where teardown is REPL-driven — see
  *   `TODO/54_genie_dev_repl_sandbox.md`).
  * @property {(msg: string) => void} [onLog] - Optional log writer for
  *   info-level messages (slice mint announcement).  Defaults to
@@ -294,6 +376,21 @@ harden(assertRootfsBackendCompatible);
  * dev-repl harness can format them dimly without the daemon's bracket
  * notation.
  *
+ * The rootfs/backend cross-check (`assertRootfsBackendCompatible`)
+ * fires twice on purpose, and the duplication is intentional — please
+ * do not dedupe one of the call sites away:
+ *
+ * - The caller (`main.js` / `dev-repl.js`) runs it on the raw form
+ *   value *before* mint so the operator sees an error that names the
+ *   agent at the form boundary.  When `backend === 'auto'` that
+ *   check short-circuits the bwrap-rejects-oci rule because
+ *   `'auto'` is bwrap-compatible.
+ * - This helper re-runs it on `resolvedBackend` *after* probe /
+ *   select so an `'auto'` resolution that lands on `bwrap` with an
+ *   `oci:<ref>` rootfs is rejected with the same friendly message
+ *   instead of falling through into `factory.make` and surfacing
+ *   the bwrap driver's lower-level error.
+ *
  * @param {MintGenieSliceOptions} options
  * @returns {Promise<MintedGenieSlice>}
  */
@@ -305,12 +402,31 @@ export const mintGenieSlice = async ({
   backend = DEFAULT_BACKEND,
   network = DEFAULT_NETWORK_PROFILE,
   rootfs,
+  parsedRootfs,
   rootfsLabel,
   env = {},
   cancelledP,
   onLog = console.log,
   onWarn = msg => console.warn(`[genie:${agentName}] ${msg}`),
 }) => {
+  // Deep-harden the caller's `env` at the boundary.  The shallow
+  // spread reads every own enumerable property of the supplied object
+  // exactly once, defeating a `Proxy`-backed `env` whose per-access
+  // getter could otherwise differentiate the value we read here from
+  // the value the driver eventually injects into the slice — a small
+  // but real time-of-check / time-of-use seam under the central
+  // confinement claim.  The `__proto__: null` and `harden` lock the
+  // shape so no prototype-chain or property drift can re-open the
+  // gap after entry.  See `TODO/63_genie_slice_env_deep_harden.md`.
+  const safeEnv = harden({ ...env });
+  for (const [key, value] of Object.entries(safeEnv)) {
+    if (typeof value !== 'string') {
+      throw makeError(
+        X`agent ${q(agentName)}: env value for ${q(key)} must be a string, got ${q(typeof value)}`,
+      );
+    }
+  }
+
   /** @type {MountSpec[]} */
   const mounts = [
     {
@@ -348,13 +464,27 @@ export const mintGenieSlice = async ({
     resolvedBackend = available[0].name;
   }
 
+  // Re-run the rootfs/backend cross-check against the *resolved*
+  // backend.  The caller already ran the check against the raw form
+  // value before invoking us, but that pass short-circuits the
+  // bwrap-rejects-oci rule whenever `backend === 'auto'` (because
+  // `'auto'` is bwrap-compatible by construction).  This second pass
+  // catches the `'auto'` -> `bwrap` resolution with an `oci:<ref>`
+  // rootfs and surfaces the same friendly form-side message instead
+  // of letting `factory.make` fail with the bwrap driver's lower-
+  // level error.  See `TODO/62_genie_slice_resolved_backend_consistency.md`.
+  assertRootfsBackendCompatible(parsedRootfs, resolvedBackend, { agentName });
+
   // The factory's `M.interface()` guard validates the profile / backend
   // names; here we narrow the loose `string` shape from
   // `MintGenieSliceOptions` to the exact union the spec expects.  Naming
   // the locals differently from the spec keys keeps `object-shorthand`
-  // happy without giving up the cast.
+  // happy without giving up the cast.  The selector passed to the
+  // factory is the *resolved* backend so the spec, the log line
+  // (computed off `resolvedBackend` below), and the post-resolution
+  // cross-check above all agree on which driver runs the slice.
   const networkProfile = /** @type {NetworkProfile} */ (network);
-  const backendSelector = /** @type {BackendSelector} */ (backend);
+  const backendSelector = /** @type {BackendSelector} */ (resolvedBackend);
 
   /** @type {SandboxHandle} */
   let slice;
@@ -364,7 +494,7 @@ export const mintGenieSlice = async ({
         rootfs,
         mounts,
         network: networkProfile,
-        env,
+        env: safeEnv,
         cwd: SLICE_WORKSPACE_PATH,
         backend: backendSelector,
       }),
@@ -382,16 +512,28 @@ export const mintGenieSlice = async ({
   // lifetime; explicit dispose() shortens the recovery window
   // when the agent exits cleanly.  When `cancelledP` is omitted,
   // the caller is expected to call `slice.dispose()` itself.
+  //
+  // The two-arm `.then` wires both the resolve and reject paths to
+  // the same teardown: a future caller that uses `reject(reason)`
+  // to signal "tear down because the worker is unhealthy" must not
+  // leak the slice or trip the node-level `unhandledRejection`
+  // warning.  Today the only call site (`main.js`'s `spawnAgent`)
+  // exclusively resolves the kit, so the reject arm is dormant
+  // defense-in-depth — but it is cheap, the intent is documented
+  // on `MintGenieSliceOptions.cancelledP`, and the test suite pins
+  // the behaviour so a regression here would surface as a leaked
+  // slice in CI rather than silently in production.
   if (cancelledP !== undefined) {
-    cancelledP.then(() => {
-      E(slice)
-        .dispose()
-        .catch(disposeErr => {
-          const message =
-            /** @type {Error} */ (disposeErr).message || String(disposeErr);
-          onWarn(`slice dispose error: ${message}`);
-        });
-    });
+    cancelledP
+      .then(
+        () => E(slice).dispose(),
+        () => E(slice).dispose(),
+      )
+      .catch(disposeErr => {
+        const message =
+          /** @type {Error} */ (disposeErr).message || String(disposeErr);
+        onWarn(`slice dispose error: ${message}`);
+      });
   }
 
   onLog(

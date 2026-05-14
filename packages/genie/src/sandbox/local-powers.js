@@ -70,7 +70,7 @@
  */
 
 import { promises as fs, mkdtempSync } from 'fs';
-import { join, isAbsolute } from 'path';
+import { join, isAbsolute, sep } from 'path';
 import { tmpdir } from 'os';
 
 import { makeError, q, X } from '@endo/errors';
@@ -132,6 +132,15 @@ harden(segmentsOf);
  * the obvious textual escape so a typo does not silently address an
  * unrelated host directory.
  *
+ * In addition to `..` and `\0`, segments that begin with a path
+ * separator (`/` on POSIX, `\\` for Windows) are vetoed as defense in
+ * depth.  POSIX `path.join` happens to neutralise `/etc/passwd`
+ * today, but any future swap to `path.resolve` or `path.win32`
+ * semantics would promote the segment to an absolute path and quietly
+ * widen the surface.  See
+ * `TODO/61_genie_local_powers_symlink_realpath.md` saboteur finding
+ * 4.
+ *
  * @param {string[]} segments
  */
 const assertNoEscape = segments => {
@@ -146,6 +155,11 @@ const assertNoEscape = segments => {
         X`local Mount: path segment ${q(segment)} is not allowed`,
       );
     }
+    if (segment.startsWith('/') || segment.startsWith('\\')) {
+      throw makeError(
+        X`local Mount: path segment ${q(segment)} must not be absolute`,
+      );
+    }
   }
 };
 harden(assertNoEscape);
@@ -153,18 +167,45 @@ harden(assertNoEscape);
 /**
  * Build a Mount-shaped exo rooted at `hostPath`.  The cap and its
  * `hostPath` are wired into `capToHostPath` so the same powers'
- * `provideHostPath` can resolve it.
+ * `provideHostPath` can resolve it.  Top-level caps (those minted by
+ * `provideScratchMount` or `makeMountCapForPath`) are also registered
+ * in `topLevelCaps` so that `provideHostPath` can distinguish them
+ * from sub-Mount views returned by `lookup` — only top-level caps
+ * may be bound into a slice, mirroring the daemon's
+ * `EndoHost.provideHostPath` which rejects subdirectory views minted
+ * by `Mount.lookup()` (see `packages/daemon/src/host.js:290-297`).
  *
  * @param {string} hostPath - Absolute host path the mount represents.
  * @param {WeakMap<object, string>} capToHostPath
+ * @param {WeakSet<object>} topLevelCaps
+ * @param {{ topLevel: boolean }} options
  * @returns {object}
  */
-const makeLocalMountCap = (hostPath, capToHostPath) => {
+const makeLocalMountCap = (hostPath, capToHostPath, topLevelCaps, options) => {
   if (!isAbsolute(hostPath)) {
     throw makeError(
       X`local Mount: hostPath must be absolute, got ${q(hostPath)}`,
     );
   }
+
+  /**
+   * Cached realpath of `hostPath`, resolved lazily on first use.  We
+   * realpath the root once so the per-`lookup` symlink-escape check
+   * is robust against a mount whose own `hostPath` is reached through
+   * a symlink (e.g. macOS where `/tmp` is a symlink to `/private/tmp`
+   * and `mkdtempSync('/tmp/foo')` returns a `/tmp/...` path that
+   * realpaths to `/private/tmp/...`).  Without normalising the root,
+   * legitimate sub-paths would falsely trip the escape check.
+   *
+   * @type {string | undefined}
+   */
+  let cachedRealHostPath;
+  const realHostPath = async () => {
+    await null;
+    if (cachedRealHostPath !== undefined) return cachedRealHostPath;
+    cachedRealHostPath = await fs.realpath(hostPath);
+    return cachedRealHostPath;
+  };
 
   /** @param {string[]} segments */
   const resolve = segments => {
@@ -227,9 +268,18 @@ const makeLocalMountCap = (hostPath, capToHostPath) => {
      * in its usual "Path not found" wording.
      *
      * The returned sub-Mount is recorded in `capToHostPath` so a future
-     * caller can resolve it back to the host path; this matches the
-     * daemon-side behaviour (`packages/daemon/src/mount.js` `lookup`
-     * returns a Mount that shares the daemon's mount registry).
+     * caller can resolve it back to the host path; sub-Mounts are
+     * **not** registered in `topLevelCaps`, so `provideHostPath`
+     * rejects them — mirroring
+     * `packages/daemon/src/host.js:290-297`, which refuses
+     * subdirectory views minted by `Mount.lookup()`.
+     *
+     * Before returning a sub-Mount, the resolved target is realpath'd
+     * and compared against the canonical mount root so a symlink
+     * inside the workspace cannot escape upward into an unrelated
+     * directory.  The daemon's counterpart calls `assertConfined`
+     * (`packages/daemon/src/mount.js:217-233`) for the same reason.
+     * See `TODO/61` saboteur finding 1.
      *
      * @param {string | string[]} pathArg
      */
@@ -246,10 +296,31 @@ const makeLocalMountCap = (hostPath, capToHostPath) => {
         }
         throw err;
       }
-      if (info.isDirectory()) {
-        return makeLocalMountCap(target, capToHostPath);
+      // Symlink-escape check: realpath the target and verify it stays
+      // under the canonical mount root.  `fs.stat` above follows
+      // symlinks, so `info.isDirectory()` is true even when `target`
+      // is `${hostPath}/escape -> /etc`; without this check, the
+      // resulting sub-Mount would happily list `/etc`'s contents.
+      const realTarget = await fs.realpath(target);
+      const realRoot = await realHostPath();
+      const rootWithSep = realRoot.endsWith(sep)
+        ? realRoot
+        : `${realRoot}${sep}`;
+      if (realTarget !== realRoot && !realTarget.startsWith(rootWithSep)) {
+        throw makeError(
+          X`local Mount.lookup: ${q(target)} escapes mount root ${q(realRoot)}`,
+        );
       }
-      return makeLocalMountFile(target);
+      if (info.isDirectory()) {
+        // Mint the sub-Mount rooted at the realpath rather than the
+        // possibly-symlinked target so subsequent operations on the
+        // sub-Mount do not need to re-resolve and so the
+        // `capToHostPath` entry records the canonical path.
+        return makeLocalMountCap(realTarget, capToHostPath, topLevelCaps, {
+          topLevel: false,
+        });
+      }
+      return makeLocalMountFile(realTarget);
     },
 
     /** @param {string | string[]} pathArg */
@@ -367,6 +438,9 @@ const makeLocalMountCap = (hostPath, capToHostPath) => {
   });
 
   capToHostPath.set(cap, hostPath);
+  if (options.topLevel) {
+    topLevelCaps.add(cap);
+  }
   return cap;
 };
 harden(makeLocalMountCap);
@@ -409,6 +483,18 @@ harden(makeLocalMountCap);
 export const makeLocalSandboxPowers = () => {
   /** @type {WeakMap<object, string>} */
   const capToHostPath = new WeakMap();
+  /**
+   * Caps minted by `provideScratchMount` and `makeMountCapForPath`
+   * land in this set; sub-Mounts returned by `Mount.lookup` do not.
+   * `provideHostPath` consults the set to refuse subdirectory views,
+   * matching the daemon's behaviour
+   * (`packages/daemon/src/host.js:290-297`).  See
+   * `TODO/61_genie_local_powers_symlink_realpath.md` saboteur finding
+   * 2.
+   *
+   * @type {WeakSet<object>}
+   */
+  const topLevelCaps = new WeakSet();
   /** @type {string[]} */
   const scratchDirs = [];
 
@@ -420,7 +506,9 @@ export const makeLocalSandboxPowers = () => {
       const safePet = petName.replace(/[^a-zA-Z0-9-]/g, '-');
       const dir = mkdtempSync(join(tmpdir(), `genie-local-${safePet}-`));
       scratchDirs.push(dir);
-      return /** @type {MountCap} */ (makeLocalMountCap(dir, capToHostPath));
+      return /** @type {MountCap} */ (
+        makeLocalMountCap(dir, capToHostPath, topLevelCaps, { topLevel: true })
+      );
     },
 
     /** @param {unknown} cap */
@@ -436,10 +524,23 @@ export const makeLocalSandboxPowers = () => {
           X`local provideHostPath: cap is not a local-minted mount`,
         );
       }
-      const path = capToHostPath.get(/** @type {object} */ (cap));
+      const obj = /** @type {object} */ (cap);
+      const path = capToHostPath.get(obj);
       if (path === undefined) {
         throw makeError(
           X`local provideHostPath: cap is not a local-minted mount`,
+        );
+      }
+      // Sub-Mounts minted by `Mount.lookup` are tracked in
+      // `capToHostPath` (so they keep their own hostPath for internal
+      // resolution) but deliberately not in `topLevelCaps` — the
+      // daemon's `EndoHost.provideHostPath` likewise refuses
+      // subdirectory views.  Callers that want to grant a
+      // subdirectory must mint a fresh top-level cap via
+      // `makeMountCapForPath(subPath)`.
+      if (!topLevelCaps.has(obj)) {
+        throw makeError(
+          X`local provideHostPath: cap is a sub-Mount view, not a top-level mount; mint a fresh top-level Mount via makeMountCapForPath instead`,
         );
       }
       return path;
@@ -451,7 +552,11 @@ export const makeLocalSandboxPowers = () => {
 
   /** @param {string} hostPath */
   const makeMountCapForPath = hostPath =>
-    /** @type {MountCap} */ (makeLocalMountCap(hostPath, capToHostPath));
+    /** @type {MountCap} */ (
+      makeLocalMountCap(hostPath, capToHostPath, topLevelCaps, {
+        topLevel: true,
+      })
+    );
 
   const dispose = async () => {
     await null;

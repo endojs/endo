@@ -60,6 +60,7 @@ import {
   ALLOWED_BACKENDS as SLICE_ALLOWED_BACKENDS,
   ALLOWED_NETWORK_PROFILES as SLICE_ALLOWED_NETWORK_PROFILES,
   ALLOWED_ROOTFS_KINDS as SLICE_ALLOWED_ROOTFS_KINDS,
+  assertIsMountCap,
   DEFAULT_BACKEND as SLICE_DEFAULT_BACKEND,
   DEFAULT_NETWORK_PROFILE as SLICE_DEFAULT_NETWORK_PROFILE,
   DEFAULT_ROOTFS_KIND as SLICE_DEFAULT_ROOTFS_KIND,
@@ -1121,27 +1122,18 @@ export const make = (guestPowers, _context) => {
         // Pet name already introduced into the agent's namespace.
         // Validate the Mount surface up front so a typo surfaces as
         // a structured error rather than a duck-typing failure deep
-        // inside `initWorkspace` or the slice-mint call.
+        // inside `initWorkspace` or the slice-mint call.  This is a
+        // **shape** gate; the **identity** gate fires below in
+        // `E(hostAgent).provideHostPath(...)`, which authenticates
+        // the cap against the daemon's mount-formula registry and
+        // rejects spoofs with `not a daemon-minted mount`.  See
+        // `assertIsMountCap`'s docstring for the layering.
         const cap = await E(agentGuest).lookup(config.workspace);
-        /** @type {string[]} */
-        const methods = /** @type {string[]} */ (
-          // eslint-disable-next-line no-underscore-dangle
-          await E(cap).__getMethodNames__()
-        );
-        const required = [
-          'readText',
-          'writeText',
-          'makeDirectory',
-          'has',
-          'list',
-        ];
-        const missing = required.filter(m => !methods.includes(m));
-        if (missing.length > 0) {
-          throw makeError(
-            X`agent ${q(agentName)}: workspace pet name ${q(config.workspace)} does not refer to a Mount cap (missing methods: ${q(missing.join(', '))}; available: ${q(methods.join(', '))})`,
-          );
-        }
-        workspaceMount = /** @type {MountCap} */ (cap);
+        workspaceMount = await assertIsMountCap(cap, {
+          agentName,
+          role: 'workspace',
+          petName: config.workspace,
+        });
         // Bridge back to a host path for the daemon-side `memory` /
         // FTS5 tools (atomic writes + SQLite have no Mount equivalent).
         // The `files` tool group rides the Mount cap directly via
@@ -1215,31 +1207,23 @@ export const make = (guestPowers, _context) => {
     assertRootfsBackendCompatible(parsedRootfs, backend, { agentName });
 
     // Resolve the pet-name marker into a Mount cap, mirroring the
-    // workspace pet-name branch ~lines 1222-1255.  The other shapes
-    // pass through unchanged as `RootfsSpec` keyword arms.
+    // workspace pet-name branch above.  The other shapes pass through
+    // unchanged as `RootfsSpec` keyword arms.  As with the workspace
+    // branch, the `assertIsMountCap` call is a **shape** gate — the
+    // **identity** gate fires inside the sandbox factory when
+    // `factory.make({ rootfs })` passes the cap through
+    // `provideHostPath` (daemon: `EndoHost.provideHostPath`; dev-repl:
+    // `local-powers.js`'s `WeakMap` lookup), rejecting spoofs with
+    // `not a daemon-minted mount` / `not a local-minted mount`.
     /** @type {RootfsSpec} */
     let rootfs;
     if (parsedRootfs.kind === 'pet-name') {
       const cap = await E(agentGuest).lookup(parsedRootfs.petName);
-      /** @type {string[]} */
-      const methods = /** @type {string[]} */ (
-        // eslint-disable-next-line no-underscore-dangle
-        await E(cap).__getMethodNames__()
-      );
-      const required = [
-        'readText',
-        'writeText',
-        'makeDirectory',
-        'has',
-        'list',
-      ];
-      const missing = required.filter(m => !methods.includes(m));
-      if (missing.length > 0) {
-        throw makeError(
-          X`agent ${q(agentName)}: rootfs pet name ${q(parsedRootfs.petName)} does not refer to a Mount cap (missing methods: ${q(missing.join(', '))}; available: ${q(methods.join(', '))})`,
-        );
-      }
-      rootfs = /** @type {MountCap} */ (cap);
+      rootfs = await assertIsMountCap(cap, {
+        agentName,
+        role: 'rootfs',
+        petName: parsedRootfs.petName,
+      });
     } else {
       rootfs = parsedRootfs;
     }
@@ -1291,6 +1275,7 @@ export const make = (guestPowers, _context) => {
         backend,
         network,
         rootfs,
+        parsedRootfs,
         rootfsLabel,
         env: {},
         cancelledP,

@@ -47,7 +47,6 @@ export const webFetch = makeTool('webFetch', {
     await Promise.resolve();
 
     try {
-
       // TODO if genie is being ran in a sandbox, we'd like to force connection
       // dialing down into its network namespace, otherwise this tool is
       // strictly more powerful than say `curl` inside the sandbox

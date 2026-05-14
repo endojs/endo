@@ -995,6 +995,7 @@ async function* runMain(args) {
         backend: sandboxArg,
         network: networkArg,
         rootfs,
+        parsedRootfs,
         rootfsLabel,
         env: {},
         // The dev-repl owns slice teardown directly through the module-
