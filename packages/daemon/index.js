@@ -52,17 +52,35 @@ const info = {
   temp,
 };
 
+const keepStdEnv = new Set([
+  'ARCH',
+  'EGID',
+  'EUID',
+  'HOME',
+  'HOSTNAME',
+  'LANG',
+  'LOCALE',
+  'OSTYPE',
+  'PATH',
+  'PWD',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
+  'TZ',
+  'USER',
+]);
+
 /**
  * Used to filter ambient env when building background daemon env.
  *
  * @param {string} key
  */
 const allowEnvPass = key => {
-  // TODO probably better to use a more restrictive whitelist
   return (
-    key.startsWith('LOCKDOWN_') || key.startsWith('ENDO_')
-    // || key.startsWith('XDG_') // NOTE should not be necessary, as these are already systemd-injected
-    // || key === 'ONLY_WELL_FORMED_STRINGS_PASSABLE' // TODO need?
+    keepStdEnv.has(key) ||
+    key.startsWith('ENDO_') ||
+    key.startsWith('LOCKDOWN_') ||
+    key.startsWith('XDG_')
   );
 };
 
