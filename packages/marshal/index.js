@@ -33,10 +33,12 @@ export * from './src/types.js';
 
 // For compatibility, but importers of these should instead import these
 // directly from `@endo/pass-style` or (if applicable) `@endo/far`.
+// eslint-disable-next-line import/export
 export * from '@endo/pass-style';
 
 /**
  * @deprecated Import deeplyFulfilled directly from @endo/pass-style.
  * The re-export here is just for compat with old importers
  */
+// eslint-disable-next-line import/export
 export { deeplyFulfilled } from '@endo/pass-style';

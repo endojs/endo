@@ -24,6 +24,7 @@
     "@typescript-eslint/eslint-plugin": "8.39.1",
     "@typescript-eslint/parser": "8.39.1",
     "@typescript-eslint/utils": "8.39.1",
+    "eslint-plugin-import": "catalog:dev",
     "requireindex": "~1.2.0",
     "tsutils": "~3.21.0",
     "typescript": "catalog:dev",
