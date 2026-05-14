@@ -142,13 +142,23 @@ jobs:
           export GUIX_PATH=/var/guix/profiles/per-user/root/current-guix
 
           sudo cp "$GUIX_PATH/lib/systemd/system/gnu-store.mount" /etc/systemd/system/
-          # Configure the daemon with both substitute servers up front so
-          # `guix build` falls back to bordeaux.guix.gnu.org whenever
-          # ci.guix.gnu.org is degraded. Both keys are authorized below
-          # from the tarball's bundled `share/guix/*.pub` files.
-          # `--fallback` is a client-side flag (e.g. for `guix build`)
-          # and is rejected by the daemon, so it goes on the build
-          # invocations themselves rather than here.
+          # Configure the daemon with both substitute servers up front
+          # so degradation of one does not block the other. The order
+          # below puts `ci.guix.gnu.org` first because the daemon's
+          # per-item slow path is "first server unreachable" (each
+          # lookup eats a connection timeout before falling through),
+          # not "first server returns 5xx", and the recent failure
+          # window (2026-05-14) saw sustained "Network is unreachable"
+          # from `bordeaux.guix.gnu.org` while `ci.guix.gnu.org` served
+          # substitutes normally. The asymmetry is acceptable: when
+          # `ci.guix.gnu.org` is the one degraded (the failure mode
+          # iteration I in #82 originally addressed), the daemon still
+          # falls back to `bordeaux.guix.gnu.org`. Both keys are
+          # authorized below from the tarball's bundled
+          # `share/guix/*.pub` files. `--fallback` is a client-side
+          # flag (e.g. for `guix build`) and is rejected by the
+          # daemon, so it goes on the build invocations themselves
+          # rather than here.
           cat <<'EOF' | sudo tee /etc/systemd/system/guix-daemon.service > /dev/null
           # Service unit file for guix-daemon, modeled on the upstream
           # template in the Guix install tarball but with explicit
@@ -160,7 +170,7 @@ jobs:
           [Service]
           ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon \
               --build-users-group=guixbuild --discover=yes \
-              --substitute-urls='https://bordeaux.guix.gnu.org https://ci.guix.gnu.org'
+              --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org'
           Environment='GUIX_LOCPATH=/var/guix/profiles/per-user/root/guix-profile/lib/locale' LC_ALL=en_US.utf8
 
           StandardOutput=syslog
@@ -195,12 +205,14 @@ jobs:
         run: guix describe || guix --version
 
       # The substitute fetches that follow inherit `--substitute-urls`
-      # from the daemon, so they consult bordeaux.guix.gnu.org when
-      # ci.guix.gnu.org is degraded. We pass `--fallback` per-invocation
-      # to permit local builds when neither server has the requested
-      # item. The retry wrapper guards against transient daemon errors
-      # during the bordeaux <-> ci handoff, and against the daemon
-      # socket not being ready for the first few seconds after Install.
+      # from the daemon, so they consult `bordeaux.guix.gnu.org` when
+      # `ci.guix.gnu.org` is degraded (and vice-versa, per the daemon
+      # unit's reordered list above). We pass `--fallback` per
+      # invocation to permit local builds when neither server has the
+      # requested item. The retry wrapper guards against transient
+      # daemon errors during the ci <-> bordeaux handoff, and against
+      # the daemon socket not being ready for the first few seconds
+      # after Install.
       - name: Resolve Guix module paths
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
@@ -283,8 +295,14 @@ jobs:
           # with auto-compile disabled; allow Guile to compile modules first.
           # `--fallback` permits local builds when neither substitute server
           # has the requested item (it is a client flag, not a daemon flag).
+          # The 600s upper bound covers the `guix shell` startup (substitute
+          # fetch + local build of any missing item) plus the Guile host's
+          # steady-state lifetime while the Endo client connects. The
+          # polling-for-sturdyref loop below caps the startup portion at
+          # 240s and leaves at least 360s for the Endo client to drive the
+          # interop, which the Endo step itself bounds at 120s.
           OCAPN_TEST_PORT="$OCAPN_TEST_PORT" GUILE_AUTO_COMPILE=1 \
-            timeout 300s guix shell --pure --no-grafts --fallback \
+            timeout 600s guix shell --pure --no-grafts --fallback \
             --preserve='^OCAPN_TEST_PORT$|^GUILE_AUTO_COMPILE$' \
             guile guile-fibers guile-websocket guile-gnutls guile-gcrypt -- \
             guile \
@@ -298,8 +316,20 @@ jobs:
               "hello from Guile CI" "hello from Endo OCapN" \
               > /tmp/guile-interop.log 2>&1 &
           echo $! > /tmp/guile-interop.pid
-          # Wait for the Guile host to advertise its sturdyref.
-          for i in $(seq 1 120); do
+          # Wait for the Guile host to advertise its sturdyref. The
+          # previous 120-second ceiling was tight in the nominal case
+          # but tripped before `guix shell` could finish its
+          # substitute fetch on degraded-substitute-network days
+          # (2026-05-14: `bordeaux.guix.gnu.org` connection-timeouts
+          # added per-item overhead to every fetch, pushing the
+          # sturdyref publication past 120 seconds despite the daemon
+          # eventually completing). 240 seconds covers the slow path
+          # without inflating the nominal-case runtime; the `kill -0`
+          # guard breaks the loop early when the background process
+          # dies for any reason, so a hung 240-second wait is
+          # impossible in practice. The outer `timeout 600s` on the
+          # `guix shell` invocation above is the absolute upper bound.
+          for i in $(seq 1 240); do
             if grep -q 'sturdyref:' /tmp/guile-interop.log; then break; fi
             if ! kill -0 "$(cat /tmp/guile-interop.pid)" 2>/dev/null; then break; fi
             sleep 1
