@@ -1,65 +1,61 @@
 {
-  "name": "@endo/ocapn",
-  "version": "1.0.0",
-  "description": null,
-  "keywords": [],
+  "name": "@endo/bytes",
+  "version": "0.1.0",
+  "description": "Portable Uint8Array helpers for cross-realm byte handling",
+  "keywords": [
+    "uint8array",
+    "bytes",
+    "endo",
+    "ses"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/ocapn#readme",
+  "homepage": "https://github.com/endojs/endo/blob/master/packages/bytes/README.md",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/ocapn"
+    "directory": "packages/bytes"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./index.js",
-  "module": "./index.js",
   "exports": {
-    ".": "./index.js",
-    "./netlayer/tcp-testing": "./src/netlayers/tcp-test-only.js",
-    "./netlayer/ws": "./src/netlayers/websocket.js",
+    "./equals.js": "./equals.js",
+    "./from-string.js": "./from-string.js",
+    "./to-string.js": "./to-string.js",
+    "./concat.js": "./concat.js",
+    "./concat-immutables.js": "./concat-immutables.js",
+    "./from-immutable.js": "./from-immutable.js",
+    "./to-immutable.js": "./to-immutable.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
     "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
     "postpack": "git clean -fX -e node_modules/",
+    "cover": "c8 ses-ava",
     "lint": "yarn lint:types && yarn lint:eslint",
-    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint:eslint": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix .",
+    "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ses-ava",
-    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
-    "test:xs": "exit 0",
-    "test:python": "node --expose-gc ./test/python-test-suite/index.js",
-    "test:update-snapshots": "ses-ava --update-snapshots"
+    "test": "ses-ava"
   },
   "dependencies": {
-    "@endo/bytes": "workspace:^",
-    "@endo/eventual-send": "workspace:^",
     "@endo/harden": "workspace:^",
-    "@endo/hex": "workspace:^",
-    "@endo/init": "workspace:^",
-    "@endo/marshal": "workspace:^",
-    "@endo/nat": "workspace:^",
-    "@endo/pass-style": "workspace:^",
-    "@endo/promise-kit": "workspace:^",
-    "@noble/curves": "^1.9.0",
-    "@noble/hashes": "^1.8.0",
-    "ws": "^8.20.0"
+    "@endo/immutable-arraybuffer": "workspace:^"
   },
   "devDependencies": {
-    "@endo/lockdown": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "@types/ws": "^8",
     "ava": "catalog:dev",
+    "babel-eslint": "^10.1.0",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
+    "prettier": "^3.5.3",
     "ses": "workspace:^",
-    "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },
   "files": [
@@ -85,5 +81,8 @@
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
     "endo": "../../ava-endo-shims-only.config.mjs"
+  },
+  "typeCoverage": {
+    "atLeast": 95
   }
 }

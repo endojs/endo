@@ -5,11 +5,24 @@
  */
 
 import harden from '@endo/harden';
-import {
-  decodeImmutableArrayBufferToString,
-  encodeStringToImmutableArrayBuffer,
-} from '../buffer-utils.js';
+import { bytesFromText } from '@endo/bytes/from-string.js';
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+
 import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
+
+// Strict UTF-8 decoder used for record labels carried as bytestrings on
+// the wire.  `fatal: true` rejects malformed sequences rather than
+// silently substituting U+FFFD, matching the historical behavior of
+// the displaced `buffer-utils` helper.
+const labelTextDecoder = new TextDecoder('utf-8', { fatal: true });
+
+/**
+ * @param {ArrayBufferLike} buffer
+ * @returns {string}
+ */
+const decodeBytestringLabel = buffer =>
+  labelTextDecoder.decode(bytesFromImmutable(buffer));
 /**
  * @typedef {object} SyrupCodec
  * @property {function(SyrupReader): any} read
@@ -372,7 +385,7 @@ export const makeRecordCodec = (
     }
     const labelString =
       labelInfo.type === 'bytestring'
-        ? decodeImmutableArrayBufferToString(labelInfo.value)
+        ? decodeBytestringLabel(labelInfo.value)
         : labelInfo.value;
     if (labelString !== label) {
       throw Error(
@@ -394,7 +407,7 @@ export const makeRecordCodec = (
     } else if (labelType === 'string') {
       syrupWriter.writeString(label);
     } else if (labelType === 'bytestring') {
-      syrupWriter.writeBytestring(encodeStringToImmutableArrayBuffer(label));
+      syrupWriter.writeBytestring(bytesToImmutable(bytesFromText(label)));
     }
     writeBody(value, syrupWriter);
     syrupWriter.exitRecord();
@@ -663,7 +676,7 @@ export const makeRecordUnionCodec = (codecName, recordTypes) => {
     const labelInfo = syrupReader.readRecordLabel();
     const labelString =
       labelInfo.type === 'bytestring'
-        ? decodeImmutableArrayBufferToString(labelInfo.value)
+        ? decodeBytestringLabel(labelInfo.value)
         : labelInfo.value;
     const recordCodec = recordTable[labelString];
     if (!recordCodec) {

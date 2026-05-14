@@ -2,6 +2,9 @@
 import { randomBytes } from 'node:crypto';
 
 import harden from '@endo/harden';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
+import { concatBytes } from '@endo/bytes/concat.js';
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 
@@ -18,11 +21,6 @@ import {
   serializeHandoffGive,
   serializeHandoffReceive,
 } from './codecs/descriptors.js';
-import {
-  uint8ArrayToImmutableArrayBuffer,
-  immutableArrayBufferToUint8Array,
-  concatUint8Arrays,
-} from './buffer-utils.js';
 
 /**
  * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './codecs/components.js'
@@ -53,9 +51,9 @@ const sessionIdHashPrefixBytes = textEncoder.encode('prot0');
  * @returns {Uint8Array}
  */
 const ocapNSignatureToBytes = sig => {
-  const rBytes = immutableArrayBufferToUint8Array(sig.r);
-  const sBytes = immutableArrayBufferToUint8Array(sig.s);
-  return concatUint8Arrays([rBytes, sBytes]);
+  const rBytes = bytesFromImmutable(sig.r);
+  const sBytes = bytesFromImmutable(sig.s);
+  return concatBytes([rBytes, sBytes]);
 };
 
 /**
@@ -82,7 +80,7 @@ const makePublicKeyIdFromDescriptor = publicKeyDescriptor => {
   const hash1 = sha256(publicKeyDescriptorBytes);
   const hash2 = sha256(hash1);
   // @ts-expect-error - Branded type: PublicKeyId is ArrayBufferLike at runtime
-  return uint8ArrayToImmutableArrayBuffer(hash2);
+  return bytesToImmutable(hash2);
 };
 
 /**
@@ -103,8 +101,8 @@ export const makeOcapnPublicKey = publicKeyBytes => {
      */
     assertSignatureValid: (msgBytes, ocapnSig) => {
       const sigBytes = ocapNSignatureToBytes(ocapnSig);
-      const msgUint8 = immutableArrayBufferToUint8Array(msgBytes);
-      const pkUint8 = immutableArrayBufferToUint8Array(publicKeyBytes);
+      const msgUint8 = bytesFromImmutable(msgBytes);
+      const pkUint8 = bytesFromImmutable(publicKeyBytes);
       const isValid = ed25519.verify(sigBytes, msgUint8, pkUint8);
       if (!isValid) {
         throw new Error('Invalid signature');
@@ -119,17 +117,17 @@ export const makeOcapnPublicKey = publicKeyBytes => {
  */
 export const makeOcapnKeyPairFromPrivateKey = privateKeyBytes => {
   const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
-  const publicKeyBuffer = uint8ArrayToImmutableArrayBuffer(publicKeyBytes);
+  const publicKeyBuffer = bytesToImmutable(publicKeyBytes);
   return {
     publicKey: makeOcapnPublicKey(publicKeyBuffer),
     sign: msg => {
-      const msgBytes = immutableArrayBufferToUint8Array(msg);
+      const msgBytes = bytesFromImmutable(msg);
       const sigBytes = ed25519.sign(msgBytes, privateKeyBytes);
       return {
         type: 'sig-val',
         scheme: 'eddsa',
-        r: uint8ArrayToImmutableArrayBuffer(sigBytes.slice(0, 32)),
-        s: uint8ArrayToImmutableArrayBuffer(sigBytes.slice(32)),
+        r: bytesToImmutable(sigBytes.slice(0, 32)),
+        s: bytesToImmutable(sigBytes.slice(32)),
       };
     },
   };
@@ -173,8 +171,8 @@ export const publicKeyDescriptorToPublicKey = publicKeyDescriptor => {
  */
 export const makeSessionId = (peerIdOne, peerIdTwo) => {
   // Convert to Uint8Array for comparison
-  const peerIdOneBytes = immutableArrayBufferToUint8Array(peerIdOne);
-  const peerIdTwoBytes = immutableArrayBufferToUint8Array(peerIdTwo);
+  const peerIdOneBytes = bytesFromImmutable(peerIdOne);
+  const peerIdTwoBytes = bytesFromImmutable(peerIdTwo);
 
   // Sort both IDs based on the resulting octets
   const result = compareUint8Arrays(peerIdOneBytes, peerIdTwoBytes);
@@ -184,15 +182,12 @@ export const makeSessionId = (peerIdOne, peerIdTwo) => {
       : [peerIdTwoBytes, peerIdOneBytes];
   // Concatinating them in the order from number 3
   // Append the string "prot0" to the beginning
-  const sessionIdBytes = concatUint8Arrays([
-    sessionIdHashPrefixBytes,
-    ...peerIds,
-  ]);
+  const sessionIdBytes = concatBytes([sessionIdHashPrefixBytes, ...peerIds]);
   // Double SHA256 hash the resulting string
   const hash1 = sha256(sessionIdBytes);
   const hash2 = sha256(hash1);
   // @ts-expect-error - Branded type: SessionId is ArrayBufferLike at runtime
-  return uint8ArrayToImmutableArrayBuffer(hash2);
+  return bytesToImmutable(hash2);
 };
 
 /**
@@ -204,7 +199,7 @@ const getLocationBytesForSignature = location => {
     type: 'my-location',
     location,
   });
-  return uint8ArrayToImmutableArrayBuffer(myLocationBytes);
+  return bytesToImmutable(myLocationBytes);
 };
 
 /**
@@ -317,7 +312,7 @@ export const assertHandoffReceiveSignatureValid = (
  * @returns {ArrayBufferLike}
  */
 export const randomGiftId = () => {
-  return uint8ArrayToImmutableArrayBuffer(randomBytes(16));
+  return bytesToImmutable(randomBytes(16));
 };
 
 /**

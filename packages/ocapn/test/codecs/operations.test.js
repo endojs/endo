@@ -7,11 +7,10 @@ import harden from '@endo/harden';
  */
 
 import test from '@endo/ses-ava/test.js';
-import {
-  uint8ArrayToImmutableArrayBuffer,
-  encodeStringToImmutableArrayBuffer,
-  hexToArrayBuffer,
-} from '../../src/buffer-utils.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+import { bytesFromText } from '@endo/bytes/from-string.js';
+import { decodeHex } from '@endo/hex';
+
 import { makeSelector } from '../../src/selector.js';
 import {
   exampleSigParamBytes,
@@ -20,6 +19,12 @@ import {
   makeCodecTestKit,
 } from './_codecs_util.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';
+
+/**
+ * @param {string} hex
+ * @returns {ArrayBuffer}
+ */
+const hexToImmutableBuffer = hex => bytesToImmutable(decodeHex(hex));
 
 /** @type {CodecTestEntry[]} */
 export const table = [
@@ -101,7 +106,7 @@ export const table = [
       to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [
         makeSelector('fetch'),
-        encodeStringToImmutableArrayBuffer('swiss-number'),
+        bytesToImmutable(bytesFromText('swiss-number')),
       ],
       answerPosition: 3n,
       resolveMeDesc: testKit.makeLocalObject(5n),
@@ -111,7 +116,7 @@ export const table = [
       to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('fetch'),
-        encodeStringToImmutableArrayBuffer('swiss-number'),
+        bytesToImmutable(bytesFromText('swiss-number')),
       ],
       answerPosition: 3n,
       resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(5n),
@@ -169,7 +174,7 @@ export const table = [
       to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [
         makeSelector('fetch'),
-        hexToArrayBuffer(
+        hexToImmutableBuffer(
           '676930324931716768497750694b474b6c654351414f687079335a7459527042',
         ),
       ],
@@ -181,7 +186,7 @@ export const table = [
       to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('fetch'),
-        hexToArrayBuffer(
+        hexToImmutableBuffer(
           '676930324931716768497750694b474b6c654351414f687079335a7459527042',
         ),
       ],
@@ -196,7 +201,7 @@ export const table = [
       to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [
         makeSelector('fetch'),
-        hexToArrayBuffer(
+        hexToImmutableBuffer(
           '564d44446431766f4b5761724365324776674c627862564679734e7a52507a78',
         ),
       ],
@@ -208,7 +213,7 @@ export const table = [
       to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('fetch'),
-        hexToArrayBuffer(
+        hexToImmutableBuffer(
           '564d44446431766f4b5761724365324776674c627862564679734e7a52507a78',
         ),
       ],
@@ -240,7 +245,7 @@ export const table = [
       to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [
         makeSelector('fetch'),
-        hexToArrayBuffer(
+        hexToImmutableBuffer(
           '494f35386c316c61547968637267444b62457a464f4f33324d4464367a453577',
         ),
       ],
@@ -252,7 +257,7 @@ export const table = [
       to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('fetch'),
-        hexToArrayBuffer(
+        hexToImmutableBuffer(
           '494f35386c316c61547968637267444b62457a464f4f33324d4464367a453577',
         ),
       ],
@@ -269,7 +274,7 @@ export const table = [
         makeSelector('foo'),
         1n,
         false,
-        uint8ArrayToImmutableArrayBuffer(Uint8Array.from([0x62, 0x61, 0x72])),
+        bytesToImmutable(Uint8Array.from([0x62, 0x61, 0x72])),
         ['baz'],
       ]),
       answerPosition: false,
@@ -282,7 +287,7 @@ export const table = [
         makeSelector('foo'),
         1n,
         false,
-        uint8ArrayToImmutableArrayBuffer(Uint8Array.from([0x62, 0x61, 0x72])),
+        bytesToImmutable(Uint8Array.from([0x62, 0x61, 0x72])),
         ['baz'],
       ],
       answerPosition: false,

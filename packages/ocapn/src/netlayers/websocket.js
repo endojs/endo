@@ -3,12 +3,10 @@
 import { randomBytes } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import harden from '@endo/harden';
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 
 import { makeOcapnKeyPair, makeOcapnPublicKey } from '../cryptography.js';
-import {
-  immutableArrayBufferToUint8Array,
-  uint8ArrayToImmutableArrayBuffer,
-} from '../buffer-utils.js';
 import { locationToLocationId } from '../client/util.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
@@ -174,7 +172,7 @@ const encodeInitPeerAuth = payload => {
   InitPeerAuthCodec.write(
     {
       type: 'init:peer-auth',
-      payload: uint8ArrayToImmutableArrayBuffer(payload),
+      payload: bytesToImmutable(payload),
     },
     syrupWriter,
   );
@@ -284,7 +282,7 @@ export const makeWebSocketNetLayer = async ({
   specifiedUrl,
 }) => {
   const designatorKeyPair = makeOcapnKeyPair();
-  const designatorPublicKey = immutableArrayBufferToUint8Array(
+  const designatorPublicKey = bytesFromImmutable(
     designatorKeyPair.publicKey.bytes,
   );
   const designator = base32Encode(designatorPublicKey);
@@ -359,7 +357,7 @@ export const makeWebSocketNetLayer = async ({
       );
     }
     const remotePublicKey = makeOcapnPublicKey(
-      uint8ArrayToImmutableArrayBuffer(remotePublicKeyBytes),
+      bytesToImmutable(remotePublicKeyBytes),
     );
 
     logger.info('Connecting to websocket', { wsUrl });
@@ -391,7 +389,7 @@ export const makeWebSocketNetLayer = async ({
         try {
           const envelope = decodeInitPeerAuthSigEnvelope(messageBytes);
           remotePublicKey.assertSignatureValid(
-            uint8ArrayToImmutableArrayBuffer(challengeMessage),
+            bytesToImmutable(challengeMessage),
             envelope.signature,
           );
           socketState.authenticated = true;
@@ -461,7 +459,7 @@ export const makeWebSocketNetLayer = async ({
           // Sign the received bytes verbatim. The wrapping `init:peer-auth`
           // record prevents this from being used as a generic signing oracle.
           const signature = designatorKeyPair.sign(
-            uint8ArrayToImmutableArrayBuffer(messageBytes),
+            bytesToImmutable(messageBytes),
           );
           const responseBytes = encodeInitPeerAuthSigEnvelope(
             initPeerAuth,

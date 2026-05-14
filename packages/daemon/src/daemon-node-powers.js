@@ -3,6 +3,7 @@
 
 import harden from '@endo/harden';
 import { encodeHex } from '@endo/hex';
+import { bytesFromText } from '@endo/bytes/from-string.js';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
@@ -16,8 +17,6 @@ import { makeSerialJobs } from './serial-jobs.js';
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
-
-const textEncoder = new TextEncoder();
 
 /**
  * @param {object} modules
@@ -282,7 +281,7 @@ export const makeCryptoPowers = crypto => {
     const digester = crypto.createHash('sha512');
     return harden({
       update: chunk => digester.update(chunk),
-      updateText: chunk => digester.update(textEncoder.encode(chunk)),
+      updateText: chunk => digester.update(bytesFromText(chunk)),
       digestHex: () => encodeHex(digester.digest()),
     });
   };

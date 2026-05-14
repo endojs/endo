@@ -11,6 +11,8 @@
  */
 
 import harden from '@endo/harden';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import {
   makeOcapnRecordCodec,
@@ -25,7 +27,6 @@ import {
 } from './components.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
 import { getSturdyRefDetails } from '../client/sturdyrefs.js';
-import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
 
 /**
  * @typedef {object} DescCodecs
@@ -413,7 +414,7 @@ export const makeHandoffGiveDescriptor = (
 export const serializeHandoffGive = handoffGive => {
   const syrupWriter = makeSyrupWriter();
   DescHandoffGiveCodec.write(handoffGive, syrupWriter);
-  return uint8ArrayToImmutableArrayBuffer(syrupWriter.getBytes());
+  return bytesToImmutable(syrupWriter.getBytes());
 };
 
 /**
@@ -465,5 +466,5 @@ export const makeHandoffReceiveSigEnvelope = (handoffReceive, signature) => {
 export const serializeHandoffReceive = handoffReceive => {
   const syrupWriter = makeSyrupWriter();
   DescHandoffReceiveCodec.write(handoffReceive, syrupWriter);
-  return uint8ArrayToImmutableArrayBuffer(syrupWriter.getBytes());
+  return bytesToImmutable(syrupWriter.getBytes());
 };
