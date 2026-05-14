@@ -485,11 +485,11 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     "@endo/where": "workspace:^"
     "@endo/zip": "workspace:^"
+    amaro: "npm:^1.1.9"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
-    ts-blank-space: "npm:^0.6.1"
     typescript: "catalog:dev"
   bin:
     bundle-source: ./src/tool.js
@@ -3266,6 +3266,13 @@ __metadata:
     json-schema-traverse: "npm:^0.4.1"
     uri-js: "npm:^4.2.2"
   checksum: 10c0/41e23642cbe545889245b9d2a45854ebba51cda6c778ebced9649420d9205f2efb39cb43dbc41e358409223b1ea43303ae4839db682c848b891e4811da1a5a71
+  languageName: node
+  linkType: hard
+
+"amaro@npm:^1.1.9":
+  version: 1.1.9
+  resolution: "amaro@npm:1.1.9"
+  checksum: 10c0/54a222810cfbc53c04286b20a64c65b8e8110199be94bce3380d090881c4521eb7545d2c0749afecffbaa9fe0b89f1050bfbc8b5bba755ba2e6f1bc81ebfa1f6
   languageName: node
   linkType: hard
 
@@ -11758,15 +11765,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-blank-space@npm:^0.6.1":
-  version: 0.6.1
-  resolution: "ts-blank-space@npm:0.6.1"
-  dependencies:
-    typescript: "npm:5.1.6 - 5.8.x"
-  checksum: 10c0/cf674e96d204c3f6d99e29966580b7c3526680ff012dfa3e45aef10a1052011b5ced55bae81d57f46b153053ed9413082a2d15db7812c2c0eb138d178b0f376c
-  languageName: node
-  linkType: hard
-
 "tsconfig-paths@npm:^4.1.2":
   version: 4.2.0
   resolution: "tsconfig-paths@npm:4.2.0"
@@ -12053,16 +12051,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:5.1.6 - 5.8.x":
-  version: 5.8.3
-  resolution: "typescript@npm:5.8.3"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/5f8bb01196e542e64d44db3d16ee0e4063ce4f3e3966df6005f2588e86d91c03e1fb131c2581baf0fb65ee79669eea6e161cd448178986587e9f6844446dbb48
-  languageName: node
-  linkType: hard
-
 "typescript@npm:>=3 < 6, typescript@npm:~5.9.2":
   version: 5.9.2
   resolution: "typescript@npm:5.9.2"
@@ -12080,16 +12068,6 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/4b860b0bf87cc0fee0f66d8ef2640b5a8a8a8c74d1129adb82e389e5f97124383823c47946bef8a73ede371461143a3aa8544399d2133c7b2e4f07e81860af7f
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@npm%3A5.1.6 - 5.8.x#optional!builtin<compat/typescript>":
-  version: 5.8.3
-  resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/39117e346ff8ebd87ae1510b3a77d5d92dae5a89bde588c747d25da5c146603a99c8ee588c7ef80faaf123d89ed46f6dbd918d534d641083177d5fac38b8a1cb
   languageName: node
   linkType: hard
 
