@@ -23,6 +23,7 @@
         "packages/fae",
         "packages/familiar",
         "packages/genie",
+        "packages/harden-test",
         "packages/hex-test",
         "packages/inventory-graph",
         "packages/jaine",

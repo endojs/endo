@@ -2029,6 +2029,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/harden-test@workspace:packages/harden-test":
+  version: 0.0.0-use.local
+  resolution: "@endo/harden-test@workspace:packages/harden-test"
+  dependencies:
+    "@endo/harden": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+  languageName: unknown
+  linkType: soft
+
 "@endo/harden@workspace:^, @endo/harden@workspace:packages/harden":
   version: 0.0.0-use.local
   resolution: "@endo/harden@workspace:packages/harden"
@@ -2036,7 +2048,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ses: "workspace:^"
     tsd: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
