@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+// @ts-check
+
+import '@endo/init';
+import process from 'node:process';
+
+import { makeBroker, loadApiKey } from '../src/broker/main.js';
+
+const socketPath =
+  process.env.CLAUDE_ORCH_BROKER_SOCKET || '/run/claude-orch/broker.sock';
+const configPath = process.env.CLAUDE_ORCH_BROKER_CONFIG;
+
+const apiKey = await loadApiKey({ configPath });
+const broker = makeBroker({ socketPath, apiKey });
+const server = await broker.listen();
+
+console.error(`[claude-broker] listening on ${socketPath}`);
+
+const shutdown = async (/** @type {NodeJS.Signals} */ signal) => {
+  console.error(`[claude-broker] received ${signal}, shutting down...`);
+  server.close(() => process.exit(0));
+};
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

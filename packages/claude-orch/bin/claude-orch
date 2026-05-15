@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+// @ts-check
+
+import '@endo/init';
+
+import { start } from '../src/main.js';
+
+const orchestrator = await start();
+
+const shutdown = async (/** @type {NodeJS.Signals} */ signal) => {
+  console.error(`[claude-orch] received ${signal}, shutting down...`);
+  try {
+    await orchestrator.stop();
+    process.exit(0);
+  } catch (e) {
+    console.error(`[claude-orch] shutdown error:`, e);
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

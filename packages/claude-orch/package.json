@@ -1,0 +1,72 @@
+{
+  "name": "@endo/claude-orch",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Host orchestrator for Claude Code microVM sandboxes — HTTP-over-UDS API, QEMU spawn, network isolation, bootstrap/agent RPC, credential broker. See DESIGN.md in @endo/claude-container.",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/claude-orch"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./src/main.js",
+  "types": "./protocol.types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./protocol.types.d.ts",
+      "default": "./src/main.js"
+    },
+    "./types": "./protocol.types.d.ts",
+    "./src/api/server.js": "./src/api/server.js",
+    "./src/sessions/session-manager.js": "./src/sessions/session-manager.js",
+    "./src/qemu/args.js": "./src/qemu/args.js",
+    "./src/qemu/spawner.js": "./src/qemu/spawner.js",
+    "./src/network/index.js": "./src/network/index.js",
+    "./src/bootstrap/rpc-server.js": "./src/bootstrap/rpc-server.js",
+    "./src/agent/rpc-server.js": "./src/agent/rpc-server.js",
+    "./src/broker/main.js": "./src/broker/main.js",
+    "./src/broker-client/index.js": "./src/broker-client/index.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "claude-orch": "./bin/claude-orch",
+    "claude-broker": "./bin/claude-broker"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "build:image": "./scripts/build-image.sh",
+    "build:guest": "cargo build --release --manifest-path=../../rust/claude-orch/bootstrap-init/Cargo.toml && cargo build --release --manifest-path=../../rust/claude-orch/runtime-agent/Cargo.toml",
+    "start": "node bin/claude-orch",
+    "broker": "node bin/claude-broker",
+    "test": "ava",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/promise-kit": "workspace:^"
+  },
+  "devDependencies": {
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "60s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}
