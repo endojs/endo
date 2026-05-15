@@ -1,8 +1,12 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-14 (M½ project-hygiene milestone extracted from M1)*
+*Last updated: 2026-05-15 (M½ project-hygiene milestone extracted from M1; endopi raft added)*
 
-*Recently added or revised: [hardened-text-codecs-shim](hardened-text-codecs-shim.md)
+*Recently added or revised: [endopi](endopi.md) (added 2026-05-15;
+comparative analysis of the pi agent harness against endo's daemon +
+chat + familiar + cli; sibling of `endoclaw.md`; spins out eight
+gap-closing designs prefixed `endopi-*`),
+[hardened-text-codecs-shim](hardened-text-codecs-shim.md)
 (added 2026-05-06; permits `TextEncoder`/`TextDecoder` in SES intrinsics),
 [hardened-url-shim](hardened-url-shim.md) (added 2026-05-06; vetted-shim
 treatment for the `URL` constructor and `URLSearchParams`).*
@@ -93,6 +97,15 @@ PR #151 row-format unblocker; sibling of
 | [daemon-make-archive](daemon-make-archive.md) | 2026-04-23 | 2026-04-24 | In Progress |
 | [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-03-02 | **Complete** |
 | [endoclaw](endoclaw.md) | 2026-03-03 | 2026-03-03 | Reference |
+| [endopi](endopi.md) | 2026-05-15 | 2026-05-15 | Reference |
+| [endopi-edit-tool](endopi-edit-tool.md) | 2026-05-15 | 2026-05-15 | Proposed |
+| [endopi-jsonl-transcript-format](endopi-jsonl-transcript-format.md) | 2026-05-15 | 2026-05-15 | Proposed |
+| [endopi-provider-registry-and-oauth](endopi-provider-registry-and-oauth.md) | 2026-05-15 | 2026-05-15 | Proposed |
+| [endopi-skills-markdown-format](endopi-skills-markdown-format.md) | 2026-05-15 | 2026-05-15 | Proposed |
+| [endopi-prompt-templates](endopi-prompt-templates.md) | 2026-05-15 | 2026-05-15 | Proposed |
+| [endopi-iterative-compaction](endopi-iterative-compaction.md) | 2026-05-15 | 2026-05-15 | Proposed |
+| [endopi-stdio-rpc-bridge](endopi-stdio-rpc-bridge.md) | 2026-05-15 | 2026-05-15 | Proposed |
+| [endopi-extension-package-manifest](endopi-extension-package-manifest.md) | 2026-05-15 | 2026-05-15 | Proposed |
 | [endoclaw-browser](endoclaw-browser.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-channel-bridges](endoclaw-channel-bridges.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-network-fetch](endoclaw-network-fetch.md) | 2026-03-03 | 2026-03-03 | Not Started |
@@ -149,7 +162,7 @@ PR #151 row-format unblocker; sibling of
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 28 Complete/Implemented, 17 In Progress, 44 Not Started, 7 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (106 designs)
+**Totals:** 29 Complete/Implemented, 17 In Progress, 44 Not Started, 16 Proposed, 3 Active, 4 Reference, 2 Deprecated, 1 Draft, 1 Superseded (118 designs)
 
 ## Roadmap
 
@@ -716,6 +729,15 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | endoclaw-skill-registry | S-M | 3 days | 5 | Skills directory with capability declarations; PR #105 open |
 | endor-tui | XL | 5-8 weeks | 6 | Rust TUI: ratatui/crossterm, concept-map of every Chat component, XS `mxDebug` debugger integration (XL bumped 1.3x) |
 | endor-bus-tui | XL | 4-7 weeks | 6 | Bus-verb spec, XS handle API, Exo/CapTP wrapper; cross-worker layout composition (XL bumped 1.3x) |
+| endopi | Reference | — | — | Comparative analysis of the pi agent harness against endo; spins out the endopi-* gap-closing designs below |
+| endopi-edit-tool | S-M | 3 days | 1 | LLM-friendly oldText/newText edit primitive on `File` capability; reuses [cli-edit-verb](cli-edit-verb.md)'s diff helpers |
+| endopi-jsonl-transcript-format | S-M | 3 days | 1 | On-disk JSONL projection of the Lal transcript graph; satisfies endoclaw § *Persistence and Memory*'s "Pi-compatible jsonl files" directive |
+| endopi-provider-registry-and-oauth | M-L | 1.5 weeks | 1 | Registry shape for LLM providers; subscription OAuth (Claude Pro, ChatGPT Plus, Copilot); cross-provider handoff |
+| endopi-skills-markdown-format | S-M | 3 days | 5 | On-disk SKILL.md format (agentskills.io); paired with [endoclaw-skill-registry](endoclaw-skill-registry.md) |
+| endopi-prompt-templates | S | 1-2 days | 4 | Reusable user-prompt scaffolds with `{{var}}` expansion; shares skills' discovery walker |
+| endopi-iterative-compaction | M | 4-5 days | 4 | Auto-compaction algorithm matching Pi's released shape; substrate for [lal-transcript-memory-management](lal-transcript-memory-management.md) |
+| endopi-stdio-rpc-bridge | M | 4-5 days | 1 | LF-delimited JSONL RPC for embedding the Lal/Fae agent in another process; short-term shape before `endor-bus-tui` |
+| endopi-extension-package-manifest | S-M | 3 days | 5 | `package.json` `endo` keyword bundling guests + skills + prompts + providers in one install |
 
 #### Summary by Milestone
 
