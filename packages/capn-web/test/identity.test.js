@@ -78,3 +78,76 @@ test('local export reused across calls keeps the same id', async t => {
   const sb = sessionB.getStats();
   t.true(sb.imports >= 1, `B imports >= 1 (got ${sb.imports})`);
 });
+
+test('promise-stub round-trip: unawaited E() result is wired as a pipeline reference, not re-exported', async t => {
+  // `await E(remote).foo()` returns the resolved value, but the
+  // user-held promise that E() returns *before* it settles is also
+  // tracked: stubs.js's makeHandler aliases the HandledPromise's
+  // returnedP at the answer's import id (via tables.aliasImport).
+  // That alias is what lets the devaluator recognise a user-held
+  // promise — even an unresolved one — as `["pipeline", qid]` when
+  // it's later passed back as an argument, rather than re-exporting
+  // it as a fresh promise.
+  //
+  // Pin that behaviour two ways:
+  //  - the wire form for the second call references the first call's
+  //    answer slot (`["pipeline", qid]`), not a fresh export;
+  //  - the peer awaits the pipeline ref to recover the original
+  //    presence with reference equality.
+  const stable = Far('stable', { tag: () => 'stable' });
+  const peerCalls = [];
+  const server = Far('server', {
+    fetch: () => stable,
+    pass: async x => {
+      // The arg arrives as the export-table value at the pipeline-
+      // referenced answer slot — a promise.  Awaiting it yields the
+      // original presence; the alias is what makes that match
+      // possible (otherwise the wire would have re-exported a fresh
+      // promise stub).
+      const resolved = await x;
+      peerCalls.push(resolved);
+      return resolved === stable ? 'identity-preserved' : 'identity-lost';
+    },
+  });
+  // Capture the outbound wire to assert the pipeline-reference shape.
+  const sent = [];
+  const { a, b } = makeLoopbackPair();
+  const wrapped = {
+    send: m => {
+      sent.push(JSON.parse(m));
+      return a.send(m);
+    },
+    receive: () => a.receive(),
+    abort: a.abort,
+  };
+  const sessionA = makeCapnWebSession(wrapped, { gcImports: false });
+  makeCapnWebSession(b, { localMain: server, gcImports: false });
+  const r = sessionA.getRemoteMain();
+  // Do NOT await fetch() — pass the live promise to .pass() in the
+  // same turn.  Both calls go out; the second's args reference the
+  // first's answer slot via ["pipeline", qid].
+  const fetchP = E(r).fetch();
+  const result = await E(r).pass(fetchP);
+  t.is(result, 'identity-preserved');
+  // The peer-side resolved value is the original `stable` Far (the
+  // peer's own value), confirming the alias→pipeline→await chain
+  // returned the same reference.
+  t.is(peerCalls.length, 1);
+  t.is(peerCalls[0], stable);
+  // Wire-form check: the second push's args carry a pipeline
+  // reference to the first push's answer slot, not a fresh
+  // promise/export encoding.
+  const pushes = sent.filter(m => m[0] === 'push');
+  // First push: fetch.  Second push: pass(fetchP) — args should be
+  // [["pipeline", N]] where N is the fetch answer-id.
+  t.true(pushes.length >= 2);
+  const passArgs = pushes[1][1][3];
+  t.is(passArgs.length, 1);
+  t.is(passArgs[0][0], 'pipeline');
+  t.true(typeof passArgs[0][1] === 'number' && passArgs[0][1] >= 1);
+  // Sender-side: fetchP awaited and a fresh fetch() resolve to the
+  // same presence (the sender's view of `stable` is a stable stub).
+  const got = await fetchP;
+  const direct = await E(r).fetch();
+  t.is(got, direct);
+});
