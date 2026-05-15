@@ -63,7 +63,10 @@ table inet claude {
 export const makeNftablesController = () => {
   let initialized = false;
 
-  const run = async (/** @type {string} */ cmd, /** @type {string[]} */ args) => {
+  const run = async (
+    /** @type {string} */ cmd,
+    /** @type {string[]} */ args,
+  ) => {
     try {
       return await execFileAsync(cmd, args);
     } catch (e) {

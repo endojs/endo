@@ -1,4 +1,5 @@
 // @ts-check
+/* global globalThis */
 /**
  * @import {
  *   BrokerRequest,
@@ -62,21 +63,24 @@ export const makeBroker = ({ socketPath, apiKey }) => {
       await unlink(socketPath).catch(() => {});
       const server = net.createServer(conn => {
         let buf = '';
-        conn.on('data', async chunk => {
+        conn.on('data', chunk => {
           buf += chunk.toString('utf8');
           for (;;) {
             const i = buf.indexOf('\n');
             if (i < 0) break;
             const line = buf.slice(0, i);
             buf = buf.slice(i + 1);
-            try {
-              const req = /** @type {BrokerRequest} */ (JSON.parse(line));
-              const res = await handle(req);
-              conn.write(`${JSON.stringify(res)}\n`);
-            } catch (e) {
-              const msg = /** @type {Error} */ (e).message;
-              conn.write(`${JSON.stringify({ type: 'error', message: msg })}\n`);
-            }
+            // Serialize each request to handle() and reply when it resolves;
+            // requests can run concurrently since the broker has no
+            // per-session ordering requirement.
+            handle(/** @type {BrokerRequest} */ (JSON.parse(line)))
+              .then(res => conn.write(`${JSON.stringify(res)}\n`))
+              .catch(e => {
+                const msg = /** @type {Error} */ (e).message;
+                conn.write(
+                  `${JSON.stringify({ type: 'error', message: msg })}\n`,
+                );
+              });
           }
         });
       });
@@ -98,14 +102,18 @@ harden(makeBroker);
  * @param {{ configPath?: string, envVar?: string }} opts
  * @returns {Promise<string>}
  */
-export const loadApiKey = async ({ configPath, envVar = 'ANTHROPIC_API_KEY' }) => {
+export const loadApiKey = async ({
+  configPath,
+  envVar = 'ANTHROPIC_API_KEY',
+}) => {
   // eslint-disable-next-line no-restricted-globals
   const fromEnv = /** @type {any} */ (globalThis).process?.env?.[envVar];
   if (fromEnv) return fromEnv;
   if (configPath) {
     const data = await readFile(configPath, 'utf8');
     const trimmed = data.trim();
-    if (trimmed.length === 0) throw new Error(`Empty broker config: ${configPath}`);
+    if (trimmed.length === 0)
+      throw new Error(`Empty broker config: ${configPath}`);
     return trimmed;
   }
   throw new Error(

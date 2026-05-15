@@ -1,4 +1,5 @@
 // @ts-check
+/* global Buffer */
 /**
  * @import {
  *   CreateSessionRequest,
@@ -36,7 +37,12 @@ export const makeApiServer = ({ socketPath, handlers }) => {
       const parts = url.pathname.split('/').filter(Boolean);
 
       // POST /v1/sessions
-      if (req.method === 'POST' && parts.length === 2 && parts[0] === 'v1' && parts[1] === 'sessions') {
+      if (
+        req.method === 'POST' &&
+        parts.length === 2 &&
+        parts[0] === 'v1' &&
+        parts[1] === 'sessions'
+      ) {
         const body = await readBody(req);
         const session = await handlers.createSession(body);
         respondJson(res, 200, session);
@@ -44,13 +50,23 @@ export const makeApiServer = ({ socketPath, handlers }) => {
       }
 
       // GET /v1/sessions
-      if (req.method === 'GET' && parts.length === 2 && parts[0] === 'v1' && parts[1] === 'sessions') {
+      if (
+        req.method === 'GET' &&
+        parts.length === 2 &&
+        parts[0] === 'v1' &&
+        parts[1] === 'sessions'
+      ) {
         respondJson(res, 200, handlers.listSessions());
         return;
       }
 
       // GET /v1/sessions/:id
-      if (req.method === 'GET' && parts.length === 3 && parts[0] === 'v1' && parts[1] === 'sessions') {
+      if (
+        req.method === 'GET' &&
+        parts.length === 3 &&
+        parts[0] === 'v1' &&
+        parts[1] === 'sessions'
+      ) {
         const session = handlers.getSession(parts[2]);
         if (!session) {
           respondJson(res, 404, { error: 'unknown session' });
@@ -61,7 +77,13 @@ export const makeApiServer = ({ socketPath, handlers }) => {
       }
 
       // POST /v1/sessions/:id/ready
-      if (req.method === 'POST' && parts.length === 4 && parts[0] === 'v1' && parts[1] === 'sessions' && parts[3] === 'ready') {
+      if (
+        req.method === 'POST' &&
+        parts.length === 4 &&
+        parts[0] === 'v1' &&
+        parts[1] === 'sessions' &&
+        parts[3] === 'ready'
+      ) {
         await handlers.markReady(parts[2]);
         res.writeHead(204);
         res.end();
@@ -69,7 +91,12 @@ export const makeApiServer = ({ socketPath, handlers }) => {
       }
 
       // DELETE /v1/sessions/:id
-      if (req.method === 'DELETE' && parts.length === 3 && parts[0] === 'v1' && parts[1] === 'sessions') {
+      if (
+        req.method === 'DELETE' &&
+        parts.length === 3 &&
+        parts[0] === 'v1' &&
+        parts[1] === 'sessions'
+      ) {
         await handlers.terminateSession(parts[2]);
         res.writeHead(204);
         res.end();

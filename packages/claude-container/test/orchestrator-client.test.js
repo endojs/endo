@@ -1,4 +1,5 @@
 // @ts-check
+/* global Buffer */
 /* eslint-disable import/order */
 
 import '@endo/init';
@@ -14,7 +15,9 @@ const startMockServer = async (socketPath, handler) => {
   const server = http.createServer(async (req, res) => {
     const chunks = [];
     for await (const c of req) chunks.push(c);
-    const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : null;
+    const body = chunks.length
+      ? JSON.parse(Buffer.concat(chunks).toString('utf8'))
+      : null;
     const out = await handler(req, body);
     if (out === undefined) {
       res.writeHead(204);
@@ -61,7 +64,9 @@ test('createSession + listSessions + terminate happy path', async t => {
     if (req.method === 'GET' && req.url === '/v1/sessions') {
       return {
         status: 200,
-        body: [{ id: 's1', state: 'pending', createdAt: '2026-05-15T00:00:00Z' }],
+        body: [
+          { id: 's1', state: 'pending', createdAt: '2026-05-15T00:00:00Z' },
+        ],
       };
     }
     if (req.method === 'POST' && req.url === '/v1/sessions/s1/ready') {
@@ -76,7 +81,10 @@ test('createSession + listSessions + terminate happy path', async t => {
   t.teardown(() => new Promise(r => server.close(() => r(undefined))));
 
   const client = makeOrchestratorClient({ socketPath: sockPath });
-  const s = await client.createSession({ network: 'egress', attachMode: 'stream' });
+  const s = await client.createSession({
+    network: 'egress',
+    attachMode: 'stream',
+  });
   t.is(s.id, 's1');
   t.is(lastCreate.network, 'egress');
 
@@ -99,7 +107,10 @@ test('orchestrator-client surfaces server errors with method+path context', asyn
   t.teardown(() => new Promise(r => server.close(() => r(undefined))));
 
   const client = makeOrchestratorClient({ socketPath: sockPath });
-  await t.throwsAsync(client.createSession({ network: 'none', attachMode: 'none' }), {
-    message: /POST.*\/v1\/sessions.*boom/,
-  });
+  await t.throwsAsync(
+    client.createSession({ network: 'none', attachMode: 'none' }),
+    {
+      message: /POST.*\/v1\/sessions.*boom/,
+    },
+  );
 });

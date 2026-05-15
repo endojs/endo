@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout, clearTimeout */
 /**
  * @import {
  *   BootConfigMessage,
@@ -29,9 +30,7 @@ export const configFromEnv = () => {
   const env = process.env;
   return harden({
     socketPath: env.CLAUDE_ORCH_SOCKET || '/run/claude-orch/api.sock',
-    imageDir:
-      env.CLAUDE_ORCH_IMAGE_DIR ||
-      '/opt/claude-orch/share/images',
+    imageDir: env.CLAUDE_ORCH_IMAGE_DIR || '/opt/claude-orch/share/images',
     sessionDir: env.CLAUDE_ORCH_SESSION_DIR || '/run/claude-orch/sessions',
     brokerSocketPath:
       env.CLAUDE_ORCH_BROKER_SOCKET || '/run/claude-orch/broker.sock',
@@ -53,7 +52,10 @@ harden(configFromEnv);
  * @param {{ config?: OrchestratorConfig }} [opts]
  */
 export const start = async ({ config = configFromEnv() } = {}) => {
-  await mkdir(path.dirname(config.socketPath), { recursive: true, mode: 0o750 });
+  await mkdir(path.dirname(config.socketPath), {
+    recursive: true,
+    mode: 0o750,
+  });
   await mkdir(config.sessionDir, { recursive: true, mode: 0o750 });
 
   const sessions = makeSessionManager({ config });
@@ -92,7 +94,7 @@ export const start = async ({ config = configFromEnv() } = {}) => {
     }
 
     // Caller has bound the fs.sock; spawn QEMU now.
-    const arch = request_arch(record.request, config);
+    const arch = resolveArch(record.request, config);
     const netAttachment = await network.attachSession(record.id, {
       mode: record.request.network,
     });
@@ -123,19 +125,21 @@ export const start = async ({ config = configFromEnv() } = {}) => {
     vms.set(sessionId, vm);
 
     // If the VM dies before Ready, surface the failure.
-    vm.exitCode.then(code => {
-      const cur = sessions.getRecord(sessionId);
-      if (!cur) return;
-      if (cur.state === 'ready' || cur.state === 'unhealthy') {
-        sessions.setState(sessionId, 'terminated', {
-          failureReason: `qemu exited ${code}`,
-        });
-      } else if (cur.state !== 'terminated') {
-        sessions.setState(sessionId, 'boot_failed', {
-          failureReason: `qemu exited ${code} before ready`,
-        });
-      }
-    }).catch(() => {});
+    vm.exitCode
+      .then(code => {
+        const cur = sessions.getRecord(sessionId);
+        if (!cur) return;
+        if (cur.state === 'ready' || cur.state === 'unhealthy') {
+          sessions.setState(sessionId, 'terminated', {
+            failureReason: `qemu exited ${code}`,
+          });
+        } else if (cur.state !== 'terminated') {
+          sessions.setState(sessionId, 'boot_failed', {
+            failureReason: `qemu exited ${code} before ready`,
+          });
+        }
+      })
+      .catch(() => {});
 
     try {
       await helloPromise;
@@ -244,4 +248,4 @@ harden(start);
  * @param {OrchestratorConfig} config
  * @returns {import('../protocol.types.d.ts').Arch}
  */
-const request_arch = (request, config) => request.arch ?? config.defaults.arch;
+const resolveArch = (request, config) => request.arch ?? config.defaults.arch;

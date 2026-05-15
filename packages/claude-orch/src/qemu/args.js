@@ -31,7 +31,9 @@ export const buildQemuArgs = ({ arch, record, config, netArgs }) => {
   const platform = process.platform;
   const accel = platform === 'darwin' ? 'hvf' : 'kvm';
   const machine =
-    arch === 'x86_64' ? 'microvm,acpi=off,pic=off,pit=off,rtc=on' : 'virt,gic-version=3';
+    arch === 'x86_64'
+      ? 'microvm,acpi=off,pic=off,pit=off,rtc=on'
+      : 'virt,gic-version=3';
   const kernelImage =
     arch === 'x86_64'
       ? path.join(config.imageDir, 'vmlinux-x86_64')
@@ -122,7 +124,10 @@ harden(qemuBinaryFor);
  */
 export const deriveMac = sessionId => {
   // 02:<6 hex from session id>
-  const hex = sessionId.replace(/[^0-9a-f]/gi, '').slice(0, 10).padEnd(10, '0');
+  const hex = sessionId
+    .replace(/[^0-9a-f]/gi, '')
+    .slice(0, 10)
+    .padEnd(10, '0');
   return `02:${hex.slice(0, 2)}:${hex.slice(2, 4)}:${hex.slice(4, 6)}:${hex.slice(6, 8)}:${hex.slice(8, 10)}`;
 };
 harden(deriveMac);

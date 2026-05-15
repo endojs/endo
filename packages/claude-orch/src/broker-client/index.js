@@ -28,7 +28,10 @@ const callBroker = (socketPath, req) => {
   let buf = '';
   let settled = false;
 
-  const settle = (/** @type {(value: BrokerResponse) => void} */ res, /** @type {BrokerResponse} */ value) => {
+  const settle = (
+    /** @type {(value: BrokerResponse) => void} */ res,
+    /** @type {BrokerResponse} */ value,
+  ) => {
     if (settled) return;
     settled = true;
     res(value);
@@ -74,9 +77,10 @@ export const makeBrokerClient = ({ socketPath }) => {
     async issue(sessionId) {
       const res = await callBroker(socketPath, { type: 'issue', sessionId });
       if (res.type !== 'creds') {
+        const detail =
+          'message' in res && res.message ? ` (${res.message})` : '';
         throw new Error(
-          `broker issue: unexpected response ${res.type}` +
-            ('message' in res && res.message ? ` (${res.message})` : ''),
+          `broker issue: unexpected response ${res.type}${detail}`,
         );
       }
       return res.credentials;

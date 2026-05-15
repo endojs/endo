@@ -1,5 +1,6 @@
 // @ts-check
-/* eslint-disable no-await-in-loop */
+/* global Buffer */
+/* eslint-disable no-await-in-loop, no-bitwise */
 //
 // Minimal 9P2000.L server backed by an Endo filesystem capability.
 //
@@ -20,7 +21,12 @@
 
 import { E } from '@endo/eventual-send';
 
-import { makeReader, makeWriter, tryParseMessage, wrapMessage } from './wire.js';
+import {
+  makeReader,
+  makeWriter,
+  tryParseMessage,
+  wrapMessage,
+} from './wire.js';
 import { E as ERRNO, QT, S, T, GETATTR_BASIC } from './types.js';
 
 const VERSION_9P2000_L = '9P2000.L';
@@ -85,25 +91,44 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     const r = makeReader(msg.payload);
     const { type, tag } = msg;
     switch (type) {
-      case T.Tversion: return onVersion(tag, r);
-      case T.Tauth: return sendError(tag, ERRNO.ENOSYS);
-      case T.Tattach: return onAttach(tag, r);
-      case T.Tflush: return sendEmpty(tag, T.Rflush);
-      case T.Twalk: return onWalk(tag, r);
-      case T.Tlopen: return onLopen(tag, r);
-      case T.Tread: return onRead(tag, r);
-      case T.Tclunk: return onClunk(tag, r);
-      case T.Tgetattr: return onGetattr(tag, r);
-      case T.Treaddir: return onReaddir(tag, r);
-      case T.Tstatfs: return onStatfs(tag, r);
-      case T.Tlcreate: return onLcreate(tag, r);
-      case T.Twrite: return onWrite(tag, r);
-      case T.Tmkdir: return onMkdir(tag, r);
-      case T.Tunlinkat: return onUnlinkat(tag, r);
-      case T.Trenameat: return onRenameat(tag, r);
-      case T.Tsetattr: return sendEmpty(tag, T.Rsetattr); // no-op
-      case T.Txattrwalk: return sendError(tag, ERRNO.ENOSYS);
-      default: return sendError(tag, ERRNO.ENOSYS);
+      case T.Tversion:
+        return onVersion(tag, r);
+      case T.Tauth:
+        return sendError(tag, ERRNO.ENOSYS);
+      case T.Tattach:
+        return onAttach(tag, r);
+      case T.Tflush:
+        return sendEmpty(tag, T.Rflush);
+      case T.Twalk:
+        return onWalk(tag, r);
+      case T.Tlopen:
+        return onLopen(tag, r);
+      case T.Tread:
+        return onRead(tag, r);
+      case T.Tclunk:
+        return onClunk(tag, r);
+      case T.Tgetattr:
+        return onGetattr(tag, r);
+      case T.Treaddir:
+        return onReaddir(tag, r);
+      case T.Tstatfs:
+        return onStatfs(tag, r);
+      case T.Tlcreate:
+        return onLcreate(tag, r);
+      case T.Twrite:
+        return onWrite(tag, r);
+      case T.Tmkdir:
+        return onMkdir(tag, r);
+      case T.Tunlinkat:
+        return onUnlinkat(tag, r);
+      case T.Trenameat:
+        return onRenameat(tag, r);
+      case T.Tsetattr:
+        return sendEmpty(tag, T.Rsetattr); // no-op
+      case T.Txattrwalk:
+        return sendError(tag, ERRNO.ENOSYS);
+      default:
+        return sendError(tag, ERRNO.ENOSYS);
     }
   };
 
@@ -111,7 +136,10 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     socket.write(data);
   };
 
-  const sendEmpty = (/** @type {number} */ tag, /** @type {number} */ rtype) => {
+  const sendEmpty = (
+    /** @type {number} */ tag,
+    /** @type {number} */ rtype,
+  ) => {
     send(wrapMessage(rtype, tag, Buffer.alloc(0)));
   };
 
@@ -155,7 +183,7 @@ export const serveConnection = ({ fs, socket, onClose }) => {
   const onWalk = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
     const newfid = r.u32();
-    const nwname = r.u16();
+    const nwname = /** @type {number} */ (r.u16());
     const wnames = [];
     for (let i = 0; i < nwname; i += 1) wnames.push(r.str());
 
@@ -269,10 +297,14 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     w.u64(BigInt(Math.ceil((stat.size ?? 0) / 512))); // blocks (512-byte units)
     const mt = BigInt(Math.floor((stat.mtimeMs ?? 0) / 1000));
     const mtN = BigInt(((stat.mtimeMs ?? 0) % 1000) * 1_000_000);
-    w.u64(mt); w.u64(mtN); // atime
-    w.u64(mt); w.u64(mtN); // mtime
-    w.u64(mt); w.u64(mtN); // ctime
-    w.u64(0); w.u64(0); // btime
+    w.u64(mt);
+    w.u64(mtN); // atime
+    w.u64(mt);
+    w.u64(mtN); // mtime
+    w.u64(mt);
+    w.u64(mtN); // ctime
+    w.u64(0);
+    w.u64(0); // btime
     w.u64(0); // gen
     w.u64(0); // data_version
     send(wrapMessage(T.Rgetattr, tag, w.finish()));
@@ -282,7 +314,7 @@ export const serveConnection = ({ fs, socket, onClose }) => {
   const onReaddir = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
     const offset = Number(r.u64());
-    const count = r.u32();
+    const count = /** @type {number} */ (r.u32());
     const f = fids.get(fid);
     if (!f || !f.open || !f.dirCache) return sendError(tag, ERRNO.EBADF);
 

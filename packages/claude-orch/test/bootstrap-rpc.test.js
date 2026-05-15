@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout */
 /* eslint-disable import/order */
 
 import '@endo/init';
@@ -102,6 +103,8 @@ test('awaitHello rejects a stale nonce', async t => {
     })}\n`,
   );
   client.on('close', () => {});
-  await t.throwsAsync(helloPromise, { message: /Invalid or replayed boot nonce/ });
+  await t.throwsAsync(helloPromise, {
+    message: /Invalid or replayed boot nonce/,
+  });
   client.destroy();
 });

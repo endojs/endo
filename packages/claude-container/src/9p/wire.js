@@ -1,4 +1,5 @@
 // @ts-check
+/* global Buffer */
 //
 // 9P2000.L wire-format helpers. All integers little-endian, strings prefixed
 // with a u16 length and encoded as UTF-8 with no null terminator.
@@ -14,6 +15,7 @@ export const makeWriter = (initialSize = 256) => {
   let buf = Buffer.alloc(initialSize);
   let off = 0;
 
+  /** @param {number} n */
   const ensure = n => {
     while (off + n > buf.length) {
       const grown = Buffer.alloc(buf.length * 2);

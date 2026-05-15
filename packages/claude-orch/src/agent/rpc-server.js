@@ -54,13 +54,14 @@ export const makeAgentLink = ({ agentSocketPath }) => {
         if (i < 0) break;
         const line = buf.slice(0, i);
         buf = buf.slice(i + 1);
-        if (line.length === 0) continue;
-        try {
-          const msg = /** @type {AgentToOrchMessage} */ (JSON.parse(line));
-          if (msg.type === 'ready') readyKit.resolve(undefined);
-          for (const h of messageHandlers) h(msg);
-        } catch (_e) {
-          // Malformed line; ignore. Agent is untrusted so we don't crash.
+        if (line.length > 0) {
+          try {
+            const msg = /** @type {AgentToOrchMessage} */ (JSON.parse(line));
+            if (msg.type === 'ready') readyKit.resolve(undefined);
+            for (const h of messageHandlers) h(msg);
+          } catch (_e) {
+            // Malformed line; ignore. Agent is untrusted so we don't crash.
+          }
         }
       }
     });

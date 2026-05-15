@@ -87,83 +87,89 @@ export const make = (guestPowers, _context) => {
     }
 
     const messageIterator = makeRefIterator(E(powers).followMessages());
-    while (true) {
+    let exhausted = false;
+    while (!exhausted) {
       const { value: message, done } = await messageIterator.next();
-      if (done) break;
+      if (done) {
+        exhausted = true;
+        break;
+      }
 
       const msg = message;
+      const isOurForm = msg.from === selfId && msg.type === 'form';
+      const isFormReply =
+        msg.type === 'value' &&
+        msg.replyTo === formMessageId &&
+        !seenFormReplies.has(msg.number);
 
-      if (msg.from === selfId && msg.type === 'form') {
+      if (isOurForm) {
         formMessageId = msg.messageId;
-        continue;
-      }
-      if (msg.type !== 'value' || msg.replyTo !== formMessageId) continue;
-      if (seenFormReplies.has(msg.number)) continue;
-      seenFormReplies.add(msg.number);
-
-      try {
-        const submission = await E(powers).lookupById(msg.valueId);
-        const {
-          name,
-          filesystem: fsName,
-          network = 'egress',
-          model,
-          initialPrompt,
-        } = submission;
-
-        if (!name) throw new Error('Missing "name".');
-        if (!fsName) throw new Error('Missing "filesystem" pet name.');
-
-        const fs = await E(hostAgent).lookup(fsName);
-        if (!fs) throw new Error(`Unknown filesystem: "${fsName}".`);
-
-        const session = await orchestrator.createSession({
-          network,
-          attachMode: 'stream',
-        });
-
-        const bridge = makeFsBridge9p({
-          fs,
-          socketPath: session.fsSocketPath,
-        });
-        await E(bridge).start();
-
-        await orchestrator.markReady(session.id);
-
-        const client = makeClaudeClient({
-          session,
-          orchestrator,
-          bridge,
-          model,
-          initialPrompt,
-        });
-
-        await E(hostAgent).storeValue(client, name);
-
-        await E(powers).reply(
-          msg.number,
-          [
-            `ClaudeClient "${name}" created.`,
-            `  session: ${session.id}`,
-            `  filesystem: ${fsName}`,
-            `  network: ${network}`,
-          ],
-          [],
-          [],
-        );
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        console.error('[claude-container-factory]', errorMessage);
+      } else if (isFormReply) {
+        seenFormReplies.add(msg.number);
         try {
+          const submission = await E(powers).lookupById(msg.valueId);
+          const {
+            name,
+            filesystem: fsName,
+            network = 'egress',
+            model,
+            initialPrompt,
+          } = submission;
+
+          if (!name) throw new Error('Missing "name".');
+          if (!fsName) throw new Error('Missing "filesystem" pet name.');
+
+          const fs = await E(hostAgent).lookup(fsName);
+          if (!fs) throw new Error(`Unknown filesystem: "${fsName}".`);
+
+          const session = await orchestrator.createSession({
+            network,
+            attachMode: 'stream',
+          });
+
+          const bridge = makeFsBridge9p({
+            fs,
+            socketPath: session.fsSocketPath,
+          });
+          await E(bridge).start();
+
+          await orchestrator.markReady(session.id);
+
+          const client = makeClaudeClient({
+            session,
+            orchestrator,
+            bridge,
+            model,
+            initialPrompt,
+          });
+
+          await E(hostAgent).storeValue(client, name);
+
           await E(powers).reply(
             msg.number,
-            [`Error creating container: ${errorMessage}`],
+            [
+              `ClaudeClient "${name}" created.`,
+              `  session: ${session.id}`,
+              `  filesystem: ${fsName}`,
+              `  network: ${network}`,
+            ],
             [],
             [],
           );
-        } catch {
-          // Best-effort reply.
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error('[claude-container-factory]', errorMessage);
+          try {
+            await E(powers).reply(
+              msg.number,
+              [`Error creating container: ${errorMessage}`],
+              [],
+              [],
+            );
+          } catch {
+            // Best-effort reply.
+          }
         }
       }
     }

@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout, clearTimeout */
 /**
  * @import {
  *   BootConfigMessage,
@@ -41,7 +42,11 @@ export const awaitHello = ({
 
   /** @type {NodeJS.Timeout} */
   const timer = setTimeout(() => {
-    cleanup(new Error(`Boot deadline (${deadlineMs}ms) exceeded for session ${sessionId}.`));
+    cleanup(
+      new Error(
+        `Boot deadline (${deadlineMs}ms) exceeded for session ${sessionId}.`,
+      ),
+    );
   }, deadlineMs);
 
   /** @param {Error | null} err */

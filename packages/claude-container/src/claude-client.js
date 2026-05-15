@@ -6,9 +6,9 @@ import { M } from '@endo/patterns';
 import { makeError, X } from '@endo/errors';
 
 const ClaudeClientInterface = M.interface('ClaudeClient', {
-  send: M.call(M.string()).optional(M.recordOf(M.string(), M.any())).returns(
-    M.promise(),
-  ),
+  send: M.call(M.string())
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(M.promise()),
   interrupt: M.call().returns(M.promise()),
   terminate: M.call().returns(M.promise()),
   status: M.call().returns(M.promise()),

@@ -41,7 +41,10 @@ test('buildQemuArgs emits the chardev/virtserialport quartet from Appendix A', t
   });
   const j = args.join(' ');
   t.regex(j, /-chardev socket,id=ctl,path=\/sessions\/abc\/ctl\.sock/);
-  t.regex(j, /-chardev socket,id=fs,path=\/sessions\/abc\/fs\.sock,server=off,reconnect=1/);
+  t.regex(
+    j,
+    /-chardev socket,id=fs,path=\/sessions\/abc\/fs\.sock,server=off,reconnect=1/,
+  );
   t.regex(j, /-chardev socket,id=agent,path=\/sessions\/abc\/agent\.sock/);
   t.regex(j, /-chardev socket,id=stdio,path=\/sessions\/abc\/stdio\.sock/);
   t.regex(j, /virtserialport,chardev=ctl,name=orchestrator/);
@@ -65,8 +68,18 @@ test('buildQemuArgs threads the boot nonce and session id onto the cmdline', t =
 });
 
 test('buildQemuArgs selects machine type and devices per arch', t => {
-  const x86 = buildQemuArgs({ arch: 'x86_64', record: baseRecord, config: baseConfig, netArgs: [] }).join(' ');
-  const arm = buildQemuArgs({ arch: 'aarch64', record: baseRecord, config: baseConfig, netArgs: [] }).join(' ');
+  const x86 = buildQemuArgs({
+    arch: 'x86_64',
+    record: baseRecord,
+    config: baseConfig,
+    netArgs: [],
+  }).join(' ');
+  const arm = buildQemuArgs({
+    arch: 'aarch64',
+    record: baseRecord,
+    config: baseConfig,
+    netArgs: [],
+  }).join(' ');
   t.regex(x86, /microvm,acpi=off,pic=off,pit=off,rtc=on/);
   t.regex(arm, /virt,gic-version=3/);
   t.regex(x86, /virtio-blk-device,drive=rootfs/);

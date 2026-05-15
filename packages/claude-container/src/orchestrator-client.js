@@ -1,4 +1,5 @@
 // @ts-check
+/* global Buffer */
 
 import http from 'node:http';
 import net from 'node:net';
@@ -82,18 +83,16 @@ export const makeOrchestratorClient = ({ socketPath }) => {
      * @returns {Promise<Session>}
      */
     async createSession(opts) {
-      return /** @type {Session} */ (
-        await okOrThrow('POST', '/v1/sessions', opts)
-      );
+      const res = await okOrThrow('POST', '/v1/sessions', opts);
+      return /** @type {Session} */ (res);
     },
 
     /**
      * @returns {Promise<SessionSummary[]>}
      */
     async listSessions() {
-      return /** @type {SessionSummary[]} */ (
-        await okOrThrow('GET', '/v1/sessions')
-      );
+      const res = await okOrThrow('GET', '/v1/sessions');
+      return /** @type {SessionSummary[]} */ (res);
     },
 
     /**
@@ -101,9 +100,11 @@ export const makeOrchestratorClient = ({ socketPath }) => {
      * @returns {Promise<Session>}
      */
     async getSession(sessionId) {
-      return /** @type {Session} */ (
-        await okOrThrow('GET', `/v1/sessions/${encodeURIComponent(sessionId)}`)
+      const res = await okOrThrow(
+        'GET',
+        `/v1/sessions/${encodeURIComponent(sessionId)}`,
       );
+      return /** @type {Session} */ (res);
     },
 
     /**
@@ -120,7 +121,10 @@ export const makeOrchestratorClient = ({ socketPath }) => {
      * @param {string} sessionId
      */
     async terminateSession(sessionId) {
-      await okOrThrow('DELETE', `/v1/sessions/${encodeURIComponent(sessionId)}`);
+      await okOrThrow(
+        'DELETE',
+        `/v1/sessions/${encodeURIComponent(sessionId)}`,
+      );
     },
 
     /**
@@ -184,58 +188,58 @@ const makeLineReader = sock => {
       let buf = '';
       sock.setEncoding('utf8');
       const queue = [];
+      /** @type {(() => void) | null} */
       let resolveNext = null;
       let done = false;
       let errored = null;
 
+      const wake = () => {
+        if (!resolveNext) return;
+        const r = resolveNext;
+        resolveNext = null;
+        r();
+      };
+
       sock.on('data', chunk => {
-        buf += chunk;
-        for (;;) {
-          const i = buf.indexOf('\n');
-          if (i < 0) break;
+        // setEncoding('utf8') above guarantees chunk is a string, but the
+        // node typings still type it as Buffer | string.
+        const part = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+        buf += part;
+        let i = buf.indexOf('\n');
+        while (i >= 0) {
           const line = buf.slice(0, i);
           buf = buf.slice(i + 1);
-          if (line.length === 0) continue;
-          try {
-            const parsed = JSON.parse(line);
-            queue.push(parsed);
-            if (resolveNext) {
-              const r = resolveNext;
-              resolveNext = null;
-              r();
+          if (line.length > 0) {
+            try {
+              queue.push(JSON.parse(line));
+              wake();
+            } catch (e) {
+              errored = e;
+              wake();
             }
-          } catch (e) {
-            errored = e;
           }
+          i = buf.indexOf('\n');
         }
       });
       sock.on('end', () => {
         done = true;
-        if (resolveNext) {
-          const r = resolveNext;
-          resolveNext = null;
-          r();
-        }
+        wake();
       });
       sock.on('error', e => {
         errored = e;
-        if (resolveNext) {
-          const r = resolveNext;
-          resolveNext = null;
-          r();
-        }
+        wake();
       });
 
-      while (true) {
+      while (!done || queue.length > 0) {
         if (errored) throw errored;
         if (queue.length > 0) {
           yield queue.shift();
-          continue;
+        } else if (!done) {
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise(resolve => {
+            resolveNext = resolve;
+          });
         }
-        if (done) return;
-        await new Promise(resolve => {
-          resolveNext = resolve;
-        });
       }
     },
   };

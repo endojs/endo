@@ -36,9 +36,9 @@ export const makePfController = () => {
         await execFileAsync('pfctl', ['-s', 'info']);
       } catch (e) {
         const err = /** @type {Error & { stderr?: string }} */ (e);
+        const detail = err.stderr?.toString() ?? err.message;
         throw new Error(
-          `pfctl not available or pf disabled. See DESIGN.md §7.3 for one-time setup. ` +
-            (err.stderr?.toString() ?? err.message),
+          `pfctl not available or pf disabled. See DESIGN.md §7.3 for one-time setup. ${detail}`,
         );
       }
       // The anchor itself is installed at host setup time, not here.
@@ -47,9 +47,9 @@ export const makePfController = () => {
         await execFileAsync('pfctl', ['-a', ANCHOR_NAME, '-s', 'rules']);
       } catch (e) {
         const err = /** @type {Error & { stderr?: string }} */ (e);
+        const detail = err.stderr?.toString() ?? err.message;
         throw new Error(
-          `pf anchor "${ANCHOR_NAME}" not loaded. Install it per DESIGN.md §7.3. ` +
-            (err.stderr?.toString() ?? err.message),
+          `pf anchor "${ANCHOR_NAME}" not loaded. Install it per DESIGN.md §7.3. ${detail}`,
         );
       }
     },
@@ -75,9 +75,15 @@ export const makePfController = () => {
       });
     },
 
-    async detachSession(_sessionId) {},
+    async detachSession(_sessionId) {
+      // No per-session pf state in v1; UID-based rules in the anchor
+      // cover every VM uniformly. v2 moves to vmnet + per-VM rules.
+    },
 
-    async shutdown() {},
+    async shutdown() {
+      // Anchor is installed at host setup time and outlives the
+      // orchestrator process; nothing to tear down here.
+    },
   });
 };
 harden(makePfController);
