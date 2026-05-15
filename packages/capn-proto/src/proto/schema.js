@@ -181,29 +181,31 @@ export const RELEASE_PTR_WORDS = 0;
 export const RELEASE_ID_BO = 0; // uint32
 export const RELEASE_REF_COUNT_BO = 4; // uint32
 
-/* ===== Disembargo =====
+/* ===== Disembargo (rpc.capnp 2.0-dev) =====
  *
- *   struct Disembargo { # 8 bytes, 1 ptrs
- *     target @0 :MessageTarget; ptr[0]
+ *   struct Disembargo { # 8 bytes, 2 ptrs
+ *     target @0 :MessageTarget;  # ptr[0]
  *     context :group {
- *       union { tag bits[32, 48) = byte 4
- *         senderLoopback @1 :UInt32;  bits[0, 32) = byte 0
- *         receiverLoopback @2 :UInt32; bits[0, 32)
- *         accept @3 :Void;
- *         provide @4 :UInt32;
+ *       union { tag bits[32, 48)
+ *         senderLoopback @1 :UInt32;       bits[0, 32), tag = 0
+ *         receiverLoopback @2 :UInt32;     bits[0, 32), tag = 1
+ *         accept @3 :ThirdPartyEmbargoId;  ptr[1], tag = 2; Data (byte string)
  *       }
  *     }
  *   }
+ *
+ * ThirdPartyEmbargoId = Data. Our pre-2.0 `provide` arm (tag = 3) was
+ * removed upstream and is no longer encoded.
  */
 export const DISEMBARGO_DATA_WORDS = 1;
-export const DISEMBARGO_PTR_WORDS = 1;
+export const DISEMBARGO_PTR_WORDS = 2;
 export const DISEMBARGO_CTX_TAG_BO = 4; // uint16 discriminator at byte 4
 export const DISEMBARGO_CTX_VALUE_BO = 0; // uint32 value at byte 0
 export const DISEMBARGO_PTR_TARGET = 0; // MessageTarget
+export const DISEMBARGO_PTR_ACCEPT_ID = 1; // ThirdPartyEmbargoId (Data)
 export const DISEMBARGO_CTX_SENDER_LOOPBACK = 0;
 export const DISEMBARGO_CTX_RECEIVER_LOOPBACK = 1;
 export const DISEMBARGO_CTX_ACCEPT = 2;
-export const DISEMBARGO_CTX_PROVIDE = 3;
 
 /* ===== Provide ===== */
 export const PROVIDE_DATA_WORDS = 1;
@@ -212,12 +214,22 @@ export const PROVIDE_QUESTION_ID_BO = 0; // uint32
 export const PROVIDE_PTR_TARGET = 0;
 export const PROVIDE_PTR_RECIPIENT = 1;
 
-/* ===== Accept ===== */
+/* ===== Accept (rpc.capnp 2.0-dev) =====
+ *
+ *   struct Accept { # 8 bytes, 2 ptrs
+ *     questionId @0 :UInt32;    bits[0, 32)
+ *     provision @1 :ThirdPartyCompletion;       ptr[0]; AnyPointer
+ *     embargo @2 :Disembargo.ThirdPartyEmbargoId; ptr[1]; Data
+ *   }
+ *
+ * The pre-2.0 `embargo :Bool` was widened to a Data byte string. An
+ * empty Data (length-0 list-pointer or null) means no embargo.
+ */
 export const ACCEPT_DATA_WORDS = 1;
-export const ACCEPT_PTR_WORDS = 1;
+export const ACCEPT_PTR_WORDS = 2;
 export const ACCEPT_QUESTION_ID_BO = 0; // uint32
-export const ACCEPT_EMBARGO_BIT = 4 * 8 + 0; // bit @ byte 4 bit 0
 export const ACCEPT_PTR_PROVISION = 0;
+export const ACCEPT_PTR_EMBARGO_ID = 1;
 
 /* ===== Unimplemented (carries a Message). ===== */
 export const UNIMPL_DATA_WORDS = 0;

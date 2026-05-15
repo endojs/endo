@@ -24,28 +24,37 @@ test('Provide/Accept/Disembargo all encode and decode', t => {
   });
   t.is(decodeMessage(p).type, 'provide');
 
+  const embargoBytes = new Uint8Array([0xee, 0x10]);
   const a = encodeAccept({
     questionId: 2,
     encodeProvision: bytesAsDataEncoder(new Uint8Array([0x04, 0x05])),
-    embargo: true,
+    embargoId: embargoBytes,
   });
   const am = decodeMessage(a);
   t.is(am.type, 'accept');
-  t.true(am.embargo);
+  t.deepEqual(Array.from(am.embargoId), Array.from(embargoBytes));
 
+  // Disembargo{accept} now carries an embargoId byte string in 2.0-dev;
+  // the previous Bool/Void shape was widened. An empty (or omitted) id
+  // round-trips as a zero-length Uint8Array.
   const d = encodeDisembargo({
     target: { kind: 'importedCap', id: 1 },
-    context: { kind: 'accept' },
+    context: { kind: 'accept', embargoId: embargoBytes },
   });
-  t.is(decodeMessage(d).context.kind, 'accept');
+  const dm = decodeMessage(d);
+  t.is(dm.context.kind, 'accept');
+  t.deepEqual(Array.from(dm.context.embargoId), Array.from(embargoBytes));
 
+  // The pre-2.0 Disembargo `provide` arm was removed; B forwards
+  // `Disembargo{accept}` with `target = promisedAnswer{provideQid}` instead.
   const d2 = encodeDisembargo({
-    target: { kind: 'importedCap', id: 1 },
-    context: { kind: 'provide', questionId: 42 },
+    target: { kind: 'promisedAnswer', questionId: 42 },
+    context: { kind: 'accept', embargoId: embargoBytes },
   });
   const d2m = decodeMessage(d2);
-  t.is(d2m.context.kind, 'provide');
-  t.is(d2m.context.questionId, 42);
+  t.is(d2m.context.kind, 'accept');
+  t.is(d2m.target.kind, 'promisedAnswer');
+  t.is(d2m.target.questionId, 42);
 });
 
 test('thirdPartyHosted CapDescriptor passes through Resolve unchanged', t => {
@@ -158,7 +167,6 @@ test('L3 end-to-end (host side): Provide + Accept resolves to a senderHosted Ret
     encodeAccept({
       questionId: 300,
       encodeProvision: bytesAsDataEncoder(PROVISION),
-      embargo: false,
     }),
   );
   // The Return is sent synchronously by handleAccept.
@@ -188,7 +196,6 @@ test('L3 end-to-end: Accept with unknown provision returns an exception', async 
     encodeAccept({
       questionId: 1,
       encodeProvision: bytesAsDataEncoder(new Uint8Array([0xff])),
-      embargo: false,
     }),
   );
   t.is(out.length, 1);
@@ -199,7 +206,7 @@ test('L3 end-to-end: Accept with unknown provision returns an exception', async 
   c.abort('done');
 });
 
-test('L3 host: Accept{embargo:true} defers Return until Disembargo{provide=Q}', async t => {
+test('L3 host: Accept{embargoId} defers Return until Disembargo{accept,embargoId}', async t => {
   const reg = makeInterfaceRegistry();
   const target = makeExo('target', undefined, {
     hello() {
@@ -252,13 +259,14 @@ test('L3 host: Accept{embargo:true} defers Return until Disembargo{provide=Q}', 
     }),
   );
 
-  // A → C: Accept with embargo:true. C must NOT emit a Return yet.
+  // A → C: Accept with embargoId set. C must NOT emit a Return yet.
+  const EMBARGO_ID = new Uint8Array([0xe0, 0x77]);
   out.length = 0;
   c.dispatch(
     encodeAccept({
       questionId: 9100,
       encodeProvision: bytesAsDataEncoder(PROVISION),
-      embargo: true,
+      embargoId: EMBARGO_ID,
     }),
   );
   // Drain microtasks so any spurious Return would have been emitted.
@@ -266,12 +274,14 @@ test('L3 host: Accept{embargo:true} defers Return until Disembargo{provide=Q}', 
   await Promise.resolve();
   t.is(out.length, 0, 'C parked the Accept Return until disembargo lifts');
 
-  // B → C: Disembargo{provide=PROVIDE_QID}. C drains and now sends the
-  // deferred Return.
+  // B → C: Disembargo{target: promisedAnswer{PROVIDE_QID}, context: accept{embargoId}}.
+  // 2.0-dev replaced the bespoke `provide` arm with this shape: B forwards
+  // the same `accept`-arm Disembargo it received from A, rewriting the
+  // target into C's coordinate space (the Provide questionId).
   c.dispatch(
     indexModule.encodeDisembargo({
-      target: { kind: 'importedCap', id: 0 },
-      context: { kind: 'provide', questionId: PROVIDE_QID },
+      target: { kind: 'promisedAnswer', questionId: PROVIDE_QID },
+      context: { kind: 'accept', embargoId: EMBARGO_ID },
     }),
   );
   // The drain is one microtask; await two ticks to be safe.

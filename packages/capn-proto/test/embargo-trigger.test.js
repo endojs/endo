@@ -269,16 +269,29 @@ test('A-side embargo: pipelined call on a senderPromise triggers Accept{embargo:
     'A emitted Disembargo{accept} on A↔B targeting the senderPromise import id',
   );
 
-  // Step 5: assert A emitted Accept{embargo:true} on A↔C.
+  // Step 5: assert A emitted Accept{embargoId} on A↔C.
   const acceptMsg = acOut
     .map(b => decodeMessage(b))
     .find(m => m.type === 'accept');
   t.truthy(acceptMsg, 'A sent Accept on A↔C');
-  t.is(acceptMsg.embargo, true, 'Accept carried embargo:true');
+  // 2.0-dev widened Accept.embargo from Bool to a Data byte string
+  // (ThirdPartyEmbargoId). A non-empty array means the host should park
+  // the Return until the matching Disembargo arrives.
+  t.true(
+    acceptMsg.embargoId.length > 0,
+    'Accept carried a non-empty embargoId',
+  );
   t.deepEqual(
     Array.from(decodeDataFromSlot(acceptMsg.provisionSlot)),
     Array.from(PROVISION),
     'Accept used the provision the network minted',
+  );
+  // The Disembargo on A↔B must carry the same embargoId so B's forwarded
+  // Disembargo can be matched by C against the parked Accept.
+  t.deepEqual(
+    Array.from(disembargoOnAB.context.embargoId),
+    Array.from(acceptMsg.embargoId),
+    'Disembargo{accept} embargoId matches Accept embargoId',
   );
 
   aToB.abort('done');
@@ -331,7 +344,11 @@ test('A-side embargo NOT triggered when no pipelined calls fired before Resolve'
     .map(b => decodeMessage(b))
     .find(m => m.type === 'accept');
   t.truthy(acceptMsg, 'Accept still went out (we still want the cap)');
-  t.is(acceptMsg.embargo, false, 'Accept carried embargo:false');
+  t.is(
+    acceptMsg.embargoId.length,
+    0,
+    'Accept carried an empty embargoId (no embargo)',
+  );
 
   aToB.abort('done');
   aToC.abort('done');
