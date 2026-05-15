@@ -11,6 +11,12 @@
 inline review on PR #265. Two affected sections: § *Endo-side surfaces
 covered* and § *Genie: Pi inside Endo*.)
 
+(2026-05-15 third pass: corrected the sandbox-driver mix per jcorbin's
+follow-up review on PR #265 (`packages/sandbox` uses podman as primary
+driver today, with bwrap also present and macOS/Windows drivers
+anticipated); added the 9p filesystem server alternative to the vfs-endo
+backend angle in § *What Genie's existence tells us* point 3.)
+
 ## Endo-side surfaces covered
 
 Three Endo packages sit on the agent-shape axis this document maps against
@@ -278,7 +284,7 @@ of Lal/Fae have different answers when asked of Genie.
 | **Subscription OAuth**                | Gap                                         | Gap (Genie inherits whatever `pi-ai` ships; OAuth providers are not enabled out of the box but the registry shape supports them) |
 | **Agent loop**                        | Lal/Fae's own loop                          | `PiAgent` from `pi-agent-core`, subscribed via `runAgentRound` which translates `pi-agent-core` events into Genie's `ChatEvent` stream |
 | **Tool model**                        | Tool registration in Fae (`makeFooTool`)    | Genie's `ToolSpec` converted at boundary into `AgentTool` for `pi-agent-core` (`toAgentTool`); tools live in `src/tools/` (`vfs`, `command`, `web-fetch`, `web-search`, `memory`) |
-| **Capability confinement**            | SES + caretaker revocation (rest of doc)    | Per-tool gating via `tool-gate.js` over an ambient-Node tool surface; tool execution is gated on expected tool/arg pairs but is not capability-confined by SES grants. The intent (per jcorbin) is to confine via `packages/sandbox` (bwrap on Linux) for `command` and `vfs-node`; that wiring is **not yet present in main**. |
+| **Capability confinement**            | SES + caretaker revocation (rest of doc)    | Per-tool gating via `tool-gate.js` over an ambient-Node tool surface; tool execution is gated on expected tool/arg pairs but is not capability-confined by SES grants. The intent (per jcorbin) is to confine via `packages/sandbox` (whose primary driver today is podman; bwrap is also present; additional drivers for macos/windows are anticipated) for `command` and `vfs-node`; that wiring is **not yet present in main**. |
 | **System prompt constitution**        | `packages/lal/agent.js` system prompt       | `buildSystemPrompt` in `src/system/index.js`: composes runtime info, policy / strict-policy / security-notes sections, tool list, and a Claw-style workspace section. Builds a flexible library of prompt parts. |
 | **Persistence shape**                 | Formula store + Lal reply-chains            | A Claw-compatible workspace dir (default `workspace_template/`): `SOUL.md` (persona), `HEARTBEAT.md` (tasks), `memory/` (observations.md, reflections.md, profile.md). Markdown-on-disk; the agent reads its own past sessions through the memory tools. |
 | **Compaction**                        | Designed only ([lal-transcript-memory-management](lal-transcript-memory-management.md)) | **In progress**: an observer subagent compresses chat into prioritised `observations.md` entries (token-threshold + idle-timer trigger; 30k-token default); a reflector subagent consolidates observations into long-term `reflections.md` and `profile.md` (40k-token threshold + daily heartbeat). Both run as separate `PiAgent` instances with focused tool sets, gated by `tool-gate.js`. |
@@ -314,9 +320,25 @@ follow.
    tool-gate's role is to constrain which tools and which arguments a
    sub-agent may invoke, not to confine what those tools can reach. The
    maintainer's direction (per the inline review on PR #265 introducing
-   this section) is `packages/sandbox` (`bwrap` on Linux) as the confinement
-   layer for the ambient tools. Wiring that up is the natural follow-on
-   design once `endo-posix-sandbox` Phase 1.5 lands.
+   this section) is `packages/sandbox` as the confinement layer for the
+   ambient tools. `packages/sandbox` ships a multi-driver shape: podman is
+   its primary driver today, bwrap is also present, and additional drivers
+   are anticipated for macOS and Windows. Wiring `packages/sandbox`
+   underneath `command` and `vfs-node` is the natural follow-on design
+   once `endo-posix-sandbox` Phase 1.5 lands.
+
+   Per jcorbin's follow-up on PR #265, there is a second viable angle
+   for the filesystem half of this problem: rather than implementing a
+   `vfs-endo` backend for genie's vfs-holding tools, implement a [9p
+   filesystem](https://www.kernel.org/doc/html/latest/filesystems/9p.html)
+   server that exports endo's filesystem space. A 9p server is reachable
+   from both genie's existing `vfs-node` implementation (as a mounted
+   9p export) and from normal system command tools running inside the
+   sandbox (as a mounted 9p export inside the sandbox), so one interface
+   covers both consumers instead of two parallel backends. The trade-off
+   between the two approaches (vfs-endo backend vs. 9p server) is an
+   open question that the follow-on design captures alongside the
+   sandbox-driver question.
 
 ### Source-file citations (Genie)
 
