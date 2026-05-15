@@ -1,0 +1,61 @@
+# Kernel config fragment for the claude-orch microVM guest. Apply on top
+# of `make tinyconfig` (or `make defconfig` if tinyconfig is too minimal
+# to merge cleanly). See DESIGN.md §8.2.
+#
+# Usage:
+#   make tinyconfig
+#   ./scripts/kconfig/merge_config.sh -m .config \
+#       packages/claude-orch/images/kernel/microvm.fragment
+#   make olddefconfig
+#   make -j$(nproc) Image  # arm64
+#   make -j$(nproc) bzImage  # x86_64
+
+# Virtio
+CONFIG_VIRTIO=y
+CONFIG_VIRTIO_PCI=y
+CONFIG_VIRTIO_BLK=y
+CONFIG_VIRTIO_NET=y
+CONFIG_VIRTIO_CONSOLE=y
+CONFIG_HW_RANDOM_VIRTIO=y
+
+# 9P
+CONFIG_NET_9P=y
+CONFIG_NET_9P_VIRTIO=y
+CONFIG_9P_FS=y
+CONFIG_9P_FS_POSIX_ACL=y
+
+# Filesystems
+CONFIG_EXT4_FS=y
+CONFIG_OVERLAY_FS=y
+CONFIG_TMPFS=y
+CONFIG_TMPFS_POSIX_ACL=y
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+
+# Networking baseline
+CONFIG_NET=y
+CONFIG_INET=y
+CONFIG_PACKET=y
+CONFIG_UNIX=y
+CONFIG_IPV6=y
+CONFIG_NETFILTER=y
+
+# Containers / sandboxing primitives used by Claude Code & friends
+CONFIG_NAMESPACES=y
+CONFIG_USER_NS=y
+CONFIG_PID_NS=y
+CONFIG_NET_NS=y
+CONFIG_UTS_NS=y
+CONFIG_CGROUPS=y
+CONFIG_CGROUP_PIDS=y
+CONFIG_MEMCG=y
+CONFIG_SECCOMP=y
+CONFIG_SECCOMP_FILTER=y
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+
+# Modules off — DESIGN.md §8.2: everything we need is compiled in.
+# CONFIG_MODULES is not set
+
+# microvm (x86_64) — harmless on arm64 where the option doesn't apply.
+CONFIG_X86_NO_MMCONFIG=y
