@@ -1,8 +1,12 @@
 // @ts-check
 
+import net from 'node:net';
+import { unlink } from 'node:fs/promises';
+
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
-import { makeError, X } from '@endo/errors';
+
+import { serveConnection } from './9p/server.js';
 
 const BridgeInterface = M.interface('FsBridge9p', {
   start: M.call().returns(M.promise()),
@@ -11,28 +15,34 @@ const BridgeInterface = M.interface('FsBridge9p', {
 
 /**
  * Bridge an Endo filesystem capability to a 9P2000.L UDS endpoint
- * suitable for `mount -t 9p -o trans=fd,...` inside a microVM
- * (see DESIGN.md §5.7).
+ * (DESIGN.md §5.7). QEMU's `-chardev socket,server=off` connects from
+ * the host side; this bridge accept()s and serves the resulting stream.
  *
- * Skeleton: the public surface is final. The 9P state machine,
- * msize negotiation, and FS-capability adapter are TODO and gated
- * on milestone 1 of DESIGN.md §10 plus the reference 9P server
- * sketched in DESIGN.md Appendix B.
+ * v1 implements only the operations needed to mount and read the
+ * workspace from inside the guest. Mutating ops are best-effort against
+ * the FS capability's `writeFile/mkdir/unlink/rename` surface, and
+ * unsupported operations return Rlerror(ENOSYS) so the guest VFS
+ * surfaces a clean errno.
  *
- * Performance note: this bridge marshals each 9P operation into one
- * or more eventual-sends against the FS capability. That's fine when
- * the FS is local; for remote filesystems it is chatty. The roadmap
- * item R1 in ENDO-INTEGRATION.md §9 covers a remote-friendly FS
- * surface that replaces this bridge.
+ * The FS capability is expected to expose (subset of):
+ *   stat(path) → { isDirectory: boolean, size: number, mtimeMs: number }
+ *   readDir(path) → string[]
+ *   readFile(path) → Uint8Array | Buffer
+ *   writeFile(path, bytes) → void
+ *   mkdir(path) → void
+ *   unlink(path) → void
+ *   rename(from, to) → void
  *
  * @param {{
- *   fs: import('@endo/eventual-send').ERef<object>,
+ *   fs: import('@endo/eventual-send').ERef<any>,
  *   socketPath: string,
  * }} opts
  */
 export const makeFsBridge9p = ({ fs, socketPath }) => {
-  void fs;
-
+  /** @type {import('node:net').Server | null} */
+  let server = null;
+  /** @type {Set<import('node:net').Socket>} */
+  const sockets = new Set();
   let started = false;
   let stopped = false;
 
@@ -40,14 +50,28 @@ export const makeFsBridge9p = ({ fs, socketPath }) => {
     async start() {
       if (started) return;
       started = true;
-      throw makeError(
-        X`fs-bridge-9p.start not implemented (socket=${socketPath}). See DESIGN.md §5.7 / Appendix B and ENDO-INTEGRATION.md §6.2.`,
-      );
+      await unlink(socketPath).catch(() => {});
+      server = net.createServer({ allowHalfOpen: false }, sock => {
+        sockets.add(sock);
+        sock.on('close', () => sockets.delete(sock));
+        serveConnection({ fs, socket: sock });
+      });
+      await new Promise((resolve, reject) => {
+        server?.once('error', reject);
+        server?.listen(socketPath, () => resolve(undefined));
+      });
     },
 
     async stop() {
-      if (stopped || !started) return;
+      if (stopped) return;
       stopped = true;
+      for (const sock of sockets) sock.destroy();
+      sockets.clear();
+      if (server) {
+        await new Promise(resolve => server?.close(() => resolve(undefined)));
+        server = null;
+      }
+      await unlink(socketPath).catch(() => {});
     },
   });
 };

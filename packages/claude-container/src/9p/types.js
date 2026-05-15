@@ -1,0 +1,84 @@
+// @ts-check
+//
+// 9P2000.L message-type and qid-type constants, plus a curated subset of
+// Linux errno values used in Rlerror responses.
+
+export const T = harden({
+  Rlerror: 7,
+  Tstatfs: 8, Rstatfs: 9,
+  Tlopen: 12, Rlopen: 13,
+  Tlcreate: 14, Rlcreate: 15,
+  Tsymlink: 16, Rsymlink: 17,
+  Tmknod: 18, Rmknod: 19,
+  Trename: 20, Rrename: 21,
+  Treadlink: 22, Rreadlink: 23,
+  Tgetattr: 24, Rgetattr: 25,
+  Tsetattr: 26, Rsetattr: 27,
+  Txattrwalk: 30, Rxattrwalk: 31,
+  Txattrcreate: 32, Rxattrcreate: 33,
+  Treaddir: 40, Rreaddir: 41,
+  Tfsync: 50, Rfsync: 51,
+  Tlock: 52, Rlock: 53,
+  Tgetlock: 54, Rgetlock: 55,
+  Tlink: 70, Rlink: 71,
+  Tmkdir: 72, Rmkdir: 73,
+  Trenameat: 74, Rrenameat: 75,
+  Tunlinkat: 76, Runlinkat: 77,
+  Tversion: 100, Rversion: 101,
+  Tauth: 102, Rauth: 103,
+  Tattach: 104, Rattach: 105,
+  Tflush: 108, Rflush: 109,
+  Twalk: 110, Rwalk: 111,
+  Tread: 116, Rread: 117,
+  Twrite: 118, Rwrite: 119,
+  Tclunk: 120, Rclunk: 121,
+  Tremove: 122, Rremove: 123,
+});
+
+export const QT = harden({
+  DIR: 0x80,
+  APPEND: 0x40,
+  EXCL: 0x20,
+  MOUNT: 0x10,
+  AUTH: 0x08,
+  TMP: 0x04,
+  SYMLINK: 0x02,
+  FILE: 0x00,
+});
+
+// Linux errno (subset)
+export const E = harden({
+  EPERM: 1,
+  ENOENT: 2,
+  EIO: 5,
+  ENXIO: 6,
+  EBADF: 9,
+  EAGAIN: 11,
+  ENOMEM: 12,
+  EACCES: 13,
+  EFAULT: 14,
+  EEXIST: 17,
+  ENODEV: 19,
+  ENOTDIR: 20,
+  EISDIR: 21,
+  EINVAL: 22,
+  ENFILE: 23,
+  EMFILE: 24,
+  ENOSPC: 28,
+  EROFS: 30,
+  ENAMETOOLONG: 36,
+  ENOSYS: 38,
+  ENOTEMPTY: 39,
+  ELOOP: 40,
+  EOPNOTSUPP: 95,
+});
+
+// File mode bits (POSIX)
+export const S = harden({
+  IFREG: 0o0100000,
+  IFDIR: 0o0040000,
+  IFLNK: 0o0120000,
+  IFMT: 0o0170000,
+});
+
+export const GETATTR_BASIC = 0x7ffn; // valid bits set for a basic stat reply

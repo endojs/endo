@@ -25,13 +25,21 @@
   },
   "scripts": {
     "build": "exit 0",
+    "test": "ava",
     "setup": "endo run --UNCONFINED setup.js --powers @agent -E FACTORY_NAME=${FACTORY_NAME:-claude-container-factory} -E ORCHESTRATOR_SOCKET=${ORCHESTRATOR_SOCKET:-/run/claude-orch/api.sock}",
     "create-factory": "./scripts/create-factory.sh",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"
   },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "60s"
+  },
   "dependencies": {
+    "@endo/claude-orch": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",

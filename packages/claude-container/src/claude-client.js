@@ -1,5 +1,6 @@
 // @ts-check
 
+import { Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeError, X } from '@endo/errors';
@@ -27,8 +28,7 @@ const ClaudeClientInterface = M.interface('ClaudeClient', {
  * @property {(opts: object) => Promise<Session>} createSession
  * @property {(id: string) => Promise<void>} markReady
  * @property {(id: string) => Promise<void>} terminateSession
- * @property {(id: string, prompt: string, opts?: object) => Promise<object>} sendPrompt
- * @property {(id: string) => Promise<void>} interrupt
+ * @property {(session: Session, prompt: string, opts?: object) => Promise<AsyncIterable<any>>} sendPrompt
  */
 
 /**
@@ -39,6 +39,30 @@ const ClaudeClientInterface = M.interface('ClaudeClient', {
  * @property {string} [model]
  * @property {string} [initialPrompt]
  */
+
+/**
+ * Wrap an AsyncIterable as a Far iterator reference that consumers can
+ * traverse with `makeRefIterator` from @endo/daemon/ref-reader.js.
+ *
+ * @param {AsyncIterable<any>} iterable
+ */
+const wrapAsIteratorRef = iterable => {
+  const iter = iterable[Symbol.asyncIterator]();
+  return Far('ClaudeEventIterator', {
+    async next() {
+      return iter.next();
+    },
+    async return(value) {
+      if (iter.return) return iter.return(value);
+      return harden({ value, done: true });
+    },
+    async throw(err) {
+      if (iter.throw) return iter.throw(err);
+      throw err;
+    },
+  });
+};
+harden(wrapAsIteratorRef);
 
 /**
  * Build a ClaudeClient exo that wraps a single microVM session.
@@ -59,7 +83,7 @@ export const makeClaudeClient = ({
 }) => {
   let terminated = false;
   const sentInitial = initialPrompt
-    ? orchestrator.sendPrompt(session.id, initialPrompt, { model })
+    ? orchestrator.sendPrompt(session, initialPrompt, { model })
     : null;
 
   const guardLive = () => {
@@ -76,12 +100,19 @@ export const makeClaudeClient = ({
     async send(prompt, opts = {}) {
       guardLive();
       if (sentInitial) await sentInitial;
-      return orchestrator.sendPrompt(session.id, prompt, { model, ...opts });
+      const iterable = await orchestrator.sendPrompt(session, prompt, {
+        model,
+        ...opts,
+      });
+      return wrapAsIteratorRef(iterable);
     },
 
     async interrupt() {
       guardLive();
-      await orchestrator.interrupt(session.id);
+      // No interrupt endpoint on the orchestrator yet — DESIGN.md §6.1
+      // does not surface one. Roadmap: add /v1/sessions/:id/interrupt
+      // that issues a Detach + Attach cycle via the agent RPC.
+      throw makeError(X`ClaudeClient.interrupt is not implemented in v1.`);
     },
 
     async terminate() {

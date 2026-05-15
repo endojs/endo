@@ -35,8 +35,8 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "claude-orch": "./bin/claude-orch",
-    "claude-broker": "./bin/claude-broker"
+    "claude-broker": "./bin/claude-broker",
+    "claude-orch": "./bin/claude-orch"
   },
   "scripts": {
     "build": "exit 0",
