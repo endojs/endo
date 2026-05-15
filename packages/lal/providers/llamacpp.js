@@ -19,7 +19,7 @@ import { toOpenAICompatibleMessages } from './openai-compatible-messages.js';
  * @typedef {object} CommonChatMessage
  * @property {'system'|'user'|'assistant'|'tool'} role
  * @property {string} content
- * @property {Array<{ id?: string, function: { name: string, arguments: string|object }}>} [tool_calls]
+ * @property {Array<{ id?: string, type?: 'function', function: { name: string, arguments: string|object }}>} [tool_calls]
  * @property {string} [tool_call_id]
  */
 
@@ -86,6 +86,7 @@ export const makeLlamaCppProvider = ({
       ) {
         message.tool_calls = choice.message.tool_calls.map(tc => ({
           id: tc.id,
+          type: 'function',
           function: {
             name: tc.function?.name ?? '',
             arguments: tc.function?.arguments ?? '{}',
