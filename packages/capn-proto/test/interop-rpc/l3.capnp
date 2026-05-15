@@ -23,6 +23,14 @@ struct VatLocation @0xfeed0003feed0001 {
   transport @1 :Text;
 }
 
+# VatNetwork's first type parameter — peer identity carried in the
+# Accept message header (Bootstrap.deprecatedObjectId in older protos).
+# We just reuse VatLocation: vatId is the human-readable name, transport
+# is the dial-back string.
+struct TestVatId @0xfeed0003feed0005 {
+  location @0 :VatLocation;
+}
+
 # 2.0-dev: `Provide.recipient :ThirdPartyToAwait`. The introducer (B)
 # tells the host (C) which vat will eventually pick this up, plus the
 # unguessable swissnum C uses to match the matching Accept.
