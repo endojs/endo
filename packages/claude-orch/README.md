@@ -24,10 +24,18 @@ front of this orchestrator's UDS API.
 - [x] HTTP/UDS API server (`src/api/server.js`).
 - [x] Credential broker daemon and client (`src/broker/`, `src/broker-client/`).
 - [x] `bin/claude-orch`, `bin/claude-broker`.
-- [ ] Guest images: kernel + rootfs build (`images/`, in progress).
-- [ ] Rust guest binaries: bootstrap-init, runtime-agent
-  (`rust/claude-orch/`, in progress).
-- [ ] 9P bridge in `@endo/claude-container`.
+- [x] Guest image build pipeline: mkosi rootfs config, kernel
+  fragment, `scripts/build-image.sh` driving cargo + mkosi + kbuild.
+  Running it end-to-end needs a Linux host with `mkosi`, a kernel
+  source tree at `$LINUX_SRC`, and the musl rustup targets.
+- [x] Rust guest binaries: `rust/claude-orch/bootstrap-init` (PID 1,
+  bootstrap handshake, 9P mount, drop privs, exec); and
+  `rust/claude-orch/runtime-agent` (control RPC, tmux+claude spawn).
+- [x] 9P bridge in `@endo/claude-container` (real bodies).
+- [x] Tests: session manager, QEMU args builder, bootstrap RPC
+  handshake, 9P wire framing, orchestrator HTTP client.
+- [ ] End-to-end smoke test (gated on a Linux host with KVM + a built
+  rootfs/kernel pair).
 
 ## Running locally (when complete)
 
