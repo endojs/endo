@@ -6,6 +6,7 @@
   },
   "include": [
     "*.js",
+    "scripts",
     "src",
     "tools",
     "test"

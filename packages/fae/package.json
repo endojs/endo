@@ -32,7 +32,11 @@
     "setup-tools": "endo run --UNCONFINED setup-tools.js --powers @agent",
     "setup-with-tools": "endo run --UNCONFINED setup-with-tools.js --powers @agent -E PROVIDER_NAME=${PROVIDER_NAME:-default} -E FACTORY_NAME=${FACTORY_NAME:-fae-factory}",
     "setup-fs-tools": "endo run --UNCONFINED setup-fs-tools.js --powers @agent",
+    "debug:llm": "node scripts/debug-llm-logs.js",
+    "debug:llm:tools": "node scripts/debug-llm-logs.js --state=tmp/smoke/state --tools",
     "smoke": "ava --serial --timeout=10m scripts/smoke.test.js",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"
