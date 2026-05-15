@@ -1852,18 +1852,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/eventual-send@workspace:^, @endo/eventual-send@workspace:packages/eventual-send":
+"@endo/eventual-send-test@workspace:packages/eventual-send-test":
   version: 0.0.0-use.local
-  resolution: "@endo/eventual-send@workspace:packages/eventual-send"
+  resolution: "@endo/eventual-send-test@workspace:packages/eventual-send-test"
   dependencies:
-    "@endo/env-options": "workspace:^"
-    "@endo/harden": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
     "@endo/lockdown": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
     tsd: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/eventual-send@workspace:^, @endo/eventual-send@workspace:packages/eventual-send":
+  version: 0.0.0-use.local
+  resolution: "@endo/eventual-send@workspace:packages/eventual-send"
+  dependencies:
+    "@endo/env-options": "workspace:^"
+    "@endo/harden": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft

@@ -6,7 +6,7 @@ import {
   localApplyFunction,
   localApplyMethod,
   localGet,
-} from '../src/local.js';
+} from '@endo/eventual-send/src/local.js';
 
 test('getMethodNames returns sorted method names', t => {
   const obj = {

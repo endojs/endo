@@ -3,11 +3,11 @@ import test from 'ava';
 import assert from 'node:assert';
 import process from 'node:process';
 
-import { makeMessageBreakpointTester } from '../src/message-breakpoints.js';
+import { makeMessageBreakpointTester } from '@endo/eventual-send/src/message-breakpoints.js';
 
 /**
  * @param {string} envVarName
- * @returns {import('../src/message-breakpoints.js').MessageBreakpointTester}
+ * @returns {import('@endo/eventual-send/src/message-breakpoints.js').MessageBreakpointTester}
  */
 const requireTester = envVarName => {
   const tester = makeMessageBreakpointTester(envVarName);

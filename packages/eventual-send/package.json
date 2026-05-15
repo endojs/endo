@@ -5,8 +5,7 @@
   "type": "module",
   "main": "src/no-shim.js",
   "scripts": {
-    "test": "ava",
-    "test:c8": "c8 ${C8_OPTIONS:-} ava",
+    "test": "exit 0",
     "test:xs": "exit 0",
     "build": "exit 0",
     "clean": "git clean -fX -e node_modules/",
@@ -21,7 +20,10 @@
     "./package.json": "./package.json",
     ".": "./src/no-shim.js",
     "./shim.js": "./shim.js",
-    "./utils.js": "./utils.js"
+    "./utils.js": "./utils.js",
+    "./src/*": {
+      "test-endo-eventual-send": "./src/*"
+    }
   },
   "repository": {
     "type": "git",
@@ -39,12 +41,9 @@
     "@endo/harden": "workspace:^"
   },
   "devDependencies": {
-    "@endo/lockdown": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "ses": "workspace:^",
-    "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },
   "keywords": [
@@ -69,12 +68,6 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
   },
   "typeCoverage": {
     "atLeast": 77.81

@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.eslint-base.json",
+  "compilerOptions": {
+    "customConditions": ["test-endo-eventual-send"]
+  },
+  "include": [
+    "*.js",
+    "*.ts",
+    "test"
+  ]
+}
