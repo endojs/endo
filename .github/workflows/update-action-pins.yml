@@ -9,6 +9,12 @@ permissions:
   contents: write
   pull-requests: write
 
+# Defense in depth against npm lifecycle scripts running implicitly at install.
+# See designs/ci-no-npm-lifecycle.md.
+env:
+  YARN_ENABLE_SCRIPTS: 'false'
+  npm_config_ignore_scripts: 'true'
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
