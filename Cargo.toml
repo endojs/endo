@@ -1,3 +1,21 @@
 [workspace]
-members = ["rust/ocapn_noise", "rust/endo", "rust/endo/xsnap"]
+members = [
+    "rust/ocapn_noise",
+    "rust/endo",
+    "rust/endo/xsnap",
+    "rust/claude-orch/bootstrap-init",
+    "rust/claude-orch/runtime-agent",
+]
 resolver = "2"
+
+# Per-package size optimization for the in-guest claude-orch binaries:
+# small, statically-linked musl targets where every kilobyte counts.
+[profile.release.package.claude-orch-bootstrap-init]
+opt-level = "z"
+codegen-units = 1
+strip = true
+
+[profile.release.package.claude-orch-runtime-agent]
+opt-level = "z"
+codegen-units = 1
+strip = true
