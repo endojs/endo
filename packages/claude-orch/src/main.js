@@ -20,6 +20,7 @@ import { awaitHello } from './bootstrap/rpc-server.js';
 import { makeAgentLink } from './agent/rpc-server.js';
 import { makeBrokerClient } from './broker-client/index.js';
 import { makeApiServer } from './api/server.js';
+import { makeStdioMux } from './stdio/mux.js';
 
 /**
  * Build the orchestrator config from environment with sane defaults.
@@ -71,6 +72,8 @@ export const start = async ({ config = configFromEnv() } = {}) => {
   const agents = new Map();
   /** @type {Map<string, () => Promise<void>>} */
   const netCleanups = new Map();
+  /** @type {Map<string, ReturnType<typeof makeStdioMux>>} */
+  const stdioMuxes = new Map();
 
   /**
    * @param {CreateSessionRequest} request
@@ -146,6 +149,23 @@ export const start = async ({ config = configFromEnv() } = {}) => {
       const link = await agentPromise;
       agents.set(sessionId, link);
       await link.ready();
+
+      // Start the stdio multiplexer if the caller asked for an attach stream.
+      if (record.request.attachMode === 'stream') {
+        const mux = makeStdioMux({
+          stdioSocketPath: record.stdioSocketPath,
+          attachSocketPath: record.attachSocketPath,
+          onError: e => {
+            // eslint-disable-next-line no-console
+            console.error(`[stdio-mux ${sessionId}]`, e);
+          },
+        });
+        stdioMuxes.set(sessionId, mux);
+        await mux.start();
+        // Tell the agent to begin attach framing on its end.
+        link.send({ type: 'attach', streamId: 'default0' });
+      }
+
       sessions.setState(sessionId, 'ready', { vmPid: vm.child.pid });
     } catch (e) {
       sessions.setState(sessionId, 'boot_failed', {
@@ -205,6 +225,11 @@ export const start = async ({ config = configFromEnv() } = {}) => {
    * @param {string} sessionId
    */
   const teardownSession = async sessionId => {
+    const mux = stdioMuxes.get(sessionId);
+    if (mux) {
+      await mux.stop().catch(() => {});
+      stdioMuxes.delete(sessionId);
+    }
     if (agents.has(sessionId)) {
       agents.get(sessionId)?.close();
       agents.delete(sessionId);
