@@ -1,31 +1,37 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-11*
+*Last updated: 2026-05-14*
 
-*See also: [daemon-make-archive](daemon-make-archive.md) (added 2026-04-23),
-[filesystem-watchers](filesystem-watchers.md) (added 2026-05-07),
-[endo-posix-sandbox](endo-posix-sandbox.md) (added 2026-05-07; mirrors
-`PLAN/endo_posix_sandbox.md` for roadmap calibration),
+*Recently added or revised: [hardened-text-codecs-shim](hardened-text-codecs-shim.md)
+(added 2026-05-06; permits `TextEncoder`/`TextDecoder` in SES intrinsics),
+[hardened-url-shim](hardened-url-shim.md) (added 2026-05-06; vetted-shim
+treatment for the `URL` constructor and `URLSearchParams`).*
+
+*Earlier additions: [daemon-make-archive](daemon-make-archive.md) (added
+2026-04-23), [filesystem-watchers](filesystem-watchers.md) (added
+2026-05-07), [endo-posix-sandbox](endo-posix-sandbox.md) (added
+2026-05-07; mirrors `PLAN/endo_posix_sandbox.md` for roadmap calibration),
 [exo-zip-package](exo-zip-package.md) (added 2026-05-08; PR #128 reshape
-blocker),
-[trust-on-first-bind](trust-on-first-bind.md) (added 2026-05-08; shared
-capability-policy adapter referenced by HTTP client and browser controller
-designs; addendum to PR #144 HttpClient),
+blocker), [trust-on-first-bind](trust-on-first-bind.md) (added 2026-05-08;
+shared capability-policy adapter referenced by HTTP client and browser
+controller designs; addendum to PR #144 HttpClient),
 [break-dev-dependency-cycles](break-dev-dependency-cycles.md) (added
 2026-05-11; synthetic test-package factoring to retire the workspace
-devDep SCC; follow-up to PR #121),
+devDep SCC; follow-up to PR #121; Cuts 2-4 merged via PRs #209, #210,
+#211 with Cut 5 open as PR #247),
 [cli-http-client](cli-http-client.md) (added 2026-05-09; PR #144 design
 revision under `endo http` subcommand tree),
 [endo-gateway](endo-gateway.md) (added 2026-05-10; per-host system-service
 HTTP virtual host for OCapN, lifts hosting out of per-user Daemon; closes
-issue #173, unblocks PR #134),
+issue #173, unblocks PR #134; raised to M1 per `#134` directive
+2026-05-13),
 [retention-path-notation](retention-path-notation.md) (added 2026-05-10;
 PR #151 row-format unblocker; sibling of
 [daemon-retention-paths](daemon-retention-paths.md)),
 [cli-store-verb-text-modes](cli-store-verb-text-modes.md) (added
 2026-05-08; reshape blocker for PR #128),
 [unhandled-rejection-display](unhandled-rejection-display.md) (added
-2026-05-10; closes issue #171),
+2026-05-10; impl landed via PR #187 closing issue #171),
 [cli-edit-verb](cli-edit-verb.md) (added 2026-05-08; sibling of PR #153
 `cli-store-verb-text-modes`; hashline patches for AI agents).*
 
@@ -113,6 +119,8 @@ PR #151 row-format unblocker; sibling of
 | [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-05-06 | In Progress |
 | [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-06 | **Implemented** |
+| [hardened-text-codecs-shim](hardened-text-codecs-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
+| [hardened-url-shim](hardened-url-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
 | [inventory-cancel-and-liveness](inventory-cancel-and-liveness.md) | 2026-02-14 | 2026-03-13 | Not Started |
 | [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | 2026-02-24 | Not Started |
@@ -130,18 +138,18 @@ PR #151 row-format unblocker; sibling of
 | [outliner-design-doc](outliner-design-doc.md) | 2026-03-17 | 2026-03-18 | In Progress |
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-04-23 | Not Started |
-| [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-05-11 | Proposed |
+| [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-05-11 | In Progress |
 | [cli-http-client](cli-http-client.md) | 2026-05-09 | 2026-05-09 | Proposed (PR #144 design revision) |
 | [endor-bus-tui](endor-bus-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [endor-tui](endor-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
-| [hex-package](hex-package.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [hex-package](hex-package.md) | 2026-04-23 | 2026-04-23 | In Progress |
 | [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
 | [endo-gateway](endo-gateway.md) | 2026-05-10 | 2026-05-10 | Proposed |
-| [unhandled-rejection-display](unhandled-rejection-display.md) | 2026-05-10 | 2026-05-10 | Proposed |
+| [unhandled-rejection-display](unhandled-rejection-display.md) | 2026-05-10 | 2026-05-10 | **Implemented** |
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 27 Complete/Implemented, 15 In Progress, 43 Not Started, 9 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (104 designs)
+**Totals:** 28 Complete/Implemented, 17 In Progress, 44 Not Started, 7 Proposed, 3 Active, 3 Reference, 2 Deprecated, 1 Draft, 1 Superseded (106 designs)
 
 ## Roadmap
 
@@ -203,9 +211,11 @@ flowchart TD
 
     subgraph Remote Access
         gauth[gateway-bearer-token-auth]
+        egate[endo-gateway]
         ddock[daemon-docker-selfhost]
         ewebhook[endoclaw-webhooks]
-        gauth --> ddock
+        gauth --> egate
+        egate --> ddock
         fbund --> ddock
         gauth --> ewebhook
     end
@@ -313,6 +323,7 @@ capabilities available to agents.
 | Design | Status | Notes |
 |--------|--------|-------|
 | ~~gateway-bearer-token-auth~~ | **Implemented** | Agent ID as bearer token, rate limiting, CIDR filtering |
+| endo-gateway | Proposed | Per-host system-service HTTP virtual host for OCapN; lifts hosting out of per-user Daemon; closes issue #173, unblocks PR #134. Raised to M1 per kriskowal directive on `#134#issuecomment-4444987124` (2026-05-13) |
 | daemon-docker-selfhost | Not Started | Dockerfile, state persistence, network exposure, Chat hosting |
 | daemon-agent-tools | Not Started | Filesystem, shell, git tools backed by capabilities |
 | platform-fs | In Progress | `@endo/platform/fs` — shared types, content store, tree adapters |
@@ -330,8 +341,9 @@ capabilities available to agents.
 | ci-no-npm-lifecycle | Not Started | Pin `enableScripts: false` posture into CI; enforcement check for workflows |
 | ~~chat-playwright-smoke~~ | **Complete** | Build-and-load smoke for the Chat bundle in the `browser-tests` job; PRs #91 (design), #94 (impl), #95+#104 (harden/import fixes) |
 | base64-native-fallthrough | Not Started | `@endo/base64` dispatches to `Uint8Array.fromBase64` / `toBase64` when available |
-| hex-package | Not Started | New `@endo/hex` ponyfill with native fallthrough; audit and migrate scattered hex sites |
-| endo-bytes | Implemented | New `@endo/bytes` package for portable `Uint8Array` helpers (`concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`); retires duplicates in `cli`, `ocapn`, and `daemon` (PR #142) |
+| hex-package | In Progress | New `@endo/hex` ponyfill landed 2026-04-28; ocapn sites migrated via PR #223 (`drop buffer-utils for @endo/bytes + @endo/hex`); `packages/daemon/src/hex.js` and `relay-server/src/protocol.js` still pending migration |
+| endo-bytes | **Implemented** | New `@endo/bytes` package for portable `Uint8Array` helpers (`concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`); retires duplicates in `cli`, `ocapn`, and `daemon` (PR #142); follow-up `bytesToImmutable`/`bytesFromImmutable` in 94ffbd401; ocapn refactor in PR #223; buffer-utils inlining in PR #227 |
+| break-dev-dependency-cycles | In Progress | Synthetic test-package factoring to retire the workspace devDep SCC; Cut 2 (`@endo/hex-test`, PR #211), Cut 3 (`@endo/zip` devDep delete, PR #209) and Cut 4 (`@endo/harden-test`, PR #210) merged; Cut 5 (`@endo/eventual-send-test`, PR #247) open; Cut 1 (`@endo/ses-test`, the largest, PR #235) open against master |
 
 **Exit criterion:** Someone can self-host a daemon with our Docker image
 and remote control it, by whatever means, using a local Familiar or a
@@ -478,44 +490,49 @@ includes codec, mailbox, supervisor, and terminal rendering substrates)
 
 ### Size and Time Estimates
 
-#### Calibration round 2026-05-08
+#### Calibration round 2026-05-14
 
-Recalibrated against observed PR-merge velocity since the prior round.
+Recalibrated against observed PR-merge velocity over the seven days since
+the 2026-05-08 round.
 
 **Sample.**
-N = 14 implementation-bearing designs with merged PRs, plus 8 design-only
-PRs (treated separately because their time-to-merge measures CI plus review
-latency rather than design effort).
-Sources: M0 narrative actuals from the prior round (7 designs) plus
-M1 PRs merged on `endojs/endo-but-for-bots` (`#17`, `#21`, `#61`, `#92`,
-`#93`, `#94`, `#99`, `#104`, plus the `gateway-bearer-token-auth`
-implementation noted in the prior round).
+N = 13 new S-sized implementation PRs merged on `endojs/endo-but-for-bots`
+since 2026-05-08 (`#142`, `#146`, `#159`, `#161`, `#167`, `#187`, `#209`,
+`#210`, `#211`, `#221`, `#225`, `#232`, `#245`) plus 3 new M-sized
+(`#214`, `#227`, `#121`) and 1 new L-sized (`#148`).
+The prior round's 14 reference points carry forward; the cumulative S
+bucket now has 18 observations, M has 10, L has 2.
 PRs were matched to designs via branch slug, the design-doc-to-impl
 `Refs:` body convention, and (for the recreated-under-bot pattern)
 the "Forwarded from #N" body line that points back at the original.
 
 **Headline ratio.**
-Median actual / estimate ratio across the 14 completed designs: **1.10**.
-Mean: **1.01**.
-The size-3 estimates from the prior round are roughly accurate when work
-actually completes.
-The bigger story is that completion is not the bottleneck: see the queue
-note below.
+Median actual / estimate ratio across the post-2026-05-08 batch: **0.9**.
+The smaller S-bucket fixes (CI bumps, SECURITY.md uniformity, single-file
+adapters) merged within 1-2 days; the M cross-package refactors
+(`#214` Familiar bundle, `#227` buffer-utils inlining, `#121` turborepo)
+ran 2-6 days; the single L (`#148` `@endo/sandbox` confining `@endo/genie`
+tools) ran 6 days at ~15K LOC.
+S-sized work continues to undershoot estimates; M and L stay near the
+prior multipliers.
 
-**Per-size velocity (completed implementation PRs).**
+**Per-size velocity (completed implementation PRs, cumulative through
+2026-05-14).**
 
-| Size | N | Median estimate | Median actual | Ratio |
-|------|---|-----------------|---------------|-------|
-| S    | 5 | 1.0 d           | 0.6 d         | 0.64  |
-| M    | 7 | 2.5 d           | 3.0 d         | 1.20  |
-| L    | 1 | 7.0 d           | 10.7 d        | 1.53  |
-| XL   | 0 | n/a             | n/a           | n/a   |
+| Size | N  | Median estimate | Median actual | Ratio |
+|------|----|-----------------|---------------|-------|
+| S    | 18 | 1.0 d           | 0.7 d         | 0.70  |
+| M    | 10 | 2.5 d           | 3.0 d         | 1.20  |
+| L    | 2  | 7.0 d           | 8.5 d         | 1.21  |
+| XL   | 0  | n/a             | n/a           | n/a   |
 
-S-sized designs land faster than estimated (most are surgical fixes that
-took an afternoon).
-M-sized designs run ~20% over.
-The single L data point (`daemon-make-archive`, ~11 days across PRs `#17`
-and `#21`) ran ~50% over.
+S-sized designs continue to land faster than estimated; the median rose
+slightly (0.6 → 0.7 d) because the post-2026-05-08 batch includes several
+multi-package S items that ran 1-2 days.
+M-sized designs hold at ~20% over.
+The L bucket now has two points (`daemon-make-archive` at ~11 days and
+`@endo/sandbox` confining `@endo/genie` tools at ~6 days); the median
+falls from 10.7 d to 8.5 d.
 XL has no completed sample yet.
 
 **Per-milestone aggregate.**
@@ -523,30 +540,31 @@ XL has no completed sample yet.
 | Milestone | Completed designs | Median actual | Median estimate | Ratio |
 |-----------|-------------------|---------------|-----------------|-------|
 | M0        | 7                 | 3.0 d         | 2.5 d           | 1.20  |
-| M1        | 7 (impl)          | 1.0 d         | 1.0 d           | 1.00  |
+| M1        | 10 (impl)         | 1.0 d         | 1.0 d           | 1.00  |
 
-**Review-queue latency (the binding constraint).**
-14 implementation PRs forwarded under the bot in the 2026-04-23/04-24
-batch (`#122`–`#135`) remained open as of 2026-05-08 with a median
-elapsed-since-original-branch of **13.9 days**.
-That elapsed includes both author idle time and review-queue time, but
-the salient observation is that the wall-clock between "design accepted"
-and "code on `llm`" for those designs is dominated by review latency,
-not by author throughput.
-For a queue this deep, additive review-queue weeks are a more honest
+**Review-queue latency (the binding constraint, updated).**
+The 14 impl PRs forwarded under the bot in the 2026-04-23/04-24 batch
+(`#122`–`#135`) remained open as of 2026-05-14, now at a median
+elapsed-since-original-branch of **21 days**.
+Two members of that batch (`#127` mount extensions, `#125` editMessage)
+have had review activity in the past week; the rest remain unreviewed.
+For a queue this deep, additive review-queue weeks remain a more honest
 correction than multiplying per-design estimates.
+The post-2026-05-08 PRs that merged quickly (S and M batch) were
+out-of-band cleanups and design-only PRs that did not enter the review
+queue tail.
 
 **Recalibration applied.**
 
-- S-sized estimates left at 1 day (slightly conservative; observed
-  median 0.6 d).
-- M-sized estimates bumped by ~20% (observed ratio 1.20).
-- L-sized estimates bumped by ~50% (observed ratio 1.53; single sample,
-  so this is provisional).
-- XL estimates left as-is for lack of data, with a note in the design
-  notes column.
-- Per-milestone totals lengthened by an additional 1–2 weeks of "review
-  queue" carry to reflect the observed in-flight backlog.
+- S-sized estimates left at 1 day (still mildly conservative; observed
+  median 0.7 d).
+- M-sized estimates kept at the 1.2x bump (observed ratio 1.20 unchanged).
+- L-sized estimates relaxed from 1.5x to 1.3x (observed ratio 1.21 with
+  N=2; the new `@endo/sandbox` confining point pulled the median
+  inward).
+- XL estimates left at 1.3x for lack of data.
+- Per-milestone totals: review-queue carry kept at 2 weeks since the
+  in-flight backlog has not drained.
 
 #### Estimation Methodology
 
@@ -603,6 +621,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
 | ~~familiar-bundled-agents~~ | — | — | 0 | ✅ Complete (inline provisioning in daemon-node.js) |
 | ~~gateway-bearer-token-auth~~ | — | — | 1 | ✅ Implemented |
+| endo-gateway | L | 1.5-3 weeks | 1 | Per-host system-service HTTP virtual host for OCapN; lifts hosting out of per-user Daemon. Raised to M1 per kriskowal directive on `#134#issuecomment-4444987124` (2026-05-13). Size set at L pending per-phase backfill |
 | daemon-docker-selfhost | S-M | 3 days | 1 | Dockerfile, entrypoint, compose; PR #134 forwarded under bot, awaiting review |
 | daemon-agent-tools | M-L | 1.5 weeks | 1 | Shell, git, fs tool wrappers; PR #130 forwarded under bot |
 | platform-fs | S-M | 3 days | 1 | Shared types, content store extraction, tree adapters; PR #122 forwarded under bot |
@@ -618,8 +637,10 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ci-no-npm-lifecycle | S | 1 day | 1 | Workflow audit; PR #126 forwarded under bot |
 | ~~chat-playwright-smoke~~ | S | — | 1 | ✅ Complete (PRs #91 design, #94 impl, #95+#104 fix; ~16 hours total) |
 | base64-native-fallthrough | S | 1 day | 1 | Detect `Uint8Array.fromBase64`, dispatch, dual-path tests |
-| hex-package | S-M | 3 days | 1 | New `@endo/hex` package, migrate `daemon/src/hex.js`, `relay-server/src/protocol.js`, OCapN hex sites |
-| ~~endo-bytes~~ | S | — | 1 | ✅ Implemented (PR #142): `@endo/bytes` with `concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`; consumers in `cli`, `ocapn`, `daemon` migrated |
+| hex-package | S-M | 3 days | 1 | `@endo/hex` package landed 2026-04-28; ocapn migration in PR #223; `daemon/src/hex.js` and `relay-server/src/protocol.js` migrations remain |
+| ~~endo-bytes~~ | S | — | 1 | ✅ Implemented (PR #142): `@endo/bytes` with `concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`; follow-up `bytesToImmutable`/`bytesFromImmutable` and ocapn buffer-utils consolidation (PR #227) |
+| break-dev-dependency-cycles | M | 3 days | 1 | Synthetic test-package factoring to retire workspace devDep SCC; Cuts 2-4 merged (PRs #209, #210, #211); Cut 5 (PR #247) and Cut 1 (largest, PR #235) open |
+| unhandled-rejection-display | S | 1 day | — | Out-of-milestone diagnostic; impl landed via PR #187 (closes #171). CapTP `CTP_DISCONNECT.reason` now renders structured Error reasons rather than empty `{}` |
 | ocapn-network-transport-separation | M-L | 1.5 weeks | 2 | Architectural refactor (M-L bumped 1.2x) |
 | ocapn-tcp-for-test-extraction | S-M | 3 days | 2 | Code relocation |
 | ocapn-tcp-syrups-framing | S-M | 3 days | 2 | `@endo/syrups` package, new `tcp+syrups` netlayer; design merged (PR #108); impl PR #109 open |
@@ -665,21 +686,31 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 #### Summary by Milestone
 
-Recalibrated 2026-05-08 by applying per-size median ratios from observed
-PR-merge velocity (S: 0.6, M: 1.2, L: 1.5, XL: 1.3 conservative).
+Recalibrated 2026-05-14 by applying per-size median ratios from observed
+PR-merge velocity (S: 0.7, M: 1.2, L: 1.3, XL: 1.3 conservative).
 "Plus review queue" reflects the observed 2-week median wait between
 ready-to-merge and actually-merged for the in-flight backlog.
 
 | Milestone | Items | Effort Estimate | Plus Review Queue (current rate) |
 |-----------|-------|-----------------|----------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** | — |
-| M1: Remote Access & Tools | 12 remaining | 8-10 weeks | 10-12 weeks |
+| M1: Remote Access & Tools | 14 remaining (endo-gateway, break-dev-dep-cycles added) | 10-13 weeks | 12-15 weeks |
 | M2: Networking | 7 | 4-5 weeks | 5-7 weeks |
 | M3: Weblets & Integrations | 9 | 5-7 weeks | 6-9 weeks |
 | M4: UX & Tooling | 12 | 8-11 weeks | 10-13 weeks |
 | M5: Confinement & Ecosystem | 6 active (1 superseded) | 14-20 weeks | 16-22 weeks |
 | M6: Rust Daemon (`endor`) | 2 | 12-17 weeks | 14-19 weeks |
-| **Total remaining** | **50** | **~51-70 weeks** | **~61-82 weeks** |
+| **Total remaining** | **52** (M1+2) | **~53-73 weeks** | **~63-85 weeks** |
+
+The two new M1 rows raise M1's remaining count from 12 to 14 and lift
+its effort estimate by ~2-3 weeks (`endo-gateway` is the main addition;
+`break-dev-dependency-cycles` is 3/5 cuts merged with two residual cuts
+open).
+M2, M3, M4 counts unchanged; the new design-only PRs that merged this
+week (`cli-edit-verb` #162, `cli-store-verb-text-modes` #153,
+`retention-path-notation` #181, `cli-http-client` #163,
+`endo-gateway` #199, `trust-on-first-bind` #164) were already
+counted in their target milestones from the prior calibration.
 
 ### Timeline
 
@@ -692,7 +723,7 @@ gantt
     AI Agent Experience           :done, m0, 2026-02-15, 2026-03-05
 
     section Milestone 1
-    Remote Access & Tools         :m1, 2026-03-06, 5w
+    Remote Access & Tools         :m1, 2026-03-06, 12w
 
     section Milestone 2
     Networking                    :m2, after m1, 4w
@@ -711,18 +742,18 @@ gantt
 ```
 
 Durations below are the recalibrated effort-side ranges (multiplying by
-the per-size ratios from the 2026-05-08 calibration round).
+the per-size ratios from the 2026-05-14 calibration round).
 Add ~2 weeks per milestone if the current review-queue depth persists.
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
 | M0: AI Agent Experience | 18 days (actual) | **Complete** | March 5, 2026 |
-| M1: Remote Access & Tools | 8-10 weeks | 8-10 weeks | Mid July 2026 |
-| M2: Networking | 4-5 weeks | 12-15 weeks | Mid August 2026 |
-| M3: Weblets & Integrations | 5-7 weeks | 17-22 weeks | Late September 2026 |
-| M4: UX & Tooling | 8-11 weeks | 25-33 weeks | Late November 2026 |
-| M5: Confinement & Ecosystem | 14-20 weeks | 39-53 weeks | Mid-Late March 2027 |
-| M6: Rust Daemon (`endor`) | 12-17 weeks | 51-70 weeks | Q3-Q4 2027 |
+| M1: Remote Access & Tools | 10-13 weeks | 10-13 weeks | Late July to mid-August 2026 |
+| M2: Networking | 4-5 weeks | 14-18 weeks | Late August to mid-September 2026 |
+| M3: Weblets & Integrations | 5-7 weeks | 19-25 weeks | Mid October to early November 2026 |
+| M4: UX & Tooling | 8-11 weeks | 27-36 weeks | Mid December 2026 to early January 2027 |
+| M5: Confinement & Ecosystem | 14-20 weeks | 41-56 weeks | Late March to mid-May 2027 |
+| M6: Rust Daemon (`endor`) | 12-17 weeks | 53-73 weeks | Q3-Q4 2027 |
 
 *Milestones 3 and 4 are less order-dependent and can be interleaved.
 Milestones 0, 1, and 2 form the critical path. Weblets prioritized over
@@ -740,14 +771,23 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-05-08:** 26 of 95 designs complete/implemented, 15 in progress. M0 complete.
-M1, M2, M3, and M4 designs continue to land; the most recent merges (PRs #50, #85, #86, #91, #92,
-#93, #94, #99, #100, #108, #115) are a mix of design-only PRs and small implementation PRs that
-do not change the critical path.
-Recalibration round 2026-05-08 (see Calibration round section above): per-size median actual /
-estimate ratios are S 0.6, M 1.2, L 1.5; the 14 implementation PRs forwarded under the bot in
-the 2026-04-23/04-24 batch sit at a median 13.9 days open, so review-queue latency rather than
-author throughput is the binding constraint on M1 completion.
+**Progress as of 2026-05-14:** 28 of 106 designs complete/implemented, 17 in progress. M0 complete.
+The week of 2026-05-08 through 2026-05-14 saw heavy activity on `llm`:
+17 implementation PRs merged (`#121` turborepo adoption, `#142`/`#227` `@endo/bytes`
++ buffer-utils consolidation, `#187` CapTP rejection diagnostics closing `#171`,
+`#208`/`#214` formula-GC defaults + Familiar bundle unbreak, `#209`/`#210`/`#211`
+break-dev-dep-cycles Cuts 2-4, `#225` daemon GC multi-agent test coverage, `#228`/`#245`
+SECURITY.md uniformity, `#232` Node 18 drop, `#148` `@endo/sandbox` confining `@endo/genie`
+tools), plus 8 design-only PRs merged (`#140` endo-bytes design, `#153` cli-store-verb-text-modes,
+`#162` cli-edit-verb, `#163` cli-http-client, `#164` trust-on-first-bind, `#176` unhandled-rejection-display
+design, `#181` retention-path-notation, `#199` endo-gateway, `#206` break-dev-dep-cycles).
+Recalibration round 2026-05-14 (see Calibration round section above): per-size median actual /
+estimate ratios are S 0.7, M 1.2, L 1.3 (relaxed from 1.5 with N=2 now); M1 raised from 12 to
+14 remaining items after `endo-gateway` (raised to M1 per kriskowal directive on `#134#issuecomment-4444987124`
+2026-05-13) and `break-dev-dependency-cycles` were added.
+The 14 implementation PRs forwarded under the bot in the 2026-04-23/04-24 batch sit at a median
+~21 days open (up from 13.9 days at the prior calibration), so review-queue latency remains the
+binding constraint on M1 completion.
 18 active work days elapsed (Feb 15 – Mar 5), primarily 1 developer
 (128 of 201 commits). Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
