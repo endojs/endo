@@ -7,6 +7,7 @@
 
 // eslint-disable-next-line import/no-unresolved
 import OpenAI from 'openai';
+import { toOpenAICompatibleMessages } from './openai-compatible-messages.js';
 
 /**
  * @typedef {object} CommonTool
@@ -64,8 +65,7 @@ export const makeLlamaCppProvider = ({
           model,
           max_tokens: maxTokens,
           tools,
-          // @ts-expect-error - our message format matches OpenAI's for this path
-          messages: sendMessages,
+          messages: toOpenAICompatibleMessages(sendMessages),
         });
       } catch (error) {
         console.error('[LAL] llama.cpp API error:', error);
