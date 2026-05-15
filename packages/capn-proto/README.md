@@ -47,6 +47,46 @@ Highlights:
 Implementation in this package targets RPC Level 1 + Level 3. Level 2 (saved
 references) and Level 4 (Join) are out of scope for this release.
 
+### A note on L3 wire-format compatibility
+
+The Cap'n Proto reference implementation in C++ has shifted its L3
+machinery substantially between releases:
+
+- **`libcapnp` 1.0.x** (the Debian / Ubuntu / Homebrew version this
+  package's CI tests against) defines the L3 messages on the wire
+  (`Provide`, `Accept`, `Disembargo`, `ThirdPartyCapDescriptor`) but
+  the `VatNetwork` C++ class declares only the L0 `connect` / `accept`
+  methods — L3 hooks are explicitly marked
+  `// Level 4 features ----- // TODO(someday)`. There is no way to
+  build a working L3-capable `VatNetwork` against `libcapnp` 1.0.x
+  even with custom subclassing.
+- **`libcapnp` 2.0-dev** (built from upstream HEAD) adds the L3
+  `VatNetwork` API (`canIntroduceTo`, `introduceTo`,
+  `connectToIntroduced`, `awaitThirdParty`, `completeThirdParty`,
+  `forwardThirdPartyToContact`) AND breaks the on-the-wire `Accept`
+  and `Disembargo` shapes:
+  - `Accept.embargo` is widened from `Bool` to
+    `:ThirdPartyEmbargoId` (a `Data` byte string, second pointer
+    slot).
+  - `Disembargo.context.accept` is widened from `Void` to
+    `:ThirdPartyEmbargoId` (`Data`); the `provide` arm is removed
+    entirely, with B forwarding the same `accept`-arm Disembargo to
+    C with `target = promisedAnswer{provideQid}`.
+  - The AnyPointer slot logical types are renamed
+    `RecipientId → ThirdPartyToAwait`,
+    `ProvisionId → ThirdPartyCompletion`,
+    `ThirdPartyCapId → ThirdPartyToContact`.
+
+This package targets the 1.0.x wire shape so the byte-level interop
+tests (which use the apt-installable `capnp` CLI to validate every
+message variant) work in CI without building from source. The L3
+implementation here exercises Provide / Accept / Disembargo with the
+1.0.x discriminator layout — this is byte-compatible with anything a
+1.0.x peer would emit, but a real interop with a 2.0-dev peer would
+need a wire-format port. A separate live-L3 test fixture against a
+custom C++ `VatNetwork` would also need the 2.0-dev port plus a
+build-from-source CI step. Those are tracked but deferred.
+
 ## Quick start
 
 ```js
