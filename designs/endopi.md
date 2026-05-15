@@ -7,6 +7,24 @@
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Reference |
 
+(2026-05-15 second pass: extended to cover `packages/genie` per jcorbin's
+inline review on PR #265. Two affected sections: § *Endo-side surfaces
+covered* and § *Genie: Pi inside Endo*.)
+
+## Endo-side surfaces covered
+
+Three Endo packages sit on the agent-shape axis this document maps against
+Pi. The umbrella tables below contrast the canonical pi `coding-agent` CLI
+against `packages/lal` plus `packages/fae` (the agent-loop and tool
+surfaces that predate this analysis). A third surface, `packages/genie`,
+embeds Pi inside Endo directly: it ships `@mariozechner/pi-agent-core` and
+`@mariozechner/pi-ai` as runtime dependencies, exposes the ollama provider
+adaptor missing from `pi-ai`'s default registry, and layers Claw-like
+heartbeat / observer / reflector subagents over the result. The genie
+surface is summarised under § *Genie: Pi inside Endo* below; where the
+Lal/Fae mapping leaves a gap, the cell calls out whether genie already
+fills it.
+
 ## Background
 
 Pi is "the pi agent harness" — a minimal terminal coding-agent toolkit
@@ -121,8 +139,8 @@ agent's own form of long-term memory inside its workspace. See gap
 
 | Pi Feature                                  | Endo Equivalent                                | Status                                                 |
 |---------------------------------------------|------------------------------------------------|--------------------------------------------------------|
-| Unified provider/model registry             | `packages/lal/providers/` (Anthropic, OpenAI, Ollama, Gemini, Llama.cpp)| **Available**                          |
-| 30+ providers, auto-discovered models       | Five providers                                 | Gap                                                    |
+| Unified provider/model registry             | `packages/lal/providers/` (Anthropic, OpenAI, Ollama, Gemini, Llama.cpp); `packages/genie` re-exports `pi-ai`'s registry directly | **Available** (two surfaces)|
+| 30+ providers, auto-discovered models       | Five providers in Lal; `pi-ai`'s full registry in Genie | Lal gap; **available via Genie**                |
 | Subscription auth (Claude Pro/Max, ChatGPT Plus, Copilot) | API-key only                       | Gap                                                    |
 | Cross-provider session handoff              | —                                              | Not designed                                           |
 | Token / cost tracking per usage block       | Per-message usage in Lal transcripts (partial) | Partial                                                |
@@ -239,6 +257,94 @@ Pi's compaction shape is a refinement of what
 HTML export is the only piece worth carrying forward; the rest is
 philosophical (sharing transcripts is a workflow choice). Tracked as a
 follow-on inside the JSONL-transcript gap, not a standalone design.
+
+## Genie: Pi inside Endo
+
+`packages/genie` (introduced 2026 Q2; status: pre-release, version 0.0.1)
+is the third Endo-side surface this analysis covers. Where Lal and Fae
+re-implement the agent shape in Endo's idioms, Genie takes the opposite
+tack: it depends on `@mariozechner/pi-agent-core` and `@mariozechner/pi-ai`
+directly and wraps them in an Endo-flavoured framing (`makePiAgent`,
+`runAgentRound`, a Claw-like SOUL.md / HEARTBEAT.md workspace template, an
+observer / reflector subagent pair). The questions the umbrella tables ask
+of Lal/Fae have different answers when asked of Genie.
+
+### Mapping
+
+| Aspect                                | Lal/Fae mapping (rest of this doc)          | Genie mapping                                                  |
+|---------------------------------------|---------------------------------------------|----------------------------------------------------------------|
+| **LLM API**                           | `packages/lal/providers/` (5 providers)     | `pi-ai` registry verbatim; full provider list **available**     |
+| **Ollama provider**                   | One module in Lal                           | Custom ollama adaptor (`buildOllamaModel`) masquerades ollama as the `openai-completions` API style at `http://127.0.0.1:11434/v1`, bypassing `pi-ai`'s absent native ollama entry. See `src/agent/index.js`. |
+| **Subscription OAuth**                | Gap                                         | Gap (Genie inherits whatever `pi-ai` ships; OAuth providers are not enabled out of the box but the registry shape supports them) |
+| **Agent loop**                        | Lal/Fae's own loop                          | `PiAgent` from `pi-agent-core`, subscribed via `runAgentRound` which translates `pi-agent-core` events into Genie's `ChatEvent` stream |
+| **Tool model**                        | Tool registration in Fae (`makeFooTool`)    | Genie's `ToolSpec` converted at boundary into `AgentTool` for `pi-agent-core` (`toAgentTool`); tools live in `src/tools/` (`vfs`, `command`, `web-fetch`, `web-search`, `memory`) |
+| **Capability confinement**            | SES + caretaker revocation (rest of doc)    | Per-tool gating via `tool-gate.js` over an ambient-Node tool surface; tool execution is gated on expected tool/arg pairs but is not capability-confined by SES grants. The intent (per jcorbin) is to confine via `packages/sandbox` (bwrap on Linux) for `command` and `vfs-node`; that wiring is **not yet present in main**. |
+| **System prompt constitution**        | `packages/lal/agent.js` system prompt       | `buildSystemPrompt` in `src/system/index.js`: composes runtime info, policy / strict-policy / security-notes sections, tool list, and a Claw-style workspace section. Builds a flexible library of prompt parts. |
+| **Persistence shape**                 | Formula store + Lal reply-chains            | A Claw-compatible workspace dir (default `workspace_template/`): `SOUL.md` (persona), `HEARTBEAT.md` (tasks), `memory/` (observations.md, reflections.md, profile.md). Markdown-on-disk; the agent reads its own past sessions through the memory tools. |
+| **Compaction**                        | Designed only ([lal-transcript-memory-management](lal-transcript-memory-management.md)) | **In progress**: an observer subagent compresses chat into prioritised `observations.md` entries (token-threshold + idle-timer trigger; 30k-token default); a reflector subagent consolidates observations into long-term `reflections.md` and `profile.md` (40k-token threshold + daily heartbeat). Both run as separate `PiAgent` instances with focused tool sets, gated by `tool-gate.js`. |
+| **Autonomous execution**              | None                                        | A heartbeat subagent loads `HEARTBEAT.md`, executes pending tasks, and records `.heartbeats.log` per tick. Claw's autonomous-task shape. |
+| **Skill format**                      | Designed only ([endoclaw-skill-registry](endoclaw-skill-registry.md)) | A `skillsPrompt` option on `buildSystemPrompt` accepts a pre-rendered skills section. The on-disk format and discovery walker are not in Genie; the open spinout [endopi-skills-markdown-format](endopi-skills-markdown-format.md) still applies. |
+| **Interval scheduler**                | None                                        | `makeIntervalScheduler` runs periodic agent prompts (cron-style) under the agent loop |
+
+### What Genie's existence tells us
+
+Genie is the existence proof that *embedding* Pi inside Endo is viable: a
+single package can depend on `pi-ai` for the provider/model registry, wrap
+`pi-agent-core` for the agent loop, and project the result into Endo's
+event vocabulary without rewriting either Pi surface. Three implications
+follow.
+
+1. **The provider-registry gap is partially closed today.** Genie ships
+   `pi-ai`'s full registry by transitive dependency. See § *Roadmap impact*
+   in [endopi-provider-registry-and-oauth](endopi-provider-registry-and-oauth.md);
+   M1's scope reduces to (a) consolidating onto one registry surface
+   (Genie's vs. Lal's) and (b) the OAuth and cross-provider-handoff work
+   that `pi-ai` does not provide.
+
+2. **The compaction gap has a working implementation.** Genie's observer /
+   reflector pair is closer to a shipped iterative compactor than
+   [endopi-iterative-compaction](endopi-iterative-compaction.md)'s design
+   anticipated. The substrate now exists; the design's role shifts from
+   "specify the algorithm" to "harmonise with the observer / reflector
+   pair and route Lal/Fae transcripts through them".
+
+3. **The confinement story is the open question.** Genie's tool surface
+   runs with ambient Node authority (the `command` tool spawns
+   subprocesses; the `vfs-node` tool reaches the filesystem directly). The
+   tool-gate's role is to constrain which tools and which arguments a
+   sub-agent may invoke, not to confine what those tools can reach. The
+   maintainer's direction (per the inline review on PR #265 introducing
+   this section) is `packages/sandbox` (`bwrap` on Linux) as the confinement
+   layer for the ambient tools. Wiring that up is the natural follow-on
+   design once `endo-posix-sandbox` Phase 1.5 lands.
+
+### Source-file citations (Genie)
+
+- [`packages/genie/README.md`](../packages/genie/README.md)
+- [`packages/genie/DESIGN.md`](../packages/genie/DESIGN.md)
+- [`packages/genie/src/agent/index.js`](../packages/genie/src/agent/index.js) — `makePiAgent`, `buildOllamaModel`, `runAgentRound`, the `pi-agent-core` event-to-`ChatEvent` translation
+- [`packages/genie/src/observer/index.js`](../packages/genie/src/observer/index.js) — observer subagent (token + idle compaction)
+- [`packages/genie/src/reflector/index.js`](../packages/genie/src/reflector/index.js) — reflector subagent (long-term consolidation)
+- [`packages/genie/src/heartbeat/index.js`](../packages/genie/src/heartbeat/index.js) — autonomous task executor
+- [`packages/genie/src/system/index.js`](../packages/genie/src/system/index.js) — system-prompt builder (Claw-modeled)
+- [`packages/genie/src/agent/tool-gate.js`](../packages/genie/src/agent/tool-gate.js) — sub-agent tool-coverage gate
+- [`packages/genie/src/tools/`](../packages/genie/src/tools/) — `vfs`, `command`, `web-fetch`, `web-search`, `memory`
+- [`packages/genie/src/interval/index.js`](../packages/genie/src/interval/index.js) — cron-style interval scheduler
+- [`packages/genie/workspace_template/`](../packages/genie/workspace_template/) — Claw-compatible `SOUL.md`, `HEARTBEAT.md`, `memory/`
+
+### Upstream-Pi cross-reference (per jcorbin's comment on PR #265)
+
+The pi-mono monorepo's split that Genie reflects:
+
+- `pi-mono/packages/agent` (`@mariozechner/pi-agent-core`) — the agent-loop
+  core Genie depends on for `PiAgent`. Not the cli; the embeddable harness.
+- `pi-mono/packages/ai` (`@mariozechner/pi-ai`) — the provider/model
+  abstraction Genie inherits the registry from.
+- `pi-mono/packages/coding-agent` — the pi-cli surface the rest of this
+  document compares against. Not what Genie depends on.
+
+Genie is therefore closer to pi-`agent` than to pi-`coding-agent`: it
+reuses the embedding-shaped agent core, not the cli-shaped one.
 
 ## Summary: Coverage and Gaps
 

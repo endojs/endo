@@ -5,8 +5,35 @@
 | **Created** | 2026-05-15 |
 | **Updated** | 2026-05-15 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Proposed (partially satisfied) |
 | **Parent** | [endopi](endopi.md) |
+
+## Status
+
+`packages/genie` already ships an iterative-compaction substrate that
+implements a sibling shape to Pi's:
+
+- An observer subagent (`packages/genie/src/observer/index.js`)
+  compresses chat into prioritised observations (`memory/observations.md`)
+  on a token-threshold (default 30k) plus idle-timer trigger. Runs as a
+  background `PiAgent` with a focused tool set.
+- A reflector subagent (`packages/genie/src/reflector/index.js`)
+  consolidates observations into long-term knowledge
+  (`memory/reflections.md`, `memory/profile.md`) on a 40k-token threshold
+  plus daily heartbeat trigger; prunes stale low-priority entries; merges
+  related observations.
+- Both subagents are gated by `tool-gate.js` to ensure they actually call
+  the memory-write tools they were dispatched for.
+
+This satisfies the "iterative summary feeds next" axis of Pi's compaction
+shape and the trigger-condition split (token threshold + idle). What
+remains for this design is to harmonise that shipped implementation with
+the Lal/Fae transcript graph: today the observer/reflector pair writes to
+markdown files on disk, while Lal's transcripts are an in-memory graph.
+The remaining work is the projection layer (run observer/reflector over
+Lal transcripts; surface their output back into Lal's transcript graph
+rather than to disk), plus the `keepRecentTokens` / `reserveTokens`
+knobs and the structured-summary format pi-mono uses.
 
 ## Motivation
 

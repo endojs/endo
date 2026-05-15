@@ -5,8 +5,42 @@
 | **Created** | 2026-05-15 |
 | **Updated** | 2026-05-15 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Proposed (partially satisfied) |
 | **Parent** | [endopi](endopi.md) |
+
+## Status
+
+`packages/genie` (pre-release, 2026 Q2) already depends on
+`@mariozechner/pi-ai` directly and ships an ollama provider adaptor
+(`buildOllamaModel` in `packages/genie/src/agent/index.js`) that
+masquerades the local ollama HTTP endpoint as the `openai-completions`
+API style. Genie therefore exposes `pi-ai`'s full provider registry
+inside Endo today, without the registry-shape refactor this design
+proposes for Lal.
+
+What this means for the milestone:
+
+- **Registry shape (Phase 1).** Genie has a working consumer of
+  `pi-ai`'s registry. Lal's static-dispatch refactor is still needed
+  if Lal stays a parallel surface; the question is whether Lal should
+  consolidate onto Genie's `pi-ai` dependency or keep its own
+  per-provider modules. Recorded under *Open questions* below.
+- **API-key providers (Phase 2).** Available via Genie today through
+  `pi-ai`'s 30+ providers. The Phase-2 work for Lal becomes a question
+  of "do we duplicate?" rather than "do we add?".
+- **OAuth (Phases 3 to 4).** Genuinely missing. `pi-ai` itself ships
+  OAuth scaffolding for subscription providers but its enablement in
+  Genie is not wired through yet. Subscription OAuth remains the
+  highest-leverage user-facing capability the milestone delivers.
+- **Cross-provider handoff (Phase 5).** Missing. Genie inherits the
+  registry but does not exercise mid-session provider switching.
+- **Image input (Phase 6).** Inherits from `pi-ai`'s capability per
+  provider; the Endo-side daemon-value-message plumbing is unchanged.
+
+Net: this milestone's remaining scope reduces to (a) the OAuth flow,
+(b) cross-provider handoff plumbing, (c) image input wiring, and
+(d) the policy question of Lal-vs-Genie consolidation. The original
+"30+ providers" framing is no longer the headline.
 
 ## Motivation
 
@@ -115,6 +149,14 @@ plumbing is missing. The registry above is the substrate.
 
 ## Open questions
 
+- **Lal vs Genie consolidation.** Genie depends on `@mariozechner/pi-ai`
+  directly and ships an ollama adaptor on top. Lal carries its own
+  per-provider modules. The options are: (a) Lal consolidates onto
+  Genie's `pi-ai` dependency, retiring `packages/lal/providers/`; (b)
+  Lal and Genie coexist with separate registries; (c) the registry
+  lives in a new shared `@endo/ai` package that both depend on. The
+  decision affects Phases 1 and 2 directly. Recommend deferring to
+  the maintainer after the OAuth flow's package-placement is settled.
 - Should the registry live in `@endo/lal` or in a new `@endo/lal-ai`
   package mirroring Pi's split? Splitting lets a non-Lal consumer reuse
   the providers; staying co-located avoids a package proliferation.
