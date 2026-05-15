@@ -14,12 +14,9 @@
  *   4. C → A: Return carrying the actual capability
  *   5. A → B: Release on the vine
  *
- * Embargo extension (rpc.capnp 2.0-dev): if A had pipelined calls in flight,
- * A picks a fresh embargoId byte string, sets it on `Accept.embargo` and
- * additionally sends `Disembargo{accept, embargoId}` to B targeting the
- * original promise import. B forwards the same Disembargo on B↔C with
- * `target = promisedAnswer{provideQid}`. C drains its queue then matches the
- * embargoId against its pending Accept Return and unblocks A.
+ * Embargo extension: if A had pipelined calls in flight, A sets `embargo = true`
+ * on Accept and additionally sends Disembargo{accept} to B; B forwards
+ * Disembargo{provide=&lt;provideQid&gt;} to C; C drains its queue then unblocks A.
  *
  * Vine fallback: A always imports the vine in addition to attempting the
  * direct path. If the direct A↔C handshake fails (host unreachable, unknown
@@ -58,42 +55,14 @@ export const makeThreeParty = ctx => {
   const provideQuestionByTargetId = new Map();
   /**
    * Host-side (we are C) deferred Accept Returns awaiting a
-   * `Disembargo { context: accept{embargoId} }` (forwarded by B with
-   * `target = promisedAnswer{provideQid}`) to drain any pipelined work
-   * that was in flight on the target before A's Accept arrived. Keyed by
-   * the Provide's questionId; each entry also remembers the embargoId
-   * the matching Accept declared, so the Disembargo's id is verified.
+   * `Disembargo { context: provide(Q) }` to drain any pipelined work that
+   * was in flight on the target before A's Accept arrived. Keyed by the
+   * Provide's questionId — the same identifier B encodes into the
+   * Disembargo it forwards from A.
    *
-   * @type {Map<number, { sendReturn: () => void, embargoId: Uint8Array }>}
+   * @type {Map<number, () => void>}
    */
   const pendingEmbargoReturns = new Map();
-
-  /**
-   * A-side (we are A) embargo id allocator. We don't need cryptographic
-   * unguessability here — the spec only requires uniqueness among
-   * embargoes outstanding on a given provision, which is trivially
-   * satisfied by a per-vat counter. Real VatNetworks supporting
-   * forwarding may want to widen this.
-   */
-  let embargoCounter = 0;
-  const allocEmbargoId = () => {
-    embargoCounter += 1;
-    const n = embargoCounter;
-    return new Uint8Array([
-      0xe0,
-      Math.floor(n / 65536) % 256,
-      Math.floor(n / 256) % 256,
-      n % 256,
-    ]);
-  };
-
-  const equalBytes = (a, b) => {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i += 1) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
-  };
 
   /**
    * Initiate a three-party handoff.
@@ -212,26 +181,23 @@ export const makeThreeParty = ctx => {
       return Promise.resolve(vinePresence);
     }
     const useEmbargo = desc.embargo === true;
-    let embargoId;
     if (
       useEmbargo &&
       typeof desc.originalPromiseId === 'number' &&
       typeof encodeDisembargo === 'function'
     ) {
-      embargoId = allocEmbargoId();
-      // Tell B to forward a Disembargo{accept, embargoId} to C in front
-      // of any pipelined work A previously addressed at
-      // `desc.originalPromiseId`. B's `handleDisembargoAccept` rewrites
-      // target → promisedAnswer{provideQid} and forwards on B↔C; C
-      // matches the embargoId against its pending Accept Return.
+      // Tell B to forward a Disembargo{provide=Q} to C in front of any
+      // pipelined work A previously addressed at `desc.originalPromiseId`.
+      // B's `handleDisembargoAccept` looks up the corresponding Provide
+      // questionId and forwards on B↔C.
       sendFramed(
         encodeDisembargo({
           target: { kind: 'importedCap', id: desc.originalPromiseId },
-          context: { kind: 'accept', embargoId },
+          context: { kind: 'accept' },
         }),
       );
     }
-    const directP = peer.sendAccept(encodeProvision, embargoId);
+    const directP = peer.sendAccept(encodeProvision, useEmbargo);
     return directP.then(
       direct => {
         // Direct succeeded; release the vine on the original B↔A path.
@@ -322,11 +288,11 @@ export const makeThreeParty = ctx => {
    * @param {{
    *   questionId: number,
    *   provisionSlot: { msg: any, segId: number, wordOffset: number },
-   *   embargoId?: Uint8Array,
+   *   embargo?: boolean,
    * }} msg
    */
   const handleAccept = msg => {
-    const { questionId, provisionSlot, embargoId } = msg;
+    const { questionId, provisionSlot, embargo } = msg;
     const provided = network.consumeProvision(provisionSlot);
     if (!provided) {
       sendFramed(
@@ -361,82 +327,60 @@ export const makeThreeParty = ctx => {
     }
     const { id } = ctx.exportRegistry.exportValue(value);
     const sendReturn = () => sendFramed(buildAcceptReturn(questionId, id));
-    if (
-      embargoId &&
-      embargoId.length > 0 &&
-      typeof provided.questionId === 'number'
-    ) {
+    if (embargo === true && typeof provided.questionId === 'number') {
       // A asked us to delay until the in-flight pipelined queue drains.
-      // Park the Return keyed by the Provide questionId — B forwards the
-      // Disembargo with `target = promisedAnswer{Q}` so C resolves it via
-      // that question id. The embargoId is remembered for verification.
-      pendingEmbargoReturns.set(provided.questionId, {
-        sendReturn,
-        embargoId,
-      });
+      // Park the Return; handleDisembargoProvide will fire it after the
+      // matching Disembargo arrives. Indexed by the Provide's question id
+      // (the same identifier B forwards in the Disembargo).
+      pendingEmbargoReturns.set(provided.questionId, sendReturn);
       return;
     }
     sendReturn();
   };
 
   /**
-   * Find the host-bound forwarding address for an A→B
-   * `Disembargo{accept}`. We act as B (introducer): translate A's view of
-   * the promise (importedCap on B↔A) into C's view (the Provide question
-   * Q we previously sent on B↔C, expressed as `promisedAnswer{Q}`).
-   * Returns null if `target` doesn't correspond to one of our outstanding
-   * Provides — caller should drop the Disembargo.
+   * The recipient (A) has bounced a Disembargo{accept} back at us. We are
+   * acting as B (introducer) and must forward Disembargo{provide=Q} to
+   * the host (C), where Q is the Provide question id we previously used
+   * to introduce this target. The peer (C) then drains its in-flight
+   * queue and unblocks A's Accept.
    *
    * @param {{ kind: 'importedCap', id: number } | { kind: 'promisedAnswer', questionId: number }} target
    */
-  const provideQidForTarget = target => {
+  const handleDisembargoAccept = target => {
+    let provideQid;
     if (target && target.kind === 'importedCap') {
-      const q = provideQuestionByTargetId.get(target.id);
-      if (q !== undefined) return q;
+      provideQid = provideQuestionByTargetId.get(target.id);
     }
-    return null;
-  };
-
-  /**
-   * The recipient (A) has bounced a `Disembargo{accept, embargoId}` back
-   * at us. We are acting as B (introducer); forward it on the B↔C
-   * connection with `target = promisedAnswer{Q}` so C can match the
-   * embargoId to its parked Accept Return.
-   *
-   * In rpc.capnp 2.0-dev the disembargo carries the embargoId byte
-   * string in `context.accept`; the previous `provide` arm (which encoded
-   * Q as a UInt32 in the discriminator) was removed.
-   *
-   * @param {{ kind: 'importedCap', id: number } | { kind: 'promisedAnswer', questionId: number }} target
-   * @param {Uint8Array} embargoId
-   */
-  const handleDisembargoAccept = (target, embargoId) => {
-    const provideQid = provideQidForTarget(target);
-    if (provideQid === null) return;
+    if (provideQid === undefined) {
+      // Not actually one of our outstanding Provides — drop on the floor.
+      // (A spec-conformant peer should not have sent us this Disembargo.)
+      return;
+    }
     sendFramed(
       encodeDisembargo({
-        target: { kind: 'promisedAnswer', questionId: provideQid },
-        context: { kind: 'accept', embargoId },
+        target,
+        context: { kind: 'provide', questionId: provideQid },
       }),
     );
   };
 
   /**
-   * We are C: B has forwarded A's `Disembargo{accept, embargoId}` to us
-   * with `target = promisedAnswer{Q}`. Match Q to a parked Accept,
-   * verify the embargoId, then unblock the Return after one microtask so
-   * any pipelined Calls scheduled before the disembargo arrived are
-   * delivered first.
+   * We are C: B has forwarded A's Disembargo{accept} to us as
+   * Disembargo{provide=Q}. Drain any in-flight pipelined work for Q's
+   * target (microtask discipline does this for us in JS), then fire the
+   * deferred Accept Return that handleAccept parked.
    *
    * @param {number} provideQid
-   * @param {Uint8Array} embargoId
    */
-  const handleDisembargoOnHost = (provideQid, embargoId) => {
-    const entry = pendingEmbargoReturns.get(provideQid);
-    if (!entry) return;
-    if (!equalBytes(entry.embargoId, embargoId)) return;
+  const handleDisembargoProvide = provideQid => {
+    const sendReturn = pendingEmbargoReturns.get(provideQid);
+    if (!sendReturn) return;
     pendingEmbargoReturns.delete(provideQid);
-    Promise.resolve().then(entry.sendReturn);
+    // Defer one microtask so any Calls already scheduled against the
+    // target run before we send the Return. In a queue-based pipelining
+    // implementation this is where you'd flush the queue.
+    Promise.resolve().then(sendReturn);
   };
 
   return {
@@ -446,7 +390,7 @@ export const makeThreeParty = ctx => {
     handleProvide,
     handleAccept,
     handleDisembargoAccept,
-    handleDisembargoOnHost,
+    handleDisembargoProvide,
     stats: () => ({
       vines: vines.size,
       provideQuestions: provideQuestions.size,

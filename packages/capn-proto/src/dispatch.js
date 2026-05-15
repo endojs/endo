@@ -470,16 +470,9 @@ export const makeDispatch = ctx => {
     } else if (context.kind === 'receiverLoopback') {
       embargoTracker.echo(context.id);
     } else if (context.kind === 'accept') {
-      // 2.0-dev unified the previous Disembargo `accept` and `provide`
-      // arms into a single `accept` arm carrying a Data byte string. The
-      // target shape distinguishes the two roles:
-      //   importedCap → A→B; we (B) translate target and forward to C
-      //   promisedAnswer → B→C; we (C) match Q + embargoId and unblock
-      if (target.kind === 'promisedAnswer') {
-        threeParty.handleDisembargoOnHost(target.questionId, context.embargoId);
-      } else {
-        threeParty.handleDisembargoAccept(target, context.embargoId);
-      }
+      threeParty.handleDisembargoAccept(target);
+    } else if (context.kind === 'provide') {
+      threeParty.handleDisembargoProvide(context.questionId);
     }
   };
 

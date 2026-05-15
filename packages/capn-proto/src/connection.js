@@ -380,14 +380,9 @@ export const makeConnection = cfg => {
    * @param {(msg: any, slot: { segId: number, wordOffset: number }) => void} encodeProvision
    *   Callback writing the AnyPointer at `Accept.provision`. Provided by
    *   the VatNetwork (which knows the agreed schema for ProvisionId).
-   * @param {Uint8Array} [embargoId] If non-empty, requests the host
-   *   embargo this Accept until a matching `Disembargo{accept}` carrying
-   *   the same bytes arrives via the introducer→host path. rpc.capnp
-   *   2.0-dev replaced the boolean Accept.embargo with this byte string
-   *   (ThirdPartyEmbargoId), supporting multiple concurrent embargoes
-   *   per provision in forwarding-capable VatNetworks.
+   * @param {boolean} [embargo]
    */
-  const sendAccept = (encodeProvision, embargoId) => {
+  const sendAccept = (encodeProvision, embargo = false) => {
     const questionId = tables.questionIds.alloc();
     let resolveFn;
     let rejectFn;
@@ -405,7 +400,7 @@ export const makeConnection = cfg => {
       pipelineHandler: undefined,
       pipelinedCapImports: new Set(),
     });
-    sendFramed(encodeAccept({ questionId, encodeProvision, embargoId }));
+    sendFramed(encodeAccept({ questionId, encodeProvision, embargo }));
     return answerPromise;
   };
 

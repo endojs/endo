@@ -47,21 +47,6 @@ import { writeData } from '../src/wire/text.js';
 // payload so capnp's decode CLI prints the surrounding fields cleanly.
 const contentAsData = bytes => (msg, slot) => writeData(msg, slot, bytes);
 
-// `capnp decode` prints Data fields as a quoted string. Printable ASCII
-// bytes (0x20-0x7E except \\ and ") appear verbatim; everything else is
-// escaped as a 3-digit \NNN octal sequence. The returned literal is
-// suitable for substring-embedding in a RegExp source string.
-const isCapnpPrintable = b =>
-  b >= 0x20 && b <= 0x7e && b !== 0x22 && b !== 0x5c;
-const expectedDataPrinted = bytes =>
-  Array.from(bytes)
-    .map(b =>
-      isCapnpPrintable(b)
-        ? String.fromCharCode(b)
-        : `\\\\${b.toString(8).padStart(3, '0')}`,
-    )
-    .join('');
-
 const here = dirname(fileURLToPath(import.meta.url));
 const RPC_CAPNP = join(here, '..', 'rpc.capnp');
 
@@ -216,27 +201,22 @@ if (!haveCapnp) {
     t.regex(out, /receiverLoopback = 99/);
   });
 
-  test('interop: Disembargo accept (no embargoId) decoded as empty Data', t => {
+  test('interop: Disembargo accept (Void variant) decoded', t => {
     const framed = encodeDisembargo({
       target: { kind: 'importedCap', id: 1 },
       context: { kind: 'accept' },
     });
     const out = runCapnpDecode(framed);
-    // 2.0-dev: ThirdPartyEmbargoId is Data; null pointer prints as empty bytes
-    t.regex(out, /accept = ""/);
+    t.regex(out, /accept = void/);
   });
 
-  test('interop: Disembargo accept carries embargoId byte string', t => {
-    const id = new Uint8Array([0xab, 0xcd, 0xef]);
+  test('interop: Disembargo provide carries provide question id', t => {
     const framed = encodeDisembargo({
       target: { kind: 'importedCap', id: 1 },
-      context: { kind: 'accept', embargoId: id },
+      context: { kind: 'provide', questionId: 42 },
     });
     const out = runCapnpDecode(framed);
-    // capnp prints Data as a quoted string with octal escapes for
-    // non-printable bytes (\ddd). Build the expected substring from the
-    // bytes we sent and embed it as a verbatim regex fragment.
-    t.regex(out, new RegExp(`accept = "${expectedDataPrinted(id)}"`));
+    t.regex(out, /provide = 42/);
   });
 
   test('interop: Provide decoded', t => {
@@ -250,17 +230,15 @@ if (!haveCapnp) {
     t.regex(out, /importedCap = 7/);
   });
 
-  test('interop: Accept decoded with embargoId byte string', t => {
-    const id = new Uint8Array([0x12, 0x34]);
+  test('interop: Accept decoded with embargo flag', t => {
     const framed = encodeAccept({
       questionId: 22,
       encodeProvision: contentAsData(new Uint8Array([4, 5, 6])),
-      embargoId: id,
+      embargo: true,
     });
     const out = runCapnpDecode(framed);
     t.regex(out, /questionId = 22/);
-    // 2.0-dev widened embargo from Bool to ThirdPartyEmbargoId (Data).
-    t.regex(out, new RegExp(`embargo = "${expectedDataPrinted(id)}"`));
+    t.regex(out, /embargo = true/);
   });
 
   // ---------- L3 AnyPointer payloads, structured per l3.capnp ----------
@@ -323,16 +301,15 @@ if (!haveCapnp) {
       provisionValue,
       {},
     );
-    const embargoId = new Uint8Array([0xab]);
     const framed = encodeAccept({
       questionId: 33,
       encodeProvision,
-      embargoId,
+      embargo: true,
     });
 
     const out = runCapnpDecode(framed);
     t.regex(out, /questionId = 33/);
-    t.regex(out, new RegExp(`embargo = "${expectedDataPrinted(embargoId)}"`));
+    t.regex(out, /embargo = true/);
 
     const m = decodeMessage(framed);
     const decoded = provisionCodec.decode(
@@ -435,20 +412,17 @@ if (!haveCapnp) {
     t.is(m.params.capTable[0].id, 9);
   });
 
-  test('interop reverse: capnp encodes Disembargo accept with embargoId', t => {
-    // 2.0-dev removed the `provide` arm. Acting as B forwarding A's
-    // accept-disembargo on B↔C uses target=promisedAnswer{provideQid}
-    // with the same `accept` arm.
+  test('interop reverse: capnp encodes Disembargo with provide context', t => {
     const text = `( disembargo = (
-      target = (promisedAnswer = (questionId = 42, transform = [])),
-      context = (accept = "\\xfa\\xce") ) )`;
+      target = (importedCap = 5),
+      context = (provide = 42) ) )`;
     const framed = runCapnpEncode(text);
     const m = decodeMessage(framed);
     t.is(m.type, 'disembargo');
-    t.is(m.context.kind, 'accept');
-    t.deepEqual(Array.from(m.context.embargoId), [0xfa, 0xce]);
-    t.is(m.target.kind, 'promisedAnswer');
-    t.is(m.target.questionId, 42);
+    t.is(m.context.kind, 'provide');
+    t.is(m.context.questionId, 42);
+    t.is(m.target.kind, 'importedCap');
+    t.is(m.target.id, 5);
   });
 
   test('interop reverse: capnp encodes a Return exception', t => {

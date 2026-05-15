@@ -167,16 +167,15 @@ test('Provide round-trips', t => {
 });
 
 test('Accept round-trips', t => {
-  const embargoBytes = new Uint8Array([0xe0, 0xe1, 0xe2]);
   const framed = encodeAccept({
     questionId: 22,
     encodeProvision: contentAsData(new Uint8Array([4, 5, 6])),
-    embargoId: embargoBytes,
+    embargo: true,
   });
   const m = decodeMessage(framed);
   t.is(m.type, 'accept');
   t.is(m.questionId, 22);
-  t.deepEqual(Array.from(m.embargoId), Array.from(embargoBytes));
+  t.true(m.embargo);
   t.deepEqual(Array.from(readDataContent(m.provisionSlot)), [4, 5, 6]);
 });
 

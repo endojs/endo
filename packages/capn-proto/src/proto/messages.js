@@ -600,16 +600,6 @@ export const encodeRelease = ({ id, referenceCount }) => {
   return finalize(msg);
 };
 
-/**
- * @param {object} arg
- * @param {any} arg.target
- * @param {{ kind: 'senderLoopback' | 'receiverLoopback', id: number }
- *   | { kind: 'accept', embargoId?: Uint8Array }} arg.context
- *   The 2.0-dev `accept` arm carries a Data byte string
- *   (ThirdPartyEmbargoId). An empty / omitted `embargoId` writes a null
- *   Data pointer, which the spec permits when the VatNetwork doesn't
- *   support forwarding (only one embargo per provision is possible).
- */
 export const encodeDisembargo = ({ target, context }) => {
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_DISEMBARGO);
@@ -631,9 +621,9 @@ export const encodeDisembargo = ({ target, context }) => {
   } else if (context.kind === 'accept') {
     tag = S.DISEMBARGO_CTX_ACCEPT;
     value = 0;
-    if (context.embargoId && context.embargoId.length > 0) {
-      writeData(msg, ptrSlot(v, S.DISEMBARGO_PTR_ACCEPT_ID), context.embargoId);
-    }
+  } else if (context.kind === 'provide') {
+    tag = S.DISEMBARGO_CTX_PROVIDE;
+    value = context.questionId;
   } else {
     throw Fail`unknown disembargo context ${context}`;
   }
@@ -666,22 +656,19 @@ export const encodeProvide = ({ questionId, target, encodeRecipient }) => {
  * @param {number} arg.questionId
  * @param {(msg: any, slot: { segId: number, wordOffset: number }) => void} arg.encodeProvision
  *   Writes the AnyPointer at `Accept.provision`.
- * @param {Uint8Array} [arg.embargoId] rpc.capnp 2.0-dev widened
- *   `Accept.embargo` from Bool to a Data byte string
- *   (ThirdPartyEmbargoId). A non-empty byte string requests the host
- *   embargo this Accept until a matching `Disembargo{accept}` carrying
- *   the same bytes arrives on the introducer's connection. Omit (or
- *   pass empty) to leave the field null, meaning no embargo.
+ * @param {boolean} [arg.embargo]
  */
-export const encodeAccept = ({ questionId, encodeProvision, embargoId }) => {
+export const encodeAccept = ({
+  questionId,
+  encodeProvision,
+  embargo = false,
+}) => {
   const { msg, root } = newMessageRoot();
   writeMessageTag(root, S.MSG_ACCEPT);
   const v = allocVariant(msg, root, S.ACCEPT_DATA_WORDS, S.ACCEPT_PTR_WORDS);
   writeUint32(v, S.ACCEPT_QUESTION_ID_BO, questionId);
+  writeBool(v, S.ACCEPT_EMBARGO_BIT, embargo);
   encodeProvision(msg, ptrSlot(v, S.ACCEPT_PTR_PROVISION));
-  if (embargoId && embargoId.length > 0) {
-    writeData(msg, ptrSlot(v, S.ACCEPT_PTR_EMBARGO_ID), embargoId);
-  }
   return finalize(msg);
 };
 
@@ -907,19 +894,9 @@ export const decodeMessage = framed => {
       } else if (ctxTag === S.DISEMBARGO_CTX_RECEIVER_LOOPBACK) {
         context = { kind: 'receiverLoopback', id: ctxValue };
       } else if (ctxTag === S.DISEMBARGO_CTX_ACCEPT) {
-        // Read ThirdPartyEmbargoId Data slot. Null pointer (no Data
-        // encoded) means an unforwarded provision per the spec; we
-        // surface that as a zero-length array for ergonomic equality
-        // with senders that omitted the field.
-        const idBytes = readData(
-          v.msg,
-          v.segId,
-          v.wordOffset + v.dataWords + S.DISEMBARGO_PTR_ACCEPT_ID,
-        );
-        context = {
-          kind: 'accept',
-          embargoId: idBytes ? new Uint8Array(idBytes) : new Uint8Array(0),
-        };
+        context = { kind: 'accept' };
+      } else if (ctxTag === S.DISEMBARGO_CTX_PROVIDE) {
+        context = { kind: 'provide', questionId: ctxValue };
       } else {
         context = { kind: 'unknown', tag: ctxTag };
       }
@@ -958,17 +935,10 @@ export const decodeMessage = framed => {
         segId: v.segId,
         wordOffset: v.wordOffset + v.dataWords + S.ACCEPT_PTR_PROVISION,
       };
-      const embargoBytes = readData(
-        v.msg,
-        v.segId,
-        v.wordOffset + v.dataWords + S.ACCEPT_PTR_EMBARGO_ID,
-      );
       return {
         type: 'accept',
         questionId: readUint32(v, S.ACCEPT_QUESTION_ID_BO),
-        embargoId: embargoBytes
-          ? new Uint8Array(embargoBytes)
-          : new Uint8Array(0),
+        embargo: readBool(v, S.ACCEPT_EMBARGO_BIT),
         provisionSlot,
       };
     }
