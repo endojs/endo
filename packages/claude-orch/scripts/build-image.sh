@@ -3,15 +3,22 @@
 #
 # Usage:
 #   ./scripts/build-image.sh [x86_64|aarch64]
+#   ./scripts/build-image.sh --check [arch]   # validate prereqs, no build
 #
 # Requires (on the host running this script):
 #   - mkosi
-#   - cargo + rustup with the target installed
+#   - cargo + rustup with the musl target installed
 #   - linux source tree at $LINUX_SRC (default: /usr/src/linux)
 #   - Linux host (mkosi does not run on macOS)
 #
 # Outputs land in build/<arch>/.
 set -euo pipefail
+
+CHECK_ONLY=0
+if [ "${1:-}" = "--check" ]; then
+  CHECK_ONLY=1
+  shift
+fi
 
 ARCH="${1:-x86_64}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,6 +28,41 @@ IMAGE_DIR="$PACKAGE_DIR/images"
 BUILD_DIR="$IMAGE_DIR/build/$ARCH"
 LINUX_SRC="${LINUX_SRC:-/usr/src/linux}"
 CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION:-latest}"
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing required command: $1" >&2
+    return 1
+  fi
+}
+
+check_prereqs() {
+  local missing=0
+  require_cmd cargo || missing=1
+  require_cmd mkosi || missing=1
+  require_cmd make || missing=1
+  if [ ! -d "$LINUX_SRC" ]; then
+    echo "Missing kernel source tree at LINUX_SRC=$LINUX_SRC" >&2
+    missing=1
+  fi
+  if [ "$(uname -s)" != "Linux" ]; then
+    echo "build-image.sh requires a Linux host (uname -s = $(uname -s))" >&2
+    missing=1
+  fi
+  return $missing
+}
+
+if [ "$CHECK_ONLY" = "1" ]; then
+  if check_prereqs; then
+    echo "All prerequisites satisfied for arch=$ARCH."
+    exit 0
+  fi
+  exit 1
+fi
+
+if ! check_prereqs; then
+  exit 1
+fi
 
 mkdir -p "$BUILD_DIR"
 
