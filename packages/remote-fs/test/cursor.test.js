@@ -13,17 +13,16 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { makeInMemoryFilesystem } from '../src/in-memory.js';
 
 const collectStream = async readerRef => {
   const out = [];
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { done, value } = await E(readerRef).next();
-    if (done) return out;
+  for await (const value of iterateReader(readerRef)) {
     out.push(value);
   }
+  return out;
 };
 
 const populateDir = async dir => {
@@ -55,14 +54,13 @@ test('Cursor.stream resumes from current position when reopened', async t => {
   const cursor = await E(root).list();
 
   // First stream: consume only 2 entries, then close.
-  const s1 = await E(cursor).stream();
-  const { value: first } = await E(s1).next();
-  const { value: second } = await E(s1).next();
-  await E(s1).return(undefined);
+  const it1 = iterateReader(await E(cursor).stream());
+  const { value: first } = await it1.next();
+  const { value: second } = await it1.next();
+  await it1.return();
 
   // Second stream: should start AFTER the second entry.
-  const s2 = await E(cursor).stream();
-  const remaining = await collectStream(s2);
+  const remaining = await collectStream(await E(cursor).stream());
   t.is(remaining.length, 3);
 
   const all = [first.name, second.name, ...remaining.map(e => e.name)];

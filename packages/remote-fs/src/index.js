@@ -9,8 +9,9 @@ export {
   OpenFileInterface,
   LockInterface,
   XattrsInterface,
-  BytesReaderInterface,
-  BytesWriterInterface,
-  ReaderInterface,
   NodeWatcherInterface,
+  BlobRefInterface,
+  PassableReaderInterface,
+  PassableBytesReaderInterface,
+  PassableBytesWriterInterface,
 } from './guards.js';

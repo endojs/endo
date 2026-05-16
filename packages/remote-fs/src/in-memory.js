@@ -6,20 +6,31 @@
  * State lives in a closed-over object:
  *   nodes: Map<NodeId, NodeRecord>
  *   nextId: bigint counter, monotonically increases
+ *   watchers: Map<NodeId, Set<EventListener>>
  *
  * Each NodeRecord is `{ id, type, attrs, ...type-specific }`:
  *   directory: { children: Map<name, NodeId> }
- *   file:      { content: Uint8Array, xattrs: Map<name, Uint8Array> }
+ *   file:      { content: Uint8Array, xattrs, locks }
  *
  * The tree invariant (DESIGN.md §3 principle 5) is preserved
  * because no exo method takes a `Node` cap as a target argument and
  * binds it under a new name; every `create`/`mkdir` mints a fresh
  * NodeId.
+ *
+ * Streams returned by `OpenFile.read`/`write`, `Xattrs.get`/`set`/
+ * `list`, `Cursor.stream`, `NodeWatcher.events`, and `BlobRef.fetch`
+ * are `@endo/exo-stream`-shaped (bidirectional promise chains; base64
+ * on the wire for bytes).
  */
+
+import { createHash } from 'node:crypto';
 
 import { makeExo } from '@endo/exo';
 import { makeError, X, q } from '@endo/errors';
-import { encodeBase64, decodeBase64 } from '@endo/base64';
+
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
 import {
   FilesystemInterface,
@@ -27,11 +38,10 @@ import {
   FileInterface,
   CursorInterface,
   OpenFileInterface,
+  LockInterface,
   XattrsInterface,
-  BytesReaderInterface,
-  BytesWriterInterface,
-  ReaderInterface,
   NodeWatcherInterface,
+  BlobRefInterface,
 } from './guards.js';
 
 /**
@@ -41,6 +51,12 @@ import {
  *   size: bigint, mtime: bigint, atime: bigint, ctime: bigint,
  *   btime: bigint | null,
  * }} Attrs
+ * @typedef {(event: object) => void} EventListener
+ * @typedef {{
+ *   type: 'shared' | 'exclusive',
+ *   start: bigint,
+ *   length: bigint,
+ * }} LockState
  * @typedef {{
  *   id: NodeId,
  *   type: 'directory',
@@ -56,7 +72,9 @@ import {
  *   version: bigint,
  *   content: Uint8Array,
  *   xattrs: Map<string, Uint8Array>,
+ *   locks: Set<LockEntry>,
  * }} FileRecord
+ * @typedef {{ state: LockState, owner: object }} LockEntry
  * @typedef {DirectoryRecord | FileRecord} NodeRecord
  */
 
@@ -69,28 +87,41 @@ const makeAttrs = () => {
   return { size: 0n, mtime: t, atime: t, ctime: t, btime: t };
 };
 
-const bumpVersion = record => {
-  record.version += 1n;
-  const t = nowNs();
-  record.attrs = harden({ ...record.attrs, mtime: t, ctime: t });
+/**
+ * Test whether two ranges intersect. `length === 0n` means "to end of
+ * file" (POSIX convention). Returns `true` if the ranges share at
+ * least one byte.
+ *
+ * @param {{ start: bigint, length: bigint }} a
+ * @param {{ start: bigint, length: bigint }} b
+ */
+const rangesOverlap = (a, b) => {
+  const aUnbounded = a.length === 0n;
+  const bUnbounded = b.length === 0n;
+  if (aUnbounded && bUnbounded) return true;
+  if (aUnbounded) {
+    const bEnd = b.start + b.length;
+    return bEnd > a.start;
+  }
+  if (bUnbounded) {
+    const aEnd = a.start + a.length;
+    return aEnd > b.start;
+  }
+  const aEnd = a.start + a.length;
+  const bEnd = b.start + b.length;
+  return a.start < bEnd && b.start < aEnd;
 };
 
 /**
  * Build an in-memory `Filesystem` capability.
- *
- * The returned cap and every cap it (transitively) issues share a
- * single closed-over state object. The state object is private to
- * this call — there is no method to extract it, recover an internal
- * NodeId, or build a cap from an inode. The tree invariant is
- * enforced by construction: every `create`/`mkdir` mints a fresh
- * NodeId, and no public method accepts a `Node` cap to alias under
- * a new name.
  *
  * @returns {object} a `Filesystem` cap
  */
 export const makeInMemoryFilesystem = () => {
   /** @type {Map<NodeId, NodeRecord>} */
   const nodes = new Map();
+  /** @type {Map<NodeId, Set<EventListener>>} */
+  const watchers = new Map();
   let nextId = 1n;
 
   const allocId = () => {
@@ -130,6 +161,33 @@ export const makeInMemoryFilesystem = () => {
       version: record.version,
     });
 
+  /**
+   * Fire an event to every active watcher on a node.
+   *
+   * @param {NodeId} id
+   * @param {object} event
+   */
+  const fireEvent = (id, event) => {
+    const set = watchers.get(id);
+    if (!set || set.size === 0) return;
+    const frozen = harden(event);
+    for (const cb of set) {
+      try {
+        cb(frozen);
+      } catch {
+        // Listener crashed; drop it.
+        set.delete(cb);
+      }
+    }
+  };
+
+  const bumpVersion = record => {
+    record.version += 1n;
+    const t = nowNs();
+    record.attrs = harden({ ...record.attrs, mtime: t, ctime: t });
+    fireEvent(record.id, { kind: 'changed' });
+  };
+
   // Forward stubs for mutually-recursive exo builders; bodies
   // assigned below. The closure means callers see the assigned
   // value at call time.
@@ -154,7 +212,7 @@ export const makeInMemoryFilesystem = () => {
         if (v === undefined) {
           throw makeError(X`ENODATA: xattr ${q(name)}`);
         }
-        return makeOneShotBytesReader(v);
+        return makeBytesReaderFromBytes(v);
       },
       async set(name, opts) {
         const existence =
@@ -166,13 +224,27 @@ export const makeInMemoryFilesystem = () => {
         if (existence === 'replace' && !present) {
           throw makeError(X`ENODATA: xattr ${q(name)}`);
         }
-        return makeBytesWriter(bytes => {
-          record.xattrs.set(name, bytes);
-          bumpVersion(record);
+        const buf = [];
+        return makeBytesSinkWriter({
+          onChunk(bytes) {
+            buf.push(bytes);
+          },
+          onClose() {
+            let total = 0;
+            for (const c of buf) total += c.length;
+            const merged = new Uint8Array(total);
+            let off = 0;
+            for (const c of buf) {
+              merged.set(c, off);
+              off += c.length;
+            }
+            record.xattrs.set(name, merged);
+            bumpVersion(record);
+          },
         });
       },
       async list() {
-        return makeOneShotReader([...record.xattrs.keys()]);
+        return makeStringReaderFromArray([...record.xattrs.keys()]);
       },
       async remove(name) {
         if (!record.xattrs.delete(name)) {
@@ -189,18 +261,77 @@ export const makeInMemoryFilesystem = () => {
     });
   };
 
-  // ---------- Node-watcher (stub for v1) ----------
+  // ---------- Node watcher (F7) ----------
 
-  const makeNodeWatcherStub = () =>
-    makeExo('NodeWatcher', NodeWatcherInterface, {
+  /**
+   * @param {NodeId} nodeId
+   */
+  const makeNodeWatcherExo = nodeId => {
+    /** @type {object[]} */
+    const buffered = [];
+    /** @type {((event: object | null) => void) | null} */
+    let resolveNext = null;
+    let cancelled = false;
+
+    /** @type {EventListener} */
+    const listener = event => {
+      if (cancelled) return;
+      if (resolveNext) {
+        const r = resolveNext;
+        resolveNext = null;
+        r(event);
+      } else {
+        buffered.push(event);
+      }
+    };
+    let set = watchers.get(nodeId);
+    if (!set) {
+      set = new Set();
+      watchers.set(nodeId, set);
+    }
+    set.add(listener);
+
+    const detach = () => {
+      const s = watchers.get(nodeId);
+      if (s) {
+        s.delete(listener);
+        if (s.size === 0) watchers.delete(nodeId);
+      }
+    };
+
+    const eventGenerator = async function* () {
+      try {
+        while (!cancelled) {
+          while (buffered.length > 0 && !cancelled) {
+            yield /** @type {object} */ (buffered.shift());
+          }
+          if (cancelled) break;
+          const next = await new Promise(resolve => {
+            resolveNext = resolve;
+          });
+          if (cancelled || next === null) break;
+          yield next;
+        }
+      } finally {
+        detach();
+      }
+    };
+
+    return makeExo('NodeWatcher', NodeWatcherInterface, {
       async events() {
-        // F7: this should yield change events; for v1 we yield nothing.
-        return makeOneShotReader([]);
+        return readerFromIterator(eventGenerator());
       },
       async cancel() {
-        // no-op
+        cancelled = true;
+        if (resolveNext) {
+          const r = resolveNext;
+          resolveNext = null;
+          r(null);
+        }
+        detach();
       },
     });
+  };
 
   // ---------- Cursor (DESIGN.md §4.5) ----------
 
@@ -211,8 +342,6 @@ export const makeInMemoryFilesystem = () => {
     let position = 0n;
 
     const snapshotEntries = () => {
-      // Capture the entries at the moment of the read so that
-      // mutations during streaming don't interleave inconsistently.
       const dir = getRecord(dirId);
       if (dir.type !== 'directory') {
         throw makeError(X`ENOTDIR: ${q(dirId)} is not a directory`);
@@ -224,30 +353,17 @@ export const makeInMemoryFilesystem = () => {
       async stream() {
         const all = snapshotEntries();
         const sliced = all.slice(Number(position));
-        // Advance position as the stream is consumed.
-        let i = 0;
-        return makeFarIterator({
-          async next() {
-            if (i >= sliced.length) return harden({ done: true, value: undefined });
-            const [name, id] = sliced[i];
-            i += 1;
-            position += 1n;
+        // Advance position as the iterator yields each entry.
+        const gen = async function* () {
+          for (const [name, id] of sliced) {
             const record = nodes.get(id);
-            if (!record) {
-              // Tolerate disappearance during iteration; skip.
-              return this.next();
+            position += 1n;
+            if (record) {
+              yield harden({ name, qid: recordQid(record) });
             }
-            return harden({
-              done: false,
-              value: harden({ name, qid: recordQid(record) }),
-            });
-          },
-          async return(value) {
-            // Stream closed early; position already reflects what
-            // we yielded.
-            return harden({ done: true, value });
-          },
-        });
+          }
+        };
+        return readerFromIterator(gen());
       },
       async skip(n) {
         if (n < 0n) {
@@ -267,6 +383,73 @@ export const makeInMemoryFilesystem = () => {
         return `No documentation for method ${q(method)}.`;
       },
     });
+  };
+
+  // ---------- BlobRef (DESIGN.md §6) ----------
+
+  /**
+   * Mint a `BlobRef` from a captured `Uint8Array` snapshot. The
+   * `BlobRef`'s identity (algorithm + hash + size) is computed at
+   * construction; subsequent mutations to the file are independent.
+   *
+   * @param {Uint8Array} bytes
+   */
+  const makeBlobRefExo = bytes => {
+    const captured = harden(new Uint8Array(bytes));
+    const hashBytes = createHash('sha256').update(captured).digest();
+    const hashB64 = hashBytes.toString('base64');
+    const info = harden({
+      algorithm: 'sha256',
+      hash: hashB64,
+      size: BigInt(captured.length),
+    });
+
+    return makeExo('BlobRef', BlobRefInterface, {
+      getInfo() {
+        return info;
+      },
+      async fetch(offset, length) {
+        const off = Number(offset);
+        const len = Number(length);
+        const end = Math.min(off + len, captured.length);
+        const slice =
+          off >= captured.length
+            ? EMPTY_BYTES
+            : captured.slice(off, end);
+        return makeBytesReaderFromBytes(slice);
+      },
+      help(method) {
+        if (method === undefined) {
+          return 'BlobRef: content-addressed handle (DESIGN.md §6).';
+        }
+        return `No documentation for method ${q(method)}.`;
+      },
+    });
+  };
+
+  // ---------- Lock (F8: in-process advisory) ----------
+
+  /**
+   * @param {FileRecord} fileRecord
+   * @param {LockEntry} entry
+   */
+  const makeLockExo = (fileRecord, entry) => {
+    let released = false;
+    const exo = makeExo('Lock', LockInterface, {
+      async release() {
+        if (released) return;
+        released = true;
+        fileRecord.locks.delete(entry);
+      },
+      help(method) {
+        if (method === undefined) {
+          return 'Lock: advisory byte-range lock on an OpenFile (DESIGN.md §4.6).';
+        }
+        return `No documentation for method ${q(method)}.`;
+      },
+    });
+    entry.owner = exo;
+    return exo;
   };
 
   // ---------- OpenFile (DESIGN.md §4.6) ----------
@@ -307,27 +490,32 @@ export const makeInMemoryFilesystem = () => {
           off >= r.content.length
             ? EMPTY_BYTES
             : r.content.slice(off, end);
-        // Yield in one chunk for v1; real backings would chunk.
-        return makeOneShotBytesReader(slice);
+        return makeBytesReaderFromBytes(slice);
       },
       async write(offset) {
         requireOpen();
         requireWritable();
         let off = Number(offset);
-        return makeBytesWriter(bytes => {
-          const r = /** @type {FileRecord} */ (getRecord(fileId));
-          const needed = off + bytes.length;
-          let content = r.content;
-          if (needed > content.length) {
-            const grown = new Uint8Array(needed);
-            grown.set(content, 0);
-            content = grown;
-          }
-          content.set(bytes, off);
-          r.content = harden(content);
-          r.attrs = harden({ ...r.attrs, size: BigInt(content.length) });
-          bumpVersion(r);
-          off += bytes.length;
+        return makeBytesSinkWriter({
+          onChunk(bytes) {
+            const r = /** @type {FileRecord} */ (getRecord(fileId));
+            const needed = off + bytes.length;
+            let content = r.content;
+            if (needed > content.length) {
+              const grown = new Uint8Array(needed);
+              grown.set(content, 0);
+              content = grown;
+            } else {
+              // Defensive copy of the underlying buffer; the
+              // shared one might be hardened.
+              content = new Uint8Array(content);
+            }
+            content.set(bytes, off);
+            r.content = harden(content);
+            r.attrs = harden({ ...r.attrs, size: BigInt(content.length) });
+            bumpVersion(r);
+            off += bytes.length;
+          },
         });
       },
       async truncate(length) {
@@ -345,10 +533,44 @@ export const makeInMemoryFilesystem = () => {
       async fsync(_opts) {
         // In-memory: nothing to flush.
       },
-      async lock(_opts) {
-        throw makeError(X`ENOSYS: lock not implemented in v1`);
+      async lock(opts) {
+        const r = /** @type {FileRecord} */ (getRecord(fileId));
+        const o = /** @type {any} */ (opts) || {};
+        if (o.type !== 'shared' && o.type !== 'exclusive') {
+          throw makeError(
+            X`EINVAL: lock type must be 'shared' or 'exclusive', got ${q(o.type)}`,
+          );
+        }
+        const start = BigInt(o.start ?? 0n);
+        const length = BigInt(o.length ?? 0n);
+        const requested = { type: o.type, start, length };
+        for (const existing of r.locks) {
+          const sharedPair =
+            existing.state.type === 'shared' && requested.type === 'shared';
+          if (!sharedPair && rangesOverlap(existing.state, requested)) {
+            throw makeError(
+              X`EAGAIN: range [${q(start)}, ${q(length)}) conflicts with existing ${q(existing.state.type)} lock`,
+            );
+          }
+        }
+        /** @type {LockEntry} */
+        const entry = { state: harden(requested), owner: /** @type {any} */ (null) };
+        r.locks.add(entry);
+        return makeLockExo(r, entry);
       },
-      async getLock(_opts) {
+      async getLock(opts) {
+        const r = /** @type {FileRecord} */ (getRecord(fileId));
+        const o = /** @type {any} */ (opts) || {};
+        const probe = {
+          type: 'exclusive',
+          start: BigInt(o.start ?? 0n),
+          length: BigInt(o.length ?? 0n),
+        };
+        for (const existing of r.locks) {
+          if (rangesOverlap(existing.state, probe)) {
+            return existing.state;
+          }
+        }
         return null;
       },
       async close() {
@@ -393,7 +615,7 @@ export const makeInMemoryFilesystem = () => {
         bumpVersion(r);
       },
       async watch() {
-        return makeNodeWatcherStub();
+        return makeNodeWatcherExo(fileId);
       },
       async xattrs() {
         return makeXattrsExo(getRecord(fileId));
@@ -401,20 +623,20 @@ export const makeInMemoryFilesystem = () => {
       async open(opts) {
         const o = /** @type {any} */ (opts) || {};
         const mode = {
-          read: o.read !== false && !o.write && !o.append && !o.truncate
-            ? true
-            : !!o.read,
+          read:
+            o.read !== false && !o.write && !o.append && !o.truncate
+              ? true
+              : !!o.read,
           write: !!o.write,
           append: !!o.append,
           truncate: !!o.truncate,
         };
-        // If nothing was requested, default to read-only.
         if (!mode.read && !mode.write && !mode.append) mode.read = true;
         return makeOpenFileExo(fileId, mode);
       },
       async snapshot() {
-        // F2/F6 future: produce a BlobRef. v1 returns null.
-        return null;
+        const r = /** @type {FileRecord} */ (getRecord(fileId));
+        return makeBlobRefExo(r.content);
       },
       help(method) {
         if (method === undefined) {
@@ -454,7 +676,7 @@ export const makeInMemoryFilesystem = () => {
         bumpVersion(r);
       },
       async watch() {
-        return makeNodeWatcherStub();
+        return makeNodeWatcherExo(dirId);
       },
       async xattrs() {
         return makeXattrsExo(getRecord(dirId));
@@ -465,13 +687,11 @@ export const makeInMemoryFilesystem = () => {
         }
         const dir = /** @type {DirectoryRecord} */ (getRecord(dirId));
         const childId = dir.children.get(name);
-        // Permission denied collapses to ENOENT per DESIGN.md §4.3.
         if (childId === undefined) {
           throw makeError(X`ENOENT: ${q(name)}`);
         }
         const child = nodes.get(childId);
         if (!child) {
-          // Stale child id; treat as ENOENT.
           dir.children.delete(name);
           throw makeError(X`ENOENT: ${q(name)}`);
         }
@@ -480,7 +700,6 @@ export const makeInMemoryFilesystem = () => {
           : makeFileExo(child.id);
       },
       async list() {
-        // Defer cursor construction to a fresh cap each call.
         return makeCursorExo(dirId);
       },
       async create(name, opts) {
@@ -491,7 +710,6 @@ export const makeInMemoryFilesystem = () => {
           if (o.exclusive) {
             throw makeError(X`EEXIST: ${q(name)}`);
           }
-          // Open the existing file. Must be a file, not a directory.
           const existing = getRecord(present);
           if (existing.type !== 'file') {
             throw makeError(X`EISDIR: ${q(name)}`);
@@ -504,16 +722,20 @@ export const makeInMemoryFilesystem = () => {
           });
         }
         const id = allocId();
-        nodes.set(id, {
+        /** @type {FileRecord} */
+        const newRecord = {
           id,
           type: 'file',
           attrs: makeAttrs(),
           version: 1n,
           content: EMPTY_BYTES,
           xattrs: new Map(),
-        });
+          locks: new Set(),
+        };
+        nodes.set(id, newRecord);
         dir.children.set(name, id);
         bumpVersion(dir);
+        fireEvent(dirId, { kind: 'child-added', name });
         return makeOpenFileExo(id, {
           read: true,
           write: true,
@@ -537,6 +759,7 @@ export const makeInMemoryFilesystem = () => {
         });
         dir.children.set(name, id);
         bumpVersion(dir);
+        fireEvent(dirId, { kind: 'child-added', name });
         return makeDirectoryExo(id);
       },
       async unlink(name) {
@@ -552,6 +775,8 @@ export const makeInMemoryFilesystem = () => {
         dir.children.delete(name);
         nodes.delete(childId);
         bumpVersion(dir);
+        fireEvent(dirId, { kind: 'child-removed', name });
+        fireEvent(childId, { kind: 'removed' });
       },
       async rename(oldName, newParent, newName) {
         const src = /** @type {DirectoryRecord} */ (getRecord(dirId));
@@ -559,8 +784,6 @@ export const makeInMemoryFilesystem = () => {
         if (childId === undefined) {
           throw makeError(X`ENOENT: ${q(oldName)}`);
         }
-        // Resolve newParent's NodeId via its qid (which we trust to
-        // carry pathId == NodeId for our own caps).
         let destDirId;
         try {
           const destQid = /** @type {any} */ (newParent).getQid();
@@ -575,19 +798,22 @@ export const makeInMemoryFilesystem = () => {
           throw makeError(X`ENOTDIR: rename target not a directory`);
         }
         if (dest.children.has(newName)) {
-          // Overwrite: only files can replace files; directories
-          // require empty target.
           const existing = getRecord(dest.children.get(newName));
           if (existing.type === 'directory' && existing.children.size > 0) {
             throw makeError(X`ENOTEMPTY: ${q(newName)}`);
           }
           dest.children.delete(newName);
           nodes.delete(existing.id);
+          fireEvent(dest.id, { kind: 'child-removed', name: newName });
         }
         src.children.delete(oldName);
         dest.children.set(newName, childId);
         bumpVersion(src);
         if (src !== dest) bumpVersion(dest);
+        fireEvent(src.id, { kind: 'renamed', from: oldName });
+        if (src !== dest) {
+          fireEvent(dest.id, { kind: 'renamed', to: newName });
+        }
       },
       async fsync() {
         // In-memory: nothing to flush.
@@ -608,14 +834,15 @@ export const makeInMemoryFilesystem = () => {
       return makeDirectoryExo(rootId);
     },
     async named(viewName) {
-      throw makeError(X`ENOTSUP: in-memory FS has a single root, not ${q(viewName)}`);
+      throw makeError(
+        X`ENOTSUP: in-memory FS has a single root, not ${q(viewName)}`,
+      );
     },
     async statfs() {
       let totalBytes = 0n;
       for (const r of nodes.values()) {
         if (r.type === 'file') totalBytes += BigInt(r.content.length);
       }
-      // Free space is a lie for in-memory; report a generous number (1 GiB).
       const freeBytes = 1_073_741_824n;
       return harden({
         totalBytes,
@@ -635,91 +862,57 @@ export const makeInMemoryFilesystem = () => {
 };
 harden(makeInMemoryFilesystem);
 
-// ---------- Far iterator / sink helpers ----------
+// ---------- exo-stream helpers ----------
 
 /**
- * Wrap a `{ next, return }` shape as a Far iterator ref. v1 stand-in
- * for `@endo/exo-stream`'s `PassableReader`.
- *
- * @param {{ next: () => Promise<IteratorResult<any>>,
- *           return?: (value?: unknown) => Promise<IteratorResult<any>> }} iter
- */
-const makeFarIterator = iter => {
-  return makeExo('Reader', ReaderInterface, {
-    async next() {
-      return iter.next();
-    },
-    async return(value) {
-      if (iter.return) return iter.return(value);
-      return harden({ done: true, value });
-    },
-  });
-};
-
-/**
- * Wrap an array as a Far iterator that yields each element once.
- *
- * @param {any[]} items
- */
-const makeOneShotReader = items => {
-  let i = 0;
-  return makeFarIterator({
-    async next() {
-      if (i >= items.length) return harden({ done: true, value: undefined });
-      const value = items[i];
-      i += 1;
-      return harden({ done: false, value });
-    },
-    async return(value) {
-      i = items.length;
-      return harden({ done: true, value });
-    },
-  });
-};
-
-/**
- * One-shot bytes reader that yields a single base64-encoded chunk
- * then `done`. Pass-style doesn't admit mutable `Uint8Array`s across
- * cap boundaries; v1 follows `@endo/exo-stream`'s convention of
- * base64-on-the-wire. Callers decode with `@endo/base64`.
+ * Wrap a `Uint8Array` (already a snapshot) as a
+ * `PassableBytesReader` that yields its bytes in one chunk.
  *
  * @param {Uint8Array} bytes
  */
-const makeOneShotBytesReader = bytes => {
-  let yielded = false;
-  return makeExo('BytesReader', BytesReaderInterface, {
-    async next() {
-      if (yielded) return harden({ done: true, value: undefined });
-      yielded = true;
-      return harden({ done: false, value: encodeBase64(bytes) });
-    },
-    async return(value) {
-      yielded = true;
-      return harden({ done: true, value });
-    },
-  });
+const makeBytesReaderFromBytes = bytes => {
+  const generator = async function* () {
+    if (bytes.length > 0) yield bytes;
+  };
+  return bytesReaderFromIterator(generator());
 };
 
 /**
- * Build a Far sink that consumes base64-encoded chunks pushed by
- * the initiator and forwards decoded bytes to `consume`.
+ * Wrap an array of strings as a `PassableReader`.
  *
- * @param {(bytes: Uint8Array) => void} consume
+ * @param {string[]} items
  */
-const makeBytesWriter = consume => {
-  let closed = false;
-  return makeExo('BytesWriter', BytesWriterInterface, {
-    async write(chunk) {
-      if (closed) throw makeError(X`EBADF: writer closed`);
-      if (typeof chunk !== 'string') {
-        throw makeError(
-          X`EINVAL: BytesWriter.write expects base64 string, got ${q(typeof chunk)}`,
-        );
-      }
-      consume(decodeBase64(chunk));
+const makeStringReaderFromArray = items => {
+  const generator = async function* () {
+    for (const item of items) yield item;
+  };
+  return readerFromIterator(generator());
+};
+
+/**
+ * Build a `PassableBytesWriter` whose decoded chunks are pushed to
+ * `onChunk` as `Uint8Array`s. The optional `onClose` callback runs
+ * when the initiator closes the writer.
+ *
+ * @param {{
+ *   onChunk: (bytes: Uint8Array) => void,
+ *   onClose?: () => void,
+ * }} hooks
+ */
+const makeBytesSinkWriter = ({ onChunk, onClose }) => {
+  const sinkIterator = {
+    /** @param {Uint8Array} bytes */
+    async next(bytes) {
+      onChunk(bytes);
+      return { done: false, value: undefined };
     },
-    async close(_value) {
-      closed = true;
+    async return(value) {
+      if (onClose) onClose();
+      return { done: true, value };
     },
-  });
+    [Symbol.asyncIterator]() {
+      return sinkIterator;
+    },
+  };
+  return bytesWriterFromIterator(sinkIterator);
 };

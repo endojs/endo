@@ -20,7 +20,9 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
-import { encodeBase64, decodeBase64 } from '@endo/base64';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { makeInMemoryFilesystem } from '../src/in-memory.js';
 
@@ -28,21 +30,25 @@ const utf8 = s => new TextEncoder().encode(s);
 const fromUtf8 = b => new TextDecoder().decode(b);
 
 const writeBytes = async (writerRef, bytes) => {
-  await E(writerRef).write(encodeBase64(bytes));
+  const w = iterateBytesWriter(writerRef);
+  await w.next(bytes);
+  await w.return();
 };
 
 const collectBytes = async readerRef => {
-  let total = new Uint8Array(0);
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { done, value } = await E(readerRef).next();
-    if (done) return total;
-    const chunk = decodeBase64(value);
-    const grown = new Uint8Array(total.length + chunk.length);
-    grown.set(total, 0);
-    grown.set(chunk, total.length);
-    total = grown;
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of iterateBytesReader(readerRef)) {
+    chunks.push(chunk);
+    total += chunk.length;
   }
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.length;
+  }
+  return out;
 };
 
 const buildTree = async fs => {
@@ -112,11 +118,13 @@ test('lookup returns Directory or File subtype', async t => {
   t.is((await E(d).getQid()).type, 'directory');
   t.is((await E(f).getQid()).type, 'file');
 
-  // Calling list() on the directory works.
+  // Calling list() on the directory works (empty dir → no entries).
   const cursor = await E(d).list();
-  const stream = await E(cursor).stream();
-  const first = await E(stream).next();
-  t.true(first.done); // empty
+  const entries = [];
+  for await (const e of iterateReader(await E(cursor).stream())) {
+    entries.push(e);
+  }
+  t.deepEqual(entries, []);
 
   // Calling open() on the file works.
   const oh = await E(f).open({ read: true });

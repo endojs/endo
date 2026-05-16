@@ -5,32 +5,37 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
-import { encodeBase64, decodeBase64 } from '@endo/base64';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { makeInMemoryFilesystem } from '../src/in-memory.js';
 
+/**
+ * Drain a `PassableReader` into an array.
+ */
 const collectStream = async readerRef => {
   const out = [];
-  while (true) {
-    const { done, value } = await E(readerRef).next();
-    if (done) return out;
+  for await (const value of iterateReader(readerRef)) {
     out.push(value);
   }
+  return out;
 };
 
 /**
- * Drain a BytesReader (yielding base64 strings) into a single
- * `Uint8Array`. Tests decode here so the assertions can compare
- * against expected bytes / UTF-8 directly.
+ * Drain a `PassableBytesReader` into a single concatenated
+ * `Uint8Array`. `iterateBytesReader` handles base64 decoding.
  */
 const collectBytes = async readerRef => {
-  const chunks = await collectStream(readerRef);
-  const decoded = chunks.map(c => decodeBase64(c));
+  const chunks = [];
   let total = 0;
-  for (const c of decoded) total += c.length;
+  for await (const chunk of iterateBytesReader(readerRef)) {
+    chunks.push(chunk);
+    total += chunk.length;
+  }
   const buf = new Uint8Array(total);
   let off = 0;
-  for (const c of decoded) {
+  for (const c of chunks) {
     buf.set(c, off);
     off += c.length;
   }
@@ -38,10 +43,13 @@ const collectBytes = async readerRef => {
 };
 
 /**
- * Push bytes into a BytesWriter, base64-encoding each chunk.
+ * Push a single `Uint8Array` payload into a `PassableBytesWriter`
+ * and close it. `iterateBytesWriter` handles base64 encoding.
  */
 const writeBytes = async (writerRef, bytes) => {
-  await E(writerRef).write(encodeBase64(bytes));
+  const writer = iterateBytesWriter(writerRef);
+  await writer.next(bytes);
+  await writer.return();
 };
 
 const utf8 = s => new TextEncoder().encode(s);
@@ -75,10 +83,7 @@ test('create + read round-trips bytes', async t => {
   const root = await E(fs).root();
   const openFile = await E(root).create('hello.txt', {});
 
-  const writer = await E(openFile).write(0n);
-  await writeBytes(writer, utf8('hello, world\n'));
-  await E(writer).close();
-
+  await writeBytes(await E(openFile).write(0n), utf8('hello, world\n'));
   await E(openFile).close();
 
   const file = await E(root).lookup('hello.txt');
@@ -95,9 +100,7 @@ test('read past EOF returns empty', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   const openFile = await E(root).create('x.txt', {});
-  const writer = await E(openFile).write(0n);
-  await writeBytes(writer, utf8('ab'));
-  await E(writer).close();
+  await writeBytes(await E(openFile).write(0n), utf8('ab'));
   const bytesReader = await E(openFile).read(10n, 4n);
   const bytes = await collectBytes(bytesReader);
   t.is(bytes.length, 0);
@@ -107,10 +110,12 @@ test('write extends file content; getAttrs.size reflects it', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   const openFile = await E(root).create('x.txt', {});
-  const writer = await E(openFile).write(0n);
-  await writeBytes(writer, utf8('first '));
-  await writeBytes(writer, utf8('second'));
-  await E(writer).close();
+  // Two chunks through one writer: drive the iterator explicitly so
+  // we don't close after the first chunk.
+  const writer = iterateBytesWriter(await E(openFile).write(0n));
+  await writer.next(utf8('first '));
+  await writer.next(utf8('second'));
+  await writer.return();
 
   const file = await E(root).lookup('x.txt');
   const attrs = await E(file).getAttrs();
@@ -121,9 +126,7 @@ test('truncate shrinks and grows', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   const openFile = await E(root).create('x', {});
-  const w = await E(openFile).write(0n);
-  await writeBytes(w, utf8('abcdef'));
-  await E(w).close();
+  await writeBytes(await E(openFile).write(0n), utf8('abcdef'));
 
   await E(openFile).truncate(3n);
   const a = await collectBytes(await E(openFile).read(0n, 64n));
@@ -223,9 +226,10 @@ test('xattrs round-trip user-namespace metadata', async t => {
   const xattrs = await E(f).xattrs();
 
   // Set
-  const w = await E(xattrs).set('user.tag', { existence: 'create' });
-  await writeBytes(w, utf8('hello'));
-  await E(w).close();
+  await writeBytes(
+    await E(xattrs).set('user.tag', { existence: 'create' }),
+    utf8('hello'),
+  );
 
   // Get
   const r = await E(xattrs).get('user.tag');

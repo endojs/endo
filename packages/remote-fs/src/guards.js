@@ -15,6 +15,14 @@
 
 import { M } from '@endo/patterns';
 
+// Re-export exo-stream's interface guards so consumers of remote-fs can
+// import the stream interfaces from one place.
+export {
+  PassableReaderInterface,
+  PassableBytesReaderInterface,
+  PassableBytesWriterInterface,
+} from '@endo/exo-stream/type-guards.js';
+
 /**
  * Pattern matching anything passable. Stand-in for fully-typed
  * record patterns until F1 hardens the schemas.
@@ -73,7 +81,7 @@ export const FileInterface = M.interface('File', {
 harden(FileInterface);
 
 export const CursorInterface = M.interface('Cursor', {
-  stream: M.call().returns(M.eref(M.remotable('DirEntryReader'))),
+  stream: M.call().returns(M.eref(M.remotable('PassableReader'))),
   skip: M.call(M.bigint()).returns(M.promise()),
   rewind: M.call().returns(M.promise()),
   help: M.call().optional(M.string()).returns(M.string()),
@@ -82,9 +90,11 @@ harden(CursorInterface);
 
 export const OpenFileInterface = M.interface('OpenFile', {
   read: M.call(M.bigint(), M.bigint()).returns(
-    M.eref(M.remotable('BytesReader')),
+    M.eref(M.remotable('PassableBytesReader')),
   ),
-  write: M.call(M.bigint()).returns(M.eref(M.remotable('BytesWriter'))),
+  write: M.call(M.bigint()).returns(
+    M.eref(M.remotable('PassableBytesWriter')),
+  ),
   truncate: M.call(M.bigint()).returns(M.promise()),
   fsync: M.call(Pass).returns(M.promise()),
   lock: M.call(Pass).returns(M.eref(M.remotable('Lock'))),
@@ -101,47 +111,37 @@ export const LockInterface = M.interface('Lock', {
 harden(LockInterface);
 
 export const XattrsInterface = M.interface('Xattrs', {
-  get: M.call(M.string()).returns(M.eref(M.remotable('BytesReader'))),
-  set: M.call(M.string(), Pass).returns(M.eref(M.remotable('BytesWriter'))),
-  list: M.call().returns(M.eref(M.remotable('Reader'))),
+  get: M.call(M.string()).returns(M.eref(M.remotable('PassableBytesReader'))),
+  set: M.call(M.string(), Pass).returns(
+    M.eref(M.remotable('PassableBytesWriter')),
+  ),
+  list: M.call().returns(M.eref(M.remotable('PassableReader'))),
   remove: M.call(M.string()).returns(M.promise()),
   help: M.call().optional(M.string()).returns(M.string()),
 });
 harden(XattrsInterface);
 
 /**
- * The streams returned by `Cursor.stream`, `OpenFile.read`,
- * `OpenFile.write`, `Xattrs.get`, `Xattrs.set`, `Xattrs.list`, and
- * `Node.watch` are intentionally minimal Far-iterator / Far-sink
- * shapes for v1. DESIGN.md §5 documents `@endo/exo-stream`'s
- * `PassableBytesReader` / `PassableBytesWriter` as the production
- * target; migration is a follow-up.
- */
-
-export const BytesReaderInterface = M.interface('BytesReader', {
-  next: M.call().returns(M.promise()),
-  return: M.call().optional(Pass).returns(M.promise()),
-});
-harden(BytesReaderInterface);
-
-export const BytesWriterInterface = M.interface('BytesWriter', {
-  write: M.call(Pass).returns(M.promise()),
-  close: M.call().optional(Pass).returns(M.promise()),
-});
-harden(BytesWriterInterface);
-
-export const ReaderInterface = M.interface('Reader', {
-  next: M.call().returns(M.promise()),
-  return: M.call().optional(Pass).returns(M.promise()),
-});
-harden(ReaderInterface);
-
-/**
  * `Node.watch` returns a watcher cap whose `events()` yields a
- * stream. v1 stubs return a watcher whose stream produces nothing.
+ * PassableReader<Event> from `@endo/exo-stream`.
  */
 export const NodeWatcherInterface = M.interface('NodeWatcher', {
-  events: M.call().returns(M.eref(M.remotable('Reader'))),
+  events: M.call().returns(M.eref(M.remotable('PassableReader'))),
   cancel: M.call().returns(M.promise()),
 });
 harden(NodeWatcherInterface);
+
+/**
+ * `BlobRef` is the content-addressed handle returned by
+ * `File.snapshot()` (DESIGN.md §6). Eager `algorithm`/`hash`/`size`
+ * via `getInfo()`; `fetch(offset, length)` returns a bytes stream
+ * over the immutable bytes captured at snapshot time.
+ */
+export const BlobRefInterface = M.interface('BlobRef', {
+  getInfo: M.call().returns(Pass),
+  fetch: M.call(M.bigint(), M.bigint()).returns(
+    M.eref(M.remotable('PassableBytesReader')),
+  ),
+  help: M.call().optional(M.string()).returns(M.string()),
+});
+harden(BlobRefInterface);
