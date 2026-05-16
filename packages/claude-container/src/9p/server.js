@@ -53,7 +53,7 @@ export const serveConnection = ({ fs, socket, onClose }) => {
   const fids = new Map();
   let msize = DEFAULT_MSIZE;
   let negotiated = false;
-  let buf = Buffer.alloc(0);
+  let buf = /** @type {Buffer} */ (Buffer.alloc(0));
 
   const close = () => {
     fids.clear();
@@ -65,7 +65,7 @@ export const serveConnection = ({ fs, socket, onClose }) => {
   socket.on('close', close);
 
   socket.on('data', async chunk => {
-    buf = Buffer.concat([buf, chunk]);
+    buf = /** @type {Buffer} */ (Buffer.concat([buf, chunk]));
     for (;;) {
       const parsed = tryParseMessage(buf);
       if (!parsed) break;
@@ -124,7 +124,12 @@ export const serveConnection = ({ fs, socket, onClose }) => {
       case T.Trenameat:
         return onRenameat(tag, r);
       case T.Tsetattr:
-        return sendEmpty(tag, T.Rsetattr); // no-op
+        // EOPNOTSUPP rather than a silent no-op: pretending chmod/chown/
+        // truncate succeeded would make the guest see "permission changed"
+        // but the underlying FS capability would still reject reads/writes
+        // — confusing behavior that masks the real bug. Reject explicitly
+        // until the FS capability surface gains real setattr.
+        return sendError(tag, ERRNO.EOPNOTSUPP);
       case T.Txattrwalk:
         return sendError(tag, ERRNO.ENOSYS);
       default:
@@ -368,6 +373,25 @@ export const serveConnection = ({ fs, socket, onClose }) => {
   };
 
   // -- mutating ops (best-effort via the FS capability) --
+  //
+  // Errno classification: if the FS capability doesn't expose the verb at
+  // all (which @endo CapTP surfaces as a TypeError with "not callable" /
+  // "no method" in the message), we return ENOSYS — the guest then knows
+  // the operation isn't supported. Anything else maps to EACCES (or EIO
+  // for genuinely-failed I/O). This lets `chmod 555 readonly-fs` and "FS
+  // is read-only by design" present distinct errnos to the guest.
+  /** @param {unknown} e */
+  const fsErrno = e => {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (
+      /not (a |callable|exist|function)|no method|unknown.*method|target has no method/i.test(
+        msg,
+      )
+    ) {
+      return ERRNO.ENOSYS;
+    }
+    return ERRNO.EACCES;
+  };
 
   const onLcreate = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
@@ -380,8 +404,8 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     const newPath = f.path === '' ? name : `${f.path}/${name}`;
     try {
       await E(fs).writeFile(newPath, new Uint8Array(0));
-    } catch {
-      return sendError(tag, ERRNO.EACCES);
+    } catch (e) {
+      return sendError(tag, fsErrno(e));
     }
     f.path = newPath;
     f.open = true;
@@ -403,8 +427,10 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     if (offset !== 0) return sendError(tag, ERRNO.EOPNOTSUPP);
     try {
       await E(fs).writeFile(f.path, new Uint8Array(data));
-    } catch {
-      return sendError(tag, ERRNO.EIO);
+    } catch (e) {
+      // Distinguish ENOSYS (FS capability lacks writeFile) from real I/O.
+      const errno = fsErrno(e);
+      return sendError(tag, errno === ERRNO.EACCES ? ERRNO.EIO : errno);
     }
     const w = makeWriter(4);
     w.u32(count);
@@ -422,8 +448,8 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     const newPath = f.path === '' ? name : `${f.path}/${name}`;
     try {
       await E(fs).mkdir(newPath);
-    } catch {
-      return sendError(tag, ERRNO.EACCES);
+    } catch (e) {
+      return sendError(tag, fsErrno(e));
     }
     sendQid(tag, T.Rmkdir, makeQid(QT.DIR, newPath));
     return undefined;
@@ -438,8 +464,8 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     const target = f.path === '' ? name : `${f.path}/${name}`;
     try {
       await E(fs).unlink(target);
-    } catch {
-      return sendError(tag, ERRNO.EACCES);
+    } catch (e) {
+      return sendError(tag, fsErrno(e));
     }
     sendEmpty(tag, T.Runlinkat);
     return undefined;
@@ -457,8 +483,8 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     const to = b.path === '' ? newName : `${b.path}/${newName}`;
     try {
       await E(fs).rename(from, to);
-    } catch {
-      return sendError(tag, ERRNO.EACCES);
+    } catch (e) {
+      return sendError(tag, fsErrno(e));
     }
     sendEmpty(tag, T.Rrenameat);
     return undefined;

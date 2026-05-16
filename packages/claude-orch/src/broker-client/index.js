@@ -4,7 +4,7 @@
  *   BrokerRequest,
  *   BrokerResponse,
  *   Credentials,
- * } from '../../protocol.types.d.ts'
+ * } from '../../protocol.types.js'
  */
 
 import net from 'node:net';

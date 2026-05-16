@@ -117,7 +117,7 @@ export const makeStdioMux = ({
   let attachServer = null;
   /** @type {net.Socket | null} */
   let attachConn = null;
-  let stdioBuf = Buffer.alloc(0);
+  let stdioBuf = /** @type {Buffer} */ (Buffer.alloc(0));
   let stopped = false;
 
   const handleError = (/** @type {Error} */ e) => {
@@ -152,15 +152,13 @@ export const makeStdioMux = ({
     // socket yet at the moment markReady fires.
     stdioSocket = await connectWithRetry(stdioSocketPath, 5000);
     stdioSocket.on('data', chunk => {
-      stdioBuf = consumeFrames(
-        Buffer.concat([stdioBuf, chunk]),
-        (streamId, payload) => {
-          if (streamId === DEFAULT_STREAM_ID && attachConn) {
-            attachConn.write(payload);
-          }
-          // Other streamIds (exec-*) are dropped in v1; future work.
-        },
-      );
+      const combined = /** @type {Buffer} */ (Buffer.concat([stdioBuf, chunk]));
+      stdioBuf = consumeFrames(combined, (streamId, payload) => {
+        if (streamId === DEFAULT_STREAM_ID && attachConn) {
+          attachConn.write(payload);
+        }
+        // Other streamIds (exec-*) are dropped in v1; future work.
+      });
     });
     stdioSocket.on('error', handleError);
     stdioSocket.on('close', () => {

@@ -4,7 +4,7 @@
  *   Arch,
  *   OrchestratorConfig,
  *   SessionRecord,
- * } from '../../protocol.types.d.ts'
+ * } from '../../protocol.types.js'
  */
 
 import path from 'node:path';

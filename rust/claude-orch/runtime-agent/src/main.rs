@@ -490,9 +490,18 @@ fn log_to(out: &mpsc::Sender<Vec<u8>>, level: &str, msg: &str) {
 }
 
 fn rotate_creds(creds: &serde_json::Value) -> Result<(), String> {
+    use std::os::unix::fs::OpenOptionsExt;
     let tmp = format!("{CREDS_PATH}.new");
-    fs::write(&tmp, serde_json::to_vec(creds).map_err(|e| e.to_string())?)
-        .map_err(|e| format!("write {tmp}: {e}"))?;
+    let data = serde_json::to_vec(creds).map_err(|e| e.to_string())?;
+    let mut f = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&tmp)
+        .map_err(|e| format!("open {tmp}: {e}"))?;
+    f.write_all(&data).map_err(|e| format!("write {tmp}: {e}"))?;
+    f.sync_all().map_err(|e| format!("fsync {tmp}: {e}"))?;
     fs::rename(&tmp, CREDS_PATH).map_err(|e| format!("rename: {e}"))?;
     Ok(())
 }

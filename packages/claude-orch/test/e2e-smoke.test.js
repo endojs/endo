@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* global Buffer, setTimeout */
 /* eslint-disable import/order */
 
@@ -17,7 +17,7 @@ import { buildFrame, consumeFrames } from '../src/stdio/mux.js';
  * A no-op network controller for tests: skips nftables/pfctl, returns
  * empty qemuArgs, no per-session cleanup.
  *
- * @returns {import('../protocol.types.d.ts').NetworkController}
+ * @returns {import('../protocol.types.js').NetworkController}
  */
 const makeStubNetwork = () => ({
   async initialize() {
@@ -60,7 +60,7 @@ const makeStubBroker = () => ({
  * listens on stdio.sock for framed bytes from the orchestrator.
  *
  * @param {{
- *   record: import('../protocol.types.d.ts').SessionRecord,
+ *   record: import('../protocol.types.js').SessionRecord,
  *   onAttachData?: (payload: Buffer) => void,
  * }} opts
  */

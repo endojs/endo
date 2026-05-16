@@ -188,7 +188,7 @@ const makeLineReader = sock => {
       let buf = '';
       sock.setEncoding('utf8');
       const queue = [];
-      /** @type {(() => void) | null} */
+      /** @type {((value?: void) => void) | null} */
       let resolveNext = null;
       let done = false;
       let errored = null;
@@ -214,8 +214,12 @@ const makeLineReader = sock => {
               queue.push(JSON.parse(line));
               wake();
             } catch (e) {
+              // Bad JSON on the attach stream means the framing contract
+              // has broken; surface the error and stop reading.
               errored = e;
               wake();
+              sock.destroy();
+              return;
             }
           }
           i = buf.indexOf('\n');

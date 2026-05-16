@@ -4,7 +4,7 @@
  * @import {
  *   BootConfigMessage,
  *   HelloMessage,
- * } from '../../protocol.types.d.ts'
+ * } from '../../protocol.types.js'
  */
 
 import net from 'node:net';
@@ -40,6 +40,7 @@ export const awaitHello = ({
 }) => {
   const helloKit = makePromiseKit();
   const readyKit = makePromiseKit();
+  let settled = false;
 
   const server = net.createServer({ allowHalfOpen: true });
 
@@ -54,6 +55,8 @@ export const awaitHello = ({
 
   /** @param {Error | null} err */
   const cleanup = err => {
+    if (settled) return; // single-fire: don't reject after a successful Hello
+    settled = true;
     clearTimeout(timer);
     server.close(() => {});
     if (err) {
@@ -96,6 +99,7 @@ export const awaitHello = ({
         });
         clearTimeout(timer);
         server.close();
+        settled = true;
         helloKit.resolve(msg);
       } catch (e) {
         conn.destroy();

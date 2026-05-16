@@ -4,7 +4,7 @@
  *   NetworkController,
  *   NetworkOpts,
  *   NetAttachment,
- * } from '../../protocol.types.d.ts'
+ * } from '../../protocol.types.js'
  */
 
 import { execFile } from 'node:child_process';

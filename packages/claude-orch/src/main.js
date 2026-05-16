@@ -6,7 +6,7 @@
  *   CreateSessionRequest,
  *   OrchestratorConfig,
  *   Session,
- * } from '../protocol.types.d.ts'
+ * } from '../protocol.types.js'
  */
 
 import process from 'node:process';
@@ -74,7 +74,7 @@ const pidAlive = pid => {
  *
  * @param {{
  *   config?: OrchestratorConfig,
- *   networkController?: import('../protocol.types.d.ts').NetworkController,
+ *   networkController?: import('../protocol.types.js').NetworkController,
  *   brokerClient?: ReturnType<typeof makeBrokerClient>,
  *   spawnVm?: typeof spawnVm,
  * }} [opts]
@@ -187,20 +187,23 @@ export const start = async ({
     });
     vms.set(sessionId, vm);
 
-    // If the VM dies before Ready, surface the failure.
+    // If the VM dies unexpectedly, surface the failure AND tear down all
+    // per-session resources (net tap, agent socket, stdio mux, broker
+    // credentials) so we don't leak state until a caller eventually
+    // DELETEs the session.
     vm.exitCode
-      .then(code => {
+      .then(async code => {
         const cur = sessions.getRecord(sessionId);
         if (!cur) return;
-        if (cur.state === 'ready' || cur.state === 'unhealthy') {
-          sessions.setState(sessionId, 'terminated', {
-            failureReason: `qemu exited ${code}`,
-          });
-        } else if (cur.state !== 'terminated') {
-          sessions.setState(sessionId, 'boot_failed', {
-            failureReason: `qemu exited ${code} before ready`,
-          });
-        }
+        if (cur.state === 'terminated') return; // graceful DELETE already ran
+        const wasReady = cur.state === 'ready' || cur.state === 'unhealthy';
+        sessions.setState(sessionId, wasReady ? 'terminated' : 'boot_failed', {
+          failureReason: wasReady
+            ? `qemu exited ${code}`
+            : `qemu exited ${code} before ready`,
+        });
+        await teardownSession(sessionId).catch(() => {});
+        await broker.revoke(sessionId).catch(() => {});
       })
       .catch(() => {});
 
@@ -232,7 +235,11 @@ export const start = async ({
         failureReason: /** @type {Error} */ (e).message,
       });
       vm.kill('SIGTERM');
+      // Best-effort cleanup. Credentials may already have been issued by
+      // buildBootConfigForSession() above, so revoke them so the broker
+      // doesn't hold stale per-session state.
       await teardownSession(sessionId).catch(() => {});
+      await broker.revoke(sessionId).catch(() => {});
       throw e;
     }
   };
@@ -333,6 +340,6 @@ harden(start);
 /**
  * @param {CreateSessionRequest} request
  * @param {OrchestratorConfig} config
- * @returns {import('../protocol.types.d.ts').Arch}
+ * @returns {import('../protocol.types.js').Arch}
  */
 const resolveArch = (request, config) => request.arch ?? config.defaults.arch;

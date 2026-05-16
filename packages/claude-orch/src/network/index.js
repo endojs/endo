@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * @import { NetworkController } from '../../protocol.types.d.ts'
+ * @import { NetworkController } from '../../protocol.types.js'
  */
 
 import process from 'node:process';

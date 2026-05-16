@@ -3,7 +3,7 @@
  * @import {
  *   AgentToOrchMessage,
  *   OrchToAgentMessage,
- * } from '../../protocol.types.d.ts'
+ * } from '../../protocol.types.js'
  */
 
 import net from 'node:net';

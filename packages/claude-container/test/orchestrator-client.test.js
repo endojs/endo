@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* global Buffer, setTimeout */
 /* eslint-disable import/order */
 

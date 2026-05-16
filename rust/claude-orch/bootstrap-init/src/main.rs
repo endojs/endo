@@ -216,7 +216,24 @@ fn write_initial_prompt(prompt: Option<&str>) -> Result<(), String> {
     }
     let path = format!("{CLAUDE_HOME}/.claude/initial-prompt.txt");
     fs::create_dir_all(CREDS_DIR).ok();
-    fs::write(&path, p).map_err(|e| format!("write {path}: {e}"))?;
+    // 0600 + owned by claude:claude — same threat model as the credentials
+    // file: an attacker who can read this can see whatever the orchestrator
+    // passed in initialPrompt.
+    let mut f = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&path)
+        .map_err(|e| format!("open {path}: {e}"))?;
+    f.write_all(p.as_bytes())
+        .map_err(|e| format!("write {path}: {e}"))?;
+    chown(
+        path.as_str(),
+        Some(Uid::from_raw(CLAUDE_UID)),
+        Some(Gid::from_raw(CLAUDE_GID)),
+    )
+    .map_err(|e| format!("chown {path}: {e}"))?;
     Ok(())
 }
 

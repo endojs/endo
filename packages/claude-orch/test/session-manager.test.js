@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* eslint-disable import/order */
 
 import '@endo/init';

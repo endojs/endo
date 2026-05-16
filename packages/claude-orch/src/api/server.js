@@ -5,7 +5,7 @@
  *   CreateSessionRequest,
  *   Session,
  *   SessionSummary,
- * } from '../../protocol.types.d.ts'
+ * } from '../../protocol.types.js'
  */
 
 import http from 'node:http';

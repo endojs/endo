@@ -8,7 +8,7 @@
  *   SessionRecord,
  *   SessionState,
  *   SessionSummary,
- * } from '../../protocol.types.d.ts'
+ * } from '../../protocol.types.js'
  */
 
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -102,7 +102,11 @@ export const makeSessionManager = ({ config, persistencePath }) => {
   const createSession = async request => {
     const id = generateSessionId();
     const sessionDir = path.join(config.sessionDir, id);
-    await mkdir(sessionDir, { recursive: true, mode: 0o750 });
+    // 0o700: only the orchestrator UID can list/traverse the per-session
+    // dir, which contains the fs/ctl/agent/stdio/attach UDS endpoints.
+    // Anything looser would let any local group member connect to those
+    // sockets and impersonate the session.
+    await mkdir(sessionDir, { recursive: true, mode: 0o700 });
 
     /** @type {SessionRecord} */
     const record = {

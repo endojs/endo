@@ -1,7 +1,7 @@
 // @ts-check
 
 import net from 'node:net';
-import { unlink } from 'node:fs/promises';
+import { chmod, unlink } from 'node:fs/promises';
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -60,6 +60,10 @@ export const makeFsBridge9p = ({ fs, socketPath }) => {
         server?.once('error', reject);
         server?.listen(socketPath, () => resolve(undefined));
       });
+      // 0600: the 9P bridge exposes the full authority of the FS
+      // capability projected through it. Anyone who can connect can
+      // exercise that authority; restrict to the owning UID only.
+      await chmod(socketPath, 0o600);
     },
 
     async stop() {

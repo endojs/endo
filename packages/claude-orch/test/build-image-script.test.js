@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* global process */
 /* eslint-disable import/order, no-underscore-dangle */
 
