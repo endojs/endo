@@ -129,9 +129,7 @@ This section is normative. Method signatures use Endo conventions:
   the "Node base" methods (§4.2) plus its subtype-specific ones.
 - Every interface includes a `help() → string` per Endo convention.
 
-The §10 appendix preserves the original POSIX-flavoured sketch from
-the design conversation that motivated this package; this section
-is the ocap-aligned working surface.
+See §10 for the design's provenance.
 
 ### 4.1 Filesystem
 
@@ -203,17 +201,17 @@ rename(oldName, newParent: Directory, newName)
                                   → void
 ```
 
-Removed from the original sketch:
+Deliberate omissions:
 
 - `mknod` (device files): out of scope for a portable cap-FS.
-- `flags carries AT_REMOVEDIR`: `unlink` handles directories
-  (when empty) without a flag.
-- `gid` parameters on `mkdir`/`symlink`: set group via
+- An `AT_REMOVEDIR`-style flag on `unlink`: `unlink(name)` handles
+  empty directories without a flag.
+- A `gid` parameter on `mkdir` / `symlink`: set group via
   `setAttrs({ owner: { group: ... } })` after creation.
 
 `lookup` returns the type-correct subtype; implementations stat
 at lookup time. A protocol translator can pipeline a typed call
-(`open()`, `entries()`, `readlink`) on the returned promise
+(`open()`, `entries()`, `target()`) on the returned promise
 without a "what type is this?" probe.
 
 ### 4.4 File
@@ -549,14 +547,15 @@ open questions; remaining items below.
 
 ---
 
-## 10. Source
+## 10. Provenance
 
-This design originated in a research conversation. §3 (design
+This design grew out of a research conversation; §3 (design
 principles) and §7 (what this buys you) are reproduced largely
-verbatim from that conversation; §4 (interface) has been refactored
-to align with Endo conventions and object-capability discipline.
-The original POSIX-flavoured sketch is preserved below for
-historical reference and to make the deltas auditable.
+verbatim from it. §4 (the interface) is its own work — the original
+sketch was POSIX-flavoured (numeric mode/flag bitmasks, `pid` /
+`gid` arguments, `Filesystem.attach(uname, aname)`, a separate
+`Subscription` type) and has been refactored to align with Endo
+conventions and object-capability discipline.
 
 The 9P translation section from the source conversation has been
 deliberately omitted: it documents how a 9P server can be built *on
@@ -564,107 +563,3 @@ top of* this interface and belongs in the consuming package's docs,
 not this one. See `@endo/claude-container`'s `ENDO-INTEGRATION.md`
 §9 R1 for the roadmap entry that frames this package as the
 FS-side answer to 9P-over-CapTP chattiness.
-
-### 10.1 Deltas from the original sketch
-
-- `Filesystem.attach(uname, aname)` → `Filesystem.root()` (+
-  optional `named(viewName)`). 9P's user-identity argument is
-  removed; holding the cap is the identity.
-- `Node.getAttr(mask)` / `setAttr(mask, attrs)` → `getAttrs()` /
-  `setAttrs(updates)`. POSIX field-mask removed; full record on
-  read, partial record on write.
-- `Node.watch() → Subscription` → `watch() → PassableReader<Event>`.
-  Separate `Subscription` type collapsed into the stream's own
-  close protocol.
-- `Node.xattrGet/Set/List/Remove` → `Node.xattrs() → Xattrs`
-  sub-cap. Cleaner per-Node interface, same expressiveness.
-- `Directory.create(name, mode, flags)` → `create(name,
-  CreateFileOpts)` with structured options. POSIX `O_*` and 12-bit
-  mode bits become typed records.
-- `Directory.mkdir(name, mode, gid)` → `mkdir(name, CreateDirOpts)`.
-  `gid` removed (set later via `setAttrs`); `mode` becomes
-  `initialPermissions: Permissions`.
-- `Directory.symlink(name, target, gid)` → `symlink(name, target)`.
-- `Directory.mknod(...)` removed. Device files out of scope for a
-  portable remote FS cap.
-- `Directory.unlink(name, flags)` (with `AT_REMOVEDIR` in flags) →
-  `unlink(name)`. The implementation handles directories when
-  empty without a flag.
-- `OpenFile.lock(type, start, length, pid, clientId)` →
-  `lock(LockOpts)`. `pid` and `clientId` removed; the Lock cap is
-  the identity.
-- `OpenFile.getLock(type, start, length, pid, clientId)
-  → LockInfo` → `getLock(LockProbe) → LockState | null`. Result
-  is a structural description of what's locked, not "who holds
-  it".
-- `OpenFile.fsync(dataOnly: Bool)` → `fsync(FsyncOpts)` with
-  `metadata?: boolean`. Removes the awkward POSIX inversion.
-- Eager-state mechanism made explicit (§4.11): a passable
-  copy-record carried with the cap, exposed via a sync getter on
-  the exo state.
-- Offsets and lengths typed as `bigint` to match file sizes that
-  exceed 2⁵³.
-- Added `help()` per Endo convention.
-
-### 10.2 Original POSIX-flavoured sketch
-
-Preserved for reference; superseded by §4.
-
-```
-Filesystem
-  attach(uname, aname) -> Directory
-  statfs() -> FsStats
-
-Node                            // common base
-  qid (eager, carried with cap) // type + version + path-id
-  getAttr(mask) -> Attrs
-  setAttr(mask, attrs) -> ()
-  watch() -> Subscription
-  xattrGet(name) -> Stream<Bytes>
-  xattrSet(name, flags) -> Sink<Bytes>
-  xattrList() -> Stream<Text>
-  xattrRemove(name) -> ()
-
-Directory : Node
-  lookup(name) -> Node          // returns the right subtype
-  list() -> Stream<DirEntry>    // each entry: name, qid, type
-  open(flags) -> OpenDirectory
-  create(name, mode, flags) -> OpenFile
-  mkdir(name, mode, gid) -> Directory
-  symlink(name, target, gid) -> Symlink
-  mknod(name, mode, major, minor, gid) -> Node
-  link(name, target: Node) -> ()
-  unlink(name, flags) -> ()     // flags carries AT_REMOVEDIR
-  rename(oldName, newDir, newName) -> ()
-
-File : Node
-  open(flags) -> OpenFile
-  snapshot() -> BlobRef         // optional: content-addressed handle
-
-Symlink : Node
-  readlink() -> Text
-
-OpenFile
-  read(offset, length) -> Stream<Bytes>
-  write(offset) -> Sink<Bytes>  // returns total bytes accepted
-  truncate(length) -> ()
-  fsync(dataOnly: Bool) -> ()
-  lock(type, start, length, pid, clientId) -> Lock
-  getLock(type, start, length, pid, clientId) -> LockInfo
-  // implicit close when cap is dropped
-
-OpenDirectory
-  entries(offset) -> Stream<DirEntry>  // offset is server-issued cookie
-  fsync() -> ()
-
-Subscription
-  events() -> Stream<Event>     // changed, removed, child-added, etc.
-  cancel() -> ()
-
-Lock
-  release() -> ()               // also released if cap is dropped
-
-BlobRef
-  hash, size                    // immutable, eagerly carried
-  fetch(offset, length) -> Stream<Bytes>
-```
