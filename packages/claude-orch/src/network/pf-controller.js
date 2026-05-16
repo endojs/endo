@@ -27,13 +27,22 @@ const ANCHOR_NAME = 'com.claude-orch';
  * Per-session granularity is deferred to v2 (vmnet + entitlement, see
  * DESIGN.md §12).
  *
+ * @param {{
+ *   exec?: (cmd: string, args: string[]) => Promise<{ stdout: string, stderr: string }>,
+ * }} [opts]
  * @returns {NetworkController}
  */
-export const makePfController = () => {
+export const makePfController = (opts = {}) => {
+  const exec =
+    opts.exec ??
+    (async (cmd, args) => {
+      const r = await execFileAsync(cmd, args);
+      return /** @type {any} */ (r);
+    });
   return harden({
     async initialize() {
       try {
-        await execFileAsync('pfctl', ['-s', 'info']);
+        await exec('pfctl', ['-s', 'info']);
       } catch (e) {
         const err = /** @type {Error & { stderr?: string }} */ (e);
         const detail = err.stderr?.toString() ?? err.message;
@@ -44,7 +53,7 @@ export const makePfController = () => {
       // The anchor itself is installed at host setup time, not here.
       // We just verify it's loaded.
       try {
-        await execFileAsync('pfctl', ['-a', ANCHOR_NAME, '-s', 'rules']);
+        await exec('pfctl', ['-a', ANCHOR_NAME, '-s', 'rules']);
       } catch (e) {
         const err = /** @type {Error & { stderr?: string }} */ (e);
         const detail = err.stderr?.toString() ?? err.message;
@@ -56,11 +65,11 @@ export const makePfController = () => {
 
     /**
      * @param {string} sessionId
-     * @param {NetworkOpts} opts
+     * @param {NetworkOpts} attachOpts
      * @returns {Promise<NetAttachment>}
      */
-    async attachSession(sessionId, opts) {
-      if (opts.mode === 'none') {
+    async attachSession(sessionId, attachOpts) {
+      if (attachOpts.mode === 'none') {
         return harden({ qemuArgs: [], cleanup: async () => {} });
       }
       const mac = deriveMac(sessionId);

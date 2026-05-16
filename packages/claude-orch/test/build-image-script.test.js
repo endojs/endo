@@ -1,5 +1,6 @@
 // @ts-check
-/* eslint-disable import/order */
+/* global process */
+/* eslint-disable import/order, no-underscore-dangle */
 
 import '@endo/init';
 import test from 'ava';

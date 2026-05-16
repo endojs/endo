@@ -58,17 +58,41 @@ table inet claude {
 `;
 
 /**
+ * @param {{
+ *   exec?: (cmd: string, args: string[]) => Promise<{ stdout: string, stderr: string }>,
+ *   execWithStdin?: (cmd: string, args: string[], stdin: string) => Promise<void>,
+ * }} [opts]
  * @returns {NetworkController}
  */
-export const makeNftablesController = () => {
+export const makeNftablesController = (opts = {}) => {
   let initialized = false;
+
+  const exec =
+    opts.exec ??
+    (async (cmd, args) => {
+      const r = await execFileAsync(cmd, args);
+      return /** @type {any} */ (r);
+    });
+  const execWithStdin =
+    opts.execWithStdin ??
+    ((cmd, args, stdin) =>
+      new Promise((resolve, reject) => {
+        const child = execFile(cmd, args);
+        child.stdin?.end(stdin);
+        child.once('exit', code =>
+          code === 0
+            ? resolve(undefined)
+            : reject(new Error(`${cmd} exited ${code}`)),
+        );
+        child.once('error', reject);
+      }));
 
   const run = async (
     /** @type {string} */ cmd,
     /** @type {string[]} */ args,
   ) => {
     try {
-      return await execFileAsync(cmd, args);
+      return await exec(cmd, args);
     } catch (e) {
       const err = /** @type {Error & { stderr?: string }} */ (e);
       throw new Error(
@@ -79,7 +103,7 @@ export const makeNftablesController = () => {
 
   const bridgeExists = async () => {
     try {
-      await execFileAsync('ip', ['link', 'show', BRIDGE]);
+      await exec('ip', ['link', 'show', BRIDGE]);
       return true;
     } catch {
       return false;
@@ -95,26 +119,17 @@ export const makeNftablesController = () => {
         await run('ip', ['link', 'set', BRIDGE, 'up']);
       }
       // Idempotent: `nft -f -` will replace the named table atomically.
-      const child = execFile('nft', ['-f', '-']);
-      child.stdin?.end(NFT_RULESET);
-      await new Promise((resolve, reject) => {
-        child.once('exit', code =>
-          code === 0
-            ? resolve(undefined)
-            : reject(new Error(`nft exited ${code}`)),
-        );
-        child.once('error', reject);
-      });
+      await execWithStdin('nft', ['-f', '-'], NFT_RULESET);
       initialized = true;
     },
 
     /**
      * @param {string} sessionId
-     * @param {NetworkOpts} opts
+     * @param {NetworkOpts} attachOpts
      * @returns {Promise<NetAttachment>}
      */
-    async attachSession(sessionId, opts) {
-      if (opts.mode === 'none') {
+    async attachSession(sessionId, attachOpts) {
+      if (attachOpts.mode === 'none') {
         return harden({
           qemuArgs: [],
           cleanup: async () => {},
