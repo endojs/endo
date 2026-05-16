@@ -387,7 +387,7 @@ have partial work landed; everything else is open.
 | R1 — Remote-friendly Filesystem capability | **Done** (`@endo/remote-fs` + 9P bridge consumes it) |
 | R2 — Native 9P server (Rust) | Open |
 | R2a — 9P-over-virtio-serial relay | **Done** |
-| R3 — Credential capability | Open |
+| R3 — Credential capability | **Done** (`src/claude-credentials-factory.js`) |
 | R4 — Restart-survivable ClaudeClient | **Done** (orchestrator persistence + per-session caplets + bridge re-attach) |
 | R5 — Tools-as-capabilities (MCP via Endo) | Open |
 | R6 — Factory permission scoping | Open |
