@@ -2483,6 +2483,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/remote-fs@workspace:packages/remote-fs":
+  version: 0.0.0-use.local
+  resolution: "@endo/remote-fs@workspace:packages/remote-fs"
+  languageName: unknown
+  linkType: soft
+
 "@endo/sandbox@workspace:packages/sandbox":
   version: 0.0.0-use.local
   resolution: "@endo/sandbox@workspace:packages/sandbox"
