@@ -20,9 +20,9 @@ hand "a directory" to a peer across a CapTP boundary.
   size; the interface doesn't.
 - **Content-addressed shortcuts** when a peer can prove it already
   holds the bytes. Optional; ignorable by peers that don't need it.
-- **Discriminating subtypes** — `Directory`, `File`, `Symlink` — so a
-  caller can pipeline a type-appropriate next call onto the lookup
-  result without first probing what kind of node it got.
+- **Discriminating subtypes** — `Directory`, `File` — so a caller
+  can pipeline a type-appropriate next call onto the lookup result
+  without first probing what kind of node it got.
 - **xattrs, locks, watches as first-class caps**, not as overloaded
   read/write verbs.
 - **Composable with existing Endo primitives**: streams ride
@@ -48,6 +48,17 @@ hand "a directory" to a peer across a CapTP boundary.
   native binary when CapTP gains it. The interface promises
   `Stream<Bytes>`; the implementation uses `PassableBytesReader` /
   `PassableBytesWriter`.
+- **POSIX-isms in the base interface.** POSIX permissions /
+  mode bits, owner (`uid`/`gid`), POSIX ACLs, symlinks, hard
+  links, and OS-specific xattr namespaces (`system.*`,
+  `trusted.*`, `security.*`) all carry semantics that an
+  object-capability interface can't honestly express — they let
+  parties other than the cap holder decide access, traffic in
+  identity-shaped values (uids, gids) instead of caps, or assume
+  a single global path namespace. The base `Filesystem` omits
+  them entirely. Companion caps (`PosixFs`, future `LinuxFs`)
+  layer the OS-specific semantics on top for backings that can
+  honour them; see §8 and §9.
 
 ---
 
@@ -55,7 +66,7 @@ hand "a directory" to a peer across a CapTP boundary.
 
 | Concern | Existing | This package |
 |---|---|---|
-| Live FS access | `@endo/daemon` `Mount` (`packages/daemon/src/mount.js`): `has`, `list`, `lookup`, `readText`, `writeText`, `makeDirectory`, `remove`, `move`, ... | Typed `Directory` / `File` / `Symlink` subtypes; explicit `open()` separation; eager qid on every Node |
+| Live FS access | `@endo/daemon` `Mount` (`packages/daemon/src/mount.js`): `has`, `list`, `lookup`, `readText`, `writeText`, `makeDirectory`, `remove`, `move`, ... | Typed `Directory` / `File` subtypes; explicit `open()` separation; eager qid on every Node |
 | Immutable snapshot | `@endo/daemon` `ReadableTree`: `has`, `list`, `lookup` over a content-addressed snapshot | `Node.snapshot() → BlobRef` returns a content-addressed handle anyone holding the bytes can fetch |
 | File-shaped capability | `@endo/daemon` `MountFile`: `text`, `streamBase64`, `json`, `writeText`, `writeBytes`, `readOnly` | `File.open(flags) → OpenFile`; range reads, range writes, fsync, locks, watches |
 | Byte streaming over CapTP | `@endo/exo-stream`: `PassableBytesReader` / `PassableBytesWriter`, base64 over the wire (until CapTP gains native binary) | Consumed; not replaced |
@@ -115,7 +126,7 @@ This section is normative. Method signatures use Endo conventions:
 - Every method on every cap returns `Promise<T>` (eventual send).
 - "Eager" fields on a cap (`qid`, `BlobRef.hash`) are carried as a
   passable copy-record alongside the cap's slot, exposed via a
-  side-effect-free getter on the exo state. See §4.11 for the
+  side-effect-free getter on the exo state. See §4.10 for the
   mechanism.
 - All capability holders are identities — methods do not take
   `pid`, `clientId`, `uid`, or `gid` arguments to designate the
@@ -124,9 +135,9 @@ This section is normative. Method signatures use Endo conventions:
   `XATTR_CREATE`) are modelled as structured copy-records; the
   thin translator between POSIX-shaped consumers and this surface
   does the bit-twiddling.
-- `Node` is documentation, not an interface. Each of `Directory`,
-  `File`, `Symlink` has its own `M.interface` guard that includes
-  the "Node base" methods (§4.2) plus its subtype-specific ones.
+- `Node` is documentation, not an interface. Each of `Directory`
+  and `File` has its own `M.interface` guard that includes the
+  "Node base" methods (§4.2) plus its subtype-specific ones.
 - Every interface includes a `help() → string` per Endo convention.
 
 See §11 for the design's provenance.
@@ -154,7 +165,7 @@ to 9P's `uname`. Authorisation is by cap-issuance: who holds the
 
 ### 4.2 Node base methods
 
-Every `Directory`, `File`, and `Symlink` cap exposes these:
+Every `Directory` and `File` cap exposes these:
 
 ```
 qid                               eager: Qid
@@ -165,54 +176,67 @@ xattrs()                          → Xattrs
 help()                            → string
 ```
 
-- `qid` is eager (carried with the cap, §4.4). Equal `qid.pathId`
-  on two caps means they refer to the same on-disk inode;
+- `qid` is eager (carried with the cap, §4.10). Equal `qid.pathId`
+  on two caps means they refer to the same underlying node;
   `qid.version` bumps on every metadata change. Implementations
   that have no native inode identity can synthesise one.
-- `getAttrs()` returns everything in `Attrs` (§4.10). There is no
-  field-selection mask; metadata is cheap, and a structural
-  record is easier to evolve than a bitmask.
+- `getAttrs()` returns everything in `Attrs` (§4.9): size +
+  timestamps. POSIX fields (permissions, owner, nlink) are exposed
+  via the `PosixFs` extension, not here.
 - `setAttrs(updates)` accepts a partial `AttrsUpdate` record;
-  fields absent from the update are unchanged.
+  fields absent from the update are unchanged. The update does NOT
+  accept ownership changes — `chown` is `PosixFs` territory and
+  conveys authority the base cap does not.
 - `watch()` returns a `PassableReader<Event>` directly. The
   caller closes the stream to cancel; there is no separate
   `Subscription` type. Events start at the moment of the call —
   no replay.
-- `xattrs()` returns an `Xattrs` sub-cap (§4.9) rather than
-  spreading four xattr verbs across every node type.
+- `xattrs()` returns an `Xattrs` sub-cap (§4.8) scoped to the
+  `user.*` namespace only. OS-level xattr namespaces (`system.*`,
+  `trusted.*`, `security.*`) and POSIX ACLs are surfaced through
+  `PosixFs`.
 
 ### 4.3 Directory
 
 Includes §4.2 plus:
 
 ```
-lookup(name: string)              → Directory | File | Symlink
-list()                            → PassableReader<DirEntry>
-open()                            → OpenDirectory
+lookup(name: string)              → Directory | File
+list()                            → Cursor       // see §4.5
 create(name: string, opts: CreateFileOpts)
                                   → OpenFile
 mkdir(name: string, opts: CreateDirOpts)
                                   → Directory
-symlink(name: string, target: string)
-                                  → Symlink
-link(name: string, target: Node)  → void
-unlink(name: string)              → void       // empty dir or any file
+unlink(name: string)              → void         // empty dir or file
 rename(oldName, newParent: Directory, newName)
                                   → void
+fsync()                           → void         // impl-dependent
 ```
 
-Deliberate omissions:
+`lookup` returns the type-correct subtype — `Directory` or `File`.
+A protocol translator can pipeline a typed call (`open()`,
+`stream()`, etc.) on the returned promise without a
+"what type is this?" probe.
 
-- `mknod` (device files): out of scope for a portable cap-FS.
-- An `AT_REMOVEDIR`-style flag on `unlink`: `unlink(name)` handles
-  empty directories without a flag.
-- A `gid` parameter on `mkdir` / `symlink`: set group via
-  `setAttrs({ owner: { group: ... } })` after creation.
+`lookup` for a name that the backing rejects (ACL deny, hidden
+entry, etc.) returns the same error as a name that doesn't exist
+— `ENOENT`-equivalent. The cap is the authority; there shouldn't
+*be* a permission denied beneath it, and surfacing one would leak
+metadata about names the caller can't see.
 
-`lookup` returns the type-correct subtype; implementations stat
-at lookup time. A protocol translator can pipeline a typed call
-(`open()`, `entries()`, `target()`) on the returned promise
-without a "what type is this?" probe.
+Deliberate omissions from the base interface:
+
+- **Symlinks and hard links.** Symlinks tangle two incompatible
+  shapes (POSIX path-string targets vs ocap cap targets), and
+  cross-filesystem aliasing breaks composition. Hard links require
+  a same-filesystem brand check. Both are deferred to the
+  `PosixFs` / `LinuxFs` extensions (§9 future work).
+- **`mknod` (device files).** Out of scope for a portable cap-FS.
+- **`chmod` / `chown` / POSIX ACLs.** These traffic in identity
+  shapes (`uid`, `gid`) that aren't ocap-meaningful. Implemented
+  by `PosixFs` for OS-backed backings.
+- **`AT_REMOVEDIR`-style flag on `unlink`.** `unlink(name)`
+  handles empty directories without a flag.
 
 ### 4.4 File
 
@@ -228,17 +252,44 @@ that can't cheaply mint a content-addressed handle (e.g. live
 mutable files on a non-CAS store). Callers must tolerate `null`
 and fall back to `open().read(...)`.
 
-### 4.5 Symlink
+### 4.5 Cursor
 
-Includes §4.2 plus:
+A `Cursor` is the cap returned by `Directory.list()`. It carries
+the iteration state; the same `Directory` can mint multiple
+independent cursors, each at its own position.
 
 ```
-target()                          → string
+stream()                          → PassableReader<DirEntry>
+skip(n: bigint)                   → void
+rewind()                          → void
+help()                            → string
 ```
 
-`target()` returns the symlink's stored target as a UTF-8 string.
-Filesystems whose names are non-UTF-8 expose a `targetBytes()`
-variant (TBD; deferred to F1 in the roadmap).
+- **`stream()`** is the primary read path. Returns an
+  `@endo/exo-stream` reader from the cursor's current position;
+  closing the stream leaves the cursor advanced to where reading
+  stopped, so calling `stream()` again resumes from there. exo-
+  stream's pre-ack buffering pipelines chunks over high-latency
+  links.
+- **`skip(n)`** advances the cursor without yielding entries.
+  Default implementation reads-and-discards; backings with
+  ordered indexes (b-trees, sorted directories) can implement it
+  in `O(log n)`.
+- **`rewind()`** resets the cursor to the start of the directory.
+  Equivalent to `rewinddir(3)`. Sufficient for the realistic
+  resumption cases; arbitrary seek-to-position would require
+  value-cursors and reintroduce the state-in-value problem.
+
+The cursor cap IS the cursor state — no opaque cookie tokens
+flow through arguments. Protocol bridges that need to map an
+external cookie (9P `Treaddir` offset, NFS3 `readdir` cookie)
+keep a `Map<cookie, Cursor>` in the bridge process; that
+translator-side cache is the right place for that protocol-
+specific bookkeeping.
+
+For persistence across daemon restart, the cursor is a
+formulated cap whose env captures its current position;
+reincarnation restores the cursor to the same place.
 
 ### 4.6 OpenFile
 
@@ -262,7 +313,7 @@ help()                            → string
 - `fsync(opts)` takes `{ metadata: boolean }` instead of the
   inverted POSIX `dataOnly`. The default (omitted) is whatever
   most callers want — leaving that as an open question (§10).
-- `lock` returns a `Lock` cap (§4.8). The cap IS the lock holder;
+- `lock` returns a `Lock` cap (§4.7). The cap IS the lock holder;
   there is no `pid` or `clientId` argument because the cap
   conveys identity. Dropping the cap releases.
 - `getLock` returns a structural description of what's currently
@@ -271,23 +322,7 @@ help()                            → string
 - `close()` is an explicit option in addition to cap-drop, useful
   for synchronously flushing before dropping.
 
-### 4.7 OpenDirectory
-
-```
-entries(cursor?: DirCursor)       → PassableReader<DirEntry>
-fsync()                           → void
-close()                           → void
-help()                            → string
-```
-
-`Directory.list()` (§4.3) is stateless and returns a fresh
-stream each call. `OpenDirectory.entries(cursor)` is stateful —
-the open directory tracks a server-issued cursor that a protocol
-translator can map to its wire-level cookie (9P's `Treaddir`
-offset, NFS's cookie3, etc.). The cursor is an opaque passable
-value; the implementation is free to use any encoding.
-
-### 4.8 Lock
+### 4.7 Lock
 
 ```
 release()                         → void
@@ -297,7 +332,7 @@ help()                            → string
 Dropping the cap releases the lock. `release()` is for callers
 who want a synchronous release before dropping.
 
-### 4.9 Xattrs
+### 4.8 Xattrs
 
 ```
 get(name: string)                 → PassableBytesReader
@@ -314,11 +349,21 @@ buffering. `XattrSetOpts` carries `{ existence: 'create' |
 'replace' | 'either' }` instead of POSIX `XATTR_CREATE` /
 `XATTR_REPLACE` flags.
 
-### 4.10 Copy-record schemas
+**Namespace scoping.** The base `Xattrs` cap only exposes the
+`user.*` namespace — arbitrary application-level metadata.
+Linux's `system.*` (POSIX ACLs), `trusted.*` (root-only), and
+`security.*` (SELinux, integrity) namespaces are filtered out;
+they encode OS-level authority and are surfaced through the
+`PosixFs` / `LinuxFs` extension caps instead (§9). Implementations
+wrapping an OS filesystem strip the `user.` prefix from `name` on
+the wire and add it back when calling the kernel; callers don't
+see the prefix.
+
+### 4.9 Copy-record schemas
 
 ```
 Qid                               (eager on every Node)
-  type: 'directory' | 'file' | 'symlink'
+  type: 'directory' | 'file'
   pathId: bigint                  // inode-like; stable for the lifetime of the node
   version: bigint                 // bumps on every metadata change
 
@@ -328,30 +373,27 @@ Attrs                             (returned by Node.getAttrs)
   atime: bigint
   ctime: bigint
   btime: bigint | null            // birth time, if backing store records it
-  permissions: Permissions
-  owner: { uid: bigint, gid: bigint }
-  nlink: bigint
-  inode: bigint
+```
 
-Permissions
-  user:   { read, write, execute: boolean }
-  group:  { read, write, execute: boolean }
-  other:  { read, write, execute: boolean }
-  setuid, setgid, sticky: boolean
+The base `Attrs` deliberately omits POSIX-isms (`permissions`,
+`owner: { uid, gid }`, `nlink`). The `PosixFs` extension cap
+exposes a richer `PosixAttrs` covering those fields for backings
+that can honour them.
 
+```
 AttrsUpdate                       (passed to Node.setAttrs; all fields optional)
-  size?, mtime?, atime?, ctime?, permissions?, owner?
+  size?: bigint
+  mtime?, atime?, ctime?: bigint
 
 OpenOpts                          (passed to File.open)
   read?, write?, append?, truncate?: boolean
   create?: 'never' | 'if-missing' | 'exclusive'
 
 CreateFileOpts                    (passed to Directory.create)
-  initialPermissions?: Permissions
   exclusive?: boolean
 
 CreateDirOpts                     (passed to Directory.mkdir)
-  initialPermissions?: Permissions
+  // currently empty — kept as a record for forward compat
 
 FsyncOpts
   metadata?: boolean
@@ -380,16 +422,26 @@ Event                             (yielded by Node.watch)
 
 FsStats
   totalBytes, freeBytes, availableBytes: bigint
-  totalNodes, freeNodes: bigint
-  blockSize, fragmentSize: bigint
 
 XattrSetOpts
   existence?: 'create' | 'replace' | 'either'
 ```
 
-### 4.11 Eager state mechanism
+`CreateFileOpts.initialPermissions` and
+`CreateDirOpts.initialPermissions` were removed — initial
+permissions are POSIX-shaped, set via the `PosixFs` extension if
+needed. The base FS creates with implementation-defined defaults
+(typically "fully readable/writable to the cap holder," since
+the cap is the authority).
 
-`qid` (on every `Directory`/`File`/`Symlink`) and `BlobRef.hash` +
+POSIX-specific stat fields the base omits but `PosixFs` adds:
+`permissions`, `owner: { uid, gid }`, `nlink`, mode bits with
+`setuid` / `setgid` / `sticky`, `blockSize` / `fragmentSize` /
+`totalNodes` / `freeNodes` on `FsStats`.
+
+### 4.10 Eager state mechanism
+
+`qid` (on every `Directory`/`File`) and `BlobRef.hash` +
 `BlobRef.size` are documented as eager — readable without a round
 trip to the cap's producer.
 
@@ -508,9 +560,9 @@ algebra of filesystems.
 ### 8.1 Read-only
 
 A `Filesystem` whose mutating methods (`Directory.create`,
-`mkdir`, `symlink`, `link`, `unlink`, `rename`; `File.open` with
-any of `write`, `append`, `truncate`, `create`; `Node.setAttrs`,
-`Xattrs.set`, `Xattrs.remove`) reject with permission-style errors.
+`mkdir`, `unlink`, `rename`; `File.open` with any of `write`,
+`append`, `truncate`, `create`; `Node.setAttrs`, `Xattrs.set`,
+`Xattrs.remove`) reject with permission-style errors.
 Two natural sources:
 
 - **Attenuator** over an existing `Filesystem` — same backing,
@@ -557,10 +609,10 @@ first:
   backing entirely (used to fully replace a directory's children).
 - Otherwise → fall through to the backing's `lookup(name)`.
 
-`Directory.list()` / `OpenDirectory.entries()` merges the two
-sides, applying whiteouts. The merge is shallow per directory —
-children appearing in the layer hide their backing counterparts;
-everything else flows from the backing.
+`Directory.list()`'s `Cursor` (§4.5) on a composed view yields
+entries from both sides, applying whiteouts. The merge is shallow
+per directory — children appearing in the layer hide their
+backing counterparts; everything else flows from the backing.
 
 **Copy-up** semantics: writing to a file that exists only in the
 backing copies it into the layer on first write. Implementations
@@ -590,20 +642,29 @@ relative to its backing. Expose this as two methods on a `Layer`
 sub-interface, NOT on the composed `Filesystem`:
 
 ```
-Layer extends Filesystem
+Layer (cap, separate from Filesystem)
+  asFilesystem()                  → Filesystem    // attenuator
   backing()                       → Filesystem
   diff()                          → PassableReader<LayerOp>
   apply(target: Filesystem)       → void
-  seal()                          → Filesystem   // promote to read-only
+  seal()                          → Filesystem    // promote to read-only
+  help()                          → string
 ```
+
+A `Layer` is its own cap — it conveys strictly more authority
+than the `Filesystem` it covers. `asFilesystem()` projects out
+just the FS view, suitable for handing to consumers that should
+see the composed filesystem but shouldn't be able to introspect
+or extract the diff. The base `compose(layer, backing)` (§8.6)
+takes a `Layer` and a `Filesystem` and returns a `Filesystem`;
+the resulting cap doesn't carry layer authority.
 
 `LayerOp` is a discriminated copy-record:
 
 ```
 LayerOp =
-  | { kind: 'create-file',     path, qid, perms, ownerHint? }
-  | { kind: 'create-dir',      path, perms, ownerHint? }
-  | { kind: 'create-symlink',  path, target }
+  | { kind: 'create-file',     path }
+  | { kind: 'create-dir',      path }
   | { kind: 'whiteout',        path }
   | { kind: 'opaque-dir',      path }
   | { kind: 'set-attrs',       path, updates: AttrsUpdate }
@@ -613,8 +674,13 @@ LayerOp =
                                bytes: PassableBytesReader }
   | { kind: 'truncate',        path, length: bigint }
   | { kind: 'rename',          oldPath, newPath }
-  | { kind: 'link',            path, target: BlobRef | Node }
 ```
+
+`create-symlink` and `link` (hard link) variants are absent —
+symlinks and hard links are `PosixFs` / `LinuxFs` concepts and
+get layered diff support in the corresponding extension. POSIX-
+shaped layers built on PosixFs add `chmod` / `chown` / `set-acl`
+variants in their own `PosixLayerOp` union.
 
 `diff()` is a stream so large layers don't have to materialise in
 one record. The stream's order is the order needed to apply on a
@@ -679,7 +745,7 @@ the primitives compose with themselves: `readOnly(compose(...))`,
 
 ### 8.7 What rides through composition
 
-Eager state (§4.11) and content-addressing (§6) need a story
+Eager state (§4.10) and content-addressing (§6) need a story
 under composition. Each is the implementation's choice, with
 consequences:
 
@@ -760,6 +826,8 @@ Items below are open unless marked otherwise.
 | F12 — `Layer.diff()` / `Layer.apply(target)` (§8.5) | Open |
 | F13 — `chroot` / `bind` / `namespace` / `emptyFilesystem` primitives (§8.6) | Open |
 | F14 — Integrate into `@endo/claude-container`'s 9P bridge as the new backing store (closes R1) | Open |
+| F15 — `PosixFs` companion cap: POSIX `permissions`, owner (`uid`/`gid`), `chmod`, `chown`, POSIX ACLs as structured ops, `system.*`/`trusted.*`/`security.*` xattrs | Open (future) |
+| F16 — `LinuxFs : PosixFs`: symlinks, hard links, Linux capabilities, SELinux contexts; `asFilesystem()` projection; same-FS brand check for cap-shaped targets | Open (future, design TBD — see §9.1) |
 
 F1–F2 are the minimum viable shape — interface guards + a
 factory-like constructor function. F3 / F4 turn that into
@@ -768,7 +836,72 @@ F5–F6 make it composable with the existing Endo FS world. F10–F13
 deliver the implementation menu described in §8 — `readOnly` first
 because it's a one-line attenuator, then `compose` (CoW) and the
 layer's diff/apply, then the structural primitives. F14 is the
-integration milestone.
+integration milestone. F15–F16 are the OS-extension layer, deferred
+deliberately so the base FS's ocap invariants don't get muddied
+with POSIX-isms in the early implementation phase.
+
+### 9.1 LinuxFs (F16) — open design considerations
+
+When the LinuxFs milestone gets picked up, these are the
+substantive questions that have to be answered before the cap
+shape is settled:
+
+- **String targets vs cap targets for symlinks.** POSIX-shaped
+  `target() → string` keeps the wire-compatible POSIX semantics
+  (target is a path the resolver re-walks at lookup time, dangling
+  symlinks are normal, target may resolve into a different mount).
+  ocap-shaped `target() → Node` gives you a graph filesystem
+  (target is a live cap, no resolver indirection, no dangling).
+  Mixing the two on one interface is muddy; pick one. The cap-
+  shaped form needs a brand check (see below) to keep same-
+  filesystem semantics; the string-shaped form needs the resolver
+  to live somewhere honest. Likely answer: cap-shaped, because
+  the wider design is ocap-pure; but the cost is implementations
+  have to carry brand identity through every Node they mint.
+- **Same-filesystem brand check.** If symlinks (and hard links)
+  carry cap targets, the `Directory.symlink(name, target: Node)`
+  call has to refuse targets that come from a different
+  `Filesystem`. Mechanism: each `Filesystem` mints a unique
+  opaque brand at construction; every `Directory` / `File` it
+  issues carries the brand on its exo state; the symlink
+  creation method compares brands and rejects mismatches with a
+  `EXDEV`-equivalent error. This costs every implementation a
+  brand-allocation step and a brand-check on every link/symlink
+  call.
+- **`asFilesystem()` projection.** A `LinuxFs` cap can be
+  attenuated to a base `Filesystem` view for callers that don't
+  want the OS-specific concepts. The hard question: how does the
+  base view handle directories that contain symlinks or hard
+  links?
+  - **Option A — auto-follow at lookup.** `Directory.lookup` on
+    a symlink-bearing entry follows the link and returns the
+    target. Matches POSIX `stat` (vs `lstat`). Risks: symlink
+    loops, dangling targets surface as ENOENT.
+  - **Option B — filter at list / hide on lookup.** Symlinks
+    don't appear in `list()`; `lookup` of a symlinked name
+    returns ENOENT. Honest about what the base interface can
+    represent; gives a "POSIX-projected" view fewer surprises.
+  - **Option C — opaque file.** Symlinks appear as zero-size
+    files whose `read` returns the target bytes. Misleading but
+    survives `find`-style traversal.
+  Likely answer: Option B. The base view is honestly smaller
+  than the LinuxFs view; hiding symlinks is more honest than
+  pretending they're something else.
+- **Hard links across composition.** A composed CoW where the
+  backing is a `LinuxFs` and the layer is a base FS: hard links
+  from the backing become … what in the composed view? They're
+  not representable in base FS. Probably the composed FS exposes
+  them only when projected through a `LinuxFs` view, and
+  presents the backing-link entries as ordinary `File`s in the
+  base view.
+- **Symlinks crossing compose boundaries.** A symlink in the
+  backing whose target string points at a path that the layer
+  whitens-out. POSIX: follow resolution gives ENOENT. The
+  composed FS must honour that without leaking the layer's
+  whiteout encoding. (Cap-shaped symlinks dodge this because the
+  cap target is direct, not path-resolved — but they have their
+  own composition problems re: brand checks across composed
+  filesystems with different brands.)
 
 The 9P translator that motivated this package's design is *not* on
 this roadmap — it lives in `@endo/claude-container` and consumes the
@@ -780,25 +913,39 @@ table) belong in that package's design doc, not here.
 
 ## 10. Open questions
 
-The ocap rewrite (§4) resolves several of the original conversation's
-open questions; remaining items below.
+Questions resolved during design and reflected in §4 / §8 above:
+
+- `Directory.list()` returns a `Cursor` cap (§4.5); `OpenDirectory`
+  goes away. The cap IS the iteration state; no opaque cookie
+  values flow through arguments.
+- `lookup` collapses backing-store permission denials to
+  ENOENT-equivalent (§4.3) so the cap is the only meaningful
+  authority surface.
+- `setAttrs` does not accept `owner` updates in the base interface
+  (§4.2); chown is `PosixFs` territory.
+- `Layer` is a separate cap with `asFilesystem()` projection
+  (§8.5), not a sub-interface of `Filesystem`. Holding a `Layer`
+  conveys strictly more authority than holding its FS view.
+- Symlinks and hard links are removed from the base entirely
+  (§4.3) and deferred to `LinuxFs` (F16, with detailed open
+  questions in §9.1).
+
+Remaining open questions:
 
 | Topic | Tentative answer |
 |---|---|
-| Should `Directory.list()` and `OpenDirectory.entries()` both exist, or pick one? | Both, for now. `list()` is stateless (fresh stream each call). `entries()` is bound to an `OpenDirectory` and tracks a server-side cursor a protocol translator can map to its wire-level cookie. Most direct callers want `list()`. |
 | `fsync(metadata)` default | `metadata: false` (data only). Matches Linux `fdatasync` default and is faster on most storage tiers. Callers wanting full metadata sync pass `{ metadata: true }`. |
 | Hash algorithm for `BlobRef` | TBD. Provisionally a `BlobRef` carries `{ algorithm, hash, size }` where `algorithm` is an opaque string; consumers compare by `(algorithm, hash)` tuple. Encourages multihash-style flexibility without baking in a choice. |
-| Encoding for `Text` results (`Symlink.target`, `Xattrs.list`) | UTF-8 strings. Filesystems with non-UTF-8 names expose parallel `Bytes` accessors (e.g. `Symlink.targetBytes()`) as a follow-up. |
+| Encoding for `Text` results (`Xattrs.list`) | UTF-8 strings. Backings whose xattr names are non-UTF-8 expose a parallel `Bytes` accessor as a follow-up. |
 | `Event` schema | Kind discriminator settled (`changed` / `removed` / `child-added` / `child-removed` / `renamed`); per-kind payloads (which fields changed, new name on rename, etc.) TBD with F7 implementation. |
 | Non-UTF-8 names in `Directory.lookup`/`create`/`unlink`/etc. | Out of scope for v1. Names are UTF-8 strings. A `lookupBytes(name: Uint8Array)` parallel surface can be added if a backing store demands it. |
 | How does this surface relate to Endo's `provideMount` / pet-name resolution? | Out of scope for the interface. A `FilesystemFactory` caplet (F3) accepts a host path and mints a `Filesystem`; pet-name registration is a HOST concern, same pattern as `@endo/claude-container`'s factory. |
-| Should `lookup` distinguish "doesn't exist" from "permission denied"? | "Doesn't exist" raises; "permission denied" should not occur, because possessing the `Directory` cap already conferred the authority to look. If a backing store enforces ACLs beneath the cap (e.g. an OS-level fs), translate denials to the same "doesn't exist" error to avoid leaking metadata about names the caller can't see. |
-| `setAttrs({ owner: ... })` and ocap | Allowing the cap holder to change ownership grants escalation if other parts of the system trust owner identity. v1: implementations MAY reject `owner` updates entirely. Holding the cap doesn't have to mean holding chown authority. |
-| `Layer` vs `Filesystem` shape | `Layer` (§8.5) adds `backing()` / `diff()` / `apply()` / `seal()` on top of `Filesystem`. Open: should it be a sub-interface (separate `M.interface` extending Filesystem's methods) or a discriminated capability (`Layer.asFilesystem() → Filesystem`)? Sub-interface is more ergonomic; discriminated is more honest about the additional authority a Layer cap conveys. |
 | Qid stability under `compose` | §8.7 sketches "derive composed qid from backing-qid for uncovered files". Concrete derivation function TBD — probably `qid := backing-qid` for read-through, `{ pathId: hash(layer-path), version: layer-version }` for layer entries. Needs to survive arbitrary stack depths without collisions. |
 | Whiteout encoding | `LayerOp.kind: 'whiteout'` is wire-level. The in-memory representation inside a writable layer is implementation-internal — overlayfs uses char-dev(0,0), but nothing forces that on us. Probably a tagged record. |
-| Where does `apply` errors land? | `apply(target)` may fail partway through (target rejects a `set-attrs`, runs out of space, etc.). v1: surface the error and leave target in a partial state. v2: `apply` returns a sub-cap with `commit()` / `rollback()` for transactional groups. Connects to F12. |
+| Where do `apply` errors land? | `apply(target)` may fail partway through (target rejects a `set-attrs`, runs out of space, etc.). v1: surface the error and leave target in a partial state. v2: `apply` returns a sub-cap with `commit()` / `rollback()` for transactional groups. Connects to F12. |
 | `compose` over a `compose` | Composition is associative on paper. Implementations should not require multi-layer stacks to be a flat list — `compose(compose(L₁, B), L₂)` should behave like `compose(L₂, compose(L₁, B))` from a caller's perspective, modulo the qid-stability choice above. |
+| `PosixFs` cap surface | §4.9 lists what `PosixFs` adds (POSIX `Attrs` fields, `chmod`, `chown`, `system.*`/`trusted.*`/`security.*` xattrs, structured POSIX ACLs). Open: is `PosixFs` a single cap that takes `Node`s as arguments (`posixAttrs(node)`, `chmod(node, ...)`), or a `PosixNode` sub-cap per Node (`Node.posix() → PosixNode \| null`)? The former is more compact; the latter is more ocap-pure (each node carries its own authority). |
+| LinuxFs open questions | See §9.1 — symlink target shape (string vs cap), same-FS brand check, `asFilesystem()` projection of symlink-bearing directories, hard links across composition, symlinks crossing compose boundaries. |
 
 ---
 
