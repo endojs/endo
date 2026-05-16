@@ -129,7 +129,7 @@ This section is normative. Method signatures use Endo conventions:
   the "Node base" methods (§4.2) plus its subtype-specific ones.
 - Every interface includes a `help() → string` per Endo convention.
 
-See §10 for the design's provenance.
+See §11 for the design's provenance.
 
 ### 4.1 Filesystem
 
@@ -261,7 +261,7 @@ help()                            → string
   callers slice on receipt.
 - `fsync(opts)` takes `{ metadata: boolean }` instead of the
   inverted POSIX `dataOnly`. The default (omitted) is whatever
-  most callers want — leaving that as an open question (§9).
+  most callers want — leaving that as an open question (§10).
 - `lock` returns a `Lock` cap (§4.8). The cap IS the lock holder;
   there is no `pid` or `clientId` argument because the cap
   conveys identity. Dropping the cap releases.
@@ -376,7 +376,7 @@ DirEntry
 
 Event                             (yielded by Node.watch)
   kind: 'changed' | 'removed' | 'child-added' | 'child-removed' | 'renamed'
-  // kind-specific fields TBD; see §9
+  // kind-specific fields TBD; see §10
 
 FsStats
   totalBytes, freeBytes, availableBytes: bigint
@@ -498,7 +498,249 @@ calls.
 
 ---
 
-## 8. Roadmap
+## 8. Implementations and composition
+
+The interface in §4 is one shape. Many implementations share it.
+The space below sketches the obvious ones, plus the composition
+primitives that turn them from independent products into a small
+algebra of filesystems.
+
+### 8.1 Read-only
+
+A `Filesystem` whose mutating methods (`Directory.create`,
+`mkdir`, `symlink`, `link`, `unlink`, `rename`; `File.open` with
+any of `write`, `append`, `truncate`, `create`; `Node.setAttrs`,
+`Xattrs.set`, `Xattrs.remove`) reject with permission-style errors.
+Two natural sources:
+
+- **Attenuator** over an existing `Filesystem` — same backing,
+  read methods pass through, write methods reject. Hand the
+  attenuator to consumers that shouldn't be able to mutate.
+- **Content-addressed snapshot** — fixed at construction; every
+  `File.snapshot()` returns a non-null `BlobRef`. The Endo
+  analogue is `@endo/daemon`'s `ReadableTree`; F6 in the roadmap
+  is the bridge.
+
+### 8.2 In-memory
+
+State in plain JS — `Map<string, Node>` for directory entries,
+`Uint8Array` for file content, an in-process event emitter for
+`watch()`. `Qid.pathId` is a counter; `Qid.version` bumps on every
+mutation. Useful for tests (F4 in the roadmap) and ephemeral
+scratch space. Inherits no on-disk semantics — open files have no
+durability guarantee beyond process lifetime.
+
+### 8.3 Disk-backed
+
+Wraps `node:fs/promises`. `Qid.pathId` from the inode; `Qid.version`
+derived from a fingerprint of (`mtime`, `size`, `mode`). `BlobRef`
+minted lazily by reading + hashing on demand, with a cache keyed by
+(inode, version). Watches via `chokidar` or kernel inotify.
+
+### 8.4 Copy-on-write (the interesting one)
+
+A CoW filesystem is composed of two participants:
+
+1. A **backing** `Filesystem`, typically (but not necessarily)
+   read-only — a snapshot, a remote daemon, a content-addressed
+   store, even another CoW.
+2. A **writable layer** `Filesystem` whose state records changes
+   relative to the backing.
+
+`Directory.lookup(name)` on the composed view consults the layer
+first:
+
+- The layer holds a **whiteout** for `name` → return `ENOENT`.
+- The layer holds an **entry** for `name` → return the layer's
+  cap.
+- The layer is marked **opaque** at this directory → ignore the
+  backing entirely (used to fully replace a directory's children).
+- Otherwise → fall through to the backing's `lookup(name)`.
+
+`Directory.list()` / `OpenDirectory.entries()` merges the two
+sides, applying whiteouts. The merge is shallow per directory —
+children appearing in the layer hide their backing counterparts;
+everything else flows from the backing.
+
+**Copy-up** semantics: writing to a file that exists only in the
+backing copies it into the layer on first write. Implementations
+may copy bytes eagerly, or (when both sides are content-addressed)
+copy a `BlobRef` and lazily realise bytes only when a write spans
+a region the backing hasn't supplied yet.
+
+**Metadata-only overlays**: a layer can store a node that holds
+only an `AttrsUpdate` for a backing path — `setAttrs` doesn't
+have to copy file content. This avoids the well-known overlayfs
+trap where `chmod` triggers a whole-file copy-up.
+
+**Whiteout encoding** is implementation-internal. Overlayfs uses
+character device files at `(0, 0)`; the in-memory layer would use
+a tagged record; a disk-backed layer might use a sentinel xattr.
+The interface doesn't see them.
+
+The layer is itself a `Filesystem` (same interface), with the
+additional operations in §8.5. Composition is N-ary: a stack of
+N layers behaves like (((L₁ ∘ L₂) ∘ L₃) … ∘ Lₙ). Docker-style
+image stacks fall out without special-casing.
+
+### 8.5 Layer-specific operations: diff and apply
+
+A writable layer carries enough state to enumerate its changes
+relative to its backing. Expose this as two methods on a `Layer`
+sub-interface, NOT on the composed `Filesystem`:
+
+```
+Layer extends Filesystem
+  backing()                       → Filesystem
+  diff()                          → PassableReader<LayerOp>
+  apply(target: Filesystem)       → void
+  seal()                          → Filesystem   // promote to read-only
+```
+
+`LayerOp` is a discriminated copy-record:
+
+```
+LayerOp =
+  | { kind: 'create-file',     path, qid, perms, ownerHint? }
+  | { kind: 'create-dir',      path, perms, ownerHint? }
+  | { kind: 'create-symlink',  path, target }
+  | { kind: 'whiteout',        path }
+  | { kind: 'opaque-dir',      path }
+  | { kind: 'set-attrs',       path, updates: AttrsUpdate }
+  | { kind: 'set-xattr',       path, name, value: PassableBytesReader }
+  | { kind: 'remove-xattr',    path, name }
+  | { kind: 'write-bytes',     path, offset: bigint,
+                               bytes: PassableBytesReader }
+  | { kind: 'truncate',        path, length: bigint }
+  | { kind: 'rename',          oldPath, newPath }
+  | { kind: 'link',            path, target: BlobRef | Node }
+```
+
+`diff()` is a stream so large layers don't have to materialise in
+one record. The stream's order is the order needed to apply on a
+clean target (creates before writes, renames after destinations
+exist) — the layer is free to topologically sort.
+
+`apply(target)` is implementable in terms of `diff()` and the
+target's own methods. A default implementation lives in this
+package. Special-case implementations (apply over a CAS sync
+protocol, apply via `rsync(1)`, apply by `BlobRef` transfer
+only) are out-of-scope optimisations callers can supply.
+
+`seal()` freezes the layer's mutations and returns a read-only
+view — useful for promoting a working set into a fresh backing
+for a higher layer to use.
+
+A **"view of the diff as a filesystem"** — what overlayfs users
+sometimes want when they ask "what have I changed?" — is just
+`compose(layer, emptyFilesystem())`: the layer mounted over a
+backing with no entries. The result presents only the changes,
+walkable like any other `Filesystem`. No new operation is needed.
+
+### 8.6 Composition primitives
+
+Each is a constructor that takes one or more `Filesystem`s and
+returns one. Cap-shaped composition; no module-level wiring,
+nothing the composed `Filesystem` does that an ordinary caller
+couldn't.
+
+```
+readOnly(fs)                                   → Filesystem
+compose(layer, backing, opts?)                 → Filesystem  // §8.4
+chroot(fs, subPath: string[])                  → Filesystem
+bind(host: Filesystem, mountPath: string[],
+     guest: Filesystem)                        → Filesystem
+namespace(mounts: Record<string, Filesystem>)  → Filesystem
+emptyFilesystem(opts?)                         → Filesystem
+```
+
+- **`readOnly`** — §8.1, the attenuator.
+- **`compose`** — §8.4 CoW union. `opts` carry policy: whether
+  metadata-only overlays are allowed, copy-up granularity, how
+  qids are derived.
+- **`chroot`** — present a subtree as the root. Lets a guest see
+  "just this directory" without rebuilding the subtree.
+- **`bind`** — graft one filesystem at a path inside another.
+  Host's lookups at the mount path return the guest's root;
+  lookups elsewhere return the host. Recursive (mounts can
+  contain mounts).
+- **`namespace`** — start with a synthetic empty root and mount
+  filesystems at named children. Same primitive `bind` uses;
+  surfaced separately because "no host, just mounts" is a common
+  shape (think `/proc`, `/sys`, `/dev` as a synthetic root).
+- **`emptyFilesystem`** — the unit object: a `Filesystem` whose
+  root contains nothing. Useful as the backing for a `compose`
+  that should present only a layer's changes.
+
+The result of any of these is a `Filesystem` indistinguishable
+(from a caller's perspective) from a primitive one. That means
+the primitives compose with themselves: `readOnly(compose(...))`,
+`compose(chroot(big, ['workspace']), scratch)`, etc.
+
+### 8.7 What rides through composition
+
+Eager state (§4.11) and content-addressing (§6) need a story
+under composition. Each is the implementation's choice, with
+consequences:
+
+- **`Qid` identity**: the composed view's qid must distinguish a
+  copy-up from the backing (so callers caching by qid don't see
+  stale content after a write). Options:
+  - (a) Derive a deterministic qid from
+    `(layer-qid ?? backing-qid)`, so equality across composed
+    views with the same backing means "same underlying object."
+    Callers that cache by qid see cache hits across uncovered
+    files.
+  - (b) Mint fresh qids for every composed view. Simpler;
+    eliminates the (a) cache benefit.
+  `compose(...)` should default to (a) and let callers opt out.
+
+- **`BlobRef`**: a CoW `File.snapshot()` can return the backing's
+  `BlobRef` for files never copied up. After copy-up, `snapshot`
+  either re-mints from the new content (if cheap) or returns
+  `null` until a sealing step. `Layer.apply(target)` where both
+  sides know the same CAS can transmit only `BlobRef`s and defer
+  the bytes.
+
+- **`watch()`**: subscriptions on a composed view yield merged
+  events from both participants — a child added in the layer and
+  a child added in the backing are both surfaced. A layer-only
+  `watch` (`layer.watch(...)` directly) surfaces only the
+  layer's mutations — useful for "show me what I've modified."
+
+### 8.8 Implementation notes
+
+- **Hot paths.** `lookup` and `list` dominate. Layered lookup is
+  O(stack depth) sequential in the worst case, but the
+  primitives can pipeline lookups in parallel and take the
+  first definitive answer (`'present in this layer'` or
+  `'whiteout'` short-circuits the rest). The implementation must
+  cancel still-pending lookups once it has a winner.
+
+- **Caching.** A composed view can memoise per-directory the
+  "this child lives in layer L" decision. Invalidation comes
+  from `watch()` events from any participating layer; the
+  primitives should expose enough hooks that the cache can stay
+  honest.
+
+- **Atomicity.** `apply` is NOT transactional across multiple
+  paths. Callers needing atomic groups should build an
+  intermediate layer, `apply` it as a single operation against
+  a fresh CoW target, then promote with `seal()`.
+
+- **Path sanity.** `chroot`, `bind`, `namespace` must defend
+  against `..` escapes, since the §4 surface speaks `string[]`
+  paths in some operations. Each implementation enforces its own
+  containment.
+
+These are an implementation menu, not interface obligations. The
+roadmap (§9) sequences the few of these that have to exist for
+the package to be useful at all; the rest are future work and
+contributor surface.
+
+---
+
+## 9. Roadmap
 
 Items below are open unless marked otherwise.
 
@@ -506,19 +748,27 @@ Items below are open unless marked otherwise.
 |---|---|
 | F1 — Interface guards (M.interface for every type in §4) | Open |
 | F2 — Reference exos backed by a powers object | Open |
-| F3 — Node `fs/promises`-backed powers + factory caplet | Open |
-| F4 — In-memory powers for tests | Open |
-| F5 — `from-mount.js` adapter (project `Mount` → `Filesystem`) | Open |
+| F3 — Disk-backed `Filesystem` over `node:fs/promises` (§8.3) + factory caplet | Open |
+| F4 — In-memory `Filesystem` for tests (§8.2) | Open |
+| F5 — `from-mount.js` adapter (project `@endo/daemon` `Mount` → `Filesystem`) | Open |
 | F6 — `from-readable-tree.js` adapter (with eager `BlobRef`s) | Open |
 | F7 — `Node.watch()` events backed by `chokidar` or kernel inotify | Open |
 | F8 — Lock implementation (advisory, in-process for v1) | Open |
 | F9 — Tests for pipelined-walk single-RTT property | Open |
-| F10 — Integrate into `@endo/claude-container`'s 9P bridge as the new backing store (closes R1) | Open |
+| F10 — `readOnly(fs)` attenuator (§8.1, §8.6) | Open |
+| F11 — `compose(layer, backing)` CoW union + writable in-memory layer (§8.4) | Open |
+| F12 — `Layer.diff()` / `Layer.apply(target)` (§8.5) | Open |
+| F13 — `chroot` / `bind` / `namespace` / `emptyFilesystem` primitives (§8.6) | Open |
+| F14 — Integrate into `@endo/claude-container`'s 9P bridge as the new backing store (closes R1) | Open |
 
 F1–F2 are the minimum viable shape — interface guards + a
-factory-like constructor function. F3 turns this into something
-useful (a directory on disk). F5–F6 make it composable with the
-existing Endo FS world. F10 is the integration milestone.
+factory-like constructor function. F3 / F4 turn that into
+something useful (a directory on disk; an in-memory FS for tests).
+F5–F6 make it composable with the existing Endo FS world. F10–F13
+deliver the implementation menu described in §8 — `readOnly` first
+because it's a one-line attenuator, then `compose` (CoW) and the
+layer's diff/apply, then the structural primitives. F14 is the
+integration milestone.
 
 The 9P translator that motivated this package's design is *not* on
 this roadmap — it lives in `@endo/claude-container` and consumes the
@@ -528,7 +778,7 @@ table) belong in that package's design doc, not here.
 
 ---
 
-## 9. Open questions
+## 10. Open questions
 
 The ocap rewrite (§4) resolves several of the original conversation's
 open questions; remaining items below.
@@ -544,10 +794,15 @@ open questions; remaining items below.
 | How does this surface relate to Endo's `provideMount` / pet-name resolution? | Out of scope for the interface. A `FilesystemFactory` caplet (F3) accepts a host path and mints a `Filesystem`; pet-name registration is a HOST concern, same pattern as `@endo/claude-container`'s factory. |
 | Should `lookup` distinguish "doesn't exist" from "permission denied"? | "Doesn't exist" raises; "permission denied" should not occur, because possessing the `Directory` cap already conferred the authority to look. If a backing store enforces ACLs beneath the cap (e.g. an OS-level fs), translate denials to the same "doesn't exist" error to avoid leaking metadata about names the caller can't see. |
 | `setAttrs({ owner: ... })` and ocap | Allowing the cap holder to change ownership grants escalation if other parts of the system trust owner identity. v1: implementations MAY reject `owner` updates entirely. Holding the cap doesn't have to mean holding chown authority. |
+| `Layer` vs `Filesystem` shape | `Layer` (§8.5) adds `backing()` / `diff()` / `apply()` / `seal()` on top of `Filesystem`. Open: should it be a sub-interface (separate `M.interface` extending Filesystem's methods) or a discriminated capability (`Layer.asFilesystem() → Filesystem`)? Sub-interface is more ergonomic; discriminated is more honest about the additional authority a Layer cap conveys. |
+| Qid stability under `compose` | §8.7 sketches "derive composed qid from backing-qid for uncovered files". Concrete derivation function TBD — probably `qid := backing-qid` for read-through, `{ pathId: hash(layer-path), version: layer-version }` for layer entries. Needs to survive arbitrary stack depths without collisions. |
+| Whiteout encoding | `LayerOp.kind: 'whiteout'` is wire-level. The in-memory representation inside a writable layer is implementation-internal — overlayfs uses char-dev(0,0), but nothing forces that on us. Probably a tagged record. |
+| Where does `apply` errors land? | `apply(target)` may fail partway through (target rejects a `set-attrs`, runs out of space, etc.). v1: surface the error and leave target in a partial state. v2: `apply` returns a sub-cap with `commit()` / `rollback()` for transactional groups. Connects to F12. |
+| `compose` over a `compose` | Composition is associative on paper. Implementations should not require multi-layer stacks to be a flat list — `compose(compose(L₁, B), L₂)` should behave like `compose(L₂, compose(L₁, B))` from a caller's perspective, modulo the qid-stability choice above. |
 
 ---
 
-## 10. Provenance
+## 11. Provenance
 
 This design grew out of a research conversation; §3 (design
 principles) and §7 (what this buys you) are reproduced largely
