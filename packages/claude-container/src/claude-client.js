@@ -136,6 +136,8 @@ export const makeClaudeClient = ({
       return harden({
         sessionId: session.id,
         createdAt: session.createdAt,
+        fsSocketPath: session.fsSocketPath,
+        attachSocketPath: session.attachSocketPath,
         terminated,
       });
     },

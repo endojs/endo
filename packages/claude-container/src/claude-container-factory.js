@@ -8,10 +8,13 @@ import { E } from '@endo/eventual-send';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 
 import { makeOrchestratorClient } from './orchestrator-client.js';
-import { makeFsBridge9p } from './fs-bridge-9p.js';
 
 const CLAUDE_CLIENT_MODULE_SPECIFIER = new URL(
   './claude-client-module.js',
+  import.meta.url,
+).href;
+const FS_BRIDGE_MODULE_SPECIFIER = new URL(
+  './fs-bridge-module.js',
   import.meta.url,
 ).href;
 
@@ -85,13 +88,14 @@ export const make = (guestPowers, _context, contextOrDeps = {}) => {
   const orchestrator =
     deps.orchestrator ??
     makeOrchestratorClient({ socketPath: orchestratorSocket });
-  const bridgeFactory = deps.bridgeFactory ?? makeFsBridge9p;
-  // Live-daemon path provisions each ClaudeClient as its own
-  // formulated caplet via `hostAgent.makeUnconfined`, so the exo
-  // survives daemon restarts (reincarnates from the same env).
-  // Tests bypass this by providing `clientFactory` directly — they
-  // construct an in-worker ClaudeClient without going through the
+  // Live-daemon path provisions per-session caplets via
+  // `hostAgent.makeUnconfined` so both the 9P bridge and the
+  // ClaudeClient exo are first-class Endo capabilities that
+  // reincarnate from their env on daemon restart. Tests bypass this
+  // by providing `bridgeFactory` and `clientFactory` directly to
+  // construct worker-local instances without going through the
   // daemon's formula machinery.
+  const inProcessBridgeFactory = deps.bridgeFactory ?? null;
   const inProcessClientFactory = deps.clientFactory ?? null;
 
   const seenFormReplies = new Set();
@@ -152,19 +156,47 @@ export const make = (guestPowers, _context, contextOrDeps = {}) => {
             attachMode: 'stream',
           });
 
-          const bridge = bridgeFactory({
-            fs,
-            socketPath: session.fsSocketPath,
-          });
-          await E(bridge).start();
+          const bridgeName = `bridge-for-${session.id}`;
+          if (inProcessBridgeFactory) {
+            // Test path: build and start the bridge directly inside the
+            // factory worker, no formula round-trip.
+            const bridge = inProcessBridgeFactory({
+              fs,
+              socketPath: session.fsSocketPath,
+            });
+            await E(bridge).start();
+          } else {
+            // Live path: provision the bridge as its own formulated
+            // caplet under HOST. The module starts the 9P listener
+            // eagerly inside `make()`, so by the time this resolves
+            // the UDS is ready for the orchestrator to mount through.
+            // Reincarnation after a daemon restart re-runs `make()`
+            // with the same env, automatically re-binding the same
+            // FS_SOCKET_PATH against a re-resolved FS pet name —
+            // that's the caplet-side bridge re-attach for R4.
+            await E(hostAgent).makeUnconfined(
+              '@main',
+              FS_BRIDGE_MODULE_SPECIFIER,
+              {
+                powersName: '@agent',
+                resultName: bridgeName,
+                env: harden({
+                  FS_NAME: fsName,
+                  FS_SOCKET_PATH: session.fsSocketPath ?? '',
+                }),
+              },
+            );
+          }
 
           await orchestrator.markReady(session.id);
 
           if (inProcessClientFactory) {
+            // Test path: client lives in the factory worker; we keep
+            // the in-worker bridge alive via the closure above.
             const client = inProcessClientFactory({
               session,
               orchestrator,
-              bridge,
+              bridge: undefined,
               model,
               initialPrompt,
             });

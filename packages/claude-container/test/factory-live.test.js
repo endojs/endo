@@ -9,7 +9,7 @@ import test from 'ava';
 import net from 'node:net';
 import path from 'node:path';
 import url from 'node:url';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, access } from 'node:fs/promises';
 import os from 'node:os';
 
 import { E } from '@endo/far';
@@ -51,15 +51,9 @@ const getConfigDir = (title, idx) => {
   return `${base.slice(0, 16)}#${tid}-${cid}`;
 };
 
-const prepareEndo = async t => {
+const connectEndo = async (config, t) => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   cancelled.catch(() => {});
-  const config = makeEndoConfig(
-    'tmp',
-    getConfigDir(t.title, t.context.endoConfigs.length),
-  );
-  await purge(config);
-  await startEndo(config);
   t.context.endoConfigs.push({ cancel, cancelled, config });
 
   const { getBootstrap } = await makeEndoClient(
@@ -70,6 +64,16 @@ const prepareEndo = async t => {
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
   return { config, host, cancel, cancelled };
+};
+
+const prepareEndo = async t => {
+  const config = makeEndoConfig(
+    'tmp',
+    getConfigDir(t.title, t.context.endoConfigs.length),
+  );
+  await purge(config);
+  await startEndo(config);
+  return connectEndo(config, t);
 };
 
 const waitConnect = sock =>
@@ -311,99 +315,173 @@ test.afterEach.always(async t => {
   }
 });
 
+/**
+ * Drive the factory caplet through one form submission cycle and
+ * return the resulting session metadata. Used by multiple tests that
+ * need a populated factory + orchestrator pair.
+ *
+ * @param {import('ava').ExecutionContext<any>} t
+ * @param {object} opts
+ * @param {object} opts.host             — Endo host ERef.
+ * @param {string} opts.apiSocketPath    — orchestrator UDS path.
+ * @param {string} [opts.fsName]         — FS pet name to bind.
+ * @param {string} [opts.clientName]     — pet name for the ClaudeClient.
+ */
+const driveFactorySubmission = async (
+  t,
+  { host, apiSocketPath, fsName = 'workspace-fs', clientName = 'claude-test' },
+) => {
+  await E(host).storeValue(
+    /** @type {any} */ (harden({ kind: 'mock-fs-cap' })),
+    fsName,
+  );
+
+  const factoryName = 'claude-container-factory';
+  const factorySpecifier = new URL(
+    '../src/claude-container-factory.js',
+    import.meta.url,
+  ).href;
+  const profileName = `profile-for-${factoryName}`;
+
+  await E(host).provideGuest(factoryName, {
+    introducedNames: harden({ '@agent': 'host-agent' }),
+    agentName: profileName,
+  });
+  await E(host).makeUnconfined('@main', factorySpecifier, {
+    powersName: profileName,
+    resultName: `controller-for-${factoryName}`,
+    env: harden({ ORCHESTRATOR_SOCKET: apiSocketPath }),
+  });
+
+  const hostMessages = E(host).followMessages();
+  let formNumber;
+  let drainsLeft = 8;
+  while (drainsLeft > 0) {
+    const { value: msg } = await E(hostMessages).next();
+    if (msg && msg.type === 'form') {
+      formNumber = msg.number;
+      break;
+    }
+    drainsLeft -= 1;
+  }
+  t.is(typeof formNumber, 'bigint');
+
+  await E(host).submit(
+    formNumber,
+    harden({
+      name: clientName,
+      filesystem: fsName,
+      network: 'none',
+      model: 'claude-sonnet-4-6',
+      initialPrompt: '',
+    }),
+  );
+
+  let replyText;
+  drainsLeft = 20;
+  while (drainsLeft > 0) {
+    const { value: msg } = await E(hostMessages).next();
+    if (msg && msg.type === 'package') {
+      replyText = (msg.strings ?? []).join('\n');
+      break;
+    }
+    drainsLeft -= 1;
+  }
+  t.regex(replyText ?? '', new RegExp(`ClaudeClient "${clientName}" created`));
+
+  const client = await E(host).lookup(clientName);
+  const status = await E(client).status();
+  return { client, status, replyText };
+};
+
 test.serial(
   'live: factory provisions ClaudeClient and round-trips a stream-json event',
   async t => {
     const { host } = await prepareEndo(t);
     const { apiSocketPath } = await startOrchestrator(t);
 
-    // Store any value as the FS capability — the 9P bridge will start
-    // listening but no client connects to it in this test, so the FS
-    // is never called.
-    await E(host).storeValue(
-      /** @type {any} */ (harden({ kind: 'mock-fs-cap' })),
-      'workspace-fs',
-    );
-
-    // Provision the factory guest, equivalent to running setup.js.
-    const factoryName = 'claude-container-factory';
-    const factorySpecifier = new URL(
-      '../src/claude-container-factory.js',
-      import.meta.url,
-    ).href;
-    const profileName = `profile-for-${factoryName}`;
-
-    await E(host).provideGuest(factoryName, {
-      introducedNames: harden({ '@agent': 'host-agent' }),
-      agentName: profileName,
+    const { client, status } = await driveFactorySubmission(t, {
+      host,
+      apiSocketPath,
     });
-
-    await E(host).makeUnconfined('@main', factorySpecifier, {
-      powersName: profileName,
-      resultName: `controller-for-${factoryName}`,
-      env: harden({ ORCHESTRATOR_SOCKET: apiSocketPath }),
-    });
-
-    // The factory caplet, on construction, sends the "Create Claude
-    // Container" form to @host's inbox. Wait for it to arrive, then
-    // submit a value referencing the workspace-fs we stored above.
-    const hostMessages = E(host).followMessages();
-    let formNumber;
-    let drainsLeft = 8;
-    while (drainsLeft > 0) {
-      const { value: msg } = await E(hostMessages).next();
-      if (msg && msg.type === 'form') {
-        formNumber = msg.number;
-        break;
-      }
-      drainsLeft -= 1;
-    }
-    t.is(typeof formNumber, 'bigint');
-
-    await E(host).submit(
-      formNumber,
-      harden({
-        name: 'claude-test',
-        filesystem: 'workspace-fs',
-        network: 'none',
-        model: 'claude-sonnet-4-6',
-        initialPrompt: '',
-      }),
-    );
-
-    // Factory replies after storing the ClaudeClient. The first message
-    // after submission is the host's own `type: 'value'` self-echo;
-    // skip until we see a `package` from the factory.
-    let replyText;
-    drainsLeft = 20;
-    while (drainsLeft > 0) {
-      const { value: msg } = await E(hostMessages).next();
-      if (msg && msg.type === 'package') {
-        replyText = (msg.strings ?? []).join('\n');
-        break;
-      }
-      drainsLeft -= 1;
-    }
-    t.regex(replyText ?? '', /ClaudeClient "claude-test" created/);
-
-    // The ClaudeClient should be visible by pet name on @host.
-    const client = await E(host).lookup('claude-test');
-    const status = await E(client).status();
     t.truthy(status.sessionId);
     t.false(status.terminated);
 
-    // Round-trip a prompt through the orchestrator's stdio mux and the
-    // mock guest's stream-json echo.
     const reader = await E(client).send('hello from test');
     const first = await E(reader).next();
     t.false(first.done);
     t.is(first.value.type, 'assistant');
     t.regex(first.value.message.content[0].text, /echo: hello from test/);
 
-    // Tear the session down through the exo, exercising the
-    // orchestrator's DELETE path.
     await E(client).terminate();
     const statusAfter = await E(client).status();
     t.true(statusAfter.terminated);
+  },
+);
+
+test.serial(
+  'live: 9P bridge reincarnates after Endo daemon restart (R4 bridge re-attach)',
+  async t => {
+    const { config, host, cancel } = await prepareEndo(t);
+    const { apiSocketPath } = await startOrchestrator(t);
+
+    const { status } = await driveFactorySubmission(t, {
+      host,
+      apiSocketPath,
+      clientName: 'claude-survivor',
+    });
+    t.truthy(status.sessionId);
+    const fsSocketPath = status.fsSocketPath;
+    t.truthy(fsSocketPath);
+
+    // Bridge is up — UDS exists at fsSocketPath.
+    await access(fsSocketPath);
+
+    // Stop the Endo daemon. Its workers die with it, taking the
+    // bridge caplet (and the ClaudeClient caplet) with them. The
+    // orchestrator's UDS socket and the session record survive
+    // (orchestrator is a separate process).
+    await stopEndo(config);
+    cancel(new Error('restart'));
+
+    // Sanity: after the daemon stops, the bridge socket's owning
+    // process is gone. We don't assert non-existence — the inode may
+    // linger if the worker didn't get a chance to unlink — but a
+    // fresh connect to it should fail.
+    const probe = net.createConnection(fsSocketPath);
+    const probeOutcome = await new Promise(resolve => {
+      probe.once('connect', () => resolve('connected'));
+      probe.once('error', () => resolve('refused'));
+      setTimeout(() => resolve('timeout'), 500);
+    });
+    probe.destroy();
+    t.is(probeOutcome, 'refused');
+
+    // Start a fresh daemon at the same statePath. The factory's
+    // form-driven submission would normally re-create the bridge, but
+    // for R4 we want the bridge to come back without re-submitting —
+    // just by looking up the formula by its pet name.
+    await startEndo(config);
+    const { host: host2 } = await connectEndo(config, t);
+
+    // Trigger bridge reincarnation by resolving its pet name.
+    const sessionId = status.sessionId;
+    const bridgeName = `bridge-for-${sessionId}`;
+    const bridge = await E(host2).lookup(bridgeName);
+    t.truthy(bridge);
+
+    // The bridge module's `make` calls `start()` eagerly, so by the
+    // time `lookup` resolves, the UDS is listening again.
+    await access(fsSocketPath);
+
+    // And a fresh client connection succeeds.
+    const probe2 = net.createConnection(fsSocketPath);
+    const outcome2 = await new Promise(resolve => {
+      probe2.once('connect', () => resolve('connected'));
+      probe2.once('error', () => resolve('refused'));
+      setTimeout(() => resolve('timeout'), 1000);
+    });
+    probe2.destroy();
+    t.is(outcome2, 'connected');
   },
 );

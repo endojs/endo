@@ -55,6 +55,8 @@ src/
   claude-client-module.js       # per-session ClaudeClient caplet
                                 # (loaded by makeUnconfined per session)
   claude-client.js              # ClaudeClient exo constructor
+  fs-bridge-module.js           # per-session 9P bridge caplet
+                                # (loaded by makeUnconfined per session)
   orchestrator-client.js        # HTTP-over-UDS client
   fs-bridge-9p.js               # 9P UDS bridge
   9p/
@@ -97,8 +99,10 @@ mount → drop-privs → exec claude-agent → Ready.
 - Other ops return `Rlerror(ENOSYS)` so the guest VFS surfaces a
   clean errno.
 
-Tests: 12 ava cases — all green. Includes a live-daemon end-to-end
-test (`factory-live.test.js`) that spins up a real Endo daemon and a
-real `@endo/claude-orch` daemon (mock VM).
+Tests: 13 ava cases — all green. Live-daemon tests in
+`factory-live.test.js` spin up a real Endo daemon and a real
+`@endo/claude-orch` daemon (mock VM) to exercise both the form-driven
+provisioning flow and the bridge-formula reincarnation across a full
+Endo daemon restart (R4 bridge re-attach).
 
 See `ENDO-INTEGRATION.md` §9 for the prioritized roadmap.
