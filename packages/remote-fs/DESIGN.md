@@ -59,6 +59,12 @@ hand "a directory" to a peer across a CapTP boundary.
   them entirely. Companion caps (`PosixFs`, future `LinuxFs`)
   layer the OS-specific semantics on top for backings that can
   honour them; see §8 and §9.
+- **Graph semantics in the base.** The base is tree-shaped (see
+  §3). Hard links (DAG: one node, multiple names) move to
+  `PosixFs`. Arbitrary cap-target edges that admit cycles or
+  shared subtrees — Plan 9–style union mounts, capability graphs
+  that aren't filesystems-as-trees in the usual sense — would
+  belong in a far-future `GraphFs` extension, not in this base.
 
 ---
 
@@ -116,6 +122,21 @@ calls. Two ideas do most of the work:
    them." Both the producer and consumer of `BlobRef` are optional:
    producers that can't compute hashes return `null`; consumers that
    don't have a CAS ignore them.
+
+5. **Filesystems are trees.** Every `Directory`/`File` cap issued by
+   a base `Filesystem` has at most one parent reachable through
+   `Directory.lookup`. The base interface offers no operations that
+   would create aliasing (no `Directory.link(name, target: Node)`,
+   no symlinks) or cycles. This isn't runtime enforcement — it's
+   that the interface has no shape that lets an implementation
+   violate the invariant the way an ocap-pure base has no method
+   that would let a caller "elevate authority". Implementations
+   sign a contract by issuing base FS caps: their nodes form a
+   tree. Extensions that relax this — `PosixFs` adds hard links
+   (DAG-shaped: a single file with multiple names), a hypothetical
+   `GraphFs` would add arbitrary cap-target edges — own the
+   responsibility for whatever invariants their relaxation
+   requires.
 
 ---
 
@@ -743,6 +764,36 @@ The result of any of these is a `Filesystem` indistinguishable
 the primitives compose with themselves: `readOnly(compose(...))`,
 `compose(chroot(big, ['workspace']), scratch)`, etc.
 
+**Cycle defense.** `bind` and `namespace` can apparently introduce
+cycles — `bind(host, ['foo'], host)` makes `host`'s `/foo` resolve
+back to `host`, so `host/foo/foo/foo/...` traverses forever. The
+tree invariant from §3 is a contract; each composition primitive
+is responsible for rejecting configurations that would break it.
+Concretely:
+
+- `bind` MUST reject when `host` and `guest` are the same
+  `Filesystem` cap, or when `guest` is itself a composed view
+  that (transitively) includes `host`.
+- `namespace` MUST reject when any two of its mounted filesystems
+  share a `Filesystem` cap, or when any of them includes a
+  composed view of the namespace under construction.
+- `compose(layer, backing)` MUST reject when `layer` and
+  `backing` are the same cap (a layer over itself is degenerate
+  and the CoW semantics produce nonsense).
+
+Detection mechanism is per-implementation. A pragmatic choice:
+maintain a tag set on every composed `Filesystem` cap (the union
+of its participants' tags); a composition is rejected if its
+proposed participants' tag sets overlap. Tags are minted opaquely
+at primitive `Filesystem` construction and carried through
+composition. This is one realisation of the same-FS brand idea
+that §9.1 raises for `LinuxFs` symlink targets; the two
+mechanisms could share an implementation.
+
+The §10 open questions include a follow-up on whether cycle
+detection is eager (at composition time) or lazy (at traversal
+time); the eager option is what's specified here.
+
 ### 8.7 What rides through composition
 
 Eager state (§4.10) and content-addressing (§6) need a story
@@ -824,10 +875,11 @@ Items below are open unless marked otherwise.
 | F10 — `readOnly(fs)` attenuator (§8.1, §8.6) | Open |
 | F11 — `compose(layer, backing)` CoW union + writable in-memory layer (§8.4) | Open |
 | F12 — `Layer.diff()` / `Layer.apply(target)` (§8.5) | Open |
-| F13 — `chroot` / `bind` / `namespace` / `emptyFilesystem` primitives (§8.6) | Open |
+| F13 — `chroot` / `bind` / `namespace` / `emptyFilesystem` primitives (§8.6), including eager cycle detection via composition-time tag sets | Open |
 | F14 — Integrate into `@endo/claude-container`'s 9P bridge as the new backing store (closes R1) | Open |
-| F15 — `PosixFs` companion cap: POSIX `permissions`, owner (`uid`/`gid`), `chmod`, `chown`, POSIX ACLs as structured ops, `system.*`/`trusted.*`/`security.*` xattrs | Open (future) |
-| F16 — `LinuxFs : PosixFs`: symlinks, hard links, Linux capabilities, SELinux contexts; `asFilesystem()` projection; same-FS brand check for cap-shaped targets | Open (future, design TBD — see §9.1) |
+| F15 — `PosixFs` companion cap: POSIX `permissions`, owner (`uid`/`gid`), `chmod`, `chown`, POSIX ACLs as structured ops, `system.*`/`trusted.*`/`security.*` xattrs, hard links (DAG relaxation of the tree invariant) | Open (future) |
+| F16 — `LinuxFs : PosixFs`: symlinks, Linux capabilities, SELinux contexts; `asFilesystem()` projection; same-FS brand check for cap-shaped symlink targets | Open (future, design TBD — see §9.1) |
+| F17 — `GraphFs` (far future, only if a real driver appears): arbitrary cap-target edges, Plan-9-style union mounts, no tree/DAG invariant. Not on a path; documented so the base interface can be honest about what it excludes. | Open (far future) |
 
 F1–F2 are the minimum viable shape — interface guards + a
 factory-like constructor function. F3 / F4 turn that into
@@ -858,16 +910,18 @@ shape is settled:
   to live somewhere honest. Likely answer: cap-shaped, because
   the wider design is ocap-pure; but the cost is implementations
   have to carry brand identity through every Node they mint.
-- **Same-filesystem brand check.** If symlinks (and hard links)
-  carry cap targets, the `Directory.symlink(name, target: Node)`
-  call has to refuse targets that come from a different
-  `Filesystem`. Mechanism: each `Filesystem` mints a unique
-  opaque brand at construction; every `Directory` / `File` it
-  issues carries the brand on its exo state; the symlink
-  creation method compares brands and rejects mismatches with a
+- **Same-filesystem brand check.** If symlinks carry cap targets
+  (and PosixFs hard links accept Node caps as their target), the
+  cap-accepting operations have to refuse targets that come from
+  a different `Filesystem`. Mechanism: each `Filesystem` mints a
+  unique opaque brand at construction; every `Directory` / `File`
+  it issues carries the brand on its exo state; symlink/link
+  creation compares brands and rejects mismatches with an
   `EXDEV`-equivalent error. This costs every implementation a
   brand-allocation step and a brand-check on every link/symlink
-  call.
+  call. The same brand machinery serves the cycle-detection in
+  `bind` / `namespace` / `compose` (§8.6) — one tag set covers
+  both concerns.
 - **`asFilesystem()` projection.** A `LinuxFs` cap can be
   attenuated to a base `Filesystem` view for callers that don't
   want the OS-specific concepts. The hard question: how does the
@@ -926,9 +980,16 @@ Questions resolved during design and reflected in §4 / §8 above:
 - `Layer` is a separate cap with `asFilesystem()` projection
   (§8.5), not a sub-interface of `Filesystem`. Holding a `Layer`
   conveys strictly more authority than holding its FS view.
-- Symlinks and hard links are removed from the base entirely
-  (§4.3) and deferred to `LinuxFs` (F16, with detailed open
-  questions in §9.1).
+- Symlinks are removed from the base entirely and deferred to
+  `LinuxFs` (F16); hard links are deferred to `PosixFs` (F15)
+  since POSIX is where they're defined. Detailed open questions
+  in §9.1.
+- The base interface is tree-shaped (§3 principle 5). No
+  interface operation introduces aliasing or cycles; composition
+  primitives (`bind` / `namespace` / `compose`) carry their own
+  cycle-detection responsibility (§8.6). `PosixFs` relaxes to
+  DAG via hard links; a hypothetical `GraphFs` (F17) would
+  relax further to a true graph.
 
 Remaining open questions:
 
@@ -946,6 +1007,8 @@ Remaining open questions:
 | `compose` over a `compose` | Composition is associative on paper. Implementations should not require multi-layer stacks to be a flat list — `compose(compose(L₁, B), L₂)` should behave like `compose(L₂, compose(L₁, B))` from a caller's perspective, modulo the qid-stability choice above. |
 | `PosixFs` cap surface | §4.9 lists what `PosixFs` adds (POSIX `Attrs` fields, `chmod`, `chown`, `system.*`/`trusted.*`/`security.*` xattrs, structured POSIX ACLs). Open: is `PosixFs` a single cap that takes `Node`s as arguments (`posixAttrs(node)`, `chmod(node, ...)`), or a `PosixNode` sub-cap per Node (`Node.posix() → PosixNode \| null`)? The former is more compact; the latter is more ocap-pure (each node carries its own authority). |
 | LinuxFs open questions | See §9.1 — symlink target shape (string vs cap), same-FS brand check, `asFilesystem()` projection of symlink-bearing directories, hard links across composition, symlinks crossing compose boundaries. |
+| Cycle detection — eager or lazy? | §8.6 specifies eager: `bind` / `namespace` / `compose` check at construction time and reject configurations whose participants' tag sets overlap. Open: should it ALSO detect lazily at traversal time, in case a composed FS gets re-introduced later via some other channel (a remote FS handed back over CapTP, say)? Eager-only is simpler and covers the obvious cases; the lazy version costs every `lookup` a tag-set check forever. Provisional answer: eager-only, and document that adversarial cap-passing patterns can defeat it. |
+| `from-mount.js` (F5) and Mount-with-hard-links | `@endo/daemon`'s `Mount` doesn't itself express hard links, but the underlying disk path it wraps might have them. When the adapter projects this to a base `Filesystem`, the same backing inode could be reached via two paths. Options: (a) dedup at the adapter — pick one canonical path, hide the rest, breaks the user's expectation that all the names they put on disk are visible; (b) surface as separate nodes — two distinct `File` caps that happen to read the same bytes, breaks the base's tree invariant; (c) refuse to adapt directories that contain hard links, surface as an error at `lookup` time. The right answer probably depends on whether the caller will eventually want a `PosixFs` cap from the same adapter; if so, (b) is closer to honest. Defer with F5. |
 
 ---
 
