@@ -13,7 +13,7 @@
 
 use std::fs;
 use std::io::{Read, Write};
-use std::os::fd::IntoRawFd;
+use std::os::fd::{IntoRawFd, RawFd};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
@@ -152,14 +152,19 @@ fn mount_if_unmounted(source: &str, target: &str, fstype: &str) -> Result<(), St
 fn mount_workspace() -> Result<(), String> {
     fs::create_dir_all(WORKSPACE_MOUNT).ok();
     let workspace_path = resolve_virtio_port(WORKSPACE_PORT_NAME)?;
-    let port = fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(&workspace_path)
-        .map_err(|e| format!("open {workspace_path}: {e}"))?;
-    let fd = port.into_raw_fd();
+
+    // The Linux virtio-console driver only exports user-space file_ops;
+    // v9fs's trans=fd path issues kernel-mode vfs_read/vfs_write which the
+    // driver rejects with "kernel write not supported for file /vport0pN".
+    // Workaround: socketpair() gives us two SOCK_STREAM fds that DO support
+    // kernel-mode read/write. A forked relay child bridges bytes between
+    // the virtio-port fd and one end of the socket pair; v9fs mounts
+    // against the other end via trans=fd. See ENDO-INTEGRATION.md §9 R2a.
+    let port_fd = open_virtio_port(&workspace_path)?;
+    let mount_fd = spawn_relay(port_fd)?;
+
     let opts = format!(
-        "trans=fd,rfdno={fd},wfdno={fd},version=9p2000.L,msize=131072,access=any"
+        "trans=fd,rfdno={mount_fd},wfdno={mount_fd},version=9p2000.L,msize=131072,access=any"
     );
     mount::<str, str, str, str>(
         Some("none"),
@@ -169,8 +174,102 @@ fn mount_workspace() -> Result<(), String> {
         Some(&opts),
     )
     .map_err(|e| format!("mount 9p {WORKSPACE_MOUNT}: {e}"))?;
-    // The fd is now owned by the kernel mount; do not close.
+    // The mount_fd is now owned by the kernel mount; do not close in this
+    // process. The relay child owns its peer fd.
     Ok(())
+}
+
+fn open_virtio_port(path: &str) -> Result<RawFd, String> {
+    use nix::fcntl::{open, OFlag};
+    use nix::sys::stat::Mode;
+    open(path, OFlag::O_RDWR | OFlag::O_CLOEXEC, Mode::empty())
+        .map_err(|e| format!("open {path}: {e}"))
+}
+
+/// Fork a relay child that bidirectionally bridges `port_fd` <-> one end
+/// of a freshly-allocated SOCK_STREAM Unix socketpair. Returns the other
+/// (kernel-bound) end's raw fd to the caller.
+fn spawn_relay(port_fd: RawFd) -> Result<RawFd, String> {
+    use nix::sys::socket::{socketpair, AddressFamily, SockFlag, SockType};
+    use nix::unistd::{close, fork, ForkResult};
+
+    let (kernel_end, relay_end) = socketpair(
+        AddressFamily::Unix,
+        SockType::Stream,
+        None,
+        SockFlag::empty(),
+    )
+    .map_err(|e| format!("socketpair: {e}"))?;
+    let kernel_fd = kernel_end.into_raw_fd();
+    let relay_fd = relay_end.into_raw_fd();
+
+    // SAFETY: bootstrap-init is single-threaded at this point.
+    match unsafe { fork() } {
+        Ok(ForkResult::Parent { .. }) => {
+            // Parent: kernel side. Close the relay-side fd; we don't use it.
+            let _ = close(relay_fd);
+            Ok(kernel_fd)
+        }
+        Ok(ForkResult::Child) => {
+            // Child: bridge bytes between port_fd and relay_fd forever.
+            let _ = close(kernel_fd);
+            run_relay(port_fd, relay_fd);
+        }
+        Err(e) => Err(format!("fork relay: {e}")),
+    }
+}
+
+fn run_relay(port_fd: RawFd, sock_fd: RawFd) -> ! {
+    use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
+    use nix::unistd::{read, write};
+    use std::os::fd::BorrowedFd;
+
+    let mut buf = [0u8; 8192];
+    // SAFETY: caller-supplied raw fds remain open for the lifetime of
+    // these BorrowedFds. The relay loops forever — we never return.
+    let port = unsafe { BorrowedFd::borrow_raw(port_fd) };
+    let sock = unsafe { BorrowedFd::borrow_raw(sock_fd) };
+    loop {
+        let mut pfds = [
+            PollFd::new(port, PollFlags::POLLIN),
+            PollFd::new(sock, PollFlags::POLLIN),
+        ];
+        match poll(&mut pfds, PollTimeout::NONE) {
+            Ok(_) => {}
+            Err(nix::errno::Errno::EINTR) => continue,
+            Err(_) => std::process::exit(1),
+        }
+        if let Some(revents) = pfds[0].revents() {
+            if revents.intersects(PollFlags::POLLIN) {
+                match read(port_fd, &mut buf) {
+                    Ok(0) => std::process::exit(0),
+                    Ok(n) => {
+                        let _ = write(sock, &buf[..n]);
+                    }
+                    Err(nix::errno::Errno::EINTR) => continue,
+                    Err(_) => std::process::exit(1),
+                }
+            }
+            if revents.intersects(PollFlags::POLLHUP | PollFlags::POLLERR) {
+                std::process::exit(0);
+            }
+        }
+        if let Some(revents) = pfds[1].revents() {
+            if revents.intersects(PollFlags::POLLIN) {
+                match read(sock_fd, &mut buf) {
+                    Ok(0) => std::process::exit(0),
+                    Ok(n) => {
+                        let _ = write(port, &buf[..n]);
+                    }
+                    Err(nix::errno::Errno::EINTR) => continue,
+                    Err(_) => std::process::exit(1),
+                }
+            }
+            if revents.intersects(PollFlags::POLLHUP | PollFlags::POLLERR) {
+                std::process::exit(0);
+            }
+        }
+    }
 }
 
 fn parse_cmdline() -> Result<(String, String), String> {

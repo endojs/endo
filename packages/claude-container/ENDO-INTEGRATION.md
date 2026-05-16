@@ -412,26 +412,22 @@ A Rust implementation, linked the way `packages/daemon`'s endor
 supervisor links into Node, would let large reads bypass V8 entirely.
 Pair with R1 to make remote-FS performance acceptable.
 
-### R2a — 9P-over-virtio-serial kernel shim  (blocking real boots)
+### R2a — 9P-over-virtio-serial relay  (DONE in bootstrap-init)
 
-`packages/claude-orch/scripts/smoke-boot.sh` validates the full guest
-path up to `mount -t 9p -o trans=fd` and then fails with "kernel
-write not supported for file /vport0pN".
-The virtio-console driver exposes only user-space file ops, while
-v9fs's `trans=fd` path uses kernel-mode `vfs_read`/`vfs_write`.
+The virtio-console driver only exports user-space file ops; v9fs
+`trans=fd` uses kernel-mode read/write and gets "kernel write not
+supported for file /vport0pN" if it's handed the virtio-port fd
+directly.
 
-Three options, in roughly increasing engineering cost:
+Resolution shipped: bootstrap-init forks a tiny relay child that
+bridges bytes between the virtio-port fd and one end of a
+`socketpair(AF_UNIX, SOCK_STREAM)`; v9fs mounts via `trans=fd`
+against the other end. SOCK_STREAM has kernel-mode read/write so
+v9fs is happy. Zero kernel patches; preserves the cross-platform
+chardev-only design from `DESIGN.md` §5.7.
 
-- A user-space 9P relay process in the guest that `read(2)`s from
-  `/dev/vportXpY` and forwards bytes into a Unix socket pair that
-  v9fs mounts with `trans=unix` — purely guest-side, no kernel patches.
-  This is the pragmatic short-term unblock.
-- Switch to `-device virtio-9p-pci,fsdriver=local,mount_tag=workspace`
-  on Linux and run the JS 9P server out-of-band, accepting that macOS
-  QEMU support is partial (regressing the original portability story).
-- A small kernel patch on the virtio-console driver to export the
-  kernel-mode read/write paths v9fs needs.
-  Cleanest long-term answer but a kernel patch dependency.
+Verified by `scripts/smoke-boot.sh` — Tversion/Tattach round-trip
+end-to-end through the relay on Linux 6.18 + QEMU/KVM.
 
 ### R3 — Credential capability
 

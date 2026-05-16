@@ -353,19 +353,26 @@ guest kernel 9p client (v9fs)  →  /workspace VFS mount
 - The mount uses `trans=fd`, which doesn't require any specific virtio-9p device on the host (which QEMU on macOS would struggle with). The 9P frames are just bytes flowing through a virtio-serial channel.
 
 > **Implementation finding (2026-05)**: A real Linux 6.18 guest boot
-> exercising `trans=fd` over a virtio-serial port hits "kernel write
-> not supported for file /vport0pN" — the virtio-console driver's file
-> operations are user-space-facing and the v9fs `trans=fd` path's
-> kernel-side `vfs_read`/`vfs_write` calls are rejected. Resolving this
-> requires either (a) switching to `-device virtio-9p-pci`+`trans=virtio`
-> per session (works on Linux, partial macOS QEMU support), (b) adding
-> a small in-kernel shim that exports kernel-mode read/write on
-> virtio-console ports, or (c) running a tiny user-space 9P relay
-> inside the guest that reads from the chardev and replays into v9fs
-> via a Unix socket. Option (b) preserves the macOS portability story
-> and is the favored path; tracked in ENDO-INTEGRATION.md §9 alongside
-> the remote-friendly FS work. The `packages/claude-orch/scripts/smoke-boot.sh`
-> script reproduces the failure end-to-end.
+> hits "kernel write not supported for file /vport0pN" if v9fs's
+> `trans=fd` is pointed directly at the virtio-console fd — the
+> virtio-console driver only exports user-space file ops, while v9fs
+> uses kernel-mode `vfs_read`/`vfs_write`.
+>
+> **Resolution shipped in bootstrap-init**: a forked relay child
+> bridges the virtio-port fd to one end of a `socketpair(AF_UNIX,
+> SOCK_STREAM)`; v9fs mounts via `trans=fd` against the other end.
+> SOCK_STREAM sockets support kernel-mode read/write, so v9fs is
+> happy and the relay child shovels bytes to/from the chardev
+> transparently. Validated end-to-end:
+> `packages/claude-orch/scripts/smoke-boot.sh` boots a real QEMU/KVM
+> guest, mounts /workspace, and observes Tversion/Tattach flowing
+> through the relay.
+>
+> This adds one process (~640 KiB static musl binary, reused as PID
+> >1 in the guest) and zero kernel patches. The relay runs alongside
+> claude-agent for the session lifetime; if it dies, the 9P mount
+> hangs and the orchestrator's heartbeat path catches the unhealthy
+> session.
 
 **Handoff procedure**:
 
