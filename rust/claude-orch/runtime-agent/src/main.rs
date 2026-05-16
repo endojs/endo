@@ -26,6 +26,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
+mod seccomp;
+
 const STDIO_PORT: &str = "/dev/virtio-ports/stdio";
 const CREDS_PATH: &str = "/home/claude/.claude/.credentials.json";
 const STREAM_ID_LEN: usize = 8;
@@ -159,6 +161,13 @@ fn run() -> Result<(), String> {
             msg: format!("agent ready (session={})", args.session_id),
         },
     );
+
+    // Install the seccomp filter (no-op without the `seccomp` feature).
+    // After this point dangerous syscalls (ptrace, BPF, kexec, module
+    // loading, ...) are rejected with SECCOMP_RET_KILL_PROCESS.
+    if let Err(e) = seccomp::install() {
+        log_to(&out_tx, "error", &format!("seccomp install failed: {e}"));
+    }
 
     // Heartbeat thread.
     {

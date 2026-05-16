@@ -74,6 +74,86 @@ test('awaitHello validates the boot nonce and replies with BootConfig', async t 
   t.is(consumeNonceCalled, 1);
 });
 
+test('boot nonce is single-use across two bootstrap attempts on the same session', async t => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'claude-orch-replay-'));
+  t.teardown(() => rm(dir, { recursive: true, force: true }));
+  const ctl = path.join(dir, 'ctl.sock');
+
+  const sessionId = 'replay-test';
+  const nonce = 'c'.repeat(64);
+  /** @type {boolean[]} */
+  const consumeResults = [];
+  const consumeNonce = (id, n) => {
+    if (id !== sessionId || n !== nonce) {
+      consumeResults.push(false);
+      return false;
+    }
+    const ok = consumeResults.filter(x => x).length === 0;
+    consumeResults.push(ok);
+    return ok; // first call true, second call false
+  };
+
+  // First attempt: should succeed.
+  const first = awaitHello({
+    ctlSocketPath: ctl,
+    sessionId,
+    consumeNonce,
+    buildBootConfig: async () =>
+      harden({
+        type: 'boot_config',
+        credentials: { apiKey: 'k' },
+        fsMountTag: 'workspace',
+        workspaceUidGid: /** @type {[number, number]} */ ([1000, 1000]),
+        envExtra: {},
+        agentControlPort: '/dev/virtio-ports/agent',
+      }),
+    deadlineMs: 5000,
+  });
+  await first.ready;
+  const c1 = net.createConnection(ctl);
+  await writeLineThenReadLine(
+    c1,
+    JSON.stringify({
+      type: 'hello',
+      sessionId,
+      bootNonce: nonce,
+      agentVersion: '0.0.0',
+      hostname: 'h',
+    }),
+  );
+  await first.hello;
+  c1.destroy();
+
+  // Second attempt with the same nonce should be rejected.
+  const second = awaitHello({
+    ctlSocketPath: ctl,
+    sessionId,
+    consumeNonce,
+    buildBootConfig: async () => {
+      throw new Error('should not be called');
+    },
+    deadlineMs: 2000,
+  });
+  await second.ready;
+  const c2 = net.createConnection(ctl);
+  c2.on('error', () => {});
+  c2.write(
+    `${JSON.stringify({
+      type: 'hello',
+      sessionId,
+      bootNonce: nonce,
+      agentVersion: '0.0.0',
+      hostname: 'h',
+    })}\n`,
+  );
+  await t.throwsAsync(second.hello, {
+    message: /Invalid or replayed boot nonce/,
+  });
+  c2.destroy();
+
+  t.deepEqual(consumeResults, [true, false]);
+});
+
 test('awaitHello rejects a stale nonce', async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'claude-orch-bootstrap-'));
   t.teardown(() => rm(dir, { recursive: true, force: true }));
