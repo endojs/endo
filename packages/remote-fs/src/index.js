@@ -11,6 +11,7 @@ export {
   namespace,
   compose,
 } from './compose.js';
+export { makeLayer, LayerInterface } from './layer.js';
 
 export {
   FilesystemInterface,

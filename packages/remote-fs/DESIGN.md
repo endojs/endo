@@ -869,12 +869,12 @@ Items below are open unless marked otherwise.
 | F4 — In-memory `Filesystem` for tests (§8.2) | **Done** |
 | F5 — `from-mount.js` adapter (project `@endo/daemon` `Mount` → `Filesystem`); ship `'surface'` first (stateless, simplest) | **Done** (`'surface'` default; dedup/reject deferred) |
 | F6 — `from-readable-tree.js` adapter (with eager `BlobRef`s) | Open |
-| F7 — `Node.watch()` events backed by `chokidar` or kernel inotify | **Done** (in-memory dispatch; disk-side polling is follow-up) |
+| F7 — `Node.watch()` events backed by `chokidar` or kernel inotify | **Done** (in-memory dispatch + disk-side via `node:fs.watch`) |
 | F8 — Lock implementation (advisory, in-process for v1) | **Done** |
-| F9 — Tests for pipelined-walk single-RTT property | Open |
+| F9 — Tests for pipelined-walk single-RTT property | **Done** (in-process call counts + 9P-server.test.js single Rwalk reply) |
 | F10 — `readOnly(fs)` attenuator (§8.1, §8.6) | **Done** |
 | F11 — `compose(layer, backing)` CoW union + writable in-memory layer (§8.4) | **Done** |
-| F12 — `Layer.diff()` / `Layer.apply(target)` (§8.5) | Open |
+| F12 — `Layer.diff()` / `Layer.apply(target)` (§8.5) | **Done** |
 | F13 — `chroot` / `bind` / `namespace` / `emptyFilesystem` primitives (§8.6), including eager cycle detection via composition-time tag sets | **Done** |
 | F14 — Integrate into `@endo/claude-container`'s 9P bridge as the new backing store (closes R1) | **Done** |
 | F15 — `PosixFs` companion cap: POSIX `permissions`, owner (`uid`/`gid`), `chmod`, `chown`, POSIX ACLs as structured ops, `system.*`/`trusted.*`/`security.*` xattrs, hard links (DAG relaxation of the tree invariant) | Open (future) |

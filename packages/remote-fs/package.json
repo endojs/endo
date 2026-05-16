@@ -23,6 +23,7 @@
     "./src/readonly.js": "./src/readonly.js",
     "./src/from-mount.js": "./src/from-mount.js",
     "./src/compose.js": "./src/compose.js",
+    "./src/layer.js": "./src/layer.js",
     "./package.json": "./package.json"
   },
   "scripts": {

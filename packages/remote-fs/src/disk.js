@@ -30,7 +30,7 @@
  * of a `Directory` cap can't escape the subtree it was given.
  */
 
-import { promises as fsp, constants as fsConstants } from 'node:fs';
+import { promises as fsp, constants as fsConstants, watch as fsWatch } from 'node:fs';
 import * as nodePath from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -193,20 +193,134 @@ export const makeDiskFilesystem = ({ rootPath }) => {
           : null,
     });
 
-  // ---------- Watcher stub ----------
+  // ---------- Watcher (node:fs.watch-backed) ----------
 
-  const makeWatcherStub = () =>
-    makeExo('NodeWatcher', NodeWatcherInterface, {
+  /**
+   * Build a `NodeWatcher` that emits events as the kernel reports
+   * filesystem changes at `absPath`. Uses `node:fs.watch`, which
+   * has documented platform quirks:
+   *   - Linux: file or directory; recursive requires opt-in
+   *   - macOS: recursive supported via `{ recursive: true }`
+   *   - Windows: recursive supported
+   * For consistent semantics we watch only the node itself (not
+   * recursively). Subdirectory events come from watchers on the
+   * subdirectories themselves.
+   *
+   * Each fs.watch event is normalised to a remote-fs Event:
+   *   { kind: 'changed' } for content/metadata change of `absPath`
+   *   { kind: 'child-added' | 'child-removed', name } for dir
+   *     watches when a child appears/disappears (we stat the
+   *     child to distinguish, but fs.watch only signals "rename"
+   *     for both add and remove on Linux, so we settle on
+   *     'child-added' if the file exists post-event, 'child-
+   *     removed' otherwise).
+   *
+   * @param {string} absPath
+   * @param {'file' | 'directory'} kind
+   */
+  const makeWatcher = (absPath, kind) => {
+    /** @type {object[]} */
+    const buffered = [];
+    /** @type {((evt: object | null) => void) | null} */
+    let resolveNext = null;
+    let cancelled = false;
+    /** @type {ReturnType<typeof fsWatch> | null} */
+    let watcher = null;
+
+    const push = event => {
+      if (cancelled) return;
+      const frozen = harden(event);
+      if (resolveNext) {
+        const r = resolveNext;
+        resolveNext = null;
+        r(frozen);
+      } else {
+        buffered.push(frozen);
+      }
+    };
+
+    try {
+      watcher = fsWatch(absPath, { persistent: false }, (eventType, filename) => {
+        if (cancelled) return;
+        if (kind === 'file') {
+          push({ kind: 'changed' });
+          return;
+        }
+        // Directory watch. eventType is 'rename' (add/remove) or
+        // 'change' (child changed). filename may be null on some
+        // platforms.
+        if (eventType === 'change') {
+          push({ kind: 'changed' });
+          return;
+        }
+        if (!filename) {
+          push({ kind: 'changed' });
+          return;
+        }
+        // Probe whether the child still exists to disambiguate
+        // add vs remove.
+        fsp
+          .lstat(nodePath.join(absPath, filename))
+          .then(() => push({ kind: 'child-added', name: filename }))
+          .catch(() => push({ kind: 'child-removed', name: filename }));
+      });
+      watcher.on('error', () => {
+        // Drop the watcher on error; subsequent events won't fire.
+        if (watcher) {
+          watcher.close();
+          watcher = null;
+        }
+      });
+    } catch {
+      // If fs.watch isn't supported on this platform/path, the
+      // watcher yields nothing (no events).
+      watcher = null;
+    }
+
+    const detach = () => {
+      if (watcher) {
+        try {
+          watcher.close();
+        } catch {
+          // best-effort
+        }
+        watcher = null;
+      }
+    };
+
+    const eventGenerator = async function* () {
+      try {
+        while (!cancelled) {
+          while (buffered.length > 0 && !cancelled) {
+            yield /** @type {object} */ (buffered.shift());
+          }
+          if (cancelled) break;
+          const next = await new Promise(resolve => {
+            resolveNext = resolve;
+          });
+          if (cancelled || next === null) break;
+          yield next;
+        }
+      } finally {
+        detach();
+      }
+    };
+
+    return makeExo('NodeWatcher', NodeWatcherInterface, {
       async events() {
-        const empty = async function* () {
-          // F7-on-disk future work.
-        };
-        return readerFromIterator(empty());
+        return readerFromIterator(eventGenerator());
       },
       async cancel() {
-        // no-op
+        cancelled = true;
+        if (resolveNext) {
+          const r = resolveNext;
+          resolveNext = null;
+          r(null);
+        }
+        detach();
       },
     });
+  };
 
   // ---------- Xattrs stub ----------
 
@@ -539,7 +653,7 @@ export const makeDiskFilesystem = ({ rootPath }) => {
         }
       },
       async watch() {
-        return makeWatcherStub();
+        return makeWatcher(absPath, 'file');
       },
       async xattrs() {
         return makeXattrsStub();
@@ -619,7 +733,7 @@ export const makeDiskFilesystem = ({ rootPath }) => {
         }
       },
       async watch() {
-        return makeWatcherStub();
+        return makeWatcher(absDirPath, 'directory');
       },
       async xattrs() {
         return makeXattrsStub();
