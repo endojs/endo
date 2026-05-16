@@ -2,10 +2,12 @@
 
 Pipelinable, stream-friendly filesystem capabilities for Endo.
 
-> **Status — Design only.** This package is a design document plus
-> a placeholder `package.json`. No interfaces, factories, or tests
-> have been written yet. See `DESIGN.md` for the proposed shape; the
-> conversation that produced it is preserved verbatim in §10.
+> **Status — Core landed.** Interface guards (DESIGN.md §4) and an
+> in-memory `Filesystem` implementation (§8.2) are in place and
+> tested. Disk-backed (§8.3), `compose`/`readOnly`/`chroot`/`bind`
+> (§8.6), layer diff/apply (§8.5), and the `from-mount.js` /
+> `from-readable-tree.js` adapters remain on the roadmap. See
+> `DESIGN.md` §9 for the full F-numbered status.
 
 ## Why a new FS surface
 
@@ -39,13 +41,38 @@ of this package.
 
 ```
 packages/remote-fs/
-├── DESIGN.md      ← the full design, the only authoritative artefact today
-├── README.md      ← this file
-└── package.json
+├── DESIGN.md           ← the full design
+├── README.md           ← this file
+├── package.json
+├── src/
+│   ├── index.js        ← public re-exports
+│   ├── guards.js       ← M.interface for every type in DESIGN.md §4
+│   └── in-memory.js    ← in-memory Filesystem (§8.2)
+└── test/
+    ├── in-memory.test.js   ← core CRUD: mkdir/lookup/create/read/write/
+    │                         unlink/rename/setAttrs/xattrs/statfs
+    ├── pipeline.test.js    ← pipelined-walk chains (DESIGN.md §3 #2):
+    │                         root.lookup(a).lookup(b).lookup(c).open().read()
+    │                         as one expression
+    └── cursor.test.js      ← Cursor.stream / skip / rewind / multi-cursor
+                              independence (§4.5)
 ```
 
-Everything else — interface guards, factories, node-fs powers,
-tests — is roadmap (see `DESIGN.md` §8).
+25 tests, all green. Notable v1 simplifications documented in the
+design but not yet implemented:
+
+- Byte streams (`OpenFile.read` / `write`, `Xattrs.get` / `set`)
+  are minimal Far-iterator / Far-sink shapes that traffic base64
+  strings, instead of `@endo/exo-stream`'s `PassableBytesReader` /
+  `PassableBytesWriter` with bidirectional promise chains. The
+  contract from §4 is preserved; the wire-level migration is
+  follow-up work.
+- `Node.watch()` returns a stub that yields no events (F7).
+- `OpenFile.lock` throws `ENOSYS`; `getLock` returns `null` (F8).
+- `File.snapshot()` returns `null` (F6 / BlobRef work).
+- POSIX-specific fields (permissions, owner, ACLs) are absent
+  from the base interface as designed (§4.9); `PosixFs` companion
+  cap is F15 future work.
 
 ## Relation to existing Endo work
 

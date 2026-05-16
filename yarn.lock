@@ -2486,6 +2486,16 @@ __metadata:
 "@endo/remote-fs@workspace:packages/remote-fs":
   version: 0.0.0-use.local
   resolution: "@endo/remote-fs@workspace:packages/remote-fs"
+  dependencies:
+    "@endo/base64": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
 
