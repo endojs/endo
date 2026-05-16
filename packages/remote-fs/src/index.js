@@ -1,6 +1,9 @@
 // @ts-check
 
 export { makeInMemoryFilesystem } from './in-memory.js';
+export { makeDiskFilesystem } from './disk.js';
+export { readOnly } from './readonly.js';
+
 export {
   FilesystemInterface,
   DirectoryInterface,
