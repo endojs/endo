@@ -1,5 +1,5 @@
 // @ts-check
-/* global Buffer */
+/* global Buffer, setTimeout */
 /* eslint-disable import/order */
 
 import '@endo/init';
@@ -93,6 +93,58 @@ test('createSession + listSessions + terminate happy path', async t => {
   t.is(list.length, 1);
   await client.terminateSession('s1');
   t.true(terminated);
+});
+
+test('sendPrompt emits a stream-json user-message frame matching claude -p input format', async t => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'orch-stream-'));
+  t.teardown(() => rm(dir, { recursive: true, force: true }));
+  const sockPath = path.join(dir, 'api.sock');
+  const attachPath = path.join(dir, 'attach.sock');
+
+  const server = await startMockServer(sockPath, async () => ({ status: 204 }));
+  t.teardown(() => new Promise(r => server.close(() => r(undefined))));
+
+  // Stand up a mock "attach" UDS the orchestrator client will write to.
+  /** @type {string[]} */
+  const attachRx = [];
+  const { default: net } = await import('node:net');
+  const attachServer = net.createServer(conn => {
+    conn.setEncoding('utf8');
+    conn.on('data', chunk => attachRx.push(/** @type {string} */ (chunk)));
+    conn.on('error', () => {});
+    // Close once we have the prompt line so sendPrompt's iterator wraps up.
+    conn.on('data', () => {
+      setTimeout(() => conn.end(), 50);
+    });
+  });
+  await new Promise(r => attachServer.listen(attachPath, r));
+  t.teardown(() => new Promise(r => attachServer.close(() => r(undefined))));
+
+  const client = makeOrchestratorClient({ socketPath: sockPath });
+  const session = {
+    id: 's1',
+    state: 'ready',
+    fsSocketPath: '/x',
+    controlSocketPath: '/x',
+    attachSocketPath: attachPath,
+    createdAt: '2026-05-15T00:00:00Z',
+  };
+  const reader = await client.sendPrompt(session, 'hi there', {
+    model: 'claude-sonnet-4-6',
+  });
+
+  // Drain the reader so the connection closes cleanly.
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of reader) {
+    // ignore
+  }
+
+  const line = attachRx.join('').split('\n')[0];
+  const parsed = JSON.parse(line);
+  t.is(parsed.type, 'user');
+  t.is(parsed.message.role, 'user');
+  t.deepEqual(parsed.message.content, [{ type: 'text', text: 'hi there' }]);
+  t.is(parsed.model, 'claude-sonnet-4-6');
 });
 
 test('orchestrator-client surfaces server errors with method+path context', async t => {

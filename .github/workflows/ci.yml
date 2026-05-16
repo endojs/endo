@@ -316,6 +316,46 @@ jobs:
       - name: Run SES/Hermes smoke test
         run: yarn test:hermes
 
+  rust-test:
+    name: rust-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Ensure stable Rust toolchain is current
+        # GitHub-hosted runners ship rustup; this only adjusts the active
+        # channel and skips network if it's already installed.
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: cargo check claude-orch guest crates
+        # Limited to the two claude-orch crates rather than --workspace because
+        # the xsnap crate needs the Moddable SDK submodule (c/moddable) which
+        # we don't init in this job.
+        run: |
+          cargo check --manifest-path rust/claude-orch/bootstrap-init/Cargo.toml --all-targets
+          cargo check --manifest-path rust/claude-orch/runtime-agent/Cargo.toml --all-targets
+
+      - name: cargo test for claude-orch guest crates
+        run: |
+          cargo test --manifest-path rust/claude-orch/bootstrap-init/Cargo.toml
+          cargo test --manifest-path rust/claude-orch/runtime-agent/Cargo.toml
+
+      - name: cargo check runtime-agent with seccomp feature
+        run: cargo check --manifest-path rust/claude-orch/runtime-agent/Cargo.toml --features seccomp
+
   check-action-pins:
     name: check-action-pins
 

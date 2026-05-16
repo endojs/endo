@@ -7,10 +7,21 @@ addgroup -g 1000 claude || true
 adduser -D -u 1000 -G claude -h /home/claude -s /bin/bash claude || true
 
 # Pin the Claude Code version we ship.
-# The version is parameterized at build time via $CLAUDE_CODE_VERSION
-# so the build script can override without editing this file.
-: "${CLAUDE_CODE_VERSION:=latest}"
+#
+# The runtime-agent invokes `claude --print --input-format stream-json
+# --output-format stream-json`, so pin to a version whose CLI surface
+# matches that contract. Default is the latest in the major series we
+# track; build-image.sh's $CLAUDE_CODE_VERSION env overrides without
+# editing this file.
+: "${CLAUDE_CODE_VERSION:=^2}"
 npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+# Verify the CLI is on PATH and answers --version (smoke check inside
+# the rootfs build). If this fails the image is unusable; fail the
+# build instead of shipping a broken rootfs.
+claude --version >/dev/null 2>&1 || {
+  echo "claude binary not on PATH after install (CLAUDE_CODE_VERSION=$CLAUDE_CODE_VERSION)" >&2
+  exit 1
+}
 
 # Make sure the agent binary will be on $PATH for the bootstrap exec().
 mkdir -p /usr/local/bin
