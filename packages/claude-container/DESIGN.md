@@ -352,6 +352,21 @@ guest kernel 9p client (v9fs)  →  /workspace VFS mount
 - The Linux `v9fs` 9P client lives entirely in the **guest** kernel; the host kernel doesn't need any 9P support.
 - The mount uses `trans=fd`, which doesn't require any specific virtio-9p device on the host (which QEMU on macOS would struggle with). The 9P frames are just bytes flowing through a virtio-serial channel.
 
+> **Implementation finding (2026-05)**: A real Linux 6.18 guest boot
+> exercising `trans=fd` over a virtio-serial port hits "kernel write
+> not supported for file /vport0pN" — the virtio-console driver's file
+> operations are user-space-facing and the v9fs `trans=fd` path's
+> kernel-side `vfs_read`/`vfs_write` calls are rejected. Resolving this
+> requires either (a) switching to `-device virtio-9p-pci`+`trans=virtio`
+> per session (works on Linux, partial macOS QEMU support), (b) adding
+> a small in-kernel shim that exports kernel-mode read/write on
+> virtio-console ports, or (c) running a tiny user-space 9P relay
+> inside the guest that reads from the chardev and replays into v9fs
+> via a Unix socket. Option (b) preserves the macOS portability story
+> and is the favored path; tracked in ENDO-INTEGRATION.md §9 alongside
+> the remote-friendly FS work. The `packages/claude-orch/scripts/smoke-boot.sh`
+> script reproduces the failure end-to-end.
+
 **Handoff procedure**:
 
 1. Orchestrator generates `session_id`. Reserves directory `/run/claude-orch/sessions/<session_id>/`.

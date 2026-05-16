@@ -412,6 +412,27 @@ A Rust implementation, linked the way `packages/daemon`'s endor
 supervisor links into Node, would let large reads bypass V8 entirely.
 Pair with R1 to make remote-FS performance acceptable.
 
+### R2a — 9P-over-virtio-serial kernel shim  (blocking real boots)
+
+`packages/claude-orch/scripts/smoke-boot.sh` validates the full guest
+path up to `mount -t 9p -o trans=fd` and then fails with "kernel
+write not supported for file /vport0pN".
+The virtio-console driver exposes only user-space file ops, while
+v9fs's `trans=fd` path uses kernel-mode `vfs_read`/`vfs_write`.
+
+Three options, in roughly increasing engineering cost:
+
+- A user-space 9P relay process in the guest that `read(2)`s from
+  `/dev/vportXpY` and forwards bytes into a Unix socket pair that
+  v9fs mounts with `trans=unix` — purely guest-side, no kernel patches.
+  This is the pragmatic short-term unblock.
+- Switch to `-device virtio-9p-pci,fsdriver=local,mount_tag=workspace`
+  on Linux and run the JS 9P server out-of-band, accepting that macOS
+  QEMU support is partial (regressing the original portability story).
+- A small kernel patch on the virtio-console driver to export the
+  kernel-mode read/write paths v9fs needs.
+  Cleanest long-term answer but a kernel patch dependency.
+
 ### R3 — Credential capability
 
 Expose an Endo capability `ClaudeCredentials` with `issue(sessionId)`

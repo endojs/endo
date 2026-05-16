@@ -10,13 +10,54 @@
 #   make -j$(nproc) Image  # arm64
 #   make -j$(nproc) bzImage  # x86_64
 
-# Virtio
+# Console + printk (tinyconfig disables printk; we want kernel logs)
+CONFIG_PRINTK=y
+CONFIG_PRINTK_TIME=y
+CONFIG_EARLY_PRINTK=y
+CONFIG_BINFMT_ELF=y
+CONFIG_BINFMT_SCRIPT=y
+
+# Virtio. VIRTIO_MENU is the parent menuconfig — without it, the
+# tristate options below default to n during olddefconfig.
+CONFIG_VIRTIO_MENU=y
 CONFIG_VIRTIO=y
 CONFIG_VIRTIO_PCI=y
+CONFIG_VIRTIO_PCI_LIB=y
+CONFIG_VIRTIO_MMIO=y
+CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
 CONFIG_VIRTIO_BLK=y
 CONFIG_VIRTIO_NET=y
 CONFIG_VIRTIO_CONSOLE=y
 CONFIG_HW_RANDOM_VIRTIO=y
+
+# Virtio console (`console=hvc0`)
+CONFIG_HVC_DRIVER=y
+
+# pty + tty enough to run claude under exec()
+CONFIG_TTY=y
+CONFIG_VT=y
+CONFIG_UNIX98_PTYS=y
+
+# Standard 8250 serial for `-machine pc -serial stdio` boot debugging.
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_CONSOLE=y
+
+# Block layer + scheduler
+CONFIG_BLOCK=y
+CONFIG_BLK_DEV=y
+
+# x86_64 + smp
+CONFIG_64BIT=y
+CONFIG_SMP=y
+
+# PCI bus + MSI (virtio-blk-pci needs MSI/local APIC to register)
+CONFIG_PCI=y
+CONFIG_PCI_MSI=y
+CONFIG_X86_LOCAL_APIC=y
+CONFIG_X86_IO_APIC=y
+CONFIG_HOTPLUG_PCI=y
+CONFIG_HOTPLUG_PCI_PCIE=y
+CONFIG_PCIEPORTBUS=y
 
 # 9P
 CONFIG_NET_9P=y
@@ -31,6 +72,10 @@ CONFIG_TMPFS=y
 CONFIG_TMPFS_POSIX_ACL=y
 CONFIG_DEVTMPFS=y
 CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_PROC_FS=y
+CONFIG_SYSFS=y
+# bootstrap-init mounts /dev/pts for tmux/pty plumbing later
+CONFIG_DEVPTS_FS=y
 
 # Networking baseline
 CONFIG_NET=y

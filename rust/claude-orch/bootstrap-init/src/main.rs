@@ -27,8 +27,8 @@ const CLAUDE_GID: u32 = 1000;
 const CLAUDE_HOME: &str = "/home/claude";
 const CREDS_DIR: &str = "/home/claude/.claude";
 const CREDS_PATH: &str = "/home/claude/.claude/.credentials.json";
-const CTL_PORT: &str = "/dev/virtio-ports/orchestrator";
-const WORKSPACE_PORT: &str = "/dev/virtio-ports/workspace";
+const CTL_PORT_NAME: &str = "orchestrator";
+const WORKSPACE_PORT_NAME: &str = "workspace";
 const WORKSPACE_MOUNT: &str = "/workspace";
 const AGENT_BIN: &str = "/usr/local/bin/claude-agent";
 
@@ -79,11 +79,12 @@ fn run() -> Result<(), String> {
         .trim()
         .to_string();
 
+    let ctl_path = resolve_virtio_port(CTL_PORT_NAME)?;
     let mut ctl = fs::OpenOptions::new()
         .read(true)
         .write(true)
-        .open(CTL_PORT)
-        .map_err(|e| format!("open {CTL_PORT}: {e}"))?;
+        .open(&ctl_path)
+        .map_err(|e| format!("open {ctl_path}: {e}"))?;
 
     let hello = BootstrapOut::Hello {
         session_id: session_id.clone(),
@@ -128,40 +129,34 @@ fn mount_filesystems() -> Result<(), String> {
     for d in ["/proc", "/sys", "/dev", "/dev/pts", "/run", "/tmp"] {
         fs::create_dir_all(d).ok();
     }
-    mount::<str, str, str, str>(Some("proc"), "/proc", Some("proc"), MsFlags::empty(), None)
-        .map_err(|e| format!("mount /proc: {e}"))?;
-    mount::<str, str, str, str>(Some("sysfs"), "/sys", Some("sysfs"), MsFlags::empty(), None)
-        .map_err(|e| format!("mount /sys: {e}"))?;
-    mount::<str, str, str, str>(
-        Some("devtmpfs"),
-        "/dev",
-        Some("devtmpfs"),
-        MsFlags::empty(),
-        None,
-    )
-    .map_err(|e| format!("mount /dev: {e}"))?;
-    mount::<str, str, str, str>(
-        Some("devpts"),
-        "/dev/pts",
-        Some("devpts"),
-        MsFlags::empty(),
-        None,
-    )
-    .map_err(|e| format!("mount /dev/pts: {e}"))?;
-    mount::<str, str, str, str>(Some("tmpfs"), "/run", Some("tmpfs"), MsFlags::empty(), None)
-        .map_err(|e| format!("mount /run: {e}"))?;
-    mount::<str, str, str, str>(Some("tmpfs"), "/tmp", Some("tmpfs"), MsFlags::empty(), None)
-        .map_err(|e| format!("mount /tmp: {e}"))?;
+    // The kernel may have auto-mounted some of these already (e.g.,
+    // CONFIG_DEVTMPFS_MOUNT auto-mounts /dev at boot). Tolerate EBUSY
+    // and treat it as "already mounted, fine, move on."
+    mount_if_unmounted("proc", "/proc", "proc")?;
+    mount_if_unmounted("sysfs", "/sys", "sysfs")?;
+    mount_if_unmounted("devtmpfs", "/dev", "devtmpfs")?;
+    mount_if_unmounted("devpts", "/dev/pts", "devpts")?;
+    mount_if_unmounted("tmpfs", "/run", "tmpfs")?;
+    mount_if_unmounted("tmpfs", "/tmp", "tmpfs")?;
     Ok(())
+}
+
+fn mount_if_unmounted(source: &str, target: &str, fstype: &str) -> Result<(), String> {
+    match mount::<str, str, str, str>(Some(source), target, Some(fstype), MsFlags::empty(), None) {
+        Ok(()) => Ok(()),
+        Err(nix::errno::Errno::EBUSY) => Ok(()), // kernel auto-mounted it
+        Err(e) => Err(format!("mount {target}: {e}")),
+    }
 }
 
 fn mount_workspace() -> Result<(), String> {
     fs::create_dir_all(WORKSPACE_MOUNT).ok();
+    let workspace_path = resolve_virtio_port(WORKSPACE_PORT_NAME)?;
     let port = fs::OpenOptions::new()
         .read(true)
         .write(true)
-        .open(WORKSPACE_PORT)
-        .map_err(|e| format!("open {WORKSPACE_PORT}: {e}"))?;
+        .open(&workspace_path)
+        .map_err(|e| format!("open {workspace_path}: {e}"))?;
     let fd = port.into_raw_fd();
     let opts = format!(
         "trans=fd,rfdno={fd},wfdno={fd},version=9p2000.L,msize=131072,access=any"
@@ -254,6 +249,28 @@ fn drop_privileges() -> Result<(), String> {
     setgid(Gid::from_raw(CLAUDE_GID)).map_err(|e| format!("setgid: {e}"))?;
     setuid(Uid::from_raw(CLAUDE_UID)).map_err(|e| format!("setuid: {e}"))?;
     Ok(())
+}
+
+/// Resolve a named virtio-serial port to its /dev path by scanning
+/// /sys/class/virtio-ports/*/name. The /dev/virtio-ports/<name> symlinks
+/// the design doc assumes only exist after a udev runs; an explicit
+/// resolver lets bootstrap-init work without any userspace daemon.
+fn resolve_virtio_port(name: &str) -> Result<String, String> {
+    let entries = fs::read_dir("/sys/class/virtio-ports")
+        .map_err(|e| format!("read /sys/class/virtio-ports: {e}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let dev_name = entry.file_name();
+        let name_path = entry.path().join("name");
+        let port_name = fs::read_to_string(&name_path)
+            .map_err(|e| format!("read {}: {e}", name_path.display()))?;
+        if port_name.trim() == name {
+            return Ok(format!("/dev/{}", dev_name.to_string_lossy()));
+        }
+    }
+    Err(format!(
+        "virtio-serial port named {name:?} not found under /sys/class/virtio-ports"
+    ))
 }
 
 fn read_line<R: Read>(r: &mut R, out: &mut Vec<u8>) -> Result<(), String> {
