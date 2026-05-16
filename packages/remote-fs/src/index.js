@@ -3,6 +3,14 @@
 export { makeInMemoryFilesystem } from './in-memory.js';
 export { makeDiskFilesystem } from './disk.js';
 export { readOnly } from './readonly.js';
+export { mountAsFilesystem } from './from-mount.js';
+export {
+  emptyFilesystem,
+  chroot,
+  bind,
+  namespace,
+  compose,
+} from './compose.js';
 
 export {
   FilesystemInterface,

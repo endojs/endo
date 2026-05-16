@@ -610,9 +610,13 @@ export const makeInMemoryFilesystem = () => {
         if (upd.size !== undefined) next.size = BigInt(upd.size);
         if (upd.mtime !== undefined) next.mtime = BigInt(upd.mtime);
         if (upd.atime !== undefined) next.atime = BigInt(upd.atime);
-        if (upd.ctime !== undefined) next.ctime = BigInt(upd.ctime);
+        // Bump ctime to reflect metadata-change-time unless the
+        // caller set it explicitly. Do NOT clobber the caller's
+        // mtime (the way bumpVersion() would).
+        next.ctime = upd.ctime !== undefined ? BigInt(upd.ctime) : nowNs();
         r.attrs = harden(next);
-        bumpVersion(r);
+        r.version += 1n;
+        fireEvent(r.id, { kind: 'changed' });
       },
       async watch() {
         return makeNodeWatcherExo(fileId);
@@ -671,9 +675,10 @@ export const makeInMemoryFilesystem = () => {
         const next = { ...r.attrs };
         if (upd.mtime !== undefined) next.mtime = BigInt(upd.mtime);
         if (upd.atime !== undefined) next.atime = BigInt(upd.atime);
-        if (upd.ctime !== undefined) next.ctime = BigInt(upd.ctime);
+        next.ctime = upd.ctime !== undefined ? BigInt(upd.ctime) : nowNs();
         r.attrs = harden(next);
-        bumpVersion(r);
+        r.version += 1n;
+        fireEvent(r.id, { kind: 'changed' });
       },
       async watch() {
         return makeNodeWatcherExo(dirId);

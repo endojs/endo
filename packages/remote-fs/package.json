@@ -21,6 +21,8 @@
     "./src/in-memory.js": "./src/in-memory.js",
     "./src/disk.js": "./src/disk.js",
     "./src/readonly.js": "./src/readonly.js",
+    "./src/from-mount.js": "./src/from-mount.js",
+    "./src/compose.js": "./src/compose.js",
     "./package.json": "./package.json"
   },
   "scripts": {
