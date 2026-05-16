@@ -59,15 +59,19 @@ const FORM_FIELDS = harden([
  * @param {Promise<object> | object | undefined} _context
  * @returns {object}
  */
-export const make = (guestPowers, _context) => {
+export const make = (guestPowers, _context, deps = {}) => {
   /** @type {any} */
   const powers = guestPowers;
 
+  // Dependencies are injectable for tests; defaults wire the real
+  // orchestrator client + 9P bridge factory.
   const orchestratorSocket =
     process.env.ORCHESTRATOR_SOCKET || '/run/claude-orch/api.sock';
-  const orchestrator = makeOrchestratorClient({
-    socketPath: orchestratorSocket,
-  });
+  const orchestrator =
+    deps.orchestrator ??
+    makeOrchestratorClient({ socketPath: orchestratorSocket });
+  const bridgeFactory = deps.bridgeFactory ?? makeFsBridge9p;
+  const clientFactory = deps.clientFactory ?? makeClaudeClient;
 
   const seenFormReplies = new Set();
 
@@ -127,7 +131,7 @@ export const make = (guestPowers, _context) => {
             attachMode: 'stream',
           });
 
-          const bridge = makeFsBridge9p({
+          const bridge = bridgeFactory({
             fs,
             socketPath: session.fsSocketPath,
           });
@@ -135,7 +139,7 @@ export const make = (guestPowers, _context) => {
 
           await orchestrator.markReady(session.id);
 
-          const client = makeClaudeClient({
+          const client = clientFactory({
             session,
             orchestrator,
             bridge,
