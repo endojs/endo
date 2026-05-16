@@ -72,8 +72,10 @@ fn main() {
 
 fn run() -> Result<(), String> {
     mount_filesystems()?;
+    eprintln!("[bootstrap-init] mounts ok");
 
     let (session_id, boot_nonce) = parse_cmdline()?;
+    eprintln!("[bootstrap-init] cmdline parsed, session_id={session_id}");
     let hostname = fs::read_to_string("/proc/sys/kernel/hostname")
         .unwrap_or_else(|_| "claude-vm".into())
         .trim()
@@ -107,15 +109,41 @@ fn run() -> Result<(), String> {
     } = serde_json::from_slice::<BootstrapIn>(&buf).map_err(|e| e.to_string())?;
 
     drop(ctl); // bootstrap port done
+    eprintln!("[bootstrap-init] boot_config received");
 
     mount_workspace()?;
+    eprintln!("[bootstrap-init] 9p mounted");
     write_credentials(&credentials)?;
     write_initial_prompt(initial_prompt.as_deref())?;
     chown_home()?;
+
+    // The orchestrator's BootConfig sends `agentControlPort` as either
+    // a /dev/virtio-ports/<name> symlink (assumes udev) OR the raw
+    // virtio-serial port name. We don't run udev, so translate the
+    // symlink form into the canonical /dev/vportXpY path before
+    // exec()ing claude-agent.
+    let resolved_agent_port = match agent_control_port.strip_prefix("/dev/virtio-ports/") {
+        Some(name) => resolve_virtio_port(name)?,
+        None if agent_control_port.starts_with("/dev/") => agent_control_port.clone(),
+        None => resolve_virtio_port(&agent_control_port)?,
+    };
+    eprintln!("[bootstrap-init] resolved agent port = {resolved_agent_port}");
+
+    // virtio-port devices are created by the kernel as root:root mode 0600.
+    // claude-agent runs as the unprivileged claude user, so chown the port
+    // before we drop privileges or the agent can't open its own RPC channel.
+    chown(
+        resolved_agent_port.as_str(),
+        Some(Uid::from_raw(CLAUDE_UID)),
+        Some(Gid::from_raw(CLAUDE_GID)),
+    )
+    .map_err(|e| format!("chown {resolved_agent_port}: {e}"))?;
+
     drop_privileges()?;
 
+    eprintln!("[bootstrap-init] exec {AGENT_BIN} --control-port={resolved_agent_port} --session-id={session_id}");
     let mut cmd = Command::new(AGENT_BIN);
-    cmd.arg(format!("--control-port={agent_control_port}"));
+    cmd.arg(format!("--control-port={resolved_agent_port}"));
     cmd.arg(format!("--session-id={session_id}"));
     for (k, v) in env_extra {
         cmd.env(k, v);

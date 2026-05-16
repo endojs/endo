@@ -10,6 +10,10 @@
 #   make -j$(nproc) Image  # arm64
 #   make -j$(nproc) bzImage  # x86_64
 
+# Multi-user (setgroups / setuid / setgid). tinyconfig disables this and
+# bootstrap-init can't drop privileges without it.
+CONFIG_MULTIUSER=y
+
 # Console + printk (tinyconfig disables printk; we want kernel logs)
 CONFIG_PRINTK=y
 CONFIG_PRINTK_TIME=y

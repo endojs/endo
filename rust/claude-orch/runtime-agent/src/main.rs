@@ -121,17 +121,20 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let args = parse_args()?;
+    eprintln!("[claude-agent] starting, control_port={}", args.control_port);
 
+    // virtio-console ports only allow a single open(); use one O_RDWR
+    // handle, then dup() the underlying fd so we can hand a separate
+    // file to the writer thread without trying to open() twice.
     let ctl_read = OpenOptions::new()
         .read(true)
-        .write(false)
-        .open(&args.control_port)
-        .map_err(|e| format!("open {} for read: {e}", &args.control_port))?;
-    let ctl_write = OpenOptions::new()
-        .read(false)
         .write(true)
         .open(&args.control_port)
-        .map_err(|e| format!("open {} for write: {e}", &args.control_port))?;
+        .map_err(|e| format!("open {} for rdwr: {e}", &args.control_port))?;
+    eprintln!("[claude-agent] control_port opened");
+    let ctl_write = ctl_read
+        .try_clone()
+        .map_err(|e| format!("dup ctl fd: {e}"))?;
 
     // Writer thread: single point of egress to the control fd.
     let (out_tx, out_rx) = mpsc::channel::<Vec<u8>>();
