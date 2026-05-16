@@ -372,6 +372,19 @@ against the milestones in `DESIGN.md` §10.
 ## 9. Roadmap
 
 The items below extend `DESIGN.md` §12 with Endo-integration work.
+Status legend: **Done** items are shipped on `master`; **In progress**
+have partial work landed; everything else is open.
+
+| Item | Status |
+|---|---|
+| R1 — Remote-friendly Filesystem capability | Open (high priority) |
+| R2 — Native 9P server (Rust) | Open |
+| R2a — 9P-over-virtio-serial relay | **Done** |
+| R3 — Credential capability | Open |
+| R4 — Restart-survivable ClaudeClient | In progress (orchestrator side done; caplet side open) |
+| R5 — Tools-as-capabilities (MCP via Endo) | Open |
+| R6 — Factory permission scoping | Open |
+| R7 — Snapshot/restore integration | Open (depends on `DESIGN.md` v2) |
 
 ### R1 — Remote-friendly Filesystem capability  (high priority)
 
@@ -412,7 +425,7 @@ A Rust implementation, linked the way `packages/daemon`'s endor
 supervisor links into Node, would let large reads bypass V8 entirely.
 Pair with R1 to make remote-FS performance acceptable.
 
-### R2a — 9P-over-virtio-serial relay  (DONE in bootstrap-init)
+### R2a — 9P-over-virtio-serial relay  (DONE)
 
 The virtio-console driver only exports user-space file ops; v9fs
 `trans=fd` uses kernel-mode read/write and gets "kernel write not
@@ -438,13 +451,16 @@ Lets users mint tightly-scoped Anthropic credentials and pass them
 through forms the same way they pass filesystems today, replacing the
 out-of-band broker config file.
 
-### R4 — Restart-survivable ClaudeClient
+### R4 — Restart-survivable ClaudeClient (partially done)
 
-Persist enough state in the petstore (session id, attach UDS path,
-orchestrator endpoint) that a `ClaudeClient` exo can be reconstructed
-on daemon restart and re-attached to a still-running microVM.
-Combine with `DESIGN.md` §10 milestone 5 (orchestrator-side
-persistence).
+Orchestrator-side persistence is shipped: session state journals to
+`$CLAUDE_ORCH_STATE_PATH` on every transition, and `main.js` reattaches
+to surviving QEMUs at startup via a `kill(pid, 0)` probe (alive →
+`unhealthy`, dead → `terminated` for forget). The remaining work is
+the `ClaudeClient`-side counterpart: persist enough metadata in the
+HOST petstore (session id, attach UDS path, orchestrator endpoint) so
+the exo can be reconstructed on daemon restart and re-attached to a
+still-running VM.
 
 ### R5 — Tools-as-capabilities
 

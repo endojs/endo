@@ -13,41 +13,74 @@ front of this orchestrator's UDS API.
 
 ## Status
 
-**Milestone 1 — single-host Linux end-to-end** is in progress:
+**Milestone 1 — single-host Linux end-to-end** is feature-complete and
+validated on real KVM:
 
 - [x] Repo skeleton, protocol types (`protocol.types.d.ts`).
-- [x] Session manager (`src/sessions/session-manager.js`).
-- [x] QEMU args builder + spawner (`src/qemu/`).
+- [x] Session manager with optional disk persistence + restart-survival
+  reattach (`src/sessions/session-manager.js`).
+- [x] QEMU args builder + spawner, with injectable `spawnVm` for tests
+  (`src/qemu/`).
 - [x] Network controllers — nftables on Linux, pf-anchor on macOS
-  (`src/network/`).
-- [x] Bootstrap RPC server, agent RPC server (`src/bootstrap/`, `src/agent/`).
+  (`src/network/`), with injectable `exec` for tests.
+- [x] Bootstrap RPC server, agent RPC server, stdio multiplexer
+  (`src/bootstrap/`, `src/agent/`, `src/stdio/`).
 - [x] HTTP/UDS API server (`src/api/server.js`).
-- [x] Credential broker daemon and client (`src/broker/`, `src/broker-client/`).
+- [x] Credential broker daemon and client (`src/broker/`,
+  `src/broker-client/`).
 - [x] `bin/claude-orch`, `bin/claude-broker`.
-- [x] Guest image build pipeline: mkosi rootfs config, kernel
-  fragment, `scripts/build-image.sh` driving cargo + mkosi + kbuild.
-  Running it end-to-end needs a Linux host with `mkosi`, a kernel
-  source tree at `$LINUX_SRC`, and the musl rustup targets.
+- [x] Guest image build pipeline: mkosi rootfs config, kernel fragment,
+  `scripts/build-image.sh` driving cargo + mkosi + kbuild.
 - [x] Rust guest binaries: `rust/claude-orch/bootstrap-init` (PID 1,
-  bootstrap handshake, 9P mount, drop privs, exec); and
-  `rust/claude-orch/runtime-agent` (control RPC, tmux+claude spawn).
-- [x] 9P bridge in `@endo/claude-container` (real bodies).
-- [x] Tests: session manager, QEMU args builder, bootstrap RPC
-  handshake, 9P wire framing, orchestrator HTTP client.
-- [ ] End-to-end smoke test (gated on a Linux host with KVM + a built
-  rootfs/kernel pair).
+  bootstrap handshake, 9P mount via socketpair relay, drop privs,
+  exec); and `rust/claude-orch/runtime-agent` (control RPC, optional
+  seccomp block-list, stdio framing).
+- [x] 9P bridge in `@endo/claude-container` (real bodies; read +
+  best-effort write paths).
+- [x] In-process e2e smoke test that drives the full lifecycle through
+  a mock guest with no QEMU on PATH (`test/e2e-smoke.test.js`).
+- [x] **Real-host smoke boot**: `scripts/smoke-boot.sh` cross-compiles
+  the guest binaries, builds a minimal Linux 6.18 kernel from the
+  microvm fragment, packs an ext4 rootfs, and drives a real
+  `qemu-system-x86_64 -accel kvm` boot. Verified end-to-end: Hello
+  arrives on ctl.sock, 9P workspace mounts through the socketpair
+  relay, claude-agent's Ready arrives on agent.sock. The full
+  bootstrap → mount → drop-privs → exec → ready chain works on KVM
+  with no kernel patches.
 
-## Running locally (when complete)
+What still needs a real Linux host with root to validate:
+- nftables/pf rules taking effect against a live guest's egress.
+
+Tests (all green):
+- 39 ava in this package + 2 cargo unit tests in the runtime-agent
+  crate.
+
+## Quick smoke boot
+
+The fastest way to see the whole stack work on a Linux host with KVM:
 
 ```sh
-# one shell
+nix-shell -p qemu rustup e2fsprogs gcc gnumake bison flex openssl bc \
+  elfutils pkg-config perl curl \
+  --run ./packages/claude-orch/scripts/smoke-boot.sh
+```
+
+That cross-compiles `bootstrap-init` + `runtime-agent` to musl, builds
+a minimal Linux 6.18 kernel (cached after first run), packs an ext4
+rootfs, runs QEMU, and asserts that Hello and Ready both arrive on the
+host-side UDS endpoints. Outputs land in `/tmp/claude-orch-smoke/`.
+
+## Running the full daemons
+
+```sh
+# one shell — credential broker
 CLAUDE_ORCH_SOCKET=/tmp/claude/api.sock \
 CLAUDE_ORCH_SESSION_DIR=/tmp/claude/sessions \
 CLAUDE_ORCH_BROKER_SOCKET=/tmp/claude/broker.sock \
 ANTHROPIC_API_KEY=sk-... \
   node bin/claude-broker
 
-# another shell
+# another shell — orchestrator
 CLAUDE_ORCH_SOCKET=/tmp/claude/api.sock \
 CLAUDE_ORCH_SESSION_DIR=/tmp/claude/sessions \
 CLAUDE_ORCH_BROKER_SOCKET=/tmp/claude/broker.sock \
@@ -61,26 +94,30 @@ CLAUDE_ORCH_IMAGE_DIR=$PWD/images/build \
 packages/claude-orch/
 ├── README.md
 ├── package.json
-├── protocol.types.d.ts                # protocol types (DESIGN.md §6)
+├── protocol.types.d.ts          # protocol types (DESIGN.md §6)
 ├── bin/
-│   ├── claude-orch           # API server entrypoint
-│   └── claude-broker         # credential broker daemon
+│   ├── claude-orch              # API server entrypoint
+│   └── claude-broker            # credential broker daemon
 ├── src/
-│   ├── main.js               # wiring, lifecycle
-│   ├── api/server.js         # HTTP/1.1 over UDS
-│   ├── sessions/             # in-memory session table, boot nonce
-│   ├── qemu/                 # args + child_process spawner
-│   ├── network/              # platform-specific (nftables / pf)
-│   ├── bootstrap/            # Hello/BootConfig over ctl chardev
-│   ├── agent/                # runtime agent JSON-RPC link
-│   ├── broker/               # credential broker daemon
-│   └── broker-client/        # used by main.js
-├── images/                   # mkosi + kernel configs
-└── test/
+│   ├── main.js                  # wiring, lifecycle, restart reattach
+│   ├── api/server.js            # HTTP/1.1 over UDS
+│   ├── sessions/                # session table, boot nonce, persistence
+│   ├── qemu/                    # args + child_process spawner
+│   ├── network/                 # platform-specific (nftables / pf)
+│   ├── bootstrap/               # Hello/BootConfig over ctl chardev
+│   ├── agent/                   # runtime agent JSON-RPC link
+│   ├── stdio/                   # per-session stdio multiplexer
+│   ├── broker/                  # credential broker daemon
+│   └── broker-client/           # used by main.js
+├── scripts/
+│   ├── build-image.sh           # full image build pipeline
+│   └── smoke-boot.sh            # real-KVM end-to-end smoke test
+├── images/                      # mkosi + kernel configs
+└── test/                        # 39 ava tests (no QEMU required)
 
 rust/claude-orch/
-├── bootstrap-init/           # PID 1 in the guest
-└── runtime-agent/            # spawns claude-code in tmux
+├── bootstrap-init/              # PID 1 in the guest + 9P relay child
+└── runtime-agent/               # claude-code wrapper + seccomp (opt)
 ```
 
 ## Configuration

@@ -53,31 +53,41 @@ setup.js                        # ran by create-factory.sh
 src/
   claude-container-factory.js   # factory caplet (form loop)
   claude-client.js              # ClaudeClient exo + Far iterator wrap
-  orchestrator-client.js        # HTTP-over-UDS client (real)
-  fs-bridge-9p.js               # 9P UDS bridge (real)
+  orchestrator-client.js        # HTTP-over-UDS client
+  fs-bridge-9p.js               # 9P UDS bridge
   9p/
     wire.js                     # message framing + LE primitives
     types.js                    # T, QT, errno, mode constants
     server.js                   # per-connection 9P2000.L state machine
 test/
-  9p-wire.test.js
-  orchestrator-client.test.js
+  9p-wire.test.js               # framing round-trips
+  orchestrator-client.test.js   # HTTP-over-UDS + sendPrompt contract
+  factory.test.js               # form-loop + replay guard
 ```
 
 ## Status
 
-The Endo-side surface is implemented; what remains is end-to-end
-validation against a live `@endo/claude-orch` running on a Linux host
-with KVM, QEMU, and the kernel + rootfs images produced by
-`packages/claude-orch/scripts/build-image.sh`.
+The Endo-side surface is implemented and the host stack is validated
+end-to-end on real KVM. The full Hello → BootConfig → 9P mount → drop
+privs → exec claude-agent → Ready chain runs cleanly through
+`@endo/claude-orch/scripts/smoke-boot.sh`. The remaining work is
+hooking this package's factory caplet to the real
+`@endo/claude-orch` daemon in a live Endo environment and exercising
+form-driven session creation.
 
 9P operations implemented:
 - Read path (mount + traverse + read): `Tversion`, `Tattach`, `Twalk`,
   `Tlopen`, `Tread`, `Tclunk`, `Tgetattr`, `Treaddir`, `Tstatfs`,
   `Tflush`.
 - Write path (best-effort against the FS capability): `Tlcreate`,
-  `Twrite`, `Tmkdir`, `Tunlinkat`, `Trenameat`.
-- Unsupported operations return `Rlerror(ENOSYS)` so the guest VFS
-  surfaces a clean errno.
+  `Twrite`, `Tmkdir`, `Tunlinkat`, `Trenameat`. Errors map to
+  `Rlerror(ENOSYS)` when the FS capability lacks a verb,
+  `Rlerror(EACCES)` for permission failures, `Rlerror(EIO)` for
+  genuine I/O failures.
+- `Tsetattr` returns `Rlerror(EOPNOTSUPP)` rather than a silent no-op.
+- Other ops return `Rlerror(ENOSYS)` so the guest VFS surfaces a
+  clean errno.
+
+Tests: 11 ava cases — all green.
 
 See `ENDO-INTEGRATION.md` §9 for the prioritized roadmap.
