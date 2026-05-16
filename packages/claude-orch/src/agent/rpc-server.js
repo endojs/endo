@@ -22,16 +22,16 @@ import { makePromiseKit } from '@endo/promise-kit';
 /**
  * Open a long-lived JSON-RPC link to the per-session runtime agent.
  *
- * Listens on `agentSocketPath` (QEMU connects from the chardev side),
- * frames lines, exposes a typed send/onMessage surface, and surfaces a
- * Ready future for the orchestrator to await before unblocking
- * `/v1/sessions/:id/ready`.
+ * Returns synchronously with two promises:
+ *   - `ready` resolves when the UDS is bound and accepting connections.
+ *   - `link` resolves with the AgentLink once the guest agent connects.
  *
  * @param {{ agentSocketPath: string }} opts
- * @returns {Promise<AgentLink>}
+ * @returns {{ ready: Promise<void>, link: Promise<AgentLink> }}
  */
 export const makeAgentLink = ({ agentSocketPath }) => {
-  const { promise, resolve, reject } = makePromiseKit();
+  const linkKit = makePromiseKit();
+  const readyKit = makePromiseKit();
 
   const server = net.createServer({ allowHalfOpen: false });
   /** @type {net.Socket | null} */
@@ -40,12 +40,15 @@ export const makeAgentLink = ({ agentSocketPath }) => {
   const messageHandlers = [];
   /** @type {(() => void)[]} */
   const closeHandlers = [];
-  const readyKit = makePromiseKit();
+  const agentReadyKit = makePromiseKit();
 
-  server.once('error', reject);
+  server.once('error', linkKit.reject);
 
   server.once('connection', socket => {
     conn = socket;
+    socket.on('error', () => {
+      // Peer (guest agent) may RST on teardown; suppress.
+    });
     let buf = '';
     socket.on('data', chunk => {
       buf += chunk.toString('utf8');
@@ -57,7 +60,7 @@ export const makeAgentLink = ({ agentSocketPath }) => {
         if (line.length > 0) {
           try {
             const msg = /** @type {AgentToOrchMessage} */ (JSON.parse(line));
-            if (msg.type === 'ready') readyKit.resolve(undefined);
+            if (msg.type === 'ready') agentReadyKit.resolve(undefined);
             for (const h of messageHandlers) h(msg);
           } catch (_e) {
             // Malformed line; ignore. Agent is untrusted so we don't crash.
@@ -72,7 +75,7 @@ export const makeAgentLink = ({ agentSocketPath }) => {
 
     /** @type {AgentLink} */
     const link = harden({
-      ready: () => readyKit.promise,
+      ready: () => agentReadyKit.promise,
       send: msg => {
         if (!conn) return;
         conn.write(`${JSON.stringify(msg)}\n`);
@@ -88,11 +91,14 @@ export const makeAgentLink = ({ agentSocketPath }) => {
         server.close();
       },
     });
-    resolve(link);
+    linkKit.resolve(link);
   });
 
-  server.listen(agentSocketPath);
+  server.listen(agentSocketPath, () => readyKit.resolve(undefined));
 
-  return /** @type {Promise<AgentLink>} */ (promise);
+  return harden({
+    ready: /** @type {Promise<void>} */ (readyKit.promise),
+    link: /** @type {Promise<AgentLink>} */ (linkKit.promise),
+  });
 };
 harden(makeAgentLink);

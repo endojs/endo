@@ -1,5 +1,4 @@
 // @ts-check
-/* global setTimeout */
 /* eslint-disable import/order */
 
 import '@endo/init';
@@ -33,7 +32,7 @@ test('awaitHello validates the boot nonce and replies with BootConfig', async t 
   const nonce = 'a'.repeat(64);
   let consumeNonceCalled = 0;
 
-  const helloPromise = awaitHello({
+  const bootstrap = awaitHello({
     ctlSocketPath: ctl,
     sessionId,
     consumeNonce: (id, n) => {
@@ -51,9 +50,8 @@ test('awaitHello validates the boot nonce and replies with BootConfig', async t 
       }),
     deadlineMs: 5000,
   });
+  await bootstrap.ready;
 
-  // simulate the guest bootstrap process connecting
-  await new Promise(resolve => setTimeout(resolve, 50));
   const client = net.createConnection(ctl);
   const replyLine = await writeLineThenReadLine(
     client,
@@ -71,7 +69,7 @@ test('awaitHello validates the boot nonce and replies with BootConfig', async t 
   t.is(reply.agentControlPort, '/dev/virtio-ports/agent');
   client.destroy();
 
-  const hello = await helloPromise;
+  const hello = await bootstrap.hello;
   t.is(hello.sessionId, sessionId);
   t.is(consumeNonceCalled, 1);
 });
@@ -81,7 +79,7 @@ test('awaitHello rejects a stale nonce', async t => {
   t.teardown(() => rm(dir, { recursive: true, force: true }));
   const ctl = path.join(dir, 'ctl.sock');
 
-  const helloPromise = awaitHello({
+  const bootstrap = awaitHello({
     ctlSocketPath: ctl,
     sessionId: 'abc',
     consumeNonce: () => false,
@@ -90,8 +88,8 @@ test('awaitHello rejects a stale nonce', async t => {
     },
     deadlineMs: 5000,
   });
+  await bootstrap.ready;
 
-  await new Promise(resolve => setTimeout(resolve, 50));
   const client = net.createConnection(ctl);
   client.write(
     `${JSON.stringify({
@@ -103,7 +101,7 @@ test('awaitHello rejects a stale nonce', async t => {
     })}\n`,
   );
   client.on('close', () => {});
-  await t.throwsAsync(helloPromise, {
+  await t.throwsAsync(bootstrap.hello, {
     message: /Invalid or replayed boot nonce/,
   });
   client.destroy();

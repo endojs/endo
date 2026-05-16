@@ -17,8 +17,10 @@ import { makePromiseKit } from '@endo/promise-kit';
  * bootstrap init. Receives one Hello message, validates the boot nonce
  * via the supplied consumer, sends BootConfig, then closes the connection.
  *
- * The protocol is single request / single response. Anything else on this
- * channel is a protocol violation; the connection is closed.
+ * Returns synchronously with two promises:
+ *   - `ready` resolves when the UDS is actually bound (so callers can
+ *     safely start the VM, knowing the guest will find an endpoint).
+ *   - `hello` resolves with the HelloMessage when the handshake completes.
  *
  * @param {{
  *   ctlSocketPath: string,
@@ -27,7 +29,7 @@ import { makePromiseKit } from '@endo/promise-kit';
  *   buildBootConfig: () => Promise<BootConfigMessage>,
  *   deadlineMs: number,
  * }} opts
- * @returns {Promise<HelloMessage>}
+ * @returns {{ ready: Promise<void>, hello: Promise<HelloMessage> }}
  */
 export const awaitHello = ({
   ctlSocketPath,
@@ -36,7 +38,8 @@ export const awaitHello = ({
   buildBootConfig,
   deadlineMs,
 }) => {
-  const { promise, resolve, reject } = makePromiseKit();
+  const helloKit = makePromiseKit();
+  const readyKit = makePromiseKit();
 
   const server = net.createServer({ allowHalfOpen: true });
 
@@ -53,12 +56,18 @@ export const awaitHello = ({
   const cleanup = err => {
     clearTimeout(timer);
     server.close(() => {});
-    if (err) reject(err);
+    if (err) {
+      helloKit.reject(err);
+      readyKit.reject(err);
+    }
   };
 
   server.once('error', cleanup);
 
   server.once('connection', conn => {
+    conn.on('error', () => {
+      // The peer (guest) may RST the connection on teardown; suppress.
+    });
     let buf = '';
     conn.on('data', async chunk => {
       buf += chunk.toString('utf8');
@@ -87,7 +96,7 @@ export const awaitHello = ({
         });
         clearTimeout(timer);
         server.close();
-        resolve(msg);
+        helloKit.resolve(msg);
       } catch (e) {
         conn.destroy();
         cleanup(/** @type {Error} */ (e));
@@ -103,7 +112,10 @@ export const awaitHello = ({
     });
   });
 
-  server.listen(ctlSocketPath);
-  return /** @type {Promise<HelloMessage>} */ (promise);
+  server.listen(ctlSocketPath, () => readyKit.resolve(undefined));
+  return harden({
+    ready: /** @type {Promise<void>} */ (readyKit.promise),
+    hello: /** @type {Promise<HelloMessage>} */ (helloKit.promise),
+  });
 };
 harden(awaitHello);

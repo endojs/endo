@@ -50,9 +50,23 @@ harden(configFromEnv);
  * Build and start the orchestrator. Returns a stop() function for graceful
  * shutdown (used by tests and the bin/claude-orch entry point).
  *
- * @param {{ config?: OrchestratorConfig }} [opts]
+ * Dependencies are injectable so tests can wire stubs that don't require
+ * nftables/pfctl, a credential broker, or QEMU on PATH. Defaults pull
+ * the real ones from sibling modules.
+ *
+ * @param {{
+ *   config?: OrchestratorConfig,
+ *   networkController?: import('../protocol.types.d.ts').NetworkController,
+ *   brokerClient?: ReturnType<typeof makeBrokerClient>,
+ *   spawnVm?: typeof spawnVm,
+ * }} [opts]
  */
-export const start = async ({ config = configFromEnv() } = {}) => {
+export const start = async ({
+  config = configFromEnv(),
+  networkController,
+  brokerClient,
+  spawnVm: spawnVmFn = spawnVm,
+} = {}) => {
   await mkdir(path.dirname(config.socketPath), {
     recursive: true,
     mode: 0o750,
@@ -60,10 +74,11 @@ export const start = async ({ config = configFromEnv() } = {}) => {
   await mkdir(config.sessionDir, { recursive: true, mode: 0o750 });
 
   const sessions = makeSessionManager({ config });
-  const network = makeNetworkController();
+  const network = networkController ?? makeNetworkController();
   await network.initialize();
 
-  const broker = makeBrokerClient({ socketPath: config.brokerSocketPath });
+  const broker =
+    brokerClient ?? makeBrokerClient({ socketPath: config.brokerSocketPath });
 
   // Track running VMs so terminate can find and kill them.
   /** @type {Map<string, import('./qemu/spawner.js').VmHandle>} */
@@ -104,22 +119,23 @@ export const start = async ({ config = configFromEnv() } = {}) => {
     netCleanups.set(sessionId, netAttachment.cleanup);
     sessions.setState(sessionId, 'booting', { netAttachment });
 
-    // Boot-phase RPCs in parallel: bootstrap Hello on ctl.sock and the
-    // agent link on agent.sock. QEMU will connect to both shortly after
-    // launch.
-    const helloPromise = awaitHello({
+    // Boot-phase RPCs: bind the bootstrap (ctl.sock) and agent (agent.sock)
+    // UDS endpoints BEFORE spawning the VM, so the guest finds them at
+    // boot. The hello/link promises stay outstanding until the guest
+    // connects and the handshakes complete.
+    const bootstrap = awaitHello({
       ctlSocketPath: record.ctlSocketPath,
       sessionId,
       consumeNonce: (sid, nonce) => sessions.consumeBootNonce(sid, nonce),
       buildBootConfig: async () => buildBootConfigForSession(sessionId),
       deadlineMs: config.bootDeadlineMs,
     });
-
     const agentPromise = makeAgentLink({
       agentSocketPath: record.agentSocketPath,
     });
+    await Promise.all([bootstrap.ready, agentPromise.ready]);
 
-    const vm = spawnVm({
+    const vm = spawnVmFn({
       arch,
       record,
       config,
@@ -145,8 +161,8 @@ export const start = async ({ config = configFromEnv() } = {}) => {
       .catch(() => {});
 
     try {
-      await helloPromise;
-      const link = await agentPromise;
+      await bootstrap.hello;
+      const link = await agentPromise.link;
       agents.set(sessionId, link);
       await link.ready();
 
@@ -254,10 +270,12 @@ export const start = async ({ config = configFromEnv() } = {}) => {
       terminateSession,
     },
   });
-  const server = await api.listen();
+  // Hold the server in closure rather than returning it: harden() would
+  // recursively freeze the http.Server's EventEmitter internals, breaking
+  // all subsequent socket/listener operations across the process.
+  await api.listen();
 
   return harden({
-    server,
     async stop() {
       const ids = sessions.listSessions().map(s => s.id);
       await Promise.allSettled(ids.map(id => terminateSession(id)));
