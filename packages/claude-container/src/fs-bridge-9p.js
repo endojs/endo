@@ -14,24 +14,16 @@ const BridgeInterface = M.interface('FsBridge9p', {
 });
 
 /**
- * Bridge an Endo filesystem capability to a 9P2000.L UDS endpoint
+ * Bridge a remote-fs `Filesystem` capability to a 9P2000.L UDS endpoint
  * (DESIGN.md §5.7). QEMU's `-chardev socket,server=off` connects from
  * the host side; this bridge accept()s and serves the resulting stream.
  *
- * v1 implements only the operations needed to mount and read the
- * workspace from inside the guest. Mutating ops are best-effort against
- * the FS capability's `writeFile/mkdir/unlink/rename` surface, and
- * unsupported operations return Rlerror(ENOSYS) so the guest VFS
- * surfaces a clean errno.
- *
- * The FS capability is expected to expose (subset of):
- *   stat(path) → { isDirectory: boolean, size: number, mtimeMs: number }
- *   readDir(path) → string[]
- *   readFile(path) → Uint8Array | Buffer
- *   writeFile(path, bytes) → void
- *   mkdir(path) → void
- *   unlink(path) → void
- *   rename(from, to) → void
+ * As of F14 (the R1 milestone in ENDO-INTEGRATION.md §9), the FS
+ * surface this bridge speaks to is `@endo/remote-fs`'s `Filesystem`.
+ * That gives the bridge pipelinable lookup chains, stream-based byte
+ * I/O via `@endo/exo-stream`, and a typed `Directory`/`File`
+ * distinction at `lookup` time. See `src/9p/server.js` for the
+ * 9P message → cap call mapping.
  *
  * @param {{
  *   fs: import('@endo/eventual-send').ERef<any>,

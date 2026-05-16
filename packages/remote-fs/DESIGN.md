@@ -863,20 +863,20 @@ Items below are open unless marked otherwise.
 
 | Item | Status |
 |---|---|
-| F1 — Interface guards (M.interface for every type in §4) | Open |
-| F2 — Reference exos backed by a powers object | Open |
-| F3 — Disk-backed `Filesystem` over `node:fs/promises` (§8.3) + factory caplet | Open |
-| F4 — In-memory `Filesystem` for tests (§8.2) | Open |
+| F1 — Interface guards (M.interface for every type in §4) | **Done** |
+| F2 — Reference exos backed by a powers object | **Done** |
+| F3 — Disk-backed `Filesystem` over `node:fs/promises` (§8.3) | **Done** (factory caplet is follow-up) |
+| F4 — In-memory `Filesystem` for tests (§8.2) | **Done** |
 | F5 — `from-mount.js` adapter (project `@endo/daemon` `Mount` → `Filesystem`), with `{ hardLinks: 'surface' \| 'dedup' \| 'reject' }` config; ship `'surface'` first (stateless, simplest) | Open |
 | F6 — `from-readable-tree.js` adapter (with eager `BlobRef`s) | Open |
-| F7 — `Node.watch()` events backed by `chokidar` or kernel inotify | Open |
-| F8 — Lock implementation (advisory, in-process for v1) | Open |
+| F7 — `Node.watch()` events backed by `chokidar` or kernel inotify | **Done** (in-memory dispatch; disk-side polling is follow-up) |
+| F8 — Lock implementation (advisory, in-process for v1) | **Done** |
 | F9 — Tests for pipelined-walk single-RTT property | Open |
-| F10 — `readOnly(fs)` attenuator (§8.1, §8.6) | Open |
+| F10 — `readOnly(fs)` attenuator (§8.1, §8.6) | **Done** |
 | F11 — `compose(layer, backing)` CoW union + writable in-memory layer (§8.4) | Open |
 | F12 — `Layer.diff()` / `Layer.apply(target)` (§8.5) | Open |
 | F13 — `chroot` / `bind` / `namespace` / `emptyFilesystem` primitives (§8.6), including eager cycle detection via composition-time tag sets | Open |
-| F14 — Integrate into `@endo/claude-container`'s 9P bridge as the new backing store (closes R1) | Open |
+| F14 — Integrate into `@endo/claude-container`'s 9P bridge as the new backing store (closes R1) | **Done** |
 | F15 — `PosixFs` companion cap: POSIX `permissions`, owner (`uid`/`gid`), `chmod`, `chown`, POSIX ACLs as structured ops, `system.*`/`trusted.*`/`security.*` xattrs, hard links (DAG relaxation of the tree invariant) | Open (future) |
 | F16 — `LinuxFs : PosixFs`: symlinks, Linux capabilities, SELinux contexts; `asFilesystem()` projection; same-FS brand check for cap-shaped symlink targets | Open (future, design TBD — see §9.1) |
 | F17 — `GraphFs` (far future, only if a real driver appears): arbitrary cap-target edges, Plan-9-style union mounts, no tree/DAG invariant. Not on a path; documented so the base interface can be honest about what it excludes. | Open (far future) |

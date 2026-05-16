@@ -44,10 +44,12 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/patterns": "workspace:^",
-    "@endo/promise-kit": "workspace:^"
+    "@endo/promise-kit": "workspace:^",
+    "@endo/remote-fs": "workspace:^"
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",

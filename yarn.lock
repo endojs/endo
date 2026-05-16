@@ -1618,10 +1618,12 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
+    "@endo/remote-fs": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
@@ -2483,7 +2485,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/remote-fs@workspace:packages/remote-fs":
+"@endo/remote-fs@workspace:^, @endo/remote-fs@workspace:packages/remote-fs":
   version: 0.0.0-use.local
   resolution: "@endo/remote-fs@workspace:packages/remote-fs"
   dependencies:

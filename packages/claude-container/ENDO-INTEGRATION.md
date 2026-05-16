@@ -384,7 +384,7 @@ have partial work landed; everything else is open.
 
 | Item | Status |
 |---|---|
-| R1 — Remote-friendly Filesystem capability | Open (high priority) |
+| R1 — Remote-friendly Filesystem capability | **Done** (`@endo/remote-fs` + 9P bridge consumes it) |
 | R2 — Native 9P server (Rust) | Open |
 | R2a — 9P-over-virtio-serial relay | **Done** |
 | R3 — Credential capability | Open |
@@ -393,16 +393,24 @@ have partial work landed; everything else is open.
 | R6 — Factory permission scoping | Open |
 | R7 — Snapshot/restore integration | Open (depends on `DESIGN.md` v2) |
 
-### R1 — Remote-friendly Filesystem capability  (high priority)
+### R1 — Remote-friendly Filesystem capability  (DONE)
 
-**Problem**: v1 adapts a generic Endo FS capability into 9P at the
-caplet.
+Resolved by `@endo/remote-fs`. The 9P bridge in
+`src/9p/server.js` now holds Node caps (`Directory` / `File` from
+`@endo/remote-fs`) per fid, walks via a pipelined `lookup` chain,
+streams bytes via `@endo/exo-stream`'s `PassableBytesReader` /
+`PassableBytesWriter`, and produces qids from the caps' eager
+state. Originally, the bridge:
+
+**Problem (resolved)**: v1 adapted a generic Endo FS capability
+into 9P at the caplet.
 9P performs many small operations per directory traversal (walk +
-getattr + readdir + clunk), and each one round-trips through CapTP's
-eventual-send queue.
-When the FS capability is local to the caplet's daemon this is fine.
+getattr + readdir + clunk), and each one round-tripped through
+CapTP's eventual-send queue.
+When the FS capability is local to the caplet's daemon this is
+fine.
 When the FS sits on a remote daemon (the obvious case for "claude
-sees my collaborator's workspace") every walk becomes O(depth) of
+sees my collaborator's workspace") every walk became O(depth) of
 network round-trips.
 
 **Goal**: a `RemoteFileSystem` capability surface designed for
