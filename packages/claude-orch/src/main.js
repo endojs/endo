@@ -35,6 +35,8 @@ export const configFromEnv = () => {
     sessionDir: env.CLAUDE_ORCH_SESSION_DIR || '/run/claude-orch/sessions',
     brokerSocketPath:
       env.CLAUDE_ORCH_BROKER_SOCKET || '/run/claude-orch/broker.sock',
+    statePath:
+      env.CLAUDE_ORCH_STATE_PATH || '/var/lib/claude-orch/sessions.json',
     defaults: {
       arch: process.arch === 'arm64' ? 'aarch64' : 'x86_64',
       vcpus: Number(env.CLAUDE_ORCH_DEFAULT_VCPUS || 2),
@@ -45,6 +47,22 @@ export const configFromEnv = () => {
   });
 };
 harden(configFromEnv);
+
+/**
+ * Check whether a PID is alive. Returns false if the process has exited
+ * or if we lack permission to signal it.
+ *
+ * @param {number | undefined} pid
+ */
+const pidAlive = pid => {
+  if (typeof pid !== 'number') return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Build and start the orchestrator. Returns a stop() function for graceful
@@ -72,10 +90,36 @@ export const start = async ({
     mode: 0o750,
   });
   await mkdir(config.sessionDir, { recursive: true, mode: 0o750 });
+  if (config.statePath) {
+    await mkdir(path.dirname(config.statePath), {
+      recursive: true,
+      mode: 0o750,
+    });
+  }
 
-  const sessions = makeSessionManager({ config });
+  const sessions = makeSessionManager({
+    config,
+    persistencePath: config.statePath,
+  });
   const network = networkController ?? makeNetworkController();
   await network.initialize();
+
+  // Restore prior sessions from disk and mark each one either `unhealthy`
+  // (vmPid still alive — we lost the agent link but the VM survives) or
+  // `terminated` (vmPid is gone). Subsequent operator action via the
+  // API determines next steps.
+  if (config.statePath) {
+    const restored = await sessions.restoreFromDisk();
+    for (const rec of restored) {
+      if (pidAlive(rec.vmPid)) {
+        sessions.setState(rec.id, 'unhealthy');
+      } else {
+        sessions.setState(rec.id, 'terminated', {
+          failureReason: 'orphaned after orchestrator restart',
+        });
+      }
+    }
+  }
 
   const broker =
     brokerClient ?? makeBrokerClient({ socketPath: config.brokerSocketPath });

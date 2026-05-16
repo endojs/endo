@@ -1,4 +1,5 @@
 // @ts-check
+/* global setImmediate */
 /**
  * @import {
  *   CreateSessionRequest,
@@ -10,7 +11,7 @@
  * } from '../../protocol.types.d.ts'
  */
 
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 
@@ -22,16 +23,44 @@ import { randomBytes, randomUUID } from 'node:crypto';
  *   - the boot nonce (single-use; see DESIGN.md §5.3)
  *   - per-session UDS path allocation under <config.sessionDir>/<id>/
  *   - state transitions and the table of records
+ *   - optional disk persistence of the table to a sessions.json file
  *
  * It does NOT own QEMU, networking, RPC, or the API server. Those are
  * orchestrated by the higher-level main entrypoint, which calls
  * session-manager methods at the appropriate lifecycle points.
  *
- * @param {{ config: OrchestratorConfig }} opts
+ * @param {{
+ *   config: OrchestratorConfig,
+ *   persistencePath?: string,
+ * }} opts
  */
-export const makeSessionManager = ({ config }) => {
+export const makeSessionManager = ({ config, persistencePath }) => {
   /** @type {Map<string, SessionRecord>} */
   const sessions = new Map();
+  let persistTimer = null;
+
+  const persistNow = async () => {
+    if (!persistencePath) return;
+    const entries = Array.from(sessions.values()).map(r => ({
+      ...r,
+      // Drop runtime-only fields that don't survive restart.
+      netAttachment: undefined,
+    }));
+    const tmp = `${persistencePath}.tmp`;
+    await writeFile(tmp, JSON.stringify(entries, null, 2));
+    await rename(tmp, persistencePath);
+  };
+
+  const schedulePersist = () => {
+    if (!persistencePath) return;
+    if (persistTimer) return;
+    persistTimer = setImmediate(() => {
+      persistTimer = null;
+      persistNow().catch(() => {
+        // best-effort
+      });
+    });
+  };
 
   /**
    * @param {SessionRecord} record
@@ -93,6 +122,7 @@ export const makeSessionManager = ({ config }) => {
     };
 
     sessions.set(id, record);
+    schedulePersist();
     return record;
   };
 
@@ -137,6 +167,7 @@ export const makeSessionManager = ({ config }) => {
     ) {
       record.terminatedAt = new Date().toISOString();
     }
+    schedulePersist();
   };
 
   /**
@@ -166,7 +197,42 @@ export const makeSessionManager = ({ config }) => {
     const record = sessions.get(id);
     if (!record) return;
     sessions.delete(id);
+    schedulePersist();
     await rm(record.sessionDir, { recursive: true, force: true });
+  };
+
+  /**
+   * Restore session records from disk. Called at orchestrator startup.
+   * Each restored record is set to state="terminated" because we cannot
+   * prove the QEMU process is still alive without per-pid probing — the
+   * caller (main.js) inspects vmPid against `kill 0` and re-elevates to
+   * `ready` for sessions whose VMs are still alive.
+   *
+   * @returns {Promise<SessionRecord[]>}
+   */
+  const restoreFromDisk = async () => {
+    if (!persistencePath) return [];
+    let data;
+    try {
+      data = await readFile(persistencePath, 'utf8');
+    } catch {
+      return [];
+    }
+    /** @type {SessionRecord[]} */
+    let parsed;
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      return [];
+    }
+    for (const rec of parsed) {
+      // The bootNonce can't be reused; if a session somehow re-enters the
+      // bootstrap path after restart, it must be torn down.
+      rec.bootNonceUsed = true;
+      rec.bootNonce = '';
+      sessions.set(rec.id, rec);
+    }
+    return parsed;
   };
 
   return harden({
@@ -178,6 +244,8 @@ export const makeSessionManager = ({ config }) => {
     consumeBootNonce,
     forget,
     toSession,
+    restoreFromDisk,
+    persistNow,
   });
 };
 harden(makeSessionManager);

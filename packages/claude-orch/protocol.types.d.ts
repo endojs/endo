@@ -243,6 +243,8 @@ export interface OrchestratorConfig {
   imageDir: string;
   sessionDir: string;
   brokerSocketPath: string;
+  /** Path to the persisted sessions.json file used for restart-survival. */
+  statePath?: string;
   defaults: {
     arch: Arch;
     vcpus: number;
