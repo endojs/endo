@@ -7,9 +7,13 @@ import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 
-import { makeClaudeClient } from './claude-client.js';
 import { makeOrchestratorClient } from './orchestrator-client.js';
 import { makeFsBridge9p } from './fs-bridge-9p.js';
+
+const CLAUDE_CLIENT_MODULE_SPECIFIER = new URL(
+  './claude-client-module.js',
+  import.meta.url,
+).href;
 
 const FactoryInterface = M.interface('ClaudeContainerFactory', {
   help: M.call().optional(M.string()).returns(M.string()),
@@ -55,23 +59,40 @@ const FORM_FIELDS = harden([
  * Code instance as a ClaudeClient exo stored under the chosen pet
  * name.
  *
+ * The third argument is overloaded: when called by Endo's worker
+ * (`makeUnconfined` path) it is the frozen `{ env }` wrapper produced
+ * in `worker.js`. Tests bypass that path and pass injectable deps
+ * (`orchestrator`, `bridgeFactory`, `clientFactory`) instead.
+ * `env` from the wrapper, when present, overrides `process.env`
+ * because `process.env` reflects the daemon's environment, not the
+ * env requested by the caller of `makeUnconfined`.
+ *
  * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
  * @param {Promise<object> | object | undefined} _context
+ * @param {object} [contextOrDeps]
  * @returns {object}
  */
-export const make = (guestPowers, _context, deps = {}) => {
+export const make = (guestPowers, _context, contextOrDeps = {}) => {
   /** @type {any} */
   const powers = guestPowers;
 
-  // Dependencies are injectable for tests; defaults wire the real
-  // orchestrator client + 9P bridge factory.
+  const env = contextOrDeps.env ?? {};
+  const deps = contextOrDeps;
   const orchestratorSocket =
-    process.env.ORCHESTRATOR_SOCKET || '/run/claude-orch/api.sock';
+    env.ORCHESTRATOR_SOCKET ||
+    process.env.ORCHESTRATOR_SOCKET ||
+    '/run/claude-orch/api.sock';
   const orchestrator =
     deps.orchestrator ??
     makeOrchestratorClient({ socketPath: orchestratorSocket });
   const bridgeFactory = deps.bridgeFactory ?? makeFsBridge9p;
-  const clientFactory = deps.clientFactory ?? makeClaudeClient;
+  // Live-daemon path provisions each ClaudeClient as its own
+  // formulated caplet via `hostAgent.makeUnconfined`, so the exo
+  // survives daemon restarts (reincarnates from the same env).
+  // Tests bypass this by providing `clientFactory` directly — they
+  // construct an in-worker ClaudeClient without going through the
+  // daemon's formula machinery.
+  const inProcessClientFactory = deps.clientFactory ?? null;
 
   const seenFormReplies = new Set();
 
@@ -139,15 +160,34 @@ export const make = (guestPowers, _context, deps = {}) => {
 
           await orchestrator.markReady(session.id);
 
-          const client = clientFactory({
-            session,
-            orchestrator,
-            bridge,
-            model,
-            initialPrompt,
-          });
-
-          await E(hostAgent).storeValue(client, name);
+          if (inProcessClientFactory) {
+            const client = inProcessClientFactory({
+              session,
+              orchestrator,
+              bridge,
+              model,
+              initialPrompt,
+            });
+            await E(hostAgent).storeValue(client, name);
+          } else {
+            await E(hostAgent).makeUnconfined(
+              '@main',
+              CLAUDE_CLIENT_MODULE_SPECIFIER,
+              {
+                powersName: '@none',
+                resultName: name,
+                env: harden({
+                  ORCHESTRATOR_SOCKET: orchestratorSocket,
+                  SESSION_ID: session.id,
+                  FS_SOCKET_PATH: session.fsSocketPath ?? '',
+                  ATTACH_SOCKET_PATH: session.attachSocketPath ?? '',
+                  CREATED_AT: session.createdAt ?? '',
+                  MODEL: model ?? '',
+                  INITIAL_PROMPT: initialPrompt ?? '',
+                }),
+              },
+            );
+          }
 
           await E(powers).reply(
             msg.number,

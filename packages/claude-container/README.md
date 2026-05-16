@@ -52,7 +52,9 @@ scripts/
 setup.js                        # ran by create-factory.sh
 src/
   claude-container-factory.js   # factory caplet (form loop)
-  claude-client.js              # ClaudeClient exo + Far iterator wrap
+  claude-client-module.js       # per-session ClaudeClient caplet
+                                # (loaded by makeUnconfined per session)
+  claude-client.js              # ClaudeClient exo constructor
   orchestrator-client.js        # HTTP-over-UDS client
   fs-bridge-9p.js               # 9P UDS bridge
   9p/
@@ -62,18 +64,25 @@ src/
 test/
   9p-wire.test.js               # framing round-trips
   orchestrator-client.test.js   # HTTP-over-UDS + sendPrompt contract
-  factory.test.js               # form-loop + replay guard
+  factory.test.js               # form-loop + replay guard (mocked deps)
+  factory-live.test.js          # full Endo daemon + orchestrator e2e
 ```
 
 ## Status
 
-The Endo-side surface is implemented and the host stack is validated
-end-to-end on real KVM. The full Hello → BootConfig → 9P mount → drop
-privs → exec claude-agent → Ready chain runs cleanly through
-`@endo/claude-orch/scripts/smoke-boot.sh`. The remaining work is
-hooking this package's factory caplet to the real
-`@endo/claude-orch` daemon in a live Endo environment and exercising
-form-driven session creation.
+The Endo-side surface is implemented and validated end-to-end against
+a live Endo daemon plus a live `@endo/claude-orch` daemon (with a
+mock VM in place of QEMU). `factory-live.test.js` drives the full
+flow: `create-factory.sh`-equivalent provisioning → form submission
+on `@host` → orchestrator `POST /v1/sessions` → 9P bridge start →
+`POST /v1/sessions/:id/ready` (which kicks the mock guest's
+bootstrap + agent handshake) → `makeUnconfined` of a per-session
+`ClaudeClient` caplet under the chosen pet name → `send(prompt)`
+round-tripping a stream-json frame through the stdio mux → `terminate`.
+
+The host stack is separately validated on real KVM end-to-end through
+`@endo/claude-orch/scripts/smoke-boot.sh` — Hello → BootConfig → 9P
+mount → drop-privs → exec claude-agent → Ready.
 
 9P operations implemented:
 - Read path (mount + traverse + read): `Tversion`, `Tattach`, `Twalk`,
@@ -88,6 +97,8 @@ form-driven session creation.
 - Other ops return `Rlerror(ENOSYS)` so the guest VFS surfaces a
   clean errno.
 
-Tests: 11 ava cases — all green.
+Tests: 12 ava cases — all green. Includes a live-daemon end-to-end
+test (`factory-live.test.js`) that spins up a real Endo daemon and a
+real `@endo/claude-orch` daemon (mock VM).
 
 See `ENDO-INTEGRATION.md` §9 for the prioritized roadmap.

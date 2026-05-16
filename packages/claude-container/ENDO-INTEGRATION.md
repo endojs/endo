@@ -245,12 +245,15 @@ endo run --UNCONFINED ./setup.js --powers @agent \
    - Binds the 9P bridge: serves 9P on `fsSocketPath`, backed by the
      resolved FS capability.
    - `POST /v1/sessions/:id/ready` once the bridge is listening.
-   - Connects to the attach UDS, opens `claude -p --output-format
-     stream-json` over it as the per-prompt input lane.
-     `claude` itself runs inside the guest under `tmux`; the host-side
-     wrapper merely frames stdin/stdout.
-   - Builds a `ClaudeClient` exo and stores it in `@host`'s petstore
-     under the requested name.
+   - Calls `E(hostAgent).makeUnconfined('@main',
+     claude-client-module, { resultName: name, env: { ... } })` to
+     provision a per-session `ClaudeClient` caplet under the requested
+     pet name. The caplet's `env` carries `ORCHESTRATOR_SOCKET`,
+     `SESSION_ID`, `ATTACH_SOCKET_PATH`, etc. — everything the exo
+     needs to lazily connect to the orchestrator on each call.
+     Because the exo is a formula of its env, it reincarnates after a
+     daemon restart and re-attaches to a still-running session (this
+     is the caplet-side half of R4 in §9).
    - Replies to the form with the pet name and a one-line status.
 
 3. The user looks up the pet name and starts chatting:
@@ -343,7 +346,9 @@ packages/claude-container/
 ├── setup.js                        # ran by create-factory.sh
 └── src/
     ├── claude-container-factory.js # the factory caplet
-    ├── claude-client.js            # ClaudeClient exo
+    ├── claude-client-module.js     # per-session ClaudeClient caplet
+    │                               # (loaded by `makeUnconfined`)
+    ├── claude-client.js            # ClaudeClient exo constructor
     ├── orchestrator-client.js      # HTTP-over-UDS client
     └── fs-bridge-9p.js             # 9P server backed by an Endo FS cap
 ```
@@ -381,7 +386,7 @@ have partial work landed; everything else is open.
 | R2 — Native 9P server (Rust) | Open |
 | R2a — 9P-over-virtio-serial relay | **Done** |
 | R3 — Credential capability | Open |
-| R4 — Restart-survivable ClaudeClient | In progress (orchestrator side done; caplet side open) |
+| R4 — Restart-survivable ClaudeClient | In progress (orchestrator + per-session caplet done; bridge re-attach open) |
 | R5 — Tools-as-capabilities (MCP via Endo) | Open |
 | R6 — Factory permission scoping | Open |
 | R7 — Snapshot/restore integration | Open (depends on `DESIGN.md` v2) |
@@ -453,14 +458,28 @@ out-of-band broker config file.
 
 ### R4 — Restart-survivable ClaudeClient (partially done)
 
-Orchestrator-side persistence is shipped: session state journals to
-`$CLAUDE_ORCH_STATE_PATH` on every transition, and `main.js` reattaches
-to surviving QEMUs at startup via a `kill(pid, 0)` probe (alive →
-`unhealthy`, dead → `terminated` for forget). The remaining work is
-the `ClaudeClient`-side counterpart: persist enough metadata in the
-HOST petstore (session id, attach UDS path, orchestrator endpoint) so
-the exo can be reconstructed on daemon restart and re-attached to a
-still-running VM.
+Two of three sub-pieces are shipped:
+
+- **Orchestrator-side persistence**: session state journals to
+  `$CLAUDE_ORCH_STATE_PATH` on every transition, and `main.js`
+  reattaches to surviving QEMUs at startup via a `kill(pid, 0)` probe
+  (alive → `unhealthy`, dead → `terminated` for forget).
+- **Per-session caplet formula**: each `ClaudeClient` is its own
+  unconfined caplet, loaded by `makeUnconfined` on the host agent with
+  session metadata in `env`. The exo is a pure function of `env`, so
+  it reincarnates on daemon restart with the same identity and
+  reconnects to the orchestrator on demand.
+
+The remaining piece is **bridge re-attach**: the 9P bridge currently
+lives inside the factory caplet's worker (so the FS reference doesn't
+need to be re-resolved per session), and that worker dies with the
+factory. After a daemon restart, the factory caplet reincarnates but
+its per-session bridge state is gone. The orchestrator session
+survives (because the QEMU process survives), but no one is serving 9P
+to it. Options: (a) move each bridge into its own caplet keyed by
+session id; (b) have the factory walk surviving sessions via the
+orchestrator's `GET /v1/sessions` and re-bind bridges using FS
+references re-resolved from form metadata persisted alongside.
 
 ### R5 — Tools-as-capabilities
 

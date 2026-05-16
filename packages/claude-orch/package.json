@@ -23,6 +23,7 @@
       "default": "./src/main.js"
     },
     "./types": "./protocol.types.d.ts",
+    "./src/main.js": "./src/main.js",
     "./src/api/server.js": "./src/api/server.js",
     "./src/sessions/session-manager.js": "./src/sessions/session-manager.js",
     "./src/qemu/args.js": "./src/qemu/args.js",
@@ -30,6 +31,7 @@
     "./src/network/index.js": "./src/network/index.js",
     "./src/bootstrap/rpc-server.js": "./src/bootstrap/rpc-server.js",
     "./src/agent/rpc-server.js": "./src/agent/rpc-server.js",
+    "./src/stdio/mux.js": "./src/stdio/mux.js",
     "./src/broker/main.js": "./src/broker/main.js",
     "./src/broker-client/index.js": "./src/broker-client/index.js",
     "./package.json": "./package.json"
