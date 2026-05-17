@@ -20,3 +20,7 @@ import { encodeBase64, decodeBase64 } from '@endo/base64';
 const string = encodeBase64(bytes);
 const bytes = decodeBase64(string);
 ```
+
+## License
+
+[Apache-2.0](./LICENSE)

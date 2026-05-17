@@ -1,4 +1,4 @@
-# cache-map
+# `@endo/cache-map`
 
 This `@endo/cache-map` package creates bounded-size caches having
 WeakMap-compatible `has`/`get`/`set`/`delete` methods.
@@ -51,4 +51,4 @@ assert(cache.get('unweakable key') === 'ok');
 
 ## License
 
-[Apache License, Version 2.0](./LICENSE)
+[Apache-2.0](./LICENSE)

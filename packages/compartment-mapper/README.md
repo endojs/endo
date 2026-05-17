@@ -1,4 +1,4 @@
-# Compartment mapper
+# `@endo/compartment-mapper`
 
 The compartment mapper builds _compartment maps_ for Node.js style
 applications, finding their dependencies and describing how to create
@@ -771,3 +771,7 @@ The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMa
   [import attributes]: https://nodejs.org/docs/latest/api/esm.html#import-attributes
   [package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points
   [`require.resolve()`]: https://nodejs.org/docs/latest/api/modules.html#requireresolverequest-options
+
+## License
+
+[Apache-2.0](./LICENSE)

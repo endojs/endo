@@ -1,4 +1,4 @@
-# Nat
+# `@endo/nat`
 [![Build Status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
@@ -114,3 +114,7 @@ For more, see the [discussion in TC39 notes](https://github.com/rwaldron/tc39-no
 [dev-deps-url]: https://david-dm.org/Agoric/Nat?type=dev
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: LICENSE
+
+## License
+
+[Apache-2.0](./LICENSE)

@@ -413,3 +413,7 @@ For implementation details:
 - [marshal vs patterns abstraction levels](./docs/marshal-vs-patterns-level.md)
   \- kindOf vs passStyleOf vs typeof
 - [Type definitions](./src/types.ts) - Complete TypeScript type definitions
+
+## License
+
+[Apache-2.0](./LICENSE)
