@@ -867,6 +867,304 @@ mod tests {
         assert_eq!(lib_bytes, b"ok");
     }
 
+    #[test]
+    fn fetch_package_fast_path_returns_cached_entry() {
+        // Pre-seed the registry table; `fetch_package` must short-circuit
+        // before touching HTTP.  Regression evidence: if the fast-path
+        // were skipped, the empty `MockHttp` would surface a `no mock for
+        // ...` error instead of returning the seeded entry.
+        let (_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        registry
+            .insert("pre-seeded", "1.2.3", "deadbeef", Some("sha512-cached"))
+            .unwrap();
+
+        let http = MockHttp::new();
+        let result = fetch_package(
+            &http,
+            &cas,
+            &registry,
+            DEFAULT_REGISTRY,
+            "pre-seeded",
+            "1.2.3",
+        )
+        .expect("fast-path lookup should not hit HTTP");
+        assert_eq!(result.name, "pre-seeded");
+        assert_eq!(result.version, "1.2.3");
+        assert_eq!(result.tree_hash, "deadbeef");
+        assert_eq!(result.integrity.as_deref(), Some("sha512-cached"));
+        assert!(
+            http.calls.borrow().is_empty(),
+            "fast-path must not call HTTP at all, saw {:?}",
+            http.calls.borrow()
+        );
+    }
+
+    #[test]
+    fn fetch_package_accepts_missing_integrity() {
+        // Very old packages publish `shasum` but no `integrity`.  The
+        // module's contract is to extract anyway and store `integrity =
+        // NULL`.  Regression evidence: if the missing-integrity branch
+        // accidentally short-circuited to an error (e.g. someone made
+        // `dist.integrity` required), the result would be `Err(...)`
+        // instead of `Ok`, and the registry would stay empty.
+        let (_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+
+        let tarball = make_tarball(&[(
+            "package/package.json",
+            br#"{"name":"legacy","version":"0.0.1"}"# as &[u8],
+        )]);
+        let tarball_url = "https://registry.npmjs.org/legacy/-/legacy-0.0.1.tgz";
+        // No `integrity` field; only `tarball` (and no `shasum` either,
+        // which is fine: shasum is only read via the `#[allow(dead_code)]`
+        // field and never enforced here).
+        let metadata = format!(
+            r#"{{"versions":{{"0.0.1":{{"dist":{{"tarball":"{tarball_url}"}}}}}}}}"#
+        );
+
+        let http = MockHttp::new()
+            .respond(
+                "https://registry.npmjs.org/legacy",
+                metadata.into_bytes(),
+            )
+            .respond(tarball_url, tarball.clone());
+
+        let result = fetch_package(
+            &http,
+            &cas,
+            &registry,
+            DEFAULT_REGISTRY,
+            "legacy",
+            "0.0.1",
+        )
+        .expect("missing-integrity branch must still extract");
+        assert!(
+            result.integrity.is_none(),
+            "expected integrity=None, got {:?}",
+            result.integrity
+        );
+        let entry = registry.lookup("legacy", "0.0.1").unwrap().unwrap();
+        assert!(
+            entry.integrity.is_none(),
+            "registry row should carry NULL integrity"
+        );
+        // The extracted file still landed in the CAS.
+        let pj = cas
+            .fetch_from_tree(&entry.hash, "package.json")
+            .unwrap();
+        assert_eq!(pj, br#"{"name":"legacy","version":"0.0.1"}"# as &[u8]);
+    }
+
+    #[test]
+    fn fetch_package_reports_malformed_metadata() {
+        // The registry responded with text that is not parseable as the
+        // expected JSON shape.  Regression evidence: if the JSON parse
+        // were elided (or its error swallowed into the cache write),
+        // `fetch_package` would either panic or silently proceed with an
+        // empty `versions` map and report `VersionMissing` rather than
+        // `BadMetadata`.
+        let (_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let http = MockHttp::new().respond(
+            "https://registry.npmjs.org/broken",
+            b"this is not json".to_vec(),
+        );
+
+        match fetch_package(
+            &http,
+            &cas,
+            &registry,
+            DEFAULT_REGISTRY,
+            "broken",
+            "1.0.0",
+        ) {
+            Err(FetchError::BadMetadata(msg)) => {
+                assert!(
+                    msg.contains("parse metadata"),
+                    "expected BadMetadata to mention parse, got {msg:?}"
+                );
+            }
+            other => panic!("expected BadMetadata, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn fetch_metadata_cached_rejects_non_utf8_body() {
+        // A registry that returns bytes which are not valid UTF-8 should
+        // surface as `BadMetadata("non-utf8 body: ...")`, because the
+        // cache layer stores text and refuses to round-trip arbitrary
+        // bytes.  Regression evidence: dropping the UTF-8 check would
+        // bypass into `set_meta(name, str)` with a panicking
+        // `from_utf8_unchecked` or surface a less useful error.
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let http = MockHttp::new().respond(
+            "https://registry.npmjs.org/binary",
+            vec![0xFF, 0xFE, 0xFD, 0xFC],
+        );
+        match fetch_metadata_cached(&http, &registry, DEFAULT_REGISTRY, "binary") {
+            Err(FetchError::BadMetadata(msg)) => {
+                assert!(
+                    msg.contains("non-utf8"),
+                    "expected non-utf8 mention, got {msg:?}"
+                );
+            }
+            other => panic!("expected BadMetadata(non-utf8 ...), got {other:?}"),
+        }
+        // Nothing should have been cached.
+        assert!(registry.get_meta("binary").unwrap().is_none());
+    }
+
+    #[test]
+    fn verify_integrity_rejects_missing_separator() {
+        // An integrity string without the `<alg>-<b64>` separator is
+        // not parseable.  Regression evidence: if `split_once('-')`
+        // were swapped for a forgiving variant (or the test elided),
+        // this input would either panic or be silently mis-classified.
+        match verify_integrity("sha512sometingwithoutdash", b"x") {
+            Err(FetchError::UnsupportedIntegrity(s)) => {
+                assert_eq!(s, "sha512sometingwithoutdash");
+            }
+            other => panic!("expected UnsupportedIntegrity, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn verify_integrity_rejects_invalid_base64() {
+        // Algorithm is correct (`sha512`), but the payload is not valid
+        // base64.  This must surface as `UnsupportedIntegrity` with the
+        // base64 decode error included.  Regression evidence: skipping
+        // the `.map_err(...)` on the decode would turn this into a panic
+        // (unwrap) or a misclassified `IntegrityMismatch`.
+        match verify_integrity("sha512-not!valid!base64!@#$", b"x") {
+            Err(FetchError::UnsupportedIntegrity(s)) => {
+                assert!(
+                    s.starts_with("sha512-not!valid!base64!@#$"),
+                    "expected the integrity string in the error, got {s:?}"
+                );
+            }
+            other => panic!("expected UnsupportedIntegrity, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_tarball_to_cas_rejects_corrupt_gzip() {
+        // A buffer that is not a valid gzip stream must surface as an
+        // `Io` error from `extract_tarball_to_cas`, not a panic.
+        // Regression evidence: a missing `.map_err(FetchError::Io)` on
+        // `archive.entries()` would propagate as a raw `io::Error`,
+        // breaking the typed-error contract.
+        let (_tmp, cas) = fresh_cas();
+        let garbage = b"this is definitely not gzip-compressed tar data";
+        match extract_tarball_to_cas(garbage, &cas) {
+            Err(FetchError::Io(_)) => {}
+            other => panic!("expected Io error from corrupt gzip, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_skips_bare_top_level_directory_entry() {
+        // A tar whose first entry is a regular file named `package`
+        // alone (no nested file under it) exercises the `parts.is_empty()`
+        // branch that skips the bare top-level entry.  A second regular
+        // file under `package/` confirms the rest of the extraction
+        // still happens.  Regression evidence: removing the
+        // `parts.is_empty()` guard *and* changing `DirNode::insert([],
+        // ...)` to do anything other than a silent no-op would let a
+        // stray `package` entry leak into (or corrupt) the extracted
+        // tree.  The guard and the empty-arm together encode the
+        // contract; this test pins both.
+        let mut tar_buf = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_buf);
+            // A regular-file entry literally named `package`. The
+            // post-strip components list is empty, so the loop must
+            // skip it.
+            let mut bare_header = tar::Header::new_gnu();
+            bare_header.set_size(5);
+            bare_header.set_mode(0o644);
+            bare_header.set_cksum();
+            builder
+                .append_data(&mut bare_header, "package", b"junk!" as &[u8])
+                .unwrap();
+            // And a real file inside `package/`.
+            let mut real_header = tar::Header::new_gnu();
+            real_header.set_size(2);
+            real_header.set_mode(0o644);
+            real_header.set_cksum();
+            builder
+                .append_data(&mut real_header, "package/a.js", b"ok" as &[u8])
+                .unwrap();
+            builder.finish().unwrap();
+        }
+        let mut gz =
+            flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gz.write_all(&tar_buf).unwrap();
+        let tarball = gz.finish().unwrap();
+
+        let (_tmp, cas) = fresh_cas();
+        let tree_hash = extract_tarball_to_cas(&tarball, &cas).unwrap();
+        let names = cas.list_tree(&tree_hash).unwrap();
+        // Only `a.js` should appear at the root; the bare `package`
+        // entry must not have leaked in.
+        assert_eq!(names, vec!["a.js"]);
+        let body = cas.fetch_from_tree(&tree_hash, "a.js").unwrap();
+        assert_eq!(body, b"ok");
+    }
+
+    #[test]
+    fn fetch_error_display_covers_every_variant() {
+        // Every `FetchError` variant must produce a non-empty Display
+        // string with the expected prefix.  Regression evidence: the
+        // simplest way to break this is to add a new variant and forget
+        // the `match` arm; that fails to compile, but a wrong prefix
+        // (e.g. swapping "io:" for "http:") would silently degrade
+        // diagnostics. The asserts pin the prefix.
+        let http = FetchError::Http("net down".into());
+        assert!(http.to_string().starts_with("http: "));
+
+        let bad = FetchError::BadMetadata("xx".into());
+        assert!(bad.to_string().starts_with("bad metadata: "));
+
+        let missing = FetchError::VersionMissing {
+            name: "foo".into(),
+            version: "9.9.9".into(),
+        };
+        let m = missing.to_string();
+        assert!(m.contains("foo@9.9.9"), "got {m:?}");
+        assert!(m.starts_with("version not in registry"));
+
+        let mismatch = FetchError::IntegrityMismatch {
+            expected: "sha512-A".into(),
+            actual: "sha512-B".into(),
+        };
+        let mm = mismatch.to_string();
+        assert!(mm.starts_with("integrity mismatch"));
+        assert!(mm.contains("sha512-A"));
+        assert!(mm.contains("sha512-B"));
+
+        let unsupported = FetchError::UnsupportedIntegrity("md5-xx".into());
+        assert!(unsupported
+            .to_string()
+            .starts_with("unsupported integrity form: "));
+
+        let io_err: FetchError =
+            io::Error::new(io::ErrorKind::Other, "disk gone").into();
+        let s = io_err.to_string();
+        assert!(s.starts_with("io: "), "got {s:?}");
+        assert!(s.contains("disk gone"));
+    }
+
+    #[test]
+    fn ureq_client_constructs_via_new_and_default() {
+        // Touches the `UreqClient::new` and `Default::default` paths so
+        // the simple constructor isn't a coverage hole.  The agent has
+        // no public observable state, so this is an instantiation-only
+        // exercise; the live test covers the actual GET methods.
+        let _explicit = UreqClient::new();
+        let _default: UreqClient = Default::default();
+    }
+
     /// Live registry probe: fetch `is-odd@3.0.1` from
     /// `registry.npmjs.org`, verify integrity, and check that the
     /// published `package.json` lands in the CAS at the expected
