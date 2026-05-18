@@ -25,6 +25,13 @@ import { makeChangeTopic } from './pubsub.js';
  * composition shifts the `groupMembers` list, so a key change
  * faithfully reports a graph-shape change.
  *
+ * Uses `\0` as field and segment separator. `\0` is rejected by
+ * `isValidName` in `pet-name.js`, so it cannot appear inside a
+ * `pet:<name>` label; formula identifiers are hex and likewise
+ * cannot contain it. This rules out the ambiguity that a list
+ * separator like `,` or `|` would create when a pet name
+ * happened to contain the separator character.
+ *
  * @param {RetentionPath} path
  * @returns {string}
  */
@@ -33,11 +40,11 @@ export const pathKey = path => {
   const parts = [];
   for (const seg of path) {
     parts.push(seg.referencedBy ?? '');
-    parts.push((seg.labels ?? []).join(','));
-    parts.push((seg.groupMembers ?? []).join(','));
+    parts.push((seg.labels ?? []).join('\0'));
+    parts.push((seg.groupMembers ?? []).join('\0'));
     parts.push(seg.type ?? '');
   }
-  return parts.join('|');
+  return parts.join('\0\0');
 };
 harden(pathKey);
 

@@ -53,6 +53,43 @@ test('pathKey is stable across equal paths and diffs unequal paths', t => {
   t.not(pathKey(a), pathKey(b));
 });
 
+// `isValidName` in `packages/daemon/src/pet-name.js` allows pet
+// names containing commas, pipes, and most other punctuation;
+// only `/`, `\0`, `@`, `.`, and `..` are forbidden. A separator
+// that *could* appear inside a pet name (such as `,` or `|`)
+// would let two distinct label lists hash to the same key:
+// for example `['pet:foo,pet:bar']` vs `['pet:foo', 'pet:bar']`
+// both join to `"pet:foo,pet:bar"`. The accumulator's diff
+// would then drop a real addition or removal whenever the pet
+// name in question contained the separator. The implementation
+// uses `\0` as the separator, which `isValidName` rejects, so
+// the keys must differ.
+test('pathKey does not collide when a pet name contains a comma', t => {
+  // Two distinct label lists that would collide under a `,`-joined
+  // key: one label `pet:foo,pet:bar` vs two labels `pet:foo` and
+  // `pet:bar`. The first names a single, comma-containing pet name;
+  // the second names two distinct pet names.
+  const single = makePath('m', 'r', ['pet:foo,pet:bar']);
+  const split = makePath('m', 'r', ['pet:foo', 'pet:bar']);
+  t.not(
+    pathKey(single),
+    pathKey(split),
+    'comma in a pet name must not alias two-label encoding',
+  );
+});
+
+test('pathKey does not collide when a pet name contains a pipe', t => {
+  // Same concern at the cross-segment level: a pipe-containing
+  // pet name in one segment must not alias a segment break.
+  const single = makePath('m', 'r', ['pet:foo|pet:bar']);
+  const split = makePath('m', 'r', ['pet:foo', 'pet:bar']);
+  t.not(
+    pathKey(single),
+    pathKey(split),
+    'pipe in a pet name must not alias the segment separator',
+  );
+});
+
 test('first delta is the snapshot', async t => {
   /** @type {RetentionPath[]} */
   const compute1 = [makePath('m1', 'r1', ['pet:foo'])];
@@ -164,6 +201,45 @@ test('multiple notify() calls coalesce into one delta', async t => {
   flushAll();
   await iter.next();
   t.is(computeCount, 2, 'three notify() calls produce one compute()');
+});
+
+// End-to-end pet-name-with-separator regression: if `pathKey` had
+// used `,` as its separator, the second compute (one path labeled
+// `pet:foo,pet:bar`) would have aliased the first compute (two
+// paths labeled `pet:foo` and `pet:bar`). The accumulator would
+// then suppress the diff and the consumer would never learn that
+// the path set actually changed shape. The separator is `\0`, so
+// the diff fires.
+test('accumulator emits a diff when a comma-pet-name path replaces a two-label path', async t => {
+  /** @type {RetentionPath[]} */
+  let current = [
+    makePath('m', 'r1', ['pet:foo']),
+    makePath('m', 'r2', ['pet:bar']),
+  ];
+  const { scheduleBatch, flushAll } = makeManualScheduler();
+  const acc = makeRetentionPathAccumulator({
+    compute: () => current,
+    scheduleBatch,
+  });
+  const iter = acc.subscribe();
+  flushAll();
+  await iter.next(); // snapshot
+
+  // Replace with a single path whose single label contains a
+  // comma. Under a comma-joined key both states would key the
+  // same and the diff would be empty.
+  current = [makePath('m', 'r1', ['pet:foo,pet:bar'])];
+  acc.notify();
+  flushAll();
+
+  const { value } = await iter.next();
+  t.falsy(value.snapshot);
+  const addedLen = /** @type {number} */ (value.added.length);
+  const removedLen = /** @type {number} */ (value.removed.length);
+  t.true(
+    addedLen > 0 || removedLen > 0,
+    'a separator-containing label must not alias a multi-label path',
+  );
 });
 
 test('no-change recompute emits no diff delta', async t => {
