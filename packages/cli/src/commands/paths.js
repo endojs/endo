@@ -4,12 +4,14 @@ import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 
+/** @import { RetentionPath } from '@endo/daemon' */
+
 /**
  * Render a single retention path in the human-readable form
  * documented in `designs/daemon-retention-paths.md` § CLI: endo
  * paths.
  *
- * @param {import('@endo/daemon').RetentionPath} path
+ * @param {RetentionPath} path
  * @returns {string[]}
  */
 const renderPath = path => {
@@ -71,10 +73,9 @@ export const paths = async ({ name, agentNames, locator, json }) =>
         return;
       }
     }
-    const retentionPaths =
-      /** @type {import('@endo/daemon').RetentionPath[]} */ (
-        await E(host).listRetentionPaths(resolvedLocator)
-      );
+    const retentionPaths = /** @type {RetentionPath[]} */ (
+      await E(host).listRetentionPaths(resolvedLocator)
+    );
     if (json) {
       console.log(JSON.stringify(retentionPaths, null, 2));
       return;
