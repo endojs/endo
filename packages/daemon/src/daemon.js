@@ -64,6 +64,7 @@ import {
 import { makeFormulaGraph } from './graph.js';
 import { makeChangeTopic } from './pubsub.js';
 import { makeRetentionAccumulator } from './retention-accumulator.js';
+import { makeRetentionPathAccumulator } from './retention-path-accumulator.js';
 import { makeResidenceTracker } from './residence.js';
 import { toHex, fromHex } from './hex.js';
 import { makeSerialJobs } from './serial-jobs.js';
@@ -6017,6 +6018,173 @@ const makeDaemonCore = async (
   };
 
   /**
+   * Build the host-shaped retention-path list for a target formula.
+   *
+   * Walks the labeled formula graph backward from `targetId` to a
+   * GC root and rewrites pet-store edges from the generic
+   * `'petName'` token into `pet:<name>` labels by resolving each
+   * referencing store's reverse-name table. Other labels (field
+   * names, `'retention'`, `'transient'`) pass through unchanged.
+   *
+   * The returned shape matches `designs/daemon-retention-paths.md`
+   * § Notation: paths and segments — the leaf segment is the
+   * target group, subsequent segments walk upstream toward a root,
+   * and the topmost segment carries `type: 'root'` when the path
+   * terminates at a GC root.
+   *
+   * @param {FormulaIdentifier} targetId
+   * @returns {Promise<import('./graph.js').RetentionPath[]>}
+   */
+  const listRetentionPaths = async targetId => {
+    const rawPaths = formulaGraph.listRetentionPaths(targetId);
+
+    /**
+     * Cache of `(petStoreId, memberId) -> pet:<name> labels`.
+     * @type {Map<string, string[]>}
+     */
+    const labelCache = new Map();
+    /** @type {Set<FormulaIdentifier>} */
+    const storeIdsToResolve = new Set();
+    for (const path of rawPaths) {
+      for (const seg of path) {
+        if (seg.referencedBy !== undefined) {
+          const refFormula = formulaForId.get(seg.referencedBy);
+          if (
+            refFormula !== undefined &&
+            (refFormula.type === 'pet-store' ||
+              refFormula.type === 'mailbox-store' ||
+              refFormula.type === 'known-peers-store')
+          ) {
+            storeIdsToResolve.add(seg.referencedBy);
+          }
+        }
+      }
+    }
+    /** @type {Map<FormulaIdentifier, import('./types.js').StoreController>} */
+    const storeControllers = new Map();
+    for (const storeId of storeIdsToResolve) {
+      // eslint-disable-next-line no-await-in-loop
+      const controller = await provideStoreController(storeId);
+      storeControllers.set(storeId, controller);
+    }
+
+    /** @type {import('./graph.js').RetentionPath[]} */
+    const shaped = [];
+    for (const path of rawPaths) {
+      /** @type {import('./graph.js').RetentionPath} */
+      const shapedPath = [];
+      for (const seg of path) {
+        const controller =
+          seg.referencedBy !== undefined
+            ? storeControllers.get(seg.referencedBy)
+            : undefined;
+        const segLabels = seg.labels;
+        const needsRename =
+          seg.referencedBy !== undefined &&
+          segLabels !== undefined &&
+          segLabels.length > 0 &&
+          controller !== undefined;
+        if (!needsRename) {
+          shapedPath.push(seg);
+        } else {
+          /** @type {string[]} */
+          const newLabels = [];
+          for (const label of /** @type {string[]} */ (segLabels)) {
+            if (label === 'petName') {
+              // Resolve every pet name in the upstream store that
+              // points at any member of this group. The cache key
+              // is per (storeId, memberId) pair so a multi-member
+              // group fans out into multiple `pet:<name>` labels
+              // deterministically.
+              for (const memberId of seg.groupMembers) {
+                const cacheKey = `${seg.referencedBy} ${memberId}`;
+                let names = labelCache.get(cacheKey);
+                if (names === undefined) {
+                  const petNames =
+                    /** @type {import('./types.js').StoreController} */ (
+                      controller
+                    ).reverseIdentify(memberId);
+                  names = petNames.map(n => `pet:${n}`);
+                  labelCache.set(cacheKey, names);
+                }
+                for (const n of names) {
+                  newLabels.push(n);
+                }
+              }
+            } else {
+              newLabels.push(label);
+            }
+          }
+          shapedPath.push(
+            harden({
+              ...seg,
+              labels: newLabels,
+            }),
+          );
+        }
+      }
+      shaped.push(harden(shapedPath));
+    }
+    return harden(shaped);
+  };
+
+  /**
+   * Subscribe to retention-path changes for a target formula.
+   *
+   * Returns an async generator whose first delta is a full
+   * `{ snapshot }` of the paths at the time of subscription and
+   * whose subsequent deltas are `{ added, removed }` diffs over
+   * the path set. Updates are coalesced over a microtask window
+   * so a single `provideGuest` (which incarnates a chain of
+   * dependent formulas) yields one delta, not many.
+   *
+   * Drop the returned iterator (or `break` out of a for-await-of
+   * loop on it) to release the subscription: the underlying graph
+   * change subscription drains and the producer returns.
+   *
+   * @param {FormulaIdentifier} targetId
+   * @returns {AsyncGenerator<
+   *   import('./retention-path-accumulator.js').RetentionPathDelta
+   * >}
+   */
+  // eslint-disable-next-line no-use-before-define
+  const followRetentionPaths = async function* followRetentionPaths(targetId) {
+    // eslint-disable-next-line no-use-before-define
+    const accumulator = makeRetentionPathAccumulator({
+      compute: () => listRetentionPaths(targetId),
+    });
+
+    // Notify the accumulator whenever any formula in the graph
+    // changes. Phase 1 uses formulaChangeTopic as the coarse
+    // change signal; finer-grained edge-event topics are deferred
+    // to follow-up work per the design's *Known Gaps and TODOs*.
+    const subscription = formulaChangeTopic.subscribe();
+    let cancelled = false;
+    (async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const change of subscription) {
+        if (cancelled) break;
+        accumulator.notify();
+      }
+    })().catch(err => {
+      console.error('retention-path change pump failed:', err);
+    });
+
+    try {
+      yield* accumulator.subscribe();
+    } finally {
+      cancelled = true;
+      // Best-effort: closing the iterator on the next
+      // formulaChangeTopic emission lets the inner loop fall out.
+      try {
+        await subscription.return?.(undefined);
+      } catch (_e) {
+        // Ignore close errors; the iterator is already terminating.
+      }
+    }
+  };
+
+  /**
    * Return the on-disk filesystem path for a `mount` or `scratch-mount`
    * formula.  Privileged host-paths surface the daemon does **not**
    * place on Mount's public interface — only callers that hold the
@@ -6119,6 +6287,8 @@ const makeDaemonCore = async (
     pinTransient,
     unpinTransient,
     getFormulaGraphSnapshot,
+    listRetentionPaths,
+    followRetentionPaths,
     getScratchMountPath,
     getMountHostPath,
     getIdForRef,

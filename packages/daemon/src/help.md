@@ -515,6 +515,38 @@ this agent's pet store.
 
 Used by the Chat inventory graph space to visualize formula relationships.
 
+## listRetentionPaths(locator) -> Promise<RetentionPath[]>
+
+Snapshot every retention path from a GC root to the target locator.
+
+Each path is an array of segments walking upstream from the target
+to a root. A segment carries:
+
+- `groupMembers`: identifiers union-merged into the segment's group
+- `referencedBy`: id of the upstream group representative
+  (absent on the root)
+- `labels`: edge labels from the referrer into this group;
+  pet-store edges render as `pet:<name>`, internal edges keep
+  their field name (e.g. `worker`, `petStore`, `retention`), and
+  the root segment carries `type: "root"`.
+
+Useful for answering "why is this value still alive?" without
+polling the whole graph. See `endo paths <name>` for the CLI form.
+
+## followRetentionPaths(locator) -> AsyncIterator<RetentionPathDelta>
+
+Subscribe to retention-path changes for the target locator.
+
+The first delta is always a full `{ snapshot: RetentionPath[] }`.
+Subsequent deltas are `{ added, removed }` diffs over a
+microtask-coalesced batch window, so a single `provideGuest`
+yields one delta rather than many.
+
+Drop the returned reference to release the subscription, exactly
+as with `followNameChanges` and `followLocatorNameChanges`.
+
+Use with `for-await-of` to receive updates.
+
 ## readText(petNameOrPath) -> Promise<string>
 
 Read text content by pet name or path.

@@ -32,6 +32,68 @@ open PR rather than a merged change.
 - Implementation phase: open as PR #284 against `llm`. No completion
   date yet. Calendar gap since design is 18+ days.
 
+### What PR #284 delivers
+
+PR #284 collapses the design's *Phase 1 (Daemon snapshot API)*,
+*Phase 2 (Subscription API)*, and *Phase 3 (CLI)* into a single
+PR, on the rationale that the subscription form matches the
+existing `followNameChanges` / `followLocatorNameChanges` shape
+and adds little surface area beyond the snapshot, and that the
+CLI verb is a thin wrapper that exercises the same daemon API.
+
+What ships in the PR:
+
+- `EndoHost.listRetentionPaths(locator)` returns the
+  `RetentionPath[]` shape defined under *Notation: paths and
+  segments* below.
+  Pet-store edges along each path render as `pet:<name>` labels
+  via reverse-resolution of the upstream store's name table;
+  field-name edges (`worker`, `petStore`, `retention`, etc.)
+  pass through unchanged.
+- `EndoHost.followRetentionPaths(locator)` subscribes to
+  retention-path changes for the target locator.
+  First delta is a `{ snapshot }`; subsequent deltas are
+  `{ added, removed }` diffs over a microtask-coalesced batch
+  window so that a single `provideGuest` (which incarnates a
+  chain of ~7 dependent formulas) yields one delta rather than
+  seven.
+  Drop the returned far reference to release the subscription,
+  matching `followNameChanges`.
+- `endo paths <name-or-locator>` CLI verb with `--locator` and
+  `--json` flags.
+  Default output is the per-path block notation from *CLI: endo
+  paths* below; `--json` emits the raw `RetentionPath[]`.
+- Both methods live on the host facet only, never on `EndoGuest`
+  or the CapTP gateway: enumerating paths through capabilities a
+  guest does not own would reveal host structure.
+- `RetentionPath` / `RetentionPathSegment` / `RetentionPathDelta`
+  types re-exported from `@endo/daemon` (`types.d.ts`) for
+  downstream consumers (Chat UI, future formula-inspector
+  integration).
+
+What is deferred to follow-up work:
+
+- **Phase 2 (Chat UI panel)**: paths affordance on every value, a
+  floating Paths panel that subscribes via
+  `followRetentionPaths`, and the in-panel pet-name-removal
+  affordance.
+- **Phase 4 (Chat write affordances)**: per-path "Delete pet
+  name on this path" with confirmation, and the per-value
+  Disincarnate / Reincarnate toggle.
+- **Refactor of `graph.js`'s private `listRetentionPaths`**: the
+  Phase 1 implementation shapes the existing private function's
+  output at the host layer.
+  A future cut may move the label-normalization into `graph.js`
+  itself once the right edge-event topic shape is settled (see
+  *Known Gaps and TODOs* below).
+- **Finer-grained edge-event topic**: Phase 1 uses
+  `formulaChangeTopic` as the coarse change signal for the
+  subscription's recompute trigger.
+  A future cut may add a sibling `formulaGraphChangeTopic` (or
+  extend `formulaChangeTopic` to carry edge-add / edge-remove
+  events) so the recompute can be skipped when the graph is
+  structurally unchanged.
+
 ## What is the Problem Being Solved?
 
 The daemon already computes retention paths in
