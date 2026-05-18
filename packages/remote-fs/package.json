@@ -19,6 +19,7 @@
     ".": "./src/index.js",
     "./src/guards.js": "./src/guards.js",
     "./src/in-memory.js": "./src/in-memory.js",
+    "./src/in-memory-module.js": "./src/in-memory-module.js",
     "./src/disk.js": "./src/disk.js",
     "./src/readonly.js": "./src/readonly.js",
     "./src/from-mount.js": "./src/from-mount.js",

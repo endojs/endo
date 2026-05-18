@@ -356,6 +356,79 @@ jobs:
       - name: cargo check runtime-agent with seccomp feature
         run: cargo check --manifest-path rust/claude-orch/runtime-agent/Cargo.toml --features seccomp
 
+  claude-orch-smoke-boot-tcg:
+    # Full microVM boot under QEMU/TCG (no KVM): builds a minimal
+    # Linux 6.18 kernel + ext4 rootfs + cross-compiled guest
+    # binaries, then runs the smoke-boot.sh script with
+    # SMOKE_BOOT_ACCEL=tcg. Exercises the real
+    # @endo/claude-container 9P bridge backed by an
+    # @endo/remote-fs in-memory Filesystem (closing R1 with
+    # kernel-mount confidence).
+    #
+    # Kernel build is the dominant cost; the build dir is cached
+    # by Cargo.lock + kernel-fragment hash so subsequent runs are
+    # ~1 minute. First run on a fresh cache key is ~10 minutes.
+    name: claude-orch-smoke-boot-tcg
+    runs-on: ubuntu-latest
+    needs: rust-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-system-x86 \
+            e2fsprogs \
+            bison flex \
+            libssl-dev libelf-dev \
+            bc \
+            curl
+
+      - name: Ensure stable Rust toolchain + musl target
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustup target add x86_64-unknown-linux-musl
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-musl-${{ hashFiles('Cargo.lock') }}
+
+      - name: Cache smoke-boot build dir (kernel + rootfs + Linux src)
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: /tmp/claude-orch-smoke
+          key: ${{ runner.os }}-smoke-boot-${{ hashFiles('packages/claude-orch/images/kernel/microvm.fragment') }}-v2
+
+      - name: Enable Corepack + install JS workspace
+        run: |
+          corepack enable
+          corepack yarn install --immutable
+
+      - name: Run smoke-boot under TCG
+        env:
+          SMOKE_BOOT_ACCEL: tcg
+        run: ./packages/claude-orch/scripts/smoke-boot.sh
+
+      - name: Upload smoke-boot logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-boot-logs
+          path: |
+            /tmp/claude-orch-smoke/qemu.log
+            /tmp/claude-orch-smoke/hello.json
+            /tmp/claude-orch-smoke/agent-ready.json
+          if-no-files-found: ignore
+
   check-action-pins:
     name: check-action-pins
 

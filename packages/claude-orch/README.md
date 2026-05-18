@@ -70,6 +70,18 @@ a minimal Linux 6.18 kernel (cached after first run), packs an ext4
 rootfs, runs QEMU, and asserts that Hello and Ready both arrive on the
 host-side UDS endpoints. Outputs land in `/tmp/claude-orch-smoke/`.
 
+The script auto-detects `/dev/kvm`; on environments without it (most
+CI runners), it falls back to TCG (software emulation). Override with
+`SMOKE_BOOT_ACCEL=kvm` or `=tcg`. TCG runs the boot end-to-end without
+hardware virtualization, ~5–10× slower but functionally identical.
+The host-side responder is `scripts/smoke-boot-host.js`, which uses
+the real `@endo/claude-container` 9P bridge (closing R1) backed by
+an `@endo/remote-fs` in-memory `Filesystem` — the same code path
+that `9p-server.test.js` exercises in-process.
+
+CI runs this job as `claude-orch-smoke-boot-tcg` in
+`.github/workflows/ci.yml`.
+
 ## Running the full daemons
 
 ```sh

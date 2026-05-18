@@ -24,6 +24,16 @@ import {
 import { start as startOrch } from '@endo/claude-orch/src/main.js';
 import { buildFrame, consumeFrames } from '@endo/claude-orch/src/stdio/mux.js';
 
+import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
+
+import {
+  makeReader,
+  makeWriter,
+  tryParseMessage,
+  wrapMessage,
+} from '../src/9p/wire.js';
+import { T, E as ERRNO, QT } from '../src/9p/types.js';
+
 const { raw } = String;
 const dirname = url.fileURLToPath(new URL('..', import.meta.url));
 
@@ -326,15 +336,26 @@ test.afterEach.always(async t => {
  * @param {string} opts.apiSocketPath    — orchestrator UDS path.
  * @param {string} [opts.fsName]         — FS pet name to bind.
  * @param {string} [opts.clientName]     — pet name for the ClaudeClient.
+ * @param {any}    [opts.fsValue]        — value stored under `fsName`.
+ *                                          Defaults to a passable mock; pass
+ *                                          a real remote-fs `Filesystem` to
+ *                                          exercise the bridge end-to-end.
  */
 const driveFactorySubmission = async (
   t,
-  { host, apiSocketPath, fsName = 'workspace-fs', clientName = 'claude-test' },
+  {
+    host,
+    apiSocketPath,
+    fsName = 'workspace-fs',
+    clientName = 'claude-test',
+    fsValue,
+  },
 ) => {
-  await E(host).storeValue(
-    /** @type {any} */ (harden({ kind: 'mock-fs-cap' })),
-    fsName,
-  );
+  if (fsValue !== 'ALREADY_REGISTERED') {
+    const valueToStore =
+      fsValue !== undefined ? fsValue : harden({ kind: 'mock-fs-cap' });
+    await E(host).storeValue(/** @type {any} */ (valueToStore), fsName);
+  }
 
   const factoryName = 'claude-container-factory';
   const factorySpecifier = new URL(
@@ -483,5 +504,222 @@ test.serial(
     });
     probe2.destroy();
     t.is(outcome2, 'connected');
+  },
+);
+
+/**
+ * Helpers for driving a 9P client against the factory's bridge UDS.
+ *
+ * Used by the MVP test below to confirm the bridge actually serves
+ * 9P from a real `@endo/remote-fs` Filesystem stored as the form's
+ * `filesystem` value.
+ */
+
+const connectClient9p = socketPath => {
+  const sock = net.createConnection(socketPath);
+  let buf = Buffer.alloc(0);
+  /** @type {{ resolve: (m: any) => void, reject: (e: any) => void }[]} */
+  const waiters = [];
+  sock.on('data', chunk => {
+    buf = Buffer.concat([buf, chunk]);
+    for (;;) {
+      const parsed = tryParseMessage(buf);
+      if (!parsed) break;
+      buf = parsed.rest;
+      const w = waiters.shift();
+      if (w) w.resolve(parsed.msg);
+    }
+  });
+  sock.on('error', e => {
+    for (const w of waiters.splice(0)) w.reject(e);
+  });
+  const wait = () =>
+    new Promise((resolve, reject) => {
+      waiters.push({ resolve, reject });
+    });
+  return {
+    sock,
+    async waitConnect() {
+      if (sock.readyState === 'open') return;
+      await new Promise((resolve, reject) => {
+        sock.once('connect', resolve);
+        sock.once('error', reject);
+      });
+    },
+    send(type, tag, payload) {
+      sock.write(wrapMessage(type, tag, payload));
+    },
+    recv() {
+      return wait();
+    },
+    close() {
+      sock.destroy();
+    },
+  };
+};
+
+const readQid9p = r => ({
+  type: r.u8(),
+  ver: r.u32(),
+  path: r.u64(),
+});
+
+test.serial(
+  'live MVP: factory → bridge serves 9P from a real in-memory Filesystem',
+  async t => {
+    // Stand up the orchestrator with a mock VM, plus an in-memory
+    // remote-fs minted as a formulated caplet under @host so it can
+    // be looked up by pet name. `storeValue` rejects bare Far refs;
+    // `makeUnconfined` of a small entry module produces a real
+    // formulated FS that the factory's bridge module can consume.
+    const { host } = await prepareEndo(t);
+    const { apiSocketPath } = await startOrchestrator(t);
+
+    const fsModuleUrl = new URL(
+      '../../remote-fs/src/in-memory-module.js',
+      import.meta.url,
+    ).href;
+    const workspaceFs = await E(host).makeUnconfined('@main', fsModuleUrl, {
+      powersName: '@none',
+      resultName: 'workspace-fs',
+    });
+
+    // Populate the now-formulated FS in-place from the test process
+    // (the same exo backs the cap the factory will look up).
+    const wsRoot = await E(workspaceFs).root();
+    const greet = await E(wsRoot).create('greet.txt', {});
+    {
+      const w = iterateBytesWriter(await E(greet).write(0n));
+      await w.next(new TextEncoder().encode('from in-memory FS'));
+      await w.return();
+    }
+    await E(greet).close();
+    const sub = await E(wsRoot).mkdir('sub', {});
+    const inner = await E(sub).create('inner.txt', {});
+    {
+      const w = iterateBytesWriter(await E(inner).write(0n));
+      await w.next(new TextEncoder().encode('deep'));
+      await w.return();
+    }
+    await E(inner).close();
+
+    const { client, status } = await driveFactorySubmission(t, {
+      host,
+      apiSocketPath,
+      clientName: 'mvp-client',
+      // `workspace-fs` is already registered via makeUnconfined
+      // above; skip storeValue by passing a sentinel that the
+      // helper detects and treats as "already present."
+      fsValue: 'ALREADY_REGISTERED',
+    });
+    t.truthy(status.sessionId);
+    t.truthy(status.fsSocketPath);
+
+    // Connect a 9P client to the bridge UDS the factory minted.
+    const c = connectClient9p(status.fsSocketPath);
+    await c.waitConnect();
+    t.teardown(() => c.close());
+
+    // Tversion
+    {
+      const w = makeWriter();
+      w.u32(8192);
+      w.str('9P2000.L');
+      c.send(T.Tversion, 0xffff, w.finish());
+      const rep = await c.recv();
+      const r = makeReader(rep.payload);
+      t.true(r.u32() >= 4096);
+      t.is(r.str(), '9P2000.L');
+    }
+
+    // Tattach
+    {
+      const w = makeWriter();
+      w.u32(1);
+      w.u32(0xffffffff);
+      w.str('');
+      w.str('');
+      w.u32(0);
+      c.send(T.Tattach, 1, w.finish());
+      const rep = await c.recv();
+      t.is(rep.type, T.Rattach);
+      const qid = readQid9p(makeReader(rep.payload));
+      t.is(qid.type, QT.DIR);
+    }
+
+    // Twalk to greet.txt (single component)
+    {
+      const w = makeWriter();
+      w.u32(1);
+      w.u32(2);
+      w.u16(1);
+      w.str('greet.txt');
+      c.send(T.Twalk, 2, w.finish());
+      const rep = await c.recv();
+      t.is(rep.type, T.Rwalk);
+      const r = makeReader(rep.payload);
+      t.is(r.u16(), 1);
+      const qid = readQid9p(r);
+      t.is(qid.type, QT.FILE);
+    }
+
+    // Tlopen + Tread
+    {
+      const w = makeWriter();
+      w.u32(2);
+      w.u32(0);
+      c.send(T.Tlopen, 3, w.finish());
+      const rep = await c.recv();
+      t.is(rep.type, T.Rlopen);
+    }
+    {
+      const w = makeWriter();
+      w.u32(2);
+      w.u64(0n);
+      w.u32(4096);
+      c.send(T.Tread, 4, w.finish());
+      const rep = await c.recv();
+      t.is(rep.type, T.Rread);
+      const r = makeReader(rep.payload);
+      const count = r.u32();
+      const bytes = r.take(count);
+      t.is(bytes.toString('utf8'), 'from in-memory FS');
+    }
+
+    // Pipelined Twalk to /sub/inner.txt (two components)
+    {
+      const w = makeWriter();
+      w.u32(1);
+      w.u32(3);
+      w.u16(2);
+      w.str('sub');
+      w.str('inner.txt');
+      c.send(T.Twalk, 5, w.finish());
+      const rep = await c.recv();
+      t.is(rep.type, T.Rwalk);
+      const r = makeReader(rep.payload);
+      t.is(r.u16(), 2);
+      const q1 = readQid9p(r);
+      const q2 = readQid9p(r);
+      t.is(q1.type, QT.DIR);
+      t.is(q2.type, QT.FILE);
+    }
+
+    // Walk to a missing name → Rlerror(ENOENT)
+    {
+      const w = makeWriter();
+      w.u32(1);
+      w.u32(4);
+      w.u16(1);
+      w.str('missing.txt');
+      c.send(T.Twalk, 6, w.finish());
+      const rep = await c.recv();
+      t.is(rep.type, T.Rlerror);
+      const r = makeReader(rep.payload);
+      t.is(r.u32(), ERRNO.ENOENT);
+    }
+
+    // Terminate to clean up.
+    await E(client).terminate();
   },
 );

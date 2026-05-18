@@ -1608,7 +1608,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/claude-container@workspace:packages/claude-container":
+"@endo/claude-container@workspace:^, @endo/claude-container@workspace:packages/claude-container":
   version: 0.0.0-use.local
   resolution: "@endo/claude-container@workspace:packages/claude-container"
   dependencies:
@@ -1633,9 +1633,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/claude-orch@workspace:packages/claude-orch"
   dependencies:
+    "@endo/claude-container": "workspace:^"
     "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/promise-kit": "workspace:^"
+    "@endo/remote-fs": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
   bin:

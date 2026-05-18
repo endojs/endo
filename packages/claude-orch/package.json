@@ -57,6 +57,10 @@
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {
+    "@endo/claude-container": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
+    "@endo/remote-fs": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev"
   },

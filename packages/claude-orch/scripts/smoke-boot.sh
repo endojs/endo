@@ -79,97 +79,42 @@ READY_FILE="$BUILD_DIR/agent-ready.json"
 rm -f "$HELLO_FILE" "$READY_FILE"
 
 NONCE="$(printf 'a%.0s' {1..64})"
-node - "$BUILD_DIR" "$HELLO_FILE" "$READY_FILE" <<'EOF' &
-const net = require('node:net');
-const fs = require('node:fs');
-const [, , dir, helloFile, readyFile] = process.argv;
 
-// ctl: receive Hello, send BootConfig.
-net.createServer(conn => {
-  let buf = '';
-  conn.on('data', d => {
-    buf += d.toString('utf8');
-    const i = buf.indexOf('\n');
-    if (i >= 0) {
-      fs.writeFileSync(helloFile, buf.slice(0, i));
-      conn.write(JSON.stringify({
-        type: 'boot_config',
-        credentials: { apiKey: 'k' },
-        fsMountTag: 'workspace',
-        workspaceUidGid: [1000, 1000],
-        envExtra: {},
-        agentControlPort: 'agent',
-      }) + '\n');
-    }
-  });
-}).listen(`${dir}/ctl.sock`);
-
-// fs: minimal 9P2000.L server — replies to Tversion/Tattach/Tgetattr/Twalk/Tclunk
-// so the guest's `mount -t 9p` succeeds. Anything beyond that is silently ignored.
-net.createServer(c => {
-  c.on('data', d => {
-    let off = 0;
-    while (off + 7 <= d.length) {
-      const sz = d.readUInt32LE(off);
-      if (off + sz > d.length) break;
-      const t = d.readUInt8(off + 4);
-      const tag = d.readUInt16LE(off + 5);
-      let r = null;
-      if (t === 100) {
-        const v = Buffer.from('9P2000.L');
-        r = Buffer.alloc(13 + v.length);
-        r.writeUInt32LE(r.length, 0); r.writeUInt8(101, 4); r.writeUInt16LE(0xffff, 5);
-        r.writeUInt32LE(8192, 7); r.writeUInt16LE(v.length, 11); v.copy(r, 13);
-      } else if (t === 104) {
-        r = Buffer.alloc(20);
-        r.writeUInt32LE(20, 0); r.writeUInt8(105, 4); r.writeUInt16LE(tag, 5);
-        r.writeUInt8(0x80, 7);
-      } else if (t === 24) {
-        r = Buffer.alloc(160);
-        r.writeUInt32LE(160, 0); r.writeUInt8(25, 4); r.writeUInt16LE(tag, 5);
-        r.writeBigUInt64LE(0x7ffn, 7); r.writeUInt8(0x80, 15);
-        r.writeUInt32LE(0o40755, 28); r.writeUInt32LE(1000, 32); r.writeUInt32LE(1000, 36);
-        r.writeBigUInt64LE(2n, 40); r.writeBigUInt64LE(4096n, 56);
-      } else if (t === 110) {
-        const nwname = d.readUInt16LE(off + 15);
-        r = Buffer.alloc(7 + 2 + nwname * 13);
-        r.writeUInt32LE(r.length, 0); r.writeUInt8(111, 4); r.writeUInt16LE(tag, 5);
-        r.writeUInt16LE(nwname, 7);
-        for (let i = 0; i < nwname; i += 1) r.writeUInt8(0x80, 9 + i * 13);
-      } else if (t === 120) {
-        r = Buffer.alloc(7);
-        r.writeUInt32LE(7, 0); r.writeUInt8(121, 4); r.writeUInt16LE(tag, 5);
-      }
-      if (r) c.write(r);
-      off += sz;
-    }
-  });
-}).listen(`${dir}/fs.sock`);
-
-// agent: receive Ready from claude-agent.
-net.createServer(c => {
-  let buf = '';
-  c.on('data', d => {
-    buf += d.toString('utf8');
-    let i;
-    while ((i = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, i);
-      buf = buf.slice(i + 1);
-      try {
-        const msg = JSON.parse(line);
-        if (msg.type === 'ready') fs.writeFileSync(readyFile, JSON.stringify(msg));
-      } catch { /* ignore */ }
-    }
-  });
-}).listen(`${dir}/agent.sock`);
-
-setTimeout(() => process.exit(0), 20000);
-EOF
+# Host-side responder: real ctl + agent handshakes, real 9P bridge
+# from @endo/claude-container backed by an @endo/remote-fs in-memory
+# FS. Replaces the previous inline hand-rolled responder; the bridge
+# is now the same code path CI exercises in `9p-server.test.js`.
+node "$REPO_ROOT/packages/claude-orch/scripts/smoke-boot-host.js" \
+  "$BUILD_DIR" "$HELLO_FILE" "$READY_FILE" &
 NODE_PID=$!
 sleep 0.5
 
-timeout 15 qemu-system-x86_64 \
-  -machine pc -cpu host -accel kvm \
+# Accel selection: prefer KVM when available; fall back to TCG.
+# CI runners (GitHub Actions) typically lack nested KVM; TCG runs
+# the boot in software, ~5-10× slower but functionally identical.
+# Override via SMOKE_BOOT_ACCEL=tcg or =kvm.
+SMOKE_BOOT_ACCEL="${SMOKE_BOOT_ACCEL:-auto}"
+if [ "$SMOKE_BOOT_ACCEL" = "auto" ]; then
+  if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+    SMOKE_BOOT_ACCEL=kvm
+  else
+    SMOKE_BOOT_ACCEL=tcg
+  fi
+fi
+step "QEMU accel: $SMOKE_BOOT_ACCEL"
+
+# `-cpu host` requires KVM; `-cpu max` is the safe TCG choice.
+if [ "$SMOKE_BOOT_ACCEL" = "kvm" ]; then
+  QEMU_CPU="-cpu host -accel kvm"
+  QEMU_TIMEOUT=15
+else
+  QEMU_CPU="-cpu max -accel tcg"
+  # TCG is much slower; give it more headroom.
+  QEMU_TIMEOUT=120
+fi
+
+timeout "$QEMU_TIMEOUT" qemu-system-x86_64 \
+  -machine pc $QEMU_CPU \
   -smp 1 -m 256 -no-reboot \
   -kernel "$BUILD_DIR/vmlinux-x86_64" \
   -append "console=ttyS0 root=/dev/vda rw rootfstype=ext4 earlyprintk=serial,ttyS0,115200 claude.session_id=smoketest claude.boot_nonce=$NONCE" \
