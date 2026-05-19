@@ -10,7 +10,7 @@
  */
 
 import test from '@endo/ses-ava/prepare-endo.js';
-import { makeMockPowers } from './mock-powers.js';
+import { makeMockPowers } from '../../tools/mock-powers.js';
 
 const TIMEOUT_MS = 120_000;
 

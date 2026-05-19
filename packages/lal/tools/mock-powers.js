@@ -1,9 +1,10 @@
 // @ts-check
 /**
- * Mock guest powers for the Lal agent simulator.
+ * Mock guest powers for the Lal/Fae agent loops.
  * Implements the GuestPowers interface the agent expects from Endo,
  * with an in-memory directory and mailbox so we can run the agent
- * without a real daemon. Used to debug LLM providers (Anthropic, etc.).
+ * without a real daemon. Used by the simulator runner, by deterministic
+ * provider-fixture tests, and reused from Fae's test suite.
  */
 
 import { makePromiseKit } from '@endo/promise-kit';
@@ -11,13 +12,43 @@ import { makePromiseKit } from '@endo/promise-kit';
 const SELF_ID = 'lal-self-id';
 
 /**
- * Create mock guest powers for the Lal agent.
+ * @param {number | bigint | string} value
+ * @returns {bigint}
+ */
+const normalizeMessageNumber = value => {
+  if (typeof value === 'string' && value.startsWith('+')) {
+    return BigInt(value.slice(1));
+  }
+  return BigInt(value);
+};
+
+/**
+ * @param {number | bigint | string} left
+ * @param {number | bigint | string} right
+ */
+const sameMessageNumber = (left, right) =>
+  normalizeMessageNumber(left) === normalizeMessageNumber(right);
+
+/** @param {number | bigint | string} value */
+const messageNumberKey = value => String(normalizeMessageNumber(value));
+
+/**
+ * Create mock guest powers for the Lal or Fae agent.
+ *
+ * Pass `attachments` to make `lookupById` resolve to real refs and let
+ * `adopt(messageNumber, edgeName, ...)` install the actual capability
+ * (e.g. a FaeTool) into the directory by walking the message's
+ * names/ids arrays. Without attachments, `adopt` falls back to a
+ * placeholder string (suitable for tests that only care that adoption
+ * happened, not what was adopted).
+ *
  * @param {object} [options]
  * @param {object} [options.initialMessage] - Optional first inbox message to deliver (default: one from HOST)
- * @returns {{ powers: object, whenDismissed: (n: number) => Promise<void>, whenSend: () => Promise<{ recipient: string, strings: string[] }>, sent: Array<{ recipient: string, strings: string[], edgeNames: string[], petNames: string[] }> }}
+ * @param {Map<string, unknown>} [options.attachments] - id -> ref map for lookupById and adopt
+ * @returns {{ powers: object, whenDismissed: (n: number) => Promise<void>, whenSend: () => Promise<{ recipient: string, strings: string[] }>, sent: Array<{ recipient: string, strings: string[], edgeNames: string[], petNames: string[], replyTo?: string }>, adoptions: Array<{ messageNumber: string, edgeName: string, petName: string }> }}
  */
 export function makeMockPowers(options = {}) {
-  const { initialMessage } = options;
+  const { initialMessage, attachments } = options;
 
   /** @type {Map<string, unknown>} directory: path key -> value */
   const directory = new Map();
@@ -26,11 +57,13 @@ export function makeMockPowers(options = {}) {
 
   /** @type {Array<{ number: number, from: string, to: string, type?: string, strings?: string[], names?: string[], ids?: string[], messageId?: string, replyTo?: string }>} */
   const messages = [];
-  /** @type {Map<number, { promise: Promise<unknown>, resolve: (value?: unknown) => void }>} */
+  /** @type {Map<string, { promise: Promise<unknown>, resolve: (value?: unknown) => void }>} */
   const dismissWaiters = new Map();
 
-  /** @type {Array<{ recipient: string, strings: string[], edgeNames: string[], petNames: string[] }>} */
+  /** @type {Array<{ recipient: string, strings: string[], edgeNames: string[], petNames: string[], replyTo?: string }>} */
   const sent = [];
+  /** @type {Array<{ messageNumber: string, edgeName: string, petName: string }>} */
+  const adoptions = [];
   const { promise: nextSendPromise, resolve: resolveNextSend } =
     makePromiseKit();
 
@@ -40,14 +73,15 @@ export function makeMockPowers(options = {}) {
    * @returns {Promise<void>}
    */
   function whenDismissed(n) {
-    if (!dismissWaiters.has(n)) {
+    const key = messageNumberKey(n);
+    if (!dismissWaiters.has(key)) {
       const { promise, resolve } = makePromiseKit();
-      dismissWaiters.set(n, { promise, resolve });
+      dismissWaiters.set(key, { promise, resolve });
       return /** @type {Promise<void>} */ (promise);
     }
     return /** @type {Promise<void>} */ (
       /** @type {{ promise: Promise<unknown>, resolve: (value?: unknown) => void }} */ (
-        dismissWaiters.get(n)
+        dismissWaiters.get(key)
       ).promise
     );
   }
@@ -105,7 +139,7 @@ export function makeMockPowers(options = {}) {
     },
 
     list(...petNamePath) {
-      const prefix = petNamePath.length ? `${petNamePath.join('/')}.` : '';
+      const prefix = petNamePath.length ? `${petNamePath.join('/')}/` : '';
       const names = new Set();
       for (const k of directory.keys()) {
         if (prefix ? k.startsWith(prefix) && k !== prefix : true) {
@@ -185,22 +219,60 @@ export function makeMockPowers(options = {}) {
       return Promise.resolve();
     },
 
-    adopt(messageNumber, _edgeName, petNameOrPath) {
+    adopt(messageNumber, edgeName, petNameOrPath) {
       const path = Array.isArray(petNameOrPath)
         ? petNameOrPath
         : [petNameOrPath];
       const key = path.join('/');
-      directory.set(key, `adopted-from-msg-${messageNumber}`);
+      // If we have a real ref for this edge, install it; otherwise
+      // fall back to a placeholder so tests that don't care about the
+      // adopted value still see "something" at the key.
+      /** @type {unknown} */
+      let value = `adopted-from-msg-${messageNumber}`;
+      if (attachments) {
+        const parent = messages.find(m =>
+          sameMessageNumber(m.number, messageNumber),
+        );
+        if (
+          parent &&
+          Array.isArray(parent.names) &&
+          Array.isArray(parent.ids)
+        ) {
+          const edgeIndex = parent.names.indexOf(edgeName);
+          if (edgeIndex >= 0) {
+            const id = parent.ids[edgeIndex];
+            if (attachments.has(id)) {
+              value = attachments.get(id);
+            }
+          }
+        }
+      }
+      directory.set(key, value);
+      adoptions.push({
+        messageNumber: messageNumberKey(messageNumber),
+        edgeName,
+        petName: key,
+      });
       return Promise.resolve();
     },
 
+    lookupById(id) {
+      if (!attachments || !attachments.has(id)) {
+        return Promise.reject(new Error(`Unknown id: ${id}`));
+      }
+      return Promise.resolve(attachments.get(id));
+    },
+
     dismiss(messageNumber) {
-      const idx = messages.findIndex(m => m.number === messageNumber);
+      const idx = messages.findIndex(m =>
+        sameMessageNumber(m.number, messageNumber),
+      );
       if (idx >= 0) messages.splice(idx, 1);
-      const waiter = dismissWaiters.get(messageNumber);
+      const key = messageNumberKey(messageNumber);
+      const waiter = dismissWaiters.get(key);
       if (waiter) {
         waiter.resolve();
-        dismissWaiters.delete(messageNumber);
+        dismissWaiters.delete(key);
       }
       return Promise.resolve();
     },
@@ -229,7 +301,9 @@ export function makeMockPowers(options = {}) {
 
     reply(messageNumber, strings, edgeNames, petNames) {
       // Find the parent message to determine the other party
-      const parent = messages.find(m => m.number === messageNumber);
+      const parent = messages.find(m =>
+        sameMessageNumber(m.number, messageNumber),
+      );
       const recipientName = parent
         ? parent.from === SELF_ID
           ? parent.to
@@ -292,5 +366,6 @@ export function makeMockPowers(options = {}) {
     whenDismissed,
     whenSend,
     sent,
+    adoptions,
   };
 }
