@@ -3,9 +3,21 @@
 | | |
 |---|---|
 | **Created** | 2026-03-04 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Active |
+| **Status** | **Complete** |
 | **Supersedes** | `designs/chat-reply-chain-visualization.md` |
+
+## Status
+
+Implemented directly on the `llm` branch in commit 7592a18dd
+("Progress on focus message concept", 2026-03-04).
+The implementation landed before the bot-forwarded PR workflow was
+in place, so there is no PR number; the change is on `llm` only.
+All four key files named in the design (`chat-bar-component.js`,
+`inline-command-form.js`, `inbox-component.js`, `index.css`) carry
+the focus-mode logic, modeline, chain/connection algorithms, and
+styling described here.
 
 ## Motivation
 
