@@ -181,11 +181,10 @@ permission events, and error shapes consistent.
 
 ### 4.3 Workspace FS expectations (v1)
 
-The factory accepts any FS capability whose surface is compatible with
-the bridge in `src/fs-bridge-9p.js`.
-v1 targets the same shape used by `@endo/daemon`'s `makeFileSystem`
-powers: `readFile`, `writeFile`, `readDir`, `stat`, `unlink`, `rename`,
-`mkdir`.
+The factory accepts an `@endo/remote-fs` `Filesystem` capability. The
+9P bridge that projects it into the guest lives in `@endo/9p-server`
+(broken out from this package to be usable as a standalone
+9P-over-UDS server for any remote-fs Filesystem).
 
 The bridge translates 9P messages into these calls.
 The bridge is intentionally not part of the public capability surface
@@ -296,10 +295,9 @@ flows through the form.
 
 ### 6.2 9P bridge
 
-The 9P bridge lives in `src/fs-bridge-9p.js` (skeleton in this
-commit).
-It is constructed per-session with the resolved FS capability and a
-UDS path:
+The 9P bridge lives in `@endo/9p-server` (`makeFsBridge9p`). It is
+constructed per-session with the resolved FS capability and a UDS
+path:
 
 ```js
 const bridge = makeFsBridge9p({
@@ -350,10 +348,15 @@ packages/claude-container/
     │                               # (loaded by `makeUnconfined`)
     ├── claude-client.js            # ClaudeClient exo constructor
     ├── fs-bridge-module.js         # per-session 9P bridge caplet
-    │                               # (loaded by `makeUnconfined`)
-    ├── orchestrator-client.js      # HTTP-over-UDS client
-    └── fs-bridge-9p.js             # 9P server backed by an Endo FS cap
+    │                               # (loaded by `makeUnconfined`;
+    │                               # delegates to `@endo/9p-server`)
+    └── orchestrator-client.js      # HTTP-over-UDS client
 ```
+
+The 9P-over-UDS server itself lives in `@endo/9p-server` (split out
+to be usable on its own — anything that needs to expose an
+`@endo/remote-fs` `Filesystem` to a 9P client can depend on it
+directly).
 
 This commit lands the design docs, the shell script, and runnable
 skeletons for the four JS modules.
@@ -395,11 +398,13 @@ have partial work landed; everything else is open.
 
 ### R1 — Remote-friendly Filesystem capability  (DONE)
 
-Resolved by `@endo/remote-fs`. The 9P bridge in
-`src/9p/server.js` now holds Node caps (`Directory` / `File` from
-`@endo/remote-fs`) per fid, walks via a pipelined `lookup` chain,
-streams bytes via `@endo/exo-stream`'s `PassableBytesReader` /
-`PassableBytesWriter`, and produces qids from the caps' eager
+Resolved by `@endo/remote-fs`. The 9P bridge — now in
+`@endo/9p-server` (broken out from claude-container so other
+consumers can use it standalone) — holds Node caps (`Directory` /
+`File` from `@endo/remote-fs`) per fid, walks via a pipelined
+`lookup` chain, streams bytes via `@endo/exo-stream`'s
+`PassableBytesReader` / `PassableBytesWriter`, and produces qids
+from the caps' eager
 state. Originally, the bridge:
 
 **Problem (resolved)**: v1 adapted a generic Endo FS capability

@@ -31,8 +31,8 @@ import {
   makeWriter,
   tryParseMessage,
   wrapMessage,
-} from '../src/9p/wire.js';
-import { T, E as ERRNO, QT } from '../src/9p/types.js';
+} from '@endo/9p-server/src/wire.js';
+import { T, E as ERRNO, QT } from '@endo/9p-server/src/types.js';
 
 const { raw } = String;
 const dirname = url.fileURLToPath(new URL('..', import.meta.url));

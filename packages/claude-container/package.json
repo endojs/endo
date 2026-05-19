@@ -20,7 +20,6 @@
     "./setup.js": "./setup.js",
     "./src/claude-client.js": "./src/claude-client.js",
     "./src/orchestrator-client.js": "./src/orchestrator-client.js",
-    "./src/fs-bridge-9p.js": "./src/fs-bridge-9p.js",
     "./src/claude-credentials-factory.js": "./src/claude-credentials-factory.js",
     "./package.json": "./package.json"
   },
@@ -40,6 +39,7 @@
     "timeout": "60s"
   },
   "dependencies": {
+    "@endo/9p-server": "workspace:^",
     "@endo/claude-orch": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",

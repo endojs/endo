@@ -28,7 +28,7 @@ import { E } from '@endo/eventual-send';
 
 import { makeInMemoryFilesystem } from '@endo/remote-fs/src/in-memory.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
-import { makeFsBridge9p } from '@endo/claude-container/src/fs-bridge-9p.js';
+import { makeFsBridge9p } from '@endo/9p-server';
 
 const [, , dir, helloFile, readyFile] = process.argv;
 if (!dir || !helloFile || !readyFile) {

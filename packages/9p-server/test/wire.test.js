@@ -10,7 +10,7 @@ import {
   makeWriter,
   tryParseMessage,
   wrapMessage,
-} from '../src/9p/wire.js';
+} from '../src/wire.js';
 
 test('writer/reader round-trip the basic primitive types', t => {
   const w = makeWriter();

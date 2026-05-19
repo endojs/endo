@@ -23,14 +23,14 @@ import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
 import { makeInMemoryFilesystem } from '@endo/remote-fs/src/in-memory.js';
 
-import { makeFsBridge9p } from '../src/fs-bridge-9p.js';
+import { makeFsBridge9p } from '../src/fs-bridge.js';
 import {
   makeReader,
   makeWriter,
   tryParseMessage,
   wrapMessage,
-} from '../src/9p/wire.js';
-import { T, E as ERRNO, QT } from '../src/9p/types.js';
+} from '../src/wire.js';
+import { T, E as ERRNO, QT } from '../src/types.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 

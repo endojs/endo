@@ -3,7 +3,7 @@
 
 import { E } from '@endo/eventual-send';
 
-import { makeFsBridge9p } from './fs-bridge-9p.js';
+import { makeFsBridge9p } from '@endo/9p-server';
 
 /**
  * Per-session 9P bridge caplet. The factory provisions one of these

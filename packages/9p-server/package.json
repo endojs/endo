@@ -1,0 +1,58 @@
+{
+  "name": "@endo/9p-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "9P2000.L server that serves an @endo/remote-fs Filesystem over a Unix domain socket — for projecting a remote-fs capability to anything that speaks 9P (QEMU 9p-trans=fd, Linux v9fs, diod, etc.).",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/9p-server"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./src/fs-bridge.js": "./src/fs-bridge.js",
+    "./src/server.js": "./src/server.js",
+    "./src/wire.js": "./src/wire.js",
+    "./src/types.js": "./src/types.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/remote-fs": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/far": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "60s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}

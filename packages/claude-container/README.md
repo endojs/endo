@@ -58,13 +58,7 @@ src/
   fs-bridge-module.js           # per-session 9P bridge caplet
                                 # (loaded by makeUnconfined per session)
   orchestrator-client.js        # HTTP-over-UDS client
-  fs-bridge-9p.js               # 9P UDS bridge
-  9p/
-    wire.js                     # message framing + LE primitives
-    types.js                    # T, QT, errno, mode constants
-    server.js                   # per-connection 9P2000.L state machine
 test/
-  9p-wire.test.js               # framing round-trips
   orchestrator-client.test.js   # HTTP-over-UDS + sendPrompt contract
   factory.test.js               # form-loop + replay guard (mocked deps)
   factory-live.test.js          # full Endo daemon + orchestrator e2e

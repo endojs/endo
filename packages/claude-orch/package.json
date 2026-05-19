@@ -57,7 +57,7 @@
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {
-    "@endo/claude-container": "workspace:^",
+    "@endo/9p-server": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo-stream": "workspace:^",
     "@endo/remote-fs": "workspace:^",

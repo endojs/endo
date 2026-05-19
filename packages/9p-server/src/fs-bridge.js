@@ -6,7 +6,7 @@ import { chmod, unlink } from 'node:fs/promises';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 
-import { serveConnection } from './9p/server.js';
+import { serveConnection } from './server.js';
 
 const BridgeInterface = M.interface('FsBridge9p', {
   start: M.call().returns(M.promise()),
@@ -14,16 +14,18 @@ const BridgeInterface = M.interface('FsBridge9p', {
 });
 
 /**
- * Bridge a remote-fs `Filesystem` capability to a 9P2000.L UDS endpoint
- * (DESIGN.md §5.7). QEMU's `-chardev socket,server=off` connects from
- * the host side; this bridge accept()s and serves the resulting stream.
+ * Bridge an `@endo/remote-fs` `Filesystem` capability to a 9P2000.L
+ * UDS endpoint. Anyone speaking 9P over a Unix domain socket — QEMU
+ * with `-chardev socket,server=off`, Linux v9fs with `mount -t 9p`,
+ * `diod`, etc. — can connect and traverse the FS the cap projects.
  *
- * As of F14 (the R1 milestone in ENDO-INTEGRATION.md §9), the FS
- * surface this bridge speaks to is `@endo/remote-fs`'s `Filesystem`.
- * That gives the bridge pipelinable lookup chains, stream-based byte
- * I/O via `@endo/exo-stream`, and a typed `Directory`/`File`
- * distinction at `lookup` time. See `src/9p/server.js` for the
- * 9P message → cap call mapping.
+ * The bridge consumes the typed `Directory` / `File` surface of
+ * remote-fs, which gives it pipelinable lookup chains (the kernel's
+ * `Twalk` for an N-segment path lands as ONE batch of `lookup`
+ * calls), stream-based byte I/O via `@endo/exo-stream`'s
+ * `PassableBytesReader`/`PassableBytesWriter`, and eager `qid`
+ * carrying. See `src/server.js` for the 9P message → cap call
+ * mapping.
  *
  * @param {{
  *   fs: import('@endo/eventual-send').ERef<any>,
