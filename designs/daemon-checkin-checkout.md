@@ -3,19 +3,34 @@
 | | |
 |---|---|
 | **Created** | 2026-03-17 |
-| **Updated** | 2026-05-18 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | **Complete** |
 
 ## Status
 
-The `endo checkin` / `endo co` (and `endo checkout` / `endo ci`) verbs
-are implemented on `llm` in `packages/cli/src/endo.js` with command
-implementations at `packages/cli/src/commands/checkin.js` and
-`packages/cli/src/commands/checkout.js`. Local directories are
+The `endo checkin` / `endo ci` and `endo checkout` / `endo co` verbs
+are implemented on the `llm` branch in `packages/cli/src/endo.js`,
+with command implementations at `packages/cli/src/commands/checkin.js`
+and `packages/cli/src/commands/checkout.js`. Local directories are
 mapped through the `@endo/platform` filesystem types into the daemon
-as readable trees and back. Zip-archive interchange is a follow-up
-covered by [exo-zip-package](exo-zip-package.md).
+as readable trees and back.
+
+Implementation history:
+
+- Initial CLI verbs landed in commit `d60ba38b2`
+  ("CLI: add checkin and checkout commands", 2026-03-20).
+- Zip support (`-z` flag) added in commit `a6e20c5e2`
+  ("feat(cli): add zip support to checkin and checkout (-z flag)").
+- Subsequent verb unification landed via PR #153
+  ("feat(cli): unify store/cat axes; add write/read for mount paths",
+  merged 2026-05-12, commit `8a8e872d4`) which reshapes the CLI
+  surface around the same readable-tree / readable-blob substrate.
+
+Zip-archive interchange beyond the in-CLI `-z` flag is tracked
+separately under [exo-zip-package](exo-zip-package.md). The primary
+commits predate the bot-forwarded PR workflow, so there is no single
+implementing PR number for the original verbs.
 
 ## What is the Problem Being Solved?
 
