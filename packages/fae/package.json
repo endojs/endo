@@ -36,7 +36,7 @@
     "debug:llm:tools": "node scripts/debug-llm-logs.js --state=tmp/smoke/state --tools",
     "smoke": "ava --serial --timeout=10m scripts/smoke.test.js",
     "test": "ava",
-    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ava",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"
@@ -64,6 +64,7 @@
   "devDependencies": {
     "@endo/cli": "workspace:^",
     "ava": "catalog:dev",
+    "c8": "catalog:dev",
     "eslint": "catalog:dev"
   },
   "eslintConfig": {
