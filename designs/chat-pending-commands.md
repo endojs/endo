@@ -3,8 +3,20 @@
 | | |
 |---|---|
 | **Created** | 2026-03-11 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
+
+## Status
+
+Implemented on branch `feat/chat-pending-commands` (commits 677e51a3c,
+5b2490dcd, 9317a2db4) and forwarded under the bot as
+[PR #133](https://github.com/endojs/endo-but-for-bots/pull/133)
+(re-opened from #43, currently open).
+Not yet merged to `llm`; `packages/chat/pending-commands.js` does
+not exist on the `llm` branch as of 2026-05-19.
+Verification per maintainer hint of "believe merged" turned up the
+open PR rather than a merged change.
 
 ## What is the Problem Being Solved?
 
