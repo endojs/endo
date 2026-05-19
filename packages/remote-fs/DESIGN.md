@@ -1010,6 +1010,27 @@ Remaining open questions:
 | Cycle detection — eager or lazy? | §8.6 specifies eager: `bind` / `namespace` / `compose` check at construction time and reject configurations whose participants' tag sets overlap. Open: should it ALSO detect lazily at traversal time, in case a composed FS gets re-introduced later via some other channel (a remote FS handed back over CapTP, say)? Eager-only is simpler and covers the obvious cases; the lazy version costs every `lookup` a tag-set check forever. Provisional answer: eager-only, and document that adversarial cap-passing patterns can defeat it. |
 | `from-mount.js` (F5) and Mount-with-hard-links | Resolved: the adapter takes a config option for behaviour, defaulting to the simplest implementation for v1. `{ hardLinks: 'surface' }` (v1 default) — present each path as its own `File` cap with no inode-tracking; stateless adapter that honestly admits its base view isn't a strict tree where the backing has links. `{ hardLinks: 'dedup' }` — track inodes, pick one canonical path, hide the rest; more state but preserves the tree invariant. `{ hardLinks: 'reject' }` — error at `lookup` time when an inode-with-multiple-paths is encountered, useful when the caller demands the tree property hold strictly. `{ hardLinks: 'surface' }` ships first because it's stateless and matches what a caller wanting `PosixFs` on the same adapter would expect anyway. |
 
+### 10.1 Weaknesses surfaced by the test suite
+
+`test/optimal-querying.test.js` and `test/configurations.test.js`
+contain a set of `WEAKNESS:`-tagged tests that pin current
+behaviour against documented gaps in the design. Summarised here so
+the design stays honest about its limits.
+
+| Gap | What's missing | Workaround |
+|---|---|---|
+| **No batch lookup** | `Directory.lookup(name)` is one name at a time. For N specific siblings, `Promise.all` parallelises but still costs N method invocations. A `Directory.lookupMany(names: string[]) → Node[]` (or `batchLookup(...)`) would collapse to one round-trip. | `Promise.all([... E(root).lookup(n)])` |
+| **No field-selection on `getAttrs`** | The contract returns the full `Attrs` record on every call. For a remote-over-CapTP FS, the full struct rides the wire even when the caller only needs `size`. POSIX `statx`-style request masks are deliberately omitted from the ocap shape, but the cost is the unmasked transfer. | Accept the round-trip; field-selection ergonomics belong on a follow-up. |
+| **`Cursor.skip(n)` is O(n) in v1 implementations** | Documented as "default impl reads-and-discards; backings with ordered indexes can do O(log n)." Both `in-memory` and `from-mount` use the default; only a future indexed disk-backed impl would do better. | The interface contract permits O(log n); implementations choose. |
+| **`watch + list` TOCTOU** | A caller doing `list()` then `watch()` will miss any mutation that happens between the two calls. No "snapshot-with-watch" atomic primitive. inotify has the same problem. | Caller-side `watch()` first, then `list()`, then reconcile against the event log. Documented in §4.2 as "no replay." |
+| **`watch()` on a composed view sees only the layer** | §8.7 promises merged events through `compose`, but the v1 impl returns `layerDir.watch()` only. Backing mutations don't fire on the composed watcher. | Watch each participant separately and merge client-side. |
+| **`compose` doesn't auto-copy-up parent directories** | Copy-up for files works (§8.4). Creating a NEW file inside a directory that exists only in the backing fails with `EROFS` because the composed Directory has no `layerDir`. | Caller pre-creates matching parent chains in the layer; or use a writable layer that already mirrors the backing's structure. |
+| **`compose.rename` is `ENOSYS`** | Rename across the CoW boundary needs to coordinate whiteouts in source + creation in destination + potentially copy-up. Non-trivial; deferred. | Caller does copy + unlink manually. |
+| **`Filesystem.statfs` doesn't aggregate across mounts** | `namespace(...)` and `bind(...)` expose multiple underlying filesystems through one composed cap, but `statfs()` on the composed view returns zeros. | Caller queries each participant separately. |
+| **`getQid()` is sync server-side but goes through CapTP** | The "eager" qid promise in the design isn't fully delivered: callers reach the getter via `E(node).getQid()`, which is one round-trip across a real CapTP boundary. True eager qid would need CapTP to ship state alongside the slot — not available today. | Treat qid as one round-trip in cost analysis; cache results client-side. |
+| **`xattrs.list()` is a `PassableReader<string>`** | One-name-at-a-time stream protocol's per-message synchronisation overhead bites for nodes with thousands of xattrs (rare). A `listAll() → string[]` shortcut would be cheaper for small lists. | Acceptable for v1; revisit if real workloads surface the cost. |
+| **No `lookupOrCreate`** | "Walk a path, create missing components" is a common pattern that's currently two round-trips per missing segment (lookup, catch ENOENT, mkdir/create). | Caller does the lookup/mkdir dance; a `Directory.materialise(['a','b','c'])` convenience could be added. |
+
 ---
 
 ## 11. Provenance
