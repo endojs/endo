@@ -120,3 +120,7 @@ api-docs
 !packages/where/types.d.ts
 !packages/ocapn/src/codec-interface.d.ts
 !packages/ocapn-noise/src/types.d.ts
+
+# Test/runtime scratch directories (daemon state, sqlite, worker logs)
+packages/*/tmp/
+packages/*/test/tmp/
