@@ -36,6 +36,13 @@
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"
   },
+  "ava": {
+    "files": [
+      "test/**/*.test.*",
+      "!test/channel-mention.test.js"
+    ],
+    "timeout": "2m"
+  },
   "dependencies": {
     "@endo/conversation-tree": "workspace:^",
     "@endo/daemon": "workspace:^",

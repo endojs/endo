@@ -7,7 +7,8 @@
  * replies in the channel (not to inbox).
  *
  * Requires a running LLM — reads config from packages/lal/.env or
- * the environment.  NOT part of the automated suite; run manually:
+ * the environment. Excluded from the default `yarn test` glob in
+ * packages/fae/package.json; run manually:
  *
  *   cd packages/fae && npx ava test/channel-mention.test.js --timeout=120s
  */
