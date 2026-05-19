@@ -3,8 +3,18 @@
 |             |                          |
 |-------------|--------------------------|
 | **Created** | 2026-03-26               |
+| **Updated** | 2026-05-19               |
 | **Author**  | Joshua T Corbin (evoked) |
-| **Status**  | Not Started              |
+| **Status**  | In Progress              |
+
+## Status
+
+Phase 1 (`streamReply` + `StreamWriter` + `StreamReader`) implemented
+on branch `feat/daemon-message-streaming-phase-1` (commit 4af9cd0ea)
+and forwarded under the bot as
+[PR #287](https://github.com/endojs/endo-but-for-bots/pull/287)
+(open).
+Not yet merged to `llm`.
 
 ## Motivation
 
