@@ -3,10 +3,28 @@
 | | |
 |---|---|
 | **Created** | 2026-03-03 |
-| **Updated** | 2026-03-27 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | **Complete** |
 | **Supersedes** | (replaces earlier revision of this document) |
+
+## Status
+
+Implemented directly on the `llm` branch:
+
+- `@endo/markmdown` package landed via merge 23f56256c
+  ("Merge remote-tracking branch 'endolin/markmdown' into llm",
+  2026-03-26), with parser, renderer, and fixture-driven tests.
+- Chat-side integration landed in commit 2f17a6f56
+  ("Markmdown integration in Chat", 2026-04-09), wiring the parser
+  through `packages/chat/markdown-render.js`.
+- Per-message render mode toggle (Md/Raw/Pre) landed via direct
+  commits on `llm` (`feat(chat): per-message render mode toggle`);
+  the bot-fork PR #132 carries the same change in re-opened form
+  but the substance is already on `llm`.
+
+The changes landed before the bot-forwarded PR workflow was in
+place, so there are no PR numbers for the primary commits.
 
 ## Motivation
 
