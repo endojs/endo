@@ -4,7 +4,8 @@
  * Converts our common message/tool format to Anthropic's API and back.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+/** @import { Anthropic } from '@anthropic-ai/sdk' */
+/** @typedef {import('@anthropic-ai/sdk').default} AnthropicClient */
 
 /**
  * @typedef {object} CommonTool
@@ -98,10 +99,22 @@ const toAnthropicMessages = messages => {
  * @returns {{ chat: (messages: CommonChatMessage[], tools: CommonTool[]) => Promise<{ message: CommonChatMessage }> }}
  */
 export const makeAnthropicProvider = ({ apiKey, model }) => {
-  const client = new Anthropic({ apiKey });
+  /** @type {Promise<AnthropicClient> | undefined} */
+  let clientP;
+
+  /** @returns {Promise<AnthropicClient>} */
+  const getClient = async () => {
+    if (clientP === undefined) {
+      clientP = import('@anthropic-ai/sdk').then(
+        ({ default: AnthropicClient }) => new AnthropicClient({ apiKey }),
+      );
+    }
+    return clientP;
+  };
 
   return {
     async chat(messages, tools) {
+      const client = await getClient();
       const { system, messages: anthropicMessages } =
         toAnthropicMessages(messages);
       console.log('[LAL] Calling Anthropic API...');
@@ -109,6 +122,7 @@ export const makeAnthropicProvider = ({ apiKey, model }) => {
         '[LAL] Messages:',
         JSON.stringify(anthropicMessages, null, 2),
       );
+      /** @type {Anthropic.Message} */
       let response;
       try {
         response = await client.messages.create({
