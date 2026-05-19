@@ -1,8 +1,12 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-19 (status-only sweep reconciled Status fields with shipped state on `llm`; M½ project-hygiene milestone extracted from M1; endopi raft added; PR #302 consolidation absorbed)*
+*Last updated: 2026-05-19 (status-only sweep reconciled Status fields with shipped state on `llm`; M½ project-hygiene milestone extracted from M1; endopi raft added; PR #302 consolidation absorbed; patterns-diagnostic-feedback proposed)*
 
-*Recently added or revised: [endopi](endopi.md) (added 2026-05-15;
+*Recently added or revised:
+[patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) (added
+2026-05-19; tree-path accumulation, per-combinator reason renderers, and a
+text-source parse path for `@endo/patterns` mismatch diagnostics),
+[endopi](endopi.md) (added 2026-05-15;
 comparative analysis of the pi agent harness against endo's daemon +
 chat + familiar + cli; sibling of `endoclaw.md`; spins out eight
 gap-closing designs prefixed `endopi-*`),
@@ -149,6 +153,7 @@ PR #151 row-format unblocker; sibling of
 | [cbors](cbors.md) | 2026-05-04 | 2026-05-05 | Not Started |
 | [trust-on-first-bind](trust-on-first-bind.md) | 2026-05-08 | 2026-05-10 | Reference |
 | [outliner-design-doc](outliner-design-doc.md) | 2026-03-17 | 2026-03-18 | In Progress |
+| [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) | 2026-05-19 | 2026-05-19 | Proposed |
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-05-18 | **Complete** |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-05-18 | **Complete** |
 | [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-05-18 | In Progress |
@@ -162,7 +167,7 @@ PR #151 row-format unblocker; sibling of
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 39 Complete/Implemented, 18 In Progress, 36 Not Started, 14 Proposed, 2 Active, 6 Reference, 2 Deprecated, 1 Superseded (118 designs). Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302); the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 11 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs plus `hardened-text-codecs-shim` and `hardened-url-shim`).
+**Totals:** 39 Complete/Implemented, 18 In Progress, 36 Not Started, 15 Proposed, 2 Active, 6 Reference, 2 Deprecated, 1 Superseded (119 designs). Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback Proposed entry; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 11 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs plus `hardened-text-codecs-shim` and `hardened-url-shim`).
 
 ## Roadmap
 
@@ -476,6 +481,7 @@ webhook events.
 | ~~chat-view-edit-commands~~ | **Complete** | `/view` (alias `/cat`) and `/edit` blob commands shipped in `packages/chat/command-registry.js` with the Monaco-backed viewer/editor at `packages/chat/blob-viewer.js`; landed via direct-to-`llm` commit `ae2b074ac` plus typography / language-mode refinements |
 | chat-edit-message-ui | Not Started | `/edit` slash command, `e` focus shortcut, hover pencil for editing previously sent messages; revision-history panel |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
+| patterns-diagnostic-feedback | Proposed | Three independent axes (A: tree-path accumulation, B: per-combinator reason renderers, C: text-source parse with line and column) for `@endo/patterns` mismatch diagnostics |
 
 **Exit criterion:** Chat UI feature-complete for current design scope.
 Commands are non-blocking with visible pending state. Developer tools
@@ -720,6 +726,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~chat-view-edit-commands~~ | M | — | 4 | ✅ Complete (direct-to-`llm` commit `ae2b074ac` "Blob view and edit" + refinements; `/view` (alias `/cat`) and `/edit` shipped) |
 | chat-edit-message-ui | S-M | 3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil; design merged (PR #88); daemon impl in PR #125 forwarded under bot |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
+| patterns-diagnostic-feedback | M | 4-5 days | 4 | Three independently mergeable axes for `@endo/patterns` diagnostics: A (path-step accumulator + sweep, S), B (combinator renderer registry + 5 renderers, M), C (text-source lexer/parser/source-map + mustMatch integration, M-L). |
 | ~~daemon-os-sandbox-plugin~~ | — | — | 5 | Superseded by `endo-posix-sandbox` |
 | endo-posix-sandbox | L-XL | 6-10 weeks remaining | 5 | Phases 0-1 shipped (bwrap on Linux); Phase 2 (podman) and Phase 3 (nested slices) in flight; Phases 1.5, 4, 6 ahead. Per-phase estimates pending PLAN backfill |
 | daemon-capability-persona | S-M | 3 days | 5 | Handle extension, epithet tracking |
