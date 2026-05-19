@@ -10,6 +10,7 @@
  */
 
 import https from 'node:https';
+import { toOpenAICompatibleMessages } from './openai-compatible-messages.js';
 
 /**
  * @typedef {object} CommonTool
@@ -141,7 +142,7 @@ export const makeGeminiProvider = ({
           model,
           max_tokens: maxTokens,
           tools,
-          messages: sendMessages,
+          messages: toOpenAICompatibleMessages(sendMessages),
         });
       } catch (error) {
         console.error('[LAL] Gemini API error:', error);
