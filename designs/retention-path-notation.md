@@ -3,10 +3,20 @@
 | | |
 |---|---|
 | **Created** | 2026-05-10 |
-| **Updated** | 2026-05-10 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Reference |
 | **Source** | PR #151 inline review comment 3214462743 |
+
+## Status
+
+Captured for reference; not a forward-looking proposal.
+The notation and bulk-collection sketch remain available as background
+for any future work on retention-path surfaces, but no implementation
+PR is planned against this document.
+The single-target snapshot and subscription API in
+[`daemon-retention-paths`](daemon-retention-paths.md) is the active
+proposal.
 
 ## What is the Problem Being Solved?
 
