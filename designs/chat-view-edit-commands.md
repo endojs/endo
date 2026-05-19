@@ -3,18 +3,25 @@
 | | |
 |---|---|
 | **Created** | 2026-03-21 |
-| **Updated** | 2026-05-18 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | **Complete** |
 
 ## Status
 
-Implemented directly on `llm` (no PR): `view` and `edit` commands
-landed in `packages/chat/command-registry.js` with the blob viewer /
-editor at `packages/chat/blob-viewer.js` backed by Monaco. Evidence:
-direct-to-`llm` commit `ae2b074ac` "Blob view and edit", subsequent
-typography and language-mode refinements (`9af2ea9a1`, `3faf49a21`).
-The `/view` command also carries the `cat` alias.
+Implemented directly on the `llm` branch in commit `ae2b074ac`
+("Blob view and edit", 2026-03-23), with subsequent typography and
+language-mode refinements in commits `9af2ea9a1` and `3faf49a21`.
+The implementation landed before the bot-forwarded PR workflow was
+in place, so there is no PR number; the change is on `llm` only.
+
+The `view` and `edit` commands land in
+`packages/chat/command-registry.js`; the `/view` command also carries
+the `cat` alias. The new `packages/chat/blob-viewer.js`,
+`markdown-preview.js`, `monaco-wrapper.js`, `language-detect.js`,
+plus updates to `command-executor.js` and `index.css` provide the
+modal viewer, the Monaco-backed editor, and the Markdown preview
+pipeline described here.
 
 ## What is the Problem Being Solved?
 
