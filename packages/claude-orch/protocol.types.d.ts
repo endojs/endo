@@ -29,6 +29,15 @@ export interface CreateSessionRequest {
   envExtra?: Record<string, string>;
   initialPrompt?: string;
   attachMode: AttachMode;
+  /**
+   * Optional caller-supplied credentials. When present, the
+   * orchestrator uses these for the session's BootConfig instead
+   * of consulting the broker (DESIGN.md §6.4). Lets a caller
+   * holding a `ClaudeCredentials` cap (see
+   * @endo/claude-container's R3) bypass the out-of-band broker
+   * config file.
+   */
+  credentials?: Credentials;
 }
 
 export interface Session {

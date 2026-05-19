@@ -112,7 +112,7 @@ const readLine = sock =>
  * handshake and echoes a single canned stream-json event back when it
  * receives a `claude -p`-shaped user prompt.
  */
-const makeMockGuest = ({ record }) => {
+const makeMockGuest = ({ record, onBootConfig }) => {
   /** @type {net.Server | null} */
   let stdioServer = null;
   /** @type {net.Socket | null} */
@@ -187,6 +187,7 @@ const makeMockGuest = ({ record }) => {
     if (bootConfig.type !== 'boot_config') {
       throw new Error(`expected boot_config, got ${bootConfig.type}`);
     }
+    if (onBootConfig) onBootConfig(bootConfig);
     ctl.end();
 
     agentSocket = net.createConnection(record.agentSocketPath);
@@ -263,7 +264,7 @@ const makeStubBroker = () => ({
   },
 });
 
-const startOrchestrator = async (t, sessionId) => {
+const startOrchestrator = async (t, opts = {}) => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'claude-orch-live-'));
   t.teardown(() => rm(dir, { recursive: true, force: true }));
 
@@ -272,8 +273,12 @@ const startOrchestrator = async (t, sessionId) => {
 
   /** @type {ReturnType<typeof makeMockGuest> | null} */
   let mockGuest = null;
+  const observedBootConfigs = [];
   const mockSpawn = ({ record }) => {
-    const guest = makeMockGuest({ record });
+    const guest = makeMockGuest({
+      record,
+      onBootConfig: bc => observedBootConfigs.push(bc),
+    });
     mockGuest = guest;
     setTimeout(() => guest.run().catch(() => {}), 5);
     const child = /** @type {any} */ ({ pid: 99999, killed: false });
@@ -310,6 +315,7 @@ const startOrchestrator = async (t, sessionId) => {
   return {
     apiSocketPath: apiSock,
     getMockGuest: () => mockGuest,
+    observedBootConfigs,
   };
 };
 
@@ -349,6 +355,7 @@ const driveFactorySubmission = async (
     fsName = 'workspace-fs',
     clientName = 'claude-test',
     fsValue,
+    credentialsName = '',
   },
 ) => {
   if (fsValue !== 'ALREADY_REGISTERED') {
@@ -394,6 +401,7 @@ const driveFactorySubmission = async (
       filesystem: fsName,
       network: 'none',
       model: 'claude-sonnet-4-6',
+      credentials: credentialsName,
       initialPrompt: '',
     }),
   );
@@ -720,6 +728,57 @@ test.serial(
     }
 
     // Terminate to clean up.
+    await E(client).terminate();
+  },
+);
+
+test.serial(
+  'live MVP: form-supplied ClaudeCredentials override the broker',
+  async t => {
+    const { host } = await prepareEndo(t);
+    const { apiSocketPath, observedBootConfigs } = await startOrchestrator(t);
+
+    // Mint a remote-fs Filesystem under 'workspace-fs' (same trick
+    // as the other MVP test).
+    const fsModuleUrl = new URL(
+      '../../remote-fs/src/in-memory-module.js',
+      import.meta.url,
+    ).href;
+    await E(host).makeUnconfined('@main', fsModuleUrl, {
+      powersName: '@none',
+      resultName: 'workspace-fs',
+    });
+
+    // Mint a ClaudeCredentials cap under 'my-creds' via
+    // claude-credentials-module.js. The factory will resolve it
+    // and pass `issue(name)` through to the orchestrator.
+    const credsModuleUrl = new URL(
+      '../src/claude-credentials-module.js',
+      import.meta.url,
+    ).href;
+    await E(host).makeUnconfined('@main', credsModuleUrl, {
+      powersName: '@none',
+      resultName: 'my-creds',
+      env: harden({ API_KEY: 'sk-ant-from-form' }),
+    });
+
+    const { client, status } = await driveFactorySubmission(t, {
+      host,
+      apiSocketPath,
+      clientName: 'creds-client',
+      fsValue: 'ALREADY_REGISTERED',
+      credentialsName: 'my-creds',
+    });
+    t.truthy(status.sessionId);
+
+    // The orchestrator should have used the caller-supplied
+    // credentials in the BootConfig, not the broker's stub key.
+    t.true(observedBootConfigs.length >= 1);
+    const bc = observedBootConfigs[0];
+    t.is(bc.credentials.apiKey, 'sk-ant-from-form');
+    // Sanity: NOT the broker stub value.
+    t.not(bc.credentials.apiKey, 'sk-test-12345');
+
     await E(client).terminate();
   },
 );

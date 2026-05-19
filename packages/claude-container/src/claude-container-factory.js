@@ -48,6 +48,12 @@ const FORM_FIELDS = harden([
     example: 'Examples: claude-sonnet-4-6, claude-opus-4-7',
   },
   {
+    name: 'credentials',
+    label: 'Pet name of a ClaudeCredentials cap (optional)',
+    default: '',
+    example: 'Examples: claude-credentials',
+  },
+  {
     name: 'initialPrompt',
     label: 'Initial prompt (optional)',
     default: '',
@@ -142,6 +148,7 @@ export const make = (guestPowers, _context, contextOrDeps = {}) => {
             filesystem: fsName,
             network = 'egress',
             model,
+            credentials: credsName,
             initialPrompt,
           } = submission;
 
@@ -151,9 +158,26 @@ export const make = (guestPowers, _context, contextOrDeps = {}) => {
           const fs = await E(hostAgent).lookup(fsName);
           if (!fs) throw new Error(`Unknown filesystem: "${fsName}".`);
 
+          // Resolve a caller-supplied ClaudeCredentials cap (R3)
+          // if the form provided a pet name. The cap's
+          // `issue(sessionId)` is session-scoped, but we don't
+          // know the session id yet at this call site, so we
+          // issue against the client pet name as a stand-in
+          // tag. The base ClaudeCredentials in v1 ignores the
+          // tag; v2 (revocation) may use it.
+          let resolvedCreds;
+          if (typeof credsName === 'string' && credsName.length > 0) {
+            const credCap = await E(hostAgent).lookup(credsName);
+            if (!credCap) {
+              throw new Error(`Unknown credentials: "${credsName}".`);
+            }
+            resolvedCreds = await E(credCap).issue(name);
+          }
+
           const session = await orchestrator.createSession({
             network,
             attachMode: 'stream',
+            ...(resolvedCreds ? { credentials: resolvedCreds } : {}),
           });
 
           const bridgeName = `bridge-for-${session.id}`;

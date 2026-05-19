@@ -37,6 +37,11 @@ import { E } from '@endo/eventual-send';
 import { makeError, X, q } from '@endo/errors';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 
+const CREDENTIALS_MODULE_SPECIFIER = new URL(
+  './claude-credentials-module.js',
+  import.meta.url,
+).href;
+
 const FactoryInterface = M.interface('ClaudeCredentialsFactory', {
   help: M.call().optional(M.string()).returns(M.string()),
 });
@@ -106,9 +111,16 @@ const makeCredentialsExo = initialKey => {
  *
  * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
  */
-export const make = guestPowers => {
+export const make = (guestPowers, _context, contextOrDeps = {}) => {
   /** @type {any} */
   const powers = guestPowers;
+  // `contextOrDeps` is overloaded the same way the
+  // ClaudeContainerFactory's third arg is: when called by the
+  // worker's makeUnconfined path it's `{ env: {...} }`; tests
+  // can pass `{ inProcessFactory: true }` to bypass the daemon-
+  // formulated path and mint a worker-local exo via
+  // `makeCredentialsExo`.
+  const deps = contextOrDeps;
 
   const seenFormReplies = new Set();
 
@@ -152,8 +164,24 @@ export const make = guestPowers => {
           if (!apiKey || typeof apiKey !== 'string') {
             throw new Error('Missing "apiKey".');
           }
-          const credentials = makeCredentialsExo(apiKey);
-          await E(hostAgent).storeValue(credentials, name);
+          // Mint via makeUnconfined so the resulting cap is a
+          // formulated caplet that survives daemon restarts. The
+          // module reads its API key from env.
+          if (deps.inProcessFactory) {
+            // Test path: bypass daemon-formulated minting.
+            const credentials = makeCredentialsExo(apiKey);
+            await E(hostAgent).storeValue(credentials, name);
+          } else {
+            await E(hostAgent).makeUnconfined(
+              '@main',
+              CREDENTIALS_MODULE_SPECIFIER,
+              {
+                powersName: '@none',
+                resultName: name,
+                env: harden({ API_KEY: apiKey }),
+              },
+            );
+          }
           await E(powers).reply(
             msg.number,
             [`ClaudeCredentials "${name}" created.`],

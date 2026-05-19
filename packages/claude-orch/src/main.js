@@ -251,7 +251,14 @@ export const start = async ({
   const buildBootConfigForSession = async sessionId => {
     const record = sessions.getRecord(sessionId);
     if (!record) throw new Error(`Unknown session ${sessionId}`);
-    const credentials = await broker.issue(sessionId);
+    // Caller-supplied credentials (e.g. from a ClaudeCredentials
+    // cap on the Endo side) take precedence over the broker. v1
+    // simply uses them as-is; future v2 may rotate through the
+    // broker for revocation tracking even when the caller
+    // supplies the initial key.
+    const credentials = record.request.credentials
+      ? harden(record.request.credentials)
+      : await broker.issue(sessionId);
     return harden({
       type: /** @type {'boot_config'} */ ('boot_config'),
       credentials,

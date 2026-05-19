@@ -164,6 +164,7 @@ test('factory presents the Create Claude Container form to @host', async t => {
     'filesystem',
     'network',
     'model',
+    'credentials',
     'initialPrompt',
   ]);
 });

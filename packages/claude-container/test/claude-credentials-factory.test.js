@@ -115,7 +115,7 @@ const waitFor = async (pred, deadlineMs = 2000) => {
 test('factory presents the Create Claude Credentials form', async t => {
   const hostAgent = makeMockHostAgent();
   const mock = makeMockPowers({ hostAgent });
-  const exo = make(mock.powers);
+  const exo = make(mock.powers, undefined, { inProcessFactory: true });
   t.regex(exo.help(), /ClaudeCredentialsFactory/);
   await waitFor(() => mock.formCalls.length > 0);
   const names = mock.formCalls[0].fields.map(f => f.name);
@@ -125,7 +125,7 @@ test('factory presents the Create Claude Credentials form', async t => {
 test('form submission stores a ClaudeCredentials under the chosen name', async t => {
   const hostAgent = makeMockHostAgent();
   const mock = makeMockPowers({ hostAgent });
-  make(mock.powers);
+  make(mock.powers, undefined, { inProcessFactory: true });
   await waitFor(() => mock.formCalls.length > 0);
   mock.simulateSubmission({ name: 'my-creds', apiKey: 'sk-ant-xyz' });
   await waitFor(() => hostAgent.storedValues.size > 0);
@@ -139,7 +139,7 @@ test('form submission stores a ClaudeCredentials under the chosen name', async t
 test('rotate replaces the stored key', async t => {
   const hostAgent = makeMockHostAgent();
   const mock = makeMockPowers({ hostAgent });
-  make(mock.powers);
+  make(mock.powers, undefined, { inProcessFactory: true });
   await waitFor(() => mock.formCalls.length > 0);
   mock.simulateSubmission({ name: 'c', apiKey: 'sk-old' });
   await waitFor(() => hostAgent.storedValues.size > 0);
@@ -152,7 +152,7 @@ test('rotate replaces the stored key', async t => {
 test('rotate rejects empty string', async t => {
   const hostAgent = makeMockHostAgent();
   const mock = makeMockPowers({ hostAgent });
-  make(mock.powers);
+  make(mock.powers, undefined, { inProcessFactory: true });
   await waitFor(() => mock.formCalls.length > 0);
   mock.simulateSubmission({ name: 'c', apiKey: 'sk-old' });
   await waitFor(() => hostAgent.storedValues.size > 0);
@@ -163,7 +163,7 @@ test('rotate rejects empty string', async t => {
 test('missing apiKey rejects with form error reply', async t => {
   const hostAgent = makeMockHostAgent();
   const mock = makeMockPowers({ hostAgent });
-  make(mock.powers);
+  make(mock.powers, undefined, { inProcessFactory: true });
   await waitFor(() => mock.formCalls.length > 0);
   mock.simulateSubmission({ name: 'c' });
   await waitFor(() => mock.replies.length > 0);
