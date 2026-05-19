@@ -3,10 +3,32 @@
 | | |
 |---|---|
 | **Created** | 2026-05-11 |
-| **Updated** | 2026-05-11 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | In Progress |
 | **Refs** | [PR #121](https://github.com/endojs/endo-but-for-bots/pull/121), [Issue #116](https://github.com/endojs/endo-but-for-bots/issues/116) |
+
+## Status
+
+Design merged via PR
+[#206](https://github.com/endojs/endo-but-for-bots/pull/206). The
+per-package cuts are partially landed on `llm`:
+
+- **Cut 2** (`@endo/hex` + `@endo/hex-test`) — merged via PR
+  [#211](https://github.com/endojs/endo-but-for-bots/pull/211).
+- **Cut 3** (`@endo/zip` cleanup) — merged via PR
+  [#209](https://github.com/endojs/endo-but-for-bots/pull/209).
+- **Cut 4** (`@endo/harden` + `@endo/harden-test`) — merged via PR
+  [#210](https://github.com/endojs/endo-but-for-bots/pull/210).
+- **Cut 5** (`@endo/eventual-send` + `@endo/eventual-send-test`) —
+  merged via PR
+  [#247](https://github.com/endojs/endo-but-for-bots/pull/247).
+- **Cut 1** (`ses` + `@endo/ses-test`) — open as PR
+  [#261](https://github.com/endojs/endo-but-for-bots/pull/261).
+
+An upstream mirror covering the same factoring for `endojs/endo`
+master is staged as PR
+[#235](https://github.com/endojs/endo-but-for-bots/pull/235).
 
 ## What is the Problem Being Solved?
 

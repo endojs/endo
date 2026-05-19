@@ -3,8 +3,18 @@
 | | |
 |---|---|
 | **Created** | 2026-05-06 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | PR #94 |
+| **Status** | **Complete** |
+
+## Status
+
+Shipped on `llm` via PRs
+[#91](https://github.com/endojs/endo-but-for-bots/pull/91) (design),
+[#94](https://github.com/endojs/endo-but-for-bots/pull/94) (impl), and
+the follow-up hardening / import-fix PRs
+[#95](https://github.com/endojs/endo-but-for-bots/pull/95) and
+[#104](https://github.com/endojs/endo-but-for-bots/pull/104).
 
 ## What is the Problem Being Solved?
 

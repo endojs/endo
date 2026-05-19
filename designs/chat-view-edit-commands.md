@@ -3,8 +3,18 @@
 | | |
 |---|---|
 | **Created** | 2026-03-21 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+Implemented directly on `llm` (no PR): `view` and `edit` commands
+landed in `packages/chat/command-registry.js` with the blob viewer /
+editor at `packages/chat/blob-viewer.js` backed by Monaco. Evidence:
+direct-to-`llm` commit `ae2b074ac` "Blob view and edit", subsequent
+typography and language-mode refinements (`9af2ea9a1`, `3faf49a21`).
+The `/view` command also carries the `cat` alias.
 
 ## What is the Problem Being Solved?
 

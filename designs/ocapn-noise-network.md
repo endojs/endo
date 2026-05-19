@@ -3,9 +3,18 @@
 | | |
 |---|---|
 | **Created** | 2026-02-14 |
-| **Updated** | 2026-02-24 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+Shipped on `llm` via PR
+[#137](https://github.com/endojs/endo-but-for-bots/pull/137) (merged
+2026-05-08), which consolidated the previously stacked PRs #111
+(CBOR codec + NonceLocator), #112 (Noise IK netlayer), and #113
+(integration + transport tests) into a single landing of the Noise
+IK netlayer for OCapN.
 
 ## What is the Problem Being Solved?
 

@@ -3,9 +3,18 @@
 | | |
 |---|---|
 | **Created** | 2026-05-10 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | **Complete** |
 | **Source** | [endojs/endo-but-for-bots#171](https://github.com/endojs/endo-but-for-bots/issues/171), repro test PR [#174](https://github.com/endojs/endo-but-for-bots/pull/174) |
+
+## Status
+
+Shipped on `llm` via PR
+[#187](https://github.com/endojs/endo-but-for-bots/pull/187) (merged
+2026-05-12): the daemon now renders `Error` reasons in CapTP
+rejection diagnostics via `formatRejectionReason` in
+`packages/daemon/src/daemon.js`, closing issue #171.
 
 ## What is the Problem Being Solved?
 

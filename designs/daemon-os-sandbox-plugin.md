@@ -3,10 +3,20 @@
 |             |                           |
 |-------------|---------------------------|
 | **Created** | 2026-02-15                |
-| **Updated** | 2026-03-19                |
+| **Updated** | 2026-05-18                |
 | **Author**  | Kris Kowal (prompted)     |
 | **Author**  | Joshua T Corbin (revised) |
-| **Status**  | Not Started               |
+| **Status**  | Superseded by [endo-posix-sandbox](endo-posix-sandbox.md) |
+
+## Status
+
+Retained as a historical proposal. The cross-platform OS-sandbox
+plugin work continues under
+[endo-posix-sandbox](endo-posix-sandbox.md), which is in flight on
+`llm`: Phases 0, 1, and 1.5 have shipped (`bwrap` driver), Phase 2
+(`podman` driver) has shipped, and Phases 3 and beyond are in
+progress. The `packages/sandbox/` README tracks the per-phase status
+in detail.
 
 ## What is the Problem Being Solved?
 

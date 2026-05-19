@@ -3,8 +3,19 @@
 | | |
 |---|---|
 | **Created** | 2026-03-17 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+The `endo checkin` / `endo co` (and `endo checkout` / `endo ci`) verbs
+are implemented on `llm` in `packages/cli/src/endo.js` with command
+implementations at `packages/cli/src/commands/checkin.js` and
+`packages/cli/src/commands/checkout.js`. Local directories are
+mapped through the `@endo/platform` filesystem types into the daemon
+as readable trees and back. Zip-archive interchange is a follow-up
+covered by [exo-zip-package](exo-zip-package.md).
 
 ## What is the Problem Being Solved?
 

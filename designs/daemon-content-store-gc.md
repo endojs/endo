@@ -3,8 +3,19 @@
 | | |
 |---|---|
 | **Created** | 2026-03-20 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+Implemented on `llm` via PR
+[#99](https://github.com/endojs/endo-but-for-bots/pull/99) (merged
+2026-05-07): content-store pruning and scratch-mount directory cleanup
+at GC time. Subsequent multi-agent GC test coverage landed in PR
+[#225](https://github.com/endojs/endo-but-for-bots/pull/225). The
+designs/README.md summary already reflected this status; the per-file
+header lagged.
 
 ## What is the Problem Being Solved?
 

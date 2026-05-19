@@ -3,8 +3,19 @@
 | | |
 |---|---|
 | **Created** | 2026-04-23 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+Shipped on `llm`: `@endo/hex` exists at `packages/hex/` with
+encode/decode entry points and tests, and the dev-dependency cycle
+was broken via `@endo/hex-test` per PR
+[#211](https://github.com/endojs/endo-but-for-bots/pull/211). Earlier
+consumer migration (daemon, OCapN) landed via `kriskowal-hex`
+follow-up commits. Synthetic `@endo/hex-test` package (Cut 2 of the
+break-dev-dependency-cycles design) is also merged.
 
 ## What is the Problem Being Solved?
 
