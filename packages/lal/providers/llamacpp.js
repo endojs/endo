@@ -5,8 +5,6 @@
  * Supports context-size and request options that differ from Anthropic.
  */
 
-// eslint-disable-next-line import/no-unresolved
-import OpenAI from 'openai';
 import { toOpenAICompatibleMessages } from './openai-compatible-messages.js';
 
 /**
@@ -40,13 +38,24 @@ export const makeLlamaCppProvider = ({
   maxTokens = 4096,
   maxMessages = undefined,
 }) => {
-  const client = new OpenAI({
-    apiKey,
-    baseURL,
-  });
+  let clientP;
+
+  const getClient = async () => {
+    if (clientP === undefined) {
+      clientP = import('openai').then(
+        ({ default: OpenAI }) =>
+          new OpenAI({
+            apiKey,
+            baseURL,
+          }),
+      );
+    }
+    return clientP;
+  };
 
   return {
     async chat(messages, tools) {
+      const client = await getClient();
       let sendMessages = messages;
       if (
         typeof maxMessages === 'number' &&

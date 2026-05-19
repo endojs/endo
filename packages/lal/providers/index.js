@@ -110,4 +110,5 @@ export const createProvider = env => {
 export { makeAnthropicProvider } from './anthropic.js';
 export { makeGeminiProvider } from './gemini.js';
 export { makeLlamaCppProvider } from './llamacpp.js';
+export { findMockTrace, makeMockProvider } from './mock.js';
 export { makeOllamaProvider } from './ollama.js';

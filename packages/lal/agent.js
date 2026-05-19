@@ -791,7 +791,7 @@ before resorting to \`evaluate()\`. For unfamiliar capabilities, use
  *
  * @param {any} powers - Guest powers (manager's own or a sub-guest's)
  * @param {Promise<object> | object | null | undefined} context - Context for cancellation
- * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
+ * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string, provider?: { chat: (messages: object[], tools: object[]) => Promise<{ message: object }> } }} workerEnv - LLM provider config. Pass `provider` to inject a pre-built provider (e.g. for tests); otherwise the LAL_* env vars are used to construct one.
  * @returns {Promise<void>}
  */
 export const spawnWorkerLoop = async (powers, context, workerEnv) => {
@@ -808,7 +808,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
     return null;
   };
 
-  const provider = createProvider(workerEnv);
+  const provider = workerEnv.provider || createProvider(workerEnv);
 
   /**
    * Chat with the LLM.

@@ -5,8 +5,6 @@
  * Adapted from llamadrome/ollama-backend.js.
  */
 
-import { Ollama } from 'ollama';
-
 /**
  * @typedef {object} CommonTool
  * @property {'function'} type
@@ -86,15 +84,26 @@ const toOllamaMessages = messages => {
  * @returns {{ chat: (messages: CommonChatMessage[], tools: CommonTool[]) => Promise<{ message: CommonChatMessage }> }}
  */
 export const makeOllamaProvider = ({ host, model, apiKey }) => {
-  const ollama = new Ollama({
-    ...(host && { host }),
-    headers: {
-      ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
-    },
-  });
+  let clientP;
+
+  const getClient = async () => {
+    if (clientP === undefined) {
+      clientP = import('ollama').then(
+        ({ Ollama }) =>
+          new Ollama({
+            ...(host && { host }),
+            headers: {
+              ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
+            },
+          }),
+      );
+    }
+    return clientP;
+  };
 
   return {
     async chat(messages, tools) {
+      const ollama = await getClient();
       console.log(
         `[LAL] Calling Ollama at ${host || 'localhost:11434'} with model: ${model}`,
       );
@@ -121,7 +130,7 @@ export const makeOllamaProvider = ({ host, model, apiKey }) => {
 
       // Handle tool calls if present
       const { tool_calls: toolCalls } = response.message || {};
-      if (toolCalls && toolCalls.length > 0) {
+      if (Array.isArray(toolCalls) && toolCalls.length > 0) {
         const idBase = `ollama_tool_${Date.now()}_`;
         message.tool_calls = toolCalls.map(
           (
