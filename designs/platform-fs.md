@@ -3,9 +3,27 @@
 | | |
 |---|---|
 | **Created** | 2026-03-18 |
-| **Updated** | 2026-03-18 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | In Progress |
+| **Status** | **Complete** |
+
+## Status
+
+Implemented on the `llm` branch.
+The initial `@endo/platform` package with filesystem types and
+adapters landed in commit e0dda06fb
+("Add @endo/platform package with filesystem types and adapters",
+2026-03-20), followed by CLI integration in ed234c6a7
+("feat(chat): add checkin and checkout commands"), unification
+commits 292a6d591 / b8cca2d00, and ongoing refactoring through the
+bot-forwarded
+[PR #122](https://github.com/endojs/endo-but-for-bots/pull/122)
+review cycle (closed; substance carried by direct llm commits and
+follow-on fixups including fd1902686, b4c519d3e, 32ee5e880,
+a2543273a, 23c776eb1).
+The package, its `fs/lite` and `fs-node` modules, conditional
+exports, and the snapshot store / tree adapter factories are all
+live in `packages/platform/`.
 
 ## What is the Problem Being Solved?
 
