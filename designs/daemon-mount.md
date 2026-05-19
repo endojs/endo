@@ -3,14 +3,28 @@
 | | |
 |---|---|
 | **Created** | 2026-03-20 |
-| **Updated** | 2026-03-20 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
 ## Status
 
-Phases 1, 2, 3, and 5 are implemented.  Phase 4 (sub-mounts and snapshot)
-is not yet started.
+Phases 1, 2, 3, and 5 landed on `llm` in commit e22f71327
+("Filesystem mount formulas", 2026-03-21) and follow-up commits
+(`feat(daemon) rework help-text => helpdown`, `Homogenize read and
+write`, etc.).
+Phase 4 (sub-mounts, snapshot, capability VFS) is forwarded under
+the bot as
+[PR #135](https://github.com/endojs/endo-but-for-bots/pull/135)
+(open).
+Additional mount extensions (revocation, deny patterns, glob/grep
+/stat/json) are forwarded as PR #127 (open), and an
+`EndoMount.followNameChanges` live entry-name stream is on PR #277
+(open).
+Phase 6 (CLI commands `endo ls`, `endo cat`, `endo write`) was
+partially absorbed by the CLI verb reshape in
+[#153](https://github.com/endojs/endo-but-for-bots/pull/153)
+(merged 2026-05-12).
 
 ### Implemented
 
