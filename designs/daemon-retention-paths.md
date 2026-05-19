@@ -3,8 +3,24 @@
 | | |
 |---|---|
 | **Created** | 2026-04-30 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
+
+## Status
+
+Phase 1 (host snapshot API + `endo paths` CLI) is forwarded under
+the bot as
+[PR #284](https://github.com/endojs/endo-but-for-bots/pull/284)
+(open).
+Not yet merged to `llm`; the public `listRetentionPaths` /
+`followRetentionPaths` host methods are not exposed on
+`packages/daemon/src/host.js` or `mail.js` as of 2026-05-19.
+The underlying `listRetentionPaths(targetId)` function in
+`packages/daemon/src/graph.js` is still private to the GC, matching
+the pre-implementation status quo described below.
+Verification per maintainer hint of "believe merged" turned up the
+open PR rather than a merged change.
 
 ## What is the Problem Being Solved?
 
