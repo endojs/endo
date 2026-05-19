@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 1,
+  "captured": {
+    "date": "2026-05-18",
+    "host": "https://openrouter.ai/api/v1",
+    "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "note": "Token-free, deterministic subsets of real provider responses captured from the free-tier model configured in packages/fae/.env. Random provider call ids are preserved only as opaque fixture ids."
+  },
+  "traces": [
+    {
+      "id": "fae.current.math-tool",
+      "package": "fae",
+      "gitRef": "438b4f889",
+      "description": "Current Fae attachment prompt leads the model to adopt the exact math-tool edge, call the adopted camelCase tool, then reply.",
+      "expectedToolNames": ["adoptTool", "mathTool", "reply"],
+      "rounds": [
+        {
+          "request": {
+            "messageCount": 2,
+            "lastRole": "user",
+            "lastContentIncludes": [
+              "Attached references",
+              "edgeName=\"math-tool\"",
+              "toolName=\"math-tool\""
+            ]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_b81a44bcac284ab79b21ba1e",
+                  "type": "function",
+                  "function": {
+                    "name": "adoptTool",
+                    "arguments": "{\"messageNumber\": 1, \"edgeName\": \"math-tool\", \"toolName\": \"math-tool\"}"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "messageCount": 4,
+            "lastRole": "tool",
+            "lastContentIncludes": ["Adopted tool from message #1"]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_374ac718a48842daba823b4b",
+                  "type": "function",
+                  "function": {
+                    "name": "mathTool",
+                    "arguments": "{\"b\": 6, \"a\": 7, \"operation\": \"multiply\"}"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "messageCount": 6,
+            "lastRole": "tool",
+            "lastContentIncludes": ["42"]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_48f37af9a28141fe978b63ce",
+                  "type": "function",
+                  "function": {
+                    "name": "reply",
+                    "arguments": "{\"messageNumber\": 1, \"strings\": [\"42\"]}"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "fae.llm-tip.math-tool",
+      "package": "fae",
+      "gitRef": "llm",
+      "description": "The older Fae prompt did not include an attachment block. The same real model guessed edgeName=math instead of the actual math-tool edge.",
+      "expectedFirstToolName": "adoptTool",
+      "expectedFirstEdgeName": "math",
+      "rounds": [
+        {
+          "request": {
+            "messageCount": 2,
+            "lastRole": "user",
+            "lastContentIncludes": [
+              "Here is a math tool @math-tool",
+              "Use reply(messageNumber: 1, ...)"
+            ],
+            "lastContentExcludes": ["Attached references"]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_345cc4be048d46ada59480c0",
+                  "type": "function",
+                  "function": {
+                    "name": "adoptTool",
+                    "arguments": "{\"messageNumber\": 1, \"edgeName\": \"math\", \"toolName\": \"math-tool\"}"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "messageCount": 4,
+            "lastRole": "tool",
+            "lastContentIncludes": ["Adopted tool from message #1"]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_047bcabb4aa54a50a6b95c8a",
+                  "type": "function",
+                  "function": {
+                    "name": "mathTool",
+                    "arguments": "{\"a\": 7, \"operation\": \"multiply\", \"b\": 6}"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "messageCount": 6,
+            "lastRole": "tool",
+            "lastContentIncludes": ["42"]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_0347633211a949c1b93ca85f",
+                  "type": "function",
+                  "function": {
+                    "name": "reply",
+                    "arguments": "{\"messageNumber\": 1, \"strings\": [\"42\"]}"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "lal.current.inbox-reply",
+      "package": "lal",
+      "gitRef": "438b4f889",
+      "description": "Current Lal agent flow against the real model: inspect inbox, reply OK, then dismiss.",
+      "expectedToolNames": ["listMessages", "reply", "dismiss"],
+      "rounds": [
+        {
+          "request": {
+            "messageCount": 2,
+            "lastRole": "user",
+            "lastContentIncludes": [
+              "You have new mail. Check your messages and respond appropriately."
+            ]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "chatcmpl-tool-80347c761438c3d8",
+                  "type": "function",
+                  "function": {
+                    "name": "listMessages",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "messageCount": 4,
+            "lastRole": "tool",
+            "lastContentIncludes": [
+              "Reply with exactly: OK then dismiss this message"
+            ]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_499bb843b32a4ce4b378105d",
+                  "type": "function",
+                  "function": {
+                    "name": "reply",
+                    "arguments": "{\"messageNumber\": \"+1\", \"strings\": [\"OK\"], \"edgeNames\": [], \"petNames\": []}"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "messageCount": 6,
+            "lastRole": "tool",
+            "lastContentIncludes": ["undefined"]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_efd17f5076714139aee670ff",
+                  "type": "function",
+                  "function": {
+                    "name": "dismiss",
+                    "arguments": "{\"messageNumber\": \"+1\"}"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "messageCount": 8,
+            "lastRole": "tool",
+            "lastContentIncludes": ["undefined"]
+          },
+          "response": {
+            "message": {
+              "role": "assistant",
+              "content": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "lal.llm-tip.openai-compatible-missing-type",
+      "package": "lal",
+      "gitRef": "llm",
+      "description": "The provider-facing history shape from llm tip omitted type=function on assistant tool calls and OpenRouter rejected it.",
+      "providerRequest": {
+        "messages": [
+          { "role": "system", "content": "You are Lal." },
+          { "role": "user", "content": "Reply with OK." },
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_fixture_reply",
+                "function": {
+                  "name": "reply",
+                  "arguments": "{\"messageNumber\":\"+1\",\"strings\":[\"OK\"],\"edgeNames\":[],\"petNames\":[]}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "undefined",
+            "tool_call_id": "call_fixture_reply"
+          },
+          { "role": "user", "content": "Continue." }
+        ]
+      },
+      "providerResult": {
+        "ok": false,
+        "status": 400,
+        "message": "400 Provider returned error"
+      }
+    },
+    {
+      "id": "lal.current.openai-compatible-with-type",
+      "package": "lal",
+      "gitRef": "438b4f889",
+      "description": "The normalized current provider-facing history includes type=function and OpenRouter accepted it.",
+      "providerRequest": {
+        "messages": [
+          { "role": "system", "content": "You are Lal." },
+          { "role": "user", "content": "Reply with OK." },
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_fixture_reply",
+                "type": "function",
+                "function": {
+                  "name": "reply",
+                  "arguments": "{\"messageNumber\":\"+1\",\"strings\":[\"OK\"],\"edgeNames\":[],\"petNames\":[]}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "undefined",
+            "tool_call_id": "call_fixture_reply"
+          },
+          { "role": "user", "content": "Continue." }
+        ]
+      },
+      "providerResult": {
+        "ok": true,
+        "message": {
+          "role": "assistant",
+          "content": null
+        }
+      }
+    }
+  ]
+}
