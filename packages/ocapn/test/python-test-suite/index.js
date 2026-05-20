@@ -166,6 +166,11 @@ const start = async () => {
       handlers,
       logger,
       specifiedPort: 22046,
+      // The Python `ocapn-test-suite` `testing_only_tcp` netlayer
+      // writes a raw syrup record per `sendall` with no length prefix.
+      // Opt out of the JS netlayer's default `'syrup'` framing to
+      // interoperate with that suite.
+      framing: 'none',
     }),
   );
 };

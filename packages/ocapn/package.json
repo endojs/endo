@@ -47,6 +47,8 @@
     "@endo/nat": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^",
+    "@endo/syrup-frame": "workspace:^",
     "@noble/curves": "^1.9.0",
     "@noble/hashes": "^1.8.0",
     "ws": "^8.20.0"
