@@ -21,11 +21,13 @@ const BridgeInterface = M.interface('FsBridge9p', {
  *
  * The bridge consumes the typed `Directory` / `File` surface of
  * remote-fs, which gives it pipelinable lookup chains (the kernel's
- * `Twalk` for an N-segment path lands as ONE batch of `lookup`
- * calls), stream-based byte I/O via `@endo/exo-stream`'s
- * `PassableBytesReader`/`PassableBytesWriter`, and eager `qid`
- * carrying. See `src/server.js` for the 9P message → cap call
- * mapping.
+ * `Twalk` for an N-segment path dispatches as one batch of `lookup`
+ * messages through CapTP's eventual-send queue) and stream-based
+ * byte I/O via `@endo/exo-stream`'s `PassableBytesReader` /
+ * `PassableBytesWriter`. The `qid` for each node is fetched via
+ * `getQid()` — see `@endo/remote-fs/ROADMAP.md` §1.1 for why this
+ * still costs one round-trip per node today. `src/server.js` has
+ * the 9P message → cap call mapping.
  *
  * @param {{
  *   fs: import('@endo/eventual-send').ERef<any>,

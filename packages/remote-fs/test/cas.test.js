@@ -5,7 +5,7 @@
  * Reference CAS consumer over a real CapTP connection
  * (DESIGN.md §6 — content-addressed-cache shortcut).
  *
- * The promise: a consumer that holds a CAS keyed by
+ * The contract: a consumer that holds a CAS keyed by
  * `(algorithm, hash)` can answer reads locally and skip
  * `BlobRef.fetch()` on cache hits. These tests verify the
  * property by snapshotting the wire transcript for two
@@ -20,7 +20,10 @@
  *     already in the CAS. The transcript shows
  *     `BlobRef.getInfo` (still needed to learn the hash) but
  *     **no** `BlobRef.fetch` — the bytes are served from the
- *     local CAS, never touching the wire.
+ *     local CAS. The `fetch` call (and its byte payload) does
+ *     not cross the wire; the `getInfo` call still does. See
+ *     ROADMAP §1.1 / §1.5 for what these in-process CapTP
+ *     transcripts do and don't prove.
  *
  * Snapshot fixtures pin the contrast; assertions on the
  * transcript verify the "no fetch on hit" property directly.

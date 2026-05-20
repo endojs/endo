@@ -31,9 +31,14 @@ await bridge.start();
 `Twalk` for an N-segment path issues `E(cur).lookup(n0).lookup(n1)
 .lookup(...)` as one batch; each step's qid is requested in
 parallel via `E(intermediate).getQid()` and gathered with
-`Promise.allSettled` to support partial-success semantics. End
-result: an `Twalk → Rwalk` cycle for a deeply-nested path is a
-single round-trip against a remote `Filesystem`, not depth+1.
+`Promise.allSettled` to support partial-success semantics. Every
+lookup `CTP_CALL` in the chain reaches the wire before any
+`CTP_RETURN` comes back — the structural pipelining property
+proven by `@endo/remote-fs/test/pipelined-rtt.test.js`.
+
+The `qid` calls themselves still cost a round-trip per node
+today, since CapTP doesn't yet ship exo state alongside slots;
+see `@endo/remote-fs/ROADMAP.md` §1.1.
 
 `Tread` against a file uses `OpenFile.read(offset, length)` →
 `PassableBytesReader`; bytes flow through `@endo/exo-stream`'s

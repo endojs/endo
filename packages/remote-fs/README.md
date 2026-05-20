@@ -2,14 +2,22 @@
 
 Pipelinable, stream-friendly filesystem capabilities for Endo.
 
-`Filesystem` mints a typed `Directory` / `File` graph whose
-`lookup` results carry their `qid` eagerly, so a deep
-`E(root).lookup(a).lookup(b).lookup(c).open(flags).read(0, len)`
-chain pipelines into a single CapTP round-trip.
+`Filesystem` mints a typed `Directory` / `File` graph keyed by a
+stable `qid` (inode-style `pathId` + `version`).
+A deep `E(root).lookup(a).lookup(b).lookup(c).open(flags).read(0,
+len)` chain dispatches as a single batch of pipelined CapTP
+messages — every call in the chain is sent before any reply
+comes back, rather than waiting one round-trip per step.
 Bulk transfers ride `@endo/exo-stream` readers and writers — not
 method-sized buffers — and `File.snapshot()` optionally returns a
-content-addressed `BlobRef` so peers with a CAS can skip the
-network entirely.
+content-addressed `BlobRef` so a peer holding a CAS can serve
+reads locally and skip the `fetch` round-trip on cache hits.
+
+Several claims in the design (eager `qid` and `BlobRef.getInfo`
+avoiding round-trips, CAS hits skipping the network entirely)
+hold in interface intent but not in current CapTP runtime
+behavior. See `ROADMAP.md` §1 for the honest list of where this
+package's behavior trails the design.
 
 Key pieces:
 
@@ -38,7 +46,7 @@ shortcomings, and the separate Endo-daemon-refactor track.
 
 | Subject | Where today | What this package adds |
 |---|---|---|
-| Live FS access | `@endo/daemon` `Mount` | Typed `Directory` / `File` subtypes; eager qid; explicit `open()` ↔ `OpenFile` / `Cursor` split. |
+| Live FS access | `@endo/daemon` `Mount` | Typed `Directory` / `File` subtypes; stable `qid` identity (inode-style `pathId` + `version`); explicit `open()` ↔ `OpenFile` / `Cursor` split. |
 | Immutable snapshot | `@endo/daemon` `ReadableTree` | `Node.snapshot() → BlobRef` for content-addressed sub-trees. |
 | Byte streaming over CapTP | `@endo/exo-stream` | Consumed; not replaced. |
 | 9P-over-UDS bridge | `@endo/9p-server` | This package is the bridge's *backing store*. |

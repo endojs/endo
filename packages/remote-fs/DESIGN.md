@@ -521,9 +521,13 @@ by hash*. The producer is not obligated to mint one — many file
 systems have no cheap CAS — so `File.snapshot()` may return `null`.
 When a `BlobRef` is present:
 
-- `hash` and `size` are eager (carried with the cap). A caller can
-  consult a local CAS keyed by `hash` and skip `fetch` entirely on a
-  hit.
+- `hash` and `size` are intended to be eager (carried with the
+  cap; see §4.10). Today, CapTP does not ship state alongside
+  slots, so `getInfo()` costs one round-trip in practice — see
+  §10.1 and ROADMAP §1.1.
+  A caller holding a CAS keyed by `hash` can still skip the
+  `fetch` call (and the byte payload) on a cache hit; what's not
+  yet saved is the `getInfo` round-trip that learns the hash.
 - `fetch(offset, length)` returns a stream identical in shape to
   `OpenFile.read(offset, length)`. The two are interchangeable from
   the caller's perspective; the difference is that `fetch` is
@@ -558,8 +562,10 @@ Bulk transfers ride streams sized to the underlying transport, not
 to any protocol's msize equivalent. A 1 GiB read is one method call
 and a stream the caller pulls at its own rate.
 
-Cached content avoids the network entirely via `BlobRef`s. A peer
-whose CAS knows the hash never asks the origin for the bytes.
+Cached content avoids `BlobRef.fetch` (and therefore the byte
+payload) when a peer's CAS knows the hash. The peer still pays
+one round-trip to `BlobRef.getInfo()` to learn the hash before
+deciding to skip the fetch — see §10.1 and ROADMAP §1.1.
 
 Writes are async with deferred error reporting at `fsync` —
 matching Linux page-cache semantics and freeing translators from
