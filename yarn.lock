@@ -1094,6 +1094,8 @@ __metadata:
     "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
+    "@endo/stream": "workspace:^"
+    "@endo/syrup-frame": "workspace:^"
     "@noble/curves": "npm:^1.9.0"
     "@noble/hashes": "npm:^1.8.0"
     "@types/ws": "npm:^8"
@@ -1272,6 +1274,23 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/syrup-frame@workspace:^, @endo/syrup-frame@workspace:packages/syrup-frame":
+  version: 0.0.0-use.local
+  resolution: "@endo/syrup-frame@workspace:packages/syrup-frame"
+  dependencies:
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/stream": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
