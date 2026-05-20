@@ -59,6 +59,9 @@ jobs:
       - name: Run yarn lint
         run: yarn lint
 
+      - name: Check composite tsconfig files are up to date
+        run: yarn build:types:check
+
       # build the API docs to verify it works
       - name: build API docs
         run: yarn docs

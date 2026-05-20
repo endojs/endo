@@ -5,9 +5,11 @@
   },
   "include": [
     "*.js",
-    "*.ts",
-    "demo",
-    "src",
-    "test"
+    "bin/**/*.js",
+    "src/**/*.js",
+    "test",
+    "test/_types.d.ts",
+    "!**/*.d.ts",
+    "demo/**/*.js"
   ]
 }
