@@ -9,11 +9,15 @@
 
 ## Status
 
+**Complete** (shipped 2026-03-23 via commit `ae2b074ac` on `llm`;
+refinements through 2026-04-11).
+
 Implemented directly on the `llm` branch in commit `ae2b074ac`
 ("Blob view and edit", 2026-03-23), with subsequent typography and
-language-mode refinements in commits `9af2ea9a1` and `3faf49a21`.
-The implementation landed before the bot-forwarded PR workflow was
-in place, so there is no PR number; the change is on `llm` only.
+language-mode refinements in commits `9af2ea9a1` (2026-04-10) and
+`3faf49a21` (2026-04-11). The implementation landed before the
+bot-forwarded PR workflow was in place, so there is no PR number;
+the change is on `llm` only.
 
 The `view` and `edit` commands land in
 `packages/chat/command-registry.js`; the `/view` command also carries
@@ -22,6 +26,15 @@ the `cat` alias. The new `packages/chat/blob-viewer.js`,
 plus updates to `command-executor.js` and `index.css` provide the
 modal viewer, the Monaco-backed editor, and the Markdown preview
 pipeline described here.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-03-21 → 2026-04-11 (21 days).
+- Design phase: 2026-03-21 (single commit `2691e7d52`, "Add design for
+  view and edit").
+- Implementation phase: 2026-03-23 → 2026-04-11 (19 days). Primary
+  landing 2026-03-23 (`ae2b074ac`); typography polish 2026-04-10
+  (`9af2ea9a1`); monaco lazy-load fix 2026-04-11 (`3faf49a21`).
 
 ## What is the Problem Being Solved?
 
