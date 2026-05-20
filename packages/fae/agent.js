@@ -111,12 +111,24 @@ Example: if a message says "Here is @counter for you", adopt it:
 `;
 
 /**
+ * @typedef {object} ProviderConstructorConfig
+ * @property {string} host - LAL host URL.
+ * @property {string} model - LAL model identifier.
+ * @property {string} authToken - LAL auth token.
+ */
+
+/**
+ * @typedef {object} InjectedProviderConfig
+ * @property {{ chat: (messages: object[], tools: object[]) => Promise<{ message: object }> }} provider - Pre-built provider (e.g. for tests).
+ */
+
+/**
  * Spawn a worker loop that follows a guest's inbox and processes messages
  * using the given LLM provider configuration.
  *
  * @param {any} powers - Guest powers (manager's own or a sub-guest's)
  * @param {Promise<object> | object | undefined} context - Context for cancellation
- * @param {{ host: string, model: string, authToken: string }} providerConfig - LLM provider config
+ * @param {ProviderConstructorConfig | InjectedProviderConfig} providerConfig - LLM provider config. Pass `provider` to inject a pre-built provider (e.g. for tests); otherwise host/model/authToken are used to construct one.
  * @param {string} [systemPrompt] - Override system prompt (defaults to guestSystemPrompt)
  * @returns {Promise<void>}
  */
@@ -139,11 +151,13 @@ export const spawnWorkerLoop = async (
     return null;
   };
 
-  const provider = createProvider({
-    LAL_HOST: providerConfig.host,
-    LAL_MODEL: providerConfig.model,
-    LAL_AUTH_TOKEN: providerConfig.authToken,
-  });
+  const provider =
+    providerConfig.provider ||
+    createProvider({
+      LAL_HOST: providerConfig.host,
+      LAL_MODEL: providerConfig.model,
+      LAL_AUTH_TOKEN: providerConfig.authToken,
+    });
 
   /**
    * @param {object[]} messages

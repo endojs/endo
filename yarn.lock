@@ -1948,6 +1948,7 @@ __metadata:
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     ava: "catalog:dev"
+    c8: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
