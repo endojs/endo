@@ -10,25 +10,45 @@
 
 ## Status
 
+**In Progress** (design merged 2026-05-10 via PR #206; Cuts 2-5
+shipped 2026-05-11 → 2026-05-14; Cut 1 open as PR #261).
+
 Design merged via PR
 [#206](https://github.com/endojs/endo-but-for-bots/pull/206). The
 per-package cuts are partially landed on `llm`:
 
 - **Cut 2** (`@endo/hex` + `@endo/hex-test`) — merged via PR
-  [#211](https://github.com/endojs/endo-but-for-bots/pull/211).
+  [#211](https://github.com/endojs/endo-but-for-bots/pull/211)
+  (commit `68246ad92` 2026-05-12).
 - **Cut 3** (`@endo/zip` cleanup) — merged via PR
-  [#209](https://github.com/endojs/endo-but-for-bots/pull/209).
+  [#209](https://github.com/endojs/endo-but-for-bots/pull/209)
+  (commit `3ca283bf8` 2026-05-11).
 - **Cut 4** (`@endo/harden` + `@endo/harden-test`) — merged via PR
-  [#210](https://github.com/endojs/endo-but-for-bots/pull/210).
+  [#210](https://github.com/endojs/endo-but-for-bots/pull/210)
+  (commit `e56e9940d` 2026-05-13).
 - **Cut 5** (`@endo/eventual-send` + `@endo/eventual-send-test`) —
   merged via PR
-  [#247](https://github.com/endojs/endo-but-for-bots/pull/247).
+  [#247](https://github.com/endojs/endo-but-for-bots/pull/247)
+  (commit `c72d2a31f` 2026-05-14).
 - **Cut 1** (`ses` + `@endo/ses-test`) — open as PR
   [#261](https://github.com/endojs/endo-but-for-bots/pull/261).
 
 An upstream mirror covering the same factoring for `endojs/endo`
 master is staged as PR
 [#235](https://github.com/endojs/endo-but-for-bots/pull/235).
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-05-10 → present (ongoing; Cut 1 open).
+  Cuts 2-5 landed within a 4-day burst.
+- Design phase: 2026-05-10 → 2026-05-11 (2 days). Initial design
+  commit `68b48fd67` 2026-05-11 (`design(workspace): break
+  devDependency cycles via synthetic test packages (per #121)`); the
+  PR #206 merge commit `1842c074c` is dated 2026-05-10 (review
+  iteration captured in same-day fixup chain `ea0933857`,
+  `84c03cf33`, `686de4e94`, `fddfcae8b`, `9a30ff80b`).
+- Implementation phase: 2026-05-11 → 2026-05-14 so far (4 days for
+  Cuts 2-5; Cut 1 remains open).
 
 ## What is the Problem Being Solved?
 
