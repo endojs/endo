@@ -1,6 +1,5 @@
 // @ts-nocheck
 /* eslint-disable import/order, no-await-in-loop */
-/* global queueMicrotask, setTimeout */
 
 /**
  * Pipelined-walk proof over a real CapTP connection
@@ -16,98 +15,19 @@
  * These tests host an `@endo/remote-fs` `Filesystem` on a
  * "right" vat, drive it from a "left" vat through `makeCapTP`,
  * and wrap each side's `send` function so every wire message
- * lands in a shared transcript array. Snapshot fixtures pin the
- * interleaved send/receive order; assertions on the transcript
- * verify the pipelining property directly rather than via
- * in-process method-call counting.
- *
- * The previous version of this file did in-process call
- * counting with a `Far()` facade; the addressed PR feedback
- * (#326) asked for a real CapTP-mediated transcript, since the
- * in-process facade can't actually observe the "all calls go
- * out before any return comes back" property.
+ * lands in a shared transcript array (`_captp-pair.js`).
+ * Snapshot fixtures pin the interleaved send/receive order;
+ * assertions on the transcript verify the pipelining property
+ * directly rather than via in-process method-call counting.
  */
 
 import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
-import { makeCapTP } from '@endo/captp';
 
 import { makeInMemoryFilesystem } from '../src/in-memory.js';
-
-/**
- * Connect a "left" client to a "right" server that exposes
- * `bootstrap` as its bootstrap presence. Every wire message in
- * either direction is recorded in `transcript`. Optional
- * `deliveryLatencyMs` delays cross-side delivery so latency
- * tests can measure end-to-end timing.
- *
- * @param {object} bootstrap
- * @param {{ deliveryLatencyMs?: number }} [opts]
- */
-const makeConnectedPair = (bootstrap, opts = {}) => {
-  const { deliveryLatencyMs = 0 } = opts;
-  /** @type {Array<object>} */
-  const transcript = [];
-
-  // `rightDispatch` is forward-declared with `let` because the
-  // left vat's `send` closure (created below) refers to it
-  // before the right vat is constructed; the binding is captured
-  // by reference. `leftDispatch` can be `const` because it's
-  // assigned before the right vat's `send` ever closes over it.
-  /** @type {(o: any) => void} */
-  let rightDispatch;
-
-  // Reduce a wire message to the fields a reader cares about.
-  // `method` is a marshalled `[propName, args]` (or `[propName]`
-  // for getters); extract just the method name.
-  const summarise = (from, to, msg) => {
-    /** @type {Record<string, any>} */
-    const entry = { from, to, type: msg.type };
-    if (msg.questionID !== undefined) entry.questionID = msg.questionID;
-    if (msg.answerID !== undefined) entry.answerID = msg.answerID;
-    if (msg.target !== undefined) entry.target = msg.target;
-    if (msg.method && typeof msg.method.body === 'string') {
-      try {
-        const parsed = JSON.parse(msg.method.body);
-        if (Array.isArray(parsed)) entry.method = parsed[0];
-      } catch {
-        // ignore — leave method out of the summary
-      }
-    }
-    transcript.push(entry);
-  };
-
-  const defer = fn => {
-    if (deliveryLatencyMs > 0) {
-      setTimeout(fn, deliveryLatencyMs);
-    } else {
-      queueMicrotask(fn);
-    }
-  };
-
-  const leftCapTP = makeCapTP('left', o => {
-    summarise('left', 'right', o);
-    defer(() => rightDispatch(o));
-  });
-  const leftDispatch = leftCapTP.dispatch;
-
-  const rightCapTP = makeCapTP(
-    'right',
-    o => {
-      summarise('right', 'left', o);
-      defer(() => leftDispatch(o));
-    },
-    bootstrap,
-  );
-  rightDispatch = rightCapTP.dispatch;
-
-  return {
-    bootstrapRef: leftCapTP.getBootstrap(),
-    transcript,
-  };
-};
+import { makeConnectedPair, settle } from './_captp-pair.js';
 
 const populate = async () => {
   const fs = makeInMemoryFilesystem();
@@ -117,15 +37,6 @@ const populate = async () => {
   const c = await E(b).mkdir('c', {});
   await E(c).mkdir('d', {});
   return fs;
-};
-
-// Wait long enough for the queued microtasks/timers to drain.
-// Used between phases of the test to let CapTP advance.
-const settle = async (n = 5) => {
-  for (let i = 0; i < n; i += 1) {
-    // eslint-disable-next-line no-await-in-loop
-    await null;
-  }
 };
 
 test('pipelined chain over CapTP: all CTP_CALL messages reach the wire before any CTP_RETURN', async t => {
