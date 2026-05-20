@@ -14,7 +14,7 @@ network entirely.
 Key pieces:
 
 - `makeInMemoryFilesystem` — ephemeral, all in JS.
-- `makeDiskFilesystem` — wraps `node:fs/promises`.
+- `makeNodeFilesystem` — wraps `node:fs/promises`.
 - `fromMount` — projects an `@endo/daemon` `Mount` as a `Filesystem`.
 - `readOnly` — attenuator that rejects mutating verbs.
 - `compose` — copy-on-write union over a backing FS and a writable

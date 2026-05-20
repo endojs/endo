@@ -21,7 +21,7 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { makeDiskFilesystem } from '../src/disk.js';
+import { makeNodeFilesystem } from '../src/node-fs.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 const fromUtf8 = b => new TextDecoder().decode(b);
@@ -59,7 +59,7 @@ const collectStream = async readerRef => {
 const setupFs = async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'remote-fs-disk-'));
   t.teardown(() => rm(dir, { recursive: true, force: true }));
-  return makeDiskFilesystem({ rootPath: dir });
+  return makeNodeFilesystem({ rootPath: dir });
 };
 
 test('root returns a Directory rooted at the host path', async t => {

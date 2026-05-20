@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop, no-bitwise */
 /* global Buffer */
 /**
- * Disk-backed `Filesystem` (DESIGN.md §8.3).
+ * `node:fs/promises`-backed `Filesystem` (DESIGN.md §8.3).
  *
  * Wraps a host directory through `node:fs/promises`. Mirrors the
  * exo shape of the in-memory implementation; the differences are
@@ -120,7 +120,7 @@ const NotSupported = method =>
  * @param {{ rootPath: string }} opts
  * @returns {object}
  */
-export const makeDiskFilesystem = ({ rootPath }) => {
+export const makeNodeFilesystem = ({ rootPath }) => {
   if (typeof rootPath !== 'string' || !nodePath.isAbsolute(rootPath)) {
     throw makeError(X`rootPath must be an absolute path, got ${q(rootPath)}`);
   }
@@ -892,7 +892,7 @@ export const makeDiskFilesystem = ({ rootPath }) => {
     },
   });
 };
-harden(makeDiskFilesystem);
+harden(makeNodeFilesystem);
 
 // ---------- helpers ----------
 

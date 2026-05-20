@@ -43,38 +43,32 @@ base64-on-the-wire framing (until CapTP gains native binary).
 into a per-fid buffer that's paginated against the kernel's 9P
 offset cookie.
 
-## 9P operations implemented
+## 9P operations
 
-Tversion, Tattach, Twalk (with pipelined lookup + `..` walks),
-Tlopen, Tread, Treaddir, Tgetattr, Tsetattr, Tstatfs, Tlcreate,
-Twrite, Tmkdir, Tunlinkat, Trenameat, Tclunk, Tflush, Tlerror
-emission. Tauth and Txattrwalk return ENOSYS.
-
-## Layout
-
-```
-packages/9p-server/
-├── README.md
-├── package.json
-├── src/
-│   ├── index.js        re-exports
-│   ├── fs-bridge.js    makeFsBridge9p: UDS server wrapping serveConnection
-│   ├── server.js       9P2000.L message-driven state machine
-│   ├── wire.js         9P message framing + LE primitives
-│   └── types.js        T, QT, errno, mode constants
-└── test/
-    ├── wire.test.js    framing round-trips
-    └── server.test.js  full protocol coverage against an in-memory FS
-```
+| Op | Status |
+|---|---|
+| Tversion | supported |
+| Tattach | supported |
+| Twalk (single + pipelined chain, `..` walks) | supported |
+| Tlopen | supported |
+| Tread | supported |
+| Treaddir | supported |
+| Tgetattr | supported |
+| Tsetattr | supported |
+| Tstatfs | supported |
+| Tlcreate | supported |
+| Twrite | supported |
+| Tmkdir | supported |
+| Tunlinkat | supported |
+| Trenameat | supported |
+| Tclunk | supported |
+| Tflush | supported |
+| Tlerror emission | supported |
+| Tauth | `Rlerror(ENOSYS)` |
+| Txattrwalk | `Rlerror(ENOSYS)` |
 
 ## Tests
 
 ```sh
 yarn workspace @endo/9p-server test
 ```
-
-18 tests: 4 framing, 14 protocol coverage (Tversion / Tattach /
-Twalk single + pipelined chain / Tlopen + Tread / Treaddir /
-Tlcreate + Twrite / Tmkdir + Tunlinkat / Tgetattr / Tclunk /
-partial-walk success / walk of missing name → Rlerror(ENOENT) /
-`..` from root / `..` from subdir).

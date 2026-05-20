@@ -23,7 +23,7 @@ import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { makeInMemoryFilesystem } from '../src/in-memory.js';
-import { makeDiskFilesystem } from '../src/disk.js';
+import { makeNodeFilesystem } from '../src/node-fs.js';
 import { readOnly } from '../src/readonly.js';
 import {
   emptyFilesystem,
@@ -80,7 +80,7 @@ const readFile = async (root, name) => {
 const setupDisk = async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'remote-fs-cfg-'));
   t.teardown(() => rm(dir, { recursive: true, force: true }));
-  return makeDiskFilesystem({ rootPath: dir });
+  return makeNodeFilesystem({ rootPath: dir });
 };
 
 // ---------- multi-layer composition ----------

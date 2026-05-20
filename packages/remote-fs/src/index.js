@@ -1,7 +1,7 @@
 // @ts-check
 
 export { makeInMemoryFilesystem } from './in-memory.js';
-export { makeDiskFilesystem } from './disk.js';
+export { makeNodeFilesystem } from './node-fs.js';
 export { readOnly } from './readonly.js';
 export { mountAsFilesystem } from './from-mount.js';
 export {
