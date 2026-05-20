@@ -154,7 +154,7 @@ PR #151 row-format unblocker; sibling of
 | [cbors](cbors.md) | 2026-05-04 | 2026-05-05 | Not Started |
 | [trust-on-first-bind](trust-on-first-bind.md) | 2026-05-08 | 2026-05-10 | Reference |
 | [outliner-design-doc](outliner-design-doc.md) | 2026-03-17 | 2026-03-18 | In Progress |
-| [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) | 2026-05-19 | 2026-05-19 | Proposed |
+| [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) | 2026-05-19 | 2026-05-20 | Proposed |
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-05-18 | **Complete** |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-05-18 | **Complete** |
 | [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-05-18 | In Progress |
@@ -482,7 +482,7 @@ webhook events.
 | ~~chat-view-edit-commands~~ | **Complete** | `/view` (alias `/cat`) and `/edit` blob commands shipped in `packages/chat/command-registry.js` with the Monaco-backed viewer/editor at `packages/chat/blob-viewer.js`; landed via direct-to-`llm` commit `ae2b074ac` plus typography / language-mode refinements |
 | chat-edit-message-ui | Not Started | `/edit` slash command, `e` focus shortcut, hover pencil for editing previously sent messages; revision-history panel |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
-| patterns-diagnostic-feedback | Proposed | Separate-lane `@endo/patterns-diagnose` sibling package; opt-in `diagnose(err, { specimen, pattern })` returns a Rust-compiler-style indented line-art report rendered from the existing `applyLabelingError` chain; zero cost to the production matcher path |
+| patterns-diagnostic-feedback | Proposed | Separate-lane `@endo/patterns-diagnose` sibling package; non-throwing `diagnose({ specimen, pattern })` (mirrors `matches`'s boolean shape) returns `Trace \| undefined`; `render(trace)` produces a compact line-per-mismatch default (sized for AI-agent token economy) or opt-in Rust-compiler-style expanded form; zero cost to the production matcher path |
 
 **Exit criterion:** Chat UI feature-complete for current design scope.
 Commands are non-blocking with visible pending state. Developer tools
@@ -727,7 +727,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~chat-view-edit-commands~~ | M | — | 4 | ✅ Complete (direct-to-`llm` commit `ae2b074ac` "Blob view and edit" + refinements; `/view` (alias `/cat`) and `/edit` shipped) |
 | chat-edit-message-ui | S-M | 3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil; design merged (PR #88); daemon impl in PR #125 forwarded under bot |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
-| patterns-diagnostic-feedback | S-M | 2-3 days | 4 | New sibling package `@endo/patterns-diagnose`: tracing matcher + line-art renderer + `diagnose(err, options)` entry point (~600 lines incl. tests). Phase B (chain-walk fallback) is deferrable. Production `@endo/patterns` matcher path unchanged. |
+| patterns-diagnostic-feedback | S-M | 2-3 days | 4 | New sibling package `@endo/patterns-diagnose`: tracing matcher (non-throwing, mirrors `matches` shape) + dual-format renderer (compact default, expanded opt-in) + `diagnose({ specimen, pattern })` entry point (~600 lines incl. tests). Single-PR deliverable. Production `@endo/patterns` matcher path unchanged. |
 | ~~daemon-os-sandbox-plugin~~ | — | — | 5 | Superseded by `endo-posix-sandbox` |
 | endo-posix-sandbox | L-XL | 6-10 weeks remaining | 5 | Phases 0-1 shipped (bwrap on Linux); Phase 2 (podman) and Phase 3 (nested slices) in flight; Phases 1.5, 4, 6 ahead. Per-phase estimates pending PLAN backfill |
 | daemon-capability-persona | S-M | 3 days | 5 | Handle extension, epithet tracking |

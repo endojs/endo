@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-19 |
-| **Updated** | 2026-05-19 |
+| **Updated** | 2026-05-20 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Proposed |
 
@@ -153,175 +153,183 @@ discards its branch attempts".
 A new sibling package alongside `@endo/patterns`.
 Production callers depend on `@endo/patterns` and pay zero additional cost.
 Callers that want rich diagnostics also depend on `@endo/patterns-diagnose`
-and call its single exported function on a caught error (or on a
-specimen + pattern pair).
+and call its exported functions on a specimen + pattern pair.
+
+`diagnose` is itself a *non-throwing matcher*.
+It mirrors the existing `matches(specimen, pattern): boolean` shape from
+`@endo/patterns` (which returns a verdict without throwing) and returns a
+structured `Trace | undefined` instead of a boolean: `undefined` on match,
+a `Trace` on mismatch.
+The renderer is a separate function: `render(trace, options?): string`.
+Callers compose them; no `try`/`catch` and no caught error are needed.
 
 ```js
-import { mustMatch } from '@endo/patterns';
-import { diagnose } from '@endo/patterns-diagnose';
+import { diagnose, render } from '@endo/patterns-diagnose';
 
-try {
-  mustMatch(specimen, pattern);
-} catch (err) {
-  const report = diagnose(err, { specimen, pattern });
-  if (report !== undefined) {
-    console.error(report);
-  }
-  throw err;
+const trace = diagnose({ specimen, pattern });
+if (trace) {
+  console.error(render(trace));
 }
 ```
 
-`diagnose` returns `string | undefined`.
-The string is a multi-line, indented, line-art rendering of the mismatch
-ready for `console.error`, an AVA log, or an LLM tool response.
-`undefined` is the "I had nothing useful to add" return: the error did not
-originate from a pattern mismatch, the specimen/pattern pair is missing,
-or the chain was structurally unrecoverable.
-The caller is expected to fall back to the thrown error's own message in
-the `undefined` case.
+A caller that prefers to throw, throws:
 
-The return shape is deliberately a string and not a structured object.
-A consumer that wants programmatic structure constructs it from the
-specimen and pattern directly (re-running the matcher under a tracing
-variant) rather than from a parsed diagnostic string.
-The diagnostic lane's currency is *human-and-agent-readable prose*, not
-machine-parseable data.
+```js
+const trace = diagnose({ specimen, pattern });
+if (trace) {
+  throw makeError(render(trace));
+}
+```
+
+A caller that wants both the production `mustMatch` throw *and* the rich
+diagnostic on stderr writes the existing `mustMatch` call alongside:
+
+```js
+const trace = diagnose({ specimen, pattern });
+if (trace) console.error(render(trace));
+mustMatch(specimen, pattern);  // throws the today-shaped error
+```
+
+No carry-on-error mechanism in the production matcher.
+The diagnostic lane is a parallel non-throwing matcher upstream of any
+exception-handling the caller chooses to write.
 
 ### Surface
 
 ```ts
-type DiagnoseOptions = {
-  specimen?: unknown;     // re-walks the specimen against the pattern for richer detail
-  pattern?: unknown;      // required if specimen is supplied
-  width?: number;         // line-wrap target; default 80
-  color?: boolean;        // ANSI escapes for terminals; default false
+type DiagnoseInput = {
+  specimen: unknown;
+  pattern: unknown;
+  context?: string;  // optional caller-supplied prefix; see exo composition
 };
 
-function diagnose(
-  err: Error,
-  options?: DiagnoseOptions,
-): string | undefined;
+/**
+ * Non-throwing matcher. Returns undefined on match, a Trace on mismatch.
+ * Mirrors `matches(specimen, pattern): boolean` from `@endo/patterns`;
+ * returns structured trace information instead of a boolean.
+ */
+function diagnose(input: DiagnoseInput): Trace | undefined;
+
+type RenderOptions = {
+  format?: 'compact' | 'expanded';  // default 'compact'
+  width?: number;                   // line-wrap target; default 100
+  color?: boolean;                  // ANSI escapes for terminals; default false
+};
+
+/** Renders a Trace as a human-and-agent-legible string. */
+function render(trace: Trace, options?: RenderOptions): string;
 ```
 
-When `specimen` and `pattern` are both supplied, `diagnose` re-runs an
-internal *tracing matcher* (a parallel implementation that records every
-step structurally) and assembles the report from that trace.
-When neither is supplied, `diagnose` walks the SES cause chain on `err`
-(via `takeNoteLogArgs` or equivalent) and assembles a degraded report from
-just the labels and inner-error messages.
-The tracing path is the richer surface; the chain-walk path is the
-fallback for the case where the caller has the error but not the
-arguments.
+`diagnose` reuses the production matcher's recursion (the *tracing
+matcher* described below) but records each step structurally instead of
+throwing.
+A caller that holds the same `(specimen, pattern)` the failing
+`mustMatch` was about to receive can call `diagnose` directly, with no
+preceding `try`/`catch`.
 
-Trivially-promoted-to-error use:
+The split between `diagnose` (verdict + structure) and `render` (string)
+keeps the structured trace available for callers that want to log it as
+JSON-Lines, ship it across a CapTP boundary, or feed it back into a
+matcher.
+A `Trace` is hardened and `JSON.stringify`-safe (its `Passable` fragments
+are pre-rendered to short strings; see the *Tracing matcher* section).
 
-```js
-const report = diagnose(err, { specimen, pattern });
-if (report !== undefined) {
-  throw makeError(report);
-}
-throw err;
-```
+### Rendering: compact by default, expanded on request
 
-A two-line wrapper any caller can write that turns the diagnostic into a
-thrown error.
-No "carry-on-error" mechanism in the production matcher; the lane is
-upstream of any catch the caller chooses to write.
+The renderer has two formats.
+**`compact`** is the default and the form an AI agent sees: one mismatch
+per line, no indentation, fixed column order, designed to fit a 100-column
+terminal and to be cheap to tokenize.
+**`expanded`** is opt-in (`render(trace, { format: 'expanded' })`) and is
+a Rust-compiler-style indented form for humans inspecting a small number
+of failures at a REPL.
 
-### Rendering: indentation and line-art
+#### `compact` format (default)
 
-The rendering convention takes cues from the Rust compiler's mismatch
-output: a path on the left margin, a caret column pointing at the failing
-leaf, the failing value rendered inline, and an explanation indented
-beneath.
-ASCII line-art (`|`, `+`, `-`, `~`) carries the structure; no template
-literal, no fancy unicode by default.
-A `color: true` option layers ANSI escapes for terminals.
-
-Sample rendering for a nested splitRecord mismatch:
+A header line names the failure mode and counts; subsequent lines are one
+per leaf failure, each line carrying the path, the found value, and the
+expected pattern, separated by ` | ` for predictable splitting:
 
 ```
-pattern mismatch
- |
- +-- .user
- |    |
- |    +-- .age
- |          |
- |          +-- found:    -3 (number)
- |          +-- expected: non-negative bigint
- |
- = the value at .user.age does not satisfy match:nat
+mismatch (1 leaf): .user.age | found -3 (number) | expected non-negative bigint
 ```
 
-For an `M.or` over three alternatives, the renderer attempts each
-alternative under the tracing matcher and reports *all* attempts, not a
-single "closest" pick.
-The reader sees the full set of interpretations the matcher considered;
-the renderer ranks them in best-effort depth-first order but does not
-discard:
+For `M.or` over three alternatives, the header names the disjunction and
+each alternative occupies one line:
 
 ```
-pattern mismatch
- |
- +-- specimen: { kind: "image", url: 42 }
- |
- = three alternatives, none matched:
- |
- +-- alt 0: splitRecord({ kind: "image", url: string() })
- |    |
- |    +-- .url
- |          |
- |          +-- found:    42 (number)
- |          +-- expected: string
- |
- +-- alt 1: splitRecord({ kind: "text", body: string() })
- |    |
- |    +-- .kind
- |          |
- |          +-- found:    "image"
- |          +-- expected: "text"
- |
- +-- alt 2: splitRecord({ kind: "embed", target: remotable() })
-      |
-      +-- .kind
-            |
-            +-- found:    "image"
-            +-- expected: "embed"
+mismatch (or, 3 alternatives, none matched): { kind: "image", url: 42 }
+  alt 0 | .url | found 42 (number) | expected string
+  alt 1 | .kind | found "image" | expected "text"
+  alt 2 | .kind | found "image" | expected "embed"
 ```
 
-For `M.arrayOf` with multiple failing elements, the renderer reports the
-total count and the first few failing indices in a compact subform:
+For `M.arrayOf` with multiple failing elements, the header carries the
+totals and each failure is one line:
 
 ```
-pattern mismatch in arrayOf(nat()) over 5 elements
- |
- = 3 elements failed: [1], [3], [4]
- |
- +-- [1]
- |    |
- |    +-- found:    2 (number)
- |    +-- expected: bigint
- |
- +-- [3]
- |    |
- |    +-- found:    -4n
- |    +-- expected: non-negative bigint
- |
- +-- [4]
-      |
-      +-- found:    "five"
-      +-- expected: bigint
+mismatch (arrayOf nat, 3 of 5 elements failed):
+  [1] | found 2 (number) | expected bigint
+  [3] | found -4n | expected non-negative bigint
+  [4] | found "five" | expected bigint
 ```
 
-The renderer is a single module (~300 lines) that converts a `Trace` (the
-intermediate representation the tracing matcher produces) into the report
-string.
-No template literal: the formatter walks the trace and emits lines one at
-a time, computing indentation from depth, so wrapping at `width` and
-optional ANSI coloring work uniformly.
-Line-art characters are constants in the module and trivially swappable
-(e.g., to unicode box-drawing) if a future caller wants a richer terminal
-rendering.
+The `compact` form has a documented grammar:
+
+```
+report      = header NL (indent line NL)*
+header      = "mismatch (" summary "):" [" " specimen-or-path]
+line        = [label " | "] path " | " "found " value " | " "expected " pattern
+indent      = two spaces
+separator   = " | "  (column separator; never appears unescaped inside values)
+```
+
+Values and patterns inside a line are pre-quoted (the tracing matcher
+calls `passableAsJustin` and replaces literal `|` with `\|`) so a reader
+can split on ` | ` without escaping concerns.
+The line-per-leaf shape lets a tool harness or AI agent line-grep the
+output, count failures, or extract the first path without parsing
+indentation.
+
+#### `expanded` format (opt-in)
+
+For a human inspecting a small failure at a REPL or in an AVA log, the
+expanded format uses indentation and ASCII line-art (`|`, `+`, `-`) for
+visual structure:
+
+```
+mismatch at .user.age
+  found:    -3 (number)
+  expected: non-negative bigint
+  reason:   the value does not satisfy match:nat
+```
+
+The expanded form trades token-density for visual scanability and is
+appropriate when the failure count is small and a human is reading the
+output line by line.
+The renderer is a single module (~300 lines) that walks the `Trace` tree
+and emits lines one at a time, computing indentation from depth.
+A `color: true` option layers ANSI escapes for terminals in either format.
+
+The compact format is the default because the primary beneficiary is an
+AI agent acting on the report.
+Multi-line indented output is both larger in tokens and slower to parse
+for an agent than a structured line-per-mismatch form.
+A human reading the compact form sees a slightly denser layout but the
+same information; a human who wants the indented view passes
+`{ format: 'expanded' }`.
+
+#### Why not JSON-Lines?
+
+JSON-Lines (`{"path":".user.age","found":"-3","expected":"non-negative bigint"}`
+per line) was considered.
+The `compact` shape above is both shorter (no quoting overhead, no key
+names per line) and equally machine-parseable: a one-line `split(' | ')`
+recovers the columns.
+A consumer that genuinely wants JSON parses the `Trace` directly
+(the `diagnose` return value), bypassing the renderer.
+The renderer's job is the human-and-agent-legible string surface; the
+structured surface is `Trace` itself.
 
 ### Rich rather than configurable
 
@@ -377,15 +385,32 @@ Code size and runtime cost stay outside the production path.
 ### Composition with `@endo/exo` argument guards
 
 When a method-argument mismatch surfaces through an `InterfaceGuard`, the
-thrown error's chain has an outer label like `"foo(0): inner..."` from the
-exo wrapper, and the inner cause is the labeled pattern chain.
-`diagnose` on that error recognizes the exo-prefix shape and renders the
-method-argument context as a top section of the report, then the inner
-pattern trace beneath.
-No change to `@endo/exo` itself; the diagnostic lane reads what is already
-there.
+exo wrapper holds the method name and argument index for the failing call.
+A caller that wants the diagnostic for an exo-guarded method invokes
+`diagnose` with the same `(specimen, pattern)` the exo wrapper would have
+checked, plus an optional `context` field naming the method and argument:
+
+```js
+const trace = diagnose({
+  specimen: arg,
+  pattern: methodGuard.argGuards[i],
+  context: `${methodName}(${i})`,
+});
+```
+
+The renderer prefixes the report with the context string (one extra line
+in `compact`, one extra section in `expanded`).
+No change to `@endo/exo` itself.
+A future helper (`diagnoseExoCall(interfaceGuard, methodName, args)`) can
+sugar this when the lane sees real use; the primitive surface is
+`diagnose({ specimen, pattern, context? })`.
 
 ## Exemplar reports
+
+Each example shows the caller code (no `try`/`catch`), the `compact`
+output (default), and the `expanded` output (opt-in).
+Production `mustMatch` callers continue to see the today-shaped thrown
+error; the diagnostic lane is a parallel non-throwing matcher.
 
 ### Example 1: nested splitRecord with a wrong-typed leaf
 
@@ -398,32 +423,24 @@ const specimen = harden({
   user: { name: 'kris', age: -3 },
   meta: { source: 'cli' },
 });
-try {
-  mustMatch(specimen, pattern);
-} catch (err) {
-  console.error(diagnose(err, { specimen, pattern }));
-}
+const trace = diagnose({ specimen, pattern });
+if (trace) console.error(render(trace));
 ```
 
-Reports (under `diagnose`):
+`compact` (default):
 
 ```
-pattern mismatch
- |
- +-- .user
- |    |
- |    +-- .age
- |          |
- |          +-- found:    -3 (number)
- |          +-- expected: non-negative bigint
- |
- = the value at .user.age does not satisfy match:nat
+mismatch (1 leaf): .user.age | found -3 (number) | expected non-negative bigint
 ```
 
-The thrown error's `message` is unchanged from today (`"user: age: -3 -
-Must be non-negative"`).
-Production callers see the same string; only the opt-in `diagnose`
-consumer sees the richer rendering.
+`expanded` (`render(trace, { format: 'expanded' })`):
+
+```
+mismatch at .user.age
+  found:    -3 (number)
+  expected: non-negative bigint
+  reason:   the value does not satisfy match:nat
+```
 
 ### Example 2: `M.or` over three structural alternatives
 
@@ -434,22 +451,73 @@ const pattern = M.or(
   M.splitRecord({ kind: 'embed', target: M.remotable() }),
 );
 const specimen = harden({ kind: 'image', url: 42 });
+const trace = diagnose({ specimen, pattern });
+if (trace) console.error(render(trace));
 ```
 
-`diagnose` returns the three-alternative report shown above under
-*Rendering: indentation and line-art*.
-All three alternatives are reported.
-No heuristic is applied to suppress the others.
+`compact` (default):
+
+```
+mismatch (or, 3 alternatives, none matched): { kind: "image", url: 42 }
+  alt 0 | .url | found 42 (number) | expected string
+  alt 1 | .kind | found "image" | expected "text"
+  alt 2 | .kind | found "image" | expected "embed"
+```
+
+`expanded`:
+
+```
+mismatch on or-disjunction, three alternatives, none matched
+  specimen: { kind: "image", url: 42 }
+  alt 0: splitRecord({ kind: "image", url: string() })
+    at .url
+      found:    42 (number)
+      expected: string
+  alt 1: splitRecord({ kind: "text", body: string() })
+    at .kind
+      found:    "image"
+      expected: "text"
+  alt 2: splitRecord({ kind: "embed", target: remotable() })
+    at .kind
+      found:    "image"
+      expected: "embed"
+```
+
+All three alternatives are reported in both formats; no heuristic
+suppresses the others.
 
 ### Example 3: `arrayOf` with multiple bad elements
 
 ```js
 const pattern = M.arrayOf(M.nat());
 const specimen = harden([1n, 2, 3n, -4n, 'five']);
+const trace = diagnose({ specimen, pattern });
+if (trace) console.error(render(trace));
 ```
 
-`diagnose` returns the count-plus-first-failing-indices report shown above.
-The thrown error's message is unchanged.
+`compact` (default):
+
+```
+mismatch (arrayOf nat, 3 of 5 elements failed):
+  [1] | found 2 (number) | expected bigint
+  [3] | found -4n | expected non-negative bigint
+  [4] | found "five" | expected bigint
+```
+
+`expanded`:
+
+```
+mismatch in arrayOf(nat()) over 5 elements; 3 failed
+  at [1]
+    found:    2 (number)
+    expected: bigint
+  at [3]
+    found:    -4n
+    expected: non-negative bigint
+  at [4]
+    found:    "five"
+    expected: bigint
+```
 
 ## Dependencies
 
@@ -459,32 +527,21 @@ The thrown error's message is unchanged.
 
 ## Phased Implementation
 
-The lane is small enough to land as one or two PRs.
-Splitting it into more phases trades reviewability for build artifacts;
-the package is approximately 600 lines including tests.
+The lane is small enough to land as a single PR.
+The package is approximately 600 lines including tests.
 
-1. **Phase A: tracing matcher and renderer.**
+1. **Phase A: tracing matcher and renderer (single PR).**
    - Add `packages/patterns-diagnose/` (sibling to `packages/patterns/`).
    - `src/trace.js`: tracing matcher that mirrors the production
      `confirmMatches` recursion and accumulates a `Trace` tree.
-   - `src/render.js`: report formatter (line-art renderer, width and
-     color options).
-   - `src/diagnose.js`: the public `diagnose(err, options)` entry point.
-   - `test/diagnose.test.js`: the three exemplar cases above plus the
-     `InterfaceGuard` composition case.
+   - `src/render.js`: report formatter with `compact` (default) and
+     `expanded` formats, width and color options.
+   - `src/diagnose.js`: the public `diagnose({ specimen, pattern, context? })`
+     entry point.
+   - `test/diagnose.test.js`: the three exemplar cases above (each with
+     both `compact` and `expanded` snapshots) plus the `InterfaceGuard`
+     composition case.
    - No changes to `@endo/patterns` or `@endo/common`.
-
-2. **Phase B: cause-chain fallback path** (optional, deferrable).
-   - When `diagnose` is called without `{ specimen, pattern }`, walk the
-     SES cause chain on `err` and render a degraded report.
-   - Requires either upstream access to `assert.takeNoteLogArgs` (today
-     SES-internal) or a thin compatibility shim.
-   - Cuttable: callers can always supply `{ specimen, pattern }` and the
-     tracing path produces a strictly richer report.
-
-Phase A is the deliverable.
-Phase B is convenience for callers that lose the original arguments before
-the catch.
 
 ## Design Decisions
 
@@ -494,36 +551,53 @@ the catch.
    penalizes every consumer.
    A sibling package keeps the cost on the opt-in path.
 
-2. **Return type is `string | undefined`, not a structured object.**
-   The lane's product is human-and-agent-readable prose.
-   A caller that wants structure re-runs the tracing matcher directly
-   (or invokes a future variant of `diagnose` that returns the `Trace`
-   intermediate value).
-   Keeping the public return as a renderable string sidesteps the
-   compatibility question of "what shape is the structure".
+2. **`diagnose` is a non-throwing matcher, not an error post-processor.**
+   The existing `matches(specimen, pattern): boolean` shape proves the
+   matcher can give a verdict without throwing.
+   A `diagnose({ specimen, pattern }): Trace | undefined` that mirrors
+   that shape lets the caller skip `try`/`catch` entirely: no error to
+   construct, no error to inspect, no error to rethrow.
+   The caller pattern collapses to a single conditional on the trace.
 
-3. **No template literal for the renderer.**
-   The renderer walks the trace and emits lines, computing indentation
-   from depth.
-   A template literal would couple the rendering convention to a single
-   shape; the line-by-line emitter generalizes to wider widths and
-   optional ANSI coloring without restructuring.
+3. **`render` is split from `diagnose`.**
+   `diagnose` produces structure; `render` produces a string.
+   A caller that wants JSON-Lines or a custom renderer reads the `Trace`
+   directly; a caller that wants the default rendering composes the two.
+   Bundling them would force every diagnostic consumer through the string
+   surface.
 
-4. **All alternatives reported, no closest-alternative heuristic.**
+4. **`compact` is the default format, `expanded` is opt-in.**
+   The primary beneficiary of the diagnostic is an AI agent acting on the
+   report; an agent has less budget per token than a human and a one-line-
+   per-mismatch shape is both smaller and easier to line-grep.
+   A human reading the compact form sees the same information in a denser
+   layout; a human who wants the indented Rust-compiler-style view passes
+   `{ format: 'expanded' }`.
+
+5. **Column separator is ` | `, not JSON.**
+   JSON-Lines was considered.
+   The chosen `path | found | expected | reason` form is shorter (no key
+   names per line, no quoting overhead) and equally machine-parseable
+   (a one-line `split(' | ')` recovers the columns).
+   A consumer that genuinely wants JSON parses the `Trace` directly.
+
+6. **All alternatives reported, no closest-alternative heuristic.**
    Rust's compiler reports every candidate when a mismatch is ambiguous,
    ranks them by best-effort depth, and lets the reader pick.
    The lane follows the same convention.
    A configurable picker would invite per-consumer config drift; a single
    convention is predictable.
 
-5. **Diagnostic lane reads `applyLabelingError`'s output as-is.**
-   The production matcher's cause chain is already rich.
-   Modifying the matcher to "carry structured payloads on errors" would
-   bloat the production path for the benefit of a diagnostic surface that
-   the chain already provides.
-   The tracing matcher is the rich path; the chain walk is the fallback.
+7. **Tracing matcher is the rich path; the SES cause chain is not used.**
+   The earlier draft proposed a cause-chain walker as a fallback for
+   callers that hold only the thrown error.
+   Since the lane's API takes `(specimen, pattern)` directly (not an
+   error), the cause-chain walker becomes dead weight.
+   A caller that has the error but lost the arguments is rare; if it
+   surfaces in practice, a separate `diagnoseError(err)` helper can be
+   added later.
 
-6. **No text-source pattern parser in this design.**
+8. **No text-source pattern parser in this design.**
    The earlier axis-C proposal (a recursive-descent reader for a pattern
    subset, producing line-and-column anchors) is a separable concern: it
    introduces a new front-end language, which is a much larger commitment
@@ -531,7 +605,7 @@ the catch.
    If a text-source pattern path becomes a priority, it is its own design
    document on its own dependency line.
 
-7. **Renderer uses ASCII line-art, not unicode box-drawing.**
+9. **Renderer uses ASCII, not unicode box-drawing.**
    ASCII renders correctly in every terminal, log file, and CI output.
    Unicode box-drawing is prettier in modern terminals but introduces
    font-and-encoding sensitivity that the lane does not need.
@@ -547,22 +621,6 @@ the catch.
   The README convention "what does this package do" favors a noun-shaped
   name aligned with `@endo/patterns`.
 
-- **Phase B necessity.**
-  If the convention of "the caller always has `(specimen, pattern)` at
-  the catch site" holds in practice, the cause-chain fallback is dead
-  weight.
-  A short survey of in-repo `mustMatch` callers (a dozen or so across
-  `@endo/exo`, `@endo/marshal`, `@endo/daemon`) should settle this
-  before Phase A lands.
-
-- **Should `diagnose` also accept a string (the formatted message) as the
-  first argument** instead of (or in addition to) an `Error`?
-  Some callers receive only the formatted message across a process
-  boundary (CapTP errors after serialization).
-  The chain is gone; only the flat string survives.
-  A best-effort string parser could produce a degraded report.
-  Decision deferred to Phase B context.
-
 - **Tracing-matcher drift from the production matcher.**
   Two implementations of the same recursion risk drift.
   Mitigation options: (a) shared test corpus where both produce the same
@@ -572,13 +630,13 @@ the catch.
   view.
 
 - **Interaction with `@endo/exo` argument guards.**
-  `applyLabelingError` is also used by `@endo/exo` for method-argument
-  labeling.
-  The diagnostic lane's `Trace` representation must accommodate the
-  outer exo-wrapper label as a top step, distinct from the inner pattern
-  steps.
-  A short integration test against `@endo/exo`'s argument-guard error
-  shape before Phase A lands is appropriate.
+  The `context` field on `DiagnoseInput` carries the method-name and
+  argument-index prefix.
+  Whether a sugar helper (`diagnoseExoCall(interfaceGuard, methodName,
+  args)`) should ship in the initial PR or wait for an in-repo user is
+  open.
+  A short integration test against an `InterfaceGuard`-rejected call
+  before Phase A lands is appropriate either way.
 
 ## Prompt
 
@@ -599,3 +657,15 @@ reads what is already there and renders it richly" rather than "thread
 structured payloads through the matcher".
 The text-source parse path was deferred as a separable concern (its own
 front-end language deserves its own design).
+
+Revised 2026-05-20 after kriskowal round-2 review:
+`diagnose` was reshaped from `diagnose(err, options)` (an error
+post-processor that required `try`/`catch`) into
+`diagnose({ specimen, pattern })` (a non-throwing matcher mirroring
+`matches(specimen, pattern): boolean`).
+The renderer was split into a default `compact` format (one-line-per-
+mismatch, ` | `-separated columns, sized for AI-agent token economy) and
+an opt-in `expanded` format (indented Rust-compiler-style, for humans
+reading a small failure at a REPL).
+The cause-chain fallback phase was dropped (no error means no chain to
+walk).
