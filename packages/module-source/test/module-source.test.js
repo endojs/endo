@@ -459,13 +459,12 @@ test('invisible joiner character is reserved', t => {
     },
     { instanceOf: SyntaxError, message: /is reserved/ },
   );
-  // Ensure the Hub-backed diagnostic flowed through, not the raw TypeError
-  // from `undefined.buildError`.
   t.notRegex(
     String(
       (err && /** @type {Error | undefined} */ (err.cause)?.message) || '',
     ),
     /Cannot read properties of undefined \(reading 'buildError'\)/,
+    'Hub-backed diagnostic must flow through; the raw TypeError from `undefined.buildError` indicates the Hub wiring regressed',
   );
 });
 
@@ -481,6 +480,7 @@ test('invisible joiner character in constified variable is reserved', t => {
       (err && /** @type {Error | undefined} */ (err.cause)?.message) || '',
     ),
     /Cannot read properties of undefined \(reading 'buildError'\)/,
+    'Hub-backed diagnostic must flow through; the raw TypeError from `undefined.buildError` indicates the Hub wiring regressed',
   );
 });
 

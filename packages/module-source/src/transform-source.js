@@ -29,8 +29,8 @@ const { Hub: BabelHub, NodePath: BabelNodePath } = babelTraverse;
  * The wrapper holds the parsed `File` as its sole child, keyed `'container'`,
  * which mirrors how Babel's own compiler driver wires up the root path.
  *
- * @param {object} ast - the parsed Babel `File` node.
- * @returns {object} a `NodePath` whose child paths inherit a `Hub`.
+ * @param {File} ast - the parsed Babel `File` node.
+ * @returns {NodePath} a `NodePath` whose child paths inherit a `Hub`.
  */
 const makeHubParentPath = ast => {
   const wrapper = { type: 'File', container: ast };
