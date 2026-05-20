@@ -1,0 +1,62 @@
+{
+  "name": "@endo/remote-fs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pipelinable, stream-friendly filesystem capabilities for Endo — designed so a deeply-nested walk + open + range read costs one CapTP round trip rather than depth-plus-two.",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/remote-fs"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./src/guards.js": "./src/guards.js",
+    "./src/in-memory.js": "./src/in-memory.js",
+    "./src/in-memory-module.js": "./src/in-memory-module.js",
+    "./src/disk.js": "./src/disk.js",
+    "./src/readonly.js": "./src/readonly.js",
+    "./src/from-mount.js": "./src/from-mount.js",
+    "./src/compose.js": "./src/compose.js",
+    "./src/layer.js": "./src/layer.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/stream": "workspace:^"
+  },
+  "devDependencies": {
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "60s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}
