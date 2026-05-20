@@ -9,12 +9,22 @@
 
 ## Status
 
+**In Progress** (design proposed 2026-03-26; Phase 1 implementation
+open as PR #287, not yet merged to `llm`).
+
 Phase 1 (`streamReply` + `StreamWriter` + `StreamReader`) implemented
 on branch `feat/daemon-message-streaming-phase-1` (commit 4af9cd0ea)
 and forwarded under the bot as
 [PR #287](https://github.com/endojs/endo-but-for-bots/pull/287)
 (open).
 Not yet merged to `llm`.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Design phase: 2026-03-26 (single commit `116f5f06d`, "Mostly
+  bot-written design for daemon message streaming").
+- Implementation phase: open as PR #287 against `llm`. No completion
+  date yet. Calendar gap since design is 54+ days.
 
 ## Motivation
 
