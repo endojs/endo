@@ -45,6 +45,7 @@
     "@endo/stream": "workspace:^"
   },
   "devDependencies": {
+    "@endo/captp": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev"
   },

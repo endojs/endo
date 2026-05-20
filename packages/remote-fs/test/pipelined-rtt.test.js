@@ -1,32 +1,113 @@
 // @ts-nocheck
 /* eslint-disable import/order, no-await-in-loop */
+/* global queueMicrotask, setTimeout */
 
 /**
- * Pipelined-walk RTT proof test (F9, DESIGN.md §3 #2).
+ * Pipelined-walk proof over a real CapTP connection
+ * (F9, DESIGN.md §3 #2).
  *
- * The design promises that a `lookup` chain like
- *   E(root).lookup(a).lookup(b).lookup(c).getQid()
- * fans out as ONE batch of eventual-send messages, not depth+1
- * sequential round trips. We can't easily measure CapTP messages
- * in-process, but we can measure something equivalent: wrap a
- * Filesystem in an "instrumented" facade that counts each
- * `lookup`/`getQid` call. A pipelined chain inside the wrapper
- * still issues N+1 method invocations (the methods ARE called on
- * each intermediate), but the test verifies the chain resolves
- * with the expected number of invocations and in the expected
- * order — confirming the chain shape is what we promise.
+ * The design promises that a chain like
+ *   E(root).lookup(a).lookup(b).lookup(c).lookup(d).getQid()
+ * fans out as a single batch of CapTP messages — every
+ * `CTP_CALL` reaches the wire before any `CTP_RETURN` comes
+ * back, rather than the depth-plus-one sequential round trips
+ * a naive client would issue.
  *
- * For a stronger empirical test we'd inject artificial latency
- * into each method and assert total wall-clock time is closer to
- * 1×latency than N×latency. We do that here too.
+ * These tests host an `@endo/remote-fs` `Filesystem` on a
+ * "right" vat, drive it from a "left" vat through `makeCapTP`,
+ * and wrap each side's `send` function so every wire message
+ * lands in a shared transcript array. Snapshot fixtures pin the
+ * interleaved send/receive order; assertions on the transcript
+ * verify the pipelining property directly rather than via
+ * in-process method-call counting.
+ *
+ * The previous version of this file did in-process call
+ * counting with a `Far()` facade; the addressed PR feedback
+ * (#326) asked for a real CapTP-mediated transcript, since the
+ * in-process facade can't actually observe the "all calls go
+ * out before any return comes back" property.
  */
 
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/far';
+import { makeCapTP } from '@endo/captp';
 
 import { makeInMemoryFilesystem } from '../src/in-memory.js';
+
+/**
+ * Connect a "left" client to a "right" server that exposes
+ * `bootstrap` as its bootstrap presence. Every wire message in
+ * either direction is recorded in `transcript`. Optional
+ * `deliveryLatencyMs` delays cross-side delivery so latency
+ * tests can measure end-to-end timing.
+ *
+ * @param {object} bootstrap
+ * @param {{ deliveryLatencyMs?: number }} [opts]
+ */
+const makeConnectedPair = (bootstrap, opts = {}) => {
+  const { deliveryLatencyMs = 0 } = opts;
+  /** @type {Array<object>} */
+  const transcript = [];
+
+  // `rightDispatch` is forward-declared with `let` because the
+  // left vat's `send` closure (created below) refers to it
+  // before the right vat is constructed; the binding is captured
+  // by reference. `leftDispatch` can be `const` because it's
+  // assigned before the right vat's `send` ever closes over it.
+  /** @type {(o: any) => void} */
+  let rightDispatch;
+
+  // Reduce a wire message to the fields a reader cares about.
+  // `method` is a marshalled `[propName, args]` (or `[propName]`
+  // for getters); extract just the method name.
+  const summarise = (from, to, msg) => {
+    /** @type {Record<string, any>} */
+    const entry = { from, to, type: msg.type };
+    if (msg.questionID !== undefined) entry.questionID = msg.questionID;
+    if (msg.answerID !== undefined) entry.answerID = msg.answerID;
+    if (msg.target !== undefined) entry.target = msg.target;
+    if (msg.method && typeof msg.method.body === 'string') {
+      try {
+        const parsed = JSON.parse(msg.method.body);
+        if (Array.isArray(parsed)) entry.method = parsed[0];
+      } catch {
+        // ignore — leave method out of the summary
+      }
+    }
+    transcript.push(entry);
+  };
+
+  const defer = fn => {
+    if (deliveryLatencyMs > 0) {
+      setTimeout(fn, deliveryLatencyMs);
+    } else {
+      queueMicrotask(fn);
+    }
+  };
+
+  const leftCapTP = makeCapTP('left', o => {
+    summarise('left', 'right', o);
+    defer(() => rightDispatch(o));
+  });
+  const leftDispatch = leftCapTP.dispatch;
+
+  const rightCapTP = makeCapTP(
+    'right',
+    o => {
+      summarise('right', 'left', o);
+      defer(() => leftDispatch(o));
+    },
+    bootstrap,
+  );
+  rightDispatch = rightCapTP.dispatch;
+
+  return {
+    bootstrapRef: leftCapTP.getBootstrap(),
+    transcript,
+  };
+};
 
 const populate = async () => {
   const fs = makeInMemoryFilesystem();
@@ -38,133 +119,146 @@ const populate = async () => {
   return fs;
 };
 
-/**
- * Wrap a Filesystem with per-method call counting + latency
- * injection. Each forwarded call sleeps `latencyMs` then forwards.
- */
-const makeInstrumented = (fs, latencyMs = 0) => {
-  const counts = { lookup: 0, getQid: 0 };
-  const sleep = ms =>
-    new Promise(resolve => {
-      // eslint-disable-next-line no-undef
-      setTimeout(resolve, ms);
-    });
-
-  const wrapDir = inner =>
-    Far('InstrumentedDirectory', {
-      getQid() {
-        // eslint-disable-next-line @endo/no-polymorphic-call
-        return /** @type {any} */ (inner).getQid();
-      },
-      async lookup(name) {
-        counts.lookup += 1;
-        if (latencyMs > 0) await sleep(latencyMs);
-        const child = await E(inner).lookup(name);
-        const qid = /** @type {any} */ (child).getQid();
-        return qid.type === 'directory' ? wrapDir(child) : wrapFile(child);
-      },
-    });
-
-  const wrapFile = inner =>
-    Far('InstrumentedFile', {
-      getQid() {
-        // eslint-disable-next-line @endo/no-polymorphic-call
-        return /** @type {any} */ (inner).getQid();
-      },
-    });
-
-  const wrapped = Far('InstrumentedFs', {
-    async root() {
-      const r = await E(fs).root();
-      return wrapDir(r);
-    },
-  });
-
-  return { fs: wrapped, counts };
+// Wait long enough for the queued microtasks/timers to drain.
+// Used between phases of the test to let CapTP advance.
+const settle = async (n = 5) => {
+  for (let i = 0; i < n; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await null;
+  }
 };
 
-test('pipelined chain: exactly N lookups + 1 terminal getQid for depth-N walk', async t => {
-  const innerFs = await populate();
-  const { fs, counts } = makeInstrumented(innerFs);
-  const root = await E(fs).root();
+test('pipelined chain over CapTP: all CTP_CALL messages reach the wire before any CTP_RETURN', async t => {
+  const fs = await populate();
+  const { bootstrapRef, transcript } = makeConnectedPair(fs);
+  // Drain the bootstrap exchange so the snapshot below covers
+  // only the chain we issue.
+  await E(bootstrapRef).root();
+  const bootstrapEnd = transcript.length;
 
-  // Build the chain without awaiting intermediates.
-  const aP = E(root).lookup('a');
+  // Build the chain WITHOUT awaiting intermediates. Cross-vat
+  // delivery is deferred via queueMicrotask, so the right vat
+  // can't reply until the left vat has finished issuing the
+  // whole chain.
+  const rootP = E(bootstrapRef).root();
+  const aP = E(rootP).lookup('a');
   const bP = E(aP).lookup('b');
   const cP = E(bP).lookup('c');
-  const tail = E(cP).lookup('d');
-  const qid = await E(tail).getQid();
+  const tailP = E(cP).lookup('d');
+  const qid = await E(tailP).getQid();
   t.is(qid.type, 'directory');
+  await settle();
 
-  // Each intermediate lookup() ran once; total = 4.
-  t.is(counts.lookup, 4);
+  // Pipelining signature: every left→right CTP_CALL that the
+  // chain issues appears in the transcript before any
+  // right→left reply to those calls. Equivalently: the wire
+  // shows N consecutive CALLs followed by N RETURNs, not an
+  // interleaved CALL/RETURN/CALL/RETURN sequence.
+  const chainEntries = transcript.slice(bootstrapEnd);
+  const firstReturnAt = chainEntries.findIndex(e => e.type === 'CTP_RETURN');
+  const callsBeforeFirstReturn = chainEntries
+    .slice(0, firstReturnAt)
+    .filter(e => e.type === 'CTP_CALL');
+  t.is(
+    callsBeforeFirstReturn.length,
+    6,
+    'all six chain CTP_CALLs (root + 4 lookups + getQid) reach the wire before the first CTP_RETURN',
+  );
+  t.deepEqual(
+    callsBeforeFirstReturn.map(e => e.method),
+    ['root', 'lookup', 'lookup', 'lookup', 'lookup', 'getQid'],
+  );
+
+  t.snapshot(transcript, 'pipelined chain wire transcript');
 });
 
-test('pipelined chain end-to-end completes in well under N × latency', async t => {
-  const innerFs = await populate();
-  const latencyMs = 50;
-  const { fs } = makeInstrumented(innerFs, latencyMs);
-  const root = await E(fs).root();
+test('non-pipelined sequential walk over CapTP: every CTP_CALL is followed by its CTP_RETURN before the next call', async t => {
+  const fs = await populate();
+  const { bootstrapRef, transcript } = makeConnectedPair(fs);
+  await E(bootstrapRef).root(); // drain bootstrap exchange
+  const bootstrapEnd = transcript.length;
 
-  // For a sequential walk, latency = 4 × 50ms = 200ms minimum.
-  // The CapTP pipeline within Endo doesn't actually fan-out
-  // method calls on the same vat (we're in-process), so this
-  // test serves to (a) measure the in-process baseline and (b)
-  // document the contract: even with 50ms artificial latency on
-  // each lookup, the chain must complete and produce the
-  // expected qid. The realistic-cross-CapTP win is verified by
-  // 9p-server.test.js's pipelined-walk test (single Rwalk reply
-  // for an N-component walk).
+  const root = await E(bootstrapRef).root();
+  const a = await E(root).lookup('a');
+  const b = await E(a).lookup('b');
+  const c = await E(b).lookup('c');
+  const d = await E(c).lookup('d');
+  const qid = await E(d).getQid();
+  t.is(qid.type, 'directory');
+  await settle();
+
+  // Filter to the CALL/RETURN frames the user issued. For a
+  // sequential walk the pattern is CALL, RETURN, CALL, RETURN,
+  // … — each step awaits its reply before issuing the next.
+  const callsAndReturns = transcript
+    .slice(bootstrapEnd)
+    .filter(e => e.type === 'CTP_CALL' || e.type === 'CTP_RETURN');
+  for (let i = 0; i + 1 < callsAndReturns.length; i += 2) {
+    t.is(callsAndReturns[i].type, 'CTP_CALL', `entry ${i} is a CALL`);
+    t.is(
+      callsAndReturns[i + 1].type,
+      'CTP_RETURN',
+      `entry ${i + 1} is a RETURN`,
+    );
+  }
+
+  t.snapshot(transcript, 'sequential walk wire transcript');
+});
+
+test('pipelined chain with simulated wire latency completes in one round-trip, not N', async t => {
+  const fs = await populate();
+  const latencyMs = 30;
+  const { bootstrapRef } = makeConnectedPair(fs, {
+    deliveryLatencyMs: latencyMs,
+  });
+
   const start = Date.now();
-  const aP = E(root).lookup('a');
+  const rootP = E(bootstrapRef).root();
+  const aP = E(rootP).lookup('a');
   const bP = E(aP).lookup('b');
   const cP = E(bP).lookup('c');
   const tailP = E(cP).lookup('d');
   const qid = await E(tailP).getQid();
   const elapsed = Date.now() - start;
   t.is(qid.type, 'directory');
-  // Sanity: nowhere near 4×latency × order-of-magnitude. In-
-  // process, intermediate lookups happen sequentially in async
-  // queue order; total should still be bounded.
+
+  // A sequential 6-call walk over a `latencyMs`-delay wire would
+  // cost ~6 × 2 × latencyMs = 360ms (each round-trip is two
+  // delivery hops). Pipelined, the in-flight calls share one
+  // round-trip, so the total is bounded by a small multiple of
+  // a single round-trip rather than scaling with chain depth.
+  const sequentialFloor = 6 * 2 * latencyMs;
   t.true(
-    elapsed < 4 * latencyMs * 2,
-    `expected elapsed < ${4 * latencyMs * 2}ms, got ${elapsed}ms`,
+    elapsed < sequentialFloor / 2,
+    `expected elapsed < ${sequentialFloor / 2}ms (half of sequential floor ${sequentialFloor}ms), got ${elapsed}ms`,
   );
 });
 
-test('non-pipelined sequential walk: each step awaited separately', async t => {
-  const innerFs = await populate();
-  const { fs, counts } = makeInstrumented(innerFs);
-  const root = await E(fs).root();
+test('lookup of a missing intermediate short-circuits the chain over CapTP', async t => {
+  const fs = await populate();
+  const { bootstrapRef, transcript } = makeConnectedPair(fs);
+  await E(bootstrapRef).root(); // drain bootstrap
+  const bootstrapEnd = transcript.length;
 
-  // Naive walk: await each step.
-  let cur = await E(root).lookup('a');
-  cur = await E(cur).lookup('b');
-  cur = await E(cur).lookup('c');
-  cur = await E(cur).lookup('d');
-  const qid = /** @type {any} */ (cur).getQid();
-  t.is(qid.type, 'directory');
-  t.is(counts.lookup, 4);
-});
-
-test('lookup of missing intermediate short-circuits the chain', async t => {
-  const innerFs = await populate();
-  const { fs, counts } = makeInstrumented(innerFs);
-  const root = await E(fs).root();
-
-  // The chain rejects at lookup('zzz'); subsequent lookups still
-  // get dispatched (they're already in flight) but their input
-  // promise is a rejection, so the wrapper's body never runs.
-  const err = await t.throwsAsync(() => {
-    const aP = E(root).lookup('a');
+  const err = await t.throwsAsync(async () => {
+    const rootP = E(bootstrapRef).root();
+    const aP = E(rootP).lookup('a');
     const zzzP = E(aP).lookup('zzz');
     const cP = E(zzzP).lookup('c');
     const tailP = E(cP).lookup('d');
-    return E(tailP).getQid();
+    await E(tailP).getQid();
   });
   t.regex(err.message, /ENOENT/);
-  // 'a' + 'zzz' were attempted (zzz failed). 'c' and 'd' may or
-  // may not have been dispatched depending on the runtime's
-  // settled-promise queue ordering. Floor: 2; ceiling: 4.
-  t.true(counts.lookup >= 2 && counts.lookup <= 4);
+  await settle();
+
+  // The chain was still pipelined — every call reached the wire
+  // before any reply. The rejection propagates through the
+  // pipeline so the later calls' return values are themselves
+  // rejections, but the messages did go out.
+  const issuedCalls = transcript
+    .slice(bootstrapEnd)
+    .filter(e => e.from === 'left' && e.type === 'CTP_CALL');
+  t.is(issuedCalls.length, 6, 'all chain calls went out despite the failure');
+
+  t.snapshot(transcript, 'rejected chain wire transcript');
 });

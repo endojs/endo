@@ -2527,6 +2527,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/remote-fs@workspace:packages/remote-fs"
   dependencies:
+    "@endo/captp": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
