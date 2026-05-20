@@ -36,6 +36,7 @@
     "packages/genie",
     "packages/hex-test",
     "packages/inventory-graph",
+    "packages/ses-test",
     "packages/jaine",
     "packages/hardened262",
     "packages/lal",
