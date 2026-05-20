@@ -10,6 +10,9 @@
 
 ## Status
 
+**Complete** (shipped 2026-03-04 via commit `7592a18dd` on `llm`;
+design and implementation landed in the same commit).
+
 Implemented directly on the `llm` branch in commit 7592a18dd
 ("Progress on focus message concept", 2026-03-04).
 The implementation landed before the bot-forwarded PR workflow was
@@ -18,6 +21,17 @@ All four key files named in the design (`chat-bar-component.js`,
 `inline-command-form.js`, `inbox-component.js`, `index.css`) carry
 the focus-mode logic, modeline, chain/connection algorithms, and
 styling described here.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-03-04 → 2026-03-04 (1 day; design and
+  implementation landed atomically).
+- Design phase: 2026-03-04 (single commit `7592a18dd`, "Progress on
+  focus message concept"; the same commit carried the design doc
+  add and the implementation).
+- Implementation phase: 2026-03-04 (single commit `7592a18dd`).
+  The companion commit `8fe17b1c6` "Reimplement visualization of
+  reply chains" landed the same day.
 
 ## Motivation
 
