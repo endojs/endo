@@ -1,11 +1,11 @@
 # `@endo/patterns` Diagnostic Feedback
 
-| | |
-|---|---|
-| **Created** | 2026-05-19 |
-| **Updated** | 2026-05-20 |
-| **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+|             |                       |
+| ----------- | --------------------- |
+| **Created** | 2026-05-19            |
+| **Updated** | 2026-05-20            |
+| **Author**  | Kris Kowal (prompted) |
+| **Status**  | Proposed              |
 
 ## What is the Problem Being Solved?
 
@@ -88,7 +88,7 @@ console but agents cannot read programmatically.
    fulfillment.
 2. On rejection (sync or async) constructs a new outer `Error` whose
    message is `` `${label}: ${innerErr.message}` `` and **annotates** the
-   outer error with `` annotateError(outerErr, X`Caused by ${innerErr}`) ``.
+   outer error with ``annotateError(outerErr, X`Caused by ${innerErr}`)``.
 3. Throws the outer error.
 
 `annotateError` is `assert.note` from SES.
@@ -137,7 +137,7 @@ flattened `message` of the form `"l1: l2: l3: l4: l5: l6: detail"`.
   at all.
 - **No combinator awareness at render time.**
   `M.or` over three alternatives currently fails with `"Must match one of
-  [...]"` and abandons all per-alternative chain information.
+[...]"` and abandons all per-alternative chain information.
   The chain stops at the disjunction; alternatives are not labeled with
   their own attempted-match chain.
 - **No rendering convention.**
@@ -262,7 +262,7 @@ number of failures at a REPL.
 
 A header line names the failure mode and counts; subsequent lines are one
 per leaf failure, each line carrying the path, the found value, and the
-expected pattern, separated by ` | ` for predictable splitting:
+expected pattern, separated by `|` for predictable splitting:
 
 ```
 mismatch (1 leaf): .user.age | found -3 (number) | expected non-negative bigint
@@ -300,7 +300,7 @@ separator   = " | "  (column separator; never appears unescaped inside values)
 
 Values and patterns inside a line are pre-quoted (the explain-mismatch
 recursion calls `passableAsJustin` and replaces literal `|` with `\|`) so a
-reader can split on ` | ` without escaping concerns.
+reader can split on `|` without escaping concerns.
 The line-per-leaf shape lets a tool harness or AI agent line-grep the
 output, count failures, or extract the first path without parsing
 indentation.
@@ -539,8 +539,8 @@ mismatch in arrayOf(nat()) over 5 elements; 3 failed
 
 ## Dependencies
 
-| Design               | Relationship                                                                                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Design               | Relationship                                                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | (none in `designs/`) | New submodule inside `@endo/patterns`; reads but does not modify `@endo/common/apply-labeling-error.js`. No design predecessors. |
 
 ## Phased Implementation
@@ -609,7 +609,7 @@ The new code is approximately 600 lines including tests.
    layout; a human who wants the indented Rust-compiler-style view passes
    `{ format: 'expanded' }`.
 
-5. **Column separator is ` | `, not JSON.**
+5. **Column separator is `|`, not JSON.**
    JSON-Lines was considered.
    The chosen `path | found | expected | reason` form is shorter (no key
    names per line, no quoting overhead) and equally machine-parseable
@@ -655,7 +655,7 @@ The new code is approximately 600 lines including tests.
   The `context` field on `ExplainMismatchInput` carries the method-name
   and argument-index prefix.
   Whether a sugar helper (`explainExoCall(interfaceGuard, methodName,
-  args)`) should ship in the initial PR or wait for an in-repo user is
+args)`) should ship in the initial PR or wait for an in-repo user is
   open.
   A short integration test against an `InterfaceGuard`-rejected call
   before Phase A lands is appropriate either way.
@@ -686,7 +686,7 @@ post-processor that required `try`/`catch`) into
 `diagnose({ specimen, pattern })` (a non-throwing matcher mirroring
 `matches(specimen, pattern): boolean`).
 The renderer was split into a default `compact` format (one-line-per-
-mismatch, ` | `-separated columns, sized for AI-agent token economy) and
+mismatch, `|`-separated columns, sized for AI-agent token economy) and
 an opt-in `expanded` format (indented Rust-compiler-style, for humans
 reading a small failure at a REPL).
 The cause-chain fallback phase was dropped (no error means no chain to
