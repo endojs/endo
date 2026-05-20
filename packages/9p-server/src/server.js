@@ -127,7 +127,21 @@ export const serveConnection = ({ fs, socket, onClose }) => {
   const drainOnce = async () => {
     for (;;) {
       if (closed) return;
-      const parsed = tryParseMessage(buf);
+      let parsed;
+      try {
+        parsed = tryParseMessage(buf);
+      } catch (e) {
+        // The frame at the head of `buf` is malformed (declared
+        // `size < 7`, or some other framing fault). There's no
+        // way to recover the stream — the next frame's offset is
+        // undefined. Close the connection so the peer reconnects
+        // with a fresh state, rather than chasing a corrupted
+        // bytestream.
+        // eslint-disable-next-line no-console
+        console.error('[9p] frame parse error; closing connection', e);
+        close();
+        return;
+      }
       if (!parsed) return;
       buf = parsed.rest;
       try {
@@ -651,7 +665,20 @@ export const serveConnection = ({ fs, socket, onClose }) => {
   const onWrite = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
     const offset = r.u64();
-    const count = r.u32();
+    const count = /** @type {number} */ (r.u32());
+    // Validate `count` against (a) the remaining payload bytes —
+    // if the peer is inconsistent we'd otherwise silently truncate
+    // and advance past the buffer end — and (b) the negotiated
+    // `msize` minus the 9P `Twrite` header (4-byte size + 1-byte
+    // type + 2-byte tag + 4-byte fid + 8-byte offset + 4-byte
+    // count = 23 bytes), so a peer can't request an oversized
+    // write that exceeds what the protocol permits per frame.
+    const TWRITE_HEADER_BYTES = 23;
+    const remaining = /** @type {number} */ (r.remaining());
+    const maxByMsize = Math.max(0, msize - TWRITE_HEADER_BYTES);
+    if (count > remaining || count > maxByMsize) {
+      return sendError(tag, ERRNO.EINVAL);
+    }
     const data = r.take(count);
     const f = fids.get(fid);
     if (!f || !f.open) return sendError(tag, ERRNO.EBADF);

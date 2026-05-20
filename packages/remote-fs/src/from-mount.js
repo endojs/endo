@@ -53,6 +53,7 @@ import {
   computeOpenMode,
   makeBytesReaderFromBytes,
   makeNotSupported,
+  toSafeNumber,
 } from './shared/helpers.js';
 import { makeBlobRefExo } from './shared/blobref.js';
 
@@ -215,8 +216,8 @@ export const mountAsFilesystem = rootMount => {
         requireOpen();
         if (!mode.read) throw makeError(X`EBADF: not opened for reading`);
         const data = await ensureBuffer();
-        const off = Number(offset);
-        const len = Number(length);
+        const off = toSafeNumber(offset, 'offset');
+        const len = toSafeNumber(length, 'length');
         const end = Math.min(off + len, data.length);
         const slice =
           off >= data.length ? new Uint8Array(0) : data.slice(off, end);
@@ -225,7 +226,7 @@ export const mountAsFilesystem = rootMount => {
       async write(offset) {
         requireOpen();
         if (!mode.write) throw makeError(X`EBADF: not opened for writing`);
-        let off = Number(offset);
+        let off = toSafeNumber(offset, 'offset');
         await ensureBuffer();
         const sinkIterator = {
           /** @param {Uint8Array} bytes */
@@ -258,7 +259,7 @@ export const mountAsFilesystem = rootMount => {
         requireOpen();
         if (!mode.write) throw makeError(X`EBADF: not opened for writing`);
         await ensureBuffer();
-        const newLen = Number(length);
+        const newLen = toSafeNumber(length, 'length');
         const cur = /** @type {Uint8Array} */ (buffer);
         if (newLen === cur.length) return;
         const next = new Uint8Array(newLen);

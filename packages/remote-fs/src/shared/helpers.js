@@ -132,6 +132,45 @@ export const makeNotSupported = backing => method =>
   makeError(X`ENOSYS: ${q(method)} not implemented on ${backing}`);
 
 /**
+ * Convert a `bigint` (or `number`) offset/length to a safe
+ * `Number`, throwing `EINVAL` on overflow, non-integer values,
+ * or negatives. Used at the boundary where the bigint-shaped
+ * public API meets Number-shaped host APIs (`Buffer.alloc`,
+ * `Uint8Array.slice`, `fs.read`, …) so out-of-range values can't
+ * silently lose precision.
+ *
+ * @param {bigint | number} value
+ * @param {string} name  argument name for error messages
+ * @returns {number}
+ */
+export const toSafeNumber = (value, name) => {
+  if (typeof value === 'bigint') {
+    if (value < 0n) {
+      throw makeError(
+        X`EINVAL: ${q(name)} must be non-negative, got ${q(value)}`,
+      );
+    }
+    if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw makeError(
+        X`EINVAL: ${q(name)} ${q(value)} exceeds Number.MAX_SAFE_INTEGER`,
+      );
+    }
+    return Number(value);
+  }
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw makeError(
+        X`EINVAL: ${q(name)} ${q(value)} is not a safe non-negative integer`,
+      );
+    }
+    return value;
+  }
+  throw makeError(
+    X`EINVAL: ${q(name)} must be bigint or number, got ${q(typeof value)}`,
+  );
+};
+
+/**
  * Compute the OpenFile mode flags from an `OpenOpts` record.
  *
  * `append` and `truncate` are POSIX write modifiers (`O_APPEND`,

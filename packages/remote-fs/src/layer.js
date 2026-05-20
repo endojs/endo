@@ -101,25 +101,36 @@ const enumerateLayerOps = async function* (layerFs) {
       if (entry.qid.type === 'file') {
         yield harden({ kind: 'create-file', path: childPath });
         // Stream the file's bytes as a separate op so apply can
-        // replay them. Read in one chunk; large files would need
-        // chunked emission, deferred.
+        // replay them. Ask the file how large it is first so we
+        // request exactly that many bytes — the previous version
+        // passed `1n << 30n` unconditionally, which made the
+        // disk-backed `OpenFile.read` allocate a 1 GiB `Buffer`
+        // for every file, however small. Chunked emission for
+        // files larger than a single LayerOp is deferred.
         const file = await E(dir).lookup(name);
+        const attrs = await E(file).getAttrs();
+        const size = attrs.size;
         const oh = await E(file).open({ read: true });
-        const reader = await E(oh).read(0n, 1n << 30n);
-        const chunks = [];
-        let total = 0;
-        for await (const chunk of iterateBytesReader(reader)) {
-          chunks.push(chunk);
-          total += chunk.length;
-        }
-        await E(oh).close();
-        if (total > 0) {
-          const merged = new Uint8Array(total);
+        let merged;
+        if (size === 0n) {
+          merged = new Uint8Array(0);
+        } else {
+          const reader = await E(oh).read(0n, size);
+          const chunks = [];
+          let total = 0;
+          for await (const chunk of iterateBytesReader(reader)) {
+            chunks.push(chunk);
+            total += chunk.length;
+          }
+          merged = new Uint8Array(total);
           let off = 0;
           for (const c of chunks) {
             merged.set(c, off);
             off += c.length;
           }
+        }
+        await E(oh).close();
+        if (merged.length > 0) {
           yield harden({
             kind: 'write-bytes',
             path: childPath,

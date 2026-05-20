@@ -17,7 +17,11 @@ import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 
 import { BlobRefInterface } from '../guards.js';
-import { EMPTY_BYTES, makeBytesReaderFromBytes } from './helpers.js';
+import {
+  EMPTY_BYTES,
+  makeBytesReaderFromBytes,
+  toSafeNumber,
+} from './helpers.js';
 
 /**
  * Mint a `BlobRef` from a captured `Uint8Array`. The `BlobRef`'s
@@ -41,8 +45,8 @@ export const makeBlobRefExo = (bytes, help) => {
       return info;
     },
     async fetch(offset, length) {
-      const off = Number(offset);
-      const len = Number(length);
+      const off = toSafeNumber(offset, 'offset');
+      const len = toSafeNumber(length, 'length');
       const end = Math.min(off + len, captured.length);
       const slice =
         off >= captured.length ? EMPTY_BYTES : captured.slice(off, end);

@@ -57,6 +57,7 @@ import {
   computeOpenMode,
   makeBytesReaderFromBytes,
   makeNotSupported,
+  toSafeNumber,
 } from './shared/helpers.js';
 import { makeBlobRefExo } from './shared/blobref.js';
 import { makeLockTable } from './shared/lock-table.js';
@@ -338,9 +339,9 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       async read(offset, length) {
         requireOpen();
         requireReadable();
-        const len = Number(length);
-        const off = Number(offset);
-        if (len <= 0) {
+        const len = toSafeNumber(length, 'length');
+        const off = toSafeNumber(offset, 'offset');
+        if (len === 0) {
           return makeBytesReaderFromBytes(new Uint8Array(0));
         }
         const buf = Buffer.alloc(len);
@@ -352,7 +353,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       async write(offset) {
         requireOpen();
         requireWritable();
-        let off = Number(offset);
+        let off = toSafeNumber(offset, 'offset');
         const sinkIterator = {
           /** @param {Uint8Array} bytes */
           async next(bytes) {
@@ -377,7 +378,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       async truncate(length) {
         requireOpen();
         requireWritable();
-        await fh.truncate(Number(length));
+        await fh.truncate(toSafeNumber(length, 'length'));
       },
       async fsync(opts) {
         requireOpen();

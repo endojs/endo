@@ -45,6 +45,7 @@ import {
   makeBytesSinkWriter,
   makeStringReaderFromArray,
   nowNs,
+  toSafeNumber,
 } from './shared/helpers.js';
 import { makeBlobRefExo } from './shared/blobref.js';
 import { makeLockTable } from './shared/lock-table.js';
@@ -386,8 +387,8 @@ export const makeInMemoryFilesystem = () => {
         requireOpen();
         requireReadable();
         const r = /** @type {FileRecord} */ (getRecord(fileId));
-        const off = Number(offset);
-        const len = Number(length);
+        const off = toSafeNumber(offset, 'offset');
+        const len = toSafeNumber(length, 'length');
         const end = Math.min(off + len, r.content.length);
         const slice =
           off >= r.content.length ? EMPTY_BYTES : r.content.slice(off, end);
@@ -396,7 +397,7 @@ export const makeInMemoryFilesystem = () => {
       async write(offset) {
         requireOpen();
         requireWritable();
-        let off = Number(offset);
+        let off = toSafeNumber(offset, 'offset');
         return makeBytesSinkWriter({
           onChunk(bytes) {
             const r = /** @type {FileRecord} */ (getRecord(fileId));
@@ -423,7 +424,7 @@ export const makeInMemoryFilesystem = () => {
         requireOpen();
         requireWritable();
         const r = /** @type {FileRecord} */ (getRecord(fileId));
-        const newLen = Number(length);
+        const newLen = toSafeNumber(length, 'length');
         if (newLen === r.content.length) return;
         const next = new Uint8Array(newLen);
         next.set(r.content.subarray(0, Math.min(newLen, r.content.length)));
