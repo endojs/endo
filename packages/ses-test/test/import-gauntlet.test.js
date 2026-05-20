@@ -3,7 +3,7 @@
 // modules using a single Compartment.
 
 import test from 'ava';
-import '../index.js';
+import 'ses';
 import { resolveNode, makeNodeImporter } from './_node.js';
 
 test('import for side effect', async t => {

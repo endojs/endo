@@ -1,16 +1,7 @@
 /* eslint-env node */
-/* glimport/no-extraneous-dependenciesobal process */
-import '../index.js';
+import 'ses';
 import { promises as fs } from 'fs';
-// Lerna does not like dependency cycles.
-// With an explicit devDependency from module-source to compartment-mapper,
-// the build script stalls before running every package's build script.
-//   yarn lerna run build
-// Omitting the dependency from package.json solves the problem and works
-// by dint of shared workspace node_modules.
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { ModuleSource } from '@endo/module-source';
 import { fileURLToPath } from 'url';
 

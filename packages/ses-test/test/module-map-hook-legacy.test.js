@@ -1,13 +1,13 @@
-// These tests exercise legacy module descriptor shapes for the Compartment
-// importNowHook.
+// These tests exercise the Compartment moduleMapHook for legacy module
+// descriptor shapes.
 
 /* eslint max-lines: 0 */
 
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
-import '../index.js';
+import 'ses';
 
-test('import now hook returns precompiled module source', t => {
+test('module map hook returns module source', async t => {
   const compartment = new Compartment(
     // endowments:
     {},
@@ -16,7 +16,7 @@ test('import now hook returns precompiled module source', t => {
     // options:
     {
       resolveHook: specifier => specifier,
-      importNowHook(specifier) {
+      moduleMapHook(specifier) {
         if (specifier === './index.js') {
           return new ModuleSource('export default 42');
         }
@@ -24,11 +24,11 @@ test('import now hook returns precompiled module source', t => {
       },
     },
   );
-  const index = compartment.importNow('./index.js');
+  const { namespace: index } = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
-test('import now hook returns virtual module source', t => {
+test('module map hook returns module record descriptor', async t => {
   const compartment = new Compartment(
     // endowments:
     {},
@@ -37,7 +37,28 @@ test('import now hook returns virtual module source', t => {
     // options:
     {
       resolveHook: specifier => specifier,
-      importNowHook(specifier) {
+      moduleMapHook(specifier) {
+        if (specifier === './index.js') {
+          return new ModuleSource('export default 42');
+        }
+        return undefined;
+      },
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
+test('module map hook returns virtual module source', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      resolveHook: specifier => specifier,
+      moduleMapHook(specifier) {
         if (specifier === './index.js') {
           return {
             imports: [],
@@ -51,11 +72,11 @@ test('import now hook returns virtual module source', t => {
       },
     },
   );
-  const index = compartment.importNow('./index.js');
+  const { namespace: index } = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
-test('import now hook returns virtual module record descriptor', t => {
+test('module map hook returns virtual module record descriptor', async t => {
   const compartment = new Compartment(
     // endowments:
     {},
@@ -64,7 +85,7 @@ test('import now hook returns virtual module record descriptor', t => {
     // options:
     {
       resolveHook: specifier => specifier,
-      importNowHook(specifier) {
+      moduleMapHook(specifier) {
         if (specifier === './index.js') {
           return {
             record: {
@@ -80,31 +101,6 @@ test('import now hook returns virtual module record descriptor', t => {
       },
     },
   );
-  const index = compartment.importNow('./index.js');
-  t.is(index.default, 42);
-});
-
-test('import now hook returns namespace using module method', t => {
-  const compartment = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {},
-    // options:
-    {
-      resolveHook: specifier => specifier,
-      importNowHook(specifier) {
-        if (specifier === '.') {
-          return compartment.module('./index.js');
-        }
-        if (specifier === './index.js') {
-          return new ModuleSource('export default 42');
-        }
-        return undefined;
-      },
-    },
-  );
-  // Unlike import, importNow does not box the namespace.
-  const index = compartment.importNow('.');
+  const { namespace: index } = await compartment.import('./index.js');
   t.is(index.default, 42);
 });

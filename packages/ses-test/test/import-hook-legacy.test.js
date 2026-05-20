@@ -5,7 +5,7 @@
 
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
-import '../index.js';
+import 'ses';
 
 test('import hook returns module source', async t => {
   const compartment = new Compartment(

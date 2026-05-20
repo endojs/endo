@@ -1,31 +1,34 @@
-// These tests exercise the Compartment importNowHook.
+// @ts-nocheck
+// These tests exercise the Compartment importHook.
 
 /* eslint max-lines: 0 */
 
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
-import '../index.js';
-import { resolveNode } from './_node.js';
+import 'ses';
 
-test('import now hook returns module source descriptor with precompiled module source', t => {
+test('import hook returns module source descriptor with precompiled module source', async t => {
   const compartment = new Compartment({
     resolveHook: specifier => specifier,
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './index.js') {
-        return { source: new ModuleSource('export default 42') };
+        return {
+          source: new ModuleSource('export default 42'),
+        };
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
-  const index = compartment.importNow('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
-test('import now hook returns module source descriptor with virtual module source', t => {
+test('import hook returns module source descriptor with virtual module source', async t => {
   const compartment = new Compartment({
     resolveHook: specifier => specifier,
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './index.js') {
         return {
           source: {
@@ -39,16 +42,17 @@ test('import now hook returns module source descriptor with virtual module sourc
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
-  const index = compartment.importNow('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
-test('import now hook returns parent compartment module source descriptor with string reference to parent compartment', t => {
+test('import hook returns parent compartment module source descriptor with string reference to parent compartment', async t => {
   const parent = new Compartment({
     resolveHook: specifier => specifier,
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './meaning.js') {
         return {
           source: {
@@ -73,7 +77,7 @@ test('import now hook returns parent compartment module source descriptor with s
     // options:
     {
       resolveHook: specifier => specifier,
-      importNowHook(specifier) {
+      importHook(specifier) {
         if (specifier === './index.js') {
           return {
             source: './meaning.js',
@@ -81,13 +85,14 @@ test('import now hook returns parent compartment module source descriptor with s
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const index = compartment.importNow('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
-test('import now hook returns parent compartment module source reference with different specifier', t => {
+test('import hook returns parent compartment module source reference with different specifier', async t => {
   const parent = new Compartment({
     name: 'parent',
     resolveHook(relative, specifier) {
@@ -95,7 +100,7 @@ test('import now hook returns parent compartment module source reference with di
       t.is(specifier, './meaning.js');
       return relative;
     },
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './meaningful.js') {
         return {
           source: {
@@ -125,48 +130,43 @@ test('import now hook returns parent compartment module source reference with di
     __options__: true,
   });
 
-  const compartment = new parent.globalThis.Compartment(
-    // endowments:
-    {},
-    // modules:
-    {},
-    // options:
-    {
-      name: 'child',
-      resolveHook(relative, specifier) {
-        t.is(relative, './meaningful.js');
-        t.is(specifier, './lib/meaning.js');
-        return './lib/meaningful.js';
-      },
-      importNowHook(specifier) {
-        if (specifier === './lib/meaningful.js') {
-          return {
-            source: {
-              imports: [],
-              exports: ['meaning'],
-              execute(env) {
-                env.meaning = 42;
-              },
-            },
-          };
-        } else if (specifier === './index.js') {
-          return {
-            source: './meaning.js',
-            specifier: './lib/meaning.js',
-          };
-        }
-        return undefined;
-      },
+  const compartment = new parent.globalThis.Compartment({
+    name: 'child',
+    resolveHook(relative, specifier) {
+      t.is(relative, './meaningful.js');
+      t.is(specifier, './lib/meaning.js');
+      return './lib/meaningful.js';
     },
-  );
-  const index = compartment.importNow('./index.js');
+    importHook(specifier) {
+      if (specifier === './lib/meaningful.js') {
+        return {
+          source: {
+            imports: [],
+            exports: ['meaning'],
+            execute(env) {
+              env.meaning = 42;
+            },
+          },
+        };
+      } else if (specifier === './index.js') {
+        return {
+          source: './meaning.js',
+          specifier: './lib/meaning.js',
+        };
+      }
+      return undefined;
+    },
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
-test('import now hook returns module source descriptor for parent compartment with string reference', t => {
+test('import hook returns module source descriptor for parent compartment with string reference', async t => {
   const parent = new Compartment({
     name: 'parent',
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './object.js') {
         return {
           source: new ModuleSource('export default { meaning: 42 }'),
@@ -174,10 +174,11 @@ test('import now hook returns module source descriptor for parent compartment wi
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: parentObject } = parent.importNow('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
   const compartment = new parent.globalThis.Compartment(
@@ -188,7 +189,7 @@ test('import now hook returns module source descriptor for parent compartment wi
     // options:
     {
       name: 'child',
-      importNowHook(specifier) {
+      importHook(specifier) {
         if (specifier === './index.js') {
           return {
             source: './object.js',
@@ -197,19 +198,20 @@ test('import now hook returns module source descriptor for parent compartment wi
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const { default: childObject } = compartment.importNow('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Separate instances
   t.not(childObject, parentObject);
 });
 
-test('import now hook returns parent compartment module namespace descriptor', t => {
+test('import hook returns parent compartment module namespace descriptor', async t => {
   const parent = new Compartment({
     name: 'parent',
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './object.js') {
         return {
           source: new ModuleSource('export default { meaning: 42 }'),
@@ -217,10 +219,11 @@ test('import now hook returns parent compartment module namespace descriptor', t
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: parentObject } = parent.importNow('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
   const compartment = new parent.globalThis.Compartment(
@@ -231,7 +234,7 @@ test('import now hook returns parent compartment module namespace descriptor', t
     // options:
     {
       name: 'child',
-      importNowHook(specifier) {
+      importHook(specifier) {
         if (specifier === './index.js') {
           return {
             namespace: './object.js',
@@ -240,19 +243,20 @@ test('import now hook returns parent compartment module namespace descriptor', t
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const { default: childObject } = compartment.importNow('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Same instances
   t.is(childObject, parentObject);
 });
 
-test('import now hook returns module source descriptor with string reference to parent compartment', t => {
+test('import hook returns module source descriptor with string reference to parent compartment', async t => {
   const compartment1 = new Compartment({
     name: 'compartment1',
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './object.js') {
         return {
           source: new ModuleSource('export default { meaning: 42 }'),
@@ -260,15 +264,16 @@ test('import now hook returns module source descriptor with string reference to 
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: object1 } = compartment1.importNow('./object.js');
+  const { default: object1 } = await compartment1.import('./object.js');
   t.is(object1.meaning, 42);
 
   const compartment2 = new Compartment({
     name: 'child',
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './index.js') {
         return {
           source: './object.js',
@@ -277,19 +282,20 @@ test('import now hook returns module source descriptor with string reference to 
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: object2 } = compartment2.importNow('./index.js');
+  const { default: object2 } = await compartment2.import('./index.js');
   t.is(object2.meaning, 42);
   // Separate instances
   t.not(object1, object2);
 });
 
-test('import now hook returns other compartment module namespace descriptor', t => {
+test('import hook returns other compartment module namespace descriptor', async t => {
   const compartment1 = new Compartment({
     name: 'compartment1',
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './object.js') {
         return {
           source: new ModuleSource('export default { meaning: 42 }'),
@@ -297,15 +303,16 @@ test('import now hook returns other compartment module namespace descriptor', t 
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: object1 } = compartment1.importNow('./object.js');
+  const { default: object1 } = await compartment1.import('./object.js');
   t.is(object1.meaning, 42);
 
   const compartment2 = new Compartment({
     name: 'child',
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './index.js') {
         return {
           namespace: './object.js',
@@ -314,18 +321,19 @@ test('import now hook returns other compartment module namespace descriptor', t 
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: object2 } = compartment2.importNow('./index.js');
+  const { default: object2 } = await compartment2.import('./index.js');
   t.is(object2.meaning, 42);
   // Same instances
   t.is(object1, object2);
 });
 
-test('import now hook returns module namespace descriptor and namespace object', t => {
+test('import hook returns module namespace descriptor and namespace object', async t => {
   const compartment1 = new Compartment({
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === 'a') {
         return {
           source: new ModuleSource(`export default 42`),
@@ -333,45 +341,48 @@ test('import now hook returns module namespace descriptor and namespace object',
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
-  const namespace1 = compartment1.importNow('a');
+  const namespace1 = await compartment1.import('a');
   const compartment2 = new Compartment({
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === 'z') {
         return { namespace: namespace1 };
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
-  const namespace2 = compartment2.importNow('z');
+  const namespace2 = await compartment2.import('z');
   t.is(namespace2.default, 42);
   t.is(namespace1, namespace2);
 });
 
-test('import now hook returns module namespace descriptor and non-namespace object', t => {
+test('import hook returns module namespace descriptor and non-namespace object', async t => {
   const compartment = new Compartment({
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === '1') {
         return { namespace: { meaning: 42 } };
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
-  const namespace = compartment.importNow('1');
+  const namespace = await compartment.import('1');
   t.is(namespace.meaning, 42);
 });
 
-test('import now hook returns module source descriptor for specifier in own compartment', t => {
+test('import hook returns module source descriptor for specifier in own compartment', async t => {
   const compartment = new Compartment({
     modules: {
       './object.js': {
         source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './index.js') {
         return {
           source: './object.js',
@@ -380,25 +391,26 @@ test('import now hook returns module source descriptor for specifier in own comp
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: object1 } = compartment.importNow('./object.js');
+  const { default: object1 } = await compartment.import('./object.js');
   t.is(object1.meaning, 42);
-  const { default: object2 } = compartment.importNow('./index.js');
+  const { default: object2 } = await compartment.import('./index.js');
   t.is(object2.meaning, 42);
   // Separate instances
   t.not(object1, object2);
 });
 
-test('import now hook returns module source descriptor for specifier in own compartment and overridden base specifier that collides', t => {
+test('import hook returns module source descriptor for specifier in own compartment and overridden base specifier that collides', async t => {
   const compartment = new Compartment({
     modules: {
       './object.js': {
         source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
-    importNowHook(specifier) {
+    importHook(specifier) {
       if (specifier === './index.js') {
         return {
           source: './object.js',
@@ -408,44 +420,47 @@ test('import now hook returns module source descriptor for specifier in own comp
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: object1 } = compartment.importNow('./object.js');
+  const { default: object1 } = await compartment.import('./object.js');
   t.is(object1.meaning, 42);
-  const { default: object2 } = compartment.importNow('./index.js');
+  const { default: object2 } = await compartment.import('./index.js');
   t.is(object2.meaning, 42);
   // Fails to obtain separate instance due to specifier collison.
   t.is(object1, object2);
 });
 
-test('import now hook returns module namespace descriptor for specifier in own compartment', t => {
+test('import hook returns module namespace descriptor for specifier in own compartment', async t => {
   const compartment = new Compartment({
-    importNowHook(specifier) {
+    modules: {
+      './object.js': {
+        source: new ModuleSource('export default { meaning: 42 }'),
+      },
+    },
+    importHook(specifier) {
       if (specifier === './index.js') {
         return {
           namespace: './object.js',
           compartment,
         };
-      } else if (specifier === './object.js') {
-        return {
-          source: new ModuleSource('export default { meaning: 42 }'),
-        };
       }
       return undefined;
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: object1 } = compartment.importNow('./object.js');
+  const { default: object1 } = await compartment.import('./object.js');
   t.is(object1.meaning, 42);
-  const { default: object2 } = compartment.importNow('./index.js');
+  const { default: object2 } = await compartment.import('./index.js');
   t.is(object2.meaning, 42);
   // Same instances
   t.is(object1, object2);
 });
 
-test('module map hook precedes import now hook', t => {
+test('module map hook precedes import hook', async t => {
   const compartment = new Compartment({
     moduleMapHook(specifier) {
       if (specifier === './index.js') {
@@ -457,72 +472,13 @@ test('module map hook precedes import now hook', t => {
       }
       return undefined;
     },
-    importNowHook() {
+    importHook() {
       throw new Error('not reached');
     },
+    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: meaning } = compartment.importNow('./index.js');
+  const { default: meaning } = await compartment.import('./index.js');
   t.is(meaning, 42);
-});
-
-/**
- * "Import now" hook for testing behavior when error aggregation is enabled or
- * disabled.
- * @param {string} specifier
- * @returns {ModuleSource}
- */
-const importNowHookForErrorAggregationTests = specifier => {
-  if (specifier === './meaning.mjs') {
-    return new ModuleSource(`
-        export { meaning as default } from './missing.mjs';
-      `);
-  }
-  if (specifier === './main.js') {
-    return new ModuleSource(
-      `
-        import meaning from './meaning.mjs';
-        t.is(meaning, 42);
-      `,
-      'https://example.com/main.js',
-    );
-  }
-  throw Error(`Cannot load module for specifier ${specifier}`);
-};
-
-test('throws immediately when error aggregation is disabled', async t => {
-  t.plan(1);
-
-  const compartment = new Compartment({
-    globals: { t },
-    resolveHook: resolveNode,
-    importHook: async () => {},
-    importNowHook: importNowHookForErrorAggregationTests,
-    noAggregateLoadErrors: true, // <-- error aggregation disabled
-    __options__: true,
-  });
-
-  t.throws(() => compartment.importNow('./main.js'), {
-    message: `Cannot load module for specifier ./missing.mjs`,
-    name: 'Error',
-  });
-});
-
-test('throws aggregate error when error aggregation is enabled', async t => {
-  t.plan(1);
-
-  const compartment = new Compartment({
-    globals: { t },
-    resolveHook: resolveNode,
-    importHook: async () => {},
-    importNowHook: importNowHookForErrorAggregationTests,
-    noAggregateLoadErrors: false, // <-- error aggregation enabled
-    __options__: true,
-  });
-
-  // TODO: I had expected this to be an actual AggregateError, but it is not
-  t.throws(() => compartment.importNow('./main.js'), {
-    message: /1 underlying failures/,
-  });
 });

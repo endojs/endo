@@ -1,7 +1,7 @@
-// Module node.js provides resolve and locate hooks that follow a subset of
-// Node.js module semantics.
-
-import { makeStaticRetriever, makeImporter } from './_import-commons.js';
+// Pure path-arithmetic resolveNode used by node.test.js.
+// Hosted in packages/ses/test/ because the test itself does not reach
+// down to @endo/module-source. The larger _node.js in @endo/ses-test
+// adds makeNodeImporter and related helpers that do.
 
 const q = JSON.stringify;
 
@@ -50,34 +50,3 @@ export const resolveNode = (spec, referrer) => {
 
   return parts.join('/');
 };
-
-export const makeLocator = root => {
-  if (!root.endsWith('/')) {
-    root += '/';
-  }
-  return spec => {
-    if (!isRelative(spec)) {
-      throw TypeError(`Cannot locate module ${q(spec)}.`);
-    }
-    return new URL(spec, root).toString();
-  };
-};
-
-const wrapImporterWithMeta = (importer, importMeta) => async specifier => {
-  const moduleRecord = await importer(specifier);
-  // return a RedirectStaticModuleInterface with an explicit record
-  return { specifier, record: moduleRecord, importMeta };
-};
-
-// makeNodeImporter conveniently curries makeImporter with a Node.js style
-// locator and static file retriever.
-export const makeNodeImporter =
-  sources =>
-  (compartmentLocation, options = {}) => {
-    const locate = makeLocator(compartmentLocation);
-    const retrieve = makeStaticRetriever(sources);
-    if (options.meta) {
-      return wrapImporterWithMeta(makeImporter(locate, retrieve), options.meta);
-    }
-    return makeImporter(locate, retrieve);
-  };

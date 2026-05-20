@@ -3,7 +3,7 @@
 
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
-import '../index.js';
+import 'ses';
 
 test('module map primed with module source', async t => {
   const compartment = new Compartment(

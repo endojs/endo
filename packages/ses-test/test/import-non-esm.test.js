@@ -2,7 +2,7 @@
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
 import { resolveNode } from './_node.js';
-import '../index.js';
+import 'ses';
 
 test('import a non-ESM', async t => {
   t.plan(2);
