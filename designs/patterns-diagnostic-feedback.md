@@ -10,7 +10,7 @@
 ## What is the Problem Being Solved?
 
 A pattern mismatch in `@endo/patterns` returns a one-line error that
-conflates the *what* (the failing leaf value) with the *where* (its position
+conflates the _what_ (the failing leaf value) with the _where_ (its position
 inside the specimen) into a single string built by `applyLabelingError`.
 The current implementation prepends a numeric or string label per nesting
 level, separated by `:`.
@@ -23,7 +23,7 @@ three structural alternatives) the result is one of:
 - a "Must match one of" disjunction that re-renders every alternative pattern
   in full and tells the caller nothing about which alternative was closest,
 - or a leaf-value rejection (`"abc" - Must be a number`) printed at the top
-  of the message and the path printed *after* it, requiring the reader to
+  of the message and the path printed _after_ it, requiring the reader to
   parse right-to-left.
 
 Two consumer postures suffer most:
@@ -44,26 +44,29 @@ A diagnostic facility that adds even a few kilobytes to the production
 matcher path is a regression for callers who never read the resulting
 message.
 
-The remediation lives in a **separate lane**: an opt-in
-`@endo/patterns-diagnose` (or similarly named sibling) package that an
-application imports only when it wants rich diagnostics.
-The production matcher path stays as it is today; the diagnostic lane is
-bigger, slower, and only loaded by callers that ask for it.
+The remediation is an **opt-in submodule** of the same package:
+`@endo/patterns/explain-mismatch.js`.
+The production matcher path stays as it is today; the explain-mismatch
+submodule ships alongside but is only loaded by callers that import it
+explicitly.
+Because the submodule lives inside `@endo/patterns`, it has direct access
+to the matcher's internals (the `matchHelpers` registry, the
+`confirmMatches` recursion) without re-implementing any of them.
 
 ## Scope
 
 This design covers the diagnostic output rendered for a failed
-`mustMatch` / `assertMatches` call when the caller opts into the diagnostic
-lane.
-It does not change the *truthiness* of `matches(specimen, pattern)` for any
+`mustMatch` / `assertMatches` call when the caller opts into the
+explain-mismatch submodule.
+It does not change the _truthiness_ of `matches(specimen, pattern)` for any
 existing specimen-pattern pair, does not change the production matcher's
 thrown-error shape (`message` and SES cause chain remain bit-identical),
 and does not propose a new pattern language.
 
 Out of scope: changing the on-wire encoding of patterns, changing
 `InterfaceGuard` method-argument labeling (those flow through `@endo/exo`
-and have their own labeling path; the diagnostic lane reads the same
-`applyLabelingError` chain and benefits transparently), changing
+and have their own labeling path; the explain-mismatch submodule reads the
+same `applyLabelingError` chain and benefits transparently), changing
 `getRankCover` or the storeDB query surface, and introducing a text-source
 pattern language (a separate parse-from-text axis is its own design and is
 not pursued here).
@@ -108,7 +111,7 @@ flattened `message` of the form `"l1: l2: l3: l4: l5: l6: detail"`.
 - **Per-level labels are preserved as distinct Error objects.**
   A diagnostic renderer that walks the chain can recover each label
   independently rather than parse the flattened string.
-  The structured payload is latent in the chain; only the *shape* of each
+  The structured payload is latent in the chain; only the _shape_ of each
   label (currently `string | number`) is impoverished.
 - **The SES console already renders the full causal chain.**
   Human readers in a Node REPL or AVA test failure get the multi-line
@@ -117,7 +120,7 @@ flattened `message` of the form `"l1: l2: l3: l4: l5: l6: detail"`.
 - **`InterfaceGuard` argument labeling composes through the same chain.**
   `@endo/exo` adds a `${methodName}(${argIndex})` label at the boundary;
   the inner pattern chain extends naturally beneath it.
-  The diagnostic lane gets this for free.
+  The explain-mismatch submodule gets this for free.
 
 ### What this does not deliver (the gap)
 
@@ -146,93 +149,104 @@ The gap is "the recorded path is held in a private place, in a string-only
 format, with no combinator-aware renderer, and the disjunction combinator
 discards its branch attempts".
 
+### Why a submodule rather than a sibling package
+
+An earlier draft proposed `@endo/patterns-diagnose` as a sibling package.
+Sliding the same facility _inside_ `@endo/patterns` as
+`./explain-mismatch.js` is strictly cleaner:
+
+- The submodule has direct access to the `matchHelpers` registry and the
+  `confirmMatches` recursion without re-export hoops.
+  There is exactly one source of matcher truth.
+- A sibling package would either re-implement the matcher (drift risk and
+  duplicated maintenance) or expose a stable internal surface for the
+  sibling to consume (an API contract the package would otherwise not
+  need).
+  The submodule has neither problem.
+- Download cost stays opt-in: bundlers and Node's ESM loader pull a
+  submodule only when an import names it, and `./explain-mismatch.js`
+  appears nowhere on the production matcher's import graph.
+  Callers that never `import` it never pay for it.
+- The package boundary is unchanged, so `package.json` `exports` simply
+  lists the new entry (`"./explain-mismatch.js": "./src/explain-mismatch.js"`)
+  alongside the existing main entry.
+
 ## Design
 
-### Separate lane: `@endo/patterns-diagnose`
+### Submodule surface: `@endo/patterns/explain-mismatch.js`
 
-A new sibling package alongside `@endo/patterns`.
-Production callers depend on `@endo/patterns` and pay zero additional cost.
-Callers that want rich diagnostics also depend on `@endo/patterns-diagnose`
-and call its exported functions on a specimen + pattern pair.
-
-`diagnose` is itself a *non-throwing matcher*.
-It mirrors the existing `matches(specimen, pattern): boolean` shape from
-`@endo/patterns` (which returns a verdict without throwing) and returns a
-structured `Trace | undefined` instead of a boolean: `undefined` on match,
-a `Trace` on mismatch.
-The renderer is a separate function: `render(trace, options?): string`.
-Callers compose them; no `try`/`catch` and no caught error are needed.
+A new submodule of `@endo/patterns`, exported via the package's `exports`
+field, that callers import explicitly when they want a rich diagnostic.
+The production matcher path (`mustMatch`, `assertMatches`, `matches`) is
+unchanged and pays no additional cost.
 
 ```js
-import { diagnose, render } from '@endo/patterns-diagnose';
+import { explainMismatch } from '@endo/patterns/explain-mismatch.js';
 
-const trace = diagnose({ specimen, pattern });
-if (trace) {
-  console.error(render(trace));
+const report = explainMismatch({ specimen, pattern });
+if (report !== undefined) {
+  console.error(report);
 }
 ```
+
+`explainMismatch` is a _non-throwing matcher that returns its diagnostic as
+a string_.
+It mirrors the existing `matches(specimen, pattern): boolean` shape from
+`@endo/patterns` (which returns a verdict without throwing) and returns a
+rendered string on mismatch or `undefined` on match.
+No `try`/`catch`, no caught error, and no separate render step are needed
+at the call site.
 
 A caller that prefers to throw, throws:
 
 ```js
-const trace = diagnose({ specimen, pattern });
-if (trace) {
-  throw makeError(render(trace));
+const report = explainMismatch({ specimen, pattern });
+if (report !== undefined) {
+  throw makeError(report);
 }
 ```
 
-A caller that wants both the production `mustMatch` throw *and* the rich
+A caller that wants both the production `mustMatch` throw _and_ the rich
 diagnostic on stderr writes the existing `mustMatch` call alongside:
 
 ```js
-const trace = diagnose({ specimen, pattern });
-if (trace) console.error(render(trace));
-mustMatch(specimen, pattern);  // throws the today-shaped error
+const report = explainMismatch({ specimen, pattern });
+if (report !== undefined) console.error(report);
+mustMatch(specimen, pattern); // throws the today-shaped error
 ```
 
 No carry-on-error mechanism in the production matcher.
-The diagnostic lane is a parallel non-throwing matcher upstream of any
+The submodule is a parallel non-throwing matcher upstream of any
 exception-handling the caller chooses to write.
 
 ### Surface
 
 ```ts
-type DiagnoseInput = {
+type ExplainMismatchInput = {
   specimen: unknown;
   pattern: unknown;
-  context?: string;  // optional caller-supplied prefix; see exo composition
+  context?: string; // optional caller-supplied prefix; see exo composition
+  format?: 'compact' | 'expanded'; // default 'compact'
+  width?: number; // line-wrap target; default 100
+  color?: boolean; // ANSI escapes for terminals; default false
 };
 
 /**
- * Non-throwing matcher. Returns undefined on match, a Trace on mismatch.
- * Mirrors `matches(specimen, pattern): boolean` from `@endo/patterns`;
- * returns structured trace information instead of a boolean.
+ * Non-throwing matcher. Returns undefined on match, a rendered diagnostic
+ * string on mismatch. Mirrors `matches(specimen, pattern): boolean` from
+ * `@endo/patterns`; returns a string instead of a boolean.
  */
-function diagnose(input: DiagnoseInput): Trace | undefined;
-
-type RenderOptions = {
-  format?: 'compact' | 'expanded';  // default 'compact'
-  width?: number;                   // line-wrap target; default 100
-  color?: boolean;                  // ANSI escapes for terminals; default false
-};
-
-/** Renders a Trace as a human-and-agent-legible string. */
-function render(trace: Trace, options?: RenderOptions): string;
+function explainMismatch(input: ExplainMismatchInput): string | undefined;
 ```
 
-`diagnose` reuses the production matcher's recursion (the *tracing
-matcher* described below) but records each step structurally instead of
-throwing.
-A caller that holds the same `(specimen, pattern)` the failing
-`mustMatch` was about to receive can call `diagnose` directly, with no
-preceding `try`/`catch`.
-
-The split between `diagnose` (verdict + structure) and `render` (string)
-keeps the structured trace available for callers that want to log it as
-JSON-Lines, ship it across a CapTP boundary, or feed it back into a
-matcher.
-A `Trace` is hardened and `JSON.stringify`-safe (its `Passable` fragments
-are pre-rendered to short strings; see the *Tracing matcher* section).
+`explainMismatch` reuses the production matcher's recursion internally,
+recording each step structurally instead of throwing, and renders the
+result before returning.
+The intermediate trace tree (built during the recursion) is an internal
+implementation detail; the public surface is the rendered string.
+Callers that want a structured trace cross the same package boundary the
+production matcher does; if a structured trace surface ever becomes
+load-bearing it is a separate export under the same submodule.
 
 ### Rendering: compact by default, expanded on request
 
@@ -240,9 +254,9 @@ The renderer has two formats.
 **`compact`** is the default and the form an AI agent sees: one mismatch
 per line, no indentation, fixed column order, designed to fit a 100-column
 terminal and to be cheap to tokenize.
-**`expanded`** is opt-in (`render(trace, { format: 'expanded' })`) and is
-a Rust-compiler-style indented form for humans inspecting a small number
-of failures at a REPL.
+**`expanded`** is opt-in (`explainMismatch({ ..., format: 'expanded' })`)
+and is a Rust-compiler-style indented form for humans inspecting a small
+number of failures at a REPL.
 
 #### `compact` format (default)
 
@@ -284,9 +298,9 @@ indent      = two spaces
 separator   = " | "  (column separator; never appears unescaped inside values)
 ```
 
-Values and patterns inside a line are pre-quoted (the tracing matcher
-calls `passableAsJustin` and replaces literal `|` with `\|`) so a reader
-can split on ` | ` without escaping concerns.
+Values and patterns inside a line are pre-quoted (the explain-mismatch
+recursion calls `passableAsJustin` and replaces literal `|` with `\|`) so a
+reader can split on ` | ` without escaping concerns.
 The line-per-leaf shape lets a tool harness or AI agent line-grep the
 output, count failures, or extract the first path without parsing
 indentation.
@@ -307,7 +321,7 @@ mismatch at .user.age
 The expanded form trades token-density for visual scanability and is
 appropriate when the failure count is small and a human is reading the
 output line by line.
-The renderer is a single module (~300 lines) that walks the `Trace` tree
+The renderer is a single module (~300 lines) that walks the internal trace
 and emits lines one at a time, computing indentation from depth.
 A `color: true` option layers ANSI escapes for terminals in either format.
 
@@ -326,15 +340,14 @@ per line) was considered.
 The `compact` shape above is both shorter (no quoting overhead, no key
 names per line) and equally machine-parseable: a one-line `split(' | ')`
 recovers the columns.
-A consumer that genuinely wants JSON parses the `Trace` directly
-(the `diagnose` return value), bypassing the renderer.
-The renderer's job is the human-and-agent-legible string surface; the
-structured surface is `Trace` itself.
+A consumer that needs structured JSON crosses the package boundary the
+same way: the submodule is small enough that a JSON-rendering variant can
+land as a second export when a real downstream consumer asks.
 
 ### Rich rather than configurable
 
-The lane does not expose a knob for "preferred alternative selection" or
-"summary heuristic".
+The submodule does not expose a knob for "preferred alternative selection"
+or "summary heuristic".
 A single rendering convention applies: report every interpretation the
 matcher considered, rank by depth-of-match (deeper = considered closer),
 and let the reader pick.
@@ -346,12 +359,14 @@ The Rust-compiler-error analogy is deliberate.
 Rust's mismatch output does not let the caller pick between "first
 candidate" or "best candidate"; it shows them all, with the most likely
 intent surfaced as a `help:` suggestion.
-The patterns-diagnose lane follows that convention.
+The explain-mismatch submodule follows that convention.
 
-### Tracing matcher
+### Tracing recursion (internal)
 
-A small internal re-implementation of the matcher's recursion that, instead
-of throwing, accumulates a `Trace` tree:
+The submodule's recursion mirrors `confirmMatches` from
+`packages/patterns/src/patterns/patternMatchers.js`, but instead of
+throwing on mismatch it accumulates a structured trace.
+The trace shape is internal:
 
 ```js
 /** @typedef {{ kind: 'property', name: string }
@@ -371,27 +386,28 @@ of throwing, accumulates a `Trace` tree:
  */
 ```
 
-The tracing matcher reuses every `MatchHelper` from `patternMatchers.js`
-where the helper's `confirmMatches` is referentially transparent; for the
-five combinators with interesting branch structure (`or`, `and`,
-`splitRecord`, `arrayOf`, `recordOf`) the tracing lane has a dedicated
-explorer that calls back into the helpers but records the structured step
-itself.
-
-The tracing matcher lives in `@endo/patterns-diagnose`, not in
-`@endo/patterns`.
-Code size and runtime cost stay outside the production path.
+The recursion calls into the existing `matchHelpers` registry directly
+(it lives in the same package and imports the helpers like any other
+module of `@endo/patterns`), so there is exactly one source of matcher
+truth.
+For the five combinators with interesting branch structure (`or`, `and`,
+`splitRecord`, `arrayOf`, `recordOf`) the submodule has a dedicated
+explorer that calls the helper and records the structured step.
+Because the recursion shares its building blocks with `confirmMatches`
+there is no parallel implementation to drift; a change to a helper updates
+both lanes simultaneously.
 
 ### Composition with `@endo/exo` argument guards
 
 When a method-argument mismatch surfaces through an `InterfaceGuard`, the
 exo wrapper holds the method name and argument index for the failing call.
 A caller that wants the diagnostic for an exo-guarded method invokes
-`diagnose` with the same `(specimen, pattern)` the exo wrapper would have
-checked, plus an optional `context` field naming the method and argument:
+`explainMismatch` with the same `(specimen, pattern)` the exo wrapper
+would have checked, plus an optional `context` field naming the method and
+argument:
 
 ```js
-const trace = diagnose({
+const report = explainMismatch({
   specimen: arg,
   pattern: methodGuard.argGuards[i],
   context: `${methodName}(${i})`,
@@ -401,30 +417,32 @@ const trace = diagnose({
 The renderer prefixes the report with the context string (one extra line
 in `compact`, one extra section in `expanded`).
 No change to `@endo/exo` itself.
-A future helper (`diagnoseExoCall(interfaceGuard, methodName, args)`) can
-sugar this when the lane sees real use; the primitive surface is
-`diagnose({ specimen, pattern, context? })`.
+A future helper (`explainExoCall(interfaceGuard, methodName, args)`) can
+sugar this when the submodule sees real use; the primitive surface is
+`explainMismatch({ specimen, pattern, context? })`.
 
 ## Exemplar reports
 
 Each example shows the caller code (no `try`/`catch`), the `compact`
 output (default), and the `expanded` output (opt-in).
 Production `mustMatch` callers continue to see the today-shaped thrown
-error; the diagnostic lane is a parallel non-throwing matcher.
+error; the submodule is a parallel non-throwing matcher.
 
 ### Example 1: nested splitRecord with a wrong-typed leaf
 
 ```js
+import { explainMismatch } from '@endo/patterns/explain-mismatch.js';
+
 const pattern = M.splitRecord(
   { user: M.splitRecord({ name: M.string(), age: M.nat() }) },
-  { meta: M.recordOf(M.string(), M.string()) }
+  { meta: M.recordOf(M.string(), M.string()) },
 );
 const specimen = harden({
   user: { name: 'kris', age: -3 },
   meta: { source: 'cli' },
 });
-const trace = diagnose({ specimen, pattern });
-if (trace) console.error(render(trace));
+const report = explainMismatch({ specimen, pattern });
+if (report !== undefined) console.error(report);
 ```
 
 `compact` (default):
@@ -433,7 +451,7 @@ if (trace) console.error(render(trace));
 mismatch (1 leaf): .user.age | found -3 (number) | expected non-negative bigint
 ```
 
-`expanded` (`render(trace, { format: 'expanded' })`):
+`expanded` (`explainMismatch({ specimen, pattern, format: 'expanded' })`):
 
 ```
 mismatch at .user.age
@@ -451,8 +469,8 @@ const pattern = M.or(
   M.splitRecord({ kind: 'embed', target: M.remotable() }),
 );
 const specimen = harden({ kind: 'image', url: 42 });
-const trace = diagnose({ specimen, pattern });
-if (trace) console.error(render(trace));
+const report = explainMismatch({ specimen, pattern });
+if (report !== undefined) console.error(report);
 ```
 
 `compact` (default):
@@ -491,8 +509,8 @@ suppresses the others.
 ```js
 const pattern = M.arrayOf(M.nat());
 const specimen = harden([1n, 2, 3n, -4n, 'five']);
-const trace = diagnose({ specimen, pattern });
-if (trace) console.error(render(trace));
+const report = explainMismatch({ specimen, pattern });
+if (report !== undefined) console.error(report);
 ```
 
 `compact` (default):
@@ -521,50 +539,67 @@ mismatch in arrayOf(nat()) over 5 elements; 3 failed
 
 ## Dependencies
 
-| Design | Relationship |
-|--------|--------------|
-| (none in `designs/`) | New package; reads but does not modify `@endo/common/apply-labeling-error.js`. No design predecessors. |
+| Design               | Relationship                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| (none in `designs/`) | New submodule inside `@endo/patterns`; reads but does not modify `@endo/common/apply-labeling-error.js`. No design predecessors. |
 
 ## Phased Implementation
 
-The lane is small enough to land as a single PR.
-The package is approximately 600 lines including tests.
+The submodule is small enough to land as a single PR.
+The new code is approximately 600 lines including tests.
 
-1. **Phase A: tracing matcher and renderer (single PR).**
-   - Add `packages/patterns-diagnose/` (sibling to `packages/patterns/`).
-   - `src/trace.js`: tracing matcher that mirrors the production
-     `confirmMatches` recursion and accumulates a `Trace` tree.
-   - `src/render.js`: report formatter with `compact` (default) and
-     `expanded` formats, width and color options.
-   - `src/diagnose.js`: the public `diagnose({ specimen, pattern, context? })`
-     entry point.
-   - `test/diagnose.test.js`: the three exemplar cases above (each with
-     both `compact` and `expanded` snapshots) plus the `InterfaceGuard`
-     composition case.
-   - No changes to `@endo/patterns` or `@endo/common`.
+1. **Phase A: explain-mismatch submodule (single PR).**
+   - Add `packages/patterns/src/explain-mismatch.js` (the public entry).
+   - Add `packages/patterns/src/explain-mismatch/trace.js` (tracing
+     recursion that mirrors `confirmMatches` and accumulates a trace).
+   - Add `packages/patterns/src/explain-mismatch/render.js` (report
+     formatter with `compact` (default) and `expanded` formats, width and
+     color options).
+   - Add `packages/patterns/package.json` `exports` entry
+     (`"./explain-mismatch.js": "./src/explain-mismatch.js"`).
+   - Add `packages/patterns/test/explain-mismatch.test.js`: the three
+     exemplar cases above (each with both `compact` and `expanded`
+     snapshots) plus the `InterfaceGuard` composition case.
+   - No changes to `mustMatch`, `assertMatches`, `matches`, or
+     `applyLabelingError`.
 
 ## Design Decisions
 
-1. **Separate package, not a feature flag on `@endo/patterns`.**
-   Download size and startup cost for the production matcher are
-   load-bearing; any inline diagnostic code that ships with the matcher
-   penalizes every consumer.
-   A sibling package keeps the cost on the opt-in path.
+1. **Submodule of `@endo/patterns`, not a sibling package.**
+   The submodule has direct access to the matcher's `matchHelpers` registry
+   and `confirmMatches` recursion: no re-export hoops, no parallel
+   implementation, and a single source of matcher truth.
+   Download cost stays opt-in because `./explain-mismatch.js` appears
+   nowhere on the production matcher's import graph.
+   An earlier draft proposed a sibling `@endo/patterns-diagnose` package;
+   that framing required either re-implementing the matcher (drift) or
+   exposing a stable internal surface for the sibling to consume (API
+   contract the package would otherwise not need).
+   The submodule has neither problem.
 
-2. **`diagnose` is a non-throwing matcher, not an error post-processor.**
+2. **`explainMismatch` is a non-throwing matcher, not an error
+   post-processor.**
    The existing `matches(specimen, pattern): boolean` shape proves the
    matcher can give a verdict without throwing.
-   A `diagnose({ specimen, pattern }): Trace | undefined` that mirrors
-   that shape lets the caller skip `try`/`catch` entirely: no error to
-   construct, no error to inspect, no error to rethrow.
-   The caller pattern collapses to a single conditional on the trace.
+   An `explainMismatch({ specimen, pattern }): string | undefined` that
+   mirrors that shape lets the caller skip `try`/`catch` entirely: no
+   error to construct, no error to inspect, no error to rethrow.
+   The caller pattern collapses to a single conditional on the return
+   value.
 
-3. **`render` is split from `diagnose`.**
-   `diagnose` produces structure; `render` produces a string.
-   A caller that wants JSON-Lines or a custom renderer reads the `Trace`
-   directly; a caller that wants the default rendering composes the two.
-   Bundling them would force every diagnostic consumer through the string
-   surface.
+3. **Public surface is a single function returning a string, not a
+   split diagnose-plus-render pair.**
+   An earlier draft exposed `diagnose(...): Trace | undefined` and
+   `render(trace, options): string` as two public functions.
+   For the primary consumers (an agent's tool harness, a human in a
+   REPL), the structured trace is an implementation detail; the rendered
+   string is what they consume.
+   Folding the two into `explainMismatch({ ..., format? })` removes a
+   joint the caller would otherwise have to assemble and keeps the
+   internal trace type out of the public API.
+   A future structured-trace export can land as a second submodule entry
+   if a real downstream consumer needs one; the conservative starting
+   point is the single string-returning function.
 
 4. **`compact` is the default format, `expanded` is opt-in.**
    The primary beneficiary of the diagnostic is an AI agent acting on the
@@ -579,23 +614,25 @@ The package is approximately 600 lines including tests.
    The chosen `path | found | expected | reason` form is shorter (no key
    names per line, no quoting overhead) and equally machine-parseable
    (a one-line `split(' | ')` recovers the columns).
-   A consumer that genuinely wants JSON parses the `Trace` directly.
+   A consumer that genuinely wants JSON gets a future second export, not
+   a configuration knob on the string renderer.
 
 6. **All alternatives reported, no closest-alternative heuristic.**
    Rust's compiler reports every candidate when a mismatch is ambiguous,
    ranks them by best-effort depth, and lets the reader pick.
-   The lane follows the same convention.
+   The submodule follows the same convention.
    A configurable picker would invite per-consumer config drift; a single
    convention is predictable.
 
-7. **Tracing matcher is the rich path; the SES cause chain is not used.**
-   The earlier draft proposed a cause-chain walker as a fallback for
-   callers that hold only the thrown error.
-   Since the lane's API takes `(specimen, pattern)` directly (not an
-   error), the cause-chain walker becomes dead weight.
-   A caller that has the error but lost the arguments is rare; if it
-   surfaces in practice, a separate `diagnoseError(err)` helper can be
-   added later.
+7. **Tracing recursion reuses the matcher's helpers in place.**
+   Because the submodule lives inside `@endo/patterns`, its recursion
+   imports `matchHelpers` and the per-combinator helpers directly.
+   There is no second copy of the matcher to drift from the production
+   path: a change to a helper updates both lanes simultaneously, and a
+   shared test corpus exercising both `matches` and `explainMismatch`
+   pins the verdict-equivalence.
+   The earlier sibling-package draft worried about drift; the submodule
+   reshape dissolves that concern entirely.
 
 8. **No text-source pattern parser in this design.**
    The earlier axis-C proposal (a recursive-descent reader for a pattern
@@ -608,31 +645,16 @@ The package is approximately 600 lines including tests.
 9. **Renderer uses ASCII, not unicode box-drawing.**
    ASCII renders correctly in every terminal, log file, and CI output.
    Unicode box-drawing is prettier in modern terminals but introduces
-   font-and-encoding sensitivity that the lane does not need.
+   font-and-encoding sensitivity that the submodule does not need.
    A future `style: 'unicode'` option is trivial to add (the line-art
    characters are module constants) if a caller asks.
 
 ## Open Questions
 
-- **Package name.**
-  `@endo/patterns-diagnose` is the working name; alternatives include
-  `@endo/patterns-explain`, `@endo/patterns-debug`, or a verb-named
-  `@endo/explain-mismatch`.
-  The README convention "what does this package do" favors a noun-shaped
-  name aligned with `@endo/patterns`.
-
-- **Tracing-matcher drift from the production matcher.**
-  Two implementations of the same recursion risk drift.
-  Mitigation options: (a) shared test corpus where both produce the same
-  match / mismatch verdict; (b) factor the production matcher into a
-  visitor shape both lanes consume.
-  Option (a) is the lighter first cut; option (b) is the cleaner long
-  view.
-
 - **Interaction with `@endo/exo` argument guards.**
-  The `context` field on `DiagnoseInput` carries the method-name and
-  argument-index prefix.
-  Whether a sugar helper (`diagnoseExoCall(interfaceGuard, methodName,
+  The `context` field on `ExplainMismatchInput` carries the method-name
+  and argument-index prefix.
+  Whether a sugar helper (`explainExoCall(interfaceGuard, methodName,
   args)`) should ship in the initial PR or wait for an in-repo user is
   open.
   A short integration test against an `InterfaceGuard`-rejected call
@@ -669,3 +691,14 @@ an opt-in `expanded` format (indented Rust-compiler-style, for humans
 reading a small failure at a REPL).
 The cause-chain fallback phase was dropped (no error means no chain to
 walk).
+
+Revised 2026-05-20 after kriskowal round-3 review:
+the sibling-package framing was retired in favor of a submodule of
+`@endo/patterns` itself, exported as `@endo/patterns/explain-mismatch.js`.
+The submodule has direct access to the matcher's `matchHelpers` registry
+and `confirmMatches` recursion, eliminating the drift-vs-stable-internal-
+surface tension a sibling package would have introduced.
+The two-function `diagnose` + `render` API was folded into a single
+`explainMismatch({ specimen, pattern, context?, format?, width?, color? })`
+that returns a rendered string (or `undefined` on match); the structured
+trace remains an internal implementation detail.
