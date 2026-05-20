@@ -2519,6 +2519,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/ses-test@workspace:packages/ses-test":
+  version: 0.0.0-use.local
+  resolution: "@endo/ses-test@workspace:packages/ses-test"
+  dependencies:
+    "@babel/generator": "npm:^7.28.3"
+    "@babel/parser": "npm:~7.29.3"
+    "@babel/traverse": "npm:~7.29.0"
+    "@babel/types": "npm:~7.29.0"
+    "@endo/compartment-mapper": "workspace:^"
+    "@endo/module-source": "workspace:^"
+    "@endo/test262-runner": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    terser: "npm:^5.16.6"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/skel@workspace:packages/skel":
   version: 0.0.0-use.local
   resolution: "@endo/skel@workspace:packages/skel"
@@ -17230,22 +17250,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ses@workspace:packages/ses"
   dependencies:
-    "@babel/generator": "npm:^7.28.3"
-    "@babel/parser": "npm:~7.29.3"
-    "@babel/traverse": "npm:~7.29.0"
-    "@babel/types": "npm:~7.29.0"
     "@endo/cache-map": "workspace:^"
-    "@endo/compartment-mapper": "workspace:^"
     "@endo/env-options": "workspace:^"
     "@endo/immutable-arraybuffer": "workspace:^"
-    "@endo/module-source": "workspace:^"
-    "@endo/test262-runner": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     core-js: "npm:^3.31.0"
     eslint: "catalog:dev"
     hermes-engine-cli: "npm:^0.12.0"
-    terser: "npm:^5.16.6"
     tsd: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
