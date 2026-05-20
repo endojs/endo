@@ -3,8 +3,52 @@
 | | |
 |---|---|
 | **Created** | 2026-03-17 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+**Complete** (initial verbs shipped 2026-03-20 via commit `d60ba38b2`
+on `llm`; verb unification 2026-05-18 via PR #153 / commit
+`8a8e872d4`).
+
+The `endo checkin` / `endo ci` and `endo checkout` / `endo co` verbs
+are implemented on the `llm` branch in `packages/cli/src/endo.js`,
+with command implementations at `packages/cli/src/commands/checkin.js`
+and `packages/cli/src/commands/checkout.js`. Local directories are
+mapped through the `@endo/platform` filesystem types into the daemon
+as readable trees and back.
+
+Implementation history:
+
+- Initial CLI verbs landed in commit `d60ba38b2`
+  ("CLI: add checkin and checkout commands", 2026-03-20).
+- Zip support (`-z` flag) added in commit `a6e20c5e2`
+  ("feat(cli): add zip support to checkin and checkout (-z flag)",
+  2026-04-17).
+- Subsequent verb unification landed via PR #153
+  ("feat(cli): unify store/cat axes; add write/read for mount paths",
+  commit `8a8e872d4` 2026-05-18) which reshapes the CLI
+  surface around the same readable-tree / readable-blob substrate.
+
+Zip-archive interchange beyond the in-CLI `-z` flag is tracked
+separately under [exo-zip-package](exo-zip-package.md). The primary
+commits predate the bot-forwarded PR workflow, so there is no single
+implementing PR number for the original verbs.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-03-17 → 2026-05-18 (62 days, calendar; the
+  active span spans three discrete bursts and includes long
+  unattended gaps).
+- Design phase: 2026-03-17 (single commit `d6ccde5b6`, "Add design for
+  zip/fs checkin/checkout").
+- Implementation phase: 2026-03-20 → 2026-05-18 (59 days, calendar).
+  Burst 1: 2026-03-20 (`d60ba38b2`, initial verbs). Burst 2:
+  2026-04-17 (`a6e20c5e2`, `-z` flag). Burst 3: 2026-05-18 (PR #153
+  unification, commit `8a8e872d4`). The intervals between bursts were
+  unattended.
 
 ## What is the Problem Being Solved?
 

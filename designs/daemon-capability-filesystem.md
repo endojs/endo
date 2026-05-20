@@ -3,9 +3,45 @@
 | | |
 |---|---|
 | **Created** | 2026-02-15 |
-| **Updated** | 2026-02-24 |
+| **Updated** | 2026-05-19 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | Reference |
+
+## Status
+
+**Reference** (became a reference document 2026-03-21 when the
+narrower `daemon-mount` design absorbed the implementable slice).
+
+Captured as a reference for forward-looking work; the speculative
+Dir/File/VFS sketch here is not directly implemented.
+The narrower physical-backend slice has shipped via
+[`daemon-mount`](daemon-mount.md) (mount and scratch-mount formula
+types with symlink confinement, landed on `llm` in commit e22f71327
+"Filesystem mount formulas", 2026-03-21).
+The mount Phase 4 work (sub-mounts, snapshot, capability VFS) is
+forwarded under the bot as
+[PR #135](https://github.com/endojs/endo-but-for-bots/pull/135)
+(open) and PR #127
+(mount extensions: revocation, deny patterns, glob/grep/stat/json;
+open).
+Future concrete designs that pick specific ideas from this document
+should follow the per-idea factoring suggested in the original
+proposal.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Design phase: 2026-02-15 → 2026-02-28 (14 days). Initial add
+  `6320e6163` 2026-02-15 ("half baked fs and os capability designs");
+  roadmap-cycle edits `52bc71d6e` 2026-02-24 and `0ee0cbb3c`
+  2026-02-28.
+- Reference transition: 2026-03-21. On that date `daemon-mount`
+  (`e22f71327`) shipped the implementable physical-backend slice that
+  this document had laid out, and this document's role transitioned
+  from "open proposal" to "background-ideas reference for future
+  concrete designs".
+- No implementation phase is planned against this document directly;
+  future concrete designs (e.g. `daemon-mount` Phases 4-6) are the
+  forward-looking vehicles.
 
 This document collects ideas for a filesystem capability that Endo could
 provide to AI agent guests.  It is not a finished design — it is a bag

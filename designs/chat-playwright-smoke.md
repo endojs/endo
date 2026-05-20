@@ -3,8 +3,32 @@
 | | |
 |---|---|
 | **Created** | 2026-05-06 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | PR #94 |
+| **Status** | **Complete** |
+
+## Status
+
+**Complete** (shipped 2026-05-06 via PR #94 / commit `460687c3a` on
+`llm`; same-day follow-ups `38c3b493d` and `077414368`).
+
+Shipped on `llm` via PRs
+[#91](https://github.com/endojs/endo-but-for-bots/pull/91) (design),
+[#94](https://github.com/endojs/endo-but-for-bots/pull/94) (impl), and
+the follow-up hardening / import-fix PRs
+[#95](https://github.com/endojs/endo-but-for-bots/pull/95) and
+[#104](https://github.com/endojs/endo-but-for-bots/pull/104).
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-05-06 → 2026-05-06 (1 day; design,
+  implementation, and follow-up hardening all landed the same day).
+- Design phase: 2026-05-06 (commits `2a97b2d6c` "design(chat):
+  Playwright build-and-load smoke in browser CI" + `ede5af239`
+  "docs(designs): record PR for chat playwright smoke").
+- Implementation phase: 2026-05-06 (commits `38c3b493d` "serve
+  packages/chat/dist under /chat/", `460687c3a` "chat build-and-load
+  smoke spec", `077414368` "surface chat-smoke failure context").
 
 ## What is the Problem Being Solved?
 

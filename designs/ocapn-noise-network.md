@@ -3,9 +3,40 @@
 | | |
 |---|---|
 | **Created** | 2026-02-14 |
-| **Updated** | 2026-02-24 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+**Complete** (shipped 2026-05-07 via PR #137 / merge commit
+`6a5aecd01` on `llm`; the merge was authored 2026-05-07 and the
+README's "merged 2026-05-08" reflects the GitHub merge-event timestamp
+in a later timezone).
+
+Shipped on `llm` via PR
+[#137](https://github.com/endojs/endo-but-for-bots/pull/137), which
+consolidated the previously stacked PRs #111 (CBOR codec +
+NonceLocator), #112 (Noise IK netlayer), and #113 (integration +
+transport tests) into a single landing of the Noise IK netlayer for
+OCapN.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2025-09-16 → 2026-05-07 (~233 days, calendar;
+  the work spans upstream cryptography work, design ratification, and
+  bot-fork consolidation, with long unattended gaps).
+- Design phase: 2026-02-14 → 2026-02-28 (15 days, calendar). Design
+  doc first add `840c2e422` 2026-02-14; later edits `52bc71d6e`
+  2026-02-24 and `0ee0cbb3c` 2026-02-28.
+- Implementation phase:
+  - Upstream cryptography precursor: 2025-09-16 (`e7c0ab850`,
+    "Initial cryptography for an OCapN Noise Protocol netlayer") →
+    2025-09-25 (`81fe90018`).
+  - Bot-fork consolidation: 2026-05-07 (`9403bfa84` codec injection,
+    `1874c9002` browser-portable netlayer, `f0677cf85` integration
+    tests, all under PR #59; merged into `llm` via PR #137 /
+    `6a5aecd01` the same day).
 
 ## What is the Problem Being Solved?
 

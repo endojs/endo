@@ -3,8 +3,36 @@
 | | |
 |---|---|
 | **Created** | 2026-03-20 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+**Complete** (shipped 2026-05-07 via PR #99, commits `5798b56f5` +
+`8c0d7d849` on `llm`; multi-agent GC coverage 2026-05-12 via PR #225 /
+commit `e6d5ce6d6`).
+
+Implemented on `llm` via PR
+[#99](https://github.com/endojs/endo-but-for-bots/pull/99): content-store
+pruning and scratch-mount directory cleanup at GC time. Subsequent
+multi-agent GC test coverage landed in PR
+[#225](https://github.com/endojs/endo-but-for-bots/pull/225). The
+designs/README.md summary already reflected this status; the per-file
+header lagged.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-03-21 → 2026-05-12 (52 days, calendar; the
+  active authoring window was concentrated in two bursts).
+- Design phase: 2026-03-21 (`e22f71327`, "Filesystem mount formulas":
+  this commit introduced both the `daemon-mount` and
+  `daemon-content-store-gc` design docs as siblings).
+- Implementation phase: 2026-05-06 → 2026-05-12 (7 days). Burst 1:
+  2026-05-06 (PR #99 commits `5798b56f5` impl + `8c0d7d849` tests,
+  merged 2026-05-07 via `eefbff0b2`). Burst 2: 2026-05-12 (PR #225
+  multi-agent test coverage, commit `e6d5ce6d6`). The gap between
+  design (2026-03-21) and implementation (2026-05-06) was unattended.
 
 ## What is the Problem Being Solved?
 

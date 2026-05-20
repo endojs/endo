@@ -3,8 +3,30 @@
 | | |
 |---|---|
 | **Created** | 2026-04-23 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+**Complete** (shipped 2026-04-29 via upstream `endojs/endo#3216`,
+commit `7325bbe15` on `llm`).
+
+Implemented upstream and synced into `llm` via the `actual/master` merge.
+`@endo/base64` now dispatches to native `Uint8Array.fromBase64` /
+`Uint8Array.prototype.toBase64` when the intrinsics are present and
+falls back to the existing JavaScript polyfill otherwise.
+Evidence: `7325bbe15 feat(base64): dispatch to native Uint8Array base64
+intrinsics` on `llm` (squash-merge from `endojs/endo#3216`).
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-04-29 → 2026-04-29 (1 day; design and
+  implementation landed the same day).
+- Design phase: 2026-04-29 (single commit `102a94bc9`, batch of seven
+  proposals).
+- Implementation phase: 2026-04-29 (single squash-merge commit
+  `7325bbe15`).
 
 ## What is the Problem Being Solved?
 

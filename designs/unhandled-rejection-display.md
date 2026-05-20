@@ -3,9 +3,31 @@
 | | |
 |---|---|
 | **Created** | 2026-05-10 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | **Complete** |
 | **Source** | [endojs/endo-but-for-bots#171](https://github.com/endojs/endo-but-for-bots/issues/171), repro test PR [#174](https://github.com/endojs/endo-but-for-bots/pull/174) |
+
+## Status
+
+**Complete** (shipped 2026-05-11 via PR #187 / commit `a588f0b80` on
+`llm`; a parallel non-bot landing `74a56009a` 2026-05-12 carries the
+same change).
+
+Shipped on `llm` via PR
+[#187](https://github.com/endojs/endo-but-for-bots/pull/187): the daemon
+now renders `Error` reasons in CapTP rejection diagnostics via
+`formatRejectionReason` in `packages/daemon/src/daemon.js`, closing
+issue #171.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-05-10 → 2026-05-12 (3 days).
+- Design phase: 2026-05-10 (single commit `8b2022d70`, "design:
+  unhandled-rejection trap display (closes #171)").
+- Implementation phase: 2026-05-11 → 2026-05-12 (2 days). PR #187
+  squash-merge `a588f0b80` 2026-05-11; parallel commit `74a56009a`
+  2026-05-12.
 
 ## What is the Problem Being Solved?
 

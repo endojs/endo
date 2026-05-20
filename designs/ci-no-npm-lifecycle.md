@@ -3,8 +3,31 @@
 | | |
 |---|---|
 | **Created** | 2026-04-23 |
+| **Updated** | 2026-05-18 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
+
+## Status
+
+**Complete** (shipped 2026-05-14 via PR #126, commit `ddbc8ad7e` on
+`llm`).
+
+Implemented on `llm` via PR
+[#126](https://github.com/endojs/endo-but-for-bots/pull/126).
+`.yarnrc.yml` pins `enableScripts: false` workspace-wide and the GitHub
+Actions workflows install with `yarn install --immutable`, which inherits
+the pin. A master-base mirror of this change is staged upstream as PR
+[#250](https://github.com/endojs/endo-but-for-bots/pull/250) and is
+independent of llm completion.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-04-29 → 2026-05-14 (16 days, calendar).
+- Design phase: 2026-04-29 (single commit `102a94bc9`, batch of seven
+  proposals).
+- Implementation phase: 2026-05-14 (single squash-merge commit
+  `ddbc8ad7e`); the bulk of the elapsed window was queue / review wait
+  rather than active authoring.
 
 ## What is the Problem Being Solved?
 
