@@ -30,7 +30,9 @@ companion caps; the base `Filesystem` is tree-shaped and
 ocap-pure.
 
 See `DESIGN.md` for the full interface, design principles, and
-roadmap.
+the feature roadmap. See `ROADMAP.md` for the post-implementation
+honest list — places where claims exceed reality, known
+shortcomings, and the separate Endo-daemon-refactor track.
 
 ## Relation to existing Endo work
 
