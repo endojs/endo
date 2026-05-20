@@ -3,15 +3,42 @@
 
 import net from 'net';
 import harden from '@endo/harden';
+import { makePipe } from '@endo/stream';
+import { makeSyrupReader } from '@endo/syrup-frame/reader.js';
 
 import { locationToLocationId } from '../client/util.js';
 
 /**
- * @import { Connection, NetLayer, NetlayerHandlers, SocketOperations } from '../client/types.js'
+ * @import { Connection, Logger, NetLayer, NetlayerHandlers, SocketOperations } from '../client/types.js'
  * @import { OcapnLocation } from '../codecs/components.js'
+ * @import { Reader, Writer } from '@endo/stream'
+ */
+
+/**
+ * Wire framing for the test-only TCP netlayer.
+ *
+ * - `'syrup'` (default): each message is wrapped in the
+ *   `<length>:<payload>` framing implemented by `@endo/syrup-frame`.
+ *   Robust against TCP chunk boundaries that split a single OCapN
+ *   message; the spec is moving toward this framing for the
+ *   TCP-for-testing netlayer.
+ * - `'none'`: each write is sent as raw bytes, and each
+ *   `socket.on('data')` chunk is dispatched as a complete OCapN
+ *   message. Retained only for compatibility with the existing
+ *   `ocapn/ocapn-test-suite` Python `testing_only_tcp` netlayer,
+ *   which writes a syrup-encoded record with `sendall` and reads
+ *   one back with `syrup.syrup_read` (no length prefix on the wire).
+ *   That suite is known to be inadequate against the possibility of
+ *   a TCP chunk getting split across packets; the `'none'` option
+ *   goes away once the Python suite either adopts syrup framing or
+ *   is retired.
+ *
+ * @typedef {'none' | 'syrup'} TcpTestOnlyFraming
  */
 
 const { isNaN } = Number;
+
+const textEncoder = new TextEncoder();
 
 /**
  * @param {Buffer} buffer
@@ -47,6 +74,92 @@ const makeSocketOperations = (socket, writeLatencyMs) => {
 };
 
 /**
+ * Wraps `socketOps` so that `write(bytes)` emits a syrup-framed
+ * record (`<length>:<payload>`) instead of raw bytes. Builds the
+ * length-prefixed buffer synchronously and forwards a single
+ * `socketOps.write` call, matching the synchronous shape of the
+ * `SocketOperations` interface. (The earlier indirection through
+ * `@endo/syrup-frame`'s async `Writer` over a microtask-resolving
+ * sink was a sync/async impedance mismatch: the returned promise was
+ * always discarded and any write error from the sink would have been
+ * silently swallowed. Socket-level errors surface through the
+ * `socket.on('error')` handler set up in `setupSocketHandlers`.)
+ *
+ * @param {SocketOperations} socketOps
+ * @returns {SocketOperations}
+ */
+const makeSyrupWritingSocketOperations = socketOps => {
+  return {
+    write(bytes) {
+      const prefix = textEncoder.encode(`${bytes.length}:`);
+      const frame = new Uint8Array(prefix.length + bytes.length);
+      frame.set(prefix, 0);
+      frame.set(bytes, prefix.length);
+      socketOps.write(frame);
+    },
+    end() {
+      socketOps.end();
+    },
+  };
+};
+
+/**
+ * Wires a stream pipe between socket `data` events and the
+ * `@endo/syrup-frame` reader. Each whole frame is forwarded to
+ * `onFrame`. Errors and pipe closure are reported to `logger`.
+ *
+ * @param {Logger} logger
+ * @param {(frame: Uint8Array) => void} onFrame
+ * @returns {{ pushChunk: (chunk: Uint8Array) => void, end: () => void }}
+ */
+const makeSyrupDeframer = (logger, onFrame) => {
+  /** @type {[Writer<Uint8Array>, Reader<Uint8Array>]} */
+  const pipe = makePipe();
+  const [chunkWriter, chunkReader] = pipe;
+  const syrupReader = makeSyrupReader(chunkReader, {
+    name: 'tcp-testing-only',
+  });
+  let closed = false;
+  // Drain the reader in the background; surface decode errors via
+  // the logger and stop forwarding once closed.
+  const drain = async () => {
+    await null;
+    try {
+      for await (const frame of syrupReader) {
+        if (closed) {
+          break;
+        }
+        // The syrup reader may yield a `subarray()` of an internal
+        // buffer; downstream OCapN syrup decoding requires a
+        // zero-`byteOffset` view, so `slice()` to allocate a fresh
+        // owned copy before dispatching.
+        onFrame(frame.slice());
+      }
+    } catch (err) {
+      if (!closed) {
+        logger.error('Syrup deframer error:', err);
+      }
+    }
+  };
+  drain();
+  return {
+    pushChunk(chunk) {
+      if (closed) {
+        return;
+      }
+      chunkWriter.next(chunk).catch(() => {});
+    },
+    end() {
+      if (closed) {
+        return;
+      }
+      closed = true;
+      chunkWriter.return(undefined).catch(() => {});
+    },
+  };
+};
+
+/**
  * @typedef {object} ConnectionSocketPair
  * @property {Connection} connection
  * @property {net.Socket} socket
@@ -68,6 +181,7 @@ const makeSocketOperations = (socket, writeLatencyMs) => {
  * @param {string} [options.specifiedHostname]
  * @param {string} [options.specifiedDesignator]
  * @param {number} [options.writeLatencyMs] - Optional artificial latency for writes (ms), useful for testing pipelining
+ * @param {TcpTestOnlyFraming} [options.framing] - Wire framing for outbound writes and inbound reads. Defaults to `'syrup'`, the framing the OCapN TCP-for-testing netlayer is moving toward. Pass `'none'` to interoperate with the existing Python `ocapn-test-suite` `testing_only_tcp` netlayer (raw syrup record per write, no length prefix).
  * @returns {Promise<TcpTestOnlyNetLayer>}
  */
 export const makeTcpNetLayer = async ({
@@ -78,7 +192,11 @@ export const makeTcpNetLayer = async ({
   // Unclear if a fallback value is reasonable.
   specifiedDesignator = '0000',
   writeLatencyMs = 0,
+  framing = 'syrup',
 }) => {
+  if (framing !== 'none' && framing !== 'syrup') {
+    throw Error(`Unsupported framing: ${framing}`);
+  }
   // Create and start TCP server
   const server = net.createServer();
 
@@ -131,8 +249,29 @@ export const makeTcpNetLayer = async ({
   const setupSocketHandlers = (socket, connection, onClose) => {
     activeSockets.add(socket);
 
+    // When framing is `'syrup'`, run inbound bytes through the
+    // syrup deframer so each call to `handleMessageData` carries
+    // exactly one OCapN message regardless of how TCP chunked the
+    // wire. With `'none'` framing, dispatch raw chunks unchanged.
+    const deframer =
+      framing === 'syrup'
+        ? makeSyrupDeframer(logger, frame => {
+            if (!connection.isDestroyed) {
+              handlers.handleMessageData(connection, frame);
+            } else {
+              logger.info(
+                'TcpTestOnlyNetLayer received message after connection was destroyed',
+              );
+            }
+          })
+        : undefined;
+
     socket.on('data', data => {
       const bytes = bufferToBytes(data);
+      if (deframer) {
+        deframer.pushChunk(bytes);
+        return;
+      }
       if (!connection.isDestroyed) {
         handlers.handleMessageData(connection, bytes);
       } else {
@@ -150,6 +289,9 @@ export const makeTcpNetLayer = async ({
     socket.on('close', () => {
       logger.info('Connection closed');
       activeSockets.delete(socket);
+      if (deframer) {
+        deframer.end();
+      }
       if (onClose) {
         onClose();
       }
@@ -161,6 +303,26 @@ export const makeTcpNetLayer = async ({
       connection.end();
       handlers.handleConnectionClose(connection);
     });
+  };
+
+  /**
+   * Returns the socket operations the client connection should use.
+   * For `'syrup'` framing, wraps the raw socket operations in a
+   * syrup writer so every call to `connection.write` becomes one
+   * length-prefixed frame on the wire.
+   * @param {net.Socket} socket
+   * @returns {SocketOperations}
+   */
+  const makeFramedSocketOperations = socket => {
+    const rawOps = makeSocketOperations(socket, writeLatencyMs);
+    if (framing === 'syrup') {
+      return makeSyrupWritingSocketOperations(rawOps);
+    }
+    // `'none'` framing is retained only for the existing Python
+    // `ocapn-test-suite` `testing_only_tcp` netlayer, which is
+    // inadequate against TCP chunks split across packets. See the
+    // `TcpTestOnlyFraming` typedef.
+    return rawOps;
   };
 
   /**
@@ -183,7 +345,7 @@ export const makeTcpNetLayer = async ({
     }
     const socket = net.createConnection({ host, port: remotePort });
 
-    const socketOps = makeSocketOperations(socket, writeLatencyMs);
+    const socketOps = makeFramedSocketOperations(socket);
     // eslint-disable-next-line no-use-before-define
     const connection = handlers.makeConnection(netlayer, true, socketOps);
 
@@ -264,7 +426,7 @@ export const makeTcpNetLayer = async ({
       `${socket.remoteAddress}:${socket.remotePort}`,
     );
 
-    const socketOps = makeSocketOperations(socket, writeLatencyMs);
+    const socketOps = makeFramedSocketOperations(socket);
     const connection = handlers.makeConnection(netlayer, false, socketOps);
 
     setupSocketHandlers(socket, connection);
