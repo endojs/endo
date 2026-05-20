@@ -9,6 +9,40 @@ const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
 const traverseBabel = babelTraverse.default || babelTraverse;
 const generateBabel = babelGenerate.default || babelGenerate;
 
+// `Hub` and `NodePath` are *named* exports of `@babel/traverse`, alongside
+// the callable default `traverse` function.  Under the ESM/CJS interop shape
+// where `babelTraverse.default` is the function, the named exports remain on
+// the module namespace itself, so we read them from the namespace.
+const { Hub: BabelHub, NodePath: BabelNodePath } = babelTraverse;
+
+/**
+ * Builds a synthetic `parentPath` carrying a Babel `Hub`.
+ *
+ * `traverse(ast, visitor)` initializes child paths with `hub === undefined`,
+ * so any visitor that calls `path.buildCodeFrameError(...)` crashes with the
+ * cryptic `Cannot read properties of undefined (reading 'buildError')`.
+ * Threading a hub through a wrapper `parentPath` causes child paths to
+ * inherit it (see `NodePath.get`: `if (!hub && parentPath) hub = parentPath.hub;`),
+ * so error reporting from `path.buildCodeFrameError` produces the intended
+ * `SyntaxError` instead.
+ *
+ * The wrapper holds the parsed `File` as its sole child, keyed `'container'`,
+ * which mirrors how Babel's own compiler driver wires up the root path.
+ *
+ * @param {File} ast - the parsed Babel `File` node.
+ * @returns {NodePath} a `NodePath` whose child paths inherit a `Hub`.
+ */
+const makeHubParentPath = ast => {
+  const wrapper = { type: 'File', container: ast };
+  return BabelNodePath.get({
+    hub: new BabelHub(),
+    parentPath: null,
+    parent: wrapper,
+    container: wrapper,
+    key: 'container',
+  });
+};
+
 export const makeTransformSource = (makeModulePlugins, babel = null) => {
   if (babel !== null) {
     throw Error(
@@ -28,8 +62,23 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
       createParenthesizedExpressions: true,
     });
 
-    traverseBabel(ast, visitorFromPlugin(analyzePlugin));
-    traverseBabel(ast, visitorFromPlugin(transformPlugin));
+    // Each pass needs its own wrapper because `NodePath.get` caches paths
+    // keyed on the `parent` node; reusing the same wrapper across passes
+    // would let stale state from the analyze pass leak into transform.
+    traverseBabel(
+      ast,
+      visitorFromPlugin(analyzePlugin),
+      undefined,
+      undefined,
+      makeHubParentPath(ast),
+    );
+    traverseBabel(
+      ast,
+      visitorFromPlugin(transformPlugin),
+      undefined,
+      undefined,
+      makeHubParentPath(ast),
+    );
 
     const sourceMaps = sourceOptions.sourceMapHook !== undefined;
 
