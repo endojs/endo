@@ -4,8 +4,9 @@
 
 *Recently added or revised:
 [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) (added
-2026-05-19; tree-path accumulation, per-combinator reason renderers, and a
-text-source parse path for `@endo/patterns` mismatch diagnostics),
+2026-05-19, revised 2026-05-19; separate-lane `@endo/patterns-diagnose`
+sibling package with a Rust-compiler-style indented line-art renderer that
+reads the existing `applyLabelingError` cause chain),
 [endopi](endopi.md) (added 2026-05-15;
 comparative analysis of the pi agent harness against endo's daemon +
 chat + familiar + cli; sibling of `endoclaw.md`; spins out eight
@@ -481,7 +482,7 @@ webhook events.
 | ~~chat-view-edit-commands~~ | **Complete** | `/view` (alias `/cat`) and `/edit` blob commands shipped in `packages/chat/command-registry.js` with the Monaco-backed viewer/editor at `packages/chat/blob-viewer.js`; landed via direct-to-`llm` commit `ae2b074ac` plus typography / language-mode refinements |
 | chat-edit-message-ui | Not Started | `/edit` slash command, `e` focus shortcut, hover pencil for editing previously sent messages; revision-history panel |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
-| patterns-diagnostic-feedback | Proposed | Three independent axes (A: tree-path accumulation, B: per-combinator reason renderers, C: text-source parse with line and column) for `@endo/patterns` mismatch diagnostics |
+| patterns-diagnostic-feedback | Proposed | Separate-lane `@endo/patterns-diagnose` sibling package; opt-in `diagnose(err, { specimen, pattern })` returns a Rust-compiler-style indented line-art report rendered from the existing `applyLabelingError` chain; zero cost to the production matcher path |
 
 **Exit criterion:** Chat UI feature-complete for current design scope.
 Commands are non-blocking with visible pending state. Developer tools
@@ -726,7 +727,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~chat-view-edit-commands~~ | M | — | 4 | ✅ Complete (direct-to-`llm` commit `ae2b074ac` "Blob view and edit" + refinements; `/view` (alias `/cat`) and `/edit` shipped) |
 | chat-edit-message-ui | S-M | 3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil; design merged (PR #88); daemon impl in PR #125 forwarded under bot |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
-| patterns-diagnostic-feedback | M | 4-5 days | 4 | Three independently mergeable axes for `@endo/patterns` diagnostics: A (path-step accumulator + sweep, S), B (combinator renderer registry + 5 renderers, M), C (text-source lexer/parser/source-map + mustMatch integration, M-L). |
+| patterns-diagnostic-feedback | S-M | 2-3 days | 4 | New sibling package `@endo/patterns-diagnose`: tracing matcher + line-art renderer + `diagnose(err, options)` entry point (~600 lines incl. tests). Phase B (chain-walk fallback) is deferrable. Production `@endo/patterns` matcher path unchanged. |
 | ~~daemon-os-sandbox-plugin~~ | — | — | 5 | Superseded by `endo-posix-sandbox` |
 | endo-posix-sandbox | L-XL | 6-10 weeks remaining | 5 | Phases 0-1 shipped (bwrap on Linux); Phase 2 (podman) and Phase 3 (nested slices) in flight; Phases 1.5, 4, 6 ahead. Per-phase estimates pending PLAN backfill |
 | daemon-capability-persona | S-M | 3 days | 5 | Handle extension, epithet tracking |
