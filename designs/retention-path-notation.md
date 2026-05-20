@@ -10,6 +10,10 @@
 
 ## Status
 
+**Reference** (captured as a reference document 2026-05-10; the
+narrower single-target API in `daemon-retention-paths` is the active
+forward-looking proposal).
+
 Captured for reference; not a forward-looking proposal.
 The notation and bulk-collection sketch remain available as background
 for any future work on retention-path surfaces, but no implementation
@@ -17,6 +21,19 @@ PR is planned against this document.
 The single-target snapshot and subscription API in
 [`daemon-retention-paths`](daemon-retention-paths.md) is the active
 proposal.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Design phase: 2026-05-10 (single-day burst). Initial design commit
+  `b2f0481f7` 2026-05-10 ("design: retention-path notation for CLI
+  and chat UI"); same-day review-wrap `dea3e7186` ("fixup(design):
+  kriskowal review wrap, 8 inlines, #181").
+- Reference transition: 2026-05-10 (immediate; the document was
+  classified Reference at landing, with `daemon-retention-paths`
+  carrying the implementable single-target slice).
+- No implementation phase is planned against this document; future
+  retention-path implementations are scoped via
+  `daemon-retention-paths` (PR #284 open).
 
 ## What is the Problem Being Solved?
 

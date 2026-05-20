@@ -10,6 +10,9 @@
 
 ## Status
 
+**Superseded** (became a historical proposal 2026-05-07 when
+`endo-posix-sandbox` landed in `designs/` as the successor design).
+
 Retained as a historical proposal. The cross-platform OS-sandbox
 plugin work continues under
 [endo-posix-sandbox](endo-posix-sandbox.md), which is in flight on
@@ -17,6 +20,21 @@ plugin work continues under
 (`podman` driver) has shipped, and Phases 3 and beyond are in
 progress. The `packages/sandbox/` README tracks the per-phase status
 in detail.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Design phase: 2026-02-15 → 2026-03-13 (27 days, calendar). Initial
+  add `37f65aaf5` 2026-02-15 ("design doc for OS sandbox plugin");
+  roadmap-cycle edits `52bc71d6e` 2026-02-24 and `0ee0cbb3c`
+  2026-02-28; expansion `b1074dacc` 2026-03-13 ("expand technique
+  mentions").
+- Superseded transition: 2026-05-07. On that date `endo-posix-sandbox`
+  was mirrored into `designs/` (`fbf40d706`) as the successor; this
+  document's status transitioned from open proposal to historical
+  record.
+- No further implementation phase is planned against this document;
+  the forward-looking work lives under `endo-posix-sandbox` (and its
+  per-phase status is tracked in `packages/sandbox/README.md`).
 
 ## What is the Problem Being Solved?
 

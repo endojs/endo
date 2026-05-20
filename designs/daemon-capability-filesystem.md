@@ -9,6 +9,9 @@
 
 ## Status
 
+**Reference** (became a reference document 2026-03-21 when the
+narrower `daemon-mount` design absorbed the implementable slice).
+
 Captured as a reference for forward-looking work; the speculative
 Dir/File/VFS sketch here is not directly implemented.
 The narrower physical-backend slice has shipped via
@@ -24,6 +27,21 @@ open).
 Future concrete designs that pick specific ideas from this document
 should follow the per-idea factoring suggested in the original
 proposal.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Design phase: 2026-02-15 → 2026-02-28 (14 days). Initial add
+  `6320e6163` 2026-02-15 ("half baked fs and os capability designs");
+  roadmap-cycle edits `52bc71d6e` 2026-02-24 and `0ee0cbb3c`
+  2026-02-28.
+- Reference transition: 2026-03-21. On that date `daemon-mount`
+  (`e22f71327`) shipped the implementable physical-backend slice that
+  this document had laid out, and this document's role transitioned
+  from "open proposal" to "background-ideas reference for future
+  concrete designs".
+- No implementation phase is planned against this document directly;
+  future concrete designs (e.g. `daemon-mount` Phases 4-6) are the
+  forward-looking vehicles.
 
 This document collects ideas for a filesystem capability that Endo could
 provide to AI agent guests.  It is not a finished design — it is a bag
