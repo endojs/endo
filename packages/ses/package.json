@@ -73,14 +73,17 @@
       "default": "./compartment-shim.js"
     },
     "./console-shim.js": "./console-shim.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./src/*": {
+      "test-endo-ses": "./src/*"
+    }
   },
   "scripts": {
-    "build:vanilla": "node scripts/bundle.js",
-    "build:hermes": "node scripts/bundle.js hermes",
+    "build:vanilla": "yarn workspace @endo/ses-test build:ses-vanilla",
+    "build:hermes": "yarn workspace @endo/ses-test build:ses-hermes",
     "build": "yarn build:vanilla && yarn build:hermes",
     "clean": "rm -rf dist",
-    "cover": "c8 ava --config test/_ava-ses.config.js",
+    "cover": "c8 ava",
     "demo": "python3 -m http.server",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
@@ -90,7 +93,7 @@
     "qt": "ava",
     "test": "tsd && ava",
     "test:hermes": "./scripts/hermes-test.sh",
-    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp",
+    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js",
     "postpack": "git clean -fX -e node_modules/"
   },
   "dependencies": {
@@ -99,19 +102,11 @@
     "@endo/immutable-arraybuffer": "workspace:^"
   },
   "devDependencies": {
-    "@babel/generator": "^7.28.3",
-    "@babel/parser": "~7.29.3",
-    "@babel/traverse": "~7.29.0",
-    "@babel/types": "~7.29.0",
-    "@endo/compartment-mapper": "workspace:^",
-    "@endo/module-source": "workspace:^",
-    "@endo/test262-runner": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "core-js": "^3.31.0",
     "eslint": "catalog:dev",
     "hermes-engine-cli": "^0.12.0",
-    "terser": "^5.16.6",
     "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },

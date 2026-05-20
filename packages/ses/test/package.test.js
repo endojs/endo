@@ -7,7 +7,7 @@ const cwd = url.fileURLToPath(new URL('_package/', import.meta.url));
 const packageRoot = url.fileURLToPath(new URL('..', import.meta.url));
 const distCjs = url.fileURLToPath(new URL('../dist/ses.cjs', import.meta.url));
 const bundleScript = url.fileURLToPath(
-  new URL('../scripts/bundle.js', import.meta.url),
+  new URL('../../ses-test/scripts/bundle.js', import.meta.url),
 );
 
 test.before(async () => {

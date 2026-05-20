@@ -1,5 +1,5 @@
 /* global process */
-import '../index.js';
+import 'ses';
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
@@ -9,7 +9,15 @@ import { hermesTransforms } from './hermes-transforms.js';
 lockdown();
 
 const resolve = (rel, abs) => fileURLToPath(new URL(rel, abs).toString());
-const root = new URL('..', import.meta.url).toString();
+// Resolve the `ses` package root via Node's package linkage rather than a
+// relative walk from this script. `import.meta.resolve('ses/package.json')`
+// returns the URL of the resolved `package.json`; the parent URL is the
+// package root. This script lives in `packages/ses-test/scripts/` but builds
+// the SES dist outputs into the SES package; using `import.meta.resolve`
+// keeps that cross-package linkage decoupled from the filesystem layout.
+// `import.meta.resolve` has been unflagged since Node 20.6 and is available
+// on every Node version this repository's CI matrix targets.
+const root = new URL('.', import.meta.resolve('ses/package.json')).toString();
 
 const read = async location => fs.promises.readFile(fileURLToPath(location));
 const write = async (target, content) => {
@@ -51,7 +59,7 @@ const writeBundle = async ({ buildType } = {}) => {
 
   const bundle = await makeBundle(
     read,
-    pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
+    pathToFileURL(resolve('index.js', root)).toString(),
     { syncModuleTransforms },
   );
   const versionedBundle = `// ses@${version}\n${bundle}`;
@@ -71,7 +79,7 @@ const writeBundle = async ({ buildType } = {}) => {
     console.log(`Minified bundle size: ${terse.length} bytes`);
   }
 
-  await fs.promises.mkdir('dist', { recursive: true });
+  await fs.promises.mkdir(resolve('dist', root), { recursive: true });
 
   await Promise.all([
     ...bundleFilePaths.map(dest => write(dest, versionedBundle)),

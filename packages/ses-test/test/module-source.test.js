@@ -1,7 +1,7 @@
 /// <reference types="ses">
 
 import test from 'ava';
-import '../index.js';
+import 'ses';
 import '@endo/module-source/shim.js';
 
 lockdown();

@@ -1,0 +1,78 @@
+{
+  "name": "@endo/ses-test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SES-dependent tests and bundling scripts, hosted in an internal package (not published, nothing else depends on it) to break the workspace devDep cycle.",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/ses-test#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/ses-test"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {},
+  "scripts": {
+    "build:ses-vanilla": "node scripts/bundle.js",
+    "build:ses-hermes": "node scripts/bundle.js hermes",
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ava",
+    "test:xs": "node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp",
+    "test262": "node test262/compartment-shim.js && node test262/tame-global-math-object.js && node test262/tame-global-date-object.js && node test262/tame-global-error-object.js && node test262/tame-global-regexp-object.js",
+    "test262:xs": "TEST262_HOST_TYPE=xs TEST262_HOST_PATH=$(which xst) yarn test262",
+    "test262:node": "yarn test262"
+  },
+  "dependencies": {
+    "@endo/compartment-mapper": "workspace:^",
+    "@endo/module-source": "workspace:^",
+    "@endo/test262-runner": "workspace:^",
+    "ses": "workspace:^"
+  },
+  "devDependencies": {
+    "@babel/generator": "^7.28.3",
+    "@babel/parser": "~7.29.3",
+    "@babel/traverse": "~7.29.0",
+    "@babel/types": "~7.29.0",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "terser": "^5.16.6",
+    "typescript": "catalog:dev"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "settings": {
+      "import/resolver": {
+        "exports": {
+          "conditions": [
+            "test-endo-ses"
+          ]
+        },
+        "node": {}
+      }
+    }
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "nodeArguments": [
+      "--conditions=test-endo-ses"
+    ],
+    "timeout": "2m"
+  }
+}

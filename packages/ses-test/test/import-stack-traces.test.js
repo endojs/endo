@@ -1,5 +1,5 @@
 import test from 'ava';
-import '../index.js';
+import 'ses';
 import { resolveNode, makeNodeImporter } from './_node.js';
 
 test('preserve file names in stack traces', async t => {

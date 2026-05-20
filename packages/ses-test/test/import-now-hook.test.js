@@ -1,32 +1,31 @@
-// @ts-nocheck
-// These tests exercise the Compartment moduleMapHook.
+// These tests exercise the Compartment importNowHook.
 
 /* eslint max-lines: 0 */
 
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
-import '../index.js';
+import 'ses';
+import { resolveNode } from './_node.js';
 
-test('module map hook returns module source descriptor with precompiled module source', async t => {
+test('import now hook returns module source descriptor with precompiled module source', t => {
   const compartment = new Compartment({
     resolveHook: specifier => specifier,
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './index.js') {
         return { source: new ModuleSource('export default 42') };
       }
       return undefined;
     },
-    __noNamespaceBox__: true,
     __options__: true,
   });
-  const index = await compartment.import('./index.js');
+  const index = compartment.importNow('./index.js');
   t.is(index.default, 42);
 });
 
-test('module map hook returns  module source descriptor with virtual module source', async t => {
+test('import now hook returns module source descriptor with virtual module source', t => {
   const compartment = new Compartment({
     resolveHook: specifier => specifier,
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './index.js') {
         return {
           source: {
@@ -40,17 +39,16 @@ test('module map hook returns  module source descriptor with virtual module sour
       }
       return undefined;
     },
-    __noNamespaceBox__: true,
     __options__: true,
   });
-  const index = await compartment.import('./index.js');
+  const index = compartment.importNow('./index.js');
   t.is(index.default, 42);
 });
 
-test('module map hook returns parent compartment module source descriptor with string reference to parent compartment', async t => {
+test('import now hook returns parent compartment module source descriptor with string reference to parent compartment', t => {
   const parent = new Compartment({
     resolveHook: specifier => specifier,
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './meaning.js') {
         return {
           source: {
@@ -75,7 +73,7 @@ test('module map hook returns parent compartment module source descriptor with s
     // options:
     {
       resolveHook: specifier => specifier,
-      moduleMapHook(specifier) {
+      importNowHook(specifier) {
         if (specifier === './index.js') {
           return {
             source: './meaning.js',
@@ -83,14 +81,13 @@ test('module map hook returns parent compartment module source descriptor with s
         }
         return undefined;
       },
-      __noNamespaceBox__: true,
     },
   );
-  const index = await compartment.import('./index.js');
+  const index = compartment.importNow('./index.js');
   t.is(index.default, 42);
 });
 
-test('module map hook returns parent compartment module source reference with different specifier', async t => {
+test('import now hook returns parent compartment module source reference with different specifier', t => {
   const parent = new Compartment({
     name: 'parent',
     resolveHook(relative, specifier) {
@@ -98,7 +95,7 @@ test('module map hook returns parent compartment module source reference with di
       t.is(specifier, './meaning.js');
       return relative;
     },
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './meaningful.js') {
         return {
           source: {
@@ -141,7 +138,7 @@ test('module map hook returns parent compartment module source reference with di
         t.is(specifier, './lib/meaning.js');
         return './lib/meaningful.js';
       },
-      moduleMapHook(specifier) {
+      importNowHook(specifier) {
         if (specifier === './lib/meaningful.js') {
           return {
             source: {
@@ -160,17 +157,16 @@ test('module map hook returns parent compartment module source reference with di
         }
         return undefined;
       },
-      __noNamespaceBox__: true,
     },
   );
-  const index = await compartment.import('./index.js');
+  const index = compartment.importNow('./index.js');
   t.is(index.default, 42);
 });
 
-test('module map hook returns module source descriptor for parent compartment with string reference', async t => {
+test('import now hook returns module source descriptor for parent compartment with string reference', t => {
   const parent = new Compartment({
     name: 'parent',
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './object.js') {
         return {
           source: new ModuleSource('export default { meaning: 42 }'),
@@ -178,38 +174,42 @@ test('module map hook returns module source descriptor for parent compartment wi
       }
       return undefined;
     },
-    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: parentObject } = await parent.import('./object.js');
+  const { default: parentObject } = parent.importNow('./object.js');
   t.is(parentObject.meaning, 42);
 
-  const compartment = new parent.globalThis.Compartment({
-    name: 'child',
-    moduleMapHook(specifier) {
-      if (specifier === './index.js') {
-        return {
-          source: './object.js',
-          // implies parent compartment
-        };
-      }
-      return undefined;
+  const compartment = new parent.globalThis.Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      name: 'child',
+      importNowHook(specifier) {
+        if (specifier === './index.js') {
+          return {
+            source: './object.js',
+            // implies parent compartment
+          };
+        }
+        return undefined;
+      },
     },
-    __noNamespaceBox__: true,
-    __options__: true,
-  });
+  );
 
-  const { default: childObject } = await compartment.import('./index.js');
+  const { default: childObject } = compartment.importNow('./index.js');
   t.is(childObject.meaning, 42);
   // Separate instances
   t.not(childObject, parentObject);
 });
 
-test('module map hook returns parent compartment module namespace descriptor', async t => {
+test('import now hook returns parent compartment module namespace descriptor', t => {
   const parent = new Compartment({
     name: 'parent',
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './object.js') {
         return {
           source: new ModuleSource('export default { meaning: 42 }'),
@@ -217,38 +217,42 @@ test('module map hook returns parent compartment module namespace descriptor', a
       }
       return undefined;
     },
-    __noNamespaceBox__: true,
     __options__: true,
   });
 
-  const { default: parentObject } = await parent.import('./object.js');
+  const { default: parentObject } = parent.importNow('./object.js');
   t.is(parentObject.meaning, 42);
 
-  const compartment = new parent.globalThis.Compartment({
-    name: 'child',
-    moduleMapHook(specifier) {
-      if (specifier === './index.js') {
-        return {
-          namespace: './object.js',
-          // implies parent compartment
-        };
-      }
-      return undefined;
+  const compartment = new parent.globalThis.Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      name: 'child',
+      importNowHook(specifier) {
+        if (specifier === './index.js') {
+          return {
+            namespace: './object.js',
+            // implies parent compartment
+          };
+        }
+        return undefined;
+      },
     },
-    __noNamespaceBox__: true,
-    __options__: true,
-  });
+  );
 
-  const { default: childObject } = await compartment.import('./index.js');
+  const { default: childObject } = compartment.importNow('./index.js');
   t.is(childObject.meaning, 42);
   // Same instances
   t.is(childObject, parentObject);
 });
 
-test('module map hook returns module source descriptor with string reference to parent compartment', async t => {
+test('import now hook returns module source descriptor with string reference to parent compartment', t => {
   const compartment1 = new Compartment({
     name: 'compartment1',
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './object.js') {
         return {
           source: new ModuleSource('export default { meaning: 42 }'),
@@ -259,14 +263,12 @@ test('module map hook returns module source descriptor with string reference to 
     __options__: true,
   });
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment1.import('./object.js');
+  const { default: object1 } = compartment1.importNow('./object.js');
   t.is(object1.meaning, 42);
 
   const compartment2 = new Compartment({
     name: 'child',
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './index.js') {
         return {
           source: './object.js',
@@ -278,18 +280,16 @@ test('module map hook returns module source descriptor with string reference to 
     __options__: true,
   });
 
-  const {
-    namespace: { default: object2 },
-  } = await compartment2.import('./index.js');
+  const { default: object2 } = compartment2.importNow('./index.js');
   t.is(object2.meaning, 42);
   // Separate instances
   t.not(object1, object2);
 });
 
-test('module map hook returns other compartment module namespace descriptor', async t => {
+test('import now hook returns other compartment module namespace descriptor', t => {
   const compartment1 = new Compartment({
     name: 'compartment1',
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './object.js') {
         return {
           source: new ModuleSource('export default { meaning: 42 }'),
@@ -300,14 +300,12 @@ test('module map hook returns other compartment module namespace descriptor', as
     __options__: true,
   });
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment1.import('./object.js');
+  const { default: object1 } = compartment1.importNow('./object.js');
   t.is(object1.meaning, 42);
 
   const compartment2 = new Compartment({
     name: 'child',
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './index.js') {
         return {
           namespace: './object.js',
@@ -319,17 +317,15 @@ test('module map hook returns other compartment module namespace descriptor', as
     __options__: true,
   });
 
-  const {
-    namespace: { default: object2 },
-  } = await compartment2.import('./index.js');
+  const { default: object2 } = compartment2.importNow('./index.js');
   t.is(object2.meaning, 42);
   // Same instances
   t.is(object1, object2);
 });
 
-test('module map hook returns module namespace descriptor and namespace object', async t => {
+test('import now hook returns module namespace descriptor and namespace object', t => {
   const compartment1 = new Compartment({
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === 'a') {
         return {
           source: new ModuleSource(`export default 42`),
@@ -339,9 +335,9 @@ test('module map hook returns module namespace descriptor and namespace object',
     },
     __options__: true,
   });
-  const { namespace: namespace1 } = await compartment1.import('a');
+  const namespace1 = compartment1.importNow('a');
   const compartment2 = new Compartment({
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === 'z') {
         return { namespace: namespace1 };
       }
@@ -349,14 +345,14 @@ test('module map hook returns module namespace descriptor and namespace object',
     },
     __options__: true,
   });
-  const { namespace: namespace2 } = await compartment2.import('z');
+  const namespace2 = compartment2.importNow('z');
   t.is(namespace2.default, 42);
   t.is(namespace1, namespace2);
 });
 
-test('module map hook returns module namespace descriptor and non-namespace object', async t => {
+test('import now hook returns module namespace descriptor and non-namespace object', t => {
   const compartment = new Compartment({
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === '1') {
         return { namespace: { meaning: 42 } };
       }
@@ -364,18 +360,18 @@ test('module map hook returns module namespace descriptor and non-namespace obje
     },
     __options__: true,
   });
-  const { namespace } = await compartment.import('1');
+  const namespace = compartment.importNow('1');
   t.is(namespace.meaning, 42);
 });
 
-test('module map hook returns module source descriptor for specifier in own compartment', async t => {
+test('import now hook returns module source descriptor for specifier in own compartment', t => {
   const compartment = new Compartment({
     modules: {
       './object.js': {
         source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './index.js') {
         return {
           source: './object.js',
@@ -387,26 +383,22 @@ test('module map hook returns module source descriptor for specifier in own comp
     __options__: true,
   });
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment.import('./object.js');
+  const { default: object1 } = compartment.importNow('./object.js');
   t.is(object1.meaning, 42);
-  const {
-    namespace: { default: object2 },
-  } = await compartment.import('./index.js');
+  const { default: object2 } = compartment.importNow('./index.js');
   t.is(object2.meaning, 42);
   // Separate instances
   t.not(object1, object2);
 });
 
-test('module map hook returns module source descriptor for specifier in own compartment and overridden base specifier that collides', async t => {
+test('import now hook returns module source descriptor for specifier in own compartment and overridden base specifier that collides', t => {
   const compartment = new Compartment({
     modules: {
       './object.js': {
         source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './index.js') {
         return {
           source: './object.js',
@@ -419,30 +411,25 @@ test('module map hook returns module source descriptor for specifier in own comp
     __options__: true,
   });
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment.import('./object.js');
+  const { default: object1 } = compartment.importNow('./object.js');
   t.is(object1.meaning, 42);
-  const {
-    namespace: { default: object2 },
-  } = await compartment.import('./index.js');
+  const { default: object2 } = compartment.importNow('./index.js');
   t.is(object2.meaning, 42);
   // Fails to obtain separate instance due to specifier collison.
   t.is(object1, object2);
 });
 
-test('module map hook returns module namespace descriptor for specifier in own compartment', async t => {
+test('import now hook returns module namespace descriptor for specifier in own compartment', t => {
   const compartment = new Compartment({
-    modules: {
-      './object.js': {
-        source: new ModuleSource('export default { meaning: 42 }'),
-      },
-    },
-    moduleMapHook(specifier) {
+    importNowHook(specifier) {
       if (specifier === './index.js') {
         return {
           namespace: './object.js',
           compartment,
+        };
+      } else if (specifier === './object.js') {
+        return {
+          source: new ModuleSource('export default { meaning: 42 }'),
         };
       }
       return undefined;
@@ -450,28 +437,27 @@ test('module map hook returns module namespace descriptor for specifier in own c
     __options__: true,
   });
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment.import('./object.js');
+  const { default: object1 } = compartment.importNow('./object.js');
   t.is(object1.meaning, 42);
-  const {
-    namespace: { default: object2 },
-  } = await compartment.import('./index.js');
+  const { default: object2 } = compartment.importNow('./index.js');
   t.is(object2.meaning, 42);
   // Same instances
   t.is(object1, object2);
 });
 
-test('module map precedes module map hook', t => {
+test('module map hook precedes import now hook', t => {
   const compartment = new Compartment({
-    modules: {
-      './index.js': {
-        source: new ModuleSource(`
-          export default 42;
-        `),
-      },
+    moduleMapHook(specifier) {
+      if (specifier === './index.js') {
+        return {
+          source: new ModuleSource(`
+              export default 42;
+            `),
+        };
+      }
+      return undefined;
     },
-    moduleMapHook() {
+    importNowHook() {
       throw new Error('not reached');
     },
     __options__: true,
@@ -479,4 +465,64 @@ test('module map precedes module map hook', t => {
 
   const { default: meaning } = compartment.importNow('./index.js');
   t.is(meaning, 42);
+});
+
+/**
+ * "Import now" hook for testing behavior when error aggregation is enabled or
+ * disabled.
+ * @param {string} specifier
+ * @returns {ModuleSource}
+ */
+const importNowHookForErrorAggregationTests = specifier => {
+  if (specifier === './meaning.mjs') {
+    return new ModuleSource(`
+        export { meaning as default } from './missing.mjs';
+      `);
+  }
+  if (specifier === './main.js') {
+    return new ModuleSource(
+      `
+        import meaning from './meaning.mjs';
+        t.is(meaning, 42);
+      `,
+      'https://example.com/main.js',
+    );
+  }
+  throw Error(`Cannot load module for specifier ${specifier}`);
+};
+
+test('throws immediately when error aggregation is disabled', async t => {
+  t.plan(1);
+
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: async () => {},
+    importNowHook: importNowHookForErrorAggregationTests,
+    noAggregateLoadErrors: true, // <-- error aggregation disabled
+    __options__: true,
+  });
+
+  t.throws(() => compartment.importNow('./main.js'), {
+    message: `Cannot load module for specifier ./missing.mjs`,
+    name: 'Error',
+  });
+});
+
+test('throws aggregate error when error aggregation is enabled', async t => {
+  t.plan(1);
+
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: async () => {},
+    importNowHook: importNowHookForErrorAggregationTests,
+    noAggregateLoadErrors: false, // <-- error aggregation enabled
+    __options__: true,
+  });
+
+  // TODO: I had expected this to be an actual AggregateError, but it is not
+  t.throws(() => compartment.importNow('./main.js'), {
+    message: /1 underlying failures/,
+  });
 });
