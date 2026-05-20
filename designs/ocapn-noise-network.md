@@ -38,6 +38,11 @@ OCapN.
     tests, all under PR #59; merged into `llm` via PR #137 /
     `6a5aecd01` the same day).
 
+> **See also**: [ocapn-noise-session-reconnect](ocapn-noise-session-reconnect.md)
+> amends this design with a meta-TCP session layer (heartbeat, transparent
+> reconnect, Noise sequence continuity across TCP instances) per the
+> 2026-05-14 maintainer directive relaying erights' framing.
+
 ## What is the Problem Being Solved?
 
 The `@endo/ocapn-noise` package (v0.1.0) currently provides Noise Protocol

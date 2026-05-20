@@ -43,7 +43,11 @@ PR #151 row-format unblocker; sibling of
 [unhandled-rejection-display](unhandled-rejection-display.md) (added
 2026-05-10; impl landed via PR #187 closing issue #171),
 [cli-edit-verb](cli-edit-verb.md) (added 2026-05-08; sibling of PR #153
-`cli-store-verb-text-modes`; hashline patches for AI agents).*
+`cli-store-verb-text-modes`; hashline patches for AI agents),
+[ocapn-noise-session-reconnect](ocapn-noise-session-reconnect.md) (added
+2026-05-14; amends [ocapn-noise-network](ocapn-noise-network.md) with a
+meta-TCP session layer per erights' 2026-05-14 framing on liveness and
+reconnect).*
 
 ## Summary
 
@@ -149,6 +153,7 @@ PR #151 row-format unblocker; sibling of
 | [ocapn-network-transport-separation](ocapn-network-transport-separation.md) | 2026-02-14 | 2026-02-24 | In Progress |
 | [ocapn-noise-cryptographic-review](ocapn-noise-cryptographic-review.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-noise-network](ocapn-noise-network.md) | 2026-02-14 | 2026-05-18 | **Complete** |
+| [ocapn-noise-session-reconnect](ocapn-noise-session-reconnect.md) | 2026-05-14 | 2026-05-19 | Proposed |
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-tcp-syrups-framing](ocapn-tcp-syrups-framing.md) | 2026-04-23 | 2026-05-06 | Not Started |
 | [syrups](syrups.md) | 2026-05-04 | 2026-05-06 | Deprecated |
@@ -169,7 +174,7 @@ PR #151 row-format unblocker; sibling of
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 39 Complete/Implemented, 18 In Progress, 36 Not Started, 15 Proposed, 2 Active, 6 Reference, 2 Deprecated, 1 Superseded (119 designs). Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback Proposed entry; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 11 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs plus `hardened-text-codecs-shim` and `hardened-url-shim`).
+**Totals:** 39 Complete/Implemented, 18 In Progress, 36 Not Started, 16 Proposed, 2 Active, 6 Reference, 2 Deprecated, 1 Superseded (120 designs). Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 11 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs plus `hardened-text-codecs-shim` and `hardened-url-shim`).
 
 ## Roadmap
 
@@ -261,9 +266,12 @@ flowchart TD
         otcp[ocapn-tcp-for-test-extraction]
         orev[ocapn-noise-cryptographic-review]
         onoise[ocapn-noise-network<br/><i>COMPLETE</i>]
+        oreconn[ocapn-noise-session-reconnect]
         onet --> otcp --> onoise
         orev --> onoise
         dnet --> onoise
+        onoise --> oreconn
+        orev --> oreconn
     end
 
     subgraph Chat UX
