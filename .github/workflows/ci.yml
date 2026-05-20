@@ -45,7 +45,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -75,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 22.x, 24.x]
+        node-version: [22.x, 24.x]
         platform: [ubuntu-latest, macos-15]
         # windows-latest exhibited flakey tests that are not yet worth the
         # trouble to investigate, and blocked us from upgrading yarn from 1 to
@@ -135,15 +135,20 @@ jobs:
       fail-fast: false
       matrix:
         node-version:
+          # Historical record of Node patch-version compatibility for the
+          # SES-viable promise-hook surface (entries removed as their Node
+          # major lines reached EOL or left CI):
           # '16.1' last version before some significant promise hooks changes
           # '16.5' last version before unconditional promise fast-path
           # '16.6' first version after unconditional promise fast-path
           - '18'
-          # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
           # '20.3' to '20.6' not viable due to https://github.com/nodejs/node/pull/49211
-          # '20.7' first SES-viable version
-          # '20.9' first LTS of 20
-          - '20'
+          # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
+          # '20.7' first SES-viable version of Node 20
+          # '20.9' first LTS of Node 20
+          # '22' is the post-promise-fast-path lane on a current LTS
+          # (the SES-viable promise-hook lane the Node-20 entry was guarding).
+          - '22'
         platform:
           - ubuntu-latest
 
@@ -181,12 +186,7 @@ jobs:
 
     # begin macro
 
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [18.x, 20.x, 24.x]
-        platform: [ubuntu-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -197,10 +197,10 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -223,7 +223,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 24.x]
+        node-version: [22.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -257,11 +257,7 @@ jobs:
 
     # begin macro
 
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [ubuntu-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -272,10 +268,10 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js 22.x
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -303,10 +299,10 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js 22.x
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -329,12 +325,7 @@ jobs:
 
     # begin macro
 
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [18.x, 20.x, 24.x]
-        platform: [ubuntu-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -345,10 +336,10 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -375,14 +366,11 @@ jobs:
 
     # begin macro
 
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20.x]
-        # may include release tags and hashes:
-        moddable-version: [5.0.0]
-        platform: [ubuntu-latest]
+    runs-on: ubuntu-latest
+
+    # may include release tags and hashes
+    env:
+      MODDABLE_VERSION: 5.0.0
 
     steps:
       - name: Checkout
@@ -395,10 +383,11 @@ jobs:
       - run: corepack enable
         working-directory: endo
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      # The tests run on the XS engine; Node is just driving the harness.
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: endo/.node-version
           cache: yarn
           cache-dependency-path: endo/yarn.lock
 
@@ -421,13 +410,11 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: bin/xst
-          key: xst-lin64-${{ matrix.moddable-version }}
+          key: xst-lin64-${{ env.MODDABLE_VERSION }}
 
       - name: Choose XS download or build
         if: steps.restore-xs.outputs.cache-hit != 'true'
         id: check-release
-        env:
-          MODDABLE_VERSION: ${{ matrix.moddable-version }}
         run: |
           if curl -f -s -o /dev/null -I -L "https://api.github.com/repos/Moddable-OpenSource/moddable/releases/tags/${MODDABLE_VERSION}"
           then
@@ -438,8 +425,6 @@ jobs:
 
       - name: Download XS
         if: steps.check-release.outputs.release == 'download'
-        env:
-          MODDABLE_VERSION: ${{ matrix.moddable-version }}
         run: |
           wget "https://github.com/Moddable-OpenSource/moddable/releases/download/${MODDABLE_VERSION}/xst-lin64.zip"
           unzip xst-lin64.zip -d bin
@@ -451,7 +436,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: moddable-OpenSource/moddable
-          ref: ${{ matrix.moddable-version }}
+          ref: ${{ env.MODDABLE_VERSION }}
           path: moddable
           persist-credentials: false
 
@@ -493,10 +478,10 @@ jobs:
       - run: corepack enable
         working-directory: endo
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 20.x
+          node-version-file: endo/.node-version
           cache: yarn
           cache-dependency-path: endo/yarn.lock
 

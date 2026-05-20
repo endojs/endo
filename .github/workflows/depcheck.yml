@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 18.x
+          node-version-file: .node-version
       - name: Install graphviz
         run: sudo apt install -y graphviz
 
