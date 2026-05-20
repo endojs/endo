@@ -129,6 +129,9 @@
       "path": "packages/stream-node/tsconfig.composite.json"
     },
     {
+      "path": "packages/syrup-frame/tsconfig.composite.json"
+    },
+    {
       "path": "packages/test262-runner/tsconfig.composite.json"
     },
     {
