@@ -9,6 +9,10 @@
 
 ## Status
 
+**Complete** (initial package shipped 2026-03-20 via commit
+`e0dda06fb` on `llm`; subsequent refactor + lint / type fixups
+through 2026-05-11).
+
 Implemented on the `llm` branch.
 The initial `@endo/platform` package with filesystem types and
 adapters landed in commit e0dda06fb
@@ -24,6 +28,23 @@ a2543273a, 23c776eb1).
 The package, its `fs/lite` and `fs-node` modules, conditional
 exports, and the snapshot store / tree adapter factories are all
 live in `packages/platform/`.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-03-20 → 2026-05-11 (53 days, calendar; the
+  active authoring span includes long stretches of light-touch
+  refactor / lint maintenance after the initial landing).
+- Design phase: 2026-03-20 (single commit `d7670120a`, "Add design
+  for platform-fs").
+- Implementation phase: 2026-03-20 → 2026-05-11 (53 days, calendar).
+  Burst 1: 2026-03-20 (initial landing `e0dda06fb` + `ed234c6a7` CLI
+  integration). Burst 2: 2026-03-30 (`292a6d591`, `b8cca2d00`
+  unification of cli exec into `@endo/platform`). Burst 3: 2026-04-11
+  (`a2dc8ec9f`, `d5a36e8ee`, `441770389`, `9faaddb92` types / lint /
+  format fixups under PR #122 review). Burst 4: 2026-05-11
+  (`194547611` typescript-catalog adoption); content-store-gc work
+  in `packages/daemon` triggered light follow-up touches on
+  `packages/platform` 2026-05-06 (`5798b56f5`).
 
 ## What is the Problem Being Solved?
 
