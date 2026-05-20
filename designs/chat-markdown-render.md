@@ -10,6 +10,10 @@
 
 ## Status
 
+**Complete** (markmdown package shipped 2026-03-26 via merge
+`23f56256c` on `llm`; chat integration shipped 2026-04-09 via commit
+`2f17a6f56`; test fixtures through 2026-04-17).
+
 Implemented directly on the `llm` branch:
 
 - `@endo/markmdown` package landed via merge 23f56256c
@@ -25,6 +29,19 @@ Implemented directly on the `llm` branch:
 
 The changes landed before the bot-forwarded PR workflow was in
 place, so there are no PR numbers for the primary commits.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-03-03 → 2026-04-17 (46 days, calendar).
+- Design phase: 2026-03-03 → 2026-03-26 (24 days). Design doc first
+  add `b6286fba4` 2026-03-03 (multi-design batch); preliminary
+  markmdown framing `5e6dbb533` 2026-03-26.
+- Implementation phase: 2026-03-26 → 2026-04-17 (23 days). markmdown
+  package merge `23f56256c` + `0dc176b47` 2026-03-26; chat integration
+  `2f17a6f56` 2026-04-09; type / lint / format fixups `09d1b723a`,
+  `441770389`, `9faaddb92`, `bfa7f521a` through 2026-04-11; final
+  test-fixture additions `5601a03b7` (link parser edge cases) and
+  `116ab2f26` (table / blockquote edge cases) 2026-04-17.
 
 ## Motivation
 
