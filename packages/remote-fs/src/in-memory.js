@@ -23,13 +23,9 @@
  * on the wire for bytes).
  */
 
-import { createHash } from 'node:crypto';
-
 import { makeExo } from '@endo/exo';
 import { makeError, X, q } from '@endo/errors';
 
-import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
-import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
 import {
@@ -38,11 +34,20 @@ import {
   FileInterface,
   CursorInterface,
   OpenFileInterface,
-  LockInterface,
   XattrsInterface,
   NodeWatcherInterface,
-  BlobRefInterface,
 } from './guards.js';
+import {
+  EMPTY_BYTES,
+  computeOpenMode,
+  makeAttrs,
+  makeBytesReaderFromBytes,
+  makeBytesSinkWriter,
+  makeStringReaderFromArray,
+  nowNs,
+} from './shared/helpers.js';
+import { makeBlobRefExo } from './shared/blobref.js';
+import { makeLockTable } from './shared/lock-table.js';
 
 /**
  * @typedef {bigint} NodeId
@@ -52,11 +57,6 @@ import {
  *   btime: bigint | null,
  * }} Attrs
  * @typedef {(event: object) => void} EventListener
- * @typedef {{
- *   type: 'shared' | 'exclusive',
- *   start: bigint,
- *   length: bigint,
- * }} LockState
  * @typedef {{
  *   id: NodeId,
  *   type: 'directory',
@@ -72,45 +72,9 @@ import {
  *   version: bigint,
  *   content: Uint8Array,
  *   xattrs: Map<string, Uint8Array>,
- *   locks: Set<LockEntry>,
  * }} FileRecord
- * @typedef {{ state: LockState, owner: object }} LockEntry
  * @typedef {DirectoryRecord | FileRecord} NodeRecord
  */
-
-const EMPTY_BYTES = harden(new Uint8Array(0));
-
-const nowNs = () => BigInt(Date.now()) * 1_000_000n;
-
-const makeAttrs = () => {
-  const t = nowNs();
-  return { size: 0n, mtime: t, atime: t, ctime: t, btime: t };
-};
-
-/**
- * Test whether two ranges intersect. `length === 0n` means "to end of
- * file" (POSIX convention). Returns `true` if the ranges share at
- * least one byte.
- *
- * @param {{ start: bigint, length: bigint }} a
- * @param {{ start: bigint, length: bigint }} b
- */
-const rangesOverlap = (a, b) => {
-  const aUnbounded = a.length === 0n;
-  const bUnbounded = b.length === 0n;
-  if (aUnbounded && bUnbounded) return true;
-  if (aUnbounded) {
-    const bEnd = b.start + b.length;
-    return bEnd > a.start;
-  }
-  if (bUnbounded) {
-    const aEnd = a.start + a.length;
-    return aEnd > b.start;
-  }
-  const aEnd = a.start + a.length;
-  const bEnd = b.start + b.length;
-  return a.start < bEnd && b.start < aEnd;
-};
 
 /**
  * Build an in-memory `Filesystem` capability.
@@ -122,6 +86,8 @@ export const makeInMemoryFilesystem = () => {
   const nodes = new Map();
   /** @type {Map<NodeId, Set<EventListener>>} */
   const watchers = new Map();
+  /** @type {ReturnType<typeof makeLockTable<NodeId>>} */
+  const lockTable = makeLockTable();
   let nextId = 1n;
 
   const allocId = () => {
@@ -385,70 +351,9 @@ export const makeInMemoryFilesystem = () => {
     });
   };
 
-  // ---------- BlobRef (DESIGN.md §6) ----------
-
-  /**
-   * Mint a `BlobRef` from a captured `Uint8Array` snapshot. The
-   * `BlobRef`'s identity (algorithm + hash + size) is computed at
-   * construction; subsequent mutations to the file are independent.
-   *
-   * @param {Uint8Array} bytes
-   */
-  const makeBlobRefExo = bytes => {
-    const captured = harden(new Uint8Array(bytes));
-    const hashBytes = createHash('sha256').update(captured).digest();
-    const hashB64 = hashBytes.toString('base64');
-    const info = harden({
-      algorithm: 'sha256',
-      hash: hashB64,
-      size: BigInt(captured.length),
-    });
-
-    return makeExo('BlobRef', BlobRefInterface, {
-      getInfo() {
-        return info;
-      },
-      async fetch(offset, length) {
-        const off = Number(offset);
-        const len = Number(length);
-        const end = Math.min(off + len, captured.length);
-        const slice =
-          off >= captured.length ? EMPTY_BYTES : captured.slice(off, end);
-        return makeBytesReaderFromBytes(slice);
-      },
-      help(method) {
-        if (method === undefined) {
-          return 'BlobRef: content-addressed handle (DESIGN.md §6).';
-        }
-        return `No documentation for method ${q(method)}.`;
-      },
-    });
-  };
-
-  // ---------- Lock (F8: in-process advisory) ----------
-
-  /**
-   * @param {FileRecord} fileRecord
-   * @param {LockEntry} entry
-   */
-  const makeLockExo = (fileRecord, entry) => {
-    let released = false;
-    const exo = makeExo('Lock', LockInterface, {
-      async release() {
-        if (released) return;
-        released = true;
-        fileRecord.locks.delete(entry);
-      },
-      help(method) {
-        if (method === undefined) {
-          return 'Lock: advisory byte-range lock on an OpenFile (DESIGN.md §4.6).';
-        }
-        return `No documentation for method ${q(method)}.`;
-      },
-    });
-    entry.owner = exo;
-    return exo;
-  };
+  // BlobRef, Lock cap, and the advisory-lock table all live in
+  // shared/ — same exo shape across the in-memory, node-fs, and
+  // from-mount implementations.
 
   // ---------- OpenFile (DESIGN.md §4.6) ----------
 
@@ -530,47 +435,10 @@ export const makeInMemoryFilesystem = () => {
         // In-memory: nothing to flush.
       },
       async lock(opts) {
-        const r = /** @type {FileRecord} */ (getRecord(fileId));
-        const o = /** @type {any} */ (opts) || {};
-        if (o.type !== 'shared' && o.type !== 'exclusive') {
-          throw makeError(
-            X`EINVAL: lock type must be 'shared' or 'exclusive', got ${q(o.type)}`,
-          );
-        }
-        const start = BigInt(o.start ?? 0n);
-        const length = BigInt(o.length ?? 0n);
-        const requested = { type: o.type, start, length };
-        for (const existing of r.locks) {
-          const sharedPair =
-            existing.state.type === 'shared' && requested.type === 'shared';
-          if (!sharedPair && rangesOverlap(existing.state, requested)) {
-            throw makeError(
-              X`EAGAIN: range [${q(start)}, ${q(length)}) conflicts with existing ${q(existing.state.type)} lock`,
-            );
-          }
-        }
-        /** @type {LockEntry} */
-        const entry = {
-          state: harden(requested),
-          owner: /** @type {any} */ (null),
-        };
-        r.locks.add(entry);
-        return makeLockExo(r, entry);
+        return lockTable.acquire(fileId, opts);
       },
       async getLock(opts) {
-        const r = /** @type {FileRecord} */ (getRecord(fileId));
-        const o = /** @type {any} */ (opts) || {};
-        const probe = {
-          type: 'exclusive',
-          start: BigInt(o.start ?? 0n),
-          length: BigInt(o.length ?? 0n),
-        };
-        for (const existing of r.locks) {
-          if (rangesOverlap(existing.state, probe)) {
-            return existing.state;
-          }
-        }
-        return null;
+        return lockTable.probe(fileId, opts);
       },
       async close() {
         closed = true;
@@ -624,27 +492,7 @@ export const makeInMemoryFilesystem = () => {
         return makeXattrsExo(getRecord(fileId));
       },
       async open(opts) {
-        const o = /** @type {any} */ (opts) || {};
-        // `append` and `truncate` are POSIX write modifiers
-        // (`O_APPEND`, `O_TRUNC`); they have no meaning without
-        // write access. Coerce them to imply write so a caller
-        // can't accidentally land a truncate-only handle that
-        // can't subsequently write its replacement bytes.
-        const write = !!o.write || !!o.append || !!o.truncate;
-        let read;
-        if (o.read === true) read = true;
-        else if (o.read === false) read = false;
-        else read = !write;
-        const mode = {
-          read,
-          write,
-          append: !!o.append,
-          truncate: !!o.truncate,
-        };
-        // Defence in depth: a handle with no access flag set is
-        // useless; fall back to read.
-        if (!mode.read && !mode.write) mode.read = true;
-        return makeOpenFileExo(fileId, mode);
+        return makeOpenFileExo(fileId, computeOpenMode(opts));
       },
       async snapshot() {
         const r = /** @type {FileRecord} */ (getRecord(fileId));
@@ -743,7 +591,6 @@ export const makeInMemoryFilesystem = () => {
           version: 1n,
           content: EMPTY_BYTES,
           xattrs: new Map(),
-          locks: new Set(),
         };
         nodes.set(id, newRecord);
         dir.children.set(name, id);
@@ -876,58 +723,3 @@ export const makeInMemoryFilesystem = () => {
   return fs;
 };
 harden(makeInMemoryFilesystem);
-
-// ---------- exo-stream helpers ----------
-
-/**
- * Wrap a `Uint8Array` (already a snapshot) as a
- * `PassableBytesReader` that yields its bytes in one chunk.
- *
- * @param {Uint8Array} bytes
- */
-const makeBytesReaderFromBytes = bytes => {
-  const generator = async function* () {
-    if (bytes.length > 0) yield bytes;
-  };
-  return bytesReaderFromIterator(generator());
-};
-
-/**
- * Wrap an array of strings as a `PassableReader`.
- *
- * @param {string[]} items
- */
-const makeStringReaderFromArray = items => {
-  const generator = async function* () {
-    for (const item of items) yield item;
-  };
-  return readerFromIterator(generator());
-};
-
-/**
- * Build a `PassableBytesWriter` whose decoded chunks are pushed to
- * `onChunk` as `Uint8Array`s. The optional `onClose` callback runs
- * when the initiator closes the writer.
- *
- * @param {{
- *   onChunk: (bytes: Uint8Array) => void,
- *   onClose?: () => void,
- * }} hooks
- */
-const makeBytesSinkWriter = ({ onChunk, onClose }) => {
-  const sinkIterator = {
-    /** @param {Uint8Array} bytes */
-    async next(bytes) {
-      onChunk(bytes);
-      return { done: false, value: undefined };
-    },
-    async return(value) {
-      if (onClose) onClose();
-      return { done: true, value };
-    },
-    [Symbol.asyncIterator]() {
-      return sinkIterator;
-    },
-  };
-  return bytesWriterFromIterator(sinkIterator);
-};

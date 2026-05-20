@@ -36,7 +36,6 @@ import { makeExo } from '@endo/exo';
 import { makeError, X, q } from '@endo/errors';
 import { createHash } from 'node:crypto';
 
-import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
@@ -48,23 +47,16 @@ import {
   OpenFileInterface,
   XattrsInterface,
   NodeWatcherInterface,
-  BlobRefInterface,
 } from './guards.js';
+import {
+  assertChildName,
+  computeOpenMode,
+  makeBytesReaderFromBytes,
+  makeNotSupported,
+} from './shared/helpers.js';
+import { makeBlobRefExo } from './shared/blobref.js';
 
-const NotSupported = method =>
-  makeError(X`ENOSYS: ${q(method)} not implemented on Mount-adapted FS`);
-
-const assertChildName = name => {
-  if (typeof name !== 'string' || name.length === 0) {
-    throw makeError(X`EINVAL: invalid name ${q(name)}`);
-  }
-  if (name === '.' || name === '..') {
-    throw makeError(X`EINVAL: name ${q(name)} reserved`);
-  }
-  if (name.includes('/') || name.includes('\0')) {
-    throw makeError(X`EINVAL: name ${q(name)} contains path separator`);
-  }
-};
+const NotSupported = makeNotSupported('Mount-adapted FS');
 
 /**
  * Hash a path-segments array into a 64-bit BigInt for qid.pathId.
@@ -180,40 +172,7 @@ export const mountAsFilesystem = rootMount => {
       },
     });
 
-  // ---------- BlobRef ----------
-
-  /**
-   * @param {Uint8Array} captured
-   */
-  const makeBlobRefExo = captured => {
-    const copy = harden(new Uint8Array(captured));
-    const hashBytes = createHash('sha256').update(copy).digest();
-    const info = harden({
-      algorithm: 'sha256',
-      hash: hashBytes.toString('base64'),
-      size: BigInt(copy.length),
-    });
-
-    return makeExo('BlobRef', BlobRefInterface, {
-      getInfo() {
-        return info;
-      },
-      async fetch(offset, length) {
-        const off = Number(offset);
-        const len = Number(length);
-        const end = Math.min(off + len, copy.length);
-        const slice =
-          off >= copy.length ? new Uint8Array(0) : copy.slice(off, end);
-        return makeBytesReaderFromBytes(slice);
-      },
-      help(method) {
-        if (method === undefined) {
-          return 'BlobRef (Mount-adapted): content captured at snapshot time.';
-        }
-        return `No documentation for method ${q(method)}.`;
-      },
-    });
-  };
+  // BlobRef lives in shared/.
 
   // ---------- OpenFile ----------
 
@@ -470,33 +429,16 @@ export const mountAsFilesystem = rootMount => {
         return makeXattrsStub();
       },
       async open(opts) {
-        const o = /** @type {any} */ (opts) || {};
-        // `append` and `truncate` are POSIX write modifiers
-        // (`O_APPEND`, `O_TRUNC`); they have no meaning without
-        // write access. Coerce them to imply write so a caller
-        // can't accidentally land a truncate-only handle that
-        // can't subsequently write its replacement bytes.
-        const write = !!o.write || !!o.append || !!o.truncate;
-        let read;
-        if (o.read === true) read = true;
-        else if (o.read === false) read = false;
-        else read = !write;
-        const mode = {
-          read,
-          write,
-          append: !!o.append,
-          truncate: !!o.truncate,
-        };
-        // Defence in depth: a handle with no access flag set is
-        // useless; fall back to read.
-        if (!mode.read && !mode.write) mode.read = true;
-        return makeOpenFileExo(mountFile, segs, mode);
+        return makeOpenFileExo(mountFile, segs, computeOpenMode(opts));
       },
       async snapshot() {
         try {
           const stream = await E(mountFile).streamBase64();
           const bytes = await drainBase64Stream(stream);
-          return makeBlobRefExo(new Uint8Array(bytes));
+          return makeBlobRefExo(
+            new Uint8Array(bytes),
+            'BlobRef (Mount-adapted): content captured at snapshot time.',
+          );
         } catch {
           return null;
         }
@@ -663,15 +605,3 @@ export const mountAsFilesystem = rootMount => {
   });
 };
 harden(mountAsFilesystem);
-
-// ---------- helpers ----------
-
-/**
- * @param {Uint8Array} bytes
- */
-const makeBytesReaderFromBytes = bytes => {
-  const generator = async function* () {
-    if (bytes.length > 0) yield bytes;
-  };
-  return bytesReaderFromIterator(generator());
-};

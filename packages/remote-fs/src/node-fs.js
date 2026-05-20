@@ -36,12 +36,10 @@ import {
   watch as fsWatch,
 } from 'node:fs';
 import * as nodePath from 'node:path';
-import { createHash } from 'node:crypto';
 
 import { makeExo } from '@endo/exo';
 import { makeError, X, q } from '@endo/errors';
 
-import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
@@ -51,28 +49,19 @@ import {
   FileInterface,
   CursorInterface,
   OpenFileInterface,
-  LockInterface,
   XattrsInterface,
   NodeWatcherInterface,
-  BlobRefInterface,
 } from './guards.js';
+import {
+  assertChildName,
+  computeOpenMode,
+  makeBytesReaderFromBytes,
+  makeNotSupported,
+} from './shared/helpers.js';
+import { makeBlobRefExo } from './shared/blobref.js';
+import { makeLockTable } from './shared/lock-table.js';
 
-/**
- * Reject names that would escape a directory.
- *
- * @param {string} name
- */
-const assertChildName = name => {
-  if (typeof name !== 'string' || name.length === 0) {
-    throw makeError(X`EINVAL: invalid name ${q(name)}`);
-  }
-  if (name === '.' || name === '..') {
-    throw makeError(X`EINVAL: name ${q(name)} reserved`);
-  }
-  if (name.includes('/') || name.includes('\0')) {
-    throw makeError(X`EINVAL: name ${q(name)} contains path separator`);
-  }
-};
+const NotSupported = makeNotSupported('node:fs/promises-backed FS');
 
 /**
  * Translate a Node fs errno to one of our errno strings.
@@ -88,34 +77,8 @@ const mapErrno = (e, fallback) => {
 };
 
 /**
- * Test whether two ranges intersect; `length === 0n` means
- * "to end of file" (POSIX convention).
- *
- * @param {{ start: bigint, length: bigint }} a
- * @param {{ start: bigint, length: bigint }} b
- */
-const rangesOverlap = (a, b) => {
-  const aUnbounded = a.length === 0n;
-  const bUnbounded = b.length === 0n;
-  if (aUnbounded && bUnbounded) return true;
-  if (aUnbounded) {
-    const bEnd = b.start + b.length;
-    return bEnd > a.start;
-  }
-  if (bUnbounded) {
-    const aEnd = a.start + a.length;
-    return aEnd > b.start;
-  }
-  const aEnd = a.start + a.length;
-  const bEnd = b.start + b.length;
-  return a.start < bEnd && b.start < aEnd;
-};
-
-const NotSupported = method =>
-  makeError(X`ENOSYS: ${q(method)} not implemented on disk-backed FS`);
-
-/**
- * Build a disk-backed `Filesystem` capability rooted at `rootPath`.
+ * Build a `node:fs/promises`-backed `Filesystem` capability rooted
+ * at `rootPath`.
  *
  * @param {{ rootPath: string }} opts
  * @returns {object}
@@ -127,10 +90,9 @@ export const makeNodeFilesystem = ({ rootPath }) => {
   const canonicalRoot = nodePath.normalize(rootPath);
 
   // Per-absolute-path lock table. Locks are advisory, in-process
-  // only. Keyed by abs path string; an entry is dropped when its
-  // last lock is released.
-  /** @type {Map<string, Set<{ state: { type: 'shared' | 'exclusive', start: bigint, length: bigint } }>>} */
-  const locksByPath = new Map();
+  // only.
+  /** @type {ReturnType<typeof makeLockTable<string>>} */
+  const lockTable = makeLockTable();
 
   // Map every Directory exo we mint to its absolute path. Used by
   // `rename` to identify the destination Directory's path without
@@ -138,15 +100,6 @@ export const makeNodeFilesystem = ({ rootPath }) => {
   // clean while still rejecting cross-Filesystem caps with EXDEV.
   /** @type {WeakMap<object, string>} */
   const dirPaths = new WeakMap();
-
-  const getLockSet = absPath => {
-    let s = locksByPath.get(absPath);
-    if (!s) {
-      s = new Set();
-      locksByPath.set(absPath, s);
-    }
-    return s;
-  };
 
   // Forward-declare so the exo builders can reference each other.
   // Each builder takes the path and a fresh `Stats` object: the
@@ -358,66 +311,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       },
     });
 
-  // ---------- BlobRef ----------
-
-  /**
-   * @param {Uint8Array} captured
-   */
-  const makeBlobRefExo = captured => {
-    const hashBytes = createHash('sha256').update(captured).digest();
-    const info = harden({
-      algorithm: 'sha256',
-      hash: hashBytes.toString('base64'),
-      size: BigInt(captured.length),
-    });
-
-    return makeExo('BlobRef', BlobRefInterface, {
-      getInfo() {
-        return info;
-      },
-      async fetch(offset, length) {
-        const off = Number(offset);
-        const len = Number(length);
-        const end = Math.min(off + len, captured.length);
-        const slice =
-          off >= captured.length ? new Uint8Array(0) : captured.slice(off, end);
-        return makeBytesReaderFromBytes(slice);
-      },
-      help(method) {
-        if (method === undefined) {
-          return 'BlobRef: content-addressed handle (DESIGN.md §6).';
-        }
-        return `No documentation for method ${q(method)}.`;
-      },
-    });
-  };
-
-  // ---------- Lock ----------
-
-  /**
-   * @param {string} absPath
-   * @param {{ state: { type: 'shared' | 'exclusive', start: bigint, length: bigint } }} entry
-   */
-  const makeLockExo = (absPath, entry) => {
-    let released = false;
-    return makeExo('Lock', LockInterface, {
-      async release() {
-        if (released) return;
-        released = true;
-        const set = locksByPath.get(absPath);
-        if (set) {
-          set.delete(entry);
-          if (set.size === 0) locksByPath.delete(absPath);
-        }
-      },
-      help(method) {
-        if (method === undefined) {
-          return 'Lock: in-process advisory range lock on an OpenFile.';
-        }
-        return `No documentation for method ${q(method)}.`;
-      },
-    });
-  };
+  // BlobRef and the advisory-lock table live in shared/.
 
   // ---------- OpenFile ----------
 
@@ -495,47 +389,10 @@ export const makeNodeFilesystem = ({ rootPath }) => {
         }
       },
       async lock(opts) {
-        const o = /** @type {any} */ (opts) || {};
-        if (o.type !== 'shared' && o.type !== 'exclusive') {
-          throw makeError(
-            X`EINVAL: lock type must be 'shared' or 'exclusive', got ${q(o.type)}`,
-          );
-        }
-        const requested = {
-          type: o.type,
-          start: BigInt(o.start ?? 0n),
-          length: BigInt(o.length ?? 0n),
-        };
-        const set = getLockSet(absPath);
-        for (const existing of set) {
-          const sharedPair =
-            existing.state.type === 'shared' && requested.type === 'shared';
-          if (!sharedPair && rangesOverlap(existing.state, requested)) {
-            throw makeError(
-              X`EAGAIN: range conflicts with existing ${q(existing.state.type)} lock`,
-            );
-          }
-        }
-        const entry = { state: harden(requested) };
-        set.add(entry);
-        return makeLockExo(absPath, entry);
+        return lockTable.acquire(absPath, opts);
       },
       async getLock(opts) {
-        const o = /** @type {any} */ (opts) || {};
-        const probe = {
-          type: 'exclusive',
-          start: BigInt(o.start ?? 0n),
-          length: BigInt(o.length ?? 0n),
-        };
-        const set = locksByPath.get(absPath);
-        if (set) {
-          for (const existing of set) {
-            if (rangesOverlap(existing.state, probe)) {
-              return existing.state;
-            }
-          }
-        }
-        return null;
+        return lockTable.probe(absPath, opts);
       },
       async close() {
         if (closed) return;
@@ -663,26 +520,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
         return makeXattrsStub();
       },
       async open(opts) {
-        const o = /** @type {any} */ (opts) || {};
-        // `append` and `truncate` are POSIX write modifiers
-        // (`O_APPEND`, `O_TRUNC`); they have no meaning without
-        // write access. Coerce them to imply write so a caller
-        // can't accidentally land a truncate-only handle that
-        // can't subsequently write its replacement bytes.
-        const write = !!o.write || !!o.append || !!o.truncate;
-        let read;
-        if (o.read === true) read = true;
-        else if (o.read === false) read = false;
-        else read = !write;
-        const mode = {
-          read,
-          write,
-          append: !!o.append,
-          truncate: !!o.truncate,
-        };
-        // Defence in depth: a handle with no access flag set is
-        // useless; fall back to read.
-        if (!mode.read && !mode.write) mode.read = true;
+        const mode = computeOpenMode(opts);
         let flags = 0;
         if (mode.read && mode.write) flags |= fsConstants.O_RDWR;
         else if (mode.write) flags |= fsConstants.O_WRONLY;
@@ -893,15 +731,3 @@ export const makeNodeFilesystem = ({ rootPath }) => {
   });
 };
 harden(makeNodeFilesystem);
-
-// ---------- helpers ----------
-
-/**
- * @param {Uint8Array} bytes
- */
-const makeBytesReaderFromBytes = bytes => {
-  const generator = async function* () {
-    if (bytes.length > 0) yield bytes;
-  };
-  return bytesReaderFromIterator(generator());
-};
