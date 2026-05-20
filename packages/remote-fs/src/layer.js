@@ -50,7 +50,13 @@ export const LayerInterface = M.interface('Layer', {
   asFilesystem: M.call().returns(M.eref(M.remotable('Filesystem'))),
   backing: M.call().returns(M.eref(M.remotable('Filesystem'))),
   diff: M.call().returns(M.eref(M.remotable('PassableReader'))),
-  apply: M.call(M.remotable('Filesystem')).returns(M.promise()),
+  // `target` is `M.await`-wrapped so a caller can pipeline a
+  // `compose(...) → Layer.apply` chain (or any "build the target,
+  // then apply onto it" pattern) without an intermediate await.
+  // See DESIGN.md §10.1 (M.await pipelining).
+  apply: M.callWhen(M.await(M.remotable('Filesystem'))).returns(
+    M.undefined(),
+  ),
   seal: M.call().returns(M.eref(M.remotable('Filesystem'))),
   help: M.call().optional(M.string()).returns(M.string()),
 });

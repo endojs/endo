@@ -4,15 +4,27 @@
 /**
  * Optimal querying patterns + design-weakness probes.
  *
- * Each test demonstrates either:
- *   (a) a pattern the design supports well (pipelined walks,
- *       streamed bulk transfer, snapshot+fetch, parallel ops); or
- *   (b) a gap in the API that's worth knowing about (no batch
- *       lookup, no field-selection on getAttrs, sequential xattrs
- *       listing, watch races with list, etc.).
+ * The cost framework we care about is **serial round-trips that
+ * can't be pipelined over**. Operations that compose via CapTP's
+ * eventual-send queue (`E()` chains, `Promise.all([... E()])`)
+ * collapse to one effective batch regardless of how many method
+ * calls are involved. So "N method invocations" is only a cost
+ * concern when the calls have data dependencies the queue can't
+ * resolve in advance.
  *
- * Tests in category (b) are tagged `WEAKNESS:` so DESIGN.md §10
- * stays accurate as the implementations evolve.
+ * Each test demonstrates either:
+ *   (a) a PATTERN the design supports well — pipelined walks,
+ *       parallel lookups, streamed bulk transfer, snapshot+fetch;
+ *   (b) a WEAKNESS where the API forces serial round-trips that
+ *       a richer primitive could collapse, OR a non-round-trip
+ *       gap that's still worth pinning (bandwidth, complexity,
+ *       semantics).
+ *
+ * Weakness tests are tagged in the title with their cost
+ * category: `[RT]` for genuine round-trip cost,
+ * `[bandwidth]` / `[complexity]` / `[semantics]` for the
+ * non-RT cases. Round-trip weaknesses are the ones to prioritise
+ * for primitive additions.
  */
 
 import '@endo/init/debug.js';
@@ -94,7 +106,40 @@ test('PATTERN: pipelined chain — single batch for walk + open + read', async t
   t.is(new TextDecoder().decode(bytes), 'found');
 });
 
-test('PATTERN: parallel lookups for known sibling names — Promise.all of N lookups', async t => {
+test('PATTERN: M.await pipelines `lookup → rename` to one round-trip', async t => {
+  // `Directory.rename`'s guard uses `M.callWhen(M.string(),
+  // M.await(M.remotable("Directory")), M.string())` — the
+  // dispatcher awaits the newParent argument before invoking the
+  // method body. That means a caller can pass a PROMISE of a
+  // Directory in the argument position; the rename dispatches in
+  // the same batch as the lookup that produced it.
+  //
+  // Without M.await, the caller would need a serial round-trip
+  // pair: await the lookup result, then call rename. With it, the
+  // two collapse to a single batch.
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const subA = await E(root).mkdir('a', {});
+  await E(root).mkdir('b', {});
+  const f = await E(subA).create('thing', {});
+  await writeBytes(await E(f).write(0n), utf8('moved'));
+  await E(f).close();
+
+  // Pipelined: pass the lookup's promise straight to rename, no
+  // intermediate await. The guard's M.await unwraps it server-
+  // side.
+  await E(subA).rename('thing', E(root).lookup('b'), 'thing');
+
+  // Verify the move: original gone, new location has the bytes.
+  await t.throwsAsync(() => E(subA).lookup('thing'), { message: /ENOENT/ });
+  const subB = await E(root).lookup('b');
+  const moved = await E(subB).lookup('thing');
+  const oh = await E(moved).open({ read: true });
+  const bytes = await collectBytes(await E(oh).read(0n, 64n));
+  t.is(new TextDecoder().decode(bytes), 'moved');
+});
+
+test('PATTERN: parallel lookups for known sibling names — Promise.all of N lookups pipelines to 1 round-trip', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   await populate(root, [
@@ -104,8 +149,18 @@ test('PATTERN: parallel lookups for known sibling names — Promise.all of N loo
     ['d', '4'],
   ]);
 
-  // The optimal pattern for "give me N specific siblings' qids":
-  // issue N parallel lookups + getQid, then Promise.all.
+  // The cost-optimal pattern for "give me N specific siblings' qids":
+  // issue N parallel `E(root).lookup(n)` + `E(child).getQid()` calls
+  // and `Promise.all` them. CapTP's eventual-send queue dispatches
+  // all N pairs as ONE batch of messages; the responder processes
+  // them and the responses come back as one batch. Serial
+  // round-trips: 1, regardless of N.
+  //
+  // This is why "no batch lookup primitive" is NOT a round-trip
+  // weakness — pipelining + Promise.all already deliver the
+  // single-round-trip behaviour a hypothetical `batchLookup`
+  // would. A real `batchLookup` would only help with the per-
+  // message bandwidth overhead (header bytes × N), not latency.
   const names = ['a', 'b', 'c', 'd'];
   const qids = await Promise.all(
     names.map(n => E(E(root).lookup(n)).getQid()),
@@ -178,7 +233,7 @@ test('PATTERN: watch + edit observes a "changed" event', async t => {
 // Design weaknesses — tests that pin the gap
 // =====================================================================
 
-test('WEAKNESS: no batch lookup — N specific names require N separate calls', async t => {
+test('PATTERN: list() is the right call when you want ALL children', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   await populate(
@@ -186,27 +241,13 @@ test('WEAKNESS: no batch lookup — N specific names require N separate calls', 
     Array.from({ length: 100 }, (_, i) => [`f${i}`, '']),
   );
 
-  // To get ALL children, `list()` is one call → one Cursor → one
-  // stream. Cheap.
+  // For "give me ALL the children," `list()` is one call → one
+  // Cursor → one stream. Cheap.
   const all = await collectStream(await E(await E(root).list()).stream());
   t.is(all.length, 100);
-
-  // But to look up exactly 10 specific names, the only way is 10
-  // separate calls. Promise.all parallelises them but it's still N
-  // method invocations end-to-end, not one batched request.
-  //
-  // A `Directory.batchLookup(names: string[]) → Node[]` (or even
-  // `Directory.lookupMany(...)` returning Promise<Node[]>) would
-  // collapse this to a single CapTP round-trip. Documented in the
-  // design's §10 open questions as a follow-up.
-  const wanted = ['f3', 'f17', 'f42', 'f88'];
-  const got = await Promise.all(
-    wanted.map(n => E(root).lookup(n)),
-  );
-  t.is(got.length, 4);
 });
 
-test('WEAKNESS: no field-selection on getAttrs — always pulls every field', async t => {
+test('WEAKNESS [bandwidth]: no field-selection on getAttrs — always pulls every field', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   await writeFile(root, 'x', 'hi');
@@ -226,7 +267,7 @@ test('WEAKNESS: no field-selection on getAttrs — always pulls every field', as
   // No way to skip these.
 });
 
-test('WEAKNESS: watch + list TOCTOU — events between can be missed', async t => {
+test('WEAKNESS [semantics]: watch + list TOCTOU — events between can be missed', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   await populate(root, [['a', ''], ['b', '']]);
@@ -268,7 +309,7 @@ test('WEAKNESS: watch + list TOCTOU — events between can be missed', async t =
   t.is(next.kind, 'value');
 });
 
-test('WEAKNESS: compose rename is ENOSYS — copy+unlink workaround needed', async t => {
+test('WEAKNESS [functional]: compose rename is ENOSYS — copy+unlink workaround needed', async t => {
   const fs = makeInMemoryFilesystem();
   const backing = makeInMemoryFilesystem();
   await writeFile(await E(backing).root(), 'src', 'data');
@@ -283,7 +324,7 @@ test('WEAKNESS: compose rename is ENOSYS — copy+unlink workaround needed', asy
   void fs;
 });
 
-test('WEAKNESS: Cursor.skip is O(n) for in-memory + Mount adapter, not O(log n)', async t => {
+test('WEAKNESS [complexity]: Cursor.skip is O(n) for in-memory + Mount adapter, not O(log n)', async t => {
   // DESIGN.md §4.5 documents `skip(n)` as "Default impl reads-and-
   // discards; backings with ordered indexes (b-trees, sorted
   // directories) can implement it in O(log n)." Our two backings
@@ -304,7 +345,7 @@ test('WEAKNESS: Cursor.skip is O(n) for in-memory + Mount adapter, not O(log n)'
   t.is(tail.length, 100);
 });
 
-test('WEAKNESS: Filesystem.statfs is metadata-only — no aggregation across mounts', async t => {
+test('WEAKNESS [functional]: Filesystem.statfs is metadata-only — no aggregation across mounts', async t => {
   // The `namespace` and `bind` primitives expose multiple
   // underlying filesystems through one composed Filesystem cap.
   // statfs() on the composed view returns zeros (no aggregation

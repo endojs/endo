@@ -66,9 +66,23 @@ export const DirectoryInterface = M.interface('Directory', {
   ),
   mkdir: M.call(M.string(), Pass).returns(M.eref(M.remotable('Directory'))),
   unlink: M.call(M.string()).returns(M.promise()),
-  rename: M.call(M.string(), M.remotable('Directory'), M.string()).returns(
-    M.promise(),
-  ),
+  // `newParent` is wrapped in `M.await` so a caller can pipeline a
+  // `lookup → rename` chain without an intermediate await:
+  //
+  //   const newParent = E(host).lookup('newDir');       // promise
+  //   await E(srcDir).rename('a', newParent, 'b');      // dispatched in
+  //                                                      // the same batch
+  //
+  // The exo's async-shape dispatch (`M.callWhen`) awaits each
+  // `M.await(...)` argument before invoking the method body. Without
+  // this, the caller would need a serial round-trip: await the
+  // lookup, then call rename. With it, the two collapse to one
+  // round-trip. See DESIGN.md §10.1 for the cost framework.
+  rename: M.callWhen(
+    M.string(),
+    M.await(M.remotable('Directory')),
+    M.string(),
+  ).returns(M.undefined()),
   fsync: M.call().returns(M.promise()),
 });
 harden(DirectoryInterface);
