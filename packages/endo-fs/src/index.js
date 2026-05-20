@@ -13,6 +13,7 @@ export {
 } from './compose.js';
 export { makeLayer, LayerInterface } from './layer.js';
 export { makeMemoryCas, cacheBackedRead } from './cas.js';
+export { withCachedReads } from './cached-fs.js';
 
 export {
   FilesystemInterface,

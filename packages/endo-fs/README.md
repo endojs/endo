@@ -31,6 +31,13 @@ Key pieces:
   applied to another FS.
 - `chroot` / `bind` / `namespace` / `emptyFilesystem` — structural
   primitives, with eager cycle detection.
+- `makeMemoryCas` + `cacheBackedRead` — content-addressed-store
+  primitives for direct `BlobRef` consumers.
+- `withCachedReads(fs, cas)` — transparent CAS-backed read cache
+  that drops into the composition algebra. Hash discovery
+  pipelines alongside the speculative underlying read through one
+  CapTP batch, so a wrapper read costs one round-trip — same as
+  plain `read`, regardless of hit or miss.
 
 POSIX-isms (permissions, owner, hard links, symlinks, `system.*` /
 `trusted.*` / `security.*` xattrs) are deliberately deferred to

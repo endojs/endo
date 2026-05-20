@@ -233,6 +233,19 @@ Owned by `@endo/endo-fs`. None of these are blocking the current PR.
   that serves a range from the cached bytes; on miss, still fetches
   the whole blob (for cache coherence).
 
+- **`withCachedReads` invalidation and eviction.**
+  The transparent CAS-caching wrapper (`src/cached-fs.js`) ships
+  without `watch`-based invalidation: every read pays one
+  pipelined `snapshot` + `getInfo` round-trip to learn the
+  current hash, then either serves from the CAS or returns the
+  speculative underlying read.
+  Future work — subscribe to `watch` events at wrap-time and
+  remember a local `file-cap → hash` mapping so subsequent reads
+  of an unchanged file skip the `snapshot` round-trip entirely
+  (zero RTT on hit). Pairs naturally with an LRU eviction policy
+  on `ContentAddressedStore`; the current interface is unbounded
+  and is a memory-leak shape for long-running consumers.
+
 - **Streaming `Layer.apply`.**
   `enumerateLayerOps` materialises each file's full content into a
   single `write-bytes` op.
