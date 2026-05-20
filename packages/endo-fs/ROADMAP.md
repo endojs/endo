@@ -35,7 +35,7 @@ deliver X" can find the gap in one place.
 
 | Claim | Reality | Resolution path |
 |---|---|---|
-| **"Eager qid avoids a round-trip."** §4.10 of DESIGN promises that `Node.qid` is carried alongside the cap's slot and readable without CapTP traffic. | `getQid()` is a regular exo method; CapTP doesn't ship state alongside slots, so every call costs one RTT. See §10.1 of DESIGN.md (`[RT] getQid is one round-trip across CapTP`). | Wait for CapTP to gain passable-cap-state; until then, callers should cache qids client-side after the first lookup. |
+| **"Eager qid avoids a round-trip."** §4.10 of DESIGN promises that `Node.qid` is carried alongside the cap's slot and readable without CapTP traffic. | `getQid()` is a regular exo method; CapTP doesn't ship state alongside slots, so every call costs one RTT. See §10.1 of DESIGN.md (`[RT] getQid is one round-trip across CapTP`). Pinned by `WEAKNESS: getQid is sync-returning on the exo state, but goes through CapTP` in `test/optimal-querying.test.js`. | Wait for CapTP to gain passable-cap-state; until then, callers should cache qids client-side after the first lookup. |
 | **"Eager `BlobRef.hash` + `size` avoid a round-trip."** Same §4.10 promise. | `getInfo()` is a regular exo method — one RTT per call. The CAS cache-hit test still pays one RTT for `getInfo` before serving from cache. | Same as above. The CAS win is on *payload bytes* saved, not RTT count. |
 | **"CAS-cached read skips the network entirely on cache hit."** | True for the `fetch` call and the bytes payload, false for the `getInfo` RTT that precedes it. For small files where the payload is comparable to the `getInfo` envelope, the optimization may not pay off. | Document the break-even (file-size dependent). Add `cacheBackedRead(blobRef, cas, { hash })` overload that lets callers who already know the hash skip the `getInfo` round-trip. |
 | **"Pipelined walk is one round-trip."** | True in the sense that the `CTP_CALL` messages go out without intermediate awaits — proven by `test/snapshots/pipelined-rtt.test.js.md`. But Mount's lookup chains also pipeline through CapTP. The endo-fs *unique* advantage is **typed pipelining** (the guard says lookup returns `Directory \| File`), not pipelining-in-general. | Phrase claims as "typed pipelining" rather than "pipelining"; reserve "single RTT" for the cost-framework sense (no control-flow dependency). |
@@ -43,20 +43,28 @@ deliver X" can find the gap in one place.
 ### 1.2 Composition primitives — known functional gaps
 
 These are documented in DESIGN.md §10.1's weakness table; pulling them
-into one place here.
+into one place here. The corresponding `WEAKNESS:` tests in
+`test/configurations.test.js` and `test/optimal-querying.test.js`
+pin the current behavior so the gaps don't regress silently.
 
 - **`compose.rename` returns `ENOSYS`.**
   A rename that crosses the CoW boundary needs whiteout + create +
   possibly copy-up.
   Workaround: caller does `lookup` → `read` → `create` → `write` →
   `unlink` manually.
+  Pinned by `WEAKNESS [functional]: compose rename is ENOSYS` in
+  `test/optimal-querying.test.js`.
 - **`compose.watch` only surfaces layer events, not backing events.**
   `compose` returns `layerDir.watch()`; backing mutations don't fire.
   Workaround: subscribe to each participant separately.
+  Pinned by `WEAKNESS: watch on a composed view sees only the
+  participant we watched` in `test/configurations.test.js`.
 - **`compose` doesn't auto-copy-up parent directories.**
   Creating a new file under a directory that exists only in the
   backing errors `EROFS`.
   Workaround: pre-`mkdir` matching parent paths in the layer.
+  Pinned by `WEAKNESS: compose does not auto-copy-up parent dirs that
+  exist only in the backing` in `test/configurations.test.js`.
 - **`Layer.apply` is not transactional.**
   A failure partway through leaves the target in a partial state.
   v2 plan in DESIGN.md §10: `apply` returns a sub-cap with
@@ -78,10 +86,15 @@ into one place here.
   `namespace`/`bind` return zeros from their participants' `statfs`;
   no cross-mount aggregation. In-memory and from-mount also return
   zeros — only `node-fs` reports real values.
+  Pinned by `WEAKNESS [functional]: Filesystem.statfs is
+  metadata-only — no aggregation across mounts` in
+  `test/optimal-querying.test.js`.
 - **`Cursor.skip(n)` is O(n) for `in-memory` and `from-mount`.**
   The interface contract permits O(log n) on sorted-index backings,
   but only the disk-backed implementation could realistically do
   better.
+  Pinned by `WEAKNESS [complexity]: Cursor.skip is O(n) for in-memory
+  + Mount adapter, not O(log n)` in `test/optimal-querying.test.js`.
 
 ### 1.4 Security gaps
 
@@ -122,6 +135,56 @@ into one place here.
   Documented as the chosen tradeoff in DESIGN.md §10's open questions;
   the lazy-traversal alternative would cost every `lookup` a tag-set
   check.
+
+### 1.7 Other documented weaknesses (DESIGN §10.1)
+
+Items from the cost-framework analysis in `DESIGN.md` §10.1 that
+aren't already captured above. Where present, each cites the
+`WEAKNESS:` test in `test/optimal-querying.test.js` that pins the
+current behavior so the gap doesn't regress silently.
+
+- **No `lookupOrCreate` / `materialise` primitive — RT-blocking.**
+  Walking a path and creating missing segments along the way is
+  conditional: `mkdir(n)` fires only if `lookup(n)` rejects.
+  `M.await` resolves values, not success/failure, so the branch
+  can't pipeline.
+  A `Directory.materialise(path: string[], opts) → Directory`
+  primitive would collapse N missing-segment paths to one
+  round-trip.
+  Until then, callers issue per-segment `lookup` / `mkdir`
+  sequentially.
+
+- **`xattrs.list()` ack-protocol overhead — RT-blocking.**
+  The `PassableReader<string>` protocol's per-message
+  synchronisation (one sync, one ack per name) costs round-trips
+  proportional to the count.
+  `@endo/exo-stream`'s pre-ack buffering mitigates but doesn't
+  eliminate.
+  Rare to matter — most nodes have under 10 xattrs.
+  Pinned by `WEAKNESS: xattrs.list returns names sequentially via a
+  stream` in `optimal-querying.test.js`.
+  Mitigations: `exo-stream`'s `buffer:` option for known-large lists,
+  or a future `listAll() → string[]` snapshot variant.
+
+- **No field-selection on `getAttrs` — bandwidth.**
+  The full `Attrs` record rides the wire even when the caller only
+  needs `size`.
+  POSIX-style `statx` masks were deliberately omitted to keep the
+  ocap shape clean; the cost is the unmasked transfer (one
+  round-trip either way).
+  Pinned by `WEAKNESS [bandwidth]: no field-selection on getAttrs`
+  in `optimal-querying.test.js`.
+
+- **`watch + list` TOCTOU — semantics.**
+  Mutations between `list()` and `watch()` calls aren't reflected
+  in either: the `list` snapshot is taken at the call moment, and
+  `watch` subscribes from its call moment, so events that occur
+  between the two are invisible.
+  Same shape as inotify's well-known race.
+  Caller-side workaround: subscribe to `watch` first, then `list`,
+  then reconcile against the event log.
+  Pinned by `WEAKNESS [semantics]: watch + list TOCTOU` in
+  `optimal-querying.test.js`.
 
 ---
 
