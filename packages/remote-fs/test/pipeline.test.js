@@ -67,11 +67,12 @@ test('pipelined chain: root.lookup(a).lookup(b).lookup(c).lookup(deep) resolves'
   const root = await buildTree(fs);
 
   // Build the chain WITHOUT awaiting intermediate stages.
-  const deepRef = E(E(E(E(root).lookup('a')).lookup('b')).lookup('c')).lookup(
-    'deep.txt',
-  );
+  const aP = E(root).lookup('a');
+  const bP = E(aP).lookup('b');
+  const cP = E(bP).lookup('c');
+  const deepP = E(cP).lookup('deep.txt');
 
-  const qid = await E(deepRef).getQid();
+  const qid = await E(deepP).getQid();
   t.is(qid.type, 'file');
 });
 
@@ -79,11 +80,12 @@ test('pipelined chain: terminal open + read in one expression', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await buildTree(fs);
 
-  const reader = E(
-    E(
-      E(E(E(E(root).lookup('a')).lookup('b')).lookup('c')).lookup('deep.txt'),
-    ).open({ read: true }),
-  ).read(0n, 1024n);
+  const aP = E(root).lookup('a');
+  const bP = E(aP).lookup('b');
+  const cP = E(bP).lookup('c');
+  const deepP = E(cP).lookup('deep.txt');
+  const openP = E(deepP).open({ read: true });
+  const reader = E(openP).read(0n, 1024n);
 
   const bytes = await collectBytes(await reader);
   t.is(fromUtf8(bytes), 'found it');
@@ -95,9 +97,11 @@ test('pipelined chain fails cleanly at a missing intermediate', async t => {
 
   // Missing intermediate ('zzz') causes the chain to reject; the
   // subsequent calls short-circuit on the rejected promise.
-  const chain = E(
-    E(E(E(E(root).lookup('a')).lookup('zzz')).lookup('c')).lookup('deep.txt'),
-  ).getQid();
+  const aP = E(root).lookup('a');
+  const zzzP = E(aP).lookup('zzz');
+  const cP = E(zzzP).lookup('c');
+  const deepP = E(cP).lookup('deep.txt');
+  const chain = E(deepP).getQid();
 
   const err = await t.throwsAsync(chain);
   t.regex(err.message, /ENOENT/);

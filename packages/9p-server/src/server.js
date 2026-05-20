@@ -105,20 +105,30 @@ export const serveConnection = ({ fs, socket, onClose }) => {
   let negotiated = false;
   let buf = /** @type {Buffer} */ (Buffer.alloc(0));
 
+  let closed = false;
+
   const close = () => {
+    // Idempotent. `'error'` and `'close'` can both fire (an
+    // error usually triggers a subsequent close), and `dispatch`
+    // failures can call this from the data path too.
+    if (closed) return;
+    closed = true;
+    socket.removeListener('error', close);
+    socket.removeListener('close', close);
+    socket.removeListener('data', onData);
     fids.clear();
     socket.destroy();
     if (onClose) onClose();
   };
 
-  socket.on('error', close);
-  socket.on('close', close);
-
-  socket.on('data', async (/** @type {Buffer} */ chunk) => {
-    buf = Buffer.concat([buf, chunk]);
+  // Drain every complete message currently sitting in `buf`.
+  // Each call awaits its own dispatches in order; concurrent
+  // calls are serialised by chaining onto `processing` (below).
+  const drainOnce = async () => {
     for (;;) {
+      if (closed) return;
       const parsed = tryParseMessage(buf);
-      if (!parsed) break;
+      if (!parsed) return;
       buf = parsed.rest;
       try {
         await dispatch(parsed.msg);
@@ -129,10 +139,31 @@ export const serveConnection = ({ fs, socket, onClose }) => {
           console.error('[9p] dispatch error', e);
         } catch {
           close();
+          return;
         }
       }
     }
-  });
+  };
+
+  // Per-connection processing queue. Node fires `'data'` events
+  // independently of any async work the handler kicks off, so a
+  // raw `async (chunk) => { await dispatch(...) }` lets two
+  // events re-enter `buf` / `fids` concurrently. Chaining each
+  // event onto a single promise sequence keeps message handling
+  // strictly serial; `.then(drainOnce, drainOnce)` continues the
+  // chain even if a prior drain rejected.
+  let processing = Promise.resolve();
+
+  /** @param {Buffer} chunk */
+  const onData = chunk => {
+    if (closed) return;
+    buf = Buffer.concat([buf, chunk]);
+    processing = processing.then(drainOnce, drainOnce);
+  };
+
+  socket.on('error', close);
+  socket.on('close', close);
+  socket.on('data', onData);
 
   /**
    * @param {{ type: number, tag: number, payload: Buffer }} msg

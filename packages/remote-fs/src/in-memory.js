@@ -625,16 +625,25 @@ export const makeInMemoryFilesystem = () => {
       },
       async open(opts) {
         const o = /** @type {any} */ (opts) || {};
+        // `append` and `truncate` are POSIX write modifiers
+        // (`O_APPEND`, `O_TRUNC`); they have no meaning without
+        // write access. Coerce them to imply write so a caller
+        // can't accidentally land a truncate-only handle that
+        // can't subsequently write its replacement bytes.
+        const write = !!o.write || !!o.append || !!o.truncate;
+        let read;
+        if (o.read === true) read = true;
+        else if (o.read === false) read = false;
+        else read = !write;
         const mode = {
-          read:
-            o.read !== false && !o.write && !o.append && !o.truncate
-              ? true
-              : !!o.read,
-          write: !!o.write,
+          read,
+          write,
           append: !!o.append,
           truncate: !!o.truncate,
         };
-        if (!mode.read && !mode.write && !mode.append) mode.read = true;
+        // Defence in depth: a handle with no access flag set is
+        // useless; fall back to read.
+        if (!mode.read && !mode.write) mode.read = true;
         return makeOpenFileExo(fileId, mode);
       },
       async snapshot() {

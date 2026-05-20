@@ -38,6 +38,8 @@ import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
+import { compose } from './compose.js';
+
 const Pass = M.any();
 
 const WHITEOUT_PREFIX = '__whiteout__';
@@ -172,6 +174,16 @@ const applyOp = async (target, op) => {
       const w = iterateBytesWriter(writer);
       await w.next(op.bytes);
       await w.return();
+      // `enumerateLayerOps` emits each file's full content as a
+      // single `write-bytes` at offset 0; if the target already
+      // has a longer file at the same path (e.g., from a prior
+      // `apply` of a layer where the file shrank) the trailing
+      // bytes would remain and the applied content wouldn't match
+      // the layer. Truncate to the written length for the
+      // full-content case.
+      if (op.offset === 0n) {
+        await E(opened).truncate(BigInt(op.bytes.length));
+      }
       await E(opened).close();
       return;
     }
@@ -226,19 +238,22 @@ const applyOp = async (target, op) => {
  * @param {object} backingFs
  */
 export const makeLayer = (layerFs, backingFs) => {
+  // Cache the composed view so repeated `asFilesystem()` calls
+  // return the same cap (the caller can reason about identity).
+  /** @type {object | null} */
+  let composedFs = null;
+
   return makeExo('Layer', LayerInterface, {
     asFilesystem() {
-      // For an attenuated read+write view, just hand back the
-      // composed FS. Callers wanting CoW semantics should pair
-      // this with `compose(layerFs, backingFs)` themselves; the
-      // attenuated view returned here is just the layer plus the
-      // backing, no whiteouts/opaque markers consulted. Mirror
-      // the design's expectation that asFilesystem is the
-      // "attenuated FS view of this Layer."
-      // eslint-disable-next-line global-require, import/no-dynamic-require
-      throw makeError(
-        X`Layer.asFilesystem returns the composed FS; wire via compose() at the call site`,
-      );
+      // Project a Filesystem view that does NOT carry layer
+      // authority (no `diff()` / `apply()` escape hatch). Per
+      // DESIGN.md §8.5 this is the layer-over-backing CoW view —
+      // whiteouts and opaque markers are honoured the same as
+      // `compose(layer, backing)` at the call site.
+      if (composedFs === null) {
+        composedFs = compose(layerFs, backingFs);
+      }
+      return composedFs;
     },
     backing() {
       return backingFs;

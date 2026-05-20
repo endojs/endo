@@ -89,7 +89,10 @@ test('pipelined chain: exactly N lookups + 1 terminal getQid for depth-N walk', 
   const root = await E(fs).root();
 
   // Build the chain without awaiting intermediates.
-  const tail = E(E(E(E(root).lookup('a')).lookup('b')).lookup('c')).lookup('d');
+  const aP = E(root).lookup('a');
+  const bP = E(aP).lookup('b');
+  const cP = E(bP).lookup('c');
+  const tail = E(cP).lookup('d');
   const qid = await E(tail).getQid();
   t.is(qid.type, 'directory');
 
@@ -113,9 +116,11 @@ test('pipelined chain end-to-end completes in well under N × latency', async t 
   // 9p-server.test.js's pipelined-walk test (single Rwalk reply
   // for an N-component walk).
   const start = Date.now();
-  const qid = await E(
-    E(E(E(E(root).lookup('a')).lookup('b')).lookup('c')).lookup('d'),
-  ).getQid();
+  const aP = E(root).lookup('a');
+  const bP = E(aP).lookup('b');
+  const cP = E(bP).lookup('c');
+  const tailP = E(cP).lookup('d');
+  const qid = await E(tailP).getQid();
   const elapsed = Date.now() - start;
   t.is(qid.type, 'directory');
   // Sanity: nowhere near 4×latency × order-of-magnitude. In-
@@ -150,11 +155,13 @@ test('lookup of missing intermediate short-circuits the chain', async t => {
   // The chain rejects at lookup('zzz'); subsequent lookups still
   // get dispatched (they're already in flight) but their input
   // promise is a rejection, so the wrapper's body never runs.
-  const err = await t.throwsAsync(() =>
-    E(
-      E(E(E(E(root).lookup('a')).lookup('zzz')).lookup('c')).lookup('d'),
-    ).getQid(),
-  );
+  const err = await t.throwsAsync(() => {
+    const aP = E(root).lookup('a');
+    const zzzP = E(aP).lookup('zzz');
+    const cP = E(zzzP).lookup('c');
+    const tailP = E(cP).lookup('d');
+    return E(tailP).getQid();
+  });
   t.regex(err.message, /ENOENT/);
   // 'a' + 'zzz' were attempted (zzz failed). 'c' and 'd' may or
   // may not have been dispatched depending on the runtime's

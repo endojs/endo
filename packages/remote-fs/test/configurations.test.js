@@ -362,6 +362,8 @@ test('chroot + lookup chain stays inside the chrooted subtree', async t => {
   const root = await E(view).root();
 
   // Walk deep within chroot — works.
-  const got = await E(E(E(root).lookup('src')).lookup('lib')).lookup('mod.js');
+  const srcP = E(root).lookup('src');
+  const libP = E(srcP).lookup('lib');
+  const got = await E(libP).lookup('mod.js');
   t.is((await E(got).getQid()).type, 'file');
 });

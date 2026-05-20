@@ -95,11 +95,12 @@ test('PATTERN: pipelined chain — single batch for walk + open + read', async t
   // eventual-send queue dispatches all four lookups + the open +
   // the read as one batch of pipelined messages; only the final
   // PassableBytesReader needs to make the round trip.
-  const reader = E(
-    E(
-      E(E(E(E(root).lookup('a')).lookup('b')).lookup('c')).lookup('deep.txt'),
-    ).open({ read: true }),
-  ).read(0n, 1024n);
+  const aP = E(root).lookup('a');
+  const bP = E(aP).lookup('b');
+  const cP = E(bP).lookup('c');
+  const deepP = E(cP).lookup('deep.txt');
+  const openP = E(deepP).open({ read: true });
+  const reader = E(openP).read(0n, 1024n);
   const bytes = await collectBytes(await reader);
   t.is(new TextDecoder().decode(bytes), 'found');
 });
