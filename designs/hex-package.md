@@ -9,6 +9,10 @@
 
 ## Status
 
+**Complete** (package shipped 2026-04-24 via commit `ad7a177e8` on
+`llm`; dev-cycle break shipped 2026-05-12 via PR #211 / commit
+`68246ad92`).
+
 Shipped on `llm`: `@endo/hex` exists at `packages/hex/` with
 encode/decode entry points and tests, and the dev-dependency cycle
 was broken via `@endo/hex-test` per PR
@@ -16,6 +20,19 @@ was broken via `@endo/hex-test` per PR
 consumer migration (daemon, OCapN) landed via `kriskowal-hex`
 follow-up commits. Synthetic `@endo/hex-test` package (Cut 2 of the
 break-dev-dependency-cycles design) is also merged.
+
+### Roadmap calibration (per `git blame` on `llm`)
+
+- Active development: 2026-04-24 → 2026-05-14 (21 days, calendar).
+- Design phase: 2026-04-29 (single commit `102a94bc9`, batch of seven
+  proposals; the design was written **after** the initial package
+  landed 2026-04-24 in `ad7a177e8`, ratifying the upstream
+  implementation).
+- Implementation phase: 2026-04-24 → 2026-05-14 (21 days). Burst 1:
+  2026-04-24 (`ad7a177e8`, first add of `packages/hex/`). Burst 2:
+  2026-04-25 (`fe30fa53a`, route compartment-mapper/bundle-source
+  through `@endo/hex`). Burst 3: 2026-05-11 → 2026-05-14 (PR #211 cut,
+  `a74d1f4dd` / `68246ad92`; `ea4d07bb1` SECURITY.md polish).
 
 ## What is the Problem Being Solved?
 
