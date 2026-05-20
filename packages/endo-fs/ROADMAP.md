@@ -1,4 +1,4 @@
-# @endo/remote-fs — Roadmap and Known Shortcomings
+# @endo/endo-fs — Roadmap and Known Shortcomings
 
 This file is the **honest list** of what's incomplete, what's
 overstated, and what's deliberately deferred.
@@ -11,11 +11,11 @@ Three tracks:
   Places where the implementation lags the design's claim, where a
   feature is interface-only, or where a known weakness is not yet
   addressed.
-  These are owned by `@endo/remote-fs` and tracked here so the design
+  These are owned by `@endo/endo-fs` and tracked here so the design
   prose can be evaluated against the real surface.
 
 - **§2 — Within-package follow-ups.**
-  New work that stays inside `packages/remote-fs/`: F6 / F15 / F16 /
+  New work that stays inside `packages/endo-fs/`: F6 / F15 / F16 /
   F17 from DESIGN.md, plus internal refactors and the realistic-
   transport CAS test.
 
@@ -24,7 +24,7 @@ Three tracks:
   initiative, owned by `@endo/daemon`, with its own integration risk.
   Deliberately not part of this PR or the within-package follow-ups.
 
-Items below are written so that anyone evaluating "does remote-fs
+Items below are written so that anyone evaluating "does endo-fs
 deliver X" can find the gap in one place.
 
 ---
@@ -38,7 +38,7 @@ deliver X" can find the gap in one place.
 | **"Eager qid avoids a round-trip."** §4.10 of DESIGN promises that `Node.qid` is carried alongside the cap's slot and readable without CapTP traffic. | `getQid()` is a regular exo method; CapTP doesn't ship state alongside slots, so every call costs one RTT. See §10.1 of DESIGN.md (`[RT] getQid is one round-trip across CapTP`). | Wait for CapTP to gain passable-cap-state; until then, callers should cache qids client-side after the first lookup. |
 | **"Eager `BlobRef.hash` + `size` avoid a round-trip."** Same §4.10 promise. | `getInfo()` is a regular exo method — one RTT per call. The CAS cache-hit test still pays one RTT for `getInfo` before serving from cache. | Same as above. The CAS win is on *payload bytes* saved, not RTT count. |
 | **"CAS-cached read skips the network entirely on cache hit."** | True for the `fetch` call and the bytes payload, false for the `getInfo` RTT that precedes it. For small files where the payload is comparable to the `getInfo` envelope, the optimization may not pay off. | Document the break-even (file-size dependent). Add `cacheBackedRead(blobRef, cas, { hash })` overload that lets callers who already know the hash skip the `getInfo` round-trip. |
-| **"Pipelined walk is one round-trip."** | True in the sense that the `CTP_CALL` messages go out without intermediate awaits — proven by `test/snapshots/pipelined-rtt.test.js.md`. But Mount's lookup chains also pipeline through CapTP. The remote-fs *unique* advantage is **typed pipelining** (the guard says lookup returns `Directory \| File`), not pipelining-in-general. | Phrase claims as "typed pipelining" rather than "pipelining"; reserve "single RTT" for the cost-framework sense (no control-flow dependency). |
+| **"Pipelined walk is one round-trip."** | True in the sense that the `CTP_CALL` messages go out without intermediate awaits — proven by `test/snapshots/pipelined-rtt.test.js.md`. But Mount's lookup chains also pipeline through CapTP. The endo-fs *unique* advantage is **typed pipelining** (the guard says lookup returns `Directory \| File`), not pipelining-in-general. | Phrase claims as "typed pipelining" rather than "pipelining"; reserve "single RTT" for the cost-framework sense (no control-flow dependency). |
 
 ### 1.2 Composition primitives — known functional gaps
 
@@ -127,7 +127,7 @@ into one place here.
 
 ## 2. Within-package follow-ups
 
-Owned by `@endo/remote-fs`. None of these are blocking the current PR.
+Owned by `@endo/endo-fs`. None of these are blocking the current PR.
 
 ### 2.1 DESIGN.md §9 F-items still open
 
@@ -207,28 +207,28 @@ initiative is explicit.
 ### 3.1 Scope
 
 Replace `@endo/daemon`'s `Mount` / `MountFile` / `ScratchMount` with
-adapters or first-class wrappers over `@endo/remote-fs` `Filesystem`,
+adapters or first-class wrappers over `@endo/endo-fs` `Filesystem`,
 and migrate consumers (daemon-internal and downstream).
 
 ### 3.2 Gaps the refactor would close
 
 Each of these is something `Mount` provides today that
-`@endo/remote-fs` doesn't, and that the refactor would either fold in
+`@endo/endo-fs` doesn't, and that the refactor would either fold in
 or replace:
 
 - **`provideMount(path, petName, opts)` as a formula type.**
   Mount is wired into `@endo/daemon`'s formula graph; the cap
   reincarnates across daemon restart, is registered in the petstore,
   and is reachable through the form workflow.
-  `@endo/remote-fs` has none of this — `makeNodeFilesystem` is a
+  `@endo/endo-fs` has none of this — `makeNodeFilesystem` is a
   library call, not a daemon-side provisioning verb.
 - **`ScratchMount`** — daemon-managed scratch directory.
-  No remote-fs analogue.
+  No endo-fs analogue.
 - **`realPath`-based confinement** (see §1.4).
   `Mount.assertConfined` resolves symlinks before checking
   containment.
   When the refactor ports this into `makeNodeFilesystem` it closes
-  remote-fs's only outstanding security gap.
+  endo-fs's only outstanding security gap.
 - **`ReadableTree` integration.**
   Mount-world has `ReadableTree.sha256()` for tree-level content
   addressing.
@@ -240,7 +240,7 @@ or replace:
 - **Text-convenience methods.**
   `readText` / `maybeReadText` / `writeText` / `json` — one-line
   whole-file operations.
-  Could land as helpers in `@endo/remote-fs` (`src/text-helpers.js`)
+  Could land as helpers in `@endo/endo-fs` (`src/text-helpers.js`)
   or as a thin Mount-compat wrapper in the daemon.
 
 ### 3.3 Migration sequencing (suggested)

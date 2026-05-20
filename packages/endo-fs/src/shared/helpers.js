@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Pure helpers shared across the `@endo/remote-fs` implementations
+ * Pure helpers shared across the `@endo/endo-fs` implementations
  * (in-memory, node-fs, from-mount). These were duplicated verbatim
  * across the three files; consolidating them keeps the
  * mechanically-shared code in one place without forcing the

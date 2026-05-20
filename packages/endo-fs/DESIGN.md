@@ -1,4 +1,4 @@
-# @endo/remote-fs — Design
+# @endo/endo-fs — Design
 
 **Status**: Draft v0. Interfaces only. No implementation. No tests.
 **Authoritative**: this file. The package's `README.md` is a pointer.
@@ -82,12 +82,12 @@ hand "a directory" to a peer across a CapTP boundary.
 `Mount` is a good local FS surface but was not designed for cross-
 daemon use: each `lookup` is one round trip, and binary I/O goes
 through `text()` (UTF-8 only) or `streamBase64()` (no offsets, no
-length, no random access). `@endo/remote-fs` is what `Mount` would
+length, no random access). `@endo/endo-fs` is what `Mount` would
 look like redesigned around CapTP cost.
 
 Important deliberate overlap: this package's `Filesystem` exposes a
 surface that *could* be served by adapting a `Mount`. A reference
-adapter (`@endo/remote-fs/src/from-mount.js`) is on the roadmap so
+adapter (`@endo/endo-fs/src/from-mount.js`) is on the roadmap so
 existing `Mount`-shaped caps can be re-projected without a
 storage-tier change.
 
@@ -542,7 +542,7 @@ identifier in `BlobRef.algorithm` (TBD — provisionally
 
 `@endo/daemon`'s existing `ReadableTree` is a moral analogue:
 content-addressed, immutable. A reference adapter
-(`@endo/remote-fs/src/from-readable-tree.js`) is on the roadmap so a
+(`@endo/endo-fs/src/from-readable-tree.js`) is on the roadmap so a
 `ReadableTree` can be re-projected as a `Filesystem` whose `File`s
 have eager `BlobRef`s.
 

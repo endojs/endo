@@ -1,5 +1,5 @@
 {
-  "name": "@endo/remote-fs",
+  "name": "@endo/endo-fs",
   "version": "0.0.0",
   "private": true,
   "description": "Pipelinable, stream-friendly filesystem capabilities for Endo — designed so a deeply-nested walk + open + range read costs one CapTP round trip rather than depth-plus-two.",
@@ -9,7 +9,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/remote-fs"
+    "directory": "packages/endo-fs"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

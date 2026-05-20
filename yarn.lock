@@ -1421,6 +1421,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/9p-server@workspace:packages/9p-server"
   dependencies:
+    "@endo/endo-fs": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
@@ -1428,7 +1429,6 @@ __metadata:
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"
-    "@endo/remote-fs": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
@@ -1802,6 +1802,24 @@ __metadata:
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/stream": "workspace:^"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/endo-fs@workspace:^, @endo/endo-fs@workspace:packages/endo-fs":
+  version: 0.0.0-use.local
+  resolution: "@endo/endo-fs@workspace:packages/endo-fs"
+  dependencies:
+    "@endo/captp": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/stream": "workspace:^"
+    ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -2520,24 +2538,6 @@ __metadata:
     ws: "npm:^8.13.0"
   bin:
     endo-relay: ./src/index.js
-  languageName: unknown
-  linkType: soft
-
-"@endo/remote-fs@workspace:^, @endo/remote-fs@workspace:packages/remote-fs":
-  version: 0.0.0-use.local
-  resolution: "@endo/remote-fs@workspace:packages/remote-fs"
-  dependencies:
-    "@endo/captp": "workspace:^"
-    "@endo/errors": "workspace:^"
-    "@endo/eventual-send": "workspace:^"
-    "@endo/exo": "workspace:^"
-    "@endo/exo-stream": "workspace:^"
-    "@endo/far": "workspace:^"
-    "@endo/init": "workspace:^"
-    "@endo/patterns": "workspace:^"
-    "@endo/stream": "workspace:^"
-    ava: "catalog:dev"
-    eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
 

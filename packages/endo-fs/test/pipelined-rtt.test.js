@@ -12,7 +12,7 @@
  * back, rather than the depth-plus-one sequential round trips
  * a naive client would issue.
  *
- * These tests host an `@endo/remote-fs` `Filesystem` on a
+ * These tests host an `@endo/endo-fs` `Filesystem` on a
  * "right" vat, drive it from a "left" vat through `makeCapTP`,
  * and wrap each side's `send` function so every wire message
  * lands in a shared transcript array (`_captp-pair.js`).

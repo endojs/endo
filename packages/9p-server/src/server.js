@@ -2,7 +2,7 @@
 /* global Buffer */
 /* eslint-disable no-await-in-loop, no-bitwise */
 //
-// 9P2000.L server backed by an `@endo/remote-fs` `Filesystem` cap.
+// 9P2000.L server backed by an `@endo/endo-fs` `Filesystem` cap.
 //
 // fid model: each fid holds a Node cap (Directory or File) plus an
 // ancestry stack `[{ parent: Directory, name: string }, ...]` for
@@ -10,15 +10,15 @@
 // Tunlinkat / Trenameat need.
 //
 // Opened fids additionally carry an `openFile` (File case) or a
-// `cursor` (Directory case) cap from remote-fs.
+// `cursor` (Directory case) cap from endo-fs.
 //
 // Pipelining: Twalk builds a chain `E(cur).lookup(n0).lookup(n1)...`
 // without awaiting between steps. Each step's qid is requested
 // in parallel via `E(intermediate).getQid()` and gathered with
 // `Promise.allSettled` to support partial-success semantics.
 //
-// Wire qid <-> remote-fs qid mapping:
-//   remote-fs `Qid` = { type: 'directory'|'file', pathId: bigint, version: bigint }
+// Wire qid <-> endo-fs qid mapping:
+//   endo-fs `Qid` = { type: 'directory'|'file', pathId: bigint, version: bigint }
 //   9P wire qid    = u8 type, u32 ver, u64 pathHash
 // We mask ver/pathHash to fit; the truncated bits don't matter for
 // cache invariants since the kernel treats them as opaque.
@@ -52,8 +52,8 @@ const MASK_U64 = (1n << 64n) - 1n;
  *   back to the FS root. Used for `..` walks and the (parent,
  *   name) bookkeeping Tunlinkat / Trenameat need.
  * @property {boolean} open
- * @property {any} [openFile]          remote-fs OpenFile cap (File open)
- * @property {any} [cursor]            remote-fs Cursor cap (Directory open)
+ * @property {any} [openFile]          endo-fs OpenFile cap (File open)
+ * @property {any} [cursor]            endo-fs Cursor cap (Directory open)
  * @property {Array<{ name: string, qid: any }>} [dirBuffer]
  *   Cached entries for Treaddir, drained as the kernel reads.
  * @property {boolean} [dirBufferDone]
@@ -70,7 +70,7 @@ const qidToWire = qid => ({
 });
 
 /**
- * Translate a remote-fs error to a 9P errno. We pattern-match on
+ * Translate a endo-fs error to a 9P errno. We pattern-match on
  * the error message (which carries the `Exxxx:` prefix the
  * in-memory and disk implementations attach). Unknown errors map
  * to EIO.
@@ -602,7 +602,7 @@ export const serveConnection = ({ fs, socket, onClose }) => {
 
   const onStatfs = async (/** @type {number} */ tag, r) => {
     r.u32(); // fid (we report process-global statfs; the fid's FS
-    // identity isn't exposed by remote-fs at the Node level)
+    // identity isn't exposed by endo-fs at the Node level)
     let stats;
     try {
       stats = await E(fs).statfs();

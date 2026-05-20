@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Entry point for instantiating a remote-fs in-memory `Filesystem`
+ * Entry point for instantiating a endo-fs in-memory `Filesystem`
  * as a formulated Endo caplet via `host.makeUnconfined`.
  *
  * The `make()` factory pattern lets a HOST petstore entry be a
@@ -12,13 +12,13 @@
  * Usage from a test:
  *
  *   const moduleUrl = new URL(
- *     '@endo/remote-fs/src/in-memory-module.js',
+ *     '@endo/endo-fs/src/in-memory-module.js',
  *     import.meta.url,
  *   ).href;
  *   const fs = await E(host).makeUnconfined('@main', moduleUrl, {
  *     resultName: 'workspace-fs',
  *   });
- *   // `fs` is now a remote-fs Filesystem cap, addressable as a
+ *   // `fs` is now a endo-fs Filesystem cap, addressable as a
  *   // formula on @host. Populate via E(fs).root() etc.
  */
 

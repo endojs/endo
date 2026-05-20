@@ -223,7 +223,7 @@ const makeMockMount = () => {
   return makeMountFar(root);
 };
 
-test('adapter exposes a remote-fs Filesystem with root Directory', async t => {
+test('adapter exposes a endo-fs Filesystem with root Directory', async t => {
   const mount = makeMockMount();
   const fs = mountAsFilesystem(mount);
   const root = await E(fs).root();

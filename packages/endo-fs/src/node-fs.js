@@ -163,7 +163,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
    * recursively). Subdirectory events come from watchers on the
    * subdirectories themselves.
    *
-   * Each fs.watch event is normalised to a remote-fs Event:
+   * Each fs.watch event is normalised to a endo-fs Event:
    *   { kind: 'changed' } for content/metadata change of `absPath`
    *   { kind: 'child-added' | 'child-removed', name } for dir
    *     watches when a child appears/disappears (we stat the

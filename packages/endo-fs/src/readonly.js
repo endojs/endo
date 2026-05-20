@@ -31,7 +31,7 @@ const denied = method =>
   makeError(X`EACCES: ${method} not permitted on a read-only Filesystem`);
 
 /**
- * @param {object} inner    a remote-fs `Filesystem` cap
+ * @param {object} inner    a endo-fs `Filesystem` cap
  * @returns {object}        a read-only `Filesystem` cap
  */
 export const readOnly = inner => {

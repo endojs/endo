@@ -1,6 +1,6 @@
 # @endo/9p-server
 
-A 9P2000.L server that serves an `@endo/remote-fs` `Filesystem` over
+A 9P2000.L server that serves an `@endo/endo-fs` `Filesystem` over
 a Unix domain socket. Anyone speaking 9P over UDS — QEMU's
 `-chardev socket,server=off` for guest workspace projection, Linux
 v9fs (`mount -t 9p -o trans=fd …`), `diod`, or any other 9P
@@ -15,7 +15,7 @@ the whole container stack.
 
 ```js
 import { makeFsBridge9p } from '@endo/9p-server';
-import { makeInMemoryFilesystem } from '@endo/remote-fs/src/in-memory.js';
+import { makeInMemoryFilesystem } from '@endo/endo-fs/src/in-memory.js';
 
 const fs = makeInMemoryFilesystem();
 // ... populate fs ...
@@ -34,11 +34,11 @@ parallel via `E(intermediate).getQid()` and gathered with
 `Promise.allSettled` to support partial-success semantics. Every
 lookup `CTP_CALL` in the chain reaches the wire before any
 `CTP_RETURN` comes back — the structural pipelining property
-proven by `@endo/remote-fs/test/pipelined-rtt.test.js`.
+proven by `@endo/endo-fs/test/pipelined-rtt.test.js`.
 
 The `qid` calls themselves still cost a round-trip per node
 today, since CapTP doesn't yet ship exo state alongside slots;
-see `@endo/remote-fs/ROADMAP.md` §1.1.
+see `@endo/endo-fs/ROADMAP.md` §1.1.
 
 `Tread` against a file uses `OpenFile.read(offset, length)` →
 `PassableBytesReader`; bytes flow through `@endo/exo-stream`'s

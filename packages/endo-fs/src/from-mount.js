@@ -2,13 +2,13 @@
 /* eslint-disable no-await-in-loop, no-bitwise, no-underscore-dangle */
 /* global Buffer */
 /**
- * Adapter: project `@endo/daemon` `Mount` → remote-fs `Filesystem`
+ * Adapter: project `@endo/daemon` `Mount` → endo-fs `Filesystem`
  * (F5, DESIGN.md §9).
  *
  * Mount is the existing live FS surface in `@endo/daemon`. Its
  * methods (`has`, `list`, `lookup`, `readText`, `writeText`,
  * `remove`, `move`, `makeDirectory`, `snapshot`) cover similar
- * ground to remote-fs but with significant impedance mismatch:
+ * ground to endo-fs but with significant impedance mismatch:
  *
  * - File I/O is whole-file (no offset/length ranges).
  *   `OpenFile.read(offset, length)` fetches the full file and
@@ -28,7 +28,7 @@
  *
  * The adapter is useful day-1 for factories that want to accept
  * existing Mount caps (the bulk of Endo daemon's current FS
- * world) without breaking the remote-fs caller interface.
+ * world) without breaking the endo-fs caller interface.
  */
 
 import { E } from '@endo/eventual-send';
@@ -112,7 +112,7 @@ const drainBase64Stream = async streamRef => {
 };
 
 /**
- * Build a remote-fs `Filesystem` adapter over an `@endo/daemon`
+ * Build a endo-fs `Filesystem` adapter over an `@endo/daemon`
  * `Mount`.
  *
  * @param {object} rootMount

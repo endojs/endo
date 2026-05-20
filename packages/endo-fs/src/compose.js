@@ -52,7 +52,7 @@ import {
  */
 const tagSets = new WeakMap();
 
-const fresh = () => Symbol('remote-fs:tag');
+const fresh = () => Symbol('endo-fs:tag');
 
 /**
  * Return the tag set for a Filesystem cap. Auto-registers any cap
@@ -590,8 +590,8 @@ harden(namespace);
  * clever about partial copy-up; the first write fetches the full
  * backing content and replays it through the layer's create.
  *
- * @param {object} layer    a remote-fs Filesystem (writable)
- * @param {object} backing  a remote-fs Filesystem (any)
+ * @param {object} layer    a endo-fs Filesystem (writable)
+ * @param {object} backing  a endo-fs Filesystem (any)
  * @param {object} [_opts]  policy (reserved for future use)
  */
 export const compose = (layer, backing, _opts = {}) => {
@@ -605,7 +605,7 @@ export const compose = (layer, backing, _opts = {}) => {
   const OPAQUE_NAME = '.__opaque__';
 
   // We use the layer's own `user.*` xattr surface (when available)
-  // as the marker channel: a file with xattr `user.remote-fs-whiteout`
+  // as the marker channel: a file with xattr `user.endo-fs-whiteout`
   // is treated as a whiteout. Falling back to filename markers if
   // xattrs aren't supported.
   //

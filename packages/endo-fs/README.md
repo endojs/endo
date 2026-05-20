@@ -1,4 +1,4 @@
-# @endo/remote-fs
+# @endo/endo-fs
 
 Pipelinable, stream-friendly filesystem capabilities for Endo.
 

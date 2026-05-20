@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Interface guards for `@endo/remote-fs` (§4 of DESIGN.md).
+ * Interface guards for `@endo/endo-fs` (§4 of DESIGN.md).
  *
  * Every cap defined in §4 has an `M.interface` here. The shape of
  * passable records (Qid, Attrs, OpenOpts, ...) is documented in
@@ -15,7 +15,7 @@
 
 import { M } from '@endo/patterns';
 
-// Re-export exo-stream's interface guards so consumers of remote-fs can
+// Re-export exo-stream's interface guards so consumers of endo-fs can
 // import the stream interfaces from one place.
 export {
   PassableReaderInterface,

@@ -78,7 +78,7 @@ const readFile = async (root, name) => {
 };
 
 const setupDisk = async t => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'remote-fs-cfg-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'endo-fs-cfg-'));
   t.teardown(() => rm(dir, { recursive: true, force: true }));
   return makeNodeFilesystem({ rootPath: dir });
 };

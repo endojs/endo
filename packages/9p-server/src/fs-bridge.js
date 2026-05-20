@@ -14,18 +14,18 @@ const BridgeInterface = M.interface('FsBridge9p', {
 });
 
 /**
- * Bridge an `@endo/remote-fs` `Filesystem` capability to a 9P2000.L
+ * Bridge an `@endo/endo-fs` `Filesystem` capability to a 9P2000.L
  * UDS endpoint. Anyone speaking 9P over a Unix domain socket — QEMU
  * with `-chardev socket,server=off`, Linux v9fs with `mount -t 9p`,
  * `diod`, etc. — can connect and traverse the FS the cap projects.
  *
  * The bridge consumes the typed `Directory` / `File` surface of
- * remote-fs, which gives it pipelinable lookup chains (the kernel's
+ * endo-fs, which gives it pipelinable lookup chains (the kernel's
  * `Twalk` for an N-segment path dispatches as one batch of `lookup`
  * messages through CapTP's eventual-send queue) and stream-based
  * byte I/O via `@endo/exo-stream`'s `PassableBytesReader` /
  * `PassableBytesWriter`. The `qid` for each node is fetched via
- * `getQid()` — see `@endo/remote-fs/ROADMAP.md` §1.1 for why this
+ * `getQid()` — see `@endo/endo-fs/ROADMAP.md` §1.1 for why this
  * still costs one round-trip per node today. `src/server.js` has
  * the 9P message → cap call mapping.
  *

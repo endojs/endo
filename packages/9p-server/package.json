@@ -2,7 +2,7 @@
   "name": "@endo/9p-server",
   "version": "0.0.0",
   "private": true,
-  "description": "9P2000.L server that serves an @endo/remote-fs Filesystem over a Unix domain socket — for projecting a remote-fs capability to anything that speaks 9P (QEMU 9p-trans=fd, Linux v9fs, diod, etc.).",
+  "description": "9P2000.L server that serves an @endo/endo-fs Filesystem over a Unix domain socket — for projecting a endo-fs capability to anything that speaks 9P (QEMU 9p-trans=fd, Linux v9fs, diod, etc.).",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -31,13 +31,13 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
+    "@endo/endo-fs": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/exo-stream": "workspace:^",
     "@endo/init": "workspace:^",
-    "@endo/patterns": "workspace:^",
-    "@endo/remote-fs": "workspace:^"
+    "@endo/patterns": "workspace:^"
   },
   "devDependencies": {
     "@endo/far": "workspace:^",

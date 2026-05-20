@@ -3,7 +3,7 @@
 /* eslint-disable import/order, no-await-in-loop */
 
 /**
- * 9P server tests against an `@endo/remote-fs` in-memory backing
+ * 9P server tests against an `@endo/endo-fs` in-memory backing
  * (F14 — bridge integration).
  *
  * Sets up an in-memory `Filesystem`, spawns the 9P bridge on a
@@ -21,7 +21,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { E } from '@endo/far';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
-import { makeInMemoryFilesystem } from '@endo/remote-fs/src/in-memory.js';
+import { makeInMemoryFilesystem } from '@endo/endo-fs/src/in-memory.js';
 
 import { makeFsBridge9p } from '../src/fs-bridge.js';
 import {
