@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-20 (status-only sweep reconciled Status fields with shipped state on `llm`; M½ project-hygiene milestone extracted from M1; endopi raft added; PR #302 consolidation absorbed; patterns-diagnostic-feedback proposed)*
+*Last updated: 2026-05-20 (full grooming pass: milestone-totals reconciled to current table contents, calibration round 2026-05-20 added, Summary by Milestone and Gantt re-projected, Progress-as-of refreshed; landed on top of the 2026-05-19 status-only sweep that reconciled Status fields with shipped state on `llm`, M½ project-hygiene milestone extracted from M1, endopi raft added, PR #302 consolidation absorbed, and patterns-diagnostic-feedback added)*
 
 *Recently added or revised:
 [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) (added
@@ -543,6 +543,82 @@ includes codec, mailbox, supervisor, and terminal rendering substrates)
 
 ### Size and Time Estimates
 
+#### Calibration round 2026-05-20
+
+Light-touch calibration over the six days since the 2026-05-14 round.
+The bench-week was dominated by design-only PRs and CI / package-uniformity
+chores rather than new implementation work; the per-size ratios from the
+2026-05-14 round (S 0.7, M 1.2, L 1.3, XL 1.3 conservative) carry forward
+unchanged.
+
+**Sample.**
+Implementation-bearing PRs merged on `endojs/endo-but-for-bots` between
+2026-05-14 and 2026-05-20: `#148` (`@endo/sandbox` confining `@endo/genie`
+tools, L, 6 days), `#293` (`feat(lal)` deterministic provider replay, S,
+~1 day), `#294` (`feat(fae)` deterministic replay + smoke coverage, S,
+~1 day), `#291` (chore tmp-dir cleanup, S, hours), `#292` (`fix(lal)`
+preserve tool-call history, S, hours), `#126` (`ci-no-npm-lifecycle`
+implementation, S, 1 day), `#255` (CI Guix-cache iteration, S, 1 day),
+`#245` (SECURITY.md uniformity, S, hours). Counts toward the cumulative
+table: S +7, M +0, L +0 (the `#148` L sample was already folded into the
+2026-05-14 round as the second L data point).
+Design-only PRs merged in the same window (`#265` endopi raft, `#299`
+chat-rename-dismiss-to-clear status, `#304` status-only sweep, plus a
+clutch of dependabot bumps) measure CI plus review latency, not effort,
+and are excluded from the per-size sample per the prior round's
+methodology.
+
+**Headline ratio.**
+Median actual / estimate ratio across the post-2026-05-14 S batch: **0.8**.
+S-sized work continues to undershoot estimates by a similar margin to
+the prior round; no per-size bucket moved enough to warrant a multiplier
+revision.
+
+**Per-size velocity (completed implementation PRs, cumulative through
+2026-05-20).**
+
+| Size | N  | Median estimate | Median actual | Ratio |
+|------|----|-----------------|---------------|-------|
+| S    | 25 | 1.0 d           | 0.7 d         | 0.70  |
+| M    | 10 | 2.5 d           | 3.0 d         | 1.20  |
+| L    | 2  | 7.0 d           | 8.5 d         | 1.21  |
+| XL   | 0  | n/a             | n/a           | n/a   |
+
+S bucket grows from 18 to 25 observations; median holds at 0.7 d.
+M and L buckets unchanged from the 2026-05-14 round.
+XL still has no completed sample.
+
+**Per-milestone aggregate.**
+
+| Milestone | Completed designs | Median actual | Median estimate | Ratio |
+|-----------|-------------------|---------------|-----------------|-------|
+| M0        | 7                 | 3.0 d         | 2.5 d           | 1.20  |
+| M½        | 5 (after 2026-05-19 sweep moved `base64-native-fallthrough`, `ci-no-npm-lifecycle`, `hex-package` to Complete on top of the original two) | 1.0 d | 1.0 d | 1.00 |
+| M1        | 8 (impl, post-M½ extraction)          | 1.0 d | 1.0 d | 1.00 |
+
+**Review-queue latency (the binding constraint, updated).**
+The 2026-04-23/04-24 forwarded batch (`#122`–`#135`) has now been open
+27 days at median. Two members (`#127` mount extensions, `#135` mount
+Phase 4) have had review activity in the past week; the rest remain
+unreviewed. The post-2026-05-14 batch of new PRs (`#256` through `#311`,
+mostly opened in the 2026-05-17 / 2026-05-18 windows) is too young to
+contribute a median yet, but the in-flight backlog is now ~30 open PRs
+on `endojs/endo-but-for-bots` (up from ~14 at the 2026-05-14 round). The
+review-queue carry remains at 2 weeks per milestone in the table above;
+it may widen on the next pass if the backlog continues to grow without
+proportional drain.
+
+**Recalibration applied.**
+
+- All per-size multipliers from 2026-05-14 carry forward unchanged.
+- Per-milestone effort totals re-summed against the reconciled Items
+  remaining count (47 active rows across M½..M6 against the 41 the
+  prior summary reported); M3's effort widens from 5-7 weeks to 6-8
+  weeks reflecting the three additional Proposed rows that the prior
+  summary did not absorb.
+- Per-milestone totals: review-queue carry kept at 2 weeks since the
+  in-flight backlog has not drained and is growing.
+
 #### Calibration round 2026-05-14
 
 Recalibrated against observed PR-merge velocity over the seven days since
@@ -750,54 +826,37 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 #### Summary by Milestone
 
-Recalibrated 2026-05-14 by applying per-size median ratios from observed
-PR-merge velocity (S: 0.7, M: 1.2, L: 1.3, XL: 1.3 conservative).
+Recalibrated 2026-05-20 by applying per-size median ratios from observed
+PR-merge velocity (S: 0.7, M: 1.2, L: 1.3, XL: 1.3 conservative; see the
+2026-05-20 calibration round below).
 "Plus review queue" reflects the observed 2-week median wait between
 ready-to-merge and actually-merged for the in-flight backlog.
+Item counts are reconciled against the milestone tables above on the
+date of this pass.
 
-| Milestone | Items | Effort Estimate | Plus Review Queue (current rate) |
-|-----------|-------|-----------------|----------------------------------|
-| M0: AI Agent Experience | 0 remaining | **Complete** | — |
-| M½: Project Hygiene | 1 remaining (after 2026-05-19 sweep moved `ci-no-npm-lifecycle`, `hex-package`, `base64-native-fallthrough` to Complete; `break-dev-dependency-cycles` In Progress is what remains) | 3-5 days | 2-3 weeks |
-| M1: Remote Access & Tools | 8 remaining (after M½ extraction and 2026-05-19 batch moved `platform-fs` (Complete) and `daemon-capability-filesystem` (Reference) out of active backlog) | 8-10 weeks (effort not re-projected — see sweep note) | 10-12 weeks |
-| M2: Networking | 6 remaining (after sweep moved `ocapn-noise-network` to Complete) | 4-5 weeks | 5-7 weeks |
-| M3: Weblets & Integrations | 8 remaining (after sweep moved `daemon-checkin-checkout` to Complete) | 5-7 weeks | 6-9 weeks |
-| M4: UX & Tooling | 10 remaining (after sweeps moved `chat-view-edit-commands` to Complete and `retention-path-notation` to Reference) | 8-11 weeks | 10-13 weeks |
-| M5: Confinement & Ecosystem | 6 active (1 superseded) | 14-20 weeks | 16-22 weeks |
-| M6: Rust Daemon (`endor`) | 2 | 12-17 weeks | 14-19 weeks |
-| **Total remaining** | **41** (M½+1+2 forward) | **~50-68 weeks** | **~62-81 weeks** |
+| Milestone | Items remaining | Effort Estimate | Plus Review Queue (current rate) |
+|-----------|-----------------|-----------------|----------------------------------|
+| M0: AI Agent Experience | 0 | **Complete** | — |
+| M½: Project Hygiene | 1 (`break-dev-dependency-cycles`: Cut 1 PR #235, Cut 5 PR #247 open) | 3-5 days | 2-3 weeks |
+| M1: Remote Access & Tools | 10 (`endo-gateway`, `daemon-docker-selfhost`, `daemon-agent-tools`, `daemon-mount`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endoclaw-timer`, `endoclaw-network-fetch`) | 8-10 weeks | 10-12 weeks |
+| M2: Networking | 6 (`ocapn-network-transport-separation`, `ocapn-tcp-for-test-extraction`, `ocapn-tcp-syrups-framing`, `cbors`, `ocapn-noise-cryptographic-review`, `daemon-agent-network-identity`) | 4-5 weeks | 5-7 weeks |
+| M3: Weblets & Integrations | 11 (`familiar-unified-weblet-server`, `familiar-chat-weblet-hosting`, `cli-store-verb-text-modes`, `cli-edit-verb`, `daemon-weblet-application`, `exo-zip-package`, `endoclaw-oauth`, `endoclaw-proactive-messages`, `endoclaw-notifications`, `endoclaw-webhooks`, `endoclaw-voice`) | 6-8 weeks | 8-11 weeks |
+| M4: UX & Tooling | 11 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `lal-transcript-memory-management`) | 8-11 weeks | 10-13 weeks |
+| M5: Confinement & Ecosystem | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
+| M6: Rust Daemon (`endor`) | 2 (`endor-tui`, `endor-bus-tui`) | 12-17 weeks | 14-19 weeks |
+| **Total remaining** | **47** | **~52-71 weeks** | **~63-86 weeks** |
 
-The 2026-05-14 extraction of M½ pulled six hygiene-shaped rows out of
-M1 (`endo-bytes` and `chat-playwright-smoke` already shipped;
-`hex-package`, `break-dev-dependency-cycles`, `ci-no-npm-lifecycle`,
-`base64-native-fallthrough` still in flight or unstarted at that point).
-M1's remaining count drops from 14 to 10, and its effort from 10-13 weeks
-to 8-10 weeks. M½ initially absorbed ~1-2 weeks of remaining effort on
-top. The total-remaining count was invariant (52); only the bucketing
-changed. M2, M3, M4 counts unchanged at that point.
-
-The 2026-05-18 / 2026-05-19 status-only sweep then moved shipped or
-reclassified designs into the appropriate buckets. From the original
-2026-05-18 sweep: three M½ rows
-(`base64-native-fallthrough`, `ci-no-npm-lifecycle`, `hex-package`) to
-Complete, `ocapn-noise-network` under M2 to Complete,
-`daemon-checkin-checkout` under M3 to Complete, and
-`chat-view-edit-commands` under M4 to Complete. From the 2026-05-19
-batch update for the 11 designs in closed PR #302: `platform-fs`
-(Complete) and `daemon-capability-filesystem` (Reference) under M1
-(both leave the active backlog); `retention-path-notation` (Reference)
-under M4 (also leaves active backlog). The 2026-05-19 batch also moved
-`chat-pending-commands` and `daemon-retention-paths` to In Progress
-(still in their milestone backlogs), reframed `daemon-message-streaming`
-from Draft to In Progress (not in any milestone table), and moved
-`chat-focus-message` and `chat-markdown-render` to Complete (also not in
-milestone tables). `unhandled-rejection-display` from the 2026-05-18
-sweep is likewise not in any milestone table. The Items columns above
-were mechanically decremented for the milestone-bound subset (M½ 4→1,
-M1 10→8, M2 7→6, M3 9→8, M4 12→10, total 52→41). Effort estimates and
-review-queue projections are not re-projected here — that requires a
-full velocity recalibration which is out of scope for the status-only
-sweep.
+The 2026-05-20 reconciliation corrects a counting gap in the prior
+snapshot's narrative: M1, M3, and M4 had absorbed new rows since the
+2026-05-08 baseline (M1: `endo-gateway` raised 2026-05-13; M3:
+`cli-store-verb-text-modes`, `cli-edit-verb`, `exo-zip-package` added
+2026-05-08; M4: `daemon-retention-paths`, `retention-path-notation`
+added 2026-05-10) that the 2026-05-19 sweep's mechanical decrement did
+not pick up. Per-table walk gives M1 10 (not 8), M3 11 (not 8), M4 11
+(not 10); the total is 47 (not 41). M3's effort estimate widens from
+5-7 weeks to 6-8 weeks reflecting the three additional Proposed rows.
+No status flips this pass; the per-design statuses match the 2026-05-19
+sweep's reconciliation.
 
 ### Timeline
 
@@ -810,45 +869,48 @@ gantt
     AI Agent Experience           :done, m0, 2026-02-15, 2026-03-05
 
     section Milestone ½
-    Project Hygiene               :mhalf, 2026-03-06, 2w
+    Project Hygiene               :mhalf, 2026-05-20, 1w
 
     section Milestone 1
     Remote Access & Tools         :m1, after mhalf, 10w
 
     section Milestone 2
-    Networking                    :m2, after m1, 4w
+    Networking                    :m2, after m1, 5w
 
     section Milestone 3
-    Weblets & Integrations        :m3, after m2, 5w
+    Weblets & Integrations        :m3, after m2, 8w
 
     section Milestone 4
-    UX & Tooling                  :m4, after m3, 6w
+    UX & Tooling                  :m4, after m3, 11w
 
     section Milestone 5
-    Confinement & Ecosystem       :m5, after m4, 10w
+    Confinement & Ecosystem       :m5, after m4, 20w
 
     section Milestone 6
-    Rust Daemon (endor)           :m6, after m5, 12w
+    Rust Daemon (endor)           :m6, after m5, 17w
 ```
 
 Durations below are the recalibrated effort-side ranges (multiplying by
-the per-size ratios from the 2026-05-14 calibration round).
+the per-size ratios from the 2026-05-20 calibration round).
 Add ~2 weeks per milestone if the current review-queue depth persists.
 M½ runs in parallel with the early phase of M1 in practice (it is build-
 system and library substrate); the table treats it as a separate row
 for accounting, but the calendar overlap means M1's target date does
-not shift materially once M½'s remaining items land.
+not shift materially once M½'s remaining item lands.
+The Gantt anchors M½ to today (2026-05-20) since the M0-to-M½ chain
+slipped relative to the original 2026-03-06 anchor; cumulative target
+dates project from that anchor at the upper-bound effort.
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
 | M0: AI Agent Experience | 18 days (actual) | **Complete** | March 5, 2026 |
-| M½: Project Hygiene | 1-2 weeks remaining | 1-2 weeks | Late May to early June 2026 |
-| M1: Remote Access & Tools | 8-10 weeks | 9-12 weeks | Mid July to early August 2026 |
-| M2: Networking | 4-5 weeks | 13-17 weeks | Mid August to early September 2026 |
-| M3: Weblets & Integrations | 5-7 weeks | 18-24 weeks | Late September to late October 2026 |
-| M4: UX & Tooling | 8-11 weeks | 26-35 weeks | Early December 2026 to late December 2026 |
-| M5: Confinement & Ecosystem | 14-20 weeks | 40-55 weeks | Mid March to early May 2027 |
-| M6: Rust Daemon (`endor`) | 12-17 weeks | 52-72 weeks | Q3 2027 |
+| M½: Project Hygiene | 3-5 days remaining | 3-5 days | Late May 2026 |
+| M1: Remote Access & Tools | 8-10 weeks | 8-10 weeks | Late July to early August 2026 |
+| M2: Networking | 4-5 weeks | 12-15 weeks | Late August to mid September 2026 |
+| M3: Weblets & Integrations | 6-8 weeks | 18-23 weeks | Late October to early November 2026 |
+| M4: UX & Tooling | 8-11 weeks | 26-34 weeks | Mid December 2026 to mid January 2027 |
+| M5: Confinement & Ecosystem | 14-20 weeks | 40-54 weeks | Mid March to early May 2027 |
+| M6: Rust Daemon (`endor`) | 12-17 weeks | 52-71 weeks | Q3 to Q4 2027 |
 
 *Milestones 3 and 4 are less order-dependent and can be interleaved.
 Milestones 0, ½, 1, and 2 form the critical path. Weblets prioritized
@@ -866,23 +928,21 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-05-19 (consolidated status sweep):** 39 of 118
-designs complete/implemented, 18 in progress. M0 complete. Consolidates
-the 2026-05-18 status-only sweep with the 2026-05-19 batch update for
-11 additional designs from closed PR #302 (`chat-focus-message`,
-`chat-markdown-render`, `chat-pending-commands`, `chat-view-edit-commands`,
-`daemon-checkin-checkout`, `daemon-capability-filesystem`,
-`daemon-message-streaming`, `daemon-mount`, `platform-fs`,
-`daemon-retention-paths`, `retention-path-notation`). The 12-design jump
-in Complete/Implemented over the 2026-05-08 snapshot reflects shipped
-work whose Status field had not previously been updated; see the
-per-file `## Status` sections for evidence pointers (commit SHA or PR
-number). No velocity recalibration, no roadmap re-projection: this
-sweep only reconciles the Status field with the implementation state
-on `llm`. The total-design count grew from 106 to 118 between the
-2026-05-14 snapshot and this sweep because of the endopi raft (`endopi`
-+ 8 `endopi-*` gap-closing designs) and the two hardened-shim designs
-(`hardened-text-codecs-shim`, `hardened-url-shim`).
+**Progress as of 2026-05-20 (full grooming pass):** 39 of 118 designs
+complete/implemented, 18 in progress, 47 active backlog rows remaining
+across M½..M6. M0 complete. This pass refreshes the milestone-totals
+narrative (which had absorbed M1 row `endo-gateway` and M3 rows
+`cli-store-verb-text-modes` / `cli-edit-verb` / `exo-zip-package` and
+M4 row `daemon-retention-paths` without re-summing) and adds a 2026-05-20
+calibration round (per-size multipliers unchanged from 2026-05-14;
+cumulative S bucket now 25 observations from 18; review-queue backlog
+has grown to ~30 open PRs from ~14, carry remains 2 weeks per milestone).
+Mermaid Gantt re-anchored to today (2026-05-20) since the original
+2026-03-06 M½ anchor reflects a critical-path slip the prior Gantt had
+not absorbed; M1 target shifts from "Mid July to early August" to "Late
+July to early August" and downstream milestones cascade similarly.
+No per-design status flips this pass; the Status fields match the
+2026-05-19 sweep.
 
 
 **Progress as of 2026-05-14:** 28 of 106 designs complete/implemented, 17 in progress. M0 complete.
