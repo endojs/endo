@@ -1110,17 +1110,19 @@ and a richer primitive is the only way to collapse it.
 
 #### Remaining round-trip weaknesses (`[RT]`)
 
-| Item | Why it's RT-blocking | Mitigation |
-|---|---|---|
-| **No `lookupOrCreate` / `materialise`** | "Walk a path; create missing segments along the way" is conditional: `mkdir(n)` fires *only if* `lookup(n)` rejects. The branch can't pipeline. A `Directory.materialise(path: string[], opts) → Directory` primitive would collapse N missing-segment paths to one round-trip. | Caller does lookup/mkdir per segment; the design can add this later without breaking other surface. |
+_None outstanding._ The original `[RT]` list included
+`No lookupOrCreate / materialise`, `getQid is one RTT across CapTP`,
+and `xattrs.list ack-protocol overhead`; the first is closed by
+`Directory.materialise` (ROADMAP §1.7.1) and the latter two are
+not weaknesses once the cost framework is applied — see "What
+pipelining solves" below.
 
 #### Non-RT gaps (still worth pinning)
 
 | Item | Category | Notes |
 |---|---|---|
 | **No field-selection on `getAttrs`** | bandwidth | Full `Attrs` rides the wire even when caller only needs `size`. POSIX-style `statx` masks were deliberately omitted to keep the ocap shape clean; the cost is the unmasked transfer (one round-trip either way). |
-| **`Cursor.skip(n)` is O(n) in v1 implementations** | complexity | The contract permits O(log n) for sorted-index backings; in-memory and from-mount use the read-and-discard default. Wall-clock concern, not RT. |
-| **`watch + list` TOCTOU** | semantics | Mutations between `list()` and `watch()` calls aren't reflected in either. Caller-side workaround: watch first, then list, then reconcile against the event log. Same shape as inotify. |
+| **`Cursor.skip(n)` snapshot is O(N)** | complexity | The per-call `skip` is O(1) (just a position update). The O(N) is the snapshot materialisation underlying it (`Map.entries()` / `readdir` / `Mount.list`), which is the cost of listing an unindexed directory. True O(log N) skip-to-position needs a sorted-index backing — none of the current three qualifies. |
 
 #### What pipelining solves that earlier drafts called weaknesses
 
