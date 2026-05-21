@@ -21,8 +21,8 @@ The `modules` are built-in modules to grant the application's main package
 compartment.
 
 ```js
-import fs from "fs";
-import { fileURLToPath } from "url";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { importLocation } from "@endo/compartment-mapper";
 
 // ...
@@ -84,8 +84,8 @@ Use `writeArchive` to capture an application in an archival format.
 Archives are `zip` files with a `compartment-map.json` manifest file.
 
 ```js
-import fs from "fs";
-import { fileURLToPath } from "url";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { writeArchive } from "@endo/compartment-mapper";
 
 const read = async location => fs.promises.readFile(fileURLToPath(location));
@@ -108,8 +108,8 @@ Use `importArchive` to run an application from an archive.
 Note the similarity to `importLocation`.
 
 ```js
-import fs from "fs";
-import { fileURLToPath } from "url";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { importArchive } from "@endo/compartment-mapper";
 
 // ...
