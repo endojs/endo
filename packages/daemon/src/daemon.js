@@ -6169,6 +6169,17 @@ const makeDaemonCore = async (
     // eslint-disable-next-line no-use-before-define
     const accumulator = makeRetentionPathAccumulator({
       compute: () => listRetentionPaths(targetId),
+      // Route structured failures through the lifecycle log per
+      // `packages/daemon/CLAUDE.md` § Diagnostic Discipline in
+      // Formulas. The target's formula id correlates the line
+      // with other lifecycle events for the same formula.
+      onError: err => {
+        logLifecycle(
+          targetId,
+          'RETENTION_PATH_FLUSH_FAILED',
+          /** @type {Error} */ (err).message,
+        );
+      },
     });
 
     // Notify the accumulator whenever any formula in the graph
@@ -6184,7 +6195,15 @@ const makeDaemonCore = async (
         accumulator.notify();
       }
     })().catch(err => {
-      console.error('retention-path change pump failed:', err);
+      // Route through the lifecycle log so retention-path subsystem
+      // failures correlate with other lifecycle events for the same
+      // formula. See `packages/daemon/CLAUDE.md` § Diagnostic
+      // Discipline in Formulas.
+      logLifecycle(
+        targetId,
+        'RETENTION_PATH_PUMP_FAILED',
+        /** @type {Error} */ (err).message,
+      );
     });
 
     try {

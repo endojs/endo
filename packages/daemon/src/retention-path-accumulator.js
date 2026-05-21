@@ -68,6 +68,12 @@ harden(pathKey);
  *   Returns the current set of retention paths for the target.
  * @param {(flush: () => void) => void} [opts.scheduleBatch]
  *   Schedules a flush. Defaults to `queueMicrotask`.
+ * @param {(err: unknown) => void} [opts.onError]
+ *   Reports a flush failure. Defaults to a silent drop so library
+ *   callers that do not wire a logger do not gain a `console.error`
+ *   side-channel. The daemon-side caller wires this to the formula
+ *   lifecycle log per `packages/daemon/CLAUDE.md` § Diagnostic
+ *   Discipline in Formulas.
  * @returns {{
  *   notify: () => void,
  *   subscribe: () => AsyncGenerator<RetentionPathDelta>,
@@ -76,6 +82,7 @@ harden(pathKey);
 export const makeRetentionPathAccumulator = ({
   compute,
   scheduleBatch = fn => void Promise.resolve().then(fn),
+  onError = () => {},
 }) => {
   /** @type {import('./types.js').Topic<RetentionPathDelta>} */
   const topic = makeChangeTopic();
@@ -125,7 +132,7 @@ export const makeRetentionPathAccumulator = ({
       scheduled = true;
       scheduleBatch(() => {
         flush().catch(err => {
-          console.error('retention-path accumulator flush failed:', err);
+          onError(err);
         });
       });
     }
