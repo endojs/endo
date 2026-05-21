@@ -41,7 +41,12 @@ import { E } from '@endo/far';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
 import { makeInMemoryFilesystem } from '../src/in-memory.js';
+import { makeNodeFilesystem } from '../src/node-fs.js';
 import { makeMemoryCas } from '../src/cas.js';
 import { withCachedReads } from '../src/cached-fs.js';
 import { makeConnectedPair, settle } from './_captp-pair.js';
@@ -249,4 +254,33 @@ test('withCachedReads: subsequent reads of different ranges of the same file all
     0,
     'range reads after cache populate are all hits — no bytes on the wire',
   );
+});
+
+test('withCachedReads: rename across wrapped directories unwraps the destination', async t => {
+  // The disk-backed `node-fs.js` identifies the rename destination
+  // by a private `WeakMap` keyed on the underlying Directory exo.
+  // A wrapped Directory is a different exo, so passing it through
+  // unchanged would raise EXDEV. The wrapper must unwrap before
+  // forwarding.
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'cached-fs-rename-'));
+  t.teardown(() => rm(dir, { recursive: true, force: true }));
+  const innerFs = makeNodeFilesystem({ rootPath: dir });
+  const innerRoot = await E(innerFs).root();
+  const opened = await E(innerRoot).create('moveme.txt', {});
+  await E(opened).close();
+  await E(innerRoot).mkdir('subdir', {});
+
+  const cas = makeMemoryCas();
+  const fs = withCachedReads(innerFs, cas);
+
+  const root = await E(fs).root();
+  const subdir = await E(root).lookup('subdir');
+
+  // The destination here is the wrapped Directory cap from the
+  // cached-fs wrapper. Without the unwrap, the underlying
+  // node-fs.rename would surface EXDEV.
+  await E(root).rename('moveme.txt', subdir, 'moved.txt');
+
+  const after = await E(subdir).lookup('moved.txt');
+  t.is((await E(after).getAttrs()).size, 0n);
 });

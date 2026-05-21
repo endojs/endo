@@ -161,7 +161,12 @@ test('PATTERN: parallel lookups for known sibling names — Promise.all of N loo
   // would. A real `batchLookup` would only help with the per-
   // message bandwidth overhead (header bytes × N), not latency.
   const names = ['a', 'b', 'c', 'd'];
-  const qids = await Promise.all(names.map(n => E(E(root).lookup(n)).getQid()));
+  const qids = await Promise.all(
+    names.map(n => {
+      const childP = E(root).lookup(n);
+      return E(childP).getQid();
+    }),
+  );
   t.is(qids.length, 4);
   for (const q of qids) t.is(q.type, 'file');
 });
@@ -243,7 +248,8 @@ test('PATTERN: list() is the right call when you want ALL children', async t => 
 
   // For "give me ALL the children," `list()` is one call → one
   // Cursor → one stream. Cheap.
-  const all = await collectStream(await E(await E(root).list()).stream());
+  const cursor = await E(root).list();
+  const all = await collectStream(await E(cursor).stream());
   t.is(all.length, 100);
 });
 
@@ -312,19 +318,25 @@ test('WEAKNESS [semantics]: watch + list TOCTOU — events between can be missed
   t.is(next.kind, 'value');
 });
 
-test('WEAKNESS [functional]: compose rename is ENOSYS — copy+unlink workaround needed', async t => {
-  const fs = makeInMemoryFilesystem();
+test('PATTERN: compose rename of a backing-only file copies up + whiteouts the source', async t => {
   const backing = makeInMemoryFilesystem();
   await writeFile(await E(backing).root(), 'src', 'data');
   const layer = makeInMemoryFilesystem();
-  // Import locally to keep the WEAKNESS test self-contained.
   const { compose } = await import('../src/compose.js');
   const cow = compose(layer, backing);
   const root = await E(cow).root();
-  await t.throwsAsync(() => E(root).rename('src', root, 'dest'), {
-    message: /ENOSYS/,
-  });
-  void fs;
+
+  await E(root).rename('src', root, 'dest');
+
+  // Source is gone from the composed view; dest holds the bytes.
+  await t.throwsAsync(() => E(root).lookup('src'), { message: /ENOENT/ });
+  const dest = await E(root).lookup('dest');
+  const oh = await E(dest).open({ read: true });
+  const bytes = new TextDecoder().decode(
+    await collectBytes(await E(oh).read(0n, 64n)),
+  );
+  await E(oh).close();
+  t.is(bytes, 'data');
 });
 
 test('WEAKNESS [complexity]: Cursor.skip is O(n) for in-memory + Mount adapter, not O(log n)', async t => {
@@ -351,19 +363,17 @@ test('WEAKNESS [complexity]: Cursor.skip is O(n) for in-memory + Mount adapter, 
   t.is(tail.length, 100);
 });
 
-test('WEAKNESS [functional]: Filesystem.statfs is metadata-only — no aggregation across mounts', async t => {
-  // The `namespace` and `bind` primitives expose multiple
-  // underlying filesystems through one composed Filesystem cap.
-  // statfs() on the composed view returns zeros (no aggregation
-  // across mounts). DESIGN.md §8.6 namespace block notes this:
-  // "Aggregate would need cross-mount stats; report zeros for v1."
+test('PATTERN: Filesystem.statfs aggregates across mounts (namespace sums participants)', async t => {
+  // `namespace`, `bind`, and `compose` sum their participants'
+  // `statfs` numbers (`totalBytes`, `freeBytes`, `availableBytes`).
+  // A namespace with one populated mount carries that mount's
+  // bytes-used; participants reporting zeros don't affect the sum.
   const { namespace, emptyFilesystem } = await import('../src/compose.js');
   const a = makeInMemoryFilesystem();
   await writeFile(await E(a).root(), 'sample', 'X'.repeat(100));
   const ns = namespace({ a, _empty: emptyFilesystem() });
   const stats = await E(ns).statfs();
-  // a has 100 bytes of file content, but ns.statfs() reports zero.
-  t.is(stats.totalBytes, 0n);
+  t.is(stats.totalBytes, 100n);
 });
 
 test('WEAKNESS: getQid is sync-returning on the exo state, but goes through CapTP', async t => {

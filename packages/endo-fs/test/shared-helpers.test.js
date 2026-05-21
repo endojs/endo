@@ -106,11 +106,10 @@ test('computeOpenMode: default (no flags) is read', t => {
   t.false(m.write);
 });
 
-test('computeOpenMode: read:false + no write coerces to read', t => {
-  // A handle with neither read nor write is useless; the helper
-  // falls back to read.
-  const m = computeOpenMode({ read: false });
-  t.true(m.read);
+test('computeOpenMode: read:false + no write rejects with EINVAL', t => {
+  // A handle with neither read nor write is useless; reject
+  // rather than silently flip a flag the caller didn't request.
+  t.throws(() => computeOpenMode({ read: false }), { message: /EINVAL/ });
 });
 
 test('computeOpenMode: write:true + read:false honors explicit read suppression', t => {

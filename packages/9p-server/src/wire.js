@@ -145,15 +145,25 @@ harden(wrapMessage);
  * one full message yet; otherwise { msg, rest } where msg has
  * { type, tag, payload } and rest is the remaining bytes.
  *
+ * `maxSize`, when provided, caps the declared frame size: a peer
+ * sending a header with size > maxSize is rejected immediately,
+ * before the connection buffers `size` bytes of payload. Without
+ * the cap, a local client could declare an arbitrary size and
+ * force unbounded `Buffer.concat` growth.
+ *
  * @param {Buffer} buf
+ * @param {number} [maxSize]
  */
-export const tryParseMessage = buf => {
+export const tryParseMessage = (buf, maxSize) => {
   if (buf.length < 4) return null;
   const size = buf.readUInt32LE(0);
-  if (buf.length < size) return null;
   if (size < 7) {
     throw new Error(`9P message size ${size} smaller than envelope`);
   }
+  if (maxSize !== undefined && size > maxSize) {
+    throw new Error(`9P message size ${size} exceeds max ${maxSize}`);
+  }
+  if (buf.length < size) return null;
   const type = buf.readUInt8(4);
   const tag = buf.readUInt16LE(5);
   const payload = buf.subarray(7, size);

@@ -144,14 +144,10 @@ test('different blobs in the same CAS stay distinct by hash', async t => {
 
   const cas = makeMemoryCas();
 
-  const a = await cacheBackedRead(
-    await E(await E(root).lookup('a.txt')).snapshot(),
-    cas,
-  );
-  const b = await cacheBackedRead(
-    await E(await E(root).lookup('b.txt')).snapshot(),
-    cas,
-  );
+  const aFile = await E(root).lookup('a.txt');
+  const a = await cacheBackedRead(await E(aFile).snapshot(), cas);
+  const bFile = await E(root).lookup('b.txt');
+  const b = await cacheBackedRead(await E(bFile).snapshot(), cas);
 
   t.is(fromUtf8(a), 'alpha');
   t.is(fromUtf8(b), 'beta');
@@ -167,14 +163,10 @@ test('identical bytes from different files share a single CAS slot', async t => 
 
   const cas = makeMemoryCas();
 
-  await cacheBackedRead(
-    await E(await E(root).lookup('one.txt')).snapshot(),
-    cas,
-  );
-  await cacheBackedRead(
-    await E(await E(root).lookup('two.txt')).snapshot(),
-    cas,
-  );
+  const oneFile = await E(root).lookup('one.txt');
+  await cacheBackedRead(await E(oneFile).snapshot(), cas);
+  const twoFile = await E(root).lookup('two.txt');
+  await cacheBackedRead(await E(twoFile).snapshot(), cas);
 
   t.is(cas.size, 1, 'identical content → one CAS slot');
 });

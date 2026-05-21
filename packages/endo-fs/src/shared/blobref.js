@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 
-import { BlobRefInterface } from '../guards.js';
+import { BlobRefInterface } from '../type-guards.js';
 import {
   EMPTY_BYTES,
   makeBytesReaderFromBytes,

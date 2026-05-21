@@ -175,9 +175,8 @@ test('rename within the same parent', async t => {
   await E(root).rename('a', root, 'b');
   await t.throwsAsync(() => E(root).lookup('a'), { message: /ENOENT/ });
   const b = await E(root).lookup('b');
-  const bytes = await collectBytes(
-    await E(await E(b).open({ read: true })).read(0n, 64n),
-  );
+  const oh = await E(b).open({ read: true });
+  const bytes = await collectBytes(await E(oh).read(0n, 64n));
   t.is(fromUtf8(bytes), 'hi');
 });
 
@@ -192,9 +191,8 @@ test('rename across parents', async t => {
   await E(subA).rename('thing', subB, 'thing');
   await t.throwsAsync(() => E(subA).lookup('thing'), { message: /ENOENT/ });
   const moved = await E(subB).lookup('thing');
-  const bytes = await collectBytes(
-    await E(await E(moved).open({ read: true })).read(0n, 64n),
-  );
+  const oh = await E(moved).open({ read: true });
+  const bytes = await collectBytes(await E(oh).read(0n, 64n));
   t.is(fromUtf8(bytes), 'payload');
 });
 

@@ -51,7 +51,7 @@ import {
   OpenFileInterface,
   XattrsInterface,
   NodeWatcherInterface,
-} from './guards.js';
+} from './type-guards.js';
 import {
   assertChildName,
   computeOpenMode,

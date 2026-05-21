@@ -111,7 +111,7 @@ test('compose(L2, compose(L1, B)) — three-layer stack reads top-most win', asy
   t.is(await readFile(root, 'only-B'), 'B'); // only in backing
 });
 
-test('chroot then compose: read-through works, writes need pre-created parent in the layer', async t => {
+test('chroot then compose: read-through works, writes auto-copy-up the layer parent', async t => {
   const backing = makeInMemoryFilesystem();
   const backingRoot = await E(backing).root();
   await E(backingRoot).mkdir('workspace', {});
@@ -120,14 +120,7 @@ test('chroot then compose: read-through works, writes need pre-created parent in
   await E(backingRoot).mkdir('outside', {});
   await writeFile(await E(backingRoot).lookup('outside'), 'secret', 's');
 
-  // Pre-create the matching /workspace directory in the layer. The
-  // composed CoW doesn't currently auto-copy-up parent directories
-  // that exist only in the backing — that's the WEAKNESS test
-  // below. For the read-through + chroot-containment assertions in
-  // this test, we provision the layer parent manually.
   const layer = makeInMemoryFilesystem();
-  await E(await E(layer).root()).mkdir('workspace', {});
-
   const view = chroot(compose(layer, backing), ['workspace']);
   const root = await E(view).root();
   t.is(await readFile(root, 'orig.txt'), 'original');
@@ -146,27 +139,32 @@ test('chroot then compose: read-through works, writes need pre-created parent in
   t.is(await readFile(layerWs, 'new.txt'), 'fresh');
 });
 
-test('WEAKNESS: compose does not auto-copy-up parent dirs that exist only in the backing', async t => {
-  // DESIGN.md §8.4 documents copy-up for FILES: "writing to a file
-  // that exists only in the backing copies it into the layer on
-  // first write." But the dual case — creating a NEW file inside a
-  // directory that exists only in the backing — currently errors
-  // out: the composed Directory has no layerDir, and `create`
-  // refuses with EROFS.
-  //
-  // For full CoW semantics, the impl should auto-mkdir parent
-  // chains in the layer on first write below them. v1 doesn't.
-  // Workaround: callers can pre-mkdir matching parents in the
-  // layer.
+test('compose auto-copies-up parent dirs that exist only in the backing on first write', async t => {
+  // DESIGN.md §8.4 promises CoW for FILES. The dual case — writing
+  // inside a directory that exists only in the backing — used to
+  // error EROFS; the impl now materializes the matching layer
+  // parent chain on first write below it.
   const backing = makeInMemoryFilesystem();
-  await E(await E(backing).root()).mkdir('workspace', {});
+  const backingRoot = await E(backing).root();
+  await E(backingRoot).mkdir('workspace', {});
   const layer = makeInMemoryFilesystem();
 
   const cow = compose(layer, backing);
   const root = await E(cow).root();
   const ws = await E(root).lookup('workspace');
-  await t.throwsAsync(() => E(ws).create('new.txt', {}), {
-    message: /EROFS/,
+  await writeFile(ws, 'new.txt', 'fresh');
+
+  // Read-through composed view returns the new bytes.
+  t.is(await readFile(ws, 'new.txt'), 'fresh');
+
+  // The layer now has the matching /workspace directory and the
+  // file landed there (not in the backing).
+  const layerRoot = await E(layer).root();
+  const layerWs = await E(layerRoot).lookup('workspace');
+  t.is(await readFile(layerWs, 'new.txt'), 'fresh');
+  const backingWs = await E(backingRoot).lookup('workspace');
+  await t.throwsAsync(() => E(backingWs).lookup('new.txt'), {
+    message: /ENOENT/,
   });
 });
 
@@ -286,39 +284,25 @@ test("snapshot() on a layer file reflects the layer's content, not the backing",
 
 // ---------- watch through composition (weakness probe) ----------
 
-test('WEAKNESS: watch on a composed view sees only the participant we watched, not merged events', async t => {
-  // The design (§8.7 "What rides through composition") promises
-  // "subscriptions on a composed view yield merged events" — i.e.
-  // watching the composed-view directory should fire on
-  // mutations to either layer or backing.
-  //
-  // The v1 impl returns `layerDir.watch()` only (see compose.js).
-  // This test pins the current behaviour and surfaces the gap.
+test('watch on a composed view surfaces events from both layer and backing', async t => {
+  // DESIGN.md §8.7 promises merged events on a composed view.
+  // The watcher subscribes to both participants and interleaves
+  // their events into one stream; cancelling the composed watcher
+  // cancels both underlying subscriptions.
+  t.timeout(5_000);
   const backing = makeInMemoryFilesystem();
   const layer = makeInMemoryFilesystem();
   const cow = compose(layer, backing);
   const root = await E(cow).root();
   const watcher = await E(root).watch();
   const events = iterateReader(await E(watcher).events());
+  t.teardown(() => E(watcher).cancel());
 
-  // Mutate the backing directly. The composed watcher should
-  // surface this, per the design.
+  // Mutating the backing fires through the composed watcher.
   await writeFile(await E(backing).root(), 'b', 'B');
-
-  // Race a take against a short timeout.
-  const next = await Promise.race([
-    events.next().then(r => ({ kind: 'value', r })),
-    new Promise(resolve => {
-      // eslint-disable-next-line no-undef
-      setTimeout(() => resolve({ kind: 'timeout' }), 200);
-    }),
-  ]);
-  await E(watcher).cancel();
-
-  // Document the v1 behaviour: backing mutations do NOT fire on
-  // the composed watcher. If you change the impl to merge events,
-  // update this test to assert kind === 'value'.
-  t.is(next.kind, 'timeout');
+  const first = await events.next();
+  t.truthy(first.value);
+  t.truthy(first.value.kind);
 });
 
 // ---------- list through composition ----------
@@ -336,12 +320,14 @@ test('list() on a composed view exposes both sides minus whiteouts', async t => 
 
   const cow = compose(layer, backing);
   const root = await E(cow).root();
-  let entries = await collectStream(await E(await E(root).list()).stream());
+  let cursor = await E(root).list();
+  let entries = await collectStream(await E(cursor).stream());
   t.deepEqual(entries.map(e => e.name).sort(), ['a', 'b', 'c', 'd', 'e']);
 
   // Whiteout 'a': it disappears from both lookup and list.
   await E(root).unlink('a');
-  entries = await collectStream(await E(await E(root).list()).stream());
+  cursor = await E(root).list();
+  entries = await collectStream(await E(cursor).stream());
   t.deepEqual(entries.map(e => e.name).sort(), ['b', 'c', 'd', 'e']);
 });
 

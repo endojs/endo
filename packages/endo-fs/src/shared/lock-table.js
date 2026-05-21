@@ -16,7 +16,7 @@
 import { makeExo } from '@endo/exo';
 import { makeError, X, q } from '@endo/errors';
 
-import { LockInterface } from '../guards.js';
+import { LockInterface } from '../type-guards.js';
 import { rangesOverlap } from './helpers.js';
 
 /**

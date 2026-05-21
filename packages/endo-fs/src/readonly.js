@@ -25,7 +25,7 @@ import {
   FileInterface,
   OpenFileInterface,
   XattrsInterface,
-} from './guards.js';
+} from './type-guards.js';
 
 const denied = method =>
   makeError(X`EACCES: ${method} not permitted on a read-only Filesystem`);
@@ -91,8 +91,14 @@ const makeReadOnlyDirectory = dir => {
       return makeReadOnlyXattrs(inner);
     },
     async lookup(name) {
-      const child = await E(dir).lookup(name);
-      const qid = /** @type {any} */ (child).getQid();
+      // Pipeline lookup + getQid in one batch so the type
+      // discrimination remains correct when `dir` is a remote
+      // presence. A sync `child.getQid()` against a remote cap
+      // returns a promise (its `type` is `undefined`), which would
+      // mis-wrap every node as a File.
+      const childP = E(dir).lookup(name);
+      const qidP = E(childP).getQid();
+      const [child, qid] = await Promise.all([childP, qidP]);
       if (qid && qid.type === 'directory') {
         return makeReadOnlyDirectory(child);
       }

@@ -96,9 +96,10 @@ const errnoOf = e => {
  *   fs: import('@endo/eventual-send').ERef<any>,
  *   socket: import('node:net').Socket,
  *   onClose?: () => void,
+ *   signal?: AbortSignal,
  * }} opts
  */
-export const serveConnection = ({ fs, socket, onClose }) => {
+export const serveConnection = ({ fs, socket, onClose, signal }) => {
   /** @type {Map<number, Fid>} */
   const fids = new Map();
   let msize = DEFAULT_MSIZE;
@@ -116,10 +117,33 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     socket.removeListener('error', close);
     socket.removeListener('close', close);
     socket.removeListener('data', onData);
+    if (signal) signal.removeEventListener('abort', close);
+    // Best-effort close of every fid's open handle so the
+    // underlying FS doesn't leak `FileHandle`s when a client
+    // disconnects without `Tclunk`-ing each fid. We fire the
+    // closes in parallel and ignore failures; the connection is
+    // already going away.
+    for (const f of fids.values()) {
+      if (f.openFile) {
+        Promise.resolve(E(f.openFile).close()).catch(() => {});
+      }
+    }
     fids.clear();
     socket.destroy();
     if (onClose) onClose();
   };
+
+  // External cancellation (e.g., `fs-bridge.stop()`) propagates
+  // through an AbortSignal. Aborting flips `closed` immediately so
+  // the next `drainOnce` iteration returns without dispatching,
+  // even if a long-running awaited operation is still in flight.
+  if (signal) {
+    if (signal.aborted) {
+      close();
+      return;
+    }
+    signal.addEventListener('abort', close, { once: true });
+  }
 
   // Drain every complete message currently sitting in `buf`.
   // Each call awaits its own dispatches in order; concurrent
@@ -129,7 +153,11 @@ export const serveConnection = ({ fs, socket, onClose }) => {
       if (closed) return;
       let parsed;
       try {
-        parsed = tryParseMessage(buf);
+        // After negotiation, cap the declared frame size at the
+        // negotiated `msize`. Before negotiation, fall back to
+        // `DEFAULT_MSIZE` so a peer can't force unbounded buffering
+        // by declaring a huge `Tversion` frame.
+        parsed = tryParseMessage(buf, negotiated ? msize : DEFAULT_MSIZE);
       } catch (e) {
         // The frame at the head of `buf` is malformed (declared
         // `size < 7`, or some other framing fault). There's no
@@ -453,10 +481,21 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     return undefined;
   };
 
+  // Rread envelope is 4 (size) + 1 (type) + 2 (tag) + 4 (count) = 11
+  // bytes; the data payload that follows must fit inside `msize`.
+  const RREAD_HEADER_BYTES = 11;
+
   const onRead = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
     const offset = r.u64();
-    const count = r.u32();
+    // Clamp the requested count to what fits in one `msize` frame.
+    // 9P allows a server to return fewer bytes than the client
+    // asked for, so this is conformant; without the clamp a peer
+    // could trigger huge allocations / reads regardless of the
+    // negotiated frame size.
+    const requested = /** @type {number} */ (r.u32());
+    const maxByMsize = Math.max(0, msize - RREAD_HEADER_BYTES);
+    const count = Math.min(requested, maxByMsize);
     const f = fids.get(fid);
     if (!f || !f.open) return sendError(tag, ERRNO.EBADF);
     if (f.qid.type === 'directory') {
@@ -560,10 +599,26 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     f.dirBufferDone = true;
   };
 
+  // Rreaddir envelope mirrors Rread: 4 + 1 + 2 + 4 = 11 bytes
+  // before the entry payload.
+  const RREADDIR_HEADER_BYTES = 11;
+
   const onReaddir = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
-    const offset = Number(r.u64());
-    const count = /** @type {number} */ (r.u32());
+    const offsetBig = /** @type {bigint} */ (r.u64());
+    const requested = /** @type {number} */ (r.u32());
+    // Clamp the requested count to msize so the per-call buffer
+    // alloc can't exceed what the protocol permits for one frame.
+    const maxByMsize = Math.max(0, msize - RREADDIR_HEADER_BYTES);
+    const count = Math.min(requested, maxByMsize);
+    // Validate the offset cookie: must be a non-negative
+    // safe integer (the cursor is an array index into
+    // `dirBuffer`, which is a JS array). Anything else is
+    // protocol noise.
+    if (offsetBig < 0n || offsetBig > BigInt(Number.MAX_SAFE_INTEGER)) {
+      return sendError(tag, ERRNO.EINVAL);
+    }
+    const offset = Number(offsetBig);
     const f = fids.get(fid);
     if (!f || !f.open || !f.cursor) return sendError(tag, ERRNO.EBADF);
 
@@ -574,6 +629,8 @@ export const serveConnection = ({ fs, socket, onClose }) => {
     }
 
     const entries = f.dirBuffer || [];
+    // An offset past the end of the buffer is legal (kernel may
+    // probe to confirm EOF); we just return an empty payload.
     const w = makeWriter(count + 4);
     w.u32(0); // placeholder; rewrite after
     let written = 0;

@@ -65,6 +65,26 @@ test('tryParseMessage handles partial buffers and concatenated frames', t => {
   t.is(r2c?.msg.tag, 2);
 });
 
+test('tryParseMessage rejects frames whose declared size exceeds maxSize', t => {
+  // Build a frame whose envelope declares size = 200 but we cap at
+  // 100. The header alone is enough — the parser should reject
+  // before buffering 200 bytes of payload, so a peer can't force
+  // unbounded `Buffer.concat` growth by declaring huge sizes.
+  const header = Buffer.alloc(7);
+  header.writeUInt32LE(200, 0);
+  header.writeUInt8(100, 4);
+  header.writeUInt16LE(1, 5);
+  t.throws(() => tryParseMessage(header, 100), {
+    message: /exceeds max 100/,
+  });
+});
+
+test('tryParseMessage rejects frames whose declared size < 7-byte envelope', t => {
+  const bad = Buffer.alloc(7);
+  bad.writeUInt32LE(5, 0); // 5 < 7
+  t.throws(() => tryParseMessage(bad), { message: /smaller than envelope/ });
+});
+
 test('strings round-trip multi-byte UTF-8', t => {
   const w = makeWriter();
   w.str('日本語/test');

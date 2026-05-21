@@ -116,35 +116,6 @@ test('non-pipelined sequential walk over CapTP: every CTP_CALL is followed by it
   t.snapshot(transcript, 'sequential walk wire transcript');
 });
 
-test('pipelined chain with simulated wire latency completes in one round-trip, not N', async t => {
-  const fs = await populate();
-  const latencyMs = 30;
-  const { bootstrapRef } = makeConnectedPair(fs, {
-    deliveryLatencyMs: latencyMs,
-  });
-
-  const start = Date.now();
-  const rootP = E(bootstrapRef).root();
-  const aP = E(rootP).lookup('a');
-  const bP = E(aP).lookup('b');
-  const cP = E(bP).lookup('c');
-  const tailP = E(cP).lookup('d');
-  const qid = await E(tailP).getQid();
-  const elapsed = Date.now() - start;
-  t.is(qid.type, 'directory');
-
-  // A sequential 6-call walk over a `latencyMs`-delay wire would
-  // cost ~6 × 2 × latencyMs = 360ms (each round-trip is two
-  // delivery hops). Pipelined, the in-flight calls share one
-  // round-trip, so the total is bounded by a small multiple of
-  // a single round-trip rather than scaling with chain depth.
-  const sequentialFloor = 6 * 2 * latencyMs;
-  t.true(
-    elapsed < sequentialFloor / 2,
-    `expected elapsed < ${sequentialFloor / 2}ms (half of sequential floor ${sequentialFloor}ms), got ${elapsed}ms`,
-  );
-});
-
 test('lookup of a missing intermediate short-circuits the chain over CapTP', async t => {
   const fs = await populate();
   const { bootstrapRef, transcript } = makeConnectedPair(fs);

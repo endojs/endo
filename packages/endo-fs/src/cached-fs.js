@@ -54,7 +54,7 @@ import {
   DirectoryInterface,
   FileInterface,
   OpenFileInterface,
-} from './guards.js';
+} from './type-guards.js';
 import {
   EMPTY_BYTES,
   makeBytesReaderFromBytes,
@@ -81,6 +81,15 @@ export const withCachedReads = (inner, cas) => {
   // bytes twice.
   /** @type {Map<string, Promise<void>>} */
   const inFlight = new Map();
+
+  // Wrapper-Directory → inner-Directory map. `rename` on the
+  // disk-backed and Mount-adapted backings identifies same-FS targets
+  // by `WeakMap.get(newParent)` keyed on the inner exo; passing the
+  // wrapper through unchanged would look like a different FS and
+  // raise EXDEV. Recording every wrapped Directory here lets `rename`
+  // unwrap before forwarding.
+  /** @type {WeakMap<object, object>} */
+  const wrapperToInner = new WeakMap();
 
   /**
    * @param {any} blobP
@@ -118,7 +127,7 @@ export const withCachedReads = (inner, cas) => {
     inFlight.set(key, promise);
   };
 
-  return makeCachingFilesystem(inner, cas, populateInBackground);
+  return makeCachingFilesystem(inner, cas, populateInBackground, wrapperToInner);
 };
 harden(withCachedReads);
 
@@ -141,16 +150,34 @@ const resolveNodeWithQid = async nodeRef => {
  * @param {object} inner
  * @param {ContentAddressedStore} cas
  * @param {(blobP: any, info: BlobInfo) => void} populateInBackground
+ * @param {WeakMap<object, object>} wrapperToInner
  */
-const makeCachingFilesystem = (inner, cas, populateInBackground) => {
+const makeCachingFilesystem = (
+  inner,
+  cas,
+  populateInBackground,
+  wrapperToInner,
+) => {
   return makeExo('Filesystem', FilesystemInterface, {
     async root() {
       const { node, qid } = await resolveNodeWithQid(E(inner).root());
-      return makeCachingDirectory(node, qid, cas, populateInBackground);
+      return makeCachingDirectory(
+        node,
+        qid,
+        cas,
+        populateInBackground,
+        wrapperToInner,
+      );
     },
     async named(viewName) {
       const { node, qid } = await resolveNodeWithQid(E(inner).named(viewName));
-      return makeCachingDirectory(node, qid, cas, populateInBackground);
+      return makeCachingDirectory(
+        node,
+        qid,
+        cas,
+        populateInBackground,
+        wrapperToInner,
+      );
     },
     async statfs() {
       return E(inner).statfs();
@@ -169,9 +196,16 @@ const makeCachingFilesystem = (inner, cas, populateInBackground) => {
  * @param {any} cachedQid  qid resolved at construction (eager-state contract)
  * @param {ContentAddressedStore} cas
  * @param {(blobP: any, info: BlobInfo) => void} populateInBackground
+ * @param {WeakMap<object, object>} wrapperToInner
  */
-const makeCachingDirectory = (dir, cachedQid, cas, populateInBackground) => {
-  return makeExo('Directory', DirectoryInterface, {
+const makeCachingDirectory = (
+  dir,
+  cachedQid,
+  cas,
+  populateInBackground,
+  wrapperToInner,
+) => {
+  const exo = makeExo('Directory', DirectoryInterface, {
     getQid() {
       return cachedQid;
     },
@@ -194,7 +228,13 @@ const makeCachingDirectory = (dir, cachedQid, cas, populateInBackground) => {
       // even when the underlying cap is remote.
       const { node, qid } = await resolveNodeWithQid(E(dir).lookup(name));
       if (qid && qid.type === 'directory') {
-        return makeCachingDirectory(node, qid, cas, populateInBackground);
+        return makeCachingDirectory(
+          node,
+          qid,
+          cas,
+          populateInBackground,
+          wrapperToInner,
+        );
       }
       return makeCachingFile(node, qid, cas, populateInBackground);
     },
@@ -214,18 +254,25 @@ const makeCachingDirectory = (dir, cachedQid, cas, populateInBackground) => {
     },
     async mkdir(name, opts) {
       const { node, qid } = await resolveNodeWithQid(E(dir).mkdir(name, opts));
-      return makeCachingDirectory(node, qid, cas, populateInBackground);
+      return makeCachingDirectory(
+        node,
+        qid,
+        cas,
+        populateInBackground,
+        wrapperToInner,
+      );
     },
     async unlink(name) {
       return E(dir).unlink(name);
     },
     async rename(oldName, newParent, newName) {
-      // `newParent` may be a wrapped Directory; the underlying
-      // implementation's `rename` guard uses `M.await` to accept
-      // remotables. Passing the wrapped cap through is fine because
-      // it satisfies the `Directory` shape; the underlying impl
-      // checks for same-FS via its own brand machinery.
-      return E(dir).rename(oldName, newParent, newName);
+      // The underlying disk-backed and Mount-adapted impls identify
+      // same-FS targets via a private `WeakMap.get(newParent)`
+      // keyed on the inner exo, so forwarding the wrapper would
+      // raise EXDEV. Look up the inner; fall back to forwarding the
+      // raw value (covers callers passing inner caps directly).
+      const inner = wrapperToInner.get(newParent) || newParent;
+      return E(dir).rename(oldName, inner, newName);
     },
     async fsync() {
       return E(dir).fsync();
@@ -237,6 +284,8 @@ const makeCachingDirectory = (dir, cachedQid, cas, populateInBackground) => {
       return `No documentation for method ${q(method)}.`;
     },
   });
+  wrapperToInner.set(exo, dir);
+  return exo;
 };
 
 /**

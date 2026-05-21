@@ -41,6 +41,12 @@ export const makeFsBridge9p = ({ fs, socketPath }) => {
   const sockets = new Set();
   let started = false;
   let stopped = false;
+  // One AbortController per bridge instance: `stop()` aborts it,
+  // and every active `serveConnection` listens for the abort to
+  // short-circuit any in-flight dispatch. Without this signal, a
+  // long-running awaited op inside a dispatcher would have to
+  // wait for the socket-close cascade before halting.
+  const cancel = new AbortController();
 
   return makeExo('FsBridge9p', BridgeInterface, {
     async start() {
@@ -50,7 +56,7 @@ export const makeFsBridge9p = ({ fs, socketPath }) => {
       server = net.createServer({ allowHalfOpen: false }, sock => {
         sockets.add(sock);
         sock.on('close', () => sockets.delete(sock));
-        serveConnection({ fs, socket: sock });
+        serveConnection({ fs, socket: sock, signal: cancel.signal });
       });
       await new Promise((resolve, reject) => {
         server?.once('error', reject);
@@ -65,6 +71,10 @@ export const makeFsBridge9p = ({ fs, socketPath }) => {
     async stop() {
       if (stopped) return;
       stopped = true;
+      // Signal every active connection first so dispatches in
+      // flight see `closed = true` on the next await, *before*
+      // we tear the sockets out from under them.
+      cancel.abort();
       for (const sock of sockets) sock.destroy();
       sockets.clear();
       if (server) {

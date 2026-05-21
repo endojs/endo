@@ -177,8 +177,9 @@ export const toSafeNumber = (value, name) => {
  * `O_TRUNC`); they have no meaning without write access. Coerce
  * them to imply write so a caller can't accidentally land a
  * truncate-only handle that can't subsequently write its
- * replacement bytes. If neither read nor write end up set, fall
- * back to read (a handle with no access flag is useless).
+ * replacement bytes. A handle with neither read nor write set
+ * is useless; reject with EINVAL rather than silently flipping
+ * one on.
  *
  * @param {any} opts
  * @returns {{ read: boolean, write: boolean, append: boolean, truncate: boolean }}
@@ -190,12 +191,15 @@ export const computeOpenMode = opts => {
   if (o.read === true) read = true;
   else if (o.read === false) read = false;
   else read = !write;
-  const mode = {
+  if (!read && !write) {
+    throw makeError(
+      X`EINVAL: open requires at least one of read or write to be true`,
+    );
+  }
+  return {
     read,
     write,
     append: !!o.append,
     truncate: !!o.truncate,
   };
-  if (!mode.read && !mode.write) mode.read = true;
-  return mode;
 };

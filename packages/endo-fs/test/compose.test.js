@@ -175,7 +175,8 @@ test('namespace exposes named children as mount points', async t => {
   t.is(await readFile(subA, 'a-file'), 'A');
   t.is(await readFile(subB, 'b-file'), 'B');
 
-  const entries = await collectStream(await E(await E(root).list()).stream());
+  const cursor = await E(root).list();
+  const entries = await collectStream(await E(cursor).stream());
   t.deepEqual(entries.map(e => e.name).sort(), ['a', 'b']);
 });
 
@@ -224,12 +225,14 @@ test('compose: list merges and applies whiteouts', async t => {
   const cow = compose(layer, backing);
   const root = await E(cow).root();
   // Initial: all three visible.
-  let entries = await collectStream(await E(await E(root).list()).stream());
+  let cursor = await E(root).list();
+  let entries = await collectStream(await E(cursor).stream());
   t.deepEqual(entries.map(e => e.name).sort(), ['a', 'b', 'c']);
 
   // Whiteout 'b' via the composed unlink.
   await E(root).unlink('b');
-  entries = await collectStream(await E(await E(root).list()).stream());
+  cursor = await E(root).list();
+  entries = await collectStream(await E(cursor).stream());
   t.deepEqual(entries.map(e => e.name).sort(), ['a', 'c']);
 
   // Subsequent lookup is ENOENT.

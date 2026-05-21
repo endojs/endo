@@ -33,13 +33,16 @@ import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { makeError, X, q } from '@endo/errors';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
 import {
   FilesystemInterface,
   DirectoryInterface,
   CursorInterface,
   NodeWatcherInterface,
-} from './guards.js';
+} from './type-guards.js';
 
 /**
  * Opaque tag stamped onto every Filesystem this module hands out.
@@ -53,6 +56,130 @@ import {
 const tagSets = new WeakMap();
 
 const fresh = () => Symbol('endo-fs:tag');
+
+/**
+ * Build a `NodeWatcher` that subscribes to each of `participants`'
+ * `watch()` and interleaves their events into one stream. `cancel()`
+ * cancels every participant's underlying watcher.
+ *
+ * @param {object[]} participants  caps to call `.watch()` on
+ */
+const makeMergedWatcher = async participants => {
+  const watchers = await Promise.all(
+    participants.map(p => E(p).watch()),
+  );
+  const streams = await Promise.all(
+    watchers.map(w => E(w).events()),
+  );
+
+  /** @type {any[]} */
+  const queue = [];
+  /** @type {Array<(r: IteratorResult<any>) => void>} */
+  const waiters = [];
+  let active = streams.length;
+  let cancelled = false;
+
+  const yieldNext = value => {
+    if (waiters.length > 0) {
+      const w = /** @type {(r: IteratorResult<any>) => void} */ (
+        waiters.shift()
+      );
+      w({ value, done: false });
+    } else {
+      queue.push(value);
+    }
+  };
+
+  const finishOne = () => {
+    active -= 1;
+    if (active <= 0 && waiters.length > 0) {
+      for (const w of waiters) w({ value: undefined, done: true });
+      waiters.length = 0;
+    }
+  };
+
+  for (const stream of streams) {
+    void (async () => {
+      try {
+        for await (const ev of iterateReader(stream)) {
+          if (cancelled) break;
+          yieldNext(ev);
+        }
+      } catch {
+        // Swallow per-participant failures; the merge stays alive
+        // as long as any participant produces events.
+      } finally {
+        finishOne();
+      }
+    })();
+  }
+
+  const cancelAll = async () => {
+    cancelled = true;
+    await Promise.allSettled(watchers.map(w => E(w).cancel()));
+    // Unblock anyone still waiting.
+    for (const w of waiters) w({ value: undefined, done: true });
+    waiters.length = 0;
+  };
+
+  const mergedIter = harden({
+    async next() {
+      if (queue.length > 0) {
+        return harden({ value: queue.shift(), done: false });
+      }
+      if (active <= 0 || cancelled) {
+        return harden({ value: undefined, done: true });
+      }
+      return new Promise(resolve => waiters.push(resolve));
+    },
+    async return(value) {
+      await cancelAll();
+      return harden({ value, done: true });
+    },
+    [Symbol.asyncIterator]() {
+      return mergedIter;
+    },
+  });
+
+  return makeExo('NodeWatcher', NodeWatcherInterface, {
+    async events() {
+      return readerFromIterator(mergedIter);
+    },
+    async cancel() {
+      await cancelAll();
+    },
+  });
+};
+
+/**
+ * Aggregate `statfs` results across a set of participants. Each
+ * participant's stats are summed, so a `namespace({ a, b })`
+ * reports the union of the two mounts' totals and free space. For
+ * `compose(layer, backing)` the sum represents "what's reachable
+ * across the union"; writes still only target the layer, so a
+ * caller treating `freeBytes` as writable headroom should consult
+ * the layer's `statfs` directly when that distinction matters.
+ *
+ * @param {object[]} participants
+ */
+const aggregateStatfs = async participants => {
+  const results = await Promise.allSettled(
+    participants.map(p => E(p).statfs()),
+  );
+  let totalBytes = 0n;
+  let freeBytes = 0n;
+  let availableBytes = 0n;
+  for (const r of results) {
+    if (r.status !== 'fulfilled' || !r.value) continue;
+    const v = /** @type {any} */ (r.value);
+    if (typeof v.totalBytes === 'bigint') totalBytes += v.totalBytes;
+    if (typeof v.freeBytes === 'bigint') freeBytes += v.freeBytes;
+    if (typeof v.availableBytes === 'bigint') {
+      availableBytes += v.availableBytes;
+    }
+  }
+  return harden({ totalBytes, freeBytes, availableBytes });
+};
 
 /**
  * Return the tag set for a Filesystem cap. Auto-registers any cap
@@ -402,7 +529,7 @@ export const bind = (host, mountPath, guest) => {
       throw makeError(X`ENOTSUP: bind has a single root, not ${q(viewName)}`);
     },
     async statfs() {
-      return E(host).statfs();
+      return aggregateStatfs([host, guest]);
     },
     help: method =>
       method === undefined
@@ -545,12 +672,7 @@ export const namespace = mounts => {
       return E(m).root();
     },
     async statfs() {
-      // Aggregate would need cross-mount stats; report zeros for v1.
-      return harden({
-        totalBytes: 0n,
-        freeBytes: 0n,
-        availableBytes: 0n,
-      });
+      return aggregateStatfs(participants);
     },
     help: method =>
       method === undefined
@@ -648,9 +770,7 @@ export const compose = (layer, backing, _opts = {}) => {
     if (!layerDir) return false;
     const cursor = await E(layerDir).list();
     const stream = await E(cursor).stream();
-    for await (const entry of /** @type {AsyncIterable<any>} */ (
-      (await import('@endo/exo-stream/iterate-reader.js')).iterateReader(stream)
-    )) {
+    for await (const entry of iterateReader(stream)) {
       if (entry.name === name) return true;
     }
     return false;
@@ -664,24 +784,46 @@ export const compose = (layer, backing, _opts = {}) => {
     const cursor = await E(layerDir).list();
     const stream = await E(cursor).stream();
     const out = new Map();
-    for await (const entry of /** @type {AsyncIterable<any>} */ (
-      (await import('@endo/exo-stream/iterate-reader.js')).iterateReader(stream)
-    )) {
+    for await (const entry of iterateReader(stream)) {
       out.set(entry.name, entry);
     }
     return out;
   };
 
   /**
-   * @param {object | null} layerDir
+   * @param {object | null} initialLayerDir
    * @param {object | null} backingDir
    * @param {string[]} path
    */
-  function makeComposedDir(layerDir, backingDir, path) {
+  function makeComposedDir(initialLayerDir, backingDir, path) {
+    let layerDir = initialLayerDir;
     const reqDir = () => {
       if (!layerDir && !backingDir) {
         throw makeError(X`ENOENT: composed directory not present`);
       }
+    };
+
+    // Auto-copy-up: when the layer doesn't yet have a directory at
+    // this composed path but a mutation arrives, walk the layer from
+    // root and `mkdir` each missing segment to mint a matching
+    // directory chain. EEXIST along the way is benign — only the
+    // leaf needs to be writable. Returns the layer Directory cap at
+    // `path`, and caches it on the closure so subsequent mutations
+    // skip the walk.
+    const materializeLayerDir = async () => {
+      if (layerDir) return layerDir;
+      let cur = await E(layer).root();
+      for (const seg of path) {
+        try {
+          cur = await E(cur).mkdir(seg, {});
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!/EEXIST/.test(msg)) throw e;
+          cur = await E(cur).lookup(seg);
+        }
+      }
+      layerDir = cur;
+      return cur;
     };
     return makeExo('Directory', DirectoryInterface, {
       getQid() {
@@ -700,19 +842,18 @@ export const compose = (layer, backing, _opts = {}) => {
       },
       async setAttrs(updates) {
         reqDir();
-        // Always write to the layer; if absent, copy-up the dir.
-        if (!layerDir) {
-          throw makeError(
-            X`EROFS: layer absent — cannot setAttrs on backing-only directory`,
-          );
-        }
-        return E(layerDir).setAttrs(updates);
+        const ld = await materializeLayerDir();
+        return E(ld).setAttrs(updates);
       },
       async watch() {
-        // Merge watches: prefer the layer's (where most mutations
-        // occur). v1 returns the layer's watcher only.
-        if (layerDir) return E(layerDir).watch();
-        return E(backingDir).watch();
+        const participants = [];
+        if (layerDir) participants.push(layerDir);
+        if (backingDir) participants.push(backingDir);
+        if (participants.length === 0) {
+          throw makeError(X`ENOENT: composed directory not present`);
+        }
+        if (participants.length === 1) return E(participants[0]).watch();
+        return makeMergedWatcher(participants);
       },
       async xattrs() {
         if (layerDir) return E(layerDir).xattrs();
@@ -767,11 +908,7 @@ export const compose = (layer, backing, _opts = {}) => {
         if (!opaque && backingDir) {
           const backingCursor = await E(backingDir).list();
           const stream = await E(backingCursor).stream();
-          for await (const entry of /** @type {AsyncIterable<any>} */ (
-            (await import('@endo/exo-stream/iterate-reader.js')).iterateReader(
-              stream,
-            )
-          )) {
+          for await (const entry of iterateReader(stream)) {
             if (!layerNames.has(whiteoutName(entry.name))) {
               merged.set(entry.name, entry);
             }
@@ -808,40 +945,37 @@ export const compose = (layer, backing, _opts = {}) => {
       },
       async create(name, opts) {
         reqDir();
-        if (!layerDir) {
-          throw makeError(X`EROFS: composed directory has no writable layer`);
-        }
+        const ld = await materializeLayerDir();
         // Drop any whiteout marker for this name.
-        const layerNames = await layerEntries(layerDir);
+        const layerNames = await layerEntries(ld);
         if (layerNames.has(whiteoutName(name))) {
           try {
-            await E(layerDir).unlink(whiteoutName(name));
+            await E(ld).unlink(whiteoutName(name));
           } catch {
             // ignore
           }
         }
-        return E(layerDir).create(name, opts);
+        return E(ld).create(name, opts);
       },
       async mkdir(name, opts) {
         reqDir();
-        if (!layerDir) {
-          throw makeError(X`EROFS: composed directory has no writable layer`);
-        }
-        const layerNames = await layerEntries(layerDir);
+        const ld = await materializeLayerDir();
+        const layerNames = await layerEntries(ld);
         if (layerNames.has(whiteoutName(name))) {
           try {
-            await E(layerDir).unlink(whiteoutName(name));
+            await E(ld).unlink(whiteoutName(name));
           } catch {
             // ignore
           }
         }
-        const newDir = await E(layerDir).mkdir(name, opts);
+        const newDir = await E(ld).mkdir(name, opts);
         return wrapDir(newDir, null, [...path, name]);
       },
       async unlink(name) {
         reqDir();
         // If the layer has the entry, remove it. If the backing has
-        // it, mint a whiteout marker.
+        // it, mint a whiteout marker (after materializing the layer
+        // chain so the marker has somewhere to live).
         const layerNames = await layerEntries(layerDir);
         if (layerNames.has(name)) {
           await E(layerDir).unlink(name);
@@ -854,25 +988,92 @@ export const compose = (layer, backing, _opts = {}) => {
         if (!backingHas) {
           throw makeError(X`ENOENT: ${q(name)}`);
         }
-        // Create whiteout in layer.
-        if (!layerDir) {
-          throw makeError(X`EROFS: no writable layer to record whiteout`);
-        }
-        const opened = await E(layerDir).create(whiteoutName(name), {});
+        const ld = await materializeLayerDir();
+        const opened = await E(ld).create(whiteoutName(name), {});
         // Stamp the whiteout file with the sentinel bytes.
         const writer = await E(opened).write(0n);
-        const { iterateBytesWriter } =
-          await import('@endo/exo-stream/iterate-bytes-writer.js');
         const w = iterateBytesWriter(writer);
         await w.next(new TextEncoder().encode(WHITEOUT_PREFIX));
         await w.return();
         await E(opened).close();
       },
-      async rename(_old, _np, _n) {
-        // Rename across a CoW boundary is non-trivial; defer.
-        throw makeError(
-          X`ENOSYS: rename in composed Filesystem not implemented (use copy + unlink instead)`,
-        );
+      async rename(oldName, newParent, newName) {
+        reqDir();
+        // CoW rename is copy + unlink. Source bytes come from layer
+        // (if present) or backing; destination is created via
+        // `newParent.create(newName)` so a CoW destination picks up
+        // auto-copy-up too. After the copy we drop the layer entry
+        // or paint a whiteout over the backing entry.
+        //
+        // Directory renames would need recursive copy-up; we leave
+        // those as ENOSYS for now.
+        const layerNames = await layerEntries(layerDir);
+        if (layerNames.has(whiteoutName(oldName))) {
+          throw makeError(X`ENOENT: ${q(oldName)} (whiteout)`);
+        }
+        const opaque = layerNames.has(OPAQUE_NAME);
+        let src = null;
+        if (layerNames.has(oldName)) {
+          src = await E(layerDir).lookup(oldName);
+        } else if (!opaque && backingDir) {
+          src = await lookupSafe(backingDir, oldName);
+        }
+        if (!src) {
+          throw makeError(X`ENOENT: ${q(oldName)}`);
+        }
+        const srcQid = await E(src).getQid();
+        if (srcQid.type !== 'file') {
+          throw makeError(
+            X`ENOSYS: rename of non-file ${q(oldName)} in composed Filesystem not implemented`,
+          );
+        }
+        const srcOh = await E(src).open({ read: true });
+        try {
+          const dstOh = await E(newParent).create(newName, {});
+          try {
+            const attrs = await E(src).getAttrs();
+            const size = /** @type {bigint} */ (attrs.size);
+            if (size > 0n) {
+              // Read the full source in one batch; chunked emission
+              // for very large files is deferred (same caveat as
+              // `Layer.apply` — ROADMAP §2.2 streaming).
+              const reader = await E(srcOh).read(0n, size);
+              const writer = await E(dstOh).write(0n);
+              const w = iterateBytesWriter(writer);
+              for await (const chunk of iterateBytesReader(reader)) {
+                await w.next(chunk);
+              }
+              await w.return();
+            }
+          } finally {
+            await E(dstOh).close();
+          }
+        } finally {
+          await E(srcOh).close();
+        }
+
+        // Remove the source. If only the layer has it, drop the
+        // entry; otherwise mint a whiteout so the backing entry
+        // doesn't shine through.
+        if (layerNames.has(oldName)) {
+          await E(layerDir).unlink(oldName);
+        }
+        let backingHas = false;
+        if (backingDir && !opaque) {
+          backingHas = await hasName(backingDir, oldName);
+        }
+        if (backingHas) {
+          const ld = await materializeLayerDir();
+          // After materialization, the whiteout file lands in the
+          // layer. If a same-name layer entry was just removed above,
+          // the whiteout creates a fresh marker.
+          const opened = await E(ld).create(whiteoutName(oldName), {});
+          const writer = await E(opened).write(0n);
+          const w = iterateBytesWriter(writer);
+          await w.next(new TextEncoder().encode(WHITEOUT_PREFIX));
+          await w.return();
+          await E(opened).close();
+        }
       },
       async fsync() {
         if (layerDir) await E(layerDir).fsync();
@@ -896,7 +1097,7 @@ export const compose = (layer, backing, _opts = {}) => {
       );
     },
     async statfs() {
-      return E(layer).statfs();
+      return aggregateStatfs([layer, backing]);
     },
     help: method =>
       method === undefined

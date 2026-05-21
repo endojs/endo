@@ -28,4 +28,4 @@ export {
   PassableReaderInterface,
   PassableBytesReaderInterface,
   PassableBytesWriterInterface,
-} from './guards.js';
+} from './type-guards.js';

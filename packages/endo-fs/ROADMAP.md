@@ -42,33 +42,16 @@ deliver X" can find the gap in one place.
 
 ### 1.2 Composition primitives — known functional gaps
 
-These are documented in DESIGN.md §10.1's weakness table; pulling them
-into one place here. The corresponding `WEAKNESS:` tests in
-`test/configurations.test.js` and `test/optimal-querying.test.js`
-pin the current behavior so the gaps don't regress silently.
-
-- **`compose.rename` returns `ENOSYS`.**
-  A rename that crosses the CoW boundary needs whiteout + create +
-  possibly copy-up.
-  Workaround: caller does `lookup` → `read` → `create` → `write` →
-  `unlink` manually.
-  Pinned by `WEAKNESS [functional]: compose rename is ENOSYS` in
-  `test/optimal-querying.test.js`.
-- **`compose.watch` only surfaces layer events, not backing events.**
-  `compose` returns `layerDir.watch()`; backing mutations don't fire.
-  Workaround: subscribe to each participant separately.
-  Pinned by `WEAKNESS: watch on a composed view sees only the
-  participant we watched` in `test/configurations.test.js`.
-- **`compose` doesn't auto-copy-up parent directories.**
-  Creating a new file under a directory that exists only in the
-  backing errors `EROFS`.
-  Workaround: pre-`mkdir` matching parent paths in the layer.
-  Pinned by `WEAKNESS: compose does not auto-copy-up parent dirs that
-  exist only in the backing` in `test/configurations.test.js`.
 - **`Layer.apply` is not transactional.**
   A failure partway through leaves the target in a partial state.
   v2 plan in DESIGN.md §10: `apply` returns a sub-cap with
   `commit()` / `rollback()`.
+- **`compose.rename` is file-only.**
+  Files rename via copy-up + unlink (the source is read, the
+  destination is created through `newParent.create(...)`, then the
+  source is removed or whiteouted). Directory rename still throws
+  `ENOSYS` because it would require a recursive copy-up of the
+  whole subtree.
 
 ### 1.3 Surface gaps that aren't where the design claims they are
 
@@ -82,13 +65,6 @@ pin the current behavior so the gaps don't regress silently.
   No `flock(2)` integration; locks don't propagate to other OS
   processes touching the same file.
   Useful only for cooperating clients within the same vat.
-- **`Filesystem.statfs` doesn't aggregate across mounts.**
-  `namespace`/`bind` return zeros from their participants' `statfs`;
-  no cross-mount aggregation. In-memory and from-mount also return
-  zeros — only `node-fs` reports real values.
-  Pinned by `WEAKNESS [functional]: Filesystem.statfs is
-  metadata-only — no aggregation across mounts` in
-  `test/optimal-querying.test.js`.
 - **`Cursor.skip(n)` is O(n) for `in-memory` and `from-mount`.**
   The interface contract permits O(log n) on sorted-index backings,
   but only the disk-backed implementation could realistically do
@@ -211,15 +187,10 @@ Owned by `@endo/endo-fs`. None of these are blocking the current PR.
 
 ### 2.2 Internal refactors
 
-- **Consider deleting `src/guards.js`.**
-  Per kumavis review (PR #326): "we should consider deleting this
-  file. instead we can look to replace mount with this filesystem in
-  an upcoming change."
-  Currently this module centralises every `M.interface` consumed by
-  the implementations; folding the guards into the implementations
-  (or removing them when the Mount-replacement lands) is the
-  refactor.
-  Decision deferred pending §3 below.
+- **`src/type-guards.js` naming.**
+  Renamed from `guards.js` per the `type-guards.js` convention
+  (kriskowal review on PR #326). Centralises every `M.interface`
+  consumed by the implementations.
 
 - **`assertChildName` consistency across the three backings.**
   Currently exported from `shared/helpers.js` and used by `node-fs`
@@ -340,8 +311,10 @@ The refactor naturally splits into phases that can land independently:
 6. **Deprecate `@endo/daemon/src/mount.js`.**
    Once all callers route through `provideRemoteFs` + the compat
    wrapper, drop the original Mount implementation.
-7. **Delete `from-mount.js` and (per kumavis) consider deleting
-   `guards.js`** in the same wave.
+7. **Delete `from-mount.js`** in the same wave.
+   Per kumavis review (PR #326): "we should consider deleting this
+   file. instead we can look to replace mount with this filesystem
+   in an upcoming change."
    The from-mount adapter exists only to bridge old → new;
    once Mount is gone, it has no purpose.
 

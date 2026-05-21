@@ -77,7 +77,8 @@ test('mkdir + lookup + listing', async t => {
   const subQid = await E(sub).getQid();
   t.is(subQid.type, 'directory');
 
-  const entries = await collectStream(await E(await E(root).list()).stream());
+  const cursor = await E(root).list();
+  const entries = await collectStream(await E(cursor).stream());
   t.deepEqual(
     entries.map(e => e.name),
     ['sub'],
@@ -149,9 +150,8 @@ test('rename within a parent (disk-backed)', async t => {
   await E(root).rename('a', root, 'b');
   await t.throwsAsync(() => E(root).lookup('a'), { message: /ENOENT/ });
   const b = await E(root).lookup('b');
-  const bytes = await collectBytes(
-    await E(await E(b).open({ read: true })).read(0n, 64n),
-  );
+  const oh = await E(b).open({ read: true });
+  const bytes = await collectBytes(await E(oh).read(0n, 64n));
   t.is(fromUtf8(bytes), 'hi');
 });
 
@@ -218,34 +218,20 @@ test('xattrs throw ENOSYS on disk (v1 limitation)', async t => {
 });
 
 test('watch fires events when a child is created in the directory', async t => {
+  t.timeout(5_000);
   const fs = await setupFs(t);
   const root = await E(fs).root();
   const watcher = await E(root).watch();
   const events = iterateReader(await E(watcher).events());
+  t.teardown(() => E(watcher).cancel());
 
   // Trigger a real fs.watch event.
   const opened = await E(root).create('triggered', {});
   await E(opened).close();
 
-  // Race a take against a short timeout to bound wall-clock.
-  const next = await Promise.race([
-    events.next().then(r => ({ kind: 'value', r })),
-    new Promise(resolve =>
-      // eslint-disable-next-line no-undef
-      setTimeout(() => resolve({ kind: 'timeout' }), 1000),
-    ),
-  ]);
-  await E(watcher).cancel();
-
-  if (next.kind === 'timeout') {
-    // fs.watch may not signal on every platform/filesystem (e.g.
-    // some tmpfs configurations don't notify). Treat as a soft
-    // skip rather than a hard failure.
-    t.pass('fs.watch did not signal within timeout; platform-specific');
-    return;
-  }
-  t.truthy(next.r.value);
-  t.truthy(next.r.value.kind);
+  const next = await events.next();
+  t.truthy(next.value);
+  t.truthy(next.value.kind);
 });
 
 test('setAttrs rejects owner; allows mtime updates', async t => {

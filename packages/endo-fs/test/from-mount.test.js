@@ -258,7 +258,8 @@ test('mkdir + list + lookup round-trips a sub-directory', async t => {
   const sub = await E(root).lookup('sub');
   t.is((await E(sub).getQid()).type, 'directory');
 
-  const entries = await collectStream(await E(await E(root).list()).stream());
+  const cursor = await E(root).list();
+  const entries = await collectStream(await E(cursor).stream());
   t.deepEqual(
     entries.map(e => e.name),
     ['sub'],
@@ -289,9 +290,8 @@ test('rename across directories via Mount.move', async t => {
   await E(subA).rename('thing', subB, 'thing');
   await t.throwsAsync(() => E(subA).lookup('thing'), { message: /ENOENT/ });
   const moved = await E(subB).lookup('thing');
-  const bytes = await collectBytes(
-    await E(await E(moved).open({ read: true })).read(0n, 64n),
-  );
+  const oh = await E(moved).open({ read: true });
+  const bytes = await collectBytes(await E(oh).read(0n, 64n));
   t.is(fromUtf8(bytes), 'payload');
 });
 

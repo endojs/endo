@@ -91,6 +91,31 @@ adapter (`@endo/endo-fs/src/from-mount.js`) is on the roadmap so
 existing `Mount`-shaped caps can be re-projected without a
 storage-tier change.
 
+### 2.1 Relation to `@endo/platform/fs`
+
+`@endo/platform/src/fs/interfaces.js` defines a separate
+`File` / `Directory` interface pair (plus `ReadableBlob`,
+`SnapshotBlob`, `ReadableTree`, `SnapshotTree`, `ContentStore`,
+`SnapshotStore`, `TreeWriter`). Names overlap with this package
+but the contracts diverge — they are *not* reusable as-is, and the
+endo-fs guards stay separate:
+
+| Concept | `@endo/platform/fs` | `@endo/endo-fs` |
+|---|---|---|
+| `Directory` shape | Path-array verbs from a single root: `has(...path)`, `list(...path)`, `lookup(path)`, `write(path, blob)`, `move(src, dst)`, `copy(src, dst)`, `makeDirectory(path)`. No subtype carved out for the directory cap itself. | One-step verbs on a cap: `lookup(name) → Directory \| File`, `mkdir(name)`, `create(name)`, `unlink(name)`, `rename(name, newParent, newName)`. Pipelinable `E(dir).lookup(a).lookup(b)…` chains. |
+| `File` shape | Whole-blob ops: `text()`, `json()`, `streamBase64()`, `writeText(s)`, `writeBytes(blob)`, `append(s)`, `readOnly()`, `snapshot()`. | `open(opts) → OpenFile` for range I/O (`read(offset, length)`, `write(offset)`, `truncate`, `fsync`, `lock`), `snapshot() → BlobRef`, `watch()`, `xattrs()`. |
+| Snapshot model | `SnapshotBlob` / `SnapshotTree` carry an explicit `sha256()` and live in a separate `SnapshotStore` cap. | `Node.snapshot() → BlobRef` with `getInfo() → { algorithm, hash, size }`. CAS-cached reads are a separate composition layer (`withCachedReads`, ROADMAP §2.2). |
+| Identity / qid | None; identity is the sha256 of a snapshot. | Eager `qid = { type, pathId, version }` on every live `Directory` / `File` (cf. §4.10). |
+
+Both packages depend on `@endo/exo`, `@endo/patterns`, and
+`@endo/exo-stream`. The reusable substrate is at the
+`PassableReader` / `PassableBytesReader` / `PassableBytesWriter`
+level (in `@endo/exo-stream`), which is shared. The
+`File` / `Directory` interface guards themselves are not shared:
+platform/fs is a snapshot/content-store surface; endo-fs is a
+live pipelinable filesystem surface, and the two would not satisfy
+a unified guard.
+
 ---
 
 ## 3. Design principles
@@ -1072,10 +1097,7 @@ and a richer primitive is the only way to collapse it.
 | **No field-selection on `getAttrs`** | bandwidth | Full `Attrs` rides the wire even when caller only needs `size`. POSIX-style `statx` masks were deliberately omitted to keep the ocap shape clean; the cost is the unmasked transfer (one round-trip either way). |
 | **`Cursor.skip(n)` is O(n) in v1 implementations** | complexity | The contract permits O(log n) for sorted-index backings; in-memory and from-mount use the read-and-discard default. Wall-clock concern, not RT. |
 | **`watch + list` TOCTOU** | semantics | Mutations between `list()` and `watch()` calls aren't reflected in either. Caller-side workaround: watch first, then list, then reconcile against the event log. Same shape as inotify. |
-| **`watch()` on a composed view sees only the layer** | semantics | §8.7 promises merged events, but v1's `compose` returns `layerDir.watch()`. Backing mutations don't fire. Workaround: watch each participant. |
-| **`compose` doesn't auto-copy-up parent directories** | functional | Files copy up (§8.4); directories that exist only in the backing don't. Creating a NEW file under such a directory errors `EROFS`. Workaround: pre-mkdir matching parents in the layer. |
-| **`compose.rename` is `ENOSYS`** | functional | Rename across CoW boundary needs whiteout + create + maybe copy-up. Workaround: copy + unlink manually. |
-| **`Filesystem.statfs` doesn't aggregate across mounts** | functional | `namespace`/`bind` return zeros; no cross-mount aggregation. Workaround: query participants separately. |
+| **`compose.rename` is file-only** | functional | Files rename via copy-up + unlink (source bytes copied through `newParent.create`, then the source is removed or whiteouted). Directory rename still throws `ENOSYS` — would need recursive subtree copy-up. |
 
 #### What pipelining solves that earlier drafts called weaknesses
 
