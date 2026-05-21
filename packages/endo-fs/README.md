@@ -26,22 +26,39 @@ discovery RTT on repeat reads of unchanged files.
 Key pieces:
 
 - `makeInMemoryFilesystem` — ephemeral, all in JS.
-- `makeNodeFilesystem` — wraps `node:fs/promises`.
-- `mountAsFilesystem` — projects an `@endo/daemon` `Mount` as a `Filesystem`.
+- `makeNodeFilesystem` — wraps `node:fs/promises`; symlink-safe
+  containment via `realpath` + `O_NOFOLLOW` (no path-escape).
+- `mountAsFilesystem` — projects an `@endo/daemon` `Mount` as a
+  `Filesystem`.
 - `readOnly` — attenuator that rejects mutating verbs.
-- `compose` — copy-on-write union over a backing FS and a writable
-  layer.
+- `compose` — copy-on-write union over a backing FS and a
+  writable layer; `compose.rename` handles both files and
+  directories (recursive copy-up); `statfs` aggregates across
+  participants; `compose.watch` merges events from layer and
+  backing.
 - `makeLayer` — writable layer whose mutations can be diffed and
-  applied to another FS.
+  applied to another FS; `Layer.apply` is intentionally optimistic
+  (writes propagate eagerly; callers needing atomicity layer it
+  themselves).
 - `chroot` / `bind` / `namespace` / `emptyFilesystem` — structural
-  primitives, with eager cycle detection.
-- `makeMemoryCas` + `cacheBackedRead` — content-addressed-store
-  primitives for direct `BlobRef` consumers.
+  primitives with two-tier cycle detection (sync `Symbol`-based
+  for local participants, async brand-based for cross-CapTP).
+- `Directory.materialise(path, opts)` — server-side
+  `lookupOrCreate` across a path; one CapTP round-trip regardless
+  of depth.
+- `Directory.watchFrom()` — atomic `{ cursor, watcher }` mint;
+  closes the `list + watch` TOCTOU race.
+- `makeMemoryCas({ capacity? })` — content-addressed store with
+  optional LRU eviction.
+- `cacheBackedRead(blobRef, cas, { offset?, length? }?)` — direct
+  `BlobRef` consumer; range overload returns a slice of the
+  cached payload.
 - `withCachedReads(fs, cas)` — transparent CAS-backed read cache
   that drops into the composition algebra. Hash discovery
   pipelines alongside the speculative underlying read through one
-  CapTP batch, so a wrapper read costs one round-trip — same as
-  plain `read`, regardless of hit or miss.
+  CapTP batch (one RTT, hit or miss). With watch-based hash
+  invalidation, repeat reads of an unchanged cached file pay
+  **zero** RTT.
 
 POSIX-isms (permissions, owner, hard links, symlinks, `system.*` /
 `trusted.*` / `security.*` xattrs) are deliberately deferred to

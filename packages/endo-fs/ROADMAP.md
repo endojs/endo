@@ -173,12 +173,48 @@ Owned by `@endo/endo-fs`. None of these are blocking the current PR.
   Arbitrary cap-target edges; far future; documented so the base
   interface can be honest about what it excludes.
 
-### 2.2 Internal refactors
+### 2.2 Internal refactors and improvements landed
 
 - **`src/type-guards.js` naming.**
   Renamed from `guards.js` per the `type-guards.js` convention
   (kriskowal review on PR #326). Centralises every `M.interface`
   consumed by the implementations.
+- **Symlink-safe `makeNodeFilesystem`** (§1.4).
+  `realpath`-based containment on every leaf op + `O_NOFOLLOW` on
+  `create` / `open` so a leaf symlink can't hijack the open.
+  Closes the only outstanding security gap; was the prerequisite
+  for §3.3 phase 1 of the daemon refactor.
+- **`assertChildName` consistency across all three backings.**
+  In-memory now validates names on `lookup` / `create` / `mkdir`
+  / `unlink` / `rename`, matching node-fs and from-mount.
+- **Streaming `Layer.apply`.** `enumerateLayerOps` emits files
+  in 1-MiB chunks plus a terminal `truncate` instead of one
+  giant `Uint8Array`; bounds the per-op allocation and CTP_CALL
+  payload for files of arbitrary size.
+- **Range-only `cacheBackedRead({ offset, length })`.** Returns
+  a slice of the cached payload; still fetches the full blob on
+  a miss (CAS contract is whole-blob).
+- **LRU eviction for `makeMemoryCas({ capacity })`.** `put`
+  evicts least-recently-used on overflow; `get` re-inserts to
+  the back. Keeps memory bounded for long-running consumers.
+- **Watch-based hash cache in `withCachedReads`.** Subscribes to
+  each File's `watch()` at first read; subsequent reads with a
+  known hash and a still-cached payload pay zero RTT.
+- **`Directory.materialise(path, opts)` primitive** (§1.7
+  formerly).
+  Server-side lookup-or-create across N segments; one CapTP RTT
+  regardless of depth.
+- **`Directory.watchFrom() → { cursor, watcher }`** (§1.7
+  formerly).
+  Atomic snapshot + subscribe; closes the `list + watch` TOCTOU
+  race.
+- **Cross-CapTP cycle detection via `Filesystem.brands()`**
+  (§1.6).
+  Two-tier (sync `Symbol` for local + async `bigint`-set for
+  CapTP-marshalled participants).
+- **`compose` composition primitives** — `statfs` aggregation,
+  merged `watch` events, auto-copy-up of parent directories,
+  file-AND-directory `rename` via copy-up + whiteout.
 
 ### 2.3 More-realistic CAS / pipelined-rtt tests
 
@@ -227,11 +263,10 @@ or replace:
   library call, not a daemon-side provisioning verb.
 - **`ScratchMount`** — daemon-managed scratch directory.
   No endo-fs analogue.
-- **`realPath`-based confinement** (see §1.4).
-  `Mount.assertConfined` resolves symlinks before checking
-  containment.
-  When the refactor ports this into `makeNodeFilesystem` it closes
-  endo-fs's only outstanding security gap.
+- _(closed)_ **`realPath`-based confinement** — `makeNodeFilesystem`
+  now performs `realpath`-based containment on every leaf op with
+  `O_NOFOLLOW` on `create` / `open`. See §1.4 / §2.2. This was the
+  prerequisite for any daemon-side replacement; it's now in place.
 - **`ReadableTree` integration.**
   Mount-world has `ReadableTree.sha256()` for tree-level content
   addressing.
@@ -250,10 +285,10 @@ or replace:
 
 The refactor naturally splits into phases that can land independently:
 
-1. **Symlink-safe confinement in `makeNodeFilesystem`.**
-   Port Mount's `realPath`-based check.
-   This is the prerequisite — without it, the daemon-side replacement
-   would be a security regression.
+1. ✅ **Symlink-safe confinement in `makeNodeFilesystem`.**
+   _Landed in §1.4 / §2.2._ `realpath`-based containment on every
+   leaf op + `O_NOFOLLOW` on `create` / `open`. The prerequisite
+   for any daemon-side replacement is now in place.
 2. **`provideRemoteFs(path, petName, opts)` formula type.**
    Mirror `provideMount`'s formula lifecycle (disk-before-graph etc.
    per `@endo/daemon/CLAUDE.md`).

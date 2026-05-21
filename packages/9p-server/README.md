@@ -30,26 +30,43 @@ await bridge.start();
 
 `Twalk` for an N-segment path issues `E(cur).lookup(n0).lookup(n1)
 .lookup(...)` as one batch; each step's qid is requested in
-parallel via `E(intermediate).getQid()` and gathered with
-`Promise.allSettled` to support partial-success semantics. Every
-lookup `CTP_CALL` in the chain reaches the wire before any
-`CTP_RETURN` comes back — the structural pipelining property
-proven by `@endo/endo-fs/test/pipelined-rtt.test.js`.
+parallel via `E(intermediate).getQid()` during chain build, so
+every lookup + getQid `CTP_CALL` reaches the wire before any
+`CTP_RETURN` comes back. Results are collected by sequentially
+awaiting each `qidPromise` — same wall-clock as `Promise.allSettled`
+(the dispatches were already pipelined) but with first-failure
+early-exit semantics that 9P's partial-success `Twalk` requires.
+Structural property proven by `@endo/endo-fs/test/pipelined-rtt.test.js`.
 
-Each `qid` is pipelined alongside the `lookup` that produced its
-parent cap (`Promise.allSettled` over the chain), so the qid
-discovery shares the same round-trip as the walk. `getQid()` is
-sync on the responder but costs one RTT across CapTP — pipelining
-it into the same batch is the standard usage (see
+`getQid()` is sync on the responder but costs one RTT across
+CapTP — pipelining it into the same batch as the `lookup` that
+produced its parent cap is the standard usage (see
 `@endo/endo-fs/DESIGN.md` §4.10).
+
+Other handlers that pipeline two or three calls into one batch:
+
+- `Tattach`: `root()` + `getQid()` — one RTT instead of two.
+- `Tmkdir`: `mkdir()` + `getQid()` against the new-dir promise —
+  one RTT instead of two.
+- `Tlcreate`: `create()` + `lookup()` + `getQid()` all dispatched
+  in the same turn — one RTT instead of three.
 
 `Tread` against a file uses `OpenFile.read(offset, length)` →
 `PassableBytesReader`; bytes flow through `@endo/exo-stream`'s
 base64-on-the-wire framing (until CapTP gains native binary).
+Drained with `{ buffer: 1 }` so the producer pre-emits the first
+chunk without waiting for our sync — saves the per-chunk
+sync/ack round-trip for the common single-frame case.
 
 `Treaddir` drains an `OpenDirectory.list()` `Cursor` once per fid
 into a per-fid buffer that's paginated against the kernel's 9P
-offset cookie.
+offset cookie. Buffer is set to 64 entries so the cursor pre-acks
+ahead of our pulls — typical directory dumps drain in one batch
+rather than one-RTT-per-entry.
+
+`Twrite` pushes the chunk through `iterateBytesWriter` with
+`{ buffer: 1 }` so the single chunk this Twrite carries doesn't
+wait for the first ack.
 
 ## 9P operations
 
