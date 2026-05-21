@@ -3,54 +3,9 @@ import os from 'os';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
+import { renderPath, renderBanner } from '../render-retention-path.js';
 
 /** @import { RetentionPath } from '@endo/daemon' */
-
-/**
- * Render a single retention path in the human-readable form
- * documented in `designs/daemon-retention-paths.md` § CLI: endo
- * paths.
- *
- * @param {RetentionPath} path
- * @returns {string[]}
- */
-const renderPath = path => {
-  /** @type {string[]} */
-  const lines = [];
-  // Walk leaf-to-root so the topmost segment renders last (matches
-  // the design's example, which reads "rooted at endo" first).
-  const segments = [...path].reverse();
-  for (let i = 0; i < segments.length; i += 1) {
-    const seg = segments[i];
-    const isRoot = seg.type === 'root';
-    const members = (seg.groupMembers ?? []).join(', ');
-    const label =
-      isRoot && i === 0
-        ? `(root) ${members}`
-        : i === segments.length - 1
-          ? `(target) ${members}`
-          : members;
-    lines.push(`  ${label}`);
-    // Edge labels separating this segment from the next one
-    // downstream (i.e. closer to the target).
-    if (i < segments.length - 1) {
-      const next = segments[i + 1];
-      const labels = next.labels ?? [];
-      if (labels.length === 0) {
-        lines.push(`    ->`);
-      } else {
-        for (const lab of labels) {
-          if (lab.startsWith('pet:')) {
-            lines.push(`    "${lab.slice('pet:'.length)}"`);
-          } else {
-            lines.push(`    ->${lab}`);
-          }
-        }
-      }
-    }
-  }
-  return lines;
-};
 
 /**
  * @param {object} args
@@ -90,14 +45,7 @@ export const paths = async ({ name, agentNames, locator, json }) =>
     }
     for (let i = 0; i < retentionPaths.length; i += 1) {
       const rPath = retentionPaths[i];
-      // The root segment is the last element of the array per
-      // graph.js's listRetentionPaths contract.
-      const rootSeg = rPath[rPath.length - 1];
-      const isRooted = rootSeg && rootSeg.type === 'root';
-      const banner = isRooted
-        ? `Path ${i + 1} (rooted at GC root):`
-        : `Path ${i + 1}:`;
-      console.log(banner);
+      console.log(renderBanner(rPath, i));
       for (const line of renderPath(rPath)) {
         console.log(line);
       }

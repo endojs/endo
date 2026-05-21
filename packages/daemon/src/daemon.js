@@ -6068,6 +6068,21 @@ const makeDaemonCore = async (
       storeControllers.set(storeId, controller);
     }
 
+    /**
+     * Resolve the formula type for each member of a segment's group.
+     * Returns `'unknown'` for ids the daemon does not have a formula
+     * record for (collected or never-formulated), matching the
+     * graph-snapshot convention at the same site.
+     *
+     * @param {import('./graph.js').RetentionPathSegment} seg
+     * @returns {string[]}
+     */
+    const formulaTypesFor = seg =>
+      seg.groupMembers.map(memberId => {
+        const formula = formulaForId.get(memberId);
+        return formula ? formula.type : 'unknown';
+      });
+
     /** @type {import('./graph.js').RetentionPath[]} */
     const shaped = [];
     for (const path of rawPaths) {
@@ -6084,8 +6099,9 @@ const makeDaemonCore = async (
           segLabels !== undefined &&
           segLabels.length > 0 &&
           controller !== undefined;
+        const formulaTypes = formulaTypesFor(seg);
         if (!needsRename) {
-          shapedPath.push(seg);
+          shapedPath.push(harden({ ...seg, formulaTypes }));
         } else {
           /** @type {string[]} */
           const newLabels = [];
@@ -6119,6 +6135,7 @@ const makeDaemonCore = async (
             harden({
               ...seg,
               labels: newLabels,
+              formulaTypes,
             }),
           );
         }

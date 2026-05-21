@@ -14,6 +14,12 @@
  * @property {FormulaIdentifier} [referencedBy] - source group representative
  * @property {string[]} [labels] - edge labels from source
  * @property {'root'} [type] - present if this is a root group
+ * @property {string[]} [formulaTypes] - per-member formula type
+ *   (e.g. `pet-store`, `eval`, `endo`), in the same order as
+ *   `groupMembers`. Populated by the daemon's resolver pass; the
+ *   graph layer itself does not know formula types, so this field
+ *   is absent on raw segments and present after the daemon's
+ *   `listRetentionPaths` rewrite.
  */
 
 /** @typedef {RetentionPathSegment[]} RetentionPath */
