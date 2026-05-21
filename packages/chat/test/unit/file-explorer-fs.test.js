@@ -133,42 +133,76 @@ test('readFile truncates when size exceeds the preview cap', async t => {
 
 // ============ subscribeChanges ============
 
-test('subscribeChanges fires a change event when a file is created', async t => {
+test('subscribeChanges emits a watch-ready event once the subscription is live', async t => {
+  // The synthetic `watch-ready` event is what closes the
+  // `list()` + `watch()` TOCTOU race: consumers use it as a
+  // cue to take their directory snapshot under the now-active
+  // watcher. Pin its emission here so a regression that drops
+  // the signal is caught.
   const fs = makeMemoryFilesystem();
   const root = await E(fs).root();
 
-  /** @type {unknown[]} */
+  /** @type {Array<{ kind?: string }>} */
   const events = [];
   const unsubscribe = subscribeChanges(root, event => {
-    events.push(event);
+    events.push(/** @type {{ kind?: string }} */ (event));
   });
   t.teardown(unsubscribe);
 
-  // The watcher is established asynchronously; give it a beat
-  // before mutating so the event isn't dropped.
-  await new Promise(resolve => setTimeout(resolve, 50));
+  await waitFor(() => events.some(e => e.kind === 'watch-ready'));
+  t.pass();
+});
+
+test('subscribeChanges reports a mutation event after watch-ready', async t => {
+  const fs = makeMemoryFilesystem();
+  const root = await E(fs).root();
+
+  /** @type {Array<{ kind?: string }>} */
+  const events = [];
+  const unsubscribe = subscribeChanges(root, event => {
+    events.push(/** @type {{ kind?: string }} */ (event));
+  });
+  t.teardown(unsubscribe);
+
+  // Wait until the subscription is fully live before mutating —
+  // any mutation observed after `watch-ready` must surface as a
+  // real watcher event (the in-memory adapter emits
+  // `child-added` on `mkdir`/`create`).
+  await waitFor(() => events.some(e => e.kind === 'watch-ready'));
   await createFile(root, 'new.txt');
-  await waitFor(() => events.length >= 1);
-  t.true(events.length >= 1);
+  await waitFor(() => events.some(e => e.kind === 'child-added'));
+  t.pass();
 });
 
 test('subscribeChanges unsubscribe stops further events', async t => {
   const fs = makeMemoryFilesystem();
   const root = await E(fs).root();
 
-  /** @type {unknown[]} */
+  /** @type {Array<{ kind?: string }>} */
   const events = [];
   const unsubscribe = subscribeChanges(root, event => {
-    events.push(event);
+    events.push(/** @type {{ kind?: string }} */ (event));
   });
-  await new Promise(resolve => setTimeout(resolve, 50));
+  // Wait until watcher is established (watch-ready arrived) so
+  // we're measuring post-establishment behaviour, not the
+  // setup race.
+  await waitFor(() => events.some(e => e.kind === 'watch-ready'));
   unsubscribe();
-  // After unsubscribe, post a mutation; the events list should
-  // remain (eventually) empty of NEW entries.
   const before = events.length;
   await createFile(root, 'after-unsub.txt');
   await new Promise(resolve => setTimeout(resolve, 100));
   t.is(events.length, before);
+});
+
+test('subscribeChanges unsubscribe is safe before the watcher is established', async t => {
+  // Cancelling synchronously after subscribeChanges returns —
+  // i.e. before the async pump has obtained a watcher cap —
+  // must not throw. The pump observes `cancelled` and cleans
+  // up whatever it minted.
+  const fs = makeMemoryFilesystem();
+  const root = await E(fs).root();
+  const unsubscribe = subscribeChanges(root, () => {});
+  t.notThrows(unsubscribe);
 });
 
 // ============ makeReadOnlyView / makeFilesystemLayer ============

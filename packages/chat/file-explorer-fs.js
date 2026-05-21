@@ -290,7 +290,11 @@ export const writeFileText = async (fileCap, text) => {
     }
     await sink.return();
   } finally {
-    await E(openFile).close();
+    // Best-effort: never let close() mask the primary write error.
+    // Mirrors `readFile`'s finally-close discipline above.
+    await E(openFile)
+      .close()
+      .catch(() => {});
   }
 };
 harden(writeFileText);
@@ -353,33 +357,26 @@ export const renameEntry = async (
 harden(renameEntry);
 
 /**
- * Mint a change-event watcher for a directory, preferring
- * `watchFrom()` (which atomically mints `{ cursor, watcher }`) over
- * the legacy `watch()` so callers using the cursor for the initial
- * listing close the `list()`+`watch()` TOCTOU race. Falls back to
- * `watch()` for adapters that don't implement `watchFrom`.
+ * Subscribe to a directory's change events with TOCTOU-free setup.
+ * Returns an unsubscribe function that is safe to call before the
+ * watcher has finished establishing.
  *
- * The cursor returned alongside the watcher is intentionally
- * discarded here; the explorer's UI obtains directory entries via
- * `listDirectory`. Callers that need the TOCTOU-free snapshot
- * should reach for `subscribeChangesAtomic` instead.
+ * Establishment prefers `watchFrom()` (the atomic
+ * `{ cursor, watcher }` mint per endo-fs DESIGN.md §10.1) over the
+ * legacy `watch()`, in a single round trip — we don't probe
+ * `__getMethodNames__` first; the `watch()` fallback only fires if
+ * `watchFrom` actually rejects. The cursor `watchFrom` yields is
+ * discarded (the explorer's UI takes its snapshot via
+ * `listDirectory`), but once the watcher is live we synthesise a
+ * `{ kind: 'watch-ready' }` event so consumers can (re-)take their
+ * snapshot under the active subscription. That fully closes the
+ * `list()` + `watch()` race: any mutation observable after
+ * watch-ready is either in the post-establish snapshot or in an
+ * event the watcher is about to emit.
  *
- * @param {Cap} directory
- * @returns {Promise<Cap>} the watcher capability
- */
-const openWatcher = async directory => {
-  const methods = await E(directory).__getMethodNames__();
-  if (methods.includes('watchFrom')) {
-    const { watcher } = await E(directory).watchFrom();
-    return watcher;
-  }
-  return E(directory).watch();
-};
-
-/**
- * Subscribe to a directory's change events. Best-effort: a
- * filesystem without a `watch` surface (e.g. a Mount adapter)
- * simply never reports changes. Returns an unsubscribe function.
+ * Subscription is otherwise best-effort: pump errors are swallowed,
+ * so a Mount adapter without a watch surface simply yields no
+ * events past `watch-ready`.
  *
  * @param {Cap} directory
  * @param {(event: unknown) => void} onChange
@@ -392,13 +389,30 @@ export const subscribeChanges = (directory, onChange) => {
   const pump = async () => {
     await null;
     try {
-      const watcher = await openWatcher(directory);
+      /** @type {Cap} */
+      let watcher;
+      try {
+        // Atomic establish — one round trip — when supported.
+        const result = await E(directory).watchFrom();
+        watcher = result.watcher;
+      } catch {
+        // Fallback for adapters that predate watchFrom.
+        watcher = await E(directory).watch();
+      }
       watcherCap = watcher;
       if (cancelled) {
         E(watcher)
           .cancel()
           .catch(() => {});
         return;
+      }
+      // Signal the consumer that the subscription is live; the
+      // explorer treats this as a cue to re-take its directory
+      // snapshot under the now-active watcher.
+      try {
+        onChange(harden({ kind: 'watch-ready' }));
+      } catch {
+        // Consumer errors must not tear down the pump.
       }
       const events = await E(watcher).events();
       for await (const event of iterateReader(events)) {
