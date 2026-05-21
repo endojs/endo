@@ -70,6 +70,35 @@ the feature roadmap. See `ROADMAP.md` for the post-implementation
 honest list — places where claims exceed reality, known
 shortcomings, and the separate Endo-daemon-refactor track.
 
+## Daemon attach scripts
+
+Two thin convenience wrappers around `endo make --UNCONFINED`
+ship as package bins. They use the existing `makeUnconfined`
+formula type — a dedicated `provideRemoteFs` daemon verb isn't
+required.
+
+- **`endo-fs-attach <path> --name <petName> [--read-only] [--worker <name>]`** —
+  attaches a host directory as a formulated `Filesystem` cap
+  bound to `petName`. Wraps `src/node-fs-module.js`; passes
+  `ENDO_FS_ROOT` (and `ENDO_FS_READ_ONLY=1` when `--read-only`).
+- **`endo-fs-mkmem --name <petName> [--worker <name>]`** —
+  mints a fresh in-memory `Filesystem` cap bound to `petName`.
+  Wraps `src/in-memory-module.js`. The cap reincarnates across
+  daemon restart; its contents do not.
+
+Both default `--worker` to `@node` (the host-side worker, required
+because the modules import `node:fs/promises`). Examples:
+
+```sh
+endo-fs-attach /tmp/workspace --name workspace
+endo-fs-attach ~/code --name code --read-only
+endo-fs-mkmem --name scratch
+```
+
+The bins resolve the `endo` executable through `@endo/cli`'s
+package layout, so a workspace clone works without a global
+install.
+
 ## Relation to existing Endo work
 
 | Subject | Where today | What this package adds |

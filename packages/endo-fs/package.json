@@ -23,11 +23,16 @@
     "./src/cas.js": "./src/cas.js",
     "./src/cached-fs.js": "./src/cached-fs.js",
     "./src/node-fs.js": "./src/node-fs.js",
+    "./src/node-fs-module.js": "./src/node-fs-module.js",
     "./src/readonly.js": "./src/readonly.js",
     "./src/from-mount.js": "./src/from-mount.js",
     "./src/compose.js": "./src/compose.js",
     "./src/layer.js": "./src/layer.js",
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "endo-fs-attach": "./bin/attach.js",
+    "endo-fs-mkmem": "./bin/mkmem.js"
   },
   "scripts": {
     "build": "exit 0",
