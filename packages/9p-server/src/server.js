@@ -102,10 +102,22 @@ const errnoOf = e => {
  *   fs: import('@endo/eventual-send').ERef<any>,
  *   socket: import('node:net').Socket,
  *   onClose?: () => void,
- *   signal?: AbortSignal,
+ *   cancelled?: Promise<unknown>,
  * }} opts
+ *
+ * `cancelled`: settlement (resolve or reject) is the cancellation
+ * signal — `close()` fires when it settles, so any awaited
+ * dispatch unblocks promptly instead of waiting for the
+ * socket-close cascade. The caller composes additional triggers
+ * by `Promise.race([cancelled, ownTrigger])`. The default is a
+ * permanently-deferred promise (never cancels).
  */
-export const serveConnection = ({ fs, socket, onClose, signal }) => {
+export const serveConnection = ({
+  fs,
+  socket,
+  onClose,
+  cancelled = new Promise(() => {}),
+}) => {
   /** @type {Map<number, Fid>} */
   const fids = new Map();
   let msize = DEFAULT_MSIZE;
@@ -123,7 +135,6 @@ export const serveConnection = ({ fs, socket, onClose, signal }) => {
     socket.removeListener('error', close);
     socket.removeListener('close', close);
     socket.removeListener('data', onData);
-    if (signal) signal.removeEventListener('abort', close);
     // Best-effort close of every fid's open handle so the
     // underlying FS doesn't leak `FileHandle`s when a client
     // disconnects without `Tclunk`-ing each fid. We fire the
@@ -140,16 +151,12 @@ export const serveConnection = ({ fs, socket, onClose, signal }) => {
   };
 
   // External cancellation (e.g., `fs-bridge.stop()`) propagates
-  // through an AbortSignal. Aborting flips `closed` immediately so
-  // the next `drainOnce` iteration returns without dispatching,
-  // even if a long-running awaited operation is still in flight.
-  if (signal) {
-    if (signal.aborted) {
-      close();
-      return;
-    }
-    signal.addEventListener('abort', close, { once: true });
-  }
+  // as `cancelled` settling. Settlement flips `closed` so the next
+  // `drainOnce` iteration returns without dispatching, even if a
+  // long-running awaited operation is still in flight. Either
+  // resolve or reject counts as a cancellation signal; we don't
+  // distinguish.
+  cancelled.then(close, close);
 
   // Drain every complete message currently sitting in `buf`.
   // Each call awaits its own dispatches in order; concurrent

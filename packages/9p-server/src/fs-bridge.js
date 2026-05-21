@@ -31,24 +31,44 @@ const BridgeInterface = M.interface('FsBridge9p', {
  * (`@endo/endo-fs/DESIGN.md` §4.10). `src/server.js` has the 9P
  * message → cap call mapping.
  *
+ * Cancellation: callers may pass a `cancelled` promise. Its
+ * settlement is the signal to shut down — in-flight dispatchers
+ * inside `serveConnection` short-circuit instead of waiting for
+ * the socket-close cascade. The default is a permanently-deferred
+ * promise (never settles → never cancels). Composing additional
+ * triggers is `Promise.race([cancelled, ownTrigger])`.
+ *
  * @param {{
  *   fs: import('@endo/eventual-send').ERef<any>,
  *   socketPath: string,
+ *   cancelled?: Promise<unknown>,
  * }} opts
  */
-export const makeFsBridge9p = ({ fs, socketPath }) => {
+export const makeFsBridge9p = ({
+  fs,
+  socketPath,
+  cancelled = new Promise(() => {}),
+}) => {
   /** @type {import('node:net').Server | null} */
   let server = null;
   /** @type {Set<import('node:net').Socket>} */
   const sockets = new Set();
   let started = false;
   let stopped = false;
-  // One AbortController per bridge instance: `stop()` aborts it,
-  // and every active `serveConnection` listens for the abort to
-  // short-circuit any in-flight dispatch. Without this signal, a
-  // long-running awaited op inside a dispatcher would have to
-  // wait for the socket-close cascade before halting.
-  const cancel = new AbortController();
+  // Bridge-internal stop trigger: `stop()` resolves it. The
+  // `cancelled` we hand to each serveConnection is the race of
+  // the caller's `cancelled` and our own stop trigger, so a
+  // settlement on either side propagates to every in-flight
+  // dispatcher.
+  /** @type {(value?: unknown) => void} */
+  let stopResolve;
+  const stopPromise = new Promise(resolve => {
+    stopResolve = resolve;
+  });
+  const composedCancelled = Promise.race([cancelled, stopPromise]);
+  // Don't leave the race promise unhandled if the caller's
+  // `cancelled` ever rejects.
+  composedCancelled.catch(() => {});
 
   return makeExo('FsBridge9p', BridgeInterface, {
     async start() {
@@ -58,7 +78,7 @@ export const makeFsBridge9p = ({ fs, socketPath }) => {
       server = net.createServer({ allowHalfOpen: false }, sock => {
         sockets.add(sock);
         sock.on('close', () => sockets.delete(sock));
-        serveConnection({ fs, socket: sock, signal: cancel.signal });
+        serveConnection({ fs, socket: sock, cancelled: composedCancelled });
       });
       // Install a startup-only error listener that we explicitly
       // remove on success — otherwise its `once` registration sits
@@ -92,10 +112,11 @@ export const makeFsBridge9p = ({ fs, socketPath }) => {
     async stop() {
       if (stopped) return;
       stopped = true;
-      // Signal every active connection first so dispatches in
-      // flight see `closed = true` on the next await, *before*
-      // we tear the sockets out from under them.
-      cancel.abort();
+      // Settle the bridge-internal stop trigger first so every
+      // active connection's `cancelled` resolves and dispatches in
+      // flight see `closed = true` on the next await, *before* we
+      // tear the sockets out from under them.
+      stopResolve();
       for (const sock of sockets) sock.destroy();
       sockets.clear();
       if (server) {
