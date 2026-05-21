@@ -28,8 +28,7 @@ const VECTORS = [
   },
   {
     label: 'FIPS 180-2 two-block (56 bytes)',
-    input:
-      'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq',
+    input: 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq',
     hex: '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1',
     base64: 'JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE=',
   },
@@ -45,9 +44,10 @@ for (const { label, input, hex, base64 } of VECTORS) {
   });
 
   test(`SHA-256 (${label}) — digest() returns Buffer-like bytes`, t => {
-    const bytes = /** @type {Uint8Array & { toString: (enc?: string) => string }} */ (
-      createHash('sha256').update(input).digest()
-    );
+    const bytes =
+      /** @type {Uint8Array & { toString: (enc?: string) => string }} */ (
+        createHash('sha256').update(input).digest()
+      );
     // Indexable, like a Node Buffer / Uint8Array
     t.true(bytes instanceof Uint8Array);
     t.is(bytes.length, 32);
@@ -61,7 +61,11 @@ for (const { label, input, hex, base64 } of VECTORS) {
 }
 
 test('createHash().update is chainable', t => {
-  const a = createHash('sha256').update('a').update('b').update('c').digest('hex');
+  const a = createHash('sha256')
+    .update('a')
+    .update('b')
+    .update('c')
+    .digest('hex');
   const b = createHash('sha256').update('abc').digest('hex');
   t.is(a, b);
 });

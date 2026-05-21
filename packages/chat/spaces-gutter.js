@@ -12,13 +12,7 @@ import { createEditSpaceModal } from './edit-space-modal.js';
 import { makeRefIterator } from './ref-iterator.js';
 
 /** @type {ReadonlySet<string>} */
-const KNOWN_MODES = new Set([
-  'channel',
-  'whylip',
-  'graph',
-  'peers',
-  'files',
-]);
+const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers', 'files']);
 
 /**
  * @typedef {'auto' | 'light' | 'dark' | 'high-contrast-light' | 'high-contrast-dark'} ColorScheme

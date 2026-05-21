@@ -265,10 +265,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
    * @returns {boolean}
    */
   const validName = name =>
-    name.length > 0 &&
-    name !== '.' &&
-    name !== '..' &&
-    NAME_PATTERN.test(name);
+    name.length > 0 && name !== '.' && name !== '..' && NAME_PATTERN.test(name);
 
   /**
    * Resolve a directory capability promise by its path, reusing
@@ -535,8 +532,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
         try {
           column.entries = await listDirectory(resolveDir(column.path));
         } catch (error) {
-          column.error =
-            error instanceof Error ? error.message : String(error);
+          column.error = error instanceof Error ? error.message : String(error);
         }
         column.loading = false;
         if (columns === next) renderBrowser();
@@ -955,9 +951,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
       filesystem: makeCachedFilesystem(source.filesystem),
       readOnly: source.readOnly,
     });
-    setStatus(
-      `Created CAS-cached frontend of ${source.label} (ephemeral LRU)`,
-    );
+    setStatus(`Created CAS-cached frontend of ${source.label} (ephemeral LRU)`);
     await selectSource(view.id);
   };
 
@@ -1094,7 +1088,11 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
     beginBusy();
     try {
       await writeFileText(file.cap, text);
-      selectedFile = { ...file, text, size: new TextEncoder().encode(text).length };
+      selectedFile = {
+        ...file,
+        text,
+        size: new TextEncoder().encode(text).length,
+      };
       editing = false;
       setStatus(`Saved ${file.name}`);
       renderViewer();
@@ -1300,7 +1298,8 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
             : null;
         let inner;
         if (column.loading) {
-          inner = '<div class="fx-loading-row"><span class="fx-spinner"></span>Loading…</div>';
+          inner =
+            '<div class="fx-loading-row"><span class="fx-spinner"></span>Loading…</div>';
         } else if (column.error) {
           inner = `<div class="fx-empty-col fx-col-error">${esc(
             column.error,
@@ -1311,8 +1310,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
           inner = column.entries
             .map(entry =>
               entryRowHtml(entry, column.path, {
-                selected:
-                  entry.name === drillName || entry.name === fileName,
+                selected: entry.name === drillName || entry.name === fileName,
                 readOnly,
               }),
             )

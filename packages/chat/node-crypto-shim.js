@@ -59,8 +59,7 @@ const sha256 = data => {
       w[i] = view.getUint32(block + i * 4, false);
     }
     for (let i = 16; i < 64; i += 1) {
-      const s0 =
-        rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+      const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
       const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
       w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
     }
