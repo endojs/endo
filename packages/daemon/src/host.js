@@ -163,6 +163,15 @@ export const makeHostMaker = ({
   unpinTransient = /** @param {any} _id */ _id => {},
   getFormulaGraphSnapshot = /** @param {any[]} _ids */ async _ids =>
     harden({ nodes: [], edges: [] }),
+  // Retention-path introspection is an opt-in instrumentation
+  // surface: embedders that do not wire the daemon-side path
+  // resolver still satisfy the `EndoHost` shape, and clients see
+  // an empty path list rather than a hard error. Contrast
+  // `getMountHostPath` below, where a missing wire indicates a
+  // configuration bug worth surfacing loudly: there the no-wire
+  // default throws an explicit `makeError`. Diagnose retention
+  // gaps via `endo paths --json` returning `[]` for an id whose
+  // formula clearly exists.
   listRetentionPaths = /** @param {any} _id */ async _id => harden([]),
   /**
    * @param {any} _id
