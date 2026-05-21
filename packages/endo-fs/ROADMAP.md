@@ -39,18 +39,21 @@ deliver X" can find the gap in one place.
 | **"CAS-cached read skips the network entirely on cache hit."** | Reframed: a hit skips the bytes payload, not the `snapshot + getInfo` discovery. With watch-based invalidation in `withCachedReads` (§2.2 — landed), a same-file repeat read with a still-cached payload pays zero RTT. The hit benefit is "no payload over the wire" + (with the hash cache) "no discovery either". |
 | **"Pipelined walk is one round-trip."** | True for any CapTP-shaped FS — Mount's lookup chains pipeline too. The endo-fs distinction is **typed pipelining**: the guard discriminates `Directory` vs `File` at the boundary, so a deep chain doesn't bottom out in an `any`-typed leaf. Phrase as "typed pipelining"; reserve "single RTT" for the cost-framework sense (no control-flow dependency). |
 
-### 1.2 Composition primitives — known functional gaps
+### 1.2 Composition primitives
 
-- **`Layer.apply` is not transactional.**
-  A failure partway through leaves the target in a partial state.
-  Real transactional semantics require target-side journal /
-  two-phase-commit support that the `Filesystem` interface
-  doesn't expose. The weaker "best-effort undo" variant
-  (record undo ops and play them in reverse on failure) is
-  fragile — undo ops can themselves fail, especially if a
-  concurrent writer touched the same paths. Deferred until
-  either the interface grows a transaction sub-cap or the target
-  backings expose one.
+- **`Layer.apply` is intentionally optimistic.**
+  Earlier drafts treated this as a "transactional gap" — it isn't.
+  Real transactional semantics on a generic `Filesystem` would
+  require target-side journal / two-phase-commit support that
+  no current backing exposes, and a "record undo ops, replay on
+  failure" wrapper is fragile (undo ops themselves can fail
+  under concurrent writes). `Layer.apply(target)` therefore
+  just plays the buffered diff onto the target as eager writes:
+  the result on success is the full diff materialised, the
+  result on failure is whatever partial state the writes left
+  behind. Callers that need atomicity layer it themselves — for
+  example by applying onto a fresh scratch FS and then swapping
+  it in.
 
 ### 1.3 Surface gaps that aren't where the design claims they are
 
