@@ -1,6 +1,5 @@
 // @ts-check
 /* eslint-disable no-bitwise */
-/* global btoa */
 
 // Browser stand-in for the slice of `node:crypto` reachable from
 // `@endo/endo-fs` (`src/shared/blobref.js` and `src/from-mount.js`).
@@ -120,6 +119,33 @@ const toBase64 = bytes => {
 };
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+const toHex = bytes => {
+  let out = '';
+  for (const byte of bytes) {
+    out += byte.toString(16).padStart(2, '0');
+  }
+  return out;
+};
+
+/**
+ * Encode a byte sequence using one of the encodings supported by
+ * Node's `Buffer.toString(encoding)` and reachable from the
+ * `@endo/endo-fs` consumers (currently `'base64'` and `'hex'`).
+ *
+ * @param {Uint8Array} bytes
+ * @param {string} encoding
+ * @returns {string}
+ */
+const encodeBytes = (bytes, encoding) => {
+  if (encoding === 'base64') return toBase64(bytes);
+  if (encoding === 'hex') return toHex(bytes);
+  throw new Error(`Unsupported digest encoding: ${encoding}`);
+};
+
+/**
  * Minimal `crypto.createHash` replacement (SHA-256 only).
  *
  * @param {string} [_algorithm]
@@ -140,15 +166,34 @@ export const createHash = _algorithm => {
       return hasher;
     },
     /**
-     * Returns the raw digest bytes (indexable, as `node:crypto`
-     * callers expect) or, when an encoding is given, a string.
+     * Returns the raw digest bytes or, when an encoding is given,
+     * a string. The bytes case returns a `Uint8Array` whose
+     * `toString(encoding)` mimics Node's `Buffer` so callers
+     * such as `@endo/endo-fs/src/shared/blobref.js` can do
+     * `hashBytes.toString('base64')` and `h[i]` interchangeably.
      *
      * @param {string} [encoding]
      * @returns {Uint8Array | string}
      */
     digest(encoding) {
       const bytes = sha256(buffer);
-      return encoding === undefined ? bytes : toBase64(bytes);
+      if (encoding !== undefined) {
+        return encodeBytes(bytes, encoding);
+      }
+      // Override `toString` so the returned bytes are Buffer-like.
+      // Without this, `bytes.toString('base64')` falls through to
+      // `Uint8Array.prototype.toString`, which ignores its argument
+      // and returns a comma-separated decimal listing.
+      Object.defineProperty(bytes, 'toString', {
+        value: (/** @type {string} */ enc) =>
+          enc === undefined
+            ? Uint8Array.prototype.toString.call(bytes)
+            : encodeBytes(bytes, enc),
+        writable: false,
+        enumerable: false,
+        configurable: false,
+      });
+      return bytes;
     },
   };
   return hasher;
