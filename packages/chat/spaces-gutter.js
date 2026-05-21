@@ -12,7 +12,13 @@ import { createEditSpaceModal } from './edit-space-modal.js';
 import { makeRefIterator } from './ref-iterator.js';
 
 /** @type {ReadonlySet<string>} */
-const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
+const KNOWN_MODES = new Set([
+  'channel',
+  'whylip',
+  'graph',
+  'peers',
+  'files',
+]);
 
 /**
  * @typedef {'auto' | 'light' | 'dark' | 'high-contrast-light' | 'high-contrast-dark'} ColorScheme
@@ -24,7 +30,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} name - display name (shown on hover)
  * @property {string} icon - emoji character
  * @property {string[]} profilePath - pet-name path to the agent
- * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} mode - interaction mode
+ * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files'} mode - interaction mode
  * @property {ColorScheme} [scheme] - color scheme preference (default: 'auto')
  * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
  * @property {string} [proposedName] - display name for the channel creator
@@ -88,7 +94,7 @@ harden(pathsEqual);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' | 'outliner' }) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' | 'outliner' }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -567,7 +573,7 @@ export const createSpacesGutter = ({
         name: data.name,
         icon: data.icon,
         profilePath: data.profilePath,
-        mode: /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} */ (
+        mode: /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files'} */ (
           KNOWN_MODES.has(data.layout) ? data.layout : 'inbox'
         ),
         scheme: data.scheme || 'auto',
@@ -669,7 +675,7 @@ export const createSpacesGutter = ({
     if (!obj.profilePath.every(p => typeof p === 'string')) return null;
     // Mode is optional, default to 'inbox'
     const mode =
-      /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} */ (
+      /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files'} */ (
         typeof obj.mode === 'string' && KNOWN_MODES.has(obj.mode)
           ? obj.mode
           : 'inbox'

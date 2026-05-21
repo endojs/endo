@@ -1,0 +1,1683 @@
+// @ts-check
+/* eslint-disable no-await-in-loop */
+
+// File-explorer UI for navigating `@endo/endo-fs` filesystem
+// objects: Miller columns and a collapsible tree, a split-pane
+// syntax-highlighted file viewer, drag-to-move, and tooling to
+// build in-memory filesystems, read-only views, CAS-cached
+// frontends, and layers.
+//
+// Capability walks are kept lazy (promises, not awaited values) so
+// CapTP pipelines them; directory listings load in parallel; and
+// every displayed directory is watched so the view stays live.
+
+import harden from '@endo/harden';
+import { E } from '@endo/far';
+
+import { colorize } from './monaco-wrapper.js';
+import {
+  applyLayer,
+  classifyCapability,
+  collectLayerOps,
+  createDirectory,
+  createFile,
+  decodeText,
+  getRoot,
+  listDirectory,
+  lookupChild,
+  makeCachedFilesystem,
+  makeFilesystemLayer,
+  makeMemoryFilesystem,
+  makeReadOnlyView,
+  readFile,
+  removeEntry,
+  renameEntry,
+  subscribeChanges,
+  toFilesystem,
+  writeFileText,
+} from './file-explorer-fs.js';
+
+/** @typedef {any} Cap */
+
+/**
+ * @typedef {object} Source
+ * @property {string} id
+ * @property {string} label
+ * @property {'lookup' | 'memory' | 'readonly' | 'cached' | 'layer' | 'mount'} kind
+ * @property {Cap} filesystem
+ * @property {boolean} readOnly
+ * @property {Cap} [layer]
+ * @property {string} [backingSourceId]
+ */
+
+/**
+ * @typedef {object} BrowserColumn
+ * @property {string[]} path
+ * @property {import('./file-explorer-fs.js').DirEntry[]} entries
+ * @property {boolean} loading
+ * @property {string} error
+ */
+
+const KEY_SEP = '\u0000';
+const NAME_PATTERN = /^[^/\0]+$/;
+const LIVE_REFRESH_DELAY = 200;
+
+/**
+ * @param {string} text
+ * @returns {string}
+ */
+const esc = text =>
+  String(text).replace(
+    /[&<>"']/g,
+    ch =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[ch] || ch,
+  );
+
+/**
+ * @param {string[]} path
+ * @returns {string}
+ */
+const pathKey = path => path.join(KEY_SEP);
+
+/**
+ * @param {string} key
+ * @returns {string[]}
+ */
+const keyToPath = key => (key === '' ? [] : key.split(KEY_SEP));
+
+/**
+ * @param {string} name
+ * @returns {string}
+ */
+const languageForName = name => {
+  const dot = name.lastIndexOf('.');
+  const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+  switch (ext) {
+    case 'js':
+    case 'mjs':
+    case 'cjs':
+    case 'jsx':
+      return 'javascript';
+    case 'ts':
+    case 'tsx':
+      return 'typescript';
+    case 'json':
+      return 'json';
+    case 'yml':
+    case 'yaml':
+      return 'yaml';
+    case 'md':
+    case 'markdown':
+      return 'markdown';
+    case 'html':
+    case 'htm':
+      return 'html';
+    case 'css':
+      return 'css';
+    default:
+      return 'plaintext';
+  }
+};
+
+/**
+ * @param {number} bytes
+ * @returns {string}
+ */
+const formatSize = bytes => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+/**
+ * Mount the file explorer into a container element.
+ *
+ * @param {HTMLElement} $parent
+ * @param {{ rootPowers: Cap }} options
+ * @returns {() => void} cleanup function
+ */
+export const mountFileExplorer = ($parent, { rootPowers }) => {
+  /** @type {Source[]} */
+  const sources = [];
+  let sourceCounter = 0;
+  /** @type {string | null} */
+  let activeSourceId = null;
+
+  /** @type {'columns' | 'tree'} */
+  let viewMode = 'columns';
+  let viewerCollapsed = true;
+  let viewerWidth = 440;
+
+  // Miller-column state: the chain of directories drilled into.
+  /** @type {string[]} */
+  let activePath = [];
+  /** @type {BrowserColumn[]} */
+  let columns = [];
+
+  // Tree state.
+  /** @type {Set<string>} */
+  let expanded = new Set();
+  /** @type {Map<string, import('./file-explorer-fs.js').DirEntry[]>} */
+  let treeChildren = new Map();
+  /** @type {Set<string>} */
+  const treeLoading = new Set();
+  /** @type {string[]} */
+  let treeCurrentDir = [];
+
+  // Shared directory-capability promise cache for the active
+  // source. Promises (not resolved caps) so chained lookups
+  // pipeline.
+  /** @type {Map<string, Cap>} */
+  let dirCapCache = new Map();
+
+  /**
+   * @typedef {object} SelectedFile
+   * @property {Cap} cap
+   * @property {string} name
+   * @property {string[]} parentPath
+   * @property {string} text
+   * @property {boolean} binary
+   * @property {number} size
+   * @property {boolean} truncated
+   */
+  /** @type {SelectedFile | null} */
+  let selectedFile = null;
+  let editing = false;
+  let viewerLoading = false;
+
+  /** @type {{ message: string, kind: 'error' | 'info' | '' }} */
+  let status = { message: '', kind: '' };
+  let busyCount = 0;
+
+  // Live-view watchers, keyed by directory path.
+  /** @type {Map<string, () => void>} */
+  const watchers = new Map();
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let liveTimer = null;
+
+  // ---- shell -------------------------------------------------------
+
+  $parent.innerHTML = `
+    <div class="fx-root">
+      <div class="fx-toolbar"></div>
+      <div class="fx-body">
+        <div class="fx-browser"></div>
+        <div class="fx-splitter" hidden></div>
+        <div class="fx-viewer" hidden></div>
+      </div>
+      <div class="fx-status"></div>
+    </div>
+  `;
+  const $root = /** @type {HTMLElement} */ ($parent.querySelector('.fx-root'));
+  const $toolbar = /** @type {HTMLElement} */ (
+    $root.querySelector('.fx-toolbar')
+  );
+  const $browser = /** @type {HTMLElement} */ (
+    $root.querySelector('.fx-browser')
+  );
+  const $splitter = /** @type {HTMLElement} */ (
+    $root.querySelector('.fx-splitter')
+  );
+  const $viewer = /** @type {HTMLElement} */ (
+    $root.querySelector('.fx-viewer')
+  );
+  const $status = /** @type {HTMLElement} */ (
+    $root.querySelector('.fx-status')
+  );
+
+  // ---- small helpers ----------------------------------------------
+
+  /** @returns {Source | null} */
+  const activeSource = () =>
+    sources.find(source => source.id === activeSourceId) || null;
+
+  /**
+   * @param {string} message
+   * @param {'error' | 'info' | ''} [kind]
+   */
+  const setStatus = (message, kind = 'info') => {
+    status = { message, kind };
+    renderStatus();
+  };
+
+  /** @param {unknown} error */
+  const reportError = error => {
+    setStatus(error instanceof Error ? error.message : String(error), 'error');
+  };
+
+  const beginBusy = () => {
+    busyCount += 1;
+    renderStatus();
+  };
+  const endBusy = () => {
+    busyCount = Math.max(0, busyCount - 1);
+    renderStatus();
+  };
+
+  /**
+   * @param {string} name
+   * @returns {boolean}
+   */
+  const validName = name =>
+    name.length > 0 &&
+    name !== '.' &&
+    name !== '..' &&
+    NAME_PATTERN.test(name);
+
+  /**
+   * Resolve a directory capability promise by its path, reusing
+   * the longest cached prefix so the uncached suffix pipelines
+   * into a single round trip.
+   *
+   * @param {string[]} path
+   * @returns {Cap}
+   */
+  const resolveDir = path => {
+    const key = pathKey(path);
+    const hit = dirCapCache.get(key);
+    if (hit) return hit;
+    const source = activeSource();
+    if (!source) {
+      return Promise.reject(Error('No filesystem selected'));
+    }
+    let depth = path.length;
+    /** @type {Cap} */
+    let promise;
+    for (; depth > 0; depth -= 1) {
+      const cached = dirCapCache.get(pathKey(path.slice(0, depth)));
+      if (cached) {
+        promise = cached;
+        break;
+      }
+    }
+    if (depth === 0) {
+      promise = dirCapCache.get('');
+      if (!promise) {
+        promise = getRoot(source.filesystem);
+        promise.catch(() => {});
+        dirCapCache.set('', promise);
+      }
+    }
+    for (let i = depth; i < path.length; i += 1) {
+      promise = lookupChild(promise, path[i]);
+      promise.catch(() => {});
+      dirCapCache.set(pathKey(path.slice(0, i + 1)), promise);
+    }
+    return promise;
+  };
+
+  // ---- live-view watchers -----------------------------------------
+
+  const clearWatchers = () => {
+    for (const cancel of watchers.values()) {
+      cancel();
+    }
+    watchers.clear();
+  };
+
+  /** @returns {Map<string, string[]>} */
+  const visibleDirectories = () => {
+    /** @type {Map<string, string[]>} */
+    const map = new Map();
+    if (viewMode === 'columns') {
+      for (const column of columns) {
+        map.set(pathKey(column.path), column.path);
+      }
+    } else {
+      map.set('', []);
+      for (const key of expanded) {
+        map.set(key, keyToPath(key));
+      }
+    }
+    return map;
+  };
+
+  const scheduleLiveRefresh = () => {
+    if (liveTimer) clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => {
+      liveTimer = null;
+      liveRefresh().catch(reportError);
+    }, LIVE_REFRESH_DELAY);
+  };
+
+  /**
+   * Subscribe to / unsubscribe from directory watchers so exactly
+   * the currently-displayed directories are watched.
+   */
+  const reconcileWatchers = () => {
+    if (!activeSource()) {
+      clearWatchers();
+      return;
+    }
+    const visible = visibleDirectories();
+    for (const [key, cancel] of [...watchers]) {
+      if (!visible.has(key)) {
+        cancel();
+        watchers.delete(key);
+      }
+    }
+    for (const [key, path] of visible) {
+      if (!watchers.has(key)) {
+        watchers.set(
+          key,
+          subscribeChanges(resolveDir(path), () => scheduleLiveRefresh()),
+        );
+      }
+    }
+  };
+
+  // ---- dialog ------------------------------------------------------
+
+  /**
+   * Show a modal dialog. Resolves with the entered/selected value,
+   * or null if cancelled.
+   *
+   * @param {object} options
+   * @param {string} options.title
+   * @param {string} [options.message]
+   * @param {{ label: string, value?: string, placeholder?: string }} [options.input]
+   * @param {Array<{ value: string, label: string }>} [options.choices]
+   * @param {string} [options.bodyHtml]
+   * @param {string} [options.confirmLabel]
+   * @param {boolean} [options.danger]
+   * @returns {Promise<string | null>}
+   */
+  const openDialog = options =>
+    new Promise(resolve => {
+      const $overlay = document.createElement('div');
+      $overlay.className = 'fx-dialog-overlay';
+      const choicesHtml = (options.choices || [])
+        .map(
+          (choice, index) => `
+            <label class="fx-dialog-choice">
+              <input type="radio" name="fx-dialog-choice" value="${esc(
+                choice.value,
+              )}" ${index === 0 ? 'checked' : ''} />
+              <span>${esc(choice.label)}</span>
+            </label>`,
+        )
+        .join('');
+      $overlay.innerHTML = `
+        <div class="fx-dialog">
+          <div class="fx-dialog-title">${esc(options.title)}</div>
+          ${
+            options.message
+              ? `<div class="fx-dialog-message">${esc(options.message)}</div>`
+              : ''
+          }
+          ${options.bodyHtml || ''}
+          ${
+            options.input
+              ? `<label class="fx-dialog-field">
+                   <span>${esc(options.input.label)}</span>
+                   <input type="text" class="fx-dialog-input"
+                     placeholder="${esc(options.input.placeholder || '')}"
+                     value="${esc(options.input.value || '')}" />
+                 </label>`
+              : ''
+          }
+          ${choicesHtml ? `<div class="fx-dialog-choices">${choicesHtml}</div>` : ''}
+          <div class="fx-dialog-actions">
+            <button type="button" class="fx-btn fx-dialog-cancel">Cancel</button>
+            <button type="button" class="fx-btn fx-primary ${
+              options.danger ? 'fx-danger' : ''
+            } fx-dialog-confirm">${esc(options.confirmLabel || 'OK')}</button>
+          </div>
+        </div>
+      `;
+      $root.appendChild($overlay);
+      const $input = /** @type {HTMLInputElement | null} */ (
+        $overlay.querySelector('.fx-dialog-input')
+      );
+      if ($input) {
+        $input.focus();
+        $input.select();
+      }
+
+      /** @param {string | null} value */
+      const close = value => {
+        $overlay.remove();
+        resolve(value);
+      };
+      const confirm = () => {
+        if ($input) {
+          close($input.value.trim());
+        } else if (options.choices && options.choices.length > 0) {
+          const checked = /** @type {HTMLInputElement | null} */ (
+            $overlay.querySelector('input[name="fx-dialog-choice"]:checked')
+          );
+          close(checked ? checked.value : null);
+        } else {
+          close('');
+        }
+      };
+      /** @type {HTMLElement} */ (
+        $overlay.querySelector('.fx-dialog-confirm')
+      ).addEventListener('click', confirm);
+      /** @type {HTMLElement} */ (
+        $overlay.querySelector('.fx-dialog-cancel')
+      ).addEventListener('click', () => close(null));
+      $overlay.addEventListener('click', event => {
+        if (event.target === $overlay) close(null);
+      });
+      $overlay.addEventListener('keydown', event => {
+        if (event.key === 'Escape') close(null);
+        if (event.key === 'Enter' && $input) confirm();
+      });
+    });
+
+  // ---- source management ------------------------------------------
+
+  /**
+   * @param {Omit<Source, 'id'>} spec
+   * @returns {Source}
+   */
+  const addSource = spec => {
+    sourceCounter += 1;
+    const source = { ...spec, id: `s${sourceCounter}` };
+    sources.push(source);
+    return source;
+  };
+
+  /**
+   * @param {string} id
+   * @returns {Promise<void>}
+   */
+  const selectSource = async id => {
+    clearWatchers();
+    activeSourceId = id;
+    activePath = [];
+    columns = [];
+    expanded = new Set([pathKey([])]);
+    treeChildren = new Map();
+    treeLoading.clear();
+    treeCurrentDir = [];
+    dirCapCache = new Map();
+    selectedFile = null;
+    editing = false;
+    renderToolbar();
+    renderViewer();
+    await reloadBrowser(false);
+  };
+
+  // ---- browser data loading ---------------------------------------
+
+  /**
+   * Rebuild the Miller columns along `activePath`, loading every
+   * directory listing in parallel.
+   *
+   * @param {boolean} silent - keep stale columns until data is ready
+   * @returns {Promise<void>}
+   */
+  const rebuildColumns = async silent => {
+    /** @type {BrowserColumn[]} */
+    const next = [];
+    for (let depth = 0; depth <= activePath.length; depth += 1) {
+      next.push({
+        path: activePath.slice(0, depth),
+        entries: [],
+        loading: true,
+        error: '',
+      });
+    }
+    if (!silent) {
+      columns = next;
+      renderBrowser();
+    }
+    await Promise.all(
+      next.map(async column => {
+        try {
+          column.entries = await listDirectory(resolveDir(column.path));
+        } catch (error) {
+          column.error =
+            error instanceof Error ? error.message : String(error);
+        }
+        column.loading = false;
+        if (columns === next) renderBrowser();
+      }),
+    );
+    columns = next;
+    renderBrowser();
+  };
+
+  /**
+   * @param {boolean} silent
+   * @returns {Promise<void>}
+   */
+  const reloadTree = async silent => {
+    /** @type {string[][]} */
+    const paths = [[]];
+    for (const key of expanded) {
+      if (key !== '') paths.push(keyToPath(key));
+    }
+    await Promise.all(
+      paths.map(async path => {
+        const key = pathKey(path);
+        if (!silent) {
+          treeLoading.add(key);
+          renderBrowser();
+        }
+        try {
+          treeChildren.set(key, await listDirectory(resolveDir(path)));
+        } catch {
+          // Leave any previous listing in place.
+        }
+        treeLoading.delete(key);
+        renderBrowser();
+      }),
+    );
+  };
+
+  /**
+   * @param {boolean} silent
+   * @returns {Promise<void>}
+   */
+  const reloadBrowser = async silent => {
+    if (!activeSource()) {
+      renderBrowser();
+      reconcileWatchers();
+      return;
+    }
+    beginBusy();
+    try {
+      if (viewMode === 'columns') {
+        await rebuildColumns(silent);
+      } else {
+        await reloadTree(silent);
+      }
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
+    renderBrowser();
+    reconcileWatchers();
+  };
+
+  /**
+   * Manual refresh: drop cached caps and reload.
+   *
+   * @returns {Promise<void>}
+   */
+  const refreshActive = async () => {
+    dirCapCache = new Map();
+    await reloadBrowser(false);
+  };
+
+  /**
+   * Live refresh triggered by a watch event: drop caps, reload
+   * without the loading flicker.
+   *
+   * @returns {Promise<void>}
+   */
+  const liveRefresh = async () => {
+    dirCapCache = new Map();
+    await reloadBrowser(true);
+  };
+
+  // ---- entry actions ----------------------------------------------
+
+  /**
+   * @param {string[]} parentPath
+   * @param {string} name
+   * @returns {Promise<void>}
+   */
+  const openFile = async (parentPath, name) => {
+    viewerCollapsed = false;
+    viewerLoading = true;
+    selectedFile = null;
+    editing = false;
+    renderToolbar();
+    renderViewer();
+    try {
+      const fileCap = lookupChild(resolveDir(parentPath), name);
+      const { bytes, size, truncated } = await readFile(fileCap);
+      const { text, binary } = decodeText(bytes);
+      selectedFile = {
+        cap: fileCap,
+        name,
+        parentPath,
+        text,
+        binary,
+        size,
+        truncated,
+      };
+    } catch (error) {
+      reportError(error);
+    } finally {
+      viewerLoading = false;
+      renderViewer();
+    }
+  };
+
+  /**
+   * @param {number} columnIndex
+   * @param {string} name
+   * @returns {Promise<void>}
+   */
+  const openDirInColumn = async (columnIndex, name) => {
+    const path = columns[columnIndex].path.concat(name);
+    activePath = path;
+    selectedFile = null;
+    /** @type {BrowserColumn} */
+    const column = { path, entries: [], loading: true, error: '' };
+    columns = columns.slice(0, columnIndex + 1).concat(column);
+    renderBrowser();
+    renderToolbar();
+    beginBusy();
+    try {
+      column.entries = await listDirectory(resolveDir(path));
+    } catch (error) {
+      column.error = error instanceof Error ? error.message : String(error);
+    } finally {
+      endBusy();
+    }
+    column.loading = false;
+    renderBrowser();
+    reconcileWatchers();
+  };
+
+  /**
+   * @param {string[]} path
+   * @returns {Promise<void>}
+   */
+  const toggleTreeDir = async path => {
+    const key = pathKey(path);
+    treeCurrentDir = path;
+    if (expanded.has(key)) {
+      expanded.delete(key);
+      renderBrowser();
+      renderToolbar();
+      reconcileWatchers();
+      return;
+    }
+    expanded.add(key);
+    if (!treeChildren.has(key)) {
+      treeLoading.add(key);
+      renderBrowser();
+      beginBusy();
+      try {
+        treeChildren.set(key, await listDirectory(resolveDir(path)));
+      } catch (error) {
+        reportError(error);
+      } finally {
+        endBusy();
+      }
+      treeLoading.delete(key);
+    }
+    renderBrowser();
+    renderToolbar();
+    reconcileWatchers();
+  };
+
+  /** @returns {string[]} */
+  const currentDirPath = () =>
+    viewMode === 'columns' ? activePath : treeCurrentDir;
+
+  const newFolder = async () => {
+    const source = activeSource();
+    if (!source || source.readOnly) return;
+    const name = await openDialog({
+      title: 'New folder',
+      input: { label: 'Folder name', placeholder: 'name' },
+      confirmLabel: 'Create',
+    });
+    if (name === null) return;
+    if (!validName(name)) {
+      setStatus('Invalid folder name', 'error');
+      return;
+    }
+    try {
+      await createDirectory(resolveDir(currentDirPath()), name);
+      setStatus(`Created folder ${name}`);
+      await refreshActive();
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
+  const newFile = async () => {
+    const source = activeSource();
+    if (!source || source.readOnly) return;
+    const name = await openDialog({
+      title: 'New file',
+      input: { label: 'File name', placeholder: 'name.txt' },
+      confirmLabel: 'Create',
+    });
+    if (name === null) return;
+    if (!validName(name)) {
+      setStatus('Invalid file name', 'error');
+      return;
+    }
+    try {
+      await createFile(resolveDir(currentDirPath()), name);
+      setStatus(`Created file ${name}`);
+      await refreshActive();
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
+  /**
+   * @param {string[]} parentPath
+   * @param {string} name
+   * @param {'directory' | 'file'} type
+   */
+  const renameEntryAction = async (parentPath, name, type) => {
+    const source = activeSource();
+    if (!source || source.readOnly) return;
+    const newName = await openDialog({
+      title: `Rename ${type}`,
+      input: { label: 'New name', value: name },
+      confirmLabel: 'Rename',
+    });
+    if (newName === null || newName === name) return;
+    if (!validName(newName)) {
+      setStatus('Invalid name', 'error');
+      return;
+    }
+    try {
+      const dir = resolveDir(parentPath);
+      await renameEntry(dir, name, dir, newName);
+      setStatus(`Renamed ${name} to ${newName}`);
+      if (
+        selectedFile &&
+        pathKey(selectedFile.parentPath) === pathKey(parentPath) &&
+        selectedFile.name === name
+      ) {
+        selectedFile = null;
+        renderViewer();
+      }
+      await refreshActive();
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
+  /**
+   * @param {string[]} parentPath
+   * @param {string} name
+   * @param {'directory' | 'file'} type
+   */
+  const deleteEntryAction = async (parentPath, name, type) => {
+    const source = activeSource();
+    if (!source || source.readOnly) return;
+    const confirmed = await openDialog({
+      title: `Delete ${type}`,
+      message: `Delete "${name}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (confirmed === null) return;
+    try {
+      await removeEntry(resolveDir(parentPath), name);
+      setStatus(`Deleted ${name}`);
+      if (
+        selectedFile &&
+        pathKey(selectedFile.parentPath) === pathKey(parentPath) &&
+        selectedFile.name === name
+      ) {
+        selectedFile = null;
+        renderViewer();
+      }
+      await refreshActive();
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
+  /**
+   * Move an entry by renaming it into a different directory.
+   *
+   * @param {string[]} fromParent
+   * @param {string} name
+   * @param {string[]} toParent
+   */
+  const moveEntry = async (fromParent, name, toParent) => {
+    const source = activeSource();
+    if (!source || source.readOnly) return;
+    if (pathKey(fromParent) === pathKey(toParent)) return;
+    const ownPath = [...fromParent, name];
+    if (
+      toParent.length >= ownPath.length &&
+      pathKey(toParent.slice(0, ownPath.length)) === pathKey(ownPath)
+    ) {
+      setStatus('Cannot move a folder into itself', 'error');
+      return;
+    }
+    try {
+      await renameEntry(
+        resolveDir(fromParent),
+        name,
+        resolveDir(toParent),
+        name,
+      );
+      setStatus(`Moved ${name}`);
+      await refreshActive();
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
+  // ---- filesystem tooling -----------------------------------------
+
+  const addMemoryFilesystem = async () => {
+    const label = await openDialog({
+      title: 'New in-memory filesystem',
+      input: { label: 'Label', value: `scratch-${sourceCounter + 1}` },
+      confirmLabel: 'Create',
+    });
+    if (label === null) return;
+    const source = addSource({
+      label: label || `scratch-${sourceCounter + 1}`,
+      kind: 'memory',
+      filesystem: makeMemoryFilesystem(),
+      readOnly: false,
+    });
+    setStatus(`Created in-memory filesystem ${source.label}`);
+    await selectSource(source.id);
+  };
+
+  const openByPetName = async () => {
+    const entered = await openDialog({
+      title: 'Open filesystem by pet name',
+      message: 'Separate nested names with "." or "/".',
+      input: { label: 'Pet name path', placeholder: 'my-filesystem' },
+      confirmLabel: 'Open',
+    });
+    if (entered === null || entered === '') return;
+    const segments = entered.split(/[./]/).filter(Boolean);
+    if (segments.length === 0) {
+      setStatus('Enter a pet name', 'error');
+      return;
+    }
+    beginBusy();
+    try {
+      // Walk the pet-name path one segment at a time; the chain
+      // pipelines into a single round trip.
+      let capPromise = E(rootPowers).lookup(segments[0]);
+      for (let i = 1; i < segments.length; i += 1) {
+        capPromise = E(capPromise).lookup(segments[i]);
+      }
+      const cap = await capPromise;
+      const kind = await classifyCapability(cap);
+      if (kind === 'unknown') {
+        setStatus(
+          `"${entered}" is not an endo-fs Filesystem or a Mount`,
+          'error',
+        );
+        return;
+      }
+      const source = addSource({
+        label: segments[segments.length - 1] || entered,
+        kind: kind === 'mount' ? 'mount' : 'lookup',
+        filesystem: toFilesystem(cap, kind),
+        readOnly: false,
+      });
+      setStatus(
+        kind === 'mount'
+          ? `Opened Mount "${source.label}" via endo-fs from-mount`
+          : `Opened filesystem "${source.label}"`,
+      );
+      await selectSource(source.id);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
+  };
+
+  const addReadOnlyView = async () => {
+    const source = activeSource();
+    if (!source) return;
+    const view = addSource({
+      label: `${source.label} (read-only)`,
+      kind: 'readonly',
+      filesystem: makeReadOnlyView(source.filesystem),
+      readOnly: true,
+    });
+    setStatus(`Created read-only view of ${source.label}`);
+    await selectSource(view.id);
+  };
+
+  const addCachedView = async () => {
+    const source = activeSource();
+    if (!source) return;
+    const view = addSource({
+      label: `${source.label} (cached)`,
+      kind: 'cached',
+      filesystem: makeCachedFilesystem(source.filesystem),
+      readOnly: source.readOnly,
+    });
+    setStatus(
+      `Created CAS-cached frontend of ${source.label} (ephemeral LRU)`,
+    );
+    await selectSource(view.id);
+  };
+
+  const addLayer = async () => {
+    const source = activeSource();
+    if (!source) return;
+    const { layer } = makeFilesystemLayer(source.filesystem);
+    beginBusy();
+    try {
+      const composed = await E(layer).asFilesystem();
+      const layerSource = addSource({
+        label: `${source.label} + layer`,
+        kind: 'layer',
+        filesystem: composed,
+        readOnly: false,
+        layer,
+        backingSourceId: source.id,
+      });
+      setStatus(
+        `Created layer over ${source.label}; edits stay isolated until applied`,
+      );
+      await selectSource(layerSource.id);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
+  };
+
+  const applyActiveLayer = async () => {
+    const source = activeSource();
+    if (!source || source.kind !== 'layer' || !source.layer) return;
+    const targets = sources.filter(
+      candidate => candidate.id !== source.id && !candidate.readOnly,
+    );
+    if (targets.length === 0) {
+      setStatus('No writable target filesystem to apply onto', 'error');
+      return;
+    }
+    const targetId = await openDialog({
+      title: 'Apply layer',
+      message: 'Replay this layer’s changes onto:',
+      choices: targets.map(target => ({
+        value: target.id,
+        label: target.label,
+      })),
+      confirmLabel: 'Apply',
+    });
+    if (targetId === null) return;
+    const target = sources.find(candidate => candidate.id === targetId);
+    if (!target) return;
+    beginBusy();
+    try {
+      await applyLayer(source.layer, target.filesystem);
+      setStatus(`Applied layer onto ${target.label}`);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
+  };
+
+  const revertActiveLayer = async () => {
+    const source = activeSource();
+    if (!source || source.kind !== 'layer') return;
+    const confirmed = await openDialog({
+      title: 'Revert layer',
+      message: `Discard all changes accumulated in "${source.label}"?`,
+      confirmLabel: 'Revert',
+      danger: true,
+    });
+    if (confirmed === null) return;
+    const index = sources.findIndex(candidate => candidate.id === source.id);
+    if (index >= 0) sources.splice(index, 1);
+    setStatus(`Reverted layer ${source.label}`);
+    const fallback =
+      sources.find(candidate => candidate.id === source.backingSourceId) ||
+      sources[0];
+    if (fallback) {
+      await selectSource(fallback.id);
+    } else {
+      clearWatchers();
+      activeSourceId = null;
+      columns = [];
+      renderToolbar();
+      renderBrowser();
+      renderViewer();
+    }
+  };
+
+  const showLayerChanges = async () => {
+    const source = activeSource();
+    if (!source || source.kind !== 'layer' || !source.layer) return;
+    beginBusy();
+    try {
+      const ops = await collectLayerOps(source.layer);
+      const bodyHtml = ops.length
+        ? `<div class="fx-changes">${ops
+            .map(op => {
+              const raw = Array.isArray(op.path)
+                ? /** @type {string[]} */ (op.path)
+                : Array.isArray(op.newPath)
+                  ? /** @type {string[]} */ (op.newPath)
+                  : [];
+              return `<div class="fx-change-row">
+                <span class="fx-change-kind">${esc(String(op.kind))}</span>
+                <span class="fx-change-path">/${esc(raw.join('/'))}</span>
+              </div>`;
+            })
+            .join('')}</div>`
+        : '<div class="fx-dialog-message">No changes in this layer yet.</div>';
+      await openDialog({
+        title: `Layer changes (${ops.length})`,
+        bodyHtml,
+        confirmLabel: 'Close',
+      });
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
+  };
+
+  // ---- viewer (file editing) --------------------------------------
+
+  const saveSelectedFile = async () => {
+    if (!selectedFile) return;
+    const $editor = /** @type {HTMLTextAreaElement | null} */ (
+      $viewer.querySelector('.fx-editor')
+    );
+    if (!$editor) return;
+    const text = $editor.value;
+    const file = selectedFile;
+    beginBusy();
+    try {
+      await writeFileText(file.cap, text);
+      selectedFile = { ...file, text, size: new TextEncoder().encode(text).length };
+      editing = false;
+      setStatus(`Saved ${file.name}`);
+      renderViewer();
+      await refreshActive();
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
+  };
+
+  // ---- rendering ---------------------------------------------------
+
+  /**
+   * @param {string} label
+   * @param {string} cls
+   * @param {boolean} [disabled]
+   * @returns {string}
+   */
+  const button = (label, cls, disabled) =>
+    `<button type="button" class="fx-btn ${cls}" ${
+      disabled ? 'disabled' : ''
+    }>${esc(label)}</button>`;
+
+  function renderToolbar() {
+    const source = activeSource();
+    const isLayer = !!source && source.kind === 'layer';
+    const readOnly = !!source && source.readOnly;
+    const optionsHtml = sources
+      .map(
+        item =>
+          `<option value="${esc(item.id)}" ${
+            item.id === activeSourceId ? 'selected' : ''
+          }>${esc(item.label)}</option>`,
+      )
+      .join('');
+    $toolbar.innerHTML = `
+      <div class="fx-toolbar-group">
+        <select class="fx-source-select" ${
+          sources.length ? '' : 'disabled'
+        }>${optionsHtml || '<option>No filesystem</option>'}</select>
+        ${button('+ In-memory', 'fx-act-memory')}
+        ${button('Open…', 'fx-act-open')}
+        ${button('Read-only view', 'fx-act-readonly', !source)}
+        ${button('CAS cache', 'fx-act-cache', !source)}
+        ${button('New layer', 'fx-act-layer', !source)}
+      </div>
+      <div class="fx-toolbar-group">
+        <div class="fx-segmented">
+          <button type="button" class="fx-seg ${
+            viewMode === 'columns' ? 'fx-seg-on' : ''
+          }" data-view="columns">Columns</button>
+          <button type="button" class="fx-seg ${
+            viewMode === 'tree' ? 'fx-seg-on' : ''
+          }" data-view="tree">Tree</button>
+        </div>
+        ${button('↻ Refresh', 'fx-act-refresh', !source)}
+      </div>
+      <div class="fx-toolbar-group">
+        ${button('New folder', 'fx-act-newfolder', !source || readOnly)}
+        ${button('New file', 'fx-act-newfile', !source || readOnly)}
+      </div>
+      ${
+        isLayer
+          ? `<div class="fx-toolbar-group fx-layer-group">
+               ${button('Apply layer…', 'fx-act-apply')}
+               ${button('Changes', 'fx-act-changes')}
+               ${button('Revert layer', 'fx-act-revert')}
+             </div>`
+          : ''
+      }
+      <div class="fx-toolbar-group fx-toolbar-end">
+        ${button(
+          viewerCollapsed ? 'Show viewer' : 'Hide viewer',
+          'fx-act-viewer',
+        )}
+      </div>
+    `;
+
+    const $select = /** @type {HTMLSelectElement | null} */ (
+      $toolbar.querySelector('.fx-source-select')
+    );
+    if ($select) {
+      $select.addEventListener('change', () => {
+        selectSource($select.value).catch(reportError);
+      });
+    }
+    /**
+     * @param {string} cls
+     * @param {() => void} handler
+     */
+    const onClick = (cls, handler) => {
+      const $btn = $toolbar.querySelector(`.${cls}`);
+      if ($btn) $btn.addEventListener('click', handler);
+    };
+    onClick('fx-act-memory', () => {
+      addMemoryFilesystem().catch(reportError);
+    });
+    onClick('fx-act-open', () => {
+      openByPetName().catch(reportError);
+    });
+    onClick('fx-act-readonly', () => {
+      addReadOnlyView().catch(reportError);
+    });
+    onClick('fx-act-cache', () => {
+      addCachedView().catch(reportError);
+    });
+    onClick('fx-act-layer', () => {
+      addLayer().catch(reportError);
+    });
+    onClick('fx-act-refresh', () => {
+      refreshActive().catch(reportError);
+    });
+    onClick('fx-act-newfolder', () => {
+      newFolder().catch(reportError);
+    });
+    onClick('fx-act-newfile', () => {
+      newFile().catch(reportError);
+    });
+    onClick('fx-act-apply', () => {
+      applyActiveLayer().catch(reportError);
+    });
+    onClick('fx-act-changes', () => {
+      showLayerChanges().catch(reportError);
+    });
+    onClick('fx-act-revert', () => {
+      revertActiveLayer().catch(reportError);
+    });
+    onClick('fx-act-viewer', () => {
+      viewerCollapsed = !viewerCollapsed;
+      renderToolbar();
+      renderViewer();
+    });
+    for (const $seg of $toolbar.querySelectorAll('.fx-seg')) {
+      $seg.addEventListener('click', () => {
+        const next = /** @type {HTMLElement} */ ($seg).dataset.view;
+        if ((next === 'columns' || next === 'tree') && next !== viewMode) {
+          viewMode = next;
+          renderToolbar();
+          reloadBrowser(false).catch(reportError);
+        }
+      });
+    }
+  }
+
+  /**
+   * Build one entry row.
+   *
+   * @param {import('./file-explorer-fs.js').DirEntry} entry
+   * @param {string[]} parentPath
+   * @param {object} flags
+   * @param {boolean} flags.selected
+   * @param {boolean} flags.readOnly
+   * @param {number} [flags.depth]
+   * @param {string} [flags.twisty]
+   * @returns {string}
+   */
+  const entryRowHtml = (entry, parentPath, flags) => {
+    const icon = entry.type === 'directory' ? '\u{1F4C1}' : '\u{1F4C4}';
+    const indent =
+      flags.depth !== undefined
+        ? ` style="padding-left:${8 + flags.depth * 16}px"`
+        : '';
+    const actions = flags.readOnly
+      ? ''
+      : `<span class="fx-entry-actions">
+           <button type="button" class="fx-mini fx-entry-rename"
+             title="Rename" draggable="false">✎</button>
+           <button type="button" class="fx-mini fx-entry-delete"
+             title="Delete" draggable="false">✕</button>
+         </span>`;
+    return `
+      <div class="fx-entry ${entry.type} ${
+        flags.selected ? 'fx-selected' : ''
+      }"${indent}
+        draggable="${flags.readOnly ? 'false' : 'true'}"
+        data-name="${esc(entry.name)}"
+        data-type="${entry.type}"
+        data-parent="${esc(JSON.stringify(parentPath))}">
+        ${
+          flags.twisty !== undefined
+            ? `<span class="fx-twisty">${flags.twisty}</span>`
+            : ''
+        }
+        <span class="fx-entry-icon">${icon}</span>
+        <span class="fx-entry-name">${esc(entry.name)}</span>
+        ${actions}
+      </div>
+    `;
+  };
+
+  const renderColumns = () => {
+    const source = activeSource();
+    const readOnly = !!source && source.readOnly;
+    const html = columns
+      .map((column, columnIndex) => {
+        const drillName =
+          columnIndex < activePath.length ? activePath[columnIndex] : null;
+        const fileName =
+          selectedFile &&
+          pathKey(selectedFile.parentPath) === pathKey(column.path)
+            ? selectedFile.name
+            : null;
+        let inner;
+        if (column.loading) {
+          inner = '<div class="fx-loading-row"><span class="fx-spinner"></span>Loading…</div>';
+        } else if (column.error) {
+          inner = `<div class="fx-empty-col fx-col-error">${esc(
+            column.error,
+          )}</div>`;
+        } else if (column.entries.length === 0) {
+          inner = '<div class="fx-empty-col">empty</div>';
+        } else {
+          inner = column.entries
+            .map(entry =>
+              entryRowHtml(entry, column.path, {
+                selected:
+                  entry.name === drillName || entry.name === fileName,
+                readOnly,
+              }),
+            )
+            .join('');
+        }
+        return `
+          <div class="fx-column" data-column="${columnIndex}">
+            <div class="fx-column-head">${
+              column.path.length
+                ? esc(column.path[column.path.length - 1])
+                : '/'
+            }</div>
+            <div class="fx-column-list">${inner}</div>
+          </div>
+        `;
+      })
+      .join('');
+    $browser.innerHTML = `<div class="fx-columns">${html}</div>`;
+  };
+
+  /**
+   * @param {string[]} path
+   * @param {import('./file-explorer-fs.js').DirEntry} entry
+   * @param {number} depth
+   * @param {boolean} readOnly
+   * @returns {string}
+   */
+  const renderTreeNode = (path, entry, depth, readOnly) => {
+    const selfPath = [...path, entry.name];
+    if (entry.type === 'file') {
+      const selected =
+        !!selectedFile &&
+        pathKey(selectedFile.parentPath) === pathKey(path) &&
+        selectedFile.name === entry.name;
+      return entryRowHtml(entry, path, {
+        selected,
+        readOnly,
+        depth,
+        twisty: ' ',
+      });
+    }
+    const key = pathKey(selfPath);
+    const isOpen = expanded.has(key);
+    const selected = pathKey(treeCurrentDir) === key;
+    let html = entryRowHtml(entry, path, {
+      selected,
+      readOnly,
+      depth,
+      twisty: isOpen ? '▾' : '▸',
+    });
+    if (isOpen) {
+      if (treeLoading.has(key)) {
+        html += `<div class="fx-loading-row" style="padding-left:${
+          8 + (depth + 1) * 16
+        }px"><span class="fx-spinner"></span>Loading…</div>`;
+      }
+      const children = treeChildren.get(key);
+      if (children) {
+        for (const child of children) {
+          html += renderTreeNode(selfPath, child, depth + 1, readOnly);
+        }
+      }
+    }
+    return html;
+  };
+
+  const renderTree = () => {
+    const source = activeSource();
+    const readOnly = !!source && source.readOnly;
+    const rootKey = pathKey([]);
+    const rootOpen = expanded.has(rootKey);
+    const rootSelected = pathKey(treeCurrentDir) === rootKey;
+    let html = `
+      <div class="fx-entry directory ${rootSelected ? 'fx-selected' : ''}"
+        data-name="" data-type="directory" data-parent="[]" draggable="false">
+        <span class="fx-twisty">${rootOpen ? '▾' : '▸'}</span>
+        <span class="fx-entry-icon">\u{1F5C2}</span>
+        <span class="fx-entry-name">${esc(source ? source.label : '/')}</span>
+      </div>
+    `;
+    if (rootOpen) {
+      if (treeLoading.has(rootKey)) {
+        html += `<div class="fx-loading-row" style="padding-left:24px"><span class="fx-spinner"></span>Loading…</div>`;
+      }
+      for (const child of treeChildren.get(rootKey) || []) {
+        html += renderTreeNode([], child, 1, readOnly);
+      }
+    }
+    $browser.innerHTML = `<div class="fx-tree">${html}</div>`;
+  };
+
+  const bindBrowserEvents = () => {
+    const source = activeSource();
+    const readOnly = !!source && source.readOnly;
+
+    for (const $entry of $browser.querySelectorAll('.fx-entry')) {
+      const el = /** @type {HTMLElement} */ ($entry);
+      const name = el.dataset.name || '';
+      const type = el.dataset.type === 'directory' ? 'directory' : 'file';
+      /** @type {string[]} */
+      const parentPath = JSON.parse(el.dataset.parent || '[]');
+
+      el.addEventListener('click', event => {
+        const target = /** @type {HTMLElement} */ (event.target);
+        if (target.closest('.fx-entry-actions')) return;
+        if (viewMode === 'columns') {
+          const $column = el.closest('.fx-column');
+          const columnIndex = $column
+            ? Number(/** @type {HTMLElement} */ ($column).dataset.column)
+            : 0;
+          if (type === 'directory') {
+            openDirInColumn(columnIndex, name).catch(reportError);
+          } else {
+            activePath = columns[columnIndex].path;
+            columns = columns.slice(0, columnIndex + 1);
+            renderBrowser();
+            renderToolbar();
+            openFile(parentPath, name).catch(reportError);
+          }
+        } else if (type === 'directory') {
+          toggleTreeDir(name === '' ? [] : [...parentPath, name]).catch(
+            reportError,
+          );
+        } else {
+          openFile(parentPath, name).catch(reportError);
+        }
+      });
+
+      const $rename = el.querySelector('.fx-entry-rename');
+      if ($rename) {
+        $rename.addEventListener('click', event => {
+          event.stopPropagation();
+          renameEntryAction(parentPath, name, type).catch(reportError);
+        });
+      }
+      const $delete = el.querySelector('.fx-entry-delete');
+      if ($delete) {
+        $delete.addEventListener('click', event => {
+          event.stopPropagation();
+          deleteEntryAction(parentPath, name, type).catch(reportError);
+        });
+      }
+
+      if (!readOnly && name !== '') {
+        el.addEventListener('dragstart', event => {
+          const transfer = /** @type {DragEvent} */ (event).dataTransfer;
+          if (transfer) {
+            transfer.effectAllowed = 'move';
+            transfer.setData(
+              'application/json',
+              JSON.stringify({ parentPath, name }),
+            );
+          }
+        });
+      }
+      if (!readOnly && type === 'directory') {
+        el.addEventListener('dragover', event => {
+          event.preventDefault();
+          const transfer = /** @type {DragEvent} */ (event).dataTransfer;
+          if (transfer) transfer.dropEffect = 'move';
+          el.classList.add('fx-drop-target');
+        });
+        el.addEventListener('dragleave', () => {
+          el.classList.remove('fx-drop-target');
+        });
+        el.addEventListener('drop', event => {
+          event.preventDefault();
+          el.classList.remove('fx-drop-target');
+          const transfer = /** @type {DragEvent} */ (event).dataTransfer;
+          if (!transfer) return;
+          let payload;
+          try {
+            payload = JSON.parse(transfer.getData('application/json'));
+          } catch {
+            return;
+          }
+          const destPath = name === '' ? [] : [...parentPath, name];
+          moveEntry(payload.parentPath, payload.name, destPath).catch(
+            reportError,
+          );
+        });
+      }
+    }
+  };
+
+  function renderBrowser() {
+    if (!activeSource()) {
+      $browser.innerHTML = `
+        <div class="fx-emptystate">
+          <div class="fx-emptystate-title">No filesystem open</div>
+          <div class="fx-emptystate-text">
+            Browse an endo-fs Filesystem, a legacy Mount (via from-mount),
+            or a fresh in-memory filesystem.
+          </div>
+          <div class="fx-emptystate-actions">
+            ${button(
+              'Create in-memory filesystem',
+              'fx-empty-memory fx-primary',
+            )}
+            ${button('Open by pet name', 'fx-empty-open')}
+          </div>
+        </div>
+      `;
+      const $m = $browser.querySelector('.fx-empty-memory');
+      if ($m)
+        $m.addEventListener('click', () => {
+          addMemoryFilesystem().catch(reportError);
+        });
+      const $o = $browser.querySelector('.fx-empty-open');
+      if ($o)
+        $o.addEventListener('click', () => {
+          openByPetName().catch(reportError);
+        });
+      return;
+    }
+    if (viewMode === 'columns') {
+      renderColumns();
+    } else {
+      renderTree();
+    }
+    bindBrowserEvents();
+  }
+
+  function renderViewer() {
+    $viewer.hidden = viewerCollapsed;
+    $splitter.hidden = viewerCollapsed;
+    if (viewerCollapsed) return;
+    $viewer.style.width = `${viewerWidth}px`;
+
+    if (viewerLoading) {
+      $viewer.innerHTML = `
+        <div class="fx-viewer-head">
+          <span class="fx-viewer-title">Loading…</span>
+          <button type="button" class="fx-mini fx-viewer-close" title="Collapse">»</button>
+        </div>
+        <div class="fx-viewer-empty"><span class="fx-spinner"></span>Reading file…</div>
+      `;
+    } else if (!selectedFile) {
+      $viewer.innerHTML = `
+        <div class="fx-viewer-head">
+          <span class="fx-viewer-title">Viewer</span>
+          <button type="button" class="fx-mini fx-viewer-close" title="Collapse">»</button>
+        </div>
+        <div class="fx-viewer-empty">Select a file to preview it.</div>
+      `;
+    } else {
+      const file = selectedFile;
+      const language = languageForName(file.name);
+      const meta = `${formatSize(file.size)} · ${language}${
+        file.truncated ? ' · truncated' : ''
+      }`;
+      const source = activeSource();
+      // A truncated preview must not be saved — that would
+      // overwrite the file with only its first chunk.
+      const canEdit =
+        !!source && !source.readOnly && !file.binary && !file.truncated;
+      const controls = editing
+        ? `${button('Save', 'fx-viewer-save fx-primary')}
+           ${button('Cancel', 'fx-viewer-cancel')}`
+        : canEdit
+          ? button('Edit', 'fx-viewer-edit')
+          : '';
+      let bodyHtml;
+      if (file.binary) {
+        bodyHtml =
+          '<div class="fx-viewer-empty">Binary file — preview not available.</div>';
+      } else if (editing) {
+        bodyHtml = `<textarea class="fx-editor" spellcheck="false">${esc(
+          file.text,
+        )}</textarea>`;
+      } else {
+        bodyHtml = `<pre class="fx-code"><code>${esc(file.text)}</code></pre>`;
+      }
+      $viewer.innerHTML = `
+        <div class="fx-viewer-head">
+          <span class="fx-viewer-title" title="${esc(file.name)}">${esc(
+            file.name,
+          )}</span>
+          <span class="fx-viewer-meta">${esc(meta)}</span>
+          <span class="fx-viewer-controls">${controls}</span>
+          <button type="button" class="fx-mini fx-viewer-close" title="Collapse">»</button>
+        </div>
+        <div class="fx-viewer-body">${bodyHtml}</div>
+      `;
+      if (!editing && !file.binary && language !== 'plaintext') {
+        const $code = $viewer.querySelector('.fx-code code');
+        colorize(file.text, language)
+          .then(coloredHtml => {
+            if ($code && !editing && selectedFile === file) {
+              $code.innerHTML = coloredHtml;
+            }
+          })
+          .catch(() => {});
+      }
+      const $edit = $viewer.querySelector('.fx-viewer-edit');
+      if ($edit)
+        $edit.addEventListener('click', () => {
+          editing = true;
+          renderViewer();
+        });
+      const $save = $viewer.querySelector('.fx-viewer-save');
+      if ($save)
+        $save.addEventListener('click', () => {
+          saveSelectedFile().catch(reportError);
+        });
+      const $cancel = $viewer.querySelector('.fx-viewer-cancel');
+      if ($cancel)
+        $cancel.addEventListener('click', () => {
+          editing = false;
+          renderViewer();
+        });
+    }
+    const $close = $viewer.querySelector('.fx-viewer-close');
+    if ($close)
+      $close.addEventListener('click', () => {
+        viewerCollapsed = true;
+        renderToolbar();
+        renderViewer();
+      });
+  }
+
+  function renderStatus() {
+    $status.className = `fx-status ${
+      status.kind ? `fx-status-${status.kind}` : ''
+    }`;
+    const spinner = busyCount > 0 ? '<span class="fx-spinner"></span>' : '';
+    $status.innerHTML = `${spinner}<span class="fx-status-text">${esc(
+      status.message,
+    )}</span>`;
+  }
+
+  // ---- splitter ----------------------------------------------------
+
+  $splitter.addEventListener('mousedown', event => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = viewerWidth;
+    /** @param {MouseEvent} moveEvent */
+    const onMove = moveEvent => {
+      const delta = startX - moveEvent.clientX;
+      viewerWidth = Math.max(
+        260,
+        Math.min(window.innerWidth - 320, startWidth + delta),
+      );
+      $viewer.style.width = `${viewerWidth}px`;
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // ---- initial render ---------------------------------------------
+
+  renderToolbar();
+  renderBrowser();
+  renderViewer();
+  setStatus('Open a filesystem to begin.', 'info');
+
+  return () => {
+    if (liveTimer) clearTimeout(liveTimer);
+    clearWatchers();
+    $parent.innerHTML = '';
+  };
+};
+harden(mountFileExplorer);
