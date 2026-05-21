@@ -318,6 +318,37 @@ test('WEAKNESS [semantics]: watch + list TOCTOU — events between can be missed
   t.is(next.kind, 'value');
 });
 
+test('PATTERN: Directory.materialise creates missing path segments in one call', async t => {
+  // Before materialise, callers had to do per-segment lookup+mkdir
+  // (sequential round-trips, conditional on lookup's rejection).
+  // The server-side primitive collapses the walk into one method
+  // invocation — across CapTP that's one round-trip regardless of
+  // depth.
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  // Mixed: 'a' already exists, 'b' and 'c' don't yet.
+  await E(root).mkdir('a', {});
+  const leaf = await E(root).materialise(['a', 'b', 'c'], {});
+  t.is((await E(leaf).getQid()).type, 'directory');
+  // The intermediates are real directories under root.
+  const a = await E(root).lookup('a');
+  const b = await E(a).lookup('b');
+  const c = await E(b).lookup('c');
+  t.is((await E(b).getQid()).type, 'directory');
+  t.is((await E(c).getQid()).type, 'directory');
+});
+
+test('PATTERN: Directory.materialise refuses non-directory existing segments with ENOTDIR', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  // Create a regular file at the path materialise wants to walk
+  // through.
+  await writeFile(root, 'a', 'i am a file');
+  await t.throwsAsync(() => E(root).materialise(['a', 'b'], {}), {
+    message: /ENOTDIR/,
+  });
+});
+
 test('PATTERN: compose rename of a backing-only file copies up + whiteouts the source', async t => {
   const backing = makeInMemoryFilesystem();
   await writeFile(await E(backing).root(), 'src', 'data');

@@ -79,6 +79,15 @@ export const DirectoryInterface = M.interface('Directory', {
     M.string(),
   ).returns(M.undefined()),
   fsync: M.call().returns(M.promise()),
+  // Walk a path from this directory; for each segment, return the
+  // existing Directory or `mkdir(seg)` it. The whole walk dispatches
+  // in one round-trip per segment (the per-call branch is
+  // server-side), so a deep materialise is one batch instead of
+  // N serial lookup-then-mkdir round-trips. Compare DESIGN.md §10.1
+  // [RT] item "No lookupOrCreate / materialise primitive".
+  materialise: M.call(M.arrayOf(M.string()), Pass).returns(
+    M.eref(M.remotable('Directory')),
+  ),
 });
 harden(DirectoryInterface);
 

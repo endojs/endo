@@ -184,6 +184,63 @@ export const toSafeNumber = (value, name) => {
  * @param {any} opts
  * @returns {{ read: boolean, write: boolean, append: boolean, truncate: boolean }}
  */
+/**
+ * Default `Directory.materialise(path, opts)` for wrappers that
+ * don't have a server-side fast path. Walks `path` step by step,
+ * looking up the next segment and `mkdir`-ing it if absent. Each
+ * step costs one CapTP round-trip in the worst case — primitive
+ * backings should implement `materialise` server-side instead to
+ * collapse the whole walk to a single RTT.
+ *
+ * @param {object} startDir  starting Directory cap
+ * @param {string[]} path
+ * @param {any} opts
+ */
+export const materialiseViaWalk = async (startDir, path, opts) => {
+  // Late import to avoid a circular dep on `@endo/eventual-send`
+  // at module-load time (helpers.js is imported by everything).
+  // eslint-disable-next-line global-require
+  const { E } = await import('@endo/eventual-send');
+  if (!Array.isArray(path)) {
+    throw makeError(X`EINVAL: materialise path must be an array`);
+  }
+  let cur = startDir;
+  for (const seg of path) {
+    if (
+      typeof seg !== 'string' ||
+      seg.length === 0 ||
+      seg === '.' ||
+      seg === '..' ||
+      seg.includes('/') ||
+      seg.includes('\0')
+    ) {
+      throw makeError(X`EINVAL: invalid path segment ${q(seg)}`);
+    }
+    let child = null;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      child = await E(cur).lookup(seg);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/ENOENT/.test(msg)) throw e;
+    }
+    if (child !== null) {
+      // eslint-disable-next-line no-await-in-loop
+      const qid = await E(child).getQid();
+      if (!qid || qid.type !== 'directory') {
+        throw makeError(X`ENOTDIR: ${q(seg)} exists but is not a directory`);
+      }
+      cur = child;
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    cur = await E(cur).mkdir(seg, opts || {});
+  }
+  return cur;
+};
+harden(materialiseViaWalk);
+
 export const computeOpenMode = opts => {
   const o = opts || {};
   const write = !!o.write || !!o.append || !!o.truncate;

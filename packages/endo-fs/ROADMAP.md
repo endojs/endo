@@ -125,17 +125,6 @@ aren't already captured above. Where present, each cites the
 `WEAKNESS:` test in `test/optimal-querying.test.js` that pins the
 current behavior so the gap doesn't regress silently.
 
-- **No `lookupOrCreate` / `materialise` primitive — RT-blocking.**
-  Walking a path and creating missing segments along the way is
-  conditional: `mkdir(n)` fires only if `lookup(n)` rejects.
-  `M.await` resolves values, not success/failure, so the branch
-  can't pipeline.
-  A `Directory.materialise(path: string[], opts) → Directory`
-  primitive would collapse N missing-segment paths to one
-  round-trip.
-  Until then, callers issue per-segment `lookup` / `mkdir`
-  sequentially.
-
 - **No field-selection on `getAttrs` — bandwidth.**
   The full `Attrs` record rides the wire even when the caller only
   needs `size`.

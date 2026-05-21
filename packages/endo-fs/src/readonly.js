@@ -123,6 +123,9 @@ const makeReadOnlyDirectory = dir => {
     async fsync() {
       throw denied('fsync');
     },
+    async materialise(_path, _opts) {
+      throw denied('materialise');
+    },
     help(method) {
       if (method === undefined) {
         return 'Directory (read-only attenuator).';

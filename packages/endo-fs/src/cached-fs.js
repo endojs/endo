@@ -281,6 +281,19 @@ const makeCachingDirectory = (
     async fsync() {
       return E(dir).fsync();
     },
+    async materialise(path, opts) {
+      // Delegate to the inner — primitive backings collapse the
+      // whole walk to one RTT. Wrap the resulting Directory cap.
+      const innerLeaf = await E(dir).materialise(path, opts || {});
+      const qid = await E(innerLeaf).getQid();
+      return makeCachingDirectory(
+        innerLeaf,
+        qid,
+        cas,
+        populateInBackground,
+        wrapperToInner,
+      );
+    },
     help(method) {
       if (method === undefined) {
         return 'Directory (CAS-cached).';

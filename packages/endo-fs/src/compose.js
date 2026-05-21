@@ -43,6 +43,7 @@ import {
   CursorInterface,
   NodeWatcherInterface,
 } from './type-guards.js';
+import { materialiseViaWalk } from './shared/helpers.js';
 
 /**
  * Opaque tag stamped onto every Filesystem this module hands out.
@@ -326,6 +327,10 @@ export const emptyFilesystem = () => {
       async fsync() {
         // no-op
       },
+      async materialise(path, _opts) {
+        if (Array.isArray(path) && path.length === 0) return makeEmptyDir();
+        throw reject('materialise');
+      },
       help: method =>
         method === undefined
           ? 'Directory (emptyFilesystem): always empty.'
@@ -455,7 +460,8 @@ export const bind = (host, mountPath, guest) => {
     if (pos === mountPath.length) {
       return dir;
     }
-    return makeExo('Directory', DirectoryInterface, {
+    // eslint-disable-next-line no-use-before-define
+    const exo = makeExo('Directory', DirectoryInterface, {
       getQid() {
         return /** @type {any} */ (dir).getQid();
       },
@@ -513,11 +519,15 @@ export const bind = (host, mountPath, guest) => {
       async fsync() {
         return E(dir).fsync();
       },
+      async materialise(path, opts) {
+        return materialiseViaWalk(exo, path, opts);
+      },
       help: method =>
         method === undefined
           ? 'Directory (bind-wrapping).'
           : `No documentation for method "${method}".`,
     });
+    return exo;
   }
 
   const fs = makeExo('Filesystem', FilesystemInterface, {
@@ -655,6 +665,20 @@ export const namespace = mounts => {
       },
       async fsync() {
         // no-op
+      },
+      async materialise(path, opts) {
+        if (!Array.isArray(path)) {
+          throw makeError(X`EINVAL: materialise path must be an array`);
+        }
+        if (path.length === 0) return makeNamespaceRoot();
+        // First segment selects a mount; remaining segments are
+        // materialised under that mount's root.
+        const [head, ...rest] = path;
+        const mount = mounts[head];
+        if (!mount) throw makeError(X`ENOENT: ${q(head)}`);
+        const mountRoot = await E(mount).root();
+        if (rest.length === 0) return mountRoot;
+        return E(mountRoot).materialise(rest, opts || {});
       },
       help: method =>
         method === undefined
@@ -825,7 +849,8 @@ export const compose = (layer, backing, _opts = {}) => {
       layerDir = cur;
       return cur;
     };
-    return makeExo('Directory', DirectoryInterface, {
+    // eslint-disable-next-line no-use-before-define
+    const composedExo = makeExo('Directory', DirectoryInterface, {
       getQid() {
         // Prefer the layer's qid when present; otherwise backing's.
         if (layerDir) {
@@ -1078,11 +1103,15 @@ export const compose = (layer, backing, _opts = {}) => {
       async fsync() {
         if (layerDir) await E(layerDir).fsync();
       },
+      async materialise(p, opts) {
+        return materialiseViaWalk(composedExo, p, opts);
+      },
       help: method =>
         method === undefined
           ? 'Directory (composed: CoW union of layer over backing).'
           : `No documentation for method "${method}".`,
     });
+    return composedExo;
   }
 
   const fs = makeExo('Filesystem', FilesystemInterface, {

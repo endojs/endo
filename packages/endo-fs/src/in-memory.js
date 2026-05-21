@@ -685,6 +685,47 @@ export const makeInMemoryFilesystem = () => {
       async fsync() {
         // In-memory: nothing to flush.
       },
+      async materialise(path, _opts) {
+        // Walk the path; for each segment, reuse the existing
+        // directory or mkdir it. The whole walk runs server-side
+        // in one method invocation — across CapTP that's one
+        // round-trip regardless of depth (versus N round-trips
+        // for sequential `lookup` → `mkdir` chains).
+        if (!Array.isArray(path)) {
+          throw makeError(X`EINVAL: materialise path must be an array`);
+        }
+        let curId = dirId;
+        for (const seg of path) {
+          assertChildName(seg);
+          const cur = /** @type {DirectoryRecord} */ (getRecord(curId));
+          const existing = cur.children.get(seg);
+          if (existing !== undefined) {
+            const node = nodes.get(existing);
+            if (!node || node.type !== 'directory') {
+              throw makeError(
+                X`ENOTDIR: ${q(seg)} exists but is not a directory`,
+              );
+            }
+            curId = existing;
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+          const id = allocId();
+          nodes.set(id, {
+            id,
+            type: 'directory',
+            attrs: makeAttrs(),
+            version: 1n,
+            children: new Map(),
+            xattrs: new Map(),
+          });
+          cur.children.set(seg, id);
+          bumpVersion(cur);
+          fireEvent(curId, { kind: 'child-added', name: seg });
+          curId = id;
+        }
+        return makeDirectoryExo(curId);
+      },
       help(method) {
         if (method === undefined) {
           return 'Directory: directory node (DESIGN.md §4.3).';

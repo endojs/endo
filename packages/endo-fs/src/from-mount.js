@@ -567,6 +567,37 @@ export const mountAsFilesystem = rootMount => {
       async fsync() {
         // Mount has no sync surface; this is a no-op.
       },
+      async materialise(path, _opts) {
+        if (!Array.isArray(path)) {
+          throw makeError(X`EINVAL: materialise path must be an array`);
+        }
+        let curSegs = segs;
+        for (const seg of path) {
+          assertChildName(seg);
+          const absSegs = [...curSegs, seg];
+          const has = await E(rootMount).has(absSegs);
+          if (!has) {
+            try {
+              await E(rootMount).makeDirectory(absSegs);
+            } catch (e) {
+              throw makeError(
+                X`EIO: materialise ${q(seg)} failed: ${q(String(e))}`,
+              );
+            }
+          }
+          // Verify it's a directory after the (idempotent) create.
+          const child = await E(rootMount).lookup(absSegs);
+          const kind = await probeMountChild(child);
+          if (kind !== 'directory') {
+            throw makeError(
+              X`ENOTDIR: ${q(seg)} exists but is not a directory`,
+            );
+          }
+          curSegs = absSegs;
+        }
+        const finalCap = await E(rootMount).lookup(curSegs);
+        return makeDirectoryExo(finalCap, curSegs);
+      },
       help(method) {
         if (method === undefined) {
           return 'Directory (Mount-adapted): wraps a Mount.';

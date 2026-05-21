@@ -766,6 +766,34 @@ export const makeNodeFilesystem = ({ rootPath }) => {
           await fh.close();
         }
       },
+      async materialise(path, _opts) {
+        if (!Array.isArray(path)) {
+          throw makeError(X`EINVAL: materialise path must be an array`);
+        }
+        let curPath = absDirPath;
+        for (const seg of path) {
+          assertChildName(seg);
+          curPath = nodePath.join(curPath, seg);
+          await assertConfined(curPath);
+          try {
+            await fsp.mkdir(curPath);
+          } catch (e) {
+            const code = mapErrno(e, 'EIO');
+            if (code !== 'EEXIST') {
+              throw makeError(X`${q(code)}: materialise ${q(seg)}`);
+            }
+            // Already present — verify it's a directory.
+            const st = await fsp.lstat(curPath);
+            if (!st.isDirectory()) {
+              throw makeError(
+                X`ENOTDIR: ${q(seg)} exists but is not a directory`,
+              );
+            }
+          }
+        }
+        const finalStat = await fsp.lstat(curPath);
+        return makeDirectoryExo(curPath, finalStat);
+      },
       help(method) {
         if (method === undefined) {
           return 'Directory (disk-backed): directory node.';
