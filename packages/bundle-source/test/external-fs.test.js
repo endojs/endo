@@ -37,13 +37,16 @@ const testFsImportHookEndoZipBase64 = (name, file) => {
 
     const testFile = url.fileURLToPath(new URL(file, import.meta.url));
 
-    // @ts-expect-error BundleOptions needs updating
     await bundleSource(testFile, {
       format: 'endoZipBase64',
       importHook: async specifier => {
         if (specifier === 'fs') {
           t.is(specifier, 'fs', 'imported fs module');
-          return true;
+          return {
+            imports: [],
+            exports: [],
+            execute() {},
+          };
         }
         return undefined;
       },

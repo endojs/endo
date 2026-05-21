@@ -51,13 +51,20 @@ then update the resulting README.md, package.json (specifically setting
 `description` and [if appropriate] removing `"private": false`), index.js, and
 index.test.js files.
 
-### Coding Style
+## Updating Workspace Dependencies
+
+If you've added, removed, or changed a dependency between workspaces, you'll
+want to regenerate the composite TypeScript build configs.  Run `yarn
+build:types:gen` to regenerate the composite TypeScript build. See [TypeScript
+declarations](#typescript-declarations) for more details.
+
+## Coding Style
 
 - Prefer `/** @import */` over dynamic `import()` in JSDoc type annotations.
   Use a top-level `/** @import {Foo} from 'bar' */` comment instead of inline
   `{import('bar').Foo}` in `@param`, `@type`, or `@returns` tags.
 
-### Markdown Style Guide
+## Markdown Style Guide
 
 When writing Markdown documentation:
 
@@ -107,10 +114,41 @@ sequenceDiagram
   A->>B: send(Carol)
 ```
 
+## TypeScript declarations
+
+TypeScript `.d.ts` declarations are generated as part of the publishing process, with each package's declarations created individually.
+
+However, when you need to link Endo against another project, you'll need to build the
+declarations for all of the relevant dependencies.  To simplify this process,
+you can use the **composite TypeScript build**:
+
+```sh
+yarn build:types        # one-shot declaration build for all packages
+yarn build:types:watch  # incremental watch (expect a ~10–30s cold start)
+```
+
+The `tsconfig.composite.json` files scattered across packages (and the root
+`tsconfig.composite.json`) are **generated** — do not edit them by hand.
+
+After adding, removing, or changing runtime dependencies of any workspace, run:
+
+```sh
+yarn build:types:gen
+```
+
+CI checks that these files are in sync with the generator output.
+
+If the composite build complains about `TS5055` "would overwrite input file"
+errors, you have stale `.d.ts` outputs from a previous per-package build.
+Run `yarn build:types --clean` once to reset, then build normally.
+
+
 ## Rebuilding `ses`
 
-Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
-Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
+Changes to `ses` require a `yarn build` to be reflected in any dependency where
+`import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the
+build. Everything else is wired up thanks to workspaces, so no need to run
+installs in other packages.
 
 # Code Style
 
@@ -156,6 +194,7 @@ comprehensively, consistently, and backward-compatibly.
 
 Endo uses [Changesets](https://github.com/changesets/changesets) to manage
 versioning and changelogs.
+
 A **changeset** is a Markdown file in the `.changeset/` directory that captures:
 
 - Which packages need to be released
@@ -164,6 +203,7 @@ A **changeset** is a Markdown file in the `.changeset/` directory that captures:
 
 Changesets are "intents to release" that accumulate until maintainers cut a
 release.
+
 The changeset files themselves are temporary—when a release is cut, they are
 consumed and removed from version control, with their contents incorporated into
 each package's `CHANGELOG.md`.

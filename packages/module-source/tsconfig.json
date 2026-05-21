@@ -7,9 +7,11 @@
   "include": [
     "*.js",
     "*.ts",
-    "scripts",
-    "src",
-    "src-xs",
+    "scripts/*.js",
+    "src/*.js",
+    "src/*.ts",
+    "src-xs/*.js",
+    // to omit test/fixtures/
     "test/*.*"
   ]
 }

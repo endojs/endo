@@ -52,6 +52,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: endo
+          persist-credentials: false
 
       - name: Clone Spritely Goblins + goblin-chat from Codeberg
         run: |
@@ -70,7 +71,7 @@ jobs:
         working-directory: endo
 
       - name: Use Node.js 20.x
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 20.x
           cache: yarn
@@ -98,7 +99,7 @@ jobs:
         run: echo LANG=en_US.utf8 >> $GITHUB_ENV
       - name: Restore Guix tarball cache
         id: guix-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: guix-binary.x86_64-linux.tar.xz
           # Cache key includes the version and sha256 so a version

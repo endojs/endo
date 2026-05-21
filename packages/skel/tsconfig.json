@@ -2,8 +2,19 @@
   "extends": "../../tsconfig.eslint-base.json",
   "include": [
     "*.js",
-    "*.ts",
-    "src",
+    "src/**/*.js",
     "test"
+    
+    // if any .ts sources exist, add them here
+    // then use a negation pattern to exclude them from the include list
+    // e.g.
+    // ```
+    // "src/types/*.ts",
+    // "!src/types/*.d.ts"
+    // ```
+
+    // add any hand-rolled .d.ts files to this list manually
+
   ]
+  // do not use `exclude` here; it will be overridden by tsconfig.build.json
 }

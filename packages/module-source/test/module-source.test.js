@@ -441,16 +441,47 @@ export default async function (arg) { return arg; }
   t.is(await ret, 'foo', 'F returns correctly');
 });
 
+// Regression test for the second crash reported in #1596:
+// `Cannot read properties of undefined (reading 'buildError')`.
+// `path.buildCodeFrameError(...)` calls `this.hub.buildError(...)`, and
+// `traverse(ast, visitor)` leaves `path.hub` undefined unless an initial
+// `parentPath` carrying a Hub is supplied.  Before the fix, hitting the
+// reserved-identifier guard surfaced the cryptic TypeError instead of the
+// intended SyntaxError, swallowing the diagnostic the analyzer worked to
+// produce.  Asserting the wrapped SyntaxError plus its `cause.message`
+// makes the assertion fail closed if the Hub wiring regresses.
 test('invisible joiner character is reserved', t => {
-  t.throws(() => {
-    const _ = new ModuleSource(`const $h\u034f_import = 123; $h\u034f_import`);
-  });
+  const err = t.throws(
+    () => {
+      const _ = new ModuleSource(
+        `const $h\u034f_import = 123; $h\u034f_import`,
+      );
+    },
+    { instanceOf: SyntaxError, message: /is reserved/ },
+  );
+  t.notRegex(
+    String(
+      (err && /** @type {Error | undefined} */ (err.cause)?.message) || '',
+    ),
+    /Cannot read properties of undefined \(reading 'buildError'\)/,
+    'Hub-backed diagnostic must flow through; the raw TypeError from `undefined.buildError` indicates the Hub wiring regressed',
+  );
 });
 
 test('invisible joiner character in constified variable is reserved', t => {
-  t.throws(() => {
-    const _ = new ModuleSource(`const $c\u034f_myVar = 123; $c\u034f_myVar`);
-  });
+  const err = t.throws(
+    () => {
+      const _ = new ModuleSource(`const $c\u034f_myVar = 123; $c\u034f_myVar`);
+    },
+    { instanceOf: SyntaxError, message: /is reserved/ },
+  );
+  t.notRegex(
+    String(
+      (err && /** @type {Error | undefined} */ (err.cause)?.message) || '',
+    ),
+    /Cannot read properties of undefined \(reading 'buildError'\)/,
+    'Hub-backed diagnostic must flow through; the raw TypeError from `undefined.buildError` indicates the Hub wiring regressed',
+  );
 });
 
 test('invisible joiner character is allowed in non-reserved words', t => {
@@ -728,6 +759,40 @@ test('export name as default from', t => {
     ],
   });
   t.deepEqual(exports, ['default', 'less', 'more'].sort());
+});
+
+// Regression test for `export * as ns from 'src'` (ExportNamespaceSpecifier).
+// Before the fix, the analyzer destructured `local` from the specifier and
+// dereferenced `local.name`, but ExportNamespaceSpecifier nodes have no
+// `local` property, so the transform threw a TypeError instead of producing
+// a working module record.
+test('export namespace as from re-export', t => {
+  const {
+    __reexportMap__,
+    __fixedExportMap__,
+    __liveExportMap__,
+    imports,
+    exports,
+    reexports,
+  } = new ModuleSource(`export * as ns from './foo.js';`);
+  t.deepEqual(imports, ['./foo.js']);
+  t.deepEqual(exports, ['ns']);
+  t.deepEqual(reexports, []);
+  t.deepEqual(__fixedExportMap__, {});
+  t.deepEqual(__liveExportMap__, {});
+  t.deepEqual(__reexportMap__, {
+    './foo.js': [['*', 'ns']],
+  });
+});
+
+// End-to-end check that the namespace re-export wires through SES correctly.
+test('export namespace as from re-export end-to-end', t => {
+  const { namespace } = initialize(t, `export * as ns from 'module';`, {
+    imports: new Map([
+      ['module', new Map([['*', { apples: 'apples', oranges: 'oranges' }]])],
+    ]),
+  });
+  t.deepEqual(namespace.ns, { apples: 'apples', oranges: 'oranges' });
 });
 
 test('source map generation', t => {

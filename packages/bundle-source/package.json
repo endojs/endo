@@ -30,7 +30,7 @@
     "@endo/init": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/where": "workspace:^",
-    "ts-blank-space": "^0.8.0"
+    "amaro": "^1.1.9"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",

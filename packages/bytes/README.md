@@ -101,7 +101,7 @@ methods.
 
 Every export is hardened.
 The `TextEncoder` and `TextDecoder` instances backing `bytesFromText`
-and `bytesToText` are captured once at module load and frozen, so
-post-lockdown mutation of the corresponding globals cannot redirect the
-dispatched calls.
+and `bytesToText` are captured once at module load, so post-lockdown
+mutation of the corresponding globals cannot redirect the dispatched
+calls.
 The modules have no other mutable state.

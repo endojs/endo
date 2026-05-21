@@ -5,11 +5,17 @@ on:
     branches:
       - master
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+# Serialize release runs on the same ref but never cancel an
+# in-progress release: a cancelled `changesets/action` may leave tags
+# pushed without their matching GitHub release, or vice versa.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
+# Default to no permissions at the workflow level so any new job added
+# in the future has to opt in explicitly. The `release` job below
+# enumerates the writes it actually needs.
+permissions: {}
 
 # Defense in depth against npm lifecycle scripts running implicitly at install.
 # See designs/ci-no-npm-lifecycle.md.
@@ -21,8 +27,19 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    # Keep the grants on the job (not the workflow) so they cannot leak
+    # into any future sibling job.
+    permissions:
+      contents: write # `changesets/action` pushes release tags
+      pull-requests: write # `changesets/action` creates/updates the release PR
     steps:
       - name: Checkout Repo
+        # zizmor: ignore[artipacked]
+        # `changesets/action` (below) and the `git config` step rely on the
+        # persisted `RELEASE_TOKEN` to push tags and the release PR back to
+        # this repository, so credential persistence is intentional here.
+        # This workflow runs only on `push: master`, never on PR-triggered
+        # untrusted code, and uploads no artifacts that could leak `.git/`.
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -30,10 +47,10 @@ jobs:
         # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install Dependencies

@@ -199,12 +199,13 @@ export const basename = location => {
 };
 
 /**
- * Asserts that the given value is a `PackageDescriptor`.
+ * Asserts that the given value is a plain-object `PackageDescriptor`.
  *
- * TODO: This only validates that the value is a plain object. As mentioned in
- * {@link PackageDescriptor}, `name` is currently a required field, but in the
- * real world this is not so. We _do_ make assumptions about the shape of a
- * `PackageDescriptor`, but it may not be worth eagerly validating further.
+ * Note: this does _not_ enforce the presence of a `name`. Callers that adopt
+ * a descriptor as the root of a compartment must additionally call
+ * {@link assertPackageDescriptorHasName} so that the diagnostic blames the
+ * correct `package.json`.
+ *
  * @param {unknown} allegedPackageDescriptor
  * @returns {asserts allegedPackageDescriptor is PackageDescriptor}
  */
@@ -214,6 +215,33 @@ const assertPackageDescriptor = allegedPackageDescriptor => {
       Object(allegedPackageDescriptor) === allegedPackageDescriptor,
     `Package descriptor must be a plain object, got ${q(allegedPackageDescriptor)}`,
   );
+};
+
+/**
+ * Asserts that the given `PackageDescriptor` has a non-empty `name`.
+ *
+ * `name` is required by {@link PackageDescriptor} and the compartment mapper
+ * relies on it to label and link compartments. Without it, downstream
+ * failures are obscure (for example, the bundler reports an undefined name
+ * far from the offending `package.json`). This surfaces a precise
+ * diagnostic that points at the offending file so the misconfiguration
+ * is easy to fix.
+ *
+ * @param {PackageDescriptor} packageDescriptor
+ * @param {string} packageDescriptorLocation - URL of the `package.json`
+ * file that produced this descriptor, used to attribute errors.
+ * @returns {void}
+ */
+const assertPackageDescriptorHasName = (
+  packageDescriptor,
+  packageDescriptorLocation,
+) => {
+  const { name } = packageDescriptor;
+  if (name === undefined || name === '') {
+    throw Error(
+      `package.json at ${q(packageDescriptorLocation)} must have a "name" field; consider naming it after the parent directory`,
+    );
+  }
 };
 
 /**
@@ -229,6 +257,11 @@ const readDescriptor = async (maybeRead, packageLocation) => {
   }
   const descriptorText = decoder.decode(descriptorBytes);
   const descriptor = parseLocatedJson(descriptorText, descriptorLocation);
+  // Only validate plain-object shape here. The `name` requirement is enforced
+  // separately at sites that adopt a descriptor as the root of a compartment,
+  // because `readDescriptorUpwards` legitimately reads ancestor `package.json`
+  // files (e.g., declaring `type: "module"` for sub-folder module resolution)
+  // that are not themselves package roots.
   assertPackageDescriptor(descriptor);
   return descriptor;
 };
@@ -282,6 +315,13 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
     // eslint-disable-next-line no-await-in-loop
     const packageDescriptor = await readDescriptor(packageLocation);
     if (packageDescriptor !== undefined) {
+      // Surface a precise diagnostic when a node_modules dependency lacks a
+      // "name". This is a strict requirement of the compartment mapper that
+      // would otherwise produce an obscure failure deep in the bundler.
+      assertPackageDescriptorHasName(
+        packageDescriptor,
+        resolveLocation('package.json', packageLocation),
+      );
       return { packageLocation, packageDescriptor };
     }
 
@@ -718,7 +758,7 @@ const gatherDependency = async (
  * @param {boolean} strict
  * @param {LogicalPathGraph} logicalPathGraph
  * @param {GraphPackagesOptions} options
- * @returns {Promise<Graph>}
+ * @returns {Promise<{graph: Graph, readDescriptor: MaybeReadDescriptorFn}>}
  */
 const graphPackages = async (
   maybeRead,
@@ -753,6 +793,10 @@ const graphPackages = async (
   }
 
   assertPackageDescriptor(allegedPackageDescriptor);
+  assertPackageDescriptorHasName(
+    allegedPackageDescriptor,
+    resolveLocation('package.json', packageLocation),
+  );
   const packageDescriptor = allegedPackageDescriptor;
 
   conditions = new Set(conditions || []);
@@ -801,7 +845,7 @@ const graphPackages = async (
       policy,
     },
   );
-  return graph;
+  return { graph, readDescriptor };
 };
 
 /**
@@ -1316,7 +1360,18 @@ export const compartmentMapForNodeModules_ = async (
     unknownCanonicalNameHook,
     packageDataHook,
     packageDependenciesHook,
+    additionalLocations = [],
   } = options;
+
+  for (const { location: additionalLocation } of additionalLocations) {
+    try {
+      assertFileUrlString(additionalLocation);
+    } catch (error) {
+      throw new TypeError(
+        `Invalid additional location: ${q(additionalLocation)}; must be a file URL string`,
+      );
+    }
+  }
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const languageOptions = makeLanguageOptions(options);
 
@@ -1326,8 +1381,6 @@ export const compartmentMapForNodeModules_ = async (
    * This graph will contain nodes for each package location (a
    * {@link FileUrlString}) and edges representing dependencies between packages.
    *
-   * The edges are weighted by {@link calculatePackageWeight}.
-   *
    * @type {LogicalPathGraph}
    */
   const logicalPathGraph = new GenericGraph();
@@ -1335,7 +1388,7 @@ export const compartmentMapForNodeModules_ = async (
   // dev is only set for the entry package, and implied by the development
   // condition.
 
-  const graph = await graphPackages(
+  const { graph, readDescriptor } = await graphPackages(
     maybeRead,
     canonical,
     entryPackageLocation,
@@ -1348,6 +1401,57 @@ export const compartmentMapForNodeModules_ = async (
     logicalPathGraph,
     { log, policy, packageDependenciesHook },
   );
+
+  // Graph additional package locations that are not reachable from the entry's
+  // dependency tree (e.g., a project root package when the entry is a tool
+  // binary in node_modules).
+
+  // NOTE: This operation could theoretically be run safely in parallel, but the
+  // performance benefits are minimal given the expected number of additional
+  // locations.
+  for (const {
+    location: additionalLocation,
+    modules: additionalModules,
+  } of additionalLocations) {
+    // eslint-disable-next-line no-await-in-loop
+    const additionalDescriptor = await readDescriptor(`${additionalLocation}/`);
+    if (additionalDescriptor === undefined) {
+      log(
+        `WARNING: additionalLocations entry at ${q(additionalLocation)} has no package.json; skipping`,
+      );
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    assertPackageDescriptor(additionalDescriptor);
+
+    logicalPathGraph.addNode(additionalLocation);
+    logicalPathGraph.addEdge(entryPackageLocation, additionalLocation);
+
+    // eslint-disable-next-line no-await-in-loop
+    await graphPackage(
+      additionalDescriptor.name,
+      readDescriptor,
+      canonical,
+      graph,
+      {
+        packageLocation: additionalLocation,
+        packageDescriptor: additionalDescriptor,
+      },
+      conditions,
+      true,
+      languageOptions,
+      strict,
+      logicalPathGraph,
+      { commonDependencyDescriptors: {}, log, packageDependenciesHook, policy },
+    );
+
+    if (additionalModules && graph[additionalLocation]) {
+      const node = graph[additionalLocation];
+      for (const modulePath of additionalModules) {
+        node.externalAliases[modulePath] = modulePath;
+      }
+    }
+  }
 
   makeAttenuatorsNode(graph, graph[entryPackageLocation], policy);
 
@@ -1458,6 +1562,7 @@ export const mapNodeModules = async (
   )(packageDescriptorText, packageDescriptorLocation);
 
   assertPackageDescriptor(packageDescriptor);
+  assertPackageDescriptorHasName(packageDescriptor, packageDescriptorLocation);
   assertFileUrlString(packageLocation);
 
   return compartmentMapForNodeModules_(

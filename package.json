@@ -46,7 +46,7 @@
     "zx": "^8.1.8"
   },
   "scripts": {
-    "clean": "lerna clean",
+    "clean": "yarn workspaces foreach --all run postpack",
     "docs": "rm -rf api-docs packages/ses/dist && typedoc && ./scripts/posttypedoc.sh",
     "update": "echo 'DEPRECATED: use \"yarn upgrade-interactive\" or \"yarn dedupe\"'",
     "format": "prettier --write .github packages",
@@ -64,7 +64,12 @@
     "test262": "yarn workspaces foreach --all run test262",
     "build": "yarn workspaces foreach --all run build",
     "build-ts": "tsc --build tsconfig.build.json",
-    "build:wasm": "bash rust/ocapn_noise/build.sh"
+    "build:wasm": "bash rust/ocapn_noise/build.sh",
+    "build:types:gen": "node scripts/generate-composite-tsconfigs.mjs",
+    "build:types:check": "node scripts/generate-composite-tsconfigs.mjs --check",
+    "build:types": "tsc --build tsconfig.composite.json",
+    "build:types:clean": "yarn build:types --clean",
+    "build:types:watch": "yarn build:types --watch"
   },
   "prettier": {
     "arrowParens": "avoid",

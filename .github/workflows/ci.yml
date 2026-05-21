@@ -17,10 +17,12 @@ on:
       - '**/*.md'
       - 'docs/**'
 
-# Minimal permissions for workflows and jobs (cache uses actions API).
+# Minimal permissions for workflows and jobs. `actions/cache` and
+# `setup-node`'s `cache: yarn` use the runner's built-in cache service,
+# which is authenticated independently of the `actions:` permission;
+# `contents: read` is sufficient for every job below.
 permissions:
   contents: read
-  actions: write
 
 # Defense in depth against npm lifecycle scripts running implicitly at install.
 # .yarnrc.yml sets `enableScripts: false` at rest; these env vars ensure the
@@ -52,14 +54,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
       - name: Use Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -75,6 +79,9 @@ jobs:
 
       - name: Check SECURITY.md uniformity
         run: bash scripts/check-security-md.sh
+
+      - name: Check composite tsconfig files are up to date
+        run: yarn build:types:check
 
       # build the API docs to verify it works
       - name: build API docs
@@ -141,12 +148,13 @@ jobs:
           # Fetch full history so turbo can compute the affected set against
           # `origin/llm` for the `--filter='...[origin/llm]'` invocation below.
           fetch-depth: 0
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -237,14 +245,19 @@ jobs:
       fail-fast: false
       matrix:
         node-version:
+          # Historical record of Node patch-version compatibility for the
+          # SES-viable promise-hook surface (entries removed as their Node
+          # major lines reached EOL or left CI):
           # '16.1' last version before some significant promise hooks changes
           # '16.5' last version before unconditional promise fast-path
           # '16.6' first version after unconditional promise fast-path
-          # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
           # '20.3' to '20.6' not viable due to https://github.com/nodejs/node/pull/49211
-          # '20.7' first SES-viable version
-          # '20.9' first LTS of 20
-          - '20'
+          # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
+          # '20.7' first SES-viable version of Node 20
+          # '20.9' first LTS of Node 20
+          # '22' is the post-promise-fast-path lane on a current LTS
+          # (the SES-viable promise-hook lane the Node-20 entry was guarding).
+          - '22'
         platform:
           - ubuntu-latest
 
@@ -253,12 +266,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -290,12 +305,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -326,12 +343,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -352,23 +371,21 @@ jobs:
 
     # begin macro
 
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [ubuntu-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js 22.x
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      - name: Use Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -390,14 +407,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js 22.x
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      - name: Use Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -430,12 +449,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -464,29 +485,28 @@ jobs:
 
     # begin macro
 
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20.x]
-        # may include release tags and hashes:
-        moddable-version: [5.0.0]
-        platform: [ubuntu-latest]
+    runs-on: ubuntu-latest
+
+    # may include release tags and hashes
+    env:
+      MODDABLE_VERSION: 5.0.0
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: endo
+          persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
         working-directory: endo
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      # The tests run on the XS engine; Node is just driving the harness.
+      - name: Use Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: endo/.node-version
           cache: yarn
           cache-dependency-path: endo/yarn.lock
 
@@ -506,16 +526,16 @@ jobs:
 
       - name: Restore XS binary cache
         id: restore-xs
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: bin/xst
-          key: xst-lin64-${{ matrix.moddable-version }}
+          key: xst-lin64-${{ env.MODDABLE_VERSION }}
 
       - name: Choose XS download or build
         if: steps.restore-xs.outputs.cache-hit != 'true'
         id: check-release
         run: |
-          if curl -f -s -o /dev/null -I -L https://api.github.com/repos/Moddable-OpenSource/moddable/releases/tags/${{ matrix.moddable-version }}
+          if curl -f -s -o /dev/null -I -L "https://api.github.com/repos/Moddable-OpenSource/moddable/releases/tags/${MODDABLE_VERSION}"
           then
             echo release=download
           else
@@ -525,7 +545,7 @@ jobs:
       - name: Download XS
         if: steps.check-release.outputs.release == 'download'
         run: |
-          wget "https://github.com/Moddable-OpenSource/moddable/releases/download/${{ matrix.moddable-version }}/xst-lin64.zip"
+          wget "https://github.com/Moddable-OpenSource/moddable/releases/download/${MODDABLE_VERSION}/xst-lin64.zip"
           unzip xst-lin64.zip -d bin
           mkdir -p bin
           chmod 755 bin/xst
@@ -535,8 +555,9 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: moddable-OpenSource/moddable
-          ref: ${{ matrix.moddable-version }}
+          ref: ${{ env.MODDABLE_VERSION }}
           path: moddable
+          persist-credentials: false
 
       - name: Build XS
         if: steps.check-release.outputs.release == 'build'
@@ -562,6 +583,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: endo
+          persist-credentials: false
 
       - name: Checkout OCapN Test Suite
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -570,14 +592,15 @@ jobs:
           repository: ocapn/ocapn-test-suite
           ref: 74db78f08a40efba1e2b975d809374ff0e7acf60
           path: ocapn-test-suite
+          persist-credentials: false
 
       - run: corepack enable
         working-directory: endo
 
-      - name: Use Node.js 20.x
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      - name: Use Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 20.x
+          node-version-file: endo/.node-version
           cache: yarn
           cache-dependency-path: endo/yarn.lock
 

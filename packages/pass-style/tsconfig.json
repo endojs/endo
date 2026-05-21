@@ -6,5 +6,6 @@
     "src/**/*.js",
     "src/**/*.ts",
     "test",
+    "tools/**/*.js",
   ]
 }
