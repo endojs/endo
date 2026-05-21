@@ -354,6 +354,49 @@ test('PATTERN: compose rename of a backing-only file copies up + whiteouts the s
   t.is(bytes, 'data');
 });
 
+test('PATTERN: compose rename of a directory recursively copies up the subtree', async t => {
+  // Directory rename across the CoW boundary recursively
+  // materialises the destination tree and copies every file
+  // visible through the composed view. The source then gets
+  // whiteouted from the composed perspective.
+  const backing = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await E(backingRoot).mkdir('proj', {});
+  const proj = await E(backingRoot).lookup('proj');
+  await writeFile(proj, 'a.txt', 'alpha');
+  await E(proj).mkdir('sub', {});
+  const sub = await E(proj).lookup('sub');
+  await writeFile(sub, 'deep.txt', 'deep value');
+
+  const layer = makeInMemoryFilesystem();
+  const { compose } = await import('../src/compose.js');
+  const cow = compose(layer, backing);
+  const root = await E(cow).root();
+
+  await E(root).rename('proj', root, 'archive');
+
+  // Source is hidden from the composed view.
+  await t.throwsAsync(() => E(root).lookup('proj'), { message: /ENOENT/ });
+
+  // Destination has the full subtree.
+  const archive = await E(root).lookup('archive');
+  const a = await E(archive).lookup('a.txt');
+  const aOh = await E(a).open({ read: true });
+  t.is(
+    new TextDecoder().decode(await collectBytes(await E(aOh).read(0n, 64n))),
+    'alpha',
+  );
+  await E(aOh).close();
+  const subDst = await E(archive).lookup('sub');
+  const deep = await E(subDst).lookup('deep.txt');
+  const deepOh = await E(deep).open({ read: true });
+  t.is(
+    new TextDecoder().decode(await collectBytes(await E(deepOh).read(0n, 64n))),
+    'deep value',
+  );
+  await E(deepOh).close();
+});
+
 test('PATTERN: Cursor.skip is O(1) per call after the first stream-snapshot', async t => {
   // `skip(n)` is a position update, not a read-and-discard scan —
   // the snapshot is materialised once (lazily, on first `stream()`

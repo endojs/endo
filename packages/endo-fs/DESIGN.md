@@ -1121,7 +1121,6 @@ and a richer primitive is the only way to collapse it.
 | **No field-selection on `getAttrs`** | bandwidth | Full `Attrs` rides the wire even when caller only needs `size`. POSIX-style `statx` masks were deliberately omitted to keep the ocap shape clean; the cost is the unmasked transfer (one round-trip either way). |
 | **`Cursor.skip(n)` is O(n) in v1 implementations** | complexity | The contract permits O(log n) for sorted-index backings; in-memory and from-mount use the read-and-discard default. Wall-clock concern, not RT. |
 | **`watch + list` TOCTOU** | semantics | Mutations between `list()` and `watch()` calls aren't reflected in either. Caller-side workaround: watch first, then list, then reconcile against the event log. Same shape as inotify. |
-| **`compose.rename` is file-only** | functional | Files rename via copy-up + unlink (source bytes copied through `newParent.create`, then the source is removed or whiteouted). Directory rename still throws `ENOSYS` — would need recursive subtree copy-up. |
 
 #### What pipelining solves that earlier drafts called weaknesses
 

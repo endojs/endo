@@ -830,6 +830,74 @@ export const compose = (layer, backing, _opts = {}) => {
   const whiteoutName = target => `__whiteout__${target}`;
 
   /**
+   * Copy a single file by name from one Directory cap into another.
+   * Used by the file branch of `compose.rename` and as the leaf of
+   * recursive directory rename.
+   *
+   * @param {object} srcFile
+   * @param {object} dstParent
+   * @param {string} dstName
+   */
+  const copyFileTo = async (srcFile, dstParent, dstName) => {
+    const srcOh = await E(srcFile).open({ read: true });
+    try {
+      const dstOh = await E(dstParent).create(dstName, {});
+      try {
+        const attrs = await E(srcFile).getAttrs();
+        const size = /** @type {bigint} */ (attrs.size);
+        if (size > 0n) {
+          // Read the full source in one batch; chunked emission
+          // for very large files is deferred (same caveat as
+          // `Layer.apply` — ROADMAP §2.2 streaming).
+          const reader = await E(srcOh).read(0n, size);
+          const writer = await E(dstOh).write(0n);
+          const w = iterateBytesWriter(writer);
+          for await (const chunk of iterateBytesReader(reader)) {
+            await w.next(chunk);
+          }
+          await w.return();
+        }
+      } finally {
+        await E(dstOh).close();
+      }
+    } finally {
+      await E(srcOh).close();
+    }
+  };
+
+  /**
+   * Recursively copy every entry visible through `srcDir` into
+   * `dstDir`. Directories are materialised under `dstDir`; files
+   * are copied via `copyFileTo`. Iterates the composed view's
+   * `list()` so layer/backing semantics (whiteouts, opaque
+   * markers) flow naturally.
+   *
+   * @param {object} srcDir
+   * @param {object} dstDir
+   */
+  const copyDirInto = async (srcDir, dstDir) => {
+    const cursor = await E(srcDir).list();
+    const stream = await E(cursor).stream();
+    /** @type {Array<{ name: string, qid: any }>} */
+    const entries = [];
+    for await (const entry of iterateReader(stream)) {
+      entries.push(/** @type {any} */ (entry));
+    }
+    for (const { name, qid } of entries) {
+      if (qid.type === 'directory') {
+        const subDst = await E(dstDir).materialise([name], {});
+        const subSrc = await E(srcDir).lookup(name);
+        // eslint-disable-next-line no-await-in-loop
+        await copyDirInto(subSrc, subDst);
+      } else if (qid.type === 'file') {
+        const file = await E(srcDir).lookup(name);
+        // eslint-disable-next-line no-await-in-loop
+        await copyFileTo(file, dstDir, name);
+      }
+    }
+  };
+
+  /**
    * Build a composed Directory at a path level.
    *
    * @param {object | null} layerDir   layer Directory at this path, or null
@@ -1091,13 +1159,11 @@ export const compose = (layer, backing, _opts = {}) => {
       async rename(oldName, newParent, newName) {
         reqDir();
         // CoW rename is copy + unlink. Source bytes come from layer
-        // (if present) or backing; destination is created via
-        // `newParent.create(newName)` so a CoW destination picks up
-        // auto-copy-up too. After the copy we drop the layer entry
-        // or paint a whiteout over the backing entry.
-        //
-        // Directory renames would need recursive copy-up; we leave
-        // those as ENOSYS for now.
+        // (if present) or backing; destination is materialised via
+        // `newParent` so a CoW destination picks up auto-copy-up too.
+        // For directories, we recursively copy the subtree (layer +
+        // backing merged through the composed view) into a fresh
+        // destination directory before whiteouting the source.
         const layerNames = await layerEntries(layerDir);
         if (layerNames.has(whiteoutName(oldName))) {
           throw makeError(X`ENOENT: ${q(oldName)} (whiteout)`);
@@ -1113,34 +1179,22 @@ export const compose = (layer, backing, _opts = {}) => {
           throw makeError(X`ENOENT: ${q(oldName)}`);
         }
         const srcQid = await E(src).getQid();
-        if (srcQid.type !== 'file') {
+        if (srcQid.type === 'file') {
+          // Copy file bytes through the composed view.
+          // eslint-disable-next-line no-use-before-define
+          await copyFileTo(src, newParent, newName);
+        } else if (srcQid.type === 'directory') {
+          // Recursively materialise the destination subtree and
+          // copy every visible entry from the composed source.
+          // The composed `src` already handles layer+backing
+          // semantics (whiteouts, opaque markers, merged list).
+          const dstDir = await E(newParent).materialise([newName], {});
+          // eslint-disable-next-line no-use-before-define
+          await copyDirInto(src, dstDir);
+        } else {
           throw makeError(
-            X`ENOSYS: rename of non-file ${q(oldName)} in composed Filesystem not implemented`,
+            X`ENOSYS: rename of non-file/non-directory ${q(oldName)}`,
           );
-        }
-        const srcOh = await E(src).open({ read: true });
-        try {
-          const dstOh = await E(newParent).create(newName, {});
-          try {
-            const attrs = await E(src).getAttrs();
-            const size = /** @type {bigint} */ (attrs.size);
-            if (size > 0n) {
-              // Read the full source in one batch; chunked emission
-              // for very large files is deferred (same caveat as
-              // `Layer.apply` — ROADMAP §2.2 streaming).
-              const reader = await E(srcOh).read(0n, size);
-              const writer = await E(dstOh).write(0n);
-              const w = iterateBytesWriter(writer);
-              for await (const chunk of iterateBytesReader(reader)) {
-                await w.next(chunk);
-              }
-              await w.return();
-            }
-          } finally {
-            await E(dstOh).close();
-          }
-        } finally {
-          await E(srcOh).close();
         }
 
         // Remove the source. If only the layer has it, drop the
