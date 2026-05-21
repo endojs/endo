@@ -43,14 +43,14 @@ deliver X" can find the gap in one place.
 
 - **`Layer.apply` is not transactional.**
   A failure partway through leaves the target in a partial state.
-  v2 plan in DESIGN.md §10: `apply` returns a sub-cap with
-  `commit()` / `rollback()`.
-- **`compose.rename` is file-only.**
-  Files rename via copy-up + unlink (the source is read, the
-  destination is created through `newParent.create(...)`, then the
-  source is removed or whiteouted). Directory rename still throws
-  `ENOSYS` because it would require a recursive copy-up of the
-  whole subtree.
+  Real transactional semantics require target-side journal /
+  two-phase-commit support that the `Filesystem` interface
+  doesn't expose. The weaker "best-effort undo" variant
+  (record undo ops and play them in reverse on failure) is
+  fragile — undo ops can themselves fail, especially if a
+  concurrent writer touched the same paths. Deferred until
+  either the interface grows a transaction sub-cap or the target
+  backings expose one.
 
 ### 1.3 Surface gaps that aren't where the design claims they are
 
@@ -64,12 +64,15 @@ deliver X" can find the gap in one place.
   No `flock(2)` integration; locks don't propagate to other OS
   processes touching the same file.
   Useful only for cooperating clients within the same vat.
-- **`Cursor.skip(n)` is O(n) for `in-memory` and `from-mount`.**
-  The interface contract permits O(log n) on sorted-index backings,
-  but only the disk-backed implementation could realistically do
-  better.
-  Pinned by `WEAKNESS [complexity]: Cursor.skip is O(n) for in-memory
-  + Mount adapter, not O(log n)` in `test/optimal-querying.test.js`.
+- **`Cursor.skip(n)` is O(1) per skip, but the snapshot materialisation
+  underlying it is O(N) on every backing.**
+  Each backing builds a list-snapshot at the first `stream()` /
+  `skip()` call (in-memory: `Map.entries()`, node-fs: `fsp.readdir`,
+  from-mount: `Mount.list`); after that, `skip(n)` is just a
+  position-update. True O(log N) skip-to-position would need a
+  sorted-index backing (B-tree, sorted directory). None of the
+  current three qualifies, so the contract's O(log N) clause
+  applies only to a hypothetical future backing with such an index.
 
 ### 1.4 Security gaps
 
@@ -98,14 +101,22 @@ covering leaf symlinks, mid-tree symlink swap, and `O_NOFOLLOW` on
 
 ### 1.6 Cycle detection
 
-- **Eager-only.** `bind` / `namespace` / `compose` check participant
-  tags at construction time and reject overlapping sets.
-  Once a composed `Filesystem` cap has been minted, an adversarial
-  cap-passing pattern (e.g., re-introducing the same cap through a
-  third-party CapTP connection) can defeat the check.
-  Documented as the chosen tradeoff in DESIGN.md §10's open questions;
-  the lazy-traversal alternative would cost every `lookup` a tag-set
-  check.
+- **Construction-time tag check survives within a vat; not across
+  CapTP.** `bind` / `namespace` / `compose` brand each primitive
+  Filesystem with a unique `Symbol` and reject overlapping
+  participant tags at construction. The brand is per-cap-presence
+  via a `WeakMap`, so a Filesystem cap that's marshalled out and
+  back through CapTP comes in as a *different* presence with a
+  freshly-minted tag set — the cycle check on a re-introduced cap
+  doesn't see the original brand. Closing the gap fundamentally
+  needs either (a) content-based brands that survive marshalling
+  (the cap would have to expose extractable identity), or (b)
+  per-lookup traversal-context tracking that detects revisiting the
+  same primitive FS during a single descent. Both are deeper
+  changes than a tag-set comparison; the practical impact is small
+  because a re-introduced cap doesn't create infinite-recursion
+  hazards (lookups are name-keyed and terminate per call), only
+  double-counting in aggregating operations like `statfs`.
 
 ### 1.7 Other documented weaknesses (DESIGN §10.1)
 

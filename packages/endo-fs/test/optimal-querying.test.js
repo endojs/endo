@@ -339,14 +339,12 @@ test('PATTERN: compose rename of a backing-only file copies up + whiteouts the s
   t.is(bytes, 'data');
 });
 
-test('WEAKNESS [complexity]: Cursor.skip is O(n) for in-memory + Mount adapter, not O(log n)', async t => {
-  // DESIGN.md §4.5 documents `skip(n)` as "Default impl reads-and-
-  // discards; backings with ordered indexes (b-trees, sorted
-  // directories) can implement it in O(log n)." Our two backings
-  // (in-memory + Mount adapter) do the default; only a future
-  // disk-backed impl with a sorted index would do better. We can't
-  // measure complexity here, but we can document that skip(N)'s
-  // wall-clock grows with N and pin behaviour.
+test('PATTERN: Cursor.skip is O(1) per call after the first stream-snapshot', async t => {
+  // `skip(n)` is a position update, not a read-and-discard scan —
+  // the snapshot is materialised once (lazily, on first `stream()`
+  // / `skip()`), and every subsequent skip is constant-time.
+  // O(log N) skip-to-position would need a sorted-index backing,
+  // which none of in-memory / node-fs / from-mount provides.
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   await populate(
@@ -357,7 +355,6 @@ test('WEAKNESS [complexity]: Cursor.skip is O(n) for in-memory + Mount adapter, 
     ]),
   );
   const cursor = await E(root).list();
-  // Skip 400 then stream — should produce 100 entries.
   await E(cursor).skip(400n);
   const tail = await collectStream(await E(cursor).stream());
   t.is(tail.length, 100);
