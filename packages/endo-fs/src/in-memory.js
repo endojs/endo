@@ -39,6 +39,7 @@ import {
 } from './type-guards.js';
 import {
   EMPTY_BYTES,
+  assertChildName,
   computeOpenMode,
   makeAttrs,
   makeBytesReaderFromBytes,
@@ -544,9 +545,7 @@ export const makeInMemoryFilesystem = () => {
         return makeXattrsExo(getRecord(dirId));
       },
       async lookup(name) {
-        if (typeof name !== 'string' || name.length === 0) {
-          throw makeError(X`EINVAL: lookup(${q(name)})`);
-        }
+        assertChildName(name);
         const dir = /** @type {DirectoryRecord} */ (getRecord(dirId));
         const childId = dir.children.get(name);
         if (childId === undefined) {
@@ -565,6 +564,7 @@ export const makeInMemoryFilesystem = () => {
         return makeCursorExo(dirId);
       },
       async create(name, opts) {
+        assertChildName(name);
         const dir = /** @type {DirectoryRecord} */ (getRecord(dirId));
         const present = dir.children.get(name);
         const o = /** @type {any} */ (opts) || {};
@@ -605,6 +605,7 @@ export const makeInMemoryFilesystem = () => {
         });
       },
       async mkdir(name, _opts) {
+        assertChildName(name);
         const dir = /** @type {DirectoryRecord} */ (getRecord(dirId));
         if (dir.children.has(name)) {
           throw makeError(X`EEXIST: ${q(name)}`);
@@ -624,6 +625,7 @@ export const makeInMemoryFilesystem = () => {
         return makeDirectoryExo(id);
       },
       async unlink(name) {
+        assertChildName(name);
         const dir = /** @type {DirectoryRecord} */ (getRecord(dirId));
         const childId = dir.children.get(name);
         if (childId === undefined) {
@@ -640,6 +642,8 @@ export const makeInMemoryFilesystem = () => {
         fireEvent(childId, { kind: 'removed' });
       },
       async rename(oldName, newParent, newName) {
+        assertChildName(oldName);
+        assertChildName(newName);
         const src = /** @type {DirectoryRecord} */ (getRecord(dirId));
         const childId = src.children.get(oldName);
         if (childId === undefined) {

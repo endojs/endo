@@ -196,6 +196,19 @@ test('rename across parents', async t => {
   t.is(fromUtf8(bytes), 'payload');
 });
 
+test('mutating verbs reject names containing path separators or reserved values', async t => {
+  // assertChildName is now applied uniformly across in-memory,
+  // node-fs, and from-mount. The names `/`, `.`, `..`, NUL, and the
+  // empty string are rejected on every mutating verb.
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  await t.throwsAsync(() => E(root).create('foo/bar', {}), { message: /EINVAL/ });
+  await t.throwsAsync(() => E(root).mkdir('.', {}), { message: /reserved/ });
+  await t.throwsAsync(() => E(root).mkdir('..', {}), { message: /reserved/ });
+  await t.throwsAsync(() => E(root).unlink(''), { message: /EINVAL/ });
+  await t.throwsAsync(() => E(root).lookup('a\0b'), { message: /separator/ });
+});
+
 test('lookup permission-style absence is ENOENT (not a distinct error)', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();

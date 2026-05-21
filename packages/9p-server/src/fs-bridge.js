@@ -24,10 +24,12 @@ const BridgeInterface = M.interface('FsBridge9p', {
  * `Twalk` for an N-segment path dispatches as one batch of `lookup`
  * messages through CapTP's eventual-send queue) and stream-based
  * byte I/O via `@endo/exo-stream`'s `PassableBytesReader` /
- * `PassableBytesWriter`. The `qid` for each node is fetched via
- * `getQid()` — see `@endo/endo-fs/ROADMAP.md` §1.1 for why this
- * still costs one round-trip per node today. `src/server.js` has
- * the 9P message → cap call mapping.
+ * `PassableBytesWriter`. Each node's `qid` is pipelined alongside
+ * the `lookup` that produced its parent cap so the discovery
+ * shares the walk's round-trip — `getQid()` is sync on the
+ * responder but costs one RTT across CapTP if issued separately
+ * (`@endo/endo-fs/DESIGN.md` §4.10). `src/server.js` has the 9P
+ * message → cap call mapping.
  *
  * @param {{
  *   fs: import('@endo/eventual-send').ERef<any>,

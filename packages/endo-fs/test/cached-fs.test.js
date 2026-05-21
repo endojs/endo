@@ -256,6 +256,44 @@ test('withCachedReads: subsequent reads of different ranges of the same file all
   );
 });
 
+test('withCachedReads: subsequent reads through the same File cap skip snapshot+getInfo (zero RTT on hit)', async t => {
+  // After the first read warms both the CAS and the per-File hash
+  // cache, a second read on the *same* File cap should serve the
+  // bytes locally without issuing snapshot/getInfo/read.
+  const innerFs = makeInMemoryFilesystem();
+  await populateFile(innerFs, 'greet.txt', 'hello, world');
+  const { bootstrapRef, transcript } = makeConnectedPair(innerFs);
+
+  const cas = makeMemoryCas();
+  const fs = withCachedReads(bootstrapRef, cas);
+
+  const root = await E(fs).root();
+  const file = await E(root).lookup('greet.txt');
+  const oh = await E(file).open({ read: true });
+
+  // Prime: first read populates the CAS and the per-File hash.
+  await collectBytes(await E(oh).read(0n, 64n));
+  await settle(20);
+  const afterPrime = transcript.length;
+
+  // Second read on the same File-derived OpenFile. The hash is
+  // known, no watcher event has fired, the CAS holds the payload —
+  // so no CTP_CALL crosses the wire from the read path.
+  const bytes = await collectBytes(await E(oh).read(0n, 64n));
+  t.is(fromUtf8(bytes), 'hello, world');
+  await settle(5);
+
+  const secondCalls = transcript
+    .slice(afterPrime)
+    .filter(e => e.type === 'CTP_CALL')
+    .map(e => e.method);
+  t.deepEqual(
+    secondCalls,
+    [],
+    'zero-RTT second read: no snapshot/getInfo/read crosses the wire',
+  );
+});
+
 test('withCachedReads: rename across wrapped directories unwraps the destination', async t => {
   // The disk-backed `node-fs.js` identifies the rename destination
   // by a private `WeakMap` keyed on the underlying Directory exo.

@@ -90,6 +90,60 @@ export const makeNodeFilesystem = ({ rootPath }) => {
   }
   const canonicalRoot = nodePath.normalize(rootPath);
 
+  // Symlink-safe confinement: every path computed from a Directory
+  // cap must resolve (via `realpath`) to a descendant of the root.
+  // `rootRealPath` is resolved lazily on first use so the cap can be
+  // minted before the directory is created on disk; the resolved
+  // value is cached for the lifetime of the FS cap. Patterned after
+  // `@endo/daemon/src/mount.js` `assertConfined`.
+  /** @type {string | null} */
+  let rootRealPathCache = null;
+  const getRootRealPath = async () => {
+    if (rootRealPathCache === null) {
+      rootRealPathCache = await fsp.realpath(canonicalRoot);
+    }
+    return rootRealPathCache;
+  };
+
+  /**
+   * Throw EACCES if `absPath`'s `realpath` escapes the root. For a
+   * path that doesn't yet exist (`create` / `mkdir`), walk up to the
+   * deepest existing ancestor and check its `realpath` instead —
+   * mirrors Mount's `assertConfinedOrAncestor`.
+   *
+   * @param {string} absPath
+   */
+  const assertConfined = async absPath => {
+    const rootResolved = await getRootRealPath();
+    let check = absPath;
+    for (;;) {
+      let resolved;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        resolved = await fsp.realpath(check);
+      } catch {
+        const parent = nodePath.dirname(check);
+        if (parent === check) {
+          throw makeError(
+            X`EACCES: path escapes filesystem root: ${q(absPath)}`,
+          );
+        }
+        check = parent;
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      if (
+        resolved !== rootResolved &&
+        !resolved.startsWith(`${rootResolved}${nodePath.sep}`)
+      ) {
+        throw makeError(
+          X`EACCES: path escapes filesystem root: ${q(absPath)}`,
+        );
+      }
+      return;
+    }
+  };
+
   // Per-absolute-path lock table. Locks are advisory, in-process
   // only.
   /** @type {ReturnType<typeof makeLockTable<string>>} */
@@ -435,6 +489,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
 
     return makeExo('Cursor', CursorInterface, {
       async stream() {
+        await assertConfined(absDirPath);
         const entries = await ensureSnapshot();
         const start = Number(position);
         const gen = async function* () {
@@ -488,7 +543,8 @@ export const makeNodeFilesystem = ({ rootPath }) => {
         return cachedQid;
       },
       async getAttrs() {
-        const stat = await fsp.stat(absPath);
+        await assertConfined(absPath);
+        const stat = await fsp.lstat(absPath);
         return attrsFromStat(stat);
       },
       async setAttrs(updates) {
@@ -498,8 +554,9 @@ export const makeNodeFilesystem = ({ rootPath }) => {
             X`EPERM: owner updates not in base Filesystem; use PosixFs`,
           );
         }
+        await assertConfined(absPath);
         if (upd.mtime !== undefined || upd.atime !== undefined) {
-          const stat = await fsp.stat(absPath);
+          const stat = await fsp.lstat(absPath);
           const atime =
             upd.atime !== undefined
               ? Number(upd.atime) / 1_000_000
@@ -521,8 +578,11 @@ export const makeNodeFilesystem = ({ rootPath }) => {
         return makeXattrsStub();
       },
       async open(opts) {
+        await assertConfined(absPath);
         const mode = computeOpenMode(opts);
-        let flags = 0;
+        // O_NOFOLLOW so the open can't be hijacked by swapping the
+        // path for a symlink between mint time and now.
+        let flags = fsConstants.O_NOFOLLOW;
         if (mode.read && mode.write) flags |= fsConstants.O_RDWR;
         else if (mode.write) flags |= fsConstants.O_WRONLY;
         else flags |= fsConstants.O_RDONLY;
@@ -533,6 +593,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       },
       async snapshot() {
         try {
+          await assertConfined(absPath);
           const buf = await fsp.readFile(absPath);
           return makeBlobRefExo(new Uint8Array(buf));
         } catch {
@@ -561,7 +622,8 @@ export const makeNodeFilesystem = ({ rootPath }) => {
         return cachedQid;
       },
       async getAttrs() {
-        const stat = await fsp.stat(absDirPath);
+        await assertConfined(absDirPath);
+        const stat = await fsp.lstat(absDirPath);
         return attrsFromStat(stat);
       },
       async setAttrs(updates) {
@@ -571,8 +633,9 @@ export const makeNodeFilesystem = ({ rootPath }) => {
             X`EPERM: owner updates not in base Filesystem; use PosixFs`,
           );
         }
+        await assertConfined(absDirPath);
         if (upd.mtime !== undefined || upd.atime !== undefined) {
-          const stat = await fsp.stat(absDirPath);
+          const stat = await fsp.lstat(absDirPath);
           const atime =
             upd.atime !== undefined
               ? Number(upd.atime) / 1_000_000
@@ -600,11 +663,21 @@ export const makeNodeFilesystem = ({ rootPath }) => {
           // Permission denied collapses to ENOENT per DESIGN.md §4.3.
           throw makeError(X`ENOENT: ${q(name)}`);
         }
+        // Filter out symlinks at the leaf (they aren't in the base
+        // node model) before the containment check — otherwise a
+        // symlink pointing outside the root would surface as EACCES,
+        // which would leak its existence. Same with other special
+        // types.
+        if (!stat.isDirectory() && !stat.isFile()) {
+          throw makeError(X`ENOENT: ${q(name)}`);
+        }
+        // Symlink-safe confinement: an intermediate component may
+        // have been swapped for a symlink since this Directory cap
+        // was minted; verify the resolved path is still a descendant
+        // of the root.
+        await assertConfined(child);
         if (stat.isDirectory()) return makeDirectoryExo(child, stat);
-        if (stat.isFile()) return makeFileExo(child, stat);
-        // Other types (symlink, fifo, socket, device) aren't in
-        // the base; surface as ENOENT to avoid lying about kind.
-        throw makeError(X`ENOENT: ${q(name)}`);
+        return makeFileExo(child, stat);
       },
       async list() {
         return makeCursorExo(absDirPath);
@@ -612,13 +685,19 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       async create(name, opts) {
         assertChildName(name);
         const child = nodePath.join(absDirPath, name);
+        // Confine the parent path before issuing the create; the
+        // child itself doesn't exist yet, so assertConfined walks
+        // up to the deepest existing ancestor.
+        await assertConfined(child);
         const o = /** @type {any} */ (opts) || {};
-        // eslint-disable-next-line no-bitwise
+        // O_NOFOLLOW: if `name` is a pre-existing symlink, refuse
+        // to open through it (kernel returns ELOOP). Without this,
+        // `open(O_CREAT)` follows a leaf symlink and could write
+        // through to a path outside the root.
         const flags =
-          // eslint-disable-next-line no-bitwise
           fsConstants.O_RDWR |
-          // eslint-disable-next-line no-bitwise
           fsConstants.O_CREAT |
+          fsConstants.O_NOFOLLOW |
           (o.exclusive ? fsConstants.O_EXCL : 0);
         const fh = await fsp.open(child, flags, 0o644);
         return makeOpenFileExo(
@@ -630,6 +709,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       async mkdir(name, _opts) {
         assertChildName(name);
         const child = nodePath.join(absDirPath, name);
+        await assertConfined(child);
         try {
           await fsp.mkdir(child);
         } catch (e) {
@@ -641,6 +721,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       async unlink(name) {
         assertChildName(name);
         const child = nodePath.join(absDirPath, name);
+        await assertConfined(child);
         try {
           const stat = await fsp.lstat(child);
           if (stat.isDirectory()) {
@@ -666,6 +747,8 @@ export const makeNodeFilesystem = ({ rootPath }) => {
         }
         const src = nodePath.join(absDirPath, oldName);
         const dst = nodePath.join(destDir, newName);
+        await assertConfined(src);
+        await assertConfined(dst);
         try {
           await fsp.rename(src, dst);
         } catch (e) {

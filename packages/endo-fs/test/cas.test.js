@@ -170,3 +170,70 @@ test('identical bytes from different files share a single CAS slot', async t => 
 
   t.is(cas.size, 1, 'identical content → one CAS slot');
 });
+
+test('cacheBackedRead with { offset, length } returns a slice of the cached payload', async t => {
+  // Whole-blob hits cache, range read is a slice of the cached bytes.
+  const fs = makeInMemoryFilesystem();
+  await populateFile(fs, 'long.txt', '0123456789abcdef');
+  const { bootstrapRef, transcript } = makeConnectedPair(fs);
+  const root = await E(bootstrapRef).root();
+  const file = await E(root).lookup('long.txt');
+  const blob = await E(file).snapshot();
+  const cas = makeMemoryCas();
+
+  // Miss: fetches the whole blob, populates CAS.
+  const head = await cacheBackedRead(blob, cas, { offset: 0n, length: 4n });
+  t.is(fromUtf8(head), '0123');
+  await settle();
+  t.is(cas.size, 1);
+  const afterMiss = transcript.length;
+
+  // Hit: no fetch on the wire; slice comes from cache.
+  const tail = await cacheBackedRead(blob, cas, { offset: 10n, length: 6n });
+  t.is(fromUtf8(tail), 'abcdef');
+  await settle();
+  const hitCalls = transcript
+    .slice(afterMiss)
+    .filter(e => e.type === 'CTP_CALL')
+    .map(e => e.method);
+  t.is(
+    hitCalls.filter(m => m === 'fetch').length,
+    0,
+    'second-range read is served from the CAS — no fetch crosses the wire',
+  );
+});
+
+test('makeMemoryCas: LRU eviction drops the least-recently-used entry when over capacity', t => {
+  const cas = makeMemoryCas({ capacity: 2 });
+  const mk = h => ({ algorithm: 'sha256', hash: h, size: 0n });
+  cas.put(mk('a'), new Uint8Array([1]));
+  cas.put(mk('b'), new Uint8Array([2]));
+  // Touch 'a' to make it most-recent.
+  t.deepEqual([...(cas.get(mk('a')) || new Uint8Array())], [1]);
+  // Inserting a third entry evicts 'b' (now LRU).
+  cas.put(mk('c'), new Uint8Array([3]));
+  t.is(cas.size, 2);
+  t.true(cas.has(mk('a')));
+  t.false(cas.has(mk('b')));
+  t.true(cas.has(mk('c')));
+});
+
+test('makeMemoryCas: invalid capacity rejects', t => {
+  t.throws(() => makeMemoryCas({ capacity: 0 }), { message: /positive/ });
+  t.throws(() => makeMemoryCas({ capacity: -1 }), { message: /positive/ });
+  t.throws(() => makeMemoryCas({ capacity: 1.5 }), { message: /positive/ });
+});
+
+test('cacheBackedRead range rejects out-of-bounds offset with EINVAL', async t => {
+  const fs = makeInMemoryFilesystem();
+  await populateFile(fs, 'small.txt', 'abc');
+  const { bootstrapRef } = makeConnectedPair(fs);
+  const root = await E(bootstrapRef).root();
+  const blob = await E(await E(root).lookup('small.txt')).snapshot();
+  const cas = makeMemoryCas();
+
+  await t.throwsAsync(
+    () => cacheBackedRead(blob, cas, { offset: 99n, length: 1n }),
+    { message: /EINVAL/ },
+  );
+});

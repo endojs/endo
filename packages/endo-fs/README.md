@@ -13,11 +13,15 @@ method-sized buffers — and `File.snapshot()` optionally returns a
 content-addressed `BlobRef` so a peer holding a CAS can serve
 reads locally and skip the `fetch` round-trip on cache hits.
 
-Several claims in the design (eager `qid` and `BlobRef.getInfo`
-avoiding round-trips, CAS hits skipping the network entirely)
-hold in interface intent but not in current CapTP runtime
-behavior. See `ROADMAP.md` §1 for the honest list of where this
-package's behavior trails the design.
+`qid` and `BlobRef.getInfo` are sync getters on the responder, but
+callers reach them across CapTP — one round-trip per call. The
+intended usage is to pipeline the getter alongside the call that
+produced the cap (lookup + `getQid` in one batch, snapshot + getInfo
++ fetch in one batch), so the incremental round-trip is zero;
+`cached-fs.js` and `readonly.js` are the realisations. See
+`DESIGN.md` §4.10. CAS hits skip the bytes payload; with
+`withCachedReads`'s watch-based hash cache they also skip the
+discovery RTT on repeat reads of unchanged files.
 
 Key pieces:
 

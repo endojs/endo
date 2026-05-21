@@ -48,6 +48,7 @@ import { E } from '@endo/eventual-send';
 import { q } from '@endo/errors';
 
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import {
   FilesystemInterface,
@@ -132,11 +133,12 @@ export const withCachedReads = (inner, cas) => {
 harden(withCachedReads);
 
 /**
- * Resolve a `Node` cap + its `qid` in one pipelined batch, so the
- * sync wrapper getter honors `M.call().returns(Pass)` (qid is sync
- * on the responder per §4.10's eager-state design) even when the
- * underlying cap is remote and would otherwise need a CTP_CALL on
- * every `getQid`.
+ * Resolve a `Node` cap + its `qid` in one pipelined batch (DESIGN.md
+ * §4.10). `getQid` is sync on the responder but costs one RTT across
+ * CapTP; pipelining it alongside the call that produced the cap
+ * folds it into the same batch, so the wrapper's sync `getQid()`
+ * getter can honor `M.call().returns(Pass)` without paying a per-
+ * call round-trip.
  *
  * @param {Promise<any> | any} nodeRef
  */
@@ -193,7 +195,9 @@ const makeCachingFilesystem = (
 
 /**
  * @param {object} dir
- * @param {any} cachedQid  qid resolved at construction (eager-state contract)
+ * @param {any} cachedQid  qid resolved at construction so the
+ *   wrapper's sync `getQid()` doesn't need to fall back to a remote
+ *   call (DESIGN.md §4.10 pipelining convention)
  * @param {ContentAddressedStore} cas
  * @param {(blobP: any, info: BlobInfo) => void} populateInBackground
  * @param {WeakMap<object, object>} wrapperToInner
@@ -224,8 +228,8 @@ const makeCachingDirectory = (
     async lookup(name) {
       // Pipeline lookup + getQid as one batch so a CapTP-mediated
       // lookup still costs one RTT total — and we cache the qid
-      // on the wrapper exo, honoring the eager-state contract
-      // even when the underlying cap is remote.
+      // on the wrapper exo so its sync `getQid()` getter doesn't
+      // need a follow-up round-trip (DESIGN.md §4.10 convention).
       const { node, qid } = await resolveNodeWithQid(E(dir).lookup(name));
       if (qid && qid.type === 'directory') {
         return makeCachingDirectory(
@@ -289,12 +293,64 @@ const makeCachingDirectory = (
 };
 
 /**
+ * Per-File state used by `withCachedReads` to skip the
+ * `snapshot + getInfo` round-trip on reads of an unchanged file.
+ * The wrapper subscribes to `file.watch()` on first read; any event
+ * flips `dirty`, forcing the next read to re-discover the hash and
+ * refresh `knownInfo`.
+ *
+ * @typedef {object} FileWatchState
+ * @property {BlobInfo | null} knownInfo
+ *   Last `BlobInfo` we observed for this File, or null if we
+ *   haven't read it yet.
+ * @property {boolean} dirty
+ *   Set to true when the watcher reports any event; cleared on
+ *   the next full snapshot/getInfo round-trip.
+ * @property {boolean} watchSubscribed
+ *   Whether we've already subscribed to the underlying watcher.
+ */
+
+/**
  * @param {object} file
- * @param {any} cachedQid  qid resolved at construction (eager-state contract)
+ * @param {any} cachedQid  qid resolved at construction so the
+ *   wrapper's sync `getQid()` doesn't need to fall back to a remote
+ *   call (DESIGN.md §4.10 pipelining convention)
  * @param {ContentAddressedStore} cas
  * @param {(blobP: any, info: BlobInfo) => void} populateInBackground
  */
 const makeCachingFile = (file, cachedQid, cas, populateInBackground) => {
+  // Per-File state captured in this closure. Intentionally NOT
+  // hardened — the `dirty`, `knownInfo`, and `watchSubscribed`
+  // fields are mutable, and the object never escapes this scope.
+  /** @type {FileWatchState} */
+  const state = {
+    knownInfo: null,
+    dirty: false,
+    watchSubscribed: false,
+  };
+
+  // Subscribe lazily — building a watcher costs at least one RTT,
+  // and many consumers never read.
+  const ensureWatcher = () => {
+    if (state.watchSubscribed) return;
+    state.watchSubscribed = true;
+    void (async () => {
+      try {
+        const watcher = await E(file).watch();
+        const events = await E(watcher).events();
+        // eslint-disable-next-line no-unused-vars
+        for await (const ev of iterateReader(events)) {
+          state.dirty = true;
+        }
+      } catch {
+        // Backings that don't support watch (or the watcher
+        // itself failing) shouldn't poison the wrapper. The
+        // worst case is the read path falls back to the
+        // snapshot+getInfo flow on every call — same as before.
+      }
+    })();
+  };
+
   return makeExo('File', FileInterface, {
     getQid() {
       return cachedQid;
@@ -313,7 +369,14 @@ const makeCachingFile = (file, cachedQid, cas, populateInBackground) => {
     },
     async open(opts) {
       const underlyingOh = await E(file).open(opts);
-      return makeCachingOpenFile(underlyingOh, file, cas, populateInBackground);
+      return makeCachingOpenFile(
+        underlyingOh,
+        file,
+        cas,
+        populateInBackground,
+        state,
+        ensureWatcher,
+      );
     },
     async snapshot() {
       // Pass through. The wrapper doesn't intercept snapshots
@@ -336,13 +399,36 @@ const makeCachingFile = (file, cachedQid, cas, populateInBackground) => {
  *   the OpenFile was minted by `Directory.create` rather than `File.open`)
  * @param {ContentAddressedStore} cas
  * @param {(blobP: any, info: BlobInfo) => void} populateInBackground
+ * @param {FileWatchState} [watchState]  per-File hash cache (omitted when the
+ *   OpenFile was minted by `Directory.create` — no File cap to attach to)
+ * @param {() => void} [ensureWatcher]  subscribes the per-File watcher on
+ *   first use; idempotent
  */
 const makeCachingOpenFile = (
   underlyingOh,
   underlyingFile,
   cas,
   populateInBackground,
+  watchState,
+  ensureWatcher,
 ) => {
+  /**
+   * Slice a CAS-cached payload to the requested range and return
+   * it as a one-shot reader.
+   *
+   * @param {Uint8Array} cached
+   * @param {bigint | number} offset
+   * @param {bigint | number} length
+   */
+  const sliceCached = (cached, offset, length) => {
+    const off = toSafeNumber(offset, 'offset');
+    const len = toSafeNumber(length, 'length');
+    const end = Math.min(off + len, cached.length);
+    const slice =
+      off >= cached.length ? EMPTY_BYTES : cached.slice(off, end);
+    return makeBytesReaderFromBytes(slice);
+  };
+
   return makeExo('OpenFile', OpenFileInterface, {
     async read(offset, length) {
       // If we have no `underlyingFile` (came from `create`), we
@@ -350,10 +436,27 @@ const makeCachingOpenFile = (
       if (underlyingFile === null) {
         return E(underlyingOh).read(offset, length);
       }
-      // Pipeline all three calls in one synchronous batch.
-      // `@endo/exo-stream` is pull-based, so the speculative
-      // reader's bytes don't flow until iterated. On a hit we
-      // return a different reader and never iterate the
+      // Zero-RTT path: if we already know this file's hash from a
+      // prior read and a watch subscription hasn't reported any
+      // change since, look up the CAS directly. On hit, return
+      // immediately without issuing snapshot/getInfo/read.
+      if (
+        watchState !== undefined &&
+        watchState.knownInfo !== null &&
+        !watchState.dirty
+      ) {
+        const cached = cas.get(watchState.knownInfo);
+        if (cached !== undefined) {
+          // Make sure the watcher is up so future events flip dirty
+          // promptly; idempotent.
+          if (ensureWatcher) ensureWatcher();
+          return sliceCached(cached, offset, length);
+        }
+      }
+      // Fall-through path: snapshot + getInfo + speculative read
+      // in one synchronous batch. `@endo/exo-stream` is pull-based,
+      // so the speculative reader's bytes don't flow until iterated;
+      // on a hit we return a different reader and never iterate the
       // speculative one — no bandwidth waste, no extra RTT.
       const blobP = E(underlyingFile).snapshot();
       const infoP = E(blobP).getInfo();
@@ -361,22 +464,25 @@ const makeCachingOpenFile = (
 
       const info = await infoP;
       if (info) {
-        const cached = cas.get(/** @type {BlobInfo} */ (info));
+        const typedInfo = /** @type {BlobInfo} */ (info);
+        // Refresh hash cache + clear dirty for the next zero-RTT
+        // attempt. Subscribe the watcher if we haven't yet.
+        if (watchState !== undefined) {
+          watchState.knownInfo = typedInfo;
+          watchState.dirty = false;
+        }
+        if (ensureWatcher) ensureWatcher();
+        const cached = cas.get(typedInfo);
         if (cached !== undefined) {
           // Cache hit. Slice locally; speculative reader is GC'd
           // unused.
-          const off = toSafeNumber(offset, 'offset');
-          const len = toSafeNumber(length, 'length');
-          const end = Math.min(off + len, cached.length);
-          const slice =
-            off >= cached.length ? EMPTY_BYTES : cached.slice(off, end);
-          return makeBytesReaderFromBytes(slice);
+          return sliceCached(cached, offset, length);
         }
         // Cache miss. Hand the speculative reader to the caller
         // (its bytes are already in flight in the same CapTP
         // batch as the hash discovery). Populate the cache in the
         // background so the next read of this content is a hit.
-        populateInBackground(blobP, /** @type {BlobInfo} */ (info));
+        populateInBackground(blobP, typedInfo);
         return speculativeReadP;
       }
       // No BlobRef on this backing — wrapper degenerates to plain

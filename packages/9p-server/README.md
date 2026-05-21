@@ -36,9 +36,12 @@ lookup `CTP_CALL` in the chain reaches the wire before any
 `CTP_RETURN` comes back — the structural pipelining property
 proven by `@endo/endo-fs/test/pipelined-rtt.test.js`.
 
-The `qid` calls themselves still cost a round-trip per node
-today, since CapTP doesn't yet ship exo state alongside slots;
-see `@endo/endo-fs/ROADMAP.md` §1.1.
+Each `qid` is pipelined alongside the `lookup` that produced its
+parent cap (`Promise.allSettled` over the chain), so the qid
+discovery shares the same round-trip as the walk. `getQid()` is
+sync on the responder but costs one RTT across CapTP — pipelining
+it into the same batch is the standard usage (see
+`@endo/endo-fs/DESIGN.md` §4.10).
 
 `Tread` against a file uses `OpenFile.read(offset, length)` →
 `PassableBytesReader`; bytes flow through `@endo/exo-stream`'s

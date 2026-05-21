@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* eslint-disable import/order, no-await-in-loop */
+/* eslint-disable import/order, no-await-in-loop, no-bitwise */
 
 /**
  * Layer.diff / Layer.apply tests (F12, DESIGN.md §8.5).
@@ -138,6 +138,76 @@ test('Layer.seal returns a read-only Filesystem over the layer', async t => {
   const r = await E(sealed).root();
   t.is(await readFile(r, 'sealed.txt'), 'frozen');
   await t.throwsAsync(() => E(r).create('new', {}), { message: /EACCES/ });
+});
+
+test('Layer.diff chunks files >1 MiB into multiple write-bytes ops + a terminal truncate', async t => {
+  const backing = makeInMemoryFilesystem();
+  const layerFs = makeInMemoryFilesystem();
+  const layerRoot = await E(layerFs).root();
+  // 2.5 MiB → expect 3 `write-bytes` chunks (1 MiB, 1 MiB, 0.5 MiB)
+  // plus a terminal `truncate`.
+  const big = new Uint8Array(Math.floor(2.5 * 1024 * 1024));
+  for (let i = 0; i < big.length; i += 1) big[i] = i & 0xff;
+  const opened = await E(layerRoot).create('big.bin', {});
+  await writeBytes(await E(opened).write(0n), big);
+  await E(opened).close();
+
+  const layer = makeLayer(layerFs, backing);
+  const ops = await collectStream(await E(layer).diff());
+  const bigOps = ops.filter(
+    o => Array.isArray(o.path) && o.path[o.path.length - 1] === 'big.bin',
+  );
+  const chunks = bigOps.filter(o => o.kind === 'write-bytes');
+  t.is(chunks.length, 3, 'expected three 1-MiB chunks (with last partial)');
+  t.is(chunks[0].offset, 0n);
+  t.is(chunks[1].offset, 1024n * 1024n);
+  t.is(chunks[2].offset, 2n * 1024n * 1024n);
+  for (const c of chunks) {
+    t.true(
+      /** @type {Uint8Array} */ (c.bytes).length <= 1024 * 1024,
+      'no chunk exceeds 1 MiB',
+    );
+  }
+  const truncate = bigOps.find(o => o.kind === 'truncate');
+  t.truthy(truncate, 'terminal truncate op present');
+  t.is(truncate.length, BigInt(big.length));
+});
+
+test('Layer.apply replays a >1 MiB file accurately across chunked emission', async t => {
+  const backing = makeInMemoryFilesystem();
+  const layerFs = makeInMemoryFilesystem();
+  const layerRoot = await E(layerFs).root();
+  const big = new Uint8Array(Math.floor(1.5 * 1024 * 1024));
+  for (let i = 0; i < big.length; i += 1) big[i] = (i * 31) & 0xff;
+  const opened = await E(layerRoot).create('big.bin', {});
+  await writeBytes(await E(opened).write(0n), big);
+  await E(opened).close();
+
+  const layer = makeLayer(layerFs, backing);
+  const target = makeInMemoryFilesystem();
+  await E(layer).apply(target);
+
+  const tRoot = await E(target).root();
+  const got = await E(tRoot).lookup('big.bin');
+  const oh = await E(got).open({ read: true });
+  // Read back in 64-KiB slices to keep each base64 frame inside the
+  // default `iterateBytesReader` string-length cap.
+  const FRAME = 64 * 1024;
+  const replayed = new Uint8Array(big.length);
+  for (let off = 0; off < big.length; off += FRAME) {
+    const take = Math.min(FRAME, big.length - off);
+    const piece = await collectBytes(await E(oh).read(BigInt(off), BigInt(take)));
+    replayed.set(piece, off);
+  }
+  await E(oh).close();
+  t.is(replayed.length, big.length);
+  for (let i = 0; i < big.length; i += 1) {
+    if (replayed[i] !== big[i]) {
+      t.fail(`byte mismatch at offset ${i}: got ${replayed[i]}, expected ${big[i]}`);
+      return;
+    }
+  }
+  t.pass();
 });
 
 test('whiteout filenames appear in diff as whiteout ops', async t => {

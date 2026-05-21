@@ -143,10 +143,9 @@ harden(NodeWatcherInterface);
  * `File.snapshot()` (DESIGN.md §6). `getInfo()` returns
  * `{ algorithm, hash, size }`; `fetch(offset, length)` returns a
  * bytes stream over the immutable bytes captured at snapshot
- * time. DESIGN.md §4.10 specifies the info record as "eager"
- * (carried with the cap's slot at CapTP marshalling), but CapTP
- * does not currently ship state alongside slots, so `getInfo()`
- * costs one round-trip in practice. See ROADMAP.md §1.1.
+ * time. `getInfo()` is a sync getter on the responder; callers
+ * pipeline it alongside `snapshot` / `fetch` so the round-trip is
+ * shared with the surrounding call (DESIGN.md §4.10).
  */
 export const BlobRefInterface = M.interface('BlobRef', {
   getInfo: M.call().returns(Pass),

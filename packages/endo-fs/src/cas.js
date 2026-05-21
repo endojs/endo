@@ -3,8 +3,9 @@
  * Reference content-addressed-store (CAS) consumer for `BlobRef`s
  * (DESIGN.md §6).
  *
- * `BlobRef.getInfo()` carries `{ algorithm, hash, size }` (eager
- * in spirit; one round-trip across CapTP today per §10.1). A
+ * `BlobRef.getInfo()` carries `{ algorithm, hash, size }`. Callers
+ * pipeline it alongside the surrounding call (snapshot, fetch) so
+ * the incremental round-trip is zero (DESIGN.md §4.10). A
  * consumer that maintains a local CAS keyed by `(algorithm,
  * hash)` can answer reads locally and skip `BlobRef.fetch()`
  * entirely on cache hits — the central performance claim that
@@ -61,24 +62,70 @@ const keyOf = info => {
 };
 
 /**
- * Build a fresh in-memory CAS. Backing is a plain `Map`; cached
- * values are hardened `Uint8Array`s. Not safe for use across
- * vat boundaries (the CAS is a host-process resource).
+ * Build a fresh in-memory CAS.
  *
+ * Backing is a plain `Map` whose iteration order tracks LRU (every
+ * `get`/`put` moves the entry to the back of the Map). When the
+ * caller passes `capacity`, `put` evicts least-recently-used entries
+ * once the count exceeds the limit. The default is unbounded — same
+ * shape as before, suitable for tests and short-lived consumers.
+ * Long-running consumers should set `capacity` to keep memory
+ * bounded.
+ *
+ * Not safe for use across vat boundaries (the CAS is a host-process
+ * resource).
+ *
+ * @param {{ capacity?: number }} [opts]
  * @returns {ContentAddressedStore}
  */
-export const makeMemoryCas = () => {
+export const makeMemoryCas = (opts = {}) => {
+  const { capacity } = opts;
+  if (capacity !== undefined) {
+    if (
+      typeof capacity !== 'number' ||
+      !Number.isInteger(capacity) ||
+      capacity <= 0
+    ) {
+      throw makeError(
+        X`makeMemoryCas: capacity must be a positive integer, got ${q(capacity)}`,
+      );
+    }
+  }
   /** @type {Map<string, Uint8Array>} */
   const map = new Map();
+  // LRU via Map insertion order: `get` deletes + re-sets so the
+  // most-recently-used entry sits at the back; eviction pops the
+  // first (oldest) key.
+  const touch = key => {
+    const v = map.get(key);
+    if (v !== undefined) {
+      map.delete(key);
+      map.set(key, v);
+    }
+    return v;
+  };
+  const evictIfFull = () => {
+    if (capacity === undefined) return;
+    while (map.size > capacity) {
+      const oldest = map.keys().next().value;
+      if (oldest === undefined) return;
+      map.delete(oldest);
+    }
+  };
   return harden({
     has(info) {
       return map.has(keyOf(info));
     },
     get(info) {
-      return map.get(keyOf(info));
+      return touch(keyOf(info));
     },
     put(info, bytes) {
-      map.set(keyOf(info), harden(new Uint8Array(bytes)));
+      const key = keyOf(info);
+      // `set` on an existing key keeps insertion order; delete first
+      // so the entry moves to the back.
+      if (map.has(key)) map.delete(key);
+      map.set(key, harden(new Uint8Array(bytes)));
+      evictIfFull();
     },
     get size() {
       return map.size;
@@ -88,15 +135,29 @@ export const makeMemoryCas = () => {
 harden(makeMemoryCas);
 
 /**
- * Drain a `PassableBytesReader` into a single `Uint8Array`.
+ * Drain a `PassableBytesReader` into a single `Uint8Array`. The
+ * per-frame `stringLengthLimit` is raised to accommodate backings
+ * (notably `makeBytesReaderFromBytes`) that yield the entire
+ * payload in one frame; without it, the default 100-KB cap on
+ * `M.string()` would reject anything bigger.
  *
  * @param {any} readerRef
+ * @param {bigint | number} expectedSize  total bytes; sets the per-frame
+ *   base64 string limit just above the worst-case 4/3 expansion of the
+ *   payload so a one-shot frame fits.
  */
-const drainBytesReader = async readerRef => {
+const drainBytesReader = async (readerRef, expectedSize) => {
+  const size =
+    typeof expectedSize === 'bigint' ? Number(expectedSize) : expectedSize;
+  const stringLengthLimit = Math.max(
+    100_000,
+    Math.ceil((size * 4) / 3) + 1024,
+  );
   /** @type {Uint8Array[]} */
   const chunks = [];
   let total = 0;
-  for await (const chunk of iterateBytesReader(readerRef)) {
+  const consumer = iterateBytesReader(readerRef, { stringLengthLimit });
+  for await (const chunk of consumer) {
     chunks.push(chunk);
     total += chunk.length;
   }
@@ -116,25 +177,42 @@ const drainBytesReader = async readerRef => {
  * On miss, fetch the full content from the underlying blob,
  * populate the CAS, and return.
  *
- * `BlobRef.getInfo()` is always called (one round-trip today,
- * per DESIGN.md §10.1 — the eager-state design will collapse
- * this to zero once CapTP ships state alongside the cap's
- * slot).
+ * `BlobRef.getInfo()` is always called (one round-trip); callers
+ * that need to avoid even that round-trip should pipeline `getInfo`
+ * alongside the call that produced the BlobRef — see
+ * `withCachedReads` in `cached-fs.js` for the realisation.
+ *
+ * With `{ offset, length }`, returns a slice of the blob. The
+ * full blob is still fetched on a miss because the CAS contract
+ * is whole-blob (the hash names the entire payload); partial
+ * fetches couldn't be safely cached. The return is a copy of
+ * the requested slice.
  *
  * @param {any} blobRef
  * @param {ContentAddressedStore} cas
+ * @param {{ offset?: bigint, length?: bigint }} [range]
  * @returns {Promise<Uint8Array>}
  */
-export const cacheBackedRead = async (blobRef, cas) => {
+export const cacheBackedRead = async (blobRef, cas, range) => {
   const info = /** @type {BlobInfo} */ (await E(blobRef).getInfo());
-  const hit = cas.get(info);
-  if (hit !== undefined) {
-    return hit;
+  let bytes = cas.get(info);
+  if (bytes === undefined) {
+    // Miss: pull the full payload over the wire and cache it.
+    const reader = await E(blobRef).fetch(0n, info.size);
+    bytes = await drainBytesReader(reader, info.size);
+    cas.put(info, bytes);
   }
-  // Miss: pull the full payload over the wire and cache it.
-  const reader = await E(blobRef).fetch(0n, info.size);
-  const bytes = await drainBytesReader(reader);
-  cas.put(info, bytes);
-  return bytes;
+  if (range === undefined) return bytes;
+  const offset =
+    range.offset === undefined ? 0 : Number(range.offset);
+  const length =
+    range.length === undefined ? bytes.length - offset : Number(range.length);
+  if (offset < 0 || length < 0 || offset > bytes.length) {
+    throw makeError(
+      X`EINVAL: cacheBackedRead range out of bounds (offset=${q(offset)}, length=${q(length)}, size=${q(bytes.length)})`,
+    );
+  }
+  const end = Math.min(offset + length, bytes.length);
+  return bytes.slice(offset, end);
 };
 harden(cacheBackedRead);

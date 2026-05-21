@@ -48,6 +48,21 @@ const OPAQUE_NAME = '.__opaque__';
 const isWhiteoutName = n => n.startsWith(WHITEOUT_PREFIX);
 const whiteoutTarget = n => n.slice(WHITEOUT_PREFIX.length);
 
+// Maximum payload per `write-bytes` LayerOp. Files larger than this
+// are split across N+1 ops (N writes at chunk offsets + a final
+// `truncate`) so a single op doesn't materialise the whole file
+// into one Uint8Array on the wire.
+const LAYER_CHUNK_BYTES = 1 << 20; // 1 MiB
+
+// Base64-encoded payload limit for the bytes reader we drain per
+// chunk. `iterateBytesReader` validates each frame against an
+// `M.string({ stringLengthLimit })` pattern; the default 100_000 is
+// well below our 1-MiB chunk (~1.37 MiB base64-encoded). Set the
+// limit generously above the worst-case 4/3 expansion of one
+// LAYER_CHUNK_BYTES so the per-frame ack-protocol doesn't reject
+// the in-memory backing's one-shot framing.
+const LAYER_BASE64_LIMIT = Math.ceil((LAYER_CHUNK_BYTES * 4) / 3) + 1024;
+
 export const LayerInterface = M.interface('Layer', {
   asFilesystem: M.call().returns(M.eref(M.remotable('Filesystem'))),
   backing: M.call().returns(M.eref(M.remotable('Filesystem'))),
@@ -100,44 +115,59 @@ const enumerateLayerOps = async function* (layerFs) {
       }
       if (entry.qid.type === 'file') {
         yield harden({ kind: 'create-file', path: childPath });
-        // Stream the file's bytes as a separate op so apply can
-        // replay them. Ask the file how large it is first so we
-        // request exactly that many bytes — the previous version
-        // passed `1n << 30n` unconditionally, which made the
-        // disk-backed `OpenFile.read` allocate a 1 GiB `Buffer`
-        // for every file, however small. Chunked emission for
-        // files larger than a single LayerOp is deferred.
         const file = await E(dir).lookup(name);
         const attrs = await E(file).getAttrs();
-        const size = attrs.size;
+        const size = /** @type {bigint} */ (attrs.size);
         const oh = await E(file).open({ read: true });
-        let merged;
-        if (size === 0n) {
-          merged = new Uint8Array(0);
-        } else {
-          const reader = await E(oh).read(0n, size);
-          const chunks = [];
-          let total = 0;
-          for await (const chunk of iterateBytesReader(reader)) {
-            chunks.push(chunk);
-            total += chunk.length;
+        try {
+          // Emit `write-bytes` ops in `LAYER_CHUNK_BYTES`-sized
+          // chunks. For files larger than a single chunk this
+          // bounds the per-op allocation and the per-op
+          // CTP_CALL payload. A final `truncate` op pins the
+          // file's exact size (covering the shrunk-file case
+          // where a prior apply left trailing bytes).
+          let offset = 0n;
+          const chunkBig = BigInt(LAYER_CHUNK_BYTES);
+          while (offset < size) {
+            const remaining = size - offset;
+            const take = remaining > chunkBig ? chunkBig : remaining;
+            const reader = await E(oh).read(offset, take);
+            /** @type {Uint8Array[]} */
+            const pieces = [];
+            let total = 0;
+            const consumer = iterateBytesReader(reader, {
+              stringLengthLimit: LAYER_BASE64_LIMIT,
+            });
+            for await (const piece of consumer) {
+              pieces.push(piece);
+              total += piece.length;
+            }
+            const chunk = new Uint8Array(total);
+            let p = 0;
+            for (const piece of pieces) {
+              chunk.set(piece, p);
+              p += piece.length;
+            }
+            yield harden({
+              kind: 'write-bytes',
+              path: childPath,
+              offset,
+              bytes: chunk,
+            });
+            offset += BigInt(chunk.length);
+            if (chunk.length === 0) break; // defensive — empty read at EOF
           }
-          merged = new Uint8Array(total);
-          let off = 0;
-          for (const c of chunks) {
-            merged.set(c, off);
-            off += c.length;
-          }
+        } finally {
+          await E(oh).close();
         }
-        await E(oh).close();
-        if (merged.length > 0) {
-          yield harden({
-            kind: 'write-bytes',
-            path: childPath,
-            offset: 0n,
-            bytes: merged,
-          });
-        }
+        // Always emit a terminal truncate so apply lands the
+        // exact size, including the empty-file and
+        // file-shrank-since-prior-apply cases.
+        yield harden({
+          kind: 'truncate',
+          path: childPath,
+          length: size,
+        });
       }
     }
   }
@@ -179,23 +209,22 @@ const applyOp = async (target, op) => {
       return;
     }
     case 'write-bytes': {
+      // Look up the file (previous `create-file` op materialised
+      // it) and open for write. We avoid re-`create`-ing so that
+      // chunk N+1 of a large file doesn't truncate the bytes
+      // chunk N just wrote. The terminal `truncate` op handles
+      // the final size.
       const parent = await dirOf(op.path);
-      const opened = await E(parent).create(lastSeg(op.path), {});
-      const writer = await E(opened).write(op.offset);
-      const w = iterateBytesWriter(writer);
-      await w.next(op.bytes);
-      await w.return();
-      // `enumerateLayerOps` emits each file's full content as a
-      // single `write-bytes` at offset 0; if the target already
-      // has a longer file at the same path (e.g., from a prior
-      // `apply` of a layer where the file shrank) the trailing
-      // bytes would remain and the applied content wouldn't match
-      // the layer. Truncate to the written length for the
-      // full-content case.
-      if (op.offset === 0n) {
-        await E(opened).truncate(BigInt(op.bytes.length));
+      const file = await E(parent).lookup(lastSeg(op.path));
+      const opened = await E(file).open({ write: true });
+      try {
+        const writer = await E(opened).write(op.offset);
+        const w = iterateBytesWriter(writer);
+        await w.next(op.bytes);
+        await w.return();
+      } finally {
+        await E(opened).close();
       }
-      await E(opened).close();
       return;
     }
     case 'whiteout': {

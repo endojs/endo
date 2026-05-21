@@ -12,7 +12,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -247,4 +247,67 @@ test('setAttrs rejects owner; allows mtime updates', async t => {
   await E(file).setAttrs({ mtime: past });
   const a = await E(file).getAttrs();
   t.is(a.mtime, past);
+});
+
+test('symlink containment: a leaf symlink to outside is rejected at lookup', async t => {
+  // An untrusted writer plants a symlink inside the rooted tree
+  // pointing at an absolute path outside it. A holder of the
+  // Directory cap calling lookup() must not be able to traverse
+  // through it.
+  const root = await mkdtemp(path.join(os.tmpdir(), 'endo-fs-symroot-'));
+  const outside = await mkdtemp(path.join(os.tmpdir(), 'endo-fs-outside-'));
+  t.teardown(() => rm(root, { recursive: true, force: true }));
+  t.teardown(() => rm(outside, { recursive: true, force: true }));
+  await writeFile(path.join(outside, 'secret'), 'leaked');
+  await symlink(outside, path.join(root, 'escape'));
+
+  const fs = makeNodeFilesystem({ rootPath: root });
+  const rootCap = await E(fs).root();
+  // Leaf symlinks are filtered at lookup() — surface as ENOENT
+  // rather than EACCES so we don't leak existence.
+  await t.throwsAsync(() => E(rootCap).lookup('escape'), {
+    message: /ENOENT/,
+  });
+});
+
+test('symlink containment: a swapped intermediate component is caught', async t => {
+  // The Directory cap is minted for a real subdir; then an external
+  // process replaces the subdir with a symlink to outside the root.
+  // Subsequent lookups through the cap must fail rather than reach
+  // through the symlink.
+  const root = await mkdtemp(path.join(os.tmpdir(), 'endo-fs-swap-'));
+  const outside = await mkdtemp(path.join(os.tmpdir(), 'endo-fs-out2-'));
+  t.teardown(() => rm(root, { recursive: true, force: true }));
+  t.teardown(() => rm(outside, { recursive: true, force: true }));
+  await mkdir(path.join(root, 'inner'));
+  await writeFile(path.join(outside, 'target'), 'secret');
+
+  const fs = makeNodeFilesystem({ rootPath: root });
+  const rootCap = await E(fs).root();
+  const innerCap = await E(rootCap).lookup('inner');
+
+  // Mid-flight swap: kernel removes `inner` and replaces it with
+  // a symlink pointing outside the root.
+  await rm(path.join(root, 'inner'), { recursive: true });
+  await symlink(outside, path.join(root, 'inner'));
+
+  await t.throwsAsync(() => E(innerCap).lookup('target'), {
+    message: /EACCES|ENOENT/,
+  });
+});
+
+test('symlink containment: create through a leaf symlink is rejected', async t => {
+  // `name` is already a symlink to an outside path; create() must
+  // not open through it (O_NOFOLLOW rejects with ELOOP).
+  const root = await mkdtemp(path.join(os.tmpdir(), 'endo-fs-cnofollow-'));
+  const outside = await mkdtemp(path.join(os.tmpdir(), 'endo-fs-cout-'));
+  t.teardown(() => rm(root, { recursive: true, force: true }));
+  t.teardown(() => rm(outside, { recursive: true, force: true }));
+  await symlink(path.join(outside, 'target'), path.join(root, 'sneaky'));
+
+  const fs = makeNodeFilesystem({ rootPath: root });
+  const rootCap = await E(fs).root();
+  await t.throwsAsync(() => E(rootCap).create('sneaky', {}), {
+    message: /ELOOP|EACCES|ENOENT/,
+  });
 });

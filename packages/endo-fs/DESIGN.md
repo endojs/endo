@@ -170,10 +170,11 @@ calls. Two ideas do most of the work:
 This section is normative. Method signatures use Endo conventions:
 
 - Every method on every cap returns `Promise<T>` (eventual send).
-- "Eager" fields on a cap (`qid`, `BlobRef.hash`) are carried as a
-  passable copy-record alongside the cap's slot, exposed via a
-  side-effect-free getter on the exo state. See §4.10 for the
-  mechanism.
+- "Sync" fields on a cap (`qid`, `BlobRef.hash` / `size`) are
+  exposed via a side-effect-free getter on the exo state: the
+  responder doesn't go to disk to answer. Across CapTP the getter
+  still costs one round-trip per call — callers pipeline it
+  alongside the call that produced the cap. See §4.10.
 - All capability holders are identities — methods do not take
   `pid`, `clientId`, `uid`, or `gid` arguments to designate the
   caller; the holder of the cap IS the caller.
@@ -214,7 +215,7 @@ to 9P's `uname`. Authorisation is by cap-issuance: who holds the
 Every `Directory` and `File` cap exposes these:
 
 ```
-qid                               eager: Qid
+qid                               sync getter: Qid
 getAttrs()                        → Attrs
 setAttrs(updates: AttrsUpdate)    → void
 watch()                           → PassableReader<Event>
@@ -222,10 +223,13 @@ xattrs()                          → Xattrs
 help()                            → string
 ```
 
-- `qid` is eager (carried with the cap, §4.10). Equal `qid.pathId`
-  on two caps means they refer to the same underlying node;
-  `qid.version` bumps on every metadata change. Implementations
-  that have no native inode identity can synthesise one.
+- `qid` is a sync getter on the responder's exo state (§4.10).
+  Equal `qid.pathId` on two caps means they refer to the same
+  underlying node; `qid.version` bumps on every metadata change.
+  Implementations that have no native inode identity can
+  synthesise one. Across CapTP, callers pipeline `getQid()`
+  alongside the call that produced the cap (see §4.10 for the
+  consumption pattern).
 - `getAttrs()` returns everything in `Attrs` (§4.9): size +
   timestamps. POSIX fields (permissions, owner, nlink) are exposed
   via the `PosixFs` extension, not here.
@@ -485,24 +489,46 @@ POSIX-specific stat fields the base omits but `PosixFs` adds:
 `setuid` / `setgid` / `sticky`, `blockSize` / `fragmentSize` /
 `totalNodes` / `freeNodes` on `FsStats`.
 
-### 4.10 Eager state mechanism
+### 4.10 Sync getters and pipelining
 
-`qid` (on every `Directory`/`File`) and `BlobRef.hash` +
-`BlobRef.size` are documented as eager — readable without a round
-trip to the cap's producer.
+`qid` (on every `Directory` / `File`) and `BlobRef.hash` /
+`BlobRef.size` are sync getters on the **responder** — the exo
+state is right there, and `getQid()` / `getInfo()` return a
+passable record rather than a promise on the local side.
 
-Mechanism: the exo's interface guard pairs the cap with a passable
-state record carried in the cap's slot. CapTP serialises the slot
-plus state when the cap is passed. The exo exposes the state via a
-sync getter (e.g. `getQid()` returning the stored record, not a
-promise). Consumers prefer the sync getter for hot paths; falling
-back to a method call still works if the runtime doesn't optimise
-the eager case.
+This is a usage convention, not an eager-state mechanism: the
+responder doesn't go to disk or do any other I/O to answer.
+Earlier drafts of this section proposed that CapTP would marshal
+the state alongside the cap's slot so the getter would also be
+free on the consumer side; that mechanism never landed and won't.
+Across a CapTP boundary, `E(node).getQid()` is one round-trip the
+same as any other exo method call.
 
-This is implementation work for F1. The interface guards in §4
-treat `qid` and `hash`/`size` as documented eager facts; the
-mechanism's details belong in the implementation contract, not the
-interface.
+The correct consumption pattern is to pipeline the getter
+alongside whichever call produced the cap, so the round-trip is
+shared:
+
+```js
+// Discriminating a lookup result: 1 RTT total
+const child = E(parent).lookup(name);
+const [node, qid] = await Promise.all([child, E(child).getQid()]);
+
+// Identity comparison: 1 RTT for N caps
+const qids = await Promise.all(caps.map(c => E(c).getQid()));
+
+// BlobRef consumption: getInfo + fetch share one batch
+const blob = E(file).snapshot();
+const [info, reader] = await Promise.all([
+  E(blob).getInfo(),
+  E(blob).fetch(0n, expectedSize),  // speculative; only flows on cache miss
+]);
+```
+
+`cached-fs.js`'s `resolveNodeWithQid` and the `withCachedReads`
+read path follow this convention; `readonly.js` does the same for
+type-discriminating lookups. Treat the sync return shape on the
+responder as a hint for hot-path callers, not a promise about
+RTT cost — that part belongs to the caller's pipelining.
 
 ---
 
@@ -827,7 +853,7 @@ time); the eager option is what's specified here.
 
 ### 8.7 What rides through composition
 
-Eager state (§4.10) and content-addressing (§6) need a story
+Sync state (§4.10) and content-addressing (§6) need a story
 under composition. Each is the implementation's choice, with
 consequences:
 
@@ -1087,8 +1113,6 @@ and a richer primitive is the only way to collapse it.
 | Item | Why it's RT-blocking | Mitigation |
 |---|---|---|
 | **No `lookupOrCreate` / `materialise`** | "Walk a path; create missing segments along the way" is conditional: `mkdir(n)` fires *only if* `lookup(n)` rejects. The branch can't pipeline. A `Directory.materialise(path: string[], opts) → Directory` primitive would collapse N missing-segment paths to one round-trip. | Caller does lookup/mkdir per segment; the design can add this later without breaking other surface. |
-| **`getQid()` is one round-trip across CapTP** | The "eager qid" design promise (§4.10) assumes the qid travels with the cap's slot at CapTP marshalling time. Today CapTP doesn't ship state alongside the slot — callers reach the qid via `E(node).getQid()`, which costs one round-trip even though the getter is sync on the responder. | Cache qids client-side after first lookup; or wait for CapTP to gain passable-cap-state. |
-| **`xattrs.list()` ack-protocol overhead** | The `PassableReader<string>` protocol's per-message synchronisation (one sync, one ack per name) costs round-trips proportional to the count. exo-stream's pre-ack buffering mitigates but doesn't eliminate. Rare to matter — most nodes have <10 xattrs. | exo-stream `buffer:` option for known-large lists, or a future `listAll() → string[]` snapshot variant. |
 
 #### Non-RT gaps (still worth pinning)
 
@@ -1101,8 +1125,8 @@ and a richer primitive is the only way to collapse it.
 
 #### What pipelining solves that earlier drafts called weaknesses
 
-Three items the previous version of this section listed are
-NOT weaknesses once the cost framework is applied:
+Several items previous versions of this section listed are NOT
+weaknesses once the cost framework is applied:
 
 - **"No batch lookup primitive"**: `Promise.all([... E(root).lookup(n)])` already gets one
   round-trip for N parallel lookups. A `batchLookup` would only
@@ -1113,6 +1137,17 @@ NOT weaknesses once the cost framework is applied:
 - **"lookup-then-rename is two round-trips"**: `M.await` in the
   `rename` guard collapses this to one. The PATTERN test
   `M.await pipelines lookup → rename to one round-trip` pins it.
+- **"`getQid()` / `BlobRef.getInfo()` is one round-trip"**: callers
+  always need the sync field alongside the call that produced the
+  cap (lookup → discriminate, snapshot → fetch, etc.); pipelining
+  the getter into the same batch costs zero incremental RTT.
+  `cached-fs.js`'s `resolveNodeWithQid` and the `withCachedReads`
+  read path are the realisations. There's no scenario where a
+  consumer needs the sync field *without* an accompanying call.
+- **"`xattrs.list()` ack-protocol overhead"**: every per-name ack
+  pipelines via `@endo/exo-stream`'s reader protocol; `buffer:` on
+  `iterateReader` lets the responder pre-ack ahead of the consumer,
+  collapsing N names into a single batch when the count is known.
 
 ---
 

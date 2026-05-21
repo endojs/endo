@@ -31,14 +31,13 @@ deliver X" can find the gap in one place.
 
 ## 1. Shortcomings inside this package
 
-### 1.1 Performance claims that don't yet hold
+### 1.1 Design-claim corrections
 
-| Claim | Reality | Resolution path |
-|---|---|---|
-| **"Eager qid avoids a round-trip."** §4.10 of DESIGN promises that `Node.qid` is carried alongside the cap's slot and readable without CapTP traffic. | `getQid()` is a regular exo method; CapTP doesn't ship state alongside slots, so every call costs one RTT. See §10.1 of DESIGN.md (`[RT] getQid is one round-trip across CapTP`). Pinned by `WEAKNESS: getQid is sync-returning on the exo state, but goes through CapTP` in `test/optimal-querying.test.js`. | Wait for CapTP to gain passable-cap-state; until then, callers should cache qids client-side after the first lookup. |
-| **"Eager `BlobRef.hash` + `size` avoid a round-trip."** Same §4.10 promise. | `getInfo()` is a regular exo method — one RTT per call. The CAS cache-hit test still pays one RTT for `getInfo` before serving from cache. | Same as above. The CAS win is on *payload bytes* saved, not RTT count. |
-| **"CAS-cached read skips the network entirely on cache hit."** | True for the `fetch` call and the bytes payload, false for the `getInfo` RTT that precedes it. For small files where the payload is comparable to the `getInfo` envelope, the optimization may not pay off. | Document the break-even (file-size dependent). Add `cacheBackedRead(blobRef, cas, { hash })` overload that lets callers who already know the hash skip the `getInfo` round-trip. |
-| **"Pipelined walk is one round-trip."** | True in the sense that the `CTP_CALL` messages go out without intermediate awaits — proven by `test/snapshots/pipelined-rtt.test.js.md`. But Mount's lookup chains also pipeline through CapTP. The endo-fs *unique* advantage is **typed pipelining** (the guard says lookup returns `Directory \| File`), not pipelining-in-general. | Phrase claims as "typed pipelining" rather than "pipelining"; reserve "single RTT" for the cost-framework sense (no control-flow dependency). |
+| Earlier claim | Correct framing |
+|---|---|
+| **"Eager qid / `BlobRef.getInfo` avoid a round-trip."** Earlier drafts of DESIGN.md §4.10 proposed that CapTP would marshal the qid / blob info alongside the cap's slot, making the getter free on the consumer side. | The slot-state-ride mechanism never landed and won't. The getter is sync on the *responder* (no I/O), but across CapTP it costs one RTT like any other call. Callers always pipeline it into the same batch as the call that produced the cap (`resolveNodeWithQid` in `cached-fs.js`, the `withCachedReads` read path) so the incremental RTT is zero. No deferred work; just usage convention. |
+| **"CAS-cached read skips the network entirely on cache hit."** | Reframed: a hit skips the bytes payload, not the `snapshot + getInfo` discovery. With watch-based invalidation in `withCachedReads` (§2.2 — landed), a same-file repeat read with a still-cached payload pays zero RTT. The hit benefit is "no payload over the wire" + (with the hash cache) "no discovery either". |
+| **"Pipelined walk is one round-trip."** | True for any CapTP-shaped FS — Mount's lookup chains pipeline too. The endo-fs distinction is **typed pipelining**: the guard discriminates `Directory` vs `File` at the boundary, so a deep chain doesn't bottom out in an `any`-typed leaf. Phrase as "typed pipelining"; reserve "single RTT" for the cost-framework sense (no control-flow dependency). |
 
 ### 1.2 Composition primitives — known functional gaps
 
@@ -74,17 +73,13 @@ deliver X" can find the gap in one place.
 
 ### 1.4 Security gaps
 
-- **`node-fs.js` does not resolve symlinks for containment.**
-  `assertChildName` rejects `/` and `NUL` in names, but the
-  implementation joins paths with `nodePath.join` and calls
-  `fsp.stat` without `realpath` resolution. A symlink that exists
-  inside the rooted tree and points outside it would be walked
-  through.
-  `@endo/daemon`'s `Mount` uses `realPath(target).startsWith(realPath(root))`
-  and is the prior art for the safe pattern.
-  **Until this is fixed, callers should not hand a `makeNodeFilesystem({ rootPath })` cap
-  to untrusted code if the underlying directory might contain
-  attacker-controlled symlinks.**
+_None outstanding._ `makeNodeFilesystem` now performs `realpath`-based
+containment on every leaf operation (patterned after Mount's
+`assertConfined`) and uses `O_NOFOLLOW` on `create` / `open` so a
+leaf symlink can't hijack the open. See `src/node-fs.js`
+`assertConfined` and the regression tests in `test/node-fs.test.js`
+covering leaf symlinks, mid-tree symlink swap, and `O_NOFOLLOW` on
+`create`.
 
 ### 1.5 Test coverage that proves less than it appears to
 
@@ -129,18 +124,6 @@ current behavior so the gap doesn't regress silently.
   round-trip.
   Until then, callers issue per-segment `lookup` / `mkdir`
   sequentially.
-
-- **`xattrs.list()` ack-protocol overhead — RT-blocking.**
-  The `PassableReader<string>` protocol's per-message
-  synchronisation (one sync, one ack per name) costs round-trips
-  proportional to the count.
-  `@endo/exo-stream`'s pre-ack buffering mitigates but doesn't
-  eliminate.
-  Rare to matter — most nodes have under 10 xattrs.
-  Pinned by `WEAKNESS: xattrs.list returns names sequentially via a
-  stream` in `optimal-querying.test.js`.
-  Mitigations: `exo-stream`'s `buffer:` option for known-large lists,
-  or a future `listAll() → string[]` snapshot variant.
 
 - **No field-selection on `getAttrs` — bandwidth.**
   The full `Attrs` record rides the wire even when the caller only
@@ -191,38 +174,6 @@ Owned by `@endo/endo-fs`. None of these are blocking the current PR.
   Renamed from `guards.js` per the `type-guards.js` convention
   (kriskowal review on PR #326). Centralises every `M.interface`
   consumed by the implementations.
-
-- **`assertChildName` consistency across the three backings.**
-  Currently exported from `shared/helpers.js` and used by `node-fs`
-  and `from-mount`; `in-memory` doesn't call it.
-  Adding name validation to `in-memory` is a strictly-tightening
-  change — should land with a behavioural-change note.
-
-- **Range-only `cacheBackedRead`.**
-  Current consumer reads the whole blob into the CAS.
-  Add a `cacheBackedRead(blob, cas, { offset, length })` overload
-  that serves a range from the cached bytes; on miss, still fetches
-  the whole blob (for cache coherence).
-
-- **`withCachedReads` invalidation and eviction.**
-  The transparent CAS-caching wrapper (`src/cached-fs.js`) ships
-  without `watch`-based invalidation: every read pays one
-  pipelined `snapshot` + `getInfo` round-trip to learn the
-  current hash, then either serves from the CAS or returns the
-  speculative underlying read.
-  Future work — subscribe to `watch` events at wrap-time and
-  remember a local `file-cap → hash` mapping so subsequent reads
-  of an unchanged file skip the `snapshot` round-trip entirely
-  (zero RTT on hit). Pairs naturally with an LRU eviction policy
-  on `ContentAddressedStore`; the current interface is unbounded
-  and is a memory-leak shape for long-running consumers.
-
-- **Streaming `Layer.apply`.**
-  `enumerateLayerOps` materialises each file's full content into a
-  single `write-bytes` op.
-  For files larger than `~1 MiB` this should chunk into multiple
-  ops, or stream into a `write` writer rather than allocating the
-  full `Uint8Array`.
 
 ### 2.3 More-realistic CAS / pipelined-rtt tests
 
