@@ -147,9 +147,19 @@ const encodeBytes = (bytes, encoding) => {
 /**
  * Minimal `crypto.createHash` replacement (SHA-256 only).
  *
- * @param {string} [_algorithm]
+ * Throws for any algorithm other than `'sha256'` so consumers that
+ * silently expected MD5/SHA-1/etc. fail fast — `node:crypto`
+ * likewise throws (`ERR_OSSL_EVP_UNSUPPORTED`) on unknown
+ * algorithms rather than degrading to a different digest.
+ *
+ * @param {string} algorithm
  */
-export const createHash = _algorithm => {
+export const createHash = algorithm => {
+  if (algorithm !== 'sha256') {
+    throw new Error(
+      `node-crypto-shim only supports 'sha256', got ${JSON.stringify(algorithm)}`,
+    );
+  }
   let buffer = new Uint8Array(0);
   const hasher = {
     /**

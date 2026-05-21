@@ -83,3 +83,13 @@ test('digest() with unsupported encoding throws', t => {
   // rather than silently fall through to a wrong encoding.
   t.throws(() => createHash('sha256').update('').digest('utf8'));
 });
+
+test('createHash rejects non-sha256 algorithms', t => {
+  // node:crypto throws ERR_OSSL_EVP_UNSUPPORTED for unknown
+  // algorithms rather than silently downgrading; mirror that
+  // so consumers expecting md5/sha1/sha512 fail fast instead
+  // of getting a SHA-256 digest under a different label.
+  t.throws(() => createHash('md5'), { message: /sha256/ });
+  t.throws(() => createHash('sha1'), { message: /sha256/ });
+  t.throws(() => createHash('sha512'), { message: /sha256/ });
+});

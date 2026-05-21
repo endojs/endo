@@ -228,6 +228,10 @@ harden(listDirectory);
 export const readFile = async fileCap => {
   const attrsPromise = E(fileCap).getAttrs();
   const openPromise = E(fileCap).open({ read: true });
+  // Defensive: if attrsPromise throws first we never await openPromise,
+  // so attach a no-op catch to keep its rejection out of the unhandled
+  // queue.
+  openPromise.catch(() => {});
   const attrs = await attrsPromise;
   const size = Number(attrs.size);
   const limit = Math.min(size, MAX_PREVIEW_BYTES);
@@ -246,7 +250,10 @@ export const readFile = async fileCap => {
       offset += take;
     }
   } finally {
-    await E(openPromise).close();
+    // Best-effort: never let close() mask the primary read error.
+    await E(openPromise)
+      .close()
+      .catch(() => {});
   }
   let total = 0;
   for (const piece of pieces) {
@@ -346,6 +353,30 @@ export const renameEntry = async (
 harden(renameEntry);
 
 /**
+ * Mint a change-event watcher for a directory, preferring
+ * `watchFrom()` (which atomically mints `{ cursor, watcher }`) over
+ * the legacy `watch()` so callers using the cursor for the initial
+ * listing close the `list()`+`watch()` TOCTOU race. Falls back to
+ * `watch()` for adapters that don't implement `watchFrom`.
+ *
+ * The cursor returned alongside the watcher is intentionally
+ * discarded here; the explorer's UI obtains directory entries via
+ * `listDirectory`. Callers that need the TOCTOU-free snapshot
+ * should reach for `subscribeChangesAtomic` instead.
+ *
+ * @param {Cap} directory
+ * @returns {Promise<Cap>} the watcher capability
+ */
+const openWatcher = async directory => {
+  const methods = await E(directory).__getMethodNames__();
+  if (methods.includes('watchFrom')) {
+    const { watcher } = await E(directory).watchFrom();
+    return watcher;
+  }
+  return E(directory).watch();
+};
+
+/**
  * Subscribe to a directory's change events. Best-effort: a
  * filesystem without a `watch` surface (e.g. a Mount adapter)
  * simply never reports changes. Returns an unsubscribe function.
@@ -361,7 +392,7 @@ export const subscribeChanges = (directory, onChange) => {
   const pump = async () => {
     await null;
     try {
-      const watcher = await E(directory).watch();
+      const watcher = await openWatcher(directory);
       watcherCap = watcher;
       if (cancelled) {
         E(watcher)
