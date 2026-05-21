@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-20 (full grooming pass: milestone-totals reconciled to current table contents, calibration round 2026-05-20 added, Summary by Milestone and Gantt re-projected, Progress-as-of refreshed; landed on top of the 2026-05-19 status-only sweep that reconciled Status fields with shipped state on `llm`, M½ project-hygiene milestone extracted from M1, endopi raft added, PR #302 consolidation absorbed, and patterns-diagnostic-feedback added)*
+*Last updated: 2026-05-20 (full grooming pass: milestone-totals reconciled to current table contents, calibration round 2026-05-20 added, Summary by Milestone and Gantt re-projected, Progress-as-of refreshed; landed on top of the 2026-05-19 status-only sweep that reconciled Status fields with shipped state on `llm`, M½ project-hygiene milestone extracted from M1, endopi raft added, PR #302 consolidation absorbed, and patterns-diagnostic-feedback added; forge-gap-analysis Reference design added 2026-05-20)*
 
 *Recently added or revised:
 [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) (added
@@ -47,7 +47,10 @@ PR #151 row-format unblocker; sibling of
 [ocapn-noise-session-reconnect](ocapn-noise-session-reconnect.md) (added
 2026-05-14; amends [ocapn-noise-network](ocapn-noise-network.md) with a
 meta-TCP session layer per erights' 2026-05-14 framing on liveness and
-reconnect).*
+reconnect),
+[forge-gap-analysis](forge-gap-analysis.md) (added 2026-05-20;
+exploratory reference comparing `antoinezambelli/forge` to Endo's
+LLM-agent stack).*
 
 ## Summary
 
@@ -174,8 +177,9 @@ reconnect).*
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [namehub-interface-unification](namehub-interface-unification.md) | 2026-05-07 | 2026-05-07 | Proposed |
+| [forge-gap-analysis](forge-gap-analysis.md) | 2026-05-20 | 2026-05-20 | Reference (exploratory) |
 
-**Totals:** 39 Complete/Implemented, 18 In Progress, 36 Not Started, 17 Proposed, 2 Active, 6 Reference, 2 Deprecated, 1 Superseded (121 designs). Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 11 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs plus `hardened-text-codecs-shim` and `hardened-url-shim`) plus namehub-interface-unification (Proposed) added by PR #117 on rebase.
+**Totals:** 39 Complete/Implemented, 18 In Progress, 36 Not Started, 17 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (122 designs). Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 11 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs plus `hardened-text-codecs-shim` and `hardened-url-shim`) plus namehub-interface-unification (Proposed) added by PR #117 on rebase, plus forge-gap-analysis (Reference) added 2026-05-20.
 
 ## Roadmap
 
