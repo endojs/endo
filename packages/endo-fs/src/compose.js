@@ -66,12 +66,8 @@ const fresh = () => Symbol('endo-fs:tag');
  * @param {object[]} participants  caps to call `.watch()` on
  */
 const makeMergedWatcher = async participants => {
-  const watchers = await Promise.all(
-    participants.map(p => E(p).watch()),
-  );
-  const streams = await Promise.all(
-    watchers.map(w => E(w).events()),
-  );
+  const watchers = await Promise.all(participants.map(p => E(p).watch()));
+  const streams = await Promise.all(watchers.map(w => E(w).events()));
 
   /** @type {any[]} */
   const queue = [];

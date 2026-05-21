@@ -451,4 +451,3 @@ test('PATTERN: Filesystem.statfs aggregates across mounts (namespace sums partic
   const stats = await E(ns).statfs();
   t.is(stats.totalBytes, 100n);
 });
-

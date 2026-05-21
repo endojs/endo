@@ -149,10 +149,7 @@ harden(makeMemoryCas);
 const drainBytesReader = async (readerRef, expectedSize) => {
   const size =
     typeof expectedSize === 'bigint' ? Number(expectedSize) : expectedSize;
-  const stringLengthLimit = Math.max(
-    100_000,
-    Math.ceil((size * 4) / 3) + 1024,
-  );
+  const stringLengthLimit = Math.max(100_000, Math.ceil((size * 4) / 3) + 1024);
   /** @type {Uint8Array[]} */
   const chunks = [];
   let total = 0;
@@ -203,8 +200,7 @@ export const cacheBackedRead = async (blobRef, cas, range) => {
     cas.put(info, bytes);
   }
   if (range === undefined) return bytes;
-  const offset =
-    range.offset === undefined ? 0 : Number(range.offset);
+  const offset = range.offset === undefined ? 0 : Number(range.offset);
   const length =
     range.length === undefined ? bytes.length - offset : Number(range.length);
   if (offset < 0 || length < 0 || offset > bytes.length) {

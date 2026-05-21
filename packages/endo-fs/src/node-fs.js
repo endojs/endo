@@ -137,9 +137,7 @@ export const makeNodeFilesystem = ({ rootPath }) => {
         resolved !== rootResolved &&
         !resolved.startsWith(`${rootResolved}${nodePath.sep}`)
       ) {
-        throw makeError(
-          X`EACCES: path escapes filesystem root: ${q(absPath)}`,
-        );
+        throw makeError(X`EACCES: path escapes filesystem root: ${q(absPath)}`);
       }
       return;
     }

@@ -196,14 +196,18 @@ test('Layer.apply replays a >1 MiB file accurately across chunked emission', asy
   const replayed = new Uint8Array(big.length);
   for (let off = 0; off < big.length; off += FRAME) {
     const take = Math.min(FRAME, big.length - off);
-    const piece = await collectBytes(await E(oh).read(BigInt(off), BigInt(take)));
+    const piece = await collectBytes(
+      await E(oh).read(BigInt(off), BigInt(take)),
+    );
     replayed.set(piece, off);
   }
   await E(oh).close();
   t.is(replayed.length, big.length);
   for (let i = 0; i < big.length; i += 1) {
     if (replayed[i] !== big[i]) {
-      t.fail(`byte mismatch at offset ${i}: got ${replayed[i]}, expected ${big[i]}`);
+      t.fail(
+        `byte mismatch at offset ${i}: got ${replayed[i]}, expected ${big[i]}`,
+      );
       return;
     }
   }

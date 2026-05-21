@@ -202,7 +202,9 @@ test('mutating verbs reject names containing path separators or reserved values'
   // empty string are rejected on every mutating verb.
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
-  await t.throwsAsync(() => E(root).create('foo/bar', {}), { message: /EINVAL/ });
+  await t.throwsAsync(() => E(root).create('foo/bar', {}), {
+    message: /EINVAL/,
+  });
   await t.throwsAsync(() => E(root).mkdir('.', {}), { message: /reserved/ });
   await t.throwsAsync(() => E(root).mkdir('..', {}), { message: /reserved/ });
   await t.throwsAsync(() => E(root).unlink(''), { message: /EINVAL/ });

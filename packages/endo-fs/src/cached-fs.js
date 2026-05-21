@@ -128,7 +128,12 @@ export const withCachedReads = (inner, cas) => {
     inFlight.set(key, promise);
   };
 
-  return makeCachingFilesystem(inner, cas, populateInBackground, wrapperToInner);
+  return makeCachingFilesystem(
+    inner,
+    cas,
+    populateInBackground,
+    wrapperToInner,
+  );
 };
 harden(withCachedReads);
 
@@ -444,8 +449,7 @@ const makeCachingOpenFile = (
     const off = toSafeNumber(offset, 'offset');
     const len = toSafeNumber(length, 'length');
     const end = Math.min(off + len, cached.length);
-    const slice =
-      off >= cached.length ? EMPTY_BYTES : cached.slice(off, end);
+    const slice = off >= cached.length ? EMPTY_BYTES : cached.slice(off, end);
     return makeBytesReaderFromBytes(slice);
   };
 
