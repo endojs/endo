@@ -72,32 +72,41 @@ shortcomings, and the separate Endo-daemon-refactor track.
 
 ## Daemon attach scripts
 
-Two thin convenience wrappers around `endo make --UNCONFINED`
-ship as package bins. They use the existing `makeUnconfined`
-formula type — a dedicated `provideRemoteFs` daemon verb isn't
-required.
+Two yarn-workspace setup scripts, modelled on the `@endo/fae`
+pattern. Each is a `main(agent)` module invoked via
+`endo run --UNCONFINED … --powers @agent`; the script calls
+`E(agent).makeUnconfined(…)` to register a formulated
+`Filesystem` cap that reincarnates across daemon restart. Both
+scripts are idempotent — re-running with the same name is a no-op.
+No declared runtime dependency on `@endo/cli`; the `endo` binary
+is resolved by the user's shell.
 
-- **`endo-fs-attach <path> --name <petName> [--read-only] [--worker <name>]`** —
-  attaches a host directory as a formulated `Filesystem` cap
-  bound to `petName`. Wraps `src/node-fs-module.js`; passes
-  `ENDO_FS_ROOT` (and `ENDO_FS_READ_ONLY=1` when `--read-only`).
-- **`endo-fs-mkmem --name <petName> [--worker <name>]`** —
-  mints a fresh in-memory `Filesystem` cap bound to `petName`.
-  Wraps `src/in-memory-module.js`. The cap reincarnates across
-  daemon restart; its contents do not.
+- **`yarn workspace @endo/endo-fs attach`** (symmetric with
+  `endo mount`) — wraps `src/node-fs-module.js`. Configure via
+  env vars:
+  - `ENDO_FS_ROOT` (required) — absolute path to the directory.
+  - `ENDO_FS_NAME` (required) — pet name.
+  - `ENDO_FS_READ_ONLY=1` (optional) — wrap with `readOnly`.
+- **`yarn workspace @endo/endo-fs mkmem`** (symmetric with
+  `endo mktmp`) — wraps `src/in-memory-module.js`. Configure via:
+  - `ENDO_FS_NAME` (required) — pet name.
 
-Both default `--worker` to `@node` (the host-side worker, required
-because the modules import `node:fs/promises`). Examples:
+The cap reincarnates across daemon restart; for `mkmem`, its
+contents do not (the in-memory FS is rebuilt empty each time the
+module re-instantiates).
+
+Examples:
 
 ```sh
-endo-fs-attach /tmp/workspace --name workspace
-endo-fs-attach ~/code --name code --read-only
-endo-fs-mkmem --name scratch
-```
+ENDO_FS_ROOT=/tmp/workspace ENDO_FS_NAME=workspace \
+  yarn workspace @endo/endo-fs attach
 
-The bins resolve the `endo` executable through `@endo/cli`'s
-package layout, so a workspace clone works without a global
-install.
+ENDO_FS_ROOT=$HOME/code ENDO_FS_NAME=code ENDO_FS_READ_ONLY=1 \
+  yarn workspace @endo/endo-fs attach
+
+ENDO_FS_NAME=scratch \
+  yarn workspace @endo/endo-fs mkmem
+```
 
 ## Relation to existing Endo work
 
