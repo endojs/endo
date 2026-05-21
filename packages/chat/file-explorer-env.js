@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis, atob */
+/* global globalThis */
 
 // Environment shims that let `@endo/endo-fs` (and its
 // `@endo/exo-stream` dependency) run inside the chat browser bundle.
