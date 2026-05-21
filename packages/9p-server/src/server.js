@@ -319,8 +319,12 @@ export const serveConnection = ({ fs, socket, onClose, signal }) => {
     r.str(); // aname
     r.u32(); // n_uname
     try {
-      const root = await E(fs).root();
-      const qid = await E(root).getQid();
+      // Pipeline `root()` and `getQid()` so both messages reach the
+      // wire in one CapTP batch — `getQid` runs against the
+      // promise of the root cap. One RTT instead of two.
+      const rootP = E(fs).root();
+      const qidP = E(rootP).getQid();
+      const [root, qid] = await Promise.all([rootP, qidP]);
       fids.set(fid, {
         cap: root,
         qid,
@@ -507,7 +511,12 @@ export const serveConnection = ({ fs, socket, onClose, signal }) => {
       const chunks = [];
       let total = 0;
       const want = Number(count);
-      for await (const chunk of iterateBytesReader(reader)) {
+      // `buffer: 1` lets the producer pre-emit the first chunk
+      // without waiting for our sync — collapses the per-chunk
+      // sync/ack round-trip for the common single-frame case
+      // (`makeBytesReaderFromBytes` yields the whole slice in one
+      // chunk, so this is almost always single-frame).
+      for await (const chunk of iterateBytesReader(reader, { buffer: 1 })) {
         chunks.push(chunk);
         total += chunk.length;
         if (total >= want) break;
@@ -592,8 +601,11 @@ export const serveConnection = ({ fs, socket, onClose, signal }) => {
     // Open one stream and drain entirely. Cheap for small dirs;
     // larger dirs could chunk, but the in-memory + disk Cursor
     // already snapshot at stream() time, so a single drain is OK.
+    // `buffer: 64` lets the responder pre-ack up to 64 entries
+    // ahead of our pulls — one batch round-trip for typical dirs
+    // rather than one-per-entry.
     const reader = await E(f.cursor).stream();
-    for await (const entry of iterateReader(reader)) {
+    for await (const entry of iterateReader(reader, { buffer: 64 })) {
       f.dirBuffer.push(/** @type {{ name: string, qid: any }} */ (entry));
     }
     f.dirBufferDone = true;
@@ -693,12 +705,19 @@ export const serveConnection = ({ fs, socket, onClose, signal }) => {
     if (!f) return sendError(tag, ERRNO.EBADF);
     if (f.qid.type !== 'directory') return sendError(tag, ERRNO.ENOTDIR);
     try {
-      const oh = await E(f.cap).create(name, harden({}));
-      // Reconstruct the created file's qid via getQid is not on
-      // OpenFile — we need the File cap. Re-lookup the child to
-      // get a Node cap + its qid.
-      const childCap = await E(f.cap).lookup(name);
-      const childQid = await E(childCap).getQid();
+      // Pipeline create + lookup + getQid into one CapTP batch.
+      // create returns an OpenFile (we keep it on the fid);
+      // lookup returns the File cap (so we can take its qid);
+      // getQid runs against the lookup-result promise. All three
+      // CTP_CALLs reach the wire before any reply.
+      const ohP = E(f.cap).create(name, harden({}));
+      const childCapP = E(f.cap).lookup(name);
+      const childQidP = E(childCapP).getQid();
+      const [oh, childCap, childQid] = await Promise.all([
+        ohP,
+        childCapP,
+        childQidP,
+      ]);
       // Replace fid: 9P semantics put newly-created file at the
       // original fid. Ancestry extends.
       const newAncestry = [{ parent: f.cap, name }, ...f.ancestry];
@@ -743,7 +762,10 @@ export const serveConnection = ({ fs, socket, onClose, signal }) => {
     if (!f.openFile) return sendError(tag, ERRNO.EBADF);
     try {
       const writer = await E(f.openFile).write(offset);
-      const w8 = iterateBytesWriter(writer);
+      // `buffer: 1` lets us push the one chunk this Twrite carries
+      // without waiting for the responder's first ack — saves one
+      // RTT for the (always single-chunk) Twrite path.
+      const w8 = iterateBytesWriter(writer, { buffer: 1 });
       // r.take returns a Buffer; the bytes writer wants Uint8Array.
       await w8.next(
         new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
@@ -767,8 +789,10 @@ export const serveConnection = ({ fs, socket, onClose, signal }) => {
     if (!f) return sendError(tag, ERRNO.EBADF);
     if (f.qid.type !== 'directory') return sendError(tag, ERRNO.ENOTDIR);
     try {
-      const newDir = await E(f.cap).mkdir(name, harden({}));
-      const qid = await E(newDir).getQid();
+      // Pipeline mkdir + getQid: `getQid` rides against the promise
+      // of the new Directory cap, in the same CapTP batch.
+      const newDirP = E(f.cap).mkdir(name, harden({}));
+      const qid = await E(newDirP).getQid();
       sendQid(tag, T.Rmkdir, qidToWire(qid));
     } catch (e) {
       return sendError(tag, errnoOf(e));
