@@ -14,8 +14,14 @@
 //
 // Pipelining: Twalk builds a chain `E(cur).lookup(n0).lookup(n1)...`
 // without awaiting between steps. Each step's qid is requested
-// in parallel via `E(intermediate).getQid()` and gathered with
-// `Promise.allSettled` to support partial-success semantics.
+// in parallel via `E(intermediate).getQid()` during chain build,
+// so all lookups + getQids reach the wire in one CapTP batch.
+// Results are collected by *sequentially* awaiting each
+// `qidPromise` — same wall-clock as `Promise.allSettled` (the
+// dispatches were already pipelined) but with first-failure
+// early-exit semantics that 9P's partial-success Twalk requires.
+// `Promise.allSettled` would force us to wait for every promise
+// to settle even after a mid-chain rejection.
 //
 // Wire qid <-> endo-fs qid mapping:
 //   endo-fs `Qid` = { type: 'directory'|'file', pathId: bigint, version: bigint }

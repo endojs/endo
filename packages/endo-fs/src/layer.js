@@ -243,8 +243,18 @@ const applyOp = async (target, op) => {
       return;
     }
     case 'set-attrs': {
-      const dir = await navigate([...op.path, 'unused-for-dirof']);
-      const node = await E(dir).lookup(lastSeg(op.path));
+      // `dirOf(op.path)` is the parent of the leaf; look up the
+      // leaf inside it and apply the attrs to that node. The
+      // earlier shape passed `[...op.path, 'unused-for-dirof']`
+      // through `navigate` so that `navigate`'s `path.length - 1`
+      // would happen to land on `op.path`, but the result was the
+      // wrong directory — `navigate` stops one segment short of
+      // its argument, so the original code stopped at `op.path`
+      // itself and then did `lookup` on the *node* by its own
+      // name. No caller emits `set-attrs` ops today, but the bug
+      // would bite the moment one does.
+      const parent = await dirOf(op.path);
+      const node = await E(parent).lookup(lastSeg(op.path));
       await E(node).setAttrs(op.updates);
       return;
     }

@@ -486,7 +486,19 @@ const makeCachingOpenFile = (
       const infoP = E(blobP).getInfo();
       const speculativeReadP = E(underlyingOh).read(offset, length);
 
-      const info = await infoP;
+      // Backings without BlobRef support (or that hit an
+      // unrecoverable snapshot error — `makeNodeFilesystem.File.
+      // snapshot()` returns `null` when `fs.readFile` rejects)
+      // surface as a rejected `infoP` from the `null.getInfo()`
+      // call. Swallow that here so the read still returns the
+      // speculative underlying bytes instead of poisoning the
+      // whole call.
+      let info;
+      try {
+        info = await infoP;
+      } catch {
+        info = null;
+      }
       if (info) {
         const typedInfo = /** @type {BlobInfo} */ (info);
         // Refresh hash cache + clear dirty for the next zero-RTT

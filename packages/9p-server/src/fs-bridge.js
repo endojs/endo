@@ -60,9 +60,28 @@ export const makeFsBridge9p = ({ fs, socketPath }) => {
         sock.on('close', () => sockets.delete(sock));
         serveConnection({ fs, socket: sock, signal: cancel.signal });
       });
+      // Install a startup-only error listener that we explicitly
+      // remove on success — otherwise its `once` registration sits
+      // around resolved-promise-already, swallowing every later
+      // server-level error event with no observable effect.
+      const startupError = /** @type {(e: Error) => void} */ (
+        reject => err => reject(err)
+      );
       await new Promise((resolve, reject) => {
-        server?.once('error', reject);
-        server?.listen(socketPath, () => resolve(undefined));
+        const onStartupError = startupError(reject);
+        const srv = /** @type {import('node:net').Server} */ (server);
+        srv.once('error', onStartupError);
+        srv.listen(socketPath, () => {
+          srv.removeListener('error', onStartupError);
+          resolve(undefined);
+        });
+      });
+      // After listen() resolved, install a long-lived error handler
+      // so post-startup `'error'` events surface (and don't crash
+      // the process via Node's default unhandled-error throw).
+      server?.on('error', err => {
+        // eslint-disable-next-line no-console
+        console.error('[9p] fs-bridge server error', err);
       });
       // 0600: the 9P bridge exposes the full authority of the FS
       // capability projected through it. Anyone who can connect can
