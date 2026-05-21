@@ -273,7 +273,13 @@ test('WEAKNESS [bandwidth]: no field-selection on getAttrs — always pulls ever
   // No way to skip these.
 });
 
-test('WEAKNESS [semantics]: watch + list TOCTOU — events between can be missed', async t => {
+test('PATTERN: Directory.watchFrom atomically snapshots entries + subscribes (TOCTOU-free)', async t => {
+  // The standalone `list()` + `watch()` pair has a TOCTOU race:
+  // mutations between the two calls are invisible to both — list
+  // already returned, watch starts AFTER. `watchFrom` mints both
+  // halves in a single exo method invocation, so any mutation
+  // observable after `watchFrom` returns is in the watcher.
+  t.timeout(5_000);
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
   await populate(root, [
@@ -281,41 +287,19 @@ test('WEAKNESS [semantics]: watch + list TOCTOU — events between can be missed
     ['b', ''],
   ]);
 
-  // Optimal pattern would be "watch + initial-snapshot" as a single
-  // atomic operation — but the design has no such primitive. The
-  // caller must list() first, then watch(), and accept that
-  // mutations between the two calls won't appear in either: list()
-  // already returned, watch() starts AFTER. inotify has the same
-  // problem; documented as "Reconnecting after a missed event is
-  // the caller's problem; there is no replay" in DESIGN.md §4.2.
-
-  const cursor = await E(root).list();
-  // Adversary inserts 'c' between list() and stream(); this DOES
-  // surface in the stream because the cursor snapshots at stream()
-  // time in our impl. But a watch() set up AFTER the stream() will
-  // not see the insertion.
-  const watcher = await E(root).watch();
-  await writeFile(root, 'c', '');
+  const { cursor, watcher } = await E(root).watchFrom();
+  t.teardown(() => E(watcher).cancel());
   const events = iterateReader(await E(watcher).events());
 
+  // The cursor reflects the entries at the moment of subscription.
   const initial = await collectStream(await E(cursor).stream());
-  // 'c' MAY appear here because the cursor snapshot happens at
-  // stream() time, but a `list-then-watch-with-strict-ordering`
-  // semantic would require the impl to pause writes between the
-  // two. The interface has no such guarantee.
-  t.true(initial.length >= 2);
+  t.deepEqual(initial.map(e => e.name).sort(), ['a', 'b']);
 
-  // After watch(), additional writes DO fire events.
-  await writeFile(root, 'd', '');
-  const next = await Promise.race([
-    events.next().then(r => ({ kind: 'value', r })),
-    new Promise(resolve => {
-      // eslint-disable-next-line no-undef
-      setTimeout(() => resolve({ kind: 'timeout' }), 500);
-    }),
-  ]);
-  await E(watcher).cancel();
-  t.is(next.kind, 'value');
+  // A post-subscription mutation fires on the watcher.
+  await writeFile(root, 'c', '');
+  const next = await events.next();
+  t.truthy(next.value);
+  t.truthy(next.value.kind);
 });
 
 test('PATTERN: Directory.materialise creates missing path segments in one call', async t => {

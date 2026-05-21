@@ -134,16 +134,13 @@ current behavior so the gap doesn't regress silently.
   Pinned by `WEAKNESS [bandwidth]: no field-selection on getAttrs`
   in `optimal-querying.test.js`.
 
-- **`watch + list` TOCTOU — semantics.**
-  Mutations between `list()` and `watch()` calls aren't reflected
-  in either: the `list` snapshot is taken at the call moment, and
-  `watch` subscribes from its call moment, so events that occur
-  between the two are invisible.
-  Same shape as inotify's well-known race.
-  Caller-side workaround: subscribe to `watch` first, then `list`,
-  then reconcile against the event log.
-  Pinned by `WEAKNESS [semantics]: watch + list TOCTOU` in
-  `optimal-querying.test.js`.
+- _(closed)_ **`watch + list` TOCTOU.**
+  Resolved by the new `Directory.watchFrom() → { cursor, watcher }`
+  primitive (DESIGN.md §4.3): the entries cursor and the event
+  watcher are both minted inside a single exo method invocation,
+  so any mutation observable after `watchFrom` returns is in the
+  watcher. Pinned by `PATTERN: Directory.watchFrom atomically
+  snapshots entries + subscribes` in `optimal-querying.test.js`.
 
 ---
 

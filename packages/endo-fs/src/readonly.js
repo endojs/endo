@@ -126,6 +126,12 @@ const makeReadOnlyDirectory = dir => {
     async materialise(_path, _opts) {
       throw denied('materialise');
     },
+    async watchFrom() {
+      // Read-side primitive; forward to the wrapped dir. The
+      // returned cursor is already non-mutating; the watcher is
+      // event-only.
+      return E(dir).watchFrom();
+    },
     help(method) {
       if (method === undefined) {
         return 'Directory (read-only attenuator).';

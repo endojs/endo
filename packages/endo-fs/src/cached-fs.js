@@ -294,6 +294,10 @@ const makeCachingDirectory = (
         wrapperToInner,
       );
     },
+    async watchFrom() {
+      // Forward; the underlying primitive provides the atomicity.
+      return E(dir).watchFrom();
+    },
     help(method) {
       if (method === undefined) {
         return 'Directory (CAS-cached).';

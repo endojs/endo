@@ -563,6 +563,16 @@ export const makeInMemoryFilesystem = () => {
       async list() {
         return makeCursorExo(dirId);
       },
+      async watchFrom() {
+        // Atomic: subscribe FIRST so any mutation after this method
+        // returns lands in the event stream, THEN take the cursor
+        // snapshot so its entries reflect the directory at the same
+        // moment. Both halves are minted inside a single exo method
+        // invocation — no event-loop turn between them.
+        const watcher = makeNodeWatcherExo(dirId);
+        const cursor = makeCursorExo(dirId);
+        return harden({ cursor, watcher });
+      },
       async create(name, opts) {
         assertChildName(name);
         const dir = /** @type {DirectoryRecord} */ (getRecord(dirId));

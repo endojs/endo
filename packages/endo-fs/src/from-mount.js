@@ -511,6 +511,16 @@ export const mountAsFilesystem = rootMount => {
       async list() {
         return makeCursorExo(mount, segs);
       },
+      async watchFrom() {
+        // Mount has no native watch surface; we return the same
+        // empty watcher stub `watch()` does, paired with a fresh
+        // cursor. Both are minted in this single method call, so
+        // the TOCTOU contract holds (vacuously — no events ever
+        // arrive on the stub watcher).
+        const watcher = makeWatcherStub();
+        const cursor = makeCursorExo(mount, segs);
+        return harden({ cursor, watcher });
+      },
       async create(name, opts) {
         assertChildName(name);
         const o = /** @type {any} */ (opts) || {};

@@ -682,6 +682,16 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       async list() {
         return makeCursorExo(absDirPath);
       },
+      async watchFrom() {
+        // Atomic snapshot + subscribe (TOCTOU-free). Start the
+        // `fs.watch` subscriber first so any kernel-reported
+        // mutation after we return is captured, then mint the
+        // cursor whose snapshot reflects this same moment.
+        await assertConfined(absDirPath);
+        const watcher = makeWatcher(absDirPath, 'directory');
+        const cursor = makeCursorExo(absDirPath);
+        return harden({ cursor, watcher });
+      },
       async create(name, opts) {
         assertChildName(name);
         const child = nodePath.join(absDirPath, name);

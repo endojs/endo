@@ -331,6 +331,22 @@ export const emptyFilesystem = () => {
         if (Array.isArray(path) && path.length === 0) return makeEmptyDir();
         throw reject('materialise');
       },
+      async watchFrom() {
+        // emptyFilesystem is immutable; return a fresh empty
+        // cursor + the (never-firing) watcher that `watch()` returns.
+        const watcher = makeExo('NodeWatcher', NodeWatcherInterface, {
+          async events() {
+            const empty = async function* () {
+              // emptyFilesystem is immutable; no events.
+            };
+            return readerFromIterator(empty());
+          },
+          async cancel() {
+            // nothing to cancel
+          },
+        });
+        return harden({ cursor: makeEmptyCursor(), watcher });
+      },
       help: method =>
         method === undefined
           ? 'Directory (emptyFilesystem): always empty.'
@@ -522,6 +538,12 @@ export const bind = (host, mountPath, guest) => {
       async materialise(path, opts) {
         return materialiseViaWalk(exo, path, opts);
       },
+      async watchFrom() {
+        // Forward to the wrapped host dir; the host owns events
+        // and entries at this position. Atomicity is the host's
+        // responsibility — bind is just a path-aware wrapper.
+        return E(dir).watchFrom();
+      },
       help: method =>
         method === undefined
           ? 'Directory (bind-wrapping).'
@@ -679,6 +701,50 @@ export const namespace = mounts => {
         const mountRoot = await E(mount).root();
         if (rest.length === 0) return mountRoot;
         return E(mountRoot).materialise(rest, opts || {});
+      },
+      async watchFrom() {
+        // The namespace root is fixed (the mount set doesn't
+        // change at runtime); pair a fresh entries cursor with the
+        // same never-firing watcher `watch()` returns.
+        const watcher = makeExo('NodeWatcher', NodeWatcherInterface, {
+          async events() {
+            const empty = async function* () {
+              // namespace root is fixed; no events.
+            };
+            return readerFromIterator(empty());
+          },
+          async cancel() {
+            // namespace root is fixed; nothing to cancel.
+          },
+        });
+        const childMounts = names.map(name => ({ name, mount: mounts[name] }));
+        const gen = async function* () {
+          for (const { name, mount } of childMounts) {
+            try {
+              const root = await E(mount).root();
+              const qid = await E(root).getQid();
+              yield harden({ name, qid });
+            } catch {
+              // mount fetch failed; skip silently.
+            }
+          }
+        };
+        const cursor = makeExo('Cursor', CursorInterface, {
+          async stream() {
+            return readerFromIterator(gen());
+          },
+          async skip(_n) {
+            // no-op: cursor is single-shot for namespace root
+          },
+          async rewind() {
+            // no-op
+          },
+          help: m =>
+            m === undefined
+              ? 'Cursor (namespace root watchFrom snapshot).'
+              : `No documentation for method "${m}".`,
+        });
+        return harden({ cursor, watcher });
       },
       help: method =>
         method === undefined
@@ -1105,6 +1171,26 @@ export const compose = (layer, backing, _opts = {}) => {
       },
       async materialise(p, opts) {
         return materialiseViaWalk(composedExo, p, opts);
+      },
+      async watchFrom() {
+        // Atomic: build the merged watcher across whichever
+        // participants are present at this composed path, then
+        // mint the composed-view cursor. Both come from the
+        // composed wrapper itself, so the existing composed-
+        // semantics (whiteouts, opaque markers, merged listing)
+        // apply uniformly.
+        const participants = [];
+        if (layerDir) participants.push(layerDir);
+        if (backingDir) participants.push(backingDir);
+        if (participants.length === 0) {
+          throw makeError(X`ENOENT: composed directory not present`);
+        }
+        const watcher =
+          participants.length === 1
+            ? await E(participants[0]).watch()
+            : await makeMergedWatcher(participants);
+        const cursor = await E(composedExo).list();
+        return harden({ cursor, watcher });
       },
       help: method =>
         method === undefined

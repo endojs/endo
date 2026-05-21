@@ -88,6 +88,15 @@ export const DirectoryInterface = M.interface('Directory', {
   materialise: M.call(M.arrayOf(M.string()), Pass).returns(
     M.eref(M.remotable('Directory')),
   ),
+  // Atomic snapshot + subscribe: returns a `Cursor` over the
+  // directory's entries at the moment of subscription PLUS a
+  // `NodeWatcher` that will receive every event from that point
+  // onward — no gap between snapshot and subscribe. The standalone
+  // `list()` + `watch()` pair has a TOCTOU race where mutations
+  // between the two calls are invisible to both; `watchFrom`
+  // closes that gap by materialising both halves in one method
+  // invocation. See DESIGN.md §10.1.
+  watchFrom: M.call().returns(M.eref(Pass)),
 });
 harden(DirectoryInterface);
 
