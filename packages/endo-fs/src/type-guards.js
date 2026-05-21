@@ -33,6 +33,15 @@ const FilesystemMethods = {
   root: M.call().returns(M.eref(M.remotable('Directory'))),
   named: M.call(M.string()).returns(M.eref(M.remotable('Directory'))),
   statfs: M.call().returns(M.promise()),
+  // Extractable identity for cross-CapTP cycle detection. Returns
+  // the set of primitive-Filesystem brand IDs reachable through
+  // this cap; wrappers union their participants' brands.
+  // `bigint` survives marshalling, so a Filesystem cap that's
+  // passed across CapTP and re-composed locally still reports the
+  // same brand — letting the composer detect the cycle that the
+  // local-Symbol check (per-cap-presence) would miss.
+  // See ROADMAP §1.6.
+  brands: M.call().returns(M.promise()),
   help: M.call().optional(M.string()).returns(M.string()),
 };
 

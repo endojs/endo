@@ -45,6 +45,7 @@ import {
   makeBytesReaderFromBytes,
   makeBytesSinkWriter,
   makeStringReaderFromArray,
+  mintBrand,
   nowNs,
   toSafeNumber,
 } from './shared/helpers.js';
@@ -747,6 +748,9 @@ export const makeInMemoryFilesystem = () => {
 
   // ---------- Filesystem ----------
 
+  const brand = mintBrand();
+  const ownBrands = harden([brand]);
+
   const fs = makeExo('Filesystem', FilesystemInterface, {
     async root() {
       return makeDirectoryExo(rootId);
@@ -755,6 +759,9 @@ export const makeInMemoryFilesystem = () => {
       throw makeError(
         X`ENOTSUP: in-memory FS has a single root, not ${q(viewName)}`,
       );
+    },
+    async brands() {
+      return ownBrands;
     },
     async statfs() {
       let totalBytes = 0n;

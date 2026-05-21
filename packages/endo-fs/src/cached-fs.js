@@ -184,6 +184,9 @@ const makeCachingFilesystem = (
     async statfs() {
       return E(inner).statfs();
     },
+    async brands() {
+      return E(inner).brands();
+    },
     help(method) {
       if (method === undefined) {
         return 'Filesystem (CAS-cached). Reads consult a local CAS before falling through to the underlying file.';

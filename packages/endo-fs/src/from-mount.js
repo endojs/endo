@@ -53,6 +53,7 @@ import {
   computeOpenMode,
   makeBytesReaderFromBytes,
   makeNotSupported,
+  mintBrand,
   toSafeNumber,
 } from './shared/helpers.js';
 import { makeBlobRefExo } from './shared/blobref.js';
@@ -621,6 +622,8 @@ export const mountAsFilesystem = rootMount => {
 
   // ---------- Filesystem ----------
 
+  const ownBrands = harden([mintBrand()]);
+
   return makeExo('Filesystem', FilesystemInterface, {
     async root() {
       return makeDirectoryExo(rootMount, []);
@@ -629,6 +632,9 @@ export const mountAsFilesystem = rootMount => {
       throw makeError(
         X`ENOTSUP: Mount-adapted FS has a single root, not ${q(viewName)}`,
       );
+    },
+    async brands() {
+      return ownBrands;
     },
     async statfs() {
       // Mount has no statfs surface; return zeros.

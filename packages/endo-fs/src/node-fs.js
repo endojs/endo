@@ -57,6 +57,7 @@ import {
   computeOpenMode,
   makeBytesReaderFromBytes,
   makeNotSupported,
+  mintBrand,
   toSafeNumber,
 } from './shared/helpers.js';
 import { makeBlobRefExo } from './shared/blobref.js';
@@ -817,6 +818,8 @@ export const makeNodeFilesystem = ({ rootPath }) => {
 
   // ---------- Filesystem ----------
 
+  const ownBrands = harden([mintBrand()]);
+
   return makeExo('Filesystem', FilesystemInterface, {
     async root() {
       // Ensure rootPath exists at attach time; surface a clean
@@ -833,6 +836,9 @@ export const makeNodeFilesystem = ({ rootPath }) => {
       throw makeError(
         X`ENOTSUP: disk-backed FS has a single root, not ${q(viewName)}`,
       );
+    },
+    async brands() {
+      return ownBrands;
     },
     async statfs() {
       // node:fs doesn't expose statvfs; report what we can.

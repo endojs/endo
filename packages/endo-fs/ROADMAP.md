@@ -101,22 +101,27 @@ covering leaf symlinks, mid-tree symlink swap, and `O_NOFOLLOW` on
 
 ### 1.6 Cycle detection
 
-- **Construction-time tag check survives within a vat; not across
-  CapTP.** `bind` / `namespace` / `compose` brand each primitive
-  Filesystem with a unique `Symbol` and reject overlapping
-  participant tags at construction. The brand is per-cap-presence
-  via a `WeakMap`, so a Filesystem cap that's marshalled out and
-  back through CapTP comes in as a *different* presence with a
-  freshly-minted tag set — the cycle check on a re-introduced cap
-  doesn't see the original brand. Closing the gap fundamentally
-  needs either (a) content-based brands that survive marshalling
-  (the cap would have to expose extractable identity), or (b)
-  per-lookup traversal-context tracking that detects revisiting the
-  same primitive FS during a single descent. Both are deeper
-  changes than a tag-set comparison; the practical impact is small
-  because a re-introduced cap doesn't create infinite-recursion
-  hazards (lookups are name-keyed and terminate per call), only
-  double-counting in aggregating operations like `statfs`.
+Two-tier check, both run at composer construction:
+
+- **Sync, local: Symbol-based.** `bind` / `namespace` / `compose`
+  still brand each primitive Filesystem with a unique `Symbol` via
+  a `WeakMap`; the sync `assertNoCycle` rejects overlapping tag
+  sets immediately. Catches local cycles before any work happens.
+- **Async, cross-CapTP: brand-based.** Each primitive Filesystem
+  also exposes a passable `brands(): bigint[]` minted at
+  construction. Wrappers union their participants' brands. The
+  composer kicks off `computeBrands(name, participants)` in the
+  background — every user-facing method (`root`, `named`, `statfs`,
+  `brands`) awaits it, so a cross-CapTP cycle surfaces on first
+  use rather than going undetected. A Filesystem cap marshalled
+  out and back through CapTP reports the same brand both sides,
+  so `compose(fs, remotePresenceOfFs)` rejects with a cycle error.
+
+Participants that don't expose `brands()` (non-endo-fs caps) are
+treated as brand-less for the cycle check; this is the safe fallback
+— the Symbol check still applies for any local participant.
+Pinned by `PATTERN: brand-based cycle detection catches a
+CapTP-mediated cycle` in `test/optimal-querying.test.js`.
 
 ### 1.7 Other documented weaknesses (DESIGN §10.1)
 

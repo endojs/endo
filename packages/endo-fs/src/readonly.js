@@ -56,6 +56,9 @@ const makeReadOnlyFilesystem = inner => {
     async statfs() {
       return E(inner).statfs();
     },
+    async brands() {
+      return E(inner).brands();
+    },
     help(method) {
       if (method === undefined) {
         return 'Filesystem (read-only attenuator) — mutating methods reject with EACCES.';

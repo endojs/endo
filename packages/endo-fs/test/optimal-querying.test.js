@@ -302,6 +302,27 @@ test('PATTERN: Directory.watchFrom atomically snapshots entries + subscribes (TO
   t.truthy(next.value.kind);
 });
 
+test('PATTERN: brand-based cycle detection catches a CapTP-mediated cycle', async t => {
+  // The Symbol-based check keys on per-presence identity, so a
+  // Filesystem cap that's been marshalled out and back through
+  // CapTP shows up as a different presence with a freshly-minted
+  // tag set — the construction-time check misses the cycle. The
+  // brand-based check (extractable bigint that survives CapTP)
+  // catches it on first use of the composed cap.
+  const fs = makeInMemoryFilesystem();
+  const { makeConnectedPair } = await import('./_captp-pair.js');
+  // Round-trip `fs` through a CapTP loopback so the local side
+  // sees a remote presence with a freshly-minted Symbol tag.
+  const { bootstrapRef: remoteFs } = makeConnectedPair(fs);
+
+  const { compose } = await import('../src/compose.js');
+  // The Symbol check passes (different presences). The async
+  // brand check should reject because both participants share the
+  // same primitive brand.
+  const cow = compose(fs, remoteFs);
+  await t.throwsAsync(() => E(cow).root(), { message: /cycle/ });
+});
+
 test('PATTERN: Directory.materialise creates missing path segments in one call', async t => {
   // Before materialise, callers had to do per-segment lookup+mkdir
   // (sequential round-trips, conditional on lookup's rejection).

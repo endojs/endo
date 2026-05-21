@@ -185,6 +185,21 @@ export const toSafeNumber = (value, name) => {
  * @returns {{ read: boolean, write: boolean, append: boolean, truncate: boolean }}
  */
 /**
+ * Mint a fresh process-unique brand ID for a primitive Filesystem.
+ * The brand is a passable `bigint` that survives CapTP marshalling,
+ * so a Filesystem cap passed across CapTP and re-composed locally
+ * still reports its original brand — letting `bind` / `namespace`
+ * / `compose` detect the cycle that the per-presence `Symbol` check
+ * would miss. See ROADMAP §1.6.
+ */
+let nextBrand = 0n;
+export const mintBrand = () => {
+  nextBrand += 1n;
+  return nextBrand;
+};
+harden(mintBrand);
+
+/**
  * Default `Directory.materialise(path, opts)` for wrappers that
  * don't have a server-side fast path. Walks `path` step by step,
  * looking up the next segment and `mkdir`-ing it if absent. Each

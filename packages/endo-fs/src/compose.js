@@ -43,7 +43,7 @@ import {
   CursorInterface,
   NodeWatcherInterface,
 } from './type-guards.js';
-import { materialiseViaWalk } from './shared/helpers.js';
+import { materialiseViaWalk, mintBrand } from './shared/helpers.js';
 
 /**
  * Opaque tag stamped onto every Filesystem this module hands out.
@@ -228,6 +228,44 @@ const assertNoCycle = (primitive, participants) => {
   }
 };
 
+/**
+ * Resolve the brand-union of `participants` (each participant's
+ * `brands()` is a `bigint[]`). If any brand appears under more
+ * than one participant, throws — that's the cross-CapTP cycle the
+ * Symbol-based check (which keys on per-presence identity) misses.
+ * Participants that don't expose `brands()` are tolerated as
+ * brand-less (best-effort: they don't contribute to the check).
+ *
+ * @param {string} primitive  composer name, for the error message
+ * @param {object[]} participants
+ * @returns {Promise<readonly bigint[]>}  union of every participant's brands
+ */
+const computeBrands = async (primitive, participants) => {
+  const lists = await Promise.all(
+    participants.map(async p => {
+      try {
+        return /** @type {readonly bigint[]} */ (await E(p).brands());
+      } catch {
+        // Participant isn't endo-fs-compatible (no `brands()` method);
+        // treat as brand-less for the cycle check.
+        return [];
+      }
+    }),
+  );
+  const seen = new Set();
+  for (const list of lists) {
+    for (const b of list) {
+      if (seen.has(b)) {
+        throw makeError(
+          X`${q(primitive)}: participants share brand ${q(b)} — cycle detected (cross-CapTP)`,
+        );
+      }
+      seen.add(b);
+    }
+  }
+  return harden([...seen]);
+};
+
 // ---------- emptyFilesystem ----------
 
 /**
@@ -354,6 +392,8 @@ export const emptyFilesystem = () => {
     });
   }
 
+  const emptyBrands = harden([mintBrand()]);
+
   const fs = makeExo('Filesystem', FilesystemInterface, {
     async root() {
       return root();
@@ -362,6 +402,9 @@ export const emptyFilesystem = () => {
       throw makeError(
         X`ENOTSUP: emptyFilesystem has a single root, not ${q(viewName)}`,
       );
+    },
+    async brands() {
+      return emptyBrands;
     },
     async statfs() {
       return harden({
@@ -425,6 +468,10 @@ export const chroot = (fs, subPath) => {
     },
     async statfs() {
       return E(fs).statfs();
+    },
+    async brands() {
+      // chroot is a path-relative view of `fs`; cycle-wise it IS `fs`.
+      return E(fs).brands();
     },
     help: method =>
       method === undefined
@@ -552,16 +599,31 @@ export const bind = (host, mountPath, guest) => {
     return exo;
   }
 
+  // Async brand-based cycle check + cached union. Runs in the
+  // background; any user-facing method (root, statfs, named, brands)
+  // awaits the result so a cross-CapTP cycle surfaces before any
+  // mutation. See ROADMAP §1.6.
+  const brandsP = computeBrands('bind', [host, guest]);
+  // Don't leave unhandled rejections — consumers see the error via
+  // `await brandsP` inside the methods below.
+  brandsP.catch(() => {});
+
   const fs = makeExo('Filesystem', FilesystemInterface, {
     async root() {
+      await brandsP;
       const r = await E(host).root();
       return wrap(r, 0);
     },
     async named(viewName) {
+      await brandsP;
       throw makeError(X`ENOTSUP: bind has a single root, not ${q(viewName)}`);
     },
     async statfs() {
+      await brandsP;
       return aggregateStatfs([host, guest]);
+    },
+    async brands() {
+      return brandsP;
     },
     help: method =>
       method === undefined
@@ -752,17 +814,29 @@ export const namespace = mounts => {
           : `No documentation for method "${method}".`,
     });
 
+  // Async brand-based cycle check + cached union of participant
+  // brands. Methods below gate on this so a cross-CapTP cycle
+  // surfaces before the namespace is used.
+  const brandsP = computeBrands('namespace', participants);
+  brandsP.catch(() => {});
+
   const fs = makeExo('Filesystem', FilesystemInterface, {
     async root() {
+      await brandsP;
       return makeNamespaceRoot();
     },
     async named(viewName) {
+      await brandsP;
       const m = mounts[viewName];
       if (!m) throw makeError(X`ENOENT: ${q(viewName)}`);
       return E(m).root();
     },
     async statfs() {
+      await brandsP;
       return aggregateStatfs(participants);
+    },
+    async brands() {
+      return brandsP;
     },
     help: method =>
       method === undefined
@@ -1254,19 +1328,32 @@ export const compose = (layer, backing, _opts = {}) => {
     return composedExo;
   }
 
+  // Async brand-based cycle check + cached union. The CoW union of
+  // a Filesystem with itself (or with a CapTP-mediated copy of
+  // itself) creates a cycle the Symbol-based check can't see; this
+  // catches it before any layer mutation lands.
+  const brandsP = computeBrands('compose', [layer, backing]);
+  brandsP.catch(() => {});
+
   const fs = makeExo('Filesystem', FilesystemInterface, {
     async root() {
+      await brandsP;
       const layerRoot = await E(layer).root();
       const backingRoot = await E(backing).root();
       return wrapDir(layerRoot, backingRoot, []);
     },
     async named(viewName) {
+      await brandsP;
       throw makeError(
         X`ENOTSUP: compose has a single root, not ${q(viewName)}`,
       );
     },
     async statfs() {
+      await brandsP;
       return aggregateStatfs([layer, backing]);
+    },
+    async brands() {
+      return brandsP;
     },
     help: method =>
       method === undefined
