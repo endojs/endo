@@ -6039,7 +6039,12 @@ const makeDaemonCore = async (
     const rawPaths = formulaGraph.listRetentionPaths(targetId);
 
     /**
-     * Cache of `(petStoreId, memberId) -> pet:<name> labels`.
+     * Per-call cache of `(petStoreId, memberId) -> pet:<name> labels`,
+     * deliberately scoped to this `listRetentionPaths` invocation:
+     * pet-store contents change between calls and a process-wide
+     * cache would silently serve stale labels. The cache is
+     * discarded when the function returns.
+     *
      * @type {Map<string, string[]>}
      */
     const labelCache = new Map();
@@ -6060,13 +6065,23 @@ const makeDaemonCore = async (
         }
       }
     }
+    // Resolve store controllers in parallel; on multi-pet-store
+    // retention paths this is a real per-call speedup over the
+    // serial await loop. `provideStoreController` is cache-backed,
+    // so concurrent calls do not duplicate work for the same id.
     /** @type {Map<FormulaIdentifier, import('./types.js').StoreController>} */
-    const storeControllers = new Map();
-    for (const storeId of storeIdsToResolve) {
-      // eslint-disable-next-line no-await-in-loop
-      const controller = await provideStoreController(storeId);
-      storeControllers.set(storeId, controller);
-    }
+    const storeControllers = new Map(
+      await Promise.all(
+        Array.from(
+          storeIdsToResolve,
+          async storeId =>
+            /** @type {[FormulaIdentifier, import('./types.js').StoreController]} */ ([
+              storeId,
+              await provideStoreController(storeId),
+            ]),
+        ),
+      ),
+    );
 
     /**
      * Resolve the formula type for each member of a segment's group.
