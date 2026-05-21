@@ -210,23 +210,42 @@ implementations whose backing store has only one root reject
 to 9P's `uname`. Authorisation is by cap-issuance: who holds the
 `Filesystem` cap decides what they can do with it.
 
+The full method set:
+
+```
+root()                            → Directory
+named(viewName: string)           → Directory
+statfs()                          → FsStats
+brands()                          → bigint[]     // see §10.1 / ROADMAP §1.6
+help()                            → string
+```
+
+- `brands()` returns the set of primitive-Filesystem brand IDs
+  reachable through this cap. Each primitive backing mints a
+  passable `bigint` brand at construction; wrappers (`bind` /
+  `namespace` / `compose` / `chroot`) union their participants'
+  brands. The brand survives CapTP marshalling, so re-introducing
+  a Filesystem cap through a CapTP roundtrip still reports the
+  same brand on both sides — `compose(fs, remotePresenceOfFs)`
+  rejects with a cycle error.
+
 ### 4.2 Node base methods
 
 Every `Directory` and `File` cap exposes these:
 
 ```
-qid                               sync getter: Qid
+getQid()                          → Qid           // sync on responder
 getAttrs()                        → Attrs
 setAttrs(updates: AttrsUpdate)    → void
-watch()                           → PassableReader<Event>
+watch()                           → NodeWatcher
 xattrs()                          → Xattrs
 help()                            → string
 ```
 
-- `qid` is a sync getter on the responder's exo state (§4.10).
-  Equal `qid.pathId` on two caps means they refer to the same
-  underlying node; `qid.version` bumps on every metadata change.
-  Implementations that have no native inode identity can
+- `getQid()` is a sync getter on the responder's exo state
+  (§4.10). Equal `qid.pathId` on two caps means they refer to the
+  same underlying node; `qid.version` bumps on every metadata
+  change. Implementations that have no native inode identity can
   synthesise one. Across CapTP, callers pipeline `getQid()`
   alongside the call that produced the cap (see §4.10 for the
   consumption pattern).
@@ -237,10 +256,11 @@ help()                            → string
   fields absent from the update are unchanged. The update does NOT
   accept ownership changes — `chown` is `PosixFs` territory and
   conveys authority the base cap does not.
-- `watch()` returns a `PassableReader<Event>` directly. The
-  caller closes the stream to cancel; there is no separate
-  `Subscription` type. Events start at the moment of the call —
-  no replay.
+- `watch()` returns a `NodeWatcher` sub-cap whose `events()`
+  yields a `PassableReader<Event>` and whose `cancel()` shuts the
+  subscription down. Events start at the moment of the call — no
+  replay. See also `Directory.watchFrom()` (§4.3) for atomic
+  snapshot+subscribe.
 - `xattrs()` returns an `Xattrs` sub-cap (§4.8) scoped to the
   `user.*` namespace only. OS-level xattr namespaces (`system.*`,
   `trusted.*`, `security.*`) and POSIX ACLs are surfaced through
@@ -261,7 +281,23 @@ unlink(name: string)              → void         // empty dir or file
 rename(oldName, newParent: Directory, newName)
                                   → void
 fsync()                           → void         // impl-dependent
+materialise(path: string[], opts: CreateDirOpts)
+                                  → Directory
+watchFrom()                       → { cursor: Cursor,
+                                      watcher: NodeWatcher }
 ```
+
+- `materialise(path, opts)` walks `path` from this directory; for
+  each segment, returns the existing `Directory` or `mkdir`s it.
+  Server-side primitive — the whole walk costs one round-trip
+  regardless of depth (vs N sequential `lookup` / `mkdir` calls
+  on the consumer side, gated on `lookup` rejection).
+- `watchFrom()` atomically mints both an entries `Cursor` snapshot
+  *and* a `NodeWatcher` subscription in one exo method
+  invocation. Closes the `list()` + `watch()` TOCTOU race —
+  any mutation observable after `watchFrom` returns is in the
+  watcher; the cursor's entries reflect the directory at the same
+  moment.
 
 `lookup` returns the type-correct subtype — `Directory` or `File`.
 A protocol translator can pipeline a typed call (`open()`,

@@ -927,6 +927,13 @@ export const compose = (layer, backing, _opts = {}) => {
           }
           await w.return();
         }
+        // `Directory.create` opens without `O_TRUNC` (consistent
+        // with in-memory keeping pre-existing content). When the
+        // destination name already held a *longer* file, the bytes
+        // we just wrote overlay the prefix and the old tail would
+        // survive. Explicitly truncate to the source size so the
+        // copy-up result matches the source byte-for-byte.
+        await E(dstOh).truncate(size);
       } finally {
         await E(dstOh).close();
       }

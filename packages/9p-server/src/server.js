@@ -313,11 +313,26 @@ export const serveConnection = ({
   // ---- ops ----
 
   const onVersion = (/** @type {number} */ tag, r) => {
-    const reqMsize = r.u32();
+    const reqMsize = /** @type {number} */ (r.u32());
     const ver = r.str();
-    msize = Math.max(MIN_MSIZE, Math.min(reqMsize, DEFAULT_MSIZE));
+    // 9P contract: the negotiated msize must be <= the client's
+    // offer. The server may shrink (preferred when the offer is
+    // larger than what we can buffer) but never grow. If the
+    // client offers below our floor we can't meaningfully serve,
+    // so reject the version negotiation.
+    if (reqMsize < MIN_MSIZE) {
+      msize = reqMsize;
+      const replyVer = 'unknown';
+      const w = makeWriter(4 + 2 + replyVer.length);
+      w.u32(msize);
+      w.str(replyVer);
+      send(wrapMessage(T.Rversion, tag, w.finish()));
+      negotiated = false;
+      return;
+    }
+    msize = Math.min(reqMsize, DEFAULT_MSIZE);
     const replyVer = ver.startsWith('9P2000.L') ? VERSION_9P2000_L : 'unknown';
-    const w = makeWriter(2 + 4 + 2 + replyVer.length);
+    const w = makeWriter(4 + 2 + replyVer.length);
     w.u32(msize);
     w.str(replyVer);
     send(wrapMessage(T.Rversion, tag, w.finish()));
@@ -331,6 +346,11 @@ export const serveConnection = ({
     r.str(); // uname
     r.str(); // aname
     r.u32(); // n_uname
+    // 9P expects an error on fid reuse; silently overwriting would
+    // leak any handle (openFile / cursor) on the prior fid.
+    if (fids.has(fid)) {
+      return sendError(tag, ERRNO.EBADF);
+    }
     try {
       // Pipeline `root()` and `getQid()` so both messages reach the
       // wire in one CapTP batch — `getQid` runs against the
@@ -406,6 +426,17 @@ export const serveConnection = ({
           name,
         });
       }
+    }
+
+    // Attach a catch handler to every promise we issued up front,
+    // so a mid-chain rejection from step k doesn't leave steps
+    // k+1…N-1 as unhandled rejections (we'd `break` out of the
+    // gather loop below before awaiting them).
+    for (const s of steps) {
+      // Promise.resolve coerces the case where capRef is already a
+      // resolved (synchronous) value.
+      Promise.resolve(s.capRef).catch(() => {});
+      s.qidPromise.catch(() => {});
     }
 
     // Collect qids until the first failure (partial-success).

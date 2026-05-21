@@ -58,7 +58,7 @@ Drained with `{ buffer: 1 }` so the producer pre-emits the first
 chunk without waiting for our sync — saves the per-chunk
 sync/ack round-trip for the common single-frame case.
 
-`Treaddir` drains an `OpenDirectory.list()` `Cursor` once per fid
+`Treaddir` drains a `Directory.list()` `Cursor` once per fid
 into a per-fid buffer that's paginated against the kernel's 9P
 offset cookie. Buffer is set to 64 entries so the cursor pre-acks
 ahead of our pulls — typical directory dumps drain in one batch
