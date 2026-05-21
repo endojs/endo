@@ -354,23 +354,61 @@ export const makeModuleInstance = (
   };
   notifiers['*'] = notifyStar;
 
-  const wireUpExportNotifier = (exportName, notify) => {
-    if (!notifiers[exportName] && notify !== false) {
-      notifiers[exportName] = notify;
-
-      // exported live binding state
-      let value;
-      const update = newValue => (value = newValue);
-      notify(update);
-      exportsProps[exportName] = {
-        get() {
-          return value;
-        },
-        set: undefined,
-        enumerable: true,
-        configurable: false,
+  const wireUpExportNotifier = (
+    exportName,
+    notify,
+    deferredSpecifier,
+    deferredImportName,
+  ) => {
+    if (notifiers[exportName] || notify === false) {
+      return;
+    }
+    if (notify === undefined) {
+      if (deferredSpecifier === undefined) {
+        return;
+      }
+      // The upstream module did not yet expose a notifier for
+      // `deferredImportName` when this re-export was wired. This is the
+      // star-export cycle of endojs/endo#59: the upstream's notifier for
+      // that name may be wired only later, in its own candidate-all walk,
+      // after this module's `imports()` returns. Install a notifier that
+      // queues subscribers until the upstream resolves, then forwards them
+      // through.
+      const pendingUpdaters = [];
+      let resolvedUpstreamNotify;
+      notify = update => {
+        if (resolvedUpstreamNotify !== undefined) {
+          resolvedUpstreamNotify(update);
+          return;
+        }
+        const upstreamInstance = mapGet(importedInstances, deferredSpecifier);
+        const upstreamNotify = upstreamInstance.notifiers[deferredImportName];
+        if (upstreamNotify === undefined) {
+          arrayPush(pendingUpdaters, update);
+          return;
+        }
+        resolvedUpstreamNotify = upstreamNotify;
+        for (const pending of pendingUpdaters) {
+          upstreamNotify(pending);
+        }
+        pendingUpdaters.length = 0;
+        upstreamNotify(update);
       };
     }
+    notifiers[exportName] = notify;
+
+    // exported live binding state
+    let value;
+    const update = newValue => (value = newValue);
+    notify(update);
+    exportsProps[exportName] = {
+      get() {
+        return value;
+      },
+      set: undefined,
+      enumerable: true,
+      configurable: false,
+    };
   };
 
   // Per the calling convention for the moduleFunctor generated from
@@ -428,7 +466,12 @@ export const makeModuleInstance = (
       if (reexportMap[specifier]) {
         // Set up reexport notifiers instantly so they are available in cycles.
         for (const [localName, exportedName] of reexportMap[specifier]) {
-          wireUpExportNotifier(exportedName, importNotifiers[localName]);
+          wireUpExportNotifier(
+            exportedName,
+            importNotifiers[localName],
+            specifier,
+            localName,
+          );
         }
       }
     }
