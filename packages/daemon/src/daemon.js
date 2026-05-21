@@ -6203,13 +6203,20 @@ const makeDaemonCore = async (
     // to follow-up work per the design's *Known Gaps and TODOs*.
     const subscription = formulaChangeTopic.subscribe();
     let cancelled = false;
-    (async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const change of subscription) {
-        if (cancelled) break;
+    // Drive the iterator with a `.next().then(loop)` recursion so
+    // the change body never names a value to keep undefined,
+    // side-stepping the leading-underscore / no-unused-vars lint
+    // conflict documented in project root `CLAUDE.md` § Lint-rule
+    // gotchas. The accumulator recomputes from scratch on every
+    // notify(), so the yielded change is a coarse "something
+    // happened" signal only and the value itself is discarded.
+    const pump = () =>
+      subscription.next().then(step => {
+        if (step.done || cancelled) return undefined;
         accumulator.notify();
-      }
-    })().catch(err => {
+        return pump();
+      });
+    pump().catch(err => {
       // Route through the lifecycle log so retention-path subsystem
       // failures correlate with other lifecycle events for the same
       // formula. See `packages/daemon/CLAUDE.md` § Diagnostic
