@@ -81,15 +81,15 @@ scripts are idempotent — re-running with the same name is a no-op.
 No declared runtime dependency on `@endo/cli`; the `endo` binary
 is resolved by the user's shell.
 
-- **`yarn workspace @endo/endo-fs attach`** (symmetric with
-  `endo mount`) — wraps `src/node-fs-module.js`. Configure via
-  env vars:
-  - `ENDO_FS_ROOT` (required) — absolute path to the directory.
-  - `ENDO_FS_NAME` (required) — pet name.
-  - `ENDO_FS_READ_ONLY=1` (optional) — wrap with `readOnly`.
-- **`yarn workspace @endo/endo-fs mkmem`** (symmetric with
-  `endo mktmp`) — wraps `src/in-memory-module.js`. Configure via:
-  - `ENDO_FS_NAME` (required) — pet name.
+- **`yarn workspace @endo/endo-fs attach <rootPath> <name> [ro]`**
+  (symmetric with `endo mount`) — wraps `src/node-fs-module.js`.
+  Positional arguments:
+  - `<rootPath>` (required) — absolute path to the directory.
+  - `<name>` (required) — pet name.
+  - `ro` (optional) — wrap with `readOnly`.
+- **`yarn workspace @endo/endo-fs mkmem <name>`** (symmetric with
+  `endo mktmp`) — wraps `src/in-memory-module.js`. Positional:
+  - `<name>` (required) — pet name.
 
 The cap reincarnates across daemon restart; for `mkmem`, its
 contents do not (the in-memory FS is rebuilt empty each time the
@@ -98,14 +98,9 @@ module re-instantiates).
 Examples:
 
 ```sh
-ENDO_FS_ROOT=/tmp/workspace ENDO_FS_NAME=workspace \
-  yarn workspace @endo/endo-fs attach
-
-ENDO_FS_ROOT=$HOME/code ENDO_FS_NAME=code ENDO_FS_READ_ONLY=1 \
-  yarn workspace @endo/endo-fs attach
-
-ENDO_FS_NAME=scratch \
-  yarn workspace @endo/endo-fs mkmem
+yarn workspace @endo/endo-fs attach /tmp/workspace workspace
+yarn workspace @endo/endo-fs attach "$HOME/code" code ro
+yarn workspace @endo/endo-fs mkmem scratch
 ```
 
 ## Relation to existing Endo work

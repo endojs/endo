@@ -1,6 +1,5 @@
 // @ts-check
-// endo run --UNCONFINED mkmem.js --powers @agent
-//   -E ENDO_FS_NAME=<pet name>
+// endo run --UNCONFINED mkmem.js --powers @agent <name>
 //
 // Symmetric with @endo/daemon's `endo mktmp`: mint a fresh
 // in-memory endo-fs `Filesystem` cap registered under the given
@@ -9,8 +8,6 @@
 // rebuilt empty each time the underlying module is
 // re-instantiated.
 
-/* global process */
-
 import { E } from '@endo/eventual-send';
 
 const moduleSpecifier = new URL('./src/in-memory-module.js', import.meta.url)
@@ -18,11 +15,11 @@ const moduleSpecifier = new URL('./src/in-memory-module.js', import.meta.url)
 
 /**
  * @param {import('@endo/eventual-send').ERef<object>} agent
+ * @param {string} [name]
  */
-export const main = async agent => {
-  const name = process.env.ENDO_FS_NAME;
+export const main = async (agent, name) => {
   if (typeof name !== 'string' || name.length === 0) {
-    throw new Error('ENDO_FS_NAME environment variable is required');
+    throw new Error('Usage: mkmem <name>');
   }
 
   if (await E(agent).has(name)) {

@@ -36,8 +36,8 @@
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'",
-    "attach": "endo run --UNCONFINED attach.js --powers @agent -E ENDO_FS_ROOT=${ENDO_FS_ROOT:-} -E ENDO_FS_NAME=${ENDO_FS_NAME:-} -E ENDO_FS_READ_ONLY=${ENDO_FS_READ_ONLY:-}",
-    "mkmem": "endo run --UNCONFINED mkmem.js --powers @agent -E ENDO_FS_NAME=${ENDO_FS_NAME:-}"
+    "attach": "endo run --UNCONFINED attach.js --powers @agent",
+    "mkmem": "endo run --UNCONFINED mkmem.js --powers @agent"
   },
   "dependencies": {
     "@endo/errors": "workspace:^",
