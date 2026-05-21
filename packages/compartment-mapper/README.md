@@ -31,7 +31,7 @@ const read = async location => fs.promises.readFile(fileURLToPath(location));
 
 const { namespace: moduleExports } = await importLocation(
   read,
-  moduleSpecifier,
+  moduleLocation,
   {
     globals: { console },
     modules: { fs },
@@ -92,11 +92,11 @@ const read = async location => fs.promises.readFile(fileURLToPath(location));
 const write = async (location, content) =>
   fs.promises.writeFile(fileURLToPath(location), content);
 
-const moduleSpecifier = new URL('app.js', import.meta.url).toString();
+const moduleLocation = new URL('app.js', import.meta.url).toString();
 const archiveLocation = new URL('app.zip', import.meta.url).toString();
 
 // Write to `archiveLocation`.
-await writeArchive(write, read, archiveLocation, moduleSpecifier);
+await writeArchive(write, read, archiveLocation, moduleLocation);
 ```
 
 The `writeArchive` function internally uses `makeArchive`.
@@ -148,13 +148,13 @@ script that subsumes `ses`, `@endo/compartment-mapper/import-archive.js`, and
 other parts of Endo, but is not as feature-complete as `importArchive`.
 
 ```js
-import url from "url";
-import fs from "fs";
+import url from "node:url";
+import fs from "node:fs";
 import { makeScript } from "@endo/compartment-mapper/script.js";
 import { makeReadPowers } from "@endo/compartment-mapper/node-powers.js";
 const readPowers = makeReadPowers({ fs, url });
 const options = {}; // if any
-const script = await makeScript(readPowers, moduleSpecifier, options);
+const script = await makeScript(readPowers, moduleLocation, options);
 ```
 
 The script is suitable for evaluating as a script in a web environment.
@@ -170,7 +170,7 @@ Evaluation of `script` returns the emulated exports namespace of the entry
 module.
 
 ```js
-const script = await makeScript(readPowers, moduleSpecifier, options);
+const script = await makeScript(readPowers, moduleLocation, options);
 
 // This one weird trick evaluates your script in global scope instead of
 // lexical scope.
@@ -276,7 +276,7 @@ In this example, we use a Hardened JavaScript `Compartment` to confine the
 execution of the functor and its modules.
 
 ```js
-const functorScript = await makeFunctor(readPowers, moduleSpecifier, options);
+const functorScript = await makeFunctor(readPowers, moduleLocation, options);
 const compartment = new Compartment();
 const moduleExports = compartment.evaluate(functorScript)({
   require,
@@ -512,7 +512,7 @@ Each workflow of the compartment mapper executes a portion of a sequence
 of underlying internals.
 
 * search ([search.js](./src/search.js)): Scan the parent directories of a given
-  `moduleSpecifier` until successfully finding and reading a `package.json` for
+  `moduleLocation` until successfully finding and reading a `package.json` for
   the containing application.
 * map compartments from Node.js packages
   ([node-modules.js](./src/node-modules.js)): Find and gather all the
