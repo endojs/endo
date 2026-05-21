@@ -242,6 +242,33 @@ test('accumulator emits a diff when a comma-pet-name path replaces a two-label p
   );
 });
 
+test('late subscribers receive a synthetic snapshot first', async t => {
+  /** @type {RetentionPath[]} */
+  const stable = [makePath('m1', 'r1', ['pet:foo'])];
+  const { scheduleBatch, flushAll } = makeManualScheduler();
+  const acc = makeRetentionPathAccumulator({
+    compute: () => stable,
+    scheduleBatch,
+  });
+
+  // First subscriber primes the accumulator.
+  const first = acc.subscribe();
+  flushAll();
+  const firstFirst = await first.next();
+  t.truthy(firstFirst.value.snapshot, 'first subscriber receives snapshot');
+  t.is(firstFirst.value.snapshot.length, 1);
+
+  // Second subscriber arrives after priming. Without the late-
+  // subscriber path it would receive nothing until the next diff;
+  // with it, it receives the same snapshot synthetically.
+  const second = acc.subscribe();
+  flushAll();
+  const secondFirst = await second.next();
+  t.truthy(secondFirst.value.snapshot, 'late subscriber receives snapshot');
+  t.is(secondFirst.value.snapshot.length, 1);
+  t.is(secondFirst.value.snapshot[0][0].groupMembers[0], 'm1');
+});
+
 test('no-change recompute emits no diff delta', async t => {
   const stable = [makePath('m1', 'r1', ['pet:foo'])];
   const { scheduleBatch, flushAll } = makeManualScheduler();

@@ -141,14 +141,31 @@ export const makeRetentionPathAccumulator = ({
    * `{ snapshot }`. Subsequent deltas are `{ added, removed }`.
    * Drop the iterator to terminate the producer.
    *
+   * Late subscribers (subscribing after the accumulator has already
+   * primed) receive a synthetic snapshot built from the last-known
+   * path set, matching `retention-accumulator.js`'s yield-snapshot-
+   * first contract.
+   *
    * @returns {AsyncGenerator<RetentionPathDelta>}
    */
   const subscribe = () => {
     const subscription = topic.subscribe();
-    // Prime the snapshot on first subscribe so consumers receive
-    // it promptly even when no graph changes have happened yet.
-    notify();
+    /** @type {RetentionPathDelta | undefined} */
+    let primedSnapshot;
+    if (primed) {
+      // Late subscriber: replay the last-known path set as a
+      // synthetic snapshot. The downstream `for await` then picks
+      // up any subsequent diff deltas from the live subscription.
+      primedSnapshot = harden({ snapshot: [...lastByKey.values()] });
+    } else {
+      // First subscriber: prime the snapshot so consumers receive
+      // it promptly even when no graph changes have happened yet.
+      notify();
+    }
     return (async function* retentionPathDeltas() {
+      if (primedSnapshot !== undefined) {
+        yield primedSnapshot;
+      }
       for await (const delta of subscription) {
         yield delta;
       }
