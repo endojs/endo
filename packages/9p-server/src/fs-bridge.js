@@ -84,12 +84,10 @@ export const makeFsBridge9p = ({
       // remove on success — otherwise its `once` registration sits
       // around resolved-promise-already, swallowing every later
       // server-level error event with no observable effect.
-      const startupError = /** @type {(e: Error) => void} */ (
-        reject => err => reject(err)
-      );
       await new Promise((resolve, reject) => {
-        const onStartupError = startupError(reject);
         const srv = /** @type {import('node:net').Server} */ (server);
+        /** @param {Error} err */
+        const onStartupError = err => reject(err);
         srv.once('error', onStartupError);
         srv.listen(socketPath, () => {
           srv.removeListener('error', onStartupError);
