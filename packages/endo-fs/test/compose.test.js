@@ -303,3 +303,177 @@ test('readOnly(compose(...)) blocks writes through the composition', async t => 
   t.is(await readFile(root, 'sample'), 'B');
   await t.throwsAsync(() => E(root).create('new', {}), { message: /EACCES/ });
 });
+
+// ---------- copy-on-write file semantics (DESIGN.md §8.4) ----------
+
+test('compose CoW: opening a backing-only file for write copies up — backing untouched', async t => {
+  const backing = makeInMemoryFilesystem();
+  const layer = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await writeFile(backingRoot, 'doc.txt', 'original');
+
+  const cow = compose(layer, backing);
+  const root = await E(cow).root();
+
+  // Drive the failure mode the chat file-explorer hits: lookup
+  // first (no layer entry exists yet), then open({ write: true }).
+  // Before the fix this returned the backing's File cap directly,
+  // so the write here would mutate the backing.
+  const file = await E(root).lookup('doc.txt');
+  const oh = await E(file).open({ write: true });
+  await writeBytes(await E(oh).write(0n), utf8('layered!'));
+  await E(oh).truncate(BigInt(utf8('layered!').length));
+  await E(oh).close();
+
+  // The composed view sees the new contents.
+  t.is(await readFile(root, 'doc.txt'), 'layered!');
+
+  // The backing must be unchanged.
+  t.is(await readFile(backingRoot, 'doc.txt'), 'original');
+
+  // The layer now holds the copy-up.
+  const layerRoot = await E(layer).root();
+  const cursor = await E(layerRoot).list();
+  const entries = await collectStream(await E(cursor).stream());
+  t.true(
+    entries.some(e => e.name === 'doc.txt'),
+    'layer should hold the copied-up file',
+  );
+});
+
+test('compose CoW: opening a backing-only file read-only does NOT copy up', async t => {
+  const backing = makeInMemoryFilesystem();
+  const layer = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await writeFile(backingRoot, 'doc.txt', 'pristine');
+
+  const cow = compose(layer, backing);
+  const root = await E(cow).root();
+
+  const file = await E(root).lookup('doc.txt');
+  const oh = await E(file).open({ read: true });
+  t.is(fromUtf8(await collectBytes(await E(oh).read(0n, 4096n))), 'pristine');
+  await E(oh).close();
+
+  // Layer should remain empty — read-only access must not trigger
+  // copy-up. Otherwise every browse of a backing would balloon the
+  // layer.
+  const layerRoot = await E(layer).root();
+  const cursor = await E(layerRoot).list();
+  const entries = await collectStream(await E(cursor).stream());
+  t.deepEqual(entries.map(e => e.name).sort(), []);
+});
+
+test('compose CoW: setAttrs on a backing-only file copies up before delegating', async t => {
+  const backing = makeInMemoryFilesystem();
+  const layer = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await writeFile(backingRoot, 'doc.txt', 'bytes');
+  const backingFile = await E(backingRoot).lookup('doc.txt');
+  const backingAttrsBefore = await E(backingFile).getAttrs();
+
+  const cow = compose(layer, backing);
+  const root = await E(cow).root();
+  const file = await E(root).lookup('doc.txt');
+  await E(file).setAttrs({ mtime: 4_242_000_000n });
+
+  // Composed view reports the new mtime, backing keeps its own.
+  const composedAttrs = await E(file).getAttrs();
+  t.is(composedAttrs.mtime, 4_242_000_000n);
+  const backingAttrsAfter = await E(backingFile).getAttrs();
+  t.is(backingAttrsAfter.mtime, backingAttrsBefore.mtime);
+});
+
+test('compose CoW: xattrs.set on a backing-only file copies up; xattrs.get without write reads from backing', async t => {
+  const backing = makeInMemoryFilesystem();
+  const layer = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await writeFile(backingRoot, 'doc.txt', 'bytes');
+
+  // Stamp an xattr on the backing file directly so the read path
+  // has something to delegate.
+  const backingFile = await E(backingRoot).lookup('doc.txt');
+  const bxBack = await E(backingFile).xattrs();
+  await writeBytes(await E(bxBack).set('user.tag', {}), utf8('first'));
+
+  const cow = compose(layer, backing);
+  const root = await E(cow).root();
+  const file = await E(root).lookup('doc.txt');
+
+  // Read before any write — should reach the backing.
+  const bxRead = await E(file).xattrs();
+  const got = await collectBytes(await E(bxRead).get('user.tag'));
+  t.is(fromUtf8(got), 'first');
+
+  // Mutating xattrs.set must trigger copy-up so the backing stays
+  // pristine.
+  const bxWrite = await E(file).xattrs();
+  await writeBytes(await E(bxWrite).set('user.tag', {}), utf8('layered'));
+
+  const layerRoot = await E(layer).root();
+  const cursor = await E(layerRoot).list();
+  const entries = await collectStream(await E(cursor).stream());
+  t.true(
+    entries.some(e => e.name === 'doc.txt'),
+    'layer should hold the copied-up file after xattrs.set',
+  );
+
+  // Backing's xattr value is unchanged.
+  const stillFirst = await collectBytes(await E(bxBack).get('user.tag'));
+  t.is(fromUtf8(stillFirst), 'first');
+});
+
+test('compose CoW: write-then-read through the composed view sees the layer copy', async t => {
+  const backing = makeInMemoryFilesystem();
+  const layer = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await writeFile(backingRoot, 'a.txt', 'AAA');
+
+  const cow = compose(layer, backing);
+  const root = await E(cow).root();
+  const file = await E(root).lookup('a.txt');
+  const wh = await E(file).open({ write: true, truncate: true });
+  await writeBytes(await E(wh).write(0n), utf8('zzz'));
+  await E(wh).close();
+
+  // Reading the same File cap back picks up the layer copy now
+  // that we've materialised.
+  const rh = await E(file).open({ read: true });
+  t.is(fromUtf8(await collectBytes(await E(rh).read(0n, 4096n))), 'zzz');
+  await E(rh).close();
+
+  // A fresh lookup likewise sees the layer copy.
+  t.is(await readFile(root, 'a.txt'), 'zzz');
+});
+
+test('compose CoW + Layer.diff: write to a backing-only file shows up as a layer op', async t => {
+  const { makeLayer } = await import('../src/layer.js');
+  const backing = makeInMemoryFilesystem();
+  const layerFs = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await writeFile(backingRoot, 'doc.txt', 'pristine');
+
+  const layer = makeLayer(layerFs, backing);
+  const composed = await E(layer).asFilesystem();
+  const root = await E(composed).root();
+
+  const file = await E(root).lookup('doc.txt');
+  const oh = await E(file).open({ write: true, truncate: true });
+  await writeBytes(await E(oh).write(0n), utf8('overlay'));
+  await E(oh).close();
+
+  // The layer's diff must capture the change as a layer op.
+  const ops = await collectStream(await E(layer).diff());
+  const kinds = ops.map(o => o.kind);
+  t.true(
+    kinds.includes('create-file'),
+    `expected create-file in ${kinds.join(',')}`,
+  );
+  t.true(
+    kinds.includes('write-bytes'),
+    `expected write-bytes in ${kinds.join(',')}`,
+  );
+
+  // And the backing remains pristine.
+  t.is(await readFile(backingRoot, 'doc.txt'), 'pristine');
+});
