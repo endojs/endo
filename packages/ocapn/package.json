@@ -1,7 +1,7 @@
 {
   "name": "@endo/ocapn",
   "version": "1.0.0",
-  "description": null,
+  "description": "A tentative implementation of the OCapN (Object Capability Network) protocol for Hardened JavaScript.",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
