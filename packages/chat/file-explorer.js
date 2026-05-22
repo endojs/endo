@@ -15,6 +15,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 
 import { colorize } from './monaco-wrapper.js';
+import { makeRefIterator } from './ref-iterator.js';
 import {
   applyLayer,
   classifyCapability,
@@ -90,6 +91,34 @@ const pathKey = path => path.join(KEY_SEP);
  * @returns {string[]}
  */
 const keyToPath = key => (key === '' ? [] : key.split(KEY_SEP));
+
+/**
+ * If `path` starts with `[...oldPrefix, oldName]`, rewrite it to
+ * start with `[...newPrefix, newName]` (preserving any deeper
+ * segments). Otherwise return `path` unchanged.
+ *
+ * Lets a single directory rename (or move) propagate to every
+ * stored path that referenced the old location: open columns,
+ * the active drill-down, the selected file, the tree's current
+ * directory, and tree-expansion / cache keys. Without this, the
+ * lower miller columns and the tree continue to address the
+ * (now-gone) old name and surface ENOENT errors.
+ *
+ * @param {string[]} path
+ * @param {string[]} oldPrefix
+ * @param {string} oldName
+ * @param {string[]} newPrefix
+ * @param {string} newName
+ * @returns {string[]}
+ */
+const rewritePath = (path, oldPrefix, oldName, newPrefix, newName) => {
+  if (path.length <= oldPrefix.length) return path;
+  if (path[oldPrefix.length] !== oldName) return path;
+  for (let i = 0; i < oldPrefix.length; i += 1) {
+    if (path[i] !== oldPrefix[i]) return path;
+  }
+  return [...newPrefix, newName, ...path.slice(oldPrefix.length + 1)];
+};
 
 /**
  * @param {string} name
@@ -207,6 +236,10 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
     <div class="fx-root">
       <div class="fx-toolbar"></div>
       <div class="fx-body">
+        <div class="fx-inventory">
+          <div class="fx-inv-header">Inventory</div>
+          <div class="fx-inv-list"></div>
+        </div>
         <div class="fx-browser"></div>
         <div class="fx-splitter" hidden></div>
         <div class="fx-viewer" hidden></div>
@@ -217,6 +250,9 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
   const $root = /** @type {HTMLElement} */ ($parent.querySelector('.fx-root'));
   const $toolbar = /** @type {HTMLElement} */ (
     $root.querySelector('.fx-toolbar')
+  );
+  const $invList = /** @type {HTMLElement} */ (
+    $root.querySelector('.fx-inv-list')
   );
   const $browser = /** @type {HTMLElement} */ (
     $root.querySelector('.fx-browser')
@@ -761,6 +797,111 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
   };
 
   /**
+   * Propagate a directory rename / move through every path-bearing
+   * piece of UI state so that subsequent renders address the new
+   * location instead of the old one.
+   *
+   * Without this, miller columns deeper than the renamed directory
+   * (whose `path` still contains the old name), the `activePath`
+   * drill-down, the tree's expanded set / cached listings, the
+   * directory-cap cache, and `selectedFile.parentPath` all keep
+   * referring to the disappeared path and surface ENOENT on the
+   * next refresh. File renames don't have descendants, so we
+   * only need to retarget the selected-file pointer in that case.
+   *
+   * @param {string[]} oldParent
+   * @param {string} oldName
+   * @param {string[]} newParent
+   * @param {string} newName
+   * @param {'directory' | 'file'} entryType
+   */
+  const cascadeRename = (oldParent, oldName, newParent, newName, entryType) => {
+    if (selectedFile) {
+      const isSelf =
+        pathKey(selectedFile.parentPath) === pathKey(oldParent) &&
+        selectedFile.name === oldName;
+      if (isSelf && entryType === 'file') {
+        // The viewer's open file moved with the rename — update the
+        // pointer rather than clearing the viewer.
+        selectedFile = { ...selectedFile, name: newName, parentPath: newParent };
+      } else if (isSelf) {
+        // The selected entry *is* a directory that got renamed —
+        // a directory was never showing in the viewer anyway, but
+        // belt-and-braces: drop the pointer.
+        selectedFile = null;
+      } else if (entryType !== 'file') {
+        // The selected file may live *inside* the moved directory;
+        // rewrite its parentPath so the viewer's "save" round-trips
+        // hit the right destination.
+        const nextParent = rewritePath(
+          selectedFile.parentPath,
+          oldParent,
+          oldName,
+          newParent,
+          newName,
+        );
+        if (nextParent !== selectedFile.parentPath) {
+          selectedFile = { ...selectedFile, parentPath: nextParent };
+        }
+      }
+    }
+    if (entryType === 'file') return;
+
+    activePath = rewritePath(
+      activePath,
+      oldParent,
+      oldName,
+      newParent,
+      newName,
+    );
+    treeCurrentDir = rewritePath(
+      treeCurrentDir,
+      oldParent,
+      oldName,
+      newParent,
+      newName,
+    );
+    columns = columns.map(column => ({
+      ...column,
+      path: rewritePath(column.path, oldParent, oldName, newParent, newName),
+    }));
+
+    // Tree / cap caches are keyed by pathKey(...) — rebuild the
+    // affected entries under their new keys (and drop the old).
+    /** @type {Set<string>} */
+    const nextExpanded = new Set();
+    for (const key of expanded) {
+      const next = rewritePath(
+        keyToPath(key),
+        oldParent,
+        oldName,
+        newParent,
+        newName,
+      );
+      nextExpanded.add(pathKey(next));
+    }
+    expanded = nextExpanded;
+
+    /** @type {Map<string, import('./file-explorer-fs.js').DirEntry[]>} */
+    const nextChildren = new Map();
+    for (const [key, value] of treeChildren) {
+      const next = rewritePath(
+        keyToPath(key),
+        oldParent,
+        oldName,
+        newParent,
+        newName,
+      );
+      nextChildren.set(pathKey(next), value);
+    }
+    treeChildren = nextChildren;
+
+    // `dirCapCache` is anyway cleared by `refreshActive()` below,
+    // so no need to rewrite — its stale entries would only matter
+    // if a caller bypassed `refreshActive`, which none currently do.
+  };
+
+  /**
    * @param {string[]} parentPath
    * @param {string} name
    * @param {'directory' | 'file'} type
@@ -782,14 +923,8 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
       const dir = resolveDir(parentPath);
       await renameEntry(dir, name, dir, newName);
       setStatus(`Renamed ${name} to ${newName}`);
-      if (
-        selectedFile &&
-        pathKey(selectedFile.parentPath) === pathKey(parentPath) &&
-        selectedFile.name === name
-      ) {
-        selectedFile = null;
-        renderViewer();
-      }
+      cascadeRename(parentPath, name, parentPath, newName, type);
+      renderViewer();
       await refreshActive();
     } catch (error) {
       reportError(error);
@@ -834,8 +969,13 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
    * @param {string[]} fromParent
    * @param {string} name
    * @param {string[]} toParent
+   * @param {'directory' | 'file'} [type] - Type of the moved entry,
+   *   carried by the drag payload. Needed so that the path-cascade
+   *   only rewrites descendants for directory moves; falls back to
+   *   `'directory'` (the safe over-approximation) if the caller
+   *   didn't supply it.
    */
-  const moveEntry = async (fromParent, name, toParent) => {
+  const moveEntry = async (fromParent, name, toParent, type = 'directory') => {
     const source = activeSource();
     if (!source || source.readOnly) return;
     if (pathKey(fromParent) === pathKey(toParent)) return;
@@ -855,6 +995,8 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
         name,
       );
       setStatus(`Moved ${name}`);
+      cascadeRename(fromParent, name, toParent, name, type);
+      renderViewer();
       await refreshActive();
     } catch (error) {
       reportError(error);
@@ -877,6 +1019,31 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
       readOnly: false,
     });
     setStatus(`Created in-memory filesystem ${source.label}`);
+    await selectSource(source.id);
+  };
+
+  /**
+   * Open an already-classified capability as an explorer source.
+   * Shared between the manual "Open by pet name" dialog and the
+   * inventory sidebar's click handler — both end up minting an
+   * identical `Source`.
+   *
+   * @param {string} label
+   * @param {Cap} cap
+   * @param {'filesystem' | 'mount'} kind
+   */
+  const openFsCap = async (label, cap, kind) => {
+    const source = addSource({
+      label,
+      kind: kind === 'mount' ? 'mount' : 'lookup',
+      filesystem: toFilesystem(cap, kind),
+      readOnly: false,
+    });
+    setStatus(
+      kind === 'mount'
+        ? `Opened Mount "${source.label}" via endo-fs from-mount`
+        : `Opened filesystem "${source.label}"`,
+    );
     await selectSource(source.id);
   };
 
@@ -910,18 +1077,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
         );
         return;
       }
-      const source = addSource({
-        label: segments[segments.length - 1] || entered,
-        kind: kind === 'mount' ? 'mount' : 'lookup',
-        filesystem: toFilesystem(cap, kind),
-        readOnly: false,
-      });
-      setStatus(
-        kind === 'mount'
-          ? `Opened Mount "${source.label}" via endo-fs from-mount`
-          : `Opened filesystem "${source.label}"`,
-      );
-      await selectSource(source.id);
+      await openFsCap(segments[segments.length - 1] || entered, cap, kind);
     } catch (error) {
       reportError(error);
     } finally {
@@ -1460,9 +1616,12 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
           const transfer = /** @type {DragEvent} */ (event).dataTransfer;
           if (transfer) {
             transfer.effectAllowed = 'move';
+            // Carry the entry type alongside the source coordinates
+            // so `moveEntry` can decide whether descendants need
+            // path rewrites (only directories do).
             transfer.setData(
               'application/json',
-              JSON.stringify({ parentPath, name }),
+              JSON.stringify({ parentPath, name, type }),
             );
           }
         });
@@ -1494,9 +1653,12 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
             return;
           }
           const destPath = name === '' ? [] : [...parentPath, name];
-          moveEntry(payload.parentPath, payload.name, destPath).catch(
-            reportError,
-          );
+          moveEntry(
+            payload.parentPath,
+            payload.name,
+            destPath,
+            payload.type,
+          ).catch(reportError);
         });
       }
     }
@@ -1538,9 +1700,12 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
           } catch {
             return;
           }
-          moveEntry(payload.parentPath, payload.name, colPath).catch(
-            reportError,
-          );
+          moveEntry(
+            payload.parentPath,
+            payload.name,
+            colPath,
+            payload.type,
+          ).catch(reportError);
         });
       }
     }
@@ -1715,6 +1880,107 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
     document.addEventListener('mouseup', onUp);
   });
 
+  // ---- inventory sidebar ------------------------------------------
+
+  // Tracks the per-name <button> + its abort flag so that
+  // `{ remove: name }` events can clean up the row and its
+  // in-flight classification.
+  /** @type {Map<string, { $row: HTMLElement, abort: { aborted: boolean } }>} */
+  const invItems = new Map();
+  let invStopped = false;
+  /** @type {AsyncIterableIterator<{ add?: string, remove?: string }> | null} */
+  let invIter = null;
+
+  /**
+   * Render a single inventory row and classify it asynchronously.
+   * Rows start disabled (greyed) and become clickable once we've
+   * confirmed they classify as a Filesystem or a Mount. Anything
+   * else stays greyed with an explanatory tooltip.
+   *
+   * @param {string} name
+   */
+  const addInvItem = name => {
+    if (invItems.has(name)) return;
+    const $row = document.createElement('button');
+    $row.type = 'button';
+    $row.className = 'fx-inv-item fx-inv-disabled';
+    $row.dataset.name = name;
+    $row.title = 'Classifying…';
+    $row.textContent = name;
+    $invList.appendChild($row);
+
+    const abort = { aborted: false };
+    invItems.set(name, { $row, abort });
+
+    // Classify in the background. We don't block the pump on this
+    // — the row stays disabled until the lookup + classify
+    // resolves, so the UI remains responsive even if some entries
+    // hang.
+    (async () => {
+      try {
+        const cap = await E(rootPowers).lookup(name);
+        if (abort.aborted) return;
+        const kind = await classifyCapability(cap);
+        if (abort.aborted) return;
+        if (kind === 'unknown') {
+          $row.title = 'Not an endo-fs Filesystem or Mount';
+          return;
+        }
+        $row.classList.remove('fx-inv-disabled');
+        $row.title =
+          kind === 'mount'
+            ? `Open Mount "${name}"`
+            : `Open filesystem "${name}"`;
+        $row.addEventListener('click', () => {
+          beginBusy();
+          openFsCap(name, cap, kind)
+            .catch(reportError)
+            .finally(() => endBusy());
+        });
+      } catch {
+        // Lookup or classify failed — leave the row disabled. The
+        // entry may have been removed between the `add` event and
+        // our lookup; the `remove` event will clean it up shortly.
+        if (!abort.aborted) {
+          $row.title = 'Unavailable';
+        }
+      }
+    })();
+  };
+
+  /**
+   * @param {string} name
+   */
+  const removeInvItem = name => {
+    const item = invItems.get(name);
+    if (!item) return;
+    item.abort.aborted = true;
+    item.$row.remove();
+    invItems.delete(name);
+  };
+
+  const pumpInventory = async () => {
+    try {
+      invIter = makeRefIterator(E(rootPowers).followNameChanges());
+      for await (const change of invIter) {
+        if (invStopped) break;
+        if (change && typeof change === 'object') {
+          if ('add' in change && typeof change.add === 'string') {
+            addInvItem(change.add);
+          } else if ('remove' in change && typeof change.remove === 'string') {
+            removeInvItem(change.remove);
+          }
+        }
+      }
+    } catch {
+      // No followNameChanges (e.g. a powers object that doesn't
+      // expose a NameHub) — the sidebar stays empty rather than
+      // breaking the explorer.
+    }
+  };
+
+  pumpInventory();
+
   // ---- initial render ---------------------------------------------
 
   renderToolbar();
@@ -1725,6 +1991,19 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
   return () => {
     if (liveTimer) clearTimeout(liveTimer);
     clearWatchers();
+    invStopped = true;
+    for (const { abort } of invItems.values()) abort.aborted = true;
+    invItems.clear();
+    if (invIter) {
+      // Best-effort: tell the remote side to stop iterating; we
+      // don't await this on teardown.
+      try {
+        invIter.return?.(undefined);
+      } catch {
+        // Ignore — disposal is best-effort.
+      }
+      invIter = null;
+    }
     $parent.innerHTML = '';
   };
 };

@@ -9303,6 +9303,63 @@ button.btn-spinner::after {
   background: var(--bg-primary);
 }
 
+/* ---- Inventory sidebar (file-explorer Space) ------------------ */
+
+/* Left-hand list of pet names known to `rootPowers`. Each row is
+   disabled until its capability classifies as a Filesystem or a
+   Mount; non-fs items stay greyed so the user can still see what
+   else is in their inventory without being able to misclick. */
+.fx-inventory {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.fx-inv-header {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.fx-inv-list {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.fx-inv-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 4px 12px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-inv-item:hover:not(.fx-inv-disabled) {
+  background: var(--bg-hover, rgba(127, 127, 127, 0.12));
+}
+
+.fx-inv-disabled {
+  cursor: default;
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
 .fx-splitter {
   width: 6px;
   flex: 0 0 6px;
@@ -9323,6 +9380,15 @@ button.btn-spinner::after {
   border-left: 1px solid var(--border-color);
   background: var(--bg-secondary);
   overflow: hidden;
+}
+
+/* `display: flex` above wins over the user-agent
+   `[hidden] { display: none }`, so the "Hide viewer" toggle
+   (which sets `$viewer.hidden = true`) is otherwise a no-op.
+   Same for the resize splitter that sits next to the viewer. */
+.fx-viewer[hidden],
+.fx-splitter[hidden] {
+  display: none;
 }
 
 /* ---- Miller columns ---- */
