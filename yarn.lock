@@ -1842,6 +1842,7 @@ __metadata:
   resolution: "@endo/endo-fs@workspace:packages/endo-fs"
   dependencies:
     "@endo/captp": "workspace:^"
+    "@endo/cli": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
