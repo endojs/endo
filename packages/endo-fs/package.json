@@ -40,6 +40,7 @@
     "mkmem": "endo run --UNCONFINED mkmem.js --powers @agent"
   },
   "dependencies": {
+    "@endo/bytes": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
@@ -52,6 +53,7 @@
   "devDependencies": {
     "@endo/captp": "workspace:^",
     "@endo/cli": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev"
   },

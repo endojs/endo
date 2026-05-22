@@ -9,6 +9,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { passStyleOf } from '@endo/pass-style';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
@@ -163,14 +164,43 @@ test('Layer.diff chunks files >1 MiB into multiple write-bytes ops + a terminal 
   t.is(chunks[1].offset, 1024n * 1024n);
   t.is(chunks[2].offset, 2n * 1024n * 1024n);
   for (const c of chunks) {
-    t.true(
-      /** @type {Uint8Array} */ (c.bytes).length <= 1024 * 1024,
-      'no chunk exceeds 1 MiB',
-    );
+    // `write-bytes` now carries payload as an immutable
+    // ArrayBuffer (passStyle 'byteArray') so it survives CapTP.
+    const buf = /** @type {ArrayBuffer} */ (c.bytes);
+    t.true(buf instanceof ArrayBuffer, 'bytes is an ArrayBuffer');
+    t.true(buf.byteLength <= 1024 * 1024, 'no chunk exceeds 1 MiB');
   }
   const truncate = bigOps.find(o => o.kind === 'truncate');
   t.truthy(truncate, 'terminal truncate op present');
   t.is(truncate.length, BigInt(big.length));
+});
+
+test('Layer.diff yields ops whose every payload field is passable', async t => {
+  // Regression for "Cannot pass mutable typed arrays like (an
+  // object)": a `write-bytes` op used to carry `bytes: Uint8Array`,
+  // which marshal rejects when the diff stream is drained by a
+  // remote consumer. Each op must satisfy `passStyleOf`, including
+  // its `bytes` (now an immutable ArrayBuffer = passStyle
+  // `'byteArray'`).
+  const backing = makeInMemoryFilesystem();
+  const layerFs = makeInMemoryFilesystem();
+  const layerRoot = await E(layerFs).root();
+  await E(layerRoot).mkdir('docs', {});
+  const docs = await E(layerRoot).lookup('docs');
+  await writeFile(docs, 'readme.md', 'hello from the layer');
+
+  const layer = makeLayer(layerFs, backing);
+  const ops = await collectStream(await E(layer).diff());
+
+  for (const op of ops) {
+    t.notThrows(
+      () => passStyleOf(op),
+      `op of kind ${op.kind} must be fully passable`,
+    );
+  }
+  const wb = ops.find(o => o.kind === 'write-bytes');
+  t.truthy(wb, 'expected a write-bytes op');
+  t.is(passStyleOf(wb.bytes), 'byteArray');
 });
 
 test('Layer.apply replays a >1 MiB file accurately across chunked emission', async t => {

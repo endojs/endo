@@ -37,6 +37,8 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
 
 import { compose } from './compose.js';
 
@@ -148,11 +150,17 @@ const enumerateLayerOps = async function* (layerFs) {
               chunk.set(piece, p);
               p += piece.length;
             }
+            // `write-bytes` ops travel across CapTP (e.g. when a
+            // remote consumer drains `Layer.diff()`), and the
+            // marshal layer rejects mutable typed arrays. Carry the
+            // payload as an immutable `ArrayBuffer` (passStyle
+            // `'byteArray'`) — `applyOp` converts back to a
+            // `Uint8Array` for the bytes-writer.
             yield harden({
               kind: 'write-bytes',
               path: childPath,
               offset,
-              bytes: chunk,
+              bytes: bytesToImmutable(chunk),
             });
             offset += BigInt(chunk.length);
             if (chunk.length === 0) break; // defensive — empty read at EOF
@@ -220,7 +228,11 @@ const applyOp = async (target, op) => {
       try {
         const writer = await E(opened).write(op.offset);
         const w = iterateBytesWriter(writer);
-        await w.next(op.bytes);
+        // `op.bytes` arrives as an immutable `ArrayBuffer` (see
+        // `enumerateLayerOps`); `iterateBytesWriter` base64-encodes
+        // the `Uint8Array` it gets handed, so materialise a view
+        // here.
+        await w.next(bytesFromImmutable(op.bytes));
         await w.return();
       } finally {
         await E(opened).close();

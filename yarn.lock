@@ -1841,6 +1841,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/endo-fs@workspace:packages/endo-fs"
   dependencies:
+    "@endo/bytes": "workspace:^"
     "@endo/captp": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -1849,6 +1850,7 @@ __metadata:
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/stream": "workspace:^"
     ava: "catalog:dev"
