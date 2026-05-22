@@ -16,6 +16,7 @@ import { E } from '@endo/far';
 
 import { colorize } from './monaco-wrapper.js';
 import { makeRefIterator } from './ref-iterator.js';
+import { buildUnifiedDiffSection } from './layer-diff.js';
 import {
   applyLayer,
   classifyCapability,
@@ -272,6 +273,23 @@ export const mountFileExplorer = (
   let selectedFile = null;
   let editing = false;
   let viewerLoading = false;
+
+  /**
+   * @typedef {object} LayerDiffView
+   * @property {string} layerLabel  source.label at the time the
+   *   diff was generated
+   * @property {string} content  the full diff document
+   *   (concatenated unified-diff sections + `#`-comment markers
+   *   for non-content ops)
+   */
+  /** @type {LayerDiffView | null} */
+  let layerDiff = null;
+  // What the viewer pane is currently showing. `'file'` is the
+  // historical default (preview/edit of a single selected file);
+  // `'layer-diff'` is the "View layer diff" mode driven by
+  // `layerDiff`.
+  /** @type {'file' | 'layer-diff'} */
+  let viewerMode = 'file';
 
   /** @type {{ message: string, kind: 'error' | 'info' | '' }} */
   let status = { message: '', kind: '' };
@@ -609,6 +627,10 @@ export const mountFileExplorer = (
     dirCapCache = new Map();
     selectedFile = null;
     editing = false;
+    // Switching sources drops any in-flight layer-diff view —
+    // the diff was tied to the outgoing source's layer cap.
+    viewerMode = 'file';
+    layerDiff = null;
     renderToolbar();
     renderViewer();
     await reloadBrowser(false);
@@ -740,6 +762,11 @@ export const mountFileExplorer = (
     viewerLoading = true;
     selectedFile = null;
     editing = false;
+    // Selecting a file pops out of the layer-diff view — the
+    // viewer can only show one thing at a time, and the file
+    // selection is the more recent intent.
+    viewerMode = 'file';
+    layerDiff = null;
     renderToolbar();
     renderViewer();
     try {
@@ -1396,32 +1423,73 @@ export const mountFileExplorer = (
     }
   };
 
+  // Sentinel choice value for the "(layer backing)" entry in the
+  // Apply-layer dialog. Picked instead of a real source id so a
+  // user can't accidentally provision a pet name that collides
+  // (pet names can't contain `__`-bracketed sentinels).
+  const APPLY_BACKING_CHOICE = '__layer-backing__';
+
   const applyActiveLayer = async () => {
     const source = activeSource();
     if (!source || source.kind !== 'layer' || !source.layer) return;
-    const targets = sources.filter(
-      candidate => candidate.id !== source.id && !candidate.readOnly,
-    );
-    if (targets.length === 0) {
-      setStatus('No writable target filesystem to apply onto', 'error');
-      return;
+    // De-duplicate sibling sources: multiple inventory clicks on
+    // the same pet name (or opening one fs both directly and via
+    // a derived view) used to surface as several identical
+    // choices. Key on `petName || id` so session-only sources
+    // remain individually addressable.
+    const seen = new Set();
+    /** @type {Source[]} */
+    const candidates = [];
+    for (const candidate of sources) {
+      if (candidate.id === source.id) continue;
+      if (candidate.readOnly) continue;
+      const key = candidate.petName || candidate.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push(candidate);
     }
+    // Always offer the layer's own backing as the first (and
+    // default-selected) choice. That's the typical commit
+    // motion — "fold these staged changes back into the fs they
+    // were layered over" — so making the user pick it from a
+    // list every time was unnecessary friction. We compute the
+    // backing cap lazily, after confirmation, so the dialog
+    // doesn't pay a CapTP round trip when the user just wants to
+    // cancel.
+    const choices = [
+      { value: APPLY_BACKING_CHOICE, label: '(layer backing)' },
+      ...candidates.map(candidate => ({
+        value: candidate.id,
+        label: candidate.label,
+      })),
+    ];
     const targetId = await openDialog({
       title: 'Apply layer',
-      message: 'Replay this layer’s changes onto:',
-      choices: targets.map(target => ({
-        value: target.id,
-        label: target.label,
-      })),
+      message: `Replay this layer's changes onto a writable filesystem. The default is the layer's own backing — picking it commits the staged changes in place.`,
+      choices,
       confirmLabel: 'Apply',
     });
     if (targetId === null) return;
-    const target = sources.find(candidate => candidate.id === targetId);
-    if (!target) return;
     beginBusy();
     try {
-      await applyLayer(source.layer, target.filesystem);
-      setStatus(`Applied layer onto ${target.label}`);
+      /** @type {Cap} */
+      let targetFs;
+      /** @type {string} */
+      let targetLabel;
+      if (targetId === APPLY_BACKING_CHOICE) {
+        targetFs = /** @type {Cap} */ (await E(source.layer).backing());
+        targetLabel = '(layer backing)';
+      } else {
+        const target = sources.find(candidate => candidate.id === targetId);
+        if (!target) {
+          setStatus('Apply target no longer exists', 'error');
+          return;
+        }
+        targetFs = target.filesystem;
+        targetLabel = target.label;
+      }
+      await applyLayer(source.layer, targetFs);
+      setStatus(`Applied layer onto ${targetLabel}`);
     } catch (error) {
       reportError(error);
     } finally {
@@ -1457,32 +1525,141 @@ export const mountFileExplorer = (
     }
   };
 
-  const showLayerChanges = async () => {
+  /**
+   * Read the text of a single file at `pathSegments` out of the
+   * given filesystem. Returns `null` if the path doesn't exist or
+   * the file is binary — both produce a `# binary or missing`
+   * marker in the diff rather than a corrupt patch.
+   *
+   * Uses the existing `readFile` preview helper, so very large
+   * files are truncated to the preview cap; the diff document
+   * notes that explicitly via a `# truncated:` comment so the
+   * user knows the visible diff isn't the whole story.
+   *
+   * @param {Cap} fs
+   * @param {string[]} pathSegments
+   * @returns {Promise<{ text: string, truncated: boolean } | null>}
+   */
+  const readTextAtPath = async (fs, pathSegments) => {
+    if (pathSegments.length === 0) return null;
+    try {
+      let dirP = getRoot(fs);
+      for (let i = 0; i < pathSegments.length - 1; i += 1) {
+        dirP = lookupChild(dirP, pathSegments[i]);
+      }
+      const fileCap = lookupChild(dirP, pathSegments[pathSegments.length - 1]);
+      const { bytes, truncated } = await readFile(fileCap);
+      const { text, binary } = decodeText(bytes);
+      if (binary) return null;
+      return { text, truncated };
+    } catch {
+      return null;
+    }
+  };
+
+  /**
+   * Build a unified-diff document for the active layer's
+   * accumulated changes and show it in the viewer pane (with
+   * `diff` syntax highlighting), replacing whatever was selected.
+   *
+   * Per touched path we group the layer ops, look the path up in
+   * both the layer's backing and the composed view, and emit a
+   * `--- a/path` / `+++ b/path` section comparing the two. For
+   * paths whose ops are metadata-only (set-attrs / set-xattr /
+   * create-dir / opaque-dir) we emit a one-line `# kind: path`
+   * marker — those don't have a meaningful unified-diff form.
+   */
+  const viewLayerDiff = async () => {
     const source = activeSource();
     if (!source || source.kind !== 'layer' || !source.layer) return;
     beginBusy();
     try {
       const ops = await collectLayerOps(source.layer);
-      const bodyHtml = ops.length
-        ? `<div class="fx-changes">${ops
-            .map(op => {
-              const raw = Array.isArray(op.path)
-                ? /** @type {string[]} */ (op.path)
-                : Array.isArray(op.newPath)
-                  ? /** @type {string[]} */ (op.newPath)
-                  : [];
-              return `<div class="fx-change-row">
-                <span class="fx-change-kind">${esc(String(op.kind))}</span>
-                <span class="fx-change-path">/${esc(raw.join('/'))}</span>
-              </div>`;
-            })
-            .join('')}</div>`
-        : '<div class="fx-dialog-message">No changes in this layer yet.</div>';
-      await openDialog({
-        title: `Layer changes (${ops.length})`,
-        bodyHtml,
-        confirmLabel: 'Close',
-      });
+      if (ops.length === 0) {
+        layerDiff = {
+          layerLabel: source.label,
+          content: '# No changes in this layer yet.\n',
+        };
+      } else {
+        const backing = /** @type {Cap} */ (await E(source.layer).backing());
+        /** @type {Map<string, { path: string[], kinds: Set<string> }>} */
+        const byPath = new Map();
+        for (const op of ops) {
+          const raw = Array.isArray(op.path)
+            ? /** @type {string[]} */ (op.path)
+            : Array.isArray(op.newPath)
+              ? /** @type {string[]} */ (op.newPath)
+              : [];
+          const key = raw.join('/');
+          const bucket = byPath.get(key) || { path: raw, kinds: new Set() };
+          bucket.kinds.add(String(op.kind));
+          if (!byPath.has(key)) byPath.set(key, bucket);
+        }
+        /** @type {string[]} */
+        const sections = [];
+        for (const { path, kinds } of byPath.values()) {
+          const pathStr = path.join('/');
+          if (path.length === 0) {
+            sections.push(`# root: ${[...kinds].join(', ')}`);
+            continue;
+          }
+          if (kinds.has('whiteout')) {
+            const backingRead = await readTextAtPath(backing, path);
+            if (backingRead === null) {
+              sections.push(`# whiteout (no backing or binary): ${pathStr}`);
+            } else {
+              const sec = buildUnifiedDiffSection(
+                pathStr,
+                backingRead.text,
+                '',
+              );
+              sections.push(
+                backingRead.truncated
+                  ? `${sec}\n# truncated: backing preview only`
+                  : sec,
+              );
+            }
+            continue;
+          }
+          if (
+            kinds.has('create-file') ||
+            kinds.has('write-bytes') ||
+            kinds.has('truncate')
+          ) {
+            const [backingRead, layerRead] = await Promise.all([
+              readTextAtPath(backing, path),
+              readTextAtPath(source.filesystem, path),
+            ]);
+            const oldText = backingRead ? backingRead.text : '';
+            const newText = layerRead ? layerRead.text : '';
+            if (backingRead === null && layerRead === null) {
+              sections.push(
+                `# ${[...kinds].join(', ')} (binary or missing): ${pathStr}`,
+              );
+              continue;
+            }
+            const sec = buildUnifiedDiffSection(pathStr, oldText, newText);
+            const notes = [];
+            if (backingRead?.truncated) notes.push('backing preview only');
+            if (layerRead?.truncated) notes.push('layer preview only');
+            sections.push(
+              notes.length ? `${sec}\n# truncated: ${notes.join(', ')}` : sec,
+            );
+            continue;
+          }
+          sections.push(`# ${[...kinds].join(', ')}: ${pathStr}`);
+        }
+        layerDiff = {
+          layerLabel: source.label,
+          content: sections.join('\n\n'),
+        };
+      }
+      viewerMode = 'layer-diff';
+      selectedFile = null;
+      editing = false;
+      viewerCollapsed = false;
+      renderToolbar();
+      renderViewer();
     } catch (error) {
       reportError(error);
     } finally {
@@ -1572,10 +1749,6 @@ export const mountFileExplorer = (
           <span>CAS cache</span>
         </label>
         ${button('↻ Refresh', 'fx-act-refresh', !source)}
-        ${button(
-          viewerCollapsed ? 'Show viewer' : 'Hide viewer',
-          'fx-act-viewer',
-        )}
       </div>
       <div class="fx-toolbar-group fx-group-new">
         <span class="fx-group-label">New filesystem</span>
@@ -1593,8 +1766,8 @@ export const mountFileExplorer = (
         isLayer
           ? `<div class="fx-toolbar-group fx-layer-group">
                <span class="fx-group-label">Layer</span>
+               ${button('View layer diff', 'fx-act-changes')}
                ${button('Apply layer…', 'fx-act-apply')}
-               ${button('Changes', 'fx-act-changes')}
                ${button('Revert layer', 'fx-act-revert')}
              </div>`
           : ''
@@ -1642,15 +1815,10 @@ export const mountFileExplorer = (
       applyActiveLayer().catch(reportError);
     });
     onClick('fx-act-changes', () => {
-      showLayerChanges().catch(reportError);
+      viewLayerDiff().catch(reportError);
     });
     onClick('fx-act-revert', () => {
       revertActiveLayer().catch(reportError);
-    });
-    onClick('fx-act-viewer', () => {
-      viewerCollapsed = !viewerCollapsed;
-      renderToolbar();
-      renderViewer();
     });
     const $cache = $toolbar.querySelector('.fx-act-cache');
     if ($cache) {
@@ -2030,6 +2198,46 @@ export const mountFileExplorer = (
     $splitter.hidden = viewerCollapsed;
     if (viewerCollapsed) return;
     $viewer.style.width = `${viewerWidth}px`;
+
+    if (viewerMode === 'layer-diff' && layerDiff) {
+      const diffView = layerDiff;
+      $viewer.innerHTML = `
+        <div class="fx-viewer-head">
+          <span class="fx-viewer-title" title="Layer diff: ${esc(
+            diffView.layerLabel,
+          )}">Layer diff: ${esc(diffView.layerLabel)}</span>
+          <button type="button" class="fx-mini fx-viewer-close" title="Collapse">»</button>
+        </div>
+        <div class="fx-viewer-body">
+          <pre class="fx-code"><code>${esc(diffView.content)}</code></pre>
+        </div>
+      `;
+      const $diffCode = $viewer.querySelector('.fx-code code');
+      colorize(diffView.content, 'diff')
+        .then(coloredHtml => {
+          // Re-check that we're still showing the same diff —
+          // the user may have navigated away while colorize was
+          // resolving.
+          if (
+            $diffCode &&
+            viewerMode === 'layer-diff' &&
+            layerDiff === diffView
+          ) {
+            $diffCode.innerHTML = coloredHtml;
+          }
+        })
+        .catch(() => {
+          // Keep the plain-text view on colorize failure.
+        });
+      const $closeDiff = $viewer.querySelector('.fx-viewer-close');
+      if ($closeDiff)
+        $closeDiff.addEventListener('click', () => {
+          viewerCollapsed = true;
+          renderToolbar();
+          renderViewer();
+        });
+      return;
+    }
 
     if (viewerLoading) {
       $viewer.innerHTML = `
