@@ -1499,29 +1499,42 @@ export const mountFileExplorer = (
 
   const revertActiveLayer = async () => {
     const source = activeSource();
-    if (!source || source.kind !== 'layer') return;
+    if (!source || source.kind !== 'layer' || !source.layer) return;
     const confirmed = await openDialog({
       title: 'Revert layer',
-      message: `Discard all changes accumulated in "${source.label}"?`,
+      message: `Discard all changes accumulated in "${source.label}"? Layer-only files disappear, hidden backing entries reappear, and the backing filesystem is left untouched.`,
       confirmLabel: 'Revert',
       danger: true,
     });
     if (confirmed === null) return;
-    const index = sources.findIndex(candidate => candidate.id === source.id);
-    if (index >= 0) sources.splice(index, 1);
-    setStatus(`Reverted layer ${source.label}`);
-    const fallback =
-      sources.find(candidate => candidate.id === source.backingSourceId) ||
-      sources[0];
-    if (fallback) {
-      await selectSource(fallback.id);
-    } else {
-      clearWatchers();
-      activeSourceId = null;
-      columns = [];
+    beginBusy();
+    try {
+      // Wipe the writable side of the layer formula on the daemon.
+      // The composed view cap keeps its identity — `compose` reads
+      // live state from layer + backing on every op, so the open
+      // columns and viewer can simply refresh.
+      await E(source.layer).revert();
+      // Drop any cached directory caps from the now-stale composed
+      // view (whiteouts gone, layer-only entries gone). Also drop
+      // the layer-diff if it's showing.
+      dirCapCache = new Map();
+      if (viewerMode === 'layer-diff') {
+        viewerMode = 'file';
+        layerDiff = null;
+      }
+      // If the previously selected file was layer-only, looking it
+      // up will now fail; clearing the selection avoids a confusing
+      // empty viewer.
+      selectedFile = null;
+      editing = false;
       renderToolbar();
-      renderBrowser();
       renderViewer();
+      await reloadBrowser(false);
+      setStatus(`Reverted layer ${source.label}`);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
     }
   };
 

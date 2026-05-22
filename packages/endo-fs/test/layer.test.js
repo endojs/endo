@@ -265,3 +265,76 @@ test('whiteout filenames appear in diff as whiteout ops', async t => {
   t.truthy(wo);
   t.deepEqual(wo.path, ['deleted.txt']);
 });
+
+test('Layer.revert wipes layer-only entries, whiteouts, and opaque markers — backing untouched', async t => {
+  // Regression for "Revert layer leaves layer-only files behind":
+  // the chat used to splice the source out of its session list
+  // without actually wiping the daemon-side layer formula, so
+  // re-opening the layer (or just refreshing) still showed the
+  // "reverted" file. After `revert()`, the composed view must
+  // read identically to the bare backing, AND the backing
+  // filesystem itself must be untouched.
+  const backing = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await writeFile(backingRoot, 'keep.txt', 'backing-keep');
+  await writeFile(backingRoot, 'hidden.txt', 'backing-hidden');
+  await E(backingRoot).mkdir('sub', {});
+  const backingSub = await E(backingRoot).lookup('sub');
+  await writeFile(backingSub, 'inner.txt', 'backing-inner');
+
+  const layerFs = makeInMemoryFilesystem();
+  const layerRoot = await E(layerFs).root();
+  // Layer-only file (no backing counterpart).
+  await writeFile(layerRoot, 'xcv', 'layer-only');
+  // Whiteout for a backing file.
+  await writeFile(layerRoot, '__whiteout__hidden.txt', '');
+  // Layer-side subdirectory with its own file (a "copy-up" style
+  // shadow over `sub/`).
+  await E(layerRoot).mkdir('sub', {});
+  const layerSub = await E(layerRoot).lookup('sub');
+  await writeFile(layerSub, 'extra.txt', 'layer-extra');
+  // Opaque-dir marker so the backing's `sub/inner.txt` is hidden.
+  await writeFile(layerSub, '.__opaque__', '');
+
+  const layer = makeLayer(layerFs, backing);
+
+  // Sanity: before revert, the layer has the expected ops.
+  const before = await collectStream(await E(layer).diff());
+  const kindsBefore = new Set(before.map(o => o.kind));
+  t.true(kindsBefore.has('create-file'));
+  t.true(kindsBefore.has('whiteout'));
+  t.true(kindsBefore.has('opaque-dir'));
+
+  await E(layer).revert();
+
+  // After revert: no ops at all (the layer is empty).
+  const after = await collectStream(await E(layer).diff());
+  t.deepEqual(after, [], 'layer is empty after revert');
+
+  // Composed view now reads through to the bare backing.
+  const composed = await E(layer).asFilesystem();
+  const cRoot = await E(composed).root();
+  const composedNames = [];
+  const cur = await E(cRoot).list();
+  const stream = await E(cur).stream();
+  for await (const entry of iterateReader(stream)) {
+    composedNames.push(entry.name);
+  }
+  composedNames.sort();
+  t.deepEqual(composedNames, ['hidden.txt', 'keep.txt', 'sub']);
+
+  // The previously-hidden backing file is visible again with its
+  // original contents.
+  t.is(await readFile(cRoot, 'hidden.txt'), 'backing-hidden');
+  // The layer-only file is gone.
+  await t.throwsAsync(() => E(cRoot).lookup('xcv'), { message: /ENOENT/ });
+
+  // Backing is byte-for-byte untouched.
+  t.is(await readFile(backingRoot, 'keep.txt'), 'backing-keep');
+  t.is(await readFile(backingRoot, 'hidden.txt'), 'backing-hidden');
+  const cSub = await E(cRoot).lookup('sub');
+  t.is(await readFile(cSub, 'inner.txt'), 'backing-inner');
+  await t.throwsAsync(() => E(cSub).lookup('extra.txt'), {
+    message: /ENOENT/,
+  });
+});
