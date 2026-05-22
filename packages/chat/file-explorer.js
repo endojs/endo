@@ -1112,6 +1112,13 @@ export const mountFileExplorer = (
   // ---- filesystem tooling -----------------------------------------
 
   const addMemoryFilesystem = async () => {
+    if (!ENDO_FS_IN_MEMORY_MODULE_URL) {
+      setStatus(
+        'Cannot mint an in-memory filesystem: the daemon caplet module URL was not injected at build time. Load the chat through the Vite dev server.',
+        'error',
+      );
+      return;
+    }
     const defaultName = `scratch-${sourceCounter + 1}`;
     const petName = await openDialog({
       title: 'New in-memory filesystem',
@@ -1293,6 +1300,13 @@ export const mountFileExplorer = (
    * error rather than a daemon marshalling cryptic.
    */
   const saveReadOnlyView = async () => {
+    if (!ENDO_FS_READONLY_MODULE_URL) {
+      setStatus(
+        'Cannot save a read-only view: the daemon caplet module URL was not injected at build time. Load the chat through the Vite dev server.',
+        'error',
+      );
+      return;
+    }
     const source = activeSource();
     if (!source) return;
     if (!source.petName) {
@@ -1350,6 +1364,13 @@ export const mountFileExplorer = (
    * `makeLayer(...)` cap has no formula to marshal.
    */
   const saveLayer = async () => {
+    if (!ENDO_FS_LAYER_MODULE_URL) {
+      setStatus(
+        'Cannot save a layer: the daemon caplet module URL was not injected at build time. Load the chat through the Vite dev server.',
+        'error',
+      );
+      return;
+    }
     const source = activeSource();
     if (!source) return;
     if (!source.petName) {
@@ -1721,16 +1742,35 @@ export const mountFileExplorer = (
    * @param {boolean} [disabled]
    * @returns {string}
    */
-  const button = (label, cls, disabled) =>
+  /**
+   * @param {string} label
+   * @param {string} cls
+   * @param {boolean} [disabled]
+   * @param {string} [title]
+   */
+  const button = (label, cls, disabled, title) =>
     `<button type="button" class="fx-btn ${cls}" ${
       disabled ? 'disabled' : ''
-    }>${esc(label)}</button>`;
+    }${title ? ` title="${esc(title)}"` : ''}>${esc(label)}</button>`;
 
   function renderToolbar() {
     const source = activeSource();
     const isLayer = !!source && source.kind === 'layer';
     const readOnly = !!source && source.readOnly;
     const useCache = !!source && source.useCache;
+    // The "save to inventory" actions all run through a daemon
+    // caplet module whose URL Vite injects at build time (see
+    // `vite-endo-plugin.js`). If the chat is loaded outside the
+    // Vite dev server those URLs fall back to `''`, in which case
+    // calling `makeUnconfined('', ...)` would throw a confusing
+    // marshaller error. Disable the buttons upfront with an
+    // explanatory tooltip; the action functions also guard so a
+    // stale click can't slip through.
+    const canMintMemory = !!ENDO_FS_IN_MEMORY_MODULE_URL;
+    const canSaveReadOnly = !!ENDO_FS_READONLY_MODULE_URL;
+    const canSaveLayer = !!ENDO_FS_LAYER_MODULE_URL;
+    const moduleMissingTitle = what =>
+      `${what} requires the chat to be loaded through the Vite dev server (the daemon-side caplet module URL was not injected at build time).`;
     const optionsHtml = sources
       .map(
         item =>
@@ -1769,10 +1809,29 @@ export const mountFileExplorer = (
       </div>
       <div class="fx-toolbar-group fx-group-new">
         <span class="fx-group-label">New filesystem</span>
-        ${button('+ In-memory', 'fx-act-memory')}
+        ${button(
+          '+ In-memory',
+          'fx-act-memory',
+          !canMintMemory,
+          canMintMemory
+            ? undefined
+            : moduleMissingTitle('Minting an in-memory filesystem'),
+        )}
         ${button('Open…', 'fx-act-open')}
-        ${button('Save read-only view…', 'fx-act-readonly', !source)}
-        ${button('Save layer…', 'fx-act-layer', !source)}
+        ${button(
+          'Save read-only view…',
+          'fx-act-readonly',
+          !source || !canSaveReadOnly,
+          canSaveReadOnly
+            ? undefined
+            : moduleMissingTitle('Saving a read-only view'),
+        )}
+        ${button(
+          'Save layer…',
+          'fx-act-layer',
+          !source || !canSaveLayer,
+          canSaveLayer ? undefined : moduleMissingTitle('Saving a layer'),
+        )}
       </div>
       <div class="fx-toolbar-group fx-group-actions">
         <span class="fx-group-label">File actions</span>

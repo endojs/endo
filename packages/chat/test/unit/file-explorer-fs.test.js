@@ -4,7 +4,7 @@
 // Smoke-coverage for the endo-fs ↔ explorer-UI bridge. The bridge
 // is correctness-sensitive (directory listing ordering, chunked
 // reads with preview truncation, chunked writes, watch
-// subscriptions), and was previously unconvered; these tests pin
+// subscriptions), and was previously uncovered; these tests pin
 // the behaviour against the canonical in-memory backend.
 
 import '@endo/init/debug.js';
