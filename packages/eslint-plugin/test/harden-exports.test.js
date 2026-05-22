@@ -103,6 +103,31 @@ harden(aliasName);
 harden(inner);
         `,
   },
+  {
+    // Pattern makers (M.something(...)) return already-hardened values,
+    // so a follow-up harden() is unnecessary noise.
+    code: `
+export const StringShape = M.string();
+              `,
+  },
+  {
+    code: `
+export const StringsShape = M.arrayOf(M.string());
+              `,
+  },
+  {
+    code: `
+export const a = M.string();
+export const b = M.arrayOf(M.string());
+              `,
+  },
+  {
+    // harden(name) on an M.* export is still allowed (sanity case).
+    code: `
+export const StringShape = M.string();
+harden(StringShape);
+              `,
+  },
 ];
 
 const invalid = [
@@ -442,6 +467,55 @@ harden(rest);
 harden(name);
 harden(notRest);
     `,
+  },
+  {
+    // Object literal initializers still need an explicit harden().
+    code: `
+export const x = { foo: 1 };
+              `,
+    errors: [
+      {
+        message:
+          "Named export(s) 'x' should be followed by a call to 'harden'.",
+      },
+    ],
+    output: `
+export const x = { foo: 1 };
+harden(x);
+              `,
+  },
+  {
+    // Arrow function initializers still need an explicit harden().
+    code: `
+export const x = () => 1;
+              `,
+    errors: [
+      {
+        message:
+          "Named export(s) 'x' should be followed by a call to 'harden'.",
+      },
+    ],
+    output: `
+export const x = () => 1;
+harden(x);
+              `,
+  },
+  {
+    // A non-M.* call expression (e.g. plain function call) is not
+    // recognized as already hardened and still warns.
+    code: `
+export const x = makeThing();
+              `,
+    errors: [
+      {
+        message:
+          "Named export(s) 'x' should be followed by a call to 'harden'.",
+      },
+    ],
+    output: `
+export const x = makeThing();
+harden(x);
+              `,
   },
 ];
 
