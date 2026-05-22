@@ -66,7 +66,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         # This action will create/update Changesets' Release PR *or* create a
         # GitHub Release and tags if its Release PR was just merged
-        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1
+        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
         with:
           publish: yarn changeset tag
           createGithubReleases: true

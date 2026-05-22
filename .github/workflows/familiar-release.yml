@@ -11,8 +11,13 @@ on:
     tags:
       - 'familiar-v*'
 
+# Build jobs only need checkout access; release write access is scoped below.
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.version || 'tag' }}
+  cancel-in-progress: true
 
 # Defense in depth against npm lifecycle scripts running implicitly at install.
 # See designs/ci-no-npm-lifecycle.md.
@@ -28,14 +33,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - run: corepack enable
 
+      # `package-manager-cache: false` defends against the cache-poisoning class
+      # zizmor flags on release-triggered workflows. setup-node@v6 auto-enables
+      # yarn caching when package.json carries a `packageManager` field, so the
+      # explicit opt-out is load-bearing — removing this line re-enables the cache.
       - name: Use Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: 22.x
-          cache: yarn
+          package-manager-cache: false
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -62,6 +73,9 @@ jobs:
     name: Make (${{ matrix.target-os }}-${{ matrix.target-arch }})
     needs: build-artifacts
     runs-on: ${{ matrix.runner }}
+    env:
+      TARGET_ARCH: ${{ matrix.target-arch }}
+      TARGET_OS: ${{ matrix.target-os }}
 
     strategy:
       matrix:
@@ -79,14 +93,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - run: corepack enable
 
+      # `package-manager-cache: false` defends against the cache-poisoning class
+      # zizmor flags on release-triggered workflows. setup-node@v6 auto-enables
+      # yarn caching when package.json carries a `packageManager` field, so the
+      # explicit opt-out is load-bearing — removing this line re-enables the cache.
       - name: Use Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: 22.x
-          cache: yarn
+          package-manager-cache: false
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -106,12 +126,12 @@ jobs:
       - name: Download Node.js binary
         run: |
           cd packages/familiar
-          ./scripts/download-node.sh v20.18.1 ${{ matrix.target-os }} ${{ matrix.target-arch }}
+          ./scripts/download-node.sh v20.18.1 "$TARGET_OS" "$TARGET_ARCH"
 
       - name: Prepare package
         run: |
           cd packages/familiar
-          ./scripts/prepare-package.sh ${{ matrix.target-os }} ${{ matrix.target-arch }}
+          ./scripts/prepare-package.sh "$TARGET_OS" "$TARGET_ARCH"
 
       - name: Make distributables
         run: yarn workspace @endo/familiar step:make
@@ -127,6 +147,8 @@ jobs:
     needs: make
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/familiar-v') || github.event.inputs.version != ''
+    permissions:
+      contents: write # Create the draft release and upload assets.
 
     steps:
       - name: Download all artifacts
@@ -137,15 +159,29 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version || '' }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "tag=familiar-v${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          if [ -n "$INPUT_VERSION" ]; then
+            if [[ ! "$INPUT_VERSION" =~ ^[0-9]+[.][0-9]+[.][0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+              echo "Invalid release version: $INPUT_VERSION" >&2
+              exit 1
+            fi
+            tag="familiar-v$INPUT_VERSION"
           else
-            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            tag="$REF_NAME"
           fi
 
+          if [[ ! "$tag" =~ ^familiar-v[0-9A-Za-z._+-]+$ ]]; then
+            echo "Invalid release tag: $tag" >&2
+            exit 1
+          fi
+
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Familiar ${{ steps.version.outputs.tag }}
