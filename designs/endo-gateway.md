@@ -3,10 +3,24 @@
 | | |
 |---|---|
 | **Created** | 2026-05-10 |
-| **Updated** | 2026-05-10 (review pass: no TLS, Noise netlayer, `/ocapn` WS, Host→CAS, separate config trees, defer key rotation, defer daemon-hosting variant) |
+| **Updated** | 2026-05-22 (superseded by gateway-package) |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Superseded |
 | **Source** | Issue [#173](https://github.com/endojs/endo-but-for-bots/issues/173) (extracted from PR [#134](https://github.com/endojs/endo-but-for-bots/pull/134) `feat(docker,daemon): docker self-hosting` review at 2026-05-10T06:14:41Z) |
+| **Superseded by** | [gateway-package](gateway-package.md) |
+
+> **Superseded 2026-05-22** by [`gateway-package`](gateway-package.md), which
+> reframes the system-service gateway as one configuration of a new
+> `@endo/gateway` package covering ten feature subsystems (Chat hosting,
+> virtual hosting, Git-over-HTTP, UDS bootstrap, Familiar-bundled fallback,
+> public CapTP relay, admin daemon, `/ocapn-cbor-np` WebSocket, HTTPS
+> terminating proxy, OS packaging). The decisions recorded here (no TLS,
+> Noise in-band, `@apps` NameHub, distinct config trees, IPC for
+> local-vs-remote attestation, deferred key rotation, deferred daemon-hosting
+> variant) carry forward into the new design unless the new design's
+> *Design Decisions* section explicitly revises them. The OCapN WS path
+> renames from `/ocapn` to `/ocapn-cbor-np` (see new design's Design
+> Decision 3). This document is retained as historical reference.
 
 ## What is the Problem Being Solved?
 
