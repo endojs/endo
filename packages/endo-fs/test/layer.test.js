@@ -164,11 +164,13 @@ test('Layer.diff chunks files >1 MiB into multiple write-bytes ops + a terminal 
   t.is(chunks[1].offset, 1024n * 1024n);
   t.is(chunks[2].offset, 2n * 1024n * 1024n);
   for (const c of chunks) {
-    // `write-bytes` now carries payload as an immutable
-    // ArrayBuffer (passStyle 'byteArray') so it survives CapTP.
-    const buf = /** @type {ArrayBuffer} */ (c.bytes);
-    t.true(buf instanceof ArrayBuffer, 'bytes is an ArrayBuffer');
-    t.true(buf.byteLength <= 1024 * 1024, 'no chunk exceeds 1 MiB');
+    // `write-bytes` carries payload as a base64-encoded string so
+    // it survives marshal (the marshal layer doesn't yet support
+    // the `'byteArray'` passStyle for immutable ArrayBuffers).
+    const b64 = /** @type {string} */ (c.bytesBase64);
+    t.is(typeof b64, 'string', 'bytesBase64 is a string');
+    // base64 expands by 4/3, so 1 MiB of bytes ≤ ~1.34 MiB of b64.
+    t.true(b64.length <= Math.ceil((1024 * 1024 * 4) / 3) + 16);
   }
   const truncate = bigOps.find(o => o.kind === 'truncate');
   t.truthy(truncate, 'terminal truncate op present');
@@ -176,12 +178,17 @@ test('Layer.diff chunks files >1 MiB into multiple write-bytes ops + a terminal 
 });
 
 test('Layer.diff yields ops whose every payload field is passable', async t => {
-  // Regression for "Cannot pass mutable typed arrays like (an
-  // object)": a `write-bytes` op used to carry `bytes: Uint8Array`,
-  // which marshal rejects when the diff stream is drained by a
-  // remote consumer. Each op must satisfy `passStyleOf`, including
-  // its `bytes` (now an immutable ArrayBuffer = passStyle
-  // `'byteArray'`).
+  // Regression for two consecutive marshal failures observed
+  // through the chat file-explorer's "View layer diff" action:
+  //   1. "Cannot pass mutable typed arrays like (an object)" —
+  //      from carrying `bytes: Uint8Array` directly.
+  //   2. "marshal of byteArray not yet implemented" — from
+  //      carrying `bytes: <immutable ArrayBuffer>` (which
+  //      `harden`s as the passStyle `'byteArray'`, but which the
+  //      smallcaps/capdata encoders haven't implemented yet).
+  // Each op must satisfy `passStyleOf` AND every field must
+  // belong to a passStyle the marshal layer can encode today, so
+  // we additionally smoke-test `bytesBase64` as a string.
   const backing = makeInMemoryFilesystem();
   const layerFs = makeInMemoryFilesystem();
   const layerRoot = await E(layerFs).root();
@@ -200,7 +207,8 @@ test('Layer.diff yields ops whose every payload field is passable', async t => {
   }
   const wb = ops.find(o => o.kind === 'write-bytes');
   t.truthy(wb, 'expected a write-bytes op');
-  t.is(passStyleOf(wb.bytes), 'byteArray');
+  t.is(typeof wb.bytesBase64, 'string', 'bytesBase64 is a string');
+  t.is(passStyleOf(wb.bytesBase64), 'string');
 });
 
 test('Layer.apply replays a >1 MiB file accurately across chunked emission', async t => {

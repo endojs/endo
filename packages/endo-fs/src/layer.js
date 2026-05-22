@@ -37,8 +37,7 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
-import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
-import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
+import { encodeBase64, decodeBase64 } from '@endo/base64';
 
 import { compose } from './compose.js';
 
@@ -150,17 +149,20 @@ const enumerateLayerOps = async function* (layerFs) {
               chunk.set(piece, p);
               p += piece.length;
             }
-            // `write-bytes` ops travel across CapTP (e.g. when a
-            // remote consumer drains `Layer.diff()`), and the
-            // marshal layer rejects mutable typed arrays. Carry the
-            // payload as an immutable `ArrayBuffer` (passStyle
-            // `'byteArray'`) — `applyOp` converts back to a
-            // `Uint8Array` for the bytes-writer.
+            // `write-bytes` ops travel across CapTP when a remote
+            // consumer drains `Layer.diff()`, and the marshal
+            // layer (a) rejects mutable typed arrays and (b) does
+            // not yet implement the `'byteArray'` (immutable
+            // ArrayBuffer) passStyle. Carry the payload as a
+            // base64-encoded string — the same encoding the
+            // bytes-stream protocol uses on the wire. `applyOp`
+            // and any consumer (e.g. the chat layer-diff viewer)
+            // decode via `decodeBase64`.
             yield harden({
               kind: 'write-bytes',
               path: childPath,
               offset,
-              bytes: bytesToImmutable(chunk),
+              bytesBase64: encodeBase64(chunk),
             });
             offset += BigInt(chunk.length);
             if (chunk.length === 0) break; // defensive — empty read at EOF
@@ -228,11 +230,11 @@ const applyOp = async (target, op) => {
       try {
         const writer = await E(opened).write(op.offset);
         const w = iterateBytesWriter(writer);
-        // `op.bytes` arrives as an immutable `ArrayBuffer` (see
-        // `enumerateLayerOps`); `iterateBytesWriter` base64-encodes
-        // the `Uint8Array` it gets handed, so materialise a view
-        // here.
-        await w.next(bytesFromImmutable(op.bytes));
+        // `op.bytesBase64` is a base64-encoded string (see
+        // `enumerateLayerOps`). Decode to a `Uint8Array` for the
+        // bytes-writer, which then base64-encodes again on the
+        // wire — round-trip is fine.
+        await w.next(decodeBase64(op.bytesBase64));
         await w.return();
       } finally {
         await E(opened).close();

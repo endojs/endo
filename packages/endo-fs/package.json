@@ -40,7 +40,7 @@
     "mkmem": "endo run --UNCONFINED mkmem.js --powers @agent"
   },
   "dependencies": {
-    "@endo/bytes": "workspace:^",
+    "@endo/base64": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",

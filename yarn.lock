@@ -1841,7 +1841,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/endo-fs@workspace:packages/endo-fs"
   dependencies:
-    "@endo/bytes": "workspace:^"
+    "@endo/base64": "workspace:^"
     "@endo/captp": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/errors": "workspace:^"
