@@ -1060,20 +1060,38 @@ export const mountFileExplorer = (
   // ---- filesystem tooling -----------------------------------------
 
   const addMemoryFilesystem = async () => {
-    const label = await openDialog({
+    const defaultName = `scratch-${sourceCounter + 1}`;
+    const petName = await openDialog({
       title: 'New in-memory filesystem',
-      input: { label: 'Label', value: `scratch-${sourceCounter + 1}` },
+      message:
+        'Mint a fresh in-memory Filesystem and save it to your inventory under this pet name. Re-opening the name from the inventory sidebar later drops you straight back into editing the same filesystem.',
+      input: {
+        label: 'Pet name',
+        value: defaultName,
+        placeholder: defaultName,
+      },
       confirmLabel: 'Create',
     });
-    if (label === null) return;
-    const source = addSource({
-      label: label || `scratch-${sourceCounter + 1}`,
-      kind: 'memory',
-      filesystem: makeMemoryFilesystem(),
-      readOnly: false,
-    });
-    setStatus(`Created in-memory filesystem ${source.label}`);
-    await selectSource(source.id);
+    if (petName === null || petName === '') return;
+    beginBusy();
+    try {
+      const filesystem = makeMemoryFilesystem();
+      await E(resolveProfileHost()).storeValue(filesystem, [petName]);
+      const source = addSource({
+        label: petName,
+        kind: 'memory',
+        filesystem,
+        readOnly: false,
+      });
+      setStatus(
+        `Created in-memory filesystem "${petName}" and saved it to the inventory`,
+      );
+      await selectSource(source.id);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
   };
 
   /**
