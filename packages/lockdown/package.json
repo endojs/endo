@@ -39,7 +39,7 @@
     "url": "git+https://github.com/endojs/endo.git",
     "directory": "packages/lockdown"
   },
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
