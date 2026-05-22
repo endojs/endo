@@ -56,7 +56,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo",
+    "url": "git+https://github.com/endojs/endo.git",
     "directory": "packages/bundle-source"
   },
   "author": "Endo contributors",
