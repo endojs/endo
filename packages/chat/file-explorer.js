@@ -27,9 +27,6 @@ import {
   listDirectory,
   lookupChild,
   makeCachedFilesystem,
-  makeFilesystemLayer,
-  makeMemoryFilesystem,
-  makeReadOnlyView,
   readFile,
   removeEntry,
   renameEntry,
@@ -52,12 +49,36 @@ import {
  *   source. Per-source, defaults to true. View-only: never affects
  *   the cap that gets handed back out (e.g. via `storeValue` /
  *   `applyLayer`) — that's always the original `filesystem`.
+ * @property {string} [petName] - inventory pet name (or
+ *   slash/dot-separated path) where this source's cap lives on
+ *   the profile-resolved host. Recorded whenever we know it
+ *   (mint actions, inventory click, "Open by pet name"); the
+ *   "Save read-only view" / "Save layer" actions need it so the
+ *   daemon-side module can `lookup` the backing.
  * @property {Cap} [_viewFilesystem] - memoised wrapped cap, dropped
  *   whenever `useCache` flips so the next browse remints it
  * @property {Cap} [layer] - layer cap when `kind === 'layer'`, so
  *   the Apply/Changes/Revert actions can operate on it
  * @property {string} [backingSourceId]
  */
+
+// File URLs for the endo-fs caplet modules the daemon uses to
+// formulate filesystem/layer/read-only caps. Injected at Vite
+// build time (see vite-endo-plugin.js); each URL resolves to a
+// module on the daemon's local filesystem whose `make(powers,
+// _ctx, { env })` factory is the recipe stored in the formula.
+// Falsy at runtime if the chat is loaded outside the Vite dev
+// server (in which case the "Save" actions degrade with a clear
+// error rather than a cryptic marshaller failure).
+const ENDO_FS_IN_MEMORY_MODULE_URL =
+  // @ts-ignore Vite injects this at build time
+  import.meta.env?.ENDO_FS_IN_MEMORY_PATH || '';
+const ENDO_FS_READONLY_MODULE_URL =
+  // @ts-ignore Vite injects this at build time
+  import.meta.env?.ENDO_FS_READONLY_PATH || '';
+const ENDO_FS_LAYER_MODULE_URL =
+  // @ts-ignore Vite injects this at build time
+  import.meta.env?.ENDO_FS_LAYER_PATH || '';
 
 /**
  * @typedef {object} BrowserColumn
@@ -1075,10 +1096,21 @@ export const mountFileExplorer = (
     if (petName === null || petName === '') return;
     beginBusy();
     try {
-      const filesystem = makeMemoryFilesystem();
-      await E(resolveProfileHost()).storeValue(filesystem, [petName]);
+      // `makeUnconfined` (rather than client-side
+      // `makeMemoryFilesystem() + storeValue(...)`) so the daemon
+      // formulates the filesystem itself — otherwise storeValue
+      // fails with "No corresponding formula for (an object)"
+      // because the client-side cap has no daemon recipe.
+      const filesystem = /** @type {Cap} */ (
+        await E(resolveProfileHost()).makeUnconfined(
+          '@node',
+          ENDO_FS_IN_MEMORY_MODULE_URL,
+          { powersName: '@agent', resultName: petName },
+        )
+      );
       const source = addSource({
         label: petName,
+        petName,
         kind: 'memory',
         filesystem,
         readOnly: false,
@@ -1103,8 +1135,12 @@ export const mountFileExplorer = (
    * @param {string} label
    * @param {Cap} cap
    * @param {'filesystem' | 'layer' | 'mount'} kind
+   * @param {string} [petName]  inventory pet name (or
+   *   slash/dot-separated path) for this cap, when known. Lets
+   *   downstream "Save read-only view" / "Save layer" actions
+   *   address the cap on the daemon side.
    */
-  const openFsCap = async (label, cap, kind) => {
+  const openFsCap = async (label, cap, kind, petName) => {
     // `toFilesystem` may return a Promise (layer case) — await
     // uniformly so the caller always gets a concrete Filesystem
     // cap to hand to the source list.
@@ -1121,6 +1157,7 @@ export const mountFileExplorer = (
       filesystem,
       readOnly: false,
     };
+    if (petName) spec.petName = petName;
     if (kind === 'layer') {
       // Remember the Layer cap on the source so the layer-specific
       // actions (Apply, Changes, Revert) light up — opening from
@@ -1172,7 +1209,12 @@ export const mountFileExplorer = (
         );
         return;
       }
-      await openFsCap(segments[segments.length - 1] || entered, cap, kind);
+      await openFsCap(
+        segments[segments.length - 1] || entered,
+        cap,
+        kind,
+        segments.join('.'),
+      );
     } catch (error) {
       reportError(error);
     } finally {
@@ -1205,17 +1247,30 @@ export const mountFileExplorer = (
   };
 
   /**
-   * Prompt for a pet name and `storeValue()` a read-only view of
-   * the active source against the profile-resolved host, so the
-   * frozen view shows up in the user's inventory and is openable
-   * via the inventory sidebar / "Open by pet name". We don't add
-   * it as a sibling session source — read-only views are useful
-   * as durable inventory entries, not as ad-hoc tabs in this
-   * Space.
+   * Prompt for a pet name and ask the daemon to formulate a
+   * read-only attenuator over the active source via
+   * `makeUnconfined(readonly-module, env.SOURCE_NAME=<source>)`.
+   * Going through the module recipe (rather than `storeValue(
+   * readOnly(fs))` from the client) is what makes the view
+   * durable — a client-side `readOnly` wrap has no formula and
+   * would fail to marshal back through the daemon.
+   *
+   * The active source must itself be addressable from the
+   * profile-resolved host's NameHub (i.e. it must be the result
+   * of an inventory lookup, "Open by pet name", or another
+   * Save action). Ad-hoc session-only sources fail with a clear
+   * error rather than a daemon marshalling cryptic.
    */
   const saveReadOnlyView = async () => {
     const source = activeSource();
     if (!source) return;
+    if (!source.petName) {
+      setStatus(
+        `Source "${source.label}" has no inventory pet name; save it (or re-open from inventory) before deriving a read-only view`,
+        'error',
+      );
+      return;
+    }
     const petName = await openDialog({
       title: 'Save read-only view',
       message: `Freeze a read-only view of "${source.label}" into the inventory.`,
@@ -1229,8 +1284,15 @@ export const mountFileExplorer = (
     if (petName === null || petName === '') return;
     beginBusy();
     try {
-      const view = makeReadOnlyView(source.filesystem);
-      await E(resolveProfileHost()).storeValue(view, [petName]);
+      await E(resolveProfileHost()).makeUnconfined(
+        '@node',
+        ENDO_FS_READONLY_MODULE_URL,
+        {
+          powersName: '@agent',
+          resultName: petName,
+          env: { SOURCE_NAME: source.petName },
+        },
+      );
       setStatus(`Saved read-only view of "${source.label}" as "${petName}"`);
     } catch (error) {
       reportError(error);
@@ -1240,17 +1302,32 @@ export const mountFileExplorer = (
   };
 
   /**
-   * Prompt for a Layer pet name (mandatory) and a composed-view
-   * pet name (optional), persist both to the inventory, and open
-   * the composed view as the active source so the user can start
-   * editing right away. Storing the Layer cap separately is what
-   * lets a future session re-open it with the diff/apply surface
-   * intact (the inventory sidebar's classifyCapability picks up
-   * `'layer'` and lights the layer-action buttons up again).
+   * Prompt for a Layer pet name and a composed-view pet name,
+   * persist both to the inventory, and open the composed view as
+   * the active source.
+   *
+   * Two daemon formulas are minted (so both survive restart):
+   *
+   *   1. `makeUnconfined(layer-module, env.BACKING_NAME=<source>)`
+   *      → the writable Layer cap, with its diff/apply surface.
+   *   2. `evaluate('E(layer).asFilesystem()', {layer}, ...)`
+   *      → the composed view, defined as a derivation of the
+   *      layer formula so re-instantiation stays consistent.
+   *
+   * Going through these recipes (rather than client-side wraps
+   * + `storeValue`) is what makes both durable — the client's
+   * `makeLayer(...)` cap has no formula to marshal.
    */
   const saveLayer = async () => {
     const source = activeSource();
     if (!source) return;
+    if (!source.petName) {
+      setStatus(
+        `Source "${source.label}" has no inventory pet name; save it (or re-open from inventory) before deriving a layer`,
+        'error',
+      );
+      return;
+    }
     const baseName = source.label.replace(/\s+/g, '-');
     const layerName = await openDialog({
       title: 'Save layer',
@@ -1277,18 +1354,26 @@ export const mountFileExplorer = (
     if (composedName === null || composedName === '') return;
     beginBusy();
     try {
-      const { layer } = makeFilesystemLayer(source.filesystem);
-      const composed = await E(layer).asFilesystem();
       const host = resolveProfileHost();
-      // Store both in parallel — the daemon handles concurrent
-      // storeValue calls fine, and we'd otherwise pay two serial
-      // round trips.
-      await Promise.all([
-        E(host).storeValue(layer, [layerName]),
-        E(host).storeValue(composed, [composedName]),
-      ]);
+      const layer = /** @type {Cap} */ (
+        await E(host).makeUnconfined('@node', ENDO_FS_LAYER_MODULE_URL, {
+          powersName: '@agent',
+          resultName: layerName,
+          env: { BACKING_NAME: source.petName },
+        })
+      );
+      const composed = /** @type {Cap} */ (
+        await E(host).evaluate(
+          '@node',
+          'await E(layer).asFilesystem()',
+          ['layer'],
+          [layerName],
+          composedName,
+        )
+      );
       const layerSource = addSource({
         label: composedName,
+        petName: composedName,
         kind: 'layer',
         filesystem: composed,
         readOnly: false,
@@ -2122,7 +2207,7 @@ export const mountFileExplorer = (
         }
         $row.addEventListener('click', () => {
           beginBusy();
-          openFsCap(name, cap, kind)
+          openFsCap(name, cap, kind, name)
             .catch(reportError)
             .finally(() => endBusy());
         });
