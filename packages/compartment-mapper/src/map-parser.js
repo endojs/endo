@@ -73,6 +73,76 @@ const resolveLanguage = (
 };
 
 /**
+ * @returns {Generator<ReturnType<ModuleTransform> | ReturnType<SyncModuleTransform>, ParseResult | Promise<ParseResult>, any>}
+ */
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {string} specifier
+ * @param {string} location
+ * @param {string} packageLocation
+ * @param {*} options
+ *
+ * Generator<whatever return values of parsers and transforms are>
+ * @returns {Generator<ReturnType<SyncModuleTransform>, ParseResult, ReturnType<SyncModuleTransform>>}
+ */
+function* getParserGenerator({
+  bytes,
+  specifier,
+  location,
+  packageLocation,
+  options,
+  languageForExtension,
+  languageForModuleSpecifier,
+  parsers,
+  transforms,
+}) {
+  let language = resolveLanguage(
+    specifier,
+    location,
+    languageForExtension,
+    languageForModuleSpecifier,
+  );
+
+  /** @type {string | undefined} */
+  let sourceMap;
+
+  if (has(transforms, language)) {
+    try {
+      ({
+        bytes,
+        parser: language,
+        sourceMap,
+      } = yield transforms[language](
+        bytes,
+        specifier,
+        location,
+        packageLocation,
+        {
+          sourceMap,
+        },
+      ));
+    } catch (err) {
+      const cause = /** @type {Error} */ (err);
+      throw Error(
+        `Error transforming ${q(language)} source in ${q(location)}: ${cause.message}`,
+        { cause },
+      );
+    }
+  }
+  if (!has(parsers, language)) {
+    throw Error(
+      `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
+    );
+  }
+  const { parse } = parsers[language];
+  return parse(bytes, specifier, location, packageLocation, {
+    sourceMap,
+    ...options,
+  });
+}
+
+/**
  * Produces a sync `ParseFn` for use when all parsers and transforms are
  * synchronous.
  *
@@ -88,76 +158,19 @@ const makeSyncExtensionParser = (
   parsers,
   transforms,
 ) => {
-  /**
-   * @param {Uint8Array} bytes
-   * @param {string} specifier
-   * @param {string} location
-   * @param {string} packageLocation
-   * @param {*} options
-   * @returns {Generator<ReturnType<SyncModuleTransform>, ParseResult, ReturnType<SyncModuleTransform>>}
-   */
-  function* getParserGenerator(
-    bytes,
-    specifier,
-    location,
-    packageLocation,
-    options,
-  ) {
-    let language = resolveLanguage(
-      specifier,
-      location,
-      languageForExtension,
-      languageForModuleSpecifier,
-    );
-
-    /** @type {string | undefined} */
-    let sourceMap;
-
-    if (has(transforms, language)) {
-      try {
-        ({
-          bytes,
-          parser: language,
-          sourceMap,
-        } = yield transforms[language](
-          bytes,
-          specifier,
-          location,
-          packageLocation,
-          {
-            sourceMap,
-          },
-        ));
-      } catch (err) {
-        const cause = /** @type {Error} */ (err);
-        throw Error(
-          `Error transforming ${q(language)} source in ${q(location)}: ${cause.message}`,
-          { cause },
-        );
-      }
-    }
-    if (!has(parsers, language)) {
-      throw Error(
-        `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
-      );
-    }
-    const { parse } = parsers[language];
-    return parse(bytes, specifier, location, packageLocation, {
-      sourceMap,
-      ...options,
-    });
-  }
-
   /** @type {ParseFn} */
   const syncParser = (bytes, specifier, location, packageLocation, options) => {
-    const result = syncTrampoline(
-      getParserGenerator,
+    const result = syncTrampoline(getParserGenerator, {
       bytes,
       specifier,
       location,
       packageLocation,
       options,
-    );
+      languageForExtension,
+      languageForModuleSpecifier,
+      parsers,
+      transforms,
+    });
     if ('then' in result && typeof result.then === 'function') {
       throw new TypeError(
         'Sync parser cannot return a Thenable; ensure parser is actually synchronous',
@@ -193,65 +206,6 @@ const makeAsyncExtensionParser = (
     ...moduleTransforms,
   };
 
-  /**
-   * @param {Uint8Array} bytes
-   * @param {string} specifier
-   * @param {string} location
-   * @param {string} packageLocation
-   * @param {*} options
-   * @returns {Generator<ReturnType<ModuleTransform> | ReturnType<SyncModuleTransform>, ParseResult | Promise<ParseResult>, any>}
-   */
-  function* getParserGenerator(
-    bytes,
-    specifier,
-    location,
-    packageLocation,
-    options,
-  ) {
-    let language = resolveLanguage(
-      specifier,
-      location,
-      languageForExtension,
-      languageForModuleSpecifier,
-    );
-
-    /** @type {string | undefined} */
-    let sourceMap;
-
-    if (has(transforms, language)) {
-      try {
-        ({
-          bytes,
-          parser: language,
-          sourceMap,
-        } = yield transforms[language](
-          bytes,
-          specifier,
-          location,
-          packageLocation,
-          {
-            sourceMap,
-          },
-        ));
-      } catch (err) {
-        throw Error(
-          `Error transforming ${q(language)} source in ${q(location)}: ${/** @type {Error} */ (err).message}`,
-          { cause: err },
-        );
-      }
-    }
-    if (!has(parsers, language)) {
-      throw Error(
-        `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
-      );
-    }
-    const { parse } = parsers[language];
-    return parse(bytes, specifier, location, packageLocation, {
-      sourceMap,
-      ...options,
-    });
-  }
-
   /** @type {AsyncParseFn} */
   const asyncParser = async (
     bytes,
@@ -260,14 +214,17 @@ const makeAsyncExtensionParser = (
     packageLocation,
     options,
   ) =>
-    asyncTrampoline(
-      getParserGenerator,
+    asyncTrampoline(getParserGenerator, {
       bytes,
       specifier,
       location,
       packageLocation,
       options,
-    );
+      languageForExtension,
+      languageForModuleSpecifier,
+      parsers,
+      transforms,
+    });
   return asyncParser;
 };
 
