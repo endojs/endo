@@ -32,11 +32,52 @@ const loadMonaco = async () => {
     noSyntaxValidation: true,
   });
 
-  // Define custom themes
+  // Register a `diff` language. Monaco's basic-languages bundle
+  // does NOT ship one, so without this `colorize(text, 'diff')`
+  // silently falls back to plain text. The tokenizer matches each
+  // line by its leading sigil: `---`/`+++` file headers, `@@`
+  // hunk headers, `+`/`-` body lines, and `#` comment lines (used
+  // by the file-explorer's layer-diff viewer for "# unchanged"
+  // and "# truncated" annotations).
+  if (!monaco.languages.getLanguages().some(l => l.id === 'diff')) {
+    monaco.languages.register({ id: 'diff' });
+    monaco.languages.setMonarchTokensProvider('diff', {
+      defaultToken: '',
+      tokenizer: {
+        root: [
+          [/^---.*$/, 'diff.header.deleted'],
+          [/^\+\+\+.*$/, 'diff.header.inserted'],
+          [/^@@.*@@.*$/, 'diff.range'],
+          [/^-.*$/, 'diff.deleted'],
+          [/^\+.*$/, 'diff.inserted'],
+          [/^#.*$/, 'comment'],
+          [/^.*$/, ''],
+        ],
+      },
+    });
+  }
+
+  // Define custom themes. The `diff.*` token rules color the
+  // language we registered above — red for removed, green for
+  // added, purple for hunk ranges, with bolded file-header rows.
   monaco.editor.defineTheme('endo-light', {
     base: 'vs',
     inherit: true,
-    rules: [],
+    rules: [
+      { token: 'diff.deleted', foreground: 'b91c1c' },
+      { token: 'diff.inserted', foreground: '15803d' },
+      {
+        token: 'diff.header.deleted',
+        foreground: 'b91c1c',
+        fontStyle: 'bold',
+      },
+      {
+        token: 'diff.header.inserted',
+        foreground: '15803d',
+        fontStyle: 'bold',
+      },
+      { token: 'diff.range', foreground: '6b21a8' },
+    ],
     colors: {
       'editorLineNumber.foreground': '#57606a',
       'editorLineNumber.activeForeground': '#24292f',
@@ -54,6 +95,19 @@ const loadMonaco = async () => {
       { token: 'string', foreground: 'fb923c' },
       { token: 'comment', foreground: '6b7078' },
       { token: 'number', foreground: '60a5fa' },
+      { token: 'diff.deleted', foreground: 'f87171' },
+      { token: 'diff.inserted', foreground: '4ade80' },
+      {
+        token: 'diff.header.deleted',
+        foreground: 'f87171',
+        fontStyle: 'bold',
+      },
+      {
+        token: 'diff.header.inserted',
+        foreground: '4ade80',
+        fontStyle: 'bold',
+      },
+      { token: 'diff.range', foreground: 'c084fc' },
     ],
     colors: {
       'editorLineNumber.foreground': '#6b7078',

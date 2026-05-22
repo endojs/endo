@@ -34,6 +34,25 @@ const jaineSetupUrl = pathToFileURL(
   path.join(repoRoot, 'packages/jaine/setup.js'),
 ).href;
 
+// Endo-fs caplet module URLs. These are what the file-explorer
+// Space passes to `host.makeUnconfined` to mint a daemon-side
+// formula for an in-memory filesystem, a read-only attenuator
+// over an existing fs, or a fresh layer over an existing
+// backing. We can't construct these wraps in the chat (they'd
+// be client-side objects with no daemon formula, so `storeValue`
+// would later fail with "No corresponding formula for (an
+// object)"); the daemon has to formulate them via the module
+// recipe so they're durable in the inventory.
+const endoFsInMemoryUrl = pathToFileURL(
+  path.join(repoRoot, 'packages/endo-fs/src/in-memory-module.js'),
+).href;
+const endoFsReadonlyUrl = pathToFileURL(
+  path.join(repoRoot, 'packages/endo-fs/src/readonly-module.js'),
+).href;
+const endoFsLayerUrl = pathToFileURL(
+  path.join(repoRoot, 'packages/endo-fs/src/layer-module.js'),
+).href;
+
 // Path to the endo CLI in this repo
 const endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
 
@@ -245,6 +264,11 @@ export const makeEndoPlugin = () => {
           'import.meta.env.TCP_NETSTRING_PATH': JSON.stringify(tcpNetstringUrl),
           'import.meta.env.LIBP2P_PATH': JSON.stringify(libp2pUrl),
           'import.meta.env.WS_RELAY_PATH': JSON.stringify(wsRelayUrl),
+          'import.meta.env.ENDO_FS_IN_MEMORY_PATH':
+            JSON.stringify(endoFsInMemoryUrl),
+          'import.meta.env.ENDO_FS_READONLY_PATH':
+            JSON.stringify(endoFsReadonlyUrl),
+          'import.meta.env.ENDO_FS_LAYER_PATH': JSON.stringify(endoFsLayerUrl),
         },
       };
     },

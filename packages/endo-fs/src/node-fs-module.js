@@ -28,27 +28,32 @@
  * convenience wrappers around this and `in-memory-module.js`.
  */
 
-/* global process */
-
 import { makeNodeFilesystem } from './node-fs.js';
 import { readOnly } from './readonly.js';
 
 const isTruthy = v => v === '1' || v === 'true' || v === 'yes' || v === 'on';
 
 /**
- * @param {unknown} _powers
+ * @param {unknown} _powers  unused; node-fs needs no host powers.
  * @param {unknown} _context
+ * @param {{ env?: Record<string, string> }} [opts]
+ *   Per-formula env passed through `makeUnconfined({ env })`. The
+ *   daemon worker invokes
+ *   `namespace.make(powers, context, Object.freeze({ env }))`, so
+ *   this is the canonical channel for caplet configuration —
+ *   distinct from the daemon process's own `process.env`.
  * @returns {object}
  */
-export const make = (_powers, _context) => {
-  const rootPath = process.env.ENDO_FS_ROOT;
+export const make = (_powers, _context, opts = {}) => {
+  const env = opts.env || {};
+  const rootPath = env.ENDO_FS_ROOT;
   if (typeof rootPath !== 'string' || rootPath.length === 0) {
     throw new Error(
-      'ENDO_FS_ROOT environment variable is required for node-fs-module',
+      'node-fs-module: env.ENDO_FS_ROOT (absolute path to wrap) is required; pass it via makeUnconfined({ env: { ENDO_FS_ROOT: ... } })',
     );
   }
   const fs = makeNodeFilesystem({ rootPath });
-  if (isTruthy(process.env.ENDO_FS_READ_ONLY)) {
+  if (isTruthy(env.ENDO_FS_READ_ONLY)) {
     return readOnly(fs);
   }
   return fs;

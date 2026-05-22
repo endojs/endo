@@ -9176,3 +9176,665 @@ button.btn-spinner::after {
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ===================================================================
+ * File Explorer Space (file-explorer.js)
+ * =================================================================== */
+
+.fx-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.fx-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  align-items: center;
+}
+
+.fx-toolbar-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+/* Cluster label sits to the LEFT of the buttons (rather than as
+   a fieldset legend on top) so the toolbar stays a single row.
+   The three categories the user asked for — View / New
+   filesystem / File actions — each get their own bordered cluster
+   with this label visible; the Layer subgroup follows the same
+   pattern when it appears. */
+.fx-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-right: 4px;
+  border-right: 1px solid var(--border-color);
+  margin-right: 4px;
+  user-select: none;
+}
+
+.fx-layer-group {
+  border-color: var(--accent-primary);
+}
+
+.fx-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fx-check input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.fx-check-disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.fx-check-disabled input {
+  cursor: default;
+}
+
+.fx-btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fx-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.fx-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fx-btn.fx-primary {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
+.fx-btn.fx-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.fx-btn.fx-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.fx-source-select {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  max-width: 220px;
+}
+
+.fx-segmented {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.fx-seg {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border: none;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.fx-seg + .fx-seg {
+  border-left: 1px solid var(--border-color);
+}
+
+.fx-seg.fx-seg-on {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.fx-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.fx-browser {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--bg-primary);
+}
+
+/* ---- Inventory sidebar (file-explorer Space) ------------------ */
+
+/* Left-hand list of pet names known to `rootPowers`. Each row is
+   disabled until its capability classifies as a Filesystem or a
+   Mount; non-fs items stay greyed so the user can still see what
+   else is in their inventory without being able to misclick. */
+.fx-inventory {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.fx-inv-header {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.fx-inv-list {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.fx-inv-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 4px 12px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-inv-item:hover:not(.fx-inv-disabled) {
+  background: var(--bg-hover, rgba(127, 127, 127, 0.12));
+}
+
+.fx-inv-disabled {
+  cursor: default;
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.fx-splitter {
+  width: 6px;
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: var(--border-color);
+}
+
+.fx-splitter:hover {
+  background: var(--accent-primary);
+}
+
+.fx-viewer {
+  flex: 0 0 auto;
+  width: 440px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+/* `display: flex` above wins over the user-agent
+   `[hidden] { display: none }`, so the "Hide viewer" toggle
+   (which sets `$viewer.hidden = true`) is otherwise a no-op.
+   Same for the resize splitter that sits next to the viewer. */
+.fx-viewer[hidden],
+.fx-splitter[hidden] {
+  display: none;
+}
+
+/* ---- Miller columns ---- */
+
+.fx-columns {
+  display: flex;
+  height: 100%;
+  align-items: stretch;
+}
+
+.fx-column {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  flex: 0 0 240px;
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.fx-column-head {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-column-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Drop-target highlight for the whole column — fires when the
+   user is about to drop an entry anywhere on a column except
+   onto a more-specific directory row inside it (those use
+   `.fx-entry.fx-drop-target` and stopPropagation). Inset
+   outline matches the entry-level visual cue without affecting
+   the column's layout width. */
+.fx-column.fx-drop-target {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.fx-empty-col {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 10px;
+}
+
+/* ---- tree ---- */
+
+.fx-tree {
+  padding: 4px 0;
+}
+
+/* ---- entry rows (shared) ---- */
+
+.fx-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.fx-entry:hover {
+  background: var(--bg-hover);
+}
+
+.fx-entry.fx-selected {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.fx-entry.fx-drop-target {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+  background: var(--bg-active);
+}
+
+.fx-twisty {
+  width: 12px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  flex: 0 0 12px;
+}
+
+.fx-entry.fx-selected .fx-twisty {
+  color: #fff;
+}
+
+.fx-entry-icon {
+  flex: 0 0 auto;
+}
+
+.fx-entry-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-entry-actions {
+  display: none;
+  gap: 2px;
+}
+
+.fx-entry:hover .fx-entry-actions {
+  display: flex;
+}
+
+.fx-mini {
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.fx-mini:hover {
+  background: var(--bg-hover);
+}
+
+/* ---- empty state ---- */
+
+.fx-emptystate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+  text-align: center;
+  padding: 24px;
+}
+
+.fx-emptystate-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fx-emptystate-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 360px;
+}
+
+.fx-emptystate-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ---- viewer ---- */
+
+.fx-viewer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.fx-viewer-title {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-viewer-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.fx-viewer-controls {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.fx-viewer-body {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.fx-viewer-empty {
+  padding: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.fx-code {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 2;
+  color: var(--code-fg, var(--text-primary));
+  background: var(--code-bg, var(--bg-primary));
+  min-height: 100%;
+}
+
+.fx-editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: none;
+  resize: none;
+  padding: 10px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  tab-size: 2;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.fx-editor:focus {
+  outline: none;
+}
+
+/* ---- status bar ---- */
+
+.fx-status {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  min-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-status.fx-status-error {
+  color: #fff;
+  background: var(--danger);
+}
+
+.fx-status.fx-status-info {
+  color: var(--text-secondary);
+}
+
+/* ---- dialog ---- */
+
+.fx-dialog-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--backdrop, rgba(0, 0, 0, 0.4));
+  z-index: 50;
+}
+
+.fx-dialog {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 16px;
+  width: 380px;
+  max-width: 90%;
+  max-height: 80%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fx-dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.fx-dialog-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.fx-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fx-dialog-input {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.fx-dialog-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fx-dialog-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.fx-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.fx-changes {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  max-height: 280px;
+  overflow: auto;
+}
+
+.fx-change-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  border-bottom: 1px solid var(--border-light, var(--border-color));
+}
+
+.fx-change-kind {
+  flex: 0 0 90px;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.fx-change-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+/* ---- file explorer: loading indicators ---- */
+
+.fx-spinner {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: fx-spin 0.7s linear infinite;
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+@keyframes fx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fx-loading-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fx-col-error {
+  color: var(--danger);
+  white-space: normal;
+  word-break: break-word;
+}
+
+.fx-status-text {
+  vertical-align: middle;
+}

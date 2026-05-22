@@ -37,6 +37,7 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { encodeBase64, decodeBase64 } from '@endo/base64';
 
 import { compose } from './compose.js';
 
@@ -72,6 +73,13 @@ export const LayerInterface = M.interface('Layer', {
   // then apply onto it" pattern) without an intermediate await.
   // See DESIGN.md §10.1 (M.await pipelining).
   apply: M.callWhen(M.await(M.remotable('Filesystem'))).returns(M.undefined()),
+  // Wipe the writable side of the layer back to empty. After
+  // `revert()`, the composed view (`asFilesystem()`) reads
+  // identically to `backing()` — layer-only files disappear,
+  // whiteouts no longer hide backing entries, and opaque markers
+  // are removed. The backing is never touched.
+  // `M.eref` so the async implementation can return a Promise.
+  revert: M.call().returns(M.eref(M.undefined())),
   seal: M.call().returns(M.eref(M.remotable('Filesystem'))),
   help: M.call().optional(M.string()).returns(M.string()),
 });
@@ -148,11 +156,20 @@ const enumerateLayerOps = async function* (layerFs) {
               chunk.set(piece, p);
               p += piece.length;
             }
+            // `write-bytes` ops travel across CapTP when a remote
+            // consumer drains `Layer.diff()`, and the marshal
+            // layer (a) rejects mutable typed arrays and (b) does
+            // not yet implement the `'byteArray'` (immutable
+            // ArrayBuffer) passStyle. Carry the payload as a
+            // base64-encoded string — the same encoding the
+            // bytes-stream protocol uses on the wire. `applyOp`
+            // and any consumer (e.g. the chat layer-diff viewer)
+            // decode via `decodeBase64`.
             yield harden({
               kind: 'write-bytes',
               path: childPath,
               offset,
-              bytes: chunk,
+              bytesBase64: encodeBase64(chunk),
             });
             offset += BigInt(chunk.length);
             if (chunk.length === 0) break; // defensive — empty read at EOF
@@ -220,7 +237,11 @@ const applyOp = async (target, op) => {
       try {
         const writer = await E(opened).write(op.offset);
         const w = iterateBytesWriter(writer);
-        await w.next(op.bytes);
+        // `op.bytesBase64` is a base64-encoded string (see
+        // `enumerateLayerOps`). Decode to a `Uint8Array` for the
+        // bytes-writer, which then base64-encodes again on the
+        // wire — round-trip is fine.
+        await w.next(decodeBase64(op.bytesBase64));
         await w.return();
       } finally {
         await E(opened).close();
@@ -282,6 +303,35 @@ const applyOp = async (target, op) => {
 };
 
 /**
+ * Recursively unlink every child of `dir`, leaving `dir` itself
+ * empty. Walks depth-first because `unlink` refuses non-empty
+ * directories (ENOTEMPTY). Whiteout and opaque-dir entries are
+ * just regular files/dirs from the layer's POV, so they get
+ * removed too — exactly what `revert()` wants.
+ *
+ * @param {any} dir
+ */
+const clearDirRecursive = async dir => {
+  const cursor = await E(dir).list();
+  const stream = await E(cursor).stream();
+  /** @type {Array<{ name: string, isDir: boolean }>} */
+  const entries = [];
+  for await (const entry of iterateReader(stream)) {
+    entries.push({
+      name: /** @type {string} */ (entry.name),
+      isDir: entry.qid.type === 'directory',
+    });
+  }
+  for (const e of entries) {
+    if (e.isDir) {
+      const child = await E(dir).lookup(e.name);
+      await clearDirRecursive(child);
+    }
+    await E(dir).unlink(e.name);
+  }
+};
+
+/**
  * Build a `Layer` cap over a `layerFs` + `backingFs`.
  *
  * @param {object} layerFs
@@ -316,6 +366,19 @@ export const makeLayer = (layerFs, backingFs) => {
       for await (const op of iterateReader(opsReader)) {
         await applyOp(target, /** @type {any} */ (op));
       }
+    },
+    async revert() {
+      // Discard everything we've accumulated in the writable
+      // layer, including whiteouts (so backing entries reappear)
+      // and opaque-dir markers (so backing subtrees reappear).
+      // The backing filesystem is never reached — `clearDirRecursive`
+      // walks `layerFs.root()` only. `composedFs` is reused as-is:
+      // `compose` reads live state from `(layerFs, backingFs)` on
+      // every operation, so the same composed view cap now
+      // reflects the empty layer — and callers (chat, etc.)
+      // holding the original cap keep their identity.
+      const root = await E(layerFs).root();
+      await clearDirRecursive(root);
     },
     async seal() {
       // Promote to read-only by wrapping with the readOnly attenuator.

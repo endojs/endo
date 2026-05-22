@@ -41,9 +41,15 @@ import {
   FilesystemInterface,
   DirectoryInterface,
   CursorInterface,
+  FileInterface,
+  XattrsInterface,
   NodeWatcherInterface,
 } from './type-guards.js';
-import { materialiseViaWalk, mintBrand } from './shared/helpers.js';
+import {
+  computeOpenMode,
+  materialiseViaWalk,
+  mintBrand,
+} from './shared/helpers.js';
 
 /**
  * Opaque tag stamped onto every Filesystem this module hands out.
@@ -1060,6 +1066,166 @@ export const compose = (layer, backing, _opts = {}) => {
       layerDir = cur;
       return cur;
     };
+
+    /**
+     * Copy-up sibling to `materializeLayerDir` for files: ensure that
+     * a file currently visible only through `backingDir` has been
+     * cloned into the layer at the same name, so that subsequent
+     * writes land in the layer rather than the backing. Returns the
+     * layer's File cap for `name`. Subsequent calls short-circuit
+     * via the layer-side existence check, so concurrent first writes
+     * collapse to a single copy-up.
+     *
+     * @param {string} name
+     * @returns {Promise<object>}
+     */
+    const materializeLayerFile = async name => {
+      const ld = await materializeLayerDir();
+      const names = await layerEntries(ld);
+      if (names.has(name)) return E(ld).lookup(name);
+      if (names.has(whiteoutName(name))) {
+        try {
+          await E(ld).unlink(whiteoutName(name));
+        } catch {
+          // ignore; the create below would have reported anything
+          // structural
+        }
+      }
+      const bchild = await E(backingDir).lookup(name);
+      try {
+        // eslint-disable-next-line no-use-before-define
+        await copyFileTo(bchild, ld, name);
+      } catch (e) {
+        // A racing concurrent first-write may have copied the
+        // file under us — fall through to the layer lookup below
+        // rather than failing the write.
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!/EEXIST/.test(msg)) throw e;
+      }
+      return E(ld).lookup(name);
+    };
+
+    /**
+     * Wrap a backing `Xattrs` cap so that mutating methods (`set`,
+     * `remove`) trigger a copy-up of the parent file before
+     * delegating. Read methods (`get`, `list`) continue to delegate
+     * to the backing until the file has been copied up, after
+     * which they delegate to the layer's xattrs (whose state may
+     * differ from the backing's — see the copy-up caveat in
+     * `materializeLayerFile`'s comment).
+     *
+     * @param {object} backingXattrs
+     * @param {() => Promise<object>} getLayerXattrs
+     */
+    const wrapComposedXattrs = (backingXattrs, getLayerXattrs) => {
+      /** @type {object | null} */
+      let layerXattrs = null;
+      const materialize = async () => {
+        if (!layerXattrs) layerXattrs = await getLayerXattrs();
+        return layerXattrs;
+      };
+      return makeExo('Xattrs', XattrsInterface, {
+        async get(n) {
+          if (layerXattrs) return E(layerXattrs).get(n);
+          return E(backingXattrs).get(n);
+        },
+        async set(n, opts) {
+          const lx = await materialize();
+          return E(lx).set(n, opts);
+        },
+        async list() {
+          if (layerXattrs) return E(layerXattrs).list();
+          return E(backingXattrs).list();
+        },
+        async remove(n) {
+          const lx = await materialize();
+          return E(lx).remove(n);
+        },
+        help: method =>
+          method === undefined
+            ? 'Xattrs (composed: layer over backing with copy-on-write).'
+            : `No documentation for method "${method}".`,
+      });
+    };
+
+    /**
+     * Wrap a backing `File` cap so that any mutating method
+     * (`setAttrs`, `open` with a write flag, `xattrs().set/remove`)
+     * triggers a copy-up of the file into the layer before
+     * delegating. Reads keep cascading to the backing until the
+     * copy-up happens, after which they delegate to the layer's
+     * copy. This is the file-side analogue of the
+     * `materializeLayerDir` auto-copy-up that already existed for
+     * directories — without it, `compose.lookup` of a backing-only
+     * file would return the backing's File cap directly and any
+     * write would silently mutate the (notionally read-only)
+     * backing.
+     *
+     * @param {object} backingFile
+     * @param {string} name  the file's name in this composed directory
+     */
+    const wrapComposedFile = (backingFile, name) => {
+      /** @type {object | null} */
+      let layerFile = null;
+      const materialize = async () => {
+        if (!layerFile) layerFile = await materializeLayerFile(name);
+        return layerFile;
+      };
+      // eslint-disable-next-line no-use-before-define
+      const fileExo = makeExo('File', FileInterface, {
+        getQid() {
+          if (layerFile) {
+            // eslint-disable-next-line @endo/no-polymorphic-call
+            return /** @type {any} */ (layerFile).getQid();
+          }
+          // eslint-disable-next-line @endo/no-polymorphic-call
+          return /** @type {any} */ (backingFile).getQid();
+        },
+        async getAttrs() {
+          if (layerFile) return E(layerFile).getAttrs();
+          return E(backingFile).getAttrs();
+        },
+        async setAttrs(updates) {
+          const lf = await materialize();
+          return E(lf).setAttrs(updates);
+        },
+        async watch() {
+          if (layerFile) return E(layerFile).watch();
+          return E(backingFile).watch();
+        },
+        async xattrs() {
+          if (layerFile) return E(layerFile).xattrs();
+          const bxattrs = await E(backingFile).xattrs();
+          return wrapComposedXattrs(bxattrs, async () => {
+            const lf = await materialize();
+            return E(lf).xattrs();
+          });
+        },
+        async open(opts) {
+          const mode = computeOpenMode(opts);
+          if (mode.write || mode.append || mode.truncate) {
+            const lf = await materialize();
+            return E(lf).open(opts);
+          }
+          // After copy-up, pure reads must come from the layer
+          // copy too — otherwise edits made through this same
+          // wrap would be invisible to a follow-up read on the
+          // same File cap (the layer is now the source of truth
+          // for everything: bytes, qid, attrs).
+          if (layerFile) return E(layerFile).open(opts);
+          return E(backingFile).open(opts);
+        },
+        async snapshot() {
+          if (layerFile) return E(layerFile).snapshot();
+          return E(backingFile).snapshot();
+        },
+        help: method =>
+          method === undefined
+            ? 'File (composed: layer over backing with copy-on-write).'
+            : `No documentation for method "${method}".`,
+      });
+      return fileExo;
+    };
     // eslint-disable-next-line no-use-before-define
     const composedExo = makeExo('Directory', DirectoryInterface, {
       getQid() {
@@ -1129,7 +1295,14 @@ export const compose = (layer, backing, _opts = {}) => {
             if (bqid.type === 'directory') {
               return wrapDir(null, bchild, [...path, name]);
             }
-            return bchild;
+            // File-side auto-copy-up: hand back a wrap that
+            // delegates reads to backing but copies the file into
+            // the layer on the first write open, setAttrs, or
+            // xattrs mutation. Otherwise a `Directory.lookup` →
+            // `File.open({ write })` chain through the composed
+            // view would silently mutate the (notionally read-only)
+            // backing.
+            return wrapComposedFile(bchild, name);
           }
         }
         throw makeError(X`ENOENT: ${q(name)}`);

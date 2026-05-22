@@ -18,6 +18,7 @@ import { createSpacesGutter } from './spaces-gutter.js';
 import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
+import { fileExplorerComponent } from './file-explorer-component.js';
 import { createShareModal } from './share-modal.js';
 import { microblogComponent } from './microblog-component.js';
 
@@ -292,6 +293,15 @@ const bodyComponent = (
 
   if (activeSpaceInfo && activeSpaceInfo.mode === 'peers') {
     return peersComponent($parent, rootPowers, profilePath, onProfileChange);
+  }
+
+  if (activeSpaceInfo && activeSpaceInfo.mode === 'files') {
+    return fileExplorerComponent(
+      $parent,
+      rootPowers,
+      profilePath,
+      onProfileChange,
+    );
   }
 
   /** @type {{ dispose: () => void } | null} */
@@ -1753,7 +1763,7 @@ const bodyComponent = (
 
 /**
  * @typedef {object} ActiveSpaceInfo
- * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} mode
+ * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files'} mode
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
