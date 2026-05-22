@@ -11,13 +11,19 @@
 Add a daemon-worker entry point that runs a JavaScript program from a
 mount or readable-tree whose root contains a `package.json` (rather
 than a pre-built `compartment-map.json`).
+
 Dependencies declared in `package.json` are resolved through a daemon
 capability that wraps the Rust-side npm-registry-proxy and its Go-like
 minimal-version-selection (MVS) resolver, materializing each selected
-package as a `readable-tree` in the content-addressed store (CAS).
+package as a `readable-tree` in the content-addressed store (CAS,
+the daemon's hash-keyed content store).
+
 The worker then runs `@endo/compartment-mapper`'s `importLocation`
-flow against a synthesized `ReadPowers` that reads sources from the
-mount and from the CAS-resident package trees.
+(a graph-walking module loader that reads sources through a caller-supplied
+`ReadPowers` of `{ read, canonical }`) against a synthesized `ReadPowers`
+that reads sources from the mount and from the CAS-resident package
+trees, dispatched through the daemon's `daemon-worker` (the
+out-of-process Node or XS process that hosts user caplets).
 
 This closes the gap between the daemon's existing mount and archive
 capabilities (`EndoMount`, `makeArchive`, `makeFromTree`) and the
@@ -157,6 +163,20 @@ for closed-world trees and stays.  Both methods land on the same
 worker bootstrap with different `ReadPowers` and different
 resolution pre-steps.
 
+**Sharing shape on the worker side.**
+`makeFromPackage` and `makeFromTree` share a single worker-side
+dispatcher that branches on detected root-file shape, not two
+parallel daemon facets.
+Concretely: a private helper `selectRootShape(source)` in the
+worker reads the source's root listing once, returns either
+`'compartment-map'` or `'package'`, and the worker's
+`daemon facet` exposes the two methods as thin wrappers that pin
+the expected shape, fail closed on a mismatch, and dispatch to a
+shared `runImportLocation(source, readPowers, options)` core.
+The shared core means a future third root-file shape (e.g. a
+`pnpm-workspace.yaml` workspace root) extends `selectRootShape`
+without forking the worker bootstrap.
+
 ## Design
 
 ### Capability shape
@@ -184,11 +204,16 @@ makeFromPackage(
 `readable-tree`.  The named tree's root must contain a
 `package.json`.
 
-`options.entry` defaults to the `main` field of the root
-`package.json` (or `index.js` if absent).  Bare specifiers
-inside the entry module are resolved against the root
-`package.json`'s `dependencies` and resolved through the
-registry capability.
+`options.entry` defaults to whatever `compartment-mapper`'s
+own entry resolution picks: `package.json#exports['.'].endo`,
+then `exports['.'].import`, then `exports['.'].default`, then
+`main`, then `index.js`.
+The default is inherited from `compartment-mapper` rather than
+restated here so the daemon-side defaults do not drift from the
+mapper's behavior as conditional exports evolve.
+Bare specifiers inside the entry module are resolved against
+the root `package.json`'s `dependencies` and resolved through
+the registry capability.
 
 `options.registry` defaults to a host-scoped `@registry` special
 name (analogous to `@node`, see *Host special name* below).
@@ -197,6 +222,33 @@ name (analogous to `@node`, see *Host special name* below).
 `endor-npm-registry-proxy.md`: with it set, no network access is
 permitted; the resolution either succeeds against the existing
 registry table or fails cleanly.
+
+#### New host method: `makeFromMount`
+
+```ts
+makeFromMount(
+  workerPetName: string | undefined,
+  mountName: string,
+  options?: MakeCapletOptions & {
+    entry?: string;
+    registry?: string;
+    offline?: boolean;
+  },
+): Promise<unknown>;
+```
+
+`makeFromMount` is a thin dispatcher that inspects the mount
+root once (the same `selectRootShape` private helper the worker
+uses) and forwards to `makeFromTree` if the root contains
+`compartment-map.json`, or to `makeFromPackage` if the root
+contains `package.json`, or rejects cleanly if the root contains
+neither.
+The CLI's `endo run <mount>` form (below) delegates to
+`makeFromMount`, so the source-detection logic lives in one
+place rather than re-implemented by every host-API caller that
+wants the CLI's "do the right thing for this mount" behavior.
+A caller that already knows the root shape can still call
+`makeFromTree` or `makeFromPackage` directly.
 
 #### New formula type: `MakeFromPackageFormula`
 
@@ -223,6 +275,17 @@ uses, with the `archive` slot replaced by `source` and a new
 The JS-side handle on the Rust-side npm-registry-proxy.  Exposed
 as a host special name `@registry` by default (see below) and
 re-exposable on per-host or per-guest formulas for confinement.
+
+**Interaction model (who calls what, when).**
+The worker calls `resolve` once during `makeFromPackage` setup,
+before the `importLocation` walk begins; the result feeds the
+synthesized `ReadPowers`.
+The worker reads from resolved tree refs through CAS bus verbs
+(`cas-fetch-from-tree`), not through `EndoRegistry` directly,
+during the `importLocation` walk.
+The host owner (not the worker) may call `fetch`, `lookup`, or
+`list` for diagnostics or for pre-warming the registry cache;
+these methods are not on the worker's hot path.
 
 ```ts
 interface EndoRegistry {
@@ -264,7 +327,12 @@ type RegistryResolution = {
     name: string;
     version: string;
     treeRef: EndoReadableTree;   // CAS readable-tree capability
-    integrity: string;            // npm `dist.integrity`
+    integrity: string;            // npm `dist.integrity`, retained
+                                   // for cross-check against
+                                   // upstream registry attestations
+                                   // (not used to verify treeRef;
+                                   // treeRef's content-address
+                                   // already proves the bytes)
   }>;
   // The resolution itself is content-addressed for cache reuse.
   resolutionHash: string;
@@ -278,6 +346,40 @@ verbs.  The methods on the interface map to the verbs defined in
 `endor-npm-registry-proxy.md` § *Integration with `endor run`*
 plus the verbs added in `daemon-cas-management.md` for tree
 reads.
+
+**Failure surface.**
+`EndoRegistry.resolve` rejects with a structured `@endo/errors`
+error tagged by failure class, so callers can distinguish:
+
+- `RegistryTamperedError` (the lockfile integrity hash does not
+  match the upstream registry's `dist.integrity`).
+- `RegistryMissingPackageError` (a `(name, version)` pair on the
+  lockfile or in the resolver's transitive closure is not on the
+  configured registry).
+- `RegistryNetworkError` (the bus call to the Rust subsystem
+  failed in transit: subsystem restart, bus disconnect,
+  registry-host TCP error).
+- `RegistryOfflineError` (`options.offline` set and the
+  resolution touched a package not yet in the table).
+
+A mid-resolve Rust-subsystem restart or bus disconnect surfaces
+as `RegistryNetworkError`; the caller may retry.
+This mirrors the named cancellation surface in
+`daemon-make-archive.md` § *Cancellation handling* rather than
+leaving the failure modes implicit in the `Promise` rejection.
+
+**Resolver vs store separation.**
+The interface as listed braids three concerns: resolution
+(`resolve`), fetch (`fetch`), and lookup (`lookup` / `list`).
+A confinement-friendly refinement splits the capability into a
+`EndoRegistryResolver` (the `resolve` + `fetch` surface; needs
+the network-fetch authority) and an `EndoPackageStore` (the
+`lookup` + `list` surface; read-only over the resolved CAS
+trees), so a guest holding only the store cap can enumerate
+already-resolved packages without holding the fetch authority.
+The first cut ships the combined `EndoRegistry` for symmetry
+with `@node`; the split is tracked as a follow-up under *Open
+Questions*.
 
 ### Worker dispatch
 
@@ -342,9 +444,20 @@ Node and XS worker bootstrap.
 Each location is a URL in a synthetic `endo-mount:` scheme:
 
 - `endo-mount:/<relative-path>` reads from the entry mount.
-- `endo-mount:/node_modules/<name>/<relative-path>` reads from
-  the resolved package tree for `<name>` (via the resolution's
-  CAS tree).
+- `endo-mount:/node_modules/<name>@<version>/<relative-path>`
+  reads from the resolved package tree for the specific
+  `(name, version)` pair (via the resolution's CAS tree).
+
+The `endo-mount:` URL carries the selected version after the
+bare name so the multi-major coexistence path the
+`RegistryResolution` type explicitly admits ("packages with
+major-version coexistence (allowed by MVS), the array carries
+one entry per selected major") is unambiguous.
+`compartment-mapper`'s descriptor walk knows the selected
+version for each `(importer, dependency)` edge because the
+walk operates against the resolution's `packages[]` and
+threads the `(name, version)` pair into the synthesized URL it
+emits for the dependency's directory.
 
 The `endo-mount:` scheme is internal to the worker; it never
 appears in user code.  `compartment-mapper` treats locations as
@@ -353,12 +466,9 @@ the worker controls the scheme entirely.
 
 ```js
 const makeMountReadPowers = ({ entryMount, resolution }) => {
-  const packagesByName = new Map();
+  const packagesByVersion = new Map();
   for (const pkg of resolution.packages) {
-    // Latest major wins for the bare-name; majors are addressed
-    // through the synthesised node_modules path that
-    // compartment-mapper builds from package.json `dependencies`.
-    packagesByName.set(`${pkg.name}@${pkg.version}`, pkg.treeRef);
+    packagesByVersion.set(`${pkg.name}@${pkg.version}`, pkg.treeRef);
   }
 
   const read = async location => {
@@ -368,8 +478,17 @@ const makeMountReadPowers = ({ entryMount, resolution }) => {
     }
     const path = url.pathname.replace(/^\//, '').split('/');
     if (path[0] === 'node_modules') {
-      const [, name, ...rest] = path;
-      const treeRef = resolvePackageRef(packagesByName, name);
+      // path[1] is `<name>@<version>` (or `@scope/<name>@<version>`
+      // for scoped packages, joined as a single segment by the
+      // descriptor walk).  packagesByVersion is keyed by the same
+      // `<name>@<version>` string so the lookup is a direct Map.get.
+      const [, nameAtVersion, ...rest] = path;
+      const treeRef = packagesByVersion.get(nameAtVersion);
+      if (treeRef === undefined) {
+        throw makeError(
+          X`No resolved package for ${q(nameAtVersion)} in resolution ${q(resolution.resolutionHash)}`,
+        );
+      }
       return E(treeRef).readBytes(rest);
     }
     return E(entryMount).readBytes(path);
@@ -381,14 +500,44 @@ const makeMountReadPowers = ({ entryMount, resolution }) => {
 };
 ```
 
-The `compartment-mapper`'s package descriptor walk
-(`endor-npm-registry-proxy.md` § *Algorithm*, step 3) emits
-`endo-mount:/node_modules/<name>/...` references because the
-mapper composes the entry's `dependencies` against the
-resolution's selected versions.  The mapper does not need to know
-that the `node_modules` segment is synthetic; from its
-perspective the layout matches the standard node-modules
-resolution algorithm.
+The `compartment-mapper`'s package descriptor walk reads each
+importer's `package.json#dependencies`, maps each bare specifier
+to the selected version from `resolution.packages[]`, and emits
+the dependency URL with `<name>@<version>` as the directory
+segment so the synthesized layout disambiguates majors.
+For a project that depends on `pkg@^1` directly and on a
+transitive that requires `pkg@^2`, the entry importer's
+specifier `'pkg'` resolves to `endo-mount:/node_modules/pkg@1.x.y/`
+and the transitive importer's specifier `'pkg'` resolves to
+`endo-mount:/node_modules/pkg@2.x.y/`; each importer reads its
+own major's tree.
+The descriptor walk's per-importer version table is the
+authoritative source for the `<name>@<version>` segment; the
+mapper does not need to know that the `node_modules` segment is
+synthetic.
+
+The "step 3" referenced from `endor-npm-registry-proxy.md`'s
+algorithm is the mapper's per-importer descriptor walk: for each
+importer, read `package.json#dependencies`, look up each bare
+specifier's selected version against the registry resolution,
+and emit a URL for the dependency's resolved directory.
+Stating the step inline avoids forcing a reader to consult a
+not-yet-merged sibling design for the load-bearing detail.
+
+**Scheme choice: one scheme, two roles.**
+The `endo-mount:` scheme braids the entry mount (place-like
+until snapshot) and the resolved CAS trees (immutable values)
+into one address space.
+A two-scheme refinement (`endo-mount:` for the entry,
+`endo-tree:` for resolved deps) would signal the nature of the
+data through the scheme itself; the first cut keeps one scheme
+because the worker takes the `snapshot()` before `importLocation`
+runs, so by the time the mapper emits any URL the entry mount
+has been frozen to a tree-shaped snapshot.
+Both roles read tree-shaped immutable data at the moment of
+read, and a single scheme keeps the mapper's `read` function
+shape uniform.
+The split is tracked as a follow-up under *Open Questions*.
 
 ### Resolution path: who walks the graph
 
@@ -406,8 +555,9 @@ because:
   transitive resolution keeps the JS-side worker loop small
   (no per-import callbacks across the bus).
 - The single-pass shape also lets the resolution be
-  content-addressed: the `resolutionHash` returned to the worker
-  can serve as a cache key for the synthesized `ReadPowers`.
+  content-addressed.
+  The `resolutionHash` returned to the worker can serve as a
+  cache key for the synthesized `ReadPowers`.
 
 The alternative (have the worker emit per-import `resolvePackage`
 calls during the `importLocation` walk) is rejected: it would
@@ -422,9 +572,14 @@ If the entry mount contains a `package-lock.json` (or
 `yarn.lock`), `EndoRegistry.resolve` honors it as the constraint
 floor: the lock's exact versions become the selected versions,
 and MVS does not relax them.  If the lock is absent, MVS runs
-freely and produces the conservative "greatest mentioned minor
-per major" result described in
-`endor-npm-registry-proxy.md` § *Comparison with Go's MVS*.
+freely and selects, for each `(name, major)` pair, the
+**minimum minor.patch that satisfies every transitive caret /
+tilde constraint mentioned in the graph** (this is Go's MVS
+applied to npm's caret-and-major semantics: minimum-of-the-mins
+that-satisfy-the-constraint, not maximum-resolver).
+The exact rule is defined in `endor-npm-registry-proxy.md`
+§ *Comparison with Go's MVS*; this design honors that rule
+verbatim and adds no resolver heuristics.
 
 The lockfile interaction is *consultative*, not authoritative:
 the resolver still validates that each lock entry's `(name,
@@ -457,8 +612,9 @@ caplet, the questions are:
   the worker's compartment and re-read only on explicit reload
   (which is not a path this design exposes).
 - Does the worker see file mutations *during* the
-  `importLocation` walk?  Possibly, depending on timing.  To
-  avoid this we snapshot the entry tree before resolution begins:
+  `importLocation` walk?
+  Possibly, depending on timing; to avoid this we snapshot the
+  entry tree before resolution begins.
 
 ```js
 const entrySnapshot = await E(source).snapshot();
@@ -470,10 +626,13 @@ This produces an immutable `readable-tree` (per
 keeps mutating; the running caplet sees the snapshot it was
 started against.
 
-The snapshot is a `thisDiesIfThatDies` dependency of the caplet,
-so it is collected when the caplet ends.  This mirrors the
-snapshot-before-stage pattern in `daemon-make-archive.md`
-§ Phase 8 (`makeUnconfinedFromTree`).
+The snapshot is a `thisDiesIfThatDies` dependency of the caplet
+(a lifetime-coupling primitive that releases the dependency when
+the dependent caplet ends; see `inventory-cancel-and-liveness.md`
+§ *Lifetime coupling* for the definition), so the CAS trees the
+snapshot holds are released when the caplet ends.
+This mirrors the snapshot-before-stage pattern in
+`daemon-make-archive.md` § Phase 8 (`makeUnconfinedFromTree`).
 
 For the common case where the caller has already passed a
 `readable-tree` (immutable), the snapshot step is a no-op.
@@ -508,6 +667,21 @@ optional field forces a conditional on every code path that
 touches resolution, and the operational cost of provisioning a
 registry capability at host formulation is small (the underlying
 Rust subsystem is shared, not per-host).
+
+**Migration for already-formulated hosts.**
+Adding a required field to `HostFormula` is a backward-incompatible
+formula change; pre-existing host formulas on disk lack the
+`registry` slot.
+The migration policy mirrors the precedent `daemon-make-archive.md`
+§ Phase 6 set when `@node` became a required `HostFormula` field:
+on daemon start, a one-shot upgrade pass rewrites host formulas
+missing the `registry` field to point at the daemon-default registry
+formula, in a single transaction per host.
+The upgrade is idempotent (a second start is a no-op) and runs
+before the host map is exposed to callers, so guests never observe
+a half-migrated host.
+A host whose owner has already substituted a custom `@registry`
+keeps that substitution; the upgrade only fills the absent slot.
 
 ### CLI shape
 
@@ -652,15 +826,44 @@ Each phase ends with at least one passing daemon integration test
 2. When present, constrain MVS to the locked versions.
 3. Validate each locked `(name, version, integrity)` against the
    registry; fail cleanly on mismatch.
-4. Tests: project with a lockfile resolves to the locked
-   versions; project with a tampered lockfile (mismatched
-   integrity) fails the resolve step; project without a
-   lockfile falls through to MVS.
+4. Tests:
+   - Project with a lockfile resolves to the locked versions.
+   - Project with a tampered lockfile (mismatched integrity)
+     fails the resolve step.
+   - Project without a lockfile falls through to MVS.
+   - **Multi-major coexistence.**
+     Project that depends on `pkg@^1` directly and on a
+     transitive that requires `pkg@^2` produces a
+     `RegistryResolution.packages[]` carrying both majors;
+     `importLocation` resolves the entry importer's `'pkg'`
+     specifier to `pkg@1.x.y` and the transitive importer's
+     `'pkg'` specifier to `pkg@2.x.y`; each compartment's
+     `pkg` namespace is the major it was directly resolved
+     against.
+     The test uses two side-by-side fixture packages so the
+     bytes the two majors return differ and the test can
+     assert each importer reads from its own major's tree.
+   - **Caplet snapshot lifetime release.**
+     Start a caplet against a mount, observe the snapshot's
+     CAS trees are alive while the caplet runs, end the
+     caplet, and observe the snapshot's CAS trees become
+     collectible (the `thisDiesIfThatDies` dependency releases).
+     The test confirms the lifetime claim under § *Mount
+     snapshot vs live read* is enforced, not just documented.
 
 ### Phase 6: XS-hosted compartment-mapper (deferred)
 
-Track under `endor-run-expanded.md` § Phase 4 / 5.  The daemon
-dispatcher does not change; only the per-worker bootstrap.
+This phase is deferred to the Rust-side `endor-run-expanded.md`
+§ Phase 4 / 5; the daemon-side work in this design does not block
+on it.
+The section preamble's "each phase ends with at least one passing
+daemon integration test" rule does not apply to a deferred phase
+that depends on out-of-tree work; the test exception is noted here
+rather than restated on every deferred phase the daemon designs
+carry.
+When the Rust-side path lands, the daemon dispatcher does not
+change; only the per-worker bootstrap, and the corresponding test
+lands with the Rust-side phase.
 
 ## Design Decisions
 
@@ -757,6 +960,34 @@ dispatcher does not change; only the per-worker bootstrap.
    caplet on lockfile change" affordance, analogous to a
    filesystem-watcher integration?  Out of scope here; track on
    the agent-tooling roadmap.
+7. **`EndoRegistry` naming.**  The capability name flavors the
+   underlying registry table over the user's mental model of
+   "packages".  A user-facing name (`EndoPackages` or
+   `EndoNpm`) may track the caller's intent more closely; the
+   host special name `@registry` is correct as-is because the
+   host's named slot is the registry concept rather than the
+   package collection.
+   Provisional answer: keep `EndoRegistry` for the first cut to
+   match `@registry`; revisit during the user-facing review of
+   `daemon-agent-tools`.
+8. **Resolver / store capability split.**  Split `EndoRegistry`
+   into `EndoRegistryResolver` (`resolve` + `fetch`; carries
+   the network-fetch authority) and `EndoPackageStore`
+   (`lookup` + `list`; read-only over the resolved CAS trees)
+   so a guest can hold the read surface without the fetch
+   authority.
+   The first cut ships the combined cap for symmetry with
+   `@node`; the split is a confinement refinement to land once
+   the first cut shows which guests want which authority.
+9. **Two-scheme URL split (`endo-mount:` vs `endo-tree:`).**
+   The synthesized scheme today addresses both the entry mount
+   (snapshotted into a tree before the mapper sees it) and the
+   resolved dependency CAS trees.
+   A two-scheme refinement would signal "place that became a
+   value" vs "value the resolver produced" through the scheme.
+   The first cut keeps one scheme because both roles are
+   tree-shaped at read time; revisit if a future feature adds
+   a non-tree read source under the same `ReadPowers`.
 
 ## Dependencies
 
