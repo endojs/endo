@@ -53,11 +53,17 @@ const CAS_CAPACITY = 512;
 
 /**
  * Classify a looked-up capability so the explorer knows how to
- * adapt it. A `Filesystem` exposes `root`/`statfs`; a legacy
+ * adapt it. A `Filesystem` exposes `root`/`statfs`; a `Layer`
+ * exposes `asFilesystem`/`diff`/`apply`/`backing`; a legacy
  * `@endo/daemon` `Mount` exposes `lookup` plus directory mutators.
  *
+ * Layer detection runs first because a `Layer` is a strictly more
+ * authoritative cap than the `Filesystem` it covers — handing it
+ * back as `'filesystem'` would lose the diff/apply surface that
+ * makes it useful to re-open from the inventory.
+ *
  * @param {Cap} cap
- * @returns {Promise<'filesystem' | 'mount' | 'unknown'>}
+ * @returns {Promise<'filesystem' | 'layer' | 'mount' | 'unknown'>}
  */
 export const classifyCapability = async cap => {
   await null;
@@ -68,6 +74,14 @@ export const classifyCapability = async cap => {
     return 'unknown';
   }
   const names = new Set(methods);
+  if (
+    names.has('asFilesystem') &&
+    names.has('diff') &&
+    names.has('apply') &&
+    names.has('backing')
+  ) {
+    return 'layer';
+  }
   if (names.has('root') && names.has('statfs')) {
     return 'filesystem';
   }
@@ -82,16 +96,25 @@ export const classifyCapability = async cap => {
 harden(classifyCapability);
 
 /**
- * Coerce a looked-up capability to an endo-fs `Filesystem`. Legacy
- * `Mount` caps are projected through `mountAsFilesystem` (endo-fs
- * `from-mount`).
+ * Coerce a classified capability to an endo-fs `Filesystem`.
+ * - `'filesystem'` is returned as-is.
+ * - `'mount'` is projected through `mountAsFilesystem` (endo-fs
+ *   `from-mount`).
+ * - `'layer'` is projected through `asFilesystem()` so callers
+ *   that only need read/write composed-view access don't have to
+ *   know about the diff/apply surface. Returns a Promise in the
+ *   layer case (the projection is a CapTP round trip); callers
+ *   that need a synchronous result should await.
  *
  * @param {Cap} cap
- * @param {'filesystem' | 'mount'} kind
- * @returns {Cap}
+ * @param {'filesystem' | 'layer' | 'mount'} kind
+ * @returns {Cap | Promise<Cap>}
  */
-export const toFilesystem = (cap, kind) =>
-  kind === 'mount' ? mountAsFilesystem(cap) : cap;
+export const toFilesystem = (cap, kind) => {
+  if (kind === 'mount') return mountAsFilesystem(cap);
+  if (kind === 'layer') return E(cap).asFilesystem();
+  return cap;
+};
 harden(toFilesystem);
 
 /**

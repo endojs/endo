@@ -69,6 +69,19 @@ test('classifyCapability returns "unknown" for an unrelated remotable', async t 
   t.is(kind, 'unknown');
 });
 
+test('classifyCapability identifies a Layer cap', async t => {
+  // Layers carry strictly more authority than the Filesystem they
+  // cover (the diff/apply surface). Re-opening one from the
+  // inventory must restore that surface, so the classifier has to
+  // distinguish a Layer from its asFilesystem() projection.
+  const backing = makeMemoryFilesystem();
+  const { layer } = makeFilesystemLayer(backing);
+  t.is(await classifyCapability(layer), 'layer');
+  // And the composed projection still looks like a Filesystem.
+  const composed = await E(layer).asFilesystem();
+  t.is(await classifyCapability(composed), 'filesystem');
+});
+
 // ============ listDirectory ============
 
 test('listDirectory sorts directories first, then files; each group alphabetized', async t => {

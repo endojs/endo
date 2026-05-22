@@ -44,10 +44,18 @@ import {
  * @typedef {object} Source
  * @property {string} id
  * @property {string} label
- * @property {'lookup' | 'memory' | 'readonly' | 'cached' | 'layer' | 'mount'} kind
- * @property {Cap} filesystem
+ * @property {'lookup' | 'memory' | 'layer' | 'mount'} kind
+ * @property {Cap} filesystem - the underlying, never-wrapped cap
  * @property {boolean} readOnly
- * @property {Cap} [layer]
+ * @property {boolean} useCache - whether to wrap reads through an
+ *   ephemeral content-addressed LRU read cache for browsing this
+ *   source. Per-source, defaults to true. View-only: never affects
+ *   the cap that gets handed back out (e.g. via `storeValue` /
+ *   `applyLayer`) — that's always the original `filesystem`.
+ * @property {Cap} [_viewFilesystem] - memoised wrapped cap, dropped
+ *   whenever `useCache` flips so the next browse remints it
+ * @property {Cap} [layer] - layer cap when `kind === 'layer'`, so
+ *   the Apply/Changes/Revert actions can operate on it
  * @property {string} [backingSourceId]
  */
 
@@ -167,11 +175,35 @@ const formatSize = bytes => {
 /**
  * Mount the file explorer into a container element.
  *
+ * `profilePath` is walked from `rootPowers` once, lazily, to get
+ * a host cap for the current profile. The inventory sidebar, the
+ * "Open by pet name" dialog, and the "Save as…" actions all
+ * operate against that profile-resolved host so this Space stays
+ * consistent with the rest of chat's profile model. When
+ * `profilePath` is empty we just use `rootPowers` directly.
+ *
  * @param {HTMLElement} $parent
- * @param {{ rootPowers: Cap }} options
+ * @param {{ rootPowers: Cap, profilePath?: string[] }} options
  * @returns {() => void} cleanup function
  */
-export const mountFileExplorer = ($parent, { rootPowers }) => {
+export const mountFileExplorer = (
+  $parent,
+  { rootPowers, profilePath = [] },
+) => {
+  // Profile-resolved host cap (a promise, so chained `lookup` /
+  // `storeValue` calls pipeline through CapTP). Cached because
+  // every "open", "save", and inventory subscription wants it.
+  /** @type {Promise<Cap> | null} */
+  let profileHostPromise = null;
+  const resolveProfileHost = () => {
+    if (profileHostPromise) return profileHostPromise;
+    let cap = /** @type {Promise<Cap>} */ (Promise.resolve(rootPowers));
+    for (const seg of profilePath) {
+      cap = /** @type {Promise<Cap>} */ (E(cap).lookup(seg));
+    }
+    profileHostPromise = cap;
+    return profileHostPromise;
+  };
   /** @type {Source[]} */
   const sources = [];
   let sourceCounter = 0;
@@ -332,7 +364,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
     if (depth === 0) {
       promise = dirCapCache.get('');
       if (!promise) {
-        promise = getRoot(source.filesystem);
+        promise = getRoot(getViewFilesystem(source));
         promise.catch(() => {});
         dirCapCache.set('', promise);
       }
@@ -508,14 +540,36 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
   // ---- source management ------------------------------------------
 
   /**
-   * @param {Omit<Source, 'id'>} spec
+   * @param {Omit<Source, 'id' | 'useCache'> & { useCache?: boolean }} spec
    * @returns {Source}
    */
   const addSource = spec => {
     sourceCounter += 1;
-    const source = { ...spec, id: `s${sourceCounter}` };
+    const source = {
+      useCache: true,
+      ...spec,
+      id: `s${sourceCounter}`,
+    };
     sources.push(source);
     return source;
+  };
+
+  /**
+   * Resolve the Filesystem cap the explorer should read through
+   * for this source. Wraps in the ephemeral CAS read-cache iff the
+   * per-source toggle is on; otherwise hands back the original.
+   * Memoises the wrap so successive browse operations don't mint
+   * a new cache on every call.
+   *
+   * @param {Source} source
+   * @returns {Cap}
+   */
+  const getViewFilesystem = source => {
+    if (!source.useCache) return source.filesystem;
+    if (!source._viewFilesystem) {
+      source._viewFilesystem = makeCachedFilesystem(source.filesystem);
+    }
+    return source._viewFilesystem;
   };
 
   /**
@@ -1030,20 +1084,40 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
    *
    * @param {string} label
    * @param {Cap} cap
-   * @param {'filesystem' | 'mount'} kind
+   * @param {'filesystem' | 'layer' | 'mount'} kind
    */
   const openFsCap = async (label, cap, kind) => {
-    const source = addSource({
+    // `toFilesystem` may return a Promise (layer case) — await
+    // uniformly so the caller always gets a concrete Filesystem
+    // cap to hand to the source list.
+    const filesystem = await toFilesystem(cap, kind);
+    /** @type {Source['kind']} */
+    let sourceKind;
+    if (kind === 'mount') sourceKind = 'mount';
+    else if (kind === 'layer') sourceKind = 'layer';
+    else sourceKind = 'lookup';
+    /** @type {Omit<Source, 'id' | 'useCache'> & { useCache?: boolean }} */
+    const spec = {
       label,
-      kind: kind === 'mount' ? 'mount' : 'lookup',
-      filesystem: toFilesystem(cap, kind),
+      kind: sourceKind,
+      filesystem,
       readOnly: false,
-    });
-    setStatus(
-      kind === 'mount'
-        ? `Opened Mount "${source.label}" via endo-fs from-mount`
-        : `Opened filesystem "${source.label}"`,
-    );
+    };
+    if (kind === 'layer') {
+      // Remember the Layer cap on the source so the layer-specific
+      // actions (Apply, Changes, Revert) light up — opening from
+      // the inventory should restore them just like creating the
+      // layer in this session would.
+      spec.layer = cap;
+    }
+    const source = addSource(spec);
+    if (kind === 'mount') {
+      setStatus(`Opened Mount "${source.label}" via endo-fs from-mount`);
+    } else if (kind === 'layer') {
+      setStatus(`Opened layer "${source.label}" (composed view)`);
+    } else {
+      setStatus(`Opened filesystem "${source.label}"`);
+    }
     await selectSource(source.id);
   };
 
@@ -1064,7 +1138,10 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
     try {
       // Walk the pet-name path one segment at a time; the chain
       // pipelines into a single round trip.
-      let capPromise = E(rootPowers).lookup(segments[0]);
+      const host = resolveProfileHost();
+      let capPromise = /** @type {Promise<Cap>} */ (
+        E(host).lookup(segments[0])
+      );
       for (let i = 1; i < segments.length; i += 1) {
         capPromise = E(capPromise).lookup(segments[i]);
       }
@@ -1072,7 +1149,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
       const kind = await classifyCapability(cap);
       if (kind === 'unknown') {
         setStatus(
-          `"${entered}" is not an endo-fs Filesystem or a Mount`,
+          `"${entered}" is not an endo-fs Filesystem, Layer, or Mount`,
           'error',
         );
         return;
@@ -1085,41 +1162,115 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
     }
   };
 
-  const addReadOnlyView = async () => {
+  /**
+   * Toggle the per-source CAS read-cache. View-only: doesn't
+   * affect the underlying cap (so anything we'd hand back via
+   * `storeValue` / `applyLayer` is still the raw filesystem),
+   * just whether the explorer's reads go through an ephemeral
+   * content-addressed LRU. Flipping the toggle drops the
+   * memoised wrap + cap cache so the next browse picks up the
+   * new view.
+   */
+  const toggleViewCache = async () => {
     const source = activeSource();
     if (!source) return;
-    const view = addSource({
-      label: `${source.label} (read-only)`,
-      kind: 'readonly',
-      filesystem: makeReadOnlyView(source.filesystem),
-      readOnly: true,
-    });
-    setStatus(`Created read-only view of ${source.label}`);
-    await selectSource(view.id);
+    source.useCache = !source.useCache;
+    source._viewFilesystem = undefined;
+    dirCapCache = new Map();
+    setStatus(
+      source.useCache
+        ? `Enabled CAS read-cache on "${source.label}"`
+        : `Disabled CAS read-cache on "${source.label}"`,
+    );
+    renderToolbar();
+    await reloadBrowser(false);
   };
 
-  const addCachedView = async () => {
+  /**
+   * Prompt for a pet name and `storeValue()` a read-only view of
+   * the active source against the profile-resolved host, so the
+   * frozen view shows up in the user's inventory and is openable
+   * via the inventory sidebar / "Open by pet name". We don't add
+   * it as a sibling session source — read-only views are useful
+   * as durable inventory entries, not as ad-hoc tabs in this
+   * Space.
+   */
+  const saveReadOnlyView = async () => {
     const source = activeSource();
     if (!source) return;
-    const view = addSource({
-      label: `${source.label} (cached)`,
-      kind: 'cached',
-      filesystem: makeCachedFilesystem(source.filesystem),
-      readOnly: source.readOnly,
+    const petName = await openDialog({
+      title: 'Save read-only view',
+      message: `Freeze a read-only view of "${source.label}" into the inventory.`,
+      input: {
+        label: 'Pet name',
+        placeholder: `${source.label}-ro`,
+        value: `${source.label}-ro`,
+      },
+      confirmLabel: 'Save',
     });
-    setStatus(`Created CAS-cached frontend of ${source.label} (ephemeral LRU)`);
-    await selectSource(view.id);
-  };
-
-  const addLayer = async () => {
-    const source = activeSource();
-    if (!source) return;
-    const { layer } = makeFilesystemLayer(source.filesystem);
+    if (petName === null || petName === '') return;
     beginBusy();
     try {
+      const view = makeReadOnlyView(source.filesystem);
+      await E(resolveProfileHost()).storeValue(view, [petName]);
+      setStatus(`Saved read-only view of "${source.label}" as "${petName}"`);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
+  };
+
+  /**
+   * Prompt for a Layer pet name (mandatory) and a composed-view
+   * pet name (optional), persist both to the inventory, and open
+   * the composed view as the active source so the user can start
+   * editing right away. Storing the Layer cap separately is what
+   * lets a future session re-open it with the diff/apply surface
+   * intact (the inventory sidebar's classifyCapability picks up
+   * `'layer'` and lights the layer-action buttons up again).
+   */
+  const saveLayer = async () => {
+    const source = activeSource();
+    if (!source) return;
+    const baseName = source.label.replace(/\s+/g, '-');
+    const layerName = await openDialog({
+      title: 'Save layer',
+      message: `Create a copy-on-write layer over "${source.label}". The layer captures every write you make to the composed view; the backing stays untouched.`,
+      input: {
+        label: 'Layer pet name',
+        placeholder: `${baseName}-layer`,
+        value: `${baseName}-layer`,
+      },
+      confirmLabel: 'Next',
+    });
+    if (layerName === null || layerName === '') return;
+    const composedName = await openDialog({
+      title: 'Save composed view',
+      message:
+        'A composed view exposes the layer over the backing as a single Filesystem. Re-opening it from the inventory drops you straight back into editing the layer.',
+      input: {
+        label: 'Composed-view pet name',
+        placeholder: `${baseName}-with-layer`,
+        value: `${baseName}-with-layer`,
+      },
+      confirmLabel: 'Save',
+    });
+    if (composedName === null || composedName === '') return;
+    beginBusy();
+    try {
+      const { layer } = makeFilesystemLayer(source.filesystem);
       const composed = await E(layer).asFilesystem();
+      const host = resolveProfileHost();
+      // Store both in parallel — the daemon handles concurrent
+      // storeValue calls fine, and we'd otherwise pay two serial
+      // round trips.
+      await Promise.all([
+        E(host).storeValue(layer, [layerName]),
+        E(host).storeValue(composed, [composedName]),
+      ]);
       const layerSource = addSource({
-        label: `${source.label} + layer`,
+        label: composedName,
         kind: 'layer',
         filesystem: composed,
         readOnly: false,
@@ -1127,7 +1278,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
         backingSourceId: source.id,
       });
       setStatus(
-        `Created layer over ${source.label}; edits stay isolated until applied`,
+        `Saved layer "${layerName}" + composed view "${composedName}"; opened composed view`,
       );
       await selectSource(layerSource.id);
     } catch (error) {
@@ -1277,6 +1428,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
     const source = activeSource();
     const isLayer = !!source && source.kind === 'layer';
     const readOnly = !!source && source.readOnly;
+    const useCache = !!source && source.useCache;
     const optionsHtml = sources
       .map(
         item =>
@@ -1285,18 +1437,18 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
           }>${esc(item.label)}</option>`,
       )
       .join('');
+    // Three categories surfaced as labelled clusters: view options
+    // (what the explorer shows), new-fs options (what the user
+    // mints into the inventory), and file actions (mutations on
+    // the active source). When the active source is a layer, the
+    // layer-specific actions show up as a fourth, labelled
+    // subgroup.
     $toolbar.innerHTML = `
-      <div class="fx-toolbar-group">
+      <div class="fx-toolbar-group fx-group-view">
+        <span class="fx-group-label">View</span>
         <select class="fx-source-select" ${
           sources.length ? '' : 'disabled'
         }>${optionsHtml || '<option>No filesystem</option>'}</select>
-        ${button('+ In-memory', 'fx-act-memory')}
-        ${button('Open…', 'fx-act-open')}
-        ${button('Read-only view', 'fx-act-readonly', !source)}
-        ${button('CAS cache', 'fx-act-cache', !source)}
-        ${button('New layer', 'fx-act-layer', !source)}
-      </div>
-      <div class="fx-toolbar-group">
         <div class="fx-segmented">
           <button type="button" class="fx-seg ${
             viewMode === 'columns' ? 'fx-seg-on' : ''
@@ -1305,27 +1457,40 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
             viewMode === 'tree' ? 'fx-seg-on' : ''
           }" data-view="tree">Tree</button>
         </div>
+        <label class="fx-check ${source ? '' : 'fx-check-disabled'}" title="Wrap reads through an ephemeral content-addressed LRU cache (view-only)">
+          <input type="checkbox" class="fx-act-cache" ${
+            useCache ? 'checked' : ''
+          } ${source ? '' : 'disabled'} />
+          <span>CAS cache</span>
+        </label>
         ${button('↻ Refresh', 'fx-act-refresh', !source)}
+        ${button(
+          viewerCollapsed ? 'Show viewer' : 'Hide viewer',
+          'fx-act-viewer',
+        )}
       </div>
-      <div class="fx-toolbar-group">
+      <div class="fx-toolbar-group fx-group-new">
+        <span class="fx-group-label">New filesystem</span>
+        ${button('+ In-memory', 'fx-act-memory')}
+        ${button('Open…', 'fx-act-open')}
+        ${button('Save read-only view…', 'fx-act-readonly', !source)}
+        ${button('Save layer…', 'fx-act-layer', !source)}
+      </div>
+      <div class="fx-toolbar-group fx-group-actions">
+        <span class="fx-group-label">File actions</span>
         ${button('New folder', 'fx-act-newfolder', !source || readOnly)}
         ${button('New file', 'fx-act-newfile', !source || readOnly)}
       </div>
       ${
         isLayer
           ? `<div class="fx-toolbar-group fx-layer-group">
+               <span class="fx-group-label">Layer</span>
                ${button('Apply layer…', 'fx-act-apply')}
                ${button('Changes', 'fx-act-changes')}
                ${button('Revert layer', 'fx-act-revert')}
              </div>`
           : ''
       }
-      <div class="fx-toolbar-group fx-toolbar-end">
-        ${button(
-          viewerCollapsed ? 'Show viewer' : 'Hide viewer',
-          'fx-act-viewer',
-        )}
-      </div>
     `;
 
     const $select = /** @type {HTMLSelectElement | null} */ (
@@ -1351,13 +1516,10 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
       openByPetName().catch(reportError);
     });
     onClick('fx-act-readonly', () => {
-      addReadOnlyView().catch(reportError);
-    });
-    onClick('fx-act-cache', () => {
-      addCachedView().catch(reportError);
+      saveReadOnlyView().catch(reportError);
     });
     onClick('fx-act-layer', () => {
-      addLayer().catch(reportError);
+      saveLayer().catch(reportError);
     });
     onClick('fx-act-refresh', () => {
       refreshActive().catch(reportError);
@@ -1382,6 +1544,12 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
       renderToolbar();
       renderViewer();
     });
+    const $cache = $toolbar.querySelector('.fx-act-cache');
+    if ($cache) {
+      $cache.addEventListener('change', () => {
+        toggleViewCache().catch(reportError);
+      });
+    }
     for (const $seg of $toolbar.querySelectorAll('.fx-seg')) {
       $seg.addEventListener('click', () => {
         const next = /** @type {HTMLElement} */ ($seg).dataset.view;
@@ -1918,19 +2086,22 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
     // hang.
     (async () => {
       try {
-        const cap = await E(rootPowers).lookup(name);
+        const cap = await E(resolveProfileHost()).lookup(name);
         if (abort.aborted) return;
         const kind = await classifyCapability(cap);
         if (abort.aborted) return;
         if (kind === 'unknown') {
-          $row.title = 'Not an endo-fs Filesystem or Mount';
+          $row.title = 'Not an endo-fs Filesystem, Layer, or Mount';
           return;
         }
         $row.classList.remove('fx-inv-disabled');
-        $row.title =
-          kind === 'mount'
-            ? `Open Mount "${name}"`
-            : `Open filesystem "${name}"`;
+        if (kind === 'mount') {
+          $row.title = `Open Mount "${name}"`;
+        } else if (kind === 'layer') {
+          $row.title = `Open layer "${name}" (composed view + layer actions)`;
+        } else {
+          $row.title = `Open filesystem "${name}"`;
+        }
         $row.addEventListener('click', () => {
           beginBusy();
           openFsCap(name, cap, kind)
@@ -1961,7 +2132,9 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
 
   const pumpInventory = async () => {
     try {
-      invIter = makeRefIterator(E(rootPowers).followNameChanges());
+      invIter = makeRefIterator(
+        E(resolveProfileHost()).followNameChanges(),
+      );
       for await (const change of invIter) {
         if (invStopped) break;
         if (change && typeof change === 'object') {

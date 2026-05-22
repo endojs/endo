@@ -9205,15 +9205,54 @@ button.btn-spinner::after {
   display: flex;
   gap: 6px;
   align-items: center;
+  padding: 4px 8px 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
 }
 
-.fx-toolbar-end {
-  margin-left: auto;
+/* Cluster label sits to the LEFT of the buttons (rather than as
+   a fieldset legend on top) so the toolbar stays a single row.
+   The three categories the user asked for — View / New
+   filesystem / File actions — each get their own bordered cluster
+   with this label visible; the Layer subgroup follows the same
+   pattern when it appears. */
+.fx-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-right: 4px;
+  border-right: 1px solid var(--border-color);
+  margin-right: 4px;
+  user-select: none;
 }
 
 .fx-layer-group {
-  padding-left: 8px;
-  border-left: 1px solid var(--border-color);
+  border-color: var(--accent-primary);
+}
+
+.fx-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fx-check input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.fx-check-disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.fx-check-disabled input {
+  cursor: default;
 }
 
 .fx-btn {
