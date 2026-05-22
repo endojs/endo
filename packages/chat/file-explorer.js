@@ -56,7 +56,7 @@ import {
  *   (mint actions, inventory click, "Open by pet name"); the
  *   "Save read-only view" / "Save layer" actions need it so the
  *   daemon-side module can `lookup` the backing.
- * @property {Cap} [_viewFilesystem] - memoised wrapped cap, dropped
+ * @property {Cap} [viewFsCache] - memoised wrapped cap, dropped
  *   whenever `useCache` flips so the next browse remints it
  * @property {Cap} [layer] - layer cap when `kind === 'layer'`, so
  *   the Apply/Changes/Revert actions can operate on it
@@ -605,10 +605,10 @@ export const mountFileExplorer = (
    */
   const getViewFilesystem = source => {
     if (!source.useCache) return source.filesystem;
-    if (!source._viewFilesystem) {
-      source._viewFilesystem = makeCachedFilesystem(source.filesystem);
+    if (!source.viewFsCache) {
+      source.viewFsCache = makeCachedFilesystem(source.filesystem);
     }
-    return source._viewFilesystem;
+    return source.viewFsCache;
   };
 
   /**
@@ -1266,7 +1266,7 @@ export const mountFileExplorer = (
     const source = activeSource();
     if (!source) return;
     source.useCache = !source.useCache;
-    source._viewFilesystem = undefined;
+    source.viewFsCache = undefined;
     dirCapCache = new Map();
     setStatus(
       source.useCache
@@ -1445,12 +1445,11 @@ export const mountFileExplorer = (
     /** @type {Source[]} */
     const candidates = [];
     for (const candidate of sources) {
-      if (candidate.id === source.id) continue;
-      if (candidate.readOnly) continue;
       const key = candidate.petName || candidate.id;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      candidates.push(candidate);
+      if (candidate.id !== source.id && !candidate.readOnly && !seen.has(key)) {
+        seen.add(key);
+        candidates.push(candidate);
+      }
     }
     // Always offer the layer's own backing as the first (and
     // default-selected) choice. That's the typical commit
@@ -1612,31 +1611,31 @@ export const mountFileExplorer = (
           bucket.kinds.add(String(op.kind));
           if (!byPath.has(key)) byPath.set(key, bucket);
         }
-        /** @type {string[]} */
-        const sections = [];
-        for (const { path, kinds } of byPath.values()) {
+        /**
+         * Produce the diff section (or annotation comment) for a
+         * single touched path. Hoisted into a helper so the loop
+         * body is just `push(await sectionFor(...))` — keeps the
+         * control flow flat and avoids `continue` statements
+         * (which the local eslint config bans).
+         *
+         * @param {string[]} path
+         * @param {Set<string>} kinds
+         * @returns {Promise<string>}
+         */
+        const sectionFor = async (path, kinds) => {
           const pathStr = path.join('/');
           if (path.length === 0) {
-            sections.push(`# root: ${[...kinds].join(', ')}`);
-            continue;
+            return `# root: ${[...kinds].join(', ')}`;
           }
           if (kinds.has('whiteout')) {
             const backingRead = await readTextAtPath(backing, path);
             if (backingRead === null) {
-              sections.push(`# whiteout (no backing or binary): ${pathStr}`);
-            } else {
-              const sec = buildUnifiedDiffSection(
-                pathStr,
-                backingRead.text,
-                '',
-              );
-              sections.push(
-                backingRead.truncated
-                  ? `${sec}\n# truncated: backing preview only`
-                  : sec,
-              );
+              return `# whiteout (no backing or binary): ${pathStr}`;
             }
-            continue;
+            const sec = buildUnifiedDiffSection(pathStr, backingRead.text, '');
+            return backingRead.truncated
+              ? `${sec}\n# truncated: backing preview only`
+              : sec;
           }
           if (
             kinds.has('create-file') ||
@@ -1650,21 +1649,22 @@ export const mountFileExplorer = (
             const oldText = backingRead ? backingRead.text : '';
             const newText = layerRead ? layerRead.text : '';
             if (backingRead === null && layerRead === null) {
-              sections.push(
-                `# ${[...kinds].join(', ')} (binary or missing): ${pathStr}`,
-              );
-              continue;
+              return `# ${[...kinds].join(', ')} (binary or missing): ${pathStr}`;
             }
             const sec = buildUnifiedDiffSection(pathStr, oldText, newText);
             const notes = [];
             if (backingRead?.truncated) notes.push('backing preview only');
             if (layerRead?.truncated) notes.push('layer preview only');
-            sections.push(
-              notes.length ? `${sec}\n# truncated: ${notes.join(', ')}` : sec,
-            );
-            continue;
+            return notes.length
+              ? `${sec}\n# truncated: ${notes.join(', ')}`
+              : sec;
           }
-          sections.push(`# ${[...kinds].join(', ')}: ${pathStr}`);
+          return `# ${[...kinds].join(', ')}: ${pathStr}`;
+        };
+        /** @type {string[]} */
+        const sections = [];
+        for (const { path, kinds } of byPath.values()) {
+          sections.push(await sectionFor(path, kinds));
         }
         layerDiff = {
           layerLabel: source.label,
