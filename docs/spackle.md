@@ -2,7 +2,11 @@
 title: spackle
 group: Documents
 category: Guides
+author: Kris Kowal
+date: 2026-05-21
 ---
+
+Kris Kowal, 2026-05-21
 
 # Spackle
 
