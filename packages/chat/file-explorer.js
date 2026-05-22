@@ -1362,10 +1362,15 @@ export const mountFileExplorer = (
           env: { BACKING_NAME: source.petName },
         })
       );
+      // Note: the daemon worker runs `compartment.evaluate(source)`
+      // as a script expression (no top-level await). `E(layer)
+      // .asFilesystem()` already returns a Promise that the
+      // marshaller resolves on the way back, so we hand the
+      // expression in bare.
       const composed = /** @type {Cap} */ (
         await E(host).evaluate(
           '@node',
-          'await E(layer).asFilesystem()',
+          'E(layer).asFilesystem()',
           ['layer'],
           [layerName],
           composedName,
