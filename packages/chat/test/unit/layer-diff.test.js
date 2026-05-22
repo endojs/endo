@@ -46,8 +46,5 @@ test('buildUnifiedDiffSection: unchanged → comment, not a patch', t => {
 
 test('buildUnifiedDiffSection: header + body for a real change', t => {
   const section = buildUnifiedDiffSection('docs/readme.md', 'old', 'new');
-  t.is(
-    section,
-    '--- a/docs/readme.md\n+++ b/docs/readme.md\n-old\n+new',
-  );
+  t.is(section, '--- a/docs/readme.md\n+++ b/docs/readme.md\n-old\n+new');
 });

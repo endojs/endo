@@ -925,7 +925,11 @@ export const mountFileExplorer = (
       if (isSelf && entryType === 'file') {
         // The viewer's open file moved with the rename — update the
         // pointer rather than clearing the viewer.
-        selectedFile = { ...selectedFile, name: newName, parentPath: newParent };
+        selectedFile = {
+          ...selectedFile,
+          name: newName,
+          parentPath: newParent,
+        };
       } else if (isSelf) {
         // The selected entry *is* a directory that got renamed —
         // a directory was never showing in the viewer anyway, but
@@ -2461,9 +2465,7 @@ export const mountFileExplorer = (
 
   const pumpInventory = async () => {
     try {
-      invIter = makeRefIterator(
-        E(resolveProfileHost()).followNameChanges(),
-      );
+      invIter = makeRefIterator(E(resolveProfileHost()).followNameChanges());
       for await (const change of invIter) {
         if (invStopped) break;
         if (change && typeof change === 'object') {
