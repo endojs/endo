@@ -9361,6 +9361,17 @@ button.btn-spinner::after {
   flex: 1;
 }
 
+/* Drop-target highlight for the whole column — fires when the
+   user is about to drop an entry anywhere on a column except
+   onto a more-specific directory row inside it (those use
+   `.fx-entry.fx-drop-target` and stopPropagation). Inset
+   outline matches the entry-level visual cue without affecting
+   the column's layout width. */
+.fx-column.fx-drop-target {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
 .fx-empty-col {
   font-size: 12px;
   color: var(--text-muted);

@@ -1317,7 +1317,8 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
             .join('');
         }
         return `
-          <div class="fx-column" data-column="${columnIndex}">
+          <div class="fx-column" data-column="${columnIndex}"
+            data-path="${esc(JSON.stringify(column.path))}">
             <div class="fx-column-head">${
               column.path.length
                 ? esc(column.path[column.path.length - 1])
@@ -1469,6 +1470,10 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
       if (!readOnly && type === 'directory') {
         el.addEventListener('dragover', event => {
           event.preventDefault();
+          // Don't let the column-level drop handler also claim this
+          // drop — that would cause us to move into the column's
+          // own path instead of the (deeper) target directory.
+          event.stopPropagation();
           const transfer = /** @type {DragEvent} */ (event).dataTransfer;
           if (transfer) transfer.dropEffect = 'move';
           el.classList.add('fx-drop-target');
@@ -1478,6 +1483,7 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
         });
         el.addEventListener('drop', event => {
           event.preventDefault();
+          event.stopPropagation();
           el.classList.remove('fx-drop-target');
           const transfer = /** @type {DragEvent} */ (event).dataTransfer;
           if (!transfer) return;
@@ -1489,6 +1495,50 @@ export const mountFileExplorer = ($parent, { rootPowers }) => {
           }
           const destPath = name === '' ? [] : [...parentPath, name];
           moveEntry(payload.parentPath, payload.name, destPath).catch(
+            reportError,
+          );
+        });
+      }
+    }
+
+    // Column-level drop target: dropping an entry anywhere on a
+    // column (empty area, file row, or column header) moves it
+    // into the directory that column represents. Drops that land
+    // on a directory entry are handled by the entry-level
+    // listeners above (which stopPropagation), so this only fires
+    // for the "miss". Only attach in columns mode and when the
+    // source is writable.
+    if (!readOnly && viewMode === 'columns') {
+      for (const $col of $browser.querySelectorAll('.fx-column')) {
+        const col = /** @type {HTMLElement} */ ($col);
+        /** @type {string[]} */
+        const colPath = JSON.parse(col.dataset.path || '[]');
+        col.addEventListener('dragover', event => {
+          event.preventDefault();
+          const transfer = /** @type {DragEvent} */ (event).dataTransfer;
+          if (transfer) transfer.dropEffect = 'move';
+          col.classList.add('fx-drop-target');
+        });
+        col.addEventListener('dragleave', event => {
+          // `dragleave` fires when crossing any child boundary, so
+          // only drop the highlight when we've actually left the
+          // column (relatedTarget is outside it).
+          const next = /** @type {DragEvent} */ (event).relatedTarget;
+          if (next instanceof Node && col.contains(next)) return;
+          col.classList.remove('fx-drop-target');
+        });
+        col.addEventListener('drop', event => {
+          event.preventDefault();
+          col.classList.remove('fx-drop-target');
+          const transfer = /** @type {DragEvent} */ (event).dataTransfer;
+          if (!transfer) return;
+          let payload;
+          try {
+            payload = JSON.parse(transfer.getData('application/json'));
+          } catch {
+            return;
+          }
+          moveEntry(payload.parentPath, payload.name, colPath).catch(
             reportError,
           );
         });
