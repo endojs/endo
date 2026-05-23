@@ -1129,13 +1129,10 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    transitional shape; the migration to Git-as-CAS lands when
    `daemon-cas-management` arrives.
 
-6. **`@endo/gateway` vs `@endo/web-gateway`.**
-   The package name is a maintainer pick.
-   `@endo/gateway` matches the directive's language; `@endo/web-gateway`
-   is more descriptive (the package is web-shaped specifically;
-   future protocols would live in sibling packages).
-   The design uses `@endo/gateway` per the directive but flags
-   the alternative for completeness.
+6. **Package naming.**
+   Resolved: `@endo/gateway` is fine alone.
+   The design retains the directive's language; no
+   `@endo/web-gateway` alternative is on the table.
 
 7. **Migration of the existing in-daemon `web-server-node.js`.**
    The daemon's current `@apps` formula is implemented inline in
