@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-22 |
-| **Updated** | 2026-05-22 |
+| **Updated** | 2026-05-23 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Proposed |
 | **Supersedes** | [endo-gateway](endo-gateway.md) |
@@ -248,6 +248,22 @@ A **Weblet formula** designates the content for that virtual host;
 the gateway resolves the formula on first contact, caches the
 result, and serves subsequent requests from cache.
 
+**Virtual hosting is not DNS-based.**
+The `Host` header is not interpreted as a public DNS name; it is
+the daemon/gateway-assigned weblet identifier (or a prefix
+thereof) that the Familiar synthesizes for each request.
+The Familiar's `localhttp://` protocol handler
+([`familiar-localhttp-protocol`](familiar-localhttp-protocol.md))
+sets `Host` to the weblet's gateway-assigned identifier before
+proxying; a remote client that opens a WebSocket through the
+gateway sets `Host` to the relay-assigned identifier of the
+weblet it intends to reach.
+This frees the design from DNS registration, certificate
+provisioning per virtual host, and operator-managed name
+allocation. The collision question reframes: the namespace is
+gateway-assigned, not user-chosen, so collisions are a gateway
+allocation concern rather than a user-policy one.
+
 The Weblet formula is a new daemon-side formula type with the
 following shape:
 
@@ -280,22 +296,25 @@ and revoke entries.
 await E(agent).lookup('@apps');           // → AppsNameHub
 await E(apps).bind('chat', chatWebletId);
 await E(apps).bind('inbox', inboxWebletId);
-// Gateway now serves http://chat.example.com/ and
-// http://inbox.example.com/ from chatWebletId and inboxWebletId.
+// Gateway now routes Host: <chatWebletId> and Host: <inboxWebletId>
+// (or a registered prefix thereof) to the corresponding weblets.
 ```
 
 For multi-user hosts, each user's `@apps` NameHub is local to
 their host agent; the gateway aggregates the bindings from every
 registered user into its routing table.
-The virtual-host namespace is collision-prone (two users binding
-`chat.example.com` would fight); the gateway resolves collisions
-by operator policy (first-bind-wins by default; explicit-allowlist-
-per-user with operator override).
+Because the `Host` header carries a gateway-assigned identifier
+rather than a user-chosen DNS name, there is no cross-user
+collision over names like `chat`; the identifier namespace is
+allocated by the gateway and is per-weblet-formula by
+construction.
 
 The content-tree resolution path:
 
-1. Gateway receives `GET /index.html`, `Host: chat.example.com`.
-2. Gateway looks up `chat.example.com` in its virtual-host table
+1. Gateway receives `GET /index.html`, `Host: <webletFormulaId>`
+   (the Familiar or remote client set the header to the
+   gateway-assigned weblet identifier).
+2. Gateway looks the identifier up in its virtual-host table
    → `webletFormulaId`.
 3. Gateway fetches the weblet formula from the originating user
    daemon (or its cache).
@@ -318,8 +337,8 @@ sequenceDiagram
     participant GW as Gateway
     participant CAS as CAS Cache
     participant UD as User Daemon
-    Client->>GW: GET /index.html<br/>Host: chat.example.com
-    GW->>GW: lookup virtual host
+    Client->>GW: GET /index.html<br/>Host: <webletFormulaId>
+    GW->>GW: lookup weblet by identifier
     GW->>CAS: read contentRoot/index.html
     alt cache hit
         CAS-->>GW: bytes
@@ -1063,14 +1082,15 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    call and not pinned by this design.
 
 3. **Virtual-host name allocation across users.**
-   When two users want to bind `chat.example.com` to their own
-   weblets, who wins?
-   Candidates: first-bind-wins (simple, race-y); per-user
-   prefix (`<user>.chat.example.com`, scales but ugly URLs);
-   operator-administered allowlist per user (mostly-static).
-   The design names the question; the implementation lands
-   first-bind-wins by default with the operator-allowlist
-   override available.
+   Resolved: virtual hosting is not DNS-based.
+   The `Host` header carries a gateway-assigned weblet identifier
+   (or a registered prefix thereof) that the Familiar or remote
+   client synthesizes per request.
+   The identifier namespace is allocated by the gateway and is
+   per-weblet-formula by construction, so two users binding the
+   short name `chat` do not collide; their bindings live under
+   distinct gateway-assigned identifiers.
+   See Feature 2 above for the routing detail.
 
 4. **Rotation story for formula-identifier bearer tokens.**
    Inherits the Pass-Invariant-Eq follow-up from

@@ -284,7 +284,7 @@ LLM-agent stack).*
 | [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
 | [endo-gateway](endo-gateway.md) | 2026-05-10 | 2026-05-22 | Superseded by [gateway-package](gateway-package.md) |
 | [endo-gateway-mcp](endo-gateway-mcp.md) | 2026-05-29 | 2026-05-29 | Not Started |
-| [gateway-package](gateway-package.md) | 2026-05-22 | 2026-05-22 | Proposed |
+| [gateway-package](gateway-package.md) | 2026-05-22 | 2026-05-23 | Proposed |
 | [agent-tools-mount-fs-tools](agent-tools-mount-fs-tools.md) | 2026-06-01 | 2026-06-25 | Superseded |
 | [endo-agent-tools](endo-agent-tools.md) | 2026-06-03 | 2026-06-25 | In Progress |
 | [agentry-agent-builder](agentry-agent-builder.md) | 2026-06-03 | 2026-06-25 | In Progress |
