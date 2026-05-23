@@ -1106,10 +1106,11 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    See Feature 2 above for the routing detail.
 
 4. **Rotation story for formula-identifier bearer tokens.**
+   Deferred for now.
    Inherits the Pass-Invariant-Eq follow-up from
-   [`endo-gateway`](endo-gateway.md) § Open Questions 1.
-   A token-rotation that preserves the E `Eq` property across
-   key changes is unsolved.
+   [`endo-gateway`](endo-gateway.md) § Open Questions 1; a
+   token-rotation that preserves the E `Eq` property across key
+   changes remains unsolved and is not pinned by this design.
 
 5. **Multi-tenant filesystem isolation for the per-user CAS.**
    When the gateway hosts weblets from many users, it caches
