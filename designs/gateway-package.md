@@ -1135,17 +1135,23 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    `@endo/web-gateway` alternative is on the table.
 
 7. **Migration of the existing in-daemon `web-server-node.js`.**
-   The daemon's current `@apps` formula is implemented inline in
-   `packages/daemon/src/web-server-node.js`.
-   The phase-1 work transitions to `import { make } from '@endo/gateway'`,
-   but the timing of removing the inline code depends on whether
-   the package's first release covers every feature the inline
-   code today supports (it does for virtual hosting and the
-   Chat fetch endpoint; the CIDR / rate-limit machinery hoists
-   cleanly).
-   This is a builder-level question, surfaced here so the phase-
-   1 builder plans the transition rather than discovering the
-   need mid-PR.
+   Resolved direction: the daemon does **not** come with a web
+   server; it can be extended by one.
+   This is the broader architectural framing: keeping the
+   gateway out of `@endo/daemon` leaves the daemon deployable in
+   a wider variety of environments where no HTTP surface is
+   wanted or available (headless server, embedded, restricted-
+   network).
+   The phase-1 work moves the existing inline `@apps` formula
+   over to `import { make } from '@endo/gateway'`, and the inline
+   `packages/daemon/src/web-server-node.js` is removed once the
+   package's first release covers every feature the inline code
+   today supports (virtual hosting and the Chat fetch endpoint
+   carry forward straightforwardly; the CIDR / rate-limit
+   machinery hoists cleanly).
+   The phase-1 builder plans the transition with the
+   "daemon ships without a web server" invariant as the target
+   end-state.
 
 ## Prompt
 
