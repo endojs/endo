@@ -1066,13 +1066,20 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
 ## Open Questions
 
 1. **Payment-token mechanism.**
-   Which payment processor (Stripe, Coinbase Commerce, Lightning,
-   on-chain stablecoin)?
-   What is the wire shape for the `paymentProof` the
-   `ResourceLedger.purchaseTokens(tokens, proof)` validates?
-   The gateway abstracts over the processor; the reference
-   implementation choice in phase 4 is a separate maintainer
-   decision.
+   Deferred to a later design.
+   The likely shape uses ERTP to model local tokens for storage,
+   compute, and network quotas that can be distributed to
+   specific agents, their workers, and the methods that add or
+   edit content (consuming storage), with storage GC methods
+   consuming compute and offering storage rebates.
+   The choice of external payment processor (Stripe, Coinbase
+   Commerce, Lightning, on-chain stablecoin) and the wire shape
+   for the `paymentProof` that
+   `ResourceLedger.purchaseTokens(tokens, proof)` validates fall
+   out of that later design and are not pinned here.
+   The gateway abstracts over the processor; the
+   `ResourceLedger` and metering surface are implementable
+   independent of the payment-processor choice.
 
 2. **Abuse-prevention model for the public relay.**
    Per-public-key rate limit, per-IP rate limit, billing-tied
