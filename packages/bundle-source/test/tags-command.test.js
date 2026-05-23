@@ -12,7 +12,7 @@ const bundleSource = async (...args) => {
   const bundleBytes = await new Promise((resolve, reject) => {
     const errorChunks = [];
     const outputChunks = [];
-    const child = spawn('node', ['bin/bundle-source', ...args], {
+    const child = spawn('node', ['bin/bundle-source.cjs', ...args], {
       cwd,
       stdio: ['inherit', 'pipe', 'pipe'],
     });

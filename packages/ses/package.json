@@ -124,6 +124,7 @@
     "dist",
     "lib",
     "src",
+    "src-xs",
     "tools"
   ],
   "publishConfig": {

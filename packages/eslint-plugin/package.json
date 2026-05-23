@@ -16,8 +16,7 @@
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
-    "lint:types": "tsc",
-    "postpack": "git clean -fX -e node_modules/"
+    "lint:types": "tsc"
   },
   "dependencies": {
     "@eslint-community/eslint-utils": "^4.7.0",

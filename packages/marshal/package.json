@@ -17,8 +17,6 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX -e node_modules/",
     "test": "ses-ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0",
@@ -27,7 +25,7 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
-    "lint:eslint": "eslint '**/*.js'"
+    "lint:eslint": "eslint ."
   },
   "repository": {
     "type": "git",
