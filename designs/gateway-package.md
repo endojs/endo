@@ -1082,11 +1082,17 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    independent of the payment-processor choice.
 
 2. **Abuse-prevention model for the public relay.**
-   Per-public-key rate limit, per-IP rate limit, billing-tied
-   gating, closed-allowlist by default: pick which combination.
+   Resolved framing: billing is per-account, where the account is
+   associated with the relay peer's ed25519 public key.
+   Inbound relay sessions are gated against the registered
+   account; consumption of compute, storage, and network on the
+   relay accrues against that account's balance (the same
+   `ResourceLedger` surface Feature 1 uses).
    The first implementation lands closed-allowlist (registration-
-   required) by default; the wider policy space is the operator's
-   call and not pinned by this design.
+   required) by default and uses the ed25519-keyed account as the
+   billing principal; per-IP rate limits remain available as a
+   secondary defense the operator may enable, but the primary
+   gate is per-account.
 
 3. **Virtual-host name allocation across users.**
    Resolved: virtual hosting is not DNS-based.
