@@ -1117,12 +1117,17 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    their content trees in `/var/cache/endo-gateway/`.
    The user-daemon-side `daemon-cas-management` plumbing
    addresses per-user isolation; the gateway-side cache shape
-   (per-user subdirectory, shared dedup-by-content-hash, garbage
-   collection on user-daemon disconnect) is still
-   underspecified.
-   The first implementation uses a shared dedup-by-hash CAS with
-   reference counts keyed by registering user; refinement
-   deferred.
+   is still underspecified.
+
+   Resolved framing: the long-term intent is to use **Git** for
+   the CAS itself.
+   Retainers (the per-user reference counts that keep an object
+   alive across GC) can ride on **Git Notes**, or the storage
+   can be partitioned into separate per-tenant Git repositories.
+   The first implementation may use a shared dedup-by-hash CAS
+   with reference counts keyed by registering user as a
+   transitional shape; the migration to Git-as-CAS lands when
+   `daemon-cas-management` arrives.
 
 6. **`@endo/gateway` vs `@endo/web-gateway`.**
    The package name is a maintainer pick.
