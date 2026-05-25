@@ -12,7 +12,6 @@ Endo is a yarn workspaces repository. Running yarn in the root will install and
 hoist most dependencies up to the root `node_modules`.
 
 Note: running yarn `--ignore-scripts` will not complete the setup of SES.
-Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to work.
 
 ### Action pinning
 
