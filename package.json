@@ -30,7 +30,6 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "catalog:dev",
     "eslint-plugin-jsdoc": "^50.6.1",
-    "lerna": "^8.2.4",
     "prettier": "^3.5.3",
     "ses": "workspace:^",
     "source-map": "^0.7.4",
@@ -83,8 +82,7 @@
   },
   "lavamoat": {
     "allowScripts": {
-      "@lavamoat/preinstall-always-fail": false,
-      "lerna>nx": false
+      "@lavamoat/preinstall-always-fail": false
     }
   }
 }
