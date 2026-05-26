@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* global process, setTimeout */
+/* global Buffer, process, setTimeout */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order
@@ -4222,16 +4222,25 @@ test('mount readOnly() attenuation', async t => {
   await E(host).provideMount(mountPath, 'test-mount-attenuate');
   const mount = await E(host).lookup(['test-mount-attenuate']);
 
-  const roMount = await E(mount).readOnly();
+  const roTree = await E(mount).readOnly();
 
-  // Reading should work through attenuated view.
-  const entries = await E(roMount).list();
+  // The structural narrowing returns a ReadableTree view, not an
+  // EndoMount.  Reading through the platform surface (has, list,
+  // lookup) still works.
+  const entries = await E(roTree).list();
   t.deepEqual(entries, ['file.txt']);
+  t.true(await E(roTree).has('file.txt'));
 
-  // Writing should fail through attenuated view.
-  await t.throwsAsync(E(roMount).writeText(['new.txt'], 'fail'), {
-    message: /read-only/,
-  });
+  // Mount-specific extensions are not on the read-only view; the
+  // method names are constrained to the ReadableTree surface
+  // (filtering Exo introspection helpers).
+  // eslint-disable-next-line no-underscore-dangle
+  const methods = await E(roTree).__getMethodNames__();
+  t.deepEqual(methods.filter(name => !name.startsWith('__')).sort(), [
+    'has',
+    'list',
+    'lookup',
+  ]);
 });
 
 test('mount dot-dot navigation clamped at root', async t => {
@@ -4503,6 +4512,79 @@ test('mount file writeText and json', async t => {
     'utf-8',
   );
   t.is(actualContent, '{"version": 2}');
+});
+
+test('mount entry descriptors support has, lookup, stat, makeFile, and provenance', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-entry');
+  const otherPath = path.join(config.statePath, '..', 'mount-test-entry-other');
+  await createMountFixture(mountPath, {
+    'src/existing.txt': 'existing',
+  });
+  await createMountFixture(otherPath, {});
+
+  await E(host).provideMount(mountPath, 'test-mount-entry');
+  await E(host).provideMount(otherPath, 'test-mount-entry-other');
+  const mount = await E(host).lookup(['test-mount-entry']);
+  const otherMount = await E(host).lookup(['test-mount-entry-other']);
+
+  const createdEntry = await E(mount).entry(['src', 'created.txt']);
+  t.is(await E(createdEntry).displayPath(), 'src/created.txt');
+  t.deepEqual(await E(createdEntry).segments(), ['src', 'created.txt']);
+  t.false(await E(mount).has(createdEntry));
+  t.is(await E(mount).stat(createdEntry), undefined);
+
+  await E(mount).makeFile(createdEntry, 'created');
+  const createdFile = await E(mount).lookup(createdEntry);
+  await E(createdFile).append(' and appended');
+  t.is(await E(createdFile).text(), 'created and appended');
+  t.true(await E(mount).has(createdEntry));
+
+  const stat = await E(mount).stat(createdEntry);
+  t.like(stat, { kind: 'file', sizeBytes: 'created and appended'.length });
+
+  const srcEntry = await E(mount).entry('src');
+  const srcDir = await E(mount).lookup(srcEntry);
+  t.deepEqual(await E(srcDir).list(), ['created.txt', 'existing.txt']);
+
+  const childEntry = await E(srcEntry).child('created.txt');
+  const openedFile = await E(mount).lookup(childEntry);
+  t.is(await E(openedFile).text(), 'created and appended');
+
+  await t.throwsAsync(() => E(otherMount).readText(createdEntry), {
+    message: /different mount root/,
+  });
+});
+
+test('mount snapshots capture immutable tree and file views', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-snapshot');
+  await createMountFixture(mountPath, {
+    'live.txt': 'initial',
+    'nested/file.txt': 'nested',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-snapshot');
+  const mount = await E(host).lookup(['test-mount-snapshot']);
+
+  const snapshotTree = await E(mount).snapshot();
+  const snapshotFile = await E(snapshotTree).lookup('live.txt');
+  const liveFile = await E(mount).lookup('live.txt');
+
+  const snapshotBlob = await E(liveFile).snapshot();
+
+  await E(liveFile).writeText('changed');
+  await E(mount).writeText(['nested', 'file.txt'], 'changed nested');
+
+  t.is(await E(snapshotFile).text(), 'initial');
+  t.is(await E(snapshotBlob).text(), 'initial');
+  t.is(await E(liveFile).text(), 'changed');
+
+  const nestedSnapshotDir = await E(snapshotTree).lookup('nested');
+  const nestedSnapshotFile = await E(nestedSnapshotDir).lookup('file.txt');
+  t.is(await E(nestedSnapshotFile).text(), 'nested');
 });
 
 // symlink confinement tests
@@ -4811,6 +4893,26 @@ test('Phase 8: stageTree materialises a ReadableTree into a scratch mount', asyn
   // The staged mount has the same compartment-map.json content.
   const text = await E(scratch).readText('compartment-map.json');
   t.regex(text, /"entry"/);
+});
+
+test('stageTree preserves binary blobs in a scratch mount', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const srcDir = path.join(config.statePath, '..', 'stage-tree-binary-src');
+  fs.mkdirSync(srcDir, { recursive: true });
+  const expected = Buffer.from([0, 159, 146, 150, 255, 65, 10]);
+  fs.writeFileSync(path.join(srcDir, 'bytes.bin'), expected);
+  await E(host).provideMount(srcDir, 'binary-src-mount', { readOnly: true });
+
+  const scratch = await E(host).stageTree('binary-src-mount', 'binary-staged');
+  const file = await E(scratch).lookup('bytes.bin');
+  const reader = makeRefIterator(await E(file).streamBase64());
+  const chunks = [];
+  for await (const chunk of reader) {
+    chunks.push(Buffer.from(chunk, 'base64'));
+  }
+  const actual = Buffer.concat(chunks);
+  t.deepEqual([...actual], [...expected]);
 });
 
 testNeedsNodeWorker(
