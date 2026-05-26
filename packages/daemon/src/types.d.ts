@@ -829,6 +829,115 @@ export interface EndoReadable {
   text(): Promise<string>;
   json(): Promise<unknown>;
 }
+
+export interface EndoReadableTree {
+  sha256(): string;
+  has(...pathSegments: string[]): Promise<boolean>;
+  list(...pathSegments: string[]): Promise<string[]>;
+  lookup(path: string | string[]): Promise<EndoReadableTree | EndoReadable>;
+}
+
+export type EndoMountStat = {
+  kind: 'file' | 'directory' | 'symlink';
+  sizeBytes: number;
+  modifiedMs: number;
+};
+
+export interface EndoMountEntry {
+  segments(): string[];
+  displayPath(): string;
+  child(name: string): EndoMountEntry;
+}
+
+/**
+ * Structural `ReadableBlob` view exposed by `EndoMountFile.readOnly()`.
+ * Mirrors `ReadableBlob` from `@endo/platform/fs`.
+ */
+export interface ReadableBlobView {
+  streamBase64(): FarRef<Reader<string>>;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+}
+
+/**
+ * Structural `ReadableTree` view exposed by `EndoMount.readOnly()`.
+ * Mirrors `ReadableTree` from `@endo/platform/fs`; `lookup` recursively
+ * returns either another `ReadableTreeView` or a `ReadableBlobView`.
+ */
+export interface ReadableTreeView {
+  has(...pathSegments: string[]): Promise<boolean>;
+  list(...pathSegments: string[]): Promise<string[]>;
+  lookup(path: string | string[]): Promise<ReadableTreeView | ReadableBlobView>;
+}
+
+/**
+ * `EndoMountFile` is a daemon-local specialization of the platform
+ * `File` contract.  Mount-specific surface (`stat`, `snapshot`,
+ * `writeText` / `append` / `writeBytes` that throw on read-only) is
+ * additive; `readOnly()` narrows to a structural `ReadableBlob` view.
+ */
+export interface EndoMountFile {
+  text(): Promise<string>;
+  streamBase64(): FarRef<Reader<string>>;
+  json(): Promise<unknown>;
+  writeText(content: string): Promise<void>;
+  append(content: string): Promise<void>;
+  writeBytes(readableRef: FarRef<AsyncIterator<Uint8Array>>): Promise<void>;
+  stat(): Promise<EndoMountStat>;
+  snapshot(): Promise<FarRef<EndoReadable>>;
+  readOnly(): ReadableBlobView;
+}
+
+/**
+ * `EndoMount` is a daemon-local specialization of the platform
+ * `Directory` contract.  Overlapping methods (`has`, `list`, `lookup`,
+ * `write`, `remove`, `move`, `copy`, `makeDirectory`, `snapshot`) match
+ * the platform shapes; mount-specific extensions (`entry`, `stat`,
+ * `displayPath`, `readText`, `maybeReadText`, `writeText`, `makeFile`)
+ * are additive; `readOnly()` narrows to a structural `ReadableTree`
+ * view.
+ */
+export interface EndoMount {
+  has(...pathSegments: string[]): Promise<boolean>;
+  has(entry: EndoMountEntry): Promise<boolean>;
+  list(...pathSegments: string[]): Promise<string[]>;
+  lookup(
+    path: string | string[] | EndoMountEntry,
+  ): Promise<EndoMount | EndoMountFile>;
+  write(
+    path: string | string[] | EndoMountEntry,
+    value: unknown,
+  ): Promise<void>;
+  copy(
+    from: string | string[] | EndoMountEntry,
+    to: string | string[] | EndoMountEntry,
+  ): Promise<void>;
+  entry(path: string | string[]): EndoMountEntry;
+  stat(
+    path: string | string[] | EndoMountEntry,
+  ): Promise<EndoMountStat | undefined>;
+  readText(path: string | string[] | EndoMountEntry): Promise<string>;
+  maybeReadText(
+    path: string | string[] | EndoMountEntry,
+  ): Promise<string | undefined>;
+  writeText(
+    path: string | string[] | EndoMountEntry,
+    content: string,
+  ): Promise<void>;
+  makeDirectory(path: string | string[] | EndoMountEntry): Promise<EndoMount>;
+  makeFile(
+    path: string | string[] | EndoMountEntry,
+    content?: string,
+  ): Promise<void>;
+  remove(path: string | string[] | EndoMountEntry): Promise<void>;
+  move(
+    from: string | string[] | EndoMountEntry,
+    to: string | string[] | EndoMountEntry,
+  ): Promise<void>;
+  readOnly(): ReadableTreeView;
+  snapshot(): Promise<unknown>;
+}
+
 export interface EndoWorker {}
 
 export type MakeHostOrGuestOptions = {
@@ -956,8 +1065,14 @@ export interface EndoHost extends EndoAgent {
     path: string,
     petName: string | string[],
     opts?: { readOnly?: boolean },
-  ): Promise<unknown>;
-  provideScratchMount(petName: string | string[]): Promise<unknown>;
+  ): Promise<EndoMount>;
+  provideScratchMount(petName: string | string[]): Promise<EndoMount>;
+  /**
+   * Privileged bridge from a daemon-minted top-level Mount cap to its
+   * host filesystem path. EndoHost is a fully privileged authority;
+   * callers that should not learn host paths must receive an
+   * attenuated guest or narrower powers object instead.
+   */
   provideHostPath(cap: unknown): Promise<string>;
   provideGuest(
     petName?: string,
@@ -1220,6 +1335,7 @@ export type FilePowers = {
   makeFileReader: (path: string) => Reader<Uint8Array>;
   makeFileWriter: (path: string) => Writer<Uint8Array>;
   writeFileText: (path: string, text: string) => Promise<void>;
+  appendFileText: (path: string, text: string) => Promise<void>;
   readFileText: (path: string) => Promise<string>;
   readFileBytes: (path: string) => Promise<Uint8Array>;
   readFile: (path: string) => Promise<Uint8Array>;
@@ -1232,6 +1348,12 @@ export type FilePowers = {
   removeDirectory: (path: string) => Promise<void>;
   renamePath: (source: string, target: string) => Promise<void>;
   realPath: (path: string) => Promise<string>;
+  pathIdentity: (path: string) => Promise<string>;
+  statPath: (path: string) => Promise<{
+    kind: 'file' | 'directory' | 'symlink';
+    sizeBytes: number;
+    modifiedMs: number;
+  }>;
   isDirectory: (path: string) => Promise<boolean>;
   exists: (path: string) => Promise<boolean>;
 };
@@ -1464,6 +1586,7 @@ type FormulateNumberedHostParams = {
 
 export type FormulaValueTypes = {
   directory: EndoDirectory;
+  mount: EndoMount;
   network: EndoNetwork;
   peer: EndoGateway;
   'pet-store': PetStore;
@@ -1661,12 +1784,12 @@ export interface DaemonCore {
     mountPath: string,
     readOnly: boolean,
     deferredTasks: DeferredTasks<MountDeferredTaskParams>,
-  ) => FormulateResult<unknown>;
+  ) => FormulateResult<EndoMount>;
 
   formulateScratchMount: (
     readOnly: boolean,
     deferredTasks: DeferredTasks<ScratchMountDeferredTaskParams>,
-  ) => FormulateResult<unknown>;
+  ) => FormulateResult<EndoMount>;
 
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,
