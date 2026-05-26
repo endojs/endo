@@ -736,7 +736,16 @@ test('dynamic require of ancestor', async t => {
     },
   });
 
-  t.like(namespace, [
+  t.true(
+    Array.isArray(namespace.default),
+    'expected default export to be an array',
+  );
+  t.deepEqual(Object.keys(namespace.default[0]), [
+    'packageDescriptor',
+    'foldedSources',
+  ]);
+
+  t.like(namespace.default, [
     {
       packageDescriptor: { name: 'webpackish-app' },
       foldedSources: ['webpackish-app-v1.2.3'],
