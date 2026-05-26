@@ -104,7 +104,7 @@ LLM-agent stack).*
 | [daemon-git-remotes](daemon-git-remotes.md) | 2026-05-18 | 2026-05-21 | Proposed |
 | [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-05-19 | In Progress (PR #287) |
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-05-19 | In Progress |
-| [daemon-mount-capabilities](daemon-mount-capabilities.md) | 2026-05-18 | 2026-05-20 | Proposed |
+| [daemon-mount-capabilities](daemon-mount-capabilities.md) | 2026-05-18 | 2026-05-26 | Proposed |
 | [filesystem-watchers](filesystem-watchers.md) | 2026-05-07 | 2026-05-07 | Not Started |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-05-19 | **Complete** |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |

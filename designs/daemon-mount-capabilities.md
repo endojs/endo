@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-20 |
+| **Updated** | 2026-05-26 |
 | **Author** | 0xPatrick (prompted) |
 | **Status** | Proposed |
 
@@ -437,6 +437,84 @@ The intended convergence is:
 This plan does not require renaming the current daemon interfaces first.
 Instead, it requires every new method to move toward the shared shape so a later adapter or migration is mostly mechanical.
 
+### Convergence shape: specialization, not wrapping
+
+The convergence is implemented as **specialization**.
+`EndoMount` *is* a `Directory`: its `M.interface('EndoMount', ...)` guard's
+overlapping methods exactly match `DirectoryInterface`'s method shapes,
+and `EndoMountFile` *is* a `File` in the same way.
+No wrapping Exo sits between `EndoMount` and a platform-side `Directory`
+Exo, and no separate adapter object is involved.
+The `makeMountExo` factory in `packages/daemon/src/mount.js` continues
+to mint one Exo per mount; that Exo simply gains the methods required
+to satisfy `DirectoryInterface` (see § *Phase 5* below for the concrete
+additions).
+
+**Why specialize rather than wrap.**
+The platform-fs `Directory` Exo does not exist in tree today.
+`packages/platform/src/fs/interfaces.js` declares `DirectoryInterface`,
+but no `makeDirectory(...)`-style factory materializes that contract;
+`packages/platform/src/fs-node/` ships only `makeTreeWriter`, the
+narrower push interface.
+`EndoMount` is already the only `Directory`-shaped capability in the
+codebase, and the read surface is structurally satisfied today —
+`checkinTree` consumes an `EndoMount` via `list` / `lookup` /
+`streamBase64` alone, with no other knowledge of the type.
+
+Specializing keeps a single Exo, a single confinement check per method,
+and a single set of mount-specific extensions (`entry`, `stat(entry)`,
+`displayPath`, `EndoMountBacking`, symlink-confined realpath checks)
+co-located with the methods they constrain.
+A wrapper shape would instead need a platform `Directory` Exo built
+first, then a daemon Exo around it.
+That arrangement would split the confinement boundary across two
+facets — opening the question "does the inner `Directory.write` bypass
+mount confinement?" — and would buy no semantic separation, because
+every mount-specific concern would still need to live on the outer
+facet.
+
+A future generic `Directory` Exo in `@endo/platform/fs-node/` (the
+platform-fs Phase 4 work) is **not** a prerequisite for `EndoMount`
+Phase 5.
+The `Directory` *contract* (the interface guard) is the prerequisite;
+the *implementation* of that contract for the daemon's mount is what
+this plan delivers.
+A separate platform-side `Directory` Exo can be added later for
+in-memory, zip-backed, or remote-only directories without disturbing
+`EndoMount`.
+
+### Naming-collision discipline
+
+Three names in adjacent regions of the codebase are easy to confuse:
+
+- `EndoDirectory` (in `packages/daemon/src/interfaces.js` and
+  `packages/daemon/src/directory.js`) is the daemon's formula-graph
+  **naming hub** — `identify`, `locate`, `followNameChanges`, `lookup` by
+  pet name.  It is *not* a filesystem directory.  Its `M.interface`
+  label is `'EndoDirectory'`.
+- `Directory` (in `packages/platform/src/fs/interfaces.js`) is the
+  shared filesystem contract — `write`, `remove`, `move`, `copy`,
+  `makeDirectory`, `readOnly() → ReadableTree`, `snapshot() → SnapshotTree`.
+  Its `M.interface` label is `'Directory'`.
+- `EndoMount` (in `packages/daemon/src/mount.js`) is the daemon's
+  specialization of `Directory` for a confined physical subtree.  Its
+  `M.interface` label is `'EndoMount'`.
+
+Both `packages/platform/src/fs/interfaces.js` and
+`packages/daemon/src/interfaces.js` export a binding named
+`DirectoryInterface`, and those two bindings have structurally
+different shapes.
+Phase 5 import sites that touch both must disambiguate at the import
+keyword, typically as:
+
+```js
+import { DirectoryInterface as PlatformDirectoryInterface } from '@endo/platform/fs';
+import { DirectoryInterface as EndoDirectoryInterface } from './interfaces.js';
+```
+
+`EndoDirectory` is not renamed by this plan; renaming the formula-graph
+hub is a separate decision with wide blast radius.
+
 ## Security Considerations
 
 - **No public physical path leak.**
@@ -530,6 +608,8 @@ The following questions were carried in early drafts; their resolutions live in 
 - `readOnly()` interface narrowing — decision 6.
 - `entry(path)` accepting both arrays and slash strings — already in the `EndoMount` interface (`string | string[]`).
 - `displayPath()` public — decision 7.
+- `EndoMount` wrapper-vs-specialization for the `Directory` convergence
+  — decision 8.
 
 ### Spike Tasks
 
