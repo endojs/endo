@@ -3924,6 +3924,7 @@ test('readable tree lookup unknown name throws', async t => {
  * @param {Record<string, string>} files - Map of relative path to content.
  */
 const createMountFixture = async (basePath, files) => {
+  await fs.promises.rm(basePath, { recursive: true, force: true });
   await fs.promises.mkdir(basePath, { recursive: true });
   for (const [relPath, content] of Object.entries(files)) {
     const fullPath = path.join(basePath, relPath);
@@ -4339,6 +4340,51 @@ test('provideHostPath resolves Mount caps to host paths', async t => {
   await t.throwsAsync(() => E(host).provideHostPath(fake), {
     message: /not a daemon-minted mount/,
   });
+});
+
+test('provideHostPath is an EndoHost-only capability not reachable through an EndoGuest', async t => {
+  // Documents the danger of `provideHostPath` by example: the surface
+  // returns a real host-filesystem path string, so any code that can
+  // call it learns the absolute path of a daemon-managed mount.  The
+  // platform's defence is that the method only exists on the fully
+  // privileged `EndoHost`; a guest cannot reach it, so handing a
+  // guest to less-trusted code does not leak the host path even when
+  // the same daemon session also serves the host.
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'host-path-danger-mount');
+  await createMountFixture(mountPath, { 'sentinel.txt': 'present' });
+  await E(host).provideMount(mountPath, 'host-path-danger-mount');
+
+  // The host can resolve the cap to its real path: that *is* the
+  // danger — calling code that holds an EndoHost can map any mount
+  // cap back to a real filesystem path.
+  const mountCap = await E(host).lookup(['host-path-danger-mount']);
+  t.is(await E(host).provideHostPath(mountCap), mountPath);
+
+  // A guest spawned from this host does not have the
+  // `provideHostPath` method on its method set.  Less-trusted code
+  // that should not learn host filesystem paths receives a guest, not
+  // an EndoHost; this is the attenuation the platform relies on.
+  const guest = await E(host).provideGuest('danger-guest', {
+    agentName: 'danger-guest-agent',
+  });
+  // eslint-disable-next-line no-underscore-dangle
+  const guestMethods = await E(guest).__getMethodNames__();
+  t.false(
+    guestMethods.includes('provideHostPath'),
+    'EndoGuest must not expose provideHostPath: host paths are an EndoHost-only authority',
+  );
+
+  // The CapTP boundary refuses the call directly when a caller goes
+  // looking — the method does not exist on the guest's interface
+  // guard, so the send is rejected at the receiver.
+  await t.throwsAsync(
+    // The cast documents that the caller is overstepping the type.
+    () => E(/** @type {any} */ (guest)).provideHostPath(mountCap),
+    { message: /provideHostPath/ },
+    'a guest cannot stand in for a host on the privileged surface',
+  );
 });
 
 test('provideHostPath rejects a spoof that passes the genie shape gate', async t => {
