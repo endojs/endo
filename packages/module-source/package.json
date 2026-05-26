@@ -49,8 +49,8 @@
   },
   "devDependencies": {
     "@endo/ses-ava": "workspace:^",
+    "@types/node": "^20.19.41",
     "ava": "catalog:dev",
-    "babel-eslint": "^10.1.0",
     "benchmark": "^2.1.4",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
