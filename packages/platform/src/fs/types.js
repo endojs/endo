@@ -74,5 +74,42 @@
  * @property {(pathSegments: string[]) => Promise<void>} makeDirectory
  */
 
+/**
+ * A File presents a mutable byte-content interface that also satisfies
+ * the ReadableBlob read surface.  Concrete implementations supply
+ * confinement and provenance (e.g. EndoMountFile constrains writes to
+ * a mount root).
+ *
+ * @typedef {object} File
+ * @property {() => unknown} streamBase64
+ * @property {() => Promise<string>} text
+ * @property {() => Promise<any>} json
+ * @property {(content: string) => Promise<void>} writeText
+ * @property {(readable: unknown) => Promise<void>} writeBytes
+ * @property {(content: string) => Promise<void>} append
+ * @property {() => ReadableBlob} readOnly
+ * @property {() => Promise<SnapshotBlob>} snapshot
+ */
+
+/**
+ * A Directory presents a mutable handle-first filesystem interface
+ * that also satisfies the ReadableTree read surface on the query side.
+ * `write` accepts a `ReadableBlob` (materialised as bytes at `path`) or
+ * a `ReadableTree` (materialised recursively).  Concrete
+ * implementations supply confinement and provenance.
+ *
+ * @typedef {object} Directory
+ * @property {(...path: string[]) => Promise<boolean>} has
+ * @property {(...path: string[]) => Promise<string[]>} list
+ * @property {(path: string | string[]) => Promise<unknown>} lookup
+ * @property {(path: string[], value: unknown) => Promise<void>} write
+ * @property {(path: string[]) => Promise<void>} remove
+ * @property {(from: string[], to: string[]) => Promise<void>} move
+ * @property {(from: string[], to: string[]) => Promise<void>} copy
+ * @property {(path: string[]) => Promise<Directory>} makeDirectory
+ * @property {() => ReadableTree} readOnly
+ * @property {() => Promise<SnapshotTree>} snapshot
+ */
+
 // This module has no runtime exports.
 export {};
