@@ -175,6 +175,7 @@ const makeSessionManager = () => {
  * @param {Map<string, any>} [options.giftTable]
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
+ * @param {boolean} [options.enableExperimentalFeatureFlush] - **EXPERIMENTAL**: If true, enable the `op:flush` and `op:flush-done` operations. Default: false.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
  * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. The same logger is also handed to netlayer factories registered via `registerNetlayer`. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
  * @returns {Client}
@@ -186,6 +187,7 @@ export const makeClient = ({
   giftTable = new Map(),
   captpVersion = '1.0',
   enableImportCollection = true,
+  enableExperimentalFeatureFlush = false,
   debugMode = false,
   logger: providedLogger,
 } = {}) => {
@@ -316,6 +318,7 @@ export const makeClient = ({
       debugLabel,
       enableImportCollection,
       debugMode,
+      enableExperimentalFeatureFlush,
     );
   };
 
