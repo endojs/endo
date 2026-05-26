@@ -219,6 +219,16 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
 
   /**
    * @param {string} path
+   * @param {string} text
+   */
+  const appendFileText = async (path, text) => {
+    await writeJobs.enqueue(async () => {
+      await fs.promises.appendFile(path, text);
+    });
+  };
+
+  /**
+   * @param {string} path
    */
   const readFileText = async path => {
     return fs.promises.readFile(path, 'utf-8');
@@ -334,6 +344,46 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
   };
 
   /** @param {string} path */
+  const statPath = async path => {
+    const stat = await fs.promises.lstat(path);
+    const kind = /** @type {'directory' | 'file' | 'symlink'} */ (
+      stat.isDirectory()
+        ? 'directory'
+        : stat.isSymbolicLink()
+          ? 'symlink'
+          : 'file'
+    );
+    return harden({
+      kind,
+      sizeBytes: stat.size,
+      modifiedMs: stat.mtimeMs,
+    });
+  };
+
+  /**
+   * Stable filesystem identity for a path, used as a content-store
+   * key.  Returns `<dev>:<ino>` from `stat()` (which follows symlinks
+   * intentionally — two symlinks to the same regular file should
+   * share an identity).
+   *
+   * Unix-targeted: `dev`/`ino` are the POSIX device and inode pair
+   * and are stable for the lifetime of the underlying inode on
+   * Linux/macOS.  On Windows, Node's `fs.Stats.ino` is derived from
+   * the NTFS file index (a 64-bit identifier that may collide across
+   * volumes and is not always stable across renames); Windows
+   * portability would need a different identity scheme (e.g.
+   * `GetFileInformationByHandleEx`'s `FILE_ID_INFO`).  The daemon is
+   * Unix-only today; this comment is the bookmark for a future
+   * Windows port.
+   *
+   * @param {string} path
+   */
+  const pathIdentity = async path => {
+    const stat = await fs.promises.stat(path);
+    return `${stat.dev}:${stat.ino}`;
+  };
+
+  /** @param {string} path */
   const exists = async path => {
     try {
       await fs.promises.access(path);
@@ -347,6 +397,7 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     makeFileReader,
     makeFileWriter,
     writeFileText,
+    appendFileText,
     readFileText,
     readFileBytes,
     readFile,
@@ -359,6 +410,8 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     removeDirectory,
     renamePath,
     realPath,
+    pathIdentity,
+    statPath,
     isDirectory,
     exists,
   });
