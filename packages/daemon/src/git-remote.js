@@ -629,8 +629,19 @@ export const makeGitRemote = ({
         ...event,
       }),
     );
+    // Preserve the `'create'` entry across rolling shifts past
+    // `AUDIT_LIMIT` so the audit log always names the policy the
+    // remote was constructed against.  The shift removes the second
+    // entry (the oldest non-`'create'` event) when the head is the
+    // sentinel.
     if (auditLog.length > AUDIT_LIMIT) {
-      auditLog.shift();
+      const headIsCreate =
+        /** @type {{ type?: string }} */ (auditLog[0])?.type === 'create';
+      if (headIsCreate && auditLog.length > 1) {
+        auditLog.splice(1, 1);
+      } else {
+        auditLog.shift();
+      }
     }
   };
 
