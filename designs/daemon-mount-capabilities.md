@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-26 |
+| **Updated** | 2026-05-27 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | Proposed |
+| **Status** | **Complete** |
 
 > **Read in order.**
 > This is doc 1 of 3.
@@ -18,7 +18,7 @@ Finish the `EndoMount` capability so it can serve as the live, handle-first file
 Three pieces land together.
 `EndoMount.snapshot()` becomes real instead of throwing.
 An `EndoMountEntry` value type carries mount-scoped descriptors for paths that may not currently exist (its authority is the issuing mount, not the entry itself).
-A hidden `EndoMountBacking` Exo facet on the mount formula gives trusted daemon code physical-worktree access without leaking host paths to guests.
+A privileged host-method accessor (`EndoHost.provideHostPath`) lets trusted daemon code recover the physical-worktree path for a daemon-minted mount without leaking that path through the public mount facet to guests.
 The mount surface stays read-compatible with `ReadableTree` / `ReadableBlob`.
 
 ## What You Should Know First
@@ -145,11 +145,12 @@ Future read-only views should prefer exposing read-only interfaces rather than o
 
 | Capability | Role |
 |---|---|
-| `EndoMountBacking` | Trusted physical-backing facet or sealed grant for daemon providers that need the real worktree path |
+| `EndoHost.provideHostPath(cap)` | Privileged accessor on `EndoHost` that resolves a daemon-minted `EndoMount` capability to its physical-worktree path by consulting the daemon's formula registry; available only to host-side code, never to guests |
 | `EndoMountControl` | Future caretaker facet for host-only mutability / revocation control, if the broader capability-filesystem plan is realized |
 
-`EndoMountBacking` is deliberately not part of the guest-facing interface.
+`provideHostPath` is deliberately not part of the guest-facing interface.
 It is the bridge a trusted provider such as native git needs in order to operate on the same physical worktree without making that path observable to the guest.
+The accessor lives on `EndoHost`; passing it a mount that this daemon did not mint (a sub-mount view from `mount.lookup()`, a `readOnly()` attenuation, a foreign capability) is a structured error rather than a host-path leak.
 Its purpose is to keep adjacent capabilities such as `Git` downstream of an already-authorized mount rather than letting them become parallel raw-path grants.
 
 ## Proposed Interfaces
@@ -196,11 +197,14 @@ interface EndoMount {
   // void.  The path locates where to act; it is not a held reference
   // to a node.  Failure modes are the usual filesystem ones
   // (EEXIST, ENOENT-parent, EACCES).  `makeFile` is the path-form
-  // sibling of `makeDirectory` for parallel construction and for
-  // binary content; the existing `writeText(path, content)` remains
-  // the truncate-and-write path for the text-only case.
+  // sibling of `makeDirectory` for parallel construction; the existing
+  // `writeText(path, content)` remains the truncate-and-write path for
+  // the text-only case.  `makeFile` accepts string content only —
+  // mutable typed arrays (`Uint8Array`) are rejected at the exo
+  // boundary because they do not cross CapTP; binary content is
+  // supplied via `write(path, readableBlob)` / `copy(from, to)`.
   makeDirectory(path: string[]): Promise<void>;
-  makeFile(path: string[], content?: string | Uint8Array): Promise<void>;
+  makeFile(path: string[], content?: string): Promise<void>;
   remove(path: string[]): Promise<void>;
   move(from: string[], to: string[]): Promise<void>;
 
@@ -211,7 +215,7 @@ interface EndoMount {
 ```
 
 `lookup()` is the single handle-minting method.
-It returns either an `EndoMount` or an `EndoMountFile` depending on what is at the path, and throws `EndoMountMissingError` for an absent path (see § *`lookup()` semantics on missing nodes* below).
+It returns either an `EndoMount` or an `EndoMountFile` depending on what is at the path, and throws for an absent path (see § *`lookup()` semantics on missing nodes* below).
 There is no separate `openFile` / `openDirectory` pair: `lookup` already covers both kinds, and the existing `mount.has(entry) → mount.lookup(entry)` idiom (or a runtime `kind` check on the returned handle) handles the cases where the caller wants to discriminate.
 
 ### `EndoMountFile`
@@ -313,7 +317,9 @@ If a real use case surfaces where the value shape is awkward enough to warrant r
 
 ### `EndoMount.lookup()` semantics on missing nodes
 
-`EndoMount.lookup(entry)` returns a live handle for an existing node and **throws** `EndoMountMissingError` for a missing one.
+`EndoMount.lookup(entry)` returns a live handle for an existing node and **throws** for a missing one.
+The thrown error today is a plain `Error` whose message identifies the unverifiable path (`Path does not exist and cannot be verified: <path>`); the shipped implementation surfaces this via the same `assertConfined` check that rejects out-of-mount paths, so callers should match on the substring or on the unified missing-vs.-escapes pattern rather than on a dedicated error class.
+A distinct `EndoMountMissingError` class is left as an addition to revisit once a consumer surfaces a need to discriminate missing-path from escapes-confinement programmatically; until then the message-based shape is sufficient.
 Callers that want to test before opening use `mount.has(entry)` first; the `mount.has(entry) → mount.lookup(entry)` pattern is the recommended idiom.
 No `maybeLookup` sibling is part of the initial design; if usage warrants one later, it can be added without contract breakage.
 The throw-on-missing default is consistent with the existing `lookup(path)` behavior that exists today.
@@ -393,33 +399,39 @@ Stronger transactional capture (single filesystem instant across the whole tree)
 Some trusted providers need more than the public read/write surface.
 A git provider, for example, needs to operate on repository metadata and the physical worktree together.
 
-Add a host-private backing abstraction:
+The host-private bridge is a privileged accessor on `EndoHost`:
 
 ```ts
-interface EndoMountBacking {
-  kind(): 'physical';
-  // Returned only to trusted daemon code, never to guests.
-  getPhysicalRoot(): string;
-  grantFor(entry?: EndoMountEntry): SealedMountGrant;
+interface EndoHost {
+  // …existing EndoHost surface…
+  // Trusted host-side accessor.  Resolves a daemon-minted mount
+  // capability to its physical-worktree path by consulting the daemon's
+  // formula registry.  Available to host-side code only.
+  provideHostPath(cap: EndoMount): Promise<string>;
 }
 ```
 
-### Implementation: Hidden Facet on the Mount Formula
+### Implementation: Privileged Accessor on `EndoHost`
 
-The mount formula gains an additional Exo facet — `EndoMountBacking` — that lives alongside the guest-visible `EndoMount` and `EndoMountFile` facets but is never returned by any public method.
-Trusted daemon code holds a reference to the backing facet through a private host-side name table keyed on the mount's formula identifier; guest-visible introspection (`__getMethodNames__`, `inspect`, etc.) sees only the public facets.
+`EndoHost.provideHostPath(cap)` recovers the physical-worktree path for a daemon-minted mount by looking the mount's exo up in the daemon's formula registry (`getIdForRef`) and consulting `getMountHostPath` against the resolved formula identifier.
+The accessor lives on `EndoHost` (a host-side capability), not on `EndoMount` itself; guest-visible introspection (`__getMethodNames__`, `inspect`) on a mount sees only the public mount methods.
 
-Trade-off rationale (WeakMap vs sealer/unsealer were the other live options):
+Resolvable inputs are restricted to top-level `mount` / `scratch-mount` formulas.
+Sub-mount views minted by `mount.lookup()` and read-only attenuations minted by `mount.readOnly()` are *not* top-level mount formulas — they do not have their own formula identifier — and `provideHostPath` throws a structured error rather than returning a path for them.
+Callers that need a sub-tree path mint a fresh `provideMount(absolutePath, …)` against the sub-tree's host path instead.
 
-- a hidden Exo facet **survives daemon restart trivially** because it is reconstituted from the same formula as its sibling public facet, which matches `provideGit()`'s expectation that "the mount-derived `Git` capability re-derives correctly after restart" without any extra persistence machinery;
+Trade-off rationale (a hidden Exo facet, a `WeakMap` keyed on the public Exo, and a sealer/unsealer pair were the other options considered):
+
+- the privileged-accessor shape **survives daemon restart trivially** because the formula registry is already reconstituted from disk; `getIdForRef(cap)` returns the same formula identifier across CapTP round-trips and across restarts, so `provideGit()`'s expectation that "the mount-derived `Git` capability re-derives correctly after restart" is satisfied without any extra persistence machinery;
 - a `WeakMap` keyed on the public Exo would not survive restart; every `provideGit()` after restart would have to re-derive the backing out-of-band, doubling the surface that has to know about mount internals;
+- a hidden sibling Exo facet on the mount formula would need new multi-facet support in the formula reconstitution path (today's `mount` formula returns one `makeExo` per formula id; see [§ Phase 4 prerequisite](#phase-4-add-trusted-backing-provenance)) and would still need a host-private routing table to address the hidden facet — the same routing the privileged accessor performs explicitly;
 - a sealer/unsealer pair would need a persisted seal key with its own threat model (where does the key live, how is it rotated, who else has unseal authority) and adds a separate first-class secret to the daemon.
 
-The hidden-facet implementation:
+The privileged-accessor implementation:
 
-- guests can pass mounts and entries around without ever observing the backing facet;
-- trusted providers prove two values belong to the same physical mount by identity-checking against the backing facet keyed on the public mount's formula id;
-- no public method reveals ambient filesystem paths; `getPhysicalRoot()` is on the backing facet only.
+- guests can pass mounts and entries around without ever observing a backing path;
+- trusted host-side providers prove a mount is locally minted by identity-checking against the formula registry, and then ask the daemon for the physical-worktree path through the accessor;
+- no public method on `EndoMount` reveals ambient filesystem paths; the accessor is the single, audited choke-point on `EndoHost`.
 
 ## Relationship to `@endo/platform/fs`
 
@@ -463,8 +475,9 @@ codebase, and the read surface is structurally satisfied today —
 
 Specializing keeps a single Exo, a single confinement check per method,
 and a single set of mount-specific extensions (`entry`, `stat(entry)`,
-`displayPath`, `EndoMountBacking`, symlink-confined realpath checks)
-co-located with the methods they constrain.
+`displayPath`, symlink-confined realpath checks) co-located with the
+methods they constrain.
+The host-private backing accessor lives on `EndoHost` (see § *Host-Private Physical Backing*) rather than on the mount Exo, so the mount specialization does not need to carry it.
 A wrapper shape would instead need a platform `Directory` Exo built
 first, then a daemon Exo around it.
 That arrangement would split the confinement boundary across two
@@ -534,54 +547,53 @@ hub is a separate decision with wide blast radius.
 
 ### Phase 1: Finish the Existing Contract
 
-- [ ] Implement `EndoMount.snapshot()`.
-- [ ] Add integration tests for snapshot round-tripping:
-  - [ ] live mount -> snapshot tree
-  - [ ] nested directories
-  - [ ] binary file streaming
-  - [ ] symlink confinement behavior
-- [ ] Update `daemon-mount.md` status once shipped.
+- [x] Implement `EndoMount.snapshot()`.
+- [x] Add integration tests for snapshot round-tripping:
+  - [x] live mount -> snapshot tree
+  - [x] nested directories
+  - [x] binary file streaming
+  - [x] symlink confinement behavior
+- [x] Update `daemon-mount.md` status once shipped.
 
 ### Phase 2: Add Entry Descriptors
 
-- [ ] Add `EndoMountEntryInterface`.
-- [ ] Add `entry(path)` to `EndoMount`.
-- [ ] Store normalized relative segments plus mount lineage provenance.
-- [ ] Add `segments()`, `displayPath()`, and `child()` on entries (value-shaped, no observational authority and no handle-minting per Design Decision 3).
-- [ ] Observational queries (`has(entry)`, `stat(entry)`) and handle-minting (`lookup(entry)`) all live on `EndoMount` and accept an entry as the path-bearing argument; see next phase.
-- [ ] Add descriptor provenance tests:
-  - [ ] entries from one mount rejected by another mount
-  - [ ] read-only entries (via `readOnly()` mount) cannot regain write authority through handle-minting on a sibling mutable mount
-  - [ ] missing entries can round-trip without creating files
+- [x] Add `EndoMountEntryInterface`.
+- [x] Add `entry(path)` to `EndoMount`.
+- [x] Store normalized relative segments plus mount lineage provenance.
+- [x] Add `segments()`, `displayPath()`, and `child()` on entries (value-shaped, no observational authority and no handle-minting per Design Decision 3).
+- [x] Observational queries (`has(entry)`, `stat(entry)`) and handle-minting (`lookup(entry)`) all live on `EndoMount` and accept an entry as the path-bearing argument; see next phase.
+- [x] Add descriptor provenance tests:
+  - [x] entries from one mount rejected by another mount
+  - [x] read-only entries (via `readOnly()` mount) cannot regain write authority through handle-minting on a sibling mutable mount
+  - [x] missing entries can round-trip without creating files
 
 ### Phase 3: Add Entry Overloads, Metadata, and the `makeFile` Sibling
 
-- [ ] Add the `lookup(entry)`, `has(entry)`, and `stat(entry)` overloads on `EndoMount`.
+- [x] Add the `lookup(entry)`, `has(entry)`, and `stat(entry)` overloads on `EndoMount`.
   Each accepts an entry as the path-bearing argument (the no-observational-authority queries an earlier draft had on the entry itself).
-- [ ] Add `stat(path)` for the path-form metadata query.
-- [ ] Add `makeFile(path, content?)` as the path-form sibling of `makeDirectory` (parallel construction; binary content via `Uint8Array`).
+- [x] Add `stat(path)` for the path-form metadata query.
+- [x] Add `makeFile(path, content?)` as the path-form sibling of `makeDirectory` (parallel construction; string content only — binary content is supplied via `write(path, readableBlob)` because mutable typed arrays do not cross CapTP).
   Existing path-form mutators (`writeText`, `remove`, `move`, `makeDirectory`) keep their current signatures unchanged.
-- [ ] Add `stat`, `append`, and `snapshot` on `EndoMountFile`.
-- [ ] Keep existing path convenience methods for compatibility.
-- [ ] Update help text and TypeScript declarations together with interface guards.
+- [x] Add `stat`, `append`, and `snapshot` on `EndoMountFile`.
+- [x] Keep existing path convenience methods for compatibility.
+- [x] Update help text and TypeScript declarations together with interface guards.
 
 ### Phase 4: Add Trusted Backing Provenance
 
-- [ ] Introduce the host-private physical-backing facet or sealed-grant mechanism.
-- [ ] Ensure public mounts do not expose backing paths.
-- [ ] Add tests proving trusted code can correlate a mount with its backing while guest-visible introspection cannot recover that path.
+- [x] Introduce the host-private physical-backing mechanism.
+- [x] Ensure public mounts do not expose backing paths.
+- [x] Add tests proving trusted code can correlate a mount with its backing while guest-visible introspection cannot recover that path.
 
-**Prerequisite.** The rationale claim that the hidden-facet implementation "survives daemon restart trivially because it is reconstituted from the same formula" assumes the daemon's formula machinery can reconstitute a sibling facet alongside the public `EndoMount` facet on the same formula.  Today's `mount` formula in `packages/daemon/src/mount.js` returns a single `makeExo('EndoMount', ...)` and `packages/daemon/src/daemon.js`'s formula switch (`case 'mount':`) returns one Exo per formula id.  The phase therefore depends on one of:
-- adding multi-facet support to the formula reconstitution path (a sibling Exo on the same formula id, addressable through a host-private name table keyed by formula id), or
-- expressing the backing facet as a derived formula that reconstitutes from the same mount formula id but lives in a separate host-private name table.
-
-The current implementation supports neither out of the box; the phase's first task is to choose between those two paths (or a third that the maintainer prefers) and to add the supporting formula-machinery change before any backing-facet code lands.
+**Resolution.** The phase landed as a privileged host-side accessor (`EndoHost.provideHostPath`) rather than as a hidden sibling Exo facet on the mount formula or a sealer/unsealer pair.
+The accessor consults the daemon's formula registry (`getIdForRef` plus `getMountHostPath`) and resolves only top-level `mount` / `scratch-mount` formula identifiers; sub-mount views from `mount.lookup()` and read-only attenuations from `mount.readOnly()` are rejected with a structured error rather than producing a host path.
+This shape sidesteps the formula-machinery prerequisite the earlier hidden-facet draft carried — today's `mount` formula in `packages/daemon/src/mount.js` returns a single `makeExo('EndoMount', ...)` and `packages/daemon/src/daemon.js`'s formula switch (`case 'mount':`) returns one Exo per formula id, and the privileged-accessor shape does not require that to change.
+See § [*Host-Private Physical Backing*](#host-private-physical-backing) for the full rationale and the trade-off against the hidden-facet and sealer/unsealer alternatives.
 
 ### Phase 5: Converge with Shared Filesystem Types
 
-- [ ] Add adapters or aliases to make `EndoMount` / `EndoMountFile` satisfy the `Directory` / `File` contracts where practical.
-- [ ] Decide whether `EndoMount` remains a daemon-specific wrapper around `Directory` or becomes a daemon-local specialization.
-- [ ] Keep `ReadableTree` / `ReadableBlob` compatibility tests in place during migration.
+- [x] Add adapters or aliases to make `EndoMount` / `EndoMountFile` satisfy the `Directory` / `File` contracts where practical.
+- [x] Decide whether `EndoMount` remains a daemon-specific wrapper around `Directory` or becomes a daemon-local specialization.
+- [x] Keep `ReadableTree` / `ReadableBlob` compatibility tests in place during migration.
 
 ## Migration Notes
 
@@ -589,7 +601,8 @@ The current implementation supports neither out of the box; the phase's first ta
   `makeDirectory` keeps its name and shape; it is the established convention across `daemon-mount`, `platform-fs`, `daemon-weblet-application`, `filesystem-watchers`, the implemented `packages/platform/src/fs` surface, and its consumers in `packages/chat`, `packages/fae`, and `packages/lal`.
 - `makeFile(path, content?)` is the new path-form sibling of `makeDirectory`.
   It is additive: no existing method is renamed, removed, or re-typed.
-  `writeText(path, content)` remains the truncate-and-write path for the text-only case; `makeFile` is the constructive sibling for parallel use with `makeDirectory` and for binary content.
+  `writeText(path, content)` remains the truncate-and-write path for the text-only case; `makeFile` is the constructive sibling for parallel use with `makeDirectory`.
+  Binary content is not supplied through `makeFile` — mutable typed arrays do not cross CapTP, so callers wrap raw bytes in a `ReadableBlob` and use `write(path, readableBlob)` (or `copy(from, to)`) instead.
 - Entry overloads (`has(entry)`, `stat(entry)`, `lookup(entry)`) are additive overloads on existing query / handle-minting methods; the path-form callers remain unchanged.
 - New code that performs more than one operation on the same node should prefer entries and handles.
 - Git should depend on `EndoMountEntry`, not on free-form relative path strings.
@@ -631,8 +644,10 @@ Each lives as a checklist item under its associated phase.
    The entry carries no live-filesystem authority at all: no observational queries (`exists`, `stat`) and no handle-minting (`lookup`).
    Both axes live on `EndoMount` and accept an entry as the path-bearing argument (`mount.has(entry)`, `mount.stat(entry)`, `mount.lookup(entry)`).
    The entry is a passable, deeply read-only value the agent can hand around without conferring access.
-4. **`EndoMountBacking` is a hidden Exo facet on the mount formula.**
-   Restart-trivial, no extra persistence machinery, no separate seal key.
+4. **Host-private backing is a privileged accessor on `EndoHost`.**
+   `EndoHost.provideHostPath(cap)` resolves a daemon-minted mount capability to its physical-worktree path by consulting the daemon's formula registry; the accessor is host-side only and rejects sub-mount views, read-only attenuations, and foreign capabilities with a structured error.
+   Restart-trivial (the formula registry is already reconstituted from disk), no extra formula-machinery prerequisite, no separate seal key.
+   Considered and rejected: a hidden sibling Exo facet on the mount formula (would require multi-facet support in the formula reconstitution path) and a sealer/unsealer pair (would add a persisted secret with its own threat model); the privileged-accessor shape achieves the same host-vs.-guest separation with less machinery.
 5. **Snapshot consistency is per-file, best-effort per-tree.**
    Stronger modes are a future addition gated on a real consumer.
 6. **`readOnly()` keeps the same-named-throwing-Exo convention initially.**
