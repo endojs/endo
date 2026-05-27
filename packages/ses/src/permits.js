@@ -865,6 +865,8 @@ export const permitted = {
     getYear: fn,
     setYear: fn,
     toGMTString: fn,
+
+    toTemporalInstant: false,
   },
 
   // Text Processing
@@ -1253,6 +1255,8 @@ export const permitted = {
     entries: fn,
     forEach: fn,
     get: fn,
+    getOrInsert: fn,
+    getOrInsertComputed: fn,
     has: fn,
     keys: fn,
     set: fn,
@@ -1324,6 +1328,8 @@ export const permitted = {
     constructor: 'WeakMap',
     delete: fn,
     get: fn,
+    getOrInsert: fn,
+    getOrInsertComputed: fn,
     has: fn,
     set: fn,
     '@@toStringTag': 'string',
