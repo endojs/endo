@@ -340,6 +340,8 @@ test('GitRemote passes HTTPS credential material to backend transport only', asy
   });
   const git = makeGit({ mount: Far('FakeMount', {}), backend });
   const credential = exampleCredential();
+  const credentialController = getGitCredentialController(credential);
+  t.truthy(credentialController);
   const { remote } = makeGitRemote({
     git,
     name: 'origin',
@@ -351,6 +353,8 @@ test('GitRemote passes HTTPS credential material to backend transport only', asy
       pushRefspecs: [],
     },
   });
+  const remoteController = getGitRemoteController(remote);
+  t.truthy(remoteController);
 
   t.false(JSON.stringify(await E(remote).inspect()).includes('test-token'));
   await E(remote).fetch();
@@ -359,6 +363,26 @@ test('GitRemote passes HTTPS credential material to backend transport only', asy
     /** @type {{ credential?: unknown }} */ (fetchCalls[0]).credential,
     harden({ kind: 'bearer', material: harden({ token: 'test-token' }) }),
   );
+
+  // The audit-log surface must not embed any credential material —
+  // not the initial token, not a rotated token, and not a revoked
+  // token.  Widening the negative-string check across the rotate-plus-
+  // revoke path keeps the secrecy invariant load-bearing on the same
+  // axis the transport check above covers.
+  await E(credentialController).rotate({ token: 'rotated-token' });
+  await E(remote).fetch();
+  await E(credentialController).revoke();
+  await t.throwsAsync(E(remote).fetch(), {
+    message: /credential .* revoked/,
+  });
+  const remoteAudit = JSON.stringify(await E(remoteController).audit());
+  t.false(remoteAudit.includes('test-token'));
+  t.false(remoteAudit.includes('rotated-token'));
+  const credentialView = JSON.stringify(
+    await E(credentialController).inspect(),
+  );
+  t.false(credentialView.includes('test-token'));
+  t.false(credentialView.includes('rotated-token'));
 });
 
 test('GitCredentialController rotates material used by existing remotes', async t => {
