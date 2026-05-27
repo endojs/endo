@@ -873,6 +873,35 @@ test('makeGitRemote rejects a read-only Git cap', async t => {
   );
 });
 
+test('makeGitRemote rejects a spoofed Git cap not minted by the daemon', async t => {
+  // A spoof exo shaped like Git is not in the daemon's
+  // `gitReadOnly` / `gitBackends` WeakMaps, so `getGitBackend`
+  // returns undefined and the constructor refuses.  This pins the
+  // host-side check-before-trust gate that keeps `makeGitRemote`
+  // from composing against a guest-fabricated Git.
+  const spoofGit = Far('SpoofGit', {
+    /** @returns {Promise<unknown>} */
+    async readOnly() {
+      return spoofGit;
+    },
+  });
+  t.throws(
+    () =>
+      makeGitRemote({
+        git: spoofGit,
+        name: 'origin',
+        credential: exampleCredential(),
+        policy: {
+          url: 'https://github.com/example/repo.git',
+          allowedDirections: ['fetch'],
+          fetchRefspecs: [],
+          pushRefspecs: [],
+        },
+      }),
+    { message: /GitRemote requires a daemon-minted Git cap/ },
+  );
+});
+
 test('GitRemoteController mutates policy, snapshot reflects the change', async t => {
   const { git } = await provisionGitContext(t);
   const { remote, controller } = makeGitRemote({
