@@ -21,6 +21,9 @@
       "path": "packages/captp/tsconfig.composite.json"
     },
     {
+      "path": "packages/chat/tsconfig.composite.json"
+    },
+    {
       "path": "packages/check-bundle/tsconfig.composite.json"
     },
     {
@@ -57,6 +60,12 @@
       "path": "packages/exo/tsconfig.composite.json"
     },
     {
+      "path": "packages/exo-stream/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/familiar/tsconfig.composite.json"
+    },
+    {
       "path": "packages/far/tsconfig.composite.json"
     },
     {
@@ -78,7 +87,13 @@
       "path": "packages/init/tsconfig.composite.json"
     },
     {
+      "path": "packages/lal/tsconfig.composite.json"
+    },
+    {
       "path": "packages/lp32/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/markmdown/tsconfig.composite.json"
     },
     {
       "path": "packages/marshal/tsconfig.composite.json"
@@ -115,6 +130,9 @@
     },
     {
       "path": "packages/promise-kit/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/sandbox/tsconfig.composite.json"
     },
     {
       "path": "packages/ses-ava/tsconfig.composite.json"
