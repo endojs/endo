@@ -626,6 +626,8 @@ Remote repository interaction is still required for an agent MVP; it is specifie
 - No raw git command passthrough; no public config mutation.
 - No push, pull, fetch, clone, remote mutation, or credential helpers (those live separately on [daemon-git-remotes](daemon-git-remotes.md)).
 - No hooks, aliases, external diff, fsmonitor, textconv, custom filters, merge drivers, or signing helpers unless a future explicit capability design authorizes them.
+  Repo-local executable filter / merge-driver config is verified absent before each mutating worktree operation (`add`, `restore`, `commit`, branch create / rename / delete / switch, `detach`, `switch`, `merge`, `rebase`, and the worktree-touching `stash*` verbs).
+  Read-only inspection methods (`status`, `diff`, `log`, `show`, `revParse`, `branches`, `currentBranch`, `stashList`, `stashShow`, `tree`) dispatch straight to the backend and do not re-check, because they cannot invoke a filter or merge driver in the first place.
 - No accepting arbitrary host paths; all path-bearing operations consume `EndoMountEntry` values from the same worktree mount.
 
 ### Read-Only and Snapshot Interactions
