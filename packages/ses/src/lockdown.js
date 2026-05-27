@@ -36,6 +36,7 @@ import removeUnpermittedIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
 import tameDateConstructor from './tame-date-constructor.js';
 import tameMathObject from './tame-math-object.js';
+import tameTemporalObject from './tame-temporal-object.js';
 import { tameNaNSideChannel } from './tame-nan-sidechannel.js';
 import tameRegExpConstructor from './tame-regexp-constructor.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
@@ -354,6 +355,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameDateConstructor());
   addIntrinsics(tameErrorConstructor(errorTaming, stackFiltering));
   addIntrinsics(tameMathObject());
+  addIntrinsics(tameTemporalObject());
   tameNaNSideChannel();
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
