@@ -8,6 +8,7 @@ const formulaTypes = new Set([
   'directory',
   'endo',
   'eval',
+  'git',
   'guest',
   'handle',
   'host',

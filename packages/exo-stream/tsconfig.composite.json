@@ -6,16 +6,7 @@
   },
   "references": [
     {
-      "path": "../bytes/tsconfig.composite.json"
-    },
-    {
-      "path": "../compartment-mapper/tsconfig.composite.json"
-    },
-    {
-      "path": "../daemon/tsconfig.composite.json"
-    },
-    {
-      "path": "../errors/tsconfig.composite.json"
+      "path": "../base64/tsconfig.composite.json"
     },
     {
       "path": "../eventual-send/tsconfig.composite.json"
@@ -27,15 +18,6 @@
       "path": "../far/tsconfig.composite.json"
     },
     {
-      "path": "../harden/tsconfig.composite.json"
-    },
-    {
-      "path": "../hex/tsconfig.composite.json"
-    },
-    {
-      "path": "../init/tsconfig.composite.json"
-    },
-    {
       "path": "../pass-style/tsconfig.composite.json"
     },
     {
@@ -45,10 +27,7 @@
       "path": "../promise-kit/tsconfig.composite.json"
     },
     {
-      "path": "../stream-node/tsconfig.composite.json"
-    },
-    {
-      "path": "../where/tsconfig.composite.json"
+      "path": "../stream/tsconfig.composite.json"
     }
   ]
 }
