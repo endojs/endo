@@ -1,6 +1,10 @@
 // @ts-check
 
 import { M } from '@endo/patterns';
+import {
+  DirectoryInterface as PlatformDirectoryInterface,
+  FileInterface as PlatformFileInterface,
+} from '@endo/platform/fs/lite';
 
 // #region Patterns
 
@@ -323,9 +327,11 @@ export const HostInterface = M.interface('EndoHost', {
   provideScratchMount: M.call(NameOrPathShape)
     .optional(M.splitRecord({}, { readOnly: M.boolean() }))
     .returns(M.promise()),
-  // Resolve a Mount capability to its host filesystem path. Used by
-  // the @endo/sandbox factory (and similar make-unconfined plugins)
-  // to translate granted Mount caps into bind-mount source paths.
+  // Resolve a Mount capability to its host filesystem path. This is
+  // deliberately part of the fully privileged EndoHost surface used
+  // by the @endo/sandbox factory (and similar make-unconfined
+  // plugins); do not hand an EndoHost cap to code that should not be
+  // able to recover host paths for daemon-minted top-level mounts.
   provideHostPath: M.call(M.any()).returns(M.promise()),
   // Provide a guest
   provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
@@ -505,36 +511,84 @@ export const BlobInterface = M.interface('EndoBlob', {
 });
 
 const PathSegmentsShape = M.arrayOf(M.string());
-const PathArgShape = M.or(M.string(), PathSegmentsShape);
+const MountEntryShape = M.remotable('EndoMountEntry');
+const PathArgShape = M.or(M.string(), PathSegmentsShape, MountEntryShape);
 
+// `EndoMount` extends `Directory` from `@endo/platform/fs`.  Method
+// shapes that overlap with `PlatformDirectoryInterface` carry the
+// same `M.call(...)` arguments (path segments arrays plus an
+// `M.remotable()` value for `write`) and return shapes; the
+// mount-specific extensions (entry-arg overloads, `entry`, `stat`,
+// `readText`, `maybeReadText`, `writeText`, `makeFile`, `help`) are
+// additions, not redefinitions.  `has` widens `rest()` to `M.any()`
+// because the daemon supports the single-entry-value overload that
+// the platform contract does not name.
 export const MountInterface = M.interface('EndoMount', {
-  // ReadableTree-compatible surface
-  has: M.call().rest(PathSegmentsShape).returns(M.promise()),
+  // ReadableTree-compatible surface.  `has` accepts either variadic
+  // path segments or a single entry value; the impl validates the
+  // shape because rest-with-M.or pattern guards do not narrow
+  // remotables consistently across CapTP.
+  has: M.call().rest(M.any()).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
+  // Directory-shape write/copy (literal shapes from
+  // PlatformDirectoryInterface for the path-segment form; entry-form
+  // overloads accept an `EndoMountEntry` as the path argument).
+  write: M.call(PathArgShape, M.remotable()).returns(M.promise()),
+  copy: M.call(PathArgShape, PathArgShape).returns(M.promise()),
+  // Mount-scoped descriptor minting (no I/O).
+  entry: M.call(M.or(M.string(), PathSegmentsShape)).returns(MountEntryShape),
+  // Metadata.
+  stat: M.call(PathArgShape).returns(M.promise()),
   // Raw data I/O
   readText: M.call(PathArgShape).returns(M.promise()),
   maybeReadText: M.call(PathArgShape).returns(M.promise()),
   writeText: M.call(PathArgShape, M.string()).returns(M.promise()),
+  // Path-form constructors.  `makeDirectory` returns a sub-mount
+  // (matches `Directory.makeDirectory(path): Promise<Directory>`);
+  // `makeFile` is the constructive sibling for parallel use.
+  makeDirectory: M.call(PathArgShape).returns(M.promise()),
+  makeFile: M.call(PathArgShape).optional(M.any()).returns(M.promise()),
   // Mutation
   remove: M.call(PathArgShape).returns(M.promise()),
   move: M.call(PathArgShape, PathArgShape).returns(M.promise()),
-  makeDirectory: M.call(PathArgShape).returns(M.promise()),
-  // Attenuation
-  readOnly: M.call().returns(M.remotable()),
+  // Attenuation — returns a structural ReadableTree view, not an
+  // EndoMount.  Callers that need mount-specific extensions on a
+  // read-only handle keep a reference to the un-attenuated mount.
+  readOnly: M.call().returns(M.remotable('ReadableTree')),
   // Snapshot
   snapshot: M.call().returns(M.promise()),
   // Discoverability
   help: M.call().returns(M.string()),
 });
 
+// `EndoMountFile` extends `File` from `@endo/platform/fs`.  The
+// overlapping methods (`streamBase64`, `text`, `json`, `writeText`,
+// `writeBytes`, `append`, `snapshot`) carry the same shapes as
+// `PlatformFileInterface`; `stat` and `help` are mount-specific
+// extensions.  `readOnly` narrows to a structural ReadableBlob view.
 export const MountFileInterface = M.interface('EndoMountFile', {
   text: M.call().returns(M.promise()),
   streamBase64: M.call().returns(M.remotable()),
   json: M.call().returns(M.promise()),
   writeText: M.call(M.string()).returns(M.promise()),
+  append: M.call(M.string()).returns(M.promise()),
   writeBytes: M.call(M.remotable()).returns(M.promise()),
-  readOnly: M.call().returns(M.remotable()),
+  stat: M.call().returns(M.promise()),
+  snapshot: M.call().returns(M.promise()),
+  readOnly: M.call().returns(M.remotable('ReadableBlob')),
+  help: M.call().returns(M.string()),
+});
+
+// Re-export so importing modules that already pull from
+// `./interfaces.js` can reach the platform shapes without a second
+// import line.
+export { PlatformDirectoryInterface, PlatformFileInterface };
+
+export const MountEntryInterface = M.interface('EndoMountEntry', {
+  segments: M.call().returns(PathSegmentsShape),
+  displayPath: M.call().returns(M.string()),
+  child: M.call(M.string()).returns(MountEntryShape),
   help: M.call().returns(M.string()),
 });
 

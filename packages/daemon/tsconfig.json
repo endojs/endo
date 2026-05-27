@@ -7,6 +7,7 @@
   "include": [
     "*.js",
     "src/**/*.js",
+    "src/libp2p-utils-adaptive-timeout.d.ts",
     "src/types.d.ts",
     "test",
     "types.d.ts",

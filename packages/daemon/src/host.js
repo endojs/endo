@@ -39,6 +39,35 @@ const assertPowersName = name => {
 };
 
 /**
+ * Validate a child name advertised by a remote ReadableTree. These
+ * names are literal entries, not path syntax, so traversal names and
+ * platform separators are rejected before materialization.
+ *
+ * Freestanding twin of `mount.js`'s `assertValidTreeEntryName`; both
+ * have the same effective contract (reject empty, `.`, `..`, `/`, `\`,
+ * `\0`).  The mount-side definition delegates to a local
+ * `assertValidSegment` helper that does not exist in this file, so
+ * this version is written out in one block rather than introducing a
+ * cross-file shared helper for a four-line guard.
+ *
+ * @param {unknown} name
+ */
+const assertValidTreeEntryName = name => {
+  if (
+    typeof name !== 'string' ||
+    name.length === 0 ||
+    name === '.' ||
+    name === '..' ||
+    name.includes('/') ||
+    name.includes('\\') ||
+    name.includes('\0')
+  ) {
+    throw makeError(X`Invalid tree entry name ${q(name)}`);
+  }
+};
+harden(assertValidTreeEntryName);
+
+/**
  * Normalizes host or guest options, providing default values.
  * @param {MakeHostOrGuestOptions | undefined} opts
  * @returns {{ introducedNames: Record<Name, PetName>, agentName?: PetName }}
@@ -286,6 +315,10 @@ export const makeHostMaker = ({
      * sandbox factory (`@endo/sandbox`) calls this for every granted
      * mount before assembling the driver's `SliceSpec`.  Sandbox
      * drivers themselves never call it; only the factory does.
+     * Since EndoHost is a fully privileged host-authority cap, any
+     * holder of one can intentionally recover host paths for
+     * daemon-minted top-level mounts. Less trusted code must receive
+     * an EndoGuest or narrower powers object instead.
      *
      * The resolver rejects any cap the daemon did not mint as a
      * top-level `mount` or `scratch-mount` formula, including
@@ -629,11 +662,23 @@ export const makeHostMaker = ({
     };
 
     /**
-     * Walk a ReadableTree or Mount and materialise every file into the
-     * destination Mount via `writeText`.  Children are identified by
-     * their advertised method names: anything with `text` is a
-     * blob/file; anything with `list` is a subtree.  Both Mount and
+     * Walk a ReadableTree or Mount and materialise every entry into the
+     * destination Mount via `write()`, preserving blob bytes instead
+     * of passing through text decoding. Children are identified by
+     * their advertised method names: anything with `streamBase64` is a
+     * blob/file; anything with `list` is a subtree. Both Mount and
      * ReadableTree surfaces participate.
+     *
+     * Why not just `E(dst).write([], src)`? `EndoMount.write()` performs
+     * the same discovery shape internally, so the walker reads as
+     * duplication.  It is kept here as a per-leaf seam: stageTree
+     * callers (sandbox provisioning, fae/lal tool surfaces) want a
+     * place to land per-entry diagnostics, progress reporting, or
+     * per-leaf policy hooks without re-entering the mount's write
+     * machinery.  Removing the walker in favor of a single `write()`
+     * call would push any future per-leaf work back through the
+     * mount-side primitive, which is the wrong site for host-level
+     * concerns.
      *
      * @param {any} src - source readable-tree or mount
      * @param {any} dst - destination scratch mount (must be writable)
@@ -642,38 +687,22 @@ export const makeHostMaker = ({
     const materializeTree = async (src, dst, pathSegments = []) => {
       const names = await E(src).list(...pathSegments);
       for (const name of names) {
-        // Defense against an adversarial source tree that advertises
-        // path-traversal segments.  Mount.writeText would clamp
-        // these at the confinement root, but they would still cause
-        // the discovery walk to revisit parent directories.
-        if (name === '.' || name === '..' || name.includes('/')) {
-          throw makeError(
-            X`Invalid tree entry name ${q(name)} at ${q(pathSegments)}`,
-          );
-        }
+        assertValidTreeEntryName(name);
         const subPath = [...pathSegments, name];
         // eslint-disable-next-line no-await-in-loop
         const child = await E(src).lookup(subPath);
         const methodNames =
           // eslint-disable-next-line no-await-in-loop, no-underscore-dangle
           await E(child).__getMethodNames__();
-        const looksLikeBlob = methodNames.includes('text');
+        const looksLikeBlob = methodNames.includes('streamBase64');
         const looksLikeTree = methodNames.includes('list');
         if (looksLikeBlob && looksLikeTree) {
           throw makeError(
-            X`Tree entry ${q(subPath)} has both text and list — ambiguous shape`,
+            X`Tree entry ${q(subPath)} has both streamBase64 and list — ambiguous shape`,
           );
-        } else if (looksLikeBlob) {
+        } else if (looksLikeBlob || looksLikeTree) {
           // eslint-disable-next-line no-await-in-loop
-          const content = await E(child).text();
-          // eslint-disable-next-line no-await-in-loop
-          await E(dst).writeText(subPath, content);
-        } else if (looksLikeTree) {
-          // Subdirectory — create it then recurse.
-          // eslint-disable-next-line no-await-in-loop
-          await E(dst).makeDirectory(subPath);
-          // eslint-disable-next-line no-await-in-loop
-          await materializeTree(src, dst, subPath);
+          await E(dst).write(subPath, child);
         } else {
           throw makeError(
             X`Tree entry ${q(subPath)} is neither a blob nor a subtree (methods: ${q(methodNames)})`,
@@ -706,12 +735,9 @@ export const makeHostMaker = ({
       const tree = await provide(/** @type {FormulaIdentifier} */ (treeId));
       // For live mounts, prefer to snapshot the source first so
       // concurrent writes to the mount cannot perturb the running
-      // caplet.  ReadableTrees are already immutable.  Mount's
-      // `snapshot()` is not implemented at the time of writing
-      // (mount.js:305 throws); we therefore swallow that "not yet
-      // implemented" rejection and fall back to walking the live
-      // mount.  When mount.snapshot lands, this code path becomes
-      // automatically isolated.
+      // caplet. ReadableTrees are already immutable. Older mounts
+      // may still reject snapshot(), so keep the live-walk fallback
+      // for compatibility with remote or stale providers.
       let sourceForWalk = tree;
       try {
         // eslint-disable-next-line no-underscore-dangle
