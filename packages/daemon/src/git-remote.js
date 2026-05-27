@@ -782,6 +782,13 @@ export const makeGitRemote = ({
   };
 
   /**
+   * Runtime gate for caller-supplied push overrides (`source` /
+   * `destination` on `push()` options).  Policy refspecs are
+   * shape-validated at construction by `normalizePolicy`; this runtime
+   * check covers the override path only.  The default push (no
+   * override) ships `currentPolicy.pushRefspecs` directly without
+   * passing through this gate.
+   *
    * @param {string} candidate
    */
   const assertPushRefspecAllowed = candidate => {
