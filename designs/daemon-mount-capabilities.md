@@ -5,7 +5,7 @@
 | **Created** | 2026-05-18 |
 | **Updated** | 2026-05-27 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | In Progress |
+| **Status** | **Complete** |
 
 > **Read in order.**
 > This is doc 1 of 3.
@@ -553,7 +553,7 @@ hub is a separate decision with wide blast radius.
   - [x] nested directories
   - [x] binary file streaming
   - [x] symlink confinement behavior
-- [ ] Update `daemon-mount.md` status once shipped.
+- [x] Update `daemon-mount.md` status once shipped.
 
 ### Phase 2: Add Entry Descriptors
 

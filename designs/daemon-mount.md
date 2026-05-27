@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-03-20 |
-| **Updated** | 2026-05-19 |
+| **Updated** | 2026-05-27 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -13,6 +13,12 @@
 `e22f71327` on `llm`; Phases 4 and beyond open as PRs #135 / #127 /
 #277; partial Phase 6 absorbed by PR #153, commit `8a8e872d4`
 2026-05-18).
+Snapshot landed independently 2026-05-27 via
+[PR #339](https://github.com/endojs/endo-but-for-bots/pull/339)
+(the `daemon-mount-capabilities` follow-up, which also reshaped
+`EndoMount` as a `Directory` specialization, added `EndoMountEntry`
+value-typed descriptors, and `makeFile`); PR #135's remaining open
+scope is sub-mounts + capability VFS only.
 
 Phases 1, 2, 3, and 5 landed on `llm` in commit e22f71327
 ("Filesystem mount formulas", 2026-03-21) and follow-up commits
@@ -38,12 +44,14 @@ partially absorbed by the CLI verb reshape in
 - Design phase: 2026-03-21 (single commit `e22f71327`, "Filesystem
   mount formulas"; the same commit carried the design doc add and
   the Phase 1-3 + 5 implementation).
-- Implementation phase: 2026-03-21 → 2026-05-18, ongoing. Burst 1:
+- Implementation phase: 2026-03-21 → 2026-05-27, ongoing. Burst 1:
   2026-03-21 (Phases 1-3 + 5 in `e22f71327`). Burst 2: 2026-03-23 →
   2026-03-25 (`acabec931` helpdown rework, `0e52003c4` Homogenize
   read and write). Burst 3: 2026-05-18 (PR #153 partial Phase 6 in
-  `8a8e872d4`). Phase 4 + remaining Phase 6 work currently open in
-  PRs #127, #135, #277.
+  `8a8e872d4`). Burst 4: 2026-05-27 (PR #339, snapshot +
+  `EndoMount` specialization in `0fae0036e`). Phase 4 sub-mount
+  work and remaining Phase 6 work currently open in PRs #127,
+  #135, #277.
 
 ### Implemented
 
@@ -96,7 +104,6 @@ partially absorbed by the CLI verb reshape in
 ### Not yet implemented
 
 - `provideSubMount` host method (Phase 4)
-- `snapshot()` — currently throws "not yet implemented" (Phase 4)
 - GC cleanup for scratch mount backing directories — extracted to
   [daemon-content-store-gc](daemon-content-store-gc.md)
 - CLI commands: `endo ls`, `endo cat`, `endo write` (Phase 6)
@@ -620,11 +627,14 @@ disk usage, mitigated by GC when the formula becomes unreachable.
 GC cleanup of scratch-mount backing directories is covered by
 [daemon-content-store-gc](daemon-content-store-gc.md).
 
-### Phase 4: Sub-mounts and snapshot — Not Started
+### Phase 4: Sub-mounts and snapshot — Partial
 
 1. Implement `provideSubMount` host method
-2. Implement `snapshot()` using the content store from platform-fs
-3. Tests: sub-mount isolation, snapshot round-trip
+2. ~~Implement `snapshot()` using the content store from platform-fs~~
+   (shipped 2026-05-27 via PR #339; see
+   designs/daemon-mount-capabilities.md)
+3. Tests: sub-mount isolation, ~~snapshot round-trip~~
+   (snapshot-round-trip tests shipped 2026-05-27 via PR #339)
 
 ### Phase 5: Transient lookup exos — **Complete**
 
