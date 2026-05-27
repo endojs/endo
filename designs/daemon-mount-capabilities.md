@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-26 |
+| **Updated** | 2026-05-27 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | Proposed |
+| **Status** | In Progress |
 
 > **Read in order.**
 > This is doc 1 of 3.
@@ -534,42 +534,42 @@ hub is a separate decision with wide blast radius.
 
 ### Phase 1: Finish the Existing Contract
 
-- [ ] Implement `EndoMount.snapshot()`.
-- [ ] Add integration tests for snapshot round-tripping:
-  - [ ] live mount -> snapshot tree
-  - [ ] nested directories
-  - [ ] binary file streaming
-  - [ ] symlink confinement behavior
+- [x] Implement `EndoMount.snapshot()`.
+- [x] Add integration tests for snapshot round-tripping:
+  - [x] live mount -> snapshot tree
+  - [x] nested directories
+  - [x] binary file streaming
+  - [x] symlink confinement behavior
 - [ ] Update `daemon-mount.md` status once shipped.
 
 ### Phase 2: Add Entry Descriptors
 
-- [ ] Add `EndoMountEntryInterface`.
-- [ ] Add `entry(path)` to `EndoMount`.
-- [ ] Store normalized relative segments plus mount lineage provenance.
-- [ ] Add `segments()`, `displayPath()`, and `child()` on entries (value-shaped, no observational authority and no handle-minting per Design Decision 3).
-- [ ] Observational queries (`has(entry)`, `stat(entry)`) and handle-minting (`lookup(entry)`) all live on `EndoMount` and accept an entry as the path-bearing argument; see next phase.
-- [ ] Add descriptor provenance tests:
-  - [ ] entries from one mount rejected by another mount
-  - [ ] read-only entries (via `readOnly()` mount) cannot regain write authority through handle-minting on a sibling mutable mount
-  - [ ] missing entries can round-trip without creating files
+- [x] Add `EndoMountEntryInterface`.
+- [x] Add `entry(path)` to `EndoMount`.
+- [x] Store normalized relative segments plus mount lineage provenance.
+- [x] Add `segments()`, `displayPath()`, and `child()` on entries (value-shaped, no observational authority and no handle-minting per Design Decision 3).
+- [x] Observational queries (`has(entry)`, `stat(entry)`) and handle-minting (`lookup(entry)`) all live on `EndoMount` and accept an entry as the path-bearing argument; see next phase.
+- [x] Add descriptor provenance tests:
+  - [x] entries from one mount rejected by another mount
+  - [x] read-only entries (via `readOnly()` mount) cannot regain write authority through handle-minting on a sibling mutable mount
+  - [x] missing entries can round-trip without creating files
 
 ### Phase 3: Add Entry Overloads, Metadata, and the `makeFile` Sibling
 
-- [ ] Add the `lookup(entry)`, `has(entry)`, and `stat(entry)` overloads on `EndoMount`.
+- [x] Add the `lookup(entry)`, `has(entry)`, and `stat(entry)` overloads on `EndoMount`.
   Each accepts an entry as the path-bearing argument (the no-observational-authority queries an earlier draft had on the entry itself).
-- [ ] Add `stat(path)` for the path-form metadata query.
-- [ ] Add `makeFile(path, content?)` as the path-form sibling of `makeDirectory` (parallel construction; binary content via `Uint8Array`).
+- [x] Add `stat(path)` for the path-form metadata query.
+- [x] Add `makeFile(path, content?)` as the path-form sibling of `makeDirectory` (parallel construction; binary content via `Uint8Array`).
   Existing path-form mutators (`writeText`, `remove`, `move`, `makeDirectory`) keep their current signatures unchanged.
-- [ ] Add `stat`, `append`, and `snapshot` on `EndoMountFile`.
-- [ ] Keep existing path convenience methods for compatibility.
-- [ ] Update help text and TypeScript declarations together with interface guards.
+- [x] Add `stat`, `append`, and `snapshot` on `EndoMountFile`.
+- [x] Keep existing path convenience methods for compatibility.
+- [x] Update help text and TypeScript declarations together with interface guards.
 
 ### Phase 4: Add Trusted Backing Provenance
 
 - [ ] Introduce the host-private physical-backing facet or sealed-grant mechanism.
-- [ ] Ensure public mounts do not expose backing paths.
-- [ ] Add tests proving trusted code can correlate a mount with its backing while guest-visible introspection cannot recover that path.
+- [x] Ensure public mounts do not expose backing paths.
+- [x] Add tests proving trusted code can correlate a mount with its backing while guest-visible introspection cannot recover that path.
 
 **Prerequisite.** The rationale claim that the hidden-facet implementation "survives daemon restart trivially because it is reconstituted from the same formula" assumes the daemon's formula machinery can reconstitute a sibling facet alongside the public `EndoMount` facet on the same formula.  Today's `mount` formula in `packages/daemon/src/mount.js` returns a single `makeExo('EndoMount', ...)` and `packages/daemon/src/daemon.js`'s formula switch (`case 'mount':`) returns one Exo per formula id.  The phase therefore depends on one of:
 - adding multi-facet support to the formula reconstitution path (a sibling Exo on the same formula id, addressable through a host-private name table keyed by formula id), or
@@ -579,9 +579,9 @@ The current implementation supports neither out of the box; the phase's first ta
 
 ### Phase 5: Converge with Shared Filesystem Types
 
-- [ ] Add adapters or aliases to make `EndoMount` / `EndoMountFile` satisfy the `Directory` / `File` contracts where practical.
-- [ ] Decide whether `EndoMount` remains a daemon-specific wrapper around `Directory` or becomes a daemon-local specialization.
-- [ ] Keep `ReadableTree` / `ReadableBlob` compatibility tests in place during migration.
+- [x] Add adapters or aliases to make `EndoMount` / `EndoMountFile` satisfy the `Directory` / `File` contracts where practical.
+- [x] Decide whether `EndoMount` remains a daemon-specific wrapper around `Directory` or becomes a daemon-local specialization.
+- [x] Keep `ReadableTree` / `ReadableBlob` compatibility tests in place during migration.
 
 ## Migration Notes
 
