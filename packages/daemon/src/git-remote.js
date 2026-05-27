@@ -35,9 +35,53 @@ import { assertGitCredentialForUrl } from './git-credential.js';
  */
 
 /**
- * @typedef {object} GitRemoteAuditEvent
+ * Audit-log entry shape.  Every entry carries `sequence` and `type`;
+ * the additional fields are type-discriminated.  The union form below
+ * narrows on `type` so consumers of `audit()` can branch without
+ * casting.
+ *
+ * @typedef {object} GitRemoteAuditEventBase
  * @property {number} sequence
- * @property {string} type
+ */
+
+/**
+ * @typedef {GitRemoteAuditEventBase & {
+ *   type: 'create' | 'revoke' | 'policy',
+ *   policy: ReturnType<() => GitRemotePolicy & { name: string }>,
+ *   revoked: boolean,
+ *   method?: string,
+ * }} GitRemotePolicyAuditEvent
+ */
+
+/**
+ * @typedef {GitRemoteAuditEventBase & {
+ *   type: 'fetch' | 'pull' | 'push',
+ *   outcome: 'ok',
+ *   updatedRefs?: unknown,
+ *   integration?: 'up-to-date' | 'fast-forward' | 'merge' | 'rebase',
+ *   head?: unknown,
+ * }} GitRemoteOperationSuccessAuditEvent
+ */
+
+/**
+ * `appliedLocally` records that the pull's local integration step
+ * mutated HEAD before a later policy / credential / revoke event
+ * forced the operation to throw.  Callers learn the operation failed;
+ * the audit log names which side effect already landed on the
+ * worktree.
+ *
+ * @typedef {GitRemoteAuditEventBase & {
+ *   type: 'fetch' | 'pull' | 'push',
+ *   outcome: 'error',
+ *   message: string,
+ *   appliedLocally?: boolean,
+ * }} GitRemoteOperationFailureAuditEvent
+ */
+
+/**
+ * @typedef {GitRemotePolicyAuditEvent
+ *   | GitRemoteOperationSuccessAuditEvent
+ *   | GitRemoteOperationFailureAuditEvent} GitRemoteAuditEvent
  */
 
 const DEFAULT_POLICY = harden(
@@ -672,13 +716,15 @@ export const makeGitRemote = ({
   /**
    * @param {string} type
    * @param {unknown} err
+   * @param {{ appliedLocally?: boolean }} [extra]
    */
-  const recordOperationFailure = (type, err) => {
+  const recordOperationFailure = (type, err, extra = {}) => {
     recordAudit({
       type,
       outcome: 'error',
       message:
         /** @type {{ message?: string }} */ (err)?.message || String(err),
+      ...(extra.appliedLocally ? { appliedLocally: true } : {}),
     });
   };
 
@@ -865,6 +911,7 @@ export const makeGitRemote = ({
     async pull(options = {}) {
       await null;
       let fence;
+      let appliedLocally = false;
       try {
         ensureDirection('fetch');
         const fetchOptions = fetchOptionsFromOptions(options);
@@ -890,18 +937,23 @@ export const makeGitRemote = ({
         }
         assertOperationFence('pull', fence);
         const branch = normalizePullBranch(opts.branch);
+        /** @type {'merge' | 'rebase' | 'ff-only'} */
         const strategy = opts.strategy || 'ff-only';
         const headBefore = await E(git).revParse('HEAD');
-        if (strategy === 'ff-only') {
-          await E(git).merge(branch, { fastForwardOnly: true });
-        } else if (strategy === 'merge') {
-          await E(git).merge(branch);
-        } else if (strategy === 'rebase') {
-          await E(git).rebase({ mode: 'start', upstream: branch });
-        } else {
-          throw new Error(
-            'GitRemote.pull strategy must be merge, rebase, or ff-only',
-          );
+        switch (strategy) {
+          case 'ff-only':
+            await E(git).merge(branch, { fastForwardOnly: true });
+            break;
+          case 'merge':
+            await E(git).merge(branch);
+            break;
+          case 'rebase':
+            await E(git).rebase({ mode: 'start', upstream: branch });
+            break;
+          default:
+            throw new Error(
+              'GitRemote.pull strategy must be merge, rebase, or ff-only',
+            );
         }
         const head = await E(git).revParse('HEAD');
         const headOidBefore =
@@ -911,10 +963,23 @@ export const makeGitRemote = ({
         let integration;
         if (headOidBefore === headOid) {
           integration = 'up-to-date';
-        } else if (strategy === 'ff-only') {
-          integration = 'fast-forward';
         } else {
-          integration = strategy;
+          appliedLocally = true;
+          switch (strategy) {
+            case 'ff-only':
+              integration = 'fast-forward';
+              break;
+            case 'merge':
+              integration = 'merge';
+              break;
+            case 'rebase':
+              integration = 'rebase';
+              break;
+            default:
+              throw new Error(
+                'GitRemote.pull strategy must be merge, rebase, or ff-only',
+              );
+          }
         }
         const result = harden({ fetch, integration, head });
         assertOperationFence('pull', fence);
@@ -923,7 +988,7 @@ export const makeGitRemote = ({
       } catch (err) {
         const finalErr =
           fence === undefined ? err : operationError('pull', fence, err);
-        recordOperationFailure('pull', finalErr);
+        recordOperationFailure('pull', finalErr, { appliedLocally });
         throw finalErr;
       }
     },
