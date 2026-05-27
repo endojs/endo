@@ -5,6 +5,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Buffer } from 'node:buffer';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -623,6 +624,86 @@ test('NativeGitBackend version parser enforces the documented git floor', t => {
   t.throws(() => assertSupportedGitVersion('git version 2.29.9'), {
     message: /requires git >= 2\.30\.0/,
   });
+});
+
+test('NativeGitBackend credential transport satisfies git HTTP auth challenge', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const backend = makeNativeGitBackend({ repoRoot });
+  /** @type {string[]} */
+  const authorizations = [];
+  const server = http.createServer((req, res) => {
+    const authorization = req.headers.authorization;
+    if (authorization !== undefined) {
+      authorizations.push(authorization);
+      res.writeHead(404);
+      res.end('not a git repository');
+      return;
+    }
+    res.writeHead(401, {
+      'WWW-Authenticate': 'Basic realm="Endo Git Test"',
+    });
+    res.end('auth required');
+  });
+  await new Promise(resolve => {
+    server.listen(0, '127.0.0.1', () => resolve(undefined));
+  });
+  const address = /** @type {import('node:net').AddressInfo} */ (
+    server.address()
+  );
+  try {
+    await t.throwsAsync(
+      backend.remoteFetch({
+        url: `http://127.0.0.1:${address.port}/repo.git`,
+        refspecs: [],
+        credential: harden({
+          kind: 'bearer',
+          material: harden({ token: 'test-token' }),
+        }),
+      }),
+      { message: /git fetch failed/ },
+    );
+  } finally {
+    await new Promise(resolve => {
+      server.close(() => resolve(undefined));
+    });
+  }
+
+  const expected = `Basic ${Buffer.from('x-access-token:test-token').toString(
+    'base64',
+  )}`;
+  t.true(authorizations.includes(expected));
+});
+
+test('NativeGitBackend.remoteFetch rejects repo-local URL rewrites', async t => {
+  const sourceRepo = await provisionGitWorktree(t);
+  const remoteParent = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'native-git-remote-'),
+  );
+  t.teardown(() =>
+    fs.promises.rm(remoteParent, { recursive: true, force: true }),
+  );
+  const remoteRoot = path.join(remoteParent, 'remote.git');
+  await execFileAsync('git', ['clone', '--bare', sourceRepo, remoteRoot]);
+
+  const repoRoot = await provisionGitWorktree(t);
+  await execFileAsync(
+    'git',
+    [
+      'config',
+      `url.file://${remoteRoot}.insteadOf`,
+      'https://trusted.example/repo',
+    ],
+    { cwd: repoRoot },
+  );
+
+  const backend = makeNativeGitBackend({ repoRoot });
+  await t.throwsAsync(
+    backend.remoteFetch({
+      url: 'https://trusted.example/repo',
+      refspecs: ['refs/heads/main:refs/remotes/origin/main'],
+    }),
+    { message: /repository config can alter remote transport.*url\./ },
+  );
 });
 
 test('NativeGitBackend.diff returns worktree changes by default', async t => {
