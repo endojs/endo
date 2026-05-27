@@ -1,5 +1,17 @@
 # ses
 
+## 2.1.0
+
+### Minor Changes
+
+- [#3284](https://github.com/endojs/endo/pull/3284) [`f2aa55a`](https://github.com/endojs/endo/commit/f2aa55a7d0ab3abfa7279e3973277faa7cdd791f) Thanks [@boneskull](https://github.com/boneskull)! - Allows `Map.prototype.getOrInsert`, `Map.prototype.getOrInsertComputed`, `WeakMap.prototype.getOrInsert` and `WeakMap.prototype.getOrInsertComputed`.
+
+### Patch Changes
+
+- [#3223](https://github.com/endojs/endo/pull/3223) [`fa0b6a9`](https://github.com/endojs/endo/commit/fa0b6a9ad57c0791b314d233b7962ca860977216) Thanks [@gibson042](https://github.com/gibson042)! - Addresses infidelities and inefficiencies of [#3214](https://github.com/endojs/endo/issues/3214)
+
+- [#3214](https://github.com/endojs/endo/pull/3214) [`459347b`](https://github.com/endojs/endo/commit/459347b34b8b5d5adfac9def8cee035b6cfa42d7) Thanks [@erights](https://github.com/erights)! - Fixes bug [#3202](https://github.com/endojs/endo/issues/3202) repairing momentary breakage of setFloat16 and setFloat32
+
 ## 2.0.0
 
 ### Major Changes

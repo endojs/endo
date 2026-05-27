@@ -1,5 +1,26 @@
 # @endo/compartment-mapper
 
+## 2.2.0
+
+### Minor Changes
+
+- [#3150](https://github.com/endojs/endo/pull/3150) [`75253ad`](https://github.com/endojs/endo/commit/75253ad65745c308e3171d0345860c5b36d9c5e4) Thanks [@boneskull](https://github.com/boneskull)! - This adds a new option, `additionalLocations`, to `mapNodeModules`. This option enables addition of arbitrary packages to the resulting Compartment Map. It enables execution of packages which need to dynamically load files from Compartments which would otherwise not appear in the map. Specific use-cases include tooling like Webpack and ESLint.
+
+### Patch Changes
+
+- [#2901](https://github.com/endojs/endo/pull/2901) [`69ca27c`](https://github.com/endojs/endo/commit/69ca27c20c39101e9fa622876d9e3ba71ef2b3d6) Thanks [@kriskowal](https://github.com/kriskowal)! - Sweep `makeFunctorFromMap` in `bundle.js` and `bundle-lite.js` to use
+  optional chaining and nullish coalescing for the alias lookup now that
+  [#1514](https://github.com/endojs/endo/issues/1514) has completed. The "unable to locate module" diagnostic now
+  distinguishes the alias-resolved case from the direct-key case, naming
+  both the alias's resolved key and the original import key when the
+  miss occurs via an alias.
+
+- [#3201](https://github.com/endojs/endo/pull/3201) [`67ed1ce`](https://github.com/endojs/endo/commit/67ed1ce31b70126201756f7a3a54e1450a709665) Thanks [@boneskull](https://github.com/boneskull)! - Compatibility fix for passthrough-style wildcards in subpath exports.
+
+- Updated dependencies [[`ad7a177`](https://github.com/endojs/endo/commit/ad7a177e84b08c74526ceb9b0ea15f3c81c06158), [`f2aa55a`](https://github.com/endojs/endo/commit/f2aa55a7d0ab3abfa7279e3973277faa7cdd791f), [`fa0b6a9`](https://github.com/endojs/endo/commit/fa0b6a9ad57c0791b314d233b7962ca860977216), [`459347b`](https://github.com/endojs/endo/commit/459347b34b8b5d5adfac9def8cee035b6cfa42d7)]:
+  - @endo/hex@1.1.0
+  - ses@2.1.0
+
 ## 2.1.0
 
 ### Minor Changes
