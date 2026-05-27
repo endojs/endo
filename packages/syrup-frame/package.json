@@ -1,6 +1,6 @@
 {
   "name": "@endo/syrup-frame",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Implements a JavaScript async iterator protocol for consuming and producing Syrup byte-string-framed streams: a sibling of @endo/netstring with no trailing comma.",
   "keywords": [
     "syrup",
