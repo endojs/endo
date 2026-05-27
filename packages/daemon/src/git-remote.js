@@ -880,6 +880,7 @@ export const makeGitRemote = ({
         assertOperationFence('pull', fence);
         const branch = normalizePullBranch(opts.branch);
         const strategy = opts.strategy || 'ff-only';
+        const headBefore = await E(git).revParse('HEAD');
         if (strategy === 'ff-only') {
           await E(git).merge(branch, { fastForwardOnly: true });
         } else if (strategy === 'merge') {
@@ -892,7 +893,19 @@ export const makeGitRemote = ({
           );
         }
         const head = await E(git).revParse('HEAD');
-        const result = harden({ fetch, integration: strategy, head });
+        const headOidBefore =
+          /** @type {{ oid?: string }} */ (headBefore).oid || '';
+        const headOid = /** @type {{ oid?: string }} */ (head).oid || '';
+        /** @type {'up-to-date' | 'fast-forward' | 'merge' | 'rebase'} */
+        let integration;
+        if (headOidBefore === headOid) {
+          integration = 'up-to-date';
+        } else if (strategy === 'ff-only') {
+          integration = 'fast-forward';
+        } else {
+          integration = strategy;
+        }
+        const result = harden({ fetch, integration, head });
         assertOperationFence('pull', fence);
         recordOperationSuccess('pull', result);
         return result;

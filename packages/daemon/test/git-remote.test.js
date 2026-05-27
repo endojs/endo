@@ -630,7 +630,7 @@ test('GitRemote fetch / pull / push use the bounded native data plane', async t 
     branch: 'refs/remotes/origin/main',
     strategy: 'ff-only',
   });
-  t.is(pullResult.integration, 'ff-only');
+  t.is(pullResult.integration, 'fast-forward');
   t.deepEqual(
     [...pullResult.fetch.updatedRefs],
     [
@@ -646,6 +646,12 @@ test('GitRemote fetch / pull / push use the bounded native data plane', async t 
     ],
   );
   t.is(await E(mount).readText(['upstream.txt']), 'upstream\n');
+
+  const upToDatePullResult = await E(remote).pull({
+    branch: 'refs/remotes/origin/main',
+    strategy: 'ff-only',
+  });
+  t.is(upToDatePullResult.integration, 'up-to-date');
 
   await E(git).createBranch('agent/topic', { switchAfterCreate: true });
   const note = await E(mount).entry(['agent.txt']);
@@ -694,12 +700,21 @@ test('GitRemote fetch / pull / push use the bounded native data plane', async t 
   const audit = await E(controller).audit();
   t.deepEqual(
     audit.map(event => event.type),
-    ['create', 'fetch', 'pull', 'push'],
+    ['create', 'fetch', 'pull', 'pull', 'push'],
   );
   t.like(audit[1], { type: 'fetch', outcome: 'ok' });
-  t.like(audit[2], { type: 'pull', outcome: 'ok', integration: 'ff-only' });
-  t.like(audit[3], { type: 'push', outcome: 'ok' });
-  t.deepEqual([...audit[3].updatedRefs], [...pushResult.updatedRefs]);
+  t.like(audit[2], {
+    type: 'pull',
+    outcome: 'ok',
+    integration: 'fast-forward',
+  });
+  t.like(audit[3], {
+    type: 'pull',
+    outcome: 'ok',
+    integration: 'up-to-date',
+  });
+  t.like(audit[4], { type: 'push', outcome: 'ok' });
+  t.deepEqual([...audit[4].updatedRefs], [...pushResult.updatedRefs]);
 });
 
 test('GitRemote enforces allowedDirections at the call boundary', async t => {
