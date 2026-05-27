@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-20 |
+| **Updated** | 2026-05-27 |
 | **Author** | 0xPatrick (prompted) |
 | **Status** | Proposed |
 
@@ -824,6 +824,12 @@ No open questions remain on this document; revisit if real implementation surfac
 
    **Re-pinning** is a host-side operation: the host can re-derive `Git` with a refreshed pin.
    Guests cannot mutate the pin under any path, including the unborn-to-non-empty transition above.
+
+   **Verification cadence and caching surface.**
+   The contract above runs the pin algorithm — `git rev-parse --git-common-dir --git-path config --git-path HEAD`, a read of `<common-dir>/config`, and `git rev-list --max-count=1 HEAD` (or the `EMPTY`-sentinel path for unborn repos) — on every operation, before the operation dispatches to the backend.
+   That per-operation cost is a concern in hot loops where a guest fans out many small reads (`status` per file in a watcher, `log` across a directory of pet-named worktrees, repeated `revParse` in a UI refresh).
+   Caching or throttling the verification — for example, an mtime/inode short-circuit on `<common-dir>/config`, a TTL-bounded memoization keyed on the canonical pin tuple, or an invalidation hook tied to host-side re-pin operations — is permitted as a backend-private optimization on the same contract as Design Decision 10 (Bulk reads as a backend data plane): callers cannot observe which strategy was used except through latency, and the fail-closed semantics above are preserved regardless of cache state.
+   Adding the caching/throttling itself is **out of scope for this PR**; the optimization is licenced here so the future implementer and reviewers see the cadence concern was acknowledged at the surface that introduces the pin.
 8. **Read-only worktree mounts permit inspection + immutable trees + `worktree.snapshot()`; reject everything else.**
    A read-only `Git` can be obtained two ways and the two paths produce the same authority shape (see § Read-only construction paths):
    - **Writable→readOnly path:** `await E(git).readOnly()` returns a read-only attenuation of a `Git` constructed from a writable mount.
