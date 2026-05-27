@@ -1,5 +1,32 @@
 # @endo/bundle-source
 
+## 4.3.1
+
+### Patch Changes
+
+- [#3261](https://github.com/endojs/endo/pull/3261) [`7309d69`](https://github.com/endojs/endo/commit/7309d6933a87aea7616b8bee6460763c7543e658) Thanks [@turadg](https://github.com/turadg)! - Replace `ts-blank-space` with Amaro for TypeScript type erasure, matching the parser Node.js uses for type stripping.
+
+- [#3216](https://github.com/endojs/endo/pull/3216) [`7325bbe`](https://github.com/endojs/endo/commit/7325bbe15f481275da6d5faf7445cc16b72ada82) Thanks [@kriskowal](https://github.com/kriskowal)! - `@endo/base64`'s named exports (`encodeBase64`, `decodeBase64`, `atob`, `btoa`)
+  are now frozen.
+  Consumers that previously assigned to or extended these exports will see a
+  `TypeError` under SES; read-only consumers are unaffected.
+
+  The shim entry point `@endo/base64/shim.js` (which `@endo/init/pre.js` uses to
+  install `globalThis.atob` / `globalThis.btoa` before `lockdown()`) is unchanged
+  and continues to be safe to load pre-lockdown.
+
+- [#3237](https://github.com/endojs/endo/pull/3237) [`b845f85`](https://github.com/endojs/endo/commit/b845f857ab60643c362a7904615825031923d95b) Thanks [@kriskowal](https://github.com/kriskowal)! - Update `BundleOptions` and the `powers` parameter types to reflect what
+  `bundleSource` already accepts at runtime: `cacheSourceMaps` is now
+  documented on `BundleOptions`, `commonDependencies` and `importHook`
+  (only for the `endoZipBase64` format) are surfaced, and the optional
+  `powers` parameter accepts the wider `BundlePowers` shape (including
+  `pathResolve`, `userInfo`, `env`, `platform`, and `computeSha512`).
+  This is a JSDoc/typings-only change; no runtime behavior changes.
+- Updated dependencies [[`7325bbe`](https://github.com/endojs/endo/commit/7325bbe15f481275da6d5faf7445cc16b72ada82), [`7325bbe`](https://github.com/endojs/endo/commit/7325bbe15f481275da6d5faf7445cc16b72ada82), [`69ca27c`](https://github.com/endojs/endo/commit/69ca27c20c39101e9fa622876d9e3ba71ef2b3d6), [`5c098c4`](https://github.com/endojs/endo/commit/5c098c4d9cb4de3b1a844addcae63c34ec8f03fb), [`67ed1ce`](https://github.com/endojs/endo/commit/67ed1ce31b70126201756f7a3a54e1450a709665), [`75253ad`](https://github.com/endojs/endo/commit/75253ad65745c308e3171d0345860c5b36d9c5e4)]:
+  - @endo/base64@1.1.0
+  - @endo/compartment-mapper@2.2.0
+  - @endo/evasive-transform@2.2.0
+
 ## 4.3.0
 
 ### Minor Changes

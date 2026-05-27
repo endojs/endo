@@ -1,5 +1,28 @@
 # @endo/base64
 
+## 1.1.0
+
+### Minor Changes
+
+- [#3216](https://github.com/endojs/endo/pull/3216) [`7325bbe`](https://github.com/endojs/endo/commit/7325bbe15f481275da6d5faf7445cc16b72ada82) Thanks [@kriskowal](https://github.com/kriskowal)! - `@endo/base64`'s named exports (`encodeBase64`, `decodeBase64`, `atob`, `btoa`)
+  are now frozen.
+  Consumers that previously assigned to or extended these exports will see a
+  `TypeError` under SES; read-only consumers are unaffected.
+
+  The shim entry point `@endo/base64/shim.js` (which `@endo/init/pre.js` uses to
+  install `globalThis.atob` / `globalThis.btoa` before `lockdown()`) is unchanged
+  and continues to be safe to load pre-lockdown.
+
+### Patch Changes
+
+- [#3216](https://github.com/endojs/endo/pull/3216) [`7325bbe`](https://github.com/endojs/endo/commit/7325bbe15f481275da6d5faf7445cc16b72ada82) Thanks [@kriskowal](https://github.com/kriskowal)! - `encodeBase64` and `decodeBase64` now dispatch to the native
+  `Uint8Array.prototype.toBase64` and `Uint8Array.fromBase64` intrinsics (TC39
+  proposal-arraybuffer-base64, Stage 4) on platforms that ship them, falling back
+  to the existing pure-JavaScript implementation otherwise.
+  Existing call sites pick up the speedup with no API change, and `decodeBase64`'s
+  error messages (including any caller-supplied `name` and the failing offset) are
+  unchanged.
+
 ## [1.0.12](https://github.com/endojs/endo/compare/@endo/base64@1.0.11...@endo/base64@1.0.12) (2025-07-12)
 
 **Note:** Version bump only for package @endo/base64
@@ -44,12 +67,12 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
-* **base64:** Reject too-short encodings ([06d2fc5](https://github.com/endojs/endo/commit/06d2fc5f81f68977e10b47448e1e0c56dce5048f)), closes [#1990](https://github.com/endojs/endo/issues/1990)
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- **base64:** Reject too-short encodings ([06d2fc5](https://github.com/endojs/endo/commit/06d2fc5f81f68977e10b47448e1e0c56dce5048f)), closes [#1990](https://github.com/endojs/endo/issues/1990)
 
 ### Performance Improvements
 
-* **base64:** Avoid unnecessary calculations ([01c06d4](https://github.com/endojs/endo/commit/01c06d43273cd1dd522e8736e998b1c050f0475c))
+- **base64:** Avoid unnecessary calculations ([01c06d4](https://github.com/endojs/endo/commit/01c06d43273cd1dd522e8736e998b1c050f0475c))
 
 ## [1.0.1](https://github.com/endojs/endo/compare/@endo/base64@1.0.0...@endo/base64@1.0.1) (2024-01-18)
 
@@ -59,7 +82,7 @@
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
 ## [0.2.35](https://github.com/endojs/endo/compare/@endo/base64@0.2.34...@endo/base64@0.2.35) (2023-09-12)
 
@@ -228,7 +251,7 @@
 
 ## 0.2.0 (2021-06-02)
 
-- *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
+- _BREAKING_: Removes CommonJS and UMD downgrade compatibility.
   Supporting both Node.js ESM and the `node -r esm` shim requires the main
   entry point module to be ESM regardless of environment.
   UMD and CommonJS facets will likely return after all dependees have migrated
