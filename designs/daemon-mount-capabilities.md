@@ -197,11 +197,14 @@ interface EndoMount {
   // void.  The path locates where to act; it is not a held reference
   // to a node.  Failure modes are the usual filesystem ones
   // (EEXIST, ENOENT-parent, EACCES).  `makeFile` is the path-form
-  // sibling of `makeDirectory` for parallel construction and for
-  // binary content; the existing `writeText(path, content)` remains
-  // the truncate-and-write path for the text-only case.
+  // sibling of `makeDirectory` for parallel construction; the existing
+  // `writeText(path, content)` remains the truncate-and-write path for
+  // the text-only case.  `makeFile` accepts string content only —
+  // mutable typed arrays (`Uint8Array`) are rejected at the exo
+  // boundary because they do not cross CapTP; binary content is
+  // supplied via `write(path, readableBlob)` / `copy(from, to)`.
   makeDirectory(path: string[]): Promise<void>;
-  makeFile(path: string[], content?: string | Uint8Array): Promise<void>;
+  makeFile(path: string[], content?: string): Promise<void>;
   remove(path: string[]): Promise<void>;
   move(from: string[], to: string[]): Promise<void>;
 
@@ -212,7 +215,7 @@ interface EndoMount {
 ```
 
 `lookup()` is the single handle-minting method.
-It returns either an `EndoMount` or an `EndoMountFile` depending on what is at the path, and throws `EndoMountMissingError` for an absent path (see § *`lookup()` semantics on missing nodes* below).
+It returns either an `EndoMount` or an `EndoMountFile` depending on what is at the path, and throws for an absent path (see § *`lookup()` semantics on missing nodes* below).
 There is no separate `openFile` / `openDirectory` pair: `lookup` already covers both kinds, and the existing `mount.has(entry) → mount.lookup(entry)` idiom (or a runtime `kind` check on the returned handle) handles the cases where the caller wants to discriminate.
 
 ### `EndoMountFile`
@@ -314,7 +317,9 @@ If a real use case surfaces where the value shape is awkward enough to warrant r
 
 ### `EndoMount.lookup()` semantics on missing nodes
 
-`EndoMount.lookup(entry)` returns a live handle for an existing node and **throws** `EndoMountMissingError` for a missing one.
+`EndoMount.lookup(entry)` returns a live handle for an existing node and **throws** for a missing one.
+The thrown error today is a plain `Error` whose message identifies the unverifiable path (`Path does not exist and cannot be verified: <path>`); the shipped implementation surfaces this via the same `assertConfined` check that rejects out-of-mount paths, so callers should match on the substring or on the unified missing-vs.-escapes pattern rather than on a dedicated error class.
+A distinct `EndoMountMissingError` class is left as an addition to revisit once a consumer surfaces a need to discriminate missing-path from escapes-confinement programmatically; until then the message-based shape is sufficient.
 Callers that want to test before opening use `mount.has(entry)` first; the `mount.has(entry) → mount.lookup(entry)` pattern is the recommended idiom.
 No `maybeLookup` sibling is part of the initial design; if usage warrants one later, it can be added without contract breakage.
 The throw-on-missing default is consistent with the existing `lookup(path)` behavior that exists today.
@@ -567,7 +572,7 @@ hub is a separate decision with wide blast radius.
 - [x] Add the `lookup(entry)`, `has(entry)`, and `stat(entry)` overloads on `EndoMount`.
   Each accepts an entry as the path-bearing argument (the no-observational-authority queries an earlier draft had on the entry itself).
 - [x] Add `stat(path)` for the path-form metadata query.
-- [x] Add `makeFile(path, content?)` as the path-form sibling of `makeDirectory` (parallel construction; binary content via `Uint8Array`).
+- [x] Add `makeFile(path, content?)` as the path-form sibling of `makeDirectory` (parallel construction; string content only — binary content is supplied via `write(path, readableBlob)` because mutable typed arrays do not cross CapTP).
   Existing path-form mutators (`writeText`, `remove`, `move`, `makeDirectory`) keep their current signatures unchanged.
 - [x] Add `stat`, `append`, and `snapshot` on `EndoMountFile`.
 - [x] Keep existing path convenience methods for compatibility.
@@ -596,7 +601,8 @@ See § [*Host-Private Physical Backing*](#host-private-physical-backing) for the
   `makeDirectory` keeps its name and shape; it is the established convention across `daemon-mount`, `platform-fs`, `daemon-weblet-application`, `filesystem-watchers`, the implemented `packages/platform/src/fs` surface, and its consumers in `packages/chat`, `packages/fae`, and `packages/lal`.
 - `makeFile(path, content?)` is the new path-form sibling of `makeDirectory`.
   It is additive: no existing method is renamed, removed, or re-typed.
-  `writeText(path, content)` remains the truncate-and-write path for the text-only case; `makeFile` is the constructive sibling for parallel use with `makeDirectory` and for binary content.
+  `writeText(path, content)` remains the truncate-and-write path for the text-only case; `makeFile` is the constructive sibling for parallel use with `makeDirectory`.
+  Binary content is not supplied through `makeFile` — mutable typed arrays do not cross CapTP, so callers wrap raw bytes in a `ReadableBlob` and use `write(path, readableBlob)` (or `copy(from, to)`) instead.
 - Entry overloads (`has(entry)`, `stat(entry)`, `lookup(entry)`) are additive overloads on existing query / handle-minting methods; the path-form callers remain unchanged.
 - New code that performs more than one operation on the same node should prefer entries and handles.
 - Git should depend on `EndoMountEntry`, not on free-form relative path strings.
