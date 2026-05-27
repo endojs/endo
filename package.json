@@ -44,7 +44,7 @@
     "zx": "^8.1.8"
   },
   "scripts": {
-    "clean": "yarn workspaces foreach --all run postpack",
+    "clean": "git clean -fX -e node_modules",
     "docs": "rm -rf api-docs packages/ses/dist && typedoc && ./scripts/posttypedoc.sh",
     "update": "echo 'DEPRECATED: use \"yarn upgrade-interactive\" or \"yarn dedupe\"'",
     "format": "prettier --write .github packages",
