@@ -14,8 +14,11 @@ import { E, Far } from '@endo/far';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
 import {
-  makeBearerCredential,
+  assertGitCredentialForUrl,
   getGitCredentialController,
+  makeBasicCredential,
+  makeBearerCredential,
+  makeUnavailableGitCredential,
   revokeGitCredential,
 } from '../src/git-credential.js';
 import { makeMount } from '../src/mount.js';
@@ -959,4 +962,310 @@ test('getGitRemoteController rejects fabricated remote exos', async t => {
     push: () => Promise.reject(new Error('spoof')),
   });
   t.is(getGitRemoteController(fake), undefined);
+});
+
+test('GitRemoteController policy setters update the snapshot for refspecs and flags', async t => {
+  // Covers the controller setters that the existing coverage tests
+  // did not reach: setFetchRefspecs, setPushRefspecs, setAllowForcePush.
+  // setAllowedBranches / setAllowedDirections are exercised in the
+  // "mutates policy" test above; setAllowTags / setAllowDelete in the
+  // tag-and-prune test.
+  const { git } = await provisionGitContext(t);
+  const { remote, controller } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['fetch', 'push'],
+      fetchRefspecs: ['+refs/heads/*:refs/remotes/origin/*'],
+      pushRefspecs: ['refs/heads/agent/x:refs/heads/agent/x'],
+    },
+  });
+
+  await E(controller).setFetchRefspecs([
+    '+refs/heads/main:refs/remotes/origin/main',
+  ]);
+  let snapshot = await E(remote).inspect();
+  t.deepEqual(
+    [...snapshot.fetchRefspecs],
+    ['+refs/heads/main:refs/remotes/origin/main'],
+  );
+
+  // Push refspecs without a leading '+' do not require allowForcePush.
+  await E(controller).setPushRefspecs([
+    'refs/heads/agent/y:refs/heads/agent/y',
+  ]);
+  snapshot = await E(remote).inspect();
+  t.deepEqual(
+    [...snapshot.pushRefspecs],
+    ['refs/heads/agent/y:refs/heads/agent/y'],
+  );
+  t.false(snapshot.allowForcePush);
+
+  // Widening allowForcePush makes a subsequent force-push refspec
+  // accept.
+  await E(controller).setAllowForcePush(true);
+  snapshot = await E(remote).inspect();
+  t.true(snapshot.allowForcePush);
+  await E(controller).setPushRefspecs([
+    '+refs/heads/agent/z:refs/heads/agent/z',
+  ]);
+  snapshot = await E(remote).inspect();
+  t.deepEqual(
+    [...snapshot.pushRefspecs],
+    ['+refs/heads/agent/z:refs/heads/agent/z'],
+  );
+
+  // Narrowing allowForcePush while force-push refspecs are still
+  // present is rejected by the policy normalizer.  Replace the
+  // refspecs first, then narrow.
+  await t.throwsAsync(E(controller).setAllowForcePush(false), {
+    message: /force-push refspec requires allowForcePush/,
+  });
+  await E(controller).setPushRefspecs([
+    'refs/heads/agent/w:refs/heads/agent/w',
+  ]);
+  await E(controller).setAllowForcePush(false);
+  snapshot = await E(remote).inspect();
+  t.false(snapshot.allowForcePush);
+
+  const audit = await E(controller).audit();
+  t.deepEqual(audit.map(event => event.method).slice(1), [
+    'setFetchRefspecs',
+    'setPushRefspecs',
+    'setAllowForcePush',
+    'setPushRefspecs',
+    'setPushRefspecs',
+    'setAllowForcePush',
+  ]);
+});
+
+test('makeBasicCredential normalizes audience/username/password and supports rotate + revoke', async t => {
+  // The bearer factory has the full lifecycle covered above; the
+  // basic factory shares the structure but its surface is currently
+  // unexercised in tests.  makeBasicCredential mints a daemon-minted
+  // cap whose `audience()` method, controller-side inspect, rotate,
+  // and revoke parallel the bearer's.
+  /** @type {Array<{ kind?: string, material?: unknown }>} */
+  const rotateEvents = [];
+  let revokeCount = 0;
+  const credential = makeBasicCredential({
+    audience: 'https://gitlab.example.com',
+    username: 'agent',
+    password: 'initial-password',
+    onRotate: material => rotateEvents.push({ kind: 'basic', material }),
+    onRevoke: () => {
+      revokeCount += 1;
+    },
+  });
+  t.is(credential.audience(), 'https://gitlab.example.com');
+
+  const controller = getGitCredentialController(credential);
+  t.truthy(controller);
+  let view = await E(controller).inspect();
+  t.like(view, {
+    kind: 'basic',
+    audience: 'https://gitlab.example.com',
+    available: true,
+    revoked: false,
+  });
+
+  // The host-side audience-matching helper accepts the daemon-minted
+  // cap and rejects non-matching origins; the audience-helper's
+  // surface is otherwise reachable only via the GitRemote
+  // construction path.
+  t.notThrows(() =>
+    assertGitCredentialForUrl(credential, 'https://gitlab.example.com'),
+  );
+  t.throws(() => assertGitCredentialForUrl(credential, 'https://github.com'), {
+    message: /audience .* does not match remote origin/,
+  });
+
+  await E(controller).rotate({
+    username: 'agent',
+    password: 'rotated-password',
+  });
+  t.is(rotateEvents.length, 1);
+  t.like(rotateEvents[0], {
+    kind: 'basic',
+    material: { username: 'agent', password: 'rotated-password' },
+  });
+
+  await E(controller).revoke();
+  t.is(revokeCount, 1);
+  view = await E(controller).inspect();
+  t.like(view, {
+    available: false,
+    revoked: true,
+  });
+  t.throws(
+    () => assertGitCredentialForUrl(credential, 'https://gitlab.example.com'),
+    { message: /has been revoked/ },
+  );
+  // The allowRevoked option lets host-side audit paths inspect a
+  // revoked credential by audience without re-throwing.
+  t.notThrows(() =>
+    assertGitCredentialForUrl(credential, 'https://gitlab.example.com', {
+      allowRevoked: true,
+    }),
+  );
+});
+
+test('makeBasicCredential rejects empty or NUL-bearing fields', async t => {
+  // requireCredentialString is shared with the bearer factory; the
+  // basic factory's parallel path is otherwise unexercised.
+  t.throws(
+    () =>
+      makeBasicCredential({
+        audience: '',
+        username: 'u',
+        password: 'p',
+      }),
+    { message: /BasicCredential audience must be a non-empty string/ },
+  );
+  t.throws(
+    () =>
+      makeBasicCredential({
+        audience: 'https://x',
+        username: '',
+        password: 'p',
+      }),
+    { message: /BasicCredential username must be a non-empty string/ },
+  );
+  t.throws(
+    () =>
+      makeBasicCredential({
+        audience: 'https://x',
+        username: 'u',
+        password: '',
+      }),
+    { message: /BasicCredential password must be a non-empty string/ },
+  );
+  t.throws(
+    () =>
+      makeBasicCredential({
+        audience: 'https://x',
+        username: 'u',
+        password: 'p\0secret',
+      }),
+    { message: /BasicCredential password must not contain NUL bytes/ },
+  );
+});
+
+test('makeUnavailableGitCredential mints a revoked cap that the operator can rotate back', async t => {
+  // The reconstitution path on daemon restart: a basic or bearer
+  // credential formula whose process-local secret has been forgotten
+  // mints an Unavailable cap so the formula stays identifiable; the
+  // operator rotates new material in to bring the cap back to life.
+  /** @type {Array<{ kind: string, material: unknown }>} */
+  const rotateEvents = [];
+  const credential = makeUnavailableGitCredential({
+    kind: 'basic',
+    audience: 'https://gitlab.example.com',
+    onRotate: material => rotateEvents.push({ kind: 'basic', material }),
+  });
+  t.is(credential.audience(), 'https://gitlab.example.com');
+
+  const controller = getGitCredentialController(credential);
+  t.truthy(controller);
+  let view = await E(controller).inspect();
+  t.like(view, {
+    kind: 'basic',
+    audience: 'https://gitlab.example.com',
+    available: false,
+    revoked: true,
+  });
+
+  // The cap is reachable via the audience helper for non-transport
+  // bookkeeping when allowRevoked is set.
+  t.notThrows(() =>
+    assertGitCredentialForUrl(credential, 'https://gitlab.example.com', {
+      allowRevoked: true,
+    }),
+  );
+
+  await E(controller).rotate({
+    username: 'agent',
+    password: 'restored-password',
+  });
+  view = await E(controller).inspect();
+  t.like(view, {
+    available: true,
+    revoked: false,
+  });
+  t.is(rotateEvents.length, 1);
+  t.like(rotateEvents[0], {
+    kind: 'basic',
+    material: { username: 'agent', password: 'restored-password' },
+  });
+
+  // A bearer-kind unavailable cap takes a token on rotate, mirroring
+  // the bearer factory.  The bearer cap also exposes audience()
+  // directly on its exo surface (sync-call), the same shape as the
+  // basic cap above.
+  let revokeFired = 0;
+  const bearerUnavailable = makeUnavailableGitCredential({
+    kind: 'bearer',
+    audience: 'https://github.com',
+    onRevoke: () => {
+      revokeFired += 1;
+    },
+  });
+  t.is(bearerUnavailable.audience(), 'https://github.com');
+  const bearerController = getGitCredentialController(bearerUnavailable);
+  await E(bearerController).rotate({ token: 'restored-token' });
+  let bearerView = await E(bearerController).inspect();
+  t.like(bearerView, {
+    kind: 'bearer',
+    audience: 'https://github.com',
+    available: true,
+    revoked: false,
+  });
+
+  // Revoking a previously-restored Unavailable cap turns it back to
+  // unavailable and fires the onRevoke hook.
+  await E(bearerController).revoke();
+  bearerView = await E(bearerController).inspect();
+  t.like(bearerView, { available: false, revoked: true });
+  t.is(revokeFired, 1);
+});
+
+test('makeUnavailableGitCredential rejects kinds other than bearer or basic', async t => {
+  t.throws(
+    () =>
+      makeUnavailableGitCredential({
+        // @ts-expect-error — exercising the runtime guard
+        kind: 'oauth',
+        audience: 'https://github.com',
+      }),
+    { message: /GitCredential kind must be bearer or basic/ },
+  );
+});
+
+test('assertGitCredentialForUrl and revokeGitCredential reject non-daemon-minted caps', async t => {
+  // The two host-private helpers gate on WeakMap membership; a
+  // remote-shaped value that never went through the daemon's mint
+  // path has no record and is refused at the boundary.
+  const fakeCredential = Far('FakeGitCredential', {
+    audience: () => 'https://github.com',
+  });
+  t.throws(
+    () => assertGitCredentialForUrl(fakeCredential, 'https://github.com'),
+    { message: /requires a daemon-minted Git credential cap/ },
+  );
+  t.throws(() => revokeGitCredential(fakeCredential), {
+    message: /Cannot revoke a non-daemon Git credential cap/,
+  });
+});
+
+test('BearerCredential.audience returns the normalized origin', t => {
+  // The bearer cap's audience() method on the exo surface is the
+  // public read accessor a guest uses to inspect its credential's
+  // audience.  The basic cap's audience() is covered above.
+  const credential = makeBearerCredential({
+    audience: 'https://github.com',
+    token: 'a-token',
+  });
+  t.is(credential.audience(), 'https://github.com');
 });

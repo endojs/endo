@@ -288,7 +288,8 @@ test('Git.readOnly allows immutable tree reads', async t => {
 
 test('Git scaffold methods all surface a clear "not yet implemented"', async t => {
   const mount = await provisionMount(t);
-  const git = makeGit({ mount, backend: makeNotYetImplementedBackend() });
+  const backend = makeNotYetImplementedBackend();
+  const git = makeGit({ mount, backend });
 
   // A representative sample across category boundaries; the stub backend
   // throws for every op except the formula-instantiation-time
@@ -300,6 +301,18 @@ test('Git scaffold methods all surface a clear "not yet implemented"', async t =
   });
   await t.throwsAsync(E(git).branches(), { message: /not yet implemented/ });
   await t.throwsAsync(E(git).tree('HEAD'), {
+    message: /not yet implemented/,
+  });
+
+  // The remote-transport methods are not on the Git exo; they are
+  // called by GitRemote directly against the backend.  The stub
+  // backend reports the same not-yet-implemented error so a remote
+  // mounted against an under-development backend fails closed rather
+  // than appearing to fetch / push silently.
+  await t.throwsAsync(backend.remoteFetch({}), {
+    message: /not yet implemented/,
+  });
+  await t.throwsAsync(backend.remotePush({}), {
     message: /not yet implemented/,
   });
 
