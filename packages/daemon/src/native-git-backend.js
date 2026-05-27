@@ -8,7 +8,7 @@ import process from 'node:process';
 import { setTimeout, clearTimeout } from 'node:timers';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
+import { tmpdir } from 'node:os';
 import net from 'node:net';
 import { URL } from 'node:url';
 
@@ -614,7 +614,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
     if (askpassPath === undefined) {
       askpassPath = (async () => {
         const askpassDir = await fs.promises.mkdtemp(
-          path.join(os.tmpdir(), 'endo-git-askpass-'),
+          path.join(tmpdir(), 'endo-git-askpass-'),
         );
         const scriptPath = path.join(askpassDir, 'askpass.sh');
         await fs.promises.writeFile(
@@ -680,7 +680,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
     }
 
     const askpassDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'endo-git-askpass-socket-'),
+      path.join(tmpdir(), 'endo-git-askpass-socket-'),
     );
     const socketPath = path.join(askpassDir, 'askpass.sock');
     const server = net.createServer(socket => {
