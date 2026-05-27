@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, GitDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -29,6 +29,7 @@ import { makeDeferredTasks } from './deferred-tasks.js';
 
 import { HostInterface } from './interfaces.js';
 import { hostHelp, makeHelp } from './help-text.js';
+import { assertValidTreeEntryName } from './mount.js';
 
 /**
  * @param {string} name
@@ -37,35 +38,6 @@ import { hostHelp, makeHelp } from './help-text.js';
 const assertPowersName = name => {
   ['@none', '@agent', '@endo'].includes(name) || assertPetName(name);
 };
-
-/**
- * Validate a child name advertised by a remote ReadableTree. These
- * names are literal entries, not path syntax, so traversal names and
- * platform separators are rejected before materialization.
- *
- * Freestanding twin of `mount.js`'s `assertValidTreeEntryName`; both
- * have the same effective contract (reject empty, `.`, `..`, `/`, `\`,
- * `\0`).  The mount-side definition delegates to a local
- * `assertValidSegment` helper that does not exist in this file, so
- * this version is written out in one block rather than introducing a
- * cross-file shared helper for a four-line guard.
- *
- * @param {unknown} name
- */
-const assertValidTreeEntryName = name => {
-  if (
-    typeof name !== 'string' ||
-    name.length === 0 ||
-    name === '.' ||
-    name === '..' ||
-    name.includes('/') ||
-    name.includes('\\') ||
-    name.includes('\0')
-  ) {
-    throw makeError(X`Invalid tree entry name ${q(name)}`);
-  }
-};
-harden(assertValidTreeEntryName);
 
 /**
  * Normalizes host or guest options, providing default values.
@@ -102,6 +74,7 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['checkinTree']} args.checkinTree
  * @param {DaemonCore['formulateMount']} args.formulateMount
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
+ * @param {DaemonCore['formulateGit']} args.formulateGit
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['formulateDirectoryForStore']} args.formulateDirectoryForStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
@@ -137,6 +110,7 @@ export const makeHostMaker = ({
   checkinTree,
   formulateMount,
   formulateScratchMount,
+  formulateGit,
   formulateInvitation,
   formulateDirectoryForStore,
   getPeerIdForNodeIdentifier,
@@ -367,6 +341,26 @@ export const makeHostMaker = ({
       );
 
       const { value } = await formulateScratchMount(readOnly, tasks);
+      return value;
+    };
+
+    /** @type {EndoHost['provideGit']} */
+    const provideGit = async (mountCap, petName) => {
+      const { namePath } = assertPetNamePath(namePathFrom(petName));
+      const mountId = getIdForRef(mountCap);
+      if (mountId === undefined) {
+        throw makeError(
+          X`provideGit: first argument must be a daemon-minted mount cap`,
+        );
+      }
+
+      /** @type {DeferredTasks<GitDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).storeIdentifier(namePath, identifiers.gitId),
+      );
+
+      const { value } = await formulateGit(mountId, tasks);
       return value;
     };
 
@@ -1469,6 +1463,7 @@ export const makeHostMaker = ({
       storeTree,
       provideMount,
       provideScratchMount,
+      provideGit,
       provideHostPath,
       provideGuest,
       provideHost,

@@ -21,6 +21,49 @@ import { makeReaderRef } from './reader-ref.js';
 import { makeRefIterator, makeRefReader } from './ref-reader.js';
 
 const mountEntryRecords = new WeakMap();
+const mountRecords = new WeakMap();
+
+/**
+ * Returns the daemon-private lineage sentinel for a mount or mount entry.
+ *
+ * @param {unknown} value
+ * @returns {object | undefined}
+ */
+export const lineageOf = value => {
+  const key = /** @type {object} */ (value);
+  return mountEntryRecords.get(key)?.rootId || mountRecords.get(key)?.rootId;
+};
+harden(lineageOf);
+
+/**
+ * Host-private accessor for daemon-minted physical mount backing.
+ *
+ * @param {unknown} mount
+ * @returns {{ kind: 'physical', physicalRoot: string, currentDir: string, readOnly: boolean } | undefined}
+ */
+export const getMountBacking = mount => {
+  const record = mountRecords.get(/** @type {object} */ (mount));
+  if (record === undefined) {
+    return undefined;
+  }
+  return harden({
+    kind: /** @type {'physical'} */ ('physical'),
+    physicalRoot: record.confinementRoot,
+    currentDir: record.currentDir,
+    readOnly: record.readOnly,
+  });
+};
+harden(getMountBacking);
+
+/**
+ * Host-private accessor for daemon-minted mount entry paths.
+ *
+ * @param {unknown} entry
+ * @returns {string | undefined}
+ */
+export const getEntryPhysicalPath = entry =>
+  mountEntryRecords.get(/** @type {object} */ (entry))?.physicalPath;
+harden(getEntryPhysicalPath);
 
 /**
  * Validate a single path segment.
@@ -54,16 +97,16 @@ harden(assertValidSegment);
  *
  * Delegates to `assertValidSegment` (above) for the type, empty-string,
  * and separator-character checks (`/`, `\`, `\0`), and adds the
- * tree-specific `.`/`..` reject on top.  `host.js` has a freestanding
- * twin of this validator with the same effective contract, written
- * out in one block because that file has no local `assertValidSegment`
- * to delegate to.  Both validators run check-before-trust on names
+ * tree-specific `.`/`..` reject on top.  Exported so callers that walk
+ * a remote ReadableTree from outside this module (e.g.
+ * `host.js`'s `materializeTree`) share one validator rather than
+ * maintaining a freestanding twin.  Runs check-before-trust on names
  * arriving from a remote ReadableTree before any filesystem
  * materialisation.
  *
  * @param {string} name
  */
-const assertValidTreeEntryName = name => {
+export const assertValidTreeEntryName = name => {
   assertValidSegment(name);
   if (name === '.' || name === '..') {
     throw new Error(`Tree entry name must not be "." or "..": ${q(name)}`);
@@ -370,18 +413,28 @@ const makeMountExo = ctx => {
   /**
    * @param {string[]} segments
    */
+  const makeEntryRecord = segments =>
+    harden({
+      rootId,
+      segments,
+      physicalPath: resolveFromRoot(segments),
+    });
+
+  /**
+   * @param {string[]} segments
+   */
   const makeEntry = segments => {
     const entry = makeMountEntryExo({
       ...ctx,
       entrySegments: segments,
     });
-    mountEntryRecords.set(entry, harden({ rootId, segments }));
+    mountEntryRecords.set(entry, makeEntryRecord(segments));
     return entry;
   };
 
   const help = makeHelp(mountHelp);
 
-  return makeExo('EndoMount', MountInterface, {
+  const exo = makeExo('EndoMount', MountInterface, {
     help,
 
     async has(...args) {
@@ -606,6 +659,12 @@ const makeMountExo = ctx => {
       await this.self.write(toArg, source); // eslint-disable-line no-invalid-this
     },
   });
+
+  mountRecords.set(
+    exo,
+    harden({ rootId, currentDir, confinementRoot, readOnly }),
+  );
+  return exo;
 };
 harden(makeMountExo);
 
@@ -619,7 +678,7 @@ harden(makeMountExo);
  * @returns {object}
  */
 const makeReadableTreeView = readOnlyMount => {
-  return makeExo('EndoMountReadableTree', ReadableTreeInterface, {
+  const view = makeExo('EndoMountReadableTree', ReadableTreeInterface, {
     async has(...pathSegments) {
       return E(readOnlyMount).has(...pathSegments);
     },
@@ -641,6 +700,11 @@ const makeReadableTreeView = readOnlyMount => {
       return makeReadableBlobView(result);
     },
   });
+  const record = mountRecords.get(readOnlyMount);
+  if (record !== undefined) {
+    mountRecords.set(view, harden({ ...record, readOnly: true }));
+  }
+  return view;
 };
 harden(makeReadableTreeView);
 
@@ -668,13 +732,23 @@ const makeMountEntryExo = ctx => {
     },
     child(name) {
       assertValidSegment(name);
+      const childSegments = [...entrySegments, name];
       const child = makeMountEntryExo({
         ...ctx,
-        entrySegments: [...entrySegments, name],
+        entrySegments: childSegments,
       });
       mountEntryRecords.set(
         child,
-        harden({ rootId, segments: [...entrySegments, name] }),
+        harden({
+          rootId,
+          segments: childSegments,
+          physicalPath: resolveSegments(
+            ctx.confinementRoot,
+            ctx.confinementRoot,
+            childSegments,
+            ctx.filePowers,
+          ),
+        }),
       );
       return child;
     },

@@ -224,12 +224,200 @@ type ScratchMountFormula = {
   readOnly: boolean;
 };
 
+export type GitFormula = {
+  type: 'git';
+  mountId: FormulaIdentifier;
+};
+
+// Public Git capability surface.  These types describe the inputs and
+// outputs of the `Git` exo's methods (see `src/interfaces.js` for the
+// runtime guard and `src/git.js` for the implementation); they are part
+// of the package's public API and live here rather than in `src/git.js`
+// so downstream consumers can reach them without importing implementation
+// modules.
+
+export type GitRef = {
+  name: string;
+  kind: 'branch' | 'tag' | 'commit' | 'detached';
+  oid?: string;
+};
+
+export type GitCommit = {
+  oid: string;
+  summary: string;
+  author?: string;
+  committedAt?: number;
+};
+
+export type GitIndexStatus =
+  | 'clean'
+  | 'added'
+  | 'modified'
+  | 'deleted'
+  | 'renamed'
+  | 'copied'
+  | 'conflicted';
+
+export type GitWorktreeStatus =
+  | 'clean'
+  | 'modified'
+  | 'deleted'
+  | 'untracked'
+  | 'ignored'
+  | 'conflicted';
+
+export type GitStatusEntry = {
+  /**
+   * An `EndoMountEntry` for the path.  The entry is the authority-bearing
+   * reference; `path` is presentation data only.
+   */
+  entry: EndoMountEntry;
+  path: string;
+  index: GitIndexStatus;
+  worktree: GitWorktreeStatus;
+  /**
+   * Present when a live worktree object currently exists for the path
+   * (an `EndoMountFile` or `EndoMount` sub-mount).
+   */
+  node?: EndoMount | EndoMountFile;
+  renamedFrom?: string;
+};
+
+export type GitDiffOptions = {
+  cached?: boolean;
+  base?: GitRef | string;
+  head?: GitRef | string;
+  entries?: EndoMountEntry[];
+  paths?: string[];
+};
+
+export type GitLogOptions = {
+  /** `git log -n <count>` / `--max-count=<count>`.  Positive integer. */
+  maxCount?: number;
+  /** Branch, tag, oid, or any commit-ish git itself accepts. */
+  ref?: GitRef | string;
+  /**
+   * `git log --since=<approxidate>`.  Accepts the same approxidate
+   * forms git itself parses (`"2 weeks ago"`, `"2026-01-01"`, an RFC
+   * 3339 timestamp).
+   */
+  since?: string;
+  /**
+   * `git log --until=<approxidate>`.  Same accepted forms as `since`.
+   */
+  until?: string;
+};
+
+export type GitRestoreOptions = {
+  /**
+   * Restore from the index (default: false, which restores from the
+   * worktree).
+   */
+  staged?: boolean;
+};
+
+export type GitCreateBranchOptions = {
+  /** Revision at which to create the branch. */
+  startPoint?: string;
+  /** Switch to the new branch after creation. */
+  switchAfterCreate?: boolean;
+};
+
+export type GitDeleteBranchOptions = {
+  /** Pass `-D` instead of `-d`. */
+  force?: boolean;
+};
+
+export type GitMergeOptions = {
+  /** Pass `--ff-only`. */
+  fastForwardOnly?: boolean;
+  /** Pass `--no-ff`. */
+  noFastForward?: boolean;
+};
+
+export type GitRebaseInput = {
+  /**
+   * The backend throws when this is missing or any other value, so the
+   * boundary accepts the unconstrained shape that the public Git exo's
+   * runtime guard admits.
+   */
+  mode?: 'start' | 'continue' | 'abort' | 'skip';
+  /** Required when `mode === 'start'`. */
+  upstream?: string;
+};
+
+export type GitStashPushOptions = {
+  message?: string;
+  entries?: EndoMountEntry[];
+  paths?: string[];
+  includeUntracked?: boolean;
+};
+
+/**
+ * Public `Git` capability surface, minted by `EndoHost.provideGit` and
+ * `DaemonCore.formulateGit`.  The implementation lives in
+ * `src/git.js` (the `makeGit` factory) and the runtime guard is the
+ * `GitInterface` exo in `src/interfaces.js`.
+ *
+ * The capability is a thin wrapper over a `GitBackend` (today
+ * `NativeGitBackend`); path-bearing inputs are passed as
+ * `EndoMountEntry` values that the exo resolves to repo-relative
+ * paths before reaching the backend.  Mutation methods reject when
+ * the cap was obtained via `readOnly()` or derived from a read-only
+ * worktree mount.
+ */
+export interface EndoGit {
+  /** The `EndoMount` carrying the public worktree authority. */
+  worktree(): EndoMount;
+  status(): Promise<GitStatusEntry[]>;
+  diff(options?: GitDiffOptions): Promise<string>;
+  log(options?: GitLogOptions): Promise<GitCommit[]>;
+  show(ref: GitRef | string): Promise<string>;
+  revParse(ref: GitRef | string): Promise<GitRef>;
+  add(entries: EndoMountEntry[]): Promise<void>;
+  restore(
+    entries: EndoMountEntry[],
+    options?: GitRestoreOptions,
+  ): Promise<void>;
+  commit(message: string): Promise<GitCommit>;
+  currentBranch(): Promise<GitRef | undefined>;
+  branches(): Promise<GitRef[]>;
+  createBranch(name: string, options?: GitCreateBranchOptions): Promise<GitRef>;
+  deleteBranch(name: string, options?: GitDeleteBranchOptions): Promise<void>;
+  renameBranch(from: string, to: string): Promise<void>;
+  switchBranch(name: string): Promise<void>;
+  detach(ref: GitRef | string): Promise<void>;
+  switch(ref: GitRef | string): Promise<void>;
+  merge(ref: GitRef | string, options?: GitMergeOptions): Promise<string>;
+  rebase(input: GitRebaseInput): Promise<string>;
+  stashPush(options?: GitStashPushOptions): Promise<string>;
+  stashList(): Promise<string[]>;
+  stashShow(index?: number): Promise<string>;
+  stashApply(index?: number): Promise<void>;
+  stashPop(index?: number): Promise<void>;
+  stashDrop(index?: number): Promise<void>;
+  /**
+   * Returns a `ReadableTree`-shaped view of the given tree-ish; blob
+   * children expose a `ReadableBlob`-shaped surface.
+   */
+  tree(ref: GitRef | string): Promise<ReadableTreeView>;
+  /**
+   * Returns an attenuated `EndoGit` whose mutation methods reject.
+   * If this cap is already read-only, returns the same cap.
+   */
+  readOnly(): EndoGit;
+}
+
 export type MountDeferredTaskParams = {
   mountId: FormulaIdentifier;
 };
 
 export type ScratchMountDeferredTaskParams = {
   scratchMountId: FormulaIdentifier;
+};
+
+export type GitDeferredTaskParams = {
+  gitId: FormulaIdentifier;
 };
 
 type LookupFormula = {
@@ -411,6 +599,7 @@ export type Formula =
   | ReadableTreeFormula
   | MountFormula
   | ScratchMountFormula
+  | GitFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeArchiveFormula
@@ -1067,6 +1256,7 @@ export interface EndoHost extends EndoAgent {
     opts?: { readOnly?: boolean },
   ): Promise<EndoMount>;
   provideScratchMount(petName: string | string[]): Promise<EndoMount>;
+  provideGit(mountCap: EndoMount, petName: string | string[]): Promise<EndoGit>;
   /**
    * Privileged bridge from a daemon-minted top-level Mount cap to its
    * host filesystem path. EndoHost is a fully privileged authority;
@@ -1790,6 +1980,11 @@ export interface DaemonCore {
     readOnly: boolean,
     deferredTasks: DeferredTasks<ScratchMountDeferredTaskParams>,
   ) => FormulateResult<EndoMount>;
+
+  formulateGit: (
+    mountId: FormulaIdentifier,
+    deferredTasks: DeferredTasks<GitDeferredTaskParams>,
+  ) => FormulateResult<EndoGit>;
 
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,

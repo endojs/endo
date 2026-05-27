@@ -64,7 +64,9 @@ import {
   makeHelp,
   readableTreeHelp,
 } from './help-text.js';
-import { makeMount } from './mount.js';
+import { getMountBacking, makeMount } from './mount.js';
+import { makeGit } from './git.js';
+import { makeNativeGitBackend } from './native-git-backend.js';
 
 // Sorted:
 import {
@@ -85,7 +87,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
+/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
 /**
  * Creates a delayed promise that can be cancelled.
@@ -606,6 +608,8 @@ const makeDaemonCore = async (
         return [];
       case 'scratch-mount':
         return [];
+      case 'git':
+        return [['mount', formula.mountId]];
       case 'pet-inspector':
         return [['petStore', formula.petStore]];
       case 'directory':
@@ -2642,6 +2646,37 @@ const makeDaemonCore = async (
         snapshotFile: snapshotMountFile,
       });
     },
+    git: async ({ mountId }, context) => {
+      context.thisDiesIfThatDies(mountId);
+      const mount = await provide(mountId);
+      const backing = getMountBacking(mount);
+      if (!backing) {
+        throw makeError(
+          X`Git formula's mountId ${q(mountId)} does not name a daemon-minted mount`,
+        );
+      }
+      if (backing.kind !== 'physical') {
+        throw makeError(
+          X`Git requires a physical mount, got ${q(backing.kind)}`,
+        );
+      }
+      if (backing.physicalRoot !== backing.currentDir) {
+        throw makeError(
+          X`Git requires the mount root, not a sub-mount; received ${q(backing.currentDir)} under root ${q(backing.physicalRoot)}`,
+        );
+      }
+      const gitMetadataPath = filePowers.joinPath(backing.physicalRoot, '.git');
+      if (!(await filePowers.exists(gitMetadataPath))) {
+        throw makeError(
+          X`Mount root ${q(backing.physicalRoot)} is not a git worktree (no .git entry at root)`,
+        );
+      }
+      const backend = makeNativeGitBackend({
+        repoRoot: backing.physicalRoot,
+      });
+      await backend.assertRepositoryRoot();
+      return makeGit({ mount, backend, readOnly: backing.readOnly });
+    },
     lookup: ({ hub, path }, context) =>
       makeLookup(
         hub,
@@ -3450,6 +3485,33 @@ const makeDaemonCore = async (
         const formula = harden({
           type: 'scratch-mount',
           readOnly,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateGit']} */
+  const formulateGit = async (mountId, deferredTasks) => {
+    return /** @type {FormulateResult<EndoGit>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          gitId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').GitFormula} */
+        const formula = harden({
+          type: 'git',
+          mountId,
         });
 
         return formulate(formulaNumber, formula);
@@ -5341,6 +5403,7 @@ const makeDaemonCore = async (
     checkinTree,
     formulateMount,
     formulateScratchMount,
+    formulateGit,
     formulateInvitation,
     formulateDirectoryForStore,
     getPeerIdForNodeIdentifier,

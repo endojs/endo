@@ -327,6 +327,10 @@ export const HostInterface = M.interface('EndoHost', {
   provideScratchMount: M.call(NameOrPathShape)
     .optional(M.splitRecord({}, { readOnly: M.boolean() }))
     .returns(M.promise()),
+  // Derive a local Git capability from an authorized mount.
+  provideGit: M.callWhen(M.remotable(), NameOrPathShape).returns(
+    M.remotable('Git'),
+  ),
   // Resolve a Mount capability to its host filesystem path. This is
   // deliberately part of the fully privileged EndoHost surface used
   // by the @endo/sandbox factory (and similar make-unconfined
@@ -590,6 +594,107 @@ export const MountEntryInterface = M.interface('EndoMountEntry', {
   displayPath: M.call().returns(M.string()),
   child: M.call(M.string()).returns(MountEntryShape),
   help: M.call().returns(M.string()),
+});
+
+const RefArgShape = M.or(M.string(), M.recordOf(M.string(), M.any()));
+
+const GitIndexStatusShape = M.or(
+  'clean',
+  'added',
+  'modified',
+  'deleted',
+  'renamed',
+  'copied',
+  'conflicted',
+);
+
+const GitWorktreeStatusShape = M.or(
+  'clean',
+  'modified',
+  'deleted',
+  'untracked',
+  'ignored',
+  'conflicted',
+);
+
+const GitStatusEntryShape = M.splitRecord(
+  {
+    entry: M.remotable('EndoMountEntry'),
+    path: M.string(),
+    index: GitIndexStatusShape,
+    worktree: GitWorktreeStatusShape,
+  },
+  {
+    node: M.remotable(),
+    renamedFrom: M.string(),
+  },
+);
+
+const GitRefKindShape = M.or('branch', 'tag', 'commit', 'detached');
+
+const GitRefShape = M.splitRecord(
+  {
+    name: M.string(),
+    kind: GitRefKindShape,
+  },
+  {
+    oid: M.string(),
+  },
+);
+
+const GitCommitShape = M.splitRecord(
+  {
+    oid: M.string(),
+    summary: M.string(),
+  },
+  {
+    author: M.string(),
+    committedAt: M.number(),
+  },
+);
+
+export const GitInterface = M.interface('Git', {
+  worktree: M.call().returns(M.remotable('EndoMount')),
+  status: M.callWhen().returns(M.arrayOf(GitStatusEntryShape)),
+  diff: M.callWhen()
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(M.string()),
+  log: M.callWhen()
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(M.arrayOf(GitCommitShape)),
+  show: M.callWhen(RefArgShape).returns(M.string()),
+  revParse: M.callWhen(RefArgShape).returns(GitRefShape),
+  add: M.callWhen(M.arrayOf(M.remotable())).returns(M.undefined()),
+  restore: M.callWhen(M.arrayOf(M.remotable()))
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(M.undefined()),
+  commit: M.callWhen(M.string()).returns(GitCommitShape),
+  currentBranch: M.callWhen().returns(M.or(GitRefShape, M.undefined())),
+  branches: M.callWhen().returns(M.arrayOf(GitRefShape)),
+  createBranch: M.callWhen(M.string())
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(GitRefShape),
+  deleteBranch: M.callWhen(M.string())
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(M.undefined()),
+  renameBranch: M.callWhen(M.string(), M.string()).returns(M.undefined()),
+  switchBranch: M.callWhen(M.string()).returns(M.undefined()),
+  detach: M.callWhen(RefArgShape).returns(M.undefined()),
+  switch: M.callWhen(RefArgShape).returns(M.undefined()),
+  merge: M.callWhen(RefArgShape)
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(M.string()),
+  rebase: M.callWhen(M.recordOf(M.string(), M.any())).returns(M.string()),
+  stashPush: M.callWhen()
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(M.string()),
+  stashList: M.callWhen().returns(M.arrayOf(M.string())),
+  stashShow: M.callWhen().optional(M.number()).returns(M.string()),
+  stashApply: M.callWhen().optional(M.number()).returns(M.undefined()),
+  stashPop: M.callWhen().optional(M.number()).returns(M.undefined()),
+  stashDrop: M.callWhen().optional(M.number()).returns(M.undefined()),
+  tree: M.callWhen(RefArgShape).returns(M.remotable('EndoReadableTree')),
+  readOnly: M.call().returns(M.remotable('Git')),
 });
 
 export const ReadableTreeInterface = M.interface('EndoReadableTree', {
