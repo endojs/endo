@@ -1292,6 +1292,16 @@ export interface EndoHost extends EndoAgent {
   ): Promise<EndoMount>;
   provideScratchMount(petName: string | string[]): Promise<EndoMount>;
   provideGit(mountCap: EndoMount, petName: string | string[]): Promise<EndoGit>;
+  /**
+   * Mint a `GitRemote` capability bound to `gitCap`, persist its
+   * formula, and bind it to `petName`.  The remote enforces the
+   * supplied policy (allowed directions, refspecs, force-push, etc.)
+   * against every operation.  Host-only; not exposed to guests.  The
+   * guest holds the returned exo (which exposes `fetch`/`pull`/`push`
+   * and `inspect()`); the controller surface
+   * (`getGitRemoteController`) lives on the host side and stays
+   * within `EndoHost`.
+   */
   provideGitRemote(
     gitCap: unknown,
     petName: string | string[],
@@ -1309,15 +1319,46 @@ export interface EndoHost extends EndoAgent {
       credential?: unknown;
     },
   ): Promise<unknown>;
+  /**
+   * Mint a bearer-token `GitCredential` capability scoped to
+   * `audience` (a URL origin) and bind it to `petName`.  Material
+   * lives in a daemon-process-local map; daemon restart routes the
+   * cap through `makeUnavailableGitCredential` (durable identity,
+   * ephemeral material).  Host-only; not exposed to guests.  Guests
+   * receive only the `audience()` view of the resulting capability.
+   */
   provideBearerCredential(
     petName: string | string[],
     options: { audience: string; token: string },
   ): Promise<unknown>;
+  /**
+   * Mint a basic-auth `GitCredential` capability scoped to `audience`
+   * and bind it to `petName`.  Same material-residency contract as
+   * `provideBearerCredential`: host-only, daemon-process-local
+   * material, audience-gated transport use.
+   */
   provideBasicCredential(
     petName: string | string[],
     options: { audience: string; username: string; password: string },
   ): Promise<unknown>;
+  /**
+   * Privileged accessor: return the host-side controller paired with
+   * a daemon-minted `GitCredential` exo.  The controller exposes
+   * `inspect`, `rotate`, `revoke`, and `audit`; the guest-held
+   * credential exposes only `audience()`.  Host-only; not exposed to
+   * guests.  Returns `undefined` for spoof / fake credentials that
+   * did not pass through `provideBearerCredential` or
+   * `provideBasicCredential`.
+   */
   getGitCredentialController(credential: unknown): Promise<unknown>;
+  /**
+   * Privileged accessor: return the host-side controller paired with
+   * a daemon-minted `GitRemote` exo.  The controller exposes policy
+   * setters (`setAllowedDirections`, `setFetchRefspecs`,
+   * `setPushRefspecs`, ...), `revoke`, and `audit`.  Host-only; not
+   * exposed to guests.  Returns `undefined` for spoof / fake remotes
+   * that did not pass through `provideGitRemote`.
+   */
   getGitRemoteController(remote: unknown): Promise<unknown>;
   /**
    * Privileged bridge from a daemon-minted top-level Mount cap to its
