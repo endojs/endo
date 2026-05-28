@@ -8,6 +8,9 @@ import process from 'node:process';
 import { setTimeout, clearTimeout } from 'node:timers';
 import fs from 'node:fs';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
+import net from 'node:net';
+import { URL } from 'node:url';
 
 import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
@@ -41,6 +44,10 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  * } from './types.js'
  */
 
+/**
+ * @typedef {{ kind: 'bearer', material: { token: string } } | { kind: 'basic', material: { username: string, password: string } }} NativeGitCredential
+ */
+
 const execFileAsync = promisify(execFile);
 
 const gitNullDevice = process.platform === 'win32' ? 'NUL' : '/dev/null';
@@ -69,8 +76,7 @@ const GIT_BASE_ARGS = harden([
   '-c',
   'tag.gpgSign=false',
   // Suppress ambient credential helpers.  A blank helper resets the
-  // helper list so the local-worktree surface cannot prompt for or
-  // forward host credentials.
+  // helper list; credentialed remote calls use the daemon askpass helper.
   '-c',
   'credential.helper=',
 ]);
@@ -293,6 +299,17 @@ harden(normalizeTreePath);
  * @property {string} name
  */
 
+/**
+ * @typedef {'created' | 'updated' | 'up-to-date' | 'fast-forward' | 'forced' | 'pruned' | 'rejected'} GitRefUpdateResult
+ */
+
+/**
+ * @typedef {object} RemoteRefspec
+ * @property {boolean} force
+ * @property {string} src
+ * @property {string} dst
+ */
+
 // Repository-local configurations that can execute code on read/write
 // paths and must be refused before any mutating operation runs.  The
 // public Git exo dispatches read-only methods (status, diff, log,
@@ -303,6 +320,137 @@ harden(normalizeTreePath);
 // stashDrop) gate on `assertNoExecutableRepoConfig` first.
 const EXECUTABLE_REPO_CONFIG =
   /^(filter\..*\.(clean|smudge|process)|merge\..*\.driver)$/u;
+
+// Repository-local configurations that can redirect or alter an
+// explicitly-policy-bound remote URL. Remote operations pass a URL
+// selected by GitRemote policy; local `.git/config` must not rewrite
+// that endpoint, inject headers/credentials, loosen protocol controls,
+// or route it through a configured proxy.
+const REMOTE_TRANSPORT_REPO_CONFIG =
+  /^(url\..*\.(insteadof|pushinsteadof)|protocol\..*|https?\..*|credential(\.|$)|core\.(sshcommand|gitproxy)|ssh\..*|include(\.|if\.))/u;
+
+/**
+ * @param {string} name
+ * @param {string | undefined} oid
+ * @returns {GitRef}
+ */
+const makeRefUpdateGitRef = (name, oid) =>
+  harden({
+    name,
+    kind: /** @type {'branch' | 'tag' | 'commit' | 'detached'} */ (
+      name.startsWith('refs/tags/') ? 'tag' : 'branch'
+    ),
+    ...(oid === undefined ? {} : { oid }),
+  });
+harden(makeRefUpdateGitRef);
+
+/**
+ * @param {string} refspec
+ * @param {string} fieldName
+ * @returns {RemoteRefspec}
+ */
+const parseRemoteRefspec = (refspec, fieldName) => {
+  const raw = requireNonEmptyString(refspec, fieldName);
+  const force = raw.startsWith('+');
+  const body = force ? raw.slice(1) : raw;
+  const colon = body.indexOf(':');
+  return harden({
+    force,
+    src: colon < 0 ? body : body.slice(0, colon),
+    dst: colon < 0 ? '' : body.slice(colon + 1),
+  });
+};
+harden(parseRemoteRefspec);
+
+/**
+ * @param {string} ref
+ * @param {string} pattern
+ */
+const refMatchesPattern = (ref, pattern) => {
+  if (!pattern.includes('*')) {
+    return ref === pattern;
+  }
+  const [prefix, suffix] = pattern.split('*');
+  return ref.startsWith(prefix) && ref.endsWith(suffix);
+};
+harden(refMatchesPattern);
+
+/**
+ * @param {string} srcPattern
+ * @param {string} dstPattern
+ * @param {string} dst
+ */
+const sourceForDestination = (srcPattern, dstPattern, dst) => {
+  if (!srcPattern.includes('*') || !dstPattern.includes('*')) {
+    return srcPattern;
+  }
+  const [dstPrefix, dstSuffix] = dstPattern.split('*');
+  const [srcPrefix, srcSuffix] = srcPattern.split('*');
+  const suffixLength = dstSuffix.length;
+  const middle = dst.slice(
+    dstPrefix.length,
+    suffixLength === 0 ? undefined : -suffixLength,
+  );
+  return `${srcPrefix}${middle}${srcSuffix}`;
+};
+harden(sourceForDestination);
+
+/**
+ * @param {string} pattern
+ */
+const selectorForDestinationPattern = pattern => {
+  if (!pattern.includes('*')) {
+    return pattern;
+  }
+  return pattern.slice(0, pattern.indexOf('*'));
+};
+harden(selectorForDestinationPattern);
+
+/**
+ * @param {string | undefined} beforeOid
+ * @param {string | undefined} afterOid
+ * @returns {GitRefUpdateResult | undefined}
+ */
+const fetchUpdateResult = (beforeOid, afterOid) => {
+  if (beforeOid === undefined && afterOid === undefined) {
+    return undefined;
+  }
+  if (beforeOid === undefined) {
+    return 'created';
+  }
+  if (afterOid === undefined) {
+    return 'pruned';
+  }
+  if (beforeOid === afterOid) {
+    return 'up-to-date';
+  }
+  return 'updated';
+};
+harden(fetchUpdateResult);
+
+/**
+ * @param {string} flag
+ * @returns {GitRefUpdateResult}
+ */
+const pushPorcelainFlagToResult = flag => {
+  switch (flag) {
+    case '*':
+      return 'created';
+    case '=':
+      return 'up-to-date';
+    case ' ':
+      return 'fast-forward';
+    case '+':
+      return 'forced';
+    case '-':
+      return 'pruned';
+    case '!':
+      return 'rejected';
+    default:
+      return 'updated';
+  }
+};
+harden(pushPorcelainFlagToResult);
 
 /**
  * @typedef {object} RepositoryIdentity
@@ -459,6 +607,119 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
   let versionVerification;
   /** @type {RepositoryIdentity | undefined} */
   let repositoryIdentity;
+  /** @type {Promise<string> | undefined} */
+  let askpassPath;
+
+  const ensureAskpassPath = async () => {
+    if (askpassPath === undefined) {
+      askpassPath = (async () => {
+        const askpassDir = await fs.promises.mkdtemp(
+          path.join(tmpdir(), 'endo-git-askpass-'),
+        );
+        const scriptPath = path.join(askpassDir, 'askpass.sh');
+        await fs.promises.writeFile(
+          scriptPath,
+          [
+            `#!${process.execPath}`,
+            "const net = require('node:net');",
+            'const socketPath = process.env.ENDO_GIT_ASKPASS_SOCKET;',
+            'if (!socketPath) { process.exit(1); }',
+            'const client = net.createConnection(socketPath);',
+            "let response = '';",
+            "client.setEncoding('utf8');",
+            "client.on('connect', () => {",
+            '  client.end(JSON.stringify({ prompt: process.argv.slice(2).join(" ") }));',
+            '});',
+            "client.on('data', chunk => { response += chunk; });",
+            "client.on('end', () => { process.stdout.write(response); });",
+            "client.on('error', () => { process.exit(1); });",
+            '',
+          ].join('\n'),
+          { mode: 0o700 },
+        );
+        await fs.promises.chmod(scriptPath, 0o700);
+        return scriptPath;
+      })();
+    }
+    return askpassPath;
+  };
+
+  /**
+   * @param {unknown} credential
+   * @returns {Promise<{ env: Record<string, string>, close: () => Promise<void> }>}
+   */
+  const makeCredentialTransport = async credential => {
+    if (credential === undefined) {
+      return harden({
+        env: harden({}),
+        close: async () => {},
+      });
+    }
+    const nativeCredential = /** @type {NativeGitCredential} */ (credential);
+    /** @type {string} */
+    let username;
+    /** @type {string} */
+    let password;
+    if (nativeCredential.kind === 'bearer') {
+      username = 'x-access-token';
+      password = requireNonEmptyString(
+        nativeCredential.material?.token,
+        'remote credential token',
+      );
+    } else if (nativeCredential.kind === 'basic') {
+      username = requireNonEmptyString(
+        nativeCredential.material?.username,
+        'remote credential username',
+      );
+      password = requireNonEmptyString(
+        nativeCredential.material?.password,
+        'remote credential password',
+      );
+    } else {
+      throw new Error('Unsupported remote credential kind');
+    }
+
+    const askpassDir = await fs.promises.mkdtemp(
+      path.join(tmpdir(), 'endo-git-askpass-socket-'),
+    );
+    const socketPath = path.join(askpassDir, 'askpass.sock');
+    const server = net.createServer(socket => {
+      socket.setEncoding('utf8');
+      let request = '';
+      socket.on('data', chunk => {
+        request += String(chunk);
+      });
+      socket.on('end', () => {
+        let prompt = '';
+        try {
+          prompt =
+            /** @type {{ prompt?: string }} */ (JSON.parse(request || '{}'))
+              .prompt || '';
+        } catch {
+          prompt = '';
+        }
+        const response = /sername/iu.test(prompt) ? username : password;
+        socket.end(`${response}\n`);
+      });
+    });
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(socketPath, () => resolve(undefined));
+    });
+
+    return harden({
+      env: harden({
+        GIT_ASKPASS: await ensureAskpassPath(),
+        ENDO_GIT_ASKPASS_SOCKET: socketPath,
+      }),
+      close: async () => {
+        await new Promise(resolve => {
+          server.close(() => resolve(undefined));
+        });
+        await fs.promises.rm(askpassDir, { recursive: true, force: true });
+      },
+    });
+  };
 
   const verifyGitVersion = async () => {
     if (!versionVerification) {
@@ -816,6 +1077,214 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         `Refusing git operation because repository config can execute commands: ${offending.join(', ')}`,
       );
     }
+  };
+
+  /**
+   * Refuse repository-local configuration that can redirect or modify
+   * an explicit remote URL. Unlike ordinary local branch metadata, these
+   * keys apply even when the daemon invokes `git fetch <url>` or
+   * `git push <url>` with a policy-controlled URL.
+   */
+  const assertNoRemoteTransportRepoConfig = async () => {
+    await verifyRepositoryIdentity();
+    const { stdout } = await execFileAsync(
+      'git',
+      [...GIT_BASE_ARGS, 'config', '--local', '--name-only', '--list'],
+      {
+        cwd: repoRoot,
+        env: makeGitEnv(repoRoot),
+        timeout: GIT_TIMEOUT_MS,
+        maxBuffer: GIT_MAX_BUFFER,
+      },
+    );
+    const offending = stdout
+      .split('\n')
+      .map(name => name.trim())
+      .filter(name => REMOTE_TRANSPORT_REPO_CONFIG.test(name.toLowerCase()));
+    if (offending.length > 0) {
+      throw new Error(
+        `Refusing remote git operation because repository config can alter remote transport: ${offending.join(', ')}`,
+      );
+    }
+  };
+
+  /**
+   * Add command-line protocol policy for explicit URL remote operations.
+   * The URL itself still comes from GitRemote policy; these flags ensure
+   * the protocol selected for that URL is the only protocol git may use
+   * after its normal URL handling.
+   *
+   * @param {string} urlText
+   * @returns {string[]}
+   */
+  const remoteProtocolArgs = urlText => {
+    let protocol;
+    try {
+      protocol = new URL(urlText).protocol;
+    } catch {
+      throw new Error(`remote URL is not a valid URL: ${q(urlText)}`);
+    }
+    if (protocol === 'https:') {
+      return harden([
+        '-c',
+        'protocol.allow=never',
+        '-c',
+        'protocol.https.allow=always',
+      ]);
+    }
+    if (protocol === 'http:') {
+      return harden([
+        '-c',
+        'protocol.allow=never',
+        '-c',
+        'protocol.http.allow=always',
+      ]);
+    }
+    if (protocol === 'file:') {
+      return harden([
+        '-c',
+        'protocol.allow=never',
+        '-c',
+        'protocol.file.allow=always',
+      ]);
+    }
+    throw new Error(`remote URL protocol is not supported: ${q(protocol)}`);
+  };
+  harden(remoteProtocolArgs);
+
+  /**
+   * @param {string[]} selectors
+   * @returns {Promise<Map<string, string>>}
+   */
+  const readRefMap = async selectors => {
+    if (selectors.length === 0) {
+      return new Map();
+    }
+    const raw = await runGitRaw([
+      'for-each-ref',
+      '--format=%(refname)%09%(objectname)',
+      ...selectors,
+    ]);
+    const refs = new Map();
+    for (const line of raw.split('\n').filter(entry => entry !== '')) {
+      const tab = line.indexOf('\t');
+      if (tab < 0) {
+        throw new Error(`Could not parse git for-each-ref line: ${q(line)}`);
+      }
+      refs.set(line.slice(0, tab), line.slice(tab + 1));
+    }
+    return refs;
+  };
+
+  /**
+   * @param {string[]} refspecs
+   */
+  const selectorsForFetchRefspecs = refspecs =>
+    harden(
+      [
+        ...new Set(
+          refspecs
+            .map((refspec, index) =>
+              parseRemoteRefspec(refspec, `remoteFetch.refspecs[${index}]`),
+            )
+            .map(({ dst }) => dst)
+            .filter(dst => dst !== '')
+            .map(selectorForDestinationPattern),
+        ),
+      ].filter(selector => selector !== ''),
+    );
+
+  /**
+   * @param {string[]} refspecs
+   * @param {Map<string, string>} before
+   * @param {Map<string, string>} after
+   */
+  const summarizeFetchRefUpdates = (refspecs, before, after) => {
+    /** @type {Array<{ local: GitRef, remote: string, result: GitRefUpdateResult }>} */
+    const updates = [];
+    const seen = new Set();
+    for (const [index, refspec] of refspecs.entries()) {
+      const parsed = parseRemoteRefspec(
+        refspec,
+        `remoteFetch.refspecs[${index}]`,
+      );
+      if (parsed.dst !== '') {
+        const candidates = [
+          ...new Set([...before.keys(), ...after.keys()].sort()),
+        ].filter(ref => refMatchesPattern(ref, parsed.dst) && !seen.has(ref));
+        for (const dst of candidates) {
+          seen.add(dst);
+          const beforeOid = before.get(dst);
+          const afterOid = after.get(dst);
+          const result = fetchUpdateResult(beforeOid, afterOid);
+          if (result !== undefined) {
+            updates.push(
+              harden({
+                local: makeRefUpdateGitRef(dst, afterOid || beforeOid),
+                remote: sourceForDestination(parsed.src, parsed.dst, dst),
+                result,
+              }),
+            );
+          }
+        }
+      }
+    }
+    return harden(updates);
+  };
+
+  /**
+   * @param {string} ref
+   * @returns {Promise<GitRef | undefined>}
+   */
+  const resolveOptionalRef = async ref => {
+    if (ref === '') {
+      return undefined;
+    }
+    try {
+      const oid = (await runGitRaw(['rev-parse', '--verify', ref])).trim();
+      return makeRefUpdateGitRef(ref, oid);
+    } catch {
+      return makeRefUpdateGitRef(ref, undefined);
+    }
+  };
+
+  /**
+   * @param {string} raw
+   * @returns {Promise<Array<{ local?: GitRef, remote: string, result: GitRefUpdateResult }>>}
+   */
+  const parsePushPorcelainUpdates = async raw => {
+    const records = raw.split('\n').flatMap(line => {
+      const flag = line[0];
+      const rest = line.slice(1);
+      const fields = rest.startsWith('\t') ? rest.slice(1).split('\t') : [];
+      if (
+        line === '' ||
+        line === 'Done' ||
+        line.startsWith('To ') ||
+        fields.length < 2
+      ) {
+        return [];
+      }
+      const colon = fields[0].indexOf(':');
+      return harden([
+        harden({
+          src: colon < 0 ? fields[0] : fields[0].slice(0, colon),
+          dst: colon < 0 ? fields[0] : fields[0].slice(colon + 1),
+          flag,
+        }),
+      ]);
+    });
+    const updates = await Promise.all(
+      records.map(async ({ src, dst, flag }) => {
+        const local = await resolveOptionalRef(src);
+        return harden({
+          ...(local === undefined ? {} : { local }),
+          remote: dst,
+          result: pushPorcelainFlagToResult(flag),
+        });
+      }),
+    );
+    return harden(updates);
   };
 
   /**
@@ -1547,6 +2016,74 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         `${revision}^{tree}`,
       ]);
       return makeGitTree(rawTree.trim());
+    },
+
+    remoteFetch: async input => {
+      const opts =
+        /** @type {{ url?: unknown, refspecs?: unknown, prune?: boolean, tags?: boolean, credential?: unknown, signal?: AbortSignal }} */ (
+          input
+        );
+      const url = requireRevision(opts.url, 'remoteFetch.url');
+      const refspecs = Array.isArray(opts.refspecs)
+        ? opts.refspecs.map((refspec, index) =>
+            requireNonEmptyString(refspec, `remoteFetch.refspecs[${index}]`),
+          )
+        : [];
+      await assertNoExecutableRepoConfig();
+      await assertNoRemoteTransportRepoConfig();
+      const selectors = selectorsForFetchRefspecs(refspecs);
+      const before = await readRefMap([...selectors]);
+      const args = [...remoteProtocolArgs(url), 'fetch'];
+      if (opts.prune) {
+        args.push('--prune');
+      }
+      args.push(opts.tags ? '--tags' : '--no-tags');
+      args.push(url, ...refspecs);
+      const credentialTransport = await makeCredentialTransport(
+        opts.credential,
+      );
+      try {
+        const text = await runGit(args, credentialTransport.env, opts.signal);
+        const after = await readRefMap([...selectors]);
+        const updatedRefs = summarizeFetchRefUpdates(refspecs, before, after);
+        return harden({ updatedRefs, text });
+      } finally {
+        await credentialTransport.close();
+      }
+    },
+
+    remotePush: async input => {
+      const opts =
+        /** @type {{ url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: unknown, signal?: AbortSignal }} */ (
+          input
+        );
+      const url = requireRevision(opts.url, 'remotePush.url');
+      const refspecs = Array.isArray(opts.refspecs)
+        ? opts.refspecs.map((refspec, index) =>
+            requireNonEmptyString(refspec, `remotePush.refspecs[${index}]`),
+          )
+        : [];
+      if (refspecs.length === 0) {
+        throw new Error('remotePush.refspecs must not be empty');
+      }
+      await assertNoExecutableRepoConfig();
+      await assertNoRemoteTransportRepoConfig();
+      const args = [...remoteProtocolArgs(url), 'push', '--porcelain'];
+      if (opts.setUpstream) {
+        args.push('--set-upstream');
+      }
+      args.push(url, ...refspecs);
+      const credentialTransport = await makeCredentialTransport(
+        opts.credential,
+      );
+      try {
+        const raw = await runGitRaw(args, credentialTransport.env, opts.signal);
+        const updatedRefs = await parsePushPorcelainUpdates(raw);
+        const text = truncateOutput(raw.trim() || '(no output)');
+        return harden({ updatedRefs, text });
+      } finally {
+        await credentialTransport.close();
+      }
     },
   });
 };

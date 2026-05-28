@@ -149,6 +149,14 @@ harden(getGitBackend);
  * @property {(ref: string) => Promise<unknown>} tree  Returns a
  *   `ReadableTree` exo for the given tree-ish; blobs implement
  *   `ReadableBlob`.
+ * @property {(input: { url?: unknown, refspecs?: unknown, prune?: boolean, tags?: boolean, credential?: unknown, signal?: AbortSignal }) => Promise<object>} remoteFetch
+ *   Fetch from a policy-bound remote URL.  The caller has already
+ *   validated the URL and the refspecs against `GitRemote`'s policy;
+ *   this method runs the underlying `git fetch` invocation through the
+ *   sanitized environment.
+ * @property {(input: { url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: unknown, signal?: AbortSignal }) => Promise<object>} remotePush
+ *   Push to a policy-bound remote URL with the same policy
+ *   pre-validation contract as `remoteFetch`.
  */
 
 /**
@@ -492,6 +500,8 @@ export const makeNotYetImplementedBackend = () => {
     stashPop: async () => fail('stashPop'),
     stashDrop: async () => fail('stashDrop'),
     tree: async () => fail('tree'),
+    remoteFetch: async () => fail('remoteFetch'),
+    remotePush: async () => fail('remotePush'),
   });
 };
 harden(makeNotYetImplementedBackend);

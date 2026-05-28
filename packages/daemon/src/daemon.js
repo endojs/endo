@@ -67,6 +67,12 @@ import {
 import { getMountBacking, makeMount } from './mount.js';
 import { makeGit } from './git.js';
 import { makeNativeGitBackend } from './native-git-backend.js';
+import {
+  makeBasicCredential,
+  makeBearerCredential,
+  makeUnavailableGitCredential,
+} from './git-credential.js';
+import { makeGitRemote } from './git-remote.js';
 
 // Sorted:
 import {
@@ -88,6 +94,10 @@ import {
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
+
+/**
+ * @typedef {{ kind: 'bearer', token: string } | { kind: 'basic', username: string, password: string }} GitCredentialMaterial
+ */
 
 /**
  * Creates a delayed promise that can be cancelled.
@@ -610,6 +620,16 @@ const makeDaemonCore = async (
         return [];
       case 'git':
         return [['mount', formula.mountId]];
+      case 'git-credential':
+        return [];
+      case 'git-remote': {
+        /** @type {Array<[string, FormulaIdentifier]>} */
+        const deps = [['git', formula.gitId]];
+        if (formula.credentialId !== undefined) {
+          deps.push(['credential', formula.credentialId]);
+        }
+        return deps;
+      }
       case 'pet-inspector':
         return [['petStore', formula.petStore]];
       case 'directory':
@@ -675,6 +695,9 @@ const makeDaemonCore = async (
       const formula = collectedFormulas.get(id);
       if (formula !== undefined) {
         const { number: collectedNumber, node: collectedNode } = parseId(id);
+        if (formula.type === 'git-credential') {
+          gitCredentialMaterialForId.delete(id);
+        }
         formulaForId.delete(id);
         formulaChangeTopic.publisher.next(
           harden({ remove: collectedNumber, node: collectedNode }),
@@ -952,6 +975,40 @@ const makeDaemonCore = async (
 
   /** @type {WeakMap<object, FormulaIdentifier>} */
   const agentIdForHandle = new WeakMap();
+  /** @type {Map<FormulaIdentifier, GitCredentialMaterial>} */
+  const gitCredentialMaterialForId = new Map();
+
+  /**
+   * @param {FormulaIdentifier} id
+   * @param {'bearer' | 'basic'} kind
+   * @param {Record<string, unknown>} material
+   */
+  const rememberGitCredentialMaterial = (id, kind, material) => {
+    if (kind === 'bearer' && typeof material.token === 'string') {
+      gitCredentialMaterialForId.set(
+        id,
+        harden({ kind, token: material.token }),
+      );
+      return;
+    }
+    if (
+      kind === 'basic' &&
+      typeof material.username === 'string' &&
+      typeof material.password === 'string'
+    ) {
+      gitCredentialMaterialForId.set(
+        id,
+        harden({
+          kind,
+          username: material.username,
+          password: material.password,
+        }),
+      );
+      return;
+    }
+    gitCredentialMaterialForId.delete(id);
+  };
+  harden(rememberGitCredentialMaterial);
 
   // The following are functions that manage that state.
 
@@ -2677,6 +2734,85 @@ const makeDaemonCore = async (
       await backend.assertRepositoryRoot();
       return makeGit({ mount, backend, readOnly: backing.readOnly });
     },
+    'git-credential': ({ kind, audience }, _context, id) => {
+      const material = gitCredentialMaterialForId.get(id);
+      const onRotate = rotated =>
+        rememberGitCredentialMaterial(
+          id,
+          kind,
+          /** @type {Record<string, unknown>} */ (rotated),
+        );
+      const onRevoke = () => gitCredentialMaterialForId.delete(id);
+      if (kind === 'bearer' && material?.kind === 'bearer') {
+        return makeBearerCredential({
+          audience,
+          token: material.token,
+          onRotate,
+          onRevoke,
+        });
+      }
+      if (kind === 'basic' && material?.kind === 'basic') {
+        return makeBasicCredential({
+          audience,
+          username: material.username,
+          password: material.password,
+          onRotate,
+          onRevoke,
+        });
+      }
+      return makeUnavailableGitCredential({
+        kind,
+        audience,
+        onRotate,
+        onRevoke,
+      });
+    },
+    'git-remote': async (formula, context, id) => {
+      const { gitId, credentialId, name, policy, revoked = false } = formula;
+      let currentFormula = formula;
+      const persistGitRemoteState = async ({
+        policy: nextPolicy,
+        revoked: nextRevoked,
+      }) => {
+        await withFormulaGraphLock(async () => {
+          const { number: formulaNumber, node: formulaNode } = parseId(id);
+          const latestFormula = formulaForId.get(id) ?? currentFormula;
+          if (latestFormula.type !== 'git-remote') {
+            throw makeError(
+              X`GitRemote controller cannot update non-remote formula ${q(id)}`,
+            );
+          }
+          const nextFormula = harden({
+            ...latestFormula,
+            policy: nextPolicy,
+            revoked: nextRevoked,
+          });
+          await persistencePowers.writeFormula(
+            formulaNumber,
+            formulaNode,
+            nextFormula,
+          );
+          formulaForId.set(id, nextFormula);
+          currentFormula = nextFormula;
+        });
+      };
+      context.thisDiesIfThatDies(gitId);
+      if (credentialId !== undefined) {
+        context.thisDiesIfThatDies(credentialId);
+      }
+      const git = await provide(gitId);
+      const credential =
+        credentialId === undefined ? undefined : await provide(credentialId);
+      const { remote } = makeGitRemote({
+        git,
+        credential,
+        name,
+        policy,
+        revoked,
+        onStateChange: persistGitRemoteState,
+      });
+      return remote;
+    },
     lookup: ({ hub, path }, context) =>
       makeLookup(
         hub,
@@ -3512,6 +3648,94 @@ const makeDaemonCore = async (
         const formula = harden({
           type: 'git',
           mountId,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateGitCredential']} */
+  const formulateGitCredential = async (
+    kind,
+    audience,
+    material,
+    deferredTasks,
+  ) => {
+    /** @type {GitCredentialMaterial} */
+    let storedMaterial;
+    if (kind === 'bearer' && typeof material.token === 'string') {
+      storedMaterial = harden({ kind, token: material.token });
+    } else if (
+      kind === 'basic' &&
+      typeof material.username === 'string' &&
+      typeof material.password === 'string'
+    ) {
+      storedMaterial = harden({
+        kind,
+        username: material.username,
+        password: material.password,
+      });
+    } else {
+      throw makeError(
+        X`Git credential material does not match kind ${q(kind)}`,
+      );
+    }
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        const gitCredentialId = formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        });
+
+        await deferredTasks.execute({ gitCredentialId });
+        gitCredentialMaterialForId.set(gitCredentialId, storedMaterial);
+
+        /** @type {import('./types.js').GitCredentialFormula} */
+        const formula = harden({
+          type: 'git-credential',
+          kind,
+          audience,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateGitRemote']} */
+  const formulateGitRemote = async (
+    gitId,
+    credentialId,
+    name,
+    policy,
+    deferredTasks,
+  ) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          gitRemoteId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').GitRemoteFormula} */
+        const formula = harden({
+          type: 'git-remote',
+          gitId,
+          ...(credentialId === undefined ? {} : { credentialId }),
+          name,
+          policy,
         });
 
         return formulate(formulaNumber, formula);
@@ -5404,6 +5628,8 @@ const makeDaemonCore = async (
     formulateMount,
     formulateScratchMount,
     formulateGit,
+    formulateGitCredential,
+    formulateGitRemote,
     formulateInvitation,
     formulateDirectoryForStore,
     getPeerIdForNodeIdentifier,
