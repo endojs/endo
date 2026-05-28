@@ -4,7 +4,7 @@
 |---|---|
 | **Source** | Critical design review (sub-agent, 2026-05-28) |
 | **Branch** | `claude/keen-bell-W1acD` |
-| **Status** | **Mostly Complete** — 12 of 12 categories addressed; remaining items are deferred follow-ups (see "Priority order" at the bottom) |
+| **Status** | **Complete** — 12 of 12 categories addressed across four follow-up commits (`0774bb2c`, `b93e3eab`, `f73e61a1`, `0e042eb1`). |
 | **Updated** | 2026-05-28 |
 
 This document captures the findings from a critical post-merge design
@@ -451,17 +451,21 @@ Items 1–9 landed in three follow-up commits on
    sites where the rule fires, with clarifying notes about
    the mutual-recursion forward-ref pattern. (#7a)
 
-Deferred:
-
-- **10. (cleanup) Test improvements** — `@ts-check` on the new
-   test files, race tightening for `drainEvents` and the watcher
-   pump test. Worth a small follow-up PR but not blocking. (#9a,
-   #9b, #9g)
-- **11. (cleanup, deferred) Extract Cursor / NodeWatcher / Qid /
-   Xattrs / stat-table modules from wrap-backend.js.** A 1306-line
-   module is a code smell, but the split isn't urgent and the
-   forward-ref shape forces makeFileExo/makeDirectoryExo to share
-   a closure. (#10a)
+- ✅ **10. (cleanup) Test improvements** — landed in commit
+   `0e042eb1`. `test/wrap-backend-fixes.test.js` now opts into
+   `@ts-check` (was `@ts-nocheck`). The watcher pump regression
+   test drops its `Promise.race` with a manual setTimeout in
+   favor of ava's `t.timeout(2000)` and asserts on stream-done
+   semantics (both first and second next() returning done) rather
+   than racing a timer. (#9a, #9b, #9g)
+- ✅ **11. (cleanup) Extract Cursor / NodeWatcher / Qid / Xattrs /
+   stat-table modules** — landed in `0e042eb1`. wrap-backend.js
+   shrinks from 1306 to 872 lines; the six extracted modules
+   under `shared/` (qid, stat-table, path-tables, xattrs-exo,
+   cursor-exo, watcher-exo) carry the orthogonal concerns. The
+   forward-ref `makeFileExo` / `makeDirectoryExo` shape stays
+   because they're the actual coupling — they close over the
+   common factories. (#10a)
 - **Future: `File.contentHash()` porcelain** — would justify
    bringing `hash?` back to the FsBackend optionals.
 - **Future: deprecate the legacy method aliases** — once 9p-server
