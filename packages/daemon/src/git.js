@@ -4,8 +4,9 @@
 import { q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
+import { readOnly as readOnlyFs, wrapBackend } from '@endo/endo-fs';
 
-import { makeGitFilesystem } from './git-filesystem.js';
+import { makeGitFsBackend } from './git-filesystem.js';
 import { GitInterface } from './interfaces.js';
 import { lineageOf } from './mount.js';
 
@@ -487,11 +488,12 @@ export const makeGit = ({ mount, backend, readOnly = false }) => {
       if (cached !== undefined) {
         return cached;
       }
-      const fs = makeGitFilesystem({
-        backend,
-        treeOid,
-        commitOid,
-      });
+      const fsBackend = makeGitFsBackend({ backend, treeOid });
+      const description =
+        commitOid !== undefined
+          ? `git-tree (commit ${commitOid}, tree ${treeOid})`
+          : `git-tree (${treeOid})`;
+      const fs = readOnlyFs(wrapBackend(fsBackend, { description }));
       filesystemByTreeOid.set(treeOid, fs);
       return fs;
     },

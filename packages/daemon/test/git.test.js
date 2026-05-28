@@ -1374,23 +1374,24 @@ test('Git.filesystemAt returns an endo-fs Filesystem with the expected surface',
   t.is(typeof brands[0], 'bigint');
 
   const stats = await E(gitFs).statfs();
-  // Git trees have no statfs surface; zeros match the from-mount convention.
+  // wrapBackend stamps `type` from the description and merges in our
+  // backend.statfs() result; both totalBytes/freeBytes are 0n because
+  // an immutable historical tree has no "free / used" notion.
+  t.true(stats.type.includes(treeOid));
   t.is(stats.totalBytes, 0n);
   t.is(stats.freeBytes, 0n);
-  t.is(stats.availableBytes, 0n);
 
-  // named() throws — git-FS has one root.
-  await t.throwsAsync(E(gitFs).named('alt'), { message: /ENOTSUP/ });
+  // wrapBackend exposes only the configured namedDirs; we pass none,
+  // so any name is "not found."
+  await t.throwsAsync(E(gitFs).named('alt'), { message: /ENOENT/ });
 
   const root = /** @type {any} */ (await E(gitFs).root());
-  const qid = root.getQid();
+  const qid = await E(root).getQid();
   t.is(qid.type, 'directory');
-  t.is(qid.pathId, BigInt(`0x${treeOid}`));
-  t.is(qid.version, 0n);
 });
 
-test('Git.filesystemAt: lookup returns a File whose QID is the blob OID', async t => {
-  const { repoRoot, blobOid } = await provisionGitWorktreeWithFile(
+test('Git.filesystemAt: lookup returns a File', async t => {
+  const { repoRoot } = await provisionGitWorktreeWithFile(
     t,
     'README.md',
     'hello\n',
@@ -1403,9 +1404,8 @@ test('Git.filesystemAt: lookup returns a File whose QID is the blob OID', async 
   const root = /** @type {any} */ (await E(gitFs).root());
 
   const readme = /** @type {any} */ (await E(root).lookup('README.md'));
-  const qid = readme.getQid();
+  const qid = await E(readme).getQid();
   t.is(qid.type, 'file');
-  t.is(qid.pathId, BigInt(`0x${blobOid}`));
 });
 
 test('Git.filesystemAt: OpenFile.read returns blob bytes; range reads slice', async t => {
@@ -1424,9 +1424,9 @@ test('Git.filesystemAt: OpenFile.read returns blob bytes; range reads slice', as
   const file = /** @type {any} */ (await E(root).lookup('data.txt'));
   const opener = /** @type {any} */ (await E(file).open({ read: true }));
 
-  // Read the full blob.  bytesReaderFromIterator wraps a chunk; collect
-  // base64-decoded bytes via the standard exo-stream initiator.
-  const fullReader = await E(opener).read(0n, 0n); // length=0 → to end
+  // Read the full blob.  The OpenFile.read interface requires both
+  // offset and length as bigints; pass the exact content length.
+  const fullReader = await E(opener).read(0n, BigInt(content.length));
   const fullBytes = await collectReader(fullReader);
   t.is(new TextDecoder().decode(fullBytes), content);
 
@@ -1443,8 +1443,8 @@ test('Git.filesystemAt: OpenFile.read returns blob bytes; range reads slice', as
   await E(opener).close();
 });
 
-test('Git.filesystemAt: File.snapshot returns a BlobRef whose hash is the git OID', async t => {
-  const { repoRoot, blobOid } = await provisionGitWorktreeWithFile(
+test('Git.filesystemAt: File.snapshot returns a BlobRef over the blob bytes', async t => {
+  const { repoRoot } = await provisionGitWorktreeWithFile(
     t,
     'README.md',
     'snapshot test\n',
@@ -1458,18 +1458,19 @@ test('Git.filesystemAt: File.snapshot returns a BlobRef whose hash is the git OI
   const file = /** @type {any} */ (await E(root).lookup('README.md'));
 
   const blobRef = /** @type {any} */ (await E(file).snapshot());
-  const info = blobRef.getInfo();
-  t.is(info.algorithm, 'git-sha1');
-  t.is(info.hash, blobOid);
+  const info = await E(blobRef).getInfo();
+  // wrapBackend's BlobRef hashes the captured bytes with SHA-256;
+  // the size matches the blob length.
+  t.is(info.algorithm, 'sha256');
   t.is(info.size, BigInt('snapshot test\n'.length));
 
   // fetch returns the bytes.
-  const reader = await E(blobRef).fetch(0n, 0n);
+  const reader = await E(blobRef).fetch(0n, BigInt('snapshot test\n'.length));
   const bytes = await collectReader(reader);
   t.is(new TextDecoder().decode(bytes), 'snapshot test\n');
 });
 
-test('Git.filesystemAt: Directory.list yields entries with QIDs in tree order', async t => {
+test('Git.filesystemAt: Directory.list yields entries in tree order', async t => {
   const { repoRoot } = await provisionGitWorktreeWithFile(t, 'a.txt', 'a\n');
   await fs.promises.writeFile(path.join(repoRoot, 'b.txt'), 'b\n');
   await execFileAsync('git', ['add', 'b.txt'], { cwd: repoRoot });
@@ -1498,8 +1499,8 @@ test('Git.filesystemAt: Directory.list yields entries with QIDs in tree order', 
   // Git ls-tree returns entries in lexical order.
   t.deepEqual(names, ['a.txt', 'b.txt']);
   for (const entry of collected) {
+    t.is(entry.kind, 'file');
     t.is(entry.qid.type, 'file');
-    t.is(typeof entry.qid.pathId, 'bigint');
   }
 });
 
@@ -1583,7 +1584,7 @@ test('Git.filesystemAt: memoizes by canonical tree OID within one Git', async t 
   t.not(a, c);
 });
 
-test('Git.filesystemAt: submodule lookup throws a structured error', async t => {
+test('Git.filesystemAt: submodule entries are hidden from the tree view', async t => {
   // Provision a worktree, add a fake submodule entry by writing a
   // gitlink directly via update-index --add --cacheinfo.
   const { repoRoot } = await provisionGitWorktreeWithFile(
@@ -1617,7 +1618,11 @@ test('Git.filesystemAt: submodule lookup throws a structured error', async t => 
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
 
-  await t.throwsAsync(E(root).lookup('sub'), { message: /submodule/ });
+  // Submodules surface as missing rather than as a distinct kind —
+  // the base endo-fs vocabulary only knows files and directories.
+  // Callers that need submodule traversal should obtain a separate
+  // Git capability for the submodule's repository.
+  await t.throwsAsync(E(root).lookup('sub'), { message: /ENOENT/ });
 });
 
 /**

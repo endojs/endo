@@ -3,12 +3,37 @@
 | | |
 |---|---|
 | **Created** | 2026-05-28 |
+| **Updated** | 2026-05-28 |
 | **Author** | kumavis (prompted) |
-| **Status** | Proposed |
+| **Status** | In Progress |
 
 > **Read after:**
 > - [daemon-git-capability](daemon-git-capability.md) — the `Git` cap this design extends with one method.
+> - [endo-fs-backend-seam](endo-fs-backend-seam.md) — the `FsBackend` + `wrapBackend(...)` architecture this adapter targets.
 > - The `@endo/endo-fs` `README.md` and `DESIGN.md` — the `Filesystem` / `Directory` / `File` / `OpenFile` shape this adapts to.
+
+## Status
+
+Phase 1 + 2 + 3 + a slice of Phase 4 landed on `claude/adoring-planck-GmRX2`, rebased on `claude/keen-bell-W1acD`:
+
+- `Git.filesystemAt(ref)` exposed on `EndoGit` (`packages/daemon/src/interfaces.js`, `packages/daemon/src/types.d.ts`).
+- `GitBackend` contract extended with `resolveTree`, `lsTree`, `readBlobBytes`, `streamBlobBytes` (`packages/daemon/src/git.js`); native git backend exposes the same as public methods (`packages/daemon/src/native-git-backend.js`).
+- Adapter lives at `packages/daemon/src/git-filesystem.js` and exports `makeGitFsBackend({ backend, treeOid })` — an `FsBackend` implementation (per `endo-fs/src/backend-types.js`).
+  The daemon wraps it as `readOnly(wrapBackend(makeGitFsBackend(...), { description }))` so write verbs reject with `EACCES` at the cap boundary.
+- Tests in `packages/daemon/test/git.test.js` cover shape, lookup, range reads, BlobRef, directory listing, mutation rejection, OID memoization, and submodule hiding.
+
+The on-disk design was revised after rebase: the upstream `@endo/endo-fs` seam refactor introduced `FsBackend` + `wrapBackend(...)`.
+The original plan called for hand-rolling the full `Filesystem` / `Directory` / `File` / `OpenFile` exo graph; that turned into a tiny `FsBackend` adapter (6 required + 2 optional methods, ~150 lines) and the upstream `wrapBackend` builds the rest.
+
+Two original design choices were dropped as a consequence:
+
+1. **QID `pathId` is no longer the git OID as BigInt.**
+   `wrapBackend` synthesizes QIDs via `synthQid(path, kind)` from a path hash.
+   Two paths pointing at the same blob therefore report different QIDs — git-style content-address equivalence is not preserved at this layer.
+2. **`BlobRef.algorithm` is `'sha256'`, not `'git-sha1'`.**
+   The shared `makeBlobRefExo` SHA-256s the captured bytes; the git blob OID is not exposed through the `BlobRef` surface.
+
+Both can be reintroduced as a Phase 5 follow-up (a `synthQidFromOid` option on `wrapBackend`, or a wrap-backend extension hook that lets a backend supply its own QID / hash), but the trade-off — ~200 lines of bespoke exo plumbing versus reusing the shared seam — went the other way given the seam refactor's recent simplification.
 
 ## Summary
 
