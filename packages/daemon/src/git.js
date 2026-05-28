@@ -5,6 +5,7 @@ import { q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 
+import { makeGitFilesystem } from './git-filesystem.js';
 import { GitInterface } from './interfaces.js';
 import { lineageOf } from './mount.js';
 
@@ -157,6 +158,34 @@ harden(getGitBackend);
  * @property {(input: { url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: unknown, signal?: AbortSignal }) => Promise<object>} remotePush
  *   Push to a policy-bound remote URL with the same policy
  *   pre-validation contract as `remoteFetch`.
+ * @property {(ref: string) => Promise<{ treeOid: string, commitOid?: string }>} resolveTree
+ *   Resolve a ref to a canonical tree OID and (when applicable) the
+ *   commit OID that points at it.  Used by `filesystemAt(ref)` at
+ *   construction time so the resulting Filesystem is pinned to a
+ *   specific tree OID and later ref movement does not affect it.
+ * @property {(treeOid: string) => Promise<readonly GitTreeEntryRecord[]>} lsTree
+ *   Enumerate entries at a tree OID.  The records are content-addressed
+ *   and safe to cache per-OID.
+ * @property {(blobOid: string) => Promise<Uint8Array>} readBlobBytes
+ *   Read full bytes of a blob.
+ * @property {(blobOid: string) => AsyncIterable<Uint8Array>} streamBlobBytes
+ *   Stream blob bytes for range-read paths that should not buffer the
+ *   full blob in memory.
+ */
+
+/**
+ * Structural record describing one entry in a git tree object.  Mirrors
+ * `git ls-tree -z --long` output: mode is the 6-digit octal string, type
+ * is `'blob'` / `'tree'` / `'commit'`, oid is the 40-hex (sha1) or 64-hex
+ * (sha256) object identifier, size is present for blobs only, and name
+ * is the single-segment entry name (no slashes).
+ *
+ * @typedef {object} GitTreeEntryRecord
+ * @property {string} mode
+ * @property {'blob' | 'tree' | 'commit'} type
+ * @property {string} oid
+ * @property {number} [size]
+ * @property {string} name
  */
 
 /**
@@ -181,6 +210,15 @@ export const makeGit = ({ mount, backend, readOnly = false }) => {
   // passed to a path-bearing Git method was minted by this Git's bound
   // mount, not by some other mount this guest may also hold.
   const mountLineage = lineageOf(mount);
+
+  // Memoize `filesystemAt(ref)` on the canonical tree OID so repeated
+  // calls within one Git instance return the same Filesystem cap (same
+  // brand).  Brand identity matters for `compose` cycle detection in
+  // `@endo/endo-fs`; without memoization, two `filesystemAt('HEAD')`
+  // calls would compose as distinct participants even when HEAD has
+  // not moved.  See `designs/endo-fs-from-git.md` § Brands.
+  /** @type {Map<string, object>} */
+  const filesystemByTreeOid = new Map();
 
   /**
    * Translate an array of EndoMountEntry caps into the repo-relative
@@ -443,6 +481,21 @@ export const makeGit = ({ mount, backend, readOnly = false }) => {
       return backend.tree(refName(ref));
     },
 
+    async filesystemAt(ref) {
+      const { treeOid, commitOid } = await backend.resolveTree(refName(ref));
+      const cached = filesystemByTreeOid.get(treeOid);
+      if (cached !== undefined) {
+        return cached;
+      }
+      const fs = makeGitFilesystem({
+        backend,
+        treeOid,
+        commitOid,
+      });
+      filesystemByTreeOid.set(treeOid, fs);
+      return fs;
+    },
+
     readOnly() {
       if (readOnly) {
         return selfExo;
@@ -502,6 +555,22 @@ export const makeNotYetImplementedBackend = () => {
     tree: async () => fail('tree'),
     remoteFetch: async () => fail('remoteFetch'),
     remotePush: async () => fail('remotePush'),
+    resolveTree: async () => fail('resolveTree'),
+    lsTree: async () => fail('lsTree'),
+    readBlobBytes: async () => fail('readBlobBytes'),
+    streamBlobBytes: () => {
+      fail('streamBlobBytes');
+      // Unreachable; satisfies the typedef's async-iterable return.
+      return /** @type {AsyncIterable<Uint8Array>} */ ({
+        [Symbol.asyncIterator]() {
+          return {
+            async next() {
+              return { done: true, value: undefined };
+            },
+          };
+        },
+      });
+    },
   });
 };
 harden(makeNotYetImplementedBackend);

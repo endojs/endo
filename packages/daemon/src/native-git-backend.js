@@ -2085,6 +2085,75 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         await credentialTransport.close();
       }
     },
+
+    /**
+     * Resolve a ref to a canonical tree OID.  Used by the endo-fs
+     * `filesystemAt(ref)` path so the returned Filesystem is pinned to
+     * a specific OID rather than tracking the ref.  Returns the commit
+     * OID alongside when the ref resolves to a commit (the common case);
+     * a bare tree ref leaves `commitOid` undefined.
+     *
+     * @param {string} ref
+     */
+    resolveTree: async ref => {
+      const revision = requireRevision(ref, 'resolveTree.ref');
+      const rawTree = await runGitRaw([
+        'rev-parse',
+        '--verify',
+        '--end-of-options',
+        `${revision}^{tree}`,
+      ]);
+      const treeOid = rawTree.trim();
+      let commitOid;
+      try {
+        const rawCommit = await runGitRaw([
+          'rev-parse',
+          '--verify',
+          '--end-of-options',
+          `${revision}^{commit}`,
+        ]);
+        commitOid = rawCommit.trim();
+      } catch {
+        commitOid = undefined;
+      }
+      return harden({
+        treeOid,
+        ...(commitOid !== undefined ? { commitOid } : {}),
+      });
+    },
+
+    /**
+     * Enumerate entries at a tree OID via `git ls-tree -z --long`.
+     * The records are immutable for a given tree OID and safe to cache.
+     *
+     * @param {string} treeOid
+     */
+    lsTree: async treeOid => {
+      const oid = requireRevision(treeOid, 'lsTree.treeOid');
+      const entries = await listTreeEntries(oid);
+      return harden(entries);
+    },
+
+    /**
+     * Read full bytes of a blob.
+     *
+     * @param {string} blobOid
+     */
+    readBlobBytes: async blobOid => {
+      const oid = requireRevision(blobOid, 'readBlobBytes.blobOid');
+      return readBlobBytes(oid);
+    },
+
+    /**
+     * Stream blob bytes for range-read paths.  Yields chunks; callers
+     * concatenate or slice as needed.
+     *
+     * @param {string} blobOid
+     */
+    streamBlobBytes: blobOid => {
+      const oid = requireRevision(blobOid, 'streamBlobBytes.blobOid');
+      return streamBlobBytes(oid);
+    },
   });
 };
 harden(makeNativeGitBackend);

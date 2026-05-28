@@ -35,6 +35,17 @@ const provisionGitWorktree = async t => {
   const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'native-git-'));
   t.teardown(() => fs.promises.rm(root, { recursive: true, force: true }));
   await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: root });
+  // Some CI / dev environments enable `commit.gpgSign` at user-global
+  // level; that surfaces here because `provisionGitWorktree` does not
+  // override gpg config per-invocation.  Pin the repo-local config to
+  // disable signing so the test setup is independent of the user's
+  // environment.
+  await execFileAsync('git', ['config', '--local', 'commit.gpgsign', 'false'], {
+    cwd: root,
+  });
+  await execFileAsync('git', ['config', '--local', 'tag.gpgsign', 'false'], {
+    cwd: root,
+  });
   await execFileAsync(
     'git',
     [
@@ -114,6 +125,7 @@ test('Git exo advertises the full GitInterface', async t => {
 
   // Trees + worktree binding
   t.true(methods.includes('tree'));
+  t.true(methods.includes('filesystemAt'));
   t.true(methods.includes('worktree'));
   t.true(methods.includes('readOnly'));
 });
@@ -303,6 +315,9 @@ test('Git scaffold methods all surface a clear "not yet implemented"', async t =
   await t.throwsAsync(E(git).tree('HEAD'), {
     message: /not yet implemented/,
   });
+  await t.throwsAsync(E(git).filesystemAt('HEAD'), {
+    message: /not yet implemented/,
+  });
 
   // The remote-transport methods are not on the Git exo; they are
   // called by GitRemote directly against the backend.  The stub
@@ -362,6 +377,9 @@ test('NativeGitBackend rejects a swapped .git directory after construction', asy
     force: true,
   });
   await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: repoRoot });
+  await execFileAsync('git', ['config', '--local', 'commit.gpgsign', 'false'], {
+    cwd: repoRoot,
+  });
   await execFileAsync(
     'git',
     [
@@ -1283,3 +1301,345 @@ test('Git accepts both string and structured GitRef arguments', async t => {
   t.deepEqual(showCalls, ['HEAD', 'main']);
   t.deepEqual(revParseCalls, ['v1.0', 'origin/main']);
 });
+
+// ---------------------------------------------------------------------------
+// Git.filesystemAt(ref) — endo-fs Filesystem adapter over a git tree.
+// See designs/endo-fs-from-git.md.
+// ---------------------------------------------------------------------------
+
+/**
+ * Provision a worktree, write a file, commit it, and return the repo
+ * path plus the file's bytes and blob OID.  Used by the
+ * `filesystemAt` tests below.
+ *
+ * @param {import('ava').ExecutionContext} t
+ * @param {string} fileName
+ * @param {string} content
+ */
+const provisionGitWorktreeWithFile = async (t, fileName, content) => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, fileName), content);
+  await execFileAsync('git', ['add', fileName], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      `add ${fileName}`,
+    ],
+    { cwd: repoRoot },
+  );
+  const { stdout: blobOid } = await execFileAsync(
+    'git',
+    ['rev-parse', `HEAD:${fileName}`],
+    { cwd: repoRoot },
+  );
+  const { stdout: treeOid } = await execFileAsync(
+    'git',
+    ['rev-parse', 'HEAD^{tree}'],
+    { cwd: repoRoot },
+  );
+  return {
+    repoRoot,
+    blobOid: blobOid.trim(),
+    treeOid: treeOid.trim(),
+  };
+};
+
+test('Git.filesystemAt returns an endo-fs Filesystem with the expected surface', async t => {
+  const { repoRoot, treeOid } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'hello\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+
+  // eslint-disable-next-line no-underscore-dangle
+  const methods = await E(gitFs).__getMethodNames__();
+  for (const name of ['root', 'named', 'statfs', 'brands', 'help']) {
+    t.true(methods.includes(name), `Filesystem should advertise ${name}`);
+  }
+
+  const brands = await E(gitFs).brands();
+  t.is(brands.length, 1);
+  t.is(typeof brands[0], 'bigint');
+
+  const stats = await E(gitFs).statfs();
+  // Git trees have no statfs surface; zeros match the from-mount convention.
+  t.is(stats.totalBytes, 0n);
+  t.is(stats.freeBytes, 0n);
+  t.is(stats.availableBytes, 0n);
+
+  // named() throws — git-FS has one root.
+  await t.throwsAsync(E(gitFs).named('alt'), { message: /ENOTSUP/ });
+
+  const root = /** @type {any} */ (await E(gitFs).root());
+  const qid = root.getQid();
+  t.is(qid.type, 'directory');
+  t.is(qid.pathId, BigInt(`0x${treeOid}`));
+  t.is(qid.version, 0n);
+});
+
+test('Git.filesystemAt: lookup returns a File whose QID is the blob OID', async t => {
+  const { repoRoot, blobOid } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'hello\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  const readme = /** @type {any} */ (await E(root).lookup('README.md'));
+  const qid = readme.getQid();
+  t.is(qid.type, 'file');
+  t.is(qid.pathId, BigInt(`0x${blobOid}`));
+});
+
+test('Git.filesystemAt: OpenFile.read returns blob bytes; range reads slice', async t => {
+  const content = 'abcdefghijklmnop\n';
+  const { repoRoot } = await provisionGitWorktreeWithFile(
+    t,
+    'data.txt',
+    content,
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+  const file = /** @type {any} */ (await E(root).lookup('data.txt'));
+  const opener = /** @type {any} */ (await E(file).open({ read: true }));
+
+  // Read the full blob.  bytesReaderFromIterator wraps a chunk; collect
+  // base64-decoded bytes via the standard exo-stream initiator.
+  const fullReader = await E(opener).read(0n, 0n); // length=0 → to end
+  const fullBytes = await collectReader(fullReader);
+  t.is(new TextDecoder().decode(fullBytes), content);
+
+  // Range read: bytes [3, 10).
+  const sliceReader = await E(opener).read(3n, 7n);
+  const sliceBytes = await collectReader(sliceReader);
+  t.is(new TextDecoder().decode(sliceBytes), content.slice(3, 10));
+
+  // Offset past end → empty.
+  const pastReader = await E(opener).read(1000n, 100n);
+  const pastBytes = await collectReader(pastReader);
+  t.is(pastBytes.length, 0);
+
+  await E(opener).close();
+});
+
+test('Git.filesystemAt: File.snapshot returns a BlobRef whose hash is the git OID', async t => {
+  const { repoRoot, blobOid } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'snapshot test\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+  const file = /** @type {any} */ (await E(root).lookup('README.md'));
+
+  const blobRef = /** @type {any} */ (await E(file).snapshot());
+  const info = blobRef.getInfo();
+  t.is(info.algorithm, 'git-sha1');
+  t.is(info.hash, blobOid);
+  t.is(info.size, BigInt('snapshot test\n'.length));
+
+  // fetch returns the bytes.
+  const reader = await E(blobRef).fetch(0n, 0n);
+  const bytes = await collectReader(reader);
+  t.is(new TextDecoder().decode(bytes), 'snapshot test\n');
+});
+
+test('Git.filesystemAt: Directory.list yields entries with QIDs in tree order', async t => {
+  const { repoRoot } = await provisionGitWorktreeWithFile(t, 'a.txt', 'a\n');
+  await fs.promises.writeFile(path.join(repoRoot, 'b.txt'), 'b\n');
+  await execFileAsync('git', ['add', 'b.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'add b'],
+    { cwd: repoRoot },
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  const cursor = /** @type {any} */ (await E(root).list());
+  const readerRef = await E(cursor).stream();
+  // eslint-disable-next-line global-require
+  const { iterateReader } = await import('@endo/exo-stream/iterate-reader.js');
+  /** @type {any[]} */
+  const collected = [];
+  for await (const value of iterateReader(readerRef)) {
+    collected.push(value);
+  }
+  const names = collected.map(e => e.name);
+  // Git ls-tree returns entries in lexical order.
+  t.deepEqual(names, ['a.txt', 'b.txt']);
+  for (const entry of collected) {
+    t.is(entry.qid.type, 'file');
+    t.is(typeof entry.qid.pathId, 'bigint');
+  }
+});
+
+test('Git.filesystemAt: mutating verbs all throw EACCES', async t => {
+  const { repoRoot } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'x\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  for (const call of [
+    () => E(root).create('new.txt', {}),
+    () => E(root).mkdir('newdir', {}),
+    () => E(root).unlink('README.md'),
+    () => E(root).fsync(),
+    () => E(root).setAttrs({}),
+    () => E(root).materialise(['a', 'b'], {}),
+  ]) {
+    // eslint-disable-next-line no-await-in-loop
+    await t.throwsAsync(call(), { message: /EACCES/ });
+  }
+
+  const file = /** @type {any} */ (await E(root).lookup('README.md'));
+  await t.throwsAsync(E(file).setAttrs({}), { message: /EACCES/ });
+
+  const opener = /** @type {any} */ (await E(file).open({ read: true }));
+  await t.throwsAsync(E(opener).write(0n), { message: /EACCES/ });
+  await t.throwsAsync(E(opener).truncate(0n), { message: /EACCES/ });
+  await t.throwsAsync(E(opener).fsync({}), { message: /EACCES/ });
+  await t.throwsAsync(E(opener).lock({}), { message: /EACCES/ });
+});
+
+test('Git.filesystemAt: open({ write: true }) rejects', async t => {
+  const { repoRoot } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'x\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+  const file = /** @type {any} */ (await E(root).lookup('README.md'));
+  await t.throwsAsync(E(file).open({ write: true }), { message: /EACCES/ });
+});
+
+test('Git.filesystemAt: memoizes by canonical tree OID within one Git', async t => {
+  const { repoRoot } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'x\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+
+  const a = await E(git).filesystemAt('HEAD');
+  const b = await E(git).filesystemAt('HEAD');
+  // Same cap; brand stability falls out of cap identity.
+  t.is(a, b);
+
+  // After another commit, HEAD resolves to a different tree OID, so
+  // the cap differs.
+  await fs.promises.writeFile(path.join(repoRoot, 'two.txt'), 'two\n');
+  await execFileAsync('git', ['add', 'two.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'two'],
+    { cwd: repoRoot },
+  );
+  const c = await E(git).filesystemAt('HEAD');
+  t.not(a, c);
+});
+
+test('Git.filesystemAt: submodule lookup throws a structured error', async t => {
+  // Provision a worktree, add a fake submodule entry by writing a
+  // gitlink directly via update-index --add --cacheinfo.
+  const { repoRoot } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'x\n',
+  );
+  const fakeCommitOid = '1'.repeat(40);
+  await execFileAsync(
+    'git',
+    ['update-index', '--add', '--cacheinfo', `160000,${fakeCommitOid},sub`],
+    { cwd: repoRoot },
+  );
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'add submodule pointer',
+    ],
+    { cwd: repoRoot },
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  await t.throwsAsync(E(root).lookup('sub'), { message: /submodule/ });
+});
+
+/**
+ * Collect a PassableBytesReader into a single Uint8Array.
+ *
+ * @param {any} readerRef
+ */
+const collectReader = async readerRef => {
+  // eslint-disable-next-line global-require
+  const { iterateBytesReader } =
+    await import('@endo/exo-stream/iterate-bytes-reader.js');
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of iterateBytesReader(readerRef)) {
+    chunks.push(chunk);
+    total += chunk.length;
+  }
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.length;
+  }
+  return out;
+};
