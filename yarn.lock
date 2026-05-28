@@ -1837,6 +1837,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/endo-fs-exec@workspace:packages/endo-fs-exec":
+  version: 0.0.0-use.local
+  resolution: "@endo/endo-fs-exec@workspace:packages/endo-fs-exec"
+  dependencies:
+    "@endo/compartment-mapper": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/endo-fs": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/zip": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/endo-fs@workspace:^, @endo/endo-fs@workspace:packages/endo-fs":
   version: 0.0.0-use.local
   resolution: "@endo/endo-fs@workspace:packages/endo-fs"
