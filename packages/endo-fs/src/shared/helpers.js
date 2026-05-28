@@ -3,9 +3,8 @@
  * Pure helpers used by the wrap-backend layer and its backend
  * adapters. Each export below is actively used; legacy helpers that
  * served the pre-seam-refactor backings (makeAttrs / nowNs /
- * makeStringReaderFromArray / makeBytesSinkWriter / makeNotSupported
- * / materialiseViaWalk) have been deleted along with their dead
- * call sites.
+ * makeStringReaderFromArray / makeBytesSinkWriter / makeNotSupported)
+ * have been deleted along with their dead call sites.
  */
 
 import { makeError, X, q } from '@endo/errors';
@@ -133,7 +132,8 @@ harden(mintBrand);
  * backings should implement `materialise` server-side instead to
  * collapse the whole walk to a single RTT.
  *
- * Currently used by `compose.js`'s composed Filesystems.
+ * Used by `compose.js`'s composed Filesystems, which don't have a
+ * single backing path to push the walk down to.
  *
  * @param {object} startDir  starting Directory cap
  * @param {string[]} path

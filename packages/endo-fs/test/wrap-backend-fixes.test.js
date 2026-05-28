@@ -19,6 +19,10 @@ import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { wrapBackend } from '../src/wrap-backend.js';
 import { makeFromMountBackend } from '../src/backends/from-mount-backend.js';
 import { makeInMemoryFilesystem } from '../src/in-memory.js';
+import { readOnly } from '../src/readonly.js';
+import { makeMemoryCas } from '../src/cas.js';
+import { withCachedReads } from '../src/cached-fs.js';
+import { chroot } from '../src/compose.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 const fromUtf8 = b => new TextDecoder().decode(b);
@@ -486,4 +490,117 @@ test('from-mount list() re-raises non-ENOENT errors from per-child lookup', asyn
   const backend = makeFromMountBackend(failingMount);
   const iter = backend.list([])[Symbol.asyncIterator]();
   await t.throwsAsync(() => iter.next(), { message: /EIO/ });
+});
+
+// ---------- Review #H: watcher closes (stream-done) on remove/rename ----------
+
+test('Node.watch() events stream closes when the watched path is removed', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const oh = await E(root).create('watched', {});
+  await writeBytes(await E(oh).write(0n), utf8('initial'));
+  await E(oh).close();
+
+  const file = await E(root).lookup('watched');
+  const watcher = await E(file).watch();
+  const eventsP = E(watcher).events();
+
+  // Remove the watched path. The watcher should see its events
+  // stream close (stream-done), not stall on a never-resolved
+  // waiter.
+  await E(root).remove('watched');
+
+  const reader = await eventsP;
+  const drained = [];
+  for await (const ev of iterateReader(reader)) drained.push(ev);
+  // The stream terminated cleanly; we don't require any particular
+  // event count — just that the loop exited.
+  t.true(Array.isArray(drained));
+});
+
+test('Node.watch() events stream closes when the watched path is renamed away', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const oh = await E(root).create('alpha', {});
+  await writeBytes(await E(oh).write(0n), utf8('content'));
+  await E(oh).close();
+
+  const file = await E(root).lookup('alpha');
+  const watcher = await E(file).watch();
+  const eventsP = E(watcher).events();
+
+  await E(root).rename('alpha', root, 'beta');
+
+  const reader = await eventsP;
+  const drained = [];
+  for await (const ev of iterateReader(reader)) drained.push(ev);
+  t.true(Array.isArray(drained));
+});
+
+// ---------- Review #D: File porcelain forwarded by wrappers ----------
+
+test('readOnly wrapper forwards File.read and denies File.write', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const oh = await E(root).create('payload', {});
+  await writeBytes(await E(oh).write(0n), utf8('hello'));
+  await E(oh).close();
+
+  const ro = readOnly(fs);
+  const roRoot = await E(ro).root();
+  const roFile = await E(roRoot).lookup('payload');
+
+  // read porcelain works through the attenuator.
+  const bytes = await drainReader(await E(roFile).read());
+  t.is(fromUtf8(bytes), 'hello');
+
+  // write porcelain is denied.
+  await t.throwsAsync(() => E(roFile).write({}), { message: /EACCES/ });
+});
+
+test('chroot wrapper exposes File.read porcelain via wrapped File caps', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  await E(root).makeDirectory('sub', {});
+  const sub = await E(root).lookup('sub');
+  const oh = await E(sub).create('inner', {});
+  await writeBytes(await E(oh).write(0n), utf8('chrooted'));
+  await E(oh).close();
+
+  const view = chroot(fs, ['sub']);
+  const viewRoot = await E(view).root();
+  const viewFile = await E(viewRoot).lookup('inner');
+  const bytes = await drainReader(await E(viewFile).read());
+  t.is(fromUtf8(bytes), 'chrooted');
+});
+
+test('withCachedReads wrapper forwards File.read and File.write porcelain', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const oh = await E(root).create('blob', {});
+  await writeBytes(await E(oh).write(0n), utf8('original'));
+  await E(oh).close();
+
+  const cached = withCachedReads(fs, makeMemoryCas());
+  const cachedRoot = await E(cached).root();
+  const cachedFile = await E(cachedRoot).lookup('blob');
+
+  const beforeBytes = await drainReader(await E(cachedFile).read());
+  t.is(fromUtf8(beforeBytes), 'original');
+
+  await writeBytes(await E(cachedFile).write({}), utf8('replaced'));
+  const afterBytes = await drainReader(await E(cachedFile).read());
+  t.is(fromUtf8(afterBytes), 'replaced');
+});
+
+// ---------- Review #G: Directory.getAttrs validates existence ----------
+
+test('Directory.getAttrs() throws ENOENT on a removed path', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  await E(root).makeDirectory('doomed', {});
+  const dir = await E(root).lookup('doomed');
+  await E(root).remove('doomed');
+
+  await t.throwsAsync(() => E(dir).getAttrs(), { message: /ENOENT/ });
 });

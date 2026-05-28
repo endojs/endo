@@ -1,9 +1,11 @@
 // @ts-check
 /**
  * In-memory `FsBackend` — stores files and directories in a Map
- * keyed by joined path. Implements all 6 required methods plus
- * `setStat`, `fsync` (no-op), `rename` (Map swap), and `watch`
- * (in-process event bus). Skips `hash` (let wrapBackend synthesize).
+ * keyed by joined path. Implements the required core plus `setStat`,
+ * `fsync` (no-op), `rename` (Map swap), and `watch` (in-process
+ * event bus). Deliberately omits `getStat` so wrap-backend's vat-
+ * local stat table is the source of truth for atime/mtime — the
+ * in-memory backend has no disk to query.
  *
  * Maps to `wrapBackend(makeInMemoryBackend())` to produce a
  * Filesystem cap.

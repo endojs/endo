@@ -1345,6 +1345,16 @@ export const compose = (layer, backing, _opts = {}) => {
           if (layerFile) return E(layerFile).snapshot();
           return E(backingFile).snapshot();
         },
+        async read(opts) {
+          if (layerFile) return E(layerFile).read(opts);
+          return E(backingFile).read(opts);
+        },
+        async write(opts) {
+          // Whole-file overwrite or pwrite — both materialize a
+          // layer copy so the underlying backing stays unchanged.
+          const lf = await materialize();
+          return E(lf).write(opts);
+        },
         help: method =>
           method === undefined
             ? 'File (composed: layer over backing with copy-on-write).'

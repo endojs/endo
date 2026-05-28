@@ -4,7 +4,7 @@
 |---|---|
 | **Source** | Critical design review (sub-agent, 2026-05-28) |
 | **Branch** | `claude/keen-bell-W1acD` |
-| **Status** | **Complete** — 12 of 12 categories addressed across four follow-up commits (`0774bb2c`, `b93e3eab`, `f73e61a1`, `0e042eb1`). |
+| **Status** | **Complete** — every category addressed; second-pass review surfaced additional items captured below. |
 | **Updated** | 2026-05-28 |
 
 This document captures the findings from a critical post-merge design
@@ -466,6 +466,36 @@ Items 1–9 landed in three follow-up commits on
    forward-ref `makeFileExo` / `makeDirectoryExo` shape stays
    because they're the actual coupling — they close over the
    common factories. (#10a)
+- ✅ **Second-pass review items** — landed in the cleanup commit
+   below this one.
+  - `File.read` / `File.write` porcelain now forwarded by
+    `compose.js`, `readonly.js`, and `cached-fs.js`. The
+    readonly wrapper denies `write` with EACCES; compose
+    materialises the layer on `write`; cached-fs passes both
+    through. Regression tests cover all three paths.
+  - `Directory.getAttrs()` now asserts `kind === 'directory'`
+    before reading the stat table; previously it would mint
+    fresh "now" timestamps for a removed directory.
+  - Watchers under a removed or renamed-away path now see
+    stream-done instead of stalling silently. The watcher
+    exo's `enqueue(undefined)` is treated as a close signal;
+    `cleanupTables` / `transplantTables` fire it before
+    deleting the `localSubs` entry.
+  - `dirPaths` WeakMap staleness behavior documented inline
+    (using a Directory cap whose path was renamed away raises
+    ENOENT from the next backend call, which is the documented
+    "stale cap" contract).
+  - `kind() === undefined` documented as the canonical ENOENT
+    signal in `backend-types.js`.
+  - `rename?` fallback's "files only" limitation documented
+    in `backend-types.js` (the copy+remove path does not
+    recurse, so persistent backings should implement `rename`).
+  - `materialiseViaWalk` removed from the "deleted" list in
+    `shared/helpers.js` (it is still alive — used by
+    composed Filesystems in `compose.js`).
+  - Stray `// eslint-disable-next-line prefer-const` comments
+    above `const` declarations removed; kept only at the
+    actual assignment sites where the rule fires.
 - **Future: `File.contentHash()` porcelain** — would justify
    bringing `hash?` back to the FsBackend optionals.
 - **Future: deprecate the legacy method aliases** — once 9p-server

@@ -39,6 +39,15 @@ export const makeNodeWatcherExo = ({
 
   const enqueue = event => {
     if (cancelled) return;
+    // The convention is `enqueue(undefined)` signals stream-done —
+    // wrap-backend uses this when the watched path is removed or
+    // renamed away, so consumers see a clean termination rather
+    // than a stalled stream.
+    if (event === undefined) {
+      // Fire-and-forget; close() is idempotent.
+      close().catch(() => {});
+      return;
+    }
     if (waiters.length !== 0) {
       const resolve = /** @type {(v: any) => void} */ (waiters.shift());
       resolve(harden(event));

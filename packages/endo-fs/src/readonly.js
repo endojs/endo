@@ -195,6 +195,12 @@ const makeReadOnlyFile = file => {
     async snapshot() {
       return E(file).snapshot();
     },
+    async read(opts) {
+      return E(file).read(opts);
+    },
+    async write(_opts) {
+      throw denied('write');
+    },
     help(method) {
       if (method === undefined) {
         return 'File (read-only attenuator).';

@@ -436,6 +436,12 @@ const makeCachingFile = (file, cachedQid, cas, populateInBackground) => {
       // consumer that calls snapshot() can use a CAS directly.
       return E(file).snapshot();
     },
+    async read(opts) {
+      return E(file).read(opts);
+    },
+    async write(opts) {
+      return E(file).write(opts);
+    },
     help(method) {
       if (method === undefined) {
         return 'File (CAS-cached).';

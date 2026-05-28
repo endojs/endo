@@ -17,7 +17,7 @@ export { withCachedReads } from './cached-fs.js';
 
 // Three-layer architecture (designs/endo-fs-backend-seam.md).
 // `wrapBackend(backend)` builds a Filesystem cap on top of any
-// `FsBackend` (6 required + 5 optional methods). The legacy
+// `FsBackend` (see `backend-types.js` for the protocol). The legacy
 // makeInMemoryFilesystem / makeNodeFilesystem / mountAsFilesystem
 // exports above are now thin wrappers around
 // `wrapBackend(make*Backend(...))`.

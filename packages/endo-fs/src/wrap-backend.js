@@ -163,30 +163,59 @@ export const wrapBackend = (backend, opts = {}) => {
   const readStatNow = path =>
     statTableKit.readStatNow(backend, caps.getStat, path);
 
+  // Close every active watcher subscribed under `path` (and any
+  // child path). Each watcher exposes its enqueue closure via
+  // `localSubs`; the convention is that `enqueue(undefined)`
+  // signals stream-done, which lets `NodeWatcher.events()`
+  // consumers exit their `for await` loop normally instead of
+  // hanging on a never-resolved waiter. Called from `cleanupTables`
+  // and `transplantTables` to keep consumers from observing
+  // silently-muted streams when the path they watched disappears.
+  //
+  // @param {string[]} path
+  const closeWatchersUnder = path => {
+    const selfKey = lockKeyOf(path);
+    const prefix = path.length === 0 ? '' : `${selfKey}\0`;
+    for (const [key, handlers] of localSubs) {
+      if (key === selfKey || (prefix !== '' && key.startsWith(prefix))) {
+        for (const enqueue of handlers) {
+          try {
+            enqueue(undefined);
+          } catch (_e) {
+            // Best-effort — a faulty handler shouldn't poison the sweep.
+          }
+        }
+      }
+    }
+  };
+
   /**
    * Remove every per-path table entry under `path` (and any subtree
-   * under it for directories). Active watchers (entries in
-   * `localSubs`) keep firing under their original path key —
-   * moving a directory shouldn't silently redirect existing event
-   * consumers; we drop them so consumers can re-subscribe under
-   * the new path if they care.
+   * under it for directories). Active watchers are closed first
+   * (stream-done) so consumers see the watcher terminate rather than
+   * stalling on a path that no longer exists.
    *
    * @param {string[]} path
    */
-  const cleanupTables = path =>
+  const cleanupTables = path => {
+    closeWatchersUnder(path);
     cleanupPathTables(path, lockKeyOf, [statTable, xattrTable, localSubs]);
+  };
 
   /**
    * Move every per-path table entry from `srcPath` to `dstPath`
    * (and any subtree underneath). Mirrors the rename's effect on
    * the backend so xattrs and stat timestamps follow the data.
-   * `localSubs` is *cleaned* (not transplanted) — see cleanupTables
-   * above.
+   * `localSubs` is *cleaned* (not transplanted) — moving a directory
+   * shouldn't silently redirect existing event consumers; instead
+   * they get stream-done so they can re-subscribe under the new
+   * path if they care.
    *
    * @param {string[]} srcPath
    * @param {string[]} dstPath
    */
   const transplantTables = (srcPath, dstPath) => {
+    closeWatchersUnder(srcPath);
     transplantPathTables(srcPath, dstPath, lockKeyOf, [statTable, xattrTable]);
     cleanupPathTables(srcPath, lockKeyOf, [localSubs]);
   };
@@ -199,6 +228,13 @@ export const wrapBackend = (backend, opts = {}) => {
   // Track which Directory exos this wrapBackend built, mapping each
   // to its path. Used by `rename` to detect same-Filesystem rename
   // (use direct backend.rename) vs cross-Filesystem rename (EXDEV).
+  //
+  // Staleness note: every `Directory.lookup` mints a fresh exo and
+  // stamps the WeakMap with its construction path. If a directory
+  // is later renamed, exos minted before the rename keep their
+  // pre-rename path. That's "stale cap" behavior — using a Directory
+  // cap whose path no longer exists raises ENOENT from the next
+  // backend call, which is the documented contract for live caps.
   /** @type {WeakMap<object, string[]>} */
   const dirPaths = new WeakMap();
 
@@ -227,14 +263,13 @@ export const wrapBackend = (backend, opts = {}) => {
   // returns a File or Directory exo depending on `kind`). Both are
   // arrow-function assignments later in the file; the `let`-then-
   // assign shape is required because the bodies are defined before
-  // each other's binding is in scope. `prefer-const` would be wrong
-  // here.
+  // each other's binding is in scope. The `prefer-const` disable
+  // at each assignment site below documents the mutual-recursion
+  // shape.
 
   /** @type {(path: string[]) => any} */
-  // eslint-disable-next-line prefer-const
   let makeDirectoryExo;
   /** @type {(path: string[]) => any} */
-  // eslint-disable-next-line prefer-const
   let makeFileExo;
 
   // ---------- Bound exo factories (delegate to shared/) ----------
@@ -425,7 +460,6 @@ export const wrapBackend = (backend, opts = {}) => {
 
   // ---------- File exo ----------
 
-  // eslint-disable-next-line prefer-const
   /**
    * Read a file's portable stat (size + mtime + atime). Used by
    * both `getStat` (narrow shape) and `getAttrs` (legacy wide
@@ -485,7 +519,7 @@ export const wrapBackend = (backend, opts = {}) => {
     if (narrow.atime !== undefined) st.atime = narrow.atime;
   };
 
-  // eslint-disable-next-line prefer-const -- mutual recursion with makeDirectoryExo
+  // eslint-disable-next-line prefer-const -- mutual recursion (see forward-ref comment above)
   makeFileExo = path => {
     return makeExo('File', FileInterface, {
       async getStat() {
@@ -634,7 +668,6 @@ export const wrapBackend = (backend, opts = {}) => {
 
   // ---------- Directory exo ----------
 
-  // eslint-disable-next-line prefer-const
   /**
    * Apply a stat patch on a directory path. Directories have no
    * `size`, so applyStatPatch's read+write resize fallback isn't
@@ -656,7 +689,7 @@ export const wrapBackend = (backend, opts = {}) => {
     if (narrow.atime !== undefined) st.atime = narrow.atime;
   };
 
-  // eslint-disable-next-line prefer-const -- mutual recursion with makeFileExo
+  // eslint-disable-next-line prefer-const -- mutual recursion (see forward-ref comment above)
   makeDirectoryExo = path => {
     const exo = makeExo('Directory', DirectoryInterface, {
       async getStat() {
@@ -675,6 +708,10 @@ export const wrapBackend = (backend, opts = {}) => {
         return synthQid(path, 'directory');
       },
       async getAttrs() {
+        const k = await backend.kind(path);
+        if (k !== 'directory') {
+          throw makeError(X`ENOENT: ${q(path.join('/'))}`);
+        }
         const st = await readStatNow(path);
         return harden({
           size: 0n,

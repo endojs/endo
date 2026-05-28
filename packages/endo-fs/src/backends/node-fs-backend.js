@@ -8,9 +8,8 @@
  * `realpath` would escape the root (the same containment check the
  * legacy node-fs.js applies via `assertConfined`).
  *
- * Implements the 6 required methods + optional `setStat`, `fsync`,
- * `rename`, `watch`. Skips `hash` (wrap-backend synthesizes by reading
- * the whole file).
+ * Implements the required core plus `getStat`, `setStat`, `fsync`,
+ * `rename`, and `watch` from the optional set.
  */
 
 import nodePath from 'node:path';

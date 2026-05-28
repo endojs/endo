@@ -20,8 +20,8 @@ future backing (KV stores, SQLite, S3, IPFS) can plug into.
 
 ### Phase 1 — Foundation (commits d2c6dedd → 4e110976)
 
-- `src/backend-types.js` — `FsBackend` JSDoc typedefs (6 required + 5
-  optional methods).
+- `src/backend-types.js` — `FsBackend` JSDoc typedefs (a required
+  core plus an optional set, advertised by method existence).
 - `src/wrap-backend.js` — full shared upper layer that builds all exos
   (Filesystem, Directory, File, OpenFile, Cursor, NodeWatcher) on top
   of any `FsBackend`. Includes the vat-local lock-table, materialise
@@ -76,12 +76,12 @@ make the migration test-clean, wrap-backend gained:
 
 ### Phase 4 — Migrate `node-fs.js` (commit 8f5f6eb9)
 
-859-line legacy implementation replaced with a 12-line wrapper. The
-new `backends/node-fs-backend.js` (~270 lines vs the 859 it replaces)
-implements 6 required + setStat (utimes + truncate), fsync, rename,
-watch (fs.watch adapter), hash (sha256 of readFile). Symlink
-containment via realpath; EACCES on symlink escape is translated to
-ENOENT in `kind()` so the holder of a Filesystem cap can't probe for
+Legacy implementation replaced with a thin wrapper. The new
+`backends/node-fs-backend.js` implements the required core plus
+`getStat` (via `fs.stat`), `setStat` (utimes + truncate), `fsync`,
+`rename`, and `watch` (fs.watch adapter). Symlink containment via
+realpath; EACCES on symlink escape is translated to ENOENT in
+`kind()` so the holder of a Filesystem cap can't probe for
 out-of-sandbox path existence.
 
 ### Phase 5 — Consumers (no code changes needed)
@@ -113,29 +113,17 @@ wrapBackend-built Filesystem — 20/20 tests pass.
 - `@endo/endo-fs`: 215 tests pass (211 from before + 4 new PosixFs).
 - `@endo/9p-server`: 20 tests pass.
 
-### Net LOC change
+### Net code reshape
 
-| File | Before | After |
-|---|---:|---:|
-| `src/in-memory.js` | 788 | 24 |
-| `src/node-fs.js` | 859 | 30 |
-| `src/from-mount.js` | 655 | 27 |
-| (sum) | 2302 | 81 |
-| `src/wrap-backend.js` (new) | 0 | 1306 |
-| `src/helpers.js` (new) | 0 | 81 |
-| `src/backend-types.js` (new) | 0 | 160 |
-| `src/backends/in-memory-backend.js` (new) | 0 | 368 |
-| `src/backends/node-fs-backend.js` (new) | 0 | 392 |
-| `src/backends/from-mount-backend.js` (new) | 0 | 226 |
-| `src/posix-fs.js` (new) | 0 | 53 |
-
-The shared upper layer absorbs ~1300 lines of plumbing that used to
-be triplicated; each new backing now costs ~200–400 lines of focused
-FsBackend implementation rather than 700–900 lines of duplicated exo
-construction. Wrap-backend's per-method bodies still duplicate
-between the narrow (`getStat`/`setStat`) and wide (`getAttrs`/`setAttrs`)
-shapes, but they share `readFileStat` / `applyStatPatch` helpers so
-the two surfaces can't drift.
+The three legacy backings (`in-memory.js`, `node-fs.js`,
+`from-mount.js`) collapse to thin `wrapBackend(make*Backend(...))`
+wrappers. The plumbing they used to triplicate now lives once in
+`wrap-backend.js` and the helpers under `shared/`. Each new backing
+costs an `FsBackend` implementation focused on its own storage
+concerns, not a fresh copy of every exo. Wrap-backend's per-method
+bodies still duplicate between the narrow (`getStat`/`setStat`) and
+wide (`getAttrs`/`setAttrs`) shapes, but they share `readFileStat` /
+`applyStatPatch` helpers so the two surfaces can't drift.
 
 ### Wire-shape deviation — `OpenFile.read` / `write`
 
@@ -224,7 +212,7 @@ when it does land.
                 └─────────────────────────────────────────────┘
                                     ▲
                                     │  FsBackend protocol
-                                    │  (6 required + ~14 optional)
+                                    │  (required core + optional set)
                                     ▼
                 ┌──────────────┬──────────────┬──────────────┐
                 │  in-memory   │  node-fs     │  from-mount  │
@@ -603,12 +591,13 @@ end-to-end before churning the other two backings.
 
 ### PR 3 — Migrate `in-memory.js`
 
-In-memory backend (788 → ~110 lines after xattr + attr removal).
-Implements 6 required + `setStat` (mutates record's buffer length /
-timestamp fields) + `fsync` (no-op) + `rename` (Map key swap) +
-`watch` (in-process event bus). Skips `hash` (synthesizes fine). No
-`flock` — wrapBackend's vat-local lock table serves `OpenFile.lock`
-directly.
+In-memory backend collapses to a thin wrapper. Implements the
+required core plus `setStat` (mutates record's buffer length /
+timestamp fields), `fsync` (no-op), `rename` (Map key swap), and
+`watch` (in-process event bus). Deliberately omits `getStat` so
+wrap-backend's vat-local stat table owns the timestamps (the in-
+memory backend has no disk to query). No `flock` — wrapBackend's
+vat-local lock table serves `OpenFile.lock` directly.
 
 This PR also lands the xattr-removal cleanup and the attr-removal
 cleanup: deletes the in-memory `NodeRecord.xattrs` Map, deletes the
@@ -623,15 +612,16 @@ methods, removes corresponding test cases, and strikes DESIGN.md
 
 ### PR 4 — Migrate `node-fs.js`
 
-Largest backend (859 → ~230 lines after xattr + attr + fd-handle
-removal). Implements 6 required (via `fs.promises.readFile` /
-`writeFile` / `mkdir` / `rmdir` / etc.) + every optional except
-`hash`: `setStat` (composes `fsp.truncate` for size, `fsp.utimes` for
-mtime/atime — both atomic at the syscall level when called separately;
-wrapBackend's `Node.setStat({size, mtime, atime})` doesn't promise
-cross-field atomicity), `fsync` (`FileHandle.sync` — opens a transient
-handle), `rename` (`fsp.rename`), `watch` (`fs.watch` adapter). No
-`flock` here either; real OS locks are PosixFs's job when F15 lands.
+Node-fs backend collapses to a thin wrapper. Implements the
+required core (via `fs.promises.readFile` / `writeFile` / `mkdir` /
+`rmdir` / etc.) and the full optional set: `getStat` (via
+`fs.stat`), `setStat` (composes `fsp.truncate` for size,
+`fsp.utimes` for mtime/atime — both atomic at the syscall level
+when called separately; wrapBackend's `Node.setStat({size, mtime,
+atime})` doesn't promise cross-field atomicity), `fsync`
+(`FileHandle.sync` — opens a transient handle), `rename`
+(`fsp.rename`), and `watch` (`fs.watch` adapter). No `flock` here
+either; real OS locks are PosixFs's job when F15 lands.
 
 Internal perf optimization (not part of the seam): the backend can
 keep a small LRU of `FileHandle`s keyed by path to avoid open+close
@@ -734,13 +724,14 @@ After PR 4, the package is on the new architecture end-to-end.
    Every existing test passes unchanged (the rename + new methods are
    additive at the consumer level).
 
-2. **Backend code size dropped as projected.** `wc -l
-   src/backends/*.js` reports the per-backing files within 20% of the
-   targets (in-memory ~150, node-fs ~300, from-mount ~80). If not,
-   audit what didn't factor into wrapBackend.
+2. **Backend code size dropped substantially.** Each backing in
+   `src/backends/` is focused on storage concerns — no exo
+   construction, no interface guards, no synthesis. If a backing
+   ever balloons, audit what didn't factor into wrapBackend.
 
-3. **Capability synthesis works.** `test/wrap-backend.test.js` includes
-   a "minimal backend" (just the 6 required methods) and asserts:
+3. **Capability synthesis works.** `test/wrap-backend.test.js`
+   includes a "minimal backend" (just the required core) and
+   asserts:
    - `OpenFile.lock()` works (synthesized in-vat advisory).
    - `OpenFile.read(0n, length)` works (whole-file + slice).
    - `Watcher` returns empty stream.

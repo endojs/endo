@@ -6,10 +6,10 @@
  *
  * `wrapBackend(backend)` from `./wrap-backend.js` builds the full
  * `Filesystem` exo surface on top of a `FsBackend`. The seam is
- * deliberately small: 6 required methods + 5 optional methods, all
- * path-keyed, no redundancy (e.g. no separate `readFile` and
- * `readRange` — one `read(path, offset?, length?)` with optional
- * bounds).
+ * deliberately small: a required core plus a handful of optional
+ * methods, all path-keyed, no redundancy (e.g. no separate
+ * `readFile` and `readRange` — one `read(path, offset?, length?)`
+ * with optional bounds).
  *
  * Optional methods are advertised by **method existence**:
  * `wrapBackend` probes `typeof backend.X === 'function'` once at
@@ -105,14 +105,15 @@
 /**
  * The backend protocol.
  *
- * **Required (6 methods).** Every backing implements these. Toy
- * backings that only do these get a functional `Filesystem` with
- * vat-local advisory locks, no watchers, vat-local synthesized
- * stat timestamps, and non-atomic rename.
+ * **Required core.** Every backing implements `kind`, `list`, `read`,
+ * `write`, `makeDirectory`, and `remove`. Toy backings that only do
+ * these get a functional `Filesystem` with vat-local advisory locks,
+ * no watchers, vat-local synthesized stat timestamps, and a
+ * non-atomic rename fallback.
  *
- * **Optional (6 methods).** Each advertised by method existence.
- * Missing methods → wrapBackend either synthesizes a safe fallback
- * or surfaces ENOSYS to the consumer.
+ * **Optional set.** Each advertised by method existence. Missing
+ * methods → wrapBackend either synthesizes a safe fallback or
+ * surfaces ENOSYS to the consumer.
  *
  * **Paths are `string[]` segments.** Backings that need string
  * paths join internally. The empty array `[]` denotes the root.
@@ -121,7 +122,10 @@
  * undefined`. Non-{file,directory} entries (sockets, symlinks,
  * device files) surface as `undefined` and read as ENOENT to
  * consumers — base endo-fs is tree-shaped; OS-specific shapes
- * live in `PosixFs`.
+ * live in `PosixFs`. `kind()` returning `undefined` is therefore
+ * the canonical ENOENT signal: wrapBackend interprets "missing"
+ * and "not a file or directory" identically. Backings should NOT
+ * use `undefined` to mean "I don't expose kind for this path."
  *
  * **No `flock?`, no `getXattr?`/`setXattr?` here.** Real OS locks
  * and native disk xattrs are POSIX-shaped → `PosixFs` extension.
@@ -134,6 +138,14 @@
  * `getStat` returns the real disk mtime, not the moment the vat
  * first looked at the file. Toy backends (KV stores, in-memory)
  * can omit it; the vat-local table fills in.
+ *
+ * **`rename?` fallback caveat.** Backings that don't implement
+ * `rename` get a copy-then-remove fallback in `wrapBackend`. The
+ * fallback is non-atomic AND it currently only handles files —
+ * renaming a directory without backend support raises ENOSYS rather
+ * than recursing. Persistent backings (anything with on-disk state)
+ * should implement `rename` for correctness; toy backings can skip
+ * it as long as no consumer renames directories.
  *
  * @typedef {object} FsBackend
  * @property {(path: string[]) => Promise<NodeKind | undefined>} kind
