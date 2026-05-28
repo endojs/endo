@@ -17,9 +17,18 @@
   "type": "module",
   "types": "./types.d.ts",
   "exports": {
-    ".": "./src/index.js",
-    "./src/type-guards.js": "./src/type-guards.js",
-    "./src/backend-types.js": "./src/backend-types.js",
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./src/index.js"
+    },
+    "./src/type-guards.js": {
+      "types": "./types.d.ts",
+      "default": "./src/type-guards.js"
+    },
+    "./src/backend-types.js": {
+      "types": "./types.d.ts",
+      "default": "./src/backend-types.js"
+    },
     "./src/in-memory.js": "./src/in-memory.js",
     "./src/in-memory-module.js": "./src/in-memory-module.js",
     "./src/cas.js": "./src/cas.js",
