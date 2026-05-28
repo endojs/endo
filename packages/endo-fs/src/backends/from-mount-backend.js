@@ -1,0 +1,208 @@
+// @ts-check
+/* eslint-disable no-await-in-loop, no-bitwise */
+/**
+ * `FsBackend` adapter for an `@endo/daemon` `Mount` cap.
+ *
+ * Mount has a different interface (whole-file `text()`/`writeBytes()`,
+ * `list()` of names, `lookup(segments)` for path-array access). This
+ * adapter projects it into the `FsBackend` protocol.
+ *
+ * - No partial-range I/O: `read(path, offset, length)` fetches the
+ *   whole file via `streamBase64()` and slices.
+ * - No xattrs / locks / events surface (left absent so wrapBackend
+ *   uses its vat-local lock table and synthesizes empty watchers).
+ * - `kind` returns 'file' | 'directory' | undefined based on
+ *   CapTP method introspection of the lookup result.
+ */
+
+import { E } from '@endo/eventual-send';
+import { makeError, X, q } from '@endo/errors';
+
+/**
+ * @import { FsBackend, NodeKind, DirEntry } from '../backend-types.js'
+ */
+
+/**
+ * Drain a Mount/MountFile `streamBase64` reader into a `Uint8Array`.
+ *
+ * @param {any} streamRef
+ */
+const drainBase64Stream = async streamRef => {
+  /** @type {Uint8Array[]} */
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await E(streamRef).next();
+    if (done) break;
+    // The wire format is a base64 string; decode it.
+    const decoded = Uint8Array.from(atob(/** @type {string} */ (value)), c =>
+      c.charCodeAt(0),
+    );
+    chunks.push(decoded);
+    total += decoded.length;
+  }
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.length;
+  }
+  return out;
+};
+
+/**
+ * Probe a Mount.lookup() result and determine whether it's a
+ * sub-Mount (directory) or a MountFile (file).
+ *
+ * @param {any} cap
+ * @returns {Promise<NodeKind | undefined>}
+ */
+const probeMountChild = async cap => {
+  try {
+    const methods = await E(cap).__getMethodNames__();
+    if (methods.includes('lookup')) return 'directory';
+    if (methods.includes('text') || methods.includes('streamBase64')) {
+      return 'file';
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+};
+
+/**
+ * Build an `FsBackend` over a `Mount` capability.
+ *
+ * @param {object} rootMount
+ * @returns {FsBackend}
+ */
+export const makeFromMountBackend = rootMount => {
+  /**
+   * Resolve a path-array to a Mount or MountFile cap, or undefined.
+   *
+   * @param {string[]} path
+   */
+  const resolve = async path => {
+    if (path.length === 0) return rootMount;
+    try {
+      return await E(rootMount).lookup(path);
+    } catch {
+      return undefined;
+    }
+  };
+
+  return harden({
+    async kind(path) {
+      const cap = await resolve(path);
+      if (cap === undefined) return undefined;
+      return probeMountChild(cap);
+    },
+
+    async *list(dirPath) {
+      const mount = await resolve(dirPath);
+      if (mount === undefined) {
+        throw makeError(X`ENOENT: ${q(dirPath.join('/'))}`);
+      }
+      const names = await E(mount).list();
+      for (const name of /** @type {string[]} */ (names)) {
+        let kind;
+        try {
+          const child = await E(mount).lookup(name);
+          kind = await probeMountChild(child);
+        } catch {
+          kind = undefined;
+        }
+        if (kind !== undefined) {
+          yield /** @type {DirEntry} */ (harden({ name, kind }));
+        }
+      }
+    },
+
+    async read(path, offset = 0n, length) {
+      const cap = await resolve(path);
+      if (cap === undefined) {
+        throw makeError(X`ENOENT: ${q(path.join('/'))}`);
+      }
+      let bytes;
+      try {
+        const stream = await E(cap).streamBase64();
+        bytes = await drainBase64Stream(stream);
+      } catch {
+        bytes = new Uint8Array(0);
+      }
+      const off = Number(offset);
+      if (length === undefined) return bytes.slice(off);
+      const end = off + Number(length);
+      return bytes.slice(off, end);
+    },
+
+    async write(path, bytes, offset = 0n) {
+      const off = Number(offset);
+      let cap = await resolve(path);
+      if (cap === undefined) {
+        // File doesn't exist — create empty parent + file.
+        const parent = await resolve(path.slice(0, -1));
+        if (parent === undefined) {
+          throw makeError(X`ENOENT: parent ${q(path.slice(0, -1).join('/'))}`);
+        }
+        // Mount has no create-empty-file primitive in the API list;
+        // use writeBytes via a temporary lookup-after-create dance.
+        // For now, write directly through a freshly-resolved cap.
+        // Newer Mount versions may support a create operation.
+        try {
+          cap = await E(parent).lookup(path[path.length - 1]);
+        } catch {
+          // ignore — many Mount impls auto-create on writeBytes
+        }
+      }
+      let current;
+      try {
+        const stream = await E(cap).streamBase64();
+        current = await drainBase64Stream(stream);
+      } catch {
+        current = new Uint8Array(0);
+      }
+      const needed = off + bytes.length;
+      const out =
+        needed > current.length
+          ? new Uint8Array(needed)
+          : new Uint8Array(current.length);
+      out.set(current.slice(0, Math.min(current.length, needed)), 0);
+      out.set(bytes, off);
+      if (needed < current.length) {
+        out.set(current.slice(needed), needed);
+      }
+      // @ts-expect-error Mount.writeBytes accepts a Uint8Array
+      await E(cap).writeBytes(out);
+    },
+
+    async makeDirectory(path) {
+      if (path.length === 0) return;
+      const parent = await resolve(path.slice(0, -1));
+      if (parent === undefined) {
+        throw makeError(X`ENOENT: parent ${q(path.slice(0, -1).join('/'))}`);
+      }
+      const name = path[path.length - 1];
+      await E(parent).makeDirectory(name);
+    },
+
+    async remove(path) {
+      if (path.length === 0) {
+        throw makeError(X`EINVAL: cannot remove root`);
+      }
+      const parent = await resolve(path.slice(0, -1));
+      if (parent === undefined) {
+        throw makeError(X`ENOENT: parent ${q(path.slice(0, -1).join('/'))}`);
+      }
+      const name = path[path.length - 1];
+      await E(parent).remove(name);
+    },
+
+    async rename(src, dst) {
+      // Mount has `move(srcAbs, dstAbs)` which takes absolute path
+      // arrays from root.
+      await E(rootMount).move(src, dst);
+    },
+  });
+};
+harden(makeFromMountBackend);
