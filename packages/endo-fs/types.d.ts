@@ -122,12 +122,7 @@ declare module '@endo/endo-fs/src/backend-types.js' {
     atime?: bigint;
   };
   export type WatchEvent = {
-    kind:
-      | 'changed'
-      | 'created'
-      | 'removed'
-      | 'child-added'
-      | 'child-removed';
+    kind: 'changed' | 'created' | 'removed' | 'child-added' | 'child-removed';
     name?: string;
   };
   export type FsBackend = {
