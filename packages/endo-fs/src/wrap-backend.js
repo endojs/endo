@@ -22,16 +22,12 @@ import { makeError, X, q } from '@endo/errors';
 
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
-import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
 import {
   DirectoryInterface,
   FileInterface,
   FilesystemInterface,
   OpenFileInterface,
-  CursorInterface,
-  NodeWatcherInterface,
-  XattrsInterface,
 } from './type-guards.js';
 
 import { makeLockTable } from './shared/lock-table.js';
@@ -40,12 +36,20 @@ import {
   assertChildName,
   computeOpenMode,
   mintBrand,
-  toSafeNumber,
   EMPTY_BYTES,
 } from './shared/helpers.js';
+import { synthQid } from './shared/qid.js';
+import { makeStatTable } from './shared/stat-table.js';
+import {
+  cleanupPathTables,
+  transplantPathTables,
+} from './shared/path-tables.js';
+import { makeXattrsExo } from './shared/xattrs-exo.js';
+import { makeCursorExo } from './shared/cursor-exo.js';
+import { makeNodeWatcherExo } from './shared/watcher-exo.js';
 
 /**
- * @import { FsBackend, NodeKind, DirEntry } from './backend-types.js'
+ * @import { FsBackend } from './backend-types.js'
  */
 
 /**
@@ -152,128 +156,39 @@ export const wrapBackend = (backend, opts = {}) => {
   // on `write`/`setStat`/`remove`-create, and `atime` on `read`.
   // Used for `getAttrs`/`getStat` so consumers see consistent
   // timestamps even on toy backings that don't track them.
-  /** @type {Map<string, { mtime: bigint, atime: bigint, ctime: bigint, btime: bigint }>} */
-  const statTable = new Map();
-  const nowNs = () => BigInt(Date.now()) * 1_000_000n;
-  /**
-   * @param {string[]} path
-   * @param {{ mtime?: boolean, atime?: boolean }} [fields]
-   */
-  const touch = (path, fields) => {
-    const wantMtime = fields ? !!fields.mtime : true;
-    const wantAtime = fields ? !!fields.atime : false;
-    const key = lockKeyOf(path);
-    let rec = statTable.get(key);
-    const t = nowNs();
-    if (!rec) {
-      rec = { mtime: t, atime: t, ctime: t, btime: t };
-      statTable.set(key, rec);
-    }
-    if (wantMtime) {
-      rec.mtime = t;
-      rec.ctime = t;
-    }
-    if (wantAtime) rec.atime = t;
-  };
-  const statOf = path => {
-    const key = lockKeyOf(path);
-    let rec = statTable.get(key);
-    if (!rec) {
-      // First observation; initialize to "now" so consumers see
-      // non-zero timestamps. Persistent backings should implement
-      // `backend.getStat?` — readStatNow below prefers the backend's
-      // disk-truthful value over this vat-local fallback.
-      const t = nowNs();
-      rec = { mtime: t, atime: t, ctime: t, btime: t };
-      statTable.set(key, rec);
-    }
-    return rec;
-  };
-
-  /**
-   * Read the portable stat subset for a path, preferring the
-   * backend's `getStat?` when available so node-fs (and other
-   * persistent backings) returns the real disk timestamps rather
-   * than the vat-local approximation. Toy backends fall back to
-   * `statOf(path)`.
-   *
-   * @param {string[]} path
-   * @returns {Promise<{ size?: bigint, mtime: bigint, atime: bigint, ctime: bigint, btime: bigint }>}
-   */
-  const readStatNow = async path => {
-    if (caps.getStat) {
-      // @ts-expect-error optional method probed above
-      const backendStat = await backend.getStat(path);
-      const local = statOf(path);
-      return harden({
-        size: backendStat.size,
-        mtime: backendStat.mtime ?? local.mtime,
-        atime: backendStat.atime ?? local.atime,
-        ctime: local.ctime,
-        btime: local.btime,
-      });
-    }
-    return statOf(path);
-  };
+  // `readStatNow` below prefers `backend.getStat?` over this when
+  // present (so persistent backings surface disk-truthful values).
+  const statTableKit = makeStatTable(lockKeyOf);
+  const { statTable, touch, statOf } = statTableKit;
+  const readStatNow = path =>
+    statTableKit.readStatNow(backend, caps.getStat, path);
 
   /**
    * Remove every per-path table entry under `path` (and any subtree
-   * under it for directories). Called from Directory.remove /
-   * Directory.unlink so stat / xattr / event-subscriber tables
-   * don't accumulate ghost entries for paths that no longer exist
-   * (which would also let a recreated path inherit the predecessor's
-   * metadata).
+   * under it for directories). Active watchers (entries in
+   * `localSubs`) keep firing under their original path key —
+   * moving a directory shouldn't silently redirect existing event
+   * consumers; we drop them so consumers can re-subscribe under
+   * the new path if they care.
    *
    * @param {string[]} path
    */
-  const cleanupTables = path => {
-    const selfKey = lockKeyOf(path);
-    const prefix = path.length === 0 ? '' : `${selfKey}\0`;
-    for (const map of [statTable, xattrTable, localSubs]) {
-      const toDelete = [];
-      for (const key of map.keys()) {
-        if (key === selfKey || (prefix !== '' && key.startsWith(prefix))) {
-          toDelete.push(key);
-        }
-      }
-      for (const key of toDelete) map.delete(key);
-    }
-  };
+  const cleanupTables = path =>
+    cleanupPathTables(path, lockKeyOf, [statTable, xattrTable, localSubs]);
 
   /**
    * Move every per-path table entry from `srcPath` to `dstPath`
    * (and any subtree underneath). Mirrors the rename's effect on
    * the backend so xattrs and stat timestamps follow the data.
+   * `localSubs` is *cleaned* (not transplanted) — see cleanupTables
+   * above.
    *
    * @param {string[]} srcPath
    * @param {string[]} dstPath
    */
   const transplantTables = (srcPath, dstPath) => {
-    const srcKey = lockKeyOf(srcPath);
-    const dstKey = lockKeyOf(dstPath);
-    const srcPrefix = `${srcKey}\0`;
-    const dstPrefix = `${dstKey}\0`;
-    for (const map of [statTable, xattrTable]) {
-      /** @type {Array<[string, any]>} */
-      const moves = [];
-      for (const [key, value] of map) {
-        if (key === srcKey) {
-          moves.push([dstKey, value]);
-          map.delete(key);
-        } else if (key.startsWith(srcPrefix)) {
-          moves.push([dstPrefix + key.slice(srcPrefix.length), value]);
-          map.delete(key);
-        }
-      }
-      for (const [newKey, value] of moves) map.set(newKey, value);
-    }
-    // Active watchers (entries in localSubs) keep firing under their
-    // original path key — moving a directory shouldn't silently
-    // redirect existing event consumers. Drop them; consumers can
-    // re-subscribe under the new path if they care.
-    for (const key of [...localSubs.keys()]) {
-      if (key === srcKey || key.startsWith(srcPrefix)) localSubs.delete(key);
-    }
+    transplantPathTables(srcPath, dstPath, lockKeyOf, [statTable, xattrTable]);
+    cleanupPathTables(srcPath, lockKeyOf, [localSubs]);
   };
 
   // Brand-set for cycle detection across CapTP boundaries.
@@ -322,368 +237,22 @@ export const wrapBackend = (backend, opts = {}) => {
   // eslint-disable-next-line prefer-const
   let makeFileExo;
 
-  // ---------- Qid synthesis ----------
+  // ---------- Bound exo factories (delegate to shared/) ----------
 
-  /**
-   * Synthesize a stable Qid for a path. The base backend doesn't
-   * track inode-like identity; we hash the joined path so two looks
-   * at the same path return identical Qids. POSIX-correct identity
-   * (real inode numbers, version-on-mutation) comes from `PosixFs`.
-   *
-   * @param {string[]} path
-   * @param {NodeKind} kind
-   */
-  const synthQid = (path, kind) => {
-    // 64-bit FNV-1a over the joined path, masked to fit a bigint we
-    // can pass through CapTP. Deterministic: same path → same id.
-    // FNV-1a is the hashing standard for this kind of identity
-    // synthesis; the `^` and `&` are inherent to the algorithm.
-    let h = 0xcbf29ce484222325n;
-    const FNV_PRIME = 0x100000001b3n;
-    const MASK = 0xffffffffffffffffn;
-    const joined = path.join('\0');
-    for (let i = 0; i < joined.length; i += 1) {
-      // eslint-disable-next-line no-bitwise
-      h = (h ^ BigInt(joined.charCodeAt(i))) & MASK;
-      // eslint-disable-next-line no-bitwise
-      h = (h * FNV_PRIME) & MASK;
-    }
-    return harden({ type: kind, pathId: h, version: 0n });
-  };
-
-  // ---------- Xattrs ----------
-
-  /**
-   * Build an `Xattrs` exo backed by `xattrTable`. user.* metadata is
-   * stored vat-locally. Only the `user.*` namespace is accepted;
-   * other namespaces (security.*, trusted.*, system.*) are
-   * POSIX-specific and deferred to a future PosixFs cap with a
-   * backing-specific impl that reads real disk xattrs.
-   *
-   * @param {string[]} path
-   */
-  const makeXattrsExo = path => {
-    const key = lockKeyOf(path);
-    const ensureMap = () => {
-      let m = xattrTable.get(key);
-      if (!m) {
-        m = new Map();
-        xattrTable.set(key, m);
-      }
-      return m;
-    };
-    const assertUserNamespace = name => {
-      if (typeof name !== 'string') {
-        throw makeError(X`EINVAL: xattr name must be a string`);
-      }
-      if (!name.startsWith('user.')) {
-        throw makeError(
-          X`ENOTSUP: only user.* xattrs supported at this layer (got ${q(
-            name,
-          )})`,
-        );
-      }
-    };
-    return makeExo('Xattrs', XattrsInterface, {
-      async get(name) {
-        assertUserNamespace(name);
-        const m = xattrTable.get(key);
-        const bytes = m && m.get(name);
-        if (bytes === undefined) {
-          throw makeError(X`ENODATA: xattr ${q(name)} not set`);
-        }
-        const gen = async function* () {
-          if (bytes.length !== 0) yield bytes;
-        };
-        return bytesReaderFromIterator(gen());
-      },
-      async set(name, _opts) {
-        assertUserNamespace(name);
-        const m = ensureMap();
-        /** @type {Uint8Array[]} */
-        const chunks = [];
-        const sink = {
-          async next(chunk) {
-            if (chunk instanceof Uint8Array && chunk.length !== 0) {
-              chunks.push(chunk);
-            }
-            return { done: false, value: undefined };
-          },
-          async return(value) {
-            let total = 0;
-            for (const c of chunks) total += c.length;
-            const merged = new Uint8Array(total);
-            let p = 0;
-            for (const c of chunks) {
-              merged.set(c, p);
-              p += c.length;
-            }
-            m.set(name, merged);
-            fireLocal(path, { kind: 'changed' });
-            return { done: true, value };
-          },
-          [Symbol.asyncIterator]() {
-            return sink;
-          },
-        };
-        return bytesWriterFromIterator(sink);
-      },
-      async list() {
-        const m = xattrTable.get(key);
-        const names = m ? [...m.keys()] : [];
-        const gen = async function* () {
-          for (const n of names) yield n;
-        };
-        return readerFromIterator(gen());
-      },
-      async remove(name) {
-        assertUserNamespace(name);
-        const m = xattrTable.get(key);
-        if (!m || !m.has(name)) {
-          throw makeError(X`ENODATA: xattr ${q(name)} not set`);
-        }
-        m.delete(name);
-        if (m.size === 0) xattrTable.delete(key);
-        fireLocal(path, { kind: 'changed' });
-      },
-      help(method) {
-        if (method === undefined) {
-          return 'Xattrs: vat-local user.* metadata (sidecar storage).';
-        }
-        return `No documentation for method ${q(method)}.`;
-      },
+  /** @param {string[]} path */
+  const xattrsExoFor = path =>
+    makeXattrsExo({ xattrTable, fireLocal, lockKeyOf, path });
+  /** @param {string[]} dirPath */
+  const cursorExoFor = dirPath => makeCursorExo({ backend, dirPath });
+  /** @param {string[]} path */
+  const watcherExoFor = path =>
+    makeNodeWatcherExo({
+      hasWatch: caps.watch,
+      backendWatch: () =>
+        /** @type {NonNullable<typeof backend.watch>} */ (backend.watch)(path),
+      localSubs,
+      subKey: lockKeyOf(path),
     });
-  };
-
-  // ---------- Cursor ----------
-
-  /**
-   * Build a Cursor exo over the backend's `list(dirPath)` async
-   * iterable. The Cursor owns its position; `read(limit)` returns
-   * a bounded page, `stream()` returns a `PassableReader<DirEntry>`,
-   * `toArray()` drains the lot.
-   *
-   * @param {string[]} dirPath
-   */
-  const makeCursorExo = dirPath => {
-    /** @type {AsyncIterator<DirEntry> | null} */
-    let iter = null;
-    let exhausted = false;
-
-    const ensureIter = () => {
-      if (iter === null) {
-        iter = backend.list(dirPath)[Symbol.asyncIterator]();
-      }
-      return iter;
-    };
-
-    // Augment each backend entry with a synthesized `qid` for legacy
-    // consumers (9p-server's Treaddir, etc.). New consumers can read
-    // `entry.kind`; both `entry.kind` and `entry.qid.type` carry the
-    // same information.
-    const augment = entry =>
-      harden({
-        name: entry.name,
-        kind: entry.kind,
-        qid: synthQid([...dirPath, entry.name], entry.kind),
-      });
-
-    return makeExo('Cursor', CursorInterface, {
-      async read(limit) {
-        if (exhausted) return harden({ entries: [], atEnd: true });
-        const max =
-          limit === undefined ? Infinity : toSafeNumber(limit, 'limit');
-        const it = ensureIter();
-        /** @type {DirEntry[]} */
-        const entries = [];
-        let atEnd = false;
-        while (entries.length < max) {
-          // eslint-disable-next-line no-await-in-loop
-          const step = await it.next();
-          if (step.done) {
-            atEnd = true;
-            exhausted = true;
-            break;
-          }
-          entries.push(augment(step.value));
-        }
-        return harden({ entries, atEnd });
-      },
-      async stream() {
-        if (exhausted) {
-          return readerFromIterator(
-            (async function* empty() {
-              // intentionally empty
-            })(),
-          );
-        }
-        const it = ensureIter();
-        const generator = async function* () {
-          for (;;) {
-            // eslint-disable-next-line no-await-in-loop
-            const step = await it.next();
-            if (step.done) {
-              exhausted = true;
-              return;
-            }
-            yield augment(step.value);
-          }
-        };
-        return readerFromIterator(generator());
-      },
-      async toArray() {
-        if (exhausted) return harden([]);
-        const it = ensureIter();
-        /** @type {DirEntry[]} */
-        const out = [];
-        for (;;) {
-          // eslint-disable-next-line no-await-in-loop
-          const step = await it.next();
-          if (step.done) {
-            exhausted = true;
-            break;
-          }
-          out.push(augment(step.value));
-        }
-        return harden(out);
-      },
-      async skip(n) {
-        const count = toSafeNumber(n, 'n');
-        const it = ensureIter();
-        for (let i = 0; i < count; i += 1) {
-          // eslint-disable-next-line no-await-in-loop
-          const step = await it.next();
-          if (step.done) {
-            exhausted = true;
-            return;
-          }
-        }
-      },
-      async rewind() {
-        iter = null;
-        exhausted = false;
-      },
-      help(method) {
-        if (method === undefined) {
-          return 'Cursor: paged directory listing — read(limit) | stream() | toArray() | skip(n) | rewind().';
-        }
-        return `No documentation for method ${q(method)}.`;
-      },
-    });
-  };
-
-  // ---------- NodeWatcher ----------
-
-  /**
-   * Build a NodeWatcher exo over the backend's `watch?(path)`
-   * iterable (if present) or an empty stream.
-   *
-   * @param {string[]} path
-   */
-  const makeNodeWatcherExo = path => {
-    /** @type {any[]} */
-    const buffer = [];
-    /** @type {Array<(value: any) => void>} */
-    const waiters = [];
-    let cancelled = false;
-
-    const enqueue = event => {
-      if (cancelled) return;
-      if (waiters.length !== 0) {
-        const resolve = /** @type {(v: any) => void} */ (waiters.shift());
-        resolve(harden(event));
-      } else {
-        buffer.push(harden(event));
-      }
-    };
-
-    // Subscribe to wrap-backend-local events for this path.
-    const key = lockKeyOf(path);
-    let subs = localSubs.get(key);
-    if (!subs) {
-      subs = new Set();
-      localSubs.set(key, subs);
-    }
-    subs.add(enqueue);
-
-    /** @type {AsyncIterator<any> | null} */
-    let backendIter = null;
-
-    const close = async () => {
-      if (cancelled) return;
-      cancelled = true;
-      if (subs) {
-        subs.delete(enqueue);
-        if (subs.size === 0) localSubs.delete(key);
-      }
-      while (waiters.length !== 0) {
-        const resolve = /** @type {(v: any) => void} */ (waiters.shift());
-        resolve(undefined);
-      }
-      if (backendIter !== null) {
-        try {
-          if (typeof backendIter.return === 'function') {
-            await backendIter.return(undefined);
-          }
-        } catch (_e) {
-          // ignore
-        }
-      }
-    };
-
-    // Pump backend.watch?(path) events into the same queue. On
-    // backend iterator error, close the watcher so consumers see
-    // the stream terminate instead of blocking on a never-resolved
-    // waiter.
-    if (caps.watch) {
-      // @ts-expect-error optional method probed above
-      const iterable = backend.watch(path);
-      backendIter = iterable[Symbol.asyncIterator]();
-      (async () => {
-        try {
-          while (!cancelled) {
-            // eslint-disable-next-line no-await-in-loop
-            const step = await /** @type {AsyncIterator<any>} */ (
-              backendIter
-            ).next();
-            if (step.done) return;
-            enqueue(step.value);
-          }
-        } catch (_e) {
-          // ignore — close below
-        } finally {
-          // Unblock any pending consumer; the stream is done.
-          close().catch(() => {});
-        }
-      })();
-    }
-
-    // Build an async generator that yields events from buffer/waiters.
-    const generator = async function* () {
-      while (!cancelled) {
-        if (buffer.length !== 0) {
-          yield buffer.shift();
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        // eslint-disable-next-line no-await-in-loop
-        const event = await new Promise(resolve => {
-          waiters.push(resolve);
-        });
-        if (event === undefined) return; // cancelled
-        yield event;
-      }
-    };
-
-    return makeExo('NodeWatcher', NodeWatcherInterface, {
-      async events() {
-        return readerFromIterator(generator());
-      },
-      async cancel() {
-        await close();
-      },
-    });
-  };
 
   // ---------- OpenFile ----------
 
@@ -943,11 +512,11 @@ export const wrapBackend = (backend, opts = {}) => {
         await applyStatPatch(path, patch);
       },
       xattrs() {
-        return makeXattrsExo(path);
+        return xattrsExoFor(path);
       },
       // ---- /Legacy ----
       async watch() {
-        return makeNodeWatcherExo(path);
+        return watcherExoFor(path);
       },
       async open(openOpts) {
         const mode = computeOpenMode(openOpts);
@@ -1114,7 +683,7 @@ export const wrapBackend = (backend, opts = {}) => {
         await applyDirectoryStatPatch(path, patch);
       },
       xattrs() {
-        return makeXattrsExo(path);
+        return xattrsExoFor(path);
       },
       async mkdir(name, _opts) {
         // Legacy synonym for makeDirectory.
@@ -1137,7 +706,7 @@ export const wrapBackend = (backend, opts = {}) => {
       },
       // ---- /Legacy ----
       async watch() {
-        return makeNodeWatcherExo(path);
+        return watcherExoFor(path);
       },
       async lookup(name) {
         assertChildName(name);
@@ -1150,7 +719,7 @@ export const wrapBackend = (backend, opts = {}) => {
         return makeFileExo(childPath);
       },
       async list() {
-        return makeCursorExo(path);
+        return cursorExoFor(path);
       },
       async create(name, openOpts) {
         assertChildName(name);
@@ -1248,8 +817,8 @@ export const wrapBackend = (backend, opts = {}) => {
         return makeDirectoryExo(finalPath);
       },
       async watchFrom() {
-        const cursorExo = makeCursorExo(path);
-        const watcherExo = makeNodeWatcherExo(path);
+        const cursorExo = cursorExoFor(path);
+        const watcherExo = watcherExoFor(path);
         return harden({ cursor: cursorExo, watcher: watcherExo });
       },
       help(method) {

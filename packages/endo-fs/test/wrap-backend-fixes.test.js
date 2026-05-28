@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 /* eslint-disable no-await-in-loop */
 /* global setTimeout */
 /**
@@ -179,6 +179,10 @@ test('rename fires child-removed on src parent and child-added on dst parent', a
 // ---------- Fix #22: watcher pump closes subscribers on backend error ----------
 
 test('watcher unblocks pending consumers when the backend iterator errors', async t => {
+  // If the pump hangs (the bug this test pins), ava's t.timeout
+  // catches it — no need to race a manual setTimeout. Two seconds
+  // is plenty for the close() propagation; if it takes longer than
+  // that the bug is back regardless of the exact deadline.
   t.timeout(2_000);
 
   // A backend whose `watch` iterator throws on first next(). The
@@ -206,14 +210,15 @@ test('watcher unblocks pending consumers when the backend iterator errors', asyn
   const watcher = await E(root).watch();
   const events = iterateReader(await E(watcher).events());
 
-  // The first .next() should observe the stream done — the pump
-  // saw the backend error and closed the watcher (no hang).
-  const sleep = new Promise(resolve =>
-    setTimeout(() => resolve({ kind: 'TIMEOUT' }), 1500),
+  // Both next() calls must terminate (done:true); a second
+  // next() after close should also return done rather than block.
+  const step1 = await events.next();
+  t.true(step1.done, `expected done, got ${JSON.stringify(step1)}`);
+  const step2 = await events.next();
+  t.true(
+    step2.done,
+    `second next() should also be done, got ${JSON.stringify(step2)}`,
   );
-  const step = await Promise.race([events.next(), sleep]);
-  t.not(step.kind, 'TIMEOUT', 'consumer hung when backend watch errored');
-  t.true(step.done, `expected done, got ${JSON.stringify(step)}`);
 });
 
 // ---------- Fix #23: File.write rejects truncating overwrite without setStat ----------
