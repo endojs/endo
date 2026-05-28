@@ -505,28 +505,8 @@ export const wrapBackend = (backend, opts = {}) => {
     }
     subs.add(enqueue);
 
-    // Pump backend.watch?(path) events into the same queue.
     /** @type {AsyncIterator<any> | null} */
     let backendIter = null;
-    if (caps.watch) {
-      // @ts-expect-error optional method probed above
-      const iterable = backend.watch(path);
-      backendIter = iterable[Symbol.asyncIterator]();
-      (async () => {
-        try {
-          while (!cancelled) {
-            // eslint-disable-next-line no-await-in-loop
-            const step = await /** @type {AsyncIterator<any>} */ (
-              backendIter
-            ).next();
-            if (step.done) return;
-            enqueue(step.value);
-          }
-        } catch (_e) {
-          // backend iterator errored; close subscribers gracefully
-        }
-      })();
-    }
 
     const close = async () => {
       if (cancelled) return;
@@ -549,6 +529,33 @@ export const wrapBackend = (backend, opts = {}) => {
         }
       }
     };
+
+    // Pump backend.watch?(path) events into the same queue. On
+    // backend iterator error, close the watcher so consumers see
+    // the stream terminate instead of blocking on a never-resolved
+    // waiter.
+    if (caps.watch) {
+      // @ts-expect-error optional method probed above
+      const iterable = backend.watch(path);
+      backendIter = iterable[Symbol.asyncIterator]();
+      (async () => {
+        try {
+          while (!cancelled) {
+            // eslint-disable-next-line no-await-in-loop
+            const step = await /** @type {AsyncIterator<any>} */ (
+              backendIter
+            ).next();
+            if (step.done) return;
+            enqueue(step.value);
+          }
+        } catch (_e) {
+          // ignore — close below
+        } finally {
+          // Unblock any pending consumer; the stream is done.
+          close().catch(() => {});
+        }
+      })();
+    }
 
     // Build an async generator that yields events from buffer/waiters.
     const generator = async function* () {
@@ -630,7 +637,7 @@ export const wrapBackend = (backend, opts = {}) => {
       async write(offset) {
         requireOpen('write');
         requireWrite('write');
-        let off = offset === undefined ? cursor : BigInt(offset);
+        const off = offset === undefined ? cursor : BigInt(offset);
         /** @type {Uint8Array[]} */
         const chunks = [];
         const sinkIterator = {
@@ -652,8 +659,6 @@ export const wrapBackend = (backend, opts = {}) => {
             }
             await backend.write(path, merged, off);
             cursor = off + BigInt(merged.length);
-            // eslint-disable-next-line no-param-reassign
-            off += BigInt(merged.length);
             return { done: true, value };
           },
           [Symbol.asyncIterator]() {
@@ -876,10 +881,19 @@ export const wrapBackend = (backend, opts = {}) => {
       // sink that, on close, truncates the file to the sum of all
       // chunks (whole-file overwrite) and writes them. If `opts.offset`
       // is set, pwrite semantics (no truncate).
+      //
+      // Truncating requires `backend.setStat` so we can shrink the
+      // file's tail. Without it, a short write would leave the old
+      // tail intact — silently violating the documented contract.
+      // Throw ENOSYS at call time rather than at close time so the
+      // caller doesn't push bytes into a sink that won't truncate.
       async write(writeOpts) {
         const o = writeOpts || {};
         const truncating = o.offset === undefined;
-        let off = truncating ? 0n : BigInt(o.offset);
+        if (truncating && !caps.setStat) {
+          throw notSupported('File.write (whole-file overwrite)');
+        }
+        const off = truncating ? 0n : BigInt(o.offset);
         /** @type {Uint8Array[]} */
         const chunks = [];
         const sinkIterator = {
@@ -898,13 +912,11 @@ export const wrapBackend = (backend, opts = {}) => {
               merged.set(c, p);
               p += c.length;
             }
-            if (truncating && caps.setStat) {
-              // @ts-expect-error optional method probed above
+            if (truncating) {
+              // @ts-expect-error caps.setStat checked above
               await backend.setStat(path, { size: 0n });
             }
             await backend.write(path, merged, off);
-            // eslint-disable-next-line no-param-reassign
-            off += BigInt(merged.length);
             return { done: true, value };
           },
           [Symbol.asyncIterator]() {

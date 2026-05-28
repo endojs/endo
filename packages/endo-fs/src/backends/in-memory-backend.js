@@ -247,10 +247,13 @@ export const makeInMemoryBackend = () => {
         records.set(newKey, r);
       }
       fire(src.slice(0, -1), {
-        kind: 'remove',
+        kind: 'child-removed',
         name: src[src.length - 1],
       });
-      fire(dst.slice(0, -1), { kind: 'add', name: dst[dst.length - 1] });
+      fire(dst.slice(0, -1), {
+        kind: 'child-added',
+        name: dst[dst.length - 1],
+      });
     },
 
     async statfs() {

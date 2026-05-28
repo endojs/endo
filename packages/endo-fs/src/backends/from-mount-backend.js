@@ -78,7 +78,11 @@ const probeMountChild = async cap => {
  */
 export const makeFromMountBackend = rootMount => {
   /**
-   * Resolve a path-array to a Mount or MountFile cap, or undefined.
+   * Resolve a path-array to a Mount or MountFile cap, or undefined
+   * for a not-found path. Re-raises any error that isn't an
+   * ENOENT-shaped lookup miss so genuine connection / permission
+   * failures surface to the caller instead of masquerading as
+   * "not found."
    *
    * @param {string[]} path
    */
@@ -86,8 +90,10 @@ export const makeFromMountBackend = rootMount => {
     if (path.length === 0) return rootMount;
     try {
       return await E(rootMount).lookup(path);
-    } catch {
-      return undefined;
+    } catch (e) {
+      const msg = /** @type {Error} */ (e).message;
+      if (/ENOENT/.test(msg)) return undefined;
+      throw e;
     }
   };
 
