@@ -138,12 +138,12 @@ export const wrapBackend = (backend, opts = {}) => {
   const lockTable = makeLockTable();
   const lockKeyOf = path => path.join('\0');
 
-  // Vat-local xattr table for backings that don't expose native
-  // xattrs (in-memory, KV stores). The user.* xattr namespace
-  // ("arbitrary application-level metadata") is served from this
-  // sidecar Map; backings with native xattr support can be wired
-  // via optional `getXattr?/setXattr?/listXattrs?/removeXattr?`
-  // methods on FsBackend (left for follow-up).
+  // Vat-local xattr table. Every backing wrapped by wrapBackend
+  // gets in-vat user.* xattr support unconditionally — the sidecar
+  // is scoped to the Filesystem cap, not the underlying backing
+  // (so two `makeNodeFilesystem({ rootPath })` over the same disk
+  // start with empty xattr tables). Persistence to disk is a
+  // PosixFs concern; see designs/endo-fs-backend-seam.md "Xattrs."
   /** @type {Map<string, Map<string, Uint8Array>>} */
   const xattrTable = new Map();
 
@@ -257,15 +257,14 @@ export const wrapBackend = (backend, opts = {}) => {
     return harden({ type: kind, pathId: h, version: 0n });
   };
 
-  // ---------- Xattrs legacy stub ----------
+  // ---------- Xattrs ----------
 
   /**
-   * Build an `Xattrs` exo backed by `xattrTable`. user.* metadata
-   * is stored vat-locally; backings that have native xattrs can
-   * implement `getXattr?/setXattr?/...` on FsBackend in a follow-up.
-   * Only the `user.*` namespace is accepted; other namespaces
-   * (security.*, trusted.*, system.*) are POSIX-specific and
-   * deferred to PosixFs.
+   * Build an `Xattrs` exo backed by `xattrTable`. user.* metadata is
+   * stored vat-locally. Only the `user.*` namespace is accepted;
+   * other namespaces (security.*, trusted.*, system.*) are
+   * POSIX-specific and deferred to a future PosixFs cap with a
+   * backing-specific impl that reads real disk xattrs.
    *
    * @param {string[]} path
    */
