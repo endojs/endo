@@ -15,6 +15,7 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
+  "types": "./types.d.ts",
   "exports": {
     ".": "./src/index.js",
     "./src/type-guards.js": "./src/type-guards.js",
