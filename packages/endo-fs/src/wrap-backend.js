@@ -283,7 +283,12 @@ export const wrapBackend = (backend, opts = {}) => {
       }
     };
 
-    return makeExo('OpenFile', OpenFileInterface, {
+    // Cast: `OpenFileInterface` uses `M.callWhen` for `read`/`write`
+    // (their async-shape signatures); `makeExo`'s static typing
+    // explicitly does not yet support `callWhen` transformation
+    // (see `@endo/exo/exo-makers.js:makeExo`). The runtime check is
+    // still in place via the interface guard.
+    return makeExo('OpenFile', /** @type {any} */ (OpenFileInterface), {
       // `read(offset, length)` returns a `PassableBytesReader` that
       // yields the slice as one chunk. Bounded; the bytes are
       // base64-encoded on the CapTP wire and the receiver pulls them

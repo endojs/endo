@@ -184,7 +184,7 @@ export const OpenFileInterface = M.interface('OpenFile', {
   // `write(offset)` returns a `PassableBytesWriter` whose chunks are
   // coalesced and pwritten at `offset` on close (no truncate of the
   // tail). `offset` is optional — defaults to the cursor.
-  write: M.callWhen(M.any()).optional(M.bigint()).returns(Pass),
+  write: M.callWhen().optional(M.bigint()).returns(Pass),
   truncate: M.call(M.bigint()).returns(M.promise()),
   fsync: M.call(Pass).returns(M.promise()),
   lock: M.call(Pass).returns(M.eref(M.remotable('Lock'))),

@@ -466,15 +466,19 @@ const makeCachingOpenFile = (
 ) => {
   /**
    * Slice a CAS-cached payload to the requested range and return
-   * it as a one-shot reader.
+   * it as a one-shot reader. Both args optional: `offset` defaults
+   * to 0, `length` defaults to "to EOF".
    *
    * @param {Uint8Array} cached
-   * @param {bigint | number} offset
-   * @param {bigint | number} length
+   * @param {bigint | number | undefined} offset
+   * @param {bigint | number | undefined} length
    */
   const sliceCached = (cached, offset, length) => {
-    const off = toSafeNumber(offset, 'offset');
-    const len = toSafeNumber(length, 'length');
+    const off = offset === undefined ? 0 : toSafeNumber(offset, 'offset');
+    const len =
+      length === undefined
+        ? cached.length - off
+        : toSafeNumber(length, 'length');
     const end = Math.min(off + len, cached.length);
     const slice = off >= cached.length ? EMPTY_BYTES : cached.slice(off, end);
     return makeBytesReaderFromBytes(slice);
