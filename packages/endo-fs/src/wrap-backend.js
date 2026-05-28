@@ -17,15 +17,12 @@
  * the backend lacks it.
  */
 
-import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
 import { makeError, X, q } from '@endo/errors';
 
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
-import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import {
   DirectoryInterface,
@@ -48,7 +45,7 @@ import {
 } from './shared/helpers.js';
 
 /**
- * @import { FsBackend, NodeKind, NodeStat, DirEntry, LockOpts } from './backend-types.js'
+ * @import { FsBackend, NodeKind, DirEntry } from './backend-types.js'
  */
 
 /**
@@ -193,11 +190,6 @@ export const wrapBackend = (backend, opts = {}) => {
   /** @type {WeakMap<object, string[]>} */
   const dirPaths = new WeakMap();
 
-  // Watcher fanout: one backend watch per path, multiplexed to N
-  // NodeWatcher subscribers.
-  /** @type {Map<string, { subscribers: Set<(e: any) => void>, cancel: () => void }>} */
-  const watchers = new Map();
-
   // Wrap-backend-local event subscribers. Used for events that
   // originate at the wrap-backend layer (xattrs mutations, etc.)
   // — backend-emitted events come through `backend.watch?(path)`
@@ -218,10 +210,19 @@ export const wrapBackend = (backend, opts = {}) => {
   };
 
   // ---------- Forward refs (mutual recursion) ----------
+  //
+  // makeFileExo and makeDirectoryExo call each other (Directory.lookup
+  // returns a File or Directory exo depending on `kind`). Both are
+  // arrow-function assignments later in the file; the `let`-then-
+  // assign shape is required because the bodies are defined before
+  // each other's binding is in scope. `prefer-const` would be wrong
+  // here.
 
   /** @type {(path: string[]) => any} */
+  // eslint-disable-next-line prefer-const
   let makeDirectoryExo;
   /** @type {(path: string[]) => any} */
+  // eslint-disable-next-line prefer-const
   let makeFileExo;
 
   // ---------- Qid synthesis ----------
@@ -236,14 +237,18 @@ export const wrapBackend = (backend, opts = {}) => {
    * @param {NodeKind} kind
    */
   const synthQid = (path, kind) => {
-    // 64-bit FNV-1a over the joined path, masked to fit a bigint
-    // we can pass through CapTP. Deterministic — same path → same id.
+    // 64-bit FNV-1a over the joined path, masked to fit a bigint we
+    // can pass through CapTP. Deterministic: same path → same id.
+    // FNV-1a is the hashing standard for this kind of identity
+    // synthesis; the `^` and `&` are inherent to the algorithm.
     let h = 0xcbf29ce484222325n;
     const FNV_PRIME = 0x100000001b3n;
     const MASK = 0xffffffffffffffffn;
     const joined = path.join('\0');
     for (let i = 0; i < joined.length; i += 1) {
+      // eslint-disable-next-line no-bitwise
       h = (h ^ BigInt(joined.charCodeAt(i))) & MASK;
+      // eslint-disable-next-line no-bitwise
       h = (h * FNV_PRIME) & MASK;
     }
     return harden({ type: kind, pathId: h, version: 0n });
@@ -292,7 +297,7 @@ export const wrapBackend = (backend, opts = {}) => {
           throw makeError(X`ENODATA: xattr ${q(name)} not set`);
         }
         const gen = async function* () {
-          if (bytes.length > 0) yield bytes;
+          if (bytes.length !== 0) yield bytes;
         };
         return bytesReaderFromIterator(gen());
       },
@@ -303,7 +308,7 @@ export const wrapBackend = (backend, opts = {}) => {
         const chunks = [];
         const sink = {
           async next(chunk) {
-            if (chunk instanceof Uint8Array && chunk.length > 0) {
+            if (chunk instanceof Uint8Array && chunk.length !== 0) {
               chunks.push(chunk);
             }
             return { done: false, value: undefined };
@@ -488,7 +493,7 @@ export const wrapBackend = (backend, opts = {}) => {
 
     const enqueue = event => {
       if (cancelled) return;
-      if (waiters.length > 0) {
+      if (waiters.length !== 0) {
         const resolve = /** @type {(v: any) => void} */ (waiters.shift());
         resolve(harden(event));
       } else {
@@ -515,7 +520,7 @@ export const wrapBackend = (backend, opts = {}) => {
         subs.delete(enqueue);
         if (subs.size === 0) localSubs.delete(key);
       }
-      while (waiters.length > 0) {
+      while (waiters.length !== 0) {
         const resolve = /** @type {(v: any) => void} */ (waiters.shift());
         resolve(undefined);
       }
@@ -560,7 +565,7 @@ export const wrapBackend = (backend, opts = {}) => {
     // Build an async generator that yields events from buffer/waiters.
     const generator = async function* () {
       while (!cancelled) {
-        if (buffer.length > 0) {
+        if (buffer.length !== 0) {
           yield buffer.shift();
           // eslint-disable-next-line no-continue
           continue;
@@ -627,7 +632,7 @@ export const wrapBackend = (backend, opts = {}) => {
         const bytes = await backend.read(path, off, len);
         cursor = off + BigInt(bytes.length);
         const gen = async function* () {
-          if (bytes.length > 0) yield bytes;
+          if (bytes.length !== 0) yield bytes;
         };
         return bytesReaderFromIterator(gen());
       },
@@ -643,7 +648,7 @@ export const wrapBackend = (backend, opts = {}) => {
         const sinkIterator = {
           /** @param {Uint8Array} chunk */
           async next(chunk) {
-            if (chunk instanceof Uint8Array && chunk.length > 0) {
+            if (chunk instanceof Uint8Array && chunk.length !== 0) {
               chunks.push(chunk);
             }
             return { done: false, value: undefined };
@@ -744,6 +749,7 @@ export const wrapBackend = (backend, opts = {}) => {
 
   // ---------- File exo ----------
 
+  // eslint-disable-next-line prefer-const
   makeFileExo = path => {
     return makeExo('File', FileInterface, {
       async getStat() {
@@ -769,7 +775,7 @@ export const wrapBackend = (backend, opts = {}) => {
           // No backend setStat — surface the size change by resizing
           // via read/write. Other fields silently no-op since the
           // statTable will absorb the new mtime/atime.
-          const current = await backend.read(path);
+          const current = /** @type {Uint8Array} */ (await backend.read(path));
           const newSize = Number(narrow.size);
           if (newSize < current.length) {
             await backend.write(path, current.slice(0, newSize), 0n);
@@ -816,7 +822,7 @@ export const wrapBackend = (backend, opts = {}) => {
           // @ts-expect-error optional method probed above
           await backend.setStat(path, narrow);
         } else if (narrow.size !== undefined) {
-          const current = await backend.read(path);
+          const current = /** @type {Uint8Array} */ (await backend.read(path));
           const newSize = Number(narrow.size);
           if (newSize < current.length) {
             await backend.write(path, current.slice(0, newSize), 0n);
@@ -873,7 +879,7 @@ export const wrapBackend = (backend, opts = {}) => {
         const len = o.length === undefined ? undefined : BigInt(o.length);
         const bytes = await backend.read(path, off, len);
         const gen = async function* () {
-          if (bytes.length > 0) yield bytes;
+          if (bytes.length !== 0) yield bytes;
         };
         return bytesReaderFromIterator(gen());
       },
@@ -898,7 +904,7 @@ export const wrapBackend = (backend, opts = {}) => {
         const chunks = [];
         const sinkIterator = {
           async next(chunk) {
-            if (chunk instanceof Uint8Array && chunk.length > 0) {
+            if (chunk instanceof Uint8Array && chunk.length !== 0) {
               chunks.push(chunk);
             }
             return { done: false, value: undefined };
@@ -947,6 +953,7 @@ export const wrapBackend = (backend, opts = {}) => {
 
   // ---------- Directory exo ----------
 
+  // eslint-disable-next-line prefer-const
   makeDirectoryExo = path => {
     const exo = makeExo('Directory', DirectoryInterface, {
       async getStat() {

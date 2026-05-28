@@ -19,9 +19,7 @@ const SEP = '\0';
 const keyOf = path => path.join(SEP);
 
 /**
- * @returns {FsBackend & {
- *   _dump: () => Map<string, any>,
- * }}
+ * @returns {FsBackend}
  */
 export const makeInMemoryBackend = () => {
   /**
@@ -84,23 +82,31 @@ export const makeInMemoryBackend = () => {
       if (rec.kind !== 'directory') {
         throw makeError(X`ENOTDIR: ${q(dirPath.join('/'))}`);
       }
-      const prefix = dirPath.length === 0 ? '' : `${keyOf(dirPath)}${SEP}`;
+      const selfKey = keyOf(dirPath);
+      const prefix = dirPath.length === 0 ? '' : `${selfKey}${SEP}`;
       for (const [key, r] of records) {
-        if (key === keyOf(dirPath)) continue;
-        if (!key.startsWith(prefix)) continue;
-        const rest = key.slice(prefix.length);
-        // Only direct children (no further separators).
-        if (rest.length === 0 || rest.includes(SEP)) continue;
-        yield /** @type {DirEntry} */ ({
-          name: rest,
-          kind: r.kind,
-        });
+        // Filter to direct children of `dirPath`: skip the
+        // directory itself, anything outside the prefix, and any
+        // entry whose remainder contains further separators.
+        if (
+          key !== selfKey &&
+          key.startsWith(prefix) &&
+          key.length > prefix.length
+        ) {
+          const rest = key.slice(prefix.length);
+          if (!rest.includes(SEP)) {
+            yield /** @type {DirEntry} */ ({
+              name: rest,
+              kind: r.kind,
+            });
+          }
+        }
       }
     },
 
-    async read(path, offset = 0n, length) {
+    async read(path, offset, length) {
       const rec = requireFile(path);
-      const off = Number(offset);
+      const off = offset === undefined ? 0 : Number(offset);
       if (length === undefined) {
         return rec.bytes.slice(off);
       }
@@ -108,9 +114,14 @@ export const makeInMemoryBackend = () => {
       return rec.bytes.slice(off, end);
     },
 
-    async write(path, bytes, offset = 0n) {
+    /**
+     * @param {string[]} path
+     * @param {Uint8Array} bytes
+     * @param {bigint} [offset]
+     */
+    async write(path, bytes, offset) {
       requireParentDir(path);
-      const off = Number(offset);
+      const off = offset === undefined ? 0 : Number(offset);
       let rec = records.get(keyOf(path));
       const now = BigInt(Date.now()) * 1_000_000n;
       if (!rec) {
@@ -121,7 +132,7 @@ export const makeInMemoryBackend = () => {
         records.set(keyOf(path), rec);
         // Fire on parent (child-added) and on the file itself
         // (created), matching the legacy in-memory event vocabulary.
-        if (path.length > 0) {
+        if (path.length !== 0) {
           fire(path.slice(0, -1), {
             kind: 'child-added',
             name: path[path.length - 1],
@@ -135,7 +146,7 @@ export const makeInMemoryBackend = () => {
       }
       // Resize buffer if needed.
       const needed = off + bytes.length;
-      let buf = rec.bytes;
+      let buf = /** @type {Uint8Array} */ (rec.bytes);
       if (needed > buf.length) {
         const grown = new Uint8Array(needed);
         grown.set(buf, 0);
@@ -157,7 +168,7 @@ export const makeInMemoryBackend = () => {
         return;
       }
       records.set(keyOf(path), { kind: 'directory' });
-      if (path.length > 0) {
+      if (path.length !== 0) {
         fire(path.slice(0, -1), {
           kind: 'child-added',
           name: path[path.length - 1],
@@ -191,13 +202,14 @@ export const makeInMemoryBackend = () => {
 
     async setStat(path, patch) {
       const rec = requireFile(path);
+      const bytes = /** @type {Uint8Array} */ (rec.bytes);
       if (patch.size !== undefined) {
         const newSize = Number(patch.size);
-        if (newSize < rec.bytes.length) {
-          rec.bytes = rec.bytes.slice(0, newSize);
-        } else if (newSize > rec.bytes.length) {
+        if (newSize < bytes.length) {
+          rec.bytes = bytes.slice(0, newSize);
+        } else if (newSize > bytes.length) {
           const grown = new Uint8Array(newSize);
-          grown.set(rec.bytes, 0);
+          grown.set(bytes, 0);
           rec.bytes = grown;
         }
       }
@@ -272,7 +284,7 @@ export const makeInMemoryBackend = () => {
       // `freeBytes` is effectively unbounded for in-memory; we
       // report a generous large constant rather than 0 so consumers
       // distinguishing "out of space" from "in-memory" see signal.
-      const freeBytes = 1n << 40n; // 1 TiB headroom
+      const freeBytes = 1099511627776n; // 1 TiB headroom (1 << 40 bytes)
       return harden({
         blockSize: 1024n,
         totalBlocks: (fileBytes + 1023n) / 1024n,
@@ -298,7 +310,7 @@ export const makeInMemoryBackend = () => {
       let closed = false;
       const handler = event => {
         if (closed) return;
-        if (waiters.length > 0) {
+        if (waiters.length !== 0) {
           const w = /** @type {(r: IteratorResult<WatchEvent>) => void} */ (
             waiters.shift()
           );
@@ -316,7 +328,7 @@ export const makeInMemoryBackend = () => {
         if (set.size === 0) watchersByPath.delete(key);
         // Resolve any pending waiters with done so consumers can
         // unblock cleanly.
-        while (waiters.length > 0) {
+        while (waiters.length !== 0) {
           const w = /** @type {(r: IteratorResult<WatchEvent>) => void} */ (
             waiters.shift()
           );
@@ -327,7 +339,7 @@ export const makeInMemoryBackend = () => {
       const iter = {
         async next() {
           if (closed) return { done: true, value: undefined };
-          if (buffer.length > 0) {
+          if (buffer.length !== 0) {
             return { done: false, value: buffer.shift() };
           }
           return new Promise(resolve => {
@@ -343,12 +355,6 @@ export const makeInMemoryBackend = () => {
         },
       };
       return iter;
-    },
-
-    // Dev/test escape hatch — returns the records Map. Not part of
-    // FsBackend; consumers shouldn't rely on it.
-    _dump() {
-      return records;
     },
   });
 };

@@ -55,11 +55,16 @@ export const makeNodeFsBackend = ({ rootPath }) => {
   const assertConfined = async absPath => {
     const rootResolved = await getRootRealPath();
     let check = absPath;
+    let resolved;
+    // Walk up from `check` until we find an existing ancestor; then
+    // check its realpath. The loop terminates because each iteration
+    // either resolves or steps up one directory (and the root has
+    // no parent).
     for (;;) {
-      let resolved;
       try {
         resolved = await fsp.realpath(check);
-      } catch {
+        break;
+      } catch (_e) {
         const parent = nodePath.dirname(check);
         if (parent === check) {
           throw makeError(
@@ -67,16 +72,13 @@ export const makeNodeFsBackend = ({ rootPath }) => {
           );
         }
         check = parent;
-        // eslint-disable-next-line no-continue
-        continue;
       }
-      if (
-        resolved !== rootResolved &&
-        !resolved.startsWith(`${rootResolved}${nodePath.sep}`)
-      ) {
-        throw makeError(X`EACCES: path escapes filesystem root: ${q(absPath)}`);
-      }
-      return;
+    }
+    if (
+      resolved !== rootResolved &&
+      !resolved.startsWith(`${rootResolved}${nodePath.sep}`)
+    ) {
+      throw makeError(X`EACCES: path escapes filesystem root: ${q(absPath)}`);
     }
   };
 
@@ -116,47 +118,51 @@ export const makeNodeFsBackend = ({ rootPath }) => {
         throw e;
       }
       for (const ent of entries) {
+        // Skip symlinks, devices, sockets, etc. — only files and
+        // directories surface through the base seam.
         let kind;
         if (ent.isFile()) kind = /** @type {NodeKind} */ ('file');
         else if (ent.isDirectory()) kind = /** @type {NodeKind} */ ('directory');
-        else continue; // skip symlinks, devices, etc.
-        yield /** @type {DirEntry} */ (harden({ name: ent.name, kind }));
+        if (kind !== undefined) {
+          yield /** @type {DirEntry} */ (harden({ name: ent.name, kind }));
+        }
       }
     },
 
-    async read(path, offset = 0n, length) {
+    async read(path, offset, length) {
       const abs = absOf(path);
       await assertConfined(abs);
-      if (offset === 0n && length === undefined) {
+      const reqOff = offset === undefined ? 0n : offset;
+      if (reqOff === 0n && length === undefined) {
         return new Uint8Array(await fsp.readFile(abs));
       }
       // Partial read via FileHandle.read.
       const fh = await fsp.open(abs, 'r');
       try {
-        const off = Number(offset);
+        const off = Number(reqOff);
         // If length is undefined, read to EOF.
         if (length === undefined) {
           const stat = await fh.stat();
           const remaining = Math.max(0, Number(stat.size) - off);
-          const buf = Buffer.allocUnsafe(remaining);
-          if (remaining > 0) {
+          const buf = new Uint8Array(remaining);
+          if (remaining !== 0) {
             await fh.read(buf, 0, remaining, off);
           }
-          return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+          return buf;
         }
         const len = Number(length);
-        const buf = Buffer.allocUnsafe(len);
+        const buf = new Uint8Array(len);
         const { bytesRead } = await fh.read(buf, 0, len, off);
-        return new Uint8Array(buf.buffer, buf.byteOffset, bytesRead);
+        return buf.subarray(0, bytesRead);
       } finally {
         await fh.close().catch(() => {});
       }
     },
 
-    async write(path, bytes, offset = 0n) {
+    async write(path, bytes, offset) {
       const abs = absOf(path);
       await assertConfined(abs);
-      const off = Number(offset);
+      const off = offset === undefined ? 0 : Number(offset);
       // Open r+ (existing) or create with w (new) then re-open r+.
       // We need pwrite semantics: write at the given offset without
       // truncating the file's tail. 'a' always appends; 'w' truncates.
@@ -182,7 +188,7 @@ export const makeNodeFsBackend = ({ rootPath }) => {
         }
       }
       try {
-        if (bytes.length > 0) {
+        if (bytes.length !== 0) {
           await fh.write(bytes, 0, bytes.length, off);
         }
       } finally {
@@ -292,7 +298,7 @@ export const makeNodeFsBackend = ({ rootPath }) => {
 
       const fire = event => {
         if (closed) return;
-        if (waiters.length > 0) {
+        if (waiters.length !== 0) {
           const w = /** @type {(r: IteratorResult<any>) => void} */ (
             waiters.shift()
           );
@@ -316,7 +322,7 @@ export const makeNodeFsBackend = ({ rootPath }) => {
       });
       watcher.on('error', () => {
         closed = true;
-        while (waiters.length > 0) {
+        while (waiters.length !== 0) {
           const w = /** @type {(r: IteratorResult<any>) => void} */ (
             waiters.shift()
           );
@@ -332,7 +338,7 @@ export const makeNodeFsBackend = ({ rootPath }) => {
         } catch (_e) {
           // ignore
         }
-        while (waiters.length > 0) {
+        while (waiters.length !== 0) {
           const w = /** @type {(r: IteratorResult<any>) => void} */ (
             waiters.shift()
           );
@@ -343,7 +349,7 @@ export const makeNodeFsBackend = ({ rootPath }) => {
       const iter = {
         async next() {
           if (closed) return { done: true, value: undefined };
-          if (buffer.length > 0) {
+          if (buffer.length !== 0) {
             return { done: false, value: buffer.shift() };
           }
           return new Promise(resolve => {

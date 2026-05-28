@@ -1,5 +1,6 @@
 // @ts-check
-/* eslint-disable no-await-in-loop, no-bitwise */
+/* eslint-disable no-await-in-loop */
+/* global atob */
 /**
  * `FsBackend` adapter for an `@endo/daemon` `Mount` cap.
  *
@@ -59,13 +60,20 @@ const drainBase64Stream = async streamRef => {
  */
 const probeMountChild = async cap => {
   try {
+    // `__getMethodNames__` is the canonical CapTP introspection
+    // method (DESIGN.md / CLAUDE.md). Disable the lint rule that
+    // forbids leading/trailing underscores on identifiers — the
+    // double-underscore form is part of the CapTP protocol.
+    // eslint-disable-next-line no-underscore-dangle
     const methods = await E(cap).__getMethodNames__();
     if (methods.includes('lookup')) return 'directory';
     if (methods.includes('text') || methods.includes('streamBase64')) {
       return 'file';
     }
-  } catch {
-    // ignore
+  } catch (_e) {
+    // Lookup may reject for non-FS reasons; treat as "unknown kind"
+    // and let the caller decide (kind() returns undefined → consumer
+    // sees ENOENT).
   }
   return undefined;
 };
@@ -124,29 +132,31 @@ export const makeFromMountBackend = rootMount => {
       }
     },
 
-    async read(path, offset = 0n, length) {
+    async read(path, offset, length) {
       const cap = await resolve(path);
       if (cap === undefined) {
         throw makeError(X`ENOENT: ${q(path.join('/'))}`);
       }
-      let bytes;
-      try {
-        const stream = await E(cap).streamBase64();
-        bytes = await drainBase64Stream(stream);
-      } catch {
-        bytes = new Uint8Array(0);
-      }
-      const off = Number(offset);
+      // A bytes-stream error mid-fetch propagates as a real failure
+      // rather than being silently coerced to "empty file."
+      const stream = await E(cap).streamBase64();
+      const bytes = await drainBase64Stream(stream);
+      const off = offset === undefined ? 0 : Number(offset);
       if (length === undefined) return bytes.slice(off);
       const end = off + Number(length);
       return bytes.slice(off, end);
     },
 
-    async write(path, bytes, offset = 0n) {
+    /**
+     * @param {string[]} path
+     * @param {Uint8Array} bytes
+     * @param {bigint} [offset]
+     */
+    async write(path, bytes, offset) {
       if (path.length === 0) {
         throw makeError(X`EISDIR: cannot write the root`);
       }
-      const off = Number(offset);
+      const off = offset === undefined ? 0 : Number(offset);
       const parent = await resolve(path.slice(0, -1));
       if (parent === undefined) {
         throw makeError(X`ENOENT: parent ${q(path.slice(0, -1).join('/'))}`);
@@ -155,29 +165,27 @@ export const makeFromMountBackend = rootMount => {
       let cap;
       try {
         cap = await E(parent).lookup(name);
-      } catch {
-        // File doesn't exist — create empty file then look it up.
+      } catch (e) {
+        // Distinguish "file doesn't exist" (create it) from any
+        // other error (re-raise so the caller sees the real cause).
+        const msg = /** @type {Error} */ (e).message;
+        if (!/ENOENT/.test(msg)) throw e;
         await E(parent).writeText(name, '');
         cap = await E(parent).lookup(name);
       }
       // Read current content, splice in new bytes, write back.
       // Mount has no partial-range write so we coalesce locally.
-      let current;
-      try {
-        const stream = await E(cap).streamBase64();
-        current = await drainBase64Stream(stream);
-      } catch {
-        current = new Uint8Array(0);
-      }
+      // A bytes-stream error mid-fetch is a real failure — surface
+      // it rather than silently substituting empty content.
+      const stream = await E(cap).streamBase64();
+      const current = await drainBase64Stream(stream);
       const needed = off + bytes.length;
-      const out =
-        needed > current.length
-          ? new Uint8Array(needed)
-          : new Uint8Array(current.length);
-      out.set(current.slice(0, Math.min(current.length, needed)), 0);
+      const outLen = Math.max(needed, current.length);
+      const out = new Uint8Array(outLen);
+      out.set(current.subarray(0, Math.min(current.length, needed)), 0);
       out.set(bytes, off);
       if (needed < current.length) {
-        out.set(current.slice(needed), needed);
+        out.set(current.subarray(needed), needed);
       }
       // @ts-expect-error Mount.writeBytes accepts a Uint8Array
       await E(cap).writeBytes(out);
