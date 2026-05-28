@@ -1,12 +1,12 @@
 // @ts-check
 /**
- * Entry point for instantiating a `TreeView` over an `endo-fs`
+ * Entry point for instantiating a `TreeView` over an `@endo/endo-fs`
  * `Filesystem` as a formulated Endo caplet via `host.makeUnconfined`.
  *
- * Composing this with `host.makeUnconfinedFromTree` lets a project
- * tree hosted in endo-fs drive `@endo/daemon`'s `make-from-tree`
- * formula. The program at the tree's root (a compartment-mapper
- * layout: `compartment-map.json` plus modules) is expected to
+ * Composing this with `host.makeFromTree` lets a project tree hosted
+ * in endo-fs drive `@endo/daemon`'s `make-from-tree` formula. The
+ * program at the tree's root (a compartment-mapper layout:
+ * `compartment-map.json` plus modules) is expected to
  * `export const make = (powers, context, { env }) => exo`; that
  * exo becomes the formula value. No custom formula type is
  * introduced — only `make-unconfined` and `make-from-tree`.
@@ -30,7 +30,8 @@
  *     --env ENDO_FS_ROOT=/path/to/project
  *
  *   # 2. Adapt it to make-from-tree's shape, optionally rebased.
- *   endo make --UNCONFINED packages/endo-fs/src/tree-view-module.js \
+ *   endo make --UNCONFINED \
+ *     packages/endo-fs-exec/src/tree-view-module.js \
  *     --name my-app-tree --workerName @node \
  *     --powers workspace-fs \
  *     --env ENDO_FS_TREE_LOCATION=apps/my-app

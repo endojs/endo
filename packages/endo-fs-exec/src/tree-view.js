@@ -1,8 +1,8 @@
 // @ts-check
 /**
- * Adapt an `endo-fs` `Filesystem` cap to the small `ReadableTree` /
- * `Mount` shape that `@endo/daemon`'s `make-from-tree` formula
- * consumes:
+ * Adapt an `@endo/endo-fs` `Filesystem` cap to the small
+ * `ReadableTree` / `Mount` shape that `@endo/daemon`'s
+ * `make-from-tree` formula consumes:
  *
  *     E(tree).lookup(name)         // string | string[]
  *       -> blob
@@ -55,10 +55,8 @@ const normalizeSegments = pathArg => {
 };
 
 /**
- * Drain a `PassableBytesReader` into a single `Uint8Array`. Mirrors
- * the private helper in `cas.js`; duplicated here rather than
- * exported to avoid making it part of the cas module's public API.
- * The `stringLengthLimit` accommodates backings (e.g.
+ * Drain a `PassableBytesReader` into a single `Uint8Array`. The
+ * `stringLengthLimit` accommodates backings (e.g.
  * `makeBytesReaderFromBytes`) that emit the whole payload in one
  * base64 frame; without it the default 100 KB cap on `M.string()`
  * would reject anything bigger.
@@ -89,8 +87,8 @@ const drainBytesReader = async (readerRef, expectedSize) => {
 };
 
 /**
- * Wrap an `endo-fs` `Filesystem` cap as a tree-shaped cap suitable
- * for `@endo/daemon`'s `make-from-tree` formula.
+ * Wrap an `@endo/endo-fs` `Filesystem` cap as a tree-shaped cap
+ * suitable for `@endo/daemon`'s `make-from-tree` formula.
  *
  * @param {object} filesystem  An endo-fs Filesystem cap (or eref).
  * @param {object} [opts]
@@ -110,8 +108,8 @@ export const makeTreeView = (filesystem, opts = {}) => {
   /**
    * Pipeline the walk: never `await` between segments so the whole
    * `root -> lookup -> lookup -> ...` chain dispatches in one
-   * CapTP batch. The `materialise` precedent in `type-guards.js`
-   * documents why this matters for deep paths.
+   * CapTP batch. The `materialise` precedent in endo-fs's
+   * `type-guards.js` documents why this matters for deep paths.
    *
    * @param {string[]} segments
    */
