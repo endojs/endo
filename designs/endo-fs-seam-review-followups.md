@@ -4,7 +4,8 @@
 |---|---|
 | **Source** | Critical design review (sub-agent, 2026-05-28) |
 | **Branch** | `claude/keen-bell-W1acD` |
-| **Status** | Reference (intake; addressed inline by follow-up commits) |
+| **Status** | **Mostly Complete** — 12 of 12 categories addressed; remaining items are deferred follow-ups (see "Priority order" at the bottom) |
+| **Updated** | 2026-05-28 |
 
 This document captures the findings from a critical post-merge design
 review of the FsBackend seam refactor. It is the working list for the
@@ -400,20 +401,75 @@ follow-up cleanup pass; entries are checked off as fixes land.
 
 ## Priority order for follow-up
 
-1. (correctness) Add `backend.getStat?` and wire wrap-backend to
-   prefer it — fixes node-fs disk mtime regression. (4a, 8a)
-2. (correctness) Add stat/xattr cleanup on rename/remove. (4b)
-3. (cleanup) from-mount `list()` re-raise non-ENOENT. (9e, 11a)
-4. (cleanup) Add `statfs` to FsBackend typedef. (1a)
-5. (cleanup) Remove or wire `hash?`. (1b)
-6. (design) Reshape PosixFs — drop misleading synth or unexport. (6)
-7. (design) Tighten interface guards — add new methods formally,
-   drop `sloppy: true` from non-evolving interfaces. (2b, 3a)
-8. (design) Deduplicate the legacy block — factor shared bodies. (2a)
-9. (cleanup) Doc reconciliation pass. (5a, 12a, 12b)
-10. (cleanup) Test improvements — `@ts-check`, race tightening,
-    drop the bad-behavior-pinning posix-fs test. (9a, 9b, 9g, 9f)
-11. (cleanup, deferred) Extract Cursor / NodeWatcher / Qid /
-    Xattrs / stat-table modules. (10a)
-12. (cleanup) Remove dead `eslint-disable prefer-const` at
-    assignment sites. (7a)
+Items 1–9 landed in three follow-up commits on
+`claude/keen-bell-W1acD`:
+
+- ✅ **1. (correctness) Add `backend.getStat?`** — landed in
+   commit `0774bb2c`. wrap-backend's `readStatNow` prefers
+   the backend's value. node-fs implements via `fs.stat`;
+   in-memory deliberately omits (its mtime/atime are the
+   vat-local table's). (#4a, #8a)
+- ✅ **2. (correctness) Stat/xattr cleanup on rename/remove**
+   — landed in `0774bb2c`. New `cleanupTables(path)` and
+   `transplantTables(src, dst)` helpers in wrap-backend; called
+   from `Directory.remove` / `Directory.unlink` / `Directory.rename`.
+   Three regression tests pin the behavior. (#4b)
+- ✅ **3. (cleanup) from-mount `list()` re-raise non-ENOENT**
+   — landed in `0774bb2c`. (#9e, #11a)
+- ✅ **4. (cleanup) Add `statfs` to FsBackend typedef** —
+   landed in `0774bb2c`. (#1a)
+- ✅ **5. (cleanup) Remove dead `hash?`** — landed in `0774bb2c`.
+   Stripped from FsBackend, probeCapabilities, node-fs-backend.
+   Reintroduce when a real `File.contentHash()` porcelain wants it.
+   (#1b)
+- ✅ **6. (design) Reshape PosixFs** — landed in `0774bb2c`.
+   `synthesizePosixFs` removed entirely (was misleading);
+   `PosixFsInterface` kept as a shape declaration for future
+   backing-specific impls. Test that pinned the bad synth
+   behavior deleted. (#6)
+- ✅ **7. (design) Tighten interface guards** — landed in
+   commit `b93e3eab`. `getStat` / `setStat` / `makeDirectory` /
+   `remove` formally declared in `NodeBaseMethods` /
+   `DirectoryInterface`. `sloppy: true` dropped from the
+   non-evolving interfaces (Cursor, OpenFile, Xattrs, Lock,
+   NodeWatcher); retained on the evolving Filesystem / Directory /
+   File where consumers add per-feature methods (e.g. compose's
+   whiteout listing). (#2b, #3a)
+- ✅ **8. (design) Deduplicate the legacy block** — landed in
+   `b93e3eab`. wrap-backend factors `readFileStat` /
+   `applyStatPatch` / `applyDirectoryStatPatch` helpers; both
+   narrow (`getStat`/`setStat`) and legacy
+   (`getAttrs`/`setAttrs`) bodies call into one place. (#2a)
+- ✅ **9. (cleanup) Doc reconciliation pass** — landed in
+   commit `f73e61a1`. Body of designs/endo-fs-backend-seam.md
+   updated to describe the shipped dual-shape outcome rather
+   than the original delete-everything plan. 9P wire-mapping
+   table corrected. "Alternatives considered" note added for
+   the Uint8Array deviation. (#5a, #12a, #12b)
+- ✅ **12. (cleanup) `eslint-disable prefer-const` placement**
+   — landed in `b93e3eab`. Comments now sit at the assignment
+   sites where the rule fires, with clarifying notes about
+   the mutual-recursion forward-ref pattern. (#7a)
+
+Deferred:
+
+- **10. (cleanup) Test improvements** — `@ts-check` on the new
+   test files, race tightening for `drainEvents` and the watcher
+   pump test. Worth a small follow-up PR but not blocking. (#9a,
+   #9b, #9g)
+- **11. (cleanup, deferred) Extract Cursor / NodeWatcher / Qid /
+   Xattrs / stat-table modules from wrap-backend.js.** A 1306-line
+   module is a code smell, but the split isn't urgent and the
+   forward-ref shape forces makeFileExo/makeDirectoryExo to share
+   a closure. (#10a)
+- **Future: `File.contentHash()` porcelain** — would justify
+   bringing `hash?` back to the FsBackend optionals.
+- **Future: deprecate the legacy method aliases** — once 9p-server
+   and other consumers migrate to the narrow shape, `mkdir` /
+   `unlink` / `getAttrs` / `setAttrs` / `getQid` / `xattrs` can be
+   removed from the public interface guards. The Xattrs sub-cap
+   moves to the future PosixFs companion at that point too.
+- **Future: real backing-specific PosixFs** — `makeNodeFsPosixCap`
+   reads/writes disk-truthful `mode`/`uid`/`gid`. The
+   `PosixFsInterface` declaration is the contract that impl will
+   satisfy.
