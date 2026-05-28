@@ -1865,7 +1865,6 @@ __metadata:
   dependencies:
     "@endo/base64": "workspace:^"
     "@endo/captp": "workspace:^"
-    "@endo/cli": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
