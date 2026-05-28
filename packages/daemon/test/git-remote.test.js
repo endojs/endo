@@ -853,6 +853,62 @@ test('GitRemote wildcard push policy binds source and destination names', async 
   });
 });
 
+test('makeGitRemote rejects non-boolean allow flags at construction', async t => {
+  // P2-2: allow* flags are policy authority gates.  A non-boolean must
+  // be rejected, not truthiness-coerced — allowLocalFileTransport:
+  // 'false' is a string and would otherwise enable file: transport.
+  const { git } = await provisionGitContext(t);
+  const basePolicy = harden({
+    url: 'https://github.com/example/repo.git',
+    allowedDirections: /** @type {Array<'fetch' | 'push'>} */ (['fetch']),
+    fetchRefspecs: ['+refs/heads/*:refs/remotes/origin/*'],
+    pushRefspecs: /** @type {string[]} */ ([]),
+  });
+  /** @type {Array<[string, RegExp]>} */
+  const cases = [
+    ['allowLocalFileTransport', /allowLocalFileTransport must be a boolean/],
+    ['allowForcePush', /allowForcePush must be a boolean/],
+    ['allowTags', /allowTags must be a boolean/],
+    ['allowDelete', /allowDelete must be a boolean/],
+  ];
+  for (const [flag, message] of cases) {
+    // The string 'false' is truthy; without a type-check it would
+    // enable the flag.
+    t.throws(
+      () =>
+        makeGitRemote({
+          git,
+          name: 'origin',
+          credential: exampleCredential(),
+          policy: /** @type {any} */ ({ ...basePolicy, [flag]: 'false' }),
+        }),
+      { message },
+      `${flag} 'false' rejected`,
+    );
+    // A numeric 1 is truthy too.
+    t.throws(
+      () =>
+        makeGitRemote({
+          git,
+          name: 'origin',
+          credential: exampleCredential(),
+          policy: /** @type {any} */ ({ ...basePolicy, [flag]: 1 }),
+        }),
+      { message },
+      `${flag} 1 rejected`,
+    );
+  }
+  // Real booleans and omitted flags still construct.
+  t.notThrows(() =>
+    makeGitRemote({
+      git,
+      name: 'origin',
+      credential: exampleCredential(),
+      policy: { ...basePolicy, allowTags: true, allowDelete: false },
+    }),
+  );
+});
+
 test('makeGitRemote rejects a read-only Git cap', async t => {
   const { git } = await provisionGitContext(t);
   const readOnlyGit = await E(git).readOnly();

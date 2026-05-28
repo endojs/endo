@@ -113,6 +113,29 @@ const requirePolicyString = (value, fieldName) => {
 harden(requirePolicyString);
 
 /**
+ * Coerce-free read of a policy `allow*` flag.  An omitted flag falls
+ * back to its hardened default; a present flag must be a real boolean.
+ * Any non-boolean (`'false'`, `0`, `1`, `{}`) is rejected rather than
+ * truthiness-coerced, so a policy can never silently enable an
+ * authority it spelled with the wrong type.  Fail closed.
+ *
+ * @param {unknown} value
+ * @param {boolean} fallback
+ * @param {string} fieldName
+ * @returns {boolean}
+ */
+const requirePolicyBoolean = (value, fallback, fieldName) => {
+  if (value === undefined) {
+    return fallback;
+  }
+  if (typeof value !== 'boolean') {
+    throw new Error(`${fieldName} must be a boolean: ${q(value)}`);
+  }
+  return value;
+};
+harden(requirePolicyBoolean);
+
+/**
  * @param {unknown} value
  * @param {string} fieldName
  * @returns {string[]}
@@ -388,8 +411,11 @@ harden(derivePushRefspecsFromBranches);
  * @returns {GitRemotePolicy}
  */
 const normalizePolicy = ({ name, policy }) => {
-  const allowLocalFileTransport =
-    policy.allowLocalFileTransport ?? DEFAULT_POLICY.allowLocalFileTransport;
+  const allowLocalFileTransport = requirePolicyBoolean(
+    policy.allowLocalFileTransport,
+    DEFAULT_POLICY.allowLocalFileTransport,
+    'GitRemote policy.allowLocalFileTransport',
+  );
   const url = normalizeRemoteUrl(policy && policy.url, allowLocalFileTransport);
   const allowedDirections = normalizeDirections(policy.allowedDirections);
   const fetchRefspecs = requirePolicyStringArray(
@@ -421,9 +447,21 @@ const normalizePolicy = ({ name, policy }) => {
     allowedDirections,
     fetchRefspecs: harden(fetchRefspecs),
     pushRefspecs: harden(pushRefspecs),
-    allowForcePush: policy.allowForcePush ?? DEFAULT_POLICY.allowForcePush,
-    allowTags: policy.allowTags ?? DEFAULT_POLICY.allowTags,
-    allowDelete: policy.allowDelete ?? DEFAULT_POLICY.allowDelete,
+    allowForcePush: requirePolicyBoolean(
+      policy.allowForcePush,
+      DEFAULT_POLICY.allowForcePush,
+      'GitRemote policy.allowForcePush',
+    ),
+    allowTags: requirePolicyBoolean(
+      policy.allowTags,
+      DEFAULT_POLICY.allowTags,
+      'GitRemote policy.allowTags',
+    ),
+    allowDelete: requirePolicyBoolean(
+      policy.allowDelete,
+      DEFAULT_POLICY.allowDelete,
+      'GitRemote policy.allowDelete',
+    ),
     allowLocalFileTransport,
   });
   for (const [index, refspec] of normalized.fetchRefspecs.entries()) {
