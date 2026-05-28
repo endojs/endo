@@ -39,7 +39,10 @@ Both can be reintroduced as a Phase 5 follow-up (a `synthQidFromOid` option on `
 
 Add a method `Git.filesystemAt(ref)` to `EndoGit` that returns an `@endo/endo-fs` `Filesystem` lazily backed by the git object database at the given ref's tree.
 The Filesystem is immutable: blob reads stream via `git cat-file blob` and directory listings stream via `git ls-tree`.
-QIDs use the git OID as the stable identity (two paths to the same blob report the same QID), and `File.snapshot()` returns a `BlobRef` whose hash IS the git blob OID — making CAS-backed read caches (`withCachedReads`) hit-zero-RTT for repeat reads.
+
+> The text below describes the original design intent — Section §1 in the prompt was for the version that hand-rolled the `Filesystem` / `Directory` / `File` / `OpenFile` exo graph.
+> The shipped implementation targets the upstream `wrapBackend(...)` seam instead and is described in the `## Status` section above; the QID-from-OID and `git-sha1` BlobRef claims in this section are NOT what shipped.
+> See the Status section for the authoritative current contract.
 
 `Git.filesystemAt` is the first daemon-side bridge between the `Git` capability and the `@endo/endo-fs` filesystem vocabulary.
 The daemon's `EndoMount` and `@endo/endo-fs`'s `Filesystem` remain separate surfaces — the existing one-way `from-mount.js` adapter in `endo-fs` is the only bridge between them, and this design does not unify them.
@@ -137,6 +140,15 @@ Blob bytes are NOT cached at this layer; callers that want a CAS-backed cache co
 
 ### QID and BlobRef contracts
 
+> **Superseded by the `## Status` section.**
+> The shipped implementation delegates QID and `BlobRef` synthesis to `wrapBackend`, so:
+> - `qid.pathId` is the path hash from `synthQid(path, kind)`, not the git OID.
+> - `BlobRef.getInfo()` reports `algorithm: 'sha256'` (SHA-256 of the captured bytes), not `git-sha1`; the git OID is not exposed through the `BlobRef` shape.
+>
+> The original design called for the shape below, which would require either a hand-rolled exo graph (the wrap-backend rewrite eliminated) or a backend-supplied QID / hash hook on `wrapBackend` (deferred).
+
+The original intent was:
+
 ```ts
 // File QID
 {
@@ -160,9 +172,8 @@ Blob bytes are NOT cached at this layer; callers that want a CAS-backed cache co
 }
 ```
 
-The `git-sha1` vs `sha256` distinction is load-bearing: git's hash is over the framed payload (`blob <size>\0<bytes>`), not the raw bytes, so a downstream consumer comparing hashes across sources must distinguish `git-sha1(framed)` from `sha256(raw)`.
-
-QIDs match across path-equivalent caps: `lookup('a/b').getQid()` returns the same value as `root().lookup('a').lookup('b').getQid()`, because both resolve to the same OID.
+The `git-sha1` vs `sha256` distinction would have been load-bearing: git's hash is over the framed payload (`blob <size>\0<bytes>`), not the raw bytes, so a downstream consumer comparing hashes across sources must distinguish `git-sha1(framed)` from `sha256(raw)`.
+With the shipped shape, callers that need git-OID identity must consult the parent `Git` cap or the design's deferred backend-hook follow-up.
 
 ### Brands
 

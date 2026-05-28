@@ -195,13 +195,14 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       if (entry === null) {
         throw makeError(X`ENOENT: ${q(path.join('/'))}`);
       }
+      // Git trees do not record per-entry timestamps; omit `mtime`
+      // and `atime` so wrapBackend's `readStatNow` falls back to its
+      // vat-local stat table (which synthesizes consistent times via
+      // the `?? local.mtime` / `?? local.atime` merge).  Returning
+      // `0n` would override that fallback because the merge treats
+      // any defined value — including zero — as authoritative.
       return harden({
         size: BigInt(entry.size),
-        // Git trees do not record per-entry timestamps; use zeros so
-        // the wrapBackend stat layer fills in synthesized vat-local
-        // times consistently across reads.
-        mtime: 0n,
-        atime: 0n,
       });
     },
 

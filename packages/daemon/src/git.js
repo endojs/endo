@@ -483,16 +483,20 @@ export const makeGit = ({ mount, backend, readOnly = false }) => {
     },
 
     async filesystemAt(ref) {
-      const { treeOid, commitOid } = await backend.resolveTree(refName(ref));
+      const { treeOid } = await backend.resolveTree(refName(ref));
       const cached = filesystemByTreeOid.get(treeOid);
       if (cached !== undefined) {
         return cached;
       }
       const fsBackend = makeGitFsBackend({ backend, treeOid });
-      const description =
-        commitOid !== undefined
-          ? `git-tree (commit ${commitOid}, tree ${treeOid})`
-          : `git-tree (${treeOid})`;
+      // The cache is keyed only on `treeOid`; two refs that resolve
+      // to the same tree (e.g. cherry-picks, `--allow-empty` commits,
+      // identical branches) intentionally share one Filesystem cap so
+      // brand identity is stable for `compose`.  The description must
+      // therefore reference only the tree — embedding a `commitOid`
+      // would make `statfs().type` lie about which commit the cached
+      // Filesystem was first minted for.
+      const description = `git-tree (${treeOid})`;
       const fs = readOnlyFs(wrapBackend(fsBackend, { description }));
       filesystemByTreeOid.set(treeOid, fs);
       return fs;

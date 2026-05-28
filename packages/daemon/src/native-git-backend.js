@@ -1345,15 +1345,38 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
 
   /**
    * @param {string} blobOid
-   * @returns {Promise<Uint8Array>}
-   */
-  const readBlobBytes = blobOid => runGitBuffer(['cat-file', 'blob', blobOid]);
-
-  /**
-   * @param {string} blobOid
    */
   const streamBlobBytes = blobOid =>
     streamGitBuffer(['cat-file', 'blob', blobOid]);
+
+  /**
+   * Read the full bytes of a blob.  Collects the streaming output of
+   * `cat-file blob <oid>` so the read is not subject to `execFile`'s
+   * `maxBuffer` cap — a blob larger than `GIT_MAX_BUFFER` (1 MiB) is
+   * read correctly rather than failing the entire call.
+   *
+   * @param {string} blobOid
+   * @returns {Promise<Uint8Array>}
+   */
+  const readBlobBytes = async blobOid => {
+    /** @type {Uint8Array[]} */
+    const chunks = [];
+    let total = 0;
+    for await (const chunk of streamBlobBytes(blobOid)) {
+      chunks.push(chunk);
+      total += chunk.length;
+    }
+    if (chunks.length === 1) {
+      return chunks[0];
+    }
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) {
+      out.set(c, offset);
+      offset += c.length;
+    }
+    return out;
+  };
 
   /**
    * @param {string} blobOid

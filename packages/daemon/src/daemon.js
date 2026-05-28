@@ -2732,7 +2732,16 @@ const makeDaemonCore = async (
         repoRoot: backing.physicalRoot,
       });
       await backend.assertRepositoryRoot();
-      return makeGit({ mount, backend, readOnly: backing.readOnly });
+      // `provide(mountId)` returns a union of cap types; the
+      // `getMountBacking` check above ensures it's an `EndoMount`,
+      // but TS can't narrow through that. Cast at the boundary so
+      // `makeGit`'s `mount: object` parameter is satisfied without
+      // widening the parameter type to the same union here.
+      return makeGit({
+        mount: /** @type {object} */ (mount),
+        backend,
+        readOnly: backing.readOnly,
+      });
     },
     'git-credential': ({ kind, audience }, _context, id) => {
       const material = gitCredentialMaterialForId.get(id);
