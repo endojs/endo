@@ -15,6 +15,17 @@ export { makeLayer, LayerInterface } from './layer.js';
 export { makeMemoryCas, cacheBackedRead } from './cas.js';
 export { withCachedReads } from './cached-fs.js';
 
+// New: three-layer architecture (designs/endo-fs-backend-seam.md).
+// `wrapBackend(backend)` builds a Filesystem cap on top of any
+// `FsBackend` (6 required + 5 optional methods). The existing
+// backings will be migrated to thin wrappers in follow-up commits.
+export { wrapBackend } from './wrap-backend.js';
+export { makeInMemoryBackend } from './backends/in-memory-backend.js';
+export { makeFromMountBackend } from './backends/from-mount-backend.js';
+
+// Public porcelain helpers (free functions over the typed cap surface).
+export { walk, collectBytes, collectStream } from './helpers.js';
+
 export {
   FilesystemInterface,
   DirectoryInterface,
