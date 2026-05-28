@@ -1468,9 +1468,7 @@ export const compose = (layer, backing, _opts = {}) => {
             // `{ name: string, qid: any }` (per `makeCursorExo`).
             // Narrow at the boundary so the merge / lookup below is
             // type-checked without per-call assertions.
-            const entry = /** @type {{ name: string, qid: any }} */ (
-              passable
-            );
+            const entry = /** @type {{ name: string, qid: any }} */ (passable);
             if (!layerNames.has(whiteoutName(entry.name))) {
               merged.set(entry.name, entry);
             }
