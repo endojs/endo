@@ -18,7 +18,6 @@ import {
   rangesOverlap,
   assertChildName,
   computeOpenMode,
-  makeNotSupported,
   toSafeNumber,
 } from '../src/shared/helpers.js';
 import { makeLockTable } from '../src/shared/lock-table.js';
@@ -166,16 +165,6 @@ test('toSafeNumber: non-bigint/non-number rejects with type message', t => {
   t.throws(() => toSafeNumber(null, 'offset'), {
     message: /EINVAL.*offset.*bigint or number/,
   });
-});
-
-// ---------- makeNotSupported ----------
-
-test('makeNotSupported: bound factory tags ENOSYS with the backing description', t => {
-  const NotSupported = makeNotSupported('test-backing');
-  const e = NotSupported('flush');
-  t.regex(e.message, /ENOSYS/);
-  t.regex(e.message, /flush/);
-  t.regex(e.message, /test-backing/);
 });
 
 // ---------- lock-table ----------
