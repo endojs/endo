@@ -221,6 +221,12 @@ const makeCachingDirectory = (
     getQid() {
       return cachedQid;
     },
+    async getStat() {
+      return E(dir).getStat();
+    },
+    async setStat(patch) {
+      return E(dir).setStat(patch);
+    },
     async getAttrs() {
       return E(dir).getAttrs();
     },
@@ -274,8 +280,23 @@ const makeCachingDirectory = (
         wrapperToInner,
       );
     },
+    async makeDirectory(name, opts) {
+      const { node, qid } = await resolveNodeWithQid(
+        E(dir).makeDirectory(name, opts),
+      );
+      return makeCachingDirectory(
+        node,
+        qid,
+        cas,
+        populateInBackground,
+        wrapperToInner,
+      );
+    },
     async unlink(name) {
       return E(dir).unlink(name);
+    },
+    async remove(name) {
+      return E(dir).remove(name);
     },
     async rename(oldName, newParent, newName) {
       // The underlying disk-backed and Mount-adapted impls identify
@@ -380,6 +401,12 @@ const makeCachingFile = (file, cachedQid, cas, populateInBackground) => {
     getQid() {
       return cachedQid;
     },
+    async getStat() {
+      return E(file).getStat();
+    },
+    async setStat(patch) {
+      return E(file).setStat(patch);
+    },
     async getAttrs() {
       return E(file).getAttrs();
     },
@@ -408,6 +435,12 @@ const makeCachingFile = (file, cachedQid, cas, populateInBackground) => {
       // because BlobRefs are already content-addressed — any
       // consumer that calls snapshot() can use a CAS directly.
       return E(file).snapshot();
+    },
+    async read(opts) {
+      return E(file).read(opts);
+    },
+    async write(opts) {
+      return E(file).write(opts);
     },
     help(method) {
       if (method === undefined) {
@@ -439,15 +472,19 @@ const makeCachingOpenFile = (
 ) => {
   /**
    * Slice a CAS-cached payload to the requested range and return
-   * it as a one-shot reader.
+   * it as a one-shot reader. Both args optional: `offset` defaults
+   * to 0, `length` defaults to "to EOF".
    *
    * @param {Uint8Array} cached
-   * @param {bigint | number} offset
-   * @param {bigint | number} length
+   * @param {bigint | number | undefined} offset
+   * @param {bigint | number | undefined} length
    */
   const sliceCached = (cached, offset, length) => {
-    const off = toSafeNumber(offset, 'offset');
-    const len = toSafeNumber(length, 'length');
+    const off = offset === undefined ? 0 : toSafeNumber(offset, 'offset');
+    const len =
+      length === undefined
+        ? cached.length - off
+        : toSafeNumber(length, 'length');
     const end = Math.min(off + len, cached.length);
     const slice = off >= cached.length ? EMPTY_BYTES : cached.slice(off, end);
     return makeBytesReaderFromBytes(slice);

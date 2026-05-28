@@ -295,11 +295,17 @@ export const emptyFilesystem = () => {
 
   const makeEmptyCursor = () => {
     return makeExo('Cursor', CursorInterface, {
+      async read(_limit) {
+        return harden({ entries: [], atEnd: true });
+      },
       async stream() {
         const empty = async function* () {
           // yields nothing
         };
         return readerFromIterator(empty());
+      },
+      async toArray() {
+        return harden([]);
       },
       async skip(_n) {
         // no-op
@@ -324,6 +330,12 @@ export const emptyFilesystem = () => {
   function makeEmptyDir() {
     return makeExo('Directory', DirectoryInterface, {
       getQid: () => rootQid,
+      async getStat() {
+        return harden({ size: 0n, mtime: 0n, atime: 0n });
+      },
+      async setStat(_u) {
+        throw reject('setStat');
+      },
       async getAttrs() {
         return emptyAttrs;
       },
@@ -358,8 +370,14 @@ export const emptyFilesystem = () => {
       async mkdir(_n, _o) {
         throw reject('mkdir');
       },
+      async makeDirectory(_n, _o) {
+        throw reject('makeDirectory');
+      },
       async unlink(_n) {
         throw reject('unlink');
+      },
+      async remove(_n) {
+        throw reject('remove');
       },
       async rename(_o, _np, _n) {
         throw reject('rename');
@@ -530,6 +548,12 @@ export const bind = (host, mountPath, guest) => {
       getQid() {
         return /** @type {any} */ (dir).getQid();
       },
+      async getStat() {
+        return E(dir).getStat();
+      },
+      async setStat(patch) {
+        return E(dir).setStat(patch);
+      },
       async getAttrs() {
         return E(dir).getAttrs();
       },
@@ -569,11 +593,24 @@ export const bind = (host, mountPath, guest) => {
         const newDir = await E(dir).mkdir(name, opts);
         return wrap(newDir, pos);
       },
+      async makeDirectory(name, opts) {
+        if (name === mountPath[pos]) {
+          throw makeError(X`EBUSY: cannot makeDirectory over a bind mount`);
+        }
+        const newDir = await E(dir).makeDirectory(name, opts);
+        return wrap(newDir, pos);
+      },
       async unlink(name) {
         if (name === mountPath[pos]) {
           throw makeError(X`EBUSY: cannot unlink a bind mount`);
         }
         return E(dir).unlink(name);
+      },
+      async remove(name) {
+        if (name === mountPath[pos]) {
+          throw makeError(X`EBUSY: cannot remove a bind mount`);
+        }
+        return E(dir).remove(name);
       },
       async rename(oldName, newParent, newName) {
         if (oldName === mountPath[pos] || newName === mountPath[pos]) {
@@ -675,6 +712,12 @@ export const namespace = mounts => {
   const makeNamespaceRoot = () =>
     makeExo('Directory', DirectoryInterface, {
       getQid: () => rootQid,
+      async getStat() {
+        return harden({ size: 0n, mtime: 0n, atime: 0n });
+      },
+      async setStat(_u) {
+        throw makeError(X`ENOSYS: setStat on namespace root`);
+      },
       async getAttrs() {
         return harden({
           size: 0n,
@@ -721,15 +764,49 @@ export const namespace = mounts => {
             }
           }
         };
+        // Snapshot entries lazily; share between read/toArray/stream.
+        /** @type {Array<{ name: string, qid: any }> | null} */
+        let snapshot = null;
+        let cursor = 0;
+        const ensureSnapshot = async () => {
+          if (snapshot) return snapshot;
+          const out = [];
+          for await (const entry of gen()) out.push(entry);
+          snapshot = out;
+          return snapshot;
+        };
         return makeExo('Cursor', CursorInterface, {
-          async stream() {
-            return readerFromIterator(gen());
+          async read(limit) {
+            const entries = await ensureSnapshot();
+            const max = limit === undefined ? Infinity : Number(limit);
+            const slice = entries.slice(cursor, cursor + max);
+            cursor += slice.length;
+            return harden({
+              entries: slice,
+              atEnd: cursor >= entries.length,
+            });
           },
-          async skip(_n) {
-            // no-op: cursor is single-shot for namespace root
+          async stream() {
+            const entries = await ensureSnapshot();
+            const start = cursor;
+            cursor = entries.length;
+            const gen2 = async function* () {
+              for (let i = start; i < entries.length; i += 1) yield entries[i];
+            };
+            return readerFromIterator(gen2());
+          },
+          async toArray() {
+            const entries = await ensureSnapshot();
+            const out = entries.slice(cursor);
+            cursor = entries.length;
+            return harden(out);
+          },
+          async skip(n) {
+            const entries = await ensureSnapshot();
+            cursor = Math.min(entries.length, cursor + Number(n));
           },
           async rewind() {
-            // no-op
+            cursor = 0;
           },
           help: method =>
             method === undefined
@@ -743,8 +820,14 @@ export const namespace = mounts => {
       async mkdir(_n, _o) {
         throw makeError(X`ENOSYS: cannot mkdir at namespace root`);
       },
+      async makeDirectory(_n, _o) {
+        throw makeError(X`ENOSYS: cannot makeDirectory at namespace root`);
+      },
       async unlink(_n) {
         throw makeError(X`ENOSYS: cannot unlink at namespace root`);
+      },
+      async remove(_n) {
+        throw makeError(X`ENOSYS: cannot remove at namespace root`);
       },
       async rename(_o, _np, _n) {
         throw makeError(X`ENOSYS: cannot rename at namespace root`);
@@ -793,15 +876,50 @@ export const namespace = mounts => {
             }
           }
         };
+        // Snapshot the (empty / static) namespace root listing
+        // once so read/toArray/stream can be consistently paged.
+        /** @type {Array<{ name: string, qid: any }> | null} */
+        let snapshot = null;
+        let pos = 0;
+        const ensureSnapshot = async () => {
+          if (snapshot) return snapshot;
+          const out = [];
+          for await (const e of gen()) out.push(e);
+          snapshot = out;
+          return snapshot;
+        };
         const cursor = makeExo('Cursor', CursorInterface, {
-          async stream() {
-            return readerFromIterator(gen());
+          async read(limit) {
+            const entries = await ensureSnapshot();
+            const max = limit === undefined ? Infinity : Number(limit);
+            const slice = entries.slice(pos, pos + max);
+            pos += slice.length;
+            return harden({
+              entries: slice,
+              atEnd: pos >= entries.length,
+            });
           },
-          async skip(_n) {
-            // no-op: cursor is single-shot for namespace root
+          async stream() {
+            const entries = await ensureSnapshot();
+            const start = pos;
+            pos = entries.length;
+            const gen2 = async function* () {
+              for (let i = start; i < entries.length; i += 1) yield entries[i];
+            };
+            return readerFromIterator(gen2());
+          },
+          async toArray() {
+            const entries = await ensureSnapshot();
+            const out = entries.slice(pos);
+            pos = entries.length;
+            return harden(out);
+          },
+          async skip(n) {
+            const entries = await ensureSnapshot();
+            pos = Math.min(entries.length, pos + Number(n));
           },
           async rewind() {
-            // no-op
+            pos = 0;
           },
           help: m =>
             m === undefined
@@ -1181,6 +1299,14 @@ export const compose = (layer, backing, _opts = {}) => {
           // eslint-disable-next-line @endo/no-polymorphic-call
           return /** @type {any} */ (backingFile).getQid();
         },
+        async getStat() {
+          if (layerFile) return E(layerFile).getStat();
+          return E(backingFile).getStat();
+        },
+        async setStat(patch) {
+          const lf = await materialize();
+          return E(lf).setStat(patch);
+        },
         async getAttrs() {
           if (layerFile) return E(layerFile).getAttrs();
           return E(backingFile).getAttrs();
@@ -1219,6 +1345,16 @@ export const compose = (layer, backing, _opts = {}) => {
           if (layerFile) return E(layerFile).snapshot();
           return E(backingFile).snapshot();
         },
+        async read(opts) {
+          if (layerFile) return E(layerFile).read(opts);
+          return E(backingFile).read(opts);
+        },
+        async write(opts) {
+          // Whole-file overwrite or pwrite — both materialize a
+          // layer copy so the underlying backing stays unchanged.
+          const lf = await materialize();
+          return E(lf).write(opts);
+        },
         help: method =>
           method === undefined
             ? 'File (composed: layer over backing with copy-on-write).'
@@ -1236,6 +1372,16 @@ export const compose = (layer, backing, _opts = {}) => {
         }
         // eslint-disable-next-line @endo/no-polymorphic-call
         return /** @type {any} */ (backingDir).getQid();
+      },
+      async getStat() {
+        reqDir();
+        if (layerDir) return E(layerDir).getStat();
+        return E(backingDir).getStat();
+      },
+      async setStat(patch) {
+        reqDir();
+        const ld = await materializeLayerDir();
+        return E(ld).setStat(patch);
       },
       async getAttrs() {
         reqDir();
@@ -1331,20 +1477,40 @@ export const compose = (layer, backing, _opts = {}) => {
           }
           merged.set(name, entry);
         }
+        // Snapshot the merged list once for consistent paged
+        // reads / toArray / streaming. Subsequent mutations to the
+        // composed dir don't reflect in this cursor (POSIX-y
+        // single-shot semantics).
+        const entries = [...merged.values()];
+        let pos = 0;
         return makeExo('Cursor', CursorInterface, {
+          async read(limit) {
+            const max = limit === undefined ? Infinity : Number(limit);
+            const slice = entries.slice(pos, pos + max);
+            pos += slice.length;
+            return harden({
+              entries: slice,
+              atEnd: pos >= entries.length,
+            });
+          },
           async stream() {
+            const start = pos;
+            pos = entries.length;
             const gen = async function* () {
-              for (const entry of merged.values()) {
-                yield entry;
-              }
+              for (let i = start; i < entries.length; i += 1) yield entries[i];
             };
             return readerFromIterator(gen());
           },
-          async skip(_n) {
-            // no-op for simplicity; consumers can keep reading
+          async toArray() {
+            const out = entries.slice(pos);
+            pos = entries.length;
+            return harden(out);
+          },
+          async skip(n) {
+            pos = Math.min(entries.length, pos + Number(n));
           },
           async rewind() {
-            // no-op
+            pos = 0;
           },
           help: method =>
             method === undefined
@@ -1379,6 +1545,27 @@ export const compose = (layer, backing, _opts = {}) => {
         }
         const newDir = await E(ld).mkdir(name, opts);
         return wrapDir(newDir, null, [...path, name]);
+      },
+      async makeDirectory(name, opts) {
+        // Alias for mkdir — same overlay semantics.
+        reqDir();
+        const ld = await materializeLayerDir();
+        const layerNames = await layerEntries(ld);
+        if (layerNames.has(whiteoutName(name))) {
+          try {
+            await E(ld).remove(whiteoutName(name));
+          } catch {
+            // ignore
+          }
+        }
+        const newDir = await E(ld).makeDirectory(name, opts);
+        return wrapDir(newDir, null, [...path, name]);
+      },
+      async remove(name) {
+        // Alias for unlink — same overlay semantics with whiteout
+        // marker minting.
+        // eslint-disable-next-line no-use-before-define
+        return composedExo.unlink(name);
       },
       async unlink(name) {
         reqDir();

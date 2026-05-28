@@ -309,12 +309,53 @@ test('snapshot fetches Mount content into a BlobRef', async t => {
   t.is(info.size, 4n);
 });
 
-test('xattrs throw ENOSYS on Mount-adapted FS', async t => {
+test('xattrs on Mount-adapted FS: unset xattr reports ENODATA', async t => {
+  // After the wrapBackend migration, Mount-adapted Filesystems
+  // gain in-vat user.* xattr support (sidecar storage in
+  // wrap-backend's xattrTable). Mount itself still has no native
+  // xattr surface; the xattrs are scoped to the Filesystem cap
+  // and don't persist to the underlying Mount.
   const mount = makeMockMount();
   const fs = mountAsFilesystem(mount);
   const root = await E(fs).root();
   const x = await E(root).xattrs();
-  await t.throwsAsync(() => E(x).get('user.tag'), { message: /ENOSYS/ });
+  // Unset xattrs report ENODATA (the POSIX-correct signal).
+  await t.throwsAsync(() => E(x).get('user.tag'), { message: /ENODATA/ });
+});
+
+test('xattrs on Mount-adapted FS: set/get/list/remove round-trips user.* metadata', async t => {
+  // Positive verification that the vat-local sidecar actually
+  // works — the ENODATA test above only proves the empty case.
+  const mount = makeMockMount();
+  const fs = mountAsFilesystem(mount);
+  const root = await E(fs).root();
+  const opened = await E(root).create('marked', {});
+  await E(opened).close();
+  const file = await E(root).lookup('marked');
+  const x = await E(file).xattrs();
+
+  await writeBytes(await E(x).set('user.tag', {}), utf8('payload'));
+  const back = await collectBytes(await E(x).get('user.tag'));
+  t.is(fromUtf8(back), 'payload');
+
+  const names = await collectStream(await E(x).list());
+  t.deepEqual(names.sort(), ['user.tag']);
+
+  await E(x).remove('user.tag');
+  await t.throwsAsync(() => E(x).get('user.tag'), { message: /ENODATA/ });
+});
+
+test('xattrs on Mount-adapted FS: non-user.* namespace is rejected', async t => {
+  // The vat-local sidecar only serves the user.* namespace.
+  // Other namespaces (security.*, system.*, etc.) need a real
+  // POSIX backing — they go to PosixFs.
+  const mount = makeMockMount();
+  const fs = mountAsFilesystem(mount);
+  const root = await E(fs).root();
+  const x = await E(root).xattrs();
+  await t.throwsAsync(() => E(x).set('security.capability', {}), {
+    message: /ENOTSUP/,
+  });
 });
 
 test('rename target from a different Filesystem rejects EXDEV', async t => {

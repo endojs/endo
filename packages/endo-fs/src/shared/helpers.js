@@ -1,79 +1,29 @@
 // @ts-check
 /**
- * Pure helpers shared across the `@endo/endo-fs` implementations
- * (in-memory, node-fs, from-mount). These were duplicated verbatim
- * across the three files; consolidating them keeps the
- * mechanically-shared code in one place without forcing the
- * implementations to share a base class.
+ * Pure helpers used by the wrap-backend layer and its backend
+ * adapters. Each export below is actively used; legacy helpers that
+ * served the pre-seam-refactor backings (makeAttrs / nowNs /
+ * makeStringReaderFromArray / makeBytesSinkWriter / makeNotSupported)
+ * have been deleted along with their dead call sites.
  */
 
 import { makeError, X, q } from '@endo/errors';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
-import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
-import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
 export const EMPTY_BYTES = harden(new Uint8Array(0));
 
-/** Current time, nanoseconds since epoch. */
-export const nowNs = () => BigInt(Date.now()) * 1_000_000n;
-
-/** Initial `Attrs` record for a newly-created node. */
-export const makeAttrs = () => {
-  const t = nowNs();
-  return { size: 0n, mtime: t, atime: t, ctime: t, btime: t };
-};
-
 /**
  * Wrap a `Uint8Array` snapshot as a `PassableBytesReader` that
- * yields its bytes in one chunk.
+ * yields its bytes in one chunk. Used by `shared/blobref.js` for
+ * `BlobRef.fetch`.
  *
  * @param {Uint8Array} bytes
  */
 export const makeBytesReaderFromBytes = bytes => {
   const generator = async function* () {
-    if (bytes.length > 0) yield bytes;
+    if (bytes.length !== 0) yield bytes;
   };
   return bytesReaderFromIterator(generator());
-};
-
-/**
- * Wrap an array of strings as a `PassableReader<string>`.
- *
- * @param {string[]} items
- */
-export const makeStringReaderFromArray = items => {
-  const generator = async function* () {
-    for (const item of items) yield item;
-  };
-  return readerFromIterator(generator());
-};
-
-/**
- * Build a `PassableBytesWriter` whose decoded chunks are pushed
- * to `onChunk` as `Uint8Array`s. The optional `onClose` callback
- * runs when the initiator closes the writer.
- *
- * @param {{
- *   onChunk: (bytes: Uint8Array) => void,
- *   onClose?: () => void,
- * }} hooks
- */
-export const makeBytesSinkWriter = ({ onChunk, onClose }) => {
-  const sinkIterator = {
-    /** @param {Uint8Array} bytes */
-    async next(bytes) {
-      onChunk(bytes);
-      return { done: false, value: undefined };
-    },
-    async return(value) {
-      if (onClose) onClose();
-      return { done: true, value };
-    },
-    [Symbol.asyncIterator]() {
-      return sinkIterator;
-    },
-  };
-  return bytesWriterFromIterator(sinkIterator);
 };
 
 /**
@@ -121,23 +71,12 @@ export const assertChildName = name => {
 };
 
 /**
- * Build an ENOSYS-error factory bound to a backing-store
- * description.
- *
- * @param {string} backing  human-readable description (e.g.
- *                          "node:fs/promises-backed FS",
- *                          "Mount-adapted FS")
- */
-export const makeNotSupported = backing => method =>
-  makeError(X`ENOSYS: ${q(method)} not implemented on ${backing}`);
-
-/**
  * Convert a `bigint` (or `number`) offset/length to a safe
  * `Number`, throwing `EINVAL` on overflow, non-integer values,
  * or negatives. Used at the boundary where the bigint-shaped
- * public API meets Number-shaped host APIs (`Buffer.alloc`,
- * `Uint8Array.slice`, `fs.read`, …) so out-of-range values can't
- * silently lose precision.
+ * public API meets Number-shaped host APIs (`Uint8Array.slice`,
+ * `fs.read`, …) so out-of-range values can't silently lose
+ * precision.
  *
  * @param {bigint | number} value
  * @param {string} name  argument name for error messages
@@ -171,20 +110,6 @@ export const toSafeNumber = (value, name) => {
 };
 
 /**
- * Compute the OpenFile mode flags from an `OpenOpts` record.
- *
- * `append` and `truncate` are POSIX write modifiers (`O_APPEND`,
- * `O_TRUNC`); they have no meaning without write access. Coerce
- * them to imply write so a caller can't accidentally land a
- * truncate-only handle that can't subsequently write its
- * replacement bytes. A handle with neither read nor write set
- * is useless; reject with EINVAL rather than silently flipping
- * one on.
- *
- * @param {any} opts
- * @returns {{ read: boolean, write: boolean, append: boolean, truncate: boolean }}
- */
-/**
  * Mint a fresh process-unique brand ID for a primitive Filesystem.
  * The brand is a passable `bigint` that survives CapTP marshalling,
  * so a Filesystem cap passed across CapTP and re-composed locally
@@ -207,14 +132,16 @@ harden(mintBrand);
  * backings should implement `materialise` server-side instead to
  * collapse the whole walk to a single RTT.
  *
+ * Used by `compose.js`'s composed Filesystems, which don't have a
+ * single backing path to push the walk down to.
+ *
  * @param {object} startDir  starting Directory cap
  * @param {string[]} path
  * @param {any} opts
  */
 export const materialiseViaWalk = async (startDir, path, opts) => {
-  // Late import to avoid a circular dep on `@endo/eventual-send`
-  // at module-load time (helpers.js is imported by everything).
-  // eslint-disable-next-line global-require
+  // Late import to avoid a circular dep on `@endo/eventual-send` at
+  // module-load time (helpers.js is imported by everything).
   const { E } = await import('@endo/eventual-send');
   if (!Array.isArray(path)) {
     throw makeError(X`EINVAL: materialise path must be an array`);
@@ -239,23 +166,36 @@ export const materialiseViaWalk = async (startDir, path, opts) => {
       const msg = e instanceof Error ? e.message : String(e);
       if (!/ENOENT/.test(msg)) throw e;
     }
-    if (child !== null) {
+    if (child === null) {
+      // eslint-disable-next-line no-await-in-loop
+      cur = await E(cur).mkdir(seg, opts || {});
+    } else {
       // eslint-disable-next-line no-await-in-loop
       const qid = await E(child).getQid();
       if (!qid || qid.type !== 'directory') {
         throw makeError(X`ENOTDIR: ${q(seg)} exists but is not a directory`);
       }
       cur = child;
-      // eslint-disable-next-line no-continue
-      continue;
     }
-    // eslint-disable-next-line no-await-in-loop
-    cur = await E(cur).mkdir(seg, opts || {});
   }
   return cur;
 };
 harden(materialiseViaWalk);
 
+/**
+ * Compute the OpenFile mode flags from an `OpenOpts` record.
+ *
+ * `append` and `truncate` are POSIX write modifiers (`O_APPEND`,
+ * `O_TRUNC`); they have no meaning without write access. Coerce
+ * them to imply write so a caller can't accidentally land a
+ * truncate-only handle that can't subsequently write its
+ * replacement bytes. A handle with neither read nor write set
+ * is useless; reject with EINVAL rather than silently flipping
+ * one on.
+ *
+ * @param {any} opts
+ * @returns {{ read: boolean, write: boolean, append: boolean, truncate: boolean }}
+ */
 export const computeOpenMode = opts => {
   const o = opts || {};
   const write = !!o.write || !!o.append || !!o.truncate;

@@ -80,7 +80,12 @@ export const LayerInterface = M.interface('Layer', {
   // are removed. The backing is never touched.
   // `M.eref` so the async implementation can return a Promise.
   revert: M.call().returns(M.eref(M.undefined())),
-  seal: M.call().returns(M.eref(M.remotable('Filesystem'))),
+  // Authority attenuator: returns a `Filesystem` view of the
+  // layer with every mutating verb rejected. NOT a snapshot —
+  // the underlying `layerFs` cap (held by the layer's producer)
+  // can still mutate, and those mutations are visible through
+  // the returned view. Mirrors `EndoMount.readOnly()`.
+  readOnly: M.call().returns(M.eref(M.remotable('Filesystem'))),
   help: M.call().optional(M.string()).returns(M.string()),
 });
 harden(LayerInterface);
@@ -380,8 +385,7 @@ export const makeLayer = (layerFs, backingFs) => {
       const root = await E(layerFs).root();
       await clearDirRecursive(root);
     },
-    async seal() {
-      // Promote to read-only by wrapping with the readOnly attenuator.
+    async readOnly() {
       // eslint-disable-next-line global-require
       const { readOnly } = await import('./readonly.js');
       return readOnly(layerFs);
