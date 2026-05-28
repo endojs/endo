@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, GitDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, GitCredentialDeferredTaskParams, GitDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -30,6 +30,7 @@ import { makeDeferredTasks } from './deferred-tasks.js';
 import { HostInterface } from './interfaces.js';
 import { hostHelp, makeHelp } from './help-text.js';
 import { assertValidTreeEntryName } from './mount.js';
+import { getGitCredentialController as getGitCredentialControllerForCap } from './git-credential.js';
 
 /**
  * @param {string} name
@@ -75,6 +76,7 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['formulateMount']} args.formulateMount
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateGit']} args.formulateGit
+ * @param {DaemonCore['formulateGitCredential']} args.formulateGitCredential
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['formulateDirectoryForStore']} args.formulateDirectoryForStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
@@ -111,6 +113,7 @@ export const makeHostMaker = ({
   formulateMount,
   formulateScratchMount,
   formulateGit,
+  formulateGitCredential,
   formulateInvitation,
   formulateDirectoryForStore,
   getPeerIdForNodeIdentifier,
@@ -344,6 +347,21 @@ export const makeHostMaker = ({
       return value;
     };
 
+    /**
+     * @param {unknown} value
+     * @param {string} fieldName
+     * @returns {string}
+     */
+    const requireGitCredentialString = (value, fieldName) => {
+      if (typeof value !== 'string' || value.length === 0) {
+        throw makeError(X`${fieldName} must be a non-empty string`);
+      }
+      if (value.includes('\0')) {
+        throw makeError(X`${fieldName} must not contain NUL bytes`);
+      }
+      return value;
+    };
+
     /** @type {EndoHost['provideGit']} */
     const provideGit = async (mountCap, petName) => {
       const { namePath } = assertPetNamePath(namePathFrom(petName));
@@ -362,6 +380,86 @@ export const makeHostMaker = ({
 
       const { value } = await formulateGit(mountId, tasks);
       return value;
+    };
+
+    /** @type {EndoHost['provideBearerCredential']} */
+    const provideBearerCredential = async (petName, options) => {
+      const { namePath } = assertPetNamePath(namePathFrom(petName));
+      if (!options || typeof options !== 'object') {
+        throw makeError(
+          X`provideBearerCredential: options must include audience and token`,
+        );
+      }
+      const audience = requireGitCredentialString(
+        options.audience,
+        'provideBearerCredential: audience',
+      );
+      const token = requireGitCredentialString(
+        options.token,
+        'provideBearerCredential: token',
+      );
+
+      /** @type {DeferredTasks<GitCredentialDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).storeIdentifier(namePath, identifiers.gitCredentialId),
+      );
+
+      const { value } = await formulateGitCredential(
+        'bearer',
+        audience,
+        harden({ token }),
+        tasks,
+      );
+      return value;
+    };
+
+    /** @type {EndoHost['provideBasicCredential']} */
+    const provideBasicCredential = async (petName, options) => {
+      const { namePath } = assertPetNamePath(namePathFrom(petName));
+      if (!options || typeof options !== 'object') {
+        throw makeError(
+          X`provideBasicCredential: options must include audience, username, and password`,
+        );
+      }
+      const audience = requireGitCredentialString(
+        options.audience,
+        'provideBasicCredential: audience',
+      );
+      const username = requireGitCredentialString(
+        options.username,
+        'provideBasicCredential: username',
+      );
+      const password = requireGitCredentialString(
+        options.password,
+        'provideBasicCredential: password',
+      );
+
+      /** @type {DeferredTasks<GitCredentialDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).storeIdentifier(namePath, identifiers.gitCredentialId),
+      );
+
+      const { value } = await formulateGitCredential(
+        'basic',
+        audience,
+        harden({ username, password }),
+        tasks,
+      );
+      return value;
+    };
+
+    /** @type {EndoHost['getGitCredentialController']} */
+    const getGitCredentialController = async credentialCap => {
+      await null;
+      const controller = getGitCredentialControllerForCap(credentialCap);
+      if (controller === undefined) {
+        throw makeError(
+          X`getGitCredentialController: argument must be a daemon-minted Git credential cap`,
+        );
+      }
+      return controller;
     };
 
     /** @type {EndoHost['storeValue']} */
@@ -1464,6 +1562,9 @@ export const makeHostMaker = ({
       provideMount,
       provideScratchMount,
       provideGit,
+      provideBearerCredential,
+      provideBasicCredential,
+      getGitCredentialController,
       provideHostPath,
       provideGuest,
       provideHost,

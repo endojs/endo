@@ -331,6 +331,19 @@ export const HostInterface = M.interface('EndoHost', {
   provideGit: M.callWhen(M.remotable(), NameOrPathShape).returns(
     M.remotable('Git'),
   ),
+  // Mint daemon-private Git credential capabilities.
+  provideBearerCredential: M.callWhen(
+    NameOrPathShape,
+    M.recordOf(M.string(), M.any()),
+  ).returns(M.remotable('BearerCredential')),
+  provideBasicCredential: M.callWhen(
+    NameOrPathShape,
+    M.recordOf(M.string(), M.any()),
+  ).returns(M.remotable('BasicCredential')),
+  // Host-side controller for a daemon-minted credential cap.
+  getGitCredentialController: M.callWhen(M.remotable()).returns(
+    M.remotable('GitCredentialController'),
+  ),
   // Resolve a Mount capability to its host filesystem path. This is
   // deliberately part of the fully privileged EndoHost surface used
   // by the @endo/sandbox factory (and similar make-unconfined
@@ -695,6 +708,23 @@ export const GitInterface = M.interface('Git', {
   stashDrop: M.callWhen().optional(M.number()).returns(M.undefined()),
   tree: M.callWhen(RefArgShape).returns(M.remotable('EndoReadableTree')),
   readOnly: M.call().returns(M.remotable('Git')),
+});
+
+export const GitCredentialControllerInterface = M.interface(
+  'GitCredentialController',
+  {
+    inspect: M.call().returns(M.promise()),
+    rotate: M.call(M.recordOf(M.string(), M.any())).returns(M.promise()),
+    revoke: M.call().returns(M.promise()),
+  },
+);
+
+export const BearerCredentialInterface = M.interface('BearerCredential', {
+  audience: M.call().returns(M.string()),
+});
+
+export const BasicCredentialInterface = M.interface('BasicCredential', {
+  audience: M.call().returns(M.string()),
 });
 
 export const ReadableTreeInterface = M.interface('EndoReadableTree', {

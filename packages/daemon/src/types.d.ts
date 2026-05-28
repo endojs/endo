@@ -229,6 +229,12 @@ export type GitFormula = {
   mountId: FormulaIdentifier;
 };
 
+export type GitCredentialFormula = {
+  type: 'git-credential';
+  kind: 'bearer' | 'basic';
+  audience: string;
+};
+
 // Public Git capability surface.  These types describe the inputs and
 // outputs of the `Git` exo's methods (see `src/interfaces.js` for the
 // runtime guard and `src/git.js` for the implementation); they are part
@@ -420,6 +426,10 @@ export type GitDeferredTaskParams = {
   gitId: FormulaIdentifier;
 };
 
+export type GitCredentialDeferredTaskParams = {
+  gitCredentialId: FormulaIdentifier;
+};
+
 type LookupFormula = {
   type: 'lookup';
 
@@ -600,6 +610,7 @@ export type Formula =
   | MountFormula
   | ScratchMountFormula
   | GitFormula
+  | GitCredentialFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeArchiveFormula
@@ -1257,6 +1268,15 @@ export interface EndoHost extends EndoAgent {
   ): Promise<EndoMount>;
   provideScratchMount(petName: string | string[]): Promise<EndoMount>;
   provideGit(mountCap: EndoMount, petName: string | string[]): Promise<EndoGit>;
+  provideBearerCredential(
+    petName: string | string[],
+    options: { audience: string; token: string },
+  ): Promise<unknown>;
+  provideBasicCredential(
+    petName: string | string[],
+    options: { audience: string; username: string; password: string },
+  ): Promise<unknown>;
+  getGitCredentialController(credential: unknown): Promise<unknown>;
   /**
    * Privileged bridge from a daemon-minted top-level Mount cap to its
    * host filesystem path. EndoHost is a fully privileged authority;
@@ -1985,6 +2005,13 @@ export interface DaemonCore {
     mountId: FormulaIdentifier,
     deferredTasks: DeferredTasks<GitDeferredTaskParams>,
   ) => FormulateResult<EndoGit>;
+
+  formulateGitCredential: (
+    kind: GitCredentialFormula['kind'],
+    audience: string,
+    material: Record<string, string>,
+    deferredTasks: DeferredTasks<GitCredentialDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
 
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,
