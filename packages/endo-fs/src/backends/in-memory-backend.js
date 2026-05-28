@@ -255,7 +255,8 @@ export const makeInMemoryBackend = () => {
       }
       for (const [key, r] of toMove) {
         records.delete(key);
-        const newKey = key === srcKey ? dstKey : dstPrefix + key.slice(srcPrefix.length);
+        const newKey =
+          key === srcKey ? dstKey : dstPrefix + key.slice(srcPrefix.length);
         records.set(newKey, r);
       }
       fire(src.slice(0, -1), {

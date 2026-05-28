@@ -56,12 +56,12 @@ import {
  */
 const probeCapabilities = backend => {
   return harden({
-    setStat: typeof /** @type {any} */ (backend).setStat === 'function',
-    fsync: typeof /** @type {any} */ (backend).fsync === 'function',
-    rename: typeof /** @type {any} */ (backend).rename === 'function',
-    watch: typeof /** @type {any} */ (backend).watch === 'function',
-    hash: typeof /** @type {any} */ (backend).hash === 'function',
-    statfs: typeof /** @type {any} */ (backend).statfs === 'function',
+    setStat: typeof (/** @type {any} */ (backend).setStat) === 'function',
+    fsync: typeof (/** @type {any} */ (backend).fsync) === 'function',
+    rename: typeof (/** @type {any} */ (backend).rename) === 'function',
+    watch: typeof (/** @type {any} */ (backend).watch) === 'function',
+    hash: typeof (/** @type {any} */ (backend).hash) === 'function',
+    statfs: typeof (/** @type {any} */ (backend).statfs) === 'function',
   });
 };
 
@@ -82,7 +82,10 @@ const POSIX_ONLY_FIELDS = harden([
 
 /**
  * Reject patches containing POSIX-only fields. Accepts only
- * `size`, `mtime`, `atime`. Unknown fields silently ignored.
+ * `size`, `mtime`, `atime`; other fields are silently dropped at
+ * projection time by `narrowStatPatch` below (so unknown / future
+ * fields don't error here — they just don't propagate to the
+ * backend).
  *
  * @param {any} patch
  */
@@ -396,7 +399,8 @@ export const wrapBackend = (backend, opts = {}) => {
     return makeExo('Cursor', CursorInterface, {
       async read(limit) {
         if (exhausted) return harden({ entries: [], atEnd: true });
-        const max = limit === undefined ? Infinity : toSafeNumber(limit, 'limit');
+        const max =
+          limit === undefined ? Infinity : toSafeNumber(limit, 'limit');
         const it = ensureIter();
         /** @type {DirEntry[]} */
         const entries = [];
@@ -1059,7 +1063,9 @@ export const wrapBackend = (backend, opts = {}) => {
         if (mode.truncate) {
           if (!caps.setStat) throw notSupported('create({ truncate: true })');
           // @ts-expect-error optional method probed above
-          const truncP = writeP.then(() => backend.setStat(childPath, { size: 0n }));
+          const truncP = writeP.then(() =>
+            backend.setStat(childPath, { size: 0n }),
+          );
           await truncP;
         } else {
           await writeP;

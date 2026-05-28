@@ -60,10 +60,29 @@
  */
 
 /**
- * An event yielded by `backend.watch?(path)`.
+ * An event yielded by `backend.watch?(path)` and by wrap-backend's
+ * local event bus (for events that originate at the wrap-backend
+ * layer, e.g. xattrs mutations).
+ *
+ * Vocabulary (matches the legacy in-memory test surface):
+ * - `'changed'`     — fired on a file/directory node when its
+ *                     content or its xattrs change.
+ * - `'created'`     — fired on a node when it first comes into
+ *                     existence.
+ * - `'removed'`     — fired on a node just before it disappears.
+ * - `'child-added'` — fired on a directory node when a direct child
+ *                     was added; `name` carries the child's name.
+ * - `'child-removed'` — fired on a directory node when a direct
+ *                     child was removed; `name` carries the child's
+ *                     name.
  *
  * @typedef {{
- *   kind: 'add' | 'remove' | 'change',
+ *   kind:
+ *     | 'changed'
+ *     | 'created'
+ *     | 'removed'
+ *     | 'child-added'
+ *     | 'child-removed',
  *   name?: string,
  * }} WatchEvent
  */

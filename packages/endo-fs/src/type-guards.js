@@ -50,9 +50,13 @@ const FilesystemMethods = {
 // backend.js (the seam refactor) while these guards stay focused
 // on the canonical wire shape; consumers that opt in to the new
 // methods see them directly without an interface bump.
-export const FilesystemInterface = M.interface('Filesystem', FilesystemMethods, {
-  sloppy: true,
-});
+export const FilesystemInterface = M.interface(
+  'Filesystem',
+  FilesystemMethods,
+  {
+    sloppy: true,
+  },
+);
 harden(FilesystemInterface);
 
 /**
@@ -68,90 +72,105 @@ const NodeBaseMethods = {
   help: M.call().optional(M.string()).returns(M.string()),
 };
 
-export const DirectoryInterface = M.interface('Directory', {
-  ...NodeBaseMethods,
-  lookup: M.call(M.string()).returns(
-    M.eref(M.or(M.remotable('Directory'), M.remotable('File'))),
-  ),
-  list: M.call().returns(M.eref(M.remotable('Cursor'))),
-  create: M.call(M.string(), Pass).returns(M.eref(M.remotable('OpenFile'))),
-  mkdir: M.call(M.string(), Pass).returns(M.eref(M.remotable('Directory'))),
-  unlink: M.call(M.string()).returns(M.promise()),
-  // `newParent` is wrapped in `M.await` so a caller can pipeline a
-  // `lookup → rename` chain without an intermediate await:
-  //
-  //   const newParent = E(host).lookup('newDir');       // promise
-  //   await E(srcDir).rename('a', newParent, 'b');      // dispatched in
-  //                                                      // the same batch
-  //
-  // The exo's async-shape dispatch (`M.callWhen`) awaits each
-  // `M.await(...)` argument before invoking the method body. Without
-  // this, the caller would need a serial round-trip: await the
-  // lookup, then call rename. With it, the two collapse to one
-  // round-trip. See DESIGN.md §10.1 for the cost framework.
-  rename: M.callWhen(
-    M.string(),
-    M.await(M.remotable('Directory')),
-    M.string(),
-  ).returns(M.undefined()),
-  fsync: M.call().returns(M.promise()),
-  // Walk a path from this directory; for each segment, return the
-  // existing Directory or `mkdir(seg)` it. The whole walk dispatches
-  // in one round-trip per segment (the per-call branch is
-  // server-side), so a deep materialise is one batch instead of
-  // N serial lookup-then-mkdir round-trips. Compare DESIGN.md §10.1
-  // [RT] item "No lookupOrCreate / materialise primitive".
-  materialise: M.call(M.arrayOf(M.string()), Pass).returns(
-    M.eref(M.remotable('Directory')),
-  ),
-  // Atomic snapshot + subscribe: returns a `Cursor` over the
-  // directory's entries at the moment of subscription PLUS a
-  // `NodeWatcher` that will receive every event from that point
-  // onward — no gap between snapshot and subscribe. The standalone
-  // `list()` + `watch()` pair has a TOCTOU race where mutations
-  // between the two calls are invisible to both; `watchFrom`
-  // closes that gap by materialising both halves in one method
-  // invocation. See DESIGN.md §10.1.
-  watchFrom: M.call().returns(M.eref(Pass)),
-}, { sloppy: true });
+export const DirectoryInterface = M.interface(
+  'Directory',
+  {
+    ...NodeBaseMethods,
+    lookup: M.call(M.string()).returns(
+      M.eref(M.or(M.remotable('Directory'), M.remotable('File'))),
+    ),
+    list: M.call().returns(M.eref(M.remotable('Cursor'))),
+    create: M.call(M.string(), Pass).returns(M.eref(M.remotable('OpenFile'))),
+    mkdir: M.call(M.string(), Pass).returns(M.eref(M.remotable('Directory'))),
+    unlink: M.call(M.string()).returns(M.promise()),
+    // `newParent` is wrapped in `M.await` so a caller can pipeline a
+    // `lookup → rename` chain without an intermediate await:
+    //
+    //   const newParent = E(host).lookup('newDir');       // promise
+    //   await E(srcDir).rename('a', newParent, 'b');      // dispatched in
+    //                                                      // the same batch
+    //
+    // The exo's async-shape dispatch (`M.callWhen`) awaits each
+    // `M.await(...)` argument before invoking the method body. Without
+    // this, the caller would need a serial round-trip: await the
+    // lookup, then call rename. With it, the two collapse to one
+    // round-trip. See DESIGN.md §10.1 for the cost framework.
+    rename: M.callWhen(
+      M.string(),
+      M.await(M.remotable('Directory')),
+      M.string(),
+    ).returns(M.undefined()),
+    fsync: M.call().returns(M.promise()),
+    // Walk a path from this directory; for each segment, return the
+    // existing Directory or `mkdir(seg)` it. The whole walk dispatches
+    // in one round-trip per segment (the per-call branch is
+    // server-side), so a deep materialise is one batch instead of
+    // N serial lookup-then-mkdir round-trips. Compare DESIGN.md §10.1
+    // [RT] item "No lookupOrCreate / materialise primitive".
+    materialise: M.call(M.arrayOf(M.string()), Pass).returns(
+      M.eref(M.remotable('Directory')),
+    ),
+    // Atomic snapshot + subscribe: returns a `Cursor` over the
+    // directory's entries at the moment of subscription PLUS a
+    // `NodeWatcher` that will receive every event from that point
+    // onward — no gap between snapshot and subscribe. The standalone
+    // `list()` + `watch()` pair has a TOCTOU race where mutations
+    // between the two calls are invisible to both; `watchFrom`
+    // closes that gap by materialising both halves in one method
+    // invocation. See DESIGN.md §10.1.
+    watchFrom: M.call().returns(M.eref(Pass)),
+  },
+  { sloppy: true },
+);
 harden(DirectoryInterface);
 
-export const FileInterface = M.interface('File', {
-  ...NodeBaseMethods,
-  open: M.call(Pass).returns(M.eref(M.remotable('OpenFile'))),
-  snapshot: M.call().returns(M.promise()),
-}, { sloppy: true });
+export const FileInterface = M.interface(
+  'File',
+  {
+    ...NodeBaseMethods,
+    open: M.call(Pass).returns(M.eref(M.remotable('OpenFile'))),
+    snapshot: M.call().returns(M.promise()),
+  },
+  { sloppy: true },
+);
 harden(FileInterface);
 
-export const CursorInterface = M.interface('Cursor', {
-  stream: M.call().returns(M.eref(M.remotable('PassableReader'))),
-  skip: M.call(M.bigint()).returns(M.promise()),
-  rewind: M.call().returns(M.promise()),
-  help: M.call().optional(M.string()).returns(M.string()),
-}, { sloppy: true });
+export const CursorInterface = M.interface(
+  'Cursor',
+  {
+    stream: M.call().returns(M.eref(M.remotable('PassableReader'))),
+    skip: M.call(M.bigint()).returns(M.promise()),
+    rewind: M.call().returns(M.promise()),
+    help: M.call().optional(M.string()).returns(M.string()),
+  },
+  { sloppy: true },
+);
 harden(CursorInterface);
 
-export const OpenFileInterface = M.interface('OpenFile', {
-  // `read` returns either `PassableBytesReader` (legacy streaming
-  // shape) or `Uint8Array` (new bounded single-RTT shape) — both
-  // satisfy `M.promise()`. New backings should return `Uint8Array`
-  // for efficient 9P-style bounded reads.
-  // Args are both optional in the new shape; positionally required
-  // in the legacy shape. `M.call(...).optional(...)` doesn't accept
-  // two optional bigints chained, so we use a permissive raw
-  // `M.call(...)` that admits both 0-arg and 2-arg callers.
-  read: M.callWhen().optional(M.bigint(), M.bigint()).returns(Pass),
-  // `write` accepts either `(offset)` (legacy — returns a
-  // `PassableBytesWriter`) or `(bytes, offset?)` (new — bounded,
-  // returns void).
-  write: M.callWhen(M.any()).optional(M.bigint()).returns(Pass),
-  truncate: M.call(M.bigint()).returns(M.promise()),
-  fsync: M.call(Pass).returns(M.promise()),
-  lock: M.call(Pass).returns(M.eref(M.remotable('Lock'))),
-  getLock: M.call(Pass).returns(M.promise()),
-  close: M.call().returns(M.promise()),
-  help: M.call().optional(M.string()).returns(M.string()),
-}, { sloppy: true });
+export const OpenFileInterface = M.interface(
+  'OpenFile',
+  {
+    // `read(offset, length)` returns a `PassableBytesReader` over the
+    // requested slice. (CapTP marshalling rejects raw mutable typed
+    // arrays, so the wire shape stays a base64-streamed reader —
+    // single-RTT pipelining via E gets the same effective cost as a
+    // bare bytes return; see designs/endo-fs-backend-seam.md
+    // "Design deviation".) Both args optional so a 0-arg call is a
+    // "from cursor to EOF" probe.
+    read: M.callWhen().optional(M.bigint(), M.bigint()).returns(Pass),
+    // `write(offset)` returns a `PassableBytesWriter` whose chunks are
+    // coalesced and pwritten at `offset` on close (no truncate of the
+    // tail). `offset` is optional — defaults to the cursor.
+    write: M.callWhen(M.any()).optional(M.bigint()).returns(Pass),
+    truncate: M.call(M.bigint()).returns(M.promise()),
+    fsync: M.call(Pass).returns(M.promise()),
+    lock: M.call(Pass).returns(M.eref(M.remotable('Lock'))),
+    getLock: M.call(Pass).returns(M.promise()),
+    close: M.call().returns(M.promise()),
+    help: M.call().optional(M.string()).returns(M.string()),
+  },
+  { sloppy: true },
+);
 harden(OpenFileInterface);
 
 export const LockInterface = M.interface('Lock', {
@@ -160,15 +179,19 @@ export const LockInterface = M.interface('Lock', {
 });
 harden(LockInterface);
 
-export const XattrsInterface = M.interface('Xattrs', {
-  get: M.call(M.string()).returns(M.eref(M.remotable('PassableBytesReader'))),
-  set: M.call(M.string(), Pass).returns(
-    M.eref(M.remotable('PassableBytesWriter')),
-  ),
-  list: M.call().returns(M.eref(M.remotable('PassableReader'))),
-  remove: M.call(M.string()).returns(M.promise()),
-  help: M.call().optional(M.string()).returns(M.string()),
-}, { sloppy: true });
+export const XattrsInterface = M.interface(
+  'Xattrs',
+  {
+    get: M.call(M.string()).returns(M.eref(M.remotable('PassableBytesReader'))),
+    set: M.call(M.string(), Pass).returns(
+      M.eref(M.remotable('PassableBytesWriter')),
+    ),
+    list: M.call().returns(M.eref(M.remotable('PassableReader'))),
+    remove: M.call(M.string()).returns(M.promise()),
+    help: M.call().optional(M.string()).returns(M.string()),
+  },
+  { sloppy: true },
+);
 harden(XattrsInterface);
 
 /**

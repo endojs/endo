@@ -172,9 +172,7 @@ test('rename fires child-removed on src parent and child-added on dst parent', a
   // dst parent gets child-added.
   t.true(
     bEvents.some(e => e.kind === 'child-added' && e.name === 'moved'),
-    `expected child-added/moved in subB events, got ${JSON.stringify(
-      bEvents,
-    )}`,
+    `expected child-added/moved in subB events, got ${JSON.stringify(bEvents)}`,
   );
 });
 

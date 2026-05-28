@@ -40,14 +40,12 @@ test('PosixFs.setAttrs rejects POSIX-specific updates in the synth impl', async 
   const fs = makeInMemoryFilesystem();
   const posix = synthesizePosixFs(fs);
   const root = await E(fs).root();
-  await t.throwsAsync(
-    () => E(posix).setAttrs(root, { mode: 0o600 }),
-    { message: /ENOSYS/ },
-  );
-  await t.throwsAsync(
-    () => E(posix).setAttrs(root, { uid: 1000 }),
-    { message: /ENOSYS/ },
-  );
+  await t.throwsAsync(() => E(posix).setAttrs(root, { mode: 0o600 }), {
+    message: /ENOSYS/,
+  });
+  await t.throwsAsync(() => E(posix).setAttrs(root, { uid: 1000 }), {
+    message: /ENOSYS/,
+  });
 });
 
 test('PosixFs.setAttrs no-ops on empty patches', async t => {

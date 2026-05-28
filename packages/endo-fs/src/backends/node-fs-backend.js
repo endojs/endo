@@ -93,9 +93,14 @@ export const makeNodeFsBackend = ({ rootPath }) => {
         return undefined;
       } catch (e) {
         const msg = /** @type {Error} */ (e).message;
-        // EACCES on a symlink escape: hide the symlink's existence
-        // entirely (ENOENT-equivalent) to avoid leaking out-of-sandbox
-        // path existence to the holder of the Filesystem cap.
+        // ENOENT and ELOOP map naturally to "no such node."
+        // EACCES is also suppressed: assertConfined raises EACCES
+        // when a symlink target escapes the rooted tree, and
+        // suppressing it here avoids leaking out-of-sandbox path
+        // existence to the holder of the Filesystem cap. (A real
+        // permission error inside the sandbox is also hidden, which
+        // is a less precise behavior than ideal — the trade-off
+        // favors security over diagnostic clarity.)
         if (/ENOENT|EACCES|ELOOP/.test(msg)) return undefined;
         throw e;
       }
@@ -122,7 +127,8 @@ export const makeNodeFsBackend = ({ rootPath }) => {
         // directories surface through the base seam.
         let kind;
         if (ent.isFile()) kind = /** @type {NodeKind} */ ('file');
-        else if (ent.isDirectory()) kind = /** @type {NodeKind} */ ('directory');
+        else if (ent.isDirectory())
+          kind = /** @type {NodeKind} */ ('directory');
         if (kind !== undefined) {
           yield /** @type {DirEntry} */ (harden({ name: ent.name, kind }));
         }
@@ -163,22 +169,18 @@ export const makeNodeFsBackend = ({ rootPath }) => {
       const abs = absOf(path);
       await assertConfined(abs);
       const off = offset === undefined ? 0 : Number(offset);
-      // Open r+ (existing) or create with w (new) then re-open r+.
-      // We need pwrite semantics: write at the given offset without
-      // truncating the file's tail. 'a' always appends; 'w' truncates.
-      // Only 'r+' preserves the existing tail. So: create-if-missing
-      // first, then open r+.
+      // Open r+ (existing); on ENOENT, try wx (atomic create);
+      // on the EEXIST race (a parallel writer created the file
+      // between our two open() calls), retry r+. pwrite semantics
+      // require 'r+' — 'a' always appends and 'w' truncates, both
+      // of which would corrupt the existing tail.
       let fh;
       try {
         fh = await fsp.open(abs, 'r+');
       } catch (e) {
         const msg = /** @type {Error} */ (e).message;
         if (/ENOENT/.test(msg)) {
-          // Create the file with O_NOFOLLOW semantics (no flag for
-          // node, but if it's a symlink the realpath check in
-          // assertConfined would have caught a symlink to outside).
           fh = await fsp.open(abs, 'wx').catch(async err => {
-            // Race: someone else created it. Retry r+.
             const m = /** @type {Error} */ (err).message;
             if (/EEXIST/.test(m)) return fsp.open(abs, 'r+');
             throw err;
@@ -310,16 +312,20 @@ export const makeNodeFsBackend = ({ rootPath }) => {
 
       // Synchronously start watching so events emitted between
       // setup and the first .next() are buffered.
-      const watcher = fsWatch(abs, { persistent: false }, (eventType, filename) => {
-        // Map node fs events to wrap-backend's vocabulary:
-        // 'rename' on directory = a child was added or removed
-        // 'change' on a file = its content changed
-        if (eventType === 'rename') {
-          fire({ kind: 'child-added', name: filename || undefined });
-        } else if (eventType === 'change') {
-          fire({ kind: 'changed', name: filename || undefined });
-        }
-      });
+      const watcher = fsWatch(
+        abs,
+        { persistent: false },
+        (eventType, filename) => {
+          // Map node fs events to wrap-backend's vocabulary:
+          // 'rename' on directory = a child was added or removed
+          // 'change' on a file = its content changed
+          if (eventType === 'rename') {
+            fire({ kind: 'child-added', name: filename || undefined });
+          } else if (eventType === 'change') {
+            fire({ kind: 'changed', name: filename || undefined });
+          }
+        },
+      );
       watcher.on('error', () => {
         closed = true;
         while (waiters.length !== 0) {

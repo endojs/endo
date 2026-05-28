@@ -166,7 +166,9 @@ test('Cursor.read returns a bounded page', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
   for (let i = 0; i < 5; i += 1) {
-    await E(root).create(`f${i}.txt`, { write: true }).then(oh => E(oh).close());
+    await E(root)
+      .create(`f${i}.txt`, { write: true })
+      .then(oh => E(oh).close());
   }
   const cursor = await E(root).list();
   const page = await E(cursor).read(3n);
@@ -181,22 +183,28 @@ test('Cursor.toArray drains the whole listing', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
   for (let i = 0; i < 4; i += 1) {
-    await E(root).create(`g${i}.txt`, { write: true }).then(oh => E(oh).close());
+    await E(root)
+      .create(`g${i}.txt`, { write: true })
+      .then(oh => E(oh).close());
   }
   const cursor = await E(root).list();
   const all = await E(cursor).toArray();
   t.is(all.length, 4);
-  t.deepEqual(
-    all.map(e => e.name).sort(),
-    ['g0.txt', 'g1.txt', 'g2.txt', 'g3.txt'],
-  );
+  t.deepEqual(all.map(e => e.name).sort(), [
+    'g0.txt',
+    'g1.txt',
+    'g2.txt',
+    'g3.txt',
+  ]);
   for (const e of all) t.is(e.kind, 'file');
 });
 
 test('Cursor.stream is a PassableReader<DirEntry>', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
-  await E(root).create('h.txt', { write: true }).then(oh => E(oh).close());
+  await E(root)
+    .create('h.txt', { write: true })
+    .then(oh => E(oh).close());
   await E(root).makeDirectory('d', {});
 
   const cursor = await E(root).list();
@@ -206,10 +214,10 @@ test('Cursor.stream is a PassableReader<DirEntry>', async t => {
     entries.push(entry);
   }
   t.is(entries.length, 2);
-  t.deepEqual(
-    entries.map(e => `${e.kind}:${e.name}`).sort(),
-    ['directory:d', 'file:h.txt'],
-  );
+  t.deepEqual(entries.map(e => `${e.kind}:${e.name}`).sort(), [
+    'directory:d',
+    'file:h.txt',
+  ]);
 });
 
 // ---------- walk porcelain ----------
@@ -249,7 +257,9 @@ test('walk + File.read pipelines (single await)', async t => {
 test('Directory.remove deletes a file', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
-  await E(root).create('to-go.txt', { write: true }).then(oh => E(oh).close());
+  await E(root)
+    .create('to-go.txt', { write: true })
+    .then(oh => E(oh).close());
   await E(root).remove('to-go.txt');
   await t.throwsAsync(E(root).lookup('to-go.txt'), { message: /ENOENT/ });
 });
@@ -257,7 +267,9 @@ test('Directory.remove deletes a file', async t => {
 test('legacy unlink alias still works', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
-  await E(root).create('legacy.txt', { write: true }).then(oh => E(oh).close());
+  await E(root)
+    .create('legacy.txt', { write: true })
+    .then(oh => E(oh).close());
   await E(root).unlink('legacy.txt');
   await t.throwsAsync(E(root).lookup('legacy.txt'), { message: /ENOENT/ });
 });
@@ -342,8 +354,12 @@ test('collectBytes drains an OpenFile.read result', async t => {
 test('collectStream drains a Cursor.stream', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
-  await E(root).create('p.txt', { write: true }).then(oh => E(oh).close());
-  await E(root).create('q.txt', { write: true }).then(oh => E(oh).close());
+  await E(root)
+    .create('p.txt', { write: true })
+    .then(oh => E(oh).close());
+  await E(root)
+    .create('q.txt', { write: true })
+    .then(oh => E(oh).close());
 
   const cursor = await E(root).list();
   const reader = await E(cursor).stream();

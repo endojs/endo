@@ -342,29 +342,40 @@ to a truly portable subset. Two things go:
 
 ### Xattrs
 
-The current `Node.xattrs() → Xattrs` sub-cap (DESIGN §4.8) is pulled
-out of the base. Today only `in-memory.js` implements them — `node-fs`
-and `from-mount` are ENOSYS stubs that bloat each backing by ~25 lines
-of dead surface. Concretely:
+**Final shape (deviated from the original plan).** The original plan
+called for removing xattrs from base entirely and deferring them to a
+future PosixFs cap. In implementation we found that's an unnecessarily
+disruptive break for existing in-vat consumers (the legacy `in-memory.js`
+xattr round-trip tests, for instance). The shipped design keeps the
+`Node.xattrs() → Xattrs` sub-cap on the base interface but serves it
+from a **wrap-backend-level vat-local sidecar** — a per-path
+`Map<name, Uint8Array>` in `xattrTable` that wrap-backend mints
+unconditionally regardless of which backing it wraps.
 
-- `xattrs()` removed from `NodeBaseMethods` in `src/type-guards.js`.
-- `XattrsInterface` exported only from a future `@endo/endo-fs-posix`
-  package (not in this refactor; just leave the interface definition
-  out of base for now).
-- `in-memory.js`'s `NodeRecord.xattrs` Map field deleted.
-- `node-fs.js` and `from-mount.js` xattr stubs deleted entirely.
-- `readonly.js`'s `makeReadOnlyXattrs` deleted.
-- `cached-fs.js`, `compose.js` xattr pass-throughs deleted.
-- Xattr test cases removed from `test/in-memory.test.js`; xattr
-  ENOSYS-assertion cases removed from `test/node-fs.test.js` and
-  `test/from-mount.test.js`.
-- `DESIGN.md` §4.8 moved (or struck) — note in §9 (extension caps)
-  that xattrs are a PosixFs concern.
+Concretely:
 
-The seam refactor therefore has **no `getXattr?/setXattr?/listXattrs?/
-removeXattr?` in `FsBackend`**. Consumers who want xattr-style metadata
-on a base `Filesystem` can store a sidecar JSON file. Consumers who
-want native xattrs compose over `PosixFs`.
+- `xattrs()` stays in `NodeBaseMethods` in `src/type-guards.js`.
+- `XattrsInterface` stays exported from `type-guards.js`.
+- The `Xattrs` exo is built in `wrap-backend.js` (`makeXattrsExo`),
+  not in the backings. All backings — in-memory, node-fs, from-mount —
+  get identical xattr support for free.
+- Only the `user.*` namespace is accepted. Other namespaces
+  (`security.*`, `trusted.*`, `system.*`) are POSIX-specific and
+  rejected with `ENOTSUP` — those are PosixFs's job.
+- Unset xattrs return `ENODATA` (POSIX-correct signal).
+- Mutations fire `'changed'` events on the node via the wrap-backend
+  local event bus.
+- The `FsBackend` protocol has **no** `getXattr?/setXattr?/listXattrs?/
+  removeXattr?` methods. Backings that have native disk xattrs would
+  surface them via a future backing-specific `PosixFs` impl that reads
+  real disk metadata; the base sidecar is purely vat-local.
+
+**Limitation, by design.** The vat-local sidecar is scoped to the
+`Filesystem` cap — a fresh `makeNodeFilesystem({ rootPath })` over the
+same disk sees an empty xattr table. Persistence to disk is PosixFs's
+remit. The node-fs test suite has an explicit
+`'vat-local sidecar does not persist to disk'` assertion that pins this
+behavior.
 
 ### All attrs (size, mtime, atime, mode, uid, gid, identity, ctime, btime)
 

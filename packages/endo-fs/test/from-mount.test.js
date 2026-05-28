@@ -353,10 +353,9 @@ test('xattrs on Mount-adapted FS: non-user.* namespace is rejected', async t => 
   const fs = mountAsFilesystem(mount);
   const root = await E(fs).root();
   const x = await E(root).xattrs();
-  await t.throwsAsync(
-    () => E(x).set('security.capability', {}),
-    { message: /ENOTSUP/ },
-  );
+  await t.throwsAsync(() => E(x).set('security.capability', {}), {
+    message: /ENOTSUP/,
+  });
 });
 
 test('rename target from a different Filesystem rejects EXDEV', async t => {
