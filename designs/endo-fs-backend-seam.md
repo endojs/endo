@@ -1,5 +1,89 @@
 # endo-fs FsBackend seam + Mount alignment + p9 readiness
 
+| | |
+|---|---|
+| **Created** | 2026-05-28 |
+| **Updated** | 2026-05-28 |
+| **Author** | Aaron Kumavis (prompted) |
+| **Status** | In Progress |
+
+## Status
+
+Phase 1 (foundation) landed in commits `d2c6dedd` → `4e110976`:
+
+- `src/backend-types.js` — `FsBackend` JSDoc typedefs (6 required + 5
+  optional methods).
+- `src/wrap-backend.js` — full shared upper layer that builds all exos
+  (Filesystem, Directory, File, OpenFile, Cursor, NodeWatcher) on top
+  of any `FsBackend`. Includes the vat-local lock-table, materialise
+  loop, refcounted close hygiene, synthesized fallbacks for missing
+  optional capabilities, and legacy-method forwarders (`mkdir`,
+  `unlink`, `getQid`, `getAttrs`, `setAttrs`, `xattrs` stub).
+- `src/backends/in-memory-backend.js` — full in-memory FsBackend
+  (kind/list/read/write/makeDirectory/remove + setStat/fsync/rename/watch).
+- `src/backends/from-mount-backend.js` — Mount→FsBackend adapter.
+- `src/helpers.js` — porcelain (walk, collectBytes, collectStream).
+- `src/index.js` — exports the new APIs alongside the existing ones.
+- `test/wrap-backend.test.js` — 20 tests exercising the new
+  architecture end-to-end against `wrapBackend(makeInMemoryBackend())`.
+- `src/type-guards.js` — added `sloppy: true` to the interface guards
+  (allows additional methods beyond the declared ones), widened
+  `OpenFile.read`/`write` return guards from specific `PassableBytes…`
+  remotables to generic `M.promise()` (the wire shape stays the same;
+  this just stops the strict guard from forbidding new
+  Uint8Array-shaped variants if/when CapTP marshalling allows them).
+
+Phase 1 is **strictly additive**: every existing test passes
+unchanged (15 in-memory, 14 node-fs, 9 from-mount, 14 layer, …),
+plus the new 20 wrap-backend tests. The 9p-server's 20 tests also
+pass unchanged — the seam refactor didn't touch its wire-facing
+methods.
+
+### Remaining work (phases 2–4)
+
+Each phase is its own PR; the architectural risk is bounded by the
+incremental sequencing.
+
+**Phase 2 — Migrate `from-mount.js` (smallest).** Replace the existing
+655-line implementation with `wrapBackend(makeFromMountBackend(...))`.
+Gated on adding `snapshot` support to wrap-backend's File exo (so the
+existing snapshot test keeps passing) and matching the EXDEV behavior
+of the existing cross-Filesystem rename.
+
+**Phase 3 — Migrate `in-memory.js`.** Replace the 788-line
+implementation with `wrapBackend(makeInMemoryBackend())`. Gated on:
+(a) wrap-backend tracking real mtime/atime per file (currently
+returns `0n`); (b) extending the in-memory backend with `setXattr`
+/ `getXattr` (or migrating xattr tests out as a PosixFs concern).
+
+**Phase 4 — Migrate `node-fs.js`.** Write `src/backends/node-fs-backend.js`
+and replace the 859-line implementation. Gated on the same items as
+phase 3 plus `fs.watch` adapter, `assertConfined` symlink containment,
+and `fs.promises` plumbing for setStat (utimes + truncate).
+
+**Phase 5 — Consumers.** `compose.js`, `readonly.js`, `cached-fs.js`,
+`layer.js`, and the 9p-server may incrementally adopt the new
+porcelain (`walk`, `Cursor.read`, `Cursor.toArray`) where it
+simplifies their code. None of these consumers needs to change to
+keep working — the seam refactor is forward-compatible.
+
+**Phase 6 — `PosixFs` extension.** Builds on a base `FsBackend`,
+provides POSIX-shaped attrs (`mode`, `uid`, `gid`), real OS locks
+(`fcntl(F_SETLK)`, `LockFileEx`), and xattr storage. Unblocks the
+full 9P2000.L surface (`Tflock`, `Tgetlock`, `Txattrwalk`).
+
+### Design deviation
+
+The original plan called for `OpenFile.read` to return `Uint8Array`
+directly for single-RTT bounded reads. Implementation found this
+isn't possible — CapTP marshalling rejects mutable typed arrays
+("Cannot pass mutable typed arrays"). The wire shape stays as
+`PassableBytesReader` (base64-encoded chunks); single-RTT bounded
+reads are still achievable via E-pipelining (the existing 9p-server
+already does this). When SES adopts an immutable bytes type (e.g.,
+`ImmutableArrayBuffer`), the seam supports moving to a direct-bytes
+return shape without changing the backend protocol.
+
 ## Context
 
 `@endo/endo-fs` today has three full backings (in-memory, node-fs, from-mount)
