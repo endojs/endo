@@ -300,3 +300,70 @@ test('from-mount backend still treats ENOENT as undefined from kind()', async t 
   const k = await backend.kind(['somewhere']);
   t.is(k, undefined);
 });
+
+// ---------- Copilot review: explicit mtime preserved over size touch ----------
+
+test('File.setStat({size, mtime}) preserves the caller-supplied mtime (no touch clobber)', async t => {
+  // Bug: when both size and mtime were provided, the code first
+  // set st.mtime = patch.mtime, then unconditionally called
+  // touch(path, {mtime: true}) — which clobbered the caller's
+  // mtime with "now."
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const oh = await E(root).create('clobber.txt', {});
+  await writeBytes(await E(oh).write(0n), utf8('hello'));
+  await E(oh).close();
+
+  const file = await E(root).lookup('clobber.txt');
+  const explicit = 12345n; // some explicit ns-since-epoch timestamp
+  await E(file).setStat({ size: 3n, mtime: explicit });
+
+  const attrs = await E(file).getAttrs();
+  t.is(attrs.mtime, explicit, 'explicit mtime should win over touch');
+  t.is(attrs.size, 3n);
+});
+
+// ---------- Copilot review: read updates atime, write updates mtime ----------
+
+test('OpenFile.read updates atime; OpenFile.write updates mtime', async t => {
+  // Bug: the comment on statTable claimed OpenFile.read/write
+  // touched atime/mtime, but the call sites didn't actually invoke
+  // touch(). So getAttrs returned stale timestamps after I/O.
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const oh0 = await E(root).create('touchy.txt', {});
+  await writeBytes(await E(oh0).write(0n), utf8('initial'));
+  await E(oh0).close();
+
+  const file = await E(root).lookup('touchy.txt');
+  const baseline = await E(file).getAttrs();
+
+  // Force a clock tick — wall-clock granularity on some hosts is
+  // ms; the touch() call uses Date.now() * 1_000_000n. A few ms
+  // of sleep is enough to ensure the new ns timestamp differs.
+  await new Promise(r => setTimeout(r, 5));
+
+  // Read updates atime, not mtime.
+  const oh = await E(file).open({ read: true, write: true });
+  await drainReader(await E(oh).read(0n, 7n));
+  const afterRead = await E(file).getAttrs();
+  t.true(
+    /** @type {bigint} */ (afterRead.atime) >
+      /** @type {bigint} */ (baseline.atime),
+    'read should bump atime',
+  );
+  t.is(afterRead.mtime, baseline.mtime, 'read should not bump mtime');
+
+  await new Promise(r => setTimeout(r, 5));
+
+  // Write updates mtime.
+  await writeBytes(await E(oh).write(0n), utf8('changed'));
+  const afterWrite = await E(file).getAttrs();
+  t.true(
+    /** @type {bigint} */ (afterWrite.mtime) >
+      /** @type {bigint} */ (afterRead.mtime),
+    'write should bump mtime',
+  );
+
+  await E(oh).close();
+});

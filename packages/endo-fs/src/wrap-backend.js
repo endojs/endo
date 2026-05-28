@@ -634,6 +634,8 @@ export const wrapBackend = (backend, opts = {}) => {
         const len = length === undefined ? undefined : BigInt(length);
         const bytes = await backend.read(path, off, len);
         cursor = off + BigInt(bytes.length);
+        // POSIX: reading updates the file's atime.
+        touch(path, { atime: true });
         const gen = async function* () {
           if (bytes.length !== 0) yield bytes;
         };
@@ -667,6 +669,8 @@ export const wrapBackend = (backend, opts = {}) => {
             }
             await backend.write(path, merged, off);
             cursor = off + BigInt(merged.length);
+            // POSIX: writing updates mtime (and ctime via touch).
+            touch(path, { mtime: true });
             return { done: true, value };
           },
           [Symbol.asyncIterator]() {
@@ -683,6 +687,8 @@ export const wrapBackend = (backend, opts = {}) => {
         }
         // @ts-expect-error optional method probed above
         await backend.setStat(path, { size: BigInt(size) });
+        // Truncate is a mutation; bump mtime.
+        touch(path, { mtime: true });
       },
       async fsync(_opts) {
         requireOpen('fsync');
@@ -788,13 +794,15 @@ export const wrapBackend = (backend, opts = {}) => {
             await backend.write(path, grown, 0n);
           }
         }
-        // Record the explicit mtime/atime, otherwise touch.
+        // Explicit mtime/atime win; otherwise any size change
+        // implies modification → touch the mtime to "now."
         const st = statOf(path);
-        if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
-        if (narrow.atime !== undefined) st.atime = narrow.atime;
-        if (narrow.size !== undefined || narrow.mtime === undefined) {
+        if (narrow.mtime !== undefined) {
+          st.mtime = narrow.mtime;
+        } else if (narrow.size !== undefined) {
           touch(path, { mtime: true });
         }
+        if (narrow.atime !== undefined) st.atime = narrow.atime;
       },
       // ---- Legacy ----
       getQid() {
@@ -835,12 +843,15 @@ export const wrapBackend = (backend, opts = {}) => {
             await backend.write(path, grown, 0n);
           }
         }
+        // Explicit mtime/atime win; otherwise any size change
+        // implies modification → touch the mtime to "now."
         const st = statOf(path);
-        if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
-        if (narrow.atime !== undefined) st.atime = narrow.atime;
-        if (narrow.size !== undefined) {
+        if (narrow.mtime !== undefined) {
+          st.mtime = narrow.mtime;
+        } else if (narrow.size !== undefined) {
           touch(path, { mtime: true });
         }
+        if (narrow.atime !== undefined) st.atime = narrow.atime;
       },
       xattrs() {
         return makeXattrsExo(path);
@@ -881,6 +892,8 @@ export const wrapBackend = (backend, opts = {}) => {
         const off = o.offset === undefined ? 0n : BigInt(o.offset);
         const len = o.length === undefined ? undefined : BigInt(o.length);
         const bytes = await backend.read(path, off, len);
+        // POSIX: reading updates atime.
+        touch(path, { atime: true });
         const gen = async function* () {
           if (bytes.length !== 0) yield bytes;
         };
@@ -926,6 +939,8 @@ export const wrapBackend = (backend, opts = {}) => {
               await backend.setStat(path, { size: 0n });
             }
             await backend.write(path, merged, off);
+            // POSIX: writing updates mtime.
+            touch(path, { mtime: true });
             return { done: true, value };
           },
           [Symbol.asyncIterator]() {
