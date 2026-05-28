@@ -117,27 +117,30 @@ wrapBackend-built Filesystem — 20/20 tests pass.
 
 | File | Before | After |
 |---|---:|---:|
-| `src/in-memory.js` | 788 | 23 |
-| `src/node-fs.js` | 859 | 26 |
-| `src/from-mount.js` | 655 | 22 |
-| (sum) | 2302 | 71 |
-| `src/wrap-backend.js` (new) | 0 | 1153 |
-| `src/helpers.js` (new) | 0 | 88 |
-| `src/backend-types.js` (new) | 0 | 152 |
-| `src/backends/in-memory-backend.js` (new) | 0 | 287 |
-| `src/backends/node-fs-backend.js` (new) | 0 | 332 |
-| `src/backends/from-mount-backend.js` (new) | 0 | 196 |
-| `src/posix-fs.js` (new) | 0 | 113 |
+| `src/in-memory.js` | 788 | 24 |
+| `src/node-fs.js` | 859 | 30 |
+| `src/from-mount.js` | 655 | 27 |
+| (sum) | 2302 | 81 |
+| `src/wrap-backend.js` (new) | 0 | 1306 |
+| `src/helpers.js` (new) | 0 | 81 |
+| `src/backend-types.js` (new) | 0 | 160 |
+| `src/backends/in-memory-backend.js` (new) | 0 | 368 |
+| `src/backends/node-fs-backend.js` (new) | 0 | 392 |
+| `src/backends/from-mount-backend.js` (new) | 0 | 226 |
+| `src/posix-fs.js` (new) | 0 | 53 |
 
-The shared upper layer absorbs ~1153 lines of plumbing that used to
-be triplicated; each new backing now costs ~200–300 lines of focused
+The shared upper layer absorbs ~1300 lines of plumbing that used to
+be triplicated; each new backing now costs ~200–400 lines of focused
 FsBackend implementation rather than 700–900 lines of duplicated exo
-construction.
+construction. Wrap-backend's per-method bodies still duplicate
+between the narrow (`getStat`/`setStat`) and wide (`getAttrs`/`setAttrs`)
+shapes, but they share `readFileStat` / `applyStatPatch` helpers so
+the two surfaces can't drift.
 
-### Design deviation
+### Wire-shape deviation — `OpenFile.read` / `write`
 
-The original plan called for `OpenFile.read` to return `Uint8Array`
-directly for single-RTT bounded reads. Implementation found this
+The original plan called for `OpenFile.read(offset, length) →
+Uint8Array` for single-RTT bounded reads. Implementation found this
 isn't possible — CapTP marshalling rejects mutable typed arrays
 ("Cannot pass mutable typed arrays"). The wire shape stays as
 `PassableBytesReader` (base64-encoded chunks); single-RTT bounded
@@ -379,26 +382,39 @@ behavior.
 
 ### All attrs (size, mtime, atime, mode, uid, gid, identity, ctime, btime)
 
-The entire `Attrs` shape (DESIGN §4.9) and the `getAttrs` / `setAttrs`
-methods on `NodeBaseMethods` (DESIGN §4.2) are pulled out of the base.
-Concretely:
+**Final shape (deviated from the original plan).** The original
+plan called for removing `Attrs` / `Qid` / `getAttrs` / `setAttrs`
+entirely. In implementation we kept the legacy method *names* on
+the public `NodeBaseMethods` alongside the new narrow `getStat` /
+`setStat` so existing consumers (9p-server, compose.js, readonly.js,
+cached-fs.js) don't break. The narrow shape becomes the authoritative
+wire protocol; the wide-shape methods are aliases backed by the
+same vat-local stat table.
 
-- `getAttrs` and `setAttrs` removed from `NodeBaseMethods` in
-  `src/type-guards.js`.
-- `Attrs` typedef removed from base (lives in PosixFs).
-- `Qid` (DESIGN §4.9: `{ type, pathId, version }`) — base no longer
-  exposes `getQid` on Nodes. The kind ('file' vs 'directory') is
-  carried by the cap's interface tag (File exo vs Directory exo).
-  `pathId` and `version` are POSIX-shaped identity — PosixFs.
-- `list` entries become `{ name, kind }` only (was `{ name, type,
-  size?, identity? }`).
-- The backend has no `stat`, no `setStat`, no `identity`. Just `kind`.
+Concretely (as shipped):
 
-The PosixFs cap (F15) layers on top of a base `Filesystem` and exposes
-`attrs(node) → PosixAttrs` (with the full POSIX shape — `size`, all
-three timestamps, `btime`, `mode`, `uid`, `gid`, `nlink`, `pathId`,
-`version`) plus `setAttrs(node, patch)`. The cap holds its own backend
-that can answer those queries against the same underlying store.
+- `NodeBaseMethods` in `src/type-guards.js` declares **both**
+  `getStat` / `setStat` (narrow) and `getAttrs` / `setAttrs` /
+  `getQid` / `xattrs` (legacy / wide).
+- Narrow `setStat` / `setAttrs` only accept `{ size?, mtime?,
+  atime? }`. POSIX-only fields (`mode`, `uid`, `gid`, `ctime`,
+  `btime`) throw a clear EINVAL via the shared `validateStatPatch`.
+- `wrap-backend.js` ships one `readFileStat` and one
+  `applyStatPatch` body that both wide and narrow methods call into,
+  so they can never drift.
+- `list` entries carry both `kind` and a synthesized `qid` (for
+  9p-server's `Treaddir`, which reads `{ name, qid }`).
+- `Qid.pathId` is synthesized from a stable FNV-1a hash of the
+  joined path. Real inode-shaped identity moves to PosixFs.
+- The base backend has no `stat`/`identity` — but `getStat?` is
+  an *optional* backend method that wrap-backend prefers over its
+  vat-local table when present. node-fs implements it via
+  `fs.stat`, so a `getStat` call on a node-fs `Filesystem` returns
+  the real disk mtime, not the moment the vat first looked.
+
+The future PosixFs cap (F15) layers on top of a base `Filesystem`
+and exposes the *full* POSIX shape including `mode`/`uid`/`gid` and
+real-OS-locks-and-xattrs primitives.
 
 ### Locks (real OS-level)
 
@@ -435,8 +451,8 @@ bridge holds a `Filesystem` cap **and** a `PosixFs` cap.
 | `Twalk` | `Filesystem` | `walk(root, names)` porcelain — E-pipelined; one CapTP batch |
 | `Topen` | `Filesystem` | `File.open({read, write})` |
 | `Tcreate` | `Filesystem` | `Directory.makeFile/makeDirectory` + `File.open({create, write})` (E-pipelined) |
-| `Tread` | `Filesystem` | `OpenFile.read(offset, length) → Uint8Array` — **single CapTP RTT, bounded** |
-| `Twrite` | `Filesystem` | `OpenFile.write(bytes, offset?) → void` — **single CapTP RTT, bounded** |
+| `Tread` | `Filesystem` | `OpenFile.read(offset, length) → PassableBytesReader` — single-RTT under E-pipelining |
+| `Twrite` | `Filesystem` | `OpenFile.write(offset) → PassableBytesWriter` — single-RTT under E-pipelining |
 | `Tclunk` | `Filesystem` | `OpenFile.close()` |
 | `Tremove` | `Filesystem` | `Directory.remove(name)` |
 | `Treaddir` | `Filesystem` | `Cursor.read(limit?) → { entries, atEnd }` — bounded page per RTT |
@@ -450,18 +466,38 @@ bridge holds a `Filesystem` cap **and** a `PosixFs` cap.
 | `Txattrwalk` / `Txattrcreate` (9P2000.L) | `PosixFs` | `posixFs.xattrs(node) → Xattrs` |
 | `Tlink` / `Tsymlink` / `Treadlink` | `PosixFs` (deferred) | — |
 
-**Critical wire-efficiency changes** to the existing `Filesystem` exo
-surface:
+**Wire-shape changes** to the existing `Filesystem` exo surface
+(as shipped):
 
-- `OpenFile.read(offset?, length?)` returns `Uint8Array` directly (was
-  `PassableBytesReader`). Bounded single-RTT — essential for `Tread`.
-- `OpenFile.write(bytes, offset?)` accepts `Uint8Array` directly (was
-  returning `PassableBytesWriter`). Bounded single-RTT — essential for
-  `Twrite`.
-- `Cursor.read(limit?)` added — returns a bounded page per RTT for
-  `Treaddir`. The existing `Cursor.stream()` stays for very large dirs
-  (rare; ENAMETOOLONG territory).
-- `getAttrs`/`setAttrs`/`getQid`/`xattrs` all leave `NodeBaseMethods`.
+- `Cursor.read(limit?)` added — returns `{ entries, atEnd }` for a
+  bounded page per RTT (maps to `Treaddir` directly). `Cursor.toArray()`
+  drains. The existing `Cursor.stream()` remains for huge dirs.
+- `Node.getStat()` / `Node.setStat(patch)` added on `NodeBaseMethods`
+  — the narrow portable shape that POSIX-only fields don't fit. The
+  legacy `getAttrs` / `setAttrs` / `getQid` / `xattrs` stay declared
+  too; both shapes are real methods on every wrapBackend-built exo.
+- `Directory.makeDirectory(name, opts)` and `Directory.remove(name)`
+  added alongside the legacy `mkdir` / `unlink` aliases.
+
+**`OpenFile.read` / `write` keep their `PassableBytesReader` / `Writer`
+wire shape.** The original plan called for `read(offset, length) →
+Uint8Array` and `write(bytes, offset?) → void` for single-RTT bounded
+I/O. Implementation found CapTP marshalling rejects mutable typed
+arrays, so the bytes-in-record idea can't ship today; the reader/writer
+shape is the canonical wire for byte transit. E-pipelining still
+collapses bounded reads to one RTT in practice (the 9p-server's
+existing pipelined-rtt test exercises this against in-memory). When SES
+adopts an immutable bytes type (e.g. `ImmutableArrayBuffer`), the seam
+supports moving to a direct-bytes shape without changing FsBackend.
+
+**Alternatives considered for the bytes shape, rejected:**
+
+- Base64 envelope record (`{ encoding: 'base64', data: '…' }`) — 33%
+  wire tax vs. the existing PassableBytesReader/Writer encoding;
+  buys nothing.
+- Two methods (`readSlice` for bounded vs. `read` for streaming) —
+  redundant once you accept that pipelined reads through the existing
+  shape are already single-RTT.
 
 The streaming sink variants (`PassableBytesReader`/`Writer`) remain
 useful for "I have a 4 GB blob to ship" scenarios — kept as separate
@@ -642,18 +678,23 @@ After PR 4, the package is on the new architecture end-to-end.
     args optional.
   - `OpenFileInterface.write` accepts `Uint8Array + offset?` (was
     returning `PassableBytesWriter`).
-  - Add `OpenFileInterface.stream` and `streamWrite` for the unbounded
-    cases.
-  - Add `FileInterface.read(opts?) → Uint8Array` /
-    `FileInterface.write(bytes, opts?) → void`.
   - Add `CursorInterface.read(limit?) → { entries, atEnd }` and
     `CursorInterface.toArray()`.
-  - Delete `getAttrs`, `setAttrs`, `getQid`, `xattrs` from
-    `NodeBaseMethods`.
-  - Add `setStat({ size?, mtime?, atime? })` to `NodeBaseMethods`
-    (replaces the deleted `setAttrs` with a narrow portable subset).
-  - Delete `XattrsInterface` and `Attrs` exports.
-  - Update Cursor entry shape to `{ name, kind }`.
+  - Add `setStat({ size?, mtime?, atime? })` and `getStat()` to
+    `NodeBaseMethods` (narrow portable shape).
+  - Add `makeDirectory(name, opts)` and `remove(name)` to
+    `DirectoryInterface`.
+  - Keep `getAttrs`, `setAttrs`, `getQid`, `xattrs`, `mkdir`,
+    `unlink` declared — same wrapBackend exo exposes both shapes;
+    POSIX-only-shape fields move to PosixFs. (`setAttrs` rejects
+    `mode`/`uid`/`gid` with EINVAL via `validateStatPatch`.)
+  - Drop `sloppy: true` from the non-evolving interfaces (Cursor,
+    OpenFile, Xattrs, Lock, NodeWatcher); keep it on the evolving
+    Filesystem/Directory/File where consumers add per-feature
+    methods (e.g. compose's whiteout-aware listing).
+  - Update Cursor entry shape: `{ name, kind, qid }` — both
+    `kind` (new consumers) and `qid` (9p-server's `Treaddir`,
+    which already reads `qid`).
 - `src/readonly.js` — attenuator updates for `remove` rename and the
   new methods. Stays a Filesystem-layer wrapper (above wrapBackend).
 - `src/cached-fs.js` — same.
@@ -718,8 +759,11 @@ After PR 4, the package is on the new architecture end-to-end.
    `test/pipelined-rtt.test.js` to assert that `await E(await walk(root,
    ['a','b','c'])).read()` produces exactly one CapTP batch.
 
-6. **Rename sweep clean.** `git grep -nE '\bunlink\b' packages/endo-fs/`
-   returns zero hits.
+6. **Rename sweep — both shapes available.** `git grep -nE
+   '\b(unlink|mkdir)\b' packages/endo-fs/` still returns hits because
+   the legacy method names stay declared alongside the new names
+   (`remove` / `makeDirectory`). A future deprecation pass removes
+   the legacy aliases once all consumers (notably 9p-server) switch.
 
 7. **Surface didn't regress.** `npx tsc --build` from the package; no
    missing-export or signature errors.
