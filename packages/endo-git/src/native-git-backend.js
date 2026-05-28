@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { Buffer } from 'node:buffer';
 import { execFile, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
