@@ -910,41 +910,6 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
   };
 
   /**
-   * Run a sanitized git invocation whose stdout is binary data.
-   *
-   * @param {string[]} args
-   * @returns {Promise<Uint8Array>}
-   */
-  const runGitBuffer = async args => {
-    await verifyRepositoryIdentity();
-    try {
-      const { stdout } = await execFileAsync(
-        'git',
-        [...GIT_BASE_ARGS, ...args],
-        {
-          cwd: repoRoot,
-          env: makeGitEnv(repoRoot),
-          timeout: GIT_TIMEOUT_MS,
-          maxBuffer: GIT_MAX_BUFFER,
-          encoding: /** @type {'buffer'} */ ('buffer'),
-        },
-      );
-      return new Uint8Array(/** @type {Buffer | Uint8Array} */ (stdout));
-    } catch (err) {
-      const error =
-        /** @type {Error & { stdout?: Buffer | string, stderr?: Buffer | string, code?: number }} */ (
-          err
-        );
-      const detail = String(
-        error.stderr || error.stdout || error.message || 'unknown git error',
-      );
-      throw new Error(
-        `git ${gitCommandName(args)} failed (exit ${error.code ?? 'unknown'}):\n${truncateOutput(detail.trim())}`,
-      );
-    }
-  };
-
-  /**
    * Run a sanitized git invocation and stream binary stdout chunks.
    *
    * @param {string[]} args
