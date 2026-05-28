@@ -187,6 +187,17 @@ export const wrapBackend = (backend, opts = {}) => {
       return iter;
     };
 
+    // Augment each backend entry with a synthesized `qid` for legacy
+    // consumers (9p-server's Treaddir, etc.). New consumers can read
+    // `entry.kind`; both `entry.kind` and `entry.qid.type` carry the
+    // same information.
+    const augment = entry =>
+      harden({
+        name: entry.name,
+        kind: entry.kind,
+        qid: synthQid([...dirPath, entry.name], entry.kind),
+      });
+
     return makeExo('Cursor', CursorInterface, {
       async read(limit) {
         if (exhausted) return harden({ entries: [], atEnd: true });
@@ -203,7 +214,7 @@ export const wrapBackend = (backend, opts = {}) => {
             exhausted = true;
             break;
           }
-          entries.push(step.value);
+          entries.push(augment(step.value));
         }
         return harden({ entries, atEnd });
       },
@@ -224,7 +235,7 @@ export const wrapBackend = (backend, opts = {}) => {
               exhausted = true;
               return;
             }
-            yield step.value;
+            yield augment(step.value);
           }
         };
         return readerFromIterator(generator());
@@ -241,7 +252,7 @@ export const wrapBackend = (backend, opts = {}) => {
             exhausted = true;
             break;
           }
-          out.push(step.value);
+          out.push(augment(step.value));
         }
         return harden(out);
       },
