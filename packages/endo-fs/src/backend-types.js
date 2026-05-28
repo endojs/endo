@@ -130,20 +130,18 @@
  *     looked up by reading the file or by composing a PosixFs
  *     backend on top).
  *
- * @typedef {{
- *   kind: (path: string[]) => Promise<NodeKind | undefined>,
- *   list: (dirPath: string[]) => AsyncIterable<DirEntry>,
- *   read: (path: string[], offset?: bigint, length?: bigint) => Promise<Uint8Array>,
- *   write: (path: string[], bytes: Uint8Array, offset?: bigint) => Promise<void>,
- *   makeDirectory: (path: string[]) => Promise<void>,
- *   remove: (path: string[]) => Promise<void>,
- *
- *   setStat?: (path: string[], patch: NodeStat) => Promise<void>,
- *   fsync?: (path: string[]) => Promise<void>,
- *   rename?: (src: string[], dst: string[]) => Promise<void>,
- *   watch?: (path: string[]) => AsyncIterable<WatchEvent>,
- *   hash?: (path: string[]) => Promise<Uint8Array>,
- * }} FsBackend
+ * @typedef {object} FsBackend
+ * @property {(path: string[]) => Promise<NodeKind | undefined>} kind
+ * @property {(dirPath: string[]) => AsyncIterable<DirEntry>} list
+ * @property {(path: string[], offset?: bigint, length?: bigint) => Promise<Uint8Array>} read
+ * @property {(path: string[], bytes: Uint8Array, offset?: bigint) => Promise<void>} write
+ * @property {(path: string[]) => Promise<void>} makeDirectory
+ * @property {(path: string[]) => Promise<void>} remove
+ * @property {(path: string[], patch: NodeStat) => Promise<void>} [setStat]
+ * @property {(path: string[]) => Promise<void>} [fsync]
+ * @property {(src: string[], dst: string[]) => Promise<void>} [rename]
+ * @property {(path: string[]) => AsyncIterable<WatchEvent>} [watch]
+ * @property {(path: string[]) => Promise<Uint8Array>} [hash]
  */
 
 // This module is types-only. Exporting an empty object keeps it as a

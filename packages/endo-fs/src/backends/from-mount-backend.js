@@ -187,7 +187,6 @@ export const makeFromMountBackend = rootMount => {
       if (needed < current.length) {
         out.set(current.subarray(needed), needed);
       }
-      // @ts-expect-error Mount.writeBytes accepts a Uint8Array
       await E(cap).writeBytes(out);
     },
 

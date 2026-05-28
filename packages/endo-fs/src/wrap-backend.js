@@ -154,7 +154,13 @@ export const wrapBackend = (backend, opts = {}) => {
   /** @type {Map<string, { mtime: bigint, atime: bigint, ctime: bigint, btime: bigint }>} */
   const statTable = new Map();
   const nowNs = () => BigInt(Date.now()) * 1_000_000n;
-  const touch = (path, fields = { mtime: true, atime: false }) => {
+  /**
+   * @param {string[]} path
+   * @param {{ mtime?: boolean, atime?: boolean }} [fields]
+   */
+  const touch = (path, fields) => {
+    const wantMtime = fields ? !!fields.mtime : true;
+    const wantAtime = fields ? !!fields.atime : false;
     const key = lockKeyOf(path);
     let rec = statTable.get(key);
     const t = nowNs();
@@ -162,11 +168,11 @@ export const wrapBackend = (backend, opts = {}) => {
       rec = { mtime: t, atime: t, ctime: t, btime: t };
       statTable.set(key, rec);
     }
-    if (fields.mtime) {
+    if (wantMtime) {
       rec.mtime = t;
       rec.ctime = t;
     }
-    if (fields.atime) rec.atime = t;
+    if (wantAtime) rec.atime = t;
   };
   const statOf = path => {
     const key = lockKeyOf(path);
@@ -378,7 +384,6 @@ export const wrapBackend = (backend, opts = {}) => {
 
     const ensureIter = () => {
       if (iter === null) {
-        // @ts-expect-error AsyncIterable<DirEntry> is correct shape
         iter = backend.list(dirPath)[Symbol.asyncIterator]();
       }
       return iter;
@@ -1076,9 +1081,11 @@ export const wrapBackend = (backend, opts = {}) => {
         const writeP = backend.write(childPath, EMPTY_BYTES, 0n);
         if (mode.truncate) {
           if (!caps.setStat) throw notSupported('create({ truncate: true })');
-          // @ts-expect-error optional method probed above
+          const setStatFn = /** @type {NonNullable<typeof backend.setStat>} */ (
+            backend.setStat
+          );
           const truncP = writeP.then(() =>
-            backend.setStat(childPath, { size: 0n }),
+            setStatFn(childPath, { size: 0n }),
           );
           await truncP;
         } else {
