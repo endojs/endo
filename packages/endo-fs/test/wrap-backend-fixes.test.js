@@ -367,3 +367,118 @@ test('OpenFile.read updates atime; OpenFile.write updates mtime', async t => {
 
   await E(oh).close();
 });
+
+// ---------- Review #4a: backend.getStat preferred over vat-local ----------
+
+test('wrap-backend prefers backend.getStat over the vat-local stat table', async t => {
+  // Backend.getStat returns explicit timestamps; wrap-backend's
+  // File.getStat must surface those rather than the vat-local
+  // "first observation" defaults. This is the disk-truth pathway
+  // that node-fs relies on.
+  const explicitMtime = 999_888_777_000_000_000n;
+  const explicitAtime = 111_222_333_000_000_000n;
+  const backend = makeStubBackend({
+    async getStat(path) {
+      const r = path.join('/');
+      if (r === 'tagged') {
+        return harden({
+          size: 5n,
+          mtime: explicitMtime,
+          atime: explicitAtime,
+        });
+      }
+      throw Error(`ENOENT: ${r}`);
+    },
+  });
+  const fs = wrapBackend(backend);
+  const root = await E(fs).root();
+  const oh = await E(root).create('tagged', {});
+  await writeBytes(await E(oh).write(0n), utf8('hello'));
+  await E(oh).close();
+
+  const file = await E(root).lookup('tagged');
+  const stat = await E(file).getStat();
+  t.is(stat.mtime, explicitMtime, 'should use backend.getStat mtime');
+  t.is(stat.atime, explicitAtime, 'should use backend.getStat atime');
+  t.is(stat.size, 5n);
+});
+
+// ---------- Review #4b: stat/xattr tables invalidated on remove ----------
+
+test('Directory.remove cleans up xattr / stat table entries', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const oh = await E(root).create('ghost', {});
+  await writeBytes(await E(oh).write(0n), utf8('alive'));
+  await E(oh).close();
+  const file = await E(root).lookup('ghost');
+
+  // Set an xattr.
+  await writeBytes(
+    await E(await E(file).xattrs()).set('user.tag', {}),
+    utf8('ghost-tag'),
+  );
+
+  // Remove the file.
+  await E(root).remove('ghost');
+
+  // Recreate at the same path.
+  const oh2 = await E(root).create('ghost', {});
+  await writeBytes(await E(oh2).write(0n), utf8('reborn'));
+  await E(oh2).close();
+  const file2 = await E(root).lookup('ghost');
+
+  // The new file should NOT inherit the predecessor's xattr.
+  const xattrs2 = await E(file2).xattrs();
+  await t.throwsAsync(() => E(xattrs2).get('user.tag'), {
+    message: /ENODATA/,
+  });
+});
+
+// ---------- Review #4b: stat/xattr tables transplant on rename ----------
+
+test('Directory.rename moves xattr / stat table entries to the new path', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const oh = await E(root).create('alpha', {});
+  await writeBytes(await E(oh).write(0n), utf8('content'));
+  await E(oh).close();
+  const before = await E(root).lookup('alpha');
+  await writeBytes(
+    await E(await E(before).xattrs()).set('user.tag', {}),
+    utf8('preserved'),
+  );
+
+  await E(root).rename('alpha', root, 'beta');
+
+  // Xattr should now be readable on the new path.
+  const renamed = await E(root).lookup('beta');
+  const back = await drainReader(
+    await E(await E(renamed).xattrs()).get('user.tag'),
+  );
+  t.is(fromUtf8(back), 'preserved');
+
+  // And not present on the old path (a fresh create there would be
+  // ENODATA, not the inherited tag).
+  await t.throwsAsync(() => E(root).lookup('alpha'), { message: /ENOENT/ });
+});
+
+// ---------- Review #11a / #9e: from-mount list() re-raises non-ENOENT ----------
+
+test('from-mount list() re-raises non-ENOENT errors from per-child lookup', async t => {
+  // A Mount whose top-level list() returns names but whose
+  // per-child lookup throws EIO. The old implementation silently
+  // dropped the entry; the fix re-raises so consumers see the
+  // real failure.
+  const failingMount = Far('FailingMount', {
+    async list() {
+      return ['child'];
+    },
+    async lookup(_path) {
+      throw Error('EIO: simulated I/O failure on child lookup');
+    },
+  });
+  const backend = makeFromMountBackend(failingMount);
+  const iter = backend.list([])[Symbol.asyncIterator]();
+  await t.throwsAsync(() => iter.next(), { message: /EIO/ });
+});

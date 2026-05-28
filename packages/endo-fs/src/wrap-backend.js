@@ -55,13 +55,14 @@ import {
  * @param {FsBackend} backend
  */
 const probeCapabilities = backend => {
+  const b = /** @type {any} */ (backend);
   return harden({
-    setStat: typeof (/** @type {any} */ (backend).setStat) === 'function',
-    fsync: typeof (/** @type {any} */ (backend).fsync) === 'function',
-    rename: typeof (/** @type {any} */ (backend).rename) === 'function',
-    watch: typeof (/** @type {any} */ (backend).watch) === 'function',
-    hash: typeof (/** @type {any} */ (backend).hash) === 'function',
-    statfs: typeof (/** @type {any} */ (backend).statfs) === 'function',
+    getStat: typeof b.getStat === 'function',
+    setStat: typeof b.setStat === 'function',
+    fsync: typeof b.fsync === 'function',
+    rename: typeof b.rename === 'function',
+    watch: typeof b.watch === 'function',
+    statfs: typeof b.statfs === 'function',
   });
 };
 
@@ -179,13 +180,100 @@ export const wrapBackend = (backend, opts = {}) => {
     let rec = statTable.get(key);
     if (!rec) {
       // First observation; initialize to "now" so consumers see
-      // non-zero timestamps. Persistent backings (node-fs) can
-      // override by implementing `backend.getAttrs?` directly.
+      // non-zero timestamps. Persistent backings should implement
+      // `backend.getStat?` — readStatNow below prefers the backend's
+      // disk-truthful value over this vat-local fallback.
       const t = nowNs();
       rec = { mtime: t, atime: t, ctime: t, btime: t };
       statTable.set(key, rec);
     }
     return rec;
+  };
+
+  /**
+   * Read the portable stat subset for a path, preferring the
+   * backend's `getStat?` when available so node-fs (and other
+   * persistent backings) returns the real disk timestamps rather
+   * than the vat-local approximation. Toy backends fall back to
+   * `statOf(path)`.
+   *
+   * @param {string[]} path
+   * @returns {Promise<{ size?: bigint, mtime: bigint, atime: bigint, ctime: bigint, btime: bigint }>}
+   */
+  const readStatNow = async path => {
+    if (caps.getStat) {
+      // @ts-expect-error optional method probed above
+      const backendStat = await backend.getStat(path);
+      const local = statOf(path);
+      return harden({
+        size: backendStat.size,
+        mtime: backendStat.mtime ?? local.mtime,
+        atime: backendStat.atime ?? local.atime,
+        ctime: local.ctime,
+        btime: local.btime,
+      });
+    }
+    return statOf(path);
+  };
+
+  /**
+   * Remove every per-path table entry under `path` (and any subtree
+   * under it for directories). Called from Directory.remove /
+   * Directory.unlink so stat / xattr / event-subscriber tables
+   * don't accumulate ghost entries for paths that no longer exist
+   * (which would also let a recreated path inherit the predecessor's
+   * metadata).
+   *
+   * @param {string[]} path
+   */
+  const cleanupTables = path => {
+    const selfKey = lockKeyOf(path);
+    const prefix = path.length === 0 ? '' : `${selfKey}\0`;
+    for (const map of [statTable, xattrTable, localSubs]) {
+      const toDelete = [];
+      for (const key of map.keys()) {
+        if (key === selfKey || (prefix !== '' && key.startsWith(prefix))) {
+          toDelete.push(key);
+        }
+      }
+      for (const key of toDelete) map.delete(key);
+    }
+  };
+
+  /**
+   * Move every per-path table entry from `srcPath` to `dstPath`
+   * (and any subtree underneath). Mirrors the rename's effect on
+   * the backend so xattrs and stat timestamps follow the data.
+   *
+   * @param {string[]} srcPath
+   * @param {string[]} dstPath
+   */
+  const transplantTables = (srcPath, dstPath) => {
+    const srcKey = lockKeyOf(srcPath);
+    const dstKey = lockKeyOf(dstPath);
+    const srcPrefix = `${srcKey}\0`;
+    const dstPrefix = `${dstKey}\0`;
+    for (const map of [statTable, xattrTable]) {
+      /** @type {Array<[string, any]>} */
+      const moves = [];
+      for (const [key, value] of map) {
+        if (key === srcKey) {
+          moves.push([dstKey, value]);
+          map.delete(key);
+        } else if (key.startsWith(srcPrefix)) {
+          moves.push([dstPrefix + key.slice(srcPrefix.length), value]);
+          map.delete(key);
+        }
+      }
+      for (const [newKey, value] of moves) map.set(newKey, value);
+    }
+    // Active watchers (entries in localSubs) keep firing under their
+    // original path key — moving a directory shouldn't silently
+    // redirect existing event consumers. Drop them; consumers can
+    // re-subscribe under the new path if they care.
+    for (const key of [...localSubs.keys()]) {
+      if (key === srcKey || key.startsWith(srcPrefix)) localSubs.delete(key);
+    }
   };
 
   // Brand-set for cycle detection across CapTP boundaries.
@@ -771,10 +859,13 @@ export const wrapBackend = (backend, opts = {}) => {
         if (k !== 'file') {
           throw makeError(X`ENOENT: ${q(path.join('/'))}`);
         }
-        const bytes = await backend.read(path);
-        const st = statOf(path);
+        const st = await readStatNow(path);
+        const size =
+          st.size !== undefined
+            ? st.size
+            : BigInt((await backend.read(path)).length);
         return harden({
-          size: BigInt(bytes.length),
+          size,
           mtime: st.mtime,
           atime: st.atime,
         });
@@ -818,10 +909,13 @@ export const wrapBackend = (backend, opts = {}) => {
         if (k !== 'file') {
           throw makeError(X`ENOENT: ${q(path.join('/'))}`);
         }
-        const bytes = await backend.read(path);
-        const st = statOf(path);
+        const st = await readStatNow(path);
+        const size =
+          st.size !== undefined
+            ? st.size
+            : BigInt((await backend.read(path)).length);
         return harden({
-          size: BigInt(bytes.length),
+          size,
           mtime: st.mtime,
           atime: st.atime,
           ctime: st.ctime,
@@ -984,7 +1078,7 @@ export const wrapBackend = (backend, opts = {}) => {
         if (k !== 'directory') {
           throw makeError(X`ENOENT: ${q(path.join('/'))}`);
         }
-        const st = statOf(path);
+        const st = await readStatNow(path);
         return harden({ size: 0n, mtime: st.mtime, atime: st.atime });
       },
       async setStat(patch) {
@@ -1003,7 +1097,7 @@ export const wrapBackend = (backend, opts = {}) => {
         return synthQid(path, 'directory');
       },
       async getAttrs() {
-        const st = statOf(path);
+        const st = await readStatNow(path);
         return harden({
           size: 0n,
           mtime: st.mtime,
@@ -1041,7 +1135,9 @@ export const wrapBackend = (backend, opts = {}) => {
       async unlink(name) {
         // Legacy synonym for remove.
         assertChildName(name);
-        await backend.remove([...path, name]);
+        const childPath = [...path, name];
+        await backend.remove(childPath);
+        cleanupTables(childPath);
       },
       // ---- /Legacy ----
       async watch() {
@@ -1109,6 +1205,7 @@ export const wrapBackend = (backend, opts = {}) => {
         assertChildName(name);
         const childPath = [...path, name];
         await backend.remove(childPath);
+        cleanupTables(childPath);
       },
       async rename(srcName, newParent, dstName) {
         assertChildName(srcName);
@@ -1126,6 +1223,7 @@ export const wrapBackend = (backend, opts = {}) => {
           if (caps.rename) {
             // @ts-expect-error optional method probed above
             await backend.rename(srcPath, dstPath);
+            transplantTables(srcPath, dstPath);
             return;
           }
           // Fallback: structural copy via backend operations.
@@ -1133,6 +1231,7 @@ export const wrapBackend = (backend, opts = {}) => {
             const bytes = await backend.read(srcPath);
             await backend.write(dstPath, bytes, 0n);
             await backend.remove(srcPath);
+            transplantTables(srcPath, dstPath);
             return;
           }
           // Directory recursive copy is complex; defer.

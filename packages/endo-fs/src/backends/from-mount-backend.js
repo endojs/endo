@@ -123,7 +123,11 @@ export const makeFromMountBackend = rootMount => {
         try {
           const child = await E(mount).lookup(name);
           kind = await probeMountChild(child);
-        } catch {
+        } catch (e) {
+          // Same policy as resolve(): missing nodes drop silently
+          // from the listing; real I/O / permission errors re-raise.
+          const msg = /** @type {Error} */ (e).message;
+          if (!/ENOENT/.test(msg)) throw e;
           kind = undefined;
         }
         if (kind !== undefined) {

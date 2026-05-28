@@ -29,10 +29,10 @@ export { makeFromMountBackend } from './backends/from-mount-backend.js';
 // Public porcelain helpers (free functions over the typed cap surface).
 export { walk, collectBytes, collectStream } from './helpers.js';
 
-// PosixFs extension cap — POSIX-shaped attrs over a base Filesystem
-// (mode / uid / gid / inode-identity / real OS locks / native disk
-// xattrs go here, leaving base endo-fs portable).
-export { synthesizePosixFs, PosixFsInterface } from './posix-fs.js';
+// PosixFs interface sketch — POSIX-shaped attrs / real OS locks /
+// native disk xattrs live in a future companion cap. Only the
+// guard is exported; backing-specific implementations come later.
+export { PosixFsInterface } from './posix-fs.js';
 
 export {
   FilesystemInterface,

@@ -200,6 +200,12 @@ export const makeInMemoryBackend = () => {
       fire(path, { kind: 'removed' });
     },
 
+    // No `getStat` — wrap-backend's vat-local stat table is the
+    // source of truth for in-memory (which has no concept of "disk
+    // mtime" distinct from "when the vat last touched this file").
+    // node-fs implements `getStat` to surface real disk timestamps;
+    // toy backends like this one let wrap-backend's table win.
+
     async setStat(path, patch) {
       const rec = requireFile(path);
       const bytes = /** @type {Uint8Array} */ (rec.bytes);

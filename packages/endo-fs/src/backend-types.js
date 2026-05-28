@@ -107,28 +107,33 @@
  *
  * **Required (6 methods).** Every backing implements these. Toy
  * backings that only do these get a functional `Filesystem` with
- * vat-local advisory locks, no watchers, no `setStat`, non-atomic
- * rename, and a SHA-256 hash synthesized by re-reading.
+ * vat-local advisory locks, no watchers, vat-local synthesized
+ * stat timestamps, and non-atomic rename.
  *
- * **Optional (5 methods).** Each advertised by method existence.
+ * **Optional (6 methods).** Each advertised by method existence.
  * Missing methods → wrapBackend either synthesizes a safe fallback
- * (`rename` via copy+remove, `hash` via re-read, etc.) or surfaces
- * ENOSYS to the consumer (`setStat`).
+ * or surfaces ENOSYS to the consumer.
  *
  * **Paths are `string[]` segments.** Backings that need string
  * paths join internally. The empty array `[]` denotes the root.
  *
- * **No `flock?`, no `getXattr?`/`setXattr?`, no `getStat?`.**
- *   - Real OS locks → `PosixFs` (F15). Base advisory locks served
- *     entirely by wrapBackend's `lockTable`.
- *   - Xattrs → `PosixFs`. Removed from base.
- *   - Reads of full attrs (`Attrs`, `Qid` identity) → `PosixFs`.
- *     Base exposes `getStat` on the Filesystem exo surface, which
- *     reads the narrow subset directly from `stat`-ish probes that
- *     wrapBackend builds out of `kind` + an internal cache (no
- *     backend method for reads of size/mtime/atime — those are
- *     looked up by reading the file or by composing a PosixFs
- *     backend on top).
+ * **Tree-only kind.** `kind()` returns `'file' | 'directory' |
+ * undefined`. Non-{file,directory} entries (sockets, symlinks,
+ * device files) surface as `undefined` and read as ENOENT to
+ * consumers — base endo-fs is tree-shaped; OS-specific shapes
+ * live in `PosixFs`.
+ *
+ * **No `flock?`, no `getXattr?`/`setXattr?` here.** Real OS locks
+ * and native disk xattrs are POSIX-shaped → `PosixFs` extension.
+ * The base xattrs sub-cap on `Node` is served from a vat-local
+ * sidecar inside `wrapBackend`.
+ *
+ * **`getStat?` is optional but important on persistent backings.**
+ * When present, `wrapBackend.File.getStat/getAttrs` prefers the
+ * backend's value over its own vat-local stat table — so node-fs's
+ * `getStat` returns the real disk mtime, not the moment the vat
+ * first looked at the file. Toy backends (KV stores, in-memory)
+ * can omit it; the vat-local table fills in.
  *
  * @typedef {object} FsBackend
  * @property {(path: string[]) => Promise<NodeKind | undefined>} kind
@@ -137,12 +142,18 @@
  * @property {(path: string[], bytes: Uint8Array, offset?: bigint) => Promise<void>} write
  * @property {(path: string[]) => Promise<void>} makeDirectory
  * @property {(path: string[]) => Promise<void>} remove
+ * @property {(path: string[]) => Promise<NodeStat>} [getStat]
  * @property {(path: string[], patch: NodeStat) => Promise<void>} [setStat]
  * @property {(path: string[]) => Promise<void>} [fsync]
  * @property {(src: string[], dst: string[]) => Promise<void>} [rename]
  * @property {(path: string[]) => AsyncIterable<WatchEvent>} [watch]
- * @property {(path: string[]) => Promise<Uint8Array>} [hash]
+ * @property {() => Promise<{ blockSize?: bigint, totalBlocks?: bigint, freeBlocks?: bigint, totalBytes?: bigint, freeBytes?: bigint, files?: bigint, directories?: bigint }>} [statfs]
  */
+
+// `hash?` was probed but never wired through any consumer.
+// `BlobRef` does its own SHA-256 over captured bytes
+// (`shared/blobref.js`); reintroduce a hash optional once a real
+// porcelain method (`File.contentHash()`?) wants it.
 
 // This module is types-only. Exporting an empty object keeps it as a
 // `.js` module that ts-check and JSDoc consumers can `@import` from.

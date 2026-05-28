@@ -16,7 +16,6 @@
 import nodePath from 'node:path';
 import * as fsp from 'node:fs/promises';
 import { watch as fsWatch } from 'node:fs';
-import { createHash } from 'node:crypto';
 
 import { makeError, X, q } from '@endo/errors';
 
@@ -246,6 +245,22 @@ export const makeNodeFsBackend = ({ rootPath }) => {
       }
     },
 
+    async getStat(path) {
+      const abs = absOf(path);
+      await assertConfined(abs);
+      const st = await fsp.stat(abs);
+      // Node's `Stats.mtimeMs` is a JS number; convert to ns-bigint
+      // so the rest of the system sees the portable shape. `size`
+      // is an integer in bytes; coerce to bigint for consistency
+      // with the rest of the protocol.
+      const toNs = ms => BigInt(Math.trunc(ms)) * 1_000_000n;
+      return harden({
+        size: BigInt(st.size),
+        mtime: toNs(st.mtimeMs),
+        atime: toNs(st.atimeMs),
+      });
+    },
+
     async setStat(path, patch) {
       const abs = absOf(path);
       await assertConfined(abs);
@@ -371,13 +386,6 @@ export const makeNodeFsBackend = ({ rootPath }) => {
         },
       };
       return iter;
-    },
-
-    async hash(path) {
-      const abs = absOf(path);
-      await assertConfined(abs);
-      const bytes = await fsp.readFile(abs);
-      return new Uint8Array(createHash('sha256').update(bytes).digest());
     },
   });
 };
