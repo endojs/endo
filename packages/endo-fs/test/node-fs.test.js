@@ -207,14 +207,19 @@ test('locks are advisory + in-process', async t => {
   await E(opened).close();
 });
 
-test('xattrs throw ENOSYS on disk (v1 limitation)', async t => {
+test('xattrs on node-fs are served from a vat-local sidecar', async t => {
+  // The seam refactor moves native disk xattrs to a future PosixFs
+  // extension; base node-fs Filesystems get in-vat sidecar xattrs
+  // via wrap-backend's xattrTable (round-trips, but doesn't persist
+  // to disk).
   const fs = await setupFs(t);
   const root = await E(fs).root();
   const opened = await E(root).create('x', {});
   await E(opened).close();
   const file = await E(root).lookup('x');
   const x = await E(file).xattrs();
-  await t.throwsAsync(() => E(x).get('user.tag'), { message: /ENOSYS/ });
+  // Unset xattrs return ENODATA, matching POSIX.
+  await t.throwsAsync(() => E(x).get('user.tag'), { message: /ENODATA/ });
 });
 
 test('watch fires events when a child is created in the directory', async t => {
