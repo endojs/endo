@@ -139,7 +139,10 @@ test.serial(
 
     // 4. Run the program through the existing make-from-tree
     //    formula. The fixture's `make()` returns an exo that echoes
-    //    env, which becomes the formula value.
+    //    env, which becomes the formula value. Passing `undefined`
+    //    for the worker name selects the host's default worker
+    //    (`@node` here); the host method's signature is
+    //    `(workerName?, treeName, opts)`.
     const exo = await E(host).makeFromTree(undefined, 'tree-view', {
       powersName: '@none',
       env: { HELLO: 'endo-fs-exec' },

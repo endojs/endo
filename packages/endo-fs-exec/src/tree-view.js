@@ -125,7 +125,10 @@ export const makeTreeView = (filesystem, opts = {}) => {
     // Walk lazily inside text() so a `lookup(...)` of a missing
     // path doesn't strand a rejected promise (the intermediate
     // pipelined `E(cursor).lookup(seg)` cursors have no catch
-    // handlers and would surface as unhandled rejections).
+    // handlers and would surface as unhandled rejections). A side
+    // effect of lazy walk: each `text()` call re-walks and re-reads
+    // — blobs do not cache their bytes. `make-from-tree` reads each
+    // module exactly once, so memoising would be dead weight.
     const text = async () => {
       const file = await walk(segments);
       const [attrs, openFile] = await Promise.all([

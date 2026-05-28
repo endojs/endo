@@ -23,11 +23,14 @@ harden(TreeBlobInterface);
 
 /**
  * Tree-view shape: `lookup(name)` maps a `string` (single segment)
- * or `string[]` (segments) to a `TreeBlob`.
+ * or `string[]` (segments) to a `TreeBlob`. The return is a
+ * synchronously-minted local exo (`M.remotable`, not `M.eref`) —
+ * the walk over the underlying filesystem is deferred to
+ * `TreeBlob.text()`.
  */
 export const TreeViewInterface = M.interface('TreeView', {
   lookup: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(
-    M.eref(M.remotable('TreeBlob')),
+    M.remotable('TreeBlob'),
   ),
   help: M.call().optional(M.string()).returns(M.string()),
 });
