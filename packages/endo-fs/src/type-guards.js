@@ -62,8 +62,18 @@ harden(FilesystemInterface);
 /**
  * Methods that every `Directory` and `File` exposes (§4.2 Node base).
  * Composed into the per-subtype interfaces below.
+ *
+ * The interface declares both the "narrow" portable shape
+ * (`getStat`/`setStat`, accepting only `size`/`mtime`/`atime`) and
+ * the "wide" legacy shape (`getAttrs`/`setAttrs`/`getQid`/`xattrs`,
+ * the pre-seam-refactor surface). Both are real public methods on
+ * wrapBackend-built exos; consumers can use either pair. POSIX-only
+ * fields like `mode`/`uid`/`gid` live in a future `PosixFs`
+ * companion cap rather than in the base.
  */
 const NodeBaseMethods = {
+  getStat: M.call().returns(M.promise()),
+  setStat: M.call(Pass).returns(M.promise()),
   getQid: M.call().returns(Pass),
   getAttrs: M.call().returns(M.promise()),
   setAttrs: M.call(Pass).returns(M.promise()),
@@ -81,6 +91,13 @@ export const DirectoryInterface = M.interface(
     ),
     list: M.call().returns(M.eref(M.remotable('Cursor'))),
     create: M.call(M.string(), Pass).returns(M.eref(M.remotable('OpenFile'))),
+    makeDirectory: M.call(M.string(), Pass).returns(
+      M.eref(M.remotable('Directory')),
+    ),
+    remove: M.call(M.string()).returns(M.promise()),
+    // Legacy aliases for `makeDirectory` / `remove`. Kept declared
+    // so the interface is honest about what wrapBackend's Directory
+    // exos actually expose.
     mkdir: M.call(M.string(), Pass).returns(M.eref(M.remotable('Directory'))),
     unlink: M.call(M.string()).returns(M.promise()),
     // `newParent` is wrapped in `M.await` so a caller can pipeline a
@@ -135,42 +152,46 @@ export const FileInterface = M.interface(
 );
 harden(FileInterface);
 
-export const CursorInterface = M.interface(
-  'Cursor',
-  {
-    stream: M.call().returns(M.eref(M.remotable('PassableReader'))),
-    skip: M.call(M.bigint()).returns(M.promise()),
-    rewind: M.call().returns(M.promise()),
-    help: M.call().optional(M.string()).returns(M.string()),
-  },
-  { sloppy: true },
-);
+// Cursor / OpenFile / Lock / Xattrs / NodeWatcher / BlobRef are
+// non-evolving — their method set is stable; we declare every
+// public method explicitly and skip `sloppy: true`. Drift on these
+// guards is a real bug we want CapTP to catch.
+
+export const CursorInterface = M.interface('Cursor', {
+  // Bounded page read for single-RTT directory listing. Returns
+  // `{ entries: DirEntry[], atEnd: boolean }`. `limit` is optional;
+  // omitted = drain the rest.
+  read: M.call().optional(M.bigint()).returns(M.promise()),
+  // Streaming reader over `DirEntry` for huge directories.
+  stream: M.call().returns(M.eref(M.remotable('PassableReader'))),
+  // Drain-everything convenience; do not use on unbounded listings.
+  toArray: M.call().returns(M.promise()),
+  skip: M.call(M.bigint()).returns(M.promise()),
+  rewind: M.call().returns(M.promise()),
+  help: M.call().optional(M.string()).returns(M.string()),
+});
 harden(CursorInterface);
 
-export const OpenFileInterface = M.interface(
-  'OpenFile',
-  {
-    // `read(offset, length)` returns a `PassableBytesReader` over the
-    // requested slice. (CapTP marshalling rejects raw mutable typed
-    // arrays, so the wire shape stays a base64-streamed reader —
-    // single-RTT pipelining via E gets the same effective cost as a
-    // bare bytes return; see designs/endo-fs-backend-seam.md
-    // "Design deviation".) Both args optional so a 0-arg call is a
-    // "from cursor to EOF" probe.
-    read: M.callWhen().optional(M.bigint(), M.bigint()).returns(Pass),
-    // `write(offset)` returns a `PassableBytesWriter` whose chunks are
-    // coalesced and pwritten at `offset` on close (no truncate of the
-    // tail). `offset` is optional — defaults to the cursor.
-    write: M.callWhen(M.any()).optional(M.bigint()).returns(Pass),
-    truncate: M.call(M.bigint()).returns(M.promise()),
-    fsync: M.call(Pass).returns(M.promise()),
-    lock: M.call(Pass).returns(M.eref(M.remotable('Lock'))),
-    getLock: M.call(Pass).returns(M.promise()),
-    close: M.call().returns(M.promise()),
-    help: M.call().optional(M.string()).returns(M.string()),
-  },
-  { sloppy: true },
-);
+export const OpenFileInterface = M.interface('OpenFile', {
+  // `read(offset, length)` returns a `PassableBytesReader` over the
+  // requested slice. CapTP marshalling rejects raw mutable typed
+  // arrays, so the wire shape stays a base64-streamed reader —
+  // single-RTT pipelining via E gets the same effective cost as a
+  // bare bytes return; see designs/endo-fs-backend-seam.md
+  // "Design deviation". Both args optional so a 0-arg call is a
+  // "from cursor to EOF" probe.
+  read: M.callWhen().optional(M.bigint(), M.bigint()).returns(Pass),
+  // `write(offset)` returns a `PassableBytesWriter` whose chunks are
+  // coalesced and pwritten at `offset` on close (no truncate of the
+  // tail). `offset` is optional — defaults to the cursor.
+  write: M.callWhen(M.any()).optional(M.bigint()).returns(Pass),
+  truncate: M.call(M.bigint()).returns(M.promise()),
+  fsync: M.call(Pass).returns(M.promise()),
+  lock: M.call(Pass).returns(M.eref(M.remotable('Lock'))),
+  getLock: M.call(Pass).returns(M.promise()),
+  close: M.call().returns(M.promise()),
+  help: M.call().optional(M.string()).returns(M.string()),
+});
 harden(OpenFileInterface);
 
 export const LockInterface = M.interface('Lock', {
@@ -179,19 +200,15 @@ export const LockInterface = M.interface('Lock', {
 });
 harden(LockInterface);
 
-export const XattrsInterface = M.interface(
-  'Xattrs',
-  {
-    get: M.call(M.string()).returns(M.eref(M.remotable('PassableBytesReader'))),
-    set: M.call(M.string(), Pass).returns(
-      M.eref(M.remotable('PassableBytesWriter')),
-    ),
-    list: M.call().returns(M.eref(M.remotable('PassableReader'))),
-    remove: M.call(M.string()).returns(M.promise()),
-    help: M.call().optional(M.string()).returns(M.string()),
-  },
-  { sloppy: true },
-);
+export const XattrsInterface = M.interface('Xattrs', {
+  get: M.call(M.string()).returns(M.eref(M.remotable('PassableBytesReader'))),
+  set: M.call(M.string(), Pass).returns(
+    M.eref(M.remotable('PassableBytesWriter')),
+  ),
+  list: M.call().returns(M.eref(M.remotable('PassableReader'))),
+  remove: M.call(M.string()).returns(M.promise()),
+  help: M.call().optional(M.string()).returns(M.string()),
+});
 harden(XattrsInterface);
 
 /**

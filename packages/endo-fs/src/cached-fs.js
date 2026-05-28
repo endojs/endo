@@ -221,6 +221,12 @@ const makeCachingDirectory = (
     getQid() {
       return cachedQid;
     },
+    async getStat() {
+      return E(dir).getStat();
+    },
+    async setStat(patch) {
+      return E(dir).setStat(patch);
+    },
     async getAttrs() {
       return E(dir).getAttrs();
     },
@@ -274,8 +280,23 @@ const makeCachingDirectory = (
         wrapperToInner,
       );
     },
+    async makeDirectory(name, opts) {
+      const { node, qid } = await resolveNodeWithQid(
+        E(dir).makeDirectory(name, opts),
+      );
+      return makeCachingDirectory(
+        node,
+        qid,
+        cas,
+        populateInBackground,
+        wrapperToInner,
+      );
+    },
     async unlink(name) {
       return E(dir).unlink(name);
+    },
+    async remove(name) {
+      return E(dir).remove(name);
     },
     async rename(oldName, newParent, newName) {
       // The underlying disk-backed and Mount-adapted impls identify
@@ -379,6 +400,12 @@ const makeCachingFile = (file, cachedQid, cas, populateInBackground) => {
   return makeExo('File', FileInterface, {
     getQid() {
       return cachedQid;
+    },
+    async getStat() {
+      return E(file).getStat();
+    },
+    async setStat(patch) {
+      return E(file).setStat(patch);
     },
     async getAttrs() {
       return E(file).getAttrs();

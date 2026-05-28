@@ -852,70 +852,87 @@ export const wrapBackend = (backend, opts = {}) => {
   // ---------- File exo ----------
 
   // eslint-disable-next-line prefer-const
+  /**
+   * Read a file's portable stat (size + mtime + atime). Used by
+   * both `getStat` (narrow shape) and `getAttrs` (legacy wide
+   * shape that adds ctime/btime).
+   *
+   * @param {string[]} path
+   */
+  const readFileStat = async path => {
+    const k = await backend.kind(path);
+    if (k !== 'file') {
+      throw makeError(X`ENOENT: ${q(path.join('/'))}`);
+    }
+    const st = await readStatNow(path);
+    const size =
+      st.size !== undefined
+        ? st.size
+        : BigInt((await backend.read(path)).length);
+    return { ...st, size };
+  };
+
+  /**
+   * Apply a stat patch on a file path: backend.setStat if the
+   * backend has it, otherwise synthesize a resize via read+write.
+   * Explicit mtime/atime in the patch wins; any other change
+   * touches mtime to "now."
+   *
+   * @param {string[]} path
+   * @param {{ size?: bigint, mtime?: bigint, atime?: bigint }} patch  raw user input
+   */
+  const applyStatPatch = async (path, patch) => {
+    validateStatPatch(patch);
+    const narrow = narrowStatPatch(patch);
+    if (caps.setStat) {
+      // @ts-expect-error optional method probed above
+      await backend.setStat(path, narrow);
+    } else if (narrow.size !== undefined) {
+      // No backend setStat — synthesize a resize via read/write.
+      // Other fields silently no-op since the statTable absorbs the
+      // new mtime/atime below.
+      const current = /** @type {Uint8Array} */ (await backend.read(path));
+      const newSize = Number(narrow.size);
+      if (newSize < current.length) {
+        await backend.write(path, current.slice(0, newSize), 0n);
+      } else if (newSize > current.length) {
+        const grown = new Uint8Array(newSize);
+        grown.set(current, 0);
+        await backend.write(path, grown, 0n);
+      }
+    }
+    // Explicit mtime/atime win; otherwise a size change touches mtime.
+    const st = statOf(path);
+    if (narrow.mtime !== undefined) {
+      st.mtime = narrow.mtime;
+    } else if (narrow.size !== undefined) {
+      touch(path, { mtime: true });
+    }
+    if (narrow.atime !== undefined) st.atime = narrow.atime;
+  };
+
+  // eslint-disable-next-line prefer-const -- mutual recursion with makeDirectoryExo
   makeFileExo = path => {
     return makeExo('File', FileInterface, {
       async getStat() {
-        const k = await backend.kind(path);
-        if (k !== 'file') {
-          throw makeError(X`ENOENT: ${q(path.join('/'))}`);
-        }
-        const st = await readStatNow(path);
-        const size =
-          st.size !== undefined
-            ? st.size
-            : BigInt((await backend.read(path)).length);
+        const st = await readFileStat(path);
         return harden({
-          size,
+          size: st.size,
           mtime: st.mtime,
           atime: st.atime,
         });
       },
       async setStat(patch) {
-        validateStatPatch(patch);
-        const narrow = narrowStatPatch(patch);
-        if (caps.setStat) {
-          // @ts-expect-error optional method probed above
-          await backend.setStat(path, narrow);
-        } else if (narrow.size !== undefined) {
-          // No backend setStat — surface the size change by resizing
-          // via read/write. Other fields silently no-op since the
-          // statTable will absorb the new mtime/atime.
-          const current = /** @type {Uint8Array} */ (await backend.read(path));
-          const newSize = Number(narrow.size);
-          if (newSize < current.length) {
-            await backend.write(path, current.slice(0, newSize), 0n);
-          } else if (newSize > current.length) {
-            const grown = new Uint8Array(newSize);
-            grown.set(current, 0);
-            await backend.write(path, grown, 0n);
-          }
-        }
-        // Explicit mtime/atime win; otherwise any size change
-        // implies modification → touch the mtime to "now."
-        const st = statOf(path);
-        if (narrow.mtime !== undefined) {
-          st.mtime = narrow.mtime;
-        } else if (narrow.size !== undefined) {
-          touch(path, { mtime: true });
-        }
-        if (narrow.atime !== undefined) st.atime = narrow.atime;
+        await applyStatPatch(path, patch);
       },
-      // ---- Legacy ----
+      // ---- Legacy: wide-shape attrs + Qid + sidecar xattrs ----
       getQid() {
         return synthQid(path, 'file');
       },
       async getAttrs() {
-        const k = await backend.kind(path);
-        if (k !== 'file') {
-          throw makeError(X`ENOENT: ${q(path.join('/'))}`);
-        }
-        const st = await readStatNow(path);
-        const size =
-          st.size !== undefined
-            ? st.size
-            : BigInt((await backend.read(path)).length);
+        const st = await readFileStat(path);
         return harden({
-          size,
+          size: st.size,
           mtime: st.mtime,
           atime: st.atime,
           ctime: st.ctime,
@@ -923,34 +940,7 @@ export const wrapBackend = (backend, opts = {}) => {
         });
       },
       async setAttrs(patch) {
-        // Translate to narrow setStat; reject POSIX-only fields
-        // explicitly so callers get a clean signal that they need
-        // a PosixFs cap.
-        validateStatPatch(patch);
-        const narrow = narrowStatPatch(patch);
-        if (caps.setStat) {
-          // @ts-expect-error optional method probed above
-          await backend.setStat(path, narrow);
-        } else if (narrow.size !== undefined) {
-          const current = /** @type {Uint8Array} */ (await backend.read(path));
-          const newSize = Number(narrow.size);
-          if (newSize < current.length) {
-            await backend.write(path, current.slice(0, newSize), 0n);
-          } else if (newSize > current.length) {
-            const grown = new Uint8Array(newSize);
-            grown.set(current, 0);
-            await backend.write(path, grown, 0n);
-          }
-        }
-        // Explicit mtime/atime win; otherwise any size change
-        // implies modification → touch the mtime to "now."
-        const st = statOf(path);
-        if (narrow.mtime !== undefined) {
-          st.mtime = narrow.mtime;
-        } else if (narrow.size !== undefined) {
-          touch(path, { mtime: true });
-        }
-        if (narrow.atime !== undefined) st.atime = narrow.atime;
+        await applyStatPatch(path, patch);
       },
       xattrs() {
         return makeXattrsExo(path);
@@ -1071,6 +1061,28 @@ export const wrapBackend = (backend, opts = {}) => {
   // ---------- Directory exo ----------
 
   // eslint-disable-next-line prefer-const
+  /**
+   * Apply a stat patch on a directory path. Directories have no
+   * `size`, so applyStatPatch's read+write resize fallback isn't
+   * meaningful — we just forward to `backend.setStat?` if present
+   * and update the vat-local mtime/atime.
+   *
+   * @param {string[]} path
+   * @param {{ mtime?: bigint, atime?: bigint }} patch
+   */
+  const applyDirectoryStatPatch = async (path, patch) => {
+    validateStatPatch(patch);
+    const narrow = narrowStatPatch(patch);
+    if (caps.setStat) {
+      // @ts-expect-error optional method probed above
+      await backend.setStat(path, narrow);
+    }
+    const st = statOf(path);
+    if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
+    if (narrow.atime !== undefined) st.atime = narrow.atime;
+  };
+
+  // eslint-disable-next-line prefer-const -- mutual recursion with makeFileExo
   makeDirectoryExo = path => {
     const exo = makeExo('Directory', DirectoryInterface, {
       async getStat() {
@@ -1082,17 +1094,9 @@ export const wrapBackend = (backend, opts = {}) => {
         return harden({ size: 0n, mtime: st.mtime, atime: st.atime });
       },
       async setStat(patch) {
-        validateStatPatch(patch);
-        const narrow = narrowStatPatch(patch);
-        if (caps.setStat) {
-          // @ts-expect-error optional method probed above
-          await backend.setStat(path, narrow);
-        }
-        const st = statOf(path);
-        if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
-        if (narrow.atime !== undefined) st.atime = narrow.atime;
+        await applyDirectoryStatPatch(path, patch);
       },
-      // ---- Legacy ----
+      // ---- Legacy: wide-shape attrs + Qid + sidecar xattrs ----
       getQid() {
         return synthQid(path, 'directory');
       },
@@ -1107,15 +1111,7 @@ export const wrapBackend = (backend, opts = {}) => {
         });
       },
       async setAttrs(patch) {
-        validateStatPatch(patch);
-        const narrow = narrowStatPatch(patch);
-        if (caps.setStat) {
-          // @ts-expect-error optional method probed above
-          await backend.setStat(path, narrow);
-        }
-        const st = statOf(path);
-        if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
-        if (narrow.atime !== undefined) st.atime = narrow.atime;
+        await applyDirectoryStatPatch(path, patch);
       },
       xattrs() {
         return makeXattrsExo(path);

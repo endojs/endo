@@ -80,6 +80,12 @@ const makeReadOnlyDirectory = dir => {
       // eslint-disable-next-line @endo/no-polymorphic-call
       return /** @type {any} */ (dir).getQid();
     },
+    async getStat() {
+      return E(dir).getStat();
+    },
+    async setStat(_patch) {
+      throw denied('setStat');
+    },
     async getAttrs() {
       return E(dir).getAttrs();
     },
@@ -117,8 +123,14 @@ const makeReadOnlyDirectory = dir => {
     async mkdir(_name, _opts) {
       throw denied('mkdir');
     },
+    async makeDirectory(_name, _opts) {
+      throw denied('makeDirectory');
+    },
     async unlink(_name) {
       throw denied('unlink');
+    },
+    async remove(_name) {
+      throw denied('remove');
     },
     async rename(_oldName, _newParent, _newName) {
       throw denied('rename');
@@ -152,6 +164,12 @@ const makeReadOnlyFile = file => {
     getQid() {
       // eslint-disable-next-line @endo/no-polymorphic-call
       return /** @type {any} */ (file).getQid();
+    },
+    async getStat() {
+      return E(file).getStat();
+    },
+    async setStat(_patch) {
+      throw denied('setStat');
     },
     async getAttrs() {
       return E(file).getAttrs();
