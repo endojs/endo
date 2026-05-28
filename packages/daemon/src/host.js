@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, GitCredentialDeferredTaskParams, GitDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -30,7 +30,9 @@ import { makeDeferredTasks } from './deferred-tasks.js';
 import { HostInterface } from './interfaces.js';
 import { hostHelp, makeHelp } from './help-text.js';
 import { assertValidTreeEntryName } from './mount.js';
+import { isGitReadOnly } from './git.js';
 import { getGitCredentialController as getGitCredentialControllerForCap } from './git-credential.js';
+import { getGitRemoteController as getGitRemoteControllerForCap } from './git-remote.js';
 
 /**
  * @param {string} name
@@ -77,6 +79,7 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateGit']} args.formulateGit
  * @param {DaemonCore['formulateGitCredential']} args.formulateGitCredential
+ * @param {DaemonCore['formulateGitRemote']} args.formulateGitRemote
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['formulateDirectoryForStore']} args.formulateDirectoryForStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
@@ -114,6 +117,7 @@ export const makeHostMaker = ({
   formulateScratchMount,
   formulateGit,
   formulateGitCredential,
+  formulateGitRemote,
   formulateInvitation,
   formulateDirectoryForStore,
   getPeerIdForNodeIdentifier,
@@ -460,6 +464,88 @@ export const makeHostMaker = ({
         );
       }
       return controller;
+    };
+
+    /** @type {EndoHost['getGitRemoteController']} */
+    const getGitRemoteController = async remoteCap => {
+      await null;
+      const controller = getGitRemoteControllerForCap(remoteCap);
+      if (controller === undefined) {
+        throw makeError(
+          X`getGitRemoteController: argument must be a daemon-minted GitRemote cap`,
+        );
+      }
+      return controller;
+    };
+
+    /** @type {EndoHost['provideGitRemote']} */
+    const provideGitRemote = async (gitCap, petName, opts) => {
+      const { namePath } = assertPetNamePath(namePathFrom(petName));
+      const gitId = getIdForRef(gitCap);
+      if (gitId === undefined) {
+        throw makeError(
+          X`provideGitRemote: first argument must be a daemon-minted Git cap`,
+        );
+      }
+      if (isGitReadOnly(gitCap)) {
+        throw makeError(
+          X`provideGitRemote: cannot construct a remote from a read-only Git cap`,
+        );
+      }
+      if (
+        !opts ||
+        typeof opts !== 'object' ||
+        typeof opts.name !== 'string' ||
+        typeof opts.url !== 'string'
+      ) {
+        throw makeError(
+          X`provideGitRemote: options must include a string name and url`,
+        );
+      }
+      /** @type {FormulaIdentifier | undefined} */
+      let credentialId;
+      if (opts.credential !== undefined) {
+        credentialId = getIdForRef(opts.credential);
+        if (credentialId === undefined) {
+          throw makeError(
+            X`provideGitRemote: credential must be a daemon-minted Git credential cap`,
+          );
+        }
+      }
+      const policy = harden({
+        url: opts.url,
+        allowedDirections: harden([...(opts.allowedDirections || ['fetch'])]),
+        fetchRefspecs: harden([...(opts.fetchRefspecs || [])]),
+        pushRefspecs: harden([...(opts.pushRefspecs || [])]),
+        ...(opts.allowedBranches !== undefined
+          ? { allowedBranches: harden([...opts.allowedBranches]) }
+          : {}),
+        ...(opts.allowForcePush !== undefined
+          ? { allowForcePush: opts.allowForcePush }
+          : {}),
+        ...(opts.allowTags !== undefined ? { allowTags: opts.allowTags } : {}),
+        ...(opts.allowDelete !== undefined
+          ? { allowDelete: opts.allowDelete }
+          : {}),
+        ...(opts.allowLocalFileTransport !== undefined
+          ? { allowLocalFileTransport: opts.allowLocalFileTransport }
+          : {}),
+      });
+
+      /** @type {DeferredTasks<GitRemoteDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).storeIdentifier(namePath, identifiers.gitRemoteId),
+      );
+
+      const { value } = await formulateGitRemote(
+        gitId,
+        credentialId,
+        opts.name,
+        policy,
+        tasks,
+      );
+      return value;
     };
 
     /** @type {EndoHost['storeValue']} */
@@ -1562,9 +1648,11 @@ export const makeHostMaker = ({
       provideMount,
       provideScratchMount,
       provideGit,
+      provideGitRemote,
       provideBearerCredential,
       provideBasicCredential,
       getGitCredentialController,
+      getGitRemoteController,
       provideHostPath,
       provideGuest,
       provideHost,

@@ -331,6 +331,13 @@ export const HostInterface = M.interface('EndoHost', {
   provideGit: M.callWhen(M.remotable(), NameOrPathShape).returns(
     M.remotable('Git'),
   ),
+  // Mint a GitRemote capability that wraps a writable Git cap with a
+  // policy-bound endpoint and (optional) credential.
+  provideGitRemote: M.callWhen(
+    M.remotable(),
+    NameOrPathShape,
+    M.recordOf(M.string(), M.any()),
+  ).returns(M.remotable('GitRemote')),
   // Mint daemon-private Git credential capabilities.
   provideBearerCredential: M.callWhen(
     NameOrPathShape,
@@ -340,9 +347,12 @@ export const HostInterface = M.interface('EndoHost', {
     NameOrPathShape,
     M.recordOf(M.string(), M.any()),
   ).returns(M.remotable('BasicCredential')),
-  // Host-side controller for a daemon-minted credential cap.
+  // Host-side controllers for daemon-minted credential / remote caps.
   getGitCredentialController: M.callWhen(M.remotable()).returns(
     M.remotable('GitCredentialController'),
+  ),
+  getGitRemoteController: M.callWhen(M.remotable()).returns(
+    M.remotable('GitRemoteController'),
   ),
   // Resolve a Mount capability to its host filesystem path. This is
   // deliberately part of the fully privileged EndoHost surface used
@@ -610,6 +620,7 @@ export const MountEntryInterface = M.interface('EndoMountEntry', {
 });
 
 const RefArgShape = M.or(M.string(), M.recordOf(M.string(), M.any()));
+const GitDirectionShape = M.or(M.eq('fetch'), M.eq('push'));
 
 const GitIndexStatusShape = M.or(
   'clean',
@@ -708,6 +719,30 @@ export const GitInterface = M.interface('Git', {
   stashDrop: M.callWhen().optional(M.number()).returns(M.undefined()),
   tree: M.callWhen(RefArgShape).returns(M.remotable('EndoReadableTree')),
   readOnly: M.call().returns(M.remotable('Git')),
+});
+
+export const GitRemoteInterface = M.interface('GitRemote', {
+  inspect: M.call().returns(M.promise()),
+  fetch: M.call()
+    .optional(M.recordOf(M.string(), M.any()))
+    .returns(M.promise()),
+  pull: M.call().optional(M.recordOf(M.string(), M.any())).returns(M.promise()),
+  push: M.call().optional(M.recordOf(M.string(), M.any())).returns(M.promise()),
+});
+
+export const GitRemoteControllerInterface = M.interface('GitRemoteController', {
+  inspect: M.call().returns(M.promise()),
+  audit: M.call().returns(M.promise()),
+  setAllowedDirections: M.call(M.arrayOf(GitDirectionShape)).returns(
+    M.promise(),
+  ),
+  setFetchRefspecs: M.call(M.arrayOf(M.string())).returns(M.promise()),
+  setPushRefspecs: M.call(M.arrayOf(M.string())).returns(M.promise()),
+  setAllowedBranches: M.call(M.arrayOf(M.string())).returns(M.promise()),
+  setAllowForcePush: M.call(M.boolean()).returns(M.promise()),
+  setAllowTags: M.call(M.boolean()).returns(M.promise()),
+  setAllowDelete: M.call(M.boolean()).returns(M.promise()),
+  revoke: M.call().returns(M.promise()),
 });
 
 export const GitCredentialControllerInterface = M.interface(

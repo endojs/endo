@@ -235,6 +235,25 @@ export type GitCredentialFormula = {
   audience: string;
 };
 
+export type GitRemoteFormula = {
+  type: 'git-remote';
+  gitId: FormulaIdentifier;
+  credentialId?: FormulaIdentifier;
+  name: string;
+  policy: {
+    url: string;
+    allowedDirections: Array<'fetch' | 'push'>;
+    fetchRefspecs: string[];
+    pushRefspecs: string[];
+    allowedBranches?: string[];
+    allowForcePush?: boolean;
+    allowTags?: boolean;
+    allowDelete?: boolean;
+    allowLocalFileTransport?: boolean;
+  };
+  revoked?: boolean;
+};
+
 // Public Git capability surface.  These types describe the inputs and
 // outputs of the `Git` exo's methods (see `src/interfaces.js` for the
 // runtime guard and `src/git.js` for the implementation); they are part
@@ -430,6 +449,10 @@ export type GitCredentialDeferredTaskParams = {
   gitCredentialId: FormulaIdentifier;
 };
 
+export type GitRemoteDeferredTaskParams = {
+  gitRemoteId: FormulaIdentifier;
+};
+
 type LookupFormula = {
   type: 'lookup';
 
@@ -611,6 +634,7 @@ export type Formula =
   | ScratchMountFormula
   | GitFormula
   | GitCredentialFormula
+  | GitRemoteFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeArchiveFormula
@@ -1268,6 +1292,23 @@ export interface EndoHost extends EndoAgent {
   ): Promise<EndoMount>;
   provideScratchMount(petName: string | string[]): Promise<EndoMount>;
   provideGit(mountCap: EndoMount, petName: string | string[]): Promise<EndoGit>;
+  provideGitRemote(
+    gitCap: unknown,
+    petName: string | string[],
+    opts: {
+      name: string;
+      url: string;
+      allowedDirections?: Array<'fetch' | 'push'>;
+      fetchRefspecs?: string[];
+      pushRefspecs?: string[];
+      allowedBranches?: string[];
+      allowForcePush?: boolean;
+      allowTags?: boolean;
+      allowDelete?: boolean;
+      allowLocalFileTransport?: boolean;
+      credential?: unknown;
+    },
+  ): Promise<unknown>;
   provideBearerCredential(
     petName: string | string[],
     options: { audience: string; token: string },
@@ -1277,6 +1318,7 @@ export interface EndoHost extends EndoAgent {
     options: { audience: string; username: string; password: string },
   ): Promise<unknown>;
   getGitCredentialController(credential: unknown): Promise<unknown>;
+  getGitRemoteController(remote: unknown): Promise<unknown>;
   /**
    * Privileged bridge from a daemon-minted top-level Mount cap to its
    * host filesystem path. EndoHost is a fully privileged authority;
@@ -2011,6 +2053,14 @@ export interface DaemonCore {
     audience: string,
     material: Record<string, string>,
     deferredTasks: DeferredTasks<GitCredentialDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
+
+  formulateGitRemote: (
+    gitId: FormulaIdentifier,
+    credentialId: FormulaIdentifier | undefined,
+    name: string,
+    policy: GitRemoteFormula['policy'],
+    deferredTasks: DeferredTasks<GitRemoteDeferredTaskParams>,
   ) => FormulateResult<unknown>;
 
   formulateInvitation: (
