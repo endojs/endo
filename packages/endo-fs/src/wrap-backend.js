@@ -1084,9 +1084,7 @@ export const wrapBackend = (backend, opts = {}) => {
           const setStatFn = /** @type {NonNullable<typeof backend.setStat>} */ (
             backend.setStat
           );
-          const truncP = writeP.then(() =>
-            setStatFn(childPath, { size: 0n }),
-          );
+          const truncP = writeP.then(() => setStatFn(childPath, { size: 0n }));
           await truncP;
         } else {
           await writeP;
