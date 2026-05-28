@@ -270,11 +270,13 @@ or replace:
 - **`ReadableTree` integration.**
   Mount-world has `ReadableTree.sha256()` for tree-level content
   addressing.
-  Remote-fs has file-level `BlobRef.hash` and `Layer.seal()` but no
+  Remote-fs has file-level `BlobRef.hash` and `Layer.readOnly()`
+  (an authority attenuator, not a content snapshot) but no
   tree-level Merkle hash.
   The refactor either re-implements `ReadableTree` on top of
-  `Filesystem` (probably as a sealed `Layer` + tree hash), or keeps
-  it as a separate immutable-snapshot cap.
+  `Filesystem` (a content-addressed snapshot cap that pairs the
+  authority attenuation with a tree hash), or keeps it as a
+  separate immutable-snapshot cap.
 - **Text-convenience methods.**
   `readText` / `maybeReadText` / `writeText` / `json` — one-line
   whole-file operations.
@@ -298,7 +300,8 @@ The refactor naturally splits into phases that can land independently:
    Lets existing Mount consumers migrate without code changes.
 4. **`ScratchMount` analogue.**
 5. **`ReadableTree` integration** (decision point: keep separate cap
-   or fold into `Layer.seal()` + tree hash).
+   or land a content-addressed snapshot cap that pairs
+   `Layer.readOnly()`'s authority attenuation with a tree hash).
 6. **Deprecate `@endo/daemon/src/mount.js`.**
    Once all callers route through `provideRemoteFs` + the compat
    wrapper, drop the original Mount implementation.

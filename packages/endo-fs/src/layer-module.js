@@ -49,7 +49,7 @@ import { makeLayer } from './layer.js';
  * @param {unknown} _context
  * @param {{ env?: Record<string, string> }} [opts]
  * @returns {Promise<object>} a `Layer` cap (with `asFilesystem`,
- *   `diff`, `apply`, `backing`, `seal`, `help`)
+ *   `diff`, `apply`, `backing`, `readOnly`, `help`)
  */
 export const make = async (powers, _context, opts = {}) => {
   const env = opts.env || {};

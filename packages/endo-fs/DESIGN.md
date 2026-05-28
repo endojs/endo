@@ -761,7 +761,7 @@ Layer (cap, separate from Filesystem)
   backing()                       → Filesystem
   diff()                          → PassableReader<LayerOp>
   apply(target: Filesystem)       → void
-  seal()                          → Filesystem    // promote to read-only
+  readOnly()                      → Filesystem    // authority attenuator
   help()                          → string
 ```
 
@@ -807,9 +807,18 @@ package. Special-case implementations (apply over a CAS sync
 protocol, apply via `rsync(1)`, apply by `BlobRef` transfer
 only) are out-of-scope optimisations callers can supply.
 
-`seal()` freezes the layer's mutations and returns a read-only
-view — useful for promoting a working set into a fresh backing
-for a higher layer to use.
+`readOnly()` returns a `Filesystem` view of the layer with every
+mutating verb rejected. Mirrors `EndoMount.readOnly()`. This is an
+**authority attenuator**, not a state freeze: the layer's producer
+still holds the unattenuated `layerFs` cap and can mutate through
+it, and those mutations are visible through the returned view. To
+get true immutability the producer must drop its reference to the
+unattenuated cap before handing out the attenuated one.
+
+For a content-addressed (Merkle-hashed) snapshot of a layer's
+state, see the tree-level snapshot work in §10 / ROADMAP §3.2 —
+the `readOnly()` attenuator is the authority half; the
+content-addressing half is separate.
 
 A **"view of the diff as a filesystem"** — what overlayfs users
 sometimes want when they ask "what have I changed?" — is just
@@ -908,9 +917,9 @@ consequences:
 - **`BlobRef`**: a CoW `File.snapshot()` can return the backing's
   `BlobRef` for files never copied up. After copy-up, `snapshot`
   either re-mints from the new content (if cheap) or returns
-  `null` until a sealing step. `Layer.apply(target)` where both
-  sides know the same CAS can transmit only `BlobRef`s and defer
-  the bytes.
+  `null` until the layer's content is externally content-addressed.
+  `Layer.apply(target)` where both sides know the same CAS can
+  transmit only `BlobRef`s and defer the bytes.
 
 - **`watch()`**: subscriptions on a composed view yield merged
   events from both participants — a child added in the layer and
@@ -936,7 +945,8 @@ consequences:
 - **Atomicity.** `apply` is NOT transactional across multiple
   paths. Callers needing atomic groups should build an
   intermediate layer, `apply` it as a single operation against
-  a fresh CoW target, then promote with `seal()`.
+  a fresh CoW target, then attenuate with `readOnly()` and drop
+  the unattenuated cap.
 
 - **Path sanity.** `chroot`, `bind`, `namespace` must defend
   against `..` escapes, since the §4 surface speaks `string[]`

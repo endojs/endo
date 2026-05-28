@@ -129,16 +129,21 @@ test('Layer.backing exposes the original backing cap', async t => {
   t.is(q1.pathId, q2.pathId);
 });
 
-test('Layer.seal returns a read-only Filesystem over the layer', async t => {
+test('Layer.readOnly returns a read-only Filesystem over the layer', async t => {
   const backing = makeInMemoryFilesystem();
   const layerFs = makeInMemoryFilesystem();
   const layerRoot = await E(layerFs).root();
-  await writeFile(layerRoot, 'sealed.txt', 'frozen');
+  await writeFile(layerRoot, 'note.txt', 'hello');
   const layer = makeLayer(layerFs, backing);
-  const sealed = await E(layer).seal();
-  const r = await E(sealed).root();
-  t.is(await readFile(r, 'sealed.txt'), 'frozen');
+  const ro = await E(layer).readOnly();
+  const r = await E(ro).root();
+  t.is(await readFile(r, 'note.txt'), 'hello');
   await t.throwsAsync(() => E(r).create('new', {}), { message: /EACCES/ });
+  // The attenuation is on authority, not on state: a mutation
+  // through the original `layerFs` cap is still visible through
+  // the read-only view.
+  await writeFile(layerRoot, 'after.txt', 'still-mutable');
+  t.is(await readFile(r, 'after.txt'), 'still-mutable');
 });
 
 test('Layer.diff chunks files >1 MiB into multiple write-bytes ops + a terminal truncate', async t => {
