@@ -238,3 +238,27 @@ export const BlobRefInterface = M.interface('BlobRef', {
   help: M.call().optional(M.string()).returns(M.string()),
 });
 harden(BlobRefInterface);
+
+/**
+ * Tree-blob shape consumed by `@endo/daemon`'s `make-from-tree`
+ * formula: a blob with a single `text()` method returning the
+ * file's contents as a UTF-8 string. See `tree-view.js`.
+ */
+export const TreeBlobInterface = M.interface('TreeBlob', {
+  text: M.call().returns(M.promise()),
+  help: M.call().optional(M.string()).returns(M.string()),
+});
+harden(TreeBlobInterface);
+
+/**
+ * Tree-view shape consumed by `@endo/daemon`'s `make-from-tree`
+ * formula: `lookup(name)` maps a `string` (single segment) or
+ * `string[]` (segments) to a `TreeBlob`. See `tree-view.js`.
+ */
+export const TreeViewInterface = M.interface('TreeView', {
+  lookup: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(
+    M.eref(M.remotable('TreeBlob')),
+  ),
+  help: M.call().optional(M.string()).returns(M.string()),
+});
+harden(TreeViewInterface);

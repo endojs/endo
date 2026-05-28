@@ -14,6 +14,7 @@ export {
 export { makeLayer, LayerInterface } from './layer.js';
 export { makeMemoryCas, cacheBackedRead } from './cas.js';
 export { withCachedReads } from './cached-fs.js';
+export { makeTreeView } from './tree-view.js';
 
 // Three-layer architecture (designs/endo-fs-backend-seam.md).
 // `wrapBackend(backend)` builds a Filesystem cap on top of any
@@ -44,6 +45,8 @@ export {
   XattrsInterface,
   NodeWatcherInterface,
   BlobRefInterface,
+  TreeViewInterface,
+  TreeBlobInterface,
   PassableReaderInterface,
   PassableBytesReaderInterface,
   PassableBytesWriterInterface,
