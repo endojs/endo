@@ -207,7 +207,7 @@ test('locks are advisory + in-process', async t => {
   await E(opened).close();
 });
 
-test('xattrs on node-fs are served from a vat-local sidecar', async t => {
+test('xattrs on node-fs: unset xattr reports ENODATA', async t => {
   // The seam refactor moves native disk xattrs to a future PosixFs
   // extension; base node-fs Filesystems get in-vat sidecar xattrs
   // via wrap-backend's xattrTable (round-trips, but doesn't persist
@@ -220,6 +220,46 @@ test('xattrs on node-fs are served from a vat-local sidecar', async t => {
   const x = await E(file).xattrs();
   // Unset xattrs return ENODATA, matching POSIX.
   await t.throwsAsync(() => E(x).get('user.tag'), { message: /ENODATA/ });
+});
+
+test('xattrs on node-fs: set/get round-trips user.* metadata (vat-local only)', async t => {
+  // Positive verification: the sidecar Xattrs exo is a real
+  // implementation, not just a stub that throws ENODATA.
+  const fs = await setupFs(t);
+  const root = await E(fs).root();
+  const opened = await E(root).create('tagged', {});
+  await E(opened).close();
+  const file = await E(root).lookup('tagged');
+  const x = await E(file).xattrs();
+
+  await writeBytes(await E(x).set('user.foo', {}), utf8('bar'));
+  const back = await collectBytes(await E(x).get('user.foo'));
+  t.is(fromUtf8(back), 'bar');
+});
+
+test('xattrs on node-fs: vat-local sidecar does not persist to disk', async t => {
+  // The sidecar is scoped to the Filesystem cap, not the disk.
+  // A fresh Filesystem over the same rootPath sees no xattrs —
+  // documenting the limitation that PosixFs will lift.
+  const root = await mkdtemp(path.join(os.tmpdir(), 'endo-fs-xattr-persist-'));
+  t.teardown(() => rm(root, { recursive: true, force: true }));
+
+  const fs1 = makeNodeFilesystem({ rootPath: root });
+  const r1 = await E(fs1).root();
+  const opened = await E(r1).create('x', {});
+  await E(opened).close();
+  const file1 = await E(r1).lookup('x');
+  await writeBytes(
+    await E(await E(file1).xattrs()).set('user.tag', {}),
+    utf8('present'),
+  );
+
+  // New Filesystem cap over same disk — sidecar is fresh.
+  const fs2 = makeNodeFilesystem({ rootPath: root });
+  const r2 = await E(fs2).root();
+  const file2 = await E(r2).lookup('x');
+  const x2 = await E(file2).xattrs();
+  await t.throwsAsync(() => E(x2).get('user.tag'), { message: /ENODATA/ });
 });
 
 test('watch fires events when a child is created in the directory', async t => {

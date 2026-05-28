@@ -332,14 +332,9 @@ test('collectBytes drains an OpenFile.read result', async t => {
   const file = await E(root).lookup('big.bin');
   const oh2 = await E(file).open({ read: true });
   const reader = await E(oh2).read(0n, 17n);
-  // collectBytes calls reader.next() repeatedly; should produce
-  // the bytes back. The chunks come over CapTP as base64; this
-  // helper unwraps the iterator step values.
-  // Note: helpers.collectBytes expects raw bytes from next();
-  // PassableBytesReader actually emits base64-encoded strings, so
-  // for now drainReader (which decodes) is the canonical drain.
-  // We test collectStream against a non-bytes reader below.
-  const bytes = await drainReader(reader);
+  // collectBytes uses iterateBytesReader from @endo/exo-stream to
+  // decode the base64-encoded chunks the wire emits.
+  const bytes = await collectBytes(reader);
   await E(oh2).close();
   t.is(fromUtf8(bytes), 'streaming content');
 });
