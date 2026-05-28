@@ -853,6 +853,58 @@ test('GitRemote wildcard push policy binds source and destination names', async 
   });
 });
 
+test('GitRemote.push revalidates concrete tag overrides against allowTags', async t => {
+  // P2-3: a broad tag-disabled policy refspec (refs/heads/*:refs/*)
+  // wildcard-matches a concrete override pushing a branch to a tag
+  // (refs/heads/tags/v1 -> refs/tags/v1).  The force + wildcard check
+  // passes, but the concrete refspec must still be revalidated against
+  // the tag policy, or allowTags: false is bypassed.  Fail closed.
+  const { mount } = await provisionGitContext(t);
+  /** @type {unknown[]} */
+  const pushCalls = [];
+  const backend = harden({
+    ...makeNotYetImplementedBackend(),
+    remotePush: async input => {
+      pushCalls.push(input);
+      return harden({ updatedRefs: [] });
+    },
+  });
+  const git = makeGit({ mount, backend });
+  const { remote, controller } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
+      // Broad, tag-disabled: dst wildcard reaches refs/tags/* but
+      // allowTags is false.
+      pushRefspecs: ['refs/heads/*:refs/*'],
+    },
+  });
+
+  await t.throwsAsync(
+    E(remote).push({
+      source: 'refs/heads/tags/v1',
+      destination: 'refs/tags/v1',
+    }),
+    { message: /tag refs require allowTags/ },
+  );
+  // The override never reached the backend transport.
+  t.deepEqual(pushCalls, []);
+
+  // Enabling allowTags lets the same concrete tag push through the gate.
+  await E(controller).setAllowTags(true);
+  await E(remote).push({
+    source: 'refs/heads/tags/v1',
+    destination: 'refs/tags/v1',
+  });
+  t.like(/** @type {{ refspecs?: string[] }} */ (pushCalls[0]), {
+    refspecs: ['refs/heads/tags/v1:refs/tags/v1'],
+  });
+});
+
 test('GitRemote.pull rejects an integration branch outside fetch policy', async t => {
   // P2-1: a fetch-only policy that may populate refs/remotes/origin/main
   // must not let the holder integrate an unrelated existing local ref

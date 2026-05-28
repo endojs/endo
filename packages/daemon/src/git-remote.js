@@ -834,6 +834,15 @@ export const makeGitRemote = ({
     if (parsed.force && !currentPolicy.allowForcePush) {
       throw new Error('GitRemote push force requires allowForcePush');
     }
+    // Revalidate the concrete (post-override) refspec against the full
+    // construction-time policy gate.  A wildcard policy refspec can
+    // syntactically match a concrete override whose src or dst is a tag
+    // (`refs/heads/tags/v1:refs/tags/v1` under `refs/heads/*:refs/*`) or
+    // a deletion; the wildcard match below does not re-derive those
+    // properties, so without this the tag / delete policy is bypassed.
+    // Reuse the same `validatePushRefspec` that gates policy refspecs at
+    // construction rather than inlining a parallel tag / delete check.
+    validatePushRefspec(candidate, currentPolicy, 'GitRemote push refspec');
     const allowed = currentPolicy.pushRefspecs.some(refspec => {
       const policyRefspec = parseRefspec(
         refspec,
