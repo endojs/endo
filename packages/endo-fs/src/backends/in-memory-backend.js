@@ -119,7 +119,15 @@ export const makeInMemoryBackend = () => {
         out.set(bytes, off);
         rec = { kind: 'file', bytes: out, mtime: now, atime: now };
         records.set(keyOf(path), rec);
-        fire(path.slice(0, -1), { kind: 'add', name: path[path.length - 1] });
+        // Fire on parent (child-added) and on the file itself
+        // (created), matching the legacy in-memory event vocabulary.
+        if (path.length > 0) {
+          fire(path.slice(0, -1), {
+            kind: 'child-added',
+            name: path[path.length - 1],
+          });
+        }
+        fire(path, { kind: 'created' });
         return;
       }
       if (rec.kind !== 'file') {
@@ -136,7 +144,7 @@ export const makeInMemoryBackend = () => {
       buf.set(bytes, off);
       rec.bytes = buf;
       rec.mtime = now;
-      fire(path.slice(0, -1), { kind: 'change', name: path[path.length - 1] });
+      fire(path, { kind: 'changed' });
     },
 
     async makeDirectory(path) {
@@ -150,8 +158,12 @@ export const makeInMemoryBackend = () => {
       }
       records.set(keyOf(path), { kind: 'directory' });
       if (path.length > 0) {
-        fire(path.slice(0, -1), { kind: 'add', name: path[path.length - 1] });
+        fire(path.slice(0, -1), {
+          kind: 'child-added',
+          name: path[path.length - 1],
+        });
       }
+      fire(path, { kind: 'created' });
     },
 
     async remove(path) {
@@ -170,7 +182,11 @@ export const makeInMemoryBackend = () => {
         }
       }
       records.delete(keyOf(path));
-      fire(path.slice(0, -1), { kind: 'remove', name: path[path.length - 1] });
+      fire(path.slice(0, -1), {
+        kind: 'child-removed',
+        name: path[path.length - 1],
+      });
+      fire(path, { kind: 'removed' });
     },
 
     async setStat(path, patch) {
@@ -187,7 +203,7 @@ export const makeInMemoryBackend = () => {
       }
       if (patch.mtime !== undefined) rec.mtime = BigInt(patch.mtime);
       if (patch.atime !== undefined) rec.atime = BigInt(patch.atime);
-      fire(path.slice(0, -1), { kind: 'change', name: path[path.length - 1] });
+      fire(path, { kind: 'changed' });
     },
 
     async fsync(_path) {
@@ -237,7 +253,35 @@ export const makeInMemoryBackend = () => {
       fire(dst.slice(0, -1), { kind: 'add', name: dst[dst.length - 1] });
     },
 
-    async *watch(path) {
+    async statfs() {
+      // Compute live counts. Block size is a convention (1024).
+      let fileBytes = 0n;
+      let fileCount = 0n;
+      let dirCount = 0n;
+      for (const r of records.values()) {
+        if (r.kind === 'file') {
+          fileCount += 1n;
+          fileBytes += BigInt(r.bytes.length);
+        } else {
+          dirCount += 1n;
+        }
+      }
+      // `freeBytes` is effectively unbounded for in-memory; we
+      // report a generous large constant rather than 0 so consumers
+      // distinguishing "out of space" from "in-memory" see signal.
+      const freeBytes = 1n << 40n; // 1 TiB headroom
+      return harden({
+        blockSize: 1024n,
+        totalBlocks: (fileBytes + 1023n) / 1024n,
+        freeBlocks: freeBytes / 1024n,
+        totalBytes: fileBytes,
+        freeBytes,
+        files: fileCount,
+        directories: dirCount,
+      });
+    },
+
+    watch(path) {
       const key = keyOf(path);
       let set = watchersByPath.get(key);
       if (!set) {
@@ -246,39 +290,56 @@ export const makeInMemoryBackend = () => {
       }
       /** @type {Array<WatchEvent>} */
       const buffer = [];
-      /** @type {Array<(e: IteratorResult<WatchEvent>) => void>} */
+      /** @type {Array<(r: IteratorResult<WatchEvent>) => void>} */
       const waiters = [];
       let closed = false;
       const handler = event => {
         if (closed) return;
         if (waiters.length > 0) {
-          const w = /** @type {(e: IteratorResult<WatchEvent>) => void} */ (waiters.shift());
+          const w = /** @type {(r: IteratorResult<WatchEvent>) => void} */ (
+            waiters.shift()
+          );
           w({ done: false, value: event });
         } else {
           buffer.push(event);
         }
       };
       set.add(handler);
-      try {
-        for (;;) {
-          if (closed) return;
-          if (buffer.length > 0) {
-            yield /** @type {WatchEvent} */ (buffer.shift());
-            // eslint-disable-next-line no-continue
-            continue;
-          }
-          // eslint-disable-next-line no-await-in-loop
-          const step = await new Promise(resolve => {
-            waiters.push(resolve);
-          });
-          if (step.done) return;
-          yield step.value;
-        }
-      } finally {
+
+      const cleanup = () => {
+        if (closed) return;
         closed = true;
         set.delete(handler);
         if (set.size === 0) watchersByPath.delete(key);
-      }
+        // Resolve any pending waiters with done so consumers can
+        // unblock cleanly.
+        while (waiters.length > 0) {
+          const w = /** @type {(r: IteratorResult<WatchEvent>) => void} */ (
+            waiters.shift()
+          );
+          w({ done: true, value: undefined });
+        }
+      };
+
+      const iter = {
+        async next() {
+          if (closed) return { done: true, value: undefined };
+          if (buffer.length > 0) {
+            return { done: false, value: buffer.shift() };
+          }
+          return new Promise(resolve => {
+            waiters.push(resolve);
+          });
+        },
+        async return(value) {
+          cleanup();
+          return { done: true, value };
+        },
+        [Symbol.asyncIterator]() {
+          return iter;
+        },
+      };
+      return iter;
     },
 
     // Dev/test escape hatch — returns the records Map. Not part of

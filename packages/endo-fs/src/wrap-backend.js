@@ -38,6 +38,7 @@ import {
 } from './type-guards.js';
 
 import { makeLockTable } from './shared/lock-table.js';
+import { makeBlobRefExo } from './shared/blobref.js';
 import {
   assertChildName,
   computeOpenMode,
@@ -63,11 +64,59 @@ const probeCapabilities = backend => {
     rename: typeof /** @type {any} */ (backend).rename === 'function',
     watch: typeof /** @type {any} */ (backend).watch === 'function',
     hash: typeof /** @type {any} */ (backend).hash === 'function',
+    statfs: typeof /** @type {any} */ (backend).statfs === 'function',
   });
 };
 
 const notSupported = method =>
   makeError(X`ENOSYS: ${q(method)} not implemented on this backend`);
+
+// POSIX-only fields that base setStat/setAttrs can't accept; rejecting
+// them gives callers a clear "compose a PosixFs cap" signal rather
+// than a silent no-op.
+const POSIX_ONLY_FIELDS = harden([
+  'mode',
+  'uid',
+  'gid',
+  'rdev',
+  'nlink',
+  'owner', // legacy: { uid, gid } sub-record
+]);
+
+/**
+ * Reject patches containing POSIX-only fields. Accepts only
+ * `size`, `mtime`, `atime`. Unknown fields silently ignored.
+ *
+ * @param {any} patch
+ */
+const validateStatPatch = patch => {
+  if (patch === null || typeof patch !== 'object') {
+    throw makeError(X`EINVAL: stat patch must be a record`);
+  }
+  for (const field of POSIX_ONLY_FIELDS) {
+    if (field in patch) {
+      throw makeError(
+        X`EINVAL: ${q(field)} is a POSIX-only field; compose a PosixFs cap`,
+      );
+    }
+  }
+};
+
+/**
+ * Project a patch to the narrow `{ size?, mtime?, atime? }` shape
+ * with `BigInt`-coerced values. Skips undefined fields so the
+ * backend's `setStat?` sees only the keys the caller set.
+ *
+ * @param {any} patch
+ * @returns {{ size?: bigint, mtime?: bigint, atime?: bigint }}
+ */
+const narrowStatPatch = patch => {
+  const out = {};
+  if (patch.size !== undefined) out.size = BigInt(patch.size);
+  if (patch.mtime !== undefined) out.mtime = BigInt(patch.mtime);
+  if (patch.atime !== undefined) out.atime = BigInt(patch.atime);
+  return harden(out);
+};
 
 /**
  * Build a `Filesystem` exo on top of an `FsBackend`.
@@ -89,15 +138,84 @@ export const wrapBackend = (backend, opts = {}) => {
   const lockTable = makeLockTable();
   const lockKeyOf = path => path.join('\0');
 
+  // Vat-local xattr table for backings that don't expose native
+  // xattrs (in-memory, KV stores). The user.* xattr namespace
+  // ("arbitrary application-level metadata") is served from this
+  // sidecar Map; backings with native xattr support can be wired
+  // via optional `getXattr?/setXattr?/listXattrs?/removeXattr?`
+  // methods on FsBackend (left for follow-up).
+  /** @type {Map<string, Map<string, Uint8Array>>} */
+  const xattrTable = new Map();
+
+  // Vat-local per-path stat tracking. wrapBackend updates `mtime`
+  // on `write`/`setStat`/`remove`-create, and `atime` on `read`.
+  // Used for `getAttrs`/`getStat` so consumers see consistent
+  // timestamps even on toy backings that don't track them.
+  /** @type {Map<string, { mtime: bigint, atime: bigint, ctime: bigint, btime: bigint }>} */
+  const statTable = new Map();
+  const nowNs = () => BigInt(Date.now()) * 1_000_000n;
+  const touch = (path, fields = { mtime: true, atime: false }) => {
+    const key = lockKeyOf(path);
+    let rec = statTable.get(key);
+    const t = nowNs();
+    if (!rec) {
+      rec = { mtime: t, atime: t, ctime: t, btime: t };
+      statTable.set(key, rec);
+    }
+    if (fields.mtime) {
+      rec.mtime = t;
+      rec.ctime = t;
+    }
+    if (fields.atime) rec.atime = t;
+  };
+  const statOf = path => {
+    const key = lockKeyOf(path);
+    let rec = statTable.get(key);
+    if (!rec) {
+      // First observation; initialize to "now" so consumers see
+      // non-zero timestamps. Persistent backings (node-fs) can
+      // override by implementing `backend.getAttrs?` directly.
+      const t = nowNs();
+      rec = { mtime: t, atime: t, ctime: t, btime: t };
+      statTable.set(key, rec);
+    }
+    return rec;
+  };
+
   // Brand-set for cycle detection across CapTP boundaries.
   // ROADMAP §1.6. One brand per wrapBackend(...) call.
   const brand = mintBrand();
   const brandSet = harden([brand]);
 
+  // Track which Directory exos this wrapBackend built, mapping each
+  // to its path. Used by `rename` to detect same-Filesystem rename
+  // (use direct backend.rename) vs cross-Filesystem rename (EXDEV).
+  /** @type {WeakMap<object, string[]>} */
+  const dirPaths = new WeakMap();
+
   // Watcher fanout: one backend watch per path, multiplexed to N
   // NodeWatcher subscribers.
   /** @type {Map<string, { subscribers: Set<(e: any) => void>, cancel: () => void }>} */
   const watchers = new Map();
+
+  // Wrap-backend-local event subscribers. Used for events that
+  // originate at the wrap-backend layer (xattrs mutations, etc.)
+  // — backend-emitted events come through `backend.watch?(path)`
+  // directly and don't need this table.
+  /** @type {Map<string, Set<(e: any) => void>>} */
+  const localSubs = new Map();
+  const fireLocal = (path, event) => {
+    const key = lockKeyOf(path);
+    const set = localSubs.get(key);
+    if (!set) return;
+    for (const sub of set) {
+      try {
+        sub(harden(event));
+      } catch (_e) {
+        // ignore handler errors
+      }
+    }
+  };
 
   // ---------- Forward refs (mutual recursion) ----------
 
@@ -134,35 +252,107 @@ export const wrapBackend = (backend, opts = {}) => {
   // ---------- Xattrs legacy stub ----------
 
   /**
-   * Build an `Xattrs` exo that throws ENOSYS on every op. Used to
-   * satisfy the legacy `Node.xattrs()` method while the base no
-   * longer carries real xattr support (moved to PosixFs).
+   * Build an `Xattrs` exo backed by `xattrTable`. user.* metadata
+   * is stored vat-locally; backings that have native xattrs can
+   * implement `getXattr?/setXattr?/...` on FsBackend in a follow-up.
+   * Only the `user.*` namespace is accepted; other namespaces
+   * (security.*, trusted.*, system.*) are POSIX-specific and
+   * deferred to PosixFs.
+   *
+   * @param {string[]} path
    */
-  const makeXattrsStub = () =>
-    makeExo('Xattrs', XattrsInterface, {
-      async get(_name) {
-        throw notSupported('xattrs.get');
+  const makeXattrsExo = path => {
+    const key = lockKeyOf(path);
+    const ensureMap = () => {
+      let m = xattrTable.get(key);
+      if (!m) {
+        m = new Map();
+        xattrTable.set(key, m);
+      }
+      return m;
+    };
+    const assertUserNamespace = name => {
+      if (typeof name !== 'string') {
+        throw makeError(X`EINVAL: xattr name must be a string`);
+      }
+      if (!name.startsWith('user.')) {
+        throw makeError(
+          X`ENOTSUP: only user.* xattrs supported at this layer (got ${q(
+            name,
+          )})`,
+        );
+      }
+    };
+    return makeExo('Xattrs', XattrsInterface, {
+      async get(name) {
+        assertUserNamespace(name);
+        const m = xattrTable.get(key);
+        const bytes = m && m.get(name);
+        if (bytes === undefined) {
+          throw makeError(X`ENODATA: xattr ${q(name)} not set`);
+        }
+        const gen = async function* () {
+          if (bytes.length > 0) yield bytes;
+        };
+        return bytesReaderFromIterator(gen());
       },
-      async set(_name, _opts) {
-        throw notSupported('xattrs.set');
+      async set(name, _opts) {
+        assertUserNamespace(name);
+        const m = ensureMap();
+        /** @type {Uint8Array[]} */
+        const chunks = [];
+        const sink = {
+          async next(chunk) {
+            if (chunk instanceof Uint8Array && chunk.length > 0) {
+              chunks.push(chunk);
+            }
+            return { done: false, value: undefined };
+          },
+          async return(value) {
+            let total = 0;
+            for (const c of chunks) total += c.length;
+            const merged = new Uint8Array(total);
+            let p = 0;
+            for (const c of chunks) {
+              merged.set(c, p);
+              p += c.length;
+            }
+            m.set(name, merged);
+            fireLocal(path, { kind: 'changed' });
+            return { done: true, value };
+          },
+          [Symbol.asyncIterator]() {
+            return sink;
+          },
+        };
+        return bytesWriterFromIterator(sink);
       },
       async list() {
-        return readerFromIterator(
-          (async function* empty() {
-            // intentionally empty
-          })(),
-        );
+        const m = xattrTable.get(key);
+        const names = m ? [...m.keys()] : [];
+        const gen = async function* () {
+          for (const n of names) yield n;
+        };
+        return readerFromIterator(gen());
       },
-      async remove(_name) {
-        throw notSupported('xattrs.remove');
+      async remove(name) {
+        assertUserNamespace(name);
+        const m = xattrTable.get(key);
+        if (!m || !m.has(name)) {
+          throw makeError(X`ENODATA: xattr ${q(name)} not set`);
+        }
+        m.delete(name);
+        if (m.size === 0) xattrTable.delete(key);
+        fireLocal(path, { kind: 'changed' });
       },
       help(method) {
         if (method === undefined) {
-          return 'Xattrs (wrapBackend stub): xattrs are not exposed at this layer; compose a PosixFs cap for real xattr access.';
+          return 'Xattrs: vat-local user.* metadata (sidecar storage).';
         }
         return `No documentation for method ${q(method)}.`;
       },
     });
+  };
 
   // ---------- Cursor ----------
 
@@ -290,83 +480,99 @@ export const wrapBackend = (backend, opts = {}) => {
    * @param {string[]} path
    */
   const makeNodeWatcherExo = path => {
-    let cancelled = false;
-    /** @type {Array<{ resolve: (v: any) => void }>} */
-    const waiters = [];
     /** @type {any[]} */
     const buffer = [];
+    /** @type {Array<(value: any) => void>} */
+    const waiters = [];
+    let cancelled = false;
 
+    const enqueue = event => {
+      if (cancelled) return;
+      if (waiters.length > 0) {
+        const resolve = /** @type {(v: any) => void} */ (waiters.shift());
+        resolve(harden(event));
+      } else {
+        buffer.push(harden(event));
+      }
+    };
+
+    // Subscribe to wrap-backend-local events for this path.
+    const key = lockKeyOf(path);
+    let subs = localSubs.get(key);
+    if (!subs) {
+      subs = new Set();
+      localSubs.set(key, subs);
+    }
+    subs.add(enqueue);
+
+    // Pump backend.watch?(path) events into the same queue.
     /** @type {AsyncIterator<any> | null} */
     let backendIter = null;
     if (caps.watch) {
       // @ts-expect-error optional method probed above
       const iterable = backend.watch(path);
       backendIter = iterable[Symbol.asyncIterator]();
-      const pump = async () => {
-        while (!cancelled) {
-          // eslint-disable-next-line no-await-in-loop
-          const step = await /** @type {AsyncIterator<any>} */ (backendIter).next();
-          if (step.done) return;
-          const event = step.value;
-          if (waiters.length > 0) {
-            const w = /** @type {{ resolve: (v: any) => void }} */ (waiters.shift());
-            w.resolve({ done: false, value: event });
-          } else {
-            buffer.push(event);
+      (async () => {
+        try {
+          while (!cancelled) {
+            // eslint-disable-next-line no-await-in-loop
+            const step = await /** @type {AsyncIterator<any>} */ (
+              backendIter
+            ).next();
+            if (step.done) return;
+            enqueue(step.value);
           }
+        } catch (_e) {
+          // backend iterator errored; close subscribers gracefully
         }
-      };
-      pump().catch(() => {
-        // backend iterator errored; drop subscribers gracefully
-        cancelled = true;
-        while (waiters.length > 0) {
-          const w = /** @type {{ resolve: (v: any) => void }} */ (waiters.shift());
-          w.resolve({ done: true, value: undefined });
-        }
-      });
+      })();
     }
 
-    const eventIterator = {
-      async next() {
-        if (cancelled) return { done: true, value: undefined };
-        if (buffer.length > 0) {
-          return { done: false, value: buffer.shift() };
-        }
-        if (backendIter === null) {
-          return { done: true, value: undefined };
-        }
-        return new Promise(resolve => {
-          waiters.push({ resolve });
-        });
-      },
-      async return(value) {
-        cancelled = true;
-        while (waiters.length > 0) {
-          const w = /** @type {{ resolve: (v: any) => void }} */ (waiters.shift());
-          w.resolve({ done: true, value: undefined });
-        }
-        if (backendIter !== null) {
-          try {
-            if (typeof backendIter.return === 'function') {
-              await backendIter.return(undefined);
-            }
-          } catch (_e) {
-            // ignore
+    const close = async () => {
+      if (cancelled) return;
+      cancelled = true;
+      if (subs) {
+        subs.delete(enqueue);
+        if (subs.size === 0) localSubs.delete(key);
+      }
+      while (waiters.length > 0) {
+        const resolve = /** @type {(v: any) => void} */ (waiters.shift());
+        resolve(undefined);
+      }
+      if (backendIter !== null) {
+        try {
+          if (typeof backendIter.return === 'function') {
+            await backendIter.return(undefined);
           }
+        } catch (_e) {
+          // ignore
         }
-        return { done: true, value };
-      },
-      [Symbol.asyncIterator]() {
-        return eventIterator;
-      },
+      }
+    };
+
+    // Build an async generator that yields events from buffer/waiters.
+    const generator = async function* () {
+      while (!cancelled) {
+        if (buffer.length > 0) {
+          yield buffer.shift();
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        const event = await new Promise(resolve => {
+          waiters.push(resolve);
+        });
+        if (event === undefined) return; // cancelled
+        yield event;
+      }
     };
 
     return makeExo('NodeWatcher', NodeWatcherInterface, {
       async events() {
-        return readerFromIterator(eventIterator);
+        return readerFromIterator(generator());
       },
       async cancel() {
-        await eventIterator.return(undefined);
+        await close();
       },
     });
   };
@@ -536,47 +742,94 @@ export const wrapBackend = (backend, opts = {}) => {
   makeFileExo = path => {
     return makeExo('File', FileInterface, {
       async getStat() {
-        // Narrow stat — base provides only size. mtime/atime are
-        // PosixFs territory; return them as undefined here.
         const k = await backend.kind(path);
         if (k !== 'file') {
           throw makeError(X`ENOENT: ${q(path.join('/'))}`);
         }
         const bytes = await backend.read(path);
-        return harden({ size: BigInt(bytes.length) });
+        const st = statOf(path);
+        return harden({
+          size: BigInt(bytes.length),
+          mtime: st.mtime,
+          atime: st.atime,
+        });
       },
       async setStat(patch) {
-        if (!caps.setStat) throw notSupported('setStat');
-        // @ts-expect-error optional method probed above
-        await backend.setStat(path, patch);
+        validateStatPatch(patch);
+        const narrow = narrowStatPatch(patch);
+        if (caps.setStat) {
+          // @ts-expect-error optional method probed above
+          await backend.setStat(path, narrow);
+        } else if (narrow.size !== undefined) {
+          // No backend setStat — surface the size change by resizing
+          // via read/write. Other fields silently no-op since the
+          // statTable will absorb the new mtime/atime.
+          const current = await backend.read(path);
+          const newSize = Number(narrow.size);
+          if (newSize < current.length) {
+            await backend.write(path, current.slice(0, newSize), 0n);
+          } else if (newSize > current.length) {
+            const grown = new Uint8Array(newSize);
+            grown.set(current, 0);
+            await backend.write(path, grown, 0n);
+          }
+        }
+        // Record the explicit mtime/atime, otherwise touch.
+        const st = statOf(path);
+        if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
+        if (narrow.atime !== undefined) st.atime = narrow.atime;
+        if (narrow.size !== undefined || narrow.mtime === undefined) {
+          touch(path, { mtime: true });
+        }
       },
       // ---- Legacy ----
       getQid() {
         return synthQid(path, 'file');
       },
       async getAttrs() {
+        const k = await backend.kind(path);
+        if (k !== 'file') {
+          throw makeError(X`ENOENT: ${q(path.join('/'))}`);
+        }
         const bytes = await backend.read(path);
+        const st = statOf(path);
         return harden({
           size: BigInt(bytes.length),
-          mtime: 0n,
-          atime: 0n,
-          ctime: 0n,
-          btime: null,
+          mtime: st.mtime,
+          atime: st.atime,
+          ctime: st.ctime,
+          btime: st.btime,
         });
       },
       async setAttrs(patch) {
-        // Translate to narrow setStat; ignore POSIX-only fields.
-        if (!caps.setStat) throw notSupported('setAttrs');
-        const narrow = harden({
-          ...(patch.size !== undefined && { size: BigInt(patch.size) }),
-          ...(patch.mtime !== undefined && { mtime: BigInt(patch.mtime) }),
-          ...(patch.atime !== undefined && { atime: BigInt(patch.atime) }),
-        });
-        // @ts-expect-error optional method probed above
-        await backend.setStat(path, narrow);
+        // Translate to narrow setStat; reject POSIX-only fields
+        // explicitly so callers get a clean signal that they need
+        // a PosixFs cap.
+        validateStatPatch(patch);
+        const narrow = narrowStatPatch(patch);
+        if (caps.setStat) {
+          // @ts-expect-error optional method probed above
+          await backend.setStat(path, narrow);
+        } else if (narrow.size !== undefined) {
+          const current = await backend.read(path);
+          const newSize = Number(narrow.size);
+          if (newSize < current.length) {
+            await backend.write(path, current.slice(0, newSize), 0n);
+          } else if (newSize > current.length) {
+            const grown = new Uint8Array(newSize);
+            grown.set(current, 0);
+            await backend.write(path, grown, 0n);
+          }
+        }
+        const st = statOf(path);
+        if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
+        if (narrow.atime !== undefined) st.atime = narrow.atime;
+        if (narrow.size !== undefined) {
+          touch(path, { mtime: true });
+        }
       },
       xattrs() {
-        return makeXattrsStub();
+        return makeXattrsExo(path);
       },
       // ---- /Legacy ----
       async watch() {
@@ -661,8 +914,15 @@ export const wrapBackend = (backend, opts = {}) => {
         return bytesWriterFromIterator(sinkIterator);
       },
       async snapshot() {
-        // BlobRef synthesis is a follow-up; placeholder for now.
-        throw notSupported('snapshot');
+        const k = await backend.kind(path);
+        if (k !== 'file') {
+          throw makeError(X`ENOENT: ${q(path.join('/'))}`);
+        }
+        const bytes = await backend.read(path);
+        return makeBlobRefExo(
+          bytes,
+          `BlobRef: snapshot of ${path.join('/') || '/'}.`,
+        );
       },
       help(method) {
         if (method === undefined) {
@@ -676,44 +936,53 @@ export const wrapBackend = (backend, opts = {}) => {
   // ---------- Directory exo ----------
 
   makeDirectoryExo = path => {
-    return makeExo('Directory', DirectoryInterface, {
+    const exo = makeExo('Directory', DirectoryInterface, {
       async getStat() {
         const k = await backend.kind(path);
         if (k !== 'directory') {
           throw makeError(X`ENOENT: ${q(path.join('/'))}`);
         }
-        return harden({});
+        const st = statOf(path);
+        return harden({ size: 0n, mtime: st.mtime, atime: st.atime });
       },
       async setStat(patch) {
-        if (!caps.setStat) throw notSupported('setStat');
-        // @ts-expect-error optional method probed above
-        await backend.setStat(path, patch);
+        validateStatPatch(patch);
+        const narrow = narrowStatPatch(patch);
+        if (caps.setStat) {
+          // @ts-expect-error optional method probed above
+          await backend.setStat(path, narrow);
+        }
+        const st = statOf(path);
+        if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
+        if (narrow.atime !== undefined) st.atime = narrow.atime;
       },
       // ---- Legacy ----
       getQid() {
         return synthQid(path, 'directory');
       },
       async getAttrs() {
+        const st = statOf(path);
         return harden({
           size: 0n,
-          mtime: 0n,
-          atime: 0n,
-          ctime: 0n,
-          btime: null,
+          mtime: st.mtime,
+          atime: st.atime,
+          ctime: st.ctime,
+          btime: st.btime,
         });
       },
       async setAttrs(patch) {
-        if (!caps.setStat) throw notSupported('setAttrs');
-        const narrow = harden({
-          ...(patch.size !== undefined && { size: BigInt(patch.size) }),
-          ...(patch.mtime !== undefined && { mtime: BigInt(patch.mtime) }),
-          ...(patch.atime !== undefined && { atime: BigInt(patch.atime) }),
-        });
-        // @ts-expect-error optional method probed above
-        await backend.setStat(path, narrow);
+        validateStatPatch(patch);
+        const narrow = narrowStatPatch(patch);
+        if (caps.setStat) {
+          // @ts-expect-error optional method probed above
+          await backend.setStat(path, narrow);
+        }
+        const st = statOf(path);
+        if (narrow.mtime !== undefined) st.mtime = narrow.mtime;
+        if (narrow.atime !== undefined) st.atime = narrow.atime;
       },
       xattrs() {
-        return makeXattrsStub();
+        return makeXattrsExo(path);
       },
       async mkdir(name, _opts) {
         // Legacy synonym for makeDirectory.
@@ -752,19 +1021,29 @@ export const wrapBackend = (backend, opts = {}) => {
       async create(name, openOpts) {
         assertChildName(name);
         const childPath = [...path, name];
-        const k = await backend.kind(childPath);
-        if (k === 'directory') {
-          throw makeError(X`EISDIR: ${q(name)} is a directory`);
-        }
-        const mode = computeOpenMode({ ...openOpts, write: true });
-        if (k === undefined) {
-          await backend.write(childPath, EMPTY_BYTES, 0n);
-        } else if (mode.truncate) {
-          if (!caps.setStat) {
-            throw notSupported('create({ truncate: true })');
-          }
+        const o = openOpts || {};
+        const mode = computeOpenMode({
+          read: o.read !== false,
+          write: true,
+          append: !!o.append,
+          truncate: !!o.truncate,
+        });
+        // Eagerly schedule the create side-effect synchronously,
+        // before any await, so a concurrent `lookup(name)` (e.g. the
+        // 9p-server's pipelined create+lookup batch in Tlcreate)
+        // sees the file. Sync-body backends (in-memory) commit
+        // `records.set(...)` inside this call before the Promise
+        // resolves; persistent backends preserve the original race
+        // window but their consumers don't depend on
+        // synchronous-visibility-after-create.
+        const writeP = backend.write(childPath, EMPTY_BYTES, 0n);
+        if (mode.truncate) {
+          if (!caps.setStat) throw notSupported('create({ truncate: true })');
           // @ts-expect-error optional method probed above
-          await backend.setStat(childPath, { size: 0n });
+          const truncP = writeP.then(() => backend.setStat(childPath, { size: 0n }));
+          await truncP;
+        } else {
+          await writeP;
         }
         return makeOpenFileExo(childPath, mode);
       },
@@ -790,39 +1069,34 @@ export const wrapBackend = (backend, opts = {}) => {
       async rename(srcName, newParent, dstName) {
         assertChildName(srcName);
         assertChildName(dstName);
-        // For now we only support same-Filesystem rename via
-        // backend.rename?; cross-Filesystem rename is out of scope.
-        // newParent must be a Directory exo from this wrapBackend.
-        // We don't have a direct way to extract its path, so we
-        // fall back to copy+remove: read source bytes, write to
-        // E(newParent).create(dstName), unlink source.
-        if (caps.rename) {
-          // Best-effort: if newParent is a Directory of this same
-          // wrapBackend and exposes its path, we can use atomic
-          // rename. We can't introspect that here; the safe path
-          // is copy+remove via newParent's exo interface.
-        }
         const srcPath = [...path, srcName];
         const srcKind = await backend.kind(srcPath);
         if (srcKind === undefined) {
           throw makeError(X`ENOENT: ${q(srcName)}`);
         }
-        if (srcKind !== 'file') {
-          // Directory rename via the exo path is complex (recursive
-          // tree move); leave it as ENOSYS for now.
-          throw notSupported('rename of directory across parents');
+        // Same-Filesystem fast path: if newParent was built by this
+        // wrapBackend, we can use the backend's atomic rename.
+        const newParentPath = dirPaths.get(newParent);
+        if (newParentPath !== undefined) {
+          const dstPath = [...newParentPath, dstName];
+          if (caps.rename) {
+            // @ts-expect-error optional method probed above
+            await backend.rename(srcPath, dstPath);
+            return;
+          }
+          // Fallback: structural copy via backend operations.
+          if (srcKind === 'file') {
+            const bytes = await backend.read(srcPath);
+            await backend.write(dstPath, bytes, 0n);
+            await backend.remove(srcPath);
+            return;
+          }
+          // Directory recursive copy is complex; defer.
+          throw notSupported('rename of directory without backend.rename');
         }
-        const bytes = await backend.read(srcPath);
-        const dstHandle = await E(newParent).create(
-          dstName,
-          harden({ write: true }),
-        );
-        try {
-          await E(dstHandle).write(bytes);
-        } finally {
-          await E(dstHandle).close();
-        }
-        await backend.remove(srcPath);
+        // Cross-Filesystem rename: EXDEV. The user can copy and
+        // remove manually if they really want to move across.
+        throw makeError(X`EXDEV: cross-Filesystem rename not supported`);
       },
       async fsync() {
         if (caps.fsync) {
@@ -837,7 +1111,7 @@ export const wrapBackend = (backend, opts = {}) => {
       async watchFrom() {
         const cursorExo = makeCursorExo(path);
         const watcherExo = makeNodeWatcherExo(path);
-        return harden({ snapshot: cursorExo, watcher: watcherExo });
+        return harden({ cursor: cursorExo, watcher: watcherExo });
       },
       help(method) {
         if (method === undefined) {
@@ -846,6 +1120,8 @@ export const wrapBackend = (backend, opts = {}) => {
         return `No documentation for method ${q(method)}.`;
       },
     });
+    dirPaths.set(exo, path);
+    return exo;
   };
 
   // ---------- Filesystem exo ----------
@@ -864,8 +1140,12 @@ export const wrapBackend = (backend, opts = {}) => {
       return makeDirectoryExo([...segs]);
     },
     async statfs() {
-      // Minimal statfs — backings can override via opts.statfs if
-      // they have real numbers. For now return zeros.
+      if (caps.statfs) {
+        // @ts-expect-error optional method probed above
+        const stats = await backend.statfs();
+        return harden({ type: description, ...stats });
+      }
+      // Minimal default — toy backings without real disk metrics.
       return harden({
         type: description,
         blockSize: 0n,
