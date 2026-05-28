@@ -390,44 +390,29 @@ export const wrapBackend = (backend, opts = {}) => {
     };
 
     return makeExo('OpenFile', OpenFileInterface, {
+      // `read(offset, length)` returns a `PassableBytesReader` that
+      // yields the slice as one chunk. Bounded; the bytes are
+      // base64-encoded on the CapTP wire and the receiver pulls them
+      // with a single pipelined `next()`. Uint8Array can't cross
+      // CapTP directly (marshalling rejects mutable typed arrays).
       async read(offset, length) {
         requireOpen('read');
         requireRead('read');
         const off = offset === undefined ? cursor : BigInt(offset);
         const len = length === undefined ? undefined : BigInt(length);
         const bytes = await backend.read(path, off, len);
-        // Advance the cursor as a convenience for sequential readers.
-        cursor = off + BigInt(bytes.length);
-        return bytes;
-      },
-      async write(bytes, offset) {
-        requireOpen('write');
-        requireWrite('write');
-        if (!(bytes instanceof Uint8Array)) {
-          throw makeError(X`EINVAL: write expects a Uint8Array`);
-        }
-        const off = offset === undefined ? cursor : BigInt(offset);
-        await backend.write(path, bytes, off);
-        cursor = off + BigInt(bytes.length);
-      },
-      async stream(offset) {
-        requireOpen('stream');
-        requireRead('stream');
-        const off = offset === undefined ? cursor : BigInt(offset);
-        // Synthesize a stream by reading whole-from-offset and
-        // yielding once. Backings with native streaming would override
-        // by accepting a length-undefined `read` that returns chunks;
-        // we don't expose that path through the seam.
-        const bytes = await backend.read(path, off);
         cursor = off + BigInt(bytes.length);
         const gen = async function* () {
           if (bytes.length > 0) yield bytes;
         };
         return bytesReaderFromIterator(gen());
       },
-      async streamWrite(offset) {
-        requireOpen('streamWrite');
-        requireWrite('streamWrite');
+      // `write(offset)` returns a `PassableBytesWriter` whose chunks
+      // get coalesced and pwritten at `offset` on close (pwrite
+      // semantics — no truncate). Mirrors the existing wire shape.
+      async write(offset) {
+        requireOpen('write');
+        requireWrite('write');
         let off = offset === undefined ? cursor : BigInt(offset);
         /** @type {Uint8Array[]} */
         const chunks = [];
@@ -440,7 +425,6 @@ export const wrapBackend = (backend, opts = {}) => {
             return { done: false, value: undefined };
           },
           async return(value) {
-            // Coalesce and write at the original offset.
             let total = 0;
             for (const c of chunks) total += c.length;
             const merged = new Uint8Array(total);
@@ -611,27 +595,59 @@ export const wrapBackend = (backend, opts = {}) => {
         }
         return makeOpenFileExo(path, mode);
       },
+      // One-shot read porcelain: returns a `PassableBytesReader`
+      // over the file bytes (or a slice). Saves the open/close
+      // ceremony for the common whole-file case.
       async read(readOpts) {
         const o = readOpts || {};
         const off = o.offset === undefined ? 0n : BigInt(o.offset);
         const len = o.length === undefined ? undefined : BigInt(o.length);
-        return backend.read(path, off, len);
+        const bytes = await backend.read(path, off, len);
+        const gen = async function* () {
+          if (bytes.length > 0) yield bytes;
+        };
+        return bytesReaderFromIterator(gen());
       },
-      async write(bytes, writeOpts) {
-        if (!(bytes instanceof Uint8Array)) {
-          throw makeError(X`EINVAL: write expects a Uint8Array`);
-        }
+      // One-shot write porcelain: returns a `PassableBytesWriter`
+      // sink that, on close, truncates the file to the sum of all
+      // chunks (whole-file overwrite) and writes them. If `opts.offset`
+      // is set, pwrite semantics (no truncate).
+      async write(writeOpts) {
         const o = writeOpts || {};
-        const off = o.offset === undefined ? 0n : BigInt(o.offset);
-        // Default whole-file overwrite when no offset is given:
-        // setStat({size: 0}) first if available so we don't leave
-        // a tail. Backings without setStat just pwrite and may
-        // leave a tail — caller's choice.
-        if (o.offset === undefined && caps.setStat) {
-          // @ts-expect-error optional method probed above
-          await backend.setStat(path, { size: 0n });
-        }
-        await backend.write(path, bytes, off);
+        const truncating = o.offset === undefined;
+        let off = truncating ? 0n : BigInt(o.offset);
+        /** @type {Uint8Array[]} */
+        const chunks = [];
+        const sinkIterator = {
+          async next(chunk) {
+            if (chunk instanceof Uint8Array && chunk.length > 0) {
+              chunks.push(chunk);
+            }
+            return { done: false, value: undefined };
+          },
+          async return(value) {
+            let total = 0;
+            for (const c of chunks) total += c.length;
+            const merged = new Uint8Array(total);
+            let p = 0;
+            for (const c of chunks) {
+              merged.set(c, p);
+              p += c.length;
+            }
+            if (truncating && caps.setStat) {
+              // @ts-expect-error optional method probed above
+              await backend.setStat(path, { size: 0n });
+            }
+            await backend.write(path, merged, off);
+            // eslint-disable-next-line no-param-reassign
+            off += BigInt(merged.length);
+            return { done: true, value };
+          },
+          [Symbol.asyncIterator]() {
+            return sinkIterator;
+          },
+        };
+        return bytesWriterFromIterator(sinkIterator);
       },
       async snapshot() {
         // BlobRef synthesis is a follow-up; placeholder for now.

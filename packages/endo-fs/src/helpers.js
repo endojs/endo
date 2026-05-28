@@ -13,6 +13,8 @@
  */
 
 import { E } from '@endo/eventual-send';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 /**
  * Walk a path from `root` segment-by-segment, returning a promise
@@ -37,13 +39,9 @@ export const walk = (root, path) =>
 harden(walk);
 
 /**
- * Drain a `PassableBytesReader` into a single `Uint8Array`.
- *
- * Use sparingly — bounded `OpenFile.read(offset, length)` is
- * single-RTT and almost always what you want. `collectBytes` is for
- * the rarer case where you've been handed an unbounded byte stream
- * (e.g. from `OpenFile.stream()` on a very large file you don't
- * know the size of in advance).
+ * Drain a `PassableBytesReader` into a single `Uint8Array`. The
+ * reader's chunks are base64-decoded by `iterateBytesReader` from
+ * `@endo/exo-stream`.
  *
  * @param {object} reader  PassableBytesReader cap
  * @returns {Promise<Uint8Array>}
@@ -52,13 +50,9 @@ export const collectBytes = async reader => {
   /** @type {Uint8Array[]} */
   const chunks = [];
   let total = 0;
-  for (;;) {
-    // eslint-disable-next-line no-await-in-loop
-    const step = await E(reader).next();
-    if (step.done) break;
-    const bytes = /** @type {Uint8Array} */ (step.value);
-    chunks.push(bytes);
-    total += bytes.length;
+  for await (const chunk of iterateBytesReader(reader)) {
+    chunks.push(chunk);
+    total += chunk.length;
   }
   const out = new Uint8Array(total);
   let off = 0;
@@ -66,7 +60,7 @@ export const collectBytes = async reader => {
     out.set(chunk, off);
     off += chunk.length;
   }
-  return harden(out);
+  return out;
 };
 harden(collectBytes);
 
@@ -79,11 +73,8 @@ harden(collectBytes);
 export const collectStream = async reader => {
   /** @type {any[]} */
   const out = [];
-  for (;;) {
-    // eslint-disable-next-line no-await-in-loop
-    const step = await E(reader).next();
-    if (step.done) break;
-    out.push(step.value);
+  for await (const value of iterateReader(reader)) {
+    out.push(value);
   }
   return harden(out);
 };
