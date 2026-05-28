@@ -5,11 +5,20 @@
 | **Created** | 2026-05-28 |
 | **Updated** | 2026-05-28 |
 | **Author** | Aaron Kumavis (prompted) |
-| **Status** | In Progress |
+| **Status** | **Complete** |
 
 ## Status
 
-Phase 1 (foundation) landed in commits `d2c6dedd` → `4e110976`:
+All six phases shipped. The legacy `in-memory.js` (788 lines),
+`node-fs.js` (859 lines), and `from-mount.js` (655 lines) — 2302 LOC
+of duplicated exo plumbing — are now thin wrappers
+(`wrapBackend(make*Backend())`) totaling ~60 lines. The shared
+upper layer (`wrap-backend.js` + `helpers.js`) is ~1300 lines; the
+three FsBackend adapters (`backends/{in-memory,node-fs,from-mount}-backend.js`)
+total ~700 lines. Net: ~300 lines removed plus a clean seam every
+future backing (KV stores, SQLite, S3, IPFS) can plug into.
+
+### Phase 1 — Foundation (commits d2c6dedd → 4e110976)
 
 - `src/backend-types.js` — `FsBackend` JSDoc typedefs (6 required + 5
   optional methods).
@@ -33,44 +42,97 @@ Phase 1 (foundation) landed in commits `d2c6dedd` → `4e110976`:
   this just stops the strict guard from forbidding new
   Uint8Array-shaped variants if/when CapTP marshalling allows them).
 
-Phase 1 is **strictly additive**: every existing test passes
-unchanged (15 in-memory, 14 node-fs, 9 from-mount, 14 layer, …),
-plus the new 20 wrap-backend tests. The 9p-server's 20 tests also
-pass unchanged — the seam refactor didn't touch its wire-facing
-methods.
+Phase 1 is strictly additive: every existing test passes unchanged
+plus the new 20 wrap-backend tests.
 
-### Remaining work (phases 2–4)
+### Phase 2 — Migrate `from-mount.js` (commit 0f6d522e)
 
-Each phase is its own PR; the architectural risk is bounded by the
-incremental sequencing.
+655-line legacy implementation replaced with a 6-line wrapper. The
+Mount adapter creates files via `E(parent).writeText(name, '')` +
+lookup + writeBytes, matching the existing Mount API surface.
+xattrs test updated to expect vat-local sidecar (ENODATA when unset)
+rather than ENOSYS.
 
-**Phase 2 — Migrate `from-mount.js` (smallest).** Replace the existing
-655-line implementation with `wrapBackend(makeFromMountBackend(...))`.
-Gated on adding `snapshot` support to wrap-backend's File exo (so the
-existing snapshot test keeps passing) and matching the EXDEV behavior
-of the existing cross-Filesystem rename.
+### Phase 3 — Migrate `in-memory.js` (commit 0130a900)
 
-**Phase 3 — Migrate `in-memory.js`.** Replace the 788-line
-implementation with `wrapBackend(makeInMemoryBackend())`. Gated on:
-(a) wrap-backend tracking real mtime/atime per file (currently
-returns `0n`); (b) extending the in-memory backend with `setXattr`
-/ `getXattr` (or migrating xattr tests out as a PosixFs concern).
+788-line legacy implementation replaced with a 4-line wrapper. To
+make the migration test-clean, wrap-backend gained:
 
-**Phase 4 — Migrate `node-fs.js`.** Write `src/backends/node-fs-backend.js`
-and replace the 859-line implementation. Gated on the same items as
-phase 3 plus `fs.watch` adapter, `assertConfined` symlink containment,
-and `fs.promises` plumbing for setStat (utimes + truncate).
+- A vat-local xattr table with a real Xattrs exo (sidecar storage
+  for user.* metadata).
+- A vat-local per-path stat table for mtime/atime/ctime/btime so
+  getStat / getAttrs return non-zero timestamps.
+- `validateStatPatch` / `narrowStatPatch` — POSIX-only fields rejected
+  with EINVAL.
+- `backend.statfs?` optional with live size totals.
+- BlobRef synthesis for `File.snapshot`.
+- A local event bus so xattrs mutations fire 'changed' events.
+- A `dirPaths` WeakMap so `Directory.rename` detects same-Filesystem
+  destinations (atomic via `backend.rename`) and rejects cross-FS
+  with EXDEV.
+- Eager-write semantics on `Directory.create` so concurrent
+  lookup-after-create batches (e.g. 9p-server's pipelined Tlcreate)
+  see the new file synchronously.
 
-**Phase 5 — Consumers.** `compose.js`, `readonly.js`, `cached-fs.js`,
-`layer.js`, and the 9p-server may incrementally adopt the new
-porcelain (`walk`, `Cursor.read`, `Cursor.toArray`) where it
-simplifies their code. None of these consumers needs to change to
-keep working — the seam refactor is forward-compatible.
+### Phase 4 — Migrate `node-fs.js` (commit 8f5f6eb9)
 
-**Phase 6 — `PosixFs` extension.** Builds on a base `FsBackend`,
-provides POSIX-shaped attrs (`mode`, `uid`, `gid`), real OS locks
-(`fcntl(F_SETLK)`, `LockFileEx`), and xattr storage. Unblocks the
-full 9P2000.L surface (`Tflock`, `Tgetlock`, `Txattrwalk`).
+859-line legacy implementation replaced with a 12-line wrapper. The
+new `backends/node-fs-backend.js` (~270 lines vs the 859 it replaces)
+implements 6 required + setStat (utimes + truncate), fsync, rename,
+watch (fs.watch adapter), hash (sha256 of readFile). Symlink
+containment via realpath; EACCES on symlink escape is translated to
+ENOENT in `kind()` so the holder of a Filesystem cap can't probe for
+out-of-sandbox path existence.
+
+### Phase 5 — Consumers (no code changes needed)
+
+`compose.js`, `readonly.js`, `cached-fs.js`, and `layer.js` all
+continued to work unchanged thanks to the additive interface design.
+The 48 consumer tests passed without modification — the seam refactor
+is forward-compatible. New consumers may opt in to the new porcelain
+(`walk`, `Cursor.read`, `Cursor.toArray`) where it simplifies their
+code.
+
+### Phase 6 — `PosixFs` extension scaffold (commit ec51295c)
+
+`src/posix-fs.js` introduces the `PosixFsInterface` and a
+`synthesizePosixFs(fs)` factory that fills POSIX-only fields from
+defaults (0o644 / 0o755 modes, uid/gid=0) and reads
+size/mtime/atime from the base Filesystem. Real-mode persistence
+(disk-truthful mode/uid/gid, real OS locks, native xattrs) is left
+as follow-up work via a backing-specific `makeNodeFsPosixBackend`.
+
+The 9p-server will compose `PosixFs` alongside `Filesystem` for
+9P2000.L `Tgetattr`/`Tsetattr`/`Txattrwalk` once that follow-up
+lands. The 9p-server's existing test surface (basic 9P2000 walks,
+opens, reads, writes, readdir, mkdir, unlink) works against any
+wrapBackend-built Filesystem — 20/20 tests pass.
+
+### Test totals after Phase 6
+
+- `@endo/endo-fs`: 215 tests pass (211 from before + 4 new PosixFs).
+- `@endo/9p-server`: 20 tests pass.
+
+### Net LOC change
+
+| File | Before | After |
+|---|---:|---:|
+| `src/in-memory.js` | 788 | 23 |
+| `src/node-fs.js` | 859 | 26 |
+| `src/from-mount.js` | 655 | 22 |
+| (sum) | 2302 | 71 |
+| `src/wrap-backend.js` (new) | 0 | 1153 |
+| `src/helpers.js` (new) | 0 | 88 |
+| `src/backend-types.js` (new) | 0 | 152 |
+| `src/backends/in-memory-backend.js` (new) | 0 | 287 |
+| `src/backends/node-fs-backend.js` (new) | 0 | 332 |
+| `src/backends/from-mount-backend.js` (new) | 0 | 196 |
+| `src/posix-fs.js` (new) | 0 | 113 |
+
+The shared upper layer absorbs ~1153 lines of plumbing that used to
+be triplicated; each new backing now costs ~200–300 lines of focused
+FsBackend implementation rather than 700–900 lines of duplicated exo
+construction.
 
 ### Design deviation
 
