@@ -8,26 +8,7 @@ import {
 } from './immutable-arraybuffer-pony-internal.js';
 
 /**
- * Stangely, TypeScript only provides types for the concrete subtypes of
- * `TypedArray`, but not `TypeArray` itself.
- * As suggested at
- * https://github.com/microsoft/TypeScript/issues/15402#issuecomment-297544403
- * with the addition of `Float16Array` which happened recently.
- *
- * @typedef {
- *  | Int8Array
- *  | Uint8Array
- *  | Uint8ClampedArray
- *  | Int16Array
- *  | Uint16Array
- *  | Float16Array
- *  | Int32Array
- *  | Uint32Array
- *  | Float32Array
- *  | Float64Array
- *  | BigInt64Array
- *  | BigUint64Array
- * } TypedArray
+ * @import {TypedArray} from './immutable-arraybuffer-pony-internal.js';
  */
 
 const {
@@ -36,7 +17,6 @@ const {
   WeakMap,
   TypeError,
   Uint8Array,
-  Proxy,
   Symbol,
   // eslint-disable-next-line no-restricted-globals
 } = globalThis;
@@ -49,24 +29,62 @@ const {
   setPrototypeOf,
 } = Object;
 const { apply, construct } = Reflect;
-const { get: weakMapGet, has: weakMapHas } = WeakMap.prototype;
+const { get: weakMapGet, set: weakMapSet } = WeakMap.prototype;
 const TypedArray = getPrototypeOf(Uint8Array);
 const { prototype: typedArrayPrototype } = TypedArray;
 const { iterator: symbolIterator, toStringTag: symbolToStringTag } = Symbol;
 
 /**
- * Could be used by the shim as the getter for a replacement of
- * `TypedArray.prototype.buffer`.
+ * If we could use classes with private fields everywhere, this would have
+ * been a `this.#typedArray` private field on an `FreezableTypedArrayInternal`
+ * class. But we currently cannot do so on Hermes. So, instead, we
+ * emulate the `this.#typedArray` private field, including its use as a
+ * brand check.
+ * Maps from all and only emulated Freezable TypedArrays to genuine
+ * TypedArrays.
+ *
+ * NOTE: this is for use within this module, and must not be accessible from
+ * outside this package.
+ *
+ * @type {Pick<WeakMap<TypedArray, TypedArray>, 'get' | 'has' | 'set'>}
+ */
+const hiddenTypedArrays = new WeakMap();
+
+/**
+ * Gets the genuine TypedArray encapsulated behind the emulated
+ * freezable TypedArray. Also a brand check: If `freezableTA` is not an
+ * emulated freezable TypedArray, it throws.
+ *
+ * @param {TypedArray} freezableTA
+ */
+const getHiddenTypedArray = freezableTA => {
+  const result = apply(weakMapGet, hiddenTypedArrays, [freezableTA]);
+  if (result) {
+    return result;
+  }
+  throw new TypedArray(`Not an emulated freezable TypedArray`);
+};
+
+/**
+ * Used by the shim as the getter for a replacement of
+ * `TypedArray.prototype.buffer`, so that this accessor does not leak
+ * a hidden genuine ArrayBuffers even if a hidden genuine TypedArray leaks.
+ *
+ * As a brand check, it should pass if `this` is either a genuine TypedArray
+ * or if it is one of our emulated freezable TypedArrays. Thus we
+ * cannot use `getHiddenTypedArray` internally, since that brand check
+ * only passes the emulated one.
  */
 export const virtualTypedArrayBufferGetter = (() => {
   /** @type {ThisType<TypedArray>} */
   const obj = {
     get buffer() {
-      if (apply(weakMapHas, reverseHiddenBuffers, [this])) {
-        return apply(weakMapGet, reverseHiddenBuffers, [this]);
-      } else {
-        return apply(FERAL_GET_ARRAY_BUFFER, this, []);
-      }
+      const genuineTA = apply(weakMapGet, hiddenTypedArrays, [this]) || this;
+      const genuineBuffer = apply(FERAL_GET_ARRAY_BUFFER, genuineTA, []);
+      return (
+        apply(weakMapGet, reverseHiddenBuffers, [genuineBuffer]) ||
+        genuineBuffer
+      );
     },
   };
   const { get: pseudoGetter } = /** @type {PropertyDescriptor} */ (
@@ -78,11 +96,10 @@ export const virtualTypedArrayBufferGetter = (() => {
 const freezableTypedArrayInternalPrototype = makeInternalHeir(
   typedArrayPrototype,
   'a freezable TypedArray',
-  vfta => vfta, // TODO fix
+  getHiddenTypedArray,
   [
-    // queries
+    // redirected queries
     'at',
-    'buffer',
     'byteLength',
     'byteOffset',
     'entries',
@@ -110,7 +127,7 @@ const freezableTypedArrayInternalPrototype = makeInternalHeir(
     symbolIterator,
   ],
   [
-    // mutators
+    // complaining mutators
     'copyWithin',
     'fill',
     'reverse',
@@ -118,6 +135,7 @@ const freezableTypedArrayInternalPrototype = makeInternalHeir(
     'sort',
   ],
   /** @type {ThisType<TypedArray>} */ ({
+    buffer: undefined, // The big TODO
     slice: undefined,
     subarray: undefined,
     with: undefined,
@@ -133,6 +151,13 @@ const freezableTypedArrayInternalPrototype = makeInternalHeir(
  * @param {any} OriginalConstructor
  */
 export const makePseudoTypedArrayConstructor = OriginalConstructor => {
+  const PseudoTypedArrayPrototype = {
+    __proto__: freezableTypedArrayInternalPrototype,
+    // eslint-disable-next-line no-use-before-define
+    constructor: PseudoTypedArray,
+    BYTES_PER_ELEMENT: OriginalConstructor.BYTES_PER_ELEMENT,
+  };
+
   /**
    * @param {any[]} args
    */
@@ -143,34 +168,35 @@ export const makePseudoTypedArrayConstructor = OriginalConstructor => {
       );
     }
     const firstArg = args[0];
-    if (apply(weakMapHas, hiddenBuffers, [firstArg])) {
-      if (args.length !== 1) {
-        throw new TypeError(`only one ArrayBuffer argument expected`);
-      }
-      if (new.target !== PseudoTypedArray) {
-        throw new TypeError(
-          'emulated freezable TypedArray does not (yet?) support subclassing.',
-        );
-      }
-      const hiddenBuffer = apply(weakMapGet, hiddenBuffers, [firstArg]);
-      const hiddenTypedArray = construct(
-        OriginalConstructor,
-        [hiddenBuffer],
-        PseudoTypedArray,
-      );
-      const proxy = new Proxy(hiddenTypedArray, {
-        // TODO trap and error on all attempts to mutate an indexed property.
-        // Non-indexed properties as well as queries should pass through to
-        // the target.
-      });
-      return proxy;
-    } else {
+    const hiddenBuffer = apply(weakMapGet, hiddenBuffers, [firstArg]);
+    if (!hiddenBuffer) {
       return construct(OriginalConstructor, args, new.target);
     }
+    if (args.length !== 1) {
+      throw new TypeError(`only one ArrayBuffer argument expected`);
+    }
+    if (new.target !== PseudoTypedArray) {
+      throw new TypeError(
+        'emulated freezable TypedArray does not (yet?) support subclassing.',
+      );
+    }
+    const hiddenTypedArray = construct(
+      OriginalConstructor,
+      [hiddenBuffer],
+      PseudoTypedArray,
+    );
+
+    const freezableTypedArray = {
+      __proto__: PseudoTypedArrayPrototype,
+    };
+    // @ts-expect-error freezableTypedArray implements TypedArray
+    weakMapSet(hiddenTypedArrays, freezableTypedArray, [hiddenTypedArray]);
+    return freezableTypedArray;
   }
-  defineProperties(
-    PseudoTypedArray,
-    getOwnPropertyDescriptors(OriginalConstructor),
-  );
+
+  const constructorDescs = getOwnPropertyDescriptors(OriginalConstructor);
+  constructorDescs.prototype.value = PseudoTypedArrayPrototype;
+
+  defineProperties(PseudoTypedArray, constructorDescs);
   setPrototypeOf(PseudoTypedArray, TypedArray);
 };

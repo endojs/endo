@@ -3,20 +3,24 @@
 import { makeInternalHeir, getGetter } from './internal-heir.js';
 
 /**
- * I couldn't find a TypeScript `TypedArray` type. If there actually is one,
- * we should use it here.
+ * Stangely, TypeScript only provides types for the concrete subtypes of
+ * `TypedArray`, but not `TypeArray` itself.
+ * As suggested at
+ * https://github.com/microsoft/TypeScript/issues/15402#issuecomment-297544403
+ * with the addition of `Float16Array` which happened recently.
  *
  * @typedef {Int8Array
  *  | Uint8Array
+ *  | Uint8ClampedArray
  *  | Int16Array
  *  | Uint16Array
+ *  | Float16Array
  *  | Int32Array
  *  | Uint32Array
- *  | BigInt64Array
- *  | BigUint64Array
- *  | Float16Array
  *  | Float32Array
  *  | Float64Array
+ *  | BigInt64Array
+ *  | BigUint64Array
  * } TypedArray
  */
 
@@ -135,7 +139,8 @@ if (optTransfer) {
  * been a `this.#buffer` private field on an `ImmutableArrayBufferInternal`
  * class. But we currently cannot do so on Hermes. So, instead, we
  * emulate the `this.#buffer` private field, including its use as a brand check.
- * Maps from all and only emulated Immutable ArrayBuffers to real ArrayBuffers.
+ * Maps from all and only emulated Immutable ArrayBuffers to
+ * genuine ArrayBuffers.
  *
  * NOTE: this is exported just for use within this package by
  * freezable-typearray-pony, and must not be accessible from outside this
@@ -154,9 +159,13 @@ export const hiddenBuffers = new WeakMap();
 export const reverseHiddenBuffers = new WeakMap();
 
 /**
+ * Gets the genuine ArrayBuffer encapsulated behind the emulated
+ * immutable ArrayBuffer. Also a brand check: If `immuAB` is not an
+ * emulated immutable ArrayBuffer, it throws.
+ *
  * @param {ArrayBuffer} immuAB
  */
-const getBuffer = immuAB => {
+const getHiddenBuffer = immuAB => {
   const result = apply(weakMapGet, hiddenBuffers, [immuAB]);
   if (result) {
     return result;
@@ -167,7 +176,7 @@ const getBuffer = immuAB => {
 const immutableArrayBufferInternalPrototype = makeInternalHeir(
   arrayBufferPrototype,
   'an immutable ArrayBuffer',
-  getBuffer,
+  getHiddenBuffer,
   [
     // redirected queries
     'byteLength',
@@ -181,24 +190,24 @@ const immutableArrayBufferInternalPrototype = makeInternalHeir(
   ],
   /** @type {ThisType<ArrayBuffer>} */ ({
     get detached() {
-      getBuffer(this); // shim brand check
+      getHiddenBuffer(this); // shim brand check
       return false;
     },
     get maxByteLength() {
       // Not underlying maxByteLength, which is irrelevant
-      return apply(originalGetArrayBufferByteLength, getBuffer(this), []);
+      return apply(originalGetArrayBufferByteLength, getHiddenBuffer(this), []);
     },
     get resizable() {
-      getBuffer(this); // shim brand check
+      getHiddenBuffer(this); // shim brand check
       return false;
     },
     get immutable() {
-      getBuffer(this); // shim brand check
+      getHiddenBuffer(this); // shim brand check
       return true;
     },
     sliceToImmutable(start = undefined, end = undefined) {
       // eslint-disable-next-line no-use-before-define
-      return sliceBufferToImmutable(getBuffer(this), start, end);
+      return sliceBufferToImmutable(getHiddenBuffer(this), start, end);
     },
     /**
      * See https://github.com/endojs/endo/tree/master/packages/immutable-arraybuffer#purposeful-violation

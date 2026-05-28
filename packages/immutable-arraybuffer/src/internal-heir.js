@@ -44,20 +44,28 @@ export const getGetter = (obj, key) => {
  * so anything omitted from `queryNames`, `mutatorNames`, or `others`,
  * like `constructor`, will still be inherited from `parent`. If any of
  * these validate that their `this` is a genuine one, then those
- * validations will fail on the virtual instances.
+ * validations will fail on the emulated instances.
  *
  * `makeInternalHeir` samples original members from `parent`
  * and so must be called before parent might be polluted.
  * IOW, `makeInternalHeir` should be called only by a module when
- * it initializes.
+ * it initializes, and before any relevant shim initializes.
+ * Fortunately, `makeInternalHeir` is local to the
+ * `@endo/immutable-arraybuffer` package, and is only imported by things
+ * that `immutable-arraybuffer-shim.js` transitively imports, and so will
+ * sample before the shim might change things.
  *
  * @template [T=any]
  * @param {T} proto
  * @param {string} thisPhrase
- * @param {(v: T) => T} redirect
+ * @param {(v: T) => T} amplify
  * @param {PropertyKey[]} queryKeys
- *   Those query methods or get-only accessors that validate their
- *   this is a ArrayBuffer, where all we need to do is redirect that validation.
+ *   Those query methods or get-only accessors that operate on a genuine
+ *   instance, where all we need to do is redirect to operate on the
+ *   hidden genuine instance.
+ *   SECURITY HAZARD: Do not include any method that may reveal its
+ *   `this`-value, as that would reveal the hidden genuine instance
+ *   that must remain encapsulated.
  * @param {PropertyKey[]} mutatorKeys
  *   Those index-property mutating methods or accessors, where all we need to
  *   do is throw an appropriate diagnostic. This can include method names not
@@ -70,11 +78,11 @@ export const getGetter = (obj, key) => {
  * @returns {T}
  */
 // This abstraction would not be justified for immutable ArrayBuffer by
-// itself. Rather, it is worth it for its reuse in freezable TypedArrays.
+// itself. Rather, it is worth having for its reuse in freezable TypedArrays.
 export const makeInternalHeir = (
   proto,
   thisPhrase,
-  redirect,
+  amplify,
   queryKeys,
   mutatorKeys,
   others,
@@ -98,7 +106,17 @@ export const makeInternalHeir = (
         const virtualGetter = getGetter(
           /** @type {ThisType<T>} */ ({
             get [queryKey]() {
-              return apply(protoGetter, redirect(this), []);
+              const genuineInstance = amplify(this);
+              const result = apply(protoGetter, genuineInstance, []);
+              if (genuineInstance === result) {
+                // This is just a belt-and-suspenders check to catch some
+                // leakage errors. But it does not reliably prevent leakage
+                // since result make instead contain or reveal genuineInstance.
+                throw new TypeError(
+                  `internal: ${thisPhrase} get accessor ${String(queryKey)} broke encapsulation`,
+                );
+              }
+              return result;
             },
           }),
           queryKey,
@@ -115,7 +133,17 @@ export const makeInternalHeir = (
         }
         const virtualMethod = /** @type {ThisType<T>} */ ({
           [queryKey](...args) {
-            return apply(protoMethod, redirect(this), args);
+            const genuineInstance = amplify(this);
+            const result = apply(protoMethod, genuineInstance, args);
+            if (genuineInstance === result) {
+              // This is just a belt-and-suspenders check to catch some
+              // leakage errors. But it does not reliably prevent leakage
+              // since result make instead contain or reveal genuineInstance.
+              throw new TypeError(
+                `internal: ${thisPhrase} query method ${String(queryKey)} broke encapsulation`,
+              );
+            }
+            return result;
           },
         })[queryKey];
         defineProperty(internalHeir, queryKey, {
