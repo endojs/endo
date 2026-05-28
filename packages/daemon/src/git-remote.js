@@ -885,7 +885,25 @@ export const makeGitRemote = ({
    */
   const normalizePullBranch = branch => {
     if (branch !== undefined) {
-      return normalizeRefArg(branch, 'GitRemote.pull branch');
+      const ref = normalizeRefArg(branch, 'GitRemote.pull branch');
+      // The local merge / rebase integration step may only target a ref
+      // the fetch policy is allowed to populate — i.e. the destination
+      // of one of `currentPolicy.fetchRefspecs`.  Without this, a holder
+      // whose policy only fetches `refs/remotes/origin/main` could ask
+      // to integrate an unrelated existing local ref (`refs/heads/private`),
+      // gaining local-integration authority outside the remote policy.
+      // Reuse the same `refPatternCapture` matcher the fetch path uses
+      // (via `refspecMatchesPattern`) rather than a parallel matcher.
+      const withinFetchPolicy = currentPolicy.fetchRefspecs.some(refspec => {
+        const { dst } = parseRefspec(refspec, 'GitRemote.pull fetchRefspec');
+        return refPatternCapture(ref, dst) !== undefined;
+      });
+      if (!withinFetchPolicy) {
+        throw new Error(
+          `GitRemote ${q(name)} pull branch is outside fetch policy: ${q(ref)}`,
+        );
+      }
+      return ref;
     }
     const concreteFetch = currentPolicy.fetchRefspecs.find(
       refspec => !refspec.includes('*') && parseRefspec(refspec, 'fetch').src,

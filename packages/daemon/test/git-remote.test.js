@@ -853,6 +853,64 @@ test('GitRemote wildcard push policy binds source and destination names', async 
   });
 });
 
+test('GitRemote.pull rejects an integration branch outside fetch policy', async t => {
+  // P2-1: a fetch-only policy that may populate refs/remotes/origin/main
+  // must not let the holder integrate an unrelated existing local ref
+  // (refs/heads/private) it never fetched.  The fetch succeeds; the
+  // local merge/rebase step must reject the out-of-policy branch before
+  // E(git).merge is ever reached.
+  const { mount } = await provisionGitContext(t);
+  /** @type {unknown[]} */
+  const fetchCalls = [];
+  const backend = harden({
+    ...makeNotYetImplementedBackend(),
+    remoteFetch: async input => {
+      fetchCalls.push(input);
+      return harden({ updatedRefs: [] });
+    },
+  });
+  const git = makeGit({ mount, backend });
+  const { remote, controller } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['fetch'],
+      fetchRefspecs: ['+refs/heads/main:refs/remotes/origin/main'],
+      pushRefspecs: [],
+    },
+  });
+
+  // The out-of-policy branch is rejected by the policy gate before the
+  // local integration (merge) is reached.
+  await t.throwsAsync(
+    E(remote).pull({ branch: 'refs/heads/private', strategy: 'merge' }),
+    { message: /pull branch is outside fetch policy/ },
+  );
+  // The fetch ran (it is within policy).
+  t.is(fetchCalls.length, 1);
+
+  // A branch matching the fetch destination passes the policy gate and
+  // proceeds to the integration step, where it fails for a non-policy
+  // reason (the fake fetch populated no real ref to merge).  The error
+  // must NOT be the out-of-policy rejection — that proves the gate let
+  // the in-policy branch through.
+  const passedGate = await E(remote)
+    .pull({ branch: 'refs/remotes/origin/main', strategy: 'merge' })
+    .then(
+      () => undefined,
+      err => /** @type {Error} */ (err),
+    );
+  t.truthy(passedGate);
+  t.notRegex(/** @type {Error} */ (passedGate).message, /outside fetch policy/);
+
+  const audit = await E(controller).audit();
+  const firstPull = audit.find(event => event.type === 'pull');
+  t.like(firstPull, { type: 'pull', outcome: 'error' });
+  t.regex(firstPull.message, /outside fetch policy/);
+});
+
 test('makeGitRemote rejects non-boolean allow flags at construction', async t => {
   // P2-2: allow* flags are policy authority gates.  A non-boolean must
   // be rejected, not truthiness-coerced — allowLocalFileTransport:
