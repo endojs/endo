@@ -309,12 +309,18 @@ test('snapshot fetches Mount content into a BlobRef', async t => {
   t.is(info.size, 4n);
 });
 
-test('xattrs throw ENOSYS on Mount-adapted FS', async t => {
+test('xattrs on Mount-adapted FS are served from a vat-local sidecar', async t => {
+  // After the wrapBackend migration, Mount-adapted Filesystems
+  // gain in-vat user.* xattr support (sidecar storage in
+  // wrap-backend's xattrTable). Mount itself still has no native
+  // xattr surface; the xattrs are scoped to the Filesystem cap
+  // and don't persist to the underlying Mount.
   const mount = makeMockMount();
   const fs = mountAsFilesystem(mount);
   const root = await E(fs).root();
   const x = await E(root).xattrs();
-  await t.throwsAsync(() => E(x).get('user.tag'), { message: /ENOSYS/ });
+  // Unset xattrs report ENODATA (the POSIX-correct signal).
+  await t.throwsAsync(() => E(x).get('user.tag'), { message: /ENODATA/ });
 });
 
 test('rename target from a different Filesystem rejects EXDEV', async t => {

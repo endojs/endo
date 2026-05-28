@@ -137,24 +137,25 @@ export const makeFromMountBackend = rootMount => {
     },
 
     async write(path, bytes, offset = 0n) {
-      const off = Number(offset);
-      let cap = await resolve(path);
-      if (cap === undefined) {
-        // File doesn't exist — create empty parent + file.
-        const parent = await resolve(path.slice(0, -1));
-        if (parent === undefined) {
-          throw makeError(X`ENOENT: parent ${q(path.slice(0, -1).join('/'))}`);
-        }
-        // Mount has no create-empty-file primitive in the API list;
-        // use writeBytes via a temporary lookup-after-create dance.
-        // For now, write directly through a freshly-resolved cap.
-        // Newer Mount versions may support a create operation.
-        try {
-          cap = await E(parent).lookup(path[path.length - 1]);
-        } catch {
-          // ignore — many Mount impls auto-create on writeBytes
-        }
+      if (path.length === 0) {
+        throw makeError(X`EISDIR: cannot write the root`);
       }
+      const off = Number(offset);
+      const parent = await resolve(path.slice(0, -1));
+      if (parent === undefined) {
+        throw makeError(X`ENOENT: parent ${q(path.slice(0, -1).join('/'))}`);
+      }
+      const name = path[path.length - 1];
+      let cap;
+      try {
+        cap = await E(parent).lookup(name);
+      } catch {
+        // File doesn't exist — create empty file then look it up.
+        await E(parent).writeText(name, '');
+        cap = await E(parent).lookup(name);
+      }
+      // Read current content, splice in new bytes, write back.
+      // Mount has no partial-range write so we coalesce locally.
       let current;
       try {
         const stream = await E(cap).streamBase64();
