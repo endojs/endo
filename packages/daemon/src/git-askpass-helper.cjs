@@ -95,7 +95,9 @@ for (;;) {
     // Write the credential bytes through verbatim. This is an opaque
     // secret-transport shim: it must not interpret the credential as JS text.
     // Decoding to a string and re-encoding corrupts non-ASCII (and non-UTF-8)
-    // credentials.
+    // credentials. Line-break safety is the daemon writer's responsibility (it
+    // rejects embedded CR/LF before framing, see requireAskpassLine in
+    // native-git-backend.js); the helper passes bytes through unaltered by design.
     fs.writeSync(1, value);
     break;
   }
