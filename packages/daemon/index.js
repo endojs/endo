@@ -9,7 +9,7 @@ import path from 'path';
 import os from 'os';
 
 import { E } from '@endo/eventual-send';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 
 import { waitForExit, waitForMessage, waitForSpawn } from '@endo/platform/proc';
 
@@ -147,7 +147,7 @@ const configFromEnv = env => {
 };
 
 export const terminate = async (config = defaultConfig) => {
-  const { resolve: cancel, promise: cancelled } = makePromiseKit();
+  const { cancelled, cancel } = makeCancelKit();
   const { getBootstrap, closed } = await makeEndoClient(
     'harbinger',
     config.sockPath,
@@ -159,7 +159,6 @@ export const terminate = async (config = defaultConfig) => {
   await E(bootstrap)
     .terminate()
     .catch(() => {});
-  // @ts-expect-error zero-argument promise resolve
   cancel();
   await closed.catch(() => {});
 };

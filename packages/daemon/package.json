@@ -57,6 +57,7 @@
     "@chainsafe/libp2p-yamux": "^7.0.4",
     "@endo/base64": "workspace:^",
     "@endo/bytes": "workspace:^",
+    "@endo/cancel": "workspace:^",
     "@endo/captp": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/errors": "workspace:^",
