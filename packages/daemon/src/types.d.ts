@@ -1648,6 +1648,10 @@ export type FilePowers = {
   removeDirectory: (path: string) => Promise<void>;
   renamePath: (source: string, target: string) => Promise<void>;
   realPath: (path: string) => Promise<string>;
+  // Optional: only the XS-backed powers surface readLink today; the
+  // Node powers omit it. Declared here so the XS factory's return value
+  // structurally satisfies FilePowers without an excess-property error.
+  readLink?: (path: string) => Promise<string | undefined>;
   pathIdentity: (path: string) => Promise<string>;
   statPath: (path: string) => Promise<{
     kind: 'file' | 'directory' | 'symlink';
