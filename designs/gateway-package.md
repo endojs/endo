@@ -1113,7 +1113,7 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    their content trees in `/var/cache/endo-gateway/`.
    The user-daemon-side `daemon-cas-management` plumbing
    addresses per-user isolation; the gateway-side cache shape
-   is still underspecified.
+   resolves to the framing below.
 
    Resolved framing: the long-term intent is to use **Git** for
    the CAS itself.
