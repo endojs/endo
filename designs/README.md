@@ -114,7 +114,7 @@ LLM-agent stack).*
 | [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-05-19 | In Progress (PR #287) |
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-05-27 | In Progress |
 | [daemon-mount-capabilities](daemon-mount-capabilities.md) | 2026-05-18 | 2026-05-27 | **Complete** |
-| [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md) | 2026-05-22 | 2026-05-22 | Proposed |
+| [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md) | 2026-05-22 | 2026-05-29 | Proposed |
 | [filesystem-watchers](filesystem-watchers.md) | 2026-05-07 | 2026-05-07 | Not Started |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-05-19 | **Complete** |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
@@ -516,7 +516,7 @@ capabilities available to agents.
 | ~~daemon-content-store-gc~~ | **Complete** | Content-store pruning and scratch-mount directory cleanup at GC time; landed in PR #99 |
 | daemon-mount | In Progress | Phases 1-3, 5 on `llm` (commit `e22f71327`); symlink confinement, 20 integration tests; Phase 4 (sub-mounts, snapshot) in PR #135 open, mount extensions in PR #127 open, `followNameChanges` in PR #277 open |
 | daemon-mount-capabilities | Proposed | Complete `EndoMount`: snapshot bridge, mount-scoped descriptors, `makeFile` sibling, entry overloads on `has`/`stat`/`lookup`, trusted backing provenance |
-| daemon-worker-import-from-mount | Proposed | `makeFromPackage(mountName)` daemon-worker entry that runs a `package.json`-rooted `EndoMount` through `compartment-mapper.importLocation`; dependencies resolved through a new `EndoRegistry` (`@registry`) capability wrapping the Rust npm-registry-proxy + MVS; sibling of `daemon-make-archive` § Phase 7 (`makeFromTree` for `compartment-map.json`-rooted trees) |
+| daemon-worker-import-from-mount | Proposed | `makeFromPackage(mountName)` daemon-worker entry that runs a `package.json`-rooted `EndoMount` through `compartment-mapper.importLocation`; dependencies resolved by a JS reference implementation of Go-like MVS (separate lane from the Rust `endor-npm-registry-proxy`; both expose the same `EndoRegistry` / `@registry` capability shape); adds a `mapSnapshot` lane to `compartment-mapper`; sibling of `daemon-make-archive` § Phase 7 (`makeFromTree` for `compartment-map.json`-rooted trees); first cut limited to MVS resolution, lockfile honoring deferred |
 | daemon-git-capability | Proposed | Revised git design over `EndoMount` / `EndoMountEntry`; `tree(ref)` and `readOnly()` both live on the `Git` cap |
 | daemon-git-remotes | Proposed | MVP remote-git companion: fetch / pull / push composed from local `Git`, bounded HTTPS transport, endpoint policy, and credential caps |
 | filesystem-watchers | Not Started | `EndoMount.followNameChanges` parity with `EndoDirectory`; Node `fs.watch` adapter on `FilePowers` |
@@ -890,7 +890,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | daemon-capability-filesystem | L | — | 1 | Reference sketch; narrower mount slice ships via daemon-mount |
 | ~~daemon-content-store-gc~~ | S | — | 1 | ✅ Complete (PR #99, ~2 days actual vs 1 day estimate) |
 | daemon-mount | M-L | 1.5 weeks | 1 | Mount exo, symlink confinement; Phase 4 in PR #135 forwarded under bot |
-| daemon-worker-import-from-mount | M-L | 1.5-2 weeks | 1 | `EndoRegistry` cap + `@registry` host special name + `makeFromPackage` worker method + `makeMountReadPowers`; snapshot-before-import; lockfile honoring; CLI `endo run <mount>`. Depends on Rust-side `endor-npm-registry-proxy` for the resolution verbs. |
+| daemon-worker-import-from-mount | M-L | 1.5-2 weeks | 1 | `EndoRegistry` cap (JS reference impl of MVS; Rust-backed drop-in deferred) + `@registry` host special name + `makeFromPackage` worker method + `makeMountReadPowers` + `mapSnapshot` lane in `compartment-mapper`; snapshot-before-import; CLI `endo run <mount>` / `endo make <mount>`. First cut limited to MVS; lockfile honoring deferred. Does not depend on the Rust subsystem (separate lane). |
 | ~~filesystem-watchers~~ (design) | S | — | 1 | ✅ Design merged (PR #115); implementation TBD |
 | daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
 | daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename; design merged (PR #85); implementation TBD |
