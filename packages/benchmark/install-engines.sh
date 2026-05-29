@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e 
+set -e
 
 echo "yarn version: $(yarn --version)"
 
@@ -15,15 +15,42 @@ are_engines_installed() {
     [ -f "$HOME/.esvu/bin/xs" ] && [ -f "$HOME/.esvu/bin/v8" ]
 }
 
+# Retry an esvu install a few times to ride out intermittent flakes
+# fetching the Moddable XS release on GitHub or the V8 canary build on
+# Google's chromium-v8 GCS bucket (endojs/endo#3289). On every attempt
+# we capture the combined output; on the final failure the captured
+# output of the last attempt is what the caller prints before exit 1.
+install_engine_with_retry() {
+    engine=$1
+    attempts=3
+    delay=5
+    i=1
+    while [ "$i" -le "$attempts" ]; do
+        if output=$(yarn dlx esvu install "$engine" 2>&1); then
+            INSTALL_OUTPUT=$output
+            return 0
+        fi
+        INSTALL_OUTPUT=$output
+        if [ "$i" -lt "$attempts" ]; then
+            echo "esvu install $engine attempt $i/$attempts failed; retrying in ${delay}s..."
+            sleep "$delay"
+        fi
+        i=$((i + 1))
+    done
+    return 1
+}
+
 if are_engines_installed; then
     echo "Engines already installed. Skipping installation."
 else
     echo "Installing engines..."
-    INSTALL_OUTPU_XS=$(yarn dlx esvu install xs 2>&1) || INSTALL_STATUS_XS=$?
-    INSTALL_OUTPU_V8=$(yarn dlx esvu install v8 2>&1) || INSTALL_STATUS_V8=$?
+    install_engine_with_retry xs || INSTALL_STATUS_XS=$?
+    INSTALL_OUTPU_XS=$INSTALL_OUTPUT
+    install_engine_with_retry v8 || INSTALL_STATUS_V8=$?
+    INSTALL_OUTPU_V8=$INSTALL_OUTPUT
 fi
 
-if [ -n "$INSTALL_STATUS_XS" ] || [ -n "$INSTALL_STATUS_V8" ]; then 
+if [ -n "$INSTALL_STATUS_XS" ] || [ -n "$INSTALL_STATUS_V8" ]; then
     if are_engines_installed; then
         echo "Engines installed successfully despite esvu error."
     else
