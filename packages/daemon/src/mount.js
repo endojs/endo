@@ -24,12 +24,45 @@ const mountEntryRecords = new WeakMap();
 const mountRecords = new WeakMap();
 
 // Monotonic suffix for the scratch path `write()` streams a blob into
-// before atomically renaming it onto the target.  A per-process counter
-// is enough to keep concurrent `write()` calls on distinct targets from
-// colliding on the same scratch name; it does not (and need not) make
-// concurrent writes to the *same* target safe — that race predates this
-// module and is the caller's responsibility.
+// before atomically renaming it onto the target.  The counter alone is
+// guessable: a caller who can predict `${target}.${N}.tmp` could plant a
+// file there ahead of the write, and `makeFileWriter` (open with `'w'`)
+// would truncate it.  Confinement bounds the damage to the caller's own
+// mount, but a write should never clobber an unrelated pre-existing file.
+// The counter is therefore paired with an unpredictable random suffix
+// (the same `Math.random` entropy `host.js` uses for scratch labels) and
+// a probe-before-use collision check, so the scratch name lands on a free
+// path.  It does not (and need not) make concurrent writes to the *same*
+// target safe — that race predates this module and is the caller's
+// responsibility.
 let writeScratchCounter = 0;
+
+/**
+ * Pick a scratch path that is a sibling of `target` and does not collide
+ * with any existing file.  The name is unpredictable (random suffix) so a
+ * caller cannot pre-plant a file at the path the write will truncate, and
+ * the `exists` probe rejects the astronomically unlikely random collision
+ * by drawing again.  Returning a sibling keeps the final `renamePath`
+ * atomic (same directory, same filesystem).
+ *
+ * @param {string} target
+ * @param {FilePowers} filePowers
+ * @returns {Promise<string>}
+ */
+const reserveScratchPath = async (target, filePowers) => {
+  await null;
+  for (;;) {
+    writeScratchCounter += 1;
+    // eslint-disable-next-line no-bitwise
+    const random = (Math.floor(Math.random() * 0xffffffff) >>> 0).toString(16);
+    const scratch = `${target}.${writeScratchCounter}.${random}.tmp`;
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await filePowers.exists(scratch))) {
+      return scratch;
+    }
+  }
+};
+harden(reserveScratchPath);
 
 /**
  * Returns the daemon-private lineage sentinel for a mount or mount entry.
@@ -635,8 +668,7 @@ const makeMountExo = ctx => {
         // truncate destroys the very bytes the reader is about to stream,
         // leaving the target empty.  Routing through a scratch file means
         // the target is replaced only once the full source has been read.
-        writeScratchCounter += 1;
-        const scratch = `${target}.${writeScratchCounter}.tmp`;
+        const scratch = await reserveScratchPath(target, filePowers);
         const writer = filePowers.makeFileWriter(scratch);
         try {
           const readerRef = E(value).streamBase64();

@@ -635,6 +635,37 @@ test('write() that fails mid-stream propagates the error and leaves no scratch d
   );
 });
 
+test('write() does not truncate a pre-existing file at the guessable scratch name', async t => {
+  // The scratch path used to be `${target}.${counter}.tmp` with a
+  // per-process counter starting at 0, so the first write of a fresh
+  // process targeted `${target}.1.tmp`. A caller who planted a file there
+  // ahead of the write would have it truncated the instant the writer
+  // opened (`createWriteStream` opens with `'w'`). The hardened scratch
+  // name carries an unpredictable random suffix and probes for collision,
+  // so an unrelated pre-existing file is never clobbered.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  // Plant a file at every legacy `${target}.${N}.tmp` the old counter
+  // could have produced for the first few writes.
+  const planted = ['a.txt.1.tmp', 'a.txt.2.tmp', 'a.txt.3.tmp'];
+  for (const name of planted) {
+    fs.writeFileSync(path.join(rootPath, name), 'precious user data');
+  }
+  await E(mount).writeText(['a.txt'], 'new content');
+  t.is(
+    fs.readFileSync(path.join(rootPath, 'a.txt'), 'utf8'),
+    'new content',
+    'the write still lands on its target',
+  );
+  for (const name of planted) {
+    t.is(
+      fs.readFileSync(path.join(rootPath, name), 'utf8'),
+      'precious user data',
+      `a pre-existing file at the guessable scratch name ${name} is not clobbered`,
+    );
+  }
+});
+
 // --- Snapshot wiring (covers the snapshotTree wrapper) ---
 
 test('snapshot() returns a usable snapshot when snapshotTree is wired', async t => {
