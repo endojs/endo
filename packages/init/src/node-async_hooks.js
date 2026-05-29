@@ -54,6 +54,16 @@ const findAsyncSymbolsFromAsyncResource = () => {
 // To get the `destroyed` symbol installed on promises by async_hooks,
 // the only option is to create and enable an AsyncHook.
 // Different versions of Node handle this in various ways.
+//
+// Historical record of Node patch-version compatibility for the SES-viable
+// promise-hook surface this patch relies on:
+//   16.1  last version before some significant promise hooks changes
+//   16.5  last version before unconditional promise fast-path
+//   16.6  first version after unconditional promise fast-path
+//   20.3 to 20.6  not viable due to https://github.com/nodejs/node/pull/49211
+//   20.6  not viable due to https://github.com/nodejs/node/issues/49497
+//   20.7  first SES-viable version of Node 20
+//   20.9  first LTS of Node 20
 const getPromiseFromCreateHook = () => {
   const bootstrapHookData = [];
   const bootstrapHook = createHook({
