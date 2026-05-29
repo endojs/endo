@@ -58,10 +58,9 @@ export type PackageCompartmentMapDescriptor = CompartmentMapDescriptor<
   FileUrlString
 >;
 
-export interface FileCompartmentDescriptor
-  extends CompartmentDescriptor<
-    FileModuleConfiguration | CompartmentModuleConfiguration
-  > {
+export interface FileCompartmentDescriptor extends CompartmentDescriptor<
+  FileModuleConfiguration | CompartmentModuleConfiguration
+> {
   location: FileUrlString;
 }
 
@@ -88,8 +87,7 @@ export type PackageCompartmentDescriptorName = LiteralUnion<
   FileUrlString
 >;
 
-export interface PackageCompartmentDescriptor
-  extends CompartmentDescriptor<CompartmentModuleConfiguration> {
+export interface PackageCompartmentDescriptor extends CompartmentDescriptor<CompartmentModuleConfiguration> {
   label: LiteralUnion<
     typeof ATTENUATORS_COMPARTMENT | typeof ENTRY_COMPARTMENT,
     string
@@ -161,8 +159,7 @@ export type CompartmentDescriptorWithPolicy<
 /**
  * A compartment descriptor digested by `digestCompartmentMap()`
  */
-export interface DigestedCompartmentDescriptor
-  extends CompartmentDescriptor<ModuleConfiguration> {
+export interface DigestedCompartmentDescriptor extends CompartmentDescriptor<ModuleConfiguration> {
   path: never;
   retained: never;
   scopes: never;
@@ -211,8 +208,7 @@ export interface ErrorModuleConfiguration extends BaseModuleConfiguration {
 /**
  * This module configuration is a reference to another module in a a compartment descriptor (it may be the same compartment descriptor)
  */
-export interface CompartmentModuleConfiguration
-  extends BaseModuleConfiguration {
+export interface CompartmentModuleConfiguration extends BaseModuleConfiguration {
   /**
    * The name of the compartment that contains this module.
    */
