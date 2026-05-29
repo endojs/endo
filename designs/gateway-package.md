@@ -290,6 +290,9 @@ special-names (already the convention per
 webletFormulaId)` mapping.
 The host agent's user holds the capability to register, update,
 and revoke entries.
+The short name `chat` in the example below is a local alias on the
+user's `@apps` NameHub; the gateway routes by the bound
+`webletFormulaId`, not by the alias.
 
 ```js
 // On a host agent:
