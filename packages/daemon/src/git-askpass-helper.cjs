@@ -79,10 +79,11 @@ for (;;) {
   const length = header.readUInt32BE(1);
   const value = readExactly(length);
   if (role === wantedRole) {
-    // NOTE: decoding the bytes to a string here corrupts non-ASCII credentials
-    // (the byte-passthrough fix replaces this line). Preserved for now to keep
-    // the prompt-selection change isolated from the encoding fix.
-    process.stdout.write(value.toString('latin1'));
+    // Write the credential bytes through verbatim. This is an opaque
+    // secret-transport shim: it must not interpret the credential as JS text.
+    // Decoding to a string and re-encoding corrupts non-ASCII (and non-UTF-8)
+    // credentials.
+    fs.writeSync(1, value);
     break;
   }
   // Role mismatch: discard this record and read the next one.

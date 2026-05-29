@@ -922,6 +922,100 @@ process.exit(1);
   },
 );
 
+// Serial: this test mutates the global process.env.PATH to inject a fake git.
+test.serial(
+  'NativeGitBackend askpass round-trips a non-ASCII credential byte-exactly',
+  async t => {
+    // The helper is an opaque secret-transport shim. A credential containing
+    // non-ASCII characters must arrive at git byte-for-byte. Decoding the bytes
+    // to a JS string and re-encoding them corrupts the value (e.g. "é" -> "Ã©");
+    // the helper must pass the bytes through unchanged.
+    const repoRoot = await provisionGitWorktree(t);
+    const fakeDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'native-git-fake-'),
+    );
+    t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
+    const reportPath = path.join(fakeDir, 'report.json');
+    // A non-ASCII password: accented letters plus an emoji (a 4-byte code point).
+    const password = 'pä55-wörd-✓-🔑';
+    const passwordBytesB64 = Buffer.from(password, 'utf8').toString('base64');
+    const fakeGitPath = path.join(fakeDir, 'git');
+    await fs.promises.writeFile(
+      fakeGitPath,
+      `#!/usr/bin/env node
+const fs = require('node:fs');
+const childProcess = require('node:child_process');
+const args = process.argv.slice(2);
+const includes = value => args.includes(value);
+if (includes('--version')) {
+  console.log('git version 2.39.0');
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--show-toplevel')) {
+  console.log(process.cwd());
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--git-common-dir')) {
+  console.log('.git');
+  console.log('.git/config');
+  process.exit(0);
+}
+if (includes('rev-list') || includes('config') || includes('for-each-ref')) {
+  process.exit(0);
+}
+if (includes('fetch')) {
+  const fd = Number.parseInt(process.env.ENDO_GIT_ASKPASS_FD || '', 10);
+  const helper = process.env.GIT_ASKPASS || '';
+  const stdio = ['ignore', 'pipe', 'ignore', fd];
+  // Capture raw bytes: do NOT pass encoding, so execFileSync returns a Buffer.
+  childProcess.execFileSync(helper, ['Username for test:'], {
+    env: process.env,
+    stdio,
+  });
+  const passwordBytes = childProcess.execFileSync(helper, ['Password for test:'], {
+    env: process.env,
+    stdio,
+  });
+  fs.writeFileSync(
+    ${JSON.stringify(reportPath)},
+    JSON.stringify({ passwordBytesB64: passwordBytes.toString('base64') }),
+  );
+  console.error('fake fetch failed after credential probe');
+  process.exit(1);
+}
+console.error('unexpected fake git invocation', args.join(' '));
+process.exit(1);
+`,
+      { mode: 0o755 },
+    );
+    await fs.promises.chmod(fakeGitPath, 0o755);
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${fakeDir}${path.delimiter}${originalPath || ''}`;
+    try {
+      const backend = makeNativeGitBackend({ repoRoot });
+      await t.throwsAsync(
+        backend.remoteFetch({
+          url: 'https://example.com/repo.git',
+          refspecs: [],
+          credential: harden({
+            kind: 'basic',
+            material: harden({ username: 'user', password }),
+          }),
+        }),
+        { message: /git fetch failed/ },
+      );
+    } finally {
+      process.env.PATH = originalPath;
+    }
+
+    const report = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
+    // Byte-exact: the password bytes git received equal the UTF-8 bytes the
+    // daemon was handed, with no decode/re-encode corruption.
+    t.is(report.passwordBytesB64, passwordBytesB64);
+  },
+);
+
 test('NativeGitBackend.remoteFetch rejects repo-local URL rewrites', async t => {
   const sourceRepo = await provisionGitWorktree(t);
   const remoteParent = await fs.promises.mkdtemp(
