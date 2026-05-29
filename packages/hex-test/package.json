@@ -54,7 +54,9 @@
     "settings": {
       "import/resolver": {
         "exports": {
-          "conditions": ["test-endo-hex"]
+          "conditions": [
+            "test-endo-hex"
+          ]
         },
         "node": {}
       }

@@ -1,0 +1,61 @@
+{
+  "name": "@endo/endo-fs-exec",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Adapt an @endo/endo-fs Filesystem cap to the ReadableTree shape @endo/daemon's `make-from-tree` formula consumes, so a compartment-mapper program backed by endo-fs source files can be loaded as a formula with no new formula type.",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/endo-fs-exec"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./src/type-guards.js": "./src/type-guards.js",
+    "./src/tree-view.js": "./src/tree-view.js",
+    "./src/tree-view-module.js": "./src/tree-view-module.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava --serial",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/endo-fs": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/patterns": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/compartment-mapper": "workspace:^",
+    "@endo/daemon": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@endo/zip": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "120s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}
