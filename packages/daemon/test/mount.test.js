@@ -666,6 +666,55 @@ test('write() does not truncate a pre-existing file at the guessable scratch nam
   }
 });
 
+test('copy into a symlinked re-entry of the source is rejected', async t => {
+  // The logical-segment descendant guard compares path segments, so a
+  // destination whose segments are not a prefix of the source's slips
+  // past it. But if an intermediate destination component is a symlink
+  // pointing back into the source tree, the *physical* destination is a
+  // descendant of the source, and copy()'s live-listing recursion would
+  // diverge just as it does for the literal-descendant case. The hardened
+  // guard re-checks the symlink-resolved physical paths. The explicit
+  // timeout makes CI fail fast if the guard regresses into a hang.
+  t.timeout(15000);
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory(['src']);
+  await E(mount).writeText(['src', 'leaf.txt'], 'x');
+  // `link` -> `src`, so the logical destination ['link'] is physically
+  // the source tree; copying src into link/copy re-enters src.
+  fs.symlinkSync(path.join(rootPath, 'src'), path.join(rootPath, 'link'));
+  await t.throwsAsync(
+    () => E(mount).copy(['src'], ['link', 'copy']),
+    { message: /into its own descendant/ },
+    'a symlinked re-entry of the source must be rejected like a literal descendant',
+  );
+  t.false(
+    fs.existsSync(path.join(rootPath, 'src', 'copy')),
+    'the rejected copy leaves no destination behind in the source tree',
+  );
+});
+
+test('copy through a symlink that does not re-enter the source still succeeds', async t => {
+  // The physical-path guard must reject only genuine re-entries; a
+  // symlink pointing at an unrelated sibling directory is a legitimate
+  // destination.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory(['src']);
+  await E(mount).writeText(['src', 'leaf.txt'], 'hello');
+  await E(mount).makeDirectory(['elsewhere']);
+  fs.symlinkSync(path.join(rootPath, 'elsewhere'), path.join(rootPath, 'link'));
+  await E(mount).copy(['src'], ['link', 'copy']);
+  t.is(
+    fs.readFileSync(
+      path.join(rootPath, 'elsewhere', 'copy', 'leaf.txt'),
+      'utf8',
+    ),
+    'hello',
+    'a copy through a non-re-entrant symlink is unaffected by the guard',
+  );
+});
+
 // --- Snapshot wiring (covers the snapshotTree wrapper) ---
 
 test('snapshot() returns a usable snapshot when snapshotTree is wired', async t => {

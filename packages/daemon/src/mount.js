@@ -292,6 +292,49 @@ const isConfinedPath = async (candidatePath, confinementRoot, filePowers) => {
 harden(isConfinedPath);
 
 /**
+ * Resolve a path to its symlink-free physical form even when the path
+ * does not yet exist.  `realPath` only resolves an existing path, so this
+ * walks up to the deepest existing ancestor, resolves *that*, and
+ * re-appends the not-yet-existing tail.  Any symlink in an existing
+ * component of `candidatePath` is followed; trailing components that do
+ * not exist are appended verbatim (they cannot be symlinks because they
+ * are not present).  Used by `copy()` to compare the *physical* target
+ * against the source so a symlinked destination cannot re-enter the
+ * source tree past the logical-segment descendant guard.
+ *
+ * @param {string} candidatePath
+ * @param {FilePowers} filePowers
+ * @returns {Promise<string>}
+ */
+const resolvePhysicalPath = async (candidatePath, filePowers) => {
+  await null;
+  /** @type {string[]} */
+  const tail = [];
+  let check = candidatePath;
+  for (;;) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const resolved = await filePowers.realPath(check);
+      return tail.length === 0
+        ? resolved
+        : filePowers.joinPath(resolved, ...tail);
+    } catch {
+      const parent = filePowers.joinPath(check, '..');
+      if (parent === check) {
+        // Reached the filesystem root without resolving; fall back to the
+        // unresolved path joined onto the root.
+        return filePowers.joinPath(check, ...tail);
+      }
+      // The last segment of `check` is the non-existing tail component.
+      const base = check.slice(parent.length).replace(/^\/+/, '');
+      tail.unshift(base);
+      check = parent;
+    }
+  }
+};
+harden(resolvePhysicalPath);
+
+/**
  * @typedef {object} MountContext
  * @property {string} currentDir
  * @property {string[]} currentSegments
@@ -719,19 +762,35 @@ const makeMountExo = ctx => {
       // *live* source listing, so a destination strictly below the
       // source (e.g. copy(['dir'], ['dir', 'copy'])) would see the
       // freshly created child, recurse into it, create its child, and
-      // loop until the filesystem is exhausted.  The check is a
+      // loop until the filesystem is exhausted.  The first check is a
       // segment-prefix test on the resolved paths: `to` is a descendant
       // of `from` when `from`'s segments are a strict prefix of `to`'s.
       const toSegments = segmentsFromPathArg(toArg);
+      const to = resolveFromRoot(toSegments);
+      const rejectDescendant = () => {
+        throw new Error(
+          `Cannot copy ${q(from)} into its own descendant ${q(to)}`,
+        );
+      };
       if (
         toSegments.length > fromSegments.length &&
         fromSegments.every((segment, i) => segment === toSegments[i])
       ) {
-        throw new Error(
-          `Cannot copy ${q(from)} into its own descendant ${q(
-            resolveFromRoot(toSegments),
-          )}`,
-        );
+        rejectDescendant();
+      }
+      // The logical-segment test above is blind to symlinks: a `to` whose
+      // segments are not a prefix of `from`'s can still resolve *under*
+      // `from` when an intermediate `to` component is a symlink back into
+      // the source (e.g. `to = ['link', 'x']` where `link` -> the source
+      // tree).  Re-run the descendant test on the symlink-resolved
+      // physical paths so a symlinked re-entry cannot slip past.  Both
+      // operands resolve from the same confinement root, so a shared
+      // physical prefix is a genuine ancestor relationship, not a
+      // coincidence of a common mount root above the confinement.
+      const fromPhysical = await resolvePhysicalPath(from, filePowers);
+      const toPhysical = await resolvePhysicalPath(to, filePowers);
+      if (toPhysical.startsWith(`${fromPhysical}/`)) {
+        rejectDescendant();
       }
       const source = await openExisting(from, fromSegments);
       await this.self.write(toArg, source); // eslint-disable-line no-invalid-this
