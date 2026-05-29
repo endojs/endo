@@ -296,6 +296,46 @@ const encodeCredentialRecords = (username, password) =>
 harden(encodeCredentialRecords);
 
 /**
+ * Validate a remote credential and frame it as the role-tagged record set the
+ * askpass helper consumes. Returns `undefined` when no credential is supplied
+ * (the caller then runs git without the askpass pipe).
+ *
+ * @param {unknown} credential
+ * @returns {Buffer | undefined}
+ */
+const credentialBytesFor = credential => {
+  if (credential === undefined) {
+    return undefined;
+  }
+  const nativeCredential = /** @type {NativeGitCredential} */ (credential);
+  /** @type {string} */
+  let username;
+  /** @type {string} */
+  let password;
+  if (nativeCredential.kind === 'bearer') {
+    username = 'x-access-token';
+    password = requireAskpassLine(
+      nativeCredential.material?.token,
+      'remote credential token',
+    );
+  } else if (nativeCredential.kind === 'basic') {
+    username = requireAskpassLine(
+      nativeCredential.material?.username,
+      'remote credential username',
+    );
+    password = requireAskpassLine(
+      nativeCredential.material?.password,
+      'remote credential password',
+    );
+  } else {
+    throw new Error('Unsupported remote credential kind');
+  }
+
+  return encodeCredentialRecords(username, password);
+};
+harden(credentialBytesFor);
+
+/**
  * Revision arguments must additionally not start with `-` — git would
  * otherwise interpret them as flags.
  *
@@ -677,41 +717,6 @@ export const makeNativeGitBackend = ({
   let versionVerification;
   /** @type {RepositoryIdentity | undefined} */
   let repositoryIdentity;
-
-  /**
-   * @param {unknown} credential
-   * @returns {Buffer | undefined}
-   */
-  const credentialBytesFor = credential => {
-    if (credential === undefined) {
-      return undefined;
-    }
-    const nativeCredential = /** @type {NativeGitCredential} */ (credential);
-    /** @type {string} */
-    let username;
-    /** @type {string} */
-    let password;
-    if (nativeCredential.kind === 'bearer') {
-      username = 'x-access-token';
-      password = requireAskpassLine(
-        nativeCredential.material?.token,
-        'remote credential token',
-      );
-    } else if (nativeCredential.kind === 'basic') {
-      username = requireAskpassLine(
-        nativeCredential.material?.username,
-        'remote credential username',
-      );
-      password = requireAskpassLine(
-        nativeCredential.material?.password,
-        'remote credential password',
-      );
-    } else {
-      throw new Error('Unsupported remote credential kind');
-    }
-
-    return encodeCredentialRecords(username, password);
-  };
 
   const verifyGitVersion = async () => {
     if (!versionVerification) {
@@ -2321,8 +2326,14 @@ export const internalHelpers = harden({
   makeGitEnv,
   truncateOutput,
   requireNonEmptyString,
+  requireAskpassLine,
   requireRevision,
   parseGitVersion,
   assertSupportedGitVersion,
   compareVersion,
+  ROLE_USERNAME,
+  ROLE_PASSWORD,
+  encodeCredentialRecord,
+  encodeCredentialRecords,
+  credentialBytesFor,
 });

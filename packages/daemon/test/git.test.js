@@ -663,6 +663,111 @@ test('NativeGitBackend version parser enforces the documented git floor', t => {
   });
 });
 
+test('NativeGitBackend.requireAskpassLine rejects embedded line breaks', t => {
+  const { requireAskpassLine } = internalHelpers;
+
+  // A clean single-line value passes through verbatim.
+  t.is(
+    requireAskpassLine('ghp_abc123', 'remote credential token'),
+    'ghp_abc123',
+  );
+
+  // A credential carrying a newline or carriage return is rejected. The
+  // askpass pipe frames records by length, but a value with an embedded line
+  // break would still let a crafted credential masquerade as multiple lines to
+  // a line-oriented consumer; the guard rejects both \n and \r before the bytes
+  // ever reach the pipe.
+  t.throws(() => requireAskpassLine('two\nlines', 'remote credential token'), {
+    message: /remote credential token must not contain line breaks/,
+  });
+  t.throws(
+    () => requireAskpassLine('carriage\rreturn', 'remote credential password'),
+    {
+      message: /remote credential password must not contain line breaks/,
+    },
+  );
+
+  // An empty value is rejected by the underlying non-empty guard, not the
+  // line-break guard, so the message differs.
+  t.throws(() => requireAskpassLine('', 'remote credential token'), {
+    message: /remote credential token/,
+  });
+});
+
+test('NativeGitBackend.credentialBytesFor frames credentials and rejects bad kinds', t => {
+  const {
+    credentialBytesFor,
+    encodeCredentialRecords,
+    encodeCredentialRecord,
+    ROLE_USERNAME,
+    ROLE_PASSWORD,
+  } = internalHelpers;
+
+  // No credential supplied: the caller runs git without the askpass pipe.
+  t.is(credentialBytesFor(undefined), undefined);
+
+  // A bearer token frames as the fixed 'x-access-token' username and the token
+  // as the password, in that record order.
+  const bearer = credentialBytesFor(
+    harden({ kind: 'bearer', material: harden({ token: 'ghp_secret' }) }),
+  );
+  if (bearer === undefined) {
+    throw t.fail('bearer credential should frame to bytes');
+  }
+  t.deepEqual(bearer, encodeCredentialRecords('x-access-token', 'ghp_secret'));
+  // The framing is role-tagged: first record carries the username role byte,
+  // and the value bytes are the token's UTF-8 bytes.
+  t.is(bearer[0], ROLE_USERNAME);
+
+  // A basic credential frames username then password.
+  const basic = credentialBytesFor(
+    harden({
+      kind: 'basic',
+      material: harden({ username: 'alice', password: 'hunter2' }),
+    }),
+  );
+  if (basic === undefined) {
+    throw t.fail('basic credential should frame to bytes');
+  }
+  t.deepEqual(basic, encodeCredentialRecords('alice', 'hunter2'));
+  // The password record (second record) carries the password role byte.
+  const usernameRecordLength = encodeCredentialRecord(
+    ROLE_USERNAME,
+    'alice',
+  ).length;
+  t.is(basic[usernameRecordLength], ROLE_PASSWORD);
+
+  // The line-break guard reaches through credentialBytesFor.
+  t.throws(
+    () =>
+      credentialBytesFor(
+        harden({ kind: 'bearer', material: harden({ token: 'bad\ntoken' }) }),
+      ),
+    { message: /remote credential token must not contain line breaks/ },
+  );
+
+  // An unsupported credential kind is rejected before any framing.
+  t.throws(
+    () => credentialBytesFor(harden({ kind: 'mtls', material: harden({}) })),
+    { message: /Unsupported remote credential kind/ },
+  );
+});
+
+test('NativeGitBackend.encodeCredentialRecord frames role, length, and bytes', t => {
+  const { encodeCredentialRecord, ROLE_PASSWORD } = internalHelpers;
+
+  // A 4-byte code point (emoji) exercises the length prefix beyond ASCII: the
+  // length is the UTF-8 byte count, not the JS string length.
+  const value = 'pä🔑';
+  const valueBytes = Buffer.from(value, 'utf8');
+  const record = encodeCredentialRecord(ROLE_PASSWORD, value);
+
+  t.is(record[0], ROLE_PASSWORD);
+  t.is(record.readUInt32BE(1), valueBytes.length);
+  t.deepEqual(record.subarray(5), valueBytes);
+  t.is(record.length, 5 + valueBytes.length);
+});
+
 test('NativeGitBackend credential transport satisfies git HTTP auth challenge', async t => {
   const repoRoot = await provisionGitWorktree(t);
   const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
