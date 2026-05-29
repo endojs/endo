@@ -177,9 +177,11 @@ harden(getGitBackend);
 /**
  * Structural record describing one entry in a git tree object.  Mirrors
  * `git ls-tree -z --long` output: mode is the 6-digit octal string, type
- * is `'blob'` / `'tree'` / `'commit'`, oid is the 40-hex (sha1) or 64-hex
- * (sha256) object identifier, size is present for blobs only, and name
- * is the single-segment entry name (no slashes).
+ * is `'blob'` / `'tree'` / `'commit'`, oid is the 40-hex (sha1) object
+ * identifier — the native backend's `parseLsTreeEntries` regex only
+ * accepts sha1 today; sha256-formatted repos are a Phase 5 follow-up
+ * tracked in `designs/endo-fs-from-git.md` — size is present for blobs
+ * only, and name is the single-segment entry name (no slashes).
  *
  * @typedef {object} GitTreeEntryRecord
  * @property {string} mode

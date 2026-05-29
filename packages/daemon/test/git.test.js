@@ -1440,6 +1440,41 @@ test('Git.filesystemAt: OpenFile.read returns blob bytes; range reads slice', as
   const pastBytes = await collectReader(pastReader);
   t.is(pastBytes.length, 0);
 
+  // length === 0 → empty without streaming.
+  const zeroReader = await E(opener).read(0n, 0n);
+  const zeroBytes = await collectReader(zeroReader);
+  t.is(zeroBytes.length, 0);
+
+  await E(opener).close();
+});
+
+test('Git.filesystemAt: range reads at a high offset discard the prefix', async t => {
+  // Reading a small window from deep inside a multi-KiB blob must not
+  // retain the bytes before `offset` — they should stream by and be
+  // dropped chunk-by-chunk.  We assert correctness; the memory
+  // invariant is upheld by the streaming-skip implementation in
+  // `git-filesystem.js#read`.
+  const content = `${'x'.repeat(8 * 1024)}HELLOWORLD${'y'.repeat(8 * 1024)}`;
+  const { repoRoot } = await provisionGitWorktreeWithFile(
+    t,
+    'data.txt',
+    content,
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+  const file = /** @type {any} */ (await E(root).lookup('data.txt'));
+  const opener = /** @type {any} */ (await E(file).open({ read: true }));
+
+  // Window straddles a likely chunk boundary; correctness here is the
+  // public-API check the perf-claim leans on.
+  const reader = await E(opener).read(8n * 1024n, 10n);
+  const bytes = await collectReader(reader);
+  t.is(new TextDecoder().decode(bytes), 'HELLOWORLD');
+
   await E(opener).close();
 });
 

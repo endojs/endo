@@ -171,44 +171,56 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       }
       const off = offset === undefined ? 0 : Number(offset);
       const len = length === undefined ? undefined : Number(length);
-      // Stream `cat-file blob <oid>` and stop accumulating once we
-      // have the bytes the caller asked for.  For an `OpenFile.read`
-      // of a small range over a multi-MiB blob, this returns after
-      // pulling only `offset + length` bytes from git rather than
-      // the whole blob (`backend.readBlobBytes` would buffer
-      // everything via the same stream — saving the trailing chunks
-      // is the optimization).
-      const needBytes = len === undefined ? Infinity : off + len;
-      /** @type {Uint8Array[]} */
-      const chunks = [];
-      let collected = 0;
-      // eslint-disable-next-line no-restricted-syntax
-      for await (const chunk of backend.streamBlobBytes(entry.oid)) {
-        chunks.push(chunk);
-        collected += chunk.length;
-        if (collected >= needBytes) break;
-      }
-      // Coalesce.  Fast path for the common single-chunk case.
-      const buffer =
-        chunks.length === 1
-          ? chunks[0]
-          : (() => {
-              const out = new Uint8Array(collected);
-              let writeOff = 0;
-              for (const c of chunks) {
-                out.set(c, writeOff);
-                writeOff += c.length;
-              }
-              return out;
-            })();
-      if (len === undefined) {
-        return off === 0 ? buffer : buffer.slice(off);
-      }
-      const end = Math.min(off + len, buffer.length);
-      if (off >= buffer.length) {
+      if (len === 0) {
         return EMPTY_BYTES;
       }
-      return buffer.slice(off, end);
+      // Stream `cat-file blob <oid>` and only retain the
+      // `[off, off + len)` window: discard whole chunks that fall
+      // entirely before `off`, trim the chunk that straddles `off`,
+      // and stop once we have `len` bytes (or hit EOF when len is
+      // undefined).  Worst case retains one chunk's worth above the
+      // requested window — a `read(path, 1_000_000_000n, 4096n)` on
+      // a 1 GiB blob no longer pulls the whole prefix into memory.
+      const want = len === undefined ? Infinity : len;
+      /** @type {Uint8Array[]} */
+      const chunks = [];
+      let streamed = 0;
+      let retained = 0;
+      // eslint-disable-next-line no-restricted-syntax
+      for await (const chunk of backend.streamBlobBytes(entry.oid)) {
+        const chunkStart = streamed;
+        const chunkEnd = streamed + chunk.length;
+        streamed = chunkEnd;
+        // Whole chunk is before the requested window.
+        if (chunkEnd <= off) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        // Trim the chunk to the requested window.
+        const sliceFrom = chunkStart < off ? off - chunkStart : 0;
+        const remaining = want - retained;
+        const sliceTo = Math.min(chunk.length, sliceFrom + remaining);
+        const trimmed =
+          sliceFrom === 0 && sliceTo === chunk.length
+            ? chunk
+            : chunk.subarray(sliceFrom, sliceTo);
+        chunks.push(trimmed);
+        retained += trimmed.length;
+        if (retained >= want) break;
+      }
+      if (chunks.length === 0) {
+        return EMPTY_BYTES;
+      }
+      if (chunks.length === 1) {
+        return chunks[0];
+      }
+      const out = new Uint8Array(retained);
+      let writeOff = 0;
+      for (const c of chunks) {
+        out.set(c, writeOff);
+        writeOff += c.length;
+      }
+      return out;
     },
 
     /** @param {string[]} _path */
