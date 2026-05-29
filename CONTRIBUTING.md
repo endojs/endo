@@ -207,3 +207,22 @@ The release process works as follows:
    Merging will also create tags and GitHub Releases for each affected package.
 4. After merging the Release PR, pull `master` and run `yarn release:npm` to
    publish the updated packages to npm.
+
+## Running CI locally
+
+You can use [act](https://github.com/nektos/act) to run the CI locally. You'll need to make some changes, however, because Yarn will attempt to use the global cache, which is not available to the container.
+
+1. Any job using `actions/setup-node` will need to have `cache: yarn` removed from the `with` section, as this overrides the behavior in `yarnrc.yml`.
+2. Edit `yarnrc.yml` and add these following lines:
+  
+  ```yaml
+  enableGlobalCache: false
+  enableMirror: false
+  globalFolder: .yarn/berry
+  ```
+
+By default, `act` will pull the `catthehacker/ubuntu:full-latest` image on every run. This can be slow, so you can pass `--pull=false` to `act` and only omit when you wish to update the image.
+
+### Running on macOS
+
+If you're running `act` on macOS, you'll need to pass `--container-architecture linux/amd64` to the `act` command.
