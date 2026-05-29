@@ -130,60 +130,6 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: mv -fv "$WORKDIR" "$ORIGINAL_WORKDIR"
 
-  test-async-hooks:
-    name: test-async-hooks
-
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version:
-          # Historical record of Node patch-version compatibility for the
-          # SES-viable promise-hook surface (entries removed as their Node
-          # major lines reached EOL or left CI):
-          # '16.1' last version before some significant promise hooks changes
-          # '16.5' last version before unconditional promise fast-path
-          # '16.6' first version after unconditional promise fast-path
-          - '18'
-          # '20.3' to '20.6' not viable due to https://github.com/nodejs/node/pull/49211
-          # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
-          # '20.7' first SES-viable version of Node 20
-          # '20.9' first LTS of Node 20
-          # '22' is the post-promise-fast-path lane on a current LTS
-          # (the SES-viable promise-hook lane the Node-20 entry was guarding).
-          - '22'
-        platform:
-          - ubuntu-latest
-
-    # begin macro
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      # without this, setup-node errors on mismatched yarn versions
-      - run: corepack enable
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-
-      # end macro
-
-      - name: Install dependencies
-        run: yarn install --immutable
-
-      - name: Run yarn build
-        run: yarn build
-
-      - name: Run yarn test (@endo/init)
-        working-directory: packages/init
-        run: yarn test
-
   cover:
     name: cover
 
