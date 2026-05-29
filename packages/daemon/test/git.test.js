@@ -711,23 +711,26 @@ test('NativeGitBackend credential transport satisfies git HTTP auth challenge', 
   t.true(authorizations.includes(expected));
 });
 
-test('NativeGitBackend askpass keeps credential out of argv, env, and temp files', async t => {
-  const repoRoot = await provisionGitWorktree(t);
-  const fakeDir = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), 'native-git-fake-'),
-  );
-  t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
-  const reportPath = path.join(fakeDir, 'report.json');
-  const secret = `token-${Date.now()}-${Math.random()}`;
-  const beforeAskpassTempEntries = new Set(
-    (await fs.promises.readdir(os.tmpdir())).filter(name =>
-      name.startsWith('endo-git-askpass-'),
-    ),
-  );
-  const fakeGitPath = path.join(fakeDir, 'git');
-  await fs.promises.writeFile(
-    fakeGitPath,
-    `#!/usr/bin/env node
+// Serial: this test mutates the global process.env.PATH to inject a fake git.
+test.serial(
+  'NativeGitBackend askpass keeps credential out of argv, env, and temp files',
+  async t => {
+    const repoRoot = await provisionGitWorktree(t);
+    const fakeDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'native-git-fake-'),
+    );
+    t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
+    const reportPath = path.join(fakeDir, 'report.json');
+    const secret = `token-${Date.now()}-${Math.random()}`;
+    const beforeAskpassTempEntries = new Set(
+      (await fs.promises.readdir(os.tmpdir())).filter(name =>
+        name.startsWith('endo-git-askpass-'),
+      ),
+    );
+    const fakeGitPath = path.join(fakeDir, 'git');
+    await fs.promises.writeFile(
+      fakeGitPath,
+      `#!/usr/bin/env node
 const fs = require('node:fs');
 const childProcess = require('node:child_process');
 const path = require('node:path');
@@ -782,44 +785,142 @@ if (includes('fetch')) {
 console.error('unexpected fake git invocation', args.join(' '));
 process.exit(1);
 `,
-    { mode: 0o755 },
-  );
-  await fs.promises.chmod(fakeGitPath, 0o755);
-
-  const originalPath = process.env.PATH;
-  process.env.PATH = `${fakeDir}${path.delimiter}${originalPath || ''}`;
-  try {
-    const backend = makeNativeGitBackend({ repoRoot });
-    await t.throwsAsync(
-      backend.remoteFetch({
-        url: 'https://example.com/repo.git',
-        refspecs: [],
-        credential: harden({
-          kind: 'bearer',
-          material: harden({ token: secret }),
-        }),
-      }),
-      { message: /git fetch failed/ },
+      { mode: 0o755 },
     );
-  } finally {
-    process.env.PATH = originalPath;
-  }
+    await fs.promises.chmod(fakeGitPath, 0o755);
 
-  const report = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
-  t.false(report.argvIncludesSecret);
-  t.false(report.envIncludesSecret);
-  t.false(report.hasSocketEnv);
-  t.is(report.helperBasename, 'git-askpass-helper.cjs');
-  t.is(report.fd, '3');
-  t.true(report.usernameMatched);
-  t.true(report.passwordMatched);
-  const newAskpassTempEntries = (await fs.promises.readdir(os.tmpdir())).filter(
-    name =>
-      name.startsWith('endo-git-askpass-') &&
-      !beforeAskpassTempEntries.has(name),
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${fakeDir}${path.delimiter}${originalPath || ''}`;
+    try {
+      const backend = makeNativeGitBackend({ repoRoot });
+      await t.throwsAsync(
+        backend.remoteFetch({
+          url: 'https://example.com/repo.git',
+          refspecs: [],
+          credential: harden({
+            kind: 'bearer',
+            material: harden({ token: secret }),
+          }),
+        }),
+        { message: /git fetch failed/ },
+      );
+    } finally {
+      process.env.PATH = originalPath;
+    }
+
+    const report = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
+    t.false(report.argvIncludesSecret);
+    t.false(report.envIncludesSecret);
+    t.false(report.hasSocketEnv);
+    t.is(report.helperBasename, 'git-askpass-helper.cjs');
+    t.is(report.fd, '3');
+    t.true(report.usernameMatched);
+    t.true(report.passwordMatched);
+    const newAskpassTempEntries = (
+      await fs.promises.readdir(os.tmpdir())
+    ).filter(
+      name =>
+        name.startsWith('endo-git-askpass-') &&
+        !beforeAskpassTempEntries.has(name),
+    );
+    t.deepEqual(newAskpassTempEntries, []);
+  },
+);
+
+// Serial: this test mutates the global process.env.PATH to inject a fake git.
+test.serial(
+  'NativeGitBackend askpass answers the password prompt with the password when git omits the username prompt',
+  async t => {
+    // When the remote URL already embeds a username (https://bob@.../repo.git),
+    // git does NOT issue the username prompt; the first and only askpass
+    // invocation is for the password. The helper must select the credential by
+    // inspecting the prompt argument, not by consuming a fixed
+    // username-then-password queue — otherwise the username bytes are wrongly
+    // handed to the password prompt.
+    const repoRoot = await provisionGitWorktree(t);
+    const fakeDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'native-git-fake-'),
+    );
+    t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
+    const reportPath = path.join(fakeDir, 'report.json');
+    const username = `user-${Date.now()}-${Math.random()}`;
+    const password = `pass-${Date.now()}-${Math.random()}`;
+    const fakeGitPath = path.join(fakeDir, 'git');
+    await fs.promises.writeFile(
+      fakeGitPath,
+      `#!/usr/bin/env node
+const fs = require('node:fs');
+const childProcess = require('node:child_process');
+const args = process.argv.slice(2);
+const includes = value => args.includes(value);
+if (includes('--version')) {
+  console.log('git version 2.39.0');
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--show-toplevel')) {
+  console.log(process.cwd());
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--git-common-dir')) {
+  console.log('.git');
+  console.log('.git/config');
+  process.exit(0);
+}
+if (includes('rev-list') || includes('config') || includes('for-each-ref')) {
+  process.exit(0);
+}
+if (includes('fetch')) {
+  // The URL embeds a username, so git issues ONLY the password prompt.
+  const fd = Number.parseInt(process.env.ENDO_GIT_ASKPASS_FD || '', 10);
+  const helper = process.env.GIT_ASKPASS || '';
+  const stdio = ['ignore', 'pipe', 'ignore', fd];
+  const answer = childProcess.execFileSync(
+    helper,
+    ["Password for 'https://bob@example.com':"],
+    { env: process.env, encoding: 'utf8', stdio },
   );
-  t.deepEqual(newAskpassTempEntries, []);
-});
+  fs.writeFileSync(
+    ${JSON.stringify(reportPath)},
+    JSON.stringify({
+      answer,
+      matchedPassword: answer === ${JSON.stringify(password)},
+      matchedUsername: answer === ${JSON.stringify(username)},
+    }),
+  );
+  console.error('fake fetch failed after credential probe');
+  process.exit(1);
+}
+console.error('unexpected fake git invocation', args.join(' '));
+process.exit(1);
+`,
+      { mode: 0o755 },
+    );
+    await fs.promises.chmod(fakeGitPath, 0o755);
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${fakeDir}${path.delimiter}${originalPath || ''}`;
+    try {
+      const backend = makeNativeGitBackend({ repoRoot });
+      await t.throwsAsync(
+        backend.remoteFetch({
+          url: 'https://bob@example.com/repo.git',
+          refspecs: [],
+          credential: harden({
+            kind: 'basic',
+            material: harden({ username, password }),
+          }),
+        }),
+        { message: /git fetch failed/ },
+      );
+    } finally {
+      process.env.PATH = originalPath;
+    }
+
+    const report = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
+    t.true(report.matchedPassword);
+    t.false(report.matchedUsername);
+  },
+);
 
 test('NativeGitBackend.remoteFetch rejects repo-local URL rewrites', async t => {
   const sourceRepo = await provisionGitWorktree(t);

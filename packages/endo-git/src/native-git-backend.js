@@ -256,6 +256,45 @@ const requireAskpassLine = (value, fieldName) => {
 };
 harden(requireAskpassLine);
 
+// Role tags for the askpass credential records. One byte each; mirrored in
+// git-askpass-helper.cjs.
+const ROLE_USERNAME = 0x55; // 'U'
+const ROLE_PASSWORD = 0x50; // 'P'
+
+/**
+ * Frame a credential value as a role-tagged, length-prefixed record:
+ * role-byte (1) | length (4-byte big-endian uint32) | value-bytes (length).
+ * The helper reads the whole record set and selects by role per the prompt git
+ * issues, rather than relying on a fixed username-then-password queue order.
+ *
+ * @param {number} role
+ * @param {string} value
+ * @returns {Buffer}
+ */
+const encodeCredentialRecord = (role, value) => {
+  const valueBytes = Buffer.from(value, 'utf8');
+  const header = Buffer.alloc(5);
+  header[0] = role;
+  header.writeUInt32BE(valueBytes.length, 1);
+  return Buffer.concat([header, valueBytes]);
+};
+harden(encodeCredentialRecord);
+
+/**
+ * Encode the username and password as the role-tagged record set the askpass
+ * helper consumes.
+ *
+ * @param {string} username
+ * @param {string} password
+ * @returns {Buffer}
+ */
+const encodeCredentialRecords = (username, password) =>
+  Buffer.concat([
+    encodeCredentialRecord(ROLE_USERNAME, username),
+    encodeCredentialRecord(ROLE_PASSWORD, password),
+  ]);
+harden(encodeCredentialRecords);
+
 /**
  * Revision arguments must additionally not start with `-` — git would
  * otherwise interpret them as flags.
@@ -671,7 +710,7 @@ export const makeNativeGitBackend = ({
       throw new Error('Unsupported remote credential kind');
     }
 
-    return Buffer.from(`${username}\n${password}\n`, 'utf8');
+    return encodeCredentialRecords(username, password);
   };
 
   const verifyGitVersion = async () => {
