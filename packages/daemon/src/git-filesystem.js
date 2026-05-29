@@ -180,6 +180,11 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       if (entry.kind !== 'directory') {
         throw makeError(X`ENOTDIR: ${q(dirPath.join('/'))}`);
       }
+      // Materializes the full `lsTree` array before yielding the
+      // first entry: bounded by tree size (not by `runGitRaw`'s
+      // 1 MiB cap, since `listTreeEntries` streams), but not by
+      // a page count.  True paged streaming through wrap-backend's
+      // `Cursor.read(limit)` is Phase 6 in `designs/endo-fs-from-git.md`.
       const entries = await lsTreeCached(entry.oid);
       for (const e of entries) {
         if (e.type === 'commit') {

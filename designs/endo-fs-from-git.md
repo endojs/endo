@@ -318,6 +318,16 @@ The daemon package takes a new dependency on `@endo/endo-fs` to import its inter
 - [ ] Detect `extensions.objectFormat = sha256` in `.git/config` and set `BlobRef.algorithm = 'git-sha256'` accordingly.
 - [ ] Adjust `pathId` derivation if needed (sha256 OIDs are 64 hex chars, fits in BigInt fine).
 
+### Phase 6 (deferred): Paged directory listing
+
+The shipped `Directory.list()` calls `backend.lsTree(treeOid)` and `await`s the full entry array before yielding the first `DirEntry`.
+`listTreeEntries` no longer hits the 1 MiB `runGitRaw` cap (it streams via `streamGitBuffer` and concatenates locally), but the in-memory materialization is bounded only by tree size — a directory with hundreds of thousands of entries still allocates a buffer proportional to the listing.
+The paged-Filesystem contract that wrapBackend exposes via `Cursor.read(limit)` can carry one page at a time once the backend supports it.
+
+- [ ] Add a `streamLsTree(treeOid)` async iterable to `GitBackend` that yields parsed `GitTreeEntryRecord` values one at a time.
+- [ ] Rewire `git-filesystem.list()` to consume the iterator directly, retaining `lsTreeCached` only as the random-access cache `resolvePath` needs (or split the two paths: cached-for-lookup, streamed-for-list).
+- [ ] Cursor pagination test that asserts `read(limit)` returns after `limit` entries on a tree with several thousand blobs without materializing the whole listing.
+
 ## Design Decisions
 
 1. **`Git.filesystemAt(ref)` returns `Filesystem`, not `Directory`.**
