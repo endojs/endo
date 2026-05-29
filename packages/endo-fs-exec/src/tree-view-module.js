@@ -51,7 +51,12 @@ import { makeTreeView } from './tree-view.js';
  */
 export const make = (powers, _context, opts = {}) => {
   const env = opts.env || {};
-  const subPath = env.ENDO_FS_TREE_LOCATION || '';
-  return makeTreeView(powers, { subPath });
+  const subPath = env.ENDO_FS_TREE_LOCATION;
+  if (subPath !== undefined && typeof subPath !== 'string') {
+    throw new Error(
+      'tree-view-module: env.ENDO_FS_TREE_LOCATION must be a string when set',
+    );
+  }
+  return makeTreeView(powers, { subPath: subPath || '' });
 };
 harden(make);

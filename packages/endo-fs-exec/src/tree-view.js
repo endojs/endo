@@ -46,6 +46,11 @@ const normalizeSegments = pathArg => {
           X`TreeView lookup rejects traversal segment ${q(seg)} in ${q(pathArg)}`,
         );
       }
+      if (seg.includes('\0')) {
+        throw makeError(
+          X`TreeView lookup rejects NUL byte in segment ${q(seg)}`,
+        );
+      }
       if (seg !== '') {
         out.push(seg);
       }
@@ -62,11 +67,12 @@ const normalizeSegments = pathArg => {
  * would reject anything bigger.
  *
  * @param {unknown} readerRef
- * @param {bigint} expectedSize
+ * @param {bigint | number} expectedSize
  * @returns {Promise<Uint8Array>}
  */
 const drainBytesReader = async (readerRef, expectedSize) => {
-  const size = Number(expectedSize);
+  const size =
+    typeof expectedSize === 'bigint' ? Number(expectedSize) : expectedSize;
   const stringLengthLimit = Math.max(100_000, Math.ceil((size * 4) / 3) + 1024);
   /** @type {Uint8Array[]} */
   const chunks = [];
@@ -130,12 +136,24 @@ export const makeTreeView = (filesystem, opts = {}) => {
     // — blobs do not cache their bytes. `make-from-tree` reads each
     // module exactly once, so memoising would be dead weight.
     const text = async () => {
-      const file = await walk(segments);
-      const [attrs, openFile] = await Promise.all([
-        E(/** @type {any} */ (file)).getAttrs(),
-        E(/** @type {any} */ (file)).open({ read: true }),
-      ]);
+      // Pipeline the walk with both getAttrs and open in a single
+      // CapTP batch: `walk(...)` is the unawaited tail of the lookup
+      // chain, and getAttrs/open are E-sent against it directly.
+      // We must own `openFile`'s close inside a try/finally — the
+      // previous version awaited a `Promise.all([getAttrs, open])`
+      // outside the try, which would leak the OpenFile if getAttrs
+      // rejected while open resolved.
+      const fileP = walk(segments);
+      const attrsP = E(/** @type {any} */ (fileP)).getAttrs();
+      // If `open` rejects first the attrsP rejection would become
+      // unhandled; pre-attach a no-op handler so it stays observed
+      // even when we throw before reaching the await below.
+      attrsP.catch(() => undefined);
+      const openFile = await E(/** @type {any} */ (fileP)).open({
+        read: true,
+      });
       try {
+        const attrs = await attrsP;
         const size = /** @type {{ size: bigint }} */ (attrs).size;
         if (size === 0n) return '';
         const reader = await E(/** @type {any} */ (openFile)).read(0n, size);

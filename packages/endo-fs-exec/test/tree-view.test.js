@@ -132,6 +132,18 @@ test('traversal segments are rejected in subPath', async t => {
   });
 });
 
+test('NUL byte in any segment is rejected', async t => {
+  const fs = makeInMemoryFilesystem();
+  const tree = makeTreeView(fs);
+  await t.throwsAsync(E(tree).lookup('a\0b'), { message: /NUL/ });
+  await t.throwsAsync(E(tree).lookup(['ok', 'bad\0name']), {
+    message: /NUL/,
+  });
+  t.throws(() => makeTreeView(fs, { subPath: 'inner\0path' }), {
+    message: /NUL/,
+  });
+});
+
 test('non-UTF-8 contents surface a decode error rather than mojibake', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
