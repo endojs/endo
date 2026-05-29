@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | **Created** | 2026-05-22 |
-| **Updated** | 2026-05-23 |
+| **Updated** | 2026-05-29 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Proposed |
-| **Supersedes** | [endo-gateway](endo-gateway.md) |
+| **Supersedes** | endo-gateway (removed 2026-05-29; material folded into this document) |
 
 ## What is the Problem Being Solved?
 
@@ -22,8 +22,8 @@ to support:
 
 1. A **per-host system service** that virtual-hosts many users on
    one address and registers from a UNIX-domain bootstrap socket
-   ([`endo-gateway`](endo-gateway.md) sketches this; the present
-   design subsumes and reframes it).
+   (the earlier `endo-gateway` design sketched this; the present
+   document subsumes and reframes it).
 2. A **public web service** reachable from the internet, serving
    the Chat application, Git-over-HTTP, OCapN over a Noise-encrypted
    WebSocket, and per-tenant weblets.
@@ -60,14 +60,15 @@ right; give it a package.**
 This document covers the overarching shape of that package, the ten
 feature subsystems, the capability surface, the configuration
 model, and a phased rollout.
-It supersedes [`endo-gateway`](endo-gateway.md) and integrates the
+It supersedes the earlier `endo-gateway` design (removed 2026-05-29;
+its material is folded into this document) and integrates the
 weblet, Familiar, and OCapN-Noise designs cited in the Dependencies
 table below.
-Where [`endo-gateway`](endo-gateway.md) named specific decisions
-(no TLS in the gateway, Noise in-band, `@apps` NameHub, distinct
-config trees, IPC socket for local-vs-remote attestation, public-key
-rotation as a follow-up), those decisions carry forward verbatim
-unless explicitly revised in the Design Decisions section below.
+The specific decisions from that earlier design (no TLS in the
+gateway, Noise in-band, `@apps` NameHub, distinct config trees, IPC
+socket for local-vs-remote attestation, public-key rotation as a
+follow-up) carry forward verbatim unless explicitly revised in the
+Design Decisions section below.
 
 ## Package Shape
 
@@ -185,6 +186,125 @@ changes: the Familiar always sets `ENDO_HTTP_ADDR=127.0.0.1:0`
 proxies through the OS-assigned port instead of the default 3469.
 The Familiar does not bind a public address.
 
+## Lifecycle
+
+The gateway is supervised by the platform's service manager (systemd,
+launchd, Windows SCM, container runtime) when it runs as a system
+service, by the user's session when it runs under a developer
+install, and by the Electron main process when it runs as the
+Familiar-bundled variant.
+The lifecycle below is common across these supervisors; cross-
+platform service-shape detail is the next section.
+
+### Boot order
+
+The gateway starts and binds its listening port, opens its UDS
+bootstrap socket (if configured), and waits for registrations.
+User daemons start independently and, on startup, each one reads
+its configured gateway address (default: the well-known local UDS
+bootstrap path) and registers.
+The gateway must tolerate user daemons being absent or in flux: a
+request for a virtual host whose user daemon is down returns 404
+(not 503) so the response is cacheable and reveals nothing about
+which users exist on the host.
+A user daemon that finds the gateway absent retries with backoff
+(1s, 2s, 4s, capped at 60s) and registers as soon as the gateway
+appears.
+
+### Teardown
+
+Graceful teardown: the user daemon calls `deregister()` on its
+registration handle and closes the bootstrap-socket connection.
+The gateway prunes the entry, closes any in-flight WebSocket
+connections to the affected weblets with a normal-close opcode, and
+answers further requests for those virtual hosts with 404.
+
+Ungraceful teardown: the bootstrap-socket connection closes
+(process death, OOM kill, host suspend).
+The gateway detects the close and prunes as above; in-flight WS
+connections receive an abnormal close.
+On next start the user daemon simply re-registers; clients
+reconnect.
+
+### Restart semantics
+
+A user-daemon restart is transparent to OCapN clients in the steady
+state: the new instance presents the same Ed25519 public key,
+re-registers the same weblets, and the same access tokens resolve.
+In-flight WebSocket sessions are not transparent; CapTP sessions
+re-establish.
+
+The gateway itself restarts only at administrator request.
+A gateway restart drops every TCP connection; clients reconnect.
+User daemons reconnect to the bootstrap socket and re-publish their
+weblets; the gateway's registration table is rebuilt from those
+incoming registrations rather than persisted across restarts.
+This keeps the gateway's on-disk state minimal (operator policy
+files, the sqlite formula table, the CAS cache; no TLS key, no
+certificate, no Noise static key beyond what the OCapN netlayer
+manages itself) and avoids the gateway's table going stale relative
+to the live user daemons.
+
+### Liveness
+
+The gateway watches the CapTP bootstrap channel for closure (TCP-
+style RST, EPIPE on the UDS) and prunes the registration on close.
+A defensive heartbeat (gateway pings the user daemon every 30s,
+prunes after three missed responses) covers the case where a user
+daemon is wedged but its bootstrap connection has not yet closed.
+Heartbeats reuse CapTP `__getMethodNames__()` (per `project/CLAUDE.md`
+§ CapTP introspection) rather than a bespoke `ping` method; the
+existing introspection round-trip is enough.
+
+## Cross-platform service shape
+
+The gateway lives or dies by the platform's idiomatic service
+manager.
+There is no bespoke Endo supervisor; each platform uses the
+service manager that is already there and that the platform's
+administrator already knows how to operate.
+This is the same posture the superseded `endo-gateway` design
+named: the package itself is service-manager-agnostic, the
+packaging in feature 10 wires it into each platform's manager.
+
+- **Linux**: systemd unit (`endo-gateway.service`, see feature 10
+  for the unit skeleton), service account `endo`, runtime directory
+  `/run/endo-gateway/` for the UDS bootstrap socket.
+  systemd is the assumed service manager on every supported Linux
+  distribution; non-systemd init systems (sysvinit, OpenRC, runit)
+  are out of scope and would be packaged by their downstream
+  distributors if at all.
+- **macOS**: launchd `LaunchDaemon` plist under
+  `/Library/LaunchDaemons/`, runtime directory under `/var/run/`.
+  Installed by the macOS distribution of the Endo binary or by the
+  Familiar app's installer (see Feature 5's *Familiar app packaging
+  impact* subsection below).
+- **Windows**: Windows Service registered with `sc.exe` or via the
+  Service Control Manager API, named-pipe bootstrap channel at
+  `\\.\pipe\endo-gateway` (the Windows analogue of the UDS bootstrap
+  socket from feature 4).
+- **Container** (Docker, Podman, Kubernetes; see feature 10's
+  Dockerfile skeleton): the gateway is `PID 1` of its own container
+  and the container runtime plays the role of the service manager
+  (restart policy, health-check, logs).
+  Inside a container there is typically no systemd (and a systemd-
+  as-PID-1 container is the wrong shape for this use case), so the
+  container image must not assume any service manager beyond a plain
+  process supervisor.
+- **Electron main process** (Familiar-bundled variant, feature 5):
+  the gateway is supervised by Electron's lifecycle (started in
+  `app.whenReady()`, stopped in `app.on('will-quit')`).
+  This is the only configuration where no OS-level service manager
+  is in the picture; the Electron main process is the supervisor.
+
+The package itself is configured by the supervisor through
+environment variables (`ENDO_HTTP_ADDR`, `ENDO_GATEWAY_*`) and the
+TOML config file at the conventional path; the supervisor decides
+which to set.
+Singleton enforcement ("only one gateway per host") is provided by
+the service manager being the thing that started it, not by the
+gateway implementing its own pid-file or advisory-lock check.
+
 ## Feature Decomposition
 
 The maintainer directive lists ten features.
@@ -283,8 +403,8 @@ interface WebletFormula {
 ```
 
 The gateway exposes the **`@apps` NameHub** on each host agent's
-special-names (already the convention per
-[`endo-gateway`](endo-gateway.md) and
+special-names (already the convention per the superseded
+`endo-gateway` design and
 [`familiar-bundled-agents`](familiar-bundled-agents.md)).
 `@apps` is a NameHub: each entry is a `(virtualHostName,
 webletFormulaId)` mapping.
@@ -330,9 +450,10 @@ The content-tree resolution path:
 The SSR-route handler is invoked for requests that do not match a
 file in the content tree; the gateway forwards
 `(method, path, headers, body)` to the user daemon as a CapTP
-call and returns the response.
-This is the existing dynamic-fallback path per
-[`endo-gateway`](endo-gateway.md) § Routing an HTTP request.
+call (the `UserDaemon.handleHttp` exo defined under Feature 4) and
+returns the response.
+This is the dynamic-fallback path: the gateway tries the static CAS
+first, and only on miss invokes the user daemon's handler.
 
 ```mermaid
 sequenceDiagram
@@ -418,7 +539,8 @@ Today the formula identifier is permanent; rotating it requires
 re-issuing every saved Git remote URL.
 This is the same as `gateway-bearer-token-auth.md`'s "token
 secrecy" warning and inherits the Pass-Invariant-Eq follow-up
-from [`endo-gateway`](endo-gateway.md) § Open Questions 1.
+recorded under *Open Questions* below (carried forward from the
+superseded `endo-gateway` design).
 Surfaced rather than answered.
 
 ### Feature 4: UDS bootstrap for local CapTP relay registration
@@ -429,8 +551,7 @@ relays for local users.
 This is the system-service-variant configuration.
 
 The socket path defaults to `/run/endo-gateway/bootstrap.sock`
-when the gateway runs as a system service (matching
-[`endo-gateway`](endo-gateway.md) § Registration Protocol), or
+when the gateway runs as a system service, or
 `${XDG_RUNTIME_DIR}/endo-gateway/bootstrap.sock` when it runs
 under a user account.
 The access mode is 0700 (owner-only) by default; the operator may
@@ -439,10 +560,16 @@ relax to 0770 with a group whitelist for multi-user hosts.
 The bootstrap exo speaks CapTP, framed by netstrings as
 `packages/daemon/src/connection.js` already does for the daemon's
 CLI socket.
-The bootstrap exposes:
+Reusing the existing local CapTP transport means no new framing or
+marshalling code paths.
+
+#### `GatewayBootstrap` (entry exo)
 
 ```ts
 interface GatewayBootstrap {
+  /** Issue a fresh nonce for proof-of-possession. */
+  challenge(): Promise<Uint8Array>;
+
   /** Register a relay for an OCapN public key. */
   registerRelay(args: {
     publicKey: Uint8Array;            // Ed25519 public key
@@ -450,30 +577,131 @@ interface GatewayBootstrap {
     relayTarget: UserDaemonHandle;    // where to forward sessions
   }): Promise<RelayRegistration>;
 
+  /**
+   * Register a per-user daemon and obtain the registration handle
+   * used to publish weblets.  This is the multi-user variant of
+   * registerRelay: the daemon registers itself once, then publishes
+   * one or more weblets through the returned handle.
+   */
+  register(args: {
+    publicKey: Uint8Array;
+    proofOfPossession: Uint8Array;
+    daemon: UserDaemon;               // exo the gateway calls back into
+  }): Promise<Registration>;
+
   /** Get the gateway's bind address. */
   getBindAddress(): Promise<string>;
 
   /** Get the @apps NameHub for the calling user's host. */
   getApps(userHandle: HostHandle): Promise<AppsNameHub>;
-
-  /** Issue a fresh nonce for proof-of-possession. */
-  challenge(): Promise<Uint8Array>;
 }
 ```
 
-The `proofOfPossession` step is identical to
-[`endo-gateway`](endo-gateway.md) § Handshake: the client signs a
-fresh nonce returned by `challenge()`, the gateway verifies under
-the claimed public key, then accepts the registration.
-This prevents one local OS user from registering another user's
+#### `Registration` (per-daemon handle)
+
+```ts
+interface Registration {
+  /**
+   * Publish or update a weblet under the registered user daemon.
+   * The gateway records (gateway-assigned identifier → user daemon,
+   * contentTreeRoot) in its sqlite formula table.
+   */
+  publishWeblet(descriptor: {
+    webletId: string;                 // gateway-assigned identifier
+    contentTreeRoot: string;          // SHA-256 hex of the CAS tree root
+    hasWebSocket: boolean;
+  }): Promise<void>;
+
+  /** Remove a previously-published weblet. */
+  unpublishWeblet(webletId: string): Promise<void>;
+
+  /**
+   * Add an additional public key to this registration (one daemon
+   * may host more than one agent).
+   */
+  addPublicKey(args: {
+    publicKey: Uint8Array;
+    proofOfPossession: Uint8Array;
+  }): Promise<void>;
+
+  /** Tear down this registration; the gateway prunes all entries. */
+  deregister(): Promise<void>;
+}
+```
+
+#### `UserDaemon` (callback exo the gateway invokes)
+
+```ts
+interface UserDaemon {
+  /**
+   * Static fallback when the request path does not resolve under
+   * the weblet's contentTreeRoot.
+   */
+  handleHttp(
+    webletId: string,
+    request: {
+      method: string;
+      path: string;
+      headers: ReadonlyArray<readonly [string, string]>;
+      body: Uint8Array;             // streamed above an inline threshold
+    },
+  ): Promise<{
+    status: number;
+    headers: ReadonlyArray<readonly [string, string]>;
+    body: Uint8Array;
+  }>;
+
+  /**
+   * Returns a frame-level handler for an upgraded WebSocket; the
+   * gateway pumps frames in both directions without inspecting them.
+   */
+  handleWebSocketUpgrade(
+    webletId: string,
+    request: { /* same shape as handleHttp's request */ },
+  ): Promise<{
+    onMessage(frame: Uint8Array): void;
+    onClose(code: number, reason: string): void;
+  }>;
+
+  /**
+   * Asked by the gateway when it sees a content-tree root it has
+   * not yet cached.  Returns a readable-tree-shaped object the
+   * gateway can ingest into its CAS read-through cache.
+   */
+  fetchContentTree(root: string): Promise<ReadableTree>;
+}
+```
+
+#### Proof-of-possession nonce shape
+
+`proofOfPossession` is a signature, with the registrant's Ed25519
+private key, over the fresh 32-byte random nonce returned by an
+immediately preceding `E(gatewayBootstrap).challenge()` call.
+The gateway hashes the nonce with a domain-separation prefix
+(suggested literal `endo-gateway:registrar:nonce`) before checking
+the signature; this prevents a captured registration signature from
+being misused as a signature in another OCapN protocol step.
+A nonce must be consumed within a short window (suggested 30s) and
+is single-use.
+
+This proves that the registrant controls the private key for the
+public key it claims, even though the UDS bootstrap channel itself
+is local-only and would otherwise admit any OS user to register any
 public key.
 
 The **implicit authority** the directive names is the
-`registerRelay` capability itself: any process that can connect
-to the UDS gets a `GatewayBootstrap`, and from it the right to
-register relays.
-The filesystem permissions on the socket gate who-may-connect;
-the proof-of-possession step gates which-public-keys-may-register.
+`registerRelay` / `register` capability itself: any process that can
+connect to the UDS gets a `GatewayBootstrap`, and from it the right
+to register relays and per-user daemons.
+The filesystem permissions on the socket gate who-may-connect; the
+proof-of-possession step gates which-public-keys-may-register.
+
+Heartbeat cadence and the inline-body threshold for the streaming
+relay are tuned in the implementation PR; sensible starting values
+are 30s heartbeat (see *Liveness* under the *Lifecycle* section
+above) and a 64 KiB inline-body threshold (above which bodies are
+streamed as `daemon-message-streaming` chunks rather than passed
+inline).
 
 Phase 2.
 
@@ -524,6 +752,63 @@ the system-service variant; it is a thin wrapper around
 files, then invokes `make(...)`.
 The Familiar does not use this wrapper; it embeds the package
 directly in its main process.
+
+#### Familiar app packaging impact
+
+The Familiar Electron app is the most user-visible packaging target
+for the Endo binary, and its single-host single-user shape is
+exactly the case where the gateway should not impose operator-style
+configuration on the user.
+Familiar's existing build pipeline uses `@electron/packager` plus
+`electron-installer-dmg` / `appdmg`
+(see [`packages/familiar/scripts/make-distributables.mjs`](../packages/familiar/scripts/make-distributables.mjs)
+and [`packages/familiar/scripts/package-app.mjs`](../packages/familiar/scripts/package-app.mjs)),
+producing per-platform artifacts that already bundle Node, the
+daemon, and Familiar's own assets.
+Embedding `@endo/gateway` adds no new native module to the bundle
+(the package is the same Node code in both configurations); the
+`@electron/packager` invocation does not need to change.
+
+Per-platform impact when the user opts in to host-wide hosting (a
+Familiar-side setting that installs a system gateway alongside the
+Familiar's bundled-fallback gateway):
+
+- **macOS (`.dmg`, `.zip`)**: the existing flow ships the
+  Familiar `.app` bundle.
+  Opt-in to host-wide hosting writes a `LaunchDaemon` plist into
+  `/Library/LaunchDaemons/`, requiring an authorization prompt.
+  By default Familiar runs the bundled-fallback gateway under the
+  logged-in user; the system gateway is opt-in.
+  No notarization or codesigning impact beyond what Familiar
+  already needs for the renderer.
+- **Linux (`.zip` and downstream `.deb` / `.rpm` / AppImage)**:
+  the in-tree scripts emit a `.zip`.
+  Downstream distribution packaging ships the `endo-gateway.service`
+  systemd unit per Feature 10; the AppImage build cannot install
+  system services directly and offers gateway only as a "save this
+  unit file and `systemctl --user link` it" prompt.
+- **Windows (`.zip` and downstream installer)**: the in-tree
+  scripts emit a `.zip`; downstream installer packaging (NSIS,
+  MSIX, MSI) registers the gateway as a Windows Service via
+  `sc.exe create` or the SCM API at install time, and offers to
+  start it.
+- **All platforms**: Familiar detects at startup whether a system
+  gateway is reachable on the local UDS bootstrap socket; if so,
+  the Familiar's in-process gateway registers as a user-daemon
+  callee with the system gateway instead of binding its own
+  public port; if not, Familiar falls back to today's bundled
+  behaviour (gateway binds an OS-assigned localhost port).
+  This keeps the user's first-run experience unchanged when no
+  system gateway is installed, and lets the system gateway take
+  over transparently when one is.
+- **Electron architecture constraints**: the gateway is launched
+  in the Electron main process (see *Cross-platform service shape*
+  above).
+  Per `project/CLAUDE.md` § Familiar architecture constraints, the
+  Electron main process must not import `@endo/init` or `ses`; the
+  `@endo/gateway` package therefore does not require either at the
+  top level, and the SES-bearing parts of the daemon run in the
+  daemon worker process beside the Electron main, not inside it.
 
 Phase 3.
 
@@ -663,13 +948,12 @@ The path name encodes the codec/transport pair:
   [`ocapn-noise-network`](ocapn-noise-network.md) § Network
   Identifier).
 
-The naming differs from [`endo-gateway`](endo-gateway.md)'s
+The naming differs from the superseded `endo-gateway` design's
 `/ocapn` for forward extensibility: future siblings can land at
 `/ocapn-syrups-tcp`, `/ocapn-cbor-tls`, etc., without colliding
 on the bare `/ocapn` slot.
-The [`endo-gateway`](endo-gateway.md) `/ocapn` path becomes a
-compatibility alias that maps to `/ocapn-cbor-np` during the
-transition.
+The earlier `/ocapn` path becomes a compatibility alias that maps
+to `/ocapn-cbor-np` during the transition.
 
 **Framing**: one Noise message per WebSocket binary frame.
 The WebSocket message boundary corresponds to one Noise
@@ -941,7 +1225,6 @@ startup; a misconfiguration (e.g., `relay.enabled` with
 
 | Design | Relationship |
 |--------|--------------|
-| [endo-gateway](endo-gateway.md) | **Superseded by** this design. The prior framing (system-service Daemon variant relaying to per-user Daemons) is the feature-4 + feature-6 + feature-7 subset of the new package. The prior design's specific decisions (no TLS, Noise in-band, `@apps` NameHub, separate config trees, IPC for local-vs-remote, deferred key rotation) carry forward unless explicitly revised. |
 | [daemon-web-gateway](daemon-web-gateway.md) | The current in-daemon HTTP+WS server, which this package extracts and generalizes. The daemon's `@apps` formula transitions from inline `web-server-node.js` to a `@endo/gateway` import. |
 | [daemon-weblet-application](daemon-weblet-application.md) | Provides the `readable-tree-weblet` formula type the new Weblet formula generalizes (feature 2). The gateway's content-tree serving reuses the `readable-tree` traversal. |
 | [weblet-next](weblet-next.md) | Reference doc for the removed weblet feature; the new design's feature 2 picks up the `@webs`-style NameHub idea sketched there. |
@@ -959,6 +1242,14 @@ startup; a misconfiguration (e.g., `relay.enabled` with
 | [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | The Ed25519 public keys that identify OCapN nodes are the keys the gateway's relay table is indexed by, and the formula-identifier bearer tokens (feature 3) are the same 256-bit hex strings. |
 | [ocapn-tcp-syrups-framing](ocapn-tcp-syrups-framing.md) | Sibling framing pattern (netstring-around-syrup on TCP); the `/ocapn-cbor-np` design (feature 8) is the WS-around-CBOR analog. |
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | The `op:start-session` extraction; the relay (feature 6) inherits the post-extraction OCapN-Noise session shape. |
+| [daemon-docker-selfhost](daemon-docker-selfhost.md) | The docker-self-host story needs to be revised on top of this design; PR [#134](https://github.com/endojs/endo-but-for-bots/pull/134) is paused pending. Feature 10's container shape (one image, gateway as PID 1, sidecar user-daemon containers sharing a tmpfs volume for the UDS bootstrap) is the target. |
+| [daemon-cas-management](daemon-cas-management.md) | Reused for the gateway's content-addressed read-through cache of weblet assets, served directly from the HTTP path. Per-tenant isolation in the gateway-side cache is Open Question 5. |
+| [daemon-message-streaming](daemon-message-streaming.md) | Streaming chunked HTTP request / response bodies through the relay above the 64 KiB inline threshold named under Feature 4. |
+| [daemon-endo-rust-sqlite](daemon-endo-rust-sqlite.md) | The gateway holds its weblet-formula table in the same sqlite shape as the per-user daemon. |
+| [daemon-checkin-checkout](daemon-checkin-checkout.md) | A host-scoped variant ("publish this `readable-tree` to the gateway's CAS cache so all user daemons can serve weblets from it without per-user re-ingest") is a possible future write path; the read path is already served by Feature 2's Host-header → sqlite-formula → CAS routing. |
+| [daemon-agent-network-identity](daemon-agent-network-identity.md) | Public-key rotation story; the Pass-Invariant-Eq follow-up under Open Question 4. |
+| [exo-zip-package](exo-zip-package.md) | Format option for the weblet content archive the gateway caches. |
+| [`packages/where`](../packages/where/index.js) | Needs gateway-side path functions (`whereEndoGatewayState`, `whereEndoGatewayEphemeralState`, `whereEndoGatewayRegistrarSock`, `whereEndoGatewayCache`) to mux per-mode config trees alongside the existing per-user functions (`whereEndoState`, `whereEndoEphemeralState`, `whereEndoSock`, `whereEndoCache`). |
 
 ## Phased Implementation
 
@@ -1023,7 +1314,7 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    slot.
    The bare `/ocapn` becomes a compatibility alias for
    `/ocapn-cbor-np` during the transition.
-   This revises [`endo-gateway`](endo-gateway.md)'s `/ocapn`
+   This revises the superseded `endo-gateway` design's `/ocapn`
    decision.
 
 4. **Formula identifier as bearer token.**
@@ -1039,8 +1330,9 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    terminating proxy.
    The gateway has no certificate management, no ACME client,
    no cipher-suite configuration.
-   This is the same decision as
-   [`endo-gateway`](endo-gateway.md) § Cryptographic Protocol.
+   This is the same decision the superseded `endo-gateway` design
+   recorded under its *Cryptographic Protocol* section, folded into
+   the present design's *Feature 9* and *Design Decision 5*.
 
 6. **The gateway and daemon are separate processes, not separate
    binaries.**
@@ -1106,10 +1398,26 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
 
 4. **Rotation story for formula-identifier bearer tokens.**
    Deferred for now.
-   Inherits the Pass-Invariant-Eq follow-up from
-   [`endo-gateway`](endo-gateway.md) § Open Questions 1; a
-   token-rotation that preserves the E `Eq` property across key
-   changes remains unsolved and is not pinned by this design.
+   Inherits the Pass-Invariant-Eq follow-up from the superseded
+   `endo-gateway` design's Open Questions: when a user daemon's
+   per-agent Ed25519 keypair (its routing key) rotates, the
+   protocol-level rotation path exists (a daemon may register
+   additional public keys via `Registration.addPublicKey` and
+   retire old ones), but a rotation that preserves the **Pass-
+   Invariant Eq** property from E (object identity preserved across
+   grants, so two paths to the "same" object compare equal under
+   `===` / `Eq`) is unsolved.
+   When a public key changes, anything that hard-coded the old key
+   as part of a locator continues to point at the old entry, and
+   the new key is, from the recipient's perspective, a fresh object
+   even though the operator intended a continuation.
+   The OCapN-side rotation story
+   ([`daemon-agent-network-identity`](daemon-agent-network-identity.md))
+   is the natural place to land the answer; the gateway only needs
+   to accept multi-key registrations and let policy decide which
+   keys to keep.
+   A token-rotation that preserves the E `Eq` property across key
+   changes is not pinned by this design.
 
 5. **Multi-tenant filesystem isolation for the per-user CAS.**
    When the gateway hosts weblets from many users, it caches
@@ -1154,6 +1462,42 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    The phase-1 builder plans the transition with the
    "daemon ships without a web server" invariant as the target
    end-state.
+
+8. **Cross-host policy file for remote registrations.**
+   Remote registrations (those that arrive at the gateway over the
+   public OCapN endpoint rather than the UDS bootstrap) are tagged
+   `remote` and may not host at the host's local virtual-host
+   hierarchy unless an operator policy file names the public key.
+   The format and location of that policy file are not pinned by
+   this design; a candidate is a file under
+   `/etc/endo-gateway/peers/` containing the allowed public keys
+   and the virtual-host identifiers they may claim.
+   Carried forward from the superseded `endo-gateway` design.
+
+9. **Daemon-hosting service mode (virtual users).**
+   The maintainer directive's "address system user daemons" shape
+   is what this design covers.
+   A separate variant of the gateway where the gateway manages
+   **virtual users** rather than addressing system-level user
+   daemons (the gateway holds the formula stores and the agent
+   powers directly, one logical user daemon per virtual user, all
+   in-process) is anticipated but out of scope here.
+   The `UserDaemon` exo defined under Feature 4 is written so a
+   virtual-users variant can implement the same interface
+   internally; the variant lands in its own design.
+   Carried forward from the superseded `endo-gateway` design.
+
+10. **`@apps` write-path host-scoped variant.**
+    [`daemon-checkin-checkout`](daemon-checkin-checkout.md)'s
+    check-in / check-out commands move immutable trees in and out
+    of one user's daemon.
+    A gateway-mediated host might want a host-scoped variant
+    (operator pre-populates the gateway's CAS so all user daemons
+    can serve weblets from it without per-user re-ingest); the
+    read path is already served by Feature 2's Host-header →
+    sqlite-formula → CAS routing.
+    A write path is still underspecified and should be considered
+    before `daemon-checkin-checkout` lands.
 
 ## Prompt
 
