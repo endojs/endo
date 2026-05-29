@@ -19,7 +19,6 @@
     "@jessie.js/eslint-plugin": "^0.4.3",
     "@lavamoat/allow-scripts": "^3.4.3",
     "@lavamoat/preinstall-always-fail": "^2.1.1",
-    "@octokit/core": "^3.6.0",
     "@types/node": "^20.19.41",
     "@typescript-eslint/eslint-plugin": "8.39.1",
     "@typescript-eslint/parser": "8.39.1",
