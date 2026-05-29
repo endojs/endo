@@ -30,7 +30,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "catalog:dev",
     "eslint-plugin-jsdoc": "^50.6.1",
-    "prettier": "^3.5.3",
+    "prettier": "^3.8.3",
     "ses": "workspace:^",
     "source-map": "^0.7.4",
     "ts-node-pack": "^0.3.2",

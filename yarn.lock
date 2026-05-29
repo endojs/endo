@@ -7812,6 +7812,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"prettier@npm:^3.8.3":
+  version: 3.8.3
+  resolution: "prettier@npm:3.8.3"
+  bin:
+    prettier: bin/prettier.cjs
+  checksum: 10c0/754816fd7593eb80f6376d7476d463e832c38a12f32775a82683adb6e35b772b1f484d65f19401507b983a8c8a7cd5a4a9f12006bd56491e8f35503473f77473
+  languageName: node
+  linkType: hard
+
 "pretty-format@npm:^29.7.0":
   version: 29.7.0
   resolution: "pretty-format@npm:29.7.0"
@@ -8328,7 +8337,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-import: "catalog:dev"
     eslint-plugin-jsdoc: "npm:^50.6.1"
-    prettier: "npm:^3.5.3"
+    prettier: "npm:^3.8.3"
     ses: "workspace:^"
     source-map: "npm:^0.7.4"
     ts-node-pack: "npm:^0.3.2"
