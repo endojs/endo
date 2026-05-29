@@ -595,6 +595,46 @@ test('copy of a tree into a sibling (non-descendant) still succeeds', async t =>
   );
 });
 
+test('write() that fails mid-stream propagates the error and leaves no scratch debris', async t => {
+  // When the source stream errors partway through, write()'s catch arm
+  // must flush the writer, remove the partial scratch file, and rethrow.
+  // A scratch file left behind would be visible debris in the mount, and
+  // a swallowed error would let a caller believe a failed write
+  // succeeded. The blob below yields one chunk then rejects, driving the
+  // for-await loop into the catch path.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  const boom = new Error('source stream blew up');
+  async function* failingChunks() {
+    yield new TextEncoder().encode('partial');
+    throw boom;
+  }
+  const blob = makeExo('FailingBlob', ReadableBlobInterface, {
+    streamBase64() {
+      return makeReaderRef(failingChunks());
+    },
+    async text() {
+      return '';
+    },
+    async json() {
+      return null;
+    },
+  });
+  await t.throwsAsync(() => E(mount).write(['victim.txt'], blob), {
+    message: /source stream blew up/,
+  });
+  const names = fs.readdirSync(rootPath);
+  t.deepEqual(
+    names.filter(n => n.endsWith('.tmp')),
+    [],
+    'a failed write removes its partial scratch file rather than leaving debris',
+  );
+  t.false(
+    fs.existsSync(path.join(rootPath, 'victim.txt')),
+    'a failed write does not rename a partial scratch onto the target',
+  );
+});
+
 // --- Snapshot wiring (covers the snapshotTree wrapper) ---
 
 test('snapshot() returns a usable snapshot when snapshotTree is wired', async t => {
