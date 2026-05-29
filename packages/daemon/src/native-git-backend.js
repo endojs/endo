@@ -943,6 +943,16 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         resolve({ code, signal });
       });
     });
+    // If a consumer of this async generator breaks out of the
+    // `for await` loop before reaching `await closed`, and the
+    // child later emits an `'error'` event (e.g. SIGTERM-induced),
+    // `reject(error)` would fire on a promise nobody is awaiting →
+    // unhandled rejection.  Attach a noop catch so the promise has
+    // a registered handler even if the happy-path await never runs.
+    // The `finally` block below still kills the child; this just
+    // keeps the post-break error from surfacing as a process-level
+    // unhandled rejection.
+    closed.catch(() => {});
     try {
       if (child.stdout === null) {
         throw new Error('git stdout stream was not available');
