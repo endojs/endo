@@ -34,7 +34,7 @@
     "ses": "workspace:^",
     "source-map": "^0.7.6",
     "ts-node-pack": "^0.3.2",
-    "tsd": "^0.31.2",
+    "tsd": "catalog:dev",
     "type-coverage": "^2.29.7",
     "typedoc": "^0.28.19",
     "typedoc-plugin-mermaid": "^1.12.0",
