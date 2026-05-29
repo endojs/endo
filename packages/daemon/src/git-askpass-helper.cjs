@@ -27,6 +27,14 @@ const fs = require('fs');
 const ROLE_USERNAME = 0x55; // 'U'
 const ROLE_PASSWORD = 0x50; // 'P'
 
+// Defensive ceiling on a record's declared value length. The daemon writer only
+// ever frames a username or a credential token/password, which are at most a few
+// hundred bytes; 8 KiB is generous headroom. A length beyond this is a corrupt or
+// hostile header (e.g. a garbage 4-byte prefix of 0xFFFFFFFF requesting a ~4 GiB
+// Buffer.alloc), so the helper fast-exits instead of attempting an unbounded
+// allocation. Mirrors the writer's per-record framing in native-git-backend.js.
+const MAX_RECORD_LENGTH = 8 * 1024;
+
 const fdRaw = process.env.ENDO_GIT_ASKPASS_FD;
 if (fdRaw === undefined || fdRaw === '') {
   process.exit(1);
@@ -77,6 +85,11 @@ for (;;) {
   const header = readExactly(5);
   const role = header[0];
   const length = header.readUInt32BE(1);
+  if (length > MAX_RECORD_LENGTH) {
+    // Corrupt or hostile length prefix. Fast-exit rather than allocating an
+    // attacker-controlled, potentially multi-gigabyte Buffer.
+    process.exit(1);
+  }
   const value = readExactly(length);
   if (role === wantedRole) {
     // Write the credential bytes through verbatim. This is an opaque

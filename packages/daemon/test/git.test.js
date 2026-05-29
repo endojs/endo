@@ -9,7 +9,8 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { execFile } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E, Far } from '@endo/far';
@@ -1120,6 +1121,67 @@ process.exit(1);
     t.is(report.passwordBytesB64, passwordBytesB64);
   },
 );
+
+test('git-askpass-helper rejects a record whose declared length exceeds the ceiling', async t => {
+  // The helper reads a 4-byte big-endian length prefix and then allocates a
+  // Buffer of that size. The daemon writer only ever frames a username or a
+  // credential token (a few hundred bytes at most), so a length beyond the
+  // 8 KiB ceiling is a corrupt or hostile header; the helper must fast-exit
+  // non-zero on the length alone rather than allocating an attacker-controlled
+  // Buffer and consuming the body.
+  //
+  // Fail-closed discrimination: this record's declared length is one byte over
+  // the ceiling AND the full body is present in the pipe. A guarded helper
+  // rejects before reading the body (exit non-zero, no stdout). An UNguarded
+  // helper would read the whole body and write it to stdout (exit 0, stdout
+  // non-empty) — so dropping the ceiling check flips this test from pass to
+  // fail rather than leaving it green.
+  const MAX_RECORD_LENGTH = 8 * 1024;
+  const overLength = MAX_RECORD_LENGTH + 1;
+  const helperPath = fileURLToPath(
+    new URL('../src/git-askpass-helper.cjs', import.meta.url),
+  );
+  const fakeDir = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'native-git-askpass-ceiling-'),
+  );
+  t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
+
+  // role-byte (password) | 4-byte big-endian length (over the ceiling) | body.
+  const header = Buffer.alloc(5);
+  header[0] = 0x50; // ROLE_PASSWORD
+  header.writeUInt32BE(overLength, 1);
+  const body = Buffer.alloc(overLength, 0x61); // 'a' repeated
+  const recordPath = path.join(fakeDir, 'record.bin');
+  await fs.promises.writeFile(recordPath, Buffer.concat([header, body]));
+
+  // Open the crafted record as the fd the helper inherits (fs.readSync reads
+  // from any fd, so a regular file stands in for the daemon's pipe here).
+  const recordFd = fs.openSync(recordPath, 'r');
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [helperPath, 'Password for test:'],
+      {
+        env: { ...process.env, ENDO_GIT_ASKPASS_FD: '3' },
+        stdio: ['ignore', 'pipe', 'ignore', recordFd],
+        timeout: 10000,
+      },
+    );
+    t.is(result.signal, null, 'helper must exit on its own, not be timed out');
+    t.not(
+      result.status,
+      0,
+      'helper must exit non-zero on an over-ceiling length',
+    );
+    t.is(
+      result.stdout.length,
+      0,
+      'helper must not emit any credential bytes when the length is rejected',
+    );
+  } finally {
+    fs.closeSync(recordFd);
+  }
+});
 
 test('NativeGitBackend.remoteFetch rejects repo-local URL rewrites', async t => {
   const sourceRepo = await provisionGitWorktree(t);
