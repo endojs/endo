@@ -1136,6 +1136,9 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
 7. **Migration of the existing in-daemon `web-server-node.js`.**
    Resolved direction: the daemon does **not** come with a web
    server; it can be extended by one.
+   What this changes for downstream readers: the Familiar must
+   bundle its own gateway, and the developer install transitions
+   from in-daemon HTTP to embedded `@endo/gateway`.
    This is the broader architectural framing: keeping the
    gateway out of `@endo/daemon` leaves the daemon deployable in
    a wider variety of environments where no HTTP surface is
