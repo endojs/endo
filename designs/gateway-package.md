@@ -627,9 +627,6 @@ interface GatewayAdmin {
     owner: UserDaemonHandle;
   }>>;
 
-  /** Override an allocation policy decision. */
-  setVirtualHostAllocationPolicy(policy: AllocationPolicy): Promise<void>;
-
   /** Read per-account resource balances. */
   getResourceBalances(): Promise<ReadonlyArray<{
     account: AccountId;
@@ -859,9 +856,8 @@ The gateway exposes the following CapTP-reachable exos:
   `EndoDirectory` `lookup` shape on `readable-tree` so that
   `E(apps).lookup('chat')` returns the weblet formula identifier).
 - `GatewayAdmin`: `listRegistrations`, `deregisterRelay`,
-  `listVirtualHosts`, `setVirtualHostAllocationPolicy`,
-  `getResourceBalances`. Only exposed to UDS clients (never on
-  the network).
+  `listVirtualHosts`, `getResourceBalances`. Only exposed to UDS
+  clients (never on the network).
 - `ResourceLedger`: `getBalance`, `chargeBalance`,
   `purchaseTokens`, `setQuota`. Both the GatewayAdmin and the
   per-user host agent have handles; the per-user handle is
