@@ -9,6 +9,9 @@
       "path": "../bytes/tsconfig.composite.json"
     },
     {
+      "path": "../cancel/tsconfig.composite.json"
+    },
+    {
       "path": "../compartment-mapper/tsconfig.composite.json"
     },
     {
