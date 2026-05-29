@@ -23,6 +23,14 @@ import { makeRefIterator, makeRefReader } from './ref-reader.js';
 const mountEntryRecords = new WeakMap();
 const mountRecords = new WeakMap();
 
+// Monotonic suffix for the scratch path `write()` streams a blob into
+// before atomically renaming it onto the target.  A per-process counter
+// is enough to keep concurrent `write()` calls on distinct targets from
+// colliding on the same scratch name; it does not (and need not) make
+// concurrent writes to the *same* target safe — that race predates this
+// module and is the caller's responsibility.
+let writeScratchCounter = 0;
+
 /**
  * Returns the daemon-private lineage sentinel for a mount or mount entry.
  *
@@ -619,17 +627,36 @@ const makeMountExo = ctx => {
         if (await filePowers.isDirectory(target)) {
           throw new Error('Path is a directory');
         }
-        const readerRef = E(value).streamBase64();
-        const writer = filePowers.makeFileWriter(target);
-        for await (const bytes of makeRefReader(
-          /** @type {import('@endo/far').ERef<AsyncIterator<string>>} */ (
-            readerRef
-          ),
-        )) {
-          // eslint-disable-next-line no-await-in-loop
-          await writer.next(bytes);
+        // Stream into a sibling scratch file, then atomically rename it
+        // onto the target.  Opening the writer directly on `target`
+        // would truncate it the instant the stream opens — before the
+        // source has been read.  When the source *is* the target (a live
+        // `copy(name, name)` or `write(name, lookup(name))`), that
+        // truncate destroys the very bytes the reader is about to stream,
+        // leaving the target empty.  Routing through a scratch file means
+        // the target is replaced only once the full source has been read.
+        writeScratchCounter += 1;
+        const scratch = `${target}.${writeScratchCounter}.tmp`;
+        const writer = filePowers.makeFileWriter(scratch);
+        try {
+          const readerRef = E(value).streamBase64();
+          for await (const bytes of makeRefReader(
+            /** @type {import('@endo/far').ERef<AsyncIterator<string>>} */ (
+              readerRef
+            ),
+          )) {
+            // eslint-disable-next-line no-await-in-loop
+            await writer.next(bytes);
+          }
+          await writer.return(undefined);
+        } catch (error) {
+          // Make a best effort to flush and discard the partial scratch
+          // file so a failed write leaves no debris in the mount.
+          await writer.return(undefined).catch(() => {});
+          await filePowers.removePath(scratch).catch(() => {});
+          throw error;
         }
-        await writer.return(undefined);
+        await filePowers.renamePath(scratch, target);
         return;
       }
       if (methods.includes('list')) {
