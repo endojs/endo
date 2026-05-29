@@ -56,6 +56,39 @@ const rejectMutation = method => {
 };
 
 /**
+ * Coerce a bigint or number to a non-negative safe-integer Number.
+ * The `FsBackend.read` contract types `offset`/`length` as bigint
+ * (the protocol must survive 64-bit file sizes), but Uint8Array
+ * indexing is Number-based.  This boundary check rejects values
+ * that would silently lose precision (`> Number.MAX_SAFE_INTEGER`)
+ * or flow as wrong-direction window math (negatives).
+ *
+ * @param {bigint | number} value
+ * @param {string} name
+ * @returns {number}
+ */
+const toSafeIndex = (value, name) => {
+  if (typeof value === 'bigint') {
+    if (value < 0n) {
+      throw makeError(X`EINVAL: ${q(name)} must be non-negative`);
+    }
+    if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw makeError(X`EINVAL: ${q(name)} exceeds Number.MAX_SAFE_INTEGER`);
+    }
+    return Number(value);
+  }
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw makeError(
+        X`EINVAL: ${q(name)} must be a non-negative safe integer`,
+      );
+    }
+    return value;
+  }
+  throw makeError(X`EINVAL: ${q(name)} must be bigint or number`);
+};
+
+/**
  * Build an `FsBackend` over an immutable git tree at `treeOid`.
  *
  * @param {object} args
@@ -72,6 +105,10 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
     if (cached !== undefined) return cached;
     const promise = backend.lsTree(oid);
     lsCache.set(oid, promise);
+    // Evict on rejection so a transient git failure (timeout, etc.)
+    // doesn't poison the cache for the lifetime of the backend.
+    // The successful resolution path is the cache contract.
+    promise.catch(() => lsCache.delete(oid));
     return promise;
   };
 
@@ -121,6 +158,9 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       });
     })();
     pathCache.set(key, promise);
+    // Same rejection-eviction rule as `lsTreeCached`: a transient
+    // failure mid-walk must not pin a poisoned promise.
+    promise.catch(() => pathCache.delete(key));
     return promise;
   };
 
@@ -169,8 +209,12 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       if (entry.kind !== 'file') {
         throw makeError(X`EISDIR: ${q(path.join('/'))}`);
       }
-      const off = offset === undefined ? 0 : Number(offset);
-      const len = length === undefined ? undefined : Number(length);
+      // Validate before coercion: the contract types are bigint, and
+      // values above MAX_SAFE_INTEGER (or negatives) must not flow
+      // into Number-shaped window math silently.
+      const off = offset === undefined ? 0 : toSafeIndex(offset, 'offset');
+      const len =
+        length === undefined ? undefined : toSafeIndex(length, 'length');
       if (len === 0) {
         return EMPTY_BYTES;
       }

@@ -1478,6 +1478,78 @@ test('Git.filesystemAt: range reads at a high offset discard the prefix', async 
   await E(opener).close();
 });
 
+test('Git.filesystemAt: range reads reject negative / unsafe-integer bounds', async t => {
+  const { repoRoot } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'hi\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+  const file = /** @type {any} */ (await E(root).lookup('README.md'));
+  const opener = /** @type {any} */ (await E(file).open({ read: true }));
+
+  // Negative offset is rejected at the boundary instead of flowing
+  // into the window math as 0.
+  await t.throwsAsync(E(opener).read(-1n, 1n), {
+    message: /EINVAL/,
+  });
+  // Negative length is rejected likewise.
+  await t.throwsAsync(E(opener).read(0n, -1n), {
+    message: /EINVAL/,
+  });
+  // Beyond MAX_SAFE_INTEGER would silently lose precision under
+  // `Number()`; reject explicitly.
+  const beyondSafe = BigInt(Number.MAX_SAFE_INTEGER) + 1n;
+  await t.throwsAsync(E(opener).read(beyondSafe, 1n), {
+    message: /EINVAL/,
+  });
+
+  await E(opener).close();
+});
+
+test('Git.filesystemAt: lsTree cache evicts on rejection so a transient failure does not pin', async t => {
+  const { repoRoot } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'hi\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+
+  // Wrap the native backend so the first `lsTree` call rejects (a
+  // simulated transient git timeout) and later calls succeed.
+  const nativeBackend = makeNativeGitBackend({ repoRoot });
+  let failuresRemaining = 1;
+  const flakyBackend = harden({
+    ...nativeBackend,
+    /** @param {string} treeOid */
+    lsTree: async treeOid => {
+      if (failuresRemaining > 0) {
+        failuresRemaining -= 1;
+        throw new Error('simulated transient ls-tree failure');
+      }
+      return nativeBackend.lsTree(treeOid);
+    },
+  });
+  const git = makeGit({ mount, backend: flakyBackend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  // First lookup hits the simulated failure.
+  await t.throwsAsync(E(root).lookup('README.md'), {
+    message: /transient ls-tree/,
+  });
+  // Second lookup must NOT replay the cached rejection — it should
+  // retry through the cleared cache and succeed.
+  const file = await E(root).lookup('README.md');
+  t.truthy(file);
+});
+
 test('Git.filesystemAt: File.snapshot returns a BlobRef over the blob bytes', async t => {
   const { repoRoot } = await provisionGitWorktreeWithFile(
     t,

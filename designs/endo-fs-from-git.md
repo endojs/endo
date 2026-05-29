@@ -268,7 +268,9 @@ The existing `backend.tree(ref) → ReadableTree` keeps its shape unchanged; `fi
 
 `Git.filesystemAt(ref)` returns an ephemeral exo (no formula persistence), matching `Git.tree(ref)`.
 Daemon restart causes any cap holders to re-derive the Filesystem from the parent `Git` formula by calling `filesystemAt(ref)` again.
-The brand changes across restart — callers that need cross-restart identity should use the BlobRef hashes (which are stable git OIDs) rather than the Filesystem's brand.
+The brand changes across restart.
+The shipped `wrapBackend` implementation hashes captured bytes with SHA-256 and does NOT expose the git blob OID through `BlobRef` (see the `## Status` section), so callers that need cross-restart identity cannot rely on `BlobRef.getInfo().hash` matching the git OID directly.
+Pair `Git.filesystemAt(ref)` with `Git.resolveTree(ref)` / `lsTree(treeOid)` from the backend contract (or hold the parent `Git` cap) to recover OID-level identity until the Phase 5 wrap-backend hook lets the git-FS supply its own hashes.
 
 ## Dependencies
 

@@ -1304,8 +1304,30 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
    * @returns {Promise<GitTreeEntry[]>}
    */
   const listTreeEntries = async treeOid => {
-    const raw = await runGitRaw(['ls-tree', '-z', '--long', treeOid]);
-    return parseLsTreeEntries(raw);
+    // Collect `git ls-tree -z --long` via streaming so a large tree
+    // listing isn't capped by `runGitRaw`'s `GIT_MAX_BUFFER` (1 MiB).
+    // The whole record table is still materialized into one string
+    // here (parsing needs random access to NUL-delimited records),
+    // but the input bytes flow through `spawn` rather than execFile
+    // — bounded by tree size, not by the runner's stdout cap.
+    const chunks = [];
+    let total = 0;
+    for await (const chunk of streamGitBuffer([
+      'ls-tree',
+      '-z',
+      '--long',
+      treeOid,
+    ])) {
+      chunks.push(chunk);
+      total += chunk.length;
+    }
+    const buffer = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) {
+      buffer.set(c, offset);
+      offset += c.length;
+    }
+    return parseLsTreeEntries(utf8Decoder.decode(buffer));
   };
 
   /**

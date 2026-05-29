@@ -45,10 +45,13 @@ declare module '@endo/endo-fs' {
   export const readOnly: (fs: object) => object;
 
   /** Build an in-memory `Filesystem`. */
-  export const makeInMemoryFilesystem: (opts?: object) => object;
+  export const makeInMemoryFilesystem: () => object;
 
   /** Build a node:fs/promises-backed `Filesystem`. */
-  export const makeNodeFilesystem: (rootPath: string, opts?: object) => object;
+  export const makeNodeFilesystem: (opts: {
+    rootPath: string;
+    [key: string]: unknown;
+  }) => object;
 
   /** Adapt a daemon `Mount` to a `Filesystem`. */
   export const mountAsFilesystem: (mount: object, opts?: object) => object;
@@ -57,7 +60,10 @@ declare module '@endo/endo-fs' {
   export const makeInMemoryBackend: (opts?: object) => object;
 
   /** Build a node:fs/promises-backed `FsBackend`. */
-  export const makeNodeFsBackend: (rootPath: string, opts?: object) => object;
+  export const makeNodeFsBackend: (opts: {
+    rootPath: string;
+    [key: string]: unknown;
+  }) => object;
 
   /** Adapt a daemon `Mount` to an `FsBackend`. */
   export const makeFromMountBackend: (mount: object) => object;
@@ -70,7 +76,15 @@ declare module '@endo/endo-fs' {
     guest: object,
   ) => object;
   export const namespace: (mounts: Record<string, object>) => object;
-  export const compose: (participants: object[]) => object;
+  /**
+   * CoW union: writes target `layer`, reads merge layer-over-backing.
+   * `opts` is reserved for future composer flags; pass `{}` if needed.
+   */
+  export const compose: (
+    layer: object,
+    backing: object,
+    opts?: object,
+  ) => object;
 
   export const makeLayer: (opts?: object) => object;
   export const LayerInterface: object;
@@ -162,7 +176,7 @@ declare module '@endo/endo-fs/src/backend-types.js' {
 }
 
 declare module '@endo/endo-fs/src/in-memory.js' {
-  export const makeInMemoryFilesystem: (opts?: object) => object;
+  export const makeInMemoryFilesystem: () => object;
 }
 
 declare module '@endo/endo-fs/src/in-memory-module.js' {
@@ -179,7 +193,10 @@ declare module '@endo/endo-fs/src/cached-fs.js' {
 }
 
 declare module '@endo/endo-fs/src/node-fs.js' {
-  export const makeNodeFilesystem: (rootPath: string, opts?: object) => object;
+  export const makeNodeFilesystem: (opts: {
+    rootPath: string;
+    [key: string]: unknown;
+  }) => object;
 }
 
 declare module '@endo/endo-fs/src/node-fs-module.js' {
@@ -203,10 +220,14 @@ declare module '@endo/endo-fs/src/compose.js' {
     guest: object,
   ) => object;
   export const namespace: (mounts: Record<string, object>) => object;
-  export const compose: (participants: object[]) => object;
+  export const compose: (
+    layer: object,
+    backing: object,
+    opts?: object,
+  ) => object;
 }
 
 declare module '@endo/endo-fs/src/layer.js' {
-  export const makeLayer: (opts?: object) => object;
+  export const makeLayer: (layerFs: object, backingFs: object) => object;
   export const LayerInterface: object;
 }
