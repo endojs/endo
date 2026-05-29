@@ -1,24 +1,29 @@
 /**
  * Hand-written declarations covering the public exports `@endo/endo-fs`
  * consumers reach for.  The package's runtime is JavaScript with
- * `@ts-check` JSDoc, but there is no `.d.ts` emission pipeline; without
- * a `types` entrypoint, downstream packages whose own `tsc --build`
- * walks into endo-fs source files hit module-resolution failures for
- * endo-fs's transitive `@endo/eventual-send` / `@endo/patterns`
- * imports (those packages' `.d.ts` only exist mid-prepack and are
- * cleaned up by `postpack` before the consumer's pack runs).
+ * `@ts-check` JSDoc, but it does not have its own `tsc` emission
+ * pipeline; without a `types` entrypoint, downstream packages whose
+ * own `tsc --build` walks into endo-fs source files hit module-
+ * resolution failures for endo-fs's transitive `@endo/eventual-send`
+ * / `@endo/patterns` imports (those packages' `.d.ts` only exist mid-
+ * prepack and are cleaned up by `postpack` before the consumer's
+ * pack runs).
  *
  * Surface kept narrow on purpose: each declaration matches the
- * concrete shape consumers depend on today; richer fidelity lives
- * in the source JSDoc and is recovered at consumer-side runtime
- * via `__getMethodNames__` and the interface guards.
+ * concrete shape consumers depend on today; richer fidelity lives in
+ * the source JSDoc and is recovered at consumer-side runtime via
+ * `__getMethodNames__` and the interface guards.
+ *
+ * Every consumer-facing subpath has a matching `declare module`
+ * stanza so downstream tsc resolves to typed declarations rather
+ * than silently falling back to `any` (or worse: walking into the
+ * endo-fs source files and triggering the resolution chain this
+ * shim exists to short-circuit).
  */
 
 // Mirror of `@endo/exo/exo-makers.js`'s `Exo` placeholder; declared
 // here so downstream consumers don't need to depend on that package
 // transitively just for the shape.
-type ExoLike = object;
-
 declare module '@endo/endo-fs' {
   /**
    * Build a `Filesystem` exo over an `FsBackend`.  Optional
@@ -31,22 +36,22 @@ declare module '@endo/endo-fs' {
       description?: string;
       namedDirs?: Record<string, string[]>;
     },
-  ) => ExoLike;
+  ) => object;
 
   /**
    * Recursively wrap a `Filesystem` so every mutating verb rejects
    * with EACCES at the cap boundary.
    */
-  export const readOnly: (fs: object) => ExoLike;
+  export const readOnly: (fs: object) => object;
 
   /** Build an in-memory `Filesystem`. */
-  export const makeInMemoryFilesystem: (opts?: object) => ExoLike;
+  export const makeInMemoryFilesystem: (opts?: object) => object;
 
   /** Build a node:fs/promises-backed `Filesystem`. */
-  export const makeNodeFilesystem: (rootPath: string, opts?: object) => ExoLike;
+  export const makeNodeFilesystem: (rootPath: string, opts?: object) => object;
 
   /** Adapt a daemon `Mount` to a `Filesystem`. */
-  export const mountAsFilesystem: (mount: object, opts?: object) => ExoLike;
+  export const mountAsFilesystem: (mount: object, opts?: object) => object;
 
   /** Build an in-memory `FsBackend`. */
   export const makeInMemoryBackend: (opts?: object) => object;
@@ -57,23 +62,22 @@ declare module '@endo/endo-fs' {
   /** Adapt a daemon `Mount` to an `FsBackend`. */
   export const makeFromMountBackend: (mount: object) => object;
 
-  /** The empty `Filesystem` — a root with no entries. */
-  export const emptyFilesystem: () => ExoLike;
-  export const chroot: (fs: object, subPath: string[]) => ExoLike;
+  export const emptyFilesystem: () => object;
+  export const chroot: (fs: object, subPath: string[]) => object;
   export const bind: (
     host: object,
     mountPath: string[],
     guest: object,
-  ) => ExoLike;
-  export const namespace: (mounts: Record<string, object>) => ExoLike;
-  export const compose: (participants: object[]) => ExoLike;
+  ) => object;
+  export const namespace: (mounts: Record<string, object>) => object;
+  export const compose: (participants: object[]) => object;
 
-  export const makeLayer: (opts?: object) => ExoLike;
+  export const makeLayer: (opts?: object) => object;
   export const LayerInterface: object;
 
   export const makeMemoryCas: () => object;
   export const cacheBackedRead: (cas: object, fs: object) => object;
-  export const withCachedReads: (fs: object, cas: object) => ExoLike;
+  export const withCachedReads: (fs: object, cas: object) => object;
 
   export const walk: (
     fs: object,
@@ -155,4 +159,54 @@ declare module '@endo/endo-fs/src/backend-types.js' {
       directories?: bigint;
     }>;
   };
+}
+
+declare module '@endo/endo-fs/src/in-memory.js' {
+  export const makeInMemoryFilesystem: (opts?: object) => object;
+}
+
+declare module '@endo/endo-fs/src/in-memory-module.js' {
+  export const make: (powers?: object) => object;
+}
+
+declare module '@endo/endo-fs/src/cas.js' {
+  export const makeMemoryCas: () => object;
+  export const cacheBackedRead: (cas: object, fs: object) => object;
+}
+
+declare module '@endo/endo-fs/src/cached-fs.js' {
+  export const withCachedReads: (fs: object, cas: object) => object;
+}
+
+declare module '@endo/endo-fs/src/node-fs.js' {
+  export const makeNodeFilesystem: (rootPath: string, opts?: object) => object;
+}
+
+declare module '@endo/endo-fs/src/node-fs-module.js' {
+  export const make: (powers?: object) => object;
+}
+
+declare module '@endo/endo-fs/src/readonly.js' {
+  export const readOnly: (fs: object) => object;
+}
+
+declare module '@endo/endo-fs/src/from-mount.js' {
+  export const mountAsFilesystem: (mount: object, opts?: object) => object;
+}
+
+declare module '@endo/endo-fs/src/compose.js' {
+  export const emptyFilesystem: () => object;
+  export const chroot: (fs: object, subPath: string[]) => object;
+  export const bind: (
+    host: object,
+    mountPath: string[],
+    guest: object,
+  ) => object;
+  export const namespace: (mounts: Record<string, object>) => object;
+  export const compose: (participants: object[]) => object;
+}
+
+declare module '@endo/endo-fs/src/layer.js' {
+  export const makeLayer: (opts?: object) => object;
+  export const LayerInterface: object;
 }
