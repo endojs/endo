@@ -512,6 +512,89 @@ test('write rejects writing a ReadableBlob to an existing directory target', asy
   });
 });
 
+// --- write()/copy() data-safety regressions ---
+
+test('copy of a file onto itself preserves its content (same-inode write)', async t => {
+  // copy(name, name) opens a live source file then write()s it back onto
+  // the same path. Opening the writer directly on the target would
+  // truncate it before the lazy source reader produced a byte, emptying
+  // the file and streaming the now-empty result back. Routing the write
+  // through a scratch-then-rename keeps the source intact.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['a.txt'], 'keep me');
+  await E(mount).copy(['a.txt'], ['a.txt']);
+  t.is(
+    fs.readFileSync(path.join(rootPath, 'a.txt'), 'utf8'),
+    'keep me',
+    'same-inode copy must not destroy the source content',
+  );
+});
+
+test('write of a live file handle onto its own backing path preserves content', async t => {
+  // The direct form: write(name, lookup(name)). The looked-up handle's
+  // streamBase64 reads the same path the writer targets.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['b.txt'], 'still here');
+  const handle = await E(mount).lookup('b.txt');
+  await E(mount).write(['b.txt'], handle);
+  t.is(
+    fs.readFileSync(path.join(rootPath, 'b.txt'), 'utf8'),
+    'still here',
+    'self-targeted write must not destroy the source content',
+  );
+});
+
+test('write() leaves no scratch debris in the mount on success', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['c.txt'], 'content');
+  await E(mount).copy(['c.txt'], ['c.txt']);
+  const names = fs.readdirSync(rootPath);
+  t.deepEqual(
+    names.filter(n => n.endsWith('.tmp')),
+    [],
+    'the scratch file is renamed onto the target, not left behind',
+  );
+});
+
+test('copy of a tree into its own descendant is rejected, not infinitely recursed', async t => {
+  // copy(['dir'], ['dir','copy']) would create dir/copy, then enumerate
+  // the now-larger live listing of dir/, recurse into dir/copy/copy, and
+  // loop until the filesystem is exhausted. The descendant guard rejects
+  // up front. The explicit timeout makes CI fail fast (rather than hang
+  // until the global AVA timeout) if the guard regresses.
+  t.timeout(15000);
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory(['dir']);
+  await E(mount).writeText(['dir', 'leaf.txt'], 'x');
+  await t.throwsAsync(() => E(mount).copy(['dir'], ['dir', 'copy']), {
+    message: /into its own descendant/,
+  });
+  // No partial descendant tree was materialised.
+  t.false(
+    fs.existsSync(path.join(rootPath, 'dir', 'copy')),
+    'the rejected copy leaves no destination behind',
+  );
+});
+
+test('copy of a tree into a sibling (non-descendant) still succeeds', async t => {
+  // The guard must reject only descendants; a sibling destination is a
+  // legitimate tree copy.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory(['src']);
+  await E(mount).writeText(['src', 'leaf.txt'], 'hello');
+  await E(mount).copy(['src'], ['dst']);
+  t.is(
+    fs.readFileSync(path.join(rootPath, 'dst', 'leaf.txt'), 'utf8'),
+    'hello',
+    'a non-descendant tree copy is unaffected by the guard',
+  );
+});
+
 // --- Snapshot wiring (covers the snapshotTree wrapper) ---
 
 test('snapshot() returns a usable snapshot when snapshotTree is wired', async t => {
