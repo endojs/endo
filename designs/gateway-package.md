@@ -127,6 +127,29 @@ The gateway holds:
 - A registration table for OCapN public keys to relay targets.
 - Optionally, a UNIX-domain bootstrap socket for local registration.
 
+### Planned `@endo/platform/ws` factoring (forward-pointer)
+
+The WebSocket powers the gateway holds today are Node-specific
+(`@endo/ws-relay` wraps a Node `http.Server` plus the `ws` package).
+The `@endo/gateway` package intentionally consumes WebSocket
+capability rather than implementing it; a follow-on **`@endo/platform/ws`**
+module will factor WebSocket out into a platform-agnostic interface
+so the same gateway code can run under browser, Node, and Endor
+runtimes via conditional imports.
+The gateway's `make({ ... })` factory will accept a `wsPlatform`
+power supplied by the embedder (Node embedder hands in the
+node-backed implementation; the browser embedder hands in the
+`WebSocket`-API-backed implementation; the Endor embedder hands in
+whatever the Endor runtime provides).
+A separate designer dispatch produces the `@endo/platform/ws`
+design; this design notes the dependency so the phase-1 builder
+plans the abstraction boundary up front (the `make({ ... })`
+signature accepts the platform as a power; the package's own code
+calls only into the platform-agnostic interface).
+This is a forward-pointer; the actual `@endo/platform/ws` design
+lands separately and is referenced from the Dependencies table once
+the slug is fixed.
+
 It composes with `@endo/daemon` via the same `@apps` NameHub the
 current built-in gateway uses
 ([`daemon-web-gateway`](daemon-web-gateway.md)); the daemon
