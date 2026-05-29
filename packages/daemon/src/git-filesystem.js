@@ -32,6 +32,8 @@ import { makeError, X, q } from '@endo/errors';
  * @import { FsBackend, DirEntry, NodeKind } from '@endo/endo-fs/src/backend-types.js'
  */
 
+const EMPTY_BYTES = harden(new Uint8Array(0));
+
 /**
  * Resolved path → entry result.  `null` means "definitively absent"
  * (cache the negative lookup so successive `kind('/missing')` calls
@@ -167,13 +169,46 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       if (entry.kind !== 'file') {
         throw makeError(X`EISDIR: ${q(path.join('/'))}`);
       }
-      const bytes = await backend.readBlobBytes(entry.oid);
       const off = offset === undefined ? 0 : Number(offset);
-      if (length === undefined) {
-        return bytes.slice(off);
+      const len = length === undefined ? undefined : Number(length);
+      // Stream `cat-file blob <oid>` and stop accumulating once we
+      // have the bytes the caller asked for.  For an `OpenFile.read`
+      // of a small range over a multi-MiB blob, this returns after
+      // pulling only `offset + length` bytes from git rather than
+      // the whole blob (`backend.readBlobBytes` would buffer
+      // everything via the same stream — saving the trailing chunks
+      // is the optimization).
+      const needBytes = len === undefined ? Infinity : off + len;
+      /** @type {Uint8Array[]} */
+      const chunks = [];
+      let collected = 0;
+      // eslint-disable-next-line no-restricted-syntax
+      for await (const chunk of backend.streamBlobBytes(entry.oid)) {
+        chunks.push(chunk);
+        collected += chunk.length;
+        if (collected >= needBytes) break;
       }
-      const end = off + Number(length);
-      return bytes.slice(off, end);
+      // Coalesce.  Fast path for the common single-chunk case.
+      const buffer =
+        chunks.length === 1
+          ? chunks[0]
+          : (() => {
+              const out = new Uint8Array(collected);
+              let writeOff = 0;
+              for (const c of chunks) {
+                out.set(c, writeOff);
+                writeOff += c.length;
+              }
+              return out;
+            })();
+      if (len === undefined) {
+        return off === 0 ? buffer : buffer.slice(off);
+      }
+      const end = Math.min(off + len, buffer.length);
+      if (off >= buffer.length) {
+        return EMPTY_BYTES;
+      }
+      return buffer.slice(off, end);
     },
 
     /** @param {string[]} _path */
@@ -195,12 +230,14 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       if (entry === null) {
         throw makeError(X`ENOENT: ${q(path.join('/'))}`);
       }
-      // Git trees do not record per-entry timestamps; omit `mtime`
-      // and `atime` so wrapBackend's `readStatNow` falls back to its
-      // vat-local stat table (which synthesizes consistent times via
-      // the `?? local.mtime` / `?? local.atime` merge).  Returning
-      // `0n` would override that fallback because the merge treats
-      // any defined value — including zero — as authoritative.
+      // `size` is the only field we can answer from git: blob entries
+      // carry it inline (`ls-tree --long`); tree entries report `0n`
+      // (no size for directories in this layer, matching node-fs).
+      // `mtime` and `atime` are deliberately omitted so wrapBackend's
+      // `readStatNow` falls back to its vat-local stat table via the
+      // `?? local.mtime` / `?? local.atime` merge — returning `0n`
+      // there would override the fallback because the merge treats
+      // any defined value as authoritative.
       return harden({
         size: BigInt(entry.size),
       });

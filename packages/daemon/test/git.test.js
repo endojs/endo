@@ -1625,6 +1625,91 @@ test('Git.filesystemAt: submodule entries are hidden from the tree view', async 
   await t.throwsAsync(E(root).lookup('sub'), { message: /ENOENT/ });
 });
 
+test('Git.filesystemAt: an empty tree exposes an empty root', async t => {
+  // Provision an empty-tree commit by amending the init commit with
+  // no tracked files.  `provisionGitWorktree` already left an empty
+  // initial commit; assert the FS surfaces it cleanly.
+  const repoRoot = await provisionGitWorktree(t);
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  // `list()` returns a Cursor that yields zero entries.
+  const cursor = /** @type {any} */ (await E(root).list());
+  const readerRef = await E(cursor).stream();
+  // eslint-disable-next-line global-require
+  const { iterateReader } = await import('@endo/exo-stream/iterate-reader.js');
+  const collected = [];
+  for await (const value of iterateReader(readerRef)) {
+    collected.push(value);
+  }
+  t.deepEqual(collected, []);
+
+  // `lookup` on any name throws ENOENT.
+  await t.throwsAsync(E(root).lookup('anything'), { message: /ENOENT/ });
+});
+
+test('Git.filesystemAt: directories report size 0n via getStat', async t => {
+  // A subdirectory in the tree should report `kind: 'directory'` and
+  // `size: 0n` (git trees have no inherent size).
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.mkdir(path.join(repoRoot, 'subdir'));
+  await fs.promises.writeFile(path.join(repoRoot, 'subdir', 'a.txt'), 'a\n');
+  await execFileAsync('git', ['add', 'subdir/a.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'subdir'],
+    { cwd: repoRoot },
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+  const subdir = /** @type {any} */ (await E(root).lookup('subdir'));
+  const stat = await E(subdir).getStat();
+  t.is(stat.size, 0n);
+});
+
+test('Git.filesystemAt: lsTree and resolvePath are cached per Filesystem', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'README.md'), 'hi\n');
+  await execFileAsync('git', ['add', 'README.md'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'add'],
+    { cwd: repoRoot },
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+
+  // Wrap the native backend with a spy that counts `lsTree` calls.
+  const nativeBackend = makeNativeGitBackend({ repoRoot });
+  let lsTreeCalls = 0;
+  const spyBackend = harden({
+    ...nativeBackend,
+    /** @param {string} treeOid */
+    lsTree: async treeOid => {
+      lsTreeCalls += 1;
+      return nativeBackend.lsTree(treeOid);
+    },
+  });
+  const git = makeGit({ mount, backend: spyBackend });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  // First lookup populates the cache.
+  await E(root).lookup('README.md');
+  const afterFirst = lsTreeCalls;
+  // Second lookup of the same path must not re-call lsTree.
+  await E(root).lookup('README.md');
+  t.is(lsTreeCalls, afterFirst, 'lsTree should be cached per tree OID');
+});
+
 /**
  * Collect a PassableBytesReader into a single Uint8Array.
  *

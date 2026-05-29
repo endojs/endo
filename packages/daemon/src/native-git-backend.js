@@ -1332,6 +1332,11 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
       total += chunk.length;
     }
     if (chunks.length === 1) {
+      // Fast path.  `streamGitBuffer` wraps each child-process stdout
+      // chunk in a fresh `new Uint8Array(Buffer)`, so this return does
+      // not alias the runtime's pooled buffer — Node `child_process`
+      // allocates fresh stdout buffers per chunk, and the wrapping
+      // captures the underlying ArrayBuffer one-to-one.
       return chunks[0];
     }
     const out = new Uint8Array(total);

@@ -29,16 +29,46 @@
       "types": "./types.d.ts",
       "default": "./src/backend-types.js"
     },
-    "./src/in-memory.js": "./src/in-memory.js",
-    "./src/in-memory-module.js": "./src/in-memory-module.js",
-    "./src/cas.js": "./src/cas.js",
-    "./src/cached-fs.js": "./src/cached-fs.js",
-    "./src/node-fs.js": "./src/node-fs.js",
-    "./src/node-fs-module.js": "./src/node-fs-module.js",
-    "./src/readonly.js": "./src/readonly.js",
-    "./src/from-mount.js": "./src/from-mount.js",
-    "./src/compose.js": "./src/compose.js",
-    "./src/layer.js": "./src/layer.js",
+    "./src/in-memory.js": {
+      "types": "./types.d.ts",
+      "default": "./src/in-memory.js"
+    },
+    "./src/in-memory-module.js": {
+      "types": "./types.d.ts",
+      "default": "./src/in-memory-module.js"
+    },
+    "./src/cas.js": {
+      "types": "./types.d.ts",
+      "default": "./src/cas.js"
+    },
+    "./src/cached-fs.js": {
+      "types": "./types.d.ts",
+      "default": "./src/cached-fs.js"
+    },
+    "./src/node-fs.js": {
+      "types": "./types.d.ts",
+      "default": "./src/node-fs.js"
+    },
+    "./src/node-fs-module.js": {
+      "types": "./types.d.ts",
+      "default": "./src/node-fs-module.js"
+    },
+    "./src/readonly.js": {
+      "types": "./types.d.ts",
+      "default": "./src/readonly.js"
+    },
+    "./src/from-mount.js": {
+      "types": "./types.d.ts",
+      "default": "./src/from-mount.js"
+    },
+    "./src/compose.js": {
+      "types": "./types.d.ts",
+      "default": "./src/compose.js"
+    },
+    "./src/layer.js": {
+      "types": "./types.d.ts",
+      "default": "./src/layer.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

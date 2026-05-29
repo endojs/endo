@@ -211,7 +211,12 @@ These methods exist in the endo-fs contract but have no meaningful mapping for a
 ### Submodule and symlink behavior
 
 A tree entry whose `type` field is `commit` denotes a submodule pointer (a 40-char OID into a different repository's object DB).
-`Directory.lookup(name)` for such an entry throws:
+
+**Shipped behavior (wrap-backend rewrite):** the git-FS backend filters submodule entries out of `list()` and reports `kind('sub') → undefined` for them, so `Directory.lookup('sub')` surfaces as `ENOENT`.
+Base endo-fs only knows file and directory kinds; introducing a third "submodule" kind would require widening the `FsBackend` contract and the wrapBackend exo plumbing.
+Callers that need submodule traversal obtain a separate `Git` capability for the submodule's repository, exactly as the original design intended.
+
+The original design described a distinct `EIO` error:
 
 ```
 EIO: lookup of submodule 'name' is not supported; obtain a separate Git
