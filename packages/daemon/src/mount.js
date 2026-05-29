@@ -682,6 +682,25 @@ const makeMountExo = ctx => {
       const fromSegments = segmentsFromPathArg(fromArg);
       const from = resolveFromRoot(fromSegments);
       await assertConfined(from, confinementRoot, filePowers);
+      // Reject copying a tree into its own descendant.  `write()`
+      // materialises the destination directory before enumerating the
+      // *live* source listing, so a destination strictly below the
+      // source (e.g. copy(['dir'], ['dir', 'copy'])) would see the
+      // freshly created child, recurse into it, create its child, and
+      // loop until the filesystem is exhausted.  The check is a
+      // segment-prefix test on the resolved paths: `to` is a descendant
+      // of `from` when `from`'s segments are a strict prefix of `to`'s.
+      const toSegments = segmentsFromPathArg(toArg);
+      if (
+        toSegments.length > fromSegments.length &&
+        fromSegments.every((segment, i) => segment === toSegments[i])
+      ) {
+        throw new Error(
+          `Cannot copy ${q(from)} into its own descendant ${q(
+            resolveFromRoot(toSegments),
+          )}`,
+        );
+      }
       const source = await openExisting(from, fromSegments);
       await this.self.write(toArg, source); // eslint-disable-line no-invalid-this
     },
