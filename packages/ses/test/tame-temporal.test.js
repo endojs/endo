@@ -14,6 +14,7 @@ test('lockdown start Temporal is powerful', t => {
     t.log('This JS engine does not yet implement Temporal');
     return;
   }
+  // in start compartment with powerful Temporal
   t.is(typeof Temporal.Now, 'object');
   const startTime = Temporal.Now.instant();
   for (let i = 0; i < 1000; i += 1);
@@ -24,6 +25,18 @@ test('lockdown start Temporal is powerful', t => {
   t.is(startTime.toLocaleString(), startTime.toString());
 });
 
+test('tast Date.prototype.toTemporalInstant', t => {
+  if (Temporal === undefined) {
+    t.false('toTemporalInstant' in Date.prototype);
+    t.pass('This JS engine does not yet implement Temporal');
+    t.log('This JS engine does not yet implement Temporal');
+    return;
+  }
+  // in start compartment with powerful Date
+  const d = new Date();
+  t.is(d.toISOString(), d.toTemporalInstant().toString());
+});
+
 test('lockdown Temporal from Compartment is powerless', t => {
   if (Temporal === undefined) {
     t.pass('This JS engine does not yet implement Temporal');
@@ -32,5 +45,19 @@ test('lockdown Temporal from Compartment is powerless', t => {
   }
   const c = new Compartment();
 
+  // in constructed compartments, `Temporal.Now` is omitted,
+  // whereas `Date.now` is present but throws. This is because `Date.now`
+  // precedes Hardened JavaScript so no one thinks to feature test on it.
+  // `Temporal.Now` explicitly quarantines I/O so it can be omitted
+  // and feature tested.
   t.false('Now' in c.evaluate('Temporal'));
+  t.throws(() => c.evaluate('Date.now()'), {
+    message: 'secure mode Calling %SharedDate%.now() throws',
+  });
+  t.throws(() => c.evaluate('new Date()'), {
+    message: 'secure mode Calling new %SharedDate%() with no arguments throws',
+  });
+t.throws(() => c.evaluate('Date()'), {
+    message: 'secure mode Calling %SharedDate% constructor as a function throws',
+  });
 });
