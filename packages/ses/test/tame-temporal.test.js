@@ -57,7 +57,8 @@ test('lockdown Temporal from Compartment is powerless', t => {
   t.throws(() => c.evaluate('new Date()'), {
     message: 'secure mode Calling new %SharedDate%() with no arguments throws',
   });
-t.throws(() => c.evaluate('Date()'), {
-    message: 'secure mode Calling %SharedDate% constructor as a function throws',
+  t.throws(() => c.evaluate('Date()'), {
+    message:
+      'secure mode Calling %SharedDate% constructor as a function throws',
   });
 });
