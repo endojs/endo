@@ -199,8 +199,12 @@ LLM-agent stack).*
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [namehub-interface-unification](namehub-interface-unification.md) | 2026-05-07 | 2026-05-07 | Proposed |
 | [forge-gap-analysis](forge-gap-analysis.md) | 2026-05-20 | 2026-05-20 | Reference (exploratory) |
+| [app-sharing-milestone](app-sharing-milestone.md) | 2026-06-01 | 2026-06-01 | Proposed |
+| [familiar-deep-link-invitations](familiar-deep-link-invitations.md) | 2026-06-01 | 2026-06-01 | Proposed |
+| [endo-app-sharing](endo-app-sharing.md) | 2026-06-01 | 2026-06-01 | Proposed |
+| [familiar-app-ui-hosting](familiar-app-ui-hosting.md) | 2026-06-01 | 2026-06-01 | Proposed |
 
-**Totals:** 39 Complete/Implemented, 18 In Progress, 37 Not Started, 20 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (126 designs). Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 16 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, and the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29.
+**Totals:** 39 Complete/Implemented, 18 In Progress, 37 Not Started, 24 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (130 designs). The 2026-06-01 pass adds the **Peer App Sharing** milestone cut (`app-sharing-milestone`) and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone A: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 16 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, and the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29.
 
 ## Roadmap
 
@@ -346,9 +350,71 @@ flowchart TD
         dpers --> dbank
         dbank --> icancel
     end
+
+    subgraph App Sharing Cut
+        aship[app-sharing-milestone<br/><i>PROPOSED</i>]
+        adeep[familiar-deep-link-invitations<br/><i>PROPOSED</i>]
+        ashare[endo-app-sharing<br/><i>PROPOSED</i>]
+        auihost[familiar-app-ui-hosting<br/><i>PROPOSED</i>]
+        onoise --> adeep
+        dnet --> adeep
+        adeep --> aship
+        exozip --> ashare
+        dci --> ashare
+        dapp --> auihost
+        fweb --> auihost
+        fchat --> auihost
+        ashare --> auihost
+        auihost --> aship
+        fbund --> aship
+    end
 ```
 
 ### Milestones
+
+#### Milestone A: Peer App Sharing (cross-cutting cut)
+
+**Goal:** An end-to-end "make a thing, send it to a friend, they run it" cut.
+Two people install Familiar, become peers by clicking an `endo://` link
+(confirmation screen + naming), and share runnable apps (endo-fs source +
+endo-fs-exec) either as a live remote reference or as an independent clone,
+with the app's UI hosted in a partial sandbox.
+
+This is a **cut, not a new bucket**: it sequences slices that already live in
+M1–M3 and adds three new designs for the missing connective tissue. See
+[app-sharing-milestone](app-sharing-milestone.md) for the verified
+current-state analysis and phased plan (P0 installer → P1 deep-link →
+P2 app + sandboxed UI → P3 clone).
+
+| Design | Status | Pillar | Notes |
+|--------|--------|--------|-------|
+| app-sharing-milestone | Proposed | — | Milestone roadmap doc; verified current state + P0–P3 plan |
+| familiar-deep-link-invitations | Proposed | 2 — connect peers | New: `endo://` capture in shell → Chat confirm + naming modal → `host.accept` (daemon `invite`/`accept` already Complete) |
+| endo-app-sharing | Proposed | 3 — make & share apps | New: app handle (source + exec + ui + `cloneable`); cross-daemon clone with hash verification vs remote reference |
+| familiar-app-ui-hosting | Proposed | 3 — sandboxed UI | New: app UI manifest + sandbox tiers (`isolated`/`connected`/`trusted`) over the weblet substrate |
+| ~~familiar-electron-shell~~ | **Complete** | 1 — distributable | The shell being distributed (M0) |
+| ~~familiar-daemon-bundling~~ | **Complete** | 1 — distributable | Bundled daemon/Node in the artifact (M0) |
+| Release signing / auto-update / Windows-CI | Not Started | 1 — distributable | *No standalone doc; tracked in app-sharing-milestone P0.* Working **unsigned** build + CI exist (`familiar-release.yml`); gaps: code signing/notarization, Windows CI + installer, AppImage, `electron-updater`, checksums |
+| ~~ocapn-noise-network~~ | **Complete** | 2 — connect peers | Secure transport peers connect over (M2) |
+| daemon-agent-network-identity | Not Started | 2 — connect peers | Per-agent keypairs behind the locator node key; soft prereq (M2) |
+| exo-zip-package | Proposed | 3 — make & share apps | Filesystem-free clone path (M3) |
+| ~~daemon-checkin-checkout~~ | **Complete** | 3 — make & share apps | Local serialisation the clone generalises (M3) |
+| familiar-unified-weblet-server | In Progress | 3 — sandboxed UI | Virtual-host serving for app UIs (M3) |
+| familiar-chat-weblet-hosting | Not Started | 3 — sandboxed UI | In-Chat iframe pane + chrome/guest barrier (M3) |
+| daemon-weblet-application | Not Started | 3 — sandboxed UI | Serve readable-tree files + powers over CapTP (M3) |
+
+**Exit criterion:** A non-developer installs a signed Familiar build, clicks an
+`endo://` invite from a friend, confirms and names that peer, then receives a
+shared app — opening it either as a live remote reference or, when the author
+marked it cloneable, as their own independent copy — with the app's UI running
+in a partial sandbox.
+
+**Estimated added effort (the three new designs; existing constituents counted
+under their home milestones):** ~2-3 weeks, plus the P0 release-hardening track
+(signing/notarization/auto-update/Windows-CI) which is operational rather than
+a design item.
+
+---
 
 #### Milestone 0: Downloadable AI Agent Experience
 
@@ -870,6 +936,10 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | endopi-prompt-templates | S | 1-2 days | 4 | Reusable user-prompt scaffolds with `{{var}}` expansion; shares skills' discovery walker |
 | endopi-stdio-rpc-bridge | M | 4-5 days | 1 | LF-delimited JSONL RPC for embedding the Lal/Fae agent in another process; short-term shape before `endor-bus-tui` |
 | endopi-extension-package-manifest | S-M | 3 days | 5 | `package.json` `endo` keyword bundling guests + skills + prompts + providers in one install |
+| app-sharing-milestone | — | — | A | Roadmap/cut doc; no implementation of its own (reference for the P0–P3 sequencing) |
+| familiar-deep-link-invitations | S-M | 3 days | A | `endo://` capture in shell + Chat confirm/naming modal; daemon `invite`/`accept` already Complete |
+| endo-app-sharing | M | 4-5 days | A | App handle + cross-daemon `endo clone` (hash-verified) vs remote reference (1.2x bump) |
+| familiar-app-ui-hosting | M | 4-5 days | A | App UI manifest + sandbox tiers over the existing weblet substrate (1.2x bump) |
 
 #### Summary by Milestone
 
@@ -891,7 +961,8 @@ date of this pass.
 | M4: UX & Tooling | 12 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 8-11 weeks | 10-13 weeks |
 | M5: Confinement & Ecosystem | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
 | M6: Rust Daemon (`endor`) | 2 (`endor-tui`, `endor-bus-tui`) | 12-17 weeks | 14-19 weeks |
-| **Total remaining** | **48** | **~52-71 weeks** | **~63-86 weeks** |
+| Milestone A: Peer App Sharing (cut) | 3 net-new (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); existing constituents counted under M1–M3 | 2-3 weeks | 3-5 weeks |
+| **Total remaining** | **51** | **~54-74 weeks** | **~66-90 weeks** |
 
 The 2026-05-20 reconciliation corrects a counting gap in the prior
 snapshot's narrative: M1, M3, and M4 had absorbed new rows since the
