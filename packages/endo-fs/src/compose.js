@@ -1463,7 +1463,12 @@ export const compose = (layer, backing, _opts = {}) => {
         if (!opaque && backingDir) {
           const backingCursor = await E(backingDir).list();
           const stream = await E(backingCursor).stream();
-          for await (const entry of iterateReader(stream)) {
+          for await (const passable of iterateReader(stream)) {
+            // `iterateReader` yields `Passable`; Cursor entries are
+            // `{ name: string, qid: any }` (per `makeCursorExo`).
+            // Narrow at the boundary so the merge / lookup below is
+            // type-checked without per-call assertions.
+            const entry = /** @type {{ name: string, qid: any }} */ (passable);
             if (!layerNames.has(whiteoutName(entry.name))) {
               merged.set(entry.name, entry);
             }

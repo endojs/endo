@@ -910,41 +910,6 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
   };
 
   /**
-   * Run a sanitized git invocation whose stdout is binary data.
-   *
-   * @param {string[]} args
-   * @returns {Promise<Uint8Array>}
-   */
-  const runGitBuffer = async args => {
-    await verifyRepositoryIdentity();
-    try {
-      const { stdout } = await execFileAsync(
-        'git',
-        [...GIT_BASE_ARGS, ...args],
-        {
-          cwd: repoRoot,
-          env: makeGitEnv(repoRoot),
-          timeout: GIT_TIMEOUT_MS,
-          maxBuffer: GIT_MAX_BUFFER,
-          encoding: /** @type {'buffer'} */ ('buffer'),
-        },
-      );
-      return new Uint8Array(/** @type {Buffer | Uint8Array} */ (stdout));
-    } catch (err) {
-      const error =
-        /** @type {Error & { stdout?: Buffer | string, stderr?: Buffer | string, code?: number }} */ (
-          err
-        );
-      const detail = String(
-        error.stderr || error.stdout || error.message || 'unknown git error',
-      );
-      throw new Error(
-        `git ${gitCommandName(args)} failed (exit ${error.code ?? 'unknown'}):\n${truncateOutput(detail.trim())}`,
-      );
-    }
-  };
-
-  /**
    * Run a sanitized git invocation and stream binary stdout chunks.
    *
    * @param {string[]} args
@@ -978,6 +943,16 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         resolve({ code, signal });
       });
     });
+    // If a consumer of this async generator breaks out of the
+    // `for await` loop before reaching `await closed`, and the
+    // child later emits an `'error'` event (e.g. SIGTERM-induced),
+    // `reject(error)` would fire on a promise nobody is awaiting →
+    // unhandled rejection.  Attach a noop catch so the promise has
+    // a registered handler even if the happy-path await never runs.
+    // The `finally` block below still kills the child; this just
+    // keeps the post-break error from surfacing as a process-level
+    // unhandled rejection.
+    closed.catch(() => {});
     try {
       if (child.stdout === null) {
         throw new Error('git stdout stream was not available');
@@ -1329,8 +1304,30 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
    * @returns {Promise<GitTreeEntry[]>}
    */
   const listTreeEntries = async treeOid => {
-    const raw = await runGitRaw(['ls-tree', '-z', '--long', treeOid]);
-    return parseLsTreeEntries(raw);
+    // Collect `git ls-tree -z --long` via streaming so a large tree
+    // listing isn't capped by `runGitRaw`'s `GIT_MAX_BUFFER` (1 MiB).
+    // The whole record table is still materialized into one string
+    // here (parsing needs random access to NUL-delimited records),
+    // but the input bytes flow through `spawn` rather than execFile
+    // — bounded by tree size, not by the runner's stdout cap.
+    const chunks = [];
+    let total = 0;
+    for await (const chunk of streamGitBuffer([
+      'ls-tree',
+      '-z',
+      '--long',
+      treeOid,
+    ])) {
+      chunks.push(chunk);
+      total += chunk.length;
+    }
+    const buffer = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) {
+      buffer.set(c, offset);
+      offset += c.length;
+    }
+    return parseLsTreeEntries(utf8Decoder.decode(buffer));
   };
 
   /**
@@ -1345,15 +1342,43 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
 
   /**
    * @param {string} blobOid
-   * @returns {Promise<Uint8Array>}
-   */
-  const readBlobBytes = blobOid => runGitBuffer(['cat-file', 'blob', blobOid]);
-
-  /**
-   * @param {string} blobOid
    */
   const streamBlobBytes = blobOid =>
     streamGitBuffer(['cat-file', 'blob', blobOid]);
+
+  /**
+   * Read the full bytes of a blob.  Collects the streaming output of
+   * `cat-file blob <oid>` so the read is not subject to `execFile`'s
+   * `maxBuffer` cap — a blob larger than `GIT_MAX_BUFFER` (1 MiB) is
+   * read correctly rather than failing the entire call.
+   *
+   * @param {string} blobOid
+   * @returns {Promise<Uint8Array>}
+   */
+  const readBlobBytes = async blobOid => {
+    /** @type {Uint8Array[]} */
+    const chunks = [];
+    let total = 0;
+    for await (const chunk of streamBlobBytes(blobOid)) {
+      chunks.push(chunk);
+      total += chunk.length;
+    }
+    if (chunks.length === 1) {
+      // Fast path.  `streamGitBuffer` wraps each child-process stdout
+      // chunk in a fresh `new Uint8Array(Buffer)`, so this return does
+      // not alias the runtime's pooled buffer — Node `child_process`
+      // allocates fresh stdout buffers per chunk, and the wrapping
+      // captures the underlying ArrayBuffer one-to-one.
+      return chunks[0];
+    }
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) {
+      out.set(c, offset);
+      offset += c.length;
+    }
+    return out;
+  };
 
   /**
    * @param {string} blobOid
@@ -2084,6 +2109,75 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
       } finally {
         await credentialTransport.close();
       }
+    },
+
+    /**
+     * Resolve a ref to a canonical tree OID.  Used by the endo-fs
+     * `filesystemAt(ref)` path so the returned Filesystem is pinned to
+     * a specific OID rather than tracking the ref.  Returns the commit
+     * OID alongside when the ref resolves to a commit (the common case);
+     * a bare tree ref leaves `commitOid` undefined.
+     *
+     * @param {string} ref
+     */
+    resolveTree: async ref => {
+      const revision = requireRevision(ref, 'resolveTree.ref');
+      const rawTree = await runGitRaw([
+        'rev-parse',
+        '--verify',
+        '--end-of-options',
+        `${revision}^{tree}`,
+      ]);
+      const treeOid = rawTree.trim();
+      let commitOid;
+      try {
+        const rawCommit = await runGitRaw([
+          'rev-parse',
+          '--verify',
+          '--end-of-options',
+          `${revision}^{commit}`,
+        ]);
+        commitOid = rawCommit.trim();
+      } catch {
+        commitOid = undefined;
+      }
+      return harden({
+        treeOid,
+        ...(commitOid !== undefined ? { commitOid } : {}),
+      });
+    },
+
+    /**
+     * Enumerate entries at a tree OID via `git ls-tree -z --long`.
+     * The records are immutable for a given tree OID and safe to cache.
+     *
+     * @param {string} treeOid
+     */
+    lsTree: async treeOid => {
+      const oid = requireRevision(treeOid, 'lsTree.treeOid');
+      const entries = await listTreeEntries(oid);
+      return harden(entries);
+    },
+
+    /**
+     * Read full bytes of a blob.
+     *
+     * @param {string} blobOid
+     */
+    readBlobBytes: async blobOid => {
+      const oid = requireRevision(blobOid, 'readBlobBytes.blobOid');
+      return readBlobBytes(oid);
+    },
+
+    /**
+     * Stream blob bytes for range-read paths.  Yields chunks; callers
+     * concatenate or slice as needed.
+     *
+     * @param {string} blobOid
+     */
+    streamBlobBytes: blobOid => {
+      const oid = requireRevision(blobOid, 'streamBlobBytes.blobOid');
+      return streamBlobBytes(oid);
     },
   });
 };

@@ -427,6 +427,13 @@ export interface EndoGit {
    */
   tree(ref: GitRef | string): Promise<ReadableTreeView>;
   /**
+   * Returns an `@endo/endo-fs` `Filesystem` lazily backed by the git
+   * object database at the resolved tree of `ref`.  The Filesystem is
+   * immutable; mutating verbs throw `EACCES`.  See
+   * `designs/endo-fs-from-git.md`.
+   */
+  filesystemAt(ref: GitRef | string): Promise<unknown>;
+  /**
    * Returns an attenuated `EndoGit` whose mutation methods reject.
    * If this cap is already read-only, returns the same cap.
    */

@@ -2732,7 +2732,15 @@ const makeDaemonCore = async (
         repoRoot: backing.physicalRoot,
       });
       await backend.assertRepositoryRoot();
-      return makeGit({ mount, backend, readOnly: backing.readOnly });
+      return makeGit({
+        // `provide(mountId)` returns a union of cap types; the
+        // `getMountBacking` check above guarantees an `EndoMount`,
+        // but TS can't narrow through it.
+        // eslint-disable-next-line object-shorthand
+        mount: /** @type {object} */ (mount),
+        backend,
+        readOnly: backing.readOnly,
+      });
     },
     'git-credential': ({ kind, audience }, _context, id) => {
       const material = gitCredentialMaterialForId.get(id);
@@ -2804,8 +2812,15 @@ const makeDaemonCore = async (
       const credential =
         credentialId === undefined ? undefined : await provide(credentialId);
       const { remote } = makeGitRemote({
-        git,
-        credential,
+        // `provide(gitId)` returns a union; `makeGitRemote` accepts a
+        // bare `object` and asserts the shape internally.
+        // eslint-disable-next-line object-shorthand
+        git: /** @type {object} */ (git),
+        // eslint-disable-next-line object-shorthand
+        credential:
+          credential === undefined
+            ? undefined
+            : /** @type {object} */ (credential),
         name,
         policy,
         revoked,

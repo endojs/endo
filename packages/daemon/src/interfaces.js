@@ -718,6 +718,7 @@ export const GitInterface = M.interface('Git', {
   stashPop: M.callWhen().optional(M.number()).returns(M.undefined()),
   stashDrop: M.callWhen().optional(M.number()).returns(M.undefined()),
   tree: M.callWhen(RefArgShape).returns(M.remotable('EndoReadableTree')),
+  filesystemAt: M.callWhen(RefArgShape).returns(M.remotable('Filesystem')),
   readOnly: M.call().returns(M.remotable('Git')),
 });
 

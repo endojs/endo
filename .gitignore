@@ -103,6 +103,7 @@ api-docs
 !packages/daemon/src/bus-xs-host-globals.d.ts
 !packages/daemon/src/types.d.ts
 !packages/daemon/types.d.ts
+!packages/endo-fs/types.d.ts
 !packages/eventual-send/src/exports.d.ts
 !packages/eventual-send/src/types.d.ts
 !packages/exo/src/types.d.ts
