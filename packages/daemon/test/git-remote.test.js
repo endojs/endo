@@ -20,10 +20,12 @@ import {
   makeBearerCredential,
   makeUnavailableGitCredential,
   revokeGitCredential,
+  makeGit,
+  makeNotYetImplementedBackend,
+  makeNativeGitBackend,
 } from '@endo/endo-git';
-import { makeMount } from '../src/mount.js';
-import { makeGit, makeNotYetImplementedBackend } from '../src/git.js';
-import { makeNativeGitBackend } from '@endo/endo-git';
+import { lineageOf, makeMount } from '../src/mount.js';
+import { makeReaderRef } from '../src/reader-ref.js';
 import { makeGitRemote, getGitRemoteController } from '../src/git-remote.js';
 
 const execFileAsync = nodePromisify(execFile);
@@ -56,9 +58,9 @@ const provisionGitContext = async t => {
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: root, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot: root });
+  const backend = makeNativeGitBackend({ repoRoot: root , makeReaderRef });
   await backend.assertRepositoryRoot();
-  const git = makeGit({ mount, backend });
+  const git = makeGit({ mount, backend , lineageOf });
   return { git, mount, root };
 };
 
@@ -338,7 +340,7 @@ test('GitRemote passes HTTPS credential material to backend transport only', asy
       return harden({ updatedRefs: harden([]), text: 'ok' });
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend });
+  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
   const credential = exampleCredential();
   const credentialController = getGitCredentialController(credential);
   t.truthy(credentialController);
@@ -395,7 +397,7 @@ test('GitCredentialController rotates material used by existing remotes', async 
       return harden({ updatedRefs: harden([]), text: 'ok' });
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend });
+  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
   const credential = exampleCredential();
   const controller = getGitCredentialController(credential);
   t.truthy(controller);
@@ -457,7 +459,7 @@ test('GitRemoteController.revoke during in-flight fetch prevents stale success',
       return fetchResult;
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend });
+  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',
@@ -515,7 +517,7 @@ test('GitCredentialController.rotate during in-flight fetch prevents stale succe
       return harden({ updatedRefs: harden([]), text: 'ok' });
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend });
+  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
   const credential = exampleCredential();
   const credentialController = getGitCredentialController(credential);
   t.truthy(credentialController);
@@ -586,7 +588,7 @@ test('GitRemoteController.revoke during in-flight pull aborts before local integ
       return 'merged';
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend });
+  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',
@@ -781,7 +783,7 @@ test('GitRemote enforces tag and prune policy at the call boundary', async t => 
       return harden({ updatedRefs: [] });
     },
   });
-  const git = makeGit({ mount, backend });
+  const git = makeGit({ mount, backend , lineageOf });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',
@@ -822,7 +824,7 @@ test('GitRemote wildcard push policy binds source and destination names', async 
       return harden({ updatedRefs: [] });
     },
   });
-  const git = makeGit({ mount, backend });
+  const git = makeGit({ mount, backend , lineageOf });
   const { remote } = makeGitRemote({
     git,
     name: 'origin',
@@ -869,7 +871,7 @@ test('GitRemote.push revalidates concrete tag overrides against allowTags', asyn
       return harden({ updatedRefs: [] });
     },
   });
-  const git = makeGit({ mount, backend });
+  const git = makeGit({ mount, backend , lineageOf });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',
@@ -921,7 +923,7 @@ test('GitRemote.pull rejects an integration branch outside fetch policy', async 
       return harden({ updatedRefs: [] });
     },
   });
-  const git = makeGit({ mount, backend });
+  const git = makeGit({ mount, backend , lineageOf });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',

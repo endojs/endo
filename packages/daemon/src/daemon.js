@@ -64,8 +64,8 @@ import {
   makeHelp,
   readableTreeHelp,
 } from './help-text.js';
-import { getMountBacking, makeMount } from './mount.js';
-import { makeGit } from './git.js';
+import { getMountBacking, lineageOf, makeMount } from './mount.js';
+import { makeGit } from '@endo/endo-git';
 import { makeNativeGitBackend } from '@endo/endo-git';
 import {
   makeBasicCredential,
@@ -2741,6 +2741,7 @@ const makeDaemonCore = async (
         mount: /** @type {object} */ (mount),
         backend,
         readOnly: backing.readOnly,
+        lineageOf,
       });
     },
     'git-credential': ({ kind, audience }, _context, id) => {

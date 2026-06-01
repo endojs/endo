@@ -4,6 +4,15 @@
 // designs/extract-endo-git-package.md for phases.
 
 export {
+  makeGit,
+  isGitReadOnly,
+  getGitBackend,
+  makeNotYetImplementedBackend,
+} from './git.js';
+
+export { makeGitFsBackend } from './git-filesystem.js';
+
+export {
   makeNativeGitBackend,
   internalHelpers,
 } from './native-git-backend.js';

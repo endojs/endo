@@ -11,7 +11,7 @@ import {
   GitRemoteInterface,
   GitRemoteControllerInterface,
 } from './interfaces.js';
-import { getGitBackend, isGitReadOnly } from './git.js';
+import { getGitBackend, isGitReadOnly } from '@endo/endo-git';
 import { assertGitCredentialForUrl } from '@endo/endo-git';
 
 /**
