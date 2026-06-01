@@ -11,22 +11,23 @@ import { execFile } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E, Far } from '@endo/far';
-
-import { makeFilePowers } from '../src/daemon-node-powers.js';
 import {
   assertGitCredentialForUrl,
   getGitCredentialController,
+  getGitRemoteController,
   makeBasicCredential,
   makeBearerCredential,
+  makeGit,
+  makeGitRemote,
+  makeNativeGitBackend,
+  makeNotYetImplementedBackend,
   makeUnavailableGitCredential,
   revokeGitCredential,
-  makeGit,
-  makeNotYetImplementedBackend,
-  makeNativeGitBackend,
 } from '@endo/endo-git';
+
+import { makeFilePowers } from '../src/daemon-node-powers.js';
 import { lineageOf, makeMount } from '../src/mount.js';
 import { makeReaderRef } from '../src/reader-ref.js';
-import { makeGitRemote, getGitRemoteController } from '@endo/endo-git';
 
 const execFileAsync = nodePromisify(execFile);
 const exampleCredential = () =>
@@ -58,9 +59,9 @@ const provisionGitContext = async t => {
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: root, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot: root , makeReaderRef });
+  const backend = makeNativeGitBackend({ repoRoot: root, makeReaderRef });
   await backend.assertRepositoryRoot();
-  const git = makeGit({ mount, backend , lineageOf });
+  const git = makeGit({ mount, backend, lineageOf });
   return { git, mount, root };
 };
 
@@ -783,7 +784,7 @@ test('GitRemote enforces tag and prune policy at the call boundary', async t => 
       return harden({ updatedRefs: [] });
     },
   });
-  const git = makeGit({ mount, backend , lineageOf });
+  const git = makeGit({ mount, backend, lineageOf });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',
@@ -824,7 +825,7 @@ test('GitRemote wildcard push policy binds source and destination names', async 
       return harden({ updatedRefs: [] });
     },
   });
-  const git = makeGit({ mount, backend , lineageOf });
+  const git = makeGit({ mount, backend, lineageOf });
   const { remote } = makeGitRemote({
     git,
     name: 'origin',
@@ -871,7 +872,7 @@ test('GitRemote.push revalidates concrete tag overrides against allowTags', asyn
       return harden({ updatedRefs: [] });
     },
   });
-  const git = makeGit({ mount, backend , lineageOf });
+  const git = makeGit({ mount, backend, lineageOf });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',
@@ -923,7 +924,7 @@ test('GitRemote.pull rejects an integration branch outside fetch policy', async 
       return harden({ updatedRefs: [] });
     },
   });
-  const git = makeGit({ mount, backend , lineageOf });
+  const git = makeGit({ mount, backend, lineageOf });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',

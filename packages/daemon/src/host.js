@@ -7,6 +7,11 @@
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { makeError, q, X } from '@endo/errors';
+import {
+  getGitCredentialController as getGitCredentialControllerForCap,
+  getGitRemoteController as getGitRemoteControllerForCap,
+  isGitReadOnly,
+} from '@endo/endo-git';
 import { makeIteratorRef } from './reader-ref.js';
 import {
   assertPetName,
@@ -30,9 +35,6 @@ import { makeDeferredTasks } from './deferred-tasks.js';
 import { HostInterface } from './interfaces.js';
 import { hostHelp, makeHelp } from './help-text.js';
 import { assertValidTreeEntryName } from './mount.js';
-import { isGitReadOnly } from '@endo/endo-git';
-import { getGitCredentialController as getGitCredentialControllerForCap } from '@endo/endo-git';
-import { getGitRemoteController as getGitRemoteControllerForCap } from '@endo/endo-git';
 
 /**
  * @param {string} name

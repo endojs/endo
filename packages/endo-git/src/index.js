@@ -12,10 +12,7 @@ export {
 
 export { makeGitFsBackend } from './git-filesystem.js';
 
-export {
-  makeNativeGitBackend,
-  internalHelpers,
-} from './native-git-backend.js';
+export { makeNativeGitBackend, internalHelpers } from './native-git-backend.js';
 
 export { makeGitRemote, getGitRemoteController } from './git-remote.js';
 

@@ -15,6 +15,14 @@ import {
   checkinTree as platformCheckinTree,
   snapshotTreeMethods,
 } from '@endo/platform/fs/lite';
+import {
+  makeBasicCredential,
+  makeBearerCredential,
+  makeGit,
+  makeGitRemote,
+  makeNativeGitBackend,
+  makeUnavailableGitCredential,
+} from '@endo/endo-git';
 import { makeRefReader, makeRefIterator } from './ref-reader.js';
 import { makeIteratorRef, makeReaderRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';
@@ -65,14 +73,6 @@ import {
   readableTreeHelp,
 } from './help-text.js';
 import { getMountBacking, lineageOf, makeMount } from './mount.js';
-import { makeGit } from '@endo/endo-git';
-import { makeNativeGitBackend } from '@endo/endo-git';
-import {
-  makeBasicCredential,
-  makeBearerCredential,
-  makeUnavailableGitCredential,
-} from '@endo/endo-git';
-import { makeGitRemote } from '@endo/endo-git';
 
 // Sorted:
 import {
