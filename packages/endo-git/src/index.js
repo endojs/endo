@@ -17,6 +17,8 @@ export {
   internalHelpers,
 } from './native-git-backend.js';
 
+export { makeGitRemote, getGitRemoteController } from './git-remote.js';
+
 export {
   makeBasicCredential,
   makeBearerCredential,

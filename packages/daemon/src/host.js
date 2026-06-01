@@ -32,7 +32,7 @@ import { hostHelp, makeHelp } from './help-text.js';
 import { assertValidTreeEntryName } from './mount.js';
 import { isGitReadOnly } from '@endo/endo-git';
 import { getGitCredentialController as getGitCredentialControllerForCap } from '@endo/endo-git';
-import { getGitRemoteController as getGitRemoteControllerForCap } from './git-remote.js';
+import { getGitRemoteController as getGitRemoteControllerForCap } from '@endo/endo-git';
 
 /**
  * @param {string} name

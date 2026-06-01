@@ -26,7 +26,7 @@ import {
 } from '@endo/endo-git';
 import { lineageOf, makeMount } from '../src/mount.js';
 import { makeReaderRef } from '../src/reader-ref.js';
-import { makeGitRemote, getGitRemoteController } from '../src/git-remote.js';
+import { makeGitRemote, getGitRemoteController } from '@endo/endo-git';
 
 const execFileAsync = nodePromisify(execFile);
 const exampleCredential = () =>

@@ -72,7 +72,7 @@ import {
   makeBearerCredential,
   makeUnavailableGitCredential,
 } from '@endo/endo-git';
-import { makeGitRemote } from './git-remote.js';
+import { makeGitRemote } from '@endo/endo-git';
 
 // Sorted:
 import {
