@@ -20,7 +20,7 @@ import { makeGit, makeNotYetImplementedBackend } from '../src/git.js';
 import {
   makeNativeGitBackend,
   internalHelpers,
-} from '../src/native-git-backend.js';
+} from '@endo/endo-git';
 
 const execFileAsync = nodePromisify(execFile);
 

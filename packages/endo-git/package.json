@@ -1,0 +1,89 @@
+{
+  "name": "@endo/endo-git",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Endo's git capability layer — EndoGit exo, native git subprocess backend, immutable-tree FsBackend adapter, and remote/credential capabilities — extracted from @endo/daemon.",
+  "keywords": [
+    "endo",
+    "git"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/endo-git"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./src/index.js"
+    },
+    "./src/git.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git.js"
+    },
+    "./src/native-git-backend.js": {
+      "types": "./types.d.ts",
+      "default": "./src/native-git-backend.js"
+    },
+    "./src/git-filesystem.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-filesystem.js"
+    },
+    "./src/git-remote.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-remote.js"
+    },
+    "./src/git-credential.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-credential.js"
+    },
+    "./src/interfaces.js": {
+      "types": "./types.d.ts",
+      "default": "./src/interfaces.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/base64": "workspace:^",
+    "@endo/endo-fs": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
+    "@endo/stream": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/init": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "60s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}

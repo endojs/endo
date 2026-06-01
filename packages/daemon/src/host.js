@@ -31,7 +31,7 @@ import { HostInterface } from './interfaces.js';
 import { hostHelp, makeHelp } from './help-text.js';
 import { assertValidTreeEntryName } from './mount.js';
 import { isGitReadOnly } from './git.js';
-import { getGitCredentialController as getGitCredentialControllerForCap } from './git-credential.js';
+import { getGitCredentialController as getGitCredentialControllerForCap } from '@endo/endo-git';
 import { getGitRemoteController as getGitRemoteControllerForCap } from './git-remote.js';
 
 /**

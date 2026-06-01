@@ -20,10 +20,10 @@ import {
   makeBearerCredential,
   makeUnavailableGitCredential,
   revokeGitCredential,
-} from '../src/git-credential.js';
+} from '@endo/endo-git';
 import { makeMount } from '../src/mount.js';
 import { makeGit, makeNotYetImplementedBackend } from '../src/git.js';
-import { makeNativeGitBackend } from '../src/native-git-backend.js';
+import { makeNativeGitBackend } from '@endo/endo-git';
 import { makeGitRemote, getGitRemoteController } from '../src/git-remote.js';
 
 const execFileAsync = nodePromisify(execFile);

@@ -12,7 +12,7 @@ import {
   GitRemoteControllerInterface,
 } from './interfaces.js';
 import { getGitBackend, isGitReadOnly } from './git.js';
-import { assertGitCredentialForUrl } from './git-credential.js';
+import { assertGitCredentialForUrl } from '@endo/endo-git';
 
 /**
  * @typedef {'fetch' | 'push'} GitDirection

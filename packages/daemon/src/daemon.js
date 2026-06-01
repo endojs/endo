@@ -66,12 +66,12 @@ import {
 } from './help-text.js';
 import { getMountBacking, makeMount } from './mount.js';
 import { makeGit } from './git.js';
-import { makeNativeGitBackend } from './native-git-backend.js';
+import { makeNativeGitBackend } from '@endo/endo-git';
 import {
   makeBasicCredential,
   makeBearerCredential,
   makeUnavailableGitCredential,
-} from './git-credential.js';
+} from '@endo/endo-git';
 import { makeGitRemote } from './git-remote.js';
 
 // Sorted:
@@ -2730,6 +2730,7 @@ const makeDaemonCore = async (
       }
       const backend = makeNativeGitBackend({
         repoRoot: backing.physicalRoot,
+        makeReaderRef,
       });
       await backend.assertRepositoryRoot();
       return makeGit({

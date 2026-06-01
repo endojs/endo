@@ -19,8 +19,6 @@ import {
   ReadableTreeInterface,
 } from '@endo/platform/fs/lite';
 
-import { makeReaderRef } from './reader-ref.js';
-
 // `TextDecoder` is portable across XS, browsers, and SES realms;
 // prefer it over `Buffer.from(...).toString('utf8')` per the project
 // portability preference (root CLAUDE.md § Modernisms).
@@ -598,9 +596,22 @@ const worktreeCodeToStatus = (code, indexCode) => {
  * @param {object} args
  * @param {string} args.repoRoot  The host-private worktree root the
  *   git formula instantiator pulled from the mount's backing.
+ * @param {(readable: unknown) => unknown} [args.makeReaderRef]  Wraps
+ *   an async iterable / reader as a CapTP-friendly reader ref.  The
+ *   daemon binds its own `reader-ref.js` here.  Optional because some
+ *   in-process tests never reach the `streamBase64` path; the default
+ *   throws lazily so the call site sees a clear error instead of a
+ *   `TypeError` deep in the exo guard.
  * @returns {GitBackend}
  */
-export const makeNativeGitBackend = ({ repoRoot }) => {
+export const makeNativeGitBackend = ({
+  repoRoot,
+  makeReaderRef = () => {
+    throw new Error(
+      'makeNativeGitBackend: makeReaderRef power not bound; pass one to enable GitBlob.streamBase64()',
+    );
+  },
+}) => {
   /** @type {Promise<void> | undefined} */
   let rootVerification;
   /** @type {Promise<void> | undefined} */
