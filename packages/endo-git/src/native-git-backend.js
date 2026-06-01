@@ -316,8 +316,17 @@ harden(normalizeTreePath);
 // commit, createBranch, deleteBranch, renameBranch, switchBranch,
 // detach, switch, merge, rebase, stashPush, stashApply, stashPop,
 // stashDrop) gate on `assertNoExecutableRepoConfig` first.
+//
+// `include.path` / `includeIf.*` are refused outright: git honors an
+// included file's `filter.*`/`merge.*` driver keys, but
+// `git config --local --name-only --list` reports only the `include`
+// key itself, not the keys the included file contributes.  Without
+// this clause a committed-in `.git/config` `include.path` pointing at
+// an in-tree file that defines `filter.<name>.clean` would slip past
+// the listing-based check and run on the next add/commit.  The
+// remote-transport guard already refuses the same keys.
 const EXECUTABLE_REPO_CONFIG =
-  /^(filter\..*\.(clean|smudge|process)|merge\..*\.driver)$/u;
+  /^(filter\..*\.(clean|smudge|process)|merge\..*\.driver|include(\.|if\.))/u;
 
 // Repository-local configurations that can redirect or alter an
 // explicitly-policy-bound remote URL. Remote operations pass a URL
@@ -1057,7 +1066,8 @@ export const makeNativeGitBackend = ({
     );
     const offending = stdout
       .split('\n')
-      .filter(name => EXECUTABLE_REPO_CONFIG.test(name));
+      .map(name => name.trim())
+      .filter(name => EXECUTABLE_REPO_CONFIG.test(name.toLowerCase()));
     if (offending.length > 0) {
       throw new Error(
         `Refusing git operation because repository config can execute commands: ${offending.join(', ')}`,

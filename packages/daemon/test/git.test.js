@@ -2217,3 +2217,56 @@ test('NativeGitBackend.remoteFetch rejects a malformed remote URL', async t => {
     },
   );
 });
+
+test('NativeGitBackend.assertNoExecutableRepoConfig refuses an include.path that injects a filter driver', async t => {
+  // Bar-proving regression for the include bypass (Codex P1b).  The
+  // executable-config guard lists keys with `git config --local
+  // --name-only --list`, which reports only the `include.path` key and
+  // NOT the `filter.<name>.clean` key the included file contributes —
+  // yet git honors that included driver on the next add/commit.  The
+  // direct-key tests above are tautological with the listing: they set
+  // the key the listing reports.  This test sets the dangerous key
+  // *indirectly* through an in-tree include, which the unpatched guard
+  // never sees.
+  const repoRoot = await provisionGitWorktree(t);
+
+  // The included config file lives in the worktree and defines an
+  // executable filter driver.
+  await fs.promises.writeFile(
+    path.join(repoRoot, 'evil.inc'),
+    '[filter "evil"]\n\tclean = /usr/bin/env true\n',
+  );
+  // .git/config points at it via a relative include.path.
+  await execFileAsync(
+    'git',
+    ['config', '--local', 'include.path', '../evil.inc'],
+    { cwd: repoRoot },
+  );
+  // A .gitattributes binds the filter to a path, so the driver would
+  // actually run on add/commit.
+  await fs.promises.writeFile(
+    path.join(repoRoot, '.gitattributes'),
+    '*.secret filter=evil\n',
+  );
+  await fs.promises.writeFile(path.join(repoRoot, 'data.secret'), 'x\n');
+
+  // Sanity: git itself honors the included driver key, while the
+  // name-only listing the guard relies on does not surface it.
+  const { stdout: effective } = await execFileAsync(
+    'git',
+    ['config', '--get', 'filter.evil.clean'],
+    { cwd: repoRoot },
+  );
+  t.true(effective.includes('true'), 'git honors the included filter driver');
+
+  const backend = makeNativeGitBackend({ repoRoot });
+  await t.throwsAsync(backend.add(['data.secret']), {
+    message:
+      /Refusing git operation because repository config can execute commands/,
+  });
+  await t.throwsAsync(backend.commit('should refuse'), {
+    message:
+      /Refusing git operation because repository config can execute commands/,
+  });
+});
+
