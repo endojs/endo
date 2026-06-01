@@ -1982,6 +1982,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/gateway@workspace:packages/gateway":
+  version: 0.0.0-use.local
+  resolution: "@endo/gateway@workspace:packages/gateway"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/genie@workspace:packages/genie":
   version: 0.0.0-use.local
   resolution: "@endo/genie@workspace:packages/genie"
