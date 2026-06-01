@@ -5,7 +5,32 @@
 | **Created** | 2026-06-01 |
 | **Updated** | 2026-06-01 |
 | **Author** | kumavis (prompted) |
-| **Status** | Proposed |
+| **Status** | In Progress |
+
+## Status
+
+Phases 1 through 4 landed on `claude/extract-git-package`:
+
+- `packages/endo-git/` scaffolded with `package.json`, `README.md`, hand-written `types.d.ts` shim, `src/index.js` re-exports, and `src/interfaces.js` carrying the six git interface guards plus the git-only shape constants (`RefArgShape`, `GitDirectionShape`, the status-entry / ref / commit shapes).
+- All five git source files moved out of `@endo/daemon/src/` into `@endo/endo-git/src/`:
+  - `git-credential.js` (Phase 2a; only depended on the interface guards, cleanest leaf).
+  - `native-git-backend.js` (Phase 2a; `makeReaderRef` threaded in as an optional power with a default that throws lazily).
+  - `git.js` and `git-filesystem.js` (Phase 2b; moved as a pair because they cross-reference; `lineageOf` threaded in as a required power on `makeGit`).
+  - `git-remote.js` (Phase 2c; relative imports inside the package collapse back to siblings).
+- Daemon imports swept (Phase 4): `daemon.js`, `host.js`, `interfaces.js` (which now re-exports the six guards from `@endo/endo-git`), `test/git.test.js`, and `test/git-remote.test.js` now all reach the git surface through `@endo/endo-git`.
+- `packages/endo-git/src/types.js` carries the git typedefs (`GitRef`, `GitCommit`, `GitDiffOptions`, etc.) that the moved files' `@import` comments still reference; daemon-only surface types (`EndoMount`, `EndoMountEntry`) are aliased to `unknown` to keep the dep graph one-way.
+
+Test totals after the move on `claude/extract-git-package`:
+
+- `git.test.js`: 59 / 59 pass.
+- `git-remote.test.js`: 16 failures — all pre-existing on `llm` HEAD, caused by the CI environment's gpg-signing intercept refusing to sign the test-fixture commits.  Confirmed by stashing my changes and re-running — identical failures.
+- Adjacent tests (`formula-identifier`, `formula-type`, `context`): 31 / 31 still green.
+
+What's deferred:
+
+- **Phase 5** — in-process unit tests in `packages/endo-git/test/`.  Not landed; only the daemon-side integration tests exercise the moved code today.  The test directory exists but is empty.
+- **Phase 6** — structural `tsc --build` emission for the new package.  The hand-written `types.d.ts` shim is sufficient and ships with the package.  Same trade-off as `endo-fs`: per-package emission would require `endo-fs` and `patterns` to land their own `.d.ts` emission stably first.
+- **Phase 7** — the `makeNotYetImplementedBackend` and `internalHelpers` exports remain in `@endo/endo-git`'s public surface but are test-only.  A future pass could split them into a `/testing` subpath export so the public surface advertises only the production-shaped exports.
 
 > **Read after:**
 > - [daemon-git-capability](daemon-git-capability.md) — the `Git` cap whose factory and backend move out of `packages/daemon`.

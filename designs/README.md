@@ -104,7 +104,7 @@ LLM-agent stack).*
 | [daemon-git-capability](daemon-git-capability.md) | 2026-05-18 | 2026-05-27 | Proposed |
 | [daemon-git-remotes](daemon-git-remotes.md) | 2026-05-18 | 2026-05-21 | Proposed |
 | [endo-fs-from-git](endo-fs-from-git.md) | 2026-05-28 | 2026-05-28 | In Progress |
-| [extract-endo-git-package](extract-endo-git-package.md) | 2026-06-01 | 2026-06-01 | Proposed |
+| [extract-endo-git-package](extract-endo-git-package.md) | 2026-06-01 | 2026-06-01 | In Progress |
 | [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-05-19 | In Progress (PR #287) |
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-05-27 | In Progress |
 | [daemon-mount-capabilities](daemon-mount-capabilities.md) | 2026-05-18 | 2026-05-27 | **Complete** |
