@@ -504,6 +504,27 @@ const sameRepositoryIdentity = (left, right) =>
   left.rootCommit === right.rootCommit;
 harden(sameRepositoryIdentity);
 
+/**
+ * A repository constructed before its first commit captures
+ * `rootCommit: 'EMPTY'`.  When a commit lands through this capability the
+ * repository gains its first root commit, and a later re-capture sees a
+ * real root SHA.  That transition is not the "repository swapped out from
+ * under us" event the identity check guards against — the repo did not
+ * change identity, it gained its inaugural commit through us.  Treat the
+ * `'EMPTY' -> <sha>` transition as identity-stable (commonDir and
+ * configHash must still match); every other `rootCommit` change remains a
+ * real identity change.
+ *
+ * @param {RepositoryIdentity} prior
+ * @param {RepositoryIdentity} current
+ */
+const isEmptyRepoFirstCommit = (prior, current) =>
+  prior.rootCommit === 'EMPTY' &&
+  current.rootCommit !== 'EMPTY' &&
+  prior.commonDir === current.commonDir &&
+  prior.configHash === current.configHash;
+harden(isEmptyRepoFirstCommit);
+
 const UNMERGED_STATUS_CODES = harden(
   new Set(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']),
 );
@@ -882,14 +903,26 @@ export const makeNativeGitBackend = ({
     await verifyRepositoryRoot();
     const resolvedRoot = await fs.promises.realpath(repoRoot);
     const currentIdentity = await captureRepositoryIdentity(resolvedRoot);
-    if (
-      repositoryIdentity === undefined ||
-      !sameRepositoryIdentity(repositoryIdentity, currentIdentity)
-    ) {
+    if (repositoryIdentity === undefined) {
       throw new Error(
         'Git repository identity changed since this capability was constructed; re-derive Git from the mount',
       );
     }
+    if (sameRepositoryIdentity(repositoryIdentity, currentIdentity)) {
+      return;
+    }
+    // A capability constructed over an empty repository whose first
+    // commit landed through us sees its `rootCommit` transition from
+    // 'EMPTY' to a real SHA.  Accept that transition and adopt the
+    // resolved identity so subsequent operations verify against the
+    // now-non-empty repository rather than re-throwing on every call.
+    if (isEmptyRepoFirstCommit(repositoryIdentity, currentIdentity)) {
+      repositoryIdentity = currentIdentity;
+      return;
+    }
+    throw new Error(
+      'Git repository identity changed since this capability was constructed; re-derive Git from the mount',
+    );
   };
 
   /**

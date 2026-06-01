@@ -2317,3 +2317,31 @@ test('NativeGitBackend.diff and show never invoke a .gitattributes textconv driv
   t.false(fs.existsSync(marker), 'show() must not invoke the textconv driver');
 });
 
+test('NativeGitBackend stays usable when the first commit lands on an empty repo', async t => {
+  // Regression for the empty-repo identity throw (Codex P2).  A backend
+  // constructed over a repo with no commits caches rootCommit='EMPTY'.
+  // After the first commit() the follow-up identity check sees a real
+  // root SHA and used to throw "Git repository identity changed" even
+  // though the commit succeeded.
+  const repoRoot = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'native-git-empty-'),
+  );
+  t.teardown(() => fs.promises.rm(repoRoot, { recursive: true, force: true }));
+  await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'first.txt'), 'hello\n');
+
+  const backend = makeNativeGitBackend({ repoRoot });
+  await backend.assertRepositoryRoot();
+  await backend.add(['first.txt']);
+
+  const commit = await backend.commit('first commit on an empty repo');
+  t.truthy(commit.oid, 'commit should resolve with a real oid');
+  t.is(commit.summary, 'first commit on an empty repo');
+
+  // The capability remains usable for subsequent operations against the
+  // now-non-empty repository.
+  const commits = await backend.log();
+  t.is(commits.length, 1);
+  t.is(commits[0].oid, commit.oid);
+});
+
