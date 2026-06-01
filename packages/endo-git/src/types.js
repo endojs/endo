@@ -94,13 +94,52 @@
  * @property {boolean} [includeUntracked]
  */
 
-// Daemon-only surface types — kept as `unknown` aliases so JSDoc
-// annotations still parse.  The full-fidelity definitions live in
-// `@endo/daemon/src/types.d.ts`.
-/** @typedef {unknown} EndoGit */
+// Daemon-only surface types referenced by git's JSDoc.  Aliased to
+// `unknown` here so `@endo/endo-git` stays free of a circular
+// dependency on `@endo/daemon`; the full-fidelity definitions live in
+// `@endo/daemon/src/types.d.ts` and downstream consumers see them
+// through that file.
 /** @typedef {unknown} EndoMount */
 /** @typedef {unknown} EndoMountEntry */
 /** @typedef {unknown} EndoMountFile */
 /** @typedef {unknown} ReadableTreeView */
+
+/**
+ * Public `EndoGit` capability surface.  The factory lives in this
+ * package (`./git.js#makeGit`); this typedef mirrors the runtime
+ * `GitInterface` guard in `./interfaces.js` so the factory's
+ * `@returns {EndoGit}` annotation carries useful fidelity inside the
+ * package.
+ *
+ * @typedef {object} EndoGit
+ * @property {() => EndoMount} worktree
+ * @property {() => Promise<GitStatusEntry[]>} status
+ * @property {(options?: GitDiffOptions) => Promise<string>} diff
+ * @property {(options?: GitLogOptions) => Promise<GitCommit[]>} log
+ * @property {(ref: GitRef | string) => Promise<string>} show
+ * @property {(ref: GitRef | string) => Promise<GitRef>} revParse
+ * @property {(entries: EndoMountEntry[]) => Promise<void>} add
+ * @property {(entries: EndoMountEntry[], options?: GitRestoreOptions) => Promise<void>} restore
+ * @property {(message: string) => Promise<GitCommit>} commit
+ * @property {() => Promise<GitRef | undefined>} currentBranch
+ * @property {() => Promise<GitRef[]>} branches
+ * @property {(name: string, options?: GitCreateBranchOptions) => Promise<GitRef>} createBranch
+ * @property {(name: string, options?: GitDeleteBranchOptions) => Promise<void>} deleteBranch
+ * @property {(from: string, to: string) => Promise<void>} renameBranch
+ * @property {(name: string) => Promise<void>} switchBranch
+ * @property {(ref: GitRef | string) => Promise<void>} detach
+ * @property {(ref: GitRef | string) => Promise<void>} switch
+ * @property {(ref: GitRef | string, options?: GitMergeOptions) => Promise<string>} merge
+ * @property {(input: GitRebaseInput) => Promise<string>} rebase
+ * @property {(options?: GitStashPushOptions) => Promise<string>} stashPush
+ * @property {() => Promise<string[]>} stashList
+ * @property {(index?: number) => Promise<string>} stashShow
+ * @property {(index?: number) => Promise<void>} stashApply
+ * @property {(index?: number) => Promise<void>} stashPop
+ * @property {(index?: number) => Promise<void>} stashDrop
+ * @property {(ref: GitRef | string) => Promise<ReadableTreeView>} tree
+ * @property {(ref: GitRef | string) => Promise<unknown>} filesystemAt
+ * @property {() => EndoGit} readOnly
+ */
 
 export {};
