@@ -2270,3 +2270,50 @@ test('NativeGitBackend.assertNoExecutableRepoConfig refuses an include.path that
   });
 });
 
+test('NativeGitBackend.diff and show never invoke a .gitattributes textconv driver', async t => {
+  // Bar-proving regression for the textconv host-exec on read paths
+  // (Codex P1c).  An in-tree `.gitattributes` binding a diff driver
+  // plus a `diff.<driver>.textconv` command runs that command while
+  // git renders a diff or `git show`.  `core.attributesFile=/dev/null`
+  // only disables the *external* attributes file, not the in-tree one,
+  // and `--no-ext-diff` suppresses only `diff.external`; the read paths
+  // must additionally pass `--no-textconv`.
+  const repoRoot = await provisionGitWorktree(t);
+  const marker = path.join(repoRoot, 'TEXTCONV-RAN');
+
+  // A textconv driver whose mere invocation writes a sentinel file.
+  await fs.promises.writeFile(
+    path.join(repoRoot, 'textconv.sh'),
+    `#!/bin/sh\ntouch ${JSON.stringify(marker)}\ncat "$1"\n`,
+  );
+  await fs.promises.chmod(path.join(repoRoot, 'textconv.sh'), 0o755);
+  await execFileAsync(
+    'git',
+    ['config', '--local', 'diff.evil.textconv', `${repoRoot}/textconv.sh`],
+    { cwd: repoRoot },
+  );
+  await fs.promises.writeFile(
+    path.join(repoRoot, '.gitattributes'),
+    '*.secret diff=evil\n',
+  );
+  // Commit a *.secret blob so both `show <commit>` and a worktree
+  // `diff` have a textconv-covered path to render.
+  await fs.promises.writeFile(path.join(repoRoot, 'data.secret'), 'first\n');
+  await execFileAsync('git', ['add', '.'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'secret'],
+    { cwd: repoRoot },
+  );
+  // A pending worktree change so the default (worktree) diff is non-empty.
+  await fs.promises.writeFile(path.join(repoRoot, 'data.secret'), 'second\n');
+
+  const backend = makeNativeGitBackend({ repoRoot });
+
+  await backend.diff();
+  t.false(fs.existsSync(marker), 'diff() must not invoke the textconv driver');
+
+  await backend.show('HEAD');
+  t.false(fs.existsSync(marker), 'show() must not invoke the textconv driver');
+});
+

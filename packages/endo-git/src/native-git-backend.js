@@ -1586,14 +1586,19 @@ export const makeNativeGitBackend = ({
     /**
      * Render a textual diff in `git diff` form.  `--no-ext-diff` suppresses
      * any external diff program a guest may have committed into the repo
-     * config.  Combined with the rest of the hardening envelope (hooks off,
+     * config; `--no-textconv` suppresses a `diff.<driver>.textconv` command
+     * that an in-tree `.gitattributes` could otherwise bind to a path and
+     * have git exec while rendering the diff.  `core.attributesFile=/dev/null`
+     * (in `GIT_BASE_ARGS`) only disables the *external* attributes file, not
+     * the in-tree `.gitattributes`, so the per-command flag is load-bearing
+     * here.  Combined with the rest of the hardening envelope (hooks off,
      * filters off), guests cannot make `git diff` execute arbitrary code.
      *
      * @param {GitBackendDiffOptions} [options]
      * @returns {Promise<string>}
      */
     diff: async (options = {}) => {
-      const args = ['diff', '--no-ext-diff'];
+      const args = ['diff', '--no-ext-diff', '--no-textconv'];
       if (options.cached) args.push('--cached');
       // `--end-of-options` separates option-shaped flags from the
       // revisions that follow.  `requireRevision` already rejects
@@ -1671,12 +1676,19 @@ export const makeNativeGitBackend = ({
     },
 
     /**
+     * Render `git show` for a ref.  `--no-textconv` suppresses a
+     * `diff.<driver>.textconv` command that an in-tree `.gitattributes`
+     * could bind to a shown path; without it, `git show` of a commit or
+     * blob would exec the configured textconv program just as `diff`
+     * would (see the `diff` method's note on why the in-tree attributes
+     * file is not neutralized by `core.attributesFile=/dev/null`).
+     *
      * @param {string} ref
      * @returns {Promise<string>}
      */
     show: async ref => {
       const revision = requireRevision(ref, 'show.ref');
-      return runGit(['show', '--end-of-options', revision]);
+      return runGit(['show', '--no-textconv', '--end-of-options', revision]);
     },
 
     /**
