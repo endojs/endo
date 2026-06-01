@@ -165,12 +165,22 @@ not implied by sharing.
 | Design | Relationship |
 |---|---|
 | [endo-fs-backend-seam](endo-fs-backend-seam.md) | The `FsBackend` seam (`wrapBackend`) that makes a zip-backed (or CAS-backed) durable receiver ~100 lines. **Load-bearing for the receiving side.** |
-| [exo-zip-package](exo-zip-package.md) | Projects the received/durable zip back as a runnable `ReadableTree`. |
+| [exo-zip-package](exo-zip-package.md) | Projects the received/durable zip back as a runnable `ReadableTree`; in-flight as exo-zip / exo-unzip ([PR #160](https://github.com/endojs/endo-but-for-bots/pull/160)). |
 | [daemon-checkin-checkout](daemon-checkin-checkout.md) | The local serialisation primitive the cross-daemon clone generalises (CAS-backed receiver option). |
 | [ocapn-noise-network](ocapn-noise-network.md) | The secure transport we trust for clone integrity and peer authenticity in lieu of per-blob hashing. |
 | [familiar-app-ui-hosting](familiar-app-ui-hosting.md) | Hosts the app's `ui` manifest as partially-sandboxed UI. |
 | [daemon-weblet-application](daemon-weblet-application.md) | Prior art for "readable tree + powers → served application". |
 | [app-sharing-milestone](app-sharing-milestone.md) | Parent milestone; this is the "make & share runnable apps" pillar. |
+
+**Related in-flight PRs (reconcile, don't duplicate):** exo-stream
+[#330](https://github.com/endojs/endo-but-for-bots/pull/330) is the streaming
+substrate the single clone tree-stream rides; daemon git-tree `archive` (tar)
+[#367](https://github.com/endojs/endo-but-for-bots/pull/367) is tree-as-archive
+prior art; `familiar-run-apps-vfs.md`
+([#241](https://github.com/endojs/endo-but-for-bots/pull/241) ·
+[raw](https://github.com/endojs/endo-but-for-bots/raw/refs/heads/design/familiar-run-vfs-apps/designs/familiar-run-apps-vfs.md))
+is a sibling angle on running apps from a mount/VFS source. The consolidated PR
+index lives in [app-sharing-milestone](app-sharing-milestone.md).
 
 ## Phased Implementation
 

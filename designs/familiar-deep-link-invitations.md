@@ -104,10 +104,16 @@ rendered as inert text, never as markup or actionable controls.
 | Design | Relationship |
 |---|---|
 | [ocapn-noise-network](ocapn-noise-network.md) | Provides the secure transport the accepted peer connects over. |
-| [daemon-agent-network-identity](daemon-agent-network-identity.md) | Per-agent keypairs / network registration that make the `nodeKey` in the link meaningful; soft prerequisite. |
+| [daemon-agent-network-identity](daemon-agent-network-identity.md) | Per-agent keypairs / network registration that make the `nodeKey` in the link meaningful; soft prerequisite. In-flight as per-agent `@transports`: design `ocapn-daemon-integration.md` ([PR #138](https://github.com/endojs/endo-but-for-bots/pull/138) · [raw](https://github.com/endojs/endo-but-for-bots/raw/refs/heads/design/ocapn-daemon-integration/designs/ocapn-daemon-integration.md)), prototype [#262](https://github.com/endojs/endo-but-for-bots/pull/262). |
 | [trust-on-first-bind](trust-on-first-bind.md) | Reference for the prompt-and-pin consent pattern the confirmation screen instantiates. |
 | [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | Working template for privileged custom-scheme registration in Electron. |
 | [app-sharing-milestone](app-sharing-milestone.md) | Parent milestone; this is the "connect peers" pillar. |
+
+**Related in-flight PRs:** locator scheme v2 with `@`-delimited connection hints
+([#178](https://github.com/endojs/endo-but-for-bots/pull/178)) is the basis for
+the `endo://` link's query params; daemon-to-daemon OCapN-Noise connectivity is
+[#340](https://github.com/endojs/endo-but-for-bots/pull/340). No `endo://`
+deep-link / confirmation-screen PR exists yet — this design is net-new.
 
 ## Phased Implementation
 

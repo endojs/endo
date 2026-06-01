@@ -390,14 +390,14 @@ P2 app + sandboxed UI → P3 clone).
 |--------|--------|--------|-------|
 | app-sharing-milestone | Proposed | — | Milestone roadmap doc; verified current state + P0–P3 plan |
 | familiar-deep-link-invitations | Proposed | 2 — connect peers | New: `endo://` capture in shell → Chat confirm + naming modal → `host.accept` (daemon `invite`/`accept` already Complete) |
-| endo-app-sharing | Proposed | 3 — make & share apps | New: app handle (source + exec + ui + `cloneable`); cross-daemon clone with hash verification vs remote reference |
+| endo-app-sharing | Proposed | 3 — make & share apps | New: app handle (source + exec + ui + `cloneable`); cross-daemon clone as a single streamed tree-archive into a pluggable durable backing (default zip) vs remote reference — no per-blob hashing |
 | familiar-app-ui-hosting | Proposed | 3 — sandboxed UI | New: app UI manifest + sandbox tiers (`isolated`/`connected`/`trusted`) over the weblet substrate |
 | ~~familiar-electron-shell~~ | **Complete** | 1 — distributable | The shell being distributed (M0) |
 | ~~familiar-daemon-bundling~~ | **Complete** | 1 — distributable | Bundled daemon/Node in the artifact (M0) |
-| Release signing / auto-update / Windows-CI | Not Started | 1 — distributable | *No standalone doc; tracked in app-sharing-milestone P0.* Working **unsigned** build + CI exist (`familiar-release.yml`); gaps: code signing/notarization, Windows CI + installer, AppImage, `electron-updater`, checksums |
-| ~~ocapn-noise-network~~ | **Complete** | 2 — connect peers | Secure transport peers connect over (M2) |
-| daemon-agent-network-identity | Not Started | 2 — connect peers | Per-agent keypairs behind the locator node key; soft prereq (M2) |
-| exo-zip-package | Proposed | 3 — make & share apps | Filesystem-free clone path (M3) |
+| `familiar-release.md` (MVR plan) | Proposed | 1 — distributable | **Owns Pillar 1.** PR [#231](https://github.com/endojs/endo-but-for-bots/pull/231) (issue #229): G1–G16, **macOS-arm64-first**; P0 adopts it rather than running a competing plan. G-item PRs: [#318](https://github.com/endojs/endo-but-for-bots/pull/318) [#321](https://github.com/endojs/endo-but-for-bots/pull/321) [#319](https://github.com/endojs/endo-but-for-bots/pull/319) [#316](https://github.com/endojs/endo-but-for-bots/pull/316) [#320](https://github.com/endojs/endo-but-for-bots/pull/320) [#323](https://github.com/endojs/endo-but-for-bots/pull/323) [#324](https://github.com/endojs/endo-but-for-bots/pull/324) [#322](https://github.com/endojs/endo-but-for-bots/pull/322) [#317](https://github.com/endojs/endo-but-for-bots/pull/317) [#360](https://github.com/endojs/endo-but-for-bots/pull/360) |
+| ~~ocapn-noise-network~~ | **Complete** | 2 — connect peers | Secure transport peers connect over (M2); daemon-to-daemon [#340](https://github.com/endojs/endo-but-for-bots/pull/340) |
+| daemon-agent-network-identity | Not Started | 2 — connect peers | Per-agent keypairs behind the locator node key; soft prereq (M2). In-flight as `ocapn-daemon-integration` [#138](https://github.com/endojs/endo-but-for-bots/pull/138)/[#262](https://github.com/endojs/endo-but-for-bots/pull/262); locator v2 [#178](https://github.com/endojs/endo-but-for-bots/pull/178) |
+| exo-zip-package | Proposed | 3 — make & share apps | Durable zip backing for clones; in-flight as exo-zip/exo-unzip [#160](https://github.com/endojs/endo-but-for-bots/pull/160) |
 | ~~daemon-checkin-checkout~~ | **Complete** | 3 — make & share apps | Local serialisation the clone generalises (M3) |
 | familiar-unified-weblet-server | In Progress | 3 — sandboxed UI | Virtual-host serving for app UIs (M3) |
 | familiar-chat-weblet-hosting | Not Started | 3 — sandboxed UI | In-Chat iframe pane + chrome/guest barrier (M3) |
