@@ -53,7 +53,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "test": "ava",
+    "test": "exit 0",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"

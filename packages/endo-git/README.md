@@ -6,7 +6,8 @@ The package extracts the git-specific surface that was previously embedded in `@
 - `makeGit` — the `EndoGit` exo factory built over a `Mount` and a `GitBackend`.
 - `makeNativeGitBackend` — a subprocess wrapper over the installed `git` binary.
 - `makeGitFsBackend` — an `FsBackend` adapter for an immutable git tree (composes with `@endo/endo-fs` `wrapBackend(...)`).
-- `makeGitRemote`, `makeGitCredentialController` — remote-git companion and credential lifecycle.
+- `makeGitRemote` — remote-git companion (fetch / pull / push) bound to a credential cap.
+- `makeBasicCredential`, `makeBearerCredential`, `makeUnavailableGitCredential` — credential capabilities; each carries a host-private `GitCredentialController` accessible via `getGitCredentialController(cred)`.
 
 This package is workspace-internal today (`"private": true`).
 The intent is to publish once the surface stabilises.
