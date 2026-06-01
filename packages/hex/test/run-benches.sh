@@ -19,7 +19,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 # Locate eshost and engines from the @endo/benchmark sibling, which is
-# already wired up to esvu-managed xs / v8 binaries.
+# already wired up to its installed xs / v8 binaries.
 BENCHMARK_DIR="$(cd ../benchmark && pwd)"
 ESHOST="${BENCHMARK_DIR}/node_modules/.bin/eshost"
 ROLLUP="${BENCHMARK_DIR}/node_modules/.bin/rollup"
@@ -30,8 +30,8 @@ if [ ! -x "$ESHOST" ] || [ ! -x "$ROLLUP" ]; then
   exit 1
 fi
 
-if [ ! -f "$HOME/.esvu/bin/xs" ] || [ ! -f "$HOME/.esvu/bin/v8" ]; then
-  echo "xs and/or v8 not found in \$HOME/.esvu/bin." >&2
+if [ ! -f "$HOME/.bench-engines/bin/xs" ] || [ ! -f "$HOME/.bench-engines/bin/v8" ]; then
+  echo "xs and/or v8 not found in \$HOME/.bench-engines/bin." >&2
   echo "Run \`yarn workspace @endo/benchmark install-engines\` first." >&2
   exit 127
 fi
