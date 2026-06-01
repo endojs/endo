@@ -65,7 +65,11 @@ const GitCommitShape = M.splitRecord(
 // #endregion
 
 export const GitInterface = M.interface('Git', {
-  worktree: M.call().returns(M.remotable('EndoMount')),
+  // `callWhen` so a read-only Git may resolve its worktree authority
+  // through `mount.readOnly()` (which yields a promise of the
+  // structural read-only view) before the return shape is matched; a
+  // writable Git returns its mount synchronously and is unaffected.
+  worktree: M.callWhen().returns(M.remotable('EndoMount')),
   status: M.callWhen().returns(M.arrayOf(GitStatusEntryShape)),
   diff: M.callWhen()
     .optional(M.recordOf(M.string(), M.any()))

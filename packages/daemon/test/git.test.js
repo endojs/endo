@@ -154,7 +154,6 @@ test('Git.readOnly() attenuates mutating operations but preserves reads', async 
   const git = makeGit({ mount, backend, lineageOf });
 
   const readOnlyGit = await E(git).readOnly();
-  t.is(await E(readOnlyGit).worktree(), mount);
 
   const entries = await E(readOnlyGit).status();
   t.is(entries.length, 1);
@@ -172,6 +171,59 @@ test('Git.readOnly() attenuates mutating operations but preserves reads', async 
   });
 
   t.is(await E(readOnlyGit).readOnly(), readOnlyGit);
+});
+
+test('Git.readOnly() worktree and status nodes carry no write authority', async t => {
+  // Regression for the read-only attenuation leak (Codex P1a): a
+  // read-only Git reused the writable mount, so `worktree()` and the
+  // `node`s minted by `status()` still exposed `writeText` / `remove` /
+  // `makeFile`.  A read-only cap must surface a read-only worktree view
+  // whose nodes reject writes.
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'tracked.txt'), 'before');
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  const readOnlyGit = await E(git).readOnly();
+
+  // The worktree exposed by a read-only Git is a structural read-only
+  // view: it advertises only the ReadableTree surface (no `writeText`,
+  // `makeFile`, `remove`, or `move`).
+  const worktree = await E(readOnlyGit).worktree();
+  // eslint-disable-next-line no-underscore-dangle
+  const worktreeMethods = await E(
+    /** @type {any} */ (worktree),
+  ).__getMethodNames__();
+  for (const writeMethod of ['writeText', 'makeFile', 'remove', 'move']) {
+    t.false(
+      worktreeMethods.includes(writeMethod),
+      `read-only worktree must not expose ${writeMethod}`,
+    );
+  }
+
+  // Each status row's `node` is minted through the read-only worktree,
+  // so it likewise rejects mutation.  Before the fix the node was a
+  // writable EndoMountFile and this write would succeed.
+  const rows = await E(readOnlyGit).status();
+  const trackedRow = rows.find(row => row.path === 'tracked.txt');
+  t.truthy(trackedRow, 'status should report the tracked file');
+  t.truthy(trackedRow && trackedRow.node, 'status row should carry a node');
+  if (trackedRow === undefined || trackedRow.node === undefined) {
+    return;
+  }
+  await t.throwsAsync(
+    E(/** @type {any} */ (trackedRow.node)).writeText('after'),
+    {
+      message: /read-only|not a function|no method/i,
+    },
+  );
+  // The on-disk content is untouched by the rejected write.
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'tracked.txt'), 'utf8'),
+    'before',
+  );
 });
 
 test('makeGit can be constructed directly as read-only', async t => {

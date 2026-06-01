@@ -392,8 +392,13 @@ export type GitStashPushOptions = {
  * worktree mount.
  */
 export interface EndoGit {
-  /** The `EndoMount` carrying the public worktree authority. */
-  worktree(): EndoMount;
+  /**
+   * The worktree authority this cap carries.  A writable Git returns
+   * the writable `EndoMount`; a read-only Git returns a structural
+   * read-only `ReadableTree` view so the attenuated cap cannot hand a
+   * caller a writable worktree.
+   */
+  worktree(): Promise<EndoMount | ReadableTreeView>;
   status(): Promise<GitStatusEntry[]>;
   diff(options?: GitDiffOptions): Promise<string>;
   log(options?: GitLogOptions): Promise<GitCommit[]>;
