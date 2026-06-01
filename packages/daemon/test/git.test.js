@@ -13,14 +13,12 @@ import { execFile } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E, Far } from '@endo/far';
+import { internalHelpers, makeNativeGitBackend } from '@endo/endo-git';
+import { makeGit, makeNotYetImplementedBackend } from '@endo/exo-git';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
-import { makeMount } from '../src/mount.js';
-import { makeGit, makeNotYetImplementedBackend } from '../src/git.js';
-import {
-  makeNativeGitBackend,
-  internalHelpers,
-} from '../src/native-git-backend.js';
+import { lineageOf, makeMount } from '../src/mount.js';
+import { makeReaderRef } from '../src/reader-ref.js';
 
 const execFileAsync = nodePromisify(execFile);
 
@@ -75,7 +73,11 @@ const provisionMount = async t => {
 
 test('Git exo advertises the full GitInterface', async t => {
   const mount = await provisionMount(t);
-  const git = makeGit({ mount, backend: makeNotYetImplementedBackend() });
+  const git = makeGit({
+    mount,
+    backend: makeNotYetImplementedBackend(),
+    lineageOf,
+  });
 
   // `makeExo` adds the introspection method, but it is intentionally
   // omitted from the public `EndoGit` interface.  Cast at the call site.
@@ -132,7 +134,11 @@ test('Git exo advertises the full GitInterface', async t => {
 
 test('Git.worktree() returns the bound mount cap', async t => {
   const mount = await provisionMount(t);
-  const git = makeGit({ mount, backend: makeNotYetImplementedBackend() });
+  const git = makeGit({
+    mount,
+    backend: makeNotYetImplementedBackend(),
+    lineageOf,
+  });
 
   // Same identity (passes through, no wrapping).  The mount cap stays
   // the public worktree authority for any guest that holds the Git cap.
@@ -144,8 +150,8 @@ test('Git.readOnly() attenuates mutating operations but preserves reads', async 
   await fs.promises.writeFile(path.join(repoRoot, 'new.txt'), 'new');
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   const readOnlyGit = await E(git).readOnly();
   t.is(await E(readOnlyGit).worktree(), mount);
@@ -173,8 +179,8 @@ test('makeGit can be constructed directly as read-only', async t => {
   await fs.promises.writeFile(path.join(repoRoot, 'blocked.txt'), 'x');
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: true, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend, readOnly: true });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, readOnly: true, lineageOf });
 
   t.is((await E(git).status()).length, 1);
   const entry = await E(mount).entry(['blocked.txt']);
@@ -209,7 +215,7 @@ test('NativeGitBackend.tree exposes historical blobs and subtrees', async t => {
   );
   await fs.promises.writeFile(path.join(repoRoot, 'README.md'), 'new\n');
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const tree = /** @type {any} */ (await backend.tree('HEAD'));
 
   t.deepEqual(await E(tree).list(), ['README.md', 'src']);
@@ -253,7 +259,7 @@ test('NativeGitBackend.tree streams blobs larger than the exec buffer cap', asyn
     { cwd: repoRoot },
   );
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const tree = /** @type {any} */ (await backend.tree('HEAD'));
   const blob = await E(tree).lookup('large.bin');
   const reader = await E(blob).streamBase64();
@@ -289,8 +295,8 @@ test('Git.readOnly allows immutable tree reads', async t => {
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   const readOnlyGit = await E(git).readOnly();
   const tree = /** @type {any} */ (await E(readOnlyGit).tree('HEAD'));
@@ -301,7 +307,7 @@ test('Git.readOnly allows immutable tree reads', async t => {
 test('Git scaffold methods all surface a clear "not yet implemented"', async t => {
   const mount = await provisionMount(t);
   const backend = makeNotYetImplementedBackend();
-  const git = makeGit({ mount, backend });
+  const git = makeGit({ mount, backend, lineageOf });
 
   // A representative sample across category boundaries; the stub backend
   // throws for every op except the formula-instantiation-time
@@ -348,7 +354,7 @@ test('Git scaffold methods all surface a clear "not yet implemented"', async t =
 
 test('NativeGitBackend.assertRepositoryRoot accepts an exact worktree root', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   await t.notThrowsAsync(backend.assertRepositoryRoot());
 });
 
@@ -357,7 +363,7 @@ test('NativeGitBackend.assertRepositoryRoot rejects a non-worktree directory', a
     path.join(os.tmpdir(), 'native-git-bare-'),
   );
   t.teardown(() => fs.promises.rm(bare, { recursive: true, force: true }));
-  const backend = makeNativeGitBackend({ repoRoot: bare });
+  const backend = makeNativeGitBackend({ repoRoot: bare, makeReaderRef });
   // No `.git` here, so `git rev-parse --show-toplevel` errors out and
   // the backend surfaces a structured failure rather than silently
   // operating against the user's surrounding repository.
@@ -368,7 +374,7 @@ test('NativeGitBackend.assertRepositoryRoot rejects a non-worktree directory', a
 
 test('NativeGitBackend rejects a swapped .git directory after construction', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   await backend.assertRepositoryRoot();
   t.truthy(await backend.currentBranch());
 
@@ -402,7 +408,7 @@ test('NativeGitBackend rejects a swapped .git directory after construction', asy
 
 test('NativeGitBackend.currentBranch returns the symbolic ref name', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const head = await backend.currentBranch();
   t.deepEqual(head, { name: 'main', kind: 'branch' });
 });
@@ -412,7 +418,7 @@ test('NativeGitBackend.branches lists the local branches', async t => {
   // Add a second branch so `branches()` returns more than one row.
   await execFileAsync('git', ['branch', 'feature/x'], { cwd: repoRoot });
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const refs = await backend.branches();
   const names = refs.map(r => r.name).sort();
   t.deepEqual(names, ['feature/x', 'main']);
@@ -424,7 +430,7 @@ test('NativeGitBackend.branches lists the local branches', async t => {
 
 test('NativeGitBackend.revParse returns the resolved commit id', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
 
   const head = await backend.revParse('HEAD');
   t.is(head.kind, 'commit');
@@ -445,7 +451,7 @@ test('NativeGitBackend.log returns structured commit records', async t => {
     { cwd: repoRoot },
   );
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const commits = await backend.log({ maxCount: 5 });
   t.is(commits.length, 2);
   // Most-recent-first ordering matches `git log`'s default.
@@ -500,7 +506,7 @@ test('NativeGitBackend.log honors since / until time-window options', async t =>
     { cwd: repoRoot },
   );
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
 
   // `since` is a forward-cut: 2024-01-01 excludes the 2020 commit.
   const recent = await backend.log({ since: '2024-01-01' });
@@ -547,7 +553,7 @@ test('NativeGitBackend.log rejects non-positive or non-integer maxCount', async 
   // fails closed at the daemon edge so the caller learns the right
   // diagnosis.
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
 
   await t.throwsAsync(backend.log({ maxCount: 0 }), {
     message: /log\.maxCount must be a positive integer/,
@@ -580,7 +586,7 @@ test('NativeGitBackend.log since / until use the flag form so dash-prefixed valu
   // the joined argv, and a future refactor that switches back to the
   // split form would fail this test before it could ship.
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
 
   // A dash-prefixed approxidate stays an opaque value when joined with
   // `=`; git resolves it (badly) and returns an empty filter set rather
@@ -600,14 +606,14 @@ test('NativeGitBackend.log since / until use the flag form so dash-prefixed valu
 
 test('NativeGitBackend.show returns the commit text', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const text = await backend.show('HEAD');
   t.regex(text, /init commit/);
 });
 
 test('NativeGitBackend.revParse rejects revisions starting with "-"', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   // Defends against argument-injection via a revision that looks like
   // a flag.  The public exo's interface guard rejects non-strings, but
   // a string starting with `-` could otherwise become `git rev-parse
@@ -659,7 +665,7 @@ test('NativeGitBackend version parser enforces the documented git floor', t => {
 
 test('NativeGitBackend credential transport satisfies git HTTP auth challenge', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   /** @type {string[]} */
   const authorizations = [];
   const server = http.createServer((req, res) => {
@@ -727,7 +733,7 @@ test('NativeGitBackend.remoteFetch rejects repo-local URL rewrites', async t => 
     { cwd: repoRoot },
   );
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   await t.throwsAsync(
     backend.remoteFetch({
       url: 'https://trusted.example/repo',
@@ -748,7 +754,7 @@ test('NativeGitBackend.diff returns worktree changes by default', async t => {
   );
   await fs.promises.writeFile(path.join(repoRoot, 'a.txt'), 'v2\n');
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const out = await backend.diff({});
   t.regex(out, /diff --git/);
   t.regex(out, /-v1/);
@@ -761,7 +767,7 @@ test('NativeGitBackend.diff with --cached and a path filter', async t => {
   await fs.promises.writeFile(path.join(repoRoot, 'unstaged.txt'), 'unstaged');
   await execFileAsync('git', ['add', 'staged.txt'], { cwd: repoRoot });
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const out = await backend.diff({ cached: true, paths: ['staged.txt'] });
   // Cached diff sees the staged file only.
   t.regex(out, /staged\.txt/);
@@ -770,7 +776,7 @@ test('NativeGitBackend.diff with --cached and a path filter', async t => {
 
 test('NativeGitBackend branch ops: create, list, rename, switch, detach, delete', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
 
   // Create from current HEAD; result reports the new ref.
   const created = await backend.createBranch('feature/initial', {});
@@ -807,7 +813,7 @@ test('NativeGitBackend.createBranch with startPoint and switchAfterCreate', asyn
     ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'add x'],
     { cwd: repoRoot },
   );
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const startPoint = (await backend.revParse('HEAD~1')).oid || '';
 
   await backend.createBranch('past', {
@@ -841,7 +847,7 @@ test('NativeGitBackend.merge fast-forwards a local branch', async t => {
   );
   await execFileAsync('git', ['switch', 'main'], { cwd: repoRoot });
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const result = await backend.merge('feature', {});
   t.regex(result, /Fast-forward|Updating/);
   t.is(
@@ -901,7 +907,7 @@ test('NativeGitBackend.rebase rebases a local branch onto upstream', async t => 
   );
   await execFileAsync('git', ['switch', 'feature'], { cwd: repoRoot });
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   await backend.rebase({ mode: 'start', upstream: 'main' });
   const commits = await backend.log({ maxCount: 2 });
   t.deepEqual(
@@ -922,8 +928,8 @@ test('Git stash methods preserve path authority through EndoMountEntry', async t
 
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   await fs.promises.writeFile(path.join(repoRoot, 'tracked.txt'), 'after\n');
   const entry = await E(mount).entry(['tracked.txt']);
@@ -964,8 +970,8 @@ test('Git.diff routes EndoMountEntry inputs through the lineage gate', async t =
 
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   const entry = await E(mount).entry(['tracked.txt']);
   const out = await E(git).diff({ entries: [entry] });
@@ -975,7 +981,7 @@ test('Git.diff routes EndoMountEntry inputs through the lineage gate', async t =
 test('NativeGitBackend.add stages files via repo-relative paths', async t => {
   const repoRoot = await provisionGitWorktree(t);
   await fs.promises.writeFile(path.join(repoRoot, 'new.txt'), 'fresh');
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
 
   await backend.add(['new.txt']);
 
@@ -987,7 +993,7 @@ test('NativeGitBackend.add stages files via repo-relative paths', async t => {
 
 test('NativeGitBackend.add rejects empty / non-string paths', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
 
   await t.throwsAsync(backend.add([]), { message: /non-empty array/ });
   await t.throwsAsync(backend.add(['']), { message: /is required/ });
@@ -997,7 +1003,7 @@ test('NativeGitBackend.add rejects empty / non-string paths', async t => {
 test('NativeGitBackend.commit produces a new HEAD with the given message', async t => {
   const repoRoot = await provisionGitWorktree(t);
   await fs.promises.writeFile(path.join(repoRoot, 'a.txt'), 'a');
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   await backend.add(['a.txt']);
 
   const commit = await backend.commit('add a.txt');
@@ -1015,7 +1021,7 @@ test('NativeGitBackend.commit produces a new HEAD with the given message', async
 test('NativeGitBackend.restore --staged unstages an added file', async t => {
   const repoRoot = await provisionGitWorktree(t);
   await fs.promises.writeFile(path.join(repoRoot, 'staged.txt'), 'x');
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   await backend.add(['staged.txt']);
 
   // Index should now show the add.
@@ -1033,8 +1039,8 @@ test('Git.add wraps EndoMountEntry inputs and refuses cross-mount entries', asyn
   await fs.promises.writeFile(path.join(repoRoot, 'sample.txt'), 'sample');
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   // Same-lineage entry: add works through the public Git exo and the
   // backend sees the resolved repo-relative path.
@@ -1066,8 +1072,8 @@ test('Git.commit through the public exo returns a structured commit record', asy
   await fs.promises.writeFile(path.join(repoRoot, 'b.txt'), 'b');
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   const entry = await E(mount).entry(['b.txt']);
   await E(git).add([entry]);
@@ -1079,7 +1085,7 @@ test('Git.commit through the public exo returns a structured commit record', asy
 
 test('NativeGitBackend.status: clean worktree returns empty list', async t => {
   const repoRoot = await provisionGitWorktree(t);
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const entries = await backend.status();
   t.deepEqual([...entries], []);
 });
@@ -1106,7 +1112,7 @@ test('NativeGitBackend.status: classifies untracked, modified, added, deleted', 
   await execFileAsync('git', ['add', 'added.txt'], { cwd: repoRoot });
   await fs.promises.rm(path.join(repoRoot, 'doomed.txt'));
 
-  const backend = makeNativeGitBackend({ repoRoot });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const entries = await backend.status();
   const byPath = Object.fromEntries(entries.map(e => [e.path, e]));
 
@@ -1171,8 +1177,8 @@ test('Git.status reports merge conflicts with mount entries', async t => {
 
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   await t.throwsAsync(E(git).merge('feature'), {
     message: /CONFLICT|Automatic merge failed/,
@@ -1205,8 +1211,8 @@ test('Git.status wraps backend rows into GitStatusEntry with mount entries', asy
   // exercises the exo + backend wired together.
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   const entries = await E(git).status();
   t.is(entries.length, 1);
@@ -1258,7 +1264,7 @@ test('Git.status interface guard rejects backend rows with invalid enum values',
         ])
     ),
   });
-  const git = makeGit({ mount, backend });
+  const git = makeGit({ mount, backend, lineageOf });
 
   await t.throwsAsync(E(git).status(), {
     // The interface guard formats the violation around the offending
@@ -1289,7 +1295,7 @@ test('Git accepts both string and structured GitRef arguments', async t => {
       });
     },
   });
-  const git = makeGit({ mount, backend });
+  const git = makeGit({ mount, backend, lineageOf });
 
   await E(git).show('HEAD');
   await E(git).show({ name: 'main', kind: 'branch' });
@@ -1358,8 +1364,8 @@ test('Git.filesystemAt returns an endo-fs Filesystem with the expected surface',
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
 
@@ -1398,8 +1404,8 @@ test('Git.filesystemAt: lookup returns a File', async t => {
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
 
@@ -1417,8 +1423,8 @@ test('Git.filesystemAt: OpenFile.read returns blob bytes; range reads slice', as
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
   const file = /** @type {any} */ (await E(root).lookup('data.txt'));
@@ -1462,8 +1468,8 @@ test('Git.filesystemAt: range reads at a high offset discard the prefix', async 
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
   const file = /** @type {any} */ (await E(root).lookup('data.txt'));
@@ -1486,8 +1492,8 @@ test('Git.filesystemAt: range reads reject negative / unsafe-integer bounds', as
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
   const file = /** @type {any} */ (await E(root).lookup('README.md'));
@@ -1523,7 +1529,7 @@ test('Git.filesystemAt: lsTree cache evicts on rejection so a transient failure 
 
   // Wrap the native backend so the first `lsTree` call rejects (a
   // simulated transient git timeout) and later calls succeed.
-  const nativeBackend = makeNativeGitBackend({ repoRoot });
+  const nativeBackend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   let failuresRemaining = 1;
   const flakyBackend = harden({
     ...nativeBackend,
@@ -1536,7 +1542,7 @@ test('Git.filesystemAt: lsTree cache evicts on rejection so a transient failure 
       return nativeBackend.lsTree(treeOid);
     },
   });
-  const git = makeGit({ mount, backend: flakyBackend });
+  const git = makeGit({ mount, backend: flakyBackend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
 
@@ -1558,8 +1564,8 @@ test('Git.filesystemAt: File.snapshot returns a BlobRef over the blob bytes', as
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
   const file = /** @type {any} */ (await E(root).lookup('README.md'));
@@ -1588,8 +1594,8 @@ test('Git.filesystemAt: Directory.list yields entries in tree order', async t =>
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
 
@@ -1619,8 +1625,8 @@ test('Git.filesystemAt: mutating verbs all throw EACCES', async t => {
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
 
@@ -1654,8 +1660,8 @@ test('Git.filesystemAt: open({ write: true }) rejects', async t => {
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
   const file = /** @type {any} */ (await E(root).lookup('README.md'));
@@ -1670,8 +1676,8 @@ test('Git.filesystemAt: memoizes by canonical tree OID within one Git', async t 
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
 
   const a = await E(git).filesystemAt('HEAD');
   const b = await E(git).filesystemAt('HEAD');
@@ -1720,8 +1726,8 @@ test('Git.filesystemAt: submodule entries are hidden from the tree view', async 
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
 
@@ -1739,8 +1745,8 @@ test('Git.filesystemAt: an empty tree exposes an empty root', async t => {
   const repoRoot = await provisionGitWorktree(t);
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
 
@@ -1773,8 +1779,8 @@ test('Git.filesystemAt: directories report size 0n via getStat', async t => {
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
   const subdir = /** @type {any} */ (await E(root).lookup('subdir'));
@@ -1795,7 +1801,7 @@ test('Git.filesystemAt: lsTree and resolvePath are cached per Filesystem', async
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
 
   // Wrap the native backend with a spy that counts `lsTree` calls.
-  const nativeBackend = makeNativeGitBackend({ repoRoot });
+  const nativeBackend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   let lsTreeCalls = 0;
   const spyBackend = harden({
     ...nativeBackend,
@@ -1805,7 +1811,7 @@ test('Git.filesystemAt: lsTree and resolvePath are cached per Filesystem', async
       return nativeBackend.lsTree(treeOid);
     },
   });
-  const git = makeGit({ mount, backend: spyBackend });
+  const git = makeGit({ mount, backend: spyBackend, lineageOf });
   const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
   const root = /** @type {any} */ (await E(gitFs).root());
 

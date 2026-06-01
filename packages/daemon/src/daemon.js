@@ -15,6 +15,14 @@ import {
   checkinTree as platformCheckinTree,
   snapshotTreeMethods,
 } from '@endo/platform/fs/lite';
+import { makeNativeGitBackend } from '@endo/endo-git';
+import {
+  makeBasicCredential,
+  makeBearerCredential,
+  makeGit,
+  makeGitRemote,
+  makeUnavailableGitCredential,
+} from '@endo/exo-git';
 import { makeRefReader, makeRefIterator } from './ref-reader.js';
 import { makeIteratorRef, makeReaderRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';
@@ -64,15 +72,7 @@ import {
   makeHelp,
   readableTreeHelp,
 } from './help-text.js';
-import { getMountBacking, makeMount } from './mount.js';
-import { makeGit } from './git.js';
-import { makeNativeGitBackend } from './native-git-backend.js';
-import {
-  makeBasicCredential,
-  makeBearerCredential,
-  makeUnavailableGitCredential,
-} from './git-credential.js';
-import { makeGitRemote } from './git-remote.js';
+import { getMountBacking, lineageOf, makeMount } from './mount.js';
 
 // Sorted:
 import {
@@ -2730,6 +2730,7 @@ const makeDaemonCore = async (
       }
       const backend = makeNativeGitBackend({
         repoRoot: backing.physicalRoot,
+        makeReaderRef,
       });
       await backend.assertRepositoryRoot();
       return makeGit({
@@ -2740,6 +2741,7 @@ const makeDaemonCore = async (
         mount: /** @type {object} */ (mount),
         backend,
         readOnly: backing.readOnly,
+        lineageOf,
       });
     },
     'git-credential': ({ kind, audience }, _context, id) => {

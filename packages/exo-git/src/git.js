@@ -8,7 +8,6 @@ import { readOnly as readOnlyFs, wrapBackend } from '@endo/endo-fs';
 
 import { makeGitFsBackend } from './git-filesystem.js';
 import { GitInterface } from './interfaces.js';
-import { lineageOf } from './mount.js';
 
 /**
  * @import {
@@ -206,9 +205,15 @@ harden(getGitBackend);
  * @param {boolean} [args.readOnly]  True when this Git cap is attenuated
  *   or was derived from a read-only mount.  Mutation methods throw before
  *   the backend can touch the worktree.
+ * @param {(value: unknown) => object | undefined} args.lineageOf
+ *   Returns the mount-lineage sentinel for daemon-minted `EndoMount` /
+ *   `EndoMountEntry` values; `undefined` for foreign caps.  The daemon
+ *   binds its `mount.js#lineageOf`; in-process unit tests can pass a
+ *   stub.  Two entries with the same returned sentinel are guaranteed
+ *   to belong to the same mount root.
  * @returns {EndoGit}
  */
-export const makeGit = ({ mount, backend, readOnly = false }) => {
+export const makeGit = ({ mount, backend, readOnly = false, lineageOf }) => {
   // The mount's lineage sentinel — used to verify that every entry
   // passed to a path-bearing Git method was minted by this Git's bound
   // mount, not by some other mount this guest may also hold.
@@ -508,7 +513,7 @@ export const makeGit = ({ mount, backend, readOnly = false }) => {
       if (readOnly) {
         return selfExo;
       }
-      return makeGit({ mount, backend, readOnly: true });
+      return makeGit({ mount, backend, readOnly: true, lineageOf });
     },
   });
 

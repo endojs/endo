@@ -1,0 +1,84 @@
+{
+  "name": "@endo/exo-git",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Remotable exo glue and interface guards for an EndoGit capability — portable across SES realms; pair with @endo/endo-git for the Node-side GitBackend.",
+  "keywords": [
+    "endo",
+    "exo",
+    "git"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/exo-git"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./src/index.js"
+    },
+    "./src/git.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git.js"
+    },
+    "./src/git-filesystem.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-filesystem.js"
+    },
+    "./src/git-remote.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-remote.js"
+    },
+    "./src/git-credential.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-credential.js"
+    },
+    "./src/interfaces.js": {
+      "types": "./types.d.ts",
+      "default": "./src/interfaces.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/endo-fs": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/stream": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/init": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "60s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}
