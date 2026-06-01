@@ -2345,3 +2345,41 @@ test('NativeGitBackend stays usable when the first commit lands on an empty repo
   t.is(commits[0].oid, commit.oid);
 });
 
+test('NativeGitBackend read paths do not mutate .git/index metadata', async t => {
+  // Regression for the missing GIT_OPTIONAL_LOCKS=0 on read paths
+  // (Codex P2b).  `git status` opportunistically refreshes and rewrites
+  // `.git/index` when a worktree stat differs from the recorded one, so
+  // a "read-only" inspection mutated repo metadata and would fail on a
+  // read-only filesystem.  `GIT_OPTIONAL_LOCKS=0` (set in the sanitized
+  // env) suppresses that write.
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'tracked.txt'), 'one\n');
+  await execFileAsync('git', ['add', 'tracked.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'add tracked',
+    ],
+    { cwd: repoRoot },
+  );
+
+  const indexPath = path.join(repoRoot, '.git', 'index');
+  // Touch the tracked file so the worktree stat differs from the index,
+  // which is exactly the condition that provokes the opportunistic
+  // index refresh.
+  const future = new Date(Date.now() + 5_000);
+  await fs.promises.utimes(path.join(repoRoot, 'tracked.txt'), future, future);
+  const before = (await fs.promises.stat(indexPath)).mtimeMs;
+
+  const backend = makeNativeGitBackend({ repoRoot });
+  await backend.status();
+
+  const after = (await fs.promises.stat(indexPath)).mtimeMs;
+  t.is(after, before, 'status must not rewrite .git/index');
+});

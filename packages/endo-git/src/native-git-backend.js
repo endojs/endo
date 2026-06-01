@@ -163,6 +163,13 @@ const makeGitEnv = repoRoot => ({
   GIT_CONFIG_GLOBAL: gitNullDevice,
   // No interactive prompts.
   GIT_TERMINAL_PROMPT: '0',
+  // Suppress the opportunistic index refresh that read commands
+  // (status, diff) otherwise perform.  Without this, a "read-only"
+  // inspection rewrites `.git/index` metadata as a side effect and
+  // fails outright on a genuinely read-only filesystem.  Mutating
+  // commands take their real locks regardless of this flag, so it is
+  // safe to set for every invocation.
+  GIT_OPTIONAL_LOCKS: '0',
   // Force the pager to a passthrough.
   GIT_PAGER: 'cat',
   // Stable locale for deterministic parsing.
