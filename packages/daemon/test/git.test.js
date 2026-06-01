@@ -13,12 +13,8 @@ import { execFile } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E, Far } from '@endo/far';
-import {
-  internalHelpers,
-  makeGit,
-  makeNativeGitBackend,
-  makeNotYetImplementedBackend,
-} from '@endo/endo-git';
+import { internalHelpers, makeNativeGitBackend } from '@endo/endo-git';
+import { makeGit, makeNotYetImplementedBackend } from '@endo/exo-git';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
 import { lineageOf, makeMount } from '../src/mount.js';

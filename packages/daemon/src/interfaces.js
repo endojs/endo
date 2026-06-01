@@ -620,7 +620,7 @@ export const MountEntryInterface = M.interface('EndoMountEntry', {
 });
 
 // The git-only interface guards and shape constants moved into
-// `@endo/endo-git/src/interfaces.js`.  Re-exported here for daemon-
+// `@endo/exo-git/src/interfaces.js`.  Re-exported here for daemon-
 // internal consumers that referenced them by name from `./interfaces.js`.
 export {
   GitInterface,
@@ -629,7 +629,7 @@ export {
   GitCredentialControllerInterface,
   BasicCredentialInterface,
   BearerCredentialInterface,
-} from '@endo/endo-git';
+} from '@endo/exo-git';
 
 export const ReadableTreeInterface = M.interface('EndoReadableTree', {
   help: M.call().optional(M.string()).returns(M.string()),

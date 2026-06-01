@@ -11,6 +11,7 @@ import { execFile } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E, Far } from '@endo/far';
+import { makeNativeGitBackend } from '@endo/endo-git';
 import {
   assertGitCredentialForUrl,
   getGitCredentialController,
@@ -19,11 +20,10 @@ import {
   makeBearerCredential,
   makeGit,
   makeGitRemote,
-  makeNativeGitBackend,
   makeNotYetImplementedBackend,
   makeUnavailableGitCredential,
   revokeGitCredential,
-} from '@endo/endo-git';
+} from '@endo/exo-git';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
 import { lineageOf, makeMount } from '../src/mount.js';

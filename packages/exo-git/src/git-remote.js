@@ -1,8 +1,6 @@
 // @ts-check
 /// <reference types="ses"/>
 
-import { URL } from 'node:url';
-
 import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
 import { E } from '@endo/eventual-send';

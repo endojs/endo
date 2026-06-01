@@ -1,10 +1,11 @@
 {
-  "name": "@endo/endo-git",
+  "name": "@endo/exo-git",
   "version": "0.0.0",
   "private": true,
-  "description": "Node-side `NativeGitBackend` for the Endo `Git` capability — a subprocess wrapper over the installed `git` binary.  Pair with `@endo/exo-git` for the portable remotable exo glue.",
+  "description": "Remotable exo glue and interface guards for an EndoGit capability — portable across SES realms; pair with @endo/endo-git for the Node-side GitBackend.",
   "keywords": [
     "endo",
+    "exo",
     "git"
   ],
   "author": "Endo contributors",
@@ -12,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/endo-git"
+    "directory": "packages/exo-git"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -25,9 +26,25 @@
       "types": "./types.d.ts",
       "default": "./src/index.js"
     },
-    "./src/native-git-backend.js": {
+    "./src/git.js": {
       "types": "./types.d.ts",
-      "default": "./src/native-git-backend.js"
+      "default": "./src/git.js"
+    },
+    "./src/git-filesystem.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-filesystem.js"
+    },
+    "./src/git-remote.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-remote.js"
+    },
+    "./src/git-credential.js": {
+      "types": "./types.d.ts",
+      "default": "./src/git-credential.js"
+    },
+    "./src/interfaces.js": {
+      "types": "./types.d.ts",
+      "default": "./src/interfaces.js"
     },
     "./package.json": "./package.json"
   },
@@ -39,11 +56,14 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
+    "@endo/endo-fs": "workspace:^",
     "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
-    "@endo/exo-git": "workspace:^",
+    "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
-    "@endo/platform": "workspace:^"
+    "@endo/patterns": "workspace:^",
+    "@endo/stream": "workspace:^"
   },
   "devDependencies": {
     "@endo/init": "workspace:^",

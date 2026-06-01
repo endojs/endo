@@ -1780,6 +1780,7 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
+    "@endo/exo-git": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
@@ -1884,17 +1885,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/endo-git@workspace:packages/endo-git"
   dependencies:
-    "@endo/base64": "workspace:^"
-    "@endo/endo-fs": "workspace:^"
     "@endo/errors": "workspace:^"
-    "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
-    "@endo/far": "workspace:^"
+    "@endo/exo-git": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
-    "@endo/patterns": "workspace:^"
     "@endo/platform": "workspace:^"
-    "@endo/stream": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
@@ -1987,6 +1983,24 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/exo-git@workspace:^, @endo/exo-git@workspace:packages/exo-git":
+  version: 0.0.0-use.local
+  resolution: "@endo/exo-git@workspace:packages/exo-git"
+  dependencies:
+    "@endo/endo-fs": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/stream": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
 

@@ -15,14 +15,14 @@ import {
   checkinTree as platformCheckinTree,
   snapshotTreeMethods,
 } from '@endo/platform/fs/lite';
+import { makeNativeGitBackend } from '@endo/endo-git';
 import {
   makeBasicCredential,
   makeBearerCredential,
   makeGit,
   makeGitRemote,
-  makeNativeGitBackend,
   makeUnavailableGitCredential,
-} from '@endo/endo-git';
+} from '@endo/exo-git';
 import { makeRefReader, makeRefIterator } from './ref-reader.js';
 import { makeIteratorRef, makeReaderRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';

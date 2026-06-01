@@ -11,7 +11,7 @@ import {
   getGitCredentialController as getGitCredentialControllerForCap,
   getGitRemoteController as getGitRemoteControllerForCap,
   isGitReadOnly,
-} from '@endo/endo-git';
+} from '@endo/exo-git';
 import { makeIteratorRef } from './reader-ref.js';
 import {
   assertPetName,

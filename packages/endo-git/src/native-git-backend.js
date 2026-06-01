@@ -30,7 +30,7 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  *   GitBackendDiffOptions,
  *   GitBackendLogOptions,
  *   GitBackendStashPushOptions,
- * } from './git.js'
+ * } from '@endo/exo-git/src/git.js'
  * @import {
  *   GitCommit,
  *   GitCreateBranchOptions,
@@ -39,7 +39,7 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  *   GitRebaseInput,
  *   GitRef,
  *   GitRestoreOptions,
- * } from './types.js'
+ * } from '@endo/exo-git/src/types.js'
  */
 
 /**

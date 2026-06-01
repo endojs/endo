@@ -1,13 +1,9 @@
 # `@endo/endo-git`
 
-Endo's git capability layer.
-The package extracts the git-specific surface that was previously embedded in `@endo/daemon/src/`:
+Node-side `NativeGitBackend` for the Endo `Git` capability.
+A subprocess wrapper over the installed `git` binary.
 
-- `makeGit` — the `EndoGit` exo factory built over a `Mount` and a `GitBackend`.
-- `makeNativeGitBackend` — a subprocess wrapper over the installed `git` binary.
-- `makeGitFsBackend` — an `FsBackend` adapter for an immutable git tree (composes with `@endo/endo-fs` `wrapBackend(...)`).
-- `makeGitRemote` — remote-git companion (fetch / pull / push) bound to a credential cap.
-- `makeBasicCredential`, `makeBearerCredential`, `makeUnavailableGitCredential` — credential capabilities; each carries a host-private `GitCredentialController` accessible via `getGitCredentialController(cred)`.
+- `makeNativeGitBackend({ repoRoot, makeReaderRef })` — implements the `GitBackend` protocol declared by `@endo/exo-git`.  Uses `node:child_process`, `node:fs`, `node:path`, etc.; not portable to SES realms without these built-ins.
+- `internalHelpers` — test-only constants and helpers exported for assertion against `@endo/exo-git/src/git.js`.
 
-This package is workspace-internal today (`"private": true`).
-The intent is to publish once the surface stabilises.
+Pair with `@endo/exo-git` for the remotable exo glue (`makeGit`, `makeGitRemote`, the credential capabilities, the `FsBackend` adapter, and the interface guards).
