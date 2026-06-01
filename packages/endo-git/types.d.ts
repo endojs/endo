@@ -2,7 +2,7 @@
  * Hand-written declarations for `@endo/endo-git`.  Same pattern as
  * `packages/endo-fs/types.d.ts`: the runtime is `@ts-check`-annotated
  * JavaScript and the package does not have its own `tsc` emission
- * pipeline yet (see `designs/extract-endo-git-package.md` Phase 6).
+ * pipeline yet.
  *
  * Surface is intentionally narrow.  Factory return types are `any`
  * rather than `object` because daemon-side consumers immediately

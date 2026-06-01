@@ -1,8 +1,5 @@
 // @ts-check
 
-// Re-exports added as each module moves out of @endo/daemon.  See
-// designs/extract-endo-git-package.md for phases.
-
 export {
   makeGit,
   isGitReadOnly,
