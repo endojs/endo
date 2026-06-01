@@ -10,7 +10,6 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { execFile, spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E, Far } from '@endo/far';
@@ -1138,9 +1137,7 @@ test('git-askpass-helper rejects a record whose declared length exceeds the ceil
   // fail rather than leaving it green.
   const MAX_RECORD_LENGTH = 8 * 1024;
   const overLength = MAX_RECORD_LENGTH + 1;
-  const helperPath = fileURLToPath(
-    new URL('../src/git-askpass-helper.cjs', import.meta.url),
-  );
+  const helperPath = internalHelpers.gitAskpassHelperPath;
   const fakeDir = await fs.promises.mkdtemp(
     path.join(os.tmpdir(), 'native-git-askpass-ceiling-'),
   );

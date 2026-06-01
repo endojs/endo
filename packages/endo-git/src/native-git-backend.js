@@ -2336,4 +2336,5 @@ export const internalHelpers = harden({
   encodeCredentialRecord,
   encodeCredentialRecords,
   credentialBytesFor,
+  gitAskpassHelperPath,
 });
