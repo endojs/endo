@@ -5,10 +5,6 @@ const dynamicConfig = {
   overrides: /** @type {*[]} */ ([]),
 };
 
-// typescript-eslint has its own config that must be dynamically referenced
-// to include vs. exclude non-"src" files because it cannot itself be dynamic.
-// https://github.com/microsoft/TypeScript/issues/30751
-const rootTsProjectGlob = './tsconfig.eslint-full.json';
 const parserOptions = {
   useProjectService: true,
   sourceType: 'module',
@@ -17,7 +13,6 @@ const parserOptions = {
     defaultProject: 'tsconfig.json',
   },
   tsconfigRootDir: path.join(__dirname, '../../../..'),
-  project: [rootTsProjectGlob],
 };
 
 const fileGlobs = ['**/*.{js,ts}'];
