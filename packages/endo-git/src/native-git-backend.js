@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { Buffer } from 'node:buffer';
 import { execFile, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
@@ -8,9 +9,7 @@ import process from 'node:process';
 import { setTimeout, clearTimeout } from 'node:timers';
 import fs from 'node:fs';
 import path from 'node:path';
-import { tmpdir } from 'node:os';
-import net from 'node:net';
-import { URL } from 'node:url';
+import { URL, fileURLToPath } from 'node:url';
 
 import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
@@ -86,6 +85,10 @@ const GIT_TIMEOUT_MS = 60_000;
 const GIT_MAX_BUFFER = 1024 * 1024;
 const TOOL_OUTPUT_LIMIT = 50_000;
 const MIN_GIT_VERSION = harden([2, 30, 0]);
+const GIT_ASKPASS_FD = 3;
+const gitAskpassHelperPath = fileURLToPath(
+  new URL('git-askpass-helper.cjs', import.meta.url),
+);
 
 /**
  * Parse `git --version` output into a numeric tuple.
@@ -242,6 +245,102 @@ const requireNonEmptyString = (value, fieldName) => {
   }
   return value;
 };
+harden(requireNonEmptyString);
+
+/**
+ * Askpass responses are newline-delimited records on an inherited pipe.
+ *
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @returns {string}
+ */
+const requireAskpassLine = (value, fieldName) => {
+  const text = requireNonEmptyString(value, fieldName);
+  if (text.includes('\n') || text.includes('\r')) {
+    throw new Error(`${fieldName} must not contain line breaks`);
+  }
+  return text;
+};
+harden(requireAskpassLine);
+
+// Role tags for the askpass credential records. One byte each; mirrored in
+// git-askpass-helper.cjs.
+const ROLE_USERNAME = 0x55; // 'U'
+const ROLE_PASSWORD = 0x50; // 'P'
+
+/**
+ * Frame a credential value as a role-tagged, length-prefixed record:
+ * role-byte (1) | length (4-byte big-endian uint32) | value-bytes (length).
+ * The helper reads the whole record set and selects by role per the prompt git
+ * issues, rather than relying on a fixed username-then-password queue order.
+ *
+ * @param {number} role
+ * @param {string} value
+ * @returns {Buffer}
+ */
+const encodeCredentialRecord = (role, value) => {
+  const valueBytes = Buffer.from(value, 'utf8');
+  const header = Buffer.alloc(5);
+  header[0] = role;
+  header.writeUInt32BE(valueBytes.length, 1);
+  return Buffer.concat([header, valueBytes]);
+};
+harden(encodeCredentialRecord);
+
+/**
+ * Encode the username and password as the role-tagged record set the askpass
+ * helper consumes.
+ *
+ * @param {string} username
+ * @param {string} password
+ * @returns {Buffer}
+ */
+const encodeCredentialRecords = (username, password) =>
+  Buffer.concat([
+    encodeCredentialRecord(ROLE_USERNAME, username),
+    encodeCredentialRecord(ROLE_PASSWORD, password),
+  ]);
+harden(encodeCredentialRecords);
+
+/**
+ * Validate a remote credential and frame it as the role-tagged record set the
+ * askpass helper consumes. Returns `undefined` when no credential is supplied
+ * (the caller then runs git without the askpass pipe).
+ *
+ * @param {unknown} credential
+ * @returns {Buffer | undefined}
+ */
+const credentialBytesFor = credential => {
+  if (credential === undefined) {
+    return undefined;
+  }
+  const nativeCredential = /** @type {NativeGitCredential} */ (credential);
+  /** @type {string} */
+  let username;
+  /** @type {string} */
+  let password;
+  if (nativeCredential.kind === 'bearer') {
+    username = 'x-access-token';
+    password = requireAskpassLine(
+      nativeCredential.material?.token,
+      'remote credential token',
+    );
+  } else if (nativeCredential.kind === 'basic') {
+    username = requireAskpassLine(
+      nativeCredential.material?.username,
+      'remote credential username',
+    );
+    password = requireAskpassLine(
+      nativeCredential.material?.password,
+      'remote credential password',
+    );
+  } else {
+    throw new Error('Unsupported remote credential kind');
+  }
+
+  return encodeCredentialRecords(username, password);
+};
+harden(credentialBytesFor);
 
 /**
  * Revision arguments must additionally not start with `-` — git would
@@ -655,119 +754,6 @@ export const makeNativeGitBackend = ({
   let versionVerification;
   /** @type {RepositoryIdentity | undefined} */
   let repositoryIdentity;
-  /** @type {Promise<string> | undefined} */
-  let askpassPath;
-
-  const ensureAskpassPath = async () => {
-    if (askpassPath === undefined) {
-      askpassPath = (async () => {
-        const askpassDir = await fs.promises.mkdtemp(
-          path.join(tmpdir(), 'endo-git-askpass-'),
-        );
-        const scriptPath = path.join(askpassDir, 'askpass.sh');
-        await fs.promises.writeFile(
-          scriptPath,
-          [
-            `#!${process.execPath}`,
-            "const net = require('node:net');",
-            'const socketPath = process.env.ENDO_GIT_ASKPASS_SOCKET;',
-            'if (!socketPath) { process.exit(1); }',
-            'const client = net.createConnection(socketPath);',
-            "let response = '';",
-            "client.setEncoding('utf8');",
-            "client.on('connect', () => {",
-            '  client.end(JSON.stringify({ prompt: process.argv.slice(2).join(" ") }));',
-            '});',
-            "client.on('data', chunk => { response += chunk; });",
-            "client.on('end', () => { process.stdout.write(response); });",
-            "client.on('error', () => { process.exit(1); });",
-            '',
-          ].join('\n'),
-          { mode: 0o700 },
-        );
-        await fs.promises.chmod(scriptPath, 0o700);
-        return scriptPath;
-      })();
-    }
-    return askpassPath;
-  };
-
-  /**
-   * @param {unknown} credential
-   * @returns {Promise<{ env: Record<string, string>, close: () => Promise<void> }>}
-   */
-  const makeCredentialTransport = async credential => {
-    if (credential === undefined) {
-      return harden({
-        env: harden({}),
-        close: async () => {},
-      });
-    }
-    const nativeCredential = /** @type {NativeGitCredential} */ (credential);
-    /** @type {string} */
-    let username;
-    /** @type {string} */
-    let password;
-    if (nativeCredential.kind === 'bearer') {
-      username = 'x-access-token';
-      password = requireNonEmptyString(
-        nativeCredential.material?.token,
-        'remote credential token',
-      );
-    } else if (nativeCredential.kind === 'basic') {
-      username = requireNonEmptyString(
-        nativeCredential.material?.username,
-        'remote credential username',
-      );
-      password = requireNonEmptyString(
-        nativeCredential.material?.password,
-        'remote credential password',
-      );
-    } else {
-      throw new Error('Unsupported remote credential kind');
-    }
-
-    const askpassDir = await fs.promises.mkdtemp(
-      path.join(tmpdir(), 'endo-git-askpass-socket-'),
-    );
-    const socketPath = path.join(askpassDir, 'askpass.sock');
-    const server = net.createServer(socket => {
-      socket.setEncoding('utf8');
-      let request = '';
-      socket.on('data', chunk => {
-        request += String(chunk);
-      });
-      socket.on('end', () => {
-        let prompt = '';
-        try {
-          prompt =
-            /** @type {{ prompt?: string }} */ (JSON.parse(request || '{}'))
-              .prompt || '';
-        } catch {
-          prompt = '';
-        }
-        const response = /sername/iu.test(prompt) ? username : password;
-        socket.end(`${response}\n`);
-      });
-    });
-    await new Promise((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(socketPath, () => resolve(undefined));
-    });
-
-    return harden({
-      env: harden({
-        GIT_ASKPASS: await ensureAskpassPath(),
-        ENDO_GIT_ASKPASS_SOCKET: socketPath,
-      }),
-      close: async () => {
-        await new Promise(resolve => {
-          server.close(() => resolve(undefined));
-        });
-        await fs.promises.rm(askpassDir, { recursive: true, force: true });
-      },
-    });
-  };
 
   const verifyGitVersion = async () => {
     if (!versionVerification) {
@@ -1078,6 +1064,140 @@ export const makeNativeGitBackend = ({
         `git ${gitCommandName(args)} failed (exit ${error.code ?? 'unknown'}):\n${truncateOutput(detail.trim())}`,
       );
     }
+  };
+
+  /**
+   * Run a sanitized git invocation with GIT_ASKPASS connected to an inherited
+   * anonymous pipe. Only the fd number reaches the child environment; the
+   * credential bytes never appear in argv, env, or a temporary file.
+   *
+   * @param {string[]} args
+   * @param {Buffer} credentialBytes
+   * @param {AbortSignal} [signal]
+   * @returns {Promise<{ stdout: string, stderr: string }>}
+   */
+  const runGitWithAskpass = async (args, credentialBytes, signal) => {
+    await verifyRepositoryIdentity();
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error
+        ? signal.reason
+        : new Error('git operation aborted');
+    }
+
+    return new Promise((resolve, reject) => {
+      /** @type {Buffer[]} */
+      const stdoutChunks = [];
+      /** @type {Buffer[]} */
+      const stderrChunks = [];
+      let stdoutSize = 0;
+      let stderrSize = 0;
+      let settled = false;
+      let timedOut = false;
+      let outputTooLarge = false;
+      let aborted = false;
+
+      const child = spawn('git', [...GIT_BASE_ARGS, ...args], {
+        cwd: repoRoot,
+        env: withGitEnvOverrides(makeGitEnv(repoRoot), {
+          GIT_ASKPASS: gitAskpassHelperPath,
+          ENDO_GIT_ASKPASS_FD: String(GIT_ASKPASS_FD),
+        }),
+        stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
+      });
+
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+      }, GIT_TIMEOUT_MS);
+      timeout.unref();
+
+      const credentialPipe =
+        /** @type {import('node:stream').Writable | null | undefined} */ (
+          child.stdio[GIT_ASKPASS_FD]
+        );
+      if (credentialPipe === undefined || credentialPipe === null) {
+        throw new Error('git credential pipe was not available');
+      }
+      credentialPipe.on('error', () => {});
+      credentialPipe.end(credentialBytes);
+
+      const abort = () => {
+        aborted = true;
+        child.kill('SIGTERM');
+      };
+      signal?.addEventListener('abort', abort, { once: true });
+
+      /**
+       * @param {Buffer[]} chunks
+       * @param {Buffer | string} chunk
+       * @param {'stdout' | 'stderr'} streamName
+       */
+      const appendChunk = (chunks, chunk, streamName) => {
+        const bytes = Buffer.isBuffer(chunk)
+          ? chunk
+          : Buffer.from(chunk, 'utf8');
+        if (streamName === 'stdout') {
+          stdoutSize += bytes.byteLength;
+        } else {
+          stderrSize += bytes.byteLength;
+        }
+        if (stdoutSize + stderrSize > GIT_MAX_BUFFER) {
+          outputTooLarge = true;
+          child.kill('SIGTERM');
+          return;
+        }
+        chunks.push(bytes);
+      };
+
+      child.stdout?.on('data', chunk =>
+        appendChunk(stdoutChunks, chunk, 'stdout'),
+      );
+      child.stderr?.on('data', chunk =>
+        appendChunk(stderrChunks, chunk, 'stderr'),
+      );
+      child.once('error', error => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        signal?.removeEventListener('abort', abort);
+        try {
+          credentialPipe.destroy();
+        } catch {
+          // ignore
+        }
+        reject(error);
+      });
+      child.once('close', (code, closeSignal) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        signal?.removeEventListener('abort', abort);
+        try {
+          credentialPipe.destroy();
+        } catch {
+          // ignore
+        }
+
+        const stdout = Buffer.concat(stdoutChunks).toString('utf8');
+        const stderr = Buffer.concat(stderrChunks).toString('utf8');
+        if (code === 0 && !timedOut && !aborted && !outputTooLarge) {
+          resolve({ stdout, stderr });
+          return;
+        }
+        const detail =
+          (outputTooLarge && 'git output exceeded max buffer') ||
+          (aborted && 'git operation aborted') ||
+          (timedOut && 'git operation timed out') ||
+          stderr ||
+          stdout ||
+          'unknown git error';
+        reject(
+          new Error(
+            `git ${gitCommandName(args)} failed (exit ${code ?? closeSignal ?? 'unknown'}):\n${truncateOutput(detail.trim())}`,
+          ),
+        );
+      });
+    });
   };
 
   /**
@@ -2137,17 +2257,22 @@ export const makeNativeGitBackend = ({
       }
       args.push(opts.tags ? '--tags' : '--no-tags');
       args.push(url, ...refspecs);
-      const credentialTransport = await makeCredentialTransport(
-        opts.credential,
-      );
-      try {
-        const text = await runGit(args, credentialTransport.env, opts.signal);
-        const after = await readRefMap([...selectors]);
-        const updatedRefs = summarizeFetchRefUpdates(refspecs, before, after);
-        return harden({ updatedRefs, text });
-      } finally {
-        await credentialTransport.close();
+      const credentialBytes = credentialBytesFor(opts.credential);
+      let text;
+      if (credentialBytes === undefined) {
+        text = await runGit(args, undefined, opts.signal);
+      } else {
+        const { stdout, stderr } = await runGitWithAskpass(
+          args,
+          credentialBytes,
+          opts.signal,
+        );
+        const output = `${stdout}${stderr ? `\n[stderr]:\n${stderr}` : ''}`;
+        text = truncateOutput(output.trim() || '(no output)');
       }
+      const after = await readRefMap([...selectors]);
+      const updatedRefs = summarizeFetchRefUpdates(refspecs, before, after);
+      return harden({ updatedRefs, text });
     },
 
     remotePush: async input => {
@@ -2171,17 +2296,15 @@ export const makeNativeGitBackend = ({
         args.push('--set-upstream');
       }
       args.push(url, ...refspecs);
-      const credentialTransport = await makeCredentialTransport(
-        opts.credential,
-      );
-      try {
-        const raw = await runGitRaw(args, credentialTransport.env, opts.signal);
-        const updatedRefs = await parsePushPorcelainUpdates(raw);
-        const text = truncateOutput(raw.trim() || '(no output)');
-        return harden({ updatedRefs, text });
-      } finally {
-        await credentialTransport.close();
-      }
+      const credentialBytes = credentialBytesFor(opts.credential);
+      const raw =
+        credentialBytes === undefined
+          ? await runGitRaw(args, undefined, opts.signal)
+          : (await runGitWithAskpass(args, credentialBytes, opts.signal))
+              .stdout;
+      const updatedRefs = await parsePushPorcelainUpdates(raw);
+      const text = truncateOutput(raw.trim() || '(no output)');
+      return harden({ updatedRefs, text });
     },
 
     /**
@@ -2265,8 +2388,15 @@ export const internalHelpers = harden({
   makeGitEnv,
   truncateOutput,
   requireNonEmptyString,
+  requireAskpassLine,
   requireRevision,
   parseGitVersion,
   assertSupportedGitVersion,
   compareVersion,
+  ROLE_USERNAME,
+  ROLE_PASSWORD,
+  encodeCredentialRecord,
+  encodeCredentialRecords,
+  credentialBytesFor,
+  gitAskpassHelperPath,
 });

@@ -30,6 +30,7 @@ declare module '@endo/endo-git' {
     makeGitEnv: (overrides?: Record<string, string>) => Record<string, string>;
     truncateOutput: (text: string) => string;
     requireNonEmptyString: (value: unknown, name: string) => string;
+    requireAskpassLine: (value: unknown, fieldName: string) => string;
     requireRevision: (value: unknown, name: string) => string;
     parseGitVersion: (text: string) => [number, number, number];
     assertSupportedGitVersion: (versionText: string) => void;
@@ -37,6 +38,12 @@ declare module '@endo/endo-git' {
       a: readonly [number, number, number],
       b: readonly [number, number, number],
     ) => number;
+    ROLE_USERNAME: number;
+    ROLE_PASSWORD: number;
+    encodeCredentialRecord: (role: number, value: string) => Buffer;
+    encodeCredentialRecords: (username: string, password: string) => Buffer;
+    credentialBytesFor: (credential: unknown) => Buffer | undefined;
+    gitAskpassHelperPath: string;
     [key: string]: unknown;
   };
 }

@@ -9,7 +9,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { execFile } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E, Far } from '@endo/far';
@@ -715,6 +715,111 @@ test('NativeGitBackend version parser enforces the documented git floor', t => {
   });
 });
 
+test('NativeGitBackend.requireAskpassLine rejects embedded line breaks', t => {
+  const { requireAskpassLine } = internalHelpers;
+
+  // A clean single-line value passes through verbatim.
+  t.is(
+    requireAskpassLine('ghp_abc123', 'remote credential token'),
+    'ghp_abc123',
+  );
+
+  // A credential carrying a newline or carriage return is rejected. The
+  // askpass pipe frames records by length, but a value with an embedded line
+  // break would still let a crafted credential masquerade as multiple lines to
+  // a line-oriented consumer; the guard rejects both \n and \r before the bytes
+  // ever reach the pipe.
+  t.throws(() => requireAskpassLine('two\nlines', 'remote credential token'), {
+    message: /remote credential token must not contain line breaks/,
+  });
+  t.throws(
+    () => requireAskpassLine('carriage\rreturn', 'remote credential password'),
+    {
+      message: /remote credential password must not contain line breaks/,
+    },
+  );
+
+  // An empty value is rejected by the underlying non-empty guard, not the
+  // line-break guard, so the message differs.
+  t.throws(() => requireAskpassLine('', 'remote credential token'), {
+    message: /remote credential token/,
+  });
+});
+
+test('NativeGitBackend.credentialBytesFor frames credentials and rejects bad kinds', t => {
+  const {
+    credentialBytesFor,
+    encodeCredentialRecords,
+    encodeCredentialRecord,
+    ROLE_USERNAME,
+    ROLE_PASSWORD,
+  } = internalHelpers;
+
+  // No credential supplied: the caller runs git without the askpass pipe.
+  t.is(credentialBytesFor(undefined), undefined);
+
+  // A bearer token frames as the fixed 'x-access-token' username and the token
+  // as the password, in that record order.
+  const bearer = credentialBytesFor(
+    harden({ kind: 'bearer', material: harden({ token: 'ghp_secret' }) }),
+  );
+  if (bearer === undefined) {
+    throw t.fail('bearer credential should frame to bytes');
+  }
+  t.deepEqual(bearer, encodeCredentialRecords('x-access-token', 'ghp_secret'));
+  // The framing is role-tagged: first record carries the username role byte,
+  // and the value bytes are the token's UTF-8 bytes.
+  t.is(bearer[0], ROLE_USERNAME);
+
+  // A basic credential frames username then password.
+  const basic = credentialBytesFor(
+    harden({
+      kind: 'basic',
+      material: harden({ username: 'alice', password: 'hunter2' }),
+    }),
+  );
+  if (basic === undefined) {
+    throw t.fail('basic credential should frame to bytes');
+  }
+  t.deepEqual(basic, encodeCredentialRecords('alice', 'hunter2'));
+  // The password record (second record) carries the password role byte.
+  const usernameRecordLength = encodeCredentialRecord(
+    ROLE_USERNAME,
+    'alice',
+  ).length;
+  t.is(basic[usernameRecordLength], ROLE_PASSWORD);
+
+  // The line-break guard reaches through credentialBytesFor.
+  t.throws(
+    () =>
+      credentialBytesFor(
+        harden({ kind: 'bearer', material: harden({ token: 'bad\ntoken' }) }),
+      ),
+    { message: /remote credential token must not contain line breaks/ },
+  );
+
+  // An unsupported credential kind is rejected before any framing.
+  t.throws(
+    () => credentialBytesFor(harden({ kind: 'mtls', material: harden({}) })),
+    { message: /Unsupported remote credential kind/ },
+  );
+});
+
+test('NativeGitBackend.encodeCredentialRecord frames role, length, and bytes', t => {
+  const { encodeCredentialRecord, ROLE_PASSWORD } = internalHelpers;
+
+  // A 4-byte code point (emoji) exercises the length prefix beyond ASCII: the
+  // length is the UTF-8 byte count, not the JS string length.
+  const value = 'pä🔑';
+  const valueBytes = Buffer.from(value, 'utf8');
+  const record = encodeCredentialRecord(ROLE_PASSWORD, value);
+
+  t.is(record[0], ROLE_PASSWORD);
+  t.is(record.readUInt32BE(1), valueBytes.length);
+  t.deepEqual(record.subarray(5), valueBytes);
+  t.is(record.length, 5 + valueBytes.length);
+});
+
 test('NativeGitBackend credential transport satisfies git HTTP auth challenge', async t => {
   const repoRoot = await provisionGitWorktree(t);
   const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
@@ -761,6 +866,370 @@ test('NativeGitBackend credential transport satisfies git HTTP auth challenge', 
     'base64',
   )}`;
   t.true(authorizations.includes(expected));
+});
+
+// Serial: this test mutates the global process.env.PATH to inject a fake git.
+test.serial(
+  'NativeGitBackend askpass keeps credential out of argv, env, and temp files',
+  async t => {
+    const repoRoot = await provisionGitWorktree(t);
+    const fakeDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'native-git-fake-'),
+    );
+    t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
+    const reportPath = path.join(fakeDir, 'report.json');
+    const secret = `token-${Date.now()}-${Math.random()}`;
+    const beforeAskpassTempEntries = new Set(
+      (await fs.promises.readdir(os.tmpdir())).filter(name =>
+        name.startsWith('endo-git-askpass-'),
+      ),
+    );
+    const fakeGitPath = path.join(fakeDir, 'git');
+    await fs.promises.writeFile(
+      fakeGitPath,
+      `#!/usr/bin/env node
+const fs = require('node:fs');
+const childProcess = require('node:child_process');
+const path = require('node:path');
+const args = process.argv.slice(2);
+const includes = value => args.includes(value);
+if (includes('--version')) {
+  console.log('git version 2.39.0');
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--show-toplevel')) {
+  console.log(process.cwd());
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--git-common-dir')) {
+  console.log('.git');
+  console.log('.git/config');
+  process.exit(0);
+}
+if (includes('rev-list') || includes('config') || includes('for-each-ref')) {
+  process.exit(0);
+}
+if (includes('fetch')) {
+  const fd = Number.parseInt(process.env.ENDO_GIT_ASKPASS_FD || '', 10);
+  const helper = process.env.GIT_ASKPASS || '';
+  const stdio = ['ignore', 'pipe', 'ignore', fd];
+  const username = childProcess.execFileSync(helper, ['Username for test:'], {
+    env: process.env,
+    encoding: 'utf8',
+    stdio,
+  });
+  const password = childProcess.execFileSync(helper, ['Password for test:'], {
+    env: process.env,
+    encoding: 'utf8',
+    stdio,
+  });
+  const envText = Object.values(process.env).join('\\0');
+  fs.writeFileSync(
+    ${JSON.stringify(reportPath)},
+    JSON.stringify({
+      argvIncludesSecret: process.argv.join('\\0').includes(${JSON.stringify(secret)}),
+      envIncludesSecret: envText.includes(${JSON.stringify(secret)}),
+      hasSocketEnv: Object.hasOwn(process.env, 'ENDO_GIT_ASKPASS_SOCKET'),
+      helperBasename: path.basename(helper),
+      fd: process.env.ENDO_GIT_ASKPASS_FD,
+      usernameMatched: username === 'x-access-token',
+      passwordMatched: password === ${JSON.stringify(secret)},
+    }),
+  );
+  console.error('fake fetch failed after credential probe');
+  process.exit(1);
+}
+console.error('unexpected fake git invocation', args.join(' '));
+process.exit(1);
+`,
+      { mode: 0o755 },
+    );
+    await fs.promises.chmod(fakeGitPath, 0o755);
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${fakeDir}${path.delimiter}${originalPath || ''}`;
+    try {
+      const backend = makeNativeGitBackend({ repoRoot });
+      await t.throwsAsync(
+        backend.remoteFetch({
+          url: 'https://example.com/repo.git',
+          refspecs: [],
+          credential: harden({
+            kind: 'bearer',
+            material: harden({ token: secret }),
+          }),
+        }),
+        { message: /git fetch failed/ },
+      );
+    } finally {
+      process.env.PATH = originalPath;
+    }
+
+    const report = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
+    t.false(report.argvIncludesSecret);
+    t.false(report.envIncludesSecret);
+    t.false(report.hasSocketEnv);
+    t.is(report.helperBasename, 'git-askpass-helper.cjs');
+    t.is(report.fd, '3');
+    t.true(report.usernameMatched);
+    t.true(report.passwordMatched);
+    const newAskpassTempEntries = (
+      await fs.promises.readdir(os.tmpdir())
+    ).filter(
+      name =>
+        name.startsWith('endo-git-askpass-') &&
+        !beforeAskpassTempEntries.has(name),
+    );
+    t.deepEqual(newAskpassTempEntries, []);
+  },
+);
+
+// Serial: this test mutates the global process.env.PATH to inject a fake git.
+test.serial(
+  'NativeGitBackend askpass answers the password prompt with the password when git omits the username prompt',
+  async t => {
+    // When the remote URL already embeds a username (https://bob@.../repo.git),
+    // git does NOT issue the username prompt; the first and only askpass
+    // invocation is for the password. The helper must select the credential by
+    // inspecting the prompt argument, not by consuming a fixed
+    // username-then-password queue — otherwise the username bytes are wrongly
+    // handed to the password prompt.
+    const repoRoot = await provisionGitWorktree(t);
+    const fakeDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'native-git-fake-'),
+    );
+    t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
+    const reportPath = path.join(fakeDir, 'report.json');
+    const username = `user-${Date.now()}-${Math.random()}`;
+    const password = `pass-${Date.now()}-${Math.random()}`;
+    const fakeGitPath = path.join(fakeDir, 'git');
+    await fs.promises.writeFile(
+      fakeGitPath,
+      `#!/usr/bin/env node
+const fs = require('node:fs');
+const childProcess = require('node:child_process');
+const args = process.argv.slice(2);
+const includes = value => args.includes(value);
+if (includes('--version')) {
+  console.log('git version 2.39.0');
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--show-toplevel')) {
+  console.log(process.cwd());
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--git-common-dir')) {
+  console.log('.git');
+  console.log('.git/config');
+  process.exit(0);
+}
+if (includes('rev-list') || includes('config') || includes('for-each-ref')) {
+  process.exit(0);
+}
+if (includes('fetch')) {
+  // The URL embeds a username, so git issues ONLY the password prompt.
+  const fd = Number.parseInt(process.env.ENDO_GIT_ASKPASS_FD || '', 10);
+  const helper = process.env.GIT_ASKPASS || '';
+  const stdio = ['ignore', 'pipe', 'ignore', fd];
+  const answer = childProcess.execFileSync(
+    helper,
+    ["Password for 'https://bob@example.com':"],
+    { env: process.env, encoding: 'utf8', stdio },
+  );
+  fs.writeFileSync(
+    ${JSON.stringify(reportPath)},
+    JSON.stringify({
+      answer,
+      matchedPassword: answer === ${JSON.stringify(password)},
+      matchedUsername: answer === ${JSON.stringify(username)},
+    }),
+  );
+  console.error('fake fetch failed after credential probe');
+  process.exit(1);
+}
+console.error('unexpected fake git invocation', args.join(' '));
+process.exit(1);
+`,
+      { mode: 0o755 },
+    );
+    await fs.promises.chmod(fakeGitPath, 0o755);
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${fakeDir}${path.delimiter}${originalPath || ''}`;
+    try {
+      const backend = makeNativeGitBackend({ repoRoot });
+      await t.throwsAsync(
+        backend.remoteFetch({
+          url: 'https://bob@example.com/repo.git',
+          refspecs: [],
+          credential: harden({
+            kind: 'basic',
+            material: harden({ username, password }),
+          }),
+        }),
+        { message: /git fetch failed/ },
+      );
+    } finally {
+      process.env.PATH = originalPath;
+    }
+
+    const report = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
+    t.true(report.matchedPassword);
+    t.false(report.matchedUsername);
+  },
+);
+
+// Serial: this test mutates the global process.env.PATH to inject a fake git.
+test.serial(
+  'NativeGitBackend askpass round-trips a non-ASCII credential byte-exactly',
+  async t => {
+    // The helper is an opaque secret-transport shim. A credential containing
+    // non-ASCII characters must arrive at git byte-for-byte. Decoding the bytes
+    // to a JS string and re-encoding them corrupts the value (e.g. "é" -> "Ã©");
+    // the helper must pass the bytes through unchanged.
+    const repoRoot = await provisionGitWorktree(t);
+    const fakeDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'native-git-fake-'),
+    );
+    t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
+    const reportPath = path.join(fakeDir, 'report.json');
+    // A non-ASCII password: accented letters plus an emoji (a 4-byte code point).
+    const password = 'pä55-wörd-✓-🔑';
+    const passwordBytesB64 = Buffer.from(password, 'utf8').toString('base64');
+    const fakeGitPath = path.join(fakeDir, 'git');
+    await fs.promises.writeFile(
+      fakeGitPath,
+      `#!/usr/bin/env node
+const fs = require('node:fs');
+const childProcess = require('node:child_process');
+const args = process.argv.slice(2);
+const includes = value => args.includes(value);
+if (includes('--version')) {
+  console.log('git version 2.39.0');
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--show-toplevel')) {
+  console.log(process.cwd());
+  process.exit(0);
+}
+if (includes('rev-parse') && includes('--git-common-dir')) {
+  console.log('.git');
+  console.log('.git/config');
+  process.exit(0);
+}
+if (includes('rev-list') || includes('config') || includes('for-each-ref')) {
+  process.exit(0);
+}
+if (includes('fetch')) {
+  const fd = Number.parseInt(process.env.ENDO_GIT_ASKPASS_FD || '', 10);
+  const helper = process.env.GIT_ASKPASS || '';
+  const stdio = ['ignore', 'pipe', 'ignore', fd];
+  // Capture raw bytes: do NOT pass encoding, so execFileSync returns a Buffer.
+  childProcess.execFileSync(helper, ['Username for test:'], {
+    env: process.env,
+    stdio,
+  });
+  const passwordBytes = childProcess.execFileSync(helper, ['Password for test:'], {
+    env: process.env,
+    stdio,
+  });
+  fs.writeFileSync(
+    ${JSON.stringify(reportPath)},
+    JSON.stringify({ passwordBytesB64: passwordBytes.toString('base64') }),
+  );
+  console.error('fake fetch failed after credential probe');
+  process.exit(1);
+}
+console.error('unexpected fake git invocation', args.join(' '));
+process.exit(1);
+`,
+      { mode: 0o755 },
+    );
+    await fs.promises.chmod(fakeGitPath, 0o755);
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${fakeDir}${path.delimiter}${originalPath || ''}`;
+    try {
+      const backend = makeNativeGitBackend({ repoRoot });
+      await t.throwsAsync(
+        backend.remoteFetch({
+          url: 'https://example.com/repo.git',
+          refspecs: [],
+          credential: harden({
+            kind: 'basic',
+            material: harden({ username: 'user', password }),
+          }),
+        }),
+        { message: /git fetch failed/ },
+      );
+    } finally {
+      process.env.PATH = originalPath;
+    }
+
+    const report = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
+    // Byte-exact: the password bytes git received equal the UTF-8 bytes the
+    // daemon was handed, with no decode/re-encode corruption.
+    t.is(report.passwordBytesB64, passwordBytesB64);
+  },
+);
+
+test('git-askpass-helper rejects a record whose declared length exceeds the ceiling', async t => {
+  // The helper reads a 4-byte big-endian length prefix and then allocates a
+  // Buffer of that size. The daemon writer only ever frames a username or a
+  // credential token (a few hundred bytes at most), so a length beyond the
+  // 8 KiB ceiling is a corrupt or hostile header; the helper must fast-exit
+  // non-zero on the length alone rather than allocating an attacker-controlled
+  // Buffer and consuming the body.
+  //
+  // Fail-closed discrimination: this record's declared length is one byte over
+  // the ceiling AND the full body is present in the pipe. A guarded helper
+  // rejects before reading the body (exit non-zero, no stdout). An UNguarded
+  // helper would read the whole body and write it to stdout (exit 0, stdout
+  // non-empty) — so dropping the ceiling check flips this test from pass to
+  // fail rather than leaving it green.
+  const MAX_RECORD_LENGTH = 8 * 1024;
+  const overLength = MAX_RECORD_LENGTH + 1;
+  const helperPath = internalHelpers.gitAskpassHelperPath;
+  const fakeDir = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'native-git-askpass-ceiling-'),
+  );
+  t.teardown(() => fs.promises.rm(fakeDir, { recursive: true, force: true }));
+
+  // role-byte (password) | 4-byte big-endian length (over the ceiling) | body.
+  const header = Buffer.alloc(5);
+  header[0] = 0x50; // ROLE_PASSWORD
+  header.writeUInt32BE(overLength, 1);
+  const body = Buffer.alloc(overLength, 0x61); // 'a' repeated
+  const recordPath = path.join(fakeDir, 'record.bin');
+  await fs.promises.writeFile(recordPath, Buffer.concat([header, body]));
+
+  // Open the crafted record as the fd the helper inherits (fs.readSync reads
+  // from any fd, so a regular file stands in for the daemon's pipe here).
+  const recordFd = fs.openSync(recordPath, 'r');
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [helperPath, 'Password for test:'],
+      {
+        env: { ...process.env, ENDO_GIT_ASKPASS_FD: '3' },
+        stdio: ['ignore', 'pipe', 'ignore', recordFd],
+        timeout: 10000,
+      },
+    );
+    t.is(result.signal, null, 'helper must exit on its own, not be timed out');
+    t.not(
+      result.status,
+      0,
+      'helper must exit non-zero on an over-ceiling length',
+    );
+    t.is(
+      result.stdout.length,
+      0,
+      'helper must not emit any credential bytes when the length is rejected',
+    );
+  } finally {
+    fs.closeSync(recordFd);
+  }
 });
 
 test('NativeGitBackend.remoteFetch rejects repo-local URL rewrites', async t => {
