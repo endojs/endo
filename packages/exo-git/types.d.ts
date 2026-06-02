@@ -1,6 +1,6 @@
 /**
  * Hand-written declarations for `@endo/exo-git`.  Same shim pattern
- * as `packages/endo-fs/types.d.ts` and `packages/endo-git/types.d.ts`.
+ * as `packages/endo-fs/types.d.ts` and `packages/git/types.d.ts`.
  *
  * Factory return types are `any` because daemon-side consumers
  * immediately call methods on the result (`git.worktree()`,

@@ -1,4 +1,4 @@
-# `@endo/endo-git`
+# `@endo/git`
 
 Node-side `NativeGitBackend` for the Endo `Git` capability.
 A subprocess wrapper over the installed `git` binary.

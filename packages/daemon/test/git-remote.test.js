@@ -11,7 +11,7 @@ import { execFile } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E, Far } from '@endo/far';
-import { makeNativeGitBackend } from '@endo/endo-git';
+import { makeNativeGitBackend } from '@endo/git';
 import {
   assertGitCredentialForUrl,
   getGitCredentialController,

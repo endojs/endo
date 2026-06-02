@@ -1775,13 +1775,13 @@ __metadata:
     "@endo/captp": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/endo-fs": "workspace:^"
-    "@endo/endo-git": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
     "@endo/exo-git": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
+    "@endo/git": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/hex": "workspace:^"
     "@endo/import-bundle": "workspace:^"
@@ -1875,21 +1875,6 @@ __metadata:
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/stream": "workspace:^"
-    ava: "catalog:dev"
-    eslint: "catalog:dev"
-  languageName: unknown
-  linkType: soft
-
-"@endo/endo-git@workspace:^, @endo/endo-git@workspace:packages/endo-git":
-  version: 0.0.0-use.local
-  resolution: "@endo/endo-git@workspace:packages/endo-git"
-  dependencies:
-    "@endo/errors": "workspace:^"
-    "@endo/exo": "workspace:^"
-    "@endo/exo-git": "workspace:^"
-    "@endo/harden": "workspace:^"
-    "@endo/init": "workspace:^"
-    "@endo/platform": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
@@ -2136,6 +2121,21 @@ __metadata:
     "@mariozechner/pi-ai": "npm:^0.73.1"
     ava: "catalog:dev"
     better-sqlite3: "npm:^11.0.0"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/git@workspace:^, @endo/git@workspace:packages/git":
+  version: 0.0.0-use.local
+  resolution: "@endo/git@workspace:packages/git"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/exo-git": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/platform": "workspace:^"
+    ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
