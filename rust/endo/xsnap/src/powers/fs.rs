@@ -487,6 +487,127 @@ pub unsafe extern "C" fn host_write_file_text(the: *mut XsMachine) {
     }
 }
 
+/// `appendFile(dirOrToken, path, data) -> string | undefined`
+///
+/// Appends data (UTF-8 string) to the file, creating it if absent.
+/// Returns undefined on success, or an "Error: ..." string on failure.
+pub unsafe extern "C" fn host_append_file(the: *mut XsMachine) {
+    let path = arg_str(the, 1);
+    // Read the contents as raw bytes (may be non-UTF-8 CESU-8), matching
+    // host_write_file_text.
+    let data = arg_bytes(the, 2);
+
+    if arg_dir_token(the, 0).as_deref() == Some("root") {
+        let abs = root_to_abs(&path);
+        let result = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&abs)
+            .and_then(|mut file| file.write_all(data));
+        if let Err(e) = result {
+            set_result_string(the, &format!("Error: {}", e));
+        }
+        return;
+    }
+
+    match resolve_dir(the, 0) {
+        Ok(dir) => {
+            let result = dir
+                .open_with(
+                    path,
+                    cap_std::fs::OpenOptions::new().append(true).create(true),
+                )
+                .and_then(|mut file| file.write_all(data));
+            if let Err(e) = result {
+                set_result_string(the, &format!("Error: {}", e));
+            }
+        }
+        Err(msg) => set_result_string(the, &msg),
+    }
+}
+
+/// `stat(dirOrToken, path) -> string`
+///
+/// Returns JSON `{kind, sizeBytes, modifiedMs, dev, ino}` for the path,
+/// or an "Error: ..." string on failure.  Uses `symlink_metadata`
+/// (does not follow symlinks) so a symlink reports `kind: "symlink"`,
+/// matching the Node `statPath` (which is `lstat`-based).  `dev`/`ino`
+/// back the `pathIdentity` content-store key; on the daemon's Unix-only
+/// target they are the POSIX device/inode pair.
+pub unsafe extern "C" fn host_stat(the: *mut XsMachine) {
+    let path = arg_str(the, 1);
+
+    // `std::fs::Metadata` (root token) and `cap_std::fs::Metadata`
+    // (resolved Dir) are distinct types with distinct `MetadataExt`
+    // traits and distinct `SystemTime` flavours, so each branch builds
+    // its own JSON string rather than unifying the metadata value.
+    let kind_of = |is_dir: bool, is_symlink: bool| {
+        if is_dir {
+            "directory"
+        } else if is_symlink {
+            "symlink"
+        } else {
+            "file"
+        }
+    };
+    let encode = |kind: &str, size: u64, modified_ms: u64, dev: u64, ino: u64| {
+        format!(
+            "{{\"kind\":\"{}\",\"sizeBytes\":{},\"modifiedMs\":{},\"dev\":{},\"ino\":{}}}",
+            kind, size, modified_ms, dev, ino
+        )
+    };
+
+    let result = if arg_dir_token(the, 0).as_deref() == Some("root") {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::symlink_metadata(root_to_abs(&path)).map(|meta| {
+            let modified_ms = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            encode(
+                kind_of(meta.is_dir(), meta.is_symlink()),
+                meta.len(),
+                modified_ms,
+                meta.dev(),
+                meta.ino(),
+            )
+        })
+    } else {
+        use cap_std::fs::MetadataExt;
+        let dir = match resolve_dir(the, 0) {
+            Ok(dir) => dir,
+            Err(msg) => {
+                set_result_string(the, &msg);
+                return;
+            }
+        };
+        dir.symlink_metadata(path).map(|meta| {
+            let modified_ms = meta
+                .modified()
+                .ok()
+                .and_then(|t| {
+                    t.duration_since(cap_std::time::SystemClock::UNIX_EPOCH).ok()
+                })
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            encode(
+                kind_of(meta.is_dir(), meta.is_symlink()),
+                meta.len(),
+                modified_ms,
+                meta.dev(),
+                meta.ino(),
+            )
+        })
+    };
+
+    match result {
+        Ok(json) => set_result_string(the, &json),
+        Err(e) => set_result_string(the, &format!("Error: {}", e)),
+    }
+}
+
 /// `readDir(dirOrToken, path) -> string`
 ///
 /// Returns a JSON array of entry names.
@@ -813,6 +934,8 @@ pub const CALLBACKS: &[crate::ffi::XsCallback] = &[
     host_link,
     host_read_file_bytes,
     host_maybe_read_file_bytes,
+    host_append_file,
+    host_stat,
 ];
 
 /// Register all filesystem host functions on the machine.
@@ -828,6 +951,8 @@ pub unsafe fn register(machine: &crate::Machine) {
     machine.define_function("readFile", host_read_file_bytes, 2);
     machine.define_function("maybeReadFile", host_maybe_read_file_bytes, 2);
     machine.define_function("writeFileText", host_write_file_text, 3);
+    machine.define_function("appendFile", host_append_file, 3);
+    machine.define_function("stat", host_stat, 2);
     machine.define_function("readDir", host_read_dir, 2);
     machine.define_function("mkdir", host_mkdir, 2);
     machine.define_function("remove", host_remove, 2);

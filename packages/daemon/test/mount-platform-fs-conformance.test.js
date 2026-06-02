@@ -23,6 +23,7 @@ import {
 import { M } from '@endo/patterns';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
+import { makeXsFilePowers } from '../src/bus-daemon-rust-xs-powers.js';
 import { makeMount } from '../src/mount.js';
 import { makeMemoryStore } from './_mount-test-helpers.js';
 
@@ -549,6 +550,47 @@ test('EndoMount.snapshot returns a SnapshotTree-shaped capability', async t => {
   t.true(methods.includes('list'));
   t.true(methods.includes('lookup'));
   t.true(methods.includes('sha256'));
+});
+
+// --- XS file-powers / Node file-powers contract conformance ---
+
+test('XS file powers expose every method the Node file powers expose', t => {
+  // makeMount and the EndoMount methods are written against the
+  // FilePowers contract; whichever supervisor backs the daemon (Node or
+  // XS) must supply the same surface. A method present on the Node
+  // powers but absent on the XS powers is dead under the XS supervisor —
+  // exactly the failure that left appendFileText / statPath /
+  // pathIdentity throwing "is not a function" before this fix.
+  const nodePowers = makeFilePowers({ fs, path });
+  const xsPowers = makeXsFilePowers();
+  const nodeMethods = Object.keys(nodePowers).sort();
+  const missingOnXs = nodeMethods.filter(
+    name => typeof (/** @type {any} */ (xsPowers)[name]) !== 'function',
+  );
+  t.deepEqual(
+    missingOnXs,
+    [],
+    'every Node FilePowers method must also be a function on the XS powers',
+  );
+});
+
+test('XS file powers expose the EndoMount call sites that regressed', t => {
+  // Pin the specific methods the mount/file stat() and append() paths
+  // reach, so a future refactor of makeXsFilePowers that drops one of
+  // them fails here rather than only at daemon runtime under XS.
+  const xsPowers = makeXsFilePowers();
+  for (const name of [
+    'appendFileText',
+    'statPath',
+    'pathIdentity',
+    'readFileBytes',
+  ]) {
+    t.is(
+      typeof (/** @type {any} */ (xsPowers)[name]),
+      'function',
+      `XS powers must implement ${name}`,
+    );
+  }
 });
 
 // Suppress unused-import warnings for the platform interfaces; their

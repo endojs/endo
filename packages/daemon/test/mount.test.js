@@ -512,6 +512,209 @@ test('write rejects writing a ReadableBlob to an existing directory target', asy
   });
 });
 
+// --- write()/copy() data-safety regressions ---
+
+test('copy of a file onto itself preserves its content (same-inode write)', async t => {
+  // copy(name, name) opens a live source file then write()s it back onto
+  // the same path. Opening the writer directly on the target would
+  // truncate it before the lazy source reader produced a byte, emptying
+  // the file and streaming the now-empty result back. Routing the write
+  // through a scratch-then-rename keeps the source intact.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['a.txt'], 'keep me');
+  await E(mount).copy(['a.txt'], ['a.txt']);
+  t.is(
+    fs.readFileSync(path.join(rootPath, 'a.txt'), 'utf8'),
+    'keep me',
+    'same-inode copy must not destroy the source content',
+  );
+});
+
+test('write of a live file handle onto its own backing path preserves content', async t => {
+  // The direct form: write(name, lookup(name)). The looked-up handle's
+  // streamBase64 reads the same path the writer targets.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['b.txt'], 'still here');
+  const handle = await E(mount).lookup('b.txt');
+  await E(mount).write(['b.txt'], handle);
+  t.is(
+    fs.readFileSync(path.join(rootPath, 'b.txt'), 'utf8'),
+    'still here',
+    'self-targeted write must not destroy the source content',
+  );
+});
+
+test('write() leaves no scratch debris in the mount on success', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['c.txt'], 'content');
+  await E(mount).copy(['c.txt'], ['c.txt']);
+  const names = fs.readdirSync(rootPath);
+  t.deepEqual(
+    names.filter(n => n.endsWith('.tmp')),
+    [],
+    'the scratch file is renamed onto the target, not left behind',
+  );
+});
+
+test('copy of a tree into its own descendant is rejected, not infinitely recursed', async t => {
+  // copy(['dir'], ['dir','copy']) would create dir/copy, then enumerate
+  // the now-larger live listing of dir/, recurse into dir/copy/copy, and
+  // loop until the filesystem is exhausted. The descendant guard rejects
+  // up front. The explicit timeout makes CI fail fast (rather than hang
+  // until the global AVA timeout) if the guard regresses.
+  t.timeout(15000);
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory(['dir']);
+  await E(mount).writeText(['dir', 'leaf.txt'], 'x');
+  await t.throwsAsync(() => E(mount).copy(['dir'], ['dir', 'copy']), {
+    message: /into its own descendant/,
+  });
+  // No partial descendant tree was materialised.
+  t.false(
+    fs.existsSync(path.join(rootPath, 'dir', 'copy')),
+    'the rejected copy leaves no destination behind',
+  );
+});
+
+test('copy of a tree into a sibling (non-descendant) still succeeds', async t => {
+  // The guard must reject only descendants; a sibling destination is a
+  // legitimate tree copy.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory(['src']);
+  await E(mount).writeText(['src', 'leaf.txt'], 'hello');
+  await E(mount).copy(['src'], ['dst']);
+  t.is(
+    fs.readFileSync(path.join(rootPath, 'dst', 'leaf.txt'), 'utf8'),
+    'hello',
+    'a non-descendant tree copy is unaffected by the guard',
+  );
+});
+
+test('write() that fails mid-stream propagates the error and leaves no scratch debris', async t => {
+  // When the source stream errors partway through, write()'s catch arm
+  // must flush the writer, remove the partial scratch file, and rethrow.
+  // A scratch file left behind would be visible debris in the mount, and
+  // a swallowed error would let a caller believe a failed write
+  // succeeded. The blob below yields one chunk then rejects, driving the
+  // for-await loop into the catch path.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  const boom = new Error('source stream blew up');
+  async function* failingChunks() {
+    yield new TextEncoder().encode('partial');
+    throw boom;
+  }
+  const blob = makeExo('FailingBlob', ReadableBlobInterface, {
+    streamBase64() {
+      return makeReaderRef(failingChunks());
+    },
+    async text() {
+      return '';
+    },
+    async json() {
+      return null;
+    },
+  });
+  await t.throwsAsync(() => E(mount).write(['victim.txt'], blob), {
+    message: /source stream blew up/,
+  });
+  const names = fs.readdirSync(rootPath);
+  t.deepEqual(
+    names.filter(n => n.endsWith('.tmp')),
+    [],
+    'a failed write removes its partial scratch file rather than leaving debris',
+  );
+  t.false(
+    fs.existsSync(path.join(rootPath, 'victim.txt')),
+    'a failed write does not rename a partial scratch onto the target',
+  );
+});
+
+test('write() does not truncate a pre-existing file at the guessable scratch name', async t => {
+  // The scratch path used to be `${target}.${counter}.tmp` with a
+  // per-process counter starting at 0, so the first write of a fresh
+  // process targeted `${target}.1.tmp`. A caller who planted a file there
+  // ahead of the write would have it truncated the instant the writer
+  // opened (`createWriteStream` opens with `'w'`). The hardened scratch
+  // name carries an unpredictable random suffix and probes for collision,
+  // so an unrelated pre-existing file is never clobbered.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  // Plant a file at every legacy `${target}.${N}.tmp` the old counter
+  // could have produced for the first few writes.
+  const planted = ['a.txt.1.tmp', 'a.txt.2.tmp', 'a.txt.3.tmp'];
+  for (const name of planted) {
+    fs.writeFileSync(path.join(rootPath, name), 'precious user data');
+  }
+  await E(mount).writeText(['a.txt'], 'new content');
+  t.is(
+    fs.readFileSync(path.join(rootPath, 'a.txt'), 'utf8'),
+    'new content',
+    'the write still lands on its target',
+  );
+  for (const name of planted) {
+    t.is(
+      fs.readFileSync(path.join(rootPath, name), 'utf8'),
+      'precious user data',
+      `a pre-existing file at the guessable scratch name ${name} is not clobbered`,
+    );
+  }
+});
+
+test('copy into a symlinked re-entry of the source is rejected', async t => {
+  // The logical-segment descendant guard compares path segments, so a
+  // destination whose segments are not a prefix of the source's slips
+  // past it. But if an intermediate destination component is a symlink
+  // pointing back into the source tree, the *physical* destination is a
+  // descendant of the source, and copy()'s live-listing recursion would
+  // diverge just as it does for the literal-descendant case. The hardened
+  // guard re-checks the symlink-resolved physical paths. The explicit
+  // timeout makes CI fail fast if the guard regresses into a hang.
+  t.timeout(15000);
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory(['src']);
+  await E(mount).writeText(['src', 'leaf.txt'], 'x');
+  // `link` -> `src`, so the logical destination ['link'] is physically
+  // the source tree; copying src into link/copy re-enters src.
+  fs.symlinkSync(path.join(rootPath, 'src'), path.join(rootPath, 'link'));
+  await t.throwsAsync(
+    () => E(mount).copy(['src'], ['link', 'copy']),
+    { message: /into its own descendant/ },
+    'a symlinked re-entry of the source must be rejected like a literal descendant',
+  );
+  t.false(
+    fs.existsSync(path.join(rootPath, 'src', 'copy')),
+    'the rejected copy leaves no destination behind in the source tree',
+  );
+});
+
+test('copy through a symlink that does not re-enter the source still succeeds', async t => {
+  // The physical-path guard must reject only genuine re-entries; a
+  // symlink pointing at an unrelated sibling directory is a legitimate
+  // destination.
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory(['src']);
+  await E(mount).writeText(['src', 'leaf.txt'], 'hello');
+  await E(mount).makeDirectory(['elsewhere']);
+  fs.symlinkSync(path.join(rootPath, 'elsewhere'), path.join(rootPath, 'link'));
+  await E(mount).copy(['src'], ['link', 'copy']);
+  t.is(
+    fs.readFileSync(
+      path.join(rootPath, 'elsewhere', 'copy', 'leaf.txt'),
+      'utf8',
+    ),
+    'hello',
+    'a copy through a non-re-entrant symlink is unaffected by the guard',
+  );
+});
+
 // --- Snapshot wiring (covers the snapshotTree wrapper) ---
 
 test('snapshot() returns a usable snapshot when snapshotTree is wired', async t => {

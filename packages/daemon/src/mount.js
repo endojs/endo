@@ -23,6 +23,47 @@ import { makeRefIterator, makeRefReader } from './ref-reader.js';
 const mountEntryRecords = new WeakMap();
 const mountRecords = new WeakMap();
 
+// Monotonic suffix for the scratch path `write()` streams a blob into
+// before atomically renaming it onto the target.  The counter alone is
+// guessable: a caller who can predict `${target}.${N}.tmp` could plant a
+// file there ahead of the write, and `makeFileWriter` (open with `'w'`)
+// would truncate it.  Confinement bounds the damage to the caller's own
+// mount, but a write should never clobber an unrelated pre-existing file.
+// The counter is therefore paired with an unpredictable random suffix
+// (the same `Math.random` entropy `host.js` uses for scratch labels) and
+// a probe-before-use collision check, so the scratch name lands on a free
+// path.  It does not (and need not) make concurrent writes to the *same*
+// target safe — that race predates this module and is the caller's
+// responsibility.
+let writeScratchCounter = 0;
+
+/**
+ * Pick a scratch path that is a sibling of `target` and does not collide
+ * with any existing file.  The name is unpredictable (random suffix) so a
+ * caller cannot pre-plant a file at the path the write will truncate, and
+ * the `exists` probe rejects the astronomically unlikely random collision
+ * by drawing again.  Returning a sibling keeps the final `renamePath`
+ * atomic (same directory, same filesystem).
+ *
+ * @param {string} target
+ * @param {FilePowers} filePowers
+ * @returns {Promise<string>}
+ */
+const reserveScratchPath = async (target, filePowers) => {
+  await null;
+  for (;;) {
+    writeScratchCounter += 1;
+    // eslint-disable-next-line no-bitwise
+    const random = (Math.floor(Math.random() * 0xffffffff) >>> 0).toString(16);
+    const scratch = `${target}.${writeScratchCounter}.${random}.tmp`;
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await filePowers.exists(scratch))) {
+      return scratch;
+    }
+  }
+};
+harden(reserveScratchPath);
+
 /**
  * Returns the daemon-private lineage sentinel for a mount or mount entry.
  *
@@ -249,6 +290,49 @@ const isConfinedPath = async (candidatePath, confinementRoot, filePowers) => {
   }
 };
 harden(isConfinedPath);
+
+/**
+ * Resolve a path to its symlink-free physical form even when the path
+ * does not yet exist.  `realPath` only resolves an existing path, so this
+ * walks up to the deepest existing ancestor, resolves *that*, and
+ * re-appends the not-yet-existing tail.  Any symlink in an existing
+ * component of `candidatePath` is followed; trailing components that do
+ * not exist are appended verbatim (they cannot be symlinks because they
+ * are not present).  Used by `copy()` to compare the *physical* target
+ * against the source so a symlinked destination cannot re-enter the
+ * source tree past the logical-segment descendant guard.
+ *
+ * @param {string} candidatePath
+ * @param {FilePowers} filePowers
+ * @returns {Promise<string>}
+ */
+const resolvePhysicalPath = async (candidatePath, filePowers) => {
+  await null;
+  /** @type {string[]} */
+  const tail = [];
+  let check = candidatePath;
+  for (;;) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const resolved = await filePowers.realPath(check);
+      return tail.length === 0
+        ? resolved
+        : filePowers.joinPath(resolved, ...tail);
+    } catch {
+      const parent = filePowers.joinPath(check, '..');
+      if (parent === check) {
+        // Reached the filesystem root without resolving; fall back to the
+        // unresolved path joined onto the root.
+        return filePowers.joinPath(check, ...tail);
+      }
+      // The last segment of `check` is the non-existing tail component.
+      const base = check.slice(parent.length).replace(/^\/+/, '');
+      tail.unshift(base);
+      check = parent;
+    }
+  }
+};
+harden(resolvePhysicalPath);
 
 /**
  * @typedef {object} MountContext
@@ -619,17 +703,35 @@ const makeMountExo = ctx => {
         if (await filePowers.isDirectory(target)) {
           throw new Error('Path is a directory');
         }
-        const readerRef = E(value).streamBase64();
-        const writer = filePowers.makeFileWriter(target);
-        for await (const bytes of makeRefReader(
-          /** @type {import('@endo/far').ERef<AsyncIterator<string>>} */ (
-            readerRef
-          ),
-        )) {
-          // eslint-disable-next-line no-await-in-loop
-          await writer.next(bytes);
+        // Stream into a sibling scratch file, then atomically rename it
+        // onto the target.  Opening the writer directly on `target`
+        // would truncate it the instant the stream opens — before the
+        // source has been read.  When the source *is* the target (a live
+        // `copy(name, name)` or `write(name, lookup(name))`), that
+        // truncate destroys the very bytes the reader is about to stream,
+        // leaving the target empty.  Routing through a scratch file means
+        // the target is replaced only once the full source has been read.
+        const scratch = await reserveScratchPath(target, filePowers);
+        const writer = filePowers.makeFileWriter(scratch);
+        try {
+          const readerRef = E(value).streamBase64();
+          for await (const bytes of makeRefReader(
+            /** @type {import('@endo/far').ERef<AsyncIterator<string>>} */ (
+              readerRef
+            ),
+          )) {
+            // eslint-disable-next-line no-await-in-loop
+            await writer.next(bytes);
+          }
+          await writer.return(undefined);
+        } catch (error) {
+          // Make a best effort to flush and discard the partial scratch
+          // file so a failed write leaves no debris in the mount.
+          await writer.return(undefined).catch(() => {});
+          await filePowers.removePath(scratch).catch(() => {});
+          throw error;
         }
-        await writer.return(undefined);
+        await filePowers.renamePath(scratch, target);
         return;
       }
       if (methods.includes('list')) {
@@ -655,6 +757,41 @@ const makeMountExo = ctx => {
       const fromSegments = segmentsFromPathArg(fromArg);
       const from = resolveFromRoot(fromSegments);
       await assertConfined(from, confinementRoot, filePowers);
+      // Reject copying a tree into its own descendant.  `write()`
+      // materialises the destination directory before enumerating the
+      // *live* source listing, so a destination strictly below the
+      // source (e.g. copy(['dir'], ['dir', 'copy'])) would see the
+      // freshly created child, recurse into it, create its child, and
+      // loop until the filesystem is exhausted.  The first check is a
+      // segment-prefix test on the resolved paths: `to` is a descendant
+      // of `from` when `from`'s segments are a strict prefix of `to`'s.
+      const toSegments = segmentsFromPathArg(toArg);
+      const to = resolveFromRoot(toSegments);
+      const rejectDescendant = () => {
+        throw new Error(
+          `Cannot copy ${q(from)} into its own descendant ${q(to)}`,
+        );
+      };
+      if (
+        toSegments.length > fromSegments.length &&
+        fromSegments.every((segment, i) => segment === toSegments[i])
+      ) {
+        rejectDescendant();
+      }
+      // The logical-segment test above is blind to symlinks: a `to` whose
+      // segments are not a prefix of `from`'s can still resolve *under*
+      // `from` when an intermediate `to` component is a symlink back into
+      // the source (e.g. `to = ['link', 'x']` where `link` -> the source
+      // tree).  Re-run the descendant test on the symlink-resolved
+      // physical paths so a symlinked re-entry cannot slip past.  Both
+      // operands resolve from the same confinement root, so a shared
+      // physical prefix is a genuine ancestor relationship, not a
+      // coincidence of a common mount root above the confinement.
+      const fromPhysical = await resolvePhysicalPath(from, filePowers);
+      const toPhysical = await resolvePhysicalPath(to, filePowers);
+      if (toPhysical.startsWith(`${fromPhysical}/`)) {
+        rejectDescendant();
+      }
       const source = await openExisting(from, fromSegments);
       await this.self.write(toArg, source); // eslint-disable-line no-invalid-this
     },
