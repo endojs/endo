@@ -23,7 +23,7 @@ The four layers, each a sibling design:
 |-------|-----|---------|
 | Capability | [registry-capability](registry-capability.md) | `EndoRegistry` shape, `@registry` slot, lifetime |
 | Algorithm | [mvs-resolver](mvs-resolver.md) | MVS walk, lockfile stance, who walks the graph |
-| Mapper | [snapshot-mapper](snapshot-mapper.md) | `mapSnapshot`, `makeMountReadPowers`, `endo-mount:` scheme |
+| Mapper | [snapshot-mapper](snapshot-mapper.md) | `mapSnapshot`, `makeMountReadPowers`, archive-precedent layout |
 | Integration | this | `makeFromPackage`, worker dispatch, CLI, XS bridging |
 
 Dependencies declared in `package.json` are resolved by the JS
@@ -186,9 +186,11 @@ This design is a **sibling** of
   CAS trees in addition to the entry tree.
 
 The two cases converge inside `compartment-mapper`: in both, the
-worker calls `importLocation` with a `ReadPowers` keyed to a
-synthesized URL scheme that the worker's `read` function knows
-how to dereference.
+worker calls `importLocation` with a `ReadPowers` whose `read`
+function understands the archive-precedent layout of a top-level
+`compartment-map.json` plus peer directories named by package
+(see [snapshot-mapper](snapshot-mapper.md) § *Synthesized
+layout*).
 The difference is whether the package graph arrives pre-walked
 (`makeFromTree`) or has to be walked at start time
 (`makeFromPackage`).
@@ -336,31 +338,35 @@ makeFromPackage: async (
 
   // Step 2: drive the snapshot mapper.
   // mapSnapshot internally calls E(registry).resolve(packageJsonBytes)
-  // and builds the synthesized ReadPowers; see snapshot-mapper.md
-  // for the trio's shape and the endo-mount: URL scheme.
+  // and builds the synthesized ReadPowers against the archive-
+  // precedent layout (top-level compartment-map.json plus peer
+  // directories named by package); see snapshot-mapper.md.
   const { mapSnapshot } = await import('../map-snapshot.js');
   const { compartmentMap, resolution, readPowers } = await mapSnapshot({
     registry,
     mount: snapshot,
     entry,
-    conditions: options.condition,
   });
 
   // Step 3: run importLocation in the worker's compartment.
+  // The compartment-mapper conditions option applies at link
+  // time, not at dependency-graph walk time (see
+  // mvs-resolver.md § Anti-design steers), so conditions thread
+  // through importLocation here.
   const { importLocation } = await import('@endo/compartment-mapper');
   const { defaultParserForLanguage } = await import(
     '@endo/compartment-mapper/import-parsers.js'
   );
   const entrySpecifier = entry || compartmentMap.entry.module;
-  const entryLocation = `endo-mount:/${entrySpecifier}`;
 
   const { namespace } = await importLocation(
     readPowers,
-    entryLocation,
+    entrySpecifier,
     {
       globals: endowments,
       parserForLanguage: defaultParserForLanguage,
       compartmentMap,
+      conditions: options.conditions,
     },
   );
 
@@ -453,14 +459,14 @@ sequenceDiagram
     MS->>CM: package-descriptor walk (extension point)
     CM-->>MS: CompartmentMap
     MS-->>Worker: { compartmentMap, resolution, readPowers }
-    Worker->>CM: importLocation(readPowers, entryLocation)
+    Worker->>CM: importLocation(readPowers, entrySpecifier)
     loop per imported module
-        CM->>Worker: read(location)
-        alt entry tree
-            Worker->>Host: readBytes(path) on snapshot
-        else dependency package (pre-resolved)
-            Worker->>CAS: fetch_from_tree(treeHash, path)
-        else dependency package (late bind)
+        CM->>Worker: read(compartmentKey, modulePath)
+        alt entry compartment
+            Worker->>Host: readBytes(modulePath) on snapshot
+        else peer directory (pre-resolved registry entry or workspace member)
+            Worker->>CAS: fetch_from_tree(treeRef, modulePath)
+        else peer directory (late bind from registry)
             Worker->>Reg: fetch(name, version)
             Reg->>CAS: store/return tree
         end
@@ -664,3 +670,12 @@ Decomposed 2026-06-02 per kriskowal CHANGES_REQUESTED on
 `endojs/endo-but-for-bots#358` into the four-layer stack named in
 the *Where This Sits Among Existing Designs* section above; this
 file is repurposed as the integration layer.
+
+Round-2 update 2026-06-02 reflects the snapshot-mapper layout
+change (archive precedent: top-level `compartment-map.json` plus
+peer directories named by package), the corresponding
+`importLocation` entry-specifier shape, the `read` function's
+`(compartmentKey, modulePath)` signature, and the threading of
+conditional `exports` through `importLocation` rather than
+through the dependency-graph walk per
+[mvs-resolver](mvs-resolver.md) § *Anti-design steers*.
