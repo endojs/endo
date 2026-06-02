@@ -1,5 +1,5 @@
 {
-  "name": "@endo/endo-git",
+  "name": "@endo/git",
   "version": "0.0.0",
   "private": true,
   "description": "Node-side `NativeGitBackend` for the Endo `Git` capability — a subprocess wrapper over the installed `git` binary.  Pair with `@endo/exo-git` for the portable remotable exo glue.",
@@ -12,7 +12,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/endo-git"
+    "directory": "packages/git"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

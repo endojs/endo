@@ -15,7 +15,7 @@ import {
   checkinTree as platformCheckinTree,
   snapshotTreeMethods,
 } from '@endo/platform/fs/lite';
-import { makeNativeGitBackend } from '@endo/endo-git';
+import { makeNativeGitBackend } from '@endo/git';
 import {
   makeBasicCredential,
   makeBearerCredential,

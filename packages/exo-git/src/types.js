@@ -1,10 +1,10 @@
 // @ts-check
 
-// Typedef host for `@endo/endo-git`.  Mirrors the git-related typedefs
+// Typedef host for `@endo/git`.  Mirrors the git-related typedefs
 // that previously lived in `@endo/daemon/src/types.d.ts`.  Daemon-only
 // surface types (`EndoMount`, `EndoMountEntry`, `EndoMountFile`,
 // `ReadableTreeView`) are represented as `unknown` here to keep
-// `@endo/endo-git` free of a circular dependency on the daemon
+// `@endo/git` free of a circular dependency on the daemon
 // package.  The full-fidelity types continue to live in the daemon's
 // `types.d.ts`; daemon-side consumers see them through that file.
 
@@ -95,7 +95,7 @@
  */
 
 // Daemon-only surface types referenced by git's JSDoc.  Aliased to
-// `unknown` here so `@endo/endo-git` stays free of a circular
+// `unknown` here so `@endo/git` stays free of a circular
 // dependency on `@endo/daemon`; the full-fidelity definitions live in
 // `@endo/daemon/src/types.d.ts` and downstream consumers see them
 // through that file.

@@ -1,5 +1,5 @@
 /**
- * Hand-written declarations for `@endo/endo-git`.  The package is
+ * Hand-written declarations for `@endo/git`.  The package is
  * intentionally tiny — it contains only the Node-side
  * `NativeGitBackend` (subprocess wrapper over the installed `git`
  * binary).  The remotable exo glue, interface guards, and
@@ -11,7 +11,7 @@
  * `object` would cascade TS2339 errors at every call site.
  */
 
-declare module '@endo/endo-git' {
+declare module '@endo/git' {
   /** Subprocess-backed `GitBackend` over the installed `git` binary. */
   export const makeNativeGitBackend: (opts: {
     repoRoot: string;
@@ -48,7 +48,7 @@ declare module '@endo/endo-git' {
   };
 }
 
-declare module '@endo/endo-git/src/native-git-backend.js' {
+declare module '@endo/git/src/native-git-backend.js' {
   export const makeNativeGitBackend: (opts: {
     repoRoot: string;
     makeReaderRef?: (readable: any) => any;
