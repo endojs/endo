@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-06-02 |
+| **Updated** | 2026-06-02 |
 | **Author** | endolinbot (prompted) |
 | **Status** | Proposed |
 
@@ -38,10 +39,10 @@ backend resolved a given request.
 3. A failure surface that distinguishes tampering, missing
    packages, network errors, and offline-mode misses, so callers
    can react with structured `@endo/errors`.
-4. A clean confinement story: a guest that needs to read the
-   resolver's output can be handed a read-only view without also
-   holding the network-fetch authority (the resolver-vs-store
-   split, currently an open question).
+4. A bounded-growth CAS retention story: cached registry contents
+   are evictable, but anything reachable from a captured formula
+   graph holds a hard retention link that prevents eviction (see
+   § *Caching and retention* below).
 
 ## Non-Goals
 
@@ -213,10 +214,14 @@ grant a guest access to the registry must do so through the
 usual capability-passing patterns.
 
 The default registry is configured at daemon startup with the
-registry URL and credentials.
+registry URL.
+The first cut runs without credentials: every package the
+resolver reads must be public on the configured registry.
 A per-host registry can be substituted by the host's owner (for
 example, to point at a private registry mirror) by formulating a
-new `EndoRegistry` and rebinding the `@registry` special name.
+new `EndoRegistry` and rebinding the `@registry` special name;
+the same public-only constraint applies to the substituted
+registry until a separate credentials story lands.
 
 The `@registry` field is required on `HostFormula`, not optional.
 This follows the same reasoning as `@node`: an optional field
@@ -300,6 +305,87 @@ The integration layer in
 is the place that actually calls `snapshot()` against the source;
 this layer documents the contract the snapshot satisfies.
 
+## Caching and retention
+
+`EndoRegistry` is a cache in front of the configured npm registry.
+Its job is to keep working sets resident without growing without
+bound and to surface eviction transparently as a refetch.
+
+**Transparent refetch.**
+Callers do not distinguish a cache hit from a cache miss.
+`resolve`, `fetch`, and `lookup` may transparently re-fetch a
+package whose CAS tree has been evicted; the returned
+`treeRef` is a fresh CAS handle pointing at the re-fetched
+contents.
+Callers that hold a `treeRef` from a prior call have already
+lifted that handle into the live capability graph (the formula
+graph holds it), which prevents eviction via the retention link
+described below; callers that have dropped the `treeRef` and
+later re-`fetch` get a transparent re-fetch.
+The bytes are content-addressed, so the re-fetched tree's hash
+matches the previously evicted one; a caller that has cached the
+hash elsewhere observes no difference.
+
+**Bounded growth.**
+The CAS is the underlying store; the registry sits on top of it.
+Bounded growth comes from two mechanisms:
+
+- The CAS itself is the eviction surface, governed by the
+  daemon-wide policy in
+  [daemon-cas-management](daemon-cas-management.md) and
+  [daemon-content-store-gc](daemon-content-store-gc.md).
+  `EndoRegistry` does not implement its own eviction policy; it
+  delegates to the CAS, which keeps a single accounting of
+  on-disk bytes.
+- The registry table (the `(name, version) -> treeHash`
+  mapping) is kept LRU-bounded so the table size does not grow
+  without bound as a long-lived daemon resolves many transitive
+  closures over time.
+  An evicted table entry means the next `lookup(name, version)`
+  re-resolves through the registry (a network call); the result
+  is unchanged because the (name, version) pair pins the same
+  bytes.
+
+The first-cut bound is a soft cap on the table's working set
+size (LRU eviction past a configurable threshold; default `0`
+meaning no LRU eviction in the first cut), with the CAS
+governing actual byte-level eviction.
+A future refinement can add a per-registry-table byte cap or a
+TTL on the cached metadata; neither is needed to ship the first
+cut, which leans entirely on the CAS's eviction discipline.
+
+**Hard retention link from the formula graph.**
+The snapshot mapper (see
+[snapshot-mapper](snapshot-mapper.md) § *Mount snapshot before
+the mapper runs*) adds a `thisDiesIfThatDies` retention link
+from each `(compartmentMap, resolutionHash, entrySnapshotHash)`
+formula it produces into the CAS trees that resolution names.
+The link is a CAS-pinning capability the formula graph holds for
+the lifetime of the formula; while any captured formula
+references a given package tree, that tree's CAS bytes are
+pinned and cannot be evicted.
+This is the safety mechanism that lets eviction be transparent:
+anything the formula graph still needs is pinned, and anything
+not reachable from a formula is fair game for the CAS's
+eviction pass.
+
+The retention semantics are an extension of the
+[retention-path-notation](retention-path-notation.md) story to
+registry-resolved packages: a captured formula graph is the
+authoritative record of "what is still alive", and the registry's
+retention link teaches the CAS to keep what the formulas need.
+
+### Failure surface refinements
+
+`RegistryNetworkError` and `RegistryOfflineError` already cover
+the network and offline-mode misses; eviction-driven re-fetch
+that succeeds is silent (the caller cannot tell), and
+eviction-driven re-fetch that fails surfaces as
+`RegistryNetworkError` or `RegistryOfflineError` per the rules
+already in § *Failure surface*.
+No new error class is needed for eviction; the existing
+classification by causation still holds.
+
 ## Phased implementation
 
 ### Phase 1: JS reference implementation
@@ -325,6 +411,19 @@ this layer documents the contract the snapshot satisfies.
    - `E(registry).fetch(name, version)` returns a
      `readable-tree` capability whose contents hash-match the
      tarball's published `integrity`.
+   - **Transparent refetch after eviction.**
+     Resolve a small fixture, drop the resolution and any
+     `treeRef` handles, force CAS eviction of the resolved
+     trees, re-`fetch(name, version)` and observe the returned
+     tree's content hash equals the prior tree's content hash
+     (caller cannot distinguish hit from miss).
+   - **Hard retention link pins captured contents.**
+     Resolve a small fixture into a `(compartmentMap, resolutionHash,
+     entrySnapshotHash)` formula, drop direct references to the
+     `treeRef`s, force a CAS eviction pass, observe the captured
+     trees are still present (the formula graph's retention link
+     held them) and `fetch(name, version)` returns the same
+     content-addressed bytes without a network call.
 
 The phased implementation continues in the consuming layers:
 [mvs-resolver](mvs-resolver.md) defines the algorithm Phase 1
@@ -384,42 +483,26 @@ parity between the lanes.
    invocation, which is the same cost a `makeArchive` pass
    already incurs.
 
-## Open Questions
+## Anti-design steers
 
-1. **Resolver / store capability split.**
-   Split `EndoRegistry` into `EndoRegistryResolver`
-   (`resolve` + `fetch`; carries the network-fetch authority)
-   and `EndoPackageStore` (`lookup` + `list`; read-only over
-   the resolved CAS trees) so a guest can hold the read surface
-   without the fetch authority.
-   The first cut ships the combined cap for symmetry with
-   `@node`; the split is a confinement refinement to land once
-   the first cut shows which guests want which authority.
+- **Considered and rejected: split `EndoRegistry` into a
+  `EndoRegistryResolver` (`resolve` + `fetch`) and an
+  `EndoPackageStore` (`lookup` + `list`) capability pair.**
+  Conflated into the single `@registry` capability for the first
+  cut.
+  The `@registry` name is kept so the slot can exceed its current
+  mission as scope changes (a future package-store split, a
+  future multi-tenant credentials lane, or a sibling lane for a
+  non-npm registry) without renaming the host slot.
 
-2. **`EndoRegistry` naming.**
-   The capability name flavors the underlying registry table
-   over the user's mental model of "packages".
-   A user-facing name (`EndoPackages` or `EndoNpm`) may track
-   the caller's intent more closely; the host special name
-   `@registry` is correct as-is because the host's named slot
-   is the registry concept rather than the package collection.
-   Provisional answer: keep `EndoRegistry` for the first cut to
-   match `@registry`; revisit during the user-facing review of
-   [daemon-agent-tools](daemon-agent-tools.md).
-
-3. **Private-registry credentials.**
-   The Rust subsystem reads `.npmrc` for the registry URL and
-   auth tokens
-   ([endor-npm-registry-proxy](endor-npm-registry-proxy.md)
-   § *Configuration*).
-   Should the JS-side `EndoRegistry` carry a separate credential
-   capability per host, or inherit the daemon-wide configuration?
-   Operationally the daemon-wide path is simpler; per-host
-   credentials would compose with the
-   [endo-gateway](endo-gateway.md) multi-tenant story.
-   Provisional answer: daemon-wide for the first cut, with
-   `EndoRegistry` bequeathing a `withCredentials(credentialCap)`
-   method later for the per-tenant case.
+- **Considered and rejected: per-host credential capability.**
+  The first cut runs without credentials; every package read
+  through `EndoRegistry` must be public on the configured
+  registry.
+  A credentials lane that composes with the
+  [endo-gateway](endo-gateway.md) multi-tenant story is a
+  separate design that will land when the public-only constraint
+  becomes binding.
 
 ## Dependencies
 
@@ -432,8 +515,10 @@ parity between the lanes.
 | [daemon-make-archive](daemon-make-archive.md) | The `@node` precedent for a required host special name; the migration shape this design follows for `@registry`. |
 | [daemon-mount](daemon-mount.md) | `snapshot()` semantics for the entry mount; the capability assumes the caller has snapshotted before calling `resolve`. |
 | [daemon-mount-capabilities](daemon-mount-capabilities.md) | The completed `EndoMount` surface used by the snapshot step. |
-| [daemon-cas-management](daemon-cas-management.md) | The resolved package trees live in the CAS; the resolver writes to the CAS through the existing bus verbs. |
-| [inventory-cancel-and-liveness](inventory-cancel-and-liveness.md) | `thisDiesIfThatDies` is the lifetime-coupling primitive that releases the snapshot's CAS trees when the caplet ends. |
+| [daemon-cas-management](daemon-cas-management.md) | The resolved package trees live in the CAS; the resolver writes to the CAS through the existing bus verbs.  The CAS is the underlying eviction surface that bounds registry-cache growth. |
+| [daemon-content-store-gc](daemon-content-store-gc.md) | The CAS's eviction pass; the registry leans on it for byte-level bounded growth rather than implementing its own. |
+| [retention-path-notation](retention-path-notation.md) | The captured-formula-graph retention model the registry's hard retention link extends to registry-resolved packages. |
+| [inventory-cancel-and-liveness](inventory-cancel-and-liveness.md) | `thisDiesIfThatDies` is the lifetime-coupling primitive that releases the snapshot's CAS trees when the caplet ends.  The same primitive backs the hard retention link from a captured formula into the CAS trees it names. |
 
 ## Prompt
 
@@ -443,3 +528,13 @@ parity between the lanes.
 > which is the Registry capability (`EndoRegistry` shape,
 > `@registry` naming, snapshot vs live read semantics, Rust-backed
 > roadmap).
+>
+> Round-2 CHANGES_REQUESTED on the same PR (2026-06-02): conflate
+> the resolver/store slots into `@registry`; keep the `@registry`
+> name so the slot can exceed its current mission as scope
+> changes; run without credentials at this time (all packages on
+> npm must be public to read in); expand scope to cover the
+> registry's caching behavior (transparent refetch of evicted
+> contents, bounded growth) with a hard retention link from the
+> snapshot mapper's captured formulas into the CAS preventing
+> eviction of anything reachable from a snapshot.
