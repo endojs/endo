@@ -83,7 +83,14 @@ interface EndoRegistry {
   // Uses MVS per `mvs-resolver.md`.
   resolve(
     packageJson: Uint8Array,
-    options?: { offline?: boolean; condition?: string[] },
+    options?: {
+      offline?: boolean;
+      // When the entry package is a workspace member, the pet
+      // name (or EndoMount handle) of the enclosing workspace
+      // root.  Enables `workspace:` specifier resolution per
+      // `mvs-resolver.md` § Workspace resolution.
+      workspaceRoot?: string | EndoMount;
+    },
   ): Promise<RegistryResolution>;
 
   // Fetch a single resolved package by (name, version) and

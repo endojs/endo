@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-06-02 |
+| **Updated** | 2026-06-02 |
 | **Author** | endolinbot (prompted) |
 | **Status** | Proposed |
 
@@ -47,6 +48,11 @@ turns the resolution into a `CompartmentMap` is
    ignores lockfiles entirely.
    Lockfile honoring is a follow-up that slots in as a
    constraint pass without changing the surrounding shape.
+6. Cover workspace, `peerDependencies`, and `optionalDependencies`
+   in scope, with explicit tests for each.
+   These are dependency-graph concerns and so belong to MVS;
+   conditional `exports` are linking-time concerns and stay out
+   of this document.
 
 ## Non-Goals
 
@@ -136,6 +142,59 @@ Either backend (JS or Rust) can still do on-demand fetch
 within the `resolve` call; what we avoid is per-import
 resolution from the worker side.
 
+## Workspace resolution
+
+A `package.json` may declare a workspace dependency through the
+`workspace:` specifier prefix, by far the most common form being
+`workspace:^` and `workspace:*`.
+In a mount that contains the whole workspace, those references
+must resolve to the sibling subdirectory rather than to the
+registry.
+
+The first cut resolves workspace specifiers by searching for the
+parent `package.json` whose `workspaces` array (or the equivalent
+`workspaces.packages` glob list for the historical
+yarn-classic shape) names the importer's workspace member:
+
+1. Starting at the importer's package directory, walk up the
+   mount tree.
+2. At each level, read the `package.json` and check whether its
+   `workspaces` field is populated.
+3. If yes, expand its glob patterns relative to that directory
+   and check whether the importer's directory is one of the
+   members.
+   When it is, that level is the workspace root.
+4. If no, continue walking up until either a workspace root is
+   found or the mount root is reached.
+5. If no workspace root is found and any importer used a
+   `workspace:` specifier, reject with a clean error
+   ("workspace dependency declared but no enclosing workspace
+   root").
+
+The discovered workspace root supplies the `workspaceRoot`
+option to `EndoRegistry.resolve` so the workspace branch of the
+algorithm above can look up sibling members.
+
+Workspace members differ from registry-resolved packages in two
+ways:
+
+- They have no version segment in the synthesized location URL
+  (see [snapshot-mapper](snapshot-mapper.md) § *Synthesized
+  layout*); a workspace member named `@endo/patterns` resolves
+  to `@endo/patterns/`, distinct from any registry-resolved
+  `@endo/patterns@1.0.0/`.
+- The workspace member's version on disk wins regardless of
+  version predicates declared by other importers.
+  An importer that requests `@endo/patterns@^2.0.0` against a
+  workspace where the on-disk version is `1.0.0` still resolves
+  to the workspace member; this is the maintainer-intended
+  semantic and the only stable shape for a partially-pinned
+  workspace.
+  The resolver flags a diagnostic on the resolution when the
+  workspace member's version does not satisfy an importer's
+  range (so the diagnostic surface remains complete), but the
+  resolution itself still picks the workspace member.
+
 ## Lockfile interaction: out of scope
 
 The first cut limits scope to MVS resolution from
@@ -178,32 +237,75 @@ Sketch:
 ```js
 // packages/daemon/src/registry.js
 const resolve = async (packageJsonBytes, options = {}) => {
-  const { offline = false, condition = ['import', 'endo'] } = options;
+  const { offline = false, workspaceRoot = undefined } = options;
   const root = parsePackageJson(packageJsonBytes);
 
-  // Frontier: pending (name, requestedRange) edges.
+  // Frontier: pending (name, requestedRange, source) edges, where
+  // source is one of 'dependencies' | 'peerDependencies' |
+  // 'optionalDependencies' for error classification.
   // Resolved: name -> Map<major, { version, integrity, treeRef }>.
-  const frontier = enqueueDependencies(root, condition);
+  const frontier = enqueueAllDependencies(root);
   const resolved = new Map();
+  const peerRequirements = []; // (importer, peer name, range)
+  const unmetOptionals = [];   // (importer, dep name, range, reason)
 
   while (frontier.length > 0) {
-    const { name, range } = frontier.shift();
+    const edge = frontier.shift();
+    const { name, range, source, importer } = edge;
+
+    // workspace: specifier? resolve from workspaceRoot's siblings.
+    if (isWorkspaceSpecifier(range)) {
+      const workspacePj = await readWorkspaceMemberPackageJson(
+        workspaceRoot, name,
+      );
+      if (workspacePj === undefined) {
+        throw makeError(
+          X`workspace dependency ${q(name)} not found in workspace at ${
+            q(workspaceRoot)}`,
+        );
+      }
+      // Workspace members carry no version segment and short-circuit
+      // version selection; see "Workspace resolution" below.
+      upsertWorkspaceMember(resolved, name, workspacePj);
+      enqueueAllDependenciesInto(frontier, workspacePj, name);
+      continue;
+    }
+
     const major = parseRangeMajor(range);
     const existing = resolved.get(name)?.get(major);
-    const candidate = await selectGreatestSatisfying(name, range, {
-      table: registryTable,
-      offline,
-    });
+    let candidate;
+    try {
+      candidate = await selectGreatestSatisfying(name, range, {
+        table: registryTable,
+        offline,
+      });
+    } catch (err) {
+      if (source === 'optionalDependencies') {
+        unmetOptionals.push({ importer, name, range, err });
+        continue; // optional misses are silent at the graph level
+      }
+      throw err;
+    }
     if (existing && cmp(existing.version, candidate.version) >= 0) {
-      continue; // existing pick is already the greatest mentioned for this major
+      if (source === 'peerDependencies') {
+        peerRequirements.push({ importer, name, range });
+      }
+      continue;
     }
     const treeRef = await fetchOrLookup(name, candidate.version, { offline });
     upsert(resolved, name, major, { ...candidate, treeRef });
+    if (source === 'peerDependencies') {
+      peerRequirements.push({ importer, name, range });
+    }
     const childPj = await readPackageJson(treeRef);
-    enqueueDependenciesInto(frontier, childPj, condition);
+    enqueueAllDependenciesInto(frontier, childPj, name);
   }
 
-  return buildRegistryResolution(resolved);
+  // Peer cross-check: every recorded peer requirement must be
+  // satisfied by some entry in `resolved`.
+  assertPeerDependenciesSatisfied(peerRequirements, resolved);
+
+  return buildRegistryResolution(resolved, { unmetOptionals });
 };
 ```
 
@@ -222,11 +324,17 @@ Notes on the sketch:
   selection` map into the `packagesByKey` shape the capability
   returns, computes the canonical key list, and derives
   `resolutionHash`.
-- The pseudocode collapses some edge cases (peer / optional
-  dependencies are open questions, condition handling threads
-  the `condition` option through the package descriptor's
-  conditional `dependencies`, and workspace protocol is an open
-  question).
+  The `unmetOptionals` list is attached as diagnostic state on
+  the resolution; callers that want strict optional behavior can
+  inspect it.
+- `assertPeerDependenciesSatisfied` raises
+  `RegistryMissingPackageError` ("package X declares unmet peer
+  dependency Y") when an importer's peer requirement does not
+  appear in the resolved closure within its declared range.
+- `enqueueAllDependencies` walks `dependencies`,
+  `peerDependencies`, and `optionalDependencies` together;
+  conditional exports do not enter the dependency graph (they
+  apply at link time, not at graph-walk time).
 
 ## Phased implementation
 
@@ -252,6 +360,38 @@ The MVS-specific shape tests this design adds:
   packages and `resolve` completes without fetching; a second
   fixture confirms `RegistryOfflineError` when the table is
   missing a required pair.
+- **Workspace resolution.**
+  A fixture with a root `package.json` declaring `workspaces:
+  ['packages/*']` and two members `packages/lib-a` and
+  `packages/lib-b`, where `lib-a` declares a dependency
+  `'lib-b': 'workspace:^'`.
+  The resolution carries `lib-b` as a workspace member entry
+  (no version segment), and a subsequent `mapSnapshot` pass
+  emits the workspace member at its versionless location.
+- **Workspace member version mismatch diagnostic.**
+  A fixture where an importer declares
+  `'lib-b': '^2.0.0'` but the workspace member's on-disk
+  `package.json` has `version: '1.0.0'`; the resolution still
+  prefers the workspace member, and the resolution carries a
+  diagnostic listing the mismatch.
+- **`peerDependencies` satisfied.**
+  A fixture where `pkg-a` declares
+  `peerDependencies: { 'react': '^18.0.0' }` and the entry
+  package depends on both `pkg-a` and `react@^18.0.0`; the
+  resolution succeeds and contains a single `react@18.x.y`
+  entry.
+- **`peerDependencies` unmet.**
+  The same `pkg-a` with `peerDependencies: { 'react': '^18.0.0' }`,
+  but the entry package depends only on `pkg-a` (no `react`).
+  The resolution rejects with
+  `RegistryMissingPackageError` quoting the importer name and the
+  unmet peer dependency.
+- **`optionalDependencies` missing.**
+  A fixture with `optionalDependencies: { 'fsevents': '^2.0.0' }`
+  where the registry has no `fsevents@^2.0.0`; the resolution
+  succeeds (no entry for `fsevents`) and the diagnostic state
+  attached to the resolution names `fsevents` as an unmet
+  optional.
 
 ## Design Decisions
 
@@ -285,42 +425,31 @@ The MVS-specific shape tests this design adds:
    `<name>@<version>` strings, which is what
    [registry-capability](registry-capability.md) consumes.
 
-## Open Questions
+## Anti-design steers
 
-1. **Per-condition resolution.**
-   `compartment-mapper` supports `import`, `browser`, and `endo`
-   conditions on `package.json#exports`.
-   Should `resolve` accept an `options.condition: string[]` and
-   thread it through both the MVS walk (which inspects
-   `peerDependencies` and conditional `dependencies`) and the
-   downstream `importLocation` call?
-   The Rust-side design does not yet name conditions.
-   Provisional answer: yes, accept the option, default to
-   `['import', 'endo']`, and revisit once the Rust-side resolver
-   names its condition behavior.
+- **Considered and rejected: thread `condition` through the MVS
+  walk.**
+  Conditional `exports` apply at compartment-map link time, not
+  at dependency-graph walk time.
+  The dependency graph that MVS walks is determined by
+  `dependencies`, `peerDependencies`, and `optionalDependencies`;
+  conditions decide which module file inside a package satisfies
+  a specifier and so belong to the link step in the integration
+  layer, not to this document.
+  See
+  [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+  for the link-time condition handling.
 
-2. **Workspace protocol (`workspace:^`).**
-   A `package.json` may declare a workspace dependency
-   referencing a sibling package on disk.
-   In a mount that contains the whole workspace, those
-   references should resolve to the sibling subdirectory rather
-   than to the registry.
-   `EndoRegistry.resolve` needs a way to discover the workspace
-   root; the entry mount carries that information (the workspace
-   `package.json` typically lives at the mount root, with member
-   packages under `packages/`).
-   The first cut can reject `workspace:` specifiers with a clear
-   error pointing at this gap; the followup is a
-   workspace-detection step in `EndoRegistry.resolve`.
-
-3. **`peerDependencies` and `optionalDependencies`.**
-   The Rust-side design defers these as a known gap.
-   This design inherits the same gap; resolution silently
-   ignores them today.
-   A clean error from `EndoRegistry.resolve` ("package X declares
-   unmet peer dependency Y") is preferable to the silent-ignore
-   default; the question is whether to enforce it in the first
-   cut or defer to a follow-up.
+- **Considered and rejected: defer `peerDependencies` and
+  `optionalDependencies` as gaps.**
+  Both are in scope in the first cut.
+  `peerDependencies` are cross-checked after the walk: an
+  unsatisfied peer surfaces as `RegistryMissingPackageError`
+  quoting the importer and the unmet name.
+  `optionalDependencies` are walked best-effort: a miss is
+  silent at the graph level (no entry in `packagesByKey`) and
+  appears in a diagnostic side-channel attached to the
+  resolution.
 
 ## Dependencies
 
@@ -340,3 +469,11 @@ The MVS-specific shape tests this design adds:
 > which is the Go-like MVS resolver adapted to JS package
 > versioning (resolution-path question, lockfile-out-of-scope
 > stance).
+>
+> Round-2 CHANGES_REQUESTED on the same PR (2026-06-02): drop
+> conditions from the dependency-graph scope (they apply at
+> compartment-map link time, which is not the subject of this
+> document); make workspace resolution in scope by searching for
+> a parent `package.json` with `workspaces` enabled where the
+> workspace member is named; make `peerDependencies` and
+> `optionalDependencies` in scope and test accordingly.
