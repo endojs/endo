@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-06-02 |
+| **Updated** | 2026-06-02 |
 | **Author** | endolinbot (prompted) |
 | **Status** | Proposed |
 
@@ -11,8 +12,10 @@
 A daemon-specific variation on `compartment-mapper.mapNodeModules`
 that takes a pair of daemon capabilities (an `EndoRegistry`
 resolution and an `EndoMount` or `readable-tree` entry source) and
-produces a `CompartmentMap` whose package descriptors point at a
-synthesized `endo-mount:` URL scheme.
+produces a `CompartmentMap` whose locations follow the
+compartment-mapper *archive* precedent: a top-level
+`compartment-map.json` plus peer directories named by package
+(`@endo/patterns@1.0.0/`, `ses@2.3.4/`, and so on).
 The mapper output is the trio
 `{ compartmentMap, resolution, readPowers }` that the worker hands
 to `importLocation` (or, eventually, to a future `importSnapshot`).
@@ -30,18 +33,24 @@ exposes); the rest of `mapSnapshot` lives in `packages/daemon/`.
 ## Goals
 
 1. Translate a `(RegistryResolution, EndoMount)` pair into a
-   `CompartmentMap` whose locations use a single synthesized URL
-   scheme that the worker's `read` function can dereference
-   uniformly across the entry mount and the resolved CAS trees.
+   `CompartmentMap` whose layout follows the existing
+   compartment-mapper archive precedent (`compartment-map.json`
+   at the top level, peer directories named by package), so the
+   archive `read` function shape applies without a new URL
+   scheme.
 2. Pre-compute the trio
    `{ compartmentMap, resolution, readPowers }` once, so the
    worker's `importLocation` invocation is a single call against
    already-walked state.
-3. Admit MVS major-version coexistence cleanly: the synthesized
-   URL scheme carries the selected `<name>@<version>` in the
-   directory segment so two majors of the same package address
-   to two distinct paths.
-4. Keep `compartment-mapper` itself daemon-agnostic.
+3. Admit MVS major-version coexistence cleanly: each peer
+   directory's name carries the selected `<name>@<version>` so
+   two majors of the same package land at two distinct
+   directories.
+4. Admit workspace members cleanly: a workspace member's peer
+   directory carries the bare package name without a version
+   segment, so workspace members can never collide with
+   registry-resolved entries (which always carry a version).
+5. Keep `compartment-mapper` itself daemon-agnostic.
    `mapSnapshot` is daemon-specific because two of its inputs
    are daemon exos; the only `compartment-mapper` change is one
    small extension point that lets `mapSnapshot` reuse the
@@ -73,7 +82,7 @@ This is the **mapper layer** of the daemon-worker
 |-------|-----|---------|
 | Capability | [registry-capability](registry-capability.md) | `EndoRegistry` shape, `@registry` slot, lifetime |
 | Algorithm | [mvs-resolver](mvs-resolver.md) | MVS walk, lockfile stance, who walks the graph |
-| Mapper | this | `mapSnapshot`, `makeMountReadPowers`, `endo-mount:` scheme |
+| Mapper | this | `mapSnapshot`, `makeMountReadPowers`, archive-precedent layout |
 | Integration | [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md) | `makeFromPackage`, worker dispatch, CLI, XS bridging |
 
 ## `mapSnapshot` in context
@@ -81,12 +90,14 @@ This is the **mapper layer** of the daemon-worker
 `compartment-mapper` exposes a family of `map*` entry points
 that build a `CompartmentMap` from a source: `mapNodeModules`
 walks an on-disk `node_modules/` layout; `mapArchive` reads a
-closed-world archive.
+closed-world archive whose root has a `compartment-map.json`
+and whose peers are package directories.
 This design adds a third lane named `mapSnapshot` that takes a
 pair of daemon capabilities, an `EndoRegistry` and an
 `EndoMount` (or `readable-tree`), and produces a
-`CompartmentMap` whose package descriptors point at the
-synthesized `endo-mount:` locations defined below.
+`CompartmentMap` whose layout follows the same archive
+precedent: a top-level `compartment-map.json` and peer
+directories named by package.
 
 Because `mapSnapshot` consumes daemon-side exos rather than
 plain `ReadFn` powers, it does not live in
@@ -108,7 +119,6 @@ mapSnapshot({
   registry: EndoRegistry,
   mount: EndoMount | EndoReadableTree,
   entry?: string,
-  conditions?: string[],
 }): Promise<{
   compartmentMap: CompartmentMap;
   resolution: RegistryResolution;     // for cache-key reuse
@@ -137,85 +147,100 @@ the `mapSnapshot` walk:
 `importSnapshot` (the future companion) takes that triple and
 runs the application without re-walking the package graph: the
 compartment-mapper already has the modules and their compartments
-described, and the read function dereferences against the same
-`endo-mount:` scheme `makeMountReadPowers` exposes.
+described, and the read function dereferences package-relative
+paths against the same archive-shaped layout
+`makeMountReadPowers` exposes.
 The eventual shape is symmetric to `mapNodeModules` +
 `importLocation`: `mapSnapshot` produces the snapshot,
 `importSnapshot` runs it.
 
-## `ReadPowers` synthesis: `makeMountReadPowers`
+## Synthesized layout
 
-The helper `makeMountReadPowers` lives in
-`packages/daemon/src/worker-import.js` and is shared between the
-Node and XS worker bootstrap.
+`mapSnapshot` emits a `CompartmentMap` and a backing
+`ReadPowers` that describe an archive-shaped layout: a
+top-level `compartment-map.json` plus peer directories named by
+package.
+This matches the layout `compartment-mapper.mapArchive`
+already understands, so the worker's `read` function is the
+archive `read` shape with no new URL scheme.
 
-Each location is a URL in a synthetic `endo-mount:` scheme:
+The peer directory naming rule:
 
-- `endo-mount:/<relative-path>` reads from the entry mount.
-- `endo-mount:/node_modules/<name>@<version>/<relative-path>`
-  reads from the resolved package tree for the specific
-  `(name, version)` pair (via the resolution's CAS tree).
-  Scoped packages embed the `@scope` and the version after the
-  bare name:
-  `endo-mount:/node_modules/@endo/patterns@1.2.1/...`.
-  The version segment lets the MVS major-coexistence path the
-  `RegistryResolution` type explicitly admits land cleanly:
-  two majors of `ses` resolve to two distinct synthesized paths
-  (`endo-mount:/node_modules/ses@1.0.0/...` and
-  `endo-mount:/node_modules/ses@2.3.4/...`).
+- A registry-resolved package's peer directory is named
+  `<name>@<version>`.
+  Scoped packages keep the leading `@scope/` on the package
+  name, so the version goes after the bare name:
+  `@endo/patterns@1.2.1/`, `ses@1.0.0/`.
+  MVS major-coexistence lands cleanly because two majors of the
+  same package live at distinct peer directories
+  (`ses@1.0.0/`, `ses@2.3.4/`).
+- A workspace member's peer directory omits the version
+  segment: `@endo/patterns/`, `lib-b/`.
+  This is the maintainer-intended semantic: workspace members
+  short-circuit version selection (per
+  [mvs-resolver](mvs-resolver.md) § *Workspace resolution*), so
+  the layout reflects that they have no version segment to
+  begin with.
+  Workspace-member directories can never collide with
+  registry-resolved directories because the registry-resolved
+  ones always carry a version segment.
 
 `compartment-mapper`'s descriptor walk knows the selected
 version for each `(importer, dependency)` edge because the walk
-operates against the resolution's `packagesByKey` and threads
-the `(name, version)` pair into the synthesized URL it emits
-for the dependency's directory.
+operates against the resolution's `packagesByKey` (for
+registry-resolved entries) and `packagesByKey`'s workspace-tagged
+entries (for workspace members), and threads the canonical
+peer-directory name into the `CompartmentMap` it emits for the
+dependency's compartment.
 
-The `endo-mount:` scheme is internal to the worker; it never
-appears in user code.
-`compartment-mapper` treats locations as opaque strings and
-asks the `read` function to fetch bytes, so the worker controls
-the scheme entirely.
+The layout is internal to the worker; user code only sees the
+modules' specifiers (`'@endo/patterns'`, `'ses'`).
+`compartment-mapper` treats compartment locations as opaque
+package-relative paths, and the `read` function the daemon
+hands it interprets the first path segment as a peer-directory
+name (a package-key string) and the rest as the module path
+inside that package.
 
 ```js
 const makeMountReadPowers = ({ entryMount, registry, resolution }) => {
-  // packagesByKey: canonical `<name>@<version>` keys per the
-  // RegistryResolution shape. The compartment-mapper package
-  // descriptor walk emits `endo-mount:/node_modules/<key>/...`
-  // references, where `<key>` carries the selected version, so
-  // the same map covers MVS major-coexistence (`ses@1.0.0` and
-  // `ses@2.3.4` are distinct entries).
+  // packagesByKey: canonical peer-directory names per the
+  // RegistryResolution shape. Registry-resolved entries are keyed
+  // `<name>@<version>` (`ses@1.0.0`, `@endo/patterns@1.2.1`);
+  // workspace-member entries are keyed by bare name
+  // (`lib-b`, `@endo/patterns`). The compartment-mapper package
+  // descriptor walk emits compartment locations against these
+  // keys, so the same map covers both MVS major-coexistence and
+  // workspace members.
   const packagesByKey = new Map(Object.entries(resolution.packagesByKey));
 
+  // The compartment-map declares one compartment per peer
+  // directory and a special entry compartment for the
+  // top-level mount. Locations passed to `read` are package
+  // descriptors plus relative module paths; the helper below
+  // resolves a location to its backing bytes.
   const read = async location => {
-    const url = new URL(location);
-    if (url.protocol !== 'endo-mount:') {
-      throw makeError(X`Unsupported location: ${q(location)}`);
+    const { compartmentKey, modulePath } = parseLocation(location);
+    if (compartmentKey === ENTRY) {
+      return E(entryMount).readBytes(modulePath);
     }
-    const path = url.pathname.replace(/^\//, '').split('/');
-    if (path[0] === 'node_modules') {
-      // Scoped packages encode as `node_modules/<@scope>/<name>@<version>/...`
-      // and unscoped as `node_modules/<name>@<version>/...`; the
-      // parser below distinguishes `@endo/patterns@1.2.1` (a
-      // single key spanning two path segments) from a hypothetical
-      // un-scoped `patterns@1.2.1` (one path segment).
-      const { key, rest } = parsePackageKey(path.slice(1));
-      let treeRef = packagesByKey.get(key);
-      if (treeRef === undefined) {
-        // Late bind via the registry capability the closure also
-        // holds, then memoize. This path is rare (the
-        // pre-resolution closure should cover everything the
-        // mapper walks), but the closure keeps the read function
-        // self-sufficient rather than forcing a re-dispatch into
-        // the worker for a single missing package. The registry's
-        // fetch throws cleanly if no such (name, version) exists,
-        // citing the enclosing resolutionHash for diagnosability.
-        const [name, version] = parseNameVersion(key);
-        treeRef = await E(registry).fetch(name, version);
-        packagesByKey.set(key, treeRef);
-      }
-      return E(treeRef).readBytes(rest);
+    let treeRef = packagesByKey.get(compartmentKey);
+    if (treeRef === undefined) {
+      // Late bind via the registry capability the closure also
+      // holds, then memoize. This path is rare (the
+      // pre-resolution closure should cover everything the
+      // mapper walks), but the closure keeps the read function
+      // self-sufficient rather than forcing a re-dispatch into
+      // the worker for a single missing package. The registry's
+      // fetch throws cleanly if no such (name, version) exists,
+      // citing the enclosing resolutionHash for diagnosability.
+      // Workspace-member keys are not late-bound (they are not
+      // on the registry); a missing workspace member surfaces
+      // as a diagnostic from mapSnapshot, not from read.
+      const [name, version] = parseNameVersion(compartmentKey);
+      treeRef = await E(registry).fetch(name, version);
+      packagesByKey.set(compartmentKey, treeRef);
     }
-    return E(entryMount).readBytes(path);
+    return E(treeRef).readBytes(modulePath);
   };
 
   const canonical = async location => location;
@@ -225,21 +250,27 @@ const makeMountReadPowers = ({ entryMount, registry, resolution }) => {
 ```
 
 The `compartment-mapper`'s package descriptor walk reads each
-importer's `package.json#dependencies`, maps each bare specifier
-to the selected version from `resolution.packagesByKey`, and emits
-the dependency URL with `<name>@<version>` as the directory
-segment so the synthesized layout disambiguates majors.
+importer's `package.json#dependencies` (and
+`peerDependencies`, `optionalDependencies`; per
+[mvs-resolver](mvs-resolver.md) § *Anti-design steers*), maps
+each bare specifier to the selected version (or workspace
+member) from `resolution.packagesByKey`, and emits the
+dependency compartment's peer-directory name accordingly.
 For a project that depends on `pkg@^1` directly and on a
 transitive that requires `pkg@^2`, the entry importer's
-specifier `'pkg'` resolves to
-`endo-mount:/node_modules/pkg@1.x.y/` and the transitive
-importer's specifier `'pkg'` resolves to
-`endo-mount:/node_modules/pkg@2.x.y/`; each importer reads its
-own major's tree.
-The descriptor walk's per-importer version table is the
-authoritative source for the `<name>@<version>` segment; the
-mapper does not need to know that the `node_modules` segment is
-synthetic.
+specifier `'pkg'` resolves to the `pkg@1.x.y/` peer directory
+and the transitive importer's specifier `'pkg'` resolves to the
+`pkg@2.x.y/` peer directory; each importer reads its own
+major's compartment.
+For a workspace member named `lib-b`, the importer's specifier
+`'lib-b'` resolves to the `lib-b/` peer directory regardless of
+the predicate the importer declared.
+The descriptor walk's per-importer key table is the
+authoritative source for the peer-directory name; the mapper
+does not need to know that the peer directories are synthesized
+on top of CAS trees rather than physically present on disk
+(which is how the archive `read` function already works in
+`mapArchive`).
 
 ### npm-shape and compartment-map-shape translation
 
@@ -247,18 +278,20 @@ The translation `mapSnapshot` performs is:
 
 | npm concept | `RegistryResolution` field | `CompartmentMap` shape |
 |-------------|----------------------------|------------------------|
-| Selected `(name, version)` | `packagesByKey[key]` | One compartment per key |
-| Importer's `dependencies['pkg']` | Lookup `(pkg, range)` against `packagesByKey` | A compartment-map module record pointing at the selected version's compartment |
+| Selected `(name, version)` | `packagesByKey[key]`, where `key = '<name>@<version>'` | One compartment per key, with peer-directory `<name>@<version>/` |
+| Workspace member `name` | `packagesByKey[key]`, where `key = '<name>'` (no version segment) | One compartment per key, with peer-directory `<name>/` |
+| Importer's `dependencies['pkg']` | Lookup `(pkg, range)` against `packagesByKey` (workspace match preferred over registry match) | A compartment-map module record pointing at the selected version's compartment |
 | Importer's `dependencies` (transitive) | The same lookup, per importer | A per-compartment dependency map |
-| Package contents (the `.tgz` unpacked) | `packagesByKey[key].treeRef` | Compartment location `endo-mount:/node_modules/<key>/` |
-| Entry module | Caller-supplied `entry?` or `compartment-mapper`'s default entry resolution | Compartment-map entry compartment |
+| Package contents (the `.tgz` unpacked, or workspace-member directory bytes) | `packagesByKey[key].treeRef` | Compartment served by the archive-shaped `read` function from `<key>/` |
+| Entry module | Caller-supplied `entry?` or `compartment-mapper`'s default entry resolution | Compartment-map entry compartment, served from the top-level mount snapshot |
 
 The compartment-mapper already knows how to translate the
-right-hand side into the on-the-wire `CompartmentMap` shape;
-`mapSnapshot`'s job is to feed the package-descriptor walker the
-correct `(name, version)` answer for every bare-specifier lookup,
-which the walker consults via the small extension point this
-design adds to `compartment-mapper`.
+right-hand side into the on-the-wire `CompartmentMap` shape (the
+shape `mapArchive` already produces and `parseArchive` already
+consumes); `mapSnapshot`'s job is to feed the package-descriptor
+walker the correct peer-directory-name answer for every
+bare-specifier lookup, which the walker consults via the small
+extension point this design adds to `compartment-mapper`.
 
 ## Mount snapshot before the mapper runs
 
@@ -271,6 +304,23 @@ For the common case where the caller has already passed a
 the live-mount case, the integration layer in
 [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
 calls `E(source).snapshot()` before reaching `mapSnapshot`.
+
+`mapSnapshot` also adds the hard retention link from the
+captured-formula-graph CAS contents that
+[registry-capability](registry-capability.md) §
+*Caching and retention* defines:
+the trio `{ compartmentMap, resolution, readPowers }` the lane
+returns, once captured into a formula by the integration layer,
+holds a `thisDiesIfThatDies` link from that formula into every
+`treeRef` named in `resolution.packagesByKey` and into the
+entry mount's snapshot tree.
+This pins the captured trees against CAS eviction for the
+formula's lifetime; once the formula is collected, the trees
+become collectible again.
+The retention link is the safety mechanism the registry
+caching layer relies on to make eviction transparent: anything
+a captured formula still names cannot be evicted, anything
+unnamed is fair game.
 
 ## Phased implementation
 
@@ -287,23 +337,43 @@ lands the JS reference `EndoRegistry`):
 3. Add the small extension point in
    `packages/compartment-mapper/` that `mapSnapshot` reuses
    (re-export of the package-descriptor walker plus a hook for
-   the synthesized `endo-mount:` URL scheme).
+   the archive-shaped peer-directory layout the walker emits
+   compartment locations against).
 4. Tests:
    - Hand-crafted fixture with a trivial `package.json` pinning
      a single small dependency (e.g. `is-odd@1.0.0`); verify
-     `mapSnapshot` returns a `CompartmentMap` whose package
-     descriptors carry the resolved version and the
-     `endo-mount:/node_modules/is-odd@1.0.0/` location.
+     `mapSnapshot` returns a `CompartmentMap` whose
+     `compartments` table carries a `is-odd@1.0.0/` peer
+     directory entry and the read function returns the
+     resolved tarball's bytes for that compartment's modules.
    - **Multi-major coexistence.**
      Project that depends on `pkg@^1` directly and on a
      transitive that requires `pkg@^2` produces a
      `RegistryResolution.packagesByKey` carrying both majors;
      the `mapSnapshot` output's compartment-map binds the entry
-     importer's `'pkg'` specifier to `pkg@1.x.y` and the
-     transitive importer's `'pkg'` specifier to `pkg@2.x.y`.
+     importer's `'pkg'` specifier to the `pkg@1.x.y/` peer
+     directory and the transitive importer's `'pkg'` specifier
+     to the `pkg@2.x.y/` peer directory.
      The test uses two side-by-side fixture packages so the
      bytes the two majors return differ and the test can assert
-     each importer reads from its own major's tree.
+     each importer reads from its own major's compartment.
+   - **Workspace member layout.**
+     Project whose root `package.json` declares a workspace
+     containing two members (`lib-a`, `lib-b`) where `lib-a`
+     depends on `'lib-b': 'workspace:^'`.
+     The `mapSnapshot` output's compartment-map carries a
+     `lib-b/` peer directory (no version segment), and the
+     read function returns `lib-b`'s on-disk bytes.
+   - **Workspace member coexistence with registry-resolved entry.**
+     A workspace contains `@endo/patterns` as a member, and a
+     registry-resolved transitive also requires
+     `@endo/patterns@1.0.0`.
+     The compartment-map carries both `@endo/patterns/` (the
+     workspace member) and a registry-resolved entry, and the
+     importers bind to the workspace member regardless of
+     predicate.
+     This exercises the "workspace wins" rule the layout
+     encodes by the presence of a version segment.
 
 The integration test that exercises `mapSnapshot` end-to-end
 (`importLocation` returning a working namespace) lands in the
@@ -323,23 +393,32 @@ integration layer's Phase 2 entry (the worker dispatch); see
    preserves its portability story (it ships as a standalone npm
    package).
 
-2. **One synthesized scheme covers both the entry and the resolved
-   dependencies.**
-   The `endo-mount:` scheme braids the entry mount (place-like
-   until snapshot) and the resolved CAS trees (immutable values)
-   into one address space.
-   A two-scheme refinement (`endo-mount:` for the entry,
-   `endo-tree:` for resolved deps) would signal the nature of the
-   data through the scheme itself; the first cut keeps one scheme
-   because the worker takes the `snapshot()` before `importLocation`
-   runs, so by the time the mapper emits any URL the entry mount
-   has been frozen to a tree-shaped snapshot.
-   Both roles read tree-shaped immutable data at the moment of
-   read, and a single scheme keeps the mapper's `read` function
-   shape uniform.
-   The split is tracked as an open question below.
+2. **Reuse the compartment-mapper archive precedent for layout.**
+   `compartment-mapper.mapArchive` already understands a layout
+   of a top-level `compartment-map.json` plus peer directories
+   named by package; `mapSnapshot` emits the same layout against
+   the daemon's CAS trees rather than against archive bytes.
+   Reusing the precedent means the `compartment-mapper` read
+   function for archives applies without modification: the
+   daemon-side `read` interprets the first path segment as a
+   peer-directory key and reads either the entry mount's
+   snapshot (top-level) or a CAS tree (for a `<name>@<version>/`
+   or workspace-member `<name>/` peer).
+   This avoids a daemon-internal URL scheme entirely.
+   We are not using a Node.js importer; the `node_modules`
+   layout has no value here.
 
-3. **Output trio is the snapshot identity.**
+3. **Workspace members carry no version segment in the peer
+   directory name.**
+   A registry-resolved entry's peer directory is
+   `<name>@<version>/`; a workspace member's is `<name>/`.
+   This encodes the "workspace wins regardless of predicate"
+   semantic in the layout itself, and guarantees workspace
+   members can never collide with registry-resolved entries
+   because the version segment's presence vs absence
+   distinguishes them.
+
+4. **Output trio is the snapshot identity.**
    Producing `{ compartmentMap, resolution, readPowers }` from
    one call lets a future `importSnapshot` re-hydrate an
    application from
@@ -349,26 +428,41 @@ integration layer's Phase 2 entry (the worker dispatch); see
    `resolution.resolutionHash`; the resolver layer (consumed
    here) already provides it.
 
-## Open Questions
+## Anti-design steers
 
-1. **Two-scheme URL split (`endo-mount:` vs `endo-tree:`).**
-   The synthesized scheme today addresses both the entry mount
-   (snapshotted into a tree before the mapper sees it) and the
-   resolved dependency CAS trees.
-   A two-scheme refinement would signal "place that became a
-   value" vs "value the resolver produced" through the scheme.
-   The first cut keeps one scheme because both roles are
-   tree-shaped at read time; revisit if a future feature adds
-   a non-tree read source under the same `ReadPowers`.
+- **Considered and rejected: a synthesized `endo-mount:` URL
+  scheme for compartment locations.**
+  Compartment-mapper already provides a layout precedent for
+  closed-world content (the archive: top-level
+  `compartment-map.json` plus peer directories named by
+  package).
+  The archive precedent applies here without a new scheme: the
+  daemon's CAS trees take the place of archive bytes, and the
+  `read` function the daemon hands the worker interprets the
+  first path segment as a peer-directory key.
+  A new URL scheme adds vocabulary without adding capability and
+  forks the `read` shape from the archive lane.
 
-2. **Caching the synthesized `ReadPowers`.**
-   Two invocations against the same mount with the same
-   `package.json` and the same registry resolution should reuse
-   the `makeMountReadPowers` result.
-   The `resolutionHash` is the natural cache key, but the cache
-   itself needs an owner (daemon-wide? per-host?).
-   This is a performance refinement, not a correctness question;
-   defer until profiling shows the construction cost matters.
+- **Considered and rejected: a `node_modules/` segment in
+  compartment locations.**
+  `node_modules` is the Node.js importer's resolution convention;
+  this stack does not use the Node.js importer at all (the
+  worker runs `compartment-mapper`'s
+  `importLocation` against a `ReadPowers` the daemon synthesized).
+  Peer directories at the same level as `compartment-map.json`
+  match the archive precedent and read cleanly without the
+  borrowed convention.
+
+- **Considered and rejected: a separate caching layer for
+  `makeMountReadPowers` results keyed by `resolutionHash`.**
+  Folded into the registry's caching scope per
+  [registry-capability](registry-capability.md) § *Caching and
+  retention*: the `ReadPowers` is a thin closure over
+  `(entryMount, registry, resolution)`, and the
+  `resolutionHash` already pins the CAS trees the powers serve;
+  re-constructing the closure on a cache miss is cheaper than
+  carrying a separate caching layer here, and any caching the
+  registry layer adds applies transparently.
 
 ## Dependencies
 
@@ -388,5 +482,18 @@ integration layer's Phase 2 entry (the worker dispatch); see
 > `daemon-worker-import-from-mount` design into layers, one of
 > which is the JS-snapshot to compartment-map-snapshot mapper
 > (`mapSnapshot` in `compartment-mapper`, `ReadPowers` synthesis
-> via `makeMountReadPowers`, npm-shape ↔ compartment-map-shape
+> via `makeMountReadPowers`, npm-shape <-> compartment-map-shape
 > translation).
+>
+> Round-2 CHANGES_REQUESTED on the same PR (2026-06-02): avoid
+> the `endo-mount:` URL scheme entirely; avoid the
+> `node_modules/` convention (no Node.js importer); reuse the
+> compartment-mapper archive precedent of a top-level
+> `compartment-map.json` plus peer directories named by
+> package, with version (`@endo/patterns@1.0.0/`) for
+> registry-resolved entries and without version
+> (`@endo/patterns/`) for workspace members, which prefer the
+> workspace version regardless of predicates and cannot
+> collide.
+> Fold the synthesized-`ReadPowers` caching question into the
+> registry's caching scope.
