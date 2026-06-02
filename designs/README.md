@@ -1,15 +1,30 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-22 (daemon-worker-import-from-mount added: sibling of `daemon-make-archive` § Phase 7 that ties `compartment-mapper.importLocation` to a `package.json`-rooted `EndoMount` source and the Rust `endor-npm-registry-proxy` + Go-like MVS resolver exposed as an `EndoRegistry` / `@registry` daemon capability; on top of the 2026-05-20 mount and git capability plans (three new design docs revised per design-panel review: structured-result-shape migration deferred to Phase 7, `tree(ref)` and `readOnly()` both live on the `Git` cap, `NativeGitBackend` hardening envelope split off the essential `GitBackend` contract, `EndoMountBacking` pinned to a hidden Exo facet, credential-injection mechanism named, native git pinned to >=2.30, restart-mid-operation tests added, open-question debt reduced from 20 to 2; landed on top of the same-day forge-gap-analysis Reference design and the same-day full grooming pass that reconciled milestone-totals, added the 2026-05-20 calibration round, re-projected the Summary by Milestone and Gantt, and refreshed Progress-as-of; itself landed on top of the 2026-05-19 status-only sweep that reconciled Status fields with shipped state on `llm`, M½ project-hygiene milestone extracted from M1, endopi raft added, PR #302 consolidation absorbed, and patterns-diagnostic-feedback added))*
+*Last updated: 2026-06-02 (daemon-worker-import-from-mount decomposed into a four-layer stack per kriskowal CHANGES_REQUESTED on `endojs/endo-but-for-bots#358`: the original 1164-line monolith is repurposed as the integration layer; three new sibling designs land alongside (`registry-capability`, `mvs-resolver`, `snapshot-mapper`); existing slug preserved so the PR branch and cross-references survive; on top of the 2026-05-22 monolithic landing (sibling of `daemon-make-archive` § Phase 7 that ties `compartment-mapper.importLocation` to a `package.json`-rooted `EndoMount` source and the Rust `endor-npm-registry-proxy` + Go-like MVS resolver exposed as an `EndoRegistry` / `@registry` daemon capability); itself on top of the 2026-05-20 mount and git capability plans (three new design docs revised per design-panel review: structured-result-shape migration deferred to Phase 7, `tree(ref)` and `readOnly()` both live on the `Git` cap, `NativeGitBackend` hardening envelope split off the essential `GitBackend` contract, `EndoMountBacking` pinned to a hidden Exo facet, credential-injection mechanism named, native git pinned to >=2.30, restart-mid-operation tests added, open-question debt reduced from 20 to 2; landed on top of the same-day forge-gap-analysis Reference design and the same-day full grooming pass that reconciled milestone-totals, added the 2026-05-20 calibration round, re-projected the Summary by Milestone and Gantt, and refreshed Progress-as-of; itself landed on top of the 2026-05-19 status-only sweep that reconciled Status fields with shipped state on `llm`, M½ project-hygiene milestone extracted from M1, endopi raft added, PR #302 consolidation absorbed, and patterns-diagnostic-feedback added))*
 
 *Recently added or revised:
+[registry-capability](registry-capability.md) (added 2026-06-02;
+layer 1 of 4 in the daemon-worker importLocation stack: `EndoRegistry`
+capability shape, `@registry` host special name, snapshot-vs-live-read
+contract, and the two-backend roadmap (JS reference impl ships first,
+Rust drop-in deferred)),
+[mvs-resolver](mvs-resolver.md) (added 2026-06-02; layer 2 of 4:
+Go-like Minimum Version Selection adapted to JS package versioning,
+the resolution-path question (eager single-pass, no per-import
+roundtrips), and the lockfile-out-of-scope stance with a sketch of
+how lockfile honoring slots in as a constraint pass),
+[snapshot-mapper](snapshot-mapper.md) (added 2026-06-02; layer 3 of 4:
+`mapSnapshot` in `packages/daemon/`, `makeMountReadPowers`, the
+synthesized `endo-mount:` URL scheme covering both the entry mount and
+resolved CAS trees, and the npm-shape ↔ compartment-map-shape
+translation table),
 [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
-(added 2026-05-22; `makeFromPackage(mountName)` daemon-worker entry
-that runs a `package.json`-rooted `EndoMount` through
-`compartment-mapper.importLocation`; dependencies resolved through a
-new `EndoRegistry` (`@registry`) capability wrapping the Rust
-npm-registry-proxy + Go-like MVS; sibling of `daemon-make-archive`
-§ Phase 7 (`makeFromTree` for `compartment-map.json`-rooted trees)),
+(added 2026-05-22, revised 2026-06-02; restructured into layer 4 of 4
+(integration layer) after kriskowal CHANGES_REQUESTED on #358; the
+original 1164-line monolith is repurposed; this layer carries
+`makeFromPackage` host method, `makeFromMount` dispatcher, worker
+dispatch body, CLI shape, XS bridging, and the architecture diagram
+that stitches the three preceding layers),
 [daemon-mount-capabilities](daemon-mount-capabilities.md) (added
 2026-05-18, revised 2026-05-20; concrete completion plan for
 `EndoMount`, mount-scoped entry descriptors as values, snapshotting,
@@ -114,7 +129,10 @@ LLM-agent stack).*
 | [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-05-19 | In Progress (PR #287) |
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-05-27 | In Progress |
 | [daemon-mount-capabilities](daemon-mount-capabilities.md) | 2026-05-18 | 2026-05-27 | **Complete** |
-| [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md) | 2026-05-22 | 2026-05-29 | Proposed |
+| [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md) | 2026-05-22 | 2026-06-02 | Proposed |
+| [registry-capability](registry-capability.md) | 2026-06-02 | 2026-06-02 | Proposed |
+| [mvs-resolver](mvs-resolver.md) | 2026-06-02 | 2026-06-02 | Proposed |
+| [snapshot-mapper](snapshot-mapper.md) | 2026-06-02 | 2026-06-02 | Proposed |
 | [filesystem-watchers](filesystem-watchers.md) | 2026-05-07 | 2026-05-07 | Not Started |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-05-19 | **Complete** |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
@@ -212,7 +230,7 @@ LLM-agent stack).*
 | [endo-app-sharing](endo-app-sharing.md) | 2026-06-01 | 2026-06-01 | Proposed |
 | [familiar-app-ui-hosting](familiar-app-ui-hosting.md) | 2026-06-01 | 2026-06-01 | Proposed |
 
-**Totals:** 39 Complete/Implemented, 18 In Progress, 37 Not Started, 25 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (131 designs). The 2026-06-01 pass adds the **Peer App Sharing** milestone cut (`app-sharing-milestone`) and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone A: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 16 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, and the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29 and the `daemon-worker-import-from-mount` (Proposed) entry added 2026-05-22.
+**Totals:** 39 Complete/Implemented, 18 In Progress, 37 Not Started, 28 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (134 designs). Refreshed 2026-06-02 by the daemon-worker-import-from-mount decomposition: three new Proposed designs (`registry-capability`, `mvs-resolver`, `snapshot-mapper`) land as siblings of the repurposed integration-layer doc. The 2026-06-01 pass adds the **Peer App Sharing** milestone cut (`app-sharing-milestone`) and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone A: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in that pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 16 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, and the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29, the `daemon-worker-import-from-mount` (Proposed) entry added 2026-05-22, and the three layer-split designs from the 2026-06-02 refresh.
 
 ## Roadmap
 
@@ -342,7 +360,10 @@ flowchart TD
         dbank[daemon-capability-bank]
         icancel[inventory-cancel-and-liveness]
         dmkar[daemon-make-archive<br/><i>IN PROGRESS</i>]
-        dwimp[daemon-worker-import-from-mount]
+        dwimp[daemon-worker-import-from-mount<br/><i>integration layer</i>]
+        dwicap[registry-capability]
+        dwimvs[mvs-resolver]
+        dwisnap[snapshot-mapper]
         ernpm[endor-npm-registry-proxy<br/><i>IN PROGRESS</i>]
         ercas[daemon-cas-management<br/><i>IN PROGRESS</i>]
         errun[endor-run-expanded<br/><i>IN PROGRESS</i>]
@@ -362,12 +383,18 @@ flowchart TD
         dfs --> dbank
         dpers --> dbank
         dbank --> icancel
-        dmount --> dwimp
-        dmcap --> dwimp
-        dmkar --> dwimp
-        ernpm --> dwimp
+        dwicap --> dwimvs
+        dwicap --> dwisnap
+        dwimvs --> dwisnap
+        dwicap --> dwimp
+        dwimvs --> dwimp
+        dwisnap --> dwimp
+        dmount --> dwicap
+        dmcap --> dwicap
+        dmkar --> dwicap
+        ernpm -.-> dwicap
         errun -.-> dwimp
-        ercas --> dwimp
+        ercas --> dwicap
     end
 
     subgraph App Sharing Cut
@@ -516,7 +543,10 @@ capabilities available to agents.
 | ~~daemon-content-store-gc~~ | **Complete** | Content-store pruning and scratch-mount directory cleanup at GC time; landed in PR #99 |
 | daemon-mount | In Progress | Phases 1-3, 5 on `llm` (commit `e22f71327`); symlink confinement, 20 integration tests; Phase 4 (sub-mounts, snapshot) in PR #135 open, mount extensions in PR #127 open, `followNameChanges` in PR #277 open |
 | daemon-mount-capabilities | Proposed | Complete `EndoMount`: snapshot bridge, mount-scoped descriptors, `makeFile` sibling, entry overloads on `has`/`stat`/`lookup`, trusted backing provenance |
-| daemon-worker-import-from-mount | Proposed | `makeFromPackage(mountName)` daemon-worker entry that runs a `package.json`-rooted `EndoMount` through `compartment-mapper.importLocation`; dependencies resolved by a JS reference implementation of Go-like MVS (separate lane from the Rust `endor-npm-registry-proxy`; both expose the same `EndoRegistry` / `@registry` capability shape); adds a `mapSnapshot` lane to `compartment-mapper`; sibling of `daemon-make-archive` § Phase 7 (`makeFromTree` for `compartment-map.json`-rooted trees); first cut limited to MVS resolution, lockfile honoring deferred |
+| daemon-worker-import-from-mount | Proposed | **Integration layer** of a four-layer stack (decomposed 2026-06-02 per kriskowal CHANGES_REQUESTED on #358). `makeFromPackage(mountName)` daemon-worker entry that runs a `package.json`-rooted `EndoMount` through `compartment-mapper.importLocation`; this layer carries `makeFromMount` dispatcher, worker dispatch body, CLI shape, XS bridging, architecture diagram. Sibling of `daemon-make-archive` § Phase 7 (`makeFromTree` for `compartment-map.json`-rooted trees) |
+| registry-capability | Proposed | Layer 1 of 4. `EndoRegistry` capability shape, `@registry` host special name, snapshot-vs-live-read contract, two-backend roadmap (JS reference impl ships first, Rust drop-in deferred to Phase 5). Required `registry` slot on `HostFormula` with one-shot upgrade pass for already-formulated hosts (the `@node` migration precedent) |
+| mvs-resolver | Proposed | Layer 2 of 4. JS reference implementation of Go-like Minimum Version Selection adapted to npm versioning (greatest mentioned minor per major; major-version coexistence admitted). Eager single-pass resolution shape (no per-import bus roundtrips). Lockfile honoring deferred as a follow-up constraint pass |
+| snapshot-mapper | Proposed | Layer 3 of 4. `mapSnapshot` lane in `packages/daemon/` that translates `(RegistryResolution, EndoMount)` into a `CompartmentMap` via `compartment-mapper`'s package-descriptor walker (one new extension point in `compartment-mapper`). `makeMountReadPowers` and the synthesized `endo-mount:` URL scheme covering both the entry mount and resolved CAS trees |
 | daemon-git-capability | Proposed | Revised git design over `EndoMount` / `EndoMountEntry`; `tree(ref)` and `readOnly()` both live on the `Git` cap |
 | daemon-git-remotes | Proposed | MVP remote-git companion: fetch / pull / push composed from local `Git`, bounded HTTPS transport, endpoint policy, and credential caps |
 | filesystem-watchers | Not Started | `EndoMount.followNameChanges` parity with `EndoDirectory`; Node `fs.watch` adapter on `FilePowers` |
@@ -890,7 +920,10 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | daemon-capability-filesystem | L | — | 1 | Reference sketch; narrower mount slice ships via daemon-mount |
 | ~~daemon-content-store-gc~~ | S | — | 1 | ✅ Complete (PR #99, ~2 days actual vs 1 day estimate) |
 | daemon-mount | M-L | 1.5 weeks | 1 | Mount exo, symlink confinement; Phase 4 in PR #135 forwarded under bot |
-| daemon-worker-import-from-mount | M-L | 1.5-2 weeks | 1 | `EndoRegistry` cap (JS reference impl of MVS; Rust-backed drop-in deferred) + `@registry` host special name + `makeFromPackage` worker method + `makeMountReadPowers` + `mapSnapshot` lane in `compartment-mapper`; snapshot-before-import; CLI `endo run <mount>` / `endo make <mount>`. First cut limited to MVS; lockfile honoring deferred. Does not depend on the Rust subsystem (separate lane). |
+| daemon-worker-import-from-mount | S-M | 3-4 days | 1 | **Integration layer** of the four-layer stack (decomposed 2026-06-02). `makeFromPackage` host method + `makeFromMount` dispatcher + CLI `endo run <mount>` / `endo make <mount>` + XS bridging deferral. Driven by the three preceding layers (`registry-capability`, `mvs-resolver`, `snapshot-mapper`); first cut limited to MVS; lockfile honoring deferred. Does not depend on the Rust subsystem (separate lane). |
+| registry-capability | S-M | 3 days | 1 | Layer 1 of 4. `EndoRegistry` exo + `@registry` host special name + `HostFormula.registry` migration pass. Structured `@endo/errors` failure surface. JS reference backend default; Rust drop-in deferred to Phase 5 |
+| mvs-resolver | S-M | 3-4 days | 1 | Layer 2 of 4. JS reference MVS algorithm, eager single-pass resolution producing `RegistryResolution` (content-addressed `resolutionHash`). Multi-major coexistence under distinct `<name>@<version>` keys. Lockfile follow-up tracked as constraint-pass insertion point |
+| snapshot-mapper | M | 4-5 days | 1 | Layer 3 of 4. `packages/daemon/src/map-snapshot.js` + `packages/daemon/src/worker-import.js` (`makeMountReadPowers`) + small extension point in `packages/compartment-mapper` for the synthesized `endo-mount:` URL scheme. The one cross-package change in the four-layer stack |
 | ~~filesystem-watchers~~ (design) | S | — | 1 | ✅ Design merged (PR #115); implementation TBD |
 | daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
 | daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename; design merged (PR #85); implementation TBD |
@@ -976,14 +1009,14 @@ date of this pass.
 |-----------|-----------------|-----------------|----------------------------------|
 | M0: AI Agent Experience | 0 | **Complete** | — |
 | M½: Project Hygiene | 1 (`break-dev-dependency-cycles`: Cut 1 PR #235, Cut 5 PR #247 open) | 3-5 days | 2-3 weeks |
-| M1: Remote Access & Tools | 11 (`endo-gateway`, `daemon-docker-selfhost`, `daemon-agent-tools`, `daemon-mount`, `daemon-worker-import-from-mount`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endoclaw-timer`, `endoclaw-network-fetch`) | 8-11 weeks | 10-13 weeks |
+| M1: Remote Access & Tools | 14 (`endo-gateway`, `daemon-docker-selfhost`, `daemon-agent-tools`, `daemon-mount`, `daemon-worker-import-from-mount`, `registry-capability`, `mvs-resolver`, `snapshot-mapper`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endoclaw-timer`, `endoclaw-network-fetch`) | 8-11 weeks | 10-13 weeks |
 | M2: Networking | 6 (`ocapn-network-transport-separation`, `ocapn-tcp-for-test-extraction`, `ocapn-tcp-syrups-framing`, `cbors`, `ocapn-noise-cryptographic-review`, `daemon-agent-network-identity`) | 4-5 weeks | 5-7 weeks |
 | M3: Weblets & Integrations | 11 (`familiar-unified-weblet-server`, `familiar-chat-weblet-hosting`, `cli-store-verb-text-modes`, `cli-edit-verb`, `daemon-weblet-application`, `exo-zip-package`, `endoclaw-oauth`, `endoclaw-proactive-messages`, `endoclaw-notifications`, `endoclaw-webhooks`, `endoclaw-voice`) | 6-8 weeks | 8-11 weeks |
 | M4: UX & Tooling | 12 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 8-11 weeks | 10-13 weeks |
 | M5: Confinement & Ecosystem | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
 | M6: Rust Daemon (`endor`) | 2 (`endor-tui`, `endor-bus-tui`) | 12-17 weeks | 14-19 weeks |
 | Milestone A: Peer App Sharing (cut) | 3 net-new (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); existing constituents counted under M1–M3 | 2-3 weeks | 3-5 weeks |
-| **Total remaining** | **52** | **~55-75 weeks** | **~67-91 weeks** |
+| **Total remaining** | **55** | **~55-75 weeks** | **~67-91 weeks** |
 
 The 2026-05-20 reconciliation corrects a counting gap in the prior
 snapshot's narrative: M1, M3, and M4 had absorbed new rows since the
