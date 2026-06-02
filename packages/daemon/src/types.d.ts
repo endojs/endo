@@ -301,10 +301,15 @@ export type GitStatusEntry = {
   index: GitIndexStatus;
   worktree: GitWorktreeStatus;
   /**
-   * Present when a live worktree object currently exists for the path
-   * (an `EndoMountFile` or `EndoMount` sub-mount).
+   * Present when a live worktree object currently exists for the path.
+   * A writable `Git` mints the node through the writable worktree mount
+   * (an `EndoMount` sub-mount or `EndoMountFile`); a read-only `Git`
+   * mints it through the structural read-only worktree view, so the
+   * node is then a `ReadableTreeView` or `ReadableBlobView`.  The wider
+   * union keeps the read-only case from type-checking a `writeText`
+   * that would reject at runtime.
    */
-  node?: EndoMount | EndoMountFile;
+  node?: EndoMount | EndoMountFile | ReadableTreeView | ReadableBlobView;
   renamedFrom?: string;
 };
 
@@ -392,8 +397,13 @@ export type GitStashPushOptions = {
  * worktree mount.
  */
 export interface EndoGit {
-  /** The `EndoMount` carrying the public worktree authority. */
-  worktree(): EndoMount;
+  /**
+   * The worktree authority this cap carries.  A writable Git returns
+   * the writable `EndoMount`; a read-only Git returns a structural
+   * read-only `ReadableTree` view so the attenuated cap cannot hand a
+   * caller a writable worktree.
+   */
+  worktree(): Promise<EndoMount | ReadableTreeView>;
   status(): Promise<GitStatusEntry[]>;
   diff(options?: GitDiffOptions): Promise<string>;
   log(options?: GitLogOptions): Promise<GitCommit[]>;

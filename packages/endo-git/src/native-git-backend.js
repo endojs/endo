@@ -163,6 +163,13 @@ const makeGitEnv = repoRoot => ({
   GIT_CONFIG_GLOBAL: gitNullDevice,
   // No interactive prompts.
   GIT_TERMINAL_PROMPT: '0',
+  // Suppress the opportunistic index refresh that read commands
+  // (status, diff) otherwise perform.  Without this, a "read-only"
+  // inspection rewrites `.git/index` metadata as a side effect and
+  // fails outright on a genuinely read-only filesystem.  Mutating
+  // commands take their real locks regardless of this flag, so it is
+  // safe to set for every invocation.
+  GIT_OPTIONAL_LOCKS: '0',
   // Force the pager to a passthrough.
   GIT_PAGER: 'cat',
   // Stable locale for deterministic parsing.
@@ -316,8 +323,17 @@ harden(normalizeTreePath);
 // commit, createBranch, deleteBranch, renameBranch, switchBranch,
 // detach, switch, merge, rebase, stashPush, stashApply, stashPop,
 // stashDrop) gate on `assertNoExecutableRepoConfig` first.
+//
+// `include.path` / `includeIf.*` are refused outright: git honors an
+// included file's `filter.*`/`merge.*` driver keys, but
+// `git config --local --name-only --list` reports only the `include`
+// key itself, not the keys the included file contributes.  Without
+// this clause a committed-in `.git/config` `include.path` pointing at
+// an in-tree file that defines `filter.<name>.clean` would slip past
+// the listing-based check and run on the next add/commit.  The
+// remote-transport guard already refuses the same keys.
 const EXECUTABLE_REPO_CONFIG =
-  /^(filter\..*\.(clean|smudge|process)|merge\..*\.driver)$/u;
+  /^(filter\..*\.(clean|smudge|process)|merge\..*\.driver|include(\.|if\.))/u;
 
 // Repository-local configurations that can redirect or alter an
 // explicitly-policy-bound remote URL. Remote operations pass a URL
@@ -494,6 +510,27 @@ const sameRepositoryIdentity = (left, right) =>
   left.configHash === right.configHash &&
   left.rootCommit === right.rootCommit;
 harden(sameRepositoryIdentity);
+
+/**
+ * A repository constructed before its first commit captures
+ * `rootCommit: 'EMPTY'`.  When a commit lands through this capability the
+ * repository gains its first root commit, and a later re-capture sees a
+ * real root SHA.  That transition is not the "repository swapped out from
+ * under us" event the identity check guards against — the repo did not
+ * change identity, it gained its inaugural commit through us.  Treat the
+ * `'EMPTY' -> <sha>` transition as identity-stable (commonDir and
+ * configHash must still match); every other `rootCommit` change remains a
+ * real identity change.
+ *
+ * @param {RepositoryIdentity} prior
+ * @param {RepositoryIdentity} current
+ */
+const isEmptyRepoFirstCommit = (prior, current) =>
+  prior.rootCommit === 'EMPTY' &&
+  current.rootCommit !== 'EMPTY' &&
+  prior.commonDir === current.commonDir &&
+  prior.configHash === current.configHash;
+harden(isEmptyRepoFirstCommit);
 
 const UNMERGED_STATUS_CODES = harden(
   new Set(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']),
@@ -873,14 +910,26 @@ export const makeNativeGitBackend = ({
     await verifyRepositoryRoot();
     const resolvedRoot = await fs.promises.realpath(repoRoot);
     const currentIdentity = await captureRepositoryIdentity(resolvedRoot);
-    if (
-      repositoryIdentity === undefined ||
-      !sameRepositoryIdentity(repositoryIdentity, currentIdentity)
-    ) {
+    if (repositoryIdentity === undefined) {
       throw new Error(
         'Git repository identity changed since this capability was constructed; re-derive Git from the mount',
       );
     }
+    if (sameRepositoryIdentity(repositoryIdentity, currentIdentity)) {
+      return;
+    }
+    // A capability constructed over an empty repository whose first
+    // commit landed through us sees its `rootCommit` transition from
+    // 'EMPTY' to a real SHA.  Accept that transition and adopt the
+    // resolved identity so subsequent operations verify against the
+    // now-non-empty repository rather than re-throwing on every call.
+    if (isEmptyRepoFirstCommit(repositoryIdentity, currentIdentity)) {
+      repositoryIdentity = currentIdentity;
+      return;
+    }
+    throw new Error(
+      'Git repository identity changed since this capability was constructed; re-derive Git from the mount',
+    );
   };
 
   /**
@@ -1057,7 +1106,8 @@ export const makeNativeGitBackend = ({
     );
     const offending = stdout
       .split('\n')
-      .filter(name => EXECUTABLE_REPO_CONFIG.test(name));
+      .map(name => name.trim())
+      .filter(name => EXECUTABLE_REPO_CONFIG.test(name.toLowerCase()));
     if (offending.length > 0) {
       throw new Error(
         `Refusing git operation because repository config can execute commands: ${offending.join(', ')}`,
@@ -1576,14 +1626,19 @@ export const makeNativeGitBackend = ({
     /**
      * Render a textual diff in `git diff` form.  `--no-ext-diff` suppresses
      * any external diff program a guest may have committed into the repo
-     * config.  Combined with the rest of the hardening envelope (hooks off,
+     * config; `--no-textconv` suppresses a `diff.<driver>.textconv` command
+     * that an in-tree `.gitattributes` could otherwise bind to a path and
+     * have git exec while rendering the diff.  `core.attributesFile=/dev/null`
+     * (in `GIT_BASE_ARGS`) only disables the *external* attributes file, not
+     * the in-tree `.gitattributes`, so the per-command flag is load-bearing
+     * here.  Combined with the rest of the hardening envelope (hooks off,
      * filters off), guests cannot make `git diff` execute arbitrary code.
      *
      * @param {GitBackendDiffOptions} [options]
      * @returns {Promise<string>}
      */
     diff: async (options = {}) => {
-      const args = ['diff', '--no-ext-diff'];
+      const args = ['diff', '--no-ext-diff', '--no-textconv'];
       if (options.cached) args.push('--cached');
       // `--end-of-options` separates option-shaped flags from the
       // revisions that follow.  `requireRevision` already rejects
@@ -1661,12 +1716,19 @@ export const makeNativeGitBackend = ({
     },
 
     /**
+     * Render `git show` for a ref.  `--no-textconv` suppresses a
+     * `diff.<driver>.textconv` command that an in-tree `.gitattributes`
+     * could bind to a shown path; without it, `git show` of a commit or
+     * blob would exec the configured textconv program just as `diff`
+     * would (see the `diff` method's note on why the in-tree attributes
+     * file is not neutralized by `core.attributesFile=/dev/null`).
+     *
      * @param {string} ref
      * @returns {Promise<string>}
      */
     show: async ref => {
       const revision = requireRevision(ref, 'show.ref');
-      return runGit(['show', '--end-of-options', revision]);
+      return runGit(['show', '--no-textconv', '--end-of-options', revision]);
     },
 
     /**

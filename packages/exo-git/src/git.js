@@ -228,6 +228,28 @@ export const makeGit = ({ mount, backend, readOnly = false, lineageOf }) => {
   /** @type {Map<string, object>} */
   const filesystemByTreeOid = new Map();
 
+  // The worktree authority a read-only Git exposes.  A writable Git
+  // hands out the writable `mount`; a read-only Git must not, or its
+  // `worktree()` and the per-entry `node`s minted by `status()` would
+  // carry full write authority (`writeText`, `remove`, `move`,
+  // `makeFile`) despite the cap's read-only intent.  `mount.readOnly()`
+  // yields a structural read-only view that shares the same mount
+  // lineage, so entries minted by the writable mount still resolve
+  // through it but no write method survives the attenuation.  Resolved
+  // lazily because `readOnly()` is a synchronous attenuation method and
+  // the read-only view is only needed once a read flows through it.
+  /** @type {Promise<object> | undefined} */
+  let readOnlyWorktreeP;
+  const worktreeAuthority = () => {
+    if (!readOnly) {
+      return mount;
+    }
+    if (readOnlyWorktreeP === undefined) {
+      readOnlyWorktreeP = Promise.resolve(E(mount).readOnly());
+    }
+    return readOnlyWorktreeP;
+  };
+
   /**
    * Translate an array of EndoMountEntry caps into the repo-relative
    * path strings that the backend (and the underlying git binary)
@@ -281,7 +303,7 @@ export const makeGit = ({ mount, backend, readOnly = false, lineageOf }) => {
 
   const exo = makeExo('Git', GitInterface, {
     worktree() {
-      return mount;
+      return worktreeAuthority();
     },
 
     async status() {
@@ -290,14 +312,27 @@ export const makeGit = ({ mount, backend, readOnly = false, lineageOf }) => {
       // produced repo-relative path strings; here we mint the
       // authority-bearing EndoMountEntry through the bound mount so
       // a caller can hold a path-bearing reference that's confined
-      // to this worktree.
+      // to this worktree.  The `entry` descriptor is inert (it carries
+      // no I/O authority of its own), so it is always minted from the
+      // writable mount.  The `node` carries the actual read/write
+      // authority, so it is resolved through `worktreeAuthority()`: a
+      // read-only Git resolves nodes through the read-only worktree
+      // view, ensuring a status row never hands a caller a writable
+      // node out of an attenuated cap.
+      const worktree = await worktreeAuthority();
       const wrapped = await Promise.all(
         raw.map(async r => {
           const segments = r.path === '' ? [] : r.path.split('/');
           const entry = await E(mount).entry(segments);
           let node;
           try {
-            node = await E(mount).lookup(entry);
+            // Resolve the node by repo-relative segments rather than by
+            // the `entry` descriptor: the read-only worktree view exposes
+            // the structural `ReadableTree` surface whose `lookup` accepts
+            // only string / string[] paths (not an EndoMountEntry).
+            // Segments are equivalent and work for both the writable mount
+            // and the read-only view.
+            node = await E(worktree).lookup(segments);
           } catch (lookupError) {
             node = undefined;
             // A deleted path (in either the index or the worktree)

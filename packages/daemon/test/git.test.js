@@ -154,7 +154,6 @@ test('Git.readOnly() attenuates mutating operations but preserves reads', async 
   const git = makeGit({ mount, backend, lineageOf });
 
   const readOnlyGit = await E(git).readOnly();
-  t.is(await E(readOnlyGit).worktree(), mount);
 
   const entries = await E(readOnlyGit).status();
   t.is(entries.length, 1);
@@ -172,6 +171,59 @@ test('Git.readOnly() attenuates mutating operations but preserves reads', async 
   });
 
   t.is(await E(readOnlyGit).readOnly(), readOnlyGit);
+});
+
+test('Git.readOnly() worktree and status nodes carry no write authority', async t => {
+  // Regression for the read-only attenuation leak (Codex P1a): a
+  // read-only Git reused the writable mount, so `worktree()` and the
+  // `node`s minted by `status()` still exposed `writeText` / `remove` /
+  // `makeFile`.  A read-only cap must surface a read-only worktree view
+  // whose nodes reject writes.
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'tracked.txt'), 'before');
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  const readOnlyGit = await E(git).readOnly();
+
+  // The worktree exposed by a read-only Git is a structural read-only
+  // view: it advertises only the ReadableTree surface (no `writeText`,
+  // `makeFile`, `remove`, or `move`).
+  const worktree = await E(readOnlyGit).worktree();
+  // eslint-disable-next-line no-underscore-dangle
+  const worktreeMethods = await E(
+    /** @type {any} */ (worktree),
+  ).__getMethodNames__();
+  for (const writeMethod of ['writeText', 'makeFile', 'remove', 'move']) {
+    t.false(
+      worktreeMethods.includes(writeMethod),
+      `read-only worktree must not expose ${writeMethod}`,
+    );
+  }
+
+  // Each status row's `node` is minted through the read-only worktree,
+  // so it likewise rejects mutation.  Before the fix the node was a
+  // writable EndoMountFile and this write would succeed.
+  const rows = await E(readOnlyGit).status();
+  const trackedRow = rows.find(row => row.path === 'tracked.txt');
+  t.truthy(trackedRow, 'status should report the tracked file');
+  t.truthy(trackedRow && trackedRow.node, 'status row should carry a node');
+  if (trackedRow === undefined || trackedRow.node === undefined) {
+    return;
+  }
+  await t.throwsAsync(
+    E(/** @type {any} */ (trackedRow.node)).writeText('after'),
+    {
+      message: /read-only|not a function|no method/i,
+    },
+  );
+  // The on-disk content is untouched by the rejected write.
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'tracked.txt'), 'utf8'),
+    'before',
+  );
 });
 
 test('makeGit can be constructed directly as read-only', async t => {
@@ -1846,3 +1898,488 @@ const collectReader = async readerRef => {
   }
   return out;
 };
+
+test('Git.stashPop applies and drops in one step', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'tracked.txt'), 'before\n');
+  await execFileAsync('git', ['add', 'tracked.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'track file'],
+    { cwd: repoRoot },
+  );
+
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  await fs.promises.writeFile(path.join(repoRoot, 'tracked.txt'), 'after\n');
+  await E(git).stashPush({ message: 'pop me' });
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'tracked.txt'), 'utf8'),
+    'before\n',
+  );
+  // stashPop combines apply + drop; verify the working-tree restoration
+  // and that the stash list is empty afterwards (distinct from stashApply,
+  // which leaves the stash entry in place).
+  await E(git).stashPop(0);
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'tracked.txt'), 'utf8'),
+    'after\n',
+  );
+  t.deepEqual(await E(git).stashList(), []);
+});
+
+test('Git.stashPush accepts repo-relative paths in lieu of mount entries', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'a.txt'), 'orig-a\n');
+  await fs.promises.writeFile(path.join(repoRoot, 'b.txt'), 'orig-b\n');
+  await execFileAsync('git', ['add', 'a.txt', 'b.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'two files'],
+    { cwd: repoRoot },
+  );
+
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  await fs.promises.writeFile(path.join(repoRoot, 'a.txt'), 'changed-a\n');
+  await fs.promises.writeFile(path.join(repoRoot, 'b.txt'), 'changed-b\n');
+
+  // `paths` (string[]) bypasses the EndoMountEntry lineage resolution
+  // and lands at the backend directly.  Only `a.txt` is stashed; `b.txt`
+  // must stay dirty.
+  await E(git).stashPush({ message: 'subset', paths: ['a.txt'] });
+
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'a.txt'), 'utf8'),
+    'orig-a\n',
+  );
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'b.txt'), 'utf8'),
+    'changed-b\n',
+  );
+  await E(git).stashDrop(0);
+});
+
+test('Git.stashPush with neither entries nor paths stashes the whole worktree', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'whole.txt'), 'baseline\n');
+  await execFileAsync('git', ['add', 'whole.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'whole'],
+    { cwd: repoRoot },
+  );
+
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  await fs.promises.writeFile(path.join(repoRoot, 'whole.txt'), 'dirty\n');
+
+  // Both `entries` and `paths` omitted: the wrapper takes the third
+  // branch in git.js (no resolved.paths set) and the backend stashes
+  // the full worktree diff.
+  const result = await E(git).stashPush({});
+  t.regex(result, /Saved working directory/);
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'whole.txt'), 'utf8'),
+    'baseline\n',
+  );
+  await E(git).stashDrop(0);
+});
+
+test('Git.diff accepts plain string paths and string refs', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'a.txt'), 'a1\n');
+  await fs.promises.writeFile(path.join(repoRoot, 'b.txt'), 'b1\n');
+  await execFileAsync('git', ['add', 'a.txt', 'b.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'baseline'],
+    { cwd: repoRoot },
+  );
+  await fs.promises.writeFile(path.join(repoRoot, 'a.txt'), 'a2\n');
+  await fs.promises.writeFile(path.join(repoRoot, 'b.txt'), 'b2\n');
+
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  // The `paths` branch passes string[] straight through; `base` and
+  // `head` accept either a string or a structured GitRef and collapse
+  // to the backend's string-named-ref input.  Only the named path
+  // shows up; the other file's diff stays out.
+  const out = await E(git).diff({
+    paths: ['a.txt'],
+    base: 'HEAD',
+  });
+  t.regex(out, /a\.txt/);
+  t.notRegex(out, /b\.txt/);
+});
+
+test('Git.diff with GitRef objects for base and head collapses to strings', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'evolves.txt'), 'v1\n');
+  await execFileAsync('git', ['add', 'evolves.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'v1'],
+    { cwd: repoRoot },
+  );
+  const v1Sha = (
+    await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot })
+  ).stdout.trim();
+
+  await fs.promises.writeFile(path.join(repoRoot, 'evolves.txt'), 'v2\n');
+  await execFileAsync('git', ['add', 'evolves.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'v2'],
+    { cwd: repoRoot },
+  );
+  const v2Sha = (
+    await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot })
+  ).stdout.trim();
+
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  // The git.js wrapper's `typeof opts.base === 'string'` check picks
+  // the structured-ref branch when given a `{ name, kind }` record.
+  const out = await E(git).diff({
+    base: harden({ name: v1Sha, kind: /** @type {'commit'} */ ('commit') }),
+    head: harden({ name: v2Sha, kind: /** @type {'commit'} */ ('commit') }),
+  });
+  t.regex(out, /-v1\n\+v2/);
+});
+
+test('NativeGitBackend.status reports rename detection with renamedFrom', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  // Commit a large file: rename detection only fires for similar content
+  // above a threshold, so a tiny single-line file would round-trip as
+  // delete+add.
+  const original = Array.from({ length: 32 }, (_, i) => `line ${i + 1}\n`).join(
+    '',
+  );
+  await fs.promises.writeFile(path.join(repoRoot, 'before.txt'), original);
+  await execFileAsync('git', ['add', 'before.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'baseline'],
+    { cwd: repoRoot },
+  );
+
+  // Rename via git mv so the rename is recorded in the index.
+  await execFileAsync('git', ['mv', 'before.txt', 'after.txt'], {
+    cwd: repoRoot,
+  });
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const entries = await backend.status();
+  const renamed = entries.find(e => e.index === 'renamed');
+  if (renamed === undefined) {
+    throw t.fail('expected a renamed status row');
+  }
+  t.is(renamed.path, 'after.txt');
+  t.is(renamed.renamedFrom, 'before.txt');
+});
+
+test('NativeGitBackend.assertNoExecutableRepoConfig refuses filter clean drivers', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'staged.txt'), 'x\n');
+  await execFileAsync('git', ['add', 'staged.txt'], { cwd: repoRoot });
+
+  // Set a filter.<name>.clean entry directly in .git/config; that is
+  // exactly the pattern EXECUTABLE_REPO_CONFIG refuses, because git
+  // would shell out to the named program on `git add` of any path
+  // covered by .gitattributes.
+  await execFileAsync(
+    'git',
+    ['config', '--local', 'filter.evil.clean', '/usr/bin/env true'],
+    { cwd: repoRoot },
+  );
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  await t.throwsAsync(backend.add(['staged.txt']), {
+    message:
+      /Refusing git operation because repository config can execute commands/,
+  });
+});
+
+test('NativeGitBackend.assertNoExecutableRepoConfig refuses merge driver config', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await execFileAsync(
+    'git',
+    ['config', '--local', 'merge.evil.driver', '/usr/bin/env true'],
+    { cwd: repoRoot },
+  );
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  // Any mutation triggers the guard; `commit` of an empty index also
+  // travels through assertNoExecutableRepoConfig first.
+  await t.throwsAsync(backend.commit('should refuse'), {
+    message:
+      /Refusing git operation because repository config can execute commands.*merge\.evil\.driver/,
+  });
+});
+
+test('NativeGitBackend.remoteFetch refuses url.<base>.insteadOf rewrites', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await execFileAsync(
+    'git',
+    [
+      'config',
+      '--local',
+      'url.https://attacker.example/.insteadof',
+      'https://benign.example/',
+    ],
+    { cwd: repoRoot },
+  );
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  // assertNoRemoteTransportRepoConfig fires before any network IO, so
+  // we can use a placeholder URL and trust the guard to refuse first.
+  await t.throwsAsync(
+    backend.remoteFetch({
+      url: 'https://benign.example/repo.git',
+      refspecs: ['+refs/heads/main:refs/remotes/origin/main'],
+    }),
+    {
+      message:
+        /repository config can alter remote transport.*url\..*\.insteadof/i,
+    },
+  );
+});
+
+test('NativeGitBackend.remotePush refuses core.sshCommand override', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await execFileAsync(
+    'git',
+    ['config', '--local', 'core.sshCommand', '/bin/false'],
+    { cwd: repoRoot },
+  );
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  await t.throwsAsync(
+    backend.remotePush({
+      url: 'https://benign.example/repo.git',
+      refspecs: ['refs/heads/main:refs/heads/main'],
+    }),
+    {
+      message:
+        /repository config can alter remote transport.*core\.sshcommand/i,
+    },
+  );
+});
+
+test('NativeGitBackend.remoteFetch rejects an unsupported URL protocol', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+
+  // git: and ssh: are intentionally not in the supported set; the
+  // backend collapses every accepted protocol into an exact -c
+  // protocol.<scheme>.allow=always flag, so a missing scheme has to
+  // be refused at the boundary rather than relayed to git.
+  await t.throwsAsync(
+    backend.remoteFetch({
+      url: 'git://attacker.example/repo.git',
+      refspecs: ['+refs/heads/main:refs/remotes/origin/main'],
+    }),
+    {
+      message: /remote URL protocol is not supported/,
+    },
+  );
+});
+
+test('NativeGitBackend.remoteFetch rejects a malformed remote URL', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+
+  // requireRevision accepts the string; the URL parse inside
+  // remoteProtocolArgs is the second boundary that refuses garbage.
+  await t.throwsAsync(
+    backend.remoteFetch({
+      url: 'not-a-url',
+      refspecs: ['+refs/heads/main:refs/remotes/origin/main'],
+    }),
+    {
+      message: /remote URL is not a valid URL/,
+    },
+  );
+});
+
+test('NativeGitBackend.assertNoExecutableRepoConfig refuses an include.path that injects a filter driver', async t => {
+  // Bar-proving regression for the include bypass (Codex P1b).  The
+  // executable-config guard lists keys with `git config --local
+  // --name-only --list`, which reports only the `include.path` key and
+  // NOT the `filter.<name>.clean` key the included file contributes —
+  // yet git honors that included driver on the next add/commit.  The
+  // direct-key tests above are tautological with the listing: they set
+  // the key the listing reports.  This test sets the dangerous key
+  // *indirectly* through an in-tree include, which the unpatched guard
+  // never sees.
+  const repoRoot = await provisionGitWorktree(t);
+
+  // The included config file lives in the worktree and defines an
+  // executable filter driver.
+  await fs.promises.writeFile(
+    path.join(repoRoot, 'evil.inc'),
+    '[filter "evil"]\n\tclean = /usr/bin/env true\n',
+  );
+  // .git/config points at it via a relative include.path.
+  await execFileAsync(
+    'git',
+    ['config', '--local', 'include.path', '../evil.inc'],
+    { cwd: repoRoot },
+  );
+  // A .gitattributes binds the filter to a path, so the driver would
+  // actually run on add/commit.
+  await fs.promises.writeFile(
+    path.join(repoRoot, '.gitattributes'),
+    '*.secret filter=evil\n',
+  );
+  await fs.promises.writeFile(path.join(repoRoot, 'data.secret'), 'x\n');
+
+  // Sanity: git itself honors the included driver key, while the
+  // name-only listing the guard relies on does not surface it.
+  const { stdout: effective } = await execFileAsync(
+    'git',
+    ['config', '--get', 'filter.evil.clean'],
+    { cwd: repoRoot },
+  );
+  t.true(effective.includes('true'), 'git honors the included filter driver');
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  await t.throwsAsync(backend.add(['data.secret']), {
+    message:
+      /Refusing git operation because repository config can execute commands/,
+  });
+  await t.throwsAsync(backend.commit('should refuse'), {
+    message:
+      /Refusing git operation because repository config can execute commands/,
+  });
+});
+
+test('NativeGitBackend.diff and show never invoke a .gitattributes textconv driver', async t => {
+  // Bar-proving regression for the textconv host-exec on read paths
+  // (Codex P1c).  An in-tree `.gitattributes` binding a diff driver
+  // plus a `diff.<driver>.textconv` command runs that command while
+  // git renders a diff or `git show`.  `core.attributesFile=/dev/null`
+  // only disables the *external* attributes file, not the in-tree one,
+  // and `--no-ext-diff` suppresses only `diff.external`; the read paths
+  // must additionally pass `--no-textconv`.
+  const repoRoot = await provisionGitWorktree(t);
+  const marker = path.join(repoRoot, 'TEXTCONV-RAN');
+
+  // A textconv driver whose mere invocation writes a sentinel file.
+  await fs.promises.writeFile(
+    path.join(repoRoot, 'textconv.sh'),
+    `#!/bin/sh\ntouch ${JSON.stringify(marker)}\ncat "$1"\n`,
+  );
+  await fs.promises.chmod(path.join(repoRoot, 'textconv.sh'), 0o755);
+  await execFileAsync(
+    'git',
+    ['config', '--local', 'diff.evil.textconv', `${repoRoot}/textconv.sh`],
+    { cwd: repoRoot },
+  );
+  await fs.promises.writeFile(
+    path.join(repoRoot, '.gitattributes'),
+    '*.secret diff=evil\n',
+  );
+  // Commit a *.secret blob so both `show <commit>` and a worktree
+  // `diff` have a textconv-covered path to render.
+  await fs.promises.writeFile(path.join(repoRoot, 'data.secret'), 'first\n');
+  await execFileAsync('git', ['add', '.'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'secret'],
+    { cwd: repoRoot },
+  );
+  // A pending worktree change so the default (worktree) diff is non-empty.
+  await fs.promises.writeFile(path.join(repoRoot, 'data.secret'), 'second\n');
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+
+  await backend.diff();
+  t.false(fs.existsSync(marker), 'diff() must not invoke the textconv driver');
+
+  await backend.show('HEAD');
+  t.false(fs.existsSync(marker), 'show() must not invoke the textconv driver');
+});
+
+test('NativeGitBackend stays usable when the first commit lands on an empty repo', async t => {
+  // Regression for the empty-repo identity throw (Codex P2).  A backend
+  // constructed over a repo with no commits caches rootCommit='EMPTY'.
+  // After the first commit() the follow-up identity check sees a real
+  // root SHA and used to throw "Git repository identity changed" even
+  // though the commit succeeded.
+  const repoRoot = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'native-git-empty-'),
+  );
+  t.teardown(() => fs.promises.rm(repoRoot, { recursive: true, force: true }));
+  await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'first.txt'), 'hello\n');
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  await backend.assertRepositoryRoot();
+  await backend.add(['first.txt']);
+
+  const commit = await backend.commit('first commit on an empty repo');
+  t.truthy(commit.oid, 'commit should resolve with a real oid');
+  t.is(commit.summary, 'first commit on an empty repo');
+
+  // The capability remains usable for subsequent operations against the
+  // now-non-empty repository.
+  const commits = await backend.log();
+  t.is(commits.length, 1);
+  t.is(commits[0].oid, commit.oid);
+});
+
+test('NativeGitBackend read paths do not mutate .git/index metadata', async t => {
+  // Regression for the missing GIT_OPTIONAL_LOCKS=0 on read paths
+  // (Codex P2b).  `git status` opportunistically refreshes and rewrites
+  // `.git/index` when a worktree stat differs from the recorded one, so
+  // a "read-only" inspection mutated repo metadata and would fail on a
+  // read-only filesystem.  `GIT_OPTIONAL_LOCKS=0` (set in the sanitized
+  // env) suppresses that write.
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'tracked.txt'), 'one\n');
+  await execFileAsync('git', ['add', 'tracked.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'add tracked',
+    ],
+    { cwd: repoRoot },
+  );
+
+  const indexPath = path.join(repoRoot, '.git', 'index');
+  // Touch the tracked file so the worktree stat differs from the index,
+  // which is exactly the condition that provokes the opportunistic
+  // index refresh.
+  const future = new Date(Date.now() + 5_000);
+  await fs.promises.utimes(path.join(repoRoot, 'tracked.txt'), future, future);
+  const before = (await fs.promises.stat(indexPath)).mtimeMs;
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  await backend.status();
+
+  const after = (await fs.promises.stat(indexPath)).mtimeMs;
+  t.is(after, before, 'status must not rewrite .git/index');
+});
