@@ -150,6 +150,9 @@
       "path": "packages/syrup-frame/tsconfig.composite.json"
     },
     {
+      "path": "packages/tar/tsconfig.composite.json"
+    },
+    {
       "path": "packages/test262-runner/tsconfig.composite.json"
     },
     {
