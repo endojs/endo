@@ -7,7 +7,7 @@ import url from 'url';
 import { execa } from 'execa';
 
 const dirname = url.fileURLToPath(new URL('.', import.meta.url));
-const endoBin = path.join(dirname, '..', 'bin', 'endo');
+const endoBin = path.join(dirname, '..', 'bin', 'endo.cjs');
 
 // `endo --help` writes its grouped command listing to stdout without
 // touching the daemon.  This makes it a cheap, deterministic place to

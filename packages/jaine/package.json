@@ -5,6 +5,14 @@
   "description": "Stateless channel-mention agent — each mention starts a fresh LLM context",
   "author": "Endo contributors",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/jaine"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
   "type": "module",
   "exports": {
     ".": "./agent.js",

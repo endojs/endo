@@ -8,6 +8,9 @@
     "node": ">=16"
   },
   "packageManager": "yarn@4.13.0",
+  "resolutions": {
+    "ava": "8.0.1"
+  },
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.31.0",
