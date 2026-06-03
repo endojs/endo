@@ -1,6 +1,6 @@
 {
   "name": "@endo/base64",
-  "version": "1.0.12",
+  "version": "1.1.0",
   "description": "Transcodes base64",
   "keywords": [
     "base64",
@@ -32,8 +32,6 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX -e node_modules/",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",

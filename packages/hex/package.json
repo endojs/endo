@@ -1,6 +1,6 @@
 {
   "name": "@endo/hex",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Transcodes hexadecimal",
   "keywords": [
     "hex",
@@ -34,6 +34,7 @@
     "build": "exit 0",
     "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
     "postpack": "git clean -fX -e node_modules/",
+    "cover": "c8 ses-ava",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",

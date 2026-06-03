@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Hardened JavaScript for Fearless Cooperation",
   "keywords": [
     "lockdown",
@@ -18,7 +18,7 @@
     "supply-chain attack",
     "plugin"
   ],
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/ses#readme",
   "repository": {
@@ -119,6 +119,7 @@
     "dist",
     "lib",
     "src",
+    "src-xs",
     "tools"
   ],
   "publishConfig": {

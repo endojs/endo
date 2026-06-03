@@ -1,5 +1,15 @@
 # @endo/captp
 
+## 4.5.1
+
+### Patch Changes
+
+- [#2901](https://github.com/endojs/endo/pull/2901) [`69ca27c`](https://github.com/endojs/endo/commit/69ca27c20c39101e9fa622876d9e3ba71ef2b3d6) Thanks [@kriskowal](https://github.com/kriskowal)! - Sweep `makeFinalizingMap`'s `get` operator to use optional chaining
+  (`keyToRef.get(key)?.deref()`) now that [#1514](https://github.com/endojs/endo/issues/1514) has completed, replacing
+  the prior explicit conditional. Behavior is unchanged.
+- Updated dependencies [[`45d06cd`](https://github.com/endojs/endo/commit/45d06cd1624241b371c3ccc2076138c42ee7bd80)]:
+  - @endo/marshal@1.10.0
+
 ## 4.5.0
 
 ### Minor Changes

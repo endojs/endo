@@ -6,7 +6,7 @@
     "ses",
     "ava"
   ],
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/ses-ava#readme",
   "repository": {
@@ -19,7 +19,7 @@
   },
   "type": "module",
   "main": "./index.js",
-  "bin": "bin/ses-ava",
+  "bin": "bin/ses-ava.cjs",
   "exports": {
     ".": "./index.js",
     "./test.js": {
@@ -33,20 +33,18 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX -e node_modules/",
     "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava && bin/ses-ava --only env --only raw"
+    "test": "ava && bin/ses-ava.cjs --only env --only raw"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
-    "ava": "^5.3.0 || ^6.1.2",
+    "ava": "^6 || ^7 || ^8",
     "ses": "workspace:^"
   },
   "devDependencies": {

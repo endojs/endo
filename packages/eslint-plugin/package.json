@@ -1,6 +1,6 @@
 {
   "name": "@endo/eslint-plugin",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "ESLint plugin for using Endo",
   "keywords": [
     "eslint",
@@ -16,8 +16,7 @@
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
-    "lint:types": "tsc",
-    "postpack": "git clean -fX -e node_modules/"
+    "lint:types": "tsc"
   },
   "dependencies": {
     "@eslint-community/eslint-utils": "^4.7.0",
@@ -42,6 +41,8 @@
   },
   "license": "Apache-2.0",
   "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
     "directory": "packages/eslint-plugin"
   },
   "files": [
@@ -68,5 +69,8 @@
     "env": {
       "node": true
     }
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
   }
 }

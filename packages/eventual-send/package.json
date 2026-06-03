@@ -9,12 +9,10 @@
     "test:xs": "exit 0",
     "build": "exit 0",
     "clean": "git clean -fX -e node_modules/",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "yarn clean",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
-    "lint:eslint": "eslint '**/*.js'"
+    "lint:eslint": "eslint ."
   },
   "exports": {
     "./package.json": "./package.json",

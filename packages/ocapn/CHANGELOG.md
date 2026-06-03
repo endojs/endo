@@ -1,5 +1,32 @@
 # @endo/ocapn
 
+## 1.1.0
+
+### Minor Changes
+
+- [#3256](https://github.com/endojs/endo/pull/3256) [`bdb9ddc`](https://github.com/endojs/endo/commit/bdb9ddc50d3aa9cef17b61a4d587a14a39142470) Thanks [@kriskowal](https://github.com/kriskowal)! - - Add a `framing` option to `makeTcpNetLayer` (`@endo/ocapn/netlayer/tcp-testing`). The default is `'syrup'`, which wraps each message in the `<length>:<payload>` framing implemented by `@endo/syrup-frame`. This is the framing the OCapN TCP-for-testing netlayer is moving toward (cf. the 2025-12-09 OCapN plenary, https://github.com/ocapn/ocapn/blob/main/meeting-minutes/2025-12-09.md), and is robust to TCP chunk boundaries that split a single OCapN message. Pass `framing: 'none'` to interoperate with the existing `ocapn/ocapn-test-suite` Python `testing_only_tcp` netlayer, which writes a syrup-encoded record with `sendall` and reads one back with `syrup.syrup_read` (no length prefix on the wire). The `'none'` option exists only for that suite's sake and goes away once the suite either adopts syrup framing or is retired.
+
+- [#3192](https://github.com/endojs/endo/pull/3192) [`08b077d`](https://github.com/endojs/endo/commit/08b077d7a97be3dd28d7f424b7bf1742254b7c9d) Thanks [@kumavis](https://github.com/kumavis)! - Sync `@endo/ocapn` with [ocapn-test-suite](https://github.com/ocapn/ocapn-test-suite) at commit [74db78f08a40efba1e2b975d809374ff0e7acf60](https://github.com/ocapn/ocapn-test-suite/commit/74db78f08a40efba1e2b975d809374ff0e7acf60) (2026-02-25).
+  - GC operations use list payloads (`exportPositions` / `wireDeltas`, `answerPositions`); wire labels `op:gc-exports` and `op:gc-answers`.
+  - Remove `op:deliver-only`; fire-and-forget delivery uses `op:deliver` with `answerPosition` and `resolveMeDesc` set to `false`.
+  - Codec refactors: `makeOcapnFalseForOptionalCodec` for optional `false` branches, homogeneous Syrup lists via `makeListCodecFromEntryCodec`, and related cleanup in operations and peer location hints.
+
+  CI integration for the Python test suite is pinned to the same commit.
+
+- [#3209](https://github.com/endojs/endo/pull/3209) [`20f9e21`](https://github.com/endojs/endo/commit/20f9e2123888e334ebe6e00cb84858afa4dcf242) Thanks [@kumavis](https://github.com/kumavis)! - - Add a WebSocket netlayer exported as `@endo/ocapn/netlayer/ws` (`makeWebSocketNetLayer`). Used for interop with Guile-Goblins peers and for any other transport that prefers a framed WebSocket over the raw TCP test netlayer.
+  - Add `@endo/ocapn/netlayer/tcp-testing` to the package's `exports` map so consumers can import the existing test netlayer without reaching into `src/`.
+  - The main entry (`@endo/ocapn`) now re-exports `makeClient` and the swissnum helpers `swissnumFromBytes` / `swissnumToBytes` so consumers don't need a deep `src/client/...` import for the common case.
+  - `makeClient` accepts a new `logger` option; when omitted the existing console-based logger is used, so this is backwards-compatible.
+  - The CapTP version-mismatch log on `start-session` now includes both the received and expected version strings.
+
+### Patch Changes
+
+- Updated dependencies [[`ad7a177`](https://github.com/endojs/endo/commit/ad7a177e84b08c74526ceb9b0ea15f3c81c06158), [`dd45f4a`](https://github.com/endojs/endo/commit/dd45f4a7ffcf9f8d6fb3aa23a5d22fe00beef8e8), [`45d06cd`](https://github.com/endojs/endo/commit/45d06cd1624241b371c3ccc2076138c42ee7bd80), [`38fe678`](https://github.com/endojs/endo/commit/38fe6787d8187ec6614fc8f2dcb5b08088cbb0d2)]:
+  - @endo/hex@1.1.0
+  - @endo/bytes@1.0.0
+  - @endo/marshal@1.10.0
+  - @endo/syrup-frame@0.1.1
+
 ## 1.0.0
 
 ### Major Changes

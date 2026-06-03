@@ -41,3 +41,19 @@ node ../pantspack/pantspack.js --config pantspack.config.js
 `pantspack-folder-runner` sees `jorts-folder` mentioned and must dynamically require it. It then provides the necessary data to `jorts-folder`, which resolves and dynamically requires "source" `.jorts.js` files within `webpackish-app`.
 
 The aim of this whole endeavor is to enable this: `webpackish-app` does not know anything about `pantspack-folder-runner` and does not actually require `jorts-folder` directly, yet its `Compartment` must allow `jorts-folder` to reach in to `webpackish-app` and dynamically require `.jorts.js` files.
+
+## Dependency Tree
+
+```mermaid
+---
+config:
+  themeVariables:
+    fontFamily: "Fira Mono,Menlo,Consolas,Liberation Mono,monospace"
+---
+graph TD
+  webpackish-app--> |"`_dev_`"| jorts-folder
+  webpackish-app--> |"`_dev_`"| pantspack
+  jorts-folder--- |"`_peer_`"| pantspack
+  pantspack==> pantspack-folder-runner
+classDef default white-space:nowrap
+```

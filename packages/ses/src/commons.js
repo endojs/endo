@@ -45,6 +45,7 @@ export const {
   Uint8Array,
   WeakMap,
   WeakSet,
+  Temporal, // may be undefined on old JS engines
 } = globalThis;
 
 export const {

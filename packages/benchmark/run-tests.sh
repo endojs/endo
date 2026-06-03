@@ -5,12 +5,12 @@ set -e
 echo "yarn version: $(yarn --version)"
 
 are_engines_installed() {
-    [ -f "$HOME/.bench-engines/bin/xs" ] && [ -f "$HOME/.bench-engines/bin/v8" ]
+    [ -f "$HOME/.engines/bin/xs" ] && [ -f "$HOME/.engines/bin/v8" ]
 }
 
 
 if ! are_engines_installed; then
-    echo "xs and/or v8 not found in $HOME/.bench-engines/bin; please run 'yarn install-engines' to install them."
+    echo "xs and/or v8 not found in $HOME/.engines/bin; please run 'yarn install-engines' to install them."
     exit 127
 fi
 

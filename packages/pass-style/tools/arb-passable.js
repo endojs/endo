@@ -18,7 +18,7 @@ export const exampleCarol = Far('carol', {});
  * @param {Array<'byteArray'>} [exclusions]
  */
 export const makeArbitraries = (fc, exclusions = []) => {
-  const arbString = fc.oneof(fc.string(), fc.fullUnicodeString());
+  const arbString = fc.oneof(fc.string(), fc.string({ unit: 'binary' }));
 
   const keyableLeaves = [
     fc.constantFrom(null, undefined, false, true),
@@ -42,12 +42,14 @@ export const makeArbitraries = (fc, exclusions = []) => {
     // because we may go through a phase where only `sliceToImmutable` is
     // provided when the shim is run on Hermes.
     // See https://github.com/endojs/endo/pull/2785
-    // @ts-expect-error How can the shim add to the `ArrayBuffer` type?
     ...[fc.uint8Array().map(arr => arr.buffer.sliceToImmutable())].filter(
       () => !exclusions.includes('byteArray'),
     ),
     fc.constantFrom(-0, NaN, Infinity, -Infinity),
-    fc.record({}),
+    // `noNullPrototype` keeps fast-check 4 from generating `{__proto__:null}`
+    // objects, which are not valid copyRecords (they must inherit from
+    // Object.prototype).
+    fc.record({}, { noNullPrototype: true }),
     fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
   ];
 
@@ -69,6 +71,7 @@ export const makeArbitraries = (fc, exclusions = []) => {
         fc.dictionary(
           arbString.filter(s => s !== 'then'),
           tie('keyDag'),
+          { noNullPrototype: true },
         ),
       ),
     };
@@ -83,6 +86,7 @@ export const makeArbitraries = (fc, exclusions = []) => {
         fc.dictionary(
           arbString.filter(s => s !== 'then'),
           tie('arbDag'),
+          { noNullPrototype: true },
         ),
         // A promise for a passable.
         tie('arbDag').map(v => Promise.resolve(v)),
