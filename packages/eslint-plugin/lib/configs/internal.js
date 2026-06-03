@@ -5,8 +5,11 @@ const dynamicConfig = {
   overrides: /** @type {*[]} */ ([]),
 };
 
+// The project service discovers the nearest tsconfig per file and falls
+// back to `defaultProject` for stray `*.js` files. It supersedes the older
+// `project` glob, which must not be set alongside it: newer
+// typescript-eslint parsers reject enabling both.
 const parserOptions = {
-  useProjectService: true,
   sourceType: 'module',
   projectService: {
     allowDefaultProject: ['*.js'],
