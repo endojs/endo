@@ -22,6 +22,7 @@ export {
 
 export {
   GitInterface,
+  GitTreeInterface,
   GitRemoteInterface,
   GitRemoteControllerInterface,
   GitCredentialControllerInterface,

@@ -63,6 +63,9 @@
       "path": "../stream-node/tsconfig.composite.json"
     },
     {
+      "path": "../tar/tsconfig.composite.json"
+    },
+    {
       "path": "../where/tsconfig.composite.json"
     },
     {

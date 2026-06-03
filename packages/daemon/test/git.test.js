@@ -270,6 +270,10 @@ test('NativeGitBackend.tree exposes historical blobs and subtrees', async t => {
   const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const tree = /** @type {any} */ (await backend.tree('HEAD'));
 
+  // eslint-disable-next-line no-underscore-dangle
+  const treeMethods = await E(tree).__getMethodNames__();
+  t.true(treeMethods.includes('archiveTar'));
+
   t.deepEqual(await E(tree).list(), ['README.md', 'src']);
   t.true(await E(tree).has('README.md'));
   t.true(await E(tree).has('src', 'config.json'));
@@ -287,6 +291,53 @@ test('NativeGitBackend.tree exposes historical blobs and subtrees', async t => {
   t.deepEqual(await E(src).list(), ['config.json']);
   const config = await E(tree).lookup(['src', 'config.json']);
   t.deepEqual(await E(config).json(), { ok: true });
+});
+
+test('NativeGitBackend.tree streams archiveTar from the immutable tree', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'archive.txt'), 'old\n');
+  await execFileAsync('git', ['add', 'archive.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'add archive file',
+    ],
+    { cwd: repoRoot },
+  );
+  await fs.promises.writeFile(path.join(repoRoot, 'archive.txt'), 'new\n');
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const tree = /** @type {any} */ (await backend.tree('HEAD'));
+  const reader = await E(tree).archiveTar();
+
+  const chunks = [];
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const chunk = await E(reader).next();
+    if (chunk.done) {
+      break;
+    }
+    chunks.push(Buffer.from(chunk.value, 'base64'));
+  }
+  const archive = Buffer.concat(chunks);
+  t.true(
+    archive.includes(Buffer.from('archive.txt')),
+    'tar stream includes the committed file name',
+  );
+  t.true(
+    archive.includes(Buffer.from('old\n')),
+    'tar stream is anchored to the immutable commit tree',
+  );
+  t.false(
+    archive.includes(Buffer.from('new\n')),
+    'tar stream does not read mutable worktree content',
+  );
 });
 
 test('NativeGitBackend.tree streams blobs larger than the exec buffer cap', async t => {

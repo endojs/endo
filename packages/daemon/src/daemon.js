@@ -24,6 +24,7 @@ import {
   makeUnavailableGitCredential,
 } from '@endo/exo-git';
 import { makeRefReader, makeRefIterator } from './ref-reader.js';
+import { checkinTarTree } from './tar-checkin.js';
 import { makeIteratorRef, makeReaderRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -93,6 +94,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
+/** @import { ArchiveTreeMethods } from './tar-checkin.js' */
 /** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
 /**
@@ -3766,11 +3768,32 @@ const makeDaemonCore = async (
       withFormulaGraphLock(async () => {
         await null;
 
-        // Walk the remote tree and store all content via the platform adapter.
-        const { sha256: treeSha256 } = await platformCheckinTree(
-          remoteTree,
-          contentStore,
-        );
+        const archiveTree =
+          /** @type {import('@endo/far').ERef<ArchiveTreeMethods>} */ (
+            remoteTree
+          );
+        const methods =
+          // eslint-disable-next-line no-underscore-dangle
+          await E(archiveTree)
+            .__getMethodNames__()
+            .catch(() => /** @type {string[]} */ ([]));
+        // `git archive` is not a lossless tree source: it honors a
+        // committed `.gitattributes` `export-ignore` (omitting matching
+        // tracked files) and flattens gitlinks / submodule commits to
+        // empty directories. Take the fast archive path only when the
+        // tree reports itself archive-lossless; otherwise fall back to
+        // the per-entry `ls-tree`/`cat-file` walk, which mirrors the
+        // committed tree exactly and fails loudly on gitlinks.
+        const useArchive =
+          methods.includes('archiveTar') &&
+          (!methods.includes('archiveLossless') ||
+            (await E(archiveTree).archiveLossless()));
+        const treeSha256 = useArchive
+          ? await checkinTarTree(
+              await E(archiveTree).archiveTar(),
+              contentStore,
+            )
+          : (await platformCheckinTree(remoteTree, contentStore)).sha256;
 
         const formulaNumber = /** @type {FormulaNumber} */ (
           await randomHex256()

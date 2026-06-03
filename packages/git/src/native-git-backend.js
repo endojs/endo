@@ -13,10 +13,8 @@ import { URL, fileURLToPath } from 'node:url';
 
 import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
-import {
-  ReadableBlobInterface,
-  ReadableTreeInterface,
-} from '@endo/platform/fs/lite';
+import { ReadableBlobInterface } from '@endo/platform/fs/lite';
+import { GitTreeInterface } from '@endo/exo-git';
 
 // `TextDecoder` is portable across XS, browsers, and SES realms;
 // prefer it over `Buffer.from(...).toString('utf8')` per the project
@@ -1522,6 +1520,67 @@ export const makeNativeGitBackend = ({
   };
 
   /**
+   * Reports whether `git archive --format=tar <treeOid>` reproduces the
+   * committed tree without loss.  `git archive` is NOT a lossless tree
+   * source: it honors a committed `.gitattributes` `export-ignore`
+   * pattern (omitting matching tracked files) and emits gitlinks /
+   * submodule commits as empty directory entries.  A tar snapshot of
+   * such a tree would not match the committed Git tree, so the caller
+   * must take the per-entry `ls-tree`/`cat-file` walk instead, which is
+   * immune to `export-ignore` and fails loudly on gitlinks.
+   *
+   * Detection walks the tree recursively once (no blob content beyond
+   * any `.gitattributes` files) so the common, lossless case routes to
+   * the fast archive path while only affected repos fall back.
+   *
+   * @param {string} treeOid
+   * @returns {Promise<boolean>}
+   */
+  const treeArchiveLossless = async treeOid => {
+    // `-r` recurses, `-t` also lists the tree (directory) records so a
+    // gitlink — which `git archive` would flatten to an empty directory —
+    // surfaces as a `commit`-type record.
+    const raw = await runGitRaw([
+      'ls-tree',
+      '-r',
+      '-t',
+      '-z',
+      '--long',
+      treeOid,
+    ]);
+    const entries = parseLsTreeEntries(raw);
+    /** @type {string[]} */
+    const gitattributesOids = [];
+    for (const entry of entries) {
+      // A gitlink / submodule commit. `git archive` emits it as an empty
+      // directory, dropping the committed submodule reference.
+      if (entry.type === 'commit' || entry.mode === '160000') {
+        return false;
+      }
+      if (
+        entry.type === 'blob' &&
+        (entry.name === '.gitattributes' ||
+          entry.name.endsWith('/.gitattributes'))
+      ) {
+        gitattributesOids.push(entry.oid);
+      }
+    }
+    for (const oid of gitattributesOids) {
+      // eslint-disable-next-line no-await-in-loop
+      const text = utf8Decoder.decode(await readBlobBytes(oid));
+      // An `export-ignore` attribute set on any pattern causes
+      // `git archive` to omit the matching tracked files. We treat any
+      // occurrence conservatively: a `-export-ignore` reset still proves
+      // export-ignore is in play and the archive cannot be trusted as a
+      // lossless mirror of the committed tree.
+      if (/(^|\s)[^\s#]*export-ignore\b/u.test(text)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  /**
    * @param {string} blobOid
    */
   const streamBlobBytes = blobOid =>
@@ -1628,7 +1687,23 @@ export const makeNativeGitBackend = ({
       return self;
     };
 
-    self = makeExo('GitTree', ReadableTreeInterface, {
+    self = makeExo('GitTree', GitTreeInterface, {
+      /** @returns {unknown} A reader ref over the `git archive --format=tar` stream. */
+      archiveTar() {
+        return makeReaderRef(
+          streamGitBuffer(['archive', '--format=tar', treeOid]),
+        );
+      },
+
+      /** @returns {Promise<boolean>} */
+      archiveLossless() {
+        return treeArchiveLossless(treeOid);
+      },
+
+      /**
+       * @param {...string} pathArgs
+       * @returns {Promise<boolean>}
+       */
       async has(...pathArgs) {
         const segments = normalizeTreePath(pathArgs);
         if (segments.length === 0) {
@@ -1642,6 +1717,10 @@ export const makeNativeGitBackend = ({
         }
       },
 
+      /**
+       * @param {...string} pathArgs
+       * @returns {Promise<string[]>}
+       */
       async list(...pathArgs) {
         const segments = normalizeTreePath(pathArgs);
         if (segments.length > 0) {
@@ -1654,6 +1733,10 @@ export const makeNativeGitBackend = ({
         return harden(entries.map(entry => entry.name));
       },
 
+      /**
+       * @param {string | string[]} pathArg
+       * @returns {Promise<unknown>} The nested GitTree or GitBlob remotable.
+       */
       async lookup(pathArg) {
         const segments =
           typeof pathArg === 'string'

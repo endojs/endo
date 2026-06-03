@@ -11,6 +11,8 @@ import fsp from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
+import { execFile } from 'child_process';
+import { promisify as nodePromisify } from 'util';
 import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -44,6 +46,7 @@ import {
  */
 
 const cryptoPowers = makeCryptoPowers(crypto);
+const execFileAsync = nodePromisify(execFile);
 
 const { raw } = String;
 
@@ -3935,6 +3938,334 @@ const createMountFixture = async (basePath, files) => {
     await fs.promises.writeFile(fullPath, content, 'utf-8');
   }
 };
+
+/**
+ * @param {string} repoPath
+ * @param {string[]} args
+ */
+const git = (repoPath, args) => execFileAsync('git', args, { cwd: repoPath });
+
+/**
+ * @param {string} repoPath
+ */
+const createGitFixture = async repoPath => {
+  await fs.promises.rm(repoPath, { recursive: true, force: true });
+  await fs.promises.mkdir(repoPath, { recursive: true });
+  await git(repoPath, ['init', '-q', '-b', 'main']);
+  await fs.promises.writeFile(
+    path.join(repoPath, 'README.md'),
+    'initial\n',
+    'utf-8',
+  );
+  await git(repoPath, ['add', 'README.md']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'initial commit',
+  ]);
+};
+
+/**
+ * @param {object} options
+ * @param {string} options.name
+ * @param {string} [options.typeFlag]
+ * @param {string | Uint8Array} [options.body]
+ * @param {string} [options.linkName]
+ */
+const makeTarEntry = ({ name, typeFlag = '0', body = '', linkName = '' }) => {
+  const content =
+    typeof body === 'string' ? Buffer.from(body, 'utf8') : Buffer.from(body);
+  const header = Buffer.alloc(512);
+  header.write(name, 0, 100, 'utf8');
+  header.write('0000644\0', 100, 8, 'ascii');
+  header.write('0000000\0', 108, 8, 'ascii');
+  header.write('0000000\0', 116, 8, 'ascii');
+  header.write(
+    `${content.byteLength.toString(8).padStart(11, '0')}\0`,
+    124,
+    12,
+    'ascii',
+  );
+  header.write('00000000000\0', 136, 12, 'ascii');
+  header.write(typeFlag, 156, 1, 'ascii');
+  header.write(linkName, 157, 100, 'utf8');
+  header.write('ustar\0', 257, 6, 'ascii');
+  const padding = Buffer.alloc((512 - (content.byteLength % 512)) % 512);
+  return Buffer.concat([header, content, padding]);
+};
+
+/**
+ * Build a pax extended header block (typeflag `x` or `g`) from a record
+ * map, mirroring what `git archive --format=tar` emits before an entry
+ * whose path or size will not fit the ustar header fields.
+ *
+ * @param {Record<string, string>} records
+ * @param {string} [typeFlag]
+ */
+const makePaxHeader = (records, typeFlag = 'x') => {
+  let body = '';
+  for (const [key, value] of Object.entries(records)) {
+    const tail = ` ${key}=${value}\n`;
+    // `<length>` is the decimal byte length of the whole record,
+    // including the length digits, the space, and the newline; solve
+    // for the self-referential length.
+    let length = tail.length + 1;
+    while (`${length}`.length + tail.length !== length) {
+      length = `${length}`.length + tail.length;
+    }
+    body += `${length}${tail}`;
+  }
+  return makeTarEntry({ name: '@PaxHeader', typeFlag, body });
+};
+
+/**
+ * @param {Uint8Array} archiveBytes
+ */
+const makeArchiveTree = archiveBytes =>
+  Far('ArchiveTree', {
+    archiveTar: () => makeReaderRef([archiveBytes]),
+  });
+
+test('provideGit tree exposes immutable commit contents', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-tree-repo');
+  await createGitFixture(repoPath);
+  await fs.promises.mkdir(path.join(repoPath, 'src'));
+  await fs.promises.writeFile(
+    path.join(repoPath, 'src', 'main.js'),
+    'export default 1;\n',
+    'utf-8',
+  );
+  // Symlink exercises the tar `typeFlag === '2'` branch in
+  // `checkinTarTree`; `git archive` emits symlinks as type-`l`
+  // entries whose linkname is the target path.
+  await fs.promises.symlink('main.js', path.join(repoPath, 'src', 'alias.js'));
+  await git(repoPath, ['add', 'src/main.js', 'src/alias.js']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add source',
+  ]);
+
+  const mount = await E(host).provideMount(repoPath, 'git-tree-worktree');
+  const gitCap = await E(host).provideGit(mount, 'git-tree-cap');
+  const tree = await E(gitCap).tree('HEAD');
+  // eslint-disable-next-line no-underscore-dangle
+  const treeMethods = await E(tree).__getMethodNames__();
+  t.true(treeMethods.includes('archiveTar'));
+
+  const names = await E(tree).list();
+  t.deepEqual(names, ['README.md', 'src']);
+  const src = await E(tree).lookup('src');
+  t.deepEqual(await E(src).list(), ['alias.js', 'main.js']);
+
+  const main = await E(tree).lookup(['src', 'main.js']);
+  t.is(await E(main).text(), 'export default 1;\n');
+  await fs.promises.writeFile(
+    path.join(repoPath, 'src', 'main.js'),
+    'export default 2;\n',
+    'utf-8',
+  );
+  t.is(await E(main).text(), 'export default 1;\n');
+
+  await E(host).storeTree(tree, 'git-tree-snapshot');
+  const storedTree = await E(host).lookup('git-tree-snapshot');
+  const storedMain = await E(storedTree).lookup(['src', 'main.js']);
+  t.is(await E(storedMain).text(), 'export default 1;\n');
+  // The symlink is checked in as a blob whose contents are the link
+  // target text, anchored to the immutable commit tree.
+  const storedAlias = await E(storedTree).lookup(['src', 'alias.js']);
+  t.is(await E(storedAlias).text(), 'main.js');
+});
+
+test('storeTree honors pax extended headers for long paths', async t => {
+  const { host } = await prepareHost(t);
+
+  // A single filename over 100 bytes cannot fit the ustar name/prefix
+  // fields, so `git archive --format=tar` emits a pax extended header
+  // (typeflag `x`) carrying `path=<long>` before the file entry. The
+  // ustar header that follows holds a truncated stand-in name; the pax
+  // `path` override is authoritative.
+  const longName = `${'deep-path-segment-'.repeat(7)}file.txt`;
+  t.true(longName.length > 100);
+  const body = 'pax payload\n';
+  const archive = Buffer.concat([
+    makePaxHeader({ path: longName }),
+    // ustar name is the truncated path; parser ignores it in favor of
+    // the pax override. Its size field still governs the content block.
+    makeTarEntry({ name: longName.slice(0, 100), body }),
+  ]);
+
+  const archiveTree = makeArchiveTree(archive);
+  await E(host).storeTree(archiveTree, 'pax-snapshot');
+  const storedTree = await E(host).lookup('pax-snapshot');
+  // Fail-closed: the unfixed parser rejects the typeflag-`x` header as
+  // an "Unsupported tar entry type", so storeTree never reaches here.
+  const storedFile = await E(storedTree).lookup(longName);
+  t.is(await E(storedFile).text(), body);
+});
+
+test('storeTree falls back for export-ignore trees the archive would drop', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-export-ignore-repo');
+  await createGitFixture(repoPath);
+  // `git archive --format=tar` honors a committed `.gitattributes`
+  // `export-ignore`, OMITTING `secret.txt` from the tar. The committed
+  // tree still contains it, so the immutable snapshot must include it.
+  await fs.promises.writeFile(
+    path.join(repoPath, 'secret.txt'),
+    'keep me\n',
+    'utf-8',
+  );
+  await fs.promises.writeFile(
+    path.join(repoPath, '.gitattributes'),
+    'secret.txt export-ignore\n',
+    'utf-8',
+  );
+  await git(repoPath, ['add', 'secret.txt', '.gitattributes']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add export-ignored file',
+  ]);
+
+  const mount = await E(host).provideMount(repoPath, 'export-ignore-worktree');
+  const gitCap = await E(host).provideGit(mount, 'export-ignore-cap');
+  const tree = await E(gitCap).tree('HEAD');
+
+  // The tree reports itself NOT archive-lossless, so checkinTree routes
+  // to the per-entry walk instead of the lossy fast path.
+  t.is(await E(tree).archiveLossless(), false);
+
+  await E(host).storeTree(tree, 'export-ignore-snapshot');
+  const storedTree = await E(host).lookup('export-ignore-snapshot');
+  // Fail-closed: the unfixed fast path takes `git archive`, which drops
+  // `secret.txt`, so this lookup would reject. The fallback preserves it.
+  const storedSecret = await E(storedTree).lookup('secret.txt');
+  t.is(await E(storedSecret).text(), 'keep me\n');
+});
+
+test('git tree reports a gitlink as not archive-lossless', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-gitlink-repo');
+  await createGitFixture(repoPath);
+  // Stage a gitlink (submodule commit, mode 160000) directly via the
+  // index. `git archive` would flatten it to an empty directory; the
+  // tree must report itself NOT archive-lossless so checkinTree takes
+  // the per-entry walk, which fails loudly on the submodule commit
+  // rather than silently dropping the reference.
+  await git(repoPath, [
+    'update-index',
+    '--add',
+    '--cacheinfo',
+    `160000,${'0'.repeat(39)}1,vendor/sub`,
+  ]);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add gitlink',
+  ]);
+
+  const mount = await E(host).provideMount(repoPath, 'gitlink-worktree');
+  const gitCap = await E(host).provideGit(mount, 'gitlink-cap');
+  const tree = await E(gitCap).tree('HEAD');
+
+  // Fail-closed: the unfixed flow lacks this signal and would archive
+  // the tree, snapshotting the gitlink as an empty directory.
+  t.is(await E(tree).archiveLossless(), false);
+});
+
+test('storeTree rejects malformed archiveTar streams', async t => {
+  const { host } = await prepareHost(t);
+
+  // Tar entry whose `size` field has been corrupted to non-octal text;
+  // exercises the `tarOctal` regex-reject branch.
+  const invalidOctalEntry = makeTarEntry({ name: 'a.txt', body: 'x' });
+  invalidOctalEntry.write('99999999999\0', 124, 12, 'ascii');
+
+  // Header that claims more content than the archive contains;
+  // exercises the `Truncated tar content` branch.
+  const truncatedContentEntry = makeTarEntry({ name: 'a.txt', body: 'x' });
+  // Override size to 1024 (octal 2000) without supplying the bytes.
+  truncatedContentEntry.write('00000002000\0', 124, 12, 'ascii');
+  const truncatedContent = truncatedContentEntry.slice(0, 512);
+
+  const cases = [
+    {
+      name: 'traversal',
+      bytes: makeTarEntry({ name: '../escape.txt', body: 'bad' }),
+      message: /Invalid tar entry path segment/,
+    },
+    {
+      name: 'absolute',
+      bytes: makeTarEntry({ name: '/etc/passwd', body: 'bad' }),
+      message: /Invalid tar entry path/,
+    },
+    {
+      name: 'duplicate',
+      bytes: Buffer.concat([
+        makeTarEntry({ name: 'same.txt', body: 'one' }),
+        makeTarEntry({ name: 'same.txt', body: 'two' }),
+      ]),
+      message: /Duplicate tar entry path/,
+    },
+    {
+      name: 'blob-dir-conflict',
+      bytes: Buffer.concat([
+        makeTarEntry({ name: 'collide', body: 'leaf' }),
+        makeTarEntry({ name: 'collide/inside.txt', body: 'nested' }),
+      ]),
+      message: /Tar entry path conflicts with blob/,
+    },
+    {
+      name: 'invalid-octal',
+      bytes: invalidOctalEntry,
+      message: /Invalid tar octal field/,
+    },
+    {
+      name: 'truncated-content',
+      bytes: truncatedContent,
+      message: /Truncated tar content/,
+    },
+    {
+      name: 'truncated',
+      bytes: Buffer.alloc(64),
+      message: /Truncated tar header/,
+    },
+    {
+      name: 'unsupported',
+      bytes: makeTarEntry({ name: 'fifo', typeFlag: '6' }),
+      message: /Unsupported tar entry type/,
+    },
+  ];
+
+  for (const { name, bytes, message } of cases) {
+    const archiveTree = makeArchiveTree(bytes);
+    // eslint-disable-next-line no-await-in-loop
+    await t.throwsAsync(E(host).storeTree(archiveTree, `bad-${name}`), {
+      message,
+    });
+  }
+});
 
 // --- Retention sync tests ---
 

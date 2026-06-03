@@ -103,6 +103,7 @@ declare module '@endo/exo-git' {
   export const revokeGitCredential: (credential: unknown) => void;
 
   export const GitInterface: object;
+  export const GitTreeInterface: typeof import('./src/interfaces.js').GitTreeInterface;
   export const GitRemoteInterface: object;
   export const GitRemoteControllerInterface: object;
   export const GitCredentialControllerInterface: object;
@@ -189,6 +190,7 @@ declare module '@endo/exo-git/src/git-credential.js' {
 
 declare module '@endo/exo-git/src/interfaces.js' {
   export const GitInterface: object;
+  export const GitTreeInterface: object;
   export const GitRemoteInterface: object;
   export const GitRemoteControllerInterface: object;
   export const GitCredentialControllerInterface: object;

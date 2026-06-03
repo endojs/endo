@@ -432,10 +432,11 @@ export interface EndoGit {
   stashPop(index?: number): Promise<void>;
   stashDrop(index?: number): Promise<void>;
   /**
-   * Returns a `ReadableTree`-shaped view of the given tree-ish; blob
-   * children expose a `ReadableBlob`-shaped surface.
+   * Returns an `EndoGitTree`-shaped view of the given tree-ish; blob
+   * children expose a `ReadableBlob`-shaped surface.  The tree also
+   * exposes `archiveTar()` for streaming the immutable tree as a tar.
    */
-  tree(ref: GitRef | string): Promise<ReadableTreeView>;
+  tree(ref: GitRef | string): Promise<EndoGitTree>;
   /**
    * Returns an `@endo/endo-fs` `Filesystem` lazily backed by the git
    * object database at the resolved tree of `ref`.  The Filesystem is
@@ -1109,6 +1110,14 @@ export interface ReadableTreeView {
   has(...pathSegments: string[]): Promise<boolean>;
   list(...pathSegments: string[]): Promise<string[]>;
   lookup(path: string | string[]): Promise<ReadableTreeView | ReadableBlobView>;
+}
+
+export interface EndoGitTree {
+  archiveTar(): FarRef<Reader<string>>;
+  archiveLossless(): Promise<boolean>;
+  has(...pathSegments: string[]): Promise<boolean>;
+  list(...pathSegments: string[]): Promise<string[]>;
+  lookup(path: string | string[]): Promise<EndoGitTree | EndoReadable>;
 }
 
 /**
