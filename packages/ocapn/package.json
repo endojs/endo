@@ -65,7 +65,7 @@
     "@types/ws": "^8",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
-    "cbor": "^9.0.2",
+    "cbor": "^10.0.12",
     "eslint": "catalog:dev",
     "ses": "workspace:^",
     "tsd": "catalog:dev",

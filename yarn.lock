@@ -2508,7 +2508,7 @@ __metadata:
     "@types/ws": "npm:^8"
     ava: "catalog:dev"
     c8: "catalog:dev"
-    cbor: "npm:^9.0.2"
+    cbor: "npm:^10.0.12"
     eslint: "catalog:dev"
     ses: "workspace:^"
     tsd: "catalog:dev"
@@ -8127,12 +8127,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cbor@npm:^9.0.2":
-  version: 9.0.2
-  resolution: "cbor@npm:9.0.2"
+"cbor@npm:^10.0.12":
+  version: 10.0.12
+  resolution: "cbor@npm:10.0.12"
   dependencies:
-    nofilter: "npm:^3.1.0"
-  checksum: 10c0/709d4378067e663107b3d63a02d123a7b33e28946b4c5cc40c102f2f0ba13b072a79adc4369bb87a4e743399fce45deec30463fc84d363ab7cb39192d0fe5f30
+    nofilter: "npm:^3.0.2"
+  checksum: 10c0/4c197d783415cade31565725a5e6b2b967d856285eacdb0b5f5ec0687d93c12f2ee9c6cc05aa7be02e8bbf0fe3ba40d22be69b56bd2ab1be2cc0a59370f14246
   languageName: node
   linkType: hard
 
@@ -14764,7 +14764,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nofilter@npm:^3.1.0":
+"nofilter@npm:^3.0.2":
   version: 3.1.0
   resolution: "nofilter@npm:3.1.0"
   checksum: 10c0/92459f3864a067b347032263f0b536223cbfc98153913b5dce350cb39c8470bc1813366e41993f22c33cc6400c0f392aa324a4b51e24c22040635c1cdb046499
