@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   browser-tests:
-    timeout-minutes: 30
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     # This Chrome nightly image can no longer install browsers in Github CI for
     # lack of some system dependencies:
@@ -72,14 +72,17 @@ jobs:
       # Wrap the install in a retry: the recurring failure mode is a
       # timeout downloading Chromium from the Playwright CDN shortly
       # after a Chromium version bump, before the CDN has seeded the
-      # new binary widely. Three attempts with a 10-minute per-attempt
-      # ceiling matches the pattern used in
-      # `.github/workflows/ocapn-guile-interop.yml` for transient
-      # network failures.
+      # new binary widely. Three attempts with a 15-minute per-attempt
+      # ceiling: a cold-cache install (browser-binary download plus
+      # the `--with-deps` apt step) can take 8+ minutes on a slow CDN,
+      # so 10 minutes was too tight to absorb a single slow run. Worst
+      # case 3 x 15 = 45 minutes fits inside the job's 60-minute
+      # `timeout-minutes`, leaving headroom for setup, build, and the
+      # tests themselves.
       - name: Install Playwright Browsers
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
         with:
-          timeout_minutes: 10
+          timeout_minutes: 15
           max_attempts: 3
           command: cd browser-test && npx playwright install --with-deps
       - name: Run Playwright tests
