@@ -62,6 +62,23 @@ const provisionGitWorktree = async t => {
 };
 
 /**
+ * Run a git command that needs stdin, returning trimmed UTF-8 stdout.
+ *
+ * @param {string} cwd
+ * @param {string[]} args
+ * @param {Buffer | string} input
+ */
+const gitWithInputSync = (cwd, args, input) => {
+  const result = spawnSync('git', args, { cwd, input });
+  if (result.status !== 0) {
+    throw new Error(
+      `git ${args.join(' ')} failed: ${result.stderr.toString('utf8')}`,
+    );
+  }
+  return result.stdout.toString('utf8').trim();
+};
+
+/**
  * @param {import('ava').ExecutionContext} t
  */
 const provisionMount = async t => {
@@ -270,6 +287,10 @@ test('NativeGitBackend.tree exposes historical blobs and subtrees', async t => {
   const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
   const tree = /** @type {any} */ (await backend.tree('HEAD'));
 
+  // eslint-disable-next-line no-underscore-dangle
+  const treeMethods = await E(tree).__getMethodNames__();
+  t.true(treeMethods.includes('archiveTar'));
+
   t.deepEqual(await E(tree).list(), ['README.md', 'src']);
   t.true(await E(tree).has('README.md'));
   t.true(await E(tree).has('src', 'config.json'));
@@ -287,6 +308,53 @@ test('NativeGitBackend.tree exposes historical blobs and subtrees', async t => {
   t.deepEqual(await E(src).list(), ['config.json']);
   const config = await E(tree).lookup(['src', 'config.json']);
   t.deepEqual(await E(config).json(), { ok: true });
+});
+
+test('NativeGitBackend.tree streams archiveTar from the immutable tree', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'archive.txt'), 'old\n');
+  await execFileAsync('git', ['add', 'archive.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'add archive file',
+    ],
+    { cwd: repoRoot },
+  );
+  await fs.promises.writeFile(path.join(repoRoot, 'archive.txt'), 'new\n');
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const tree = /** @type {any} */ (await backend.tree('HEAD'));
+  const reader = await E(tree).archiveTar();
+
+  const chunks = [];
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const chunk = await E(reader).next();
+    if (chunk.done) {
+      break;
+    }
+    chunks.push(Buffer.from(chunk.value, 'base64'));
+  }
+  const archive = Buffer.concat(chunks);
+  t.true(
+    archive.includes(Buffer.from('archive.txt')),
+    'tar stream includes the committed file name',
+  );
+  t.true(
+    archive.includes(Buffer.from('old\n')),
+    'tar stream is anchored to the immutable commit tree',
+  );
+  t.false(
+    archive.includes(Buffer.from('new\n')),
+    'tar stream does not read mutable worktree content',
+  );
 });
 
 test('NativeGitBackend.tree streams blobs larger than the exec buffer cap', async t => {
@@ -326,6 +394,101 @@ test('NativeGitBackend.tree streams blobs larger than the exec buffer cap', asyn
     bytesRead += Buffer.from(chunk.value, 'base64').byteLength;
   }
   t.is(bytesRead, size);
+});
+
+test('NativeGitBackend.tree reports export-subst trees as not archive-lossless', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(
+    path.join(repoRoot, 'template.txt'),
+    '$Format:%H$\n',
+  );
+  await fs.promises.writeFile(
+    path.join(repoRoot, '.gitattributes'),
+    'template.txt export-subst\n',
+  );
+  await execFileAsync('git', ['add', 'template.txt', '.gitattributes'], {
+    cwd: repoRoot,
+  });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'add export subst',
+    ],
+    { cwd: repoRoot },
+  );
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const tree = /** @type {any} */ (await backend.tree('HEAD'));
+  t.false(await E(tree).archiveLossless());
+});
+
+test('NativeGitBackend.tree treats git info attributes as not archive-lossless', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'secret.txt'), 'secret\n');
+  await execFileAsync('git', ['add', 'secret.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'add secret'],
+    { cwd: repoRoot },
+  );
+  await fs.promises.writeFile(
+    path.join(repoRoot, '.git', 'info', 'attributes'),
+    'secret.txt export-ignore\n',
+  );
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const tree = /** @type {any} */ (await backend.tree('HEAD'));
+  t.false(await E(tree).archiveLossless());
+});
+
+test('NativeGitBackend.tree streams archive-lossless scans larger than the exec buffer cap', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const blobOid = gitWithInputSync(
+    repoRoot,
+    ['hash-object', '-w', '--stdin'],
+    'x\n',
+  );
+  const entryCount = 4_000;
+  let mktreeInput = '';
+  for (let index = 0; index < entryCount; index += 1) {
+    const name = `${`${index}`.padStart(5, '0')}-${'long-name-'.repeat(
+      22,
+    )}.txt`;
+    mktreeInput += `100644 blob ${blobOid}\t${name}\0`;
+  }
+  t.true(Buffer.byteLength(mktreeInput) > internalHelpers.GIT_MAX_BUFFER);
+  const treeOid = gitWithInputSync(
+    repoRoot,
+    ['mktree', '-z'],
+    Buffer.from(mktreeInput, 'utf8'),
+  );
+  const commitOid = gitWithInputSync(
+    repoRoot,
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit-tree',
+      treeOid,
+      '-m',
+      'large tree',
+    ],
+    '',
+  );
+  await execFileAsync('git', ['update-ref', 'refs/heads/main', commitOid], {
+    cwd: repoRoot,
+  });
+
+  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const tree = /** @type {any} */ (await backend.tree('HEAD'));
+  t.true(await E(tree).archiveLossless());
 });
 
 test('Git.readOnly allows immutable tree reads', async t => {

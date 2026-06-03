@@ -113,6 +113,18 @@ export const GitInterface = M.interface('Git', {
   readOnly: M.call().returns(M.remotable('Git')),
 });
 
+export const GitTreeInterface = M.interface('EndoGitTree', {
+  archiveTar: M.call().returns(M.remotable()),
+  // `callWhen` so the settled value (not the promise) is guarded against
+  // the return shape, matching the GitInterface convention above.
+  archiveLossless: M.callWhen().returns(M.boolean()),
+  has: M.callWhen().rest(M.arrayOf(M.string())).returns(M.boolean()),
+  list: M.callWhen().rest(M.arrayOf(M.string())).returns(M.arrayOf(M.string())),
+  lookup: M.callWhen(M.or(M.string(), M.arrayOf(M.string()))).returns(
+    M.remotable(),
+  ),
+});
+
 export const GitRemoteInterface = M.interface('GitRemote', {
   inspect: M.call().returns(M.promise()),
   fetch: M.call()

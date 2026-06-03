@@ -624,6 +624,7 @@ export const MountEntryInterface = M.interface('EndoMountEntry', {
 // internal consumers that referenced them by name from `./interfaces.js`.
 export {
   GitInterface,
+  GitTreeInterface,
   GitRemoteInterface,
   GitRemoteControllerInterface,
   GitCredentialControllerInterface,
