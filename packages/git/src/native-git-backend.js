@@ -1526,12 +1526,7 @@ export const makeNativeGitBackend = ({
     // here (parsing needs random access to NUL-delimited records),
     // but the input bytes flow through `spawn` rather than execFile
     // — bounded by tree size, not by the runner's stdout cap.
-    const text = await readGitText([
-      'ls-tree',
-      '-z',
-      '--long',
-      treeOid,
-    ]);
+    const text = await readGitText(['ls-tree', '-z', '--long', treeOid]);
     return parseLsTreeEntries(text);
   };
 

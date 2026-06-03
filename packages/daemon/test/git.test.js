@@ -434,15 +434,7 @@ test('NativeGitBackend.tree treats git info attributes as not archive-lossless',
   await execFileAsync('git', ['add', 'secret.txt'], { cwd: repoRoot });
   await execFileAsync(
     'git',
-    [
-      '-c',
-      'user.email=t@t',
-      '-c',
-      'user.name=T',
-      'commit',
-      '-m',
-      'add secret',
-    ],
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'add secret'],
     { cwd: repoRoot },
   );
   await fs.promises.writeFile(
