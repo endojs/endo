@@ -50,9 +50,38 @@ jobs:
       - name: Install browser test dependencies
         working-directory: browser-test
         run: npm ci --ignore-scripts
+      # Cache Playwright's browser binaries between runs. The cache key
+      # is keyed on `browser-test/package-lock.json`, which moves when
+      # the resolved `@playwright/test` version changes, so a Playwright
+      # version bump invalidates the cache on the commit that lands it.
+      #
+      # The install step below runs unconditionally rather than guarded
+      # by `cache-hit`: `--with-deps` also installs apt system packages,
+      # which the cache does not cover, and the browser-binary download
+      # itself is a no-op on cache hit. Keeping the step unconditional
+      # avoids a second always-run apt step and keeps the workflow
+      # readable.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('browser-test/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      # Wrap the install in a retry: the recurring failure mode is a
+      # timeout downloading Chromium from the Playwright CDN shortly
+      # after a Chromium version bump, before the CDN has seeded the
+      # new binary widely. Three attempts with a 10-minute per-attempt
+      # ceiling matches the pattern used in
+      # `.github/workflows/ocapn-guile-interop.yml` for transient
+      # network failures.
       - name: Install Playwright Browsers
-        working-directory: browser-test
-        run: npx playwright install --with-deps
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: cd browser-test && npx playwright install --with-deps
       - name: Run Playwright tests
         working-directory: browser-test
         run: npx playwright test
