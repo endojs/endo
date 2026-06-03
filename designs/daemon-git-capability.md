@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-27 |
+| **Updated** | 2026-05-29 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | Proposed |
+| **Status** | Proposed (Phases 0-5 + bulk-archive landed via #364/#365/#367, hardening via #371) |
 
 > **Read in order.**
 > This is doc 2 of 3.
@@ -762,6 +762,27 @@ Complete the required phases from [daemon-mount-capabilities](daemon-mount-capab
 4. Move agent adapters onto `Git`.
 5. Retire path-configured wrappers after the capability path is exercised in real workflows.
 6. Land the structured-shape phase (Phase 7 of the Implementation Plan) alongside `*Text` siblings; migrate in-tree consumers to the structured shapes.
+
+## Implementation Progress and Notes
+
+This section records how the design is realized in shipped code.
+It is not part of the normative design.
+
+### Shipped
+
+- **#364** (`feat(daemon): Git capability over EndoMount`) — Phases 1-5 of the Implementation Plan: `GitBackend` contract and `git` formula, local inspection surface (`status`, `diff`, `log`, `show`, `revParse`), local mutation surface (`add`, `restore`, `commit`, branch operations), integration workflows (`merge`, `rebase`, `stash*`), and the read surface (`tree(ref)`, `readOnly()`).
+  The native backend ships as `NativeGitBackend` with the hardening envelope from Design Decision 4.
+- **#367** (`feat(daemon): archive immutable Git trees`) — the bulk-tree-data-plane optimization named in § Bulk Tree Data Plane.
+  Adds an `archiveTar()` method to the immutable-tree exo that streams `git archive --format=tar` of the tree's commit, plus a daemon-side tar parser and a pull-integration fast path that uses it when a remote-tree reference advertises `archiveTar`.
+  The advertisement is detected at runtime: remote trees that do not implement it continue to use the existing per-entry checkin path, so the bulk path is a strict optimization.
+  The tar parser obeys the authority and validation rules in § Bulk Tree Data Plane: archive entry names are treated as untrusted input (absolute paths, `..`, NUL bytes, duplicate entries, and unsupported modes are rejected), and extraction is performed by trusted code into CAS formulas without giving the guest a destination path.
+- **#371** (`fix(daemon): correctness and authority-boundary fixes for the git capability`) — correctness and authority-boundary hardening on the shipped `Git` surface.
+
+### Forward-design notes
+
+- The pin algorithm's caching/throttling (Design Decision 7 § Verification cadence and caching surface) is licensed forward-design, deferred: it is a backend-private optimization the contract permits but no shipped code has taken up.
+
+Fix, test-coverage, and legibility follow-ups on the shipped trio code (issue #378) are tracked there, not here.
 
 ## Open Questions
 
