@@ -50,41 +50,52 @@ harden(tarOctal);
  * of `"<length> <key>=<value>\n"` entries where `<length>` is the
  * decimal byte length of the whole record including the length field,
  * the space, and the trailing newline. `git archive --format=tar`
- * emits a pax header (typeflag `x`) before any entry whose path or size
- * cannot fit the ustar header fields (e.g. a single filename over 100
- * bytes). We honor `path` and `size` overrides; other keys are ignored.
+ * emits a pax header (typeflag `x`) before any entry whose path, size, or
+ * symlink target cannot fit the ustar header fields. We honor `path`,
+ * `linkpath`, and `size` overrides; other keys are ignored.
  *
  * @param {Uint8Array} bytes
- * @returns {{ path?: string, size?: number }}
+ * @returns {{ path?: string, linkpath?: string, size?: number }}
  */
 export const parsePaxRecords = bytes => {
-  const text = bytesToText(bytes);
-  /** @type {{ path?: string, size?: number }} */
+  /** @type {{ path?: string, linkpath?: string, size?: number }} */
   const overrides = {};
   let cursor = 0;
-  while (cursor < text.length) {
-    const space = text.indexOf(' ', cursor);
-    if (space < 0) {
+  while (cursor < bytes.byteLength) {
+    let space = cursor;
+    while (space < bytes.byteLength && bytes[space] !== 0x20) {
+      space += 1;
+    }
+    if (space === cursor || space >= bytes.byteLength) {
       throw new Error('Malformed pax extended header record');
     }
-    const length = Number.parseInt(text.slice(cursor, space), 10);
+    let length = 0;
+    for (let index = cursor; index < space; index += 1) {
+      const digit = bytes[index] - 0x30;
+      if (digit < 0 || digit > 9) {
+        throw new Error('Malformed pax extended header record');
+      }
+      length = length * 10 + digit;
+    }
     if (
-      !Number.isInteger(length) ||
+      !Number.isSafeInteger(length) ||
       length <= 0 ||
-      cursor + length > text.length ||
-      text[cursor + length - 1] !== '\n'
+      cursor + length > bytes.byteLength ||
+      bytes[cursor + length - 1] !== 0x0a
     ) {
       throw new Error('Malformed pax extended header record');
     }
-    const record = text.slice(space + 1, cursor + length - 1);
-    const equals = record.indexOf('=');
+    const record = bytes.subarray(space + 1, cursor + length - 1);
+    const equals = record.indexOf(0x3d);
     if (equals < 0) {
       throw new Error('Malformed pax extended header record');
     }
-    const key = record.slice(0, equals);
-    const value = record.slice(equals + 1);
+    const key = bytesToText(record.subarray(0, equals));
+    const value = bytesToText(record.subarray(equals + 1));
     if (key === 'path') {
       overrides.path = value;
+    } else if (key === 'linkpath') {
+      overrides.linkpath = value;
     } else if (key === 'size') {
       const parsed = Number.parseInt(value, 10);
       if (!Number.isInteger(parsed) || parsed < 0 || `${parsed}` !== value) {
@@ -246,9 +257,9 @@ export const readTarEntries = async function* readTarEntries(source) {
   // pax overrides parsed from a preceding extended header. `global`
   // (typeflag `g`) persists across entries; `next` (typeflag `x`)
   // applies only to the immediately following entry.
-  /** @type {{ path?: string, size?: number }} */
+  /** @type {{ path?: string, linkpath?: string, size?: number }} */
   let globalPax = {};
-  /** @type {{ path?: string, size?: number } | undefined} */
+  /** @type {{ path?: string, linkpath?: string, size?: number } | undefined} */
   let nextPax;
 
   for (;;) {
@@ -301,6 +312,7 @@ export const readTarEntries = async function* readTarEntries(source) {
     const ustarPath = prefix ? `${prefix}/${name}` : name;
     const archivePath = pax.path !== undefined ? pax.path : ustarPath;
     const size = pax.size !== undefined ? pax.size : rawSize;
+    const linkpath = pax.linkpath !== undefined ? pax.linkpath : linkName;
 
     /** @type {TarEntry['type']} */
     let type;
@@ -323,7 +335,7 @@ export const readTarEntries = async function* readTarEntries(source) {
       type,
       path: archivePath,
       size,
-      linkname: type === 'symlink' ? linkName : '',
+      linkname: type === 'symlink' ? linkpath : '',
       content: reader.streamContent(size, archivePath),
     });
   }

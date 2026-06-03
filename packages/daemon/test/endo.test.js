@@ -4013,9 +4013,10 @@ const makePaxHeader = (records, typeFlag = 'x') => {
     // `<length>` is the decimal byte length of the whole record,
     // including the length digits, the space, and the newline; solve
     // for the self-referential length.
-    let length = tail.length + 1;
-    while (`${length}`.length + tail.length !== length) {
-      length = `${length}`.length + tail.length;
+    const tailLength = Buffer.byteLength(tail, 'utf8');
+    let length = tailLength + 1;
+    while (`${length}`.length + tailLength !== length) {
+      length = `${length}`.length + tailLength;
     }
     body += `${length}${tail}`;
   }
@@ -4114,6 +4115,27 @@ test('storeTree honors pax extended headers for long paths', async t => {
   t.is(await E(storedFile).text(), body);
 });
 
+test('storeTree honors pax linkpath for long symlink targets', async t => {
+  const { host } = await prepareHost(t);
+
+  const longTarget = `${'target-segment-'.repeat(8)}leaf.txt`;
+  t.true(longTarget.length > 100);
+  const archive = Buffer.concat([
+    makePaxHeader({ linkpath: longTarget }),
+    makeTarEntry({
+      name: 'long-link',
+      typeFlag: '2',
+      linkName: 'see 1234567890abcdef.paxheader',
+    }),
+  ]);
+
+  const archiveTree = makeArchiveTree(archive);
+  await E(host).storeTree(archiveTree, 'pax-linkpath-snapshot');
+  const storedTree = await E(host).lookup('pax-linkpath-snapshot');
+  const storedLink = await E(storedTree).lookup('long-link');
+  t.is(await E(storedLink).text(), longTarget);
+});
+
 test('storeTree falls back for export-ignore trees the archive would drop', async t => {
   const { host, config } = await prepareHost(t);
 
@@ -4155,6 +4177,82 @@ test('storeTree falls back for export-ignore trees the archive would drop', asyn
   const storedTree = await E(host).lookup('export-ignore-snapshot');
   // Fail-closed: the unfixed fast path takes `git archive`, which drops
   // `secret.txt`, so this lookup would reject. The fallback preserves it.
+  const storedSecret = await E(storedTree).lookup('secret.txt');
+  t.is(await E(storedSecret).text(), 'keep me\n');
+});
+
+test('storeTree falls back for export-subst trees the archive would rewrite', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-export-subst-repo');
+  await createGitFixture(repoPath);
+  await fs.promises.writeFile(
+    path.join(repoPath, 'template.txt'),
+    '$Format:%H$\n',
+    'utf-8',
+  );
+  await fs.promises.writeFile(
+    path.join(repoPath, '.gitattributes'),
+    'template.txt export-subst\n',
+    'utf-8',
+  );
+  await git(repoPath, ['add', 'template.txt', '.gitattributes']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add export-subst file',
+  ]);
+
+  const mount = await E(host).provideMount(repoPath, 'export-subst-worktree');
+  const gitCap = await E(host).provideGit(mount, 'export-subst-cap');
+  const tree = await E(gitCap).tree('HEAD');
+
+  t.is(await E(tree).archiveLossless(), false);
+
+  await E(host).storeTree(tree, 'export-subst-snapshot');
+  const storedTree = await E(host).lookup('export-subst-snapshot');
+  const storedTemplate = await E(storedTree).lookup('template.txt');
+  t.is(await E(storedTemplate).text(), '$Format:%H$\n');
+});
+
+test('storeTree falls back for info attributes the archive would honor', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-info-attrs-repo');
+  await createGitFixture(repoPath);
+  await fs.promises.writeFile(
+    path.join(repoPath, 'secret.txt'),
+    'keep me\n',
+    'utf-8',
+  );
+  await git(repoPath, ['add', 'secret.txt']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add secret file',
+  ]);
+  await fs.promises.writeFile(
+    path.join(repoPath, '.git', 'info', 'attributes'),
+    'secret.txt export-ignore\n',
+    'utf-8',
+  );
+
+  const mount = await E(host).provideMount(repoPath, 'info-attrs-worktree');
+  const gitCap = await E(host).provideGit(mount, 'info-attrs-cap');
+  const tree = await E(gitCap).tree('HEAD');
+
+  t.is(await E(tree).archiveLossless(), false);
+
+  await E(host).storeTree(tree, 'info-attrs-snapshot');
+  const storedTree = await E(host).lookup('info-attrs-snapshot');
   const storedSecret = await E(storedTree).lookup('secret.txt');
   t.is(await E(storedSecret).text(), 'keep me\n');
 });

@@ -3,8 +3,8 @@
 This is a minimal, portable tar archive **reader**.
 It decodes the regular files, directories, and symlinks that native
 `git archive --format=tar` emits, honoring the pax extended headers
-(`path` and `size` overrides) that `git archive` writes whenever an entry
-does not fit the legacy ustar header fields.
+(`path`, `linkpath`, and `size` overrides) that `git archive` writes whenever
+an entry does not fit the legacy ustar header fields.
 
 The reader has no dependency on any built-in module: it operates entirely on
 an `AsyncIterable<Uint8Array>` byte source and `Uint8Array` content, which
@@ -53,8 +53,8 @@ composes, for callers that need to decode tar headers directly:
   archive terminator).
 - `tarString(field)` — decode a NUL-terminated header field as text.
 - `tarOctal(field)` — decode an octal header field (size, mode).
-- `parsePaxRecords(bytes)` — parse a pax extended-header block into `path`
-  and `size` overrides.
+- `parsePaxRecords(bytes)` — parse a pax extended-header block into `path`,
+  `linkpath`, and `size` overrides.
 - `tarPathSegments(path)` — validate an entry path and split it into
   non-empty segments, rejecting absolute paths, embedded NULs, and `.`/`..`
   traversal.
@@ -66,7 +66,8 @@ composes, for callers that need to decode tar headers directly:
 This reader supports only the subset of the tar format that
 `git archive --format=tar` produces: ustar regular files (typeflag `0`),
 directories (typeflag `5`), and symlinks (typeflag `2`), plus pax extended
-headers (typeflags `x` and `g`) carrying `path` and `size` overrides.
+headers (typeflags `x` and `g`) carrying `path`, `linkpath`, and `size`
+overrides.
 Any other entry type is treated as an integrity error and rejected, rather
 than silently skipped.
 

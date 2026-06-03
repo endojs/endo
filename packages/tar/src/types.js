@@ -29,8 +29,8 @@ export {};
  * @property {string} path The archive path (pax `path` override applied).
  * @property {number} size The content byte length (pax `size` override
  *   applied).
- * @property {string} linkname The symlink target (only meaningful when
- *   `type` is `'symlink'`; otherwise `''`).
+ * @property {string} linkname The symlink target (pax `linkpath` override
+ *   applied; only meaningful when `type` is `'symlink'`; otherwise `''`).
  * @property {AsyncGenerator<Uint8Array>} content The entry's content bytes,
  *   streamed chunk-by-chunk and followed by block-padding consumption. For
  *   directories and symlinks this still must be drained to stay block

@@ -19,6 +19,23 @@ const utf8 = new TextEncoder();
 const text = bytes => new TextDecoder().decode(bytes);
 
 /**
+ * Build one pax record. The leading length is a byte length, not a JS
+ * string length, so UTF-8 paths with non-ASCII code points still parse.
+ *
+ * @param {string} key
+ * @param {string} value
+ */
+const paxRecord = (key, value) => {
+  const tail = ` ${key}=${value}\n`;
+  const tailLength = utf8.encode(tail).byteLength;
+  let length = tailLength + 1;
+  while (`${length}`.length + tailLength !== length) {
+    length = `${length}`.length + tailLength;
+  }
+  return `${length}${tail}`;
+};
+
+/**
  * Build a minimal ustar entry (header + content + block padding).
  *
  * @param {string} name
@@ -71,12 +88,7 @@ const tarEntry = (name, content, typeFlag = '0', options = {}) => {
 const paxHeader = (records, typeFlag = 'x') => {
   let body = '';
   for (const [key, value] of Object.entries(records)) {
-    const tail = ` ${key}=${value}\n`;
-    let length = tail.length + 1;
-    while (`${length}`.length + tail.length !== length) {
-      length = `${length}`.length + tail.length;
-    }
-    body += `${length}${tail}`;
+    body += paxRecord(key, value);
   }
   return tarEntry('@PaxHeader', utf8.encode(body), typeFlag);
 };
@@ -136,18 +148,23 @@ test('tarOctal parses octal fields and rejects non-octal', t => {
   });
 });
 
-test('parsePaxRecords honors path and size, ignores other keys', t => {
-  const record = (key, value) => {
-    const tail = ` ${key}=${value}\n`;
-    let length = tail.length + 1;
-    while (`${length}`.length + tail.length !== length) {
-      length = `${length}`.length + tail.length;
-    }
-    return `${length}${tail}`;
-  };
+test('parsePaxRecords honors path, linkpath, and size overrides', t => {
   const body =
-    record('path', 'a/b/c') + record('size', '7') + record('mtime', '1');
-  t.deepEqual(parsePaxRecords(utf8.encode(body)), { path: 'a/b/c', size: 7 });
+    paxRecord('path', 'a/b/c') +
+    paxRecord('linkpath', 'target') +
+    paxRecord('size', '7') +
+    paxRecord('mtime', '1');
+  t.deepEqual(parsePaxRecords(utf8.encode(body)), {
+    path: 'a/b/c',
+    linkpath: 'target',
+    size: 7,
+  });
+});
+
+test('parsePaxRecords parses lengths as byte counts', t => {
+  const longName = `${'über-'.repeat(30)}file.txt`;
+  const body = paxRecord('path', longName);
+  t.deepEqual(parsePaxRecords(utf8.encode(body)), { path: longName });
 });
 
 test('parsePaxRecords rejects a malformed record', t => {
@@ -264,6 +281,37 @@ test('readTarEntries honors a next-entry pax path override', async t => {
     entries.map(e => e.path),
     [longName],
   );
+});
+
+test('readTarEntries honors a next-entry non-ASCII pax path override', async t => {
+  const longName = `${'über-path-segment-'.repeat(7)}tail.txt`;
+  t.true(utf8.encode(longName).byteLength > longName.length);
+  t.true(utf8.encode(longName).byteLength > 100);
+  const archive = concatBytes([
+    paxHeader({ path: longName }, 'x'),
+    tarEntry(longName.slice(0, 100), utf8.encode('payload'), '0'),
+    new Uint8Array(TAR_BLOCK_SIZE * 2),
+  ]);
+  const entries = await collect(single(archive));
+  t.deepEqual(
+    entries.map(e => e.path),
+    [longName],
+  );
+});
+
+test('readTarEntries honors a pax linkpath override for symlinks', async t => {
+  const longTarget = `${'target-segment-'.repeat(8)}leaf.txt`;
+  t.true(longTarget.length > 100);
+  const archive = concatBytes([
+    paxHeader({ linkpath: longTarget }, 'x'),
+    tarEntry('long-link', new Uint8Array(0), '2', {
+      linkName: 'see 1234567890abcdef.paxheader',
+    }),
+    new Uint8Array(TAR_BLOCK_SIZE * 2),
+  ]);
+  const entries = await collect(single(archive));
+  t.is(entries[0].path, 'long-link');
+  t.is(entries[0].linkname, longTarget);
 });
 
 test('readTarEntries applies a global pax header across following entries', async t => {

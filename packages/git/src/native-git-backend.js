@@ -1022,6 +1022,43 @@ export const makeNativeGitBackend = ({
   };
 
   /**
+   * Collect a streamed git stdout into one byte array.  Use this for
+   * commands whose complete output must be parsed, but whose stdout may
+   * exceed `execFile`'s `maxBuffer` cap.
+   *
+   * @param {string[]} args
+   * @returns {Promise<Uint8Array>}
+   */
+  const readGitBytes = async args => {
+    /** @type {Uint8Array[]} */
+    const chunks = [];
+    let total = 0;
+    for await (const chunk of streamGitBuffer(args)) {
+      chunks.push(chunk);
+      total += chunk.length;
+    }
+    if (chunks.length === 1) {
+      return chunks[0];
+    }
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      out.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return out;
+  };
+
+  /**
+   * @param {string[]} args
+   * @returns {Promise<string>}
+   */
+  const readGitText = async args => {
+    const bytes = await readGitBytes(args);
+    return utf8Decoder.decode(bytes);
+  };
+
+  /**
    * Run a sanitized git invocation.  Always preceded by a
    * verification of the repository root.  Returns trimmed stdout
    * (or '(no output)' if nothing was printed) on success; raises a
@@ -1489,24 +1526,29 @@ export const makeNativeGitBackend = ({
     // here (parsing needs random access to NUL-delimited records),
     // but the input bytes flow through `spawn` rather than execFile
     // — bounded by tree size, not by the runner's stdout cap.
-    const chunks = [];
-    let total = 0;
-    for await (const chunk of streamGitBuffer([
+    const text = await readGitText([
       'ls-tree',
       '-z',
       '--long',
       treeOid,
-    ])) {
-      chunks.push(chunk);
-      total += chunk.length;
-    }
-    const buffer = new Uint8Array(total);
-    let offset = 0;
-    for (const c of chunks) {
-      buffer.set(c, offset);
-      offset += c.length;
-    }
-    return parseLsTreeEntries(utf8Decoder.decode(buffer));
+    ]);
+    return parseLsTreeEntries(text);
+  };
+
+  /**
+   * @param {string} treeOid
+   * @returns {Promise<GitTreeEntry[]>}
+   */
+  const listRecursiveTreeEntries = async treeOid => {
+    const text = await readGitText([
+      'ls-tree',
+      '-r',
+      '-t',
+      '-z',
+      '--long',
+      treeOid,
+    ]);
+    return parseLsTreeEntries(text);
   };
 
   /**
@@ -1522,12 +1564,13 @@ export const makeNativeGitBackend = ({
   /**
    * Reports whether `git archive --format=tar <treeOid>` reproduces the
    * committed tree without loss.  `git archive` is NOT a lossless tree
-   * source: it honors a committed `.gitattributes` `export-ignore`
-   * pattern (omitting matching tracked files) and emits gitlinks /
-   * submodule commits as empty directory entries.  A tar snapshot of
-   * such a tree would not match the committed Git tree, so the caller
-   * must take the per-entry `ls-tree`/`cat-file` walk instead, which is
-   * immune to `export-ignore` and fails loudly on gitlinks.
+   * source: it honors archive-affecting attributes (`export-ignore`,
+   * which omits matching tracked files, and `export-subst`, which
+   * rewrites matching blob content) and emits gitlinks / submodule
+   * commits as empty directory entries.  A tar snapshot of such a tree
+   * would not match the committed Git tree, so the caller must take the
+   * per-entry `ls-tree`/`cat-file` walk instead, which is immune to
+   * archive attributes and fails loudly on gitlinks.
    *
    * Detection walks the tree recursively once (no blob content beyond
    * any `.gitattributes` files) so the common, lossless case routes to
@@ -1540,15 +1583,7 @@ export const makeNativeGitBackend = ({
     // `-r` recurses, `-t` also lists the tree (directory) records so a
     // gitlink — which `git archive` would flatten to an empty directory —
     // surfaces as a `commit`-type record.
-    const raw = await runGitRaw([
-      'ls-tree',
-      '-r',
-      '-t',
-      '-z',
-      '--long',
-      treeOid,
-    ]);
-    const entries = parseLsTreeEntries(raw);
+    const entries = await listRecursiveTreeEntries(treeOid);
     /** @type {string[]} */
     const gitattributesOids = [];
     for (const entry of entries) {
@@ -1568,14 +1603,31 @@ export const makeNativeGitBackend = ({
     for (const oid of gitattributesOids) {
       // eslint-disable-next-line no-await-in-loop
       const text = utf8Decoder.decode(await readBlobBytes(oid));
-      // An `export-ignore` attribute set on any pattern causes
-      // `git archive` to omit the matching tracked files. We treat any
-      // occurrence conservatively: a `-export-ignore` reset still proves
-      // export-ignore is in play and the archive cannot be trusted as a
+      // An archive-affecting attribute set on any pattern causes
+      // `git archive` either to omit tracked files (`export-ignore`) or
+      // rewrite blob content (`export-subst`). We treat any occurrence
+      // conservatively: a reset such as `-export-subst` still proves the
+      // attribute is in play and the archive cannot be trusted as a
       // lossless mirror of the committed tree.
-      if (/(^|\s)[^\s#]*export-ignore\b/u.test(text)) {
+      if (/(^|\s)[^\s#]*export-(?:ignore|subst)\b/u.test(text)) {
         return false;
       }
+    }
+    const infoAttributesPathRaw = (
+      await runGitRaw(['rev-parse', '--git-path', 'info/attributes'])
+    ).trim();
+    const infoAttributesPath = resolveGitPath(infoAttributesPathRaw, repoRoot);
+    let infoAttributesText = '';
+    try {
+      infoAttributesText = await fs.promises.readFile(
+        infoAttributesPath,
+        'utf8',
+      );
+    } catch {
+      infoAttributesText = '';
+    }
+    if (/(^|\s)[^\s#]*export-(?:ignore|subst)\b/u.test(infoAttributesText)) {
+      return false;
     }
     return true;
   };
@@ -1596,28 +1648,7 @@ export const makeNativeGitBackend = ({
    * @returns {Promise<Uint8Array>}
    */
   const readBlobBytes = async blobOid => {
-    /** @type {Uint8Array[]} */
-    const chunks = [];
-    let total = 0;
-    for await (const chunk of streamBlobBytes(blobOid)) {
-      chunks.push(chunk);
-      total += chunk.length;
-    }
-    if (chunks.length === 1) {
-      // Fast path.  `streamGitBuffer` wraps each child-process stdout
-      // chunk in a fresh `new Uint8Array(Buffer)`, so this return does
-      // not alias the runtime's pooled buffer — Node `child_process`
-      // allocates fresh stdout buffers per chunk, and the wrapping
-      // captures the underlying ArrayBuffer one-to-one.
-      return chunks[0];
-    }
-    const out = new Uint8Array(total);
-    let offset = 0;
-    for (const c of chunks) {
-      out.set(c, offset);
-      offset += c.length;
-    }
-    return out;
+    return readGitBytes(['cat-file', 'blob', blobOid]);
   };
 
   /**
