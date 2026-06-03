@@ -25,21 +25,33 @@ original 1164-line monolith is repurposed; this layer carries
 `makeFromPackage` host method, `makeFromMount` dispatcher, worker
 dispatch body, CLI shape, XS bridging, and the architecture diagram
 that stitches the three preceding layers),
+[daemon-git-next-steps](daemon-git-next-steps.md) (added 2026-05-27,
+reframed 2026-05-29, slimmed 2026-06-03 to its forward-looking kernel;
+the version-controlled filesystem loop milestone
+roadmap over the canonical git trio — the north-star agent loop
+(provide workspace → read/list/edit → status/diff → commit → pull/push
+→ inspect history via `filesystemAt(ref)`) and an explicit
+content/versioning/network/historical-read/bulk-storage layer split.
+The genuinely-future work is now `- [ ]` items: the worked end-to-end
+bot-fork reference flow, the `provideGitClone` bootstrap + identity
+boundary (→ a future `daemon-git-clone.md`), and the
+`tree(ref)`/`filesystemAt(ref)` reconciliation into one canonical
+vocabulary (a focused edit to `daemon-git-capability`). The agent-tools
+layer is deferred to #416; shipped-code follow-ups live in issue #378),
+[daemon-git-capability](daemon-git-capability.md) (added 2026-05-18,
+revised 2026-05-29; implementation progress section reads the trio as
+shipped (Phases 0-5 + bulk-archive via #364/#365/#367), keeps the
+pin-algorithm caching forward-design note, and points the fix/test/
+legibility follow-ups to issue #378),
+[daemon-git-remotes](daemon-git-remotes.md) (added 2026-05-18, revised
+2026-05-29; implementation progress section reads #365 + #368 as shipped,
+keeps the `LC_ALL=C` and porcelain-flag-gating design spec and the
+`setUrl` / Windows-port forward-design, and points the fix/test/
+legibility follow-ups to issue #378),
 [daemon-mount-capabilities](daemon-mount-capabilities.md) (added
 2026-05-18, revised 2026-05-20; concrete completion plan for
 `EndoMount`, mount-scoped entry descriptors as values, snapshotting,
 and trusted physical-backing provenance as a hidden Exo facet),
-[daemon-git-capability](daemon-git-capability.md) (added 2026-05-18,
-revised 2026-05-20; revised git design over `EndoMount` /
-`EndoMountFile`; `tree(ref)` for historical reads and `readOnly()`
-for attenuation both live on the `Git` cap; `NativeGitBackend`
-hardening envelope split off the essential `GitBackend` contract;
-structured result shapes deferred to Phase 7),
-[daemon-git-remotes](daemon-git-remotes.md) (added 2026-05-18, revised
-2026-05-20; MVP remote-git companion for fetch, pull, push, bounded HTTPS
-transport, phase-conditional endpoint policy (formula-owned in Phase 1;
-controller-owned once Phase 5 lands), and non-extractable
-credentials with a `GIT_ASKPASS`-fed-by-anonymous-pipe injection mechanism),
 [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) (added
 2026-05-19, revised 2026-05-20; opt-in
 `@endo/patterns/explain-mismatch.js` submodule with a Rust-compiler-style
@@ -123,8 +135,9 @@ LLM-agent stack).*
 | [daemon-checkin-checkout](daemon-checkin-checkout.md) | 2026-03-17 | 2026-05-19 | **Complete** |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-05-19 | Reference |
 | [daemon-content-store-gc](daemon-content-store-gc.md) | 2026-03-20 | 2026-05-08 | **Complete** |
-| [daemon-git-capability](daemon-git-capability.md) | 2026-05-18 | 2026-05-27 | Proposed |
-| [daemon-git-remotes](daemon-git-remotes.md) | 2026-05-18 | 2026-05-21 | Proposed |
+| [daemon-git-capability](daemon-git-capability.md) | 2026-05-18 | 2026-05-29 | Proposed |
+| [daemon-git-remotes](daemon-git-remotes.md) | 2026-05-18 | 2026-05-29 | Proposed |
+| [daemon-git-next-steps](daemon-git-next-steps.md) | 2026-05-27 | 2026-06-03 | Proposed |
 | [endo-fs-from-git](endo-fs-from-git.md) | 2026-05-28 | 2026-05-28 | In Progress |
 | [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-05-19 | In Progress (PR #287) |
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-05-27 | In Progress |
@@ -230,7 +243,7 @@ LLM-agent stack).*
 | [endo-app-sharing](endo-app-sharing.md) | 2026-06-01 | 2026-06-01 | Proposed |
 | [familiar-app-ui-hosting](familiar-app-ui-hosting.md) | 2026-06-01 | 2026-06-01 | Proposed |
 
-**Totals:** 39 Complete/Implemented, 18 In Progress, 37 Not Started, 28 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (134 designs). Refreshed 2026-06-02 by the daemon-worker-import-from-mount decomposition: three new Proposed designs (`registry-capability`, `mvs-resolver`, `snapshot-mapper`) land as siblings of the repurposed integration-layer doc. The 2026-06-01 pass adds the **Peer App Sharing** milestone (formerly "Milestone A"; now Milestone 8 after the 2026-06-03 renumbering pass) including `app-sharing-milestone` and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone 8: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in that pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 16 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, and the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29, the `daemon-worker-import-from-mount` (Proposed) entry added 2026-05-22, and the three layer-split designs from the 2026-06-02 refresh.
+**Totals:** 39 Complete/Implemented, 18 In Progress, 37 Not Started, 29 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (135 designs). 2026-05-27 adds `daemon-git-next-steps` (Proposed) as the forward-looking roadmap over the canonical git trio. Refreshed 2026-06-02 by the daemon-worker-import-from-mount decomposition: three new Proposed designs (`registry-capability`, `mvs-resolver`, `snapshot-mapper`) land as siblings of the repurposed integration-layer doc. The 2026-06-01 pass adds the **Peer App Sharing** milestone (formerly "Milestone A"; now Milestone 8 after the 2026-06-03 renumbering pass) including `app-sharing-milestone` and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone 8: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in that pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 17 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`, and `daemon-git-next-steps` (added 2026-05-27)), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29, the `daemon-worker-import-from-mount` (Proposed) entry added 2026-05-22, and the three layer-split designs from the 2026-06-02 refresh.
 
 ## Roadmap
 
@@ -354,6 +367,7 @@ flowchart TD
         dmcap[daemon-mount-capabilities]
         dgit[daemon-git-capability]
         dgitremote[daemon-git-remotes]
+        dgitnext[daemon-git-next-steps]
         dfsw[filesystem-watchers]
         dcsgc[daemon-content-store-gc]
         dpers[daemon-capability-persona]
@@ -372,6 +386,8 @@ flowchart TD
         dmount --> dmcap
         dmcap --> dgit
         dgit --> dgitremote
+        dgit --> dgitnext
+        dgitremote --> dgitnext
         pfs --> dci
         pfs --> dfsw
         dmount --> dfsw
@@ -525,6 +541,7 @@ capabilities available to agents.
 | snapshot-mapper | Proposed | Layer 3 of 4. `mapSnapshot` lane in `packages/daemon/` that translates `(RegistryResolution, EndoMount)` into a `CompartmentMap` via `compartment-mapper`'s package-descriptor walker (one new extension point in `compartment-mapper`). `makeMountReadPowers` and the compartment-mapper archive-precedent layout (top-level `compartment-map.json` plus peer directories named by package; `<name>@<version>/` for registry-resolved entries, bare `<name>/` for workspace members) |
 | daemon-git-capability | Proposed | Revised git design over `EndoMount` / `EndoMountEntry`; `tree(ref)` and `readOnly()` both live on the `Git` cap |
 | daemon-git-remotes | Proposed | MVP remote-git companion: fetch / pull / push composed from local `Git`, bounded HTTPS transport, endpoint policy, and credential caps |
+| daemon-git-next-steps | Proposed | The version-controlled filesystem loop milestone over the canonical trio: north-star agent loop (provide workspace → read/list/edit → status/diff → commit → pull/push → inspect history via `filesystemAt(ref)`) and the content/versioning/network/historical-read/bulk-storage layer split. Open `- [ ]` work: worked bot-fork reference flow, `provideGitClone` + identity boundary (→ `daemon-git-clone.md`), `tree(ref)`/`filesystemAt(ref)` reconciliation. Agent-tools layer deferred to #416 |
 | filesystem-watchers | Not Started | `EndoMount.followNameChanges` parity with `EndoDirectory`; Node `fs.watch` adapter on `FilePowers` |
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
 | daemon-rename-to-manager | Not Started | Rename `daemon.js`/`Daemon`/`MignonicPowers` to `manager.js`/`Manager`/`WorkerPowers` to align JS with Rust `endor` nomenclature |
