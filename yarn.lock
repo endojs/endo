@@ -1803,6 +1803,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
     "@endo/stream-node": "workspace:^"
+    "@endo/tar": "workspace:^"
     "@endo/where": "workspace:^"
     "@endo/zip": "workspace:^"
     "@libp2p/autonat": "npm:^3.0.10"
@@ -2768,6 +2769,22 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/tar@workspace:^, @endo/tar@workspace:packages/tar":
+  version: 0.0.0-use.local
+  resolution: "@endo/tar@workspace:packages/tar"
+  dependencies:
+    "@endo/bytes": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
