@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   browser-tests:
-    timeout-minutes: 60
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     # This Chrome nightly image can no longer install browsers in Github CI for
     # lack of some system dependencies:
@@ -70,13 +70,17 @@ jobs:
       # Wrap the install in a retry: the recurring failure mode is a
       # timeout downloading Chromium from the Playwright CDN shortly
       # after a Chromium version bump, before the CDN has seeded the
-      # new binary widely. Three attempts with a 15-minute per-attempt
-      # ceiling: a cold-cache install (browser-binary download plus
-      # the `--with-deps` apt step) can take 8+ minutes on a slow CDN,
-      # so 10 minutes was too tight to absorb a single slow run. Worst
-      # case 3 x 15 = 45 minutes fits inside the job's 60-minute
-      # `timeout-minutes`, leaving headroom for setup, build, and the
-      # tests themselves.
+      # new binary widely. Three attempts with a 30-minute per-attempt
+      # ceiling: the observed failure mode is an attempt still making
+      # progress (slow CDN download or apt step) when the prior
+      # 15-minute ceiling killed it mid-progress and the retry started
+      # from scratch. The bump to 30 minutes gives one attempt enough
+      # headroom to complete; the 3-attempt safety net is retained for
+      # genuine transient failures. Worst case 3 x 30 = 90 minutes fits
+      # inside the job's 120-minute `timeout-minutes`, leaving headroom
+      # for setup, build, and the tests themselves. The bumped ceiling
+      # is provisional: once a real install time is observed, both the
+      # per-attempt and outer ceilings should come back down.
       - name: Install Playwright Browsers
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
         env:
@@ -86,7 +90,7 @@ jobs:
           # extract steps so the next run shows where the time is going.
           DEBUG: pw:install
         with:
-          timeout_minutes: 15
+          timeout_minutes: 30
           max_attempts: 3
           command: cd browser-test && npx playwright install --with-deps
       - name: Run Playwright tests
