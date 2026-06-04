@@ -78,6 +78,7 @@
   },
   "devDependencies": {
     "@endo/daemon": "workspace:^",
+    "@endo/git": "workspace:^",
     "@endo/init": "workspace:^",
     "ajv": "^8.17.1",
     "ava": "catalog:dev",
