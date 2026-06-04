@@ -1,6 +1,19 @@
 import type { ERef } from '@endo/far';
 import type { Filesystem } from '@endo/endo-fs';
+import type { EndoGit } from '@endo/exo-git';
 import type { Pattern } from '@endo/patterns';
+
+export type GitToolCapability = Pick<
+  EndoGit,
+  | 'log'
+  | 'diff'
+  | 'show'
+  | 'commit'
+  | 'branches'
+  | 'createBranch'
+  | 'switchBranch'
+  | 'currentBranch'
+>;
 
 export interface ToolSpec {
   /** Tool name advertised to callers. */
@@ -57,6 +70,10 @@ export interface MountReadToolRecord {
 }
 
 export declare function makeTool(spec: ToolSpec): ToolRecord;
+
+export declare function makeGitTool(
+  gitCap: ERef<GitToolCapability>,
+): ToolRecord[];
 
 export declare function makeMountReadTool(
   fs: ERef<Filesystem>,

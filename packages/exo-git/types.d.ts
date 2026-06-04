@@ -9,6 +9,116 @@
  */
 
 declare module '@endo/exo-git' {
+  export type GitRef = { name: string; kind: string; oid?: string };
+  export type GitCommit = {
+    oid: string;
+    summary: string;
+    author?: string;
+    committedAt?: number;
+  };
+  export type GitIndexStatus =
+    | 'clean'
+    | 'added'
+    | 'modified'
+    | 'deleted'
+    | 'renamed'
+    | 'copied'
+    | 'conflicted';
+  export type GitWorktreeStatus =
+    | 'clean'
+    | 'modified'
+    | 'deleted'
+    | 'untracked'
+    | 'ignored'
+    | 'conflicted';
+  export type GitStatusEntry = {
+    entry: unknown;
+    path: string;
+    index: GitIndexStatus;
+    worktree: GitWorktreeStatus;
+    node?: unknown;
+    renamedFrom?: string;
+  };
+  export type GitDiffOptions = {
+    cached?: boolean;
+    base?: GitRef | string;
+    head?: GitRef | string;
+    entries?: unknown[];
+    paths?: string[];
+  };
+  export type GitLogOptions = {
+    maxCount?: number;
+    ref?: GitRef | string;
+    since?: string;
+    until?: string;
+  };
+  export type GitRestoreOptions = {
+    staged?: boolean;
+  };
+  export type GitCreateBranchOptions = {
+    startPoint?: string;
+    switchAfterCreate?: boolean;
+  };
+  export type GitDeleteBranchOptions = {
+    force?: boolean;
+  };
+  export type GitMergeOptions = {
+    fastForwardOnly?: boolean;
+    noFastForward?: boolean;
+  };
+  export type GitRebaseInput = {
+    mode?: 'start' | 'continue' | 'abort' | 'skip';
+    upstream?: string;
+  };
+  export type GitStashPushOptions = {
+    message?: string;
+    entries?: unknown[];
+    paths?: string[];
+    includeUntracked?: boolean;
+  };
+  export type EndoMount = unknown;
+  export type EndoMountEntry = unknown;
+  export type ReadableTreeView = unknown;
+  export type EndoGit = {
+    worktree: () => EndoMount;
+    status: () => Promise<GitStatusEntry[]>;
+    diff: (options?: GitDiffOptions) => Promise<string>;
+    log: (options?: GitLogOptions) => Promise<GitCommit[]>;
+    show: (ref: GitRef | string) => Promise<string>;
+    revParse: (ref: GitRef | string) => Promise<GitRef>;
+    add: (entries: EndoMountEntry[]) => Promise<void>;
+    restore: (
+      entries: EndoMountEntry[],
+      options?: GitRestoreOptions,
+    ) => Promise<void>;
+    commit: (message: string) => Promise<GitCommit>;
+    currentBranch: () => Promise<GitRef | undefined>;
+    branches: () => Promise<GitRef[]>;
+    createBranch: (
+      name: string,
+      options?: GitCreateBranchOptions,
+    ) => Promise<GitRef>;
+    deleteBranch: (
+      name: string,
+      options?: GitDeleteBranchOptions,
+    ) => Promise<void>;
+    renameBranch: (from: string, to: string) => Promise<void>;
+    switchBranch: (name: string) => Promise<void>;
+    detach: (ref: GitRef | string) => Promise<void>;
+    switch: (ref: GitRef | string) => Promise<void>;
+    merge: (ref: GitRef | string, options?: GitMergeOptions) => Promise<string>;
+    rebase: (input: GitRebaseInput) => Promise<string>;
+    stashPush: (options?: GitStashPushOptions) => Promise<string>;
+    stashList: () => Promise<string[]>;
+    stashShow: (index?: number) => Promise<string>;
+    stashApply: (index?: number) => Promise<void>;
+    stashPop: (index?: number) => Promise<void>;
+    stashDrop: (index?: number) => Promise<void>;
+    tree: (ref: GitRef | string) => Promise<ReadableTreeView>;
+    filesystemAt: (ref: GitRef | string) => Promise<unknown>;
+    readOnly: () => EndoGit;
+  };
+
   /** Build the `EndoGit` exo over a `Mount` and a `GitBackend`. */
   export const makeGit: (powers: {
     mount: object;
