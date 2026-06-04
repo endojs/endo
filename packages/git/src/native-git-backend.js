@@ -186,11 +186,27 @@ const makeGitEnv = repoRoot => ({
 });
 
 /**
+ * Build the environment object for a child `git` invocation.
+ *
+ * The result is a fresh, **extensible** plain object — deliberately not
+ * hardened. Node's `child_process` spawn/execFile machinery writes
+ * coverage-injection variables (notably `NODE_V8_COVERAGE`, set by the
+ * `cover` CI job) directly into the `env` option object it is handed. A
+ * frozen/non-extensible object makes that write throw
+ * `Cannot add property NODE_V8_COVERAGE, object is not extensible`,
+ * which fails every spawned git command under coverage. Returning an
+ * extensible copy lets Node add those variables. The object is ephemeral
+ * (consumed by the spawn and never stored or shared), so leaving it
+ * unhardened does not widen any authority.
+ *
  * @param {Record<string, string>} baseEnv
  * @param {Record<string, string>} [overrides]
+ * @returns {Record<string, string>}
  */
-const withGitEnvOverrides = (baseEnv, overrides = harden({})) =>
-  harden({ ...baseEnv, ...overrides });
+const withGitEnvOverrides = (baseEnv, overrides = {}) => ({
+  ...baseEnv,
+  ...overrides,
+});
 harden(withGitEnvOverrides);
 
 /**
