@@ -33,8 +33,6 @@ jobs:
     # env:
     #   HOME: /root # Firefox complains otherwise
     steps:
-      - name: Put unstable chrome where playwright would look for it
-        run: mv /opt/google/chrome /opt/google/chrome-unstable
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -81,6 +79,12 @@ jobs:
       # tests themselves.
       - name: Install Playwright Browsers
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        env:
+          # Surface the hanging step in the install path. The Chrome-for-
+          # Testing migration in Playwright >= 1.50 introduced a silent
+          # post-download hang on this CI; pw:install logs the probe and
+          # extract steps so the next run shows where the time is going.
+          DEBUG: pw:install
         with:
           timeout_minutes: 15
           max_attempts: 3
