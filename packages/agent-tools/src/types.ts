@@ -1,3 +1,5 @@
+import type { ERef } from '@endo/far';
+import type { Filesystem } from '@endo/endo-fs';
 import type { Pattern } from '@endo/patterns';
 
 export interface ToolSpec {
@@ -33,3 +35,29 @@ export interface ToolRecord {
    */
   invoke: (args: Record<string, unknown>) => Promise<unknown>;
 }
+
+export interface ToolSchema {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, unknown>;
+      required?: readonly string[];
+      additionalProperties?: boolean;
+    };
+  };
+}
+
+export interface MountReadToolRecord {
+  schema: () => ToolSchema;
+  execute: (args: Record<string, unknown>) => Promise<string>;
+  help: () => string;
+}
+
+export declare function makeTool(spec: ToolSpec): ToolRecord;
+
+export declare function makeMountReadTool(
+  fs: ERef<Filesystem>,
+): MountReadToolRecord;
