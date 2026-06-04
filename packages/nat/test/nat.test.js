@@ -6,7 +6,7 @@ test('Nat() works for natural BigInts', t => {
   t.is(Nat(BigInt('1')), BigInt('1'));
   t.is(Nat(BigInt('1')), 1n);
   t.is(Nat(BigInt(2 ** 53)), BigInt(2 ** 53));
-  t.is(Nat(9007199254741000n), 9007199254741000n);
+  t.is(Nat(9_007_199_254_741_000n), 9_007_199_254_741_000n);
 });
 
 test('Nat() throws for non-natural BigInts', t => {
@@ -50,7 +50,7 @@ test('Nat examples from the README', t => {
   t.is(Nat(3n), 3n);
   t.throws(() => Nat('3'), { instanceOf: TypeError });
   t.throws(() => Nat(2 ** 70), { instanceOf: RangeError });
-  t.is(Nat(2n ** 70n), 1180591620717411303424n);
+  t.is(Nat(2n ** 70n), 1_180_591_620_717_411_303_424n);
   t.throws(() => Nat(-3n), { instanceOf: RangeError });
   t.throws(() => Nat(3.1), { instanceOf: RangeError });
 });

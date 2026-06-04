@@ -138,7 +138,7 @@ test('handshake fails with message too long for encryption', async t => {
   responderReadAck(ack);
 
   // Try to encrypt a message that's too long
-  const longMessage = new Uint8Array(65535 - 15); // Just over the limit
+  const longMessage = new Uint8Array(65_535 - 15); // Just over the limit
   longMessage.fill(0x42);
 
   t.throws(() => _initiatorEncrypt(longMessage), {
@@ -196,7 +196,7 @@ test('handshake fails with message too long for decryption', async t => {
   responderReadAck(ack);
 
   // Try to decrypt a message that's too long
-  const longMessage = new Uint8Array(65536); // Just over the maximum
+  const longMessage = new Uint8Array(65_536); // Just over the maximum
 
   t.throws(() => responderDecrypt(longMessage), {
     message:
@@ -211,7 +211,7 @@ test('handshake fails with invalid encoding versions', async t => {
       makeOcapnSessionCryptography({
         wasmModule,
         getRandomValues,
-        supportedEncodings: [65536], // Invalid encoding version
+        supportedEncodings: [65_536], // Invalid encoding version
       }).asInitiator(),
     {
       message: 'Cannot support encoding versions beyond 65535, got 65536',

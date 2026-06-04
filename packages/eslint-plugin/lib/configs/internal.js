@@ -39,10 +39,20 @@ dynamicConfig.overrides.push({
 module.exports = {
   extends: ['prettier', 'plugin:@jessie.js/recommended', 'plugin:@endo/strict'],
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
+  plugins: ['@typescript-eslint', 'unicorn'],
   rules: {
     // Work around https://github.com/import-js/eslint-plugin-import/issues/1810
     'import/no-unresolved': ['error', { ignore: ['ava'] }],
+    'unicorn/numeric-separators-style': [
+      'error',
+      {
+        onlyIfContainsSeparator: false,
+        number: { minimumDigits: 5, groupLength: 3 },
+        binary: { minimumDigits: 0, groupLength: 4 },
+        octal: { minimumDigits: 0, groupLength: 4 },
+        hexadecimal: { minimumDigits: 0, groupLength: 4 },
+      },
+    ],
     '@typescript-eslint/naming-convention': [
       'error',
       {

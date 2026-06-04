@@ -337,7 +337,10 @@ export const makeCompartmentConstructor = (
   /**
    * @param {...CompartmentOptionsArgs|LegacyCompartmentOptionsArgs} args
    */
-  /** @this {Compartment} */
+  /**
+   * @param {...any} args
+   * @this {Compartment}
+   */
   function Compartment(...args) {
     if (enforceNew && new.target === undefined) {
       throw TypeError(

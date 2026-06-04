@@ -325,7 +325,7 @@ export const makeCapTP = (
       marshalName: `captp:${ourId}`,
       // TODO Temporary hack.
       // See https://github.com/Agoric/agoric-sdk/issues/2780
-      errorIdNum: 20000,
+      errorIdNum: 20_000,
       // TODO: fix captp to be compatible with smallcaps
       serializeBodyFormat: 'capdata',
     },

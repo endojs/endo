@@ -54,8 +54,8 @@ import * as compression from './compression.js';
 // q, as in quote, for quoting strings in errors
 const q = JSON.stringify;
 
-const MAX_VALUE_16BITS = 65535;
-const MAX_VALUE_32BITS = 4294967295;
+const MAX_VALUE_16BITS = 65_535;
+const MAX_VALUE_32BITS = 4_294_967_295;
 
 const textDecoder = new TextDecoder();
 
