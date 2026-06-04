@@ -1,0 +1,93 @@
+{
+  "name": "@endo/agent-tools",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Provider-independent agent tool catalog for Endo, including capability-scoped filesystem tools backed by an @endo/endo-fs Filesystem",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/agent-tools"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "types": "./types-index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types-index.d.ts",
+      "default": "./types-index.js"
+    },
+    "./tool.js": {
+      "types": "./tool.d.ts",
+      "default": "./src/tool.js"
+    },
+    "./git-tool.js": {
+      "types": "./git-tool.d.ts",
+      "default": "./src/git-tool.js"
+    },
+    "./mount-fs.js": {
+      "types": "./mount-fs.d.ts",
+      "default": "./src/mount-fs.js"
+    },
+    "./src/index.js": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./src/tool.js": {
+      "types": "./src/tool.d.ts",
+      "default": "./src/tool.js"
+    },
+    "./src/git-tool.js": {
+      "types": "./src/git-tool.d.ts",
+      "default": "./src/git-tool.js"
+    },
+    "./src/mount-fs.js": {
+      "types": "./src/mount-fs.d.ts",
+      "default": "./src/mount-fs.js"
+    },
+    "./types-index.js": {
+      "types": "./types-index.d.ts",
+      "default": "./types-index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ava",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  },
+  "dependencies": {
+    "@endo/endo-fs": "workspace:^",
+    "@endo/exo-git": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/patterns": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/daemon": "workspace:^",
+    "@endo/init": "workspace:^",
+    "ajv": "^8.17.1",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "typescript": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}
