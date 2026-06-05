@@ -285,14 +285,14 @@ test('cyclic star export with renaming reexport (issue #59)', async t => {
   t.deepEqual(namespace.namespace2, { x: 45, y: 45 });
 });
 
-// Companion regression for endojs/endo#59 addressing the question raised on
-// endojs/endo#3276: is a situation possible where all calls to the deferring
-// notify happen before `upstreamNotify` can be obtained (the unused-live-binding
-// case)? This variant uses `export var y` without an assignment, so the live
-// binding is declared but never updated. Node.js reads every projection of the
-// cycle as `undefined` for this shape (verified directly with `node`); the SES
-// linker must match. The deferring closure may resolve through a later wireUp
-// or stay pending; either way the namespace reads must agree with Node.js.
+// Companion regression for endojs/endo#59 covering the unused-live-binding
+// shape of the cyclic star-export. The export-renamer's
+// `export { y as x } from './star-reexporter.js'` re-exports a live binding
+// from the star reexporter, but the renamer's own `y` is declared without
+// initialization (`export var y;`), so the binding is never updated.
+// Every projection of the cycle reads `undefined`. Node.js agrees: the
+// in-process SES linker behavior matches Node.js's reference behavior for
+// this shape, which is the parity property the test pins.
 test('cyclic star export with renaming reexport, unused live binding', async t => {
   t.plan(3);
 

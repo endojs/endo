@@ -667,19 +667,26 @@ test('importNow handles a cycle in CommonJS modules', t => {
   t.is(namespace.B.A.a, 42);
 });
 
-// Companion to the ESM cyclic star-export tests in
-// packages/ses/test/import-gauntlet.test.js (issue endojs/endo#59). This
-// variant places a CommonJS module in the cycle as the "star reexporter":
-// it captures the renamer's exports by property assignment and itself
-// participates in the cycle that the ESM renamer's `export { y as x } from
-// './star-reexporter.cjs'` walks. Node.js rejects ESM-in-CJS-cycle
-// (`ERR_REQUIRE_CYCLE_MODULE`) outright, so the relevant Node parity is
-// the pure-CJS cycle: snapshot-at-call-time semantics for the CJS side
-// (the property capture sees whatever the renamer had assigned by the
-// re-entry instant), live-binding semantics for the ESM side. Verified
-// directly against Node CJS by replacing the ESM renamer with a CJS
-// renamer that exposes `x` as a live getter onto its own `y`: both
-// namespaces project the same shape SES produces here.
+// In-process SES regression for the ESM-in-CommonJS-cycle shape of issue
+// endojs/endo#59, exercised directly through the Compartment API with
+// inline ModuleSources. The fixture places a CommonJS module in the cycle
+// as the "star reexporter": it captures the renamer's exports by property
+// assignment (`exports.x = r.x; exports.y = r.y`) at the moment its own
+// `require('./export-renamer.mjs')` returns. The ESM renamer re-exports
+// from the CJS reexporter with `export { y as x } from './star-reexporter.cjs'`.
+// Because the renamer's `x` resolves to its own `y` via live ESM binding,
+// the namespace projection at the renamer is { x: 45, y: 45 }; on the CJS
+// side, the property capture happened before `r.x` had any value, so the
+// reexporter's namespace is { x: undefined, y: 45 }. Both shapes are pinned.
+//
+// Node.js rejects this ESM-in-CJS-cycle topology with ERR_REQUIRE_CYCLE_MODULE;
+// the divergence is verified programmatically in
+// packages/compartment-mapper/test/cycle-esm-in-cjs.test.js (SES side)
+// together with packages/compartment-mapper/test/cycle-esm-in-cjs-node-parity.test.js
+// (Node side). For the parity case where Node and SES agree on a
+// pure-CommonJS cyclic reexporter, see
+// packages/compartment-mapper/test/cycle-cjs-reexporter.test.js together with
+// packages/compartment-mapper/test/cycle-cjs-reexporter-node-parity.test.js.
 test('cyclic star-export with CommonJS reexporter', async t => {
   t.plan(3);
 
