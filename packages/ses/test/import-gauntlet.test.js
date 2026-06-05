@@ -285,6 +285,49 @@ test('cyclic star export with renaming reexport (issue #59)', async t => {
   t.deepEqual(namespace.namespace2, { x: 45, y: 45 });
 });
 
+// Companion regression for endojs/endo#59 addressing the question raised on
+// endojs/endo#3276: is a situation possible where all calls to the deferring
+// notify happen before `upstreamNotify` can be obtained (the unused-live-binding
+// case)? This variant uses `export var y` without an assignment, so the live
+// binding is declared but never updated. Node.js reads every projection of the
+// cycle as `undefined` for this shape (verified directly with `node`); the SES
+// linker must match. The deferring closure may resolve through a later wireUp
+// or stay pending; either way the namespace reads must agree with Node.js.
+test('cyclic star export with renaming reexport, unused live binding', async t => {
+  t.plan(3);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/star-reexporter.js': `
+      export * from './export-renamer.js';
+    `,
+    'https://example.com/export-renamer.js': `
+      export { y as x } from './star-reexporter.js';
+      export var y;
+    `,
+    'https://example.com/main.js': `
+      import { x } from './star-reexporter.js';
+      import * as ns1 from './star-reexporter.js';
+      import * as ns2 from './export-renamer.js';
+      export const captured = x;
+      export const namespace1 = { x: ns1.x, y: ns1.y };
+      export const namespace2 = { x: ns2.x, y: ns2.y };
+    `,
+  });
+
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+
+  const namespace = await compartment.import('./main.js');
+
+  t.is(namespace.captured, undefined);
+  t.deepEqual(namespace.namespace1, { x: undefined, y: undefined });
+  t.deepEqual(namespace.namespace2, { x: undefined, y: undefined });
+});
+
 test('export-as with duplicated export name', async t => {
   t.plan(4);
 
