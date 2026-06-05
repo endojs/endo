@@ -292,7 +292,11 @@ test('cyclic star export with renaming reexport (issue #59)', async t => {
 // initialization (`export var y;`), so the binding is never updated.
 // Every projection of the cycle reads `undefined`. Node.js agrees: the
 // in-process SES linker behavior matches Node.js's reference behavior for
-// this shape, which is the parity property the test pins.
+// this shape, which is the parity property the test pins. The same fixture
+// shape is also exercised through compartment-mapper's scaffold and pinned
+// to Node.js's reference behavior with a shared assertion module; see
+// packages/compartment-mapper/test/cycle-rename-unused.test.js and
+// packages/compartment-mapper/test/cycle-rename-unused-node-parity.test.js.
 test('cyclic star export with renaming reexport, unused live binding', async t => {
   t.plan(3);
 
