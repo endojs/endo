@@ -23,6 +23,7 @@ import {
   assign,
 } from './commons.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
+import { makeNotifierWithResolver } from './notifier-with-resolver.js';
 
 const { quote: q } = assert;
 
@@ -373,26 +374,18 @@ export const makeModuleInstance = (
       // that name may be wired only later, in its own candidate-all walk,
       // after this module's `imports()` returns. Install a notifier that
       // queues subscribers until the upstream resolves, then forwards them
-      // through.
-      const pendingUpdaters = [];
-      let resolvedUpstreamNotify;
+      // through. `makeNotifierWithResolver` is the synchronous variant of
+      // `Promise.withResolvers` that captures this pattern; each `notify`
+      // call lazily attempts to resolve against the upstream's notifiers.
+      const { notify: queueOrForward, resolve: resolveUpstream } =
+        makeNotifierWithResolver();
       notify = update => {
-        if (resolvedUpstreamNotify !== undefined) {
-          resolvedUpstreamNotify(update);
-          return;
-        }
         const upstreamInstance = mapGet(importedInstances, deferredSpecifier);
         const upstreamNotify = upstreamInstance.notifiers[deferredImportName];
-        if (upstreamNotify === undefined) {
-          arrayPush(pendingUpdaters, update);
-          return;
+        if (upstreamNotify !== undefined) {
+          resolveUpstream(upstreamNotify);
         }
-        resolvedUpstreamNotify = upstreamNotify;
-        for (const pending of pendingUpdaters) {
-          upstreamNotify(pending);
-        }
-        pendingUpdaters.length = 0;
-        upstreamNotify(update);
+        queueOrForward(update);
       };
     }
     notifiers[exportName] = notify;
