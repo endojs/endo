@@ -33,8 +33,8 @@ jobs:
     # env:
     #   HOME: /root # Firefox complains otherwise
     steps:
-      - name: Put unstable chrome where playwright would look for it
-        run: mv /opt/google/chrome /opt/google/chrome-unstable
+      - name: Link unstable chrome where playwright would look for it
+        run: ln -s /opt/google/chrome /opt/google/chrome-unstable
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
