@@ -1,4 +1,10 @@
-import { FERAL_EVAL, create, defineProperties, freeze } from './commons.js';
+import {
+  FERAL_EVAL,
+  apply,
+  create,
+  defineProperties,
+  freeze,
+} from './commons.js';
 
 import { assert } from './error/assert.js';
 
@@ -69,17 +75,35 @@ export const makeEvalScopeKit = () => {
     },
   });
 
+  const allowEvalProperties = freeze({
+    eval: {
+      value: props => {
+        const { eval: evalProp } = props;
+        delete evalScope.eval;
+        defineProperties(evalScope, { eval: evalProp });
+      },
+      enumerable: false,
+      configurable: true,
+    },
+  });
+
   const evalScopeKit = {
     evalScope,
-    allowNextEvalToBeUnsafe() {
+    allowNextEvalToBeUnsafe(evaluate, globalObject) {
       const { revoked } = evalScopeKit;
       if (revoked !== null) {
         Fail`a handler did not reset allowNextEvalToBeUnsafe ${revoked.err}`;
       }
-      // Allow next reference to eval produce the unsafe FERAL_EVAL.
+      // Use the evaluator and evalScope to reveal the unsafe FERAL_EVAL
       // We avoid defineProperty because it consumes an extra stack frame taming
       // its return value.
-      defineProperties(evalScope, oneTimeEvalProperties);
+      defineProperties(evalScope, allowEvalProperties);
+      try {
+        apply(evaluate, globalObject, [oneTimeEvalProperties]);
+      } catch (err) {
+        // We didn't manage to reveal eval, so clean up the powerless revealer
+        delete evalScope.eval;
+      }
     },
     /** @type {null | { err: any }} */
     revoked: null,
