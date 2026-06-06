@@ -28,6 +28,9 @@
     "typescript": "catalog:dev",
     "typescript-eslint": "8.59.2"
   },
+  "peerDependencies": {
+    "eslint-plugin-unicorn": "^56.0.1"
+  },
   "devDependencies": {
     "@types/mocha": "^10",
     "eslint": "catalog:dev",

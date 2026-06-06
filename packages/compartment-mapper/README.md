@@ -304,6 +304,21 @@ location.
 The `-lite.js` modules, in general, do not entrain a specific compartment
 mapper.
 
+# Host module exits in bundles
+
+When bundling for an archive, the compartment mapper implicitly treats any
+module specifier whose prefix matches a URI scheme (per [RFC 3986 section
+3.1](https://www.rfc-editor.org/rfc/rfc3986#section-3.1)) as an exit to a
+host-provided module.
+This covers specifiers like `node:fs`, `wasm:foo`, or any custom
+`my-scheme:thing`, on the assumption that any specifier shaped like a URI
+prefix names a module the host environment is expected to supply at import
+time.
+These exits are omitted from the archive itself; the importer must provide an
+implementation via `importHook` when the archive is later imported.
+Host-provided modules must be hardened and pure to avoid being a side-channel
+or man-in-the-middle attack surface between guests.
+
 # Package Descriptors
 
 The compartment mapper uses [Compartments], one for each Node.js package your

@@ -55,7 +55,7 @@ XorShift.prototype.randomint = function randomint() {
   // s1 ^= s1 << 23;
   // :: t1 = s1 << 23
   const a1 = 23;
-  const m1 = 0xffffffff << (32 - a1);
+  const m1 = 0xffff_ffff << (32 - a1);
   t1U = (s1U << a1) | ((s1L & m1) >>> (32 - a1));
   t1L = s1L << a1;
   // :: s1 = s1 ^ t1
@@ -68,7 +68,7 @@ XorShift.prototype.randomint = function randomint() {
   t1L = s1L ^ s0L;
   // :: t2 = s1 >> 18
   const a2 = 18;
-  const m2 = 0xffffffff >>> (32 - a2);
+  const m2 = 0xffff_ffff >>> (32 - a2);
   t2U = s1U >>> a2;
   t2L = (s1L >>> a2) | ((s1U & m2) << (32 - a2));
   // :: t1 = t1 ^ t2
@@ -76,7 +76,7 @@ XorShift.prototype.randomint = function randomint() {
   t1L ^= t2L;
   // :: t2 = s0 >> 5
   const a3 = 5;
-  const m3 = 0xffffffff >>> (32 - a3);
+  const m3 = 0xffff_ffff >>> (32 - a3);
   t2U = s0U >>> a3;
   t2L = (s0L >>> a3) | ((s0U & m3) << (32 - a3));
   // :: t1 = t1 ^ t2
@@ -101,6 +101,7 @@ XorShift.prototype.random = function random() {
   // Math.pow(2, -32) = 2.3283064365386963e-10
   // Math.pow(2, -52) = 2.220446049250313e-16
   return (
-    t2[0] * 2.3283064365386963e-10 + (t2[1] >>> 12) * 2.220446049250313e-16
+    t2[0] * 2.328_306_436_538_696_3e-10 +
+    (t2[1] >>> 12) * 2.220_446_049_250_313e-16
   );
 };

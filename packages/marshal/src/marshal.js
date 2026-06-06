@@ -49,7 +49,7 @@ export const makeMarshal = (
     marshalName = 'anon-marshal',
     // TODO Temporary hack.
     // See https://github.com/Agoric/agoric-sdk/issues/2780
-    errorIdNum = 10000,
+    errorIdNum = 10_000,
     // We prefer that the caller instead log to somewhere hidden
     // to be revealed when correlating with the received error.
     marshalSaveError = err =>

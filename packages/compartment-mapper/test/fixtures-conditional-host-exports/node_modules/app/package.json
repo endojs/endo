@@ -1,0 +1,7 @@
+{
+  "name": "app",
+  "type": "module",
+  "dependencies": {
+    "lib": "*"
+  }
+}

@@ -37,10 +37,10 @@ test('encodeSupportedEncodingsInto', t => {
   encodeSupportedEncodingsInto(bytes, [42, 43, 44, 45, 46, 47, 48, 49, 50]);
   t.deepEqual(bytes, words(42, 0b1111_1111));
 
-  encodeSupportedEncodingsInto(bytes, [65535]);
-  t.deepEqual(bytes, words(65535, 0));
+  encodeSupportedEncodingsInto(bytes, [65_535]);
+  t.deepEqual(bytes, words(65_535, 0));
 
-  t.throws(() => encodeSupportedEncodingsInto(bytes, [65536]));
+  t.throws(() => encodeSupportedEncodingsInto(bytes, [65_536]));
 
   t.throws(() => encodeSupportedEncodingsInto(bytes, [0, 17]));
 

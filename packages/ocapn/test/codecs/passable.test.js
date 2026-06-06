@@ -314,7 +314,7 @@ for (const codec of AllCodecs) {
   test(`passable nested - float64 in containers [${codec.name}]`, t => {
     // Test floats in arrays and records
     const value = harden({
-      numbers: [1.0, 2.5, 3.14159],
+      numbers: [1.0, 2.5, 3.141_59],
       point: { x: 2.0, y: 3.5 },
     });
     const writer = codec.makeWriter();
@@ -324,7 +324,7 @@ for (const codec of AllCodecs) {
     const reader = codec.makeReader(bytes, { name: 'float64 nested' });
     const result = PassableCodec.read(reader);
     t.deepEqual(result, {
-      numbers: [1.0, 2.5, 3.14159],
+      numbers: [1.0, 2.5, 3.141_59],
       point: { x: 2.0, y: 3.5 },
     });
   });

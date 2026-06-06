@@ -1931,6 +1931,8 @@ __metadata:
     tsutils: "npm:~3.21.0"
     typescript: "catalog:dev"
     typescript-eslint: "npm:8.59.2"
+  peerDependencies:
+    eslint-plugin-unicorn: ^56.0.1
   languageName: unknown
   linkType: soft
 

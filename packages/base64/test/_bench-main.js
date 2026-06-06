@@ -33,7 +33,7 @@ async function main() {
 
   const shortString =
     'there once a rich man from nottingham who tried to cross the river. what a dope, he tripped on a rope. now look at him shiver.';
-  const string = new Array(10000).fill(shortString).join(' ');
+  const string = new Array(10_000).fill(shortString).join(' ');
   const shortData = encodeBase64(shortString);
   const data = encodeBase64(string);
 
