@@ -95,7 +95,7 @@ const DEFAULT_HOST_PORT = (() => {
   if (
     !Number.isInteger(parsed) ||
     parsed < 0 ||
-    parsed > 65535 ||
+    parsed > 65_535 ||
     String(parsed) !== DEFAULT_HOST_PORT_RAW.trim()
   ) {
     // Fail loud-but-gentle: print a warning, fall back to ephemeral.

@@ -29,6 +29,7 @@
     "eslint-config-prettier": "^9.1.2",
     "eslint-plugin-import": "catalog:dev",
     "eslint-plugin-jsdoc": "^50.8.0",
+    "eslint-plugin-unicorn": "^56.0.1",
     "prettier": "^3.8.3",
     "ses": "workspace:^",
     "source-map": "^0.7.6",

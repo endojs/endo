@@ -163,6 +163,7 @@ const nativeToHex =
   typeof toHex === 'function' ? /** @type {() => string} */ (toHex) : undefined;
 
 // Deterministic PRNG, same seed shape as other Endo fuzz tests.
+// eslint-disable-next-line unicorn/numeric-separators-style -- mnemonic seed (BOBSCOFF EEFACADE)
 const defaultSeed = [0xb0b5c0ff, 0xeefacade, 0xb0b5c0ff, 0xeefacade];
 const makeBytes = size => {
   const bytes = new Uint8Array(size);
@@ -181,7 +182,7 @@ const time = (label, size, iters, fn) => {
     fn();
   }
   const elapsedNs = nowNs() - start;
-  const perIterUs = elapsedNs / iters / 1_000;
+  const perIterUs = elapsedNs / iters / 1000;
   const mibPerSec = (size * iters) / (elapsedNs / 1e9) / (1 << 20);
   const left = `  ${label}`;
   // Pad without String.prototype.padEnd, which is engine-portable
@@ -249,6 +250,6 @@ console.log(
 );
 console.log('');
 
-runSize(32, 200000);
-runSize(256, 50000);
+runSize(32, 200_000);
+runSize(256, 50_000);
 runSize(1 << 20, 20);
