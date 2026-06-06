@@ -335,11 +335,8 @@ export const makeCompartmentConstructor = (
   { parentCompartment = undefined, enforceNew = false } = {},
 ) => {
   /**
-   * @param {...CompartmentOptionsArgs|LegacyCompartmentOptionsArgs} args
-   */
-  /**
-   * @param {...any} args
    * @this {Compartment}
+   * @param {...any} args
    */
   function Compartment(...args) {
     if (enforceNew && new.target === undefined) {
