@@ -8,6 +8,7 @@
 
 import type {
   FinalStaticModuleType,
+  ModuleDescriptor,
   StaticModuleType,
   ThirdPartyStaticModuleInterface,
   Transform,
@@ -714,12 +715,12 @@ type ModuleTransformResult = {
 export type ExitModuleImportHook = (
   specifier: string,
   packageLocation: string,
-) => Promise<ThirdPartyStaticModuleInterface | undefined>;
+) => Promise<ModuleDescriptor | undefined>;
 
 export type ExitModuleImportNowHook = (
   specifier: string,
   packageLocation: string,
-) => ThirdPartyStaticModuleInterface | undefined;
+) => ModuleDescriptor | undefined;
 
 export type ComputeSourceLocationHook = (
   compartmentName: string,

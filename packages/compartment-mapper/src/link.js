@@ -70,6 +70,13 @@ const has = (object, key) => apply(hasOwnProperty, object, [key]);
 // q, as in quote, for strings in error messages.
 const { quote: q } = assert;
 
+// See section 3.1 of RFC 3986 URI Scheme Generic Syntax
+// https://www.rfc-editor.org/rfc/rfc3986#section-3.1
+// Scheme names are case-insensitive per the cited section, so the regex
+// accepts both cases on the prefix. Bundlers that produce specifiers like
+// `HTTP:` or `File:` are unusual but valid per the spec.
+const urlish = /^[a-zA-Z][a-zA-Z0-9+\-.]*:/;
+
 /**
  * For a full, absolute module specifier like "dependency",
  * produce the module specifier in the dependency, like ".".
@@ -105,6 +112,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {FileUrlString} compartmentName
  * @param {Record<string, FileModuleConfiguration|CompartmentModuleConfiguration>} moduleDescriptors
  * @param {Record<string, ScopeDescriptor<FileUrlString>>} scopeDescriptors
+ * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
 const makeModuleMapHook = (
@@ -113,6 +121,7 @@ const makeModuleMapHook = (
   compartmentName,
   moduleDescriptors,
   scopeDescriptors,
+  archiveOnly,
 ) => {
   // Build pattern matcher once per compartment if patterns exist.
   const { patterns } = /** @type {Partial<PackageCompartmentDescriptor>} */ (
@@ -127,6 +136,25 @@ const makeModuleMapHook = (
    */
   const moduleMapHook = moduleSpecifier => {
     compartmentDescriptor.retained = true;
+
+    if (archiveOnly && urlish.test(moduleSpecifier)) {
+      // When creating an archive of an application that imports a platform
+      // module like node:fs, we implicitly expect these to be provided by the
+      // host's importHook on the target platform. Freeze the synthesized
+      // descriptor so the cross-boundary return cannot be tampered with by a
+      // downstream caller.
+      return freeze({
+        source: freeze({
+          imports: freeze([]),
+          exports: freeze([]),
+          execute() {
+            throw new Error(
+              'Cannot import an application loaded strictly for analysis',
+            );
+          },
+        }),
+      });
+    }
 
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
@@ -438,6 +466,7 @@ export const link = (
       compartmentName,
       modules,
       scopes,
+      archiveOnly,
     );
 
     const compartment = new Compartment({
