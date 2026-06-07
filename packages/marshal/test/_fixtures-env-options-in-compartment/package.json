@@ -1,0 +1,10 @@
+{
+  "name": "env-options-in-compartment-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./main.js",
+  "dependencies": {
+    "@endo/env-options": "workspace:^"
+  }
+}
