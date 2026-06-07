@@ -26,7 +26,10 @@ const addFreshKey = network => {
 };
 
 test('fragmenting mock fabric: handshake completes and message round-trips', async t => {
-  const fabric = makeFragmentingMockMeshFabric({ seed: 0xc0ffee, maxChunk: 7 });
+  const fabric = makeFragmentingMockMeshFabric({
+    seed: 0xc0_ffee,
+    maxChunk: 7,
+  });
   t.teardown(() => fabric.shutdown());
   const netA = makeOcapnNoiseNetwork({ codec: cborCodec });
   t.teardown(() => netA.shutdown());
@@ -64,7 +67,10 @@ test('fragmenting mock fabric: handshake completes and message round-trips', asy
 });
 
 test('fragmenting mock fabric: crossed hellos resolve to one session per side', async t => {
-  const fabric = makeFragmentingMockMeshFabric({ seed: 0xfeedfa, maxChunk: 5 });
+  const fabric = makeFragmentingMockMeshFabric({
+    seed: 0xfe_edfa,
+    maxChunk: 5,
+  });
   t.teardown(() => fabric.shutdown());
   const netA = makeOcapnNoiseNetwork({ codec: cborCodec });
   t.teardown(() => netA.shutdown());

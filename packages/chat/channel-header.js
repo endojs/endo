@@ -320,7 +320,7 @@ export const createChannelHeader = ({
    */
   const sliderToLockoutMs = sliderVal => {
     const minLog = Math.log(2000);
-    const maxLog = Math.log(259200000);
+    const maxLog = Math.log(259_200_000);
     return Math.round(Math.exp(minLog + (sliderVal / 100) * (maxLog - minLog)));
   };
 
@@ -330,7 +330,7 @@ export const createChannelHeader = ({
    */
   const lockoutMsToSlider = ms => {
     const minLog = Math.log(2000);
-    const maxLog = Math.log(259200000);
+    const maxLog = Math.log(259_200_000);
     return Math.round(((Math.log(ms) - minLog) / (maxLog - minLog)) * 100);
   };
 
@@ -352,7 +352,7 @@ export const createChannelHeader = ({
     const sustainedRate = existingConfig ? existingConfig.sustainedRate : 30;
     const lockoutDurationMs = existingConfig
       ? existingConfig.lockoutDurationMs
-      : 10000;
+      : 10_000;
     const postLockoutPct = existingConfig ? existingConfig.postLockoutPct : 40;
     const lockoutSlider = lockoutMsToSlider(lockoutDurationMs);
 

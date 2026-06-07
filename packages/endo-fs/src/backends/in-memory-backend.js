@@ -293,7 +293,7 @@ export const makeInMemoryBackend = () => {
       // `freeBytes` is effectively unbounded for in-memory; we
       // report a generous large constant rather than 0 so consumers
       // distinguishing "out of space" from "in-memory" see signal.
-      const freeBytes = 1099511627776n; // 1 TiB headroom (1 << 40 bytes)
+      const freeBytes = 1_099_511_627_776n; // 1 TiB headroom (1 << 40 bytes)
       return harden({
         blockSize: 1024n,
         totalBlocks: (fileBytes + 1023n) / 1024n,

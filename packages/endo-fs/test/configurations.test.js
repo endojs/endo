@@ -289,7 +289,7 @@ test('watch on a composed view surfaces events from both layer and backing', asy
   // The watcher subscribes to both participants and interleaves
   // their events into one stream; cancelling the composed watcher
   // cancels both underlying subscriptions.
-  t.timeout(5_000);
+  t.timeout(5000);
   const backing = makeInMemoryFilesystem();
   const layer = makeInMemoryFilesystem();
   const cow = compose(layer, backing);

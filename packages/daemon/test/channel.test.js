@@ -2371,7 +2371,7 @@ test.serial(
     await E(bobAttenuator).setHeatConfig({
       burstLimit: 3,
       sustainedRate: 1,
-      lockoutDurationMs: 60000,
+      lockoutDurationMs: 60_000,
       postLockoutPct: 0,
     });
 
@@ -2469,7 +2469,7 @@ test.serial('channel - cascading heat config from parent', async t => {
   await E(bobAttenuator).setHeatConfig({
     burstLimit: 3,
     sustainedRate: 1,
-    lockoutDurationMs: 60000,
+    lockoutDurationMs: 60_000,
     postLockoutPct: 0,
   });
 
@@ -2811,7 +2811,7 @@ test.serial('channel - getHeatConfig returns set config', async t => {
   const config = {
     burstLimit: 10,
     sustainedRate: 30,
-    lockoutDurationMs: 10000,
+    lockoutDurationMs: 10_000,
     postLockoutPct: 40,
   };
   await E(bobAttenuator).setHeatConfig(config);
@@ -3012,7 +3012,7 @@ test.serial(
     await E(bobAtt).setHeatConfig({
       burstLimit: 10,
       sustainedRate: 1,
-      lockoutDurationMs: 60000,
+      lockoutDurationMs: 60_000,
       postLockoutPct: 0,
     });
     const bobMember = await E(bobInvite).join('Bob');
@@ -3023,7 +3023,7 @@ test.serial(
     await E(carolAtt).setHeatConfig({
       burstLimit: 3,
       sustainedRate: 1,
-      lockoutDurationMs: 60000,
+      lockoutDurationMs: 60_000,
       postLockoutPct: 0,
     });
     const carolMember = await E(carolInvite).join('Carol');
@@ -3076,7 +3076,7 @@ test.serial(
     await E(carolAtt).setHeatConfig({
       burstLimit: 3,
       sustainedRate: 5,
-      lockoutDurationMs: 10000,
+      lockoutDurationMs: 10_000,
       postLockoutPct: 10,
     });
     const carolMember = await E(carolInvite).join('Carol');
@@ -3114,7 +3114,7 @@ test.serial(
     await E(bobAtt).setHeatConfig({
       burstLimit: 10,
       sustainedRate: 1,
-      lockoutDurationMs: 60000,
+      lockoutDurationMs: 60_000,
       postLockoutPct: 0,
     });
     const bobMember = await E(bobInvite).join('Bob');
@@ -3125,7 +3125,7 @@ test.serial(
     await E(carolAtt).setHeatConfig({
       burstLimit: 3,
       sustainedRate: 1,
-      lockoutDurationMs: 60000,
+      lockoutDurationMs: 60_000,
       postLockoutPct: 0,
     });
     const carolMember = await E(carolInvite).join('Carol');

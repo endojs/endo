@@ -52,14 +52,14 @@ test('round-trip with large handle and long payload', t => {
     payload[i] = i % 256;
   }
   const env = {
-    handle: 65535,
+    handle: 65_535,
     verb: 'data',
     payload,
     nonce: 999,
   };
   const encoded = encodeEnvelope(env);
   const decoded = decodeEnvelope(encoded);
-  t.is(decoded.handle, 65535);
+  t.is(decoded.handle, 65_535);
   t.is(decoded.verb, 'data');
   t.deepEqual(decoded.payload, payload);
   t.is(decoded.nonce, 999);

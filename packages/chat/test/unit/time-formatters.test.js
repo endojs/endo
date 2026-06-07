@@ -94,7 +94,7 @@ test('numberFormatter is an Intl.NumberFormat', t => {
 });
 
 test('numberFormatter formats numbers', t => {
-  const formatted = numberFormatter.format(1234567);
+  const formatted = numberFormatter.format(1_234_567);
   t.is(typeof formatted, 'string');
   t.true(formatted.length > 0);
   // Should contain locale-specific separators

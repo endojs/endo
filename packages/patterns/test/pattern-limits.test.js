@@ -147,9 +147,9 @@ const runTests = (successCase, failCase) => {
   // numPropertiesLimit, propertyNameLengthLimit
   {
     const specimen = {
-      z: 1000000n,
+      z: 1_000_000n,
       x0123456789: 379n,
-      a: 10000000n,
+      a: 10_000_000n,
     };
     successCase(specimen, M.record());
     successCase(
@@ -243,7 +243,7 @@ const runTests = (successCase, failCase) => {
     const specimen = makeCopyBag([
       [0, 37n],
       [1, 3n],
-      [2, 100000n],
+      [2, 100_000n],
       [3, 1n],
     ]);
     successCase(specimen, M.bag());
@@ -260,7 +260,7 @@ const runTests = (successCase, failCase) => {
     const specimen = makeCopyMap([
       [0, 37n],
       [1, 3n],
-      [2, 100000n],
+      [2, 100_000n],
       [3, 1n],
     ]);
     successCase(specimen, M.mapOf());

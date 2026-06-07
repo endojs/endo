@@ -187,7 +187,7 @@ Methods:
   unmount()    Detach the mount from the slice.
 `;
 
-const KILL_GRACE_MS = 5_000;
+const KILL_GRACE_MS = 5000;
 
 /**
  * Wrap a driver-side `AsyncIterable<Uint8Array>` as a `ReaderRef`-

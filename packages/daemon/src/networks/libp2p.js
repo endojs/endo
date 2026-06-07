@@ -726,7 +726,7 @@ export const make = async (powers, context) => {
     }
   };
 
-  const STATUS_INTERVAL_MS = 60000;
+  const STATUS_INTERVAL_MS = 60_000;
   const statusTimer = setInterval(() => {
     logNetworkStatus().catch(() => {});
   }, STATUS_INTERVAL_MS);

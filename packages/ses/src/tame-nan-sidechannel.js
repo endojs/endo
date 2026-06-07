@@ -46,7 +46,7 @@ const dataViewGetBuffer = uncurryThis(
  *
  * See https://github.com/endojs/endo/pull/3214#discussion_r3155852021
  */
-const canonicalNaN64Encoding = 0x7ff8000000000000n;
+const canonicalNaN64Encoding = 0x7ff8_0000_0000_0000n;
 
 /**
  * As of this writing (April 29, 2026) all implementations agree that a
@@ -63,7 +63,7 @@ const canonicalNaN64Encoding = 0x7ff8000000000000n;
  *
  * See https://github.com/endojs/endo/pull/3214#discussion_r3155852021
  */
-const canonicalNaN32Encoding = 0x7fc00000;
+const canonicalNaN32Encoding = 0x7fc0_0000;
 
 /**
  * As of this writing (April 29, 2026) all implementations that implement

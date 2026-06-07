@@ -440,7 +440,7 @@ test.serial('three-party invite with partition and recovery', async t => {
 test.serial(
   'sub-invitation chain (A->B->C) collects C-side resources after C release',
   async t => {
-    t.timeout(60000);
+    t.timeout(60_000);
     const { host: hostA, config: configA } =
       await prepareHostWithGcAndNetwork(t);
     const { host: hostB, config: configB } =
@@ -519,7 +519,7 @@ test.serial(
 test.serial(
   'agent ring (A->B->C->A) collects after all roots released',
   async t => {
-    t.timeout(60000);
+    t.timeout(60_000);
     const { host: hostA, config: configA } =
       await prepareHostWithGcAndNetwork(t);
     const { host: hostB, config: configB } =
@@ -586,7 +586,7 @@ test.serial(
       !formulaExistsInDb(configC.statePath, cBobPin) &&
       !formulaExistsInDb(configC.statePath, cAlicePin);
 
-    await waitForCondition(allCollected, { timeoutMs: 15000 });
+    await waitForCondition(allCollected, { timeoutMs: 15_000 });
 
     for (const [label, statePath, id] of [
       ['A bob pin', configA.statePath, aBobPin],

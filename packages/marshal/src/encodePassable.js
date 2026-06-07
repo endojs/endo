@@ -113,7 +113,7 @@ const bufferView = new DataView(hiddenBuffer);
 // that this is the canonical NaN for web standards.
 // Casual googling stongly suggests that this is also the cosmWasm
 // canonical NaN. But I have not yet found an authoritative page stating this.
-const canonicalNaN = 0x7ff8000000000000n;
+const canonicalNaN = 0x7ff8_0000_0000_0000n;
 
 /**
  * @param {number} f
@@ -130,9 +130,9 @@ const encodeBinary64 = f => {
     bits = canonicalNaN;
   }
   if (f < 0) {
-    bits ^= 0xffffffffffffffffn;
+    bits ^= 0xffff_ffff_ffff_ffffn;
   } else {
-    bits ^= 0x8000000000000000n;
+    bits ^= 0x8000_0000_0000_0000n;
   }
   return `f${zeroPad(bits.toString(16), 16)}`;
 };
@@ -146,9 +146,9 @@ const decodeBinary64 = (encoded, skip = 0) => {
   encoded.charAt(skip) === 'f' || Fail`Encoded number expected: ${encoded}`;
   let bits = BigInt(`0x${getSuffix(encoded, skip + 1)}`);
   if (encoded.charAt(skip + 1) < '8') {
-    bits ^= 0xffffffffffffffffn;
+    bits ^= 0xffff_ffff_ffff_ffffn;
   } else {
-    bits ^= 0x8000000000000000n;
+    bits ^= 0x8000_0000_0000_0000n;
   }
   bufferView.setBigUint64(0, bits);
   const result = bufferView.getFloat64(0);

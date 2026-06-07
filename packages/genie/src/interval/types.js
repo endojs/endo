@@ -90,7 +90,7 @@ const DEFAULT_MAX_ACTIVE = 5;
 const DEFAULT_MIN_PERIOD_MS = 30_000;
 
 /** Absolute minimum period floor (1 second). */
-const ABSOLUTE_MIN_PERIOD_MS = 1_000;
+const ABSOLUTE_MIN_PERIOD_MS = 1000;
 
 /** Maximum allowed active intervals. */
 const MAX_ACTIVE_CEILING = 100;

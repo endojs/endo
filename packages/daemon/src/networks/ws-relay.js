@@ -41,7 +41,7 @@ import {
 const protocol = 'ws-relay+captp0';
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
-const INITIAL_RECONNECT_DELAY_MS = 1_000;
+const INITIAL_RECONNECT_DELAY_MS = 1000;
 
 /**
  * Build a channel-to-stream adapter. Each multiplexed channel becomes

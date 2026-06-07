@@ -153,7 +153,7 @@ const attach = async (c, fid) => {
   // Tattach: u32 fid, u32 afid, str uname, str aname, u32 n_uname
   const w = makeWriter();
   w.u32(fid);
-  w.u32(0xffffffff);
+  w.u32(0xffff_ffff);
   w.str('');
   w.str('');
   w.u32(0);

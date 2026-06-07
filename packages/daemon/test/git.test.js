@@ -454,7 +454,7 @@ test('NativeGitBackend.tree streams archive-lossless scans larger than the exec 
     ['hash-object', '-w', '--stdin'],
     'x\n',
   );
-  const entryCount = 4_000;
+  const entryCount = 4000;
   let mktreeInput = '';
   for (let index = 0; index < entryCount; index += 1) {
     const name = `${`${index}`.padStart(5, '0')}-${'long-name-'.repeat(
@@ -1376,7 +1376,7 @@ test('git-askpass-helper rejects a record whose declared length exceeds the ceil
       {
         env: { ...process.env, ENDO_GIT_ASKPASS_FD: '3' },
         stdio: ['ignore', 'pipe', 'ignore', recordFd],
-        timeout: 10000,
+        timeout: 10_000,
       },
     );
     t.is(result.signal, null, 'helper must exit on its own, not be timed out');
@@ -3005,7 +3005,7 @@ test('NativeGitBackend read paths do not mutate .git/index metadata', async t =>
   // Touch the tracked file so the worktree stat differs from the index,
   // which is exactly the condition that provokes the opportunistic
   // index refresh.
-  const future = new Date(Date.now() + 5_000);
+  const future = new Date(Date.now() + 5000);
   await fs.promises.utimes(path.join(repoRoot, 'tracked.txt'), future, future);
   const before = (await fs.promises.stat(indexPath)).mtimeMs;
 

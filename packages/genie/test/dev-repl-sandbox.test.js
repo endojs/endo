@@ -211,7 +211,7 @@ const runDevRepl = async ({ args, cwd, extraEnv = {}, timeoutMs = 30_000 }) => {
     killed = true;
     proc.kill('SIGTERM');
     // Hard kill after a 5s grace if SIGTERM is ignored.
-    setTimeout(() => proc.kill('SIGKILL'), 5_000).unref();
+    setTimeout(() => proc.kill('SIGKILL'), 5000).unref();
   }, timeoutMs);
 
   /** @type {{ code: number | null; signal: NodeJS.Signals | null }} */

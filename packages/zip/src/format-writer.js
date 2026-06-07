@@ -147,7 +147,7 @@ function writeEndOfCentralDirectoryRecord(
  * @returns {number}
  */
 function externalFileAttributes(mode) {
-  return ((mode & 0o777) | 0o100000) << 16;
+  return ((mode & 0o777) | 0o10_0000) << 16;
 }
 
 // TODO Add support for directory records.

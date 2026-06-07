@@ -263,7 +263,7 @@ test('xattrs on node-fs: vat-local sidecar does not persist to disk', async t =>
 });
 
 test('watch fires events when a child is created in the directory', async t => {
-  t.timeout(5_000);
+  t.timeout(5000);
   const fs = await setupFs(t);
   const root = await E(fs).root();
   const watcher = await E(root).watch();
@@ -288,7 +288,7 @@ test('setAttrs rejects owner; allows mtime updates', async t => {
   await t.throwsAsync(() => E(file).setAttrs({ owner: { uid: 0n, gid: 0n } }), {
     message: /PosixFs/,
   });
-  const past = 1_700_000_000_000n * 1_000n; // ns
+  const past = 1_700_000_000_000n * 1000n; // ns
   await E(file).setAttrs({ mtime: past });
   const a = await E(file).getAttrs();
   t.is(a.mtime, past);

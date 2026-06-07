@@ -101,7 +101,7 @@ export const encodeSupportedEncodingsInto = (bytes, supportedEncodings) => {
   const firstEncoding = Math.min(...supportedEncodings);
   let moreEncodingsMask = 0;
   for (const encoding of supportedEncodings) {
-    if (encoding > 65535) {
+    if (encoding > 65_535) {
       throw new Error(
         `Cannot support encoding versions beyond 65535, got ${encoding}`,
       );
@@ -111,7 +111,7 @@ export const encodeSupportedEncodingsInto = (bytes, supportedEncodings) => {
       continue;
     }
     // eslint-disable-next-line no-bitwise
-    const encodingBit = 0xff_ff & (1 << (encoding - firstEncoding - 1));
+    const encodingBit = 0xffff & (1 << (encoding - firstEncoding - 1));
     if (!encodingBit) {
       throw new Error(
         `Cannot simultaneously support encodings that are more than 16 versions apart, got ${supportedEncodings.join(', ')}`,
@@ -193,7 +193,7 @@ export const makeOcapnSessionCryptography = ({
           array = new Uint8Array(wasmInstance.exports.memory.buffer);
         }
         if (!buffer || detached) {
-          buffer = array.subarray(bufferOffset, bufferOffset + 65535);
+          buffer = array.subarray(bufferOffset, bufferOffset + 65_535);
         }
       },
     },
@@ -485,7 +485,7 @@ export const makeOcapnSessionCryptography = ({
    * @throws {Error} If message is too long or encryption is not available
    */
   const encrypt = message => {
-    if (message.length > 65535 - 16) {
+    if (message.length > 65_535 - 16) {
       throw new Error(
         'OCapN Noise Protocol message exceeds maximum length for encryption',
       );
@@ -514,7 +514,7 @@ export const makeOcapnSessionCryptography = ({
         'OCapN Noise Protocol message not long enough for decryption',
       );
     }
-    if (message.length > 65535) {
+    if (message.length > 65_535) {
       throw new Error(
         'OCapN Noise Protocol message exceeds maximum length for decryption',
       );

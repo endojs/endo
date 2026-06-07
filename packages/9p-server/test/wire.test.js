@@ -16,8 +16,8 @@ test('writer/reader round-trip the basic primitive types', t => {
   const w = makeWriter();
   w.u8(0x12);
   w.u16(0x1234);
-  w.u32(0xdeadbeef);
-  w.u64(0xfedcba9876543210n);
+  w.u32(0xdead_beef);
+  w.u64(0xfedc_ba98_7654_3210n);
   w.str('hello');
   w.bytes(Buffer.from([1, 2, 3, 4]));
   const out = w.finish();
@@ -25,8 +25,8 @@ test('writer/reader round-trip the basic primitive types', t => {
   const r = makeReader(out);
   t.is(r.u8(), 0x12);
   t.is(r.u16(), 0x1234);
-  t.is(r.u32(), 0xdeadbeef);
-  t.is(r.u64(), 0xfedcba9876543210n);
+  t.is(r.u32(), 0xdead_beef);
+  t.is(r.u64(), 0xfedc_ba98_7654_3210n);
   t.is(r.str(), 'hello');
   t.deepEqual([...r.take(4)], [1, 2, 3, 4]);
   t.is(r.remaining(), 0);

@@ -30,7 +30,7 @@ async function waitForApp(page: Page) {
  */
 async function openAddSpaceModal(page: Page) {
   await page.locator('.add-space-button').click();
-  await page.waitForSelector('.add-space-modal', { timeout: 5_000 });
+  await page.waitForSelector('.add-space-modal', { timeout: 5000 });
 }
 
 /**

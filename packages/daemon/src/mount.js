@@ -54,7 +54,7 @@ const reserveScratchPath = async (target, filePowers) => {
   for (;;) {
     writeScratchCounter += 1;
     // eslint-disable-next-line no-bitwise
-    const random = (Math.floor(Math.random() * 0xffffffff) >>> 0).toString(16);
+    const random = (Math.floor(Math.random() * 0xffff_ffff) >>> 0).toString(16);
     const scratch = `${target}.${writeScratchCounter}.${random}.tmp`;
     // eslint-disable-next-line no-await-in-loop
     if (!(await filePowers.exists(scratch))) {

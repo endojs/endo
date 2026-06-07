@@ -376,7 +376,7 @@ export const spawnWorkerLoop = async (
           `[jaine][watch] Poll error in ${channelName}:`,
           err instanceof Error ? err.message : String(err),
         );
-        await delay(10000);
+        await delay(10_000);
       }
     }
   };
