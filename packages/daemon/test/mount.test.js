@@ -565,7 +565,7 @@ test('copy of a tree into its own descendant is rejected, not infinitely recurse
   // loop until the filesystem is exhausted. The descendant guard rejects
   // up front. The explicit timeout makes CI fail fast (rather than hang
   // until the global AVA timeout) if the guard regresses.
-  t.timeout(15000);
+  t.timeout(15_000);
   const rootPath = makeTempRoot(t);
   const mount = makeMount({ rootPath, readOnly: false, filePowers });
   await E(mount).makeDirectory(['dir']);
@@ -675,7 +675,7 @@ test('copy into a symlinked re-entry of the source is rejected', async t => {
   // diverge just as it does for the literal-descendant case. The hardened
   // guard re-checks the symlink-resolved physical paths. The explicit
   // timeout makes CI fail fast if the guard regresses into a hang.
-  t.timeout(15000);
+  t.timeout(15_000);
   const rootPath = makeTempRoot(t);
   const mount = makeMount({ rootPath, readOnly: false, filePowers });
   await E(mount).makeDirectory(['src']);

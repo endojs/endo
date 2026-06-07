@@ -205,10 +205,10 @@ test('0', bignumMacro, 0n, "2(h'')");
 test('1', bignumMacro, 1n, "2(h'01')");
 test('255', bignumMacro, 255n, "2(h'ff')");
 test('256', bignumMacro, 256n, "2(h'0100')");
-test('large', bignumMacro, 0x123456789abcdef0n, "2(h'123456789abcdef0')");
+test('large', bignumMacro, 0x1234_5678_9abc_def0n, "2(h'123456789abcdef0')");
 test('-1', bignumMacro, -1n, "3(h'')");
 test('-256', bignumMacro, -256n);
-test('large negative', bignumMacro, -0x123456789abcdef0n);
+test('large negative', bignumMacro, -0x1234_5678_9abc_def0n);
 
 // ===== Float64 =====
 
@@ -434,7 +434,7 @@ test('interop: tagged value', async t => {
   const value = await cbor.decodeFirst(bytes);
 
   // cbor library returns a Tagged object
-  t.is(value.tag, 55799);
+  t.is(value.tag, 55_799);
   t.true(Array.isArray(value.value));
   t.is(value.value[0], 'decimal');
   t.is(value.value[1], '3.14');

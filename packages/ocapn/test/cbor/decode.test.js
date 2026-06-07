@@ -76,7 +76,7 @@ test('decode integer 256', t => {
 
 test('decode large integer', t => {
   const reader = decode('c248123456789abcdef0');
-  t.is(reader.readInteger(), 0x123456789abcdef0n);
+  t.is(reader.readInteger(), 0x1234_5678_9abc_def0n);
 });
 
 test('decode negative integer -1', t => {
@@ -383,7 +383,16 @@ test('round-trip: boolean', t => {
 });
 
 test('round-trip: integers', t => {
-  const values = [0n, 1n, -1n, 255n, 256n, -256n, -257n, 0x123456789abcdef0n];
+  const values = [
+    0n,
+    1n,
+    -1n,
+    255n,
+    256n,
+    -256n,
+    -257n,
+    0x1234_5678_9abc_def0n,
+  ];
   for (const value of values) {
     t.is(roundTrip(w => w.writeInteger(value)).readInteger(), value);
   }

@@ -176,7 +176,7 @@ export const makeXsNode = ({ onControl } = {}) => {
    * @param {Uint8Array} bytes - raw CBOR envelope bytes
    */
   globalThis.handleCommand = harden(bytes => {
-    if (bytes.length > 10000) {
+    if (bytes.length > 10_000) {
       trace(`xs-core: handleCommand large envelope len=${bytes.length}`);
     }
     let env;
@@ -188,7 +188,7 @@ export const makeXsNode = ({ onControl } = {}) => {
       );
       return;
     }
-    if (bytes.length > 10000) {
+    if (bytes.length > 10_000) {
       trace(
         `xs-core: decoded envelope handle=${env.handle} verb=${env.verb} payload_len=${env.payload.length}`,
       );
@@ -198,11 +198,11 @@ export const makeXsNode = ({ onControl } = {}) => {
       const onPayload = sessions.get(env.handle);
       if (onPayload) {
         try {
-          if (bytes.length > 10000) {
+          if (bytes.length > 10_000) {
             trace(`xs-core: dispatching to session ${env.handle}`);
           }
           onPayload(env.payload);
-          if (bytes.length > 10000) {
+          if (bytes.length > 10_000) {
             trace(`xs-core: session dispatch returned`);
           }
         } catch (e) {

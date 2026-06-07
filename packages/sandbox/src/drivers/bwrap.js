@@ -38,7 +38,7 @@ import {
  * resolved mount table.
  */
 
-const DEFAULT_KILL_GRACE_MS = 5_000;
+const DEFAULT_KILL_GRACE_MS = 5000;
 
 /**
  * Inner mount points the driver always installs for a usable rootfs.

@@ -98,7 +98,7 @@ async function buildOllamaModel(id) {
   const api = 'openai-completions';
 
   // TODO discover this from ollama's model show endpoint
-  const contextWindow = 32768;
+  const contextWindow = 32_768;
 
   // TODO determine this based on a "reserved for response" proportion of the context window.
   const maxTokens = 8192;

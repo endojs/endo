@@ -726,7 +726,7 @@ export const serveConnection = ({
     const totalBlocks = BigInt(stats.totalBytes ?? 0n) / blockSize;
     const freeBlocks = BigInt(stats.freeBytes ?? 0n) / blockSize;
     const w = makeWriter(48);
-    w.u32(0x01021997); // V9FS_MAGIC
+    w.u32(0x0102_1997); // V9FS_MAGIC
     w.u32(Number(blockSize));
     w.u64(totalBlocks);
     w.u64(freeBlocks);

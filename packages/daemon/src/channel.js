@@ -941,7 +941,7 @@ export const makeChannelMaker = ({
               heatConfig = harden({
                 burstLimit: 5,
                 sustainedRate: Math.round(data.rateLimitPerSecond * 60),
-                lockoutDurationMs: 10000,
+                lockoutDurationMs: 10_000,
                 postLockoutPct: 40,
               });
             }

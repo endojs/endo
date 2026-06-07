@@ -537,19 +537,19 @@ export const createCommandExecutor = ({
                 relaxed: {
                   burstLimit: 20,
                   sustainedRate: 30,
-                  lockoutDurationMs: 30000,
+                  lockoutDurationMs: 30_000,
                   postLockoutPct: 50,
                 },
                 moderate: {
                   burstLimit: 10,
                   sustainedRate: 10,
-                  lockoutDurationMs: 60000,
+                  lockoutDurationMs: 60_000,
                   postLockoutPct: 50,
                 },
                 strict: {
                   burstLimit: 5,
                   sustainedRate: 3,
-                  lockoutDurationMs: 120000,
+                  lockoutDurationMs: 120_000,
                   postLockoutPct: 70,
                 },
               };

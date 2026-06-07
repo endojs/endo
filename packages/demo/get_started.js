@@ -59,11 +59,11 @@ async function makeBob(fromAlice, toAlice) {
     // And we invoke its one method. Ping!
     await E(alice).ping();
 
-    await new Promise(resolve => setTimeout(resolve, 1_000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     await E(alice).ping();
 
-    await new Promise(resolve => setTimeout(resolve, 1_000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
   await Promise.allSettled([serve(), doCrimes()]);

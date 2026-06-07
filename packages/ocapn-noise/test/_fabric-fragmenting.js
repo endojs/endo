@@ -33,7 +33,7 @@ const makeLcg = seed => {
   return {
     /** @param {number} max */
     nextInRange: max => {
-      state = (Math.imul(state, 1664525) + 1013904223) % TWO32;
+      state = (Math.imul(state, 1_664_525) + 1_013_904_223) % TWO32;
       if (state < 0) state += TWO32;
       return state % max;
     },
@@ -163,10 +163,10 @@ const makeBidirectional = (rng, maxChunk) => {
     makeNetstringWriter(baFragmenting)
   );
   const abNetstringReader = /** @type {any} */ (
-    makeNetstringReader(ab.reader, { maxMessageLength: 65551 })
+    makeNetstringReader(ab.reader, { maxMessageLength: 65_551 })
   );
   const baNetstringReader = /** @type {any} */ (
-    makeNetstringReader(ba.reader, { maxMessageLength: 65551 })
+    makeNetstringReader(ba.reader, { maxMessageLength: 65_551 })
   );
   return [
     harden({ reader: baNetstringReader, writer: abNetstringWriter }),

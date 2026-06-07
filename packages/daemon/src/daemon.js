@@ -3287,7 +3287,7 @@ const makeDaemonCore = async (
         /** @type {import('./types.js').PetName} */ (guestName),
       ),
     timer: async ({ intervalMs, label: timerLabel }, context) => {
-      const interval = Number(intervalMs) || 60000;
+      const interval = Number(intervalMs) || 60_000;
       let tickCount = 0;
       /** @type {Array<{ callback: object, context: string }>} */
       const subscribers = [];

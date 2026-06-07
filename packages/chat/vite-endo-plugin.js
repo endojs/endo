@@ -82,11 +82,11 @@ const loadDotenv = () => {
  * @param {string[]} args
  * @param {number} timeoutMs
  */
-const runEndoCli = (args, timeoutMs = 1_500) =>
+const runEndoCli = (args, timeoutMs = 1500) =>
   systemCapture(endoCliPath, args, timeoutMs);
 
 // Set to 0 to disable thrashing when developing daemon
-const DAEMON_POLL_INTERVAL_MS = 5_000;
+const DAEMON_POLL_INTERVAL_MS = 5000;
 
 // The daemon may need to reincarnate network modules (libp2p DHT bootstrapping
 // can take ~30s), so allow up to 90s.

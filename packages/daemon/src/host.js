@@ -960,7 +960,7 @@ export const makeHostMaker = ({
           ? `${options.resultName}`
           : `tree-unconfined-${await (async () => {
               // eslint-disable-next-line no-bitwise
-              const r = Math.floor(Math.random() * 0xffffff);
+              const r = Math.floor(Math.random() * 0xff_ffff);
               return r.toString(16);
             })()}`;
       // Scratch mount carries a derived pet name so the caller can

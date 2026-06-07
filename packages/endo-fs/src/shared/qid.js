@@ -22,9 +22,9 @@ export const synthQid = (path, kind) => {
   // can pass through CapTP. The `^` and `&` are inherent to the
   // algorithm; we silence `no-bitwise` rather than swap for a less
   // standard hash.
-  let h = 0xcbf29ce484222325n;
-  const FNV_PRIME = 0x100000001b3n;
-  const MASK = 0xffffffffffffffffn;
+  let h = 0xcbf2_9ce4_8422_2325n;
+  const FNV_PRIME = 0x100_0000_01b3n;
+  const MASK = 0xffff_ffff_ffff_ffffn;
   const joined = path.join('\0');
   for (let i = 0; i < joined.length; i += 1) {
     // eslint-disable-next-line no-bitwise

@@ -187,7 +187,7 @@ test('watcher unblocks pending consumers when the backend iterator errors', asyn
   // catches it — no need to race a manual setTimeout. Two seconds
   // is plenty for the close() propagation; if it takes longer than
   // that the bug is back regardless of the exact deadline.
-  t.timeout(2_000);
+  t.timeout(2000);
 
   // A backend whose `watch` iterator throws on first next(). The
   // pump must surface the failure as a stream-done so subscribers
@@ -324,7 +324,7 @@ test('File.setStat({size, mtime}) preserves the caller-supplied mtime (no touch 
   await E(oh).close();
 
   const file = await E(root).lookup('clobber.txt');
-  const explicit = 12345n; // some explicit ns-since-epoch timestamp
+  const explicit = 12_345n; // some explicit ns-since-epoch timestamp
   await E(file).setStat({ size: 3n, mtime: explicit });
 
   const attrs = await E(file).getAttrs();
