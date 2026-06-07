@@ -44,9 +44,9 @@ import { E as ERRNO, QT, S, T, GETATTR_BASIC } from './types.js';
 
 const VERSION_9P2000_L = '9P2000.L';
 const MIN_MSIZE = 4096;
-const DEFAULT_MSIZE = 131072;
+const DEFAULT_MSIZE = 131_072;
 
-const MASK_U32 = 0xffffffffn;
+const MASK_U32 = 0xffff_ffffn;
 const MASK_U64 = (1n << 64n) - 1n;
 
 /**
