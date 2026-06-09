@@ -6,6 +6,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { parseArgs } from 'util';
 
+/**
+ * Merge Chrome trace-event files and write aggregate duration summaries. This
+ * accepts any `*.trace.json` file with a `traceEvents` array, not just traces
+ * produced by `@endo/bundle-source`.
+ */
+
 const options = /** @type {const} */ ({
   'out-trace': { type: 'string' },
   'out-summary': { type: 'string' },
@@ -41,13 +47,14 @@ const FOCUS_SPANS = [
 const sumNumericArgBySpan = (events, spanName, argName) => {
   let total = 0;
   for (const event of events) {
-    if (event.ph !== 'X' || event.name !== spanName) {
-      continue;
-    }
-    const args = /** @type {Record<string, unknown> | undefined} */ (event.args);
-    const value = args && args[argName];
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      total += value;
+    if (event.ph === 'X' && event.name === spanName) {
+      const args = /** @type {Record<string, unknown> | undefined} */ (
+        event.args
+      );
+      const value = args && args[argName];
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        total += value;
+      }
     }
   }
   return total;
@@ -95,17 +102,16 @@ const findTraceFiles = async root => {
   const queue = [root];
   while (queue.length > 0) {
     const dir = queue.shift();
-    if (!dir) {
-      continue;
-    }
-    // eslint-disable-next-line no-await-in-loop
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const filePath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        queue.push(filePath);
-      } else if (entry.isFile() && entry.name.endsWith('.trace.json')) {
-        found.push(filePath);
+    if (dir) {
+      // eslint-disable-next-line no-await-in-loop
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const filePath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          queue.push(filePath);
+        } else if (entry.isFile() && entry.name.endsWith('.trace.json')) {
+          found.push(filePath);
+        }
       }
     }
   }
@@ -177,33 +183,33 @@ const summarize = (events, top) => {
   /** @type {Map<string, Array<[number, number]>>} */
   const intervalsByName = new Map();
   for (const event of events) {
-    if (event.ph !== 'X' || typeof event.name !== 'string') {
-      continue;
-    }
-    const dur = typeof event.dur === 'number' ? event.dur : undefined;
-    const ts = typeof event.ts === 'number' ? event.ts : undefined;
-    if (dur === undefined || ts === undefined) {
-      continue;
-    }
-    const bucket = durationsByName.get(event.name);
-    if (bucket) {
-      bucket.push(dur);
-    } else {
-      durationsByName.set(event.name, [dur]);
-    }
-    const intervals = intervalsByName.get(event.name);
-    const interval = /** @type {[number, number]} */ ([ts, ts + dur]);
-    if (intervals) {
-      intervals.push(interval);
-    } else {
-      intervalsByName.set(event.name, [interval]);
+    if (event.ph === 'X' && typeof event.name === 'string') {
+      const dur = typeof event.dur === 'number' ? event.dur : undefined;
+      const ts = typeof event.ts === 'number' ? event.ts : undefined;
+      if (dur !== undefined && ts !== undefined) {
+        const bucket = durationsByName.get(event.name);
+        if (bucket) {
+          bucket.push(dur);
+        } else {
+          durationsByName.set(event.name, [dur]);
+        }
+        const intervals = intervalsByName.get(event.name);
+        const interval = /** @type {[number, number]} */ ([ts, ts + dur]);
+        if (intervals) {
+          intervals.push(interval);
+        } else {
+          intervalsByName.set(event.name, [interval]);
+        }
+      }
     }
   }
 
   const rows = [...durationsByName.entries()].map(([name, durations]) => {
     durations.sort((a, b) => a - b);
     const total = durations.reduce((sum, value) => sum + value, 0);
-    const criticalPathUs = unionDuration([...(intervalsByName.get(name) || [])]);
+    const criticalPathUs = unionDuration([
+      ...(intervalsByName.get(name) || []),
+    ]);
     return {
       name,
       count: durations.length,
@@ -245,6 +251,7 @@ const zeroRow = name => ({
 
 /**
  * @param {ReturnType<typeof summarize>} rows
+ * @param {ReturnType<typeof summarize>} [focusRows]
  * @returns {string}
  */
 const summarizeMarkdown = (rows, focusRows = []) => {
@@ -296,14 +303,17 @@ const makeDerivedMetrics = (allRows, focusSpans, events) => {
   const bundlesProcessed = allByName.get('bundleSource.total')?.count || 0;
   const modulesParsed =
     allByName.get('compartmentMapper.importHook.parseModule')?.count || 0;
-  const modulesTransformed = allByName.get('bundleSource.transformModule')?.count || 0;
+  const modulesTransformed =
+    allByName.get('bundleSource.transformModule')?.count || 0;
   const fastPathHitCount =
     focusByName.get('evasiveTransform.fastPath.hit')?.count || 0;
   const fastPathMissCount =
     focusByName.get('evasiveTransform.fastPath.miss')?.count || 0;
   const fastPathTotal = fastPathHitCount + fastPathMissCount;
-  const fastPathHitRate = fastPathTotal > 0 ? fastPathHitCount / fastPathTotal : 0;
-  const readCacheHitCount = focusByName.get('bundleSource.readCache.hit')?.count || 0;
+  const fastPathHitRate =
+    fastPathTotal > 0 ? fastPathHitCount / fastPathTotal : 0;
+  const readCacheHitCount =
+    focusByName.get('bundleSource.readCache.hit')?.count || 0;
   const readCacheMissCount =
     focusByName.get('bundleSource.readCache.miss')?.count || 0;
   const readCachePendingCount =
@@ -328,7 +338,8 @@ const makeDerivedMetrics = (allRows, focusSpans, events) => {
     'bytes',
   );
 
-  const totalBundleMs = (allByName.get('bundleSource.total')?.totalUs || 0) / 1000;
+  const totalBundleMs =
+    (allByName.get('bundleSource.total')?.totalUs || 0) / 1000;
   const totalParseMs =
     (allByName.get('compartmentMapper.importHook.parseModule')?.totalUs || 0) /
     1000;
@@ -404,7 +415,10 @@ const main = async () => {
     const events = trace.traceEvents || [];
     let maxEndUs = 0;
     for (const event of events) {
-      const copy = { ...event, args: { ...(event.args || {}), source: filePath } };
+      const copy = {
+        ...event,
+        args: { ...(event.args || {}), source: filePath },
+      };
       if (stacked) {
         if (typeof copy.ts === 'number') {
           copy.ts += offsetUs;
@@ -439,7 +453,11 @@ const main = async () => {
 
   await fs.writeFile(
     outTrace,
-    JSON.stringify({ traceEvents: mergedEvents, displayTimeUnit: 'ms' }, null, 2),
+    JSON.stringify(
+      { traceEvents: mergedEvents, displayTimeUnit: 'ms' },
+      null,
+      2,
+    ),
   );
   await fs.writeFile(outSummary, JSON.stringify(summary, null, 2));
   await fs.writeFile(outMarkdown, summarizeMarkdown(summaryTop, focusSpans));
