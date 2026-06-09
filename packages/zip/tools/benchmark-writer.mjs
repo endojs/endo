@@ -68,7 +68,9 @@ const makeInputFiles = (entries, totalBytes) => {
     const last = files[files.length - 1];
     const newSize = Math.max(16, last.content.length + delta);
     const adjusted = new Uint8Array(newSize);
-    adjusted.set(last.content.subarray(0, Math.min(last.content.length, newSize)));
+    adjusted.set(
+      last.content.subarray(0, Math.min(last.content.length, newSize)),
+    );
     for (let i = last.content.length; i < newSize; i += 1) {
       adjusted[i] = i & 0xff;
     }
@@ -108,7 +110,10 @@ const main = () => {
   const warmup = toPositiveInt(warmupRaw, 'warmup');
 
   const files = makeInputFiles(entries, totalBytes);
-  const totalInputBytes = files.reduce((sum, file) => sum + file.content.length, 0);
+  const totalInputBytes = files.reduce(
+    (sum, file) => sum + file.content.length,
+    0,
+  );
 
   /** @type {Record<string, number[]>} */
   const spanSamples = Object.create(null);

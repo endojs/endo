@@ -16,7 +16,13 @@ const makeCreateStaticRecord = transformSource =>
    */
   function createStaticRecord(
     moduleSource,
-    { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook, profileStartSpan } = {},
+    {
+      sourceUrl,
+      sourceMapUrl,
+      sourceMap,
+      sourceMapHook,
+      profileStartSpan,
+    } = {},
   ) {
     // Transform the Module source code.
     const sourceOptions = {
