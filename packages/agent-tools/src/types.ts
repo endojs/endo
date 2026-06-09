@@ -3,6 +3,20 @@ import type { Filesystem } from '@endo/endo-fs';
 import type { EndoGit } from '@endo/exo-git';
 import type { Pattern } from '@endo/patterns';
 
+/**
+ * The read- and branch-navigation slice of `EndoGit` the git tool catalog
+ * exposes to an LLM.
+ *
+ * Deliberately omits the destructive and history-rewriting methods of `EndoGit`
+ * — `merge`, `rebase`, `restore`, `deleteBranch`, `renameBranch`, the `stash*`
+ * family, and the working-tree/detach mutators (`add`, `switch`, `detach`,
+ * `worktree`). Those carry authority a tool surface handed to a model should not
+ * advertise: they can discard uncommitted work or rewrite shared history.
+ * `commit`, `createBranch`, and `switchBranch` are included as the additive,
+ * non-destructive write surface. Widening this `Pick` is a deliberate authority
+ * decision, not a convenience — add a method only when the tool surface is meant
+ * to grant it.
+ */
 export type GitToolCapability = Pick<
   EndoGit,
   | 'log'
