@@ -155,19 +155,21 @@ Environment variables:
 - `ENDO_BUNDLE_SOURCE_PROFILE_FILE`: explicit output file for a single run
 - `ENDO_BUNDLE_SOURCE_PROFILE_STDERR`: if truthy, prints each generated trace path to stderr
 
-Merge and summarize many profile traces:
+Merge and summarize Chrome trace files:
 
 ```console
 yarn workspace @endo/bundle-source trace:merge -- /tmp/bs-profiles
 ```
 
+This utility is not specific to `bundle-source`; it accepts trace files and
+directories containing `*.trace.json` files from any compatible producer.
 This generates:
 - `merged.trace.json` for trace viewers.
 - `summary.json` with aggregate span statistics.
 - `summary.md` with a top spans table by total duration.
 
-Profile bundling all `source-spec-registry.js` entries from an `agoric-sdk`
-checkout using the current checkout's `bundle-source`:
+For Agoric SDK bundle profiling, profile every `source-spec-registry.js` entry
+from an `agoric-sdk` checkout using the current checkout's `bundle-source`:
 
 ```console
 yarn workspace @endo/bundle-source profile:agoric-bundling -- \
@@ -175,8 +177,8 @@ yarn workspace @endo/bundle-source profile:agoric-bundling -- \
   --out-dir /tmp/profile-agoric-bundling
 ```
 
-The tool writes bundles, raw traces, merged trace, and summary files to
-`--out-dir`, and prints a top-spans summary table at the end.
+This Agoric-specific helper writes bundles, raw traces, merged trace, and
+summary files to `--out-dir`, and prints a top-spans summary table at the end.
 
 ## `moduleFormat` explanations
 

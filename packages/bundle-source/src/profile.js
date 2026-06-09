@@ -1,4 +1,5 @@
 // @ts-check
+/* global process */
 
 import fs from 'fs';
 import os from 'os';
@@ -7,20 +8,29 @@ import { performance } from 'perf_hooks';
 
 /** @import {BundleProfilingOptions} from './types.js' */
 
+/**
+ * @typedef {object} BundleProfiler
+ * @property {boolean} enabled
+ * @property {(name: string, args?: Record<string, unknown>) => (args?: Record<string, unknown>) => void} startSpan
+ * @property {(result?: Record<string, unknown>) => Promise<void>} flush
+ */
+
 let nextTraceFileId = 0;
 
 const truthy = new Set(['1', 'true', 'yes', 'on']);
+const noop = () => {};
 
 /**
  * @param {string | undefined} value
  * @returns {boolean}
  */
-const parseBoolean = value => {
-  if (value === undefined) {
-    return false;
-  }
-  return truthy.has(value.toLowerCase());
-};
+const parseBoolean = value => truthy.has(value?.toLowerCase() ?? '');
+
+/**
+ * @param {number} ms
+ * @returns {number}
+ */
+const toMicros = ms => Math.round(ms * 1000);
 
 /**
  * @param {string} moduleFormat
@@ -36,6 +46,7 @@ const classifyModuleFormat = moduleFormat =>
  * @param {number} [options.pid]
  * @param {Record<string, string | undefined>} [options.env]
  * @param {BundleProfilingOptions | undefined} [options.profile]
+ * @returns {BundleProfiler}
  */
 export const makeBundleProfiler = ({
   moduleFormat,
@@ -45,17 +56,16 @@ export const makeBundleProfiler = ({
   profile = undefined,
 }) => {
   const enabled =
-    profile?.enabled !== undefined
-      ? profile.enabled
-      : parseBoolean(env.ENDO_BUNDLE_SOURCE_PROFILE);
+    profile?.enabled ?? parseBoolean(env.ENDO_BUNDLE_SOURCE_PROFILE);
   const logToStderr = parseBoolean(env.ENDO_BUNDLE_SOURCE_PROFILE_STDERR);
 
   if (!enabled) {
-    const noop = () => {};
     return {
       enabled,
       startSpan: (_name, _args = undefined) => noop,
-      async flush(_args = undefined) {},
+      async flush(_args = undefined) {
+        return undefined;
+      },
     };
   }
 
@@ -71,20 +81,19 @@ export const makeBundleProfiler = ({
     traceFile ||
     path.join(
       traceDir,
-      `bundle-source-${phase}-${pid}-${Date.now()}-${nextTraceFileId++}.trace.json`,
+      `bundle-source-${phase}-${pid}-${Date.now()}-${nextTraceFileId}.trace.json`,
     );
+  nextTraceFileId += 1;
 
   /** @type {Array<Record<string, unknown>>} */
   const traceEvents = [];
   const zeroMs = performance.now();
 
   /**
-   * @param {number} ms
-   * @returns {number}
-   */
-  const toMicros = ms => Math.round(ms * 1000);
-
-  /**
+   * Start a Chrome Trace Event "complete event" span. The generated event uses
+   * the trace-event field names (`ph`, `ts`, `dur`, `pid`, `tid`) described by
+   * https://chromium.googlesource.com/catapult/+/HEAD/tracing/README.md .
+   *
    * @param {string} name
    * @param {Record<string, unknown> | undefined} args
    */
