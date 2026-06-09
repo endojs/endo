@@ -113,6 +113,31 @@ test('truncates content beyond the 50k-char cap', async t => {
   t.is(result.indexOf('\n\n... (truncated'), 50_000);
 });
 
+test('truncates at a caller-supplied maxChars', async t => {
+  const rootPath = makeTempRoot(t);
+  const big = 'x'.repeat(20);
+  fs.writeFileSync(path.join(rootPath, 'big.txt'), big);
+  const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
+
+  const tool = makeMountReadTool(filesystem, { maxChars: 8 });
+  const result = await tool.execute({ path: 'big.txt' });
+  t.true(result.startsWith('x'.repeat(8)));
+  t.true(result.includes('truncated at 8 chars'));
+  t.is(result.indexOf('\n\n... (truncated'), 8);
+});
+
+test('maxChars: 0 disables the limit and returns full contents', async t => {
+  const rootPath = makeTempRoot(t);
+  const big = 'x'.repeat(60_000);
+  fs.writeFileSync(path.join(rootPath, 'big.txt'), big);
+  const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
+
+  const tool = makeMountReadTool(filesystem, { maxChars: 0 });
+  const result = await tool.execute({ path: 'big.txt' });
+  t.is(result, big);
+  t.false(result.includes('truncated'));
+});
+
 test('normalizes leading, trailing, and doubled slashes to "." no-op steps', async t => {
   const rootPath = makeTempRoot(t);
   fs.mkdirSync(path.join(rootPath, 'sub'));

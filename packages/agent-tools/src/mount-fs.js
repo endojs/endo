@@ -9,10 +9,10 @@ import { E } from '@endo/far';
 import { walk, collectBytes } from '@endo/endo-fs';
 
 /**
- * Existing text-read truncation cap.
+ * Default text-read truncation cap, in characters. A `maxChars` option of `0`
+ * disables truncation entirely.
  */
-const MAX_TEXT_CHARS = 50_000;
-const MAX_TEXT_BYTES = BigInt(MAX_TEXT_CHARS + 1);
+const DEFAULT_MAX_TEXT_CHARS = 50_000;
 
 /**
  * A read-only filesystem tool bound to an `@endo/endo-fs` `Filesystem`
@@ -25,9 +25,20 @@ const MAX_TEXT_BYTES = BigInt(MAX_TEXT_CHARS + 1);
  *
  * @param {ERef<Filesystem>} fs An `@endo/endo-fs` `Filesystem` ERef. Callers
  *   can attenuate authority with `readOnly` or `chroot`.
+ * @param {object} [opts] Configuration options.
+ * @param {number} [opts.maxChars] Maximum number of UTF-8 characters returned
+ *   before the result is truncated. Defaults to `DEFAULT_MAX_TEXT_CHARS`
+ *   (50,000). A value of `0` disables the limit; the full file contents are
+ *   returned untruncated.
  * @returns {MountReadToolRecord}
  */
-export const makeMountReadTool = fs => {
+export const makeMountReadTool = (fs, opts = {}) => {
+  const { maxChars = DEFAULT_MAX_TEXT_CHARS } = opts;
+  const limitDisabled = maxChars === 0;
+  // `open().read(0n, length)` is exclusive of `length`, so request one extra
+  // byte to detect overflow past the cap. With the limit disabled, read the
+  // whole file in one unbounded request.
+  const readLength = limitDisabled ? undefined : BigInt(maxChars + 1);
   /** @type {ToolSchema} */
   const schema = harden({
     type: 'function',
@@ -72,11 +83,13 @@ export const makeMountReadTool = fs => {
         /** @type {unknown} */ (walk(E(fs).root(), segments))
       );
       const openFile = E(file).open({ read: true });
-      const reader = await E(openFile).read(0n, MAX_TEXT_BYTES);
+      // `read(offset)` with the length omitted reads to EOF, which is what we
+      // want when the limit is disabled (`maxChars === 0`).
+      const reader = await E(openFile).read(0n, readLength);
       const bytes = await collectBytes(/** @type {object} */ (reader));
       const content = new TextDecoder().decode(bytes);
-      if (content.length > MAX_TEXT_CHARS) {
-        return `${content.slice(0, MAX_TEXT_CHARS)}\n\n... (truncated at ${MAX_TEXT_CHARS} chars)`;
+      if (!limitDisabled && content.length > maxChars) {
+        return `${content.slice(0, maxChars)}\n\n... (truncated at ${maxChars} chars)`;
       }
       return content;
     },

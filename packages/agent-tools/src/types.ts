@@ -89,6 +89,15 @@ export declare function makeGitTool(
   gitCap: ERef<GitToolCapability>,
 ): ToolRecord[];
 
+export interface MountReadToolOptions {
+  /**
+   * Maximum number of UTF-8 characters returned before truncation. Defaults to
+   * 50,000. A value of `0` disables the limit and returns the full contents.
+   */
+  maxChars?: number;
+}
+
 export declare function makeMountReadTool(
   fs: ERef<Filesystem>,
+  opts?: MountReadToolOptions,
 ): MountReadToolRecord;
