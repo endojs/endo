@@ -48,6 +48,13 @@ const NON_EXPANDABLE_TYPES = harden([
 ]);
 
 /**
+ * Formula types that are name hubs and can therefore accept a dropped item
+ * (link or move it into themselves via storeIdentifier). Other types are
+ * leaves; dropping onto them falls through to the containing directory.
+ */
+const HUB_TYPES = harden(['directory', 'host', 'guest']);
+
+/**
  * Create a synthetic async iterator that yields `{add: name}` for each name
  * in the array, then hangs until `return()` is called. This allows static
  * name lists (from ReadableTree.list()) to drive the same inventoryComponent
@@ -103,7 +110,10 @@ const makeStaticTreePowers = (tree, names) => {
           typeof subPathOrName === 'string' ? [subPathOrName] : subPathOrName;
         // Chain through the tree's own lookup
         return subPath.reduce(
-          (node, segment) => E(node).lookup(segment),
+          (node, segment) =>
+            E(
+              /** @type {ERef<{ lookup: (name: string) => unknown }>} */ (node),
+            ).lookup(segment),
           /** @type {unknown} */ (tree),
         );
       },
@@ -122,6 +132,12 @@ const makeStaticTreePowers = (tree, names) => {
  * @param {ERef<EndoHost>} powers
  * @param {InventoryOptions} options
  * @param {string[]} [path] - Current path for nested inventories
+ * @param {ERef<EndoHost>} [rootPowers] - Top-level powers for the whole tree,
+ *   against which drag-and-drop link/move operate. Defaults to `powers` so the
+ *   outermost level is its own root.
+ * @param {string[]} [rootPrefix] - Absolute pet-name path from `rootPowers` to
+ *   this level. Drag-and-drop addresses items by `[...rootPrefix, name]` so that
+ *   items can be moved both up and down the tree in one coordinate space.
  */
 export const inventoryComponent = async (
   $parent,
@@ -143,8 +159,12 @@ export const inventoryComponent = async (
     onViewModeChange,
   },
   path = [],
+  rootPowers = powers,
+  rootPrefix = [],
 ) => {
-  const $list = $parent.querySelector('.pet-list') || $parent;
+  const $list = /** @type {HTMLElement} */ (
+    $parent.querySelector('.pet-list') || $parent
+  );
 
   // Update header text for channel mode
   if (channelMode && path.length === 0) {
@@ -339,7 +359,7 @@ export const inventoryComponent = async (
             if (addresses.length > 0 && nodeNumber) {
               await E(
                 /** @type {{ addPeerInfo: (info: { node: string, addresses: string[] }) => Promise<void> }} */ (
-                  powers
+                  /** @type {unknown} */ (powers)
                 ),
               ).addPeerInfo({ node: nodeNumber, addresses });
             }
@@ -382,11 +402,128 @@ export const inventoryComponent = async (
   let $channelDropIndicator = null;
 
   /**
+   * Compute the absolute destination path for a drop, or undefined when the
+   * drop is a no-op or would move an item into itself or its own descendant.
+   *
+   * @param {string[]} sourceAbsPath - Absolute path of the dragged item.
+   * @param {string[]} targetDirAbs - Absolute path of the destination directory.
+   * @returns {string[] | undefined}
+   */
+  const dropTargetPath = (sourceAbsPath, targetDirAbs) => {
+    // Reject dropping an item into itself or any of its own descendants:
+    // that is the case where the source path is a prefix of the target dir.
+    const intoSelf =
+      sourceAbsPath.length <= targetDirAbs.length &&
+      sourceAbsPath.every((seg, i) => seg === targetDirAbs[i]);
+    if (intoSelf) return undefined;
+    const sourceLeaf = sourceAbsPath[sourceAbsPath.length - 1];
+    const targetAbsPath = [...targetDirAbs, sourceLeaf];
+    // No-op when the item already lives at exactly this location.
+    if (
+      targetAbsPath.length === sourceAbsPath.length &&
+      targetAbsPath.every((seg, i) => seg === sourceAbsPath[i])
+    ) {
+      return undefined;
+    }
+    return targetAbsPath;
+  };
+
+  /**
+   * Clear any lingering drop-zone highlight from every row and list under the
+   * inventory. Browsers fire `dragleave` on the most-specific element only;
+   * when a drag crosses INTO a hub row that is nested inside a list-level
+   * drop zone (or inside an outer hub row that is itself a drop target), the
+   * outer element keeps its highlight because its `dragleave` listener sees
+   * the move as a descendant transition, not a leave. The inner element's
+   * `drop` handler clears only its own class. Without a sweep here, the
+   * outer highlight survives the drop-menu interaction and never retracts.
+   * Called when the drop menu opens and when the source's `dragend` fires.
+   */
+  const clearAllDropTargets = () => {
+    for (const $el of document.querySelectorAll('.drop-target')) {
+      $el.classList.remove('drop-target');
+    }
+    for (const $el of document.querySelectorAll('.drop-target-list')) {
+      $el.classList.remove('drop-target-list');
+    }
+  };
+
+  /**
+   * Show a small context menu at the cursor to choose whether a drop should
+   * link (alias the capability under a new name) or move (relink, then unbind
+   * the source). Both operate in absolute coordinates against `rootPowers`.
+   *
+   * @param {number} x
+   * @param {number} y
+   * @param {string[]} sourceAbsPath
+   * @param {string[]} targetAbsPath
+   */
+  const showDropMenu = (x, y, sourceAbsPath, targetAbsPath) => {
+    // Sweep any ancestor drop-zone highlight that the browser's per-element
+    // dragleave model left behind when the cursor descended into this drop
+    // target without first leaving the outer one. See clearAllDropTargets.
+    clearAllDropTargets();
+
+    const $existing = document.querySelector('.inventory-drop-menu');
+    if ($existing) $existing.remove();
+
+    const $menu = document.createElement('div');
+    $menu.className = 'inventory-drop-menu';
+
+    /**
+     * @param {string} label
+     * @param {() => void} run
+     */
+    const addItem = (label, run) => {
+      const $item = document.createElement('button');
+      $item.className = 'inventory-drop-menu-item';
+      $item.textContent = label;
+      $item.addEventListener('click', () => {
+        $menu.remove();
+        run();
+      });
+      $menu.appendChild($item);
+    };
+
+    const from = /** @type {[string, ...string[]]} */ (sourceAbsPath);
+    const to = /** @type {[string, ...string[]]} */ (targetAbsPath);
+    addItem('Link here', () =>
+      E(rootPowers)
+        .copy(from, to)
+        .catch(err => console.error('[inventory] Link failed:', err)),
+    );
+    addItem('Move here', () =>
+      E(rootPowers)
+        .move(from, to)
+        .catch(err => console.error('[inventory] Move failed:', err)),
+    );
+
+    $menu.style.position = 'fixed';
+    $menu.style.left = `${x}px`;
+    $menu.style.top = `${y}px`;
+    document.body.appendChild($menu);
+
+    const dismiss = () => {
+      $menu.remove();
+      document.removeEventListener('click', dismiss);
+    };
+    requestAnimationFrame(() => {
+      document.addEventListener('click', dismiss);
+    });
+  };
+
+  /**
    * Create an inventory item with disclosure triangle.
    * @param {string} name
    */
   const createItem = name => {
     const itemPath = [...path, name];
+    // Absolute path from the tree root, used for cross-level drag-and-drop.
+    const absPath = [...rootPrefix, name];
+    // Whether this item is a name hub that can accept a dropped item. Set once
+    // the formula type is probed below; until then it rejects row drops, which
+    // then fall through to the containing directory's list-level drop zone.
+    let acceptsDrop = false;
 
     const $wrapper = document.createElement('div');
     $wrapper.className = 'pet-item-wrapper';
@@ -400,6 +537,31 @@ export const inventoryComponent = async (
 
     const $row = document.createElement('div');
     $row.className = 'pet-item-row';
+
+    // Make non-special items draggable.
+    if (!isSpecialName(name)) {
+      $row.draggable = true;
+      $row.addEventListener('dragstart', e => {
+        if (e.dataTransfer) {
+          // Carry the absolute path so the item can be dropped at any level
+          // (up or down the tree), not just within the level it came from.
+          e.dataTransfer.setData('text/plain', absPath.join('/'));
+          e.dataTransfer.setData(
+            'application/x-endo-petname',
+            JSON.stringify(absPath),
+          );
+          e.dataTransfer.effectAllowed = 'copyMove';
+        }
+        $row.classList.add('dragging');
+      });
+      $row.addEventListener('dragend', () => {
+        $row.classList.remove('dragging');
+        // Sweep any drop-zone highlight left behind by the per-element
+        // dragleave model (the inner drop handler clears only its own
+        // class). Also handles drag-cancel cases where no drop fires.
+        clearAllDropTargets();
+      });
+    }
 
     // Disclosure triangle
     const $disclosure = document.createElement('button');
@@ -423,6 +585,54 @@ export const inventoryComponent = async (
     $info.title = 'Inspect';
     $buttons.appendChild($info);
 
+    // Cancel button (disabled for special names)
+    const $cancel = document.createElement('button');
+    $cancel.className = 'cancel-button';
+    $cancel.textContent = '⊘';
+    if (isSpecialName(name)) {
+      $cancel.disabled = true;
+      $cancel.title = 'Cannot cancel system name';
+    } else {
+      $cancel.title = 'Cancel incarnation';
+    }
+    $buttons.appendChild($cancel);
+
+    // Cancel confirmation state
+    let cancelConfirmTimer = 0;
+    if (!isSpecialName(name)) {
+      $cancel.addEventListener('click', e => {
+        e.stopPropagation();
+        if ($cancel.classList.contains('confirming')) {
+          // Second click — execute cancel.
+          clearTimeout(cancelConfirmTimer);
+          $cancel.classList.remove('confirming');
+          $cancel.title = 'Cancelling...';
+          $cancel.disabled = true;
+          E(powers)
+            .cancel(/** @type {[string, ...string[]]} */ (itemPath))
+            .then(() => {
+              $cancel.classList.add('cancelled');
+              $cancel.title = 'Cancelled';
+            })
+            .catch(err => {
+              console.error('[inventory] Cancel failed:', err);
+              $cancel.disabled = false;
+              $cancel.title = 'Cancel incarnation';
+            });
+        } else {
+          // First click — enter confirm state.
+          $cancel.classList.add('confirming');
+          $cancel.title = 'Click again to cancel';
+          cancelConfirmTimer = /** @type {any} */ (
+            setTimeout(() => {
+              $cancel.classList.remove('confirming');
+              $cancel.title = 'Cancel incarnation';
+            }, 3000)
+          );
+        }
+      });
+    }
+
     // Remove button (disabled for special names)
     const $remove = document.createElement('button');
     $remove.className = 'remove-button';
@@ -442,6 +652,53 @@ export const inventoryComponent = async (
     const $children = document.createElement('div');
     $children.className = 'pet-children';
     $wrapper.appendChild($children);
+
+    // Drop target: dropping onto a hub row offers to link or move the dragged
+    // item into that hub. Non-hub (leaf) rows are not drop targets — the event
+    // bubbles to the containing directory's list-level drop zone instead.
+    $row.addEventListener('dragover', e => {
+      if (!acceptsDrop) return;
+      if (!e.dataTransfer) return;
+      const hasEndoPetName = e.dataTransfer.types.includes(
+        'application/x-endo-petname',
+      );
+      if (!hasEndoPetName) return;
+      e.preventDefault();
+      // Don't also light up the enclosing list-level drop zone.
+      e.stopPropagation();
+      // The link-vs-move choice is made from the drop menu, so advertise both.
+      e.dataTransfer.dropEffect = 'copy';
+      $row.classList.add('drop-target');
+    });
+    $row.addEventListener('dragleave', () => {
+      $row.classList.remove('drop-target');
+    });
+    $row.addEventListener('drop', e => {
+      if (!acceptsDrop) return;
+      $row.classList.remove('drop-target');
+      if (!e.dataTransfer) return;
+      const raw = e.dataTransfer.getData('application/x-endo-petname');
+      if (!raw) return;
+      e.preventDefault();
+      // Handle here so the enclosing list-level drop zone does not also fire.
+      e.stopPropagation();
+      // Narrow the try to JSON.parse alone; a broad try would mask errors
+      // from dropTargetPath, showDropMenu, or any future addition.
+      let sourceAbsPath;
+      try {
+        sourceAbsPath = JSON.parse(raw);
+      } catch (err) {
+        console.error(
+          `[inventory] Cannot parse drag payload from application/x-endo-petname onto row ${absPath.join('/')}: ${
+            /** @type {Error} */ (err).message
+          }`,
+        );
+        return;
+      }
+      const targetAbsPath = dropTargetPath(sourceAbsPath, absPath);
+      if (!targetAbsPath) return;
+      showDropMenu(e.clientX, e.clientY, sourceAbsPath, targetAbsPath);
+    });
 
     if (channelMode) {
       // Newest channels at top (reordered after type detection)
@@ -476,6 +733,8 @@ export const inventoryComponent = async (
         if (!locator) {
           $remove.disabled = true;
           $remove.title = 'Cannot remove (immutable)';
+          // Immutable items cannot be relinked or relocated.
+          $row.draggable = false;
           // Still allow clicking the name to inspect the value
           $name.classList.add('selectable');
           $name.onclick = inspectItem;
@@ -484,9 +743,23 @@ export const inventoryComponent = async (
         const url = new URL(/** @type {string} */ (locator));
         const type = url.searchParams.get('type');
 
+        // Show type badge on the item row.
+        if (type) {
+          const $typeBadge = document.createElement('span');
+          $typeBadge.className = 'pet-type-badge';
+          $typeBadge.textContent = type;
+          $typeBadge.title = `Formula type: ${type}`;
+          $name.after($typeBadge);
+        }
+
         // Hide disclosure triangle for known non-expandable types
         if (type && NON_EXPANDABLE_TYPES.includes(type)) {
           $disclosure.classList.add('hidden');
+        }
+
+        // Only name hubs can accept a dropped item.
+        if (type && HUB_TYPES.includes(type)) {
+          acceptsDrop = true;
         }
 
         // Channel mode: make channel items selectable, hide non-channels
@@ -709,7 +982,10 @@ export const inventoryComponent = async (
         // Expand - try to load children
         $disclosure.classList.add('loading');
         try {
-          const target = await E(powers).lookup(itemPath);
+          const target =
+            /** @type {ERef<{ __getMethodNames__: () => string[], list?: () => string[], followNameChanges?: () => AsyncIterator<{ add?: string, remove?: string }> }>} */ (
+              await E(powers).lookup(itemPath)
+            );
           // Use __getMethodNames__ to detect the target's capabilities
           // without probing methods that may not exist (avoids CapTP noise).
           // eslint-disable-next-line no-underscore-dangle
@@ -721,7 +997,9 @@ export const inventoryComponent = async (
           if (methods.includes('followNameChanges')) {
             // NameHub (directory, host, guest): use live subscription
             const changesIterator = E(
-              /** @type {import('@endo/far').ERef<EndoHost>} */ (target),
+              /** @type {import('@endo/far').ERef<EndoHost>} */ (
+                /** @type {unknown} */ (target)
+              ),
             ).followNameChanges();
 
             nestedPowers = /** @type {ERef<EndoHost>} */ (
@@ -795,6 +1073,10 @@ export const inventoryComponent = async (
                 activeChannelPetName,
               },
               [], // Reset path since nestedPowers handles the prefix
+              // Drag-and-drop stays in the root's absolute coordinate space so
+              // items can move up out of this directory as well as down into it.
+              rootPowers,
+              absPath,
             ).catch(() => {
               // Silently handle errors (e.g., if the item is removed)
             });
@@ -922,6 +1204,49 @@ export const inventoryComponent = async (
         onChannelReorder(orderedNames);
       }
     });
+  } else {
+    // ---- List-level drop zone for link/move ----
+    // Dropping onto the background of a directory's list links or moves the
+    // dragged item into that directory (`rootPrefix`). At the outermost level
+    // `rootPrefix` is empty, so this is how an item is moved *up* to the root.
+    $list.addEventListener('dragover', e => {
+      if (!e.dataTransfer) return;
+      if (!e.dataTransfer.types.includes('application/x-endo-petname')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      $list.classList.add('drop-target-list');
+    });
+    $list.addEventListener('dragleave', e => {
+      // Ignore dragleave bubbling up from descendant rows.
+      if (e.target !== $list) return;
+      $list.classList.remove('drop-target-list');
+    });
+    $list.addEventListener('drop', e => {
+      $list.classList.remove('drop-target-list');
+      if (!e.dataTransfer) return;
+      const raw = e.dataTransfer.getData('application/x-endo-petname');
+      if (!raw) return;
+      e.preventDefault();
+      // A row handler already ran if the drop landed on an item.
+      e.stopPropagation();
+      // Narrow the try to JSON.parse alone; a broad try would mask errors
+      // from dropTargetPath, showDropMenu, or any future addition.
+      let sourceAbsPath;
+      try {
+        sourceAbsPath = JSON.parse(raw);
+      } catch (err) {
+        const at = rootPrefix.length === 0 ? '<root>' : rootPrefix.join('/');
+        console.error(
+          `[inventory] Cannot parse drag payload from application/x-endo-petname onto list at ${at}: ${
+            /** @type {Error} */ (err).message
+          }`,
+        );
+        return;
+      }
+      const targetAbsPath = dropTargetPath(sourceAbsPath, rootPrefix);
+      if (!targetAbsPath) return;
+      showDropMenu(e.clientX, e.clientY, sourceAbsPath, targetAbsPath);
+    });
   }
 
   for await (const change of makeRefIterator(E(powers).followNameChanges())) {
@@ -939,3 +1264,4 @@ export const inventoryComponent = async (
     }
   }
 };
+harden(inventoryComponent);
