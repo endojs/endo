@@ -329,7 +329,7 @@ export const makeShortestPath = graph => {
  * Returns a function for shortest-path lookups from one fixed source.
  * Computes Dijkstra traversal context once and reuses it for all targets.
  *
- * @template [T=string]
+ * @template {GenericGraphNode} [T=string]
  * @param {GenericGraph<T>} graph Graph to use
  * @param {NoInfer<T>} source Source node for all path lookups
  */
