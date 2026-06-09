@@ -6,7 +6,7 @@ import '@endo/init/debug.js';
 
 /** @import { ERef } from '@endo/far' */
 /** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
-/** @import { GitToolCapability } from '../src/types.js' */
+/** @import { GitToolCapability, ToolRecord } from '../src/types.js' */
 
 import test from 'ava';
 import { Ajv } from 'ajv';
@@ -116,8 +116,12 @@ const gitTools = makeGitTool(
   ),
 );
 
-for (const tool of gitTools) {
-  test(`schema ⟷ guard agree for git.${tool.name}`, t => {
+/**
+ * For one git tool, assert its hand-authored JSON Schema and its runtime guard
+ * agree on every candidate args record.
+ */
+const schemaGuardAgree = test.macro({
+  exec(t, /** @type {ToolRecord} */ tool) {
     const shape = guardShapeFor(tool.name);
     const validate = ajv.compile(tool.parameters);
     let checked = 0;
@@ -135,7 +139,14 @@ for (const tool of gitTools) {
       checked += 1;
     }
     t.true(checked > 0);
-  });
+  },
+  title(_providedTitle, /** @type {ToolRecord} */ tool) {
+    return `schema ⟷ guard agree for git.${tool.name}`;
+  },
+});
+
+for (const tool of gitTools) {
+  test(schemaGuardAgree, tool);
 }
 
 // --- bigint synthetic case ----------------------------------------------
@@ -159,7 +170,10 @@ test('bigint guard and string-pattern schema agree', t => {
     [5n, '+5'],
     [-3n, '-3'],
     [0n, '0'],
-    [123456789012345678901234567890n, '123456789012345678901234567890'],
+    [
+      123_456_789_012_345_678_901_234_567_890n,
+      '123456789012345678901234567890',
+    ],
     ['x', 'x'],
     [5.5, '5.5'],
     [{}, '{}'],
