@@ -22,7 +22,13 @@ const textDecoder = new TextDecoder();
  */
 export const makeBundlingKit = (
   io,
-  { cacheSourceMaps, elideComments, noTransforms, commonDependencies, profiler },
+  {
+    cacheSourceMaps,
+    elideComments,
+    noTransforms,
+    commonDependencies,
+    profiler,
+  },
 ) => {
   const { pathResolve, userInfo, computeSha512, platform, env } = io;
   if (noTransforms && elideComments) {
@@ -132,11 +138,14 @@ export const makeBundlingKit = (
     location,
     sourceMap,
   ) => {
-    const endTransformModule = profiler?.startSpan('bundleSource.transformModule', {
-      parser,
-      specifier,
-      location,
-    });
+    const endTransformModule = profiler?.startSpan(
+      'bundleSource.transformModule',
+      {
+        parser,
+        specifier,
+        location,
+      },
+    );
     if (!['mjs', 'cjs'].includes(parser)) {
       throw Error(`Parser ${parser} not supported in evadeEvalCensor`);
     }

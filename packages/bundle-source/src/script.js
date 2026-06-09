@@ -63,7 +63,9 @@ export async function bundleScript(
   let phaseStatus = 'ok';
   let phaseError;
   try {
-    const endMakeBundlingKit = profiler.startSpan('bundleSource.makeBundlingKit');
+    const endMakeBundlingKit = profiler.startSpan(
+      'bundleSource.makeBundlingKit',
+    );
     const {
       sourceMapHook,
       sourceMapJobs,
@@ -109,9 +111,9 @@ export async function bundleScript(
           moduleFormat === 'nestedEvaluate' ||
           moduleFormat === 'getExport',
         conditions: new Set(conditions),
-      commonDependencies,
-      profileStartSpan: profiler.startSpan,
-      parserForLanguage: parserForLanguageForFunctor,
+        commonDependencies,
+        profileStartSpan: profiler.startSpan,
+        parserForLanguage: parserForLanguageForFunctor,
         workspaceLanguageForExtension,
         workspaceCommonjsLanguageForExtension,
         workspaceModuleLanguageForExtension,
