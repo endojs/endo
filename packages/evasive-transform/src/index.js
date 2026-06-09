@@ -12,8 +12,13 @@
 import { transformAst } from './transform-ast.js';
 import { parseAst } from './parse-ast.js';
 import { generate } from './generate.js';
+import { evadeRegexp } from './transform-comment.js';
 
 /**
+ * Efficiently classify source text as might-need-transformation versus
+ * definitely-does-not, avoiding Babel work whenever no transformable comment
+ * substring is present.
+ *
  * @param {string} source
  * @param {boolean} elideComments
  * @returns {boolean}
@@ -22,13 +27,7 @@ const shouldRunTransform = (source, elideComments) => {
   if (elideComments) {
     return true;
   }
-  // Fast path: if none of the risky comment payload tokens appear anywhere in
-  // the source, the transform cannot change semantics-relevant content.
-  return (
-    source.includes('import(') ||
-    source.includes('<!--') ||
-    source.includes('-->')
-  );
+  return source.search(evadeRegexp) !== -1;
 };
 
 /**

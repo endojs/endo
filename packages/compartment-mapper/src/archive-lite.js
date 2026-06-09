@@ -72,7 +72,11 @@ const { assign, create, freeze, keys } = Object;
  * @param {Sources} sources
  * @param {(name: string, args?: Record<string, unknown>) => (args?: Record<string, unknown>) => void} [profileStartSpan]
  */
-const addSourcesToArchive = async (archive, sources, profileStartSpan = undefined) => {
+const addSourcesToArchive = async (
+  archive,
+  sources,
+  profileStartSpan = undefined,
+) => {
   let moduleCount = 0;
   let byteCount = 0;
   const endSortCompartments = profileStartSpan?.(
@@ -81,7 +85,7 @@ const addSourcesToArchive = async (archive, sources, profileStartSpan = undefine
   const sortedCompartments = keys(sources).sort();
   endSortCompartments?.({ compartmentCount: sortedCompartments.length });
 
-  let asyncWriteCount = 0;
+  await null;
   const endWriteModules = profileStartSpan?.(
     'compartmentMapper.archiveLite.writeZip.sources.writeModules',
   );
@@ -93,18 +97,9 @@ const addSourcesToArchive = async (archive, sources, profileStartSpan = undefine
         const { bytes, location } = modules[specifier];
         const path = `${compartment}/${location}`;
         if (bytes !== undefined) {
-          const maybeWrite = archive.write(path, bytes);
-          if (
-            maybeWrite &&
-            typeof maybeWrite === 'object' &&
-            'then' in maybeWrite &&
-            typeof maybeWrite.then === 'function'
-          ) {
-            asyncWriteCount += 1;
-            // Preserve deterministic write order for truly async writers.
-            // eslint-disable-next-line no-await-in-loop
-            await maybeWrite;
-          }
+          // Preserve deterministic write order.
+          // eslint-disable-next-line no-await-in-loop
+          await archive.write(path, bytes);
           moduleCount += 1;
           byteCount += bytes.length;
         }
@@ -114,8 +109,6 @@ const addSourcesToArchive = async (archive, sources, profileStartSpan = undefine
   endWriteModules?.({
     moduleCount,
     byteCount,
-    asyncWriteCount,
-    syncWriteCount: moduleCount - asyncWriteCount,
   });
   return { moduleCount, byteCount };
 };
