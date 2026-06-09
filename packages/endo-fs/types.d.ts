@@ -25,6 +25,29 @@
 // here so downstream consumers don't need to depend on that package
 // transitively just for the shape.
 declare module '@endo/endo-fs' {
+  export type ERef<T> = T | PromiseLike<T>;
+
+  export interface Filesystem {
+    root(): ERef<Directory>;
+  }
+
+  export interface Directory {
+    lookup(name: string): ERef<Directory | File>;
+  }
+
+  export interface File {
+    open(opts: OpenFileOptions): ERef<OpenFile>;
+  }
+
+  export interface OpenFile {
+    read(offset: bigint, length?: bigint): ERef<unknown>;
+  }
+
+  export interface OpenFileOptions {
+    read?: boolean;
+    write?: boolean;
+  }
+
   /**
    * Build a `Filesystem` exo over an `FsBackend`.  Optional
    * `opts.description` populates `statfs().type`; `opts.namedDirs`
@@ -36,25 +59,25 @@ declare module '@endo/endo-fs' {
       description?: string;
       namedDirs?: Record<string, string[]>;
     },
-  ) => object;
+  ) => Filesystem;
 
   /**
    * Recursively wrap a `Filesystem` so every mutating verb rejects
    * with EACCES at the cap boundary.
    */
-  export const readOnly: (fs: object) => object;
+  export const readOnly: (fs: Filesystem) => Filesystem;
 
   /** Build an in-memory `Filesystem`. */
-  export const makeInMemoryFilesystem: () => object;
+  export const makeInMemoryFilesystem: () => Filesystem;
 
   /** Build a node:fs/promises-backed `Filesystem`. */
   export const makeNodeFilesystem: (opts: {
     rootPath: string;
     [key: string]: unknown;
-  }) => object;
+  }) => Filesystem;
 
   /** Adapt a daemon `Mount` to a `Filesystem`. */
-  export const mountAsFilesystem: (mount: object, opts?: object) => object;
+  export const mountAsFilesystem: (mount: object, opts?: object) => Filesystem;
 
   /** Build an in-memory `FsBackend`. */
   export const makeInMemoryBackend: (opts?: object) => object;
@@ -68,23 +91,26 @@ declare module '@endo/endo-fs' {
   /** Adapt a daemon `Mount` to an `FsBackend`. */
   export const makeFromMountBackend: (mount: object) => object;
 
-  export const emptyFilesystem: () => object;
-  export const chroot: (fs: object, subPath: string[]) => object;
+  export const emptyFilesystem: () => Filesystem;
+  export const chroot: (
+    fs: Filesystem,
+    subPath: readonly string[],
+  ) => Filesystem;
   export const bind: (
-    host: object,
-    mountPath: string[],
-    guest: object,
-  ) => object;
-  export const namespace: (mounts: Record<string, object>) => object;
+    host: Filesystem,
+    mountPath: readonly string[],
+    guest: Filesystem,
+  ) => Filesystem;
+  export const namespace: (mounts: Record<string, Filesystem>) => Filesystem;
   /**
    * CoW union: writes target `layer`, reads merge layer-over-backing.
    * `opts` is reserved for future composer flags; pass `{}` if needed.
    */
   export const compose: (
-    layer: object,
-    backing: object,
+    layer: Filesystem,
+    backing: Filesystem,
     opts?: object,
-  ) => object;
+  ) => Filesystem;
 
   export const makeLayer: (opts?: object) => object;
   export const LayerInterface: object;
@@ -94,9 +120,9 @@ declare module '@endo/endo-fs' {
   export const withCachedReads: (fs: object, cas: object) => object;
 
   export const walk: (
-    fs: object,
-    path: string[],
-  ) => AsyncIterable<{ path: string[]; kind: 'file' | 'directory' }>;
+    root: ERef<Directory>,
+    path: readonly string[],
+  ) => ERef<Directory | File>;
   export const collectBytes: (readerRef: object) => Promise<Uint8Array>;
   export const collectStream: (readerRef: object) => Promise<unknown[]>;
 
