@@ -40,6 +40,25 @@ test('parseArchiveMjs cache key includes source URL', t => {
   t.not(first, second);
 });
 
+test('parseArchiveMjs cache key separates source from source map', t => {
+  const first = parseArchiveMjs(
+    encoder.encode('export const value = 4;\n//# sourceMappingURL='),
+    './mod.js',
+    'file:///tmp/collision.js',
+    'file:///tmp/',
+    { sourceMap: '' },
+  );
+  const second = parseArchiveMjs(
+    encoder.encode('export const value = 4;'),
+    './mod.js',
+    'file:///tmp/collision.js',
+    'file:///tmp/',
+    { sourceMap: '\n//# sourceMappingURL=' },
+  );
+
+  t.not(first, second);
+});
+
 test('parseArchiveMjs bypasses cache when source maps are requested', t => {
   const bytes = encoder.encode('export const value = 3;');
   const first = parseArchiveMjs(

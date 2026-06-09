@@ -1,8 +1,17 @@
 // @ts-check
 
+/**
+ * @typedef {{
+ *   name: string,
+ *   mode: number,
+ *   date?: Date,
+ *   content: Uint8Array,
+ *   comment: string,
+ * }} ZFile
+ */
+
 import { BufferWriter } from './buffer-writer.js';
 import { writeZip as writeZipFormat } from './format-writer.js';
-
 const LOCAL_FILE_HEADER_FIXED_BYTES = 30;
 const CENTRAL_FILE_HEADER_FIXED_BYTES = 46;
 const CENTRAL_DIRECTORY_END_FIXED_BYTES = 22;

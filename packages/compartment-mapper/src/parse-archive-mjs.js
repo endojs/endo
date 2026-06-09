@@ -11,10 +11,38 @@ import { ModuleSource } from '@endo/module-source';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
-/** @type {Map<string, Map<string, ReturnType<ParseFn>>>} */
+/** @type {Map<string, Map<string, Map<string | undefined, ReturnType<ParseFn>>>>} */
 const parseArchiveMjsCache = new Map();
 const MAX_PARSE_ARCHIVE_MJS_CACHE_ENTRIES = 20_000;
 let parseArchiveMjsCacheEntries = 0;
+
+/**
+ * @param {string | object | undefined} sourceMap
+ * @returns {string | undefined}
+ */
+const getSourceMapCacheKey = sourceMap => {
+  if (sourceMap === undefined) {
+    return undefined;
+  }
+  if (typeof sourceMap === 'string') {
+    return sourceMap;
+  }
+  return JSON.stringify(sourceMap);
+};
+
+const evictOldestParseArchiveMjsLocation = () => {
+  const oldest = parseArchiveMjsCache.entries().next().value;
+  if (oldest === undefined) {
+    return;
+  }
+  const [sourceUrl, bySource] = oldest;
+  let evictedEntries = 0;
+  for (const bySourceMap of bySource.values()) {
+    evictedEntries += bySourceMap.size;
+  }
+  parseArchiveMjsCache.delete(sourceUrl);
+  parseArchiveMjsCacheEntries -= evictedEntries;
+};
 
 /** @type {ParseFn} */
 export const parseArchiveMjs = (
@@ -27,16 +55,10 @@ export const parseArchiveMjs = (
   const { sourceMap, sourceMapHook, profileStartSpan } = options;
   const canUseCache = sourceMapHook === undefined;
   const source = textDecoder.decode(bytes);
-  const sourceMapKey =
-    sourceMap === undefined
-      ? ''
-      : typeof sourceMap === 'string'
-        ? sourceMap
-        : JSON.stringify(sourceMap);
-  const cacheKey = `${source}\n//# sourceMappingURL=${sourceMapKey}`;
+  const sourceMapKey = getSourceMapCacheKey(sourceMap);
   if (canUseCache) {
     const byLocation = parseArchiveMjsCache.get(sourceUrl);
-    const cached = byLocation?.get(cacheKey);
+    const cached = byLocation?.get(source)?.get(sourceMapKey);
     if (cached !== undefined) {
       profileStartSpan?.('compartmentMapper.parseArchiveMjs.cache.hit')?.();
       return cached;
@@ -74,16 +96,20 @@ export const parseArchiveMjs = (
       byLocation = new Map();
       parseArchiveMjsCache.set(sourceUrl, byLocation);
     }
-    if (!byLocation.has(cacheKey)) {
+    let bySource = byLocation.get(source);
+    if (bySource === undefined) {
+      bySource = new Map();
+      byLocation.set(source, bySource);
+    }
+    if (!bySource.has(sourceMapKey)) {
+      bySource.set(sourceMapKey, result);
       parseArchiveMjsCacheEntries += 1;
       if (parseArchiveMjsCacheEntries > MAX_PARSE_ARCHIVE_MJS_CACHE_ENTRIES) {
-        parseArchiveMjsCache.clear();
-        parseArchiveMjsCacheEntries = 0;
-        byLocation = new Map();
-        parseArchiveMjsCache.set(sourceUrl, byLocation);
+        evictOldestParseArchiveMjsLocation();
       }
+    } else {
+      bySource.set(sourceMapKey, result);
     }
-    byLocation.set(cacheKey, result);
   }
   return result;
 };

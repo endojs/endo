@@ -26,42 +26,10 @@ const configuredReadCacheMaxBytes = Number.parseInt(
   10,
 );
 const readCacheMaxBytes =
-  Number.isFinite(configuredReadCacheMaxBytes) && configuredReadCacheMaxBytes >= 0
+  Number.isFinite(configuredReadCacheMaxBytes) &&
+  configuredReadCacheMaxBytes >= 0
     ? configuredReadCacheMaxBytes
     : DEFAULT_READ_CACHE_MAX_BYTES;
-/** @type {Map<string, Uint8Array | undefined>} */
-const cachedReads = new Map();
-/** @type {Map<string, Promise<Uint8Array | undefined>>} */
-const pendingReads = new Map();
-let cachedReadBytes = 0;
-
-/**
- * @param {string} location
- * @param {Uint8Array | undefined} bytes
- */
-const cacheReadValue = (location, bytes) => {
-  const prior = cachedReads.get(location);
-  if (prior !== undefined) {
-    cachedReadBytes -= prior.length;
-  }
-
-  cachedReads.set(location, bytes);
-  if (bytes !== undefined) {
-    cachedReadBytes += bytes.length;
-  }
-
-  while (cachedReadBytes > readCacheMaxBytes && cachedReads.size > 0) {
-    const oldestKey = cachedReads.keys().next().value;
-    if (oldestKey === undefined) {
-      break;
-    }
-    const value = cachedReads.get(oldestKey);
-    cachedReads.delete(oldestKey);
-    if (value !== undefined) {
-      cachedReadBytes -= value.length;
-    }
-  }
-};
 
 /**
  * @param {string} startFilename
@@ -106,11 +74,47 @@ export async function bundleZipBase64(
   let phaseStatus = 'ok';
   let phaseError;
   try {
-    const maybeRead = async location => {
-      if (readCacheMaxBytes === 0) {
-        return powers.maybeRead(location);
+    /** @type {Map<string, Uint8Array | undefined>} */
+    const cachedReads = new Map();
+    /** @type {Map<string, Promise<Uint8Array | undefined>>} */
+    const pendingReads = new Map();
+    let cachedReadBytes = 0;
+
+    /**
+     * Stores one completed read result in this bundle operation's cache and
+     * evicts oldest byte-bearing entries until the configured byte budget holds.
+     *
+     * @param {string} location
+     * @param {Uint8Array | undefined} bytes
+     */
+    const cacheReadValue = (location, bytes) => {
+      const prior = cachedReads.get(location);
+      if (prior !== undefined) {
+        cachedReadBytes -= prior.length;
       }
-      const hit = cachedReads.has(location);
+
+      cachedReads.set(location, bytes);
+      if (bytes !== undefined) {
+        cachedReadBytes += bytes.length;
+      }
+
+      if (cachedReadBytes <= readCacheMaxBytes) {
+        return;
+      }
+
+      for (const [oldestKey, value] of cachedReads) {
+        cachedReads.delete(oldestKey);
+        if (value !== undefined) {
+          cachedReadBytes -= value.length;
+        }
+        if (cachedReadBytes <= readCacheMaxBytes) {
+          return;
+        }
+      }
+    };
+
+    const maybeRead = async location => {
+      const hit = readCacheMaxBytes > 0 && cachedReads.has(location);
       if (hit) {
         const endCacheHit = profiler.startSpan('bundleSource.readCache.hit');
         try {
@@ -131,14 +135,19 @@ export async function bundleZipBase64(
       }
 
       const endCacheMiss = profiler.startSpan('bundleSource.readCache.miss');
-      pending = powers.maybeRead(location).then(bytes => {
-        cacheReadValue(location, bytes);
-        pendingReads.delete(location);
-        return bytes;
-      }, error => {
-        pendingReads.delete(location);
-        throw error;
-      });
+      pending = powers.maybeRead(location).then(
+        bytes => {
+          if (readCacheMaxBytes > 0) {
+            cacheReadValue(location, bytes);
+          }
+          pendingReads.delete(location);
+          return bytes;
+        },
+        error => {
+          pendingReads.delete(location);
+          throw error;
+        },
+      );
       pendingReads.set(location, pending);
       try {
         return await pending;
@@ -155,7 +164,9 @@ export async function bundleZipBase64(
       maybeRead,
     });
 
-    const endMakeBundlingKit = profiler.startSpan('bundleSource.makeBundlingKit');
+    const endMakeBundlingKit = profiler.startSpan(
+      'bundleSource.makeBundlingKit',
+    );
     const {
       sourceMapHook,
       sourceMapJobs,
@@ -204,7 +215,9 @@ export async function bundleZipBase64(
       endMapNodeModules();
     }
 
-    const endMakeArchive = profiler.startSpan('bundleSource.makeAndHashArchiveFromMap');
+    const endMakeArchive = profiler.startSpan(
+      'bundleSource.makeAndHashArchiveFromMap',
+    );
     let bytes;
     let sha512;
     try {
@@ -232,7 +245,7 @@ export async function bundleZipBase64(
     }
 
     const endEncodeBase64 = profiler.startSpan('bundleSource.encodeBase64');
-    let endoZipBase64;
+    let endoZipBase64 = '';
     try {
       endoZipBase64 = encodeBase64(bytes);
     } finally {
