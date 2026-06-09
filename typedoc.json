@@ -23,6 +23,7 @@
     "**/tmp/**",
     "**/dist/**",
     "**/node_modules/**",
+    "packages/chacha12-fast-check-test",
     "packages/cjs-module-analyzer",
     "packages/cli",
     "packages/compartment-mapper",

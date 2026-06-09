@@ -1,8 +1,10 @@
 // @ts-check
 
 import test from '@endo/ses-ava/test.js';
+import { makeChaCha12 } from '@endo/chacha12';
+import { random as randomFloat } from '@endo/random/random.js';
+import { bobsCoffee32 } from '@endo/random/seeds.js';
 import { decodeSyrup, encodeSyrup } from '../../src/syrup/js-representation.js';
-import { XorShift } from '../_xorshift.js';
 
 /**
  * @param {number} budget
@@ -94,12 +96,10 @@ function fuzzySyrupable(budget, random) {
   }
 }
 
-// Chris Hibbert really wanted the default i to be Bob's Coffee Façade,
-// which is conveniently exactly 64 bits long.
-const defaultSeed = [0xb0b5_c0ff, 0xeefa_cade, 0xb0b5_c0ff, 0xeefa_cade];
-
-const prng = new XorShift(defaultSeed);
-const random = () => prng.random();
+// Default seed shared across the hex/ocapn fuzz suites; see
+// `@endo/random/seeds.js`.
+const source = makeChaCha12(bobsCoffee32).fillRandomBytes;
+const random = () => randomFloat(source);
 
 test('fuzz', t => {
   // This TextDecoder is only used for the fuzz test descriptor so we can allow invalid utf-8

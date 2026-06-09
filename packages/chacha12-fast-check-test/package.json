@@ -1,52 +1,50 @@
 {
-  "name": "@endo/hex",
-  "version": "1.1.0",
-  "description": "Transcodes hexadecimal",
+  "name": "@endo/chacha12-fast-check-test",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Integration test that drives `@endo/chacha12` as a `fast-check` `RandomGenerator`.",
   "keywords": [
-    "hex",
-    "hexadecimal",
+    "chacha12",
+    "fast-check",
+    "pure-rand",
     "endo",
     "ses"
   ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/blob/master/packages/hex/README.md",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/chacha12-fast-check-test#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/hex"
+    "directory": "packages/chacha12-fast-check-test"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./index.js",
   "exports": {
-    ".": "./index.js",
-    "./encode.js": "./encode.js",
-    "./decode.js": "./decode.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
-    "cover": "c8 ses-ava",
     "lint": "yarn lint:types && yarn lint:eslint",
-    "lint-fix": "eslint --fix .",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ses-ava"
+    "test": "ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:xs": "exit 0"
   },
   "dependencies": {
-    "@endo/harden": "workspace:^"
+    "@endo/chacha12": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "fast-check": "^4.0.0"
   },
   "devDependencies": {
-    "@endo/chacha12": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
-    "@endo/random": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
-    "babel-eslint": "^10.1.0",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
     "prettier": "^3.5.3",
@@ -59,10 +57,8 @@
     "./*.map",
     "LICENSE*",
     "SECURITY*",
-    "dist",
-    "lib",
     "src",
-    "tools"
+    "test"
   ],
   "publishConfig": {
     "access": "public"
