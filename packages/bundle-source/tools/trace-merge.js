@@ -378,7 +378,7 @@ const main = async () => {
       'out-summary': outSummary = 'summary.json',
       'out-markdown': outMarkdown = 'summary.md',
       top: topRaw = '30',
-      stacked = true,
+      stacked = false,
     },
     positionals,
   } = parseArgs({ options, allowPositionals: true });

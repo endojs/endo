@@ -44,7 +44,7 @@ export class ZipWriter {
    */
   constructor(options = { date: new Date() }) {
     const { date, profileStartSpan = undefined } = options;
-    /** type {Map<string, ZFile>} */
+    /** @type {Map<string, ZFile>} */
     this.files = new Map();
     this.date = date;
     this.profileStartSpan = profileStartSpan;

@@ -14,7 +14,7 @@
   "scripts": {
     "build": "exit 0",
     "test": "ava",
-    "profile:agoric-bundling": "tools/profile-agoric-bundling.mts",
+    "profile:agoric-bundling": "node --experimental-strip-types tools/profile-agoric-bundling.mts",
     "trace:merge": "node tools/trace-merge.js",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
