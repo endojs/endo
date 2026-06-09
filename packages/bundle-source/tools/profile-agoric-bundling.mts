@@ -10,6 +10,12 @@ import { parseArgs } from 'util';
 
 import bundleSource from '../src/index.js';
 
+/**
+ * Profile `bundleSource` over every Agoric SDK `source-spec-registry.js` entry.
+ * This is a fixture-driven helper for comparing Endo bundling performance
+ * against Agoric SDK workloads, not a general trace merger.
+ */
+
 const options = {
   'agoric-sdk-root': { type: 'string' },
   'out-dir': { type: 'string' },
@@ -110,7 +116,9 @@ const collectSpecsFromModule = (
         registryExport: exportName,
         key,
         bundleName:
-          typeof descriptor.bundleName === 'string' ? descriptor.bundleName : key,
+          typeof descriptor.bundleName === 'string'
+            ? descriptor.bundleName
+            : key,
         sourceSpec: descriptor.sourceSpec,
         packagePath:
           typeof descriptor.packagePath === 'string'
@@ -256,7 +264,9 @@ const summarizeEvents = (
     ([name, durations]) => {
       durations.sort((a, b) => a - b);
       const total = durations.reduce((sum, value) => sum + value, 0);
-      const criticalPathUs = unionDuration([...(intervalsByName.get(name) || [])]);
+      const criticalPathUs = unionDuration([
+        ...(intervalsByName.get(name) || []),
+      ]);
       return {
         name,
         count: durations.length,
@@ -373,13 +383,15 @@ const makeDerivedMetrics = (
   const bundlesProcessed = rowByName.get('bundleSource.total')?.count || 0;
   const modulesParsed =
     rowByName.get('compartmentMapper.importHook.parseModule')?.count || 0;
-  const modulesTransformed = rowByName.get('bundleSource.transformModule')?.count || 0;
+  const modulesTransformed =
+    rowByName.get('bundleSource.transformModule')?.count || 0;
   const fastPathHitCount =
     focusByName.get('evasiveTransform.fastPath.hit')?.count || 0;
   const fastPathMissCount =
     focusByName.get('evasiveTransform.fastPath.miss')?.count || 0;
   const fastPathTotal = fastPathHitCount + fastPathMissCount;
-  const fastPathHitRate = fastPathTotal > 0 ? fastPathHitCount / fastPathTotal : 0;
+  const fastPathHitRate =
+    fastPathTotal > 0 ? fastPathHitCount / fastPathTotal : 0;
 
   const bytesRead = sumNumericArgBySpan(
     events,
@@ -397,7 +409,8 @@ const makeDerivedMetrics = (
     'bytes',
   );
 
-  const totalBundleMs = (rowByName.get('bundleSource.total')?.totalUs || 0) / 1000;
+  const totalBundleMs =
+    (rowByName.get('bundleSource.total')?.totalUs || 0) / 1000;
   const totalParseMs =
     (rowByName.get('compartmentMapper.importHook.parseModule')?.totalUs || 0) /
     1000;
@@ -433,7 +446,9 @@ const mergeTraceFiles = async (
   for (const filePath of traceFiles) {
     // eslint-disable-next-line no-await-in-loop
     const text = await fs.readFile(filePath, 'utf-8');
-    const trace = JSON.parse(text) as { traceEvents?: Array<Record<string, unknown>> };
+    const trace = JSON.parse(text) as {
+      traceEvents?: Array<Record<string, unknown>>;
+    };
     const events = trace.traceEvents || [];
     let maxEndUs = 0;
     for (const event of events) {
@@ -472,7 +487,9 @@ const main = async () => {
     positionals,
   } = parseArgs({ options, allowPositionals: true });
   if (positionals.length > 0) {
-    throw new Error(`Unexpected arguments: ${positionals.join(' ')}\n\n${usage}`);
+    throw new Error(
+      `Unexpected arguments: ${positionals.join(' ')}\n\n${usage}`,
+    );
   }
   const top = toInt(topRaw);
 
@@ -528,7 +545,9 @@ const main = async () => {
   for (let index = 0; index < specs.length; index += 1) {
     const spec = specs[index];
     const registryPackage = path.basename(path.dirname(spec.registryFile));
-    const id = sanitizeName(`${registryPackage}-${spec.bundleName}-${spec.key}`);
+    const id = sanitizeName(
+      `${registryPackage}-${spec.bundleName}-${spec.key}`,
+    );
     const bundleFile = `${id}.bundle.json`;
     if (verbose) {
       process.stdout.write(
@@ -546,7 +565,10 @@ const main = async () => {
       },
     });
     // eslint-disable-next-line no-await-in-loop
-    await fs.writeFile(path.join(bundlesDir, bundleFile), `${JSON.stringify(bundle)}\n`);
+    await fs.writeFile(
+      path.join(bundlesDir, bundleFile),
+      `${JSON.stringify(bundle)}\n`,
+    );
 
     manifestEntries.push({
       id,
@@ -601,7 +623,11 @@ const main = async () => {
 
   await fs.writeFile(
     mergedTracePath,
-    JSON.stringify({ traceEvents: mergedEvents, displayTimeUnit: 'ms' }, null, 2),
+    JSON.stringify(
+      { traceEvents: mergedEvents, displayTimeUnit: 'ms' },
+      null,
+      2,
+    ),
   );
   await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2));
   await fs.writeFile(summaryMdPath, summarizeMarkdown(topRows, focusRows));
@@ -623,7 +649,9 @@ const main = async () => {
   console.table({
     metrics: {
       ...derivedMetrics,
-      fastPathHitRate: Number((derivedMetrics.fastPathHitRate * 100).toFixed(2)),
+      fastPathHitRate: Number(
+        (derivedMetrics.fastPathHitRate * 100).toFixed(2),
+      ),
       msPerBundle: Number(derivedMetrics.msPerBundle.toFixed(3)),
       msPerModuleParsed: Number(derivedMetrics.msPerModuleParsed.toFixed(3)),
       msPerModuleTransformed: Number(
