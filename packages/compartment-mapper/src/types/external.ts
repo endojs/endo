@@ -201,7 +201,7 @@ export interface ProfilingOptions {
   profileStartSpan?: (
     name: string,
     args?: Record<string, unknown>,
-  ) => (args?: Record<string, unknown>) => void;
+  ) => (endArgs?: Record<string, unknown>) => void;
 }
 
 /**

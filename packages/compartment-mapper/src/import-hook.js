@@ -108,6 +108,8 @@ const nodejsConventionSearchSuffixes = [
   // LOAD_AS_FILE(X)
   '.js',
   '.json',
+  // Native Node.js addons are intentionally omitted; compartments cannot load
+  // native modules from archived or virtual module sources.
   // LOAD_INDEX(X)
   '/index.js',
   '/index.json',
@@ -259,14 +261,13 @@ export const exitModuleImportHookMaker = ({
 const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
   // Collate candidate locations for the moduleSpecifier.
   // Apply suffix expansion only when the specifier does not already
-  // include an explicit extension.
+  // include one of the file suffixes we would otherwise search.
   const candidates = [moduleSpecifier];
   const endsWithSlash = moduleSpecifier.endsWith('/');
-  const lastSlash = moduleSpecifier.lastIndexOf('/');
-  const leaf =
-    lastSlash >= 0 ? moduleSpecifier.slice(lastSlash + 1) : moduleSpecifier;
-  const hasExplicitExtension = leaf.includes('.');
-  if (!endsWithSlash && hasExplicitExtension && moduleSpecifier !== '.') {
+  const hasExplicitExtension = searchSuffixes
+    .filter(suffix => !suffix.startsWith('/'))
+    .some(suffix => moduleSpecifier.endsWith(suffix));
+  if (!endsWithSlash && hasExplicitExtension) {
     return candidates;
   }
   for (const candidateSuffix of searchSuffixes) {
@@ -432,14 +433,16 @@ function* chooseModuleDescriptor(
       'compartmentMapper.importHook.readModuleBytes',
       { moduleLocation },
     );
-    let moduleBytes;
+    /** @type {{ value?: Uint8Array }} */
+    const moduleBytesCell = {};
     try {
-      moduleBytes = /** @type {Uint8Array|undefined} */ (
+      moduleBytesCell.value = /** @type {Uint8Array|undefined} */ (
         yield maybeRead(moduleLocation)
       );
     } finally {
-      endReadModuleBytes?.({ bytes: moduleBytes?.length });
+      endReadModuleBytes?.({ bytes: moduleBytesCell.value?.length });
     }
+    const { value: moduleBytes } = moduleBytesCell;
 
     if (moduleBytes !== undefined) {
       /** @type {string | undefined} */
@@ -659,8 +662,9 @@ export const makeImportHookMaker = (
   /** @type {Map<string, Promise<Uint8Array|undefined>>} */
   const maybeReadCache = new Map();
   /**
-   * Cache both hits and misses for module reads during a mapping run.
-   * This avoids repeated filesystem probes for the same candidate path.
+   * Cache successful module-read promises during a mapping run, including
+   * promises that resolve to `undefined` for missing paths. Rejected reads are
+   * removed so transient filesystem errors can be retried by later candidates.
    *
    * @param {string} location
    * @returns {Promise<Uint8Array|undefined>}
@@ -802,14 +806,14 @@ export const makeImportHookMaker = (
             moduleSpecifier,
             packageLocation,
             packageSources,
-        readPowers,
-        archiveOnly,
-        sourceMapHook,
-        moduleSourceHook,
-        profileStartSpan,
-        strictlyRequiredForCompartment,
-        log,
-      },
+            readPowers,
+            archiveOnly,
+            sourceMapHook,
+            moduleSourceHook,
+            profileStartSpan,
+            strictlyRequiredForCompartment,
+            log,
+          },
           { maybeRead: cachedMaybeRead, parse, shouldDeferError },
         );
 
