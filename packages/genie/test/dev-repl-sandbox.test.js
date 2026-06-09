@@ -69,12 +69,12 @@ const DEV_REPL = resolve(PACKAGE_DIR, 'dev-repl.js');
 // The faux script module lives in a tmpdir outside the genie package
 // (so a teardown can `rm -rf` the entire tree without surprising the
 // workspace cleanup).  Node's bare-specifier resolution would fail
-// for `@mariozechner/pi-ai` from a path outside any node_modules
+// for `@earendil-works/pi-ai` from a path outside any node_modules
 // hierarchy, so we resolve the package's entry point to an absolute
 // `file://…` URL up front via `import.meta.resolve` (which respects
 // the ESM `exports` field, unlike `require.resolve`) and embed the
 // URL in the generated script.
-const PI_AI_URL = import.meta.resolve('@mariozechner/pi-ai');
+const PI_AI_URL = import.meta.resolve('@earendil-works/pi-ai');
 
 // ---------------------------------------------------------------------------
 // Skip probes — only bwrap / userns, no LLM-reachability probes

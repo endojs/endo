@@ -34,7 +34,7 @@ import harden from '@endo/harden';
 /** @import { Tool } from '../tools/common.js' */
 /** @import { SearchBackend } from '../tools/memory.js' */
 /** @import { ChatEvent } from '../agent/index.js' */
-/** @import { Api, Model } from '@mariozechner/pi-ai' */
+/** @import { Api, Model } from '@earendil-works/pi-ai' */
 
 import { makePiAgent, runAgentRound } from '../agent/index.js';
 import { makeToolGate } from '../agent/tool-gate.js';

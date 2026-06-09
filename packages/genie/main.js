@@ -33,7 +33,7 @@ import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
-import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
+import { registerBuiltInApiProviders } from '@earendil-works/pi-ai';
 
 // eslint-disable-next-line import/no-unresolved
 import {

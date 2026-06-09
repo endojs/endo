@@ -32,6 +32,8 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "^0.79.0",
+    "@earendil-works/pi-ai": "^0.79.0",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
@@ -43,8 +45,6 @@
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/sandbox": "workspace:^",
-    "@mariozechner/pi-agent-core": "^0.73.1",
-    "@mariozechner/pi-ai": "^0.73.1",
     "better-sqlite3": "^11.0.0"
   },
   "devDependencies": {
