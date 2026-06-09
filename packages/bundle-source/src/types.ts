@@ -181,7 +181,7 @@ export interface BundlingKitOptions {
         startSpan: (
           name: string,
           args?: Record<string, unknown> | undefined,
-        ) => (args?: Record<string, unknown> | undefined) => void;
+        ) => (endArgs?: Record<string, unknown> | undefined) => void;
       }
     | undefined;
 }
