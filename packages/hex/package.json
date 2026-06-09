@@ -40,8 +40,10 @@
     "@endo/harden": "workspace:^"
   },
   "devDependencies": {
+    "@endo/chacha12": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/random": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
