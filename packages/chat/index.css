@@ -698,10 +698,36 @@ body.resizing * {
   overflow-x: hidden;
 }
 
+/*
+ * The action buttons float over the right edge of the row instead of
+ * participating in its flex layout, so they no longer reserve a gutter that
+ * displaces the name. A left-fading backdrop (shown with the buttons on hover)
+ * keeps long names legible where they pass underneath.
+ */
 .pet-buttons {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 12px;
   display: flex;
   gap: 4px;
   align-items: center;
+  padding-left: 24px;
+  /* The transparent gradient region must not steal clicks from the name
+   * underneath; only the buttons themselves are interactive. */
+  pointer-events: none;
+}
+
+.pet-buttons button {
+  pointer-events: auto;
+}
+
+.pet-item-row:hover .pet-buttons {
+  background: linear-gradient(to right, transparent, var(--bg-hover) 24px);
+}
+
+.pet-item-wrapper.active-conversation > .pet-item-row:hover .pet-buttons {
+  background: linear-gradient(to right, transparent, var(--accent-hover) 24px);
 }
 
 .pet-name {
@@ -795,6 +821,7 @@ body.resizing * {
 }
 
 .pet-item-row {
+  position: relative;
   display: flex;
   align-items: center;
   padding: 8px 12px;
@@ -3749,6 +3776,105 @@ button.btn-spinner::after {
 
 #chat-bar.has-content #chat-send-button {
   display: block;
+}
+
+/* Type badge on inventory items */
+.pet-type-badge {
+  font-size: 0.65em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.15);
+  color: var(--text-muted, #888);
+  margin-left: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Cancel button */
+.cancel-button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  /* Hidden until the row is hovered, like the info and remove buttons. */
+  opacity: 0;
+  transition: all 0.2s;
+  color: inherit;
+  /* Optically center the ⊘ glyph, which renders slightly low and right. */
+  transform: translate(-0.5px, -0.5px);
+}
+.pet-item-row:hover button.cancel-button:not(:disabled) {
+  opacity: 1;
+}
+.pet-item-row:hover button.cancel-button:disabled {
+  opacity: 0.3;
+}
+.cancel-button:hover:not(:disabled) {
+  border-color: currentColor;
+}
+.cancel-button.confirming {
+  opacity: 1;
+  color: var(--error-color, #e74c3c);
+  border-color: var(--error-color, #e74c3c);
+  transform: translate(-0.5px, -0.5px) scale(1.2);
+}
+.cancel-button.cancelled {
+  opacity: 0.4;
+  border-color: currentColor;
+  border-style: dashed;
+}
+.cancel-button:disabled {
+  cursor: default;
+}
+
+/* Inventory drag and drop */
+.pet-item-row.dragging {
+  opacity: 0.4;
+}
+.pet-item-row.drop-target {
+  outline: 2px solid var(--accent-color, #3498db);
+  outline-offset: -2px;
+  background: rgba(52, 152, 219, 0.1);
+}
+.pet-list.drop-target-list,
+.pet-children.drop-target-list {
+  outline: 2px dashed var(--accent-color, #3498db);
+  outline-offset: -2px;
+  background: rgba(52, 152, 219, 0.06);
+}
+
+/* Drag-and-drop link/move menu */
+.inventory-drop-menu {
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-primary, #444);
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 100px;
+}
+.inventory-drop-menu-item {
+  display: block;
+  width: 100%;
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.inventory-drop-menu-item:hover {
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
 }
 
 #chat-bar.has-content #chat-menu-button,
