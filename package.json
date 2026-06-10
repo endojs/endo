@@ -55,6 +55,7 @@
     "lint:fix": "yarn lint:eslint -- --fix",
     "lint:workspaces:fix": "yarn workspaces foreach --all run lint-fix",
     "lint:prettier": "prettier --check .github packages",
+    "shellcheck": "scripts/shellcheck.sh",
     "release:npm": "scripts/release-npm.mjs",
     "pack:all": "scripts/pack-all.mjs",
     "smoketest:publish": "scripts/smoketest-publishing.sh",
