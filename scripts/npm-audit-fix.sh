@@ -1,5 +1,6 @@
+#!/bin/bash
 git clone https://github.com/AgoricBot/???.git
-cd ???
+cd ??? || exit
 git remote add upstream https://github.com/Agoric/???.git
 git remote set-url origin https://AgoricBot:$GITHUB_TOKEN@github.com/AgoricBot/???.git
 git fetch upstream

@@ -1,9 +1,9 @@
 #!/bin/bash
 (
-  cd docs
-  find images -type f | xargs tar c
+  cd docs || exit
+  find images -type f -print0 | xargs -0 tar c
 ) |
 (
-  cd api-docs
+  cd api-docs || exit
   tar xv
 )
