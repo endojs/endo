@@ -10,7 +10,7 @@ An example-based summary of the Smallcaps encoding of the OCapN [Abstract Syntax
 | bigint           | Integer       | `7n`<br>`-7n`         | `"+7"`<br>`"-7"`     |
 | number           | Float64       | `Infinity`<br>`-Infinity`<br>`NaN`<br>`-0`<br>`7.1` | `"#Infinity"`<br>`"#-Infinity"`<br>`"#NaN"`<br>`"#-0"` // unimplemented<br>`7.1` |
 | string           | String        | `'#foo'`<br>`'foo'`   | `"!#foo"` // special strings<br>`"foo"` // other strings |
-| byteArray        | ByteArray     | `buf.toImmutable()`   | // undecided & unimplemented |
+| byteArray        | ByteArray     | `buf.toImmutable()`   | `"*deadbeef"` // after `*`, hex encoding |
 | passable symbols | Symbol        | `passableSymbolForName('foo')` | `"%foo"` // in transition |
 | copyArray        | List          | `[a,b]`               | `[<a>,<b>]`          |
 | copyRecord       | Struct        | `{foo:a,'#foo':b}`    | `{"!#foo":<b>,"foo":<a>}` // keys sorted  |
@@ -28,7 +28,6 @@ An example-based summary of the Smallcaps encoding of the OCapN [Abstract Syntax
 * Structs [can only have string-named properties](https://github.com/endojs/endo/blob/master/packages/pass-style/doc/copyRecord-guarantees.md).
 * Errors can also carry an optional `errorId` string property.
 * We expect to expand the optional error properties over time.
-* The ByteArray encoding is not yet designed or implemented.
 
 ## Readability Invariants
 
