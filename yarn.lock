@@ -1301,6 +1301,7 @@ __metadata:
     "@endo/endo-fs": "workspace:^"
     "@endo/exo-git": "workspace:^"
     "@endo/far": "workspace:^"
+    "@endo/git": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"
     ajv: "npm:^8.17.1"
