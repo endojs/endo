@@ -199,12 +199,13 @@ const makeGitEnv = repoRoot => ({
  * (consumed by the spawn and never stored or shared), so leaving it
  * unhardened does not widen any authority.
  *
- * @param {Record<string, string>} baseEnv
- * @param {Record<string, string>} [overrides]
- * @returns {Record<string, string>}
+ * @template {Record<string, string>} [T={}]
+ * @param {ReturnType<typeof makeGitEnv>} envVars
+ * @param {T} [overrides]
+ * @returns {ReturnType<typeof makeGitEnv> & T}
  */
-const withGitEnvOverrides = (baseEnv, overrides = {}) => ({
-  ...baseEnv,
+const withGitEnvOverrides = (envVars, overrides = /** @type {T} */ ({})) => ({
+  ...envVars,
   ...overrides,
 });
 harden(withGitEnvOverrides);
