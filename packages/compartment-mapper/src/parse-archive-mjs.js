@@ -25,6 +25,7 @@ export const parseArchiveMjs = (
   const record = new ModuleSource(source, {
     sourceMap,
     sourceMapUrl: sourceUrl,
+    // @ts-expect-error: fixed in https://github.com/endojs/endo/pull/3218
     sourceMapHook,
   });
   const pre = textEncoder.encode(JSON.stringify(record));
