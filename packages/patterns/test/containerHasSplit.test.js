@@ -5,7 +5,7 @@ import harden from '@endo/harden';
 import { Fail, q } from '@endo/errors';
 import { passStyleOf } from '@endo/pass-style';
 import { makeCopyBag, makeCopySet } from '../src/keys/checkKey.js';
-import { M, containerHasSplit } from '../src/patterns/patternMatchers.js';
+import { M, containerHasSplit } from '../src/patterns/patternMatchers.ts';
 
 /** @import {Macro} from 'ava'; */
 /** @import {CopyArray} from '@endo/pass-style'; */
