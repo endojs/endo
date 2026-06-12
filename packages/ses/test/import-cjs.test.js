@@ -1,78 +1,8 @@
 // @ts-nocheck
 import test from 'ava';
-import { ModuleSource } from '@endo/module-source';
+import { ModuleSource, CjsModuleSource } from '@endo/module-source';
 import { resolveNode } from './_node.js';
 import '../index.js';
-import { freeze, keys } from '../src/commons.js';
-
-function heuristicAnalysis(moduleSource) {
-  const dependsUpon = {};
-  const exports = {};
-  moduleSource.replace(
-    /(?:^|[^\w$_.])require\s*\(\s*["']([^"']*)["']\s*\)/g,
-    (_, id) => {
-      dependsUpon[id] = true;
-    },
-  );
-  moduleSource.replace(/(?:^|[^\w$_.])exports\.(\w[\w\d]*)\s*=/g, (_, name) => {
-    exports[name] = true;
-  });
-  moduleSource.replace(/(?:^|[^\w$_.])module\.exports\s*=/g, () => {
-    exports.default = true;
-  });
-  return {
-    imports: keys(dependsUpon),
-    exports: keys(exports),
-  };
-}
-
-const CjsModuleSource = (moduleSource, moduleLocation) => {
-  if (typeof moduleSource !== 'string') {
-    throw TypeError(
-      `Cannot create CommonJS virtual module source, module source must be a string, got ${moduleSource}`,
-    );
-  }
-  if (typeof moduleLocation !== 'string') {
-    throw TypeError(
-      `Cannot create CommonJS virtual module source, module location must be a string, got ${moduleLocation}`,
-    );
-  }
-
-  const { imports, exports } = heuristicAnalysis(moduleSource);
-
-  const execute = (moduleExports, compartment, resolvedImports) => {
-    const functor = compartment.evaluate(
-      `(function (require, exports, module, __filename, __dirname) { ${moduleSource} //*/\n})\n//# sourceURL=${moduleLocation}`,
-    );
-
-    const module = {
-      get exports() {
-        return moduleExports;
-      },
-      set exports(newModuleExports) {
-        moduleExports.default = newModuleExports;
-      },
-    };
-
-    const require = importSpecifier => {
-      const namespace = compartment.importNow(resolvedImports[importSpecifier]);
-      if (namespace.default !== undefined) {
-        return namespace.default;
-      }
-      return namespace;
-    };
-
-    functor(
-      require,
-      moduleExports,
-      module,
-      moduleLocation, // __filename
-      new URL('./', moduleLocation).toString(), // __dirname
-    );
-  };
-
-  return freeze({ imports, exports, execute });
-};
 
 test('import a CommonJS module with exports assignment', async t => {
   t.plan(2);

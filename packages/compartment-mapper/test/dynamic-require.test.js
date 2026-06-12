@@ -23,6 +23,12 @@ import {
   ENTRY_COMPARTMENT,
   WILDCARD_POLICY_VALUE,
 } from '../src/policy-format.js';
+import { mapNodeModules } from '../src/node-modules.js';
+import { loadFromMap } from '../src/import-lite.js';
+import {
+  defaultParserForLanguage,
+  parserForLanguageWithCjsBabel,
+} from '../import-parsers.js';
 
 const readPowers = makeReadNowPowers({ fs, url, path });
 const { freeze, keys, assign } = Object;
@@ -116,6 +122,152 @@ test('dynamic require avoids exitModuleImportNowHook', async t => {
     { ...namespace },
   );
   t.is(importNowHookCallCount, 0);
+});
+
+test('dynamic require of internal module via relative path', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/internal/index.js',
+    import.meta.url,
+  ).href;
+
+  /** @type {Policy} */
+  const policy = {
+    entry: {
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
+    },
+    resources: {},
+  };
+
+  const packageCompartmentMap = await mapNodeModules(readPowers, fixture);
+
+  const { import: importApp } = await loadFromMap(
+    readPowers,
+    packageCompartmentMap,
+    {
+      policy,
+      /** @type {any} */
+      importNowHook: () => {
+        t.fail('importNowHook should not be called');
+      },
+      parserForLanguage: defaultParserForLanguage,
+    },
+  );
+
+  const { namespace } = await importApp();
+
+  t.deepEqual(
+    {
+      default: {
+        isOk: true,
+      },
+      isOk: true,
+    },
+    { ...namespace },
+  );
+});
+
+test('dynamic import of package dynamically requiring internal module via relative path', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/dynamic-import/index.js',
+    import.meta.url,
+  ).href;
+
+  /** @type {Policy} */
+  const policy = {
+    entry: {
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
+    },
+    resources: {},
+  };
+
+  const packageCompartmentMap = await mapNodeModules(readPowers, fixture);
+
+  const { import: importApp } = await loadFromMap(
+    readPowers,
+    packageCompartmentMap,
+    {
+      policy,
+      parserForLanguage: parserForLanguageWithCjsBabel,
+    },
+  );
+
+  const { namespace } = await importApp();
+
+  const internalNs = await namespace.run();
+
+  t.deepEqual({ isOk: true }, { ...internalNs });
+});
+
+// Repro for: dynamic require of a relative specifier issued from a non-root
+// module within a package fails because compartment-mapper resolves against the
+// package root rather than the calling module's location.
+// mirrors webpack-cli's lib/webpack-cli.js → require('./plugins/CLIPlugin')
+test('dynamic require with relative specifier from non-root module resolves relative to referrer', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/nested-dynamic-require/lib/index.js',
+    import.meta.url,
+  ).href;
+
+  /** @type {Policy} */
+  const policy = {
+    entry: {
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
+    },
+    resources: {},
+  };
+
+  const packageCompartmentMap = await mapNodeModules(readPowers, fixture);
+
+  const { import: importApp } = await loadFromMap(
+    readPowers,
+    packageCompartmentMap,
+    { policy, parserForLanguage: defaultParserForLanguage },
+  );
+
+  const { namespace } = await importApp();
+  const result = namespace.run();
+  t.is(result.isOk, true);
+});
+
+test('dynamic import with relative specifier from non-root module resolves relative to referrer', async t => {
+  // Uses parserForLanguageWithCjsBabel so that import() expressions inside
+  // CJS modules are rewritten to the __import__ parameter (otherwise SES
+  // blocks import() expressions evaluated via compartment.evaluate).
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/nested-dynamic-import/lib/index.js',
+    import.meta.url,
+  ).href;
+
+  /** @type {Policy} */
+  const policy = {
+    entry: {
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
+    },
+    resources: {},
+  };
+
+  const packageCompartmentMap = await mapNodeModules(readPowers, fixture);
+
+  const { import: importApp } = await loadFromMap(
+    readPowers,
+    packageCompartmentMap,
+    { policy, parserForLanguage: parserForLanguageWithCjsBabel },
+  );
+
+  const { namespace } = await importApp();
+  // .run() triggers the dynamic import from inside ./lib/index.js.
+  // The specifier './plugins/foo' must resolve relative to ./lib/, not the
+  // package root, or it will land on a non-existent file.
+  const result = await namespace.run();
+  t.is(result.isOk, true);
 });
 
 // this test mimics how node-gyp-require works; you pass it a directory and it
@@ -686,7 +838,7 @@ test('dynamic require of ancestor relative path within unknown compartment', asy
   ).href;
 
   await t.throwsAsync(importLocation(readPowers, fixture), {
-    message: /Could not import unknown module.+grabby-app\/macguffin/,
+    message: /Cannot find external module "grabby-app\/macguffin"/,
   });
 });
 
