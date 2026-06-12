@@ -122,7 +122,6 @@ LLM-agent stack).*
 | [chat-slot-slash-commands](chat-slot-slash-commands.md) | 2026-04-23 | 2026-05-06 | Proposed |
 | [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-05-19 | **Complete** |
 | [chat-edit-message-ui](chat-edit-message-ui.md) | 2026-05-05 | 2026-05-05 | Not Started |
-| [chat-value-modal-formula-view](chat-value-modal-formula-view.md) | 2026-06-12 | 2026-06-12 | Not Started |
 | [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | 2026-02-28 | Deprecated |
 | [chat-spaces-home](chat-spaces-home.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | 2026-02-26 | **Complete** |
@@ -203,7 +202,7 @@ LLM-agent stack).*
 | [familiar-gateway-migration](familiar-gateway-migration.md) | 2026-02-14 | 2026-02-26 | **Complete** |
 | [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | 2026-02-24 | 2026-02-25 | In Progress (partially implemented) |
 | [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-05-06 | In Progress |
-| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-06-12 | Not Started |
 | [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-06 | **Implemented** |
 | [hardened-text-codecs-shim](hardened-text-codecs-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
 | [hardened-url-shim](hardened-url-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
@@ -350,15 +349,13 @@ flowchart TD
         cvedit[chat-view-edit-commands<br/><i>COMPLETE</i>]
         cemui[chat-edit-message-ui]
         cliedit[cli-edit-verb]
-        cvmfv[chat-value-modal-formula-view]
         finsp[formula-inspector]
         invgt[inventory-grouping-by-type]
         dcmd --> cpend
         dmount --> cvedit
         dmount --> cliedit
         dmstream[daemon-message-streaming<br/><i>IN PROGRESS</i>] --> cemui
-        invgt --> cvmfv
-        finsp -.-> cvmfv
+        invgt --> finsp
         cscheme[chat-color-schemes<br/><i>COMPLETE</i>]
         cspace[chat-per-space-color-scheme<br/><i>COMPLETE</i>]
         chc[chat-high-contrast-mode<br/><i>COMPLETE</i>]
@@ -838,8 +835,7 @@ star.)
 | inventory-cancel-and-liveness | Not Started | Cancel button with liveness indicator, coalesced watcher protocol |
 | inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
 | inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
-| formula-inspector | Not Started | New panel, daemon API exposure (retention-paths surface factored out into `daemon-retention-paths`) |
-| chat-value-modal-formula-view | Not Started | Card-flip Formula view on the existing Value modal; per-type layouts share a registry with `formula-inspector`; reuses `followNameChanges` `type` extension from `inventory-grouping-by-type` plus existing `InspectorHub.lookup` (no new daemon method) |
+| formula-inspector | Not Started | Two Chat surfaces (modal back face + dedicated panel) sharing one per-type layout registry; host-only `getFormula(identifier)` (replaces `@info` name hub) and `revise(petName, patch)` daemon methods; `endo inspect` CLI; promise-formula view subscribes and integrates with error-tracing; retention-paths embed via `daemon-retention-paths`. Consolidates the earlier `chat-value-modal-formula-view` proposal. |
 | workers-panel | Not Started | Metrics, sparklines (retention-paths section factored out into `daemon-retention-paths`) |
 | daemon-retention-paths | In Progress | Host-only `listRetentionPaths` / `followRetentionPaths`, `endo paths` CLI, Chat paths panel; Phase 1 forwarded as PR #284 (open) |
 | retention-path-notation | Reference | Notation + bulk-collection sketch captured for reference; not a forward-looking proposal |
@@ -1187,8 +1183,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | inventory-cancel-and-liveness | M | 4-5 days | 9 | Cancel button, indicator states, coalesced watcher exo + daemon hooks |
 | inventory-grouping-by-type | S | 1-2 days | 9 | UI grouping |
 | inventory-drag-and-drop | S-M | 3 days | 9 | HTML5 DnD; PR #131 forwarded under bot |
-| formula-inspector | M | 4-5 days | 9 | New panel, daemon API |
-| chat-value-modal-formula-view | S-M | 2-3 days | 9 | Card-flip back-face on existing Value modal; per-type layout registry shared with `formula-inspector` when that lands; reuses `followNameChanges` `type` field (from `inventory-grouping-by-type`) + `InspectorHub.lookup` — no new daemon method |
+| formula-inspector | M-L | 6-8 days | 9 | Two Chat surfaces (Value modal back face + dedicated panel) sharing one per-type layout registry; host-only `getFormula(identifier)` and `revise(petName, patch)` daemon methods (removes `@info`); `endo inspect` CLI; promise-formula view with error-tracing integration; retention-paths embed via `daemon-retention-paths` |
 | workers-panel | M | 4-6 days | 9 | Metrics, sparklines |
 | daemon-retention-paths | M-L | 1.5 weeks | 9 | Snapshot + subscription daemon API, CLI verb, Chat paths panel; Phase 1 in PR #284 (open) |
 | retention-path-notation | — | — | 9 | Reference; notation + bulk-collection sketch captured for future reference |
@@ -1240,10 +1235,10 @@ date of this pass.
 | M6: MCP Bridge Hosting (was Milestone B) | 1 net-new (`endo-gateway-mcp` impl); cross-milestone slices in M3 (P0) and M5 (P2/P3/P4 gaps) | ~2 weeks own work + ~6-9 weeks across P0-P4 | gated by M3 gateway-package phases 2/7/8 merge cadence |
 | M7: Weblets & Integrations (was M3) | 11 (`familiar-unified-weblet-server`, `familiar-chat-weblet-hosting`, `cli-store-verb-text-modes`, `cli-edit-verb`, `daemon-weblet-application`, `exo-zip-package`, `endoclaw-oauth`, `endoclaw-proactive-messages`, `endoclaw-notifications`, `endoclaw-webhooks`, `endoclaw-voice`) | 6-8 weeks | 8-11 weeks |
 | M8: Peer App Sharing (was Milestone A) | 3 net-new (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); existing constituents counted under M3/M4/M7 | 2-3 weeks | 3-5 weeks |
-| M9: UX & Tooling (was M4) | 13 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `chat-value-modal-formula-view`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 8-11 weeks | 10-13 weeks |
+| M9: UX & Tooling (was M4) | 12 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 8-11 weeks | 10-13 weeks |
 | M10: Confinement & Ecosystem (was M5) | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
 | M11: Rust Daemon (`endor`) (was M6) | 2 (`endor-tui`, `endor-bus-tui`) | 12-17 weeks | 14-19 weeks |
-| **Total remaining** | **56** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~55-75 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~67-91 weeks** |
+| **Total remaining** | **55** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~55-75 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~67-91 weeks** |
 
 The 2026-05-20 reconciliation corrects a counting gap in the prior
 snapshot's narrative: M1, M3, and M4 had absorbed new rows since the
