@@ -1,5 +1,11 @@
 # @endo/evasive-transform
 
+## 2.3.0
+
+### Minor Changes
+
+- [#3217](https://github.com/endojs/endo/pull/3217) [`c4337e5`](https://github.com/endojs/endo/commit/c4337e588b0e1a4226b7204e6d7f88fa584154d0) Thanks [@boneskull](https://github.com/boneskull)! - Expose `makeTransformCommentsVisitor()` via the `visitor.js` entry point for use with `@endo/parser-pipeline`.
+
 ## 2.2.0
 
 ### Minor Changes

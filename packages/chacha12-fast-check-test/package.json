@@ -1,6 +1,6 @@
 {
   "name": "@endo/chacha12-fast-check-test",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Integration test that drives `@endo/chacha12` as a `fast-check` `RandomGenerator`.",
   "keywords": [
