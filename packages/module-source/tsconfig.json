@@ -5,7 +5,10 @@
     "scripts/*.js",
     "src/*.js",
     "src-xs/*.js",
-    // to omit test/fixtures/
+    "src/types/*.ts",
+    "!src/types/*.d.ts",
+    "src/external.types.d.ts",
+    "src/shim.types.d.ts",
     "test/*.*"
   ]
 }

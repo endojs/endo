@@ -14,3 +14,6 @@ browser-test/
 !*.types.d.ts
 !*.types.d.mts
 !*.types.d.cts
+
+# tseslint can become confused by these files; attempt to remove this when upgrading eslint/tseslint
+*.types.js
