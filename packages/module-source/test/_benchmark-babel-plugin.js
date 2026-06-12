@@ -1,7 +1,7 @@
 import Benchmark from 'benchmark';
 import fs from 'fs';
 import url from 'url';
-import { makeModuleAnalyzer } from '../src/transform-analyze.js';
+import { makeModuleSourceAnalyzer } from '../src/transform-analyze.js';
 
 const suite = new Benchmark.Suite();
 
@@ -21,7 +21,7 @@ const cases = [
   },
 ];
 
-const analyzeModuleSource = makeModuleAnalyzer();
+const analyzeModuleSource = makeModuleSourceAnalyzer();
 
 cases.map(testCase =>
   suite.add(testCase.name, () => {

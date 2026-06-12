@@ -3,14 +3,14 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { parse as parseBabel } from '@babel/parser';
 import babelTraverse from '@babel/traverse';
 import { generate as generateBabel } from '@babel/generator';
-import { analyzeModule } from '../src/analyzer.js';
+import { makeModuleAnalysisContext } from '../src/analyzer.js';
 
 const { default: traverseBabel } = babelTraverse;
 
 // --- ESM (analyzeModule) ---
 
 test('analyzeModule returns context with analyzePass, transformPass, buildRecord', t => {
-  const ctx = analyzeModule();
+  const ctx = makeModuleAnalysisContext();
   t.is(typeof ctx.analyzePass, 'object');
   t.is(typeof ctx.analyzePass.visitor, 'object');
   t.is(typeof ctx.transformPass, 'object');
@@ -26,7 +26,7 @@ test('analyzeModule() identifies imports and exports via buildRecord', t => {
     export { baz };
   `;
 
-  const ctx = analyzeModule();
+  const ctx = makeModuleAnalysisContext();
   const ast = parseBabel(source, {
     sourceType: 'module',
     tokens: true,
@@ -52,7 +52,7 @@ test('analyzeModule() identifies imports and exports via buildRecord', t => {
 test('analyzeModule().buildRecord produces a record with __syncModuleProgram__', t => {
   const source = `import { foo } from 'bar'; export const x = foo();`;
 
-  const ctx = analyzeModule();
+  const ctx = makeModuleAnalysisContext();
   const ast = parseBabel(source, {
     sourceType: 'module',
     tokens: true,
@@ -81,8 +81,8 @@ test('analyzeModule instances are independent (fresh state each call)', t => {
   const source1 = `import { a } from 'pkg-a'; export const a2 = a;`;
   const source2 = `import { b } from 'pkg-b'; export const b2 = b;`;
 
-  const ctx1 = analyzeModule();
-  const ctx2 = analyzeModule();
+  const ctx1 = makeModuleAnalysisContext();
+  const ctx2 = makeModuleAnalysisContext();
 
   const parse = src =>
     parseBabel(src, {

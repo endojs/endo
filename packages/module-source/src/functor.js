@@ -66,6 +66,14 @@ export const buildFunctorSource = (scriptSource, sourceOptions, sourceUrl) => {
     })
     .join('');
 
+  // The outer function destructures the module calling convention's internal
+  // variables into hidden lexical variables.
+  // The inner function binds `this` to `undefined` and overshadows the
+  // evaluator's `arguments` with a completely empty `arguments` object.
+  // There is no avoiding the overshadowing of `globalThis.arguments` if it
+  // exists in this emulation of ESM since the evaluator binds `arguments` as
+  // well.
+  // Relies on the evaluator to ensure these functions are strict.
   let functorSource = `\
 ({imports:${h.HIDDEN_IMPORTS},liveVar:${h.HIDDEN_LIVE},onceVar:${h.HIDDEN_ONCE},import:${h.HIDDEN_IMPORT},importMeta:${h.HIDDEN_META}})=>(function(){'use strict';\
 ${preamble}\
