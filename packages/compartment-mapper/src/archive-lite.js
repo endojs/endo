@@ -70,22 +70,47 @@ const { assign, create, freeze, keys } = Object;
 /**
  * @param {ArchiveWriter} archive
  * @param {Sources} sources
+ * @param {(name: string, args?: Record<string, unknown>) => (args?: Record<string, unknown>) => void} [profileStartSpan]
  */
-const addSourcesToArchive = async (archive, sources) => {
+const addSourcesToArchive = async (
+  archive,
+  sources,
+  profileStartSpan = undefined,
+) => {
+  let moduleCount = 0;
+  let byteCount = 0;
+  const endSortCompartments = profileStartSpan?.(
+    'compartmentMapper.archiveLite.writeZip.sources.sortCompartments',
+  );
+  const sortedCompartments = keys(sources).sort();
+  endSortCompartments?.({ compartmentCount: sortedCompartments.length });
+
   await null;
-  for (const compartment of keys(sources).sort()) {
+  const endWriteModules = profileStartSpan?.(
+    'compartmentMapper.archiveLite.writeZip.sources.writeModules',
+  );
+  for (const compartment of sortedCompartments) {
     const modules = sources[compartment];
-    for (const specifier of keys(modules).sort()) {
+    const sortedSpecifiers = keys(modules).sort();
+    for (const specifier of sortedSpecifiers) {
       if ('location' in modules[specifier]) {
         const { bytes, location } = modules[specifier];
         const path = `${compartment}/${location}`;
         if (bytes !== undefined) {
+          // Preserve deterministic write order.
           // eslint-disable-next-line no-await-in-loop
           await archive.write(path, bytes);
+          moduleCount += 1;
+          byteCount += bytes.length;
         }
       }
     }
   }
+  endWriteModules?.({
+    moduleCount,
+    byteCount,
+  });
+  return { moduleCount, byteCount };
 };
 
 /**
@@ -196,11 +221,16 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
     log: _log = noop,
+    profileStartSpan = undefined,
   } = options;
 
+  const endSetupParserForLanguage = profileStartSpan?.(
+    'compartmentMapper.archiveLite.setupParserForLanguage',
+  );
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
   );
+  endSetupParserForLanguage?.();
 
   const { read, computeSha512 } = unpackReadPowers(powers);
 
@@ -212,12 +242,19 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
   /** @type {Sources} */
   const sources = Object.create(null);
 
+  const endExitImportHookMaker = profileStartSpan?.(
+    'compartmentMapper.archiveLite.exitModuleImportHookMaker',
+  );
   const consolidatedExitModuleImportHook = exitModuleImportHookMaker({
     modules: exitModules,
     exitModuleImportHook,
     entryCompartmentName,
   });
+  endExitImportHookMaker?.();
 
+  const endMakeImportHook = profileStartSpan?.(
+    'compartmentMapper.archiveLite.makeImportHookMaker',
+  );
   const makeImportHook = makeImportHookMaker(read, entryCompartmentName, {
     sources,
     compartmentDescriptors: compartments,
@@ -228,9 +265,12 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
     entryModuleSpecifier,
     importHook: consolidatedExitModuleImportHook,
     sourceMapHook,
+    profileStartSpan,
   });
+  endMakeImportHook?.();
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
+  const endLink = profileStartSpan?.('compartmentMapper.archiveLite.link');
   const { compartment, attenuatorsCompartment } = link(compartmentMap, {
     resolve,
     makeImportHook,
@@ -238,21 +278,38 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
     parserForLanguage,
     archiveOnly: true,
   });
+  endLink?.();
+
+  const endLoadEntry = profileStartSpan?.(
+    'compartmentMapper.archiveLite.compartment.loadEntry',
+  );
   await compartment.load(entryModuleSpecifier);
+  endLoadEntry?.();
   if (policy) {
     // retain all attenuators.
+    const endLoadAttenuators = profileStartSpan?.(
+      'compartmentMapper.archiveLite.compartment.loadAttenuators',
+    );
     await Promise.all(
       detectAttenuators(policy).map(attenuatorSpecifier =>
         attenuatorsCompartment.load(attenuatorSpecifier),
       ),
     );
+    endLoadAttenuators?.();
   }
 
+  const endMakeArchiveCompartmentMap = profileStartSpan?.(
+    'compartmentMapper.archiveLite.makeArchiveCompartmentMap',
+  );
   const { archiveCompartmentMap, archiveSources } = makeArchiveCompartmentMap(
     compartmentMap,
     sources,
   );
+  endMakeArchiveCompartmentMap?.();
 
+  const endEncodeCompartmentMap = profileStartSpan?.(
+    'compartmentMapper.archiveLite.encodeCompartmentMap',
+  );
   const archiveCompartmentMapText = JSON.stringify(
     archiveCompartmentMap,
     (key, value) => (key.startsWith('_') ? undefined : value),
@@ -261,14 +318,25 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
   const archiveCompartmentMapBytes = textEncoder.encode(
     archiveCompartmentMapText,
   );
+  endEncodeCompartmentMap?.({
+    bytes: archiveCompartmentMapBytes.length,
+  });
 
   if (captureSourceLocation !== undefined) {
+    const endCaptureSourceLocations = profileStartSpan?.(
+      'compartmentMapper.archiveLite.captureSourceLocations',
+    );
     captureSourceLocations(archiveSources, captureSourceLocation);
+    endCaptureSourceLocations?.();
   }
 
   let archiveSha512;
   if (computeSha512 !== undefined) {
+    const endHashCompartmentMap = profileStartSpan?.(
+      'compartmentMapper.archiveLite.hashCompartmentMap',
+    );
     archiveSha512 = computeSha512(archiveCompartmentMapBytes);
+    endHashCompartmentMap?.();
   }
 
   return {
@@ -289,16 +357,46 @@ export const makeAndHashArchiveFromMap = async (
   compartmentMap,
   options,
 ) => {
+  const { profileStartSpan = undefined } = options || {};
+  const endDigestFromMap = profileStartSpan?.(
+    'compartmentMapper.archiveLite.digestFromMap',
+  );
   const { compartmentMapBytes, sources, sha512 } = await digestFromMap(
     powers,
     compartmentMap,
     options,
   );
+  endDigestFromMap?.();
 
-  const archive = writeZip();
+  const endWriteZipCreate = profileStartSpan?.(
+    'compartmentMapper.archiveLite.writeZip.create',
+  );
+  const archive = writeZip({ profileStartSpan });
+  endWriteZipCreate?.();
+  const endWriteCompartmentMap = profileStartSpan?.(
+    'compartmentMapper.archiveLite.writeZip.compartmentMap',
+  );
   await archive.write('compartment-map.json', compartmentMapBytes);
-  await addSourcesToArchive(archive, sources);
+  endWriteCompartmentMap?.({ bytes: compartmentMapBytes.length });
+  const endAddSources = profileStartSpan?.(
+    'compartmentMapper.archiveLite.writeZip.sources',
+  );
+  const { moduleCount, byteCount } = await addSourcesToArchive(
+    archive,
+    sources,
+    profileStartSpan,
+  );
+  endAddSources?.({ moduleCount, byteCount });
+  const endZipSnapshot = profileStartSpan?.(
+    'compartmentMapper.archiveLite.writeZip.snapshot',
+  );
   const bytes = await archive.snapshot();
+  endZipSnapshot?.({
+    bytes: bytes.length,
+    sourceBytes: byteCount,
+    sourceModuleCount: moduleCount,
+    compartmentMapBytes: compartmentMapBytes.length,
+  });
 
   return { bytes, ...(sha512 !== undefined && { sha512 }) };
 };

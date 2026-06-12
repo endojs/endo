@@ -70,7 +70,7 @@ function writeFile(writer, file) {
   writer.write(signature.LOCAL_FILE_HEADER);
   const headerStart = writer.index;
   // Version needed to extract
-  writer.writeUint16(10, true);
+  writer.writeUint16(file.versionNeeded, true);
   writer.writeUint16(file.bitFlag, true);
   writer.writeUint16(file.compressionMethod, true);
   writeDosDateTime(writer, file.date);
@@ -144,24 +144,43 @@ function writeEndOfCentralDirectoryRecord(
  * @param {BufferWriter} writer
  * @param {Array<FileRecord>} records
  * @param {string} comment
+ * @param {(name: string, args?: Record<string, unknown>) => (args?: Record<string, unknown>) => void} [profileStartSpan]
  */
-export function writeZipRecords(writer, records, comment = '') {
+export function writeZipRecords(
+  writer,
+  records,
+  comment = '',
+  profileStartSpan = undefined,
+) {
   // Write records with local headers.
+  const endLocalFiles = profileStartSpan?.('zip.formatWriter.writeLocalFiles', {
+    entryCount: records.length,
+  });
   const locators = [];
   for (let i = 0; i < records.length; i += 1) {
     locators.push(writeFile(writer, records[i]));
   }
+  endLocalFiles?.();
 
   // writeCentralDirectory
+  const endCentralDirectory = profileStartSpan?.(
+    'zip.formatWriter.writeCentralDirectory',
+    { entryCount: records.length },
+  );
   const centralDirectoryStart = writer.index;
   for (let i = 0; i < locators.length; i += 1) {
     writeCentralFileHeader(writer, records[i], locators[i]);
   }
   const centralDirectoryLength = writer.index - centralDirectoryStart;
+  endCentralDirectory?.({ centralDirectoryLength });
 
   const commentBytes = textEncoder.encode(comment);
 
   // Write central directory end.
+  const endCentralDirectoryEnd = profileStartSpan?.(
+    'zip.formatWriter.writeCentralDirectoryEnd',
+    { entryCount: records.length },
+  );
   writeEndOfCentralDirectoryRecord(
     writer,
     records.length,
@@ -169,6 +188,7 @@ export function writeZipRecords(writer, records, comment = '') {
     centralDirectoryLength,
     commentBytes,
   );
+  endCentralDirectoryEnd?.({ commentBytes: commentBytes.length });
 }
 
 /**
@@ -235,7 +255,7 @@ function makeFileRecord(file) {
     centralName: file.name,
     madeBy: UNIX,
     version: UNIX_VERSION,
-    versionNeeded: 0, // TODO this is probably too lax.
+    versionNeeded: 10,
     bitFlag: 0,
     compressionMethod: compression.STORE,
     date: file.date,
@@ -254,11 +274,30 @@ function makeFileRecord(file) {
  * @param {BufferWriter} writer
  * @param {Array<import('./types.js').ArchivedFile>} files
  * @param {string} comment
+ * @param {(name: string, args?: Record<string, unknown>) => (args?: Record<string, unknown>) => void} [profileStartSpan]
  */
-export function writeZip(writer, files, comment = '') {
-  const encodedFiles = files.map(encodeFile);
-  const compressedFiles = encodedFiles.map(compressFileWithStore);
+export function writeZip(
+  writer,
+  files,
+  comment = '',
+  profileStartSpan = undefined,
+) {
+  // Build file records in one pass to reduce allocation churn when writing
+  // large archives.
+  const endBuildRecords = profileStartSpan?.(
+    'zip.formatWriter.buildFileRecords',
+    { entryCount: files.length },
+  );
+  /** @type {Array<FileRecord>} */
+  const fileRecords = [];
+  let totalContentBytes = 0;
+  for (let i = 0; i < files.length; i += 1) {
+    const encoded = encodeFile(files[i]);
+    const compressed = compressFileWithStore(encoded);
+    totalContentBytes += compressed.content.length;
+    fileRecords.push(makeFileRecord(compressed));
+  }
+  endBuildRecords?.({ entryCount: fileRecords.length, totalContentBytes });
   // TODO collate directoryRecords from file bases.
-  const fileRecords = compressedFiles.map(makeFileRecord);
-  writeZipRecords(writer, fileRecords, comment);
+  writeZipRecords(writer, fileRecords, comment, profileStartSpan);
 }
