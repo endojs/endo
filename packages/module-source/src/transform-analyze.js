@@ -10,7 +10,7 @@
 import { generate as generateBabel } from '@babel/generator';
 import { parse as parseBabel } from '@babel/parser';
 import babelTraverse from '@babel/traverse';
-import { analyzeModule } from './analyzer.js';
+import { makeModuleAnalysisContext } from './analyzer.js';
 import * as h from './hidden.js';
 
 /**
@@ -66,7 +66,7 @@ const makeHubParentPath = ast => {
  *
  * @returns {(source: string, options?: ModuleSourceOptions & AnalysisOptions) => ModuleSourceRecord}
  */
-export const makeModuleAnalyzer = () =>
+export const makeModuleSourceAnalyzer = () =>
   /**
    * @param {string} moduleSource
    * @param {ModuleSourceOptions & AnalysisOptions} [options]
@@ -81,7 +81,7 @@ export const makeModuleAnalyzer = () =>
       moduleSource = `//${moduleSource}`;
     }
 
-    const ctx = analyzeModule({ allowHidden });
+    const ctx = makeModuleAnalysisContext({ allowHidden });
 
     let scriptSource;
     try {
@@ -146,7 +146,7 @@ export const makeModuleAnalyzer = () =>
 
 // TODO: May be unused; referenced only in ses/test262
 export const makeModuleTransformer = (_babel, importer) => {
-  const createStaticRecord = makeModuleAnalyzer();
+  const createStaticRecord = makeModuleSourceAnalyzer();
 
   /**
    * Transforms ESM or script source for evaluation in a compartment.
@@ -159,7 +159,7 @@ export const makeModuleTransformer = (_babel, importer) => {
    */
   const transformSource = (source, options = {}) => {
     const { allowHidden = false } = options;
-    const ctx = analyzeModule({ allowHidden });
+    const ctx = makeModuleAnalysisContext({ allowHidden });
     const ast = parseBabel(source, {
       sourceType: 'script',
       tokens: true,

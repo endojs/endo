@@ -1,6 +1,6 @@
 /* eslint no-underscore-dangle: ["off"] */
 
-import { makeModuleAnalyzer } from './transform-analyze.js';
+import { makeModuleSourceAnalyzer } from './transform-analyze.js';
 
 /**
  * @import {ModuleSourceOptions} from './types/module-source.js'
@@ -33,7 +33,7 @@ const freeze = /** @type {<T>(v: T) => T} */ (Object.freeze);
 //     babel:     linker error: no export named default
 //     babelStar: exports
 
-const analyzeModule = makeModuleAnalyzer();
+const analyzeModule = makeModuleSourceAnalyzer();
 
 // XXX implements import('ses').PrecompiledModuleSource but adding
 // `@implements` errors that this isn't a class and `@returns` errors that

@@ -1,7 +1,7 @@
 /**
  * Low-level module analysis primitives for ESM.
  *
- * {@link analyzeModule} returns a per-parse context object
+ * {@link makeModuleAnalysisContext} returns a per-parse context object
  * holding plain `{ visitor }` objects and a `buildRecord` function.
  *
  * Consumers are responsible for:
@@ -27,7 +27,7 @@ import { buildFunctorSource, buildModuleRecord } from './functor.js';
  * @param {AnalysisOptions} [options]
  * @returns {ModuleAnalysisContext}
  */
-export const analyzeModule = (options = {}) => {
+export const makeModuleAnalysisContext = (options = {}) => {
   const { allowHidden = false } = options;
   const sourceOptions = createSourceOptions({ allowHidden });
   const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
