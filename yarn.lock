@@ -1021,6 +1021,7 @@ __metadata:
   resolution: "@endo/marshal@workspace:packages/marshal"
   dependencies:
     "@endo/common": "workspace:^"
+    "@endo/compartment-mapper": "workspace:^"
     "@endo/env-options": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
