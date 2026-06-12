@@ -1,5 +1,16 @@
 # @endo/ses-ava
 
+## 1.4.2
+
+### Patch Changes
+
+- [#3292](https://github.com/endojs/endo/pull/3292) [`1c34f07`](https://github.com/endojs/endo/commit/1c34f0749cdaa24e980a64049c01974b9436974c) Thanks [@turadg](https://github.com/turadg)! - Widen the declared `ava` dependency range to `^6 || ^7 || ^8` so
+  consumers can stay on ava 6 or 7 rather than being forced onto ava 8.
+  It remains a direct dependency (not a peer) so the `ses-ava` bin
+  materializes correctly under the pnpm linker.
+- Updated dependencies [[`889be5e`](https://github.com/endojs/endo/commit/889be5eda934c439e97df81104d35945c4f519e2), [`fe6be07`](https://github.com/endojs/endo/commit/fe6be074317c8afedc28139683e148a952377062)]:
+  - ses@2.2.0
+
 ## 1.4.1
 
 ### Patch Changes

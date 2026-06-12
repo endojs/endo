@@ -1,8 +1,8 @@
-# @endo/hex
+# @endo/random
 
-## 1.1.1
+## 1.0.0
 
-### Patch Changes
+### Major Changes
 
 - [#3232](https://github.com/endojs/endo/pull/3232) [`3dee3aa`](https://github.com/endojs/endo/commit/3dee3aa7100a09e3b2c2e2e6ca75e34db91da9ea) Thanks [@kriskowal](https://github.com/kriskowal)! - Add `@endo/random`: a source-agnostic library of random sampling functions (`random`, `randomInt`, plus the underlying `randomUint8` / `randomUint16` / `randomUint24` / `randomUint32` / `randomUint53` readers).
   Each function accepts a `RandomSource`, which is simply a function `(out: Uint8Array) => void` matching the shape of `crypto.getRandomValues` (minus the return value).
@@ -27,10 +27,3 @@
   ChaCha12 is the 12-round variant of Daniel J. Bernstein's ChaCha family.
   The block function is identical to ChaCha20 modulo the round count (6 double-rounds vs 10), so the implementation, API, and harden discipline mirror the sibling 20-round implementation.
   ChaCha12 trades cryptographic margin for throughput; for deterministic test fixtures, property-based testing, and fuzzing the extra speed is generally the right tradeoff.
-
-## 1.1.0
-
-### Minor Changes
-
-- [#3208](https://github.com/endojs/endo/pull/3208) [`ad7a177`](https://github.com/endojs/endo/commit/ad7a177e84b08c74526ceb9b0ea15f3c81c06158) Thanks [@kriskowal](https://github.com/kriskowal)! - Add `@endo/hex` package providing `encodeHex` and `decodeHex` as a ponyfill for the TC39 `Uint8Array.prototype.toHex` and `Uint8Array.fromHex` intrinsics (proposal-arraybuffer-base64, Stage 4).
-  Dispatches to the native intrinsics at module load when available, falling through to a portable pure-JavaScript implementation elsewhere.

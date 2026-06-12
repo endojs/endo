@@ -1,6 +1,6 @@
 {
   "name": "@endo/chacha12",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "ChaCha12 keystream primitive and block-stream source",
   "keywords": [
     "chacha12",
