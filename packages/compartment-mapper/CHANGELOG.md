@@ -1,5 +1,15 @@
 # @endo/compartment-mapper
 
+## 2.3.1
+
+### Patch Changes
+
+- [#3247](https://github.com/endojs/endo/pull/3247) [`73e03aa`](https://github.com/endojs/endo/commit/73e03aa5bc461cd6eef3fc59dee50ab33ee174cf) Thanks [@boneskull](https://github.com/boneskull)! - Fixes `CompartmentDescriptor` so that it is generic on the `PackagePolicy`; externally-defined `ParseFn`s can now refer to the specific contents of a custom `PackagePolicy` present in a `CompartmentDescriptor`.
+
+  Introduces `ParseSourceMapHook`; differentiated from `@endo/module-source`'s `SourceMapHook`.
+
+  Fixes type of `PolicyItem`; eliminates confusion between `void` (no extra union members) and `any` (`SomePackagePolicy`).
+
 ## 2.3.0
 
 ### Minor Changes
