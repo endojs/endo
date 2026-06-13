@@ -1193,6 +1193,54 @@ export const permitted = {
     with: fn,
   },
 
+  // If this exists, it is purely an artifact of how we currently shim
+  // `transferToImmutable`. As natively implemented, there would be no
+  // such extra prototype.
+  '%FreezableTypedArrayPrototype%': {
+    '[[Proto]]': '%TypedArrayPrototype%',
+    buffer: getter,
+    byteLength: getter,
+    byteOffset: getter,
+    copyWithin: fn,
+    entries: fn,
+    every: fn,
+    fill: fn,
+    filter: fn,
+    find: fn,
+    findIndex: fn,
+    forEach: fn,
+    includes: fn,
+    indexOf: fn,
+    join: fn,
+    keys: fn,
+    lastIndexOf: fn,
+    length: getter,
+    map: fn,
+    reduce: fn,
+    reduceRight: fn,
+    reverse: fn,
+    set: fn,
+    slice: fn,
+    some: fn,
+    sort: fn,
+    subarray: fn,
+    toLocaleString: fn,
+    toString: fn,
+    values: fn,
+    '@@iterator': fn,
+    '@@toStringTag': getter,
+    // Failed tc39 proposal
+    // https://tc39.es/proposal-relative-indexing-method/
+    at: fn,
+    // See https://github.com/tc39/proposal-array-find-from-last
+    findLast: fn,
+    findLastIndex: fn,
+    // https://github.com/tc39/proposal-change-array-by-copy
+    toReversed: fn,
+    toSorted: fn,
+    with: fn,
+  },
+
   // The TypedArray Constructors
 
   BigInt64Array: TypedArray('%BigInt64ArrayPrototype%'),
