@@ -5,7 +5,20 @@
 | **Created** | 2026-02-14 |
 | **Updated** | 2026-06-13 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
+
+## Status
+
+Daemon and CLI cuts landed in `endojs/endo-but-for-bots#440` (master-base). Specifically:
+
+- `EndoHost.getFormula(identifier)` is on the host facet only; guests have no such method; cross-peer locators are rejected.
+- The `INFO` (`@info`) entry is removed from the host pet sitter's `specialNames` map.
+- Per-type formula classification is centralized in `packages/daemon/src/formula-record.js`.
+- `endo inspect <name-or-identifier>` CLI verb is wired with `--identifier` and `--json` flags.
+
+The Chat-side cut (modal back face, gear icon on inventory rows, layout registry) is deferred. The design assumes a `packages/chat` package that, on the implementation base branch (`master`), does not exist; the chat package on master is `packages/goblin-chat` with a different file layout. The chat cut waits for either the `packages/chat` migration onto `master` or a re-targeting of the chat-side design at `goblin-chat`.
+
+The `InspectorHubInterface`, `InspectorInterface`, and `pet-inspector` formula type are retained as vestigial infrastructure (no user-facing path reaches them post-`@info` removal) to keep existing on-disk host formulas loadable. Full removal is a follow-up.
 
 ## What is the Problem Being Solved?
 
