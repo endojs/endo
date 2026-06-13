@@ -202,7 +202,7 @@ LLM-agent stack).*
 | [familiar-gateway-migration](familiar-gateway-migration.md) | 2026-02-14 | 2026-02-26 | **Complete** |
 | [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | 2026-02-24 | 2026-02-25 | In Progress (partially implemented) |
 | [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-05-06 | In Progress |
-| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-06-13 | Not Started |
 | [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-06 | **Implemented** |
 | [hardened-text-codecs-shim](hardened-text-codecs-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
 | [hardened-url-shim](hardened-url-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
@@ -349,10 +349,13 @@ flowchart TD
         cvedit[chat-view-edit-commands<br/><i>COMPLETE</i>]
         cemui[chat-edit-message-ui]
         cliedit[cli-edit-verb]
+        finsp[formula-inspector]
+        invgt[inventory-grouping-by-type]
         dcmd --> cpend
         dmount --> cvedit
         dmount --> cliedit
         dmstream[daemon-message-streaming<br/><i>IN PROGRESS</i>] --> cemui
+        invgt --> finsp
         cscheme[chat-color-schemes<br/><i>COMPLETE</i>]
         cspace[chat-per-space-color-scheme<br/><i>COMPLETE</i>]
         chc[chat-high-contrast-mode<br/><i>COMPLETE</i>]
@@ -832,7 +835,7 @@ star.)
 | inventory-cancel-and-liveness | Not Started | Cancel button with liveness indicator, coalesced watcher protocol |
 | inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
 | inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
-| formula-inspector | Not Started | New panel, daemon API exposure (retention-paths surface factored out into `daemon-retention-paths`) |
+| formula-inspector | Not Started | Single Chat surface: a Value modal back face reached via `F` key, modal-header gear icon, or directly from inventory-row gear icon; back face is read-only at this stage. Host-only `getFormula(identifier)` daemon method (replaces `@info` name hub); `endo inspect` CLI; promise-formula view subscribes and integrates with error-tracing. Consolidates the earlier `chat-value-modal-formula-view` proposal. |
 | workers-panel | Not Started | Metrics, sparklines (retention-paths section factored out into `daemon-retention-paths`) |
 | daemon-retention-paths | In Progress | Host-only `listRetentionPaths` / `followRetentionPaths`, `endo paths` CLI, Chat paths panel; Phase 1 forwarded as PR #284 (open) |
 | retention-path-notation | Reference | Notation + bulk-collection sketch captured for reference; not a forward-looking proposal |
@@ -1180,7 +1183,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | inventory-cancel-and-liveness | M | 4-5 days | 9 | Cancel button, indicator states, coalesced watcher exo + daemon hooks |
 | inventory-grouping-by-type | S | 1-2 days | 9 | UI grouping |
 | inventory-drag-and-drop | S-M | 3 days | 9 | HTML5 DnD; PR #131 forwarded under bot |
-| formula-inspector | M | 4-5 days | 9 | New panel, daemon API |
+| formula-inspector | M | 4-5 days | 9 | Single Chat surface (Value modal back face, gear icon flip plus direct inventory-row entry, read-only at this stage); host-only `getFormula(identifier)` daemon method (removes `@info`); `endo inspect` CLI; promise-formula view with error-tracing integration |
 | workers-panel | M | 4-6 days | 9 | Metrics, sparklines |
 | daemon-retention-paths | M-L | 1.5 weeks | 9 | Snapshot + subscription daemon API, CLI verb, Chat paths panel; Phase 1 in PR #284 (open) |
 | retention-path-notation | — | — | 9 | Reference; notation + bulk-collection sketch captured for future reference |
