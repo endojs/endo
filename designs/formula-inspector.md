@@ -14,14 +14,14 @@ The daemon stores rich formula structures (33 types with fields like `worker`, `
 Power users and developers cannot see the formula graph that backs each capability: that an `eval` retains a `worker`, that a `guest` retains a `host` and a `handle`, that a `mount` retains its backing files.
 They have to consult the daemon directly or trace pet names by hand to understand what a value depends on.
 
-This design adds a Formula Inspector: a host-only daemon method, a CLI verb, and two Chat-side surfaces that share one layout source of truth.
-The two Chat surfaces are a back-face flip on the existing Value modal (the everyday-inspection moment) and a dedicated panel (the power-tool moment with edit toggle and retention-path reveal); both render the same per-type layout taxonomy.
+This design adds a Formula Inspector: a host-only daemon method, a CLI verb, and one Chat-side surface (a back-face flip on the existing Value modal) that renders the per-type formula layout.
 
 ## Consolidation Note
 
 This document supersedes the earlier `chat-value-modal-formula-view.md` (2026-06-12, never merged).
 On 2026-06-12 the maintainer asked to consolidate the two designs and to redesign the inspector around a host-only daemon method, not the `@info` name hub.
-The consolidated design preserves the card-flip back-face proposal, the per-type layout taxonomy, the stack navigation model, and the no-cycle-unwinding principle from that draft, and folds them into the existing panel-plus-CLI shape from this document.
+The consolidated design preserves the card-flip back-face proposal, the per-type layout taxonomy, the stack navigation model, and the no-cycle-unwinding principle from that draft, and folds them into the existing CLI shape from this document.
+The earlier proposal for a dedicated inspector panel (with a read/edit toggle) is dropped per kriskowal review on 2026-06-13: "We only need one surface. ... While one formula captures state, we do not need these to be user editable at this stage of development."
 
 ## Description of the Design
 
@@ -102,11 +102,9 @@ endo inspect <name-or-identifier> [--identifier] [--json]
 The current CLI (`packages/cli/src/endo.js`) carries 41 verbs (`run`, `make`, `inbox`, `request`, `resolve`, ..., `log`, `ping`); none of `inspect`, `examine`, or `formula` is taken, so the choice is unconstrained by collision.
 The parallel to `endo paths` (from `daemon-retention-paths.md`) and `endo locate` keeps the single-word noun-style-verb shape consistent.
 
-### Chat: two surfaces, one layout registry
+### Chat: Value modal back face
 
-The Chat UI grows two surfaces that share one source of truth for per-type layouts.
-
-#### Surface 1: Value modal back face (the everyday moment)
+The Chat UI grows one surface for inspecting a value's formula: a back face on the existing Value modal.
 
 The Value modal grows a fourth action alongside the existing three (Close, Save, Enter Profile per [`chat-command-bar.md`](chat-command-bar.md) § Modal Actions).
 
@@ -115,12 +113,20 @@ The Value modal grows a fourth action alongside the existing three (Close, Save,
 | Close | `Escape` (front face) | Click × or backdrop |
 | Save | `Enter` (in name field) | Click Save button |
 | Enter Profile | `Shift+P` (proposed) | Click "Enter Profile" |
-| **Flip to Formula / Flip to Value** | **`F`** | **Click the flip button in the modal header** |
+| **Flip to Formula / Flip to Value** | **`F`** | **Click the gear icon in the modal header (front face) or the "Show value" button in the back face header** |
 
 `F` is reachable from both faces.
 On the front face it flips to the back; on the back face it flips to the front.
-The flip-button affordance lives in the modal header, opposite the close ×, with `aria-label="Show formula"` on the front face and `aria-label="Show value"` on the back face.
+The front face's flip affordance is a gear icon in the modal header opposite the close ×, with `aria-label="Show formula"`; the back face's flip-back affordance is a "Show value" button in the back face header, with `aria-label="Show value"`.
 The modeline gains a `F flip to formula` hint on the front face and a `F flip to value` hint on the back face per [`chat-invariants.md`](chat-invariants.md) § Modeline Completeness.
+
+The same modal back face is reachable directly from each inventory row.
+The inventory row carries a gear icon (per [`chat-components.md`](chat-components.md) § Inventory panel) that opens the modal already flipped to the back face for that value's formula, so a power user can reach the formula in one click without first opening the modal's front face.
+This is the maintainer's "Reaching the formula view directly from the inventory" affordance (kriskowal 2026-06-13 inline comment on PR #439); the gear icon and the modal back face are the only surface the formula view inhabits.
+
+Editing formula fields from the back face is deferred.
+At this stage of development the back face is read-only.
+A later design can revisit editability; the design space (which fields are mutable, how the daemon validates a patch, how the operation is audited) is unresolved and the maintainer's direction on 2026-06-13 is to ship the read-only inspection moment first.
 
 `Escape` on the back face flips to the front face (not close), so a user who flipped to inspect can `Escape` back into context and `Escape` again to close.
 This matches [`chat-invariants.md`](chat-invariants.md) § Escape Consistency: the front face is the simpler state of the two.
@@ -141,29 +147,15 @@ stateDiagram-v2
     BackFace --> FrontFace: click reference button (navigates and lands on FrontFace)
 ```
 
-#### Surface 2: Inspector panel (the power-tool moment)
+#### Layout registry
 
-A separate panel is reachable from a wrench/gear icon on every inventory row (per [`chat-components.md`](chat-components.md) § Inventory panel).
-The panel renders the same per-type layout as the modal back face, plus:
-
-- A **read/edit toggle** for advanced users.
-  In edit mode, mutable formula fields become editable (for example, re-pointing a lookup path).
-  Editing requires a new daemon method `E(host).revise(petName, patch)` on the host facet (not the guest facet) that validates and persists formula changes.
-  Editing is host-only for the same authority rationale as `getFormula`.
-- A **retention-paths reveal**: the panel embeds the paths viewer from [`daemon-retention-paths.md`](daemon-retention-paths.md) below the formula fields.
-  When `daemon-retention-paths` lands its `followRetentionPaths` subscription, the inspector panel subscribes for the open formula and updates in place.
-
-The panel is the everyday-inspection moment's complement: the modal back face is one quick flip for browsing, the panel is the deeper view for editing and retention-path exploration.
-
-#### Shared layout registry
-
-Both surfaces consume `packages/chat/formula-view-registry.js`, a single registry that maps formula type to `{ header, helpText, propertyList }`.
-The modal back face renders the registry via a new file `packages/chat/formula-view-component.js` (sibling of `packages/chat/value-component.js`); the inspector panel renders the same registry via `packages/chat/formula-inspector-panel.js`.
-Edits to a per-type layout land in the registry and both surfaces pick them up.
+The back face consumes `packages/chat/formula-view-registry.js`, a registry that maps formula type to `{ header, helpText, propertyList }`.
+The back face renders the registry via a new file `packages/chat/formula-view-component.js` (sibling of `packages/chat/value-component.js`).
+Edits to a per-type layout land in the registry and the back face picks them up.
 
 ### Formula-view layout taxonomy
 
-The back face (and the panel) are divided into a fixed header (formula-type badge, title, help text, formula identifier) and a scrollable property list.
+The back face is divided into a fixed header (formula-type badge, title, help text, formula identifier) and a scrollable property list.
 The property list shape is the same across all formula types: an ordered list of rows, each row a `<dt>label</dt><dd>value-or-reference-button</dd>` pair.
 Per-type variations differ only in *which* properties are listed and in the per-property classifier (see § Literal-vs-reference resolution).
 
@@ -291,9 +283,9 @@ The Chat client consumes two surfaces.
    When the user opens the modal, the type is already on the client side; no extra round-trip is needed to pick the right back-face layout.
    This is the *additive-shape* discipline from `inventory-grouping-by-type.md` (old consumers that destructure only `add` / `remove` are unaffected).
 2. **`E(host).getFormula(identifier)`** for the per-type properties.
-   This is called *lazily* on first flip-to-back (modal) or panel-open (panel) per session.
+   This is called *lazily* on first flip-to-back per modal session.
    The result (literal values plus formula-identifier references) is cached for the session so subsequent flips back-and-forth are cheap.
-   The cache is per-modal-session or per-panel-session, not global.
+   The cache is per-modal-session, not global.
 
 For values that did not arrive via `followNameChanges` (ephemeral values from `/list`, message-attachment values, and similar), the type is not yet on the client.
 For those the client falls back to a single `getFormula(identifier)` round-trip on first flip; the response carries both the type and the properties.
@@ -322,18 +314,16 @@ sequenceDiagram
 The per-type layouts are a small registry in the Chat client.
 
 - A new file `packages/chat/formula-view-component.js` (sibling of `packages/chat/value-component.js`) renders the modal back face.
-- A new file `packages/chat/formula-inspector-panel.js` renders the dedicated panel; it embeds `formula-view-component.js` for the property list and adds the read/edit toggle and the retention-paths embed.
 - A registry `packages/chat/formula-view-registry.js` maps formula type → `{ header, helpText, propertyList }` per the *Formula-view layout taxonomy* table.
-  Both surfaces consume the same registry.
 - `packages/chat/value-component.js` grows the flip control, the back-face mount point, and the back-stack.
+- The inventory-row gear icon (rendered in `packages/chat/inventory-component.js` per [`chat-components.md`](chat-components.md) § Inventory panel) opens the Value modal already flipped to the back face for the row's value.
 - CSS variables added: `--card-flip-duration`, `--card-flip-easing`; the reduced-motion rule overrides duration to `0ms` and disables the rotation.
 - Daemon-side: `EndoHost.getFormula(identifier)` is added to `HostInterface` and to the `EndoHost` Far facet in `host.js`; the `@info` row at `host.js` line 209 is removed; `makePetStoreInspector` becomes the internal implementation of `getFormula` (its outer exo construction is deleted; only the per-type metadata function survives); `InspectorHubInterface` is removed from `interfaces.js`.
-- The `revise(petName, patch)` method (for the panel's edit toggle) is added to `HostInterface`; it validates and persists formula changes and is gated to the host facet only.
 
 ### Affected Packages
 
-- `packages/daemon`: add `getFormula` and `revise` to `EndoHost`; remove `@info` from host special names; rewrite the three `@info` regression tests in `endo.test.js` to call `getFormula` directly; retire `InspectorHubInterface`.
-- `packages/chat`: new formula-view component, new inspector panel, shared layout registry; flip control on the Value modal; wrench/gear icon on inventory rows; retention-paths embed when `daemon-retention-paths` lands.
+- `packages/daemon`: add `getFormula` to `EndoHost`; remove `@info` from host special names; rewrite the three `@info` regression tests in `endo.test.js` to call `getFormula` directly; retire `InspectorHubInterface`.
+- `packages/chat`: new formula-view component, layout registry, flip control on the Value modal, gear icon on inventory rows that opens the modal flipped to the back face.
 - `packages/cli`: new `endo inspect <name-or-identifier>` command.
 
 ## Options Considered
@@ -342,7 +332,7 @@ The per-type layouts are a small registry in the Chat client.
 |---|---|---|
 | **Daemon surface**: keep `@info` (extend) versus replace with host method `getFormula` | **Host method `getFormula`** | `@info` forces composed paths through a name hub and exposes the inspector to any agent that resolves `@info`; the redesign aligns the inspector with the host-only authority shape used by `daemon-retention-paths` and the `traces` facet from `docs/error-tracing-design.md`. Considered and rejected: *deprecation alias (`@info` redirects onto `getFormula` for one release)*. Reason: a redirect re-encodes the same composition burden in a different surface; the test rewrite is cheap. |
 | **CLI verb**: `inspect` versus `examine` versus `formula` | **`inspect`** | Parallel to the existing `endo inspect` proposal in this document's prior draft; parallel to the *Pop the bonnet* metaphor in the concept page; parallel to the single-word noun-style-verb shape of `endo paths`, `endo locate`, `endo show`. |
-| **Two Chat surfaces (panel + modal back face) versus one** | **Two surfaces, one layout registry** | The modal back face is the everyday-inspection moment (one flip, no context switch); the dedicated panel is the power-tool moment (edit toggle, retention-paths viewer). Folding them loses one of the two moments. The shared registry keeps the maintenance burden flat. |
+| **Chat surface count**: dedicated inspector panel plus modal back face versus single modal back face | **Single modal back face** | The modal back face is the everyday-inspection moment (one flip, no context switch); an inventory-row gear icon reaches it directly so the power-user entry point is preserved without a separate panel. Considered and rejected: *dedicated inspector panel with read/edit toggle and retention-paths embed*. Reason: kriskowal review 2026-06-13: "We only need one surface. ... While one formula captures state, we do not need these to be user editable at this stage of development." |
 | **Navigation model**: stack versus replace | **Stack** | Preserves entry-point context across the reference walk; matches user expectation from browser-back; bounded only by user clicks. Considered and rejected: *replace*. Reason: loses context after one click. Maintainer ack 2026-06-12: "Stack model sounds good to me." |
 | **Cycle handling**: leave-as-is versus de-duplicate | **Leave as-is (principle of least surprise)** | The user's mental model of stack depth matches their click count; coalescing A → B → A into one frame back to A is an invisible behavior that diverges from that mental model. Maintainer ruling 2026-06-12: "Principle of least surprise: do not unwind cycles. The user has a mental model of how many layers they have gone down that we should not meddle with." |
 | **Reference-button label**: property name versus target pet name | **Property name** | The property name is on the formula and always present; the target's pet name is a user-side decoration that may or may not exist. Labeling by property name keeps the back face truthful and consistent across users. |
@@ -352,25 +342,22 @@ The per-type layouts are a small registry in the Chat client.
 ## Security Considerations
 
 - **Surface visibility**: The Formula Inspector reveals the formula's retained references and literals to the owning host.
-  `getFormula` and `revise` are host-only; guests do not have access (mirroring the precedent in `daemon-retention-paths.md` and `docs/error-tracing-design.md`).
-- **Keypair caveat**: For `keypair` formulas, the back face and panel display the *public* key only.
+  `getFormula` is host-only; guests do not have access (mirroring the precedent in `daemon-retention-paths.md` and `docs/error-tracing-design.md`).
+- **Keypair caveat**: For `keypair` formulas, the back face displays the *public* key only.
   The private key is on the formula JSON (per [`daemon-256-bit-identifiers.md`](daemon-256-bit-identifiers.md) § Per-Agent Keypairs) but **must not** be rendered; the `keypair` row explicitly omits the `privateKey` property and shows a "Private key not displayed" note in its place.
 - **Cross-peer locators**: `getFormula(identifier)` accepts only local formula identifiers, not cross-peer locators.
   Cross-peer formula content is the remote host's concern; surfacing it would require a CapTP round-trip that this design does not propose.
-- **Editing authority**: `revise(petName, patch)` is gated behind host-level authority and logs an audit trail.
-  Editing validates formula invariants (a `worker` field must reference a valid worker formula, and so on).
 - **Trace access for rejected promises**: the "View trace" button calls `E(host).traces().lookup(errorId)`, which is host-only (per `docs/error-tracing-design.md` § Confidentiality and security).
   A guest seeing the modal back face for a rejected promise sees the rejection reason but no "View trace" affordance, because the guest's facet does not include `traces`.
 
 ## Scaling Considerations
 
-- **Per-session cache**: `getFormula` results are cached per modal session (and per panel session).
+- **Per-session cache**: `getFormula` results are cached per modal session.
   The cache is dropped on close.
   A deep reference walk through a single session is at worst one round-trip per distinct formula visited.
-- **No new subscriptions** (except the promise-pending case): the back face and panel are snapshots at flip/open time.
+- **No new subscriptions** (except the promise-pending case): the back face is a snapshot at flip time.
   If the formula is mutated mid-session, the user re-opens or re-flips to refresh.
   The promise-pending subscription is a single-shot subscribe-once-and-render-on-resolve; it does not poll.
-- **Retention-paths subscription** (panel only): when the panel embeds the paths viewer from `daemon-retention-paths.md`, it uses that design's microtask-coalesced `followRetentionPaths` so one formulation does not produce N deltas.
 - **Large endowments records**: an `eval` with hundreds of endowments produces a long property list.
   The property list is independently scrollable; we do not paginate in V1.
   If real usage shows a need we revisit (consider virtual-scrolling or a search box).
@@ -380,7 +367,7 @@ The per-type layouts are a small registry in the Chat client.
 Exercise what is implemented.
 
 - **Daemon unit tests** for `getFormula`: each formula type returns the expected per-type metadata; cross-peer locators are rejected with a clear error; the three pre-existing `@info` regression tests in `endo.test.js` lines 2377-2510 are rewritten to call `getFormula` and continue to assert the same per-type properties.
-- **Daemon authority test**: a guest's facet does not expose `getFormula` or `revise`; attempting to call them through a guest-only edge fails with the standard "no such method" guard-rejection.
+- **Daemon authority test**: a guest's facet does not expose `getFormula`; attempting to call it through a guest-only edge fails with the standard "no such method" guard-rejection.
 - **CLI integration test**: `endo inspect <name>` prints the expected per-type output for `eval`, `lookup`, `guest`, and `host` formulas; `--json` emits the raw record.
 - **Unit tests for the formula-view-registry**: each row in the layout-taxonomy table renders the expected header, help text, and property list shape for a synthetic input.
 - **Component tests** (Playwright per [`chat-playwright-smoke.md`](chat-playwright-smoke.md)) for the modal back face:
@@ -389,11 +376,11 @@ Exercise what is implemented.
   - Press `Backspace`; assert the modal returns to the `eval` (front face).
   - Press `Escape` on the back face; assert flip-to-front, not close.
   - Press `Escape` on the front face; assert close.
-- **Component tests for the panel**: open the wrench/gear from an inventory row; assert the panel renders the same per-type layout as the modal back face; toggle edit; assert the `revise` call shape.
+- **Inventory gear entry test**: click the gear icon on an inventory row; assert the modal opens already flipped to the back face for that row's value, identical to opening the modal and pressing `F`.
 - **Reduced-motion test**: set `prefers-reduced-motion: reduce`; assert the flip uses cross-fade rather than rotation.
 - **Screen-reader smoke test**: assert the `aria-live` region updates on flip and that focus moves to the back-face title on flip-to-back.
 - **Cycle test**: construct a formula graph A → B → A; navigate A → B → A; assert stack depth `2/3` indicator; pop twice to A (no coalescing).
-- **Keypair test**: assert that the `keypair` back face and panel show the `publicKey` row and explicitly do not show a `privateKey` row.
+- **Keypair test**: assert that the `keypair` back face shows the `publicKey` row and explicitly does not show a `privateKey` row.
 - **Promise-formula test**: a pending promise renders the "View next value" button; resolving the promise updates the back face to show the resolved value's reference button; a rejected promise renders the rejection reason plus a "View trace" button that fetches the `TraceReport`.
 
 ## Compatibility Considerations
@@ -419,12 +406,11 @@ Exercise what is implemented.
 
 | Design | Relationship |
 |---|---|
-| `daemon-retention-paths` (In Progress) | The inspector panel embeds the retention-paths viewer below the formula fields; Phase 2 subscription powers the live update. |
 | `inventory-grouping-by-type` (Not Started) | Supplies the `followNameChanges` `type` field so the modal back face can pick the right layout without an extra round-trip. |
 | `docs/error-tracing-design.md` (Reference) | Supplies the `EndoHost.traces()` facet that the rejected-promise view uses to fetch causal traces on demand. |
 | `daemon-message-streaming` (In Progress) | Supplies the substrate the pending-promise subscription rides on for the "View next value" affordance. |
 | `chat-command-bar` (Active) | The Value modal lives here; the `F` flip key and the modeline hint extend its modal-action vocabulary. |
-| `chat-components` (Complete) | The inventory row's wrench/gear icon is a new chat-components-style affordance. |
+| `chat-components` (Complete) | The inventory row's gear icon (opening the modal flipped to the back face) is a new chat-components-style affordance. |
 | `chat-invariants` (Complete) | The `Escape` flip-to-front behavior is governed by the Escape Consistency rule. |
 | `daemon-256-bit-identifiers` (Complete) | Supplies the formula-identifier string shape and the per-agent keypair structure. |
 
