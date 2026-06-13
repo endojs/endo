@@ -402,7 +402,7 @@ Exercise what is implemented.
    Once an animation register exists at the Chat level, this design conforms to it.
 2. **Enter-Profile keyboard parity (`Shift+P`)**: the existing modal has `N/A` keyboard for Enter Profile per [`chat-command-bar.md`](chat-command-bar.md) (acknowledged parity gap).
    This design proposes `Shift+P` to retire the gap simultaneously.
-   The maintainer ack on 2026-06-12 is "Let's implement this."
+   Maintainer acks: "Let's implement this" (2026-06-12) and "Shift+P is worth a try" (kriskowal 2026-06-13 inline comment on PR #439).
 
 ## Prompt
 
