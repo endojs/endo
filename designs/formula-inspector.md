@@ -22,7 +22,6 @@ The two Chat surfaces are a back-face flip on the existing Value modal (the ever
 This document supersedes the earlier `chat-value-modal-formula-view.md` (2026-06-12, never merged).
 On 2026-06-12 the maintainer asked to consolidate the two designs and to redesign the inspector around a host-only daemon method, not the `@info` name hub.
 The consolidated design preserves the card-flip back-face proposal, the per-type layout taxonomy, the stack navigation model, and the no-cycle-unwinding principle from that draft, and folds them into the existing panel-plus-CLI shape from this document.
-The two surfaces (modal back face and dedicated panel) share one layout registry; both consume the same daemon method.
 
 ## Description of the Design
 
