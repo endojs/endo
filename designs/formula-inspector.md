@@ -383,25 +383,6 @@ Exercise what is implemented.
 - **Keypair test**: assert that the `keypair` back face shows the `publicKey` row and explicitly does not show a `privateKey` row.
 - **Promise-formula test**: a pending promise renders the "View next value" button; resolving the promise updates the back face to show the resolved value's reference button; a rejected promise renders the rejection reason plus a "View trace" button that fetches the `TraceReport`.
 
-## Compatibility Considerations
-
-- **`@info` removal**: the three regression tests that exercise `@info` are rewritten as part of this change; there is no deprecation alias.
-  Any external script that composed paths through `@info` migrates to `endo inspect` (CLI) or `E(host).getFormula(identifier)` (programmatic).
-  The migration is documented in the change's release notes.
-- **`InspectorHubInterface` removal**: no in-tree consumer survives the migration; `makePetStoreInspector`'s inner per-type function is retained as the implementation of `getFormula`.
-- **`followNameChanges` `type` field**: depends on [`inventory-grouping-by-type.md`](inventory-grouping-by-type.md).
-  If that design ships after this one, the Chat client falls back to per-flip `getFormula` for the type and the implementation degrades gracefully.
-- **Modal API**: `value-component.js`'s public seam (`focusValue(value, id, petNamePath, messageContext)`) is unchanged.
-  The back-stack and flip state are internal.
-- **Modeline**: gains one new hint (`F flip to formula/value`) on the modal-open states; existing hints unchanged.
-
-## Upgrade Considerations
-
-- **State**: no daemon-side state changes for the read path.
-  The edit path (`revise`) requires versioning the formula persistence format; that's deferred until the panel's edit toggle is shipped.
-- **Persistence**: no formula-schema migration for the read path.
-- **Forward compatibility with `daemon-retention-paths.md`**: when Phase 2 of that design ships (the `followRetentionPaths` subscription per PR #284 follow-up), the inspector panel imports the paths viewer; the formula-view-registry is unchanged.
-
 ## Dependencies
 
 | Design | Relationship |
