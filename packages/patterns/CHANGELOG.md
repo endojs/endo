@@ -1,5 +1,11 @@
 # @endo/patterns
 
+## 2.1.0
+
+### Minor Changes
+
+- [#3287](https://github.com/endojs/endo/pull/3287) [`d54fad3`](https://github.com/endojs/endo/commit/d54fad3f9a036dbc16ba611c184857cfb0460b4a) Thanks [@boneskull](https://github.com/boneskull)! - Bump version for publishing only.
+
 ## 1.9.1
 
 ### Patch Changes
