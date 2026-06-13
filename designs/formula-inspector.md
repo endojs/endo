@@ -397,12 +397,9 @@ Exercise what is implemented.
 
 ## Open Questions
 
-1. **`revise(petName, patch)` patch shape**: the existing draft proposes a free-form patch object.
-   A future revision may want to constrain it (for example, only certain fields are mutable per formula type).
-   Defer to the implementation; the panel's edit toggle is the natural place to surface the constraint.
-2. **Card-flip animation register**: no existing card-flip in the Chat UI; the choice (200 ms 3D rotateY plus reduced-motion cross-fade) is a first-instance decision (per kriskowal 2026-06-12: "This will be new.").
+1. **Card-flip animation register**: no existing card-flip in the Chat UI; the choice (200 ms 3D rotateY plus reduced-motion cross-fade) is a first-instance decision (per kriskowal 2026-06-12: "This will be new.").
    Once an animation register exists at the Chat level, this design conforms to it.
-3. **Enter-Profile keyboard parity (`Shift+P`)**: the existing modal has `N/A` keyboard for Enter Profile per [`chat-command-bar.md`](chat-command-bar.md) (acknowledged parity gap).
+2. **Enter-Profile keyboard parity (`Shift+P`)**: the existing modal has `N/A` keyboard for Enter Profile per [`chat-command-bar.md`](chat-command-bar.md) (acknowledged parity gap).
    This design proposes `Shift+P` to retire the gap simultaneously.
    The maintainer ack on 2026-06-12 is "Let's implement this."
 
