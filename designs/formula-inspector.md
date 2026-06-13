@@ -398,6 +398,7 @@ Exercise what is implemented.
 ## Open Questions
 
 1. **Card-flip animation register**: no existing card-flip in the Chat UI; the choice (200 ms 3D rotateY plus reduced-motion cross-fade) is a first-instance decision (per kriskowal 2026-06-12: "This will be new.").
+   The implementation should be a simple animation; if it grows past simple, take design cues from [`kriskowal/peruacru/animation.js`](https://github.com/kriskowal/peruacru/blob/master/animation.js) (kriskowal 2026-06-13 inline comment on PR #439).
    Once an animation register exists at the Chat level, this design conforms to it.
 2. **Enter-Profile keyboard parity (`Shift+P`)**: the existing modal has `N/A` keyboard for Enter Profile per [`chat-command-bar.md`](chat-command-bar.md) (acknowledged parity gap).
    This design proposes `Shift+P` to retire the gap simultaneously.
