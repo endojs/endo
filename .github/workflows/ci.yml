@@ -59,6 +59,15 @@ jobs:
       - name: Run yarn lint
         run: yarn lint
 
+      # shellcheck ships preinstalled on ubuntu-latest runners. Print
+      # the version so a regression in the image surfaces here rather
+      # than as an unexplained gate flap.
+      - name: Show shellcheck version
+        run: shellcheck --version
+
+      - name: Run yarn shellcheck
+        run: yarn shellcheck
+
       - name: Check composite tsconfig files are up to date
         run: yarn build:types:check
 
