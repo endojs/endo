@@ -20,6 +20,7 @@ import { createSpacesGutter } from './spaces-gutter.js';
 import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
+import { voiceComponent } from './voice-component.js';
 import { createShareModal } from './share-modal.js';
 import { microblogComponent } from './microblog-component.js';
 import { idFromLocator } from './locator.js';
@@ -304,6 +305,10 @@ const bodyComponent = (
       profilePath,
       onProfileChange,
     );
+  }
+
+  if (activeSpaceInfo && activeSpaceInfo.mode === 'voice') {
+    return voiceComponent($parent, rootPowers, profilePath, onProfileChange);
   }
 
   /** @type {{ dispose: () => void } | null} */
@@ -1773,7 +1778,7 @@ const bodyComponent = (
 
 /**
  * @typedef {object} ActiveSpaceInfo
- * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files'} mode
+ * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'voice'} mode
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
