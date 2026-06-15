@@ -128,7 +128,7 @@ export async function bundleZipBase64(
       if (pending !== undefined) {
         const endPending = profiler.startSpan('bundleSource.readCache.pending');
         try {
-          return pending;
+          return await pending;
         } finally {
           endPending();
         }
