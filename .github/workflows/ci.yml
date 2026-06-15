@@ -56,6 +56,14 @@ jobs:
       - name: Run yarn build
         run: yarn build
 
+      # shellcheck ships preinstalled on ubuntu-latest runners. Print
+      # the version so a regression in the image surfaces here rather
+      # than as an unexplained gate flap. `yarn lint` runs `lint:sh`
+      # against the same binary; this step is the install-presence
+      # check.
+      - name: Show shellcheck version
+        run: shellcheck --version
+
       - name: Run yarn lint
         run: yarn lint
 
