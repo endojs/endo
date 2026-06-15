@@ -74,7 +74,7 @@ Your replies are spoken aloud, so:
  * @param {Promise<object> | object | undefined} _context
  * @param {ProviderConstructorConfig | InjectedProviderConfig} providerConfig
  * @param {string} [systemPrompt]
- * @returns {Promise<{ converse: (input: string | object, writer: object) => Promise<void> }>}
+ * @returns {Promise<{ converse: (input: string | object, writer: object, sessionId?: string) => Promise<void> }>}
  */
 export const makeStreamingAgent = async (
   powers,
@@ -93,27 +93,54 @@ export const makeStreamingAgent = async (
   const effectivePrompt = systemPrompt || defaultSystemPrompt;
   const tree = makeConversationTree(makeEndoPetstoreBackend(powers));
 
-  // Find or create the root node carrying the system prompt. If the prompt
-  // changed, start a fresh tree so stale instructions don't leak forward.
-  const getOrCreateRoot = async () => {
+  // Each client-facing session is an independent conversation: its own root
+  // (tagged with the sessionId in node metadata) and its own linear branch, so
+  // switching sessions in the UI does not bleed context. The tree is a single
+  // petstore-backed structure with one root per session. We cache the current
+  // leaf per session in memory and rediscover it from the tree after a restart.
+  /** @type {Map<string, string>} */
+  const sessionLeaves = new Map();
+
+  // Find or create the deepest leaf of a session's branch. A root matches when
+  // its metadata.sessionId equals the session (legacy roots with no sessionId
+  // are treated as 'default') AND its system prompt is current — if the prompt
+  // changed we start a fresh root so stale instructions don't leak forward.
+  const getOrCreateSessionLeaf = async sessionId => {
+    const cached = sessionLeaves.get(sessionId);
+    if (cached !== undefined) return cached;
+
     const roots = await tree.getRoots();
-    if (roots.length > 0) {
-      const existingRoot = await tree.getNode(roots[0].id);
-      if (existingRoot) {
-        const rootMsg = existingRoot.messages[0];
-        if (rootMsg && rootMsg.content === effectivePrompt) {
-          return roots[0].id;
+    for (const r of roots) {
+      const node = await tree.getNode(r.id);
+      const rootSession = node?.metadata?.sessionId || 'default';
+      const rootMsg = node?.messages[0];
+      if (
+        node &&
+        rootSession === sessionId &&
+        rootMsg &&
+        rootMsg.content === effectivePrompt
+      ) {
+        // Walk down the (linear) branch to its deepest node.
+        let leaf = node.id;
+        for (;;) {
+          const kids = await tree.getChildren(leaf);
+          if (!kids || kids.length === 0) break;
+          leaf = kids[kids.length - 1].id;
         }
-        console.log('[floot] System prompt changed, starting a fresh tree');
+        sessionLeaves.set(sessionId, leaf);
+        return leaf;
       }
     }
-    const root = await tree.addNode(null, [
-      { role: 'system', content: effectivePrompt },
-    ]);
+
+    const root = await tree.addNode(
+      null,
+      [{ role: 'system', content: effectivePrompt }],
+      { sessionId },
+    );
+    sessionLeaves.set(sessionId, root.id);
     return root.id;
   };
 
-  let lastLeafId = await getOrCreateRoot();
   // Serialize turns: a streaming reply must finish (and persist its assistant
   // node) before the next converse() reads the path, or context would race.
   let turnChain = Promise.resolve();
@@ -136,9 +163,10 @@ export const makeStreamingAgent = async (
     return text;
   };
 
-  const runTurn = async (input, writer) => {
+  const runTurn = async (input, writer, sessionId) => {
     const text = await resolveUserText(input);
-    const userNode = await tree.addNode(lastLeafId, [
+    const leafId = await getOrCreateSessionLeaf(sessionId);
+    const userNode = await tree.addNode(leafId, [
       { role: 'user', content: `${text}` },
     ]);
     const conversationContext = await tree.getPath(userNode.id);
@@ -161,14 +189,15 @@ export const makeStreamingAgent = async (
     const assistantNode = await tree.addNode(userNode.id, [
       { role: 'assistant', content },
     ]);
-    lastLeafId = assistantNode.id;
+    sessionLeaves.set(sessionId, assistantNode.id);
 
     writer.final(content);
     writer.end();
   };
 
-  const converse = (input, writer) => {
-    const result = turnChain.then(() => runTurn(input, writer));
+  const converse = (input, writer, sessionId = 'default') => {
+    const session = sessionId || 'default';
+    const result = turnChain.then(() => runTurn(input, writer, session));
     // Keep the chain alive even if a turn rejects (the writer already aborts).
     turnChain = result.catch(() => {});
     return result;

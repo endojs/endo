@@ -71,14 +71,17 @@ export const make = (powers, context, { env } = {}) => {
      * @param {string | import('@endo/eventual-send').ERef<object>} input -
      *   the user message: a plain string, or a streaming reader yielding
      *   transcript-style events (e.g. the audio caplet's transcribe() reader).
+     * @param {string} [sessionId] - independent conversation thread; each
+     *   session keeps its own context (its own root in the conversation tree).
+     *   Defaults to 'default'.
      * @returns {import('@endo/far').FarRef<object>} replyReader
      */
-    converse(input) {
+    converse(input, sessionId) {
       const { writer, reader } = makeReplyChannel();
       (async () => {
         try {
           const agent = await getAgent();
-          await agent.converse(input, writer);
+          await agent.converse(input, writer, sessionId);
         } catch (error) {
           writer.abort(error instanceof Error ? error.message : String(error));
         }
@@ -88,7 +91,7 @@ export const make = (powers, context, { env } = {}) => {
 
     /** @returns {string} */
     help() {
-      return 'Floot agent driver: converse(input) returns a streaming reply reader (next() yields delta/final/end events). input is a string or a streaming user-message reader (e.g. a transcribe() reader). Pin to PINS for auto-restart on daemon reboot.';
+      return 'Floot agent driver: converse(input, sessionId?) returns a streaming reply reader (next() yields delta/final/end events). input is a string or a streaming user-message reader (e.g. a transcribe() reader). sessionId selects an independent conversation thread (default "default"). Pin to PINS for auto-restart on daemon reboot.';
     },
   });
 };
