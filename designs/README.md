@@ -223,7 +223,7 @@ LLM-agent stack).*
 | [familiar-gateway-migration](familiar-gateway-migration.md) | 2026-02-14 | 2026-02-26 | **Complete** |
 | [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | 2026-02-24 | 2026-02-25 | In Progress (partially implemented) |
 | [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-05-06 | In Progress |
-| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-06-13 | Not Started |
+| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-06-13 | In Progress |
 | [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-06 | **Implemented** |
 | [hardened-text-codecs-shim](hardened-text-codecs-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
 | [hardened-url-shim](hardened-url-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
@@ -858,7 +858,7 @@ star.)
 | inventory-cancel-and-liveness | Not Started | Cancel button with liveness indicator, coalesced watcher protocol |
 | inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
 | inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
-| formula-inspector | Not Started | Single Chat surface: a Value modal back face reached via `F` key, modal-header gear icon, or directly from inventory-row gear icon; back face is read-only at this stage. Host-only `getFormula(identifier)` daemon method (replaces `@info` name hub); `endo inspect` CLI; promise-formula view subscribes and integrates with error-tracing. Consolidates the earlier `chat-value-modal-formula-view` proposal. |
+| formula-inspector | In Progress | Single Chat surface: a Value modal back face reached via `F` key, modal-header gear icon, or directly from inventory-row gear icon; back face is read-only at this stage. Host-only `getFormula(identifier)` daemon method (replaces `@info` name hub); `endo inspect` CLI; promise-formula view subscribes and integrates with error-tracing. Consolidates the earlier `chat-value-modal-formula-view` proposal. Daemon and CLI cuts shipping in `endojs/endo-but-for-bots#440`; chat-side cut deferred (chat-package shape impasse). |
 | workers-panel | Not Started | Metrics, sparklines (retention-paths section factored out into `daemon-retention-paths`) |
 | daemon-retention-paths | In Progress | Host-only `listRetentionPaths` / `followRetentionPaths`, `endo paths` CLI, Chat paths panel; Phase 1 forwarded as PR #284 (open) |
 | retention-path-notation | Reference | Notation + bulk-collection sketch captured for reference; not a forward-looking proposal |
