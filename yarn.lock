@@ -1915,6 +1915,7 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
+    "@endo/fae": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lal": "workspace:^"
