@@ -7,7 +7,7 @@
     "test": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1",
+    "@playwright/test": "1.60.0",
     "@types/node": "^20.11.16"
   },
   "eslintConfig": {
