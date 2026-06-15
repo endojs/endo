@@ -1,7 +1,8 @@
+#!/bin/sh
 # git checkout clean package.json files in case something goes wrong
 # find fixture* -name 'package.json' -exec git checkout -- {} +
 
-find fixture* -name 'package.json' | while read FILE; do
+find fixture* -name 'package.json' | while read -r FILE; do
   jq '. + {
     scripts: (
       (.scripts // {}) + {
