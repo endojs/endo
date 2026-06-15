@@ -36,10 +36,13 @@ export const main = async agent => {
     );
   }
 
-  // 1. The factory's guest. `@agent` is introduced as `host-agent` so the
-  // factory can provision per-session guests through the host.
-  const factoryGuest = await E(agent).provideGuest(guestName, {
-    introducedNames: harden({ '@agent': 'host-agent' }),
+  // 1. The factory is its own child host. It needs host authority because only
+  // a host can `provideGuest`, and the factory provisions one guest per session.
+  // (It must be a host, not a guest: a guest can only reach the host as a
+  // mail-only Handle, which after a daemon restart can no longer provideGuest —
+  // breaking session revival.) Sessions remain isolated guests owned by this
+  // factory host.
+  const factoryHost = await E(agent).provideHost(guestName, {
     agentName,
   });
 
@@ -54,7 +57,7 @@ export const main = async agent => {
     providerConfigName,
   );
   const providerLocator = await E(agent).locate(providerConfigName);
-  await E(factoryGuest).storeLocator('llm-provider', providerLocator);
+  await E(factoryHost).storeLocator('llm-provider', providerLocator);
 
   // 3. Launch the factory caplet.
   await E(agent).makeUnconfined('@main', flootFactorySpecifier, {

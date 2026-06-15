@@ -19,6 +19,7 @@ import { makeExo } from '@endo/exo';
 import { Far } from '@endo/far';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
+import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import {
   makeConversationTree,
   makeEndoPetstoreBackend,
@@ -38,6 +39,38 @@ import { makeReplyChannel } from './src/stream.js';
 // Cap the tool-call loop so a misbehaving model can't spin forever before it
 // produces a spoken reply.
 const MAX_TOOL_ROUNDS = 8;
+
+/**
+ * A writer (same shape as makeReplyChannel's) that buffers a turn's output
+ * instead of streaming it, resolving `done` with the final text once the turn
+ * ends. Used for inbox/mail turns, whose reply is sent as one buffered message
+ * rather than streamed token-by-token.
+ *
+ * @returns {{ writer: object, done: Promise<{ ok: boolean, text?: string, error?: string }> }}
+ */
+const makeBufferingWriter = () => {
+  let text = '';
+  /** @type {(result: { ok: boolean, text?: string, error?: string }) => void} */
+  let settle = () => {};
+  const done = new Promise(resolve => {
+    settle = resolve;
+  });
+  const writer = harden({
+    setPhase: () => {},
+    /** @param {string} t */
+    delta: t => {
+      text += t;
+    },
+    /** @param {string} t */
+    final: t => {
+      text = `${t}`;
+    },
+    end: () => settle({ ok: true, text }),
+    /** @param {unknown} reason */
+    abort: reason => settle({ ok: false, error: `${reason}` }),
+  });
+  return { writer, done };
+};
 
 const FlootFactoryInterface = M.interface('FlootFactory', {
   createSession: M.callWhen().optional(M.string()).returns(M.remotable()),
@@ -97,7 +130,7 @@ or raw tool output aloud.
  * @param {Promise<object> | object | undefined} _context
  * @param {ProviderConstructorConfig | InjectedProviderConfig} providerConfig
  * @param {string} [systemPrompt]
- * @returns {Promise<{ converse: (input: string | object, writer: object) => Promise<void>, getHistory: () => Promise<Array<{role: string, content: string}>> }>}
+ * @returns {Promise<{ converse: (input: string | object, writer: object) => Promise<void>, getHistory: () => Promise<Array<{role: string, content: string}>>, startInbox: () => void }>}
  */
 export const makeStreamingAgent = async (
   powers,
@@ -274,6 +307,69 @@ export const makeStreamingAgent = async (
     return result;
   };
 
+  // Inbox loop: a session is also addressable by mail. We follow the guest's
+  // inbox and feed each incoming message through the SAME turn machinery as
+  // converse() (so mail and UI turns share one conversation thread and are
+  // serialized by turnChain), then send the reply back as one buffered mail
+  // message via reply(). Streaming-over-mail is a later phase; for now the
+  // reply is the assembled final text.
+  let inboxStarted = false;
+  const startInbox = () => {
+    if (inboxStarted) return;
+    inboxStarted = true;
+    (async () => {
+      const selfLocator = await E(powers).locate('@self');
+      const messages = makeRefIterator(E(powers).followMessages());
+      // followMessages can deliver the same message twice: its initial drain
+      // iterates a *live* Map that our own reply() mutates (so the iterator
+      // re-yields the freshly-added reply), and that reply is also republished
+      // to the topic the drain later consumes. Process each number once, or the
+      // second dismiss() of an already-removed message throws and kills the loop.
+      const handled = new Set();
+      for (;;) {
+        const { value: message, done } = await messages.next();
+        if (done) break;
+        const { from: fromId, number, type, strings, names } = message;
+        if (!handled.has(number)) {
+          handled.add(number);
+          // Skip our own outbound messages echoed back into the inbox.
+          if (fromId !== selfLocator) {
+            let text;
+            if (type === 'package' && Array.isArray(strings)) {
+              const parts = [];
+              const namesArray = Array.isArray(names) ? names : [];
+              for (let i = 0; i < strings.length; i += 1) {
+                parts.push(strings[i]);
+                if (i < namesArray.length) parts.push(`@${namesArray[i]}`);
+              }
+              text = parts.join('').trim();
+            } else {
+              text = `(${type || 'unknown'} message)`;
+            }
+
+            const { writer, done: turnDone } = makeBufferingWriter();
+            // Route through converse so the turn joins turnChain and shares context.
+            converse(text, writer);
+            const result = await turnDone;
+            const replyText = result.ok
+              ? result.text || ''
+              : `Error: ${result.error}`;
+            await E(powers).reply(number, [replyText], [], []);
+          }
+          // Dismiss after handling so the message leaves the inbox and is not
+          // reprocessed when followMessages replays on the next daemon restart.
+          await E(powers).dismiss(number);
+        }
+      }
+    })().catch(error => {
+      inboxStarted = false;
+      console.error(
+        '[floot] inbox loop error:',
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+  };
+
   // Replay the spoken conversation for UI repaint: just the user prompts and the
   // assistant's final answers (system + tool-call/tool-result turns omitted).
   const getHistory = async () => {
@@ -291,7 +387,7 @@ export const makeStreamingAgent = async (
     );
   };
 
-  return harden({ converse, getHistory });
+  return harden({ converse, getHistory, startInbox });
 };
 harden(makeStreamingAgent);
 
@@ -325,24 +421,24 @@ const newSessionId = () =>
  *
  * IMPORTANT (reincarnation constraint, same as the fae/driver caplets): make()
  * must return synchronously WITHOUT awaiting remote references on its powers
- * guest, or it deadlocks with the provision chain creating this very formula.
- * So the host agent, provider, and registry are all resolved lazily.
+ * host, or it deadlocks with the provision chain creating this very formula.
+ * So the provider, registry, and per-session guests are all resolved lazily.
  *
- * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
+ * @param {import('@endo/eventual-send').FarRef<object>} hostPowers
  * @param {Promise<object> | object | undefined} _context
  * @param {{ env?: Record<string, string> }} [options]
  * @returns {object}
  */
-export const make = (guestPowers, _context, { env } = {}) => {
+export const make = (hostPowers, _context, { env } = {}) => {
   /** @type {any} */
-  const powers = guestPowers;
+  const powers = hostPowers;
   const systemPrompt = env?.FLOOT_SYSTEM_PROMPT || undefined;
 
-  let hostAgentP;
-  const getHostAgent = () => {
-    if (!hostAgentP) hostAgentP = E(powers).lookup('host-agent');
-    return hostAgentP;
-  };
+  // The factory runs with its own host powers, so it provisions session guests
+  // directly — no introduced `host-agent` reference (that rehydrates as a
+  // mail-only Handle after a restart, leaving provideGuest/locate unavailable on
+  // revived sessions). `powers` here is the factory's own host.
+  const getHost = () => powers;
 
   let providerP;
   const getProvider = () => {
@@ -392,15 +488,27 @@ export const make = (guestPowers, _context, { env } = {}) => {
     let agentP = agents.get(id);
     if (!agentP) {
       agentP = (async () => {
-        const host = await getHostAgent();
-        const sessionGuest = await E(host).provideGuest(`session-${id}`);
+        const host = getHost();
+        const handleName = `session-${id}`;
+        const agentName = `session-agent-${id}`;
+        // provideGuest is idempotent (create-or-revive). The petname we pass
+        // (and provideGuest's return value) bind to the guest's *handle* — a
+        // mail-only facet that, after a restart, has none of the petstore/mail
+        // control methods. So we pass an explicit agentName and look the
+        // controlling *agent* up by that name to get the full guest facet for
+        // the session's powers (the same agent fae runs its driver against).
+        await E(host).provideGuest(handleName, { agentName });
+        const sessionGuest = await E(host).lookup(agentName);
         const provider = await getProvider();
-        return makeStreamingAgent(
+        const agent = await makeStreamingAgent(
           sessionGuest,
           undefined,
           { provider },
           systemPrompt,
         );
+        // Each session is addressable by mail: start following its inbox.
+        agent.startInbox();
+        return agent;
       })().catch(error => {
         agents.delete(id);
         throw error;
@@ -458,6 +566,29 @@ export const make = (guestPowers, _context, { env } = {}) => {
     return facet;
   };
 
+  // Revive every session's inbox loop after a restart, without blocking make()
+  // (the reincarnation-deadlock constraint forbids awaiting remote refs here).
+  // Fire-and-forget: load the registry and build each agent, which starts its
+  // inbox loop. New sessions start their loops in getAgent at creation time.
+  const startAllInboxes = async () => {
+    const reg = await loadRegistry();
+    for (const s of reg) {
+      getAgent(s.id).catch(error => {
+        console.warn(
+          `[floot-factory] could not start inbox for session-${s.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+    }
+  };
+  startAllInboxes().catch(error => {
+    console.error(
+      '[floot-factory] inbox revival error:',
+      error instanceof Error ? error.message : String(error),
+    );
+  });
+
   return makeExo('FlootFactory', FlootFactoryInterface, {
     /**
      * @param {string} [title]
@@ -473,6 +604,9 @@ export const make = (guestPowers, _context, { env } = {}) => {
       });
       /** @type {any[]} */ (registry).push(entry);
       await saveRegistry();
+      // Build the agent now so the new session immediately follows its inbox
+      // (addressable by mail without waiting for a first UI converse).
+      getAgent(id).catch(() => {});
       console.log(`[floot-factory] Created session "${id}"`);
       return getFacet(id);
     },
@@ -518,11 +652,14 @@ export const make = (guestPowers, _context, { env } = {}) => {
       await saveRegistry();
       agents.delete(id);
       facets.delete(id);
-      // Best-effort removal of the backing session guest's persistence.
+      // Best-effort removal of the backing session guest's persistence (both
+      // the handle and the controlling agent petnames).
       try {
-        const host = await getHostAgent();
-        if (await E(host).has(`session-${id}`)) {
-          await E(host).remove(`session-${id}`);
+        const host = getHost();
+        for (const name of [`session-${id}`, `session-agent-${id}`]) {
+          if (await E(host).has(name)) {
+            await E(host).remove(name);
+          }
         }
       } catch (error) {
         console.warn(
