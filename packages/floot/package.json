@@ -17,7 +17,6 @@
   "type": "module",
   "exports": {
     ".": "./agent.js",
-    "./driver.js": "./driver.js",
     "./src/stream.js": "./src/stream.js",
     "./providers/index.js": "./providers/index.js",
     "./package.json": "./package.json"
@@ -36,6 +35,7 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
+    "@endo/fae": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/lal": "workspace:^",

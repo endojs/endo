@@ -4,23 +4,25 @@ import { E, Far } from '@endo/far';
 import harden from '@endo/harden';
 
 /**
- * Floot Chat Space. Resolves a Floot streaming-agent driver from the
- * profilePath (the `*-driver` caplet created by @endo/floot's factory — see
- * packages/floot in the endo4 fork) and holds typed conversations with it,
- * rendering replies token-by-token in the chat-bubble aesthetic of the
- * "Floot Native" web UI.
+ * Floot Chat Space. Resolves a Floot factory from the profilePath (the
+ * `floot-factory` caplet created by @endo/floot — see packages/floot in the
+ * endo4 fork) and holds typed conversations with it, rendering replies
+ * token-by-token in the chat-bubble aesthetic of the "Floot Native" web UI.
  *
- * The driver's interface is `converse(input, sessionId) -> replyReader`, where
+ * The factory owns every session; the UI never sees the backing guests. Its
+ * interface is `createSession(title?) -> facet`, `listSessions() ->
+ * [{id,title,createdAt}]`, `getSession(id) -> facet`, `renameSession(id,title)`,
+ * `deleteSession(id)`. A session facet exposes `converse(input) -> replyReader`,
+ * `getHistory()`, and `getInfo()`.
+ *
  * replyReader is an async-iterator exo yielding the floot reply wire shape
  * (append deltas, unlike the transcript wire which replaces):
  *   { type: 'phase', phase } | { type: 'delta', text } | { type: 'final', text }
  *   | { type: 'end' } | { type: 'abort', reason }
  *
- * Sessions are independent conversation threads. The backend keeps each
- * session's context (its own root in the conversation tree, keyed by the
- * sessionId we pass). The driver exposes no history-read API, so this client
- * keeps its own transcript copy in localStorage (keyed by the profile path) to
- * repaint sessions across reloads.
+ * Each session is an independent conversation persisted in its own guest's
+ * petstore (daemon-only — no localStorage). The transcript is repainted from
+ * `getHistory()` when a session is opened.
  *
  * When `audioPath` is given, it resolves an audio/transcription object the same
  * way the Voice Space does and shows a mic button: speech is captured as 16 kHz
@@ -44,12 +46,12 @@ export const flootComponent = (
 ) => {
   $parent.innerHTML = '';
 
-  // Resolve the floot driver by walking the profile path, exactly like the
+  // Resolve the floot factory by walking the profile path, exactly like the
   // Voice Space resolves its audio object.
   /** @type {any} */
-  let flootAgent = rootPowers;
+  let factory = rootPowers;
   for (const name of profilePath) {
-    flootAgent = E(/** @type {any} */ (flootAgent)).lookup(name);
+    factory = E(/** @type {any} */ (factory)).lookup(name);
   }
 
   // Optionally resolve an audio object for mic input, the same way.
@@ -63,55 +65,22 @@ export const flootComponent = (
     }
   }
 
-  // ── Session store (localStorage, keyed by the profile path) ────────────────
+  // ── Sessions (owned by the floot factory; daemon-only, no localStorage) ─────
   const DEFAULT_TITLE = 'New chat';
-  const personaId = profilePath.join('/');
-  const STORAGE_KEY = `floot-sessions:${personaId}`;
 
   /**
    * @typedef {{ role: 'user' | 'assistant', text: string }} FlootMessage
-   * @typedef {{ id: string, title: string, messages: FlootMessage[],
-   *   createdAt: number, updatedAt: number }} FlootSession
+   * @typedef {{ id: string, title: string, createdAt: number,
+   *   messages: FlootMessage[], facet: any, loaded: boolean }} FlootSession
    */
 
-  const newId = () =>
-    `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-
-  /** @returns {FlootSession[]} */
-  const loadSessions = () => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .filter(s => s && typeof s.id === 'string')
-        .map(s => ({
-          id: s.id,
-          title: typeof s.title === 'string' ? s.title : DEFAULT_TITLE,
-          messages: Array.isArray(s.messages)
-            ? s.messages.filter(m => m && (m.role === 'user' || m.role === 'assistant'))
-            : [],
-          createdAt: typeof s.createdAt === 'number' ? s.createdAt : Date.now(),
-          updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : Date.now(),
-        }));
-    } catch {
-      return [];
-    }
-  };
-
-  const saveSessions = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-    } catch {
-      // storage full / unavailable — transcripts just won't persist
-    }
-  };
-
+  // Local view-cache of the factory's sessions. The factory is the source of
+  // truth for the list and titles; each session's transcript is the source of
+  // truth in its guest (fetched lazily via getHistory and cached in `messages`).
   /** @type {FlootSession[]} */
-  let sessions = loadSessions();
+  let sessions = [];
   /** @type {string | null} */
-  let activeSessionId = sessions.length ? sessions[0].id : null;
+  let activeSessionId = null;
 
   const getActiveSession = () =>
     sessions.find(s => s.id === activeSessionId) || null;
@@ -122,19 +91,41 @@ export const flootComponent = (
     return trimmed.length > 60 ? `${trimmed.slice(0, 60)}…` : trimmed;
   };
 
-  const createSession = () => {
-    const now = Date.now();
+  // Resolve (and cache) the session facet for a session.
+  const facetFor = (/** @type {FlootSession} */ session) => {
+    if (!session.facet) session.facet = E(factory).getSession(session.id);
+    return session.facet;
+  };
+
+  // Pull the spoken transcript for a session from its guest into the cache.
+  const loadHistory = async (/** @type {FlootSession} */ session) => {
+    try {
+      const history = await E(facetFor(session)).getHistory();
+      session.messages = history.map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        text: m.content,
+      }));
+    } catch {
+      // leave whatever we have; history just won't repaint
+    }
+    session.loaded = true;
+  };
+
+  // Create a new session on the factory and prepend it to the local list.
+  const createSession = async (/** @type {string} */ title) => {
+    const facet = await E(factory).createSession(title || DEFAULT_TITLE);
+    const info = await E(facet).getInfo();
     /** @type {FlootSession} */
     const session = {
-      id: newId(),
-      title: DEFAULT_TITLE,
+      id: info.id,
+      title: info.title || DEFAULT_TITLE,
+      createdAt: info.createdAt || Date.now(),
       messages: [],
-      createdAt: now,
-      updatedAt: now,
+      facet,
+      loaded: true,
     };
     sessions.unshift(session);
     activeSessionId = session.id;
-    saveSessions();
     return session;
   };
 
@@ -396,7 +387,13 @@ export const flootComponent = (
       const $sub = document.createElement('div');
       $sub.className = 'floot-session-sub';
       const count = session.messages.length;
-      $sub.textContent = count ? `${count} message${count === 1 ? '' : 's'}` : 'empty';
+      if (!session.loaded && count === 0) {
+        $sub.textContent = '';
+      } else {
+        $sub.textContent = count
+          ? `${count} message${count === 1 ? '' : 's'}`
+          : 'empty';
+      }
       $meta.appendChild($name);
       $meta.appendChild($sub);
       $item.appendChild($meta);
@@ -448,8 +445,9 @@ export const flootComponent = (
       done = true;
       const next = $field.value.trim();
       session.title = next || DEFAULT_TITLE;
-      session.updatedAt = Date.now();
-      saveSessions();
+      E(factory)
+        .renameSession(session.id, session.title)
+        .catch(() => {});
       renderSidebar();
       if (session.id === activeSessionId) renderHeader();
     };
@@ -550,6 +548,19 @@ export const flootComponent = (
   };
 
   // ── Session actions ─────────────────────────────────────────────────────────
+  // Open a session, repainting its transcript from the guest on first view.
+  const openActiveHistory = () => {
+    const session = getActiveSession();
+    if (session && !session.loaded) {
+      loadHistory(session).then(() => {
+        if (activeSessionId === session.id) {
+          renderMessages();
+          renderSidebar();
+        }
+      });
+    }
+  };
+
   const selectSession = (/** @type {string} */ id) => {
     if (busy) return; // don't switch context mid-turn
     activeSessionId = id;
@@ -558,6 +569,7 @@ export const flootComponent = (
     renderSidebar();
     renderHeader();
     renderMessages();
+    openActiveHistory();
     setStatus('Ready.');
     $input.focus();
   };
@@ -571,21 +583,27 @@ export const flootComponent = (
       activeSessionId = sessions.length ? sessions[0].id : null;
       $streamingBubble = null;
     }
-    saveSessions();
+    E(factory)
+      .deleteSession(session.id)
+      .catch(() => {});
     renderSidebar();
     renderHeader();
     renderMessages();
+    openActiveHistory();
   };
 
   const newSession = () => {
     if (busy) return;
-    createSession();
-    $streamingBubble = null;
-    closeSidebar();
-    renderSidebar();
-    renderHeader();
-    renderMessages();
-    $input.focus();
+    createSession()
+      .then(() => {
+        $streamingBubble = null;
+        closeSidebar();
+        renderSidebar();
+        renderHeader();
+        renderMessages();
+        $input.focus();
+      })
+      .catch(err => setStatus(`error: ${err.message}`));
   };
 
   const openSidebar = () => {
@@ -625,17 +643,20 @@ export const flootComponent = (
 
   const runConverse = async (/** @type {string} */ text) => {
     let session = getActiveSession();
-    if (!session) session = createSession();
+    if (!session) session = await createSession();
 
     busy = true;
     turnCancelled = false;
     updateSendButton();
 
     session.messages.push({ role: 'user', text });
-    if (session.title === DEFAULT_TITLE) session.title = autoTitle(text);
-    session.updatedAt = Date.now();
+    if (session.title === DEFAULT_TITLE) {
+      session.title = autoTitle(text);
+      E(factory)
+        .renameSession(session.id, session.title)
+        .catch(() => {});
+    }
     sessionStatus.set(session.id, 'streaming');
-    saveSessions();
     renderSidebar();
     renderHeader();
     renderMessages();
@@ -645,7 +666,7 @@ export const flootComponent = (
     const sessionId = session.id;
     let full = '';
     try {
-      const reader = E(flootAgent).converse(text, sessionId);
+      const reader = E(facetFor(session)).converse(text);
       activeReader = reader;
       for (;;) {
         // eslint-disable-next-line no-await-in-loop
@@ -674,8 +695,6 @@ export const flootComponent = (
       $streamingBubble = null;
       if (full.trim()) {
         session.messages.push({ role: 'assistant', text: full.trim() });
-        session.updatedAt = Date.now();
-        saveSessions();
       }
       if (sessionStatus.get(sessionId) !== 'error') {
         sessionStatus.set(sessionId, 'idle');
@@ -1190,12 +1209,42 @@ export const flootComponent = (
   });
 
   // ── Initial paint ────────────────────────────────────────────────────────────
-  if (!sessions.length) createSession();
   updateSendButton();
   renderSidebar();
   renderHeader();
   renderMessages();
+  setStatus('Loading sessions…');
   $input.focus();
+
+  // Load the session list from the factory (most-recent first), seeding a
+  // default session if the factory has none, then repaint the active history.
+  (async () => {
+    try {
+      const metas = await E(factory).listSessions();
+      sessions = [...metas]
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        .map(m => ({
+          id: m.id,
+          title: m.title || DEFAULT_TITLE,
+          createdAt: m.createdAt || 0,
+          messages: [],
+          facet: null,
+          loaded: false,
+        }));
+      if (!sessions.length) {
+        await createSession();
+      } else {
+        activeSessionId = sessions[0].id;
+      }
+      renderSidebar();
+      renderHeader();
+      renderMessages();
+      openActiveHistory();
+      setStatus('Ready.');
+    } catch (err) {
+      setStatus(`error: ${/** @type {Error} */ (err).message}`);
+    }
+  })();
 
   return () => {
     cancelled = true;

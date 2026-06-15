@@ -11,22 +11,40 @@
 // already consumes for transcripts (audio-server-caplet.mjs), so a client can
 // stream the assistant's reply token-by-token and (later) feed it to TTS.
 //
-// Persistence and provisioning match fae: per-agent conversation history lives
-// in the agent guest's petstore via @endo/conversation-tree, and a per-agent
-// driver caplet (driver.js) can be pinned to survive daemon restarts.
+// Persistence and provisioning match fae: per-session conversation history lives
+// in the session guest's petstore via @endo/conversation-tree, and a single
+// pinned factory caplet revives every session on daemon restart.
 
 import { makeExo } from '@endo/exo';
+import { Far } from '@endo/far';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import {
   makeConversationTree,
   makeEndoPetstoreBackend,
 } from '@endo/conversation-tree';
+import { discoverTools, executeTool } from '@endo/fae/src/tools.js';
+import {
+  makeExecTool,
+  makeListPetnamesTool,
+  makeLookupTool,
+  makeStoreTool,
+  makeRemoveTool,
+} from '@endo/fae/src/tool-makers.js';
 
 import { createStreamingProvider } from './providers/index.js';
+import { makeReplyChannel } from './src/stream.js';
+
+// Cap the tool-call loop so a misbehaving model can't spin forever before it
+// produces a spoken reply.
+const MAX_TOOL_ROUNDS = 8;
 
 const FlootFactoryInterface = M.interface('FlootFactory', {
-  createAgent: M.callWhen(M.string()).optional(M.record()).returns(M.string()),
+  createSession: M.callWhen().optional(M.string()).returns(M.remotable()),
+  listSessions: M.callWhen().returns(M.arrayOf(M.record())),
+  getSession: M.callWhen(M.string()).returns(M.remotable()),
+  renameSession: M.callWhen(M.string(), M.string()).returns(M.undefined()),
+  deleteSession: M.callWhen(M.string()).returns(M.undefined()),
   help: M.call().optional(M.string()).returns(M.string()),
 });
 
@@ -37,6 +55,11 @@ Your replies are spoken aloud, so:
 - Keep responses short and conversational — usually one to three sentences.
 - Avoid markdown, code blocks, bullet lists, and emoji; write as you would speak.
 - Answer directly. If you need to think, do it silently and give only the answer.
+
+You have tools for working with the Endo daemon and your own petstore: list,
+lookup, store, remove, and exec (run JavaScript with your guest powers). Use
+them silently to get things done, then speak only the result — never read code
+or raw tool output aloud.
 `;
 
 /**
@@ -74,7 +97,7 @@ Your replies are spoken aloud, so:
  * @param {Promise<object> | object | undefined} _context
  * @param {ProviderConstructorConfig | InjectedProviderConfig} providerConfig
  * @param {string} [systemPrompt]
- * @returns {Promise<{ converse: (input: string | object, writer: object, sessionId?: string) => Promise<void> }>}
+ * @returns {Promise<{ converse: (input: string | object, writer: object) => Promise<void>, getHistory: () => Promise<Array<{role: string, content: string}>> }>}
  */
 export const makeStreamingAgent = async (
   powers,
@@ -93,33 +116,36 @@ export const makeStreamingAgent = async (
   const effectivePrompt = systemPrompt || defaultSystemPrompt;
   const tree = makeConversationTree(makeEndoPetstoreBackend(powers));
 
-  // Each client-facing session is an independent conversation: its own root
-  // (tagged with the sessionId in node metadata) and its own linear branch, so
-  // switching sessions in the UI does not bleed context. The tree is a single
-  // petstore-backed structure with one root per session. We cache the current
-  // leaf per session in memory and rediscover it from the tree after a restart.
-  /** @type {Map<string, string>} */
-  const sessionLeaves = new Map();
+  // Built-in tools bound to this agent's guest powers — the dynamic surface for
+  // working with the daemon and petstore. `exec` is the most general (arbitrary
+  // JS with `powers`); the rest are explicit petstore operations. Caplet tools
+  // dropped into the guest's `tools/` directory are discovered on top of these
+  // each turn (see discoverTools), so the toolset can grow at runtime.
+  /** @type {Map<string, any>} */
+  const localTools = new Map();
+  localTools.set('exec', makeExecTool(powers));
+  localTools.set('list', makeListPetnamesTool(powers));
+  localTools.set('lookup', makeLookupTool(powers));
+  localTools.set('store', makeStoreTool(powers));
+  localTools.set('remove', makeRemoveTool(powers));
 
-  // Find or create the deepest leaf of a session's branch. A root matches when
-  // its metadata.sessionId equals the session (legacy roots with no sessionId
-  // are treated as 'default') AND its system prompt is current — if the prompt
-  // changed we start a fresh root so stale instructions don't leak forward.
-  const getOrCreateSessionLeaf = async sessionId => {
-    const cached = sessionLeaves.get(sessionId);
-    if (cached !== undefined) return cached;
+  // One session = one guest = one linear conversation. The guest's petstore
+  // holds a single conversation-tree root (the system prompt) and a linear
+  // branch beneath it. We cache the current leaf in memory and rediscover it
+  // from the tree on first use after a restart. A root matches only when its
+  // system prompt is current — if the prompt changed we start a fresh root so
+  // stale instructions don't leak forward.
+  /** @type {string | undefined} */
+  let cachedLeaf;
+
+  const getOrCreateLeaf = async () => {
+    if (cachedLeaf !== undefined) return cachedLeaf;
 
     const roots = await tree.getRoots();
     for (const r of roots) {
       const node = await tree.getNode(r.id);
-      const rootSession = node?.metadata?.sessionId || 'default';
       const rootMsg = node?.messages[0];
-      if (
-        node &&
-        rootSession === sessionId &&
-        rootMsg &&
-        rootMsg.content === effectivePrompt
-      ) {
+      if (node && rootMsg && rootMsg.content === effectivePrompt) {
         // Walk down the (linear) branch to its deepest node.
         let leaf = node.id;
         for (;;) {
@@ -127,17 +153,15 @@ export const makeStreamingAgent = async (
           if (!kids || kids.length === 0) break;
           leaf = kids[kids.length - 1].id;
         }
-        sessionLeaves.set(sessionId, leaf);
+        cachedLeaf = leaf;
         return leaf;
       }
     }
 
-    const root = await tree.addNode(
-      null,
-      [{ role: 'system', content: effectivePrompt }],
-      { sessionId },
-    );
-    sessionLeaves.set(sessionId, root.id);
+    const root = await tree.addNode(null, [
+      { role: 'system', content: effectivePrompt },
+    ]);
+    cachedLeaf = root.id;
     return root.id;
   };
 
@@ -163,47 +187,111 @@ export const makeStreamingAgent = async (
     return text;
   };
 
-  const runTurn = async (input, writer, sessionId) => {
+  const runTurn = async (input, writer) => {
     const text = await resolveUserText(input);
-    const leafId = await getOrCreateSessionLeaf(sessionId);
-    const userNode = await tree.addNode(leafId, [
+    const baseLeafId = await getOrCreateLeaf();
+    const userNode = await tree.addNode(baseLeafId, [
       { role: 'user', content: `${text}` },
     ]);
-    const conversationContext = await tree.getPath(userNode.id);
-    console.log(
-      `[floot] context has ${conversationContext.length} messages, streaming reply`,
-    );
 
+    // Agentic loop: stream a reply; if it calls tools, run them, persist the
+    // assistant turn plus tool results, and loop again until the model returns a
+    // plain (spoken) answer. Tools are re-discovered each round so anything the
+    // model creates mid-turn (e.g. via exec/store) is immediately callable.
+    let leafId = userNode.id;
+    let finalContent = '';
     writer.setPhase('thinking');
-    let streamed = '';
-    const { message } = await provider.chatStream(
-      conversationContext,
-      [],
-      delta => {
-        streamed += delta;
-        writer.delta(delta);
-      },
-    );
 
-    const content = (message && message.content) || streamed;
-    const assistantNode = await tree.addNode(userNode.id, [
-      { role: 'assistant', content },
-    ]);
-    sessionLeaves.set(sessionId, assistantNode.id);
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+      const { schemas, toolMap } = await discoverTools(powers, localTools);
+      const conversationContext = await tree.getPath(leafId);
+      console.log(
+        `[floot] round ${round}: ${conversationContext.length} messages, ${schemas.length} tools`,
+      );
 
-    writer.final(content);
+      let streamed = '';
+      const { message } = await provider.chatStream(
+        conversationContext,
+        schemas,
+        delta => {
+          streamed += delta;
+          writer.delta(delta);
+        },
+      );
+
+      const rm = message || { role: 'assistant', content: streamed };
+      const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
+
+      if (toolCalls.length === 0) {
+        finalContent = rm.content || streamed;
+        const finalNode = await tree.addNode(leafId, [rm]);
+        leafId = finalNode.id;
+        break;
+      }
+
+      writer.setPhase('using tools');
+      /** @type {Array<{ role: 'tool', tool_call_id: string, content: string }>} */
+      const toolResults = [];
+      for (const tc of toolCalls) {
+        const name = tc.function?.name;
+        let args = {};
+        try {
+          args =
+            typeof tc.function?.arguments === 'string'
+              ? JSON.parse(tc.function.arguments || '{}')
+              : tc.function?.arguments || {};
+        } catch {
+          args = {};
+        }
+        let resultText;
+        try {
+          resultText = await executeTool(name, args, toolMap);
+        } catch (err) {
+          resultText = `Error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+        console.log(`[floot] tool ${name} -> ${resultText}`);
+        toolResults.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          content: `${resultText}`,
+        });
+      }
+
+      const stepNode = await tree.addNode(leafId, [rm, ...toolResults]);
+      leafId = stepNode.id;
+      writer.setPhase('thinking');
+    }
+
+    cachedLeaf = leafId;
+    writer.final(finalContent);
     writer.end();
   };
 
-  const converse = (input, writer, sessionId = 'default') => {
-    const session = sessionId || 'default';
-    const result = turnChain.then(() => runTurn(input, writer, session));
+  const converse = (input, writer) => {
+    const result = turnChain.then(() => runTurn(input, writer));
     // Keep the chain alive even if a turn rejects (the writer already aborts).
     turnChain = result.catch(() => {});
     return result;
   };
 
-  return harden({ converse });
+  // Replay the spoken conversation for UI repaint: just the user prompts and the
+  // assistant's final answers (system + tool-call/tool-result turns omitted).
+  const getHistory = async () => {
+    const leafId = await getOrCreateLeaf();
+    const path = await tree.getPath(leafId);
+    return harden(
+      path
+        .filter(
+          m =>
+            (m.role === 'user' || m.role === 'assistant') &&
+            typeof m.content === 'string' &&
+            m.content.trim() !== '',
+        )
+        .map(m => ({ role: m.role, content: m.content })),
+    );
+  };
+
+  return harden({ converse, getHistory });
 };
 harden(makeStreamingAgent);
 
@@ -211,100 +299,239 @@ harden(makeStreamingAgent);
 // Floot Factory — entry point (mirrors fae's factory recipe)
 // ============================================================================
 
-const driverSpecifier = new URL('driver.js', import.meta.url).href;
+// Petname (in the factory guest's own petstore) where the session registry —
+// an array of { id, title, createdAt } — is persisted.
+const REGISTRY_NAME = 'floot-sessions';
+
+const newSessionId = () =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 /**
- * Creates a Floot factory that provisions and manages streaming agents.
+ * The Floot factory — a single long-lived, pinned caplet that owns every chat
+ * session. The UI references ONLY this factory; it never sees a guest.
  *
- * The LLM is configured programmatically per agent (provider/model/authToken
- * passed to `createAgent`), defaulting to the Anthropic API endpoint. The config
- * — including the API key — is stored as a value and handed to the driver as a
- * capability reference (`llm-provider`), the same handle pattern fae uses. Each
- * agent gets its own guest (conversation history) and a driver caplet
- * (driver.js) whose result — a Far object with a streaming `converse` method —
- * is named in the inventory for clients to look up and call.
+ * Each session is, internally, its own EndoGuest (isolated petstore for
+ * conversation history, tool endowments, and — later — an inbox). That a session
+ * "is a guest" is an implementation detail hidden behind opaque session facets
+ * (Far objects with `converse(input) -> replyReader` and `getHistory()`). The
+ * factory operates each session guest's petstore directly via an in-process
+ * `makeStreamingAgent`, so there is exactly one pin (the factory) rather than a
+ * pin per session.
+ *
+ * Persistence is daemon-only: the session registry lives in the factory's own
+ * petstore (REGISTRY_NAME), and each session's history lives in its guest's
+ * petstore. On restart the daemon revives the pinned factory; sessions are
+ * revived lazily (provideGuest is idempotent) on first use.
+ *
+ * IMPORTANT (reincarnation constraint, same as the fae/driver caplets): make()
+ * must return synchronously WITHOUT awaiting remote references on its powers
+ * guest, or it deadlocks with the provision chain creating this very formula.
+ * So the host agent, provider, and registry are all resolved lazily.
  *
  * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
  * @param {Promise<object> | object | undefined} _context
- * @returns {Promise<object>}
+ * @param {{ env?: Record<string, string> }} [options]
+ * @returns {object}
  */
-export const make = async (guestPowers, _context) => {
+export const make = (guestPowers, _context, { env } = {}) => {
   /** @type {any} */
   const powers = guestPowers;
+  const systemPrompt = env?.FLOOT_SYSTEM_PROMPT || undefined;
 
-  const hostAgent = await E(powers).lookup('host-agent');
+  let hostAgentP;
+  const getHostAgent = () => {
+    if (!hostAgentP) hostAgentP = E(powers).lookup('host-agent');
+    return hostAgentP;
+  };
+
+  let providerP;
+  const getProvider = () => {
+    if (!providerP) {
+      providerP = (async () => {
+        const cfg = await E(powers).lookup('llm-provider');
+        return createStreamingProvider({
+          FLOOT_PROVIDER: cfg.provider,
+          FLOOT_MODEL: cfg.model,
+          FLOOT_AUTH_TOKEN: cfg.authToken,
+        });
+      })().catch(error => {
+        providerP = undefined;
+        throw error;
+      });
+    }
+    return providerP;
+  };
+
+  // In-memory session registry, mirrored to the factory's petstore. Loaded
+  // lazily so make() never awaits.
+  /** @type {Array<{ id: string, title: string, createdAt: number }> | undefined} */
+  let registry;
+  const loadRegistry = async () => {
+    if (registry) return registry;
+    if (await E(powers).has(REGISTRY_NAME)) {
+      const stored = await E(powers).lookup(REGISTRY_NAME);
+      registry = Array.isArray(stored) ? [...stored] : [];
+    } else {
+      registry = [];
+    }
+    return registry;
+  };
+  const saveRegistry = async () => {
+    if (await E(powers).has(REGISTRY_NAME)) {
+      await E(powers).remove(REGISTRY_NAME);
+    }
+    await E(powers).storeValue(harden([...(registry || [])]), REGISTRY_NAME);
+  };
+
+  // Per-session in-process streaming agent, built lazily over the session
+  // guest's powers. provideGuest is idempotent, so this both creates a fresh
+  // session guest and revives an existing one after a restart.
+  /** @type {Map<string, Promise<any>>} */
+  const agents = new Map();
+  const getAgent = id => {
+    let agentP = agents.get(id);
+    if (!agentP) {
+      agentP = (async () => {
+        const host = await getHostAgent();
+        const sessionGuest = await E(host).provideGuest(`session-${id}`);
+        const provider = await getProvider();
+        return makeStreamingAgent(
+          sessionGuest,
+          undefined,
+          { provider },
+          systemPrompt,
+        );
+      })().catch(error => {
+        agents.delete(id);
+        throw error;
+      });
+      agents.set(id, agentP);
+    }
+    return agentP;
+  };
+
+  // Opaque session facet handed to the UI. It exposes a streaming conversation
+  // and a history replay, but never reveals the backing guest.
+  /** @type {Map<string, object>} */
+  const facets = new Map();
+  const getFacet = id => {
+    let facet = facets.get(id);
+    if (!facet) {
+      facet = Far('FlootSession', {
+        async getInfo() {
+          await loadRegistry();
+          const entry = (registry || []).find(s => s.id === id);
+          return harden({
+            id,
+            title: entry?.title || '',
+            createdAt: entry?.createdAt || 0,
+          });
+        },
+        /**
+         * @param {string | object} input
+         * @returns {object} replyReader
+         */
+        converse(input) {
+          const { writer, reader } = makeReplyChannel();
+          (async () => {
+            try {
+              const agent = await getAgent(id);
+              await agent.converse(input, writer);
+            } catch (error) {
+              writer.abort(
+                error instanceof Error ? error.message : String(error),
+              );
+            }
+          })();
+          return reader;
+        },
+        async getHistory() {
+          const agent = await getAgent(id);
+          return agent.getHistory();
+        },
+        help() {
+          return 'Floot session: converse(input) returns a streaming reply reader; getHistory() replays the conversation; getInfo() returns { id, title, createdAt }.';
+        },
+      });
+      facets.set(id, facet);
+    }
+    return facet;
+  };
 
   return makeExo('FlootFactory', FlootFactoryInterface, {
     /**
-     * @param {string} name
-     * @param {{
-     *   systemPrompt?: string,
-     *   pin?: boolean,
-     *   provider?: string,
-     *   model?: string,
-     *   authToken?: string,
-     * }} [options]
-     * @returns {Promise<string>} The driver result name (the converse handle)
+     * @param {string} [title]
+     * @returns {Promise<object>} an opaque session facet
      */
-    async createAgent(name, options = {}) {
-      const { systemPrompt, pin, provider, model, authToken } = options;
+    async createSession(title) {
+      await loadRegistry();
+      const id = newSessionId();
+      const entry = harden({
+        id,
+        title: title || 'New chat',
+        createdAt: Date.now(),
+      });
+      /** @type {any[]} */ (registry).push(entry);
+      await saveRegistry();
+      console.log(`[floot-factory] Created session "${id}"`);
+      return getFacet(id);
+    },
 
-      const guestName = name;
-      const profileName = `profile-for-${guestName}`;
-      const driverHandleName = `${name}-driver-handle`;
-      const driverProfileName = `profile-for-${driverHandleName}`;
-      const driverResultName = `${name}-driver`;
+    /**
+     * @returns {Promise<Array<{ id: string, title: string, createdAt: number }>>}
+     */
+    async listSessions() {
+      await loadRegistry();
+      return harden((registry || []).map(s => ({ ...s })));
+    },
 
-      if (await E(hostAgent).has(driverResultName)) {
-        throw new Error(`Agent "${name}" already exists.`);
+    /**
+     * @param {string} id
+     * @returns {Promise<object>} the session facet
+     */
+    async getSession(id) {
+      await loadRegistry();
+      if (!(registry || []).some(s => s.id === id)) {
+        throw new Error(`Unknown session "${id}".`);
       }
+      return getFacet(id);
+    },
 
-      // 1. Agent guest holds the conversation history petstore.
-      await E(hostAgent).provideGuest(guestName, { agentName: profileName });
+    /**
+     * @param {string} id
+     * @param {string} title
+     */
+    async renameSession(id, title) {
+      await loadRegistry();
+      const entry = (registry || []).find(s => s.id === id);
+      if (!entry) throw new Error(`Unknown session "${id}".`);
+      entry.title = title;
+      await saveRegistry();
+    },
 
-      // 2. Driver guest namespace holds the agent petstore ref. The LLM
-      // provider is NOT stored here — it is configured programmatically from
-      // the driver caplet's env below.
-      const driverGuest = await E(hostAgent).provideGuest(driverHandleName, {
-        agentName: driverProfileName,
-      });
-
-      const agentLocator = await E(hostAgent).locate(profileName);
-      await E(driverGuest).storeLocator('agent', agentLocator);
-
-      // 3. Store the provider config (incl. the API key) as a value and hand
-      // the driver a capability reference to it — the fae pattern. The secret
-      // lives behind a handle in the petstore, not inlined in the driver's env.
-      const providerConfigName = `llm-provider-for-${guestName}`;
-      await E(hostAgent).storeValue(
-        harden({
-          provider: provider || 'anthropic',
-          model: model || '',
-          authToken: authToken || '',
-        }),
-        providerConfigName,
-      );
-      const providerLocator = await E(hostAgent).locate(providerConfigName);
-      await E(driverGuest).storeLocator('llm-provider', providerLocator);
-
-      // 4. Launch the driver caplet; its result exposes converse().
-      await E(hostAgent).makeUnconfined('@main', driverSpecifier, {
-        powersName: driverProfileName,
-        resultName: driverResultName,
-        env: harden({ FLOOT_SYSTEM_PROMPT: systemPrompt || '' }),
-      });
-
-      // 5. Pin so the driver auto-restarts on daemon reboot.
-      if (pin) {
-        await E(hostAgent).copy(
-          [driverResultName],
-          ['@pins', driverResultName],
+    /**
+     * @param {string} id
+     */
+    async deleteSession(id) {
+      await loadRegistry();
+      registry = (registry || []).filter(s => s.id !== id);
+      await saveRegistry();
+      agents.delete(id);
+      facets.delete(id);
+      // Best-effort removal of the backing session guest's persistence.
+      try {
+        const host = await getHostAgent();
+        if (await E(host).has(`session-${id}`)) {
+          await E(host).remove(`session-${id}`);
+        }
+      } catch (error) {
+        console.warn(
+          `[floot-factory] could not remove guest session-${id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         );
-        console.log(`[floot-factory] Pinned driver "${driverResultName}"`);
       }
-
-      console.log(`[floot-factory] Created agent "${name}"`);
-      return driverResultName;
+      console.log(`[floot-factory] Deleted session "${id}"`);
     },
 
     /**
@@ -313,12 +540,19 @@ export const make = async (guestPowers, _context) => {
      */
     help(methodName) {
       if (methodName === undefined) {
-        return 'Floot factory: creates streaming LLM agents bound to a configured provider. Use createAgent(name, { systemPrompt, pin }); the returned name resolves to a driver whose converse(text) returns a streaming reply reader.';
+        return 'Floot factory: owns all chat sessions. createSession(title?) -> session facet; listSessions() -> [{id,title,createdAt}]; getSession(id) -> facet; renameSession(id,title); deleteSession(id). A session facet exposes converse(input) (streaming reply reader), getHistory(), and getInfo().';
       }
-      if (methodName === 'createAgent') {
-        return 'createAgent(name, { systemPrompt?, pin? }) — Create a streaming agent. Returns the driver result name; look it up and call converse(text) to get a Far reply reader.';
-      }
-      return `No documentation for method "${methodName}".`;
+      const docs = {
+        createSession:
+          'createSession(title?) — Create a new session (its own guest/petstore) and return an opaque session facet.',
+        listSessions:
+          'listSessions() — Return metadata [{id, title, createdAt}] for all sessions.',
+        getSession: 'getSession(id) — Return the session facet for an id.',
+        renameSession: 'renameSession(id, title) — Rename a session.',
+        deleteSession:
+          'deleteSession(id) — Delete a session and its backing guest.',
+      };
+      return docs[methodName] || `No documentation for method "${methodName}".`;
     },
   });
 };
