@@ -20,6 +20,7 @@ import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
 import { fileExplorerComponent } from './file-explorer-component.js';
 import { voiceComponent } from './voice-component.js';
+import { flootComponent } from './floot-component.js';
 import { createShareModal } from './share-modal.js';
 import { microblogComponent } from './microblog-component.js';
 
@@ -307,6 +308,16 @@ const bodyComponent = (
 
   if (activeSpaceInfo && activeSpaceInfo.mode === 'voice') {
     return voiceComponent($parent, rootPowers, profilePath, onProfileChange);
+  }
+
+  if (activeSpaceInfo && activeSpaceInfo.mode === 'floot') {
+    return flootComponent(
+      $parent,
+      rootPowers,
+      profilePath,
+      onProfileChange,
+      activeSpaceInfo.audioPath,
+    );
   }
 
   /** @type {{ dispose: () => void } | null} */
@@ -1768,13 +1779,14 @@ const bodyComponent = (
 
 /**
  * @typedef {object} ActiveSpaceInfo
- * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'voice'} mode
+ * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'voice' | 'floot'} mode
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
  * @property {'chat' | 'forum' | 'outliner'} [viewMode] - channel view mode (default: 'chat')
  * @property {string[]} [channelOrder] - persisted channel display order
  * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
+ * @property {string[]} [audioPath] - pet-name path to an audio object (floot mic input)
  */
 
 /**

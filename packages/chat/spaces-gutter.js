@@ -19,6 +19,7 @@ const KNOWN_MODES = new Set([
   'peers',
   'files',
   'voice',
+  'floot',
 ]);
 
 /**
@@ -41,6 +42,7 @@ const KNOWN_MODES = new Set([
  * @property {string} [lastChannelPetName] - last viewed channel in this space (restored on re-entry)
  * @property {string[]} [channelOrder] - persisted channel display order in sidebar
  * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
+ * @property {string[]} [audioPath] - pet-name path to an audio object (floot mic input)
  */
 
 /**
@@ -377,6 +379,7 @@ export const createSpacesGutter = ({
       viewMode: space.viewMode,
       channelOrder: space.channelOrder,
       bookmarks: space.bookmarks,
+      audioPath: space.audioPath,
     });
   };
 
@@ -574,7 +577,7 @@ export const createSpacesGutter = ({
         name: data.name,
         icon: data.icon,
         profilePath: data.profilePath,
-        mode: /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'voice'} */ (
+        mode: /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'voice' | 'floot'} */ (
           KNOWN_MODES.has(data.layout) ? data.layout : 'inbox'
         ),
         scheme: data.scheme || 'auto',
@@ -593,6 +596,12 @@ export const createSpacesGutter = ({
       }
       if (typeof data.ownedPersona === 'boolean') {
         spaceConfig.ownedPersona = data.ownedPersona;
+      }
+      if (
+        Array.isArray(data.audioPath) &&
+        data.audioPath.every(p => typeof p === 'string')
+      ) {
+        spaceConfig.audioPath = data.audioPath;
       }
       await addSpace(spaceConfig);
     },
@@ -717,6 +726,12 @@ export const createSpacesGutter = ({
     }
     if (typeof obj.lastChannelPetName === 'string') {
       result.lastChannelPetName = obj.lastChannelPetName;
+    }
+    if (
+      Array.isArray(obj.audioPath) &&
+      obj.audioPath.every(p => typeof p === 'string')
+    ) {
+      result.audioPath = obj.audioPath;
     }
     if (
       Array.isArray(obj.channelOrder) &&
