@@ -20,7 +20,6 @@ export const parseMjs = (
     sourceUrl: archiveOnly ? undefined : sourceUrl,
     sourceMap,
     sourceMapUrl: sourceUrl,
-    // @ts-expect-error: fixed in https://github.com/endojs/endo/pull/3218
     sourceMapHook,
   });
   return {
