@@ -472,11 +472,20 @@ export const make = (hostPowers, _context, { env } = {}) => {
     }
     return registry;
   };
-  const saveRegistry = async () => {
-    if (await E(powers).has(REGISTRY_NAME)) {
-      await E(powers).remove(REGISTRY_NAME);
-    }
-    await E(powers).storeValue(harden([...(registry || [])]), REGISTRY_NAME);
+  // Serialize registry writes: storeValue can't overwrite, so each save is a
+  // remove-then-store. Two concurrent saves would interleave (both see the key,
+  // the second remove throws on the already-removed name), so we chain them.
+  let registryWrite = Promise.resolve();
+  const saveRegistry = () => {
+    const result = registryWrite.then(async () => {
+      if (await E(powers).has(REGISTRY_NAME)) {
+        await E(powers).remove(REGISTRY_NAME);
+      }
+      await E(powers).storeValue(harden([...(registry || [])]), REGISTRY_NAME);
+    });
+    // Keep the chain alive even if this write rejects.
+    registryWrite = result.catch(() => {});
+    return result;
   };
 
   // Per-session in-process streaming agent, built lazily over the session
