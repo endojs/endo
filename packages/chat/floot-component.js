@@ -352,6 +352,16 @@ export const flootComponent = (
     $root.querySelector('#floot-header-title')
   );
   const $messages = /** @type {HTMLElement} */ ($root.querySelector('#floot-messages'));
+  // Sticky-bottom: follow new content only while the reader is already at the
+  // bottom. The user's own scroll drives this flag, so scrolling up to read
+  // history is never fought by incoming deltas; scrolling back down re-sticks.
+  let stickToBottom = true;
+  const STICK_THRESHOLD_PX = 48;
+  $messages.addEventListener('scroll', () => {
+    const dist =
+      $messages.scrollHeight - $messages.scrollTop - $messages.clientHeight;
+    stickToBottom = dist <= STICK_THRESHOLD_PX;
+  });
   const $status = /** @type {HTMLElement} */ ($root.querySelector('#floot-status'));
   const $input = /** @type {HTMLTextAreaElement} */ (
     $root.querySelector('#floot-input')
@@ -516,10 +526,13 @@ export const flootComponent = (
   };
 
   const scrollToBottom = () => {
-    $messages.scrollTop = $messages.scrollHeight;
+    if (stickToBottom) $messages.scrollTop = $messages.scrollHeight;
   };
 
   const renderMessages = () => {
+    // A full repaint resets scrollTop; preserve the reader's place unless they
+    // were following the bottom, in which case snap back down.
+    const prevTop = $messages.scrollTop;
     $messages.innerHTML = '';
     const session = getActiveSession();
     if (!session) {
@@ -539,7 +552,8 @@ export const flootComponent = (
     for (const msg of session.messages) {
       appendBubble(msg.role, msg.text);
     }
-    scrollToBottom();
+    if (stickToBottom) $messages.scrollTop = $messages.scrollHeight;
+    else $messages.scrollTop = prevTop;
   };
 
   const appendBubble = (
@@ -616,6 +630,8 @@ export const flootComponent = (
   // ── Session actions ─────────────────────────────────────────────────────────
   // Open a session, repainting its transcript from the guest on first view.
   const openActiveHistory = () => {
+    // Opening a session starts at the latest message.
+    stickToBottom = true;
     const session = getActiveSession();
     if (session && !session.loaded) {
       loadHistory(session).then(() => {
@@ -723,6 +739,8 @@ export const flootComponent = (
     updateSendButton();
 
     session.messages.push({ role: 'user', text });
+    // Sending a message is an explicit "follow along" intent — re-stick.
+    stickToBottom = true;
     if (session.title === DEFAULT_TITLE) {
       session.title = autoTitle(text);
       E(factory)
@@ -1290,6 +1308,10 @@ export const flootComponent = (
   const beginUtterance = () => {
     if (speaking || !audioServer) return;
     speaking = true;
+    // Never let a reply talk over a live recording: silence any TTS still
+    // playing or scheduled ahead. (Barge-in's cancelTurn only covers the
+    // busy window; a finished turn's queued audio would otherwise play on.)
+    stopTts();
     speechStart = Date.now();
     silenceStart = 0;
     $mic?.classList.add('recording');
