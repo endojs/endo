@@ -227,11 +227,14 @@ export const makeStreamingAgent = async (
   localTools.set('reply', makeReplyTool(powers));
 
   // One session = one guest = one linear conversation. The guest's petstore
-  // holds a single conversation-tree root (the system prompt) and a linear
-  // branch beneath it. We cache the current leaf in memory and rediscover it
-  // from the tree on first use after a restart. A root matches only when its
-  // system prompt is current — if the prompt changed we start a fresh root so
-  // stale instructions don't leak forward.
+  // holds a conversation-tree root and a linear branch beneath it. We cache the
+  // current leaf in memory and rediscover it from the tree on first use after a
+  // restart. The match is NOT keyed on the system prompt: that orphaned all
+  // history whenever the prompt changed. Instead we reuse the root with the
+  // deepest branch — the one that actually holds the conversation — ignoring any
+  // empty roots a past prompt change may have spawned. The current prompt is
+  // applied at call time (see runTurn), so reusing an old root never leaks a
+  // stale prompt.
   /** @type {string | undefined} */
   let cachedLeaf;
 
@@ -239,20 +242,25 @@ export const makeStreamingAgent = async (
     if (cachedLeaf !== undefined) return cachedLeaf;
 
     const roots = await tree.getRoots();
+    /** @type {{ leaf: string, depth: number } | undefined} */
+    let best;
     for (const r of roots) {
-      const node = await tree.getNode(r.id);
-      const rootMsg = node?.messages[0];
-      if (node && rootMsg && rootMsg.content === effectivePrompt) {
-        // Walk down the (linear) branch to its deepest node.
-        let leaf = node.id;
-        for (;;) {
-          const kids = await tree.getChildren(leaf);
-          if (!kids || kids.length === 0) break;
-          leaf = kids[kids.length - 1].id;
-        }
-        cachedLeaf = leaf;
-        return leaf;
+      // Walk down the (linear) branch to its deepest node, counting depth.
+      let leaf = r.id;
+      let depth = 0;
+      for (;;) {
+        const kids = await tree.getChildren(leaf);
+        if (!kids || kids.length === 0) break;
+        leaf = kids[kids.length - 1].id;
+        depth += 1;
       }
+      if (best === undefined || depth > best.depth) {
+        best = { leaf, depth };
+      }
+    }
+    if (best !== undefined) {
+      cachedLeaf = best.leaf;
+      return best.leaf;
     }
 
     const root = await tree.addNode(null, [
@@ -304,7 +312,15 @@ export const makeStreamingAgent = async (
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
       const { schemas, toolMap } = await discoverTools(powers, localTools);
-      const conversationContext = await tree.getPath(leafId);
+      // Always lead with the *current* system prompt and drop whatever system
+      // message the tree's root happens to store. This decouples the prompt from
+      // the stored conversation, so editing the prompt updates instructions
+      // immediately without leaking stale ones — and without orphaning history.
+      const path = await tree.getPath(leafId);
+      const conversationContext = [
+        { role: 'system', content: effectivePrompt },
+        ...path.filter(m => m.role !== 'system'),
+      ];
       console.log(
         `[floot] round ${round}: ${conversationContext.length} messages, ${schemas.length} tools`,
       );
