@@ -31,7 +31,6 @@ import {
   makeLookupTool,
   makeStoreTool,
   makeRemoveTool,
-  makeListMessagesTool,
   makeAdoptTool,
 } from '@endo/fae/src/tool-makers.js';
 
@@ -67,6 +66,8 @@ const makeBufferingWriter = () => {
     final: t => {
       text = `${t}`;
     },
+    toolCall: () => {},
+    toolResult: () => {},
     end: () => settle({ ok: true, text }),
     /** @param {unknown} reason */
     abort: reason => settle({ ok: false, error: `${reason}` }),
@@ -165,8 +166,38 @@ export const makeStreamingAgent = async (
   localTools.set('remove', makeRemoveTool(powers));
   // Mail: discover incoming messages and adopt objects attached to them into
   // this session's petstore. adopt needs a message number + edge name, which
-  // listMessages surfaces.
-  localTools.set('listMessages', makeListMessagesTool(powers));
+  // listMessages surfaces. fae's listMessages tool returns raw records whose
+  // `number` is a BigInt and so don't stringify for the model — format a
+  // readable summary (number, sender, text, edge names) here instead.
+  localTools.set(
+    'listMessages',
+    harden({
+      schema: () =>
+        harden({
+          type: 'function',
+          function: {
+            name: 'listMessages',
+            description:
+              'List messages in your inbox. Each entry has its number, sender, ' +
+              'type, text, and the edge names of any attached objects. Use an ' +
+              'edge name together with the message number to adopt an object.',
+            parameters: { type: 'object', properties: {}, required: [] },
+          },
+        }),
+      execute: async () => {
+        const msgs = await E(powers).listMessages();
+        const summary = (Array.isArray(msgs) ? msgs : []).map(m => ({
+          number: Number(m.number),
+          from: m.from,
+          type: m.type,
+          text: Array.isArray(m.strings) ? m.strings.join('') : undefined,
+          edgeNames: Array.isArray(m.names) ? m.names : [],
+        }));
+        return JSON.stringify(summary, null, 2);
+      },
+      help: () => 'List inbox messages with their numbers and edge names.',
+    }),
+  );
   localTools.set('adopt', makeAdoptTool(powers));
 
   // One session = one guest = one linear conversation. The guest's petstore
@@ -360,6 +391,13 @@ export const makeStreamingAgent = async (
                 if (i < namesArray.length) parts.push(`@${namesArray[i]}`);
               }
               text = parts.join('').trim();
+              // This message is dismissed once this turn ends, so any attached
+              // object must be adopted now. Tell the model the message number
+              // and edge names so it can call adopt within this same turn.
+              if (namesArray.length) {
+                const edges = namesArray.map(n => `"${n}"`).join(', ');
+                text += `\n\n(System: message #${number} attaches object(s) with edge name(s) ${edges}. To keep any of them, call the adopt tool with message number ${number} and the edge name during this turn — the message is dismissed afterward.)`;
+              }
             } else {
               text = `(${type || 'unknown'} message)`;
             }
