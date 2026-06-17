@@ -124,10 +124,11 @@ export const flootComponent = (
   const loadHistory = async (/** @type {FlootSession} */ session) => {
     try {
       const history = await E(facetFor(session)).getHistory();
-      session.messages = history.map(m => ({
-        role: m.role === 'user' ? 'user' : 'assistant',
-        text: m.content,
-      }));
+      session.messages = history.map(m =>
+        m.role === 'tool'
+          ? { role: 'tool', name: m.name, args: m.args, result: m.result }
+          : { role: m.role === 'user' ? 'user' : 'assistant', text: m.content },
+      );
     } catch {
       // leave whatever we have; history just won't repaint
     }

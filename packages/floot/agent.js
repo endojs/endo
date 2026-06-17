@@ -157,7 +157,7 @@ your tools and petnames to find out.
  * @param {Promise<object> | object | undefined} _context
  * @param {ProviderConstructorConfig | InjectedProviderConfig} providerConfig
  * @param {string} [systemPrompt]
- * @returns {Promise<{ converse: (input: string | object, writer: object) => Promise<void>, getHistory: () => Promise<Array<{role: string, content: string}>>, startInbox: () => void }>}
+ * @returns {Promise<{ converse: (input: string | object, writer: object) => Promise<void>, getHistory: () => Promise<Array<Record<string, any>>>, startInbox: () => void }>}
  */
 export const makeStreamingAgent = async (
   powers,
@@ -451,21 +451,41 @@ export const makeStreamingAgent = async (
     });
   };
 
-  // Replay the spoken conversation for UI repaint: just the user prompts and the
-  // assistant's final answers (system + tool-call/tool-result turns omitted).
+  // Replay the conversation for UI repaint: user prompts, the assistant's spoken
+  // answers, and each tool call paired with its result so tool activity survives
+  // a refresh. The system prompt (root) is omitted.
   const getHistory = async () => {
     const leafId = await getOrCreateLeaf();
     const path = await tree.getPath(leafId);
-    return harden(
-      path
-        .filter(
-          m =>
-            (m.role === 'user' || m.role === 'assistant') &&
-            typeof m.content === 'string' &&
-            m.content.trim() !== '',
-        )
-        .map(m => ({ role: m.role, content: m.content })),
-    );
+    // Index tool outputs by call id so each assistant tool_call can carry its
+    // result. The raw 'tool' messages are model-wire records; the UI wants the
+    // call and its result joined.
+    const resultById = new Map();
+    for (const m of path) {
+      if (m.role === 'tool' && m.tool_call_id != null) {
+        resultById.set(m.tool_call_id, m.content);
+      }
+    }
+    const out = [];
+    for (const m of path) {
+      if (m.role !== 'user' && m.role !== 'assistant') continue;
+      if (typeof m.content === 'string' && m.content.trim() !== '') {
+        out.push({ role: m.role, content: m.content });
+      }
+      if (m.role === 'assistant' && Array.isArray(m.tool_calls)) {
+        for (const tc of m.tool_calls) {
+          const args = tc.function?.arguments;
+          out.push({
+            role: 'tool',
+            name: tc.function?.name || 'tool',
+            args:
+              typeof args === 'string' ? args : JSON.stringify(args ?? {}),
+            result: resultById.has(tc.id) ? resultById.get(tc.id) : null,
+          });
+        }
+      }
+    }
+    return harden(out);
   };
 
   return harden({ converse, getHistory, startInbox });
