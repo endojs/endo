@@ -17,11 +17,11 @@
 import { E } from '@endo/eventual-send';
 
 const audioCapletSpecifier = new URL(
-  'voice/audio-server-caplet.mjs',
+  'voice/audio-server-caplet.js',
   import.meta.url,
 ).href;
 const ttsCapletSpecifier = new URL(
-  'voice/tts-server-caplet.mjs',
+  'voice/tts-server-caplet.js',
   import.meta.url,
 ).href;
 const moonshineScript = new URL('voice/moonshine_daemon.py', import.meta.url)

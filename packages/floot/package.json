@@ -32,17 +32,13 @@
     "@anthropic-ai/sdk": "^0.95.1",
     "@endo/conversation-tree": "workspace:^",
     "@endo/daemon": "workspace:^",
-    "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/fae": "workspace:^",
     "@endo/far": "workspace:^",
-    "@endo/init": "workspace:^",
     "@endo/lal": "workspace:^",
-    "@endo/marshal": "workspace:^",
     "@endo/pass-style": "workspace:^",
-    "@endo/patterns": "workspace:^",
-    "@endo/promise-kit": "workspace:^"
+    "@endo/patterns": "workspace:^"
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",

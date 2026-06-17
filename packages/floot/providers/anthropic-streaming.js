@@ -128,6 +128,23 @@ const fromAnthropicMessage = response => {
 };
 
 /**
+ * Compact, log-safe summary of an SDK error — avoids dumping the whole error
+ * object (which can carry the request, headers, and API key) into the console.
+ *
+ * @param {unknown} error
+ * @returns {string}
+ */
+const describeError = error => {
+  const err =
+    /** @type {{ status?: number, statusCode?: number, message?: string }} */ (
+      error
+    );
+  const status = err?.status ?? err?.statusCode;
+  const message = err?.message ?? String(error);
+  return status ? `${status} ${message}` : message;
+};
+
+/**
  * @param {unknown} error
  * @returns {never}
  */
@@ -146,7 +163,7 @@ const rethrowAnthropic = error => {
     );
   if (isAuthError) {
     throw new Error(
-      'Anthropic API authentication failed (invalid or expired API key). Check LAL_AUTH_TOKEN.',
+      'Anthropic API authentication failed (invalid or expired API key). Check FLOOT_AUTH_TOKEN (or LAL_AUTH_TOKEN).',
     );
   }
   throw error;
@@ -194,7 +211,7 @@ export const makeStreamingAnthropicProvider = ({
         });
         return { message: fromAnthropicMessage(response) };
       } catch (error) {
-        console.error('[floot] Anthropic API error:', error);
+        console.error('[floot] Anthropic API error:', describeError(error));
         return rethrowAnthropic(error);
       }
     },
@@ -217,7 +234,7 @@ export const makeStreamingAnthropicProvider = ({
         const response = await stream.finalMessage();
         return { message: fromAnthropicMessage(response) };
       } catch (error) {
-        console.error('[floot] Anthropic streaming error:', error);
+        console.error('[floot] Anthropic streaming error:', describeError(error));
         return rethrowAnthropic(error);
       }
     },

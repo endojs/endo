@@ -47,40 +47,45 @@ const makeMoonshine = ({ scriptPath, cwd, uv = 'uv', lang = 'en' }) => {
       stdoutBuffer = '';
       let ready = false;
 
+      const handleLine = line => {
+        if (!line) return;
+        let msg;
+        try {
+          msg = JSON.parse(line);
+        } catch {
+          return;
+        }
+        if (msg.event === 'ready') {
+          ready = true;
+          resolve();
+          return;
+        }
+        if (msg.stream && msg.partial !== undefined) {
+          const h = partialHandlers.get(msg.stream);
+          if (h) h(msg.partial);
+          return;
+        }
+        if (msg.stream) {
+          const req = pendingStreams.get(msg.stream);
+          if (!req) return;
+          pendingStreams.delete(msg.stream);
+          if (msg.error !== undefined) {
+            req.reject(new Error(`moonshine: ${msg.error}`));
+          } else {
+            req.resolve((msg.text ?? '').trim());
+          }
+        }
+      };
+
       proc.stdout.setEncoding('utf-8');
       proc.stdout.on('data', chunk => {
         stdoutBuffer += chunk;
-        let nl;
-        while ((nl = stdoutBuffer.indexOf('\n')) !== -1) {
+        let nl = stdoutBuffer.indexOf('\n');
+        while (nl !== -1) {
           const line = stdoutBuffer.slice(0, nl).trim();
           stdoutBuffer = stdoutBuffer.slice(nl + 1);
-          if (!line) continue;
-          let msg;
-          try {
-            msg = JSON.parse(line);
-          } catch {
-            continue;
-          }
-          if (msg.event === 'ready') {
-            ready = true;
-            resolve();
-            continue;
-          }
-          if (msg.stream && msg.partial !== undefined) {
-            const h = partialHandlers.get(msg.stream);
-            if (h) h(msg.partial);
-            continue;
-          }
-          if (msg.stream) {
-            const req = pendingStreams.get(msg.stream);
-            if (!req) continue;
-            pendingStreams.delete(msg.stream);
-            if (msg.error !== undefined) {
-              req.reject(new Error(`moonshine: ${msg.error}`));
-            } else {
-              req.resolve((msg.text ?? '').trim());
-            }
-          }
+          handleLine(line);
+          nl = stdoutBuffer.indexOf('\n');
         }
       });
 
@@ -167,6 +172,7 @@ const makeTextChannel = () => {
   let finished = false;
   let cursor = 0;
   let wake = null;
+  let onClose = null;
 
   const push = event => {
     if (finished) return;
@@ -190,51 +196,58 @@ const makeTextChannel = () => {
     abort: reason => push({ type: 'abort', reason: `${reason}` }),
   };
 
+  // Consumer stopped pulling (return/throw): finish and signal the producer so
+  // moonshine's in-flight utterance is aborted instead of left running.
+  const finalize = () => {
+    const wasFinished = finished;
+    finished = true;
+    cursor = buffer.length;
+    if (wake) {
+      const w = wake;
+      wake = null;
+      w();
+    }
+    if (!wasFinished && onClose) onClose();
+  };
+
   const reader = Far('StreamReader', {
     next: async () => {
       for (;;) {
         if (cursor < buffer.length) {
-          return harden({ value: buffer[cursor++], done: false });
+          const value = buffer[cursor];
+          cursor += 1;
+          return harden({ value, done: false });
         }
         if (finished) return harden({ value: undefined, done: true });
+        // eslint-disable-next-line no-await-in-loop
         await new Promise(resolve => {
           wake = resolve;
         });
       }
     },
     return: async () => {
-      finished = true;
-      cursor = buffer.length;
-      if (wake) {
-        const w = wake;
-        wake = null;
-        w();
-      }
+      finalize();
       return harden({ value: undefined, done: true });
     },
     throw: async error => {
-      finished = true;
-      cursor = buffer.length;
-      if (wake) {
-        const w = wake;
-        wake = null;
-        w();
-      }
+      finalize();
       throw error;
     },
   });
 
-  return { writer, reader };
+  return { writer, reader, setOnClose: fn => { onClose = fn; } };
 };
 
 // Pump audio frames into moonshine and stream transcript events. Each partial
 // is the full evolving transcript; forward it as-is so the UI can re-render
 // (and absorb moonshine's mid-stream revisions) instead of accreting deltas.
-const pump = async (moonshine, audioReader, writer) => {
+const pump = async (moonshine, audioReader, writer, setOnClose) => {
   const sink = moonshine.startUtterance(partial => writer.partial(partial));
+  setOnClose(() => sink.abort());
   writer.setPhase('listening');
   try {
     for (;;) {
+      // eslint-disable-next-line no-await-in-loop
       const { value, done } = await E(audioReader).next();
       if (done) break;
       if (value.type === 'bytes') sink.writePcmBase64(value.b64);
@@ -260,9 +273,22 @@ const pump = async (moonshine, audioReader, writer) => {
 //   FLOOT_STT_UV      uv binary (default "uv")
 //   FLOOT_STT_LANG    language (default "en")
 export const make = async (_powers, _context, { env = {} } = {}) => {
+  const scriptPath = env.FLOOT_STT_SCRIPT;
+  const cwd = env.FLOOT_PROJECT_DIR;
+  if (!scriptPath) {
+    throw new Error(
+      'FLOOT_STT_SCRIPT (absolute path to moonshine_daemon.py) is required',
+    );
+  }
+  if (!cwd) {
+    throw new Error(
+      'FLOOT_PROJECT_DIR (cwd for the uv run subprocess) is required',
+    );
+  }
+
   const moonshine = makeMoonshine({
-    scriptPath: env.FLOOT_STT_SCRIPT,
-    cwd: env.FLOOT_PROJECT_DIR,
+    scriptPath,
+    cwd,
     uv: env.FLOOT_STT_UV || 'uv',
     lang: env.FLOOT_STT_LANG || 'en',
   });
@@ -271,8 +297,8 @@ export const make = async (_powers, _context, { env = {} } = {}) => {
 
   return Far('AudioServer', {
     transcribe: audioReader => {
-      const { writer, reader } = makeTextChannel();
-      pump(moonshine, audioReader, writer);
+      const { writer, reader, setOnClose } = makeTextChannel();
+      pump(moonshine, audioReader, writer, setOnClose);
       return reader;
     },
   });

@@ -682,7 +682,7 @@ export const createAddSpaceModal = ({
             <div id="profile-path-input" class="profile-path-input-container"></div>
             <div id="profile-path-menu" class="token-menu"></div>
           </div>
-          <div class="field-hint">Pet-name path to the Floot agent driver (e.g. floot-driver) in your inventory</div>
+          <div class="field-hint">Pet-name path to the Floot factory (e.g. floot-factory) in your inventory</div>
         </div>
 
         <div class="add-space-field">

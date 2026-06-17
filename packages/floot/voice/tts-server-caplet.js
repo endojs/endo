@@ -1,6 +1,6 @@
 // The text-to-speech server object as a daemon-managed *unconfined* caplet.
 //
-// Symmetric to audio-server-caplet.mjs (STT), but the other direction: it takes
+// Symmetric to audio-server-caplet.js (STT), but the other direction: it takes
 // a stream of reply text and returns a stream of synthesized audio bytes:
 //
 //   ttsServer.synthesize(textReader) -> audioReader
@@ -26,6 +26,7 @@
 // A separate object from the STT caplet so the two are independently swappable.
 // See [[project-voice-space-m2]] and §11 of docs/endo-daemon-integration.md.
 
+/* global Buffer */
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/pass-style';
 import { spawn } from 'node:child_process';
@@ -74,7 +75,7 @@ const makeChunker = () => {
     const rawParts = [];
     let start = 0;
     for (let i = 0; i < buffer.length; i += 1) {
-      if (!isBoundary(buffer, i)) continue;
+      if (!isBoundary(buffer, i)) continue; // eslint-disable-line no-continue
       let end = i + 1;
       while (end < buffer.length && /\s/.test(buffer[end])) end += 1;
       rawParts.push(buffer.slice(start, end));
@@ -86,7 +87,7 @@ const makeChunker = () => {
     let pending = '';
     for (const part of rawParts) {
       const trimmed = stripMarkdown(part).trim();
-      if (!trimmed) continue;
+      if (!trimmed) continue; // eslint-disable-line no-continue
       const combined = pending ? `${pending} ${trimmed}` : trimmed;
       if (combined.length >= MIN_CHUNK_LENGTH) {
         chunks.push(combined);
@@ -112,7 +113,10 @@ const makeChunker = () => {
 };
 
 // ── Minimal audio-side stream channel (Far StreamReader) ─────────────────────
-const makeAudioChannel = () => {
+// onClose fires when the consumer stops pulling (return/throw) so the producer
+// (piper) can be aborted — otherwise an interrupted replay keeps synthesizing
+// every remaining sentence with no one to receive the audio.
+const makeAudioChannel = onClose => {
   const buffer = [];
   let finished = false;
   let cursor = 0;
@@ -137,6 +141,7 @@ const makeAudioChannel = () => {
   };
 
   const finalize = () => {
+    const wasFinished = finished;
     finished = true;
     cursor = buffer.length;
     if (wake) {
@@ -144,15 +149,19 @@ const makeAudioChannel = () => {
       wake = null;
       w();
     }
+    if (!wasFinished && onClose) onClose();
   };
 
   const reader = Far('AudioReader', {
     next: async () => {
       for (;;) {
         if (cursor < buffer.length) {
-          return harden({ value: buffer[cursor++], done: false });
+          const value = buffer[cursor];
+          cursor += 1;
+          return harden({ value, done: false });
         }
         if (finished) return harden({ value: undefined, done: true });
+        // eslint-disable-next-line no-await-in-loop
         await new Promise(resolve => {
           wake = resolve;
         });
@@ -202,9 +211,13 @@ const makePiper = ({ binary, modelPath, speed, sampleRate }) => {
       child.on('error', err => done(err));
       child.stdout.on('data', c => chunks.push(c));
       child.on('close', code => {
-        if (aborted) return done(new Error('aborted'));
-        if (code === 0) done(null, Buffer.concat(chunks));
-        else done(new Error(`piper exited with code ${code}`));
+        if (aborted) {
+          done(new Error('aborted'));
+        } else if (code === 0) {
+          done(null, Buffer.concat(chunks));
+        } else {
+          done(new Error(`piper exited with code ${code}`));
+        }
       });
       child.stdin.write(text);
       child.stdin.end();
@@ -239,6 +252,7 @@ const pump = async (piper, textReader, writer) => {
     while (queue.length && !aborting) {
       const sentence = queue.shift();
       try {
+        // eslint-disable-next-line no-await-in-loop
         const buf = await piper.synthOne(sentence);
         if (aborting) return;
         writer.bytes(buf.toString('base64'), piper.sampleRate);
@@ -251,10 +265,12 @@ const pump = async (piper, textReader, writer) => {
 
   try {
     for (;;) {
+      // eslint-disable-next-line no-await-in-loop
       const { value, done } = await E(textReader).next();
       if (done) break;
       if (value.type === 'delta') {
         for (const s of chunker.push(value.text)) queue.push(s);
+        // eslint-disable-next-line no-await-in-loop
         await drain();
       } else if (value.type === 'end') {
         break;
@@ -296,8 +312,10 @@ export const make = async (_powers, _context, { env = {} } = {}) => {
 
   return Far('TtsServer', {
     synthesize: textReader => {
-      const { writer, reader } = makeAudioChannel();
       const piper = makePiper({ binary, modelPath, speed, sampleRate });
+      // If the consumer stops pulling (replay interrupted), abort piper so it
+      // doesn't keep synthesizing sentences no one will receive.
+      const { writer, reader } = makeAudioChannel(() => piper.abort());
       pump(piper, textReader, writer);
       return reader;
     },

@@ -8,9 +8,9 @@ that make it a hands-free voice assistant.
   reply-token deltas (`src/stream.js`).
 - **Voice caplets** (`voice/`) — two independent, swappable daemon objects:
   - `floot-stt` — speech-to-text via [Moonshine](https://github.com/moonshine-ai/moonshine)
-    (`voice/audio-server-caplet.mjs`): `transcribe(audioReader) -> textReader`.
+    (`voice/audio-server-caplet.js`): `transcribe(audioReader) -> textReader`.
   - `floot-tts` — text-to-speech via [piper](https://github.com/rhasspy/piper)
-    (`voice/tts-server-caplet.mjs`): `synthesize(textReader) -> audioReader`.
+    (`voice/tts-server-caplet.js`): `synthesize(textReader) -> audioReader`.
 
 The browser UI lives in [`@endo/chat`](../chat); a Chat Space looks these three
 objects up by pet-name and streams to/from them.

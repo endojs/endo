@@ -8,7 +8,7 @@
 // interface: the agent exposes `converse(text) -> replyReader`, where
 // replyReader is a Far StreamReader (src/stream.js) that yields reply-token
 // deltas as the LLM produces them. This is the same wire the voice Space
-// already consumes for transcripts (audio-server-caplet.mjs), so a client can
+// already consumes for transcripts (audio-server-caplet.js), so a client can
 // stream the assistant's reply token-by-token and (later) feed it to TTS.
 //
 // Persistence and provisioning match fae: per-session conversation history lives
@@ -301,8 +301,16 @@ export const makeStreamingAgent = async (
   };
 
   const converse = (input, writer) => {
-    const result = turnChain.then(() => runTurn(input, writer));
-    // Keep the chain alive even if a turn rejects (the writer already aborts).
+    const result = turnChain.then(() =>
+      runTurn(input, writer).catch(err => {
+        // runTurn has no internal catch, so on failure the writer is still
+        // unsettled — abort it here or every consumer (UI stream and the mail
+        // inbox's turnDone) would hang forever. Rethrow so callers still see it.
+        writer.abort(err instanceof Error ? err.message : String(err));
+        throw err;
+      }),
+    );
+    // Keep the chain alive even if a turn rejects.
     turnChain = result.catch(() => {});
     return result;
   };

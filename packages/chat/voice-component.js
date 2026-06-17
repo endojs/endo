@@ -338,7 +338,7 @@ export const voiceComponent = (
       processor.onaudioprocess = e => {
         if (!channel) return;
         const input = e.inputBuffer.getChannelData(0);
-        const pcm = toPcm16le(input, inRate, 16000);
+        const pcm = toPcm16le(input, inRate, 16_000);
         if (pcm.length) channel.writeBytes(pcm);
       };
       source.connect(processor);

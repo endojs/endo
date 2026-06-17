@@ -2,7 +2,7 @@
 // Userspace streaming primitive: a buffered Far StreamReader paired with a
 // plain-object writer. The agent loop writes reply events as the LLM emits
 // tokens; the caller pulls them over CapTP via next() — exactly the shape the
-// voice Space already consumes for transcripts (audio-server-caplet.mjs).
+// voice Space already consumes for transcripts (audio-server-caplet.js).
 //
 // Reply events (append-style — LLM tokens accrete, they do not revise, so
 // unlike the moonshine transcript wire these are deltas, not full snapshots):
