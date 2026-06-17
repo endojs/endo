@@ -33,7 +33,7 @@ Each option is explained in its own section below.
 |----------------------------------|------------------|----------------------------------------|-------|
 | `regExpTaming`                   | `'safe'`         | `'unsafe'`                             | `RegExp.prototype.compile` ([details](#regexptaming-options)) |
 | `localeTaming`                   | `'safe'`         | `'unsafe'`                             | `toLocaleString`           ([details](#localetaming-options)) |
-| `consoleTaming`                  | `'safe'`         | `'unsafe'`                             | deep stacks                ([details](#consoletaming-options)) |
+| `consoleTaming`                  | `'safe'`         | `'unsafe'`                             | deep stacks and custom methods ([details](#consoletaming-options)) |
 | `errorTaming`                    | `'safe'`         | `'unsafe'` `'unsafe-debug'`            | `errorInstance.stack`      ([details](#errortaming-options)) |
 | `errorTrapping`                  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
 | `reporting`                      | `'platform'`     | `'console'` `'none'`                   | where to report warnings ([details](#reporting-options))
@@ -179,10 +179,15 @@ is negligible.
 **Background**: Most JavaScript environments provide a `console` object on the
 global object with interesting information hiding properties. JavaScript code
 can use the `console` to send information to the console's logging output, but
-cannot see that output. The `console` is a *write-only device*. The logging
-output is normally placed where a human programmer, who is in a controlling
-position over that computation, can see the output. This output is, accordingly,
-formatted mostly for human consumption; typically for diagnosing problems.
+cannot see that output. The `console` is notionally a *write-only device*,
+although its concrete implementation often goes beyond that to include invoking
+formatting methods on its arguments (which in the case of Node.js also provides
+object arguments that can form a [covert communications channel
+](https://papers.agoric.com/taxonomy-of-security-issues/#overt-side-and-covert-channels)).
+The logging output is normally placed where a human programmer, who is in a
+controlling position over that computation, can see the output. This output is,
+accordingly, formatted mostly for human consumption; typically for diagnosing
+problems.
 
 Given these constraints, it is both safe and helpful for the `console` to reveal
 to the human programmer information that it would not reveal to the objects it
@@ -191,7 +196,7 @@ to the programmer much more information than would be revealed by the normal
 `console`. To do so, by default during `lockdown` SES virtualizes the builtin
 `console`, by replacing it with a wrapper. The wrapper is a virtual `console`
 that implements the standard `console` API mostly by forwarding to the original
-wrapped `console`.
+wrapped `console` while suppressing its custom method invocations.
 In addition, the virtual `console` has a special relationship with
 error objects and with the SES `assert` package, so that errors can report yet
 more diagnostic information that should remain hidden from other objects. See

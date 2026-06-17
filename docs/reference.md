@@ -191,7 +191,7 @@ below.
   <tr>
     <td><code>consoleTaming</code></td>
     <td><code>'safe'</code> (default) or <code>'unsafe'</code></td>
-    <td><code>'safe'</code> wraps start console to show deep stacks,<br>
+    <td><code>'safe'</code> wraps start console to show deep stacks and suppress custom method invocation,<br>
         <code>'unsafe'</code> uses the original start console.</td>
   </tr>
   <tr>
