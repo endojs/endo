@@ -5,6 +5,7 @@ import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import {
   test,
+  waitUntilTrue,
   makeTestClientPair,
   makeTestClient,
   getOcapnDebug,
@@ -137,6 +138,68 @@ const assertMessageTranscript = (t, transcript, expected) => {
   }
 
   t.pass(`Transcript matches ${expected.length} expected entries`);
+};
+
+/**
+ * Extract the method-name string from an op:deliver-style message.
+ * OCapN encodes method names as Symbol-style selectors in `args[0]`
+ * (see `makeSelector` in src/selector.js), so we read `description`.
+ * Returns undefined for non-deliver messages.
+ *
+ * @param {object} message
+ * @returns {string | undefined}
+ */
+const getDeliverMethod = message => {
+  if (
+    message.type !== 'op:deliver' ||
+    !Array.isArray(message.args) ||
+    message.args.length === 0
+  ) {
+    return undefined;
+  }
+  const first = message.args[0];
+  if (typeof first === 'symbol') return first.description;
+  if (typeof first === 'string') return first;
+  return undefined;
+};
+
+/**
+ * @typedef {object} DeliverSummary
+ * @property {string} from
+ * @property {string | undefined} method
+ */
+
+/**
+ * Reduce a transcript to a list of `{ from, method }` for op:deliver
+ * entries only — a much clearer picture of what's happening on the wire
+ * than the full nested message dump.
+ *
+ * @param {TranscriptEntry[]} transcript
+ * @returns {DeliverSummary[]}
+ */
+const summarizeDelivers = transcript =>
+  transcript
+    .filter(e => e.message.type === 'op:deliver')
+    .map(e => ({ from: e.from, method: getDeliverMethod(e.message) }));
+
+/**
+ * Like `assertMessageTranscript` but specialized to op:deliver and
+ * comparing only `{ from, method }`. Failure prints the full transcript
+ * so the diff between expected and observed is unambiguous.
+ *
+ * @param {import('ava').ExecutionContext} t
+ * @param {TranscriptEntry[]} transcript - Full recorded transcript
+ * @param {DeliverSummary[]} expected
+ */
+const assertDeliverTranscript = (t, transcript, expected) => {
+  const actual = summarizeDelivers(transcript);
+  t.deepEqual(
+    actual,
+    expected,
+    `Deliver transcript mismatch.\n\nFull transcript:\n${transcript
+      .map(formatEntry)
+      .join('\n')}`,
+  );
 };
 
 test('pipeline: method invocation transcript', async t => {
@@ -689,8 +752,87 @@ test('pipeline: remote answer promise sent as argument is local to receiver (no 
   }
 });
 
+test('pipeline: deliver to local answer fulfilling to remote promise is forwarded (pipelined)', async t => {
+  /** @type {(value: unknown) => void} */
+  let resolveAlice;
+  const alicePending = new Promise(r => {
+    resolveAlice = r;
+  });
+  const inner = Far('FinalResult', {
+    getVal: _callId => 4242,
+  });
+
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'EchoObj',
+    Far('echoObj', {
+      // Return Alice's import promise synchronously so Bob's local answer tracks it
+      echo: x => x,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: { enableImportCollection: false },
+    clientBOptions: { enableImportCollection: false },
+  });
+
+  try {
+    const { sessionA, sessionB } = await establishSession();
+    const recorderBtoA = createMessageRecorder(sessionB.ocapn, 'B', 'A');
+
+    const bootstrapB = sessionA.ocapn.getRemoteBootstrap();
+    const promisePass = await E(bootstrapB).fetch(encodeSwissnum('EchoObj'));
+
+    recorderBtoA.transcript.length = 0;
+
+    // Bob's answer promise for echo(...) fulfills to Alice's export promise (remote on Bob)
+    const answerFromBob = E(promisePass).echo(alicePending);
+    // Pipeline: invoke on the answer before Bob's answer has shortened past that remote promise
+    const pipelined = E(answerFromBob).getVal(1234);
+
+    const getOpDelivers = () =>
+      recorderBtoA.transcript.filter(e => e.message.type === 'op:deliver');
+
+    // Wait until all expected op:delivers have flowed in both directions.
+    await waitUntilTrue(() => getOpDelivers().length >= 4);
+    recorderBtoA.unsubscribe();
+
+    assertDeliverTranscript(t, recorderBtoA.transcript, [
+      // 1. Alice calls echo(alicePending) on EchoObj.
+      { from: 'A', method: 'echo' },
+      // 2. Alice pipelines getVal(1234) on Bob's answer to echo.
+      { from: 'A', method: 'getVal' },
+      // 3. Bob's answer for echo shortens to alicePending (Alice's own
+      //    promise, imported on B as a same-peer remote ref). Bob pipelines
+      //    the queued getVal(1234) back to Alice on that ref.
+      { from: 'B', method: 'getVal' },
+      // 4. Bob forwards the resolution of his echo-answer to Alice's
+      //    resolveMeDesc: fulfill(alicePending). Alice's resolver fulfills
+      //    with one of her own promises — this notifies her that the
+      //    answer-slot has shortened to that ref, so any future calls on
+      //    her side bypass Bob.
+      { from: 'B', method: 'fulfill' },
+    ]);
+
+    resolveAlice(inner);
+
+    const result = await pipelined;
+    t.is(
+      result,
+      4242,
+      "Pipelined method on Bob's answer (fulfilling to Alice's promise) should reach the eventual object",
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
 test('four-node promise chain emits op:flush on third-party relay hops (experimental)', async t => {
-  const flushOptions = { enableExperimentalFeatureFlush: true };
+  const flushOptions = {
+    enableExperimentalFeatureFlush: true,
+    enableExperimentalFeatureDistributedShortening: true,
+  };
   const writeLatencyMs = 50;
 
   const dObjectTable = new Map();
@@ -823,6 +965,169 @@ test('four-node promise chain emits op:flush on third-party relay hops (experime
       cFlush.resolveMeDesc !== undefined && bFlush.resolveMeDesc !== undefined,
       'op:flush includes resolveMeDesc for flush-done',
     );
+  } finally {
+    shutdownAll();
+  }
+});
+
+test('three-node: shortening to a still-pending remote promise from C (expected to FAIL — shortening to a remote promise)', async t => {
+  // Scenario:
+  //   - C exposes a `Pending` capability whose `get()` returns a never-settled
+  //     local promise that C controls. Because it never resolves, any promise
+  //     that "shortens to" it stays pending too.
+  //   - B exposes a `Relay` whose `getC()` returns the still-pending C-promise.
+  //     B's local answer for `getC()` therefore *shortens* to a C-owned
+  //     promise (a remote thenable from B's POV w.r.t. A) but never fulfills.
+  //   - A invokes B.getC() and waits to observe the shortening notification.
+  //
+  // What we expect to see at the protocol level (per the OCapN promise-
+  // shortening design): B notifies A that its answer-slot has shortened
+  // to a remote (C-owned) promise — via op:flush followed by op:deliver
+  // fulfill(thirdPartyRef-to-C-promise). This lets A redirect future
+  // pipelined messages on that answer slot to C directly.
+  //
+  // The current implementation appears not to emit the shortening
+  // notification while the underlying remote promise is still pending —
+  // the test is expected to fail on that assertion.
+  const flushOptions = {
+    enableExperimentalFeatureFlush: true,
+    enableExperimentalFeatureDistributedShortening: true,
+  };
+
+  // A promise that C "owns" and only resolves at the end of the test —
+  // we observe the *intermediate* shortening event while it is pending,
+  // then resolve so all of the chain's settlers complete cleanly before
+  // shutdown (otherwise the connection-close path rejects the pending
+  // answer chain with "Session disconnected" and trips ava's
+  // unhandled-rejection guard).
+  /** @type {(value: unknown) => void} */
+  let resolveCSidePending;
+  const cSidePending = new Promise(r => {
+    resolveCSidePending = r;
+  });
+  const cObjectTable = new Map();
+  cObjectTable.set(
+    'Pending',
+    Far('Pending', {
+      get: () => cSidePending,
+    }),
+  );
+
+  const clientKitC = await makeTestClient({
+    debugLabel: 'C',
+    makeDefaultSwissnumTable: () => cObjectTable,
+    clientOptions: flushOptions,
+  });
+
+  /** @type {any} */
+  let clientKitB;
+  const bObjectTable = new Map();
+  bObjectTable.set(
+    'Relay',
+    Far('Relay', {
+      // First fetch the Pending cap from C (needs the session), *then* return
+      // the still-pending promise from `Pending.get()` — without awaiting it.
+      // Returning unawaited preserves the C-promise as a *thenable* for the
+      // outer answer to shorten onto.
+      getC: () => {
+        const sessionP = clientKitB.client.provideSession(clientKitC.location);
+        const bootstrapP = E(sessionP).getBootstrap();
+        const pendingP = E(bootstrapP).fetch(encodeSwissnum('Pending'));
+        return E(pendingP).get();
+      },
+    }),
+  );
+
+  clientKitB = await makeTestClient({
+    debugLabel: 'B',
+    makeDefaultSwissnumTable: () => bObjectTable,
+    clientOptions: flushOptions,
+  });
+
+  const clientKitA = await makeTestClient({
+    debugLabel: 'A',
+    clientOptions: flushOptions,
+  });
+
+  const shutdownAll = () => {
+    clientKitA.client.shutdown();
+    clientKitB.client.shutdown();
+    clientKitC.client.shutdown();
+  };
+
+  try {
+    await clientKitB.client.provideSession(clientKitC.location);
+    const sessionAtoB = await clientKitA.client.provideSession(
+      clientKitB.location,
+    );
+    // sessionBtoA is needed via the internal API so the recorder can subscribe
+    // to wire messages — no public surface exposes that today.
+    const sessionBtoA = await clientKitB.debug.provideInternalSession(
+      clientKitA.location,
+    );
+
+    const bootstrapB = sessionAtoB.getBootstrap();
+    const relay = await E(bootstrapB).fetch(encodeSwissnum('Relay'));
+
+    const recorderBtoA = createMessageRecorder(sessionBtoA.ocapn, 'B', 'A');
+
+    // Predicates over a recorded message entry — the protocol signal we
+    // expect from B once its answer shortens to a remote (C-owned) promise
+    // is *either* an op:flush *or* an op:deliver carrying `fulfill(...)` on
+    // A's resolveMeDesc.
+    const isFromB = e => e.from === 'B';
+    const isFlushMessage = msg => msg.type === 'op:flush';
+    const isFulfillDeliver = msg =>
+      msg.type === 'op:deliver' &&
+      Array.isArray(msg.args) &&
+      typeof msg.args[0] === 'symbol' &&
+      msg.args[0].description === 'fulfill';
+    const isShorteningNotification = e =>
+      isFromB(e) && (isFlushMessage(e.message) || isFulfillDeliver(e.message));
+
+    // Kick off the call but don't await — we're observing intermediate
+    // protocol state, not waiting for the (never-arriving) settlement.
+    const cPromiseViaB = E(relay).getC();
+    cPromiseViaB.catch(() => {}); // suppress unhandled-rejection on shutdown
+
+    // Give the shortening machinery time to propagate. If B never emits a
+    // shortening notification, waitUntilTrue rejects on timeout — we
+    // swallow that here so the assertions below produce a readable failure.
+    await waitUntilTrue(
+      () => recorderBtoA.transcript.some(isShorteningNotification),
+      5000,
+    ).catch(() => {});
+
+    recorderBtoA.unsubscribe();
+
+    const bFlushSends = recorderBtoA.transcript.filter(
+      e => isFromB(e) && isFlushMessage(e.message),
+    );
+    const bFulfillSends = recorderBtoA.transcript.filter(
+      e => isFromB(e) && isFulfillDeliver(e.message),
+    );
+
+    // Both should happen for promise shortening to a remote promise:
+    //   1) B sends op:flush so A can safely redirect pipelined messages.
+    //   2) B sends a fulfill on the resolveMeDesc carrying a third-party
+    //      reference to the C-owned promise.
+    t.is(
+      bFlushSends.length,
+      1,
+      'B should send one op:flush to A when shortening to a remote promise',
+    );
+    t.is(
+      bFulfillSends.length,
+      1,
+      'B should send one fulfill notifying A that its answer shortened to a remote (C) promise',
+    );
+
+    // Let the chain settle cleanly so connection-close doesn't reject
+    // pending answer-slot settlers (which would trip the unhandled-
+    // rejection guard).
+    resolveCSidePending(undefined);
+    // Wait for the chain to actually complete through all three nodes.
+    await cPromiseViaB.catch(() => {});
   } finally {
     shutdownAll();
   }

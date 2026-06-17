@@ -42,7 +42,7 @@ import { compareImmutableArrayBuffers } from '../syrup/compare.js';
 import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
 import { makeOcapnTable } from '../captp/ocapn-tables.js';
 import { makeSlot, parseSlot } from '../captp/pairwise.js';
-import { makeReferenceKit } from './ref-kit.js';
+import { makeReferenceKit, slotTypeToName } from './ref-kit.js';
 import { makeGrantDetails } from './grant-tracker.js';
 
 /**
@@ -308,13 +308,18 @@ const makeMakeHandlerForRemoteReference = ({
 }) => {
   const makeHandlerForRemoteReference = targetGetter => {
     /**
-     * Send op:deliver and return the internal promise for the answer.
+     * Send op:deliver and return the HP that `HandledPromise.handle` should
+     * forward `returnedP` onto (`forwardTarget`). Whether that's a distinct
+     * interior HP (legacy) or the same object as the registered
+     * `answerPromise` (with `enableExperimentalFeatureDistributedShortening`
+     * on) is decided in `makeRemoteAnswer`.
+     *
      * @param {unknown[]} args
      * @param {Promise<unknown>} [externalAnswerPromise] - The promise E() returns to the caller
      */
     const sendDeliver = (args, externalAnswerPromise) => {
       const {
-        internalPromise,
+        forwardTarget,
         position: answerPosition,
         resolver: resolveMeDesc,
       } = takeNextRemoteAnswer(externalAnswerPromise);
@@ -325,7 +330,7 @@ const makeMakeHandlerForRemoteReference = ({
         answerPosition,
         resolveMeDesc,
       });
-      return internalPromise;
+      return forwardTarget;
     };
 
     /**
@@ -366,10 +371,14 @@ const makeMakeHandlerForRemoteReference = ({
           );
         }
 
-        // Create a question for the answer
+        // `answerPromise` is the HP registered against the slot (used as the
+        // `to` of op:listen so the wire encoding picks up the slot).
+        // `forwardTarget` is what we return to `HandledPromise.handle`. The
+        // feature flag in `makeRemoteAnswer` decides whether they're the
+        // same HP (collapsed) or two (legacy split).
         const {
-          internalPromise,
           answerPromise,
+          forwardTarget,
           position: answerPosition,
           resolver: resolveMeDesc,
         } = takeNextRemoteAnswer(externalAnswerPromise);
@@ -402,7 +411,7 @@ const makeMakeHandlerForRemoteReference = ({
           wantsPartial: false,
         });
 
-        return internalPromise;
+        return forwardTarget;
       },
       applyFunction(_o, args, externalAnswerPromise) {
         if (didUnplug()) {
@@ -696,6 +705,7 @@ const makeBootstrapObject = (
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
  * @param {boolean} [enableExperimentalFeatureFlush] - **EXPERIMENTAL**: If true, enable the `op:flush` and `op:flush-done` operations. Default: false.
+ * @param {boolean} [enableExperimentalFeatureDistributedShortening] - **EXPERIMENTAL**: If true, collapse the outgoing-answer HP pair so promise shortening surfaces the registered remote answer to subscribers (enables direct shortening across nodes). Default: false.
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -714,6 +724,7 @@ export const makeOcapn = (
   enableImportCollection = true,
   debugMode = false,
   enableExperimentalFeatureFlush = false,
+  enableExperimentalFeatureDistributedShortening = false,
 ) => {
   const onReject = reason => {
     logger.info(`onReject`, reason);
@@ -750,17 +761,84 @@ export const makeOcapn = (
   };
 
   /**
-   * @param {any} to The target to invoke. This is at least a locally hosted
+   * Like {@link ReferenceKit.getInfoForVal} but never calls
+   * `provideSlotForValue`. Used for deliver targets so merely *dispatching* a
+   * local value does not register it as an export.
+   *
+   * @param {any} val
+   * @returns {ReturnType<ReferenceKit['getInfoForVal']> | undefined}
+   */
+  const peekDeliverTargetInfo = val => {
+    const localAnswerPosition = ocapnTable.getLocalAnswerToPosition(val);
+    if (localAnswerPosition !== undefined) {
+      return {
+        slot: makeSlot('a', true, localAnswerPosition),
+        position: localAnswerPosition,
+        type: 'answer',
+        isLocal: true,
+        isThirdParty: false,
+      };
+    }
+    const grantDetails = grantTracker.getGrantDetails(val);
+    if (grantDetails) {
+      const { location, slot } = grantDetails;
+      const { type, isLocal, position } = parseSlot(slot);
+      if (isLocal !== false) {
+        throw Error(`OCapN: Unexpected local slot for grant: ${slot}`);
+      }
+      const isThirdParty = location !== peerLocation;
+      const namedType = slotTypeToName(type);
+      return {
+        slot,
+        position,
+        type: namedType,
+        isLocal,
+        isThirdParty,
+        grantDetails,
+      };
+    }
+    const slot = ocapnTable.getSlotForValue(val);
+    if (slot !== undefined) {
+      const { type, isLocal, position } = parseSlot(slot);
+      if (!isLocal) {
+        throw Error(
+          `OCapN: Unexpected remote value without grant details: ${val}`,
+        );
+      }
+      const namedType = slotTypeToName(type);
+      return {
+        slot,
+        position,
+        type: namedType,
+        isLocal: true,
+        isThirdParty: false,
+      };
+    }
+    return undefined;
+  };
+
+  /**
+   * Deliver args against `to`: either a local export (object / promise /
+   * answer promise) or a remote reference reached after shortening.
+   *
+   * Local **answer** (`a+`) and **export** (`p+`) promises, plus local
+   * pass-style promises with no table slot yet, use
+   * {@link ReferenceKit.resolveToRemoteOrFinalLocalValue} to walk the
+   * shortening chain. Then we fork {@link HandledPromise.applyMethod} for
+   * local hosted targets vs {@link HandledPromise.applyFunction} for remote
+   * proxies.
+   *
+   * @param {any} to Deliver target from {@link DeliverTargetCodec}: local
+   *   export object, promise, or answer promise (possibly shortening to a
+   *   remote).
    * @param {any[]} args
+   * @param {boolean} forwardAsSendOnly - If true, forward the deliver as a send-only message.
    * @returns {Promise<unknown>}
    */
-  const invokeDeliver = (to, args) => {
-    // We need to resolve the target to an object or function before we can invoke it.
-    // TODO: We may be missing out on some pipelining if "to" is a local promise that resolves to a remote promise.
-    return HandledPromise.resolve(to).then(resolvedTarget => {
-      // We only apply functions to values with pass-style "remotable".
-      const passStyle = ocapnPassStyleOf(resolvedTarget);
-      if (passStyle !== 'remotable') {
+  const invokeDeliver = (to, args, forwardAsSendOnly) => {
+    try {
+      const passStyle = ocapnPassStyleOf(to);
+      if (passStyle !== 'remotable' && passStyle !== 'promise') {
         return Promise.reject(
           Error(
             `OCapN: Cannot apply functions to values with pass-style ${passStyle}`,
@@ -768,27 +846,75 @@ export const makeOcapn = (
         );
       }
 
-      // While the to-value must be local (see DeliverTargetCodec), the resolved target may be remote.
-      // We only want to apply our implementation's selector -> string method name coercion if the target is local.
-      // eslint-disable-next-line no-use-before-define
-      const { isLocal } = referenceKit.getInfoForVal(resolvedTarget);
-      const targetType = typeof resolvedTarget;
-      if (isLocal && targetType === 'object' && resolvedTarget !== null) {
-        const [methodName, ...methodArgs] = args;
-        // Coerce selector to string for method name.
-        const methodNameString =
-          typeof methodName === 'string'
-            ? methodName
-            : getSelectorName(methodName);
-        return HandledPromise.applyMethod(
-          resolvedTarget,
-          methodNameString,
-          methodArgs,
-        );
-      } else {
-        return HandledPromise.applyFunction(resolvedTarget, args);
+      /**
+       * Synchronously dispatch on a fully-shortened target.
+       *
+       * @param {any} target
+       * @returns {Promise<unknown>}
+       */
+      const dispatch = target => {
+        const targetInfo = peekDeliverTargetInfo(target);
+        const isLocal = targetInfo === undefined || targetInfo.isLocal;
+        const targetType = typeof target;
+        if (!isLocal) {
+          if (forwardAsSendOnly) {
+            return E.sendOnly(target)(args);
+          } else {
+            // return E(target)(args);
+          }
+        }
+        if (isLocal && targetType === 'object' && target !== null) {
+          const [methodName, ...methodArgs] = args;
+          const methodNameString =
+            typeof methodName === 'string'
+              ? methodName
+              : getSelectorName(methodName);
+          return HandledPromise.applyMethod(
+            target,
+            methodNameString,
+            methodArgs,
+          );
+        }
+        return HandledPromise.applyFunction(target, args);
+      };
+
+      const info = peekDeliverTargetInfo(to);
+      const isLocal = info === undefined || info.isLocal;
+      // Only local *promises* need shortening before dispatch — remote
+      // references and any non-promise target are dispatched directly.
+      if (!isLocal || passStyle !== 'promise') {
+        return dispatch(to);
       }
-    });
+
+      return new HandledPromise((resolve, reject) => {
+        // eslint-disable-next-line no-use-before-define
+        referenceKit.resolveToRemoteOrFinalLocalValue(
+          to,
+          finalTarget => {
+            try {
+              const finalPassStyle = ocapnPassStyleOf(finalTarget);
+              if (
+                finalPassStyle !== 'remotable' &&
+                finalPassStyle !== 'promise'
+              ) {
+                reject(
+                  Error(
+                    `OCapN: Cannot apply functions to values with pass-style ${finalPassStyle}`,
+                  ),
+                );
+                return;
+              }
+              resolve(dispatch(finalTarget));
+            } catch (reason) {
+              reject(reason);
+            }
+          },
+          reject,
+        );
+      });
+    } catch (reason) {
+      return Promise.reject(reason);
+    }
   };
 
   const ocapnSystemMessageHandler = {
@@ -796,7 +922,9 @@ export const makeOcapn = (
       const { to, answerPosition, args, resolveMeDesc } = message;
       logger.info(`deliver`, { to, toType: typeof to, args, answerPosition });
 
-      const deliverPromise = invokeDeliver(to, args);
+      const forwardAsSendOnly = answerPosition === false && resolveMeDesc === false;
+      const deliverPromise = invokeDeliver(to, args, forwardAsSendOnly);
+      deliverPromise.catch(sink);
       // Answer with our handled promise
       if (answerPosition !== false) {
         // eslint-disable-next-line no-use-before-define
@@ -1272,6 +1400,7 @@ export const makeOcapn = (
     sendHandoff,
     sendFlush,
     enableExperimentalFeatureFlush,
+    enableExperimentalFeatureDistributedShortening,
   );
 
   const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(referenceKit);
