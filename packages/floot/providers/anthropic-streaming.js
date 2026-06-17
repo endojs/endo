@@ -234,7 +234,10 @@ export const makeStreamingAnthropicProvider = ({
         const response = await stream.finalMessage();
         return { message: fromAnthropicMessage(response) };
       } catch (error) {
-        console.error('[floot] Anthropic streaming error:', describeError(error));
+        console.error(
+          '[floot] Anthropic streaming error:',
+          describeError(error),
+        );
         return rethrowAnthropic(error);
       }
     },

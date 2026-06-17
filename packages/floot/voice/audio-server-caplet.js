@@ -235,7 +235,13 @@ const makeTextChannel = () => {
     },
   });
 
-  return { writer, reader, setOnClose: fn => { onClose = fn; } };
+  return {
+    writer,
+    reader,
+    setOnClose: fn => {
+      onClose = fn;
+    },
+  };
 };
 
 // Pump audio frames into moonshine and stream transcript events. Each partial

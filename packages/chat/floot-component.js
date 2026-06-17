@@ -343,15 +343,21 @@ export const flootComponent = (
   `;
   $parent.appendChild($root);
 
-  const $sidebar = /** @type {HTMLElement} */ ($root.querySelector('#floot-sidebar'));
-  const $backdrop = /** @type {HTMLElement} */ ($root.querySelector('#floot-backdrop'));
+  const $sidebar = /** @type {HTMLElement} */ (
+    $root.querySelector('#floot-sidebar')
+  );
+  const $backdrop = /** @type {HTMLElement} */ (
+    $root.querySelector('#floot-backdrop')
+  );
   const $sessionList = /** @type {HTMLElement} */ (
     $root.querySelector('#floot-session-list')
   );
   const $headerTitle = /** @type {HTMLElement} */ (
     $root.querySelector('#floot-header-title')
   );
-  const $messages = /** @type {HTMLElement} */ ($root.querySelector('#floot-messages'));
+  const $messages = /** @type {HTMLElement} */ (
+    $root.querySelector('#floot-messages')
+  );
   // Sticky-bottom: follow new content only while the reader is already at the
   // bottom. The user's own scroll drives this flag, so scrolling up to read
   // history is never fought by incoming deltas; scrolling back down re-sticks.
@@ -362,20 +368,30 @@ export const flootComponent = (
       $messages.scrollHeight - $messages.scrollTop - $messages.clientHeight;
     stickToBottom = dist <= STICK_THRESHOLD_PX;
   });
-  const $status = /** @type {HTMLElement} */ ($root.querySelector('#floot-status'));
+  const $status = /** @type {HTMLElement} */ (
+    $root.querySelector('#floot-status')
+  );
   const $input = /** @type {HTMLTextAreaElement} */ (
     $root.querySelector('#floot-input')
   );
-  const $send = /** @type {HTMLButtonElement} */ ($root.querySelector('#floot-send'));
-  const $newBtn = /** @type {HTMLButtonElement} */ ($root.querySelector('#floot-new'));
-  const $menuBtn = /** @type {HTMLButtonElement} */ ($root.querySelector('#floot-menu'));
+  const $send = /** @type {HTMLButtonElement} */ (
+    $root.querySelector('#floot-send')
+  );
+  const $newBtn = /** @type {HTMLButtonElement} */ (
+    $root.querySelector('#floot-new')
+  );
+  const $menuBtn = /** @type {HTMLButtonElement} */ (
+    $root.querySelector('#floot-menu')
+  );
   const $mic = /** @type {HTMLButtonElement | null} */ (
     $root.querySelector('#floot-mic')
   );
   const $speaker = /** @type {HTMLButtonElement | null} */ (
     $root.querySelector('#floot-speaker')
   );
-  const $meter = /** @type {HTMLElement | null} */ ($root.querySelector('#floot-meter'));
+  const $meter = /** @type {HTMLElement | null} */ (
+    $root.querySelector('#floot-meter')
+  );
   const $meterFill = /** @type {HTMLElement | null} */ (
     $root.querySelector('#floot-meter-fill')
   );
@@ -605,7 +621,8 @@ export const flootComponent = (
     hideThinking();
     const $row = document.createElement('div');
     $row.className = 'floot-msg-row assistant';
-    $row.innerHTML = '<div class="floot-thinking"><span></span><span></span><span></span></div>';
+    $row.innerHTML =
+      '<div class="floot-thinking"><span></span><span></span><span></span></div>';
     $messages.appendChild($row);
     $thinkingRow = $row;
     scrollToBottom();
@@ -1393,8 +1410,7 @@ export const flootComponent = (
     if (!speaking) {
       if (vol < speechThreshold) {
         // Drift the noise floor toward the ambient level while quiet.
-        noiseFloor =
-          (1 - VAD.EMA_ALPHA) * noiseFloor + VAD.EMA_ALPHA * vol;
+        noiseFloor = (1 - VAD.EMA_ALPHA) * noiseFloor + VAD.EMA_ALPHA * vol;
       }
       // While the assistant is replying require a louder onset (barge-in).
       const onsetThreshold = busy ? bargeThreshold : speechThreshold;

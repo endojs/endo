@@ -35,7 +35,16 @@ import { readFileSync } from 'node:fs';
 // ── Minimal sentence chunker (plain JS port of sentence-chunker.ts) ──────────
 const MIN_CHUNK_LENGTH = 10;
 const ABBREVIATIONS = new Set([
-  'St', 'Dr', 'Mr', 'Mrs', 'Ms', 'Prof', 'vs', 'etc', 'Jr', 'Sr',
+  'St',
+  'Dr',
+  'Mr',
+  'Mrs',
+  'Ms',
+  'Prof',
+  'vs',
+  'etc',
+  'Jr',
+  'Sr',
 ]);
 
 // Strip the markdown that would otherwise be read aloud as punctuation noise.
@@ -195,7 +204,13 @@ const makePiper = ({ binary, modelPath, speed, sampleRate }) => {
       // length-scale stretches phoneme duration, so speed is its inverse.
       const child = spawn(
         binary,
-        ['--model', modelPath, '--output-raw', '--length-scale', String(1 / speed)],
+        [
+          '--model',
+          modelPath,
+          '--output-raw',
+          '--length-scale',
+          String(1 / speed),
+        ],
         { stdio: ['pipe', 'pipe', 'ignore'] },
       );
       active.add(child);
@@ -307,7 +322,9 @@ export const make = async (_powers, _context, { env = {} } = {}) => {
   const config = JSON.parse(readFileSync(`${modelPath}.json`, 'utf-8'));
   const sampleRate = config?.audio?.sample_rate;
   if (typeof sampleRate !== 'number' || sampleRate <= 0) {
-    throw new Error(`piper voice config ${modelPath}.json missing audio.sample_rate`);
+    throw new Error(
+      `piper voice config ${modelPath}.json missing audio.sample_rate`,
+    );
   }
 
   return Far('TtsServer', {

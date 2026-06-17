@@ -89,7 +89,9 @@ export const voiceComponent = (
   const $status = /** @type {HTMLElement} */ (
     $root.querySelector('#voice-status')
   );
-  const $stage = /** @type {HTMLElement} */ ($root.querySelector('#voice-stage'));
+  const $stage = /** @type {HTMLElement} */ (
+    $root.querySelector('#voice-stage')
+  );
   const $record = /** @type {HTMLButtonElement} */ (
     $root.querySelector('#voice-record')
   );
@@ -126,7 +128,10 @@ export const voiceComponent = (
   // trailing fragment is the live current line. On the final event the tail is
   // committed too.
   const SENTENCE_BOUNDARY = /[.!?…]+["'”’)\]]*(?=\s)/;
-  const renderFromFull = (/** @type {string} */ full, /** @type {boolean} */ isFinal) => {
+  const renderFromFull = (
+    /** @type {string} */ full,
+    /** @type {boolean} */ isFinal,
+  ) => {
     const complete = [];
     let rest = full;
     for (;;) {
@@ -262,7 +267,11 @@ export const voiceComponent = (
       for (let j = start; j < end; j += 1) sum += input[j];
       const sample = end > start ? sum / (end - start) : 0;
       const clamped = Math.max(-1, Math.min(1, sample));
-      view.setInt16(i * 2, clamped < 0 ? clamped * 32_768 : clamped * 32_767, true);
+      view.setInt16(
+        i * 2,
+        clamped < 0 ? clamped * 32_768 : clamped * 32_767,
+        true,
+      );
     }
     return bytes;
   };
