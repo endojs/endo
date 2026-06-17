@@ -3,7 +3,7 @@ import test from '@endo/ses-ava/test.js';
 import {
   isBufferImmutable,
   sliceBufferToImmutable,
-} from '../src/immutable-arraybuffer-pony.js';
+} from '../src/immutable-arraybuffer-pony-unsafe.js';
 
 const { isFrozen, getPrototypeOf } = Object;
 
