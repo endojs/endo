@@ -190,13 +190,13 @@ jobs:
 
       # end macro
 
-      - name: Run yarn build
-        working-directory: ${{ env.WORKDIR }}
-        run: yarn build
-
       # Use turbo's `--filter='...[origin/llm]'` to test only the packages
-      # affected by this PR (and their dependents) rather than the full matrix.
-      # The base `origin/llm` is the repo's default branch on this fork.
+      # affected by this PR and their dependents (the leading `...` selects the
+      # changed set plus everything that depends on it), rather than the full
+      # matrix. The base `origin/llm` is the repo's default branch on this fork.
+      # The `test` task `dependsOn` `build` and `^build`, so turbo builds only
+      # the affected closure on demand; a separate full `yarn build` step would
+      # rebuild all ~83 packages and is therefore omitted.
       - name: Run yarn test (affected set)
         working-directory: ${{ env.WORKDIR }}
         run: yarn turbo run test --filter='...[origin/llm]'
@@ -321,6 +321,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          # Fetch full history so turbo can compute the affected set against
+          # `origin/llm` for the `--filter='...[origin/llm]'` invocation below.
+          fetch-depth: 0
           persist-credentials: false
 
       # without this, setup-node errors on mismatched yarn versions
@@ -337,11 +340,12 @@ jobs:
 
       # end macro
 
-      - name: Run yarn build
-        run: yarn build
-
-      - name: Run yarn test:c8
-        run: yarn test:c8
+      # As with the `test` job, scope coverage to the affected packages and
+      # their dependents. The `test:c8` turbo task `dependsOn` `build` and
+      # `^build`, so turbo builds only the affected closure on demand; a
+      # separate full `yarn build` step is therefore omitted.
+      - name: Run yarn test:c8 (affected set)
+        run: yarn turbo run test:c8 --filter='...[origin/llm]'
 
   test262:
     name: test262
