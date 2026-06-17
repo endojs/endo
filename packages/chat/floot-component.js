@@ -221,7 +221,10 @@ export const flootComponent = (
         align-items: center; justify-content: center; }
       .floot-menu-btn:hover { color: var(--fl-text); background: var(--fl-surface2); }
       .floot-header-title { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 600;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; }
+      .floot-header-title-input { flex: 1; min-width: 0; font: inherit; font-weight: 600;
+        color: var(--fl-text); background: var(--fl-surface); border: 1px solid var(--fl-border);
+        border-radius: 6px; padding: 2px 6px; }
 
       .floot-messages { flex: 1; min-height: 0; overflow-y: auto;
         padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;
@@ -397,6 +400,11 @@ export const flootComponent = (
   const $headerTitle = /** @type {HTMLElement} */ (
     $root.querySelector('#floot-header-title')
   );
+  $headerTitle.title = 'Double-click to rename';
+  $headerTitle.addEventListener('dblclick', () => {
+    const session = getActiveSession();
+    if (session) startHeaderRename(session);
+  });
   const $messages = /** @type {HTMLElement} */ (
     $root.querySelector('#floot-messages')
   );
@@ -576,6 +584,43 @@ export const flootComponent = (
     $field.addEventListener('blur', commit);
     // Clicks inside the editing field shouldn't select the session.
     $field.addEventListener('click', e => e.stopPropagation());
+  };
+
+  // Rename the active session inline from the header title.
+  const startHeaderRename = (/** @type {FlootSession} */ session) => {
+    const $field = document.createElement('input');
+    $field.type = 'text';
+    $field.className = 'floot-header-title-input';
+    $field.value = session.title === DEFAULT_TITLE ? '' : session.title;
+    $field.placeholder = DEFAULT_TITLE;
+    $headerTitle.replaceWith($field);
+    $field.focus();
+    $field.select();
+
+    let done = false;
+    const finish = (/** @type {boolean} */ save) => {
+      if (done) return;
+      done = true;
+      if (save) {
+        session.title = $field.value.trim() || DEFAULT_TITLE;
+        E(factory)
+          .renameSession(session.id, session.title)
+          .catch(() => {});
+        renderSidebar();
+      }
+      $field.replaceWith($headerTitle);
+      renderHeader();
+    };
+    $field.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        finish(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        finish(false);
+      }
+    });
+    $field.addEventListener('blur', () => finish(true));
   };
 
   const renderHeader = () => {
