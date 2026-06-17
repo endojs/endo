@@ -97,6 +97,10 @@ body {
   color: var(--text-primary);
   background: var(--bg-primary);
   height: 100vh;
+  /* On mobile, 100vh is the *large* viewport (chrome retracted); when the
+     top chrome is visible the body extends past the visible area and its top
+     becomes unreachable. The dynamic viewport unit tracks the visible area. */
+  height: 100dvh;
   overflow: hidden;
   margin: 0;
   padding: 0;
@@ -9132,6 +9136,7 @@ button.btn-spinner::after {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   width: 100%;
   background: var(--bg-primary);
   color: var(--text-primary);
