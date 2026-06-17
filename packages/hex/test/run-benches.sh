@@ -2,7 +2,7 @@
 # Multi-engine bench runner for @endo/hex.
 #
 # Bundles `test/encode.bench.js` and `test/decode.bench.js` (each as a
-# self-contained IIFE that pulls in @endo/xorshift and the local
+# self-contained IIFE bundling its keystream source and the local
 # polyfill via rollup), then runs each bundle on every engine eshost
 # knows about (typically xs and v8 — see `packages/benchmark/`).
 #

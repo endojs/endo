@@ -1,5 +1,38 @@
 # @endo/eslint-plugin
 
+## 2.6.0
+
+### Minor Changes
+
+- [#3263](https://github.com/endojs/endo/pull/3263) [`c423ed3`](https://github.com/endojs/endo/commit/c423ed37b4c574aaccd778fc72acb2ff8910d586) Thanks [@kriskowal](https://github.com/kriskowal)! - The `internal` preset now enforces `unicorn/numeric-separators-style` with
+  default groupings: decimal numbers of five or more digits must use underscore
+  separators every three digits, and hexadecimal, binary, and octal literals must
+  use the rule's conventional group lengths.
+  Consumers of `plugin:@endo/internal` will see lint errors on numeric literals
+  that violate the rule; `eslint --fix` rewrites them automatically.
+  Sites extending the preset must add `eslint-plugin-unicorn` to their devDeps.
+
+- [#3277](https://github.com/endojs/endo/pull/3277) [`da632a2`](https://github.com/endojs/endo/commit/da632a20788a17c1e80c6fee8071ca78a52be9c4) Thanks [@kriskowal](https://github.com/kriskowal)! - The `@endo/harden-exports` rule now skips named exports whose initializer is
+  a Pattern maker call of the form `M.something(...)`.
+  Pattern makers return values that are already hardened, so a follow-up
+  `harden(name)` after their export is redundant noise.
+
+  A new companion rule, `@endo/no-harden-pattern-maker`, surfaces existing
+  sites where code over-hardens a Pattern maker result.
+  The rule fires on both `harden(M.string())` and the indirect form
+  `const x = M.string(); harden(x);`, and is included in the recommended
+  configuration as a warning so existing code doesn't break loudly while
+  the redundant calls are cleaned up.
+
+### Patch Changes
+
+- [#3292](https://github.com/endojs/endo/pull/3292) [`62d1b0a`](https://github.com/endojs/endo/commit/62d1b0acafa2a865e37f4efc3b3a08aaed2e96df) Thanks [@turadg](https://github.com/turadg)! - Declare `@typescript-eslint/*` and `typescript-eslint` as caret ranges
+  (`^8.39.1`) rather than exact pins, so consumers can dedupe them against
+  their own typescript-eslint versions instead of being forced onto a
+  single release. Also drop the redundant `parserOptions.project` from the
+  internal config: typescript-eslint 8.60 errors when `project` is set
+  alongside `projectService`, which now supplies the type-aware program.
+
 ## 2.5.0
 
 ### Minor Changes

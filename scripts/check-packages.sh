@@ -19,7 +19,7 @@ function assert() {
   fi
 }
 
-for JSON in $(find packages -depth 2 -name 'package.json'); do
+while IFS= read -r JSON; do
   PKG=$(dirname "$JSON")
   if [ "$(jq .private "$JSON")" != true ]; then
     NAME=$(jq -r '.name | split("/") | last' "$JSON")
@@ -65,11 +65,11 @@ for JSON in $(find packages -depth 2 -name 'package.json'); do
       EXIT=1
     fi
 
-    if ! diff "$(dirname $JSON)/rollup.config.js" packages/ses/rollup.config.js; then
+    if ! diff "$(dirname "$JSON")/rollup.config.js" packages/ses/rollup.config.js; then
       echo "$PKG: ensure rollup.config.js is in sync with packages/ses/rollup.config.js"
       EXIT=1
     fi
   fi
-done
+done < <(find packages -depth 2 -name 'package.json')
 
 exit "$EXIT"

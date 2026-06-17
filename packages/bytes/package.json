@@ -1,6 +1,6 @@
 {
   "name": "@endo/bytes",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Portable Uint8Array helpers for cross-realm byte handling",
   "keywords": [
     "uint8array",

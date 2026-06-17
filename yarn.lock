@@ -1422,6 +1422,43 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/chacha12-fast-check-test@workspace:packages/chacha12-fast-check-test":
+  version: 0.0.0-use.local
+  resolution: "@endo/chacha12-fast-check-test@workspace:packages/chacha12-fast-check-test"
+  dependencies:
+    "@endo/chacha12": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    fast-check: "npm:^4.0.0"
+    prettier: "npm:^3.5.3"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/chacha12@workspace:^, @endo/chacha12@workspace:packages/chacha12":
+  version: 0.0.0-use.local
+  resolution: "@endo/chacha12@workspace:packages/chacha12"
+  dependencies:
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    babel-eslint: "npm:^10.1.0"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    prettier: "npm:^3.5.3"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/chat-network-view@workspace:^, @endo/chat-network-view@workspace:packages/chat-network-view":
   version: 0.0.0-use.local
   resolution: "@endo/chat-network-view@workspace:packages/chat-network-view"
@@ -1792,6 +1829,8 @@ __metadata:
     "@babel/traverse": "npm:~7.29.0"
     "@babel/types": "npm:~7.29.0"
     "@endo/ses-ava": "workspace:^"
+    "@types/babel__generator": "npm:~7.27.0"
+    "@types/babel__traverse": "npm:~7.28.0"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
@@ -2087,7 +2126,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/hex@workspace:packages/hex"
   dependencies:
+    "@endo/chacha12": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/random": "workspace:^"
     babel-eslint: "npm:^10.1.0"
     eslint: "catalog:dev"
     prettier: "npm:^3.5.3"
@@ -2290,8 +2331,10 @@ __metadata:
     "@babel/traverse": "npm:~7.29.0"
     "@babel/types": "npm:~7.29.0"
     "@endo/ses-ava": "workspace:^"
+    "@types/babel__generator": "npm:~7.27.0"
+    "@types/babel__traverse": "npm:~7.28.0"
+    "@types/node": "npm:^20.19.41"
     ava: "catalog:dev"
-    babel-eslint: "npm:^10.1.0"
     benchmark: "npm:^2.1.4"
     c8: "catalog:dev"
     eslint: "catalog:dev"
@@ -2363,6 +2406,7 @@ __metadata:
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
     "@endo/bytes": "workspace:^"
+    "@endo/chacha12": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/hex": "workspace:^"
@@ -2372,6 +2416,7 @@ __metadata:
     "@endo/nat": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
+    "@endo/random": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
     "@endo/syrup-frame": "workspace:^"
@@ -2496,6 +2541,25 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/random@workspace:^, @endo/random@workspace:packages/random":
+  version: 0.0.0-use.local
+  resolution: "@endo/random@workspace:packages/random"
+  dependencies:
+    "@endo/chacha12": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    babel-eslint: "npm:^10.1.0"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    prettier: "npm:^3.5.3"
+    ses: "workspace:^"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -5193,6 +5257,48 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@pnpm/catalogs.config@npm:^1100.0.0":
+  version: 1100.0.0
+  resolution: "@pnpm/catalogs.config@npm:1100.0.0"
+  dependencies:
+    "@pnpm/error": "npm:1100.0.0"
+  checksum: 10c0/638c7fcf1a0e9144dee2ab7b4f8c1727e8fce258f2b0143fe4a22399bb2a61f229673800dc4501e2942cce5f6f78a7d9445c1882c5341e7b6eb4653da6712fd4
+  languageName: node
+  linkType: hard
+
+"@pnpm/catalogs.protocol-parser@npm:^1100.0.0":
+  version: 1100.0.0
+  resolution: "@pnpm/catalogs.protocol-parser@npm:1100.0.0"
+  checksum: 10c0/556b3386202df398b1191cb61698b14235142e9388b44a87ed48e535657868612e3310af12cdd31e7f738051a046ba2e6ce044403ac4b8c97a9d6280d2eef825
+  languageName: node
+  linkType: hard
+
+"@pnpm/catalogs.resolver@npm:^1100.0.0":
+  version: 1100.0.0
+  resolution: "@pnpm/catalogs.resolver@npm:1100.0.0"
+  dependencies:
+    "@pnpm/catalogs.protocol-parser": "npm:^1100.0.0"
+    "@pnpm/error": "npm:^1100.0.0"
+  checksum: 10c0/df4b33de640558b895470306ee95eec3b77e09c48c37a47f04417a2b63f943f2e00c7b7e705ea84dcf2aef10d7542e35211319d23f331080559299e0624e3361
+  languageName: node
+  linkType: hard
+
+"@pnpm/constants@npm:1100.0.0":
+  version: 1100.0.0
+  resolution: "@pnpm/constants@npm:1100.0.0"
+  checksum: 10c0/38d03aacfc5f55abc1331e09b84f2f1d0c8f0dd097f3e6624594769922374e970fc1728dc6e001c8abf0215ac4e9cfd5b4ab3ac0ff96abd161482ef48988f959
+  languageName: node
+  linkType: hard
+
+"@pnpm/error@npm:1100.0.0, @pnpm/error@npm:^1100.0.0":
+  version: 1100.0.0
+  resolution: "@pnpm/error@npm:1100.0.0"
+  dependencies:
+    "@pnpm/constants": "npm:1100.0.0"
+  checksum: 10c0/5a0518a0ca59f322522ab67848bc56e7c9a81fa65060b01b5af972f5d236d4f1c335081cbc604b01b7ce99588bff1b8c0a8405220ddba3f12940cff3c0f46ec5
+  languageName: node
+  linkType: hard
+
 "@protobufjs/aspromise@npm:^1.1.1, @protobufjs/aspromise@npm:^1.1.2":
   version: 1.1.2
   resolution: "@protobufjs/aspromise@npm:1.1.2"
@@ -5896,7 +6002,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/babel__generator@npm:*":
+"@types/babel__generator@npm:*, @types/babel__generator@npm:~7.27.0":
   version: 7.27.0
   resolution: "@types/babel__generator@npm:7.27.0"
   dependencies:
@@ -5915,7 +6021,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/babel__traverse@npm:*":
+"@types/babel__traverse@npm:*, @types/babel__traverse@npm:~7.28.0":
   version: 7.28.0
   resolution: "@types/babel__traverse@npm:7.28.0"
   dependencies:
@@ -6068,6 +6174,15 @@ __metadata:
   dependencies:
     undici-types: "npm:~5.26.4"
   checksum: 10c0/22ba2bc9f8863101a7e90a56aaeba1eb3ebdc51e847cef4a6d188967ab1acbce9b4f92251372fd0329ecb924bbf610509e122c3dfe346c04dbad04013d4ad7d0
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^20.19.41":
+  version: 20.19.43
+  resolution: "@types/node@npm:20.19.43"
+  dependencies:
+    undici-types: "npm:~6.21.0"
+  checksum: 10c0/9bcec3b5295bdd77ff0b44a528a69f7e22028c347507ba2c69be47ec84e30299f45043b222e9c86c510e138c9c53b2419dd5cd34920602a4a5a381c288075318
   languageName: node
   linkType: hard
 
@@ -10101,7 +10216,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-check@npm:^3.0.0 || ^4.0.0":
+"fast-check@npm:^3.0.0 || ^4.0.0, fast-check@npm:^4.0.0":
   version: 4.8.0
   resolution: "fast-check@npm:4.8.0"
   dependencies:
@@ -16667,11 +16782,11 @@ __metadata:
     lerna: "npm:^8.2.4"
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
-    source-map: "npm:^0.7.4"
-    ts-node-pack: "npm:^0.3.2"
-    tsd: "npm:^0.33.0"
+    source-map: "npm:^0.7.6"
+    ts-node-pack: "npm:^0.3.5"
+    tsd: "catalog:dev"
     turbo: "npm:^2.9.10"
-    type-coverage: "npm:^2.29.1"
+    type-coverage: "npm:^2.29.7"
     typedoc: "npm:^0.28.19"
     typedoc-plugin-mermaid: "npm:^1.12.0"
     typescript: "catalog:dev"
@@ -17259,7 +17374,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"source-map@npm:^0.7.4":
+"source-map@npm:^0.7.6":
   version: 0.7.6
   resolution: "source-map@npm:0.7.6"
   checksum: 10c0/59f6f05538539b274ba771d2e9e32f6c65451982510564438e048bc1352f019c6efcdc6dd07909b1968144941c14015c2c7d4369fb7c4d7d53ae769716dcc16c
@@ -18031,15 +18146,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-node-pack@npm:^0.3.2":
-  version: 0.3.3
-  resolution: "ts-node-pack@npm:0.3.3"
+"ts-node-pack@npm:^0.3.5":
+  version: 0.3.5
+  resolution: "ts-node-pack@npm:0.3.5"
   dependencies:
+    "@pnpm/catalogs.config": "npm:^1100.0.0"
+    "@pnpm/catalogs.resolver": "npm:^1100.0.0"
     amaro: "npm:^0.3.2"
     npm-packlist: "npm:^10.0.4"
+    yaml: "npm:^2.9.0"
   bin:
     ts-node-pack: src/cli.js
-  checksum: 10c0/4b7459fe57d68327a61074ff89de27858df31b10b1e82925bfb23638effaaaf5bfe5b398d5e74e1656f210a5e229253d2b4cfe3ed8483bef58f35b13f61a61ac
+  checksum: 10c0/aa42da5710ca241924465de0d95f2c5843872b34099f91b67c00c467e2162b0dc01e3edbab240873832c43e1ccaa4b1ae6597c9b27fcfe496f5b64447959f735
   languageName: node
   linkType: hard
 
@@ -18197,7 +18315,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"type-coverage@npm:^2.29.1":
+"type-coverage@npm:^2.29.7":
   version: 2.29.7
   resolution: "type-coverage@npm:2.29.7"
   dependencies:
@@ -18499,6 +18617,13 @@ __metadata:
   version: 6.19.8
   resolution: "undici-types@npm:6.19.8"
   checksum: 10c0/078afa5990fba110f6824823ace86073b4638f1d5112ee26e790155f481f2a868cc3e0615505b6f4282bdf74a3d8caad715fd809e870c2bb0704e3ea6082f344
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~6.21.0":
+  version: 6.21.0
+  resolution: "undici-types@npm:6.21.0"
+  checksum: 10c0/c01ed51829b10aa72fc3ce64b747f8e74ae9b60eafa19a7b46ef624403508a54c526ffab06a14a26b3120d055e1104d7abe7c9017e83ced038ea5cf52f8d5e04
   languageName: node
   linkType: hard
 
@@ -19341,7 +19466,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yaml@npm:2.9.0":
+"yaml@npm:2.9.0, yaml@npm:^2.9.0":
   version: 2.9.0
   resolution: "yaml@npm:2.9.0"
   bin:

@@ -12,11 +12,9 @@
 //   xst test/decode.bench.js                  (XS direct, ESM)
 //   ./test/run-benches.sh                      (rolls up + eshost)
 
+import { makeChaCha12 } from '@endo/chacha12';
+import { bobsCoffee32 } from '@endo/random/seeds.js';
 import { jsDecodeHex as shippedDecode } from '../src/decode.js';
-// `_xorshift.js` is a copy of `packages/ocapn/test/_xorshift.js`; if
-// either is updated, the other should be kept in sync, and ideally we
-// should factor the PRNG out into a shared test helper.
-import { XorShift } from './_xorshift.js';
 
 const hexAlphabet = '0123456789abcdef';
 
@@ -187,16 +185,13 @@ const pairMapTableDecode = (string, name = '<unknown>') => {
 // input, worst-case throw path).
 const tableDecode = arrayTableDecode;
 
-// Deterministic PRNG, same seed shape as other Endo fuzz tests.
-// eslint-disable-next-line unicorn/numeric-separators-style -- mnemonic seed (BOBSCOFF EEFACADE)
-const defaultSeed = [0xb0b5c0ff, 0xeefacade, 0xb0b5c0ff, 0xeefacade];
+// Deterministic PRNG: shared default seed across the hex/ocapn fuzz
+// suites; see `@endo/random/seeds.js`.
 const makeBytes = size => {
-  const bytes = new Uint8Array(size);
-  const prng = new XorShift(defaultSeed);
-  for (let i = 0; i < size; i += 1) {
-    bytes[i] = Math.floor(prng.random() * 256);
-  }
-  return bytes;
+  const { fillRandomBytes } = makeChaCha12(bobsCoffee32);
+  const out = new Uint8Array(size);
+  fillRandomBytes(out);
+  return out;
 };
 
 const encode = bytes => {
