@@ -3191,6 +3191,7 @@ const makeDaemonCore = async (
             lookup: disallowedFn,
             maybeLookup: disallowedSyncFn,
             lookupById: disallowedFn,
+            lookupByLocator: disallowedFn,
             reverseLookup: disallowedFn,
             storeIdentifier: disallowedFn,
             storeLocator: disallowedFn,

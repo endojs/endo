@@ -26,7 +26,11 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { addressesFromLocator, formatLocator } from './locator.js';
+import {
+  addressesFromLocator,
+  formatLocator,
+  idFromLocator,
+} from './locator.js';
 import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
@@ -1522,6 +1526,15 @@ export const makeHostMaker = ({
      */
     const lookupById = async id => provide(id);
 
+    /**
+     * Look up a value by an `endo://` locator. Mail attachments are delivered
+     * as locators (the portable, cross-node form), so this is what callers use
+     * to resolve an attachment reference.
+     * @param {string} locator - An `endo://` locator.
+     * @returns {Promise<unknown>} The value.
+     */
+    const lookupByLocator = async locator => provide(idFromLocator(locator));
+
     /** @type {EndoHost['endow']} */
     const endow = async (messageNumber, bindings, workerName, resultName) => {
       if (workerName !== undefined) {
@@ -1611,6 +1624,7 @@ export const makeHostMaker = ({
       identify,
       reverseIdentify,
       lookupById,
+      lookupByLocator,
       locate,
       reverseLocate,
       list,

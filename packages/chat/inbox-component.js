@@ -17,6 +17,7 @@ import {
   relativeTime,
 } from './time-formatters.js';
 import { render as renderValue } from './value-render.js';
+import { idFromLocator } from './locator.js';
 
 /**
  * Compare two locator URLs by identity (node + id), ignoring address
@@ -371,13 +372,23 @@ export const inboxComponent = async (
         };
 
         const openValue = async () => {
-          const valueId = message.ids?.[index];
-          if (!valueId) {
+          const valueLocator = message.ids?.[index];
+          if (!valueLocator) {
             $error.innerText = ' Value not available';
             return;
           }
           try {
-            const value = await E(powers).lookupById(valueId);
+            // message.ids are delivered as endo:// locators, not bare ids.
+            const value = await E(powers).lookupByLocator(valueLocator);
+            // showValue's id arg feeds reverseIdentify, which expects a bare
+            // formula id; derive it from the locator for name display.
+            /** @type {string} */
+            let valueId = valueLocator;
+            try {
+              valueId = idFromLocator(valueLocator);
+            } catch {
+              // Leave as the locator if it can't be parsed.
+            }
             // Pass message context for title display
             showValue(value, valueId, undefined, { number, edgeName });
           } catch (error) {

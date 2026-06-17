@@ -21,6 +21,7 @@ import { peersComponent } from './peers-component.js';
 import { fileExplorerComponent } from './file-explorer-component.js';
 import { createShareModal } from './share-modal.js';
 import { microblogComponent } from './microblog-component.js';
+import { idFromLocator } from './locator.js';
 
 const template = `
 <div id="spaces-gutter"></div>
@@ -473,18 +474,29 @@ const bodyComponent = (
       /** @type {unknown} */
       let currentChannelRef = null;
 
-      // Wrap showValue so channel token clicks resolve the value
-      // via lookupById before displaying, matching inbox behavior.
+      // Wrap showValue so channel token clicks resolve the value via
+      // lookupByLocator before displaying, matching inbox behavior. Channel
+      // attachments are delivered as endo:// locators, not bare ids.
       const channelShowValue = async (
         /** @type {unknown} */ value,
-        /** @type {string | undefined} */ id,
+        /** @type {string | undefined} */ locator,
         /** @type {string[] | undefined} */ petNamePath,
       ) => {
-        if (value === undefined && id) {
+        // showValue's id arg feeds reverseIdentify, which expects a bare
+        // formula id; derive it from the locator for name display.
+        let id = locator;
+        if (locator) {
+          try {
+            id = idFromLocator(locator);
+          } catch {
+            // Leave id as the locator if it can't be parsed.
+          }
+        }
+        if (value === undefined && locator) {
           try {
             const resolved = await E(
               /** @type {ERef<EndoHost>} */ (resolvedPowers),
-            ).lookupById(id);
+            ).lookupByLocator(locator);
             showValue(resolved, id, petNamePath);
           } catch {
             // Fall back to showing with undefined value

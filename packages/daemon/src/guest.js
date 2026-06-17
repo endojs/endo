@@ -13,6 +13,7 @@ import {
   namePathFrom,
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
+import { idFromLocator } from './locator.js';
 
 /** @import { Context, DaemonCore, DeferredTasks, EndoGuest, EvalDeferredTaskParams, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, NamesOrPaths, Provide, ReadableBlobDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 import { GuestInterface } from './interfaces.js';
@@ -146,6 +147,15 @@ export const makeGuestMaker = ({
      */
     const lookupById = async id =>
       provide(/** @type {FormulaIdentifier} */ (id));
+
+    /**
+     * Look up a value by an `endo://` locator. Mail attachments are delivered
+     * as locators (the portable, cross-node form), so this is what callers use
+     * to resolve an attachment reference.
+     * @param {string} locator - An `endo://` locator.
+     * @returns {Promise<unknown>} The value for the given locator.
+     */
+    const lookupByLocator = async locator => provide(idFromLocator(locator));
     const {
       listMessages,
       followMessages,
@@ -328,6 +338,7 @@ export const makeGuestMaker = ({
       lookup,
       maybeLookup,
       lookupById,
+      lookupByLocator,
       reverseLookup,
       storeIdentifier: directoryStoreIdentifier,
       storeLocator: directoryStoreLocator,

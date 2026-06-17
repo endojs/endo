@@ -1262,6 +1262,11 @@ export interface EndoAgent extends EndoDirectory {
    * @returns The value for the given formula identifier.
    */
   lookupById(id: string): Promise<unknown>;
+  /**
+   * @param locator The `endo://` locator to look up.
+   * @returns The value for the given locator.
+   */
+  lookupByLocator(locator: string): Promise<unknown>;
 }
 
 export interface EndoGuest extends EndoAgent {
