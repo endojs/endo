@@ -31,6 +31,8 @@ import {
   makeLookupTool,
   makeStoreTool,
   makeRemoveTool,
+  makeListMessagesTool,
+  makeAdoptTool,
 } from '@endo/fae/src/tool-makers.js';
 
 import { createStreamingProvider } from './providers/index.js';
@@ -161,6 +163,11 @@ export const makeStreamingAgent = async (
   localTools.set('lookup', makeLookupTool(powers));
   localTools.set('store', makeStoreTool(powers));
   localTools.set('remove', makeRemoveTool(powers));
+  // Mail: discover incoming messages and adopt objects attached to them into
+  // this session's petstore. adopt needs a message number + edge name, which
+  // listMessages surfaces.
+  localTools.set('listMessages', makeListMessagesTool(powers));
+  localTools.set('adopt', makeAdoptTool(powers));
 
   // One session = one guest = one linear conversation. The guest's petstore
   // holds a single conversation-tree root (the system prompt) and a linear
