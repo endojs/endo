@@ -1,18 +1,21 @@
 # `@endo/immutable-arraybuffer`
 
-This `@endo/immutable-arraybuffer` package provides both a ponyfill and a shim for a proposed new JavaScript feature: *Immutable ArrayBuffers*.
-- A ponyfill just defines and exports new things without modifying old things. The `index.js` file implements the ponyfill, providing the exports of the unqualified `@endo/immutable-arraybuffer` package.
-- A shim modifies the existing JavaScript primordials as needed to most closely emulate the feature as proposed. The `shim.js` file uses the exports from `index.js` to modify `ArrayBuffer.prototype` to resemble the API being proposed. Importing `@endo/immutable-arraybuffer/shim.js` will cause these changes.
+This `@endo/immutable-arraybuffer` package provides a shim for a proposed new JavaScript feature: *Immutable ArrayBuffers*.
+A shim modifies the existing JavaScript primordials as needed to most closely emulate the feature as proposed.
+Importing `@endo/immutable-arraybuffer/shim.js` will cause these changes.
 
 Below, we use the term "buffer" to refer informally to an instance of an `ArrayBuffer`, whether immutable or not.
 
 ## Background
 
-Prior proposals [In-Place Resizable and Growable `ArrayBuffer`s](https://github.com/tc39/proposal-resizablearraybuffer) and [ArrayBuffer.prototype.transfer and friends](https://github.com/tc39/proposal-arraybuffer-transfer) have both reached stage 4, and so are now an official part of JavaScript. Altogether, `ArrayBuffer.prototype` now has the following methods:
-- `transfer(newByteLength?: number) :ArrayBuffer` -- move the contents of the original buffer to a new buffer, detach the original buffer, and return the new buffer. The new buffer will be as resizable as the original was.
+Prior proposals [In-Place Resizable and Growable `ArrayBuffer`s](https://github.com/tc39/proposal-resizablearraybuffer) and [ArrayBuffer.prototype.transfer and friends](https://github.com/tc39/proposal-arraybuffer-transfer) have both reached stage 4, and so are now an official part of JavaScript.
+Altogether, `ArrayBuffer.prototype` now has the following methods:
+- `transfer(newByteLength?: number) :ArrayBuffer` -- move the contents of the original buffer to a new buffer, detach the original buffer, and return the new buffer.
+The new buffer will be as resizable as the original was.
 - `transferToFixedLength(newByteLength?: number) :ArrayBuffer` -- like `transfer` but the new buffer is not resizable.
 - `resize(newByteLength: number) :void` -- change the size of this buffer if possible, or throw otherwise.
-- `slice(start?: number, end?: number) :ArrayBuffer` -- Return a new buffer whose initial contents are a copy of that region of the original buffer. The original buffer is unmodified.
+- `slice(start?: number, end?: number) :ArrayBuffer` -- Return a new buffer whose initial contents are a copy of that region of the original buffer.
+The original buffer is unmodified.
 
 and the following read-only accessor properties
 - `detached: boolean` -- is this buffer detached, or are its contents still available from this buffer object?
@@ -20,56 +23,122 @@ and the following read-only accessor properties
 - `byteLength: number` -- how big are the current contents of this buffer?
 - `maxByteLength: number` -- how big could this buffer be resized to be?
 
-None of the operations above enable the creation of an immutable buffer, i.e., a non-detached buffer whose contents cannot be changed, resized, or detached.
+None of the operations above enable the creation of an immutable buffer, that is, a non-detached buffer whose contents cannot be changed, resized, or detached.
 
-Both a `DataView` object and a `TypedArray` object are views into a buffer backing store. For a `TypedArray` object, the contents of the backing store appear as indexed data properties of the `TypeArray` object that reflect the current contents of this backing store. Currently, because there is no way to prevent the contents of the backing store from being changed, `TypedArray`s cannot be frozen.
+Both a `DataView` object and a `TypedArray` object are views into a buffer backing store.
+For a `TypedArray` object, the contents of the backing store appear as indexed data properties of the `TypeArray` object that reflect the current contents of this backing store.
+Currently, because there is no way to prevent the contents of the backing store from being changed, `TypedArray`s cannot be frozen.
 
-Some JavaScript implementations, like Moddable XS, bring JavaScript to embedded systems, like device controllers, where ROM is much more plentiful and cheaper than RAM. These systems need to place voluminous fixed data into ROM, and currently do so using semantics outside the official JavaScript standard.
+Some JavaScript implementations, like Moddable XS, bring JavaScript to embedded systems, like device controllers, where ROM is much more plentiful and cheaper than RAM.
+These systems need to place voluminous fixed data into ROM, and currently do so using semantics outside the official JavaScript standard.
 
-The [OCapN](https://ocapn.org/) network protocol treats strings and byte-arrays as distinct forms of bulk data to be transmitted by copy. At JavaScript endpoints speaking OCapN such as `@endo/pass-style` + `@endo/marshal`, JavaScript strings represent OCapN strings. The immutability of strings in the JavaScript language reflects their by-copy nature in the protocol. Likewise, to reflect an OCapN byte-array well into the JavaScript language, we need an immutable container of bulk binary data. There currently are none. An Immutable `ArrayBuffer` would provide exactly the low-level machinery we need.
+The [OCapN](https://ocapn.org/) network protocol treats strings and byte-arrays as distinct forms of bulk data to be transmitted by copy.
+At JavaScript endpoints speaking OCapN such as `@endo/pass-style` + `@endo/marshal`, JavaScript strings represent OCapN strings.
+The immutability of strings in the JavaScript language reflects their by-copy nature in the protocol.
+Likewise, to reflect an OCapN byte-array well into the JavaScript language, we need an immutable container of bulk binary data.
+There currently are none.
+A frozen `Uint8Array` would provide exactly the low-level machinery we need.
 
 ## Overview of the *Immutable ArrayBuffer* Proposal
 
-The *Immutable ArrayBuffer* proposal introduces additional methods and read-only accessor properties to `ArrayBuffer.prototype` that fit naturally into those explained above. Just as a buffer can be resizable or not, or detached or not, this proposal enables buffers to be immutable or not. Just as `transferToFixedSize` moves the contents of a original buffer into a newly created non-resizable buffer, this proposal provides a transfer operation that moves the contents of an original original buffer into a newly created immutable buffer. Altogether, this proposal only adds to `ArrayBuffer.prototype` one method
+The *Immutable ArrayBuffer* proposal introduces additional methods and read-only accessor properties to `ArrayBuffer.prototype` that fit naturally into those explained above.
+Just as a buffer can be resizable or not, or detached or not, this proposal enables buffers to be immutable or not.
+Just as `transferToFixedSize` moves the contents of a original buffer into a newly created non-resizable buffer, this proposal provides a transfer operation that moves the contents of an original original buffer into a newly created immutable buffer.
+Altogether, this proposal only adds to `ArrayBuffer.prototype` one method
 - `transferToImmutable() :ArrayBuffer` -- move the contents of the original buffer into a new immutable buffer, detach the original buffer, and return the new buffer.
 
 and one read-only accessor
 - `immutable: boolean` -- is this buffer immutable, or can its contents be changed?
 
-An immutable buffer cannot be detached or resized. Its `maxByteLength` is the same as its `byteLength`. A `DataView` or `TypedArray` using an immutable buffer as its backing store can be frozen and immutable. `ArrayBuffer`s, `DataView`s, and `TypedArray`s that are frozen and immutable could be placed in ROM without going beyond JavaScript's official semantics.
-
-## The Ponyfill
-
-The proposal would add methods to `ArrayBuffer.prototype`. But a ponyfill, by definition, cannot do so. Instead, it defines and exports two functions corresponding to the two additions above
-- `transferBufferToImmutable(buffer: ArrayBuffer) :ArrayBuffer`
-- `isBufferImmutable(buffer: ArrayBuffer) :boolean`
-
-In order for `transferBufferToImmutable` to be able to return something of type `ArrayBuffer` that is actually immutable, that object cannot be an actual `ArrayBuffer` exotic object. Instead, an emulated immutable buffer implements the full proposed `ArrayBuffer` API and ultimately inherits from `ArrayBuffer.prototype`. Thus, `x instanceof ArrayBuffer` will act as proposed.
-
-The emulated immutable buffers inherit directly from an intermediate prototype we refer to as `immutableArrayBufferPrototype`. This intermediate prototype contains all the methods and read-only accessor properties proposed here, as well as overrides of those inherited from `ArrayBuffer.prototype` as needed to emulate the behavior of an immutable instance. For each emulated immutable buffer, the implementation encapsulates a genuine `ArrayBuffer` that it has exclusive access to, so it can enforce immutability simply by never modifying it.
+An immutable buffer cannot be detached or resized.
+Its `maxByteLength` is the same as its `byteLength`.
+A `DataView` or `TypedArray` using an immutable buffer as its backing store can be frozen and immutable.
+`ArrayBuffer`s, `DataView`s, and `TypedArray`s that are frozen and immutable could be placed in ROM without going beyond JavaScript's official semantics.
 
 ## The Shim
 
-The immutable-arraybuffer shim additionally adds to `ArrayBuffer.prototype` a
-- `transferToImmutable` method trivially derived from the ponyfill's `transferBufferToImmutable`.
-- `sliceToImmutable` method trivially derived from the ponyfill's `sliceBufferToImmutable`.
-- `immutable` read-only accessor property trivially derived from the ponyfill's `isBufferImmutable`.
+Importing `@endo/immutable-arraybuffer/shim.js` installs the proposed methods (`transferToImmutable`, `sliceToImmutable`) and accessor (`immutable`) onto `ArrayBuffer.prototype`, along with replacements for the genuine `slice`, `resize`, `transfer`, and `transferToFixedLength` methods that discriminate on whether the receiver is an emulated immutable buffer.
+For genuine ArrayBuffers, the replacements delegate to the captured genuine methods and behave identically to before.
+For emulated immutable buffers, the methods either return the appropriate immutable behaviour (for `slice`) or throw the appropriate "cannot mutate" `TypeError` (for the mutators).
+
+The shim's install policy is detect-then-skip: if `'sliceToImmutable' in ArrayBuffer.prototype` is already true when the shim loads (a native implementation, or a previously loaded shim), the shim does nothing and the prior installation wins.
+The Immutable ArrayBuffer proposal has reached stage 3; at that threshold an earlier installation is presumed authoritative.
 
 ## Caveats
 
 The *Immutable ArrayBuffer* shim falls short of the proposal in the following ways
-- The ponyfill and shim rely on the underlying platform having either `structuredClone` or `ArrayBuffer.prototype.transfer`. However, Node <= 16 has neither. Node 17 introduces `structuredClone` and Node 21 introduces `ArrayBuffer.prototype.transfer`. Without either, the ponyfill and shim fail to initialize.
-- The proposal does not introduce an intermediate prototype, but rather modifies the behavior of the built-in methods on `ArrayBuffer.prototype` itself, to act appropriately on immutable `ArrayBuffer`s. By contrast, the ponyfill's and shim's emulated immutable buffers inherit directly from an intermediate prototype we refer to as `immutableArrayBufferPrototype`. That intermediate prototype directly inherits from `ArrayBuffer.prototype`. All the differential behavior for immutable buffers are provided by overrides found on `immutableArrayBufferPrototype`.
-- The `immutableArrayBufferPrototype` intermediate prototype is an artifact of the emulation, but it is not encapsulated. It is trivially discoverable as the object that emulated immutable buffers directly inherit from.
-- The shim's emulated immutable buffers are not real `ArrayBuffer` exotic objects. If they were, the shim would not be able to protect them from being written. Even though they implement the full proposed `ArrayBuffer` API, they cannot be plug-compatible -- they cannot be used as the backing stores of `DataView`s or `TypedArray`s. Perhaps follow-on shims might modify `DataView` and `TypedArray` to emulate that as well, but that is hard and beyond the ambition of this ponyfill + shim.
+- The shim relies on the underlying platform having either `structuredClone` or `ArrayBuffer.prototype.transfer`.
+See [Platform support for `transferToImmutable`](#platform-support-for-transfertoimmutable) below for the per-engine version thresholds and the guidance on when feature-testing is necessary.
+Without either, the shim still shims `ArrayBuffer.prototype.sliceToImmutable` but omits `ArrayBuffer.prototype.transferToImmutable`.
+- The shim's emulated immutable buffers are not real `ArrayBuffer` exotic objects.
+If they were, the shim would not be able to protect them from being written.
+Even though they implement the full proposed `ArrayBuffer` API, they cannot be plug-compatible: they cannot be used as the backing stores of `DataView`s or `TypedArray`s.
+Perhaps follow-on shims might modify `DataView` and `TypedArray` to emulate that as well, but that is hard and beyond the ambition of this shim.
 - Unlike genuine `ArrayBuffer` or `SharedArrayBuffer` exotic objects, the shim's emulated immutable buffers cannot be cloned or transfered between JS threads.
-- Even after the *Immutable ArrayBuffer* proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See https://github.com/endojs/endo/pull/2311#discussion_r1632607527 . It will require a later manual step to delete the shim, after manual analysis of the compat implications.
-- This is a plain *JavaScript* ponyfill/shim, not by itself a *Hardened JavaScript* polyfill/shim. Thus, the objects and function it creates are not hardened by this ponyfill/shim itself. Rather, the ses-shim is expected to import these, and then treat the resulting objects as if they were additional primordials, to be hardened during `lockdown`'s harden phase.
+- This is a plain *JavaScript* shim, not by itself a *Hardened JavaScript* polyfill/shim.
+Thus, the objects and function it creates are not hardened by this shim itself.
+Rather, the ses-shim is expected to import this, and then treat the resulting objects as if they were additional primordials, to be hardened during `lockdown`'s harden phase.
+
+## Platform support for `transferToImmutable`
+
+The shim's emulation of `ArrayBuffer.prototype.transferToImmutable` requires the underlying platform to provide either `ArrayBuffer.prototype.transfer` (preferred when present) or the global `structuredClone` (used as a fallback to move the buffer's contents into a new backing store).
+`sliceToImmutable` and the `immutable` accessor work on every platform; only `transferToImmutable` carries this dependency.
+
+The following table records the first engine version that ships at least one of those primitives.
+A cell marked **either** means the platform has both `structuredClone` and `ArrayBuffer.prototype.transfer`; a cell marked **structuredClone only** means the shim uses the structured-clone fallback path.
+"Deficient" means neither primitive is present and `ArrayBuffer.prototype.transferToImmutable` is therefore absent after the shim loads.
+
+### Engines
+
+| Engine | First version with `structuredClone` | First version with `ArrayBuffer.prototype.transfer` | Status as of shipping today |
+| --- | --- | --- | --- |
+| V8 (Chromium) | 9.8 (with Chrome 98, Feb 2022) | 11.4 (with Chrome 114, May 2023) | **either** |
+| SpiderMonkey (Firefox) | shipped with Firefox 94 (Nov 2021) | shipped with Firefox 122 (Jan 2024) | **either** |
+| JavaScriptCore (WebKit) | shipped with Safari 15.4 (Mar 2022) | shipped with Safari 17.4 (Mar 2024) | **either** |
+| Hermes | not implemented | not implemented | **deficient** |
+
+The `structuredClone` global is a Web/HTML platform feature exposed to script through the engine's host environment; the dates above are for the host build that first exposed it.
+`ArrayBuffer.prototype.transfer` is a TC39 language feature (ES2024) implemented in the engine itself.
+
+### Runtimes and browsers
+
+| Runtime / browser | First version with `structuredClone` | First version with `ArrayBuffer.prototype.transfer` | Status as of shipping today |
+| --- | --- | --- | --- |
+| Node.js | 17.0.0 (Oct 2021) | 21.0.0 (Oct 2023) | **either** on Node 21 and later; **structuredClone only** on Node 17 through 20; **deficient** on Node 16 and earlier |
+| Deno | 1.14 (Sep 2021) | 1.33 (May 2023) | **either** on Deno 1.33 and later |
+| Chrome / Edge | 98 (Feb 2022) | 114 (May 2023) | **either** on Chrome 114 and later; **structuredClone only** on Chrome 98 through 113 |
+| Firefox | 94 (Nov 2021) | 122 (Jan 2024) | **either** on Firefox 122 and later; **structuredClone only** on Firefox 94 through 121 |
+| Safari | 15.4 (Mar 2022) | 17.4 (Mar 2024) | **either** on Safari 17.4 and later; **structuredClone only** on Safari 15.4 through 17.3 |
+| React Native (Hermes) | not implemented | not implemented | **deficient** |
+
+Node 22 (active LTS at the time of writing) and Node 24 (current) both have `ArrayBuffer.prototype.transfer` and use the preferred path.
+Node 18 and Node 20 reach the structured-clone fallback path; both are past or near end-of-life under the Node release schedule.
+
+### Feature-testing guidance
+
+Only code that might run on a **deficient** platform needs to feature-test for `ArrayBuffer.prototype.transferToImmutable`:
+
+```js
+import '@endo/immutable-arraybuffer/shim.js';
+
+if (typeof ArrayBuffer.prototype.transferToImmutable === 'function') {
+  // use transferToImmutable
+} else {
+  // fall back to sliceToImmutable (always present once the shim loads)
+}
+```
+
+Code whose deployment targets are all non-deficient (any modern browser, Node.js 17 and later, Deno 1.14 and later) can rely on `transferToImmutable` being present after `import '@endo/immutable-arraybuffer/shim.js'` and skip the feature test.
+React Native on Hermes and pre-Node-17 server environments are the practical cases that still require the test.
 
 ## Purposeful Violation
 
-Since the `ImmutableArrayBufferInternal` class is only an artifact of the ponyfill and shim (i.e., is absent both from the real proposal and from native implementations), `ImmutableArrayBufferInternal` should not need its own `Symbol.toStringTag` property. Especially not one that differs from `ArrayBuffer.prototype`. Adding one reduces the fidelity of the ponyfill and shim. Nevertheless, we set `ImmutableArrayBufferInternal.prototype[Symbol.toStringTag]` to `'ImmutableArrayBuffer'`. Why?
+This package sets `[Symbol.toStringTag]` to `'ImmutableArrayBuffer'` on each emulated immutable buffer (as an own property of the instance, not on the shared `ArrayBuffer.prototype`).
+The rationale: Node's [concordance](https://github.com/concordancejs/concordance/blob/791d2a89b40eb13f2c889ac270dd8be190cf8073/lib/describe.js#L36) (used by ava for diagnostic output) sniffs the result of `Object.prototype.toString.call(value)` to decide whether it can do `Buffer.from(value)` on the object.
+`Buffer.from` only works on genuine `ArrayBuffer` exotic objects; passing an emulated immutable buffer to it throws a `TypeError` that concordance does not handle gracefully.
+The own-property `[Symbol.toStringTag] = 'ImmutableArrayBuffer'` slot keeps concordance from routing the value through `Buffer.from` and lets it fall through to the unrenderable-value path.
 
-At https://github.com/concordancejs/concordance/blob/791d2a89b40eb13f2c889ac270dd8be190cf8073/lib/describe.js#L36 Node's concordance, in order to render diagnostic output for an object, sniffs the result of `toString()`. If the result seems to indicate that the object is an ArrayBuffer, then concordance assumes it can do things with the object (`Buffer.from`) that can only be done on genuine ArrayBuffers. To avoid this, the ponyfill and shim ensures that the sniff will not match `'ArrayBuffer'`.
-
-Ava also uses Node's concordance for its diagnostic output, which is how we discovered the problem.
+The drop-the-pseudo-prototype redesign removed the intermediate prototype that earlier versions hung this slot on; the slot is now installed per-instance via `defineProperty` in `makeImmutableArrayBufferInternal`.
+Genuine ArrayBuffers continue to inherit `'ArrayBuffer'` from the prototype: `Object.prototype.toString.call(new ArrayBuffer(0))` reads as `'[object ArrayBuffer]'`.
+Only emulated immutable buffers carry the `'ImmutableArrayBuffer'` slot: `Object.prototype.toString.call(new ArrayBuffer(0).sliceToImmutable())` reads as `'[object ImmutableArrayBuffer]'`.
+Callers that need to distinguish emulated immutable buffers from genuine ones programmatically should prefer the `immutable` accessor on `ArrayBuffer.prototype` (installed by the shim), which is the canonical brand check.
