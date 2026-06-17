@@ -223,11 +223,20 @@ function reconnectInElectronMode() {
   countdown();
 }
 
+// A gateway is "local" when it points at this machine's loopback. Only then
+// is the Vite /dev redirect (which always emits a 127.0.0.1 gateway) usable.
+// When the page was loaded against a remote gateway (e.g. a Tailscale host for
+// phone access), redirecting to /dev would overwrite the fragment with an
+// unreachable localhost address, so we reconnect by reusing the fragment.
+const isLocalGateway = /^(127\.0\.0\.1|localhost|\[?::1\]?)(:|$)/.test(
+  gateway || '',
+);
+
 /**
  * Start the appropriate reconnection strategy based on mode.
  */
 const startReconnection = () => {
-  if (isElectronMode) {
+  if (isElectronMode || !isLocalGateway) {
     reconnectInElectronMode();
   } else {
     pollHealthThenReconnect();
