@@ -71,14 +71,18 @@ export const createStreamingProvider = env => {
       );
     }
     const model = env.FLOOT_MODEL || env.LAL_MODEL || 'claude-sonnet-4-6';
-    // parseInt yields NaN for junk like "lots"; forwarding that to the SDK fails
-    // confusingly downstream, so fall back to the default unless it parses to a
-    // positive integer.
-    const parsedMaxTokens = parseInt(env.FLOOT_MAX_TOKENS ?? '', 10);
-    const maxTokens =
-      Number.isInteger(parsedMaxTokens) && parsedMaxTokens > 0
-        ? parsedMaxTokens
-        : 4096;
+    // Default when unset, but if it IS set we trust it must be valid: silently
+    // falling back on junk like "lots" hides a config error, so throw instead.
+    let maxTokens = 4096;
+    if (env.FLOOT_MAX_TOKENS !== undefined && env.FLOOT_MAX_TOKENS !== '') {
+      const parsed = parseInt(env.FLOOT_MAX_TOKENS, 10);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        throw new Error(
+          `FLOOT_MAX_TOKENS must be a positive integer, got "${env.FLOOT_MAX_TOKENS}".`,
+        );
+      }
+      maxTokens = parsed;
+    }
     console.log(`[floot] Streaming Anthropic provider with model: ${model}`);
     return makeStreamingAnthropicProvider({ apiKey, model, maxTokens });
   }
