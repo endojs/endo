@@ -193,3 +193,60 @@ test('a failing sendDatagram is caught and reported', async t => {
     'send failures surface through the log sink',
   );
 });
+
+test('a non-Error thrown by sendDatagram is rendered without re-throwing', async t => {
+  // Native bindings can throw arbitrary values, not just `Error` instances.
+  // Reaching for `.message` on a `null` throw would itself throw and crash
+  // the heartbeat loop; the loop must survive that case.
+  t.timeout(5000);
+  const logs = [];
+  let beats = 0;
+  const connection = {
+    sendDatagram() {
+      beats += 1;
+      // eslint-disable-next-line no-throw-literal
+      throw null;
+    },
+    readDatagram() {
+      return new Promise(() => {});
+    },
+  };
+  const heartbeat = makeIrohHeartbeat(connection, {
+    intervalMs: 20,
+    timeoutMs: 10_000,
+    log: message => logs.push(message),
+  });
+  t.teardown(() => heartbeat.stop());
+
+  await delay(80);
+  t.true(beats >= 2, 'the heartbeat loop survives a non-Error throw');
+  t.true(
+    logs.some(message => message.includes('heartbeat send failed')),
+    'a non-Error throw still surfaces through the log sink',
+  );
+});
+
+test('timeoutMs defaults to twice the chosen intervalMs', async t => {
+  // The documented "tolerate a single dropped beat" invariant must hold for
+  // callers that only override `intervalMs`. A 30ms interval should yield a
+  // ~60ms watchdog window, so silence past ~80ms must fire the timeout.
+  t.timeout(5000);
+  const connection = makeFakeConnection();
+  let timeouts = 0;
+  const heartbeat = makeIrohHeartbeat(connection, {
+    intervalMs: 30,
+    onTimeout: () => {
+      timeouts += 1;
+    },
+  });
+  t.teardown(() => heartbeat.stop());
+
+  // Arm the watchdog with one inbound beat, then let the peer fall silent.
+  connection.push(new Uint8Array([1]));
+  await delay(140);
+  t.is(
+    timeouts,
+    1,
+    'derived timeoutMs (2 * intervalMs) fires after the silence window',
+  );
+});

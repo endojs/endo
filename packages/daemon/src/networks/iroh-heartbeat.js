@@ -39,6 +39,26 @@ export const KEEPALIVE_TIMEOUT_MS = 2 * HEARTBEAT_INTERVAL_MS;
 harden(KEEPALIVE_TIMEOUT_MS);
 
 /**
+ * Render an unknown thrown value (which may not be an `Error`) for a log
+ * message without itself throwing. Mirrors the structure of `String(value)`
+ * but reaches for `.message` when one is present, so an `Error` renders as
+ * its message rather than `"Error"`.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+const renderThrown = value => {
+  if (value instanceof Error) {
+    return value.message;
+  }
+  try {
+    return String(value);
+  } catch {
+    return '<unrenderable thrown value>';
+  }
+};
+
+/**
  * Keep an iroh QUIC connection alive with a datagram heartbeat and detect a
  * dead peer with a keep-alive watchdog. The caller owns teardown: `onTimeout`
  * fires at most once, after the watchdog has been disarmed, and is expected to
@@ -50,6 +70,8 @@ harden(KEEPALIVE_TIMEOUT_MS);
  * @param {object} [options]
  * @param {number} [options.intervalMs] - Heartbeat send period.
  * @param {number} [options.timeoutMs] - Keep-alive window before `onTimeout`.
+ *   Defaults to twice the effective `intervalMs`, so the "tolerate a single
+ *   dropped beat" invariant holds for callers that only override `intervalMs`.
  * @param {() => void} [options.onTimeout] - Invoked once when the peer misses
  *   the keep-alive window.
  * @param {(message: string) => void} [options.log] - Diagnostic sink; silent
@@ -61,7 +83,7 @@ export const makeIrohHeartbeat = (
   connection,
   {
     intervalMs = HEARTBEAT_INTERVAL_MS,
-    timeoutMs = KEEPALIVE_TIMEOUT_MS,
+    timeoutMs = 2 * intervalMs,
     onTimeout = () => {},
     log = () => {},
   } = {},
@@ -121,9 +143,10 @@ export const makeIrohHeartbeat = (
     } catch (error) {
       // A full send buffer or transient datagram error is not fatal: the next
       // beat retries and the peer's watchdog tolerates a single miss.
-      log(
-        `iroh heartbeat send failed: ${/** @type {Error} */ (error).message}`,
-      );
+      // Stringify defensively: `sendDatagram` is native code and may throw a
+      // non-Error value, in which case reaching for `.message` would itself
+      // throw and crash the heartbeat loop.
+      log(`iroh heartbeat send failed: ${renderThrown(error)}`);
     }
   };
 
