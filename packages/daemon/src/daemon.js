@@ -5139,7 +5139,15 @@ const makeDaemonCore = async (
           console.log(
             `Endo daemon peer node ${nodeId.slice(0, 8)} connection disposed`,
           );
-          dropLiveValue(context.id);
+          // Cancel the peer formula's context so the formula-lifecycle
+          // machinery tears down and drops all dependent remote presences
+          // via thisDiesIfThatDies.  The next use of any remote presence
+          // reincarnates the peer formula and re-dials from scratch.
+          // dropLiveValue alone was insufficient: it removed the peer from
+          // the live-value cache but left the formula context alive, so
+          // dependent remote presences were not revoked and the stale
+          // currentGatewayP prevented re-dial on subsequent use.
+          context.cancel(new Error('peer connection lost'));
         },
       );
     };
@@ -5219,6 +5227,20 @@ const makeDaemonCore = async (
     // If crossed-hellos accept bias abandons our dial, retry once.
     // The state machine should now be in `accepted` state, and the
     // retry will return the already-accepted gateway without dialing.
+    //
+    // TODO(option-a-simplification): After the dispose-callback change
+    // to context.cancel (Option A), the peer formula's context is
+    // cancelled on any connection loss.  That means this formula
+    // instance is torn down before it could ever see a second
+    // connection.  The `isAbandonError` predicate and the resilient-dial
+    // retry inside `resilientDial` are therefore unreachable for any
+    // post-connect abandon.  They remain for the initial-dial crossed-
+    // hellos case (where the state machine rejects our outgoing dial
+    // while accepting an inbound one, producing an abandon error before
+    // the first successful connection).  A follow-up can simplify by
+    // removing the `isAbandonError` catch in `ResilientPeerGateway.
+    // provide` and collapsing `currentGatewayP` to a plain `dialAttempt`
+    // call.
     const isAbandonError = err =>
       err &&
       typeof err.message === 'string' &&
@@ -5243,12 +5265,14 @@ const makeDaemonCore = async (
       }
     };
 
-    // Return a facade gateway whose `provide` method consults the
-    // current state of the remote-control on each call.  If the
-    // current connection is lost mid-flight (e.g., due to crossed
-    // hellos accept bias switching to a different TCP), subsequent
-    // `provide` calls will go through whatever connection the
-    // remote-control currently holds.
+    // TODO(option-a-simplification): After the dispose-callback change,
+    // the peer formula is destroyed on any connection loss, so this
+    // formula instance never sees a post-connect re-dial.  The
+    // `currentGatewayP` one-shot promise is still used for the initial
+    // connection (including the retention-set follower below) but the
+    // re-dial path in `ResilientPeerGateway.provide` is now unreachable.
+    // A follow-up can drop the ResilientPeerGateway wrapper and inline
+    // the single `dialAttempt()` call directly.
     const currentGatewayP = resilientDial();
 
     // Follow retention set changes in the background once connected.
@@ -5326,6 +5350,15 @@ const makeDaemonCore = async (
           // Try with the current gateway; on failure, re-dial and try
           // once more.  This handles the case where the initial dial
           // succeeded but the connection was later abandoned.
+          //
+          // TODO(option-a-simplification): The isAbandonError catch
+          // below is now unreachable for post-connect errors.  After
+          // the dispose-callback change (Option A), any connection loss
+          // cancels the peer formula's context, so this formula instance
+          // is torn down before `provide` could be called after a loss.
+          // The catch arm was the "retry within the existing formula
+          // instance" path; it is superseded by reincarnation.  A
+          // follow-up can remove the catch arm entirely.
           try {
             const gateway = await currentGatewayP;
             return await E(gateway).provide(requestedId);
