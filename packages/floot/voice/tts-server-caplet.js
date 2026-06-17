@@ -304,7 +304,7 @@ const pump = async (piper, textReader, writer) => {
   } catch (err) {
     aborting = true;
     piper.abort();
-    writer.abort(String(err?.message ?? err));
+    writer.abort(err instanceof Error ? err.message : String(err));
   }
 };
 
@@ -312,6 +312,11 @@ const pump = async (piper, textReader, writer) => {
 //   FLOOT_TTS_BINARY  piper binary (default "piper")
 //   FLOOT_TTS_MODEL   absolute path to the .onnx voice (companion .onnx.json next to it)
 //   FLOOT_TTS_SPEED   speech speed multiplier (default "1.0")
+/**
+ * @param {object} _powers
+ * @param {object} _context
+ * @param {{ env?: Record<string, string | undefined> }} [opts]
+ */
 export const make = async (_powers, _context, { env = {} } = {}) => {
   const binary = env.FLOOT_TTS_BINARY || 'piper';
   const modelPath = env.FLOOT_TTS_MODEL;

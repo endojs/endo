@@ -57,7 +57,7 @@ const makeMoonshine = ({ scriptPath, cwd, uv = 'uv', lang = 'en' }) => {
         }
         if (msg.event === 'ready') {
           ready = true;
-          resolve();
+          resolve(undefined);
           return;
         }
         if (msg.stream && msg.partial !== undefined) {
@@ -269,7 +269,7 @@ const pump = async (moonshine, audioReader, writer, setOnClose) => {
     writer.end();
   } catch (err) {
     sink.abort();
-    writer.abort(String(err?.message ?? err));
+    writer.abort(err instanceof Error ? err.message : String(err));
   }
 };
 
@@ -278,6 +278,11 @@ const pump = async (moonshine, audioReader, writer, setOnClose) => {
 //   FLOOT_PROJECT_DIR cwd for the `uv run` subprocess
 //   FLOOT_STT_UV      uv binary (default "uv")
 //   FLOOT_STT_LANG    language (default "en")
+/**
+ * @param {object} _powers
+ * @param {object} _context
+ * @param {{ env?: Record<string, string | undefined> }} [opts]
+ */
 export const make = async (_powers, _context, { env = {} } = {}) => {
   const scriptPath = env.FLOOT_STT_SCRIPT;
   const cwd = env.FLOOT_PROJECT_DIR;

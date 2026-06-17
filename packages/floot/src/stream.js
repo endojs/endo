@@ -27,7 +27,7 @@ import { Far } from '@endo/far';
 /**
  * Create a writer + Far StreamReader pair backed by an in-memory buffer.
  *
- * @returns {{ writer: object, reader: import('@endo/far').FarRef<object> }}
+ * @returns {{ writer: object, reader: object }}
  */
 export const makeReplyChannel = () => {
   /** @type {ReplyEvent[]} */
@@ -76,7 +76,7 @@ export const makeReplyChannel = () => {
         if (finished) return harden({ value: undefined, done: true });
         // eslint-disable-next-line no-await-in-loop
         await new Promise(resolve => {
-          wake = resolve;
+          wake = () => resolve(undefined);
         });
       }
     },
