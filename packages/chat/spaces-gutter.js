@@ -43,6 +43,7 @@ const KNOWN_MODES = new Set([
  * @property {string[]} [channelOrder] - persisted channel display order in sidebar
  * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
  * @property {string[]} [audioPath] - pet-name path to an audio object (floot mic input)
+ * @property {string[]} [ttsPath] - pet-name path to a text-to-speech object (floot spoken replies)
  */
 
 /**
@@ -380,6 +381,7 @@ export const createSpacesGutter = ({
       channelOrder: space.channelOrder,
       bookmarks: space.bookmarks,
       audioPath: space.audioPath,
+      ttsPath: space.ttsPath,
     });
   };
 
@@ -603,6 +605,12 @@ export const createSpacesGutter = ({
       ) {
         spaceConfig.audioPath = data.audioPath;
       }
+      if (
+        Array.isArray(data.ttsPath) &&
+        data.ttsPath.every(p => typeof p === 'string')
+      ) {
+        spaceConfig.ttsPath = data.ttsPath;
+      }
       await addSpace(spaceConfig);
     },
     onClose: () => {
@@ -732,6 +740,12 @@ export const createSpacesGutter = ({
       obj.audioPath.every(p => typeof p === 'string')
     ) {
       result.audioPath = obj.audioPath;
+    }
+    if (
+      Array.isArray(obj.ttsPath) &&
+      obj.ttsPath.every(p => typeof p === 'string')
+    ) {
+      result.ttsPath = obj.ttsPath;
     }
     if (
       Array.isArray(obj.channelOrder) &&

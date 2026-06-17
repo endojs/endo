@@ -30,11 +30,19 @@ import harden from '@endo/harden';
  * transcript fills the compose box live (replace semantics); when the transcript
  * stream ends, the assembled message is sent to the agent.
  *
+ * When `ttsPath` is given, it resolves a separate text-to-speech object and
+ * shows a speaker toggle: reply deltas are streamed to `synthesize(textReader)
+ * -> audioReader`, which returns raw s16le mono PCM bytes (one event per
+ * sentence) that play back via Web Audio as they arrive — so speech begins
+ * mid-reply. Voice barge-in and the Stop button silence playback; each finished
+ * assistant message gets a ▶ replay button that re-synthesizes its text.
+ *
  * @param {HTMLElement} $parent
  * @param {unknown} rootPowers
  * @param {string[]} profilePath
  * @param {(newPath: string[]) => void} _onProfileChange
  * @param {string[]} [audioPath] - pet-name path to an audio/transcription object
+ * @param {string[]} [ttsPath] - pet-name path to a text-to-speech object
  * @returns {() => void} cleanup function
  */
 export const flootComponent = (
@@ -43,6 +51,7 @@ export const flootComponent = (
   profilePath,
   _onProfileChange,
   audioPath,
+  ttsPath,
 ) => {
   $parent.innerHTML = '';
 
@@ -64,6 +73,20 @@ export const flootComponent = (
       audioServer = E(/** @type {any} */ (audioServer)).lookup(name);
     }
   }
+
+  // Optionally resolve a text-to-speech object for spoken replies, the same way.
+  const hasTts = Boolean(ttsPath && ttsPath.length);
+  /** @type {any} */
+  let ttsServer = null;
+  if (hasTts) {
+    ttsServer = rootPowers;
+    for (const name of /** @type {string[]} */ (ttsPath)) {
+      ttsServer = E(/** @type {any} */ (ttsServer)).lookup(name);
+    }
+  }
+  // Spoken replies on by default when a TTS object is wired; toggled by the
+  // speaker button. Replay buttons work regardless of this live-speech setting.
+  let ttsEnabled = hasTts;
 
   // ── Sessions (owned by the floot factory; daemon-only, no localStorage) ─────
   const DEFAULT_TITLE = 'New chat';
@@ -256,6 +279,15 @@ export const flootComponent = (
         animation: floot-mic-pulse 1.4s ease-in-out infinite; }
       @keyframes floot-mic-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.4)}
         50%{box-shadow:0 0 0 7px rgba(239,68,68,0)} }
+      .floot-speaker { opacity: 0.45; }
+      .floot-speaker.on { opacity: 1; border-color: var(--fl-accent); color: var(--fl-accent); }
+      .floot-speaker.speaking { background: var(--fl-accent); color: #fff; border-color: var(--fl-accent); }
+      .floot-replay { margin-top: 0.25rem; width: 24px; height: 24px; border-radius: 50%;
+        border: 1px solid var(--fl-border); background: var(--fl-surface2); color: var(--fl-text-muted);
+        cursor: pointer; font-size: 0.7rem; line-height: 1; display: flex; align-items: center;
+        justify-content: center; opacity: 0.6; transition: opacity 0.15s ease, background 0.15s ease; }
+      .floot-replay:hover { opacity: 1; background: var(--fl-surface3); }
+      .floot-replay.playing { color: var(--fl-accent); border-color: var(--fl-accent); opacity: 1; }
 
       .floot-backdrop { display: none; position: absolute; inset: 0;
         background: rgba(0,0,0,0.45); z-index: 4; }
@@ -298,6 +330,11 @@ export const flootComponent = (
             ? `<button type="button" class="floot-mic" id="floot-mic" aria-label="Speak">🎙</button>`
             : ''
         }
+        ${
+          hasTts
+            ? `<button type="button" class="floot-mic floot-speaker on" id="floot-speaker" aria-label="Toggle spoken replies">🔊</button>`
+            : ''
+        }
         <textarea class="floot-input" id="floot-input" rows="1"
           placeholder="Message Floot…" aria-label="Message"></textarea>
         <button type="button" class="floot-send" id="floot-send" aria-label="Send"></button>
@@ -324,6 +361,9 @@ export const flootComponent = (
   const $menuBtn = /** @type {HTMLButtonElement} */ ($root.querySelector('#floot-menu'));
   const $mic = /** @type {HTMLButtonElement | null} */ (
     $root.querySelector('#floot-mic')
+  );
+  const $speaker = /** @type {HTMLButtonElement | null} */ (
+    $root.querySelector('#floot-speaker')
   );
   const $meter = /** @type {HTMLElement | null} */ ($root.querySelector('#floot-meter'));
   const $meterFill = /** @type {HTMLElement | null} */ (
@@ -512,8 +552,34 @@ export const flootComponent = (
     $bubble.className = 'floot-msg';
     $bubble.textContent = text;
     $row.appendChild($bubble);
+    // Per-message replay: re-synthesize the finished assistant text on demand.
+    if (role === 'assistant' && ttsServer && text.trim()) {
+      const $replay = document.createElement('button');
+      $replay.type = 'button';
+      $replay.className = 'floot-replay';
+      $replay.textContent = '▶';
+      $replay.setAttribute('aria-label', 'Replay');
+      $replay.addEventListener('click', () => replayMessage(text, $replay));
+      $row.appendChild($replay);
+    }
     $messages.appendChild($row);
     return $bubble;
+  };
+
+  // Play a finished message through TTS by feeding its whole text as one delta.
+  // Independent of the live turn: starting a replay supersedes any other audio.
+  const replayMessage = (
+    /** @type {string} */ text,
+    /** @type {HTMLElement} */ $btn,
+  ) => {
+    if (!ttsServer) return;
+    const feed = makeTextFeed();
+    feed.delta(text);
+    feed.end();
+    $btn.classList.add('playing');
+    playAudioStream(E(ttsServer).synthesize(feed.reader)).finally(() => {
+      $btn.classList.remove('playing');
+    });
   };
 
   /** @type {HTMLElement | null} */
@@ -630,6 +696,11 @@ export const flootComponent = (
   // Cancel the in-flight turn (Stop button or voice barge-in). Returns a promise
   // that resolves once the turn has fully unwound, so a caller can start the next
   // turn without racing the shared streaming bubble.
+  // The text feed driving live spoken replies for the current turn (null when
+  // TTS is off or idle). Aborting it ends synthesis; stopTts() halts playback.
+  /** @type {ReturnType<typeof makeTextFeed> | null} */
+  let turnTtsFeed = null;
+
   const cancelTurn = () => {
     if (!busy) return Promise.resolve();
     turnCancelled = true;
@@ -638,6 +709,8 @@ export const flootComponent = (
     } catch {
       // reader already closed
     }
+    if (turnTtsFeed) turnTtsFeed.abort();
+    stopTts(); // barge-in / Stop also silences any spoken reply in progress
     return turnPromise || Promise.resolve();
   };
 
@@ -665,6 +738,14 @@ export const flootComponent = (
 
     const sessionId = session.id;
     let full = '';
+    // Speak the reply as it streams: feed deltas to the TTS object and play the
+    // returned audio stream. Sentence-by-sentence, so audio starts mid-reply.
+    let lastSpoken = 0;
+    const speakLive = ttsEnabled && Boolean(ttsServer);
+    if (speakLive) {
+      turnTtsFeed = makeTextFeed();
+      playAudioStream(E(ttsServer).synthesize(turnTtsFeed.reader));
+    }
     try {
       const reader = E(facetFor(session)).converse(text);
       activeReader = reader;
@@ -676,10 +757,19 @@ export const flootComponent = (
           full += value.text;
           ensureStreamingBubble().textContent = full;
           scrollToBottom();
+          if (turnTtsFeed) {
+            turnTtsFeed.delta(value.text);
+            lastSpoken = full.length;
+          }
         } else if (value.type === 'final') {
           full = value.text;
           ensureStreamingBubble().textContent = full;
           scrollToBottom();
+          // Feed any text not already streamed as deltas (e.g. final-only replies).
+          if (turnTtsFeed && full.length > lastSpoken) {
+            turnTtsFeed.delta(full.slice(lastSpoken));
+            lastSpoken = full.length;
+          }
         } else if (value.type === 'phase') {
           setStatus(value.phase);
         } else if (value.type === 'end') {
@@ -689,6 +779,11 @@ export const flootComponent = (
           setStatus(`error: ${value.reason}`);
           break;
         }
+      }
+      if (turnTtsFeed) {
+        if (turnCancelled) turnTtsFeed.abort();
+        else turnTtsFeed.end();
+        turnTtsFeed = null;
       }
       hideThinking();
       if ($streamingBubble) $streamingBubble.classList.remove('streaming');
@@ -705,6 +800,11 @@ export const flootComponent = (
     } catch (err) {
       hideThinking();
       $streamingBubble = null;
+      if (turnTtsFeed) {
+        turnTtsFeed.abort();
+        turnTtsFeed = null;
+      }
+      stopTts();
       sessionStatus.set(sessionId, 'error');
       renderSidebar();
       renderMessages();
@@ -925,6 +1025,179 @@ export const flootComponent = (
     }
     return btoa(binary);
   }
+
+  function base64ToBytes(/** @type {string} */ b64) {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  // ── TTS playback (optional) ─────────────────────────────────────────────────
+  // A buffered Far text reader the chat feeds reply text into: streaming reply
+  // deltas while a turn runs, or a finished message's full text for replay. The
+  // remote TTS object pulls deltas with next() and returns an audio stream.
+  // Wire (APPEND deltas): { type:'delta', text } | { type:'end' } | { type:'abort' }
+  function makeTextFeed() {
+    /** @type {any[]} */
+    let events = [];
+    let cursor = 0;
+    let finished = false;
+    /** @type {((value?: unknown) => void) | null} */
+    let wake = null;
+    const wakeUp = () => {
+      if (wake) {
+        const w = wake;
+        wake = null;
+        w();
+      }
+    };
+    const reader = Far('TextReader', {
+      next: async () => {
+        for (;;) {
+          if (cursor < events.length) {
+            const event = events[cursor];
+            cursor += 1;
+            return harden({ value: event, done: false });
+          }
+          if (finished) return harden({ value: undefined, done: true });
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise(resolve => {
+            wake = resolve;
+          });
+        }
+      },
+      return: async () => {
+        finished = true;
+        events = [];
+        wakeUp();
+        return harden({ value: undefined, done: true });
+      },
+      throw: async (/** @type {any} */ error) => {
+        finished = true;
+        events = [];
+        wakeUp();
+        throw error;
+      },
+    });
+    return {
+      reader,
+      delta: (/** @type {string} */ text) => {
+        if (finished) return;
+        events.push(harden({ type: 'delta', text }));
+        wakeUp();
+      },
+      end: () => {
+        if (finished) return;
+        events.push(harden({ type: 'end' }));
+        finished = true;
+        wakeUp();
+      },
+      abort: () => {
+        if (finished) return;
+        events.push(harden({ type: 'abort', reason: 'cancelled' }));
+        finished = true;
+        wakeUp();
+      },
+    };
+  }
+
+  /** @type {AudioContext | null} */
+  let ttsCtx = null;
+  // Token guarding the active playback session: stop() bumps it so a stale
+  // drain loop (still awaiting a CapTP next()) can't schedule buffers anymore.
+  let ttsPlaybackId = 0;
+  /** @type {AudioBufferSourceNode[]} */
+  let ttsSources = [];
+  /** @type {any} */
+  let ttsActiveReader = null;
+  let ttsNextStart = 0;
+
+  const stopTts = () => {
+    ttsPlaybackId += 1;
+    for (const src of ttsSources) {
+      try {
+        src.onended = null;
+        src.stop();
+      } catch {
+        // already stopped
+      }
+    }
+    ttsSources = [];
+    ttsNextStart = 0;
+    if (ttsActiveReader) {
+      try {
+        E(ttsActiveReader).return();
+      } catch {
+        // already closed
+      }
+      ttsActiveReader = null;
+    }
+  };
+
+  // Decode one raw s16le mono PCM chunk into a scheduled AudioBuffer and queue
+  // it back-to-back after whatever is already playing.
+  const enqueuePcm = (
+    /** @type {Uint8Array} */ bytes,
+    /** @type {number} */ sampleRate,
+  ) => {
+    if (!ttsCtx) return;
+    const frames = Math.floor(bytes.length / 2);
+    if (!frames) return;
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.length);
+    const buffer = ttsCtx.createBuffer(1, frames, sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < frames; i += 1) {
+      samples[i] = view.getInt16(i * 2, true) / 32_768;
+    }
+    const src = ttsCtx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ttsCtx.destination);
+    const startAt = Math.max(ttsCtx.currentTime, ttsNextStart);
+    src.start(startAt);
+    ttsNextStart = startAt + buffer.duration;
+    ttsSources.push(src);
+    src.onended = () => {
+      ttsSources = ttsSources.filter(s => s !== src);
+    };
+  };
+
+  // Pull synthesized audio from a TTS stream and play it back in order. Resolves
+  // when the stream ends or playback is superseded by a newer stopTts().
+  const playAudioStream = async (/** @type {any} */ audioReader) => {
+    if (!ttsServer) return;
+    if (!ttsCtx) ttsCtx = new AudioContext();
+    if (ttsCtx.state === 'suspended') {
+      try {
+        await ttsCtx.resume();
+      } catch {
+        // best effort
+      }
+    }
+    // Begin a fresh session: bump the token and adopt this reader.
+    stopTts();
+    const myId = ttsPlaybackId;
+    ttsActiveReader = audioReader;
+    ttsNextStart = ttsCtx.currentTime;
+    try {
+      for (;;) {
+        // eslint-disable-next-line no-await-in-loop
+        const { value, done } = await E(audioReader).next();
+        if (done || cancelled || myId !== ttsPlaybackId) break;
+        if (value.type === 'bytes') {
+          enqueuePcm(base64ToBytes(value.b64), value.sampleRate || 22_050);
+        } else if (value.type === 'end' || value.type === 'abort') {
+          break;
+        }
+      }
+    } catch {
+      // stream torn down (return()/throw()) — playback already scheduled stays
+    } finally {
+      if (myId === ttsPlaybackId && ttsActiveReader === audioReader) {
+        ttsActiveReader = null;
+      }
+    }
+  };
 
   // Transcripts the recognizer commonly hallucinates from silence/noise; drop
   // them so a stray blip doesn't auto-send a junk turn.
@@ -1208,6 +1481,19 @@ export const flootComponent = (
     else startMic();
   });
 
+  // Toggle spoken replies. Turning it off mid-reply silences the current one.
+  $speaker?.addEventListener('click', () => {
+    ttsEnabled = !ttsEnabled;
+    $speaker.classList.toggle('on', ttsEnabled);
+    if (!ttsEnabled) {
+      if (turnTtsFeed) {
+        turnTtsFeed.abort();
+        turnTtsFeed = null;
+      }
+      stopTts();
+    }
+  });
+
   // ── Initial paint ────────────────────────────────────────────────────────────
   updateSendButton();
   renderSidebar();
@@ -1249,6 +1535,11 @@ export const flootComponent = (
   return () => {
     cancelled = true;
     stopMic();
+    stopTts();
+    if (ttsCtx) {
+      ttsCtx.close().catch(() => {});
+      ttsCtx = null;
+    }
   };
 };
 harden(flootComponent);
