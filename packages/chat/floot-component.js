@@ -289,6 +289,17 @@ export const flootComponent = (
       .floot-replay:hover { opacity: 1; background: var(--fl-surface3); }
       .floot-replay.playing { color: var(--fl-accent); border-color: var(--fl-accent); opacity: 1; }
 
+      .floot-msg-row.tool { justify-content: center; }
+      .floot-tool { max-width: 85%; border: 1px solid var(--fl-border);
+        border-radius: 12px; background: var(--fl-surface2); padding: 0.5rem 0.7rem;
+        font-size: 0.8rem; color: var(--fl-text-muted); }
+      .floot-tool-name { font-weight: 600; color: var(--fl-text); }
+      .floot-tool-args, .floot-tool-result { margin-top: 0.3rem; white-space: pre-wrap;
+        word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.72rem; }
+      .floot-tool-result { padding-top: 0.3rem; border-top: 1px solid var(--fl-border);
+        color: var(--fl-text); max-height: 8rem; overflow-y: auto; }
+
       .floot-backdrop { display: none; position: absolute; inset: 0;
         background: rgba(0,0,0,0.45); z-index: 4; }
 
@@ -566,7 +577,8 @@ export const flootComponent = (
       return;
     }
     for (const msg of session.messages) {
-      appendBubble(msg.role, msg.text);
+      if (msg.role === 'tool') appendToolRow(msg);
+      else appendBubble(msg.role, msg.text);
     }
     if (stickToBottom) $messages.scrollTop = $messages.scrollHeight;
     else $messages.scrollTop = prevTop;
@@ -596,6 +608,41 @@ export const flootComponent = (
     return $bubble;
   };
 
+  // Render a tool call as an inline transcript row. The result is filled in
+  // later via setToolRowResult once the agent reports it.
+  const appendToolRow = (/** @type {any} */ msg) => {
+    const $row = document.createElement('div');
+    $row.className = 'floot-msg-row tool';
+    const $tool = document.createElement('div');
+    $tool.className = 'floot-tool';
+    const $name = document.createElement('div');
+    $name.className = 'floot-tool-name';
+    $name.textContent = `\u{1F527} ${msg.name}`;
+    $tool.appendChild($name);
+    if (msg.args && msg.args !== '{}') {
+      const $args = document.createElement('div');
+      $args.className = 'floot-tool-args';
+      $args.textContent = msg.args;
+      $tool.appendChild($args);
+    }
+    $row.appendChild($tool);
+    if (msg.result != null) setToolRowResult($row, msg.result);
+    $messages.appendChild($row);
+    return $row;
+  };
+
+  const setToolRowResult = (
+    /** @type {HTMLElement} */ $row,
+    /** @type {string} */ result,
+  ) => {
+    const $tool = $row.querySelector('.floot-tool');
+    if (!$tool) return;
+    const $res = document.createElement('div');
+    $res.className = 'floot-tool-result';
+    $res.textContent = result;
+    $tool.appendChild($res);
+  };
+
   // Play a finished message through TTS by feeding its whole text as one delta.
   // Independent of the live turn: starting a replay supersedes any other audio.
   const replayMessage = (
@@ -616,6 +663,10 @@ export const flootComponent = (
   let $thinkingRow = null;
   /** @type {HTMLElement | null} */
   let $streamingBubble = null;
+  /** @type {any} */
+  let pendingTool = null;
+  /** @type {HTMLElement | null} */
+  let $pendingToolRow = null;
 
   const showThinking = () => {
     hideThinking();
@@ -664,6 +715,8 @@ export const flootComponent = (
     if (busy) return; // don't switch context mid-turn
     activeSessionId = id;
     $streamingBubble = null;
+    pendingTool = null;
+    $pendingToolRow = null;
     closeSidebar();
     renderSidebar();
     renderHeader();
@@ -805,6 +858,30 @@ export const flootComponent = (
             turnTtsFeed.delta(full.slice(lastSpoken));
             lastSpoken = full.length;
           }
+        } else if (value.type === 'tool_call') {
+          // Close out any in-progress assistant bubble so the tool row renders
+          // beneath it, then start a tool entry awaiting its result.
+          if ($streamingBubble) {
+            $streamingBubble.classList.remove('streaming');
+            $streamingBubble = null;
+          }
+          pendingTool = {
+            role: 'tool',
+            name: value.name,
+            args: value.args,
+            result: null,
+          };
+          session.messages.push(pendingTool);
+          $pendingToolRow = appendToolRow(pendingTool);
+          scrollToBottom();
+        } else if (value.type === 'tool_result') {
+          if (pendingTool) {
+            pendingTool.result = value.result;
+            if ($pendingToolRow) setToolRowResult($pendingToolRow, value.result);
+            pendingTool = null;
+            $pendingToolRow = null;
+          }
+          scrollToBottom();
         } else if (value.type === 'phase') {
           setStatus(value.phase);
         } else if (value.type === 'end') {

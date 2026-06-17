@@ -6,11 +6,13 @@
 //
 // Reply events (append-style — LLM tokens accrete, they do not revise, so
 // unlike the moonshine transcript wire these are deltas, not full snapshots):
-//   { type: 'phase', phase }   coarse status ('thinking')
-//   { type: 'delta', text }    next chunk of assistant text
-//   { type: 'final', text }    the complete assistant message (for convenience)
-//   { type: 'end' }            stream complete
-//   { type: 'abort', reason }  stream failed
+//   { type: 'phase', phase }              coarse status ('thinking')
+//   { type: 'delta', text }               next chunk of assistant text
+//   { type: 'final', text }               the complete assistant message
+//   { type: 'tool_call', name, args }     a tool the agent is invoking (args JSON string)
+//   { type: 'tool_result', name, result } that tool's output (result string)
+//   { type: 'end' }                       stream complete
+//   { type: 'abort', reason }             stream failed
 
 import { Far } from '@endo/far';
 
@@ -19,6 +21,8 @@ import { Far } from '@endo/far';
  *   | { type: 'phase', phase: string }
  *   | { type: 'delta', text: string }
  *   | { type: 'final', text: string }
+ *   | { type: 'tool_call', name: string, args: string }
+ *   | { type: 'tool_result', name: string, result: string }
  *   | { type: 'end' }
  *   | { type: 'abort', reason: string }
  * )} ReplyEvent
@@ -60,6 +64,12 @@ export const makeReplyChannel = () => {
     delta: text => push({ type: 'delta', text: `${text}` }),
     /** @param {string} text */
     final: text => push({ type: 'final', text: `${text}` }),
+    /** @param {{ name: string, args: string }} call */
+    toolCall: ({ name, args }) =>
+      push({ type: 'tool_call', name: `${name}`, args: `${args}` }),
+    /** @param {{ name: string, result: string }} result */
+    toolResult: ({ name, result }) =>
+      push({ type: 'tool_result', name: `${name}`, result: `${result}` }),
     end: () => push({ type: 'end' }),
     /** @param {unknown} reason */
     abort: reason => push({ type: 'abort', reason: `${reason}` }),

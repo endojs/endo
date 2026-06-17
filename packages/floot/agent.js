@@ -276,12 +276,14 @@ export const makeStreamingAgent = async (
         } catch {
           args = {};
         }
+        writer.toolCall({ name: `${name}`, args: JSON.stringify(args) });
         let resultText;
         try {
           resultText = await executeTool(name, args, toolMap);
         } catch (err) {
           resultText = `Error: ${err instanceof Error ? err.message : String(err)}`;
         }
+        writer.toolResult({ name: `${name}`, result: `${resultText}` });
         console.log(`[floot] tool ${name} -> ${resultText}`);
         toolResults.push({
           role: 'tool',
