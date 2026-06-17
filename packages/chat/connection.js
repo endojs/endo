@@ -33,7 +33,12 @@ const ClientBootstrapInterface = M.interface('ClientBootstrap', {
  * @returns {Connection}
  */
 export const connectToGateway = ({ gateway, agent }) => {
-  const gatewayUrl = `ws://${gateway}/`;
+  // Match the page's security context: an HTTPS page (e.g. served over a
+  // Tailscale cert) cannot open an insecure ws:// socket (mixed content), so
+  // use wss:// there. Plain http/file origins keep ws://.
+  const secure =
+    typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const gatewayUrl = `${secure ? 'wss' : 'ws'}://${gateway}/`;
   console.log(`[Gateway] Connecting to ${gatewayUrl}...`);
 
   const powersKit = makePromiseKit();
