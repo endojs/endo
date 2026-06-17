@@ -170,6 +170,7 @@ export const flootComponent = (
         --fl-user:#2563eb; --fl-user-text:#fff; --fl-assistant:#27272a;
         --fl-accent:#3b82f6; --fl-red:#ef4444; --fl-green:#22c55e; --fl-amber:#f59e0b;
         --fl-tool:#a78bfa; --fl-tool-result:#86efac;
+        --fl-mail:#0e7490; --fl-mail-text:#e0f2fe;
         position: relative; height: 100%; display: flex; box-sizing: border-box;
         background: var(--fl-bg); color: var(--fl-text); overflow: hidden;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -259,6 +260,8 @@ export const flootComponent = (
         border-bottom-right-radius: 4px; }
       .floot-msg-row.assistant .floot-msg { background: var(--fl-assistant);
         color: var(--fl-text); border-bottom-left-radius: 4px; }
+      .floot-msg-row.mail .floot-msg { background: var(--fl-mail);
+        color: var(--fl-mail-text); }
       .floot-msg.streaming::after { content: ''; display: inline-block; width: 6px;
         height: 1em; background: var(--fl-text-muted); vertical-align: text-bottom;
         margin-left: 2px; animation: floot-caret 1s steps(2) infinite; }
@@ -686,10 +689,11 @@ export const flootComponent = (
     /** @type {FlootMessage['meta']} */ meta,
   ) => {
     const $row = document.createElement('div');
-    $row.className = `floot-msg-row ${role}`;
     // A turn that arrived by mail is captioned with the sender as a pill (the
-    // shared chat token chip), so it reads as incoming mail, not local input.
+    // shared chat token chip) and gets its own bubble color, so it reads as
+    // incoming mail rather than something the local user typed.
     const mailFrom = meta && meta.mail && meta.mail.from;
+    $row.className = `floot-msg-row ${role}${mailFrom ? ' mail' : ''}`;
     if (mailFrom) {
       const $caption = document.createElement('div');
       $caption.className = 'floot-mail-caption';
