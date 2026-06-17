@@ -158,10 +158,11 @@ export const flootComponent = (
   $root.innerHTML = `
     <style>
       .floot-app { --fl-bg:#0f0f10; --fl-surface:#17171a; --fl-surface2:#1f1f23;
-        --fl-surface3:#26262b; --fl-border:#2a2a2e; --fl-text:#e4e4e7;
-        --fl-text-muted:#8a8a92; --fl-text-faint:#5e5e66; --fl-user:#2563eb;
-        --fl-user-text:#fff; --fl-assistant:#27272a; --fl-accent:#3b82f6;
-        --fl-red:#ef4444; --fl-green:#22c55e; --fl-amber:#f59e0b;
+        --fl-surface3:#26262b; --fl-border:#2a2a2e; --fl-border-strong:#3a3a40;
+        --fl-text:#e4e4e7; --fl-text-muted:#8a8a92; --fl-text-faint:#5e5e66;
+        --fl-user:#2563eb; --fl-user-text:#fff; --fl-assistant:#27272a;
+        --fl-accent:#3b82f6; --fl-red:#ef4444; --fl-green:#22c55e; --fl-amber:#f59e0b;
+        --fl-tool:#a78bfa; --fl-tool-result:#86efac;
         position: relative; height: 100%; display: flex; box-sizing: border-box;
         background: var(--fl-bg); color: var(--fl-text); overflow: hidden;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -172,30 +173,30 @@ export const flootComponent = (
         transition: transform 0.2s ease; }
       .floot-sidebar-head { display: flex; align-items: center; justify-content: space-between;
         padding: 0.75rem 0.85rem; border-bottom: 1px solid var(--fl-border); }
-      .floot-sidebar-title { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em;
-        text-transform: uppercase; color: var(--fl-text-muted); }
-      .floot-new-btn { flex: none; width: 28px; height: 28px; border-radius: 7px;
-        border: 1px solid var(--fl-border); background: var(--fl-surface2);
-        color: var(--fl-text); cursor: pointer; font-size: 1.1rem; line-height: 1;
-        display: flex; align-items: center; justify-content: center; }
-      .floot-new-btn:hover { background: var(--fl-surface3); }
+      .floot-sidebar-title { font-size: 0.95rem; font-weight: 600; }
+      .floot-new-btn { flex: none; width: 28px; height: 28px; border-radius: 6px;
+        border: none; background: var(--fl-accent); color: #fff; cursor: pointer;
+        font-size: 1.2rem; line-height: 1; display: flex; align-items: center;
+        justify-content: center; transition: background 0.15s; }
+      .floot-new-btn:hover { background: #2563eb; }
       .floot-session-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0.4rem; }
       .floot-session-empty { padding: 1rem 0.75rem; font-size: 0.85rem;
         color: var(--fl-text-faint); text-align: center; }
 
       .floot-session-item { position: relative; display: flex; align-items: center;
-        gap: 0.5rem; padding: 0.5rem 0.6rem; border-radius: 9px; cursor: pointer;
-        margin-bottom: 2px; }
+        gap: 0.4rem; padding: 0.5rem 0.6rem; border-radius: 6px; cursor: pointer;
+        margin-bottom: 2px; color: var(--fl-text-muted); transition: background 0.12s; }
       .floot-session-item:hover { background: var(--fl-surface2); }
       .floot-session-item.active { background: var(--fl-surface3); }
-      .floot-status-dot { flex: none; width: 8px; height: 8px; border-radius: 50%;
+      .floot-session-item.active .floot-session-name { color: var(--fl-text); }
+      .floot-status-dot { flex: none; width: 7px; height: 7px; border-radius: 50%;
         background: var(--fl-text-faint); }
       .floot-status-dot.streaming { background: var(--fl-accent);
         animation: floot-dot-pulse 1.2s ease-in-out infinite; }
       .floot-status-dot.error { background: var(--fl-red); }
       @keyframes floot-dot-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
       .floot-session-meta { flex: 1; min-width: 0; }
-      .floot-session-name { font-size: 0.9rem; white-space: nowrap; overflow: hidden;
+      .floot-session-name { font-size: 0.85rem; white-space: nowrap; overflow: hidden;
         text-overflow: ellipsis; }
       .floot-session-sub { font-size: 0.72rem; color: var(--fl-text-faint);
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -210,105 +211,127 @@ export const flootComponent = (
         background: var(--fl-bg); color: var(--fl-text); outline: none; }
 
       .floot-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-      .floot-header { display: flex; align-items: center; gap: 0.6rem;
-        padding: 0.7rem 1rem; border-bottom: 1px solid var(--fl-border); }
-      .floot-menu-btn { display: none; flex: none; width: 32px; height: 32px;
-        border: 1px solid var(--fl-border); background: var(--fl-surface2);
-        color: var(--fl-text); border-radius: 7px; cursor: pointer; font-size: 1rem; }
-      .floot-header-title { flex: 1; min-width: 0; font-size: 1rem; font-weight: 600;
+      .floot-header { display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.75rem 1rem; background: var(--fl-surface);
+        border-bottom: 1px solid var(--fl-border); flex-shrink: 0; }
+      .floot-menu-btn { display: none; flex: none; width: 34px; height: 34px;
+        border: none; background: transparent; color: var(--fl-text-muted);
+        border-radius: 6px; cursor: pointer; font-size: 1.25rem;
+        align-items: center; justify-content: center; }
+      .floot-menu-btn:hover { color: var(--fl-text); background: var(--fl-surface2); }
+      .floot-header-title { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 600;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
       .floot-messages { flex: 1; min-height: 0; overflow-y: auto;
-        padding: 1.25rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
-      .floot-empty-state { margin: auto; color: var(--fl-text-faint); font-size: 0.95rem; }
-      .floot-msg-row { display: flex; }
-      .floot-msg-row.user { justify-content: flex-end; }
-      .floot-msg-row.assistant { justify-content: flex-start; }
-      .floot-msg { max-width: 80%; padding: 0.6rem 0.85rem; border-radius: 16px;
-        font-size: 0.95rem; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+        padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;
+        scroll-behavior: smooth; }
+      .floot-empty-state { margin: auto; text-align: center; color: var(--fl-text-faint);
+        font-size: 0.9rem; padding: 2rem; }
+      .floot-msg-row { display: flex; flex-direction: column;
+        animation: floot-fade 0.15s ease; }
+      .floot-msg-row.user { align-items: flex-end; }
+      .floot-msg-row.assistant { align-items: flex-start; }
+      @keyframes floot-fade { from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); } }
+      .floot-msg { max-width: 80%; padding: 0.6rem 0.9rem; border-radius: 16px;
+        font-size: 0.9375rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
       .floot-msg-row.user .floot-msg { background: var(--fl-user); color: var(--fl-user-text);
         border-bottom-right-radius: 4px; }
       .floot-msg-row.assistant .floot-msg { background: var(--fl-assistant);
         color: var(--fl-text); border-bottom-left-radius: 4px; }
-      .floot-msg.streaming::after { content: '▋'; margin-left: 1px; color: var(--fl-accent);
-        animation: floot-caret 1s steps(1) infinite; }
+      .floot-msg.streaming::after { content: ''; display: inline-block; width: 6px;
+        height: 1em; background: var(--fl-text-muted); vertical-align: text-bottom;
+        margin-left: 2px; animation: floot-caret 1s steps(2) infinite; }
       @keyframes floot-caret { 50% { opacity: 0; } }
 
-      .floot-thinking { display: inline-flex; gap: 4px; padding: 0.7rem 0.9rem;
-        background: var(--fl-assistant); border-radius: 16px; border-bottom-left-radius: 4px; }
-      .floot-thinking span { width: 7px; height: 7px; border-radius: 50%;
+      .floot-thinking { display: inline-flex; align-items: center; gap: 4px;
+        padding: 6px 10px; background: var(--fl-assistant); border-radius: 12px; }
+      .floot-thinking span { width: 6px; height: 6px; border-radius: 50%;
         background: var(--fl-text-muted); animation: floot-bounce 1.2s ease-in-out infinite; }
-      .floot-thinking span:nth-child(2) { animation-delay: 0.15s; }
-      .floot-thinking span:nth-child(3) { animation-delay: 0.3s; }
-      @keyframes floot-bounce { 0%,60%,100%{transform:translateY(0);opacity:0.4}
-        30%{transform:translateY(-4px);opacity:1} }
+      .floot-thinking span:nth-child(2) { animation-delay: 0.2s; }
+      .floot-thinking span:nth-child(3) { animation-delay: 0.4s; }
+      @keyframes floot-bounce { 0%,60%,100%{transform:scale(0.9);opacity:0.3}
+        30%{transform:scale(1.1);opacity:1} }
 
-      .floot-status-bar { padding: 0.3rem 1rem; font-size: 0.75rem;
-        color: var(--fl-text-faint); border-top: 1px solid var(--fl-border); }
+      .floot-status-bar { padding: 0.25rem 1rem; font-size: 0.75rem;
+        color: var(--fl-text-muted); background: var(--fl-surface);
+        border-top: 1px solid var(--fl-border); min-height: 1.6rem;
+        display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+      .floot-status-bar.error { color: var(--fl-red); }
 
-      .floot-meter { display: none; position: relative; height: 4px; margin: 0 1rem 0.3rem;
-        border-radius: 2px; background: var(--fl-surface3); overflow: hidden; }
+      .floot-meter { display: none; position: relative; height: 6px;
+        background: var(--fl-border); overflow: hidden; flex-shrink: 0; }
       .floot-meter.on { display: block; }
       .floot-meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
-        background: var(--fl-text-muted); transition: width 0.05s linear; }
-      .floot-meter-fill.active { background: var(--fl-green); }
-      .floot-meter-noise, .floot-meter-threshold { position: absolute; top: -2px; bottom: -2px;
-        width: 2px; }
-      .floot-meter-noise { background: var(--fl-text-faint); }
-      .floot-meter-threshold { background: var(--fl-amber); }
+        background: var(--fl-green); opacity: 0.35; transition: width 0.08s linear; }
+      .floot-meter-fill.active { opacity: 1; }
+      .floot-meter-noise, .floot-meter-threshold { position: absolute; top: 0; bottom: 0;
+        width: 2px; margin-left: -1px; }
+      .floot-meter-noise { background: var(--fl-amber); }
+      .floot-meter-threshold { background: var(--fl-text); }
 
       .floot-compose { display: flex; gap: 0.5rem; align-items: flex-end;
-        padding: 0.75rem 1rem 1rem; border-top: 1px solid var(--fl-border); }
-      .floot-input { flex: 1; resize: none; font: inherit; font-size: 0.95rem;
-        line-height: 1.4; padding: 0.65rem 0.85rem; border-radius: 14px;
+        padding: 0.6rem 0.75rem; padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+        background: var(--fl-surface); border-top: 1px solid var(--fl-border); flex-shrink: 0; }
+      .floot-input { flex: 1; resize: none; font: inherit; font-size: 16px;
+        line-height: 1.4; padding: 0.55rem 1rem; border-radius: 20px;
         border: 1px solid var(--fl-border); background: var(--fl-surface2);
         color: var(--fl-text); max-height: 120px; outline: none; }
+      .floot-input::placeholder { color: var(--fl-text-muted); }
       .floot-input:focus { border-color: var(--fl-accent); }
       .floot-send, .floot-mic { flex: none; width: 44px; height: 44px; border-radius: 50%;
         cursor: pointer; display: flex; align-items: center; justify-content: center;
-        transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease; }
+        transition: all 0.15s ease; }
       .floot-send { border: none; background: var(--fl-accent); color: #fff; }
-      .floot-send:hover { transform: scale(1.06); }
-      .floot-send.cancel { background: var(--fl-red); }
-      .floot-send svg { width: 18px; height: 18px; }
-      .floot-mic { border: 1px solid var(--fl-border); background: var(--fl-surface2);
-        color: var(--fl-text); font-size: 1.15rem; }
-      .floot-mic:hover { transform: scale(1.06); background: var(--fl-surface3); }
-      .floot-mic.listening { border-color: var(--fl-accent); color: var(--fl-accent); }
-      .floot-mic.recording { background: var(--fl-red); color: #fff; border-color: var(--fl-red);
-        animation: floot-mic-pulse 1.4s ease-in-out infinite; }
-      @keyframes floot-mic-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.4)}
-        50%{box-shadow:0 0 0 7px rgba(239,68,68,0)} }
-      .floot-speaker { opacity: 0.45; }
+      .floot-send:hover { background: #2563eb; }
+      .floot-send.cancel { background: #dc2626; }
+      .floot-send.cancel:hover { background: #b91c1c; }
+      .floot-send svg { width: 20px; height: 20px; }
+      .floot-mic { border: 2px solid var(--fl-border); background: var(--fl-surface2);
+        color: var(--fl-text-muted); font-size: 1.15rem; }
+      .floot-mic:hover { border-color: var(--fl-text-muted); }
+      .floot-mic.listening { border-color: var(--fl-green); color: var(--fl-green); }
+      .floot-mic.recording { border-color: var(--fl-green); color: var(--fl-green);
+        animation: floot-mic-pulse 1.5s ease infinite; }
+      @keyframes floot-mic-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.3)}
+        50%{box-shadow:0 0 0 6px rgba(34,197,94,0)} }
+      .floot-speaker { opacity: 0.5; }
       .floot-speaker.on { opacity: 1; border-color: var(--fl-accent); color: var(--fl-accent); }
       .floot-speaker.speaking { background: var(--fl-accent); color: #fff; border-color: var(--fl-accent); }
-      .floot-replay { margin-top: 0.25rem; width: 24px; height: 24px; border-radius: 50%;
-        border: 1px solid var(--fl-border); background: var(--fl-surface2); color: var(--fl-text-muted);
-        cursor: pointer; font-size: 0.7rem; line-height: 1; display: flex; align-items: center;
-        justify-content: center; opacity: 0.6; transition: opacity 0.15s ease, background 0.15s ease; }
-      .floot-replay:hover { opacity: 1; background: var(--fl-surface3); }
-      .floot-replay.playing { color: var(--fl-accent); border-color: var(--fl-accent); opacity: 1; }
+      .floot-replay { margin-top: 2px; border: none; background: none;
+        color: var(--fl-text-muted); cursor: pointer; font-size: 0.7rem; line-height: 1;
+        display: flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px;
+        transition: color 0.15s; }
+      .floot-replay:hover { color: var(--fl-text); }
+      .floot-replay.playing { color: var(--fl-green); }
 
-      .floot-msg-row.tool { justify-content: center; }
-      .floot-tool { max-width: 85%; border: 1px solid var(--fl-border);
-        border-radius: 12px; background: var(--fl-surface2); padding: 0.5rem 0.7rem;
-        font-size: 0.8rem; color: var(--fl-text-muted); }
-      .floot-tool-name { font-weight: 600; color: var(--fl-text); }
-      .floot-tool-args, .floot-tool-result { margin-top: 0.3rem; white-space: pre-wrap;
-        word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 0.72rem; }
-      .floot-tool-result { padding-top: 0.3rem; border-top: 1px solid var(--fl-border);
-        color: var(--fl-text); max-height: 8rem; overflow-y: auto; }
+      .floot-tool { max-width: 80%; background: #1a1a2e; border: 1px solid #2a2a3e;
+        border-radius: 10px; padding: 0.5rem 0.75rem; font-size: 0.8rem;
+        font-family: "SF Mono", "Fira Code", monospace; color: var(--fl-tool);
+        animation: floot-fade 0.15s ease; }
+      .floot-tool-label { font-size: 0.65rem; text-transform: uppercase;
+        letter-spacing: 0.05em; color: #7c6fbf; margin-bottom: 0.25rem; }
+      .floot-tool-pre { white-space: pre-wrap; word-break: break-all; margin: 0;
+        color: #c4b5fd; max-height: 150px; overflow-y: auto; }
+      .floot-tool.result { background: #1a2e1a; border-color: #2a3e2a;
+        color: var(--fl-tool-result); }
+      .floot-tool.result .floot-tool-label { color: #4ade80; }
+      .floot-tool.result .floot-tool-pre { color: #bbf7d0; }
 
       .floot-backdrop { display: none; position: absolute; inset: 0;
         background: rgba(0,0,0,0.45); z-index: 4; }
 
       @media (max-width: 640px) {
-        .floot-sidebar { position: absolute; z-index: 5; top: 0; bottom: 0; left: 0;
-          transform: translateX(-100%); }
+        .floot-sidebar { position: absolute; z-index: 20; top: 0; bottom: 0; left: 0;
+          width: min(280px, 82vw); transform: translateX(-100%);
+          box-shadow: 4px 0 16px rgba(0,0,0,0.4); }
         .floot-sidebar.open { transform: translateX(0); }
+        .floot-backdrop { z-index: 19; }
         .floot-backdrop.open { display: block; }
+        .floot-row-btn { display: flex; }
         .floot-menu-btn { display: flex; align-items: center; justify-content: center; }
+        .floot-header { padding: 0.6rem 0.75rem; }
+        .floot-messages { padding: 0.75rem; }
       }
     </style>
     <div class="floot-sidebar" id="floot-sidebar">
@@ -608,39 +631,36 @@ export const flootComponent = (
     return $bubble;
   };
 
-  // Render a tool call as an inline transcript row. The result is filled in
-  // later via setToolRowResult once the agent reports it.
-  const appendToolRow = (/** @type {any} */ msg) => {
+  // A single tool block (the call, purple; or its result, green), left-aligned
+  // in the flow — matching the standalone Floot's tool-block aesthetic.
+  const makeToolBlock = (
+    /** @type {string} */ name,
+    /** @type {string} */ content,
+    /** @type {boolean} */ isResult,
+  ) => {
     const $row = document.createElement('div');
-    $row.className = 'floot-msg-row tool';
+    $row.className = 'floot-msg-row assistant';
     const $tool = document.createElement('div');
-    $tool.className = 'floot-tool';
-    const $name = document.createElement('div');
-    $name.className = 'floot-tool-name';
-    $name.textContent = `\u{1F527} ${msg.name}`;
-    $tool.appendChild($name);
-    if (msg.args && msg.args !== '{}') {
-      const $args = document.createElement('div');
-      $args.className = 'floot-tool-args';
-      $args.textContent = msg.args;
-      $tool.appendChild($args);
-    }
+    $tool.className = `floot-tool${isResult ? ' result' : ''}`;
+    const $label = document.createElement('div');
+    $label.className = 'floot-tool-label';
+    $label.textContent = `${name || 'tool'}${isResult ? ' result' : ''}`;
+    const $pre = document.createElement('pre');
+    $pre.className = 'floot-tool-pre';
+    $pre.textContent = content;
+    $tool.append($label, $pre);
     $row.appendChild($tool);
-    if (msg.result != null) setToolRowResult($row, msg.result);
-    $messages.appendChild($row);
     return $row;
   };
 
-  const setToolRowResult = (
-    /** @type {HTMLElement} */ $row,
-    /** @type {string} */ result,
-  ) => {
-    const $tool = $row.querySelector('.floot-tool');
-    if (!$tool) return;
-    const $res = document.createElement('div');
-    $res.className = 'floot-tool-result';
-    $res.textContent = result;
-    $tool.appendChild($res);
+  // Render a tool call (and its result, if already known) into the transcript.
+  const appendToolRow = (/** @type {any} */ msg) => {
+    const $row = makeToolBlock(msg.name, msg.args || '', false);
+    $messages.appendChild($row);
+    if (msg.result != null) {
+      $messages.appendChild(makeToolBlock(msg.name, msg.result, true));
+    }
+    return $row;
   };
 
   // Play a finished message through TTS by feeding its whole text as one delta.
@@ -665,8 +685,6 @@ export const flootComponent = (
   let $streamingBubble = null;
   /** @type {any} */
   let pendingTool = null;
-  /** @type {HTMLElement | null} */
-  let $pendingToolRow = null;
 
   const showThinking = () => {
     hideThinking();
@@ -716,7 +734,6 @@ export const flootComponent = (
     activeSessionId = id;
     $streamingBubble = null;
     pendingTool = null;
-    $pendingToolRow = null;
     closeSidebar();
     renderSidebar();
     renderHeader();
@@ -872,14 +889,15 @@ export const flootComponent = (
             result: null,
           };
           session.messages.push(pendingTool);
-          $pendingToolRow = appendToolRow(pendingTool);
+          appendToolRow(pendingTool);
           scrollToBottom();
         } else if (value.type === 'tool_result') {
           if (pendingTool) {
             pendingTool.result = value.result;
-            if ($pendingToolRow) setToolRowResult($pendingToolRow, value.result);
+            $messages.appendChild(
+              makeToolBlock(pendingTool.name, value.result, true),
+            );
             pendingTool = null;
-            $pendingToolRow = null;
           }
           scrollToBottom();
         } else if (value.type === 'phase') {
