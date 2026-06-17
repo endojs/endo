@@ -4,8 +4,8 @@
 // iroh's QUIC stack closes a connection after its default max idle timeout
 // (~2 minutes) and @number0/iroh's `NodeOptions` exposes no transport config
 // to shorten that or to enable QUIC-level keep-alive. A quiet but healthy
-// CapTP session — two daemons that have swapped bootstrap references and are
-// each awaiting the other — is therefore torn down. The heartbeat emits a
+// CapTP session (two daemons that have swapped bootstrap references and are
+// each awaiting the other) is therefore torn down. The heartbeat emits a
 // small QUIC datagram on an interval to keep the connection from going idle,
 // and presumes the peer dead if it falls silent for a full keep-alive window
 // (twice the heartbeat interval, so a single dropped beat is tolerated),
@@ -14,13 +14,13 @@
 //
 // QUIC DATAGRAM frames are ack-eliciting and travel out-of-band from the
 // CapTP bi-stream, so a heartbeat resets both endpoints' idle timers (RFC
-// 9000 § 10.1) without disturbing the netstring frame the CapTP reader and
+// 9000 sec. 10.1) without disturbing the netstring frame the CapTP reader and
 // writer share. Both Endo peers run this module, so datagrams flow in both
 // directions and each side's watchdog observes the other's liveness.
 //
 // The watchdog is armed lazily, by the peer's first inbound datagram, not at
-// connection start. A peer that never heartbeats — an older daemon without
-// this module — therefore is not presumed dead here; its connection falls
+// connection start. A peer that never heartbeats (an older daemon without
+// this module) is therefore not presumed dead here; its connection falls
 // back to iroh's QUIC idle timeout, exactly as before. Only a peer that has
 // demonstrably heartbeated and then stopped is torn down at the keep-alive
 // window.
@@ -179,7 +179,7 @@ export const makeIrohHeartbeat = (
     }
     // Send one beat immediately and start draining inbound datagrams. The
     // watchdog is left disarmed until the peer's first datagram arms it via
-    // `pump` → `touch`, so a non-heartbeating peer is not torn down here.
+    // `pump` -> `touch`, so a non-heartbeating peer is not torn down here.
     sendBeat();
     pump();
   } else {
