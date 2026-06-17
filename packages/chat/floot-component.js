@@ -228,6 +228,11 @@ export const flootComponent = (
         scroll-behavior: smooth; }
       .floot-empty-state { margin: auto; text-align: center; color: var(--fl-text-faint);
         font-size: 0.9rem; padding: 2rem; }
+      .floot-loading { display: inline-flex; align-items: center; gap: 8px; }
+      .floot-spinner { width: 14px; height: 14px; border-radius: 50%;
+        border: 2px solid var(--fl-border); border-top-color: var(--fl-text-muted);
+        animation: floot-spin 0.8s linear infinite; }
+      @keyframes floot-spin { to { transform: rotate(360deg); } }
       .floot-msg-row { display: flex; flex-direction: column;
         animation: floot-fade 0.15s ease; }
       .floot-msg-row.user { align-items: flex-end; }
@@ -590,6 +595,15 @@ export const flootComponent = (
       const $e = document.createElement('div');
       $e.className = 'floot-empty-state';
       $e.textContent = 'No session selected.';
+      $messages.appendChild($e);
+      return;
+    }
+    if (!session.loaded) {
+      const $e = document.createElement('div');
+      $e.className = 'floot-empty-state floot-loading';
+      const $spinner = document.createElement('span');
+      $spinner.className = 'floot-spinner';
+      $e.append($spinner, document.createTextNode('Loading session…'));
       $messages.appendChild($e);
       return;
     }
