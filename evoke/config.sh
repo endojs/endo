@@ -1,4 +1,7 @@
 
+# shellcheck shell=bash
+# shellcheck disable=SC2034  # values are consumed by pivoker/common.sh after sourcing
+
 # TODO want to disable this, but not sure evoke supports empty string
 # TASK_FILE=TODOs.md
 

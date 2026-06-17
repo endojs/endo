@@ -37,7 +37,7 @@ fi
 cd ..
 
 if [ "$files_changed" = true ] ; then
-  git add . 
+  git add .
   git commit -m "results of running npm audit fix"
   git push origin npm-audit-fix
   hub pull-request --no-edit --base Agoric/nat:master

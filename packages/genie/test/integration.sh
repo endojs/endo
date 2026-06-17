@@ -44,8 +44,8 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       echo "[integration] Loading env from $1"
-      # shellcheck disable=SC1090
       set -a
+      # shellcheck source=/dev/null  # dynamic source path is intentional
       source "$1"
       set +a
       shift
@@ -57,6 +57,7 @@ while [[ $# -gt 0 ]]; do
         echo "[integration] ERROR: -E requires KEY=VAL argument." >&2
         exit 1
       fi
+      # shellcheck disable=SC2163  # exporting the assignment string is intentional; the caller passes KEY=VAL.
       export "$1"
       echo "[integration] Set ${1%%=*}"
       shift
@@ -324,6 +325,7 @@ endo start
 # wait until it is responsive before proceeding.
 echo "[integration] Waiting for daemon to become ready..."
 daemon_ready=0
+# shellcheck disable=SC2034  # `i` is a counter; the loop body uses it indirectly through retry pacing.
 for i in $(seq 1 30); do
   if endo ping 2>/dev/null; then
     daemon_ready=1
