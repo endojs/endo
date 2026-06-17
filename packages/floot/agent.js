@@ -284,11 +284,14 @@ export const makeStreamingAgent = async (
     return text;
   };
 
-  const runTurn = async (input, writer) => {
+  const runTurn = async (input, writer, meta) => {
     const text = await resolveUserText(input);
     const baseLeafId = await getOrCreateLeaf();
+    // `meta` rides along on the user node (the provider ignores unknown fields)
+    // so getHistory can mark, e.g., turns that arrived via mail rather than the
+    // local UI.
     const userNode = await tree.addNode(baseLeafId, [
-      { role: 'user', content: `${text}` },
+      { role: 'user', content: `${text}`, ...(meta ? { meta } : {}) },
     ]);
 
     // Agentic loop: stream a reply; if it calls tools, run them, persist the
@@ -366,9 +369,9 @@ export const makeStreamingAgent = async (
     writer.end();
   };
 
-  const converse = (input, writer) => {
+  const converse = (input, writer, meta) => {
     const result = turnChain.then(() =>
-      runTurn(input, writer).catch(err => {
+      runTurn(input, writer, meta).catch(err => {
         // runTurn has no internal catch, so on failure the writer is still
         // unsettled — abort it here or every consumer (UI stream and the mail
         // inbox's turnDone) would hang forever. Rethrow so callers still see it.
@@ -428,9 +431,22 @@ export const makeStreamingAgent = async (
               text = `(${type || 'unknown'} message)`;
             }
 
+            // Resolve a friendly sender name for the history entry: the
+            // petname(s) this guest has for the sender, falling back to the
+            // locator. The reply is sent to the same sender by message number.
+            let fromName;
+            try {
+              const names = await E(powers).reverseLocate(fromId);
+              fromName = Array.isArray(names) && names.length ? names[0] : fromId;
+            } catch {
+              fromName = fromId;
+            }
+
             const { writer, done: turnDone } = makeBufferingWriter();
-            // Route through converse so the turn joins turnChain and shares context.
-            converse(text, writer);
+            // Route through converse so the turn joins turnChain and shares
+            // context. Tag the turn as mail so getHistory can mark it (and the
+            // UI can show the sender) rather than render it like local input.
+            converse(text, writer, { mail: { from: fromName } });
             const result = await turnDone;
             const replyText = result.ok
               ? result.text || ''
@@ -470,7 +486,11 @@ export const makeStreamingAgent = async (
     for (const m of path) {
       if (m.role !== 'user' && m.role !== 'assistant') continue;
       if (typeof m.content === 'string' && m.content.trim() !== '') {
-        out.push({ role: m.role, content: m.content });
+        out.push({
+          role: m.role,
+          content: m.content,
+          ...(m.meta ? { meta: m.meta } : {}),
+        });
       }
       if (m.role === 'assistant' && Array.isArray(m.tool_calls)) {
         for (const tc of m.tool_calls) {

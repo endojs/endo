@@ -92,7 +92,9 @@ export const flootComponent = (
   const DEFAULT_TITLE = 'New chat';
 
   /**
-   * @typedef {{ role: 'user' | 'assistant', text: string }} FlootMessage
+   * @typedef {{ role: 'user' | 'assistant', text?: string,
+   *   meta?: { mail?: { from?: string } },
+   *   name?: string, args?: string, result?: string | null }} FlootMessage
    * @typedef {{ id: string, title: string, createdAt: number,
    *   messages: FlootMessage[], facet: any, loaded: boolean }} FlootSession
    */
@@ -127,7 +129,11 @@ export const flootComponent = (
       session.messages = history.map(m =>
         m.role === 'tool'
           ? { role: 'tool', name: m.name, args: m.args, result: m.result }
-          : { role: m.role === 'user' ? 'user' : 'assistant', text: m.content },
+          : {
+              role: m.role === 'user' ? 'user' : 'assistant',
+              text: m.content,
+              ...(m.meta ? { meta: m.meta } : {}),
+            },
       );
     } catch {
       // leave whatever we have; history just won't repaint
@@ -238,6 +244,11 @@ export const flootComponent = (
       @keyframes floot-spin { to { transform: rotate(360deg); } }
       .floot-msg-row { display: flex; flex-direction: column;
         animation: floot-fade 0.15s ease; }
+      .floot-mail-caption { display: flex; align-items: center; gap: 4px;
+        font-size: 0.7rem; color: var(--fl-text-faint); margin-bottom: 2px;
+        max-width: 80%; }
+      .floot-mail-caption .token { max-width: 14rem; overflow: hidden;
+        text-overflow: ellipsis; white-space: nowrap; }
       .floot-msg-row.user { align-items: flex-end; }
       .floot-msg-row.assistant { align-items: flex-start; }
       @keyframes floot-fade { from { opacity: 0; transform: translateY(4px); }
@@ -663,7 +674,7 @@ export const flootComponent = (
     }
     for (const msg of session.messages) {
       if (msg.role === 'tool') appendToolRow(msg);
-      else appendBubble(msg.role, msg.text);
+      else appendBubble(msg.role, msg.text || '', msg.meta);
     }
     if (stickToBottom) $messages.scrollTop = $messages.scrollHeight;
     else $messages.scrollTop = prevTop;
@@ -672,9 +683,23 @@ export const flootComponent = (
   const appendBubble = (
     /** @type {'user' | 'assistant'} */ role,
     /** @type {string} */ text,
+    /** @type {FlootMessage['meta']} */ meta,
   ) => {
     const $row = document.createElement('div');
     $row.className = `floot-msg-row ${role}`;
+    // A turn that arrived by mail is captioned with the sender as a pill (the
+    // shared chat token chip), so it reads as incoming mail, not local input.
+    const mailFrom = meta && meta.mail && meta.mail.from;
+    if (mailFrom) {
+      const $caption = document.createElement('div');
+      $caption.className = 'floot-mail-caption';
+      $caption.appendChild(document.createTextNode('Mail from '));
+      const $pill = document.createElement('span');
+      $pill.className = 'token message-token';
+      $pill.textContent = `@${mailFrom}`;
+      $caption.appendChild($pill);
+      $row.appendChild($caption);
+    }
     const $bubble = document.createElement('div');
     $bubble.className = 'floot-msg';
     $bubble.textContent = text;
