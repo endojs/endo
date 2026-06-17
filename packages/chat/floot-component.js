@@ -906,6 +906,11 @@ export const flootComponent = (
     EMA_ALPHA: 0.01,
     THRESHOLD_MULT: 2.5,
     BARGE_MULT: 3,
+    // Extra barge headroom required while our own TTS is audibly playing. The
+    // phone speaker leaks the bot's voice back into the mic past browser echo
+    // cancellation; without this the bot barges in on itself. Real barge-in
+    // still works — the user just has to out-speak the playback.
+    ECHO_BARGE_MULT: 2,
     MIN_THRESHOLD: 0.01,
     MIN_BARGE: 0.05,
     DISPLAY_FULL_SCALE: 0.1,
@@ -1170,6 +1175,10 @@ export const flootComponent = (
     }
   };
 
+  // True while scheduled TTS audio extends past the present — i.e. the bot is
+  // (or is about to be) audibly speaking, so the mic is hearing itself.
+  const ttsAudible = () => !!ttsCtx && ttsNextStart > ttsCtx.currentTime;
+
   // Decode one raw s16le mono PCM chunk into a scheduled AudioBuffer and queue
   // it back-to-back after whatever is already playing.
   const enqueuePcm = (
@@ -1413,7 +1422,15 @@ export const flootComponent = (
         noiseFloor = (1 - VAD.EMA_ALPHA) * noiseFloor + VAD.EMA_ALPHA * vol;
       }
       // While the assistant is replying require a louder onset (barge-in).
-      const onsetThreshold = busy ? bargeThreshold : speechThreshold;
+      let onsetThreshold = busy ? bargeThreshold : speechThreshold;
+      // If our own TTS is audibly playing (even after the text turn finished),
+      // demand more headroom still so speaker→mic leakage can't self-barge.
+      if (ttsAudible()) {
+        onsetThreshold = Math.max(
+          onsetThreshold,
+          bargeThreshold * VAD.ECHO_BARGE_MULT,
+        );
+      }
       if (vol > onsetThreshold) {
         if (busy) cancelTurn();
         beginUtterance();
