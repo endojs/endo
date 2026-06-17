@@ -304,7 +304,9 @@ export const flootComponent = (
       .floot-speaker { opacity: 0.5; }
       .floot-speaker.on { opacity: 1; border-color: var(--fl-accent); color: var(--fl-accent); }
       .floot-speaker.speaking { background: var(--fl-accent); color: #fff; border-color: var(--fl-accent); }
-      .floot-replay { margin-top: 2px; border: none; background: none;
+      .floot-bubble-wrap { display: flex; align-items: flex-end; gap: 4px; max-width: 80%; }
+      .floot-bubble-wrap .floot-msg { max-width: 100%; }
+      .floot-replay { flex-shrink: 0; border: none; background: none;
         color: var(--fl-text-muted); cursor: pointer; font-size: 0.7rem; line-height: 1;
         display: flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px;
         transition: color 0.15s; }
@@ -631,16 +633,21 @@ export const flootComponent = (
     const $bubble = document.createElement('div');
     $bubble.className = 'floot-msg';
     $bubble.textContent = text;
-    $row.appendChild($bubble);
     // Per-message replay: re-synthesize the finished assistant text on demand.
+    // The button sits to the right of the bubble, aligned to its bottom edge.
     if (role === 'assistant' && ttsServer && text.trim()) {
+      const $wrap = document.createElement('div');
+      $wrap.className = 'floot-bubble-wrap';
       const $replay = document.createElement('button');
       $replay.type = 'button';
       $replay.className = 'floot-replay';
       $replay.textContent = '▶';
       $replay.setAttribute('aria-label', 'Replay');
       $replay.addEventListener('click', () => replayMessage(text, $replay));
-      $row.appendChild($replay);
+      $wrap.append($bubble, $replay);
+      $row.appendChild($wrap);
+    } else {
+      $row.appendChild($bubble);
     }
     $messages.appendChild($row);
     return $bubble;
