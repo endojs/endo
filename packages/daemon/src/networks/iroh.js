@@ -6,6 +6,7 @@ import { E, Far } from '@endo/far';
 import { fromHex } from '../hex.js';
 import { makeNetstringCapTP } from '../connection.js';
 import { adaptIrohStream } from './iroh-stream-adapter.js';
+import { KEEPALIVE_TIMEOUT_MS, makeIrohHeartbeat } from './iroh-heartbeat.js';
 import {
   buildIrohAddress,
   parseIrohAddress,
@@ -91,8 +92,8 @@ export const make = async (powers, context) => {
    * Wire one accepted or dialed iroh bidi stream up to CapTP and track it
    * until it closes.
    *
-   * @param {object} bi - iroh BiStream.
-   * @param {object} connection - iroh Connection.
+   * @param {any} bi - iroh BiStream.
+   * @param {any} connection - iroh Connection.
    * @param {number} connectionNumber
    * @param {boolean} inbound
    * @returns {ReturnType<typeof makeNetstringCapTP>}
@@ -112,6 +113,37 @@ export const make = async (powers, context) => {
       bootstrap,
     );
 
+    // Tear the session down so any objects reachable across it break.
+    // Aborting CapTP rejects every outstanding question and revokes imported
+    // presences with `reason`; closing the QUIC connection releases the socket
+    // and, on the outbound path, lets `capTp.closed` fire the
+    // connection-context cancellation that disposes the peer.
+    const tearDown = (/** @type {Error} */ reason) => {
+      capTp.close(reason);
+      try {
+        connection.close(0n, new TextEncoder().encode(reason.message));
+      } catch {
+        // Best-effort; the connection may already be gone.
+      }
+    };
+
+    // Keep the connection alive against iroh's QUIC idle timeout, and presume
+    // the peer dead if it stops answering so a hung peer surfaces as broken
+    // capabilities rather than a stall.
+    const heartbeat = makeIrohHeartbeat(connection, {
+      onTimeout: () => {
+        console.error(
+          `Endo daemon iroh connection ${connectionNumber} missed keep-alive (no datagram within ${KEEPALIVE_TIMEOUT_MS}ms) at ${new Date().toISOString()}`,
+        );
+        tearDown(
+          new Error(
+            `iroh keep-alive timeout: peer silent for ${KEEPALIVE_TIMEOUT_MS}ms`,
+          ),
+        );
+      },
+      log: message => console.error(`Endo daemon ${message}`),
+    });
+
     streamClosed.then(
       () => capTp.close(new Error('iroh stream closed')),
       () => {},
@@ -120,6 +152,7 @@ export const make = async (powers, context) => {
     const closed = Promise.race([streamClosed, capTp.closed]);
     connectionClosedPromises.add(closed);
     closed.finally(() => {
+      heartbeat.stop();
       connectionClosedPromises.delete(closed);
       console.error(
         `Endo daemon closed iroh connection ${connectionNumber} at ${new Date().toISOString()}`,

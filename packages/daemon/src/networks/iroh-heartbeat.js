@@ -1,0 +1,168 @@
+// @ts-check
+/* global setInterval, clearInterval, setTimeout, clearTimeout */
+
+// iroh's QUIC stack closes a connection after its default max idle timeout
+// (~2 minutes) and @number0/iroh's `NodeOptions` exposes no transport config
+// to shorten that or to enable QUIC-level keep-alive. A quiet but healthy
+// CapTP session — two daemons that have swapped bootstrap references and are
+// each awaiting the other — is therefore torn down. The heartbeat emits a
+// small QUIC datagram on an interval to keep the connection from going idle,
+// and presumes the peer dead if it falls silent for a full keep-alive window
+// (twice the heartbeat interval, so a single dropped beat is tolerated),
+// tearing the session down promptly instead of waiting on the opaque QUIC
+// idle timeout.
+//
+// QUIC DATAGRAM frames are ack-eliciting and travel out-of-band from the
+// CapTP bi-stream, so a heartbeat resets both endpoints' idle timers (RFC
+// 9000 § 10.1) without disturbing the netstring frame the CapTP reader and
+// writer share. Both Endo peers run this module, so datagrams flow in both
+// directions and each side's watchdog observes the other's liveness.
+//
+// The watchdog is armed lazily, by the peer's first inbound datagram, not at
+// connection start. A peer that never heartbeats — an older daemon without
+// this module — therefore is not presumed dead here; its connection falls
+// back to iroh's QUIC idle timeout, exactly as before. Only a peer that has
+// demonstrably heartbeated and then stopped is torn down at the keep-alive
+// window.
+
+/**
+ * Heartbeat send period. Comfortably below iroh's QUIC idle timeout so a
+ * single beat keeps the connection alive.
+ */
+export const HEARTBEAT_INTERVAL_MS = 30_000;
+harden(HEARTBEAT_INTERVAL_MS);
+
+/**
+ * Keep-alive window: presume the peer dead after two missed heartbeats.
+ */
+export const KEEPALIVE_TIMEOUT_MS = 2 * HEARTBEAT_INTERVAL_MS;
+harden(KEEPALIVE_TIMEOUT_MS);
+
+/**
+ * Keep an iroh QUIC connection alive with a datagram heartbeat and detect a
+ * dead peer with a keep-alive watchdog. The caller owns teardown: `onTimeout`
+ * fires at most once, after the watchdog has been disarmed, and is expected to
+ * cancel the CapTP session and the connection.
+ *
+ * @param {object} connection - An iroh Connection (duck-typed for testing).
+ * @param {(data: Uint8Array) => void} connection.sendDatagram
+ * @param {() => Promise<unknown>} connection.readDatagram
+ * @param {object} [options]
+ * @param {number} [options.intervalMs] - Heartbeat send period.
+ * @param {number} [options.timeoutMs] - Keep-alive window before `onTimeout`.
+ * @param {() => void} [options.onTimeout] - Invoked once when the peer misses
+ *   the keep-alive window.
+ * @param {(message: string) => void} [options.log] - Diagnostic sink; silent
+ *   by default.
+ * @returns {{ stop: () => void }} A handle whose `stop()` halts the heartbeat
+ *   and disarms the watchdog. Idempotent.
+ */
+export const makeIrohHeartbeat = (
+  connection,
+  {
+    intervalMs = HEARTBEAT_INTERVAL_MS,
+    timeoutMs = KEEPALIVE_TIMEOUT_MS,
+    onTimeout = () => {},
+    log = () => {},
+  } = {},
+) => {
+  const { sendDatagram, readDatagram } = connection;
+  const datagramsSupported =
+    typeof sendDatagram === 'function' && typeof readDatagram === 'function';
+
+  let stopped = false;
+  /** @type {ReturnType<typeof setInterval> | undefined} */
+  let beatTimer;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let watchdog;
+
+  const stop = () => {
+    if (stopped) {
+      return;
+    }
+    stopped = true;
+    if (beatTimer !== undefined) {
+      clearInterval(beatTimer);
+    }
+    if (watchdog !== undefined) {
+      clearTimeout(watchdog);
+    }
+  };
+
+  // Arm or re-arm the keep-alive watchdog. Any inbound datagram is proof of
+  // life and pushes the deadline out by a full window; the first such call is
+  // also what first arms the watchdog (see the lazy-arming note in the header).
+  const touch = () => {
+    if (stopped) {
+      return;
+    }
+    if (watchdog !== undefined) {
+      clearTimeout(watchdog);
+    }
+    watchdog = setTimeout(() => {
+      // Disarm before notifying so the callback sees a settled heartbeat and
+      // cannot re-arm by re-entry.
+      stop();
+      onTimeout();
+    }, timeoutMs);
+    if (typeof watchdog.unref === 'function') {
+      watchdog.unref();
+    }
+  };
+
+  const sendBeat = () => {
+    if (stopped) {
+      return;
+    }
+    try {
+      // A one-byte payload suffices to generate traffic; the content is
+      // ignored. A fresh buffer avoids handing native code a shared view.
+      connection.sendDatagram(new Uint8Array([0]));
+    } catch (error) {
+      // A full send buffer or transient datagram error is not fatal: the next
+      // beat retries and the peer's watchdog tolerates a single miss.
+      log(
+        `iroh heartbeat send failed: ${/** @type {Error} */ (error).message}`,
+      );
+    }
+  };
+
+  // Drain inbound datagrams, re-arming the watchdog on each. `readDatagram`
+  // rejects when the connection closes, which ends the pump.
+  const pump = () => {
+    if (stopped) {
+      return;
+    }
+    try {
+      Promise.resolve(connection.readDatagram()).then(
+        () => {
+          touch();
+          pump();
+        },
+        () => {
+          // Connection closed or datagrams ended; stop draining. The CapTP and
+          // stream teardown paths own closing the session.
+        },
+      );
+    } catch {
+      // `readDatagram` unavailable; leave the watchdog to the bi-stream path.
+    }
+  };
+
+  if (datagramsSupported) {
+    beatTimer = setInterval(sendBeat, intervalMs);
+    if (typeof beatTimer.unref === 'function') {
+      beatTimer.unref();
+    }
+    // Send one beat immediately and start draining inbound datagrams. The
+    // watchdog is left disarmed until the peer's first datagram arms it via
+    // `pump` → `touch`, so a non-heartbeating peer is not torn down here.
+    sendBeat();
+    pump();
+  } else {
+    log('iroh heartbeat disabled: connection does not support datagrams');
+  }
+
+  return harden({ stop });
+};
+harden(makeIrohHeartbeat);

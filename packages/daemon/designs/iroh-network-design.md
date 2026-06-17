@@ -199,6 +199,41 @@ is unit-testable with a fake stream and needs no native binding.
 - The disposal hook (`addDisposalHook`) shuts the iroh node down and waits
   for in-flight connections to drain, matching the `libp2p` transport.
 
+### Keep-alive and liveness
+
+iroh's QUIC stack closes a connection after its default max idle timeout
+(~2 minutes), and `@number0/iroh`'s `NodeOptions` exposes no transport config
+to shorten that or to enable QUIC-level keep-alive.
+A quiet but healthy CapTP session — two daemons that have swapped bootstrap
+references and are each awaiting the other — was therefore being torn down
+after about two minutes of silence, surfacing as `iroh stream closed`.
+
+`makeIrohHeartbeat(connection)` (see `src/networks/iroh-heartbeat.js`) keeps
+such sessions alive and detects a genuinely dead peer:
+
+- **Heartbeat.** Every `HEARTBEAT_INTERVAL_MS` (30 s) it sends a one-byte QUIC
+  **datagram**.
+  DATAGRAM frames are ack-eliciting and travel out-of-band from the CapTP bi
+  stream, so a beat resets both endpoints' QUIC idle timers (RFC 9000 § 10.1)
+  without disturbing the netstring frame the reader and writer share.
+  Both peers run the module, so beats flow in both directions.
+- **Keep-alive watchdog.** `KEEPALIVE_TIMEOUT_MS` is twice the heartbeat
+  interval (60 s), so a single dropped beat is tolerated.
+  If a peer that has been heartbeating falls silent for a full window, the
+  session is presumed dead.
+- **Lazy arming.** The watchdog is armed by the peer's *first* inbound
+  datagram, not at connection start.
+  A peer that never heartbeats — an older daemon without this module — is left
+  to iroh's QUIC idle timeout instead of being torn down at 60 s, so the
+  heartbeat is safe to roll out before every peer has it.
+
+On a keep-alive timeout (and on any stream close), `serveStream` tears the
+session down so reachable objects break promptly rather than hanging:
+`capTp.close(reason)` aborts CapTP — rejecting every outstanding question and
+revoking imported presences with `reason` — and the QUIC connection is closed.
+On the outbound path that, via the existing `capTp.closed → cancelConnection`
+wiring, also cancels the peer's connection context.
+
 ## Identity and trust
 
 This is the crux of the "dial keys" property and deserves care.
