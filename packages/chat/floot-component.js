@@ -877,6 +877,16 @@ export const flootComponent = (
             lastSpoken = full.length;
           }
         } else if (value.type === 'tool_call') {
+          // Flush narration streamed before this tool call as its own assistant
+          // message (it was spoken, so it must be shown), then reset the buffer
+          // so post-tool text becomes a fresh bubble below the tool row. Without
+          // this, pre- and post-tool text merge into one bubble placed after the
+          // tool — and the pre-tool narration vanishes on the next repaint.
+          if (full.trim()) {
+            session.messages.push({ role: 'assistant', text: full.trim() });
+          }
+          full = '';
+          lastSpoken = 0;
           // Close out any in-progress assistant bubble so the tool row renders
           // beneath it, then start a tool entry awaiting its result.
           if ($streamingBubble) {
