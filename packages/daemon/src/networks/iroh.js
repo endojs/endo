@@ -1,6 +1,7 @@
 // @ts-check
 /* global globalThis, setInterval, clearInterval */
 
+import harden from '@endo/harden';
 import { E, Far } from '@endo/far';
 
 import { fromHex } from '../hex.js';

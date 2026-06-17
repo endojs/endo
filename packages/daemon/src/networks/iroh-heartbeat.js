@@ -1,6 +1,8 @@
 // @ts-check
 /* global setInterval, clearInterval, setTimeout, clearTimeout */
 
+import harden from '@endo/harden';
+
 // iroh's QUIC stack closes a connection after its default max idle timeout
 // (~2 minutes) and @number0/iroh's `NodeOptions` exposes no transport config
 // to shorten that or to enable QUIC-level keep-alive. A quiet but healthy
@@ -139,7 +141,7 @@ export const makeIrohHeartbeat = (
     try {
       // A one-byte payload suffices to generate traffic; the content is
       // ignored. A fresh buffer avoids handing native code a shared view.
-      connection.sendDatagram(new Uint8Array([0]));
+      sendDatagram(new Uint8Array([0]));
     } catch (error) {
       // A full send buffer or transient datagram error is not fatal: the next
       // beat retries and the peer's watchdog tolerates a single miss.
@@ -157,7 +159,7 @@ export const makeIrohHeartbeat = (
       return;
     }
     try {
-      Promise.resolve(connection.readDatagram()).then(
+      Promise.resolve(readDatagram()).then(
         () => {
           touch();
           pump();
