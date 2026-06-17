@@ -100,6 +100,16 @@ export const makeMessageCapTP = (
   const traceCapTP =
     typeof process !== 'undefined' && process.env.ENDO_CAPTP_TRACE;
 
+  // Serialize outbound writes. CapTP invokes `send` without awaiting the
+  // previous write, relying on the writer to frame each message atomically
+  // and in order. A TCP socket happens to honor this because `socket.write`
+  // resolves synchronously, so one message's framing completes before the
+  // next begins. Asynchronous byte sinks (e.g. iroh's QUIC streams) do not:
+  // overlapping writes let the chunked netstring header and payload of
+  // different messages interleave and corrupt the frame. Chaining each write
+  // on the previous restores the ordering guarantee for every transport.
+  /** @type {Promise<any>} */
+  let writeTail = Promise.resolve();
   /** @param {any} message */
   const send = message => {
     if (traceCapTP) {
@@ -108,33 +118,31 @@ export const makeMessageCapTP = (
         JSON.stringify(message).slice(0, 200),
       );
     }
-    try {
-      const writeP = Promise.resolve(writer.next(message));
-      // Swallow rejections from writes that race with peer disconnect
-      // (e.g. CTP_DISCONNECT after the other side has already FIN'd).
-      // Without this, CapTP teardown produces "This socket has been
-      // ended by the other party" rejections that fail otherwise-clean
-      // test runs under AVA's strict unhandled-rejection policy.
-      writeP.catch(err => {
-        const msg = String((err && err.message) || err || '');
-        const isPostDisconnect =
-          msg.includes('socket has been ended') ||
-          msg.includes('write after end') ||
-          msg.includes('EPIPE') ||
-          msg.includes('ECONNRESET');
-        if (!isPostDisconnect) {
-          // Still log non-disconnect errors for visibility.
-          console.error(`CapTP ${name} send error:`, msg);
-        }
-      });
-      return writeP;
-    } catch (sendError) {
-      console.error(
-        `CapTP ${name} send error:`,
-        /** @type {Error} */ (sendError).message,
-      );
-      return Promise.reject(sendError);
-    }
+    const writeP = writeTail.then(() => writer.next(message));
+    // Advance the tail regardless of this write's outcome so a single failed
+    // write does not wedge the queue.
+    writeTail = writeP.then(
+      () => {},
+      () => {},
+    );
+    // Swallow rejections from writes that race with peer disconnect
+    // (e.g. CTP_DISCONNECT after the other side has already FIN'd).
+    // Without this, CapTP teardown produces "This socket has been
+    // ended by the other party" rejections that fail otherwise-clean
+    // test runs under AVA's strict unhandled-rejection policy.
+    writeP.catch(err => {
+      const msg = String((err && err.message) || err || '');
+      const isPostDisconnect =
+        msg.includes('socket has been ended') ||
+        msg.includes('write after end') ||
+        msg.includes('EPIPE') ||
+        msg.includes('ECONNRESET');
+      if (!isPostDisconnect) {
+        // Still log non-disconnect errors for visibility.
+        console.error(`CapTP ${name} send error:`, msg);
+      }
+    });
+    return writeP;
   };
 
   const { promise: closedPromise, resolve: resolveClosed } = makePromiseKit();
@@ -192,18 +200,12 @@ export const makeMessageCapTP = (
     isClosed = true;
     abort(reason);
     Promise.all([
-      writer
-        .return(undefined)
-        // .catch(e => {
-        //   // EPIPE errors occur when the peer has already closed the connection.
-        //   // This is expected during graceful shutdown and not an error condition.
-        //   const isPrematureClose =
-        //     e.code === 'EPIPE' || e.code === 'ERR_STREAM_PREMATURE_CLOSE';
-        //   if (!isPrematureClose) {
-        //     throw e;
-        //   }
-        // })
-        .catch(() => {}),
+      // Flush any writes still queued on `writeTail` (notably the
+      // CTP_DISCONNECT that `abort` just enqueued) before closing the
+      // writer, so serialization does not drop the final frame. `writeTail`
+      // always settles — it advances on each write's resolution or
+      // rejection — so this cannot wedge close on a live or dead transport.
+      writeTail.then(() => writer.return(undefined)).catch(() => {}),
       drained.catch(() => {}),
     ]).then(() => {
       resolveClosed(undefined);

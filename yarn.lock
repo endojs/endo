@@ -1660,6 +1660,7 @@ __metadata:
     "@libp2p/webrtc": "npm:^5.2.24"
     "@libp2p/websockets": "npm:^9.2.19"
     "@multiformats/multiaddr": "npm:^12.4.4"
+    "@number0/iroh": "npm:^0.35.0"
     "@types/ws": "npm:^8.18.1"
     ava: "catalog:dev"
     better-sqlite3: "npm:^11.0.0"
@@ -1669,6 +1670,9 @@ __metadata:
     ses: "workspace:^"
     typescript: "catalog:dev"
     ws: "npm:^8.13.0"
+  dependenciesMeta:
+    "@number0/iroh":
+      optional: true
   languageName: unknown
   linkType: soft
 
@@ -4549,6 +4553,135 @@ __metadata:
     proc-log: "npm:^4.0.0"
     which: "npm:^4.0.0"
   checksum: 10c0/f9f40ecff0406a9ce1b77c9f714fc7c71b561289361efc6e2e0e48ca2d630aa98d277cbbf269750f9467a40eaaac79e78766d67c458046aa9507c8c354650fee
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-android-arm-eabi@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-android-arm-eabi@npm:0.35.0"
+  conditions: os=android & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-android-arm64@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-android-arm64@npm:0.35.0"
+  conditions: os=android & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-darwin-arm64@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-darwin-arm64@npm:0.35.0"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-darwin-universal@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-darwin-universal@npm:0.35.0"
+  conditions: os=darwin
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-linux-arm-gnueabihf@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-linux-arm-gnueabihf@npm:0.35.0"
+  conditions: os=linux & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-linux-arm-musleabihf@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-linux-arm-musleabihf@npm:0.35.0"
+  conditions: os=linux & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-linux-arm64-gnu@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-linux-arm64-gnu@npm:0.35.0"
+  conditions: os=linux & cpu=arm64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-linux-arm64-musl@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-linux-arm64-musl@npm:0.35.0"
+  conditions: os=linux & cpu=arm64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-linux-x64-gnu@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-linux-x64-gnu@npm:0.35.0"
+  conditions: os=linux & cpu=x64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-linux-x64-musl@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-linux-x64-musl@npm:0.35.0"
+  conditions: os=linux & cpu=x64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-win32-arm64-msvc@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-win32-arm64-msvc@npm:0.35.0"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@number0/iroh-win32-x64-msvc@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh-win32-x64-msvc@npm:0.35.0"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@number0/iroh@npm:^0.35.0":
+  version: 0.35.0
+  resolution: "@number0/iroh@npm:0.35.0"
+  dependencies:
+    "@number0/iroh-android-arm-eabi": "npm:0.35.0"
+    "@number0/iroh-android-arm64": "npm:0.35.0"
+    "@number0/iroh-darwin-arm64": "npm:0.35.0"
+    "@number0/iroh-darwin-universal": "npm:0.35.0"
+    "@number0/iroh-linux-arm-gnueabihf": "npm:0.35.0"
+    "@number0/iroh-linux-arm-musleabihf": "npm:0.35.0"
+    "@number0/iroh-linux-arm64-gnu": "npm:0.35.0"
+    "@number0/iroh-linux-arm64-musl": "npm:0.35.0"
+    "@number0/iroh-linux-x64-gnu": "npm:0.35.0"
+    "@number0/iroh-linux-x64-musl": "npm:0.35.0"
+    "@number0/iroh-win32-arm64-msvc": "npm:0.35.0"
+    "@number0/iroh-win32-x64-msvc": "npm:0.35.0"
+  dependenciesMeta:
+    "@number0/iroh-android-arm-eabi":
+      optional: true
+    "@number0/iroh-android-arm64":
+      optional: true
+    "@number0/iroh-darwin-arm64":
+      optional: true
+    "@number0/iroh-darwin-universal":
+      optional: true
+    "@number0/iroh-linux-arm-gnueabihf":
+      optional: true
+    "@number0/iroh-linux-arm-musleabihf":
+      optional: true
+    "@number0/iroh-linux-arm64-gnu":
+      optional: true
+    "@number0/iroh-linux-arm64-musl":
+      optional: true
+    "@number0/iroh-linux-x64-gnu":
+      optional: true
+    "@number0/iroh-linux-x64-musl":
+      optional: true
+    "@number0/iroh-win32-arm64-msvc":
+      optional: true
+    "@number0/iroh-win32-x64-msvc":
+      optional: true
+  checksum: 10c0/8dd611065d07f0b3539bb19339569ef5ebd5ccfe87adda4cb42a3d8cdd151a092f38df437402e5275f9a23a9015fcaf8fe6ec720382c882845adad557c698069
   languageName: node
   linkType: hard
 

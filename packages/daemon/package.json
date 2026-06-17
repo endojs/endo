@@ -98,6 +98,9 @@
     "ses": "workspace:^",
     "ws": "^8.13.0"
   },
+  "optionalDependencies": {
+    "@number0/iroh": "^0.35.0"
+  },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
     "@endo/pass-style": "workspace:^",
