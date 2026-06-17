@@ -58,6 +58,8 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} [whylipSystemPrompt] - System prompt override for Whylip mode
  * @property {'chat' | 'forum'} [viewMode] - Channel view mode (default: 'chat')
  * @property {boolean} [ownedPersona] - Whether the space owns the persona (for cleanup)
+ * @property {string[]} [audioPath] - Pet name path to a speech-to-text object (floot mic)
+ * @property {string[]} [ttsPath] - Pet name path to a text-to-speech object (floot spoken replies)
  */
 
 /**
@@ -104,6 +106,8 @@ export const createAddSpaceModal = ({
   let whylipAgentName = '';
   /** @type {string} */
   let flootAudioPath = '';
+  /** @type {string} */
+  let flootTtsPath = '';
   let selectedIcon = '🐈‍⬛';
   let useLetterIcon = false;
   /** @type {string} */
@@ -682,10 +686,17 @@ export const createAddSpaceModal = ({
         </div>
 
         <div class="add-space-field">
-          <label>Audio Object Path (optional)</label>
+          <label>STT Object Path (optional)</label>
           <input type="text" id="floot-audio-path" class="add-space-input"
-            placeholder="floot-audio" value="${flootAudioPath}" />
-          <div class="field-hint">Enable the mic by pointing at an audio/transcription object (slash-separated path). Leave blank for text only.</div>
+            placeholder="floot-stt" value="${flootAudioPath}" />
+          <div class="field-hint">Enable the mic by pointing at a speech-to-text object (slash-separated path). Leave blank for text only.</div>
+        </div>
+
+        <div class="add-space-field">
+          <label>TTS Object Path (optional)</label>
+          <input type="text" id="floot-tts-path" class="add-space-input"
+            placeholder="floot-tts" value="${flootTtsPath}" />
+          <div class="field-hint">Enable spoken replies by pointing at a text-to-speech object (slash-separated path). Leave blank for silent.</div>
         </div>
 
         <div id="scheme-picker-slot" class="add-space-field"></div>
@@ -1231,6 +1242,16 @@ export const createAddSpaceModal = ({
     if ($flootAudioPathInput) {
       $flootAudioPathInput.addEventListener('input', () => {
         flootAudioPath = $flootAudioPathInput.value;
+      });
+    }
+
+    // Floot form: optional text-to-speech object path
+    const $flootTtsPathInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#floot-tts-path')
+    );
+    if ($flootTtsPathInput) {
+      $flootTtsPathInput.addEventListener('input', () => {
+        flootTtsPath = $flootTtsPathInput.value;
       });
     }
 
@@ -2003,6 +2024,7 @@ export const createAddSpaceModal = ({
     const name = `${profilePath[profilePath.length - 1]}-chat`;
 
     const audioPath = flootAudioPath.split('/').filter(Boolean);
+    const ttsPath = flootTtsPath.split('/').filter(Boolean);
 
     isSubmitting = true;
     error = null;
@@ -2016,6 +2038,7 @@ export const createAddSpaceModal = ({
         layout: 'floot',
         scheme: schemePicker ? schemePicker.getValue() : 'auto',
         ...(audioPath.length ? { audioPath } : {}),
+        ...(ttsPath.length ? { ttsPath } : {}),
       });
       hide({ restoreScheme: false });
       onClose();
@@ -2160,6 +2183,7 @@ export const createAddSpaceModal = ({
     whylipName = '';
     whylipAgentName = '';
     flootAudioPath = '';
+    flootTtsPath = '';
     error = null;
     isSubmitting = false;
     schemePicker = null;
