@@ -32,6 +32,8 @@ import {
   makeStoreTool,
   makeRemoveTool,
   makeAdoptTool,
+  makeSendTool,
+  makeReplyTool,
 } from '@endo/fae/src/tool-makers.js';
 
 import { createStreamingProvider } from './providers/index.js';
@@ -199,6 +201,8 @@ export const makeStreamingAgent = async (
     }),
   );
   localTools.set('adopt', makeAdoptTool(powers));
+  localTools.set('send', makeSendTool(powers));
+  localTools.set('reply', makeReplyTool(powers));
 
   // One session = one guest = one linear conversation. The guest's petstore
   // holds a single conversation-tree root (the system prompt) and a linear
@@ -563,6 +567,23 @@ export const make = (hostPowers, _context, { env } = {}) => {
         // the session's powers (the same agent fae runs its driver against).
         await E(host).provideGuest(handleName, { agentName });
         const sessionGuest = await E(host).lookup(agentName);
+        // Introduce the user to the session under the petname "user" so the
+        // agent can mail them directly (send/reply target "user"). The factory
+        // host's own "@host" is the user — the @agent that provisioned the
+        // factory — so copy it into the guest's petstore. A session's own
+        // "@host" is this factory host, not the user, which is why a plain
+        // send("@host") never reaches them. Idempotent: skip if already present
+        // (the guest's petstore survives restarts).
+        try {
+          if (!(await E(sessionGuest).has('user'))) {
+            await E(host).copy(['@host'], [agentName, 'user']);
+          }
+        } catch (err) {
+          console.warn(
+            `[floot-factory] could not register "user" for session ${id}:`,
+            err instanceof Error ? err.message : String(err),
+          );
+        }
         const provider = await getProvider();
         const agent = await makeStreamingAgent(
           sessionGuest,
@@ -701,9 +722,11 @@ export const make = (hostPowers, _context, { env } = {}) => {
      */
     async renameSession(id, title) {
       await loadRegistry();
-      const entry = (registry || []).find(s => s.id === id);
-      if (!entry) throw new Error(`Unknown session "${id}".`);
-      entry.title = title;
+      const reg = registry || [];
+      const idx = reg.findIndex(s => s.id === id);
+      if (idx === -1) throw new Error(`Unknown session "${id}".`);
+      // Entries are hardened, so replace rather than mutate in place.
+      reg[idx] = harden({ ...reg[idx], title });
       await saveRegistry();
     },
 
