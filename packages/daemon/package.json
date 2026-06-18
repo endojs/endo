@@ -97,7 +97,7 @@
     "ws": "^8.13.0"
   },
   "optionalDependencies": {
-    "@number0/iroh": "^0.35.0"
+    "@number0/iroh": "^1.0.0"
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",

@@ -4,9 +4,9 @@ import { makePromiseKit } from '@endo/promise-kit';
 
 /** @import { Reader, Writer } from '@endo/stream' */
 
-// Size of the buffer handed to iroh's `recv.read` for each chunk. Netstring
-// framing downstream reassembles messages across chunk boundaries, so this
-// only bounds the per-read syscall size, not message size.
+// Maximum number of bytes requested from iroh's `recv.read` per chunk.
+// Netstring framing downstream reassembles messages across chunk boundaries,
+// so this only bounds the per-read syscall size, not message size.
 const READ_CHUNK_SIZE = 64 * 1024;
 
 /**
@@ -14,18 +14,22 @@ const READ_CHUNK_SIZE = 64 * 1024;
  * Reader<Uint8Array> and Writer<Uint8Array> pairs, suitable for use with
  * makeNetstringCapTP.
  *
- * iroh streams expose:
- *   - bi.send: SendStream with writeAll(Uint8Array), finish(), reset(code)
- *   - bi.recv: RecvStream with read(buf) -> bigint | null (null == EOF)
+ * iroh streams (as of `@number0/iroh` 1.0) expose:
+ *   - bi.send: SendStream with writeAll(Array<number>), finish(), reset(code)
+ *   - bi.recv: RecvStream with read(sizeLimit) -> bytes (empty == EOF)
  *   - connection.closed(): Promise that settles when the connection closes
+ *
+ * The binding takes byte payloads as plain `Array<number>` (napi marshals
+ * `Vec<u8>` from a JS Array, not a TypedArray) and returns reads as a
+ * byte-valued array-like, so the adapter converts at the boundary.
  *
  * The adapter depends only on this duck-typed shape, so it can be unit
  * tested with a fake stream and connection.
  *
  * @param {object} bi - An iroh BiStream.
- * @param {{ writeAll(buf: Uint8Array): Promise<unknown>, finish(): Promise<unknown>, reset(code: bigint): Promise<unknown> }} bi.send
- * @param {{ read(buf: Uint8Array): Promise<bigint | number | null> }} bi.recv
- * @param {{ closed?: () => Promise<unknown>, close?: (code: bigint, reason: Uint8Array) => void }} [connection]
+ * @param {{ writeAll(buf: number[]): Promise<unknown>, finish(): Promise<unknown>, reset(code: bigint): Promise<unknown> }} bi.send
+ * @param {{ read(sizeLimit: number): Promise<ArrayLike<number> | null | undefined> }} bi.recv
+ * @param {{ closed?: () => Promise<unknown>, close?: (code: bigint, reason: number[]) => void }} [connection]
  * @returns {{ reader: Reader<Uint8Array>, writer: Writer<Uint8Array>, closed: Promise<void> }}
  */
 export const adaptIrohStream = (bi, connection = {}) => {
@@ -47,19 +51,17 @@ export const adaptIrohStream = (bi, connection = {}) => {
     async next() {
       await null;
       try {
-        const buf = new Uint8Array(READ_CHUNK_SIZE);
-        const n = await recv.read(buf);
-        if (n === null || n === undefined) {
+        const chunk = await recv.read(READ_CHUNK_SIZE);
+        // An empty (or absent) result signals EOF: iroh's QUIC `read` only
+        // resolves with zero bytes once the stream has finished — it never
+        // yields an empty, non-EOF read while the stream is open.
+        if (chunk === null || chunk === undefined || chunk.length === 0) {
           resolveClosed(undefined);
           return harden({ value: undefined, done: true });
         }
-        const count = Number(n);
-        if (count === 0) {
-          // No bytes this turn but not EOF; yield an empty chunk and let the
-          // caller poll again. Netstring tolerates empty reads.
-          return harden({ value: new Uint8Array(0), done: false });
-        }
-        return harden({ value: buf.subarray(0, count), done: false });
+        // `read` returns an `Array<number>` (or Buffer); normalise to a
+        // Uint8Array for the netstring/CapTP layer.
+        return harden({ value: new Uint8Array(chunk), done: false });
       } catch (err) {
         resolveClosed(undefined);
         throw err;
@@ -83,7 +85,9 @@ export const adaptIrohStream = (bi, connection = {}) => {
   const writer = harden({
     async next(value) {
       await null;
-      await send.writeAll(value);
+      // The binding's `writeAll` takes a plain `Array<number>`, not a
+      // TypedArray.
+      await send.writeAll(Array.from(value));
       return harden({ value: undefined, done: false });
     },
     async return() {
@@ -105,7 +109,7 @@ export const adaptIrohStream = (bi, connection = {}) => {
       }
       if (typeof connection.close === 'function') {
         try {
-          connection.close(0n, new TextEncoder().encode('error'));
+          connection.close(0n, Array.from(new TextEncoder().encode('error')));
         } catch {
           // Best-effort.
         }

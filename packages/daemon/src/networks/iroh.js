@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis, setInterval, clearInterval */
+/* global globalThis */
 
 import harden from '@endo/harden';
 import { E, Far } from '@endo/far';
@@ -14,20 +14,29 @@ import {
   supportsIrohAddress,
 } from './iroh-address.js';
 
-// ALPN identifying the Endo CapTP protocol over iroh QUIC. iroh keys its
-// inbound `protocols` table by the UTF-8 string form of the ALPN bytes, so a
-// plain string key here is equivalent to the byte array the native binding
-// expects (see @number0/iroh test/node.mjs).
+// ALPN identifying the Endo CapTP protocol over iroh QUIC. The native binding
+// takes ALPNs as plain `Array<number>` byte arrays (napi marshals `Vec<u8>`
+// from a JS Array, not a TypedArray), both when advertised at bind time and
+// when dialing (see @number0/iroh test/endpoint.mjs).
 const ALPN_STRING = 'endo/captp/0';
-const ALPN_BYTES = new TextEncoder().encode(ALPN_STRING);
+const textEncoder = new TextEncoder();
+const ALPN_BYTES = textEncoder.encode(ALPN_STRING);
+const ALPN_ARRAY = Array.from(ALPN_BYTES);
+
+/**
+ * Encode a string as the `Array<number>` byte form the native binding's
+ * `Vec<u8>` parameters expect (close reasons, datagrams, etc.).
+ *
+ * @param {string} text
+ * @returns {number[]}
+ */
+const toByteArray = text => Array.from(textEncoder.encode(text));
 
 const processEnv = /** @type {any} */ (globalThis).process?.env;
 // Publish loopback/private direct addresses as dialing hints. Off by default
 // (they are useless to remote dialers); enable for same-host integration
 // tests where discovery has no public path to advertise.
 const PUBLISH_PRIVATE = processEnv?.ENDO_IROH_PUBLISH_PRIVATE === '1';
-
-const ADDRESS_REFRESH_MS = 15_000;
 
 /**
  * Derive a deterministic 32-byte Ed25519 secret for the iroh node from the
@@ -67,7 +76,7 @@ export const make = async (powers, context) => {
   // specifier is held in a variable so the type checker does not resolve the
   // package's (malformed) type declarations.
   const irohSpecifier = '@number0/iroh';
-  const { Iroh } = await import(irohSpecifier);
+  const { Endpoint, EndpointAddr, EndpointId } = await import(irohSpecifier);
 
   const cancelled = /** @type {Promise<never>} */ (E(context).whenCancelled());
   const cancelServer = (/** @type {Error} */ error) => E(context).cancel(error);
@@ -122,7 +131,7 @@ export const make = async (powers, context) => {
     const tearDown = (/** @type {Error} */ reason) => {
       capTp.close(reason);
       try {
-        connection.close(0n, new TextEncoder().encode(reason.message));
+        connection.close(0n, toByteArray(reason.message));
       } catch {
         // Best-effort; the connection may already be gone.
       }
@@ -162,69 +171,85 @@ export const make = async (powers, context) => {
     return capTp;
   };
 
-  // --- Inbound connection handler ---
-  const protocols = {
-    [ALPN_STRING]: (/** @type {any} */ _err, /** @type {any} */ _endpoint) => ({
-      accept: async (/** @type {any} */ err, /** @type {any} */ connection) => {
-        if (err) {
-          // A single failed inbound connection must not tear down the whole
-          // transport; log and ignore it.
-          console.error(
-            `Endo daemon iroh inbound connection error: ${
-              /** @type {Error} */ (err).message
-            }`,
-          );
-          return;
-        }
-        await (async () => {
-          const { value: connectionNumber } = connectionNumbers.next();
-          console.error(
-            `Endo daemon accepted iroh connection ${connectionNumber} at ${new Date().toISOString()}`,
-          );
-          const bi = await connection.acceptBi();
-          serveStream(bi, connection, connectionNumber, true);
-          await connection.closed();
-        })().catch(cancelServer);
-      },
-    }),
+  // Bind the endpoint. `Endpoint.bind` applies iroh's n0 preset (relays +
+  // discovery), then our options, so the transport keeps the "dial keys, not
+  // IPs" default. Advertising the CapTP ALPN here is what lets inbound dials
+  // negotiate our protocol; the accept loop below pulls those connections.
+  const endpoint = await Endpoint.bind({ secretKey, alpns: [ALPN_ARRAY] });
+  const localIrohNodeId = endpoint.id().toString();
+
+  // --- Inbound accept loop ---
+  // 1.0 replaced the `protocols` table with an explicit accept loop:
+  // `acceptNext()` yields one inbound connection attempt at a time (or null
+  // once the endpoint closes), and the server-side handshake is driven by
+  // hand through `Incoming -> Accepting -> Connection`.
+  /** @param {any} incoming */
+  const handleIncoming = async incoming => {
+    const accepting = await incoming.accept();
+    const connection = await accepting.connect();
+    const { value: connectionNumber } = connectionNumbers.next();
+    console.error(
+      `Endo daemon accepted iroh connection ${connectionNumber} at ${new Date().toISOString()}`,
+    );
+    const bi = await connection.acceptBi();
+    serveStream(bi, connection, connectionNumber, true);
+    await connection.closed();
   };
 
-  const iroh = await Iroh.memory({ secretKey, protocols });
-  const endpoint = iroh.node.endpoint();
-  const localIrohNodeId = endpoint.nodeId();
-
-  // `addresses()` must be synchronous but `net.nodeAddr()` is async, so we
-  // cache the latest NodeAddr and refresh it on an interval.
-  /** @type {{ nodeId: string, relayUrl?: string, addresses?: string[] }} */
-  let cachedNodeAddr = { nodeId: localIrohNodeId };
-  const refreshNodeAddr = async () => {
-    try {
-      const nodeAddr = await iroh.net.nodeAddr();
-      cachedNodeAddr = {
-        nodeId: localIrohNodeId,
-        relayUrl: nodeAddr.relayUrl,
-        addresses: nodeAddr.addresses,
-      };
-    } catch (error) {
-      console.error(
-        `Endo iroh: failed to refresh node address: ${
-          /** @type {Error} */ (error).message
-        }`,
-      );
+  const acceptLoop = async () => {
+    await null;
+    for (;;) {
+      // Accept connections one at a time; the work for each is dispatched
+      // concurrently below, so the serial await here is intentional.
+      // eslint-disable-next-line no-await-in-loop
+      const incoming = await endpoint.acceptNext();
+      if (!incoming) {
+        // `acceptNext` resolves to null once the endpoint is closed; the loop
+        // is done and the disposal path below has already torn things down.
+        return;
+      }
+      // Handle each inbound connection independently. A single failed inbound
+      // connection must not tear down the whole transport, so its errors are
+      // logged and swallowed here rather than propagated to cancelServer.
+      handleIncoming(incoming).catch((/** @type {Error} */ error) => {
+        console.error(
+          `Endo daemon iroh inbound connection error: ${error.message}`,
+        );
+      });
     }
   };
-  await refreshNodeAddr();
-
-  const refreshTimer = setInterval(() => {
-    refreshNodeAddr().catch(() => {});
-  }, ADDRESS_REFRESH_MS);
-  if (typeof refreshTimer.unref === 'function') {
-    refreshTimer.unref();
-  }
+  // Only a fatal failure of the loop itself (not a per-connection error) tears
+  // the transport down.
+  acceptLoop().catch(cancelServer);
 
   console.error(
     `Endo daemon started local iroh network device, NodeId ${localIrohNodeId}`,
   );
+
+  // `addresses()` is synchronous and, since 1.0, so is `endpoint.addr()`, so
+  // the current NodeAddr is read on demand rather than cached on an interval.
+  const currentAddress = () => {
+    try {
+      const addr = endpoint.addr();
+      return buildIrohAddress(
+        {
+          nodeId: addr.id().toString(),
+          relayUrl: addr.relayUrl() ?? undefined,
+          addresses: addr.directAddresses(),
+        },
+        { includePrivate: PUBLISH_PRIVATE },
+      );
+    } catch (error) {
+      console.error(
+        `Endo iroh: failed to read node address: ${
+          /** @type {Error} */ (error).message
+        }`,
+      );
+      // Fall back to a bare-key address; the peer is still dialable by NodeId
+      // through discovery.
+      return buildIrohAddress({ nodeId: localIrohNodeId });
+    }
+  };
 
   // --- Outbound connect ---
   /**
@@ -248,8 +273,16 @@ export const make = async (powers, context) => {
     let connection;
     let handedOff = false;
     try {
+      // 1.0 dials an `EndpointAddr` instance (built from an `EndpointId` plus
+      // optional relay/direct-address hints) rather than a plain NodeAddr
+      // object. Passing no hints lets discovery resolve the NodeId.
+      const endpointAddr = new EndpointAddr(
+        EndpointId.fromString(nodeAddr.nodeId),
+        nodeAddr.relayUrl,
+        nodeAddr.addresses,
+      );
       connection = await Promise.race([
-        endpoint.connect(nodeAddr, ALPN_BYTES),
+        endpoint.connect(endpointAddr, ALPN_ARRAY),
         connectionCancelled,
       ]);
       const bi = await Promise.race([connection.openBi(), connectionCancelled]);
@@ -279,7 +312,7 @@ export const make = async (powers, context) => {
       // QUIC connection does not leak.
       if (connection && !handedOff) {
         try {
-          connection.close(0n, new TextEncoder().encode('cancelled'));
+          connection.close(0n, toByteArray('cancelled'));
         } catch {
           // Best-effort.
         }
@@ -290,9 +323,10 @@ export const make = async (powers, context) => {
 
   // --- Shutdown ---
   const stopped = cancelled.catch(async () => {
-    clearInterval(refreshTimer);
     try {
-      await iroh.node.shutdown();
+      // Closing the endpoint also ends the accept loop: `acceptNext` resolves
+      // to null once the endpoint is closed.
+      await endpoint.close();
     } catch {
       // Best-effort shutdown.
     }
@@ -302,10 +336,7 @@ export const make = async (powers, context) => {
   E.sendOnly(context).addDisposalHook(() => stopped);
 
   return Far('IrohNetwork', {
-    addresses: () =>
-      harden([
-        buildIrohAddress(cachedNodeAddr, { includePrivate: PUBLISH_PRIVATE }),
-      ]),
+    addresses: () => harden([currentAddress()]),
     supports: supportsIrohAddress,
     connect,
   });

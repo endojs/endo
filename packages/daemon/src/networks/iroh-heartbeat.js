@@ -4,15 +4,15 @@
 import harden from '@endo/harden';
 
 // iroh's QUIC stack closes a connection after its default max idle timeout
-// (~2 minutes) and @number0/iroh's `NodeOptions` exposes no transport config
-// to shorten that or to enable QUIC-level keep-alive. A quiet but healthy
-// CapTP session (two daemons that have swapped bootstrap references and are
-// each awaiting the other) is therefore torn down. The heartbeat emits a
-// small QUIC datagram on an interval to keep the connection from going idle,
-// and presumes the peer dead if it falls silent for a full keep-alive window
-// (twice the heartbeat interval, so a single dropped beat is tolerated),
-// tearing the session down promptly instead of waiting on the opaque QUIC
-// idle timeout.
+// (~2 minutes) and @number0/iroh's `EndpointOptions` exposes no transport
+// config to shorten that or to enable QUIC-level keep-alive. A quiet but
+// healthy CapTP session (two daemons that have swapped bootstrap references
+// and are each awaiting the other) is therefore torn down. The heartbeat
+// emits a small QUIC datagram on an interval to keep the connection from
+// going idle, and presumes the peer dead if it falls silent for a full
+// keep-alive window (twice the heartbeat interval, so a single dropped beat
+// is tolerated), tearing the session down promptly instead of waiting on the
+// opaque QUIC idle timeout.
 //
 // QUIC DATAGRAM frames are ack-eliciting and travel out-of-band from the
 // CapTP bi-stream, so a heartbeat resets both endpoints' idle timers (RFC
@@ -67,7 +67,7 @@ const renderThrown = value => {
  * cancel the CapTP session and the connection.
  *
  * @param {object} connection - An iroh Connection (duck-typed for testing).
- * @param {(data: Uint8Array) => void} connection.sendDatagram
+ * @param {(data: number[]) => void} connection.sendDatagram
  * @param {() => Promise<unknown>} connection.readDatagram
  * @param {object} [options]
  * @param {number} [options.intervalMs] - Heartbeat send period.
@@ -140,8 +140,10 @@ export const makeIrohHeartbeat = (
     }
     try {
       // A one-byte payload suffices to generate traffic; the content is
-      // ignored. A fresh buffer avoids handing native code a shared view.
-      sendDatagram(new Uint8Array([0]));
+      // ignored. The binding's `sendDatagram` takes a plain `Array<number>`
+      // (napi marshals `Vec<u8>` from a JS Array, not a TypedArray), and a
+      // fresh array avoids handing native code a shared view.
+      sendDatagram([0]);
     } catch (error) {
       // A full send buffer or transient datagram error is not fatal: the next
       // beat retries and the peer's watchdog tolerates a single miss.

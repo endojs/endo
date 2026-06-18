@@ -1,4 +1,4 @@
-/* global crypto, process, Buffer, setTimeout, console */
+/* global crypto, process, setTimeout */
 /**
  * Manually verify iroh "dial keys, not IPs" discovery for the Endo iroh
  * transport.
@@ -35,9 +35,10 @@
 // Non-literal specifier: keeps any future type checker from resolving the
 // package's malformed type declarations.
 const irohSpecifier = '@number0/iroh';
-const { Iroh, NodeDiscoveryConfig } = await import(irohSpecifier);
+const { Endpoint, EndpointAddr, EndpointId } = await import(irohSpecifier);
 
-const ALPN = 'endo/captp/0';
+// The 1.0 binding takes ALPNs and byte payloads as plain `Array<number>`.
+const ALPN = Array.from(new TextEncoder().encode('endo/captp/0'));
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
@@ -46,39 +47,61 @@ const randomSecret = () =>
 
 const waitMs = Number(process.env.IROH_DISCOVERY_WAIT_MS || '8000');
 
-const protocols = {
-  [ALPN]: (_err, _endpoint) => ({
-    accept: async (err, connection) => {
-      if (err) return;
+/**
+ * Run the server-side accept loop: echo a 'pong' for each inbound bi stream.
+ * Replaces the 0.35 `protocols` table, which 1.0 removed in favour of an
+ * explicit `acceptNext()` loop.
+ *
+ * @param {import('@number0/iroh').Endpoint} server
+ */
+const serveEcho = async server => {
+  await null;
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const incoming = await server.acceptNext();
+    if (!incoming) return;
+    (async () => {
+      const accepting = await incoming.accept();
+      const connection = await accepting.connect();
       const bi = await connection.acceptBi();
       await bi.recv.readToEnd(64);
-      await bi.send.writeAll(enc.encode('pong'));
+      await bi.send.writeAll(Array.from(enc.encode('pong')));
       await bi.send.finish();
       await connection.closed();
-    },
-  }),
+    })().catch(() => {});
+  }
 };
 
 /**
- * Stand up a server (with the given discovery mode) and a client (default
- * discovery), then dial the server by NodeId only.
+ * Stand up a server (with discovery on or off) and a client (discovery on),
+ * then dial the server by NodeId only.
  *
- * @param {string} serverDiscovery - NodeDiscoveryConfig.Default | .None
+ * Discovery on uses the n0 preset (relays + discovery); discovery off uses the
+ * minimal preset, so the server publishes no address and cannot be reached by
+ * key alone.
+ *
+ * @param {boolean} serverDiscovery
  * @returns {Promise<string>}
  */
 const dialByKeyOnly = async serverDiscovery => {
-  const server = await Iroh.memory({
-    secretKey: randomSecret(),
-    protocols,
-    nodeDiscovery: serverDiscovery,
-  });
-  const serverNodeId = await server.net.nodeId();
+  const serverBuilder = Endpoint.builder();
+  if (serverDiscovery) {
+    serverBuilder.applyN0();
+  } else {
+    serverBuilder.applyMinimal();
+  }
+  serverBuilder.secretKey(randomSecret());
+  serverBuilder.alpns([ALPN]);
+  const server = await serverBuilder.bind();
+  const serverNodeId = server.id().toString();
 
-  const client = await Iroh.memory({
-    secretKey: randomSecret(),
-    nodeDiscovery: NodeDiscoveryConfig.Default,
-  });
-  const endpoint = client.node.endpoint();
+  const clientBuilder = Endpoint.builder();
+  clientBuilder.applyN0();
+  clientBuilder.secretKey(randomSecret());
+  const client = await clientBuilder.bind();
+
+  const serving = serveEcho(server);
+  serving.catch(() => {});
 
   // Give the server time to publish its record to n0 DNS/pkarr.
   await new Promise(resolve => setTimeout(resolve, waitMs));
@@ -86,32 +109,31 @@ const dialByKeyOnly = async serverDiscovery => {
   const startedAt = Date.now();
   let result;
   try {
-    // KEY ONLY: a NodeAddr carrying just the nodeId — no relayUrl, no
+    // KEY ONLY: an EndpointAddr carrying just the id — no relay, no direct
     // addresses. Reaching the server therefore requires discovery.
-    const connection = await endpoint.connect(
-      { nodeId: serverNodeId },
-      enc.encode(ALPN),
-    );
+    const addr = new EndpointAddr(EndpointId.fromString(serverNodeId));
+    const connection = await client.connect(addr, ALPN);
     const bi = await connection.openBi();
-    await bi.send.writeAll(enc.encode('ping'));
+    await bi.send.writeAll(Array.from(enc.encode('ping')));
     await bi.send.finish();
-    const out = Buffer.alloc(4);
-    await bi.recv.readExact(out);
-    result = `SUCCESS (${dec.decode(out)}) in ${Date.now() - startedAt}ms`;
+    const out = await bi.recv.readExact(4);
+    result = `SUCCESS (${dec.decode(Uint8Array.from(out))}) in ${
+      Date.now() - startedAt
+    }ms`;
   } catch (error) {
     result = `FAIL: ${String(error.message).split('\n')[0]}`;
   }
-  await client.node.shutdown();
-  await server.node.shutdown();
+  await client.close();
+  await server.close();
   return result;
 };
 
 console.log(`iroh discovery check (publish wait ${waitMs}ms)\n`);
 
-const withDiscovery = await dialByKeyOnly(NodeDiscoveryConfig.Default);
+const withDiscovery = await dialByKeyOnly(true);
 console.log(`  discovery ON  (expect SUCCESS): ${withDiscovery}`);
 
-const withoutDiscovery = await dialByKeyOnly(NodeDiscoveryConfig.None);
+const withoutDiscovery = await dialByKeyOnly(false);
 console.log(`  discovery OFF (expect FAIL)   : ${withoutDiscovery}`);
 
 const pass =

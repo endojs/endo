@@ -139,29 +139,44 @@ For CapTP we use exactly one bidi stream per connection.
 
 ```js
 const nodeAddr = parseIrohAddress(address);          // { nodeId, relayUrl, addresses }
-const conn = await endpoint.connect(nodeAddr, ALPN);  // QUIC, TLS-authenticated
+const addr = new EndpointAddr(                        // 1.0 dials an EndpointAddr
+  EndpointId.fromString(nodeAddr.nodeId),
+  nodeAddr.relayUrl,
+  nodeAddr.addresses,
+);
+const conn = await endpoint.connect(addr, ALPN);      // QUIC, TLS-authenticated
 const bi = await conn.openBi();                       // { send, recv }
 const { reader, writer, closed } = adaptIrohStream(bi, conn);
 const { getBootstrap } = makeNetstringCapTP('Endo', writer, reader, cancelled, localGateway);
 return E(getBootstrap()).hello(localNodeId, localGateway, canceller, cancelled);
 ```
 
-**Inbound** is registered through iroh's `protocols` option at node
-construction.
-The handler's `accept(err, conn)` callback fires per inbound connection:
+`ALPN` is the CapTP protocol identifier as a plain `Array<number>` byte array
+(the binding marshals `Vec<u8>` from a JS Array, not a TypedArray).
+
+**Inbound** is driven by an explicit accept loop. 1.0 removed the 0.35
+`protocols` table; instead the endpoint advertises the ALPN at bind time and
+`acceptNext()` yields one inbound connection attempt at a time (or `null` once
+the endpoint closes), each driven through `Incoming → Accepting → Connection`:
 
 ```js
-const protocols = {
-  [ALPN]: (err, ep) => ({
-    accept: async (err, conn) => {
-      const bi = await conn.acceptBi();
-      const { reader, writer } = adaptIrohStream(bi, conn);
-      makeNetstringCapTP('Endo', writer, reader, cancelled, localGreeter);
-      await conn.closed();
-    },
-  }),
+const endpoint = await Endpoint.bind({ secretKey, alpns: [ALPN] });
+
+const acceptLoop = async () => {
+  for (;;) {
+    const incoming = await endpoint.acceptNext();
+    if (!incoming) return;                  // endpoint closed
+    handleIncoming(incoming).catch(logAndIgnore); // isolate per-connection errors
+  }
 };
-const iroh = await Iroh.memory({ secretKey, protocols });
+
+const handleIncoming = async incoming => {
+  const conn = await (await incoming.accept()).connect();
+  const bi = await conn.acceptBi();
+  const { reader, writer } = adaptIrohStream(bi, conn);
+  makeNetstringCapTP('Endo', writer, reader, cancelled, localGreeter);
+  await conn.closed();
+};
 ```
 
 By convention the dialer opens the bi stream and writes the first CapTP
@@ -174,13 +189,15 @@ stream arrives.
 `@endo/stream` `Reader<Uint8Array>` / `Writer<Uint8Array>` that
 `makeNetstringCapTP` consumes:
 
-- **Read**: each `reader.next()` does one `recv.read(buf)` into a freshly
-  allocated buffer (so the returned view is never overwritten by a later
-  read); a `null` return means EOF (resolve `closed`); otherwise yield the
-  filled slice.
+- **Read**: each `reader.next()` does one `recv.read(sizeLimit)`, which
+  resolves with the next chunk of bytes; an empty result means EOF (iroh's
+  QUIC read only yields zero bytes once the stream has finished), which
+  resolves `closed`. Otherwise the chunk (an `Array<number>` or Buffer) is
+  normalised to a `Uint8Array` and yielded.
   Netstring reframes across read boundaries, so short reads are fine.
-- **Write**: `writer.next(bytes)` → `send.writeAll(bytes)`;
-  `writer.return()` → `send.finish()`; `writer.throw()` → `send.reset()`.
+- **Write**: `writer.next(bytes)` → `send.writeAll(Array.from(bytes))` (the
+  binding takes a plain `Array<number>`); `writer.return()` → `send.finish()`;
+  `writer.throw()` → `send.reset()`.
 - **closed**: resolves on EOF, on `conn.closed()`, or on writer teardown.
 
 The adapter depends only on the duck-typed shape of the stream object, so it
@@ -188,16 +205,19 @@ is unit-testable with a fake stream and needs no native binding.
 
 ### Node lifecycle
 
-- One `Iroh.memory({ secretKey, protocols })` per transport instance.
-  We do not use iroh's blob/doc store; `enableDocs` stays default-off and gc
-  is disabled.
-  Endo owns identity and persistence, so an in-memory iroh node is correct —
-  the key is supplied deterministically (below), not persisted by iroh.
-- `addresses()` must be synchronous, but `iroh.net.nodeAddr()` is async, so
-  the transport caches the latest `NodeAddr`, refreshes it on an interval,
-  and returns the cached value built into an address string.
-- The disposal hook (`addDisposalHook`) shuts the iroh node down and waits
-  for in-flight connections to drain, matching the `libp2p` transport.
+- One `Endpoint.bind({ secretKey, alpns: [ALPN] })` per transport instance.
+  `bind` applies iroh's n0 preset (relays + discovery), then our options, so
+  the transport keeps the "dial keys, not IPs" default.
+  Endo owns identity and persistence, so the key is supplied deterministically
+  (below) rather than persisted by iroh.
+- `addresses()` must be synchronous; since 1.0 `endpoint.addr()` is also
+  synchronous, so the current `EndpointAddr` is read on demand and built into
+  an address string (no interval-based cache is needed). If the read throws,
+  the transport falls back to a bare-key address — the peer is still dialable
+  by NodeId through discovery.
+- The disposal hook (`addDisposalHook`) closes the endpoint (which also ends
+  the accept loop, since `acceptNext()` then resolves to `null`) and waits for
+  in-flight connections to drain, matching the `libp2p` transport.
 
 ### Keep-alive and liveness
 
@@ -338,16 +358,17 @@ out of scope for the initial transport.
 
 The headline property — dialing a peer by its **NodeId alone**, with no
 relay or direct-address hints — depends on iroh's default discovery
-(`discovery_n0`, enabled because the transport leaves `nodeDiscovery`
-unset). This cannot be exercised in a restricted sandbox (which blocks
-iroh's DNS/pkarr endpoints and reports placeholder addresses), so it is
-verified manually on a real network.
+(`discovery_n0`, enabled because the transport binds with the n0 preset).
+This cannot be exercised in a restricted sandbox (which blocks iroh's
+DNS/pkarr endpoints and reports placeholder addresses), so it is verified
+manually on a real network.
 
 `scripts/iroh-discovery-check.mjs` runs two checks in one process and prints
-a verdict: it dials by NodeId only with discovery enabled (expected to
-succeed) and again with the server's discovery disabled (expected to fail
-with "No addressing information for NodeId"). A success-then-failure proves
-discovery is what carried the dial.
+a verdict: it dials by NodeId only with the server bound under the n0 preset
+(discovery enabled — expected to succeed) and again with the server bound
+under the minimal preset (no discovery or relay — expected to fail with "No
+addressing information for NodeId"). A success-then-failure proves discovery
+is what carried the dial.
 
 ```sh
 cd packages/daemon
@@ -367,50 +388,47 @@ run two nodes on **different machines/networks**. Server (prints its NodeId
 and stays up):
 
 ```js
-import { Iroh, NodeDiscoveryConfig } from '@number0/iroh';
-const ALPN = 'endo/captp/0';
+import { Endpoint } from '@number0/iroh';
+const ALPN = Array.from(new TextEncoder().encode('endo/captp/0'));
 const enc = new TextEncoder();
-const protocols = {
-  [ALPN]: () => ({
-    accept: async (err, conn) => {
-      if (err) return;
-      const bi = await conn.acceptBi();
-      await bi.recv.readToEnd(64);
-      await bi.send.writeAll(enc.encode('pong'));
-      await bi.send.finish();
-      await conn.closed();
-    },
-  }),
-};
-const node = await Iroh.memory({
+const node = await Endpoint.bind({
   secretKey: Array.from(crypto.getRandomValues(new Uint8Array(32))),
-  protocols,
-  nodeDiscovery: NodeDiscoveryConfig.Default,
-});
-console.log('Dial me by this NodeId:', await node.net.nodeId());
+  alpns: [ALPN],
+}); // n0 preset (relays + discovery) by default
+console.log('Dial me by this NodeId:', node.id().toString());
+(async () => {
+  for (;;) {
+    const incoming = await node.acceptNext();
+    if (!incoming) return;
+    const conn = await (await incoming.accept()).connect();
+    const bi = await conn.acceptBi();
+    await bi.recv.readToEnd(64);
+    await bi.send.writeAll(Array.from(enc.encode('pong')));
+    await bi.send.finish();
+    await conn.closed();
+  }
+})();
 await new Promise(() => {}); // keep running
 ```
 
 Client on the other machine (`node client.mjs <NodeId>`):
 
 ```js
-import { Iroh, NodeDiscoveryConfig } from '@number0/iroh';
-const ALPN = 'endo/captp/0';
+import { Endpoint, EndpointAddr, EndpointId } from '@number0/iroh';
+const ALPN = Array.from(new TextEncoder().encode('endo/captp/0'));
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const client = await Iroh.memory({
+const client = await Endpoint.bind({
   secretKey: Array.from(crypto.getRandomValues(new Uint8Array(32))),
-  nodeDiscovery: NodeDiscoveryConfig.Default,
 });
-const ep = client.node.endpoint();
-const conn = await ep.connect({ nodeId: process.argv[2] }, enc.encode(ALPN));
+const addr = new EndpointAddr(EndpointId.fromString(process.argv[2]));
+const conn = await client.connect(addr, ALPN);
 const bi = await conn.openBi();
-await bi.send.writeAll(enc.encode('ping'));
+await bi.send.writeAll(Array.from(enc.encode('ping')));
 await bi.send.finish();
-const out = Buffer.alloc(4);
-await bi.recv.readExact(out);
-console.log('SUCCESS:', dec.decode(out), '— dialed by key across networks');
-await client.node.shutdown();
+const out = await bi.recv.readExact(4);
+console.log('SUCCESS:', dec.decode(Uint8Array.from(out)), '— dialed by key across networks');
+await client.close();
 ```
 
 Note: the Endo daemon path does not exercise *pure* discovery by default,

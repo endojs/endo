@@ -12,12 +12,12 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { adaptIrohStream } from '../src/networks/iroh-stream-adapter.js';
 import { makeNetstringCapTP } from '../src/connection.js';
 
-let Iroh;
+let Endpoint;
 try {
   // Non-literal specifier so the type checker does not resolve the package's
   // (malformed) type declarations.
   const irohSpecifier = '@number0/iroh';
-  ({ Iroh } = await import(irohSpecifier));
+  ({ Endpoint } = await import(irohSpecifier));
 } catch (error) {
   // The native binding is an optional dependency. Tolerate its absence by
   // default (the test skips), but when the integration test is explicitly
@@ -27,7 +27,8 @@ try {
   }
 }
 
-const ALPN = 'endo/captp/0';
+// The 1.0 binding takes ALPNs as plain `Array<number>` byte arrays.
+const ALPN = Array.from(new TextEncoder().encode('endo/captp/0'));
 
 // Opt-in: this exercises a real iroh node pair, which reaches iroh's public
 // relay/discovery network and is therefore unsuitable for unattended CI
@@ -35,7 +36,8 @@ const ALPN = 'endo/captp/0';
 // ENDO_IROH_INTEGRATION=1 to validate the end-to-end byte path. The pure
 // logic it covers (framing, adapter, key derivation) is also unit tested in
 // iroh-stream-adapter.test.js and iroh-address.test.js.
-const integrationEnabled = Iroh && process.env.ENDO_IROH_INTEGRATION === '1';
+const integrationEnabled =
+  Endpoint && process.env.ENDO_IROH_INTEGRATION === '1';
 const itIroh = integrationEnabled ? test.serial : test.serial.skip;
 
 itIroh('CapTP round-trip over two real iroh nodes', async t => {
@@ -48,35 +50,38 @@ itIroh('CapTP round-trip over two real iroh nodes', async t => {
     greet: async name => `hello ${name}`,
   });
 
-  const protocols = {
-    [ALPN]: (_err, _ep) => ({
-      accept: async (err, connection) => {
-        if (err) return;
-        const bi = await connection.acceptBi();
-        const { reader, writer } = adaptIrohStream(bi, connection);
-        makeNetstringCapTP('server', writer, reader, cancelled, bootstrap);
-        await connection.closed();
-      },
-    }),
-  };
-
   const serverSecret = Array.from(new Uint8Array(32).fill(11));
   const clientSecret = Array.from(new Uint8Array(32).fill(13));
 
-  const server = await Iroh.memory({ secretKey: serverSecret, protocols });
-  const client = await Iroh.memory({ secretKey: clientSecret });
+  // The server advertises the CapTP ALPN; the client supplies it when dialing.
+  const server = await Endpoint.bind({
+    secretKey: serverSecret,
+    alpns: [ALPN],
+  });
+  const client = await Endpoint.bind({ secretKey: clientSecret });
   t.teardown(async () => {
-    await client.node.shutdown().catch(() => {});
-    await server.node.shutdown().catch(() => {});
+    await client.close().catch(() => {});
+    await server.close().catch(() => {});
   });
 
-  const serverAddr = await server.net.nodeAddr();
-  const endpoint = client.node.endpoint();
+  // 1.0 replaced the `protocols` table with an explicit accept loop. Drive one
+  // inbound connection through the server-side handshake in the background.
+  const serving = (async () => {
+    const incoming = await server.acceptNext();
+    const accepting = await incoming.accept();
+    const connection = await accepting.connect();
+    const bi = await connection.acceptBi();
+    const { reader, writer } = adaptIrohStream(bi, connection);
+    makeNetstringCapTP('server', writer, reader, cancelled, bootstrap);
+    await connection.closed();
+  })();
+  serving.catch(() => {});
 
-  const connection = await endpoint.connect(
-    serverAddr,
-    new TextEncoder().encode(ALPN),
-  );
+  // `addr()` is synchronous in 1.0 and returns an EndpointAddr that can be
+  // dialed directly.
+  const serverAddr = server.addr();
+
+  const connection = await client.connect(serverAddr, ALPN);
   const bi = await connection.openBi();
   const { reader, writer } = adaptIrohStream(bi, connection);
   const { getBootstrap } = makeNetstringCapTP(

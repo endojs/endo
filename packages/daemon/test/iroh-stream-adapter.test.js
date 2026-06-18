@@ -5,26 +5,26 @@ import { adaptIrohStream } from '../src/networks/iroh-stream-adapter.js';
 import { deriveIrohSecretKey } from '../src/networks/iroh.js';
 
 /**
- * A fake iroh RecvStream: serves queued chunks, then EOF (null).
+ * A fake iroh RecvStream (1.0 contract): `read(sizeLimit)` returns the next
+ * queued chunk as an `Array<number>`, then an empty array to signal EOF.
  *
  * @param {Uint8Array[]} chunks
  */
 const makeFakeRecv = chunks => {
   const queue = [...chunks];
   return {
-    async read(buf) {
+    async read(_sizeLimit) {
       if (queue.length === 0) {
-        return null;
+        return [];
       }
-      const chunk = queue.shift();
-      buf.set(chunk);
-      return BigInt(chunk.length);
+      return Array.from(queue.shift());
     },
   };
 };
 
 /**
- * A fake iroh SendStream that records writes and lifecycle calls.
+ * A fake iroh SendStream that records writes and lifecycle calls. The adapter
+ * hands `writeAll` a plain `Array<number>`, matching the 1.0 binding.
  */
 const makeFakeSend = () => {
   const writes = [];
@@ -33,7 +33,7 @@ const makeFakeSend = () => {
     writes,
     calls,
     async writeAll(buf) {
-      writes.push(Uint8Array.prototype.slice.call(buf));
+      writes.push(Uint8Array.from(buf));
     },
     async finish() {
       calls.finished += 1;
@@ -68,29 +68,40 @@ test('reader yields chunks then completes at EOF', async t => {
   t.pass();
 });
 
-test('reader yields an empty chunk on a 0-byte read without ending', async t => {
-  const enc = new TextEncoder();
-  // recv returns 0 (no bytes this turn, not EOF), then a real chunk, then EOF.
-  let phase = 0;
+test('reader treats an empty read as EOF and resolves closed', async t => {
+  // Under the 1.0 contract `read` only resolves with zero bytes at end of
+  // stream, so an empty result must complete the reader rather than yield an
+  // empty chunk.
   const recv = {
-    async read(buf) {
-      phase += 1;
-      if (phase === 1) return 0n;
-      if (phase === 2) {
-        buf.set(enc.encode('hi'));
-        return 2n;
-      }
-      return null;
+    async read(_sizeLimit) {
+      return [];
+    },
+  };
+  const { reader, closed } = adaptIrohStream({ send: makeFakeSend(), recv });
+
+  const end = await reader.next();
+  t.true(end.done);
+  t.is(end.value, undefined);
+  await closed;
+  t.pass();
+});
+
+test('reader accepts a Buffer/Uint8Array chunk, not just a plain array', async t => {
+  // napi may marshal the `Vec<u8>` return as a Buffer on some platforms; the
+  // adapter must normalise either array-like to a Uint8Array.
+  let served = false;
+  const recv = {
+    async read(_sizeLimit) {
+      if (served) return [];
+      served = true;
+      return new Uint8Array([0x68, 0x69]); // "hi"
     },
   };
   const { reader } = adaptIrohStream({ send: makeFakeSend(), recv });
 
-  const empty = await reader.next();
-  t.false(empty.done);
-  t.is(empty.value.length, 0);
-
   const data = await reader.next();
   t.false(data.done);
+  t.true(data.value instanceof Uint8Array);
   t.is(new TextDecoder().decode(data.value), 'hi');
 
   const end = await reader.next();
