@@ -443,6 +443,13 @@ function sesAppearsActive() {
   );
 }
 
+// Best-effort deep-freeze for the module's public exports (CLAUDE.md
+// § harden() is mandatory). Under lockdown `harden` transitively freezes
+// them so a holder cannot tamper with the factory; without lockdown (the
+// browser test harness) it falls back to a shallow `Object.freeze`.
+const deepFreeze = value =>
+  sesAppearsActive() ? globalThis.harden(value) : Object.freeze(value);
+
 let warnedNoSes = false;
 function warnIfNoSes() {
   if (warnedNoSes || sesAppearsActive()) return;
@@ -597,6 +604,7 @@ export function confineComponent(fn, opts) {
   _registerSecureReentryType(Confined);
   return Confined;
 }
+deepFreeze(confineComponent);
 
 /**
  * Returns true if `value` is a wrapper returned by `confineComponent`.
@@ -605,5 +613,6 @@ export function confineComponent(fn, opts) {
 export function isConfinedComponent(value) {
   return typeof value === 'function' && confinedComponents.has(value);
 }
+deepFreeze(isConfinedComponent);
 
 export { HostPassthrough } from './renderer.js';

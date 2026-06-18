@@ -22,18 +22,22 @@ const OPT_RENDER = '__r';
 const OPT_CATCH_ERROR = '__e';
 const VNODE_PARENT = '__';
 
-// Best-effort deep-freeze for module-level constants. Under SES
-// `lockdown()` — this package's documented precondition — `harden`
-// transitively freezes the value, so a future code path that leaked one
-// of the allowlists could not mutate it (e.g.
-// `DEFAULT_SAFE_ATTRS.add('innerhtml')`) to silently disable a defense.
-// `Object.freeze` alone would NOT stop `Set.prototype.add`, so we rely
-// on `harden`; outside lockdown (the browser test harness) it is absent
-// and this is a no-op.
-const freezeConstant = value =>
+// Best-effort deep-freeze. Used both for the module-level allowlists
+// and for the per-event `SafeEvent` / `SafeEventTarget` facades handed
+// to untrusted handlers. Under SES `lockdown()` — this package's
+// documented precondition — `harden` transitively freezes the value,
+// including a facade's function-valued methods, so untrusted code that
+// holds one can neither mutate an allowlist
+// (`DEFAULT_SAFE_ATTRS.add('innerhtml')`) nor swap out a facade method.
+// `harden` is the strong form; outside lockdown (the browser test
+// harness) it is absent, so we fall back to a shallow `Object.freeze`,
+// which still seals each object's own properties. Note `Object.freeze`
+// does NOT stop `Set.prototype.add`, so the allowlist-immutability
+// guarantee specifically depends on `harden` being present.
+const deepFreeze = value =>
   typeof globalThis !== 'undefined' && typeof globalThis.harden === 'function'
     ? globalThis.harden(value)
-    : value;
+    : Object.freeze(value);
 
 /** @import { VNode } from 'preact' */
 
@@ -402,16 +406,16 @@ const SAFE_DATA_IMG_RE =
   /^data:image\/(?:png|jpe?g|gif|webp|svg\+xml|bmp|x-icon|vnd\.microsoft\.icon);/i;
 
 // Freeze the allowlists and URL matchers that gate every sanitization
-// decision (see `freezeConstant`). These are module-private, so a
+// decision (see `deepFreeze`). These are module-private, so a
 // confined guest cannot reach them under the documented `lockdown()`
 // precondition — this is defense-in-depth against a future code path
 // that leaks one of them.
-freezeConstant(DEFAULT_ALLOWED_TAGS);
-freezeConstant(DEFAULT_SAFE_ATTRS);
-freezeConstant(HARD_DENY_ATTRS);
-freezeConstant(URL_ATTRS);
-freezeConstant(SAFE_URL_RE);
-freezeConstant(SAFE_DATA_IMG_RE);
+deepFreeze(DEFAULT_ALLOWED_TAGS);
+deepFreeze(DEFAULT_SAFE_ATTRS);
+deepFreeze(HARD_DENY_ATTRS);
+deepFreeze(URL_ATTRS);
+deepFreeze(SAFE_URL_RE);
+deepFreeze(SAFE_DATA_IMG_RE);
 
 function sanitizeUrl(value, attr) {
   if (typeof value !== 'string') return null;
@@ -529,7 +533,7 @@ function safeTargetSnapshot(node) {
     checked: 'checked' in node ? !!node.checked : undefined,
     selectedIndex: 'selectedIndex' in node ? node.selectedIndex : undefined,
   };
-  return Object.freeze(snapshot);
+  return deepFreeze(snapshot);
 }
 
 function makeSafeEvent(e) {
@@ -568,7 +572,7 @@ function makeSafeEvent(e) {
     },
   });
 
-  return Object.freeze(safe);
+  return deepFreeze(safe);
 }
 
 /**
@@ -593,6 +597,7 @@ function SecureBoundary(props) {
 export function HostPassthrough(props) {
   return props.children;
 }
+deepFreeze(HostPassthrough);
 
 // Set of component types that act as trusted-exit boundaries. Membership
 // is by IDENTITY, not by flag — an attacker who sets
@@ -654,6 +659,7 @@ export function _registerSecureReentryType(fn) {
   install();
   secureReentryTypes.add(fn);
 }
+deepFreeze(_registerSecureReentryType);
 
 /**
  * Register an additional function type as a trusted-exit boundary.
@@ -677,6 +683,7 @@ export function _registerTrustedExitType(fn) {
   install();
   trustedExitTypes.add(fn);
 }
+deepFreeze(_registerTrustedExitType);
 
 let installed = false;
 
@@ -1376,9 +1383,9 @@ export function renderConfined(vnode, parentDom, opts) {
     }
   }
   // Freeze the per-tree allowlists before they are stashed on the
-  // boundary and pushed onto the active stack (see `freezeConstant`).
-  freezeConstant(allowedTags);
-  freezeConstant(safeAttrs);
+  // boundary and pushed onto the active stack (see `deepFreeze`).
+  deepFreeze(allowedTags);
+  deepFreeze(safeAttrs);
   install();
   walkSanitize(vnode, allowedTags, safeAttrs);
   // Stash the per-tree allowlists on the boundary so concurrent
@@ -1394,6 +1401,7 @@ export function renderConfined(vnode, parentDom, opts) {
     parentDom,
   );
 }
+deepFreeze(renderConfined);
 
 /**
  * Tear down a secure tree.
@@ -1402,5 +1410,6 @@ export function renderConfined(vnode, parentDom, opts) {
 export function unmount(parentDom) {
   preactRender(null, parentDom);
 }
+deepFreeze(unmount);
 
 export { h, Fragment, createElement } from 'preact';

@@ -128,7 +128,9 @@ export const HostPassthrough: import('preact').FunctionComponent<{
  * as a privileged API and only register references owned by
  * sibling addons, never an attacker-supplied function.
  */
-export function _registerTrustedExitType(fn: Function): void;
+export function _registerTrustedExitType(
+  fn: (...args: unknown[]) => unknown,
+): void;
 
 /**
  * Register an additional function reference as a SECURE-REENTRY
@@ -145,4 +147,6 @@ export function _registerTrustedExitType(fn: Function): void;
  * function in both sets would let setState-in-render mix the two
  * branches and flip sanitization off mid-render.
  */
-export function _registerSecureReentryType(fn: Function): void;
+export function _registerSecureReentryType(
+  fn: (...args: unknown[]) => unknown,
+): void;
