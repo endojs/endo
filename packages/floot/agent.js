@@ -364,20 +364,27 @@ export const makeStreamingAgent = async (
       for (const tc of toolCalls) {
         const name = tc.function?.name;
         let args = {};
+        let parseError;
         try {
           args =
             typeof tc.function?.arguments === 'string'
               ? JSON.parse(tc.function.arguments || '{}')
               : tc.function?.arguments || {};
-        } catch {
-          args = {};
+        } catch (err) {
+          parseError = err instanceof Error ? err.message : String(err);
         }
         writer.toolCall({ name: `${name}`, args: JSON.stringify(args) });
         let resultText;
-        try {
-          resultText = await executeTool(name, args, toolMap);
-        } catch (err) {
-          resultText = `Error: ${err instanceof Error ? err.message : String(err)}`;
+        if (parseError !== undefined) {
+          // Report malformed arguments back to the model instead of silently
+          // running the tool with empty args, so it can retry with valid JSON.
+          resultText = `Error: could not parse tool arguments as JSON (${parseError}). Re-send this tool call with valid JSON arguments.`;
+        } else {
+          try {
+            resultText = await executeTool(name, args, toolMap);
+          } catch (err) {
+            resultText = `Error: ${err instanceof Error ? err.message : String(err)}`;
+          }
         }
         writer.toolResult({ name: `${name}`, result: `${resultText}` });
         console.log(`[floot] tool ${name} -> ${resultText}`);

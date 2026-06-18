@@ -577,7 +577,7 @@ export const flootComponent = (
       session.title = next || DEFAULT_TITLE;
       E(factory)
         .renameSession(session.id, session.title)
-        .catch(() => {});
+        .catch(err => setStatus(`error: ${err.message}`));
       renderSidebar();
       if (session.id === activeSessionId) renderHeader();
     };
@@ -619,7 +619,7 @@ export const flootComponent = (
         session.title = $field.value.trim() || DEFAULT_TITLE;
         E(factory)
           .renameSession(session.id, session.title)
-          .catch(() => {});
+          .catch(err => setStatus(`error: ${err.message}`));
         renderSidebar();
       }
       $field.replaceWith($headerTitle);
@@ -850,7 +850,7 @@ export const flootComponent = (
     }
     E(factory)
       .deleteSession(session.id)
-      .catch(() => {});
+      .catch(err => setStatus(`error: ${err.message}`));
     renderSidebar();
     renderHeader();
     renderMessages();
