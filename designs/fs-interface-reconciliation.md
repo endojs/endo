@@ -315,6 +315,69 @@ The three are not redundant.
 The maintainer's directive does not ask to unify endo-fs and platform/fs's interface guards (endo-fs's own DESIGN.md §2.1 already takes that stance: the two are not satisfied by a unified guard).
 It asks that **where a method exists to do a job**, the name and signature is consistent.
 
+(The 2026-06-18 retire/merge decision — [D4](#resolved-decisions-2026-06-18) —
+does move toward co-location, but via a layered guard *tier*, not a single
+unified guard; §2.1's "not satisfiable by one guard" constraint is honored by
+keeping the cap-FS guards as a `sloppy`-extended tier above the base catalog
+guards. See [Phase 1.5](#phase-15-endo-fs-retires-into-endoplatformfs).)
+
+### Original design decisions that drove each implementation
+
+The reconciliation — and especially the retire/merge of endo-fs into
+platform/fs — must respect, not erase, the design decisions that each
+implementation was built on. Recorded here so every later decision can be
+checked against them.
+
+**`@endo/platform/fs` was built on:**
+
+1. **Storage-shape vocabulary, not mechanism.** It names *what a value of the
+   filesystem IS* (the Readable / Snapshot / Mutable lattice over Blob /
+   Tree), deliberately leaving *how bytes move* to the caps that implement it.
+2. **Stops at the filesystem boundary.** It excludes formula-system concepts
+   (`identify`, `locate`, formula-sense `followNameChanges`) on purpose so the
+   vocabulary stays reusable by both daemon and CLI.
+3. **Structural attenuation, not behavioral.** `readOnly()` returns a cap that
+   *lacks* the mutation methods (platform-fs Decision 4), rather than a cap
+   that throws on them — absence is the security boundary.
+4. **Path-array convenience.** `has`/`list`/`lookup` take `string[]` and walk
+   in one call, because the storage surface is consumed by code that knows the
+   whole path up front.
+5. **Minimal push interface (`TreeWriter`).** Checkout targets depend only on
+   `writeBlob` + `makeDirectory`, decoupling "where bytes land" from any
+   specific Mutable tree implementation.
+
+**`@endo/endo-fs` was built on:**
+
+1. **Optimize for cross-CapTP round-trip cost.** One `lookup(name)` per
+   segment, relying on CapTP pipelining (`E(dir).lookup('a').lookup('b')`) to
+   collapse a depth-N walk into one round-trip — the opposite of platform/fs's
+   path-array walk, and intentional.
+2. **9P / FUSE bridge readiness.** The surface is shaped so a 9P bridge can sit
+   directly on it: range-I/O `OpenFile` (`read(offset, length)` /
+   `write(offset)`), `qid` identity, pageable `Cursor`, advisory `Lock`,
+   `Xattrs`, `NodeWatcher` — the POSIX-adjacent primitives the bridge needs.
+3. **A backing seam (`FsBackend`), not per-backing reimplementation.** The
+   `wrapBackend(backend) → Filesystem` upper layer owns all the exo plumbing
+   once; each backing (in-memory, node-fs, from-mount, CAS-cached, CoW layer)
+   implements a small required-core-plus-optional protocol. This is the seam
+   the retire/merge must carry across intact — it is *why* new backings are
+   cheap.
+4. **Content-address bridge (`BlobRef`).** A snapshot is a hash handle that can
+   short-circuit to a peer CAS on cache hit — a different optimization target
+   than platform/fs's `SnapshotBlob` (a full Readable surface). The catalog
+   picks `SnapshotBlob` for the viewer ([Decision 3](#design-decisions)); the
+   merge keeps `BlobRef` available on the extended `File` for the peer-CAS job.
+5. **A composition algebra.** `compose` / `chroot` / `bind` / `namespace`
+   build filesystems from filesystems; `subView` is the catalog's narrow
+   window onto this, but the algebra is endo-fs's own design DNA and survives
+   the merge as the extended entry.
+
+**How the reconciliation honors both:** the catalog names the *intersection*
+job-for-job (so a viewer reads one vocabulary), while the layered-entry merge
+keeps platform/fs's narrow storage guards as the base **and** preserves
+endo-fs's cap-FS primitives — and the `FsBackend` seam — as the extended tier.
+No driver above is dropped; each is relocated, not deleted.
+
 ### Interface differences (load-bearing)
 
 | Job | platform/fs | daemon-mount | endo-fs |
@@ -419,7 +482,7 @@ Every backing in §Backing-implementation conformance matrix implements a subset
 | Method | Signature | Returns |
 |---|---|---|
 | `readOnly` | `readOnly() → ReadableBlob \| ReadableTree` | Structural attenuation (per platform-fs Decision 4). Returned cap has only the Readable methods; mutation methods are *absent*, not *throwing*. |
-| `subDir` | `subDir(path: string[]) → Promise<Directory \| sub-Mount \| ReadableTree>` | The future-VFS-layer method platform-fs defers and daemon-capability-filesystem calls out. Re-roots the receiver at `path`. Returned cap cannot navigate above the new root (no parent reference); confinement is structural. For `mount`, identical to `lookup(path)` when `path` resolves to a directory plus a confinement-root shift; existing `provideSubMount` host method is the existing realization. |
+| `subView` | `subView(path: string[]) → Promise<Directory \| sub-Mount \| ReadableTree>` | The future-VFS-layer method platform-fs defers (under the working name `subDir`) and daemon-capability-filesystem calls out. Re-roots the receiver at `path`. Returned cap cannot navigate above the new root (no parent reference); confinement is structural. For `mount`, identical to `lookup(path)` when `path` resolves to a directory plus a confinement-root shift; existing `provideSubMount` host method is the formula-bearing realization. Named `subView` (not `subDir`) per [Resolved decisions](#resolved-decisions-2026-06-18) D5. |
 
 ### Snapshot
 
@@ -431,7 +494,7 @@ Every backing in §Backing-implementation conformance matrix implements a subset
 
 | Method | Signature | Returns |
 |---|---|---|
-| `followNameChanges` | `followNameChanges() → AsyncIterable<NameChangeEvent>` | Live name-change stream matching `EndoDirectory.followNameChanges`. Implementations that cannot observe (CAS; immutable snapshots) return a rejected promise; implementations that *could* observe but chose not to (memfs without a registered listener) return an empty stream that terminates immediately. See [filesystem-watchers.md](filesystem-watchers.md) for the parity-fix design. |
+| `followNameChanges` | `followNameChanges() → AsyncIterable<NameChangeEvent>` | Live name-change stream matching `EndoDirectory.followNameChanges`. Per [Resolved decisions](#resolved-decisions-2026-06-18) D6, implementations that cannot observe (CAS; immutable snapshots) return an **immediately-terminating empty stream** (not a rejected promise) so polymorphic consumers can call it without a presence check; memfs without a registered listener likewise returns an empty stream that terminates immediately. The viewer reads an immediately-closed stream as "snapshot / point-in-time." See [filesystem-watchers.md](filesystem-watchers.md) for the parity-fix design. |
 
 ### Discoverability
 
@@ -455,7 +518,7 @@ Every backing in §Backing-implementation conformance matrix implements a subset
 
 Rows are the five backings the maintainer named.
 Columns are the unified-catalog methods.
-Cells are: **I** (implemented), **A** (absent on this backing's interface; viewer renders the control disabled with a tooltip naming the gap), **D** (deferred to a stronger neighbor; e.g., `subDir` on a mount = `lookup(path)` plus a confinement shift).
+Cells are: **I** (implemented), **A** (absent on this backing's interface; viewer renders the control disabled with a tooltip naming the gap), **D** (deferred to a stronger neighbor; e.g., `subView` on a mount = `lookup(path)` plus a confinement shift).
 
 | Method | mount | scratch-mount | endo-fs in-memory | CAS (readable-tree / readable-blob) | endo directory / name hub |
 |---|---|---|---|---|---|
@@ -477,12 +540,12 @@ Cells are: **I** (implemented), **A** (absent on this backing's interface; viewe
 | `makeDirectory` | I | I | I (`mkdir`) | A (CAS does not have a "create empty directory" verb) | I |
 | `makeFile` | I | I | I (`create`) | A | A (name hub does not have a blob-content concept) |
 | `readOnly` | I | I | I (composer `readOnly(fs)`) | I (identity; CAS is already read-only) | I |
-| `subDir` | I (`makeDirectory(path)` plus a sub-mount; or `provideSubMount` per daemon-mount Phase 4) | I (same) | I (`chroot(fs, path)`) | I (descend the tree manifest) | I (re-root the name hub) |
+| `subView` | I (`makeDirectory(path)` plus a sub-mount; or `provideSubMount` per daemon-mount Phase 4) | I (same) | I (`chroot(fs, path)`) | I (descend the tree manifest) | I (re-root the name hub) |
 | `snapshot` | I (writes a `readable-tree` to CAS) | I (same) | I (recursive checkin) | I (identity; already a snapshot) | A (name bindings have no content to snapshot; viewer surfaces gap) |
-| `followNameChanges` | I (PR #277) | I (PR #277) | I (in-memory event emitter) | A (CAS is immutable) | I (existing EndoDirectory method) |
+| `followNameChanges` | I (PR #277) | I (PR #277) | I (in-memory event emitter) | I (immediately-terminating empty stream; CAS is immutable — see D6) | I (existing EndoDirectory method) |
 | `help` | I | I | I | I | I |
 
-Total: 24 methods. Mount and scratch-mount implement 21. endo-fs in-memory implements 16 directly plus 4 via aliases. CAS implements 11. Name hub implements 12 (no blob content surface).
+Total: 24 methods. Mount and scratch-mount implement 21. endo-fs in-memory implements 16 directly plus 4 via aliases. CAS implements 12 (counting `followNameChanges` as an immediately-terminating empty stream per D6). Name hub implements 12 (no blob content surface).
 
 Per platform-fs Decision 4, attenuation is *structural*: where a method is **A**bsent, the cap simply does not have the method.
 Calling `E(cap).writeText(...)` on a name hub returns a `Cannot deliver` error from CapTP's interface guard.
@@ -566,7 +629,7 @@ Its discipline:
 | `snapshot` | Cannot capture: this view has no blob content (name-only hub). |
 | `followNameChanges` | Live updates not available; refresh manually. |
 | `text` / `json` / `streamBase64` | This entry has no blob content. |
-| `subDir` | Cannot scope into a subtree from this view. |
+| `subView` | Cannot scope into a subtree from this view. |
 
 ## Sync versus async surface
 
@@ -587,58 +650,92 @@ The migration introduces aliases (both names exist on the wire) for one minor re
 ### Phase 1: Catalog land (no behavior change)
 
 - Land the catalog in `packages/platform/src/fs/interfaces.js` as the canonical guards. (Already there for the platform-fs subset.)
-- Land `subDir` on `Directory` / `Mutable Tree` guards as a new method per the catalog.
+- Land `subView` on `Directory` / `Mutable Tree` guards as a new method per the catalog (named `subView`, not `subDir`, per D5).
 - Land `followNameChanges` on `MountInterface` per [filesystem-watchers.md](filesystem-watchers.md) (PR #277).
 - Land `streamRead` on `Blob` guards as an opt-in method (backings that have range I/O implement it; others leave it absent).
 - Land `makeFile` on `Mutable Tree` per the catalog (already on `MountInterface`; add to `DirectoryInterface` in platform/fs).
 
 The platform-fs guard set after Phase 1 is the canonical catalog.
 
-### Phase 2: endo-fs aliases land
+**Migration style: big-bang, not gradual** (maintainer decision 2026-06-18;
+[Resolved decisions](#resolved-decisions-2026-06-18) D3).
+The design originally argued for a gradual roll-out citing the standing
+per-package / per-commit preference; the maintainer overrode that here.
+The two design considerations that make big-bang acceptable in this one case:
 
-- `remove` and `makeDirectory` **already exist** as canonical methods on
-  `endo-fs`'s `DirectoryInterface` (`packages/endo-fs/src/type-guards.js`
-  lines 93-102); `unlink` / `mkdir` are the retained legacy aliases. No work
-  needed for these two.
-- Add `write` (whole-blob) as an alias alongside the existing `create`
-  (which returns an `OpenFile` for range I/O — *not* equivalent; see
-  [Phase 3](#phase-3-call-site-rename)).
-- Add `move(source, target)` as an alias alongside the existing
-  `rename(oldName, newParent, newName)`. The arities differ: the catalog's
-  `move` takes two path arrays within one holder's confinement; endo-fs's
-  `rename` takes a destination parent cap. The alias is the two-path-array
-  shape; it composes over `rename` internally.
-- Both names coexist on the wire.
-- `endo-fs`'s `DESIGN.md` records the alias mapping in §2.1's table.
+1. **endo-fs is a single package with a contained test surface.** The rename
+   does not fan out across many independently-owned packages the way a
+   cross-cutting daemon change would; the blast radius is `packages/endo-fs`
+   plus its two direct consumers (`packages/9p-server`,
+   `packages/claude-container`).
+2. **endo-fs is being retired into platform/fs** (D4 below). A
+   dual-names-forever alias layer is pointless when the package itself is
+   dissolving — keeping legacy aliases alive would preserve a seam we are
+   about to delete. Big-bang renames *and* re-homes in one cutover.
 
-### Phase 3: Call-site rename
+### Phase 1.5: endo-fs retires into `@endo/platform/fs`
 
-| Call site | Old name | New name |
+[Resolved decisions](#resolved-decisions-2026-06-18) D4 chose **retire /
+merge** over keep-diverged. endo-fs's cap-FS surface moves into platform —
+most plausibly a `@endo/platform/fs/extended` (or `/cap`) entry that sits
+above the lite/node entries — and `@endo/endo-fs` becomes either a thin
+re-export shim during one release or is deleted outright.
+
+The load-bearing design consideration this must confront (it was the *reason*
+the design originally argued keep-diverged): **endo-fs's `File` / `Directory`
+guards are not the same shape as platform/fs's** — its DESIGN.md §2.1 states
+the contracts diverge (range-I/O `OpenFile`, `qid` identity, `Cursor` paging,
+sub-caps). Retire/merge therefore is **not** a name-level reconciliation; it
+is a guard-level merger and must resolve that divergence, not paper over it.
+Two viable shapes:
+
+- **Layered entry (recommended).** platform/fs keeps its narrow Mutable
+  `File` / `Directory` guards as the *base*; the cap-FS surface (range I/O,
+  `Cursor`, `Xattrs`, `NodeWatcher`, `BlobRef`, `Lock`, `Layer`, `PosixFs`)
+  lands as an *extended* entry whose guards `M.interface(..., { sloppy:
+  true })`-extend the base. One package, two guard tiers, no contract
+  collision: a consumer that only needs the catalog imports the base; the
+  9P / FUSE bridge imports extended.
+- **Single merged guard.** Fold everything into one `Directory` / `File`
+  guard. Rejected: it forces CAS and name-hub backings to face guards they
+  can never satisfy, the exact failure mode Design Decision 8 calls out.
+
+The migration sequencing inside the big-bang cutover:
+
+1. Land the cap-FS surface as a `@endo/platform/fs/extended` entry (move
+   `packages/endo-fs/src/*` under `packages/platform/src/fs/extended/`,
+   re-export the existing guards from there).
+2. Rename all call sites to catalog names in the same sweep (see table).
+3. Re-home `packages/9p-server` and `packages/claude-container` onto
+   `@endo/platform/fs/extended`.
+4. Replace `packages/endo-fs` with a deprecation re-export shim (one release)
+   or delete it; update `workspace:^` dependents.
+5. Fold endo-fs's `DESIGN.md` and `ROADMAP.md` into platform-fs's design
+   corpus; file the tracking issue named in D4.
+
+### Call-site rename (executed in the same cutover)
+
+The rename is **semantic, not syntactic** — a codemod is not appropriate
+because endo-fs's `create` (returns an `OpenFile` for range I/O) and the
+catalog's `write` (whole blob) are not equivalent. Each site is reviewed.
+
+| Call site | Old | New |
 |---|---|---|
-| `packages/chat/blob-viewer.js` (and `monaco-wrapper.js`) | mixed | catalog (`writeText` / `text` / `streamBase64`) |
-| `packages/cli/src/commands/checkin.js` | `makeLocalTree` returns `ReadableTree` | unchanged (already catalog) |
-| `packages/cli/src/commands/checkout.js` | `checkoutTree(tree, writer)` | unchanged |
+| `packages/endo-fs/src/*` → `packages/platform/src/fs/extended/*` | `create` / `unlink` / `rename` / `mkdir` | catalog (`write` where whole-blob; `create` kept on the extended `File` for range I/O; `remove` / `move` / `makeDirectory` canonical) |
+| `packages/9p-server/*` | endo-fs names + `@endo/endo-fs` import | catalog names + `@endo/platform/fs/extended` import |
+| `packages/claude-container/*` (9P bridge consumer) | `@endo/endo-fs` import | `@endo/platform/fs/extended` import |
+| `packages/chat` filesystem-viewer (new) | — | catalog names from day one |
+| `packages/cli/src/commands/checkin.js` / `checkout.js` | already catalog | unchanged |
 | `packages/daemon/src/mount.js` | already catalog | unchanged |
-| `packages/endo-fs/src/index.js` exports | `create` / `unlink` / `rename` / `mkdir` keep working; new catalog aliases land | dual |
-| `packages/endo-fs/test/*` | uses endo-fs names | unchanged (legacy names still work) |
-| `packages/9p-server/*` | uses endo-fs names | unchanged (legacy names still work; bridge consumes the cap) |
-| Any future filesystem-viewer code (`packages/chat`) | new | catalog names from day one |
 
-A codemod is **not** appropriate because endo-fs's `create` and the catalog's `write` are NOT equivalent: `create` returns an `OpenFile` for range-I/O; `write` writes a whole blob.
-The rename is semantic, not syntactic.
-A manual N-phase plan applies, where N = the number of touched packages.
-
-### Phase 4: Optional legacy removal (deferred indefinitely)
-
-Removing endo-fs's legacy names (`create` / `unlink` / `rename` / `mkdir`) is **not** in scope for this design.
-endo-fs has its own design DNA (cap-FS optimized for cross-CapTP cost); keeping the legacy names is honest about its design center.
-The catalog aliases let consumers that want the unified vocabulary use it without disturbing existing endo-fs callers.
+Legacy endo-fs names (`unlink` / `mkdir`) are **removed** in this cutover, not
+deferred — there is no surviving `@endo/endo-fs` package to keep them honest.
 
 ## Cross-design coordination
 
 - **[platform-fs.md](platform-fs.md)** § *Relationship to existing interfaces*: already does part of the reconciliation; this design extends to mount / scratch / CAS / endo-fs / name hub. platform-fs's "stops at the filesystem boundary" discipline is preserved.
-- **[daemon-mount.md](daemon-mount.md)** § *Exo Interface*: the existing live `MountInterface` is the catalog's reference shape for method names and groupings. No name changes on `MountInterface`; only `subDir` and `followNameChanges` land as new methods.
-- **[daemon-capability-filesystem.md](daemon-capability-filesystem.md)**: this design IS the future-VFS-layer the platform-fs Decision and the capability-filesystem document both defer to. The catalog's `subDir`, plus the future `compose` / `chroot` / `bind` / `namespace` algebra (deferred per [Open questions](#open-questions)), realize the three-layer architecture.
+- **[daemon-mount.md](daemon-mount.md)** § *Exo Interface*: the existing live `MountInterface` is the catalog's reference shape for method names and groupings. No name changes on `MountInterface`; only `subView` and `followNameChanges` land as new methods.
+- **[daemon-capability-filesystem.md](daemon-capability-filesystem.md)**: this design IS the future-VFS-layer the platform-fs Decision and the capability-filesystem document both defer to. The catalog's `subView`, plus the future `compose` / `chroot` / `bind` / `namespace` algebra (deferred per [Resolved decisions](#resolved-decisions-2026-06-18)), realize the three-layer architecture.
 - **[daemon-cas-management.md](daemon-cas-management.md)** + **[daemon-content-store-gc.md](daemon-content-store-gc.md)**: the CAS conformance row aligns with sweep-time refcount. `snapshot()` increments the refcount; `move` / `copy` between CAS-resident endpoints reduce to refcount swaps per [daemon-move-transfer-negotiation](daemon-move-transfer-negotiation.md) Tier 4.
 - **[daemon-checkin-checkout.md](daemon-checkin-checkout.md)**: the snapshot round-trip the viewer supports. A `mount.snapshot()` produces a `readable-tree` that the viewer can re-open as a `ReadableTree` cap, observing the same content.
 - **[daemon-move-transfer-negotiation.md](daemon-move-transfer-negotiation.md)** (PR #432): the catalog's `move(source, target)` defers all six-tier negotiation to this design. The catalog's signature is the polymorphic option (a).
@@ -650,11 +747,33 @@ The catalog aliases let consumers that want the unified vocabulary use it withou
 
 ## Design Decisions
 
-1. **The catalog adopts MountInterface names verbatim.**
-   `has`, `list`, `lookup`, `write`, `remove`, `move`, `makeDirectory`, `readOnly`, `snapshot`, `help` are unchanged from the existing daemon-mount surface.
-   Plus `stat`, `makeFile`, `writeText`, `streamBase64`, `text`, `json`, `append`, `writeBytes` from the existing daemon-mount and platform-fs surfaces.
-   New methods: `subDir`, `streamRead`, `followNameChanges` (per [filesystem-watchers.md](filesystem-watchers.md)), `copy` (already on platform-fs Directory).
-   Rationale: zero rename cost for the existing daemon and platform/fs code; endo-fs adopts the catalog names as aliases.
+1. **Each method name is chosen on merit and recorded — not adopted verbatim.**
+   (Maintainer decision 2026-06-18; supersedes the original verbatim-adoption
+   stance. See [Resolved decisions](#resolved-decisions-2026-06-18) D1.)
+   The default is still the existing MountInterface / platform-fs name where
+   it is the *best* name for the job — `has`, `list`, `lookup`, `write`,
+   `remove`, `move`, `makeDirectory`, `readOnly`, `snapshot`, `help`,
+   `stat`, `makeFile`, `writeText`, `streamBase64`, `text`, `json`,
+   `append`, `writeBytes` all survive that test, so the catalog keeps them.
+   The difference from verbatim adoption is the *discipline*: where two
+   existing names compete, or an existing name is poor, the catalog picks
+   the better one and records the rationale here rather than inheriting an
+   accident of history. Two such judgements are already recorded:
+   - The in-session re-root method is named **`subView`**, not `subDir`
+     (D5 / Decision 5) — chosen to avoid colliding with the formula-bearing
+     `provideSubMount` and because it re-roots a *view*, not necessarily a
+     directory.
+   - `move` (two path arrays) is the catalog name over endo-fs's
+     wider-arity `rename(name, newParent, newName)` — the two-path-array
+     shape reads consistently with `copy` and with the daemon-mount
+     precedent.
+   New methods: `subView`, `streamRead`, `followNameChanges` (per
+   [filesystem-watchers.md](filesystem-watchers.md)), `copy` (already on
+   platform-fs Directory).
+   Design consideration in tension: verbatim adoption had a real benefit —
+   zero rename cost for daemon + platform/fs code. Best-names-on-merit gives
+   that up only at the margin (the bulk of names are unchanged) in exchange
+   for a catalog whose every name is defensible on its own terms.
 
 2. **All methods return Promise.**
    Per [Sync versus async surface](#sync-versus-async-surface): async is the only surface that survives CapTP without re-shaping. Sync resolution where the local backing allows is an implementation detail under a Promise return.
@@ -670,73 +789,136 @@ The catalog aliases let consumers that want the unified vocabulary use it withou
    Returning a `ReadableBlob` / `ReadableTree` from `cap.readOnly()` is the catalog's per-cap attenuation. endo-fs's top-level `readOnly(fs)` composer is a *separate* affordance for whole-filesystem attenuation and remains on endo-fs.
    Rationale: chat-side attenuation is one cap at a time (an editor attenuates *this* file before passing it to a preview pane). The composer is for filesystem-construction time.
 
-5. **`subDir` lands as a new method on Mutable Tree, ReadableTree (where it makes sense), and `MountInterface`.**
-   Platform-fs deferred `subDir` to "a future VFS layer that composes `@endo/platform/fs` primitives." This design IS that layer.
-   For `mount`, `subDir(['a', 'b'])` is equivalent to `lookup(['a', 'b'])` *plus* a confinement-root shift to `path.join(mountRoot, 'a', 'b')`. The existing `provideSubMount` host method (daemon-mount Phase 4 open) is the formula-level realization; `subDir` is the in-exo, no-new-formula realization (an attenuator, like `readOnly`).
-   For `endo-fs`, `subDir` is sugar over `chroot(fs, path)`.
-   For a `ReadableTree` (CAS), `subDir` descends the tree manifest and returns a `ReadableTree` over the subtree's root sha256.
+5. **`subView` lands as a new method on Mutable Tree, ReadableTree (where it makes sense), and `MountInterface`.**
+   Named `subView` (not `subDir`) per the maintainer decision
+   ([Resolved decisions](#resolved-decisions-2026-06-18) D5): the name
+   avoids the overlap with the formula-bearing `provideSubMount` and reads
+   as "a re-rooted *view*," which is what it is — a transient attenuator, not
+   a new directory.
+   Platform-fs deferred this method (under the working name `subDir`) to "a
+   future VFS layer that composes `@endo/platform/fs` primitives." This
+   design IS that layer; it ships the method as `subView`.
+   For `mount`, `subView(['a', 'b'])` is equivalent to `lookup(['a', 'b'])`
+   *plus* a confinement-root shift to `path.join(mountRoot, 'a', 'b')`. The
+   existing `provideSubMount` host method is the formula-level realization;
+   `subView` is the in-exo, no-new-formula realization (an attenuator, like
+   `readOnly`).
+   For `endo-fs` (the cap-FS, post-merge `@endo/platform/fs/extended`),
+   `subView` is sugar over `chroot(fs, path)`.
+   For a `ReadableTree` (CAS), `subView` descends the tree manifest and
+   returns a `ReadableTree` over the subtree's root sha256.
 
 6. **`streamRead` is opt-in.**
    Range I/O makes sense for endo-fs (9P / FUSE bridge) and possibly for a future block-storage backing.
    It does not make sense for a CAS-resident blob (whole-blob fetch is the substrate's natural unit) or a name hub (no content).
    Backings opt in by listing `streamRead` in their interface; the viewer surfaces it only when present.
 
-7. **`subDir` returns a structural sub-view, not a new formula.**
-   Per the daemon-mount precedent (transient lookup exos, not formulas). Creating a new formula for every sub-directory visited would pollute the formula store. `provideSubMount` (host method) is the formula-bearing version for grants that must survive daemon restart; `subDir` (exo method) is the in-session version.
+7. **`subView` returns a structural sub-view, not a new formula.**
+   Per the daemon-mount precedent (transient lookup exos, not formulas). Creating a new formula for every sub-directory visited would pollute the formula store. `provideSubMount` (host method) is the formula-bearing version for grants that must survive daemon restart; `subView` (exo method) is the in-session version. The name difference (`subView` versus `provideSubMount`) now also signals the lifetime difference at the call site, which the old `subDir` / `provideSubMount` pairing did not.
 
 8. **The catalog is silent about `OpenFile`, `Cursor`, `Lock`, `Xattrs`, `NodeWatcher`.**
    These are endo-fs's own surface and stay on endo-fs.
    Trying to fold them into the catalog would either (a) force every backing to implement them (impossible for CAS, name hub), or (b) make them so commonly **A**bsent that the catalog row would be noise.
    The clean line: the catalog covers what the *filesystem viewer* needs; the cap-FS surface (range I/O, advisory locks, kernel-style watches, xattrs) stays on endo-fs for the 9P / FUSE / OS-bridge consumers.
 
-## Open questions
+## Resolved decisions (2026-06-18)
 
-1. **Adopt MountInterface names verbatim, or supersede with new names?**
-   This design picks verbatim adoption ([Design Decision 1](#design-decisions)).
-   The alternative: minting new names for the unified catalog and renaming both endo-fs and mount: would touch more code for no gain.
-   Maintainer confirmation requested.
+The maintainer resolved all seven open decisions on 2026-06-18.
+Each is recorded below **with the design considerations that bear on it**,
+including the cases where the chosen answer overrode the rationale the design
+had originally argued — the consideration does not disappear because the
+decision went the other way; it becomes a cost to manage.
 
-2. **Sync versus async: confirm async is the correct one chosen.**
-   [Sync versus async surface](#sync-versus-async-surface) takes the async stance, citing CapTP's reach across the chat viewer.
-   The sync option would only be safe for backings that never travel across CapTP. Same-process memfs is the only candidate, and even there the surface signature being `Promise<T>` while the implementation resolves synchronously is the conservative choice.
-   Maintainer confirmation requested.
+**D1 — Names: choose the best name per job and record the decision.**
+*Not* automatic verbatim adoption of MountInterface (the design's original
+pick).
+- *Consideration for verbatim:* zero rename cost for daemon + platform/fs.
+- *Consideration for best-on-merit:* a catalog whose every name is defensible
+  on its own terms, not inherited as an accident of which surface happened to
+  name the method first.
+- *Resolution:* keep the existing name where it is the best name (the large
+  majority survive), but where names compete or one is poor, pick the better
+  and record it. First two recorded judgements: `subView` (not `subDir`, D5)
+  and `move` two-path-array (not endo-fs's wider `rename`). See
+  [Design Decision 1](#design-decisions).
 
-3. **Migration speed: big-bang versus gradual?**
-   This design picks gradual (catalog land first; aliases on endo-fs next; per-call-site rename third; legacy removal deferred indefinitely).
-   The big-bang alternative would be a single PR that renames all endo-fs sites at once and removes the legacy names. This is feasible (endo-fs is one package; the test surface is contained) but the maintainer's standing preference is per-package, per-commit migrations.
-   Maintainer preference requested.
+**D2 — Async-only surface.** Confirmed. Every catalog method returns
+`Promise<T>`.
+- *Consideration:* a sync surface is safe only for backings that never cross
+  CapTP; same-process memfs is the only candidate, and the foot-gun (code
+  written against sync breaks the moment the cap travels) is not worth the
+  local convenience. Same-process backings may still resolve synchronously
+  *under* the Promise. See [Sync versus async surface](#sync-versus-async-surface).
 
-4. **`@endo/endo-fs`'s future: retire / re-export / keep diverged?**
-   This design keeps endo-fs diverged with catalog aliases.
-   The retire option would absorb endo-fs into `@endo/platform/fs/extended` or similar.
-   The re-export option would have `@endo/endo-fs` re-export `@endo/platform/fs` and add its extensions.
-   endo-fs's DESIGN.md §2.1 is honest that its `File` / `Directory` guards are not unifiable with platform/fs's (the contracts diverge). This design honors that; the catalog is a name-level reconciliation, not a guard-level merger.
-   Maintainer direction requested. If retire/merge, the tracking issue is "to be filed": would file as a follow-up after this design lands.
+**D3 — Migration: big-bang, not gradual.** Overrides the design's original
+gradual pick.
+- *Consideration against big-bang (originally decisive):* the standing
+  per-package / per-commit migration preference; gradual keeps each step
+  small and revertible.
+- *Considerations that make big-bang acceptable here:* endo-fs is a single
+  package with a contained test surface (blast radius is endo-fs + 9p-server
+  + claude-container), and — decisively — endo-fs is being **retired** (D4),
+  so a dual-name alias layer would preserve a seam we are about to delete.
+- *Cost to manage:* one large reviewed cutover instead of several small ones;
+  mitigated by the semantic (not codemod) per-site review and by the full
+  endo-fs/daemon/9p test suites gating the cutover. See [Migration plan](#migration-plan).
 
-5. **The library gaps researcher flagged.**
-   The researcher's open-questions section (recorded above under [Library and project references](#library-and-project-references)) names:
-   - No dedicated library section for `@endo/endo-fs` (only scattered keyword pointers).
-   - No `name-hub-as-vfs-backing` concept page.
-   - The endo-fs source survey done from package code, not from a library section.
-   These are *librarian* / *scholar* tasks, not blockers for this design. Surfacing here so a future steward scanning deferred items knows the deferral needs a home before the next FS-shaped design.
-   To be filed as journal `message` entries to gardener / librarian after this design lands.
+**D4 — endo-fs future: retire / merge into `@endo/platform/fs`.** Overrides
+the design's original keep-diverged pick.
+- *Consideration against merge (originally decisive):* endo-fs's DESIGN.md
+  §2.1 holds that its `File` / `Directory` guards are **not unifiable** with
+  platform/fs's — the contracts genuinely diverge (range-I/O `OpenFile`,
+  `qid`, `Cursor`, sub-caps). A name-level reconciliation sidesteps this; a
+  merge must confront it.
+- *Resolution & how the consideration is honored:* merge via a **layered
+  entry** (`@endo/platform/fs/extended`) so the divergence is expressed as a
+  guard *tier* (base catalog guards + sloppy-extended cap-FS guards) rather
+  than a single collision; the alternative single-merged-guard is rejected
+  precisely because it would force CAS / name-hub backings to face guards
+  they can never satisfy ([Design Decision 8](#design-decisions)). Tracking
+  issue to be filed when this design lands. See
+  [Phase 1.5](#phase-15-endo-fs-retires-into-endoplatformfs).
 
-6. **Where does `subDir` confinement live for a `mount`?**
-   Daemon-mount's existing `provideSubMount` writes a new formula whose `path` field is `path.join(parent.path, ...sub)`. The catalog's exo-method `subDir` would return a transient exo with a shifted confinement root. Two different lifetimes (formula-bearing versus in-session).
-   This design proposes both coexist: `subDir` for in-session; `provideSubMount` (host method) for grants that persist across restart. The naming overlap is real but the lifetime difference is the discriminator.
-   Maintainer confirmation requested. If the overlap is confusing, rename to `subView` or fold both behind `subDir(path, { persistent: boolean })`.
+**D5 — `subView`, not `subDir`.** The in-session re-root method is named
+`subView`.
+- *Consideration:* `subDir` collided (in name) with the formula-bearing
+  `provideSubMount`, and the two have different lifetimes (transient exo vs
+  persisted formula). `subView` names the *view* attenuation and removes the
+  overlap, making the lifetime difference legible at the call site.
+- `provideSubMount` (host method, formula-bearing) is unchanged; `subView`
+  (exo method, in-session) is the transient attenuator. See
+  [Design Decisions 5 and 7](#design-decisions).
 
-7. **Should `followNameChanges` parity extend to CAS?**
-   CAS is immutable; a "name change" stream on a `readable-tree` would always be empty (or never resolve).
-   The conformance matrix says **A** (absent) for CAS, matching reality.
-   An alternative would be **I** (implemented; returns an immediately-terminating empty stream) so polymorphic consumers can call `followNameChanges` uniformly without a presence check.
-   The chosen answer is **A**; consumers check `__getMethodNames__()` before subscribing. The immediately-terminating-empty-stream alternative leaks across the no-content-no-method principle.
-   Maintainer confirmation requested.
+**D6 — `followNameChanges` is present on CAS as an immediately-terminating
+empty stream.** Overrides the design's original *absent* pick.
+- *Consideration against (originally decisive):* the no-content-no-method
+  principle — a method that can never do anything is noise, and consumers can
+  check `__getMethodNames__()` before subscribing.
+- *Consideration for (chosen):* polymorphic consumers can call
+  `followNameChanges` uniformly without a per-cap presence check; the empty
+  stream is an honest "nothing will ever change here" rather than a missing
+  capability.
+- *Cost to manage:* the conformance matrix CAS cell flips **A → I (empty
+  stream)**, and the viewer's observe path must treat an immediately-closed
+  stream as "snapshot / point-in-time," not as "live with no events yet."
+  See the [conformance matrix](#backing-implementation-conformance-matrix) and
+  the [observation row](#observation).
 
-8. **Streaming substrate for `streamRead`.**
-   endo-fs uses `PassableBytesReader` from `@endo/exo-stream`. The catalog's `streamRead` reuses this: and that ties the catalog to endo-fs's streaming substrate (`@endo/exo-stream`) rather than to `daemon-message-streaming`'s `streamReply` / `streamSend`.
-   This design picks `@endo/exo-stream` (the established substrate that platform-fs's `streamBase64` also uses, via `Reader<string>`).
-   Maintainer confirmation requested. If `daemon-message-streaming` is the intended substrate, the catalog row updates.
+**D7 — Streaming substrate: `@endo/exo-stream`.** Confirmed.
+- *Consideration:* `@endo/exo-stream` is the established substrate endo-fs
+  already uses and that platform-fs's `streamBase64` uses via
+  `Reader<string>`; reusing it keeps one byte-transit shape across the
+  catalog rather than introducing `daemon-message-streaming`'s
+  `streamReply` / `streamSend` as a second. `streamRead` uses
+  `PassableBytesReader` / `PassableBytesWriter`.
+
+### Deferred (not a maintainer decision)
+
+**Library/journal gaps the researcher flagged** — no dedicated library
+section for the cap-FS surface, no `name-hub-as-vfs-backing` concept page, the
+source survey done from package code rather than a library section. These are
+*librarian* / *scholar* tasks, not design blockers; to be filed as journal
+`message` entries to gardener / librarian after this design lands.
 
 ## Prompt
 
@@ -782,7 +964,7 @@ All guards in `packages/platform/src/fs/interfaces.js`:
 
 Note: the Mutable `FileInterface` / `DirectoryInterface` are **already
 landed** (platform-fs Phase 4 shipped). They lack the catalog's `makeFile`,
-`subDir`, `stat`, `streamRead`, and `followNameChanges` — these are the
+`subView`, `stat`, `streamRead`, and `followNameChanges` — these are the
 [Phase 1](#phase-1-catalog-land-no-behavior-change) additions.
 
 ### Surface 2 — `@endo/daemon` Mount family
