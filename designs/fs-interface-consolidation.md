@@ -347,10 +347,13 @@ no `BlobRef → SnapshotBlob` adapter.
       accessors; Node/XS powers gain `readFileRange`; content store surfaces
       `size` / `readRange`. `getInfo().hash` is base64 (matches `BlobRef`),
       `sha256()` stays hex.
-- [ ] C4 (optional follow-up): mirror the whole-value `text`/`json`/
-      `streamBase64` conveniences onto the extended `BlobRef` for full
-      symmetry, and extend the other blob implementers (git, local, mount-file
-      view) to the rich shape if they ever become remote-read targets.
+- [x] C4: mirror the whole-value `text`/`json` conveniences onto the extended
+      `BlobRef` (now mutually interchangeable with `EndoBlob` across `getInfo` /
+      `fetch` / `text` / `json`; `streamBase64` stays daemon-only as `fetch` is
+      the common streaming primitive).
+- [ ] C4 (optional follow-up): extend the other blob implementers (git, local,
+      mount-file view) to the rich shape if they ever become remote-read
+      targets.
 - [x] C5: remove the dead `ContentStore` / `SnapshotStore` guards.
 
 ## Prompt
