@@ -135,6 +135,15 @@ function OpaqueChild(props) {
   return real == null ? null : real;
 }
 
+// Hard cap on coercion recursion depth. A confined component controls
+// the SHAPE of its return value and can hand back a pathologically deep
+// structure (a self-similar nested array, or a vnode whose `children`
+// chains thousands deep). Without this bound the recursive walk below
+// would overflow the JS stack and throw synchronously during the host
+// render; we fail closed (drop the subtree) well before that. Realistic
+// UI nesting is far shallower than this.
+const MAX_COERCE_DEPTH = 256;
+
 /**
  * Walk an arbitrary value returned by the attacker and re-create it
  * using vnode primitives we control. Anything that doesn't match a
@@ -144,15 +153,17 @@ function OpaqueChild(props) {
  * we read it once and rebuild via our own `h()`, throwing away the
  * original.
  * @param value
+ * @param depth Current recursion depth; external callers pass 0.
  */
-function coerceToSafeVNode(value) {
+function coerceToSafeVNode(value, depth = 0) {
+  if (depth > MAX_COERCE_DEPTH) return null;
   if (value == null || typeof value === 'boolean') return null;
   const t = typeof value;
   if (t === 'string' || t === 'number' || t === 'bigint') return value;
   if (Array.isArray(value)) {
     const out = [];
     for (let i = 0; i < value.length; i++) {
-      out.push(coerceToSafeVNode(value[i]));
+      out.push(coerceToSafeVNode(value[i], depth + 1));
     }
     return out;
   }
@@ -199,10 +210,20 @@ function coerceToSafeVNode(value) {
   // `renderConfined` on top (e.g. a unit test).
 
   const safeType = coerceType(type);
-  const { children, rest } = coerceProps(props);
+  const { children, rest } = coerceProps(props, depth);
   // Surface the key via props so `h()` picks it up — `h` extracts `key`
-  // from props before forwarding to `createVNode`.
-  if (key != null) rest.key = key;
+  // from props before forwarding to `createVNode`. Coerce the
+  // attacker-controlled key to a primitive first: Preact only ever
+  // COMPARES keys, so a stringified key still reconciles correctly,
+  // while denying the attacker a `vnode.key` slot that carries object
+  // (or function) identity.
+  if (key != null) {
+    const tk = typeof key;
+    rest.key =
+      tk === 'string' || tk === 'number' || tk === 'bigint' || tk === 'boolean'
+        ? key
+        : String(key);
+  }
   return h(safeType, rest, ...children);
 }
 
@@ -241,6 +262,7 @@ function coerceType(type) {
 
 /**
  * @param props  The attacker-returned vnode's props object.
+ * @param depth  Current recursion depth, forwarded to `children`.
  *
  * All DOM-specific filtering (`innerHTML`, `srcdoc`, case-variant
  * `on*`, the HTMLHyperlinkElementUtils URL setters, …) happens
@@ -250,7 +272,7 @@ function coerceType(type) {
  * cannot see when an attacker hand-builds a vnode that bypasses
  * `h()`.
  */
-function coerceProps(props) {
+function coerceProps(props, depth) {
   // Null-prototype rest bag so Preact's `h()` — which copies into
   // its own props bag via `for (i in props)` — cannot pick up
   // `Object.prototype.dangerouslySetInnerHTML` (or any other
@@ -266,10 +288,12 @@ function coerceProps(props) {
   if (props == null || typeof props !== 'object') {
     return { rest, children };
   }
-  // Use Reflect.ownKeys so a Proxy that throws on Object.keys can still
-  // be handled (we wrap each read in try/catch below). Symbols are
-  // skipped because every meaningful Preact prop is string-keyed and
-  // a symbol-keyed getter could fire as a side effect during diff.
+  // Prefer `Object.keys`; fall back to `Reflect.ownKeys` (filtered to
+  // strings) if a Proxy throws on `Object.keys`, so a hostile target can
+  // still be handled (each read is wrapped in try/catch below). Symbol
+  // keys are skipped either way: every meaningful Preact prop is
+  // string-keyed, and a symbol-keyed getter could fire as a side effect
+  // during diff.
   let keys;
   try {
     keys = Object.keys(props);
@@ -282,7 +306,11 @@ function coerceProps(props) {
   }
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
-    if (DROPPED_PROPS_ALWAYS.has(key.toLowerCase())) continue;
+    // `key` is always a string here (Object.keys / the string-filtered
+    // Reflect.ownKeys fallback). Match `ref` exactly — Preact only
+    // treats the lowercase `ref` slot specially, so case variants are
+    // ordinary data props that the renderer's allowlist drops anyway.
+    if (DROPPED_PROPS_ALWAYS.has(key)) continue;
     // `children` is special: split out so we can recursively coerce
     // and forward as positional `h()` arguments.
     let value;
@@ -292,7 +320,7 @@ function coerceProps(props) {
       continue;
     }
     if (key === 'children') {
-      const coerced = coerceToSafeVNode(value);
+      const coerced = coerceToSafeVNode(value, depth + 1);
       if (Array.isArray(coerced)) {
         for (let j = 0; j < coerced.length; j++) children.push(coerced[j]);
       } else if (coerced != null) {

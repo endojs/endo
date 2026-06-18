@@ -12,7 +12,7 @@ export interface SecureRenderOptions {
   /**
    * EXTENDS the default set of attribute names that may appear on a
    * DOM-element vnode. Additive: the built-in `DEFAULT_SAFE_ATTRS`
-   * (a curated allowlist of ~100 standard HTML attrs) still apply,
+   * (a curated allowlist of standard HTML attrs) still apply,
    * and the entries listed here are added on top for this tree only.
    * `aria-*`, `data-*`, and `on*` event handlers are always allowed
    * and do not need to be enumerated.
@@ -107,7 +107,7 @@ export function unmount(parentDom: ContainerNode): void;
 
 /**
  * Boundary that disables sanitization for everything rendered inside it.
- * Used by add-on layers (e.g. `@endo/preact-secure/compartment`) to splice
+ * Used by add-on layers (e.g. `@endo/preact-container/compartment`) to splice
  * host-trusted vnodes back into an otherwise-confined tree. Components
  * rendered below a `HostPassthrough` see real DOM events, real refs work,
  * etc. Use only with vnodes the host fully controls.
@@ -119,7 +119,7 @@ export const HostPassthrough: import('preact').FunctionComponent<{
 /**
  * Register an additional function reference as a trusted-exit
  * boundary. Internal extension point used by
- * `@endo/preact-secure/compartment` to opt `OpaqueChild` in by
+ * `@endo/preact-container/compartment` to opt `OpaqueChild` in by
  * IDENTITY (without exposing a forge-able marker flag).
  *
  * SECURITY: any module that calls this can promote an arbitrary
@@ -134,7 +134,7 @@ export function _registerTrustedExitType(fn: Function): void;
  * Register an additional function reference as a SECURE-REENTRY
  * boundary. A vnode whose type is registered here resets
  * `trustedExitDepth` to zero for its subtree, restoring it on
- * diffed/catchError. Used by `@endo/preact-secure/compartment` so a
+ * diffed/catchError. Used by `@endo/preact-container/compartment` so a
  * `Confined` mounted inside a `HostPassthrough` island still has its output
  * sanitized.
  *

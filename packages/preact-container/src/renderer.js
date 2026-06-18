@@ -20,6 +20,19 @@ const OPT_RENDER = '__r';
 const OPT_CATCH_ERROR = '__e';
 const VNODE_PARENT = '__';
 
+// Best-effort deep-freeze for module-level constants. Under SES
+// `lockdown()` — this package's documented precondition — `harden`
+// transitively freezes the value, so a future code path that leaked one
+// of the allowlists could not mutate it (e.g.
+// `DEFAULT_SAFE_ATTRS.add('innerhtml')`) to silently disable a defense.
+// `Object.freeze` alone would NOT stop `Set.prototype.add`, so we rely
+// on `harden`; outside lockdown (the browser test harness) it is absent
+// and this is a no-op.
+const freezeConstant = value =>
+  typeof globalThis !== 'undefined' && typeof globalThis.harden === 'function'
+    ? globalThis.harden(value)
+    : value;
+
 /**
  * Secure renderer for Preact.
  *
@@ -367,6 +380,18 @@ const SAFE_URL_RE = /^(?:https?:|mailto:|tel:|sms:|ftp:|\/|\.{0,2}\/|#|\?)/i;
 const SAFE_DATA_IMG_RE =
   /^data:image\/(?:png|jpe?g|gif|webp|svg\+xml|bmp|x-icon|vnd\.microsoft\.icon);/i;
 
+// Freeze the allowlists and URL matchers that gate every sanitization
+// decision (see `freezeConstant`). These are module-private, so a
+// confined guest cannot reach them under the documented `lockdown()`
+// precondition — this is defense-in-depth against a future code path
+// that leaks one of them.
+freezeConstant(DEFAULT_ALLOWED_TAGS);
+freezeConstant(DEFAULT_SAFE_ATTRS);
+freezeConstant(HARD_DENY_ATTRS);
+freezeConstant(URL_ATTRS);
+freezeConstant(SAFE_URL_RE);
+freezeConstant(SAFE_DATA_IMG_RE);
+
 function sanitizeUrl(value, attr) {
   if (typeof value !== 'string') return null;
   const trimmed = value.replace(/^[\s\x00-\x1f]+/, '');
@@ -469,8 +494,15 @@ function safeTargetSnapshot(node) {
     name: typeof node.name === 'string' ? node.name : null,
     id: typeof node.id === 'string' ? node.id : null,
     type: typeof node.type === 'string' ? node.type : null,
+    // Restrict to the primitives the SafeEventTarget contract promises
+    // (string | number | boolean). Real DOM targets only ever expose a
+    // string `value`, but guard so a `function`/`symbol`/object can
+    // never enter the frozen snapshot and leak to the guest handler.
     value:
-      'value' in node && typeof node.value !== 'object'
+      'value' in node &&
+      (typeof node.value === 'string' ||
+        typeof node.value === 'number' ||
+        typeof node.value === 'boolean')
         ? node.value
         : undefined,
     checked: 'checked' in node ? !!node.checked : undefined,
@@ -1322,6 +1354,10 @@ export function renderConfined(vnode, parentDom, opts) {
       safeAttrs.add(lower);
     }
   }
+  // Freeze the per-tree allowlists before they are stashed on the
+  // boundary and pushed onto the active stack (see `freezeConstant`).
+  freezeConstant(allowedTags);
+  freezeConstant(safeAttrs);
   install();
   walkSanitize(vnode, allowedTags, safeAttrs);
   // Stash the per-tree allowlists on the boundary so concurrent

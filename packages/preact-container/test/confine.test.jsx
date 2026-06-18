@@ -197,6 +197,49 @@ describe('../src/compartment.js', () => {
     expect(scratch.querySelector('.next').textContent).to.equal('still here');
   });
 
+  it('caps coercion depth: a deeply nested array return value does not overflow the host render', () => {
+    // A confined component controls the SHAPE of its return value and
+    // can hand back a pathologically deep structure. Without the
+    // MAX_COERCE_DEPTH cap the recursive coercer would overflow the JS
+    // stack and throw a RangeError synchronously during the host
+    // render. We fail closed (drop past the bound) instead.
+    let deep = 'leaf';
+    for (let i = 0; i < 50_000; i += 1) deep = [deep];
+    const Confined = confineComponent(() => deep);
+    expect(() =>
+      renderConfined(
+        <div class="host">
+          <Confined />
+          <span class="next">still here</span>
+        </div>,
+        scratch,
+      ),
+    ).to.not.throw();
+    expect(scratch.querySelector('.next').textContent).to.equal('still here');
+  });
+
+  it('caps coercion depth: a deeply nested hand-built children chain does not overflow', () => {
+    let node = {
+      type: 'span',
+      props: { children: 'leaf' },
+      constructor: undefined,
+    };
+    for (let i = 0; i < 50_000; i += 1) {
+      node = { type: 'div', props: { children: node }, constructor: undefined };
+    }
+    const Confined = confineComponent(() => node);
+    expect(() =>
+      renderConfined(
+        <div class="host">
+          <Confined />
+          <span class="next">still here</span>
+        </div>,
+        scratch,
+      ),
+    ).to.not.throw();
+    expect(scratch.querySelector('.next').textContent).to.equal('still here');
+  });
+
   it('replaces a vnode with a class-instance .type with a Fragment', () => {
     class Sneaky {}
     const Confined = confineComponent(({ h, Fragment }) =>
