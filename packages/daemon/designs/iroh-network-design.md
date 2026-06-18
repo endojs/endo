@@ -63,7 +63,7 @@ interface EndoNetwork {
 
 A transport is an *unconfined* caplet exporting `make(powers, context)`.
 It is installed with `makeUnconfined` and then moved under `@nets/<name>`,
-where the daemon discovers it at boot (see `setup-libp2p.js`).
+where the daemon discovers it at boot (see `setup-iroh.js`).
 From its `powers` a transport gets:
 
 - `getPeerInfo()` → `{ node: NodeNumber, addresses }`
