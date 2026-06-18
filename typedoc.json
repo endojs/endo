@@ -50,6 +50,7 @@
     "packages/ocapn",
     "packages/ocapn-noise",
     "packages/platform",
+    "packages/preact-container",
     "packages/relay-server",
     "packages/skel",
     "packages/stream-types-test",
