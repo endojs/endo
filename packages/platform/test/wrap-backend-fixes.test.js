@@ -253,6 +253,24 @@ test('File.write({}) throws ENOSYS when backend lacks setStat (no silent tail-le
   t.is(fromUtf8(bytes), '0123456789', 'file should not have been mutated');
 });
 
+test('Directory.write and copy throw ENOSYS when backend lacks setStat', async t => {
+  // The whole-blob Directory.write and the file branch of copy both
+  // need setStat to truncate a longer destination; without it they must
+  // fail closed rather than leave a stale tail.
+  const noStatBackend = makeStubBackend({});
+  const fs = wrapBackend(noStatBackend);
+  const root = await E(fs).root();
+
+  await t.throwsAsync(() => E(root).write('w.txt', 'hello'), {
+    message: /ENOSYS/,
+  });
+
+  const oh = await E(root).create('src', {});
+  await writeBytes(await E(oh).write(0n), utf8('data'));
+  await E(oh).close();
+  await t.throwsAsync(() => E(root).copy('src', 'dst'), { message: /ENOSYS/ });
+});
+
 test('File.write({offset}) (pwrite) still works without setStat', async t => {
   // The setStat requirement is only for the truncating
   // whole-file path. With an explicit offset, no truncate is

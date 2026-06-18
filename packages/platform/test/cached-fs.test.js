@@ -322,3 +322,38 @@ test('withCachedReads: rename across wrapped directories unwraps the destination
   const after = await E(subdir).lookup('moved.txt');
   t.is((await E(after).getAttrs()).size, 0n);
 });
+
+test('withCachedReads: lookupStep / subView / move / copy work through the cache wrapper', async t => {
+  // Drive the wrapper directly (no CapTP pair needed) to confirm the
+  // new catalog verbs are forwarded and their results are re-wrapped,
+  // not dropped or returned as bare inner caps.
+  const fs = withCachedReads(makeInMemoryFilesystem(), makeMemoryCas());
+  const root = await E(fs).root();
+  const a = await E(root).makeDirectory('a', {});
+  await E(a).write('f.txt', 'leaf');
+
+  // lookupStep: single-segment, same node as lookup('a').
+  const stepped = await E(root).lookupStep('a');
+  const looked = await E(root).lookup('a');
+  t.is((await E(stepped).getQid()).pathId, (await E(looked).getQid()).pathId);
+
+  // subView: confined directory, resolves children through the wrapper.
+  const view = await E(root).subView('a');
+  t.is((await E(view).getQid()).type, 'directory');
+  const viewedFile = await E(view).lookup('f.txt');
+  t.is(fromUtf8(await collectBytes(await E(viewedFile).read())), 'leaf');
+
+  // copy: path-to-path, source survives.
+  await E(root).copy(['a', 'f.txt'], ['a', 'g.txt']);
+  const copied = await E(root).lookup(['a', 'g.txt']);
+  t.is(fromUtf8(await collectBytes(await E(copied).read())), 'leaf');
+  t.truthy(await E(root).lookup(['a', 'f.txt']));
+
+  // move: relocates and removes source.
+  await E(root).move(['a', 'g.txt'], ['a', 'h.txt']);
+  await t.throwsAsync(() => E(root).lookup(['a', 'g.txt']), {
+    message: /ENOENT/,
+  });
+  const moved = await E(root).lookup(['a', 'h.txt']);
+  t.is(fromUtf8(await collectBytes(await E(moved).read())), 'leaf');
+});

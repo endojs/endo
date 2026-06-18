@@ -409,6 +409,9 @@ test('lookupStep resolves a single segment like one-arg lookup', async t => {
   const aQid = await E(a).getQid();
   const stepped = await E(root).lookupStep('a');
   t.is((await E(stepped).getQid()).pathId, aQid.pathId);
+  // lookupStep('a') and lookup('a') resolve the same node.
+  const looked = await E(root).lookup('a');
+  t.is((await E(stepped).getQid()).pathId, (await E(looked).getQid()).pathId);
 });
 
 test('subView returns a confined directory; rejects non-directories', async t => {
@@ -526,6 +529,24 @@ test('copy recursively duplicates a directory subtree', async t => {
   );
   // Source intact.
   t.is((await E(await E(root).lookup('a')).getQid()).type, 'directory');
+});
+
+test('copy duplicates a binary file byte-for-byte', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  // Includes NUL and high bytes that a text round-trip would corrupt.
+  const bin = new Uint8Array([0, 1, 2, 255, 254, 0, 128, 13, 10]);
+  const oh = await E(root).create('b.bin', { write: true });
+  await pushBytes(await E(oh).write(0n), bin);
+  await E(oh).close();
+
+  await E(root).copy('b.bin', 'c.bin');
+
+  const copied = await E(root).lookup('c.bin');
+  const got = await drainReader(
+    await E(await E(copied).open({ read: true })).read(0n, BigInt(bin.length)),
+  );
+  t.deepEqual([...got], [...bin]);
 });
 
 test('copy into its own descendant is rejected (no infinite recursion)', async t => {

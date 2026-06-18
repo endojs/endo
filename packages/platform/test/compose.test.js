@@ -239,6 +239,29 @@ test('compose: layer entries shadow backing entries', async t => {
   t.is(await readFile(root, 'only-layer'), 'L');
 });
 
+test('compose CoW: subView resolves a backing-only directory and rejects a file (ENOTDIR)', async t => {
+  // Exercises the CoW overlay's subView (a distinct exo from bind /
+  // wrap-backend): it must resolve through the merged view AND enforce
+  // the directory-only contract.
+  const backing = makeInMemoryFilesystem();
+  const layer = makeInMemoryFilesystem();
+  const backingRoot = await E(backing).root();
+  await E(backingRoot).makeDirectory('dir', {});
+  await writeFile(await E(backingRoot).lookup('dir'), 'inside.txt', 'deep');
+  await writeFile(backingRoot, 'file.txt', 'flat');
+
+  const cow = compose(layer, backing);
+  const root = await E(cow).root();
+
+  const view = await E(root).subView('dir');
+  t.is((await E(view).getQid()).type, 'directory');
+  t.is(await readFile(view, 'inside.txt'), 'deep');
+
+  await t.throwsAsync(() => E(root).subView('file.txt'), {
+    message: /ENOTDIR/,
+  });
+});
+
 test('compose: list merges and applies whiteouts', async t => {
   const backing = makeInMemoryFilesystem();
   const layer = makeInMemoryFilesystem();
