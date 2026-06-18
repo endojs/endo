@@ -4119,6 +4119,29 @@ test('provideGit tree exposes immutable commit contents', async t => {
 
   const main = await E(tree).lookup(['src', 'main.js']);
   t.is(await E(main).text(), 'export default 1;\n');
+
+  // GitBlob exposes the rich BlobRef range-I/O surface (getInfo + fetch).
+  const mainInfo = await E(main).getInfo();
+  t.is(mainInfo.algorithm, 'sha256');
+  t.is(mainInfo.size, 18n); // 'export default 1;\n'
+  /** @param {any} reader */
+  const collectText = async reader => {
+    const chunks = [];
+    for await (const chunk of iterateBytesReader(reader)) {
+      chunks.push(chunk);
+    }
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) {
+      out.set(c, off);
+      off += c.length;
+    }
+    return new TextDecoder().decode(out);
+  };
+  t.is(await collectText(await E(main).fetch(0n, 6n)), 'export');
+  t.is(await collectText(await E(main).fetch(0n, 18n)), 'export default 1;\n');
+
   await fs.promises.writeFile(
     path.join(repoPath, 'src', 'main.js'),
     'export default 2;\n',

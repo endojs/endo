@@ -5,25 +5,16 @@ import { createHash } from 'node:crypto';
 import harden from '@endo/harden';
 import { encodeBase64 } from '@endo/base64';
 import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { mapReader } from '@endo/stream';
 import { makeNodeReader } from '@endo/stream-node';
 
-import {
-  readableBlobMethodGuards,
-  rangeReadMethodGuards,
-} from '../fs/interfaces.js';
-
 // `LocalBlob` exposes the whole-value read surface plus the richer `BlobRef`
 // range-I/O surface (`getInfo` / `fetch`) so a remote reader can learn the
 // content hash + size in one round-trip and read byte ranges without
 // streaming the whole file. See designs/fs-interface-consolidation.md § C4.
-const LocalBlobInterface = M.interface('LocalBlob', {
-  ...readableBlobMethodGuards,
-  ...rangeReadMethodGuards,
-});
+import { ReadableBlobRangeInterface } from '../fs/interfaces.js';
 
 /**
  * Wrap a byte range as a `PassableBytesReader`. Empty ranges yield a reader
@@ -47,7 +38,7 @@ const bytesFromRange = bytes => {
  * @param {string} filePath
  */
 export const makeLocalBlob = filePath => {
-  return makeExo('LocalBlob', LocalBlobInterface, {
+  return makeExo('LocalBlob', ReadableBlobRangeInterface, {
     /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
     streamBase64(synPromise) {
       const nodeReadStream = fs.createReadStream(filePath);

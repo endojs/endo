@@ -83,6 +83,17 @@ export const ReadableBlobInterface = M.interface('ReadableBlob', {
 });
 harden(ReadableBlobInterface);
 
+// A `ReadableBlob` that also exposes the `BlobRef` range-I/O surface
+// (`getInfo` / `fetch`) — the rich shape for content-addressed blobs read
+// remotely. Pre-assembled so implementers (LocalBlob, GitBlob) can adopt the
+// full surface without re-spreading the records or depending on `@endo/patterns`
+// themselves. See designs/fs-interface-consolidation.md § C4.
+export const ReadableBlobRangeInterface = M.interface('ReadableBlob', {
+  ...readableBlobMethodGuards,
+  ...rangeReadMethodGuards,
+});
+harden(ReadableBlobRangeInterface);
+
 export const SnapshotBlobInterface = M.interface('SnapshotBlob', {
   ...readableBlobMethodGuards,
   sha256: M.call().returns(M.string()),

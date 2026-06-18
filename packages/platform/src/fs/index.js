@@ -7,6 +7,7 @@ export {
   directoryFileMethodGuards,
   rangeReadMethodGuards,
   ReadableBlobInterface,
+  ReadableBlobRangeInterface,
   SnapshotBlobInterface,
   ReadableTreeInterface,
   SnapshotTreeInterface,

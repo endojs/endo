@@ -17,7 +17,11 @@ import { makeExo } from '@endo/exo';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { mapReader } from '@endo/stream';
-import { ReadableBlobInterface } from '@endo/platform/fs/lite';
+// `GitBlob` exposes the whole-value read surface plus the richer `BlobRef`
+// range-I/O surface (`getInfo` / `fetch`), so a remote reader of a git tree can
+// learn a blob's content hash + size in one round-trip and read byte ranges.
+// See designs/fs-interface-consolidation.md § C4.
+import { ReadableBlobRangeInterface } from '@endo/platform/fs/lite';
 import { GitTreeInterface } from '@endo/exo-git';
 
 // `TextDecoder` is portable across XS, browsers, and SES realms;
@@ -1659,7 +1663,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
    * @returns {unknown}
    */
   const makeGitBlob = blobOid =>
-    makeExo('GitBlob', ReadableBlobInterface, {
+    makeExo('GitBlob', ReadableBlobRangeInterface, {
       /**
        * @param {unknown} synPromise
        */
@@ -1680,10 +1684,48 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         return JSON.parse(utf8Decoder.decode(bytes));
       },
 
+      // The `{ algorithm, hash, size }` content-address triple, computed as
+      // sha256 over the blob's bytes (base64, matching the extended `BlobRef`).
+      // Note this is a content sha256, distinct from the git object's own
+      // sha1 OID.
+      async getInfo() {
+        const bytes = await readBlobBytes(blobOid);
+        const hash = encodeBase64(
+          crypto.createHash('sha256').update(bytes).digest(),
+        );
+        return harden({
+          algorithm: 'sha256',
+          hash,
+          size: BigInt(bytes.length),
+        });
+      },
+
+      // Windowed read of `[offset, offset + length)`, clamped at EOF. Git
+      // serves whole objects, so the window is sliced from the materialized
+      // bytes (matching the in-memory `BlobRef.fetch`).
+      /**
+       * @param {bigint} offset
+       * @param {bigint} length
+       */
+      async fetch(offset, length) {
+        const off = Number(offset);
+        const len = Number(length);
+        if (len <= 0) {
+          return bytesReaderFromIterator([][Symbol.iterator]());
+        }
+        const bytes = await readBlobBytes(blobOid);
+        const end = Math.min(off + len, bytes.length);
+        const slice =
+          off >= bytes.length ? new Uint8Array(0) : bytes.subarray(off, end);
+        return bytesReaderFromIterator(
+          (slice.length > 0 ? [slice] : [])[Symbol.iterator](),
+        );
+      },
+
       /** @param {string} [method] */
       help: method =>
         method === undefined
-          ? 'GitBlob: read-only ReadableBlob over a git blob object (text, json, streamBase64).'
+          ? 'GitBlob: read-only blob over a git object (text, json, streamBase64, getInfo, fetch).'
           : `No documentation for method ${method}.`,
     });
 
