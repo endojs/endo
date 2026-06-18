@@ -17,11 +17,46 @@
  */
 
 import { E } from '@endo/eventual-send';
+import { Far } from '@endo/far';
+import { encodeBase64 } from '@endo/base64';
 import { makeError, X, q } from '@endo/errors';
 
 /**
  * @import { FsBackend, NodeKind, DirEntry } from '../backend-types.js'
  */
+
+/**
+ * Wrap a `Uint8Array` as a `ReadableBlob`-shaped remotable that `Mount.write`
+ * accepts. `Mount.write` introspects for a `streamBase64` method and drains it
+ * through `makeRefReader` (base64-decode), so the blob yields its bytes as a
+ * single base64 chunk. A raw `Uint8Array` cannot cross CapTP (byte arrays are
+ * not yet passable), which is why writes must hand over a reader reference
+ * rather than the bytes themselves.
+ *
+ * @param {Uint8Array} bytes
+ */
+const makeBytesBlob = bytes => {
+  const base64 = encodeBase64(bytes);
+  return Far('ReadableBlob', {
+    streamBase64() {
+      let sent = false;
+      return Far('AsyncIterator', {
+        async next() {
+          if (sent) {
+            return harden({ done: true, value: undefined });
+          }
+          sent = true;
+          return harden({ done: false, value: base64 });
+        },
+        async return() {
+          sent = true;
+          return harden({ done: true, value: undefined });
+        },
+      });
+    },
+  });
+};
+harden(makeBytesBlob);
 
 /**
  * Drain a Mount/MountFile `streamBase64` reader into a `Uint8Array`.
@@ -161,28 +196,16 @@ export const makeFromMountBackend = rootMount => {
         throw makeError(X`EISDIR: cannot write the root`);
       }
       const off = offset === undefined ? 0 : Number(offset);
-      const parent = await resolve(path.slice(0, -1));
-      if (parent === undefined) {
-        throw makeError(X`ENOENT: parent ${q(path.slice(0, -1).join('/'))}`);
+      // Read current content (if the file already exists) so a ranged
+      // write can be coalesced locally — Mount has no partial-range
+      // write. A missing path resolves to undefined (treated as empty);
+      // a bytes-stream error mid-fetch is a real failure and propagates.
+      const cap = await resolve(path);
+      let current = new Uint8Array(0);
+      if (cap !== undefined) {
+        const stream = await E(cap).streamBase64();
+        current = await drainBase64Stream(stream);
       }
-      const name = path[path.length - 1];
-      let cap;
-      try {
-        cap = await E(parent).lookup(name);
-      } catch (e) {
-        // Distinguish "file doesn't exist" (create it) from any
-        // other error (re-raise so the caller sees the real cause).
-        const msg = /** @type {Error} */ (e).message;
-        if (!/ENOENT/.test(msg)) throw e;
-        await E(parent).writeText(name, '');
-        cap = await E(parent).lookup(name);
-      }
-      // Read current content, splice in new bytes, write back.
-      // Mount has no partial-range write so we coalesce locally.
-      // A bytes-stream error mid-fetch is a real failure — surface
-      // it rather than silently substituting empty content.
-      const stream = await E(cap).streamBase64();
-      const current = await drainBase64Stream(stream);
       const needed = off + bytes.length;
       const outLen = Math.max(needed, current.length);
       const out = new Uint8Array(outLen);
@@ -191,7 +214,10 @@ export const makeFromMountBackend = rootMount => {
       if (needed < current.length) {
         out.set(current.subarray(needed), needed);
       }
-      await E(cap).writeBytes(out);
+      // `Mount.write` materialises the file (creating parents and the
+      // file itself) from a ReadableBlob. Hand it a reader reference,
+      // not the raw bytes: byte arrays are not passable over CapTP.
+      await E(rootMount).write(path, makeBytesBlob(out));
     },
 
     async makeDirectory(path) {

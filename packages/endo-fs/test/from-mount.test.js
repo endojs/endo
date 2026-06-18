@@ -102,20 +102,31 @@ const makeMockMount = () => {
       async writeText(text) {
         node.content = utf8(text);
       },
-      async writeBytes(bytes) {
-        // Bytes may arrive as Uint8Array or as a Far iterator.
-        // For the adapter's use we always pass Uint8Array.
-        if (bytes instanceof Uint8Array) {
-          node.content = new Uint8Array(bytes);
-        } else if (
-          bytes &&
-          typeof bytes === 'object' &&
-          bytes.length !== undefined
-        ) {
-          node.content = new Uint8Array(bytes);
-        } else {
-          throw new Error('unsupported writeBytes arg');
+      async writeBytes(readableRef) {
+        // The real `EndoMountFile.writeBytes` is guarded `M.remotable()`
+        // and a raw `Uint8Array` cannot cross CapTP — reject it here so
+        // a regression that passes raw bytes fails the test instead of
+        // silently passing same-vat (the divergence that hid this bug).
+        if (readableRef instanceof Uint8Array) {
+          throw new Error('writeBytes expects a reader reference, not raw bytes');
         }
+        const reader = await E(readableRef).streamBase64();
+        const chunks = [];
+        let total = 0;
+        for (;;) {
+          const { done, value: b64 } = await E(reader).next();
+          if (done) break;
+          const decoded = new Uint8Array(Buffer.from(b64, 'base64'));
+          chunks.push(decoded);
+          total += decoded.length;
+        }
+        const content = new Uint8Array(total);
+        let o = 0;
+        for (const c of chunks) {
+          content.set(c, o);
+          o += c.length;
+        }
+        node.content = content;
       },
       readOnly() {
         return this;
@@ -169,6 +180,36 @@ const makeMockMount = () => {
           throw new Error('ENOTDIR');
         }
         parentNode.children.set(name, { kind: 'file', content: utf8(text) });
+      },
+      // Mirrors the real `EndoMount.write(path, ReadableBlob)`: the
+      // value is a *remotable* reader reference (never raw bytes, which
+      // are not passable over CapTP), drained via its `streamBase64`
+      // method and base64-decoded.
+      async write(path, value) {
+        const segs = segmentsOf(path);
+        const parent = segs.slice(0, -1);
+        const name = segs[segs.length - 1];
+        const parentNode = lookupNode(base, parent);
+        if (!parentNode || parentNode.kind !== 'dir') {
+          throw new Error('ENOTDIR');
+        }
+        const reader = await E(value).streamBase64();
+        const chunks = [];
+        let total = 0;
+        for (;;) {
+          const { done, value: b64 } = await E(reader).next();
+          if (done) break;
+          const decoded = new Uint8Array(Buffer.from(b64, 'base64'));
+          chunks.push(decoded);
+          total += decoded.length;
+        }
+        const content = new Uint8Array(total);
+        let o = 0;
+        for (const c of chunks) {
+          content.set(c, o);
+          o += c.length;
+        }
+        parentNode.children.set(name, { kind: 'file', content });
       },
       async remove(path) {
         const segs = segmentsOf(path);
