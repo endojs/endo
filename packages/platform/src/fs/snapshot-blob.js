@@ -17,7 +17,11 @@ export const snapshotBlobMethods = (store, sha256) => {
   const { text, json, makeFileReader } = store.fetch(sha256);
   return harden({
     sha256: () => sha256,
-    streamBase64: makeReaderPump(mapReader(makeFileReader(), encodeBase64)),
+    /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
+    streamBase64(synPromise) {
+      const pump = makeReaderPump(mapReader(makeFileReader(), encodeBase64));
+      return pump(/** @type {any} */ (synPromise));
+    },
     text,
     json,
   });
