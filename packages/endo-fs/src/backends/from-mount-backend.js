@@ -220,6 +220,35 @@ export const makeFromMountBackend = rootMount => {
       await E(rootMount).write(path, makeBytesBlob(out));
     },
 
+    /**
+     * Only `size` is meaningful for a Mount: it has whole-file write
+     * but no metadata API, so resize is emulated by reading the current
+     * bytes and rewriting them at the new length (truncating or
+     * zero-filling). Portable time fields (`atime`/`mtime`) are silently
+     * ignored — the Mount cannot set them. Providing this is what lets
+     * `open({ truncate: true })`, `create({ truncate: true })`, and
+     * whole-file overwrites work instead of throwing ENOSYS.
+     *
+     * @param {string[]} path
+     * @param {import('../backend-types.js').NodeStat} patch
+     */
+    async setStat(path, patch) {
+      if (path.length === 0) {
+        throw makeError(X`EISDIR: cannot setStat the root`);
+      }
+      if (patch.size === undefined) return;
+      const size = Number(patch.size);
+      const cap = await resolve(path);
+      let current = new Uint8Array(0);
+      if (cap !== undefined) {
+        const stream = await E(cap).streamBase64();
+        current = await drainBase64Stream(stream);
+      }
+      const out = new Uint8Array(size);
+      out.set(current.subarray(0, Math.min(current.length, size)), 0);
+      await E(rootMount).write(path, makeBytesBlob(out));
+    },
+
     async makeDirectory(path) {
       if (path.length === 0) return;
       const parent = await resolve(path.slice(0, -1));

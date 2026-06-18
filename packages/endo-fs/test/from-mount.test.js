@@ -290,6 +290,30 @@ test('create + read round-trips bytes via Mount', async t => {
   t.is(fromUtf8(bytes), 'hello mount');
 });
 
+test('open({ truncate: true }) resizes via Mount whole-file write', async t => {
+  // Regression: the adapter had no setStat, so truncate threw
+  // "ENOSYS: open({ truncate: true }) not implemented on this backend".
+  // setStat now emulates resize through Mount.write.
+  const mount = makeMockMount();
+  const fs = mountAsFilesystem(mount);
+  const root = await E(fs).root();
+
+  const opened = await E(root).create('note.txt', {});
+  await writeBytes(await E(opened).write(0n), utf8('original content'));
+  await E(opened).close();
+
+  const trunc = await E(await E(root).lookup('note.txt')).open({
+    write: true,
+    truncate: true,
+  });
+  await writeBytes(await E(trunc).write(0n), utf8('new'));
+  await E(trunc).close();
+
+  const rh = await E(await E(root).lookup('note.txt')).open({ read: true });
+  const bytes = await collectBytes(await E(rh).read(0n, 1024n));
+  t.is(fromUtf8(bytes), 'new');
+});
+
 test('mkdir + list + lookup round-trips a sub-directory', async t => {
   const mount = makeMockMount();
   const fs = mountAsFilesystem(mount);
