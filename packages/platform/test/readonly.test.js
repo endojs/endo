@@ -86,6 +86,15 @@ test('mutating methods on Directory reject with EACCES', async t => {
   await t.throwsAsync(() => E(root).rename('hello.txt', root, 'b'), {
     message: /EACCES/,
   });
+  await t.throwsAsync(() => E(root).move('hello.txt', 'b'), {
+    message: /EACCES/,
+  });
+  await t.throwsAsync(() => E(root).copy('hello.txt', 'b'), {
+    message: /EACCES/,
+  });
+  await t.throwsAsync(() => E(root).write('hello.txt', 'x'), {
+    message: /EACCES/,
+  });
   await t.throwsAsync(() => E(root).fsync(), { message: /EACCES/ });
   await t.throwsAsync(() => E(root).setAttrs({ mtime: 0n }), {
     message: /EACCES/,

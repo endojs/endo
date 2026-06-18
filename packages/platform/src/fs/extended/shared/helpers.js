@@ -85,6 +85,22 @@ export const toSegments = nameOrPath =>
 harden(toSegments);
 
 /**
+ * True when `toSegs` names a path strictly below `fromSegs` (a proper
+ * descendant). Used by `copy` to reject copying a tree into its own
+ * subtree, which would otherwise recurse forever (the destination is
+ * created before the live source listing is enumerated, so the fresh
+ * child re-enters the walk). Mirrors the daemon `Mount.copy` guard.
+ *
+ * @param {string[]} fromSegs
+ * @param {string[]} toSegs
+ * @returns {boolean}
+ */
+export const isStrictDescendantPath = (fromSegs, toSegs) =>
+  toSegs.length > fromSegs.length &&
+  fromSegs.every((seg, i) => seg === toSegs[i]);
+harden(isStrictDescendantPath);
+
+/**
  * Catalog `move(fromPath, toPath)` — within-tree path-to-path relocate,
  * matching `@endo/platform/fs`, the daemon `EndoDirectory`, and the
  * Mount. Implemented on top of `subView` (resolve the source and
@@ -159,6 +175,7 @@ export const toSafeNumber = (value, name) => {
     X`EINVAL: ${q(name)} must be bigint or number, got ${q(typeof value)}`,
   );
 };
+harden(toSafeNumber);
 
 /**
  * Mint a fresh process-unique brand ID for a primitive Filesystem.
@@ -266,3 +283,4 @@ export const computeOpenMode = opts => {
     truncate: !!o.truncate,
   };
 };
+harden(computeOpenMode);

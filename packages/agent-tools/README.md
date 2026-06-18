@@ -108,10 +108,10 @@ first slice.
 ## Filesystem Tool
 
 `makeMountReadTool(fs)` builds one read-only `mountReadText` tool over an
-`@endo/endo-fs` `Filesystem` capability:
+`@endo/platform/fs/extended` `Filesystem` capability:
 
 ```js
-import { readOnly } from '@endo/endo-fs';
+import { readOnly } from '@endo/platform/fs/extended';
 import { makeMountReadTool } from '@endo/agent-tools/mount-fs.js';
 
 const readTool = makeMountReadTool(readOnly(projectFs));

@@ -527,3 +527,40 @@ test('copy recursively duplicates a directory subtree', async t => {
   // Source intact.
   t.is((await E(await E(root).lookup('a')).getQid()).type, 'directory');
 });
+
+test('copy into its own descendant is rejected (no infinite recursion)', async t => {
+  t.timeout(15_000);
+  const fs = makeFs();
+  const root = await E(fs).root();
+  const a = await E(root).makeDirectory('a', {});
+  await E(a).write('f.txt', 'leaf');
+
+  await t.throwsAsync(() => E(root).copy('a', ['a', 'b']), {
+    message: /descendant/,
+  });
+});
+
+test('copy onto an existing directory merges (does not replace)', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  const a = await E(root).makeDirectory('a', {});
+  await E(a).write('from-src.txt', 'src');
+  const b = await E(root).makeDirectory('b', {});
+  await E(b).write('keep.txt', 'kept');
+
+  await E(root).copy('a', 'b');
+
+  // Contract: copy merges into an existing destination dir, overwriting
+  // same-named files and leaving disjoint ones.
+  const kept = await E(root).lookup(['b', 'keep.txt']);
+  t.is(
+    fromUtf8(
+      await drainReader(
+        await E(await E(kept).open({ read: true })).read(0n, 4n),
+      ),
+    ),
+    'kept',
+  );
+  const merged = await E(root).lookup(['b', 'from-src.txt']);
+  t.is((await E(merged).getQid()).type, 'file');
+});

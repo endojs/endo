@@ -47,6 +47,7 @@ import {
 } from './type-guards.js';
 import {
   computeOpenMode,
+  isStrictDescendantPath,
   materialiseViaWalk,
   mintBrand,
   movePathToPath,
@@ -1735,6 +1736,14 @@ export const compose = (layer, backing, _opts = {}) => {
         const toSegs = toSegments(toPath);
         if (fromSegs.length === 0 || toSegs.length === 0) {
           throw makeError(X`EINVAL: copy requires non-empty from and to paths`);
+        }
+        // Reject copy-into-own-descendant: `materialise` creates the dest
+        // before `copyDirInto` reads the live source listing, so a dest
+        // below the source would recurse forever.
+        if (isStrictDescendantPath(fromSegs, toSegs)) {
+          throw makeError(
+            X`EINVAL: cannot copy ${q(fromSegs.join('/'))} into its own descendant ${q(toSegs.join('/'))}`,
+          );
         }
         // eslint-disable-next-line no-use-before-define
         const src = await composedExo.lookup(fromSegs);

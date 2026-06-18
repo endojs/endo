@@ -1,6 +1,6 @@
 # @endo/9p-server
 
-A 9P2000.L server that serves an `@endo/endo-fs` `Filesystem` over
+A 9P2000.L server that serves an `@endo/platform/fs/extended` `Filesystem` over
 a Unix domain socket. Anyone speaking 9P over UDS — QEMU's
 `-chardev socket,server=off` for guest workspace projection, Linux
 v9fs (`mount -t 9p -o trans=fd …`), `diod`, or any other 9P
@@ -15,7 +15,7 @@ the whole container stack.
 
 ```js
 import { makeFsBridge9p } from '@endo/9p-server';
-import { makeInMemoryFilesystem } from '@endo/endo-fs/src/in-memory.js';
+import { makeInMemoryFilesystem } from '@endo/platform/fs/extended/in-memory.js';
 
 const fs = makeInMemoryFilesystem();
 // ... populate fs ...
@@ -36,12 +36,12 @@ every lookup + getQid `CTP_CALL` reaches the wire before any
 awaiting each `qidPromise` — same wall-clock as `Promise.allSettled`
 (the dispatches were already pipelined) but with first-failure
 early-exit semantics that 9P's partial-success `Twalk` requires.
-Structural property proven by `@endo/endo-fs/test/pipelined-rtt.test.js`.
+Structural property proven by `@endo/platform/fs/extended/test/pipelined-rtt.test.js`.
 
 `getQid()` is sync on the responder but costs one RTT across
 CapTP — pipelining it into the same batch as the `lookup` that
 produced its parent cap is the standard usage (see
-`@endo/endo-fs/DESIGN.md` §4.10).
+`@endo/platform/fs/extended/DESIGN.md` §4.10).
 
 Other handlers that pipeline two or three calls into one batch:
 

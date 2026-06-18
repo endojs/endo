@@ -35,6 +35,7 @@ import { makeBlobRefExo } from './shared/blobref.js';
 import {
   assertChildName,
   computeOpenMode,
+  isStrictDescendantPath,
   mintBrand,
   movePathToPath,
   toSegments,
@@ -296,14 +297,18 @@ export const wrapBackend = (backend, opts = {}) => {
       }
       return;
     }
+    // Whole-blob copy must truncate any prior longer destination,
+    // exactly like `write`; without `setStat` the offset-0 write would
+    // leave a stale tail (silent corruption), so fail closed instead.
+    if (!caps.setStat) {
+      throw notSupported('copy (whole-blob; backend has no setStat)');
+    }
+    const setStatFn = /** @type {NonNullable<typeof backend.setStat>} */ (
+      backend.setStat
+    );
     const bytes = await backend.read(srcPath);
     await backend.write(dstPath, bytes, 0n);
-    if (caps.setStat) {
-      const setStatFn = /** @type {NonNullable<typeof backend.setStat>} */ (
-        backend.setStat
-      );
-      await setStatFn(dstPath, { size: BigInt(bytes.length) });
-    }
+    await setStatFn(dstPath, { size: BigInt(bytes.length) });
   };
 
   // Wrap-backend-local event subscribers. Used for events that
@@ -953,6 +958,16 @@ export const wrapBackend = (backend, opts = {}) => {
         const toSegs = toSegments(toPath);
         fromSegs.forEach(assertChildName);
         toSegs.forEach(assertChildName);
+        // Reject copying a tree into its own descendant: `copyTree`
+        // creates the destination then enumerates the *live* source
+        // listing, so a destination strictly below the source (e.g.
+        // copy(['d'], ['d', 'c'])) would see the freshly-created child
+        // and recurse forever.
+        if (isStrictDescendantPath(fromSegs, toSegs)) {
+          throw makeError(
+            X`EINVAL: cannot copy ${q(fromSegs.join('/'))} into its own descendant ${q(toSegs.join('/'))}`,
+          );
+        }
         return copyTree([...path, ...fromSegs], [...path, ...toSegs]);
       },
       // Cross-directory-cap relocate primitive (see type-guards).
