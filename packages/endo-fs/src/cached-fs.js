@@ -328,11 +328,10 @@ const makeCachingDirectory = (
     async remove(name) {
       return E(dir).remove(name);
     },
-    async move(oldName, newParent, newName) {
-      // Resolve the inner parent like `rename` (below) so same-FS
-      // detection via the private WeakMap still fires.
-      const inner = wrapperToInner.get(newParent) || newParent;
-      return E(dir).move(oldName, inner, newName);
+    async move(fromPath, toPath) {
+      // Catalog path-to-path move forwards directly; the inner resolves
+      // both parents within its own tree.
+      return E(dir).move(fromPath, toPath);
     },
     async rename(oldName, newParent, newName) {
       // The underlying disk-backed and Mount-adapted impls identify

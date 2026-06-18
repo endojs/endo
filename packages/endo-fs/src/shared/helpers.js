@@ -85,6 +85,43 @@ export const toSegments = nameOrPath =>
 harden(toSegments);
 
 /**
+ * Catalog `move(fromPath, toPath)` — within-tree path-to-path relocate,
+ * matching `@endo/platform/fs`, the daemon `EndoDirectory`, and the
+ * Mount. Implemented on top of `subView` (resolve the source and
+ * destination parent directories) and `rename` (the cross-directory-cap
+ * primitive), so every Directory exo with those two methods gets `move`
+ * uniformly. Both paths are resolved relative to `selfDir`.
+ *
+ * @param {any} selfDir  the Directory exo `move` was invoked on
+ * @param {string | string[]} fromPath
+ * @param {string | string[]} toPath
+ * @returns {Promise<void>}
+ */
+export const movePathToPath = async (selfDir, fromPath, toPath) => {
+  // Late import to avoid a circular dep on `@endo/eventual-send` at
+  // module-load time (helpers.js is imported by everything), matching
+  // `materialiseViaWalk` below.
+  const { E } = await import('@endo/eventual-send');
+  const fromSegments = toSegments(fromPath);
+  const toPathSegments = toSegments(toPath);
+  if (fromSegments.length === 0 || toPathSegments.length === 0) {
+    throw makeError(X`EINVAL: move requires non-empty from and to paths`);
+  }
+  const srcName = fromSegments[fromSegments.length - 1];
+  const dstName = toPathSegments[toPathSegments.length - 1];
+  const srcParent =
+    fromSegments.length === 1
+      ? selfDir
+      : await E(selfDir).subView(fromSegments.slice(0, -1));
+  const dstParent =
+    toPathSegments.length === 1
+      ? selfDir
+      : await E(selfDir).subView(toPathSegments.slice(0, -1));
+  await E(srcParent).rename(srcName, dstParent, dstName);
+};
+harden(movePathToPath);
+
+/**
  * Convert a `bigint` (or `number`) offset/length to a safe
  * `Number`, throwing `EINVAL` on overflow, non-integer values,
  * or negatives. Used at the boundary where the bigint-shaped

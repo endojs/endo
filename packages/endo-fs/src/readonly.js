@@ -149,7 +149,7 @@ const makeReadOnlyDirectory = dir => {
     async remove(_name) {
       throw denied('remove');
     },
-    async move(_oldName, _newParent, _newName) {
+    async move(_fromPath, _toPath) {
       throw denied('move');
     },
     async rename(_oldName, _newParent, _newName) {

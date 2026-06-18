@@ -49,6 +49,7 @@ import {
   computeOpenMode,
   materialiseViaWalk,
   mintBrand,
+  movePathToPath,
   toSegments,
 } from './shared/helpers.js';
 
@@ -416,7 +417,7 @@ export const emptyFilesystem = () => {
       async remove(_n) {
         throw reject('remove');
       },
-      async move(_o, _np, _n) {
+      async move(_fromPath, _toPath) {
         throw reject('move');
       },
       async rename(_o, _np, _n) {
@@ -670,11 +671,14 @@ export const bind = (host, mountPath, guest) => {
         }
         return E(dir).remove(name);
       },
-      async move(oldName, newParent, newName) {
-        if (oldName === mountPath[pos] || newName === mountPath[pos]) {
+      async move(fromPath, toPath) {
+        const fromSegs = toSegments(fromPath);
+        const toSegs = toSegments(toPath);
+        if (fromSegs[0] === mountPath[pos] || toSegs[0] === mountPath[pos]) {
           throw makeError(X`EBUSY: cannot move across a bind mount`);
         }
-        return E(dir).move(oldName, newParent, newName);
+        // eslint-disable-next-line no-use-before-define
+        return movePathToPath(exo, fromPath, toPath);
       },
       async rename(oldName, newParent, newName) {
         if (oldName === mountPath[pos] || newName === mountPath[pos]) {
@@ -908,7 +912,7 @@ export const namespace = mounts => {
       async remove(_n) {
         throw makeError(X`ENOSYS: cannot remove at namespace root`);
       },
-      async move(_o, _np, _n) {
+      async move(_fromPath, _toPath) {
         throw makeError(X`ENOSYS: cannot move at namespace root`);
       },
       async rename(_o, _np, _n) {
@@ -1706,10 +1710,10 @@ export const compose = (layer, backing, _opts = {}) => {
         await w.return();
         await E(opened).close();
       },
-      async move(oldName, newParent, newName) {
-        // CoW move is identical to rename.
+      async move(fromPath, toPath) {
+        // Catalog path-to-path move, built on subView + the CoW rename.
         // eslint-disable-next-line no-use-before-define
-        return composedExo.rename(oldName, newParent, newName);
+        return movePathToPath(composedExo, fromPath, toPath);
       },
       async rename(oldName, newParent, newName) {
         reqDir();

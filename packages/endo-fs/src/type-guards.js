@@ -131,6 +131,13 @@ export const DirectoryInterface = M.interface(
     // exos actually expose.
     mkdir: M.call(M.string(), Pass).returns(M.eref(M.remotable('Directory'))),
     unlink: M.call(M.string()).returns(M.promise()),
+    // `rename(srcName, newParent, dstName)` is the cross-directory-cap
+    // relocate primitive: `newParent` is a *Directory cap* (possibly a
+    // different subtree, or — across filesystems — EXDEV). The catalog
+    // `move(fromPath, toPath)` is built on top of it. 9p-server's Trename
+    // (two independent fids) needs this cap form; path-to-path cannot
+    // express a move between two unrelated directory caps.
+    //
     // `newParent` is wrapped in `M.await` so a caller can pipeline a
     // `lookup → rename` chain without an intermediate await:
     //
@@ -140,22 +147,23 @@ export const DirectoryInterface = M.interface(
     //
     // The exo's async-shape dispatch (`M.callWhen`) awaits each
     // `M.await(...)` argument before invoking the method body. Without
-    // this, the caller would need a serial round-trip: await the
-    // lookup, then call rename. With it, the two collapse to one
-    // round-trip. See DESIGN.md §10.1 for the cost framework.
+    // this, the caller would need a serial round-trip. See DESIGN.md
+    // §10.1 for the cost framework.
     rename: M.callWhen(
       M.string(),
       M.await(M.remotable('Directory')),
       M.string(),
     ).returns(M.undefined()),
-    // Catalog `move`: the path-to-path relocate. Same signature and
-    // behavior as `rename` (kept as the legacy alias). See
+    // Catalog `move(fromPath, toPath)`: within-tree path-to-path
+    // relocate, matching `@endo/platform/fs`, the daemon `EndoDirectory`,
+    // and the Mount (`string | string[]` for each path). `rename`
+    // (below) is the distinct cross-directory-cap primitive that takes a
+    // destination Directory *cap*; `move` is built on top of it. See
     // designs/fs-interface-reconciliation.md §Naming choices.
-    move: M.callWhen(
-      M.string(),
-      M.await(M.remotable('Directory')),
-      M.string(),
-    ).returns(M.undefined()),
+    move: M.call(
+      M.or(M.string(), M.arrayOf(M.string())),
+      M.or(M.string(), M.arrayOf(M.string())),
+    ).returns(M.promise()),
     fsync: M.call().returns(M.promise()),
     // Walk a path from this directory; for each segment, return the
     // existing Directory or `mkdir(seg)` it. The whole walk dispatches

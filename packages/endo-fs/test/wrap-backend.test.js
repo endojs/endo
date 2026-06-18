@@ -439,16 +439,28 @@ test('Directory.write writes a whole blob and truncates on overwrite', async t =
   t.is(fromUtf8(await drainReader(r2)), 'hi');
 });
 
-test('move relocates an entry like rename', async t => {
+test('move relocates an entry via path-to-path (from, to)', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
   await E(root).write('src.txt', 'payload');
-  const dst = await E(root).makeDirectory('dst', {});
+  await E(root).makeDirectory('dst', {});
 
-  await E(root).move('src.txt', dst, 'moved.txt');
+  // Catalog form: both args are name | path, relative to this dir.
+  await E(root).move('src.txt', ['dst', 'moved.txt']);
 
   await t.throwsAsync(() => E(root).lookup('src.txt'), { message: /ENOENT/ });
-  const moved = await E(dst).lookup('moved.txt');
+  const moved = await E(root).lookup(['dst', 'moved.txt']);
   const r = await E(await E(moved).open({ read: true })).read(0n, 7n);
   t.is(fromUtf8(await drainReader(r)), 'payload');
+});
+
+test('move within the same directory renames in place', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  await E(root).write('a.txt', 'data');
+  await E(root).move('a.txt', 'b.txt');
+  await t.throwsAsync(() => E(root).lookup('a.txt'), { message: /ENOENT/ });
+  const b = await E(root).lookup('b.txt');
+  const r = await E(await E(b).open({ read: true })).read(0n, 4n);
+  t.is(fromUtf8(await drainReader(r)), 'data');
 });

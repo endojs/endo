@@ -36,6 +36,7 @@ import {
   assertChildName,
   computeOpenMode,
   mintBrand,
+  movePathToPath,
   toSegments,
   EMPTY_BYTES,
 } from './shared/helpers.js';
@@ -242,8 +243,9 @@ export const wrapBackend = (backend, opts = {}) => {
   const dirPaths = new WeakMap();
 
   // Shared implementation of `move` / `rename`: relocate `srcName` under
-  // `parentPath` to `dstName` under `newParent`. Factored out so both the
-  // catalog name (`move`) and the legacy alias (`rename`) dispatch here.
+  // `parentPath` to `dstName` under `newParent` (a Directory cap). This is
+  // the cross-directory-cap `rename` primitive; the catalog
+  // `move(fromPath, toPath)` resolves both parents and calls it.
   const moveChild = async (parentPath, srcName, newParent, dstName) => {
     assertChildName(srcName);
     assertChildName(dstName);
@@ -272,11 +274,11 @@ export const wrapBackend = (backend, opts = {}) => {
         return;
       }
       // Directory recursive copy is complex; defer.
-      throw notSupported('move of directory without backend.rename');
+      throw notSupported('rename of directory without backend.rename');
     }
     // Cross-Filesystem move: EXDEV. The user can copy and remove
     // manually if they really want to move across.
-    throw makeError(X`EXDEV: cross-Filesystem move not supported`);
+    throw makeError(X`EXDEV: cross-Filesystem rename not supported`);
   };
 
   // Wrap-backend-local event subscribers. Used for events that
@@ -913,11 +915,13 @@ export const wrapBackend = (backend, opts = {}) => {
         await backend.remove(childPath);
         cleanupTables(childPath);
       },
-      // Catalog `move`: path-to-path relocate. `rename` is kept as the
-      // legacy alias and shares this implementation.
-      async move(srcName, newParent, dstName) {
-        return moveChild(path, srcName, newParent, dstName);
+      // Catalog `move(fromPath, toPath)`: within-tree path-to-path
+      // relocate, built on `subView` + `rename`.
+      async move(fromPath, toPath) {
+        // eslint-disable-next-line no-use-before-define
+        return movePathToPath(exo, fromPath, toPath);
       },
+      // Cross-directory-cap relocate primitive (see type-guards).
       async rename(srcName, newParent, dstName) {
         return moveChild(path, srcName, newParent, dstName);
       },
