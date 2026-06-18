@@ -1,6 +1,8 @@
 // @ts-check
 
 export {
+  readableBlobMethodGuards,
+  readableTreeMethodGuards,
   ReadableBlobInterface,
   SnapshotBlobInterface,
   ReadableTreeInterface,

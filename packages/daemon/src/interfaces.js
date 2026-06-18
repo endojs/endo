@@ -4,6 +4,8 @@ import { M } from '@endo/patterns';
 import {
   DirectoryInterface as PlatformDirectoryInterface,
   FileInterface as PlatformFileInterface,
+  readableBlobMethodGuards,
+  readableTreeMethodGuards,
 } from '@endo/platform/fs/lite';
 
 // #region Patterns
@@ -525,12 +527,13 @@ export const InspectorInterface = M.interface('EndoInspector', {
   list: M.call().returns(M.array()),
 });
 
+// `EndoBlob` is the daemon's immutable-bytes cap. Its read surface is the
+// shared `readableBlobMethodGuards` from `@endo/platform/fs` (help / text /
+// json / streamBase64); it adds `sha256` for content addressing, making it the
+// `SnapshotBlob` shape. See designs/fs-interface-consolidation.md § C4.
 export const BlobInterface = M.interface('EndoBlob', {
-  help: M.call().optional(M.string()).returns(M.string()),
+  ...readableBlobMethodGuards,
   sha256: M.call().returns(M.string()),
-  streamBase64: M.call(M.any()).returns(M.promise()),
-  text: M.call().returns(M.promise()),
-  json: M.call().returns(M.promise()),
 });
 
 const PathSegmentsShape = M.arrayOf(M.string());
@@ -633,12 +636,13 @@ export {
   BearerCredentialInterface,
 } from '@endo/exo-git';
 
+// `EndoReadableTree` is the daemon's content-addressed immutable directory
+// snapshot. Its read surface is the shared `readableTreeMethodGuards` from
+// `@endo/platform/fs` (help / has / list / lookup); it adds `sha256`, making it
+// the `SnapshotTree` shape. See designs/fs-interface-consolidation.md § C3.
 export const ReadableTreeInterface = M.interface('EndoReadableTree', {
-  help: M.call().optional(M.string()).returns(M.string()),
+  ...readableTreeMethodGuards,
   sha256: M.call().returns(M.string()),
-  has: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
-  list: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
-  lookup: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(M.promise()),
 });
 
 export const DaemonFacetForWorkerInterface = M.interface(
