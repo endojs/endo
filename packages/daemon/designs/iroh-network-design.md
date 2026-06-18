@@ -454,5 +454,4 @@ the discovery path end-to-end, strip an accepted address down to a bare
 
 - iroh 1.0 — "Dial Keys, not IPs": https://www.iroh.computer/blog/v1
 - `@number0/iroh` (npm): https://www.npmjs.com/package/@number0/iroh
-- Endo `libp2p` transport: `packages/daemon/src/networks/libp2p.js`
 - CapTP-over-netstring: `packages/daemon/src/connection.js`

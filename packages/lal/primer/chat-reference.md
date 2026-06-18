@@ -102,7 +102,7 @@ These are Chat-specific commands with no direct CLI equivalent:
   from a shareable locator
 - `/network [host] [port]` — Enable TCP peer network
   (defaults to 127.0.0.1:8940)
-- `/network-libp2p` — Enable libp2p peer network (no open
+- `/network-iroh` — Enable iroh peer network (no open
   ports needed)
 - `/network-ws-relay <url>` — Connect to WebSocket relay
   server

@@ -42,20 +42,6 @@ const EXCLUDED_PACKAGES = new Set([
   // never executes at runtime — it only needs to be elided from
   // the bundle's compartment graph.
   'better-sqlite3',
-  '@chainsafe/libp2p-noise',
-  '@chainsafe/libp2p-yamux',
-  '@libp2p/autonat',
-  '@libp2p/bootstrap',
-  '@libp2p/circuit-relay-v2',
-  '@libp2p/crypto',
-  '@libp2p/dcutr',
-  '@libp2p/identify',
-  '@libp2p/kad-dht',
-  '@libp2p/ping',
-  '@libp2p/webrtc',
-  '@libp2p/websockets',
-  '@multiformats/multiaddr',
-  'libp2p',
   'ses',
   'ws',
 ]);

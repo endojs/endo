@@ -41,8 +41,7 @@ const PUBLISH_PRIVATE = processEnv?.ENDO_IROH_PUBLISH_PRIVATE === '1';
 
 /**
  * Derive a deterministic 32-byte Ed25519 secret for the iroh node from the
- * daemon's NodeNumber, mirroring the libp2p transport's key derivation so
- * the iroh NodeId is stable across restarts.
+ * daemon's NodeNumber so the iroh NodeId is stable across restarts.
  *
  * NOTE: this ties the iroh identity to the (public) NodeNumber rather than
  * the daemon's root private key. See designs/iroh-network-design.md
