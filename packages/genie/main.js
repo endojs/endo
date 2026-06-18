@@ -32,7 +32,7 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { registerBuiltInApiProviders } from '@earendil-works/pi-ai';
 
 // eslint-disable-next-line import/no-unresolved
@@ -681,7 +681,7 @@ export const make = (guestPowers, _context) => {
     genieTools,
   }) => {
     const selfId = await E(agentPowers).locate('@self');
-    const messageIterator = makeRefIterator(E(agentPowers).followMessages());
+    const messageIterator = iterateReader(E(agentPowers).followMessages());
 
     // ── Specials dispatcher ────────────────────────────────────────
     // The `/observe`, `/reflect`, `/help`, `/tools`, `/clear`, and
@@ -1578,7 +1578,7 @@ export const make = (guestPowers, _context) => {
     // Accept form submissions and spawn agent guests
     // -----------------------------------------------------------------------
 
-    for await (const msg of makeRefIterator(E(powers).followMessages())) {
+    for await (const msg of iterateReader(E(powers).followMessages())) {
       // Capture the form's messageId from our own outbound message.
       if (msg.from === selfId && msg.type === 'form') {
         formMessageId = msg.messageId;

@@ -8,7 +8,7 @@
 //   ENDO_LLM_AUTH_TOKEN=sk-ant-...
 
 import { E } from '@endo/eventual-send';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 const lalSpecifier = new URL('agent.js', import.meta.url).href;
 
@@ -82,11 +82,12 @@ export const main = async agent => {
   }
 
   const selfLocator = await E(agent).locate('@self');
-  const messages = makeRefIterator(E(agent).followMessages());
+  const messages = iterateReader(E(agent).followMessages());
 
   console.log('Watching inbox for form from setup-lal...');
 
-  for await (const message of messages) {
+  for await (const rawMessage of messages) {
+    const message = /** @type {any} */ (rawMessage);
     if (message.type !== 'form' || message.from === selfLocator) {
       continue;
     }

@@ -28,7 +28,7 @@
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/eventual-send';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 const genieSpecifier = new URL('main.js', import.meta.url).href;
 const sandboxSpecifier = new URL('../sandbox/src/agent.js', import.meta.url)
@@ -109,7 +109,7 @@ export const main = async hostAgent => {
   }
 
   const selfLocator = await E(hostAgent).locate('@self');
-  const messages = makeRefIterator(E(hostAgent).followMessages());
+  const messages = iterateReader(E(hostAgent).followMessages());
 
   console.log('Watching inbox for form from setup-genie...');
 

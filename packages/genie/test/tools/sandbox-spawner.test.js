@@ -30,6 +30,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 
 import { makeCommandTool } from '../../src/tools/command.js';
 import { makeSandboxSpawner } from '../../src/tools/sandbox-spawner.js';
@@ -39,24 +40,12 @@ import { makeSandboxSpawner } from '../../src/tools/sandbox-spawner.js';
 // ---------------------------------------------------------------------------
 
 /**
- * Build a stub `ReaderRef` exo that yields the provided byte chunks
- * one `next()` call at a time, then signals `done`.
+ * Build a stub `PassableBytesReader`-shaped exo that yields the
+ * provided byte chunks via the new exo-stream wire protocol.
  *
  * @param {Uint8Array[]} chunks
  */
-const makeReaderRefStub = chunks => {
-  let i = 0;
-  return harden({
-    async next() {
-      if (i >= chunks.length) {
-        return harden({ done: true, value: undefined });
-      }
-      const value = chunks[i];
-      i += 1;
-      return harden({ done: false, value });
-    },
-  });
-};
+const makeReaderRefStub = chunks => bytesReaderFromIterator(chunks);
 
 /**
  * Build a stub `ProcessHandle` whose stdio returns reader-ref stubs

@@ -31,25 +31,10 @@ import '@endo/init/debug.js';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeEndoClient } from '@endo/daemon';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import os from 'os';
 import path from 'path';
 
-/**
- * Wrap a remote async iterator reference for local consumption via CapTP.
- *
- * @param {any} iteratorRef
- * @returns {AsyncIterableIterator<any>}
- */
-const makeRefIterator = iteratorRef => {
-  const iterator = {
-    next: async (/** @type {any[]} */ ...args) => E(iteratorRef).next(...args),
-    return: async (/** @type {any[]} */ ...args) =>
-      E(iteratorRef).return(...args),
-    throw: async (/** @type {any} */ error) => E(iteratorRef).throw(error),
-    [Symbol.asyncIterator]: () => iterator,
-  };
-  return iterator;
-};
 
 /** Resolve the daemon socket path (same logic as @endo/where). */
 const getEndoSockPath = () => {
@@ -424,7 +409,7 @@ const commands = {
 
     let seen = 0;
     const iterRef = await E(channel).followMessages();
-    const iter = makeRefIterator(iterRef);
+    const iter = iterateReader(iterRef);
     for await (const msg of iter) {
       seen += 1;
       if (seen <= existingCount) continue;
@@ -447,7 +432,7 @@ const commands = {
 
     let seen = 0;
     const iterRef = await E(host).followMessages();
-    const iter = makeRefIterator(iterRef);
+    const iter = iterateReader(iterRef);
     for await (const msg of iter) {
       seen += 1;
       if (seen <= existingCount) continue;

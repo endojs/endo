@@ -5,7 +5,7 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { passableAsJustin, makeMarshal } from '@endo/marshal';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { makeLocalTree } from '@endo/platform/fs/node';
 
 import { createProvider } from './providers/index.js';
@@ -1468,7 +1468,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
       : null;
 
     // Follow messages and route each to the correct transcript chain
-    const messageIterator = makeRefIterator(E(powers).followMessages());
+    const messageIterator = iterateReader(E(powers).followMessages());
     while (true) {
       const nextMessage = messageIterator.next();
       const raced = cancelledSignal
@@ -1673,7 +1673,7 @@ export const make = (guestPowers, _context) => {
       }
     }
 
-    const messageIterator = makeRefIterator(E(powers).followMessages());
+    const messageIterator = iterateReader(E(powers).followMessages());
     while (true) {
       const { value: message, done } = await messageIterator.next();
       if (done) break;

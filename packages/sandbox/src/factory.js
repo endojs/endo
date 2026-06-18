@@ -5,6 +5,7 @@
 import { E } from '@endo/eventual-send';
 import { makeError, q, X } from '@endo/errors';
 import { makeExo } from '@endo/exo';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { M } from '@endo/patterns';
 
 import {
@@ -14,12 +15,6 @@ import {
   SandboxHandleInterface,
 } from './interfaces.js';
 import { resolveLimits } from './limits.js';
-
-const AsyncReaderInterface = M.interface('SandboxReader', {
-  next: M.call().returns(M.promise()),
-  return: M.call().optional(M.any()).returns(M.promise()),
-  throw: M.call().optional(M.any()).returns(M.promise()),
-});
 
 const AsyncWriterInterface = M.interface('SandboxWriter', {
   next: M.call().optional(M.any()).returns(M.promise()),
@@ -190,51 +185,34 @@ Methods:
 const KILL_GRACE_MS = 5000;
 
 /**
- * Wrap a driver-side `AsyncIterable<Uint8Array>` as a `ReaderRef`-
- * shaped exo. The factory minimally implements the AsyncIterator
- * protocol the daemon's `reader-ref.js` uses (`next` / `return` /
- * `throw`).
+ * Wrap a driver-side `AsyncIterable<Uint8Array>` as a
+ * `PassableBytesReader` exo (the new exo-stream wire shape).
  *
  * @param {AsyncIterable<Uint8Array> | null | undefined} iterable
  * @returns {object}
  */
 const makeReaderExoFromAsyncIterable = iterable => {
-  /** @type {AsyncIterator<Uint8Array> | null} */
-  let iterator = null;
-  if (iterable !== undefined && iterable !== null) {
-    iterator = iterable[Symbol.asyncIterator]();
+  if (iterable === undefined || iterable === null) {
+    // Empty stream: a single iterator producing no chunks.
+    /** @returns {AsyncGenerator<Uint8Array>} */
+    const empty = (async function* emptyBytes() {})();
+    return bytesReaderFromIterator(empty);
   }
-  return makeExo('SandboxReader', AsyncReaderInterface, {
-    async next() {
-      await null;
-      if (iterator === null) return harden({ done: true, value: undefined });
+  // Normalise Buffer chunks to plain Uint8Array views so downstream
+  // readers see a stable type irrespective of the driver's allocator.
+  const iterator = iterable[Symbol.asyncIterator]();
+  /** @returns {AsyncGenerator<Uint8Array>} */
+  const normalisedIterator = (async function* normalise() {
+    for (;;) {
       const r = await iterator.next();
-      if (r.done) return harden({ done: true, value: undefined });
+      if (r.done) return;
       const value = r.value;
-      // Some Node streams yield Buffers; normalise to Uint8Array so
-      // downstream readers see a stable type.
-      const u8 =
-        value instanceof Uint8Array
-          ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
-          : new Uint8Array(value);
-      return harden({ done: false, value: u8 });
-    },
-    async return(value) {
-      await null;
-      if (iterator !== null && iterator.return !== undefined) {
-        const r = await iterator.return(value);
-        return harden({ done: true, value: r.value });
-      }
-      return harden({ done: true, value: undefined });
-    },
-    async throw(error) {
-      await null;
-      if (iterator !== null && iterator.throw !== undefined) {
-        return iterator.throw(error);
-      }
-      throw error;
-    },
-  });
+      yield value instanceof Uint8Array
+        ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+        : new Uint8Array(value);
+    }
+  })();
+  return bytesReaderFromIterator(normalisedIterator);
 };
 harden(makeReaderExoFromAsyncIterable);
 

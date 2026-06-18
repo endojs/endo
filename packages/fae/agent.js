@@ -5,7 +5,7 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { passableAsJustin, makeMarshal } from '@endo/marshal';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { createProvider } from '@endo/lal/providers/index.js';
 import {
   makeConversationTree,
@@ -429,7 +429,7 @@ export const spawnWorkerLoop = async (
     // than branching from the root (which would lose all context).
     let lastLeafId = await rootNodeIdP;
 
-    const messageIterator = makeRefIterator(E(powers).followMessages());
+    const messageIterator = iterateReader(E(powers).followMessages());
     while (true) {
       const nextMessage = messageIterator.next();
       const raced = cancelledSignal

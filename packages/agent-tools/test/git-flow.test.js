@@ -17,7 +17,6 @@ import { makeNativeGitBackend } from '@endo/git';
 import { makeGit } from '@endo/exo-git';
 import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
 import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
-import { makeReaderRef } from '@endo/daemon/reader-ref.js';
 
 import { makeGitTool } from '../src/git-tool.js';
 
@@ -90,7 +89,7 @@ const provisionGit = async t => {
   const repoRoot = await provisionGitWorktree(t);
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot, makeReaderRef });
+  const backend = makeNativeGitBackend({ repoRoot });
   const git = makeGit({ mount, backend, lineageOf });
   return { repoRoot, mount, git };
 };
