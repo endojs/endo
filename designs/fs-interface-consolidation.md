@@ -40,10 +40,12 @@ another design are called out below and left as follow-ups.
 - **C3 / C4 (done for the daemon read surfaces).** `EndoBlob` is now
   `{ ...readableBlobMethodGuards, sha256 }` (the `SnapshotBlob` shape) and
   `EndoReadableTree` is now `{ ...readableTreeMethodGuards, sha256 }` (the
-  `SnapshotTree` shape). Retiring the extended `BlobRef` in favor of
-  `SnapshotBlob` (and removing the unbuilt `BlobRef → SnapshotBlob` adapter)
-  remains a follow-up — it is woven through the extended snapshot path and CAS
-  cache and needs its own validation pass.
+  `SnapshotTree` shape). The remaining C4 work is **redirected**: rather than
+  retiring `BlobRef` onto the whole-value `SnapshotBlob`, align the daemon/lite
+  blobs *up* to the richer `BlobRef` range-I/O shape (`getInfo` / `fetch`) for
+  optimal remote reads. That is a multi-layer feature (content-store range reads
+  + size, hash-format reconciliation, new methods on every blob exo) and is
+  scoped as its own follow-up PR — see § C4.
 - **C1 (done).** `EndoNameHub` and `EndoDirectory` share `nameHubMethodGuards`.
   The canonical-shape question is **resolved: `NameOrPathShape`** — the shared
   `readableNameHubMethodGuards` (has / list / lookup / maybeLookup) and the
@@ -216,17 +218,54 @@ because the read surface is small and stable, but still daemon-deep.
 
 `ReadableBlob` (lite), `BlobRef` (extended: `getInfo` / `fetch`), `SnapshotBlob`
 (lite: `+ sha256`), `EndoReadable`, and `EndoBlob` (daemon: `help` / `text` /
-`json`) are all "a handle to immutable bytes you can read or stream." The
-fs-reconciliation **D3 / F7** decision already chose `SnapshotBlob` (with
-`sha256()`) as the catalog shape over endo-fs's `BlobRef | null`, and flagged
-the `BlobRef → SnapshotBlob` adapter as unbuilt (endo-fs ROADMAP F6). That
-adapter is the *cost* of this overlap; converging the shape removes the need for
-it. Converge on the `SnapshotBlob` shape (`text` / `json` / `streamBase64` /
-`sha256`) and retire `BlobRef` / `EndoBlob` / `EndoReadable` onto it.
+`json`) are all "a handle to immutable bytes you can read or stream."
 
-*Blast radius:* the widest — `BlobRef` is woven through the extended snapshot
-path and the CAS cache. Sequence last; it depends on C3's tree decision (a tree
-snapshot yields blob snapshots).
+**Direction resolved (maintainer decision):** align *up* to the **richer
+`BlobRef` shape**, not down to the whole-value `SnapshotBlob`. The daemon
+read-surface convergence already done (`EndoBlob` = `{ ...readableBlobMethodGuards,
+sha256 }`) is the whole-value half; the remaining work is to give the
+content-addressed blob the **range-I/O surface** `BlobRef` already has, because
+that surface is what makes remote reads optimal:
+
+- `getInfo() → { algorithm, hash, size }` lets a caller learn the content hash
+  and size in **one** round-trip and consult a local CAS before fetching bytes
+  (see `extended/cas.js`, `extended/cached-fs.js`: zero-RTT on a cache hit).
+- `fetch(offset, length) → PassableBytesReader` is a **range** read — head/tail
+  and partial reads without streaming the whole blob (see
+  `extended/optimal-querying.test.js`).
+
+`SnapshotBlob`'s `text` / `json` / `streamBase64` are whole-value conveniences
+layered *on top of* this; the unified rich blob keeps them. The earlier "retire
+`BlobRef` onto `SnapshotBlob`" framing (and the D3/F7 note) is **superseded**:
+they are not redundant spellings — `BlobRef` is the strictly richer one, and the
+direction is to bring the daemon/lite blobs up to it.
+
+**This is a multi-layer feature, not an interface refactor**, and should land as
+its own follow-up PR:
+
+1. *Powers / content store* (`daemon-persistence-powers.js`): the store's
+   `fetch(sha256)` returns a whole-file `makeFileReader` today. Add `size`
+   (a `stat` on the storage file) and a **range-capable** reader
+   (`makeFileReader({ offset, length })`, backed by Node `createReadStream({
+   start, end })`).
+2. *Hash format reconciliation:* `BlobRef.getInfo().hash` is **base64**; the
+   daemon `sha256()` is **hex** (`digester.digestHex()`). Pick one canonical
+   encoding for `getInfo().hash` (recommend hex, to match the existing daemon
+   `sha256()` and the content-store filenames) and document it; keep `sha256()`
+   as the convenience accessor.
+3. *Blob exos:* add `getInfo` + `fetch` to every content-addressed blob exo —
+   the persisted `makeReadableBlob` and transient `makeBytesBlob`
+   (`daemon.js`), the mount file's `readOnly()` blob view (`mount.js`), and the
+   git blob (`native-git-backend.js`).
+4. *Interface:* extend `readableBlobMethodGuards` with `getInfo` / `fetch`; the
+   extended `BlobRef` gains the `text` / `json` / `streamBase64` conveniences so
+   there is a single rich shape. The `BlobRef → SnapshotBlob` adapter
+   disappears because the shapes converge from below.
+
+*Blast radius:* the widest — content-store powers, the CAS cache, every blob
+exo across daemon / platform / git, plus the daemon integration suite (~15 min).
+Sequence last; depends on C3's tree decision (a tree snapshot yields blob
+snapshots).
 
 ### C5 — Retire the unimplemented `lite` vocabulary, or give it a job
 
@@ -300,8 +339,11 @@ no `BlobRef → SnapshotBlob` adapter.
       `@endo/platform/fs/lite`; consume them in the lite + daemon read surfaces.
 - [x] C3 / C4: `sha256` confirmed as the content-address accessor; `EndoBlob` /
       `EndoReadableTree` converged onto the shared records + `sha256`.
-- [ ] C4: retire the extended `BlobRef` onto `SnapshotBlob` and remove the
-      unbuilt `BlobRef → SnapshotBlob` adapter (endo-fs ROADMAP F6).
+- [ ] C4 (follow-up PR): align the daemon/lite blobs *up* to the richer
+      `BlobRef` shape — content-store `size` + range reader, hash-format
+      reconciliation (hex), `getInfo` / `fetch` on every blob exo, and the
+      `text`/`json`/`streamBase64` conveniences on `BlobRef`. The adapter
+      disappears as the shapes converge from below.
 - [x] C5: remove the dead `ContentStore` / `SnapshotStore` guards.
 
 ## Prompt
