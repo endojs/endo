@@ -73,6 +73,8 @@ const probeCapabilities = backend => {
 const notSupported = method =>
   makeError(X`ENOSYS: ${q(method)} not implemented on this backend`);
 
+const textEncoder = new TextEncoder();
+
 // POSIX-only fields that base setStat/setAttrs can't accept; rejecting
 // them gives callers a clear "compose a PosixFs cap" signal rather
 // than a silent no-op.
@@ -237,6 +239,44 @@ export const wrapBackend = (backend, opts = {}) => {
   // backend call, which is the documented contract for live caps.
   /** @type {WeakMap<object, string[]>} */
   const dirPaths = new WeakMap();
+
+  // Shared implementation of `move` / `rename`: relocate `srcName` under
+  // `parentPath` to `dstName` under `newParent`. Factored out so both the
+  // catalog name (`move`) and the legacy alias (`rename`) dispatch here.
+  const moveChild = async (parentPath, srcName, newParent, dstName) => {
+    assertChildName(srcName);
+    assertChildName(dstName);
+    const srcPath = [...parentPath, srcName];
+    const srcKind = await backend.kind(srcPath);
+    if (srcKind === undefined) {
+      throw makeError(X`ENOENT: ${q(srcName)}`);
+    }
+    // Same-Filesystem fast path: if newParent was built by this
+    // wrapBackend, we can use the backend's atomic rename.
+    const newParentPath = dirPaths.get(newParent);
+    if (newParentPath !== undefined) {
+      const dstPath = [...newParentPath, dstName];
+      if (caps.rename) {
+        // @ts-expect-error optional method probed above
+        await backend.rename(srcPath, dstPath);
+        transplantTables(srcPath, dstPath);
+        return;
+      }
+      // Fallback: structural copy via backend operations.
+      if (srcKind === 'file') {
+        const bytes = await backend.read(srcPath);
+        await backend.write(dstPath, bytes, 0n);
+        await backend.remove(srcPath);
+        transplantTables(srcPath, dstPath);
+        return;
+      }
+      // Directory recursive copy is complex; defer.
+      throw notSupported('move of directory without backend.rename');
+    }
+    // Cross-Filesystem move: EXDEV. The user can copy and remove
+    // manually if they really want to move across.
+    throw makeError(X`EXDEV: cross-Filesystem move not supported`);
+  };
 
   // Wrap-backend-local event subscribers. Used for events that
   // originate at the wrap-backend layer (xattrs mutations, etc.)
@@ -750,7 +790,26 @@ export const wrapBackend = (backend, opts = {}) => {
       async watch() {
         return watcherExoFor(path);
       },
-      async lookup(name) {
+      // Catalog `lookup`: resolve one-or-more path segments in a single
+      // call and return the deepest cap. `lookup('a')` is the one-step
+      // form; `lookup('a', 'b')` walks the whole path. The backend is
+      // in-vat, so `backend.kind(fullPath)` resolves the walk without a
+      // per-segment round-trip.
+      async lookup(...segments) {
+        if (segments.length === 0) {
+          throw makeError(X`lookup requires at least one path segment`);
+        }
+        segments.forEach(assertChildName);
+        const childPath = [...path, ...segments];
+        const k = await backend.kind(childPath);
+        if (k === undefined) {
+          throw makeError(X`ENOENT: ${q(segments.join('/'))}`);
+        }
+        if (k === 'directory') return makeDirectoryExo(childPath);
+        return makeFileExo(childPath);
+      },
+      // Single-segment walk, the CapTP-pipelining-optimized form.
+      async lookupStep(name) {
         assertChildName(name);
         const childPath = [...path, name];
         const k = await backend.kind(childPath);
@@ -760,8 +819,46 @@ export const wrapBackend = (backend, opts = {}) => {
         if (k === 'directory') return makeDirectoryExo(childPath);
         return makeFileExo(childPath);
       },
+      // Narrow to a confined sub-tree. The returned Directory exo is
+      // rooted at the sub-path and exposes no parent reference, so it
+      // cannot navigate above the new root.
+      async subView(...segments) {
+        if (segments.length === 0) {
+          throw makeError(X`subView requires at least one path segment`);
+        }
+        segments.forEach(assertChildName);
+        const childPath = [...path, ...segments];
+        const k = await backend.kind(childPath);
+        if (k === undefined) {
+          throw makeError(X`ENOENT: ${q(segments.join('/'))}`);
+        }
+        if (k !== 'directory') {
+          throw makeError(
+            X`ENOTDIR: ${q(segments.join('/'))} is not a directory`,
+          );
+        }
+        return makeDirectoryExo(childPath);
+      },
       async list() {
         return cursorExoFor(path);
+      },
+      // Catalog whole-blob `write`: create-or-overwrite the named child
+      // with the whole of `value` (a UTF-8 string). `create` (below)
+      // stays the distinct range-I/O writer-stream method; this is the
+      // fire-and-forget whole-blob form.
+      async write(name, value) {
+        assertChildName(name);
+        const childPath = [...path, name];
+        const bytes = textEncoder.encode(value);
+        await backend.write(childPath, bytes, 0n);
+        // Truncate any trailing bytes from a previously-longer file so
+        // `write` is a whole-blob overwrite, not a prefix patch.
+        if (caps.setStat) {
+          const setStatFn = /** @type {NonNullable<typeof backend.setStat>} */ (
+            backend.setStat
+          );
+          await setStatFn(childPath, { size: BigInt(bytes.length) });
+        }
       },
       async create(name, openOpts) {
         assertChildName(name);
@@ -814,39 +911,13 @@ export const wrapBackend = (backend, opts = {}) => {
         await backend.remove(childPath);
         cleanupTables(childPath);
       },
+      // Catalog `move`: path-to-path relocate. `rename` is kept as the
+      // legacy alias and shares this implementation.
+      async move(srcName, newParent, dstName) {
+        return moveChild(path, srcName, newParent, dstName);
+      },
       async rename(srcName, newParent, dstName) {
-        assertChildName(srcName);
-        assertChildName(dstName);
-        const srcPath = [...path, srcName];
-        const srcKind = await backend.kind(srcPath);
-        if (srcKind === undefined) {
-          throw makeError(X`ENOENT: ${q(srcName)}`);
-        }
-        // Same-Filesystem fast path: if newParent was built by this
-        // wrapBackend, we can use the backend's atomic rename.
-        const newParentPath = dirPaths.get(newParent);
-        if (newParentPath !== undefined) {
-          const dstPath = [...newParentPath, dstName];
-          if (caps.rename) {
-            // @ts-expect-error optional method probed above
-            await backend.rename(srcPath, dstPath);
-            transplantTables(srcPath, dstPath);
-            return;
-          }
-          // Fallback: structural copy via backend operations.
-          if (srcKind === 'file') {
-            const bytes = await backend.read(srcPath);
-            await backend.write(dstPath, bytes, 0n);
-            await backend.remove(srcPath);
-            transplantTables(srcPath, dstPath);
-            return;
-          }
-          // Directory recursive copy is complex; defer.
-          throw notSupported('rename of directory without backend.rename');
-        }
-        // Cross-Filesystem rename: EXDEV. The user can copy and
-        // remove manually if they really want to move across.
-        throw makeError(X`EXDEV: cross-Filesystem rename not supported`);
+        return moveChild(path, srcName, newParent, dstName);
       },
       async fsync() {
         if (caps.fsync) {
@@ -865,7 +936,7 @@ export const wrapBackend = (backend, opts = {}) => {
       },
       help(method) {
         if (method === undefined) {
-          return 'Directory: tree-shaped directory capability — lookup, list, create, makeDirectory, remove, rename, materialise, watch, watchFrom, fsync, getStat, setStat.';
+          return 'Directory: tree-shaped directory capability — lookup, lookupStep, subView, list, write, create, makeDirectory, remove, move, materialise, watch, watchFrom, fsync, getStat, setStat.';
         }
         return `No documentation for method ${q(method)}.`;
       },

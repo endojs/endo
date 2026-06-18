@@ -366,3 +366,82 @@ test('collectStream drains a Cursor.stream', async t => {
   const entries = await collectStream(reader);
   t.is(entries.length, 2);
 });
+
+// ---------- Catalog naming crossover (fs-interface-reconciliation) ----------
+
+test('lookup resolves a multi-segment path in one call', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  const a = await E(root).makeDirectory('a', {});
+  const b = await E(a).makeDirectory('b', {});
+  const bQid = await E(b).getQid();
+
+  const walked = await E(root).lookup('a', 'b');
+  const walkedQid = await E(walked).getQid();
+  t.is(walkedQid.type, 'directory');
+  t.is(walkedQid.pathId, bQid.pathId);
+});
+
+test('lookup of a missing multi-segment path throws ENOENT', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  await E(root).makeDirectory('a', {});
+  await t.throwsAsync(() => E(root).lookup('a', 'nope'), {
+    message: /ENOENT/,
+  });
+});
+
+test('lookupStep resolves a single segment like one-arg lookup', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  const a = await E(root).makeDirectory('a', {});
+  const aQid = await E(a).getQid();
+  const stepped = await E(root).lookupStep('a');
+  t.is((await E(stepped).getQid()).pathId, aQid.pathId);
+});
+
+test('subView returns a confined directory; rejects non-directories', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  const a = await E(root).makeDirectory('a', {});
+  await E(a).makeDirectory('b', {});
+
+  const view = await E(root).subView('a', 'b');
+  t.is((await E(view).getQid()).type, 'directory');
+
+  await E(root).write('file.txt', 'x');
+  await t.throwsAsync(() => E(root).subView('file.txt'), {
+    message: /ENOTDIR/,
+  });
+});
+
+test('Directory.write writes a whole blob and truncates on overwrite', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+
+  await E(root).write('w.txt', 'hello world');
+  const f1 = await E(root).lookup('w.txt');
+  const r1 = await E(await E(f1).open({ read: true })).read(0n, 11n);
+  t.is(fromUtf8(await drainReader(r1)), 'hello world');
+
+  // Overwriting with a shorter value truncates the tail.
+  await E(root).write('w.txt', 'hi');
+  const f2 = await E(root).lookup('w.txt');
+  const oh2 = await E(f2).open({ read: true });
+  const r2 = await E(oh2).read(0n, 64n);
+  t.is(fromUtf8(await drainReader(r2)), 'hi');
+});
+
+test('move relocates an entry like rename', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  await E(root).write('src.txt', 'payload');
+  const dst = await E(root).makeDirectory('dst', {});
+
+  await E(root).move('src.txt', dst, 'moved.txt');
+
+  await t.throwsAsync(() => E(root).lookup('src.txt'), { message: /ENOENT/ });
+  const moved = await E(dst).lookup('moved.txt');
+  const r = await E(await E(moved).open({ read: true })).read(0n, 7n);
+  t.is(fromUtf8(await drainReader(r)), 'payload');
+});

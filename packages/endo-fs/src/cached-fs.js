@@ -239,12 +239,14 @@ const makeCachingDirectory = (
     async xattrs() {
       return E(dir).xattrs();
     },
-    async lookup(name) {
+    async lookup(...segments) {
       // Pipeline lookup + getQid as one batch so a CapTP-mediated
       // lookup still costs one RTT total — and we cache the qid
       // on the wrapper exo so its sync `getQid()` getter doesn't
       // need a follow-up round-trip (DESIGN.md §4.10 convention).
-      const { node, qid } = await resolveNodeWithQid(E(dir).lookup(name));
+      const { node, qid } = await resolveNodeWithQid(
+        E(dir).lookup(...segments),
+      );
       if (qid && qid.type === 'directory') {
         return makeCachingDirectory(
           node,
@@ -256,8 +258,36 @@ const makeCachingDirectory = (
       }
       return makeCachingFile(node, qid, cas, populateInBackground);
     },
+    async lookupStep(name) {
+      const { node, qid } = await resolveNodeWithQid(E(dir).lookupStep(name));
+      if (qid && qid.type === 'directory') {
+        return makeCachingDirectory(
+          node,
+          qid,
+          cas,
+          populateInBackground,
+          wrapperToInner,
+        );
+      }
+      return makeCachingFile(node, qid, cas, populateInBackground);
+    },
+    async subView(...segments) {
+      const { node, qid } = await resolveNodeWithQid(
+        E(dir).subView(...segments),
+      );
+      return makeCachingDirectory(
+        node,
+        qid,
+        cas,
+        populateInBackground,
+        wrapperToInner,
+      );
+    },
     async list() {
       return E(dir).list();
+    },
+    async write(name, value) {
+      return E(dir).write(name, value);
     },
     async create(name, opts) {
       // create() returns an OpenFile directly. Wrap so the
@@ -297,6 +327,12 @@ const makeCachingDirectory = (
     },
     async remove(name) {
       return E(dir).remove(name);
+    },
+    async move(oldName, newParent, newName) {
+      // Resolve the inner parent like `rename` (below) so same-FS
+      // detection via the private WeakMap still fires.
+      const inner = wrapperToInner.get(newParent) || newParent;
+      return E(dir).move(oldName, inner, newName);
     },
     async rename(oldName, newParent, newName) {
       // The underlying disk-backed and Mount-adapted impls identify

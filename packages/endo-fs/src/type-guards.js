@@ -86,11 +86,38 @@ export const DirectoryInterface = M.interface(
   'Directory',
   {
     ...NodeBaseMethods,
-    lookup: M.call(M.string()).returns(
+    // Catalog `lookup`: resolve a path to its cap in one call. Accepts
+    // one-or-more path segments (`lookup('a')` or `lookup('a', 'b')`),
+    // walking the whole path and returning the deepest cap. The
+    // one-segment form is also exposed under the explicit name
+    // `lookupStep` for callers that want the CapTP-pipelining-optimized
+    // single-step walk. See designs/fs-interface-reconciliation.md
+    // §"Review findings incorporated" (F1).
+    lookup: M.call(M.string())
+      .rest(M.arrayOf(M.string()))
+      .returns(M.eref(M.or(M.remotable('Directory'), M.remotable('File')))),
+    // One path segment, the pipelining-optimized walk:
+    // `E(d).lookupStep('a').lookupStep('b')` collapses depth-N into one
+    // round-trip via promise-chaining.
+    lookupStep: M.call(M.string()).returns(
       M.eref(M.or(M.remotable('Directory'), M.remotable('File'))),
     ),
+    // Narrow to a confined sub-tree: resolve `path` (which must name a
+    // directory) and return its Directory cap. The result has no parent
+    // reference, so it cannot navigate above the new root.
+    subView: M.call(M.string())
+      .rest(M.arrayOf(M.string()))
+      .returns(M.eref(M.remotable('Directory'))),
     list: M.call().returns(M.eref(M.remotable('Cursor'))),
     create: M.call(M.string(), Pass).returns(M.eref(M.remotable('OpenFile'))),
+    // Catalog whole-blob `write`: create-or-overwrite the named child
+    // with `value`, a UTF-8 `string`. The fire-and-forget whole-blob
+    // form; `create` (above) stays the distinct range-I/O writer-stream
+    // method. (The catalog also admits a `ReadableBlob` value for
+    // streaming large content; that form is follow-up work — raw bytes
+    // are not CapTP-passable, so they must arrive as a blob cap.) See
+    // designs/fs-interface-reconciliation.md §Mutation (F2).
+    write: M.call(M.string(), M.string()).returns(M.promise()),
     makeDirectory: M.call(M.string(), Pass).returns(
       M.eref(M.remotable('Directory')),
     ),
@@ -113,6 +140,14 @@ export const DirectoryInterface = M.interface(
     // lookup, then call rename. With it, the two collapse to one
     // round-trip. See DESIGN.md §10.1 for the cost framework.
     rename: M.callWhen(
+      M.string(),
+      M.await(M.remotable('Directory')),
+      M.string(),
+    ).returns(M.undefined()),
+    // Catalog `move`: the path-to-path relocate. Same signature and
+    // behavior as `rename` (kept as the legacy alias). See
+    // designs/fs-interface-reconciliation.md §Naming choices.
+    move: M.callWhen(
       M.string(),
       M.await(M.remotable('Directory')),
       M.string(),

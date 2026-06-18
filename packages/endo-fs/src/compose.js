@@ -64,6 +64,19 @@ const tagSets = new WeakMap();
 
 const fresh = () => Symbol('endo-fs:tag');
 
+// Resolve trailing path segments by chaining one-segment `lookup`s.
+// Used by the composed Directory exos to implement the catalog's
+// path-array `lookup(...segments)` / `subView(...segments)` on top of
+// their per-segment resolution logic.
+const walkRest = async (node, restSegments) => {
+  let cur = node;
+  for (const seg of restSegments) {
+    cur = await E(cur).lookup(seg);
+  }
+  return cur;
+};
+harden(walkRest);
+
 /**
  * Build a `NodeWatcher` that subscribes to each of `participants`'
  * `watch()` and interleaves their events into one stream. `cancel()`
@@ -358,11 +371,20 @@ export const emptyFilesystem = () => {
       async xattrs() {
         throw reject('xattrs');
       },
-      async lookup(name) {
+      async lookup(...segments) {
+        throw makeError(X`ENOENT: ${q(segments.join('/'))}`);
+      },
+      async lookupStep(name) {
         throw makeError(X`ENOENT: ${q(name)}`);
+      },
+      async subView(...segments) {
+        throw makeError(X`ENOENT: ${q(segments.join('/'))}`);
       },
       async list() {
         return makeEmptyCursor();
+      },
+      async write(_n, _v) {
+        throw reject('write');
       },
       async create(_n, _o) {
         throw reject('create');
@@ -378,6 +400,9 @@ export const emptyFilesystem = () => {
       },
       async remove(_n) {
         throw reject('remove');
+      },
+      async move(_o, _np, _n) {
+        throw reject('move');
       },
       async rename(_o, _np, _n) {
         throw reject('rename');
@@ -543,6 +568,20 @@ export const bind = (host, mountPath, guest) => {
     if (pos === mountPath.length) {
       return dir;
     }
+    // One-segment resolution with bind-mount shadowing; shared by
+    // `lookupStep`, `lookup`, and `subView`.
+    const resolveStep = async name => {
+      const matchesMount = name === mountPath[pos];
+      const child = await E(dir).lookupStep(name);
+      if (matchesMount) {
+        if (pos + 1 === mountPath.length) {
+          return E(guest).root();
+        }
+        // eslint-disable-next-line no-use-before-define
+        return wrap(child, pos + 1);
+      }
+      return child;
+    };
     // eslint-disable-next-line no-use-before-define
     const exo = makeExo('Directory', DirectoryInterface, {
       getQid() {
@@ -566,21 +605,25 @@ export const bind = (host, mountPath, guest) => {
       async xattrs() {
         return E(dir).xattrs();
       },
-      async lookup(name) {
-        const matchesMount = name === mountPath[pos];
-        const child = await E(dir).lookup(name);
-        if (matchesMount) {
-          // Replace this name with the guest root or with a
-          // wrapped directory deeper into the mount path.
-          if (pos + 1 === mountPath.length) {
-            return E(guest).root();
-          }
-          return wrap(child, pos + 1);
-        }
-        return child;
+      async lookupStep(name) {
+        return resolveStep(name);
+      },
+      async lookup(...segments) {
+        const [first, ...rest] = segments;
+        return walkRest(await resolveStep(first), rest);
+      },
+      async subView(...segments) {
+        const [first, ...rest] = segments;
+        return walkRest(await resolveStep(first), rest);
       },
       async list() {
         return E(dir).list();
+      },
+      async write(name, value) {
+        if (name === mountPath[pos]) {
+          throw makeError(X`EBUSY: cannot write over a bind mount`);
+        }
+        return E(dir).write(name, value);
       },
       async create(name, opts) {
         return E(dir).create(name, opts);
@@ -611,6 +654,12 @@ export const bind = (host, mountPath, guest) => {
           throw makeError(X`EBUSY: cannot remove a bind mount`);
         }
         return E(dir).remove(name);
+      },
+      async move(oldName, newParent, newName) {
+        if (oldName === mountPath[pos] || newName === mountPath[pos]) {
+          throw makeError(X`EBUSY: cannot move across a bind mount`);
+        }
+        return E(dir).move(oldName, newParent, newName);
       },
       async rename(oldName, newParent, newName) {
         if (oldName === mountPath[pos] || newName === mountPath[pos]) {
@@ -746,10 +795,22 @@ export const namespace = mounts => {
       async xattrs() {
         throw makeError(X`ENOSYS: xattrs on namespace root`);
       },
-      async lookup(name) {
+      async lookupStep(name) {
         const mount = mounts[name];
         if (!mount) throw makeError(X`ENOENT: ${q(name)}`);
         return E(mount).root();
+      },
+      async lookup(...segments) {
+        const [head, ...rest] = segments;
+        const mount = mounts[head];
+        if (!mount) throw makeError(X`ENOENT: ${q(head)}`);
+        return walkRest(await E(mount).root(), rest);
+      },
+      async subView(...segments) {
+        const [head, ...rest] = segments;
+        const mount = mounts[head];
+        if (!mount) throw makeError(X`ENOENT: ${q(head)}`);
+        return walkRest(await E(mount).root(), rest);
       },
       async list() {
         const childMounts = names.map(name => ({ name, mount: mounts[name] }));
@@ -814,6 +875,9 @@ export const namespace = mounts => {
               : `No documentation for method "${method}".`,
         });
       },
+      async write(_n, _v) {
+        throw makeError(X`ENOSYS: cannot write at namespace root`);
+      },
       async create(_n, _o) {
         throw makeError(X`ENOSYS: cannot create at namespace root`);
       },
@@ -828,6 +892,9 @@ export const namespace = mounts => {
       },
       async remove(_n) {
         throw makeError(X`ENOSYS: cannot remove at namespace root`);
+      },
+      async move(_o, _np, _n) {
+        throw makeError(X`ENOSYS: cannot move at namespace root`);
       },
       async rename(_o, _np, _n) {
         throw makeError(X`ENOSYS: cannot rename at namespace root`);
@@ -1407,7 +1474,17 @@ export const compose = (layer, backing, _opts = {}) => {
         if (layerDir) return E(layerDir).xattrs();
         return E(backingDir).xattrs();
       },
-      async lookup(name) {
+      async lookup(...segments) {
+        const [first, ...rest] = segments;
+        // eslint-disable-next-line no-use-before-define
+        return walkRest(await composedExo.lookupStep(first), rest);
+      },
+      async subView(...segments) {
+        const [first, ...rest] = segments;
+        // eslint-disable-next-line no-use-before-define
+        return walkRest(await composedExo.lookupStep(first), rest);
+      },
+      async lookupStep(name) {
         reqDir();
         // Filename whiteouts hide names; opaque marker hides backing.
         const layerNames = await layerEntries(layerDir);
@@ -1523,6 +1600,20 @@ export const compose = (layer, backing, _opts = {}) => {
               : `No documentation for method "${method}".`,
         });
       },
+      async write(name, value) {
+        reqDir();
+        const ld = await materializeLayerDir();
+        // Drop any whiteout marker for this name.
+        const layerNames = await layerEntries(ld);
+        if (layerNames.has(whiteoutName(name))) {
+          try {
+            await E(ld).unlink(whiteoutName(name));
+          } catch {
+            // ignore
+          }
+        }
+        return E(ld).write(name, value);
+      },
       async create(name, opts) {
         reqDir();
         const ld = await materializeLayerDir();
@@ -1597,6 +1688,11 @@ export const compose = (layer, backing, _opts = {}) => {
         await w.next(new TextEncoder().encode(WHITEOUT_PREFIX));
         await w.return();
         await E(opened).close();
+      },
+      async move(oldName, newParent, newName) {
+        // CoW move is identical to rename.
+        // eslint-disable-next-line no-use-before-define
+        return composedExo.rename(oldName, newParent, newName);
       },
       async rename(oldName, newParent, newName) {
         reqDir();

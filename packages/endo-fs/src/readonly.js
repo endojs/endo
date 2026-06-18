@@ -99,13 +99,13 @@ const makeReadOnlyDirectory = dir => {
       const inner = await E(dir).xattrs();
       return makeReadOnlyXattrs(inner);
     },
-    async lookup(name) {
+    async lookup(...segments) {
       // Pipeline lookup + getQid in one batch so the type
       // discrimination remains correct when `dir` is a remote
       // presence. A sync `child.getQid()` against a remote cap
       // returns a promise (its `type` is `undefined`), which would
       // mis-wrap every node as a File.
-      const childP = E(dir).lookup(name);
+      const childP = E(dir).lookup(...segments);
       const qidP = E(childP).getQid();
       const [child, qid] = await Promise.all([childP, qidP]);
       if (qid && qid.type === 'directory') {
@@ -113,9 +113,25 @@ const makeReadOnlyDirectory = dir => {
       }
       return makeReadOnlyFile(child);
     },
+    async lookupStep(name) {
+      const childP = E(dir).lookupStep(name);
+      const qidP = E(childP).getQid();
+      const [child, qid] = await Promise.all([childP, qidP]);
+      if (qid && qid.type === 'directory') {
+        return makeReadOnlyDirectory(child);
+      }
+      return makeReadOnlyFile(child);
+    },
+    async subView(...segments) {
+      // A sub-tree of a read-only view is itself read-only.
+      return makeReadOnlyDirectory(await E(dir).subView(...segments));
+    },
     async list() {
       // Cursor is read-only by nature.
       return E(dir).list();
+    },
+    async write(_name, _value) {
+      throw denied('write');
     },
     async create(_name, _opts) {
       throw denied('create');
@@ -131,6 +147,9 @@ const makeReadOnlyDirectory = dir => {
     },
     async remove(_name) {
       throw denied('remove');
+    },
+    async move(_oldName, _newParent, _newName) {
+      throw denied('move');
     },
     async rename(_oldName, _newParent, _newName) {
       throw denied('rename');
