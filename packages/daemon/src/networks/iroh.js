@@ -107,7 +107,7 @@ export const make = async (powers, context) => {
    * @param {any} connection - iroh Connection.
    * @param {number} connectionNumber
    * @param {boolean} inbound
-   * @returns {ReturnType<typeof makeNetstringCapTP>}
+   * @returns {{ capTp: ReturnType<typeof makeNetstringCapTP>, tearDown: (reason: Error) => void }}
    */
   const serveStream = (bi, connection, connectionNumber, inbound) => {
     const {
@@ -169,7 +169,7 @@ export const make = async (powers, context) => {
         `Endo daemon closed iroh connection ${connectionNumber} at ${new Date().toISOString()}`,
       );
     });
-    return capTp;
+    return { capTp, tearDown };
   };
 
   // Bind the endpoint. `Endpoint.bind` applies iroh's n0 preset (relays +
@@ -304,16 +304,37 @@ export const make = async (powers, context) => {
       ]);
       const bi = await Promise.race([connection.openBi(), connectionCancelled]);
 
-      const capTp = serveStream(bi, connection, connectionNumber, false);
+      const { capTp, tearDown } = serveStream(
+        bi,
+        connection,
+        connectionNumber,
+        false,
+      );
       handedOff = true;
 
-      // Cancel the connection context once CapTP closes. Consume the
-      // connectionCancelled rejection so a cancelled connection does not
-      // surface as an unhandled rejection during teardown.
+      // Bridge the per-connection context and the CapTP session in both
+      // directions. Consume the connectionCancelled rejection so teardown does
+      // not surface as an unhandled rejection.
       Promise.race([capTp.closed, connectionCancelled])
-        .finally(() => {
-          cancelConnection();
-        })
+        .then(
+          () => {
+            // CapTP closed first (normal session end): cancel the context to
+            // dispose the peer.
+            cancelConnection();
+          },
+          () => {
+            // The connection context was cancelled before CapTP closed (e.g.
+            // the peer was disposed externally). serveStream wires capTp to the
+            // transport-level `cancelled`, not this per-connection signal, so
+            // nothing else closes it — tear the session down explicitly, or the
+            // QUIC connection and CapTP session linger until iroh's idle
+            // timeout. tearDown is idempotent.
+            tearDown(
+              new Error(`iroh connection ${connectionNumber} cancelled`),
+            );
+            cancelConnection();
+          },
+        )
         .catch(() => {});
 
       const remoteGreeter = capTp.getBootstrap();
