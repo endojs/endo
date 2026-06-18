@@ -13,7 +13,7 @@
     "endo"
   ],
   "author": "Endo contributors",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
@@ -39,7 +39,8 @@
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint .",
-    "test": "vitest run"
+    "test": "playwright install chromium && vitest run",
+    "test:browser": "vitest run"
   },
   "peerDependencies": {
     "preact": "^10.0.0 || ^11.0.0"

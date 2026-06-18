@@ -40,10 +40,13 @@ import {
 ## Provenance
 
 This is a port of the `preact/secure` and `preact/compartment` add-ons
-from <https://github.com/kumavis/preact/pull/1> (MIT). The renderer's
-public API was renamed on the way in (`secureRender` → `renderConfined`,
-`SecureExit` → `HostPassthrough`, `preact/secure` →
-`@endo/preact-container/renderer`) to avoid overstating the guarantee.
+from <https://github.com/kumavis/preact/pull/1>, originally published
+under the MIT license and relicensed here under Apache-2.0 by the author
+to match the rest of this monorepo. See `NOTICE` for the retained
+attribution. The renderer's public API was renamed on the way in
+(`secureRender` → `renderConfined`, `SecureExit` → `HostPassthrough`,
+`preact/secure` → `@endo/preact-container/renderer`) to avoid
+overstating the guarantee.
 
 The original lives inside the Preact monorepo, where Preact's internal
 option-hook and vnode field names are renamed at build time via
