@@ -2,13 +2,6 @@
 
 import { M } from '@endo/patterns';
 
-export const AsyncIteratorInterface = M.interface('AsyncIterator', {
-  next: M.call().returns(M.promise()),
-  return: M.call().optional(M.any()).returns(M.promise()),
-  throw: M.call().optional(M.any()).returns(M.promise()),
-});
-harden(AsyncIteratorInterface);
-
 export const ReadableBlobInterface = M.interface('ReadableBlob', {
   streamBase64: M.call(M.any()).returns(M.promise()),
   text: M.call().returns(M.promise()),

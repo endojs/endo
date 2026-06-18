@@ -102,12 +102,6 @@ export const HandleInterface = M.interface(
   { defaultGuards: 'passable' },
 );
 
-export const AsyncIteratorInterface = M.interface('AsyncIterator', {
-  next: M.call().returns(M.promise()),
-  return: M.call().optional(M.any()).returns(M.promise()),
-  throw: M.call().optional(M.any()).returns(M.promise()),
-});
-
 export const DirectoryInterface = M.interface('EndoDirectory', {
   // Self-documentation
   help: M.call().optional(M.string()).returns(M.string()),

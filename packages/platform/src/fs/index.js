@@ -1,7 +1,6 @@
 // @ts-check
 
 export {
-  AsyncIteratorInterface,
   ReadableBlobInterface,
   SnapshotBlobInterface,
   ReadableTreeInterface,
