@@ -48,16 +48,21 @@ another design are called out below and left as follow-ups.
   store surfaces `size`/`readRange` to back it. Remaining C4 follow-ups (extend
   the other blob implementers, mirror conveniences onto `BlobRef`) are optional
   — see § C4.
-- **C1 (done).** `EndoNameHub` and `EndoDirectory` share `nameHubMethodGuards`.
-  The canonical-shape question is **resolved: `NameOrPathShape`** — the shared
-  `readableNameHubMethodGuards` (has / list / lookup / maybeLookup) and the
-  named `ReadableNameHubInterface` standardize on `string | string[]`.
-  `EndoMount` satisfies that contract by method name and **widens** its own
-  `has` / `lookup` / `maybeLookup` to `PathArgShape` (it accepts a `MountEntry`
-  cap; entry-as-path-arg is load-bearing and was verified not to be narrowable
-  without a breaking change). `EndoMount.maybeLookup` is now implemented. The
-  one remaining C1 item is `followNameChanges` on the mount, blocked on
-  [filesystem-watchers.md](filesystem-watchers.md).
+- **C1 (done).** `EndoNameHub`, `EndoDirectory`, `EndoGuest`, and `EndoHost` all
+  share `nameHubMethodGuards`. The canonical-shape question is **resolved:
+  `NameOrPathShape`** — the shared `readableNameHubMethodGuards` (has / list /
+  lookup / maybeLookup) and the named `ReadableNameHubInterface` standardize on
+  `string | string[]`. `EndoMount` satisfies that contract by method name and
+  **widens** its own `has` / `lookup` / `maybeLookup` to `PathArgShape` (it
+  accepts a `MountEntry` cap; entry-as-path-arg is load-bearing and was verified
+  not to be narrowable without a breaking change); `EndoMount.maybeLookup` is
+  implemented. `EndoGuest` / `EndoHost` spread the record and **override** the
+  two `follow*` methods (which return a Promise on agents, where the bare hub
+  returns the reader synchronously) — the divergence is preserved as an explicit
+  two-line override rather than a separate copy. `EndoMount.followNameChanges` is
+  declared and throws ENOSYS until a filesystem watcher
+  ([filesystem-watchers.md](filesystem-watchers.md)) is wired, so the surface is
+  advertised honestly and a future watcher slots in without an interface bump.
 - **C5 (done).** The dead `ContentStoreInterface` / `SnapshotStoreInterface`
   (re-exported but never implemented) were removed. The remaining lite
   `M.interface` objects all have real consumers (the daemon imports the
@@ -335,7 +340,10 @@ no `BlobRef → SnapshotBlob` adapter.
       (canonical shape resolved: `NameOrPathShape`); `EndoMount` satisfies it by
       method name, widening `has`/`lookup`/`maybeLookup` to `PathArgShape`; add
       `EndoMount.maybeLookup`.
-- [ ] C1: add `followNameChanges` to the mount (blocked on
+- [x] C1: align `EndoGuest` / `EndoHost` on `nameHubMethodGuards` (spread +
+      two-line `follow*` override for the agent promise shape).
+- [x] C1: declare `EndoMount.followNameChanges` (throws ENOSYS until a
+      filesystem watcher lands; the live feed itself remains blocked on
       filesystem-watchers.md).
 - [x] C2: export `readableBlobMethodGuards` / `readableTreeMethodGuards` from
       `@endo/platform/fs/lite`; consume them in the lite + daemon read surfaces.
