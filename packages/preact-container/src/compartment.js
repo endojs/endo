@@ -12,7 +12,7 @@ import {
   _registerSecureReentryType,
 } from './renderer.js';
 
-// See the note in `secure.js`: preact mangles `options[OPT_RENDER]` to
+// See the note in `renderer.js`: preact mangles `options[OPT_RENDER]` to
 // `__r` and `options[OPT_CATCH_ERROR]` to `__e` in its published build.
 const OPT_RENDER = '__r';
 const OPT_CATCH_ERROR = '__e';
@@ -51,10 +51,10 @@ const confinedComponents = new WeakSet();
 //
 // The DOM-specific denylist that used to live alongside this set
 // (`innerHTML`, `srcdoc`, the `HTMLHyperlinkElementUtils` URL
-// setters, …) is gone. The secure layer is now an allow-by-default
-// attribute filter (`DEFAULT_SAFE_ATTRS` in `secure/src/index.js`)
+// setters, …) is gone. The renderer is now an allow-by-default
+// attribute filter (`DEFAULT_SAFE_ATTRS` in `src/renderer.js`)
 // and any prop name not on that list — including everything the old
-// `DROPPED_PROPS_DOM` enumerated — is dropped at the secure-renderer
+// `DROPPED_PROPS_DOM` enumerated — is dropped at the renderer
 // boundary. Mounting `confineComponent` WITHOUT `renderConfined` on
 // top is documented as unsupported.
 const DROPPED_PROPS_ALWAYS = new Set(['ref']);

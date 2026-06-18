@@ -927,13 +927,17 @@ function sanitizeVNode(vnode, allowedTags, safeAttrs) {
       // absent. To stay consistent with the rest of the
       // allow-by-default model, use Object.hasOwn so a polluted
       // `Object.prototype.children` cannot smuggle a tree into a
-      // Fragment-replaced subtree.
-      const ownChildren = Object.prototype.hasOwnProperty.call(
-        props,
-        'children',
-      )
-        ? props.children
-        : undefined;
+      // Fragment-replaced subtree. The read is also guarded: a hostile
+      // own `children` getter that throws must not abort the host
+      // render, so fail closed by treating it as absent.
+      let ownChildren;
+      try {
+        ownChildren = Object.prototype.hasOwnProperty.call(props, 'children')
+          ? props.children
+          : undefined;
+      } catch (_) {
+        ownChildren = undefined;
+      }
       // Fresh null-proto bag so the downstream Preact diff's
       // `for (i in newProps)` cannot pick up Object.prototype
       // pollution on attribute-shaped keys.
@@ -1001,9 +1005,16 @@ function sanitizeElementProps(props, safeAttrs) {
   }
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
-    // `children` is the subtree, not a DOM attribute; preserve.
+    // `children` is the subtree, not a DOM attribute; preserve. Read it
+    // through the same try/catch as every other prop below: a hostile
+    // `children` getter is a shape-only attack and must drop the subtree
+    // rather than propagate the throw into Preact's diff.
     if (key === 'children') {
-      out.children = props.children;
+      try {
+        out.children = props.children;
+      } catch (_) {
+        // fail closed: omit children
+      }
       continue;
     }
     // `ref` and `key` are vnode-level — `h()` already lifted them
@@ -1245,7 +1256,16 @@ function walkSanitize(node, allowedTags, safeAttrs) {
   ) {
     return;
   }
-  const children = node.props && node.props.children;
+  // Guard the `children` read: for function-component vnodes
+  // `sanitizeVNode` leaves `props` as-is (no rebuilt null-proto bag),
+  // so a hostile own `children` getter is still live here. A throw must
+  // not abort the host render — fail closed by skipping the subtree.
+  let children;
+  try {
+    children = node.props && node.props.children;
+  } catch (_) {
+    children = undefined;
+  }
   if (children != null) walkSanitize(children, allowedTags, safeAttrs);
 }
 

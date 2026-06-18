@@ -6,14 +6,14 @@ import { ComponentChildren, FunctionComponent } from 'preact';
  * component state; they cannot reach the DOM through them.
  */
 export interface CompartmentEndowments {
-	h: typeof import('preact').h;
-	Fragment: typeof import('preact').Fragment;
-	useState: typeof import('preact/hooks').useState;
-	useEffect: typeof import('preact/hooks').useEffect;
-	useCallback: typeof import('preact/hooks').useCallback;
-	useMemo: typeof import('preact/hooks').useMemo;
-	useRef: typeof import('preact/hooks').useRef;
-	useReducer: typeof import('preact/hooks').useReducer;
+  h: typeof import('preact').h;
+  Fragment: typeof import('preact').Fragment;
+  useState: typeof import('preact/hooks').useState;
+  useEffect: typeof import('preact/hooks').useEffect;
+  useCallback: typeof import('preact/hooks').useCallback;
+  useMemo: typeof import('preact/hooks').useMemo;
+  useRef: typeof import('preact/hooks').useRef;
+  useReducer: typeof import('preact/hooks').useReducer;
 }
 
 /**
@@ -27,21 +27,21 @@ export interface CompartmentEndowments {
  * arguments. Host code MUST treat those arguments as untrusted JSON.
  */
 export type ConfinedProps<P extends object = {}> = Readonly<
-	Omit<P, 'children'>
+  Omit<P, 'children'>
 > & {
-	readonly children?: readonly unknown[] | undefined;
+  readonly children?: readonly unknown[] | undefined;
 };
 
 export interface ConfineOptions {
-	/** Display name used by devtools. Default: `"Confined"`. */
-	name?: string;
-	/**
-	 * Called when the attacker function throws during render. The
-	 * confined component renders nothing on that pass; the host render
-	 * is not disrupted. Useful for telemetry. Exceptions from
-	 * `onError` itself are swallowed.
-	 */
-	onError?: (error: unknown) => void;
+  /** Display name used by devtools. Default: `"Confined"`. */
+  name?: string;
+  /**
+   * Called when the attacker function throws during render. The
+   * confined component renders nothing on that pass; the host render
+   * is not disrupted. Useful for telemetry. Exceptions from
+   * `onError` itself are swallowed.
+   */
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -50,8 +50,8 @@ export interface ConfineOptions {
  * to get full sanitization on top.
  */
 export function confineComponent<P extends object = {}>(
-	fn: (endowments: CompartmentEndowments, props: ConfinedProps<P>) => unknown,
-	opts?: ConfineOptions
+  fn: (endowments: CompartmentEndowments, props: ConfinedProps<P>) => unknown,
+  opts?: ConfineOptions,
 ): FunctionComponent<Omit<P, 'children'> & { children?: ComponentChildren }>;
 
 /** Returns true if `value` is a wrapper returned by `confineComponent`. */

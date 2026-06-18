@@ -3,27 +3,27 @@ import { ComponentChild, ContainerNode } from 'preact';
 export { h, Fragment, createElement } from 'preact';
 
 export interface SecureRenderOptions {
-	/**
-	 * REPLACES the default set of HTML tag names that may be rendered.
-	 * Anything outside the list is replaced with a Fragment so the
-	 * offending element disappears while its children continue to render.
-	 */
-	allowedTags?: Iterable<string>;
-	/**
-	 * EXTENDS the default set of attribute names that may appear on a
-	 * DOM-element vnode. Additive: the built-in `DEFAULT_SAFE_ATTRS`
-	 * (a curated allowlist of ~100 standard HTML attrs) still apply,
-	 * and the entries listed here are added on top for this tree only.
-	 * `aria-*`, `data-*`, and `on*` event handlers are always allowed
-	 * and do not need to be enumerated.
-	 *
-	 * Attribute names are compared CASE-INSENSITIVELY; a host can write
-	 * `tabIndex` and the lookup will hit the lowercase `tabindex`
-	 * entry. Tightening the allowlist (rather than extending) is not
-	 * supported via this option — fork `DEFAULT_SAFE_ATTRS` if you
-	 * need a stricter baseline.
-	 */
-	allowedAttrs?: Iterable<string>;
+  /**
+   * REPLACES the default set of HTML tag names that may be rendered.
+   * Anything outside the list is replaced with a Fragment so the
+   * offending element disappears while its children continue to render.
+   */
+  allowedTags?: Iterable<string>;
+  /**
+   * EXTENDS the default set of attribute names that may appear on a
+   * DOM-element vnode. Additive: the built-in `DEFAULT_SAFE_ATTRS`
+   * (a curated allowlist of ~100 standard HTML attrs) still apply,
+   * and the entries listed here are added on top for this tree only.
+   * `aria-*`, `data-*`, and `on*` event handlers are always allowed
+   * and do not need to be enumerated.
+   *
+   * Attribute names are compared CASE-INSENSITIVELY; a host can write
+   * `tabIndex` and the lookup will hit the lowercase `tabindex`
+   * entry. Tightening the allowlist (rather than extending) is not
+   * supported via this option — fork `DEFAULT_SAFE_ATTRS` if you
+   * need a stricter baseline.
+   */
+  allowedAttrs?: Iterable<string>;
 }
 
 /**
@@ -31,13 +31,13 @@ export interface SecureRenderOptions {
  * read-only fields are exposed — there is no path back to the live element.
  */
 export interface SafeEventTarget {
-	readonly tagName: string | null;
-	readonly name: string | null;
-	readonly id: string | null;
-	readonly type: string | null;
-	readonly value: string | number | boolean | undefined;
-	readonly checked: boolean | undefined;
-	readonly selectedIndex: number | undefined;
+  readonly tagName: string | null;
+  readonly name: string | null;
+  readonly id: string | null;
+  readonly type: string | null;
+  readonly value: string | number | boolean | undefined;
+  readonly checked: boolean | undefined;
+  readonly selectedIndex: number | undefined;
 }
 
 /**
@@ -45,62 +45,62 @@ export interface SafeEventTarget {
  * objects of this shape; the underlying DOM event is never reachable.
  */
 export interface SafeEvent {
-	readonly type: string;
-	readonly timeStamp: number;
-	readonly bubbles: boolean;
-	readonly cancelable: boolean;
-	readonly isTrusted: boolean;
-	readonly eventPhase: number;
-	readonly defaultPrevented: boolean;
-	readonly target: SafeEventTarget | null;
-	readonly currentTarget: SafeEventTarget | null;
+  readonly type: string;
+  readonly timeStamp: number;
+  readonly bubbles: boolean;
+  readonly cancelable: boolean;
+  readonly isTrusted: boolean;
+  readonly eventPhase: number;
+  readonly defaultPrevented: boolean;
+  readonly target: SafeEventTarget | null;
+  readonly currentTarget: SafeEventTarget | null;
 
-	readonly key?: string;
-	readonly code?: string;
-	readonly keyCode?: number;
-	readonly which?: number;
-	readonly charCode?: number;
-	readonly location?: number;
-	readonly repeat?: boolean;
-	readonly isComposing?: boolean;
+  readonly key?: string;
+  readonly code?: string;
+  readonly keyCode?: number;
+  readonly which?: number;
+  readonly charCode?: number;
+  readonly location?: number;
+  readonly repeat?: boolean;
+  readonly isComposing?: boolean;
 
-	readonly altKey?: boolean;
-	readonly ctrlKey?: boolean;
-	readonly metaKey?: boolean;
-	readonly shiftKey?: boolean;
+  readonly altKey?: boolean;
+  readonly ctrlKey?: boolean;
+  readonly metaKey?: boolean;
+  readonly shiftKey?: boolean;
 
-	readonly button?: number;
-	readonly buttons?: number;
+  readonly button?: number;
+  readonly buttons?: number;
 
-	readonly clientX?: number;
-	readonly clientY?: number;
-	readonly pageX?: number;
-	readonly pageY?: number;
-	readonly screenX?: number;
-	readonly screenY?: number;
-	readonly offsetX?: number;
-	readonly offsetY?: number;
-	readonly movementX?: number;
-	readonly movementY?: number;
+  readonly clientX?: number;
+  readonly clientY?: number;
+  readonly pageX?: number;
+  readonly pageY?: number;
+  readonly screenX?: number;
+  readonly screenY?: number;
+  readonly offsetX?: number;
+  readonly offsetY?: number;
+  readonly movementX?: number;
+  readonly movementY?: number;
 
-	readonly pointerId?: number;
-	readonly pointerType?: string;
-	readonly isPrimary?: boolean;
+  readonly pointerId?: number;
+  readonly pointerType?: string;
+  readonly isPrimary?: boolean;
 
-	readonly deltaX?: number;
-	readonly deltaY?: number;
-	readonly deltaZ?: number;
-	readonly deltaMode?: number;
+  readonly deltaX?: number;
+  readonly deltaY?: number;
+  readonly deltaZ?: number;
+  readonly deltaMode?: number;
 
-	preventDefault(): void;
-	stopPropagation(): void;
-	stopImmediatePropagation(): void;
+  preventDefault(): void;
+  stopPropagation(): void;
+  stopImmediatePropagation(): void;
 }
 
 export function renderConfined(
-	vnode: ComponentChild,
-	parentDom: ContainerNode,
-	opts?: SecureRenderOptions
+  vnode: ComponentChild,
+  parentDom: ContainerNode,
+  opts?: SecureRenderOptions,
 ): void;
 
 export function unmount(parentDom: ContainerNode): void;
@@ -113,7 +113,7 @@ export function unmount(parentDom: ContainerNode): void;
  * etc. Use only with vnodes the host fully controls.
  */
 export const HostPassthrough: import('preact').FunctionComponent<{
-	children?: ComponentChild;
+  children?: ComponentChild;
 }>;
 
 /**
