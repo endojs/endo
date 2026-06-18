@@ -99,6 +99,11 @@ export const snapshotTreeMethods = (store, sha256) => {
         /** @type {any} */ (child),
       );
     },
+    /** @param {string} [method] */
+    help: method =>
+      method === undefined
+        ? 'SnapshotTree: immutable content-addressed directory snapshot (sha256, has, list, lookup).'
+        : `No documentation for method ${method}.`,
   });
 };
 harden(snapshotTreeMethods);

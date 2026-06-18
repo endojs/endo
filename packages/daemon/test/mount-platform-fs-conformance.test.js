@@ -89,6 +89,7 @@ void interfaceMethodNames;
 
 /** Method names the platform `Directory` contract requires. */
 const PLATFORM_DIRECTORY_METHODS = [
+  'help',
   'has',
   'list',
   'lookup',
@@ -103,6 +104,7 @@ const PLATFORM_DIRECTORY_METHODS = [
 
 /** Method names the platform `File` contract requires. */
 const PLATFORM_FILE_METHODS = [
+  'help',
   'streamBase64',
   'text',
   'json',
@@ -114,10 +116,10 @@ const PLATFORM_FILE_METHODS = [
 ];
 
 /** Method names the platform `ReadableTree` contract requires. */
-const PLATFORM_READABLE_TREE_METHODS = ['has', 'list', 'lookup'];
+const PLATFORM_READABLE_TREE_METHODS = ['has', 'list', 'lookup', 'help'];
 
 /** Method names the platform `ReadableBlob` contract requires. */
-const PLATFORM_READABLE_BLOB_METHODS = ['streamBase64', 'text', 'json'];
+const PLATFORM_READABLE_BLOB_METHODS = ['streamBase64', 'text', 'json', 'help'];
 
 /**
  * Construct an `EndoMount` with an in-memory snapshot pipeline.
@@ -164,7 +166,8 @@ test('EndoMount exposes every method on PlatformDirectoryInterface', async t => 
  * method (shared with the extended `Directory`, not strictly mount-specific);
  * it is listed here only because the minimal `lite` `Directory` vocabulary does
  * not yet carry it — see designs/fs-interface-consolidation.md (C2/C5) for
- * whether the vocabulary should grow to include it.
+ * whether the vocabulary should grow to include it. (`help` is now part of the
+ * platform contract, so it is not an extension.)
  */
 const ENDOMOUNT_EXTENSIONS = [
   'entry',
@@ -174,11 +177,10 @@ const ENDOMOUNT_EXTENSIONS = [
   'writeText',
   'makeFile',
   'subView',
-  'help',
 ];
 
 /** Mount-specific extensions beyond the platform File contract. */
-const ENDOMOUNTFILE_EXTENSIONS = ['stat', 'help'];
+const ENDOMOUNTFILE_EXTENSIONS = ['stat'];
 
 test('EndoMount diverges from PlatformDirectoryInterface by named extensions only', async t => {
   // The divergence is deliberate and named: callers who hold a plain
@@ -203,9 +205,9 @@ test('EndoMount diverges from PlatformDirectoryInterface by named extensions onl
 });
 
 test('EndoMountFile diverges from PlatformFileInterface by named extensions only', async t => {
-  // Same shape as the EndoMount divergence: `stat` and `help` are
-  // mount-specific.  A `File` consumer that demotes to the platform
-  // contract loses those names.
+  // Same shape as the EndoMount divergence: `stat` is mount-specific.
+  // A `File` consumer that demotes to the platform contract loses it.
+  // (`help` is now part of the platform File contract, not an extension.)
   const { mount, rootPath } = makeConfiguredMount(t);
   fs.writeFileSync(path.join(rootPath, 'a.txt'), 'x');
   const file = await E(mount).lookup('a.txt');
@@ -314,10 +316,12 @@ test('EndoMount.write accepts a ReadableTree and materializes recursively', asyn
             }
             throw new Error(`unknown ${innerSegments}`);
           },
+          help: () => 'NestedTree',
         });
       }
       throw new Error(`unknown ${segments}`);
     },
+    help: () => 'TestTree',
   });
   await E(mount).write(['nested'], tree);
   t.is(
@@ -345,6 +349,7 @@ test('EndoMount.write rejects traversal-like ReadableTree child names', async t 
       async lookup() {
         return blob;
       },
+      help: () => 'InvalidTree',
     });
 
     // eslint-disable-next-line no-await-in-loop

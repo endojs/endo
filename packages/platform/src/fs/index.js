@@ -5,8 +5,6 @@ export {
   SnapshotBlobInterface,
   ReadableTreeInterface,
   SnapshotTreeInterface,
-  ContentStoreInterface,
-  SnapshotStoreInterface,
   TreeWriterInterface,
   FileInterface,
   DirectoryInterface,

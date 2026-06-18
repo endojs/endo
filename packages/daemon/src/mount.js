@@ -902,6 +902,11 @@ const makeReadableTreeView = readOnlyMount => {
       }
       return makeReadableBlobView(result);
     },
+    help(method) {
+      return method === undefined
+        ? 'EndoMountReadableTree: read-only ReadableTree view over a mount.'
+        : `No documentation for method ${q(method)}.`;
+    },
   });
   const record = mountRecords.get(readOnlyMount);
   if (record !== undefined) {
@@ -1105,6 +1110,11 @@ const makeReadableBlobView = readOnlyFile => {
     },
     async json() {
       return E(readOnlyFile).json();
+    },
+    help(method) {
+      return method === undefined
+        ? 'EndoMountReadableBlob: read-only ReadableBlob view over a mount file.'
+        : `No documentation for method ${q(method)}.`;
     },
   });
 };

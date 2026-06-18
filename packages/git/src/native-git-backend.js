@@ -1679,6 +1679,12 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         const bytes = await readBlobBytes(blobOid);
         return JSON.parse(utf8Decoder.decode(bytes));
       },
+
+      /** @param {string} [method] */
+      help: method =>
+        method === undefined
+          ? 'GitBlob: read-only ReadableBlob over a git blob object (text, json, streamBase64).'
+          : `No documentation for method ${method}.`,
     });
 
   /**

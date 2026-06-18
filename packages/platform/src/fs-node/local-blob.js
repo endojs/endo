@@ -27,6 +27,10 @@ export const makeLocalBlob = filePath => {
     },
     text: () => fs.promises.readFile(filePath, 'utf-8'),
     json: async () => JSON.parse(await fs.promises.readFile(filePath, 'utf-8')),
+    help: method =>
+      method === undefined
+        ? 'LocalBlob: read-only handle to a host file (text, json, streamBase64).'
+        : `No documentation for method ${method}.`,
   });
 };
 harden(makeLocalBlob);

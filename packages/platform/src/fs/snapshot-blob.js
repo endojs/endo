@@ -24,6 +24,11 @@ export const snapshotBlobMethods = (store, sha256) => {
     },
     text,
     json,
+    /** @param {string} [method] */
+    help: method =>
+      method === undefined
+        ? 'SnapshotBlob: immutable content-addressed bytes (sha256, text, json, streamBase64).'
+        : `No documentation for method ${method}.`,
   });
 };
 harden(snapshotBlobMethods);
