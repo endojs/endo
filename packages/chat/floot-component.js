@@ -107,6 +107,11 @@ export const flootComponent = (
   let presets = [];
   const presetTitle = (/** @type {string} */ id) =>
     presets.find(p => p.id === id)?.title || id;
+  // Short noun shown in the session-list pill. The preset's own title reads as an
+  // action ("New project"); the pill wants the capability noun ("project").
+  const PILL_LABELS = { 'new-project': 'project' };
+  const pillLabel = (/** @type {string} */ id) =>
+    PILL_LABELS[id] || presetTitle(id);
 
   // Local view-cache of the factory's sessions. The factory is the source of
   // truth for the list and titles; each session's transcript is the source of
@@ -570,7 +575,7 @@ export const flootComponent = (
       if (session.presetId && session.presetId !== DEFAULT_PRESET_ID) {
         const $pill = document.createElement('span');
         $pill.className = 'floot-session-pill';
-        $pill.textContent = presetTitle(session.presetId);
+        $pill.textContent = pillLabel(session.presetId);
         $meta.appendChild($pill);
       }
       $item.appendChild($meta);
