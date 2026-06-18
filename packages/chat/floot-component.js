@@ -90,14 +90,21 @@ export const flootComponent = (
 
   // ── Sessions (owned by the floot factory; daemon-only, no localStorage) ─────
   const DEFAULT_TITLE = 'New chat';
+  const DEFAULT_PRESET_ID = 'general';
 
   /**
    * @typedef {{ role: 'user' | 'assistant', text?: string,
    *   meta?: { mail?: { from?: string } },
    *   name?: string, args?: string, result?: string | null }} FlootMessage
-   * @typedef {{ id: string, title: string, createdAt: number,
+   * @typedef {{ id: string, title: string, createdAt: number, presetId: string,
    *   messages: FlootMessage[], facet: any, loaded: boolean }} FlootSession
+   * @typedef {{ id: string, title: string, description: string }} FlootPreset
    */
+
+  // The factory's preset catalog, loaded lazily on mount. Drives the new-session
+  // picker and the per-session "preset" pill label.
+  /** @type {FlootPreset[]} */
+  let presets = [];
 
   // Local view-cache of the factory's sessions. The factory is the source of
   // truth for the list and titles; each session's transcript is the source of
@@ -142,14 +149,19 @@ export const flootComponent = (
   };
 
   // Create a new session on the factory and prepend it to the local list.
-  const createSession = async (/** @type {string} */ title) => {
-    const facet = await E(factory).createSession(title || DEFAULT_TITLE);
+  /**
+   * @param {string} [title]
+   * @param {string} [presetId]
+   */
+  const createSession = async (title, presetId) => {
+    const facet = await E(factory).createSession(title || DEFAULT_TITLE, presetId);
     const info = await E(facet).getInfo();
     /** @type {FlootSession} */
     const session = {
       id: info.id,
       title: info.title || DEFAULT_TITLE,
       createdAt: info.createdAt || Date.now(),
+      presetId: info.presetId || DEFAULT_PRESET_ID,
       messages: [],
       facet,
       loaded: true,
@@ -345,6 +357,24 @@ export const flootComponent = (
 
       .floot-backdrop { display: none; position: absolute; inset: 0;
         background: rgba(0,0,0,0.45); z-index: 4; }
+
+      .floot-modal-backdrop { position: absolute; inset: 0; z-index: 30;
+        display: flex; align-items: center; justify-content: center; padding: 1rem;
+        background: rgba(0,0,0,0.55); animation: floot-fade 0.12s ease; }
+      .floot-modal { width: min(420px, 100%); max-height: 80%; overflow-y: auto;
+        background: var(--fl-surface); border: 1px solid var(--fl-border-strong);
+        border-radius: 12px; padding: 1rem; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+      .floot-modal-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; }
+      .floot-preset-list { display: flex; flex-direction: column; gap: 0.5rem; }
+      .floot-preset-card { text-align: left; width: 100%; cursor: pointer;
+        background: var(--fl-surface2); border: 1px solid var(--fl-border);
+        border-radius: 8px; padding: 0.7rem 0.85rem; color: var(--fl-text);
+        transition: border-color 0.12s, background 0.12s; }
+      .floot-preset-card:hover { background: var(--fl-surface3);
+        border-color: var(--fl-accent); }
+      .floot-preset-name { font-size: 0.9rem; font-weight: 600; }
+      .floot-preset-desc { font-size: 0.78rem; color: var(--fl-text-muted);
+        margin-top: 0.15rem; line-height: 1.35; }
 
       @media (max-width: 640px) {
         .floot-sidebar { position: absolute; z-index: 20; top: 0; bottom: 0; left: 0;
@@ -857,9 +887,10 @@ export const flootComponent = (
     openActiveHistory();
   };
 
-  const newSession = () => {
+  /** @param {string} [presetId] */
+  const newSessionWith = presetId => {
     if (busy) return;
-    createSession()
+    createSession(undefined, presetId)
       .then(() => {
         $streamingBubble = null;
         closeSidebar();
@@ -869,6 +900,59 @@ export const flootComponent = (
         $input.focus();
       })
       .catch(err => setStatus(`error: ${err.message}`));
+  };
+
+  // Clicking "+" opens a preset picker so a session can be seeded with default
+  // objects (e.g. a git-backed workspace). With one or zero presets there is
+  // nothing to choose, so create straight away with the default preset.
+  const newSession = () => {
+    if (busy) return;
+    if (presets.length <= 1) {
+      newSessionWith(presets[0]?.id);
+      return;
+    }
+    const $overlay = document.createElement('div');
+    $overlay.className = 'floot-modal-backdrop';
+    const close = () => {
+      $overlay.remove();
+      document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (/** @type {KeyboardEvent} */ e) => {
+      if (e.key === 'Escape') close();
+    };
+    const $modal = document.createElement('div');
+    $modal.className = 'floot-modal';
+    const $title = document.createElement('div');
+    $title.className = 'floot-modal-title';
+    $title.textContent = 'Start a new session';
+    $modal.appendChild($title);
+    const $list = document.createElement('div');
+    $list.className = 'floot-preset-list';
+    for (const preset of presets) {
+      const $card = document.createElement('button');
+      $card.type = 'button';
+      $card.className = 'floot-preset-card';
+      const $name = document.createElement('div');
+      $name.className = 'floot-preset-name';
+      $name.textContent = preset.title;
+      const $desc = document.createElement('div');
+      $desc.className = 'floot-preset-desc';
+      $desc.textContent = preset.description || '';
+      $card.appendChild($name);
+      $card.appendChild($desc);
+      $card.addEventListener('click', () => {
+        close();
+        newSessionWith(preset.id);
+      });
+      $list.appendChild($card);
+    }
+    $modal.appendChild($list);
+    $overlay.appendChild($modal);
+    $overlay.addEventListener('click', e => {
+      if (e.target === $overlay) close();
+    });
+    document.addEventListener('keydown', onKey);
+    $root.appendChild($overlay);
   };
 
   const openSidebar = () => {
@@ -1762,13 +1846,20 @@ export const flootComponent = (
   // default session if the factory has none, then repaint the active history.
   (async () => {
     try {
-      const metas = await E(factory).listSessions();
+      const [metas, presetList] = await Promise.all([
+        E(factory).listSessions(),
+        E(factory)
+          .listPresets()
+          .catch(() => []),
+      ]);
+      presets = presetList;
       sessions = [...metas]
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
         .map(m => ({
           id: m.id,
           title: m.title || DEFAULT_TITLE,
           createdAt: m.createdAt || 0,
+          presetId: m.presetId || DEFAULT_PRESET_ID,
           messages: [],
           facet: null,
           loaded: false,
