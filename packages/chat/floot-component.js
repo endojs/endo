@@ -105,6 +105,8 @@ export const flootComponent = (
   // picker and the per-session "preset" pill label.
   /** @type {FlootPreset[]} */
   let presets = [];
+  const presetTitle = (/** @type {string} */ id) =>
+    presets.find(p => p.id === id)?.title || id;
 
   // Local view-cache of the factory's sessions. The factory is the source of
   // truth for the list and titles; each session's transcript is the source of
@@ -376,6 +378,13 @@ export const flootComponent = (
       .floot-preset-desc { font-size: 0.78rem; color: var(--fl-text-muted);
         margin-top: 0.15rem; line-height: 1.35; }
 
+      .floot-session-pill { display: inline-block; margin-top: 2px;
+        font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em;
+        padding: 1px 6px; border-radius: 999px; background: var(--fl-surface3);
+        color: var(--fl-tool); border: 1px solid var(--fl-border-strong);
+        max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; }
+
       @media (max-width: 640px) {
         .floot-sidebar { position: absolute; z-index: 20; top: 0; bottom: 0; left: 0;
           width: min(280px, 82vw); transform: translateX(-100%);
@@ -556,6 +565,14 @@ export const flootComponent = (
       }
       $meta.appendChild($name);
       $meta.appendChild($sub);
+      // Surface the session's preset (the objects it was seeded with) as a pill,
+      // except for the plain default preset which carries no extra capabilities.
+      if (session.presetId && session.presetId !== DEFAULT_PRESET_ID) {
+        const $pill = document.createElement('span');
+        $pill.className = 'floot-session-pill';
+        $pill.textContent = presetTitle(session.presetId);
+        $meta.appendChild($pill);
+      }
       $item.appendChild($meta);
 
       const $rename = document.createElement('button');
