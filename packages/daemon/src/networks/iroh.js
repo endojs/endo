@@ -191,9 +191,25 @@ export const make = async (powers, context) => {
     console.error(
       `Endo daemon accepted iroh connection ${connectionNumber} at ${new Date().toISOString()}`,
     );
-    const bi = await connection.acceptBi();
-    serveStream(bi, connection, connectionNumber, true);
-    await connection.closed();
+    let handedOff = false;
+    try {
+      const bi = await connection.acceptBi();
+      serveStream(bi, connection, connectionNumber, true);
+      handedOff = true;
+      await connection.closed();
+    } catch (error) {
+      // If we accepted a connection but failed before handing it to
+      // serveStream (which then owns teardown), close it so the QUIC
+      // connection does not linger until the peer's idle timeout.
+      if (!handedOff) {
+        try {
+          connection.close(0n, toByteArray('inbound setup failed'));
+        } catch {
+          // Best-effort; the connection may already be gone.
+        }
+      }
+      throw error;
+    }
   };
 
   const acceptLoop = async () => {
