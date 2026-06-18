@@ -1206,7 +1206,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/9p-server@workspace:packages/9p-server"
   dependencies:
-    "@endo/endo-fs": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
@@ -1214,6 +1213,7 @@ __metadata:
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
@@ -1224,12 +1224,12 @@ __metadata:
   resolution: "@endo/agent-tools@workspace:packages/agent-tools"
   dependencies:
     "@endo/daemon": "workspace:^"
-    "@endo/endo-fs": "workspace:^"
     "@endo/exo-git": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/git": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
     ajv: "npm:^8.17.1"
     ava: "catalog:dev"
     c8: "catalog:dev"
@@ -1404,7 +1404,6 @@ __metadata:
     "@endo/chat-network-view": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
-    "@endo/endo-fs": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
     "@endo/exo-stream": "workspace:^"
@@ -1587,7 +1586,6 @@ __metadata:
     "@endo/bytes": "workspace:^"
     "@endo/captp": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
-    "@endo/endo-fs": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
@@ -1651,7 +1649,6 @@ __metadata:
   dependencies:
     "@endo/compartment-mapper": "workspace:^"
     "@endo/daemon": "workspace:^"
-    "@endo/endo-fs": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
@@ -1659,28 +1656,9 @@ __metadata:
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/zip": "workspace:^"
-    ava: "catalog:dev"
-    eslint: "catalog:dev"
-  languageName: unknown
-  linkType: soft
-
-"@endo/endo-fs@workspace:^, @endo/endo-fs@workspace:packages/endo-fs":
-  version: 0.0.0-use.local
-  resolution: "@endo/endo-fs@workspace:packages/endo-fs"
-  dependencies:
-    "@endo/base64": "workspace:^"
-    "@endo/captp": "workspace:^"
-    "@endo/errors": "workspace:^"
-    "@endo/eventual-send": "workspace:^"
-    "@endo/exo": "workspace:^"
-    "@endo/exo-stream": "workspace:^"
-    "@endo/far": "workspace:^"
-    "@endo/init": "workspace:^"
-    "@endo/pass-style": "workspace:^"
-    "@endo/patterns": "workspace:^"
-    "@endo/stream": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
@@ -1784,7 +1762,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/exo-git@workspace:packages/exo-git"
   dependencies:
-    "@endo/endo-fs": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
@@ -1792,6 +1769,7 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
     "@endo/stream": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
@@ -2440,12 +2418,15 @@ __metadata:
   resolution: "@endo/platform@workspace:packages/platform"
   dependencies:
     "@endo/base64": "workspace:^"
+    "@endo/captp": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/stream": "workspace:^"
     "@endo/stream-node": "workspace:^"
