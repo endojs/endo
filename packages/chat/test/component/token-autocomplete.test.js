@@ -1,13 +1,12 @@
 // @ts-nocheck - Component test with happy-dom
 
-import 'ses';
-import '@endo/eventual-send/shim.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { createDOM, createInputElements, tick } from '../helpers/dom-setup.js';
-import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { tokenAutocompleteComponent } from '../../token-autocomplete.js';
 
 const { document: testDocument, window: testWindow } = createDOM();

@@ -1,11 +1,11 @@
 // @ts-nocheck - Component test with happy-dom
 /* global globalThis */
 
-import 'ses';
-import '@endo/eventual-send/shim.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 import { inboxComponent } from '../../inbox-component.js';
@@ -57,16 +57,18 @@ const makeFormPowers = ({ selfId, message }) => {
 
     followMessages() {
       let delivered = false;
-      return Far('MessageIterator', {
-        next() {
-          if (!delivered) {
-            delivered = true;
-            return Promise.resolve({ value: message, done: false });
-          }
-          // Block forever after first message
-          return new Promise(() => {});
-        },
-      });
+      return readerFromIterator(
+        Far('MessageIterator', {
+          next() {
+            if (!delivered) {
+              delivered = true;
+              return Promise.resolve({ value: message, done: false });
+            }
+            // Block forever after first message
+            return new Promise(() => {});
+          },
+        }),
+      );
     },
 
     submit(number, values) {

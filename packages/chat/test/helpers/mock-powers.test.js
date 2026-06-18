@@ -4,8 +4,8 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
-import { makeMockPowers } from './mock-powers.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { makeMockPowers } from './mock-powers.js';
 
 test('mock powers list returns initial names', async t => {
   const { powers } = makeMockPowers({ names: ['alice', 'bob'] });

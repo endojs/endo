@@ -1,11 +1,11 @@
 // @ts-nocheck - Component test with happy-dom
 
-import 'ses';
-import '@endo/eventual-send/shim.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import harden from '@endo/harden';
 import { Far } from '@endo/far';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 
@@ -43,26 +43,28 @@ const makeSpacesPowers = ({ storedValues = new Map() } = {}) => {
     followNameChanges() {
       let initialIndex = 0;
       let pendingKit = null;
-      return Far('NameChangesIterator', {
-        async next() {
-          if (initialIndex < spaceIds.length) {
-            const id = spaceIds[initialIndex];
-            initialIndex += 1;
-            return { value: { add: id }, done: false };
-          }
-          if (!pendingKit) {
-            pendingKit = makePromiseKit();
-            nameChangeResolvers.push(value => {
-              if (pendingKit) {
-                pendingKit.resolve(value);
-                pendingKit = null;
-              }
-            });
-          }
-          const value = await pendingKit.promise;
-          return { value, done: false };
-        },
-      });
+      return readerFromIterator(
+        Far('NameChangesIterator', {
+          async next() {
+            if (initialIndex < spaceIds.length) {
+              const id = spaceIds[initialIndex];
+              initialIndex += 1;
+              return { value: { add: id }, done: false };
+            }
+            if (!pendingKit) {
+              pendingKit = makePromiseKit();
+              nameChangeResolvers.push(value => {
+                if (pendingKit) {
+                  pendingKit.resolve(value);
+                  pendingKit = null;
+                }
+              });
+            }
+            const value = await pendingKit.promise;
+            return { value, done: false };
+          },
+        }),
+      );
     },
   });
 

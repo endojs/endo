@@ -1,11 +1,11 @@
 // @ts-nocheck - Component test with happy-dom
 /* global globalThis */
 
-import 'ses';
-import '@endo/eventual-send/shim.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 import { microblogComponent } from '../../microblog-component.js';
 
@@ -79,7 +79,7 @@ const makeMockChannel = ({ name = 'test-microblog', memberDelay = 0 } = {}) => {
       }));
     },
     followMessages() {
-      return messagesIterator;
+      return readerFromIterator(messagesIterator);
     },
   });
 

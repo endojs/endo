@@ -4,6 +4,7 @@
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { Far } from '@endo/far';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
 
 /**
@@ -243,7 +244,7 @@ export const makeMockPowers = ({
      * @returns {AsyncIterator<{ add: string } | { remove: string }>}
      */
     followNameChanges() {
-      return makeNameChangesIterator();
+      return readerFromIterator(makeNameChangesIterator());
     },
 
     /**
