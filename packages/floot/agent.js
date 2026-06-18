@@ -465,8 +465,11 @@ export const makeStreamingAgent = async (
             // locator. The reply is sent to the same sender by message number.
             let fromName;
             try {
-              const names = await E(powers).reverseLocate(fromId);
-              fromName = Array.isArray(names) && names.length ? names[0] : fromId;
+              const senderNames = await E(powers).reverseLocate(fromId);
+              fromName =
+                Array.isArray(senderNames) && senderNames.length
+                  ? senderNames[0]
+                  : fromId;
             } catch {
               fromName = fromId;
             }
@@ -513,7 +516,10 @@ export const makeStreamingAgent = async (
     }
     const out = [];
     for (const m of path) {
-      if (m.role !== 'user' && m.role !== 'assistant') continue;
+      if (m.role !== 'user' && m.role !== 'assistant') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       if (typeof m.content === 'string' && m.content.trim() !== '') {
         out.push({
           role: m.role,
@@ -527,8 +533,7 @@ export const makeStreamingAgent = async (
           out.push({
             role: 'tool',
             name: tc.function?.name || 'tool',
-            args:
-              typeof args === 'string' ? args : JSON.stringify(args ?? {}),
+            args: typeof args === 'string' ? args : JSON.stringify(args ?? {}),
             result: resultById.has(tc.id) ? resultById.get(tc.id) : null,
           });
         }

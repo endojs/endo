@@ -64,8 +64,10 @@ const renderToolResult = async result => {
     return json;
   }
   try {
+    // `__getMethodNames__` is the CapTP introspection method; it isn't on the
+    // typed `E` surface, so reach it through an `any` cast.
     // eslint-disable-next-line no-underscore-dangle
-    const methods = await E(result).__getMethodNames__();
+    const methods = await E(/** @type {any} */ (result)).__getMethodNames__();
     if (Array.isArray(methods)) {
       return `[remote capability] callable methods: ${JSON.stringify(methods)}`;
     }
