@@ -37,15 +37,17 @@ another design are called out below and left as follow-ups.
   (help / has / list / lookup) as method-guard records. The lite
   ReadableBlob / SnapshotBlob / File and ReadableTree / SnapshotTree /
   Directory guards spread them instead of repeating the shapes.
-- **C3 / C4 (done for the daemon read surfaces).** `EndoBlob` is now
-  `{ ...readableBlobMethodGuards, sha256 }` (the `SnapshotBlob` shape) and
-  `EndoReadableTree` is now `{ ...readableTreeMethodGuards, sha256 }` (the
-  `SnapshotTree` shape). The remaining C4 work is **redirected**: rather than
-  retiring `BlobRef` onto the whole-value `SnapshotBlob`, align the daemon/lite
-  blobs *up* to the richer `BlobRef` range-I/O shape (`getInfo` / `fetch`) for
-  optimal remote reads. That is a multi-layer feature (content-store range reads
-  + size, hash-format reconciliation, new methods on every blob exo) and is
-  scoped as its own follow-up PR — see § C4.
+- **C3 (done) / C4 (done for the daemon blob).** `EndoReadableTree` is now
+  `{ ...readableTreeMethodGuards, sha256 }` (the `SnapshotTree` shape).
+  `EndoBlob` is aligned *up* to the richer `BlobRef` range-I/O shape: it carries
+  `{ ...readableBlobMethodGuards, ...rangeReadMethodGuards, sha256 }`, i.e. the
+  whole-value `text`/`json`/`streamBase64` accessors **plus**
+  `getInfo()` (the `{ algorithm, hash, size }` triple in one round-trip) and
+  `fetch(offset, length)` (a windowed read) — the surface that makes remote
+  reads optimal. The Node/XS powers gained `readFileRange` and the content
+  store surfaces `size`/`readRange` to back it. Remaining C4 follow-ups (extend
+  the other blob implementers, mirror conveniences onto `BlobRef`) are optional
+  — see § C4.
 - **C1 (done).** `EndoNameHub` and `EndoDirectory` share `nameHubMethodGuards`.
   The canonical-shape question is **resolved: `NameOrPathShape`** — the shared
   `readableNameHubMethodGuards` (has / list / lookup / maybeLookup) and the
@@ -339,11 +341,16 @@ no `BlobRef → SnapshotBlob` adapter.
       `@endo/platform/fs/lite`; consume them in the lite + daemon read surfaces.
 - [x] C3 / C4: `sha256` confirmed as the content-address accessor; `EndoBlob` /
       `EndoReadableTree` converged onto the shared records + `sha256`.
-- [ ] C4 (follow-up PR): align the daemon/lite blobs *up* to the richer
-      `BlobRef` shape — content-store `size` + range reader, hash-format
-      reconciliation (hex), `getInfo` / `fetch` on every blob exo, and the
-      `text`/`json`/`streamBase64` conveniences on `BlobRef`. The adapter
-      disappears as the shapes converge from below.
+- [x] C4: align the daemon `EndoBlob` *up* to the richer `BlobRef` range-I/O
+      shape — `rangeReadMethodGuards` (getInfo / fetch) exported from
+      `@endo/platform/fs`; `EndoBlob` carries them plus the whole-value
+      accessors; Node/XS powers gain `readFileRange`; content store surfaces
+      `size` / `readRange`. `getInfo().hash` is base64 (matches `BlobRef`),
+      `sha256()` stays hex.
+- [ ] C4 (optional follow-up): mirror the whole-value `text`/`json`/
+      `streamBase64` conveniences onto the extended `BlobRef` for full
+      symmetry, and extend the other blob implementers (git, local, mount-file
+      view) to the rich shape if they ever become remote-read targets.
 - [x] C5: remove the dead `ContentStore` / `SnapshotStore` guards.
 
 ## Prompt
