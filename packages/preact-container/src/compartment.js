@@ -1,3 +1,5 @@
+// @ts-check
+
 import { h, Fragment, options } from 'preact';
 import {
   useState,
@@ -11,6 +13,17 @@ import {
   _registerTrustedExitType,
   _registerSecureReentryType,
 } from './renderer.js';
+
+/** @import { VNode } from 'preact' */
+
+/**
+ * Preact `VNode` extended with this module's private slot-map bracket
+ * marker. The `options[OPT_RENDER]` / `diffed` hooks stash it directly on
+ * the vnode; it is not part of preact's public type. Optional — only
+ * present once a confined render has bracketed the vnode.
+ *
+ * @typedef {VNode & { _slotMapBracketed?: boolean }} SlotMapVNode
+ */
 
 // See the note in `renderer.js`: preact mangles `options[OPT_RENDER]` to
 // `__r` and `options[OPT_CATCH_ERROR]` to `__e` in its published build.
@@ -492,7 +505,7 @@ function install() {
     if (previousRender) previousRender(vnode);
   };
 
-  options.diffed = vnode => {
+  options.diffed = (/** @type {SlotMapVNode} */ vnode) => {
     if (vnode._slotMapBracketed) {
       vnode._slotMapBracketed = false;
       popSlotMap();

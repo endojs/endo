@@ -1,3 +1,5 @@
+// @ts-check
+
 import { render as preactRender, Fragment, options, h } from 'preact';
 
 // Preact mangles its internal option-hook and vnode field names in its
@@ -32,6 +34,25 @@ const freezeConstant = value =>
   typeof globalThis !== 'undefined' && typeof globalThis.harden === 'function'
     ? globalThis.harden(value)
     : value;
+
+/** @import { VNode } from 'preact' */
+
+/**
+ * Preact `VNode` extended with the library's own private marker fields.
+ * The option hooks stash these directly on the vnode; they are NOT part
+ * of preact's public type nor its mangle map (see the note at the top of
+ * the file). All are optional — a vnode only carries them once a hook
+ * has bracketed it.
+ *
+ * @typedef {VNode & {
+ *   _secureCtx?: boolean,
+ *   _secureAllowedTags?: Set<string>,
+ *   _secureSafeAttrs?: Set<string>,
+ *   _secureBracketed?: boolean,
+ *   _savedTrustedExitDepth?: number,
+ *   _trustedExitBracketed?: boolean,
+ * }} SecureVNode
+ */
 
 /**
  * Secure renderer for Preact.
@@ -730,7 +751,7 @@ function install() {
   const previousDiffed = options.diffed;
   const previousCatchError = options[OPT_CATCH_ERROR];
 
-  options.vnode = vnode => {
+  options.vnode = (/** @type {SecureVNode} */ vnode) => {
     // Sanitize when:
     //  - a parent or ancestor is currently rendering inside a secure
     //    tree (depth > 0)
@@ -894,7 +915,7 @@ function install() {
     if (previousRender) previousRender(vnode);
   };
 
-  options.diffed = vnode => {
+  options.diffed = (/** @type {SecureVNode} */ vnode) => {
     if (vnode._secureBracketed) {
       vnode._secureBracketed = false;
       secureRenderDepth--;
