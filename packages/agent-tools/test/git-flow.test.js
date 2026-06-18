@@ -12,7 +12,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { E } from '@endo/far';
-import { walk, collectBytes } from '@endo/endo-fs';
+import { walk, collectBytes } from '@endo/platform/fs/extended';
 import { makeNativeGitBackend } from '@endo/git';
 import { makeGit } from '@endo/exo-git';
 import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
@@ -150,7 +150,7 @@ test('makeGitTool drives a real Git cap: stage → status → commit → log →
 
   // `filesystemAt` is likewise out of the tool slice (it returns a live
   // `Filesystem` remotable, which awaits result serialization), so open it
-  // through the raw cap; walk the read-only `@endo/endo-fs` Filesystem over the
+  // through the raw cap; walk the read-only `@endo/platform/fs/extended` Filesystem over the
   // committed tree to read the committed file content back.
   const fsView = await E(git).filesystemAt('HEAD');
   const root = await E(/** @type {any} */ (fsView)).root();

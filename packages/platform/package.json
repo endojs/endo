@@ -27,6 +27,11 @@
     "./fs/lite": "./src/fs/index.js",
     "./fs/lite/types": "./src/fs/types.js",
     "./fs/node": "./src/fs-node/index.js",
+    "./fs/extended": {
+      "types": "./src/fs/extended/types.d.ts",
+      "default": "./src/fs/extended/index.js"
+    },
+    "./fs/extended/*": "./src/fs/extended/*",
     "./proc": "./src/proc.js",
     "./exo-fs": "./src/exo-fs.js",
     "./package.json": "./package.json"
@@ -37,7 +42,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "exit 0"
+    "test": "ava"
   },
   "dependencies": {
     "@endo/base64": "workspace:^",
@@ -47,11 +52,14 @@
     "@endo/exo-stream": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
+    "@endo/init": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/stream": "workspace:^",
     "@endo/stream-node": "workspace:^"
   },
   "devDependencies": {
+    "@endo/captp": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"

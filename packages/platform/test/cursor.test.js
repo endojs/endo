@@ -15,7 +15,7 @@ import test from 'ava';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
 
 const collectStream = async readerRef => {
   const out = [];

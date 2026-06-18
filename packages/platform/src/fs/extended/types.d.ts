@@ -1,5 +1,5 @@
 /**
- * Hand-written declarations covering the public exports `@endo/endo-fs`
+ * Hand-written declarations covering the public exports `@endo/platform/fs/extended`
  * consumers reach for.  The package's runtime is JavaScript with
  * `@ts-check` JSDoc, but it does not have its own `tsc` emission
  * pipeline; without a `types` entrypoint, downstream packages whose
@@ -24,7 +24,7 @@
 // Mirror of `@endo/exo/exo-makers.js`'s `Exo` placeholder; declared
 // here so downstream consumers don't need to depend on that package
 // transitively just for the shape.
-declare module '@endo/endo-fs' {
+declare module '@endo/platform/fs/extended' {
   export type ERef<T> = T | PromiseLike<T>;
 
   export interface Filesystem {
@@ -142,7 +142,7 @@ declare module '@endo/endo-fs' {
   export const PassableBytesWriterInterface: object;
 }
 
-declare module '@endo/endo-fs/src/type-guards.js' {
+declare module '@endo/platform/fs/extended/type-guards.js' {
   export const FilesystemInterface: object;
   export const DirectoryInterface: object;
   export const FileInterface: object;
@@ -157,7 +157,7 @@ declare module '@endo/endo-fs/src/type-guards.js' {
   export const PassableBytesWriterInterface: object;
 }
 
-declare module '@endo/endo-fs/src/backend-types.js' {
+declare module '@endo/platform/fs/extended/backend-types.js' {
   export type NodeKind = 'file' | 'directory';
   export type DirEntry = { name: string; kind: NodeKind };
   export type NodeStat = {
@@ -201,43 +201,43 @@ declare module '@endo/endo-fs/src/backend-types.js' {
   };
 }
 
-declare module '@endo/endo-fs/src/in-memory.js' {
+declare module '@endo/platform/fs/extended/in-memory.js' {
   export const makeInMemoryFilesystem: () => object;
 }
 
-declare module '@endo/endo-fs/src/in-memory-module.js' {
+declare module '@endo/platform/fs/extended/in-memory-module.js' {
   export const make: (powers?: object) => object;
 }
 
-declare module '@endo/endo-fs/src/cas.js' {
+declare module '@endo/platform/fs/extended/cas.js' {
   export const makeMemoryCas: () => object;
   export const cacheBackedRead: (cas: object, fs: object) => object;
 }
 
-declare module '@endo/endo-fs/src/cached-fs.js' {
+declare module '@endo/platform/fs/extended/cached-fs.js' {
   export const withCachedReads: (fs: object, cas: object) => object;
 }
 
-declare module '@endo/endo-fs/src/node-fs.js' {
+declare module '@endo/platform/fs/extended/node-fs.js' {
   export const makeNodeFilesystem: (opts: {
     rootPath: string;
     [key: string]: unknown;
   }) => object;
 }
 
-declare module '@endo/endo-fs/src/node-fs-module.js' {
+declare module '@endo/platform/fs/extended/node-fs-module.js' {
   export const make: (powers?: object) => object;
 }
 
-declare module '@endo/endo-fs/src/readonly.js' {
+declare module '@endo/platform/fs/extended/readonly.js' {
   export const readOnly: (fs: object) => object;
 }
 
-declare module '@endo/endo-fs/src/from-mount.js' {
+declare module '@endo/platform/fs/extended/from-mount.js' {
   export const mountAsFilesystem: (mount: object, opts?: object) => object;
 }
 
-declare module '@endo/endo-fs/src/compose.js' {
+declare module '@endo/platform/fs/extended/compose.js' {
   export const emptyFilesystem: () => object;
   export const chroot: (fs: object, subPath: string[]) => object;
   export const bind: (
@@ -253,7 +253,7 @@ declare module '@endo/endo-fs/src/compose.js' {
   ) => object;
 }
 
-declare module '@endo/endo-fs/src/layer.js' {
+declare module '@endo/platform/fs/extended/layer.js' {
   export const makeLayer: (layerFs: object, backingFs: object) => object;
   export const LayerInterface: object;
 }

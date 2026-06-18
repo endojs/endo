@@ -15,15 +15,15 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
-import { readOnly } from '../src/readonly.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
+import { readOnly } from '../src/fs/extended/readonly.js';
 import {
   emptyFilesystem,
   chroot,
   bind,
   namespace,
   compose,
-} from '../src/compose.js';
+} from '../src/fs/extended/compose.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 const fromUtf8 = b => new TextDecoder().decode(b);
@@ -472,7 +472,7 @@ test('compose CoW: write-then-read through the composed view sees the layer copy
 });
 
 test('compose CoW + Layer.diff: write to a backing-only file shows up as a layer op', async t => {
-  const { makeLayer } = await import('../src/layer.js');
+  const { makeLayer } = await import('../src/fs/extended/layer.js');
   const backing = makeInMemoryFilesystem();
   const layerFs = makeInMemoryFilesystem();
   const backingRoot = await E(backing).root();

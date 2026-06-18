@@ -36,7 +36,7 @@ const treeViewModuleHref = url.pathToFileURL(
 ).href;
 
 const nodeFsModuleHref = url.pathToFileURL(
-  require.resolve('@endo/endo-fs/src/node-fs-module.js'),
+  require.resolve('@endo/platform/fs/extended/node-fs-module.js'),
 ).href;
 
 let testCounter = 0;

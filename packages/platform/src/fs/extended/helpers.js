@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Public porcelain helpers for `@endo/endo-fs` consumers.
+ * Public porcelain helpers for `@endo/platform/fs/extended` consumers.
  *
  * Free functions over the typed `Filesystem` / `Directory` / `File`
  * / `OpenFile` exo surface. Bytes-only — no text/JSON encoding

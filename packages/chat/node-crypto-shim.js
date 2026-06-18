@@ -2,7 +2,7 @@
 /* eslint-disable no-bitwise */
 
 // Browser stand-in for the slice of `node:crypto` reachable from
-// `@endo/endo-fs` (`src/shared/blobref.js` and `src/from-mount.js`).
+// `@endo/platform/fs/extended` (`src/shared/blobref.js` and `src/from-mount.js`).
 // Vite aliases `node:crypto` to this module for the chat bundle.
 //
 // A real SHA-256 is implemented here rather than a placeholder so
@@ -136,7 +136,7 @@ const toHex = bytes => {
 /**
  * Encode a byte sequence using one of the encodings supported by
  * Node's `Buffer.toString(encoding)` and reachable from the
- * `@endo/endo-fs` consumers (currently `'base64'` and `'hex'`).
+ * `@endo/platform/fs/extended` consumers (currently `'base64'` and `'hex'`).
  *
  * @param {Uint8Array} bytes
  * @param {string} encoding
@@ -182,7 +182,7 @@ export const createHash = algorithm => {
      * Returns the raw digest bytes or, when an encoding is given,
      * a string. The bytes case returns a `Uint8Array` whose
      * `toString(encoding)` mimics Node's `Buffer` so callers
-     * such as `@endo/endo-fs/src/shared/blobref.js` can do
+     * such as `@endo/platform/fs/extended/shared/blobref.js` can do
      * `hashBytes.toString('base64')` and `h[i]` interchangeably.
      *
      * @param {string} [encoding]

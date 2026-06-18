@@ -12,7 +12,7 @@
  * Usage from a test:
  *
  *   const moduleUrl = new URL(
- *     '@endo/endo-fs/src/in-memory-module.js',
+ *     '@endo/platform/fs/extended/src/in-memory-module.js',
  *     import.meta.url,
  *   ).href;
  *   const fs = await E(host).makeUnconfined('@main', moduleUrl, {

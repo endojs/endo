@@ -2,7 +2,7 @@
 /* global Buffer */
 /* eslint-disable no-await-in-loop, no-bitwise */
 //
-// 9P2000.L server backed by an `@endo/endo-fs` `Filesystem` cap.
+// 9P2000.L server backed by an `@endo/platform/fs/extended` `Filesystem` cap.
 //
 // fid model: each fid holds a Node cap (Directory or File) plus an
 // ancestry stack `[{ parent: Directory, name: string }, ...]` for

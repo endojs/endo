@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Interface guards for `@endo/endo-fs` (§4 of DESIGN.md).
+ * Interface guards for `@endo/platform/fs/extended` (§4 of DESIGN.md).
  *
  * Every cap defined in §4 has an `M.interface` here. The shape of
  * passable records (Qid, Attrs, OpenOpts, ...) is documented in

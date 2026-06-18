@@ -4,7 +4,7 @@
 import { q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
-import { readOnly as readOnlyFs, wrapBackend } from '@endo/endo-fs';
+import { readOnly as readOnlyFs, wrapBackend } from '@endo/platform/fs/extended';
 
 import { makeGitFsBackend } from './git-filesystem.js';
 import { GitInterface } from './interfaces.js';
@@ -222,7 +222,7 @@ export const makeGit = ({ mount, backend, readOnly = false, lineageOf }) => {
   // Memoize `filesystemAt(ref)` on the canonical tree OID so repeated
   // calls within one Git instance return the same Filesystem cap (same
   // brand).  Brand identity matters for `compose` cycle detection in
-  // `@endo/endo-fs`; without memoization, two `filesystemAt('HEAD')`
+  // `@endo/platform/fs/extended`; without memoization, two `filesystemAt('HEAD')`
   // calls would compose as distinct participants even when HEAD has
   // not moved.  See `designs/endo-fs-from-git.md` § Brands.
   /** @type {Map<string, object>} */

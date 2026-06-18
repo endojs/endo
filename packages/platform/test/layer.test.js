@@ -14,8 +14,8 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
-import { makeLayer } from '../src/layer.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
+import { makeLayer } from '../src/fs/extended/layer.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 const fromUtf8 = b => new TextDecoder().decode(b);

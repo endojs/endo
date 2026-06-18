@@ -18,7 +18,7 @@ import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 

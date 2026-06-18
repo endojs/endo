@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Adapt an `@endo/endo-fs` `Filesystem` cap to the small
+ * Adapt an `@endo/platform/fs/extended` `Filesystem` cap to the small
  * `ReadableTree` / `Mount` shape that `@endo/daemon`'s
  * `make-from-tree` formula consumes:
  *
@@ -93,7 +93,7 @@ const drainBytesReader = async (readerRef, expectedSize) => {
 };
 
 /**
- * Wrap an `@endo/endo-fs` `Filesystem` cap as a tree-shaped cap
+ * Wrap an `@endo/platform/fs/extended` `Filesystem` cap as a tree-shaped cap
  * suitable for `@endo/daemon`'s `make-from-tree` formula.
  *
  * @param {object} filesystem  An endo-fs Filesystem cap (or eref).

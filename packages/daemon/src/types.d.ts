@@ -439,7 +439,7 @@ export interface EndoGit {
    */
   tree(ref: GitRef | string): Promise<EndoGitTree>;
   /**
-   * Returns an `@endo/endo-fs` `Filesystem` lazily backed by the git
+   * Returns an `@endo/platform/fs/extended` `Filesystem` lazily backed by the git
    * object database at the resolved tree of `ref`.  The Filesystem is
    * immutable; mutating verbs throw `EACCES`.  See
    * `designs/endo-fs-from-git.md`.

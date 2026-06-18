@@ -2,7 +2,7 @@
 /**
  * `FsBackend` — the minimal protocol that any storage backing
  * (in-memory map, node:fs, a remote Mount adapter, a KV blob store,
- * SQLite, S3, IPFS, …) implements to participate in `@endo/endo-fs`.
+ * SQLite, S3, IPFS, …) implements to participate in `@endo/platform/fs/extended`.
  *
  * `wrapBackend(backend)` from `./wrap-backend.js` builds the full
  * `Filesystem` exo surface on top of a `FsBackend`. The seam is

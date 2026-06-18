@@ -56,13 +56,13 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@endo/endo-fs": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
     "@endo/stream": "workspace:^"
   },
   "devDependencies": {

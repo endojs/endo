@@ -1,10 +1,10 @@
 // @ts-check
 /* eslint-disable no-await-in-loop, no-underscore-dangle */
 
-// Bridge between the file-explorer UI and `@endo/endo-fs`.
+// Bridge between the file-explorer UI and `@endo/platform/fs/extended`.
 //
 // `./file-explorer-env.js` MUST be imported first: it installs the
-// `globalThis.harden` / `Buffer` shims that the `@endo/endo-fs` and
+// `globalThis.harden` / `Buffer` shims that the `@endo/platform/fs/extended` and
 // `@endo/exo-stream` modules below assume.
 //
 // Capability chains are kept as unresolved promises wherever
@@ -21,12 +21,12 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
-import { makeInMemoryFilesystem } from '@endo/endo-fs/src/in-memory.js';
-import { readOnly } from '@endo/endo-fs/src/readonly.js';
-import { makeLayer } from '@endo/endo-fs/src/layer.js';
-import { mountAsFilesystem } from '@endo/endo-fs/src/from-mount.js';
-import { makeMemoryCas } from '@endo/endo-fs/src/cas.js';
-import { withCachedReads } from '@endo/endo-fs/src/cached-fs.js';
+import { makeInMemoryFilesystem } from '@endo/platform/fs/extended/in-memory.js';
+import { readOnly } from '@endo/platform/fs/extended/readonly.js';
+import { makeLayer } from '@endo/platform/fs/extended/layer.js';
+import { mountAsFilesystem } from '@endo/platform/fs/extended/from-mount.js';
+import { makeMemoryCas } from '@endo/platform/fs/extended/cas.js';
+import { withCachedReads } from '@endo/platform/fs/extended/cached-fs.js';
 
 /**
  * Any CapTP capability — possibly still an unresolved promise.

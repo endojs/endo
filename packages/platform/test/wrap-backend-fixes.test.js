@@ -16,13 +16,13 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
-import { wrapBackend } from '../src/wrap-backend.js';
-import { makeFromMountBackend } from '../src/backends/from-mount-backend.js';
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
-import { readOnly } from '../src/readonly.js';
-import { makeMemoryCas } from '../src/cas.js';
-import { withCachedReads } from '../src/cached-fs.js';
-import { chroot } from '../src/compose.js';
+import { wrapBackend } from '../src/fs/extended/wrap-backend.js';
+import { makeFromMountBackend } from '../src/fs/extended/backends/from-mount-backend.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
+import { readOnly } from '../src/fs/extended/readonly.js';
+import { makeMemoryCas } from '../src/fs/extended/cas.js';
+import { withCachedReads } from '../src/fs/extended/cached-fs.js';
+import { chroot } from '../src/fs/extended/compose.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 const fromUtf8 = b => new TextDecoder().decode(b);

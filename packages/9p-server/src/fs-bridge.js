@@ -14,7 +14,7 @@ const BridgeInterface = M.interface('FsBridge9p', {
 });
 
 /**
- * Bridge an `@endo/endo-fs` `Filesystem` capability to a 9P2000.L
+ * Bridge an `@endo/platform/fs/extended` `Filesystem` capability to a 9P2000.L
  * UDS endpoint. Anyone speaking 9P over a Unix domain socket — QEMU
  * with `-chardev socket,server=off`, Linux v9fs with `mount -t 9p`,
  * `diod`, etc. — can connect and traverse the FS the cap projects.
@@ -28,7 +28,7 @@ const BridgeInterface = M.interface('FsBridge9p', {
  * the `lookup` that produced its parent cap so the discovery
  * shares the walk's round-trip — `getQid()` is sync on the
  * responder but costs one RTT across CapTP if issued separately
- * (`@endo/endo-fs/DESIGN.md` §4.10). `src/server.js` has the 9P
+ * (`@endo/platform/fs/extended/DESIGN.md` §4.10). `src/server.js` has the 9P
  * message → cap call mapping.
  *
  * Cancellation: callers may pass a `cancelled` promise. Its

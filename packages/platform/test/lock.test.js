@@ -15,7 +15,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { E } from '@endo/far';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
 
 const openFile = async (root, name) => {
   return E(root).create(name, {});

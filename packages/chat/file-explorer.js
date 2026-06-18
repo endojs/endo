@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-// File-explorer UI for navigating `@endo/endo-fs` filesystem
+// File-explorer UI for navigating `@endo/platform/fs/extended` filesystem
 // objects: Miller columns and a collapsible tree, a split-pane
 // syntax-highlighted file viewer, drag-to-move, and tooling to
 // build in-memory filesystems, read-only views, CAS-cached

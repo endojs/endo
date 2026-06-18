@@ -12,7 +12,7 @@
  * back, rather than the depth-plus-one sequential round trips
  * a naive client would issue.
  *
- * These tests host an `@endo/endo-fs` `Filesystem` on a
+ * These tests host an `@endo/platform/fs/extended` `Filesystem` on a
  * "right" vat, drive it from a "left" vat through `makeCapTP`,
  * and wrap each side's `send` function so every wire message
  * lands in a shared transcript array (`_captp-pair.js`).
@@ -26,7 +26,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { E } from '@endo/far';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
 import { makeConnectedPair, settle } from './_captp-pair.js';
 
 const populate = async () => {

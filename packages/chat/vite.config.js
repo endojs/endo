@@ -10,7 +10,7 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: {
-      // `@endo/endo-fs` reaches `node:crypto` through its content-
+      // `@endo/platform/fs/extended` reaches `node:crypto` through its content-
       // addressed snapshot helper. The file explorer never
       // materialises snapshots, so a small browser stand-in keeps
       // the bundle buildable without pulling a Node polyfill.

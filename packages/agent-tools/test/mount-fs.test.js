@@ -6,7 +6,7 @@ import '@endo/init/debug.js';
 
 /** @import { ExecutionContext } from 'ava' */
 /** @import { ERef } from '@endo/far' */
-/** @import { Filesystem } from '@endo/endo-fs' */
+/** @import { Filesystem } from '@endo/platform/fs/extended' */
 
 import test from 'ava';
 import os from 'os';
@@ -15,7 +15,7 @@ import fs from 'fs';
 import { Buffer } from 'buffer';
 import { E, Far } from '@endo/far';
 
-import { makeNodeFilesystem, readOnly, chroot } from '@endo/endo-fs';
+import { makeNodeFilesystem, readOnly, chroot } from '@endo/platform/fs/extended';
 
 import { makeMountReadTool } from '../src/mount-fs.js';
 

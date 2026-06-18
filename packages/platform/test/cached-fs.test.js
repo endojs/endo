@@ -45,10 +45,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
-import { makeNodeFilesystem } from '../src/node-fs.js';
-import { makeMemoryCas } from '../src/cas.js';
-import { withCachedReads } from '../src/cached-fs.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
+import { makeNodeFilesystem } from '../src/fs/extended/node-fs.js';
+import { makeMemoryCas } from '../src/fs/extended/cas.js';
+import { withCachedReads } from '../src/fs/extended/cached-fs.js';
 import { makeConnectedPair, settle } from './_captp-pair.js';
 
 const utf8 = s => new TextEncoder().encode(s);

@@ -35,8 +35,8 @@ import test from 'ava';
 import { E } from '@endo/far';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
-import { makeMemoryCas, cacheBackedRead } from '../src/cas.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
+import { makeMemoryCas, cacheBackedRead } from '../src/fs/extended/cas.js';
 import { makeConnectedPair, settle } from './_captp-pair.js';
 
 const utf8 = s => new TextEncoder().encode(s);

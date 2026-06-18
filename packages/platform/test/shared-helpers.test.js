@@ -19,12 +19,12 @@ import {
   assertChildName,
   computeOpenMode,
   toSafeNumber,
-} from '../src/shared/helpers.js';
-import { makeLockTable } from '../src/shared/lock-table.js';
-import { makeMemoryCas } from '../src/cas.js';
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
-import { readOnly } from '../src/readonly.js';
-import { namespace } from '../src/compose.js';
+} from '../src/fs/extended/shared/helpers.js';
+import { makeLockTable } from '../src/fs/extended/shared/lock-table.js';
+import { makeMemoryCas } from '../src/fs/extended/cas.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
+import { readOnly } from '../src/fs/extended/readonly.js';
+import { namespace } from '../src/fs/extended/compose.js';
 
 // ---------- rangesOverlap (pure) ----------
 

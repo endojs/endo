@@ -2,7 +2,7 @@
   "name": "@endo/agent-tools",
   "version": "0.0.1",
   "private": true,
-  "description": "Provider-independent agent tool catalog for Endo, including capability-scoped filesystem tools backed by an @endo/endo-fs Filesystem",
+  "description": "Provider-independent agent tool catalog for Endo, including capability-scoped filesystem tools backed by an @endo/platform/fs/extended Filesystem",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -71,10 +71,10 @@
     "timeout": "2m"
   },
   "dependencies": {
-    "@endo/endo-fs": "workspace:^",
     "@endo/exo-git": "workspace:^",
     "@endo/far": "workspace:^",
-    "@endo/patterns": "workspace:^"
+    "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^"
   },
   "devDependencies": {
     "@endo/daemon": "workspace:^",

@@ -35,7 +35,7 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { makeInMemoryFilesystem } from '../src/in-memory.js';
+import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 
@@ -315,7 +315,7 @@ test('PATTERN: brand-based cycle detection catches a CapTP-mediated cycle', asyn
   // sees a remote presence with a freshly-minted Symbol tag.
   const { bootstrapRef: remoteFs } = makeConnectedPair(fs);
 
-  const { compose } = await import('../src/compose.js');
+  const { compose } = await import('../src/fs/extended/compose.js');
   // The Symbol check passes (different presences). The async
   // brand check should reject because both participants share the
   // same primitive brand.
@@ -358,7 +358,7 @@ test('PATTERN: compose rename of a backing-only file copies up + whiteouts the s
   const backing = makeInMemoryFilesystem();
   await writeFile(await E(backing).root(), 'src', 'data');
   const layer = makeInMemoryFilesystem();
-  const { compose } = await import('../src/compose.js');
+  const { compose } = await import('../src/fs/extended/compose.js');
   const cow = compose(layer, backing);
   const root = await E(cow).root();
 
@@ -390,7 +390,7 @@ test('PATTERN: compose rename of a directory recursively copies up the subtree',
   await writeFile(sub, 'deep.txt', 'deep value');
 
   const layer = makeInMemoryFilesystem();
-  const { compose } = await import('../src/compose.js');
+  const { compose } = await import('../src/fs/extended/compose.js');
   const cow = compose(layer, backing);
   const root = await E(cow).root();
 
@@ -444,7 +444,7 @@ test('PATTERN: Filesystem.statfs aggregates across mounts (namespace sums partic
   // `statfs` numbers (`totalBytes`, `freeBytes`, `availableBytes`).
   // A namespace with one populated mount carries that mount's
   // bytes-used; participants reporting zeros don't affect the sum.
-  const { namespace, emptyFilesystem } = await import('../src/compose.js');
+  const { namespace, emptyFilesystem } = await import('../src/fs/extended/compose.js');
   const a = makeInMemoryFilesystem();
   await writeFile(await E(a).root(), 'sample', 'X'.repeat(100));
   const ns = namespace({ a, _empty: emptyFilesystem() });

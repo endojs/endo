@@ -5,7 +5,7 @@
  * `FsBackend` adapter for an immutable git tree.
  *
  * `wrapBackend(makeGitFsBackend({ backend, treeOid }))` produces a
- * full `@endo/endo-fs` `Filesystem` lazily backed by the git object
+ * full `@endo/platform/fs/extended` `Filesystem` lazily backed by the git object
  * database at `treeOid`.  The daemon wraps that result with
  * `readOnly()` so the public cap rejects every mutating verb — git
  * history is immutable.
@@ -29,7 +29,7 @@ import { makeError, X, q } from '@endo/errors';
 
 /**
  * @import { GitBackend, GitTreeEntryRecord } from './git.js'
- * @import { FsBackend, DirEntry, NodeKind } from '@endo/endo-fs/src/backend-types.js'
+ * @import { FsBackend, DirEntry, NodeKind } from '@endo/platform/fs/extended/backend-types.js'
  */
 
 const EMPTY_BYTES = harden(new Uint8Array(0));

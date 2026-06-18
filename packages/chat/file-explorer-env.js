@@ -1,22 +1,22 @@
 // @ts-check
 /* global globalThis */
 
-// Environment shims that let `@endo/endo-fs` (and its
+// Environment shims that let `@endo/platform/fs/extended` (and its
 // `@endo/exo-stream` dependency) run inside the chat browser bundle.
 //
 // The chat app deliberately never calls SES `lockdown()` — Monaco
 // relies on mutable intrinsics — so `globalThis.harden`, which the
-// `@endo/endo-fs` modules reference as a free variable per the
+// `@endo/platform/fs/extended` modules reference as a free variable per the
 // HardenedJS convention, is never installed. We install
 // `@endo/harden`'s standalone hardener instead; it freezes own
 // properties without traversing prototypes, which matches the chat
 // app's no-lockdown stance.
 //
-// `@endo/endo-fs/src/from-mount.js` decodes base64 with Node's
+// `@endo/platform/fs/extended/from-mount.js` decodes base64 with Node's
 // `Buffer`; the browser has no `Buffer`, so we provide the minimal
 // `from`/`concat` surface that module touches.
 //
-// This module is import-ordered before any `@endo/endo-fs` module
+// This module is import-ordered before any `@endo/platform/fs/extended` module
 // so the shims are in place by the time those modules evaluate.
 
 import harden from '@endo/harden';

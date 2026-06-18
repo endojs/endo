@@ -30,14 +30,14 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@endo/endo-fs": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/exo-stream": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/init": "workspace:^",
-    "@endo/patterns": "workspace:^"
+    "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^"
   },
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:^",

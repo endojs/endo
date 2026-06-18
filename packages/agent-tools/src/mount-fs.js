@@ -2,11 +2,11 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/far' */
-/** @import { File, Filesystem } from '@endo/endo-fs' */
+/** @import { File, Filesystem } from '@endo/platform/fs/extended' */
 /** @import { MountReadToolRecord, ToolSchema } from './types.js' */
 
 import { E } from '@endo/far';
-import { walk, collectBytes } from '@endo/endo-fs';
+import { walk, collectBytes } from '@endo/platform/fs/extended';
 
 /**
  * Default text-read truncation cap, in characters. A `maxChars` option of `0`
@@ -15,7 +15,7 @@ import { walk, collectBytes } from '@endo/endo-fs';
 const DEFAULT_MAX_TEXT_CHARS = 50_000;
 
 /**
- * A read-only filesystem tool bound to an `@endo/endo-fs` `Filesystem`
+ * A read-only filesystem tool bound to an `@endo/platform/fs/extended` `Filesystem`
  * capability. Reads a single text file by root-relative path and returns
  * its UTF-8 contents.
  *
@@ -23,7 +23,7 @@ const DEFAULT_MAX_TEXT_CHARS = 50_000;
  * Confinement, symlink containment, and revocation are enforced by the
  * `Filesystem` capability this tool receives.
  *
- * @param {ERef<Filesystem>} fs An `@endo/endo-fs` `Filesystem` ERef. Callers
+ * @param {ERef<Filesystem>} fs An `@endo/platform/fs/extended` `Filesystem` ERef. Callers
  *   can attenuate authority with `readOnly` or `chroot`.
  * @param {object} [opts] Configuration options.
  * @param {number} [opts.maxChars] Maximum number of UTF-8 characters returned

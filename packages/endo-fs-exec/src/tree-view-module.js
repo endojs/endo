@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Entry point for instantiating a `TreeView` over an `@endo/endo-fs`
+ * Entry point for instantiating a `TreeView` over an `@endo/platform/fs/extended`
  * `Filesystem` as a formulated Endo caplet via `host.makeUnconfined`.
  *
  * Composing this with `host.makeFromTree` lets a project tree hosted

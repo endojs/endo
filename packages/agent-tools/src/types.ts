@@ -1,5 +1,5 @@
 import type { ERef } from '@endo/far';
-import type { Filesystem } from '@endo/endo-fs';
+import type { Filesystem } from '@endo/platform/fs/extended';
 import type { EndoGit } from '@endo/exo-git';
 import type { Pattern } from '@endo/patterns';
 
