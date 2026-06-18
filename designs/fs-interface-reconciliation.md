@@ -70,8 +70,46 @@ for the mount and scratch-mount columns:
 
 These are bug fixes, not interface changes: they validate that the catalog's
 **I** cells for the mount-backed rows are honest.
-`packages/endo-fs` (233 tests) and `packages/daemon` `mount.test.js` (63
+`packages/endo-fs` and `packages/daemon` `mount.test.js` (63
 tests) pass with the fixes applied.
+
+### Catalog naming crossover landed in `@endo/endo-fs`
+
+The catalog's naming decisions (D1, and review findings F1–F2) are now
+**implemented** on the endo-fs `Directory` surface — the package the migration
+plan pinned the renames to. In `packages/endo-fs/src`:
+
+- **`lookup` widened to the path-array form** (`lookup(...segments)`), a
+  single-call depth-N walk returning the deepest cap. One-segment calls
+  (`lookup('a')`) still work, so existing consumers — notably
+  `packages/9p-server`, which walks one segment per `Twalk` element — are
+  unaffected.
+- **`lookupStep(name)`** added as the explicit one-segment, CapTP-pipelining
+  form (the behavior endo-fs's `lookup` previously had).
+- **`subView(...segments)`** added: resolve a sub-path that must be a directory
+  and return its cap (a confined sub-root with no parent reference).
+- **`write(name, value)`** added: the catalog whole-blob form (UTF-8 string),
+  distinct from `create` (which stays the range-I/O writer-stream method, F2).
+  The `ReadableBlob` streaming value form is follow-up work (raw bytes are not
+  CapTP-passable, so large content must arrive as a blob cap).
+- **`move(...)`** added as the catalog name for the path-to-path relocate;
+  `rename` is retained as the legacy alias sharing one implementation.
+
+These are declared in the shared `DirectoryInterface` guard and implemented in
+all **seven** endo-fs `Directory` exos (wrap-backend, cached-fs, readonly, and
+the four composition exos in `compose.js` — empty, bind-mount overlay,
+namespace root, and the CoW layered overlay), so `__getMethodNames__` stays a
+faithful catalog (F3). Read-only views reject `write`/`move` via `denied()`;
+the degenerate composition dirs reject or walk as appropriate.
+`packages/endo-fs` (244 tests, incl. new path-array-`lookup` / `lookupStep` /
+`subView` / `write` / `move` cases) and `packages/9p-server` (20 tests) pass.
+
+**Not yet crossed over (tracked):** the daemon `EndoDirectory` and
+`@endo/platform/fs` `Directory` guards (their `lookup` already accepts a path
+shape; `move` / `subView` parity is pending), and the D4 / Phase 1.5 retire
+package-move of endo-fs into `@endo/platform/fs/extended` (the larger
+cross-package cutover). The renames above are additive and backward-compatible,
+so they do not depend on that move.
 
 ## What is the Problem Being Solved?
 
