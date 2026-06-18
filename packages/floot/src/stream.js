@@ -14,7 +14,7 @@
 //   { type: 'end' }                       stream complete
 //   { type: 'abort', reason }             stream failed
 
-import { Far } from '@endo/far';
+import { makeBufferedReader } from './buffered-channel.js';
 
 /**
  * @typedef {(
@@ -34,28 +34,7 @@ import { Far } from '@endo/far';
  * @returns {{ writer: object, reader: object }}
  */
 export const makeReplyChannel = () => {
-  /** @type {ReplyEvent[]} */
-  const buffer = [];
-  let finished = false;
-  let cursor = 0;
-  /** @type {(() => void) | null} */
-  let wake = null;
-
-  const drainWake = () => {
-    if (wake) {
-      const w = wake;
-      wake = null;
-      w();
-    }
-  };
-
-  /** @param {ReplyEvent} event */
-  const push = event => {
-    if (finished) return;
-    buffer.push(harden(event));
-    if (event.type === 'end' || event.type === 'abort') finished = true;
-    drainWake();
-  };
+  const { push, reader } = makeBufferedReader('ReplyReader');
 
   const writer = harden({
     /** @param {string} phase */
@@ -73,35 +52,6 @@ export const makeReplyChannel = () => {
     end: () => push({ type: 'end' }),
     /** @param {unknown} reason */
     abort: reason => push({ type: 'abort', reason: `${reason}` }),
-  });
-
-  const reader = Far('ReplyReader', {
-    next: async () => {
-      for (;;) {
-        if (cursor < buffer.length) {
-          const value = buffer[cursor];
-          cursor += 1;
-          return harden({ value, done: false });
-        }
-        if (finished) return harden({ value: undefined, done: true });
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise(resolve => {
-          wake = () => resolve(undefined);
-        });
-      }
-    },
-    return: async () => {
-      finished = true;
-      cursor = buffer.length;
-      drainWake();
-      return harden({ value: undefined, done: true });
-    },
-    throw: async error => {
-      finished = true;
-      cursor = buffer.length;
-      drainWake();
-      throw error;
-    },
   });
 
   return { writer, reader };

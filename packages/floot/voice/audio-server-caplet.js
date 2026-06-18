@@ -28,6 +28,8 @@ import { Far } from '@endo/pass-style';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 
+import { makeBufferedReader } from '../src/buffered-channel.js';
+
 // ── Minimal moonshine driver (plain JS port of MoonshineSTTProvider) ────────
 const makeMoonshine = ({ scriptPath, cwd, uv = 'uv', lang = 'en' }) => {
   let child = null;
@@ -167,27 +169,12 @@ const makeMoonshine = ({ scriptPath, cwd, uv = 'uv', lang = 'en' }) => {
 };
 
 // ── Minimal text-side stream channel (Far StreamReader) ─────────────────────
+// Text events carry the *full current transcript* (replace semantics), not
+// deltas: moonshine partials are cumulative and freely revise earlier words
+// (e.g. inserting punctuation), so an append-only wire can't represent them.
+// `setOnClose` aborts moonshine's in-flight utterance when the consumer stops.
 const makeTextChannel = () => {
-  const buffer = [];
-  let finished = false;
-  let cursor = 0;
-  let wake = null;
-  let onClose = null;
-
-  const push = event => {
-    if (finished) return;
-    buffer.push(harden(event));
-    if (event.type === 'end' || event.type === 'abort') finished = true;
-    if (wake) {
-      const w = wake;
-      wake = null;
-      w();
-    }
-  };
-
-  // Text events carry the *full current transcript* (replace semantics), not
-  // deltas: moonshine partials are cumulative and freely revise earlier words
-  // (e.g. inserting punctuation), so an append-only wire can't represent them.
+  const { push, reader, setOnClose } = makeBufferedReader('StreamReader');
   const writer = {
     partial: text => push({ type: 'partial', text: `${text}` }),
     final: text => push({ type: 'final', text: `${text}` }),
@@ -195,53 +182,7 @@ const makeTextChannel = () => {
     end: () => push({ type: 'end' }),
     abort: reason => push({ type: 'abort', reason: `${reason}` }),
   };
-
-  // Consumer stopped pulling (return/throw): finish and signal the producer so
-  // moonshine's in-flight utterance is aborted instead of left running.
-  const finalize = () => {
-    const wasFinished = finished;
-    finished = true;
-    cursor = buffer.length;
-    if (wake) {
-      const w = wake;
-      wake = null;
-      w();
-    }
-    if (!wasFinished && onClose) onClose();
-  };
-
-  const reader = Far('StreamReader', {
-    next: async () => {
-      for (;;) {
-        if (cursor < buffer.length) {
-          const value = buffer[cursor];
-          cursor += 1;
-          return harden({ value, done: false });
-        }
-        if (finished) return harden({ value: undefined, done: true });
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise(resolve => {
-          wake = resolve;
-        });
-      }
-    },
-    return: async () => {
-      finalize();
-      return harden({ value: undefined, done: true });
-    },
-    throw: async error => {
-      finalize();
-      throw error;
-    },
-  });
-
-  return {
-    writer,
-    reader,
-    setOnClose: fn => {
-      onClose = fn;
-    },
-  };
+  return { writer, reader, setOnClose };
 };
 
 // Pump audio frames into moonshine and stream transcript events. Each partial

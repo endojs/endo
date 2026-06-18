@@ -32,6 +32,8 @@ import { Far } from '@endo/pass-style';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
+import { makeBufferedReader } from '../src/buffered-channel.js';
+
 // ── Minimal sentence chunker (plain JS port of sentence-chunker.ts) ──────────
 const MIN_CHUNK_LENGTH = 10;
 const ABBREVIATIONS = new Set([
@@ -126,67 +128,16 @@ const makeChunker = () => {
 // (piper) can be aborted — otherwise an interrupted replay keeps synthesizing
 // every remaining sentence with no one to receive the audio.
 const makeAudioChannel = onClose => {
-  const buffer = [];
-  let finished = false;
-  let cursor = 0;
-  let wake = null;
-
-  const push = event => {
-    if (finished) return;
-    buffer.push(harden(event));
-    if (event.type === 'end' || event.type === 'abort') finished = true;
-    if (wake) {
-      const w = wake;
-      wake = null;
-      w();
-    }
-  };
-
+  const { push, reader, isClosed } = makeBufferedReader('AudioReader', {
+    onClose,
+  });
   const writer = {
     bytes: (b64, sampleRate) => push({ type: 'bytes', b64, sampleRate }),
     setPhase: phase => push({ type: 'phase', phase: `${phase}` }),
     end: () => push({ type: 'end' }),
     abort: reason => push({ type: 'abort', reason: `${reason}` }),
   };
-
-  const finalize = () => {
-    const wasFinished = finished;
-    finished = true;
-    cursor = buffer.length;
-    if (wake) {
-      const w = wake;
-      wake = null;
-      w();
-    }
-    if (!wasFinished && onClose) onClose();
-  };
-
-  const reader = Far('AudioReader', {
-    next: async () => {
-      for (;;) {
-        if (cursor < buffer.length) {
-          const value = buffer[cursor];
-          cursor += 1;
-          return harden({ value, done: false });
-        }
-        if (finished) return harden({ value: undefined, done: true });
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise(resolve => {
-          wake = resolve;
-        });
-      }
-    },
-    return: async () => {
-      finalize();
-      return harden({ value: undefined, done: true });
-    },
-    throw: async error => {
-      finalize();
-      throw error;
-    },
-  });
-
-  return { writer, reader, isClosed: () => finished };
+  return { writer, reader, isClosed };
 };
 
 // ── Minimal piper driver (plain JS port of PiperTTSStream.synthesize) ────────
