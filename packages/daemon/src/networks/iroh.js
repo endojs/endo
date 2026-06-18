@@ -1,10 +1,11 @@
 // @ts-check
 /* global globalThis */
 
-import harden from '@endo/harden';
+import { bytesFromText } from '@endo/bytes/from-string.js';
 import { E, Far } from '@endo/far';
+import harden from '@endo/harden';
+import { decodeHex } from '@endo/hex/decode.js';
 
-import { fromHex } from '../hex.js';
 import { makeNetstringCapTP } from '../connection.js';
 import { adaptIrohStream } from './iroh-stream-adapter.js';
 import { KEEPALIVE_TIMEOUT_MS, makeIrohHeartbeat } from './iroh-heartbeat.js';
@@ -19,18 +20,18 @@ import {
 // from a JS Array, not a TypedArray), both when advertised at bind time and
 // when dialing (see @number0/iroh test/endpoint.mjs).
 const ALPN_STRING = 'endo/captp/0';
-const textEncoder = new TextEncoder();
-const ALPN_BYTES = textEncoder.encode(ALPN_STRING);
-const ALPN_ARRAY = Array.from(ALPN_BYTES);
+const ALPN_ARRAY = Array.from(bytesFromText(ALPN_STRING));
 
 /**
  * Encode a string as the `Array<number>` byte form the native binding's
- * `Vec<u8>` parameters expect (close reasons, datagrams, etc.).
+ * `Vec<u8>` parameters expect: napi marshals `Vec<u8>` from a JS Array, not a
+ * TypedArray, so the UTF-8 bytes from `@endo/bytes` are spread into an array
+ * (used for close reasons, datagrams, etc.).
  *
  * @param {string} text
  * @returns {number[]}
  */
-const toByteArray = text => Array.from(textEncoder.encode(text));
+const toByteArray = text => Array.from(bytesFromText(text));
 
 const processEnv = /** @type {any} */ (globalThis).process?.env;
 // Publish loopback/private direct addresses as dialing hints. Off by default
@@ -52,7 +53,7 @@ const PUBLISH_PRIVATE = processEnv?.ENDO_IROH_PUBLISH_PRIVATE === '1';
  * @returns {number[]} 32-byte secret as an array of byte values.
  */
 export const deriveIrohSecretKey = nodeIdHex => {
-  const seed = fromHex(nodeIdHex);
+  const seed = decodeHex(nodeIdHex);
   return Array.from(seed.slice(0, 32));
 };
 harden(deriveIrohSecretKey);
