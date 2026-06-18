@@ -1,10 +1,8 @@
-import { createElement, createRef, render, Component } from 'preact';
+import { h, createRef, render, Component } from 'preact';
 import { setupRerender } from 'preact/test-utils';
 import { renderConfined, unmount, HostPassthrough } from '../src/renderer.js';
 import { confineComponent, isConfinedComponent } from '../src/compartment.js';
 import { setupScratch, teardown } from './_util/helpers.js';
-
-/** @jsx createElement */
 
 describe('../src/compartment.js', () => {
   /** @type {HTMLDivElement} */
@@ -35,7 +33,12 @@ describe('../src/compartment.js', () => {
     const Confined = confineComponent(({ h }, props) =>
       h('div', { class: 'k' }, 'hi ', props.who),
     );
-    renderConfined(<Confined who="world" />, scratch);
+    renderConfined(
+      h(Confined, {
+        who: 'world',
+      }),
+      scratch,
+    );
     expect(scratch.firstChild.className).to.equal('k');
     expect(scratch.firstChild.textContent).to.equal('hi world');
   });
@@ -46,7 +49,7 @@ describe('../src/compartment.js', () => {
       seenEndowments = endowments;
       return endowments.h('span', null, 'x');
     });
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(Object.isFrozen(seenEndowments)).to.equal(true);
     // Reassignment of a known field throws in strict mode (the
     // module is ESM, so the function body runs strict).
@@ -66,7 +69,7 @@ describe('../src/compartment.js', () => {
       seenThis = this;
       return endowments.h('span', null, 'x');
     });
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     // `Reflect.apply(fn, undefined, …)` plus strict-mode source
     // means `this` is genuinely undefined, not the global object.
     expect(seenThis).to.equal(undefined);
@@ -83,7 +86,7 @@ describe('../src/compartment.js', () => {
         String(n),
       );
     });
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     const btn = scratch.querySelector('button');
     expect(btn.textContent).to.equal('0');
     btn.click();
@@ -97,7 +100,12 @@ describe('../src/compartment.js', () => {
       seenProps = props;
       return h('span', null, props.label);
     });
-    renderConfined(<Confined label="hi" />, scratch);
+    renderConfined(
+      h(Confined, {
+        label: 'hi',
+      }),
+      scratch,
+    );
     expect(Object.isFrozen(seenProps)).to.equal(true);
     expect(() => {
       'use strict';
@@ -109,13 +117,13 @@ describe('../src/compartment.js', () => {
 
   it('drops attacker return value of a wrong shape (plain object)', () => {
     const Confined = confineComponent(() => ({ not: 'a vnode' }));
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(scratch.innerHTML).to.equal('');
   });
 
   it('drops attacker return value that is a Promise', () => {
     const Confined = confineComponent(() => Promise.resolve('x'));
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(scratch.innerHTML).to.equal('');
   });
 
@@ -130,7 +138,7 @@ describe('../src/compartment.js', () => {
         },
       );
     });
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     // Proxies have a real Object constructor so the coercer rejects them.
     expect(scratch.innerHTML).to.equal('');
   });
@@ -145,10 +153,20 @@ describe('../src/compartment.js', () => {
     }));
     expect(() =>
       renderConfined(
-        <div class="host">
-          <Confined />
-          <span class="next">still here</span>
-        </div>,
+        h(
+          'div',
+          {
+            class: 'host',
+          },
+          h(Confined, null),
+          h(
+            'span',
+            {
+              class: 'next',
+            },
+            'still here',
+          ),
+        ),
         scratch,
       ),
     ).to.not.throw();
@@ -166,10 +184,20 @@ describe('../src/compartment.js', () => {
     }));
     expect(() =>
       renderConfined(
-        <div class="host">
-          <Confined />
-          <span class="next">still here</span>
-        </div>,
+        h(
+          'div',
+          {
+            class: 'host',
+          },
+          h(Confined, null),
+          h(
+            'span',
+            {
+              class: 'next',
+            },
+            'still here',
+          ),
+        ),
         scratch,
       ),
     ).to.not.throw();
@@ -187,10 +215,20 @@ describe('../src/compartment.js', () => {
     }));
     expect(() =>
       renderConfined(
-        <div class="host">
-          <Confined />
-          <span class="next">still here</span>
-        </div>,
+        h(
+          'div',
+          {
+            class: 'host',
+          },
+          h(Confined, null),
+          h(
+            'span',
+            {
+              class: 'next',
+            },
+            'still here',
+          ),
+        ),
         scratch,
       ),
     ).to.not.throw();
@@ -208,10 +246,20 @@ describe('../src/compartment.js', () => {
     const Confined = confineComponent(() => deep);
     expect(() =>
       renderConfined(
-        <div class="host">
-          <Confined />
-          <span class="next">still here</span>
-        </div>,
+        h(
+          'div',
+          {
+            class: 'host',
+          },
+          h(Confined, null),
+          h(
+            'span',
+            {
+              class: 'next',
+            },
+            'still here',
+          ),
+        ),
         scratch,
       ),
     ).to.not.throw();
@@ -230,10 +278,20 @@ describe('../src/compartment.js', () => {
     const Confined = confineComponent(() => node);
     expect(() =>
       renderConfined(
-        <div class="host">
-          <Confined />
-          <span class="next">still here</span>
-        </div>,
+        h(
+          'div',
+          {
+            class: 'host',
+          },
+          h(Confined, null),
+          h(
+            'span',
+            {
+              class: 'next',
+            },
+            'still here',
+          ),
+        ),
         scratch,
       ),
     ).to.not.throw();
@@ -246,18 +304,13 @@ describe('../src/compartment.js', () => {
       // Build a real vnode but with a banned class as its type
       h(Sneaky, null, h('span', null, 'kept-child')),
     );
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(scratch.querySelector('span').textContent).to.equal('kept-child');
   });
 
   it('coerces a string return value to a text node', () => {
     const Confined = confineComponent(() => 'just text');
-    renderConfined(
-      <div>
-        <Confined />
-      </div>,
-      scratch,
-    );
+    renderConfined(h('div', null, h(Confined, null)), scratch);
     expect(scratch.firstChild.textContent).to.equal('just text');
   });
 
@@ -266,12 +319,7 @@ describe('../src/compartment.js', () => {
       h('span', { class: 'a' }, '1'),
       h('span', { class: 'b' }, '2'),
     ]);
-    renderConfined(
-      <div>
-        <Confined />
-      </div>,
-      scratch,
-    );
+    renderConfined(h('div', null, h(Confined, null)), scratch);
     expect(scratch.querySelectorAll('span')).to.have.lengthOf(2);
     expect(scratch.querySelector('.a').textContent).to.equal('1');
     expect(scratch.querySelector('.b').textContent).to.equal('2');
@@ -281,7 +329,7 @@ describe('../src/compartment.js', () => {
     const Confined = confineComponent(({ h }) =>
       h('div', null, h('script', null, 'alert(1)'), 'after'),
     );
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(scratch.querySelector('script')).to.equal(null);
     expect(scratch.firstChild.textContent).to.equal('alert(1)after');
   });
@@ -299,7 +347,7 @@ describe('../src/compartment.js', () => {
         'go',
       ),
     );
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     scratch.querySelector('button').click();
     expect(captured).to.exist;
     expect(captured instanceof Event).to.equal(false);
@@ -314,9 +362,17 @@ describe('../src/compartment.js', () => {
       return h('div', null, props.children);
     });
     renderConfined(
-      <Confined>
-        <span class="hostlabel">host-content</span>
-      </Confined>,
+      h(
+        Confined,
+        null,
+        h(
+          'span',
+          {
+            class: 'hostlabel',
+          },
+          'host-content',
+        ),
+      ),
       scratch,
     );
     expect(firstChildVNode).to.exist;
@@ -342,9 +398,17 @@ describe('../src/compartment.js', () => {
       h('section', null, props.children),
     );
     renderConfined(
-      <Confined>
-        <div ref={hostRef}>trusted</div>
-      </Confined>,
+      h(
+        Confined,
+        null,
+        h(
+          'div',
+          {
+            ref: hostRef,
+          },
+          'trusted',
+        ),
+      ),
       scratch,
     );
     // The ref attached on host content gets the live DOM node — that is
@@ -363,10 +427,24 @@ describe('../src/compartment.js', () => {
       ),
     );
     renderConfined(
-      <Confined>
-        <span class="A">A</span>
-        <span class="B">B</span>
-      </Confined>,
+      h(
+        Confined,
+        null,
+        h(
+          'span',
+          {
+            class: 'A',
+          },
+          'A',
+        ),
+        h(
+          'span',
+          {
+            class: 'B',
+          },
+          'B',
+        ),
+      ),
       scratch,
     );
     expect(scratch.querySelector('header .A').textContent).to.equal('A');
@@ -383,7 +461,12 @@ describe('../src/compartment.js', () => {
     // The outer attacker references Inner by closure — but that only
     // works because confineComponent allows confined functions as
     // vnode types. Verify rendering hooks up correctly.
-    renderConfined(<Outer text="hello" />, scratch);
+    renderConfined(
+      h(Outer, {
+        text: 'hello',
+      }),
+      scratch,
+    );
     expect(scratch.querySelector('.outer .inner').textContent).to.equal(
       'hello',
     );
@@ -394,7 +477,7 @@ describe('../src/compartment.js', () => {
     const Confined = confineComponent(({ h }) =>
       h(evilType, null, h('span', null, 'kept')),
     );
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(scratch.querySelector('span').textContent).to.equal('kept');
   });
 
@@ -404,9 +487,13 @@ describe('../src/compartment.js', () => {
     });
     // Wrap in a host element so we can observe the empty slot.
     renderConfined(
-      <div class="slot">
-        <Confined />
-      </div>,
+      h(
+        'div',
+        {
+          class: 'slot',
+        },
+        h(Confined, null),
+      ),
       scratch,
     );
     expect(scratch.querySelector('.slot').children.length).to.equal(0);
@@ -424,7 +511,7 @@ describe('../src/compartment.js', () => {
         },
       },
     );
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(captured).to.have.lengthOf(1);
     expect(captured[0].message).to.equal('boom');
   });
@@ -442,10 +529,20 @@ describe('../src/compartment.js', () => {
     );
     expect(() => {
       renderConfined(
-        <div class="host">
-          <Confined />
-          <span class="next">still here</span>
-        </div>,
+        h(
+          'div',
+          {
+            class: 'host',
+          },
+          h(Confined, null),
+          h(
+            'span',
+            {
+              class: 'next',
+            },
+            'still here',
+          ),
+        ),
         scratch,
       );
     }).to.not.throw();
@@ -470,11 +567,21 @@ describe('../src/compartment.js', () => {
         ...props.items.map(k => h('li', { key: k, 'data-k': k }, String(k))),
       ),
     );
-    renderConfined(<Confined items={['a', 'b', 'c']} />, scratch);
+    renderConfined(
+      h(Confined, {
+        items: ['a', 'b', 'c'],
+      }),
+      scratch,
+    );
     const before = Array.from(scratch.querySelectorAll('li'));
     const byKey = new Map(before.map(li => [li.getAttribute('data-k'), li]));
 
-    renderConfined(<Confined items={['c', 'a', 'b']} />, scratch);
+    renderConfined(
+      h(Confined, {
+        items: ['c', 'a', 'b'],
+      }),
+      scratch,
+    );
     const after = Array.from(scratch.querySelectorAll('li'));
 
     // Same DOM nodes, just rearranged — proves keys round-tripped.
@@ -497,7 +604,7 @@ describe('../src/compartment.js', () => {
       // coercer must walk it defensively and not propagate the throw.
       return { type: 'div', props: proxiedProps, constructor: undefined };
     });
-    expect(() => renderConfined(<Confined />, scratch)).to.not.throw();
+    expect(() => renderConfined(h(Confined, null), scratch)).to.not.throw();
     // Coercer dropped all props; the div is empty.
     expect(scratch.querySelector('div')).to.exist;
   });
@@ -519,7 +626,7 @@ describe('../src/compartment.js', () => {
       });
       return h('div', { style }, 'x');
     });
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     // The accessor `color` is dropped by `shallowDataCopy`; only the
     // data property `backgroundColor` survives.
     expect(getterCalls).to.equal(0);
@@ -546,7 +653,7 @@ describe('../src/compartment.js', () => {
       });
       return { type: 'div', props, constructor: undefined };
     });
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(getterCalls).to.equal(0);
     expect(scratch.querySelector('span').textContent).to.equal('ok');
   });
@@ -562,12 +669,22 @@ describe('../src/compartment.js', () => {
     // The HostPassthrough creates a trusted island where host refs work,
     // but a `Confined` inside it must STILL strip attacker refs.
     renderConfined(
-      <div>
-        <HostPassthrough>
-          <div ref={hostRefInExit}>host inside exit</div>
-          <Confined />
-        </HostPassthrough>
-      </div>,
+      h(
+        'div',
+        null,
+        h(
+          HostPassthrough,
+          null,
+          h(
+            'div',
+            {
+              ref: hostRefInExit,
+            },
+            'host inside exit',
+          ),
+          h(Confined, null),
+        ),
+      ),
       scratch,
     );
     expect(hostRefInExit.current).to.be.instanceof(Element);
@@ -584,18 +701,34 @@ describe('../src/compartment.js', () => {
       h('section', null, props.children),
     );
     renderConfined(
-      <Confined>
-        <span class="first">FIRST</span>
-      </Confined>,
+      h(
+        Confined,
+        null,
+        h(
+          'span',
+          {
+            class: 'first',
+          },
+          'FIRST',
+        ),
+      ),
       scratch,
     );
     expect(scratch.querySelector('.first')).to.exist;
     unmount(scratch);
     scratch = setupScratch();
     renderConfined(
-      <Confined>
-        <span class="second">SECOND</span>
-      </Confined>,
+      h(
+        Confined,
+        null,
+        h(
+          'span',
+          {
+            class: 'second',
+          },
+          'SECOND',
+        ),
+      ),
       scratch,
     );
     expect(scratch.querySelector('.first')).to.equal(null);
@@ -614,17 +747,37 @@ describe('../src/compartment.js', () => {
       h('section', null, props.children),
     );
     renderConfined(
-      <Confined key="x">
-        <div ref={hostRef}>persistent</div>
-      </Confined>,
+      h(
+        Confined,
+        {
+          key: 'x',
+        },
+        h(
+          'div',
+          {
+            ref: hostRef,
+          },
+          'persistent',
+        ),
+      ),
       scratch,
     );
     const firstEl = refHistory[refHistory.length - 1];
     // re-render with the same children
     renderConfined(
-      <Confined key="x">
-        <div ref={hostRef}>persistent</div>
-      </Confined>,
+      h(
+        Confined,
+        {
+          key: 'x',
+        },
+        h(
+          'div',
+          {
+            ref: hostRef,
+          },
+          'persistent',
+        ),
+      ),
       scratch,
     );
     const lastEl = refHistory[refHistory.length - 1];
@@ -643,7 +796,12 @@ describe('../src/compartment.js', () => {
       };
       return h('div', { ref: stealRef, class: 'attacker' }, 'x');
     });
-    renderConfined(<Confined hi="there" />, scratch);
+    renderConfined(
+      h(Confined, {
+        hi: 'there',
+      }),
+      scratch,
+    );
     expect(seen.frozen).to.equal(true);
     // The host's props sent through the wrapper do NOT include a ref
     // even if the host hadn't passed one — the field is just absent.
@@ -674,7 +832,7 @@ describe('../src/compartment.js', () => {
       FakeExit._isSecureExit = true;
       return h(FakeExit, null);
     });
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     // FakeExit was rejected by coerceType (replaced with Fragment),
     // so its body never ran. Even if it had, the renderer's identity
     // gate on `trustedExitTypes` would refuse the bracket.
@@ -696,7 +854,7 @@ describe('../src/compartment.js', () => {
       );
     });
     window.__SCRIPT_RAN = undefined;
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(window.__SCRIPT_RAN).to.equal(undefined);
     expect(scratch.querySelector('script')).to.equal(null);
   });
@@ -721,7 +879,7 @@ describe('../src/compartment.js', () => {
         children: 'x',
       },
     }));
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     expect(stolen).to.equal(undefined);
     expect(scratch.querySelector('div').textContent).to.equal('x');
   });
@@ -739,9 +897,17 @@ describe('../src/compartment.js', () => {
       return null;
     });
     renderConfined(
-      <grabber>
-        <div class="secret-from-A">SECRET-A</div>
-      </grabber>,
+      h(
+        'grabber',
+        null,
+        h(
+          'div',
+          {
+            class: 'secret-from-A',
+          },
+          'SECRET-A',
+        ),
+      ),
       scratch,
     );
 
@@ -751,7 +917,7 @@ describe('../src/compartment.js', () => {
     const attacker = confineComponent((endowments, _props) =>
       endowments.h(stashedOpaque, { _slot: stashedSlot }),
     );
-    renderConfined(<attacker />, scratch);
+    renderConfined(h('attacker', null), scratch);
     // The OLD slot map was cleared on diffed(grabber); the new map
     // (for the attacker confined) has no entry for stashedSlot.
     expect(scratch.querySelector('.secret-from-A')).to.equal(null);
@@ -769,12 +935,7 @@ describe('../src/compartment.js', () => {
       openOpaqueChild = props.children[0].type;
       return h('span', null, 'visible');
     });
-    renderConfined(
-      <Confined>
-        <span>host</span>
-      </Confined>,
-      scratch,
-    );
+    renderConfined(h(Confined, null, h('span', null, 'host')), scratch);
     // Call OpaqueChild manually with a non-matching slot so we get
     // the slot-miss path. We must NOT see a HostPassthrough-typed vnode
     // in its output.
@@ -802,12 +963,7 @@ describe('../src/compartment.js', () => {
         h('a', { href: 'javascript:alert(1)' }, 'evil-link'),
       ),
     );
-    renderConfined(
-      <HostPassthrough>
-        <Attacker />
-      </HostPassthrough>,
-      scratch,
-    );
+    renderConfined(h(HostPassthrough, null, h(Attacker, null)), scratch);
     // <script> replaced with Fragment; its source rendered as text only.
     expect(scratch.querySelector('script')).to.equal(null);
     expect(window.__pwned_in_exit).to.equal(undefined);
@@ -829,12 +985,7 @@ describe('../src/compartment.js', () => {
         'go',
       ),
     );
-    renderConfined(
-      <HostPassthrough>
-        <Attacker />
-      </HostPassthrough>,
-      scratch,
-    );
+    renderConfined(h(HostPassthrough, null, h(Attacker, null)), scratch);
     scratch.querySelector('button').click();
     expect(captured).to.exist;
     expect(captured instanceof Event).to.equal(false);
@@ -853,7 +1004,7 @@ describe('../src/compartment.js', () => {
       if (n < 3) setN(n + 1);
       return h('div', null, `n=${n}`);
     });
-    renderConfined(<Attacker />, scratch);
+    renderConfined(h(Attacker, null), scratch);
 
     // Probe: after the attacker's setState-in-render storm, a plain
     // preact.render into a separate container with a ref must STILL
@@ -862,7 +1013,16 @@ describe('../src/compartment.js', () => {
     teardown(scratch);
     scratch = setupScratch();
     const ref = createRef();
-    render(<div ref={ref}>x</div>, scratch);
+    render(
+      h(
+        'div',
+        {
+          ref,
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(ref.current).to.be.instanceof(Element);
   });
 
@@ -882,7 +1042,7 @@ describe('../src/compartment.js', () => {
         oNERROR: 'window.__pwned_case = 3;',
       }),
     );
-    renderConfined(<Attacker />, scratch);
+    renderConfined(h(Attacker, null), scratch);
     const img = scratch.querySelector('img');
     expect(img.hasAttribute('onerror')).to.equal(false);
     expect(img.hasAttribute('onload')).to.equal(false);
@@ -906,7 +1066,7 @@ describe('../src/compartment.js', () => {
         h('a', { Href: 'javascript:window.__pwned_url=2' }, 'evil2'),
       ),
     );
-    renderConfined(<Attacker />, scratch);
+    renderConfined(h(Attacker, null), scratch);
     const anchors = scratch.querySelectorAll('a');
     for (const a of anchors) {
       // No case-variant href attribute survived.
@@ -938,9 +1098,17 @@ describe('../src/compartment.js', () => {
     // leakage. The vnode has `type === 'span'` — if the attacker
     // got it, `leaked.type === 'span'`.
     renderConfined(
-      <Attacker>
-        <span class="hostsecret">SECRET</span>
-      </Attacker>,
+      h(
+        Attacker,
+        null,
+        h(
+          'span',
+          {
+            class: 'hostsecret',
+          },
+          'SECRET',
+        ),
+      ),
       scratch,
     );
     expect(leaked).to.equal(null);
@@ -982,8 +1150,7 @@ describe('../src/compartment.js', () => {
       }
 
       render(props, state) {
-        if (state.err)
-          return createElement('span', { class: 'caught' }, state.err);
+        if (state.err) return h('span', { class: 'caught' }, state.err);
         return props.children;
       }
     }
@@ -994,13 +1161,19 @@ describe('../src/compartment.js', () => {
     // HostBoundary is host code (outside the confined subtree).
     // It catches the throw from BoomChild that bubbles up out of
     // the Confined render.
-    renderConfined(
-      createElement(HostBoundary, null, createElement(Boomer, null)),
-      scratch,
-    );
+    renderConfined(h(HostBoundary, null, h(Boomer, null)), scratch);
     // Followup host render in the same scratch — must NOT have
     // inherited any stale depth/exit state from the throw above.
-    renderConfined(<div class="after">ok</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          class: 'after',
+        },
+        'ok',
+      ),
+      scratch,
+    );
     expect(scratch.querySelector('.after').textContent).to.equal('ok');
   });
 
@@ -1015,8 +1188,6 @@ describe('../src/compartment.js', () => {
     const Confined = confineComponent(({ h }) => h('div', null, 'x'));
     // Plain preact render (no renderConfined). The Confined's render
     // function should detect this and throw.
-    expect(() => render(createElement(Confined, null), scratch)).to.throw(
-      /renderConfined/,
-    );
+    expect(() => render(h(Confined, null), scratch)).to.throw(/renderConfined/);
   });
 });

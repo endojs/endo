@@ -1,10 +1,8 @@
-import { createElement } from 'preact';
+import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { setupRerender } from 'preact/test-utils';
 import { renderConfined, unmount } from '../src/renderer.js';
 import { setupScratch, teardown } from './_util/helpers.js';
-
-/** @jsx createElement */
 
 /**
  * Smoke tests for the everyday event-handler patterns component code
@@ -40,18 +38,17 @@ describe('preact/secure: common event handlers', () => {
     const seen = [];
     function Form() {
       const [name, setName] = useState('');
-      return (
-        <input
-          type="text"
-          value={name}
-          onInput={e => {
-            seen.push(e.target.value);
-            setName(e.target.value);
-          }}
-        />
-      );
+      return h('input', {
+        type: 'text',
+        value: name,
+
+        onInput: e => {
+          seen.push(e.target.value);
+          setName(e.target.value);
+        },
+      });
     }
-    renderConfined(<Form />, scratch);
+    renderConfined(h(Form, null), scratch);
     const input = scratch.querySelector('input');
 
     input.value = 'a';
@@ -71,21 +68,22 @@ describe('preact/secure: common event handlers', () => {
     let lastChecked;
     function Toggle() {
       const [on, setOn] = useState(false);
-      return (
-        <label>
-          <input
-            type="checkbox"
-            checked={on}
-            onChange={e => {
-              lastChecked = e.target.checked;
-              setOn(e.target.checked);
-            }}
-          />
-          {on ? 'on' : 'off'}
-        </label>
+      return h(
+        'label',
+        null,
+        h('input', {
+          type: 'checkbox',
+          checked: on,
+
+          onChange: e => {
+            lastChecked = e.target.checked;
+            setOn(e.target.checked);
+          },
+        }),
+        on ? 'on' : 'off',
       );
     }
-    renderConfined(<Toggle />, scratch);
+    renderConfined(h(Toggle, null), scratch);
     const cb = scratch.querySelector('input');
 
     cb.checked = true;
@@ -109,42 +107,48 @@ describe('preact/secure: common event handlers', () => {
         picks.push(e.target.value);
         setColor(e.target.value);
       };
-      return (
-        <form>
-          <label>
-            <input
-              type="radio"
-              name="color"
-              value="red"
-              checked={color === 'red'}
-              onChange={onPick}
-            />
-            red
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="color"
-              value="green"
-              checked={color === 'green'}
-              onChange={onPick}
-            />
-            green
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="color"
-              value="blue"
-              checked={color === 'blue'}
-              onChange={onPick}
-            />
-            blue
-          </label>
-        </form>
+      return h(
+        'form',
+        null,
+        h(
+          'label',
+          null,
+          h('input', {
+            type: 'radio',
+            name: 'color',
+            value: 'red',
+            checked: color === 'red',
+            onChange: onPick,
+          }),
+          'red',
+        ),
+        h(
+          'label',
+          null,
+          h('input', {
+            type: 'radio',
+            name: 'color',
+            value: 'green',
+            checked: color === 'green',
+            onChange: onPick,
+          }),
+          'green',
+        ),
+        h(
+          'label',
+          null,
+          h('input', {
+            type: 'radio',
+            name: 'color',
+            value: 'blue',
+            checked: color === 'blue',
+            onChange: onPick,
+          }),
+          'blue',
+        ),
       );
     }
-    renderConfined(<Group />, scratch);
+    renderConfined(h(Group, null), scratch);
     const inputs = scratch.querySelectorAll('input[type=radio]');
     inputs[1].checked = true;
     fire(inputs[1], 'change');
@@ -160,22 +164,41 @@ describe('preact/secure: common event handlers', () => {
     let lastIndex;
     function Picker() {
       const [v, setV] = useState('a');
-      return (
-        <select
-          value={v}
-          onChange={e => {
+      return h(
+        'select',
+        {
+          value: v,
+
+          onChange: e => {
             lastValue = e.target.value;
             lastIndex = e.target.selectedIndex;
             setV(e.target.value);
-          }}
-        >
-          <option value="a">A</option>
-          <option value="b">B</option>
-          <option value="c">C</option>
-        </select>
+          },
+        },
+        h(
+          'option',
+          {
+            value: 'a',
+          },
+          'A',
+        ),
+        h(
+          'option',
+          {
+            value: 'b',
+          },
+          'B',
+        ),
+        h(
+          'option',
+          {
+            value: 'c',
+          },
+          'C',
+        ),
       );
     }
-    renderConfined(<Picker />, scratch);
+    renderConfined(h(Picker, null), scratch);
     const select = scratch.querySelector('select');
 
     select.value = 'c';
@@ -190,17 +213,16 @@ describe('preact/secure: common event handlers', () => {
     let last;
     function Notes() {
       const [text, setText] = useState('');
-      return (
-        <textarea
-          value={text}
-          onInput={e => {
-            last = e.target.value;
-            setText(e.target.value);
-          }}
-        />
-      );
+      return h('textarea', {
+        value: text,
+
+        onInput: e => {
+          last = e.target.value;
+          setText(e.target.value);
+        },
+      });
     }
-    renderConfined(<Notes />, scratch);
+    renderConfined(h(Notes, null), scratch);
     const ta = scratch.querySelector('textarea');
     ta.value = 'hello world';
     fire(ta, 'input');
@@ -212,23 +234,22 @@ describe('preact/secure: common event handlers', () => {
   it('keyboard handlers see e.key, e.code, and modifier flags', () => {
     const events = [];
     function KeyBox() {
-      return (
-        <input
-          type="text"
-          onKeyDown={e => {
-            events.push({
-              key: e.key,
-              code: e.code,
-              shift: e.shiftKey,
-              ctrl: e.ctrlKey,
-              alt: e.altKey,
-              meta: e.metaKey,
-            });
-          }}
-        />
-      );
+      return h('input', {
+        type: 'text',
+
+        onKeyDown: e => {
+          events.push({
+            key: e.key,
+            code: e.code,
+            shift: e.shiftKey,
+            ctrl: e.ctrlKey,
+            alt: e.altKey,
+            meta: e.metaKey,
+          });
+        },
+      });
     }
-    renderConfined(<KeyBox />, scratch);
+    renderConfined(h(KeyBox, null), scratch);
     const input = scratch.querySelector('input');
 
     input.dispatchEvent(
@@ -278,18 +299,26 @@ describe('preact/secure: common event handlers', () => {
         e.preventDefault();
         submittedAs = name;
       };
-      return (
-        <form onSubmit={onSubmit}>
-          <input
-            type="text"
-            value={name}
-            onInput={e => setName(e.target.value)}
-          />
-          <button type="submit">go</button>
-        </form>
+      return h(
+        'form',
+        {
+          onSubmit,
+        },
+        h('input', {
+          type: 'text',
+          value: name,
+          onInput: e => setName(e.target.value),
+        }),
+        h(
+          'button',
+          {
+            type: 'submit',
+          },
+          'go',
+        ),
       );
     }
-    renderConfined(<NameForm />, scratch);
+    renderConfined(h(NameForm, null), scratch);
     const input = scratch.querySelector('input');
     input.value = 'Ada';
     fire(input, 'input');
@@ -308,17 +337,17 @@ describe('preact/secure: common event handlers', () => {
   it('button click handler can update state and re-renders the tree', () => {
     function Counter() {
       const [n, setN] = useState(0);
-      return (
-        <button
-          onClick={() => {
+      return h(
+        'button',
+        {
+          onClick: () => {
             setN(prev => prev + 1);
-          }}
-        >
-          {n}
-        </button>
+          },
+        },
+        n,
       );
     }
-    renderConfined(<Counter />, scratch);
+    renderConfined(h(Counter, null), scratch);
     const btn = scratch.querySelector('button');
     expect(btn.textContent).to.equal('0');
     btn.click();
@@ -333,22 +362,22 @@ describe('preact/secure: common event handlers', () => {
   it('mouse events expose coordinates and button without the DOM', () => {
     let last;
     function Surface() {
-      return (
-        <div
-          onClick={e => {
+      return h(
+        'div',
+        {
+          onClick: e => {
             last = {
               x: e.clientX,
               y: e.clientY,
               button: e.button,
               hasTarget: e.target instanceof Element,
             };
-          }}
-        >
-          hit me
-        </div>
+          },
+        },
+        'hit me',
       );
     }
-    renderConfined(<Surface />, scratch);
+    renderConfined(h(Surface, null), scratch);
     scratch.querySelector('div').dispatchEvent(
       new MouseEvent('click', {
         bubbles: true,
@@ -369,15 +398,13 @@ describe('preact/secure: common event handlers', () => {
   it('focus and blur events fire and report type', () => {
     const seen = [];
     function Field() {
-      return (
-        <input
-          type="text"
-          onFocus={e => seen.push(e.type)}
-          onBlur={e => seen.push(e.type)}
-        />
-      );
+      return h('input', {
+        type: 'text',
+        onFocus: e => seen.push(e.type),
+        onBlur: e => seen.push(e.type),
+      });
     }
-    renderConfined(<Field />, scratch);
+    renderConfined(h(Field, null), scratch);
     const input = scratch.querySelector('input');
     fire(input, 'focus');
     fire(input, 'blur');
@@ -387,18 +414,22 @@ describe('preact/secure: common event handlers', () => {
   it('multiple handlers on the same element each receive their own SafeEvent', () => {
     const tags = [];
     function Box() {
-      return (
-        <div
-          onClick={e => tags.push(['outer', e.target.tagName])}
-          onMouseDown={e => tags.push(['mousedown', e.type])}
-        >
-          <button onClick={e => tags.push(['inner', e.target.tagName])}>
-            x
-          </button>
-        </div>
+      return h(
+        'div',
+        {
+          onClick: e => tags.push(['outer', e.target.tagName]),
+          onMouseDown: e => tags.push(['mousedown', e.type]),
+        },
+        h(
+          'button',
+          {
+            onClick: e => tags.push(['inner', e.target.tagName]),
+          },
+          'x',
+        ),
       );
     }
-    renderConfined(<Box />, scratch);
+    renderConfined(h(Box, null), scratch);
     const btn = scratch.querySelector('button');
     fire(btn, 'mousedown');
     btn.click();
@@ -413,20 +444,24 @@ describe('preact/secure: common event handlers', () => {
   it('stopPropagation on a child handler keeps a parent handler from firing', () => {
     const seen = [];
     function App() {
-      return (
-        <div onClick={() => seen.push('outer')}>
-          <button
-            onClick={e => {
+      return h(
+        'div',
+        {
+          onClick: () => seen.push('outer'),
+        },
+        h(
+          'button',
+          {
+            onClick: e => {
               e.stopPropagation();
               seen.push('inner');
-            }}
-          >
-            x
-          </button>
-        </div>
+            },
+          },
+          'x',
+        ),
       );
     }
-    renderConfined(<App />, scratch);
+    renderConfined(h(App, null), scratch);
     scratch.querySelector('button').click();
     expect(seen).to.deep.equal(['inner']);
   });
@@ -435,15 +470,13 @@ describe('preact/secure: common event handlers', () => {
     const inputCalls = [];
     const changeCalls = [];
     function Field() {
-      return (
-        <input
-          type="text"
-          onInput={e => inputCalls.push(e.target.value)}
-          onChange={e => changeCalls.push(e.target.value)}
-        />
-      );
+      return h('input', {
+        type: 'text',
+        onInput: e => inputCalls.push(e.target.value),
+        onChange: e => changeCalls.push(e.target.value),
+      });
     }
-    renderConfined(<Field />, scratch);
+    renderConfined(h(Field, null), scratch);
     const input = scratch.querySelector('input');
 
     input.value = 'h';

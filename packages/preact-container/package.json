@@ -83,7 +83,7 @@
     "overrides": [
       {
         "files": [
-          "test/**/*.{js,jsx}",
+          "test/**/*.js",
           "vitest.config.mjs"
         ],
         "env": {
@@ -109,7 +109,8 @@
           "no-restricted-globals": "off",
           "max-classes-per-file": "off",
           "class-methods-use-this": "off",
-          "import/no-extraneous-dependencies": "off"
+          "import/no-extraneous-dependencies": "off",
+          "no-shadow": "off"
         }
       }
     ]

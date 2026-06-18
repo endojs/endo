@@ -1,8 +1,6 @@
-import { createElement, render } from 'preact';
+import { h, render } from 'preact';
 import { confineComponent } from '../src/compartment.js';
 import { setupScratch, teardown } from './_util/helpers.js';
-
-/** @jsx createElement */
 
 // This file deliberately NEVER calls `renderConfined` before its
 // assertions, so the `preact/secure` module is "cold" (its option
@@ -42,9 +40,7 @@ describe('preact/compartment cold-module fail-fast', () => {
     const Confined = confineComponent(({ h }) =>
       h('a', { href: 'javascript:alert(1)' }, 'click'),
     );
-    expect(() => render(createElement(Confined, null), scratch)).to.throw(
-      /renderConfined/,
-    );
+    expect(() => render(h(Confined, null), scratch)).to.throw(/renderConfined/);
     // Nothing leaked to the DOM.
     expect(scratch.querySelector('a')).to.equal(null);
   });
@@ -58,9 +54,7 @@ describe('preact/compartment cold-module fail-fast', () => {
         },
       }),
     );
-    expect(() => render(createElement(Confined, null), scratch)).to.throw(
-      /renderConfined/,
-    );
+    expect(() => render(h(Confined, null), scratch)).to.throw(/renderConfined/);
     expect(window.__COLD_PWNED).to.equal(undefined);
   });
 });

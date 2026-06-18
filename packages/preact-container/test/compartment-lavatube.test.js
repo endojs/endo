@@ -1,10 +1,8 @@
-import { createElement } from 'preact';
+import { h } from 'preact';
 import lavatube from '@lavamoat/lavatube';
 import { renderConfined, unmount } from '../src/renderer.js';
 import { confineComponent } from '../src/compartment.js';
 import { setupScratch, teardown } from './_util/helpers.js';
-
-/** @jsx createElement */
 
 /**
  * lavatube reachability tests for the compartment layer.
@@ -39,7 +37,7 @@ describe('preact/compartment: reachability (lavatube)', () => {
       seenEndowments = endowments;
       return endowments.h('div', null, 'x');
     });
-    renderConfined(<Confined />, scratch);
+    renderConfined(h(Confined, null), scratch);
     const div = scratch.querySelector('div');
     expect(div).to.exist;
 
@@ -59,7 +57,12 @@ describe('preact/compartment: reachability (lavatube)', () => {
       seenProps = props;
       return h('span', null, 'x');
     });
-    renderConfined(<Confined label="visible" />, scratch);
+    renderConfined(
+      h(Confined, {
+        label: 'visible',
+      }),
+      scratch,
+    );
     const span = scratch.querySelector('span');
     expect(lavatube.find(seenProps, span)).to.equal(undefined);
     expect(lavatube.find(seenProps, document)).to.equal(undefined);
@@ -74,8 +77,8 @@ describe('preact/compartment: reachability (lavatube)', () => {
     });
     // Build a host child that is identifiable as a JS object so we can
     // search for it. The host vnode IS what the sentinel must hide.
-    const hostChild = createElement('span', { 'data-marker': 'X' }, 'hi');
-    renderConfined(<Confined>{hostChild}</Confined>, scratch);
+    const hostChild = h('span', { 'data-marker': 'X' }, 'hi');
+    renderConfined(h(Confined, null, hostChild), scratch);
 
     expect(seenSentinel).to.exist;
     // Positive sanity: starting from an object that contains the host

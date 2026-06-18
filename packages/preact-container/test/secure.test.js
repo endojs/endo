@@ -1,10 +1,8 @@
-import { createElement, createRef, render } from 'preact';
+import { h, createRef, render } from 'preact';
 import { useState } from 'preact/hooks';
 import { setupRerender } from 'preact/test-utils';
 import { renderConfined, unmount, HostPassthrough } from '../src/renderer.js';
 import { setupScratch, teardown } from './_util/helpers.js';
-
-/** @jsx createElement */
 
 function fireEvent(node, type, init) {
   const event = new Event(type, { bubbles: true, cancelable: true, ...init });
@@ -30,10 +28,14 @@ describe('../src/renderer.js', () => {
 
   it('renders allowed elements', () => {
     renderConfined(
-      <div class="root">
-        <p>hello</p>
-        <button>ok</button>
-      </div>,
+      h(
+        'div',
+        {
+          class: 'root',
+        },
+        h('p', null, 'hello'),
+        h('button', null, 'ok'),
+      ),
       scratch,
     );
     expect(scratch.firstChild.className).to.equal('root');
@@ -44,7 +46,16 @@ describe('../src/renderer.js', () => {
 
   it('strips refs to DOM elements', () => {
     const ref = createRef();
-    renderConfined(<div ref={ref}>x</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          ref,
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(ref.current).to.equal(null);
   });
 
@@ -53,7 +64,16 @@ describe('../src/renderer.js', () => {
     const cbRef = node => {
       captured = node;
     };
-    renderConfined(<div ref={cbRef}>x</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          ref: cbRef,
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(captured).to.equal('untouched');
   });
 
@@ -62,19 +82,34 @@ describe('../src/renderer.js', () => {
     function Inner(props) {
       // A malicious component tries to forward the ref. The renderer
       // must have already stripped it from props.
-      return <div ref={props.ref}>{props.children}</div>;
+      return h(
+        'div',
+        {
+          ref: props.ref,
+        },
+        props.children,
+      );
     }
     const ref = createRef();
-    renderConfined(<Inner ref={ref}>hi</Inner>, scratch);
+    renderConfined(
+      h(
+        Inner,
+        {
+          ref,
+        },
+        'hi',
+      ),
+      scratch,
+    );
     expect(ref.current).to.equal(null);
     expect(captured).to.equal('untouched');
   });
 
   it('drops dangerouslySetInnerHTML', () => {
     renderConfined(
-      <div
-        dangerouslySetInnerHTML={{ __html: '<img src=x onerror=alert(1)>' }}
-      />,
+      h('div', {
+        dangerouslySetInnerHTML: { __html: '<img src=x onerror=alert(1)>' },
+      }),
       scratch,
     );
     expect(scratch.firstChild.innerHTML).to.equal('');
@@ -89,24 +124,34 @@ describe('../src/renderer.js', () => {
     // `evil.example` while `a.getAttribute('href')` still reads
     // `/safe` — a phishing primitive that survives audit by eye.
     renderConfined(
-      <div>
-        <a
-          id="phish1"
-          href="/safe"
-          hostname="attacker.example"
-          port="6666"
-          username="basicuser"
-          password="basicpw"
-          search="?stolen=1"
-          hash="#stolen"
-          pathname="/elsewhere"
-        >
-          link
-        </a>
-        <a id="phish2" href="https://safe.example/" text="UI-spoofed-text">
-          original
-        </a>
-      </div>,
+      h(
+        'div',
+        null,
+        h(
+          'a',
+          {
+            id: 'phish1',
+            href: '/safe',
+            hostname: 'attacker.example',
+            port: '6666',
+            username: 'basicuser',
+            password: 'basicpw',
+            search: '?stolen=1',
+            hash: '#stolen',
+            pathname: '/elsewhere',
+          },
+          'link',
+        ),
+        h(
+          'a',
+          {
+            id: 'phish2',
+            href: 'https://safe.example/',
+            text: 'UI-spoofed-text',
+          },
+          'original',
+        ),
+      ),
       scratch,
     );
     const a1 = scratch.querySelector('#phish1');
@@ -132,13 +177,32 @@ describe('../src/renderer.js', () => {
     // inline event handlers) into the secure tree.
     window.__PWNED = undefined;
     renderConfined(
-      <div>
-        <div innerHTML='<img src=x onerror="window.__PWNED=1"><b id="HTMLINJ">x</b>'>
-          safe
-        </div>
-        <div outerHTML="<b id='OUTER'>nope</b>">safe</div>
-        <div textContent="INJECTED">child-text</div>
-      </div>,
+      h(
+        'div',
+        null,
+        h(
+          'div',
+          {
+            innerHTML:
+              '<img src=x onerror="window.__PWNED=1"><b id="HTMLINJ">x</b>',
+          },
+          'safe',
+        ),
+        h(
+          'div',
+          {
+            outerHTML: "<b id='OUTER'>nope</b>",
+          },
+          'safe',
+        ),
+        h(
+          'div',
+          {
+            textContent: 'INJECTED',
+          },
+          'child-text',
+        ),
+      ),
       scratch,
     );
     expect(document.getElementById('HTMLINJ')).to.equal(null);
@@ -152,17 +216,22 @@ describe('../src/renderer.js', () => {
     // elements like <iframe> (already blocked), but we strip it on
     // every vnode as a defense-in-depth so it never re-attaches if
     // the allowlist is ever loosened.
-    renderConfined(<div srcdoc="<script>alert(1)</script>">x</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          srcdoc: '<script>alert(1)</script>',
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(scratch.firstChild.hasAttribute('srcdoc')).to.equal(false);
   });
 
   it('drops <script> elements but keeps their children', () => {
     renderConfined(
-      <div>
-        before
-        <script>alert(1)</script>
-        after
-      </div>,
+      h('div', null, 'before', h('script', null, 'alert(1)'), 'after'),
       scratch,
     );
     expect(scratch.firstChild.querySelector('script')).to.equal(null);
@@ -171,15 +240,31 @@ describe('../src/renderer.js', () => {
 
   it('drops <iframe>, <object>, <embed>, <base>, <meta>, <link>, <style>', () => {
     renderConfined(
-      <div>
-        <iframe src="https://evil/" />
-        <object data="https://evil/" />
-        <embed src="https://evil/" />
-        <base href="https://evil/" />
-        <meta httpEquiv="refresh" content="0;url=https://evil/" />
-        <link rel="stylesheet" href="https://evil/" />
-        <style>{'body { display: none }'}</style>
-      </div>,
+      h(
+        'div',
+        null,
+        h('iframe', {
+          src: 'https://evil/',
+        }),
+        h('object', {
+          data: 'https://evil/',
+        }),
+        h('embed', {
+          src: 'https://evil/',
+        }),
+        h('base', {
+          href: 'https://evil/',
+        }),
+        h('meta', {
+          httpEquiv: 'refresh',
+          content: '0;url=https://evil/',
+        }),
+        h('link', {
+          rel: 'stylesheet',
+          href: 'https://evil/',
+        }),
+        h('style', null, 'body { display: none }'),
+      ),
       scratch,
     );
     expect(scratch.querySelector('iframe')).to.equal(null);
@@ -193,11 +278,27 @@ describe('../src/renderer.js', () => {
 
   it('blocks javascript: URLs in href and src', () => {
     renderConfined(
-      <div>
-        <a href="javascript:alert(1)">x</a>
-        <a href={'\x00\tjavascript:alert(1)'}>y</a>
-        <img src="javascript:alert(1)" />
-      </div>,
+      h(
+        'div',
+        null,
+        h(
+          'a',
+          {
+            href: 'javascript:alert(1)',
+          },
+          'x',
+        ),
+        h(
+          'a',
+          {
+            href: '\x00\tjavascript:alert(1)',
+          },
+          'y',
+        ),
+        h('img', {
+          src: 'javascript:alert(1)',
+        }),
+      ),
       scratch,
     );
     const links = scratch.querySelectorAll('a');
@@ -212,11 +313,19 @@ describe('../src/renderer.js', () => {
     // Other data: URLs (html, javascript, etc.) must be dropped even
     // though the leading scheme superficially matches.
     renderConfined(
-      <div>
-        <img src="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==" />
-        <img src="data:application/javascript,alert(1)" />
-        <img src="data:image/png;base64,AAA" />
-      </div>,
+      h(
+        'div',
+        null,
+        h('img', {
+          src: 'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+        }),
+        h('img', {
+          src: 'data:application/javascript,alert(1)',
+        }),
+        h('img', {
+          src: 'data:image/png;base64,AAA',
+        }),
+      ),
       scratch,
     );
     const imgs = scratch.querySelectorAll('img');
@@ -227,13 +336,41 @@ describe('../src/renderer.js', () => {
 
   it('preserves safe URL schemes', () => {
     renderConfined(
-      <div>
-        <a href="https://example.com/">x</a>
-        <a href="/relative">y</a>
-        <a href="#anchor">z</a>
-        <a href="mailto:a@b.c">m</a>
-        <img src="data:image/png;base64,AAA" />
-      </div>,
+      h(
+        'div',
+        null,
+        h(
+          'a',
+          {
+            href: 'https://example.com/',
+          },
+          'x',
+        ),
+        h(
+          'a',
+          {
+            href: '/relative',
+          },
+          'y',
+        ),
+        h(
+          'a',
+          {
+            href: '#anchor',
+          },
+          'z',
+        ),
+        h(
+          'a',
+          {
+            href: 'mailto:a@b.c',
+          },
+          'm',
+        ),
+        h('img', {
+          src: 'data:image/png;base64,AAA',
+        }),
+      ),
       scratch,
     );
     const links = scratch.querySelectorAll('a');
@@ -247,12 +384,30 @@ describe('../src/renderer.js', () => {
   });
 
   it('drops the `is` attribute (custom-elements vector)', () => {
-    renderConfined(<button is="my-element">x</button>, scratch);
+    renderConfined(
+      h(
+        'button',
+        {
+          is: 'my-element',
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(scratch.firstChild.hasAttribute('is')).to.equal(false);
   });
 
   it('rejects non-function event handler values', () => {
-    renderConfined(<div onClick={'alert(1)'}>x</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          onClick: 'alert(1)',
+        },
+        'x',
+      ),
+      scratch,
+    );
     // no listener should have been wired up; clicking must not throw
     scratch.firstChild.click();
   });
@@ -260,17 +415,17 @@ describe('../src/renderer.js', () => {
   it('passes a SafeEvent to handlers (no DOM target)', () => {
     let received;
     function App() {
-      return (
-        <button
-          onClick={e => {
+      return h(
+        'button',
+        {
+          onClick: e => {
             received = e;
-          }}
-        >
-          go
-        </button>
+          },
+        },
+        'go',
       );
     }
-    renderConfined(<App />, scratch);
+    renderConfined(h(App, null), scratch);
     const btn = scratch.querySelector('button');
     btn.click();
 
@@ -294,13 +449,14 @@ describe('../src/renderer.js', () => {
   it('exposes input value/checked snapshots without exposing the input', () => {
     let got;
     renderConfined(
-      <input
-        type="checkbox"
-        defaultChecked
-        onChange={e => {
+      h('input', {
+        type: 'checkbox',
+        defaultChecked: true,
+
+        onChange: e => {
           got = e;
-        }}
-      />,
+        },
+      }),
       scratch,
     );
     const input = scratch.querySelector('input');
@@ -319,19 +475,23 @@ describe('../src/renderer.js', () => {
     // value after a child handler called preventDefault.
     let parentSawDefaultPrevented;
     renderConfined(
-      <div
-        onClick={e => {
-          parentSawDefaultPrevented = e.defaultPrevented;
-        }}
-      >
-        <button
-          onClick={e => {
-            e.preventDefault();
-          }}
-        >
-          go
-        </button>
-      </div>,
+      h(
+        'div',
+        {
+          onClick: e => {
+            parentSawDefaultPrevented = e.defaultPrevented;
+          },
+        },
+        h(
+          'button',
+          {
+            onClick: e => {
+              e.preventDefault();
+            },
+          },
+          'go',
+        ),
+      ),
       scratch,
     );
     scratch.querySelector('button').click();
@@ -341,15 +501,18 @@ describe('../src/renderer.js', () => {
   it('preventDefault on the SafeEvent cancels the underlying event', () => {
     let safeEvent;
     renderConfined(
-      <a
-        href="#do-not-follow"
-        onClick={e => {
-          safeEvent = e;
-          e.preventDefault();
-        }}
-      >
-        x
-      </a>,
+      h(
+        'a',
+        {
+          href: '#do-not-follow',
+
+          onClick: e => {
+            safeEvent = e;
+            e.preventDefault();
+          },
+        },
+        'x',
+      ),
       scratch,
     );
     const event = fireEvent(scratch.querySelector('a'), 'click');
@@ -360,13 +523,15 @@ describe('../src/renderer.js', () => {
   it('SafeEvent is frozen — handlers cannot patch in DOM access', () => {
     let safeEvent;
     renderConfined(
-      <button
-        onClick={e => {
-          safeEvent = e;
-        }}
-      >
-        go
-      </button>,
+      h(
+        'button',
+        {
+          onClick: e => {
+            safeEvent = e;
+          },
+        },
+        'go',
+      ),
       scratch,
     );
     scratch.querySelector('button').click();
@@ -382,21 +547,22 @@ describe('../src/renderer.js', () => {
     const seen = [];
     function App() {
       const [n, setN] = useState(0);
-      return (
-        <button
-          ref={el => {
+      return h(
+        'button',
+        {
+          ref: el => {
             seen.push(['render-ref', el]);
-          }}
-          onClick={e => {
+          },
+
+          onClick: e => {
             seen.push(['click', e]);
             setN(n + 1);
-          }}
-        >
-          {n}
-        </button>
+          },
+        },
+        n,
       );
     }
-    renderConfined(<App />, scratch);
+    renderConfined(h(App, null), scratch);
     scratch.querySelector('button').click();
     // allow rerender to flush
     return Promise.resolve().then(() => {
@@ -416,29 +582,34 @@ describe('../src/renderer.js', () => {
 
   it('does not leave dangerous nodes behind after re-render', () => {
     function App({ flag }) {
-      return flag ? (
-        <div>
-          <script>1</script>
-          <p>visible</p>
-        </div>
-      ) : (
-        <div>
-          <p>visible</p>
-        </div>
-      );
+      return flag
+        ? h('div', null, h('script', null, '1'), h('p', null, 'visible'))
+        : h('div', null, h('p', null, 'visible'));
     }
-    renderConfined(<App flag={true} />, scratch);
-    renderConfined(<App flag={false} />, scratch);
+    renderConfined(
+      h(App, {
+        flag: true,
+      }),
+      scratch,
+    );
+    renderConfined(
+      h(App, {
+        flag: false,
+      }),
+      scratch,
+    );
     expect(scratch.querySelector('script')).to.equal(null);
     expect(scratch.querySelector('p').textContent).to.equal('visible');
   });
 
   it('honors a custom allowedTags list', () => {
     renderConfined(
-      <div>
-        <p>kept-by-default-but-not-here</p>
-        <span>span allowed</span>
-      </div>,
+      h(
+        'div',
+        null,
+        h('p', null, 'kept-by-default-but-not-here'),
+        h('span', null, 'span allowed'),
+      ),
       scratch,
       { allowedTags: ['div', 'span'] },
     );
@@ -462,19 +633,31 @@ describe('../src/renderer.js', () => {
         function App({ flag }) {
           const [n, setN] = useState(0);
           App.bump = () => setN(prev => prev + 1);
-          return (
-            <div>
-              <span class={`span-${n}`}>span</span>
-              <p class={`p-${n}`}>p</p>
-            </div>
+          return h(
+            'div',
+            null,
+            h(
+              'span',
+              {
+                class: `span-${n}`,
+              },
+              'span',
+            ),
+            h(
+              'p',
+              {
+                class: `p-${n}`,
+              },
+              'p',
+            ),
           );
         }
         return App;
       }
       const AppA = MakeApp();
       const AppB = MakeApp();
-      renderConfined(<AppA />, scratch, { allowedTags: ['div', 'span'] });
-      renderConfined(<AppB />, scratchB, { allowedTags: ['div', 'p'] });
+      renderConfined(h(AppA, null), scratch, { allowedTags: ['div', 'span'] });
+      renderConfined(h(AppB, null), scratchB, { allowedTags: ['div', 'p'] });
 
       // A: span allowed, p replaced by Fragment (text-only).
       expect(scratch.querySelector('span')).to.exist;
@@ -502,12 +685,28 @@ describe('../src/renderer.js', () => {
     // valid: the host opts a sub-tree out of sanitization. Refs work.
     const ref = createRef();
     renderConfined(
-      <div>
-        <HostPassthrough>
-          <div ref={ref}>trusted</div>
-        </HostPassthrough>
-        <span class="outside">also</span>
-      </div>,
+      h(
+        'div',
+        null,
+        h(
+          HostPassthrough,
+          null,
+          h(
+            'div',
+            {
+              ref,
+            },
+            'trusted',
+          ),
+        ),
+        h(
+          'span',
+          {
+            class: 'outside',
+          },
+          'also',
+        ),
+      ),
       scratch,
     );
     expect(ref.current).to.be.instanceof(Element);
@@ -525,7 +724,7 @@ describe('../src/renderer.js', () => {
       throw new Error('boom');
     }
     try {
-      renderConfined(<Boom />, scratch);
+      renderConfined(h(Boom, null), scratch);
     } catch (_) {
       // expected — no error boundary
     }
@@ -539,7 +738,16 @@ describe('../src/renderer.js', () => {
     // would strip the ref below.
     const ref = createRef();
     // Use plain preact render to bypass renderConfined's own walk.
-    render(<div ref={ref}>x</div>, scratch);
+    render(
+      h(
+        'div',
+        {
+          ref,
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(ref.current).to.be.instanceof(Element);
   });
 
@@ -553,11 +761,7 @@ describe('../src/renderer.js', () => {
     }
     try {
       renderConfined(
-        <div>
-          <HostPassthrough>
-            <BoomInExit />
-          </HostPassthrough>
-        </div>,
+        h('div', null, h(HostPassthrough, null, h(BoomInExit, null))),
         scratch,
       );
     } catch (_) {
@@ -571,7 +775,16 @@ describe('../src/renderer.js', () => {
     // usual. If trustedExitDepth were stuck at 1, the ref below
     // would attach.
     const ref = createRef();
-    renderConfined(<div ref={ref}>x</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          ref,
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(ref.current).to.equal(null);
   });
 
@@ -581,16 +794,18 @@ describe('../src/renderer.js', () => {
 
   it('passes through allowlisted attrs (class, id, title, role, tabindex, style)', () => {
     renderConfined(
-      <div
-        id="root"
-        class="hello"
-        title="t"
-        role="region"
-        tabindex="0"
-        style="color: red"
-      >
-        x
-      </div>,
+      h(
+        'div',
+        {
+          id: 'root',
+          class: 'hello',
+          title: 't',
+          role: 'region',
+          tabindex: '0',
+          style: 'color: red',
+        },
+        'x',
+      ),
       scratch,
     );
     const d = scratch.firstChild;
@@ -605,9 +820,16 @@ describe('../src/renderer.js', () => {
 
   it('passes through aria-* and data-* with arbitrary suffixes', () => {
     renderConfined(
-      <div aria-label="hi" aria-describedby="d" data-foo="1" data-deep-bar="2">
-        x
-      </div>,
+      h(
+        'div',
+        {
+          'aria-label': 'hi',
+          'aria-describedby': 'd',
+          'data-foo': '1',
+          'data-deep-bar': '2',
+        },
+        'x',
+      ),
       scratch,
     );
     const d = scratch.firstChild;
@@ -622,7 +844,16 @@ describe('../src/renderer.js', () => {
     // have been passed straight through to setAttribute (no entry
     // in BLOCKED_PROPS, no live setter on Element). Under the
     // allowlist it must be dropped.
-    renderConfined(<div xyzzy="surprise">x</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          xyzzy: 'surprise',
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(scratch.firstChild.hasAttribute('xyzzy')).to.equal(false);
   });
 
@@ -632,7 +863,12 @@ describe('../src/renderer.js', () => {
     // could inject extra fields into a host-owned form's
     // submission. Intentionally OFF the default allowlist.
     renderConfined(
-      <input type="hidden" name="csrf" value="evil" form="host-form" />,
+      h('input', {
+        type: 'hidden',
+        name: 'csrf',
+        value: 'evil',
+        form: 'host-form',
+      }),
       scratch,
     );
     expect(scratch.firstChild.hasAttribute('form')).to.equal(false);
@@ -643,7 +879,16 @@ describe('../src/renderer.js', () => {
     // and execute. <script>/<style> are tag-blocked already, but
     // even a div carrying a `nonce` is suspect — and the allowlist
     // does not include it by default.
-    renderConfined(<div nonce="abc">x</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          nonce: 'abc',
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(scratch.firstChild.hasAttribute('nonce')).to.equal(false);
   });
 
@@ -653,9 +898,14 @@ describe('../src/renderer.js', () => {
     // because it's not on the allowlist. Locks in the
     // allow-by-default contract.
     renderConfined(
-      <div evilOnLoad="run()" futureSrc="...">
-        x
-      </div>,
+      h(
+        'div',
+        {
+          evilOnLoad: 'run()',
+          futureSrc: '...',
+        },
+        'x',
+      ),
       scratch,
     );
     expect(scratch.firstChild.hasAttribute('evilOnLoad')).to.equal(false);
@@ -666,9 +916,15 @@ describe('../src/renderer.js', () => {
     // Hosts can opt extra attrs in per-tree. The defaults still
     // apply (additive semantics) — `class` keeps working.
     renderConfined(
-      <div class="kept" xyzzy="now-ok" xyzzyAlt="dropped">
-        x
-      </div>,
+      h(
+        'div',
+        {
+          class: 'kept',
+          xyzzy: 'now-ok',
+          xyzzyAlt: 'dropped',
+        },
+        'x',
+      ),
       scratch,
       { allowedAttrs: ['xyzzy'] },
     );
@@ -681,10 +937,29 @@ describe('../src/renderer.js', () => {
   it('extends are scoped per-tree (do not leak into a sibling renderConfined)', () => {
     const scratchB = setupScratch('scratch-B-attrs');
     try {
-      renderConfined(<div xyzzy="A">a</div>, scratch, {
-        allowedAttrs: ['xyzzy'],
-      });
-      renderConfined(<div xyzzy="B">b</div>, scratchB);
+      renderConfined(
+        h(
+          'div',
+          {
+            xyzzy: 'A',
+          },
+          'a',
+        ),
+        scratch,
+        {
+          allowedAttrs: ['xyzzy'],
+        },
+      );
+      renderConfined(
+        h(
+          'div',
+          {
+            xyzzy: 'B',
+          },
+          'b',
+        ),
+        scratchB,
+      );
       // Tree A opted-in: kept.
       expect(scratch.firstChild.getAttribute('xyzzy')).to.equal('A');
       // Tree B has the default set only: dropped.
@@ -699,7 +974,16 @@ describe('../src/renderer.js', () => {
     // Allowlist admits the prop NAME; URL_ATTRS still gates the
     // VALUE. javascript: must be blocked even though `href` is on
     // the allowlist.
-    renderConfined(<a href="javascript:alert(1)">x</a>, scratch);
+    renderConfined(
+      h(
+        'a',
+        {
+          href: 'javascript:alert(1)',
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(scratch.firstChild.hasAttribute('href')).to.equal(false);
   });
 
@@ -707,7 +991,16 @@ describe('../src/renderer.js', () => {
     // `tabIndex` (camelCase) lowercases to `tabindex` which IS on
     // the allowlist — should pass through. The case-insensitive
     // lookup means hosts using either convention work.
-    renderConfined(<div tabIndex={2}>x</div>, scratch);
+    renderConfined(
+      h(
+        'div',
+        {
+          tabIndex: 2,
+        },
+        'x',
+      ),
+      scratch,
+    );
     expect(scratch.firstChild.getAttribute('tabindex')).to.equal('2');
   });
 
@@ -754,7 +1047,7 @@ describe('../src/renderer.js', () => {
         __html:
           '<img src=x onerror="window.__PROTO_PWNED_DSI=1"><b id="PROTO_DSI_INJ">x</b>',
       };
-      renderConfined(<div>safe</div>, scratch);
+      renderConfined(h('div', null, 'safe'), scratch);
       expect(document.getElementById('PROTO_DSI_INJ')).to.equal(null);
       expect(window.__PROTO_PWNED_DSI).to.equal(undefined);
     });
@@ -762,7 +1055,7 @@ describe('../src/renderer.js', () => {
     it('blocks polluted `innerHTML` from reaching the DOM', () => {
       // eslint-disable-next-line no-extend-native
       Object.prototype.innerHTML = '<b id="PROTO_INNER_INJ">x</b>';
-      renderConfined(<div>safe</div>, scratch);
+      renderConfined(h('div', null, 'safe'), scratch);
       expect(document.getElementById('PROTO_INNER_INJ')).to.equal(null);
     });
 
@@ -777,7 +1070,12 @@ describe('../src/renderer.js', () => {
       // eslint-disable-next-line no-extend-native
       Object.prototype.src = 'javascript:window.__PROTO_PWNED_SRC=1';
       window.__PROTO_PWNED_SRC = undefined;
-      renderConfined(<img alt="x" />, scratch);
+      renderConfined(
+        h('img', {
+          alt: 'x',
+        }),
+        scratch,
+      );
       // What ended up on the element must not be the polluted
       // attacker URL.
       const finalSrc = scratch.firstChild.getAttribute('src') || '';
@@ -813,10 +1111,18 @@ describe('../src/renderer.js', () => {
       // rather than the getter aborting the whole tree.
       expect(() =>
         renderConfined(
-          <div>
-            <span id="CHILDREN_GETTER_SURVIVES">ok</span>
-            {hostileVNode}
-          </div>,
+          h(
+            'div',
+            null,
+            h(
+              'span',
+              {
+                id: 'CHILDREN_GETTER_SURVIVES',
+              },
+              'ok',
+            ),
+            hostileVNode,
+          ),
           scratch,
         ),
       ).to.not.throw();
@@ -832,8 +1138,8 @@ describe('../src/renderer.js', () => {
       // also iterates `for...in`; if the previous render's
       // resulting props bag inherited from Object.prototype, the
       // second render's diff would still pick up `innerHTML`.
-      renderConfined(<div>safe1</div>, scratch);
-      renderConfined(<div>safe2</div>, scratch);
+      renderConfined(h('div', null, 'safe1'), scratch);
+      renderConfined(h('div', null, 'safe2'), scratch);
       expect(document.getElementById('PROTO_NULL_TEST')).to.equal(null);
     });
   });
@@ -852,9 +1158,14 @@ describe('../src/renderer.js', () => {
       // regex would have admitted it because the leading `/safe`
       // matches.
       renderConfined(
-        <a href="/ok" ping="/safe javascript:alert(1)">
-          click
-        </a>,
+        h(
+          'a',
+          {
+            href: '/ok',
+            ping: '/safe javascript:alert(1)',
+          },
+          'click',
+        ),
         scratch,
       );
       expect(scratch.firstChild.hasAttribute('ping')).to.equal(false);
@@ -862,9 +1173,14 @@ describe('../src/renderer.js', () => {
 
     it('keeps `ping` when every URL passes', () => {
       renderConfined(
-        <a href="/ok" ping="/a /b https://example.com/c">
-          click
-        </a>,
+        h(
+          'a',
+          {
+            href: '/ok',
+            ping: '/a /b https://example.com/c',
+          },
+          'click',
+        ),
         scratch,
       );
       expect(scratch.firstChild.getAttribute('ping')).to.equal(
@@ -874,7 +1190,10 @@ describe('../src/renderer.js', () => {
 
     it('drops `srcset` when ANY candidate URL fails the scheme gate', () => {
       renderConfined(
-        <img alt="" srcset="/safe.png 1x, javascript:alert(1) 2x" />,
+        h('img', {
+          alt: '',
+          srcset: '/safe.png 1x, javascript:alert(1) 2x',
+        }),
         scratch,
       );
       expect(scratch.firstChild.hasAttribute('srcset')).to.equal(false);
@@ -882,7 +1201,10 @@ describe('../src/renderer.js', () => {
 
     it('keeps `srcset` when every candidate URL passes', () => {
       renderConfined(
-        <img alt="" srcset="/safe.png 1x, https://example.com/x@2x.png 2x" />,
+        h('img', {
+          alt: '',
+          srcset: '/safe.png 1x, https://example.com/x@2x.png 2x',
+        }),
         scratch,
       );
       expect(scratch.firstChild.getAttribute('srcset')).to.equal(
@@ -899,13 +1221,15 @@ describe('../src/renderer.js', () => {
 
     it('throws when allowedAttrs tries to admit `innerhtml`', () => {
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: ['innerhtml'] }),
+        renderConfined(h('div', null, 'x'), scratch, {
+          allowedAttrs: ['innerhtml'],
+        }),
       ).to.throw(/cannot include/);
     });
 
     it('throws when allowedAttrs tries to admit `dangerouslySetInnerHTML`', () => {
       expect(() =>
-        renderConfined(<div>x</div>, scratch, {
+        renderConfined(h('div', null, 'x'), scratch, {
           allowedAttrs: ['dangerouslySetInnerHTML'],
         }),
       ).to.throw(/cannot include/);
@@ -913,53 +1237,75 @@ describe('../src/renderer.js', () => {
 
     it('throws when allowedAttrs tries to admit `srcdoc`', () => {
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: ['srcdoc'] }),
+        renderConfined(h('div', null, 'x'), scratch, {
+          allowedAttrs: ['srcdoc'],
+        }),
       ).to.throw(/cannot include/);
     });
 
     it('throws when allowedAttrs tries to admit any `on*` form', () => {
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: ['onClick'] }),
+        renderConfined(h('div', null, 'x'), scratch, {
+          allowedAttrs: ['onClick'],
+        }),
       ).to.throw(/cannot include/);
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: ['on'] }),
+        renderConfined(h('div', null, 'x'), scratch, { allowedAttrs: ['on'] }),
       ).to.throw(/cannot include/);
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: ['onevil'] }),
+        renderConfined(h('div', null, 'x'), scratch, {
+          allowedAttrs: ['onevil'],
+        }),
       ).to.throw(/cannot include/);
     });
 
     it('throws when allowedAttrs tries to admit `attributionsrc`/`inert`/`nonce`', () => {
       expect(() =>
-        renderConfined(<div>x</div>, scratch, {
+        renderConfined(h('div', null, 'x'), scratch, {
           allowedAttrs: ['attributionSrc'],
         }),
       ).to.throw(/cannot include/);
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: ['inert'] }),
+        renderConfined(h('div', null, 'x'), scratch, {
+          allowedAttrs: ['inert'],
+        }),
       ).to.throw(/cannot include/);
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: ['nonce'] }),
+        renderConfined(h('div', null, 'x'), scratch, {
+          allowedAttrs: ['nonce'],
+        }),
       ).to.throw(/cannot include/);
     });
 
     it('throws when allowedAttrs tries to admit a hyperlink URL-component setter', () => {
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: ['hostname'] }),
+        renderConfined(h('div', null, 'x'), scratch, {
+          allowedAttrs: ['hostname'],
+        }),
       ).to.throw(/cannot include/);
     });
 
     it('throws when allowedAttrs tries to admit the empty string', () => {
       expect(() =>
-        renderConfined(<div>x</div>, scratch, { allowedAttrs: [''] }),
+        renderConfined(h('div', null, 'x'), scratch, { allowedAttrs: [''] }),
       ).to.throw(/cannot include/);
     });
 
     it('admits a benign extension and renders normally', () => {
       // Sanity check the throw path doesn't fire on safe entries.
-      renderConfined(<div xyzzy="ok">x</div>, scratch, {
-        allowedAttrs: ['xyzzy'],
-      });
+      renderConfined(
+        h(
+          'div',
+          {
+            xyzzy: 'ok',
+          },
+          'x',
+        ),
+        scratch,
+        {
+          allowedAttrs: ['xyzzy'],
+        },
+      );
       expect(scratch.firstChild.getAttribute('xyzzy')).to.equal('ok');
     });
   });
@@ -967,9 +1313,14 @@ describe('../src/renderer.js', () => {
   describe('target / formtarget / download off the default allowlist', () => {
     it('drops `target` by default (browsing-context escape vector)', () => {
       renderConfined(
-        <a href="https://example.com/" target="_top">
-          x
-        </a>,
+        h(
+          'a',
+          {
+            href: 'https://example.com/',
+            target: '_top',
+          },
+          'x',
+        ),
         scratch,
       );
       expect(scratch.firstChild.hasAttribute('target')).to.equal(false);
@@ -977,9 +1328,14 @@ describe('../src/renderer.js', () => {
 
     it('drops `formtarget` by default', () => {
       renderConfined(
-        <button type="submit" formtarget="_top">
-          x
-        </button>,
+        h(
+          'button',
+          {
+            type: 'submit',
+            formtarget: '_top',
+          },
+          'x',
+        ),
         scratch,
       );
       expect(scratch.firstChild.hasAttribute('formtarget')).to.equal(false);
@@ -987,9 +1343,14 @@ describe('../src/renderer.js', () => {
 
     it('drops `download` by default (filename-spoofing phishing vector)', () => {
       renderConfined(
-        <a href="https://example.com/" download="invoice.pdf">
-          x
-        </a>,
+        h(
+          'a',
+          {
+            href: 'https://example.com/',
+            download: 'invoice.pdf',
+          },
+          'x',
+        ),
         scratch,
       );
       expect(scratch.firstChild.hasAttribute('download')).to.equal(false);
@@ -1001,9 +1362,14 @@ describe('../src/renderer.js', () => {
       // forcibly setting `rel="noopener noreferrer"` so
       // `window.opener` cannot be leaked to the new tab.
       renderConfined(
-        <a href="https://example.com/" target="_blank">
-          x
-        </a>,
+        h(
+          'a',
+          {
+            href: 'https://example.com/',
+            target: '_blank',
+          },
+          'x',
+        ),
         scratch,
         { allowedAttrs: ['target'] },
       );
@@ -1017,9 +1383,14 @@ describe('../src/renderer.js', () => {
       // Even when target IS allowlisted, _top / _parent escape an
       // iframe sandbox — we restrict the value set to _self/_blank.
       renderConfined(
-        <a href="https://example.com/" target="_top">
-          x
-        </a>,
+        h(
+          'a',
+          {
+            href: 'https://example.com/',
+            target: '_top',
+          },
+          'x',
+        ),
         scratch,
         { allowedAttrs: ['target'] },
       );
@@ -1028,9 +1399,15 @@ describe('../src/renderer.js', () => {
 
     it('attacker-controlled `rel` cannot override the forced noopener on _blank', () => {
       renderConfined(
-        <a href="https://example.com/" target="_blank" rel="opener evil">
-          x
-        </a>,
+        h(
+          'a',
+          {
+            href: 'https://example.com/',
+            target: '_blank',
+            rel: 'opener evil',
+          },
+          'x',
+        ),
         scratch,
         { allowedAttrs: ['target'] },
       );
@@ -1048,9 +1425,14 @@ describe('../src/renderer.js', () => {
 
     it('drops `attributionSrc` (privacy beacon)', () => {
       renderConfined(
-        <a href="/x" attributionSrc="https://tracker.example/x">
-          x
-        </a>,
+        h(
+          'a',
+          {
+            href: '/x',
+            attributionSrc: 'https://tracker.example/x',
+          },
+          'x',
+        ),
         scratch,
       );
       expect(scratch.firstChild.hasAttribute('attributionSrc')).to.equal(false);
@@ -1058,7 +1440,16 @@ describe('../src/renderer.js', () => {
     });
 
     it('drops `inert` (UI-DoS)', () => {
-      renderConfined(<div inert>x</div>, scratch);
+      renderConfined(
+        h(
+          'div',
+          {
+            inert: true,
+          },
+          'x',
+        ),
+        scratch,
+      );
       expect(scratch.firstChild.hasAttribute('inert')).to.equal(false);
     });
   });
@@ -1086,7 +1477,16 @@ describe('../src/renderer.js', () => {
     it('blocks polluted style key from reaching dom.style', () => {
       // eslint-disable-next-line no-extend-native
       Object.prototype.backgroundImage = 'url(https://attacker.example/exfil)';
-      renderConfined(<div style={{ color: 'red' }}>x</div>, scratch);
+      renderConfined(
+        h(
+          'div',
+          {
+            style: { color: 'red' },
+          },
+          'x',
+        ),
+        scratch,
+      );
       const div = scratch.querySelector('div');
       expect(div.style.color).to.equal('red');
       // Direct inspection of the `style` attribute string — read
@@ -1116,7 +1516,16 @@ describe('../src/renderer.js', () => {
         value: 'blue',
         enumerable: true,
       });
-      renderConfined(<div style={style}>x</div>, scratch);
+      renderConfined(
+        h(
+          'div',
+          {
+            style,
+          },
+          'x',
+        ),
+        scratch,
+      );
       expect(getterCalls).to.equal(0);
       // Read the style attribute string directly so a polluted
       // prototype on another property cannot affect the
@@ -1140,9 +1549,15 @@ describe('../src/renderer.js', () => {
 
     it('forces rel even when attacker provides REL in alternate casing', () => {
       renderConfined(
-        <a href="https://example.com/" target="_blank" REL="opener">
-          x
-        </a>,
+        h(
+          'a',
+          {
+            href: 'https://example.com/',
+            target: '_blank',
+            REL: 'opener',
+          },
+          'x',
+        ),
         scratch,
         { allowedAttrs: ['target'] },
       );
@@ -1162,7 +1577,7 @@ describe('../src/renderer.js', () => {
             target: '_blank',
             [variant]: 'opener',
           };
-          renderConfined(createElement('a', props, 'x'), localScratch, {
+          renderConfined(h('a', props, 'x'), localScratch, {
             allowedAttrs: ['target'],
           });
           expect(localScratch.firstChild.getAttribute('rel')).to.equal(
@@ -1180,9 +1595,15 @@ describe('../src/renderer.js', () => {
       // duplicate-rejection is general — first key admitted, second
       // dropped.
       renderConfined(
-        <div class="first" Class="second" CLASS="third">
-          x
-        </div>,
+        h(
+          'div',
+          {
+            class: 'first',
+            Class: 'second',
+            CLASS: 'third',
+          },
+          'x',
+        ),
         scratch,
       );
       // Only the first-iterated casing should be applied; browser
@@ -1195,7 +1616,7 @@ describe('../src/renderer.js', () => {
       const handler1 = () => clicks++;
       const handler2 = () => (clicks += 100); // would NOT run if dedup works
       renderConfined(
-        createElement('button', { onClick: handler1, onclick: handler2 }, 'go'),
+        h('button', { onClick: handler1, onclick: handler2 }, 'go'),
         scratch,
       );
       scratch.querySelector('button').click();
@@ -1213,7 +1634,10 @@ describe('../src/renderer.js', () => {
 
     it('rejects srcset that contains a data: URL', () => {
       renderConfined(
-        <img alt="x" srcset="data:image/png;base64,AAAA 1x, /safe.png 2x" />,
+        h('img', {
+          alt: 'x',
+          srcset: 'data:image/png;base64,AAAA 1x, /safe.png 2x',
+        }),
         scratch,
       );
       expect(scratch.firstChild.hasAttribute('srcset')).to.equal(false);
@@ -1221,10 +1645,11 @@ describe('../src/renderer.js', () => {
 
     it('still admits ordinary multi-URL srcset', () => {
       renderConfined(
-        <img
-          alt="x"
-          srcset="https://example.com/a.png 1x, https://example.com/a@2x.png 2x"
-        />,
+        h('img', {
+          alt: 'x',
+          srcset:
+            'https://example.com/a.png 1x, https://example.com/a@2x.png 2x',
+        }),
         scratch,
       );
       expect(scratch.firstChild.getAttribute('srcset')).to.equal(
@@ -1241,7 +1666,7 @@ describe('../src/renderer.js', () => {
       // rel-style mitigation works for `<form>` submissions in
       // older browsers — refuse opt-in entirely.
       expect(() =>
-        renderConfined(<div>x</div>, scratch, {
+        renderConfined(h('div', null, 'x'), scratch, {
           allowedAttrs: ['formtarget'],
         }),
       ).to.throw(/cannot include/);
@@ -1268,7 +1693,7 @@ describe('../src/renderer.js', () => {
       // one. The compartment-side test covers the actual
       // `confineComponent` path; this test confirms the throw is
       // general to anything in secureReentryTypes.
-      expect(() => render(createElement(HostBoundary), scratch)).to.not.throw();
+      expect(() => render(h(HostBoundary), scratch)).to.not.throw();
     });
   });
 });

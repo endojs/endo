@@ -1,9 +1,7 @@
-import { createElement } from 'preact';
+import { h } from 'preact';
 import lavatube from '@lavamoat/lavatube';
 import { renderConfined, unmount } from '../src/renderer.js';
 import { setupScratch, teardown } from './_util/helpers.js';
-
-/** @jsx createElement */
 
 /**
  * These tests use @lavamoat/lavatube to walk the object graph reachable
@@ -18,13 +16,15 @@ import { setupScratch, teardown } from './_util/helpers.js';
 function captureFirstHandlerArg(scratch) {
   let captured;
   renderConfined(
-    <button
-      onClick={e => {
-        captured = e;
-      }}
-    >
-      ok
-    </button>,
+    h(
+      'button',
+      {
+        onClick: e => {
+          captured = e;
+        },
+      },
+      'ok',
+    ),
     scratch,
   );
   scratch.querySelector('button').click();
@@ -98,13 +98,15 @@ describe('preact/secure: dom unreachability (lavatube)', () => {
     let safe;
     let raw;
     renderConfined(
-      <button
-        onClick={e => {
-          safe = e;
-        }}
-      >
-        ok
-      </button>,
+      h(
+        'button',
+        {
+          onClick: e => {
+            safe = e;
+          },
+        },
+        'ok',
+      ),
       scratch,
     );
     const button = scratch.querySelector('button');
@@ -122,28 +124,28 @@ describe('preact/secure: dom unreachability (lavatube)', () => {
   it('SafeEvent passed to a deeply nested component still has no DOM path', () => {
     let captured;
     function Inner({ onPing }) {
-      return (
-        <button
-          onClick={e => {
+      return h(
+        'button',
+        {
+          onClick: e => {
             onPing(e);
-          }}
-        >
-          inner
-        </button>
+          },
+        },
+        'inner',
       );
     }
     function Outer() {
-      return (
-        <div>
-          <Inner
-            onPing={e => {
-              captured = e;
-            }}
-          />
-        </div>
+      return h(
+        'div',
+        null,
+        h(Inner, {
+          onPing: e => {
+            captured = e;
+          },
+        }),
       );
     }
-    renderConfined(<Outer />, scratch);
+    renderConfined(h(Outer, null), scratch);
     scratch.querySelector('button').click();
 
     const button = scratch.querySelector('button');
