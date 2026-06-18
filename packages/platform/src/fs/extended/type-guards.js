@@ -164,6 +164,13 @@ export const DirectoryInterface = M.interface(
       M.or(M.string(), M.arrayOf(M.string())),
       M.or(M.string(), M.arrayOf(M.string())),
     ).returns(M.promise()),
+    // Catalog `copy(fromPath, toPath)`: within-tree path-to-path copy
+    // (recursive for directories), matching `@endo/platform/fs`, the
+    // daemon `EndoDirectory`, and the Mount.
+    copy: M.call(
+      M.or(M.string(), M.arrayOf(M.string())),
+      M.or(M.string(), M.arrayOf(M.string())),
+    ).returns(M.promise()),
     fsync: M.call().returns(M.promise()),
     // Walk a path from this directory; for each segment, return the
     // existing Directory or `mkdir(seg)` it. The whole walk dispatches

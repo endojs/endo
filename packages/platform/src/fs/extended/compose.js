@@ -420,6 +420,9 @@ export const emptyFilesystem = () => {
       async move(_fromPath, _toPath) {
         throw reject('move');
       },
+      async copy(_fromPath, _toPath) {
+        throw reject('copy');
+      },
       async rename(_o, _np, _n) {
         throw reject('rename');
       },
@@ -680,6 +683,14 @@ export const bind = (host, mountPath, guest) => {
         // eslint-disable-next-line no-use-before-define
         return movePathToPath(exo, fromPath, toPath);
       },
+      async copy(fromPath, toPath) {
+        const fromSegs = toSegments(fromPath);
+        const toSegs = toSegments(toPath);
+        if (fromSegs[0] === mountPath[pos] || toSegs[0] === mountPath[pos]) {
+          throw makeError(X`EBUSY: cannot copy across a bind mount`);
+        }
+        return E(dir).copy(fromPath, toPath);
+      },
       async rename(oldName, newParent, newName) {
         if (oldName === mountPath[pos] || newName === mountPath[pos]) {
           throw makeError(X`EBUSY: cannot rename across a bind mount`);
@@ -914,6 +925,9 @@ export const namespace = mounts => {
       },
       async move(_fromPath, _toPath) {
         throw makeError(X`ENOSYS: cannot move at namespace root`);
+      },
+      async copy(_fromPath, _toPath) {
+        throw makeError(X`ENOSYS: cannot copy at namespace root`);
       },
       async rename(_o, _np, _n) {
         throw makeError(X`ENOSYS: cannot rename at namespace root`);
@@ -1714,6 +1728,36 @@ export const compose = (layer, backing, _opts = {}) => {
         // Catalog path-to-path move, built on subView + the CoW rename.
         // eslint-disable-next-line no-use-before-define
         return movePathToPath(composedExo, fromPath, toPath);
+      },
+      async copy(fromPath, toPath) {
+        reqDir();
+        const fromSegs = toSegments(fromPath);
+        const toSegs = toSegments(toPath);
+        if (fromSegs.length === 0 || toSegs.length === 0) {
+          throw makeError(X`EINVAL: copy requires non-empty from and to paths`);
+        }
+        // eslint-disable-next-line no-use-before-define
+        const src = await composedExo.lookup(fromSegs);
+        const dstName = toSegs[toSegs.length - 1];
+        const dstParent =
+          toSegs.length === 1
+            ? // eslint-disable-next-line no-use-before-define
+              composedExo
+            : // eslint-disable-next-line no-use-before-define
+              await composedExo.subView(toSegs.slice(0, -1));
+        const srcQid = await E(src).getQid();
+        if (srcQid.type === 'file') {
+          // eslint-disable-next-line no-use-before-define
+          await copyFileTo(src, dstParent, dstName);
+        } else if (srcQid.type === 'directory') {
+          const dstDir = await E(dstParent).materialise([dstName], {});
+          // eslint-disable-next-line no-use-before-define
+          await copyDirInto(src, dstDir);
+        } else {
+          throw makeError(
+            X`ENOSYS: copy of non-file/non-directory ${q(fromSegs.join('/'))}`,
+          );
+        }
       },
       async rename(oldName, newParent, newName) {
         reqDir();

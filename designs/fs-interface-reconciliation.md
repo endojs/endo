@@ -109,10 +109,10 @@ the degenerate composition dirs reject or walk as appropriate.
 endo-fs's `lookup`/`move` calling conventions, now aligned (`lookup` is
 `string | string[]`; `move(fromPath, toPath)` replaces the cap-form, which
 survives as the cross-cap `rename` primitive 9p-server needs). `subView` was
-added to the `Mount` as a genuinely-confined attenuator (F8). The
-`@endo/platform/fs` `Directory` guard remains an unimplemented minimal
-vocabulary; `copy` (present on platform/daemon, absent on endo-fs) is the one
-remaining catalog method not yet on the extended surface.
+added to the `Mount` as a genuinely-confined attenuator (F8). `copy(fromPath,
+toPath)` was added to the extended `Directory` (recursive, binary-safe),
+closing the last catalog-method gap. The `@endo/platform/fs` `Directory` guard
+itself remains an unimplemented minimal vocabulary.
 
 **D4 / Phase 1.5 (done).** `@endo/endo-fs` has been retired into
 `@endo/platform/fs/extended`; all six consumers are re-homed. See the commit

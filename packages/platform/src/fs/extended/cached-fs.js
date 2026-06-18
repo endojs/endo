@@ -333,6 +333,9 @@ const makeCachingDirectory = (
       // both parents within its own tree.
       return E(dir).move(fromPath, toPath);
     },
+    async copy(fromPath, toPath) {
+      return E(dir).copy(fromPath, toPath);
+    },
     async rename(oldName, newParent, newName) {
       // The underlying disk-backed and Mount-adapted impls identify
       // same-FS targets via a private `WeakMap.get(newParent)`

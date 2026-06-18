@@ -281,6 +281,31 @@ export const wrapBackend = (backend, opts = {}) => {
     throw makeError(X`EXDEV: cross-Filesystem rename not supported`);
   };
 
+  // Recursive within-tree copy of `srcPath` onto `dstPath`, via backend
+  // primitives so binary content and whole subtrees are duplicated
+  // faithfully. Backs the catalog `copy(fromPath, toPath)`.
+  const copyTree = async (srcPath, dstPath) => {
+    const k = await backend.kind(srcPath);
+    if (k === undefined) {
+      throw makeError(X`ENOENT: ${q(srcPath.join('/'))}`);
+    }
+    if (k === 'directory') {
+      await backend.makeDirectory(dstPath);
+      for await (const entry of backend.list(srcPath)) {
+        await copyTree([...srcPath, entry.name], [...dstPath, entry.name]);
+      }
+      return;
+    }
+    const bytes = await backend.read(srcPath);
+    await backend.write(dstPath, bytes, 0n);
+    if (caps.setStat) {
+      const setStatFn = /** @type {NonNullable<typeof backend.setStat>} */ (
+        backend.setStat
+      );
+      await setStatFn(dstPath, { size: BigInt(bytes.length) });
+    }
+  };
+
   // Wrap-backend-local event subscribers. Used for events that
   // originate at the wrap-backend layer (xattrs mutations, etc.)
   // — backend-emitted events come through `backend.watch?(path)`
@@ -921,6 +946,15 @@ export const wrapBackend = (backend, opts = {}) => {
         // eslint-disable-next-line no-use-before-define
         return movePathToPath(exo, fromPath, toPath);
       },
+      // Catalog `copy(fromPath, toPath)`: within-tree path-to-path copy
+      // (recursive for directories, binary-safe for files).
+      async copy(fromPath, toPath) {
+        const fromSegs = toSegments(fromPath);
+        const toSegs = toSegments(toPath);
+        fromSegs.forEach(assertChildName);
+        toSegs.forEach(assertChildName);
+        return copyTree([...path, ...fromSegs], [...path, ...toSegs]);
+      },
       // Cross-directory-cap relocate primitive (see type-guards).
       async rename(srcName, newParent, dstName) {
         return moveChild(path, srcName, newParent, dstName);
@@ -942,7 +976,7 @@ export const wrapBackend = (backend, opts = {}) => {
       },
       help(method) {
         if (method === undefined) {
-          return 'Directory: tree-shaped directory capability — lookup, lookupStep, subView, list, write, create, makeDirectory, remove, move, materialise, watch, watchFrom, fsync, getStat, setStat.';
+          return 'Directory: tree-shaped directory capability — lookup, lookupStep, subView, list, write, create, makeDirectory, remove, move, copy, materialise, watch, watchFrom, fsync, getStat, setStat.';
         }
         return `No documentation for method ${q(method)}.`;
       },

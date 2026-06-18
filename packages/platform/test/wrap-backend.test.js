@@ -25,7 +25,11 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { wrapBackend } from '../src/fs/extended/wrap-backend.js';
 import { makeInMemoryBackend } from '../src/fs/extended/backends/in-memory-backend.js';
-import { walk, collectBytes, collectStream } from '../src/fs/extended/helpers.js';
+import {
+  walk,
+  collectBytes,
+  collectStream,
+} from '../src/fs/extended/helpers.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 const fromUtf8 = b => new TextDecoder().decode(b);
@@ -463,4 +467,63 @@ test('move within the same directory renames in place', async t => {
   const b = await E(root).lookup('b.txt');
   const r = await E(await E(b).open({ read: true })).read(0n, 4n);
   t.is(fromUtf8(await drainReader(r)), 'data');
+});
+
+test('copy duplicates a file path-to-path, leaving the source', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  await E(root).write('src.txt', 'payload');
+  await E(root).makeDirectory('dst', {});
+
+  await E(root).copy('src.txt', ['dst', 'dup.txt']);
+
+  // Source survives.
+  const src = await E(root).lookup('src.txt');
+  t.is(
+    fromUtf8(
+      await drainReader(
+        await E(await E(src).open({ read: true })).read(0n, 7n),
+      ),
+    ),
+    'payload',
+  );
+  // Destination is a faithful copy.
+  const dup = await E(root).lookup(['dst', 'dup.txt']);
+  t.is(
+    fromUtf8(
+      await drainReader(
+        await E(await E(dup).open({ read: true })).read(0n, 7n),
+      ),
+    ),
+    'payload',
+  );
+});
+
+test('copy recursively duplicates a directory subtree', async t => {
+  const fs = makeFs();
+  const root = await E(fs).root();
+  const a = await E(root).makeDirectory('a', {});
+  await E(a).write('f.txt', 'leaf');
+  const sub = await E(a).makeDirectory('sub', {});
+  await E(sub).write('g.txt', 'deep');
+
+  await E(root).copy('a', 'b');
+
+  // Whole subtree copied.
+  const bf = await E(root).lookup(['b', 'f.txt']);
+  t.is(
+    fromUtf8(
+      await drainReader(await E(await E(bf).open({ read: true })).read(0n, 4n)),
+    ),
+    'leaf',
+  );
+  const bg = await E(root).lookup(['b', 'sub', 'g.txt']);
+  t.is(
+    fromUtf8(
+      await drainReader(await E(await E(bg).open({ read: true })).read(0n, 4n)),
+    ),
+    'deep',
+  );
+  // Source intact.
+  t.is((await E(await E(root).lookup('a')).getQid()).type, 'directory');
 });
