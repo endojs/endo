@@ -42,6 +42,40 @@ const resolveSafe = (relativePath, cwd) => {
 };
 
 /**
+ * Render a tool result value as text for the model. Plain JSON-serializable
+ * values stringify directly. A CapTP presence (a remote capability) has no
+ * enumerable own properties, so `JSON.stringify` collapses it to `"{}"` — the
+ * model then sees an empty object and can't tell it received a callable
+ * capability. When the value answers CapTP introspection, describe it by its
+ * remote method names instead so the model knows what it can call (via the
+ * exec tool with `E(ref).method()`).
+ *
+ * @param {unknown} result
+ * @returns {Promise<string>}
+ */
+const renderToolResult = async result => {
+  let json;
+  try {
+    json = JSON.stringify(result, null, 2);
+  } catch {
+    json = undefined;
+  }
+  if (json !== undefined && json !== '{}') {
+    return json;
+  }
+  try {
+    // eslint-disable-next-line no-underscore-dangle
+    const methods = await E(result).__getMethodNames__();
+    if (Array.isArray(methods)) {
+      return `[remote capability] callable methods: ${JSON.stringify(methods)}`;
+    }
+  } catch {
+    // Not an introspectable presence; fall through to the best-effort string.
+  }
+  return json !== undefined ? json : String(result);
+};
+
+/**
  * @param {import('@endo/eventual-send').ERef<object>} host
  * @returns {FaeTool}
  */
@@ -123,11 +157,7 @@ export const makeEvaluateTool = host => {
       if (result === undefined) {
         return 'undefined';
       }
-      try {
-        return JSON.stringify(result, null, 2);
-      } catch {
-        return String(result);
-      }
+      return renderToolResult(result);
     },
     help() {
       return 'Evaluate JavaScript source code in an isolated Endo daemon worker.';
@@ -500,11 +530,7 @@ export const makeLookupTool = host => {
       if (value === undefined) {
         return 'undefined';
       }
-      try {
-        return JSON.stringify(value, null, 2);
-      } catch {
-        return String(value);
-      }
+      return renderToolResult(value);
     },
     help() {
       return 'Look up a stored value by petname.';
@@ -1171,11 +1197,7 @@ export const makeExecTool = powers => {
       if (result === undefined) {
         return 'done (no return value)';
       }
-      try {
-        return JSON.stringify(result, null, 2);
-      } catch {
-        return String(result);
-      }
+      return renderToolResult(result);
     },
     help() {
       return (
