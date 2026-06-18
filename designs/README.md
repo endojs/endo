@@ -169,6 +169,7 @@ LLM-agent stack).*
 | [snapshot-mapper](snapshot-mapper.md) | 2026-06-02 | 2026-06-02 | Proposed |
 | [filesystem-watchers](filesystem-watchers.md) | 2026-05-07 | 2026-05-07 | Not Started |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-05-19 | **Complete** |
+| [fs-interface-reconciliation](fs-interface-reconciliation.md) | 2026-06-18 | 2026-06-18 | In Progress |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-04-29 | **Complete** |
 | [daemon-retention-paths](daemon-retention-paths.md) | 2026-04-30 | 2026-05-19 | In Progress (PR #284) |
