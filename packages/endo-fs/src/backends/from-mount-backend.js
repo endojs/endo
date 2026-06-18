@@ -26,6 +26,22 @@ import { makeError, X, q } from '@endo/errors';
  */
 
 /**
+ * Recognize a Mount lookup failure that should collapse to "no such node."
+ *
+ * ENOENT is a genuine miss. EACCES / ELOOP are how the daemon Mount reports a
+ * symlink (or path) that escapes the confinement root; folding them into the
+ * same not-found bucket — matching the node-fs backend's policy — keeps a cap
+ * holder from distinguishing "escapes to an existing host path" from "does not
+ * exist," which would otherwise be an out-of-sandbox existence oracle. The
+ * trade-off (a real in-sandbox permission error is also hidden) favors
+ * confinement over diagnostic precision.
+ *
+ * @param {string} message
+ */
+const isNotFoundMessage = message => /ENOENT|EACCES|ELOOP/.test(message);
+harden(isNotFoundMessage);
+
+/**
  * Wrap a `Uint8Array` as a `ReadableBlob`-shaped remotable that `Mount.write`
  * accepts. `Mount.write` introspects for a `streamBase64` method and drains it
  * through `makeRefReader` (base64-decode), so the blob yields its bytes as a
@@ -135,7 +151,7 @@ export const makeFromMountBackend = rootMount => {
       return await E(rootMount).lookup(path);
     } catch (e) {
       const msg = /** @type {Error} */ (e).message;
-      if (/ENOENT/.test(msg)) return undefined;
+      if (isNotFoundMessage(msg)) return undefined;
       throw e;
     }
   };
@@ -162,7 +178,7 @@ export const makeFromMountBackend = rootMount => {
           // Same policy as resolve(): missing nodes drop silently
           // from the listing; real I/O / permission errors re-raise.
           const msg = /** @type {Error} */ (e).message;
-          if (!/ENOENT/.test(msg)) throw e;
+          if (!isNotFoundMessage(msg)) throw e;
           kind = undefined;
         }
         if (kind !== undefined) {

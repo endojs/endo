@@ -255,7 +255,9 @@ const assertConfined = async (candidatePath, confinementRoot, filePowers) => {
   }
   const rootResolved = await filePowers.realPath(confinementRoot);
   if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
-    throw new Error(`Path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`);
+    throw new Error(
+      `EACCES: path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`,
+    );
   }
 };
 harden(assertConfined);
@@ -283,16 +285,20 @@ const assertConfinedOrAncestor = async (
         resolved !== rootResolved &&
         !resolved.startsWith(`${rootResolved}/`)
       ) {
-        throw new Error(`Path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`);
+        throw new Error(
+          `EACCES: path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`,
+        );
       }
       return;
     } catch (/** @type {any} */ e) {
-      if (e.message && e.message.startsWith('Path escapes')) {
+      if (e.message && e.message.includes('escapes mount root')) {
         throw e;
       }
       const parent = filePowers.joinPath(check, '..');
       if (parent === check) {
-        throw new Error(`Path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`);
+        throw new Error(
+          `EACCES: path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`,
+        );
       }
       check = parent;
     }

@@ -21,6 +21,7 @@ import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { mountAsFilesystem } from '../src/from-mount.js';
+import { makeFromMountBackend } from '../src/backends/from-mount-backend.js';
 
 const utf8 = s => new TextEncoder().encode(s);
 const fromUtf8 = b => new TextDecoder().decode(b);
@@ -108,7 +109,9 @@ const makeMockMount = () => {
         // a regression that passes raw bytes fails the test instead of
         // silently passing same-vat (the divergence that hid this bug).
         if (readableRef instanceof Uint8Array) {
-          throw new Error('writeBytes expects a reader reference, not raw bytes');
+          throw new Error(
+            'writeBytes expects a reader reference, not raw bytes',
+          );
         }
         const reader = await E(readableRef).streamBase64();
         const chunks = [];
@@ -187,11 +190,22 @@ const makeMockMount = () => {
       // method and base64-decoded.
       async write(path, value) {
         const segs = segmentsOf(path);
-        const parent = segs.slice(0, -1);
         const name = segs[segs.length - 1];
-        const parentNode = lookupNode(base, parent);
-        if (!parentNode || parentNode.kind !== 'dir') {
-          throw new Error('ENOTDIR');
+        // The real `EndoMount.write` calls `filePowers.makePath(parent)`,
+        // so missing intermediate directories are created on demand. The
+        // mock mirrors that mkdir-p behavior (it previously threw ENOTDIR,
+        // diverging from production and leaving the creates-parents path
+        // the adapter depends on untested).
+        let parentNode = base;
+        for (const seg of segs.slice(0, -1)) {
+          let child = parentNode.children.get(seg);
+          if (child === undefined) {
+            child = { kind: 'dir', children: new Map() };
+            parentNode.children.set(seg, child);
+          } else if (child.kind !== 'dir') {
+            throw new Error(`ENOTDIR: ${seg}`);
+          }
+          parentNode = child;
         }
         const reader = await E(value).streamBase64();
         const chunks = [];
@@ -312,6 +326,56 @@ test('open({ truncate: true }) resizes via Mount whole-file write', async t => {
   const rh = await E(await E(root).lookup('note.txt')).open({ read: true });
   const bytes = await collectBytes(await E(rh).read(0n, 1024n));
   t.is(fromUtf8(bytes), 'new');
+});
+
+test('setStat grows a file with POSIX zero-fill (from-mount backend)', async t => {
+  const backend = makeFromMountBackend(makeMockMount());
+  await backend.write(['grow.bin'], utf8('abc'));
+  await backend.setStat(['grow.bin'], { size: 6n });
+  const bytes = await backend.read(['grow.bin']);
+  t.is(bytes.length, 6);
+  t.is(fromUtf8(bytes.subarray(0, 3)), 'abc');
+  t.deepEqual([...bytes.subarray(3)], [0, 0, 0]);
+});
+
+test('setStat shrinks a file to a nonzero length (from-mount backend)', async t => {
+  const backend = makeFromMountBackend(makeMockMount());
+  await backend.write(['shrink.bin'], utf8('abcde'));
+  await backend.setStat(['shrink.bin'], { size: 2n });
+  t.is(fromUtf8(await backend.read(['shrink.bin'])), 'ab');
+});
+
+test('write at a nonzero offset splices into existing content', async t => {
+  const backend = makeFromMountBackend(makeMockMount());
+  await backend.write(['range.bin'], utf8('0000'));
+  await backend.write(['range.bin'], utf8('XY'), 1n);
+  t.is(fromUtf8(await backend.read(['range.bin'])), '0XY0');
+});
+
+test('write creates missing parent directories via Mount.write', async t => {
+  // The adapter's write relies on the real Mount.write calling makePath to
+  // create intermediate parents. Exercise that path directly (the mock now
+  // mirrors the mkdir-p behavior).
+  const backend = makeFromMountBackend(makeMockMount());
+  await backend.write(['deep', 'nested', 'file.txt'], utf8('hi'));
+  t.is(await backend.kind(['deep']), 'directory');
+  t.is(await backend.kind(['deep', 'nested']), 'directory');
+  t.is(fromUtf8(await backend.read(['deep', 'nested', 'file.txt'])), 'hi');
+});
+
+test('backend folds a Mount escape (EACCES) into not-found, not an error', async t => {
+  // A symlink that escapes the confinement root makes the daemon Mount throw
+  // EACCES (not ENOENT). The adapter must read it as "no such node"
+  // (undefined), the same as a genuine miss — otherwise a cap holder could
+  // distinguish "escapes to an existing host path" from "does not exist" and
+  // use it as an out-of-sandbox existence oracle.
+  const escapingMount = Far('EndoMount', {
+    async lookup() {
+      throw new Error('EACCES: path escapes mount root: "/escape"');
+    },
+  });
+  const backend = makeFromMountBackend(escapingMount);
+  t.is(await backend.kind(['escape']), undefined);
 });
 
 test('mkdir + list + lookup round-trips a sub-directory', async t => {
