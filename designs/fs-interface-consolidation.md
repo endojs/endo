@@ -363,10 +363,10 @@ no `BlobRef → SnapshotBlob` adapter.
       the common streaming primitive).
 - [x] C4: extend `LocalBlob` (platform) and `GitBlob` to the rich shape via a
       shared `ReadableBlobRangeInterface` (readable-blob + `getInfo`/`fetch`).
-- [ ] C4 (follow-up): extend the daemon mount-file `readOnly()` view —
-      deferred because it wraps a *live* mount file with no crypto powers
-      threaded through the mount, so a content-address `getInfo` would need
-      invasive plumbing and is a poor fit for a mutable file.
+- [x] C4: extend the daemon mount-file `readOnly()` view — `FilePowers` gains
+      `sha256`, `EndoMountFile` + the `EndoMountReadableBlob` view gain
+      `getInfo`/`fetch` over the *live* file (a write-disabled face, not a
+      snapshot — content changes are observed, only writes are refused).
 - [x] C1 layering: hoist `readableNameHubMethodGuards` /
       `directoryFileMethodGuards` from `@endo/daemon` to `@endo/platform/fs`;
       genie now imports them from platform (no daemon-internals reach).
