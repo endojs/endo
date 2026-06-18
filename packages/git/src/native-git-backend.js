@@ -1661,13 +1661,13 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
   const makeGitBlob = blobOid =>
     makeExo('GitBlob', ReadableBlobInterface, {
       /**
-       * @param {unknown} synPromise
+       * @param {Parameters<ReturnType<typeof makeReaderPump>>[0]} synPromise
        */
       streamBase64(synPromise) {
         const pump = makeReaderPump(
           mapReader(streamBlobBytes(blobOid), encodeBase64),
         );
-        return pump(/** @type {any} */ (synPromise));
+        return pump(synPromise);
       },
 
       async text() {
