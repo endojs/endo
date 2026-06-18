@@ -1,6 +1,6 @@
 // @ts-check
 
-import { makeSnapshotStore, makeReaderRef } from '@endo/platform/fs/lite';
+import { makeSnapshotStore } from '@endo/platform/fs/lite';
 
 /**
  * Minimal in-memory `SnapshotStore` for unit tests over `makeMount`.
@@ -53,14 +53,15 @@ export const makeMemoryStore = () => {
         await null;
         return JSON.parse(await text());
       };
-      const streamBase64 = () => {
-        /** @returns {AsyncIterable<Uint8Array>} */
-        async function* iter() {
+      /** @returns {import('@endo/stream').Reader<Uint8Array>} */
+      const makeFileReader = () => {
+        /** @type {AsyncGenerator<Uint8Array>} */
+        const gen = (async function* iter() {
           yield bytes;
-        }
-        return makeReaderRef(iter());
+        })();
+        return /** @type {any} */ (gen);
       };
-      return harden({ streamBase64, text, json });
+      return harden({ makeFileReader, text, json });
     },
     async has(sha256) {
       return blobs.has(sha256);

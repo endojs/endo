@@ -12,13 +12,14 @@ import fs from 'fs';
 import url from 'url';
 import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import {
   DirectoryInterface as PlatformDirectoryInterface,
   FileInterface as PlatformFileInterface,
   ReadableBlobInterface,
   ReadableTreeInterface,
   checkinTree,
-  makeReaderRef,
 } from '@endo/platform/fs/lite';
 import { M } from '@endo/patterns';
 
@@ -252,43 +253,12 @@ test('EndoMount.entry accepts slash-joined string selectors', async t => {
 
 test('EndoMount.write accepts a ReadableBlob and materializes bytes', async t => {
   const { mount, rootPath } = makeConfiguredMount(t);
-  // A minimal blob-shaped remotable that satisfies ReadableBlob.
-  const blob = makeExo('TestBlob', ReadableBlobInterface, {
-    streamBase64() {
-      const chunks = [Buffer.from('hello blob', 'utf-8').toString('base64')];
-      let idx = 0;
-      return makeExo(
-        'AsyncIterator',
-        M.interface('AsyncIterator', {
-          next: M.call().returns(M.promise()),
-          return: M.call().optional(M.any()).returns(M.promise()),
-          throw: M.call().optional(M.any()).returns(M.promise()),
-        }),
-        {
-          async next() {
-            if (idx < chunks.length) {
-              const value = chunks[idx];
-              idx += 1;
-              return harden({ value, done: false });
-            }
-            return harden({ value: undefined, done: true });
-          },
-          async return() {
-            return harden({ value: undefined, done: true });
-          },
-          async throw() {
-            return harden({ value: undefined, done: true });
-          },
-        },
-      );
-    },
-    async text() {
-      return 'hello blob';
-    },
-    async json() {
-      return null;
-    },
-  });
+  // A PassableBytesReader (the new-protocol blob shape).  mount.write
+  // detects the blob via __getMethodNames__.includes('streamBase64')
+  // and consumes via iterateBytesReader.
+  const blob = bytesReaderFromIterator([
+    new TextEncoder().encode('hello blob'),
+  ]);
   await E(mount).write(['blob-target.txt'], blob);
   const actual = fs.readFileSync(
     path.join(rootPath, 'blob-target.txt'),
@@ -299,44 +269,11 @@ test('EndoMount.write accepts a ReadableBlob and materializes bytes', async t =>
 
 test('EndoMount.write accepts a ReadableTree and materializes recursively', async t => {
   const { mount, rootPath } = makeConfiguredMount(t);
-  // A blob factory reused for each leaf.
+  // A blob factory reused for each leaf.  Each leaf is a
+  // PassableBytesReader; mount.write consumes via iterateBytesReader.
   const makeBlobValue = content => {
     const bytes = new TextEncoder().encode(content);
-    return makeExo('LeafBlob', ReadableBlobInterface, {
-      streamBase64() {
-        const chunk = Buffer.from(bytes).toString('base64');
-        let yielded = false;
-        return makeExo(
-          'AsyncIterator',
-          M.interface('AsyncIterator', {
-            next: M.call().returns(M.promise()),
-            return: M.call().optional(M.any()).returns(M.promise()),
-            throw: M.call().optional(M.any()).returns(M.promise()),
-          }),
-          {
-            async next() {
-              if (!yielded) {
-                yielded = true;
-                return harden({ value: chunk, done: false });
-              }
-              return harden({ value: undefined, done: true });
-            },
-            async return() {
-              return harden({ value: undefined, done: true });
-            },
-            async throw() {
-              return harden({ value: undefined, done: true });
-            },
-          },
-        );
-      },
-      async text() {
-        return content;
-      },
-      async json() {
-        return null;
-      },
-    });
+    return bytesReaderFromIterator([bytes]);
   };
   // A ReadableTree with a nested structure.
   const tree = makeExo('TestTree', ReadableTreeInterface, {
@@ -389,17 +326,7 @@ test('EndoMount.write accepts a ReadableTree and materializes recursively', asyn
 
 test('EndoMount.write rejects traversal-like ReadableTree child names', async t => {
   const { mount } = makeConfiguredMount(t);
-  const blob = makeExo('LeafBlob', ReadableBlobInterface, {
-    streamBase64() {
-      return makeReaderRef([new TextEncoder().encode('leaf')]);
-    },
-    async text() {
-      return 'leaf';
-    },
-    async json() {
-      return null;
-    },
-  });
+  const blob = bytesReaderFromIterator([new TextEncoder().encode('leaf')]);
 
   for (const name of ['.', '..', 'a/b', 'a\\b', 'a\0b']) {
     const tree = makeExo('InvalidTree', ReadableTreeInterface, {
@@ -506,11 +433,11 @@ test('EndoMountFile.readOnly() returns a structural ReadableBlob view', async t 
   );
   t.is(await E(view).text(), 'rb-data');
 
-  const iter = await E(view).streamBase64();
-  const first = await E(iter).next();
+  const iter = iterateBytesReader(/** @type {any} */ (view));
+  const first = await iter.next();
   t.false(first.done);
   t.is(
-    Buffer.from(first.value, 'base64').toString('utf-8'),
+    new TextDecoder().decode(first.value),
     'rb-data',
     'read-only blob view streams through the platform surface',
   );
@@ -534,8 +461,8 @@ test('EndoMountFile json and streamBase64 re-check confinement on use', async t 
     message: /escapes mount root/,
   });
 
-  const reader = await E(file).streamBase64();
-  await t.throwsAsync(() => E(reader).next(), {
+  const reader = iterateBytesReader(/** @type {any} */ (file));
+  await t.throwsAsync(() => reader.next(), {
     message: /escapes mount root/,
   });
 });

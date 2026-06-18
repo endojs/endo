@@ -13,13 +13,8 @@ import url from 'url';
 import path from 'path';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import {
-  start,
-  stop,
-  purge,
-  makeEndoClient,
-  makeRefIterator,
-} from '../index.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { start, stop, purge, makeEndoClient } from '../index.js';
 
 const { raw } = String;
 
@@ -215,7 +210,7 @@ test.serial(
 
     // 8. Follow messages and verify both messages appear
     const messagesRef = await E(channel).followMessages();
-    const iter = makeRefIterator(messagesRef);
+    const iter = iterateReader(messagesRef);
     const msg1 = await iter.next();
     const msg2 = await iter.next();
     t.is(msg1.value.strings[0], 'Hello from admin');
@@ -354,7 +349,7 @@ test.serial(
 
     // Bob follows messages — should see existing messages
     const bobIteratorRef = await E(bobMember).followMessages();
-    const bobIterator = makeRefIterator(bobIteratorRef);
+    const bobIterator = iterateReader(bobIteratorRef);
 
     // Take the first existing message
     const [firstMsg] = await takeCount(bobIterator, 1);
@@ -381,7 +376,7 @@ test.serial(
 
     // Start following before any messages
     const adminIteratorRef = await E(channel).followMessages();
-    const adminIterator = makeRefIterator(adminIteratorRef);
+    const adminIterator = iterateReader(adminIteratorRef);
 
     // Invite Bob and have Bob post
     const [bobInvite] = await E(channel).createInvitation('Bob');
@@ -622,7 +617,7 @@ test.serial(
 
     // Bob starts following messages BEFORE disabling
     const bobIteratorRef = await E(bobProxy).followMessages();
-    const bobIterator = makeRefIterator(bobIteratorRef);
+    const bobIterator = iterateReader(bobIteratorRef);
 
     // Admin posts a message — Bob should see it
     await E(channel).post(['Before disable'], [], []);
@@ -708,7 +703,7 @@ test.serial(
 
     // Carol starts following BEFORE Bob is disabled
     const carolIteratorRef = await E(carolProxy).followMessages();
-    const carolIterator = makeRefIterator(carolIteratorRef);
+    const carolIterator = iterateReader(carolIteratorRef);
 
     // Admin posts — Carol sees it
     await E(channel).post(['Before disable'], [], []);
@@ -1013,7 +1008,7 @@ test.serial(
     await E(channel).createInvitation('Bob');
     const bobMember = await E(channel).join('Bob');
     const bobIteratorRef = await E(bobMember).followMessages();
-    const bobIterator = makeRefIterator(bobIteratorRef);
+    const bobIterator = iterateReader(bobIteratorRef);
 
     // Alice posts after Bob starts following
     await E(channel).post(['Hello Bob!'], [], []);
@@ -1077,9 +1072,9 @@ test.serial(
 
     // Both admin and Bob start following
     const adminIteratorRef = await E(channel).followMessages();
-    const adminIterator = makeRefIterator(adminIteratorRef);
+    const adminIterator = iterateReader(adminIteratorRef);
     const bobIteratorRef = await E(bobMember).followMessages();
-    const bobIterator = makeRefIterator(bobIteratorRef);
+    const bobIterator = iterateReader(bobIteratorRef);
 
     // Bob posts
     await E(bobMember).post(['shared message'], [], []);
@@ -2560,7 +2555,7 @@ test.serial(
 
     // Bob starts following BEFORE being disabled
     const bobIteratorRef = await E(bobMember).followMessages();
-    const bobIterator = makeRefIterator(bobIteratorRef);
+    const bobIterator = iterateReader(bobIteratorRef);
 
     // Alice posts — Bob sees it
     await E(channel).post(['Before disable'], [], []);
@@ -2596,7 +2591,7 @@ test.serial(
 
     // Bob starts following and reads the existing (empty) backlog
     const bobIteratorRef = await E(bobMember).followMessages();
-    const bobIterator = makeRefIterator(bobIteratorRef);
+    const bobIterator = iterateReader(bobIteratorRef);
 
     // Alice posts — Bob sees it
     await E(channel).post(['Visible'], [], []);
@@ -2636,7 +2631,7 @@ test.serial(
 
     // Bob starts following via the proxy
     const bobIteratorRef = await E(bobProxy).followMessages();
-    const bobIterator = makeRefIterator(bobIteratorRef);
+    const bobIterator = iterateReader(bobIteratorRef);
 
     // Alice posts — Bob sees it
     await E(channel).post(['Visible'], [], []);
@@ -2975,7 +2970,7 @@ test.serial(
 
     // Subscribe B to heat events
     const eventsRef = await E(memberB).followHeatEvents();
-    const eventIter = makeRefIterator(eventsRef);
+    const eventIter = iterateReader(eventsRef);
 
     // B posts — this should generate heat events for both A's and B's pools
     await E(memberB).post(['hello'], [], []);

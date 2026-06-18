@@ -4,24 +4,22 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { makeReaderRef } from '../index.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { checkinTarTree } from '../src/tar-checkin.js';
 
 const TAR_BLOCK_SIZE = 512;
 
 /**
- * Wrap a byte source as the CapTP reader ref `checkinTarTree` consumes.
- * `makeReaderRef` yields a `FarRef<Reader<string>>`; the production call
- * site receives the same shape from `E(archiveTree).archiveTar()`, typed
- * as `ERef<AsyncIterator<string>>`. Cast at this single test boundary
- * rather than scattering assertions across the call sites.
+ * Wrap a byte source as the `PassableBytesReader` ref `checkinTarTree`
+ * consumes.  The production call site receives the same shape from
+ * `E(archiveTree).archiveTar()`.
  *
- * @param {Parameters<typeof makeReaderRef>[0]} source
- * @returns {import('@endo/far').ERef<AsyncIterator<string>>}
+ * @param {Parameters<typeof bytesReaderFromIterator>[0]} source
+ * @returns {import('@endo/far').ERef<import('@endo/exo-stream').PassableBytesReader>}
  */
 const makeArchiveReaderRef = source =>
-  /** @type {import('@endo/far').ERef<AsyncIterator<string>>} */ (
-    /** @type {unknown} */ (makeReaderRef(source))
+  /** @type {import('@endo/far').ERef<import('@endo/exo-stream').PassableBytesReader>} */ (
+    /** @type {unknown} */ (bytesReaderFromIterator(source))
   );
 
 /**

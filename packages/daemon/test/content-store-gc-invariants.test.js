@@ -16,7 +16,8 @@ import path from 'path';
 import fs from 'fs';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import { start, stop, purge, makeEndoClient, makeReaderRef } from '../index.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { start, stop, purge, makeEndoClient } from '../index.js';
 import { parseId } from '../src/formula-identifier.js';
 
 const { raw } = String;
@@ -180,7 +181,7 @@ test('does not throw when a content-store blob is already missing', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
-  const readerRef = makeReaderRef([
+  const readerRef = bytesReaderFromIterator([
     new TextEncoder().encode('about-to-vanish'),
   ]);
   const blob = await E(host).storeBlob(readerRef, 'phantom-blob');
@@ -212,7 +213,7 @@ test('reclaims many distinct content hashes across sequential collections', asyn
   for (let i = 0; i < count; i += 1) {
     const bytes = new TextEncoder().encode(`distinct-${i}`);
     // eslint-disable-next-line no-await-in-loop
-    const blob = await E(host).storeBlob(makeReaderRef([bytes]), `batch-${i}`);
+    const blob = await E(host).storeBlob(bytesReaderFromIterator([bytes]), `batch-${i}`);
     // eslint-disable-next-line no-await-in-loop
     const sha = await E(blob).sha256();
     shas.push(sha);
@@ -258,7 +259,7 @@ test('retains a shared hash when one of many collected formulas references it', 
   // One blob that survives.
   const sharedBytes = new TextEncoder().encode('the-shared-content');
   const survivor = await E(host).storeBlob(
-    makeReaderRef([sharedBytes]),
+    bytesReaderFromIterator([sharedBytes]),
     'keepsake',
   );
   const sharedSha = await E(survivor).sha256();
@@ -269,7 +270,7 @@ test('retains a shared hash when one of many collected formulas references it', 
   for (let i = 0; i < 5; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     const blob = await E(host).storeBlob(
-      makeReaderRef([new TextEncoder().encode(`distractor-${i}`)]),
+      bytesReaderFromIterator([new TextEncoder().encode(`distractor-${i}`)]),
       `distractor-${i}`,
     );
     // eslint-disable-next-line no-await-in-loop
@@ -277,7 +278,7 @@ test('retains a shared hash when one of many collected formulas references it', 
   }
   // The dedupe-against-survivor blob.
   const twin = await E(host).storeBlob(
-    makeReaderRef([sharedBytes]),
+    bytesReaderFromIterator([sharedBytes]),
     'doomed-twin',
   );
   t.is(await E(twin).sha256(), sharedSha);

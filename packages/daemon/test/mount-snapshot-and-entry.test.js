@@ -9,7 +9,7 @@ import os from 'os';
 import path from 'path';
 import fs from 'fs';
 import { E } from '@endo/far';
-import { decodeBase64 } from '@endo/base64';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { checkinTree } from '@endo/platform/fs/lite';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
@@ -103,14 +103,12 @@ test('snapshot round-trips a binary (non-UTF8) file via streamBase64', async t =
   const snapshot = await E(mount).snapshot();
   const snapshotBlob = await E(snapshot).lookup('binary.dat');
 
-  // Drive the base64 stream and reassemble the bytes.
-  const iter = await E(snapshotBlob).streamBase64();
+  // Drive the bytes reader and reassemble the bytes.
   const chunks = [];
-  for (;;) {
-    // eslint-disable-next-line no-await-in-loop
-    const { done, value } = await E(iter).next();
-    if (done) break;
-    chunks.push(decodeBase64(value));
+  for await (const chunk of iterateBytesReader(
+    /** @type {any} */ (snapshotBlob),
+  )) {
+    chunks.push(chunk);
   }
   const totalLength = chunks.reduce((acc, c) => acc + c.byteLength, 0);
   const reassembled = new Uint8Array(totalLength);

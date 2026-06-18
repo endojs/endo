@@ -21,15 +21,10 @@ import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper'
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
 import { ZipReader } from '@endo/zip/reader.js';
-import {
-  start,
-  stop,
-  restart,
-  purge,
-  makeEndoClient,
-  makeReaderRef,
-  makeRefIterator,
-} from '../index.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { makeDaemonDatabase } from '../src/daemon-database-node.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
@@ -221,7 +216,7 @@ const waitForCondition = async (predicate, opts = {}) => {
  */
 const prepareFollowNameChangesIterator = async host => {
   const existingNames = await E(host).list();
-  const changesIterator = makeRefIterator(await E(host).followNameChanges());
+  const changesIterator = iterateReader(await E(host).followNameChanges());
   await takeCount(changesIterator, existingNames.length);
   return changesIterator;
 };
@@ -235,7 +230,7 @@ const prepareFollowNameChangesIterator = async host => {
  */
 const prepareFollowLocatorNameChangesIterator = async (host, locator) => {
   await null;
-  const changesIterator = makeRefIterator(
+  const changesIterator = iterateReader(
     await E(host).followLocatorNameChanges(locator),
   );
   await takeCount(changesIterator, 1);
@@ -345,7 +340,7 @@ const doMakeArchive = async (host, packageDir, callback) => {
       parserForLanguage: sourceParserForLanguage,
     },
   );
-  const archiveReaderRef = makeReaderRef([archiveBytes]);
+  const archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
 
   await E(host).storeBlob(archiveReaderRef, archiveName);
   const result = await callback(archiveName);
@@ -692,7 +687,7 @@ test('persist spawn and evaluation', async t => {
 test('store blob without name fails', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
   await t.throwsAsync(E(host).storeBlob(readerRef), {
     message: 'Invalid name path',
   });
@@ -703,7 +698,7 @@ test('store with name', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
     const readable = await E(host).storeBlob(readerRef, 'hello-text');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
@@ -723,7 +718,7 @@ test('store blob in subdirectory', async t => {
   {
     const { host } = await makeHost(config, cancelled);
     await E(host).makeDirectory('subdir');
-    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
     const readable = await E(host).storeBlob(readerRef, [
       'subdir',
       'hello-text',
@@ -743,7 +738,7 @@ test('store blob in subdirectory', async t => {
 test('store blob requires a name', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
   await t.throwsAsync(E(host).storeBlob(readerRef, []), {
     message: 'Invalid name path',
   });
@@ -1331,7 +1326,7 @@ test('followNamehanges first publishes existing names', async t => {
   const { host } = await prepareHost(t);
 
   const existingNames = await E(host).list();
-  const changesIterator = makeRefIterator(await E(host).followNameChanges());
+  const changesIterator = iterateReader(await E(host).followNameChanges());
   const values = await takeCount(changesIterator, existingNames.length);
 
   t.deepEqual(values.map(value => value.add).sort(), [...existingNames].sort());
@@ -1421,7 +1416,7 @@ test('followLocatorNameChanges first publishes existing pet name', async t => {
   await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
-  const tenLocatorSub = makeRefIterator(
+  const tenLocatorSub = iterateReader(
     await E(host).followLocatorNameChanges(tenLocator),
   );
   const { value } = await tenLocatorSub.next();
@@ -1432,7 +1427,7 @@ test('followLocatorNameChanges first publishes existing special name', async t =
   const { host } = await prepareHost(t);
 
   const selfLocator = await E(host).locate('@self');
-  const selfLocatorSub = makeRefIterator(
+  const selfLocatorSub = iterateReader(
     await E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
@@ -1446,7 +1441,7 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
   await E(host).storeLocator(['self1'], selfLocator);
   await E(host).storeLocator(['self2'], selfLocator);
 
-  const selfLocatorSub = makeRefIterator(
+  const selfLocatorSub = iterateReader(
     await E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
@@ -2515,7 +2510,7 @@ test('evaluate name resolved by lookup path', async t => {
 test('list special names', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
   await E(host).storeBlob(readerRef, 'hello-text');
 
   /** @type {string[]} */
@@ -3790,14 +3785,14 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
 // readable-tree tests
 
 /**
- * Helper: create a Far blob Exo from a string.
+ * Helper: create a blob Exo from a string.  Returns a `PassableBytesReader`
+ * (an Exo with `streamBase64(synPromise)` that can be passed directly to
+ * any consumer expecting an `iterateBytesReader`-compatible blob).
  * @param {string} content
  */
 const makeFarBlob = content => {
   const bytes = new TextEncoder().encode(content);
-  return Far('TestBlob', {
-    streamBase64: () => makeReaderRef([bytes]),
-  });
+  return bytesReaderFromIterator([bytes]);
 };
 
 /**
@@ -4028,7 +4023,9 @@ const makePaxHeader = (records, typeFlag = 'x') => {
  */
 const makeArchiveTree = archiveBytes =>
   Far('ArchiveTree', {
-    archiveTar: () => makeReaderRef([archiveBytes]),
+    archiveTar() {
+      return bytesReaderFromIterator([archiveBytes]);
+    },
   });
 
 test('provideGit tree exposes immutable commit contents', async t => {
@@ -5335,10 +5332,10 @@ test('stageTree preserves binary blobs in a scratch mount', async t => {
 
   const scratch = await E(host).stageTree('binary-src-mount', 'binary-staged');
   const file = await E(scratch).lookup('bytes.bin');
-  const reader = makeRefIterator(await E(file).streamBase64());
+  const reader = iterateBytesReader(file);
   const chunks = [];
   for await (const chunk of reader) {
-    chunks.push(Buffer.from(chunk, 'base64'));
+    chunks.push(chunk);
   }
   const actual = Buffer.concat(chunks);
   t.deepEqual([...actual], [...expected]);

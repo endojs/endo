@@ -27,7 +27,6 @@ import {
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
 import { lineageOf, makeMount } from '../src/mount.js';
-import { makeReaderRef } from '../src/reader-ref.js';
 
 const execFileAsync = nodePromisify(execFile);
 const exampleCredential = () =>
@@ -59,7 +58,7 @@ const provisionGitContext = async t => {
   );
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: root, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot: root, makeReaderRef });
+  const backend = makeNativeGitBackend({ repoRoot: root });
   await backend.assertRepositoryRoot();
   const git = makeGit({ mount, backend, lineageOf });
   return { git, mount, root };

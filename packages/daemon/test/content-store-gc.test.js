@@ -11,7 +11,8 @@ import path from 'path';
 import fs from 'fs';
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import { start, stop, purge, makeEndoClient, makeReaderRef } from '../index.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { start, stop, purge, makeEndoClient } from '../index.js';
 import { parseId } from '../src/formula-identifier.js';
 
 const { raw } = String;
@@ -133,7 +134,7 @@ test('content-store blob is reclaimed when its only formula is collected', async
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('blob-content')]);
+  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('blob-content')]);
   const blob = await E(host).storeBlob(readerRef, 'lonely-blob');
   const sha256 = await E(blob).sha256();
 
@@ -154,8 +155,8 @@ test('content-store blob survives when a sibling formula still references the sa
 
   const bytes = new TextEncoder().encode('shared-content');
 
-  const blobA = await E(host).storeBlob(makeReaderRef([bytes]), 'twin-a');
-  const blobB = await E(host).storeBlob(makeReaderRef([bytes]), 'twin-b');
+  const blobA = await E(host).storeBlob(bytesReaderFromIterator([bytes]), 'twin-a');
+  const blobB = await E(host).storeBlob(bytesReaderFromIterator([bytes]), 'twin-b');
 
   const shaA = await E(blobA).sha256();
   const shaB = await E(blobB).sha256();
@@ -223,10 +224,9 @@ test('content-store blob from a readable-tree formula is reclaimed when the tree
       if (name !== 'only.txt') {
         throw new TypeError(`Unknown name: ${JSON.stringify(name)}`);
       }
-      return Far('TestBlob', {
-        streamBase64: () =>
-          makeReaderRef([new TextEncoder().encode('tree-only-content')]),
-      });
+      return bytesReaderFromIterator([
+        new TextEncoder().encode('tree-only-content'),
+      ]);
     },
     has: async (/** @type {string} */ name) => name === 'only.txt',
   });
@@ -267,9 +267,7 @@ const makeRemoteBlobTree = (blobs, subtrees = {}) => {
     lookup: async (/** @type {string} */ name) => {
       if (Object.prototype.hasOwnProperty.call(blobs, name)) {
         const bytes = blobs[name];
-        return Far('TestBlob', {
-          streamBase64: () => makeReaderRef([bytes]),
-        });
+        return bytesReaderFromIterator([bytes]);
       }
       if (Object.prototype.hasOwnProperty.call(subtrees, name)) {
         return subtrees[name];
@@ -337,7 +335,7 @@ test('readable-tree collection preserves a child blob hash that a surviving read
   // and as a leaf inside a readable-tree.  checkinTree dedupes on
   // sha256, so both formulas reference the same content-store hash.
   const sharedBlob = await E(host).storeBlob(
-    makeReaderRef([sharedBytes]),
+    bytesReaderFromIterator([sharedBytes]),
     'shared-leaf-blob',
   );
   const sharedSha256 = await E(sharedBlob).sha256();

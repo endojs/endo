@@ -11,10 +11,10 @@ import fs from 'fs';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import {
   ReadableBlobInterface,
   checkinTree,
-  makeReaderRef,
 } from '@endo/platform/fs/lite';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
@@ -494,19 +494,10 @@ test('write rejects writing a ReadableBlob to an existing directory target', asy
   const mount = makeMount({ rootPath, readOnly: false, filePowers });
   fs.mkdirSync(path.join(rootPath, 'occupied'));
 
-  const blob = makeExo('Blob', ReadableBlobInterface, {
-    streamBase64() {
-      // The streamBase64() result is never iterated in this test —
-      // the is-a-directory check fires first.
-      return makeReaderRef([new Uint8Array(0)]);
-    },
-    async text() {
-      return '';
-    },
-    async json() {
-      return null;
-    },
-  });
+  // bytesReaderFromIterator returns a PassableBytesReader Exo whose
+  // `streamBase64(synPromise)` is the new-protocol stream method.  The
+  // is-a-directory check in mount.write fires before any iteration.
+  const blob = bytesReaderFromIterator([new Uint8Array(0)]);
   await t.throwsAsync(() => E(mount).write(['occupied'], blob), {
     message: /is a directory/,
   });
@@ -609,17 +600,7 @@ test('write() that fails mid-stream propagates the error and leaves no scratch d
     yield new TextEncoder().encode('partial');
     throw boom;
   }
-  const blob = makeExo('FailingBlob', ReadableBlobInterface, {
-    streamBase64() {
-      return makeReaderRef(failingChunks());
-    },
-    async text() {
-      return '';
-    },
-    async json() {
-      return null;
-    },
-  });
+  const blob = bytesReaderFromIterator(failingChunks());
   await t.throwsAsync(() => E(mount).write(['victim.txt'], blob), {
     message: /source stream blew up/,
   });
@@ -794,7 +775,7 @@ test('EndoMountFile.writeBytes is reachable through the read-only-rejection bran
   async function* iter() {
     yield new Uint8Array([1]);
   }
-  await t.throwsAsync(() => E(file).writeBytes(makeReaderRef(iter())), {
+  await t.throwsAsync(() => E(file).writeBytes(bytesReaderFromIterator(iter())), {
     message: /read-only/,
   });
 });
