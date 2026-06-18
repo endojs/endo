@@ -9,10 +9,18 @@
 
 ## Status
 
-Adopted onto `claude/fs-object-interfaces-m9tcat` and verified against the
+Adopted onto `claude/fs-object-interfaces-m9tcat` and checked against the
 live code (not just the prior designs).
-The catalog and migration plan below are accurate as written, with two
-corrections folded in from the code audit:
+A first code audit folded in two corrections (below); a **second-round design
+review then found genuine holes in the catalog and the merge mechanism** —
+the catalog broke its own "same name ⇒ same signature" rule on `lookup` and
+`write`, the `__getMethodNames__` viewer contract was unsound as a result, and
+the D4 "sloppy-extended tier" was not a realizable guard composition.
+Those are now resolved in
+[Review findings incorporated](#review-findings-incorporated-second-round-2026-06-18);
+the catalog `lookup` / `write` signatures, the merge mechanism (D4 /
+Phase 1.5), and several conformance-matrix cells were revised to match. The
+two first-audit corrections:
 
 1. **endo-fs already names `remove` and `makeDirectory` as canonical**, with
    `unlink` / `mkdir` retained as legacy aliases.
@@ -404,7 +412,8 @@ The key divergences:
 1. **Path-array versus one-step-per-cap.**
    platform/fs and daemon-mount take `string[]` paths and walk in one call.
    endo-fs takes one `string` per `lookup` and relies on CapTP pipelining to collapse depth-N walk into one round-trip.
-   Both are intentional; the catalog must name both shapes where both backings will conform.
+   Both are intentional — but they **cannot share the name `lookup`** without breaking the catalog's own "same name ⇒ same signature" rule (a viewer calling `E(cap).lookup(['a','b'])` would fail the endo-fs guard, which accepts only one `string`).
+   **Resolution (review finding 1):** the catalog's `lookup` is the **path-array** form (`lookup(...path: string[])`), which is a single real round-trip for a depth-N walk on every backing that has it (the from-mount adapter already calls `E(rootMount).lookup(path)` with the whole array). The one-segment pipelining-optimized walk keeps endo-fs's behavior under a **distinct name, `lookupStep(name: string)`**. Same name ⇒ same signature is preserved; the two genuinely-different shapes get two names.
 2. **Stream-shaped read versus whole-blob read.**
    platform/fs has `text()` / `json()` / `streamBase64()` (whole) and no range read.
    endo-fs has `OpenFile.read(offset, length) → reader` (range) and no whole-blob convenience.
@@ -456,7 +465,8 @@ Every backing in §Backing-implementation conformance matrix implements a subset
 |---|---|---|
 | `has` | `has(...path: string[]) → Promise<boolean>` | True if a child exists at `path`. Empty path is "this node exists" (always true for a live cap). |
 | `list` | `list(...path: string[]) → Promise<string[]>` | Sorted entry names at `path`. Throws if `path` is not a directory. Names that resolve outside the cap's confinement are excluded silently per the daemon-mount precedent. |
-| `lookup` | `lookup(...path: string[]) → Promise<ReadableBlob \| ReadableTree>` (Readable surface) or `Promise<File \| Directory \| sub-Mount>` (Mutable surface) | Resolve a path to its cap. One-step `lookup('a')` is the cross-CapTP-pipelinable shape; path-array `lookup(['a', 'b'])` is the platform/fs convenience that always returns the deepest cap. Backings that prefer one-step (endo-fs) accept only `string`; backings that prefer path-array (platform-fs, daemon-mount) accept both per the existing `PathArgShape`. |
+| `lookup` | `lookup(...path: string[]) → Promise<ReadableBlob \| ReadableTree>` (Readable surface) or `Promise<File \| Directory \| sub-Mount>` (Mutable surface) | Resolve a path to its cap in **one** signature on every backing — the **path-array** form, which is a single round-trip for a depth-N walk and always returns the deepest cap. This is the catalog's canonical `lookup`; endo-fs's one-segment variant is renamed to `lookupStep` (next row) so `lookup` never carries two signatures. (Per review finding 1.) |
+| `lookupStep` | `lookupStep(name: string) → Promise<File \| Directory>` (cap-FS backings that opt in) | Resolve a **single** path segment, the CapTP-pipelining-optimized walk (`E(d).lookupStep('a')` then `.lookupStep('b')` collapses depth-N into one round-trip via promise-chaining). endo-fs's existing `lookup(name)` is renamed here; backings without range-FS ambitions need not implement it (the viewer always has the path-array `lookup`). |
 | `stat` | `stat(...path: string[]) → Promise<Attrs>` | Size, mtime, atime, ctime, btime. POSIX-isms (mode, owner, nlink) live in a future `PosixFs` companion cap per endo-fs DESIGN.md §9. |
 | `streamBase64` | `streamBase64() → ReaderRef<string>` (Blob caps only) | Read entire blob as base64-encoded chunks. Falls back to the catalog's `read(offset, length)` form for backings that prefer range reads. |
 | `text` | `text() → Promise<string>` | Read entire blob as UTF-8 text. |
@@ -477,6 +487,17 @@ Every backing in §Backing-implementation conformance matrix implements a subset
 | `makeDirectory` | `makeDirectory(path: string[]) → Promise<Directory \| sub-Mount>` | Create a directory at `path` (recursive). Return value is the live cap for the new subtree. |
 | `makeFile` | `makeFile(path: string[], initial?: ReadableBlob \| string) → Promise<File>` (Mutable Tree) | Create a file at `path` and return its cap. Convenience for "open a new file for editing" without going through `write` first. |
 
+**`write` is not endo-fs's `create` (review finding 2).** The catalog's
+`write(path, value) → Promise<void>` is fire-and-forget whole-blob. endo-fs's
+`create(name) → OpenFile` returns a *writer the caller must drive* — a
+different name, arity, and return type, so it stays a **distinct** method on
+the extended `File` / `Directory` surface (it is range-I/O, not whole-blob).
+A backing whose only write primitive is a writer stream (endo-fs) implements
+the catalog `write` as a thin `create` + drive-writer + `close` wrapper; it
+does **not** alias `write` onto `create`. The conformance-matrix `write` cell
+for endo-fs reflects this ("whole-blob `write` wrapper; `create` stays for
+range I/O").
+
 ### Attenuation
 
 | Method | Signature | Returns |
@@ -488,13 +509,13 @@ Every backing in §Backing-implementation conformance matrix implements a subset
 
 | Method | Signature | Returns |
 |---|---|---|
-| `snapshot` | `snapshot() → Promise<SnapshotBlob \| SnapshotTree>` | Capture the cap's current state into the host's `SnapshotStore` and return the content-addressed cap. The catalog adopts platform-fs's `SnapshotBlob` / `SnapshotTree` shape (with `sha256()` method), **not** endo-fs's `BlobRef \| null` shape. See [Design Decisions](#design-decisions) Decision 3 for why. Backings that cannot cheaply produce a snapshot return a rejected promise with a structured error naming the gap (not `null`). |
+| `snapshot` | `snapshot() → Promise<SnapshotBlob \| SnapshotTree>` | Capture the cap's current state into the host's `SnapshotStore` and return the content-addressed cap. The catalog adopts platform-fs's `SnapshotBlob` / `SnapshotTree` shape (with `sha256()` method), **not** endo-fs's `BlobRef \| null` shape. See [Design Decisions](#design-decisions) Decision 3 for why. Backings that cannot cheaply produce a snapshot return a rejected promise with a structured error naming the gap (not `null`). **endo-fs's existing `File.snapshot() → BlobRef \| null` is a *different* method that stays on the extended surface** (it optimizes a peer-CAS cache-hit short-circuit and is allowed to return `null`); a backing satisfies the *catalog* `snapshot` only through the `BlobRef → SnapshotBlob` adapter (endo-fs ROADMAP F6, **not yet built**), so the matrix marks endo-fs `snapshot` as `I*` pending that adapter (review finding 7). |
 
 ### Observation
 
 | Method | Signature | Returns |
 |---|---|---|
-| `followNameChanges` | `followNameChanges() → AsyncIterable<NameChangeEvent>` | Live name-change stream matching `EndoDirectory.followNameChanges`. Per [Resolved decisions](#resolved-decisions-2026-06-18) D6, implementations that cannot observe (CAS; immutable snapshots) return an **immediately-terminating empty stream** (not a rejected promise) so polymorphic consumers can call it without a presence check; memfs without a registered listener likewise returns an empty stream that terminates immediately. The viewer reads an immediately-closed stream as "snapshot / point-in-time." See [filesystem-watchers.md](filesystem-watchers.md) for the parity-fix design. |
+| `followNameChanges` | `followNameChanges() → ReaderRef<NameChangeEvent>` | Returns a **remotable async-iterator reference** (a `ReaderRef`), matching the live `EndoDirectory.followNameChanges` shape (`M.call().returns(M.remotable())`, daemon `interfaces.js:78`) — **not** a `Promise<AsyncIterable>`. The catalog standardizes on the remotable-ref form for every backing; the other daemon hubs that currently declare `M.promise()` are brought to the `remotable()` form as part of [filesystem-watchers.md](filesystem-watchers.md) (review finding 6). Per [Resolved decisions](#resolved-decisions-2026-06-18) D6, implementations that cannot observe (CAS; immutable snapshots) return an **immediately-terminating empty** `ReaderRef` (not a rejected promise, not absent) so polymorphic consumers can call it without a presence check; memfs without a registered listener likewise returns an immediately-terminating `ReaderRef`. The viewer reads an immediately-closed stream as "snapshot / point-in-time." |
 
 ### Discoverability
 
@@ -522,15 +543,15 @@ Cells are: **I** (implemented), **A** (absent on this backing's interface; viewe
 
 | Method | mount | scratch-mount | endo-fs in-memory | CAS (readable-tree / readable-blob) | endo directory / name hub |
 |---|---|---|---|---|---|
-| `has` | I | I | I (one-step `lookup` returns ENOENT) | I | I |
+| `has` | I | I | I (`lookup` returns ENOENT) | I | I |
 | `list` | I | I | I (`Cursor.toArray`) | I | I |
-| `lookup` | I (path) | I (path) | I (one-step) | I (path) | I (one-step) |
+| `lookup` | I (path-array) | I (path-array) | I (path-array walk; also `lookupStep`) | I (path-array) | I (path-array) |
 | `stat` | I | I | I (`getStat`) | A (no mtime; immutable) | A (no blob content) |
 | `streamBase64` | I (on `EndoMountFile`) | I | A (use `streamRead`) | I (on `EndoReadable`) | A |
 | `text` | I (on file exo); `readText(path)` on mount | I | A (use `streamRead` + decode) | I | A |
 | `json` | I (file exo) | I | A | I | A |
 | `streamRead` | A (no range I/O) | A | I (`OpenFile.read`) | A (whole blob only) | A |
-| `write` | I | I | I (`Directory.create` + writer) | A (immutable) | I (writes a name-binding, not blob content) |
+| `write` | I | I | I (whole-blob `write` wrapper over `create` + writer; `create` stays for range I/O) | A (immutable) | I (writes a name-binding, not blob content) |
 | `writeText` | I | I | A | A | A |
 | `writeBytes` | I (file exo) | I | I (`OpenFile.write`) | A | A |
 | `append` | I (file exo) | I | A | A | A |
@@ -540,12 +561,20 @@ Cells are: **I** (implemented), **A** (absent on this backing's interface; viewe
 | `makeDirectory` | I | I | I (`mkdir`) | A (CAS does not have a "create empty directory" verb) | I |
 | `makeFile` | I | I | I (`create`) | A | A (name hub does not have a blob-content concept) |
 | `readOnly` | I | I | I (composer `readOnly(fs)`) | I (identity; CAS is already read-only) | I |
-| `subView` | I (`makeDirectory(path)` plus a sub-mount; or `provideSubMount` per daemon-mount Phase 4) | I (same) | I (`chroot(fs, path)`) | I (descend the tree manifest) | I (re-root the name hub) |
-| `snapshot` | I (writes a `readable-tree` to CAS) | I (same) | I (recursive checkin) | I (identity; already a snapshot) | A (name bindings have no content to snapshot; viewer surfaces gap) |
+| `subView` | D (new attenuator: needs a confinement-root shift + parent-less check, *or* `provideSubMount`; a mount's transient lookup exos share the mount root and honor `..` to it — see review finding 8) | D (same) | I (`chroot(fs, path)`) | I (descend the tree manifest) | I (re-root the name hub) |
+| `snapshot` | I (writes a `readable-tree` to CAS) | I (same) | I\* (whole-tree checkin; the `BlobRef → SnapshotBlob` adapter that yields the catalog shape is endo-fs ROADMAP F6, **not yet built** — see review finding 7) | I (identity; already a snapshot) | A (name bindings have no content to snapshot; viewer surfaces gap) |
 | `followNameChanges` | I (PR #277) | I (PR #277) | I (in-memory event emitter) | I (immediately-terminating empty stream; CAS is immutable — see D6) | I (existing EndoDirectory method) |
 | `help` | I | I | I | I | I |
 
-Total: 22 methods. Mount and scratch-mount implement 21 (all but `streamRead`). endo-fs in-memory implements 17. CAS implements 11 directly plus 2 deferred (`move` / `copy` as refcount operations per D6/move-transfer Tier 4). Name hub implements 12 (no blob content surface).
+Total: 22 methods (the catalog's `lookupStep` is an optional cap-FS accelerator
+over the same *job* as `lookup`, so it gets no separate conformance row — only
+the extended surface implements it). Mount and scratch-mount implement 20
+directly (all but `streamRead`, which is absent, and `subView`, which is
+deferred to a new confinement-shifting attenuator or `provideSubMount`).
+endo-fs in-memory implements 17 (`snapshot` via the as-yet-unbuilt
+`BlobRef → SnapshotBlob` adapter). CAS implements 11 directly plus 2 deferred
+(`move` / `copy` as refcount operations per move-transfer Tier 4). Name hub
+implements 12 (no blob content surface).
 
 Per platform-fs Decision 4, attenuation is *structural*: where a method is **A**bsent, the cap simply does not have the method.
 Calling `E(cap).writeText(...)` on a name hub returns a `Cannot deliver` error from CapTP's interface guard.
@@ -555,6 +584,20 @@ The viewer's graceful-degradation path is to call `E(cap).__getMethodNames__()` 
 
 The filesystem viewer is the user of the catalog.
 Its job: given any cap whose interface includes some non-empty subset of the catalog, render an interactive surface that exposes the methods the cap implements and explains the methods the cap does not.
+
+**Why name-only discovery is sound (review finding 3).** The viewer
+dispatches on `__getMethodNames__()`, which returns method *names* with no
+signatures. That is only safe because the catalog **forbids** a method name
+from carrying two signatures: once `lookup` is path-array everywhere (with the
+one-segment walk split off as `lookupStep`) and `write` is whole-blob
+everywhere (with range I/O split off as `create`), a name in the set implies
+its catalog signature. The viewer must therefore call a discovered method
+**only with the catalog signature**, never a backing-specific one — and the
+catalog's same-name⇒same-signature rule (now actually enforced, per findings
+1–2) is what makes that guarantee hold. A backing that exposed a same-named,
+different-signature method would break this contract; the merge into the
+single coherent extended guard (D4 / [Phase 1.5](#phase-15-endo-fs-retires-into-endoplatformfs))
+is what prevents that from happening on the cap-FS surface.
 
 ### What the viewer reads
 
@@ -687,31 +730,67 @@ guards are not the same shape as platform/fs's** — its DESIGN.md §2.1 states
 the contracts diverge (range-I/O `OpenFile`, `qid` identity, `Cursor` paging,
 sub-caps). Retire/merge therefore is **not** a name-level reconciliation; it
 is a guard-level merger and must resolve that divergence, not paper over it.
-Two viable shapes:
 
-- **Layered entry (recommended).** platform/fs keeps its narrow Mutable
-  `File` / `Directory` guards as the *base*; the cap-FS surface (range I/O,
-  `Cursor`, `Xattrs`, `NodeWatcher`, `BlobRef`, `Lock`, `Layer`, `PosixFs`)
-  lands as an *extended* entry whose guards `M.interface(..., { sloppy:
-  true })`-extend the base. One package, two guard tiers, no contract
-  collision: a consumer that only needs the catalog imports the base; the
-  9P / FUSE bridge imports extended.
-- **Single merged guard.** Fold everything into one `Directory` / `File`
-  guard. Rejected: it forces CAS and name-hub backings to face guards they
-  can never satisfy, the exact failure mode Design Decision 8 calls out.
+**Why "sloppy-extended tier" does not work (review finding 4).** An earlier
+draft proposed two guard tiers — platform's narrow `Directory` as a base and
+the cap-FS surface as an `M.interface(..., { sloppy: true })` "extension." That
+is not a realizable composition. An exo carries **exactly one** interface
+guard; `sloppy: true` means "permit *additional, unchecked* methods," not
+"layer a second validated guard on top." Worse, the two guards *contradict* on
+a shared method — platform `Directory.lookup` is `M.call().rest(M.string())`
+while endo-fs `Directory.lookup` is `M.call(M.string())` — so no single exo
+can satisfy both. "Two tiers" would resolve the divergence by *abandoning*
+enforcement (and faithful `__getMethodNames__` reporting) on exactly the
+divergent methods. Rejected.
 
-The migration sequencing inside the big-bang cutover:
+**The merge shape (recommended).** First **eliminate the contradictions** at
+the signature level (review findings 1–2): the catalog `lookup` is path-array
+everywhere, endo-fs's one-segment walk becomes `lookupStep`; `write` is
+whole-blob, endo-fs's `create` stays a distinct range-I/O method. With the
+contradictions gone, the extended surface is **one coherent guard per type** —
+`@endo/platform/fs/extended`'s `Directory` / `File` are a *superset*
+`M.interface` that declares the catalog methods (with catalog signatures)
+**plus** the cap-FS methods (`lookupStep`, `create`, `open`, `Cursor`-returning
+`list`, `xattrs`, `watch`, `snapshot → BlobRef`, …) as explicitly-declared
+members. Not `sloppy`-slack: every method is declared and guarded, so
+`__getMethodNames__` stays a faithful catalog and the viewer contract
+(below) is sound. `sloppy: true` is retained only for *forward* evolution
+(letting a future per-feature method land without an interface bump), never as
+the composition mechanism.
 
-1. Land the cap-FS surface as a `@endo/platform/fs/extended` entry (move
-   `packages/endo-fs/src/*` under `packages/platform/src/fs/extended/`,
-   re-export the existing guards from there).
-2. Rename all call sites to catalog names in the same sweep (see table).
+CAS and name-hub backings do **not** implement the extended guard — they
+implement the *catalog* `ReadableTree` / `Directory` guards (the narrow ones),
+which the extended guard is a superset of. This is what keeps Design
+Decision 8 honest: a backing implements the narrowest guard it can satisfy;
+nothing forces CAS to face range-I/O methods.
+
+The migration sequencing inside the big-bang cutover is ordered so it is
+**bisectable** rather than a single dangling-import flip:
+
+1. Land the cap-FS surface as a new `@endo/platform/fs/extended` entry (move
+   `packages/endo-fs/src/*` under `packages/platform/src/fs/extended/`),
+   applying the `lookup → lookupStep` / `write`-vs-`create` renames so the
+   extended guards are coherent supersets of the catalog guards. The
+   cap-FS engine lives strictly behind this entry; the minimal vocabulary
+   (`@endo/platform/fs/lite`) is **not** touched, preserving platform-fs
+   Decision 1/5 minimality (review finding 5) — `@endo/platform` becomes
+   "vocabulary *plus* an opt-in extended engine behind a separate entry,"
+   not "a fatter vocabulary."
+2. Make `@endo/endo-fs` a **thin re-export shim** of the new location in the
+   *same* commit, so its dependents keep resolving (no dangling imports). The
+   tree is green here; this is the bisection point.
 3. Re-home `packages/9p-server` and `packages/claude-container` onto
-   `@endo/platform/fs/extended`.
-4. Replace `packages/endo-fs` with a deprecation re-export shim (one release)
-   or delete it; update `workspace:^` dependents.
+   `@endo/platform/fs/extended`, renaming call sites to catalog names.
+4. Delete the `@endo/endo-fs` shim and update `workspace:^` dependents once
+   no importer remains. Commit the `yarn.lock` churn **separately** per the
+   standing rule.
 5. Fold endo-fs's `DESIGN.md` and `ROADMAP.md` into platform-fs's design
    corpus; file the tracking issue named in D4.
+
+Steps 1–2 land together (otherwise imports dangle); 3 and 4 are independently
+revertible. This trades the "one un-bisectable cutover" the earlier draft
+implied for a green-at-each-step sequence — the only genuinely atomic pair is
+move + shim.
 
 ### Call-site rename (executed in the same cutover)
 
@@ -870,14 +949,20 @@ the design's original keep-diverged pick.
   platform/fs's — the contracts genuinely diverge (range-I/O `OpenFile`,
   `qid`, `Cursor`, sub-caps). A name-level reconciliation sidesteps this; a
   merge must confront it.
-- *Resolution & how the consideration is honored:* merge via a **layered
-  entry** (`@endo/platform/fs/extended`) so the divergence is expressed as a
-  guard *tier* (base catalog guards + sloppy-extended cap-FS guards) rather
-  than a single collision; the alternative single-merged-guard is rejected
-  precisely because it would force CAS / name-hub backings to face guards
-  they can never satisfy ([Design Decision 8](#design-decisions)). Tracking
-  issue to be filed when this design lands. See
-  [Phase 1.5](#phase-15-endo-fs-retires-into-endoplatformfs).
+- *Resolution & how the consideration is honored:* merge into a new
+  `@endo/platform/fs/extended` entry whose `Directory` / `File` are a **single
+  coherent superset guard** — the catalog methods (catalog signatures) plus the
+  cap-FS methods, all explicitly declared. This is only possible *because* the
+  signature contradictions are removed first (review findings 1–2:
+  `lookup → lookupStep`, `write` ≠ `create`). The earlier "base + sloppy-extended
+  tier" idea is **rejected** (review finding 4): an exo carries one guard,
+  `sloppy` removes enforcement rather than layering it, and the two guards
+  contradict on `lookup`, so a tier would abandon enforcement on the divergent
+  methods. CAS / name-hub backings implement the narrow catalog guards the
+  superset extends — Design Decision 8 stays honest. The cap-FS engine lives
+  behind the `/extended` entry only, leaving the minimal `lite` vocabulary
+  untouched (review finding 5). Tracking issue to be filed when this design
+  lands. See [Phase 1.5](#phase-15-endo-fs-retires-into-endoplatformfs).
 
 **D5 — `subView`, not `subDir`.** The in-session re-root method is named
 `subView`.
@@ -919,6 +1004,87 @@ section for the cap-FS surface, no `name-hub-as-vfs-backing` concept page, the
 source survey done from package code rather than a library section. These are
 *librarian* / *scholar* tasks, not design blockers; to be filed as journal
 `message` entries to gardener / librarian after this design lands.
+
+## Review findings incorporated (second-round, 2026-06-18)
+
+A second review pass (three reviewers: adversarial design, CapTP/performance,
+SES discipline) found genuine holes that the first audit's "accurate as
+written" claim had missed. Each is recorded here with its resolution and the
+sections changed, so the fixes are traceable.
+
+**F1 — `lookup` carried two signatures under one name.** platform/mount
+`lookup(...path[])` vs endo-fs `lookup(string)` violates the catalog's own
+"same name ⇒ same signature" rule (the maintainer's quoted spec).
+*Resolution:* catalog `lookup` is the path-array form everywhere; endo-fs's
+one-segment walk is renamed `lookupStep`. Changed: [Reading](#reading) table
+(two rows), key-divergence 1, [Design Decision 1](#design-decisions), matrix
+`lookup` row.
+
+**F2 — `write` named two non-substitutable jobs.** Catalog `write(path,
+value) → void` (whole-blob) vs endo-fs `create(name) → OpenFile` (range-I/O
+writer). *Resolution:* they stay distinct methods; a writer-only backing
+implements `write` as a `create`+drive+`close` wrapper, never an alias.
+Changed: [Mutation](#mutation) note, matrix `write` cell.
+
+**F3 — the `__getMethodNames__` viewer contract was unsound.** Name-only
+discovery mis-dispatches if a name can carry two signatures. *Resolution:*
+fixing F1/F2 makes the catalog genuinely enforce same-name⇒same-signature;
+added an explicit soundness note that the viewer must call discovered methods
+with the *catalog* signature. Changed: [What the viewer reads](#what-the-viewer-reads).
+
+**F4 — D4's "base + sloppy-extended guard tier" was not a realizable
+composition.** An exo carries one guard; `sloppy` removes enforcement rather
+than layering it; and the two guards contradict on `lookup`. *Resolution:*
+the merge is a **single coherent superset guard** per type (catalog signatures
++ explicitly-declared cap-FS methods), made possible by first removing the
+F1/F2 contradictions; `sloppy` is retained only for forward evolution.
+Changed: [Phase 1.5](#phase-15-endo-fs-retires-into-endoplatformfs), D4.
+
+**F5 — the merge risked inflating platform/fs past its minimality charter.**
+*Resolution:* the cap-FS engine lands strictly behind the
+`@endo/platform/fs/extended` entry; the minimal `lite` vocabulary is untouched.
+Changed: [Phase 1.5](#phase-15-endo-fs-retires-into-endoplatformfs) step 1, D4.
+
+**F6 — `followNameChanges` return type was contradictory** across the cited
+guards (`remotable` vs `promise`) and the catalog (`AsyncIterable`).
+*Resolution:* standardize on a `ReaderRef` (remotable async-iterator ref),
+matching `EndoDirectory`; the empty-stream case is an immediately-terminating
+`ReaderRef`. Changed: [Observation](#observation) row.
+
+**F7 — `snapshot` matrix `I` for endo-fs contradicted its live `BlobRef |
+null` contract** and depended on an unbuilt adapter. *Resolution:* endo-fs's
+`File.snapshot → BlobRef | null` is a *separate* extended method; the catalog
+`snapshot` is satisfied only via the (unbuilt) `BlobRef → SnapshotBlob`
+adapter, so the cell is now `I*` (adapter-pending). Changed:
+[Snapshot](#snapshot) row, matrix.
+
+**F8 — `subView`-on-mount was marked `I` but daemon-mount has no
+per-subdirectory confinement** (`..` reaches the mount root). *Resolution:*
+the mount cell is now `D` — `subView` needs a new confinement-shifting,
+parent-less attenuator (new code + security check) or `provideSubMount`; it is
+not free. Changed: matrix `subView` row, totals.
+
+**F9 — big-bang + retire risked one un-bisectable dangling-import cutover.**
+*Resolution:* re-sequenced so `@endo/endo-fs` becomes a re-export shim in the
+same commit as the move (the only atomic pair), then consumers re-home and the
+shim is deleted independently — green at each step; `yarn.lock` churn in its
+own commit. Changed: [Phase 1.5](#phase-15-endo-fs-retires-into-endoplatformfs)
+sequencing.
+
+**Performance (CapTP reviewer), from-mount adapter — fixed in this branch.**
+`list()` issued `2 + 2n` *serial* round-trips (per-entry `lookup` +
+`__getMethodNames__` probe); it now pipelines each entry's probe onto its
+still-unresolved `lookup` and runs all entries concurrently
+(`E(E(mount).lookup(name)).__getMethodNames__()` under `Promise.all`), so a
+listing is a single pipelined batch. The whole-file read-modify-write of
+`read` / `write` / `setStat` is inherent to Mount having no partial-range I/O
+(documented in the adapter header); the write path's single-base64-chunk bound
+(no back-pressure for multi-GB blobs) is now documented as a known limit rather
+than silently assumed. These were adapter-implementation items, not catalog
+issues.
+
+**SES discipline:** clean (0 should-fix); the EACCES errno-string-prefix
+matches the `node-fs-backend.js` convention.
 
 ## Prompt
 
