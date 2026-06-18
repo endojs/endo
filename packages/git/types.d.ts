@@ -15,7 +15,6 @@ declare module '@endo/git' {
   /** Subprocess-backed `GitBackend` over the installed `git` binary. */
   export const makeNativeGitBackend: (opts: {
     repoRoot: string;
-    makeReaderRef?: (readable: any) => any;
     [key: string]: unknown;
   }) => any;
 
@@ -51,7 +50,6 @@ declare module '@endo/git' {
 declare module '@endo/git/src/native-git-backend.js' {
   export const makeNativeGitBackend: (opts: {
     repoRoot: string;
-    makeReaderRef?: (readable: any) => any;
     [key: string]: unknown;
   }) => any;
   export const internalHelpers: Record<string, any>;

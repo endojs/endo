@@ -11,8 +11,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { URL, fileURLToPath } from 'node:url';
 
+import { encodeBase64 } from '@endo/base64';
 import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
+import { mapReader } from '@endo/stream';
 import { ReadableBlobInterface } from '@endo/platform/fs/lite';
 import { GitTreeInterface } from '@endo/exo-git';
 
@@ -747,22 +751,9 @@ const worktreeCodeToStatus = (code, indexCode) => {
  * @param {object} args
  * @param {string} args.repoRoot  The host-private worktree root the
  *   git formula instantiator pulled from the mount's backing.
- * @param {(readable: unknown) => unknown} [args.makeReaderRef]  Wraps
- *   an async iterable / reader as a CapTP-friendly reader ref.  The
- *   daemon binds its own `reader-ref.js` here.  Optional because some
- *   in-process tests never reach the `streamBase64` path; the default
- *   throws lazily so the call site sees a clear error instead of a
- *   `TypeError` deep in the exo guard.
  * @returns {GitBackend}
  */
-export const makeNativeGitBackend = ({
-  repoRoot,
-  makeReaderRef = () => {
-    throw new Error(
-      'makeNativeGitBackend: makeReaderRef power not bound; pass one to enable GitBlob.streamBase64()',
-    );
-  },
-}) => {
+export const makeNativeGitBackend = ({ repoRoot }) => {
   /** @type {Promise<void> | undefined} */
   let rootVerification;
   /** @type {Promise<void> | undefined} */
@@ -1669,8 +1660,14 @@ export const makeNativeGitBackend = ({
    */
   const makeGitBlob = blobOid =>
     makeExo('GitBlob', ReadableBlobInterface, {
-      streamBase64() {
-        return makeReaderRef(streamBlobBytes(blobOid));
+      /**
+       * @param {import('@endo/eventual-send').ERef<unknown>} synPromise
+       */
+      streamBase64(synPromise) {
+        const pump = makeReaderPump(
+          mapReader(streamBlobBytes(blobOid), encodeBase64),
+        );
+        return pump(/** @type {any} */ (synPromise));
       },
 
       async text() {
@@ -1731,9 +1728,13 @@ export const makeNativeGitBackend = ({
     };
 
     self = makeExo('GitTree', GitTreeInterface, {
-      /** @returns {unknown} A reader ref over the `git archive --format=tar` stream. */
+      /**
+       * Returns a `PassableBytesReader` over the
+       * `git archive --format=tar` stream. Each call starts a fresh
+       * `git archive` subprocess.
+       */
       archiveTar() {
-        return makeReaderRef(
+        return bytesReaderFromIterator(
           streamGitBuffer(['archive', '--format=tar', treeOid]),
         );
       },
