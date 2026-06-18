@@ -118,6 +118,8 @@ api-docs
 !packages/lp32/types.d.ts
 !packages/pass-style/src/types.d.ts
 !packages/patterns/types-index.d.ts
+!packages/preact-container/src/renderer.d.ts
+!packages/preact-container/src/compartment.d.ts
 !packages/sandbox/src/types.d.ts
 !packages/ses/src/reporting-types.d.ts
 !packages/ses/types.d.ts

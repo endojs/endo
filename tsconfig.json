@@ -30,6 +30,7 @@
         "packages/jaine",
         "packages/lal",
         "packages/platform",
+        "packages/preact-container",
         "packages/whylip",
         "**/build",
         "**/demo",
