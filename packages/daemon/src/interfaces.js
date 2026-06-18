@@ -29,6 +29,10 @@ const IdShape = M.string();
 // Locators are formatted formula identifiers
 const LocatorShape = M.string();
 
+// `help(method?) -> string` is conventional on every capability (root
+// CLAUDE.md). Shared so the name-hub records declare it once.
+const HelpMethod = M.call().optional(M.string()).returns(M.string());
+
 // Message numbers are non-negative BigInts
 const MessageNumberShape = M.bigint();
 
@@ -71,14 +75,16 @@ export const ResponderInterface = M.interface('EndoResponder', {
 
 // The narrow, read-only name-hub contract (designs/fs-interface-consolidation
 // § C1, namehub-interface-unification.md). Every name-hub-shaped surface —
-// `EndoNameHub`, `EndoDirectory`, and `EndoMount` — exposes at least these four
-// read methods by name. The canonical path-argument shape is `NameOrPathShape`
+// `EndoDirectory`, `EndoGuest`, `EndoHost`, `EndoMount`, and genie's
+// `LocalMount` — exposes at least these read methods by name (plus the
+// universal `help`). The canonical path-argument shape is `NameOrPathShape`
 // (`string | string[]`): the honest, narrow contract. `EndoMount` accepts more
 // (a `MountEntry` cap) and therefore *widens* `has` / `lookup` / `maybeLookup`
 // to `PathArgShape` in its own guard rather than here, so the shared contract
 // stays honest (the maintainer canonical-shape decision: standardize on
 // `NameOrPathShape`, widen per-surface).
 export const readableNameHubMethodGuards = harden({
+  help: HelpMethod,
   has: M.call().rest(NamePathShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
@@ -94,13 +100,23 @@ export const ReadableNameHubInterface = M.interface('ReadableNameHub', {
 });
 harden(ReadableNameHubInterface);
 
+// The live-filesystem read/write surface a `Directory` or `Mount` adds on top
+// of the read contract: text I/O plus directory creation. Shared by
+// `EndoDirectory`, `EndoGuest`, `EndoHost`, and genie's `LocalMount` (all on
+// `NameOrPathShape`); `EndoMount` widens these to `PathArgShape` in its own
+// guard. See designs/fs-interface-consolidation.md § C1.
+export const directoryFileMethodGuards = harden({
+  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
+  readText: M.call(NameOrPathShape).returns(M.promise()),
+  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
+  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
+});
+
 // The full name-hub method-guard record: the read contract plus the
-// registry/locator/mutation surface. `EndoNameHub` *is* exactly this record;
-// `EndoDirectory` spreads it and adds the directory-only surface (help /
-// makeDirectory / readText / maybeReadText / writeText). The `follow*` methods
-// return `M.remotable()` here — `EndoGuest` / `EndoHost` deliberately return
-// `M.promise()` instead, so they do NOT consume this record (the divergence the
-// consolidation doc records).
+// registry/locator/mutation surface. `EndoDirectory` spreads it (and
+// `directoryFileMethodGuards`); `EndoGuest` / `EndoHost` spread it but override
+// the two `follow*` methods (which return `M.promise()` on agents, where the
+// hub returns `M.remotable()` — the exo awaits before wrapping the reader).
 export const nameHubMethodGuards = harden({
   ...readableNameHubMethodGuards,
   identify: M.call().rest(NamePathShape).returns(M.promise()),
@@ -116,10 +132,6 @@ export const nameHubMethodGuards = harden({
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-});
-
-export const NameHubInterface = M.interface('EndoNameHub', {
-  ...nameHubMethodGuards,
 });
 
 export const EnvelopeInterface = M.interface('EndoEnvelope', {});
@@ -139,42 +151,30 @@ export const HandleInterface = M.interface(
 );
 
 // `EndoDirectory` is the writable name hub: the shared `nameHubMethodGuards`
-// plus the directory-only surface (self-documentation, directory creation, and
-// the text I/O it delegates to its backing mount). See
-// designs/fs-interface-consolidation.md § C1.
+// (which carries `help` and the registry/mutation surface) plus the
+// `directoryFileMethodGuards` file-I/O surface it delegates to its backing
+// mount. See designs/fs-interface-consolidation.md § C1.
 export const DirectoryInterface = M.interface('EndoDirectory', {
   ...nameHubMethodGuards,
-  // Self-documentation
-  help: M.call().optional(M.string()).returns(M.string()),
-  // Create a new directory
-  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  // Text I/O (delegated to mount)
-  readText: M.call(NameOrPathShape).returns(M.promise()),
-  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
-  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
+  ...directoryFileMethodGuards,
 });
 
 export const GuestInterface = M.interface('EndoGuest', {
-  // Self-documentation
-  help: M.call().optional(M.string()).returns(M.string()),
-  // Name hub — the shared read + registry/locator/mutation surface.
+  // Name hub — the shared read (incl. `help`) + registry/locator/mutation
+  // surface, plus the directory file-I/O surface.
   ...nameHubMethodGuards,
+  ...directoryFileMethodGuards,
   // `followNameChanges` / `followLocatorNameChanges` are async on agents
   // (the exo awaits before wrapping the reader), so they return a Promise
-  // where the bare `EndoNameHub` / `EndoDirectory` return the reader
-  // synchronously (`M.remotable()`). Override the shared record's remotable
-  // shape with the agent's promise shape.
+  // where the bare `EndoDirectory` returns the reader synchronously
+  // (`M.remotable()`). Override the shared record's remotable shape with the
+  // agent's promise shape.
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
   // Agent-only registry extras beyond the bare name hub.
   reverseIdentify: M.call(IdShape).returns(M.array()),
   lookupById: M.call(IdShape).returns(M.promise()),
   lookupByLocator: M.call(LocatorShape).returns(M.promise()),
-  // Directory surface (delegated to the agent's mount).
-  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  readText: M.call(NameOrPathShape).returns(M.promise()),
-  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
-  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
   // Mail
   // Get the guest's mailbox handle
   handle: M.call().returns(M.remotable()),
@@ -248,10 +248,10 @@ export const GuestInterface = M.interface('EndoGuest', {
 });
 
 export const HostInterface = M.interface('EndoHost', {
-  // Self-documentation
-  help: M.call().optional(M.string()).returns(M.string()),
-  // Name hub — the shared read + registry/locator/mutation surface.
+  // Name hub — the shared read (incl. `help`) + registry/locator/mutation
+  // surface, plus the directory file-I/O surface.
   ...nameHubMethodGuards,
+  ...directoryFileMethodGuards,
   // Async on agents (see EndoGuest): override the shared record's
   // synchronous remotable shape with the agent's promise shape.
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
@@ -260,11 +260,6 @@ export const HostInterface = M.interface('EndoHost', {
   reverseIdentify: M.call(IdShape).returns(M.array()),
   lookupById: M.call(IdShape).returns(M.promise()),
   lookupByLocator: M.call(LocatorShape).returns(M.promise()),
-  // Directory surface (delegated to the agent's mount).
-  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  readText: M.call(NameOrPathShape).returns(M.promise()),
-  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
-  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
   // Mail
   handle: M.call().returns(M.remotable()),
   listMessages: M.call().returns(M.promise()),

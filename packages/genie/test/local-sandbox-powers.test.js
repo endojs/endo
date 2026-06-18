@@ -300,6 +300,22 @@ test('Mount.lookup allows a symlink whose target stays inside the mount root', a
   t.deepEqual(entries, ['hello.txt']);
 });
 
+test('Mount.maybeLookup returns the cap for a present path and undefined for an absent one', async t => {
+  const { makeMountCapForPath, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  const workspaceDir = mkdtempSync(join(tmpdir(), 'genie-local-test-ml-'));
+  t.teardown(() => fs.rm(workspaceDir, { recursive: true, force: true }));
+  await fs.writeFile(join(workspaceDir, 'present.txt'), 'hi');
+
+  const mount = /** @type {any} */ (makeMountCapForPath(workspaceDir));
+  const file = await E(mount).maybeLookup('present.txt');
+  t.not(file, undefined);
+  t.is(await E(file).text(), 'hi');
+  // Absent path yields undefined rather than throwing.
+  t.is(await E(mount).maybeLookup('missing.txt'), undefined);
+});
+
 test('provideHostPath rejects sub-Mounts minted by Mount.lookup', async t => {
   // Composition of saboteur findings 1 and 2: if `lookup` returned a
   // sub-Mount and `provideHostPath` accepted it, an attacker could
