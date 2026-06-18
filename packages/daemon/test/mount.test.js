@@ -398,6 +398,40 @@ test('readOnly() called on an already-read-only mount returns a working view', a
   t.true(await E(view).has('a.txt'));
 });
 
+// --- subView confinement ---
+
+test('subView confines `..` to the sub-root (cannot reach siblings or mount root)', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory('sub');
+  await E(mount).writeText(['sub', 'inside.txt'], 'in');
+  await E(mount).writeText('secret.txt', 'top');
+
+  const view = await E(mount).subView('sub');
+  t.true(await E(view).has('inside.txt'), 'in-view path is visible');
+  // `..` clamps at the sub-view root: the parent-mount sibling is gone.
+  t.false(
+    await E(view).has('..', 'secret.txt'),
+    'subView cannot escape upward to a sibling',
+  );
+
+  // Contrast: a plain lookup sub-handle shares the mount confinement root,
+  // so it DOES reach the sibling via `..` — which is exactly why subView
+  // (a real confinement shift) is needed for attenuation.
+  const handle = await E(mount).lookup('sub');
+  t.true(
+    await E(handle).has('..', 'secret.txt'),
+    'lookup sub-handle shares the mount root by design',
+  );
+});
+
+test('subView of a file throws ENOTDIR', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText('a.txt', 'x');
+  await t.throwsAsync(() => E(mount).subView('a.txt'), { message: /ENOTDIR/ });
+});
+
 // --- snapshot() not configured ---
 
 test('snapshot() throws when no snapshotTree was wired in', async t => {

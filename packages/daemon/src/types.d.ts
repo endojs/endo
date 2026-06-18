@@ -1161,6 +1161,12 @@ export interface EndoMount {
   lookup(
     path: string | string[] | EndoMountEntry,
   ): Promise<EndoMount | EndoMountFile>;
+  /**
+   * Confined sub-root: returns a sub-mount whose own confinement root is
+   * the target directory, so `..` cannot escape it. The transient,
+   * in-session counterpart to `provideSubMount`.
+   */
+  subView(path: string | string[] | EndoMountEntry): Promise<EndoMount>;
   write(
     path: string | string[] | EndoMountEntry,
     value: unknown,

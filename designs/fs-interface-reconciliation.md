@@ -577,7 +577,7 @@ range I/O").
 
 Rows are the five backings the maintainer named.
 Columns are the unified-catalog methods.
-Cells are: **I** (implemented), **A** (absent on this backing's interface; viewer renders the control disabled with a tooltip naming the gap), **D** (deferred to a stronger neighbor; e.g., `subView` on a mount = `lookup(path)` plus a confinement shift).
+Cells are: **I** (implemented), **A** (absent on this backing's interface; viewer renders the control disabled with a tooltip naming the gap), **D** (deferred to a stronger neighbor; e.g., CAS `move` / `copy` realized as refcount operations).
 
 | Method | mount | scratch-mount | endo-fs in-memory | CAS (readable-tree / readable-blob) | endo directory / name hub |
 |---|---|---|---|---|---|
@@ -599,17 +599,17 @@ Cells are: **I** (implemented), **A** (absent on this backing's interface; viewe
 | `makeDirectory` | I | I | I (`mkdir`) | A (CAS does not have a "create empty directory" verb) | I |
 | `makeFile` | I | I | I (`create`) | A | A (name hub does not have a blob-content concept) |
 | `readOnly` | I | I | I (composer `readOnly(fs)`) | I (identity; CAS is already read-only) | I |
-| `subView` | D (new attenuator: needs a confinement-root shift + parent-less check, *or* `provideSubMount`; a mount's transient lookup exos share the mount root and honor `..` to it — see review finding 8) | D (same) | I (`chroot(fs, path)`) | I (descend the tree manifest) | I (re-root the name hub) |
+| `subView` | I (confinement-shifting attenuator: `EndoMount.subView` returns a sub-mount whose own `confinementRoot` is the target, so `..` clamps at the sub-view root — see review finding 8; `provideSubMount` remains the persisted-formula form) | I (same) | I (`chroot(fs, path)`) | I (descend the tree manifest) | I (re-root the name hub) |
 | `snapshot` | I (writes a `readable-tree` to CAS) | I (same) | I\* (whole-tree checkin; the `BlobRef → SnapshotBlob` adapter that yields the catalog shape is endo-fs ROADMAP F6, **not yet built** — see review finding 7) | I (identity; already a snapshot) | A (name bindings have no content to snapshot; viewer surfaces gap) |
 | `followNameChanges` | I (PR #277) | I (PR #277) | I (in-memory event emitter) | I (immediately-terminating empty stream; CAS is immutable — see D6) | I (existing EndoDirectory method) |
 | `help` | I | I | I | I | I |
 
 Total: 22 methods (the catalog's `lookupStep` is an optional cap-FS accelerator
 over the same *job* as `lookup`, so it gets no separate conformance row — only
-the extended surface implements it). Mount and scratch-mount implement 20
-directly (all but `streamRead`, which is absent, and `subView`, which is
-deferred to a new confinement-shifting attenuator or `provideSubMount`).
-endo-fs in-memory implements 17 (`snapshot` via the as-yet-unbuilt
+the extended surface implements it). Mount and scratch-mount implement 21
+directly (all but `streamRead`, which is absent); `subView` is now a real
+confinement-shifting attenuator (`EndoMount.subView`). endo-fs in-memory
+implements 17 (`snapshot` via the as-yet-unbuilt
 `BlobRef → SnapshotBlob` adapter). CAS implements 11 directly plus 2 deferred
 (`move` / `copy` as refcount operations per move-transfer Tier 4). Name hub
 implements 12 (no blob content surface).
@@ -1096,11 +1096,17 @@ null` contract** and depended on an unbuilt adapter. *Resolution:* endo-fs's
 adapter, so the cell is now `I*` (adapter-pending). Changed:
 [Snapshot](#snapshot) row, matrix.
 
-**F8 — `subView`-on-mount was marked `I` but daemon-mount has no
-per-subdirectory confinement** (`..` reaches the mount root). *Resolution:*
-the mount cell is now `D` — `subView` needs a new confinement-shifting,
-parent-less attenuator (new code + security check) or `provideSubMount`; it is
-not free. Changed: matrix `subView` row, totals.
+**F8 — `subView`-on-mount was marked `I` but daemon-mount had no
+per-subdirectory confinement** (`..` reaches the mount root). *Resolution
+(implemented):* rather than defer, `EndoMount.subView(path)` was added — it
+returns a sub-mount whose **own `confinementRoot` is the target directory**, so
+`..` clamps at the sub-view root and cannot reach the parent mount's siblings
+or root (verified by `packages/daemon/test/mount.test.js`). A plain `lookup`
+sub-handle still shares the mount's confinement root for in-mount navigation
+(by design); `provideSubMount` remains the persisted-formula form. This also
+closes the daemon side of the platform/daemon `subView` parity gap. Changed:
+matrix `subView` row, `daemon/src/mount.js`, `daemon/src/interfaces.js`,
+`daemon/src/types.d.ts`.
 
 **F9 — big-bang + retire risked one un-bisectable dangling-import cutover.**
 *Resolution:* re-sequenced so `@endo/endo-fs` becomes a re-export shim in the

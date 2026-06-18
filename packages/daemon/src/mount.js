@@ -591,6 +591,34 @@ const makeMountExo = ctx => {
       return openExisting(resolveFromRoot(segments), segments);
     },
 
+    async subView(pathArg) {
+      await null;
+      const segments = segmentsFromPathArg(pathArg);
+      const target = resolveFromRoot(segments);
+      await assertConfined(target, confinementRoot, filePowers);
+      if (!(await filePowers.isDirectory(target))) {
+        throw new Error(
+          `ENOTDIR: subView target is not a directory: ${q(
+            relativeToRoot(target, confinementRoot),
+          )}`,
+        );
+      }
+      // A genuine confinement shift: the sub-view's own `confinementRoot`
+      // is `target`, so `..` clamps at the sub-view root and cannot reach
+      // the parent mount's siblings or root. This is unlike a `lookup`
+      // sub-handle, which deliberately inherits the mount's
+      // `confinementRoot` for in-mount navigation. For a *persisted*
+      // sub-root, use `provideSubMount` (a new formula); `subView` is the
+      // transient, in-session attenuator.
+      return makeMountExo({
+        ...ctx,
+        currentDir: target,
+        currentSegments: [],
+        confinementRoot: target,
+        description: `Subview of ${description}`,
+      });
+    },
+
     entry(pathArg) {
       return makeEntry(segmentsFromEntryPathArg(pathArg));
     },

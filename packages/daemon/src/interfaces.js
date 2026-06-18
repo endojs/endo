@@ -554,6 +554,11 @@ export const MountInterface = M.interface('EndoMount', {
   has: M.call().rest(M.any()).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
+  // Confined sub-root: returns a sub-mount whose own confinement root is
+  // the target directory, so `..` cannot escape it (unlike a `lookup`
+  // sub-handle, which shares the mount's confinement root). The
+  // transient, in-session counterpart to `provideSubMount`.
+  subView: M.call(PathArgShape).returns(M.promise()),
   // Directory-shape write/copy (literal shapes from
   // PlatformDirectoryInterface for the path-segment form; entry-form
   // overloads accept an `EndoMountEntry` as the path argument).
