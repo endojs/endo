@@ -9,7 +9,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { createAddSpaceModal } from './add-space-modal.js';
 import { createEditSpaceModal } from './edit-space-modal.js';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 /** @type {ReadonlySet<string>} */
 const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers', 'files']);
@@ -822,7 +822,7 @@ export const createSpacesGutter = ({
       const changesRef = E(
         /** @type {ERef<EndoHost>} */ (spacesDir),
       ).followNameChanges();
-      const changes = makeRefIterator(changesRef);
+      const changes = iterateReader(changesRef);
 
       for await (const change of changes) {
         const { add, remove } =

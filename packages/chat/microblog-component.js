@@ -3,7 +3,7 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { createChannelState } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import { isVisibleReplyType, computeNodeContent } from './edit-queue.js';
@@ -736,7 +736,7 @@ export const microblogComponent = async (
 
   // Start following messages
   const messagesRef = await E(channel).followMessages();
-  const messagesIterator = makeRefIterator(messagesRef);
+  const messagesIterator = iterateReader(messagesRef);
 
   /** @type {boolean} */
   const disposed = false;

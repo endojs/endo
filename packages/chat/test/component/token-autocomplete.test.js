@@ -7,7 +7,7 @@ import test from 'ava';
 import { E } from '@endo/far';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { createDOM, createInputElements, tick } from '../helpers/dom-setup.js';
-import { makeRefIterator } from '../../ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { tokenAutocompleteComponent } from '../../token-autocomplete.js';
 
 const { document: testDocument, window: testWindow } = createDOM();
@@ -103,7 +103,7 @@ const setup = async (names = ['alice', 'bob', 'charlie']) => {
 
   const api = tokenAutocompleteComponent($input, $menu, {
     E,
-    makeRefIterator,
+    iterateReader,
     powers,
   });
 

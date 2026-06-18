@@ -4,7 +4,7 @@
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { playChime } from './chime.js';
 import {
   prepareTextWithPlaceholders,
@@ -73,7 +73,7 @@ export const inboxComponent = async (
   }, 150);
 
   const selfLocator = await E(powers).locate('@self');
-  for await (const message of makeRefIterator(E(powers).followMessages())) {
+  for await (const message of iterateReader(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
     // of the messages pane. Use 80px tolerance (matching channel-component)
     // so short messages don't cause the user to "lose" auto-scroll.

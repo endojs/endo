@@ -2,29 +2,9 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 /** @import { ERef } from '@endo/far' */
-
-/**
- * @template TValue
- * @template TReturn
- * @template TNext
- * @param {import('@endo/far').ERef<AsyncIterator<TValue, TReturn, TNext>>} iteratorRef
- * @returns {AsyncIterableIterator<TValue, TReturn, TNext>}
- */
-const makeRefIterator = iteratorRef => {
-  const iterator = harden({
-    /** @param {[] | [TNext]} args */
-    next: async (...args) => E(iteratorRef).next(...args),
-    /** @param {[] | [TReturn]} args */
-    return: async (...args) => E(iteratorRef).return(...args),
-    /** @param {any} error */
-    throw: async error => E(iteratorRef).throw(error),
-    [Symbol.asyncIterator]: () => iterator,
-  });
-  return iterator;
-};
-harden(makeRefIterator);
 
 /**
  * @param {string} state - 'start' | 'accepted' | 'connected'
@@ -264,7 +244,7 @@ export const renderPeers = ($root, { powers, onProfileChange }) => {
     await null;
     try {
       const changesRef = E(host).followPeerChanges();
-      const changes = makeRefIterator(changesRef);
+      const changes = iterateReader(changesRef);
       // eslint-disable-next-line no-underscore-dangle
       for await (const _change of changes) {
         if (disposed) break;

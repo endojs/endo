@@ -5,7 +5,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { E } from '@endo/far';
 import { makeMockPowers } from './mock-powers.js';
-import { makeRefIterator } from '../../ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 test('mock powers list returns initial names', async t => {
   const { powers } = makeMockPowers({ names: ['alice', 'bob'] });
@@ -54,7 +54,7 @@ test('mock powers identify returns id', async t => {
 test('mock powers followNameChanges yields initial names', async t => {
   const { powers } = makeMockPowers({ names: ['alice', 'bob'] });
 
-  const iterator = makeRefIterator(E(powers).followNameChanges());
+  const iterator = iterateReader(E(powers).followNameChanges());
   const first = await iterator.next();
   const second = await iterator.next();
 
@@ -65,7 +65,7 @@ test('mock powers followNameChanges yields initial names', async t => {
 test('mock powers followNameChanges yields added names', async t => {
   const { powers, addName } = makeMockPowers({ names: [] });
 
-  const iterator = makeRefIterator(E(powers).followNameChanges());
+  const iterator = iterateReader(E(powers).followNameChanges());
 
   // Schedule addName after iterator is waiting
   setTimeout(() => addName('charlie'), 10);

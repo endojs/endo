@@ -4,7 +4,7 @@
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
@@ -213,7 +213,7 @@ export const chatBarComponent = (
     $sendButton,
     $chatBar,
     E,
-    makeRefIterator,
+    iterateReader,
     powers,
     showValue,
     shouldHandleEnter: () => mode === 'send',
@@ -613,7 +613,7 @@ export const chatBarComponent = (
     $container: $inlineFormContainer,
     E,
     powers,
-    makeRefIterator,
+    iterateReader,
     getContext: () => getCommandContext(), // eslint-disable-line no-use-before-define
     onSubmit: async (commandName, data) => {
       if (commandSubmitting) return;

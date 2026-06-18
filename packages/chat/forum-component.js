@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { createChannelState } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import {
@@ -526,7 +526,7 @@ export const forumComponent = async (
     }
     throw err;
   }
-  const messageIterator = makeRefIterator(messagesRef);
+  const messageIterator = iterateReader(messagesRef);
   activeIterator = messageIterator;
 
   /** Batch incoming messages during initial load. */

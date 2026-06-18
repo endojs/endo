@@ -8,7 +8,7 @@
 //   ENDO_LLM_AUTH_TOKEN=sk-ant-...
 //   ENDO_LLM_NAME=lal
 
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 
@@ -28,7 +28,7 @@ export const main = async agent => {
   console.log(`Setting up lal agent "${name}" (${host}, ${model})`);
 
   const selfLocator = await E(agent).locate('@self');
-  const messages = makeRefIterator(E(agent).followMessages());
+  const messages = iterateReader(E(agent).followMessages());
 
   console.log('Scanning inbox for form from setup-lal...');
 

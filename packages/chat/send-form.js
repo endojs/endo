@@ -49,7 +49,7 @@ import { createHeatBar } from './heat-bar.js';
  * @param {HTMLElement} options.$sendButton - Send button element
  * @param {HTMLElement} options.$chatBar - Chat bar element (for submitting class)
  * @param {typeof import('@endo/far').E} options.E - Eventual send function
- * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
+ * @param {(ref: unknown) => AsyncIterable<unknown>} options.iterateReader - Ref iterator factory
  * @param {ERef<EndoHost>} options.powers - Powers object
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value
  * @param {() => boolean} [options.shouldHandleEnter] - Optional callback to check if Enter should be handled
@@ -67,7 +67,7 @@ export const sendFormComponent = ({
   $sendButton,
   $chatBar,
   E,
-  makeRefIterator,
+  iterateReader,
   powers,
   showValue,
   shouldHandleEnter = () => true,
@@ -255,7 +255,7 @@ export const sendFormComponent = ({
         // Subscribe to heat events for real-time updates
         try {
           const eventsRef = await E(channelRef).followHeatEvents();
-          const eventIter = makeRefIterator(eventsRef);
+          const eventIter = iterateReader(eventsRef);
           (async () => {
             for await (const event of eventIter) {
               if (compositeEngine) {
@@ -316,7 +316,7 @@ export const sendFormComponent = ({
   // Initialize token autocomplete
   const tokenComponent = tokenAutocompleteComponent($input, $menu, {
     E,
-    makeRefIterator,
+    iterateReader,
     powers,
   });
 

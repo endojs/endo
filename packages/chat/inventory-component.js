@@ -8,7 +8,7 @@ import harden from '@endo/harden';
 
 import { E } from '@endo/far';
 import { isSpecialName } from '@endo/daemon/pet-name.js';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 /**
  * @typedef {object} InventoryOptions
@@ -1249,7 +1249,7 @@ export const inventoryComponent = async (
     });
   }
 
-  for await (const change of makeRefIterator(E(powers).followNameChanges())) {
+  for await (const change of iterateReader(E(powers).followNameChanges())) {
     if ('add' in change) {
       const name = change.add;
       const item = createItem(name);

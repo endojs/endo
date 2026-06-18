@@ -4,7 +4,7 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import {
   prepareTextWithPlaceholders,
   renderMarkdown,
@@ -876,7 +876,7 @@ export const channelComponent = async (
     }
     throw err;
   }
-  const messageIterator = makeRefIterator(messagesRef);
+  const messageIterator = iterateReader(messagesRef);
   activeIterator = messageIterator;
 
   // Schedule a hard scroll-to-bottom shortly after messages start arriving.

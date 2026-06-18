@@ -37,7 +37,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {(data: import('./inline-eval.js').ParsedEval) => void} [options.onExpandEval] - Called to expand eval to modal
  * @param {(data: import('./inline-define.js').ParsedDefine) => void} [options.onExpandDefine] - Called to expand define to modal
  * @param {(messageNumber: number) => Promise<string[]>} [options.getMessageEdgeNames] - Get edge names for a message
- * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
+ * @param {(ref: unknown) => AsyncIterable<unknown>} options.iterateReader - Ref iterator factory
  * @param {() => 'inbox' | 'channel' | undefined} [options.getContext] - Returns current UI context
  * @returns {InlineCommandFormAPI}
  */
@@ -52,7 +52,7 @@ export const createInlineCommandForm = ({
   onExpandEval,
   onExpandDefine,
   getMessageEdgeNames,
-  makeRefIterator,
+  iterateReader,
   getContext,
 }) => {
   /** @type {string | null} */
@@ -447,7 +447,7 @@ export const createInlineCommandForm = ({
         // Initialize token autocomplete for the message field
         const tokenComp = tokenAutocompleteComponent($msgInput, $msgMenu, {
           E,
-          makeRefIterator,
+          iterateReader,
           powers,
         });
         $msgInput.addEventListener('input', () => {

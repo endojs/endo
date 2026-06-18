@@ -15,7 +15,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 
 import { colorize } from './monaco-wrapper.js';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { buildUnifiedDiffSection } from './layer-diff.js';
 import {
   applyLayer,
@@ -2524,7 +2524,7 @@ export const mountFileExplorer = (
 
   const pumpInventory = async () => {
     try {
-      invIter = makeRefIterator(E(resolveProfileHost()).followNameChanges());
+      invIter = iterateReader(E(resolveProfileHost()).followNameChanges());
       for await (const change of invIter) {
         if (invStopped) break;
         if (change && typeof change === 'object') {

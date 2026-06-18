@@ -12,7 +12,7 @@ import {
   tick,
 } from '../helpers/dom-setup.js';
 import { typeText } from '../helpers/keyboard-events.js';
-import { makeRefIterator } from '../../ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { sendFormComponent } from '../../send-form.js';
 
 const { document: testDocument, cleanup: cleanupDOM } = createDOM();
@@ -58,7 +58,7 @@ const setup = (names = ['alice', 'bob', 'charlie']) => {
     $sendButton,
     $chatBar,
     E,
-    makeRefIterator,
+    iterateReader,
     powers,
     showValue: () => {},
     onStateChange: state => {
