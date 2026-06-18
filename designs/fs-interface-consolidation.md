@@ -5,7 +5,7 @@
 | **Created** | 2026-06-18 |
 | **Updated** | 2026-06-18 |
 | **Author** | Aaron (prompted) |
-| **Status** | Proposed |
+| **Status** | In Progress |
 
 ## Status
 
@@ -23,9 +23,43 @@ question: now that `lookup` / `move` / `copy` / `makeDirectory` / `remove` /
 `subView` mean the same thing on every tree surface, **which of the duplicated
 guards can be collapsed, and what blocks each one.**
 
-No code change is proposed as part of this document. Each phase below is an
-independently reviewable follow-up that touches core exo guards and therefore
-needs its own daemon-test validation pass.
+Each phase below touches core exo guards and therefore needs its own
+daemon-test validation pass.
+
+### Implemented so far
+
+The low-risk, shape-identical portions of C1–C5 have landed on this PR; the
+parts that need a maintainer canonical-shape decision or that are blocked on
+another design are called out below and left as follow-ups.
+
+- **C2 (done).** `@endo/platform/fs` now exports `readableBlobMethodGuards`
+  (help / streamBase64 / text / json) and `readableTreeMethodGuards`
+  (help / has / list / lookup) as method-guard records. The lite
+  ReadableBlob / SnapshotBlob / File and ReadableTree / SnapshotTree /
+  Directory guards spread them instead of repeating the shapes.
+- **C3 / C4 (done for the daemon read surfaces).** `EndoBlob` is now
+  `{ ...readableBlobMethodGuards, sha256 }` (the `SnapshotBlob` shape) and
+  `EndoReadableTree` is now `{ ...readableTreeMethodGuards, sha256 }` (the
+  `SnapshotTree` shape). Retiring the extended `BlobRef` in favor of
+  `SnapshotBlob` (and removing the unbuilt `BlobRef → SnapshotBlob` adapter)
+  remains a follow-up — it is woven through the extended snapshot path and CAS
+  cache and needs its own validation pass.
+- **C1 (done for the hub/directory pair).** `EndoNameHub` and `EndoDirectory`
+  now share `nameHubMethodGuards`. The cross-surface
+  `ReadableNameHubInterface` that `EndoMount` would also extend — plus
+  `maybeLookup` / `followNameChanges` on the mount — is still a follow-up: it
+  needs the `PathArgShape`-vs-`NameOrPathShape` canonical-shape decision, and
+  `followNameChanges` on the mount is blocked on
+  [filesystem-watchers.md](filesystem-watchers.md).
+- **C5 (done).** The dead `ContentStoreInterface` / `SnapshotStoreInterface`
+  (re-exported but never implemented) were removed. The remaining lite
+  `M.interface` objects all have real consumers (the daemon imports the
+  Directory / File guards; the platform implementers use the rest), so they
+  keep their job as the assembled guards alongside the exported records.
+
+The extended cap-FS engine's `Directory` / `File` keep their own richer guards
+(eref-returning caps, cursors, `lookupStep` / `subView` / `create`): they are a
+genuinely different surface and are out of scope for the shared records.
 
 ## What is the Problem Being Solved?
 
@@ -252,13 +286,18 @@ no `BlobRef → SnapshotBlob` adapter.
 
 ## Known gaps and TODOs
 
-- [ ] C1: define `ReadableNameHubInterface`; resolve the `PathArgShape` vs
-      `NameOrPathShape` canonical-shape question.
-- [ ] C2: export method-guard records from `@endo/platform/fs/lite`.
-- [ ] C3 / C4: confirm `sha256` is the agreed content-address accessor across
-      blob and tree snapshots before converging.
-- [ ] C4: build the convergence in place of the `BlobRef → SnapshotBlob`
-      adapter (endo-fs ROADMAP F6), not in addition to it.
+- [x] C1: unify `EndoNameHub` + `EndoDirectory` on `nameHubMethodGuards`.
+- [ ] C1: define `ReadableNameHubInterface` that `EndoMount` also extends;
+      resolve the `PathArgShape` vs `NameOrPathShape` canonical-shape question;
+      add `maybeLookup` / `followNameChanges` to the mount (the latter blocked
+      on filesystem-watchers.md).
+- [x] C2: export `readableBlobMethodGuards` / `readableTreeMethodGuards` from
+      `@endo/platform/fs/lite`; consume them in the lite + daemon read surfaces.
+- [x] C3 / C4: `sha256` confirmed as the content-address accessor; `EndoBlob` /
+      `EndoReadableTree` converged onto the shared records + `sha256`.
+- [ ] C4: retire the extended `BlobRef` onto `SnapshotBlob` and remove the
+      unbuilt `BlobRef → SnapshotBlob` adapter (endo-fs ROADMAP F6).
+- [x] C5: remove the dead `ContentStore` / `SnapshotStore` guards.
 
 ## Prompt
 
