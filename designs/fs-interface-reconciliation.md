@@ -391,7 +391,7 @@ No driver above is dropped; each is relocated, not deleted.
 | Write blob (range) | absent | absent | `OpenFile.write(offset)` → writer stream |
 | Remove | `dir.remove(path)` | `mount.remove(path)` | `Directory.unlink(name)` / `Directory.remove(name)` |
 | Rename / move | `dir.move(from, to)` | `mount.move(from, to)` | `Directory.rename(oldName, newParent, newName)` |
-| Create directory | `dir.makeDirectory(path) → Directory` | `mount.makeDirectory(path) → sub-Mount` | `Directory.mkdir(name) → Directory` / `Directory.makeDirectory(name)` (alias) |
+| Create directory | `dir.makeDirectory(path) → Directory` | `mount.makeDirectory(path) → sub-Mount` | `Directory.makeDirectory(name) → Directory` (canonical) / `Directory.mkdir(name)` (legacy alias) |
 | Read-only attenuation | `mutable.readOnly() → Readable*` | `mount.readOnly() → ReadableTree` | `readOnly(fs)` (top-level composer, not a method) |
 | Snapshot to CAS | `dir.snapshot() → SnapshotTree`; `file.snapshot() → SnapshotBlob` | `mount.snapshot() → SnapshotTree` | `File.snapshot() → BlobRef \| null` |
 | Stat / metadata | absent on Readable; would live on Mutable | `mount.stat(path)` | `Node.getAttrs()` / `Node.getStat()` |
@@ -545,7 +545,7 @@ Cells are: **I** (implemented), **A** (absent on this backing's interface; viewe
 | `followNameChanges` | I (PR #277) | I (PR #277) | I (in-memory event emitter) | I (immediately-terminating empty stream; CAS is immutable — see D6) | I (existing EndoDirectory method) |
 | `help` | I | I | I | I | I |
 
-Total: 24 methods. Mount and scratch-mount implement 21. endo-fs in-memory implements 16 directly plus 4 via aliases. CAS implements 12 (counting `followNameChanges` as an immediately-terminating empty stream per D6). Name hub implements 12 (no blob content surface).
+Total: 22 methods. Mount and scratch-mount implement 21 (all but `streamRead`). endo-fs in-memory implements 17. CAS implements 11 directly plus 2 deferred (`move` / `copy` as refcount operations per D6/move-transfer Tier 4). Name hub implements 12 (no blob content surface).
 
 Per platform-fs Decision 4, attenuation is *structural*: where a method is **A**bsent, the cap simply does not have the method.
 Calling `E(cap).writeText(...)` on a name hub returns a `Cannot deliver` error from CapTP's interface guard.
