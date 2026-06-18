@@ -68,7 +68,14 @@ export const ResponderInterface = M.interface('EndoResponder', {
   resolveWithId: M.callWhen(M.or(IdShape, M.promise())).returns(),
 });
 
-export const NameHubInterface = M.interface('EndoNameHub', {
+// The shared name-hub method-guard record (designs/fs-interface-consolidation
+// § C1, namehub-interface-unification.md). `EndoNameHub` *is* exactly this
+// record; `EndoDirectory` spreads it and adds the directory-only surface
+// (help / makeDirectory / readText / maybeReadText / writeText). The `follow*`
+// methods return `M.remotable()` here — `EndoGuest` / `EndoHost` deliberately
+// return `M.promise()` instead, so they do NOT consume this record (the
+// divergence the consolidation doc records).
+export const nameHubMethodGuards = harden({
   has: M.call().rest(NamePathShape).returns(M.promise()),
   identify: M.call().rest(NamePathShape).returns(M.promise()),
   locate: M.call().rest(NamePathShape).returns(M.promise()),
@@ -86,6 +93,10 @@ export const NameHubInterface = M.interface('EndoNameHub', {
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
+});
+
+export const NameHubInterface = M.interface('EndoNameHub', {
+  ...nameHubMethodGuards,
 });
 
 export const EnvelopeInterface = M.interface('EndoEnvelope', {});
@@ -104,43 +115,14 @@ export const HandleInterface = M.interface(
   { defaultGuards: 'passable' },
 );
 
+// `EndoDirectory` is the writable name hub: the shared `nameHubMethodGuards`
+// plus the directory-only surface (self-documentation, directory creation, and
+// the text I/O it delegates to its backing mount). See
+// designs/fs-interface-consolidation.md § C1.
 export const DirectoryInterface = M.interface('EndoDirectory', {
+  ...nameHubMethodGuards,
   // Self-documentation
   help: M.call().optional(M.string()).returns(M.string()),
-  // Check if a name exists
-  has: M.call().rest(NamePathShape).returns(M.promise()),
-  // Get formula identifier for a name path
-  identify: M.call().rest(NamePathShape).returns(M.promise()),
-  // Get locator string for a name path
-  locate: M.call().rest(NamePathShape).returns(M.promise()),
-  // Find names for a locator
-  reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  // Subscribe to name changes for a locator (returns iterator ref)
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
-  // List names in a directory
-  list: M.call().rest(NamePathShape).returns(M.promise()),
-  // List unique formula identifiers
-  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  // List locators for names
-  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
-  // Subscribe to name changes (returns iterator ref)
-  followNameChanges: M.call().returns(M.remotable()),
-  // Resolve a name path to a value
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  // Resolve a name path, returning undefined if the head name is absent
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
-  // Get names for a value
-  reverseLookup: M.call(M.any()).returns(M.promise()),
-  // Store a formula identifier with a name
-  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  // Store an endo:// locator with a name
-  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  // Remove a name
-  remove: M.call().rest(NamePathShape).returns(M.promise()),
-  // Move/rename a reference
-  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  // Copy a reference
-  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   // Create a new directory
   makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
   // Text I/O (delegated to mount)
